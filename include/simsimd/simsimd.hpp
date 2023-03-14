@@ -77,14 +77,14 @@ struct cosine_similarity_t {
         dim_t i = 0;
         svfloat32_t ab_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
         svfloat32_t a2_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
-        svfloat32_t a2_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
+        svfloat32_t b2_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
         svbool_t pg_vec = svwhilelt_b32(i, dim);
         do {
             svfloat32_t a_vec = svld1_f32(pg_vec, a + i);
             svfloat32_t b_vec = svld1_f32(pg_vec, b + i);
             ab_vec = svmla_f32_x(pg_vec, ab_vec, a_vec, b_vec);
             a2_vec = svmla_f32_x(pg_vec, ab_vec, a2_vec, b2_vec);
-            a2_vec = svmla_f32_x(pg_vec, ab_vec, a2_vec, b2_vec);
+            b2_vec = svmla_f32_x(pg_vec, ab_vec, b2_vec, b2_vec);
             i += svcntw();
             pg_vec = svwhilelt_b32(i, dim);
         } while (svptest_any(svptrue_b32(), pg_vec));
