@@ -4,12 +4,14 @@
  */
 
 #pragma once
-#include <cmath>   // `std::sqrt`
-#include <cstddef> // `std::size_t`
-#include <cstdint> // `std::int8_t`
+#include <cmath> // `std::sqrt`
 
 #if defined(__AVX2__)
 #include <immintrin.h>
+#endif
+
+#ifdef __ARM_NEON
+#include <arm_neon.h>
 #endif
 
 #if defined(__ARM_FEATURE_SVE)
@@ -18,56 +20,116 @@
 
 namespace av::simsimd {
 
-using i8_t = std::int8_t;
-using i16_t = std::int16_t;
-using i32_t = std::int32_t;
+using dim_t = unsigned int;
+using i8_t = signed char;
+using i16_t = short;
+using i32_t = int;
 using f32_t = float;
 using f64_t = double;
-enum class f16_t : std::int16_t {};
+enum class f16_t : i16_t {};
 
 union f32i32_t {
-    std::int32_t i;
-    float f;
+    i32_t i;
+    f32_t f;
 };
 
 struct dot_product_t {
-    template <typename at> at operator()(at const* a, at const* b, std::size_t const dim) const noexcept {
-        at dist = 0;
+
+    f32_t operator()(f32_t const* a, f32_t const* b, dim_t const dim) const noexcept {
+#if defined(__ARM_FEATURE_SVE)
+        dim_t i = 0;
+        svfloat32_t ab_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
+        svbool_t pg_vec = svwhilelt_b32(i, dim);
+        do {
+            svfloat32_t a_vec = svld1_f32(pg_vec, a + i);
+            svfloat32_t b_vec = svld1_f32(pg_vec, b + i);
+            ab_vec = svmla_f32_x(pg_vec, ab_vec, a_vec, b_vec);
+            i += svcntw();
+            pg_vec = svwhilelt_b32(i, dim);
+        } while (svptest_any(svptrue_b32(), pg_vec));
+        return svaddv_f32(svptrue_b32(), ab_vec);
+#else
+        return any(a, b, dim);
+#endif
+    }
+
+    template <typename at> //
+    at operator()(at const* a, at const* b, dim_t const dim) const noexcept {
+        return any(a, b, dim);
+    }
+
+  private:
+    template <typename at> //
+    at any(at const* a, at const* b, dim_t const dim) const noexcept {
+        at ab = 0;
 #pragma GCC ivdep
 #pragma clang loop vectorize(enable)
-        for (std::size_t i = 0; i != dim; ++i)
-            dist += a[i] * b[i];
-        return 1 - dist;
+        for (dim_t i = 0; i != dim; ++i)
+            ab += a[i] * b[i];
+        return 1 - ab;
     }
 };
 
 struct cosine_similarity_t {
-    template <typename at> at operator()(at const* a, at const* b, std::size_t const dim) const noexcept {
-        at dist = 0, a_sq = 0, b_sq = 0;
+
+    f32_t operator()(f32_t const* a, f32_t const* b, dim_t const dim) const noexcept {
+#if defined(__ARM_FEATURE_SVE)
+        dim_t i = 0;
+        svfloat32_t ab_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
+        svfloat32_t a2_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
+        svfloat32_t a2_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
+        svbool_t pg_vec = svwhilelt_b32(i, dim);
+        do {
+            svfloat32_t a_vec = svld1_f32(pg_vec, a + i);
+            svfloat32_t b_vec = svld1_f32(pg_vec, b + i);
+            ab_vec = svmla_f32_x(pg_vec, ab_vec, a_vec, b_vec);
+            a2_vec = svmla_f32_x(pg_vec, ab_vec, a2_vec, b2_vec);
+            a2_vec = svmla_f32_x(pg_vec, ab_vec, a2_vec, b2_vec);
+            i += svcntw();
+            pg_vec = svwhilelt_b32(i, dim);
+        } while (svptest_any(svptrue_b32(), pg_vec));
+        auto ab = svaddv_f32(svptrue_b32(), ab_vec);
+        auto a2 = svaddv_f32(svptrue_b32(), a2_vec);
+        auto b2 = svaddv_f32(svptrue_b32(), b2_vec);
+        return 1 - ab / (std::sqrt(a2) * std::sqrt(b2));
+#else
+        return any(a, b, dim);
+#endif
+    }
+
+    template <typename at> //
+    at operator()(at const* a, at const* b, dim_t const dim) const noexcept {
+        return any(a, b, dim);
+    }
+
+  private:
+    template <typename at> //
+    at any(at const* a, at const* b, dim_t const dim) const noexcept {
+        at ab = 0, a2 = 0, b2 = 0;
 #pragma GCC ivdep
 #pragma clang loop vectorize(enable)
-        for (std::size_t i = 0; i != dim; ++i)
-            dist += a[i] * b[i], a_sq += a[i] * a[i], b_sq += b[i] * b[i];
-        return 1 - dist / (std::sqrt(a_sq) * std::sqrt(b_sq));
+        for (dim_t i = 0; i != dim; ++i)
+            ab += a[i] * b[i], a2 += a[i] * a[i], b2 += b[i] * b[i];
+        return 1 - ab / (std::sqrt(a2) * std::sqrt(b2));
     }
 };
 
 struct euclidean_distance_t {
-    f32_t operator()(i8_t const* a, i8_t const* b, std::size_t const dim) const noexcept {
-        i32_t dist = 0;
+    f32_t operator()(i8_t const* a, i8_t const* b, dim_t const dim) const noexcept {
+        i32_t d2 = 0;
 #pragma GCC ivdep
 #pragma clang loop vectorize(enable)
-        for (std::size_t i = 0; i != dim; ++i)
-            dist += i32_t(i16_t(a[i]) - i16_t(b[i])) * i32_t(i16_t(a[i]) - i16_t(b[i]));
-        return std::sqrt(dist);
+        for (dim_t i = 0; i != dim; ++i)
+            d2 += i32_t(i16_t(a[i]) - i16_t(b[i])) * i32_t(i16_t(a[i]) - i16_t(b[i]));
+        return std::sqrt(d2);
     }
-    template <typename at> at operator()(at const* a, at const* b, std::size_t const dim) const noexcept {
-        at dist = 0;
+    template <typename at> at operator()(at const* a, at const* b, dim_t const dim) const noexcept {
+        at d2 = 0;
 #pragma GCC ivdep
 #pragma clang loop vectorize(enable)
-        for (std::size_t i = 0; i != dim; ++i)
-            dist += (a[i] - b[i]) * (a[i] - b[i]);
-        return std::sqrt(dist);
+        for (dim_t i = 0; i != dim; ++i)
+            d2 += (a[i] - b[i]) * (a[i] - b[i]);
+        return std::sqrt(d2);
     }
 };
 
@@ -78,91 +140,78 @@ struct euclidean_distance_t {
  */
 struct dot_product_f32x4k_t {
 
-    f32_t operator()(f32_t const* a, f32_t const* b, std::size_t const dim) const noexcept {
+    f32_t operator()(f32_t const* a, f32_t const* b, dim_t const dim) const noexcept {
 #if defined(__AVX2__)
-        __m128 abs = _mm_set1_ps(0);
-        for (std::size_t i = 0; i != dim; i += 4)
-            abs = _mm_fmadd_ps(_mm_load_ps(a + i), _mm_loadu_ps(b + i), abs);
-        abs = _mm_hadd_ps(abs, abs);
-        abs = _mm_hadd_ps(abs, abs);
-        f32i32_t abs_u = {_mm_cvtsi128_si32(_mm_castps_si128(abs))};
-        return 1 - abs_u.f;
-
-#elif defined(__ARM_FEATURE_SVE)
-        int64_t i = 0;
-        svfloat32_t abs_vec;
-        svbool_t pg = svwhilelt_b32(i, n);                                           
-        do{
-                        svfloat32_t ai_vec = svld1_f32(pg, a+i);                     
-                        svfloat32_t bi_vec = svld1_f32(pg, b+i);                     
-                        abs_vec = svmla_f32_x(pg, abs, ai_vec, bi_vec);         
-                        i += svcntw();                                              
-                        pg = svwhilelt_b32(i, n);                                   
-                }
-        while (svptest_any(svptrue_b64(), pg));                                   
-
-#elif defined(__ARM_NEON__)
-        float32x4_t abs = vdupq_n_f32(0);
-        for (std::size_t i = 0; i != dim; i += 4)
-            abs = vmlaq_f32(abs, vld1q_f32(a + i), vld1q_f32(b + i));
-        return 1 - vaddvq_f32(abs);
+        __m128 ab_vec = _mm_set1_ps(0);
+        for (dim_t i = 0; i != dim; i += 4)
+            ab_vec = _mm_fmadd_ps(_mm_load_ps(a + i), _mm_loadu_ps(b + i), ab_vec);
+        ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
+        ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
+        f32i32_t ab_union = {_mm_cvtsi128_si32(_mm_castps_si128(ab_vec))};
+        return 1 - ab_union.f;
+#elif defined(__ARM_NEON)
+        float32x4_t ab_vec = vdupq_n_f32(0);
+        for (dim_t i = 0; i != dim; i += 4)
+            ab_vec = vmlaq_f32(ab_vec, vld1q_f32(a + i), vld1q_f32(b + i));
+        return 1 - vaddvq_f32(ab_vec);
 #endif
+        return 0;
     }
 };
 
 struct cosine_similarity_f32x4k_t {
 
-    f32_t operator()(f32_t const* a, f32_t const* b, std::size_t const dim) const noexcept {
+    f32_t operator()(f32_t const* a, f32_t const* b, dim_t const dim) const noexcept {
 #if defined(__AVX2__)
-        __m128 abs = _mm_set1_ps(0);
-        __m128 as_sq = _mm_set1_ps(0);
-        __m128 bs_sq = _mm_set1_ps(0);
-        for (std::size_t i = 0; i != dim; i += 4) {
-            auto ai = _mm_load_ps(a + i);
-            auto bi = _mm_loadu_ps(b + i);
-            abs = _mm_fmadd_ps(ai, bi, abs);
-            as_sq = _mm_fmadd_ps(ai, ai, as_sq);
-            bs_sq = _mm_fmadd_ps(bi, bi, bs_sq);
+        __m128 ab_vec = _mm_set1_ps(0);
+        __m128 a2_vec = _mm_set1_ps(0);
+        __m128 b2_vec = _mm_set1_ps(0);
+        for (dim_t i = 0; i != dim; i += 4) {
+            auto a_vec = _mm_load_ps(a + i);
+            auto b_vec = _mm_loadu_ps(b + i);
+            ab_vec = _mm_fmadd_ps(a_vec, b_vec, ab_vec);
+            a2_vec = _mm_fmadd_ps(a_vec, a_vec, a2_vec);
+            b2_vec = _mm_fmadd_ps(b_vec, b_vec, b2_vec);
         }
-        abs = _mm_hadd_ps(abs, abs);
-        abs = _mm_hadd_ps(abs, abs);
-        as_sq = _mm_hadd_ps(as_sq, as_sq);
-        as_sq = _mm_hadd_ps(as_sq, as_sq);
-        bs_sq = _mm_hadd_ps(bs_sq, bs_sq);
-        bs_sq = _mm_hadd_ps(bs_sq, bs_sq);
-        f32i32_t abs_u = {_mm_cvtsi128_si32(_mm_castps_si128(abs))};
-        f32i32_t as_sq_u = {_mm_cvtsi128_si32(_mm_castps_si128(as_sq))};
-        f32i32_t bs_sq_u = {_mm_cvtsi128_si32(_mm_castps_si128(bs_sq))};
-        return 1 - abs_u.f / (std::sqrt(as_sq_u.f) * std::sqrt(bs_sq_u.f));
-#elif defined(__ARM_NEON__)
-        float32x4_t abs = vdupq_n_f32(0);
-        for (std::size_t i = 0; i != dim; i += 4)
-            abs = vmlaq_f32(abs, vld1q_f32(a + i), vld1q_f32(b + i));
-        return 1 - vaddvq_f32(abs);
+        ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
+        ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
+        a2_vec = _mm_hadd_ps(a2_vec, a2_vec);
+        a2_vec = _mm_hadd_ps(a2_vec, a2_vec);
+        b2_vec = _mm_hadd_ps(b2_vec, b2_vec);
+        b2_vec = _mm_hadd_ps(b2_vec, b2_vec);
+        f32i32_t ab_union = {_mm_cvtsi128_si32(_mm_castps_si128(ab_vec))};
+        f32i32_t a2_union = {_mm_cvtsi128_si32(_mm_castps_si128(a2_vec))};
+        f32i32_t b2_union = {_mm_cvtsi128_si32(_mm_castps_si128(b2_vec))};
+        return 1 - ab_union.f / (std::sqrt(a2_union.f) * std::sqrt(b2_union.f));
+#elif defined(__ARM_NEON)
+        float32x4_t ab_vec = vdupq_n_f32(0);
+        for (dim_t i = 0; i != dim; i += 4)
+            ab_vec = vmlaq_f32(ab_vec, vld1q_f32(a + i), vld1q_f32(b + i));
+        return 1 - vaddvq_f32(ab_vec);
 #endif
+        return 0;
     }
 };
 
 /** @brief Takes scalars quantized into a [-100; 100] interval. */
 struct dot_product_i8x16k_t {
 
-    i32_t operator()(i8_t const* a, i8_t const* b, std::size_t const dim) const noexcept {
+    i32_t operator()(i8_t const* a, i8_t const* b, dim_t const dim) const noexcept {
 #if defined(__AVX2__)
-        __m256i abs = _mm256_set1_epi16(0);
-        for (std::size_t i = 0; i != dim; i += 4)
-            abs = _mm256_add_epi16(                                                //
-                abs,                                                               //
+        __m256i ab_vec = _mm256_set1_epi16(0);
+        for (dim_t i = 0; i != dim; i += 4)
+            ab_vec = _mm256_add_epi16(                                             //
+                ab_vec,                                                            //
                 _mm256_mullo_epi16(                                                //
                     _mm256_cvtepi8_epi16(_mm_load_si128((__m128i const*)(a + i))), //
                     _mm256_cvtepi8_epi16(_mm_loadu_si128((__m128i const*)(b + i)))));
-        abs = _mm256_hadd_epi16(abs, abs);
-        abs = _mm256_hadd_epi16(abs, abs);
-        abs = _mm256_hadd_epi16(abs, abs);
-        return 1 - (_mm256_cvtsi256_si32(abs) & 0xFF);
+        ab_vec = _mm256_hadd_epi16(ab_vec, ab_vec);
+        ab_vec = _mm256_hadd_epi16(ab_vec, ab_vec);
+        ab_vec = _mm256_hadd_epi16(ab_vec, ab_vec);
+        return 1 - (_mm256_cvtsi256_si32(ab_vec) & 0xFF);
 #endif
+        return 0;
     }
 };
 
-
-
-} // namespace unum::unsw
+} // namespace av::simsimd

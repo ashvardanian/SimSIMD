@@ -5,21 +5,29 @@
 namespace bm = benchmark;
 using namespace av::simsimd;
 
+static constexpr std::uint16_t threads_k = 64;
+static constexpr std::uint16_t time_k = 100;
+
 template <typename metric_at, typename scalar_at, std::size_t dimensions_ak> //
-static void measure(bm::State &state) {
-    
+static void measure(bm::State& state) {
+
     scalar_at a[dimensions_ak]{};
     scalar_at b[dimensions_ak]{};
     scalar_at c{};
 
+    std::fill_n(a, dimensions_ak, 1);
+    std::fill_n(b, dimensions_ak, 2);
+
     for (auto _ : state)
-        c = metric_at{} (a, b, dimensions_ak);
-    
+        bm::DoNotOptimize((c = metric_at{}(a, b, dimensions_ak)));
+
+    state.SetBytesProcessed(state.iterations() * dimensions_ak * sizeof(scalar_at) * 2u);
+    state.SetItemsProcessed(state.iterations());
 }
 
-BENCHMARK_TEMPLATE(measure, dot_product_t, f32_t, 16);
-BENCHMARK_TEMPLATE(measure, dot_product_t, f32_t, 256);
-BENCHMARK_TEMPLATE(measure, dot_product_f32x4k_t, f32_t, 16);
-BENCHMARK_TEMPLATE(measure, dot_product_f32x4k_t, f32_t, 256);
+BENCHMARK_TEMPLATE(measure, dot_product_t, f32_t, 16)->Threads(threads_k)->MinTime(time_k);
+BENCHMARK_TEMPLATE(measure, dot_product_t, f32_t, 256)->Threads(threads_k)->MinTime(time_k);
+BENCHMARK_TEMPLATE(measure, dot_product_f32x4k_t, f32_t, 16)->Threads(threads_k)->MinTime(time_k);
+BENCHMARK_TEMPLATE(measure, dot_product_f32x4k_t, f32_t, 256)->Threads(threads_k)->MinTime(time_k);
 
 BENCHMARK_MAIN();
