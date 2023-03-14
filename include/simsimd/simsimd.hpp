@@ -1,4 +1,9 @@
 /**
+ * @brief Collection of Similarity Measures, SIMD-accelerated with SSE, AVX, NEON, SVE.
+ *
+ * @author Ashot Vardanian
+ * @date March 14, 2023
+ *
  * x86: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  * Arm: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
@@ -83,8 +88,8 @@ struct cosine_similarity_t {
             svfloat32_t a_vec = svld1_f32(pg_vec, a + i);
             svfloat32_t b_vec = svld1_f32(pg_vec, b + i);
             ab_vec = svmla_f32_x(pg_vec, ab_vec, a_vec, b_vec);
-            a2_vec = svmla_f32_x(pg_vec, ab_vec, a2_vec, b2_vec);
-            b2_vec = svmla_f32_x(pg_vec, ab_vec, b2_vec, b2_vec);
+            a2_vec = svmla_f32_x(pg_vec, a2_vec, a_vec, a_vec);
+            b2_vec = svmla_f32_x(pg_vec, b2_vec, b_vec, b_vec);
             i += svcntw();
             pg_vec = svwhilelt_b32(i, dim);
         } while (svptest_any(svptrue_b32(), pg_vec));
@@ -115,6 +120,7 @@ struct cosine_similarity_t {
 };
 
 struct euclidean_distance_t {
+
     f32_t operator()(i8_t const* a, i8_t const* b, dim_t const dim) const noexcept {
         i32_t d2 = 0;
 #pragma GCC ivdep
@@ -144,7 +150,7 @@ struct dot_product_f32x4k_t {
 #if defined(__AVX2__)
         __m128 ab_vec = _mm_set1_ps(0);
         for (dim_t i = 0; i != dim; i += 4)
-            ab_vec = _mm_fmadd_ps(_mm_load_ps(a + i), _mm_loadu_ps(b + i), ab_vec);
+            ab_vec = _mm_fmadd_ps(_mm_loadu_ps(a + i), _mm_loadu_ps(b + i), ab_vec);
         ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
         ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
         f32i32_t ab_union = {_mm_cvtsi128_si32(_mm_castps_si128(ab_vec))};
@@ -154,8 +160,9 @@ struct dot_product_f32x4k_t {
         for (dim_t i = 0; i != dim; i += 4)
             ab_vec = vmlaq_f32(ab_vec, vld1q_f32(a + i), vld1q_f32(b + i));
         return 1 - vaddvq_f32(ab_vec);
+#else
+        return dot_product_t{}(a, b, dim);
 #endif
-        return 0;
     }
 };
 
@@ -167,7 +174,7 @@ struct cosine_similarity_f32x4k_t {
         __m128 a2_vec = _mm_set1_ps(0);
         __m128 b2_vec = _mm_set1_ps(0);
         for (dim_t i = 0; i != dim; i += 4) {
-            auto a_vec = _mm_load_ps(a + i);
+            auto a_vec = _mm_loadu_ps(a + i);
             auto b_vec = _mm_loadu_ps(b + i);
             ab_vec = _mm_fmadd_ps(a_vec, b_vec, ab_vec);
             a2_vec = _mm_fmadd_ps(a_vec, a_vec, a2_vec);
@@ -185,11 +192,22 @@ struct cosine_similarity_f32x4k_t {
         return 1 - ab_union.f / (std::sqrt(a2_union.f) * std::sqrt(b2_union.f));
 #elif defined(__ARM_NEON)
         float32x4_t ab_vec = vdupq_n_f32(0);
-        for (dim_t i = 0; i != dim; i += 4)
-            ab_vec = vmlaq_f32(ab_vec, vld1q_f32(a + i), vld1q_f32(b + i));
-        return 1 - vaddvq_f32(ab_vec);
+        float32x4_t a2_vec = vdupq_n_f32(0);
+        float32x4_t b2_vec = vdupq_n_f32(0);
+        for (dim_t i = 0; i != dim; i += 4) {
+            auto a_vec = vld1q_f32(a + i);
+            auto b_vec = vld1q_f32(b + i);
+            ab_vec = vmlaq_f32(ab_vec, a_vec, b_vec);
+            a2_vec = vmlaq_f32(a2_vec, a_vec, a_vec);
+            b2_vec = vmlaq_f32(b2_vec, b_vec, b_vec);
+        }
+        auto ab = vaddvq_f32(ab_vec);
+        auto a2 = vaddvq_f32(a2_vec);
+        auto b2 = vaddvq_f32(b2_vec);
+        return 1 - ab / (std::sqrt(a2) * std::sqrt(b2));
+#else
+        return cosine_similarity_t{}(a, b, dim);
 #endif
-        return 0;
     }
 };
 
@@ -200,17 +218,18 @@ struct dot_product_i8x16k_t {
 #if defined(__AVX2__)
         __m256i ab_vec = _mm256_set1_epi16(0);
         for (dim_t i = 0; i != dim; i += 4)
-            ab_vec = _mm256_add_epi16(                                             //
-                ab_vec,                                                            //
-                _mm256_mullo_epi16(                                                //
-                    _mm256_cvtepi8_epi16(_mm_load_si128((__m128i const*)(a + i))), //
+            ab_vec = _mm256_add_epi16(                                              //
+                ab_vec,                                                             //
+                _mm256_mullo_epi16(                                                 //
+                    _mm256_cvtepi8_epi16(_mm_loadu_si128((__m128i const*)(a + i))), //
                     _mm256_cvtepi8_epi16(_mm_loadu_si128((__m128i const*)(b + i)))));
         ab_vec = _mm256_hadd_epi16(ab_vec, ab_vec);
         ab_vec = _mm256_hadd_epi16(ab_vec, ab_vec);
         ab_vec = _mm256_hadd_epi16(ab_vec, ab_vec);
         return 1 - (_mm256_cvtsi256_si32(ab_vec) & 0xFF);
-#endif
+#else
         return 0;
+#endif
     }
 };
 
