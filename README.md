@@ -17,11 +17,8 @@ include_directories(${simsimd_SOURCE_DIR}/include)
 
 By default, we use GCC12, `-O3`, `-march=native` for benchmarks.
 Serial versions imply auto-vectorization pragmas.
-Want to see how fast `simsimd` runs?
 
-```sh
-cmake -DCMAKE_BUILD_TYPE=Release -B ./build && make -C ./build && ./build/simsimd_bench
-```
+---
 
 Cosine distance performance on Arm-based "Graviton 3" CPUs powering AWS `c7g.metal` instances:
 
@@ -38,3 +35,11 @@ Cosine distance performance on Arm-based "Graviton 3" CPUs powering AWS `c7g.met
 
 We only use Arm NEON implementation with vectors lengths that are multiples of 128 bits, avoiding any additional head or tail `for` loops for misaligned data.
 SVE looses to NEON on very short vectors, but outperforms on longer sequences.
+
+---
+
+To replicate on your hardware, please run:
+
+```sh
+cmake -DCMAKE_BUILD_TYPE=Release -B ./build && make -C ./build && ./build/simsimd_bench
+```
