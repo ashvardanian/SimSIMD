@@ -5,7 +5,7 @@
 namespace bm = benchmark;
 using namespace av::simsimd;
 
-static constexpr std::uint16_t threads_k = 64;
+static constexpr std::uint16_t threads_k = 1;
 static constexpr std::uint16_t time_k = 100;
 
 template <typename metric_at, typename scalar_at, std::size_t dimensions_ak> //
@@ -29,5 +29,10 @@ BENCHMARK_TEMPLATE(measure, dot_product_t, f32_t, 16)->Threads(threads_k)->MinTi
 BENCHMARK_TEMPLATE(measure, dot_product_t, f32_t, 256)->Threads(threads_k)->MinTime(time_k);
 BENCHMARK_TEMPLATE(measure, dot_product_f32x4k_t, f32_t, 16)->Threads(threads_k)->MinTime(time_k);
 BENCHMARK_TEMPLATE(measure, dot_product_f32x4k_t, f32_t, 256)->Threads(threads_k)->MinTime(time_k);
+
+BENCHMARK_TEMPLATE(measure, cosine_similarity_t, f32_t, 16)->Threads(threads_k)->MinTime(time_k);
+BENCHMARK_TEMPLATE(measure, cosine_similarity_t, f32_t, 256)->Threads(threads_k)->MinTime(time_k);
+BENCHMARK_TEMPLATE(measure, cosine_similarity_f32x4k_t, f32_t, 16)->Threads(threads_k)->MinTime(time_k);
+BENCHMARK_TEMPLATE(measure, cosine_similarity_f32x4k_t, f32_t, 256)->Threads(threads_k)->MinTime(time_k);
 
 BENCHMARK_MAIN();
