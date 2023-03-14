@@ -1,0 +1,17 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Benchmark: Debug",
+            "command": "cmake -DCMAKE_BUILD_TYPE=Debug -B ./build_debug && make -j 2 -C ./build_debug",
+            "args": [],
+            "type": "shell"
+        },
+        {
+            "label": "Build Benchmark: Release",
+            "command": "cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -B ./build_release && make -j 2 -C ./build_release",
+            "args": [],
+            "type": "shell"
+        }
+    ]
+}

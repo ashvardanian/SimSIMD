@@ -1,3 +1,7 @@
+build_release
+build_debug
+build
+
 # Prerequisites
 *.d
 
