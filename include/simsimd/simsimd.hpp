@@ -65,7 +65,7 @@ struct dot_product_t {
 
   private:
     template <typename at> //
-    at any(at const* a, at const* b, dim_t const dim) const noexcept {
+    inline at any(at const* a, at const* b, dim_t const dim) const noexcept {
         at ab = 0;
 #pragma GCC ivdep
 #pragma clang loop vectorize(enable)
@@ -109,7 +109,7 @@ struct cosine_similarity_t {
 
   private:
     template <typename at> //
-    at any(at const* a, at const* b, dim_t const dim) const noexcept {
+    inline at any(at const* a, at const* b, dim_t const dim) const noexcept {
         at ab = 0, a2 = 0, b2 = 0;
 #pragma GCC ivdep
 #pragma clang loop vectorize(enable)

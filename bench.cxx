@@ -25,11 +25,6 @@ static void measure(bm::State& state) {
     state.SetItemsProcessed(state.iterations());
 }
 
-BENCHMARK_TEMPLATE(measure, dot_product_t, f32_t, 16)->Threads(threads_k)->MinTime(time_k);
-BENCHMARK_TEMPLATE(measure, dot_product_t, f32_t, 256)->Threads(threads_k)->MinTime(time_k);
-BENCHMARK_TEMPLATE(measure, dot_product_f32x4k_t, f32_t, 16)->Threads(threads_k)->MinTime(time_k);
-BENCHMARK_TEMPLATE(measure, dot_product_f32x4k_t, f32_t, 256)->Threads(threads_k)->MinTime(time_k);
-
 BENCHMARK_TEMPLATE(measure, cosine_similarity_t, f32_t, 16)->Threads(threads_k)->MinTime(time_k);
 BENCHMARK_TEMPLATE(measure, cosine_similarity_t, f32_t, 256)->Threads(threads_k)->MinTime(time_k);
 BENCHMARK_TEMPLATE(measure, cosine_similarity_f32x4k_t, f32_t, 16)->Threads(threads_k)->MinTime(time_k);
