@@ -52,7 +52,8 @@ endif()
 
 # Define our header-only library.
 add_library(simsimd INTERFACE)
-target_include_directories(simsimd INTERFACE include/)
+target_sources(simsimd INTERFACE include/simsimd/simsimd.hpp)
+target_include_directories(simsimd INTERFACE "${PROJECT_SOURCE_DIR}/include")
 
 # Build the benchmarks if needed.
 if(${UNSW_BUILD_BENCHMARKS})
