@@ -1,10 +1,11 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 project(unsw LANGUAGES CXX)
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
 option(UNSW_USE_OPENMP "Use OpenMP for Parallelism" OFF)
+option(UNSW_BUILD_BENCHMARKS "Compile a micro-benchmark for current ISA" OFF)
 
 # Get external content: Google Benchmark, Thrust
 include(FetchContent)
@@ -38,6 +39,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 # https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_COMPILER_ID.html
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmax-errors=1")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "NVIDIA" OR CMAKE_CXX_COMPILER_ID STREQUAL "NVHPC")
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr --extended-lambda")
@@ -48,26 +50,32 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ferror-limit=1")
 endif()
 
-find_package(Threads REQUIRED)
-include_directories(include/)
-add_executable(simsimd_bench bench.cxx)
-target_link_libraries(simsimd_bench Threads::Threads benchmark)
+# Define our header-only library.
+add_library(simsimd INTERFACE)
+target_include_directories(simsimd INTERFACE include/)
 
-if(${UNSW_USE_OPENMP})
-    find_package(OpenMP REQUIRED)
-    target_link_libraries(simsimd_bench OpenMP::OpenMP_CXX)
-endif()
+# Build the benchmarks if needed.
+if(${UNSW_BUILD_BENCHMARKS})
+    find_package(Threads REQUIRED)
+    add_executable(simsimd_bench bench.cxx)
+    target_link_libraries(simsimd_bench simsimd Threads::Threads benchmark)
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    if(${UNSW_USE_OPENMP})
+        find_package(OpenMP REQUIRED)
+        target_link_libraries(simsimd_bench OpenMP::OpenMP_CXX)
+    endif()
 
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "NVIDIA" OR CMAKE_CXX_COMPILER_ID STREQUAL "NVHPC")
-    set_property(SOURCE simsimd_bench.cpp PROPERTY LANGUAGE CUDA)
-    set_target_properties(simsimd_bench PROPERTIES POSITION_INDEPENDENT_CODE ON)
-    set_target_properties(simsimd_bench PROPERTIES CUDA_ARCHITECTURES "86")
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" OR CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "NVIDIA" OR CMAKE_CXX_COMPILER_ID STREQUAL "NVHPC")
+        set_property(SOURCE simsimd_bench.cpp PROPERTY LANGUAGE CUDA)
+        set_target_properties(simsimd_bench PROPERTIES POSITION_INDEPENDENT_CODE ON)
+        set_target_properties(simsimd_bench PROPERTIES CUDA_ARCHITECTURES "86")
+
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Intel" OR CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+    endif()
 endif()

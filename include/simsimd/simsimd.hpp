@@ -23,7 +23,8 @@
 #include <arm_sve.h>
 #endif
 
-namespace av::simsimd {
+namespace av {
+namespace simsimd {
 
 using dim_t = unsigned int;
 using i8_t = signed char;
@@ -233,4 +234,5 @@ struct dot_product_i8x16k_t {
     }
 };
 
-} // namespace av::simsimd
+} // namespace simsimd
+} // namespace av
