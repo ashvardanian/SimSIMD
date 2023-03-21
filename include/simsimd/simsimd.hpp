@@ -72,7 +72,7 @@ struct dot_product_t {
 #pragma clang loop vectorize(enable)
         for (dim_t i = 0; i != dim; ++i)
             ab += a[i] * b[i];
-        return 1 - ab;
+        return ab;
     }
 };
 
@@ -97,7 +97,7 @@ struct cosine_similarity_t {
         auto ab = svaddv_f32(svptrue_b32(), ab_vec);
         auto a2 = svaddv_f32(svptrue_b32(), a2_vec);
         auto b2 = svaddv_f32(svptrue_b32(), b2_vec);
-        return 1 - ab / (std::sqrt(a2) * std::sqrt(b2));
+        return ab / (std::sqrt(a2) * std::sqrt(b2));
 #else
         return any(a, b, dim);
 #endif
@@ -116,7 +116,7 @@ struct cosine_similarity_t {
 #pragma clang loop vectorize(enable)
         for (dim_t i = 0; i != dim; ++i)
             ab += a[i] * b[i], a2 += a[i] * a[i], b2 += b[i] * b[i];
-        return 1 - ab / (std::sqrt(a2) * std::sqrt(b2));
+        return ab / (std::sqrt(a2) * std::sqrt(b2));
     }
 };
 
@@ -155,12 +155,12 @@ struct dot_product_f32x4k_t {
         ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
         ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
         f32i32_t ab_union = {_mm_cvtsi128_si32(_mm_castps_si128(ab_vec))};
-        return 1 - ab_union.f;
+        return ab_union.f;
 #elif defined(__ARM_NEON)
         float32x4_t ab_vec = vdupq_n_f32(0);
         for (dim_t i = 0; i != dim; i += 4)
             ab_vec = vmlaq_f32(ab_vec, vld1q_f32(a + i), vld1q_f32(b + i));
-        return 1 - vaddvq_f32(ab_vec);
+        return vaddvq_f32(ab_vec);
 #else
         return dot_product_t{}(a, b, dim);
 #endif
@@ -190,7 +190,7 @@ struct cosine_similarity_f32x4k_t {
         f32i32_t ab_union = {_mm_cvtsi128_si32(_mm_castps_si128(ab_vec))};
         f32i32_t a2_union = {_mm_cvtsi128_si32(_mm_castps_si128(a2_vec))};
         f32i32_t b2_union = {_mm_cvtsi128_si32(_mm_castps_si128(b2_vec))};
-        return 1 - ab_union.f / (std::sqrt(a2_union.f) * std::sqrt(b2_union.f));
+        return ab_union.f / (std::sqrt(a2_union.f) * std::sqrt(b2_union.f));
 #elif defined(__ARM_NEON)
         float32x4_t ab_vec = vdupq_n_f32(0);
         float32x4_t a2_vec = vdupq_n_f32(0);
@@ -205,7 +205,7 @@ struct cosine_similarity_f32x4k_t {
         auto ab = vaddvq_f32(ab_vec);
         auto a2 = vaddvq_f32(a2_vec);
         auto b2 = vaddvq_f32(b2_vec);
-        return 1 - ab / (std::sqrt(a2) * std::sqrt(b2));
+        return ab / (std::sqrt(a2) * std::sqrt(b2));
 #else
         return cosine_similarity_t{}(a, b, dim);
 #endif
@@ -227,12 +227,22 @@ struct dot_product_i8x16k_t {
         ab_vec = _mm256_hadd_epi16(ab_vec, ab_vec);
         ab_vec = _mm256_hadd_epi16(ab_vec, ab_vec);
         ab_vec = _mm256_hadd_epi16(ab_vec, ab_vec);
-        return 1 - (_mm256_cvtsi256_si32(ab_vec) & 0xFF);
+        return (_mm256_cvtsi256_si32(ab_vec) & 0xFF);
 #else
         return 0;
 #endif
     }
 };
+
+template <typename similarity_measure_at> struct arithmetic_inverted_distance_gt {
+    template <typename at> //
+    inline at operator()(at const* a, at const* b, dim_t const dim) const noexcept {
+        return 1 - similarity_measure_at{}(a, b, dim);
+    }
+};
+
+using cosine_distance_t = arithmetic_inverted_distance_gt<cosine_similarity_t>;
+using cosine_distance_f32x4k_t = arithmetic_inverted_distance_gt<cosine_similarity_f32x4k_t>;
 
 } // namespace simsimd
 } // namespace av
