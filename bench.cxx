@@ -11,8 +11,8 @@ static constexpr std::uint16_t time_k = 100;
 template <typename metric_at, typename scalar_at, std::size_t dimensions_ak> //
 static void measure(bm::State& state) {
 
-    scalar_at a[dimensions_ak]{};
-    scalar_at b[dimensions_ak]{};
+    alignas(64) scalar_at a[dimensions_ak]{};
+    alignas(64) scalar_at b[dimensions_ak]{};
     scalar_at c{};
 
     std::fill_n(a, dimensions_ak, 1);

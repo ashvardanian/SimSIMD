@@ -65,5 +65,5 @@ With AVX2 and 256-bit registers the results should be better, but would be less 
 To replicate on your hardware, please run:
 
 ```sh
-cmake -DCMAKE_BUILD_TYPE=Release -B ./build && make -C ./build && ./build/simsimd_bench
+cmake -DCMAKE_BUILD_TYPE=Release -DUNSW_BUILD_BENCHMARKS=1 -B ./build && make -C ./build && ./build/simsimd_bench
 ```

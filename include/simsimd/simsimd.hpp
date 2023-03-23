@@ -29,6 +29,7 @@ namespace simsimd {
 
 using dim_t = unsigned int;
 using i8_t = signed char;
+using u8_t = unsigned char;
 using i16_t = short;
 using i32_t = int;
 using u32_t = unsigned int;
