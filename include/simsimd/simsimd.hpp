@@ -171,7 +171,8 @@ struct hamming_bits_distance_t {
     static dim_t popcount(u64_t v) noexcept { return _mm_popcnt_u64(v); }
 #endif
 
-    template <typename at> dim_t operator()(at const* a, at const* b, dim_t const dim) const noexcept {
+    template <typename at> //
+    dim_t operator()(at const* a, at const* b, dim_t const dim) const noexcept {
         dim_t words = dim / (sizeof(at) * __CHAR_BIT__);
 #if defined(__ARM_FEATURE_SVE)
         auto a8 = reinterpret_cast<u8_t const*>(a);
@@ -313,7 +314,7 @@ struct hamming_bits_distance_u1x128k_t {
         auto a64 = reinterpret_cast<u64_t const*>(a);
         auto b64 = reinterpret_cast<u64_t const*>(b);
         /// Contains 2x 64-bit integers with running population count sums.
-        __m128i d_vec = 0;
+        __m128i d_vec = _mm_set_epi64x(0, 0);
         for (dim_t i = 0; i != words; i += 2)
             d_vec = _mm_add_epi64( //
                 d_vec,             //
@@ -321,7 +322,7 @@ struct hamming_bits_distance_u1x128k_t {
                     _mm_xor_si128( //
                         _mm_load_si128(reinterpret_cast<__m128i const*>(a64 + i)),
                         _mm_load_si128(reinterpret_cast<__m128i const*>(b64 + i)))));
-        dim_t d = _mm_movepi64_pi64(d_vec) + _mm_extract_epi64(d_vec, 1);
+        dim_t d = _mm_cvtm64_si64(_mm_movepi64_pi64(d_vec)) + _mm_extract_epi64(d_vec, 1);
         return d;
 #elif defined(__ARM_NEON)
         auto a8 = reinterpret_cast<u8_t const*>(a);
