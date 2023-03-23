@@ -42,6 +42,10 @@ union f32i32_t {
     f32_t f;
 };
 
+/**
+ *  @brief Dot product for arbitrary length/type vectors.
+ *  @return Dot product ∈ [-1, 1] for normalized vectors.
+ */
 struct dot_product_t {
 
     f32_t operator()(f32_t const* a, f32_t const* b, dim_t const dim) const noexcept {
@@ -79,6 +83,10 @@ struct dot_product_t {
     }
 };
 
+/**
+ *  @brief Cosine similarity for arbitrary length/type vectors.
+ *  @return Similarity ∈ [-1, 1].
+ */
 struct cosine_similarity_t {
 
     f32_t operator()(f32_t const* a, f32_t const* b, dim_t const dim) const noexcept {
@@ -143,6 +151,10 @@ struct euclidean_distance_t {
     }
 };
 
+/**
+ *  @brief Bitwise Hamming distance on scalar words (8, 16, 32, or 64-bit).
+ *  @return Integer number of different bits ∈ [0, dim).
+ */
 struct hamming_bits_distance_t {
 
 #if defined(__GNUC__)
@@ -165,9 +177,8 @@ struct hamming_bits_distance_t {
 };
 
 /**
- * @brief
- *      SIMD-accelerated dot-product distance, that assumes vector sizes to be multiples
- *      of 128 bits, and address of the first argument to be aligned to the same size registers.
+ *  @brief Dot product between `float` vectors where `dim` is a multiple of 4.
+ *  @return Dot product ∈ [-1, 1] for normalized vectors.
  */
 struct dot_product_f32x4k_t {
 
@@ -191,6 +202,10 @@ struct dot_product_f32x4k_t {
     }
 };
 
+/**
+ *  @brief Cosine similarity between `float` vectors where `dim` is a multiple of 4.
+ *  @return Similarity ∈ [-1, 1].
+ */
 struct cosine_similarity_f32x4k_t {
 
     f32_t operator()(f32_t const* a, f32_t const* b, dim_t const dim) const noexcept {
@@ -259,11 +274,13 @@ struct dot_product_i8x16k_t {
 };
 
 /**
- *
+ *  @brief Bitwise Hamming distance on 128-bit long words.
+ *  @return Integer number of different bits ∈ [0, dim).
  */
 struct hamming_bits_distance_b1x128k_t {
 
-    template <typename at> dim_t operator()(at const* a, at const* b, dim_t const dim) const noexcept {
+    template <typename at> //
+    dim_t operator()(at const* a, at const* b, dim_t const dim) const noexcept {
         auto words = dim / 128;
 
 #if defined(__AVX512VPOPCNTDQ__)
