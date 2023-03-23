@@ -172,11 +172,29 @@ struct hamming_bits_distance_t {
 
     template <typename at> dim_t operator()(at const* a, at const* b, dim_t const dim) const noexcept {
         dim_t words = dim / (sizeof(at) * __CHAR_BIT__);
+#if defined(__ARM_FEATURE_SVE)
+        auto a8 = reinterpret_cast<u8_t const*>(a);
+        auto b8 = reinterpret_cast<u8_t const*>(b);
+        dim_t i = 0;
+        svfloat32_t d_vec = svdupq_n_u8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        svbool_t pg_vec = svwhilelt_b8(i, dim);
+        do {
+            svuint8_t a_vec = svld1_u8(pg_vec, a8 + i);
+            svuint8_t b_vec = svld1_u8(pg_vec, b8 + i);
+            svuint8_t a_xor_b_vec = sveor_u8_m(pg_vec, a_vec, b_vec);
+            d_vec = svadd_u8_m(d_vec, svcnt_u8_x(pg_vec, a_xor_b_vec));
+            i += svcntw();
+            pg_vec = svwhilelt_b32(i, dim);
+        } while (svptest_any(svptrue_b32(), pg_vec));
+        auto d = svaddv_u8(svptrue_b32(), ab_vec);
+        return d;
+#else
         dim_t d = 0;
 #pragma GCC ivdep
 #pragma clang loop vectorize(enable)
         for (dim_t i = 0; i != words; ++i)
             d += hamming_bits_distance_t::popcount(a[i] ^ b[i]);
+#endif
         return d;
     }
 };
