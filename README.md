@@ -1,13 +1,14 @@
 # SimSIMD
 
 SIMD-accelerated similarity measures, metrics, distance functions for x86 and Arm.
+Tuned for Machine Learning applications, mid-size vectors with 100-512 dimensions.
 
 | Distance          | Serial |     x86 AVX     | Arm NEON | Arm SVE |
 | :---------------- | :----: | :-------------: | :------: | :-----: |
 | `f32` Dot Product |   ✅    |    AVX2-FMA     |    ✅     |    ✅    |
 | `f32` Cosine      |   ✅    |    AVX2-FMA     |    ✅     |    ✅    |
 | `f32` Euclidean   |   ✅    |        ❌        |    ❌     |    ❌    |
-| `u1` Hamming      |   ✅    | AVX512VPOPCNTDQ |    ✅     |    ❌    |
+| `u1` Hamming      |   ✅    | AVX512VPOPCNTDQ |    ✅     |    ✅    |
 
 Need something like this in your CMake-based project?
 
