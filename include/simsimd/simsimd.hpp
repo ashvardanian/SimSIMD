@@ -131,6 +131,10 @@ struct cosine_similarity_t {
     }
 };
 
+/**
+ *  @brief Euclidean distance (L2) for arbitrary length/type vectors.
+ *  @return Euclidean distance (L2) ∈ [0, 2] for normalized vectors.
+ */
 struct euclidean_distance_t {
 
     f32_t operator()(i8_t const* a, i8_t const* b, dim_t const dim) const noexcept {
@@ -141,7 +145,8 @@ struct euclidean_distance_t {
             d2 += i32_t(i16_t(a[i]) - i16_t(b[i])) * i32_t(i16_t(a[i]) - i16_t(b[i]));
         return std::sqrt(d2);
     }
-    template <typename at> at operator()(at const* a, at const* b, dim_t const dim) const noexcept {
+    template <typename at> //
+    at operator()(at const* a, at const* b, dim_t const dim) const noexcept {
         at d2 = 0;
 #pragma GCC ivdep
 #pragma clang loop vectorize(enable)
@@ -251,7 +256,9 @@ struct cosine_similarity_f32x4k_t {
     }
 };
 
-/** @brief Takes scalars quantized into a [-100; 100] interval. */
+/**
+ *  @brief Dot product on vectors quantized into the [-100, 100] interval.
+ */
 struct dot_product_i8x16k_t {
 
     i32_t operator()(i8_t const* a, i8_t const* b, dim_t const dim) const noexcept {
