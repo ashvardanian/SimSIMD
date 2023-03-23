@@ -4,8 +4,9 @@
  * @author Ashot Vardanian
  * @date March 14, 2023
  *
- * x86: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
- * Arm: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ * x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ * Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ * Detecting target CPU features at compile time: https://stackoverflow.com/a/28939692/2766161
  */
 
 #pragma once
@@ -15,7 +16,7 @@
 #include <immintrin.h>
 #endif
 
-#ifdef __ARM_NEON
+#if defined(__ARM_NEON)
 #include <arm_neon.h>
 #endif
 
@@ -30,6 +31,8 @@ using dim_t = unsigned int;
 using i8_t = signed char;
 using i16_t = short;
 using i32_t = int;
+using u32_t = unsigned int;
+using u64_t = unsigned long;
 using f32_t = float;
 using f64_t = double;
 enum class f16_t : i16_t {};
@@ -140,6 +143,27 @@ struct euclidean_distance_t {
     }
 };
 
+struct hamming_bits_distance_t {
+
+#if defined(__GNUC__)
+    static dim_t popcount(u32_t v) noexcept { return __builtin_popcount(v); }
+    static dim_t popcount(u64_t v) noexcept { return __builtin_popcountl(v); }
+#elif defined(__AVX2__)
+    static dim_t popcount(u32_t v) noexcept { return _mm_popcnt_u32(v); }
+    static dim_t popcount(u64_t v) noexcept { return _mm_popcnt_u64(v); }
+#endif
+
+    template <typename at> dim_t operator()(at const* a, at const* b, dim_t const dim) const noexcept {
+        dim_t words = dim / (sizeof(at) * __CHAR_BIT__);
+        dim_t d = 0;
+#pragma GCC ivdep
+#pragma clang loop vectorize(enable)
+        for (dim_t i = 0; i != words; ++i)
+            d += hamming_bits_distance_t::popcount(a[i] ^ b[i]);
+        return d;
+    }
+};
+
 /**
  * @brief
  *      SIMD-accelerated dot-product distance, that assumes vector sizes to be multiples
@@ -234,15 +258,73 @@ struct dot_product_i8x16k_t {
     }
 };
 
-template <typename similarity_measure_at> struct arithmetic_inverted_distance_gt {
+/**
+ *
+ */
+struct hamming_bits_distance_b1x128k_t {
+
+    template <typename at> dim_t operator()(at const* a, at const* b, dim_t const dim) const noexcept {
+        auto words = dim / 128;
+
+#if defined(__AVX512VPOPCNTDQ__)
+        auto a64 = reinterpret_cast<u64_t const*>(a);
+        auto b64 = reinterpret_cast<u64_t const*>(b);
+        /// Contains 2x 64-bit integers with running population count sums.
+        __m128i d_vec = 0;
+        for (dim_t i = 0; i != words; i += 2)
+            d_vec = _mm_add_epi64( //
+                d_vec,             //
+                _mm_popcnt_epi64(  //
+                    _mm_xor_si128( //
+                        _mm_load_si128(reinterpret_cast<__m128i const*>(a64 + i)),
+                        _mm_load_si128(reinterpret_cast<__m128i const*>(b64 + i)))));
+        dim_t d = _mm_movepi64_pi64(d_vec) + _mm_extract_epi64(d_vec, 1);
+        return d;
+#elif defined(__ARM_NEON)
+        auto a8 = reinterpret_cast<u8_t const*>(a);
+        auto b8 = reinterpret_cast<u8_t const*>(b);
+        /// Contains 16x 8-bit integers with running population count sums.
+        uint8x16_t d_vec = vdupq_n_u8(0);
+        for (dim_t i = 0; i != dim; i += 16) {
+            auto a_vec = vld1q_u8(a8 + i);
+            auto b_vec = vld1q_u8(b8 + i);
+            auto a_xor_b_vec = veorq_u8(a_vec, b_vec);
+            d_vec = vaddq_u8(d_vec, vcntq_u8(a_xor_b_vec));
+        }
+        return vaddvq_u8(d_vec);
+#else
+        auto a64 = reinterpret_cast<u64_t const*>(a);
+        auto b64 = reinterpret_cast<u64_t const*>(b);
+        dim_t d_odd = 0, d_even = 0;
+        for (dim_t i = 0; i != words; i += 2)
+            d_even += hamming_bits_distance_t::popcount(a64[i] ^ b64[i]),
+                d_odd += hamming_bits_distance_t::popcount(a64[i + 1] ^ b64[i + 1]);
+        return d_odd + d_even;
+#endif
+    }
+};
+
+template <typename similarity_measure_at> //
+struct cosine_distance_from_similarity_gt {
     template <typename at> //
     inline at operator()(at const* a, at const* b, dim_t const dim) const noexcept {
         return 1 - similarity_measure_at{}(a, b, dim);
     }
 };
 
-using cosine_distance_t = arithmetic_inverted_distance_gt<cosine_similarity_t>;
-using cosine_distance_f32x4k_t = arithmetic_inverted_distance_gt<cosine_similarity_f32x4k_t>;
+using cosine_distance_t = cosine_distance_from_similarity_gt<cosine_similarity_t>;
+using cosine_distance_f32x4k_t = cosine_distance_from_similarity_gt<cosine_similarity_f32x4k_t>;
+
+template <typename distance_measure_at> //
+struct hamming_bits_similarity_from_distance_gt {
+    template <typename at> //
+    inline f32_t operator()(at const* a, at const* b, dim_t const dim) const noexcept {
+        return 1.f - distance_measure_at{}(a, b, dim) * 1.f / dim;
+    }
+};
+
+using hamming_bits_similarity_t = hamming_bits_similarity_from_distance_gt<hamming_bits_distance_t>;
+using hamming_bits_similarity_b1x128k_t = hamming_bits_similarity_from_distance_gt<hamming_bits_distance_b1x128k_t>;
 
 } // namespace simsimd
 } // namespace av
