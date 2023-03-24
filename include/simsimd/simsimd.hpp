@@ -171,23 +171,24 @@ struct hamming_bits_distance_t {
     static dim_t popcount(u64_t v) noexcept { return _mm_popcnt_u64(v); }
 #endif
 
-    template <typename at> dim_t operator()(at const* a, at const* b, dim_t const dim) const noexcept {
+    template <typename at> //
+    dim_t operator()(at const* a, at const* b, dim_t const dim) const noexcept {
         dim_t words = dim / (sizeof(at) * __CHAR_BIT__);
 #if defined(__ARM_FEATURE_SVE)
         auto a8 = reinterpret_cast<u8_t const*>(a);
         auto b8 = reinterpret_cast<u8_t const*>(b);
         dim_t i = 0;
-        svfloat32_t d_vec = svdupq_n_u8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        svuint8_t d_vec = svdupq_n_u8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         svbool_t pg_vec = svwhilelt_b8(i, dim);
         do {
             svuint8_t a_vec = svld1_u8(pg_vec, a8 + i);
             svuint8_t b_vec = svld1_u8(pg_vec, b8 + i);
             svuint8_t a_xor_b_vec = sveor_u8_m(pg_vec, a_vec, b_vec);
-            d_vec = svadd_u8_m(d_vec, svcnt_u8_x(pg_vec, a_xor_b_vec));
-            i += svcntw();
+            d_vec = svadd_u8_m(pg_vec, d_vec, svcnt_u8_x(pg_vec, a_xor_b_vec));
+            i += svcntb();
             pg_vec = svwhilelt_b32(i, dim);
         } while (svptest_any(svptrue_b32(), pg_vec));
-        auto d = svaddv_u8(svptrue_b32(), ab_vec);
+        auto d = svaddv_u8(svptrue_b32(), d_vec);
         return d;
 #else
         dim_t d = 0;
@@ -303,7 +304,7 @@ struct dot_product_i8x16k_t {
  *  @brief Bitwise Hamming distance on 128-bit long words.
  *  @return Integer number of different bits ∈ [0, dim).
  */
-struct hamming_bits_distance_b1x128k_t {
+struct hamming_bits_distance_u1x128k_t {
 
     template <typename at> //
     dim_t operator()(at const* a, at const* b, dim_t const dim) const noexcept {
@@ -313,7 +314,7 @@ struct hamming_bits_distance_b1x128k_t {
         auto a64 = reinterpret_cast<u64_t const*>(a);
         auto b64 = reinterpret_cast<u64_t const*>(b);
         /// Contains 2x 64-bit integers with running population count sums.
-        __m128i d_vec = 0;
+        __m128i d_vec = _mm_set_epi64x(0, 0);
         for (dim_t i = 0; i != words; i += 2)
             d_vec = _mm_add_epi64( //
                 d_vec,             //
@@ -321,7 +322,7 @@ struct hamming_bits_distance_b1x128k_t {
                     _mm_xor_si128( //
                         _mm_load_si128(reinterpret_cast<__m128i const*>(a64 + i)),
                         _mm_load_si128(reinterpret_cast<__m128i const*>(b64 + i)))));
-        dim_t d = _mm_movepi64_pi64(d_vec) + _mm_extract_epi64(d_vec, 1);
+        dim_t d = _mm_cvtm64_si64(_mm_movepi64_pi64(d_vec)) + _mm_extract_epi64(d_vec, 1);
         return d;
 #elif defined(__ARM_NEON)
         auto a8 = reinterpret_cast<u8_t const*>(a);
@@ -367,7 +368,7 @@ struct hamming_bits_similarity_from_distance_gt {
 };
 
 using hamming_bits_similarity_t = hamming_bits_similarity_from_distance_gt<hamming_bits_distance_t>;
-using hamming_bits_similarity_b1x128k_t = hamming_bits_similarity_from_distance_gt<hamming_bits_distance_b1x128k_t>;
+using hamming_bits_similarity_u1x128k_t = hamming_bits_similarity_from_distance_gt<hamming_bits_distance_u1x128k_t>;
 
 } // namespace simsimd
 } // namespace av
