@@ -17,8 +17,8 @@ static void measure(bm::State& state) {
     alignas(64) scalar_at b[buffer_size_k]{};
     scalar_at c{};
 
-    std::fill_n(a, buffer_size_k, 1);
-    std::fill_n(b, buffer_size_k, 2);
+    std::fill_n(a, buffer_size_k, static_cast<scalar_at>(1));
+    std::fill_n(b, buffer_size_k, static_cast<scalar_at>(2));
 
     for (auto _ : state)
         bm::DoNotOptimize((c = metric_at{}(a, b, dimensions_ak)));
@@ -26,6 +26,11 @@ static void measure(bm::State& state) {
     state.SetBytesProcessed(state.iterations() * bytes_per_vector_ak * 2u);
     state.SetItemsProcessed(state.iterations());
 }
+
+BENCHMARK_TEMPLATE(measure, euclidean_distance_t, f32_t, 32)->Threads(threads_k)->MinTime(time_k);
+BENCHMARK_TEMPLATE(measure, euclidean_distance_t, f32_t, 256)->Threads(threads_k)->MinTime(time_k);
+BENCHMARK_TEMPLATE(measure, euclidean_distance_t, f16_t, 32)->Threads(threads_k)->MinTime(time_k);
+BENCHMARK_TEMPLATE(measure, euclidean_distance_t, f16_t, 256)->Threads(threads_k)->MinTime(time_k);
 
 BENCHMARK_TEMPLATE(measure, cosine_similarity_t, f32_t, 32)->Threads(threads_k)->MinTime(time_k);
 BENCHMARK_TEMPLATE(measure, cosine_similarity_t, f32_t, 256)->Threads(threads_k)->MinTime(time_k);

@@ -7,7 +7,11 @@ Tuned for Machine Learning applications, mid-size vectors with 100-512 dimension
 | :---------------- | :----: | :-------------: | :------: | :-----: |
 | `f32` Dot Product |   ✅    |    AVX2-FMA     |    ✅     |    ✅    |
 | `f32` Cosine      |   ✅    |    AVX2-FMA     |    ✅     |    ✅    |
-| `f32` Euclidean   |   ✅    |        ❌        |    ❌     |    ❌    |
+| `f32` Euclidean   |   ✅    |        ❌        |    ❌     |    ✅    |
+|                   |        |                 |          |         |
+| `f16` Dot Product |   ✅    |        ❌        |    ❌     |    ✅    |
+| `f16` Euclidean   |   ✅    |        ❌        |    ❌     |    ✅    |
+|                   |        |                 |          |         |
 | `u1` Hamming      |   ✅    | AVX512VPOPCNTDQ |    ✅     |    ✅    |
 
 Need something like this in your CMake-based project?

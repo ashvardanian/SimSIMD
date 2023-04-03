@@ -67,6 +67,26 @@ struct dot_product_t {
 #endif
     }
 
+    f16_t operator()(f16_t const* a_enum, f16_t const* b_enum, dim_t const dim) const noexcept {
+#if defined(__ARM_FEATURE_SVE)
+        dim_t i = 0;
+        svfloat16_t ab_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
+        svbool_t pg_vec = svwhilelt_b16(i, dim);
+        auto a = reinterpret_cast<float16_t const*>(a_enum);
+        auto b = reinterpret_cast<float16_t const*>(b_enum);
+        do {
+            svfloat16_t a_vec = svld1_f16(pg_vec, a + i);
+            svfloat16_t b_vec = svld1_f16(pg_vec, b + i);
+            ab_vec = svmla_f16_x(pg_vec, ab_vec, a_vec, b_vec);
+            i += svcnth();
+            pg_vec = svwhilelt_b16(i, dim);
+        } while (svptest_any(svptrue_b16(), pg_vec));
+        return static_cast<f16_t>(svaddv_f16(svptrue_b16(), ab_vec));
+#else
+        return any(a_enum, b_enum, dim);
+#endif
+    }
+
     template <typename at> //
     at operator()(at const* a, at const* b, dim_t const dim) const noexcept {
         return any(a, b, dim);
@@ -138,6 +158,48 @@ struct cosine_similarity_t {
  */
 struct euclidean_distance_t {
 
+    f32_t operator()(f32_t const* a, f32_t const* b, dim_t const dim) const noexcept {
+#if defined(__ARM_FEATURE_SVE)
+        dim_t i = 0;
+        svfloat32_t d2_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
+        svbool_t pg_vec = svwhilelt_b32(i, dim);
+        do {
+            svfloat32_t a_vec = svld1_f32(pg_vec, a + i);
+            svfloat32_t b_vec = svld1_f32(pg_vec, b + i);
+            svfloat32_t a_minus_b_vec = svsub_f32_x(pg_vec, a_vec, b_vec);
+            d2_vec = svmla_f32_x(pg_vec, d2_vec, a_minus_b_vec, a_minus_b_vec);
+            i += svcntw();
+            pg_vec = svwhilelt_b32(i, dim);
+        } while (svptest_any(svptrue_b32(), pg_vec));
+        auto d2 = svaddv_f32(svptrue_b32(), d2_vec);
+        return std::sqrt(d2);
+#else
+        return any(a, b, dim);
+#endif
+    }
+
+    f16_t operator()(f16_t const* a_enum, f16_t const* b_enum, dim_t const dim) const noexcept {
+#if defined(__ARM_FEATURE_SVE)
+        dim_t i = 0;
+        svfloat16_t d2_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
+        svbool_t pg_vec = svwhilelt_b16(i, dim);
+        auto a = reinterpret_cast<float16_t const*>(a_enum);
+        auto b = reinterpret_cast<float16_t const*>(b_enum);
+        do {
+            svfloat16_t a_vec = svld1_f16(pg_vec, a + i);
+            svfloat16_t b_vec = svld1_f16(pg_vec, b + i);
+            svfloat16_t a_minus_b_vec = svsub_f16_x(pg_vec, a_vec, b_vec);
+            d2_vec = svmla_f16_x(pg_vec, d2_vec, a_minus_b_vec, a_minus_b_vec);
+            i += svcnth();
+            pg_vec = svwhilelt_b16(i, dim);
+        } while (svptest_any(svptrue_b16(), pg_vec));
+        auto d2 = svaddv_f16(svptrue_b16(), d2_vec);
+        return static_cast<f16_t>(std::sqrt(d2));
+#else
+        return any(a_enum, b_enum, dim);
+#endif
+    }
+
     f32_t operator()(i8_t const* a, i8_t const* b, dim_t const dim) const noexcept {
         i32_t d2 = 0;
 #pragma GCC ivdep
@@ -146,8 +208,15 @@ struct euclidean_distance_t {
             d2 += i32_t(i16_t(a[i]) - i16_t(b[i])) * i32_t(i16_t(a[i]) - i16_t(b[i]));
         return std::sqrt(d2);
     }
+
     template <typename at> //
     at operator()(at const* a, at const* b, dim_t const dim) const noexcept {
+        return any(a, b, dim);
+    }
+
+  private:
+    template <typename at> //
+    at any(at const* a, at const* b, dim_t const dim) const noexcept {
         at d2 = 0;
 #pragma GCC ivdep
 #pragma clang loop vectorize(enable)
