@@ -1,12 +1,12 @@
 /**
- * @brief Collection of Similarity Measures, SIMD-accelerated with SSE, AVX, NEON, SVE.
+ *  @brief Collection of Similarity Measures, SIMD-accelerated with SSE, AVX, NEON, SVE.
  *
- * @author Ashot Vardanian
- * @date March 14, 2023
+ *  @author Ashot Vardanian
+ *  @date March 14, 2023
  *
- * x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
- * Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
- * Detecting target CPU features at compile time: https://stackoverflow.com/a/28939692/2766161
+ *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *  Detecting target CPU features at compile time: https://stackoverflow.com/a/28939692/2766161
  */
 
 #pragma once
