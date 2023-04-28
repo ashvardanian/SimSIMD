@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
-project(unsw LANGUAGES CXX)
+project(simsimd LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
-option(UNSW_USE_OPENMP "Use OpenMP for Parallelism" OFF)
-option(UNSW_BUILD_BENCHMARKS "Compile a micro-benchmark for current ISA" OFF)
+option(SIMSIMD_USE_OPENMP "Use OpenMP for Parallelism" OFF)
+option(SIMSIMD_BUILD_BENCHMARKS "Compile a micro-benchmark for current ISA" OFF)
 
 # Get external content: Google Benchmark, Thrust
 include(FetchContent)
@@ -56,12 +56,12 @@ target_sources(simsimd INTERFACE include/simsimd/simsimd.hpp)
 target_include_directories(simsimd INTERFACE "${PROJECT_SOURCE_DIR}/include")
 
 # Build the benchmarks if needed.
-if(${UNSW_BUILD_BENCHMARKS})
+if(${SIMSIMD_BUILD_BENCHMARKS})
     find_package(Threads REQUIRED)
     add_executable(simsimd_bench bench.cxx)
     target_link_libraries(simsimd_bench simsimd Threads::Threads benchmark)
 
-    if(${UNSW_USE_OPENMP})
+    if(${SIMSIMD_USE_OPENMP})
         find_package(OpenMP REQUIRED)
         target_link_libraries(simsimd_bench OpenMP::OpenMP_CXX)
     endif()
