@@ -239,7 +239,8 @@ inline static simsimd_f32_t simsimd_dot_f32x4avx2(simsimd_f32_t const* a, simsim
         ab_vec = _mm_fmadd_ps(_mm_loadu_ps(a + i), _mm_loadu_ps(b + i), ab_vec);
     ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
     ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
-    simsimd_f32i32_t ab_union = {_mm_cvtsi128_si32(_mm_castps_si128(ab_vec))};
+    simsimd_f32i32_t ab_union;
+    ab_union.i = _mm_cvtsi128_si32(_mm_castps_si128(ab_vec));
     return ab_union.f;
 #else
     (void)a, (void)b, (void)d;
@@ -249,17 +250,19 @@ inline static simsimd_f32_t simsimd_dot_f32x4avx2(simsimd_f32_t const* a, simsim
 
 inline static int32_t simsimd_dot_i8x16avx2(int8_t const* a, int8_t const* b, size_t d) {
 #if defined(__AVX2__)
-    __m256i ab_vec = _mm256_set1_epi16(0);
-    for (size_t i = 0; i != d; i += 4)
-        ab_vec = _mm256_add_epi16(                                              //
-            ab_vec,                                                             //
-            _mm256_mullo_epi16(                                                 //
-                _mm256_cvtepi8_epi16(_mm_loadu_si128((__m128i const*)(a + i))), //
-                _mm256_cvtepi8_epi16(_mm_loadu_si128((__m128i const*)(b + i)))));
-    ab_vec = _mm256_hadd_epi16(ab_vec, ab_vec);
-    ab_vec = _mm256_hadd_epi16(ab_vec, ab_vec);
-    ab_vec = _mm256_hadd_epi16(ab_vec, ab_vec);
-    return (_mm256_cvtsi256_si32(ab_vec) & 0xFF);
+    __m256i ab_vec = _mm256_set1_epi32(0);
+    for (size_t i = 0; i != d; i += 8) {
+        ab_vec = _mm256_add_epi32(     //
+            ab_vec, _mm256_madd_epi16( //
+                        _mm256_cvtepi8_epi16(_mm_loadu_si128((__m128i const*)(a + i))),
+                        _mm256_cvtepi8_epi16(_mm_loadu_si128((__m128i const*)(b + i)))));
+    }
+    ab_vec = _mm256_hadd_epi32(ab_vec, ab_vec);
+    ab_vec = _mm256_hadd_epi32(ab_vec, ab_vec);
+    ab_vec = _mm256_hadd_epi32(ab_vec, ab_vec);
+    simsimd_f32i32_t ab_union;
+    ab_union.f = _mm256_cvtss_f32(_mm256_castsi256_ps(ab_vec));
+    return ab_union.i;
 #else
     (void)a, (void)b, (void)d;
     return 0;
