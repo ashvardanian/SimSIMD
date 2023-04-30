@@ -72,7 +72,7 @@ inline static simsimd_f16_t simsimd_dot_f16sve(simsimd_f16_t const* a_enum, sims
     } while (svptest_any(svptrue_b16(), pg_vec));
     return static_cast<simsimd_f16_t>(svaddv_f16(svptrue_b16(), ab_vec));
 #else
-    (void)a, (void)b, (void)d;
+    (void)a_enum, (void)b_enum, (void)d;
     return 0;
 #endif
 }
@@ -143,7 +143,7 @@ inline static simsimd_f16_t simsimd_euclidean_f16sve( //
     simsimd_f16_t d2 = svaddv_f16(svptrue_b16(), d2_vec);
     return static_cast<simsimd_f16_t>(sqrt(d2));
 #else
-    (void)a, (void)b, (void)d;
+    (void)a_enum, (void)b_enum, (void)d;
     return 0;
 #endif
 }
