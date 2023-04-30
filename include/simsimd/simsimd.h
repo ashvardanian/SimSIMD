@@ -51,6 +51,7 @@ inline static simsimd_f32_t simsimd_dot_f32sve(simsimd_f32_t const* a, simsimd_f
     } while (svptest_any(svptrue_b32(), pg_vec));
     return svaddv_f32(svptrue_b32(), ab_vec);
 #else
+    (void)a, (void)b, (void)d;
     return 0;
 #endif
 }
@@ -63,14 +64,15 @@ inline static simsimd_f16_t simsimd_dot_f16sve(simsimd_f16_t const* a_enum, sims
     simsimd_f16_t const* a = (simsimd_f16_t const*)(a_enum);
     simsimd_f16_t const* b = (simsimd_f16_t const*)(b_enum);
     do {
-        svfloat16_t a_vec = svld1_f16(pg_vec, a + i);
-        svfloat16_t b_vec = svld1_f16(pg_vec, b + i);
+        svfloat16_t a_vec = svld1_f16(pg_vec, (float16_t const*)a + i);
+        svfloat16_t b_vec = svld1_f16(pg_vec, (float16_t const*)b + i);
         ab_vec = svmla_f16_x(pg_vec, ab_vec, a_vec, b_vec);
         i += svcnth();
         pg_vec = svwhilelt_b16(i, d);
     } while (svptest_any(svptrue_b16(), pg_vec));
     return static_cast<simsimd_f16_t>(svaddv_f16(svptrue_b16(), ab_vec));
 #else
+    (void)a, (void)b, (void)d;
     return 0;
 #endif
 }
@@ -96,6 +98,7 @@ inline static simsimd_f32_t simsimd_cos_f32sve(simsimd_f32_t const* a, simsimd_f
     simsimd_f32_t b2 = svaddv_f32(svptrue_b32(), b2_vec);
     return ab / (sqrt(a2) * sqrt(b2));
 #else
+    (void)a, (void)b, (void)d;
     return 0;
 #endif
 }
@@ -116,6 +119,7 @@ inline static simsimd_f32_t simsimd_euclidean_f32sve(simsimd_f32_t const* a, sim
     simsimd_f32_t d2 = svaddv_f32(svptrue_b32(), d2_vec);
     return sqrt(d2);
 #else
+    (void)a, (void)b, (void)d;
     return 0;
 #endif
 }
@@ -129,8 +133,8 @@ inline static simsimd_f16_t simsimd_euclidean_f16sve( //
     simsimd_f16_t const* a = (simsimd_f16_t const*)(a_enum);
     simsimd_f16_t const* b = (simsimd_f16_t const*)(b_enum);
     do {
-        svfloat16_t a_vec = svld1_f16(pg_vec, a + i);
-        svfloat16_t b_vec = svld1_f16(pg_vec, b + i);
+        svfloat16_t a_vec = svld1_f16(pg_vec, (float16_t const*)a + i);
+        svfloat16_t b_vec = svld1_f16(pg_vec, (float16_t const*)b + i);
         svfloat16_t a_minus_b_vec = svsub_f16_x(pg_vec, a_vec, b_vec);
         d2_vec = svmla_f16_x(pg_vec, d2_vec, a_minus_b_vec, a_minus_b_vec);
         i += svcnth();
@@ -139,6 +143,7 @@ inline static simsimd_f16_t simsimd_euclidean_f16sve( //
     simsimd_f16_t d2 = svaddv_f16(svptrue_b16(), d2_vec);
     return static_cast<simsimd_f16_t>(sqrt(d2));
 #else
+    (void)a, (void)b, (void)d;
     return 0;
 #endif
 }
@@ -158,6 +163,7 @@ inline static size_t simsimd_hamming_u1x8sve(uint8_t const* a, uint8_t const* b,
     } while (svptest_any(svptrue_b32(), pg_vec));
     return svaddv_u8(svptrue_b32(), d_vec);
 #else
+    (void)a, (void)b, (void)d;
     return 0;
 #endif
 }
@@ -169,6 +175,7 @@ inline static simsimd_f32_t simsimd_dot_f32x4neon(simsimd_f32_t const* a, simsim
         ab_vec = vmlaq_f32(ab_vec, vld1q_f32(a + i), vld1q_f32(b + i));
     return vaddvq_f32(ab_vec);
 #else
+    (void)a, (void)b, (void)d;
     return 0;
 #endif
 }
@@ -181,6 +188,7 @@ inline static simsimd_f16_t simsimd_dot_f16x8neon(simsimd_f16_t const* a, simsim
         ab_vec = vaddq_f16(ab_vec, vmulq_f16(vld1q_f16((float16_t const*)a + i), vld1q_f16((float16_t const*)b + i)));
     return vaddvq_f32(vcvt_f32_f16(vget_high_f16(ab_vec))) + vaddvq_f32(vcvt_f32_f16(vget_low_f16(ab_vec)));
 #else
+    (void)a, (void)b, (void)d;
     return 0;
 #endif
 }
@@ -202,6 +210,7 @@ inline static simsimd_f32_t simsimd_cos_f32x4neon(simsimd_f32_t const* a, simsim
     simsimd_f32_t b2 = vaddvq_f32(b2_vec);
     return ab / (sqrt(a2) * sqrt(b2));
 #else
+    (void)a, (void)b, (void)d;
     return 0;
 #endif
 }
@@ -218,6 +227,7 @@ inline static size_t simsimd_hamming_u1x128sve(uint8_t const* a, uint8_t const* 
     }
     return vaddvq_u8(d_vec);
 #else
+    (void)a, (void)b, (void)d;
     return 0;
 #endif
 }
@@ -232,6 +242,7 @@ inline static simsimd_f32_t simsimd_dot_f32x4avx2(simsimd_f32_t const* a, simsim
     simsimd_f32i32_t ab_union = {_mm_cvtsi128_si32(_mm_castps_si128(ab_vec))};
     return ab_union.f;
 #else
+    (void)a, (void)b, (void)d;
     return 0;
 #endif
 }
@@ -250,6 +261,7 @@ inline static int32_t simsimd_dot_i8x16avx2(int8_t const* a, int8_t const* b, si
     ab_vec = _mm256_hadd_epi16(ab_vec, ab_vec);
     return (_mm256_cvtsi256_si32(ab_vec) & 0xFF);
 #else
+    (void)a, (void)b, (void)d;
     return 0;
 #endif
 }
@@ -277,6 +289,7 @@ inline static simsimd_f32_t simsimd_cos_f32x4avx2(simsimd_f32_t const* a, simsim
     simsimd_f32i32_t b2_union = {_mm_cvtsi128_si32(_mm_castps_si128(b2_vec))};
     return ab_union.f / (sqrt(a2_union.f) * sqrt(b2_union.f));
 #else
+    (void)a, (void)b, (void)d;
     return 0;
 #endif
 }
@@ -296,6 +309,7 @@ inline static size_t simsimd_hamming_u1x128avx512(uint8_t const* a, uint8_t cons
                     _mm_load_si128((__m128i const*)(a64 + i)), _mm_load_si128((__m128i const*)(b64 + i)))));
     return _mm_cvtm64_si64(_mm_movepi64_pi64(d_vec)) + _mm_extract_epi64(d_vec, 1);
 #else
+    (void)a, (void)b, (void)d;
     return 0;
 #endif
 }
