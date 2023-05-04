@@ -62,12 +62,14 @@
         "stop_token": "cpp",
         "streambuf": "cpp",
         "thread": "cpp",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "complex": "cpp"
     },
     "cSpell.words": [
         "dtype",
         "dtypes",
         "kann",
+        "simsimd",
         "unsw"
     ]
 }

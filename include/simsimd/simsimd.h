@@ -70,7 +70,10 @@ inline static simsimd_f16_t simsimd_dot_f16sve(simsimd_f16_t const* a_enum, sims
         i += svcnth();
         pg_vec = svwhilelt_b16(i, d);
     } while (svptest_any(svptrue_b16(), pg_vec));
-    return static_cast<simsimd_f16_t>(svaddv_f16(svptrue_b16(), ab_vec));
+    float16_t f16 = svaddv_f16(svptrue_b16(), ab_vec);
+    simsimd_f16_t i16;
+    memcpy(&i16, &f16, sizeof(i16));
+    return i16;
 #else
     (void)a_enum, (void)b_enum, (void)d;
     return 0;
@@ -103,7 +106,7 @@ inline static simsimd_f32_t simsimd_cos_f32sve(simsimd_f32_t const* a, simsimd_f
 #endif
 }
 
-inline static simsimd_f32_t simsimd_euclidean_f32sve(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
+inline static simsimd_f32_t simsimd_l2sq_f32sve(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
 #if defined(__ARM_FEATURE_SVE)
     size_t i = 0;
     svfloat32_t d2_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
@@ -124,8 +127,7 @@ inline static simsimd_f32_t simsimd_euclidean_f32sve(simsimd_f32_t const* a, sim
 #endif
 }
 
-inline static simsimd_f16_t simsimd_euclidean_f16sve( //
-    simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, size_t d) {
+inline static simsimd_f16_t simsimd_l2sq_f16sve(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, size_t d) {
 #if defined(__ARM_FEATURE_SVE)
     size_t i = 0;
     svfloat16_t d2_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
@@ -140,8 +142,10 @@ inline static simsimd_f16_t simsimd_euclidean_f16sve( //
         i += svcnth();
         pg_vec = svwhilelt_b16(i, d);
     } while (svptest_any(svptrue_b16(), pg_vec));
-    simsimd_f16_t d2 = svaddv_f16(svptrue_b16(), d2_vec);
-    return static_cast<simsimd_f16_t>(sqrt(d2));
+    float16_t f16 = svaddv_f16(svptrue_b16(), d2_vec);
+    simsimd_f16_t i16;
+    memcpy(&i16, &f16, sizeof(i16));
+    return i16;
 #else
     (void)a_enum, (void)b_enum, (void)d;
     return 0;
@@ -186,7 +190,10 @@ inline static simsimd_f16_t simsimd_dot_f16x8neon(simsimd_f16_t const* a, simsim
     float16x8_t ab_vec = vdupq_n_f16(0);
     for (size_t i = 0; i != d; i += 8)
         ab_vec = vaddq_f16(ab_vec, vmulq_f16(vld1q_f16((float16_t const*)a + i), vld1q_f16((float16_t const*)b + i)));
-    return vaddvq_f32(vcvt_f32_f16(vget_high_f16(ab_vec))) + vaddvq_f32(vcvt_f32_f16(vget_low_f16(ab_vec)));
+    float16_t f16 = vaddvq_f32(vcvt_f32_f16(vget_high_f16(ab_vec))) + vaddvq_f32(vcvt_f32_f16(vget_low_f16(ab_vec)));
+    simsimd_f16_t i16;
+    memcpy(&i16, &f16, sizeof(i16));
+    return i16;
 #else
     (void)a, (void)b, (void)d;
     return 0;
