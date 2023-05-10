@@ -255,6 +255,21 @@ inline static simsimd_f32_t simsimd_dot_f32x4avx2(simsimd_f32_t const* a, simsim
 #endif
 }
 
+inline static simsimd_f32_t simsimd_dot_f16x16avx512(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
+#if defined(__AVX512F__)
+    __m512 ab_vec = _mm512_set1_ps(0);
+    for (size_t i = 0; i != d; i += 16)
+        ab_vec = _mm512_fmadd_ps(                     //
+            _mm512_cvtxph_ps(_mm256_loadu_ph(a + i)), //
+            _mm512_cvtxph_ps(_mm256_loadu_ph(b + i)), //
+            ab_vec);
+    return _mm512_reduce_add_ps(ab_vec);
+#else
+    (void)a, (void)b, (void)d;
+    return 0;
+#endif
+}
+
 inline static int32_t simsimd_dot_i8x16avx2(int8_t const* a, int8_t const* b, size_t d) {
 #if defined(__AVX2__)
     __m256i ab_vec = _mm256_set1_epi32(0);
