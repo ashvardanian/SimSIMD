@@ -56,30 +56,6 @@ inline static simsimd_f32_t simsimd_dot_f32sve(simsimd_f32_t const* a, simsimd_f
 #endif
 }
 
-inline static simsimd_f16_t simsimd_dot_f16sve(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, size_t d) {
-#if defined(__ARM_FEATURE_SVE)
-    size_t i = 0;
-    svfloat16_t ab_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
-    svbool_t pg_vec = svwhilelt_b16(i, d);
-    simsimd_f16_t const* a = (simsimd_f16_t const*)(a_enum);
-    simsimd_f16_t const* b = (simsimd_f16_t const*)(b_enum);
-    do {
-        svfloat16_t a_vec = svld1_f16(pg_vec, (float16_t const*)a + i);
-        svfloat16_t b_vec = svld1_f16(pg_vec, (float16_t const*)b + i);
-        ab_vec = svmla_f16_x(pg_vec, ab_vec, a_vec, b_vec);
-        i += svcnth();
-        pg_vec = svwhilelt_b16(i, d);
-    } while (svptest_any(svptrue_b16(), pg_vec));
-    float16_t f16 = svaddv_f16(svptrue_b16(), ab_vec);
-    simsimd_f16_t i16;
-    memcpy(&i16, &f16, sizeof(i16));
-    return i16;
-#else
-    (void)a_enum, (void)b_enum, (void)d;
-    return 0;
-#endif
-}
-
 inline static simsimd_f32_t simsimd_cos_f32sve(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
 #if defined(__ARM_FEATURE_SVE)
     size_t i = 0;
@@ -184,16 +160,22 @@ inline static simsimd_f32_t simsimd_dot_f32x4neon(simsimd_f32_t const* a, simsim
 #endif
 }
 
-inline static simsimd_f16_t simsimd_dot_f16x8neon(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
+inline static simsimd_f32_t simsimd_cos_f16x4neon(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
 #if defined(__ARM_NEON)
-    // There is no half-precision FMA, only bfloat16, so we must manually multiply and add.
-    float16x8_t ab_vec = vdupq_n_f16(0);
-    for (size_t i = 0; i != d; i += 8)
-        ab_vec = vaddq_f16(ab_vec, vmulq_f16(vld1q_f16((float16_t const*)a + i), vld1q_f16((float16_t const*)b + i)));
-    float16_t f16 = vaddvq_f32(vcvt_f32_f16(vget_high_f16(ab_vec))) + vaddvq_f32(vcvt_f32_f16(vget_low_f16(ab_vec)));
-    simsimd_f16_t i16;
-    memcpy(&i16, &f16, sizeof(i16));
-    return i16;
+    float32x4_t ab_vec = vdupq_n_f32(0);
+    float32x4_t a2_vec = vdupq_n_f32(0);
+    float32x4_t b2_vec = vdupq_n_f32(0);
+    for (size_t i = 0; i != d; i += 4) {
+        float32x4_t a_vec = vcvt_f32_f16(vld1_f16((float16_t const*)a + i));
+        float32x4_t b_vec = vcvt_f32_f16(vld1_f16((float16_t const*)b + i));
+        ab_vec = vfmaq_f32(a_vec, b_vec, ab_vec);
+        a2_vec = vfmaq_f32(a_vec, a_vec, a2_vec);
+        b2_vec = vfmaq_f32(b_vec, b_vec, b2_vec);
+    }
+    simsimd_f32_t ab = vaddvq_f32(ab_vec);
+    simsimd_f32_t a2 = vaddvq_f32(a2_vec);
+    simsimd_f32_t b2 = vaddvq_f32(b2_vec);
+    return ab / (sqrt(a2) * sqrt(b2));
 #else
     (void)a, (void)b, (void)d;
     return 0;
@@ -255,15 +237,22 @@ inline static simsimd_f32_t simsimd_dot_f32x4avx2(simsimd_f32_t const* a, simsim
 #endif
 }
 
-inline static simsimd_f32_t simsimd_dot_f16x16avx512(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
+inline static simsimd_f32_t simsimd_cos_f16x16avx512(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
 #if defined(__AVX512F__)
     __m512 ab_vec = _mm512_set1_ps(0);
-    for (size_t i = 0; i != d; i += 16)
-        ab_vec = _mm512_fmadd_ps(                     //
-            _mm512_cvtxph_ps(_mm256_loadu_ph(a + i)), //
-            _mm512_cvtxph_ps(_mm256_loadu_ph(b + i)), //
-            ab_vec);
-    return _mm512_reduce_add_ps(ab_vec);
+    __m512 a2_vec = _mm512_set1_ps(0);
+    __m512 b2_vec = _mm512_set1_ps(0);
+    for (size_t i = 0; i != d; i += 16) {
+        __m512 a_vec = _mm512_cvtxph_ps(_mm256_loadu_ph(a + i));
+        __m512 b_vec = _mm512_cvtxph_ps(_mm256_loadu_ph(b + i));
+        ab_vec = _mm512_fmadd_ps(a_vec, b_vec, ab_vec);
+        a2_vec = _mm512_fmadd_ps(a_vec, a_vec, a2_vec);
+        b2_vec = _mm512_fmadd_ps(b_vec, b_vec, b2_vec);
+    }
+    simsimd_f32_t ab = _mm512_reduce_add_ps(ab_vec);
+    simsimd_f32_t a2 = _mm512_reduce_add_ps(a2_vec);
+    simsimd_f32_t b2 = _mm512_reduce_add_ps(b2_vec);
+    return ab / (sqrt(a2) * sqrt(b2));
 #else
     (void)a, (void)b, (void)d;
     return 0;
