@@ -168,9 +168,10 @@ inline static simsimd_f32_t simsimd_cos_f16x4neon(simsimd_f16_t const* a, simsim
     for (size_t i = 0; i != d; i += 4) {
         float32x4_t a_vec = vcvt_f32_f16(vld1_f16((float16_t const*)a + i));
         float32x4_t b_vec = vcvt_f32_f16(vld1_f16((float16_t const*)b + i));
-        ab_vec = vfmaq_f32(a_vec, b_vec, ab_vec);
-        a2_vec = vfmaq_f32(a_vec, a_vec, a2_vec);
-        b2_vec = vfmaq_f32(b_vec, b_vec, b2_vec);
+        // vfmaq_f32(a, b, c) == vaddq_f32(vmulq_f32(b, c), a)
+        ab_vec = vfmaq_f32(ab_vec, a_vec, b_vec);
+        a2_vec = vfmaq_f32(a2_vec, a_vec, a_vec);
+        b2_vec = vfmaq_f32(b2_vec, b_vec, b_vec);
     }
     simsimd_f32_t ab = vaddvq_f32(ab_vec);
     simsimd_f32_t a2 = vaddvq_f32(a2_vec);
