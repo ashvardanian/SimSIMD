@@ -152,7 +152,7 @@ inline static simsimd_f32_t simsimd_dot_f32x4neon(simsimd_f32_t const* a, simsim
 #if defined(__ARM_NEON)
     float32x4_t ab_vec = vdupq_n_f32(0);
     for (size_t i = 0; i != d; i += 4)
-        ab_vec = vmlaq_f32(ab_vec, vld1q_f32(a + i), vld1q_f32(b + i));
+        ab_vec = vfmaq_f32(ab_vec, vld1q_f32(a + i), vld1q_f32(b + i));
     return vaddvq_f32(ab_vec);
 #else
     (void)a, (void)b, (void)d;
