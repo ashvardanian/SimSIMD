@@ -128,7 +128,7 @@ inline static simsimd_f16_t simsimd_l2sq_f16sve(simsimd_f16_t const* a_enum, sim
 #endif
 }
 
-inline static size_t simsimd_hamming_u1x8sve(uint8_t const* a, uint8_t const* b, size_t d) {
+inline static size_t simsimd_hamming_b1x8sve(uint8_t const* a, uint8_t const* b, size_t d) {
 #if defined(__ARM_FEATURE_SVE)
     size_t i = 0;
     svuint8_t d_vec = svdupq_n_u8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -183,6 +183,35 @@ inline static simsimd_f32_t simsimd_cos_f16x4neon(simsimd_f16_t const* a, simsim
 #endif
 }
 
+inline static simsimd_f32_t simsimd_cos_i8x16neon(int8_t const* a, int8_t const* b, size_t d) {
+#if defined(__ARM_NEON)
+    int8x16_t const* a8x16 = reinterpret_cast<int8x16_t const*>(a);
+    int8x16_t const* b8x16 = reinterpret_cast<int8x16_t const*>(b);
+
+    int32x4_t ab_vec = vdupq_n_s32(0);
+    int32x4_t a2_vec = vdupq_n_s32(0);
+    int32x4_t b2_vec = vdupq_n_s32(0);
+    for (size_t i = 0; i != d / 16; ++i) {
+        int8x16_t a_vec = a8x16[i];
+        int8x16_t b_vec = b8x16[i];
+        ab_vec = vdotq_s32(ab_vec, a_vec, b_vec);
+        a2_vec = vdotq_s32(a2_vec, a_vec, a_vec);
+        b2_vec = vdotq_s32(b2_vec, b_vec, b_vec);
+    }
+
+    int32x2_t ab_part = vadd_s32(vget_high_s32(ab_vec), vget_low_s32(ab_vec));
+    int32_t ab = vget_lane_s32(vpadd_s32(ab_part, ab_part), 0);
+    int32x2_t a2_part = vadd_s32(vget_high_s32(a2_vec), vget_low_s32(a2_vec));
+    int32_t a2 = vget_lane_s32(vpadd_s32(a2_part, a2_part), 0);
+    int32x2_t b2_part = vadd_s32(vget_high_s32(b2_vec), vget_low_s32(b2_vec));
+    int32_t b2 = vget_lane_s32(vpadd_s32(b2_part, b2_part), 0);
+    return ab / (sqrt(a2) * sqrt(b2));
+#else
+    (void)a, (void)b, (void)d;
+    return 0;
+#endif
+}
+
 inline static simsimd_f32_t simsimd_cos_f32x4neon(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
 #if defined(__ARM_NEON)
     float32x4_t ab_vec = vdupq_n_f32(0);
@@ -205,7 +234,7 @@ inline static simsimd_f32_t simsimd_cos_f32x4neon(simsimd_f32_t const* a, simsim
 #endif
 }
 
-inline static size_t simsimd_hamming_u1x128sve(uint8_t const* a, uint8_t const* b, size_t d) {
+inline static size_t simsimd_hamming_b1x128sve(uint8_t const* a, uint8_t const* b, size_t d) {
 #if defined(__ARM_NEON)
     /// Contains 16x 8-bit integers with running population count sums.
     uint8x16_t d_vec = vdupq_n_u8(0);
@@ -309,7 +338,7 @@ inline static simsimd_f32_t simsimd_cos_f32x4avx2(simsimd_f32_t const* a, simsim
 #endif
 }
 
-inline static size_t simsimd_hamming_u1x128avx512(uint8_t const* a, uint8_t const* b, size_t d) {
+inline static size_t simsimd_hamming_b1x128avx512(uint8_t const* a, uint8_t const* b, size_t d) {
 #if defined(__AVX512VPOPCNTDQ__)
     size_t words = d / 128;
     uint64_t const* a64 = (uint64_t const*)(a);
