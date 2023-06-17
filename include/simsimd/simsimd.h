@@ -185,19 +185,33 @@ inline static simsimd_f32_t simsimd_cos_f16x4neon(simsimd_f16_t const* a, simsim
 
 inline static simsimd_f32_t simsimd_cos_i8x16neon(int8_t const* a, int8_t const* b, size_t d) {
 #if defined(__ARM_NEON)
-    int8x16_t const* a8x16 = reinterpret_cast<int8x16_t const*>(a);
-    int8x16_t const* b8x16 = reinterpret_cast<int8x16_t const*>(b);
-
     int32x4_t ab_vec = vdupq_n_s32(0);
     int32x4_t a2_vec = vdupq_n_s32(0);
     int32x4_t b2_vec = vdupq_n_s32(0);
-    for (size_t i = 0; i != d / 16; ++i) {
-        int8x16_t a_vec = a8x16[i];
-        int8x16_t b_vec = b8x16[i];
+
+#if 0 // This 128-bit `vdot_s32` intrinsic is often unavailable, so we use the 64-bit `vdot_s32`.
+    for (size_t i = 0; i != d; i += 16) {
+        int8x16_t a_vec = vld1q_s8(a + i);
+        int8x16_t b_vec = vld1q_s8(b + i);
         ab_vec = vdotq_s32(ab_vec, a_vec, b_vec);
         a2_vec = vdotq_s32(a2_vec, a_vec, a_vec);
         b2_vec = vdotq_s32(b2_vec, b_vec, b_vec);
     }
+#else
+    for (size_t i = 0; i != d; i += 8) {
+        int16x8_t a_vec = vmovl_s8(vld1_s8(a + i));
+        int16x8_t b_vec = vmovl_s8(vld1_s8(b + i));
+        int16x8_t ab_part_vec = vmulq_s16(a_vec, b_vec);
+        int16x8_t a2_part_vec = vmulq_s16(a_vec, a_vec);
+        int16x8_t b2_part_vec = vmulq_s16(b_vec, b_vec);
+        ab_vec =
+            vaddq_s32(ab_vec, vaddq_s32(vmovl_s16(vget_high_s16(ab_part_vec)), vmovl_s16(vget_low_s16(ab_part_vec))));
+        a2_vec =
+            vaddq_s32(a2_vec, vaddq_s32(vmovl_s16(vget_high_s16(a2_part_vec)), vmovl_s16(vget_low_s16(a2_part_vec))));
+        b2_vec =
+            vaddq_s32(b2_vec, vaddq_s32(vmovl_s16(vget_high_s16(b2_part_vec)), vmovl_s16(vget_low_s16(b2_part_vec))));
+    }
+#endif
 
     int32x2_t ab_part = vadd_s32(vget_high_s32(ab_vec), vget_low_s32(ab_vec));
     int32_t ab = vget_lane_s32(vpadd_s32(ab_part, ab_part), 0);
