@@ -8,6 +8,12 @@
             "type": "shell"
         },
         {
+            "label": "Build Test: Debug",
+            "command": "cmake -DCMAKE_BUILD_TYPE=Debug -B ./build && make test -C ./build",
+            "args": [],
+            "type": "shell"
+        },
+        {
             "label": "Build Benchmark: Release",
             "command": "cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -B ./build_release && make -j 2 -C ./build_release",
             "args": [],
