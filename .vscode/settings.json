@@ -63,7 +63,8 @@
         "streambuf": "cpp",
         "thread": "cpp",
         "typeinfo": "cpp",
-        "complex": "cpp"
+        "complex": "cpp",
+        "immintrin.h": "c"
     },
     "cSpell.words": [
         "dtype",
