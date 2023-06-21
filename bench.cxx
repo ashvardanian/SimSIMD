@@ -1,46 +1,35 @@
+#include <thread>
+
 #include <benchmark/benchmark.h>
 
-#include <simsimd/simsimd.hpp>
+#include <simsimd/simsimd.h>
 
 namespace bm = benchmark;
-using namespace av::simsimd;
 
-static constexpr std::size_t threads_k = 64;
-static constexpr std::size_t time_k = 100;
+static const std::size_t threads_k = std::thread::hardware_concurrency();
+static const std::size_t time_k = 10;
 
-template <typename metric_at, typename scalar_at, std::size_t bytes_per_vector_ak,
+template <typename scalar_at, typename metric_at, std::size_t bytes_per_vector_ak = 256,
           std::size_t dimensions_ak = bytes_per_vector_ak / sizeof(scalar_at)> //
-static void measure(bm::State& state) {
+static void measure(bm::State& state, metric_at metric) {
 
-    constexpr std::size_t buffer_size_k = bytes_per_vector_ak / sizeof(scalar_at);
-    alignas(64) scalar_at a[buffer_size_k]{};
-    alignas(64) scalar_at b[buffer_size_k]{};
-    scalar_at c{};
+    alignas(64) scalar_at a[dimensions_ak]{};
+    alignas(64) scalar_at b[dimensions_ak]{};
+    float c{};
 
-    std::fill_n(a, buffer_size_k, static_cast<scalar_at>(1));
-    std::fill_n(b, buffer_size_k, static_cast<scalar_at>(2));
+    std::fill_n(a, dimensions_ak, static_cast<scalar_at>(1));
+    std::fill_n(b, dimensions_ak, static_cast<scalar_at>(2));
 
     for (auto _ : state)
-        bm::DoNotOptimize((c = metric_at{}(a, b, dimensions_ak)));
+        bm::DoNotOptimize((c = metric(a, b, dimensions_ak)));
 
     state.SetBytesProcessed(state.iterations() * bytes_per_vector_ak * 2u);
     state.SetItemsProcessed(state.iterations());
 }
 
-BENCHMARK_TEMPLATE(measure, euclidean_distance_t, f32_t, 32)->Threads(threads_k)->MinTime(time_k);
-BENCHMARK_TEMPLATE(measure, euclidean_distance_t, f32_t, 256)->Threads(threads_k)->MinTime(time_k);
-BENCHMARK_TEMPLATE(measure, euclidean_distance_t, f16_t, 32)->Threads(threads_k)->MinTime(time_k);
-BENCHMARK_TEMPLATE(measure, euclidean_distance_t, f16_t, 256)->Threads(threads_k)->MinTime(time_k);
-
-BENCHMARK_TEMPLATE(measure, cosine_similarity_t, f32_t, 32)->Threads(threads_k)->MinTime(time_k);
-BENCHMARK_TEMPLATE(measure, cosine_similarity_t, f32_t, 256)->Threads(threads_k)->MinTime(time_k);
-BENCHMARK_TEMPLATE(measure, cosine_similarity_f32x4k_t, f32_t, 32)->Threads(threads_k)->MinTime(time_k);
-BENCHMARK_TEMPLATE(measure, cosine_similarity_f32x4k_t, f32_t, 256)->Threads(threads_k)->MinTime(time_k);
-
-BENCHMARK_TEMPLATE(measure, hamming_bits_distance_t, u64_t, 32, 256)->Threads(threads_k)->MinTime(time_k);
-BENCHMARK_TEMPLATE(measure, hamming_bits_distance_t, u64_t, 256, 2048)->Threads(threads_k)->MinTime(time_k);
-BENCHMARK_TEMPLATE(measure, hamming_bits_distance_u1x128k_t, u64_t, 32, 256)->Threads(threads_k)->MinTime(time_k);
-BENCHMARK_TEMPLATE(measure, hamming_bits_distance_u1x128k_t, u64_t, 256, 2048)->Threads(threads_k)->MinTime(time_k);
+template <typename scalar_at, typename metric_at> void register_(char const* name, metric_at distance_func) {
+    bm::RegisterBenchmark(name, measure<scalar_at, metric_at>, distance_func)->Threads(threads_k)->MinTime(time_k);
+}
 
 int main(int argc, char** argv) {
 
@@ -76,6 +65,34 @@ int main(int argc, char** argv) {
     bm::Initialize(&argc, argv);
     if (bm::ReportUnrecognizedArguments(argc, argv))
         return 1;
+
+#if defined(__ARM_FEATURE_SVE)
+    register_<simsimd_f32_t>("dot_f32sve", simsimd_dot_f32sve);
+    register_<simsimd_f32_t>("cos_f32sve", simsimd_cos_f32sve);
+    register_<simsimd_f32_t>("l2sq_f32sve", simsimd_l2sq_f32sve);
+    register_<std::int16_t>("l2sq_f16sve", simsimd_l2sq_f16sve);
+    register_<std::uint8_t>("hamming_b1x8sve", simsimd_hamming_b1x8sve);
+    register_<std::uint8_t>("hamming_b1x128sve", simsimd_hamming_b1x128sve);
+#endif
+
+#if defined(__ARM_NEON)
+    register_<simsimd_f32_t>("dot_f32x4neon", simsimd_dot_f32x4neon);
+    register_<std::int16_t>("cos_f16x4neon", simsimd_cos_f16x4neon);
+    register_<std::int8_t>("cos_i8x16neon", simsimd_cos_i8x16neon);
+    register_<simsimd_f32_t>("cos_f32x4neon", simsimd_cos_f32x4neon);
+#endif
+
+#if defined(__AVX2__)
+    register_<simsimd_f32_t>("dot_f32x4avx2", simsimd_dot_f32x4avx2);
+    register_<std::int8_t>("dot_i8x16avx2", simsimd_dot_i8x16avx2);
+    register_<simsimd_f32_t>("cos_f32x4avx2", simsimd_cos_f32x4avx2);
+#endif
+
+#if defined(__AVX512F__)
+    register_<std::int16_t>("cos_f16x16avx512", simsimd_cos_f16x16avx512);
+    register_<std::uint8_t>("hamming_b1x128avx512", simsimd_hamming_b1x128avx512);
+#endif
+
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();
     return 0;

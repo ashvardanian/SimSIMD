@@ -66,8 +66,20 @@ With AVX2 and 256-bit registers the results should be better, but would be less 
 
 ---
 
-To replicate on your hardware, please run:
+To replicate on your hardware, please run following on Linux:
 
 ```sh
-cmake -DCMAKE_BUILD_TYPE=Release -DUNSW_BUILD_BENCHMARKS=1 -B ./build && make -C ./build && ./build/simsimd_bench
+cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build && make -C ./build && ./build/simsimd_bench
+```
+
+MacOS:
+
+```sh
+brew install llvm
+cmake -B ./build \
+    -DCMAKE_C_COMPILER="/opt/homebrew/opt/llvm/bin/clang" \
+    -DCMAKE_CXX_COMPILER="/opt/homebrew/opt/llvm/bin/clang++" \
+    -DSIMSIMD_BUILD_BENCHMARKS=1 \
+    && \
+    make -C ./build -j && ./build/simsimd_bench
 ```

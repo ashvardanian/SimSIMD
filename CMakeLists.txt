@@ -52,7 +52,7 @@ endif()
 
 # Define our header-only library.
 add_library(simsimd INTERFACE)
-target_sources(simsimd INTERFACE include/simsimd/simsimd.hpp)
+target_sources(simsimd INTERFACE include/simsimd/simsimd.h)
 target_include_directories(simsimd INTERFACE "${PROJECT_SOURCE_DIR}/include")
 
 # Build the benchmarks if needed.
