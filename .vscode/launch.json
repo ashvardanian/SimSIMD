@@ -18,7 +18,12 @@
             ],
             "stopAtEntry": false,
             "preLaunchTask": "Build Benchmark: Debug",
-            "MIMode": "gdb"
+            "linux": {
+                "MIMode": "gdb",
+            },
+            "osx": {
+                "MIMode": "lldb"
+            }
         },
         {
             "name": "Debug Test",
@@ -34,7 +39,12 @@
             ],
             "stopAtEntry": false,
             "preLaunchTask": "Build Test: Debug",
-            "MIMode": "gdb"
+            "linux": {
+                "MIMode": "gdb"
+            },
+            "osx": {
+                "MIMode": "lldb"
+            }
         }
     ]
 }
