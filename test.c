@@ -1,9 +1,10 @@
 #include <stdio.h>
 
-#include "simsimd/simsimd.h"
-
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
+
+#include "simsimd/simsimd.h"
+
 
 #define stringify_value_m(a) stringify_m(a)
 #define stringify_m(a) #a
@@ -25,7 +26,7 @@ void assign(char const* name, void* function) {
     }
 }
 
-typedef simsimd_f32_t (*FunctionPtr)(simsimd_f32_t*, simsimd_f32_t*, size_t);
+typedef simsimd_f32_t (*function_ptr_t)(simsimd_f32_t*, simsimd_f32_t*, size_t);
 
 int main(int argc, char* argv[]) {
     Py_Initialize();
@@ -39,13 +40,13 @@ int main(int argc, char* argv[]) {
 
     while (PyDict_Next(dictionary, &pos, &key, &value)) {
         if (PyCapsule_CheckExact(value)) {
-            const char* name = PyCapsule_GetName(value);
+            char const* name = PyCapsule_GetName(value);
             void* pointer = PyCapsule_GetPointer(value, NULL);
             assign(name, pointer);
         }
     }
 
-    FunctionPtr function = (FunctionPtr)callables[0];
+    function_ptr_t function = (function_ptr_t)callables[0];
     simsimd_f32_t a[] = {1, 2, 3};
     simsimd_f32_t b[] = {4, 5, 6};
     size_t d = 3;
@@ -54,4 +55,6 @@ int main(int argc, char* argv[]) {
 
     printf("%f", result);
     Py_DECREF(module);
+
+    return 0;
 }

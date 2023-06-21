@@ -1,10 +1,10 @@
 /**
- * @file python.c
- * @author Ashot Vardanian
- * @date 2023-01-30
- * @copyright Copyright (c) 2023
+ *  @file python.c
+ *  @author Ashot Vardanian
+ *  @date 2023-01-30
+ *  @copyright Copyright (c) 2023
  *
- * @brief Pure CPython bindings for simsimd.
+ *  @brief Pure CPython bindings for simsimd.
  */
 
 #include "simsimd/simsimd.h"
@@ -19,10 +19,7 @@
 #define pyinit_f_m macro_concat_m(PyInit_, SIMDSIMD_PYTHON_MODULE_NAME)
 
 
-static void simsimd_capsule_destructor(PyObject* capsule) {
-    void* ptr = PyCapsule_GetPointer(capsule, NULL);
-    free(ptr);
-}
+static void destroy_capsule(PyObject*) {}
 
 static PyModuleDef simsimd_wrapper_module = {
     PyModuleDef_HEAD_INIT,
@@ -36,20 +33,20 @@ PyMODINIT_FUNC pyinit_f_m(void) {
     if (module == NULL) 
         return NULL;
 
-    PyModule_AddObject(module, "dot_f32sve", PyCapsule_New(simsimd_dot_f32sve, NULL, simsimd_capsule_destructor));
-    PyModule_AddObject(module, "cos_f32sve", PyCapsule_New(simsimd_cos_f32sve, NULL, simsimd_capsule_destructor));
-    PyModule_AddObject(module, "l2sq_f32sve", PyCapsule_New(simsimd_l2sq_f32sve, NULL, simsimd_capsule_destructor));
-    PyModule_AddObject(module, "l2sq_f16sve", PyCapsule_New(simsimd_l2sq_f16sve, NULL, simsimd_capsule_destructor));
-    PyModule_AddObject(module, "hamming_b1x8sve", PyCapsule_New(simsimd_hamming_b1x8sve, NULL, simsimd_capsule_destructor));
-    PyModule_AddObject(module, "dot_f32x4neon", PyCapsule_New(simsimd_dot_f32x4neon, NULL, simsimd_capsule_destructor));
-    PyModule_AddObject(module, "cos_f16x4neon", PyCapsule_New(simsimd_cos_f16x4neon, NULL, simsimd_capsule_destructor));
-    PyModule_AddObject(module, "cos_i8x16neon", PyCapsule_New(simsimd_cos_i8x16neon, NULL, simsimd_capsule_destructor));
-    PyModule_AddObject(module, "cos_f32x4neon", PyCapsule_New(simsimd_cos_f32x4neon, NULL, simsimd_capsule_destructor));
-    PyModule_AddObject(module, "hamming_b1x128sve", PyCapsule_New(simsimd_hamming_b1x128sve, NULL, simsimd_capsule_destructor));
-    PyModule_AddObject(module, "cos_f16x16avx512", PyCapsule_New(simsimd_cos_f16x16avx512, NULL, simsimd_capsule_destructor));
-    PyModule_AddObject(module, "dot_i8x16avx2", PyCapsule_New(simsimd_dot_i8x16avx2, NULL, simsimd_capsule_destructor));
-    PyModule_AddObject(module, "cos_f32x4avx2", PyCapsule_New(simsimd_cos_f32x4avx2, NULL, simsimd_capsule_destructor));
-    PyModule_AddObject(module, "hamming_b1x128avx512", PyCapsule_New(simsimd_hamming_b1x128avx512, NULL, simsimd_capsule_destructor));
+    PyModule_AddObject(module, "dot_f32sve", PyCapsule_New(simsimd_dot_f32sve, NULL, destroy_capsule));
+    PyModule_AddObject(module, "cos_f32sve", PyCapsule_New(simsimd_cos_f32sve, NULL, destroy_capsule));
+    PyModule_AddObject(module, "l2sq_f32sve", PyCapsule_New(simsimd_l2sq_f32sve, NULL, destroy_capsule));
+    PyModule_AddObject(module, "l2sq_f16sve", PyCapsule_New(simsimd_l2sq_f16sve, NULL, destroy_capsule));
+    PyModule_AddObject(module, "hamming_b1x8sve", PyCapsule_New(simsimd_hamming_b1x8sve, NULL, destroy_capsule));
+    PyModule_AddObject(module, "dot_f32x4neon", PyCapsule_New(simsimd_dot_f32x4neon, NULL, destroy_capsule));
+    PyModule_AddObject(module, "cos_f16x4neon", PyCapsule_New(simsimd_cos_f16x4neon, NULL, destroy_capsule));
+    PyModule_AddObject(module, "cos_i8x16neon", PyCapsule_New(simsimd_cos_i8x16neon, NULL, destroy_capsule));
+    PyModule_AddObject(module, "cos_f32x4neon", PyCapsule_New(simsimd_cos_f32x4neon, NULL, destroy_capsule));
+    PyModule_AddObject(module, "hamming_b1x128sve", PyCapsule_New(simsimd_hamming_b1x128sve, NULL, destroy_capsule));
+    PyModule_AddObject(module, "cos_f16x16avx512", PyCapsule_New(simsimd_cos_f16x16avx512, NULL, destroy_capsule));
+    PyModule_AddObject(module, "dot_i8x16avx2", PyCapsule_New(simsimd_dot_i8x16avx2, NULL, destroy_capsule));
+    PyModule_AddObject(module, "cos_f32x4avx2", PyCapsule_New(simsimd_cos_f32x4avx2, NULL, destroy_capsule));
+    PyModule_AddObject(module, "hamming_b1x128avx512", PyCapsule_New(simsimd_hamming_b1x128avx512, NULL, destroy_capsule));
 
     return module;
 }
