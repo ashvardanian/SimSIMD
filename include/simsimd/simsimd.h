@@ -12,6 +12,7 @@
 #pragma once
 #include <math.h>   // `sqrt`
 #include <stddef.h> // `size_t`
+#include <stdint.h>
 
 #if defined(__AVX2__)
 #include <immintrin.h>
