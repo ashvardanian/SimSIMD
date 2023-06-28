@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
     compiled_with_neon = true;
 #endif
 #if defined(__AVX2__)
-    compiled_withavx2 = true;
+    compiled_with_avx2 = true;
 #endif
 #if defined(__AVX512VPOPCNTDQ__)
     compiled_with_avx512popcnt = true;
@@ -75,31 +75,31 @@ int main(int argc, char** argv) {
     register_<std::uint8_t, 21>("tanimoto_b1x8x21_naive", simsimd_tanimoto_b1x8x21_naive);
 
 #if defined(__ARM_FEATURE_SVE)
-    register_<simsimd_f32_t>("dot_f32sve", simsimd_dot_f32sve);
-    register_<simsimd_f32_t>("cos_f32sve", simsimd_cos_f32sve);
-    register_<simsimd_f32_t>("l2sq_f32sve", simsimd_l2sq_f32sve);
-    register_<std::int16_t>("l2sq_f16sve", simsimd_l2sq_f16sve);
-    register_<std::uint8_t>("hamming_b1x8sve", simsimd_hamming_b1x8sve);
-    register_<std::uint8_t>("hamming_b1x128sve", simsimd_hamming_b1x128sve);
+    register_<simsimd_f32_t>("dot_f32_sve", simsimd_dot_f32_sve);
+    register_<simsimd_f32_t>("cos_f32_sve", simsimd_cos_f32_sve);
+    register_<simsimd_f32_t>("l2sq_f32_sve", simsimd_l2sq_f32_sve);
+    register_<std::int16_t>("l2sq_f16_sve", simsimd_l2sq_f16_sve);
+    register_<std::uint8_t>("hamming_b1x8_sve", simsimd_hamming_b1x8_sve);
+    register_<std::uint8_t>("hamming_b1x128_sve", simsimd_hamming_b1x128_sve);
     register_<std::uint8_t, 21>("tanimoto_b1x8x21_avx512", simsimd_tanimoto_b1x8x21_avx512);
 #endif
 
 #if defined(__ARM_NEON)
-    register_<simsimd_f32_t>("dot_f32x4neon", simsimd_dot_f32x4neon);
-    register_<std::int16_t>("cos_f16x4neon", simsimd_cos_f16x4neon);
-    register_<std::int8_t>("cos_i8x16neon", simsimd_cos_i8x16neon);
-    register_<simsimd_f32_t>("cos_f32x4neon", simsimd_cos_f32x4neon);
+    register_<simsimd_f32_t>("dot_f32x4_neon", simsimd_dot_f32x4_neon);
+    register_<std::int16_t>("cos_f16x4_neon", simsimd_cos_f16x4_neon);
+    register_<std::int8_t>("cos_i8x16_neon", simsimd_cos_i8x16_neon);
+    register_<simsimd_f32_t>("cos_f32x4_neon", simsimd_cos_f32x4_neon);
 #endif
 
 #if defined(__AVX2__)
-    register_<simsimd_f32_t>("dot_f32x4avx2", simsimd_dot_f32x4avx2);
-    register_<std::int8_t>("dot_i8x16avx2", simsimd_dot_i8x16avx2);
-    register_<simsimd_f32_t>("cos_f32x4avx2", simsimd_cos_f32x4avx2);
+    register_<simsimd_f32_t>("dot_f32x4_avx2", simsimd_dot_f32x4_avx2);
+    register_<std::int8_t>("dot_i8x16_avx2", simsimd_dot_i8x16_avx2);
+    register_<simsimd_f32_t>("cos_f32x4_avx2", simsimd_cos_f32x4_avx2);
 #endif
 
 #if defined(__AVX512F__)
-    register_<std::int16_t>("cos_f16x16avx512", simsimd_cos_f16x16avx512);
-    register_<std::uint8_t>("hamming_b1x128avx512", simsimd_hamming_b1x128avx512);
+    register_<std::int16_t>("cos_f16x16_avx512", simsimd_cos_f16x16_avx512);
+    register_<std::uint8_t>("hamming_b1x128_avx512", simsimd_hamming_b1x128_avx512);
 #endif
 
     bm::RunSpecifiedBenchmarks();

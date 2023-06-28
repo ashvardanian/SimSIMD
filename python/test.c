@@ -12,9 +12,9 @@
 #define pyinit_f_m macro_concat_m(PyInit_, SIMDSIMD_PYTHON_MODULE_NAME)
 
 char const* names[14] = {
-    "dot_f32sve",    "cos_f32sve",      "l2sq_f32sve",       "cos_f32x4avx2",        "cos_f32x4neon",
-    "dot_f32x4neon", "cos_f16x4neon",   "cos_f16x16avx512",  "l2sq_f16sve",          "cos_i8x16neon",
-    "dot_i8x16avx2", "hamming_b1x8sve", "hamming_b1x128sve", "hamming_b1x128avx512",
+    "dot_f32_sve",    "cos_f32_sve",      "l2sq_f32_sve",       "cos_f32x4_avx2",        "cos_f32x4_neon",
+    "dot_f32x4_neon", "cos_f16x4_neon",   "cos_f16x16_avx512",  "l2sq_f16_sve",          "cos_i8x16_neon",
+    "dot_i8x16_avx2", "hamming_b1x8_sve", "hamming_b1x128_sve", "hamming_b1x128_avx512",
 };
 void* callables[14] = {NULL};
 

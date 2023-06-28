@@ -83,3 +83,9 @@ cmake -B ./build \
     && \
     make -C ./build -j && ./build/simsimd_bench
 ```
+
+Install and test locally:
+
+```sh
+pip install -e . && pytest python/test.py -s -x
+```
