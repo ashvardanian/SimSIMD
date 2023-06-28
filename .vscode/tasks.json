@@ -9,7 +9,7 @@
         },
         {
             "label": "Build Test: Debug",
-            "command": "cmake -DCMAKE_BUILD_TYPE=Debug -B ./build && make test -C ./build",
+            "command": "cmake -DCMAKE_BUILD_TYPE=Debug -B ./build && make test py_simsimd -C ./build",
             "args": [],
             "type": "shell"
         },
