@@ -7,12 +7,14 @@
 namespace bm = benchmark;
 
 static const std::size_t threads_k = std::thread::hardware_concurrency();
-static const std::size_t time_k = 10;
+static constexpr std::size_t time_k = 10;
+static constexpr std::size_t bytes_k = 256;
 
-template <typename scalar_at, typename metric_at, std::size_t bytes_per_vector_ak = 256,
-          std::size_t dimensions_ak = bytes_per_vector_ak / sizeof(scalar_at)> //
+template <typename scalar_at, std::size_t bytes_per_vector_ak = bytes_k,
+          typename metric_at = void> //
 static void measure(bm::State& state, metric_at metric) {
 
+    constexpr ::size_t dimensions_ak = bytes_per_vector_ak / sizeof(scalar_at);
     alignas(64) scalar_at a[dimensions_ak]{};
     alignas(64) scalar_at b[dimensions_ak]{};
     float c{};
@@ -27,8 +29,11 @@ static void measure(bm::State& state, metric_at metric) {
     state.SetItemsProcessed(state.iterations());
 }
 
-template <typename scalar_at, typename metric_at> void register_(char const* name, metric_at distance_func) {
-    bm::RegisterBenchmark(name, measure<scalar_at, metric_at>, distance_func)->Threads(threads_k)->MinTime(time_k);
+template <typename scalar_at, std::size_t bytes_per_vector_ak = bytes_k, typename metric_at = void>
+void register_(char const* name, metric_at distance_func) {
+    bm::RegisterBenchmark(name, measure<scalar_at, bytes_per_vector_ak, metric_at>, distance_func)
+        ->Threads(threads_k)
+        ->MinTime(time_k);
 }
 
 int main(int argc, char** argv) {
@@ -66,6 +71,9 @@ int main(int argc, char** argv) {
     if (bm::ReportUnrecognizedArguments(argc, argv))
         return 1;
 
+    register_<std::uint8_t, 21>("tanimoto_b1x8_naive", simsimd_tanimoto_b1x8_naive);
+    register_<std::uint8_t, 21>("tanimoto_b1x8x21_naive", simsimd_tanimoto_b1x8x21_naive);
+
 #if defined(__ARM_FEATURE_SVE)
     register_<simsimd_f32_t>("dot_f32sve", simsimd_dot_f32sve);
     register_<simsimd_f32_t>("cos_f32sve", simsimd_cos_f32sve);
@@ -73,6 +81,7 @@ int main(int argc, char** argv) {
     register_<std::int16_t>("l2sq_f16sve", simsimd_l2sq_f16sve);
     register_<std::uint8_t>("hamming_b1x8sve", simsimd_hamming_b1x8sve);
     register_<std::uint8_t>("hamming_b1x128sve", simsimd_hamming_b1x128sve);
+    register_<std::uint8_t, 21>("tanimoto_b1x8x21_avx512", simsimd_tanimoto_b1x8x21_avx512);
 #endif
 
 #if defined(__ARM_NEON)

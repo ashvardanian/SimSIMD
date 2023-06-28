@@ -373,6 +373,55 @@ inline static size_t simsimd_hamming_b1x128avx512(uint8_t const* a, uint8_t cons
 #endif
 }
 
+inline static float simsimd_tanimoto_b1x8_naive(uint8_t const* a, uint8_t const* b, size_t d) {
+    size_t and_count = 0, or_count = 0;
+    for (size_t i = 0; i != d; ++i)
+        and_count += __builtin_popcount(a[i] & b[i]), or_count += __builtin_popcount(a[i] | b[i]);
+    return 1 - float(and_count) / or_count;
+}
+
+/**
+ *  @brief  Optimized version for Tanimoto distance on @b exactly 166 bits,
+ *          forming 21 incomplete bytes for the MACCS fingerprints used in
+ *          computation chemistry.
+ */
+inline static float simsimd_tanimoto_b1x8x21_naive(uint8_t const* a_chars, uint8_t const* b_chars, size_t) {
+    unsigned long a[3] = {0};
+    unsigned long b[3] = {0};
+    __builtin_memcpy(&a[0], a_chars, 21);
+    __builtin_memcpy(&b[0], b_chars, 21);
+    float and_count =                       //
+        __builtin_popcountll(a[0] & b[0]) + //
+        __builtin_popcountll(a[1] & b[1]) + //
+        __builtin_popcountll(a[2] & b[2]);
+    float or_count =                        //
+        __builtin_popcountll(a[0] | b[0]) + //
+        __builtin_popcountll(a[1] | b[1]) + //
+        __builtin_popcountll(a[2] | b[2]);
+    return 1 - and_count / or_count;
+}
+
+/**
+ *  @brief  Optimized version for Tanimoto distance on @b exactly 166 bits,
+ *          forming 21 incomplete bytes for the MACCS fingerprints used in
+ *          computation chemistry, accelerated with AVX-512 population count
+ *          instructions.
+ */
+inline static float simsimd_tanimoto_b1x8x21_avx512(uint8_t const* a, uint8_t const* b, size_t) {
+#if defined(__AVX512VPOPCNTDQ__)
+    __m256i a_vec = _mm256_maskz_loadu_epi8(0b11111111111111111111100000000000, a);
+    __m256i b_vec = _mm256_maskz_loadu_epi8(0b11111111111111111111100000000000, b);
+    __m256i and_vec _mm256_and_si256(a_vec, b_vec);
+    __m256i or_vec _mm256_or_si256(a_vec, b_vec);
+    __m256i and_counts = _mm256_popcnt_epi8(and_vec);
+    __m256i or_counts = _mm256_popcnt_epi8(or_vec);
+    return 1 - float(_mm256_reduce_add_epi8(and_counts)) / _mm256_reduce_add_epi8(or_counts);
+#else
+    (void)a, (void)b;
+    return 0;
+#endif
+}
+
 #ifdef __cplusplus
 }
 #endif
