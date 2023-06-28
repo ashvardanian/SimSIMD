@@ -27,6 +27,7 @@ typedef simsimd_f32_t (*function_fi8_t)(int8_t*, int8_t*, size_t);
 typedef int32_t (*function_i8_t)(int8_t*, int8_t*, size_t);
 typedef size_t (*function_ui8_t)(uint8_t*, uint8_t*, size_t);
 
+
 int main(int argc, char* argv[]) {
     Py_Initialize();
     PyObject* module = PyImport_ImportModule("simsimd");
