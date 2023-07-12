@@ -71,10 +71,10 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
     PyModule_AddObject(m, "tanimoto_b1x8_naive", distance(&simsimd_tanimoto_b1x8_naive));
 
     // Specific vector sizes for chemistry
-    PyModule_AddObject(m, "simsimd_tanimoto_maccs_naive", distance(&simsimd_tanimoto_maccs_naive));
-    PyModule_AddObject(m, "simsimd_tanimoto_maccs_neon", distance(&simsimd_tanimoto_maccs_neon));
-    PyModule_AddObject(m, "simsimd_tanimoto_maccs_sve", distance(&simsimd_tanimoto_maccs_sve));
-    PyModule_AddObject(m, "simsimd_tanimoto_maccs_avx512", distance(&simsimd_tanimoto_maccs_avx512));
+    PyModule_AddObject(m, "tanimoto_maccs_naive", distance(&simsimd_tanimoto_maccs_naive));
+    PyModule_AddObject(m, "tanimoto_maccs_neon", distance(&simsimd_tanimoto_maccs_neon));
+    PyModule_AddObject(m, "tanimoto_maccs_sve", distance(&simsimd_tanimoto_maccs_sve));
+    PyModule_AddObject(m, "tanimoto_maccs_avx512", distance(&simsimd_tanimoto_maccs_avx512));
 
     return m;
 }
