@@ -23,7 +23,7 @@ static PyModuleDef simsimd_module = {
     .m_size = -1,
 };
 
-PyMODINIT_FUNC pyinit_simsimd(void) {
+PyMODINIT_FUNC PyInit_simsimd(void) {
     PyObject* m = PyModule_Create(&simsimd_module);
     if (m == NULL)
         return NULL;

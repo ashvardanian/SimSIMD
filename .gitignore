@@ -4,6 +4,7 @@ build
 _deps
 simsimd.egg-info
 CMakeFiles
+__pycache__
 
 cmake_install.cmake
 CMakeCache.txt
