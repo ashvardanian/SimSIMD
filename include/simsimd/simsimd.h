@@ -12,6 +12,7 @@
 #pragma once
 #include <math.h>   // `sqrt`
 #include <stddef.h> // `size_t`
+#include <stdint.h>
 
 #if defined(__AVX2__)
 #include <immintrin.h>
@@ -38,7 +39,7 @@ union simsimd_f32i32_t {
     float f;
 };
 
-inline static simsimd_f32_t simsimd_dot_f32sve(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
+inline static simsimd_f32_t simsimd_dot_f32_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
 #if defined(__ARM_FEATURE_SVE)
     size_t i = 0;
     svfloat32_t ab_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
@@ -50,14 +51,14 @@ inline static simsimd_f32_t simsimd_dot_f32sve(simsimd_f32_t const* a, simsimd_f
         i += svcntw();
         pg_vec = svwhilelt_b32(i, d);
     } while (svptest_any(svptrue_b32(), pg_vec));
-    return svaddv_f32(svptrue_b32(), ab_vec);
+    return 1 - svaddv_f32(svptrue_b32(), ab_vec);
 #else
     (void)a, (void)b, (void)d;
-    return 0;
+    return -1;
 #endif
 }
 
-inline static simsimd_f32_t simsimd_cos_f32sve(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
+inline static simsimd_f32_t simsimd_cos_f32_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
 #if defined(__ARM_FEATURE_SVE)
     size_t i = 0;
     svfloat32_t ab_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
@@ -76,14 +77,14 @@ inline static simsimd_f32_t simsimd_cos_f32sve(simsimd_f32_t const* a, simsimd_f
     simsimd_f32_t ab = svaddv_f32(svptrue_b32(), ab_vec);
     simsimd_f32_t a2 = svaddv_f32(svptrue_b32(), a2_vec);
     simsimd_f32_t b2 = svaddv_f32(svptrue_b32(), b2_vec);
-    return ab / (sqrt(a2) * sqrt(b2));
+    return 1 - ab / (sqrt(a2) * sqrt(b2));
 #else
     (void)a, (void)b, (void)d;
-    return 0;
+    return -1;
 #endif
 }
 
-inline static simsimd_f32_t simsimd_l2sq_f32sve(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
+inline static simsimd_f32_t simsimd_l2sq_f32_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
 #if defined(__ARM_FEATURE_SVE)
     size_t i = 0;
     svfloat32_t d2_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
@@ -100,11 +101,11 @@ inline static simsimd_f32_t simsimd_l2sq_f32sve(simsimd_f32_t const* a, simsimd_
     return sqrt(d2);
 #else
     (void)a, (void)b, (void)d;
-    return 0;
+    return -1;
 #endif
 }
 
-inline static simsimd_f16_t simsimd_l2sq_f16sve(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, size_t d) {
+inline static simsimd_f32_t simsimd_l2sq_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, size_t d) {
 #if defined(__ARM_FEATURE_SVE)
     size_t i = 0;
     svfloat16_t d2_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
@@ -122,14 +123,14 @@ inline static simsimd_f16_t simsimd_l2sq_f16sve(simsimd_f16_t const* a_enum, sim
     float16_t f16 = svaddv_f16(svptrue_b16(), d2_vec);
     simsimd_f16_t i16;
     __builtin_memcpy(&i16, &f16, sizeof(i16));
-    return i16;
+    return 1 - simsimd_f32_t(i16);
 #else
     (void)a_enum, (void)b_enum, (void)d;
-    return 0;
+    return -1;
 #endif
 }
 
-inline static size_t simsimd_hamming_b1x8sve(uint8_t const* a, uint8_t const* b, size_t d) {
+inline static simsimd_f32_t simsimd_hamming_b1x8_sve(uint8_t const* a, uint8_t const* b, size_t d) {
 #if defined(__ARM_FEATURE_SVE)
     size_t i = 0;
     svuint8_t d_vec = svdupq_n_u8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -142,26 +143,26 @@ inline static size_t simsimd_hamming_b1x8sve(uint8_t const* a, uint8_t const* b,
         i += svcntb() * __CHAR_BIT__;
         pg_vec = svwhilelt_b32(i, d);
     } while (svptest_any(svptrue_b32(), pg_vec));
-    return svaddv_u8(svptrue_b32(), d_vec);
+    return 1 - svaddv_u8(svptrue_b32(), d_vec);
 #else
     (void)a, (void)b, (void)d;
-    return 0;
+    return -1;
 #endif
 }
 
-inline static simsimd_f32_t simsimd_dot_f32x4neon(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
+inline static simsimd_f32_t simsimd_dot_f32x4_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
 #if defined(__ARM_NEON)
     float32x4_t ab_vec = vdupq_n_f32(0);
     for (size_t i = 0; i != d; i += 4)
         ab_vec = vfmaq_f32(ab_vec, vld1q_f32(a + i), vld1q_f32(b + i));
-    return vaddvq_f32(ab_vec);
+    return 1 - vaddvq_f32(ab_vec);
 #else
     (void)a, (void)b, (void)d;
-    return 0;
+    return -1;
 #endif
 }
 
-inline static simsimd_f32_t simsimd_cos_f16x4neon(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
+inline static simsimd_f32_t simsimd_cos_f16x4_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
 #if defined(__ARM_NEON)
     float32x4_t ab_vec = vdupq_n_f32(0);
     float32x4_t a2_vec = vdupq_n_f32(0);
@@ -177,14 +178,14 @@ inline static simsimd_f32_t simsimd_cos_f16x4neon(simsimd_f16_t const* a, simsim
     simsimd_f32_t ab = vaddvq_f32(ab_vec);
     simsimd_f32_t a2 = vaddvq_f32(a2_vec);
     simsimd_f32_t b2 = vaddvq_f32(b2_vec);
-    return ab / (sqrt(a2) * sqrt(b2));
+    return 1 - ab / (sqrt(a2) * sqrt(b2));
 #else
     (void)a, (void)b, (void)d;
-    return 0;
+    return -1;
 #endif
 }
 
-inline static simsimd_f32_t simsimd_cos_i8x16neon(int8_t const* a, int8_t const* b, size_t d) {
+inline static simsimd_f32_t simsimd_cos_i8x16_neon(int8_t const* a, int8_t const* b, size_t d) {
 #if defined(__ARM_NEON)
     int32x4_t ab_vec = vdupq_n_s32(0);
     int32x4_t a2_vec = vdupq_n_s32(0);
@@ -205,11 +206,11 @@ inline static simsimd_f32_t simsimd_cos_i8x16neon(int8_t const* a, int8_t const*
         int16x8_t ab_part_vec = vmulq_s16(a_vec, b_vec);
         int16x8_t a2_part_vec = vmulq_s16(a_vec, a_vec);
         int16x8_t b2_part_vec = vmulq_s16(b_vec, b_vec);
-        ab_vec =
+        ab_vec = //
             vaddq_s32(ab_vec, vaddq_s32(vmovl_s16(vget_high_s16(ab_part_vec)), vmovl_s16(vget_low_s16(ab_part_vec))));
-        a2_vec =
+        a2_vec = //
             vaddq_s32(a2_vec, vaddq_s32(vmovl_s16(vget_high_s16(a2_part_vec)), vmovl_s16(vget_low_s16(a2_part_vec))));
-        b2_vec =
+        b2_vec = //
             vaddq_s32(b2_vec, vaddq_s32(vmovl_s16(vget_high_s16(b2_part_vec)), vmovl_s16(vget_low_s16(b2_part_vec))));
     }
 #endif
@@ -220,14 +221,14 @@ inline static simsimd_f32_t simsimd_cos_i8x16neon(int8_t const* a, int8_t const*
     int32_t a2 = vget_lane_s32(vpadd_s32(a2_part, a2_part), 0);
     int32x2_t b2_part = vadd_s32(vget_high_s32(b2_vec), vget_low_s32(b2_vec));
     int32_t b2 = vget_lane_s32(vpadd_s32(b2_part, b2_part), 0);
-    return ab / (sqrt(a2) * sqrt(b2));
+    return 1 - ab / (sqrt(a2) * sqrt(b2));
 #else
     (void)a, (void)b, (void)d;
-    return 0;
+    return -1;
 #endif
 }
 
-inline static simsimd_f32_t simsimd_cos_f32x4neon(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
+inline static simsimd_f32_t simsimd_cos_f32x4_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
 #if defined(__ARM_NEON)
     float32x4_t ab_vec = vdupq_n_f32(0);
     float32x4_t a2_vec = vdupq_n_f32(0);
@@ -242,14 +243,14 @@ inline static simsimd_f32_t simsimd_cos_f32x4neon(simsimd_f32_t const* a, simsim
     simsimd_f32_t ab = vaddvq_f32(ab_vec);
     simsimd_f32_t a2 = vaddvq_f32(a2_vec);
     simsimd_f32_t b2 = vaddvq_f32(b2_vec);
-    return ab / (sqrt(a2) * sqrt(b2));
+    return 1 - ab / (sqrt(a2) * sqrt(b2));
 #else
     (void)a, (void)b, (void)d;
-    return 0;
+    return -1;
 #endif
 }
 
-inline static size_t simsimd_hamming_b1x128sve(uint8_t const* a, uint8_t const* b, size_t d) {
+inline static simsimd_f32_t simsimd_hamming_b1x128_sve(uint8_t const* a, uint8_t const* b, size_t d) {
 #if defined(__ARM_NEON)
     /// Contains 16x 8-bit integers with running population count sums.
     uint8x16_t d_vec = vdupq_n_u8(0);
@@ -259,14 +260,14 @@ inline static size_t simsimd_hamming_b1x128sve(uint8_t const* a, uint8_t const* 
         uint8x16_t a_xor_b_vec = veorq_u8(a_vec, b_vec);
         d_vec = vaddq_u8(d_vec, vcntq_u8(a_xor_b_vec));
     }
-    return vaddvq_u8(d_vec);
+    return 1 - vaddvq_u8(d_vec);
 #else
     (void)a, (void)b, (void)d;
-    return 0;
+    return -1;
 #endif
 }
 
-inline static simsimd_f32_t simsimd_dot_f32x4avx2(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
+inline static simsimd_f32_t simsimd_dot_f32x4_avx2(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
 #if defined(__AVX2__)
     __m128 ab_vec = _mm_set1_ps(0);
     for (size_t i = 0; i != d; i += 4)
@@ -275,14 +276,14 @@ inline static simsimd_f32_t simsimd_dot_f32x4avx2(simsimd_f32_t const* a, simsim
     ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
     simsimd_f32i32_t ab_union;
     ab_union.i = _mm_cvtsi128_si32(_mm_castps_si128(ab_vec));
-    return ab_union.f;
+    return 1 - ab_union.f;
 #else
     (void)a, (void)b, (void)d;
-    return 0;
+    return -1;
 #endif
 }
 
-inline static simsimd_f32_t simsimd_cos_f16x16avx512(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
+inline static simsimd_f32_t simsimd_cos_f16x16_avx512(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
 #if defined(__AVX512F__)
     __m512 ab_vec = _mm512_set1_ps(0);
     __m512 a2_vec = _mm512_set1_ps(0);
@@ -297,35 +298,14 @@ inline static simsimd_f32_t simsimd_cos_f16x16avx512(simsimd_f16_t const* a, sim
     simsimd_f32_t ab = _mm512_reduce_add_ps(ab_vec);
     simsimd_f32_t a2 = _mm512_reduce_add_ps(a2_vec);
     simsimd_f32_t b2 = _mm512_reduce_add_ps(b2_vec);
-    return ab / (sqrt(a2) * sqrt(b2));
+    return 1 - ab / (sqrt(a2) * sqrt(b2));
 #else
     (void)a, (void)b, (void)d;
-    return 0;
+    return -1;
 #endif
 }
 
-inline static int32_t simsimd_dot_i8x16avx2(int8_t const* a, int8_t const* b, size_t d) {
-#if defined(__AVX2__)
-    __m256i ab_vec = _mm256_set1_epi32(0);
-    for (size_t i = 0; i != d; i += 8) {
-        ab_vec = _mm256_add_epi32(     //
-            ab_vec, _mm256_madd_epi16( //
-                        _mm256_cvtepi8_epi16(_mm_loadu_si128((__m128i const*)(a + i))),
-                        _mm256_cvtepi8_epi16(_mm_loadu_si128((__m128i const*)(b + i)))));
-    }
-    ab_vec = _mm256_hadd_epi32(ab_vec, ab_vec);
-    ab_vec = _mm256_hadd_epi32(ab_vec, ab_vec);
-    ab_vec = _mm256_hadd_epi32(ab_vec, ab_vec);
-    simsimd_f32i32_t ab_union;
-    ab_union.f = _mm256_cvtss_f32(_mm256_castsi256_ps(ab_vec));
-    return ab_union.i;
-#else
-    (void)a, (void)b, (void)d;
-    return 0;
-#endif
-}
-
-inline static simsimd_f32_t simsimd_cos_f32x4avx2(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
+inline static simsimd_f32_t simsimd_cos_f32x4_avx2(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
 #if defined(__AVX2__)
     __m128 ab_vec = _mm_set1_ps(0);
     __m128 a2_vec = _mm_set1_ps(0);
@@ -346,14 +326,14 @@ inline static simsimd_f32_t simsimd_cos_f32x4avx2(simsimd_f32_t const* a, simsim
     simsimd_f32i32_t ab_union = {_mm_cvtsi128_si32(_mm_castps_si128(ab_vec))};
     simsimd_f32i32_t a2_union = {_mm_cvtsi128_si32(_mm_castps_si128(a2_vec))};
     simsimd_f32i32_t b2_union = {_mm_cvtsi128_si32(_mm_castps_si128(b2_vec))};
-    return ab_union.f / (sqrt(a2_union.f) * sqrt(b2_union.f));
+    return 1 - ab_union.f / (sqrt(a2_union.f) * sqrt(b2_union.f));
 #else
     (void)a, (void)b, (void)d;
-    return 0;
+    return -1;
 #endif
 }
 
-inline static size_t simsimd_hamming_b1x128avx512(uint8_t const* a, uint8_t const* b, size_t d) {
+inline static simsimd_f32_t simsimd_hamming_b1x128_avx512(uint8_t const* a, uint8_t const* b, size_t d) {
 #if defined(__AVX512VPOPCNTDQ__)
     size_t words = d / 128;
     uint64_t const* a64 = (uint64_t const*)(a);
@@ -369,15 +349,57 @@ inline static size_t simsimd_hamming_b1x128avx512(uint8_t const* a, uint8_t cons
     return _mm_cvtm64_si64(_mm_movepi64_pi64(d_vec)) + _mm_extract_epi64(d_vec, 1);
 #else
     (void)a, (void)b, (void)d;
-    return 0;
+    return -1;
 #endif
 }
 
-inline static float simsimd_tanimoto_b1x8_naive(uint8_t const* a, uint8_t const* b, size_t d) {
+inline static simsimd_f32_t simsimd_tanimoto_b1x8_naive(uint8_t const* a, uint8_t const* b, size_t d) {
     size_t and_count = 0, or_count = 0;
     for (size_t i = 0; i != d; ++i)
         and_count += __builtin_popcount(a[i] & b[i]), or_count += __builtin_popcount(a[i] | b[i]);
-    return 1 - float(and_count) / or_count;
+    return 1 - (simsimd_f32_t)(and_count) / or_count;
+}
+
+/**
+ *  @brief  Optimized version for Tanimoto distance on @b exactly 166 bits,
+ *          forming 21 incomplete bytes for the MACCS fingerprints used in
+ *          computation chemistry.
+ */
+inline static simsimd_f32_t simsimd_tanimoto_b1x8x21_naive(uint8_t const* a_chars, uint8_t const* b_chars, size_t) {
+    unsigned long a[3] = {0};
+    unsigned long b[3] = {0};
+    __builtin_memcpy(&a[0], a_chars, 21);
+    __builtin_memcpy(&b[0], b_chars, 21);
+    float and_count =                       //
+        __builtin_popcountll(a[0] & b[0]) + //
+        __builtin_popcountll(a[1] & b[1]) + //
+        __builtin_popcountll(a[2] & b[2]);
+    float or_count =                        //
+        __builtin_popcountll(a[0] | b[0]) + //
+        __builtin_popcountll(a[1] | b[1]) + //
+        __builtin_popcountll(a[2] | b[2]);
+    return 1 - and_count / or_count;
+}
+
+/**
+ *  @brief  Optimized version for Tanimoto distance on @b exactly 166 bits,
+ *          forming 21 incomplete bytes for the MACCS fingerprints used in
+ *          computation chemistry, accelerated with AVX-512 population count
+ *          instructions.
+ */
+inline static simsimd_f32_t simsimd_tanimoto_b1x8x21_avx512(uint8_t const* a, uint8_t const* b, size_t) {
+#if defined(__AVX512VPOPCNTDQ__)
+    __m256i a_vec = _mm256_maskz_loadu_epi8(0b11111111111111111111100000000000, a);
+    __m256i b_vec = _mm256_maskz_loadu_epi8(0b11111111111111111111100000000000, b);
+    __m256i and_vec _mm256_and_si256(a_vec, b_vec);
+    __m256i or_vec _mm256_or_si256(a_vec, b_vec);
+    __m256i and_counts = _mm256_popcnt_epi8(and_vec);
+    __m256i or_counts = _mm256_popcnt_epi8(or_vec);
+    return 1 - float(_mm256_reduce_add_epi8(and_counts)) / _mm256_reduce_add_epi8(or_counts);
+#else
+    (void)a, (void)b;
+    return -1;
+#endif
 }
 
 #ifdef __cplusplus
