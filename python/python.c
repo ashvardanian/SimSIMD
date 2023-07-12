@@ -17,11 +17,33 @@ static void pseudo_destroy(PyObject*) {}
 
 PyObject* distance(void* func) { return PyCapsule_New(func, NULL, pseudo_destroy); }
 
+static PyObject* to_int(PyObject* self, PyObject* args) {
+    PyObject* capsule;
+    if (!PyArg_ParseTuple(args, "O", &capsule)) {
+        return NULL;
+    }
+
+    if (!PyCapsule_IsValid(capsule, NULL)) {
+        PyErr_SetString(PyExc_ValueError, "Object is not a valid capsule");
+        return NULL;
+    }
+
+    void* pointer = PyCapsule_GetPointer(capsule, NULL);
+
+    return PyLong_FromVoidPtr(pointer);
+}
+
+static PyMethodDef simsimd_methods[] = {
+    {"to_int", (PyCFunction)to_int, METH_VARARGS, "Converts CPython capsule to `int`"},
+    {NULL, NULL, 0, NULL} /* Sentinel */
+};
+
 static PyModuleDef simsimd_module = {
     PyModuleDef_HEAD_INIT,
     .m_name = "SimSIMD",
     .m_doc = "SIMD-accelerated similarity measures for x86 and Arm: AVX2, AVX512, NEON, SVE",
     .m_size = -1,
+    .m_methods = simsimd_methods,
 };
 
 PyMODINIT_FUNC PyInit_simsimd(void) {
