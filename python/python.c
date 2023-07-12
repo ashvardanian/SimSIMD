@@ -8,6 +8,7 @@
  */
 
 #include "simsimd/simsimd.h"
+#include "simsimd/simsimd_chem.h"
 
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
@@ -46,8 +47,12 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
     PyModule_AddObject(m, "hamming_b1x128_avx512", distance(&simsimd_hamming_b1x128_avx512));
 
     PyModule_AddObject(m, "tanimoto_b1x8_naive", distance(&simsimd_tanimoto_b1x8_naive));
-    PyModule_AddObject(m, "tanimoto_b1x8x21_naive", distance(&simsimd_tanimoto_b1x8x21_naive));
-    PyModule_AddObject(m, "tanimoto_b1x8x21_avx512", distance(&simsimd_tanimoto_b1x8x21_avx512));
+
+    // Specific vector sizes for chemistry
+    PyModule_AddObject(m, "simsimd_tanimoto_maccs_naive", distance(&simsimd_tanimoto_maccs_naive));
+    PyModule_AddObject(m, "simsimd_tanimoto_maccs_neon", distance(&simsimd_tanimoto_maccs_neon));
+    PyModule_AddObject(m, "simsimd_tanimoto_maccs_sve", distance(&simsimd_tanimoto_maccs_sve));
+    PyModule_AddObject(m, "simsimd_tanimoto_maccs_avx512", distance(&simsimd_tanimoto_maccs_avx512));
 
     return m;
 }

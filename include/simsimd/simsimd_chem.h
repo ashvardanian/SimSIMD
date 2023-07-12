@@ -56,7 +56,7 @@ inline static simsimd_f32_t simsimd_tanimoto_maccs_neon(uint8_t const* a_chars, 
     float or_populations = vaddvq_u8(vaddq_u8(vcntq_u8(a_or_b_first), vcntq_u8(a_or_b_second)));
     return 1 - and_populations / or_populations;
 #else
-    (void)a, (void)b;
+    (void)a_chars, (void)b_chars;
     return 0;
 #endif
 }
@@ -90,7 +90,7 @@ inline static simsimd_f32_t simsimd_tanimoto_maccs_sve(uint8_t const* a_chars, u
     float or_populations = svaddv_u8(svptrue_b8(), or_populations_vec);
     return 1 - and_populations / or_populations;
 #else
-    (void)a, (void)b;
+    (void)a_chars, (void)b_chars;
     return 0;
 #endif
 }
