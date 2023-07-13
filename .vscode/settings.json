@@ -83,7 +83,9 @@
         "locale": "cpp",
         "optional": "cpp",
         "variant": "cpp",
-        "__nullptr": "cpp"
+        "__nullptr": "cpp",
+        "unordered_set": "cpp",
+        "span": "cpp"
     },
     "cSpell.words": [
         "dtype",

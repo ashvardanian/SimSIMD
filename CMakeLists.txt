@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 project(simsimd LANGUAGES CXX C)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
@@ -65,11 +65,6 @@ Python3_add_library(py_simsimd python/python.c)
 target_include_directories(py_simsimd PUBLIC include/)
 set_target_properties(py_simsimd PROPERTIES OUTPUT_NAME simsimd)
 target_compile_definitions(py_simsimd PRIVATE SIMSIMD_PYTHON_MODULE_NAME=simsimd)
-
-add_executable(test test.c)
-target_include_directories(test PUBLIC include/)
-target_link_libraries(test ${PYTHON_LIBRARIES} ${PYTHON_DEBUG_LIBRARIES})
-
 
 # Build the benchmarks if needed.
 if(${SIMSIMD_BUILD_BENCHMARKS})
