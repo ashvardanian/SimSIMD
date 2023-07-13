@@ -26,6 +26,13 @@
 #include <arm_sve.h>
 #endif
 
+#ifdef _MSC_VER
+#include <intrin.h>
+#define popcount32 __popcnt
+#else
+#define popcount32 __builtin_popcount
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -149,9 +156,7 @@ inline static simsimd_f32_t simsimd_l2sq_f16_sve(simsimd_f16_t const* a_enum, si
         pg_vec = svwhilelt_b16(i, d);
     } while (svptest_any(svptrue_b16(), pg_vec));
     float16_t f16 = svaddv_f16(svptrue_b16(), d2_vec);
-    simsimd_f16_t i16;
-    __builtin_memcpy(&i16, &f16, sizeof(i16));
-    return 1 - simsimd_f32_t(i16);
+    return 1 - simsimd_f32_t(f16);
 #else
     (void)a_enum, (void)b_enum, (void)d;
     return -1;
@@ -384,9 +389,11 @@ inline static simsimd_f32_t simsimd_hamming_b1x128_avx512(uint8_t const* a, uint
 inline static simsimd_f32_t simsimd_tanimoto_b1x8_naive(uint8_t const* a, uint8_t const* b, size_t d) {
     size_t and_count = 0, or_count = 0;
     for (size_t i = 0; i != d; ++i)
-        and_count += __builtin_popcount(a[i] & b[i]), or_count += __builtin_popcount(a[i] | b[i]);
+        and_count += popcount32(a[i] & b[i]), or_count += popcount32(a[i] | b[i]);
     return 1 - (simsimd_f32_t)(and_count) / or_count;
 }
+
+#undef popcount32
 
 #ifdef __cplusplus
 }

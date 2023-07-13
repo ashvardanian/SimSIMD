@@ -6,7 +6,16 @@
  */
 
 #pragma once
+#include <string.h> // `memcpy`
+
 #include <simsimd/simsimd.h>
+
+#ifdef _MSC_VER
+#include <intrin.h>
+#define popcount64 __popcnt64
+#else
+#define popcount64 __builtin_popcountll
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,16 +29,10 @@ extern "C" {
 inline static simsimd_f32_t simsimd_tanimoto_maccs_naive(uint8_t const* a_chars, uint8_t const* b_chars) {
     unsigned long a[3] = {0};
     unsigned long b[3] = {0};
-    __builtin_memcpy(&a[0], a_chars, 21);
-    __builtin_memcpy(&b[0], b_chars, 21);
-    float and_count =                       //
-        __builtin_popcountll(a[0] & b[0]) + //
-        __builtin_popcountll(a[1] & b[1]) + //
-        __builtin_popcountll(a[2] & b[2]);
-    float or_count =                        //
-        __builtin_popcountll(a[0] | b[0]) + //
-        __builtin_popcountll(a[1] | b[1]) + //
-        __builtin_popcountll(a[2] | b[2]);
+    memcpy(&a[0], a_chars, 21);
+    memcpy(&b[0], b_chars, 21);
+    float and_count = popcount64(a[0] & b[0]) + popcount64(a[1] & b[1]) + popcount64(a[2] & b[2]);
+    float or_count = popcount64(a[0] | b[0]) + popcount64(a[1] | b[1]) + popcount64(a[2] | b[2]);
     return 1 - and_count / or_count;
 }
 
@@ -42,8 +45,8 @@ inline static simsimd_f32_t simsimd_tanimoto_maccs_neon(uint8_t const* a_chars, 
 #if defined(__ARM_NEON)
     unsigned char a[32] = {0};
     unsigned char b[32] = {0};
-    __builtin_memcpy(&a[0], a_chars, 21);
-    __builtin_memcpy(&b[0], b_chars, 21);
+    memcpy(&a[0], a_chars, 21);
+    memcpy(&b[0], b_chars, 21);
     uint8x16_t a_first = vld1q_u8(&a[0]);
     uint8x16_t a_second = vld1q_u8(&a[16]);
     uint8x16_t b_first = vld1q_u8(&b[0]);
@@ -115,6 +118,8 @@ inline static simsimd_f32_t simsimd_tanimoto_maccs_avx512(uint8_t const* a, uint
     return 0;
 #endif
 }
+
+#undef popcount64
 
 #ifdef __cplusplus
 }
