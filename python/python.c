@@ -13,7 +13,7 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-static void pseudo_destroy(PyObject*) {}
+static void pseudo_destroy(PyObject* obj) { (void)obj; }
 
 PyObject* distance(void* func) { return PyCapsule_New(func, NULL, pseudo_destroy); }
 
