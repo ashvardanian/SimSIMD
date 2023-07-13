@@ -26,6 +26,13 @@
 #include <arm_sve.h>
 #endif
 
+#ifdef _MSC_VER
+#include <intrin.h>
+#define popcount32 __popcnt
+#else
+#define popcount32 __builtin_popcount
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -105,6 +112,34 @@ inline static simsimd_f32_t simsimd_l2sq_f32_sve(simsimd_f32_t const* a, simsimd
 #endif
 }
 
+inline static simsimd_f32_t simsimd_cos_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, size_t d) {
+#if defined(__ARM_FEATURE_SVE)
+    size_t i = 0;
+    svfloat16_t ab_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
+    svfloat16_t a2_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
+    svfloat16_t b2_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
+    svbool_t pg_vec = svwhilelt_b16(i, d);
+    simsimd_f16_t const* a = (simsimd_f16_t const*)(a_enum);
+    simsimd_f16_t const* b = (simsimd_f16_t const*)(b_enum);
+    do {
+        svfloat16_t a_vec = svld1_f16(pg_vec, (float16_t const*)a + i);
+        svfloat16_t b_vec = svld1_f16(pg_vec, (float16_t const*)b + i);
+        ab_vec = svmla_f16_x(pg_vec, ab_vec, a_vec, b_vec);
+        a2_vec = svmla_f16_x(pg_vec, a2_vec, a_vec, a_vec);
+        b2_vec = svmla_f16_x(pg_vec, b2_vec, b_vec, b_vec);
+        i += svcnth();
+        pg_vec = svwhilelt_b16(i, d);
+    } while (svptest_any(svptrue_b16(), pg_vec));
+    simsimd_f16_t ab = svaddv_f16(svptrue_b16(), ab_vec);
+    simsimd_f16_t a2 = svaddv_f16(svptrue_b16(), a2_vec);
+    simsimd_f16_t b2 = svaddv_f16(svptrue_b16(), b2_vec);
+    return 1 - ab / (sqrt(a2) * sqrt(b2));
+#else
+    (void)a_enum, (void)b_enum, (void)d;
+    return -1;
+#endif
+}
+
 inline static simsimd_f32_t simsimd_l2sq_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, size_t d) {
 #if defined(__ARM_FEATURE_SVE)
     size_t i = 0;
@@ -121,9 +156,7 @@ inline static simsimd_f32_t simsimd_l2sq_f16_sve(simsimd_f16_t const* a_enum, si
         pg_vec = svwhilelt_b16(i, d);
     } while (svptest_any(svptrue_b16(), pg_vec));
     float16_t f16 = svaddv_f16(svptrue_b16(), d2_vec);
-    simsimd_f16_t i16;
-    __builtin_memcpy(&i16, &f16, sizeof(i16));
-    return 1 - simsimd_f32_t(i16);
+    return 1 - simsimd_f32_t(f16);
 #else
     (void)a_enum, (void)b_enum, (void)d;
     return -1;
@@ -356,9 +389,11 @@ inline static simsimd_f32_t simsimd_hamming_b1x128_avx512(uint8_t const* a, uint
 inline static simsimd_f32_t simsimd_tanimoto_b1x8_naive(uint8_t const* a, uint8_t const* b, size_t d) {
     size_t and_count = 0, or_count = 0;
     for (size_t i = 0; i != d; ++i)
-        and_count += __builtin_popcount(a[i] & b[i]), or_count += __builtin_popcount(a[i] | b[i]);
+        and_count += popcount32(a[i] & b[i]), or_count += popcount32(a[i] | b[i]);
     return 1 - (simsimd_f32_t)(and_count) / or_count;
 }
+
+#undef popcount32
 
 #ifdef __cplusplus
 }

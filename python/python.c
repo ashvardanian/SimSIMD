@@ -13,7 +13,7 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-static void pseudo_destroy(PyObject*) {}
+static void pseudo_destroy(PyObject* obj) { (void)obj; }
 
 PyObject* distance(void* func) { return PyCapsule_New(func, NULL, pseudo_destroy); }
 
@@ -55,6 +55,7 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
     PyModule_AddObject(m, "dot_f32x4_neon", distance(&simsimd_dot_f32x4_neon));
 
     PyModule_AddObject(m, "cos_f32_sve", distance(&simsimd_cos_f32_sve));
+    PyModule_AddObject(m, "cos_f16_sve", distance(&simsimd_cos_f16_sve));
     PyModule_AddObject(m, "cos_f16x4_neon", distance(&simsimd_cos_f16x4_neon));
     PyModule_AddObject(m, "cos_i8x16_neon", distance(&simsimd_cos_i8x16_neon));
     PyModule_AddObject(m, "cos_f32x4_neon", distance(&simsimd_cos_f32x4_neon));

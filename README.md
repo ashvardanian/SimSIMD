@@ -1,18 +1,20 @@
 # SimSIMD
 
 SIMD-accelerated similarity measures, metrics, distance functions for x86 and Arm.
-Tuned for Machine Learning applications, mid-size vectors with 100-512 dimensions.
+Tuned for Machine Learning applications, mid-size vectors with 100-1024 dimensions.
+For Cosine (Angular) distance, the most common metric in AI, one can expect following performance.
 
-| Distance          | Serial |     x86 AVX     | Arm NEON | Arm SVE |
-| :---------------- | :----: | :-------------: | :------: | :-----: |
-| `f32` Dot Product |   ✅    |    AVX2-FMA     |    ✅     |    ✅    |
-| `f32` Cosine      |   ✅    |    AVX2-FMA     |    ✅     |    ✅    |
-| `f32` Euclidean   |   ✅    |        ❌        |    ❌     |    ✅    |
-|                   |        |                 |          |         |
-| `f16` Dot Product |   ✅    |        ❌        |    ❌     |    ✅    |
-| `f16` Euclidean   |   ✅    |        ❌        |    ❌     |    ✅    |
-|                   |        |                 |          |         |
-| `u1` Hamming      |   ✅    | AVX512VPOPCNTDQ |    ✅     |    ✅    |
+| Method | Vectors | Any Length | Speed on 256b | Speed on 1024b |
+| :----- | :------ | :--------- | ------------: | -------------: |
+| Serial | `f32`   | ✅          |        5 GB/s |         5 GB/s |
+| SVE    | `f32`   | ✅          |       34 GB/s |        40 GB/s |
+| SVE    | `f16`   | ✅          |       28 GB/s |        35 GB/s |
+| NEON   | `f16`   | ❌          |       16 GB/s |        18 GB/s |
+
+> The benchmarks were done on Arm-based "Graviton 3" CPUs powering AWS `c7g.metal` instances.
+> We only use Arm NEON implementation with vectors lengths that are multiples of 128 bits, avoiding any additional head or tail `for` loops for misaligned data.
+> By default, we use GCC12, `-O3`, `-march=native` for benchmarks.
+> Serial versions imply auto-vectorization pragmas.
 
 Need something like this in your CMake-based project?
 
@@ -26,49 +28,60 @@ FetchContent_MakeAvailable(simsimd)
 include_directories(${simsimd_SOURCE_DIR}/include)
 ```
 
+Want to use in Python with [USearch](https://github.com/unum-cloud/usearch)?
+
+```py
+from usearch import Index, CompiledMetric, MetricKind, MetricSignature
+from simsimd import to_int, cos_f32x4_neon
+
+metric = CompiledMetric(
+    pointer=to_int(cos_f32x4_neon),
+    kind=MetricKind.Cos,
+    signature=MetricSignature.ArrayArraySize,
+)
+
+index = Index(256, metric=metric)
+```
+
+## Available Metrics
+
+In the C99 interface all function are prepended with `simsimd_` namespace prefix.
+Signature defines the number of arguments:
+
+- two pointers, and length,
+- two pointers.
+
+The latter is obviously intended for cases, where the number of dimensions is hard-coded.
+Constraints define the limitations on the number of dimensions that an argument vector can have.
+
+| Name                    | Signature | ISA Extesion |  Constraints   |
+| :---------------------- | :-------: | :----------: | :------------: |
+| `dot_f32_sve`           |    ✳️✳️📏    |   Arm SVE    |                |
+| `dot_f32x4_neon`        |    ✳️✳️📏    |   Arm NEON   |  `d % 4 == 0`  |
+| `cos_f32_sve`           |    ✳️✳️📏    |   Arm SVE    |                |
+| `cos_f16_sve`           |    ✳️✳️📏    |   Arm SVE    |                |
+| `cos_f16x4_neon`        |    ✳️✳️📏    |   Arm NEON   |  `d % 4 == 0`  |
+| `cos_i8x16_neon`        |    ✳️✳️📏    |   Arm NEON   | `d % 16 == 0`  |
+| `cos_f32x4_neon`        |    ✳️✳️📏    |   Arm NEON   |  `d % 4 == 0`  |
+| `cos_f16x16_avx512`     |    ✳️✳️📏    | x86 AVX-512  | `d % 16 == 0`  |
+| `cos_f32x4_avx2`        |    ✳️✳️📏    |   x86 AVX2   |  `d % 4 == 0`  |
+| `l2sq_f32_sve`          |    ✳️✳️📏    |   Arm SVE    |                |
+| `l2sq_f16_sve`          |    ✳️✳️📏    |   Arm SVE    |                |
+| `hamming_b1x8_sve`      |    ✳️✳️📏    |   Arm SVE    |  `d % 8 == 0`  |
+| `hamming_b1x128_sve`    |    ✳️✳️📏    |   Arm SVE    | `d % 128 == 0` |
+| `hamming_b1x128_avx512` |    ✳️✳️📏    | x86 AVX-512  | `d % 128 == 0` |
+| `tanimoto_b1x8_naive`   |    ✳️✳️📏    |              |  `d % 8 == 0`  |
+| `tanimoto_maccs_naive`  |    ✳️✳️     |              |   `d == 166`   |
+| `tanimoto_maccs_neon`   |    ✳️✳️     |   Arm NEON   |   `d == 166`   |
+| `tanimoto_maccs_sve`    |    ✳️✳️     |   Arm SVE    |   `d == 166`   |
+| `tanimoto_maccs_avx512` |    ✳️✳️     | x86 AVX-512  |   `d == 166`   |
+
 ## Benchmarks
-
-By default, we use GCC12, `-O3`, `-march=native` for benchmarks.
-Serial versions imply auto-vectorization pragmas.
-
----
-
-Cosine distance performance on a single core of a 64-core Arm-based "Graviton 3" CPUs powering AWS `c7g.metal` instances:
-
-| Method | Vectors    | Any Length | Performance |
-| :----- | :--------- | :--------- | ----------: |
-| Serial | `f32` x16  | ✅          |      5 GB/s |
-| Serial | `f32` x256 | ✅          |      5 GB/s |
-|        |            |            |             |
-| NEON   | `f32` x16  | ❌          |     18 GB/s |
-| NEON   | `f32` x256 | ❌          |     29 GB/s |
-|        |            |            |             |
-| SVE    | `f32` x16  | ✅          |     15 GB/s |
-| SVE    | `f32` x256 | ✅          |     39 GB/s |
-
-We only use Arm NEON implementation with vectors lengths that are multiples of 128 bits, avoiding any additional head or tail `for` loops for misaligned data.
-SVE looses to NEON on very short vectors, but outperforms on longer sequences.
-
----
-
-On the x86 AMD Zen2 cores making up the 64-core Threadripper PRO 3995WX the numbers are:
-
-| Method  | Vectors    | Any Length | Performance |
-| :------ | :--------- | :--------- | ----------: |
-| Serial  | `f32` x16  | ✅          |      9 GB/s |
-| Serial  | `f32` x256 | ✅          |     10 GB/s |
-|         |            |            |             |
-| AVX-FMA | `f32` x16  | ❌          |     20 GB/s |
-| AVX-FMA | `f32` x256 | ❌          |     24 GB/s |
-
-The gap between auto-vectorized code and directly using 128-bit registers is much less pronounced.
-With AVX2 and 256-bit registers the results should be better, but would be less broadly applicable.
-
----
 
 To replicate on your hardware, please run following on Linux:
 
 ```sh
+git clone https://github.com/ashvardanian/SimSIMD.git && cd SimSIMD
 cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build && make -C ./build && ./build/simsimd_bench
 ```
 
@@ -76,6 +89,7 @@ MacOS:
 
 ```sh
 brew install llvm
+git clone https://github.com/ashvardanian/SimSIMD.git && cd SimSIMD
 cmake -B ./build \
     -DCMAKE_C_COMPILER="/opt/homebrew/opt/llvm/bin/clang" \
     -DCMAKE_CXX_COMPILER="/opt/homebrew/opt/llvm/bin/clang++" \
