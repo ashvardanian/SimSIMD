@@ -56,16 +56,6 @@ add_library(simsimd INTERFACE)
 target_sources(simsimd INTERFACE include/simsimd/simsimd.h)
 target_include_directories(simsimd INTERFACE "${PROJECT_SOURCE_DIR}/include")
 
-# Python bindings
-find_package(Python3 REQUIRED Development.Module)
-include_directories(${Python3_INCLUDE_DIRS})
-find_package(PythonLibs REQUIRED)
-
-Python3_add_library(py_simsimd python/python.c)
-target_include_directories(py_simsimd PUBLIC include/)
-set_target_properties(py_simsimd PROPERTIES OUTPUT_NAME simsimd)
-target_compile_definitions(py_simsimd PRIVATE SIMSIMD_PYTHON_MODULE_NAME=simsimd)
-
 # Build the benchmarks if needed.
 if(${SIMSIMD_BUILD_BENCHMARKS})
     find_package(Threads REQUIRED)

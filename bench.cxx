@@ -121,14 +121,16 @@ int main(int argc, char** argv) {
 
 #if defined(__AVX2__)
     register_<simsimd_f32_t>("dot_f32x4_avx2", simsimd_dot_f32x4_avx2);
-    register_<std::int8_t>("dot_i8x16_avx2", simsimd_dot_i8x16_avx2);
     register_<simsimd_f32_t>("cos_f32x4_avx2", simsimd_cos_f32x4_avx2);
 #endif
 
 #if defined(__AVX512F__)
     register_<std::int16_t>("cos_f16x16_avx512", simsimd_cos_f16x16_avx512);
     register_<std::uint8_t>("hamming_b1x128_avx512", simsimd_hamming_b1x128_avx512);
+    register_<std::uint8_t, 21>("tanimoto_maccs_avx512", simsimd_tanimoto_maccs_avx512);
 #endif
+
+
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();

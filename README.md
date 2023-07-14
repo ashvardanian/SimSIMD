@@ -78,6 +78,22 @@ Constraints define the limitations on the number of dimensions that an argument 
 
 ## Benchmarks
 
+The benchmarks are repeated for every function with a different number of cores involved.
+Light-weight distance functions would be memory bound, implying that multi-core performance may be lower, if the bus bandwidth is not enough to saturate all the cores.
+Similarly, heavy-weight distance functions running on all cores may result in CPU frequency downclocking.
+This is well illustrated by the single-core performance of `i9-13950HX`, equipped with DDR5 memory.
+
+| Method                 | Threads | Speed on 1024b |
+| :--------------------- | ------: | -------------: |
+| `tanimoto_maccs_naive` |       1 |       2.8 Gb/s |
+| `tanimoto_maccs_naive` |      32 |       1.2 Gb/s |
+| `cos_f32_naive`        |       1 |      15.3 Gb/s |
+| `cos_f32_naive`        |      32 |       4.5 Gb/s |
+| `dot_f32x4_avx2`       |       1 |      96.2 Gb/s |
+| `dot_f32x4_avx2`       |      32 |      23.6 Gb/s |
+| `cos_f32x4_avx2`       |       1 |      56.3 Gb/s |
+| `cos_f32x4_avx2`       |      32 |      13.9 Gb/s |
+
 To replicate on your hardware, please run following on Linux:
 
 ```sh
