@@ -81,24 +81,45 @@ Constraints define the limitations on the number of dimensions that an argument 
 The benchmarks are repeated for every function with a different number of cores involved.
 Light-weight distance functions would be memory bound, implying that multi-core performance may be lower, if the bus bandwidth is not enough to saturate all the cores.
 Similarly, heavy-weight distance functions running on all cores may result in CPU frequency downclocking.
-This is well illustrated by the single-core performance of `i9-13950HX`, equipped with DDR5 memory.
+This is well illustrated by the single-core performance of the Intel `i9-13950HX`, equipped with DDR5 memory.
 
-| Method                 | Threads | Speed on 1024b |
-| :--------------------- | ------: | -------------: |
-| `tanimoto_maccs_naive` |       1 |       2.8 Gb/s |
-| `tanimoto_maccs_naive` |      32 |       1.2 Gb/s |
-| `cos_f32_naive`        |       1 |      15.3 Gb/s |
-| `cos_f32_naive`        |      32 |       4.5 Gb/s |
-| `dot_f32x4_avx2`       |       1 |      96.2 Gb/s |
-| `dot_f32x4_avx2`       |      32 |      23.6 Gb/s |
-| `cos_f32x4_avx2`       |       1 |      56.3 Gb/s |
-| `cos_f32x4_avx2`       |      32 |      13.9 Gb/s |
+| Method                 | Threads | Vector Size |     Speed |
+| :--------------------- | ------: | ----------: | --------: |
+| `dot_f32x4_avx2`       |       1 |      1024 b | 96.2 GB/s |
+| `dot_f32x4_avx2`       |      32 |      1024 b | 23.6 GB/s |
+| `cos_f32_naive`        |       1 |      1024 b | 15.3 GB/s |
+| `cos_f32_naive`        |      32 |      1024 b |  4.5 GB/s |
+| `cos_f32x4_avx2`       |       1 |      1024 b | 56.3 GB/s |
+| `cos_f32x4_avx2`       |      32 |      1024 b | 13.9 GB/s |
+| `tanimoto_maccs_naive` |       1 |        21 b |  2.8 GB/s |
+| `tanimoto_maccs_naive` |      32 |        21 b |  1.2 GB/s |
+
+Switching to the Intel Sapphire Rapids server platform, we can also evaluate some of the AVX-512 extensions, including `VPOPCNTDQ` and `F16`.
+
+| Method                  | Threads | Vector Size |      Speed |
+| :---------------------- | ------: | ----------: | ---------: |
+| `dot_f32x4_avx2`        |       1 |      1024 b |  57.8 GB/s |
+| `dot_f32x4_avx2`        |     224 |      1024 b |  16.1 GB/s |
+| `cos_f32_naive`         |       1 |      1024 b |  10.7 GB/s |
+| `cos_f32_naive`         |     224 |      1024 b |   3.0 GB/s |
+| `cos_f32x4_avx2`        |       1 |      1024 b |  39.5 GB/s |
+| `cos_f32x4_avx2`        |     224 |      1024 b |  15.1 GB/s |
+| `cos_f16x16_avx512`     |       1 |      1024 b |  50.6 GB/s |
+| `cos_f16x16_avx512`     |     224 |      1024 b |  15.9 GB/s |
+| `hamming_b1x128_avx512` |       1 |      1024 b | 790.3 GB/s |
+| `hamming_b1x128_avx512` |     224 |      1024 b | 259.3 GB/s |
+| `tanimoto_maccs_naive`  |       1 |        21 b |   3.0 GB/s |
+| `tanimoto_maccs_naive`  |     224 |        21 b |   1.3 GB/s |
+| `tanimoto_maccs_avx512` |       1 |        21 b |  13.1 GB/s |
+| `tanimoto_maccs_avx512` |     224 |        21 b |   3.7 GB/s |
 
 To replicate on your hardware, please run following on Linux:
 
 ```sh
 git clone https://github.com/ashvardanian/SimSIMD.git && cd SimSIMD
-cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build && make -C ./build && ./build/simsimd_bench
+cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 \
+    -DCMAKE_CXX_COMPILER="g++-12" -DCMAKE_C_COMPILER="gcc-12" \
+    -B ./build && make -C ./build && ./build/simsimd_bench
 ```
 
 MacOS:
