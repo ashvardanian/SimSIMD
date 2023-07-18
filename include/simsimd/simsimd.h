@@ -29,8 +29,10 @@
 #ifdef _MSC_VER
 #include <intrin.h>
 #define popcount32 __popcnt
+#define popcount64 __popcnt64
 #else
 #define popcount32 __builtin_popcount
+#define popcount64 __builtin_popcountll
 #endif
 
 #ifdef __cplusplus
@@ -388,12 +390,21 @@ inline static simsimd_f32_t simsimd_hamming_b1x128_avx512(uint8_t const* a, uint
 
 inline static simsimd_f32_t simsimd_tanimoto_b1x8_naive(uint8_t const* a, uint8_t const* b, size_t d) {
     size_t and_count = 0, or_count = 0;
-    for (size_t i = 0; i != d; ++i)
-        and_count += popcount32(a[i] & b[i]), or_count += popcount32(a[i] | b[i]);
+    uint8_t const* a_end = a + d;
+    // Misaligned prefix
+    for (; a != a_end && (size_t)(a) % 8 != 0; ++a, ++b)
+        and_count += popcount32(*a & *b), or_count += popcount32(*a | *b);
+    // Properly aligned body
+    for (; a + 8 <= a_end; a += 8, b += 8)
+        and_count += popcount64(*(uint64_t*)a & *(uint64_t*)b), or_count += popcount64(*(uint64_t*)a | *(uint64_t*)b);
+    // Misaligned suffix
+    for (; a != a_end; ++a, ++b)
+        and_count += popcount32(*a & *b), or_count += popcount32(*a | *b);
     return 1 - (simsimd_f32_t)(and_count) / or_count;
 }
 
 #undef popcount32
+#undef popcount64
 
 #ifdef __cplusplus
 }
