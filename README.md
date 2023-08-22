@@ -54,27 +54,27 @@ The signature defines the number of arguments:
 The latter is intended for cases where the number of dimensions is hard-coded.
 Constraints define the limitations on the number of dimensions an argument vector can have.
 
-| Name                    | Signature | ISA Extesion |  Constraints   |
-| :---------------------- | :-------: | :----------: | :------------: |
-| `dot_f32_sve`           |    ✳️✳️📏    |   Arm SVE    |                |
-| `dot_f32x4_neon`        |    ✳️✳️📏    |   Arm NEON   |  `d % 4 == 0`  |
-| `cos_f32_sve`           |    ✳️✳️📏    |   Arm SVE    |                |
-| `cos_f16_sve`           |    ✳️✳️📏    |   Arm SVE    |                |
-| `cos_f16x4_neon`        |    ✳️✳️📏    |   Arm NEON   |  `d % 4 == 0`  |
-| `cos_i8x16_neon`        |    ✳️✳️📏    |   Arm NEON   | `d % 16 == 0`  |
-| `cos_f32x4_neon`        |    ✳️✳️📏    |   Arm NEON   |  `d % 4 == 0`  |
-| `cos_f16x16_avx512`     |    ✳️✳️📏    | x86 AVX-512  | `d % 16 == 0`  |
-| `cos_f32x4_avx2`        |    ✳️✳️📏    |   x86 AVX2   |  `d % 4 == 0`  |
-| `l2sq_f32_sve`          |    ✳️✳️📏    |   Arm SVE    |                |
-| `l2sq_f16_sve`          |    ✳️✳️📏    |   Arm SVE    |                |
-| `hamming_b1x8_sve`      |    ✳️✳️📏    |   Arm SVE    |  `d % 8 == 0`  |
-| `hamming_b1x128_sve`    |    ✳️✳️📏    |   Arm SVE    | `d % 128 == 0` |
-| `hamming_b1x128_avx512` |    ✳️✳️📏    | x86 AVX-512  | `d % 128 == 0` |
-| `tanimoto_b1x8_naive`   |    ✳️✳️📏    |              |  `d % 8 == 0`  |
-| `tanimoto_maccs_naive`  |    ✳️✳️     |              |   `d == 166`   |
-| `tanimoto_maccs_neon`   |    ✳️✳️     |   Arm NEON   |   `d == 166`   |
-| `tanimoto_maccs_sve`    |    ✳️✳️     |   Arm SVE    |   `d == 166`   |
-| `tanimoto_maccs_avx512` |    ✳️✳️     | x86 AVX-512  |   `d == 166`   |
+| Name                    | Signature | ISA Extension |  Constraints   |
+| :---------------------- | :-------: | :-----------: | :------------: |
+| `dot_f32_sve`           |    ✳️✳️📏    |    Arm SVE    |                |
+| `dot_f32x4_neon`        |    ✳️✳️📏    |   Arm NEON    |  `d % 4 == 0`  |
+| `cos_f32_sve`           |    ✳️✳️📏    |    Arm SVE    |                |
+| `cos_f16_sve`           |    ✳️✳️📏    |    Arm SVE    |                |
+| `cos_f16x4_neon`        |    ✳️✳️📏    |   Arm NEON    |  `d % 4 == 0`  |
+| `cos_i8x16_neon`        |    ✳️✳️📏    |   Arm NEON    | `d % 16 == 0`  |
+| `cos_f32x4_neon`        |    ✳️✳️📏    |   Arm NEON    |  `d % 4 == 0`  |
+| `cos_f16x16_avx512`     |    ✳️✳️📏    |  x86 AVX-512  | `d % 16 == 0`  |
+| `cos_f32x4_avx2`        |    ✳️✳️📏    |   x86 AVX2    |  `d % 4 == 0`  |
+| `l2sq_f32_sve`          |    ✳️✳️📏    |    Arm SVE    |                |
+| `l2sq_f16_sve`          |    ✳️✳️📏    |    Arm SVE    |                |
+| `hamming_b1x8_sve`      |    ✳️✳️📏    |    Arm SVE    |  `d % 8 == 0`  |
+| `hamming_b1x128_sve`    |    ✳️✳️📏    |    Arm SVE    | `d % 128 == 0` |
+| `hamming_b1x128_avx512` |    ✳️✳️📏    |  x86 AVX-512  | `d % 128 == 0` |
+| `tanimoto_b1x8_naive`   |    ✳️✳️📏    |               |  `d % 8 == 0`  |
+| `tanimoto_maccs_naive`  |    ✳️✳️     |               |   `d == 166`   |
+| `tanimoto_maccs_neon`   |    ✳️✳️     |   Arm NEON    |   `d == 166`   |
+| `tanimoto_maccs_sve`    |    ✳️✳️     |    Arm SVE    |   `d == 166`   |
+| `tanimoto_maccs_avx512` |    ✳️✳️     |  x86 AVX-512  |   `d == 166`   |
 
 ## Benchmarks
 

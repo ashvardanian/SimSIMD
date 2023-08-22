@@ -92,7 +92,7 @@ jobs:
     runs-on: ubuntu-20.04
     environment:
       name: pypi
-      url: https://pypi.org/p/stringzilla
+      url: https://pypi.org/p/simsimd
     permissions:
       id-token: write
 
