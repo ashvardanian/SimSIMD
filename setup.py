@@ -16,7 +16,7 @@ with open(os.path.join(this_directory, "README.md"), "r", encoding="utf8") as f:
 setup(
     name=__lib_name__,
     version=__version__,
-    author="Ashot Vardanian",
+    author="Ash Vardanian",
     author_email="1983160+ashvardanian@users.noreply.github.com",
     url="https://github.com/ashvardanian/simsimd",
     description="SIMD-accelerated similarity measures for x86 and Arm",
@@ -29,7 +29,6 @@ setup(
         "Intended Audience :: Developers",
         "Intended Audience :: Information Technology",
         "License :: OSI Approved :: Apache Software License",
-        "Operating System :: Linux",
         "Programming Language :: C",
         "Programming Language :: Python :: Implementation :: CPython",
     ],
