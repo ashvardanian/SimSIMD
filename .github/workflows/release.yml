@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main-dev"]
 
 env:
   BUILD_TYPE: Release
@@ -17,44 +17,44 @@ permissions:
 
 jobs:
 
-  versioning:
-    name: Semantic Release
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-      with:
-        persist-credentials: false
-    - uses: actions/setup-node@v3
-    - run: npm install --save-dev @semantic-release/exec @semantic-release/git conventional-changelog-eslint semantic-release && npx semantic-release
+  # versioning:
+  #   name: Semantic Release
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - uses: actions/checkout@v3
+  #     with:
+  #       persist-credentials: false
+  #   - uses: actions/setup-node@v3
+  #   - run: npm install --save-dev @semantic-release/exec @semantic-release/git conventional-changelog-eslint semantic-release && npx semantic-release
 
 
-  rebase:
-    name: Rebase Development Branch
-    needs: versioning
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout the latest code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
+  # rebase:
+  #   name: Rebase Development Branch
+  #   needs: versioning
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout the latest code
+  #       uses: actions/checkout@v3
+  #       with:
+  #         fetch-depth: 0
 
-      - name: Perform rebase
-        run: |
-          git checkout main-dev
-          git rebase main
+  #     - name: Perform rebase
+  #       run: |
+  #         git checkout main-dev
+  #         git rebase main
           
-      - name: Push changes
-        uses: CasperWA/push-protected@v2
-        with:
-          token: ${{ secrets.SEMANTIC_REBASE_TOKEN }}
-          branch: main-dev
-          unprotect_reviews: True
-          force: True
+  #     - name: Push changes
+  #       uses: CasperWA/push-protected@v2
+  #       with:
+  #         token: ${{ secrets.SEMANTIC_REBASE_TOKEN }}
+  #         branch: main-dev
+  #         unprotect_reviews: True
+  #         force: True
 
   build_wheels:
     name: Build Wheels for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    needs: versioning
+    # needs: versioning
     strategy:
       matrix:
         os: [ubuntu-20.04, macOS-11, windows-2022]
@@ -66,11 +66,11 @@ jobs:
       - uses: actions/setup-python@v3
       
       - name: Setup Docker
-        if: matrix.os != 'windows-2022'
+        if: matrix.os == 'ubuntu-20.04'
         uses: docker-practice/actions-setup-docker@master
         
       - name: Setup QEMU
-        if: matrix.os != 'windows-2022'
+        if: matrix.os == 'ubuntu-20.04'
         uses: docker/setup-qemu-action@v2.1.0
 
       - name: Install CIBuildWheel
@@ -84,25 +84,25 @@ jobs:
           path: ./wheelhouse/*.whl
   
   
-  publish_python:
-    name: Publish Python
-    needs: build_wheels
-    runs-on: ubuntu-20.04
-    environment:
-      name: pypi
-      url: https://pypi.org/p/simsimd
-    permissions:
-      id-token: write
+  # publish_python:
+  #   name: Publish Python
+  #   needs: build_wheels
+  #   runs-on: ubuntu-20.04
+  #   environment:
+  #     name: pypi
+  #     url: https://pypi.org/p/simsimd
+  #   permissions:
+  #     id-token: write
 
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v3.0.2
-        with:
-          path: ./dist/
+  #   steps:
+  #     - name: Download artifacts
+  #       uses: actions/download-artifact@v3.0.2
+  #       with:
+  #         path: ./dist/
 
-      - name: Publish to PyPi
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: ./dist/artifact
-          verbose: true
-          print-hash: true
+  #     - name: Publish to PyPi
+  #       uses: pypa/gh-action-pypi-publish@release/v1
+  #       with:
+  #         packages-dir: ./dist/artifact
+  #         verbose: true
+  #         print-hash: true
