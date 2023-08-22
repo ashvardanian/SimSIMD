@@ -1,8 +1,8 @@
 # SimSIMD
 
-SIMD-accelerated similarity measures, metrics, distance functions for x86 and Arm.
+SIMD-accelerated similarity measures, metrics, and distance functions for x86 and Arm.
 Tuned for Machine Learning applications, mid-size vectors with 100-1024 dimensions.
-For Cosine (Angular) distance, the most common metric in AI, one can expect following performance.
+For Cosine (Angular) distance, the most common metric in AI, one can expect the following performance.
 
 | Method | Vectors | Any Length | Speed on 256b | Speed on 1024b |
 | :----- | :------ | :--------- | ------------: | -------------: |
@@ -28,7 +28,7 @@ FetchContent_MakeAvailable(simsimd)
 include_directories(${simsimd_SOURCE_DIR}/include)
 ```
 
-Want to use in Python with [USearch](https://github.com/unum-cloud/usearch)?
+Want to use it in Python with [USearch](https://github.com/unum-cloud/usearch)?
 
 ```py
 from usearch import Index, CompiledMetric, MetricKind, MetricSignature
@@ -45,40 +45,40 @@ index = Index(256, metric=metric)
 
 ## Available Metrics
 
-In the C99 interface all function are prepended with `simsimd_` namespace prefix.
-Signature defines the number of arguments:
+In the C99 interface, all functions are prepended with `simsimd_` namespace prefix.
+The signature defines the number of arguments:
 
 - two pointers, and length,
 - two pointers.
 
-The latter is obviously intended for cases, where the number of dimensions is hard-coded.
+The latter is intended for cases, where the number of dimensions is hard-coded.
 Constraints define the limitations on the number of dimensions that an argument vector can have.
 
-| Name                    | Signature | ISA Extesion |  Constraints   |
-| :---------------------- | :-------: | :----------: | :------------: |
-| `dot_f32_sve`           |    ✳️✳️📏    |   Arm SVE    |                |
-| `dot_f32x4_neon`        |    ✳️✳️📏    |   Arm NEON   |  `d % 4 == 0`  |
-| `cos_f32_sve`           |    ✳️✳️📏    |   Arm SVE    |                |
-| `cos_f16_sve`           |    ✳️✳️📏    |   Arm SVE    |                |
-| `cos_f16x4_neon`        |    ✳️✳️📏    |   Arm NEON   |  `d % 4 == 0`  |
-| `cos_i8x16_neon`        |    ✳️✳️📏    |   Arm NEON   | `d % 16 == 0`  |
-| `cos_f32x4_neon`        |    ✳️✳️📏    |   Arm NEON   |  `d % 4 == 0`  |
-| `cos_f16x16_avx512`     |    ✳️✳️📏    | x86 AVX-512  | `d % 16 == 0`  |
-| `cos_f32x4_avx2`        |    ✳️✳️📏    |   x86 AVX2   |  `d % 4 == 0`  |
-| `l2sq_f32_sve`          |    ✳️✳️📏    |   Arm SVE    |                |
-| `l2sq_f16_sve`          |    ✳️✳️📏    |   Arm SVE    |                |
-| `hamming_b1x8_sve`      |    ✳️✳️📏    |   Arm SVE    |  `d % 8 == 0`  |
-| `hamming_b1x128_sve`    |    ✳️✳️📏    |   Arm SVE    | `d % 128 == 0` |
-| `hamming_b1x128_avx512` |    ✳️✳️📏    | x86 AVX-512  | `d % 128 == 0` |
-| `tanimoto_b1x8_naive`   |    ✳️✳️📏    |              |  `d % 8 == 0`  |
-| `tanimoto_maccs_naive`  |    ✳️✳️     |              |   `d == 166`   |
-| `tanimoto_maccs_neon`   |    ✳️✳️     |   Arm NEON   |   `d == 166`   |
-| `tanimoto_maccs_sve`    |    ✳️✳️     |   Arm SVE    |   `d == 166`   |
-| `tanimoto_maccs_avx512` |    ✳️✳️     | x86 AVX-512  |   `d == 166`   |
+| Name                    | Signature | ISA Extension |  Constraints   |
+| :---------------------- | :-------: | :-----------: | :------------: |
+| `dot_f32_sve`           |    ✳️✳️📏    |    Arm SVE    |                |
+| `dot_f32x4_neon`        |    ✳️✳️📏    |   Arm NEON    |  `d % 4 == 0`  |
+| `cos_f32_sve`           |    ✳️✳️📏    |    Arm SVE    |                |
+| `cos_f16_sve`           |    ✳️✳️📏    |    Arm SVE    |                |
+| `cos_f16x4_neon`        |    ✳️✳️📏    |   Arm NEON    |  `d % 4 == 0`  |
+| `cos_i8x16_neon`        |    ✳️✳️📏    |   Arm NEON    | `d % 16 == 0`  |
+| `cos_f32x4_neon`        |    ✳️✳️📏    |   Arm NEON    |  `d % 4 == 0`  |
+| `cos_f16x16_avx512`     |    ✳️✳️📏    |  x86 AVX-512  | `d % 16 == 0`  |
+| `cos_f32x4_avx2`        |    ✳️✳️📏    |   x86 AVX2    |  `d % 4 == 0`  |
+| `l2sq_f32_sve`          |    ✳️✳️📏    |    Arm SVE    |                |
+| `l2sq_f16_sve`          |    ✳️✳️📏    |    Arm SVE    |                |
+| `hamming_b1x8_sve`      |    ✳️✳️📏    |    Arm SVE    |  `d % 8 == 0`  |
+| `hamming_b1x128_sve`    |    ✳️✳️📏    |    Arm SVE    | `d % 128 == 0` |
+| `hamming_b1x128_avx512` |    ✳️✳️📏    |  x86 AVX-512  | `d % 128 == 0` |
+| `tanimoto_b1x8_naive`   |    ✳️✳️📏    |               |  `d % 8 == 0`  |
+| `tanimoto_maccs_naive`  |    ✳️✳️     |               |   `d == 166`   |
+| `tanimoto_maccs_neon`   |    ✳️✳️     |   Arm NEON    |   `d == 166`   |
+| `tanimoto_maccs_sve`    |    ✳️✳️     |    Arm SVE    |   `d == 166`   |
+| `tanimoto_maccs_avx512` |    ✳️✳️     |  x86 AVX-512  |   `d == 166`   |
 
 ## Benchmarks
 
-To replicate on your hardware, please run following on Linux:
+To replicate this on your hardware, please run the following on Linux:
 
 ```sh
 git clone https://github.com/ashvardanian/SimSIMD.git && cd SimSIMD
