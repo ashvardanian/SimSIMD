@@ -115,6 +115,7 @@ int main(int argc, char** argv) {
     register_<simsimd_f32_t>("dot_f32x4_neon", simsimd_dot_f32x4_neon);
     register_<std::int16_t>("cos_f16x4_neon", simsimd_cos_f16x4_neon);
     register_<std::int8_t>("cos_i8x16_neon", simsimd_cos_i8x16_neon);
+    register_<std::int8_t>("l2sq_i8x16_neon", simsimd_l2sq_i8x16_neon);
     register_<simsimd_f32_t>("cos_f32x4_neon", simsimd_cos_f32x4_neon);
     register_<std::uint8_t, 21>("tanimoto_maccs_neon", simsimd_tanimoto_maccs_neon);
 #endif

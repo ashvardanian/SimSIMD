@@ -261,6 +261,27 @@ inline static simsimd_f32_t simsimd_cos_i8x16_neon(int8_t const* a, int8_t const
 #endif
 }
 
+inline static simsimd_f32_t simsimd_l2sq_i8x16_neon(int8_t const* a, int8_t const* b, size_t d) {
+#if defined(__ARM_NEON)
+    int32x4_t d2_vec = vdupq_n_s32(0);
+    for (size_t i = 0; i != d; i += 8) {
+        int16x8_t a_vec = vmovl_s8(vld1_s8(a + i));
+        int16x8_t b_vec = vmovl_s8(vld1_s8(b + i));
+        int16x8_t d2_part_vec = vsubq_s16(a_vec, b_vec);
+        d2_part_vec = vmulq_s16(d2_part_vec, d2_part_vec);
+        d2_vec = //
+            vaddq_s32(d2_vec, vaddq_s32(vmovl_s16(vget_high_s16(d2_part_vec)), vmovl_s16(vget_low_s16(d2_part_vec))));
+    }
+
+    int32x2_t d2_part = vadd_s32(vget_high_s32(d2_vec), vget_low_s32(d2_vec));
+    int32_t d2 = vget_lane_s32(vpadd_s32(d2_part, d2_part), 0);
+    return sqrt(d2);
+#else
+    (void)a, (void)b, (void)d;
+    return -1;
+#endif
+}
+
 inline static simsimd_f32_t simsimd_cos_f32x4_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
 #if defined(__ARM_NEON)
     float32x4_t ab_vec = vdupq_n_f32(0);
