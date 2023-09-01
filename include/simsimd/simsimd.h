@@ -408,7 +408,8 @@ simsimd_cos_f16x16_avx512(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t
     return 1 - ab / (sqrt(a2) * sqrt(b2));
 }
 
-__attribute__((target("avx512vpopcntdq"))) inline static simsimd_f32_t //
+__attribute__((target("avx512vpopcntdq")))                      //
+__attribute__((target("avx512vl"))) inline static simsimd_f32_t //
 simsimd_hamming_b1x128_avx512(uint8_t const* a, uint8_t const* b, size_t d) {
     size_t words = d / 128;
     uint64_t const* a64 = (uint64_t const*)(a);
