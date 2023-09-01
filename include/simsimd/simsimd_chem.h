@@ -26,7 +26,8 @@ extern "C" {
  *          forming 21 incomplete bytes for the MACCS fingerprints used in
  *          computation chemistry.
  */
-inline static simsimd_f32_t simsimd_tanimoto_maccs_naive(uint8_t const* a_chars, uint8_t const* b_chars) {
+inline static simsimd_f32_t //
+simsimd_tanimoto_maccs_naive(uint8_t const* a_chars, uint8_t const* b_chars) {
     unsigned long a[3] = {0};
     unsigned long b[3] = {0};
     memcpy(&a[0], a_chars, 21);
@@ -37,12 +38,43 @@ inline static simsimd_f32_t simsimd_tanimoto_maccs_naive(uint8_t const* a_chars,
 }
 
 /**
+ *  @brief  Weird Tanimoto distance implementation for concatenated MACCS and ECFP4
+ *          representations, forming a grand-total of 56 bytes. The last chunk is evaluated
+ *          if only the first one matches well.
+ *
+ *              - First 166 bits in 21 bytes is a MACCS vector.
+ *              - After that 3 empty bytes of a padding are expected.
+ *              - After which, 256 bytes (32 words) of ECFP4 follow.
+ */
+inline static simsimd_f32_t //
+simsimd_tanimoto_conditional_naive(uint8_t const* a_chars, uint8_t const* b_chars) {
+    float const threshold = 0.2;
+    unsigned long const* a = (unsigned long const*)(a_chars);
+    unsigned long const* b = (unsigned long const*)(b_chars);
+    float and_count = popcount64(a[0] & b[0]) + popcount64(a[1] & b[1]) + popcount64(a[2] & b[2]);
+    float or_count = popcount64(a[0] | b[0]) + popcount64(a[1] | b[1]) + popcount64(a[2] | b[2]);
+    float result = 1 - and_count / or_count;
+    if (result > threshold)
+        return result;
+
+    // Start comparing ECFP4
+    and_count = 0, or_count = 0;
+    for (int i = 0; i != 32; ++i)
+        and_count += popcount64(a[3 + i] & b[3 + i]), or_count += popcount64(a[3 + i] | b[3 + i]);
+    result = 1 - and_count / or_count;
+    return result * threshold;
+}
+
+#if SIMSIMD_TARGET_ARM
+#if SIMSIMD_TARGET_ARM_NEON
+
+/**
  *  @brief  Optimized version for Tanimoto distance on @b exactly 166 bits,
  *          forming 21 incomplete bytes for the MACCS fingerprints used in
  *          computation chemistry, accelerated for Arm NEON ISA.
  */
-inline static simsimd_f32_t simsimd_tanimoto_maccs_neon(uint8_t const* a_chars, uint8_t const* b_chars) {
-#if defined(__ARM_NEON)
+inline static simsimd_f32_t //
+simsimd_tanimoto_maccs_neon(uint8_t const* a_chars, uint8_t const* b_chars) {
     unsigned char a[32] = {0};
     unsigned char b[32] = {0};
     memcpy(&a[0], a_chars, 21);
@@ -58,19 +90,19 @@ inline static simsimd_f32_t simsimd_tanimoto_maccs_neon(uint8_t const* a_chars, 
     float and_populations = vaddvq_u8(vaddq_u8(vcntq_u8(a_and_b_first), vcntq_u8(a_and_b_second)));
     float or_populations = vaddvq_u8(vaddq_u8(vcntq_u8(a_or_b_first), vcntq_u8(a_or_b_second)));
     return 1 - and_populations / or_populations;
-#else
-    (void)a_chars, (void)b_chars;
-    return 0;
-#endif
 }
+
+#endif // SIMSIMD_TARGET_ARM_NEON
+
+#if SIMSIMD_TARGET_ARM_SVE
 
 /**
  *  @brief  Optimized version for Tanimoto distance on @b exactly 166 bits,
  *          forming 21 incomplete bytes for the MACCS fingerprints used in
  *          computation chemistry, accelerated for Arm NEON ISA.
  */
-inline static simsimd_f32_t simsimd_tanimoto_maccs_sve(uint8_t const* a_chars, uint8_t const* b_chars) {
-#if defined(__ARM_FEATURE_SVE)
+__attribute__((target("+sve"))) inline static simsimd_f32_t //
+simsimd_tanimoto_maccs_sve(uint8_t const* a_chars, uint8_t const* b_chars) {
     svbool_t pg_vec = svwhilelt_b8(0ul, 21ul);
     svuint8_t a_vec = svld1_u8(pg_vec, (uint8_t const*)a_chars);
     svuint8_t b_vec = svld1_u8(pg_vec, (uint8_t const*)b_chars);
@@ -92,11 +124,12 @@ inline static simsimd_f32_t simsimd_tanimoto_maccs_sve(uint8_t const* a_chars, u
     float and_populations = svaddv_u8(svptrue_b8(), and_populations_vec);
     float or_populations = svaddv_u8(svptrue_b8(), or_populations_vec);
     return 1 - and_populations / or_populations;
-#else
-    (void)a_chars, (void)b_chars;
-    return 0;
-#endif
 }
+#endif
+#endif // SIMSIMD_TARGET_ARM
+
+#if SIMSIMD_TARGET_X86
+#if SIMSIMD_TARGET_X86_AVX512
 
 /**
  *  @brief  Optimized version for Tanimoto distance on @b exactly 166 bits,
@@ -104,8 +137,8 @@ inline static simsimd_f32_t simsimd_tanimoto_maccs_sve(uint8_t const* a_chars, u
  *          computation chemistry, accelerated with AVX-512 population count
  *          instructions.
  */
-inline static simsimd_f32_t simsimd_tanimoto_maccs_avx512(uint8_t const* a, uint8_t const* b) {
-#if defined(__AVX512VPOPCNTDQ__)
+__attribute__((target("avx512vpopcntdq"))) inline static simsimd_f32_t //
+simsimd_tanimoto_maccs_avx512(uint8_t const* a, uint8_t const* b) {
     __m256i a_vec = _mm256_maskz_loadu_epi8(0b11111111111111111111100000000000, a);
     __m256i b_vec = _mm256_maskz_loadu_epi8(0b11111111111111111111100000000000, b);
     __m256i and_vec = _mm256_and_si256(a_vec, b_vec);
@@ -119,11 +152,10 @@ inline static simsimd_f32_t simsimd_tanimoto_maccs_avx512(uint8_t const* a, uint
                       _mm256_extract_epi64(or_counts_vec, 2) + _mm256_extract_epi64(or_counts_vec, 3);
 
     return 1 - and_counts / or_counts;
-#else
-    (void)a, (void)b;
-    return 0;
-#endif
 }
+
+#endif // SIMSIMD_TARGET_X86_AVX512
+#endif // SIMSIMD_TARGET_X86
 
 #undef popcount64
 
