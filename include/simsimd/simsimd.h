@@ -430,7 +430,7 @@ simsimd_hamming_b1x128_avx512(uint8_t const* a, uint8_t const* b, size_t d) {
 inline static simsimd_f32_t //
 simsimd_tanimoto_b1x8_naive(uint8_t const* a, uint8_t const* b, size_t d) {
     size_t and_count = 0, or_count = 0;
-    uint8_t const* a_end = a + d;
+    uint8_t const* a_end = a + d / 8;
     // Misaligned prefix
     for (; a != a_end && (size_t)(a) % 8 != 0; ++a, ++b)
         and_count += popcount32(*a & *b), or_count += popcount32(*a | *b);
