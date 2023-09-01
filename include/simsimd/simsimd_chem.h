@@ -137,8 +137,9 @@ simsimd_tanimoto_maccs_sve(uint8_t const* a_chars, uint8_t const* b_chars) {
  *          computation chemistry, accelerated with AVX-512 population count
  *          instructions.
  */
-__attribute__((target("avx512vpopcntdq")))                      //
-__attribute__((target("avx512vl"))) inline static simsimd_f32_t //
+__attribute__((target("avx512vpopcntdq")))                     //
+__attribute__((target("avx512vl")))                            //
+__attribute__((target("avx512f"))) inline static simsimd_f32_t //
 simsimd_tanimoto_maccs_avx512(uint8_t const* a, uint8_t const* b) {
     __m256i a_vec = _mm256_maskz_loadu_epi8(0b11111111111111111111100000000000, a);
     __m256i b_vec = _mm256_maskz_loadu_epi8(0b11111111111111111111100000000000, b);
