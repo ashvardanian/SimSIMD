@@ -100,7 +100,7 @@ int main(int argc, char** argv) {
     register_<std::uint8_t, 21>("tanimoto_maccs_naive", simsimd_tanimoto_maccs_naive);
     register_<simsimd_f32_t>("cos_f32_naive", cos_f32_naive);
 
-#if defined(__ARM_FEATURE_SVE)
+#if SIMSIMD_TARGET_ARM_SVE
     register_<simsimd_f32_t>("dot_f32_sve", simsimd_dot_f32_sve);
     register_<simsimd_f32_t>("cos_f32_sve", simsimd_cos_f32_sve);
     register_<std::int16_t>("cos_f16_sve", simsimd_cos_f16_sve);
@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
     register_<std::uint8_t, 21>("tanimoto_maccs_sve", simsimd_tanimoto_maccs_sve);
 #endif
 
-#if defined(__ARM_NEON)
+#if SIMSIMD_TARGET_ARM_NEON
     register_<simsimd_f32_t>("dot_f32x4_neon", simsimd_dot_f32x4_neon);
     register_<std::int16_t>("cos_f16x4_neon", simsimd_cos_f16x4_neon);
     register_<std::int8_t>("cos_i8x16_neon", simsimd_cos_i8x16_neon);
@@ -120,18 +120,16 @@ int main(int argc, char** argv) {
     register_<std::uint8_t, 21>("tanimoto_maccs_neon", simsimd_tanimoto_maccs_neon);
 #endif
 
-#if defined(__AVX2__)
+#if SIMSIMD_TARGET_X86_AVX2
     register_<simsimd_f32_t>("dot_f32x4_avx2", simsimd_dot_f32x4_avx2);
     register_<simsimd_f32_t>("cos_f32x4_avx2", simsimd_cos_f32x4_avx2);
 #endif
 
-#if defined(__AVX512F__)
+#if SIMSIMD_TARGET_X86_AVX512
     register_<std::int16_t>("cos_f16x16_avx512", simsimd_cos_f16x16_avx512);
     register_<std::uint8_t>("hamming_b1x128_avx512", simsimd_hamming_b1x128_avx512);
     register_<std::uint8_t, 21>("tanimoto_maccs_avx512", simsimd_tanimoto_maccs_avx512);
 #endif
-
-
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();
