@@ -92,7 +92,9 @@
         "dtype",
         "dtypes",
         "kann",
+        "maccs",
         "simsimd",
+        "tanimoto",
         "unsw"
     ]
 }

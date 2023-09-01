@@ -38,7 +38,7 @@
 
 // Compiling for Arm: SIMSIMD_TARGET_ARM_SVE
 #if !defined(SIMSIMD_TARGET_ARM_SVE)
-#if defined(__ARM_NEON)
+#if defined(__ARM_FEATURE_SVE)
 #define SIMSIMD_TARGET_ARM_SVE 1
 #else
 #define SIMSIMD_TARGET_ARM_SVE 0

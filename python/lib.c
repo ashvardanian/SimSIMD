@@ -62,22 +62,22 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
     PyModule_AddObject(m, "tanimoto_conditional_naive", distance(&simsimd_tanimoto_conditional_naive));
 
 #if SIMSIMD_TARGET_ARM
-    PyModule_AddObject(m, "dot_f32_sve", distance(&simsimd_dot_f32_sve));
     PyModule_AddObject(m, "dot_f32x4_neon", distance(&simsimd_dot_f32x4_neon));
-
-    PyModule_AddObject(m, "cos_f32_sve", distance(&simsimd_cos_f32_sve));
-    PyModule_AddObject(m, "cos_f16_sve", distance(&simsimd_cos_f16_sve));
     PyModule_AddObject(m, "cos_f16x4_neon", distance(&simsimd_cos_f16x4_neon));
     PyModule_AddObject(m, "cos_i8x16_neon", distance(&simsimd_cos_i8x16_neon));
     PyModule_AddObject(m, "cos_f32x4_neon", distance(&simsimd_cos_f32x4_neon));
+    PyModule_AddObject(m, "tanimoto_maccs_neon", distance(&simsimd_tanimoto_maccs_neon));
 
+#if SIMSIMD_TARGET_ARM_SVE
+    PyModule_AddObject(m, "dot_f32_sve", distance(&simsimd_dot_f32_sve));
+    PyModule_AddObject(m, "cos_f32_sve", distance(&simsimd_cos_f32_sve));
+    PyModule_AddObject(m, "cos_f16_sve", distance(&simsimd_cos_f16_sve));
     PyModule_AddObject(m, "l2sq_f32_sve", distance(&simsimd_l2sq_f32_sve));
     PyModule_AddObject(m, "l2sq_f16_sve", distance(&simsimd_l2sq_f16_sve));
-
     PyModule_AddObject(m, "hamming_b1x8_sve", distance(&simsimd_hamming_b1x8_sve));
     PyModule_AddObject(m, "hamming_b1x128_sve", distance(&simsimd_hamming_b1x128_sve));
-    PyModule_AddObject(m, "tanimoto_maccs_neon", distance(&simsimd_tanimoto_maccs_neon));
     PyModule_AddObject(m, "tanimoto_maccs_sve", distance(&simsimd_tanimoto_maccs_sve));
+#endif
 #endif
 
 #if SIMSIMD_TARGET_X86
