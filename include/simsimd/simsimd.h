@@ -356,7 +356,7 @@ simsimd_dot_f32x4_avx2(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d)
         ab_vec = _mm_fmadd_ps(_mm_loadu_ps(a + i), _mm_loadu_ps(b + i), ab_vec);
     ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
     ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
-    simsimd_f32i32_t ab_union;
+    union simsimd_f32i32_t ab_union;
     ab_union.i = _mm_cvtsi128_si32(_mm_castps_si128(ab_vec));
     return 1 - ab_union.f;
 }
@@ -380,9 +380,9 @@ simsimd_cos_f32x4_avx2(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d)
     a2_vec = _mm_hadd_ps(a2_vec, a2_vec);
     b2_vec = _mm_hadd_ps(b2_vec, b2_vec);
     b2_vec = _mm_hadd_ps(b2_vec, b2_vec);
-    simsimd_f32i32_t ab_union = {_mm_cvtsi128_si32(_mm_castps_si128(ab_vec))};
-    simsimd_f32i32_t a2_union = {_mm_cvtsi128_si32(_mm_castps_si128(a2_vec))};
-    simsimd_f32i32_t b2_union = {_mm_cvtsi128_si32(_mm_castps_si128(b2_vec))};
+    union simsimd_f32i32_t ab_union = {_mm_cvtsi128_si32(_mm_castps_si128(ab_vec))};
+    union simsimd_f32i32_t a2_union = {_mm_cvtsi128_si32(_mm_castps_si128(a2_vec))};
+    union simsimd_f32i32_t b2_union = {_mm_cvtsi128_si32(_mm_castps_si128(b2_vec))};
     return 1 - ab_union.f / (sqrt(a2_union.f) * sqrt(b2_union.f));
 }
 
