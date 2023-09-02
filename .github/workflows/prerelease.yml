@@ -33,7 +33,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Set up GCC
+      - name: Set up Clang
         run: brew install llvm
         if: ${{ matrix.os == 'macOS-11' }}
 
@@ -58,8 +58,8 @@ jobs:
 
       - name: Build locally on MacOS
         run: |
-          # export LDFLAGS="-L/usr/local/opt/llvm/lib"
-          # export CPPFLAGS="-I/usr/local/opt/llvm/include"
+          export LDFLAGS="-L/usr/local/opt/llvm/lib"
+          export CPPFLAGS="-I/usr/local/opt/llvm/include"
           export CC=/usr/local/opt/llvm/bin/clang
           export CXX=/usr/local/opt/llvm/bin/clang++
           python -m pip install .
