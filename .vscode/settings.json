@@ -93,6 +93,7 @@
         "dtypes",
         "kann",
         "maccs",
+        "simd",
         "simsimd",
         "tanimoto",
         "unsw"
