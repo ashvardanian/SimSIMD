@@ -88,7 +88,7 @@ jobs:
           python -m pip install --no-cache-dir --upgrade pip
           pip install --no-cache-dir pytest
 
-      - name: Build locally Ubuntu
+      - name: Build locally
         run: |
           export CC=/usr/bin/gcc-12
           export CXX=/usr/bin/g++-12
