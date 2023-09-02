@@ -349,7 +349,8 @@ simsimd_hamming_b1x128_sve(uint8_t const* a, uint8_t const* b, size_t d) {
 #if SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_X86_AVX2
 
-__attribute__((target("avx2"))) inline static simsimd_f32_t //
+__attribute__((target("avx2"))) //
+__attribute__((target("fma"))) inline static simsimd_f32_t //
 simsimd_dot_f32x4_avx2(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
     __m128 ab_vec = _mm_set1_ps(0);
     for (size_t i = 0; i != d; i += 4)
@@ -361,7 +362,8 @@ simsimd_dot_f32x4_avx2(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d)
     return 1 - ab_union.f;
 }
 
-__attribute__((target("avx2"))) inline static simsimd_f32_t //
+__attribute__((target("avx2"))) //
+__attribute__((target("fma"))) inline static simsimd_f32_t //
 simsimd_cos_f32x4_avx2(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
 
     __m128 ab_vec = _mm_set1_ps(0);
