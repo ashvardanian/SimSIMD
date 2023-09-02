@@ -27,9 +27,12 @@ def test_non_null():
         assert simd.to_int(simd.hamming_b1x128_sve) != 0
         assert simd.to_int(simd.tanimoto_maccs_sve) != 0
 
-    # x86 AVX2 and AVX-512 variants are precompiled for every 64-bit x86 platform:
+    # x86 AVX2 variants are precompiled for every 64-bit x86 platform:
     if platform.machine() == "x86_64":
         assert simd.to_int(simd.cos_f32x4_avx2) != 0
+
+    # x86 AVX-512 variants are precompiled for 64-bit x86 machines running Linux:
+    if platform.machine() == "x86_64" and platform.system().lower() == "linux":
         assert simd.to_int(simd.cos_f16x16_avx512) != 0
         assert simd.to_int(simd.hamming_b1x128_avx512) != 0
         assert simd.to_int(simd.tanimoto_maccs_avx512) != 0

@@ -8,9 +8,9 @@
  */
 #define SIMSIMD_TARGET_ARM_NEON 1
 #define SIMSIMD_TARGET_X86_AVX2 1
-#define SIMSIMD_TARGET_X86_AVX512 1
 #if __linux__
 #define SIMSIMD_TARGET_ARM_SVE 1
+#define SIMSIMD_TARGET_X86_AVX512 1
 #endif
 
 #include "simsimd/simsimd.h"
@@ -81,10 +81,13 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
 #endif
 
 #if SIMSIMD_TARGET_X86
-    PyModule_AddObject(m, "cos_f16x16_avx512", distance(&simsimd_cos_f16x16_avx512));
     PyModule_AddObject(m, "cos_f32x4_avx2", distance(&simsimd_cos_f32x4_avx2));
+
+#if SIMSIMD_TARGET_X86_AVX512
+    PyModule_AddObject(m, "cos_f16x16_avx512", distance(&simsimd_cos_f16x16_avx512));
     PyModule_AddObject(m, "hamming_b1x128_avx512", distance(&simsimd_hamming_b1x128_avx512));
     PyModule_AddObject(m, "tanimoto_maccs_avx512", distance(&simsimd_tanimoto_maccs_avx512));
+#endif
 #endif
 
     return m;
