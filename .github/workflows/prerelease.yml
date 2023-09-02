@@ -40,7 +40,6 @@ jobs:
       - name: Set up MinGW
         uses: egor-tensin/setup-mingw@v2
         with:
-          version: latest
           platform: x64
         if: ${{ matrix.os == 'windows-2022' }}
         
