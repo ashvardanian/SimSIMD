@@ -160,7 +160,7 @@ simsimd_l2sq_f32_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
         pg_vec = svwhilelt_b32(i, d);
     } while (svptest_any(svptrue_b32(), pg_vec));
     simsimd_f32_t d2 = svaddv_f32(svptrue_b32(), d2_vec);
-    return sqrt(d2);
+    return d2;
 }
 
 __attribute__((target("+sve+fp16"))) inline static simsimd_f32_t //
@@ -308,7 +308,7 @@ simsimd_l2sq_i8x16_neon(int8_t const* a, int8_t const* b, size_t d) {
 
     int32x2_t d2_part = vadd_s32(vget_high_s32(d2_vec), vget_low_s32(d2_vec));
     int32_t d2 = vget_lane_s32(vpadd_s32(d2_part, d2_part), 0);
-    return sqrt(d2);
+    return d2;
 }
 
 __attribute__((target("+simd"))) inline static simsimd_f32_t //
