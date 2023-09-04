@@ -160,7 +160,7 @@ simsimd_l2sq_f32_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
         pg_vec = svwhilelt_b32(i, d);
     } while (svptest_any(svptrue_b32(), pg_vec));
     simsimd_f32_t d2 = svaddv_f32(svptrue_b32(), d2_vec);
-    return sqrt(d2);
+    return d2;
 }
 
 __attribute__((target("+sve+fp16"))) inline static simsimd_f32_t //
@@ -308,7 +308,7 @@ simsimd_l2sq_i8x16_neon(int8_t const* a, int8_t const* b, size_t d) {
 
     int32x2_t d2_part = vadd_s32(vget_high_s32(d2_vec), vget_low_s32(d2_vec));
     int32_t d2 = vget_lane_s32(vpadd_s32(d2_part, d2_part), 0);
-    return sqrt(d2);
+    return d2;
 }
 
 __attribute__((target("+simd"))) inline static simsimd_f32_t //
@@ -349,7 +349,7 @@ simsimd_hamming_b1x128_sve(uint8_t const* a, uint8_t const* b, size_t d) {
 #if SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_X86_AVX2
 
-__attribute__((target("avx2"))) //
+__attribute__((target("avx2")))                            //
 __attribute__((target("fma"))) inline static simsimd_f32_t //
 simsimd_dot_f32x4_avx2(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
     __m128 ab_vec = _mm_set1_ps(0);
@@ -362,7 +362,7 @@ simsimd_dot_f32x4_avx2(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d)
     return 1 - ab_union.f;
 }
 
-__attribute__((target("avx2"))) //
+__attribute__((target("avx2")))                            //
 __attribute__((target("fma"))) inline static simsimd_f32_t //
 simsimd_cos_f32x4_avx2(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
 
@@ -388,9 +388,99 @@ simsimd_cos_f32x4_avx2(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d)
     return 1 - ab_union.f / (sqrt(a2_union.f) * sqrt(b2_union.f));
 }
 
+__attribute__((target("avx2")))                            //
+__attribute__((target("fma"))) inline static simsimd_f32_t //
+simsimd_l2sq_f32x4_avx2(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d) {
+    __m128 sum_vec = _mm_set1_ps(0);
+    for (size_t i = 0; i != d; i += 4) {
+        __m128 diff_vec = _mm_sub_ps(_mm_loadu_ps(a + i), _mm_loadu_ps(b + i));
+        sum_vec = _mm_fmadd_ps(diff_vec, diff_vec, sum_vec);
+    }
+    sum_vec = _mm_hadd_ps(sum_vec, sum_vec);
+    sum_vec = _mm_hadd_ps(sum_vec, sum_vec);
+    float result[1];
+    _mm_store_ss(result, sum_vec);
+    return result[0];
+}
+
+__attribute__((target("avx2")))                            //
+__attribute__((target("f16c")))                            //
+__attribute__((target("fma"))) inline static simsimd_f32_t //
+simsimd_dot_f16x8_avx2(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
+    __m128 ab_vec = _mm_set1_ps(0);
+    for (size_t i = 0; i != d; i += 8) {
+        __m128 a_vec = _mm_cvtph_ps(_mm_loadu_si128((__m128i const*)(a + i)));
+        __m128 b_vec = _mm_cvtph_ps(_mm_loadu_si128((__m128i const*)(b + i)));
+        ab_vec = _mm_fmadd_ps(a_vec, b_vec, ab_vec);
+    }
+    ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
+    ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
+    float result[1];
+    _mm_store_ss(result, ab_vec);
+    return 1 - result[0];
+}
+
+__attribute__((target("avx2")))                            //
+__attribute__((target("f16c")))                            //
+__attribute__((target("fma"))) inline static simsimd_f32_t //
+simsimd_cos_f16x8_avx2(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
+    __m128 ab_vec = _mm_set1_ps(0);
+    __m128 a2_vec = _mm_set1_ps(0);
+    __m128 b2_vec = _mm_set1_ps(0);
+    for (size_t i = 0; i != d; i += 8) {
+        __m128 a_vec = _mm_cvtph_ps(_mm_loadu_si128((__m128i const*)(a + i)));
+        __m128 b_vec = _mm_cvtph_ps(_mm_loadu_si128((__m128i const*)(b + i)));
+        ab_vec = _mm_fmadd_ps(a_vec, b_vec, ab_vec);
+        a2_vec = _mm_fmadd_ps(a_vec, a_vec, a2_vec);
+        b2_vec = _mm_fmadd_ps(b_vec, b_vec, b2_vec);
+    }
+    ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
+    ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
+    a2_vec = _mm_hadd_ps(a2_vec, a2_vec);
+    a2_vec = _mm_hadd_ps(a2_vec, a2_vec);
+    b2_vec = _mm_hadd_ps(b2_vec, b2_vec);
+    b2_vec = _mm_hadd_ps(b2_vec, b2_vec);
+    float ab_result[1], a2_result[1], b2_result[1];
+    _mm_store_ss(ab_result, ab_vec);
+    _mm_store_ss(a2_result, a2_vec);
+    _mm_store_ss(b2_result, b2_vec);
+    return 1 - ab_result[0] / (sqrt(a2_result[0]) * sqrt(b2_result[0]));
+}
+
+__attribute__((target("avx2")))                            //
+__attribute__((target("f16c")))                            //
+__attribute__((target("fma"))) inline static simsimd_f32_t //
+simsimd_l2sq_f16x8_avx2(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
+    __m128 sum_vec = _mm_set1_ps(0);
+    for (size_t i = 0; i != d; i += 8) {
+        __m128 a_vec = _mm_cvtph_ps(_mm_loadu_si128((__m128i const*)(a + i)));
+        __m128 b_vec = _mm_cvtph_ps(_mm_loadu_si128((__m128i const*)(b + i)));
+        __m128 diff_vec = _mm_sub_ps(a_vec, b_vec);
+        sum_vec = _mm_fmadd_ps(diff_vec, diff_vec, sum_vec);
+    }
+    sum_vec = _mm_hadd_ps(sum_vec, sum_vec);
+    sum_vec = _mm_hadd_ps(sum_vec, sum_vec);
+    float result[1];
+    _mm_store_ss(result, sum_vec);
+    return result[0];
+}
+
 #endif // SIMSIMD_TARGET_X86_AVX2
 
 #if SIMSIMD_TARGET_X86_AVX512
+
+__attribute__((target("avx512fp16")))                          //
+__attribute__((target("avx512f"))) inline static simsimd_f32_t //
+simsimd_dot_f16x16_avx512(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
+    __m512 ab_vec = _mm512_set1_ps(0);
+    for (size_t i = 0; i != d; i += 16) {
+        __m512 a_vec = _mm512_cvtxph_ps(_mm256_loadu_ph(a + i));
+        __m512 b_vec = _mm512_cvtxph_ps(_mm256_loadu_ph(b + i));
+        ab_vec = _mm512_fmadd_ps(a_vec, b_vec, ab_vec);
+    }
+    simsimd_f32_t ab = _mm512_reduce_add_ps(ab_vec);
+    return 1 - ab;
+}
 
 __attribute__((target("avx512fp16")))                          //
 __attribute__((target("avx512f"))) inline static simsimd_f32_t //
@@ -409,6 +499,20 @@ simsimd_cos_f16x16_avx512(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t
     simsimd_f32_t a2 = _mm512_reduce_add_ps(a2_vec);
     simsimd_f32_t b2 = _mm512_reduce_add_ps(b2_vec);
     return 1 - ab / (sqrt(a2) * sqrt(b2));
+}
+
+__attribute__((target("avx512fp16")))                          //
+__attribute__((target("avx512f"))) inline static simsimd_f32_t //
+simsimd_l2sq_f16x16_avx512(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
+    __m512 sum_vec = _mm512_set1_ps(0);
+    for (size_t i = 0; i != d; i += 16) {
+        __m512 a_vec = _mm512_cvtxph_ps(_mm256_loadu_ph(a + i));
+        __m512 b_vec = _mm512_cvtxph_ps(_mm256_loadu_ph(b + i));
+        __m512 diff_vec = _mm512_sub_ps(a_vec, b_vec);
+        sum_vec = _mm512_fmadd_ps(diff_vec, diff_vec, sum_vec);
+    }
+    simsimd_f32_t sum = _mm512_reduce_add_ps(sum_vec);
+    return sum;
 }
 
 __attribute__((target("avx512vpopcntdq")))                     //

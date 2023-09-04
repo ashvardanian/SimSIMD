@@ -57,8 +57,7 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        os: [ubuntu-20.04] # macOS-11, windows-2022
-
+        os: [ubuntu-20.04, macOS-11] # windows-2022
     steps:
       - uses: actions/checkout@v3
         with:
@@ -76,8 +75,15 @@ jobs:
       - name: Install CIBuildWheel
         run: python -m pip install --no-cache-dir cibuildwheel
 
-      - name: Build wheels
+      - name: Build wheels on Ubuntu
         run: python -m cibuildwheel
+        if: matrix.os == 'ubuntu-20.04'
+
+      - name: Build wheels on MacOS
+        run: python -m cibuildwheel
+        env:
+          CIBW_ENVIRONMENT: CC=/usr/local/bin/gcc-12 CXX=/usr/local/bin/g++-12
+        if: matrix.os == 'macOS-11'
 
       - uses: actions/upload-artifact@v3
         with:
