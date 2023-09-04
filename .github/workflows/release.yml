@@ -57,7 +57,7 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        os: [ubuntu-20.04, macOS-11] # macOS-11, windows-2022
+        os: [ubuntu-20.04, macOS-11] # windows-2022
     steps:
       - uses: actions/checkout@v3
         with:
@@ -83,7 +83,6 @@ jobs:
         run: python -m cibuildwheel
         env:
           CIBW_ENVIRONMENT: CC=/usr/local/bin/gcc-12 CXX=/usr/local/bin/g++-12
-
         if: matrix.os == 'macOS-11'
 
       - uses: actions/upload-artifact@v3
