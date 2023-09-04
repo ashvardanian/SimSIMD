@@ -10,9 +10,6 @@ this_directory = os.path.abspath(dirname(__file__))
 with open(os.path.join(this_directory, "README.md"), "r", encoding="utf8") as f:
     long_description = f.read()
 
-"-march=armv8.2-a+sve"
-"-march=sapphirerapids"
-
 setup(
     name=__lib_name__,
     version=__version__,
@@ -35,7 +32,7 @@ setup(
     ext_modules=[
         Extension(
             "simsimd",
-            sources=["python/python.c"],
+            sources=["python/lib.c"],
             include_dirs=["include"],
         )
     ],

@@ -85,13 +85,17 @@
         "variant": "cpp",
         "__nullptr": "cpp",
         "unordered_set": "cpp",
-        "span": "cpp"
+        "span": "cpp",
+        "arm_neon.h": "c"
     },
     "cSpell.words": [
         "dtype",
         "dtypes",
         "kann",
+        "maccs",
+        "simd",
         "simsimd",
+        "tanimoto",
         "unsw"
     ]
 }

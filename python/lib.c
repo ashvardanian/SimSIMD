@@ -1,11 +1,17 @@
 /**
  *  @file python.c
- *  @author Ashot Vardanian
+ *  @author Ash Vardanian
  *  @date 2023-01-30
  *  @copyright Copyright (c) 2023
  *
- *  @brief Pure CPython bindings for simsimd.
+ *  @brief Pure CPython bindings for SimSIMD.
  */
+#define SIMSIMD_TARGET_ARM_NEON 1
+#define SIMSIMD_TARGET_X86_AVX2 1
+#if __linux__
+#define SIMSIMD_TARGET_ARM_SVE 1
+#define SIMSIMD_TARGET_X86_AVX512 1
+#endif
 
 #include "simsimd/simsimd.h"
 #include "simsimd/simsimd_chem.h"
@@ -51,31 +57,38 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
     if (m == NULL)
         return NULL;
 
-    PyModule_AddObject(m, "dot_f32_sve", distance(&simsimd_dot_f32_sve));
-    PyModule_AddObject(m, "dot_f32x4_neon", distance(&simsimd_dot_f32x4_neon));
+    PyModule_AddObject(m, "tanimoto_b1x8_naive", distance(&simsimd_tanimoto_b1x8_naive));
+    PyModule_AddObject(m, "tanimoto_maccs_naive", distance(&simsimd_tanimoto_maccs_naive));
+    PyModule_AddObject(m, "tanimoto_conditional_naive", distance(&simsimd_tanimoto_conditional_naive));
 
-    PyModule_AddObject(m, "cos_f32_sve", distance(&simsimd_cos_f32_sve));
-    PyModule_AddObject(m, "cos_f16_sve", distance(&simsimd_cos_f16_sve));
+#if SIMSIMD_TARGET_ARM
+    PyModule_AddObject(m, "dot_f32x4_neon", distance(&simsimd_dot_f32x4_neon));
     PyModule_AddObject(m, "cos_f16x4_neon", distance(&simsimd_cos_f16x4_neon));
     PyModule_AddObject(m, "cos_i8x16_neon", distance(&simsimd_cos_i8x16_neon));
     PyModule_AddObject(m, "cos_f32x4_neon", distance(&simsimd_cos_f32x4_neon));
-    PyModule_AddObject(m, "cos_f16x16_avx512", distance(&simsimd_cos_f16x16_avx512));
-    PyModule_AddObject(m, "cos_f32x4_avx2", distance(&simsimd_cos_f32x4_avx2));
+    PyModule_AddObject(m, "tanimoto_maccs_neon", distance(&simsimd_tanimoto_maccs_neon));
 
+#if SIMSIMD_TARGET_ARM_SVE
+    PyModule_AddObject(m, "dot_f32_sve", distance(&simsimd_dot_f32_sve));
+    PyModule_AddObject(m, "cos_f32_sve", distance(&simsimd_cos_f32_sve));
+    PyModule_AddObject(m, "cos_f16_sve", distance(&simsimd_cos_f16_sve));
     PyModule_AddObject(m, "l2sq_f32_sve", distance(&simsimd_l2sq_f32_sve));
     PyModule_AddObject(m, "l2sq_f16_sve", distance(&simsimd_l2sq_f16_sve));
-
     PyModule_AddObject(m, "hamming_b1x8_sve", distance(&simsimd_hamming_b1x8_sve));
     PyModule_AddObject(m, "hamming_b1x128_sve", distance(&simsimd_hamming_b1x128_sve));
-    PyModule_AddObject(m, "hamming_b1x128_avx512", distance(&simsimd_hamming_b1x128_avx512));
-
-    PyModule_AddObject(m, "tanimoto_b1x8_naive", distance(&simsimd_tanimoto_b1x8_naive));
-
-    // Specific vector sizes for chemistry
-    PyModule_AddObject(m, "tanimoto_maccs_naive", distance(&simsimd_tanimoto_maccs_naive));
-    PyModule_AddObject(m, "tanimoto_maccs_neon", distance(&simsimd_tanimoto_maccs_neon));
     PyModule_AddObject(m, "tanimoto_maccs_sve", distance(&simsimd_tanimoto_maccs_sve));
+#endif
+#endif
+
+#if SIMSIMD_TARGET_X86
+    PyModule_AddObject(m, "cos_f32x4_avx2", distance(&simsimd_cos_f32x4_avx2));
+
+#if SIMSIMD_TARGET_X86_AVX512
+    PyModule_AddObject(m, "cos_f16x16_avx512", distance(&simsimd_cos_f16x16_avx512));
+    PyModule_AddObject(m, "hamming_b1x128_avx512", distance(&simsimd_hamming_b1x128_avx512));
     PyModule_AddObject(m, "tanimoto_maccs_avx512", distance(&simsimd_tanimoto_maccs_avx512));
+#endif
+#endif
 
     return m;
 }
