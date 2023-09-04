@@ -471,6 +471,49 @@ simsimd_l2sq_f16x8_avx2(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d
     return result[0];
 }
 
+__attribute__((target("avx2"))) //
+inline static simsimd_f32_t
+simsimd_cos_i8x32_avx2(int8_t const* a, int8_t const* b, size_t d) {
+
+    __m256i ab_vec = _mm256_setzero_si256();
+    __m256i a2_vec = _mm256_setzero_si256();
+    __m256i b2_vec = _mm256_setzero_si256();
+
+    for (size_t i = 0; i != d; i += 32) {
+        __m256i a_vec = _mm256_loadu_si256((__m256i const*)(a + i));
+        __m256i b_vec = _mm256_loadu_si256((__m256i const*)(b + i));
+
+        // Multiply and add packed 8-bit integers
+        __m256i ab_part_vec = _mm256_maddubs_epi16(a_vec, b_vec);
+        __m256i a2_part_vec = _mm256_maddubs_epi16(a_vec, a_vec);
+        __m256i b2_part_vec = _mm256_maddubs_epi16(b_vec, b_vec);
+
+        ab_vec = _mm256_add_epi32(ab_vec, ab_part_vec);
+        a2_vec = _mm256_add_epi32(a2_vec, a2_part_vec);
+        b2_vec = _mm256_add_epi32(b2_vec, b2_part_vec);
+    }
+
+    // Horizontal sum across the 256-bit register
+    __m128i ab_low = _mm256_extracti128_si256(ab_vec, 0);
+    __m128i ab_high = _mm256_extracti128_si256(ab_vec, 1);
+    __m128i ab_sum = _mm_add_epi32(ab_low, ab_high);
+
+    __m128i a2_low = _mm256_extracti128_si256(a2_vec, 0);
+    __m128i a2_high = _mm256_extracti128_si256(a2_vec, 1);
+    __m128i a2_sum = _mm_add_epi32(a2_low, a2_high);
+
+    __m128i b2_low = _mm256_extracti128_si256(b2_vec, 0);
+    __m128i b2_high = _mm256_extracti128_si256(b2_vec, 1);
+    __m128i b2_sum = _mm_add_epi32(b2_low, b2_high);
+
+    // Further reduce to a single sum for each vector
+    int ab = _mm_extract_epi32(_mm_hadd_epi32(_mm_hadd_epi32(ab_sum, ab_sum), ab_sum), 0);
+    int a2 = _mm_extract_epi32(_mm_hadd_epi32(_mm_hadd_epi32(a2_sum, a2_sum), a2_sum), 0);
+    int b2 = _mm_extract_epi32(_mm_hadd_epi32(_mm_hadd_epi32(b2_sum, b2_sum), b2_sum), 0);
+
+    return 1 - ab / (sqrtf(a2) * sqrtf(b2));
+}
+
 #endif // SIMSIMD_TARGET_X86_AVX2
 
 #if SIMSIMD_TARGET_X86_AVX512
