@@ -58,6 +58,8 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
         return NULL;
 
     PyModule_AddObject(m, "tanimoto_b1x8_naive", distance(&simsimd_tanimoto_b1x8_naive));
+
+    // Specialized:
     PyModule_AddObject(m, "tanimoto_maccs_naive", distance(&simsimd_tanimoto_maccs_naive));
     PyModule_AddObject(m, "tanimoto_conditional_naive", distance(&simsimd_tanimoto_conditional_naive));
 
@@ -66,6 +68,8 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
     PyModule_AddObject(m, "cos_f16x4_neon", distance(&simsimd_cos_f16x4_neon));
     PyModule_AddObject(m, "cos_i8x16_neon", distance(&simsimd_cos_i8x16_neon));
     PyModule_AddObject(m, "cos_f32x4_neon", distance(&simsimd_cos_f32x4_neon));
+
+    // Specialized:
     PyModule_AddObject(m, "tanimoto_maccs_neon", distance(&simsimd_tanimoto_maccs_neon));
 
 #if SIMSIMD_TARGET_ARM_SVE
@@ -76,16 +80,28 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
     PyModule_AddObject(m, "l2sq_f16_sve", distance(&simsimd_l2sq_f16_sve));
     PyModule_AddObject(m, "hamming_b1x8_sve", distance(&simsimd_hamming_b1x8_sve));
     PyModule_AddObject(m, "hamming_b1x128_sve", distance(&simsimd_hamming_b1x128_sve));
+
+    // Specialized:
     PyModule_AddObject(m, "tanimoto_maccs_sve", distance(&simsimd_tanimoto_maccs_sve));
 #endif
 #endif
 
 #if SIMSIMD_TARGET_X86
+    PyModule_AddObject(m, "dot_f32x4_avx2", distance(&simsimd_dot_f32x4_avx2));
     PyModule_AddObject(m, "cos_f32x4_avx2", distance(&simsimd_cos_f32x4_avx2));
+    PyModule_AddObject(m, "l2sq_f32x4_avx2", distance(&simsimd_l2sq_f32x4_avx2));
+    PyModule_AddObject(m, "dot_f16x8_avx2", distance(&simsimd_dot_f16x8_avx2));
+    PyModule_AddObject(m, "cos_f16x8_avx2", distance(&simsimd_cos_f16x8_avx2));
+    PyModule_AddObject(m, "l2sq_f16x8_avx2", distance(&simsimd_l2sq_f16x8_avx2));
 
 #if SIMSIMD_TARGET_X86_AVX512
+    PyModule_AddObject(m, "dot_f16x16_avx512", distance(&simsimd_dot_f16x16_avx512));
     PyModule_AddObject(m, "cos_f16x16_avx512", distance(&simsimd_cos_f16x16_avx512));
+    PyModule_AddObject(m, "l2sq_f16x16_avx512", distance(&simsimd_l2sq_f16x16_avx512));
+
     PyModule_AddObject(m, "hamming_b1x128_avx512", distance(&simsimd_hamming_b1x128_avx512));
+
+    // Specialized:
     PyModule_AddObject(m, "tanimoto_maccs_avx512", distance(&simsimd_tanimoto_maccs_avx512));
 #endif
 #endif
