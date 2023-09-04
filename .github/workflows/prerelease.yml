@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04] # macOS-11, windows-2022
+        os: [ubuntu-22.04, macOS-11] # windows-2022
         python-version: ["3.11"]
 
     steps:
@@ -35,7 +35,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Set up Clang
-        run: brew install llvm
+        run: brew install gcc@12
         if: ${{ matrix.os == 'macOS-11' }}
 
       - name: Set up MinGW
@@ -59,10 +59,8 @@ jobs:
 
       - name: Build locally on MacOS
         run: |
-          export LDFLAGS="-L/usr/local/opt/llvm/lib"
-          export CPPFLAGS="-I/usr/local/opt/llvm/include"
-          export CC=/usr/local/opt/llvm/bin/clang
-          export CXX=/usr/local/opt/llvm/bin/clang++
+          export CC=/usr/local/bin/gcc-12
+          export CXX=/usr/local/bin/g++-12
           python -m pip install .
         if: ${{ matrix.os == 'macOS-11' }}
 
