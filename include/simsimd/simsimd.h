@@ -242,6 +242,18 @@ simsimd_dot_f32x4_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, size_t d)
 }
 
 __attribute__((target("+simd+fp16"))) inline static simsimd_f32_t //
+simsimd_dot_f16x4_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
+
+    float32x4_t ab_vec = vdupq_n_f32(0);
+    for (size_t i = 0; i != d; i += 4) {
+        float32x4_t a_vec = vcvt_f32_f16(vld1_f16((float16_t const*)a + i));
+        float32x4_t b_vec = vcvt_f32_f16(vld1_f16((float16_t const*)b + i));
+        ab_vec = vfmaq_f32(ab_vec, a_vec, b_vec);
+    }
+    return 1 - vaddvq_f32(ab_vec);
+}
+
+__attribute__((target("+simd+fp16"))) inline static simsimd_f32_t //
 simsimd_cos_f16x4_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
 
     float32x4_t ab_vec = vdupq_n_f32(0);
