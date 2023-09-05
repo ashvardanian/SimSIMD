@@ -413,16 +413,17 @@ __attribute__((target("avx2")))                            //
 __attribute__((target("f16c")))                            //
 __attribute__((target("fma"))) inline static simsimd_f32_t //
 simsimd_dot_f16x8_avx2(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
-    __m128 ab_vec = _mm_set1_ps(0);
+    __m256 ab_vec = _mm256_set1_ps(0);
     for (size_t i = 0; i != d; i += 8) {
-        __m128 a_vec = _mm_cvtph_ps(_mm_loadu_si128((__m128i const*)(a + i)));
-        __m128 b_vec = _mm_cvtph_ps(_mm_loadu_si128((__m128i const*)(b + i)));
-        ab_vec = _mm_fmadd_ps(a_vec, b_vec, ab_vec);
+        __m256 a_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)(a + i)));
+        __m256 b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)(b + i)));
+        ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
     }
-    ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
-    ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
+    ab_vec = _mm256_add_ps(_mm256_permute2f128_ps(ab_vec, ab_vec, 0x81), ab_vec);
+    ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
+    ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
     float result[1];
-    _mm_store_ss(result, ab_vec);
+    _mm_store_ss(result, _mm256_castps256_ps128(ab_vec));
     return 1 - result[0];
 }
 
@@ -430,26 +431,29 @@ __attribute__((target("avx2")))                            //
 __attribute__((target("f16c")))                            //
 __attribute__((target("fma"))) inline static simsimd_f32_t //
 simsimd_cos_f16x8_avx2(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
-    __m128 ab_vec = _mm_set1_ps(0);
-    __m128 a2_vec = _mm_set1_ps(0);
-    __m128 b2_vec = _mm_set1_ps(0);
+    __m256 ab_vec = _mm256_set1_ps(0);
+    __m256 a2_vec = _mm256_set1_ps(0);
+    __m256 b2_vec = _mm256_set1_ps(0);
     for (size_t i = 0; i != d; i += 8) {
-        __m128 a_vec = _mm_cvtph_ps(_mm_loadu_si128((__m128i const*)(a + i)));
-        __m128 b_vec = _mm_cvtph_ps(_mm_loadu_si128((__m128i const*)(b + i)));
-        ab_vec = _mm_fmadd_ps(a_vec, b_vec, ab_vec);
-        a2_vec = _mm_fmadd_ps(a_vec, a_vec, a2_vec);
-        b2_vec = _mm_fmadd_ps(b_vec, b_vec, b2_vec);
+        __m256 a_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)(a + i)));
+        __m256 b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)(b + i)));
+        ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
+        a2_vec = _mm256_fmadd_ps(a_vec, a_vec, a2_vec);
+        b2_vec = _mm256_fmadd_ps(b_vec, b_vec, b2_vec);
     }
-    ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
-    ab_vec = _mm_hadd_ps(ab_vec, ab_vec);
-    a2_vec = _mm_hadd_ps(a2_vec, a2_vec);
-    a2_vec = _mm_hadd_ps(a2_vec, a2_vec);
-    b2_vec = _mm_hadd_ps(b2_vec, b2_vec);
-    b2_vec = _mm_hadd_ps(b2_vec, b2_vec);
+    ab_vec = _mm256_add_ps(_mm256_permute2f128_ps(ab_vec, ab_vec, 0x81), ab_vec);
+    ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
+    ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
+    a2_vec = _mm256_add_ps(_mm256_permute2f128_ps(a2_vec, a2_vec, 0x81), a2_vec);
+    a2_vec = _mm256_hadd_ps(a2_vec, a2_vec);
+    a2_vec = _mm256_hadd_ps(a2_vec, a2_vec);
+    b2_vec = _mm256_add_ps(_mm256_permute2f128_ps(b2_vec, b2_vec, 0x81), b2_vec);
+    b2_vec = _mm256_hadd_ps(b2_vec, b2_vec);
+    b2_vec = _mm256_hadd_ps(b2_vec, b2_vec);
     float ab_result[1], a2_result[1], b2_result[1];
-    _mm_store_ss(ab_result, ab_vec);
-    _mm_store_ss(a2_result, a2_vec);
-    _mm_store_ss(b2_result, b2_vec);
+    _mm_store_ss(ab_result, _mm256_castps256_ps128(ab_vec));
+    _mm_store_ss(a2_result, _mm256_castps256_ps128(a2_vec));
+    _mm_store_ss(b2_result, _mm256_castps256_ps128(b2_vec));
     return 1 - ab_result[0] / (sqrtf(a2_result[0]) * sqrtf(b2_result[0]));
 }
 
@@ -457,17 +461,18 @@ __attribute__((target("avx2")))                            //
 __attribute__((target("f16c")))                            //
 __attribute__((target("fma"))) inline static simsimd_f32_t //
 simsimd_l2sq_f16x8_avx2(simsimd_f16_t const* a, simsimd_f16_t const* b, size_t d) {
-    __m128 sum_vec = _mm_set1_ps(0);
+    __m256 sum_vec = _mm256_set1_ps(0);
     for (size_t i = 0; i != d; i += 8) {
-        __m128 a_vec = _mm_cvtph_ps(_mm_loadu_si128((__m128i const*)(a + i)));
-        __m128 b_vec = _mm_cvtph_ps(_mm_loadu_si128((__m128i const*)(b + i)));
-        __m128 diff_vec = _mm_sub_ps(a_vec, b_vec);
-        sum_vec = _mm_fmadd_ps(diff_vec, diff_vec, sum_vec);
+        __m256 a_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)(a + i)));
+        __m256 b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)(b + i)));
+        __m256 diff_vec = _mm256_sub_ps(a_vec, b_vec);
+        sum_vec = _mm256_fmadd_ps(diff_vec, diff_vec, sum_vec);
     }
-    sum_vec = _mm_hadd_ps(sum_vec, sum_vec);
-    sum_vec = _mm_hadd_ps(sum_vec, sum_vec);
+    sum_vec = _mm256_add_ps(_mm256_permute2f128_ps(sum_vec, sum_vec, 0x81), sum_vec);
+    sum_vec = _mm256_hadd_ps(sum_vec, sum_vec);
+    sum_vec = _mm256_hadd_ps(sum_vec, sum_vec);
     float result[1];
-    _mm_store_ss(result, sum_vec);
+    _mm_store_ss(result, _mm256_castps256_ps128(sum_vec));
     return result[0];
 }
 
