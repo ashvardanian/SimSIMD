@@ -86,16 +86,22 @@
         "__nullptr": "cpp",
         "unordered_set": "cpp",
         "span": "cpp",
-        "arm_neon.h": "c"
+        "arm_neon.h": "c",
+        "__tree": "cpp",
+        "filesystem": "cpp"
     },
     "cSpell.words": [
+        "castsi",
         "dtype",
         "dtypes",
         "kann",
+        "loadu",
         "maccs",
+        "maskz",
         "simd",
         "simsimd",
         "tanimoto",
-        "unsw"
+        "unsw",
+        "Vardanian"
     ]
 }

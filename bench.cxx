@@ -3,12 +3,11 @@
 #include <benchmark/benchmark.h>
 
 #include <simsimd/simsimd.h>
-#include <simsimd/simsimd_chem.h>
 
 namespace bm = benchmark;
 
-static const std::size_t threads_k = std::thread::hardware_concurrency();
-static constexpr std::size_t time_k = 10;
+static const std::size_t threads_k = 1; // std::thread::hardware_concurrency();
+static constexpr std::size_t time_k = 2;
 static constexpr std::size_t bytes_k = 1024;
 
 template <typename return_at, typename... args_at>
@@ -44,21 +43,10 @@ void register_(char const* name, metric_at distance_func) {
     bm::RegisterBenchmark(name, measure<scalar_at, bytes_per_vector_ak, metric_at>, distance_func)
         ->Threads(1)
         ->MinTime(time_k);
-    bm::RegisterBenchmark(name, measure<scalar_at, bytes_per_vector_ak, metric_at>, distance_func)
-        ->Threads(threads_k)
-        ->MinTime(time_k);
-}
-
-simsimd_f32_t cos_f32_naive(simsimd_f32_t* v1, simsimd_f32_t* v2, std::size_t n) {
-    simsimd_f32_t inner_product = 0;
-    simsimd_f32_t magnitude1 = 0;
-    simsimd_f32_t magnitude2 = 0;
-    for (std::size_t i = 0; i != n; ++i) {
-        inner_product += v1[i] * v2[i];
-        magnitude1 += v1[i] * v1[i];
-        magnitude2 += v2[i] * v2[i];
-    }
-    return 1 - inner_product / (std::sqrt(magnitude1) * std::sqrt(magnitude2));
+    if (threads_k > 1)
+        bm::RegisterBenchmark(name, measure<scalar_at, bytes_per_vector_ak, metric_at>, distance_func)
+            ->Threads(threads_k)
+            ->MinTime(time_k);
 }
 
 int main(int argc, char** argv) {
@@ -97,39 +85,54 @@ int main(int argc, char** argv) {
     if (bm::ReportUnrecognizedArguments(argc, argv))
         return 1;
 
-    register_<std::uint8_t, 21>("tanimoto_maccs_naive", simsimd_tanimoto_maccs_naive);
-    register_<simsimd_f32_t>("cos_f32_naive", cos_f32_naive);
+#if SIMSIMD_TARGET_ARM_NEON
+    register_<simsimd_f16_t>("neon_f16_ip", simsimd_neon_f16_ip);
+    register_<simsimd_f16_t>("neon_f16_cos", simsimd_neon_f16_cos);
+    register_<simsimd_f16_t>("neon_f16_l2sq", simsimd_neon_f16_l2sq);
 
-#if SIMSIMD_TARGET_ARM_SVE
-    register_<simsimd_f32_t>("dot_f32_sve", simsimd_dot_f32_sve);
-    register_<simsimd_f32_t>("cos_f32_sve", simsimd_cos_f32_sve);
-    register_<std::int16_t>("cos_f16_sve", simsimd_cos_f16_sve);
-    register_<simsimd_f32_t>("l2sq_f32_sve", simsimd_l2sq_f32_sve);
-    register_<std::int16_t>("l2sq_f16_sve", simsimd_l2sq_f16_sve);
-    register_<std::uint8_t>("hamming_b1x8_sve", simsimd_hamming_b1x8_sve);
-    register_<std::uint8_t>("hamming_b1x128_sve", simsimd_hamming_b1x128_sve);
-    register_<std::uint8_t, 21>("tanimoto_maccs_sve", simsimd_tanimoto_maccs_sve);
+    register_<simsimd_f32_t>("neon_f32_ip", simsimd_neon_f32_ip);
+    register_<simsimd_f32_t>("neon_f32_cos", simsimd_neon_f32_cos);
+    register_<simsimd_f32_t>("neon_f32_l2sq", simsimd_neon_f32_l2sq);
+
+    register_<simsimd_i8_t>("neon_i8_cos", simsimd_neon_i8_cos);
+    register_<simsimd_i8_t>("neon_i8_l2sq", simsimd_neon_i8_l2sq);
 #endif
 
-#if SIMSIMD_TARGET_ARM_NEON
-    register_<simsimd_f32_t>("dot_f32x4_neon", simsimd_dot_f32x4_neon);
-    register_<std::int16_t>("cos_f16x4_neon", simsimd_cos_f16x4_neon);
-    register_<std::int8_t>("cos_i8x16_neon", simsimd_cos_i8x16_neon);
-    register_<std::int8_t>("l2sq_i8x16_neon", simsimd_l2sq_i8x16_neon);
-    register_<simsimd_f32_t>("cos_f32x4_neon", simsimd_cos_f32x4_neon);
-    register_<std::uint8_t, 21>("tanimoto_maccs_neon", simsimd_tanimoto_maccs_neon);
+#if SIMSIMD_TARGET_ARM_SVE
+    register_<simsimd_f16_t>("sve_f16_ip", simsimd_sve_f16_ip);
+    register_<simsimd_f16_t>("sve_f16_cos", simsimd_sve_f16_cos);
+    register_<simsimd_f16_t>("sve_f16_l2sq", simsimd_sve_f16_l2sq);
+
+    register_<simsimd_f32_t>("sve_f32_ip", simsimd_sve_f32_ip);
+    register_<simsimd_f32_t>("sve_f32_cos", simsimd_sve_f32_cos);
+    register_<simsimd_f32_t>("sve_f32_l2sq", simsimd_sve_f32_l2sq);
 #endif
 
 #if SIMSIMD_TARGET_X86_AVX2
-    register_<simsimd_f32_t>("dot_f32x4_avx2", simsimd_dot_f32x4_avx2);
-    register_<simsimd_f32_t>("cos_f32x4_avx2", simsimd_cos_f32x4_avx2);
+    register_<simsimd_f16_t>("avx2_f16_ip", simsimd_avx2_f16_ip);
+    register_<simsimd_f16_t>("avx2_f16_cos", simsimd_avx2_f16_cos);
+    register_<simsimd_f16_t>("avx2_f16_l2sq", simsimd_avx2_f16_l2sq);
+
+    register_<simsimd_i8_t>("avx2_i8_cos", simsimd_avx2_i8_cos);
+    register_<simsimd_i8_t>("avx2_i8_l2sq", simsimd_avx2_i8_l2sq);
 #endif
 
 #if SIMSIMD_TARGET_X86_AVX512
-    register_<std::int16_t>("cos_f16x16_avx512", simsimd_cos_f16x16_avx512);
-    register_<std::uint8_t>("hamming_b1x128_avx512", simsimd_hamming_b1x128_avx512);
-    register_<std::uint8_t, 21>("tanimoto_maccs_avx512", simsimd_tanimoto_maccs_avx512);
+    register_<simsimd_f16_t>("avx512_f16_ip", simsimd_avx512_f16_ip);
+    register_<simsimd_f16_t>("avx512_f16_cos", simsimd_avx512_f16_cos);
+    register_<simsimd_f16_t>("avx512_f16_l2sq", simsimd_avx512_f16_l2sq);
 #endif
+
+    register_<simsimd_f16_t>("auto_f16_ip", simsimd_auto_f16_ip);
+    register_<simsimd_f16_t>("auto_f16_cos", simsimd_auto_f16_cos);
+    register_<simsimd_f16_t>("auto_f16_l2sq", simsimd_auto_f16_l2sq);
+
+    register_<simsimd_f32_t>("auto_f32_ip", simsimd_auto_f32_ip);
+    register_<simsimd_f32_t>("auto_f32_cos", simsimd_auto_f32_cos);
+    register_<simsimd_f32_t>("auto_f32_l2sq", simsimd_auto_f32_l2sq);
+
+    register_<simsimd_i8_t>("auto_i8_cos", simsimd_auto_i8_cos);
+    register_<simsimd_i8_t>("auto_i8_l2sq", simsimd_auto_i8_l2sq);
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();
