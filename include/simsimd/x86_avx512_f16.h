@@ -17,7 +17,7 @@ extern "C" {
 #endif
 
 static simsimd_f32_t simsimd_avx512_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t d) {
-    __m512h diff_vec = _mm512_set1_ph(0);
+    __m512h d2_vec = _mm512_set1_ph(0);
     simsimd_size_t i = 0;
 
     do {
@@ -26,12 +26,12 @@ static simsimd_f32_t simsimd_avx512_f16_l2sq(simsimd_f16_t const* a, simsimd_f16
         __m512i a_vec = _mm512_maskz_loadu_epi16(mask, a + i);
         __m512i b_vec = _mm512_maskz_loadu_epi16(mask, b + i);
         __m512h sub_vec = _mm512_sub_ph(_mm512_castsi512_ph(a_vec), _mm512_castsi512_ph(b_vec));
-        diff_vec = _mm512_fmadd_ph(sub_vec, sub_vec, diff_vec);
+        d2_vec = _mm512_fmadd_ph(sub_vec, sub_vec, d2_vec);
 
         i += 32;
     } while (i < d);
 
-    return _mm512_reduce_add_ph(diff_vec);
+    return _mm512_reduce_add_ph(d2_vec);
 }
 
 static simsimd_f32_t simsimd_avx512_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t d) {

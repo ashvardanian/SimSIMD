@@ -51,8 +51,8 @@ static void measure(bm::State& state, metric_at metric, metric_at baseline) {
     state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
 
     double c_baseline = baseline(pair.a, pair.b, pair.dimensions());
-    double delta = std::abs(c - c_baseline) / std::abs(c_baseline);
-    if (delta < 0.01)
+    double delta = std::abs(c - c_baseline);
+    if (delta < 0.001)
         delta = 0;
     state.counters["delta"] = delta;
 }
@@ -105,53 +105,53 @@ int main(int argc, char** argv) {
         return 1;
 
 #if SIMSIMD_TARGET_ARM_NEON
-    register_<simsimd_f16_t>("neon_f16_ip", simsimd_neon_f16_ip, simsimd_auto_f16_ip);
-    register_<simsimd_f16_t>("neon_f16_cos", simsimd_neon_f16_cos, simsimd_auto_f16_cos);
-    register_<simsimd_f16_t>("neon_f16_l2sq", simsimd_neon_f16_l2sq, simsimd_auto_f16_l2sq);
+    register_<simsimd_f16_t>("neon_f16_ip", simsimd_neon_f16_ip, simsimd_accurate_f16_ip);
+    register_<simsimd_f16_t>("neon_f16_cos", simsimd_neon_f16_cos, simsimd_accurate_f16_cos);
+    register_<simsimd_f16_t>("neon_f16_l2sq", simsimd_neon_f16_l2sq, simsimd_accurate_f16_l2sq);
 
-    register_<simsimd_f32_t>("neon_f32_ip", simsimd_neon_f32_ip, simsimd_auto_f32_ip);
-    register_<simsimd_f32_t>("neon_f32_cos", simsimd_neon_f32_cos, simsimd_auto_f32_cos);
-    register_<simsimd_f32_t>("neon_f32_l2sq", simsimd_neon_f32_l2sq, simsimd_auto_f32_l2sq);
+    register_<simsimd_f32_t>("neon_f32_ip", simsimd_neon_f32_ip, simsimd_accurate_f32_ip);
+    register_<simsimd_f32_t>("neon_f32_cos", simsimd_neon_f32_cos, simsimd_accurate_f32_cos);
+    register_<simsimd_f32_t>("neon_f32_l2sq", simsimd_neon_f32_l2sq, simsimd_accurate_f32_l2sq);
 
-    register_<simsimd_i8_t>("neon_i8_cos", simsimd_neon_i8_cos, simsimd_auto_i8_cos);
-    register_<simsimd_i8_t>("neon_i8_l2sq", simsimd_neon_i8_l2sq, simsimd_auto_i8_l2sq);
+    register_<simsimd_i8_t>("neon_i8_cos", simsimd_neon_i8_cos, simsimd_accurate_i8_cos);
+    register_<simsimd_i8_t>("neon_i8_l2sq", simsimd_neon_i8_l2sq, simsimd_accurate_i8_l2sq);
 #endif
 
 #if SIMSIMD_TARGET_ARM_SVE
-    register_<simsimd_f16_t>("sve_f16_ip", simsimd_sve_f16_ip, simsimd_auto_f16_ip);
-    register_<simsimd_f16_t>("sve_f16_cos", simsimd_sve_f16_cos, simsimd_auto_f16_cos);
-    register_<simsimd_f16_t>("sve_f16_l2sq", simsimd_sve_f16_l2sq, simsimd_auto_f16_l2sq);
+    register_<simsimd_f16_t>("sve_f16_ip", simsimd_sve_f16_ip, simsimd_accurate_f16_ip);
+    register_<simsimd_f16_t>("sve_f16_cos", simsimd_sve_f16_cos, simsimd_accurate_f16_cos);
+    register_<simsimd_f16_t>("sve_f16_l2sq", simsimd_sve_f16_l2sq, simsimd_accurate_f16_l2sq);
 
-    register_<simsimd_f32_t>("sve_f32_ip", simsimd_sve_f32_ip, simsimd_auto_f32_ip);
-    register_<simsimd_f32_t>("sve_f32_cos", simsimd_sve_f32_cos, simsimd_auto_f32_cos);
-    register_<simsimd_f32_t>("sve_f32_l2sq", simsimd_sve_f32_l2sq, simsimd_auto_f32_l2sq);
+    register_<simsimd_f32_t>("sve_f32_ip", simsimd_sve_f32_ip, simsimd_accurate_f32_ip);
+    register_<simsimd_f32_t>("sve_f32_cos", simsimd_sve_f32_cos, simsimd_accurate_f32_cos);
+    register_<simsimd_f32_t>("sve_f32_l2sq", simsimd_sve_f32_l2sq, simsimd_accurate_f32_l2sq);
 #endif
 
 #if SIMSIMD_TARGET_X86_AVX2
-    register_<simsimd_f16_t>("avx2_f16_ip", simsimd_avx2_f16_ip, simsimd_auto_f16_ip);
-    register_<simsimd_f16_t>("avx2_f16_cos", simsimd_avx2_f16_cos, simsimd_auto_f16_cos);
-    register_<simsimd_f16_t>("avx2_f16_l2sq", simsimd_avx2_f16_l2sq, simsimd_auto_f16_l2sq);
+    register_<simsimd_f16_t>("avx2_f16_ip", simsimd_avx2_f16_ip, simsimd_accurate_f16_ip);
+    register_<simsimd_f16_t>("avx2_f16_cos", simsimd_avx2_f16_cos, simsimd_accurate_f16_cos);
+    register_<simsimd_f16_t>("avx2_f16_l2sq", simsimd_avx2_f16_l2sq, simsimd_accurate_f16_l2sq);
 
-    register_<simsimd_i8_t>("avx2_i8_cos", simsimd_avx2_i8_cos, simsimd_auto_i8_cos);
-    register_<simsimd_i8_t>("avx2_i8_l2sq", simsimd_avx2_i8_l2sq, simsimd_auto_i8_l2sq);
+    register_<simsimd_i8_t>("avx2_i8_cos", simsimd_avx2_i8_cos, simsimd_accurate_i8_cos);
+    register_<simsimd_i8_t>("avx2_i8_l2sq", simsimd_avx2_i8_l2sq, simsimd_accurate_i8_l2sq);
 #endif
 
 #if SIMSIMD_TARGET_X86_AVX512
-    register_<simsimd_f16_t>("avx512_f16_ip", simsimd_avx512_f16_ip, simsimd_auto_f16_ip);
-    register_<simsimd_f16_t>("avx512_f16_cos", simsimd_avx512_f16_cos, simsimd_auto_f16_cos);
-    register_<simsimd_f16_t>("avx512_f16_l2sq", simsimd_avx512_f16_l2sq, simsimd_auto_f16_l2sq);
+    register_<simsimd_f16_t>("avx512_f16_ip", simsimd_avx512_f16_ip, simsimd_accurate_f16_ip);
+    register_<simsimd_f16_t>("avx512_f16_cos", simsimd_avx512_f16_cos, simsimd_accurate_f16_cos);
+    register_<simsimd_f16_t>("avx512_f16_l2sq", simsimd_avx512_f16_l2sq, simsimd_accurate_f16_l2sq);
 #endif
 
-    register_<simsimd_f16_t>("auto_f16_ip", simsimd_auto_f16_ip, simsimd_auto_f16_ip);
-    register_<simsimd_f16_t>("auto_f16_cos", simsimd_auto_f16_cos, simsimd_auto_f16_cos);
-    register_<simsimd_f16_t>("auto_f16_l2sq", simsimd_auto_f16_l2sq, simsimd_auto_f16_l2sq);
+    register_<simsimd_f16_t>("auto_f16_ip", simsimd_auto_f16_ip, simsimd_accurate_f16_ip);
+    register_<simsimd_f16_t>("auto_f16_cos", simsimd_auto_f16_cos, simsimd_accurate_f16_cos);
+    register_<simsimd_f16_t>("auto_f16_l2sq", simsimd_auto_f16_l2sq, simsimd_accurate_f16_l2sq);
 
-    register_<simsimd_f32_t>("auto_f32_ip", simsimd_auto_f32_ip, simsimd_auto_f32_ip);
-    register_<simsimd_f32_t>("auto_f32_cos", simsimd_auto_f32_cos, simsimd_auto_f32_cos);
-    register_<simsimd_f32_t>("auto_f32_l2sq", simsimd_auto_f32_l2sq, simsimd_auto_f32_l2sq);
+    register_<simsimd_f32_t>("auto_f32_ip", simsimd_auto_f32_ip, simsimd_accurate_f32_ip);
+    register_<simsimd_f32_t>("auto_f32_cos", simsimd_auto_f32_cos, simsimd_accurate_f32_cos);
+    register_<simsimd_f32_t>("auto_f32_l2sq", simsimd_auto_f32_l2sq, simsimd_accurate_f32_l2sq);
 
-    register_<simsimd_i8_t>("auto_i8_cos", simsimd_auto_i8_cos, simsimd_auto_i8_cos);
-    register_<simsimd_i8_t>("auto_i8_l2sq", simsimd_auto_i8_l2sq, simsimd_auto_i8_l2sq);
+    register_<simsimd_i8_t>("auto_i8_cos", simsimd_auto_i8_cos, simsimd_accurate_i8_cos);
+    register_<simsimd_i8_t>("auto_i8_l2sq", simsimd_auto_i8_l2sq, simsimd_accurate_i8_l2sq);
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();
