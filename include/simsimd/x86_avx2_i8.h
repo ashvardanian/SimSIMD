@@ -25,13 +25,22 @@ inline static simsimd_f32_t simsimd_avx2_i8_l2sq(simsimd_i8_t const* a, simsimd_
     for (; i + 31 < d; i += 32) {
         __m256i a_vec = _mm256_loadu_si256((__m256i const*)(a + i));
         __m256i b_vec = _mm256_loadu_si256((__m256i const*)(b + i));
-        __m256i d_vec = _mm256_sub_epi8(a_vec, b_vec);
-        __m256i d_part_vec = _mm256_maddubs_epi16(d_vec, d_vec);
 
-        // Upcast the 16-bit integers from `d_part_vec` into 32-bit integers
-        // accumulating half into `d2_high_vec`, and another half into `d2_low_vec`.
-        d2_low_vec = _mm256_add_epi32(d2_low_vec, _mm256_unpacklo_epi16(d_part_vec, _mm256_setzero_si256()));
-        d2_high_vec = _mm256_add_epi32(d2_high_vec, _mm256_unpackhi_epi16(d_part_vec, _mm256_setzero_si256()));
+        // Sign extend int8 to int16
+        __m256i a_low = _mm256_cvtepi8_epi16(_mm256_castsi256_si128(a_vec));
+        __m256i a_high = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_vec, 1));
+        __m256i b_low = _mm256_cvtepi8_epi16(_mm256_castsi256_si128(b_vec));
+        __m256i b_high = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_vec, 1));
+
+        // Subtract and multiply
+        __m256i d_low = _mm256_sub_epi16(a_low, b_low);
+        __m256i d_high = _mm256_sub_epi16(a_high, b_high);
+        __m256i d2_low_part = _mm256_madd_epi16(d_low, d_low);
+        __m256i d2_high_part = _mm256_madd_epi16(d_high, d_high);
+
+        // Accumulate into int32 vectors
+        d2_low_vec = _mm256_add_epi32(d2_low_vec, d2_low_part);
+        d2_high_vec = _mm256_add_epi32(d2_high_vec, d2_high_part);
     }
 
     // Accumulate the 32-bit integers from `d2_high_vec` and `d2_low_vec`
@@ -64,18 +73,19 @@ inline static simsimd_f32_t simsimd_avx2_i8_cos(simsimd_i8_t const* a, simsimd_i
         __m256i a_vec = _mm256_loadu_si256((__m256i const*)(a + i));
         __m256i b_vec = _mm256_loadu_si256((__m256i const*)(b + i));
 
-        // Multiply and add packed 8-bit integers into 16-bit partial results
-        __m256i ab_part_vec = _mm256_maddubs_epi16(a_vec, b_vec);
-        __m256i a2_part_vec = _mm256_maddubs_epi16(a_vec, a_vec);
-        __m256i b2_part_vec = _mm256_maddubs_epi16(b_vec, b_vec);
+        // Unpack int8 to int32
+        __m256i a_low = _mm256_cvtepi8_epi32(_mm256_castsi256_si128(a_vec));
+        __m256i a_high = _mm256_cvtepi8_epi32(_mm256_extracti128_si256(a_vec, 1));
+        __m256i b_low = _mm256_cvtepi8_epi32(_mm256_castsi256_si128(b_vec));
+        __m256i b_high = _mm256_cvtepi8_epi32(_mm256_extracti128_si256(b_vec, 1));
 
-        // Unpack and accumulate the 16-bit results into 32-bit accumulators
-        ab_low_vec = _mm256_add_epi32(ab_low_vec, _mm256_unpacklo_epi16(ab_part_vec, _mm256_setzero_si256()));
-        ab_high_vec = _mm256_add_epi32(ab_high_vec, _mm256_unpackhi_epi16(ab_part_vec, _mm256_setzero_si256()));
-        a2_low_vec = _mm256_add_epi32(a2_low_vec, _mm256_unpacklo_epi16(a2_part_vec, _mm256_setzero_si256()));
-        a2_high_vec = _mm256_add_epi32(a2_high_vec, _mm256_unpackhi_epi16(a2_part_vec, _mm256_setzero_si256()));
-        b2_low_vec = _mm256_add_epi32(b2_low_vec, _mm256_unpacklo_epi16(b2_part_vec, _mm256_setzero_si256()));
-        b2_high_vec = _mm256_add_epi32(b2_high_vec, _mm256_unpackhi_epi16(b2_part_vec, _mm256_setzero_si256()));
+        // Multiply and accumulate
+        ab_low_vec = _mm256_add_epi32(ab_low_vec, _mm256_mullo_epi32(a_low, b_low));
+        ab_high_vec = _mm256_add_epi32(ab_high_vec, _mm256_mullo_epi32(a_high, b_high));
+        a2_low_vec = _mm256_add_epi32(a2_low_vec, _mm256_mullo_epi32(a_low, a_low));
+        a2_high_vec = _mm256_add_epi32(a2_high_vec, _mm256_mullo_epi32(a_high, a_high));
+        b2_low_vec = _mm256_add_epi32(b2_low_vec, _mm256_mullo_epi32(b_low, b_low));
+        b2_high_vec = _mm256_add_epi32(b2_high_vec, _mm256_mullo_epi32(b_high, b_high));
     }
 
     // Horizontal sum across the 256-bit register
