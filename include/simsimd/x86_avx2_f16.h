@@ -58,7 +58,7 @@ inline static simsimd_f32_t simsimd_avx2_f16_ip(simsimd_f16_t const* a, simsimd_
     // Accumulate the tail:
     for (; i < n; ++i)
         result[0] += a[i] * b[i];
-    return result[0];
+    return 1 - result[0];
 }
 
 inline static simsimd_f32_t simsimd_avx2_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
@@ -92,7 +92,7 @@ inline static simsimd_f32_t simsimd_avx2_f16_cos(simsimd_f16_t const* a, simsimd
     // Accumulate the tail:
     for (; i < n; ++i)
         result[0] += a[i] * b[i], result[1] += a[i] * a[i], result[2] += b[i] * b[i];
-    return result[0] * simsimd_approximate_inverse_square_root(result[1] * result[2]);
+    return 1 - result[0] * simsimd_approximate_inverse_square_root(result[1] * result[2]);
 }
 
 #ifdef __cplusplus
