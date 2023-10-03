@@ -9,7 +9,7 @@ namespace bm = benchmark;
 
 static const std::size_t threads_k = 1; // std::thread::hardware_concurrency();
 static constexpr std::size_t time_k = 2;
-static constexpr std::size_t bytes_k = 77;
+static constexpr std::size_t bytes_k = 777;
 
 template <typename return_at, typename... args_at>
 constexpr std::size_t number_of_arguments(return_at (*f)(args_at...)) {
@@ -22,6 +22,12 @@ template <typename scalar_at, std::size_t bytes_per_vector_ak = bytes_k> struct 
     scalar_at b[dimensions_ak]{};
 
     std::size_t dimensions() const noexcept { return dimensions_ak; }
+
+    void set(scalar_at v) noexcept {
+        for (std::size_t i = 0; i != dimensions_ak; ++i)
+            a[i] = b[i] = v;
+    }
+
     void randomize() noexcept {
 
         double a2_sum = 0, b2_sum = 0;
@@ -50,6 +56,7 @@ static void measure(bm::State& state, metric_at metric, metric_at baseline) {
 
     vectors_pair_gt<scalar_at, bytes_per_vector_ak> pair;
     pair.randomize();
+    // pair.set(1);
 
     double c_baseline = baseline(pair.a, pair.b, pair.dimensions());
     double c = 0;
@@ -63,11 +70,10 @@ static void measure(bm::State& state, metric_at metric, metric_at baseline) {
     state.counters["bytes"] = bm::Counter(iterations * bytes_per_vector_ak * 2u, bm::Counter::kIsRate);
     state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
 
-    double delta = std::abs(c - c_baseline);
-    if (delta < 0.001)
-        delta = 0;
+    double delta = std::abs(c - c_baseline) > 0.0001 ? std::abs(c - c_baseline) : 0;
+    double error = delta != 0 && c_baseline != 0 ? delta / c_baseline : 0;
     state.counters["abs_delta"] = delta;
-    state.counters["relative_error"] = delta / c_baseline;
+    state.counters["relative_error"] = error;
 }
 
 template <typename scalar_at, std::size_t bytes_per_vector_ak = bytes_k, typename metric_at = void>

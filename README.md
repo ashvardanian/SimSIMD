@@ -117,9 +117,7 @@ To replicate this on your hardware, please run the following on Linux:
 
 ```sh
 git clone https://github.com/ashvardanian/SimSIMD.git && cd SimSIMD
-cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 \
-    -DCMAKE_CXX_COMPILER="g++-12" -DCMAKE_C_COMPILER="gcc-12" \
-    -B ./build && make -C ./build && ./build/simsimd_bench
+cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build_release && make -C ./build_release && ./build_release/simsimd_bench
 ```
 
 MacOS:
