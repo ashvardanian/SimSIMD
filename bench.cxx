@@ -9,7 +9,7 @@ namespace bm = benchmark;
 
 static const std::size_t threads_k = 1; // std::thread::hardware_concurrency();
 static constexpr std::size_t time_k = 2;
-static constexpr std::size_t bytes_k = 777;
+static constexpr std::size_t bytes_k = 299;
 
 template <typename return_at, typename... args_at>
 constexpr std::size_t number_of_arguments(return_at (*f)(args_at...)) {
@@ -159,6 +159,9 @@ int main(int argc, char** argv) {
     register_<simsimd_f16_t>("avx512_f16_ip", simsimd_avx512_f16_ip, simsimd_accurate_f16_ip);
     register_<simsimd_f16_t>("avx512_f16_cos", simsimd_avx512_f16_cos, simsimd_accurate_f16_cos);
     register_<simsimd_f16_t>("avx512_f16_l2sq", simsimd_avx512_f16_l2sq, simsimd_accurate_f16_l2sq);
+
+    register_<simsimd_i8_t>("avx512_i8_cos", simsimd_avx512_i8_cos, simsimd_accurate_i8_cos);
+    register_<simsimd_i8_t>("avx512_i8_l2sq", simsimd_avx512_i8_l2sq, simsimd_accurate_i8_l2sq);
 #endif
 
     register_<simsimd_f16_t>("auto_f16_ip", simsimd_auto_f16_ip, simsimd_accurate_f16_ip);

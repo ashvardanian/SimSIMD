@@ -104,6 +104,7 @@
 
 #if SIMSIMD_TARGET_X86_AVX512
 #include "x86_avx512_f16.h"
+#include "x86_avx512_i8.h"
 #endif
 
 #ifdef __cplusplus

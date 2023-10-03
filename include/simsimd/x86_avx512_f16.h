@@ -24,8 +24,8 @@ static simsimd_f32_t simsimd_avx512_f16_l2sq(simsimd_f16_t const* a, simsimd_f16
         __mmask32 mask = d - i >= 32 ? 0xFFFFFFFF : ((1u << (d - i)) - 1u);
         __m512i a_vec = _mm512_maskz_loadu_epi16(mask, a + i);
         __m512i b_vec = _mm512_maskz_loadu_epi16(mask, b + i);
-        __m512h sub_vec = _mm512_sub_ph(_mm512_castsi512_ph(a_vec), _mm512_castsi512_ph(b_vec));
-        d2_vec = _mm512_fmadd_ph(sub_vec, sub_vec, d2_vec);
+        __m512h d_vec = _mm512_sub_ph(_mm512_castsi512_ph(a_vec), _mm512_castsi512_ph(b_vec));
+        d2_vec = _mm512_fmadd_ph(d_vec, d_vec, d2_vec);
 
         i += 32;
     } while (i < d);
@@ -69,7 +69,7 @@ static simsimd_f32_t simsimd_avx512_f16_cos(simsimd_f16_t const* a, simsimd_f16_
     simsimd_f32_t ab = _mm512_reduce_add_ph(ab_vec);
     simsimd_f32_t a2 = _mm512_reduce_add_ph(a2_vec);
     simsimd_f32_t b2 = _mm512_reduce_add_ph(b2_vec);
-    return 1 - ab * simsimd_approximate_inverse_square_root(a2 * b2);
+    return 1 - ab * simsimd_approximate_inverse_square_root(a2) * simsimd_approximate_inverse_square_root(b2);
 }
 
 #ifdef __cplusplus
