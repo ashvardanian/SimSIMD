@@ -64,7 +64,7 @@ inline static simsimd_f32_t simsimd_avx2_i8_cos(simsimd_i8_t const* a, simsimd_i
         __m256i a_vec = _mm256_loadu_si256((__m256i const*)(a + i));
         __m256i b_vec = _mm256_loadu_si256((__m256i const*)(b + i));
 
-        // Multiply and add packed 8-bit integers
+        // Multiply and add packed 8-bit integers into 16-bit partial results
         __m256i ab_part_vec = _mm256_maddubs_epi16(a_vec, b_vec);
         __m256i a2_part_vec = _mm256_maddubs_epi16(a_vec, a_vec);
         __m256i b2_part_vec = _mm256_maddubs_epi16(b_vec, b_vec);
@@ -105,8 +105,7 @@ inline static simsimd_f32_t simsimd_avx2_i8_cos(simsimd_i8_t const* a, simsimd_i
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
 
-    // return 1 - ab / std::sqrt(a2 * b2);
-    return 1 - ab * simsimd_approximate_inverse_square_root(a2 * b2);
+    return 1 - ab * simsimd_approximate_inverse_square_root(a2) * simsimd_approximate_inverse_square_root(b2);
 }
 
 inline static simsimd_f32_t simsimd_avx2_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {

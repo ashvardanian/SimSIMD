@@ -4,6 +4,7 @@
 extern "C" {
 #endif
 
+typedef int simsimd_i32_t;
 typedef float simsimd_f32_t;
 typedef double simsimd_f64_t;
 typedef _Float16 simsimd_f16_t;

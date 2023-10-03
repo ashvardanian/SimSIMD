@@ -50,8 +50,8 @@ SIMSIMD_AUTO_L2SQ(auto, f16, f32)
 SIMSIMD_AUTO_IP(auto, f16, f32)
 SIMSIMD_AUTO_COS(auto, f16, f32)
 
-SIMSIMD_AUTO_L2SQ(auto, i8, f32)
-SIMSIMD_AUTO_COS(auto, i8, f32)
+SIMSIMD_AUTO_L2SQ(auto, i8, i32)
+SIMSIMD_AUTO_COS(auto, i8, i32)
 
 inline static simsimd_f32_t simsimd_auto_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     return simsimd_auto_i8_cos(a, b, d);
@@ -65,8 +65,8 @@ SIMSIMD_AUTO_L2SQ(accurate, f16, f64)
 SIMSIMD_AUTO_IP(accurate, f16, f64)
 SIMSIMD_AUTO_COS(accurate, f16, f64)
 
-SIMSIMD_AUTO_L2SQ(accurate, i8, f64)
-SIMSIMD_AUTO_COS(accurate, i8, f64)
+SIMSIMD_AUTO_L2SQ(accurate, i8, i32)
+SIMSIMD_AUTO_COS(accurate, i8, i32)
 
 inline static simsimd_f32_t simsimd_accurate_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     return simsimd_accurate_i8_cos(a, b, d);

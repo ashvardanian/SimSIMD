@@ -51,14 +51,14 @@ static void measure(bm::State& state, metric_at metric, metric_at baseline) {
     vectors_pair_gt<scalar_at, bytes_per_vector_ak> pair;
     pair.randomize();
 
-    double c_baseline = baseline(pair.a, pair.a, pair.dimensions());
+    double c_baseline = baseline(pair.a, pair.b, pair.dimensions());
     double c = 0;
     std::size_t iterations = 0;
     for (auto _ : state)
         if constexpr (number_of_arguments(metric_at{}) == 3)
-            bm::DoNotOptimize((c = metric(pair.a, pair.a, pair.dimensions()))), iterations++;
+            bm::DoNotOptimize((c = metric(pair.a, pair.b, pair.dimensions()))), iterations++;
         else
-            bm::DoNotOptimize((c = metric(pair.a, pair.a))), iterations++;
+            bm::DoNotOptimize((c = metric(pair.a, pair.b))), iterations++;
 
     state.counters["bytes"] = bm::Counter(iterations * bytes_per_vector_ak * 2u, bm::Counter::kIsRate);
     state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
