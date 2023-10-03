@@ -1,3 +1,4 @@
+#include <cmath>
 #include <thread>
 
 #include <benchmark/benchmark.h>
@@ -22,13 +23,24 @@ template <typename scalar_at, std::size_t bytes_per_vector_ak = bytes_k> struct 
 
     std::size_t dimensions() const noexcept { return dimensions_ak; }
     void randomize() noexcept {
-        for (std::size_t i = 0; i != dimensions_ak; ++i) {
 
+        double a2_sum = 0, b2_sum = 0;
+        for (std::size_t i = 0; i != dimensions_ak; ++i) {
             if constexpr (std::is_integral_v<scalar_at>)
                 a[i] = static_cast<scalar_at>(rand()), b[i] = static_cast<scalar_at>(rand());
-            else
-                a[i] = static_cast<scalar_at>(float(rand()) / float(RAND_MAX)),
-                b[i] = static_cast<scalar_at>(float(rand()) / float(RAND_MAX));
+            else {
+                double ai = double(rand()) / double(RAND_MAX), bi = double(rand()) / double(RAND_MAX);
+                a2_sum += ai * ai, b2_sum += bi * bi;
+                a[i] = static_cast<scalar_at>(ai), b[i] = static_cast<scalar_at>(bi);
+            }
+        }
+
+        // Normalize the vectors:
+        if constexpr (!std::is_integral_v<scalar_at>) {
+            a2_sum = std::sqrt(a2_sum);
+            b2_sum = std::sqrt(b2_sum);
+            for (std::size_t i = 0; i != dimensions_ak; ++i)
+                a[i] /= a2_sum, b[i] /= b2_sum;
         }
     }
 };
@@ -54,7 +66,8 @@ static void measure(bm::State& state, metric_at metric, metric_at baseline) {
     double delta = std::abs(c - c_baseline);
     if (delta < 0.001)
         delta = 0;
-    state.counters["delta"] = delta;
+    state.counters["abs_delta"] = delta;
+    state.counters["relative_error"] = delta / c_baseline;
 }
 
 template <typename scalar_at, std::size_t bytes_per_vector_ak = bytes_k, typename metric_at = void>
