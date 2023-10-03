@@ -84,15 +84,22 @@ inline static simsimd_f32_t simsimd_avx2_f16_cos(simsimd_f16_t const* a, simsimd
     b2_vec = _mm256_hadd_ps(b2_vec, b2_vec);
     b2_vec = _mm256_hadd_ps(b2_vec, b2_vec);
 
-    simsimd_f32_t result[3];
-    _mm_store_ss(result, _mm256_castps256_ps128(ab_vec));
-    _mm_store_ss(result + 1, _mm256_castps256_ps128(a2_vec));
-    _mm_store_ss(result + 2, _mm256_castps256_ps128(b2_vec));
+    simsimd_f32_t ab, a2, b2;
+    _mm_store_ss(&ab, _mm256_castps256_ps128(ab_vec));
+    _mm_store_ss(&a2, _mm256_castps256_ps128(a2_vec));
+    _mm_store_ss(&b2, _mm256_castps256_ps128(b2_vec));
 
     // Accumulate the tail:
     for (; i < n; ++i)
-        result[0] += a[i] * b[i], result[1] += a[i] * a[i], result[2] += b[i] * b[i];
-    return 1 - result[0] * simsimd_approximate_inverse_square_root(result[1] * result[2]);
+        ab += a[i] * b[i], a2 += a[i] * a[i], b2 += b[i] * b[i];
+
+    // Replace simsimd_approximate_inverse_square_root with `rsqrtss`
+    __m128 a2_sqrt_recip = _mm_rsqrt_ss(_mm_set_ss((float)a2));
+    __m128 b2_sqrt_recip = _mm_rsqrt_ss(_mm_set_ss((float)b2));
+    __m128 result = _mm_mul_ss(a2_sqrt_recip, b2_sqrt_recip); // Multiply the reciprocal square roots
+    result = _mm_mul_ss(result, _mm_set_ss((float)ab));       // Multiply by ab
+    result = _mm_sub_ss(_mm_set_ss(1.0f), result);            // Subtract from 1
+    return _mm_cvtss_f32(result);                             // Extract the final result
 }
 
 #ifdef __cplusplus

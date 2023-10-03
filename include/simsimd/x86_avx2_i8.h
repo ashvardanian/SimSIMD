@@ -115,7 +115,13 @@ inline static simsimd_f32_t simsimd_avx2_i8_cos(simsimd_i8_t const* a, simsimd_i
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
 
-    return 1 - ab * simsimd_approximate_inverse_square_root(a2) * simsimd_approximate_inverse_square_root(b2);
+    // Replace simsimd_approximate_inverse_square_root with `rsqrtss`
+    __m128 a2_sqrt_recip = _mm_rsqrt_ss(_mm_set_ss((float)a2));
+    __m128 b2_sqrt_recip = _mm_rsqrt_ss(_mm_set_ss((float)b2));
+    __m128 result = _mm_mul_ss(a2_sqrt_recip, b2_sqrt_recip); // Multiply the reciprocal square roots
+    result = _mm_mul_ss(result, _mm_set_ss((float)ab));       // Multiply by ab
+    result = _mm_sub_ss(_mm_set_ss(1.0f), result);            // Subtract from 1
+    return _mm_cvtss_f32(result);                             // Extract the final result
 }
 
 inline static simsimd_f32_t simsimd_avx2_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
