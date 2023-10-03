@@ -18,22 +18,28 @@ extern "C" {
 
 inline static simsimd_f32_t simsimd_avx2_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
 
-    __m256i d2_vec = _mm256_setzero_si256();
-    simsimd_size_t i = 0;
+    __m256i d2_high_vec = _mm256_setzero_si256();
+    __m256i d2_low_vec = _mm256_setzero_si256();
 
+    simsimd_size_t i = 0;
     for (; i + 31 < d; i += 32) {
         __m256i a_vec = _mm256_loadu_si256((__m256i const*)(a + i));
         __m256i b_vec = _mm256_loadu_si256((__m256i const*)(b + i));
         __m256i d_vec = _mm256_sub_epi8(a_vec, b_vec);
-        __m256i d_vec16 = _mm256_maddubs_epi16(d_vec, d_vec);
-        d2_vec = _mm256_add_epi32(d2_vec, d_vec16);
+        __m256i d_part_vec = _mm256_maddubs_epi16(d_vec, d_vec);
+
+        // Upcast the 16-bit integers from `d_part_vec` into 32-bit integers
+        // accumulating half into `d2_high_vec`, and another half into `d2_low_vec`.
+        d2_low_vec = _mm256_add_epi32(d2_low_vec, _mm256_unpacklo_epi16(d_part_vec, _mm256_setzero_si256()));
+        d2_high_vec = _mm256_add_epi32(d2_high_vec, _mm256_unpackhi_epi16(d_part_vec, _mm256_setzero_si256()));
     }
 
-    // Horizontal d2 across the 256-bit register
-    __m128i d2_low = _mm256_extracti128_si256(d2_vec, 0);
-    __m128i d2_high = _mm256_extracti128_si256(d2_vec, 1);
-    __m128i d2_partial = _mm_add_epi32(d2_low, d2_high);
-    int d2 = _mm_extract_epi32(_mm_hadd_epi32(_mm_hadd_epi32(d2_partial, d2_partial), d2_partial), 0);
+    // Accumulate the 32-bit integers from `d2_high_vec` and `d2_low_vec`
+    __m256i d2_vec = _mm256_add_epi32(d2_low_vec, d2_high_vec);
+    __m128i d2_sum = _mm_add_epi32(_mm256_extracti128_si256(d2_vec, 0), _mm256_extracti128_si256(d2_vec, 1));
+    d2_sum = _mm_hadd_epi32(d2_sum, d2_sum);
+    d2_sum = _mm_hadd_epi32(d2_sum, d2_sum);
+    int d2 = _mm_extract_epi32(d2_sum, 0);
 
     // Take care of the tail:
     for (; i < d; ++i) {
@@ -46,9 +52,12 @@ inline static simsimd_f32_t simsimd_avx2_i8_l2sq(simsimd_i8_t const* a, simsimd_
 
 inline static simsimd_f32_t simsimd_avx2_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
 
-    __m256i ab_vec = _mm256_setzero_si256();
-    __m256i a2_vec = _mm256_setzero_si256();
-    __m256i b2_vec = _mm256_setzero_si256();
+    __m256i ab_high_vec = _mm256_setzero_si256();
+    __m256i ab_low_vec = _mm256_setzero_si256();
+    __m256i a2_high_vec = _mm256_setzero_si256();
+    __m256i a2_low_vec = _mm256_setzero_si256();
+    __m256i b2_high_vec = _mm256_setzero_si256();
+    __m256i b2_low_vec = _mm256_setzero_si256();
 
     simsimd_size_t i = 0;
     for (; i + 31 < d; i += 32) {
@@ -60,28 +69,35 @@ inline static simsimd_f32_t simsimd_avx2_i8_cos(simsimd_i8_t const* a, simsimd_i
         __m256i a2_part_vec = _mm256_maddubs_epi16(a_vec, a_vec);
         __m256i b2_part_vec = _mm256_maddubs_epi16(b_vec, b_vec);
 
-        ab_vec = _mm256_add_epi32(ab_vec, ab_part_vec);
-        a2_vec = _mm256_add_epi32(a2_vec, a2_part_vec);
-        b2_vec = _mm256_add_epi32(b2_vec, b2_part_vec);
+        // Unpack and accumulate the 16-bit results into 32-bit accumulators
+        ab_low_vec = _mm256_add_epi32(ab_low_vec, _mm256_unpacklo_epi16(ab_part_vec, _mm256_setzero_si256()));
+        ab_high_vec = _mm256_add_epi32(ab_high_vec, _mm256_unpackhi_epi16(ab_part_vec, _mm256_setzero_si256()));
+        a2_low_vec = _mm256_add_epi32(a2_low_vec, _mm256_unpacklo_epi16(a2_part_vec, _mm256_setzero_si256()));
+        a2_high_vec = _mm256_add_epi32(a2_high_vec, _mm256_unpackhi_epi16(a2_part_vec, _mm256_setzero_si256()));
+        b2_low_vec = _mm256_add_epi32(b2_low_vec, _mm256_unpacklo_epi16(b2_part_vec, _mm256_setzero_si256()));
+        b2_high_vec = _mm256_add_epi32(b2_high_vec, _mm256_unpackhi_epi16(b2_part_vec, _mm256_setzero_si256()));
     }
 
     // Horizontal sum across the 256-bit register
-    __m128i ab_low = _mm256_extracti128_si256(ab_vec, 0);
-    __m128i ab_high = _mm256_extracti128_si256(ab_vec, 1);
-    __m128i ab_sum = _mm_add_epi32(ab_low, ab_high);
+    __m256i ab_vec = _mm256_add_epi32(ab_low_vec, ab_high_vec);
+    __m128i ab_sum = _mm_add_epi32(_mm256_extracti128_si256(ab_vec, 0), _mm256_extracti128_si256(ab_vec, 1));
+    ab_sum = _mm_hadd_epi32(ab_sum, ab_sum);
+    ab_sum = _mm_hadd_epi32(ab_sum, ab_sum);
 
-    __m128i a2_low = _mm256_extracti128_si256(a2_vec, 0);
-    __m128i a2_high = _mm256_extracti128_si256(a2_vec, 1);
-    __m128i a2_sum = _mm_add_epi32(a2_low, a2_high);
+    __m256i a2_vec = _mm256_add_epi32(a2_low_vec, a2_high_vec);
+    __m128i a2_sum = _mm_add_epi32(_mm256_extracti128_si256(a2_vec, 0), _mm256_extracti128_si256(a2_vec, 1));
+    a2_sum = _mm_hadd_epi32(a2_sum, a2_sum);
+    a2_sum = _mm_hadd_epi32(a2_sum, a2_sum);
 
-    __m128i b2_low = _mm256_extracti128_si256(b2_vec, 0);
-    __m128i b2_high = _mm256_extracti128_si256(b2_vec, 1);
-    __m128i b2_sum = _mm_add_epi32(b2_low, b2_high);
+    __m256i b2_vec = _mm256_add_epi32(b2_low_vec, b2_high_vec);
+    __m128i b2_sum = _mm_add_epi32(_mm256_extracti128_si256(b2_vec, 0), _mm256_extracti128_si256(b2_vec, 1));
+    b2_sum = _mm_hadd_epi32(b2_sum, b2_sum);
+    b2_sum = _mm_hadd_epi32(b2_sum, b2_sum);
 
     // Further reduce to a single sum for each vector
-    int ab = _mm_extract_epi32(_mm_hadd_epi32(_mm_hadd_epi32(ab_sum, ab_sum), ab_sum), 0);
-    int a2 = _mm_extract_epi32(_mm_hadd_epi32(_mm_hadd_epi32(a2_sum, a2_sum), a2_sum), 0);
-    int b2 = _mm_extract_epi32(_mm_hadd_epi32(_mm_hadd_epi32(b2_sum, b2_sum), b2_sum), 0);
+    int ab = _mm_extract_epi32(ab_sum, 0);
+    int a2 = _mm_extract_epi32(a2_sum, 0);
+    int b2 = _mm_extract_epi32(b2_sum, 0);
 
     // Take care of the tail:
     for (; i < d; ++i) {
@@ -89,6 +105,7 @@ inline static simsimd_f32_t simsimd_avx2_i8_cos(simsimd_i8_t const* a, simsimd_i
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
 
+    // return 1 - ab / std::sqrt(a2 * b2);
     return 1 - ab * simsimd_approximate_inverse_square_root(a2 * b2);
 }
 
