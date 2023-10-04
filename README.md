@@ -2,23 +2,104 @@
 
 ## The `scipy.spatial.distance` of a healthy person
 
-SIMD-accelerated similarity measures, metrics, and distance functions for x86 and Arm.
+SimSIMD implements most commonly used similarity measures using SIMD intrinsics, that few compilers can produce, and even fewer do it well.
+This includes conventional AVX2 instructions on x86 and NEON on Arm, as well as lesser known AVX-512 instructions on x86 and Scalable Vector Extensions on Arm.
 They are tuned for Machine Learning applications and mid-size vectors with 100-1024 dimensions.
-One can expect the following performance for Cosine (Angular) distance, the most common metric in AI.
+It includes the Euclidean (L2), Inner Product, and Cosine (Angular) distances implemented for `f32`, `f16`, and `i8` vectors.
 
-| Method | Vectors | Any Length | Speed on 256b | Speed on 1024b |
-| :----- | :------ | :--------- | ------------: | -------------: |
-| Serial | `f32`   | ✅          |        5 GB/s |         5 GB/s |
-| SVE    | `f32`   | ✅          |       34 GB/s |        40 GB/s |
-| SVE    | `f16`   | ✅          |       28 GB/s |        35 GB/s |
-| NEON   | `f16`   | ❌          |       16 GB/s |        18 GB/s |
+## Benchmarks
 
-> The benchmarks were done on Arm-based "Graviton 3" CPUs powering AWS `c7g.metal` instances.
-> We only use Arm NEON implementation with vector lengths multiples of 128 bits, avoiding additional head or tail `for` loops for misaligned data.
-> By default, we use GCC12, `-O3`, `-march=native` for benchmarks.
-> Serial versions imply auto-vectorization pragmas.
+Let's assume you have 10'000 embeddings obtained from OpenAI Ada API.
+Those have 1536 dimensions.
+You are running on the Apple M2 Pro Arm CPU with NEON support.
 
-Need something like this in your CMake-based project?
+| Conventional                         | SimSIMD               | `f32` improvement | `f16` improvement | `i8` improvement |
+| :----------------------------------- | :-------------------- | ----------------: | ----------------: | ---------------: |
+| `scipy.spatial.distance.cosine`      | `simsimd.cosine`      |          __39 x__ |          __84 x__ |        __196 x__ |
+| `scipy.spatial.distance.sqeuclidean` | `simsimd.sqeuclidean` |           __8 x__ |          __25 x__ |         __22 x__ |
+| `numpy.inner`                        | `simsimd.inner`       |           __3 x__ |          __10 x__ |         __18 x__ |
+
+On modern Intel Sapphire Rapids platform we've obtained the following numbers, comparing SimSIMD to autovectorized-code using GCC 12.
+As it can be clearly seen, auto-vectorization works well for single-precision `float` and single-byte `int8_t`, but it fails on `_Float16`, supported by the C language since 2011.
+
+|               | GCC 12 `f32` | GCC 12 `f16` | SimSIMD AVX-512 `f16` | `f16` improvement |
+| :------------ | -----------: | -----------: | --------------------: | ----------------: |
+| `cosine`      |     3.28 M/s |   336.29 k/s |              6.88 M/s |          __20 x__ |
+| `sqeuclidean` |     4.62 M/s |   147.25 k/s |              5.32 M/s |          __36 x__ |
+| `inner`       |     3.81 M/s |   192.02 k/s |              5.99 M/s |          __31 x__ |
+
+Using SVE on Arm and masked loads on AVX-512, the implementations almost entirely avoid scalar code.
+The Python binding is equally efficient avoiding PyBind11, SWIG or any other high-level tools, and using CPython C API directly, but still avoiding expensive functions, like the `PyArg_ParseTuple`.
+
+## Using in Python
+
+```sh
+pip install simsimd
+```
+
+Computing the distance between two vectors:
+
+```py
+import simsimd, numpy
+
+vec1 = numpy.random.randn(1536).astype(np.float32)
+vec2 = numpy.random.randn(1536).astype(np.float32)
+dist = simsimd.cosine(vec1, vec2)
+```
+
+Computing the distance between two batches:
+
+```py
+batch1 = numpy.random.randn(100, 1536).astype(np.float32)
+batch2 = numpy.random.randn(100, 1536).astype(np.float32)
+dist = simsimd.cosine(batch1, batch2)
+```
+
+Computing the distances between all possible pairs of rows in two matrices, like [`scipy.spatial.distance.cdist`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.cdist.html).
+
+```py
+matrix1 = numpy.random.randn(1000, 1536).astype(np.float32)
+matrix2 = numpy.random.randn(10, 1536).astype(np.float32)
+distances = simsimd.cdist(matrix1, matrix2, metric="cosine")
+```
+
+By default, all the function use a single CPU core.
+On Linux, you can also pass the `threads=0` argument to parallelize across all available cores, or any custom number.
+
+```py
+distances = simsimd.cdist(matrix1, matrix2, metric="cosine", threads=0)
+```
+
+Computing all pairwise distances between all rows of a single matrix, like [`scipy.spatial.distance.pdist`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.pdist.html).
+
+```py
+distances = simsimd.pdist(matrix1, metric="cosine", threads=0)
+```
+
+You can also print supported hardware backends using `simsimd.get_capabilites()`.
+
+### Using Python API with USearch
+
+Want to use it in Python with [USearch](https://github.com/unum-cloud/usearch)?
+
+```py
+from usearch import Index, CompiledMetric, MetricKind, MetricSignature
+from simsimd import pointer_to_sqeuclidean, pointer_to_cosine, pointer_to_inner
+
+metric = CompiledMetric(
+    pointer=pointer_to_cosine("f16"),
+    kind=MetricKind.Cos,
+    signature=MetricSignature.ArrayArraySize,
+)
+
+index = Index(256, metric=metric)
+```
+
+## Using in C
+
+To use the `_Float16` functionality, you may need C 11.
+For the rest - C 99 is enough.
+To integrate with CMake-based project:
 
 ```cmake
 FetchContent_Declare(
@@ -30,112 +111,22 @@ FetchContent_MakeAvailable(simsimd)
 include_directories(${simsimd_SOURCE_DIR}/include)
 ```
 
-Want to use it in Python with [USearch](https://github.com/unum-cloud/usearch)?
+To enable SimSIMD integration in USearch, just compile it with `USEARCH_USE_SIMSIMD=1`.
+It's the default behaviour on most platforms.
 
-```py
-from usearch import Index, CompiledMetric, MetricKind, MetricSignature
-from simsimd import to_int, cos_f32x4_neon
+## Roadmap
 
-metric = CompiledMetric(
-    pointer=to_int(cos_f32x4_neon),
-    kind=MetricKind.Cos,
-    signature=MetricSignature.ArrayArraySize,
-)
+- [ ] Expose Hamming and Tanimoto distances in Python.
+- [ ] Intel AMX instructions. Intrinsics only work in Intel's most recent compiler.
 
-index = Index(256, metric=metric)
-```
-
-## Available Metrics
-
-In the C99 interface, all functions are prepended with the `simsimd_` namespace prefix.
-The signature defines the number of arguments:
-
-- two pointers, and length,
-- two pointers.
-
-The latter is intended for cases where the number of dimensions is hard-coded.
-Constraints define the limitations on the number of dimensions an argument vector can have.
-
-| Name                    | Signature | ISA Extension |  Constraints   |
-| :---------------------- | :-------: | :-----------: | :------------: |
-| `dot_f32_sve`           |    ✳️✳️📏    |    Arm SVE    |                |
-| `dot_f32x4_neon`        |    ✳️✳️📏    |   Arm NEON    |  `d % 4 == 0`  |
-| `cos_f32_sve`           |    ✳️✳️📏    |    Arm SVE    |                |
-| `cos_f16_sve`           |    ✳️✳️📏    |    Arm SVE    |                |
-| `cos_f16x4_neon`        |    ✳️✳️📏    |   Arm NEON    |  `d % 4 == 0`  |
-| `cos_i8x16_neon`        |    ✳️✳️📏    |   Arm NEON    | `d % 16 == 0`  |
-| `cos_f32x4_neon`        |    ✳️✳️📏    |   Arm NEON    |  `d % 4 == 0`  |
-| `cos_f16x16_avx512`     |    ✳️✳️📏    |  x86 AVX-512  | `d % 16 == 0`  |
-| `cos_f32x4_avx2`        |    ✳️✳️📏    |   x86 AVX2    |  `d % 4 == 0`  |
-| `l2sq_f32_sve`          |    ✳️✳️📏    |    Arm SVE    |                |
-| `l2sq_f16_sve`          |    ✳️✳️📏    |    Arm SVE    |                |
-| `hamming_b1x8_sve`      |    ✳️✳️📏    |    Arm SVE    |  `d % 8 == 0`  |
-| `hamming_b1x128_sve`    |    ✳️✳️📏    |    Arm SVE    | `d % 128 == 0` |
-| `hamming_b1x128_avx512` |    ✳️✳️📏    |  x86 AVX-512  | `d % 128 == 0` |
-| `tanimoto_b1x8_naive`   |    ✳️✳️📏    |               |  `d % 8 == 0`  |
-| `tanimoto_maccs_naive`  |    ✳️✳️     |               |   `d == 166`   |
-| `tanimoto_maccs_neon`   |    ✳️✳️     |   Arm NEON    |   `d == 166`   |
-| `tanimoto_maccs_sve`    |    ✳️✳️     |    Arm SVE    |   `d == 166`   |
-| `tanimoto_maccs_avx512` |    ✳️✳️     |  x86 AVX-512  |   `d == 166`   |
-
-## Benchmarks
-
-The benchmarks are repeated for every function with a different number of cores involved.
-Light-weight distance functions would be memory bound, implying that multi-core performance may be lower if the bus bandwidth cannot saturate all the cores.
-Similarly, heavy-weight distance functions running on all cores may result in CPU frequency downclocking.
-This is well illustrated by the single-core performance of the Intel `i9-13950HX`, equipped with DDR5 memory.
-
-| Method                 | Threads | Vector Size |     Speed |
-| :--------------------- | ------: | ----------: | --------: |
-| `dot_f32x4_avx2`       |       1 |      1024 b | 96.2 GB/s |
-| `dot_f32x4_avx2`       |      32 |      1024 b | 23.6 GB/s |
-| `cos_f32_naive`        |       1 |      1024 b | 15.3 GB/s |
-| `cos_f32_naive`        |      32 |      1024 b |  4.5 GB/s |
-| `cos_f32x4_avx2`       |       1 |      1024 b | 56.3 GB/s |
-| `cos_f32x4_avx2`       |      32 |      1024 b | 13.9 GB/s |
-| `tanimoto_maccs_naive` |       1 |        21 b |  2.8 GB/s |
-| `tanimoto_maccs_naive` |      32 |        21 b |  1.2 GB/s |
-
-Switching to the Intel Sapphire Rapids server platform, we can also evaluate some of the AVX-512 extensions, including `VPOPCNTDQ` and `F16`.
-
-| Method                  | Threads | Vector Size |      Speed |
-| :---------------------- | ------: | ----------: | ---------: |
-| `dot_f32x4_avx2`        |       1 |      1024 b |  57.8 GB/s |
-| `dot_f32x4_avx2`        |     224 |      1024 b |  16.1 GB/s |
-| `cos_f32_naive`         |       1 |      1024 b |  10.7 GB/s |
-| `cos_f32_naive`         |     224 |      1024 b |   3.0 GB/s |
-| `cos_f32x4_avx2`        |       1 |      1024 b |  39.5 GB/s |
-| `cos_f32x4_avx2`        |     224 |      1024 b |  15.1 GB/s |
-| `cos_f16x16_avx512`     |       1 |      1024 b |  50.6 GB/s |
-| `cos_f16x16_avx512`     |     224 |      1024 b |  15.9 GB/s |
-| `hamming_b1x128_avx512` |       1 |      1024 b | 790.3 GB/s |
-| `hamming_b1x128_avx512` |     224 |      1024 b | 259.3 GB/s |
-| `tanimoto_maccs_naive`  |       1 |        21 b |   3.0 GB/s |
-| `tanimoto_maccs_naive`  |     224 |        21 b |   1.3 GB/s |
-| `tanimoto_maccs_avx512` |       1 |        21 b |  13.1 GB/s |
-| `tanimoto_maccs_avx512` |     224 |        21 b |   3.7 GB/s |
-
-To replicate this on your hardware, please run the following on Linux:
+Wanna join the development?
+Use this command to rerun the experiments:
 
 ```sh
-git clone https://github.com/ashvardanian/SimSIMD.git && cd SimSIMD
 cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build_release && make -C ./build_release && ./build_release/simsimd_bench
 ```
 
-MacOS:
-
-```sh
-brew install llvm
-git clone https://github.com/ashvardanian/SimSIMD.git && cd SimSIMD
-cmake -B ./build \
-    -DCMAKE_C_COMPILER="/opt/homebrew/opt/llvm/bin/clang" \
-    -DCMAKE_CXX_COMPILER="/opt/homebrew/opt/llvm/bin/clang++" \
-    -DSIMSIMD_BUILD_BENCHMARKS=1 \
-    && \
-    make -C ./build -j && ./build/simsimd_bench
-```
-
-Install and test locally:
+Install and test with PyTest locally:
 
 ```sh
 pip install -e . && pytest python/test.py -s -x

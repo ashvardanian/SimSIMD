@@ -85,25 +85,6 @@ static PyObject* api_get_capabilities(PyObject* self) {
     return cap_dict;
 }
 
-static void pseudo_destroy(PyObject* obj) { (void)obj; }
-
-PyObject* distance(void* func) { return PyCapsule_New(func, NULL, pseudo_destroy); }
-
-static PyObject* get_address(PyObject* self, PyObject* args) {
-    PyObject* capsule;
-    if (!PyArg_ParseTuple(args, "O", &capsule)) {
-        return NULL;
-    }
-
-    if (!PyCapsule_IsValid(capsule, NULL)) {
-        PyErr_SetString(PyExc_ValueError, "Object is not a valid capsule");
-        return NULL;
-    }
-
-    void* pointer = PyCapsule_GetPointer(capsule, NULL);
-    return PyLong_FromVoidPtr(pointer);
-}
-
 int parse_tensor(PyObject* tensor, Py_buffer* buffer, parsed_vector_or_matrix_t* parsed) {
     if (PyObject_GetBuffer(tensor, buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
         PyErr_SetString(PyExc_TypeError, "arguments must support buffer protocol");
