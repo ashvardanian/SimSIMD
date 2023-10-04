@@ -39,7 +39,10 @@ extern "C" {
             a2 += ai * ai;                                                                                             \
             b2 += bi * bi;                                                                                             \
         }                                                                                                              \
-        return 1 - ab * simsimd_approximate_inverse_square_root(a2 * b2);                                              \
+        double result = ab;                                                                                            \
+        result /= sqrt(a2);                                                                                            \
+        result /= sqrt(b2);                                                                                            \
+        return 1 - result;                                                                                             \
     }
 
 SIMSIMD_AUTO_L2SQ(auto, f32, f32)
