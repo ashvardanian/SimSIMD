@@ -4,6 +4,21 @@ import simsimd as simd
 from scipy.spatial.distance import cosine, sqeuclidean
 
 
+def test_pointers_availability():
+    """Tests the availability of pre-compiled functions for compatibility with USearch."""
+    assert simd.pointer_to_sqeuclidean("f32") != 0
+    assert simd.pointer_to_cosine("f32") != 0
+    assert simd.pointer_to_inner("f32") != 0
+
+    assert simd.pointer_to_sqeuclidean("f16") != 0
+    assert simd.pointer_to_cosine("f16") != 0
+    assert simd.pointer_to_inner("f16") != 0
+
+    assert simd.pointer_to_sqeuclidean("i8") != 0
+    assert simd.pointer_to_cosine("i8") != 0
+    assert simd.pointer_to_inner("i8") != 0
+
+
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
 @pytest.mark.parametrize("dtype", [np.float32, np.float16])
 def test_dot(ndim, dtype):
@@ -11,8 +26,8 @@ def test_dot(ndim, dtype):
     a = np.random.randn(ndim).astype(dtype)
     b = np.random.randn(ndim).astype(dtype)
 
-    expected = 1 - np.dot(a, b)
-    result = simd.dot(a, b)
+    expected = 1 - np.inner(a, b)
+    result = simd.inner(a, b)
 
     np.testing.assert_allclose(expected, result, rtol=1e-2)
 

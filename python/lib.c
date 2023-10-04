@@ -46,6 +46,21 @@ simsimd_datatype_t numpy_string_to_datatype(char const* name) {
         return simsimd_datatype_unknown_k;
 }
 
+simsimd_datatype_t python_string_to_datatype(char const* name) {
+    if (same_string(name, "f") || same_string(name, "f32"))
+        return simsimd_datatype_f32_k;
+    else if (same_string(name, "h") || same_string(name, "f16"))
+        return simsimd_datatype_f16_k;
+    else if (same_string(name, "c") || same_string(name, "i8"))
+        return simsimd_datatype_i8_k;
+    else if (same_string(name, "b") || same_string(name, "b1"))
+        return simsimd_datatype_b1_k;
+    else if (same_string(name, "d") || same_string(name, "f64"))
+        return simsimd_datatype_f64_k;
+    else
+        return simsimd_datatype_unknown_k;
+}
+
 static PyObject* api_get_capabilities(PyObject* self) {
     simsimd_capability_t caps = simsimd_capabilities();
     PyObject* cap_dict = PyDict_New();
@@ -209,25 +224,62 @@ cleanup:
 
 static PyObject* api_combos(simsimd_metric_punned_t metric, PyObject* args) {}
 
-static PyObject* api_pairs_l2sq(PyObject* self, PyObject* args) { return api_pairs(simsimd_metric_l2sq_k, args); }
-static PyObject* api_pairs_cos(PyObject* self, PyObject* args) { return api_pairs(simsimd_metric_cos_k, args); }
-static PyObject* api_pairs_ip(PyObject* self, PyObject* args) { return api_pairs(simsimd_metric_ip_k, args); }
+static PyObject* api_pointer(simsimd_metric_kind_t metric_kind, PyObject* args) {
+    char const* type_name = PyUnicode_AsUTF8(PyTuple_GetItem(args, 0));
+    if (!type_name) {
+        PyErr_SetString(PyExc_ValueError, "Invalid type name");
+        return NULL;
+    }
+
+    simsimd_datatype_t datatype = python_string_to_datatype(type_name);
+    if (!type_name) {
+        PyErr_SetString(PyExc_ValueError, "Unsupported type");
+        return NULL;
+    }
+
+    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, datatype, 0xFFFFFFFF);
+    if (metric == NULL) {
+        PyErr_SetString(PyExc_ValueError, "No such metric");
+        return NULL;
+    }
+
+    return PyLong_FromUnsignedLongLong((unsigned long long)metric);
+}
+
+static PyObject* api_l2sq_pointer(PyObject* self, PyObject* args) { return api_pointer(simsimd_metric_l2sq_k, args); }
+static PyObject* api_cos_pointer(PyObject* self, PyObject* args) { return api_pointer(simsimd_metric_cos_k, args); }
+static PyObject* api_ip_pointer(PyObject* self, PyObject* args) { return api_pointer(simsimd_metric_ip_k, args); }
+
+static PyObject* api_l2sq(PyObject* self, PyObject* args) { return api_pairs(simsimd_metric_l2sq_k, args); }
+static PyObject* api_cos(PyObject* self, PyObject* args) { return api_pairs(simsimd_metric_cos_k, args); }
+static PyObject* api_ip(PyObject* self, PyObject* args) { return api_pairs(simsimd_metric_ip_k, args); }
 
 static PyMethodDef simsimd_methods[] = {
-    // NumPy and SciPy compatible interfaces
-    {"sqeuclidean", api_pairs_l2sq, METH_VARARGS, "L2sq (Squared Euclidean) distances between a pair of tensors"},
-    {"cosine", api_pairs_cos, METH_VARARGS, "Cosine (Angular) distances between a pair of tensors"},
-    {"dot", api_pairs_ip, METH_VARARGS, "Inner (Dot) Product distances between a pair of tensors"},
-
     // Introspecting library and hardware capabilities
     {"get_capabilities", api_get_capabilities, METH_NOARGS, "Get hardware capabilities"},
 
+    // NumPy and SciPy compatible interfaces (two matrix or vector arguments)
+    {"sqeuclidean", api_l2sq, METH_VARARGS, "L2sq (Sq. Euclidean) distances between a pair of matrices"},
+    {"cosine", api_cos, METH_VARARGS, "Cosine (Angular) distances between a pair of matrices"},
+    {"inner", api_ip, METH_VARARGS, "Inner (Dot) Product distances between a pair of matrices"},
+
+    // Compute distance between each pair of the two collections of inputs (two matrix arguments)
+    {"cdist_sqeuclidean", api_l2sq, METH_VARARGS, "L2sq (Sq. Euclidean) distances between every pair of vectors"},
+    {"cdist_cosine", api_cos, METH_VARARGS, "Cosine (Angular) distances between every pair of vectors"},
+    {"cdist_inner", api_ip, METH_VARARGS, "Inner (Dot) Product distances between every pair of vectors"},
+
+    // Pairwise distances between observations in n-dimensional space (single matrix argument)
+    {"pdist_sqeuclidean", api_l2sq, METH_VARARGS, "L2sq (Sq. Euclidean) distances between every pair of vectors"},
+    {"pdist_cosine", api_cos, METH_VARARGS, "Cosine (Angular) distances between every pair of vectors"},
+    {"pdist_inner", api_ip, METH_VARARGS, "Inner (Dot) Product distances between every pair of vectors"},
+
     // Exposing underlying API for USearch
-    {"get_sqeuclidean_address", api_get_sqeuclidean, METH_NOARGS, "L2sq (Squared Euclidean) function pointer as `int`"},
-    {"get_cosine_address", api_get_cosine, METH_NOARGS, "L2sq (Squared Euclidean) function pointer as `int`"},
-    {"get_dot_address", api_get_dot, METH_NOARGS, "L2sq (Squared Euclidean) function pointer as `int`"},
-    {NULL, NULL, 0, NULL} /* Sentinel */
-};
+    {"pointer_to_sqeuclidean", api_l2sq_pointer, METH_VARARGS, "L2sq (Sq. Euclidean) function pointer as `int`"},
+    {"pointer_to_cosine", api_cos_pointer, METH_VARARGS, "Cosine (Angular) function pointer as `int`"},
+    {"pointer_to_inner", api_ip_pointer, METH_VARARGS, "Inner (Dot) Product function pointer as `int`"},
+
+    // Sentinel
+    {NULL, NULL, 0, NULL}};
 
 static PyModuleDef simsimd_module = {
     PyModuleDef_HEAD_INIT,

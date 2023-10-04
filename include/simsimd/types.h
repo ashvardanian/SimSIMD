@@ -21,7 +21,7 @@ typedef union {
  *  @brief  Computes `1/sqrt(x)` using the trick from Quake 3, replacing
  *          magic numbers with the ones suggested by Jan Kadlec.
  */
-inline static float simsimd_approximate_inverse_square_root(float number) {
+inline static simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_t number) {
     simsimd_f32i32_t conv;
     conv.f = number;
     conv.i = 0x5F1FFFF9 - (conv.i >> 1);
