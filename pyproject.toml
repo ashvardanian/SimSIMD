@@ -9,8 +9,8 @@ xfail_strict = true
 filterwarnings = ["error"]
 
 [tool.cibuildwheel]
-test-requires = ["pytest"]
-test-command = "pytest {project}/python/test.py -x"
+test-requires = ["pytest", "scipy"]
+test-command = "pytest {project}/python/test.py -s -x"
 build-verbosity = 0
 skip = ["*musllinux*", "*i686*", "pp*"]
 
