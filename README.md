@@ -2,15 +2,13 @@
 
 ## Efficient Alternative to `scipy.spatial.distance` and `numpy.inner`
 
-SimSIMD leverages SIMD intrinsics, capabilities that only select compilers effectively utilize. This framework supports conventional AVX2 instructions on x86, NEON on Arm, as well as rare AVX-512 FP16 instructions on x86 and Scalable Vector Extensions on Arm. Designed specifically for Machine Learning contexts, it's optimized for handling high-dimensional vector embeddings.
+SimSIMD leverages SIMD intrinsics, capabilities that only select compilers effectively utilize. This framework supports conventional AVX2 instructions on x86, NEON on Arm, as well as __rare__ AVX-512 FP16 instructions on x86 and Scalable Vector Extensions on Arm. Designed specifically for Machine Learning contexts, it's optimized for handling high-dimensional vector embeddings.
 
-The SimSIMD toolkit provides:
-
-- Euclidean (L2)
-- Inner Product
-- Cosine (Angular) distances
-
-All implemented for `f32`, `f16`, and `i8` vectors.
+- ✅ __3-200x faster__ than NumPy and SciPy distance functions.
+- ✅ Euclidean (L2), Inner Product, and Cosine (Angular) distances.
+- ✅ Single-precision `f32`, half-precision `f16`, and `i8` vectors.
+- ✅ Compatible with NumPy, PyTorch, and TensorFlow tensors.
+- ✅ Has __no dependencies__, not even LibC.
 
 ## Benchmarks
 
@@ -28,15 +26,30 @@ Given 10,000 embeddings from OpenAI Ada API with 1536 dimensions, running on the
 
 On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against autovectorized-code using GCC 12. GCC handles single-precision `float` and `int8_t` well. However, it fails on `_Float16` arrays, which has been part of the C language since 2011.
 
-|               | GCC 12 `f32` | GCC 12 `f16` | SimSIMD AVX-512 `f16` | `f16` improvement |
-| :------------ | -----------: | -----------: | --------------------: | ----------------: |
-| `cosine`      |     3.28 M/s |   336.29 k/s |              6.88 M/s |          __20 x__ |
-| `sqeuclidean` |     4.62 M/s |   147.25 k/s |              5.32 M/s |          __36 x__ |
-| `inner`       |     3.81 M/s |   192.02 k/s |              5.99 M/s |          __31 x__ |
+|               | GCC 12 `f32` | GCC 12 `f16` | SimSIMD `f16` | `f16` improvement |
+| :------------ | -----------: | -----------: | ------------: | ----------------: |
+| `cosine`      |     3.28 M/s |   336.29 k/s |      6.88 M/s |          __20 x__ |
+| `sqeuclidean` |     4.62 M/s |   147.25 k/s |      5.32 M/s |          __36 x__ |
+| `inner`       |     3.81 M/s |   192.02 k/s |      5.99 M/s |          __31 x__ |
 
-> __Technical Insights__:
-> The implementation capitalizes on SVE on Arm and masked loads on AVX-512, predominantly sidestepping scalar code.
-> The Python bindings streamline efficiency by directly utilizing the CPython C API and deliberately bypassing overheads from PyBind11, SWIG, or functions like `PyArg_ParseTuple`.
+---
+
+__Technical Insights__:
+
+- The implementation capitalizes on SVE on Arm and masked loads on AVX-512, removing the need for scalar code processing the tail.
+- The Python bindings avoid PyBind11, SWIG, and other high-level tools and connect directly to the CPython C API.
+- To minimize latency of Python calls, slow interfaces, like `PyArg_ParseTuple`, are avoided in favor of manual argument parsing.
+- To minimize dependencies, such as `<math.h>`, `sqrt` calls are replaced with approximations using Jan Kadlec's constants:
+
+```c
+inline static simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_t number) {
+    simsimd_f32i32_t conv;
+    conv.f = number;
+    conv.i = 0x5F1FFFF9 - (conv.i >> 1);
+    conv.f *= 0.703952253f * (2.38924456f - number * conv.f * conv.f);
+    return conv.f;
+}
+```
 
 ## Using in Python
 
