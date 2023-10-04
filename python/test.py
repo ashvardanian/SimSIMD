@@ -59,7 +59,7 @@ def test_cosine(ndim, dtype):
 
 
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
-@pytest.mark.parametrize("dtype", [np.float32])
+@pytest.mark.parametrize("dtype", [np.float32, np.float16])
 def test_batch(ndim, dtype):
     """Compares the simd.simd.sqeuclidean() function with scipy.spatial.distance.sqeuclidean() for a batch of vectors, measuring the accuracy error for f16, and f32 types."""
 
