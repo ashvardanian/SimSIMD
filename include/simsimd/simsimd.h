@@ -16,11 +16,6 @@
 
 #ifdef _MSC_VER
 #include <intrin.h>
-#define popcount32 __popcnt
-#define popcount64 __popcnt64
-#else
-#define popcount32 __builtin_popcount
-#define popcount64 __builtin_popcountll
 #endif
 
 // Compiling for Arm: SIMSIMD_TARGET_ARM
@@ -118,8 +113,13 @@ typedef enum {
 
     // Classics:
     simsimd_metric_ip_k = 'i',
+    simsimd_metric_dot_k = 'i',
+
     simsimd_metric_cos_k = 'c',
+    simsimd_metric_angular_k = 'c',
+
     simsimd_metric_l2sq_k = 'e',
+    simsimd_metric_euclidean_k = 'e',
 
     // Sets:
     simsimd_metric_hamming_k = 'b',
@@ -144,6 +144,8 @@ typedef enum {
 } simsimd_capability_t;
 
 typedef enum {
+    simsimd_datatype_unknown_k,
+    simsimd_datatype_f64_k,
     simsimd_datatype_f32_k,
     simsimd_datatype_f16_k,
     simsimd_datatype_i8_k,
@@ -202,17 +204,17 @@ inline static simsimd_capability_t simsimd_capabilities() {
 #if SIMSIMD_TARGET_ARM
 
     // Every 64-bit Arm CPU supports NEON
-    unsigned supports_neon = true;
+    unsigned supports_neon = 1;
 
     // Check the SVE and SVE2 field of ID_AA64ISAR0_EL1 register
     unsigned long id_aa64isar0_el1;
-    asm volatile("mrs %0, id_aa64isar0_el1" : "=r"(id_aa64isar0_el1));
+    __asm__ __volatile__("mrs %0, id_aa64isar0_el1" : "=r"(id_aa64isar0_el1));
     unsigned supports_sve = (id_aa64isar0_el1 & 0x00000000000000f0) != 0;
     unsigned supports_sve2 = (id_aa64isar0_el1 & 0x000000000000f000) != 0;
 
     // Check the MML field of ID_AA64MMFR2_EL1 register
     unsigned long id_aa64mmfr2_el1;
-    asm volatile("mrs %0, id_aa64mmfr2_el1" : "=r"(id_aa64mmfr2_el1));
+    __asm__ __volatile__("mrs %0, id_aa64mmfr2_el1" : "=r"(id_aa64mmfr2_el1));
     unsigned supports_sme = (id_aa64mmfr2_el1 & 0x00000000000000f0) != 0;
 
     return                                         //
@@ -238,7 +240,7 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
     simsimd_capability_t allowed) {
 
     simsimd_capability_t supported = simsimd_capabilities();
-    simsimd_capability_t viable = supported & allowed;
+    simsimd_capability_t viable = (simsimd_capability_t)(supported & allowed);
 
     switch (datatype) {
 

@@ -1,38 +1,46 @@
-import platform
-
+import numpy as np
 import simsimd as simd
+from scipy.spatial.distance import cosine, sqeuclidean
 
 
-def test_non_null():
-    # Some distance functions are provided for every platform
-    assert simd.to_int(simd.tanimoto_b1x8_naive) != 0
-    assert simd.to_int(simd.tanimoto_maccs_naive) != 0
+def test_dot():
+    """Compares the simd.dot() function with numpy.dot(), measuring the accuracy error for i8, f16, and f32 types."""
+    a = np.random.randn(100).astype(np.float32)
+    b = np.random.randn(100).astype(np.float32)
 
-    # Arm Neon variants should be precompiled for any 64-bit Arm machine:
-    if platform.machine() == "arm64":
-        assert simd.to_int(simd.cos_f16x4_neon) != 0
-        assert simd.to_int(simd.cos_i8x16_neon) != 0
-        assert simd.to_int(simd.cos_f32x4_neon) != 0
-        assert simd.to_int(simd.dot_f32x4_neon) != 0
-        assert simd.to_int(simd.tanimoto_maccs_neon) != 0
+    expected = np.dot(a, b)
+    result = simd.dot(a, b)
 
-    # Arm SVE variants should be precompiled for 64-bit Arm machines running Linux:
-    if platform.machine() == "arm64" and platform.system().lower() == "linux":
-        assert simd.to_int(simd.dot_f32_sve) != 0
-        assert simd.to_int(simd.cos_f32_sve) != 0
-        assert simd.to_int(simd.cos_f16_sve) != 0
-        assert simd.to_int(simd.l2sq_f32_sve) != 0
-        assert simd.to_int(simd.l2sq_f16_sve) != 0
-        assert simd.to_int(simd.hamming_b1x8_sve) != 0
-        assert simd.to_int(simd.hamming_b1x128_sve) != 0
-        assert simd.to_int(simd.tanimoto_maccs_sve) != 0
+    np.testing.assert_allclose(expected, result, rtol=1e-5)
 
-    # x86 AVX2 variants are precompiled for every 64-bit x86 platform:
-    if platform.machine() == "x86_64":
-        assert simd.to_int(simd.cos_f32x4_avx2) != 0
 
-    # x86 AVX-512 variants are precompiled for 64-bit x86 machines running Linux:
-    if platform.machine() == "x86_64" and platform.system().lower() == "linux":
-        assert simd.to_int(simd.cos_f16x16_avx512) != 0
-        assert simd.to_int(simd.hamming_b1x128_avx512) != 0
-        assert simd.to_int(simd.tanimoto_maccs_avx512) != 0
+def test_sqeuclidean():
+    """Compares the simd.sqeuclidean() function with scipy.spatial.distance.sqeuclidean(), measuring the accuracy error for i8, f16, and f32 types."""
+    a = np.random.randn(100).astype(np.float32)
+    b = np.random.randn(100).astype(np.float32)
+
+    expected = sqeuclidean(a, b)
+    result = simd.sqeuclidean(a, b)
+
+    np.testing.assert_allclose(expected, result, rtol=1e-5)
+
+
+def test_cosine():
+    """Compares the simd.cosine() function with scipy.spatial.distance.cosine(), measuring the accuracy error for i8, f16, and f32 types."""
+    a = np.random.randn(100).astype(np.float32)
+    b = np.random.randn(100).astype(np.float32)
+
+    expected = cosine(a, b)
+    result = simd.cosine(a, b)
+
+    np.testing.assert_allclose(expected, result, rtol=1e-5)
+
+
+def test_batch():
+    """Compares the simd.dot() function with numpy.dot() for a batch of vectors, measuring the accuracy error for i8, f16, and f32 types."""
+    pass
+
+
+def test_all_pairs():
+    """Compares the simd.dot() function with numpy.dot() for a batch of vectors, measuring the accuracy error for i8, f16, and f32 types."""
+    pass

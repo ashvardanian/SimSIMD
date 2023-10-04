@@ -1,5 +1,7 @@
 # SimSIMD 📏
 
+## The `scipy.spatial.distance` of a healthy person
+
 SIMD-accelerated similarity measures, metrics, and distance functions for x86 and Arm.
 They are tuned for Machine Learning applications and mid-size vectors with 100-1024 dimensions.
 One can expect the following performance for Cosine (Angular) distance, the most common metric in AI.
