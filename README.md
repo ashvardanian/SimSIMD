@@ -1,17 +1,22 @@
 # SimSIMD 📏
 
-## The `scipy.spatial.distance` of a healthy person
+## Efficient Alternative to `scipy.spatial.distance` and `numpy.inner`
 
-SimSIMD implements most commonly used similarity measures using SIMD intrinsics, that few compilers can produce, and even fewer do it well.
-This includes conventional AVX2 instructions on x86 and NEON on Arm, as well as lesser known AVX-512 instructions on x86 and Scalable Vector Extensions on Arm.
-They are tuned for Machine Learning applications and mid-size vectors with 100-1024 dimensions.
-It includes the Euclidean (L2), Inner Product, and Cosine (Angular) distances implemented for `f32`, `f16`, and `i8` vectors.
+SimSIMD leverages SIMD intrinsics, capabilities that only select compilers effectively utilize. This framework supports conventional AVX2 instructions on x86, NEON on Arm, as well as rare AVX-512 FP16 instructions on x86 and Scalable Vector Extensions on Arm. Designed specifically for Machine Learning contexts, it's optimized for handling high-dimensional vector embeddings.
+
+The SimSIMD toolkit provides:
+
+- Euclidean (L2)
+- Inner Product
+- Cosine (Angular) distances
+
+All implemented for `f32`, `f16`, and `i8` vectors.
 
 ## Benchmarks
 
-Let's assume you have 10'000 embeddings obtained from OpenAI Ada API.
-Those have 1536 dimensions.
-You are running on the Apple M2 Pro Arm CPU with NEON support.
+### Apple M2 Pro
+
+Given 10,000 embeddings from OpenAI Ada API with 1536 dimensions, running on the Apple M2 Pro Arm CPU with NEON support, here's how SimSIMD performs against conventional methods:
 
 | Conventional                         | SimSIMD               | `f32` improvement | `f16` improvement | `i8` improvement |
 | :----------------------------------- | :-------------------- | ----------------: | ----------------: | ---------------: |
@@ -19,8 +24,9 @@ You are running on the Apple M2 Pro Arm CPU with NEON support.
 | `scipy.spatial.distance.sqeuclidean` | `simsimd.sqeuclidean` |           __8 x__ |          __25 x__ |         __22 x__ |
 | `numpy.inner`                        | `simsimd.inner`       |           __3 x__ |          __10 x__ |         __18 x__ |
 
-On modern Intel Sapphire Rapids platform we've obtained the following numbers, comparing SimSIMD to autovectorized-code using GCC 12.
-As it can be clearly seen, auto-vectorization works well for single-precision `float` and single-byte `int8_t`, but it fails on `_Float16`, supported by the C language since 2011.
+### Intel Sapphire Rapids
+
+On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against autovectorized-code using GCC 12. GCC handles single-precision `float` and `int8_t` well. However, it fails on `_Float16` arrays, which has been part of the C language since 2011.
 
 |               | GCC 12 `f32` | GCC 12 `f16` | SimSIMD AVX-512 `f16` | `f16` improvement |
 | :------------ | -----------: | -----------: | --------------------: | ----------------: |
@@ -28,62 +34,78 @@ As it can be clearly seen, auto-vectorization works well for single-precision `f
 | `sqeuclidean` |     4.62 M/s |   147.25 k/s |              5.32 M/s |          __36 x__ |
 | `inner`       |     3.81 M/s |   192.02 k/s |              5.99 M/s |          __31 x__ |
 
-Using SVE on Arm and masked loads on AVX-512, the implementations almost entirely avoid scalar code.
-The Python binding is equally efficient avoiding PyBind11, SWIG or any other high-level tools, and using CPython C API directly, but still avoiding expensive functions, like the `PyArg_ParseTuple`.
+> __Technical Insights__:
+> The implementation capitalizes on SVE on Arm and masked loads on AVX-512, predominantly sidestepping scalar code.
+> The Python bindings streamline efficiency by directly utilizing the CPython C API and deliberately bypassing overheads from PyBind11, SWIG, or functions like `PyArg_ParseTuple`.
 
 ## Using in Python
+
+### Installation
 
 ```sh
 pip install simsimd
 ```
 
-Computing the distance between two vectors:
+### Distance Between 2 Vectors
 
 ```py
-import simsimd, numpy
+import simsimd
+import numpy as np
 
-vec1 = numpy.random.randn(1536).astype(np.float32)
-vec2 = numpy.random.randn(1536).astype(np.float32)
+vec1 = np.random.randn(1536).astype(np.float32)
+vec2 = np.random.randn(1536).astype(np.float32)
 dist = simsimd.cosine(vec1, vec2)
 ```
 
-Computing the distance between two batches:
+### Distance Between 2 Batches
 
 ```py
-batch1 = numpy.random.randn(100, 1536).astype(np.float32)
-batch2 = numpy.random.randn(100, 1536).astype(np.float32)
+batch1 = np.random.randn(100, 1536).astype(np.float32)
+batch2 = np.random.randn(100, 1536).astype(np.float32)
 dist = simsimd.cosine(batch1, batch2)
 ```
 
-Computing the distances between all possible pairs of rows in two matrices, like [`scipy.spatial.distance.cdist`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.cdist.html).
+### All Pairwise Distances
+
+For calculating distances between all possible pairs of rows across two matrices (akin to [`scipy.spatial.distance.cdist`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.cdist.html)):
 
 ```py
-matrix1 = numpy.random.randn(1000, 1536).astype(np.float32)
-matrix2 = numpy.random.randn(10, 1536).astype(np.float32)
+matrix1 = np.random.randn(1000, 1536).astype(np.float32)
+matrix2 = np.random.randn(10, 1536).astype(np.float32)
 distances = simsimd.cdist(matrix1, matrix2, metric="cosine")
 ```
 
-By default, all the function use a single CPU core.
-On Linux, you can also pass the `threads=0` argument to parallelize across all available cores, or any custom number.
+### Multithreading
+
+By default, computations use a single CPU core. To optimize and utilize all CPU cores on Linux systems, add the `threads=0` argument. Alternatively, specify a custom number of threads:
 
 ```py
 distances = simsimd.cdist(matrix1, matrix2, metric="cosine", threads=0)
 ```
 
-Computing all pairwise distances between all rows of a single matrix, like [`scipy.spatial.distance.pdist`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.pdist.html).
+### All Intra-matrix Pairwise sDistance
+
+For obtaining pairwise distances within a single matrix (similar to [`scipy.spatial.distance.pdist`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.pdist.html)):
 
 ```py
 distances = simsimd.pdist(matrix1, metric="cosine", threads=0)
 ```
 
-You can also print supported hardware backends using `simsimd.get_capabilites()`.
+### Hardware Backend Capabilities
+
+To view a list of hardware backends that SimSIMD supports:
+
+```py
+print(simsimd.get_capabilities())
+```
 
 ### Using Python API with USearch
 
 Want to use it in Python with [USearch](https://github.com/unum-cloud/usearch)?
+You can wrap the raw C function pointers SimSIMD backends into a `CompiledMetric`, and pass it to USearch, similar to how it handles Numba's JIT-compiled code.
 
 ```py
-from usearch import Index, CompiledMetric, MetricKind, MetricSignature
+from usearch.index import Index, CompiledMetric, MetricKind, MetricSignature
 from simsimd import pointer_to_sqeuclidean, pointer_to_cosine, pointer_to_inner
 
 metric = CompiledMetric(
@@ -94,12 +116,11 @@ metric = CompiledMetric(
 
 index = Index(256, metric=metric)
 ```
+## Using SimSIMD in C
 
-## Using in C
+If you're aiming to utilize the `_Float16` functionality with SimSIMD, ensure your development environment is compatible with C 11. For other functionalities of SimSIMD, C 99 compatibility will suffice.
 
-To use the `_Float16` functionality, you may need C 11.
-For the rest - C 99 is enough.
-To integrate with CMake-based project:
+For integration within a CMake-based project, add the following segment to your `CMakeLists.txt`:
 
 ```cmake
 FetchContent_Declare(
@@ -111,22 +132,24 @@ FetchContent_MakeAvailable(simsimd)
 include_directories(${simsimd_SOURCE_DIR}/include)
 ```
 
-To enable SimSIMD integration in USearch, just compile it with `USEARCH_USE_SIMSIMD=1`.
-It's the default behaviour on most platforms.
+Stay updated with the latest advancements by always using the most recent compiler available for your platform. This ensures that you benefit from the newest intrinsics.
 
-## Roadmap
+Should you wish to integrate SimSIMD within USearch, simply compile USearch with the flag `USEARCH_USE_SIMSIMD=1`. Notably, this is the default setting on the majority of platforms.
 
-- [ ] Expose Hamming and Tanimoto distances in Python.
-- [ ] Intel AMX instructions. Intrinsics only work in Intel's most recent compiler.
+## Upcoming Features
 
-Wanna join the development?
-Use this command to rerun the experiments:
+Here's a glance at the exciting developments on our horizon:
+
+- [ ] Exposing Hamming and Tanimoto bitwise distances to the Python interface.
+- [ ] Intel AMX backend. Note: Currently, the intrinsics are functional only with Intel's latest compiler.
+
+__To Rerun Experiments__ utilize the following command:
 
 ```sh
 cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build_release && make -C ./build_release && ./build_release/simsimd_bench
 ```
 
-Install and test with PyTest locally:
+__To Test with PyTest__:
 
 ```sh
 pip install -e . && pytest python/test.py -s -x
