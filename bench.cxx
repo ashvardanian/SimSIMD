@@ -7,9 +7,6 @@
 
 namespace bm = benchmark;
 
-static const std::size_t threads_k = 1; // std::thread::hardware_concurrency();
-static constexpr std::size_t time_k = 2;
-
 template <typename return_at, typename... args_at>
 constexpr std::size_t number_of_arguments(return_at (*f)(args_at...)) {
     return sizeof...(args_at);
@@ -81,13 +78,17 @@ void register_(std::string name, metric_at* distance_func, metric_at* baseline_f
     using pair_dims_t = vectors_pair_gt<scalar_at, 1536>;
     using pair_bytes_t = vectors_pair_gt<scalar_at, 1536 / sizeof(scalar_at)>;
 
+    std::size_t seconds = 10;
+    std::size_t threads = std::thread::hardware_concurrency(); // 1;
     std::string name_dims = name + "_" + std::to_string(pair_dims_t{}.dimensions()) + "d";
     std::string name_bytes = name + "_" + std::to_string(pair_bytes_t{}.size_bytes()) + "b";
 
     bm::RegisterBenchmark(name_dims.c_str(), measure<pair_dims_t, metric_at*>, distance_func, baseline_func)
-        ->MinTime(time_k);
+        ->MinTime(seconds)
+        ->Threads(threads);
     bm::RegisterBenchmark(name_bytes.c_str(), measure<pair_bytes_t, metric_at*>, distance_func, baseline_func)
-        ->MinTime(time_k);
+        ->MinTime(seconds)
+        ->Threads(threads);
 }
 
 int main(int argc, char** argv) {
