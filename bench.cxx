@@ -9,19 +9,18 @@ namespace bm = benchmark;
 
 static const std::size_t threads_k = 1; // std::thread::hardware_concurrency();
 static constexpr std::size_t time_k = 2;
-static constexpr std::size_t bytes_k = 299;
 
 template <typename return_at, typename... args_at>
 constexpr std::size_t number_of_arguments(return_at (*f)(args_at...)) {
     return sizeof...(args_at);
 }
 
-template <typename scalar_at, std::size_t bytes_per_vector_ak = bytes_k> struct vectors_pair_gt {
-    static constexpr std::size_t dimensions_ak = bytes_per_vector_ak / sizeof(scalar_at);
+template <typename scalar_at, std::size_t dimensions_ak> struct vectors_pair_gt {
     scalar_at a[dimensions_ak]{};
     scalar_at b[dimensions_ak]{};
 
     std::size_t dimensions() const noexcept { return dimensions_ak; }
+    std::size_t size_bytes() const noexcept { return dimensions_ak * sizeof(scalar_at); }
 
     void set(scalar_at v) noexcept {
         for (std::size_t i = 0; i != dimensions_ak; ++i)
@@ -51,10 +50,10 @@ template <typename scalar_at, std::size_t bytes_per_vector_ak = bytes_k> struct 
     }
 };
 
-template <typename scalar_at, std::size_t bytes_per_vector_ak = bytes_k, typename metric_at = void>
+template <typename pair_at, typename metric_at = void>
 static void measure(bm::State& state, metric_at metric, metric_at baseline) {
 
-    vectors_pair_gt<scalar_at, bytes_per_vector_ak> pair;
+    pair_at pair;
     pair.randomize();
     // pair.set(1);
 
@@ -67,7 +66,7 @@ static void measure(bm::State& state, metric_at metric, metric_at baseline) {
         else
             bm::DoNotOptimize((c = metric(pair.a, pair.b))), iterations++;
 
-    state.counters["bytes"] = bm::Counter(iterations * bytes_per_vector_ak * 2u, bm::Counter::kIsRate);
+    state.counters["bytes"] = bm::Counter(iterations * pair.size_bytes() * 2, bm::Counter::kIsRate);
     state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
 
     double delta = std::abs(c - c_baseline) > 0.0001 ? std::abs(c - c_baseline) : 0;
@@ -76,15 +75,19 @@ static void measure(bm::State& state, metric_at metric, metric_at baseline) {
     state.counters["relative_error"] = error;
 }
 
-template <typename scalar_at, std::size_t bytes_per_vector_ak = bytes_k, typename metric_at = void>
-void register_(char const* name, metric_at* distance_func, metric_at* baseline_func) {
-    bm::RegisterBenchmark(name, measure<scalar_at, bytes_per_vector_ak, metric_at*>, distance_func, baseline_func)
-        ->Threads(1)
+template <typename scalar_at, typename metric_at = void>
+void register_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
+
+    using pair_dims_t = vectors_pair_gt<scalar_at, 1536>;
+    using pair_bytes_t = vectors_pair_gt<scalar_at, 1536 / sizeof(scalar_at)>;
+
+    std::string name_dims = name + "_" + std::to_string(pair_dims_t{}.dimensions()) + "d";
+    std::string name_bytes = name + "_" + std::to_string(pair_bytes_t{}.size_bytes()) + "b";
+
+    bm::RegisterBenchmark(name_dims.c_str(), measure<pair_dims_t, metric_at*>, distance_func, baseline_func)
         ->MinTime(time_k);
-    if (threads_k > 1)
-        bm::RegisterBenchmark(name, measure<scalar_at, bytes_per_vector_ak, metric_at*>, distance_func, baseline_func)
-            ->Threads(threads_k)
-            ->MinTime(time_k);
+    bm::RegisterBenchmark(name_bytes.c_str(), measure<pair_bytes_t, metric_at*>, distance_func, baseline_func)
+        ->MinTime(time_k);
 }
 
 int main(int argc, char** argv) {
@@ -115,7 +118,6 @@ int main(int argc, char** argv) {
     std::printf("- Arm SVE support enabled: %s\n", flags[compiled_with_sve]);
     std::printf("- x86 AVX2 support enabled: %s\n", flags[compiled_with_avx2]);
     std::printf("- x86 AVX512VPOPCNTDQ support enabled: %s\n", flags[compiled_with_avx512popcnt]);
-    std::printf("Default vector length: %zu bytes\n", bytes_k);
     std::printf("\n");
 
     // Run the benchmarks
