@@ -1,10 +1,9 @@
 /**
- *  @file python.c
- *  @author Ash Vardanian
- *  @date 2023-01-30
- *  @copyright Copyright (c) 2023
- *
- *  @brief Pure CPython bindings for SimSIMD.
+ *  @brief      Pure CPython bindings for SimSIMD.
+ *  @file       lib.c
+ *  @author     Ash Vardanian
+ *  @date       January 1, 2023
+ *  @copyright  Copyright (c) 2023
  */
 #define SIMSIMD_TARGET_ARM_NEON 1
 #define SIMSIMD_TARGET_X86_AVX2 1
@@ -47,11 +46,35 @@ simsimd_datatype_t numpy_string_to_datatype(char const* name) {
         return simsimd_datatype_unknown_k;
 }
 
+static PyObject* api_get_capabilities(PyObject* self) {
+    simsimd_capability_t caps = simsimd_capabilities();
+    PyObject* cap_dict = PyDict_New();
+    if (!cap_dict)
+        return NULL;
+
+#define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong(caps& simsimd_cap_##name##_k))
+
+    ADD_CAP(autovec);
+    ADD_CAP(arm_neon);
+    ADD_CAP(arm_sve);
+    ADD_CAP(arm_sve2);
+    ADD_CAP(x86_avx2);
+    ADD_CAP(x86_avx512);
+    ADD_CAP(x86_avx2fp16);
+    ADD_CAP(x86_avx512fp16);
+    ADD_CAP(x86_amx);
+    ADD_CAP(arm_sme);
+
+#undef ADD_CAP
+
+    return cap_dict;
+}
+
 static void pseudo_destroy(PyObject* obj) { (void)obj; }
 
 PyObject* distance(void* func) { return PyCapsule_New(func, NULL, pseudo_destroy); }
 
-static PyObject* to_int(PyObject* self, PyObject* args) {
+static PyObject* get_address(PyObject* self, PyObject* args) {
     PyObject* capsule;
     if (!PyArg_ParseTuple(args, "O", &capsule)) {
         return NULL;
@@ -145,6 +168,14 @@ static PyObject* api_pairs(simsimd_metric_kind_t metric_kind, PyObject* args) {
     if (parsed_a.is_flat && parsed_b.is_flat) {
         output = PyFloat_FromDouble(metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, parsed_b.dimensions));
     } else {
+
+        // In some batch requests we may be computing the distance from multiple vectors to one,
+        // so the stride must be set to zero avoid illegal memory access
+        if (parsed_a.count == 1)
+            parsed_a.stride = 0;
+        if (parsed_b.count == 1)
+            parsed_b.stride = 0;
+
         size_t count_max = parsed_a.count > parsed_b.count ? parsed_a.count : parsed_b.count;
 
         // Compute the distances
@@ -160,7 +191,7 @@ static PyObject* api_pairs(simsimd_metric_kind_t metric_kind, PyObject* args) {
         npy_intp dims[1] = {count_max};
         PyArray_Descr* descr = PyArray_DescrFromType(NPY_FLOAT32);
         PyArrayObject* output_array = (PyArrayObject*)PyArray_NewFromDescr( //
-            &PyArray_Type, descr, 1, dims, NULL, distances, NPY_ARRAY_OWNDATA, NULL);
+            &PyArray_Type, descr, 1, dims, NULL, distances, NPY_ARRAY_OWNDATA | NPY_ARRAY_C_CONTIGUOUS, NULL);
 
         if (!output_array) {
             free(distances);
@@ -183,10 +214,18 @@ static PyObject* api_pairs_cos(PyObject* self, PyObject* args) { return api_pair
 static PyObject* api_pairs_ip(PyObject* self, PyObject* args) { return api_pairs(simsimd_metric_ip_k, args); }
 
 static PyMethodDef simsimd_methods[] = {
-    {"to_int", to_int, METH_VARARGS, "Converts CPython capsule to `int`"},
+    // NumPy and SciPy compatible interfaces
     {"sqeuclidean", api_pairs_l2sq, METH_VARARGS, "L2sq (Squared Euclidean) distances between a pair of tensors"},
     {"cosine", api_pairs_cos, METH_VARARGS, "Cosine (Angular) distances between a pair of tensors"},
     {"dot", api_pairs_ip, METH_VARARGS, "Inner (Dot) Product distances between a pair of tensors"},
+
+    // Introspecting library and hardware capabilities
+    {"get_capabilities", api_get_capabilities, METH_NOARGS, "Get hardware capabilities"},
+
+    // Exposing underlying API for USearch
+    {"get_sqeuclidean_address", api_get_sqeuclidean, METH_NOARGS, "L2sq (Squared Euclidean) function pointer as `int`"},
+    {"get_cosine_address", api_get_cosine, METH_NOARGS, "L2sq (Squared Euclidean) function pointer as `int`"},
+    {"get_dot_address", api_get_dot, METH_NOARGS, "L2sq (Squared Euclidean) function pointer as `int`"},
     {NULL, NULL, 0, NULL} /* Sentinel */
 };
 
@@ -198,4 +237,7 @@ static PyModuleDef simsimd_module = {
     .m_methods = simsimd_methods,
 };
 
-PyMODINIT_FUNC PyInit_simsimd(void) { return PyModule_Create(&simsimd_module); }
+PyMODINIT_FUNC PyInit_simsimd(void) {
+    _import_array();
+    return PyModule_Create(&simsimd_module);
+}

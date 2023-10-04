@@ -1,9 +1,11 @@
 /**
- *  @brief Collection of Similarity Measures, SIMD-accelerated with SSE, AVX, NEON, SVE.
+ *  @brief      Collection of Similarity Measures, SIMD-accelerated with SSE, AVX, NEON, SVE.
+ *  @file       simsimd.h
+ *  @author     Ash Vardanian
+ *  @date       March 14, 2023
+ *  @copyright  Copyright (c) 2023
  *
- *  @author Ash Vardanian
- *  @date March 14, 2023
- *
+ *  References:
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  *  Detecting target CPU features at compile time: https://stackoverflow.com/a/28939692/2766161
@@ -158,7 +160,7 @@ inline static bool _simsimd_capability_supported_x86(unsigned feature_mask, int 
     unsigned eax, ebx, ecx, edx;
     // Execute CPUID instruction and store results in eax, ebx, ecx, edx
     // Setting %ecx to 0 as well
-    __asm__ volatile("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "a"(function_id), "c"(0));
+    __asm__ __volatile__("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "a"(function_id), "c"(0));
     unsigned register_value;
     switch (register_id) {
     case 0: register_value = eax; break;
@@ -193,36 +195,39 @@ inline static simsimd_capability_t simsimd_capabilities() {
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L198C9-L198C23
     unsigned supports_avx512fp16 = _simsimd_capability_supported_x86(1 << 23, 7, 3);
 
-    return                                                                           //
+    return (simsimd_capability_t)(                                                   //
         (simsimd_capability_avx2_k * (supports_avx2)) |                              //
         (simsimd_capability_avx512_k * (supports_avx512f)) |                         //
         (simsimd_capability_avx2f16_k * (supports_avx2 && supports_f16c)) |          //
         (simsimd_capability_avx512f16_k * (supports_avx512fp16 && supports_avx512f)) //
-        ;
+    );
 #endif
 
 #if SIMSIMD_TARGET_ARM
 
     // Every 64-bit Arm CPU supports NEON
     unsigned supports_neon = 1;
+    unsigned long id_aa64isar0_el1 = 0;
+    unsigned long id_aa64mmfr2_el1 = 0;
 
+    // Seems like Apple Silicon doesn't expose those registers
+#ifndef __APPLE__
     // Check the SVE and SVE2 field of ID_AA64ISAR0_EL1 register
-    unsigned long id_aa64isar0_el1;
     __asm__ __volatile__("mrs %0, id_aa64isar0_el1" : "=r"(id_aa64isar0_el1));
+    // Check the MML field of ID_AA64MMFR2_EL1 register
+    __asm__ __volatile__("mrs %0, id_aa64mmfr2_el1" : "=r"(id_aa64mmfr2_el1));
+#endif
+
     unsigned supports_sve = (id_aa64isar0_el1 & 0x00000000000000f0) != 0;
     unsigned supports_sve2 = (id_aa64isar0_el1 & 0x000000000000f000) != 0;
-
-    // Check the MML field of ID_AA64MMFR2_EL1 register
-    unsigned long id_aa64mmfr2_el1;
-    __asm__ __volatile__("mrs %0, id_aa64mmfr2_el1" : "=r"(id_aa64mmfr2_el1));
     unsigned supports_sme = (id_aa64mmfr2_el1 & 0x00000000000000f0) != 0;
 
-    return                                         //
+    return (simsimd_capability_t)(                 //
         (simsimd_cap_arm_neon_k * supports_neon) | //
         (simsimd_cap_arm_sve_k * supports_sve) |   //
         (simsimd_cap_arm_sve2_k * supports_sve2) | //
         (simsimd_cap_arm_sme_k * supports_sme)     //
-        ;
+    );
 
 #endif
 
