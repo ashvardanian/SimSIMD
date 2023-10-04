@@ -13,6 +13,7 @@
 #define SIMSIMD_TARGET_X86_AVX512 1
 #endif
 
+#define SIMSIMD_SQRT simsimd_approximate_inverse_square_root
 #include "simsimd/simsimd.h"
 
 #define PY_SSIZE_T_CLEAN
