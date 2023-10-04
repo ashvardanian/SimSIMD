@@ -30,7 +30,7 @@ inline static simsimd_f32_t simsimd_neon_i8_l2sq(simsimd_i8_t const* a, simsimd_
     }
     int32_t d2 = vaddvq_s32(d2_vec);
     for (; i < d; ++i) {
-        int16_t d = a[i] - b[i];
+        int32_t d = a[i] - b[i];
         d2 += d * d;
     }
     return d2;

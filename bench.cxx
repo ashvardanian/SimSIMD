@@ -9,7 +9,7 @@ namespace bm = benchmark;
 
 static const std::size_t threads_k = 1; // std::thread::hardware_concurrency();
 static constexpr std::size_t time_k = 2;
-static constexpr std::size_t bytes_k = 77;
+static constexpr std::size_t bytes_k = 777;
 
 template <typename return_at, typename... args_at>
 constexpr std::size_t number_of_arguments(return_at (*f)(args_at...)) {
