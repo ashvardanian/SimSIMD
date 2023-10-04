@@ -167,7 +167,7 @@ inline static unsigned _simsimd_capability_supported_x86(unsigned feature_mask, 
     case 1: register_value = ebx; break;
     case 2: register_value = ecx; break;
     case 3: register_value = edx; break;
-    default: return false;
+    default: return 0;
     }
 
     return (register_value & feature_mask) != 0;
