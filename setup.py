@@ -48,7 +48,12 @@ if sys.platform == "darwin":
     compile_args.append("-O3")
     compile_args.append("-ffast-math")
     compile_args.append("-pedantic")
-    compile_args.append("-fcolor-diagnostics")
+
+    # GitHub CI complains about this:
+    # if "gcc" in platform.python_compiler().lower():  # GCC specific flags
+    #     compile_args.append("-fdiagnostics-color=always")
+    # else:  # Clang specific flags
+    #     compile_args.append("-fcolor-diagnostics")
 
     # Simplify debugging, but the normal `-g` may make builds much longer!
     compile_args.append("-g1")
@@ -57,8 +62,9 @@ if sys.platform == "darwin":
     compile_args.append("-w")
 
 if sys.platform == "win32":
-    compile_args.append("/std:c++17")
+    compile_args.append("/std:c11")
     compile_args.append("/O2")
+    compile_args.append("/fp:fast")
 
 
 ext_modules = [

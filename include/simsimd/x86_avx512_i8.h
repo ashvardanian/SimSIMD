@@ -59,7 +59,7 @@ inline static simsimd_f32_t simsimd_avx512_i8_cos(simsimd_i8_t const* a, simsimd
     __m128d rsqrts = _mm_mask_rsqrt14_pd(_mm_setzero_pd(), 0xFF, a2_b2);
     double rsqrts_array[2];
     _mm_storeu_pd(rsqrts_array, rsqrts);
-    return 1 - double(ab) * rsqrts_array[0] * rsqrts_array[1];
+    return 1 - ab * rsqrts_array[0] * rsqrts_array[1];
 }
 
 inline static simsimd_f32_t simsimd_avx512_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {

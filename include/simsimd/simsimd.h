@@ -154,9 +154,9 @@ typedef enum {
     simsimd_datatype_b1_k,
 } simsimd_datatype_t;
 
-#if defined(USEARCH_DEFINED_X86)
+#if SIMSIMD_TARGET_X86
 
-inline static bool _simsimd_capability_supported_x86(unsigned feature_mask, int function_id, int register_id) {
+inline static unsigned _simsimd_capability_supported_x86(unsigned feature_mask, int function_id, int register_id) {
     unsigned eax, ebx, ecx, edx;
     // Execute CPUID instruction and store results in eax, ebx, ecx, edx
     // Setting %ecx to 0 as well
@@ -195,11 +195,11 @@ inline static simsimd_capability_t simsimd_capabilities() {
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L198C9-L198C23
     unsigned supports_avx512fp16 = _simsimd_capability_supported_x86(1 << 23, 7, 3);
 
-    return (simsimd_capability_t)(                                                   //
-        (simsimd_capability_avx2_k * (supports_avx2)) |                              //
-        (simsimd_capability_avx512_k * (supports_avx512f)) |                         //
-        (simsimd_capability_avx2f16_k * (supports_avx2 && supports_f16c)) |          //
-        (simsimd_capability_avx512f16_k * (supports_avx512fp16 && supports_avx512f)) //
+    return (simsimd_capability_t)(                                                 //
+        (simsimd_cap_x86_avx2_k * (supports_avx2)) |                               //
+        (simsimd_cap_x86_avx512_k * (supports_avx512f)) |                          //
+        (simsimd_cap_x86_avx2fp16_k * (supports_avx2 && supports_f16c)) |          //
+        (simsimd_cap_x86_avx512fp16_k * (supports_avx512fp16 && supports_avx512f)) //
     );
 #endif
 
