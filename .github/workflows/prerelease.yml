@@ -40,18 +40,16 @@ jobs:
           pip install --no-cache-dir pytest numpy scipy py-cpuinfo
           python -c "from cpuinfo import get_cpu_info; print(get_cpu_info())"
 
-      - name: Check compiler version and supported architectures
-        run: |
-          sudo apt-get update && sudo apt-get install -y gcc-12
-          gcc-12 -v
-          gcc-12 -march=native -E - < /dev/null -o /dev/null
-          gcc-12 -E - -m1 - < /dev/null
-        if: ${{ matrix.os == 'ubuntu-22.04' }}
-
       - name: Build locally on Ubuntu
         run: |
-          sudo apt-get install -y gcc-12
-          export CC=gcc-12
+          sudo apt update
+          sudo apt install software-properties-common
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+          sudo apt update
+          sudo apt install gcc-13 g++-13 -y
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 13 --slave /usr/bin/g++ g++ /usr/bin/g++-13
+          sudo update-alternatives --config gcc
+          gcc --version
           python -m pip install .
         if: ${{ matrix.os == 'ubuntu-22.04' }}
 
