@@ -12,6 +12,10 @@
                 "preset": "eslint",
                 "releaseRules": [
                     {
+                        "tag": "Break",
+                        "release": "major"
+                    },
+                    {
                         "tag": "Add",
                         "release": "minor"
                     },
@@ -35,6 +39,10 @@
             {
                 "preset": "eslint",
                 "releaseRules": [
+                    {
+                        "tag": "Break",
+                        "release": "major"
+                    },
                     {
                         "tag": "Add",
                         "release": "minor"
@@ -68,7 +76,7 @@
                     "VERSION",
                     "conanfile.py",
                     "package.json",
-                    "Cargo.toml",
+                    "Cargo.toml"
                 ],
                 "message": "Build: Released ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
             }

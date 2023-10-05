@@ -321,7 +321,7 @@ simsimd_neon_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t
     return 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
 }
 
-__attribute__((target("+simd"))) //
+__attribute__((target("+simd+dotprod"))) //
 inline static simsimd_f32_t
 simsimd_neon_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     return simsimd_neon_i8_cos(a, b, d);
