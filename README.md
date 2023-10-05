@@ -19,11 +19,11 @@ SimSIMD leverages SIMD intrinsics, capabilities that only select compilers effec
 
 Given 10,000 embeddings from OpenAI Ada API with 1536 dimensions, running on the Apple M2 Pro Arm CPU with NEON support, here's how SimSIMD performs against conventional methods:
 
-| Conventional                         | SimSIMD               | `f32` improvement | `f16` improvement | `i8` improvement |
-| :----------------------------------- | :-------------------- | ----------------: | ----------------: | ---------------: |
-| `scipy.spatial.distance.cosine`      | `simsimd.cosine`      |          __39 x__ |          __84 x__ |        __196 x__ |
-| `scipy.spatial.distance.sqeuclidean` | `simsimd.sqeuclidean` |           __8 x__ |          __25 x__ |         __22 x__ |
-| `numpy.inner`                        | `simsimd.inner`       |           __3 x__ |          __10 x__ |         __18 x__ |
+| Conventional                         | SimSIMD       | `f32` improvement | `f16` improvement | `i8` improvement |
+| :----------------------------------- | :------------ | ----------------: | ----------------: | ---------------: |
+| `scipy.spatial.distance.cosine`      | `cosine`      |          __39 x__ |          __84 x__ |        __196 x__ |
+| `scipy.spatial.distance.sqeuclidean` | `sqeuclidean` |           __8 x__ |          __25 x__ |         __22 x__ |
+| `numpy.inner`                        | `inner`       |           __3 x__ |          __10 x__ |         __18 x__ |
 
 ### Intel Sapphire Rapids
 

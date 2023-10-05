@@ -83,41 +83,45 @@
 #error Unknown hardware architecture!
 #endif
 
-#if defined(__GNUC__) && !defined(__clang__)
-#define SIMSIMD_PRAGMA_TARGET(x) _Pragma("GCC push_options") _Pragma("GCC target(\"" x "\")")
-#define SIMSIMD_PRAGMA_END _Pragma("GCC pop_options")
-#elif defined(__clang__)
-#define SIMSIMD_PRAGMA_TARGET(x) _Pragma("clang attribute push (__attribute__((target(\"" x "\"))), apply_to=function)")
-#define SIMSIMD_PRAGMA_END _Pragma("clang attribute pop")
-#endif
-
 #if SIMSIMD_TARGET_ARM_NEON
-SIMSIMD_PRAGMA_TARGET("arch=armv8-a+simd+fp16")
+#pragma GCC push_options
+#pragma GCC target("arch=armv8-a+simd+fp16")
+#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd+fp16"))), apply_to = function)
 #include "arm_neon_f16.h"
 #include "arm_neon_f32.h"
 #include "arm_neon_i8.h"
-SIMSIMD_PRAGMA_END
+#pragma GCC pop_options
+#pragma clang attribute pop
 #endif
 
 #if SIMSIMD_TARGET_ARM_SVE
-SIMSIMD_PRAGMA_TARGET("arch=armv8-a+sve")
+#pragma GCC push_options
+#pragma GCC target("arch=armv8-a+sve")
+#pragma clang attribute push(__attribute__((target("arch=armv8-a+sve"))), apply_to = function)
 #include "arm_sve_f16.h"
 #include "arm_sve_f32.h"
-SIMSIMD_PRAGMA_END
+#pragma GCC pop_options
+#pragma clang attribute pop
 #endif
 
 #if SIMSIMD_TARGET_X86_AVX2
-SIMSIMD_PRAGMA_TARGET("avx2,f16c,fma")
+#pragma GCC push_options
+#pragma GCC target("avx2,f16c,fma")
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
 #include "x86_avx2_f16.h"
 #include "x86_avx2_i8.h"
-SIMSIMD_PRAGMA_END
+#pragma GCC pop_options
+#pragma clang attribute pop
 #endif
 
 #if SIMSIMD_TARGET_X86_AVX512
-SIMSIMD_PRAGMA_TARGET("avx512fp16,avx512f,avx512vl")
+#pragma GCC push_options
+#pragma GCC target("avx512fp16,avx512f,avx512vl")
+#pragma clang attribute push(__attribute__((target("avx512fp16,avx512f,avx512vl"))), apply_to = function)
 #include "x86_avx512_f16.h"
 #include "x86_avx512_i8.h"
-SIMSIMD_PRAGMA_END
+#pragma GCC pop_options
+#pragma clang attribute pop
 #endif
 
 #ifdef __cplusplus
