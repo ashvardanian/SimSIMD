@@ -120,7 +120,7 @@ int parse_tensor(PyObject* tensor, Py_buffer* buffer, parsed_vector_or_matrix_t*
     return 0;
 }
 
-static PyObject* api_pairs(simsimd_metric_kind_t metric_kind, PyObject* args) {
+static PyObject* impl_specific(simsimd_metric_kind_t metric_kind, PyObject* args) {
     if (!PyTuple_Check(args) || PyTuple_Size(args) != 2) {
         PyErr_SetString(PyExc_TypeError, "function expects exactly 2 arguments");
         return NULL;
@@ -203,9 +203,79 @@ cleanup:
     return output;
 }
 
-static PyObject* api_combos(simsimd_metric_punned_t metric, PyObject* args) {}
+static PyObject* impl_cdist(simsimd_metric_kind_t metric_kind, PyObject* args) {
+    if (!PyTuple_Check(args) || PyTuple_Size(args) != 2) {
+        PyErr_SetString(PyExc_TypeError, "function expects exactly 2 arguments");
+        return NULL;
+    }
 
-static PyObject* api_pointer(simsimd_metric_kind_t metric_kind, PyObject* args) {
+    PyObject* output = NULL;
+    PyObject* input_tensor_a = PyTuple_GetItem(args, 0);
+    PyObject* input_tensor_b = PyTuple_GetItem(args, 1);
+
+    Py_buffer buffer_a, buffer_b;
+    parsed_vector_or_matrix_t parsed_a, parsed_b;
+    if (parse_tensor(input_tensor_a, &buffer_a, &parsed_a) != 0 ||
+        parse_tensor(input_tensor_b, &buffer_b, &parsed_b) != 0) {
+        return NULL; // Error already set by parse_tensor
+    }
+
+    // Check dimensions
+    if (parsed_a.dimensions != parsed_b.dimensions) {
+        PyErr_SetString(PyExc_ValueError, "vector dimensions don't match");
+        goto cleanup;
+    }
+    if (parsed_a.count == 0 || parsed_b.count == 0) {
+        PyErr_SetString(PyExc_ValueError, "collections can't be empty");
+        goto cleanup;
+    }
+
+    // Check data types
+    if (parsed_a.datatype != parsed_b.datatype && parsed_a.datatype != simsimd_datatype_unknown_k &&
+        parsed_b.datatype != simsimd_datatype_unknown_k) {
+        PyErr_SetString(PyExc_ValueError, "input tensors must have matching and supported datatypes");
+        goto cleanup;
+    }
+
+    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, parsed_a.datatype, 0xFFFFFFFF);
+
+    // If the distance is computed between two vectors, rather than matrices, return a scalar
+    if (parsed_a.is_flat && parsed_b.is_flat) {
+        output = PyFloat_FromDouble(metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, parsed_b.dimensions));
+    } else {
+
+        // Compute the distances
+        simsimd_f32_t* distances = malloc(parsed_a.count * parsed_b.count * sizeof(simsimd_f32_t));
+#pragma omp parallel for collapse(2)
+        for (size_t i = 0; i < parsed_a.count; ++i)
+            for (size_t j = 0; j < parsed_b.count; ++j)
+                distances[i * parsed_b.count + j] = metric( //
+                    parsed_a.start + i * parsed_a.stride,   //
+                    parsed_b.start + j * parsed_b.stride,   //
+                    parsed_a.dimensions,                    //
+                    parsed_b.dimensions);
+
+        // Create a new PyArray object for the output
+        npy_intp dims[2] = {parsed_a.count, parsed_b.count};
+        PyArray_Descr* descr = PyArray_DescrFromType(NPY_FLOAT32);
+        PyArrayObject* output_array = (PyArrayObject*)PyArray_NewFromDescr( //
+            &PyArray_Type, descr, 2, dims, NULL, distances, NPY_ARRAY_OWNDATA | NPY_ARRAY_C_CONTIGUOUS, NULL);
+
+        if (!output_array) {
+            free(distances);
+            goto cleanup;
+        }
+
+        output = output_array;
+    }
+
+cleanup:
+    PyBuffer_Release(&buffer_a);
+    PyBuffer_Release(&buffer_b);
+    return output;
+}
+
+static PyObject* impl_pointer(simsimd_metric_kind_t metric_kind, PyObject* args) {
     char const* type_name = PyUnicode_AsUTF8(PyTuple_GetItem(args, 0));
     if (!type_name) {
         PyErr_SetString(PyExc_ValueError, "Invalid type name");
@@ -227,13 +297,17 @@ static PyObject* api_pointer(simsimd_metric_kind_t metric_kind, PyObject* args) 
     return PyLong_FromUnsignedLongLong((unsigned long long)metric);
 }
 
-static PyObject* api_l2sq_pointer(PyObject* self, PyObject* args) { return api_pointer(simsimd_metric_l2sq_k, args); }
-static PyObject* api_cos_pointer(PyObject* self, PyObject* args) { return api_pointer(simsimd_metric_cos_k, args); }
-static PyObject* api_ip_pointer(PyObject* self, PyObject* args) { return api_pointer(simsimd_metric_ip_k, args); }
+static PyObject* api_l2sq_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_l2sq_k, args); }
+static PyObject* api_cos_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_cos_k, args); }
+static PyObject* api_ip_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_ip_k, args); }
 
-static PyObject* api_l2sq(PyObject* self, PyObject* args) { return api_pairs(simsimd_metric_l2sq_k, args); }
-static PyObject* api_cos(PyObject* self, PyObject* args) { return api_pairs(simsimd_metric_cos_k, args); }
-static PyObject* api_ip(PyObject* self, PyObject* args) { return api_pairs(simsimd_metric_ip_k, args); }
+static PyObject* api_l2sq(PyObject* self, PyObject* args) { return impl_specific(simsimd_metric_l2sq_k, args); }
+static PyObject* api_cos(PyObject* self, PyObject* args) { return impl_specific(simsimd_metric_cos_k, args); }
+static PyObject* api_ip(PyObject* self, PyObject* args) { return impl_specific(simsimd_metric_ip_k, args); }
+
+static PyObject* api_cdist_l2sq(PyObject* self, PyObject* args) { return impl_cdist(simsimd_metric_l2sq_k, args); }
+static PyObject* api_cdist_cos(PyObject* self, PyObject* args) { return impl_cdist(simsimd_metric_cos_k, args); }
+static PyObject* api_cdist_ip(PyObject* self, PyObject* args) { return impl_cdist(simsimd_metric_ip_k, args); }
 
 static PyMethodDef simsimd_methods[] = {
     // Introspecting library and hardware capabilities
@@ -245,9 +319,9 @@ static PyMethodDef simsimd_methods[] = {
     {"inner", api_ip, METH_VARARGS, "Inner (Dot) Product distances between a pair of matrices"},
 
     // Compute distance between each pair of the two collections of inputs (two matrix arguments)
-    {"cdist_sqeuclidean", api_l2sq, METH_VARARGS, "L2sq (Sq. Euclidean) distances between every pair of vectors"},
-    {"cdist_cosine", api_cos, METH_VARARGS, "Cosine (Angular) distances between every pair of vectors"},
-    {"cdist_inner", api_ip, METH_VARARGS, "Inner (Dot) Product distances between every pair of vectors"},
+    {"cdist_sqeuclidean", api_cdist_l2sq, METH_VARARGS, "L2sq (Sq. Euclidean) distances between every pair of vectors"},
+    {"cdist_cosine", api_cdist_cos, METH_VARARGS, "Cosine (Angular) distances between every pair of vectors"},
+    {"cdist_inner", api_cdist_ip, METH_VARARGS, "Inner (Dot) Product distances between every pair of vectors"},
 
     // Pairwise distances between observations in n-dimensional space (single matrix argument)
     {"pdist_sqeuclidean", api_l2sq, METH_VARARGS, "L2sq (Sq. Euclidean) distances between every pair of vectors"},
