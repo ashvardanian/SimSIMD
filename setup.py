@@ -26,34 +26,12 @@ if sys.platform == "linux":
     # Disable warnings
     compile_args.append("-w")
 
-    compiler = ""
-    if platform.python_implementation() == "CPython":
-        compiler = platform.python_compiler().lower()
-        if "gcc" in compiler:
-            compiler = "gcc"
-        elif "clang" in compiler:
-            compiler = "llvm"
-
-    arch = platform.machine()
-    if arch == "x86_64" or arch == "i386":
-        compile_args.append("-march=sapphirerapids")
-    elif arch.startswith("arm"):
-        compile_args.append("-march=armv8-a+simd+sve+fp16")
-        if compiler == "gcc":
-            compile_args.extend(["-mfpu=neon", "-mfloat-abi=hard"])
-
 
 if sys.platform == "darwin":
     compile_args.append("-std=c11")
     compile_args.append("-O3")
     compile_args.append("-ffast-math")
     compile_args.append("-pedantic")
-
-    # GitHub CI complains about this:
-    # if "gcc" in platform.python_compiler().lower():  # GCC specific flags
-    #     compile_args.append("-fdiagnostics-color=always")
-    # else:  # Clang specific flags
-    #     compile_args.append("-fcolor-diagnostics")
 
     # Simplify debugging, but the normal `-g` may make builds much longer!
     compile_args.append("-g1")

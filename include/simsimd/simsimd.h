@@ -83,25 +83,41 @@
 #error Unknown hardware architecture!
 #endif
 
+#if defined(__GNUC__) && !defined(__clang__)
+#define SIMSIMD_PRAGMA_TARGET(x) _Pragma("GCC push_options") _Pragma("GCC target(\"" x "\")")
+#define SIMSIMD_PRAGMA_END _Pragma("GCC pop_options")
+#elif defined(__clang__)
+#define SIMSIMD_PRAGMA_TARGET(x) _Pragma("clang attribute push (__attribute__((target(\"" x "\"))), apply_to=function)")
+#define SIMSIMD_PRAGMA_END _Pragma("clang attribute pop")
+#endif
+
 #if SIMSIMD_TARGET_ARM_NEON
+SIMSIMD_PRAGMA_TARGET("arch=armv8-a+simd+fp16")
 #include "arm_neon_f16.h"
 #include "arm_neon_f32.h"
 #include "arm_neon_i8.h"
+SIMSIMD_PRAGMA_END
 #endif
 
 #if SIMSIMD_TARGET_ARM_SVE
+SIMSIMD_PRAGMA_TARGET("arch=armv8-a+sve")
 #include "arm_sve_f16.h"
 #include "arm_sve_f32.h"
+SIMSIMD_PRAGMA_END
 #endif
 
 #if SIMSIMD_TARGET_X86_AVX2
+SIMSIMD_PRAGMA_TARGET("avx2,f16c,fma")
 #include "x86_avx2_f16.h"
 #include "x86_avx2_i8.h"
+SIMSIMD_PRAGMA_END
 #endif
 
 #if SIMSIMD_TARGET_X86_AVX512
+SIMSIMD_PRAGMA_TARGET("avx512fp16,avx512f,avx512vl")
 #include "x86_avx512_f16.h"
 #include "x86_avx512_i8.h"
+SIMSIMD_PRAGMA_END
 #endif
 
 #ifdef __cplusplus
