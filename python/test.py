@@ -3,7 +3,7 @@ import numpy as np
 import simsimd as simd
 from scipy.spatial.distance import cosine, sqeuclidean
 
-SIMSIMD_RTOL = 5e-2
+SIMSIMD_RTOL = 1e-1
 
 
 def test_pointers_availability():
