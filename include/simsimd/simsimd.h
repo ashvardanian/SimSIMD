@@ -120,8 +120,9 @@ inline static simsimd_capability_t simsimd_capabilities() {
     unsigned long id_aa64isar0_el1 = 0;
     unsigned long id_aa64mmfr2_el1 = 0;
 
-    // Seems like Apple Silicon doesn't expose those registers
-#ifndef __APPLE__
+    // TODO: Fix capability checks on aarch64
+    // https://github.com/Xilinx/linux-xlnx/blob/cb1f2dbc7e487361688257fccf78bf3f3ce0e9ed/arch/arm64/kernel/cpufeature.c#L2765
+#if 0
     // Check the SVE and SVE2 field of ID_AA64ISAR0_EL1 register
     __asm__ __volatile__("mrs %0, id_aa64isar0_el1" : "=r"(id_aa64isar0_el1));
     // Check the MML field of ID_AA64MMFR2_EL1 register
