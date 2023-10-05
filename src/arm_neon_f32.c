@@ -60,8 +60,6 @@ simsimd_f32_t simsimd_neon_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* 
 
     // Avoid `simsimd_approximate_inverse_square_root` on Arm NEON
     simsimd_f32_t a2_b2_arr[2] = {a2, b2};
-    float32x2_t a2_b2 = vld1_f32(a2_b2_arr);
-    a2_b2 = vrsqrte_f32(a2_b2);
-    vst1_f32(a2_b2_arr, a2_b2);
-    return 1 - ab / (a2_b2_arr[0] * a2_b2_arr[1]);
+    vst1_f32(a2_b2_arr, vrsqrte_f32(vld1_f32(a2_b2_arr)));
+    return 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
 }

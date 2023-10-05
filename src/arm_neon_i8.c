@@ -76,7 +76,7 @@ simsimd_f32_t simsimd_neon_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, 
     float32x2_t a2_b2 = vld1_f32(a2_b2_arr);
     a2_b2 = vrsqrte_f32(a2_b2);
     vst1_f32(a2_b2_arr, a2_b2);
-    return 1 - ab / (a2_b2_arr[0] * a2_b2_arr[1]);
+    return 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
 }
 
 simsimd_f32_t simsimd_neon_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {

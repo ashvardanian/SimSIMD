@@ -175,7 +175,7 @@ static PyObject* impl_specific(simsimd_metric_kind_t metric_kind, PyObject* args
         size_t count_max = parsed_a.count > parsed_b.count ? parsed_a.count : parsed_b.count;
 
         // Compute the distances
-        simsimd_f32_t* distances = malloc(count_max * sizeof(simsimd_f32_t));
+        float* distances = malloc(count_max * sizeof(float));
         for (size_t i = 0; i < count_max; ++i)
             distances[i] = metric(                    //
                 parsed_a.start + i * parsed_a.stride, //
@@ -245,7 +245,7 @@ static PyObject* impl_cdist(simsimd_metric_kind_t metric_kind, PyObject* args) {
     } else {
 
         // Compute the distances
-        simsimd_f32_t* distances = malloc(parsed_a.count * parsed_b.count * sizeof(simsimd_f32_t));
+        float* distances = malloc(parsed_a.count * parsed_b.count * sizeof(float));
 #pragma omp parallel for collapse(2)
         for (size_t i = 0; i < parsed_a.count; ++i)
             for (size_t j = 0; j < parsed_b.count; ++j)

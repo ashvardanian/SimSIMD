@@ -4,6 +4,7 @@ import platform
 from os.path import dirname
 from setuptools import setup, Extension
 
+import glob
 import numpy
 
 __version__ = open("VERSION", "r").read().strip()
@@ -12,6 +13,9 @@ __lib_name__ = "simsimd"
 compile_args = []
 link_args = []
 macros_args = []
+source_args = ["python/lib.c", "src/autovec.c"]
+libraries_args = []
+include_args = ["include", numpy.get_include()]
 
 if sys.platform == "linux":
     compile_args.append("-std=c11")
@@ -37,11 +41,23 @@ if sys.platform == "win32":
     compile_args.append("/fp:fast")
 
 
+arch = platform.machine()
+
+if arch == "x86_64":
+    libraries_args.append("simsimd_x86_avx2")
+    libraries_args.append("simsimd_x86_avx512")
+elif arch == "aarch64" or arch == "arm64":
+    libraries_args.append("simsimd_arm_neon")
+    libraries_args.append("simsimd_arm_sve")
+
+
 ext_modules = [
     Extension(
         "simsimd",
-        sources=["python/lib.c"],
-        include_dirs=["include", numpy.get_include()],
+        sources=source_args,
+        libraries=libraries_args,
+        library_dirs=["src"],
+        include_dirs=include_args,
         extra_compile_args=compile_args,
         extra_link_args=link_args,
         define_macros=macros_args,
