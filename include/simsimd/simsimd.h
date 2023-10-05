@@ -116,8 +116,10 @@
 
 #if SIMSIMD_TARGET_X86_AVX512
 #pragma GCC push_options
-#pragma GCC target("avx512fp16,avx512f,avx512vl,avx512bw")
-#pragma clang attribute push(__attribute__((target("avx512fp16,avx512f,avx512vl,avx512bw"))), apply_to = function)
+#pragma GCC target("avx512fp16,avx512bf16,avx512f,avx512vl,avx512bw,avx512dq,avx512cd,avx512vnni")
+#pragma clang attribute push(                                                                                          \
+    __attribute__((target("avx512fp16,avx512bf16,avx512f,avx512vl,avx512bw,avx512dq,avx512cd,avx512vnni"))),           \
+    apply_to = function)
 #include "x86_avx512_f16.h"
 #include "x86_avx512_i8.h"
 #pragma GCC pop_options
