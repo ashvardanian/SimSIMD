@@ -42,12 +42,9 @@ jobs:
 
       - name: Build locally on Ubuntu
         run: |
-          sudo apt update
-          sudo apt install software-properties-common
-          sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-          sudo apt update
-          sudo apt install gcc-13 g++-13 -y
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 13 --slave /usr/bin/g++ g++ /usr/bin/g++-13
+          sudo apt-get update
+          sudo apt-get install gcc-12 -y
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
           sudo update-alternatives --config gcc
           gcc --version
           python -m pip install .

@@ -17,11 +17,7 @@ if sys.platform == "linux":
     compile_args.append("-std=c11")
     compile_args.append("-O3")
     compile_args.append("-ffast-math")
-    compile_args.append("-pedantic")
     compile_args.append("-fdiagnostics-color=always")
-
-    # Simplify debugging, but the normal `-g` may make builds much longer!
-    compile_args.append("-g1")
 
     # Disable warnings
     compile_args.append("-w")
@@ -31,10 +27,6 @@ if sys.platform == "darwin":
     compile_args.append("-std=c11")
     compile_args.append("-O3")
     compile_args.append("-ffast-math")
-    compile_args.append("-pedantic")
-
-    # Simplify debugging, but the normal `-g` may make builds much longer!
-    compile_args.append("-g1")
 
     # Disable warnings
     compile_args.append("-w")

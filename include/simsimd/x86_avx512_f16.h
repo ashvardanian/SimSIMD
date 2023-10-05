@@ -8,6 +8,13 @@
  *  - Uses `f16` for both storage and accumulation, assuming it's resolution is enough for average case.
  *  - Requires compiler capabilities: avx512fp16, avx512f, avx512vl.
  */
+#pragma once
+
+#pragma GCC push_options
+#pragma GCC target("avx512fp16,avx512f,avx512vl,avx512bw,avx512dq,avx512cd,avx512vnni")
+#pragma clang attribute push(                                                                                          \
+    __attribute__((target("avx512fp16,avx512f,avx512vl,avx512bw,avx512dq,avx512cd,avx512vnni"))), apply_to = function)
+
 #include <immintrin.h>
 
 #include "types.h"
@@ -16,7 +23,10 @@
 extern "C" {
 #endif
 
-static simsimd_f32_t simsimd_avx512_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t d) {
+__attribute__((target("avx512fp16"))) //
+__attribute__((target("avx512f")))    //
+static simsimd_f32_t
+simsimd_avx512_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t d) {
     __m512h d2_vec = _mm512_set1_ph(0);
     simsimd_size_t i = 0;
 
@@ -33,7 +43,10 @@ static simsimd_f32_t simsimd_avx512_f16_l2sq(simsimd_f16_t const* a, simsimd_f16
     return _mm512_reduce_add_ph(d2_vec);
 }
 
-static simsimd_f32_t simsimd_avx512_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t d) {
+__attribute__((target("avx512fp16"))) //
+__attribute__((target("avx512f")))    //
+static simsimd_f32_t
+simsimd_avx512_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t d) {
     __m512h ab_vec = _mm512_set1_ph(0);
     simsimd_size_t i = 0;
 
@@ -49,7 +62,10 @@ static simsimd_f32_t simsimd_avx512_f16_ip(simsimd_f16_t const* a, simsimd_f16_t
     return 1 - _mm512_reduce_add_ph(ab_vec);
 }
 
-static simsimd_f32_t simsimd_avx512_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t d) {
+__attribute__((target("avx512fp16"))) //
+__attribute__((target("avx512f")))    //
+static simsimd_f32_t
+simsimd_avx512_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t d) {
     __m512h ab_vec = _mm512_set1_ph(0);
     __m512h a2_vec = _mm512_set1_ph(0);
     __m512h b2_vec = _mm512_set1_ph(0);
@@ -80,3 +96,6 @@ static simsimd_f32_t simsimd_avx512_f16_cos(simsimd_f16_t const* a, simsimd_f16_
 #ifdef __cplusplus
 } // extern "C"
 #endif
+
+#pragma GCC pop_options
+#pragma clang attribute pop
