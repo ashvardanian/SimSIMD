@@ -24,12 +24,14 @@ typedef enum {
     // Classics:
     simsimd_metric_ip_k = 'i',
     simsimd_metric_dot_k = 'i',
+    simsimd_metric_inner_k = 'i',
 
     simsimd_metric_cos_k = 'c',
+    simsimd_metric_cosine_k = 'c',
     simsimd_metric_angular_k = 'c',
 
     simsimd_metric_l2sq_k = 'e',
-    simsimd_metric_euclidean_k = 'e',
+    simsimd_metric_sqeuclidean_k = 'e',
 
     // Sets:
     simsimd_metric_hamming_k = 'b',

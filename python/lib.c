@@ -10,6 +10,7 @@
 #if __linux__
 #define SIMSIMD_TARGET_ARM_SVE 1
 #define SIMSIMD_TARGET_X86_AVX512 1
+#include <omp.h>
 #endif
 
 #define SIMSIMD_RSQRT simsimd_approximate_inverse_square_root
@@ -59,6 +60,17 @@ simsimd_datatype_t python_string_to_datatype(char const* name) {
         return simsimd_datatype_f64_k;
     else
         return simsimd_datatype_unknown_k;
+}
+
+simsimd_metric_kind_t python_string_to_metric_kind(char const* name) {
+    if (same_string(name, "sqeuclidean"))
+        return simsimd_metric_sqeuclidean_k;
+    else if (same_string(name, "inner"))
+        return simsimd_metric_inner_k;
+    else if (same_string(name, "cosine"))
+        return simsimd_metric_cosine_k;
+    else
+        return simsimd_metric_unknown_k;
 }
 
 static PyObject* api_get_capabilities(PyObject* self) {
@@ -120,7 +132,7 @@ int parse_tensor(PyObject* tensor, Py_buffer* buffer, parsed_vector_or_matrix_t*
     return 0;
 }
 
-static PyObject* impl_specific(simsimd_metric_kind_t metric_kind, PyObject* args) {
+static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* args) {
     if (!PyTuple_Check(args) || PyTuple_Size(args) != 2) {
         PyErr_SetString(PyExc_TypeError, "function expects exactly 2 arguments");
         return NULL;
@@ -203,16 +215,11 @@ cleanup:
     return output;
 }
 
-static PyObject* impl_cdist(simsimd_metric_kind_t metric_kind, PyObject* args) {
-    if (!PyTuple_Check(args) || PyTuple_Size(args) != 2) {
-        PyErr_SetString(PyExc_TypeError, "function expects exactly 2 arguments");
-        return NULL;
-    }
+static PyObject* impl_cdist(                            //
+    PyObject* input_tensor_a, PyObject* input_tensor_b, //
+    simsimd_metric_kind_t metric_kind, size_t threads) {
 
     PyObject* output = NULL;
-    PyObject* input_tensor_a = PyTuple_GetItem(args, 0);
-    PyObject* input_tensor_b = PyTuple_GetItem(args, 1);
-
     Py_buffer buffer_a, buffer_b;
     parsed_vector_or_matrix_t parsed_a, parsed_b;
     if (parse_tensor(input_tensor_a, &buffer_a, &parsed_a) != 0 ||
@@ -244,6 +251,13 @@ static PyObject* impl_cdist(simsimd_metric_kind_t metric_kind, PyObject* args) {
         output = PyFloat_FromDouble(metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, parsed_b.dimensions));
     } else {
 
+#ifdef __linux__
+#ifdef _OPENMP
+        if (threads == 0)
+            threads = omp_get_num_procs();
+        omp_set_num_threads(threads);
+#endif
+#endif
         // Compute the distances
         float* distances = malloc(parsed_a.count * parsed_b.count * sizeof(float));
 #pragma omp parallel for collapse(2)
@@ -297,17 +311,73 @@ static PyObject* impl_pointer(simsimd_metric_kind_t metric_kind, PyObject* args)
     return PyLong_FromUnsignedLongLong((unsigned long long)metric);
 }
 
+static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
+    PyObject *input_tensor_a, *input_tensor_b;
+    PyObject* metric_obj = NULL;
+    PyObject* threads_obj = NULL;
+
+    if (!PyTuple_Check(args) || PyTuple_Size(args) < 2) {
+        PyErr_SetString(PyExc_TypeError, "function expects at least 2 positional arguments");
+        return NULL;
+    }
+
+    input_tensor_a = PyTuple_GetItem(args, 0);
+    input_tensor_b = PyTuple_GetItem(args, 1);
+    if (PyTuple_Size(args) > 2)
+        metric_obj = PyTuple_GetItem(args, 2);
+    if (PyTuple_Size(args) > 3)
+        threads_obj = PyTuple_GetItem(args, 3);
+
+    // Checking for named arguments in kwargs
+    if (kwargs) {
+        if (!metric_obj) {
+            metric_obj = PyDict_GetItemString(kwargs, "metric");
+        } else if (PyDict_GetItemString(kwargs, "metric")) {
+            PyErr_SetString(PyExc_TypeError, "Duplicate argument for 'metric'");
+            return NULL;
+        }
+
+        if (!threads_obj) {
+            threads_obj = PyDict_GetItemString(kwargs, "threads");
+        } else if (PyDict_GetItemString(kwargs, "threads")) {
+            PyErr_SetString(PyExc_TypeError, "Duplicate argument for 'threads'");
+            return NULL;
+        }
+    }
+
+    // Process the PyObject values
+    simsimd_metric_kind_t metric_kind = simsimd_metric_l2sq_k;
+    if (metric_obj) {
+        char const* metric_str = PyUnicode_AsUTF8(metric_obj);
+        if (!metric_str && PyErr_Occurred()) {
+            PyErr_SetString(PyExc_TypeError, "Expected 'metric' to be a string");
+            return NULL;
+        }
+        metric_kind = python_string_to_metric_kind(metric_str);
+        if (metric_kind == simsimd_metric_unknown_k) {
+            PyErr_SetString(PyExc_ValueError, "Unsupported metric");
+            return NULL;
+        }
+    }
+
+    size_t threads = 1;
+    if (threads_obj)
+        threads = PyLong_AsSize_t(threads_obj);
+    if (PyErr_Occurred()) {
+        PyErr_SetString(PyExc_TypeError, "Expected 'threads' to be an unsigned integer");
+        return NULL;
+    }
+
+    return impl_cdist(input_tensor_a, input_tensor_b, metric_kind, threads);
+}
+
 static PyObject* api_l2sq_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_l2sq_k, args); }
 static PyObject* api_cos_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_cos_k, args); }
 static PyObject* api_ip_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_ip_k, args); }
 
-static PyObject* api_l2sq(PyObject* self, PyObject* args) { return impl_specific(simsimd_metric_l2sq_k, args); }
-static PyObject* api_cos(PyObject* self, PyObject* args) { return impl_specific(simsimd_metric_cos_k, args); }
-static PyObject* api_ip(PyObject* self, PyObject* args) { return impl_specific(simsimd_metric_ip_k, args); }
-
-static PyObject* api_cdist_l2sq(PyObject* self, PyObject* args) { return impl_cdist(simsimd_metric_l2sq_k, args); }
-static PyObject* api_cdist_cos(PyObject* self, PyObject* args) { return impl_cdist(simsimd_metric_cos_k, args); }
-static PyObject* api_cdist_ip(PyObject* self, PyObject* args) { return impl_cdist(simsimd_metric_ip_k, args); }
+static PyObject* api_l2sq(PyObject* self, PyObject* args) { return impl_metric(simsimd_metric_l2sq_k, args); }
+static PyObject* api_cos(PyObject* self, PyObject* args) { return impl_metric(simsimd_metric_cos_k, args); }
+static PyObject* api_ip(PyObject* self, PyObject* args) { return impl_metric(simsimd_metric_ip_k, args); }
 
 static PyMethodDef simsimd_methods[] = {
     // Introspecting library and hardware capabilities
@@ -318,15 +388,9 @@ static PyMethodDef simsimd_methods[] = {
     {"cosine", api_cos, METH_VARARGS, "Cosine (Angular) distances between a pair of matrices"},
     {"inner", api_ip, METH_VARARGS, "Inner (Dot) Product distances between a pair of matrices"},
 
-    // Compute distance between each pair of the two collections of inputs (two matrix arguments)
-    {"cdist_sqeuclidean", api_cdist_l2sq, METH_VARARGS, "L2sq (Sq. Euclidean) distances between every pair of vectors"},
-    {"cdist_cosine", api_cdist_cos, METH_VARARGS, "Cosine (Angular) distances between every pair of vectors"},
-    {"cdist_inner", api_cdist_ip, METH_VARARGS, "Inner (Dot) Product distances between every pair of vectors"},
-
-    // Pairwise distances between observations in n-dimensional space (single matrix argument)
-    {"pdist_sqeuclidean", api_l2sq, METH_VARARGS, "L2sq (Sq. Euclidean) distances between every pair of vectors"},
-    {"pdist_cosine", api_cos, METH_VARARGS, "Cosine (Angular) distances between every pair of vectors"},
-    {"pdist_inner", api_ip, METH_VARARGS, "Inner (Dot) Product distances between every pair of vectors"},
+    // Conventional `cdist` and `pdist` insterfaces with third string argument, and optional `threads` arg
+    {"cdist", api_cdist, METH_VARARGS | METH_KEYWORDS,
+     "Compute distance between each pair of the two collections of inputs"},
 
     // Exposing underlying API for USearch
     {"pointer_to_sqeuclidean", api_l2sq_pointer, METH_VARARGS, "L2sq (Sq. Euclidean) function pointer as `int`"},

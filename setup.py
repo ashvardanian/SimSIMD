@@ -23,6 +23,9 @@ if sys.platform == "linux":
     # Disable warnings
     compile_args.append("-w")
 
+    # Enable OpenMP for Linux
+    compile_args.append("-fopenmp")
+    link_args.append("-lgomp")
 
 if sys.platform == "darwin":
     compile_args.append("-std=c11")

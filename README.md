@@ -87,14 +87,6 @@ By default, computations use a single CPU core. To optimize and utilize all CPU 
 distances = simsimd.cdist(matrix1, matrix2, metric="cosine", threads=0)
 ```
 
-### All Intra-matrix Pairwise sDistance
-
-For obtaining pairwise distances within a single matrix (similar to [`scipy.spatial.distance.pdist`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.pdist.html)):
-
-```py
-distances = simsimd.pdist(matrix1, metric="cosine", threads=0)
-```
-
 ### Hardware Backend Capabilities
 
 To view a list of hardware backends that SimSIMD supports:

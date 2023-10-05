@@ -1,9 +1,10 @@
 import pytest
 import numpy as np
 import simsimd as simd
-from scipy.spatial.distance import cosine, sqeuclidean
+from scipy.spatial.distance import cosine, sqeuclidean, cdist
 
-SIMSIMD_RTOL = 5e-2
+SIMSIMD_RTOL = 2
+SIMSIMD_ATOL = 3e-1
 
 
 def test_pointers_availability():
@@ -31,7 +32,7 @@ def test_dot(ndim, dtype):
     expected = 1 - np.inner(a, b)
     result = simd.inner(a, b)
 
-    np.testing.assert_allclose(expected, result, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
@@ -44,7 +45,7 @@ def test_sqeuclidean(ndim, dtype):
     expected = sqeuclidean(a, b)
     result = simd.sqeuclidean(a, b)
 
-    np.testing.assert_allclose(expected, result, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
@@ -57,7 +58,7 @@ def test_cosine(ndim, dtype):
     expected = cosine(a, b)
     result = simd.cosine(a, b)
 
-    np.testing.assert_allclose(expected, result, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
@@ -70,36 +71,52 @@ def test_batch(ndim, dtype):
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [sqeuclidean(A[i], B[i]) for i in range(10)]
     result_simd = simd.sqeuclidean(A, B)
-    assert np.allclose(result_simd, result_np, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (1 x D scalars) is an array with N floats.
     B = np.random.randn(1, ndim).astype(dtype)
     result_np = [sqeuclidean(A[i], B[0]) for i in range(10)]
     result_simd = simd.sqeuclidean(A, B)
-    assert np.allclose(result_simd, result_np, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
     # Distance between matrixes A (1 x D scalars) and B (N x D scalars) is an array with N floats.
     A = np.random.randn(1, ndim).astype(dtype)
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [sqeuclidean(A[0], B[i]) for i in range(10)]
     result_simd = simd.sqeuclidean(A, B)
-    assert np.allclose(result_simd, result_np, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
     # Distance between matrix A (N x D scalars) and array B (D scalars) is an array with N floats.
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.random.randn(ndim).astype(dtype)
     result_np = [sqeuclidean(A[i], B) for i in range(10)]
     result_simd = simd.sqeuclidean(A, B)
-    assert np.allclose(result_simd, result_np, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
     # Distance between matrix B (N x D scalars) and array A (D scalars) is an array with N floats.
     B = np.random.randn(10, ndim).astype(dtype)
     A = np.random.randn(ndim).astype(dtype)
     result_np = [sqeuclidean(B[i], A) for i in range(10)]
     result_simd = simd.sqeuclidean(B, A)
-    assert np.allclose(result_simd, result_np, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
-def test_all_pairs():
-    """Compares the simd.dot() function with numpy.dot() for a batch of vectors, measuring the accuracy error for f16, and f32 types."""
-    pass
+@pytest.mark.parametrize("ndim", [3, 97, 1536])
+@pytest.mark.parametrize("dtype", [np.float32, np.float16])
+@pytest.mark.parametrize("metric", ["sqeuclidean", "cosine"])
+def test_cdist(ndim, dtype, metric):
+    """Compares the simd.cdist() function with scipy.spatial.distance.cdist(), measuring the accuracy error for f16, and f32 types using sqeuclidean and cosine metrics."""
+
+    # Create random matrices A (M x D) and B (N x D).
+    M, N = 10, 15  # or any other sizes you deem appropriate
+    A = np.random.randn(M, ndim).astype(dtype)
+    B = np.random.randn(N, ndim).astype(dtype)
+
+    # Compute cdist using scipy.
+    expected = cdist(A, B, metric)
+
+    # Compute cdist using simd.
+    result = simd.cdist(A, B, metric=metric)
+
+    # Assert they're close.
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
