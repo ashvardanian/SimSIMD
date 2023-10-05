@@ -10,11 +10,7 @@
 
 #include "types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-inline static simsimd_f32_t simsimd_sve_b1_hamming(simsimd_b1_t const* a, simsimd_b1_t const* b, simsimd_size_t d) {
+simsimd_f32_t simsimd_sve_b1_hamming(simsimd_b1_t const* a, simsimd_b1_t const* b, simsimd_size_t d) {
     simsimd_size_t i = 0;
     svuint8_t d_vec = svdupq_n_u8(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     svbool_t pg_vec = svwhilelt_b8(i, d);
@@ -28,7 +24,3 @@ inline static simsimd_f32_t simsimd_sve_b1_hamming(simsimd_b1_t const* a, simsim
     } while (svptest_any(svptrue_b32(), pg_vec));
     return 1 - svaddv_u8(svptrue_b32(), d_vec);
 }
-
-#ifdef __cplusplus
-} // extern "C"
-#endif

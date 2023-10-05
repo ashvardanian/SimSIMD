@@ -45,7 +45,7 @@ __Technical Insights__:
 - To minimize dependencies, such as `<math.h>`, `sqrt` calls are replaced with approximations using Jan Kadlec's constants:
 
 ```c
-inline static simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_t number) {
+simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_t number) {
     simsimd_f32i32_t conv;
     conv.f = number;
     conv.i = 0x5F1FFFF9 - (conv.i >> 1);

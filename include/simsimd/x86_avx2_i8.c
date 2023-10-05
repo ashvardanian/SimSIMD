@@ -12,11 +12,7 @@
 
 #include "types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-inline static simsimd_f32_t simsimd_avx2_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+simsimd_f32_t simsimd_avx2_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
 
     __m256i d2_high_vec = _mm256_setzero_si256();
     __m256i d2_low_vec = _mm256_setzero_si256();
@@ -59,7 +55,7 @@ inline static simsimd_f32_t simsimd_avx2_i8_l2sq(simsimd_i8_t const* a, simsimd_
     return (simsimd_f32_t)d2;
 }
 
-inline static simsimd_f32_t simsimd_avx2_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+simsimd_f32_t simsimd_avx2_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
 
     __m256i ab_high_vec = _mm256_setzero_si256();
     __m256i ab_low_vec = _mm256_setzero_si256();
@@ -124,10 +120,6 @@ inline static simsimd_f32_t simsimd_avx2_i8_cos(simsimd_i8_t const* a, simsimd_i
     return _mm_cvtss_f32(result);                             // Extract the final result
 }
 
-inline static simsimd_f32_t simsimd_avx2_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+simsimd_f32_t simsimd_avx2_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     return simsimd_avx2_i8_cos(a, b, d);
 }
-
-#ifdef __cplusplus
-} // extern "C"
-#endif

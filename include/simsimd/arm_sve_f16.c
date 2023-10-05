@@ -11,12 +11,7 @@
 
 #include "types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-inline static simsimd_f32_t simsimd_sve_f16_l2sq(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum,
-                                                 simsimd_size_t d) {
+simsimd_f32_t simsimd_sve_f16_l2sq(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, simsimd_size_t d) {
     simsimd_size_t i = 0;
     svfloat16_t d2_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
     svbool_t pg_vec = svwhilelt_b16(i, d);
@@ -34,8 +29,7 @@ inline static simsimd_f32_t simsimd_sve_f16_l2sq(simsimd_f16_t const* a_enum, si
     return 1 - d2_f16;
 }
 
-inline static simsimd_f32_t simsimd_sve_f16_ip(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum,
-                                               simsimd_size_t d) {
+simsimd_f32_t simsimd_sve_f16_ip(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, simsimd_size_t d) {
     simsimd_size_t i = 0;
     svfloat16_t ab_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
     svbool_t pg_vec = svwhilelt_b16(i, d);
@@ -52,8 +46,7 @@ inline static simsimd_f32_t simsimd_sve_f16_ip(simsimd_f16_t const* a_enum, sims
     return 1 - ab;
 }
 
-inline static simsimd_f32_t simsimd_sve_f16_cos(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum,
-                                                simsimd_size_t d) {
+simsimd_f32_t simsimd_sve_f16_cos(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, simsimd_size_t d) {
     simsimd_size_t i = 0;
     svfloat16_t ab_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
     svfloat16_t a2_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
@@ -75,7 +68,3 @@ inline static simsimd_f32_t simsimd_sve_f16_cos(simsimd_f16_t const* a_enum, sim
     simsimd_f16_t b2 = svaddv_f16(svptrue_b16(), b2_vec);
     return 1 - ab * simsimd_approximate_inverse_square_root(a2 * b2);
 }
-
-#ifdef __cplusplus
-} // extern "C"
-#endif

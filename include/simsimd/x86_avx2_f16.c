@@ -12,11 +12,7 @@
 
 #include "types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-inline static simsimd_f32_t simsimd_avx2_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
+simsimd_f32_t simsimd_avx2_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
     __m256 d2_vec = _mm256_set1_ps(0);
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
@@ -39,7 +35,7 @@ inline static simsimd_f32_t simsimd_avx2_f16_l2sq(simsimd_f16_t const* a, simsim
     return result[0];
 }
 
-inline static simsimd_f32_t simsimd_avx2_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
+simsimd_f32_t simsimd_avx2_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
     __m256 ab_vec = _mm256_set1_ps(0);
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
@@ -61,7 +57,7 @@ inline static simsimd_f32_t simsimd_avx2_f16_ip(simsimd_f16_t const* a, simsimd_
     return 1 - result[0];
 }
 
-inline static simsimd_f32_t simsimd_avx2_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
+simsimd_f32_t simsimd_avx2_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
     __m256 ab_vec = _mm256_set1_ps(0), a2_vec = _mm256_set1_ps(0), b2_vec = _mm256_set1_ps(0);
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
@@ -101,7 +97,3 @@ inline static simsimd_f32_t simsimd_avx2_f16_cos(simsimd_f16_t const* a, simsimd
     result = _mm_sub_ss(_mm_set_ss(1.0f), result);            // Subtract from 1
     return _mm_cvtss_f32(result);                             // Extract the final result
 }
-
-#ifdef __cplusplus
-} // extern "C"
-#endif

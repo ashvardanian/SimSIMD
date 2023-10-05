@@ -12,11 +12,7 @@
 
 #include "types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-inline static simsimd_f32_t simsimd_avx512_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+simsimd_f32_t simsimd_avx512_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     __m512i d2_i32s_vec = _mm512_setzero_si512();
     simsimd_size_t i = 0;
 
@@ -33,7 +29,7 @@ inline static simsimd_f32_t simsimd_avx512_i8_l2sq(simsimd_i8_t const* a, simsim
     return _mm512_reduce_add_epi32(d2_i32s_vec);
 }
 
-inline static simsimd_f32_t simsimd_avx512_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+simsimd_f32_t simsimd_avx512_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     __m512i ab_i32s_vec = _mm512_setzero_si512();
     __m512i a2_i32s_vec = _mm512_setzero_si512();
     __m512i b2_i32s_vec = _mm512_setzero_si512();
@@ -62,10 +58,6 @@ inline static simsimd_f32_t simsimd_avx512_i8_cos(simsimd_i8_t const* a, simsimd
     return 1 - ab * rsqrts_array[0] * rsqrts_array[1];
 }
 
-inline static simsimd_f32_t simsimd_avx512_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+simsimd_f32_t simsimd_avx512_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     return simsimd_avx512_i8_cos(a, b, d);
 }
-
-#ifdef __cplusplus
-} // extern "C"
-#endif

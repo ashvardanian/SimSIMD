@@ -6,13 +6,9 @@
 #define SIMSIMD_RSQRT sqrtf
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define SIMSIMD_AUTO_L2SQ(name, input_type, accumulator_type)                                                          \
-    inline static simsimd_f32_t simsimd_##name##_##input_type##_l2sq(                                                  \
-        simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t d) {                      \
+    simsimd_f32_t simsimd_##name##_##input_type##_l2sq(simsimd_##input_type##_t const* a,                              \
+                                                       simsimd_##input_type##_t const* b, simsimd_size_t d) {          \
         simsimd_##accumulator_type##_t d2 = 0;                                                                         \
         for (simsimd_size_t i = 0; i != d; ++i) {                                                                      \
             simsimd_##accumulator_type##_t ai = a[i];                                                                  \
@@ -23,8 +19,8 @@ extern "C" {
     }
 
 #define SIMSIMD_AUTO_IP(name, input_type, accumulator_type)                                                            \
-    inline static simsimd_f32_t simsimd_##name##_##input_type##_ip(                                                    \
-        simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t d) {                      \
+    simsimd_f32_t simsimd_##name##_##input_type##_ip(simsimd_##input_type##_t const* a,                                \
+                                                     simsimd_##input_type##_t const* b, simsimd_size_t d) {            \
         simsimd_##accumulator_type##_t ab = 0;                                                                         \
         for (simsimd_size_t i = 0; i != d; ++i) {                                                                      \
             simsimd_##accumulator_type##_t ai = a[i];                                                                  \
@@ -35,8 +31,8 @@ extern "C" {
     }
 
 #define SIMSIMD_AUTO_COS(name, input_type, accumulator_type)                                                           \
-    inline static simsimd_f32_t simsimd_##name##_##input_type##_cos(                                                   \
-        simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t d) {                      \
+    simsimd_f32_t simsimd_##name##_##input_type##_cos(simsimd_##input_type##_t const* a,                               \
+                                                      simsimd_##input_type##_t const* b, simsimd_size_t d) {           \
         simsimd_##accumulator_type##_t ab = 0, a2 = 0, b2 = 0;                                                         \
         for (simsimd_size_t i = 0; i != d; ++i) {                                                                      \
             simsimd_##accumulator_type##_t ai = a[i];                                                                  \
@@ -62,7 +58,7 @@ SIMSIMD_AUTO_COS(auto, f16, f32)
 SIMSIMD_AUTO_L2SQ(auto, i8, i32)
 SIMSIMD_AUTO_COS(auto, i8, i32)
 
-inline static simsimd_f32_t simsimd_auto_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+simsimd_f32_t simsimd_auto_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     return simsimd_auto_i8_cos(a, b, d);
 }
 
@@ -77,10 +73,6 @@ SIMSIMD_AUTO_COS(accurate, f16, f64)
 SIMSIMD_AUTO_L2SQ(accurate, i8, i32)
 SIMSIMD_AUTO_COS(accurate, i8, i32)
 
-inline static simsimd_f32_t simsimd_accurate_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+simsimd_f32_t simsimd_accurate_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     return simsimd_accurate_i8_cos(a, b, d);
 }
-
-#ifdef __cplusplus
-} // extern "C"
-#endif

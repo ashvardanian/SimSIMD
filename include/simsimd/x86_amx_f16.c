@@ -11,10 +11,6 @@
 
 #include "types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 static void simsimd_amx_f16_ip(                                              //
     simsimd_f16_t const* a, simsimd_size_t a_count, simsimd_size_t a_stride, //
     simsimd_f16_t const* b, simsimd_size_t b_count, simsimd_size_t b_stride, //
@@ -66,7 +62,3 @@ static void simsimd_amx_f16_ip(                                              //
     // Release the tile state
     _tile_release();
 }
-
-#ifdef __cplusplus
-} // extern "C"
-#endif

@@ -11,11 +11,7 @@
 
 #include "types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-inline static simsimd_f32_t simsimd_neon_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+simsimd_f32_t simsimd_neon_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     int32x4_t d2_vec = vdupq_n_s32(0);
     simsimd_size_t i = 0;
     for (; i + 7 < d; i += 8) {
@@ -36,7 +32,7 @@ inline static simsimd_f32_t simsimd_neon_i8_l2sq(simsimd_i8_t const* a, simsimd_
     return d2;
 }
 
-inline static simsimd_f32_t simsimd_neon_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+simsimd_f32_t simsimd_neon_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
 
     int32x4_t ab_vec = vdupq_n_s32(0);
     int32x4_t a2_vec = vdupq_n_s32(0);
@@ -78,10 +74,6 @@ inline static simsimd_f32_t simsimd_neon_i8_cos(simsimd_i8_t const* a, simsimd_i
     return 1 - ab * simsimd_approximate_inverse_square_root(a2 * b2);
 }
 
-inline static simsimd_f32_t simsimd_neon_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+simsimd_f32_t simsimd_neon_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     return simsimd_neon_i8_cos(a, b, d);
 }
-
-#ifdef __cplusplus
-} // extern "C"
-#endif
