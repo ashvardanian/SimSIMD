@@ -12,131 +12,11 @@
  */
 
 #pragma once
-#ifdef _MSC_VER
-#include <intrin.h>
-#endif
-
-// Compiling for Arm: SIMSIMD_TARGET_ARM
-#if defined(__aarch64__) || defined(_M_ARM64)
-#define SIMSIMD_TARGET_ARM 1
-
-// Compiling for Arm: SIMSIMD_TARGET_ARM_NEON
-#if !defined(SIMSIMD_TARGET_ARM_NEON)
-#if defined(__ARM_NEON)
-#define SIMSIMD_TARGET_ARM_NEON 1
-#else
-#define SIMSIMD_TARGET_ARM_NEON 0
-#endif
-#endif
-
-// Compiling for Arm: SIMSIMD_TARGET_ARM_SVE
-#if !defined(SIMSIMD_TARGET_ARM_SVE)
-#if defined(__ARM_FEATURE_SVE)
-#define SIMSIMD_TARGET_ARM_SVE 1
-#else
-#define SIMSIMD_TARGET_ARM_SVE 0
-#endif
-#endif
-
-#undef SIMSIMD_TARGET_X86
-#undef SIMSIMD_TARGET_X86_AVX2
-#undef SIMSIMD_TARGET_X86_AVX512
-#define SIMSIMD_TARGET_X86 0
-#define SIMSIMD_TARGET_X86_AVX2 0
-#define SIMSIMD_TARGET_X86_AVX512 0
-
-// Compiling for x86: SIMSIMD_TARGET_X86
-#elif defined(__x86_64__) || defined(_M_X64)
-#define SIMSIMD_TARGET_X86 1
-
-// Compiling for x86: SIMSIMD_TARGET_X86_AVX2
-#if !defined(SIMSIMD_TARGET_X86_AVX2)
-#if defined(__AVX2__)
-#define SIMSIMD_TARGET_X86_AVX2 1
-#else
-#define SIMSIMD_TARGET_X86_AVX2 0
-#endif
-#endif
-
-// Compiling for x86: SIMSIMD_TARGET_X86_AVX512
-#if !defined(SIMSIMD_TARGET_X86_AVX512)
-#if defined(__AVX512F__) || defined(__AVX512VPOPCNTDQ__)
-#define SIMSIMD_TARGET_X86_AVX512 1
-#else
-#define SIMSIMD_TARGET_X86_AVX512 0
-#endif
-#endif
-
-#undef SIMSIMD_TARGET_ARM
-#undef SIMSIMD_TARGET_ARM_NEON
-#undef SIMSIMD_TARGET_ARM_SVE
-#define SIMSIMD_TARGET_ARM 0
-#define SIMSIMD_TARGET_ARM_NEON 0
-#define SIMSIMD_TARGET_ARM_SVE 0
-
-// Compiling for unknown hardware architecture
-#else
-#error Unknown hardware architecture!
-#endif
+#include "spatial.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-typedef int simsimd_i32_t;
-typedef float simsimd_f32_t;
-typedef double simsimd_f64_t;
-typedef _Float16 simsimd_f16_t;
-typedef signed char simsimd_i8_t;
-typedef unsigned char simsimd_b1_t;
-typedef unsigned long long simsimd_size_t;
-
-typedef simsimd_f32_t (*simsimd_metric_punned_t)(void const*, void const*, simsimd_size_t, simsimd_size_t);
-
-extern simsimd_f32_t simsimd_neon_f32_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_neon_f32_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_neon_f32_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_neon_f16_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_neon_f16_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_neon_f16_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_neon_i8_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_neon_i8_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_neon_i8_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-
-extern simsimd_f32_t simsimd_sve_f16_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_sve_f16_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_sve_f16_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-
-extern simsimd_f32_t simsimd_avx2_f16_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_avx2_f16_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_avx2_f16_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_avx2_i8_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_avx2_i8_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_avx2_i8_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-
-extern simsimd_f32_t simsimd_avx512_f16_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_avx512_f16_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_avx512_f16_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-
-extern simsimd_f32_t simsimd_auto_f32_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_auto_f32_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_auto_f32_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_auto_f16_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_auto_f16_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_auto_f16_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_auto_i8_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_auto_i8_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_auto_i8_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-
-extern simsimd_f32_t simsimd_accurate_f32_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_accurate_f32_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_accurate_f32_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_accurate_f16_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_accurate_f16_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_accurate_f16_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_accurate_i8_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_accurate_i8_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_accurate_i8_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
 
 typedef enum {
     simsimd_metric_unknown_k = 0,
@@ -181,6 +61,8 @@ typedef enum {
     simsimd_datatype_i8_k,
     simsimd_datatype_b1_k,
 } simsimd_datatype_t;
+
+typedef simsimd_f32_t (*simsimd_metric_punned_t)(void const*, void const*, simsimd_size_t, simsimd_size_t);
 
 #if SIMSIMD_TARGET_X86
 
@@ -283,15 +165,15 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
 #if SIMSIMD_TARGET_ARM_NEON
         if (viable & simsimd_cap_arm_neon_k)
             switch (kind) {
-            case simsimd_metric_ip_k: return &simsimd_neon_f32_ip;
-            case simsimd_metric_cos_k: return &simsimd_neon_f32_cos;
-            case simsimd_metric_l2sq_k: return &simsimd_neon_f32_l2sq;
+            case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_neon_f32_ip;
+            case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_neon_f32_cos;
+            case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_neon_f32_l2sq;
             }
 #endif
         switch (kind) {
-        case simsimd_metric_ip_k: return &simsimd_auto_f32_ip;
-        case simsimd_metric_cos_k: return &simsimd_auto_f32_cos;
-        case simsimd_metric_l2sq_k: return &simsimd_auto_f32_l2sq;
+        case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_auto_f32_ip;
+        case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_auto_f32_cos;
+        case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_auto_f32_l2sq;
         }
 
         // Half-precision floating-point vectors
@@ -300,40 +182,40 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
 #if SIMSIMD_TARGET_ARM_NEON
         if (viable & simsimd_cap_arm_neon_k)
             switch (kind) {
-            case simsimd_metric_ip_k: return &simsimd_neon_f16_ip;
-            case simsimd_metric_cos_k: return &simsimd_neon_f16_cos;
-            case simsimd_metric_l2sq_k: return &simsimd_neon_f16_l2sq;
+            case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_neon_f16_ip;
+            case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_neon_f16_cos;
+            case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_neon_f16_l2sq;
             }
 #endif
 #if SIMSIMD_TARGET_ARM_SVE
         if (viable & simsimd_cap_arm_sve_k)
             switch (kind) {
-            case simsimd_metric_ip_k: return &simsimd_sve_f16_ip;
-            case simsimd_metric_cos_k: return &simsimd_sve_f16_cos;
-            case simsimd_metric_l2sq_k: return &simsimd_sve_f16_l2sq;
+            case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_sve_f16_ip;
+            case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_sve_f16_cos;
+            case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_sve_f16_l2sq;
             }
 #endif
 #if SIMSIMD_TARGET_X86_AVX2
         if (viable & simsimd_cap_x86_avx2_k)
             switch (kind) {
-            case simsimd_metric_ip_k: return &simsimd_avx2_f16_ip;
-            case simsimd_metric_cos_k: return &simsimd_avx2_f16_cos;
-            case simsimd_metric_l2sq_k: return &simsimd_avx2_f16_l2sq;
+            case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_avx2_f16_ip;
+            case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_avx2_f16_cos;
+            case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_avx2_f16_l2sq;
             }
 #endif
 #if SIMSIMD_TARGET_X86_AVX512
         if (viable & simsimd_cap_x86_avx512_k)
             switch (kind) {
-            case simsimd_metric_ip_k: return &simsimd_avx512_f16_ip;
-            case simsimd_metric_cos_k: return &simsimd_avx512_f16_cos;
-            case simsimd_metric_l2sq_k: return &simsimd_avx512_f16_l2sq;
+            case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_avx512_f16_ip;
+            case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_avx512_f16_cos;
+            case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_avx512_f16_l2sq;
             }
 #endif
 
         switch (kind) {
-        case simsimd_metric_ip_k: return &simsimd_auto_f16_ip;
-        case simsimd_metric_cos_k: return &simsimd_auto_f16_cos;
-        case simsimd_metric_l2sq_k: return &simsimd_auto_f16_l2sq;
+        case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_auto_f16_ip;
+        case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_auto_f16_cos;
+        case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_auto_f16_l2sq;
         }
 
     // Single-byte integer vectors
@@ -341,24 +223,24 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
 #if SIMSIMD_TARGET_ARM_NEON
         if (viable & simsimd_cap_arm_neon_k)
             switch (kind) {
-            case simsimd_metric_ip_k: return &simsimd_neon_i8_ip;
-            case simsimd_metric_cos_k: return &simsimd_neon_i8_cos;
-            case simsimd_metric_l2sq_k: return &simsimd_neon_i8_l2sq;
+            case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_neon_i8_ip;
+            case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_neon_i8_cos;
+            case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_neon_i8_l2sq;
             }
 #endif
 #if SIMSIMD_TARGET_X86_AVX2
         if (viable & simsimd_cap_x86_avx2_k)
             switch (kind) {
-            case simsimd_metric_ip_k: return &simsimd_avx2_i8_ip;
-            case simsimd_metric_cos_k: return &simsimd_avx2_i8_cos;
-            case simsimd_metric_l2sq_k: return &simsimd_avx2_i8_l2sq;
+            case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_avx2_i8_ip;
+            case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_avx2_i8_cos;
+            case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_avx2_i8_l2sq;
             }
 #endif
 
         switch (kind) {
-        case simsimd_metric_ip_k: return &simsimd_auto_i8_ip;
-        case simsimd_metric_cos_k: return &simsimd_auto_i8_cos;
-        case simsimd_metric_l2sq_k: return &simsimd_auto_i8_l2sq;
+        case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_auto_i8_ip;
+        case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_auto_i8_cos;
+        case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_auto_i8_l2sq;
         }
     }
 }
