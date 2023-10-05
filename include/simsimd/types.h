@@ -74,6 +74,10 @@
 #include <arm_sve.h>
 #endif
 
+#if SIMSIMD_TARGET_X86_AVX2 || SIMSIMD_TARGET_X86_AVX512
+#include <immintrin.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
