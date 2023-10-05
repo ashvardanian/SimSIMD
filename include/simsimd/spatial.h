@@ -1,8 +1,22 @@
 /**
- *  @brief Collection of Similarity Measures, SIMD-accelerated with SSE, AVX, NEON, SVE.
+ *  @brief SIMD-accelerated Spatial Similarity Measures.
  *
  *  @author Ash Vardanian
  *  @date March 14, 2023
+ *
+ *  Contains:
+ *  - L2 (Euclidean) squared distance
+ *  - Inner product distance
+ *  - Cosine similarity
+ *
+ *  For datatypes:
+ *  - 32-bit floating point numbers
+ *  - 16-bit floating point numbers
+ *  - 8-bit signed integral numbers
+ *
+ *  For hardware architectures:
+ *  - Arm (NEON, SVE)
+ *  - x86 (AVX2, AVX512)
  *
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
@@ -11,11 +25,6 @@
 
 #pragma once
 #include "types.h"
-
-#ifndef SIMSIMD_RSQRT
-#include <math.h>
-#define SIMSIMD_RSQRT sqrtf
-#endif
 
 #define MAKE_L2SQ(name, input_type, accumulator_type)                                                                  \
     inline static simsimd_f32_t simsimd_##name##_##input_type##_l2sq(                                                  \

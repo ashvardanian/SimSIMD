@@ -78,6 +78,11 @@
 #include <immintrin.h>
 #endif
 
+#ifndef SIMSIMD_RSQRT
+#include <math.h>
+#define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
