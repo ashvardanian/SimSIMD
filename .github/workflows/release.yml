@@ -55,8 +55,8 @@ jobs:
     name: Build Wheels for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     needs: versioning
-    fail-fast: false
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-20.04, macOS-11] # windows-2022
     steps:
