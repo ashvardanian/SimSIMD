@@ -1,14 +1,17 @@
 # SimSIMD 📏
 
-## Efficient Alternative to `scipy.spatial.distance` and `numpy.inner`
+## Efficient Alternative to [`scipy.spatial.distance`][scipy] and [`numpy.inner`][numpy]
 
 SimSIMD leverages SIMD intrinsics, capabilities that only select compilers effectively utilize. This framework supports conventional AVX2 instructions on x86, NEON on Arm, as well as __rare__ AVX-512 FP16 instructions on x86 and Scalable Vector Extensions on Arm. Designed specifically for Machine Learning contexts, it's optimized for handling high-dimensional vector embeddings.
 
 - ✅ __3-200x faster__ than NumPy and SciPy distance functions.
 - ✅ Euclidean (L2), Inner Product, and Cosine (Angular) distances.
 - ✅ Single-precision `f32`, half-precision `f16`, and `i8` vectors.
-- ✅ Compatible with NumPy, PyTorch, and TensorFlow tensors.
+- ✅ Compatible with NumPy, PyTorch, TensorFlow, and other tensors.
 - ✅ Has __no dependencies__, not even LibC.
+
+[scipy]: https://docs.scipy.org/doc/scipy/reference/spatial.distance.html#module-scipy.spatial.distance
+[numpy]: https://numpy.org/doc/stable/reference/generated/numpy.inner.html
 
 ## Benchmarks
 
