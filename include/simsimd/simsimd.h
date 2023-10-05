@@ -12,10 +12,6 @@
  */
 
 #pragma once
-#include "types.h"
-
-#include "autovec.h"
-
 #ifdef _MSC_VER
 #include <intrin.h>
 #endif
@@ -83,55 +79,42 @@
 #error Unknown hardware architecture!
 #endif
 
-#if SIMSIMD_TARGET_ARM_NEON
-#pragma GCC push_options
-#pragma GCC target("arch=armv8-a+simd+fp16")
-#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd+fp16"))), apply_to = function)
-#include "arm_neon_f16.h"
-#include "arm_neon_f32.h"
-#include "arm_neon_i8.h"
-#pragma GCC pop_options
-#pragma clang attribute pop
-#endif
-
-#if SIMSIMD_TARGET_ARM_SVE
-#pragma GCC push_options
-#pragma GCC target("arch=armv8-a+sve")
-#pragma clang attribute push(__attribute__((target("arch=armv8-a+sve"))), apply_to = function)
-#include "arm_sve_f16.h"
-#include "arm_sve_f32.h"
-#pragma GCC pop_options
-#pragma clang attribute pop
-#endif
-
-#if SIMSIMD_TARGET_X86_AVX2
-#pragma GCC push_options
-#pragma GCC target("avx2,f16c,fma")
-#pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
-#include "x86_avx2_f16.h"
-#include "x86_avx2_i8.h"
-#pragma GCC pop_options
-#pragma clang attribute pop
-#endif
-
-#if SIMSIMD_TARGET_X86_AVX512
-#pragma GCC push_options
-#pragma GCC target("avx512fp16,avx512bf16,avx512f,avx512vl,avx512bw,avx512dq,avx512cd,avx512vnni")
-#pragma clang attribute push(                                                                                          \
-    __attribute__((target("avx512fp16,avx512bf16,avx512f,avx512vl,avx512bw,avx512dq,avx512cd,avx512vnni"))),           \
-    apply_to = function)
-#include "x86_avx512_f16.h"
-#include "x86_avx512_i8.h"
-#pragma GCC pop_options
-#pragma clang attribute pop
-#endif
-
 #ifdef __cplusplus
 extern "C" {
-(void const*, void const*, simsimd_size_t, simsimd_size_t);
 #endif
 
-typedef simsimd_f32_t (*simsimd_metric_punned_t)(void const*, void const*, simsimd_size_t, simsimd_size_t);
+typedef float (*simsimd_metric_punned_t)(void const*, void const*, unsigned long long, unsigned long long);
+
+extern float simsimd_neon_f32_ip(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_neon_f32_cos(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_neon_f32_l2sq(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_auto_f32_ip(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_auto_f32_cos(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_auto_f32_l2sq(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_neon_f16_ip(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_neon_f16_cos(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_neon_f16_l2sq(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_sve_f16_ip(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_sve_f16_cos(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_sve_f16_l2sq(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_avx2_f16_ip(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_avx2_f16_cos(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_avx2_f16_l2sq(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_avx512_f16_ip(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_avx512_f16_cos(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_avx512_f16_l2sq(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_auto_f16_ip(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_auto_f16_cos(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_auto_f16_l2sq(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_neon_i8_ip(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_neon_i8_cos(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_neon_i8_l2sq(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_avx2_i8_ip(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_avx2_i8_cos(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_avx2_i8_l2sq(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_auto_i8_ip(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_auto_i8_cos(void const*, void const*, unsigned long long, unsigned long long);
+extern float simsimd_auto_i8_l2sq(void const*, void const*, unsigned long long, unsigned long long);
 
 typedef enum {
     simsimd_metric_unknown_k = 0,
@@ -176,37 +159,6 @@ typedef enum {
     simsimd_datatype_i8_k,
     simsimd_datatype_b1_k,
 } simsimd_datatype_t;
-
-extern simsimd_f32_t simsimd_neon_f32_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_neon_f32_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_neon_f32_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_auto_f32_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_auto_f32_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_auto_f32_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_neon_f16_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_neon_f16_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_neon_f16_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_sve_f16_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_sve_f16_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_sve_f16_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_avx2_f16_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_avx2_f16_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_avx2_f16_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_avx512_f16_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_avx512_f16_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_avx512_f16_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_auto_f16_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_auto_f16_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_auto_f16_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_neon_i8_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_neon_i8_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_neon_i8_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_avx2_i8_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_avx2_i8_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_avx2_i8_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_auto_i8_ip(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_auto_i8_cos(void const*, void const*, simsimd_size_t, simsimd_size_t);
-extern simsimd_f32_t simsimd_auto_i8_l2sq(void const*, void const*, simsimd_size_t, simsimd_size_t);
 
 #if SIMSIMD_TARGET_X86
 

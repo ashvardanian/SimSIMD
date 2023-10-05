@@ -5,7 +5,7 @@
  *
  *  - Implements: L2 squared, cosine similarity, inner product (same as cosine).
  *  - Uses `i8` for storage, `i16` for multiplication, and `i32` for accumulation, if no better option is available.
- *  - Requires compiler capabilities: +simd.
+ *  - Requires compiler capabilities: +simd+dotprod.
  */
 #include <arm_neon.h>
 
@@ -71,7 +71,12 @@ simsimd_f32_t simsimd_neon_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, 
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
 
-    return 1 - ab * simsimd_approximate_inverse_square_root(a2 * b2);
+    // Avoid `simsimd_approximate_inverse_square_root` on Arm NEON
+    simsimd_f32_t a2_b2_arr[2] = {a2, b2};
+    float32x2_t a2_b2 = vld1_f32(a2_b2_arr);
+    a2_b2 = vrsqrte_f32(a2_b2);
+    vst1_f32(a2_b2_arr, a2_b2);
+    return 1 - ab / (a2_b2_arr[0] * a2_b2_arr[1]);
 }
 
 simsimd_f32_t simsimd_neon_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {

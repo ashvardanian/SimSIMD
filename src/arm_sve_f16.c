@@ -7,6 +7,7 @@
  *  - Uses `f16` for both storage and `f32` for accumulation.
  *  - Requires compiler capabilities: +sve+fp16.
  */
+#include <arm_neon.h>
 #include <arm_sve.h>
 
 #include "types.h"
@@ -63,8 +64,15 @@ simsimd_f32_t simsimd_sve_f16_cos(simsimd_f16_t const* a_enum, simsimd_f16_t con
         i += svcnth();
         pg_vec = svwhilelt_b16(i, d);
     } while (svptest_any(svptrue_b16(), pg_vec));
+
     simsimd_f16_t ab = svaddv_f16(svptrue_b16(), ab_vec);
     simsimd_f16_t a2 = svaddv_f16(svptrue_b16(), a2_vec);
     simsimd_f16_t b2 = svaddv_f16(svptrue_b16(), b2_vec);
-    return 1 - ab * simsimd_approximate_inverse_square_root(a2 * b2);
+
+    // Avoid `simsimd_approximate_inverse_square_root` on Arm NEON
+    simsimd_f32_t a2_b2_arr[2] = {a2, b2};
+    float32x2_t a2_b2 = vld1_f32(a2_b2_arr);
+    a2_b2 = vrsqrte_f32(a2_b2);
+    vst1_f32(a2_b2_arr, a2_b2);
+    return 1 - ab / (a2_b2_arr[0] * a2_b2_arr[1]);
 }
