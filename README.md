@@ -35,24 +35,12 @@ On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against autovecto
 | `sqeuclidean` |     4.62 M/s |   147.25 k/s |      5.32 M/s |          __36 x__ |
 | `inner`       |     3.81 M/s |   192.02 k/s |      5.99 M/s |          __31 x__ |
 
----
-
 __Technical Insights__:
 
-- The implementation capitalizes on SVE on Arm and masked loads on AVX-512, removing the need for scalar code processing the tail.
-- The Python bindings avoid PyBind11, SWIG, and other high-level tools and connect directly to the CPython C API.
-- To minimize latency of Python calls, slow interfaces, like `PyArg_ParseTuple`, are avoided in favor of manual argument parsing.
-- To minimize dependencies, such as `<math.h>`, `sqrt` calls are replaced with approximations using Jan Kadlec's constants:
-
-```c
-simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_t number) {
-    simsimd_f32i32_t conv;
-    conv.f = number;
-    conv.i = 0x5F1FFFF9 - (conv.i >> 1);
-    conv.f *= 0.703952253f * (2.38924456f - number * conv.f * conv.f);
-    return conv.f;
-}
-```
+- Uses Arm SVE and x86 AVX-512's masked loads to eliminate tail `for`-loops.
+- Substitutes LibC's `sqrt` calls with bithacks using Jan Kadlec's constant.
+- Avoids slow PyBind11 and SWIG, directly using the CPython C API.
+- Avoids slow `PyArg_ParseTuple` and manually unpacks argument tuples.
 
 ## Using in Python
 
