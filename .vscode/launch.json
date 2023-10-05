@@ -10,6 +10,9 @@
             "request": "launch",
             "program": "${workspaceFolder}/build_debug/simsimd_bench",
             "cwd": "${workspaceFolder}",
+            "args": [
+                "--benchmark_filter=i8_cos"
+            ],
             "environment": [
                 {
                     "name": "ASAN_OPTIONS",

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "cmake>=3.22", "pybind11"]
+requires = ["setuptools>=42", "wheel", "numpy"]
 build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
@@ -9,8 +9,8 @@ xfail_strict = true
 filterwarnings = ["error"]
 
 [tool.cibuildwheel]
-test-requires = ["pytest"]
-test-command = "pytest {project}/python/test.py -x"
+test-requires = ["pytest", "scipy"]
+test-command = "python -c 'import simsimd; print(simsimd.get_capabilities())' && pytest {project}/python/test.py -s -x"
 build-verbosity = 0
 skip = ["*musllinux*", "*i686*", "pp*"]
 

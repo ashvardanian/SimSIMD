@@ -50,21 +50,21 @@ inline static void simsimd_4gram_hash_string( //
 
 /**
  *  @brief  Similarity measure for different length strings, that compares them
- *          by hashing the N-grams first and computing the Tenimoto distance of
+ *          by hashing the N-grams first and computing the Tanimoto distance of
  *          hashes.
  *
  *  By design uses a separate bit-set for every string. Those have to be of identical
  *  length derived from `l = max(a_length, b_length)`, as `(l + N - 1) * 2` for any
  *  N-gram, to have less than half of bits populated.
  *
- *  Inspired by Rabin-Karp algorithm, and continues the approaches implemented in Stringzilla.
+ *  Inspired by Rabin-Karp algorithm, and continues the approaches implemented in String~illa.
  */
 inline static simsimd_f32_t simsimd_4gram_hashes_naive( //
     uint8_t const* a_chars, uint8_t const* b_chars,     //
     size_t a_length, size_t b_length,                   //
     uint8_t* a_hash, uint8_t* b_hash, size_t length_hash) {
 
-    // Skip thrrough misaligned part
+    // Skip through misaligned part
 
     uint32_t last_word = *a_chars;
 
