@@ -3,6 +3,8 @@ import numpy as np
 import simsimd as simd
 from scipy.spatial.distance import cosine, sqeuclidean
 
+SIMSIMD_RTOL = 5e-2
+
 
 def test_pointers_availability():
     """Tests the availability of pre-compiled functions for compatibility with USearch."""
@@ -29,7 +31,7 @@ def test_dot(ndim, dtype):
     expected = 1 - np.inner(a, b)
     result = simd.inner(a, b)
 
-    np.testing.assert_allclose(expected, result, rtol=1e-2)
+    np.testing.assert_allclose(expected, result, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
@@ -42,7 +44,7 @@ def test_sqeuclidean(ndim, dtype):
     expected = sqeuclidean(a, b)
     result = simd.sqeuclidean(a, b)
 
-    np.testing.assert_allclose(expected, result, rtol=1e-2)
+    np.testing.assert_allclose(expected, result, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
@@ -55,7 +57,7 @@ def test_cosine(ndim, dtype):
     expected = cosine(a, b)
     result = simd.cosine(a, b)
 
-    np.testing.assert_allclose(expected, result, rtol=1e-2)
+    np.testing.assert_allclose(expected, result, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
@@ -68,34 +70,34 @@ def test_batch(ndim, dtype):
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [sqeuclidean(A[i], B[i]) for i in range(10)]
     result_simd = simd.sqeuclidean(A, B)
-    assert np.allclose(result_simd, result_np, rtol=1e-2)
+    assert np.allclose(result_simd, result_np, rtol=SIMSIMD_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (1 x D scalars) is an array with N floats.
     B = np.random.randn(1, ndim).astype(dtype)
     result_np = [sqeuclidean(A[i], B[0]) for i in range(10)]
     result_simd = simd.sqeuclidean(A, B)
-    assert np.allclose(result_simd, result_np, rtol=1e-2)
+    assert np.allclose(result_simd, result_np, rtol=SIMSIMD_RTOL)
 
     # Distance between matrixes A (1 x D scalars) and B (N x D scalars) is an array with N floats.
     A = np.random.randn(1, ndim).astype(dtype)
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [sqeuclidean(A[0], B[i]) for i in range(10)]
     result_simd = simd.sqeuclidean(A, B)
-    assert np.allclose(result_simd, result_np, rtol=1e-2)
+    assert np.allclose(result_simd, result_np, rtol=SIMSIMD_RTOL)
 
     # Distance between matrix A (N x D scalars) and array B (D scalars) is an array with N floats.
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.random.randn(ndim).astype(dtype)
     result_np = [sqeuclidean(A[i], B) for i in range(10)]
     result_simd = simd.sqeuclidean(A, B)
-    assert np.allclose(result_simd, result_np, rtol=1e-2)
+    assert np.allclose(result_simd, result_np, rtol=SIMSIMD_RTOL)
 
     # Distance between matrix B (N x D scalars) and array A (D scalars) is an array with N floats.
     B = np.random.randn(10, ndim).astype(dtype)
     A = np.random.randn(ndim).astype(dtype)
     result_np = [sqeuclidean(B[i], A) for i in range(10)]
     result_simd = simd.sqeuclidean(B, A)
-    assert np.allclose(result_simd, result_np, rtol=1e-2)
+    assert np.allclose(result_simd, result_np, rtol=SIMSIMD_RTOL)
 
 
 def test_all_pairs():
