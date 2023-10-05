@@ -1,9 +1,9 @@
 #pragma once
 #include "types.h"
 
-#ifndef SIMSIMD_SQRT
+#ifndef SIMSIMD_RSQRT
 #include <math.h>
-#define SIMSIMD_SQRT sqrtf
+#define SIMSIMD_RSQRT sqrtf
 #endif
 
 #ifdef __cplusplus
@@ -46,8 +46,8 @@ extern "C" {
             b2 += bi * bi;                                                                                             \
         }                                                                                                              \
         double result = ab;                                                                                            \
-        result /= SIMSIMD_SQRT(a2);                                                                                    \
-        result /= SIMSIMD_SQRT(b2);                                                                                    \
+        result *= SIMSIMD_RSQRT(a2);                                                                                   \
+        result *= SIMSIMD_RSQRT(b2);                                                                                   \
         return 1 - result;                                                                                             \
     }
 

@@ -2,7 +2,7 @@
 
 #include <benchmark/benchmark.h>
 
-#define SIMSIMD_SQRT simsimd_approximate_inverse_square_root
+#define SIMSIMD_RSQRT simsimd_approximate_inverse_square_root
 #include <simsimd/simsimd.h>
 
 namespace bm = benchmark;
