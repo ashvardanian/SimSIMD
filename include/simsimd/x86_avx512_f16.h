@@ -6,7 +6,7 @@
  *  - Implements: L2 squared, inner product, cosine similarity.
  *  - Uses `_mm512_maskz_loadu_epi16` intrinsics to perform masked unaligned loads.
  *  - Uses `f16` for both storage and accumulation, assuming it's resolution is enough for average case.
- *  - Requires compiler capabilities: avx512fp16, avx512f.
+ *  - Requires compiler capabilities: avx512fp16, avx512f, avx512vl.
  */
 #include <immintrin.h>
 
@@ -69,7 +69,12 @@ static simsimd_f32_t simsimd_avx512_f16_cos(simsimd_f16_t const* a, simsimd_f16_
     simsimd_f32_t ab = _mm512_reduce_add_ph(ab_vec);
     simsimd_f32_t a2 = _mm512_reduce_add_ph(a2_vec);
     simsimd_f32_t b2 = _mm512_reduce_add_ph(b2_vec);
-    return 1 - ab * simsimd_approximate_inverse_square_root(a2) * simsimd_approximate_inverse_square_root(b2);
+
+    __m128d a2_b2 = _mm_set_pd((double)a2, (double)b2);
+    __m128d rsqrts = _mm_mask_rsqrt14_pd(_mm_setzero_pd(), 0xFF, a2_b2);
+    double rsqrts_array[2];
+    _mm_storeu_pd(rsqrts_array, rsqrts);
+    return 1 - ab * rsqrts_array[0] * rsqrts_array[1];
 }
 
 #ifdef __cplusplus

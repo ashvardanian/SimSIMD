@@ -6,7 +6,7 @@
  *  - Implements: L2 squared, cosine similarity, inner product (same as cosine).
  *  - Uses `_mm512_maskz_loadu_epi16` intrinsics to perform masked unaligned loads.
  *  - Uses `i8` for storage, `i16` for multiplication, and `i32` for accumulation, if no better option is available.
- *  - Requires compiler capabilities: avx512fp16, avx512f.
+ *  - Requires compiler capabilities: avx512fp16, avx512f, avx512vl.
  */
 #include <immintrin.h>
 
