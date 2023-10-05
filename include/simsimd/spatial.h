@@ -282,26 +282,26 @@ simsimd_neon_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t
     simsimd_size_t i = 0;
 
     // If the 128-bit `vdot_s32` intrinsic is unavailable, we can use the 64-bit `vdot_s32`.
-    // for (simsimd_size_t i = 0; i != d; i += 8) {
-    //     int16x8_t a_vec = vmovl_s8(vld1_s8(a + i));
-    //     int16x8_t b_vec = vmovl_s8(vld1_s8(b + i));
-    //     int16x8_t ab_part_vec = vmulq_s16(a_vec, b_vec);
-    //     int16x8_t a2_part_vec = vmulq_s16(a_vec, a_vec);
-    //     int16x8_t b2_part_vec = vmulq_s16(b_vec, b_vec);
-    //     ab_vec = vaddq_s32(ab_vec, vaddq_s32(vmovl_s16(vget_high_s16(ab_part_vec)), //
-    //                                          vmovl_s16(vget_low_s16(ab_part_vec))));
-    //     a2_vec = vaddq_s32(a2_vec, vaddq_s32(vmovl_s16(vget_high_s16(a2_part_vec)), //
-    //                                          vmovl_s16(vget_low_s16(a2_part_vec))));
-    //     b2_vec = vaddq_s32(b2_vec, vaddq_s32(vmovl_s16(vget_high_s16(b2_part_vec)), //
-    //                                          vmovl_s16(vget_low_s16(b2_part_vec))));
-    // }
-    for (; i + 15 < d; i += 16) {
-        int8x16_t a_vec = vld1q_s8(a + i);
-        int8x16_t b_vec = vld1q_s8(b + i);
-        ab_vec = vdotq_s32(ab_vec, a_vec, b_vec);
-        a2_vec = vdotq_s32(a2_vec, a_vec, a_vec);
-        b2_vec = vdotq_s32(b2_vec, b_vec, b_vec);
+    for (simsimd_size_t i = 0; i != d; i += 8) {
+        int16x8_t a_vec = vmovl_s8(vld1_s8(a + i));
+        int16x8_t b_vec = vmovl_s8(vld1_s8(b + i));
+        int16x8_t ab_part_vec = vmulq_s16(a_vec, b_vec);
+        int16x8_t a2_part_vec = vmulq_s16(a_vec, a_vec);
+        int16x8_t b2_part_vec = vmulq_s16(b_vec, b_vec);
+        ab_vec = vaddq_s32(ab_vec, vaddq_s32(vmovl_s16(vget_high_s16(ab_part_vec)), //
+                                             vmovl_s16(vget_low_s16(ab_part_vec))));
+        a2_vec = vaddq_s32(a2_vec, vaddq_s32(vmovl_s16(vget_high_s16(a2_part_vec)), //
+                                             vmovl_s16(vget_low_s16(a2_part_vec))));
+        b2_vec = vaddq_s32(b2_vec, vaddq_s32(vmovl_s16(vget_high_s16(b2_part_vec)), //
+                                             vmovl_s16(vget_low_s16(b2_part_vec))));
     }
+    // for (; i + 15 < d; i += 16) {
+    //     int8x16_t a_vec = vld1q_s8(a + i);
+    //     int8x16_t b_vec = vld1q_s8(b + i);
+    //     ab_vec = vdotq_s32(ab_vec, a_vec, b_vec);
+    //     a2_vec = vdotq_s32(a2_vec, a_vec, a_vec);
+    //     b2_vec = vdotq_s32(b2_vec, b_vec, b_vec);
+    // }
 
     int32_t ab = vaddvq_s32(ab_vec);
     int32_t a2 = vaddvq_s32(a2_vec);
