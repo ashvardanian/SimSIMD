@@ -82,7 +82,7 @@ inline static simsimd_f32_t simsimd_4gram_hashes_naive( //
 
     size_t b_words = (b_length + 7) / 8;
 
-    return simsimd_tanimoto_b1x8_naive(a_hash, b_hash, length_hash);
+    return simsimd_tanimoto_b8_naive(a_hash, b_hash, length_hash);
 }
 
 #undef popcount64

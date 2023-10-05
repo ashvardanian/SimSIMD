@@ -1,5 +1,5 @@
 /**
- *  @brief      Collection of Similarity Measures, SIMD-accelerated with SSE, AVX, NEON, SVE.
+ *  @brief      SIMD-accelerated Similarity Measures and Distance Functions.
  *  @file       simsimd.h
  *  @author     Ash Vardanian
  *  @date       March 14, 2023
@@ -12,7 +12,8 @@
  */
 
 #pragma once
-#include "spatial.h"
+#include "binary.h"  // Hamming, Jaccard
+#include "spatial.h" // L2, Inner Product, Cosine
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,7 +36,7 @@ typedef enum {
 
     // Sets:
     simsimd_metric_hamming_k = 'b',
-    simsimd_metric_tanimoto_k = 't',
+    simsimd_metric_jaccard_k = 'j',
 } simsimd_metric_kind_t;
 
 typedef enum {
@@ -61,7 +62,7 @@ typedef enum {
     simsimd_datatype_f32_k,
     simsimd_datatype_f16_k,
     simsimd_datatype_i8_k,
-    simsimd_datatype_b1_k,
+    simsimd_datatype_b8_k,
 } simsimd_datatype_t;
 
 typedef simsimd_f32_t (*simsimd_metric_punned_t)(void const*, void const*, simsimd_size_t, simsimd_size_t);
@@ -171,12 +172,14 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
             case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_neon_f32_ip;
             case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_neon_f32_cos;
             case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_neon_f32_l2sq;
+            default: return 0;
             }
 #endif
         switch (kind) {
         case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_auto_f32_ip;
         case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_auto_f32_cos;
         case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_auto_f32_l2sq;
+        default: return 0;
         }
 
         // Half-precision floating-point vectors
@@ -188,6 +191,7 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
             case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_neon_f16_ip;
             case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_neon_f16_cos;
             case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_neon_f16_l2sq;
+            default: return 0;
             }
 #endif
 #if SIMSIMD_TARGET_ARM_SVE
@@ -196,6 +200,7 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
             case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_sve_f16_ip;
             case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_sve_f16_cos;
             case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_sve_f16_l2sq;
+            default: return 0;
             }
 #endif
 #if SIMSIMD_TARGET_X86_AVX2
@@ -204,6 +209,7 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
             case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_avx2_f16_ip;
             case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_avx2_f16_cos;
             case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_avx2_f16_l2sq;
+            default: return 0;
             }
 #endif
 #if SIMSIMD_TARGET_X86_AVX512
@@ -212,6 +218,7 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
             case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_avx512_f16_ip;
             case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_avx512_f16_cos;
             case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_avx512_f16_l2sq;
+            default: return 0;
             }
 #endif
 
@@ -219,6 +226,7 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
         case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_auto_f16_ip;
         case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_auto_f16_cos;
         case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_auto_f16_l2sq;
+        default: return 0;
         }
 
     // Single-byte integer vectors
@@ -229,6 +237,7 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
             case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_neon_i8_ip;
             case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_neon_i8_cos;
             case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_neon_i8_l2sq;
+            default: return 0;
             }
 #endif
 #if SIMSIMD_TARGET_X86_AVX2
@@ -237,6 +246,7 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
             case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_avx2_i8_ip;
             case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_avx2_i8_cos;
             case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_avx2_i8_l2sq;
+            default: return 0;
             }
 #endif
 
@@ -244,6 +254,41 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
         case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_auto_i8_ip;
         case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_auto_i8_cos;
         case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_auto_i8_l2sq;
+        default: return 0;
+        }
+
+        // Binary vectors
+    case simsimd_datatype_b8_k:
+
+#if SIMSIMD_TARGET_ARM_NEON
+        if (viable & simsimd_cap_arm_neon_k)
+            switch (kind) {
+            case simsimd_metric_hamming_k: return (simsimd_metric_punned_t)&simsimd_neon_b8_hamming;
+            case simsimd_metric_jaccard_k: return (simsimd_metric_punned_t)&simsimd_neon_b8_jaccard;
+            default: return 0;
+            }
+#endif
+#if SIMSIMD_TARGET_ARM_SVE
+        if (viable & simsimd_cap_arm_sve_k)
+            switch (kind) {
+            case simsimd_metric_hamming_k: return (simsimd_metric_punned_t)&simsimd_sve_b8_hamming;
+            case simsimd_metric_jaccard_k: return (simsimd_metric_punned_t)&simsimd_sve_b8_jaccard;
+            default: return 0;
+            }
+#endif
+#if SIMSIMD_TARGET_X86_AVX512
+        if (viable & simsimd_cap_x86_avx512_k)
+            switch (kind) {
+            case simsimd_metric_hamming_k: return (simsimd_metric_punned_t)&simsimd_avx512_b8_hamming;
+            case simsimd_metric_jaccard_k: return (simsimd_metric_punned_t)&simsimd_avx512_b8_jaccard;
+            default: return 0;
+            }
+#endif
+
+        switch (kind) {
+        case simsimd_metric_hamming_k: return (simsimd_metric_punned_t)&simsimd_auto_b8_hamming;
+        case simsimd_metric_jaccard_k: return (simsimd_metric_punned_t)&simsimd_auto_b8_jaccard;
+        default: return 0;
         }
     }
 }

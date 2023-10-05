@@ -1,8 +1,7 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures.
- *
- *  @author Ash Vardanian
- *  @date March 14, 2023
+ *  @brief      SIMD-accelerated Spatial Similarity Measures.
+ *  @author     Ash Vardanian
+ *  @date       March 14, 2023
  *
  *  Contains:
  *  - L2 (Euclidean) squared distance

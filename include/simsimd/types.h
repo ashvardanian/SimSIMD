@@ -92,7 +92,7 @@ typedef float simsimd_f32_t;
 typedef double simsimd_f64_t;
 typedef _Float16 simsimd_f16_t;
 typedef signed char simsimd_i8_t;
-typedef unsigned char simsimd_b1_t;
+typedef unsigned char simsimd_b8_t;
 typedef unsigned long long simsimd_size_t;
 
 typedef union {

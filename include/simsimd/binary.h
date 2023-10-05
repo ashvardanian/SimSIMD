@@ -1,8 +1,7 @@
 /**
- *  @brief SIMD-accelerated Binary Similarity Measures.
- *
- *  @author Ashot Vardanian
- *  @date July 1, 2023
+ *  @brief      SIMD-accelerated Binary Similarity Measures.
+ *  @author     Ashot Vardanian
+ *  @date       July 1, 2023
  *
  *  Contains:
  *  - Hamming distance
@@ -27,7 +26,7 @@
 extern "C" {
 #endif
 
-inline static unsigned char simsimd_popcount_b1x8(simsimd_b1x8_t x) {
+inline static unsigned char simsimd_popcount_b8(simsimd_b8_t x) {
     static unsigned char lookup_table[] = {
         0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, //
         1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
@@ -40,19 +39,19 @@ inline static unsigned char simsimd_popcount_b1x8(simsimd_b1x8_t x) {
     return lookup_table[x];
 }
 
-inline static simsimd_f32_t simsimd_auto_b1x8_hamming( //
-    simsimd_b1x8_t const* a, simsimd_b1x8_t const* b, simsimd_size_t d_words) {
+inline static simsimd_f32_t simsimd_auto_b8_hamming( //
+    simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
     simsimd_i32_t differences = 0;
     for (simsimd_size_t i = 0; i != d_words; ++i)
-        differences += simsimd_popcount_b1x8(a[i] ^ b[i]);
+        differences += simsimd_popcount_b8(a[i] ^ b[i]);
     return (simsimd_f32_t)differences;
 }
 
-inline static simsimd_f32_t simsimd_auto_b1x8_jaccard( //
-    simsimd_b1x8_t const* a, simsimd_b1x8_t const* b, simsimd_size_t d_words) {
+inline static simsimd_f32_t simsimd_auto_b8_jaccard( //
+    simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
     simsimd_i32_t intersection = 0, union_ = 0;
     for (simsimd_size_t i = 0; i != d_words; ++i)
-        intersection += simsimd_popcount_b1x8(a[i] & b[i]), union_ += simsimd_popcount_b1x8(a[i] | b[i]);
+        intersection += simsimd_popcount_b8(a[i] & b[i]), union_ += simsimd_popcount_b8(a[i] | b[i]);
     return 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_;
 }
 
@@ -61,7 +60,7 @@ inline static simsimd_f32_t simsimd_auto_b1x8_jaccard( //
 
 __attribute__((target("+simd"))) //
 inline static simsimd_f32_t
-simsimd_neon_b1x8_hamming(simsimd_b1x8_t const* a, simsimd_b1x8_t const* b, simsimd_size_t d_words) {
+simsimd_neon_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
     simsimd_i32_t differences = 0;
     simsimd_size_t i = 0;
     for (; i + 16 <= d_words; i += 16) {
@@ -71,24 +70,24 @@ simsimd_neon_b1x8_hamming(simsimd_b1x8_t const* a, simsimd_b1x8_t const* b, sims
     }
     // Handle the tail
     for (; i != d_words; ++i)
-        differences += simsimd_popcount_b1x8(a[i] ^ b[i]);
+        differences += simsimd_popcount_b8(a[i] ^ b[i]);
     return (simsimd_f32_t)differences;
 }
 
 __attribute__((target("+simd"))) //
 inline static simsimd_f32_t
-simsimd_neon_b1x8_jaccard(simsimd_b1x8_t const* a, simsimd_b1x8_t const* b, simsimd_size_t d_words) {
+simsimd_neon_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
     simsimd_i32_t intersection = 0, union_ = 0;
     simsimd_size_t i = 0;
     for (; i + 16 <= d_words; i += 16) {
         uint8x16_t a_first = vld1q_u8(a + i);
         uint8x16_t b_first = vld1q_u8(b + i);
         intersection += vaddvq_u8(vcntq_u8(vandq_u8(a_first, b_first)));
-        union_ += = vaddvq_u8(vcntq_u8(vorrq_u8(a_first, b_first)));
+        union_ += vaddvq_u8(vcntq_u8(vorrq_u8(a_first, b_first)));
     }
     // Handle the tail
     for (; i != d_words; ++i)
-        intersection += simsimd_popcount_b1x8(a[i] & b[i]), union_ += simsimd_popcount_b1x8(a[i] | b[i]);
+        intersection += simsimd_popcount_b8(a[i] & b[i]), union_ += simsimd_popcount_b8(a[i] | b[i]);
     return 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_;
 }
 
@@ -98,7 +97,7 @@ simsimd_neon_b1x8_jaccard(simsimd_b1x8_t const* a, simsimd_b1x8_t const* b, sims
 
 __attribute__((target("+sve"))) //
 inline static simsimd_f32_t
-simsimd_sve_b1x8_hamming(simsimd_b1_t const* a, simsimd_b1_t const* b, simsimd_size_t d_words) {
+simsimd_sve_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
     simsimd_size_t i = 0;
     simsimd_i32_t differences = 0;
     do {
@@ -114,7 +113,7 @@ simsimd_sve_b1x8_hamming(simsimd_b1_t const* a, simsimd_b1_t const* b, simsimd_s
 
 __attribute__((target("+sve"))) //
 inline static simsimd_f32_t
-simsimd_sve_b1x8_hamming(simsimd_b1_t const* a, simsimd_b1_t const* b, simsimd_size_t d_words) {
+simsimd_sve_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
     simsimd_size_t i = 0;
     simsimd_i32_t intersection = 0, union_ = 0;
     do {
@@ -140,7 +139,7 @@ simsimd_sve_b1x8_hamming(simsimd_b1_t const* a, simsimd_b1_t const* b, simsimd_s
 
 __attribute__((target("avx512vpopcntdq,avx512vl,avx512bw,avx512f"))) //
 inline static simsimd_f32_t
-simsimd_avx512_b1x8_hamming(simsimd_b1_t const* a, simsimd_b1_t const* b, simsimd_size_t d_words) {
+simsimd_avx512_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
     __m512i differences_vec = _mm512_setzero_si512(), union_vec = _mm512_setzero_si512();
     for (simsimd_size_t i = 0; i < d_words; i += 64) {
 
@@ -160,7 +159,7 @@ simsimd_avx512_b1x8_hamming(simsimd_b1_t const* a, simsimd_b1_t const* b, simsim
 
 __attribute__((target("avx512vpopcntdq,avx512vl,avx512bw,avx512f"))) //
 inline static simsimd_f32_t
-simsimd_avx512_b1x8_jaccard(simsimd_b1_t const* a, simsimd_b1_t const* b, simsimd_size_t d_words) {
+simsimd_avx512_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
     __m512i intersection_vec = _mm512_setzero_si512(), union_vec = _mm512_setzero_si512();
     for (simsimd_size_t i = 0; i < d_words; i += 64) {
 
