@@ -101,11 +101,10 @@ simsimd_sve_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_siz
     simsimd_size_t i = 0;
     simsimd_i32_t differences = 0;
     do {
-        svbool_t pg_vec = svwhilelt_b8(i, d_words);
+        svbool_t pg_vec = svwhilelt_b8((unsigned int)i, (unsigned int)d_words);
         svuint8_t a_vec = svld1_u8(pg_vec, a + i);
         svuint8_t b_vec = svld1_u8(pg_vec, b + i);
-        differences +=
-            svaddv_u8(svptrue_b8(), differences_vec, svcnt_u8_x(svptrue_b8(), sveor_u8_m(svptrue_b8(), a_vec, b_vec)));
+        differences += svaddv_u8(svptrue_b8(), svcnt_u8_x(svptrue_b8(), sveor_u8_m(svptrue_b8(), a_vec, b_vec)));
         i += svcntb();
     } while (i < d_words);
     return (simsimd_f32_t)differences;
@@ -113,17 +112,15 @@ simsimd_sve_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_siz
 
 __attribute__((target("+sve"))) //
 inline static simsimd_f32_t
-simsimd_sve_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
+simsimd_sve_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
     simsimd_size_t i = 0;
     simsimd_i32_t intersection = 0, union_ = 0;
     do {
-        svbool_t pg_vec = svwhilelt_b8(i, d_words);
+        svbool_t pg_vec = svwhilelt_b8((unsigned int)i, (unsigned int)d_words);
         svuint8_t a_vec = svld1_u8(pg_vec, a + i);
         svuint8_t b_vec = svld1_u8(pg_vec, b + i);
-        intersection +=
-            svaddv_u8(svptrue_b8(), differences_vec, svcnt_u8_x(svptrue_b8(), svand_u8_m(svptrue_b8(), a_vec, b_vec)));
-        union_ +=
-            svaddv_u8(svptrue_b8(), differences_vec, svcnt_u8_x(svptrue_b8(), svorr_u8_m(svptrue_b8(), a_vec, b_vec)));
+        intersection += svaddv_u8(svptrue_b8(), svcnt_u8_x(svptrue_b8(), svand_u8_m(svptrue_b8(), a_vec, b_vec)));
+        union_ += svaddv_u8(svptrue_b8(), svcnt_u8_x(svptrue_b8(), svorr_u8_m(svptrue_b8(), a_vec, b_vec)));
         i += svcntb();
     } while (i < d_words);
     return 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_;
