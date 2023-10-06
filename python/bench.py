@@ -116,6 +116,12 @@ cdist_funcs = [
         [np.float32, np.float16, np.int8],
     ),
     (
+        "numpy.inner",
+        lambda A, B: 1 - np.dot(A, B.T),
+        lambda A, B: simd.cdist(A, B, "inner"),
+        [np.float32, np.float16, np.int8],
+    ),
+    (
         "scipy.hamming",
         lambda A, B: spd.cdist(A, B, "hamming"),
         lambda A, B: simd.cdist(A, B, "hamming"),
