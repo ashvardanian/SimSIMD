@@ -90,10 +90,19 @@ extern "C" {
 typedef int simsimd_i32_t;
 typedef float simsimd_f32_t;
 typedef double simsimd_f64_t;
-typedef _Float16 simsimd_f16_t;
 typedef signed char simsimd_i8_t;
 typedef unsigned char simsimd_b8_t;
 typedef unsigned long long simsimd_size_t;
+
+#if defined(__GNUC__) || defined(__clang__)
+#if defined(__AVX512F__) || defined(__F16C__) || defined(__ARM_FP16_FORMAT_IEEE)
+typedef __fp16 simsimd_f16_t;
+#else
+#error "Your compiler or architecture does not support _Float16 or __fp16."
+#endif
+#else
+typedef _Float16 simsimd_f16_t; // This will be the fallback if not using GCC or Clang
+#endif
 
 typedef union {
     unsigned i;
