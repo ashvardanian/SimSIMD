@@ -1,4 +1,5 @@
-#include <thread>
+#include <cmath>  // `std::sqrt`
+#include <thread> // `std::thread`
 
 #include <benchmark/benchmark.h>
 
