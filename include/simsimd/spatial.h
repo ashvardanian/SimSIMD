@@ -727,6 +727,70 @@ simsimd_avx2_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t 
 #if SIMSIMD_TARGET_X86_AVX512
 
 /*
+ *  @file   x86_avx512_f32.h
+ *  @brief  x86 AVX-512 implementation of the most common similarity metrics for 32-bit floating point numbers.
+ *  @author Ash Vardanian
+ *
+ *  - Implements: L2 squared, inner product, cosine similarity.
+ *  - Uses `f32` for storage and `f32` for accumulation.
+ *  - Requires compiler capabilities: avx512f, avx512vl.
+ */
+
+__attribute__((target("avx512f,avx512vl"))) //
+inline static simsimd_f32_t
+simsimd_avx512_f32_l2sq(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t d) {
+    __m512 d2_vec = _mm512_set1_ps(0);
+    for (simsimd_size_t i = 0; i < d; i += 16) {
+        __mmask16 mask = d - i >= 16 ? 0xFFFF : ((1u << (d - i)) - 1u);
+        __m512 a_vec = _mm512_maskz_loadu_ps(mask, a + i);
+        __m512 b_vec = _mm512_maskz_loadu_ps(mask, b + i);
+        __m512 d_vec = _mm512_sub_ps(a_vec, b_vec);
+        d2_vec = _mm512_fmadd_ps(d_vec, d_vec, d2_vec);
+    }
+    return _mm512_reduce_add_ps(d2_vec);
+}
+
+__attribute__((target("avx512f,avx512vl"))) //
+inline static simsimd_f32_t
+simsimd_avx512_f32_ip(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t d) {
+    __m512 ab_vec = _mm512_set1_ps(0);
+    for (simsimd_size_t i = 0; i < d; i += 16) {
+        __mmask16 mask = d - i >= 16 ? 0xFFFF : ((1u << (d - i)) - 1u);
+        __m512 a_vec = _mm512_maskz_loadu_ps(mask, a + i);
+        __m512 b_vec = _mm512_maskz_loadu_ps(mask, b + i);
+        ab_vec = _mm512_fmadd_ps(a_vec, b_vec, ab_vec);
+    }
+    return _mm512_reduce_add_ps(ab_vec);
+}
+
+__attribute__((target("avx512f,avx512vl"))) //
+inline static simsimd_f32_t
+simsimd_avx512_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t d) {
+    __m512 ab_vec = _mm512_set1_ps(0);
+    __m512 a2_vec = _mm512_set1_ps(0);
+    __m512 b2_vec = _mm512_set1_ps(0);
+
+    for (simsimd_size_t i = 0; i < d; i += 16) {
+        __mmask16 mask = d - i >= 16 ? 0xFFFF : ((1u << (d - i)) - 1u);
+        __m512 a_vec = _mm512_maskz_loadu_ps(mask, a + i);
+        __m512 b_vec = _mm512_maskz_loadu_ps(mask, b + i);
+        ab_vec = _mm512_fmadd_ps(a_vec, b_vec, ab_vec);
+        a2_vec = _mm512_fmadd_ps(a_vec, a_vec, a2_vec);
+        b2_vec = _mm512_fmadd_ps(b_vec, b_vec, b2_vec);
+    }
+
+    simsimd_f32_t ab = _mm512_reduce_add_ps(ab_vec);
+    simsimd_f32_t a2 = _mm512_reduce_add_ps(a2_vec);
+    simsimd_f32_t b2 = _mm512_reduce_add_ps(b2_vec);
+
+    __m128d a2_b2 = _mm_set_pd((double)a2, (double)b2);
+    __m128d rsqrts = _mm_mask_rsqrt14_pd(_mm_setzero_pd(), 0xFF, a2_b2);
+    double rsqrts_array[2];
+    _mm_storeu_pd(rsqrts_array, rsqrts);
+    return 1 - ab * rsqrts_array[0] * rsqrts_array[1];
+}
+
+/*
  *  @file   x86_avx512_f16.h
  *  @brief  x86 AVX-512 implementation of the most common similarity metrics for 16-bit floating point numbers.
  *  @author Ash Vardanian

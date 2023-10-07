@@ -163,6 +163,10 @@ int main(int argc, char** argv) {
 
     register_<simsimd_i8_t>("avx512_i8_cos", simsimd_avx512_i8_cos, simsimd_accurate_i8_cos);
     register_<simsimd_i8_t>("avx512_i8_l2sq", simsimd_avx512_i8_l2sq, simsimd_accurate_i8_l2sq);
+
+    register_<simsimd_f32_t>("avx512_f32_ip", simsimd_avx512_f32_ip, simsimd_accurate_f32_ip);
+    register_<simsimd_f32_t>("avx512_f32_cos", simsimd_avx512_f32_cos, simsimd_accurate_f32_cos);
+    register_<simsimd_f32_t>("avx512_f32_l2sq", simsimd_avx512_f32_l2sq, simsimd_accurate_f32_l2sq);
 #endif
 
     register_<simsimd_f16_t>("auto_f16_ip", simsimd_auto_f16_ip, simsimd_accurate_f16_ip);
