@@ -95,10 +95,16 @@ typedef unsigned char simsimd_b8_t;
 typedef unsigned long long simsimd_size_t;
 
 #if defined(__GNUC__) || defined(__clang__)
-#if defined(__AVX512F__) || defined(__F16C__) || defined(__ARM_FP16_FORMAT_IEEE)
+#if defined(__ARM_ARCH) || defined(__aarch64__)
+#if defined(__ARM_FP16_FORMAT_IEEE)
 typedef __fp16 simsimd_f16_t;
 #else
-#error "Your compiler or architecture does not support _Float16 or __fp16."
+#error "Enable -mfp16-format option for ARM targets to use __fp16."
+#endif
+#elif defined(__x86_64__) || defined(__i386__)
+typedef _Float16 simsimd_f16_t;
+#else
+#error "Unsupported architecture for simsimd_f16_t."
 #endif
 #else
 typedef _Float16 simsimd_f16_t; // This will be the fallback if not using GCC or Clang
