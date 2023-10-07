@@ -93,6 +93,7 @@ static PyObject* api_get_capabilities(PyObject* self) {
     ADD_CAP(x86_avx512);
     ADD_CAP(x86_avx2fp16);
     ADD_CAP(x86_avx512fp16);
+    ADD_CAP(x86_avx512vpopcntdq);
     ADD_CAP(x86_amx);
     ADD_CAP(arm_sme);
 

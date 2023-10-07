@@ -50,6 +50,7 @@ typedef enum {
     simsimd_cap_x86_avx512_k = 1 << 11,
     simsimd_cap_x86_avx2fp16_k = 1 << 12,
     simsimd_cap_x86_avx512fp16_k = 1 << 13,
+    simsimd_cap_x86_avx512vpopcntdq_k = 1 << 14,
 
     simsimd_cap_x86_amx_k = 1 << 20,
     simsimd_cap_arm_sme_k = 1 << 21,
@@ -94,25 +95,30 @@ inline static simsimd_capability_t simsimd_capabilities() {
 
     // Check for AVX2 (Function ID 7, EBX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L148
-    unsigned supports_avx2 = _simsimd_capability_supported_x86(1 << 5, 7, 1);
+    unsigned supports_avx2 = _simsimd_capability_supported_x86(0x00000020, 7, 1);
 
     // Check for F16C (Function ID 1, ECX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L107
-    unsigned supports_f16c = _simsimd_capability_supported_x86(1 << 29, 1, 2);
+    unsigned supports_f16c = _simsimd_capability_supported_x86(0x20000000, 1, 2);
 
     // Check for AVX512F (Function ID 7, EBX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L155
-    unsigned supports_avx512f = _simsimd_capability_supported_x86(1 << 16, 7, 1);
+    unsigned supports_avx512f = _simsimd_capability_supported_x86(0x00010000, 7, 1);
 
     // Check for AVX512FP16 (Function ID 7, EDX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L198C9-L198C23
-    unsigned supports_avx512fp16 = _simsimd_capability_supported_x86(1 << 23, 7, 3);
+    unsigned supports_avx512fp16 = _simsimd_capability_supported_x86(0x00800000, 7, 3);
 
-    return (simsimd_capability_t)(                                                 //
-        (simsimd_cap_x86_avx2_k * (supports_avx2)) |                               //
-        (simsimd_cap_x86_avx512_k * (supports_avx512f)) |                          //
-        (simsimd_cap_x86_avx2fp16_k * (supports_avx2 && supports_f16c)) |          //
-        (simsimd_cap_x86_avx512fp16_k * (supports_avx512fp16 && supports_avx512f)) //
+    // Check for VPOPCNTDQ (Function ID 1, ECX register)
+    // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L182C30-L182C40
+    unsigned support_avx512vpopcntdq = _simsimd_capability_supported_x86(0x00004000, 1, 2);
+
+    return (simsimd_capability_t)(                                                                 //
+        (simsimd_cap_x86_avx2_k * (supports_avx2)) |                                               //
+        (simsimd_cap_x86_avx512_k * (supports_avx512f)) |                                          //
+        (simsimd_cap_x86_avx2fp16_k * (supports_avx2 && supports_f16c)) |                          //
+        (simsimd_cap_x86_avx512fp16_k * (supports_avx512fp16 && supports_avx512f)) |               //
+        (simsimd_cap_x86_avx512vpopcntdq_k * (support_avx512vpopcntdq && support_avx512vpopcntdq)) //
     );
 #endif
 
@@ -294,7 +300,7 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
             }
 #endif
 #if SIMSIMD_TARGET_X86_AVX512
-        if (viable & simsimd_cap_x86_avx512_k)
+        if (viable & simsimd_cap_x86_avx512vpopcntdq_k)
             switch (kind) {
             case simsimd_metric_hamming_k: return (simsimd_metric_punned_t)&simsimd_avx512_b8_hamming;
             case simsimd_metric_jaccard_k: return (simsimd_metric_punned_t)&simsimd_avx512_b8_jaccard;
