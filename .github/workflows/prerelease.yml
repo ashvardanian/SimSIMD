@@ -37,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --no-cache-dir --upgrade pip
-          pip install --no-cache-dir pytest numpy scipy py-cpuinfo
+          pip install --no-cache-dir pytest numpy scipy py-cpuinfo pytest-repeat
           python -c "from cpuinfo import get_cpu_info; print(get_cpu_info())"
 
       - name: Build locally on Ubuntu
