@@ -52,7 +52,7 @@ inline static simsimd_f32_t simsimd_auto_b8_jaccard( //
     simsimd_i32_t intersection = 0, union_ = 0;
     for (simsimd_size_t i = 0; i != d_words; ++i)
         intersection += simsimd_popcount_b8(a[i] & b[i]), union_ += simsimd_popcount_b8(a[i] | b[i]);
-    return 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_;
+    return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
 #if SIMSIMD_TARGET_ARM
@@ -88,7 +88,7 @@ simsimd_neon_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_si
     // Handle the tail
     for (; i != d_words; ++i)
         intersection += simsimd_popcount_b8(a[i] & b[i]), union_ += simsimd_popcount_b8(a[i] | b[i]);
-    return 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_;
+    return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
 #endif // SIMSIMD_TARGET_ARM_NEON
@@ -123,7 +123,7 @@ simsimd_sve_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_siz
         union_ += svaddv_u8(svptrue_b8(), svcnt_u8_x(svptrue_b8(), svorr_u8_m(svptrue_b8(), a_vec, b_vec)));
         i += svcntb();
     } while (i < d_words);
-    return 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_;
+    return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
 #endif // SIMSIMD_TARGET_ARM_SVE
@@ -174,7 +174,7 @@ simsimd_avx512_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_
 
     simsimd_size_t intersection = _mm512_reduce_add_epi64(intersection_vec),
                    union_ = _mm512_reduce_add_epi64(union_vec);
-    return 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_;
+    return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
 #endif // SIMSIMD_TARGET_X86_AVX512
