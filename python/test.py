@@ -29,6 +29,8 @@ def test_dot(ndim, dtype):
     """Compares the simd.dot() function with numpy.dot(), measuring the accuracy error for f16, and f32 types."""
     a = np.random.randn(ndim).astype(dtype)
     b = np.random.randn(ndim).astype(dtype)
+    a /= np.linalg.norm(a)
+    b /= np.linalg.norm(b)
 
     expected = 1 - np.inner(a, b)
     result = simd.inner(a, b)
