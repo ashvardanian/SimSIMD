@@ -435,7 +435,7 @@ simsimd_sve_f16_l2sq(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, s
         i += svcnth();
     } while (i < d);
     float16_t d2_f16 = svaddv_f16(svptrue_b16(), d2_vec);
-    return 1 - d2_f16;
+    return d2_f16;
 }
 __attribute__((target("+sve+fp16"))) //
 inline static simsimd_f32_t
