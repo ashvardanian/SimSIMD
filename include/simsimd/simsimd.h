@@ -1,5 +1,5 @@
 /**
- *  @brief      Collection of Similarity Measures, SIMD-accelerated with SSE, AVX, NEON, SVE.
+ *  @brief      SIMD-accelerated Similarity Measures and Distance Functions.
  *  @file       simsimd.h
  *  @author     Ash Vardanian
  *  @date       March 14, 2023
@@ -12,7 +12,8 @@
  */
 
 #pragma once
-#include "spatial.h"
+#include "binary.h"  // Hamming, Jaccard
+#include "spatial.h" // L2, Inner Product, Cosine
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,7 +36,7 @@ typedef enum {
 
     // Sets:
     simsimd_metric_hamming_k = 'b',
-    simsimd_metric_tanimoto_k = 't',
+    simsimd_metric_jaccard_k = 'j',
 } simsimd_metric_kind_t;
 
 typedef enum {
@@ -49,6 +50,7 @@ typedef enum {
     simsimd_cap_x86_avx512_k = 1 << 11,
     simsimd_cap_x86_avx2fp16_k = 1 << 12,
     simsimd_cap_x86_avx512fp16_k = 1 << 13,
+    simsimd_cap_x86_avx512vpopcntdq_k = 1 << 14,
 
     simsimd_cap_x86_amx_k = 1 << 20,
     simsimd_cap_arm_sme_k = 1 << 21,
@@ -61,7 +63,7 @@ typedef enum {
     simsimd_datatype_f32_k,
     simsimd_datatype_f16_k,
     simsimd_datatype_i8_k,
-    simsimd_datatype_b1_k,
+    simsimd_datatype_b8_k,
 } simsimd_datatype_t;
 
 typedef simsimd_f32_t (*simsimd_metric_punned_t)(void const*, void const*, simsimd_size_t, simsimd_size_t);
@@ -93,25 +95,30 @@ inline static simsimd_capability_t simsimd_capabilities() {
 
     // Check for AVX2 (Function ID 7, EBX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L148
-    unsigned supports_avx2 = _simsimd_capability_supported_x86(1 << 5, 7, 1);
+    unsigned supports_avx2 = _simsimd_capability_supported_x86(0x00000020, 7, 1);
 
     // Check for F16C (Function ID 1, ECX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L107
-    unsigned supports_f16c = _simsimd_capability_supported_x86(1 << 29, 1, 2);
+    unsigned supports_f16c = _simsimd_capability_supported_x86(0x20000000, 1, 2);
 
     // Check for AVX512F (Function ID 7, EBX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L155
-    unsigned supports_avx512f = _simsimd_capability_supported_x86(1 << 16, 7, 1);
+    unsigned supports_avx512f = _simsimd_capability_supported_x86(0x00010000, 7, 1);
 
     // Check for AVX512FP16 (Function ID 7, EDX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L198C9-L198C23
-    unsigned supports_avx512fp16 = _simsimd_capability_supported_x86(1 << 23, 7, 3);
+    unsigned supports_avx512fp16 = _simsimd_capability_supported_x86(0x00800000, 7, 3);
 
-    return (simsimd_capability_t)(                                                 //
-        (simsimd_cap_x86_avx2_k * (supports_avx2)) |                               //
-        (simsimd_cap_x86_avx512_k * (supports_avx512f)) |                          //
-        (simsimd_cap_x86_avx2fp16_k * (supports_avx2 && supports_f16c)) |          //
-        (simsimd_cap_x86_avx512fp16_k * (supports_avx512fp16 && supports_avx512f)) //
+    // Check for VPOPCNTDQ (Function ID 1, ECX register)
+    // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L182C30-L182C40
+    unsigned support_avx512vpopcntdq = _simsimd_capability_supported_x86(0x00004000, 1, 2);
+
+    return (simsimd_capability_t)(                                                                 //
+        (simsimd_cap_x86_avx2_k * (supports_avx2)) |                                               //
+        (simsimd_cap_x86_avx512_k * (supports_avx512f)) |                                          //
+        (simsimd_cap_x86_avx2fp16_k * (supports_avx2 && supports_f16c)) |                          //
+        (simsimd_cap_x86_avx512fp16_k * (supports_avx512fp16 && supports_avx512f)) |               //
+        (simsimd_cap_x86_avx512vpopcntdq_k * (support_avx512vpopcntdq && support_avx512vpopcntdq)) //
     );
 #endif
 
@@ -122,7 +129,8 @@ inline static simsimd_capability_t simsimd_capabilities() {
     unsigned long id_aa64isar0_el1 = 0;
     unsigned long id_aa64mmfr2_el1 = 0;
 
-    // Seems like Apple Silicon doesn't expose those registers
+    // TODO: Fix capability checks on aarch64
+    // https://github.com/Xilinx/linux-xlnx/blob/cb1f2dbc7e487361688257fccf78bf3f3ce0e9ed/arch/arm64/kernel/cpufeature.c#L2765
 #if 0
     // Check the SVE and SVE2 field of ID_AA64ISAR0_EL1 register
     __asm__ __volatile__("mrs %0, id_aa64isar0_el1" : "=r"(id_aa64isar0_el1));
@@ -170,12 +178,23 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
             case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_neon_f32_ip;
             case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_neon_f32_cos;
             case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_neon_f32_l2sq;
+            default: return 0;
+            }
+#endif
+#if SIMSIMD_TARGET_X86_AVX512
+        if (viable & simsimd_cap_x86_avx512_k)
+            switch (kind) {
+            case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_avx512_f32_ip;
+            case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_avx512_f32_cos;
+            case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_avx512_f32_l2sq;
+            default: return 0;
             }
 #endif
         switch (kind) {
         case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_auto_f32_ip;
         case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_auto_f32_cos;
         case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_auto_f32_l2sq;
+        default: return 0;
         }
 
         // Half-precision floating-point vectors
@@ -187,6 +206,7 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
             case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_neon_f16_ip;
             case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_neon_f16_cos;
             case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_neon_f16_l2sq;
+            default: return 0;
             }
 #endif
 #if SIMSIMD_TARGET_ARM_SVE
@@ -195,6 +215,7 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
             case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_sve_f16_ip;
             case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_sve_f16_cos;
             case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_sve_f16_l2sq;
+            default: return 0;
             }
 #endif
 #if SIMSIMD_TARGET_X86_AVX2
@@ -203,6 +224,7 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
             case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_avx2_f16_ip;
             case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_avx2_f16_cos;
             case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_avx2_f16_l2sq;
+            default: return 0;
             }
 #endif
 #if SIMSIMD_TARGET_X86_AVX512
@@ -211,6 +233,7 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
             case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_avx512_f16_ip;
             case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_avx512_f16_cos;
             case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_avx512_f16_l2sq;
+            default: return 0;
             }
 #endif
 
@@ -218,6 +241,7 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
         case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_auto_f16_ip;
         case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_auto_f16_cos;
         case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_auto_f16_l2sq;
+        default: return 0;
         }
 
     // Single-byte integer vectors
@@ -228,6 +252,7 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
             case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_neon_i8_ip;
             case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_neon_i8_cos;
             case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_neon_i8_l2sq;
+            default: return 0;
             }
 #endif
 #if SIMSIMD_TARGET_X86_AVX2
@@ -236,13 +261,57 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
             case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_avx2_i8_ip;
             case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_avx2_i8_cos;
             case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_avx2_i8_l2sq;
+            default: return 0;
             }
 #endif
-
+#if SIMSIMD_TARGET_X86_AVX512
+        if (viable & simsimd_cap_x86_avx512_k)
+            switch (kind) {
+            case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_avx512_i8_ip;
+            case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_avx512_i8_cos;
+            case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_avx512_i8_l2sq;
+            default: return 0;
+            }
+#endif
         switch (kind) {
         case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_auto_i8_ip;
         case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_auto_i8_cos;
         case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_auto_i8_l2sq;
+        default: return 0;
+        }
+
+        // Binary vectors
+    case simsimd_datatype_b8_k:
+
+#if SIMSIMD_TARGET_ARM_NEON
+        if (viable & simsimd_cap_arm_neon_k)
+            switch (kind) {
+            case simsimd_metric_hamming_k: return (simsimd_metric_punned_t)&simsimd_neon_b8_hamming;
+            case simsimd_metric_jaccard_k: return (simsimd_metric_punned_t)&simsimd_neon_b8_jaccard;
+            default: return 0;
+            }
+#endif
+#if SIMSIMD_TARGET_ARM_SVE
+        if (viable & simsimd_cap_arm_sve_k)
+            switch (kind) {
+            case simsimd_metric_hamming_k: return (simsimd_metric_punned_t)&simsimd_sve_b8_hamming;
+            case simsimd_metric_jaccard_k: return (simsimd_metric_punned_t)&simsimd_sve_b8_jaccard;
+            default: return 0;
+            }
+#endif
+#if SIMSIMD_TARGET_X86_AVX512
+        if (viable & simsimd_cap_x86_avx512vpopcntdq_k)
+            switch (kind) {
+            case simsimd_metric_hamming_k: return (simsimd_metric_punned_t)&simsimd_avx512_b8_hamming;
+            case simsimd_metric_jaccard_k: return (simsimd_metric_punned_t)&simsimd_avx512_b8_jaccard;
+            default: return 0;
+            }
+#endif
+
+        switch (kind) {
+        case simsimd_metric_hamming_k: return (simsimd_metric_punned_t)&simsimd_auto_b8_hamming;
+        case simsimd_metric_jaccard_k: return (simsimd_metric_punned_t)&simsimd_auto_b8_jaccard;
+        default: return 0;
         }
     }
 }

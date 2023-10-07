@@ -40,7 +40,7 @@ simsimd_datatype_t numpy_string_to_datatype(char const* name) {
     else if (same_string(name, "b") || same_string(name, "<b") || same_string(name, "i1") || same_string(name, "|i1"))
         return simsimd_datatype_i8_k;
     else if (same_string(name, "B") || same_string(name, "<B") || same_string(name, "u1") || same_string(name, "|u1"))
-        return simsimd_datatype_b1_k;
+        return simsimd_datatype_b8_k;
     else if (same_string(name, "d") || same_string(name, "<d") || same_string(name, "i8") || same_string(name, "<i8"))
         return simsimd_datatype_f64_k;
     else
@@ -54,8 +54,8 @@ simsimd_datatype_t python_string_to_datatype(char const* name) {
         return simsimd_datatype_f16_k;
     else if (same_string(name, "c") || same_string(name, "i8"))
         return simsimd_datatype_i8_k;
-    else if (same_string(name, "b") || same_string(name, "b1"))
-        return simsimd_datatype_b1_k;
+    else if (same_string(name, "b") || same_string(name, "b8"))
+        return simsimd_datatype_b8_k;
     else if (same_string(name, "d") || same_string(name, "f64"))
         return simsimd_datatype_f64_k;
     else
@@ -69,6 +69,10 @@ simsimd_metric_kind_t python_string_to_metric_kind(char const* name) {
         return simsimd_metric_inner_k;
     else if (same_string(name, "cosine"))
         return simsimd_metric_cosine_k;
+    else if (same_string(name, "hamming"))
+        return simsimd_metric_hamming_k;
+    else if (same_string(name, "jaccard"))
+        return simsimd_metric_jaccard_k;
     else
         return simsimd_metric_unknown_k;
 }
@@ -89,6 +93,7 @@ static PyObject* api_get_capabilities(PyObject* self) {
     ADD_CAP(x86_avx512);
     ADD_CAP(x86_avx2fp16);
     ADD_CAP(x86_avx512fp16);
+    ADD_CAP(x86_avx512vpopcntdq);
     ADD_CAP(x86_amx);
     ADD_CAP(arm_sme);
 
@@ -171,6 +176,10 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* args) 
     }
 
     simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, parsed_a.datatype, 0xFFFFFFFF);
+    if (!metric) {
+        PyErr_SetString(PyExc_ValueError, "unsupported metric and datatype combination");
+        goto cleanup;
+    }
 
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     if (parsed_a.is_flat && parsed_b.is_flat) {
@@ -245,6 +254,10 @@ static PyObject* impl_cdist(                            //
     }
 
     simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, parsed_a.datatype, 0xFFFFFFFF);
+    if (!metric) {
+        PyErr_SetString(PyExc_ValueError, "unsupported metric and datatype combination");
+        goto cleanup;
+    }
 
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     if (parsed_a.is_flat && parsed_b.is_flat) {
@@ -374,10 +387,18 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
 static PyObject* api_l2sq_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_l2sq_k, args); }
 static PyObject* api_cos_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_cos_k, args); }
 static PyObject* api_ip_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_ip_k, args); }
+static PyObject* api_hamming_pointer(PyObject* self, PyObject* args) {
+    return impl_pointer(simsimd_metric_hamming_k, args);
+}
+static PyObject* api_jaccard_pointer(PyObject* self, PyObject* args) {
+    return impl_pointer(simsimd_metric_jaccard_k, args);
+}
 
 static PyObject* api_l2sq(PyObject* self, PyObject* args) { return impl_metric(simsimd_metric_l2sq_k, args); }
 static PyObject* api_cos(PyObject* self, PyObject* args) { return impl_metric(simsimd_metric_cos_k, args); }
 static PyObject* api_ip(PyObject* self, PyObject* args) { return impl_metric(simsimd_metric_ip_k, args); }
+static PyObject* api_hamming(PyObject* self, PyObject* args) { return impl_metric(simsimd_metric_hamming_k, args); }
+static PyObject* api_jaccard(PyObject* self, PyObject* args) { return impl_metric(simsimd_metric_jaccard_k, args); }
 
 static PyMethodDef simsimd_methods[] = {
     // Introspecting library and hardware capabilities
@@ -387,6 +408,8 @@ static PyMethodDef simsimd_methods[] = {
     {"sqeuclidean", api_l2sq, METH_VARARGS, "L2sq (Sq. Euclidean) distances between a pair of matrices"},
     {"cosine", api_cos, METH_VARARGS, "Cosine (Angular) distances between a pair of matrices"},
     {"inner", api_ip, METH_VARARGS, "Inner (Dot) Product distances between a pair of matrices"},
+    {"hamming", api_hamming, METH_VARARGS, "Hamming distances between a pair of matrices"},
+    {"jaccard", api_jaccard, METH_VARARGS, "Jaccard (Bitwise Tanimoto) distances between a pair of matrices"},
 
     // Conventional `cdist` and `pdist` insterfaces with third string argument, and optional `threads` arg
     {"cdist", api_cdist, METH_VARARGS | METH_KEYWORDS,

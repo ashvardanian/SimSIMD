@@ -78,6 +78,11 @@
 #include <immintrin.h>
 #endif
 
+#ifndef SIMSIMD_RSQRT
+#include <math.h>
+#define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -85,10 +90,25 @@ extern "C" {
 typedef int simsimd_i32_t;
 typedef float simsimd_f32_t;
 typedef double simsimd_f64_t;
-typedef _Float16 simsimd_f16_t;
 typedef signed char simsimd_i8_t;
-typedef unsigned char simsimd_b1_t;
+typedef unsigned char simsimd_b8_t;
 typedef unsigned long long simsimd_size_t;
+
+#if defined(__GNUC__) || defined(__clang__)
+#if defined(__ARM_ARCH) || defined(__aarch64__)
+#if defined(__ARM_FP16_FORMAT_IEEE)
+typedef __fp16 simsimd_f16_t;
+#else
+#error "Enable -mfp16-format option for ARM targets to use __fp16."
+#endif
+#elif defined(__x86_64__) || defined(__i386__)
+typedef _Float16 simsimd_f16_t;
+#else
+#error "Unsupported architecture for simsimd_f16_t."
+#endif
+#else
+typedef _Float16 simsimd_f16_t; // This will be the fallback if not using GCC or Clang
+#endif
 
 typedef union {
     unsigned i;
