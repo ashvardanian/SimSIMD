@@ -258,7 +258,15 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
             default: return 0;
             }
 #endif
-
+#if SIMSIMD_TARGET_X86_AVX512
+        if (viable & simsimd_cap_x86_avx512_k)
+            switch (kind) {
+            case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_avx512_i8_ip;
+            case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_avx512_i8_cos;
+            case simsimd_metric_l2sq_k: return (simsimd_metric_punned_t)&simsimd_avx512_i8_l2sq;
+            default: return 0;
+            }
+#endif
         switch (kind) {
         case simsimd_metric_ip_k: return (simsimd_metric_punned_t)&simsimd_auto_i8_ip;
         case simsimd_metric_cos_k: return (simsimd_metric_punned_t)&simsimd_auto_i8_cos;

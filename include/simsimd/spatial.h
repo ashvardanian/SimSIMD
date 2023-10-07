@@ -865,10 +865,10 @@ simsimd_avx512_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_s
  *  - Implements: L2 squared, cosine similarity, inner product (same as cosine).
  *  - Uses `_mm512_maskz_loadu_epi16` intrinsics to perform masked unaligned loads.
  *  - Uses `i8` for storage, `i16` for multiplication, and `i32` for accumulation, if no better option is available.
- *  - Requires compiler capabilities: avx512f, avx512vl.
+ *  - Requires compiler capabilities: avx512f, avx512vl, avx512bw.
  */
 
-__attribute__((target("avx512vl,avx512f"))) //
+__attribute__((target("avx512vl,avx512f,avx512bw"))) //
 inline static simsimd_f32_t
 simsimd_avx512_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     __m512i d2_i32s_vec = _mm512_setzero_si512();
@@ -884,7 +884,7 @@ simsimd_avx512_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_siz
     return _mm512_reduce_add_epi32(d2_i32s_vec);
 }
 
-__attribute__((target("avx512vl,avx512f"))) //
+__attribute__((target("avx512vl,avx512f,avx512bw"))) //
 inline static simsimd_f32_t
 simsimd_avx512_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     __m512i ab_i32s_vec = _mm512_setzero_si512();
@@ -913,7 +913,7 @@ simsimd_avx512_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size
     return 1 - ab * rsqrts_array[0] * rsqrts_array[1];
 }
 
-__attribute__((target("avx512vl,avx512f"))) //
+__attribute__((target("avx512vl,avx512f,avx512bw"))) //
 inline static simsimd_f32_t
 simsimd_avx512_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     return simsimd_avx512_i8_cos(a, b, d);
