@@ -5,7 +5,8 @@
 SimSIMD leverages SIMD intrinsics, capabilities that only select compilers effectively utilize. This framework supports conventional AVX2 instructions on x86, NEON on Arm, as well as __rare__ AVX-512 FP16 instructions on x86 and Scalable Vector Extensions on Arm. Designed specifically for Machine Learning contexts, it's optimized for handling high-dimensional vector embeddings.
 
 - ✅ __3-200x faster__ than NumPy and SciPy distance functions.
-- ✅ Euclidean (L2), Inner Product, and Cosine (Angular) distances.
+- ✅ Euclidean (L2), Inner Product, and Cosine (Angular) spatial distances.
+- ✅ Hamming (~ Manhattan) and Jaccard (~ Tanimoto) binary distances.
 - ✅ Single-precision `f32`, half-precision `f16`, and `i8` vectors.
 - ✅ Compatible with NumPy, PyTorch, TensorFlow, and other tensors.
 - ✅ Has __no dependencies__, not even LibC.
@@ -61,6 +62,8 @@ vec2 = np.random.randn(1536).astype(np.float32)
 dist = simsimd.cosine(vec1, vec2)
 ```
 
+Supported functions include `cosine`, `inner`, `sqeuclidean`, `hamming`, and `jaccard`.
+
 ### Distance Between 2 Batches
 
 ```py
@@ -68,6 +71,9 @@ batch1 = np.random.randn(100, 1536).astype(np.float32)
 batch2 = np.random.randn(100, 1536).astype(np.float32)
 dist = simsimd.cosine(batch1, batch2)
 ```
+
+If either batch has more than one vector, the other batch must have one or same number of vectors.
+If it contains just one, the value is broadcasted.
 
 ### All Pairwise Distances
 
@@ -136,7 +142,7 @@ Should you wish to integrate SimSIMD within USearch, simply compile USearch with
 
 Here's a glance at the exciting developments on our horizon:
 
-- [ ] Exposing Hamming and Tanimoto bitwise distances to the Python interface.
+- [x] Exposing Hamming and Tanimoto bitwise distances to the Python interface.
 - [ ] Intel AMX backend. Note: Currently, the intrinsics are functional only with Intel's latest compiler.
 
 __To Rerun Experiments__ utilize the following command:
