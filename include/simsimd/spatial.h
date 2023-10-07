@@ -760,7 +760,7 @@ simsimd_avx512_f32_ip(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_si
         __m512 b_vec = _mm512_maskz_loadu_ps(mask, b + i);
         ab_vec = _mm512_fmadd_ps(a_vec, b_vec, ab_vec);
     }
-    return _mm512_reduce_add_ps(ab_vec);
+    return 1 - _mm512_reduce_add_ps(ab_vec);
 }
 
 __attribute__((target("avx512f,avx512vl"))) //
