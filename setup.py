@@ -62,7 +62,7 @@ setup(
     author="Ash Vardanian",
     author_email="1983160+ashvardanian@users.noreply.github.com",
     url="https://github.com/ashvardanian/simsimd",
-    description="SIMD-accelerated similarity measures for x86 and Arm",
+    description="Vector Similarity Functions 3x-200x Faster than SciPy and NumPy",
     long_description=long_description,
     long_description_content_type="text/markdown",
     license="Apache-2.0",

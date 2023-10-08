@@ -426,12 +426,35 @@ static PyMethodDef simsimd_methods[] = {
 static PyModuleDef simsimd_module = {
     PyModuleDef_HEAD_INIT,
     .m_name = "SimSIMD",
-    .m_doc = "SIMD-accelerated similarity measures for x86 and Arm: AVX2, AVX512, NEON, SVE",
+    .m_doc = "Vector Similarity Functions 3x-200x Faster than SciPy and NumPy",
     .m_size = -1,
     .m_methods = simsimd_methods,
 };
 
 PyMODINIT_FUNC PyInit_simsimd(void) {
     _import_array();
-    return PyModule_Create(&simsimd_module);
+    PyObject* module = PyModule_Create(&simsimd_module);
+
+    // Open the VERSION file to add the `simsimd.__version__` attribute
+    if (module) {
+        FILE* file = fopen("VERSION", "r");
+        if (file) {
+            char version[256];
+            if (fgets(version, sizeof(version), file)) {
+                // Remove newline character if present
+                size_t len = strlen(version);
+                if (len > 0 && version[len - 1] == '\n') {
+                    version[len - 1] = '\0';
+                }
+                PyModule_AddStringConstant(module, "__version__", version);
+            }
+            fclose(file);
+        } else {
+            PyErr_SetString(PyExc_FileNotFoundError, "VERSION file not found");
+            return NULL;
+        }
+        return module;
+    }
+
+    return NULL;
 }
