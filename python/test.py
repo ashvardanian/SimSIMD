@@ -66,6 +66,23 @@ def test_cosine(ndim, dtype):
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
+@pytest.mark.parametrize("ndim", [3, 97, 1536])
+@pytest.mark.parametrize("dtype", [np.float32, np.float16])
+def test_cosine_zero_vector(ndim, dtype):
+    """Tests the simd.cosine() function with zero vectors, to catch division by zero errors."""
+    a = np.zeros(ndim, dtype=dtype)
+    b = np.random.randn(ndim).astype(dtype)
+
+    # SciPy raises: "RuntimeWarning: invalid value encountered in scalar divide"
+    with pytest.raises(RuntimeWarning):
+        expected = spd.cosine(a, b)
+
+    expected = 1
+    result = simd.cosine(a, b)
+
+    assert result == expected, f"Expected {expected}, but got {result}"
+
+
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
 def test_hamming(ndim):
