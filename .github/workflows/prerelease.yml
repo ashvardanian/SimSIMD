@@ -18,13 +18,14 @@ permissions:
 jobs:
 
   test_python:
-    name: Test Python ${{ matrix.os }} ${{ matrix.python-version }}
+    name: Test Python ${{ matrix.python-version }} on ${{ matrix.architecture }} ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-22.04, macOS-11, windows-2022]
         python-version: ["3.12", "3.8"]
+        architecture: [x64, arm64]
 
     steps:
       - uses: actions/checkout@v3
@@ -56,8 +57,6 @@ jobs:
 
       - name: Set up MinGW
         uses: egor-tensin/setup-mingw@v2
-        with:
-          platform: x64
         if: ${{ matrix.os == 'windows-2022' }}
 
       - name: Build locally on Windows

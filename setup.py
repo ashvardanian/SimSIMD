@@ -40,6 +40,9 @@ if sys.platform == "win32":
     compile_args.append("/O2")
     compile_args.append("/fp:fast")
 
+    # Dealing with MinGW linking errors
+    # https://cibuildwheel.readthedocs.io/en/stable/faq/#windows-importerror-dll-load-failed-the-specific-module-could-not-be-found
+    compile_args.append("/d2FH4-")
 
 ext_modules = [
     Extension(
