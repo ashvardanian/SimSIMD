@@ -2,12 +2,12 @@
 
 ## Efficient Alternative to [`scipy.spatial.distance`][scipy] and [`numpy.inner`][numpy]
 
-SimSIMD leverages SIMD intrinsics, capabilities that only select compilers effectively utilize. This framework supports conventional AVX2 instructions on x86, NEON on Arm, as well as __rare__ AVX-512 FP16 instructions on x86 and Scalable Vector Extensions on Arm. Designed specifically for Machine Learning contexts, it's optimized for handling high-dimensional vector embeddings.
+SimSIMD leverages SIMD intrinsics, capabilities that only select compilers effectively utilize. This framework supports conventional AVX2 instructions on x86, NEON on Arm, as well as __rare__ AVX-512 FP16 instructions on x86 and Scalable Vector Extensions (SVE) on Arm. Designed specifically for Machine Learning contexts, it's optimized for handling high-dimensional vector embeddings.
 
 - ✅ __3-200x faster__ than NumPy and SciPy distance functions.
 - ✅ Euclidean (L2), Inner Product, and Cosine (Angular) spatial distances.
 - ✅ Hamming (~ Manhattan) and Jaccard (~ Tanimoto) binary distances.
-- ✅ Single-precision `f32`, half-precision `f16`, and `i8` vectors.
+- ✅ Single-precision `f32`, half-precision `f16`, `i8`, and binary vectors.
 - ✅ Compatible with NumPy, PyTorch, TensorFlow, and other tensors.
 - ✅ Has __no dependencies__, not even LibC.
 
@@ -155,4 +155,10 @@ __To Test with PyTest__:
 
 ```sh
 pip install -e . && pytest python/test.py -s -x
+```
+
+__To benchmark__: you can pass option `--n` argument for the batch size, and `--ndim` for the number of vector dimensions.
+
+```sh
+python python/bench.py --n 1000 --ndim 1000000
 ```
