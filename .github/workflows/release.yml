@@ -82,8 +82,6 @@ jobs:
 
       - name: Build wheels on MacOS
         run: python -m cibuildwheel
-        env:
-          CIBW_ENVIRONMENT: CC=/usr/local/bin/gcc-12 CXX=/usr/local/bin/g++-12
         if: matrix.os == 'macOS-11'
 
       - uses: actions/upload-artifact@v3
