@@ -436,25 +436,8 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
     PyObject* module = PyModule_Create(&simsimd_module);
 
     // Open the VERSION file to add the `simsimd.__version__` attribute
-    if (module) {
-        FILE* file = fopen("VERSION", "r");
-        if (file) {
-            char version[256];
-            if (fgets(version, sizeof(version), file)) {
-                // Remove newline character if present
-                size_t len = strlen(version);
-                if (len > 0 && version[len - 1] == '\n') {
-                    version[len - 1] = '\0';
-                }
-                PyModule_AddStringConstant(module, "__version__", version);
-            }
-            fclose(file);
-        } else {
-            PyErr_SetString(PyExc_FileNotFoundError, "VERSION file not found");
-            return NULL;
-        }
-        return module;
-    }
+    if (module)
+        PyModule_AddStringConstant(module, "__version__", "2.1.1");
 
-    return NULL;
+    return module;
 }
