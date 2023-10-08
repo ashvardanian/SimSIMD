@@ -60,10 +60,7 @@
             a2 += ai * ai;                                                                                             \
             b2 += bi * bi;                                                                                             \
         }                                                                                                              \
-        double result = ab;                                                                                            \
-        result *= SIMSIMD_RSQRT(a2);                                                                                   \
-        result *= SIMSIMD_RSQRT(b2);                                                                                   \
-        return 1 - result;                                                                                             \
+        return ab == 0 ? 1 : 1 - ab * SIMSIMD_RSQRT(a2) * SIMSIMD_RSQRT(b2);                                           \
     }
 
 #ifdef __cplusplus
@@ -173,7 +170,7 @@ simsimd_neon_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_siz
     // Avoid `simsimd_approximate_inverse_square_root` on Arm NEON
     simsimd_f32_t a2_b2_arr[2] = {a2, b2};
     vst1_f32(a2_b2_arr, vrsqrte_f32(vld1_f32(a2_b2_arr)));
-    return 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
+    return ab == 0 ? 1 : 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
 }
 
 /*
@@ -244,7 +241,7 @@ simsimd_neon_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_siz
     float32x2_t a2_b2 = vld1_f32(a2_b2_arr);
     a2_b2 = vrsqrte_f32(a2_b2);
     vst1_f32(a2_b2_arr, a2_b2);
-    return 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
+    return ab == 0 ? 1 : 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
 }
 
 /*
@@ -326,7 +323,7 @@ simsimd_neon_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t
     float32x2_t a2_b2 = vld1_f32(a2_b2_arr);
     a2_b2 = vrsqrte_f32(a2_b2);
     vst1_f32(a2_b2_arr, a2_b2);
-    return 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
+    return ab == 0 ? 1 : 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
 }
 
 __attribute__((target("arch=armv8.2-a+dotprod"))) //
@@ -406,7 +403,7 @@ simsimd_sve_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size
     float32x2_t a2_b2 = vld1_f32(a2_b2_arr);
     a2_b2 = vrsqrte_f32(a2_b2);
     vst1_f32(a2_b2_arr, a2_b2);
-    return 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
+    return ab == 0 ? 1 : 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
 }
 
 /*
@@ -483,7 +480,7 @@ simsimd_sve_f16_cos(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, si
     float32x2_t a2_b2 = vld1_f32(a2_b2_arr);
     a2_b2 = vrsqrte_f32(a2_b2);
     vst1_f32(a2_b2_arr, a2_b2);
-    return 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
+    return ab == 0 ? 1 : 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
 }
 
 #endif // SIMSIMD_TARGET_ARM_SVE
@@ -591,7 +588,7 @@ simsimd_avx2_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_siz
     __m128 result = _mm_mul_ss(a2_sqrt_recip, b2_sqrt_recip); // Multiply the reciprocal square roots
     result = _mm_mul_ss(result, _mm_set_ss((float)ab));       // Multiply by ab
     result = _mm_sub_ss(_mm_set_ss(1.0f), result);            // Subtract from 1
-    return _mm_cvtss_f32(result);                             // Extract the final result
+    return ab == 0 ? 1 : _mm_cvtss_f32(result);               // Extract the final result
 }
 
 /*
@@ -713,7 +710,7 @@ simsimd_avx2_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t
     __m128 result = _mm_mul_ss(a2_sqrt_recip, b2_sqrt_recip); // Multiply the reciprocal square roots
     result = _mm_mul_ss(result, _mm_set_ss((float)ab));       // Multiply by ab
     result = _mm_sub_ss(_mm_set_ss(1.0f), result);            // Subtract from 1
-    return _mm_cvtss_f32(result);                             // Extract the final result
+    return ab == 0 ? 1 : _mm_cvtss_f32(result);               // Extract the final result
 }
 
 __attribute__((target("avx2"))) //
@@ -787,7 +784,7 @@ simsimd_avx512_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_s
     __m128d rsqrts = _mm_mask_rsqrt14_pd(_mm_setzero_pd(), 0xFF, a2_b2);
     double rsqrts_array[2];
     _mm_storeu_pd(rsqrts_array, rsqrts);
-    return 1 - ab * rsqrts_array[0] * rsqrts_array[1];
+    return ab == 0 ? 1 : 1 - ab * rsqrts_array[0] * rsqrts_array[1];
 }
 
 /*
@@ -854,7 +851,7 @@ simsimd_avx512_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_s
     __m128d rsqrts = _mm_mask_rsqrt14_pd(_mm_setzero_pd(), 0xFF, a2_b2);
     double rsqrts_array[2];
     _mm_storeu_pd(rsqrts_array, rsqrts);
-    return 1 - ab * rsqrts_array[0] * rsqrts_array[1];
+    return ab == 0 ? 1 : 1 - ab * rsqrts_array[0] * rsqrts_array[1];
 }
 
 /*
@@ -910,7 +907,7 @@ simsimd_avx512_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size
     __m128d rsqrts = _mm_mask_rsqrt14_pd(_mm_setzero_pd(), 0xFF, a2_b2);
     double rsqrts_array[2];
     _mm_storeu_pd(rsqrts_array, rsqrts);
-    return 1 - ab * rsqrts_array[0] * rsqrts_array[1];
+    return ab == 0 ? 1 : 1 - ab * rsqrts_array[0] * rsqrts_array[1];
 }
 
 __attribute__((target("avx512vl,avx512f,avx512bw"))) //
