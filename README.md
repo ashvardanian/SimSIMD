@@ -38,10 +38,17 @@ On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against autovecto
 
 __Technical Insights__:
 
-- Uses Arm SVE and x86 AVX-512's masked loads to eliminate tail `for`-loops.
-- Substitutes LibC's `sqrt` calls with bithacks using Jan Kadlec's constant.
+- [Uses Arm SVE and x86 AVX-512's masked loads to eliminate tail `for`-loops](https://ashvardanian.com/posts/simsimd-faster-scipy/#tails-of-the-past-the-significance-of-masked-loads).
+- [Uses AVX-512 FP16 for half-precision operations, that few compilers vectorize](https://ashvardanian.com/posts/simsimd-faster-scipy/#the-challenge-of-f16).
+- [Substitutes LibC's `sqrt` calls with bithacks using Jan Kadlec's constant](https://ashvardanian.com/posts/simsimd-faster-scipy/#bonus-section-bypassing-sqrt-and-libc-dependencies).
 - Avoids slow PyBind11 and SWIG, directly using the CPython C API.
 - Avoids slow `PyArg_ParseTuple` and manually unpacks argument tuples.
+
+__Broader Benchmarking Results__:
+
+- [Apple M2 Pro](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-1-performance-on-apple-m2-pro).
+- [4th Gen Intel Xeon Platinum](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-2-performance-on-4th-gen-intel-xeon-platinum-8480).
+- [AWS Graviton 3](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-3-performance-on-aws-graviton-3).
 
 ## Using in Python
 
