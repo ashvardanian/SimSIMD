@@ -159,9 +159,9 @@ inline static simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
 inline static simsimd_f32_t simsimd_uncompress_f16(unsigned short x) {
-    simsimd_u32_t t1 = x & 0x7fff; // Non-sign bits
-    simsimd_u32_t t2 = x & 0x8000; // Sign bit
-    simsimd_u32_t t3 = x & 0x7c00; // Exponent
+    unsigned int t1 = x & 0x7fff; // Non-sign bits
+    unsigned int t2 = x & 0x8000; // Sign bit
+    unsigned int t3 = x & 0x7c00; // Exponent
 
     t1 <<= 13;        // Align mantissa on MSB
     t2 <<= 16;        // Shift sign bit into position
