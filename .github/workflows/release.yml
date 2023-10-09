@@ -76,13 +76,8 @@ jobs:
       - name: Install CIBuildWheel
         run: python -m pip install --no-cache-dir cibuildwheel
 
-      - name: Build wheels on Ubuntu
+      - name: Build wheels
         run: python -m cibuildwheel
-        if: matrix.os == 'ubuntu-20.04'
-
-      - name: Build wheels on MacOS
-        run: python -m cibuildwheel
-        if: matrix.os == 'macOS-11'
 
       - uses: actions/upload-artifact@v3
         with:
