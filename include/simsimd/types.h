@@ -114,7 +114,11 @@ typedef _Float16 simsimd_f16_t;
 #else
 typedef unsigned short simsimd_f16_t;
 #define SIMSIMD_NATIVE_F16 0
+#if defined(_MSC_VER)
+#pragma message("Warning: Half-precision floating-point numbers not supported, and will be emulated.")
+#else
 #warning "Half-precision floating-point numbers not supported, and will be emulated."
+#endif
 #endif
 
 /**
