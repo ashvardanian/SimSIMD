@@ -8,6 +8,7 @@ SimSIMD leverages SIMD intrinsics, capabilities that only select compilers effec
 - ✅ Euclidean (L2), Inner Product, and Cosine (Angular) spatial distances.
 - ✅ Hamming (~ Manhattan) and Jaccard (~ Tanimoto) binary distances.
 - ✅ Single-precision `f32`, half-precision `f16`, `i8`, and binary vectors.
+- ✅ Compatible with GCC and Clang on MacOS and Linux, and MinGW on Windows.
 - ✅ Compatible with NumPy, PyTorch, TensorFlow, and other tensors.
 - ✅ Has __no dependencies__, not even LibC.
 

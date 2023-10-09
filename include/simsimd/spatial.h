@@ -196,7 +196,7 @@ simsimd_neon_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_si
     }
     simsimd_f32_t sum = vaddvq_f32(sum_vec);
     for (; i < d; ++i) {
-        simsimd_f32_t diff = a[i] - b[i];
+        simsimd_f32_t diff = SIMSIMD_UNCOMPRESS_F16(a[i]) - SIMSIMD_UNCOMPRESS_F16(b[i]);
         sum += diff * diff;
     }
     return sum;
@@ -214,7 +214,7 @@ simsimd_neon_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size
     }
     simsimd_f32_t ab = vaddvq_f32(ab_vec);
     for (; i < d; ++i)
-        ab += a[i] * b[i];
+        ab += SIMSIMD_UNCOMPRESS_F16(a[i]) * SIMSIMD_UNCOMPRESS_F16(b[i]);
     return 1 - ab;
 }
 
@@ -232,7 +232,7 @@ simsimd_neon_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_siz
     }
     simsimd_f32_t ab = vaddvq_f32(ab_vec), a2 = vaddvq_f32(a2_vec), b2 = vaddvq_f32(b2_vec);
     for (; i < d; ++i) {
-        simsimd_f32_t ai = a[i], bi = b[i];
+        simsimd_f32_t ai = SIMSIMD_UNCOMPRESS_F16(a[i]), bi = SIMSIMD_UNCOMPRESS_F16(b[i]);
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
 
@@ -516,13 +516,15 @@ simsimd_avx2_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_si
     d2_vec = _mm256_hadd_ps(d2_vec, d2_vec);
     d2_vec = _mm256_hadd_ps(d2_vec, d2_vec);
 
-    simsimd_f32_t result[1];
-    _mm_store_ss(result, _mm256_castps256_ps128(d2_vec));
+    simsimd_f32_t result;
+    _mm_store_ss(&result, _mm256_castps256_ps128(d2_vec));
 
     // Accumulate the tail:
-    for (; i < n; ++i)
-        result[0] += (a[i] - b[i]) * (a[i] - b[i]);
-    return result[0];
+    for (; i < n; ++i) {
+        simsimd_f32_t d = SIMSIMD_UNCOMPRESS_F16(a[i]) - SIMSIMD_UNCOMPRESS_F16(b[i]);
+        result += d * d;
+    }
+    return result;
 }
 
 __attribute__((target("avx2,f16c,fma"))) //
@@ -540,17 +542,18 @@ simsimd_avx2_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size
     ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
     ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
 
-    simsimd_f32_t result[1];
-    _mm_store_ss(result, _mm256_castps256_ps128(ab_vec));
+    simsimd_f32_t result;
+    _mm_store_ss(&result, _mm256_castps256_ps128(ab_vec));
 
     // Accumulate the tail:
     for (; i < n; ++i)
-        result[0] += a[i] * b[i];
-    return 1 - result[0];
+        result += SIMSIMD_UNCOMPRESS_F16(a[i]) * SIMSIMD_UNCOMPRESS_F16(b[i]);
+    return 1 - result;
 }
 __attribute__((target("avx2,f16c,fma"))) //
 inline static simsimd_f32_t
 simsimd_avx2_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
+
     __m256 ab_vec = _mm256_set1_ps(0), a2_vec = _mm256_set1_ps(0), b2_vec = _mm256_set1_ps(0);
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
@@ -579,8 +582,10 @@ simsimd_avx2_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_siz
     _mm_store_ss(&b2, _mm256_castps256_ps128(b2_vec));
 
     // Accumulate the tail:
-    for (; i < n; ++i)
-        ab += a[i] * b[i], a2 += a[i] * a[i], b2 += b[i] * b[i];
+    for (; i < n; ++i) {
+        simsimd_f32_t ai = SIMSIMD_UNCOMPRESS_F16(a[i]), bi = SIMSIMD_UNCOMPRESS_F16(b[i]);
+        ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
+    }
 
     // Replace simsimd_approximate_inverse_square_root with `rsqrtss`
     __m128 a2_sqrt_recip = _mm_rsqrt_ss(_mm_set_ss((float)a2));
