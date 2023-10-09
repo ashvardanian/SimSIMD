@@ -25,37 +25,37 @@
 #pragma once
 #include "types.h"
 
-#define MAKE_L2SQ(name, input_type, accumulator_type)                                                                  \
+#define SIMSIMD_MAKE_L2SQ(name, input_type, accumulator_type, converter)                                               \
     inline static simsimd_f32_t simsimd_##name##_##input_type##_l2sq(                                                  \
         simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t d) {                      \
         simsimd_##accumulator_type##_t d2 = 0;                                                                         \
         for (simsimd_size_t i = 0; i != d; ++i) {                                                                      \
-            simsimd_##accumulator_type##_t ai = a[i];                                                                  \
-            simsimd_##accumulator_type##_t bi = b[i];                                                                  \
+            simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
+            simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
             d2 += (ai - bi) * (ai - bi);                                                                               \
         }                                                                                                              \
         return d2;                                                                                                     \
     }
 
-#define MAKE_IP(name, input_type, accumulator_type)                                                                    \
+#define SIMSIMD_MAKE_IP(name, input_type, accumulator_type, converter)                                                 \
     inline static simsimd_f32_t simsimd_##name##_##input_type##_ip(                                                    \
         simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t d) {                      \
         simsimd_##accumulator_type##_t ab = 0;                                                                         \
         for (simsimd_size_t i = 0; i != d; ++i) {                                                                      \
-            simsimd_##accumulator_type##_t ai = a[i];                                                                  \
-            simsimd_##accumulator_type##_t bi = b[i];                                                                  \
+            simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
+            simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
             ab += ai * bi;                                                                                             \
         }                                                                                                              \
         return 1 - ab;                                                                                                 \
     }
 
-#define MAKE_COS(name, input_type, accumulator_type)                                                                   \
+#define SIMSIMD_MAKE_COS(name, input_type, accumulator_type, converter)                                                \
     inline static simsimd_f32_t simsimd_##name##_##input_type##_cos(                                                   \
         simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t d) {                      \
         simsimd_##accumulator_type##_t ab = 0, a2 = 0, b2 = 0;                                                         \
         for (simsimd_size_t i = 0; i != d; ++i) {                                                                      \
-            simsimd_##accumulator_type##_t ai = a[i];                                                                  \
-            simsimd_##accumulator_type##_t bi = b[i];                                                                  \
+            simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
+            simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
             ab += ai * bi;                                                                                             \
             a2 += ai * ai;                                                                                             \
             b2 += bi * bi;                                                                                             \
@@ -67,39 +67,35 @@
 extern "C" {
 #endif
 
-MAKE_L2SQ(auto, f32, f32) // simsimd_auto_f32_l2sq
-MAKE_IP(auto, f32, f32)   // simsimd_auto_f32_ip
-MAKE_COS(auto, f32, f32)  // simsimd_auto_f32_cos
+SIMSIMD_MAKE_L2SQ(auto, f32, f32, SIMSIMD_IDENTIFY) // simsimd_auto_f32_l2sq
+SIMSIMD_MAKE_IP(auto, f32, f32, SIMSIMD_IDENTIFY)   // simsimd_auto_f32_ip
+SIMSIMD_MAKE_COS(auto, f32, f32, SIMSIMD_IDENTIFY)  // simsimd_auto_f32_cos
 
-MAKE_L2SQ(auto, f16, f32) // simsimd_auto_f16_l2sq
-MAKE_IP(auto, f16, f32)   // simsimd_auto_f16_ip
-MAKE_COS(auto, f16, f32)  // simsimd_auto_f16_cos
+SIMSIMD_MAKE_L2SQ(auto, f16, f32, SIMSIMD_UNCOMPRESS_F16) // simsimd_auto_f16_l2sq
+SIMSIMD_MAKE_IP(auto, f16, f32, SIMSIMD_UNCOMPRESS_F16)   // simsimd_auto_f16_ip
+SIMSIMD_MAKE_COS(auto, f16, f32, SIMSIMD_UNCOMPRESS_F16)  // simsimd_auto_f16_cos
 
-MAKE_L2SQ(auto, i8, i32) // simsimd_auto_i8_l2sq
-MAKE_COS(auto, i8, i32)  // simsimd_auto_i8_cos
+SIMSIMD_MAKE_L2SQ(auto, i8, i32, SIMSIMD_IDENTIFY) // simsimd_auto_i8_l2sq
+SIMSIMD_MAKE_COS(auto, i8, i32, SIMSIMD_IDENTIFY)  // simsimd_auto_i8_cos
 
 inline static simsimd_f32_t simsimd_auto_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     return simsimd_auto_i8_cos(a, b, d);
 }
 
-MAKE_L2SQ(accurate, f32, f64) // simsimd_accurate_f32_l2sq
-MAKE_IP(accurate, f32, f64)   // simsimd_accurate_f32_ip
-MAKE_COS(accurate, f32, f64)  // simsimd_accurate_f32_cos
+SIMSIMD_MAKE_L2SQ(accurate, f32, f64, SIMSIMD_IDENTIFY) // simsimd_accurate_f32_l2sq
+SIMSIMD_MAKE_IP(accurate, f32, f64, SIMSIMD_IDENTIFY)   // simsimd_accurate_f32_ip
+SIMSIMD_MAKE_COS(accurate, f32, f64, SIMSIMD_IDENTIFY)  // simsimd_accurate_f32_cos
 
-MAKE_L2SQ(accurate, f16, f64) // simsimd_accurate_f16_l2sq
-MAKE_IP(accurate, f16, f64)   // simsimd_accurate_f16_ip
-MAKE_COS(accurate, f16, f64)  // simsimd_accurate_f16_cos
+SIMSIMD_MAKE_L2SQ(accurate, f16, f64, SIMSIMD_IDENTIFY) // simsimd_accurate_f16_l2sq
+SIMSIMD_MAKE_IP(accurate, f16, f64, SIMSIMD_IDENTIFY)   // simsimd_accurate_f16_ip
+SIMSIMD_MAKE_COS(accurate, f16, f64, SIMSIMD_IDENTIFY)  // simsimd_accurate_f16_cos
 
-MAKE_L2SQ(accurate, i8, i32) // simsimd_accurate_i8_l2sq
-MAKE_COS(accurate, i8, i32)  // simsimd_accurate_i8_cos
+SIMSIMD_MAKE_L2SQ(accurate, i8, i32, SIMSIMD_IDENTIFY) // simsimd_accurate_i8_l2sq
+SIMSIMD_MAKE_COS(accurate, i8, i32, SIMSIMD_IDENTIFY)  // simsimd_accurate_i8_cos
 
 inline static simsimd_f32_t simsimd_accurate_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     return simsimd_accurate_i8_cos(a, b, d);
 }
-
-#undef MAKE_L2SQ
-#undef MAKE_IP
-#undef MAKE_COS
 
 #if SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_ARM_NEON
