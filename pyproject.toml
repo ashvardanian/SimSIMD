@@ -40,4 +40,4 @@ before-build = [
 ]
 archs = ["x86", "AMD64"]
 skip = ["*win32*", "pp*"]
-compiler = "mingw64"
+build-system = "mingw"
