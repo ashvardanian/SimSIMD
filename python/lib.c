@@ -5,12 +5,22 @@
  *  @date       January 1, 2023
  *  @copyright  Copyright (c) 2023
  */
-#define SIMSIMD_TARGET_ARM_NEON 1
-#define SIMSIMD_TARGET_X86_AVX2 1
 #if __linux__
+#define SIMSIMD_TARGET_ARM_NEON 1
 #define SIMSIMD_TARGET_ARM_SVE 1
+#define SIMSIMD_TARGET_X86_AVX2 1
 #define SIMSIMD_TARGET_X86_AVX512 1
 #include <omp.h>
+#elif defined(_MSC_VER)
+#define SIMSIMD_TARGET_ARM_NEON 0
+#define SIMSIMD_TARGET_ARM_SVE 0
+#define SIMSIMD_TARGET_X86_AVX2 0
+#define SIMSIMD_TARGET_X86_AVX512 0
+#elif defined(__APPLE__)
+#define SIMSIMD_TARGET_ARM_NEON 1
+#define SIMSIMD_TARGET_ARM_SVE 0
+#define SIMSIMD_TARGET_X86_AVX2 1
+#define SIMSIMD_TARGET_X86_AVX512 0
 #endif
 
 #define SIMSIMD_RSQRT simsimd_approximate_inverse_square_root
