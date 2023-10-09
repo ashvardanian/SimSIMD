@@ -25,81 +25,77 @@
 #pragma once
 #include "types.h"
 
-#define MAKE_L2SQ(name, input_type, accumulator_type)                                                                  \
+#define SIMSIMD_MAKE_L2SQ(name, input_type, accumulator_type, converter)                                               \
     inline static simsimd_f32_t simsimd_##name##_##input_type##_l2sq(                                                  \
         simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t d) {                      \
         simsimd_##accumulator_type##_t d2 = 0;                                                                         \
         for (simsimd_size_t i = 0; i != d; ++i) {                                                                      \
-            simsimd_##accumulator_type##_t ai = a[i];                                                                  \
-            simsimd_##accumulator_type##_t bi = b[i];                                                                  \
+            simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
+            simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
             d2 += (ai - bi) * (ai - bi);                                                                               \
         }                                                                                                              \
         return d2;                                                                                                     \
     }
 
-#define MAKE_IP(name, input_type, accumulator_type)                                                                    \
+#define SIMSIMD_MAKE_IP(name, input_type, accumulator_type, converter)                                                 \
     inline static simsimd_f32_t simsimd_##name##_##input_type##_ip(                                                    \
         simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t d) {                      \
         simsimd_##accumulator_type##_t ab = 0;                                                                         \
         for (simsimd_size_t i = 0; i != d; ++i) {                                                                      \
-            simsimd_##accumulator_type##_t ai = a[i];                                                                  \
-            simsimd_##accumulator_type##_t bi = b[i];                                                                  \
+            simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
+            simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
             ab += ai * bi;                                                                                             \
         }                                                                                                              \
         return 1 - ab;                                                                                                 \
     }
 
-#define MAKE_COS(name, input_type, accumulator_type)                                                                   \
+#define SIMSIMD_MAKE_COS(name, input_type, accumulator_type, converter)                                                \
     inline static simsimd_f32_t simsimd_##name##_##input_type##_cos(                                                   \
         simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t d) {                      \
         simsimd_##accumulator_type##_t ab = 0, a2 = 0, b2 = 0;                                                         \
         for (simsimd_size_t i = 0; i != d; ++i) {                                                                      \
-            simsimd_##accumulator_type##_t ai = a[i];                                                                  \
-            simsimd_##accumulator_type##_t bi = b[i];                                                                  \
+            simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
+            simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
             ab += ai * bi;                                                                                             \
             a2 += ai * ai;                                                                                             \
             b2 += bi * bi;                                                                                             \
         }                                                                                                              \
-        return ab == 0 ? 1 : 1 - ab * SIMSIMD_RSQRT(a2) * SIMSIMD_RSQRT(b2);                                           \
+        return ab != 0 ? 1 - ab * SIMSIMD_RSQRT(a2) * SIMSIMD_RSQRT(b2) : 1;                                           \
     }
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-MAKE_L2SQ(auto, f32, f32) // simsimd_auto_f32_l2sq
-MAKE_IP(auto, f32, f32)   // simsimd_auto_f32_ip
-MAKE_COS(auto, f32, f32)  // simsimd_auto_f32_cos
+SIMSIMD_MAKE_L2SQ(auto, f32, f32, SIMSIMD_IDENTIFY) // simsimd_auto_f32_l2sq
+SIMSIMD_MAKE_IP(auto, f32, f32, SIMSIMD_IDENTIFY)   // simsimd_auto_f32_ip
+SIMSIMD_MAKE_COS(auto, f32, f32, SIMSIMD_IDENTIFY)  // simsimd_auto_f32_cos
 
-MAKE_L2SQ(auto, f16, f32) // simsimd_auto_f16_l2sq
-MAKE_IP(auto, f16, f32)   // simsimd_auto_f16_ip
-MAKE_COS(auto, f16, f32)  // simsimd_auto_f16_cos
+SIMSIMD_MAKE_L2SQ(auto, f16, f32, SIMSIMD_UNCOMPRESS_F16) // simsimd_auto_f16_l2sq
+SIMSIMD_MAKE_IP(auto, f16, f32, SIMSIMD_UNCOMPRESS_F16)   // simsimd_auto_f16_ip
+SIMSIMD_MAKE_COS(auto, f16, f32, SIMSIMD_UNCOMPRESS_F16)  // simsimd_auto_f16_cos
 
-MAKE_L2SQ(auto, i8, i32) // simsimd_auto_i8_l2sq
-MAKE_COS(auto, i8, i32)  // simsimd_auto_i8_cos
+SIMSIMD_MAKE_L2SQ(auto, i8, i32, SIMSIMD_IDENTIFY) // simsimd_auto_i8_l2sq
+SIMSIMD_MAKE_COS(auto, i8, i32, SIMSIMD_IDENTIFY)  // simsimd_auto_i8_cos
 
 inline static simsimd_f32_t simsimd_auto_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     return simsimd_auto_i8_cos(a, b, d);
 }
 
-MAKE_L2SQ(accurate, f32, f64) // simsimd_accurate_f32_l2sq
-MAKE_IP(accurate, f32, f64)   // simsimd_accurate_f32_ip
-MAKE_COS(accurate, f32, f64)  // simsimd_accurate_f32_cos
+SIMSIMD_MAKE_L2SQ(accurate, f32, f64, SIMSIMD_IDENTIFY) // simsimd_accurate_f32_l2sq
+SIMSIMD_MAKE_IP(accurate, f32, f64, SIMSIMD_IDENTIFY)   // simsimd_accurate_f32_ip
+SIMSIMD_MAKE_COS(accurate, f32, f64, SIMSIMD_IDENTIFY)  // simsimd_accurate_f32_cos
 
-MAKE_L2SQ(accurate, f16, f64) // simsimd_accurate_f16_l2sq
-MAKE_IP(accurate, f16, f64)   // simsimd_accurate_f16_ip
-MAKE_COS(accurate, f16, f64)  // simsimd_accurate_f16_cos
+SIMSIMD_MAKE_L2SQ(accurate, f16, f64, SIMSIMD_IDENTIFY) // simsimd_accurate_f16_l2sq
+SIMSIMD_MAKE_IP(accurate, f16, f64, SIMSIMD_IDENTIFY)   // simsimd_accurate_f16_ip
+SIMSIMD_MAKE_COS(accurate, f16, f64, SIMSIMD_IDENTIFY)  // simsimd_accurate_f16_cos
 
-MAKE_L2SQ(accurate, i8, i32) // simsimd_accurate_i8_l2sq
-MAKE_COS(accurate, i8, i32)  // simsimd_accurate_i8_cos
+SIMSIMD_MAKE_L2SQ(accurate, i8, i32, SIMSIMD_IDENTIFY) // simsimd_accurate_i8_l2sq
+SIMSIMD_MAKE_COS(accurate, i8, i32, SIMSIMD_IDENTIFY)  // simsimd_accurate_i8_cos
 
 inline static simsimd_f32_t simsimd_accurate_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
     return simsimd_accurate_i8_cos(a, b, d);
 }
-
-#undef MAKE_L2SQ
-#undef MAKE_IP
-#undef MAKE_COS
 
 #if SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_ARM_NEON
@@ -170,7 +166,7 @@ simsimd_neon_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_siz
     // Avoid `simsimd_approximate_inverse_square_root` on Arm NEON
     simsimd_f32_t a2_b2_arr[2] = {a2, b2};
     vst1_f32(a2_b2_arr, vrsqrte_f32(vld1_f32(a2_b2_arr)));
-    return ab == 0 ? 1 : 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
+    return ab != 0 ? 1 - ab * a2_b2_arr[0] * a2_b2_arr[1] : 1;
 }
 
 /*
@@ -241,7 +237,7 @@ simsimd_neon_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_siz
     float32x2_t a2_b2 = vld1_f32(a2_b2_arr);
     a2_b2 = vrsqrte_f32(a2_b2);
     vst1_f32(a2_b2_arr, a2_b2);
-    return ab == 0 ? 1 : 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
+    return ab != 0 ? 1 - ab * a2_b2_arr[0] * a2_b2_arr[1] : 1;
 }
 
 /*
@@ -323,7 +319,7 @@ simsimd_neon_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t
     float32x2_t a2_b2 = vld1_f32(a2_b2_arr);
     a2_b2 = vrsqrte_f32(a2_b2);
     vst1_f32(a2_b2_arr, a2_b2);
-    return ab == 0 ? 1 : 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
+    return ab != 0 ? 1 - ab * a2_b2_arr[0] * a2_b2_arr[1] : 1;
 }
 
 __attribute__((target("arch=armv8.2-a+dotprod"))) //
@@ -403,7 +399,7 @@ simsimd_sve_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size
     float32x2_t a2_b2 = vld1_f32(a2_b2_arr);
     a2_b2 = vrsqrte_f32(a2_b2);
     vst1_f32(a2_b2_arr, a2_b2);
-    return ab == 0 ? 1 : 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
+    return ab != 0 ? 1 - ab * a2_b2_arr[0] * a2_b2_arr[1] : 1;
 }
 
 /*
@@ -480,7 +476,7 @@ simsimd_sve_f16_cos(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, si
     float32x2_t a2_b2 = vld1_f32(a2_b2_arr);
     a2_b2 = vrsqrte_f32(a2_b2);
     vst1_f32(a2_b2_arr, a2_b2);
-    return ab == 0 ? 1 : 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
+    return ab != 0 ? 1 - ab * a2_b2_arr[0] * a2_b2_arr[1] : 1;
 }
 
 #endif // SIMSIMD_TARGET_ARM_SVE
@@ -593,7 +589,7 @@ simsimd_avx2_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_siz
     __m128 result = _mm_mul_ss(a2_sqrt_recip, b2_sqrt_recip); // Multiply the reciprocal square roots
     result = _mm_mul_ss(result, _mm_set_ss((float)ab));       // Multiply by ab
     result = _mm_sub_ss(_mm_set_ss(1.0f), result);            // Subtract from 1
-    return ab == 0 ? 1 : _mm_cvtss_f32(result);               // Extract the final result
+    return ab != 0 ? _mm_cvtss_f32(result) : 1;               // Extract the final result
 }
 
 /*
@@ -715,7 +711,7 @@ simsimd_avx2_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t
     __m128 result = _mm_mul_ss(a2_sqrt_recip, b2_sqrt_recip); // Multiply the reciprocal square roots
     result = _mm_mul_ss(result, _mm_set_ss((float)ab));       // Multiply by ab
     result = _mm_sub_ss(_mm_set_ss(1.0f), result);            // Subtract from 1
-    return ab == 0 ? 1 : _mm_cvtss_f32(result);               // Extract the final result
+    return ab != 0 ? _mm_cvtss_f32(result) : 1;               // Extract the final result
 }
 
 __attribute__((target("avx2"))) //
@@ -789,7 +785,7 @@ simsimd_avx512_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_s
     __m128d rsqrts = _mm_mask_rsqrt14_pd(_mm_setzero_pd(), 0xFF, a2_b2);
     double rsqrts_array[2];
     _mm_storeu_pd(rsqrts_array, rsqrts);
-    return ab == 0 ? 1 : 1 - ab * rsqrts_array[0] * rsqrts_array[1];
+    return ab != 0 ? 1 - ab * rsqrts_array[0] * rsqrts_array[1] : 1;
 }
 
 /*
@@ -856,7 +852,7 @@ simsimd_avx512_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_s
     __m128d rsqrts = _mm_mask_rsqrt14_pd(_mm_setzero_pd(), 0xFF, a2_b2);
     double rsqrts_array[2];
     _mm_storeu_pd(rsqrts_array, rsqrts);
-    return ab == 0 ? 1 : 1 - ab * rsqrts_array[0] * rsqrts_array[1];
+    return ab != 0 ? 1 - ab * rsqrts_array[0] * rsqrts_array[1] : 1;
 }
 
 /*
@@ -912,7 +908,7 @@ simsimd_avx512_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size
     __m128d rsqrts = _mm_mask_rsqrt14_pd(_mm_setzero_pd(), 0xFF, a2_b2);
     double rsqrts_array[2];
     _mm_storeu_pd(rsqrts_array, rsqrts);
-    return ab == 0 ? 1 : 1 - ab * rsqrts_array[0] * rsqrts_array[1];
+    return ab != 0 ? 1 - ab * rsqrts_array[0] * rsqrts_array[1] : 1;
 }
 
 __attribute__((target("avx512vl,avx512f,avx512bw"))) //
