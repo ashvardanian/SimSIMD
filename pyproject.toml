@@ -12,7 +12,7 @@ filterwarnings = ["error"]
 test-requires = ["pytest", "pytest-repeat", "scipy"]
 test-command = "python -c 'import simsimd; print(simsimd.get_capabilities())' && pytest {project}/python/test.py -s -x"
 build-verbosity = 0
-skip = ["*musllinux*", "*i686*", "pp*", "cp36-*", "cp37-*", "cp38-*", "cp312-*"]
+skip = ["*musllinux*", "*i686*", "pp*", "cp36-*", "cp37-*"]
 
 [tool.cibuildwheel.linux]
 before-build = [

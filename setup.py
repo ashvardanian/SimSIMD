@@ -40,6 +40,9 @@ if sys.platform == "win32":
     compile_args.append("/O2")
     compile_args.append("/fp:fast")
 
+    # Dealing with MinGW linking errors
+    # https://cibuildwheel.readthedocs.io/en/stable/faq/#windows-importerror-dll-load-failed-the-specific-module-could-not-be-found
+    compile_args.append("/d2FH4-")
 
 ext_modules = [
     Extension(
@@ -62,7 +65,7 @@ setup(
     author="Ash Vardanian",
     author_email="1983160+ashvardanian@users.noreply.github.com",
     url="https://github.com/ashvardanian/simsimd",
-    description="SIMD-accelerated similarity measures for x86 and Arm",
+    description="Vector Similarity Functions 3x-200x Faster than SciPy and NumPy",
     long_description=long_description,
     long_description_content_type="text/markdown",
     license="Apache-2.0",
