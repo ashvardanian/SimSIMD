@@ -71,16 +71,28 @@ typedef simsimd_f32_t (*simsimd_metric_punned_t)(void const*, void const*, simsi
 #if SIMSIMD_TARGET_X86
 
 inline static unsigned _simsimd_capability_supported_x86(unsigned feature_mask, int function_id, int register_id) {
-    unsigned eax, ebx, ecx, edx;
+    union {
+        int array[4];
+        struct {
+            unsigned eax, ebx, ecx, edx;
+        };
+    } info;
+
+#ifdef _MSC_VER
+    __cpuidex(info.array, function_id, 0);
+#else
     // Execute CPUID instruction and store results in eax, ebx, ecx, edx
-    // Setting %ecx to 0 as well
-    __asm__ __volatile__("cpuid" : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx) : "a"(function_id), "c"(0));
+    __asm__ __volatile__("cpuid"
+                         : "=a"(info.eax), "=b"(info.ebx), "=c"(info.ecx), "=d"(info.edx)
+                         : "a"(function_id), "c"(0));
+#endif
+
     unsigned register_value;
     switch (register_id) {
-    case 0: register_value = eax; break;
-    case 1: register_value = ebx; break;
-    case 2: register_value = ecx; break;
-    case 3: register_value = edx; break;
+    case 0: register_value = info.eax; break;
+    case 1: register_value = info.ebx; break;
+    case 2: register_value = info.ecx; break;
+    case 3: register_value = info.edx; break;
     default: return 0;
     }
 
