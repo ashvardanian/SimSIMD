@@ -97,20 +97,36 @@ typedef signed char simsimd_i8_t;
 typedef unsigned char simsimd_b8_t;
 typedef unsigned long long simsimd_size_t;
 
-#if defined(__GNUC__) || defined(__clang__)
-#if defined(__ARM_ARCH) || defined(__aarch64__)
-#if defined(__ARM_FP16_FORMAT_IEEE)
+/**
+ *  @brief  Half-precision floating-point type.
+ *
+ *  - GCC or Clang on 64-bit ARM: `__fp16`, may require `-mfp16-format` option.
+ *  - GCC or Clang on 64-bit x86: `_Float16`.
+ *  - Default: `unsigned short`.
+ */
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) &&                      \
+    (defined(__ARM_FP16_FORMAT_IEEE))
+#define SIMSIMD_NATIVE_F16 1
 typedef __fp16 simsimd_f16_t;
-#else
-#error "Enable -mfp16-format option for ARM targets to use __fp16."
-#endif
-#elif defined(__x86_64__) || defined(__i386__)
+#elif (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
 typedef _Float16 simsimd_f16_t;
+#define SIMSIMD_NATIVE_F16 1
 #else
-#error "Unsupported architecture for simsimd_f16_t."
+typedef unsigned short simsimd_f16_t;
+#define SIMSIMD_NATIVE_F16 0
+#warning "Half-precision floating-point numbers not supported, and will be emulated."
 #endif
+
+/**
+ *  @brief  Returns the value of the half-precision floating-point number,
+ *          potentially decompressed into single-precision.
+ */
+#ifndef SIMSIMD_UNCOMPRESS_F16
+#if SIMSIMD_NATIVE_F16
+#define SIMSIMD_UNCOMPRESS_F16(x) (x)
 #else
-typedef _Float16 simsimd_f16_t; // This will be the fallback if not using GCC or Clang
+#define SIMSIMD_UNCOMPRESS_F16(x) simsimd_uncompress_f16(x)
+#endif
 #endif
 
 typedef union {
@@ -128,6 +144,27 @@ inline static simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_
     conv.i = 0x5F1FFFF9 - (conv.i >> 1);
     conv.f *= 0.703952253f * (2.38924456f - number * conv.f * conv.f);
     return conv.f;
+}
+
+/**
+ *  @brief  For compilers that don't natively support the `_Float16` type,
+ *          upcasts contents into a more conventional `float`.
+ *
+ *  https://stackoverflow.com/a/60047308
+ *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
+ *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
+ */
+inline static simsimd_f32_t simsimd_uncompress_f16(unsigned short x) {
+    unsigned int e = (x & 0x7C00) >> 10; // Exponent
+    unsigned int m = (x & 0x03FF) << 13; // Mantissa
+    // Evil log2 bit hack to count leading zeros in denormalized format
+    float m_as_float = (float)m;
+    unsigned int v = (*(unsigned int*)&m_as_float) >> 23;
+    // Normalized format: sign : normalized : denormalized
+    unsigned int result_as_int = //
+        (x & 0x8000) << 16 | (e != 0) * ((e + 112) << 23 | m) |
+        ((e == 0) & (m != 0)) * ((v - 37) << 23 | ((m << (150 - v)) & 0x007FE000));
+    return *(float*)&result_as_int;
 }
 
 #ifdef __cplusplus
