@@ -154,22 +154,21 @@ inline static simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_
  *  @brief  For compilers that don't natively support the `_Float16` type,
  *          upcasts contents into a more conventional `float`.
  *
+ *  @warning  This function won't handle boundary conditions well.
+ *
  *  https://stackoverflow.com/a/60047308
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-inline static simsimd_f32_t simsimd_uncompress_f16(unsigned short x) {
-    unsigned int t1 = x & 0x7fff; // Non-sign bits
-    unsigned int t2 = x & 0x8000; // Sign bit
-    unsigned int t3 = x & 0x7c00; // Exponent
-
-    t1 <<= 13;        // Align mantissa on MSB
-    t2 <<= 16;        // Shift sign bit into position
-    t1 += 0x38000000; // Adjust bias
-    t1 *= t3 != 0;    // Denormals-as-zero
-    t1 |= t2;         // Re-insert sign bit
-
-    return *(simsimd_f32_t*)&t1;
+inline static float half_to_float(unsigned short x) {
+    unsigned int exponent = (x & 0x7C00) >> 10;
+    unsigned int mantissa = (x & 0x03FF) << 13;
+    float mantissa_as_float = (float)mantissa;
+    unsigned int v = (*(unsigned int*)&mantissa_as_float) >> 23;
+    unsigned int result_as_uint =
+        (x & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
+        ((exponent == 0) & (mantissa != 0)) * ((v - 37) << 23 | ((mantissa << (150 - v)) & 0x007FE000));
+    return *(float*)&result_as_uint;
 }
 
 #ifdef __cplusplus
