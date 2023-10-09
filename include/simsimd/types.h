@@ -1,7 +1,4 @@
 #pragma once
-#ifdef _MSC_VER
-#include <intrin.h>
-#endif
 
 // Compiling for Arm: SIMSIMD_TARGET_ARM
 #if defined(__aarch64__) || defined(_M_ARM64)
@@ -66,6 +63,10 @@
 #error Unknown hardware architecture!
 #endif
 
+#ifdef _MSC_VER
+#include <intrin.h>
+#else
+
 #if SIMSIMD_TARGET_ARM_NEON
 #include <arm_neon.h>
 #endif
@@ -76,6 +77,8 @@
 
 #if SIMSIMD_TARGET_X86_AVX2 || SIMSIMD_TARGET_X86_AVX512
 #include <immintrin.h>
+#endif
+
 #endif
 
 #ifndef SIMSIMD_RSQRT

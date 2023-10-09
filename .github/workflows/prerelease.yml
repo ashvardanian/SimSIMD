@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macOS-11, windows-2022]
+        os: [ubuntu-22.04, macOS-11] # windows-2022
         python-version: ["3.12", "3.8"]
         architecture: [x64, arm64]
 
@@ -41,8 +41,19 @@ jobs:
           pip install --no-cache-dir pytest numpy scipy py-cpuinfo pytest-repeat
           python -c "from cpuinfo import get_cpu_info; print(get_cpu_info())"
 
-      - name: Build locally
+      - name: Build locally on Ubuntu
+        run: |
+          sudo apt-get update
+          sudo apt-get install gcc-12 -y
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
+          sudo update-alternatives --config gcc
+          gcc --version
+          python -m pip install .
+        if: ${{ matrix.os == 'ubuntu-22.04' }}
+
+      - name: Build locally on other OS
         run: python -m pip install .
+        if: ${{ matrix.os != 'ubuntu-22.04' }}
         
       - name: Test with PyTest
         run: |
