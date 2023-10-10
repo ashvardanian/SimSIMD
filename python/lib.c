@@ -147,16 +147,15 @@ int parse_tensor(PyObject* tensor, Py_buffer* buffer, parsed_vector_or_matrix_t*
     return 0;
 }
 
-static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* args) {
-    if (!PyTuple_Check(args) || PyTuple_Size(args) != 2) {
+static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const* args, Py_ssize_t nargs) {
+    if (nargs != 2) {
         PyErr_SetString(PyExc_TypeError, "function expects exactly 2 arguments");
         return NULL;
     }
 
     PyObject* output = NULL;
-    PyObject* input_tensor_a = PyTuple_GetItem(args, 0);
-    PyObject* input_tensor_b = PyTuple_GetItem(args, 1);
-
+    PyObject* input_tensor_a = args[0];
+    PyObject* input_tensor_b = args[1];
     Py_buffer buffer_a, buffer_b;
     parsed_vector_or_matrix_t parsed_a, parsed_b;
     if (parse_tensor(input_tensor_a, &buffer_a, &parsed_a) != 0 ||
@@ -404,22 +403,32 @@ static PyObject* api_jaccard_pointer(PyObject* self, PyObject* args) {
     return impl_pointer(simsimd_metric_jaccard_k, args);
 }
 
-static PyObject* api_l2sq(PyObject* self, PyObject* args) { return impl_metric(simsimd_metric_l2sq_k, args); }
-static PyObject* api_cos(PyObject* self, PyObject* args) { return impl_metric(simsimd_metric_cos_k, args); }
-static PyObject* api_ip(PyObject* self, PyObject* args) { return impl_metric(simsimd_metric_ip_k, args); }
-static PyObject* api_hamming(PyObject* self, PyObject* args) { return impl_metric(simsimd_metric_hamming_k, args); }
-static PyObject* api_jaccard(PyObject* self, PyObject* args) { return impl_metric(simsimd_metric_jaccard_k, args); }
+static PyObject* api_l2sq(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
+    return impl_metric(simsimd_metric_l2sq_k, args, nargs);
+}
+static PyObject* api_cos(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
+    return impl_metric(simsimd_metric_cos_k, args, nargs);
+}
+static PyObject* api_ip(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
+    return impl_metric(simsimd_metric_ip_k, args, nargs);
+}
+static PyObject* api_hamming(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
+    return impl_metric(simsimd_metric_hamming_k, args, nargs);
+}
+static PyObject* api_jaccard(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
+    return impl_metric(simsimd_metric_jaccard_k, args, nargs);
+}
 
 static PyMethodDef simsimd_methods[] = {
     // Introspecting library and hardware capabilities
     {"get_capabilities", api_get_capabilities, METH_NOARGS, "Get hardware capabilities"},
 
     // NumPy and SciPy compatible interfaces (two matrix or vector arguments)
-    {"sqeuclidean", api_l2sq, METH_VARARGS, "L2sq (Sq. Euclidean) distances between a pair of matrices"},
-    {"cosine", api_cos, METH_VARARGS, "Cosine (Angular) distances between a pair of matrices"},
-    {"inner", api_ip, METH_VARARGS, "Inner (Dot) Product distances between a pair of matrices"},
-    {"hamming", api_hamming, METH_VARARGS, "Hamming distances between a pair of matrices"},
-    {"jaccard", api_jaccard, METH_VARARGS, "Jaccard (Bitwise Tanimoto) distances between a pair of matrices"},
+    {"sqeuclidean", api_l2sq, METH_FASTCALL, "L2sq (Sq. Euclidean) distances between a pair of matrices"},
+    {"cosine", api_cos, METH_FASTCALL, "Cosine (Angular) distances between a pair of matrices"},
+    {"inner", api_ip, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
+    {"hamming", api_hamming, METH_FASTCALL, "Hamming distances between a pair of matrices"},
+    {"jaccard", api_jaccard, METH_FASTCALL, "Jaccard (Bitwise Tanimoto) distances between a pair of matrices"},
 
     // Conventional `cdist` and `pdist` insterfaces with third string argument, and optional `threads` arg
     {"cdist", api_cdist, METH_VARARGS | METH_KEYWORDS,
