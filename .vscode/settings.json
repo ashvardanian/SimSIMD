@@ -94,14 +94,19 @@
         "castsi",
         "dtype",
         "dtypes",
+        "jaccard",
         "kann",
         "loadu",
         "maccs",
         "maskz",
+        "napi",
         "simd",
         "simsimd",
+        "sqeuclidean",
         "tanimoto",
+        "typedarray",
         "unsw",
-        "Vardanian"
+        "Vardanian",
+        "vpopcntdq"
     ]
 }
