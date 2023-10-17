@@ -108,7 +108,8 @@ typedef unsigned long long simsimd_size_t;
     (defined(__ARM_FP16_FORMAT_IEEE))
 #define SIMSIMD_NATIVE_F16 1
 typedef __fp16 simsimd_f16_t;
-#elif (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
+#elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) &&                      \
+       (defined(__SSE2__) || defined(__AVX512F__)))
 typedef _Float16 simsimd_f16_t;
 #define SIMSIMD_NATIVE_F16 1
 #else

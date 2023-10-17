@@ -4,7 +4,12 @@
             "target_name": "simsimd",
             "sources": ["javascript/lib.c"],
             "include_dirs": ["include"],
-            "cflags": ["-std=c99", "-Wno-unknown-pragmas", "-Wno-maybe-uninitialized"],
+            "cflags": [
+                "-std=c11",
+                "-ffast-math",
+                "-Wno-unknown-pragmas",
+                "-Wno-maybe-uninitialized",
+            ],
         }
     ]
 }
