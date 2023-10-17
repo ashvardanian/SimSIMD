@@ -58,7 +58,7 @@ jobs:
       - name: Test with PyTest
         run: |
           python -c "import simsimd; print(simsimd.get_capabilities())"
-          pytest python/test.py
+          pytest scripts/test.py
         
   test_javascript:
     name: Test JavaScript

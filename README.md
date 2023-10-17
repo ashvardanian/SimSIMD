@@ -179,7 +179,7 @@ cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build_release
 __To Test with PyTest__:
 
 ```sh
-pip install -e . && pytest python/test.py -s -x
+pip install -e . && pytest scripts/test.py -s -x
 ```
 
 __To benchmark__: you can pass option `--n` argument for the batch size, and `--ndim` for the number of vector dimensions.
