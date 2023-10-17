@@ -97,6 +97,7 @@ typedef signed char simsimd_i8_t;
 typedef unsigned char simsimd_b8_t;
 typedef unsigned long long simsimd_size_t;
 
+#if !defined(SIMSIMD_NATIVE_F16)
 /**
  *  @brief  Half-precision floating-point type.
  *
@@ -108,17 +109,17 @@ typedef unsigned long long simsimd_size_t;
     (defined(__ARM_FP16_FORMAT_IEEE))
 #define SIMSIMD_NATIVE_F16 1
 typedef __fp16 simsimd_f16_t;
-#elif (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
+#elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) &&                      \
+       (defined(__SSE2__) || defined(__AVX512F__)))
 typedef _Float16 simsimd_f16_t;
 #define SIMSIMD_NATIVE_F16 1
-#else
-typedef unsigned short simsimd_f16_t;
+#else // Unknown compiler or architecture
 #define SIMSIMD_NATIVE_F16 0
-#if defined(_MSC_VER)
-#pragma message("Warning: Half-precision floating-point numbers not supported, and will be emulated.")
-#else
-#warning "Half-precision floating-point numbers not supported, and will be emulated."
-#endif
+#endif // Unknown compiler or architecture
+#endif // !SIMSIMD_NATIVE_F16
+
+#if !SIMSIMD_NATIVE_F16
+typedef unsigned short simsimd_f16_t;
 #endif
 
 #define SIMSIMD_IDENTIFY(x) (x)

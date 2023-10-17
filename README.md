@@ -11,6 +11,8 @@ SimSIMD leverages SIMD intrinsics, capabilities that only select compilers effec
 - ✅ Compatible with GCC and Clang on MacOS and Linux, and MinGW on Windows.
 - ✅ Compatible with NumPy, PyTorch, TensorFlow, and other tensors.
 - ✅ Has __no dependencies__, not even LibC.
+- ✅ [JavaScript API](#using-simsimd-in-javascript).
+- ✅ [C API](#using-simsimd-in-c).
 
 [scipy]: https://docs.scipy.org/doc/scipy/reference/spatial.distance.html#module-scipy.spatial.distance
 [numpy]: https://numpy.org/doc/stable/reference/generated/numpy.inner.html
@@ -126,6 +128,21 @@ metric = CompiledMetric(
 
 index = Index(256, metric=metric)
 ```
+
+## Using SimSIMD in JavaScript
+
+After you add `simsimd` as a dependency and `npm install`, you will be able to call SimSIMD function on various `TypedArray` variants:
+
+```js
+const { sqeuclidean, cosine, inner, hamming, jaccard } = require('simsimd');
+
+const vectorA = new Float32Array([1.0, 2.0, 3.0]);
+const vectorB = new Float32Array([4.0, 5.0, 6.0]);
+
+const distance = sqeuclidean(vectorA, vectorB);
+console.log('Squared Euclidean Distance:', distance);
+```
+
 ## Using SimSIMD in C
 
 If you're aiming to utilize the `_Float16` functionality with SimSIMD, ensure your development environment is compatible with C 11. For other functionalities of SimSIMD, C 99 compatibility will suffice.
@@ -162,11 +179,17 @@ cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build_release
 __To Test with PyTest__:
 
 ```sh
-pip install -e . && pytest python/test.py -s -x
+pip install -e . && pytest scripts/test.py -s -x
 ```
 
 __To benchmark__: you can pass option `--n` argument for the batch size, and `--ndim` for the number of vector dimensions.
 
 ```sh
 python python/bench.py --n 1000 --ndim 1000000
+```
+
+__To Test JavaScript bindings__:
+
+```sh
+npm install && npm test
 ```

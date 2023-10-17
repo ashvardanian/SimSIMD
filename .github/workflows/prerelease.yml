@@ -58,5 +58,24 @@ jobs:
       - name: Test with PyTest
         run: |
           python -c "import simsimd; print(simsimd.get_capabilities())"
-          pytest python/test.py
+          pytest scripts/test.py
         
+  test_javascript:
+    name: Test JavaScript
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x]
+    steps:
+    
+      - uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18.x'
+      
+      - name: Build locally
+        run: npm i
+
+      - name: Test
+        run: npm test

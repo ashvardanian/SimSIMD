@@ -5,6 +5,8 @@ _deps
 simsimd.egg-info
 CMakeFiles
 __pycache__
+package-lock.json
+node_modules
 
 cmake_install.cmake
 CMakeCache.txt
@@ -28,7 +30,6 @@ CMakeCache.txt
 *.dll
 
 # Fortran module files
-*.mod
 *.smod
 
 # Compiled Static libraries
