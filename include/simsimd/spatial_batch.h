@@ -6,11 +6,20 @@
  *  - Implements @b batch metrics for: L2 squared, inner product, cosine similarity.
  *  - Uses `f16` for both storage, but not accumulation.
  *  - Requires compiler capabilities: amx.
+ *
+ *  @see    Reading materials:
+ *          https://www.intel.com/content/www/us/en/developer/articles/code-sample/advanced-matrix-extensions-intrinsics-functions
+ *          https://www.corsix.org/content/contrasting-intel-amx-and-apple-amx
  */
 #include <immintrin.h>
 
 #include "types.h"
 
+/**
+ *  Ops/cycle per core:
+ *  - Intel AMX-INT8: 2048 (=16 * 64 * 2)
+ *  - Intel AMX-BF16: 1024 (=16 * 32 * 2)
+ */
 static void simsimd_amx_f16_ip(                                              //
     simsimd_f16_t const* a, simsimd_size_t a_count, simsimd_size_t a_stride, //
     simsimd_f16_t const* b, simsimd_size_t b_count, simsimd_size_t b_stride, //
@@ -41,12 +50,12 @@ static void simsimd_amx_f16_ip(                                              //
         // Iterate over the columns of matrix B
         for (simsimd_size_t j = 0; j < b_count; ++j) {
             // Set up a tile to accumulate the results
-            __tile1024i acc_tile;
+            __tile acc_tile;
             _tile_zero(&acc_tile);
 
             // Iterate over the inner dimension (d)
             for (simsimd_size_t k = 0; k < d; k += 16) { // Assuming a tile size of 16x16
-                __tile1024i a_tile, b_tile;
+                __tile a_tile, b_tile;
                 // Load tiles from A and B
                 _tile_loadd(&a_tile, &a[i * a_stride + k], a_stride * sizeof(simsimd_f16_t));
                 _tile_loadd(&b_tile, &b[j * b_stride + k], b_stride * sizeof(simsimd_f16_t));

@@ -17,9 +17,12 @@
  *  - Arm (NEON, SVE)
  *  - x86 (AVX2, AVX512)
  *
- *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
- *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
- *  Detecting target CPU features at compile time: https://stackoverflow.com/a/28939692/2766161
+ *  @see    Reading materials
+ *          x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *          Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *          Detecting target CPU features at compile time: https://stackoverflow.com/a/28939692/2766161
+ *          Arm NEON capabilities: https://www.corsix.org/content/whirlwind-tour-aarch64-vector-instructions
+ *          Converting to half-precision: https://www.corsix.org/content/converting-fp32-to-fp16
  */
 
 #pragma once
