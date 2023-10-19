@@ -176,9 +176,14 @@ inline static void simsimd_find_metric_punned( //
 
     simsimd_capability_t supported = simsimd_capabilities();
     simsimd_capability_t viable = (simsimd_capability_t)(supported & allowed);
+    *m = (simsimd_metric_punned_t)0;
+    *c = (simsimd_capability_t)0;
 
     // clang-format off
     switch (datatype) {
+
+    case simsimd_datatype_f64_k:
+        break;
 
     // Single-precision floating-point vectors
     case simsimd_datatype_f32_k:
@@ -189,6 +194,7 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_neon_f32_ip, *c = simsimd_cap_arm_neon_k; break;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_neon_f32_cos, *c = simsimd_cap_arm_neon_k; break;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_neon_f32_l2sq, *c = simsimd_cap_arm_neon_k; break;
+            default: break;
             }
     #endif
     #if SIMSIMD_TARGET_X86_AVX512
@@ -197,6 +203,7 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f32_ip, *c = simsimd_cap_x86_avx512_k; break;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f32_cos, *c = simsimd_cap_x86_avx512_k; break;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f32_l2sq, *c = simsimd_cap_x86_avx512_k; break;
+            default: break;
             }
     #endif
         if (viable & simsimd_cap_serial_k)
@@ -204,7 +211,10 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f32_ip, *c = simsimd_cap_serial_k; break;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f32_cos, *c = simsimd_cap_serial_k; break;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f32_l2sq, *c = simsimd_cap_serial_k; break;
+            default: break;
             }
+
+        break;
 
     // Half-precision floating-point vectors
     case simsimd_datatype_f16_k:
@@ -215,6 +225,7 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_neon_f16_ip, *c = simsimd_cap_arm_neon_k; break;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_neon_f16_cos, *c = simsimd_cap_arm_neon_k; break;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_neon_f16_l2sq, *c = simsimd_cap_arm_neon_k; break;
+            default: break;
             }
     #endif
     #if SIMSIMD_TARGET_ARM_SVE
@@ -223,6 +234,7 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_sve_f16_ip, *c = simsimd_cap_arm_sve_k; break;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_sve_f16_cos, *c = simsimd_cap_arm_sve_k; break;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_sve_f16_l2sq, *c = simsimd_cap_arm_sve_k; break;
+            default: break;
             }
     #endif
     #if SIMSIMD_TARGET_X86_AVX2
@@ -231,6 +243,7 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_f16_ip, *c = simsimd_cap_x86_avx2_k; break;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_f16_cos, *c = simsimd_cap_x86_avx2_k; break;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_f16_l2sq, *c = simsimd_cap_x86_avx2_k; break;
+            default: break;
             }
     #endif
     #if SIMSIMD_TARGET_X86_AVX512
@@ -239,6 +252,7 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f16_ip, *c = simsimd_cap_x86_avx512_k; break;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f16_cos, *c = simsimd_cap_x86_avx512_k; break;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f16_l2sq, *c = simsimd_cap_x86_avx512_k; break;
+            default: break;
             }
     #endif
 
@@ -247,7 +261,10 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f16_ip, *c = simsimd_cap_serial_k; break;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f16_cos, *c = simsimd_cap_serial_k; break;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f16_l2sq, *c = simsimd_cap_serial_k; break;
+            default: break;
             }
+        
+        break;
 
     // Single-byte integer vectors
     case simsimd_datatype_i8_k:
@@ -257,6 +274,7 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_neon_i8_ip, *c = simsimd_cap_arm_neon_k; break;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_neon_i8_cos, *c = simsimd_cap_arm_neon_k; break;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_neon_i8_l2sq, *c = simsimd_cap_arm_neon_k; break;
+            default: break;
             }
     #endif
     #if SIMSIMD_TARGET_X86_AVX2
@@ -265,6 +283,7 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_i8_ip, *c = simsimd_cap_x86_avx2_k; break;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_i8_cos, *c = simsimd_cap_x86_avx2_k; break;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_i8_l2sq, *c = simsimd_cap_x86_avx2_k; break;
+            default: break;
             }
     #endif
     #if SIMSIMD_TARGET_X86_AVX512
@@ -273,6 +292,7 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_i8_ip, *c = simsimd_cap_x86_avx512_k; break;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_i8_cos, *c = simsimd_cap_x86_avx512_k; break;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_i8_l2sq, *c = simsimd_cap_x86_avx512_k; break;
+            default: break;
             }
     #endif
 
@@ -281,7 +301,10 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_serial_i8_ip, *c = simsimd_cap_serial_k; break;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_serial_i8_cos, *c = simsimd_cap_serial_k; break;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_serial_i8_l2sq, *c = simsimd_cap_serial_k; break;
+            default: break;
             }
+        
+        break;
 
     // Binary vectors
     case simsimd_datatype_b8_k:
@@ -291,6 +314,7 @@ inline static void simsimd_find_metric_punned( //
             switch (kind) {
             case simsimd_metric_hamming_k: *m = (simsimd_metric_punned_t)&simsimd_neon_b8_hamming, *c = simsimd_cap_arm_neon_k; break;
             case simsimd_metric_jaccard_k: *m = (simsimd_metric_punned_t)&simsimd_neon_b8_jaccard, *c = simsimd_cap_arm_neon_k; break;
+            default: break;
             }
     #endif
     #if SIMSIMD_TARGET_ARM_SVE
@@ -298,6 +322,7 @@ inline static void simsimd_find_metric_punned( //
             switch (kind) {
             case simsimd_metric_hamming_k: *m = (simsimd_metric_punned_t)&simsimd_sve_b8_hamming, *c = simsimd_cap_arm_sve_k; break;
             case simsimd_metric_jaccard_k: *m = (simsimd_metric_punned_t)&simsimd_sve_b8_jaccard, *c = simsimd_cap_arm_sve_k; break;
+            default: break;
             }
     #endif
     #if SIMSIMD_TARGET_X86_AVX512
@@ -305,6 +330,7 @@ inline static void simsimd_find_metric_punned( //
             switch (kind) {
             case simsimd_metric_hamming_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_b8_hamming, *c = simsimd_cap_x86_avx512vpopcntdq_k; break;
             case simsimd_metric_jaccard_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_b8_jaccard, *c = simsimd_cap_x86_avx512vpopcntdq_k; break;
+            default: break;
             }
     #endif
 
@@ -312,7 +338,10 @@ inline static void simsimd_find_metric_punned( //
             switch (kind) {
             case simsimd_metric_hamming_k: *m = (simsimd_metric_punned_t)&simsimd_serial_b8_hamming, *c = simsimd_cap_serial_k; break;
             case simsimd_metric_jaccard_k: *m = (simsimd_metric_punned_t)&simsimd_serial_b8_jaccard, *c = simsimd_cap_serial_k; break;
+            default: break;
             }
+        
+        break;
     }
     // clang-format on
 }
