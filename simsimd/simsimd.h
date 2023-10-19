@@ -182,8 +182,8 @@ inline static void simsimd_find_metric_punned( //
     // clang-format off
     switch (datatype) {
 
-    case simsimd_datatype_f64_k:
-        break;
+    case simsimd_datatype_unknown_k: break;
+    case simsimd_datatype_f64_k: break;
 
     // Single-precision floating-point vectors
     case simsimd_datatype_f32_k:

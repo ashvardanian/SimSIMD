@@ -193,3 +193,11 @@ __To Test JavaScript bindings__:
 ```sh
 npm install && npm test
 ```
+
+__To Test GoLang bindings__:
+
+```sh
+cd golang
+go test # To run the tests
+go test -run=^$ -bench=. -benchmem
+```
