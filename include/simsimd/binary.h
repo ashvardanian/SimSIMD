@@ -1,6 +1,6 @@
 /**
  *  @brief      SIMD-accelerated Binary Similarity Measures.
- *  @author     Ashot Vardanian
+ *  @author     Ash Vardanian
  *  @date       July 1, 2023
  *
  *  Contains:
@@ -39,7 +39,7 @@ inline static unsigned char simsimd_popcount_b8(simsimd_b8_t x) {
     return lookup_table[x];
 }
 
-inline static simsimd_f32_t simsimd_auto_b8_hamming( //
+inline static simsimd_f32_t simsimd_serial_b8_hamming( //
     simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
     simsimd_i32_t differences = 0;
     for (simsimd_size_t i = 0; i != d_words; ++i)
@@ -47,7 +47,7 @@ inline static simsimd_f32_t simsimd_auto_b8_hamming( //
     return (simsimd_f32_t)differences;
 }
 
-inline static simsimd_f32_t simsimd_auto_b8_jaccard( //
+inline static simsimd_f32_t simsimd_serial_b8_jaccard( //
     simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
     simsimd_i32_t intersection = 0, union_ = 0;
     for (simsimd_size_t i = 0; i != d_words; ++i)

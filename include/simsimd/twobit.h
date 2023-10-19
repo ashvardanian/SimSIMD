@@ -1,6 +1,6 @@
 /**
  *  @brief      SIMD-accelerated Similarity Measures for Two-Bit DNA representations.
- *  @author     Ashot Vardanian
+ *  @author     Ash Vardanian
  *  @date       August 8, 2023
  */
 

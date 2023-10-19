@@ -67,19 +67,19 @@
 extern "C" {
 #endif
 
-SIMSIMD_MAKE_L2SQ(auto, f32, f32, SIMSIMD_IDENTIFY) // simsimd_auto_f32_l2sq
-SIMSIMD_MAKE_IP(auto, f32, f32, SIMSIMD_IDENTIFY)   // simsimd_auto_f32_ip
-SIMSIMD_MAKE_COS(auto, f32, f32, SIMSIMD_IDENTIFY)  // simsimd_auto_f32_cos
+SIMSIMD_MAKE_L2SQ(serial, f32, f32, SIMSIMD_IDENTIFY) // simsimd_serial_f32_l2sq
+SIMSIMD_MAKE_IP(serial, f32, f32, SIMSIMD_IDENTIFY)   // simsimd_serial_f32_ip
+SIMSIMD_MAKE_COS(serial, f32, f32, SIMSIMD_IDENTIFY)  // simsimd_serial_f32_cos
 
-SIMSIMD_MAKE_L2SQ(auto, f16, f32, SIMSIMD_UNCOMPRESS_F16) // simsimd_auto_f16_l2sq
-SIMSIMD_MAKE_IP(auto, f16, f32, SIMSIMD_UNCOMPRESS_F16)   // simsimd_auto_f16_ip
-SIMSIMD_MAKE_COS(auto, f16, f32, SIMSIMD_UNCOMPRESS_F16)  // simsimd_auto_f16_cos
+SIMSIMD_MAKE_L2SQ(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16) // simsimd_serial_f16_l2sq
+SIMSIMD_MAKE_IP(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16)   // simsimd_serial_f16_ip
+SIMSIMD_MAKE_COS(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16)  // simsimd_serial_f16_cos
 
-SIMSIMD_MAKE_L2SQ(auto, i8, i32, SIMSIMD_IDENTIFY) // simsimd_auto_i8_l2sq
-SIMSIMD_MAKE_COS(auto, i8, i32, SIMSIMD_IDENTIFY)  // simsimd_auto_i8_cos
+SIMSIMD_MAKE_L2SQ(serial, i8, i32, SIMSIMD_IDENTIFY) // simsimd_serial_i8_l2sq
+SIMSIMD_MAKE_COS(serial, i8, i32, SIMSIMD_IDENTIFY)  // simsimd_serial_i8_cos
 
-inline static simsimd_f32_t simsimd_auto_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
-    return simsimd_auto_i8_cos(a, b, d);
+inline static simsimd_f32_t simsimd_serial_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+    return simsimd_serial_i8_cos(a, b, d);
 }
 
 SIMSIMD_MAKE_L2SQ(accurate, f32, f64, SIMSIMD_IDENTIFY) // simsimd_accurate_f32_l2sq
