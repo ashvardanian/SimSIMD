@@ -12,8 +12,9 @@
  */
 
 #pragma once
-#include "binary.h"  // Hamming, Jaccard
-#include "spatial.h" // L2, Inner Product, Cosine
+#include "binary.h"      // Hamming, Jaccard
+#include "probability.h" // Kullback-Leibler, Jensen–Shannon
+#include "spatial.h"     // L2, Inner Product, Cosine
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,9 +35,17 @@ typedef enum {
     simsimd_metric_l2sq_k = 'e',
     simsimd_metric_sqeuclidean_k = 'e',
 
-    // Sets:
+    // Binary:
     simsimd_metric_hamming_k = 'b',
     simsimd_metric_jaccard_k = 'j',
+
+    // Probability:
+    simsimd_metric_kl_k = 'k',
+    simsimd_metric_kullback_leibler_k = 'k',
+
+    simsimd_metric_js_k = 's',
+    simsimd_metric_jensen_shannon_k = 's',
+
 } simsimd_metric_kind_t;
 
 typedef enum {
@@ -194,6 +203,8 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_neon_f32_ip, *c = simsimd_cap_arm_neon_k; break;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_neon_f32_cos, *c = simsimd_cap_arm_neon_k; break;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_neon_f32_l2sq, *c = simsimd_cap_arm_neon_k; break;
+            case simsimd_metric_js_k: *m = (simsimd_metric_punned_t)&simsimd_neon_f32_js, *c = simsimd_cap_arm_neon_k; break;
+            case simsimd_metric_kl_k: *m = (simsimd_metric_punned_t)&simsimd_neon_f32_kl, *c = simsimd_cap_arm_neon_k; break;
             default: break;
             }
     #endif
@@ -211,6 +222,8 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f32_ip, *c = simsimd_cap_serial_k; break;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f32_cos, *c = simsimd_cap_serial_k; break;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f32_l2sq, *c = simsimd_cap_serial_k; break;
+            case simsimd_metric_js_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f32_js, *c = simsimd_cap_serial_k; break;
+            case simsimd_metric_kl_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f32_kl, *c = simsimd_cap_serial_k; break;
             default: break;
             }
 
@@ -261,6 +274,8 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f16_ip, *c = simsimd_cap_serial_k; break;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f16_cos, *c = simsimd_cap_serial_k; break;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f16_l2sq, *c = simsimd_cap_serial_k; break;
+            case simsimd_metric_js_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f16_js, *c = simsimd_cap_serial_k; break;
+            case simsimd_metric_kl_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f16_kl, *c = simsimd_cap_serial_k; break;
             default: break;
             }
         

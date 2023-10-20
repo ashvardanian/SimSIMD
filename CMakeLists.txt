@@ -62,6 +62,6 @@ target_include_directories(simsimd INTERFACE "${PROJECT_SOURCE_DIR}/include")
 # Build benchmarks if required
 if(SIMSIMD_BUILD_BENCHMARKS)
   find_package(Threads REQUIRED)
-  add_executable(simsimd_bench bench.cxx)
+  add_executable(simsimd_bench cpp/bench.cxx)
   target_link_libraries(simsimd_bench simsimd Threads::Threads benchmark)
 endif()

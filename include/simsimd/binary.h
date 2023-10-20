@@ -16,7 +16,6 @@
  *
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
- *  Detecting target CPU features at compile time: https://stackoverflow.com/a/28939692/2766161
  */
 
 #pragma once
@@ -40,17 +39,17 @@ inline static unsigned char simsimd_popcount_b8(simsimd_b8_t x) {
 }
 
 inline static simsimd_f32_t simsimd_serial_b8_hamming( //
-    simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
+    simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
     simsimd_i32_t differences = 0;
-    for (simsimd_size_t i = 0; i != d_words; ++i)
+    for (simsimd_size_t i = 0; i != n_words; ++i)
         differences += simsimd_popcount_b8(a[i] ^ b[i]);
     return (simsimd_f32_t)differences;
 }
 
 inline static simsimd_f32_t simsimd_serial_b8_jaccard( //
-    simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
+    simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
     simsimd_i32_t intersection = 0, union_ = 0;
-    for (simsimd_size_t i = 0; i != d_words; ++i)
+    for (simsimd_size_t i = 0; i != n_words; ++i)
         intersection += simsimd_popcount_b8(a[i] & b[i]), union_ += simsimd_popcount_b8(a[i] | b[i]);
     return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
@@ -60,33 +59,33 @@ inline static simsimd_f32_t simsimd_serial_b8_jaccard( //
 
 __attribute__((target("+simd"))) //
 inline static simsimd_f32_t
-simsimd_neon_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
+simsimd_neon_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
     simsimd_i32_t differences = 0;
     simsimd_size_t i = 0;
-    for (; i + 16 <= d_words; i += 16) {
+    for (; i + 16 <= n_words; i += 16) {
         uint8x16_t a_first = vld1q_u8(a + i);
         uint8x16_t b_first = vld1q_u8(b + i);
         differences += vaddvq_u8(vcntq_u8(veorq_u8(a_first, b_first)));
     }
     // Handle the tail
-    for (; i != d_words; ++i)
+    for (; i != n_words; ++i)
         differences += simsimd_popcount_b8(a[i] ^ b[i]);
     return (simsimd_f32_t)differences;
 }
 
 __attribute__((target("+simd"))) //
 inline static simsimd_f32_t
-simsimd_neon_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
+simsimd_neon_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
     simsimd_i32_t intersection = 0, union_ = 0;
     simsimd_size_t i = 0;
-    for (; i + 16 <= d_words; i += 16) {
+    for (; i + 16 <= n_words; i += 16) {
         uint8x16_t a_first = vld1q_u8(a + i);
         uint8x16_t b_first = vld1q_u8(b + i);
         intersection += vaddvq_u8(vcntq_u8(vandq_u8(a_first, b_first)));
         union_ += vaddvq_u8(vcntq_u8(vorrq_u8(a_first, b_first)));
     }
     // Handle the tail
-    for (; i != d_words; ++i)
+    for (; i != n_words; ++i)
         intersection += simsimd_popcount_b8(a[i] & b[i]), union_ += simsimd_popcount_b8(a[i] | b[i]);
     return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
@@ -97,32 +96,32 @@ simsimd_neon_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_si
 
 __attribute__((target("+sve"))) //
 inline static simsimd_f32_t
-simsimd_sve_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
+simsimd_sve_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
     simsimd_size_t i = 0;
     simsimd_i32_t differences = 0;
     do {
-        svbool_t pg_vec = svwhilelt_b8((unsigned int)i, (unsigned int)d_words);
+        svbool_t pg_vec = svwhilelt_b8((unsigned int)i, (unsigned int)n_words);
         svuint8_t a_vec = svld1_u8(pg_vec, a + i);
         svuint8_t b_vec = svld1_u8(pg_vec, b + i);
         differences += svaddv_u8(svptrue_b8(), svcnt_u8_x(svptrue_b8(), sveor_u8_m(svptrue_b8(), a_vec, b_vec)));
         i += svcntb();
-    } while (i < d_words);
+    } while (i < n_words);
     return (simsimd_f32_t)differences;
 }
 
 __attribute__((target("+sve"))) //
 inline static simsimd_f32_t
-simsimd_sve_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
+simsimd_sve_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
     simsimd_size_t i = 0;
     simsimd_i32_t intersection = 0, union_ = 0;
     do {
-        svbool_t pg_vec = svwhilelt_b8((unsigned int)i, (unsigned int)d_words);
+        svbool_t pg_vec = svwhilelt_b8((unsigned int)i, (unsigned int)n_words);
         svuint8_t a_vec = svld1_u8(pg_vec, a + i);
         svuint8_t b_vec = svld1_u8(pg_vec, b + i);
         intersection += svaddv_u8(svptrue_b8(), svcnt_u8_x(svptrue_b8(), svand_u8_m(svptrue_b8(), a_vec, b_vec)));
         union_ += svaddv_u8(svptrue_b8(), svcnt_u8_x(svptrue_b8(), svorr_u8_m(svptrue_b8(), a_vec, b_vec)));
         i += svcntb();
-    } while (i < d_words);
+    } while (i < n_words);
     return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
@@ -136,12 +135,12 @@ simsimd_sve_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_siz
 
 __attribute__((target("avx512vpopcntdq,avx512vl,avx512bw,avx512f"))) //
 inline static simsimd_f32_t
-simsimd_avx512_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
+simsimd_avx512_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
     __m512i differences_vec = _mm512_setzero_si512(), union_vec = _mm512_setzero_si512();
-    for (simsimd_size_t i = 0; i < d_words; i += 64) {
+    for (simsimd_size_t i = 0; i < n_words; i += 64) {
 
         // Compute mask for tail elements
-        __mmask64 mask = (i + 64 <= d_words) ? 0xFFFFFFFFFFFFFFFF : (((1ull << (d_words - i)) - 1ull));
+        __mmask64 mask = (i + 64 <= n_words) ? 0xFFFFFFFFFFFFFFFF : (((1ull << (n_words - i)) - 1ull));
 
         __m512i a_vec = _mm512_maskz_loadu_epi8(mask, a + i);
         __m512i b_vec = _mm512_maskz_loadu_epi8(mask, b + i);
@@ -156,12 +155,12 @@ simsimd_avx512_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_
 
 __attribute__((target("avx512vpopcntdq,avx512vl,avx512bw,avx512f"))) //
 inline static simsimd_f32_t
-simsimd_avx512_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t d_words) {
+simsimd_avx512_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
     __m512i intersection_vec = _mm512_setzero_si512(), union_vec = _mm512_setzero_si512();
-    for (simsimd_size_t i = 0; i < d_words; i += 64) {
+    for (simsimd_size_t i = 0; i < n_words; i += 64) {
 
         // Compute mask for tail elements
-        __mmask64 mask = (i + 64 <= d_words) ? 0xFFFFFFFFFFFFFFFF : (((1ull << (d_words - i)) - 1ull));
+        __mmask64 mask = (i + 64 <= n_words) ? 0xFFFFFFFFFFFFFFFF : (((1ull << (n_words - i)) - 1ull));
 
         __m512i a_vec = _mm512_maskz_loadu_epi8(mask, a + i);
         __m512i b_vec = _mm512_maskz_loadu_epi8(mask, b + i);

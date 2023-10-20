@@ -19,7 +19,6 @@
  *
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
- *  Detecting target CPU features at compile time: https://stackoverflow.com/a/28939692/2766161
  */
 
 #pragma once
@@ -27,9 +26,9 @@
 
 #define SIMSIMD_MAKE_L2SQ(name, input_type, accumulator_type, converter)                                               \
     inline static simsimd_f32_t simsimd_##name##_##input_type##_l2sq(                                                  \
-        simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t d) {                      \
+        simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t n) {                      \
         simsimd_##accumulator_type##_t d2 = 0;                                                                         \
-        for (simsimd_size_t i = 0; i != d; ++i) {                                                                      \
+        for (simsimd_size_t i = 0; i != n; ++i) {                                                                      \
             simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
             simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
             d2 += (ai - bi) * (ai - bi);                                                                               \
@@ -39,9 +38,9 @@
 
 #define SIMSIMD_MAKE_IP(name, input_type, accumulator_type, converter)                                                 \
     inline static simsimd_f32_t simsimd_##name##_##input_type##_ip(                                                    \
-        simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t d) {                      \
+        simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t n) {                      \
         simsimd_##accumulator_type##_t ab = 0;                                                                         \
-        for (simsimd_size_t i = 0; i != d; ++i) {                                                                      \
+        for (simsimd_size_t i = 0; i != n; ++i) {                                                                      \
             simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
             simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
             ab += ai * bi;                                                                                             \
@@ -51,9 +50,9 @@
 
 #define SIMSIMD_MAKE_COS(name, input_type, accumulator_type, converter)                                                \
     inline static simsimd_f32_t simsimd_##name##_##input_type##_cos(                                                   \
-        simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t d) {                      \
+        simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t n) {                      \
         simsimd_##accumulator_type##_t ab = 0, a2 = 0, b2 = 0;                                                         \
-        for (simsimd_size_t i = 0; i != d; ++i) {                                                                      \
+        for (simsimd_size_t i = 0; i != n; ++i) {                                                                      \
             simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
             simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
             ab += ai * bi;                                                                                             \
@@ -78,23 +77,23 @@ SIMSIMD_MAKE_COS(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16)  // simsimd_serial_f1
 SIMSIMD_MAKE_L2SQ(serial, i8, i32, SIMSIMD_IDENTIFY) // simsimd_serial_i8_l2sq
 SIMSIMD_MAKE_COS(serial, i8, i32, SIMSIMD_IDENTIFY)  // simsimd_serial_i8_cos
 
-inline static simsimd_f32_t simsimd_serial_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
-    return simsimd_serial_i8_cos(a, b, d);
+inline static simsimd_f32_t simsimd_serial_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n) {
+    return simsimd_serial_i8_cos(a, b, n);
 }
 
 SIMSIMD_MAKE_L2SQ(accurate, f32, f64, SIMSIMD_IDENTIFY) // simsimd_accurate_f32_l2sq
 SIMSIMD_MAKE_IP(accurate, f32, f64, SIMSIMD_IDENTIFY)   // simsimd_accurate_f32_ip
 SIMSIMD_MAKE_COS(accurate, f32, f64, SIMSIMD_IDENTIFY)  // simsimd_accurate_f32_cos
 
-SIMSIMD_MAKE_L2SQ(accurate, f16, f64, SIMSIMD_IDENTIFY) // simsimd_accurate_f16_l2sq
-SIMSIMD_MAKE_IP(accurate, f16, f64, SIMSIMD_IDENTIFY)   // simsimd_accurate_f16_ip
-SIMSIMD_MAKE_COS(accurate, f16, f64, SIMSIMD_IDENTIFY)  // simsimd_accurate_f16_cos
+SIMSIMD_MAKE_L2SQ(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16) // simsimd_accurate_f16_l2sq
+SIMSIMD_MAKE_IP(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16)   // simsimd_accurate_f16_ip
+SIMSIMD_MAKE_COS(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16)  // simsimd_accurate_f16_cos
 
 SIMSIMD_MAKE_L2SQ(accurate, i8, i32, SIMSIMD_IDENTIFY) // simsimd_accurate_i8_l2sq
 SIMSIMD_MAKE_COS(accurate, i8, i32, SIMSIMD_IDENTIFY)  // simsimd_accurate_i8_cos
 
-inline static simsimd_f32_t simsimd_accurate_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
-    return simsimd_accurate_i8_cos(a, b, d);
+inline static simsimd_f32_t simsimd_accurate_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n) {
+    return simsimd_accurate_i8_cos(a, b, n);
 }
 
 #if SIMSIMD_TARGET_ARM
@@ -112,17 +111,17 @@ inline static simsimd_f32_t simsimd_accurate_i8_ip(simsimd_i8_t const* a, simsim
 
 __attribute__((target("+simd"))) //
 inline static simsimd_f32_t
-simsimd_neon_f32_l2sq(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t d) {
+simsimd_neon_f32_l2sq(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n) {
     float32x4_t sum_vec = vdupq_n_f32(0);
     simsimd_size_t i = 0;
-    for (; i + 4 <= d; i += 4) {
+    for (; i + 4 <= n; i += 4) {
         float32x4_t a_vec = vld1q_f32(a + i);
         float32x4_t b_vec = vld1q_f32(b + i);
         float32x4_t diff_vec = vsubq_f32(a_vec, b_vec);
         sum_vec = vfmaq_f32(sum_vec, diff_vec, diff_vec);
     }
     simsimd_f32_t sum = vaddvq_f32(sum_vec);
-    for (; i < d; ++i) {
+    for (; i < n; ++i) {
         simsimd_f32_t diff = a[i] - b[i];
         sum += diff * diff;
     }
@@ -131,26 +130,26 @@ simsimd_neon_f32_l2sq(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_si
 
 __attribute__((target("+simd"))) //
 inline static simsimd_f32_t
-simsimd_neon_f32_ip(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t d) {
+simsimd_neon_f32_ip(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n) {
     float32x4_t ab_vec = vdupq_n_f32(0);
     simsimd_size_t i = 0;
-    for (; i + 4 <= d; i += 4) {
+    for (; i + 4 <= n; i += 4) {
         float32x4_t a_vec = vld1q_f32(a + i);
         float32x4_t b_vec = vld1q_f32(b + i);
         ab_vec = vfmaq_f32(ab_vec, a_vec, b_vec);
     }
     simsimd_f32_t ab = vaddvq_f32(ab_vec);
-    for (; i < d; ++i)
+    for (; i < n; ++i)
         ab += a[i] * b[i];
     return 1 - ab;
 }
 
 __attribute__((target("+simd"))) //
 inline static simsimd_f32_t
-simsimd_neon_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t d) {
+simsimd_neon_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n) {
     float32x4_t ab_vec = vdupq_n_f32(0), a2_vec = vdupq_n_f32(0), b2_vec = vdupq_n_f32(0);
     simsimd_size_t i = 0;
-    for (; i + 4 <= d; i += 4) {
+    for (; i + 4 <= n; i += 4) {
         float32x4_t a_vec = vld1q_f32(a + i);
         float32x4_t b_vec = vld1q_f32(b + i);
         ab_vec = vfmaq_f32(ab_vec, a_vec, b_vec);
@@ -158,7 +157,7 @@ simsimd_neon_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_siz
         b2_vec = vfmaq_f32(b2_vec, b_vec, b_vec);
     }
     simsimd_f32_t ab = vaddvq_f32(ab_vec), a2 = vaddvq_f32(a2_vec), b2 = vaddvq_f32(b2_vec);
-    for (; i < d; ++i) {
+    for (; i < n; ++i) {
         simsimd_f32_t ai = a[i], bi = b[i];
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
@@ -181,17 +180,17 @@ simsimd_neon_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_siz
 
 __attribute__((target("+simd+fp16"))) //
 inline static simsimd_f32_t
-simsimd_neon_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t d) {
+simsimd_neon_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
     float32x4_t sum_vec = vdupq_n_f32(0);
     simsimd_size_t i = 0;
-    for (; i + 4 <= d; i += 4) {
+    for (; i + 4 <= n; i += 4) {
         float32x4_t a_vec = vcvt_f32_f16(vld1_f16((float16_t const*)a + i));
         float32x4_t b_vec = vcvt_f32_f16(vld1_f16((float16_t const*)b + i));
         float32x4_t diff_vec = vsubq_f32(a_vec, b_vec);
         sum_vec = vfmaq_f32(sum_vec, diff_vec, diff_vec);
     }
     simsimd_f32_t sum = vaddvq_f32(sum_vec);
-    for (; i < d; ++i) {
+    for (; i < n; ++i) {
         simsimd_f32_t diff = SIMSIMD_UNCOMPRESS_F16(a[i]) - SIMSIMD_UNCOMPRESS_F16(b[i]);
         sum += diff * diff;
     }
@@ -200,26 +199,26 @@ simsimd_neon_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_si
 
 __attribute__((target("+simd+fp16"))) //
 inline static simsimd_f32_t
-simsimd_neon_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t d) {
+simsimd_neon_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
     float32x4_t ab_vec = vdupq_n_f32(0);
     simsimd_size_t i = 0;
-    for (; i + 4 <= d; i += 4) {
+    for (; i + 4 <= n; i += 4) {
         float32x4_t a_vec = vcvt_f32_f16(vld1_f16((float16_t const*)a + i));
         float32x4_t b_vec = vcvt_f32_f16(vld1_f16((float16_t const*)b + i));
         ab_vec = vfmaq_f32(ab_vec, a_vec, b_vec);
     }
     simsimd_f32_t ab = vaddvq_f32(ab_vec);
-    for (; i < d; ++i)
+    for (; i < n; ++i)
         ab += SIMSIMD_UNCOMPRESS_F16(a[i]) * SIMSIMD_UNCOMPRESS_F16(b[i]);
     return 1 - ab;
 }
 
 __attribute__((target("+simd+fp16"))) //
 inline static simsimd_f32_t
-simsimd_neon_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t d) {
+simsimd_neon_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
     float32x4_t ab_vec = vdupq_n_f32(0), a2_vec = vdupq_n_f32(0), b2_vec = vdupq_n_f32(0);
     simsimd_size_t i = 0;
-    for (; i + 4 <= d; i += 4) {
+    for (; i + 4 <= n; i += 4) {
         float32x4_t a_vec = vcvt_f32_f16(vld1_f16((float16_t const*)a + i));
         float32x4_t b_vec = vcvt_f32_f16(vld1_f16((float16_t const*)b + i));
         ab_vec = vfmaq_f32(ab_vec, a_vec, b_vec);
@@ -227,7 +226,7 @@ simsimd_neon_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_siz
         b2_vec = vfmaq_f32(b2_vec, b_vec, b_vec);
     }
     simsimd_f32_t ab = vaddvq_f32(ab_vec), a2 = vaddvq_f32(a2_vec), b2 = vaddvq_f32(b2_vec);
-    for (; i < d; ++i) {
+    for (; i < n; ++i) {
         simsimd_f32_t ai = SIMSIMD_UNCOMPRESS_F16(a[i]), bi = SIMSIMD_UNCOMPRESS_F16(b[i]);
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
@@ -252,10 +251,10 @@ simsimd_neon_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_siz
 
 __attribute__((target("+simd"))) //
 inline static simsimd_f32_t
-simsimd_neon_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+simsimd_neon_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n) {
     int32x4_t d2_vec = vdupq_n_s32(0);
     simsimd_size_t i = 0;
-    for (; i + 7 < d; i += 8) {
+    for (; i + 7 < n; i += 8) {
         int8x8_t a_vec = vld1_s8(a + i);
         int8x8_t b_vec = vld1_s8(b + i);
         int16x8_t a_vec16 = vmovl_s8(a_vec);
@@ -266,16 +265,16 @@ simsimd_neon_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_
         d2_vec = vaddq_s32(d2_vec, vaddq_s32(d_low, d_high));
     }
     int32_t d2 = vaddvq_s32(d2_vec);
-    for (; i < d; ++i) {
-        int32_t d = a[i] - b[i];
-        d2 += d * d;
+    for (; i < n; ++i) {
+        int32_t n = a[i] - b[i];
+        d2 += n * n;
     }
     return d2;
 }
 
 __attribute__((target("arch=armv8.2-a+dotprod"))) //
 inline static simsimd_f32_t
-simsimd_neon_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+simsimd_neon_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n) {
 
     int32x4_t ab_vec = vdupq_n_s32(0);
     int32x4_t a2_vec = vdupq_n_s32(0);
@@ -283,7 +282,7 @@ simsimd_neon_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t
     simsimd_size_t i = 0;
 
     // If the 128-bit `vdot_s32` intrinsic is unavailable, we can use the 64-bit `vdot_s32`.
-    // for (simsimd_size_t i = 0; i != d; i += 8) {
+    // for (simsimd_size_t i = 0; i != n; i += 8) {
     //     int16x8_t a_vec = vmovl_s8(vld1_s8(a + i));
     //     int16x8_t b_vec = vmovl_s8(vld1_s8(b + i));
     //     int16x8_t ab_part_vec = vmulq_s16(a_vec, b_vec);
@@ -296,7 +295,7 @@ simsimd_neon_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t
     //     b2_vec = vaddq_s32(b2_vec, vaddq_s32(vmovl_s16(vget_high_s16(b2_part_vec)), //
     //                                          vmovl_s16(vget_low_s16(b2_part_vec))));
     // }
-    for (; i + 15 < d; i += 16) {
+    for (; i + 15 < n; i += 16) {
         int8x16_t a_vec = vld1q_s8(a + i);
         int8x16_t b_vec = vld1q_s8(b + i);
         ab_vec = vdotq_s32(ab_vec, a_vec, b_vec);
@@ -309,7 +308,7 @@ simsimd_neon_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t
     int32_t b2 = vaddvq_s32(b2_vec);
 
     // Take care of the tail:
-    for (; i < d; ++i) {
+    for (; i < n; ++i) {
         int32_t ai = a[i], bi = b[i];
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
@@ -324,8 +323,8 @@ simsimd_neon_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t
 
 __attribute__((target("arch=armv8.2-a+dotprod"))) //
 inline static simsimd_f32_t
-simsimd_neon_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
-    return simsimd_neon_i8_cos(a, b, d);
+simsimd_neon_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n) {
+    return simsimd_neon_i8_cos(a, b, n);
 }
 
 #endif // SIMSIMD_TARGET_ARM_NEON
@@ -344,51 +343,51 @@ simsimd_neon_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t 
 
 __attribute__((target("+sve"))) //
 inline static simsimd_f32_t
-simsimd_sve_f32_l2sq(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t d) {
+simsimd_sve_f32_l2sq(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n) {
     simsimd_size_t i = 0;
     svfloat32_t d2_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
     do {
-        svbool_t pg_vec = svwhilelt_b32((unsigned int)i, (unsigned int)d);
+        svbool_t pg_vec = svwhilelt_b32((unsigned int)i, (unsigned int)n);
         svfloat32_t a_vec = svld1_f32(pg_vec, a + i);
         svfloat32_t b_vec = svld1_f32(pg_vec, b + i);
         svfloat32_t a_minus_b_vec = svsub_f32_x(pg_vec, a_vec, b_vec);
         d2_vec = svmla_f32_x(pg_vec, d2_vec, a_minus_b_vec, a_minus_b_vec);
         i += svcntw();
-    } while (i < d);
+    } while (i < n);
     simsimd_f32_t d2 = svaddv_f32(svptrue_b32(), d2_vec);
     return d2;
 }
 __attribute__((target("+sve"))) //
 inline static simsimd_f32_t
-simsimd_sve_f32_ip(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t d) {
+simsimd_sve_f32_ip(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n) {
     simsimd_size_t i = 0;
     svfloat32_t ab_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
     do {
-        svbool_t pg_vec = svwhilelt_b32((unsigned int)i, (unsigned int)d);
+        svbool_t pg_vec = svwhilelt_b32((unsigned int)i, (unsigned int)n);
         svfloat32_t a_vec = svld1_f32(pg_vec, a + i);
         svfloat32_t b_vec = svld1_f32(pg_vec, b + i);
         ab_vec = svmla_f32_x(pg_vec, ab_vec, a_vec, b_vec);
         i += svcntw();
-    } while (i < d);
+    } while (i < n);
     return 1 - svaddv_f32(svptrue_b32(), ab_vec);
 }
 
 __attribute__((target("+sve"))) //
 inline static simsimd_f32_t
-simsimd_sve_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t d) {
+simsimd_sve_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n) {
     simsimd_size_t i = 0;
     svfloat32_t ab_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
     svfloat32_t a2_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
     svfloat32_t b2_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
     do {
-        svbool_t pg_vec = svwhilelt_b32((unsigned int)i, (unsigned int)d);
+        svbool_t pg_vec = svwhilelt_b32((unsigned int)i, (unsigned int)n);
         svfloat32_t a_vec = svld1_f32(pg_vec, a + i);
         svfloat32_t b_vec = svld1_f32(pg_vec, b + i);
         ab_vec = svmla_f32_x(pg_vec, ab_vec, a_vec, b_vec);
         a2_vec = svmla_f32_x(pg_vec, a2_vec, a_vec, a_vec);
         b2_vec = svmla_f32_x(pg_vec, b2_vec, b_vec, b_vec);
         i += svcntw();
-    } while (i < d);
+    } while (i < n);
 
     simsimd_f32_t ab = svaddv_f32(svptrue_b32(), ab_vec);
     simsimd_f32_t a2 = svaddv_f32(svptrue_b32(), a2_vec);
@@ -414,43 +413,43 @@ simsimd_sve_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size
 
 __attribute__((target("+sve+fp16"))) //
 inline static simsimd_f32_t
-simsimd_sve_f16_l2sq(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, simsimd_size_t d) {
+simsimd_sve_f16_l2sq(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, simsimd_size_t n) {
     simsimd_size_t i = 0;
     svfloat16_t d2_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
     simsimd_f16_t const* a = (simsimd_f16_t const*)(a_enum);
     simsimd_f16_t const* b = (simsimd_f16_t const*)(b_enum);
     do {
-        svbool_t pg_vec = svwhilelt_b16((unsigned int)i, (unsigned int)d);
+        svbool_t pg_vec = svwhilelt_b16((unsigned int)i, (unsigned int)n);
         svfloat16_t a_vec = svld1_f16(pg_vec, (float16_t const*)a + i);
         svfloat16_t b_vec = svld1_f16(pg_vec, (float16_t const*)b + i);
         svfloat16_t a_minus_b_vec = svsub_f16_x(pg_vec, a_vec, b_vec);
         d2_vec = svmla_f16_x(pg_vec, d2_vec, a_minus_b_vec, a_minus_b_vec);
         i += svcnth();
-    } while (i < d);
+    } while (i < n);
     float16_t d2_f16 = svaddv_f16(svptrue_b16(), d2_vec);
     return d2_f16;
 }
 __attribute__((target("+sve+fp16"))) //
 inline static simsimd_f32_t
-simsimd_sve_f16_ip(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, simsimd_size_t d) {
+simsimd_sve_f16_ip(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, simsimd_size_t n) {
     simsimd_size_t i = 0;
     svfloat16_t ab_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
     simsimd_f16_t const* a = (simsimd_f16_t const*)(a_enum);
     simsimd_f16_t const* b = (simsimd_f16_t const*)(b_enum);
     do {
-        svbool_t pg_vec = svwhilelt_b16((unsigned int)i, (unsigned int)d);
+        svbool_t pg_vec = svwhilelt_b16((unsigned int)i, (unsigned int)n);
         svfloat16_t a_vec = svld1_f16(pg_vec, (float16_t const*)a + i);
         svfloat16_t b_vec = svld1_f16(pg_vec, (float16_t const*)b + i);
         ab_vec = svmla_f16_x(pg_vec, ab_vec, a_vec, b_vec);
         i += svcnth();
-    } while (i < d);
+    } while (i < n);
     simsimd_f16_t ab = svaddv_f16(svptrue_b16(), ab_vec);
     return 1 - ab;
 }
 
 __attribute__((target("+sve+fp16"))) //
 inline static simsimd_f32_t
-simsimd_sve_f16_cos(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, simsimd_size_t d) {
+simsimd_sve_f16_cos(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, simsimd_size_t n) {
     simsimd_size_t i = 0;
     svfloat16_t ab_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
     svfloat16_t a2_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
@@ -458,14 +457,14 @@ simsimd_sve_f16_cos(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, si
     simsimd_f16_t const* a = (simsimd_f16_t const*)(a_enum);
     simsimd_f16_t const* b = (simsimd_f16_t const*)(b_enum);
     do {
-        svbool_t pg_vec = svwhilelt_b16((unsigned int)i, (unsigned int)d);
+        svbool_t pg_vec = svwhilelt_b16((unsigned int)i, (unsigned int)n);
         svfloat16_t a_vec = svld1_f16(pg_vec, (float16_t const*)a + i);
         svfloat16_t b_vec = svld1_f16(pg_vec, (float16_t const*)b + i);
         ab_vec = svmla_f16_x(pg_vec, ab_vec, a_vec, b_vec);
         a2_vec = svmla_f16_x(pg_vec, a2_vec, a_vec, a_vec);
         b2_vec = svmla_f16_x(pg_vec, b2_vec, b_vec, b_vec);
         i += svcnth();
-    } while (i < d);
+    } while (i < n);
 
     simsimd_f16_t ab = svaddv_f16(svptrue_b16(), ab_vec);
     simsimd_f16_t a2 = svaddv_f16(svptrue_b16(), a2_vec);
@@ -517,8 +516,8 @@ simsimd_avx2_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_si
 
     // Accumulate the tail:
     for (; i < n; ++i) {
-        simsimd_f32_t d = SIMSIMD_UNCOMPRESS_F16(a[i]) - SIMSIMD_UNCOMPRESS_F16(b[i]);
-        result += d * d;
+        simsimd_f32_t n = SIMSIMD_UNCOMPRESS_F16(a[i]) - SIMSIMD_UNCOMPRESS_F16(b[i]);
+        result += n * n;
     }
     return result;
 }
@@ -605,13 +604,13 @@ simsimd_avx2_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_siz
 
 __attribute__((target("avx2"))) //
 inline static simsimd_f32_t
-simsimd_avx2_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+simsimd_avx2_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n) {
 
     __m256i d2_high_vec = _mm256_setzero_si256();
     __m256i d2_low_vec = _mm256_setzero_si256();
 
     simsimd_size_t i = 0;
-    for (; i + 32 <= d; i += 32) {
+    for (; i + 32 <= n; i += 32) {
         __m256i a_vec = _mm256_loadu_si256((__m256i const*)(a + i));
         __m256i b_vec = _mm256_loadu_si256((__m256i const*)(b + i));
 
@@ -640,16 +639,16 @@ simsimd_avx2_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_
     int d2 = _mm_extract_epi32(d2_sum, 0);
 
     // Take care of the tail:
-    for (; i < d; ++i) {
-        int d = a[i] - b[i];
-        d2 += d * d;
+    for (; i < n; ++i) {
+        int n = a[i] - b[i];
+        d2 += n * n;
     }
 
     return (simsimd_f32_t)d2;
 }
 __attribute__((target("avx2"))) //
 inline static simsimd_f32_t
-simsimd_avx2_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+simsimd_avx2_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n) {
 
     __m256i ab_high_vec = _mm256_setzero_si256();
     __m256i ab_low_vec = _mm256_setzero_si256();
@@ -659,7 +658,7 @@ simsimd_avx2_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t
     __m256i b2_low_vec = _mm256_setzero_si256();
 
     simsimd_size_t i = 0;
-    for (; i + 32 <= d; i += 32) {
+    for (; i + 32 <= n; i += 32) {
         __m256i a_vec = _mm256_loadu_si256((__m256i const*)(a + i));
         __m256i b_vec = _mm256_loadu_si256((__m256i const*)(b + i));
 
@@ -700,7 +699,7 @@ simsimd_avx2_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t
     int b2 = _mm_extract_epi32(b2_sum, 0);
 
     // Take care of the tail:
-    for (; i < d; ++i) {
+    for (; i < n; ++i) {
         int ai = a[i], bi = b[i];
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
@@ -716,8 +715,8 @@ simsimd_avx2_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t
 
 __attribute__((target("avx2"))) //
 inline static simsimd_f32_t
-simsimd_avx2_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
-    return simsimd_avx2_i8_cos(a, b, d);
+simsimd_avx2_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n) {
+    return simsimd_avx2_i8_cos(a, b, n);
 }
 
 #endif // SIMSIMD_TARGET_X86_AVX2
@@ -736,10 +735,10 @@ simsimd_avx2_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t 
 
 __attribute__((target("avx512f,avx512vl"))) //
 inline static simsimd_f32_t
-simsimd_avx512_f32_l2sq(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t d) {
+simsimd_avx512_f32_l2sq(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n) {
     __m512 d2_vec = _mm512_set1_ps(0);
-    for (simsimd_size_t i = 0; i < d; i += 16) {
-        __mmask16 mask = d - i >= 16 ? 0xFFFF : ((1u << (d - i)) - 1u);
+    for (simsimd_size_t i = 0; i < n; i += 16) {
+        __mmask16 mask = n - i >= 16 ? 0xFFFF : ((1u << (n - i)) - 1u);
         __m512 a_vec = _mm512_maskz_loadu_ps(mask, a + i);
         __m512 b_vec = _mm512_maskz_loadu_ps(mask, b + i);
         __m512 d_vec = _mm512_sub_ps(a_vec, b_vec);
@@ -750,10 +749,10 @@ simsimd_avx512_f32_l2sq(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_
 
 __attribute__((target("avx512f,avx512vl"))) //
 inline static simsimd_f32_t
-simsimd_avx512_f32_ip(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t d) {
+simsimd_avx512_f32_ip(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n) {
     __m512 ab_vec = _mm512_set1_ps(0);
-    for (simsimd_size_t i = 0; i < d; i += 16) {
-        __mmask16 mask = d - i >= 16 ? 0xFFFF : ((1u << (d - i)) - 1u);
+    for (simsimd_size_t i = 0; i < n; i += 16) {
+        __mmask16 mask = n - i >= 16 ? 0xFFFF : ((1u << (n - i)) - 1u);
         __m512 a_vec = _mm512_maskz_loadu_ps(mask, a + i);
         __m512 b_vec = _mm512_maskz_loadu_ps(mask, b + i);
         ab_vec = _mm512_fmadd_ps(a_vec, b_vec, ab_vec);
@@ -763,13 +762,13 @@ simsimd_avx512_f32_ip(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_si
 
 __attribute__((target("avx512f,avx512vl"))) //
 inline static simsimd_f32_t
-simsimd_avx512_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t d) {
+simsimd_avx512_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n) {
     __m512 ab_vec = _mm512_set1_ps(0);
     __m512 a2_vec = _mm512_set1_ps(0);
     __m512 b2_vec = _mm512_set1_ps(0);
 
-    for (simsimd_size_t i = 0; i < d; i += 16) {
-        __mmask16 mask = d - i >= 16 ? 0xFFFF : ((1u << (d - i)) - 1u);
+    for (simsimd_size_t i = 0; i < n; i += 16) {
+        __mmask16 mask = n - i >= 16 ? 0xFFFF : ((1u << (n - i)) - 1u);
         __m512 a_vec = _mm512_maskz_loadu_ps(mask, a + i);
         __m512 b_vec = _mm512_maskz_loadu_ps(mask, b + i);
         ab_vec = _mm512_fmadd_ps(a_vec, b_vec, ab_vec);
@@ -801,10 +800,10 @@ simsimd_avx512_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_s
 
 __attribute__((target("avx512fp16,avx512vl,avx512f"))) //
 inline static simsimd_f32_t
-simsimd_avx512_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t d) {
+simsimd_avx512_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
     __m512h d2_vec = _mm512_set1_ph(0);
-    for (simsimd_size_t i = 0; i < d; i += 32) {
-        __mmask32 mask = d - i >= 32 ? 0xFFFFFFFF : ((1u << (d - i)) - 1u);
+    for (simsimd_size_t i = 0; i < n; i += 32) {
+        __mmask32 mask = n - i >= 32 ? 0xFFFFFFFF : ((1u << (n - i)) - 1u);
         __m512i a_vec = _mm512_maskz_loadu_epi16(mask, a + i);
         __m512i b_vec = _mm512_maskz_loadu_epi16(mask, b + i);
         __m512h d_vec = _mm512_sub_ph(_mm512_castsi512_ph(a_vec), _mm512_castsi512_ph(b_vec));
@@ -815,12 +814,12 @@ simsimd_avx512_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_
 
 __attribute__((target("avx512fp16,avx512vl,avx512f"))) //
 inline static simsimd_f32_t
-simsimd_avx512_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t d) {
+simsimd_avx512_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
     __m512h ab_vec = _mm512_set1_ph(0);
     simsimd_size_t i = 0;
 
-    for (simsimd_size_t i = 0; i < d; i += 32) {
-        __mmask32 mask = d - i >= 32 ? 0xFFFFFFFF : ((1u << (d - i)) - 1u);
+    for (simsimd_size_t i = 0; i < n; i += 32) {
+        __mmask32 mask = n - i >= 32 ? 0xFFFFFFFF : ((1u << (n - i)) - 1u);
         __m512i a_vec = _mm512_maskz_loadu_epi16(mask, a + i);
         __m512i b_vec = _mm512_maskz_loadu_epi16(mask, b + i);
         ab_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(a_vec), _mm512_castsi512_ph(b_vec), ab_vec);
@@ -830,13 +829,13 @@ simsimd_avx512_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_si
 
 __attribute__((target("avx512fp16,avx512vl,avx512f"))) //
 inline static simsimd_f32_t
-simsimd_avx512_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t d) {
+simsimd_avx512_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
     __m512h ab_vec = _mm512_set1_ph(0);
     __m512h a2_vec = _mm512_set1_ph(0);
     __m512h b2_vec = _mm512_set1_ph(0);
 
-    for (simsimd_size_t i = 0; i < d; i += 32) {
-        __mmask32 mask = d - i >= 32 ? 0xFFFFFFFF : ((1u << (d - i)) - 1u);
+    for (simsimd_size_t i = 0; i < n; i += 32) {
+        __mmask32 mask = n - i >= 32 ? 0xFFFFFFFF : ((1u << (n - i)) - 1u);
         __m512i a_vec = _mm512_maskz_loadu_epi16(mask, a + i);
         __m512i b_vec = _mm512_maskz_loadu_epi16(mask, b + i);
         ab_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(a_vec), _mm512_castsi512_ph(b_vec), ab_vec);
@@ -868,11 +867,11 @@ simsimd_avx512_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_s
 
 __attribute__((target("avx512vl,avx512f,avx512bw"))) //
 inline static simsimd_f32_t
-simsimd_avx512_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+simsimd_avx512_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n) {
     __m512i d2_i32s_vec = _mm512_setzero_si512();
 
-    for (simsimd_size_t i = 0; i < d; i += 32) {
-        __mmask32 mask = d - i >= 32 ? 0xFFFFFFFF : ((1u << (d - i)) - 1u);
+    for (simsimd_size_t i = 0; i < n; i += 32) {
+        __mmask32 mask = n - i >= 32 ? 0xFFFFFFFF : ((1u << (n - i)) - 1u);
         __m512i a_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, a + i)); // Load 8-bit integers
         __m512i b_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, b + i)); // Load 8-bit integers
         __m512i d_i16s_vec = _mm512_sub_epi16(a_vec, b_vec);
@@ -884,14 +883,14 @@ simsimd_avx512_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_siz
 
 __attribute__((target("avx512vl,avx512f,avx512bw"))) //
 inline static simsimd_f32_t
-simsimd_avx512_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
+simsimd_avx512_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n) {
     __m512i ab_i32s_vec = _mm512_setzero_si512();
     __m512i a2_i32s_vec = _mm512_setzero_si512();
     __m512i b2_i32s_vec = _mm512_setzero_si512();
     simsimd_size_t i = 0;
 
-    for (simsimd_size_t i = 0; i < d; i += 32) {
-        __mmask32 mask = d - i >= 32 ? 0xFFFFFFFF : ((1u << (d - i)) - 1u);
+    for (simsimd_size_t i = 0; i < n; i += 32) {
+        __mmask32 mask = n - i >= 32 ? 0xFFFFFFFF : ((1u << (n - i)) - 1u);
         __m512i a_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, a + i)); // Load 8-bit integers
         __m512i b_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, b + i)); // Load 8-bit integers
 
@@ -913,8 +912,8 @@ simsimd_avx512_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size
 
 __attribute__((target("avx512vl,avx512f,avx512bw"))) //
 inline static simsimd_f32_t
-simsimd_avx512_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
-    return simsimd_avx512_i8_cos(a, b, d);
+simsimd_avx512_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n) {
+    return simsimd_avx512_i8_cos(a, b, n);
 }
 
 #endif // SIMSIMD_TARGET_X86_AVX512

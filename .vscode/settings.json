@@ -96,6 +96,8 @@
         "dtypes",
         "jaccard",
         "kann",
+        "Kullback",
+        "Leibler",
         "loadu",
         "maccs",
         "maskz",

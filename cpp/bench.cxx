@@ -4,6 +4,7 @@
 #include <benchmark/benchmark.h>
 
 #define SIMSIMD_RSQRT simsimd_approximate_inverse_square_root
+#define SIMSIMD_LOG simsimd_approximate_log
 #include <simsimd/simsimd.h>
 
 namespace bm = benchmark;
