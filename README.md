@@ -21,13 +21,14 @@ SimSIMD leverages SIMD intrinsics, capabilities that only select compilers effec
 
 ### Apple M2 Pro
 
-Given 10,000 embeddings from OpenAI Ada API with 1536 dimensions, running on the Apple M2 Pro Arm CPU with NEON support, here's how SimSIMD performs against conventional methods:
+Given 1000 embeddings from OpenAI Ada API with 1536 dimensions, running on the Apple M2 Pro Arm CPU with NEON support, here's how SimSIMD performs against conventional methods:
 
-| Conventional                         | SimSIMD       | `f32` improvement | `f16` improvement | `i8` improvement |
-| :----------------------------------- | :------------ | ----------------: | ----------------: | ---------------: |
-| `scipy.spatial.distance.cosine`      | `cosine`      |          __39 x__ |          __84 x__ |        __196 x__ |
-| `scipy.spatial.distance.sqeuclidean` | `sqeuclidean` |           __8 x__ |          __25 x__ |         __22 x__ |
-| `numpy.inner`                        | `inner`       |           __3 x__ |          __10 x__ |         __18 x__ |
+| Conventional                           | SimSIMD         | `f32` improvement | `f16` improvement | `i8` improvement |
+| :------------------------------------- | :-------------- | ----------------: | ----------------: | ---------------: |
+| `numpy.inner`                          | `inner`         |           __2 x__ |           __9 x__ |         __18 x__ |
+| `scipy.spatial.distance.cosine`        | `cosine`        |          __32 x__ |          __79 x__ |        __133 x__ |
+| `scipy.spatial.distance.sqeuclidean`   | `sqeuclidean`   |           __5 x__ |          __26 x__ |         __17 x__ |
+| `scipy.spatial.distance.jensenshannon` | `jensenshannon` |          __41 x__ |          __76 x__ |                  |
 
 ### Intel Sapphire Rapids
 

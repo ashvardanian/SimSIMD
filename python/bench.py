@@ -69,7 +69,7 @@ dtype_names = {
     np.float32: "f32",
     np.float16: "f16",
     np.int8: "i8",
-    np.uint8: "u8",
+    np.uint8: "b8",
 }
 
 
@@ -95,6 +95,12 @@ funcs = [
         [np.float32, np.float16, np.int8],
     ),
     ("numpy.inner", np.inner, simd.inner, [np.float32, np.float16, np.int8]),
+    (
+        "scipy.jensenshannon",
+        spd.jensenshannon,
+        simd.jensenshannon,
+        [np.float32, np.float16],
+    ),
     ("scipy.hamming", spd.hamming, simd.hamming, [np.uint8]),
     ("scipy.jaccard", spd.jaccard, simd.jaccard, [np.uint8]),
 ]

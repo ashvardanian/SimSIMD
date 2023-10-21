@@ -46,7 +46,7 @@ napi_value runAPI(napi_env env, napi_callback_info info, simsimd_metric_kind_t m
     case napi_uint8_array: datatype = simsimd_datatype_b8_k; break;
     }
 
-    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, datatype, 0xFFFFFFFF);
+    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, datatype, simsimd_cap_any_k);
     if (metric == NULL) {
         napi_throw_error(env, NULL, "Unsupported datatype");
         return NULL;

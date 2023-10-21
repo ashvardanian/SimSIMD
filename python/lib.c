@@ -191,7 +191,7 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
         goto cleanup;
     }
 
-    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, parsed_a.datatype, 0xFFFFFFFF);
+    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, parsed_a.datatype, simsimd_cap_any_k);
     if (!metric) {
         PyErr_SetString(PyExc_ValueError, "unsupported metric and datatype combination");
         goto cleanup;
@@ -269,7 +269,7 @@ static PyObject* impl_cdist(                            //
         goto cleanup;
     }
 
-    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, parsed_a.datatype, 0xFFFFFFFF);
+    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, parsed_a.datatype, simsimd_cap_any_k);
     if (!metric) {
         PyErr_SetString(PyExc_ValueError, "unsupported metric and datatype combination");
         goto cleanup;
@@ -331,7 +331,7 @@ static PyObject* impl_pointer(simsimd_metric_kind_t metric_kind, PyObject* args)
         return NULL;
     }
 
-    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, datatype, 0xFFFFFFFF);
+    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, datatype, simsimd_cap_any_k);
     if (metric == NULL) {
         PyErr_SetString(PyExc_ValueError, "No such metric");
         return NULL;
