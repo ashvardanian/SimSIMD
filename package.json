@@ -1,6 +1,6 @@
 {
   "name": "simsimd",
-  "version": "2.4.0",
+  "version": "3.0.0",
   "description": "Vector Similarity Functions 3x-200x Faster than SciPy and NumPy",
   "author": "Ash Vardanian",
   "license": "Apache 2.0",
@@ -26,10 +26,10 @@
   "devDependencies": {
     "@semantic-release/exec": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
-    "conventional-changelog-eslint": "^3.0.9",
-    "semantic-release": "^21.1.2",
-    "node-gyp": "^8.3.0",
     "benchmark": "^2.1.4",
+    "conventional-changelog-eslint": "^3.0.9",
+    "node-gyp": "^8.3.0",
+    "semantic-release": "^21.1.2",
     "typescript": "^5.1.6"
   }
 }
