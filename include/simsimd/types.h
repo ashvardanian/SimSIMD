@@ -86,6 +86,11 @@
 #define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
 #endif
 
+#ifndef SIMSIMD_LOG
+#include <math.h>
+#define SIMSIMD_LOG(x) (logf(x))
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -151,6 +156,18 @@ inline static simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_
     conv.i = 0x5F1FFFF9 - (conv.i >> 1);
     conv.f *= 0.703952253f * (2.38924456f - number * conv.f * conv.f);
     return conv.f;
+}
+
+/**
+ *  @brief  Computes `log(x)` using the Mercator series.
+ *          The series converges to the natural logarithm for args between -1 and 1.
+ *          Published in 1668 in Logarithmotechnia.
+ */
+inline static simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
+    simsimd_f32_t x = number - 1;
+    simsimd_f32_t x2 = x * x;
+    simsimd_f32_t x3 = x * x * x;
+    return x - x2 / 2 + x3 / 3;
 }
 
 /**

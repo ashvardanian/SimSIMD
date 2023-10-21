@@ -20,13 +20,16 @@
     "node-addon-api": "^3.0.0"
   },
   "scripts": {
-    "test": "node --test ./scripts/test.js"
+    "test": "node --test ./javascript/test.js",
+    "bench": "node ./javascript/bench.js"
   },
   "devDependencies": {
     "@semantic-release/exec": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "conventional-changelog-eslint": "^3.0.9",
     "semantic-release": "^21.1.2",
+    "node-gyp": "^8.3.0",
+    "benchmark": "^2.1.4",
     "typescript": "^5.1.6"
   }
 }

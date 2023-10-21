@@ -3,6 +3,7 @@ import argparse
 
 import numpy as np
 import scipy.spatial.distance as spd
+import scipy.special as scs
 import simsimd as simd
 
 # Argument parsing
@@ -69,7 +70,7 @@ dtype_names = {
     np.float32: "f32",
     np.float16: "f16",
     np.int8: "i8",
-    np.uint8: "u8",
+    np.uint8: "b8",
 }
 
 
@@ -95,6 +96,18 @@ funcs = [
         [np.float32, np.float16, np.int8],
     ),
     ("numpy.inner", np.inner, simd.inner, [np.float32, np.float16, np.int8]),
+    (
+        "scipy.jensenshannon",
+        spd.jensenshannon,
+        simd.jensenshannon,
+        [np.float32, np.float16],
+    ),
+    (
+        "scipy.kl_div",
+        scs.kl_div,
+        simd.kullbackleibler,
+        [np.float32, np.float16],
+    ),
     ("scipy.hamming", spd.hamming, simd.hamming, [np.uint8]),
     ("scipy.jaccard", spd.jaccard, simd.jaccard, [np.uint8]),
 ]
@@ -142,6 +155,18 @@ funcs = [
         [np.float32, np.float16, np.int8],
     ),
     ("numpy.inner", np.inner, simd.inner, [np.float32, np.float16, np.int8]),
+    (
+        "scipy.jensenshannon",
+        spd.jensenshannon,
+        simd.jensenshannon,
+        [np.float32, np.float16],
+    ),
+    (
+        "scipy.kl_div",
+        scs.kl_div,
+        simd.kullbackleibler,
+        [np.float32, np.float16],
+    ),
     ("scipy.hamming", spd.hamming, simd.hamming, [np.uint8]),
     ("scipy.jaccard", spd.jaccard, simd.jaccard, [np.uint8]),
 ]
@@ -192,6 +217,12 @@ cdist_funcs = [
         lambda A, B: 1 - np.dot(A, B.T),
         lambda A, B: simd.cdist(A, B, "inner"),
         [np.float32, np.float16, np.int8],
+    ),
+    (
+        "scipy.jensenshannon",
+        lambda A, B: spd.cdist(A, B, "jensenshannon"),
+        lambda A, B: simd.cdist(A, B, "jensenshannon"),
+        [np.float32, np.float16],
     ),
     (
         "scipy.hamming",

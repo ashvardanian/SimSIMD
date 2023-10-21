@@ -24,6 +24,7 @@
 #endif
 
 #define SIMSIMD_RSQRT simsimd_approximate_inverse_square_root
+#define SIMSIMD_LOG simsimd_approximate_log
 #include "simsimd/simsimd.h"
 
 #define PY_SSIZE_T_CLEAN
@@ -83,6 +84,12 @@ simsimd_metric_kind_t python_string_to_metric_kind(char const* name) {
         return simsimd_metric_hamming_k;
     else if (same_string(name, "jaccard"))
         return simsimd_metric_jaccard_k;
+    else if (same_string(name, "kullbackleibler") || same_string(name, "kl"))
+        return simsimd_metric_kl_k;
+    else if (same_string(name, "jensenshannon") || same_string(name, "js"))
+        return simsimd_metric_js_k;
+    else if (same_string(name, "jaccard"))
+        return simsimd_metric_jaccard_k;
     else
         return simsimd_metric_unknown_k;
 }
@@ -95,7 +102,7 @@ static PyObject* api_get_capabilities(PyObject* self) {
 
 #define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong(caps& simsimd_cap_##name##_k))
 
-    ADD_CAP(autovec);
+    ADD_CAP(serial);
     ADD_CAP(arm_neon);
     ADD_CAP(arm_sve);
     ADD_CAP(arm_sve2);
@@ -104,8 +111,6 @@ static PyObject* api_get_capabilities(PyObject* self) {
     ADD_CAP(x86_avx2fp16);
     ADD_CAP(x86_avx512fp16);
     ADD_CAP(x86_avx512vpopcntdq);
-    ADD_CAP(x86_amx);
-    ADD_CAP(arm_sme);
 
 #undef ADD_CAP
 
@@ -184,7 +189,7 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
         goto cleanup;
     }
 
-    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, parsed_a.datatype, 0xFFFFFFFF);
+    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, parsed_a.datatype, simsimd_cap_any_k);
     if (!metric) {
         PyErr_SetString(PyExc_ValueError, "unsupported metric and datatype combination");
         goto cleanup;
@@ -262,7 +267,7 @@ static PyObject* impl_cdist(                            //
         goto cleanup;
     }
 
-    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, parsed_a.datatype, 0xFFFFFFFF);
+    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, parsed_a.datatype, simsimd_cap_any_k);
     if (!metric) {
         PyErr_SetString(PyExc_ValueError, "unsupported metric and datatype combination");
         goto cleanup;
@@ -324,7 +329,7 @@ static PyObject* impl_pointer(simsimd_metric_kind_t metric_kind, PyObject* args)
         return NULL;
     }
 
-    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, datatype, 0xFFFFFFFF);
+    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, datatype, simsimd_cap_any_k);
     if (metric == NULL) {
         PyErr_SetString(PyExc_ValueError, "No such metric");
         return NULL;
@@ -396,6 +401,8 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
 static PyObject* api_l2sq_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_l2sq_k, args); }
 static PyObject* api_cos_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_cos_k, args); }
 static PyObject* api_ip_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_ip_k, args); }
+static PyObject* api_kl_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_kl_k, args); }
+static PyObject* api_js_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_js_k, args); }
 static PyObject* api_hamming_pointer(PyObject* self, PyObject* args) {
     return impl_pointer(simsimd_metric_hamming_k, args);
 }
@@ -411,6 +418,12 @@ static PyObject* api_cos(PyObject* self, PyObject* const* args, Py_ssize_t nargs
 }
 static PyObject* api_ip(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
     return impl_metric(simsimd_metric_ip_k, args, nargs);
+}
+static PyObject* api_kl(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
+    return impl_metric(simsimd_metric_kl_k, args, nargs);
+}
+static PyObject* api_js(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
+    return impl_metric(simsimd_metric_js_k, args, nargs);
 }
 static PyObject* api_hamming(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
     return impl_metric(simsimd_metric_hamming_k, args, nargs);
@@ -429,6 +442,8 @@ static PyMethodDef simsimd_methods[] = {
     {"inner", api_ip, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
     {"hamming", api_hamming, METH_FASTCALL, "Hamming distances between a pair of matrices"},
     {"jaccard", api_jaccard, METH_FASTCALL, "Jaccard (Bitwise Tanimoto) distances between a pair of matrices"},
+    {"kullbackleibler", api_kl, METH_FASTCALL, "Kullback-Leibler divergence between probability distributions"},
+    {"jensenshannon", api_js, METH_FASTCALL, "Jensen-Shannon divergence between probability distributions"},
 
     // Conventional `cdist` and `pdist` insterfaces with third string argument, and optional `threads` arg
     {"cdist", api_cdist, METH_VARARGS | METH_KEYWORDS,
@@ -438,6 +453,8 @@ static PyMethodDef simsimd_methods[] = {
     {"pointer_to_sqeuclidean", api_l2sq_pointer, METH_VARARGS, "L2sq (Sq. Euclidean) function pointer as `int`"},
     {"pointer_to_cosine", api_cos_pointer, METH_VARARGS, "Cosine (Angular) function pointer as `int`"},
     {"pointer_to_inner", api_ip_pointer, METH_VARARGS, "Inner (Dot) Product function pointer as `int`"},
+    {"pointer_to_kullbackleibler", api_ip_pointer, METH_VARARGS, "Kullback-Leibler function pointer as `int`"},
+    {"pointer_to_jensenshannon", api_ip_pointer, METH_VARARGS, "Jensen-Shannon function pointer as `int`"},
 
     // Sentinel
     {NULL, NULL, 0, NULL}};

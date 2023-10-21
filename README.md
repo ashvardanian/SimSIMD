@@ -21,13 +21,15 @@ SimSIMD leverages SIMD intrinsics, capabilities that only select compilers effec
 
 ### Apple M2 Pro
 
-Given 10,000 embeddings from OpenAI Ada API with 1536 dimensions, running on the Apple M2 Pro Arm CPU with NEON support, here's how SimSIMD performs against conventional methods:
+Given 1000 embeddings from OpenAI Ada API with 1536 dimensions, running on the Apple M2 Pro Arm CPU with NEON support, here's how SimSIMD performs against conventional methods:
 
-| Conventional                         | SimSIMD       | `f32` improvement | `f16` improvement | `i8` improvement |
-| :----------------------------------- | :------------ | ----------------: | ----------------: | ---------------: |
-| `scipy.spatial.distance.cosine`      | `cosine`      |          __39 x__ |          __84 x__ |        __196 x__ |
-| `scipy.spatial.distance.sqeuclidean` | `sqeuclidean` |           __8 x__ |          __25 x__ |         __22 x__ |
-| `numpy.inner`                        | `inner`       |           __3 x__ |          __10 x__ |         __18 x__ |
+| Conventional                           | SimSIMD           | `f32` improvement | `f16` improvement | `i8` improvement |
+| :------------------------------------- | :---------------- | ----------------: | ----------------: | ---------------: |
+| `numpy.inner`                          | `inner`           |           __2 x__ |           __9 x__ |         __18 x__ |
+| `scipy.spatial.distance.cosine`        | `cosine`          |          __32 x__ |          __79 x__ |        __133 x__ |
+| `scipy.spatial.distance.sqeuclidean`   | `sqeuclidean`     |           __5 x__ |          __26 x__ |         __17 x__ |
+| `scipy.spatial.distance.jensenshannon` | `jensenshannon`   |          __41 x__ |          __76 x__ |                  |
+| `scipy.special.kl_div`                 | `kullbackleibler` |          __21 x__ |          __18 x__ |                  |
 
 ### Intel Sapphire Rapids
 
@@ -163,33 +165,32 @@ Stay updated with the latest advancements by always using the most recent compil
 
 Should you wish to integrate SimSIMD within USearch, simply compile USearch with the flag `USEARCH_USE_SIMSIMD=1`. Notably, this is the default setting on the majority of platforms.
 
-## Upcoming Features
-
-Here's a glance at the exciting developments on our horizon:
-
-- [x] Exposing Hamming and Tanimoto bitwise distances to the Python interface.
-- [ ] Intel AMX backend. Note: Currently, the intrinsics are functional only with Intel's latest compiler.
-
-__To Rerun Experiments__ utilize the following command:
+__To rerun experiments__ utilize the following command:
 
 ```sh
 cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build_release && make -C ./build_release && ./build_release/simsimd_bench
 ```
 
-__To Test with PyTest__:
+__To test and benchmark with Python bindings__:
 
 ```sh
-pip install -e . && pytest scripts/test.py -s -x
+pip install -e .
+pytest python/test.py -s -x 
+python python/bench.py --n 1000 --ndim 1000000 # batch size and dimensions
 ```
 
-__To benchmark__: you can pass option `--n` argument for the batch size, and `--ndim` for the number of vector dimensions.
+__To test and benchmark JavaScript bindings__:
 
 ```sh
-python python/bench.py --n 1000 --ndim 1000000
+npm install --dev
+npm test
+npm bench
 ```
 
-__To Test JavaScript bindings__:
+__To test and benchmark GoLang bindings__:
 
 ```sh
-npm install && npm test
+cd golang
+go test # To test
+go test -run=^$ -bench=. -benchmem # To benchmark
 ```
