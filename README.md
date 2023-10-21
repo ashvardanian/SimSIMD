@@ -165,13 +165,6 @@ Stay updated with the latest advancements by always using the most recent compil
 
 Should you wish to integrate SimSIMD within USearch, simply compile USearch with the flag `USEARCH_USE_SIMSIMD=1`. Notably, this is the default setting on the majority of platforms.
 
-## Upcoming Features
-
-Here's a glance at the exciting developments on our horizon:
-
-- [x] Exposing Hamming and Tanimoto bitwise distances to the Python interface.
-- [ ] Intel AMX backend. Note: Currently, the intrinsics are functional only with Intel's latest compiler.
-
 __To rerun experiments__ utilize the following command:
 
 ```sh
@@ -189,15 +182,15 @@ python python/bench.py --n 1000 --ndim 1000000 # batch size and dimensions
 __To test and benchmark JavaScript bindings__:
 
 ```sh
-npm install
+npm install --dev
 npm test
 npm bench
 ```
 
-__To test GoLang bindings__:
+__To test and benchmark GoLang bindings__:
 
 ```sh
 cd golang
-go test # To run the tests
-go test -run=^$ -bench=. -benchmem
+go test # To test
+go test -run=^$ -bench=. -benchmem # To benchmark
 ```

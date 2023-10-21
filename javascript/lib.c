@@ -44,6 +44,7 @@ napi_value runAPI(napi_env env, napi_callback_info info, simsimd_metric_kind_t m
     case napi_float32_array: datatype = simsimd_datatype_f32_k; break;
     case napi_int8_array: datatype = simsimd_datatype_i8_k; break;
     case napi_uint8_array: datatype = simsimd_datatype_b8_k; break;
+    default: break;
     }
 
     simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, datatype, simsimd_cap_any_k);
