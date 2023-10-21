@@ -172,31 +172,29 @@ Here's a glance at the exciting developments on our horizon:
 - [x] Exposing Hamming and Tanimoto bitwise distances to the Python interface.
 - [ ] Intel AMX backend. Note: Currently, the intrinsics are functional only with Intel's latest compiler.
 
-__To Rerun Experiments__ utilize the following command:
+__To rerun experiments__ utilize the following command:
 
 ```sh
 cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build_release && make -C ./build_release && ./build_release/simsimd_bench
 ```
 
-__To Test with PyTest__:
+__To test and benchmark with Python bindings__:
 
 ```sh
-pip install -e . && pytest python/test.py -s -x
+pip install -e .
+pytest python/test.py -s -x 
+python python/bench.py --n 1000 --ndim 1000000 # batch size and dimensions
 ```
 
-__To benchmark__: you can pass option `--n` argument for the batch size, and `--ndim` for the number of vector dimensions.
+__To test and benchmark JavaScript bindings__:
 
 ```sh
-python python/bench.py --n 1000 --ndim 1000000
+npm install
+npm test
+npm bench
 ```
 
-__To Test JavaScript bindings__:
-
-```sh
-npm install && npm test
-```
-
-__To Test GoLang bindings__:
+__To test GoLang bindings__:
 
 ```sh
 cd golang
