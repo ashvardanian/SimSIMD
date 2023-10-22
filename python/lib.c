@@ -40,6 +40,9 @@ typedef struct parsed_vector_or_matrix_t {
     simsimd_datatype_t datatype;
 } parsed_vector_or_matrix_t;
 
+/// @brief  Global variable that caches the CPU capabilities, and is computed just onc, when the module is loaded.
+simsimd_capability_t static_capabilities = simsimd_cap_serial_k;
+
 int same_string(char const* a, char const* b) { return strcmp(a, b) == 0; }
 
 simsimd_datatype_t numpy_string_to_datatype(char const* name) {
@@ -95,7 +98,7 @@ simsimd_metric_kind_t python_string_to_metric_kind(char const* name) {
 }
 
 static PyObject* api_get_capabilities(PyObject* self) {
-    simsimd_capability_t caps = simsimd_capabilities();
+    simsimd_capability_t caps = static_capabilities;
     PyObject* cap_dict = PyDict_New();
     if (!cap_dict)
         return NULL;
@@ -189,7 +192,10 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
         goto cleanup;
     }
 
-    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, parsed_a.datatype, simsimd_cap_any_k);
+    simsimd_metric_punned_t metric = NULL;
+    simsimd_capability_t capability = simsimd_cap_serial_k;
+    simsimd_datatype_t datatype = parsed_a.datatype;
+    simsimd_find_metric_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
     if (!metric) {
         PyErr_SetString(PyExc_ValueError, "unsupported metric and datatype combination");
         goto cleanup;
@@ -267,7 +273,10 @@ static PyObject* impl_cdist(                            //
         goto cleanup;
     }
 
-    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, parsed_a.datatype, simsimd_cap_any_k);
+    simsimd_metric_punned_t metric = NULL;
+    simsimd_capability_t capability = simsimd_cap_serial_k;
+    simsimd_datatype_t datatype = parsed_a.datatype;
+    simsimd_find_metric_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
     if (!metric) {
         PyErr_SetString(PyExc_ValueError, "unsupported metric and datatype combination");
         goto cleanup;
@@ -329,7 +338,9 @@ static PyObject* impl_pointer(simsimd_metric_kind_t metric_kind, PyObject* args)
         return NULL;
     }
 
-    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, datatype, simsimd_cap_any_k);
+    simsimd_metric_punned_t metric = NULL;
+    simsimd_capability_t capability = simsimd_cap_serial_k;
+    simsimd_find_metric_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
     if (metric == NULL) {
         PyErr_SetString(PyExc_ValueError, "No such metric");
         return NULL;
@@ -475,5 +486,6 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
     if (module)
         PyModule_AddStringConstant(module, "__version__", "2.1.1");
 
+    static_capabilities = simsimd_capabilities();
     return module;
 }

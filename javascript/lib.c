@@ -11,6 +11,9 @@
 #include <node_api.h>        // `napi_*` functions
 #include <simsimd/simsimd.h> // `simsimd_*` functions
 
+/// @brief  Global variable that caches the CPU capabilities, and is computed just onc, when the module is loaded.
+simsimd_capability_t static_capabilities = simsimd_cap_serial_k;
+
 napi_value runAPI(napi_env env, napi_callback_info info, simsimd_metric_kind_t metric_kind) {
     size_t argc = 2;
     napi_value args[2];
@@ -47,7 +50,9 @@ napi_value runAPI(napi_env env, napi_callback_info info, simsimd_metric_kind_t m
     default: break;
     }
 
-    simsimd_metric_punned_t metric = simsimd_metric_punned(metric_kind, datatype, simsimd_cap_any_k);
+    simsimd_metric_punned_t metric = NULL;
+    simsimd_capability_t capability = simsimd_cap_serial_k;
+    simsimd_find_metric_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
     if (metric == NULL) {
         napi_throw_error(env, NULL, "Unsupported datatype");
         return NULL;
@@ -66,7 +71,9 @@ napi_value runAPI(napi_env env, napi_callback_info info, simsimd_metric_kind_t m
 
 napi_value l2sqAPI(napi_env env, napi_callback_info info) { return runAPI(env, info, simsimd_metric_sqeuclidean_k); }
 napi_value cosAPI(napi_env env, napi_callback_info info) { return runAPI(env, info, simsimd_metric_cosine_k); }
-napi_value ipAPI(napi_env env, napi_callback_info info) { return runAPI(env, info, simsimd_metric_inner_k); }
+napi_value ipAPI(napi_env env, napi_callback_info info) { return runAPI(env, info, simsimd_metric_ip_k); }
+napi_value klAPI(napi_env env, napi_callback_info info) { return runAPI(env, info, simsimd_metric_kl_k); }
+napi_value jsAPI(napi_env env, napi_callback_info info) { return runAPI(env, info, simsimd_metric_js_k); }
 napi_value hammingAPI(napi_env env, napi_callback_info info) { return runAPI(env, info, simsimd_metric_hamming_k); }
 napi_value jaccardAPI(napi_env env, napi_callback_info info) { return runAPI(env, info, simsimd_metric_jaccard_k); }
 
@@ -78,12 +85,17 @@ napi_value Init(napi_env env, napi_value exports) {
     napi_property_descriptor cosineDesc = {"cosine", 0, cosAPI, 0, 0, 0, napi_default, 0};
     napi_property_descriptor hammingDesc = {"hamming", 0, hammingAPI, 0, 0, 0, napi_default, 0};
     napi_property_descriptor jaccardDesc = {"jaccard", 0, jaccardAPI, 0, 0, 0, napi_default, 0};
-    napi_property_descriptor properties[] = {sqeuclideanDesc, innerDesc, cosineDesc, hammingDesc, jaccardDesc};
+    napi_property_descriptor klDesc = {"kullbackleibler", 0, klAPI, 0, 0, 0, napi_default, 0};
+    napi_property_descriptor jsDesc = {"jensenshannon", 0, jsAPI, 0, 0, 0, napi_default, 0};
+    napi_property_descriptor properties[] = {
+        sqeuclideanDesc, innerDesc, cosineDesc, hammingDesc, jaccardDesc, klDesc, jsDesc,
+    };
 
     // Define the properties on the `exports` object
     size_t propertyCount = sizeof(properties) / sizeof(properties[0]);
     napi_define_properties(env, exports, propertyCount, properties);
 
+    static_capabilities = simsimd_capabilities();
     return exports;
 }
 
