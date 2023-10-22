@@ -161,8 +161,8 @@ inline static simsimd_capability_t simsimd_capabilities() {
 #ifdef __linux__
     unsigned long hwcap = getauxval(AT_HWCAP);
     unsigned long hwcap2 = getauxval(AT_HWCAP2);
-    supports_sve = hwcap & HWCAP_SVE;
-    supports_sve2 = hwcap2 & HWCAP2_SVE2;
+    supports_sve = (hwcap & HWCAP_SVE) != 0;
+    supports_sve2 = (hwcap2 & HWCAP2_SVE2) != 0;
 #endif
 
     return (simsimd_capability_t)(                 //

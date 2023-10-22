@@ -9,6 +9,8 @@
                 "-ffast-math",
                 "-Wno-unknown-pragmas",
                 "-Wno-maybe-uninitialized",
+                "-Wno-cast-function-type",
+                "-Wno-switch",
                 "-DSIMSIMD_NATIVE_F16=0",
             ],
         }
