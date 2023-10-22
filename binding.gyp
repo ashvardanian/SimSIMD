@@ -4,6 +4,7 @@
             "target_name": "simsimd",
             "sources": ["javascript/lib.c"],
             "include_dirs": ["include"],
+            "defines": ["SIMSIMD_NATIVE_F16=0"],
             "cflags": [
                 "-std=c11",
                 "-ffast-math",
@@ -11,7 +12,6 @@
                 "-Wno-maybe-uninitialized",
                 "-Wno-cast-function-type",
                 "-Wno-switch",
-                "-DSIMSIMD_NATIVE_F16=0",
             ],
         }
     ]
