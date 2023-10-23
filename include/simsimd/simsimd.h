@@ -176,6 +176,11 @@ inline static simsimd_capability_t simsimd_capabilities() {
     return simsimd_cap_serial_k;
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcast-function-type"
+
 /**
  *  @brief  Determines the best suited metric implementation based on the given datatype,
  *          supported and allowed by hardware capabilities.
@@ -375,6 +380,10 @@ inline static void simsimd_find_metric_punned( //
     }
     // clang-format on
 }
+
+#pragma clang diagnostic pop
+#pragma GCC diagnostic pop
+
 
 /**
  *  @brief  Selects the most suitable metric implementation based on the given metric kind, datatype,
