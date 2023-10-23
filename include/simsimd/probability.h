@@ -477,7 +477,7 @@ simsimd_avx512_f16_js(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_si
     __m512h sum_a_vec = _mm512_set1_ph((_Float16)0);
     __m512h sum_b_vec = _mm512_set1_ph((_Float16)0);
     __m512h epsilon_vec = _mm512_set1_ph((_Float16)1e-6f);
-    for (simsimd_size_t i = 0; i < n; i += 16) {
+    for (simsimd_size_t i = 0; i < n; i += 32) {
         __mmask32 mask = n - i >= 32 ? 0xFFFFFFFF : ((1u << (n - i)) - 1u);
         __m512h a_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a + i));
         __m512h b_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, b + i));
