@@ -168,7 +168,9 @@ Should you wish to integrate SimSIMD within USearch, simply compile USearch with
 __To rerun experiments__ utilize the following command:
 
 ```sh
-cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build_release && make -C ./build_release && ./build_release/simsimd_bench
+cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build_release
+cmake --build build_release --config Release
+./build_release/simsimd_bench
 ```
 
 __To test and benchmark with Python bindings__:
