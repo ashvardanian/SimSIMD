@@ -266,20 +266,20 @@ inline static void simsimd_find_metric_punned( //
             }
     #endif
     #if SIMSIMD_TARGET_X86_AVX512
-        if (viable & simsimd_cap_x86_avx512_k)
+        if (viable & simsimd_cap_x86_avx512fp16_k)
             switch (kind) {
-            case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f16_ip, *c = simsimd_cap_x86_avx512_k; return;
-            case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f16_cos, *c = simsimd_cap_x86_avx512_k; return;
-            case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f16_l2sq, *c = simsimd_cap_x86_avx512_k; return;
+            case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f16_ip, *c = simsimd_cap_x86_avx512fp16_k; return;
+            case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f16_cos, *c = simsimd_cap_x86_avx512fp16_k; return;
+            case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f16_l2sq, *c = simsimd_cap_x86_avx512fp16_k; return;
             default: break;
             }
     #endif
     #if SIMSIMD_TARGET_X86_AVX2
-        if (viable & simsimd_cap_x86_avx2_k)
+        if (viable & simsimd_cap_x86_avx2fp16_k)
             switch (kind) {
-            case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_f16_ip, *c = simsimd_cap_x86_avx2_k; return;
-            case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_f16_cos, *c = simsimd_cap_x86_avx2_k; return;
-            case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_f16_l2sq, *c = simsimd_cap_x86_avx2_k; return;
+            case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_f16_ip, *c = simsimd_cap_x86_avx2fp16_k; return;
+            case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_f16_cos, *c = simsimd_cap_x86_avx2fp16_k; return;
+            case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_f16_l2sq, *c = simsimd_cap_x86_avx2fp16_k; return;
             default: break;
             }
     #endif
