@@ -7,6 +7,7 @@ SimSIMD leverages SIMD intrinsics, capabilities that only select compilers effec
 - ✅ __3-200x faster__ than NumPy and SciPy distance functions.
 - ✅ Euclidean (L2), Inner Product, and Cosine (Angular) spatial distances.
 - ✅ Hamming (~ Manhattan) and Jaccard (~ Tanimoto) binary distances.
+- ✅ Kullback-Leibler and Jensen–Shannon divergences for probability distributions.
 - ✅ Single-precision `f32`, half-precision `f16`, `i8`, and binary vectors.
 - ✅ Compatible with GCC and Clang on MacOS and Linux, and MinGW on Windows.
 - ✅ Compatible with NumPy, PyTorch, TensorFlow, and other tensors.
@@ -28,18 +29,19 @@ Given 1000 embeddings from OpenAI Ada API with 1536 dimensions, running on the A
 | `numpy.inner`                          | `inner`           |           __2 x__ |           __9 x__ |         __18 x__ |
 | `scipy.spatial.distance.cosine`        | `cosine`          |          __32 x__ |          __79 x__ |        __133 x__ |
 | `scipy.spatial.distance.sqeuclidean`   | `sqeuclidean`     |           __5 x__ |          __26 x__ |         __17 x__ |
-| `scipy.spatial.distance.jensenshannon` | `jensenshannon`   |          __41 x__ |          __76 x__ |                  |
+| `scipy.spatial.distance.jensenshannon` | `jensenshannon`   |          __31 x__ |          __53 x__ |                  |
 | `scipy.special.kl_div`                 | `kullbackleibler` |          __21 x__ |          __18 x__ |                  |
 
 ### Intel Sapphire Rapids
 
-On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against autovectorized-code using GCC 12. GCC handles single-precision `float` and `int8_t` well. However, it fails on `_Float16` arrays, which has been part of the C language since 2011.
+On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against auto-vectorized code using GCC 12. GCC handles single-precision `float` and `int8_t` well. However, it fails on `_Float16` arrays, which has been part of the C language since 2011.
 
-|               | GCC 12 `f32` | GCC 12 `f16` | SimSIMD `f16` | `f16` improvement |
-| :------------ | -----------: | -----------: | ------------: | ----------------: |
-| `cosine`      |     3.28 M/s |   336.29 k/s |      6.88 M/s |          __20 x__ |
-| `sqeuclidean` |     4.62 M/s |   147.25 k/s |      5.32 M/s |          __36 x__ |
-| `inner`       |     3.81 M/s |   192.02 k/s |      5.99 M/s |          __31 x__ |
+|                 | GCC 12 `f32` | GCC 12 `f16` | SimSIMD `f16` | `f16` improvement |
+| :-------------- | -----------: | -----------: | ------------: | ----------------: |
+| `cosine`        |     3.28 M/s | _336.29 k/s_ |    _6.88 M/s_ |          __20 x__ |
+| `sqeuclidean`   |     4.62 M/s | _147.25 k/s_ |    _5.32 M/s_ |          __36 x__ |
+| `inner`         |     3.81 M/s | _192.02 k/s_ |    _5.99 M/s_ |          __31 x__ |
+| `jensenshannon` |     1.18 M/s |  _18.13 k/s_ |    _2.14 M/s_ |         __118 x__ |
 
 __Technical Insights__:
 
@@ -168,7 +170,10 @@ Should you wish to integrate SimSIMD within USearch, simply compile USearch with
 __To rerun experiments__ utilize the following command:
 
 ```sh
-cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build_release && make -C ./build_release && ./build_release/simsimd_bench
+cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build_release
+cmake --build build_release --config Release
+./build_release/simsimd_bench
+./build_release/simsimd_bench --benchmark_filter=js
 ```
 
 __To test and benchmark with Python bindings__:

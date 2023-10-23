@@ -816,8 +816,6 @@ __attribute__((target("avx512fp16,avx512vl,avx512f"))) //
 inline static simsimd_f32_t
 simsimd_avx512_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
     __m512h ab_vec = _mm512_set1_ph(0);
-    simsimd_size_t i = 0;
-
     for (simsimd_size_t i = 0; i < n; i += 32) {
         __mmask32 mask = n - i >= 32 ? 0xFFFFFFFF : ((1u << (n - i)) - 1u);
         __m512i a_vec = _mm512_maskz_loadu_epi16(mask, a + i);
@@ -887,7 +885,6 @@ simsimd_avx512_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size
     __m512i ab_i32s_vec = _mm512_setzero_si512();
     __m512i a2_i32s_vec = _mm512_setzero_si512();
     __m512i b2_i32s_vec = _mm512_setzero_si512();
-    simsimd_size_t i = 0;
 
     for (simsimd_size_t i = 0; i < n; i += 32) {
         __mmask32 mask = n - i >= 32 ? 0xFFFFFFFF : ((1u << (n - i)) - 1u);

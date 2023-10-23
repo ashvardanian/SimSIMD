@@ -136,12 +136,11 @@ simsimd_sve_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_siz
 __attribute__((target("avx512vpopcntdq,avx512vl,avx512bw,avx512f"))) //
 inline static simsimd_f32_t
 simsimd_avx512_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
-    __m512i differences_vec = _mm512_setzero_si512(), union_vec = _mm512_setzero_si512();
+    __m512i differences_vec = _mm512_setzero_si512();
     for (simsimd_size_t i = 0; i < n_words; i += 64) {
 
         // Compute mask for tail elements
         __mmask64 mask = (i + 64 <= n_words) ? 0xFFFFFFFFFFFFFFFF : (((1ull << (n_words - i)) - 1ull));
-
         __m512i a_vec = _mm512_maskz_loadu_epi8(mask, a + i);
         __m512i b_vec = _mm512_maskz_loadu_epi8(mask, b + i);
         __m512i xor_vec = _mm512_xor_si512(a_vec, b_vec);
@@ -161,7 +160,6 @@ simsimd_avx512_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_
 
         // Compute mask for tail elements
         __mmask64 mask = (i + 64 <= n_words) ? 0xFFFFFFFFFFFFFFFF : (((1ull << (n_words - i)) - 1ull));
-
         __m512i a_vec = _mm512_maskz_loadu_epi8(mask, a + i);
         __m512i b_vec = _mm512_maskz_loadu_epi8(mask, b + i);
         __m512i and_vec = _mm512_and_si512(a_vec, b_vec);

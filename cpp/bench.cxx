@@ -3,8 +3,8 @@
 
 #include <benchmark/benchmark.h>
 
-#define SIMSIMD_RSQRT simsimd_approximate_inverse_square_root
-#define SIMSIMD_LOG simsimd_approximate_log
+#define SIMSIMD_RSQRT sqrtf
+#define SIMSIMD_LOG logf
 #include <simsimd/simsimd.h>
 
 namespace bm = benchmark;
@@ -44,7 +44,7 @@ template <typename scalar_at, std::size_t dimensions_ak> struct vectors_pair_gt 
             a2_sum = std::sqrt(a2_sum);
             b2_sum = std::sqrt(b2_sum);
             for (std::size_t i = 0; i != dimensions_ak; ++i)
-                a[i] /= a2_sum, b[i] /= b2_sum;
+                a[i] = static_cast<scalar_at>(a[i] / a2_sum), b[i] = static_cast<scalar_at>(b[i] / b2_sum);
         }
     }
 };
@@ -129,10 +129,14 @@ int main(int argc, char** argv) {
     register_<simsimd_f16_t>("neon_f16_ip", simsimd_neon_f16_ip, simsimd_accurate_f16_ip);
     register_<simsimd_f16_t>("neon_f16_cos", simsimd_neon_f16_cos, simsimd_accurate_f16_cos);
     register_<simsimd_f16_t>("neon_f16_l2sq", simsimd_neon_f16_l2sq, simsimd_accurate_f16_l2sq);
+    register_<simsimd_f16_t>("neon_f16_kl", simsimd_neon_f16_kl, simsimd_accurate_f16_kl);
+    register_<simsimd_f16_t>("neon_f16_js", simsimd_neon_f16_js, simsimd_accurate_f16_js);
 
     register_<simsimd_f32_t>("neon_f32_ip", simsimd_neon_f32_ip, simsimd_accurate_f32_ip);
     register_<simsimd_f32_t>("neon_f32_cos", simsimd_neon_f32_cos, simsimd_accurate_f32_cos);
     register_<simsimd_f32_t>("neon_f32_l2sq", simsimd_neon_f32_l2sq, simsimd_accurate_f32_l2sq);
+    register_<simsimd_f32_t>("neon_f32_kl", simsimd_neon_f32_kl, simsimd_accurate_f32_kl);
+    register_<simsimd_f32_t>("neon_f32_js", simsimd_neon_f32_js, simsimd_accurate_f32_js);
 
     register_<simsimd_i8_t>("neon_i8_cos", simsimd_neon_i8_cos, simsimd_accurate_i8_cos);
     register_<simsimd_i8_t>("neon_i8_l2sq", simsimd_neon_i8_l2sq, simsimd_accurate_i8_l2sq);
@@ -152,6 +156,8 @@ int main(int argc, char** argv) {
     register_<simsimd_f16_t>("avx2_f16_ip", simsimd_avx2_f16_ip, simsimd_accurate_f16_ip);
     register_<simsimd_f16_t>("avx2_f16_cos", simsimd_avx2_f16_cos, simsimd_accurate_f16_cos);
     register_<simsimd_f16_t>("avx2_f16_l2sq", simsimd_avx2_f16_l2sq, simsimd_accurate_f16_l2sq);
+    register_<simsimd_f16_t>("avx2_f16_kl", simsimd_avx2_f16_kl, simsimd_accurate_f16_kl);
+    register_<simsimd_f16_t>("avx2_f16_js", simsimd_avx2_f16_js, simsimd_accurate_f16_js);
 
     register_<simsimd_i8_t>("avx2_i8_cos", simsimd_avx2_i8_cos, simsimd_accurate_i8_cos);
     register_<simsimd_i8_t>("avx2_i8_l2sq", simsimd_avx2_i8_l2sq, simsimd_accurate_i8_l2sq);
@@ -161,6 +167,8 @@ int main(int argc, char** argv) {
     register_<simsimd_f16_t>("avx512_f16_ip", simsimd_avx512_f16_ip, simsimd_accurate_f16_ip);
     register_<simsimd_f16_t>("avx512_f16_cos", simsimd_avx512_f16_cos, simsimd_accurate_f16_cos);
     register_<simsimd_f16_t>("avx512_f16_l2sq", simsimd_avx512_f16_l2sq, simsimd_accurate_f16_l2sq);
+    register_<simsimd_f16_t>("avx512_f16_kl", simsimd_avx512_f16_kl, simsimd_accurate_f16_kl);
+    register_<simsimd_f16_t>("avx512_f16_js", simsimd_avx512_f16_js, simsimd_accurate_f16_js);
 
     register_<simsimd_i8_t>("avx512_i8_cos", simsimd_avx512_i8_cos, simsimd_accurate_i8_cos);
     register_<simsimd_i8_t>("avx512_i8_l2sq", simsimd_avx512_i8_l2sq, simsimd_accurate_i8_l2sq);
@@ -168,15 +176,21 @@ int main(int argc, char** argv) {
     register_<simsimd_f32_t>("avx512_f32_ip", simsimd_avx512_f32_ip, simsimd_accurate_f32_ip);
     register_<simsimd_f32_t>("avx512_f32_cos", simsimd_avx512_f32_cos, simsimd_accurate_f32_cos);
     register_<simsimd_f32_t>("avx512_f32_l2sq", simsimd_avx512_f32_l2sq, simsimd_accurate_f32_l2sq);
+    register_<simsimd_f32_t>("avx512_f32_kl", simsimd_avx512_f32_kl, simsimd_accurate_f32_kl);
+    register_<simsimd_f32_t>("avx512_f32_js", simsimd_avx512_f32_js, simsimd_accurate_f32_js);
 #endif
 
     register_<simsimd_f16_t>("serial_f16_ip", simsimd_serial_f16_ip, simsimd_accurate_f16_ip);
     register_<simsimd_f16_t>("serial_f16_cos", simsimd_serial_f16_cos, simsimd_accurate_f16_cos);
     register_<simsimd_f16_t>("serial_f16_l2sq", simsimd_serial_f16_l2sq, simsimd_accurate_f16_l2sq);
+    register_<simsimd_f16_t>("serial_f16_kl", simsimd_serial_f16_kl, simsimd_accurate_f16_kl);
+    register_<simsimd_f16_t>("serial_f16_js", simsimd_serial_f16_js, simsimd_accurate_f16_js);
 
     register_<simsimd_f32_t>("serial_f32_ip", simsimd_serial_f32_ip, simsimd_accurate_f32_ip);
     register_<simsimd_f32_t>("serial_f32_cos", simsimd_serial_f32_cos, simsimd_accurate_f32_cos);
     register_<simsimd_f32_t>("serial_f32_l2sq", simsimd_serial_f32_l2sq, simsimd_accurate_f32_l2sq);
+    register_<simsimd_f32_t>("serial_f32_kl", simsimd_serial_f32_kl, simsimd_accurate_f32_kl);
+    register_<simsimd_f32_t>("serial_f32_js", simsimd_serial_f32_js, simsimd_accurate_f32_js);
 
     register_<simsimd_i8_t>("serial_i8_cos", simsimd_serial_i8_cos, simsimd_accurate_i8_cos);
     register_<simsimd_i8_t>("serial_i8_l2sq", simsimd_serial_i8_l2sq, simsimd_accurate_i8_l2sq);
