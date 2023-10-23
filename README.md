@@ -41,7 +41,7 @@ On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against auto-vect
 | `cosine`        |     3.28 M/s | _336.29 k/s_ |    _6.88 M/s_ |          __20 x__ |
 | `sqeuclidean`   |     4.62 M/s | _147.25 k/s_ |    _5.32 M/s_ |          __36 x__ |
 | `inner`         |     3.81 M/s | _192.02 k/s_ |    _5.99 M/s_ |          __31 x__ |
-| `jensenshannon` |     1.18 M/s |  _18.13 k/s_ |    _1.04 M/s_ |          __57 x__ |
+| `jensenshannon` |     1.18 M/s |  _18.13 k/s_ |    _2.14 M/s_ |         __118 x__ |
 
 __Technical Insights__:
 

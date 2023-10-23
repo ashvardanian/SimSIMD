@@ -488,9 +488,9 @@ simsimd_avx512_f16_js(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_si
 
         // Avoid division by zero problems from probabilities under zero down the road.
         // Masking is a nicer way to do this, than adding the `epsilon` to every component.
-        __mmask16 nonzero_mask_a = _mm512_cmp_ph_mask(a_vec, epsilon_vec, _CMP_GE_OQ);
-        __mmask16 nonzero_mask_b = _mm512_cmp_ph_mask(b_vec, epsilon_vec, _CMP_GE_OQ);
-        __mmask16 nonzero_mask = nonzero_mask_a & nonzero_mask_b & mask;
+        __mmask32 nonzero_mask_a = _mm512_cmp_ph_mask(a_vec, epsilon_vec, _CMP_GE_OQ);
+        __mmask32 nonzero_mask_b = _mm512_cmp_ph_mask(b_vec, epsilon_vec, _CMP_GE_OQ);
+        __mmask32 nonzero_mask = nonzero_mask_a & nonzero_mask_b & mask;
 
         // Division is an expensive operation. Instead of doing it twice,
         // we can approximate the reciprocal of `m` and multiply instead.
