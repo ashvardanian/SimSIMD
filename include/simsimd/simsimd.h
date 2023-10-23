@@ -232,6 +232,8 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f32_ip, *c = simsimd_cap_x86_avx512_k; return;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f32_cos, *c = simsimd_cap_x86_avx512_k; return;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f32_l2sq, *c = simsimd_cap_x86_avx512_k; return;
+            case simsimd_metric_js_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f32_js, *c = simsimd_cap_x86_avx512_k; return;
+            case simsimd_metric_kl_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f32_kl, *c = simsimd_cap_x86_avx512_k; return;
             default: break;
             }
     #endif
@@ -276,6 +278,8 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f16_ip, *c = simsimd_cap_x86_avx512fp16_k; return;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f16_cos, *c = simsimd_cap_x86_avx512fp16_k; return;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f16_l2sq, *c = simsimd_cap_x86_avx512fp16_k; return;
+            case simsimd_metric_js_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f16_js, *c = simsimd_cap_x86_avx512fp16_k; return;
+            case simsimd_metric_kl_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f16_kl, *c = simsimd_cap_x86_avx512fp16_k; return;
             default: break;
             }
     #endif
@@ -285,6 +289,8 @@ inline static void simsimd_find_metric_punned( //
             case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_f16_ip, *c = simsimd_cap_x86_avx2fp16_k; return;
             case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_f16_cos, *c = simsimd_cap_x86_avx2fp16_k; return;
             case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_f16_l2sq, *c = simsimd_cap_x86_avx2fp16_k; return;
+            case simsimd_metric_js_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_f16_js, *c = simsimd_cap_x86_avx2fp16_k; return;
+            case simsimd_metric_kl_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_f16_kl, *c = simsimd_cap_x86_avx2fp16_k; return;
             default: break;
             }
     #endif
@@ -383,7 +389,6 @@ inline static void simsimd_find_metric_punned( //
 
 #pragma clang diagnostic pop
 #pragma GCC diagnostic pop
-
 
 /**
  *  @brief  Selects the most suitable metric implementation based on the given metric kind, datatype,

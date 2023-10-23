@@ -35,11 +35,12 @@ Given 1000 embeddings from OpenAI Ada API with 1536 dimensions, running on the A
 
 On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against autovectorized-code using GCC 12. GCC handles single-precision `float` and `int8_t` well. However, it fails on `_Float16` arrays, which has been part of the C language since 2011.
 
-|               | GCC 12 `f32` | GCC 12 `f16` | SimSIMD `f16` | `f16` improvement |
-| :------------ | -----------: | -----------: | ------------: | ----------------: |
-| `cosine`      |     3.28 M/s |   336.29 k/s |      6.88 M/s |          __20 x__ |
-| `sqeuclidean` |     4.62 M/s |   147.25 k/s |      5.32 M/s |          __36 x__ |
-| `inner`       |     3.81 M/s |   192.02 k/s |      5.99 M/s |          __31 x__ |
+|                 | GCC 12 `f32` | GCC 12 `f16` | SimSIMD `f16` | `f16` improvement |
+| :-------------- | -----------: | -----------: | ------------: | ----------------: |
+| `cosine`        |     3.28 M/s | _336.29 k/s_ |    _6.88 M/s_ |          __20 x__ |
+| `sqeuclidean`   |     4.62 M/s | _147.25 k/s_ |    _5.32 M/s_ |          __36 x__ |
+| `inner`         |     3.81 M/s | _192.02 k/s_ |    _5.99 M/s_ |          __31 x__ |
+| `jensenshannon` |     1.18 M/s |  _18.13 k/s_ |    _1.04 M/s_ |          __57 x__ |
 
 __Technical Insights__:
 
