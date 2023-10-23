@@ -80,12 +80,15 @@ SIMSIMD_MAKE_JS(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16, 1e-6) // simsimd_acc
 __attribute__((target("+simd"))) //
 inline float32x4_t
 simsimd_neon_f32_log2(float32x4_t x) {
-    // Extract the exponent and mantissa
-    int32x4_t e = vclzq_s32(vreinterpretq_s32_f32(x)) - vdupq_n_s32(1); // count leading zeros to find exponent
-    float32x4_t m = vreinterpretq_f32_s32(
-        vbicq_s32(vreinterpretq_s32_f32(x), vdupq_n_s32(0xFF << 23))); // mantissa by clearing exponent bits
+    // Extracting the exponent
+    int32x4_t i = vreinterpretq_s32_f32(x);
+    int32x4_t e = vsubq_s32(vshrq_n_s32(vandq_s32(i, vdupq_n_s32(0x7F800000)), 23), vdupq_n_s32(127));
+    float32x4_t e_float = vcvtq_f32_s32(e);
 
-    // Setup constants
+    // Extracting the mantissa
+    float32x4_t m = vreinterpretq_f32_s32(vorrq_s32(vandq_s32(i, vdupq_n_s32(0x007FFFFF)), vdupq_n_s32(0x3F800000)));
+
+    // Constants for polynomial
     float32x4_t one = vdupq_n_f32(1.0f);
     float32x4_t p = vdupq_n_f32(-3.4436006e-2f);
 
@@ -97,7 +100,7 @@ simsimd_neon_f32_log2(float32x4_t x) {
     p = vmlaq_f32(vdupq_n_f32(3.1157899f), m, p);
 
     // Final computation
-    float32x4_t result = vaddq_f32(vmulq_f32(p, vsubq_f32(m, one)), vcvtq_f32_s32(e));
+    float32x4_t result = vaddq_f32(vmulq_f32(p, vsubq_f32(m, one)), e_float);
     return result;
 }
 
@@ -209,8 +212,8 @@ simsimd_neon_f16_js(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size
         simsimd_f32_t ai = SIMSIMD_UNCOMPRESS_F16(a[i]);
         simsimd_f32_t bi = SIMSIMD_UNCOMPRESS_F16(b[i]);
         simsimd_f32_t mi = ai + bi;
-        sum += a[i] * SIMSIMD_LOG((a[i] + epsilon) / (mi + epsilon));
-        sum += b[i] * SIMSIMD_LOG((b[i] + epsilon) / (mi + epsilon));
+        sum += ai * SIMSIMD_LOG((ai + epsilon) / (mi + epsilon));
+        sum += bi * SIMSIMD_LOG((bi + epsilon) / (mi + epsilon));
     }
     return sum / 2;
 }
@@ -328,8 +331,8 @@ simsimd_avx2_f16_js(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size
         simsimd_f32_t ai = SIMSIMD_UNCOMPRESS_F16(a[i]);
         simsimd_f32_t bi = SIMSIMD_UNCOMPRESS_F16(b[i]);
         simsimd_f32_t mi = ai + bi;
-        sum += ai * SIMSIMD_LOG((a[i] + epsilon) / (mi + epsilon));
-        sum += bi * SIMSIMD_LOG((b[i] + epsilon) / (mi + epsilon));
+        sum += ai * SIMSIMD_LOG((ai + epsilon) / (mi + epsilon));
+        sum += bi * SIMSIMD_LOG((bi + epsilon) / (mi + epsilon));
     }
     return sum / 2;
 }
@@ -411,11 +414,11 @@ simsimd_avx512_f32_js(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_si
         __m512 ratio_a_vec = _mm512_mul_ps(a_vec, m_recip_approx);
         __m512 ratio_b_vec = _mm512_mul_ps(b_vec, m_recip_approx);
 
-        // The natural logarith is equivalent to `log2`, multiplied by the `loge(2)`
+        // The natural logarithm is equivalent to `log2`, multiplied by the `loge(2)`
         __m512 log_ratio_a_vec = simsimd_avx512_f32_log2(ratio_a_vec);
         __m512 log_ratio_b_vec = simsimd_avx512_f32_log2(ratio_b_vec);
 
-        // Instead of separate multiplication and addition, invoke the FMA:
+        // Instead of separate multiplication and addition, invoke the FMA
         sum_a_vec = _mm512_maskz_fmadd_ps(nonzero_mask, a_vec, log_ratio_a_vec, sum_a_vec);
         sum_b_vec = _mm512_maskz_fmadd_ps(nonzero_mask, b_vec, log_ratio_b_vec, sum_b_vec);
     }
@@ -495,11 +498,11 @@ simsimd_avx512_f16_js(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_si
         __m512h ratio_a_vec = _mm512_mul_ph(a_vec, m_recip_approx);
         __m512h ratio_b_vec = _mm512_mul_ph(b_vec, m_recip_approx);
 
-        // The natural logarith is equivalent to `log2`, multiplied by the `loge(2)`
+        // The natural logarithm is equivalent to `log2`, multiplied by the `loge(2)`
         __m512h log_ratio_a_vec = simsimd_avx512_f16_log2(ratio_a_vec);
         __m512h log_ratio_b_vec = simsimd_avx512_f16_log2(ratio_b_vec);
 
-        // Instead of separate multiplication and addition, invoke the FMA:
+        // Instead of separate multiplication and addition, invoke the FMA
         sum_a_vec = _mm512_maskz_fmadd_ph(nonzero_mask, a_vec, log_ratio_a_vec, sum_a_vec);
         sum_b_vec = _mm512_maskz_fmadd_ph(nonzero_mask, b_vec, log_ratio_b_vec, sum_b_vec);
     }

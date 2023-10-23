@@ -161,7 +161,7 @@ inline static simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_
 /**
  *  @brief  Computes `log(x)` using the Mercator series.
  *          The series converges to the natural logarithm for args between -1 and 1.
- *          Published in 1668 in Logarithmotechnia.
+ *          Published in 1668 in "Logarithmotechnia".
  */
 inline static simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
     simsimd_f32_t x = number - 1;
