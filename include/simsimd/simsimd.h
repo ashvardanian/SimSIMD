@@ -110,7 +110,7 @@ inline static simsimd_capability_t simsimd_capabilities() {
 #if SIMSIMD_TARGET_X86
 
     /// The states of 4 registers populated for a specific "cpuid" assmebly call
-    union {
+    union four_registers_t {
         int array[4];
         struct {
             unsigned eax, ebx, ecx, edx;
