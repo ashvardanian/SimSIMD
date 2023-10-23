@@ -181,14 +181,19 @@ inline static simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
 inline static float simsimd_uncompress_f16(unsigned short x) {
+    union float_or_unsigned_int_t {
+        float f;
+        unsigned int i;
+    };
     unsigned int exponent = (x & 0x7C00) >> 10;
     unsigned int mantissa = (x & 0x03FF) << 13;
-    float mantissa_as_float = (float)mantissa;
-    unsigned int v = (*(unsigned int*)&mantissa_as_float) >> 23;
-    unsigned int result_as_uint =
-        (x & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
-        ((exponent == 0) & (mantissa != 0)) * ((v - 37) << 23 | ((mantissa << (150 - v)) & 0x007FE000));
-    return *(float*)&result_as_uint;
+    union float_or_unsigned_int_t mantissa_union;
+    mantissa_union.f = (float)mantissa;
+    unsigned int v = (mantissa_union.i) >> 23;
+    union float_or_unsigned_int_t result_union;
+    result_union.i = (x & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
+                     ((exponent == 0) & (mantissa != 0)) * ((v - 37) << 23 | ((mantissa << (150 - v)) & 0x007FE000));
+    return result_union.f;
 }
 
 #ifdef __cplusplus
