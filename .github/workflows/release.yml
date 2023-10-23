@@ -16,17 +16,15 @@ permissions:
   id-token: write
 
 jobs:
-
   versioning:
     name: Semantic Release
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-      with:
-        persist-credentials: false
-    - uses: actions/setup-node@v3
-    - run: npm install --save-dev @semantic-release/exec @semantic-release/git conventional-changelog-eslint semantic-release && npx semantic-release
-
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v3
+      - run: npm install --save-dev @semantic-release/exec @semantic-release/git conventional-changelog-eslint semantic-release && npx semantic-release
 
   rebase:
     name: Rebase Dev. Branch
@@ -43,7 +41,7 @@ jobs:
           git fetch origin main
           git checkout main-dev
           git rebase origin/main
-          
+
       - name: Push changes
         uses: CasperWA/push-protected@v2
         with:
@@ -63,13 +61,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: 'main'      
+          ref: "main"
       - uses: actions/setup-python@v3
-      
+
       - name: Setup Docker
         if: matrix.os == 'ubuntu-22.04'
         uses: docker-practice/actions-setup-docker@master
-        
+
       - name: Setup QEMU
         if: matrix.os == 'ubuntu-22.04'
         uses: docker/setup-qemu-action@v2.1.0
@@ -83,8 +81,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           path: ./wheelhouse/*.whl
-  
-  
+
   publish_python:
     name: Publish Python
     needs: build_wheels
@@ -115,7 +112,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          ref: 'main'  
+          ref: "main"
       - run: git submodule update --init --recursive
       - uses: actions/setup-node@v3
         with:
