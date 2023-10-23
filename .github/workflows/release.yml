@@ -40,8 +40,9 @@ jobs:
 
       - name: Perform rebase
         run: |
+          git fetch origin main
           git checkout main-dev
-          git rebase main
+          git rebase origin/main
           
       - name: Push changes
         uses: CasperWA/push-protected@v2
@@ -58,7 +59,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, macOS-11, windows-2022]
+        os: [ubuntu-22.04, macOS-11, windows-2022]
     steps:
       - uses: actions/checkout@v3
         with:
@@ -66,11 +67,11 @@ jobs:
       - uses: actions/setup-python@v3
       
       - name: Setup Docker
-        if: matrix.os == 'ubuntu-20.04'
+        if: matrix.os == 'ubuntu-22.04'
         uses: docker-practice/actions-setup-docker@master
         
       - name: Setup QEMU
-        if: matrix.os == 'ubuntu-20.04'
+        if: matrix.os == 'ubuntu-22.04'
         uses: docker/setup-qemu-action@v2.1.0
 
       - name: Install CIBuildWheel
@@ -87,7 +88,7 @@ jobs:
   publish_python:
     name: Publish Python
     needs: build_wheels
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     environment:
       name: pypi
       url: https://pypi.org/p/simsimd
@@ -110,7 +111,7 @@ jobs:
   publish_javascript:
     name: Publish JavaScript
     needs: versioning
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
         with:
