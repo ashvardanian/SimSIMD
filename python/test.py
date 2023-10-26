@@ -65,6 +65,29 @@ def test_cosine(ndim, dtype):
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("ndim", [3, 97, 1536])
+def test_cosine_i8(ndim):
+    """Compares the simd.cosine() function with scipy.spatial.distance.cosine(), measuring the accuracy error for 8-bit int types."""
+    a = np.random.randint(0, 100, size=ndim, dtype=np.int8)
+    b = np.random.randint(0, 100, size=ndim, dtype=np.int8)
+
+    expected = spd.cosine(a.astype(np.int32), b.astype(np.int32))
+    result = simd.cosine(a, b)
+
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("ndim", [3, 97, 1536])
+def test_sqeuclidean_i8(ndim):
+    """Compares the simd.sqeuclidean() function with scipy.spatial.distance.sqeuclidean(), measuring the accuracy error for 8-bit int types."""
+    a = np.random.randint(0, 100, size=ndim, dtype=np.int8)
+    b = np.random.randint(0, 100, size=ndim, dtype=np.int8)
+
+    expected = spd.sqeuclidean(a.astype(np.int32), b.astype(np.int32))
+    result = simd.sqeuclidean(a, b)
+
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
 @pytest.mark.parametrize("dtype", [np.float32, np.float16])
