@@ -370,58 +370,70 @@ simsimd_avx512_f32_log2(__m512 x) {
     return _mm512_add_ps(_mm512_mul_ps(p, _mm512_sub_ps(m, one)), e);
 }
 
-__attribute__((target("avx512f,avx512vl"))) //
+__attribute__((target("avx512f,avx512vl,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_f32_kl(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n) {
     __m512 sum_vec = _mm512_set1_ps(0);
     simsimd_f32_t epsilon = 1e-6;
     __m512 epsilon_vec = _mm512_set1_ps(epsilon);
-    for (simsimd_size_t i = 0; i < n; i += 16) {
-        __mmask16 mask = n - i >= 16 ? 0xFFFF : ((1u << (n - i)) - 1u);
-        __m512 a_vec = _mm512_add_ps(_mm512_maskz_loadu_ps(mask, a + i), epsilon_vec);
-        __m512 b_vec = _mm512_add_ps(_mm512_maskz_loadu_ps(mask, b + i), epsilon_vec);
-        __m512 ratio_vec = _mm512_div_ps(a_vec, b_vec);
-        __m512 log_ratio_vec = simsimd_avx512_f32_log2(ratio_vec);
-        __m512 prod_vec = _mm512_mul_ps(a_vec, log_ratio_vec);
-        sum_vec = _mm512_maskz_add_ps(mask, sum_vec, prod_vec);
+    __m512 a_vec, b_vec;
+
+simsimd_avx512_f32_kl_cycle:
+    if (n < 16) {
+        __mmask16 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_add_ps(_mm512_maskz_loadu_ps(mask, a), epsilon_vec);
+        b_vec = _mm512_add_ps(_mm512_maskz_loadu_ps(mask, b), epsilon_vec);
+        n = 0;
+    } else {
+        a_vec = _mm512_add_ps(_mm512_loadu_ps(a), epsilon_vec);
+        b_vec = _mm512_add_ps(_mm512_loadu_ps(b), epsilon_vec);
+        a += 16, b += 16, n -= 16;
     }
+    __m512 ratio_vec = _mm512_div_ps(a_vec, b_vec);
+    __m512 log_ratio_vec = simsimd_avx512_f32_log2(ratio_vec);
+    __m512 prod_vec = _mm512_mul_ps(a_vec, log_ratio_vec);
+    sum_vec = _mm512_add_ps(sum_vec, prod_vec);
+    if (n)
+        goto simsimd_avx512_f32_kl_cycle;
+
     simsimd_f32_t log2_normalizer = 0.693147181f;
     return _mm512_reduce_add_ps(sum_vec) * log2_normalizer;
 }
 
-__attribute__((target("avx512f,avx512vl"))) //
+__attribute__((target("avx512f,avx512vl,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_f32_js(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n) {
     __m512 sum_a_vec = _mm512_set1_ps(0);
     __m512 sum_b_vec = _mm512_set1_ps(0);
     simsimd_f32_t epsilon = 1e-6;
     __m512 epsilon_vec = _mm512_set1_ps(epsilon);
-    for (simsimd_size_t i = 0; i < n; i += 16) {
-        __mmask16 mask = n - i >= 16 ? 0xFFFF : ((1u << (n - i)) - 1u);
-        __m512 a_vec = _mm512_maskz_loadu_ps(mask, a + i);
-        __m512 b_vec = _mm512_maskz_loadu_ps(mask, b + i);
-        __m512 m_vec = _mm512_mul_ps(_mm512_add_ps(a_vec, b_vec), _mm512_set1_ps(0.5f)); // M = (P + Q) / 2
+    __m512 a_vec, b_vec;
 
-        // Avoid division by zero problems from probabilities under zero down the road.
-        // Masking is a nicer way to do this, than adding the `epsilon` to every component.
-        __mmask16 nonzero_mask_a = _mm512_cmp_ps_mask(a_vec, epsilon_vec, _CMP_GE_OQ);
-        __mmask16 nonzero_mask_b = _mm512_cmp_ps_mask(b_vec, epsilon_vec, _CMP_GE_OQ);
-        __mmask16 nonzero_mask = nonzero_mask_a & nonzero_mask_b & mask;
-
-        // Division is an expensive operation. Instead of doing it twice,
-        // we can approximate the reciprocal of `m` and multiply instead.
-        __m512 m_recip_approx = _mm512_rcp14_ps(m_vec); // or `_mm512_rcp28_ps` for slightly better precision
-        __m512 ratio_a_vec = _mm512_mul_ps(a_vec, m_recip_approx);
-        __m512 ratio_b_vec = _mm512_mul_ps(b_vec, m_recip_approx);
-
-        // The natural logarithm is equivalent to `log2`, multiplied by the `loge(2)`
-        __m512 log_ratio_a_vec = simsimd_avx512_f32_log2(ratio_a_vec);
-        __m512 log_ratio_b_vec = simsimd_avx512_f32_log2(ratio_b_vec);
-
-        // Instead of separate multiplication and addition, invoke the FMA
-        sum_a_vec = _mm512_maskz_fmadd_ps(nonzero_mask, a_vec, log_ratio_a_vec, sum_a_vec);
-        sum_b_vec = _mm512_maskz_fmadd_ps(nonzero_mask, b_vec, log_ratio_b_vec, sum_b_vec);
+simsimd_avx512_f32_js_cycle:
+    if (n < 16) {
+        __mmask16 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_ps(mask, a);
+        b_vec = _mm512_maskz_loadu_ps(mask, b);
+        n = 0;
+    } else {
+        a_vec = _mm512_loadu_ps(a);
+        b_vec = _mm512_loadu_ps(b);
+        a += 16, b += 16, n -= 16;
     }
+    __m512 m_vec = _mm512_mul_ps(_mm512_add_ps(a_vec, b_vec), _mm512_set1_ps(0.5f));
+    __mmask16 nonzero_mask_a = _mm512_cmp_ps_mask(a_vec, epsilon_vec, _CMP_GE_OQ);
+    __mmask16 nonzero_mask_b = _mm512_cmp_ps_mask(b_vec, epsilon_vec, _CMP_GE_OQ);
+    __mmask16 nonzero_mask = nonzero_mask_a & nonzero_mask_b;
+    __m512 m_recip_approx = _mm512_rcp14_ps(m_vec);
+    __m512 ratio_a_vec = _mm512_mul_ps(a_vec, m_recip_approx);
+    __m512 ratio_b_vec = _mm512_mul_ps(b_vec, m_recip_approx);
+    __m512 log_ratio_a_vec = simsimd_avx512_f32_log2(ratio_a_vec);
+    __m512 log_ratio_b_vec = simsimd_avx512_f32_log2(ratio_b_vec);
+    sum_a_vec = _mm512_maskz_fmadd_ps(nonzero_mask, a_vec, log_ratio_a_vec, sum_a_vec);
+    sum_b_vec = _mm512_maskz_fmadd_ps(nonzero_mask, b_vec, log_ratio_b_vec, sum_b_vec);
+    if (n)
+        goto simsimd_avx512_f32_js_cycle;
+
     simsimd_f32_t log2_normalizer = 0.693147181f;
     return _mm512_reduce_add_ps(_mm512_add_ps(sum_a_vec, sum_b_vec)) * 0.5f * log2_normalizer;
 }
@@ -456,56 +468,68 @@ simsimd_avx512_f16_log2(__m512h x) {
     return _mm512_add_ph(_mm512_mul_ph(p, _mm512_sub_ph(m, one)), e);
 }
 
-__attribute__((target("avx512f,avx512vl,avx512fp16"))) //
+__attribute__((target("avx512f,avx512vl,avx512fp16,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_f16_kl(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
     __m512h sum_vec = _mm512_set1_ph((_Float16)0);
     __m512h epsilon_vec = _mm512_set1_ph((_Float16)1e-6f);
-    for (simsimd_size_t i = 0; i < n; i += 32) {
-        __mmask32 mask = n - i >= 32 ? 0xFFFFFFFF : ((1u << (n - i)) - 1u);
-        __m512h a_vec = _mm512_add_ph(_mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a + i)), epsilon_vec);
-        __m512h b_vec = _mm512_add_ph(_mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, b + i)), epsilon_vec);
-        __m512h ratio_vec = _mm512_div_ph(a_vec, b_vec);
-        __m512h log_ratio_vec = simsimd_avx512_f16_log2(ratio_vec);
-        __m512h prod_vec = _mm512_mul_ph(a_vec, log_ratio_vec);
-        sum_vec = _mm512_maskz_add_ph(mask, sum_vec, prod_vec);
+    __m512h a_vec, b_vec;
+
+simsimd_avx512_f16_kl_cycle:
+    if (n < 32) {
+        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_maskz_add_ph(mask, _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a)), epsilon_vec);
+        b_vec = _mm512_maskz_add_ph(mask, _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, b)), epsilon_vec);
+        n = 0;
+    } else {
+        a_vec = _mm512_add_ph(_mm512_castsi512_ph(_mm512_loadu_epi16(a)), epsilon_vec);
+        b_vec = _mm512_add_ph(_mm512_castsi512_ph(_mm512_loadu_epi16(b)), epsilon_vec);
+        a += 32, b += 32, n -= 32;
     }
+    __m512h ratio_vec = _mm512_div_ph(a_vec, b_vec);
+    __m512h log_ratio_vec = simsimd_avx512_f16_log2(ratio_vec);
+    __m512h prod_vec = _mm512_mul_ph(a_vec, log_ratio_vec);
+    sum_vec = _mm512_add_ph(sum_vec, prod_vec);
+    if (n)
+        goto simsimd_avx512_f16_kl_cycle;
+
     simsimd_f32_t log2_normalizer = 0.693147181f;
     return _mm512_reduce_add_ph(sum_vec) * log2_normalizer;
 }
 
-__attribute__((target("avx512f,avx512vl,avx512fp16"))) //
+__attribute__((target("avx512f,avx512vl,avx512fp16,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_f16_js(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
     __m512h sum_a_vec = _mm512_set1_ph((_Float16)0);
     __m512h sum_b_vec = _mm512_set1_ph((_Float16)0);
     __m512h epsilon_vec = _mm512_set1_ph((_Float16)1e-6f);
-    for (simsimd_size_t i = 0; i < n; i += 32) {
-        __mmask32 mask = n - i >= 32 ? 0xFFFFFFFF : ((1u << (n - i)) - 1u);
-        __m512h a_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a + i));
-        __m512h b_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, b + i));
-        __m512h m_vec = _mm512_mul_ph(_mm512_add_ph(a_vec, b_vec), _mm512_set1_ph((_Float16)0.5f)); // M = (P + Q) / 2
+    __m512h a_vec, b_vec;
 
-        // Avoid division by zero problems from probabilities under zero down the road.
-        // Masking is a nicer way to do this, than adding the `epsilon` to every component.
-        __mmask32 nonzero_mask_a = _mm512_cmp_ph_mask(a_vec, epsilon_vec, _CMP_GE_OQ);
-        __mmask32 nonzero_mask_b = _mm512_cmp_ph_mask(b_vec, epsilon_vec, _CMP_GE_OQ);
-        __mmask32 nonzero_mask = nonzero_mask_a & nonzero_mask_b & mask;
-
-        // Division is an expensive operation. Instead of doing it twice,
-        // we can approximate the reciprocal of `m` and multiply instead.
-        __m512h m_recip_approx = _mm512_rcp_ph(m_vec);
-        __m512h ratio_a_vec = _mm512_mul_ph(a_vec, m_recip_approx);
-        __m512h ratio_b_vec = _mm512_mul_ph(b_vec, m_recip_approx);
-
-        // The natural logarithm is equivalent to `log2`, multiplied by the `loge(2)`
-        __m512h log_ratio_a_vec = simsimd_avx512_f16_log2(ratio_a_vec);
-        __m512h log_ratio_b_vec = simsimd_avx512_f16_log2(ratio_b_vec);
-
-        // Instead of separate multiplication and addition, invoke the FMA
-        sum_a_vec = _mm512_maskz_fmadd_ph(nonzero_mask, a_vec, log_ratio_a_vec, sum_a_vec);
-        sum_b_vec = _mm512_maskz_fmadd_ph(nonzero_mask, b_vec, log_ratio_b_vec, sum_b_vec);
+simsimd_avx512_f16_js_cycle:
+    if (n < 32) {
+        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a));
+        b_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, b));
+        n = 0;
+    } else {
+        a_vec = _mm512_castsi512_ph(_mm512_loadu_epi16(a));
+        b_vec = _mm512_castsi512_ph(_mm512_loadu_epi16(b));
+        a += 32, b += 32, n -= 32;
     }
+    __m512h m_vec = _mm512_mul_ph(_mm512_add_ph(a_vec, b_vec), _mm512_set1_ph((_Float16)0.5f));
+    __mmask32 nonzero_mask_a = _mm512_cmp_ph_mask(a_vec, epsilon_vec, _CMP_GE_OQ);
+    __mmask32 nonzero_mask_b = _mm512_cmp_ph_mask(b_vec, epsilon_vec, _CMP_GE_OQ);
+    __mmask32 nonzero_mask = nonzero_mask_a & nonzero_mask_b;
+    __m512h m_recip_approx = _mm512_rcp_ph(m_vec);
+    __m512h ratio_a_vec = _mm512_mul_ph(a_vec, m_recip_approx);
+    __m512h ratio_b_vec = _mm512_mul_ph(b_vec, m_recip_approx);
+    __m512h log_ratio_a_vec = simsimd_avx512_f16_log2(ratio_a_vec);
+    __m512h log_ratio_b_vec = simsimd_avx512_f16_log2(ratio_b_vec);
+    sum_a_vec = _mm512_maskz_fmadd_ph(nonzero_mask, a_vec, log_ratio_a_vec, sum_a_vec);
+    sum_b_vec = _mm512_maskz_fmadd_ph(nonzero_mask, b_vec, log_ratio_b_vec, sum_b_vec);
+    if (n)
+        goto simsimd_avx512_f16_js_cycle;
+
     simsimd_f32_t log2_normalizer = 0.693147181f;
     return _mm512_reduce_add_ph(_mm512_add_ph(sum_a_vec, sum_b_vec)) * 0.5f * log2_normalizer;
 }

@@ -730,51 +730,82 @@ simsimd_avx2_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t 
  *
  *  - Implements: L2 squared, inner product, cosine similarity.
  *  - Uses `f32` for storage and `f32` for accumulation.
- *  - Requires compiler capabilities: avx512f, avx512vl.
+ *  - Requires compiler capabilities: avx512f, avx512vl, bmi2.
  */
 
-__attribute__((target("avx512f,avx512vl"))) //
+__attribute__((target("avx512f,avx512vl,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_f32_l2sq(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n) {
     __m512 d2_vec = _mm512_set1_ps(0);
-    for (simsimd_size_t i = 0; i < n; i += 16) {
-        __mmask16 mask = n - i >= 16 ? 0xFFFF : ((1u << (n - i)) - 1u);
-        __m512 a_vec = _mm512_maskz_loadu_ps(mask, a + i);
-        __m512 b_vec = _mm512_maskz_loadu_ps(mask, b + i);
-        __m512 d_vec = _mm512_sub_ps(a_vec, b_vec);
-        d2_vec = _mm512_fmadd_ps(d_vec, d_vec, d2_vec);
+    __m512 a_vec, b_vec;
+
+simsimd_avx512_f32_l2sq_cycle:
+    if (n < 16) {
+        __mmask16 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_ps(mask, a);
+        b_vec = _mm512_maskz_loadu_ps(mask, b);
+        n = 0;
+    } else {
+        a_vec = _mm512_loadu_ps(a);
+        b_vec = _mm512_loadu_ps(b);
+        a += 16, b += 16, n -= 16;
     }
+    __m512 d_vec = _mm512_sub_ps(a_vec, b_vec);
+    d2_vec = _mm512_fmadd_ps(d_vec, d_vec, d2_vec);
+    if (n)
+        goto simsimd_avx512_f32_l2sq_cycle;
+
     return _mm512_reduce_add_ps(d2_vec);
 }
 
-__attribute__((target("avx512f,avx512vl"))) //
+__attribute__((target("avx512f,avx512vl,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_f32_ip(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n) {
     __m512 ab_vec = _mm512_set1_ps(0);
-    for (simsimd_size_t i = 0; i < n; i += 16) {
-        __mmask16 mask = n - i >= 16 ? 0xFFFF : ((1u << (n - i)) - 1u);
-        __m512 a_vec = _mm512_maskz_loadu_ps(mask, a + i);
-        __m512 b_vec = _mm512_maskz_loadu_ps(mask, b + i);
-        ab_vec = _mm512_fmadd_ps(a_vec, b_vec, ab_vec);
+    __m512 a_vec, b_vec;
+
+simsimd_avx512_f32_ip_cycle:
+    if (n < 16) {
+        __mmask16 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_ps(mask, a);
+        b_vec = _mm512_maskz_loadu_ps(mask, b);
+        n = 0;
+    } else {
+        a_vec = _mm512_loadu_ps(a);
+        b_vec = _mm512_loadu_ps(b);
+        a += 16, b += 16, n -= 16;
     }
+    ab_vec = _mm512_fmadd_ps(a_vec, b_vec, ab_vec);
+    if (n)
+        goto simsimd_avx512_f32_ip_cycle;
+
     return 1 - _mm512_reduce_add_ps(ab_vec);
 }
 
-__attribute__((target("avx512f,avx512vl"))) //
+__attribute__((target("avx512f,avx512vl,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n) {
     __m512 ab_vec = _mm512_set1_ps(0);
     __m512 a2_vec = _mm512_set1_ps(0);
     __m512 b2_vec = _mm512_set1_ps(0);
+    __m512 a_vec, b_vec;
 
-    for (simsimd_size_t i = 0; i < n; i += 16) {
-        __mmask16 mask = n - i >= 16 ? 0xFFFF : ((1u << (n - i)) - 1u);
-        __m512 a_vec = _mm512_maskz_loadu_ps(mask, a + i);
-        __m512 b_vec = _mm512_maskz_loadu_ps(mask, b + i);
-        ab_vec = _mm512_fmadd_ps(a_vec, b_vec, ab_vec);
-        a2_vec = _mm512_fmadd_ps(a_vec, a_vec, a2_vec);
-        b2_vec = _mm512_fmadd_ps(b_vec, b_vec, b2_vec);
+simsimd_avx512_f32_cos_cycle:
+    if (n < 16) {
+        __mmask16 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_ps(mask, a);
+        b_vec = _mm512_maskz_loadu_ps(mask, b);
+        n = 0;
+    } else {
+        a_vec = _mm512_loadu_ps(a);
+        b_vec = _mm512_loadu_ps(b);
+        a += 16, b += 16, n -= 16;
     }
+    ab_vec = _mm512_fmadd_ps(a_vec, b_vec, ab_vec);
+    a2_vec = _mm512_fmadd_ps(a_vec, a_vec, a2_vec);
+    b2_vec = _mm512_fmadd_ps(b_vec, b_vec, b2_vec);
+    if (n)
+        goto simsimd_avx512_f32_cos_cycle;
 
     simsimd_f32_t ab = _mm512_reduce_add_ps(ab_vec);
     simsimd_f32_t a2 = _mm512_reduce_add_ps(a2_vec);
@@ -802,13 +833,24 @@ __attribute__((target("avx512fp16,avx512vl,avx512f,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
     __m512h d2_vec = _mm512_set1_ph(0);
-    for (simsimd_size_t i = 0; i < n; i += 32) {
-        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n - i);
-        __m512i a_vec = _mm512_maskz_loadu_epi16(mask, a + i);
-        __m512i b_vec = _mm512_maskz_loadu_epi16(mask, b + i);
-        __m512h d_vec = _mm512_sub_ph(_mm512_castsi512_ph(a_vec), _mm512_castsi512_ph(b_vec));
-        d2_vec = _mm512_fmadd_ph(d_vec, d_vec, d2_vec);
+    __m512i a_i16_vec, b_i16_vec;
+
+simsimd_avx512_f16_l2sq_cycle:
+    if (n < 32) {
+        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_i16_vec = _mm512_maskz_loadu_epi16(mask, a);
+        b_i16_vec = _mm512_maskz_loadu_epi16(mask, b);
+        n = 0;
+    } else {
+        a_i16_vec = _mm512_loadu_epi16(a);
+        b_i16_vec = _mm512_loadu_epi16(b);
+        a += 32, b += 32, n -= 32;
     }
+    __m512h d_vec = _mm512_sub_ph(_mm512_castsi512_ph(a_i16_vec), _mm512_castsi512_ph(b_i16_vec));
+    d2_vec = _mm512_fmadd_ph(d_vec, d_vec, d2_vec);
+    if (n)
+        goto simsimd_avx512_f16_l2sq_cycle;
+
     return _mm512_reduce_add_ph(d2_vec);
 }
 
@@ -816,12 +858,23 @@ __attribute__((target("avx512fp16,avx512vl,avx512f,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
     __m512h ab_vec = _mm512_set1_ph(0);
-    for (simsimd_size_t i = 0; i < n; i += 32) {
-        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n - i);
-        __m512i a_vec = _mm512_maskz_loadu_epi16(mask, a + i);
-        __m512i b_vec = _mm512_maskz_loadu_epi16(mask, b + i);
-        ab_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(a_vec), _mm512_castsi512_ph(b_vec), ab_vec);
+    __m512i a_i16_vec, b_i16_vec;
+
+simsimd_avx512_f16_ip_cycle:
+    if (n < 32) {
+        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_i16_vec = _mm512_maskz_loadu_epi16(mask, a);
+        b_i16_vec = _mm512_maskz_loadu_epi16(mask, b);
+        n = 0;
+    } else {
+        a_i16_vec = _mm512_loadu_epi16(a);
+        b_i16_vec = _mm512_loadu_epi16(b);
+        a += 32, b += 32, n -= 32;
     }
+    ab_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(a_i16_vec), _mm512_castsi512_ph(b_i16_vec), ab_vec);
+    if (n)
+        goto simsimd_avx512_f16_ip_cycle;
+
     return 1 - _mm512_reduce_add_ph(ab_vec);
 }
 
@@ -831,15 +884,24 @@ simsimd_avx512_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_s
     __m512h ab_vec = _mm512_set1_ph(0);
     __m512h a2_vec = _mm512_set1_ph(0);
     __m512h b2_vec = _mm512_set1_ph(0);
+    __m512i a_i16_vec, b_i16_vec;
 
-    for (simsimd_size_t i = 0; i < n; i += 32) {
-        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n - i);
-        __m512i a_vec = _mm512_maskz_loadu_epi16(mask, a + i);
-        __m512i b_vec = _mm512_maskz_loadu_epi16(mask, b + i);
-        ab_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(a_vec), _mm512_castsi512_ph(b_vec), ab_vec);
-        a2_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(a_vec), _mm512_castsi512_ph(a_vec), a2_vec);
-        b2_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(b_vec), _mm512_castsi512_ph(b_vec), b2_vec);
+simsimd_avx512_f16_cos_cycle:
+    if (n < 32) {
+        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_i16_vec = _mm512_maskz_loadu_epi16(mask, a);
+        b_i16_vec = _mm512_maskz_loadu_epi16(mask, b);
+        n = 0;
+    } else {
+        a_i16_vec = _mm512_loadu_epi16(a);
+        b_i16_vec = _mm512_loadu_epi16(b);
+        a += 32, b += 32, n -= 32;
     }
+    ab_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(a_i16_vec), _mm512_castsi512_ph(b_i16_vec), ab_vec);
+    a2_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(a_i16_vec), _mm512_castsi512_ph(a_i16_vec), a2_vec);
+    b2_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(b_i16_vec), _mm512_castsi512_ph(b_i16_vec), b2_vec);
+    if (n)
+        goto simsimd_avx512_f16_cos_cycle;
 
     simsimd_f32_t ab = _mm512_reduce_add_ph(ab_vec);
     simsimd_f32_t a2 = _mm512_reduce_add_ph(a2_vec);
@@ -860,6 +922,7 @@ simsimd_avx512_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_s
  *  - Implements: L2 squared, cosine similarity, inner product (same as cosine).
  *  - Uses `_mm512_maskz_loadu_epi16` intrinsics to perform masked unaligned loads.
  *  - Uses `i8` for storage, `i16` for multiplication, and `i32` for accumulation, if no better option is available.
+ *  - Uses BMI2 `bzhi` instructions to build masks without branches or conditional moves.
  *  - Requires compiler capabilities: avx512f, avx512vl, avx512bw, avx512vnni, bmi2.
  */
 
@@ -867,14 +930,23 @@ __attribute__((target("avx512vl,avx512f,avx512bw,avx512vnni,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n) {
     __m512i d2_i32s_vec = _mm512_setzero_si512();
+    __m512i a_vec, b_vec, d_i16s_vec;
 
-    for (simsimd_size_t i = 0; i < n; i += 32) {
-        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n - i);
-        __m512i a_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, a + i)); // Load 8-bit integers
-        __m512i b_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, b + i)); // Load 8-bit integers
-        __m512i d_i16s_vec = _mm512_sub_epi16(a_vec, b_vec);
-        d2_i32s_vec = _mm512_dpwssd_epi32(d2_i32s_vec, d_i16s_vec, d_i16s_vec);
+simsimd_avx512_i8_l2sq_cycle:
+    if (n < 32) {
+        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, a));
+        b_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, b));
+        n = 0;
+    } else {
+        a_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(a));
+        b_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(b));
+        a += 32, b += 32, n -= 32;
     }
+    d_i16s_vec = _mm512_sub_epi16(a_vec, b_vec);
+    d2_i32s_vec = _mm512_dpwssd_epi32(d2_i32s_vec, d_i16s_vec, d_i16s_vec);
+    if (n)
+        goto simsimd_avx512_i8_l2sq_cycle;
 
     return _mm512_reduce_add_epi32(d2_i32s_vec);
 }
@@ -885,16 +957,24 @@ simsimd_avx512_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size
     __m512i ab_i32s_vec = _mm512_setzero_si512();
     __m512i a2_i32s_vec = _mm512_setzero_si512();
     __m512i b2_i32s_vec = _mm512_setzero_si512();
+    __m512i a_vec, b_vec;
 
-    for (simsimd_size_t i = 0; i < n; i += 64) {
-        __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFF, n - i);
-        __m512i a_vec = _mm512_maskz_loadu_epi8(mask, a + i); // Load 8-bit integers
-        __m512i b_vec = _mm512_maskz_loadu_epi8(mask, b + i); // Load 8-bit integers
-
-        ab_i32s_vec = _mm512_dpbusd_epi32(ab_i32s_vec, a_vec, b_vec);
-        a2_i32s_vec = _mm512_dpbusd_epi32(a2_i32s_vec, a_vec, a_vec);
-        b2_i32s_vec = _mm512_dpbusd_epi32(b2_i32s_vec, b_vec, b_vec);
+simsimd_avx512_i8_cos_cycle:
+    if (n < 64) {
+        __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_epi8(mask, a);
+        b_vec = _mm512_maskz_loadu_epi8(mask, b);
+        n = 0;
+    } else {
+        a_vec = _mm512_loadu_epi8(a);
+        b_vec = _mm512_loadu_epi8(b);
+        a += 64, b += 64, n -= 64;
     }
+    ab_i32s_vec = _mm512_dpbusd_epi32(ab_i32s_vec, a_vec, b_vec);
+    a2_i32s_vec = _mm512_dpbusd_epi32(a2_i32s_vec, a_vec, a_vec);
+    b2_i32s_vec = _mm512_dpbusd_epi32(b2_i32s_vec, b_vec, b_vec);
+    if (n)
+        goto simsimd_avx512_i8_cos_cycle;
 
     simsimd_f32_t ab = _mm512_reduce_add_epi32(ab_i32s_vec);
     simsimd_f32_t a2 = _mm512_reduce_add_epi32(a2_i32s_vec);
