@@ -3,8 +3,8 @@ import numpy as np
 import simsimd as simd
 import scipy.spatial.distance as spd
 
-SIMSIMD_RTOL = 2
-SIMSIMD_ATOL = 3e-1
+SIMSIMD_RTOL = 0.2
+SIMSIMD_ATOL = 0
 
 
 def test_pointers_availability():
@@ -110,11 +110,11 @@ def test_cosine_zero_vector(ndim, dtype):
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
 def test_hamming(ndim):
     """Compares the simd.hamming() function with scipy.spatial.distance.hamming."""
-    a = np.packbits(np.random.randint(0, 2, ndim).astype(np.uint8))
-    b = np.packbits(np.random.randint(0, 2, ndim).astype(np.uint8))
+    a = np.random.randint(2, size=ndim).astype(np.uint8)
+    b = np.random.randint(2, size=ndim).astype(np.uint8)
 
-    expected = spd.hamming(a, b)
-    result = simd.hamming(a, b)
+    expected = spd.hamming(a, b) * ndim
+    result = simd.hamming(np.packbits(a), np.packbits(b))
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
@@ -123,11 +123,11 @@ def test_hamming(ndim):
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
 def test_jaccard(ndim):
     """Compares the simd.jaccard() function with scipy.spatial.distance.jaccard."""
-    a = np.packbits(np.random.randint(0, 2, ndim).astype(np.uint8))
-    b = np.packbits(np.random.randint(0, 2, ndim).astype(np.uint8))
+    a = np.random.randint(2, size=ndim).astype(np.uint8)
+    b = np.random.randint(2, size=ndim).astype(np.uint8)
 
-    expected = spd.jaccard(a, b)
-    result = simd.jaccard(a, b)
+    expected = spd.jaccard(a, b) 
+    result = simd.jaccard(np.packbits(a), np.packbits(b))
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
