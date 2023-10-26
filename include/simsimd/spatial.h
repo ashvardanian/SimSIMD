@@ -780,11 +780,11 @@ simsimd_avx512_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_s
     simsimd_f32_t a2 = _mm512_reduce_add_ps(a2_vec);
     simsimd_f32_t b2 = _mm512_reduce_add_ps(b2_vec);
 
-    __m128d a2_b2 = _mm_set_pd((double)a2, (double)b2);
-    __m128d rsqrts = _mm_mask_rsqrt14_pd(_mm_setzero_pd(), 0xFF, a2_b2);
-    double rsqrts_array[2];
-    _mm_storeu_pd(rsqrts_array, rsqrts);
-    return ab != 0 ? 1 - ab * rsqrts_array[0] * rsqrts_array[1] : 1;
+    // Compute the reciprocal square roots of a2 and b2
+    __m128 rsqrts = _mm_rsqrt14_ps(_mm_set_ps(0.f, 0.f, a2 + 1.e-9f, b2 + 1.e-9f));
+    float rsqrt_a2 = _mm_cvtss_f32(rsqrts);
+    float rsqrt_b2 = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
+    return 1 - ab * rsqrt_a2 * rsqrt_b2;
 }
 
 /*
@@ -795,15 +795,15 @@ simsimd_avx512_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_s
  *  - Implements: L2 squared, inner product, cosine similarity.
  *  - Uses `_mm512_maskz_loadu_epi16` intrinsics to perform masked unaligned loads.
  *  - Uses `f16` for both storage and accumulation, assuming it's resolution is enough for average case.
- *  - Requires compiler capabilities: avx512fp16, avx512f, avx512vl.
+ *  - Requires compiler capabilities: avx512fp16, avx512f, avx512vl, bmi2.
  */
 
-__attribute__((target("avx512fp16,avx512vl,avx512f"))) //
+__attribute__((target("avx512fp16,avx512vl,avx512f,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
     __m512h d2_vec = _mm512_set1_ph(0);
     for (simsimd_size_t i = 0; i < n; i += 32) {
-        __mmask32 mask = n - i >= 32 ? 0xFFFFFFFF : ((1u << (n - i)) - 1u);
+        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n - i);
         __m512i a_vec = _mm512_maskz_loadu_epi16(mask, a + i);
         __m512i b_vec = _mm512_maskz_loadu_epi16(mask, b + i);
         __m512h d_vec = _mm512_sub_ph(_mm512_castsi512_ph(a_vec), _mm512_castsi512_ph(b_vec));
@@ -812,12 +812,12 @@ simsimd_avx512_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_
     return _mm512_reduce_add_ph(d2_vec);
 }
 
-__attribute__((target("avx512fp16,avx512vl,avx512f"))) //
+__attribute__((target("avx512fp16,avx512vl,avx512f,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
     __m512h ab_vec = _mm512_set1_ph(0);
     for (simsimd_size_t i = 0; i < n; i += 32) {
-        __mmask32 mask = n - i >= 32 ? 0xFFFFFFFF : ((1u << (n - i)) - 1u);
+        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n - i);
         __m512i a_vec = _mm512_maskz_loadu_epi16(mask, a + i);
         __m512i b_vec = _mm512_maskz_loadu_epi16(mask, b + i);
         ab_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(a_vec), _mm512_castsi512_ph(b_vec), ab_vec);
@@ -825,7 +825,7 @@ simsimd_avx512_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_si
     return 1 - _mm512_reduce_add_ph(ab_vec);
 }
 
-__attribute__((target("avx512fp16,avx512vl,avx512f"))) //
+__attribute__((target("avx512fp16,avx512vl,avx512f,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
     __m512h ab_vec = _mm512_set1_ph(0);
@@ -833,7 +833,7 @@ simsimd_avx512_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_s
     __m512h b2_vec = _mm512_set1_ph(0);
 
     for (simsimd_size_t i = 0; i < n; i += 32) {
-        __mmask32 mask = n - i >= 32 ? 0xFFFFFFFF : ((1u << (n - i)) - 1u);
+        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n - i);
         __m512i a_vec = _mm512_maskz_loadu_epi16(mask, a + i);
         __m512i b_vec = _mm512_maskz_loadu_epi16(mask, b + i);
         ab_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(a_vec), _mm512_castsi512_ph(b_vec), ab_vec);
@@ -845,11 +845,11 @@ simsimd_avx512_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_s
     simsimd_f32_t a2 = _mm512_reduce_add_ph(a2_vec);
     simsimd_f32_t b2 = _mm512_reduce_add_ph(b2_vec);
 
-    __m128d a2_b2 = _mm_set_pd((double)a2, (double)b2);
-    __m128d rsqrts = _mm_mask_rsqrt14_pd(_mm_setzero_pd(), 0xFF, a2_b2);
-    double rsqrts_array[2];
-    _mm_storeu_pd(rsqrts_array, rsqrts);
-    return ab != 0 ? 1 - ab * rsqrts_array[0] * rsqrts_array[1] : 1;
+    // Compute the reciprocal square roots of a2 and b2
+    __m128 rsqrts = _mm_rsqrt14_ps(_mm_set_ps(0.f, 0.f, a2 + 1.e-9f, b2 + 1.e-9f));
+    float rsqrt_a2 = _mm_cvtss_f32(rsqrts);
+    float rsqrt_b2 = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
+    return 1 - ab * rsqrt_a2 * rsqrt_b2;
 }
 
 /*
@@ -860,54 +860,54 @@ simsimd_avx512_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_s
  *  - Implements: L2 squared, cosine similarity, inner product (same as cosine).
  *  - Uses `_mm512_maskz_loadu_epi16` intrinsics to perform masked unaligned loads.
  *  - Uses `i8` for storage, `i16` for multiplication, and `i32` for accumulation, if no better option is available.
- *  - Requires compiler capabilities: avx512f, avx512vl, avx512bw.
+ *  - Requires compiler capabilities: avx512f, avx512vl, avx512bw, avx512vnni, bmi2.
  */
 
-__attribute__((target("avx512vl,avx512f,avx512bw"))) //
+__attribute__((target("avx512vl,avx512f,avx512bw,avx512vnni,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_i8_l2sq(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n) {
     __m512i d2_i32s_vec = _mm512_setzero_si512();
 
     for (simsimd_size_t i = 0; i < n; i += 32) {
-        __mmask32 mask = n - i >= 32 ? 0xFFFFFFFF : ((1u << (n - i)) - 1u);
+        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n - i);
         __m512i a_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, a + i)); // Load 8-bit integers
         __m512i b_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, b + i)); // Load 8-bit integers
         __m512i d_i16s_vec = _mm512_sub_epi16(a_vec, b_vec);
-        d2_i32s_vec = _mm512_add_epi32(d2_i32s_vec, _mm512_madd_epi16(d_i16s_vec, d_i16s_vec));
+        d2_i32s_vec = _mm512_dpwssd_epi32(d2_i32s_vec, d_i16s_vec, d_i16s_vec);
     }
 
     return _mm512_reduce_add_epi32(d2_i32s_vec);
 }
 
-__attribute__((target("avx512vl,avx512f,avx512bw"))) //
+__attribute__((target("avx512vl,avx512f,avx512bw,avx512vnni,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n) {
     __m512i ab_i32s_vec = _mm512_setzero_si512();
     __m512i a2_i32s_vec = _mm512_setzero_si512();
     __m512i b2_i32s_vec = _mm512_setzero_si512();
 
-    for (simsimd_size_t i = 0; i < n; i += 32) {
-        __mmask32 mask = n - i >= 32 ? 0xFFFFFFFF : ((1u << (n - i)) - 1u);
-        __m512i a_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, a + i)); // Load 8-bit integers
-        __m512i b_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, b + i)); // Load 8-bit integers
+    for (simsimd_size_t i = 0; i < n; i += 64) {
+        __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFF, n - i);
+        __m512i a_vec = _mm512_maskz_loadu_epi8(mask, a + i); // Load 8-bit integers
+        __m512i b_vec = _mm512_maskz_loadu_epi8(mask, b + i); // Load 8-bit integers
 
-        ab_i32s_vec = _mm512_add_epi32(ab_i32s_vec, _mm512_madd_epi16(a_vec, b_vec));
-        a2_i32s_vec = _mm512_add_epi32(a2_i32s_vec, _mm512_madd_epi16(a_vec, a_vec));
-        b2_i32s_vec = _mm512_add_epi32(b2_i32s_vec, _mm512_madd_epi16(b_vec, b_vec));
+        ab_i32s_vec = _mm512_dpbusd_epi32(ab_i32s_vec, a_vec, b_vec);
+        a2_i32s_vec = _mm512_dpbusd_epi32(a2_i32s_vec, a_vec, a_vec);
+        b2_i32s_vec = _mm512_dpbusd_epi32(b2_i32s_vec, b_vec, b_vec);
     }
 
-    int ab = _mm512_reduce_add_epi32(ab_i32s_vec);
-    int a2 = _mm512_reduce_add_epi32(a2_i32s_vec);
-    int b2 = _mm512_reduce_add_epi32(b2_i32s_vec);
+    simsimd_f32_t ab = _mm512_reduce_add_epi32(ab_i32s_vec);
+    simsimd_f32_t a2 = _mm512_reduce_add_epi32(a2_i32s_vec);
+    simsimd_f32_t b2 = _mm512_reduce_add_epi32(b2_i32s_vec);
 
-    __m128d a2_b2 = _mm_set_pd((double)a2, (double)b2);
-    __m128d rsqrts = _mm_mask_rsqrt14_pd(_mm_setzero_pd(), 0xFF, a2_b2);
-    double rsqrts_array[2];
-    _mm_storeu_pd(rsqrts_array, rsqrts);
-    return ab != 0 ? 1 - ab * rsqrts_array[0] * rsqrts_array[1] : 1;
+    // Compute the reciprocal square roots of a2 and b2
+    __m128 rsqrts = _mm_rsqrt14_ps(_mm_set_ps(0.f, 0.f, a2 + 1.e-9f, b2 + 1.e-9f));
+    float rsqrt_a2 = _mm_cvtss_f32(rsqrts);
+    float rsqrt_b2 = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
+    return 1 - ab * rsqrt_a2 * rsqrt_b2;
 }
 
-__attribute__((target("avx512vl,avx512f,avx512bw"))) //
+__attribute__((target("avx512vl,avx512f,avx512bw,avx512vnni,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n) {
     return simsimd_avx512_i8_cos(a, b, n);
