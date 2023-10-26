@@ -78,7 +78,7 @@ void register_(std::string name, metric_at* distance_func, metric_at* baseline_f
     using pair_bytes_t = vectors_pair_gt<scalar_at, 1536 / sizeof(scalar_at)>;
 
     std::size_t seconds = 10;
-    std::size_t threads = std::thread::hardware_concurrency(); // 1;
+    std::size_t threads = 1; // std::thread::hardware_concurrency(); // 1;
     std::string name_dims = name + "_" + std::to_string(pair_dims_t{}.dimensions()) + "d";
     std::string name_bytes = name + "_" + std::to_string(pair_bytes_t{}.size_bytes()) + "b";
 
