@@ -74,6 +74,7 @@ typedef enum {
     simsimd_cap_x86_avx2fp16_k = 1 << 22,        ///< x86 AVX2 with FP16 capability
     simsimd_cap_x86_avx512fp16_k = 1 << 23,      ///< x86 AVX512 with FP16 capability
     simsimd_cap_x86_avx512vpopcntdq_k = 1 << 24, ///< x86 AVX512 VPOPCNTDQ instruction capability
+    simsimd_cap_x86_avx512vnni_k = 1 << 25,      ///< x86 AVX512 VNNI instruction capability
 
 } simsimd_capability_t;
 
@@ -112,42 +113,50 @@ inline static simsimd_capability_t simsimd_capabilities() {
     /// The states of 4 registers populated for a specific "cpuid" assmebly call
     union four_registers_t {
         int array[4];
-        struct {
+        struct separate_t {
             unsigned eax, ebx, ecx, edx;
-        };
+        } named;
     } info1, info7;
 
 #ifdef _MSC_VER
     __cpuidex(info1.array, 1, 0);
     __cpuidex(info7.array, 7, 0);
 #else
-    __asm__ __volatile__("cpuid" : "=a"(info1.eax), "=b"(info1.ebx), "=c"(info1.ecx), "=d"(info1.edx) : "a"(1), "c"(0));
-    __asm__ __volatile__("cpuid" : "=a"(info7.eax), "=b"(info7.ebx), "=c"(info7.ecx), "=d"(info7.edx) : "a"(7), "c"(0));
+    __asm__ __volatile__("cpuid"
+                         : "=a"(info1.named.eax), "=b"(info1.named.ebx), "=c"(info1.named.ecx), "=d"(info1.named.edx)
+                         : "a"(1), "c"(0));
+    __asm__ __volatile__("cpuid"
+                         : "=a"(info7.named.eax), "=b"(info7.named.ebx), "=c"(info7.named.ecx), "=d"(info7.named.edx)
+                         : "a"(7), "c"(0));
 #endif
 
     // Check for AVX2 (Function ID 7, EBX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L148
-    unsigned supports_avx2 = (info7.ebx & 0x00000020) != 0;
+    unsigned supports_avx2 = (info7.named.ebx & 0x00000020) != 0;
     // Check for F16C (Function ID 1, ECX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L107
-    unsigned supports_f16c = (info1.ecx & 0x20000000) != 0;
+    unsigned supports_f16c = (info1.named.ecx & 0x20000000) != 0;
     // Check for AVX512F (Function ID 7, EBX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L155
-    unsigned supports_avx512f = (info7.ebx & 0x00010000) != 0;
+    unsigned supports_avx512f = (info7.named.ebx & 0x00010000) != 0;
     // Check for AVX512FP16 (Function ID 7, EDX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L198C9-L198C23
-    unsigned supports_avx512fp16 = (info7.edx & 0x00800000) != 0;
+    unsigned supports_avx512fp16 = (info7.named.edx & 0x00800000) != 0;
     // Check for VPOPCNTDQ (Function ID 1, ECX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L182C30-L182C40
-    unsigned supports_avx512vpopcntdq = (info1.ecx & 0x00004000) != 0;
+    unsigned supports_avx512vpopcntdq = (info1.named.ecx & 0x00004000) != 0;
+    // Check for VNNI (Function ID 1, ECX register)
+    // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L180
+    unsigned supports_avx512vnni = (info1.named.ecx & 0x00000800) != 0;
 
-    return (simsimd_capability_t)(                                                                   //
-        (simsimd_cap_x86_avx2_k * supports_avx2) |                                                   //
-        (simsimd_cap_x86_avx512_k * supports_avx512f) |                                              //
-        (simsimd_cap_x86_avx2fp16_k * (supports_avx2 && supports_f16c)) |                            //
-        (simsimd_cap_x86_avx512fp16_k * (supports_avx512fp16 && supports_avx512f)) |                 //
-        (simsimd_cap_x86_avx512vpopcntdq_k * (supports_avx512vpopcntdq && supports_avx512vpopcntdq)) //
-        | (simsimd_cap_serial_k));
+    return (simsimd_capability_t)(                                                   //
+        (simsimd_cap_x86_avx2_k * supports_avx2) |                                   //
+        (simsimd_cap_x86_avx512_k * supports_avx512f) |                              //
+        (simsimd_cap_x86_avx2fp16_k * (supports_avx2 && supports_f16c)) |            //
+        (simsimd_cap_x86_avx512fp16_k * (supports_avx512fp16 && supports_avx512f)) | //
+        (simsimd_cap_x86_avx512vpopcntdq_k * (supports_avx512vpopcntdq)) |           //
+        (simsimd_cap_x86_avx512vnni_k * (supports_avx512vnni)) |                     //
+        (simsimd_cap_serial_k));
 
 #endif // SIMSIMD_TARGET_X86
 
@@ -319,11 +328,11 @@ inline static void simsimd_find_metric_punned( //
             }
     #endif
     #if SIMSIMD_TARGET_X86_AVX512
-        if (viable & simsimd_cap_x86_avx512_k)
+        if (viable & simsimd_cap_x86_avx512vnni_k)
             switch (kind) {
-            case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_i8_ip, *c = simsimd_cap_x86_avx512_k; return;
-            case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_i8_cos, *c = simsimd_cap_x86_avx512_k; return;
-            case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_i8_l2sq, *c = simsimd_cap_x86_avx512_k; return;
+            case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_i8_ip, *c = simsimd_cap_x86_avx512vnni_k; return;
+            case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_i8_cos, *c = simsimd_cap_x86_avx512vnni_k; return;
+            case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_i8_l2sq, *c = simsimd_cap_x86_avx512vnni_k; return;
             default: break;
             }
     #endif

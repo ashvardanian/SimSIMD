@@ -95,7 +95,8 @@ int main(int argc, char** argv) {
     bool compiled_with_sve = false;
     bool compiled_with_neon = false;
     bool compiled_with_avx2 = false;
-    bool compiled_with_avx512popcnt = false;
+    bool compiled_with_avx512vpopcntdq = false;
+    bool compiled_with_avx512vnni = false;
 
 #if defined(__ARM_FEATURE_SVE)
     compiled_with_sve = true;
@@ -107,7 +108,10 @@ int main(int argc, char** argv) {
     compiled_with_avx2 = true;
 #endif
 #if defined(__AVX512VPOPCNTDQ__)
-    compiled_with_avx512popcnt = true;
+    compiled_with_avx512vpopcntdq = true;
+#endif
+#if defined(__AVX512VNNI__)
+    compiled_with_avx512vnni = true;
 #endif
 
     // Log supported functionality
@@ -117,7 +121,8 @@ int main(int argc, char** argv) {
     std::printf("- Arm NEON support enabled: %s\n", flags[compiled_with_neon]);
     std::printf("- Arm SVE support enabled: %s\n", flags[compiled_with_sve]);
     std::printf("- x86 AVX2 support enabled: %s\n", flags[compiled_with_avx2]);
-    std::printf("- x86 AVX512VPOPCNTDQ support enabled: %s\n", flags[compiled_with_avx512popcnt]);
+    std::printf("- x86 AVX512VPOPCNTDQ support enabled: %s\n", flags[compiled_with_avx512vpopcntdq]);
+    std::printf("- x86 AVX512VNNI support enabled: %s\n", flags[compiled_with_avx512vnni]);
     std::printf("\n");
 
     // Run the benchmarks
