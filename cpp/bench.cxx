@@ -3,8 +3,8 @@
 
 #include <benchmark/benchmark.h>
 
-#define SIMSIMD_RSQRT sqrtf
-#define SIMSIMD_LOG logf
+#define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
+#define SIMSIMD_LOG(x) (logf(x))
 #include <simsimd/simsimd.h>
 
 namespace bm = benchmark;
