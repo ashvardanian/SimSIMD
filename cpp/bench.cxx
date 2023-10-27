@@ -3,8 +3,8 @@
 
 #include <benchmark/benchmark.h>
 
-#define SIMSIMD_RSQRT sqrtf
-#define SIMSIMD_LOG logf
+#define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
+#define SIMSIMD_LOG(x) (logf(x))
 #include <simsimd/simsimd.h>
 
 namespace bm = benchmark;
@@ -78,7 +78,7 @@ void register_(std::string name, metric_at* distance_func, metric_at* baseline_f
     using pair_bytes_t = vectors_pair_gt<scalar_at, 1536 / sizeof(scalar_at)>;
 
     std::size_t seconds = 10;
-    std::size_t threads = std::thread::hardware_concurrency(); // 1;
+    std::size_t threads = 1; // std::thread::hardware_concurrency(); // 1;
     std::string name_dims = name + "_" + std::to_string(pair_dims_t{}.dimensions()) + "d";
     std::string name_bytes = name + "_" + std::to_string(pair_bytes_t{}.size_bytes()) + "b";
 
@@ -95,7 +95,8 @@ int main(int argc, char** argv) {
     bool compiled_with_sve = false;
     bool compiled_with_neon = false;
     bool compiled_with_avx2 = false;
-    bool compiled_with_avx512popcnt = false;
+    bool compiled_with_avx512vpopcntdq = false;
+    bool compiled_with_avx512vnni = false;
 
 #if defined(__ARM_FEATURE_SVE)
     compiled_with_sve = true;
@@ -107,7 +108,10 @@ int main(int argc, char** argv) {
     compiled_with_avx2 = true;
 #endif
 #if defined(__AVX512VPOPCNTDQ__)
-    compiled_with_avx512popcnt = true;
+    compiled_with_avx512vpopcntdq = true;
+#endif
+#if defined(__AVX512VNNI__)
+    compiled_with_avx512vnni = true;
 #endif
 
     // Log supported functionality
@@ -117,7 +121,8 @@ int main(int argc, char** argv) {
     std::printf("- Arm NEON support enabled: %s\n", flags[compiled_with_neon]);
     std::printf("- Arm SVE support enabled: %s\n", flags[compiled_with_sve]);
     std::printf("- x86 AVX2 support enabled: %s\n", flags[compiled_with_avx2]);
-    std::printf("- x86 AVX512VPOPCNTDQ support enabled: %s\n", flags[compiled_with_avx512popcnt]);
+    std::printf("- x86 AVX512VPOPCNTDQ support enabled: %s\n", flags[compiled_with_avx512vpopcntdq]);
+    std::printf("- x86 AVX512VNNI support enabled: %s\n", flags[compiled_with_avx512vnni]);
     std::printf("\n");
 
     // Run the benchmarks
