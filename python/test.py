@@ -6,7 +6,7 @@ import scipy.spatial.distance as spd
 # For normalized distances we use the absolute tolerance, because the result is close to zero.
 # For unnormalized ones (like squared Euclidean or Jaccard), we use the relative.
 SIMSIMD_RTOL = 0.2
-SIMSIMD_ATOL = 0.2
+SIMSIMD_ATOL = 0.1
 
 
 def test_pointers_availability():
@@ -69,7 +69,7 @@ def test_cosine(ndim, dtype):
 
 
 @pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [97, 1536])
+@pytest.mark.parametrize("ndim", [3, 97, 1536])
 @pytest.mark.parametrize("dtype", [np.float32, np.float16])
 def test_jensen_shannon(ndim, dtype):
     """Compares the simd.jensenshannon() function with scipy.spatial.distance.jensenshannon(), measuring the accuracy error for f16, and f32 types."""
@@ -80,7 +80,7 @@ def test_jensen_shannon(ndim, dtype):
     a /= np.sum(a)
     b /= np.sum(b)
 
-    expected = spd.jensenshannon(a, b)
+    expected = spd.jensenshannon(a, b) ** 2
     result = simd.jensenshannon(a.astype(dtype), b.astype(dtype))
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)

@@ -88,7 +88,8 @@
         "span": "cpp",
         "arm_neon.h": "c",
         "__tree": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "simsimd.h": "c"
     },
     "cSpell.words": [
         "castsi",
