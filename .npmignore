@@ -1,0 +1,8 @@
+python
+golang
+go.mod
+.github
+.vscode
+pyproject.toml
+.clang-format
+VERSION

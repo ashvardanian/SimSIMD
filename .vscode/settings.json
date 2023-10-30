@@ -107,6 +107,7 @@
         "sqeuclidean",
         "tanimoto",
         "typedarray",
+        "unnormalized",
         "unsw",
         "Vardanian",
         "vpopcntdq"

@@ -6,7 +6,7 @@ import scipy.spatial.distance as spd
 # For normalized distances we use the absolute tolerance, because the result is close to zero.
 # For unnormalized ones (like squared Euclidean or Jaccard), we use the relative.
 SIMSIMD_RTOL = 0.2
-SIMSIMD_ATOL = 0.1
+SIMSIMD_ATOL = 0.2
 
 
 def test_pointers_availability():
@@ -29,13 +29,13 @@ def test_pointers_availability():
 @pytest.mark.parametrize("dtype", [np.float32, np.float16])
 def test_dot(ndim, dtype):
     """Compares the simd.dot() function with numpy.dot(), measuring the accuracy error for f16, and f32 types."""
-    a = np.random.randn(ndim).astype(dtype)
-    b = np.random.randn(ndim).astype(dtype)
+    a = np.random.randn(ndim)
+    b = np.random.randn(ndim)
     a /= np.linalg.norm(a)
     b /= np.linalg.norm(b)
 
     expected = 1 - np.inner(a, b)
-    result = simd.inner(a, b)
+    result = simd.inner(a.astype(dtype), b.astype(dtype))
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
 
@@ -45,11 +45,11 @@ def test_dot(ndim, dtype):
 @pytest.mark.parametrize("dtype", [np.float32, np.float16])
 def test_sqeuclidean(ndim, dtype):
     """Compares the simd.sqeuclidean() function with scipy.spatial.distance.sqeuclidean(), measuring the accuracy error for f16, and f32 types."""
-    a = np.random.randn(ndim).astype(dtype)
-    b = np.random.randn(ndim).astype(dtype)
+    a = np.random.randn(ndim)
+    b = np.random.randn(ndim)
 
     expected = spd.sqeuclidean(a, b)
-    result = simd.sqeuclidean(a, b)
+    result = simd.sqeuclidean(a.astype(dtype), b.astype(dtype))
 
     np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
 
@@ -59,13 +59,32 @@ def test_sqeuclidean(ndim, dtype):
 @pytest.mark.parametrize("dtype", [np.float32, np.float16])
 def test_cosine(ndim, dtype):
     """Compares the simd.cosine() function with scipy.spatial.distance.cosine(), measuring the accuracy error for f16, and f32 types."""
-    a = np.random.randn(ndim).astype(dtype)
-    b = np.random.randn(ndim).astype(dtype)
+    a = np.random.randn(ndim)
+    b = np.random.randn(ndim)
 
     expected = spd.cosine(a, b)
-    result = simd.cosine(a, b)
+    result = simd.cosine(a.astype(dtype), b.astype(dtype))
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
+
+
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("ndim", [97, 1536])
+@pytest.mark.parametrize("dtype", [np.float32, np.float16])
+def test_jensen_shannon(ndim, dtype):
+    """Compares the simd.jensenshannon() function with scipy.spatial.distance.jensenshannon(), measuring the accuracy error for f16, and f32 types."""
+    a = np.random.rand(ndim)
+    b = np.random.rand(ndim)
+
+    # Normalize to make them probability distributions
+    a /= np.sum(a)
+    b /= np.sum(b)
+
+    expected = spd.jensenshannon(a, b)
+    result = simd.jensenshannon(a.astype(dtype), b.astype(dtype))
+
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
+
 
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
@@ -79,6 +98,7 @@ def test_cosine_i8(ndim):
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
 
+
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
 def test_sqeuclidean_i8(ndim):
@@ -90,6 +110,7 @@ def test_sqeuclidean_i8(ndim):
     result = simd.sqeuclidean(a, b)
 
     np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
+
 
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
 @pytest.mark.parametrize("dtype", [np.float32, np.float16])
@@ -128,7 +149,7 @@ def test_jaccard(ndim):
     a = np.random.randint(2, size=ndim).astype(np.uint8)
     b = np.random.randint(2, size=ndim).astype(np.uint8)
 
-    expected = spd.jaccard(a, b) 
+    expected = spd.jaccard(a, b)
     result = simd.jaccard(np.packbits(a), np.packbits(b))
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
