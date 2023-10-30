@@ -4,12 +4,6 @@ import assert from 'node:assert';
 
 const simsimd = bindings('simsimd');
 
-const f32Array1 = new Float32Array([1.0, 2.0, 3.0]);
-const f32Array2 = new Float32Array([4.0, 5.0, 6.0]);
-
-const u8Array1 = new Uint8Array([1, 2, 3]);
-const u8Array2 = new Uint8Array([4, 5, 6]);
-
 function assertAlmostEqual(actual, expected, tolerance = 1e-6) {
     const lowerBound = expected - tolerance;
     const upperBound = expected + tolerance;
@@ -17,19 +11,25 @@ function assertAlmostEqual(actual, expected, tolerance = 1e-6) {
 }
 
 test('Distance from itself', () => {
-    assertAlmostEqual(simsimd.sqeuclidean(f32Array1, f32Array1), 0.0, 0.01);
-    assertAlmostEqual(simsimd.cosine(f32Array1, f32Array1), 0.0, 0.01);
 
-    // Inner-product distance on non-nroamalized vectors would yield:
-    // 1 - 1 - 4 - 9 = -13
-    assertAlmostEqual(simsimd.inner(f32Array1, f32Array1), -13.0, 0.01);
+    const f32s = new Float32Array([1.0, 2.0, 3.0]);
+    assertAlmostEqual(simsimd.sqeuclidean(f32s, f32s), 0.0, 0.01);
+    assertAlmostEqual(simsimd.cosine(f32s, f32s), 0.0, 0.01);
 
-    assertAlmostEqual(simsimd.kullbackleibler(f32Array1, f32Array1), 0.0, 0.01);
-    assertAlmostEqual(simsimd.jensenshannon(f32Array1, f32Array1), 0.0, 0.01);
+    const f32sNormalized = new Float32Array([1.0 / Math.sqrt(14), 2.0 / Math.sqrt(14), 3.0 / Math.sqrt(14)]);
+    assertAlmostEqual(simsimd.inner(f32sNormalized, f32sNormalized), 0.0, 0.01);
 
-    assertAlmostEqual(simsimd.hamming(u8Array1, u8Array1), 0.0, 0.01);
-    assertAlmostEqual(simsimd.jaccard(u8Array1, u8Array1), 0.0, 0.01);
+    const f32sDistribution = new Float32Array([1.0 / 6, 2.0 / 6, 3.0 / 6]);
+    assertAlmostEqual(simsimd.kullbackleibler(f32sDistribution, f32sDistribution), 0.0, 0.01);
+    assertAlmostEqual(simsimd.jensenshannon(f32sDistribution, f32sDistribution), 0.0, 0.01);
+
+    const u8s = new Uint8Array([1, 2, 3]);
+    assertAlmostEqual(simsimd.hamming(u8s, u8s), 0.0, 0.01);
+    assertAlmostEqual(simsimd.jaccard(u8s, u8s), 0.0, 0.01);
 });
+
+const f32Array1 = new Float32Array([1.0, 2.0, 3.0]);
+const f32Array2 = new Float32Array([4.0, 5.0, 6.0]);
 
 test('Squared Euclidean Distance', () => {
     const result = simsimd.sqeuclidean(f32Array1, f32Array2);
