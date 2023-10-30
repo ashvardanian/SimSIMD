@@ -189,7 +189,7 @@ __To test and benchmark JavaScript bindings__:
 ```sh
 npm install --dev
 npm test
-npm bench
+npm run bench
 ```
 
 __To test and benchmark GoLang bindings__:
