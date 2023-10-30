@@ -13,6 +13,7 @@ const u8Array2 = new Uint8Array([4, 5, 6]);
 function assertAlmostEqual(actual, expected, tolerance = 1e-6) {
     const lowerBound = expected - tolerance;
     const upperBound = expected + tolerance;
+    console.log(actual, expected, tolerance)
     assert(actual >= lowerBound && actual <= upperBound, `Expected ${actual} to be almost equal to ${expected}`);
 }
 
