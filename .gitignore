@@ -8,6 +8,10 @@ __pycache__
 package-lock.json
 node_modules
 
+# for Google Benchmark
+compare.py
+gbench/
+
 cmake_install.cmake
 CMakeCache.txt
 
