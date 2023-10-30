@@ -1,5 +1,11 @@
 # SimSIMD 📏
 
+<div>
+<a href="https://pypi.org/project/simsimd/"> <img alt="PyPI - Downloads" src="https://img.shields.io/pypi/dm/simsimd?label=pypi%20downloads"> </a>
+<a href="https://www.npmjs.com/package/simsimd"> <img alt="npm" src="https://img.shields.io/npm/dy/simsimd?label=npm%20dowloads"> </a>
+<img alt="GitHub code size in bytes" src="https://img.shields.io/github/languages/code-size/ashvardanian/simsimd">
+</div>
+
 ## Efficient Alternative to [`scipy.spatial.distance`][scipy] and [`numpy.inner`][numpy]
 
 SimSIMD leverages SIMD intrinsics, capabilities that only select compilers effectively utilize. This framework supports conventional AVX2 instructions on x86, NEON on Arm, as well as __rare__ AVX-512 FP16 instructions on x86 and Scalable Vector Extensions (SVE) on Arm. Designed specifically for Machine Learning contexts, it's optimized for handling high-dimensional vector embeddings.
