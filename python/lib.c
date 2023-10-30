@@ -23,8 +23,8 @@
 #define SIMSIMD_TARGET_X86_AVX512 0
 #endif
 
-#define SIMSIMD_RSQRT simsimd_approximate_inverse_square_root
-#define SIMSIMD_LOG simsimd_approximate_log
+#define SIMSIMD_RSQRT(x) simsimd_approximate_inverse_square_root(x)
+#define SIMSIMD_LOG(x) simsimd_approximate_log(x)
 #include "simsimd/simsimd.h"
 
 #define PY_SSIZE_T_CLEAN
