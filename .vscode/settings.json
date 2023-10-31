@@ -88,7 +88,8 @@
         "span": "cpp",
         "arm_neon.h": "c",
         "__tree": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "simsimd.h": "c"
     },
     "cSpell.words": [
         "castsi",
@@ -107,8 +108,14 @@
         "sqeuclidean",
         "tanimoto",
         "typedarray",
+        "unnormalized",
         "unsw",
         "Vardanian",
         "vpopcntdq"
-    ]
+    ],
+    "python.testing.pytestArgs": [
+        "python/test.py"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 }

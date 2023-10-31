@@ -5,6 +5,8 @@
  *  @date       January 1, 2023
  *  @copyright  Copyright (c) 2023
  */
+#include <math.h>
+
 #if __linux__
 #define SIMSIMD_TARGET_ARM_NEON 1
 #define SIMSIMD_TARGET_ARM_SVE 1
@@ -23,9 +25,9 @@
 #define SIMSIMD_TARGET_X86_AVX512 0
 #endif
 
-#define SIMSIMD_RSQRT simsimd_approximate_inverse_square_root
-#define SIMSIMD_LOG simsimd_approximate_log
-#include "simsimd/simsimd.h"
+#define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
+#define SIMSIMD_LOG(x) (logf(x))
+#include <simsimd/simsimd.h>
 
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>

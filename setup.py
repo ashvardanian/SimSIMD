@@ -27,6 +27,9 @@ if sys.platform == "linux":
     compile_args.append("-fopenmp")
     link_args.append("-lgomp")
 
+    # Add vectorized `logf` implementation from the `glibc`
+    link_args.append("-lm")
+
 if sys.platform == "darwin":
     compile_args.append("-std=c11")
     compile_args.append("-O3")

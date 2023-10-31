@@ -6,6 +6,10 @@
   "license": "Apache 2.0",
   "main": "javascript/simsimd.js",
   "type": "module",
+  "scripts": {
+    "test": "node --test ./javascript/test",
+    "bench": "node ./javascript/bench.js"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/ashvardanian/simsimd.git"
@@ -18,10 +22,6 @@
     "@types/node": "^20.4.5",
     "bindings": "~1.2.1",
     "node-addon-api": "^3.0.0"
-  },
-  "scripts": {
-    "test": "node --test ./javascript/test.js",
-    "bench": "node ./javascript/bench.js"
   },
   "devDependencies": {
     "benchmark": "^2.1.4",
