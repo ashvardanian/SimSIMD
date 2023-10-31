@@ -112,5 +112,10 @@
         "unsw",
         "Vardanian",
         "vpopcntdq"
-    ]
+    ],
+    "python.testing.pytestArgs": [
+        "python/test.py"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
 }

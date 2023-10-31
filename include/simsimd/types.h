@@ -91,6 +91,14 @@
 #define SIMSIMD_LOG(x) (logf(x))
 #endif
 
+#ifndef SIMSIMD_F32_DIVISION_EPSILON
+#define SIMSIMD_F32_DIVISION_EPSILON 1e-7
+#endif
+
+#ifndef SIMSIMD_F16_DIVISION_EPSILON
+#define SIMSIMD_F16_DIVISION_EPSILON 1e-3
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
