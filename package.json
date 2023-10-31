@@ -10,10 +10,6 @@
     "test": "node --test ./javascript/test",
     "bench": "node ./javascript/bench.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/ashvardanian/simsimd.git"
-  },
   "gypfile": true,
   "engines": {
     "node": "~10 >=10.20 || >=12.17"
