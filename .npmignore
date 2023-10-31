@@ -1,3 +1,4 @@
+cpp
 python
 golang
 go.mod
@@ -6,3 +7,6 @@ go.mod
 pyproject.toml
 .clang-format
 VERSION
+package-ci.json
+setup.py
+CMakeLists.txt
