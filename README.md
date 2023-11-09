@@ -30,24 +30,23 @@ SimSIMD leverages SIMD intrinsics, capabilities that only select compilers effec
 
 Given 1000 embeddings from OpenAI Ada API with 1536 dimensions, running on the Apple M2 Pro Arm CPU with NEON support, here's how SimSIMD performs against conventional methods:
 
-| Conventional                           | SimSIMD           | `f32` improvement | `f16` improvement | `i8` improvement |
-| :------------------------------------- | :---------------- | ----------------: | ----------------: | ---------------: |
-| `numpy.inner`                          | `inner`           |           __2 x__ |           __9 x__ |         __18 x__ |
-| `scipy.spatial.distance.cosine`        | `cosine`          |          __32 x__ |          __79 x__ |        __133 x__ |
-| `scipy.spatial.distance.sqeuclidean`   | `sqeuclidean`     |           __5 x__ |          __26 x__ |         __17 x__ |
-| `scipy.spatial.distance.jensenshannon` | `jensenshannon`   |          __31 x__ |          __53 x__ |                  |
-| `scipy.special.kl_div`                 | `kullbackleibler` |          __21 x__ |          __18 x__ |                  |
+| Kind           | `f32` improvement | `f16` improvement | `i8` improvement | Conventional method                    | SimSIMD         |
+| :------------- | ----------------: | ----------------: | ---------------: | :------------------------------------- | :-------------- |
+| Cosine         |          __32 x__ |          __79 x__ |        __133 x__ | `scipy.spatial.distance.cosine`        | `cosine`        |
+| Euclidean ²    |           __5 x__ |          __26 x__ |         __17 x__ | `scipy.spatial.distance.sqeuclidean`   | `sqeuclidean`   |
+| Inner Product  |           __2 x__ |           __9 x__ |         __18 x__ | `numpy.inner`                          | `inner`         |
+| Jensen Shannon |          __31 x__ |          __53 x__ |                  | `scipy.spatial.distance.jensenshannon` | `jensenshannon` |
 
 ### Intel Sapphire Rapids
 
 On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against auto-vectorized code using GCC 12. GCC handles single-precision `float`, but might not be the best choice for `int8` and `_Float16` arrays, which has been part of the C language since 2011.
 
-|                 | GCC 12 `f32` | GCC 12 `f16` | SimSIMD `f16` | `f16` improvement |
-| :-------------- | -----------: | -----------: | ------------: | ----------------: |
-| `cosine`        |     3.28 M/s | _336.29 k/s_ |    _6.88 M/s_ |          __20 x__ |
-| `sqeuclidean`   |     4.62 M/s | _147.25 k/s_ |    _5.32 M/s_ |          __36 x__ |
-| `inner`         |     3.81 M/s | _192.02 k/s_ |    _5.99 M/s_ |          __31 x__ |
-| `jensenshannon` |     1.18 M/s |  _18.13 k/s_ |    _2.14 M/s_ |         __118 x__ |
+| Kind           | GCC 12 `f32` | GCC 12 `f16` | SimSIMD `f16` | `f16` improvement |
+| :------------- | -----------: | -----------: | ------------: | ----------------: |
+| Cosine         |     3.28 M/s | _336.29 k/s_ |    _6.88 M/s_ |          __20 x__ |
+| Euclidean ²    |     4.62 M/s | _147.25 k/s_ |    _5.32 M/s_ |          __36 x__ |
+| Inner Product  |     3.81 M/s | _192.02 k/s_ |    _5.99 M/s_ |          __31 x__ |
+| Jensen Shannon |     1.18 M/s |  _18.13 k/s_ |    _2.14 M/s_ |         __118 x__ |
 
 __Technical Insights__:
 
@@ -172,6 +171,8 @@ include_directories(${simsimd_SOURCE_DIR}/include)
 Stay updated with the latest advancements by always using the most recent compiler available for your platform. This ensures that you benefit from the newest intrinsics.
 
 Should you wish to integrate SimSIMD within USearch, simply compile USearch with the flag `USEARCH_USE_SIMSIMD=1`. Notably, this is the default setting on the majority of platforms.
+
+## Benchmarking and Contributing
 
 __To rerun experiments__ utilize the following command:
 
