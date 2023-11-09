@@ -425,8 +425,8 @@ simsimd_avx512_f32_js_cycle:
     __mmask16 nonzero_mask_b = _mm512_cmp_ps_mask(b_vec, epsilon_vec, _CMP_GE_OQ);
     __mmask16 nonzero_mask = nonzero_mask_a & nonzero_mask_b;
     __m512 m_recip_approx = _mm512_rcp14_ps(m_vec);
-    __m512 ratio_a_vec = _mm512_div_ps(a_vec, m_vec);
-    __m512 ratio_b_vec = _mm512_div_ps(b_vec, m_vec);
+    __m512 ratio_a_vec = _mm512_mul_ps(a_vec, m_recip_approx);
+    __m512 ratio_b_vec = _mm512_mul_ps(b_vec, m_recip_approx);
     __m512 log_ratio_a_vec = simsimd_avx512_f32_log2(ratio_a_vec);
     __m512 log_ratio_b_vec = simsimd_avx512_f32_log2(ratio_b_vec);
     sum_a_vec = _mm512_maskz_fmadd_ps(nonzero_mask, a_vec, log_ratio_a_vec, sum_a_vec);
