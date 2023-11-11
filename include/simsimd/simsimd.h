@@ -11,7 +11,9 @@
  *  Detecting target CPU features at compile time: https://stackoverflow.com/a/28939692/2766161
  */
 
-#pragma once
+#ifndef SIMSIMD_SIMSIMD_H
+#define SIMSIMD_SIMSIMD_H
+
 #include "binary.h"      // Hamming, Jaccard
 #include "probability.h" // Kullback-Leibler, Jensen–Shannon
 #include "spatial.h"     // L2, Inner Product, Cosine
@@ -422,4 +424,6 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif

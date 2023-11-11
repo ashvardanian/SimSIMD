@@ -20,8 +20,9 @@
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
+#ifndef SIMSIMD_SPATIAL_H
+#define SIMSIMD_SPATIAL_H
 
-#pragma once
 #include "types.h"
 
 #define SIMSIMD_MAKE_L2SQ(name, input_type, accumulator_type, converter)                                               \
@@ -1000,4 +1001,6 @@ simsimd_avx512_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif
