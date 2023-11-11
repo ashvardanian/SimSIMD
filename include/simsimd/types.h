@@ -1,67 +1,59 @@
-#pragma once
+#ifndef SIMSIMD_TYPES_H
+#define SIMSIMD_TYPES_H
 
 // Compiling for Arm: SIMSIMD_TARGET_ARM
+#if !defined(SIMSIMD_TARGET_ARM)
 #if defined(__aarch64__) || defined(_M_ARM64)
 #define SIMSIMD_TARGET_ARM 1
-
-// Compiling for Arm: SIMSIMD_TARGET_ARM_NEON
-#if !defined(SIMSIMD_TARGET_ARM_NEON)
-#if defined(__ARM_NEON)
-#define SIMSIMD_TARGET_ARM_NEON 1
 #else
-#define SIMSIMD_TARGET_ARM_NEON 0
-#endif
-#endif
-
-// Compiling for Arm: SIMSIMD_TARGET_ARM_SVE
-#if !defined(SIMSIMD_TARGET_ARM_SVE)
-#if defined(__ARM_FEATURE_SVE)
-#define SIMSIMD_TARGET_ARM_SVE 1
-#else
-#define SIMSIMD_TARGET_ARM_SVE 0
-#endif
-#endif
-
-#undef SIMSIMD_TARGET_X86
-#undef SIMSIMD_TARGET_X86_AVX2
-#undef SIMSIMD_TARGET_X86_AVX512
-#define SIMSIMD_TARGET_X86 0
-#define SIMSIMD_TARGET_X86_AVX2 0
-#define SIMSIMD_TARGET_X86_AVX512 0
+#define SIMSIMD_TARGET_ARM 0
+#endif // defined(__aarch64__) || defined(_M_ARM64)
+#endif // !defined(SIMSIMD_TARGET_ARM)
 
 // Compiling for x86: SIMSIMD_TARGET_X86
-#elif defined(__x86_64__) || defined(_M_X64)
+#if !defined(SIMSIMD_TARGET_X86)
+#if defined(__x86_64__) || defined(_M_X64)
 #define SIMSIMD_TARGET_X86 1
+#else
+#define SIMSIMD_TARGET_X86 0
+#endif // defined(__x86_64__) || defined(_M_X64)
+#endif // !defined(SIMSIMD_TARGET_X86)
+
+// Compiling for Arm: SIMSIMD_TARGET_ARM_NEON
+#if !defined(SIMSIMD_TARGET_ARM_NEON) || !SIMSIMD_TARGET_ARM
+#if defined(__ARM_NEON)
+#define SIMSIMD_TARGET_ARM_NEON SIMSIMD_TARGET_ARM
+#else
+#define SIMSIMD_TARGET_ARM_NEON 0
+#endif // defined(__ARM_NEON)
+#endif // !defined(SIMSIMD_TARGET_ARM_NEON)
+
+// Compiling for Arm: SIMSIMD_TARGET_ARM_SVE
+#if !defined(SIMSIMD_TARGET_ARM_SVE) || !SIMSIMD_TARGET_ARM
+#if defined(__ARM_FEATURE_SVE)
+#define SIMSIMD_TARGET_ARM_SVE SIMSIMD_TARGET_ARM
+#else
+#define SIMSIMD_TARGET_ARM_SVE 0
+#endif // defined(__ARM_FEATURE_SVE)
+#endif // !defined(SIMSIMD_TARGET_ARM_SVE)
 
 // Compiling for x86: SIMSIMD_TARGET_X86_AVX2
-#if !defined(SIMSIMD_TARGET_X86_AVX2)
+#if !defined(SIMSIMD_TARGET_X86_AVX2) || !SIMSIMD_TARGET_X86
 #if defined(__AVX2__)
 #define SIMSIMD_TARGET_X86_AVX2 1
 #else
 #define SIMSIMD_TARGET_X86_AVX2 0
-#endif
-#endif
+#endif // defined(__AVX2__)
+#endif // !defined(SIMSIMD_TARGET_X86_AVX2)
 
 // Compiling for x86: SIMSIMD_TARGET_X86_AVX512
-#if !defined(SIMSIMD_TARGET_X86_AVX512)
-#if defined(__AVX512F__) || defined(__AVX512VPOPCNTDQ__)
+#if !defined(SIMSIMD_TARGET_X86_AVX512) || !SIMSIMD_TARGET_X86
+#if defined(__AVX512F__) && defined(__AVX512FP16__) && defined(__AVX512VNNI__) && defined(__AVX512VPOPCNTDQ__)
 #define SIMSIMD_TARGET_X86_AVX512 1
 #else
 #define SIMSIMD_TARGET_X86_AVX512 0
-#endif
-#endif
-
-#undef SIMSIMD_TARGET_ARM
-#undef SIMSIMD_TARGET_ARM_NEON
-#undef SIMSIMD_TARGET_ARM_SVE
-#define SIMSIMD_TARGET_ARM 0
-#define SIMSIMD_TARGET_ARM_NEON 0
-#define SIMSIMD_TARGET_ARM_SVE 0
-
-// Compiling for unknown hardware architecture
-#else
-#error Unknown hardware architecture!
-#endif
+#endif // defined(__AVX512F__) && defined(__AVX512FP16__) && defined(__AVX512VNNI__) && defined(__AVX512VPOPCNTDQ__)
+#endif // !defined(SIMSIMD_TARGET_X86_AVX512)
 
 #ifdef _MSC_VER
 #include <intrin.h>
@@ -206,4 +198,6 @@ inline static float simsimd_uncompress_f16(unsigned short x) {
 
 #ifdef __cplusplus
 } // extern "C"
+#endif
+
 #endif

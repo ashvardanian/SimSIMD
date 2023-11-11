@@ -18,8 +18,9 @@
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
+#ifndef SIMSIMD_PROBABILITY_H
+#define SIMSIMD_PROBABILITY_H
 
-#pragma once
 #include "types.h"
 
 #define SIMSIMD_MAKE_KL(name, input_type, accumulator_type, converter, epsilon)                                        \
@@ -539,4 +540,6 @@ simsimd_avx512_f16_js_cycle:
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif
