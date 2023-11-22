@@ -11,6 +11,10 @@ SIMSIMD_ATOL = 0.1
 
 def test_pointers_availability():
     """Tests the availability of pre-compiled functions for compatibility with USearch."""
+    assert simd.pointer_to_sqeuclidean("f64") != 0
+    assert simd.pointer_to_cosine("f64") != 0
+    assert simd.pointer_to_inner("f64") != 0
+
     assert simd.pointer_to_sqeuclidean("f32") != 0
     assert simd.pointer_to_cosine("f32") != 0
     assert simd.pointer_to_inner("f32") != 0
@@ -26,7 +30,7 @@ def test_pointers_availability():
 
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
-@pytest.mark.parametrize("dtype", [np.float32, np.float16])
+@pytest.mark.parametrize("dtype", [np.float64, np.float32, np.float16])
 def test_dot(ndim, dtype):
     """Compares the simd.dot() function with numpy.dot(), measuring the accuracy error for f16, and f32 types."""
     np.random.seed()
@@ -43,7 +47,7 @@ def test_dot(ndim, dtype):
 
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
-@pytest.mark.parametrize("dtype", [np.float32, np.float16])
+@pytest.mark.parametrize("dtype", [np.float64, np.float32, np.float16])
 def test_sqeuclidean(ndim, dtype):
     """Compares the simd.sqeuclidean() function with scipy.spatial.distance.sqeuclidean(), measuring the accuracy error for f16, and f32 types."""
     np.random.seed()
@@ -58,7 +62,7 @@ def test_sqeuclidean(ndim, dtype):
 
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
-@pytest.mark.parametrize("dtype", [np.float32, np.float16])
+@pytest.mark.parametrize("dtype", [np.float64, np.float32, np.float16])
 def test_cosine(ndim, dtype):
     """Compares the simd.cosine() function with scipy.spatial.distance.cosine(), measuring the accuracy error for f16, and f32 types."""
     np.random.seed()
@@ -164,7 +168,7 @@ def test_jaccard(ndim):
 
 
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
-@pytest.mark.parametrize("dtype", [np.float32, np.float16])
+@pytest.mark.parametrize("dtype", [np.float64, np.float32, np.float16])
 def test_batch(ndim, dtype):
     """Compares the simd.simd.sqeuclidean() function with scipy.spatial.distance.sqeuclidean() for a batch of vectors, measuring the accuracy error for f16, and f32 types."""
     np.random.seed()

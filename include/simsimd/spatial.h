@@ -67,6 +67,10 @@
 extern "C" {
 #endif
 
+SIMSIMD_MAKE_L2SQ(serial, f64, f64, SIMSIMD_IDENTIFY) // simsimd_serial_f64_l2sq
+SIMSIMD_MAKE_IP(serial, f64, f64, SIMSIMD_IDENTIFY)   // simsimd_serial_f64_ip
+SIMSIMD_MAKE_COS(serial, f64, f64, SIMSIMD_IDENTIFY)  // simsimd_serial_f64_cos
+
 SIMSIMD_MAKE_L2SQ(serial, f32, f32, SIMSIMD_IDENTIFY) // simsimd_serial_f32_l2sq
 SIMSIMD_MAKE_IP(serial, f32, f32, SIMSIMD_IDENTIFY)   // simsimd_serial_f32_ip
 SIMSIMD_MAKE_COS(serial, f32, f32, SIMSIMD_IDENTIFY)  // simsimd_serial_f32_cos
@@ -994,6 +998,101 @@ __attribute__((target("avx512vl,avx512f,avx512bw,avx512vnni,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n) {
     return simsimd_avx512_i8_cos(a, b, n);
+}
+
+/*
+ *  @file   x86_avx512_f32.h
+ *  @brief  x86 AVX-512 implementation of the most common similarity metrics for 32-bit floating point numbers.
+ *  @author Ash Vardanian
+ *
+ *  - Implements: L2 squared, inner product, cosine similarity.
+ *  - Uses `f32` for storage and `f32` for accumulation.
+ *  - Requires compiler capabilities: avx512f, avx512vl, bmi2.
+ */
+
+__attribute__((target("avx512f,avx512vl,bmi2"))) //
+inline static simsimd_f32_t
+simsimd_avx512_f64_l2sq(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n) {
+    __m512d d2_vec = _mm512_set1_pd(0);
+    __m512d a_vec, b_vec;
+
+simsimd_avx512_f64_l2sq_cycle:
+    if (n < 8) {
+        __mmask8 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_pd(mask, a);
+        b_vec = _mm512_maskz_loadu_pd(mask, b);
+        n = 0;
+    } else {
+        a_vec = _mm512_loadu_pd(a);
+        b_vec = _mm512_loadu_pd(b);
+        a += 8, b += 8, n -= 8;
+    }
+    __m512d d_vec = _mm512_sub_pd(a_vec, b_vec);
+    d2_vec = _mm512_fmadd_pd(d_vec, d_vec, d2_vec);
+    if (n)
+        goto simsimd_avx512_f64_l2sq_cycle;
+
+    return (simsimd_f32_t)_mm512_reduce_add_pd(d2_vec);
+}
+
+__attribute__((target("avx512f,avx512vl,bmi2"))) //
+inline static simsimd_f32_t
+simsimd_avx512_f64_ip(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n) {
+    __m512d ab_vec = _mm512_set1_pd(0);
+    __m512d a_vec, b_vec;
+
+simsimd_avx512_f64_ip_cycle:
+    if (n < 8) {
+        __mmask8 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_pd(mask, a);
+        b_vec = _mm512_maskz_loadu_pd(mask, b);
+        n = 0;
+    } else {
+        a_vec = _mm512_loadu_pd(a);
+        b_vec = _mm512_loadu_pd(b);
+        a += 8, b += 8, n -= 8;
+    }
+    ab_vec = _mm512_fmadd_pd(a_vec, b_vec, ab_vec);
+    if (n)
+        goto simsimd_avx512_f64_ip_cycle;
+
+    return 1 - (simsimd_f32_t)_mm512_reduce_add_pd(ab_vec);
+}
+
+__attribute__((target("avx512f,avx512vl,bmi2"))) //
+inline static simsimd_f32_t
+simsimd_avx512_f64_cos(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n) {
+    __m512d ab_vec = _mm512_set1_pd(0);
+    __m512d a2_vec = _mm512_set1_pd(0);
+    __m512d b2_vec = _mm512_set1_pd(0);
+    __m512d a_vec, b_vec;
+
+simsimd_avx512_f64_cos_cycle:
+    if (n < 8) {
+        __mmask8 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_pd(mask, a);
+        b_vec = _mm512_maskz_loadu_pd(mask, b);
+        n = 0;
+    } else {
+        a_vec = _mm512_loadu_pd(a);
+        b_vec = _mm512_loadu_pd(b);
+        a += 8, b += 8, n -= 8;
+    }
+    ab_vec = _mm512_fmadd_pd(a_vec, b_vec, ab_vec);
+    a2_vec = _mm512_fmadd_pd(a_vec, a_vec, a2_vec);
+    b2_vec = _mm512_fmadd_pd(b_vec, b_vec, b2_vec);
+    if (n)
+        goto simsimd_avx512_f64_cos_cycle;
+
+    simsimd_f32_t ab = (simsimd_f32_t)_mm512_reduce_add_pd(ab_vec);
+    simsimd_f32_t a2 = (simsimd_f32_t)_mm512_reduce_add_pd(a2_vec);
+    simsimd_f32_t b2 = (simsimd_f32_t)_mm512_reduce_add_pd(b2_vec);
+
+    // Compute the reciprocal square roots of a2 and b2
+    __m128 rsqrts = _mm_rsqrt14_ps(_mm_set_ps(0.f, 0.f, a2 + 1.e-9f, b2 + 1.e-9f));
+    simsimd_f32_t rsqrt_a2 = _mm_cvtss_f32(rsqrts);
+    simsimd_f32_t rsqrt_b2 = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
+    return 1 - ab * rsqrt_a2 * rsqrt_b2;
 }
 
 #endif // SIMSIMD_TARGET_X86_AVX512

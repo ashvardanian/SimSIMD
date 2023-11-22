@@ -221,7 +221,30 @@ inline static void simsimd_find_metric_punned( //
     switch (datatype) {
 
     case simsimd_datatype_unknown_k: break;
-    case simsimd_datatype_f64_k: break;
+
+    // Double-precision floating-point vectors
+    case simsimd_datatype_f64_k:
+
+    #if SIMSIMD_TARGET_X86_AVX512
+        if (viable & simsimd_cap_x86_avx512_k)
+            switch (kind) {
+            case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f64_ip, *c = simsimd_cap_x86_avx512_k; return;
+            case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f64_cos, *c = simsimd_cap_x86_avx512_k; return;
+            case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_f64_l2sq, *c = simsimd_cap_x86_avx512_k; return;
+            default: break;
+            }
+    #endif
+        if (viable & simsimd_cap_serial_k)
+            switch (kind) {
+            case simsimd_metric_ip_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f64_ip, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_cos_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f64_cos, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_l2sq_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f64_l2sq, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_js_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f64_js, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_kl_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f64_kl, *c = simsimd_cap_serial_k; return;
+            default: break;
+            }
+
+        break;
 
     // Single-precision floating-point vectors
     case simsimd_datatype_f32_k:

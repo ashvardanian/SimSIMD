@@ -32,7 +32,7 @@
             simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
             d += ai * SIMSIMD_LOG((ai + epsilon) / (bi + epsilon));                                                    \
         }                                                                                                              \
-        return d;                                                                                                      \
+        return (simsimd_f32_t)d;                                                                                       \
     }
 
 #define SIMSIMD_MAKE_JS(name, input_type, accumulator_type, converter, epsilon)                                        \
@@ -46,12 +46,15 @@
             d += ai * SIMSIMD_LOG((ai + epsilon) / (mi + epsilon));                                                    \
             d += bi * SIMSIMD_LOG((bi + epsilon) / (mi + epsilon));                                                    \
         }                                                                                                              \
-        return d / 2;                                                                                                  \
+        return (simsimd_f32_t)d / 2;                                                                                   \
     }
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+SIMSIMD_MAKE_KL(serial, f64, f64, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_serial_f64_kl
+SIMSIMD_MAKE_JS(serial, f64, f64, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_serial_f64_js
 
 SIMSIMD_MAKE_KL(serial, f32, f32, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_serial_f32_kl
 SIMSIMD_MAKE_JS(serial, f32, f32, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_serial_f32_js
