@@ -342,7 +342,7 @@ simsimd_neon_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t 
  *  @author Ash Vardanian
  *
  *  - Implements: L2 squared, inner product, cosine similarity.
- *  - Uses `f16` for both storage and `f32` for accumulation.
+ *  - Uses `f32` for both storage and accumulation.
  *  - Requires compiler capabilities: +sve.
  */
 
@@ -412,7 +412,7 @@ simsimd_sve_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size
  *  @author Ash Vardanian
  *
  *  - Implements: L2 squared, inner product, cosine similarity.
- *  - Uses `f16` for both storage and `f32` for accumulation.
+ *  - Uses `f16` for storage and `f32` for accumulation.
  *  - Requires compiler capabilities: +sve+fp16.
  */
 
@@ -482,6 +482,77 @@ simsimd_sve_f16_cos(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, si
     vst1_f32(a2_b2_arr, a2_b2);
     return ab != 0 ? 1 - ab * a2_b2_arr[0] * a2_b2_arr[1] : 1;
 }
+
+/*
+ *  @file   arm_sve_f64.h
+ *  @brief  Arm SVE implementation of the most common similarity metrics for 64-bit floating point numbers.
+ *  @author Ash Vardanian
+ *
+ *  - Implements: L2 squared, inner product, cosine similarity.
+ *  - Uses `f64` for both storage and for accumulation.
+ *  - Requires compiler capabilities: +sve.
+ */
+
+__attribute__((target("+sve"))) //
+inline static simsimd_f32_t
+simsimd_sve_f64_l2sq(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n) {
+    simsimd_size_t i = 0;
+    svfloat64_t d2_vec = svdupq_n_f64(0.0, 0.0);
+    do {
+        svbool_t pg_vec = svwhilelt_b64((unsigned int)i, (unsigned int)n);
+        svfloat64_t a_vec = svld1_f64(pg_vec, a + i);
+        svfloat64_t b_vec = svld1_f64(pg_vec, b + i);
+        svfloat64_t a_minus_b_vec = svsub_f64_x(pg_vec, a_vec, b_vec);
+        d2_vec = svmla_f64_x(pg_vec, d2_vec, a_minus_b_vec, a_minus_b_vec);
+        i += svcntd();
+    } while (i < n);
+    simsimd_f64_t d2 = svaddv_f64(svptrue_b32(), d2_vec);
+    return d2;
+}
+__attribute__((target("+sve"))) //
+inline static simsimd_f32_t
+simsimd_sve_f64_ip(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n) {
+    simsimd_size_t i = 0;
+    svfloat64_t ab_vec = svdupq_n_f64(0.0, 0.0);
+    do {
+        svbool_t pg_vec = svwhilelt_b64((unsigned int)i, (unsigned int)n);
+        svfloat64_t a_vec = svld1_f64(pg_vec, a + i);
+        svfloat64_t b_vec = svld1_f64(pg_vec, b + i);
+        ab_vec = svmla_f64_x(pg_vec, ab_vec, a_vec, b_vec);
+        i += svcntd();
+    } while (i < n);
+    return 1 - svaddv_f64(svptrue_b32(), ab_vec);
+}
+
+__attribute__((target("+sve"))) //
+inline static simsimd_f32_t
+simsimd_sve_f64_cos(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n) {
+    simsimd_size_t i = 0;
+    svfloat64_t ab_vec = svdupq_n_f64(0.0, 0.0);
+    svfloat64_t a2_vec = svdupq_n_f64(0.0, 0.0);
+    svfloat64_t b2_vec = svdupq_n_f64(0.0, 0.0);
+    do {
+        svbool_t pg_vec = svwhilelt_b64((unsigned int)i, (unsigned int)n);
+        svfloat64_t a_vec = svld1_f64(pg_vec, a + i);
+        svfloat64_t b_vec = svld1_f64(pg_vec, b + i);
+        ab_vec = svmla_f64_x(pg_vec, ab_vec, a_vec, b_vec);
+        a2_vec = svmla_f64_x(pg_vec, a2_vec, a_vec, a_vec);
+        b2_vec = svmla_f64_x(pg_vec, b2_vec, b_vec, b_vec);
+        i += svcntd();
+    } while (i < n);
+
+    simsimd_f64_t ab = svaddv_f64(svptrue_b32(), ab_vec);
+    simsimd_f64_t a2 = svaddv_f64(svptrue_b32(), a2_vec);
+    simsimd_f64_t b2 = svaddv_f64(svptrue_b32(), b2_vec);
+
+    // Avoid `simsimd_approximate_inverse_square_root` on Arm NEON
+    simsimd_f64_t a2_b2_arr[2] = {a2, b2};
+    float64x2_t a2_b2 = vld1q_f64(a2_b2_arr);
+    a2_b2 = 	vrsqrteq_f64(a2_b2);
+    vst1q_f64(a2_b2_arr, a2_b2);
+    return ab != 0 ? 1 - ab * a2_b2_arr[0] * a2_b2_arr[1] : 1;
+}
+
 
 #endif // SIMSIMD_TARGET_ARM_SVE
 #endif // SIMSIMD_TARGET_ARM
@@ -1001,12 +1072,12 @@ simsimd_avx512_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_
 }
 
 /*
- *  @file   x86_avx512_f32.h
- *  @brief  x86 AVX-512 implementation of the most common similarity metrics for 32-bit floating point numbers.
+ *  @file   x86_avx512_f64.h
+ *  @brief  x86 AVX-512 implementation of the most common similarity metrics for 64-bit floating point numbers.
  *  @author Ash Vardanian
  *
  *  - Implements: L2 squared, inner product, cosine similarity.
- *  - Uses `f32` for storage and `f32` for accumulation.
+ *  - Uses `f64` for both storage and accumulation.
  *  - Requires compiler capabilities: avx512f, avx512vl, bmi2.
  */
 

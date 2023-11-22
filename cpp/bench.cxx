@@ -156,6 +156,10 @@ int main(int argc, char** argv) {
     register_<simsimd_f32_t>("sve_f32_ip", simsimd_sve_f32_ip, simsimd_accurate_f32_ip);
     register_<simsimd_f32_t>("sve_f32_cos", simsimd_sve_f32_cos, simsimd_accurate_f32_cos);
     register_<simsimd_f32_t>("sve_f32_l2sq", simsimd_sve_f32_l2sq, simsimd_accurate_f32_l2sq);
+
+    register_<simsimd_f64_t>("sve_f64_ip", simsimd_sve_f64_ip, simsimd_serial_f64_ip);
+    register_<simsimd_f64_t>("sve_f64_cos", simsimd_sve_f64_cos, simsimd_serial_f64_cos);
+    register_<simsimd_f64_t>("sve_f64_l2sq", simsimd_sve_f64_l2sq, simsimd_serial_f64_l2sq);
 #endif
 
 #if SIMSIMD_TARGET_X86_AVX2
