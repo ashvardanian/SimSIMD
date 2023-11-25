@@ -189,6 +189,9 @@ __To test and benchmark with Python bindings__:
 ```sh
 pip install -e .
 pytest python/test.py -s -x 
+
+pip install numpy scipy scikit-learn # for comparison baselines
+python python/bench.py # to run default benchmarks
 python python/bench.py --n 1000 --ndim 1000000 # batch size and dimensions
 ```
 
