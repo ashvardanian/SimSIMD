@@ -17,8 +17,9 @@
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
+#ifndef SIMSIMD_BINARY_H
+#define SIMSIMD_BINARY_H
 
-#pragma once
 #include "types.h"
 
 #ifdef __cplusplus
@@ -195,4 +196,6 @@ simsimd_avx512_b8_jaccard_cycle:
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif

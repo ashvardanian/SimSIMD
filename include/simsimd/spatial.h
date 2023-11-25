@@ -20,8 +20,9 @@
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
+#ifndef SIMSIMD_SPATIAL_H
+#define SIMSIMD_SPATIAL_H
 
-#pragma once
 #include "types.h"
 
 #define SIMSIMD_MAKE_L2SQ(name, input_type, accumulator_type, converter)                                               \
@@ -65,6 +66,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+SIMSIMD_MAKE_L2SQ(serial, f64, f64, SIMSIMD_IDENTIFY) // simsimd_serial_f64_l2sq
+SIMSIMD_MAKE_IP(serial, f64, f64, SIMSIMD_IDENTIFY)   // simsimd_serial_f64_ip
+SIMSIMD_MAKE_COS(serial, f64, f64, SIMSIMD_IDENTIFY)  // simsimd_serial_f64_cos
 
 SIMSIMD_MAKE_L2SQ(serial, f32, f32, SIMSIMD_IDENTIFY) // simsimd_serial_f32_l2sq
 SIMSIMD_MAKE_IP(serial, f32, f32, SIMSIMD_IDENTIFY)   // simsimd_serial_f32_ip
@@ -337,7 +342,7 @@ simsimd_neon_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t 
  *  @author Ash Vardanian
  *
  *  - Implements: L2 squared, inner product, cosine similarity.
- *  - Uses `f16` for both storage and `f32` for accumulation.
+ *  - Uses `f32` for both storage and accumulation.
  *  - Requires compiler capabilities: +sve.
  */
 
@@ -407,7 +412,7 @@ simsimd_sve_f32_cos(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size
  *  @author Ash Vardanian
  *
  *  - Implements: L2 squared, inner product, cosine similarity.
- *  - Uses `f16` for both storage and `f32` for accumulation.
+ *  - Uses `f16` for storage and `f32` for accumulation.
  *  - Requires compiler capabilities: +sve+fp16.
  */
 
@@ -477,6 +482,77 @@ simsimd_sve_f16_cos(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, si
     vst1_f32(a2_b2_arr, a2_b2);
     return ab != 0 ? 1 - ab * a2_b2_arr[0] * a2_b2_arr[1] : 1;
 }
+
+/*
+ *  @file   arm_sve_f64.h
+ *  @brief  Arm SVE implementation of the most common similarity metrics for 64-bit floating point numbers.
+ *  @author Ash Vardanian
+ *
+ *  - Implements: L2 squared, inner product, cosine similarity.
+ *  - Uses `f64` for both storage and for accumulation.
+ *  - Requires compiler capabilities: +sve.
+ */
+
+__attribute__((target("+sve"))) //
+inline static simsimd_f32_t
+simsimd_sve_f64_l2sq(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n) {
+    simsimd_size_t i = 0;
+    svfloat64_t d2_vec = svdupq_n_f64(0.0, 0.0);
+    do {
+        svbool_t pg_vec = svwhilelt_b64((unsigned int)i, (unsigned int)n);
+        svfloat64_t a_vec = svld1_f64(pg_vec, a + i);
+        svfloat64_t b_vec = svld1_f64(pg_vec, b + i);
+        svfloat64_t a_minus_b_vec = svsub_f64_x(pg_vec, a_vec, b_vec);
+        d2_vec = svmla_f64_x(pg_vec, d2_vec, a_minus_b_vec, a_minus_b_vec);
+        i += svcntd();
+    } while (i < n);
+    simsimd_f64_t d2 = svaddv_f64(svptrue_b32(), d2_vec);
+    return d2;
+}
+__attribute__((target("+sve"))) //
+inline static simsimd_f32_t
+simsimd_sve_f64_ip(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n) {
+    simsimd_size_t i = 0;
+    svfloat64_t ab_vec = svdupq_n_f64(0.0, 0.0);
+    do {
+        svbool_t pg_vec = svwhilelt_b64((unsigned int)i, (unsigned int)n);
+        svfloat64_t a_vec = svld1_f64(pg_vec, a + i);
+        svfloat64_t b_vec = svld1_f64(pg_vec, b + i);
+        ab_vec = svmla_f64_x(pg_vec, ab_vec, a_vec, b_vec);
+        i += svcntd();
+    } while (i < n);
+    return 1 - svaddv_f64(svptrue_b32(), ab_vec);
+}
+
+__attribute__((target("+sve"))) //
+inline static simsimd_f32_t
+simsimd_sve_f64_cos(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n) {
+    simsimd_size_t i = 0;
+    svfloat64_t ab_vec = svdupq_n_f64(0.0, 0.0);
+    svfloat64_t a2_vec = svdupq_n_f64(0.0, 0.0);
+    svfloat64_t b2_vec = svdupq_n_f64(0.0, 0.0);
+    do {
+        svbool_t pg_vec = svwhilelt_b64((unsigned int)i, (unsigned int)n);
+        svfloat64_t a_vec = svld1_f64(pg_vec, a + i);
+        svfloat64_t b_vec = svld1_f64(pg_vec, b + i);
+        ab_vec = svmla_f64_x(pg_vec, ab_vec, a_vec, b_vec);
+        a2_vec = svmla_f64_x(pg_vec, a2_vec, a_vec, a_vec);
+        b2_vec = svmla_f64_x(pg_vec, b2_vec, b_vec, b_vec);
+        i += svcntd();
+    } while (i < n);
+
+    simsimd_f64_t ab = svaddv_f64(svptrue_b32(), ab_vec);
+    simsimd_f64_t a2 = svaddv_f64(svptrue_b32(), a2_vec);
+    simsimd_f64_t b2 = svaddv_f64(svptrue_b32(), b2_vec);
+
+    // Avoid `simsimd_approximate_inverse_square_root` on Arm NEON
+    simsimd_f64_t a2_b2_arr[2] = {a2, b2};
+    float64x2_t a2_b2 = vld1q_f64(a2_b2_arr);
+    a2_b2 = 	vrsqrteq_f64(a2_b2);
+    vst1q_f64(a2_b2_arr, a2_b2);
+    return ab != 0 ? 1 - ab * a2_b2_arr[0] * a2_b2_arr[1] : 1;
+}
+
 
 #endif // SIMSIMD_TARGET_ARM_SVE
 #endif // SIMSIMD_TARGET_ARM
@@ -995,9 +1071,106 @@ simsimd_avx512_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_
     return simsimd_avx512_i8_cos(a, b, n);
 }
 
+/*
+ *  @file   x86_avx512_f64.h
+ *  @brief  x86 AVX-512 implementation of the most common similarity metrics for 64-bit floating point numbers.
+ *  @author Ash Vardanian
+ *
+ *  - Implements: L2 squared, inner product, cosine similarity.
+ *  - Uses `f64` for both storage and accumulation.
+ *  - Requires compiler capabilities: avx512f, avx512vl, bmi2.
+ */
+
+__attribute__((target("avx512f,avx512vl,bmi2"))) //
+inline static simsimd_f32_t
+simsimd_avx512_f64_l2sq(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n) {
+    __m512d d2_vec = _mm512_set1_pd(0);
+    __m512d a_vec, b_vec;
+
+simsimd_avx512_f64_l2sq_cycle:
+    if (n < 8) {
+        __mmask8 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_pd(mask, a);
+        b_vec = _mm512_maskz_loadu_pd(mask, b);
+        n = 0;
+    } else {
+        a_vec = _mm512_loadu_pd(a);
+        b_vec = _mm512_loadu_pd(b);
+        a += 8, b += 8, n -= 8;
+    }
+    __m512d d_vec = _mm512_sub_pd(a_vec, b_vec);
+    d2_vec = _mm512_fmadd_pd(d_vec, d_vec, d2_vec);
+    if (n)
+        goto simsimd_avx512_f64_l2sq_cycle;
+
+    return (simsimd_f32_t)_mm512_reduce_add_pd(d2_vec);
+}
+
+__attribute__((target("avx512f,avx512vl,bmi2"))) //
+inline static simsimd_f32_t
+simsimd_avx512_f64_ip(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n) {
+    __m512d ab_vec = _mm512_set1_pd(0);
+    __m512d a_vec, b_vec;
+
+simsimd_avx512_f64_ip_cycle:
+    if (n < 8) {
+        __mmask8 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_pd(mask, a);
+        b_vec = _mm512_maskz_loadu_pd(mask, b);
+        n = 0;
+    } else {
+        a_vec = _mm512_loadu_pd(a);
+        b_vec = _mm512_loadu_pd(b);
+        a += 8, b += 8, n -= 8;
+    }
+    ab_vec = _mm512_fmadd_pd(a_vec, b_vec, ab_vec);
+    if (n)
+        goto simsimd_avx512_f64_ip_cycle;
+
+    return 1 - (simsimd_f32_t)_mm512_reduce_add_pd(ab_vec);
+}
+
+__attribute__((target("avx512f,avx512vl,bmi2"))) //
+inline static simsimd_f32_t
+simsimd_avx512_f64_cos(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n) {
+    __m512d ab_vec = _mm512_set1_pd(0);
+    __m512d a2_vec = _mm512_set1_pd(0);
+    __m512d b2_vec = _mm512_set1_pd(0);
+    __m512d a_vec, b_vec;
+
+simsimd_avx512_f64_cos_cycle:
+    if (n < 8) {
+        __mmask8 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_pd(mask, a);
+        b_vec = _mm512_maskz_loadu_pd(mask, b);
+        n = 0;
+    } else {
+        a_vec = _mm512_loadu_pd(a);
+        b_vec = _mm512_loadu_pd(b);
+        a += 8, b += 8, n -= 8;
+    }
+    ab_vec = _mm512_fmadd_pd(a_vec, b_vec, ab_vec);
+    a2_vec = _mm512_fmadd_pd(a_vec, a_vec, a2_vec);
+    b2_vec = _mm512_fmadd_pd(b_vec, b_vec, b2_vec);
+    if (n)
+        goto simsimd_avx512_f64_cos_cycle;
+
+    simsimd_f32_t ab = (simsimd_f32_t)_mm512_reduce_add_pd(ab_vec);
+    simsimd_f32_t a2 = (simsimd_f32_t)_mm512_reduce_add_pd(a2_vec);
+    simsimd_f32_t b2 = (simsimd_f32_t)_mm512_reduce_add_pd(b2_vec);
+
+    // Compute the reciprocal square roots of a2 and b2
+    __m128 rsqrts = _mm_rsqrt14_ps(_mm_set_ps(0.f, 0.f, a2 + 1.e-9f, b2 + 1.e-9f));
+    simsimd_f32_t rsqrt_a2 = _mm_cvtss_f32(rsqrts);
+    simsimd_f32_t rsqrt_b2 = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
+    return 1 - ab * rsqrt_a2 * rsqrt_b2;
+}
+
 #endif // SIMSIMD_TARGET_X86_AVX512
 #endif // SIMSIMD_TARGET_X86
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif
