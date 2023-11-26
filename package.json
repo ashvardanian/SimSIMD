@@ -1,10 +1,27 @@
 {
   "name": "simsimd",
   "version": "3.5.5",
-  "description": "Vector Similarity Functions 3x-200x Faster than SciPy and NumPy",
+  "description": "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm",
+  "homepage": "https://github.com/ashvardanian/simsimd",
   "author": "Ash Vardanian",
   "license": "Apache 2.0",
   "main": "javascript/simsimd.js",
+  "keywords": [
+    "vector",
+    "distance",
+    "similarity",
+    "search",
+    "ai",
+    "math",
+    "avx2",
+    "avx512",
+    "neon",
+    "sve",
+    "arm",
+    "x86",
+    "simd",
+    "f16"
+  ],
   "type": "module",
   "scripts": {
     "test": "node --test ./javascript/test",

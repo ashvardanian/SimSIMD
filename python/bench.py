@@ -58,6 +58,7 @@ count = 1000
 ndim = 1536
 
 generators = {
+    np.float64: lambda: np.random.randn(count, ndim).astype(np.float64),
     np.float32: lambda: np.random.randn(count, ndim).astype(np.float32),
     np.float16: lambda: np.random.randn(count, ndim).astype(np.float16),
     np.int8: lambda: np.random.randint(-100, 100, (count, ndim), np.int8),
@@ -67,6 +68,7 @@ generators = {
 }
 
 dtype_names = {
+    np.float64: "f64",
     np.float32: "f32",
     np.float16: "f16",
     np.int8: "i8",
@@ -88,25 +90,35 @@ print(
 
 # Benchmark functions
 funcs = [
-    ("scipy.cosine", spd.cosine, simd.cosine, [np.float32, np.float16, np.int8]),
+    (
+        "scipy.cosine",
+        spd.cosine,
+        simd.cosine,
+        [np.float64, np.float32, np.float16, np.int8],
+    ),
     (
         "scipy.sqeuclidean",
         spd.sqeuclidean,
         simd.sqeuclidean,
-        [np.float32, np.float16, np.int8],
+        [np.float64, np.float32, np.float16, np.int8],
     ),
-    ("numpy.inner", np.inner, simd.inner, [np.float32, np.float16, np.int8]),
+    (
+        "numpy.inner",
+        np.inner,
+        simd.inner,
+        [np.float64, np.float32, np.float16, np.int8],
+    ),
     (
         "scipy.jensenshannon",
         spd.jensenshannon,
         simd.jensenshannon,
-        [np.float32, np.float16],
+        [np.float64, np.float32, np.float16],
     ),
     (
         "scipy.kl_div",
         scs.kl_div,
         simd.kullbackleibler,
-        [np.float32, np.float16],
+        [np.float64, np.float32, np.float16],
     ),
     ("scipy.hamming", spd.hamming, simd.hamming, [np.uint8]),
     ("scipy.jaccard", spd.jaccard, simd.jaccard, [np.uint8]),
@@ -147,25 +159,35 @@ print(
 
 # Benchmark functions
 funcs = [
-    ("scipy.cosine", spd.cosine, simd.cosine, [np.float32, np.float16, np.int8]),
+    (
+        "scipy.cosine",
+        spd.cosine,
+        simd.cosine,
+        [np.float64, np.float32, np.float16, np.int8],
+    ),
     (
         "scipy.sqeuclidean",
         spd.sqeuclidean,
         simd.sqeuclidean,
-        [np.float32, np.float16, np.int8],
+        [np.float64, np.float32, np.float16, np.int8],
     ),
-    ("numpy.inner", np.inner, simd.inner, [np.float32, np.float16, np.int8]),
+    (
+        "numpy.inner",
+        np.inner,
+        simd.inner,
+        [np.float64, np.float32, np.float16, np.int8],
+    ),
     (
         "scipy.jensenshannon",
         spd.jensenshannon,
         simd.jensenshannon,
-        [np.float32, np.float16],
+        [np.float64, np.float32, np.float16],
     ),
     (
         "scipy.kl_div",
         scs.kl_div,
         simd.kullbackleibler,
-        [np.float32, np.float16],
+        [np.float64, np.float32, np.float16],
     ),
     ("scipy.hamming", spd.hamming, simd.hamming, [np.uint8]),
     ("scipy.jaccard", spd.jaccard, simd.jaccard, [np.uint8]),

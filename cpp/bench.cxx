@@ -74,17 +74,18 @@ static void measure(bm::State& state, metric_at metric, metric_at baseline) {
 template <typename scalar_at, typename metric_at = void>
 void register_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
 
-    using pair_dims_t = vectors_pair_gt<scalar_at, 1536>;
-    using pair_bytes_t = vectors_pair_gt<scalar_at, 1536 / sizeof(scalar_at)>;
-
     std::size_t seconds = 10;
-    std::size_t threads = 1; // std::thread::hardware_concurrency(); // 1;
-    std::string name_dims = name + "_" + std::to_string(pair_dims_t{}.dimensions()) + "d";
-    std::string name_bytes = name + "_" + std::to_string(pair_bytes_t{}.size_bytes()) + "b";
+    std::size_t threads = std::thread::hardware_concurrency(); // 1;
 
+    using pair_dims_t = vectors_pair_gt<scalar_at, 1536>;
+    std::string name_dims = name + "_" + std::to_string(pair_dims_t{}.dimensions()) + "d";
     bm::RegisterBenchmark(name_dims.c_str(), measure<pair_dims_t, metric_at*>, distance_func, baseline_func)
         ->MinTime(seconds)
         ->Threads(threads);
+
+    return;
+    using pair_bytes_t = vectors_pair_gt<scalar_at, 1536 / sizeof(scalar_at)>;
+    std::string name_bytes = name + "_" + std::to_string(pair_bytes_t{}.size_bytes()) + "b";
     bm::RegisterBenchmark(name_bytes.c_str(), measure<pair_bytes_t, metric_at*>, distance_func, baseline_func)
         ->MinTime(seconds)
         ->Threads(threads);
@@ -155,6 +156,10 @@ int main(int argc, char** argv) {
     register_<simsimd_f32_t>("sve_f32_ip", simsimd_sve_f32_ip, simsimd_accurate_f32_ip);
     register_<simsimd_f32_t>("sve_f32_cos", simsimd_sve_f32_cos, simsimd_accurate_f32_cos);
     register_<simsimd_f32_t>("sve_f32_l2sq", simsimd_sve_f32_l2sq, simsimd_accurate_f32_l2sq);
+
+    register_<simsimd_f64_t>("sve_f64_ip", simsimd_sve_f64_ip, simsimd_serial_f64_ip);
+    register_<simsimd_f64_t>("sve_f64_cos", simsimd_sve_f64_cos, simsimd_serial_f64_cos);
+    register_<simsimd_f64_t>("sve_f64_l2sq", simsimd_sve_f64_l2sq, simsimd_serial_f64_l2sq);
 #endif
 
 #if SIMSIMD_TARGET_X86_AVX2
@@ -183,6 +188,11 @@ int main(int argc, char** argv) {
     register_<simsimd_f32_t>("avx512_f32_l2sq", simsimd_avx512_f32_l2sq, simsimd_accurate_f32_l2sq);
     register_<simsimd_f32_t>("avx512_f32_kl", simsimd_avx512_f32_kl, simsimd_accurate_f32_kl);
     register_<simsimd_f32_t>("avx512_f32_js", simsimd_avx512_f32_js, simsimd_accurate_f32_js);
+
+    register_<simsimd_f64_t>("avx512_f64_ip", simsimd_avx512_f64_ip, simsimd_serial_f64_ip);
+    register_<simsimd_f64_t>("avx512_f64_cos", simsimd_avx512_f64_cos, simsimd_serial_f64_cos);
+    register_<simsimd_f64_t>("avx512_f64_l2sq", simsimd_avx512_f64_l2sq, simsimd_serial_f64_l2sq);
+
 #endif
 
     register_<simsimd_f16_t>("serial_f16_ip", simsimd_serial_f16_ip, simsimd_accurate_f16_ip);
@@ -196,6 +206,10 @@ int main(int argc, char** argv) {
     register_<simsimd_f32_t>("serial_f32_l2sq", simsimd_serial_f32_l2sq, simsimd_accurate_f32_l2sq);
     register_<simsimd_f32_t>("serial_f32_kl", simsimd_serial_f32_kl, simsimd_accurate_f32_kl);
     register_<simsimd_f32_t>("serial_f32_js", simsimd_serial_f32_js, simsimd_accurate_f32_js);
+
+    register_<simsimd_f64_t>("serial_f64_ip", simsimd_serial_f64_ip, simsimd_serial_f64_ip);
+    register_<simsimd_f64_t>("serial_f64_cos", simsimd_serial_f64_cos, simsimd_serial_f64_cos);
+    register_<simsimd_f64_t>("serial_f64_l2sq", simsimd_serial_f64_l2sq, simsimd_serial_f64_l2sq);
 
     register_<simsimd_i8_t>("serial_i8_cos", simsimd_serial_i8_cos, simsimd_accurate_i8_cos);
     register_<simsimd_i8_t>("serial_i8_l2sq", simsimd_serial_i8_l2sq, simsimd_accurate_i8_l2sq);

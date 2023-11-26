@@ -1,7 +1,7 @@
 # SimSIMD 📏
 
 <div>
-<a href="https://pypi.org/project/simsimd/"> <img alt="PyPI - Downloads" src="https://img.shields.io/pypi/dm/simsimd?label=pypi%20downloads"> </a>
+<a href="https://pepy.tech/project/simsimd"> <img alt="PyPI" src="https://static.pepy.tech/personalized-badge/simsimd?period=month&units=abbreviation&left_color=black&right_color=blue&left_text=Python%20monthly%20installs"> </a>
 <a href="https://www.npmjs.com/package/simsimd"> <img alt="npm" src="https://img.shields.io/npm/dy/simsimd?label=npm%20dowloads"> </a>
 <img alt="GitHub code size in bytes" src="https://img.shields.io/github/languages/code-size/ashvardanian/simsimd">
 </div>

@@ -1,10 +1,8 @@
 import os
 import sys
-import platform
 from os.path import dirname
 from setuptools import setup, Extension
 
-import glob
 import numpy
 
 __version__ = open("VERSION", "r").read().strip()
@@ -68,7 +66,7 @@ setup(
     author="Ash Vardanian",
     author_email="1983160+ashvardanian@users.noreply.github.com",
     url="https://github.com/ashvardanian/simsimd",
-    description="Vector Similarity Functions 3x-200x Faster than SciPy and NumPy",
+    description="Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm",
     long_description=long_description,
     long_description_content_type="text/markdown",
     license="Apache-2.0",
