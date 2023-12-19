@@ -482,6 +482,7 @@ static PyModuleDef simsimd_module = {
 };
 
 PyMODINIT_FUNC PyInit_simsimd(void) {
+    import_array();
     PyObject* module = PyModule_Create(&simsimd_module);
 
     if (module) {
