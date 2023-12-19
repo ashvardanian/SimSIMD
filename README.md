@@ -10,9 +10,9 @@
 
 - Zero-dependency [header-only C 99](#using-simsimd-in-c) library with bindings for [Python](#using-simsimd-in-python) and [JavaSctipt](#using-simsimd-in-javascript).
 - Targets ARM NEON, SVE, x86 AVX2, AVX-512 (VNNI, FP16) hardware backends.
-- Handles single-precision `f32`, half-precision `f16`, `i8`, and binary vectors.
+- Zero-copy compatible with NumPy, PyTorch, TensorFlow, and other tensors.
+- Handles `f64` double-, `f32` single-, and `f16` half-precision, `i8` integral, and binary vectors.
 - __Up to 200x faster__ than [`scipy.spatial.distance`][scipy] and [`numpy.inner`][numpy].
-- Compatible with NumPy, PyTorch, TensorFlow, and other tensors.
 - Used in [USearch](https://github.com/unum-cloud/usearch) and several DBMS products.
 
 __Implemented distance functions__ include:
@@ -155,8 +155,6 @@ console.log('Squared Euclidean Distance:', distance);
 
 ## Using SimSIMD in C
 
-If you're aiming to utilize the `_Float16` functionality with SimSIMD, ensure your development environment is compatible with C 11. For other functionalities of SimSIMD, C 99 compatibility will suffice.
-
 For integration within a CMake-based project, add the following segment to your `CMakeLists.txt`:
 
 ```cmake
@@ -166,12 +164,30 @@ FetchContent_Declare(
     GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(simsimd)
-include_directories(${simsimd_SOURCE_DIR}/include)
 ```
 
-Stay updated with the latest advancements by always using the most recent compiler available for your platform. This ensures that you benefit from the newest intrinsics.
+If you're aiming to utilize the `_Float16` functionality with SimSIMD, ensure your development environment is compatible with C 11.
+For other functionalities of SimSIMD, C 99 compatibility will suffice.
+A minimal usage example would be:
 
-Should you wish to integrate SimSIMD within USearch, simply compile USearch with the flag `USEARCH_USE_SIMSIMD=1`. Notably, this is the default setting on the majority of platforms.
+```c
+#include <simsimd/simsimd.h>
+
+int main() {
+    simsimd_f32_t vector_a[1536];
+    simsimd_f32_t vector_b[1536];
+    simsimd_f32_t distance = simsimd_avx512_f32_cos(vector_a, vector_b, 1536);
+    return 0;
+}
+```
+
+All of the functions names follow the same pattern: `simsimd_{backend}_{type}_{metric}`.
+
+- The backend can be `avx512`, `avx2`, `neon`, or `sve`.
+- The type can be `f64`, `f32`, `f16`, `i8`, or `b8`.
+- The metric can be `cos`, `ip`, `l2sq`, `hamming`, `jaccard`, `kl`, or `js`.
+
+In case you want to avoid hard-coding the backend, you can use the `simsimd_metric_punned_t` to pun the function pointer, and `simsimd_capabilities` function to get the available backends at runtime.
 
 ## Benchmarking and Contributing
 
