@@ -271,7 +271,7 @@ simsimd_avx2_f32_log2(__m256 x) {
 __attribute__((target("avx2,f16c,fma"))) //
 inline static simsimd_f32_t
 simsimd_avx2_f16_kl(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
-    __m256 sum_vec = _mm256_set1_ps(0);
+    __m256 sum_vec = _mm256_setzero_ps();
     simsimd_f32_t epsilon = SIMSIMD_F32_DIVISION_EPSILON;
     __m256 epsilon_vec = _mm256_set1_ps(epsilon);
     simsimd_size_t i = 0;
@@ -303,7 +303,7 @@ simsimd_avx2_f16_kl(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size
 __attribute__((target("avx2,f16c,fma"))) //
 inline static simsimd_f32_t
 simsimd_avx2_f16_js(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
-    __m256 sum_vec = _mm256_set1_ps(0);
+    __m256 sum_vec = _mm256_setzero_ps();
     simsimd_f32_t epsilon = SIMSIMD_F32_DIVISION_EPSILON;
     __m256 epsilon_vec = _mm256_set1_ps(epsilon);
     simsimd_size_t i = 0;
@@ -377,7 +377,7 @@ simsimd_avx512_f32_log2(__m512 x) {
 __attribute__((target("avx512f,avx512vl,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_f32_kl(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n) {
-    __m512 sum_vec = _mm512_set1_ps(0);
+    __m512 sum_vec = _mm512_setzero();
     simsimd_f32_t epsilon = SIMSIMD_F32_DIVISION_EPSILON;
     __m512 epsilon_vec = _mm512_set1_ps(epsilon);
     __m512 a_vec, b_vec;
@@ -407,8 +407,8 @@ simsimd_avx512_f32_kl_cycle:
 __attribute__((target("avx512f,avx512vl,bmi2"))) //
 inline static simsimd_f32_t
 simsimd_avx512_f32_js(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n) {
-    __m512 sum_a_vec = _mm512_set1_ps(0);
-    __m512 sum_b_vec = _mm512_set1_ps(0);
+    __m512 sum_a_vec = _mm512_setzero();
+    __m512 sum_b_vec = _mm512_setzero();
     simsimd_f32_t epsilon = SIMSIMD_F32_DIVISION_EPSILON;
     __m512 epsilon_vec = _mm512_set1_ps(epsilon);
     __m512 a_vec, b_vec;
