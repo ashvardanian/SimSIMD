@@ -137,8 +137,11 @@ for name, conventional_func, simd_func, dtypes in funcs:
         A = generators[dtype]()
         B = generators[dtype]()
 
-        conventional_time = benchmark(wrap_rowwise(conventional_func), A, B, count)
-        simd_time = benchmark(wrap_rowwise(simd_func), A, B, count)
+        try:
+            conventional_time = benchmark(wrap_rowwise(conventional_func), A, B, count)
+            simd_time = benchmark(wrap_rowwise(simd_func), A, B, count)
+        except Exception as e:
+            raise type(e)(str(e) + " for %s(%s)" % (name, str(dtype)))
 
         conventional_ops = 1 / conventional_time
         simd_ops = 1 / simd_time
