@@ -482,12 +482,14 @@ static PyModuleDef simsimd_module = {
 };
 
 PyMODINIT_FUNC PyInit_simsimd(void) {
-    _import_array();
+    import_array();
     PyObject* module = PyModule_Create(&simsimd_module);
 
-    // Open the VERSION file to add the `simsimd.__version__` attribute
-    if (module)
-        PyModule_AddStringConstant(module, "__version__", "2.1.1");
+    if (module) {
+        char version_str[50];
+        sprintf(version_str, "%d.%d.%d", SIMSIMD_VERSION_MAJOR, SIMSIMD_VERSION_MINOR, SIMSIMD_VERSION_PATCH);
+        PyModule_AddStringConstant(module, "__version__", version_str);
+    }
 
     static_capabilities = simsimd_capabilities();
     return module;

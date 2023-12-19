@@ -6,20 +6,20 @@
 <img alt="GitHub code size in bytes" src="https://img.shields.io/github/languages/code-size/ashvardanian/simsimd">
 </div>
 
-## Efficient Alternative to [`scipy.spatial.distance`][scipy] and [`numpy.inner`][numpy]
+## Hardware-Accelerated Similarity Metrics and Distance Functions
 
-SimSIMD leverages SIMD intrinsics, capabilities that only select compilers effectively utilize. This framework supports conventional AVX2 instructions on x86, NEON on Arm, as well as __rare__ AVX-512 FP16 instructions on x86 and Scalable Vector Extensions (SVE) on Arm. Designed specifically for Machine Learning contexts, it's optimized for handling high-dimensional vector embeddings.
+- Zero-dependency [header-only C 99](#using-simsimd-in-c) library with bindings for [Python](#using-simsimd-in-python) and [JavaSctipt](#using-simsimd-in-javascript).
+- Targets ARM NEON, SVE, x86 AVX2, AVX-512 (VNNI, FP16) hardware backends.
+- Handles single-precision `f32`, half-precision `f16`, `i8`, and binary vectors.
+- __Up to 200x faster__ than [`scipy.spatial.distance`][scipy] and [`numpy.inner`][numpy].
+- Compatible with NumPy, PyTorch, TensorFlow, and other tensors.
+- Used in [USearch](https://github.com/unum-cloud/usearch) and several DBMS products.
 
-- ✅ __3-200x faster__ than NumPy and SciPy distance functions.
-- ✅ Euclidean (L2), Inner Product, and Cosine (Angular) spatial distances.
-- ✅ Hamming (~ Manhattan) and Jaccard (~ Tanimoto) binary distances.
-- ✅ Kullback-Leibler and Jensen–Shannon divergences for probability distributions.
-- ✅ Single-precision `f32`, half-precision `f16`, `i8`, and binary vectors.
-- ✅ Compatible with GCC and Clang on MacOS and Linux, and MinGW on Windows.
-- ✅ Compatible with NumPy, PyTorch, TensorFlow, and other tensors.
-- ✅ Has __no dependencies__, not even LibC.
-- ✅ [JavaScript API](#using-simsimd-in-javascript).
-- ✅ [C API](#using-simsimd-in-c).
+__Implemented distance functions__ include:
+
+- Euclidean (L2), Inner Product, and Cosine (Angular) spatial distances.
+- Hamming (~ Manhattan) and Jaccard (~ Tanimoto) binary distances.
+- Kullback-Leibler and Jensen–Shannon divergences for probability distributions.
 
 [scipy]: https://docs.scipy.org/doc/scipy/reference/spatial.distance.html#module-scipy.spatial.distance
 [numpy]: https://numpy.org/doc/stable/reference/generated/numpy.inner.html
@@ -63,7 +63,7 @@ __Broader Benchmarking Results__:
 - [4th Gen Intel Xeon Platinum](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-2-performance-on-4th-gen-intel-xeon-platinum-8480).
 - [AWS Graviton 3](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-3-performance-on-aws-graviton-3).
 
-## Using in Python
+## Using SimSIMD in Python
 
 ### Installation
 
@@ -189,6 +189,9 @@ __To test and benchmark with Python bindings__:
 ```sh
 pip install -e .
 pytest python/test.py -s -x 
+
+pip install numpy scipy scikit-learn # for comparison baselines
+python python/bench.py # to run default benchmarks
 python python/bench.py --n 1000 --ndim 1000000 # batch size and dimensions
 ```
 

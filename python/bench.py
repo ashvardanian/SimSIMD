@@ -2,6 +2,8 @@ import timeit
 import argparse
 
 import numpy as np
+import scipy as sp
+import sklearn as sk
 import scipy.spatial.distance as spd
 import scipy.special as scs
 import simsimd as simd
@@ -47,12 +49,17 @@ try:
     caps = [cap for cap, enabled in simd.get_capabilities().items() if enabled]
     print("- Hardware capabilities:", ", ".join(caps))
 
-    deps: dict = np.show_config(mode="dicts").get("Build Dependencies")
-    print("- NumPy BLAS dependency:", deps["blas"]["name"])
-    print("- NumPy LAPACK dependency:", deps["lapack"]["name"])
+    # Log versions of SimSIMD, NumPy, SciPy, and scikit-learn
+    print(f"- SimSIMD version: {simd.__version__}")
+    print(f"- SciPy version: {sp.__version__}")
+    print(f"- scikit-learn version: {sk.__version__}")
+    print(f"- NumPy version: {np.__version__}")
 
-except:
-    pass
+    deps: dict = np.show_config(mode="dicts").get("Build Dependencies")
+    print("-- NumPy BLAS dependency:", deps["blas"]["name"])
+    print("-- NumPy LAPACK dependency:", deps["lapack"]["name"])
+except Exception as e:
+    print(f"An error occurred: {e}")
 
 count = 1000
 ndim = 1536
@@ -130,8 +137,11 @@ for name, conventional_func, simd_func, dtypes in funcs:
         A = generators[dtype]()
         B = generators[dtype]()
 
-        conventional_time = benchmark(wrap_rowwise(conventional_func), A, B, count)
-        simd_time = benchmark(wrap_rowwise(simd_func), A, B, count)
+        try:
+            conventional_time = benchmark(wrap_rowwise(conventional_func), A, B, count)
+            simd_time = benchmark(wrap_rowwise(simd_func), A, B, count)
+        except Exception as e:
+            raise type(e)(str(e) + " for %s(%s)" % (name, str(dtype)))
 
         conventional_ops = 1 / conventional_time
         simd_ops = 1 / simd_time

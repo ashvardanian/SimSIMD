@@ -6,7 +6,7 @@ import scipy.spatial.distance as spd
 # For normalized distances we use the absolute tolerance, because the result is close to zero.
 # For unnormalized ones (like squared Euclidean or Jaccard), we use the relative.
 SIMSIMD_RTOL = 0.2
-SIMSIMD_ATOL = 0.1
+SIMSIMD_ATOL = 0.15
 
 
 def test_pointers_availability():

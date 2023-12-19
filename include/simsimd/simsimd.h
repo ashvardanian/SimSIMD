@@ -11,8 +11,12 @@
  *  Detecting target CPU features at compile time: https://stackoverflow.com/a/28939692/2766161
  */
 
-#ifndef SIMSIMD_SIMSIMD_H
-#define SIMSIMD_SIMSIMD_H
+#ifndef SIMSIMD_H
+#define SIMSIMD_H
+
+#define SIMSIMD_VERSION_MAJOR 3
+#define SIMSIMD_VERSION_MINOR 6
+#define SIMSIMD_VERSION_PATCH 0
 
 #include "binary.h"      // Hamming, Jaccard
 #include "probability.h" // Kullback-Leibler, Jensen–Shannon
