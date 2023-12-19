@@ -89,7 +89,8 @@
         "arm_neon.h": "c",
         "__tree": "cpp",
         "filesystem": "cpp",
-        "simsimd.h": "c"
+        "simsimd.h": "c",
+        "format": "c"
     },
     "cSpell.words": [
         "castsi",
