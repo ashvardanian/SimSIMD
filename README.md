@@ -8,7 +8,7 @@
 
 ## Hardware-Accelerated Similarity Metrics and Distance Functions
 
-- Zero-dependency [header-only C 99](#using-simsimd-in-c) library with bindings for [Python](#using-simsimd-in-python) and [JavaSctipt](#using-simsimd-in-javascript).
+- Zero-dependency [header-only C 99](#using-simsimd-in-c) library with bindings for [Python](#using-simsimd-in-python) and [JavaScript](#using-simsimd-in-javascript).
 - Targets ARM NEON, SVE, x86 AVX2, AVX-512 (VNNI, FP16) hardware backends.
 - Handles single-precision `f32`, half-precision `f16`, `i8`, and binary vectors.
 - __Up to 200x faster__ than [`scipy.spatial.distance`][scipy] and [`numpy.inner`][numpy].
