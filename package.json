@@ -24,7 +24,7 @@
   ],
   "type": "module",
   "scripts": {
-    "test": "node --test ./javascript/test",
+    "test": "node --test ./javascript/test.js",
     "bench": "node ./javascript/bench.js"
   },
   "gypfile": true,
