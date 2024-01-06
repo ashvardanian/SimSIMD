@@ -1,7 +1,7 @@
 # SimSIMD 📏
 
 <div>
-<a href="https://pepy.tech/project/simsimd"> <img alt="PyPI" src="https://static.pepy.tech/personalized-badge/simsimd?period=month&units=abbreviation&left_color=black&right_color=blue&left_text=Python%20monthly%20installs"> </a>
+<a href="https://pepy.tech/project/simsimd"> <img alt="PyPI" src="https://static.pepy.tech/personalized-badge/simsimd?period=total&units=abbreviation&left_color=black&right_color=blue&left_text=SimSIMD%20Python%20installs"> </a>
 <a href="https://www.npmjs.com/package/simsimd"> <img alt="npm" src="https://img.shields.io/npm/dy/simsimd?label=npm%20dowloads"> </a>
 <img alt="GitHub code size in bytes" src="https://img.shields.io/github/languages/code-size/ashvardanian/simsimd">
 </div>
@@ -48,7 +48,7 @@ Given 1000 embeddings from OpenAI Ada API with 1536 dimensions, running on the A
 
 ### Intel Sapphire Rapids
 
-On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against auto-vectorized code using GCC 12. GCC handles single-precision `float`, but might not be the best choice for `int8` and `_Float16` arrays, which has been part of the C language since 2011.
+On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against auto-vectorized code using GCC 12. GCC handles single-precision `float` but might not be the best choice for `int8` and `_Float16` arrays, which has been part of the C language since 2011.
 
 | Kind           | GCC 12 `f32` | GCC 12 `f16` | SimSIMD `f16` | `f16` improvement |
 | :------------- | -----------: | -----------: | ------------: | ----------------: |
@@ -92,7 +92,7 @@ batch2 = np.random.randn(100, 1536).astype(np.float32)
 dist = simsimd.cosine(batch1, batch2)
 ```
 
-If either batch has more than one vector, the other batch must have one or same number of vectors.
+If either batch has more than one vector, the other batch must have one or the same number of vectors.
 If it contains just one, the value is broadcasted.
 
 ### All Pairwise Distances
@@ -124,7 +124,7 @@ print(simsimd.get_capabilities())
 ### Using Python API with USearch
 
 Want to use it in Python with [USearch](https://github.com/unum-cloud/usearch)?
-You can wrap the raw C function pointers SimSIMD backends into a `CompiledMetric`, and pass it to USearch, similar to how it handles Numba's JIT-compiled code.
+You can wrap the raw C function pointers SimSIMD backends into a `CompiledMetric` and pass it to USearch, similar to how it handles Numba's JIT-compiled code.
 
 ```py
 from usearch.index import Index, CompiledMetric, MetricKind, MetricSignature
@@ -141,7 +141,17 @@ index = Index(256, metric=metric)
 
 ## Using SimSIMD in JavaScript
 
-After you add `simsimd` as a dependency and `npm install`, you will be able to call SimSIMD function on various `TypedArray` variants:
+To install, choose one of the following options depending on your environment:
+
+- `npm install --save simsimd`
+- `yarn add simsimd`
+- `pnpm add simsimd`
+- For Bun:
+  1. Run `bun install simsimd`.
+  2. Add `"trustedDependencies": [ "simsimd" ]` to your `package.json` file.
+  3. Run `bun install` again. This is required since SimSIMD builds a native library for your system on install.
+
+After you install it, you will be able to call the SimSIMD functions on various `TypedArray` variants:
 
 ```js
 const { sqeuclidean, cosine, inner, hamming, jaccard } = require('simsimd');
