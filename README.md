@@ -141,7 +141,13 @@ index = Index(256, metric=metric)
 
 ## Using SimSIMD in JavaScript
 
-After you add `simsimd` as a dependency and `npm install`, you will be able to call SimSIMD function on various `TypedArray` variants:
+To install, choose one of the following options depending on your environment:
+- `npm install --save simsimd`
+- `yarn add simsimd`
+- `pnpm add simsimd`
+- `bun install simsimd` then add `"trustedDependencies": [ "simsimd" ]` to your package.json file and then run `bun install` again. This is required since SimSIMD build a native library for your system on install.
+
+After you install, you will be able to call SimSIMD function on various `TypedArray` variants:
 
 ```js
 const { sqeuclidean, cosine, inner, hamming, jaccard } = require('simsimd');
