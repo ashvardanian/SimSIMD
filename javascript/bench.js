@@ -29,6 +29,8 @@ function cosineDistanceMathJS(a, b) {
 const dimensions = 1536;  // Adjust dimensions as needed
 const array1 = Array.from({ length: dimensions }, () => Math.random() * 100);
 const array2 = Array.from({ length: dimensions }, () => Math.random() * 100);
+const mathm1 = math.matrix(Array.from({ length: dimensions }, () => Math.random() * 100));
+const mathm2 = math.matrix(Array.from({ length: dimensions }, () => Math.random() * 100));
 const floatArray1 = new Float32Array(array1);
 const floatArray2 = new Float32Array(array2);
 const intArray1 = new Int8Array(array1);
@@ -65,8 +67,8 @@ singleSuite
     .add('Array of Numbers with MathJS', () => {
         cosineDistanceMathJS(array1, array2);
     })
-    .add('TypedArray of Float32 with MathJS', () => {
-        cosineDistanceMathJS(floatArray1, floatArray2);
+    .add('MathMatrix with MathJS', () => {
+        cosineDistanceMathJS(mathm1, mathm2);
     })
 
     // SimSIMD
@@ -78,7 +80,11 @@ singleSuite
     })
 
     .on('cycle', (event) => {
-        console.log(String(event.target));
+        if (event.target.error) {
+            console.error(String(event.target.error));
+        } else {
+            console.log(String(event.target));
+        }
     })
     .on('complete', () => {
         console.log('Fastest Single-Vector Processing is ' + singleSuite.filter('fastest').map('name'));
@@ -106,7 +112,11 @@ batchSuite
         usearch.exactSearch(intMatrix1, intMatrix2, dimensions, 1, MetricKind.Cos);
     })
     .on('cycle', (event) => {
-        console.log(String(event.target));
+        if (event.target.error) {
+            console.error(String(event.target.error));
+        } else {
+            console.log(String(event.target));
+        }
     })
     .on('complete', () => {
         console.log('Fastest Batch-Vector Processing is ' + batchSuite.filter('fastest').map('name'));
@@ -115,3 +125,4 @@ batchSuite
         noCache: true,
         async: false,
     });
+
