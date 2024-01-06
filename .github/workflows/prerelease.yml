@@ -2,7 +2,7 @@ name: Pre-Release
 
 on:
   push:
-    branches: ["main-dev"]
+    branches: ["main-dev", "test-**"]
   pull_request:
     branches: ["main-dev"]
 
@@ -27,7 +27,7 @@ jobs:
         architecture: [x64, arm64]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: git submodule update --init --recursive
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
@@ -68,8 +68,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: "main"
       - run: git submodule update --init --recursive
 
       - name: Update compilers
@@ -84,6 +82,5 @@ jobs:
 
       - name: Build and Test
         run: |
-          npm install
           npm ci
           npm test
