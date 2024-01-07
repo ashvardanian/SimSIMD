@@ -53,6 +53,7 @@ jobs:
 
   build_wheels:
     name: Build Wheels for ${{ matrix.os }}
+    if: github.ref_name == 'main'
     runs-on: ${{ matrix.os }}
     needs: versioning
     strategy:
@@ -83,6 +84,7 @@ jobs:
 
   publish_python:
     name: Publish Python
+    if: github.ref_name == 'main'
     needs: build_wheels
     runs-on: ubuntu-22.04
     environment:
@@ -161,6 +163,34 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: prebuilds
+          path: prebuilds
+          retention-days: 1
+
+  publish_javascript:
+    name: Publish JavaScript
+    needs: build_javascript
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v3
+      - run: git submodule update --init --recursive
+
+      - run: npm ci
+      - run: npm run prebuild
+        if: matrix.os != 'macos-latest'
+      - run: npm run prebuild-darwin-x64+arm64
+        if: matrix.os == 'macos-latest'
+      - uses: actions/upload-artifact@v4
+        if: matrix.os == 'macos-latest'
+        with:
+          name: ${{ matrix.os }}
+          path: prebuilds
+          retention-days: 1
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.os != 'macos-latest'
+        with:
+          name: ${{ matrix.os }}-${{ matrix.arch }}
           path: prebuilds
           retention-days: 1
 
