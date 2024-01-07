@@ -188,6 +188,6 @@ jobs:
 
       - name: Publish
         uses: JS-DevTools/npm-publish@v3
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/test-release'
         with:
           token: ${{ secrets.NPM_TOKEN }}
