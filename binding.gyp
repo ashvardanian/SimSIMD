@@ -20,8 +20,7 @@
                 ["OS=='mac'", {
                     'xcode_settings': {
                         'MACOSX_DEPLOYMENT_TARGET': '11.6',
-                        'OTHER_CFLAGS': ['-arch arm64'],
-                        'OTHER_LDFLAGS': ['-arch arm64']
+                        'ARCHS': ['arm64','x86_64']
                     }
                 }]
             ]
