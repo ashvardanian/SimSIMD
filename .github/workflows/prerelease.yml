@@ -83,4 +83,5 @@ jobs:
       - name: Build and Test
         run: |
           npm ci --ignore-scripts
+          npm run install
           npm test
