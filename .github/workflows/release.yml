@@ -157,6 +157,7 @@ jobs:
         run: npm run prebuild-arm64
       - uses: actions/upload-artifact@v3
         with:
+          name: prebuilds
           path: prebuilds
           retention-days: 1
 
@@ -175,8 +176,6 @@ jobs:
           node-version: 20
 
       - uses: actions/download-artifact@v3
-        with:
-          path: prebuilds
 
       - name: Look for links
         run: find . -type f -links +1
