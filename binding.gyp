@@ -21,12 +21,12 @@
                     "xcode_settings": {
                         "MACOSX_DEPLOYMENT_TARGET": "11.0",
                         "OTHER_CFLAGS": [
-                            "-arch x86_64",
-                            "-arch arm64"
+                            "-arch arm64",
+                            "-arch x86_64"
                         ],
                         "OTHER_LDFLAGS": [
-                            "-arch x86_64",
-                            "-arch arm64"
+                            "-arch arm64",
+                            "-arch x86_64"
                         ]
                     }
                 }]

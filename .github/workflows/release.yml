@@ -151,6 +151,9 @@ jobs:
       - run: npm run prebuild
         if: matrix.os != 'macos-latest'
       - run: npm run prebuild-darwin-x64+arm64
+        env:
+          CC: clang
+          CXX: clang
         if: matrix.os == 'macos-latest'
       - run: file prebuilds/*/*
         if: matrix.os == 'macos-latest'

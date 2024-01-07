@@ -35,14 +35,14 @@
     "node": "~10 >=10.20 || >=12.17"
   },
   "dependencies": {
-    "@types/node": "^20.4.5",
+    "@types/node": "^20.10.7",
     "node-addon-api": "^3.0.0",
-    "node-gyp-build": "^4.7.1"
+    "node-gyp-build": "^4.8.0"
   },
   "devDependencies": {
     "node-gyp": "^10.0.1",
     "prebuildify": "^6.0.0",
-    "typescript": "^5.1.6"
+    "typescript": "^5.3.3"
   },
   "optionalDependencies": {
     "benchmark": "^2.1.4",
