@@ -25,6 +25,7 @@
   "scripts": {
     "install": "node-gyp-build",
     "prebuild": "prebuildify --napi --strip --target=8.11.2",
+    "prebuild-arm64": "prebuildify --arch arm64 --napi --strip --target=8.11.2",
     "prebuild-darwin-x64+arm64": "prebuildify --arch x64+arm64 --napi --strip --target=8.11.2",
     "test": "node --test ./javascript/test.mjs",
     "bench": "node ./javascript/bench.mjs"
