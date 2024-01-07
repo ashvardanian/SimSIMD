@@ -53,7 +53,6 @@ jobs:
 
   build_wheels:
     name: Build Wheels for ${{ matrix.os }}
-    if: github.ref_name == 'main'
     runs-on: ${{ matrix.os }}
     needs: versioning
     strategy:
@@ -84,7 +83,6 @@ jobs:
 
   publish_python:
     name: Publish Python
-    if: github.ref_name == 'main'
     needs: build_wheels
     runs-on: ubuntu-22.04
     environment:
@@ -117,8 +115,8 @@ jobs:
           - x86
         os:
           - macos-latest
-          # - ubuntu-22.04
-          # - windows-latest
+          - ubuntu-22.04
+          - windows-latest
         exclude:
           - arch: x86
             os: macos-latest
