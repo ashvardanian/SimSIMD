@@ -17,7 +17,7 @@
                 "-Wno-switch",
             ],
             "conditions": [
-                ["OS=="mac"", {
+                ["OS=='mac'", {
                     "xcode_settings": {
                         "MACOSX_DEPLOYMENT_TARGET": "11.0",
                         "OTHER_CFLAGS": [
