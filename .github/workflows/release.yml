@@ -152,6 +152,8 @@ jobs:
         if: matrix.os != 'macos-latest'
       - run: npm run prebuild-darwin-x64+arm64
         if: matrix.os == 'macos-latest'
+      - run: file prebuilds/*/*
+        if: matrix.os == 'macos-latest'
       - name: Extra for cross build
         if: matrix.os == 'ubuntu-22.04'
         run: npm run prebuild-arm64
