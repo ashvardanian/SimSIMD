@@ -191,3 +191,4 @@ jobs:
         if: github.ref == 'refs/heads/test-release'
         with:
           token: ${{ secrets.NPM_TOKEN }}
+          access: public
