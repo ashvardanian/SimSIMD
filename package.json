@@ -41,7 +41,7 @@
   },
   "devDependencies": {
     "node-gyp": "^10.0.1",
-    "prebuildify": "^5.0.0",
+    "prebuildify": "=5.0.0",
     "typescript": "^5.1.6"
   },
   "optionalDependencies": {
