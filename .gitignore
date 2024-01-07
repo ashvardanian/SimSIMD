@@ -5,8 +5,10 @@ _deps
 simsimd.egg-info
 CMakeFiles
 __pycache__
-node_modules
-package-ci
+node_modules/
+package-ci/
+prebuilds/
+build/
 
 # for Google Benchmark
 compare.py

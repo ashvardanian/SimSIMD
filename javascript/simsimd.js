@@ -1,4 +1,6 @@
-const compiled = require('bindings')('simsimd');
+const build = require('node-gyp-build');
+const path = require('path');
+const compiled = build(path.resolve(__dirname, '..'));
 
 module.exports = {
 
