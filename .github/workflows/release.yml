@@ -180,17 +180,12 @@ jobs:
         if: matrix.os != 'macos-latest'
       - run: npm run prebuild-darwin-x64+arm64
         if: matrix.os == 'macos-latest'
-      - uses: actions/upload-artifact@v4
-        if: matrix.os == 'macos-latest'
+      - name: Extra for cross build
+        if: matrix.os == 'ubuntu-22.04'
+        run: npm run prebuild-arm64
+      - uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.os }}
-          path: prebuilds
-          retention-days: 1
-
-      - uses: actions/upload-artifact@v4
-        if: matrix.os != 'macos-latest'
-        with:
-          name: ${{ matrix.os }}-${{ matrix.arch }}
           path: prebuilds
           retention-days: 1
 
@@ -209,6 +204,9 @@ jobs:
           node-version: 20
 
       - uses: actions/download-artifact@v3
+
+      - name: Look for links
+        run: find . -type f -links +1
 
       - name: Look for links
         run: find . -type f -links +1
