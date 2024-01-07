@@ -157,7 +157,6 @@ jobs:
         run: npm run prebuild-arm64
       - uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.os }}
           path: prebuilds
           retention-days: 1
 
