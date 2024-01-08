@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: ["main", "test-**"]
+    branches: ["main", "test-ga-**"]
 
 env:
   BUILD_TYPE: Release
@@ -189,7 +189,7 @@ jobs:
 
       - name: Publish
         uses: JS-DevTools/npm-publish@v3
-        if: github.ref == 'refs/heads/test-release'
+        if: github.ref == 'refs/heads/main'
         with:
           token: ${{ secrets.NPM_TOKEN }}
           access: public
