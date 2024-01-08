@@ -146,10 +146,11 @@ To install, choose one of the following options depending on your environment:
 - `npm install --save simsimd`
 - `yarn add simsimd`
 - `pnpm add simsimd`
-- For Bun:
-  1. Run `bun install simsimd`.
-  2. Add `"trustedDependencies": [ "simsimd" ]` to your `package.json` file.
-  3. Run `bun install` again. This is required since SimSIMD builds a native library for your system on install.
+- `bun install simsimd`
+
+The package is distributed with prebuilt binaries for Node.js v10 and above for Linux (x86_64, arm64), macOS (x86_64, arm64), and Windows (i386,x86_64).
+
+If your platform is not supported, you can build the package from source via `npm run build`. This will automatically happen unless you install the package with `--ignore-scripts` flag or use Bun.
 
 After you install it, you will be able to call the SimSIMD functions on various `TypedArray` variants:
 
