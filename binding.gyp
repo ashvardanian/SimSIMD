@@ -1,4 +1,7 @@
 {
+    "variables": {
+        "openssl_fips": ""
+    },
     "targets": [
         {
             "target_name": "simsimd",
@@ -13,6 +16,21 @@
                 "-Wno-cast-function-type",
                 "-Wno-switch",
             ],
+            "conditions": [
+                ["OS=='mac'", {
+                    "xcode_settings": {
+                        "MACOSX_DEPLOYMENT_TARGET": "11.0",
+                        "OTHER_CFLAGS": [
+                            "-arch arm64",
+                            "-arch x86_64"
+                        ],
+                        "OTHER_LDFLAGS": [
+                            "-arch arm64",
+                            "-arch x86_64"
+                        ]
+                    }
+                }]
+            ]
         }
     ]
 }

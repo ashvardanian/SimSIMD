@@ -1,9 +1,10 @@
 import benchmark from 'benchmark';
-import bindings from 'bindings';
 import * as math from 'mathjs';
 import usearch, { MetricKind } from 'usearch';
+import build from 'node-gyp-build';
+import process from 'node:process';
 
-const simsimd = bindings('simsimd');
+const simsimd = build(process.cwd());
 
 // Assuming the vectors are of the same length
 function cosineDistance(a, b) {

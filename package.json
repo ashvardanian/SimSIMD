@@ -22,25 +22,31 @@
     "simd",
     "f16"
   ],
-  "type": "module",
   "scripts": {
-    "test": "node --test ./javascript/test.js",
-    "bench": "node ./javascript/bench.js"
+    "install": "node-gyp-build",
+    "prebuild": "prebuildify --napi --strip --target=10.4.0",
+    "prebuild-arm64": "prebuildify --arch arm64 --napi --strip --target=10.4.0",
+    "prebuild-darwin-x64+arm64": "prebuildify --arch arm64+x64 --napi --strip --target=10.4.0",
+    "test": "node --test ./javascript/test.mjs",
+    "bench": "node ./javascript/bench.mjs"
   },
   "gypfile": true,
   "engines": {
     "node": "~10 >=10.20 || >=12.17"
   },
   "dependencies": {
-    "@types/node": "^20.4.5",
-    "bindings": "~1.2.1",
-    "node-addon-api": "^3.0.0"
+    "@types/node": "^20.10.7",
+    "node-addon-api": "^3.2.1",
+    "node-gyp-build": "^4.8.0"
   },
   "devDependencies": {
+    "node-gyp": "^10.0.1",
+    "prebuildify": "^6.0.0",
+    "typescript": "^5.3.3"
+  },
+  "optionalDependencies": {
     "benchmark": "^2.1.4",
     "mathjs": "^11.11.2",
-    "node-gyp": "^8.3.0",
-    "typescript": "^5.1.6",
     "usearch": "^2.7.2"
   }
 }

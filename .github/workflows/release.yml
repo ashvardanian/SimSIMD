@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "test-ga-**"]
 
 env:
   BUILD_TYPE: Release
@@ -24,10 +24,11 @@ jobs:
         with:
           persist-credentials: false
       - uses: actions/setup-node@v3
-      - run: npm install --save-dev --prefix ./package-ci @semantic-release/exec @semantic-release/git conventional-changelog-eslint semantic-release && npx --prefix ./package-ci semantic-release
+      - run: npm install --ignore-scripts --save-dev --prefix ./package-ci @semantic-release/exec @semantic-release/git conventional-changelog-eslint semantic-release && npx --prefix ./package-ci semantic-release
 
   rebase:
     name: Rebase Dev. Branch
+    if: github.ref_name == 'main'
     needs: versioning
     runs-on: ubuntu-22.04
     steps:
@@ -60,8 +61,6 @@ jobs:
         os: [ubuntu-22.04, macOS-11, windows-2022]
     steps:
       - uses: actions/checkout@v3
-        with:
-          ref: "main"
       - uses: actions/setup-python@v3
 
       - name: Setup Docker
@@ -105,37 +104,92 @@ jobs:
           verbose: true
           print-hash: true
 
-  publish_javascript:
-    name: Publish JavaScript
+  build_javascript:
+    name: Build JavaScript
     needs: versioning
-    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - x64
+          - x86
+        os:
+          - macos-latest
+          - ubuntu-22.04
+          - windows-latest
+        exclude:
+          - arch: x86
+            os: macos-latest
+          - arch: x86
+            os: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
     env:
       CC: gcc-12
       CXX: g++-12
 
     steps:
-      - uses: actions/checkout@v3
-        with:
-          ref: "main"
+      - name: Checkout the latest code
+        uses: actions/checkout@v4
       - run: git submodule update --init --recursive
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          architecture: ${{ matrix.arch }}
+
       - name: Update compilers
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           sudo apt update
           sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev gcc-12 g++-12
+          sudo apt install gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+
+      - run: npm ci --ignore-scripts
+      - run: npm run prebuild
+        if: matrix.os != 'macos-latest'
+      - run: npm run prebuild-darwin-x64+arm64
+        env:
+          CC: clang
+          CXX: clang++
+        if: matrix.os == 'macos-latest'
+      - run: file prebuilds/*/*
+        if: matrix.os == 'macos-latest'
+      - name: Extra for cross build
+        if: matrix.os == 'ubuntu-22.04'
+        run: npm run prebuild-arm64
+      - uses: actions/upload-artifact@v3
+        with:
+          name: prebuilds
+          path: prebuilds
+          retention-days: 1
+
+  publish_javascript:
+    name: Publish JavaScript
+    needs: build_javascript
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v3
+      - run: git submodule update --init --recursive
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Build and Test
-        run: |
-          npm install &&
-          npm ci &&
-          npm test
+      - uses: actions/download-artifact@v3
+
+      - name: Look for links
+        run: find . -type f -links +1
+
+      - name: Test publish
+        run: npm publish --dry-run
+        if: github.ref != 'refs/heads/main'
 
       - name: Publish
         uses: JS-DevTools/npm-publish@v3
+        if: github.ref == 'refs/heads/main'
         with:
           token: ${{ secrets.NPM_TOKEN }}
+          access: public
