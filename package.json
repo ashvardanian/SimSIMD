@@ -1,6 +1,6 @@
 {
   "name": "simsimd",
-  "version": "3.6.3",
+  "version": "3.6.8",
   "description": "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm",
   "homepage": "https://github.com/ashvardanian/simsimd",
   "author": "Ash Vardanian",
@@ -24,9 +24,9 @@
   ],
   "scripts": {
     "install": "node-gyp-build",
-    "prebuild": "prebuildify --napi --strip --target=8.11.2",
-    "prebuild-arm64": "prebuildify --arch arm64 --napi --strip --target=8.11.2",
-    "prebuild-darwin-x64+arm64": "prebuildify --arch x64+arm64 --napi --strip --target=8.11.2",
+    "prebuild": "prebuildify --napi --strip --target=10.4.0",
+    "prebuild-arm64": "prebuildify --arch arm64 --napi --strip --target=10.4.0",
+    "prebuild-darwin-x64+arm64": "prebuildify --arch arm64+x64 --napi --strip --target=10.4.0",
     "test": "node --test ./javascript/test.mjs",
     "bench": "node ./javascript/bench.mjs"
   },
@@ -35,14 +35,14 @@
     "node": "~10 >=10.20 || >=12.17"
   },
   "dependencies": {
-    "@types/node": "^20.4.5",
-    "node-addon-api": "^3.0.0",
-    "node-gyp-build": "^4.7.1"
+    "@types/node": "^20.10.7",
+    "node-addon-api": "^3.2.1",
+    "node-gyp-build": "^4.8.0"
   },
   "devDependencies": {
     "node-gyp": "^10.0.1",
-    "prebuildify": "^5.0.1",
-    "typescript": "^5.1.6"
+    "prebuildify": "^6.0.0",
+    "typescript": "^5.3.3"
   },
   "optionalDependencies": {
     "benchmark": "^2.1.4",

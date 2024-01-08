@@ -2,7 +2,7 @@ name: Pre-Release
 
 on:
   push:
-    branches: ["main-dev", "test-**"]
+    branches: ["main-dev", "test-ga-**"]
   pull_request:
     branches: ["main-dev"]
 

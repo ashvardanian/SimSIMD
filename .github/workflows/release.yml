@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: ["main", "test-**"]
+    branches: ["main", "test-ga-**"]
 
 env:
   BUILD_TYPE: Release
@@ -53,7 +53,6 @@ jobs:
 
   build_wheels:
     name: Build Wheels for ${{ matrix.os }}
-    if: github.ref_name == 'main'
     runs-on: ${{ matrix.os }}
     needs: versioning
     strategy:
@@ -84,7 +83,6 @@ jobs:
 
   publish_python:
     name: Publish Python
-    if: github.ref_name == 'main'
     needs: build_wheels
     runs-on: ubuntu-22.04
     environment:
@@ -151,13 +149,18 @@ jobs:
       - run: npm run prebuild
         if: matrix.os != 'macos-latest'
       - run: npm run prebuild-darwin-x64+arm64
+        env:
+          CC: clang
+          CXX: clang++
+        if: matrix.os == 'macos-latest'
+      - run: file prebuilds/*/*
         if: matrix.os == 'macos-latest'
       - name: Extra for cross build
         if: matrix.os == 'ubuntu-22.04'
         run: npm run prebuild-arm64
       - uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.os }}
+          name: prebuilds
           path: prebuilds
           retention-days: 1
 
@@ -176,8 +179,6 @@ jobs:
           node-version: 20
 
       - uses: actions/download-artifact@v3
-        with:
-          path: prebuilds
 
       - name: Look for links
         run: find . -type f -links +1
@@ -191,3 +192,4 @@ jobs:
         if: github.ref == 'refs/heads/main'
         with:
           token: ${{ secrets.NPM_TOKEN }}
+          access: public
