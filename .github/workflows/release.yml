@@ -28,7 +28,7 @@ jobs:
 
   rebase:
     name: Rebase Dev. Branch
-    if: github.ref_name == 'main'
+    if: github.ref == 'refs/heads/main'
     needs: versioning
     runs-on: ubuntu-22.04
     steps:
@@ -197,6 +197,7 @@ jobs:
         if: github.ref != 'refs/heads/main'
 
       - name: Publish
+        if: github.ref == 'refs/heads/main'
         uses: JS-DevTools/npm-publish@v3
         with:
           token: ${{ secrets.NPM_TOKEN }}
