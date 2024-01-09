@@ -26,9 +26,9 @@
     "prebuild-single": "prebuildify --napi --strip --target=10.4.0",
     "prebuild-arm64": "prebuildify --arch arm64 --napi --strip --target=10.4.0",
     "prebuild-darwin-x64+arm64": "prebuildify --arch arm64+x64 --napi --strip --target=10.4.0",
-    "build": "rm -fr javascript/dist/* && tsc -p javascript/tsconfig-esm.json && tsc -p javascript/tsconfig-cjs.json && cp javascript/dist-package-esm.json javascript/dist/esm/package.json && cp javascript/dist-package-cjs.json javascript/dist/cjs/package.json",
+    "build-js": "rm -fr javascript/dist/* && tsc -p javascript/tsconfig-esm.json && tsc -p javascript/tsconfig-cjs.json && cp javascript/dist-package-esm.json javascript/dist/esm/package.json && cp javascript/dist-package-cjs.json javascript/dist/cjs/package.json",
     "test": "node --test ./javascript/test.mjs",
-    "bench": "node ./javascript/bench.mjs"
+    "bench": "node ./javascript/bench.js"
   },
   "main": "javascript/dist/cjs/simsimd.js",
   "module": "javascript/dist/esm/simsimd.js",
@@ -54,6 +54,6 @@
   "optionalDependencies": {
     "benchmark": "^2.1.4",
     "mathjs": "^11.11.2",
-    "usearch": "^2.7.2"
+    "usearch": "^2.8.15"
   }
 }

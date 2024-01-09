@@ -1,9 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert';
-import build from 'node-gyp-build';
-import process from 'node:process';
 
-const simsimd = build(process.cwd());
+import * as simsimd from "./dist/esm/simsimd.js";
 
 function assertAlmostEqual(actual, expected, tolerance = 1e-6) {
     const lowerBound = expected - tolerance;

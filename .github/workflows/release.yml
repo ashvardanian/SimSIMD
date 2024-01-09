@@ -210,7 +210,7 @@ jobs:
         run: find . -type f -links +1
         
       - name: Build the JS from TS
-        run: npm run build
+        run: npm run build-js
 
       - name: Test publish
         run: npm publish --dry-run
