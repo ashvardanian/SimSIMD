@@ -1,11 +1,10 @@
 {
-  "name": "simsimd",
-  "version": "3.6.4",
+  "name": "@sroussey/simsimd",
+  "version": "3.6.10",
   "description": "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm",
   "homepage": "https://github.com/ashvardanian/simsimd",
   "author": "Ash Vardanian",
   "license": "Apache 2.0",
-  "main": "javascript/simsimd.js",
   "keywords": [
     "vector",
     "distance",
@@ -24,13 +23,21 @@
   ],
   "scripts": {
     "install": "node-gyp-build",
-    "prebuild": "prebuildify --napi --strip --target=10.4.0",
+    "prebuild-single": "prebuildify --napi --strip --target=10.4.0",
     "prebuild-arm64": "prebuildify --arch arm64 --napi --strip --target=10.4.0",
     "prebuild-darwin-x64+arm64": "prebuildify --arch arm64+x64 --napi --strip --target=10.4.0",
+    "build": "rm -fr javascript/dist/* && tsc -p javascript/tsconfig-esm.json && tsc -p javascript/tsconfig-cjs.json && cp javascript/dist-package-esm.json javascript/dist/esm/package.json && cp javascript/dist-package-cjs.json javascript/dist/cjs/package.json",
     "test": "node --test ./javascript/test.mjs",
     "bench": "node ./javascript/bench.mjs"
   },
-  "gypfile": true,
+  "main": "javascript/dist/cjs/simsimd.js",
+  "module": "javascript/dist/esm/simsimd.js",
+  "exports": {
+      ".": {
+          "import": "./javascript/dist/esm/simsimd.js",
+          "require": "./javascript/dist/cjs/simsimd.js"
+      }
+  },
   "engines": {
     "node": "~10 >=10.20 || >=12.17"
   },

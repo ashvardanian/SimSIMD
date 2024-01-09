@@ -146,7 +146,7 @@ jobs:
           sudo apt install gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
 
       - run: npm ci --ignore-scripts
-      - run: npm run prebuild
+      - run: npm run prebuild-single
         if: matrix.os != 'macos-latest'
       - run: npm run prebuild-darwin-x64+arm64
         env:
@@ -208,6 +208,9 @@ jobs:
 
       - name: Look for links
         run: find . -type f -links +1
+        
+      - name: Build the JS from TS
+        run: npm run build
 
       - name: Test publish
         run: npm publish --dry-run
@@ -215,7 +218,6 @@ jobs:
 
       - name: Publish
         uses: JS-DevTools/npm-publish@v3
-        if: github.ref == 'refs/heads/main'
         with:
           token: ${{ secrets.NPM_TOKEN }}
           access: public
