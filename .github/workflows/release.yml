@@ -184,7 +184,13 @@ jobs:
         run: find . -type f -links +1
 
       - name: Build the JS from TS
+        run: npm ci --ignore-scripts
+
+      - name: Build the JS from TS
         run: npm run build-js
+
+      - name: Last minute test with prebuild artifact
+        run: npm run test
 
       - name: Publish Dry Run
         run: npm publish --dry-run
