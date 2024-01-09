@@ -82,6 +82,16 @@ export const jensenshannon = (a: Float32Array, b: Float32Array): number => {
   return compiled.jensenshannon(a, b);
 };
 
+export default {
+  sqeuclidean,
+  cosine,
+  inner,
+  hamming,
+  jaccard,
+  kullbackleibler,
+  jensenshannon,
+};
+
 // utility functions to help find native builds
 
 function getBuildDir(dir: string) {

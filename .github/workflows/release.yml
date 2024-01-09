@@ -105,7 +105,7 @@ jobs:
           print-hash: true
 
   build_javascript:
-    name: Build JavaScript
+    name: Build JavaScript Native Modules
     needs: versioning
     strategy:
       fail-fast: false
