@@ -173,29 +173,6 @@ jobs:
       - uses: actions/checkout@v3
       - run: git submodule update --init --recursive
 
-      - run: npm ci
-      - run: npm run prebuild
-        if: matrix.os != 'macos-latest'
-      - run: npm run prebuild-darwin-x64+arm64
-        if: matrix.os == 'macos-latest'
-      - name: Extra for cross build
-        if: matrix.os == 'ubuntu-22.04'
-        run: npm run prebuild-arm64
-      - uses: actions/upload-artifact@v3
-        with:
-          name: prebuilds
-          path: prebuilds
-          retention-days: 1
-
-  publish_javascript:
-    name: Publish JavaScript
-    needs: build_javascript
-    runs-on: ubuntu-22.04
-
-    steps:
-      - uses: actions/checkout@v3
-      - run: git submodule update --init --recursive
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -206,13 +183,10 @@ jobs:
       - name: Look for links
         run: find . -type f -links +1
 
-      - name: Look for links
-        run: find . -type f -links +1
-        
       - name: Build the JS from TS
         run: npm run build-js
 
-      - name: Test publish
+      - name: Publish Dry Run
         run: npm publish --dry-run
         if: github.ref != 'refs/heads/main'
 
