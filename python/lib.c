@@ -319,6 +319,19 @@ static PyObject* impl_cdist(                            //
             goto cleanup;
         }
 
+        PyObject *wrapper = PyCapsule_New(distances, "wrapper", NULL);
+        if (!wrapper) {
+            free(distances);
+            Py_DECREF(output_array);
+            goto cleanup;
+        }
+
+        if (PyArray_SetBaseObject((PyArrayObject *)output_array, wrapper) < 0) {
+            Py_DECREF(output_array);
+            Py_DECREF(wrapper);
+            goto cleanup;
+        }
+
         output = output_array;
     }
 
