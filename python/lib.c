@@ -158,6 +158,11 @@ int parse_tensor(PyObject* tensor, Py_buffer* buffer, parsed_vector_or_matrix_t*
     return 0;
 }
 
+void free_capsule(void *capsule) {
+    void* obj = PyCapsule_GetPointer(capsule, PyCapsule_GetName(capsule));
+    free(obj);
+};
+
 static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const* args, Py_ssize_t nargs) {
     if (nargs != 2) {
         PyErr_SetString(PyExc_TypeError, "function expects exactly 2 arguments");
@@ -231,10 +236,24 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
         npy_intp dims[1] = {count_max};
         PyArray_Descr* descr = PyArray_DescrFromType(NPY_FLOAT32);
         PyArrayObject* output_array = (PyArrayObject*)PyArray_NewFromDescr( //
-            &PyArray_Type, descr, 1, dims, NULL, distances, NPY_ARRAY_OWNDATA | NPY_ARRAY_C_CONTIGUOUS, NULL);
+            &PyArray_Type, descr, 1, dims, NULL, distances, NPY_ARRAY_WRITEABLE, NULL);
 
         if (!output_array) {
             free(distances);
+            goto cleanup;
+        }
+
+        PyObject *wrapper = PyCapsule_New(distances, "wrapper", (PyCapsule_Destructor)&free_capsule);
+        if (!wrapper) {
+            free(distances);
+            Py_DECREF(output_array);
+            goto cleanup;
+        }
+
+        if (PyArray_SetBaseObject((PyArrayObject *)output_array, wrapper) < 0) {
+            free(distances);
+            Py_DECREF(output_array);
+            Py_DECREF(wrapper);
             goto cleanup;
         }
 
@@ -312,14 +331,14 @@ static PyObject* impl_cdist(                            //
         npy_intp dims[2] = {parsed_a.count, parsed_b.count};
         PyArray_Descr* descr = PyArray_DescrFromType(NPY_FLOAT32);
         PyArrayObject* output_array = (PyArrayObject*)PyArray_NewFromDescr( //
-            &PyArray_Type, descr, 2, dims, NULL, distances, NPY_ARRAY_OWNDATA | NPY_ARRAY_C_CONTIGUOUS, NULL);
+            &PyArray_Type, descr, 2, dims, NULL, distances, NPY_ARRAY_WRITEABLE, NULL);
 
         if (!output_array) {
             free(distances);
             goto cleanup;
         }
 
-        PyObject *wrapper = PyCapsule_New(distances, "wrapper", NULL);
+        PyObject *wrapper = PyCapsule_New(distances, "wrapper", (PyCapsule_Destructor)&free_capsule);
         if (!wrapper) {
             free(distances);
             Py_DECREF(output_array);
@@ -327,6 +346,7 @@ static PyObject* impl_cdist(                            //
         }
 
         if (PyArray_SetBaseObject((PyArrayObject *)output_array, wrapper) < 0) {
+            free(distances);
             Py_DECREF(output_array);
             Py_DECREF(wrapper);
             goto cleanup;
