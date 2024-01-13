@@ -98,7 +98,7 @@ function getBuildDir(dir: string) {
   if (existsSync(path.join(dir, "build"))) return dir;
   if (existsSync(path.join(dir, "prebuilds"))) return dir;
   if (existsSync(path.join(dir, "node_modules")))
-    return getBuildDir(path.join(dir, "node_modules/@sroussey/simsimd"));
+    return getBuildDir(path.join(dir, "node_modules/simsimd"));
   if (dir === "/") throw new Error("Could not find native build for simsimd");
   return getBuildDir(path.join(dir, ".."));
 }
