@@ -197,7 +197,6 @@ jobs:
         if: github.ref != 'refs/heads/main'
 
       - name: Publish
-        if: github.ref == 'refs/heads/main'
         uses: JS-DevTools/npm-publish@v3
         with:
           token: ${{ secrets.NPM_TOKEN }}
