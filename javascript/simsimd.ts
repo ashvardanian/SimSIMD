@@ -1,7 +1,7 @@
 import build from "node-gyp-build";
-import * as url from "node:url";
 import * as path from "node:path";
 import { existsSync } from "node:fs";
+import { getFileName, getRoot } from "bindings";
 
 const builddir = getBuildDir(getDirName());
 const compiled = build(builddir);
@@ -97,6 +97,9 @@ export default {
 function getBuildDir(dir: string) {
   if (existsSync(path.join(dir, "build"))) return dir;
   if (existsSync(path.join(dir, "prebuilds"))) return dir;
+  if (existsSync(path.join(dir, "node_modules")))
+    return getBuildDir(path.join(dir, "node_modules/@sroussey/simsimd"));
+  if (dir === "/") throw new Error("Could not find native build for simsimd");
   return getBuildDir(path.join(dir, ".."));
 }
 
@@ -104,13 +107,5 @@ function getDirName() {
   try {
     if (__dirname) return __dirname;
   } catch (e) {}
-  // ESM version, ick
-  const err = new Error();
-  const fileUrl = err.stack
-    ?.split("\n")[1]
-    .match(/at .* \((file:.*):\d+:\d+\)$/);
-
-  if (!fileUrl) throw new Error("I don't know where I am");
-
-  return path.dirname(url.fileURLToPath(fileUrl[1]));
+  return getRoot(getFileName());
 }
