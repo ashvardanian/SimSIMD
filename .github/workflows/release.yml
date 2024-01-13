@@ -86,6 +86,7 @@ jobs:
 
   publish_python:
     name: Publish Python
+    if: github.ref == 'refs/heads/main'
     needs: build_wheels
     runs-on: ubuntu-22.04
     environment:
@@ -201,6 +202,7 @@ jobs:
 
       - name: Publish
         uses: JS-DevTools/npm-publish@v3
+        if: github.ref == 'refs/heads/main'
         with:
           token: ${{ secrets.NPM_TOKEN }}
           access: public
