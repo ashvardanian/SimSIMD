@@ -47,20 +47,16 @@ test("Distance from itself", () => {
 
 test("Distance from itself JS", () => {
   const arr = [1.0, 2.0, 3.0];
+
   assertAlmostEqual(sqeuclidean(arr, arr), 0.0, 0.01);
   assertAlmostEqual(cosine(arr, arr), 0.0, 0.01);
-//   assertAlmostEqual(inner_distance(arr, arr), 0.0, 0.01);
 
-  // const f32sNormalized = new Float32Array([1.0 / Math.sqrt(14), 2.0 / Math.sqrt(14), 3.0 / Math.sqrt(14)]);
-  // assertAlmostEqual(simsimd.inner(f32sNormalized, f32sNormalized), 0.0, 0.01);
-
-  // const f32sDistribution = new Float32Array([1.0 / 6, 2.0 / 6, 3.0 / 6]);
-  // assertAlmostEqual(simsimd.kullbackleibler(f32sDistribution, f32sDistribution), 0.0, 0.01);
-  // assertAlmostEqual(simsimd.jensenshannon(f32sDistribution, f32sDistribution), 0.0, 0.01);
-
-  // const u8s = new Uint8Array([1, 2, 3]);
-  // assertAlmostEqual(simsimd.hamming(u8s, u8s), 0.0, 0.01);
-  // assertAlmostEqual(simsimd.jaccard(u8s, u8s), 0.0, 0.01);
+  const arrNormalized = new Float32Array([
+    1.0 / Math.sqrt(14),
+    2.0 / Math.sqrt(14),
+    3.0 / Math.sqrt(14),
+  ]);
+  assertAlmostEqual(inner_distance(arrNormalized, arrNormalized), 0.0, 0.01);
 });
 
 const f32Array1 = new Float32Array([1.0, 2.0, 3.0]);

@@ -6,11 +6,19 @@ function fallbackWarning() {
 
 function inner_distance(arr1, arr2) {
   fallbackWarning();
+  if (arr1.length !== arr2.length) {
+    throw new Error("Vectors must have the same length");
+  }
+
   return 1 - arr1.reduce((acc, val, i) => acc + val * arr2[i], 0);
 }
 
 function sqeuclidean(arr1, arr2) {
   fallbackWarning();
+  if (arr1.length !== arr2.length) {
+    throw new Error("Vectors must have the same length");
+  }
+
   return Math.hypot(...Object.keys(arr1).map((k) => arr2[k] - arr1[k])) ** 2;
 }
 
@@ -31,7 +39,7 @@ function cosine(arr1, arr2) {
     return 0;
   }
 
-  return dotProduct / (magnitudeA * magnitudeB);
+  return 1 - dotProduct / (magnitudeA * magnitudeB);
 }
 
 module.exports = {
@@ -51,10 +59,10 @@ module.exports = {
    */
   sqeuclidean: sqeuclidean,
   /**
-   * Computes the cosine similarity between two arrays.
+   * Computes the cosine similarity distance between two arrays.
    * @param {number[]} arr1 - The first array.
    * @param {number[]} arr2 - The second array.
-   * @returns {number} The cosine similarity between arr1 and arr2.
+   * @returns {number} The cosine similarity distance between arr1 and arr2.
    */
   cosine: cosine,
 };

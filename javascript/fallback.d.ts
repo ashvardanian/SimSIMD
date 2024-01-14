@@ -15,10 +15,10 @@ export declare function inner_distance(arr1: number[], arr2: number[]): number;
 export declare function sqeuclidean(arr1: number[], arr2: number[]): number;
 
 /**
- * Computes the cosine similarity between two arrays.
+ * Computes the cosine similarity distance between two arrays.
  * @param {number[]} arr1 - The first array.
  * @param {number[]} arr2 - The second array.
- * @returns {number} The cosine similarity between arr1 and arr2.
+ * @returns {number} The cosine similarity distance between arr1 and arr2.
  */
 export declare function cosine(arr1: number[], arr2: number[]): number;
 
