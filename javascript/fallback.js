@@ -16,9 +16,21 @@ function sqeuclidean(arr1, arr2) {
 
 function cosine(arr1, arr2) {
   fallbackWarning();
-  let dotProduct = arr1.reduce((acc, val, i) => acc + val * arr2[i], 0);
-  let magnitudeA = Math.sqrt(arr1.reduce((acc, val) => acc + val * val, 0));
-  let magnitudeB = Math.sqrt(arr2.reduce((acc, val) => acc + val * val, 0));
+  if (arr1.length !== arr2.length) {
+    throw new Error("Vectors must have the same length");
+  }
+
+  const dotProduct = arr1.reduce((acc, val, i) => acc + val * arr2[i], 0);
+  const magnitudeA = Math.sqrt(arr1.reduce((acc, val) => acc + val ** 2, 0));
+  const magnitudeB = Math.sqrt(arr2.reduce((acc, val) => acc + val ** 2, 0));
+
+  if (magnitudeA === 0 || magnitudeB === 0) {
+    console.warn(
+      "Warning: One of the magnitudes is zero. Cosine similarity is undefined."
+    );
+    return 0;
+  }
+
   return dotProduct / (magnitudeA * magnitudeB);
 }
 

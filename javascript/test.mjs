@@ -96,20 +96,20 @@ test("Cosine Similarity JS", () => {
   assertAlmostEqual(result, 0.029, 0.01);
 });
 
-test("Squared Euclidean Distance JS vs C", () => {
+test("Squared Euclidean Distance C vs JS", () => {
   const result = simsimd.sqeuclidean(f32Array1, f32Array2);
   const resultjs = sqeuclidean(f32Array1, f32Array2);
-  assertAlmostEqual(result, resultjs, 0.01);
+  assertAlmostEqual(resultjs, result, 0.01);
 });
 
-test("Inner Distance JS vs C", () => {
+test("Inner Distance C vs JS", () => {
   const result = simsimd.inner(f32Array1, f32Array2);
   const resultjs = inner_distance(f32Array1, f32Array2);
-  assertAlmostEqual(result, resultjs, 0.01);
+  assertAlmostEqual(resultjs, result, 0.01);
 });
 
-test("Cosine Similarity JS vs C", () => {
+test("Cosine Similarity C vs JS", () => {
   const result = simsimd.cosine(f32Array1, f32Array2);
   const resultjs = cosine(f32Array1, f32Array2);
-  assertAlmostEqual(result, resultjs, 0.01);
+  assertAlmostEqual(resultjs, result, 0.01);
 });
