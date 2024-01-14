@@ -66,9 +66,6 @@ test("Distance from itself JS", () => {
 const f32Array1 = new Float32Array([1.0, 2.0, 3.0]);
 const f32Array2 = new Float32Array([4.0, 5.0, 6.0]);
 
-const fallbackArray1 = [1.0, 2.0, 3.0];
-const fallbackArray2 = [4.0, 5.0, 6.0];
-
 test("Squared Euclidean Distance", () => {
   const result = simsimd.sqeuclidean(f32Array1, f32Array2);
   assertAlmostEqual(result, 27.0, 0.01);
@@ -85,34 +82,34 @@ test("Cosine Similarity", () => {
 });
 
 test("Squared Euclidean Distance JS", () => {
-  const result = sqeuclidean(fallbackArray1, fallbackArray2);
+  const result = sqeuclidean(f32Array1, f32Array2);
   assertAlmostEqual(result, 27.0, 0.01);
 });
 
 test("Inner Product JS", () => {
-  const result = inner_distance(fallbackArray1, fallbackArray2);
+  const result = inner_distance(f32Array1, f32Array2);
   assertAlmostEqual(result, -31.0, 0.01);
 });
 
 test("Cosine Similarity JS", () => {
-  const result = cosine(fallbackArray1, fallbackArray2);
+  const result = cosine(f32Array1, f32Array2);
   assertAlmostEqual(result, 0.029, 0.01);
 });
 
 test("Squared Euclidean Distance JS vs C", () => {
   const result = simsimd.sqeuclidean(f32Array1, f32Array2);
-  const resultjs = sqeuclidean(fallbackArray1, fallbackArray2);
+  const resultjs = sqeuclidean(f32Array1, f32Array2);
   assertAlmostEqual(result, resultjs, 0.01);
 });
 
 test("Inner Distance JS vs C", () => {
   const result = simsimd.inner(f32Array1, f32Array2);
-  const resultjs = inner_distance(fallbackArray1, fallbackArray2);
+  const resultjs = inner_distance(f32Array1, f32Array2);
   assertAlmostEqual(result, resultjs, 0.01);
 });
 
 test("Cosine Similarity JS vs C", () => {
   const result = simsimd.cosine(f32Array1, f32Array2);
-  const resultjs = cosine(fallbackArray1, fallbackArray2);
+  const resultjs = cosine(f32Array1, f32Array2);
   assertAlmostEqual(result, resultjs, 0.01);
 });
