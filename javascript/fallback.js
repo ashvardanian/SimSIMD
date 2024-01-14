@@ -1,27 +1,25 @@
-export function inner_distance(arr1, arr2) {
+function fallbackWarning() {
+  console.warn(
+    "It seems like your environment does't support the native simsimd module, so we are providing a JS fallback."
+  );
+}
+
+function inner_distance(arr1, arr2) {
+  fallbackWarning();
   return 1 - arr1.reduce((acc, val, i) => acc + val * arr2[i], 0);
 }
 
-export function sqeuclidean(arr1, arr2) {
+function sqeuclidean(arr1, arr2) {
+  fallbackWarning();
   return Math.hypot(...Object.keys(arr1).map((k) => arr2[k] - arr1[k])) ** 2;
 }
 
 function cosine(arr1, arr2) {
+  fallbackWarning();
   let dotProduct = arr1.reduce((acc, val, i) => acc + val * arr2[i], 0);
   let magnitudeA = Math.sqrt(arr1.reduce((acc, val) => acc + val * val, 0));
   let magnitudeB = Math.sqrt(arr2.reduce((acc, val) => acc + val * val, 0));
   return dotProduct / (magnitudeA * magnitudeB);
-}
-
-function hamming(arr1, arr2) {
-  let distance = 0;
-  for (let i = 0; i < arr1.length; i++) {
-    let xor = arr1[i] ^ arr2[i];
-    for (let j = 0; j < 8; j++) {
-      distance += (xor >> j) & 1;
-    }
-  }
-  return distance;
 }
 
 module.exports = {
@@ -47,12 +45,4 @@ module.exports = {
    * @returns {number} The cosine similarity between arr1 and arr2.
    */
   cosine: cosine,
-
-  /**
-   * Computes the Hamming distance between two Uint8Arrays.
-   * @param {Uint8Array} arr1 - The first Uint8Array.
-   * @param {Uint8Array} arr2 - The second Uint8Array.
-   * @returns {number} The Hamming distance between arr1 and arr2.
-   */
-  hamming: hamming,
 };
