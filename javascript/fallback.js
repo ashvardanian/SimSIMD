@@ -5,32 +5,28 @@ function fallbackWarning() {
 }
 
 function inner_distance(arr1, arr2) {
-  fallbackWarning();
   if (arr1.length !== arr2.length) {
     throw new Error("Vectors must have the same length");
   }
+  fallbackWarning();
 
   return 1 - arr1.reduce((acc, val, i) => acc + val * arr2[i], 0);
 }
 
 function sqeuclidean(arr1, arr2) {
-  fallbackWarning();
   if (arr1.length !== arr2.length) {
     throw new Error("Vectors must have the same length");
   }
+  fallbackWarning();
 
-  let sum = 0;
-  for (let i = 0; i < arr1.length; i++) {
-    sum += (arr2[i] - arr1[i]) ** 2;
-  }
-  return sum;
+  return arr1.reduce((acc, val, i) => acc + (val - arr2[i]) ** 2, 0);
 }
 
 function cosine(arr1, arr2) {
-  fallbackWarning();
   if (arr1.length !== arr2.length) {
     throw new Error("Vectors must have the same length");
   }
+  fallbackWarning();
 
   const dotProduct = arr1.reduce((acc, val, i) => acc + val * arr2[i], 0);
   const magnitudeA = Math.sqrt(arr1.reduce((acc, val) => acc + val ** 2, 0));

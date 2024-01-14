@@ -21,11 +21,3 @@ export declare function sqeuclidean(arr1: number[], arr2: number[]): number;
  * @returns {number} The cosine similarity distance between arr1 and arr2.
  */
 export declare function cosine(arr1: number[], arr2: number[]): number;
-
-/** 
-* Computes the Hamming distance between two Uint8Arrays.
-* @param {Uint8Array} arr1 - The first Uint8Array.
-* @param {Uint8Array} arr2 - The second Uint8Array.
-* @returns {number} The Hamming distance between arr1 and arr2.
-*/
-export declare function hamming(arr1: Uint8Array, arr2: Uint8Array): number;
