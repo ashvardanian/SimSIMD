@@ -3,7 +3,7 @@ import assert from "node:assert";
 
 import * as simsimd from "./dist/esm/simsimd.js";
 
-import { sqeuclidean, cosine, inner_distance } from "./fallback.js";
+import { sqeuclidean, cosine, inner_distance } from "./dist/esm/fallback.js";
 
 function assertAlmostEqual(actual, expected, tolerance = 1e-6) {
   const lowerBound = expected - tolerance;

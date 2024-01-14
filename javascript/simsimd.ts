@@ -3,8 +3,14 @@ import * as path from "node:path";
 import { existsSync } from "node:fs";
 import { getFileName, getRoot } from "bindings";
 
-const builddir = getBuildDir(getDirName());
-const compiled = build(builddir);
+let compiled: any;
+
+try {
+  let builddir = getBuildDir(getDirName());
+  compiled = build(builddir);
+} catch (e) {
+  compiled = import("./fallback");
+}
 
 /**
  * @brief Computes the squared Euclidean distance between two vectors.
