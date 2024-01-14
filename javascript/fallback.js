@@ -19,7 +19,11 @@ function sqeuclidean(arr1, arr2) {
     throw new Error("Vectors must have the same length");
   }
 
-  return Math.hypot(...Object.keys(arr1).map((k) => arr2[k] - arr1[k])) ** 2;
+  let sum = 0;
+  for (let i = 0; i < arr1.length; i++) {
+    sum += (arr2[i] - arr1[i]) ** 2;
+  }
+  return sum;
 }
 
 function cosine(arr1, arr2) {
