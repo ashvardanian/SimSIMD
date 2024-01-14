@@ -8,29 +8,43 @@ function inner_distance(arr1, arr2) {
   if (arr1.length !== arr2.length) {
     throw new Error("Vectors must have the same length");
   }
-  fallbackWarning();
 
-  return 1 - arr1.reduce((acc, val, i) => acc + val * arr2[i], 0);
+  let result = 0;
+  for (let i = 0; i < arr1.length; i++) {
+    result += arr1[i] * arr2[i];
+  }
+  return 1 - result;
 }
 
 function sqeuclidean(arr1, arr2) {
   if (arr1.length !== arr2.length) {
     throw new Error("Vectors must have the same length");
   }
-  fallbackWarning();
 
-  return arr1.reduce((acc, val, i) => acc + (val - arr2[i]) ** 2, 0);
+  let result = 0;
+  for (let i = 0; i < arr1.length; i++) {
+    result += (arr1[i] - arr2[i]) * (arr1[i] - arr2[i]);
+  }
+  return result;
 }
 
 function cosine(arr1, arr2) {
   if (arr1.length !== arr2.length) {
     throw new Error("Vectors must have the same length");
   }
-  fallbackWarning();
 
-  const dotProduct = arr1.reduce((acc, val, i) => acc + val * arr2[i], 0);
-  const magnitudeA = Math.sqrt(arr1.reduce((acc, val) => acc + val ** 2, 0));
-  const magnitudeB = Math.sqrt(arr2.reduce((acc, val) => acc + val ** 2, 0));
+  let dotProduct = 0;
+  let magnitudeA = 0;
+  let magnitudeB = 0;
+
+  for (let i = 0; i < arr1.length; i++) {
+    dotProduct += arr1[i] * arr2[i];
+    magnitudeA += arr1[i] * arr1[i];
+    magnitudeB += arr2[i] * arr2[i];
+  }
+
+  magnitudeA = Math.sqrt(magnitudeA);
+  magnitudeB = Math.sqrt(magnitudeB);
 
   if (magnitudeA === 0 || magnitudeB === 0) {
     console.warn(
@@ -39,7 +53,7 @@ function cosine(arr1, arr2) {
     return 0;
   }
 
-  return 1 - dotProduct / (magnitudeA * magnitudeB);
+  return 1 - (dotProduct / (magnitudeA * magnitudeB));
 }
 
 module.exports = {
@@ -59,10 +73,10 @@ module.exports = {
    */
   sqeuclidean: sqeuclidean,
   /**
-   * Computes the cosine similarity distance between two arrays.
+   * Computes the cosine distance between two arrays.
    * @param {number[]} arr1 - The first array.
    * @param {number[]} arr2 - The second array.
-   * @returns {number} The cosine similarity distance between arr1 and arr2.
+   * @returns {number} The cosine distance between arr1 and arr2.
    */
   cosine: cosine,
 };

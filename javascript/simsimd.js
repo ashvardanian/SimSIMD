@@ -13,10 +13,10 @@ module.exports = {
     sqeuclidean: compiled.sqeuclidean,
 
     /**
-     * @brief Computes the cosine similarity distance between two vectors.
+     * @brief Computes the cosine distance between two vectors.
      * @param {Float32Array|Int8Array} a - The first vector.
      * @param {Float32Array|Int8Array} b - The second vector.
-     * @returns {number} The cosine similarity distance between vectors a and b.
+     * @returns {number} The cosine distance between vectors a and b.
      */
     cosine: compiled.cosine,
 
