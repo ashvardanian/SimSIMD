@@ -97,8 +97,11 @@ export default {
 function getBuildDir(dir: string) {
   if (existsSync(path.join(dir, "build"))) return dir;
   if (existsSync(path.join(dir, "prebuilds"))) return dir;
-  if (existsSync(path.join(dir, "node_modules")))
-    return getBuildDir(path.join(dir, "node_modules/simsimd"));
+  if (path.basename(dir) === ".next") {
+    // special case for next.js on custom node (not vercel)
+    const sideways = path.join(dir, "..", "node_modules", "simsimd");
+    if (existsSync(sideways)) return getBuildDir(sideways);
+  }
   if (dir === "/") throw new Error("Could not find native build for simsimd");
   return getBuildDir(path.join(dir, ".."));
 }
