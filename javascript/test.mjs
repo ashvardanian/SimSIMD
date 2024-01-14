@@ -5,6 +5,9 @@ import process from 'node:process';
 
 const simsimd = build(process.cwd());
 
+import { sqeuclidean } from './fallback.js';
+// const sqeuclidean = require("./fallback")
+
 function assertAlmostEqual(actual, expected, tolerance = 1e-6) {
     const lowerBound = expected - tolerance;
     const upperBound = expected + tolerance;
@@ -32,6 +35,9 @@ test('Distance from itself', () => {
 const f32Array1 = new Float32Array([1.0, 2.0, 3.0]);
 const f32Array2 = new Float32Array([4.0, 5.0, 6.0]);
 
+const fallbackArray1 = new Array(f32Array1);
+const fallbackArray2 = new Array(f32Array2);
+
 test('Squared Euclidean Distance', () => {
     const result = simsimd.sqeuclidean(f32Array1, f32Array2);
     assertAlmostEqual(result, 27.0, 0.01);
@@ -46,3 +52,21 @@ test('Cosine Similarity', () => {
     const result = simsimd.cosine(f32Array1, f32Array2);
     assertAlmostEqual(result, 0.029, 0.01);
 });
+
+test('Squared Euclidean Distance JS vs C', () => {
+    const result = simsimd.sqeuclidean(f32Array1, f32Array2);
+    const resultjs = sqeuclidean(fallbackArray1, fallbackArray2);
+    console.log(result)
+    console.log(resultjs)
+    assertAlmostEqual(result, resultjs, 0.01);
+});
+
+// test('Inner Product JS vs C', () => {
+//     const result = simsimd.inner(f32Array1, f32Array2);
+//     assertAlmostEqual(result, -31.0, 0.01);
+// });
+
+// test('Cosine Similarity JS vs C', () => {
+//     const result = simsimd.cosine(f32Array1, f32Array2);
+//     assertAlmostEqual(result, 0.029, 0.01);
+// });
