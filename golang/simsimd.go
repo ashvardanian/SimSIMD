@@ -16,12 +16,12 @@ inline static simsimd_f32_t sqeuclidean_f32(simsimd_f32_t const* a, simsimd_f32_
 import "C"
 
 
-// CosineI8 computes the cosine similarity between two i8 vectors using the most suitable SIMD instruction set available.
+// CosineI8 computes the cosine distance between two i8 vectors using the most suitable SIMD instruction set available.
 func CosineI8(a, b []int8) float32 {
 	return float32(C.cosine_i8((*C.simsimd_i8_t)(&a[0]), (*C.simsimd_i8_t)(&b[0]), C.simsimd_size_t(len(a))))
 }
 
-// CosineF32 computes the cosine similarity between two i8 vectors using the most suitable SIMD instruction set available.
+// CosineF32 computes the cosine distance between two i8 vectors using the most suitable SIMD instruction set available.
 func CosineF32(a, b []float32) float32 {
 	return float32(C.cosine_f32((*C.simsimd_f32_t)(&a[0]), (*C.simsimd_f32_t)(&b[0]), C.simsimd_size_t(len(a))))
 }

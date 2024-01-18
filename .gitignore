@@ -9,6 +9,7 @@ node_modules/
 package-ci/
 prebuilds/
 build/
+javascript/dist
 
 # for Google Benchmark
 compare.py

@@ -10,3 +10,4 @@ VERSION
 package-ci.json
 setup.py
 CMakeLists.txt
+build

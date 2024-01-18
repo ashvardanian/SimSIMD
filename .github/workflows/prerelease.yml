@@ -84,4 +84,5 @@ jobs:
         run: |
           npm ci --ignore-scripts
           npm run install
+          npm run build-js
           npm test
