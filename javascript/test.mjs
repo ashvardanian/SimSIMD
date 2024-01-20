@@ -3,7 +3,7 @@ import assert from "node:assert";
 
 import * as simsimd from "./dist/esm/simsimd.js";
 
-import { sqeuclidean, cosine, inner_distance } from "./dist/esm/fallback.js";
+import { sqeuclidean, cosine, inner } from "./dist/esm/fallback.js";
 
 function assertAlmostEqual(actual, expected, tolerance = 1e-6) {
   const lowerBound = expected - tolerance;
@@ -44,17 +44,17 @@ test("Distance from itself", () => {
 });
 
 test("Distance from itself JS", () => {
-  const arr = [1.0, 2.0, 3.0];
+  const f32s = new Float32Array([1.0, 2.0, 3.0]);
 
-  assertAlmostEqual(sqeuclidean(arr, arr), 0.0, 0.01);
-  assertAlmostEqual(cosine(arr, arr), 0.0, 0.01);
+  assertAlmostEqual(sqeuclidean(f32s, f32s), 0.0, 0.01);
+  assertAlmostEqual(cosine(f32s, f32s), 0.0, 0.01);
 
   const arrNormalized = new Float32Array([
     1.0 / Math.sqrt(14),
     2.0 / Math.sqrt(14),
     3.0 / Math.sqrt(14),
   ]);
-  assertAlmostEqual(inner_distance(arrNormalized, arrNormalized), 0.0, 0.01);
+  assertAlmostEqual(inner(arrNormalized, arrNormalized), 0.0, 0.01);
 });
 
 const f32Array1 = new Float32Array([1.0, 2.0, 3.0]);
@@ -81,7 +81,7 @@ test("Squared Euclidean Distance JS", () => {
 });
 
 test("Inner Product JS", () => {
-  const result = inner_distance(f32Array1, f32Array2);
+  const result = inner(f32Array1, f32Array2);
   assertAlmostEqual(result, -31.0, 0.01);
 });
 
@@ -98,7 +98,7 @@ test("Squared Euclidean Distance C vs JS", () => {
 
 test("Inner Distance C vs JS", () => {
   const result = simsimd.inner(f32Array1, f32Array2);
-  const resultjs = inner_distance(f32Array1, f32Array2);
+  const resultjs = inner(f32Array1, f32Array2);
   assertAlmostEqual(resultjs, result, 0.01);
 });
 
