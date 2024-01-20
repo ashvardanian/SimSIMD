@@ -1,7 +1,3 @@
-console.warn(
-  "It seems like your environment does't support the native simsimd module, so we are providing a JS fallback."
-);
-
 /**
  * @brief Computes the inner product of two vectors.
  * @param {Float32Array} a - The first vector.

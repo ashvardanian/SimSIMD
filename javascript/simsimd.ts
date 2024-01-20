@@ -2,6 +2,7 @@ import build from "node-gyp-build";
 import * as path from "node:path";
 import { existsSync } from "node:fs";
 import { getFileName, getRoot } from "bindings";
+import * as fallback from "./fallback.js";
 
 let compiled: any;
 
@@ -9,7 +10,10 @@ try {
   let builddir = getBuildDir(getDirName());
   compiled = build(builddir);
 } catch (e) {
-  compiled = import("./fallback");
+  compiled = fallback;
+  console.warn(
+    "It seems like your environment does't support the native simsimd module, so we are providing a JS fallback."
+  );
 }
 
 /**
