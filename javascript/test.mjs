@@ -3,7 +3,7 @@ import assert from "node:assert";
 
 import * as simsimd from "./dist/esm/simsimd.js";
 
-import { sqeuclidean, cosine, inner } from "./dist/esm/fallback.js";
+import * as fallback from "./dist/esm/fallback.js";
 
 function assertAlmostEqual(actual, expected, tolerance = 1e-6) {
   const lowerBound = expected - tolerance;
@@ -43,18 +43,34 @@ test("Distance from itself", () => {
   assertAlmostEqual(simsimd.jaccard(u8s, u8s), 0.0, 0.01);
 });
 
-test("Distance from itself JS", () => {
+test("Distance from itself JS fallback", () => {
   const f32s = new Float32Array([1.0, 2.0, 3.0]);
 
-  assertAlmostEqual(sqeuclidean(f32s, f32s), 0.0, 0.01);
-  assertAlmostEqual(cosine(f32s, f32s), 0.0, 0.01);
+  assertAlmostEqual(fallback.sqeuclidean(f32s, f32s), 0.0, 0.01);
+  assertAlmostEqual(fallback.cosine(f32s, f32s), 0.0, 0.01);
 
   const arrNormalized = new Float32Array([
     1.0 / Math.sqrt(14),
     2.0 / Math.sqrt(14),
     3.0 / Math.sqrt(14),
   ]);
-  assertAlmostEqual(inner(arrNormalized, arrNormalized), 0.0, 0.01);
+  assertAlmostEqual(fallback.inner(arrNormalized, arrNormalized), 0.0, 0.01);
+
+  const f32sDistribution = new Float32Array([1.0 / 6, 2.0 / 6, 3.0 / 6]);
+  assertAlmostEqual(
+    fallback.kullbackleibler(f32sDistribution, f32sDistribution),
+    0.0,
+    0.01
+  );
+  assertAlmostEqual(
+    fallback.jensenshannon(f32sDistribution, f32sDistribution),
+    0.0,
+    0.01
+  );
+
+  const u8s = new Uint8Array([1, 2, 3]);
+  assertAlmostEqual(fallback.hamming(u8s, u8s), 0.0, 0.01);
+  assertAlmostEqual(fallback.jaccard(u8s, u8s), 0.0, 0.01);
 });
 
 const f32Array1 = new Float32Array([1.0, 2.0, 3.0]);
@@ -76,34 +92,62 @@ test("Cosine Similarity", () => {
 });
 
 test("Squared Euclidean Distance JS", () => {
-  const result = sqeuclidean(f32Array1, f32Array2);
+  const result = fallback.sqeuclidean(f32Array1, f32Array2);
   assertAlmostEqual(result, 27.0, 0.01);
 });
 
 test("Inner Product JS", () => {
-  const result = inner(f32Array1, f32Array2);
+  const result = fallback.inner(f32Array1, f32Array2);
   assertAlmostEqual(result, -31.0, 0.01);
 });
 
 test("Cosine Similarity JS", () => {
-  const result = cosine(f32Array1, f32Array2);
+  const result = fallback.cosine(f32Array1, f32Array2);
   assertAlmostEqual(result, 0.029, 0.01);
 });
 
 test("Squared Euclidean Distance C vs JS", () => {
   const result = simsimd.sqeuclidean(f32Array1, f32Array2);
-  const resultjs = sqeuclidean(f32Array1, f32Array2);
+  const resultjs = fallback.sqeuclidean(f32Array1, f32Array2);
   assertAlmostEqual(resultjs, result, 0.01);
 });
 
 test("Inner Distance C vs JS", () => {
   const result = simsimd.inner(f32Array1, f32Array2);
-  const resultjs = inner(f32Array1, f32Array2);
+  const resultjs = fallback.inner(f32Array1, f32Array2);
   assertAlmostEqual(resultjs, result, 0.01);
 });
 
 test("Cosine Similarity C vs JS", () => {
   const result = simsimd.cosine(f32Array1, f32Array2);
-  const resultjs = cosine(f32Array1, f32Array2);
+  const resultjs = fallback.cosine(f32Array1, f32Array2);
+  assertAlmostEqual(resultjs, result, 0.01);
+});
+
+test("Hamming C vs JS", () => {
+  const u8s = new Uint8Array([1, 2, 3]);
+  const result = simsimd.hamming(u8s, u8s);
+  const resultjs = fallback.cosine(u8s, u8s);
+  assertAlmostEqual(resultjs, result, 0.01);
+});
+
+test("Jaccard C vs JS", () => {
+  const u8s = new Uint8Array([1, 2, 3]);
+  const result = simsimd.jaccard(u8s, u8s);
+  const resultjs = fallback.jaccard(u8s, u8s);
+  assertAlmostEqual(resultjs, result, 0.01);
+});
+
+test("Kullback-Leibler C vs JS", () => {
+  const f32sDistribution = new Float32Array([1.0 / 6, 2.0 / 6, 3.0 / 6]);
+  const result = simsimd.kullbackleibler(f32sDistribution, f32sDistribution);
+  const resultjs = fallback.kullbackleibler(f32sDistribution, f32sDistribution);
+  assertAlmostEqual(resultjs, result, 0.01);
+});
+
+test("Jensen-Shannon C vs JS", () => {
+  const f32sDistribution = new Float32Array([1.0 / 6, 2.0 / 6, 3.0 / 6]);
+  const result = simsimd.jensenshannon(f32sDistribution, f32sDistribution);
+  const resultjs = fallback.jensenshannon(f32sDistribution, f32sDistribution);
   assertAlmostEqual(resultjs, result, 0.01);
 });
