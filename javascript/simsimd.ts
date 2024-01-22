@@ -2,6 +2,7 @@ import build from "node-gyp-build";
 import * as path from "node:path";
 import { existsSync } from "node:fs";
 import { getFileName, getRoot } from "bindings";
+import * as fallback from "./fallback.js";
 
 let compiled: any;
 
@@ -9,7 +10,10 @@ try {
   let builddir = getBuildDir(getDirName());
   compiled = build(builddir);
 } catch (e) {
-  compiled = import("./fallback");
+  compiled = fallback;
+  console.warn(
+    "It seems like your environment does't support the native simsimd module, so we are providing a JS fallback."
+  );
 }
 
 /**
@@ -39,10 +43,10 @@ export const cosine = (
 };
 
 /**
- * @brief Computes the inner product of two vectors.
+ * @brief Computes the inner distance of two vectors.
  * @param {Float32Array} a - The first vector.
  * @param {Float32Array} b - The second vector.
- * @returns {number} The inner product of vectors a and b.
+ * @returns {number} The inner distance of vectors a and b.
  */
 export const inner = (a: Float32Array, b: Float32Array): number => {
   return compiled.inner(a, b);
