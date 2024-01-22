@@ -1,7 +1,7 @@
 {
     "compileOnSave": false,
     "exclude": ["node_modules", "dist"],
-    "include": ["node-gyp-build.d.ts", "simsimd.ts"],
+    "include": ["node-gyp-build.d.ts", "simsimd.ts", "fallback.ts"],
     "compilerOptions": {
         "allowJs": true,
         "allowSyntheticDefaultImports": true,
