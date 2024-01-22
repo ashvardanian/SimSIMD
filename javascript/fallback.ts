@@ -1,8 +1,8 @@
 /**
- * @brief Computes the inner product of two vectors.
+ * @brief Computes the inner distance of two vectors.
  * @param {Float32Array} a - The first vector.
  * @param {Float32Array} b - The second vector.
- * @returns {number} The inner product of vectors a and b.
+ * @returns {number} The inner distance of vectors a and b.
  */
 export function inner(a: Float32Array, b: Float32Array): number {
   if (a.length !== b.length) {

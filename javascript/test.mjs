@@ -81,7 +81,7 @@ test("Squared Euclidean Distance", () => {
   assertAlmostEqual(result, 27.0, 0.01);
 });
 
-test("Inner Product", () => {
+test("Inner Distance", () => {
   const result = simsimd.inner(f32Array1, f32Array2);
   assertAlmostEqual(result, -31.0, 0.01);
 });
@@ -96,7 +96,7 @@ test("Squared Euclidean Distance JS", () => {
   assertAlmostEqual(result, 27.0, 0.01);
 });
 
-test("Inner Product JS", () => {
+test("Inner Distance JS", () => {
   const result = fallback.inner(f32Array1, f32Array2);
   assertAlmostEqual(result, -31.0, 0.01);
 });
