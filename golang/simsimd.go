@@ -3,6 +3,7 @@ package simsimd
 /*
 #cgo CFLAGS: -O3
 #cgo LDFLAGS: -O3 -L. -lm
+#define SIMSIMD_NATIVE_F16 (0)
 #include "../include/simsimd/simsimd.h"
 #include <stdlib.h>
 
