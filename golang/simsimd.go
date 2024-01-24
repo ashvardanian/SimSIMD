@@ -2,7 +2,7 @@ package simsimd
 
 /*
 #cgo CFLAGS: -O3
-#cgo LDFLAGS: -O3 -L.
+#cgo LDFLAGS: -O3 -L. -lm
 #include "../include/simsimd/simsimd.h"
 #include <stdlib.h>
 
