@@ -1,0 +1,12 @@
+[package]
+name = "simsimd-rs"
+description = "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm"
+version = "0.1.0"
+edition = "2021"
+authors = ["Pedro Planel <pplanel@gmail.com>"]
+
+
+[dependencies]
+
+[build-dependencies]
+bindgen = { version = "0.69.2", features = ['experimental'] }
