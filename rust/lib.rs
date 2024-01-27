@@ -11,7 +11,7 @@ extern "C" {
     fn sqeuclidean_f32(a: *const f32, b: *const f32, c: usize) -> f32;
 }
 
-trait SimSIMD
+pub trait SimSIMD
 where
     Self: Sized,
 {
