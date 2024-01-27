@@ -1,22 +1,91 @@
+//! # SimSIMD - Hardware-Accelerated Similarity Metrics and Distance Functions
+//!
+//! * Zero-dependency header-only C 99 library with bindings for Python, JavaScript and Rust.
+//! * Targets ARM NEON, SVE, x86 AVX2, AVX-512 (VNNI, FP16) hardware backends.
+//! * Zero-copy compatible with NumPy, PyTorch, TensorFlow, and other tensors.
+//! * Handles f64 double-, f32 single-, and f16 half-precision, i8 integral, and binary vectors.
+//! * Up to 200x faster than scipy.spatial.distance and numpy.inner.
+//! * Used in USearch and several DBMS products.
+//!
+//! ## Implemented distance functions include:
+//!
+//! * Euclidean (L2), Inner Distance, and Cosine (Angular) spatial distances.
+//! * Hamming (~ Manhattan) and Jaccard (~ Tanimoto) binary distances.
+//! * Kullback-Leibler and Jensen–Shannon divergences for probability distributions.
+//!
+//! The functions in this module are exposed through a trait `SimSIMD`, which is
+//! implemented for types with SIMD support (e.g., i8 and f32). The trait provides
+//! methods for computing cosine similarity, inner product, and squared Euclidean
+//! distance between slices of these types.
+//!
+//! # Example
+//!
+//! ```rust
+//! use crate::SimSIMD;
+//!
+//! let a = &[1, 2, 3];
+//! let b = &[4, 5, 6];
+//!
+//! // Compute cosine similarity
+//! let cosine_sim = i8::cosine(a, b);
+//!
+//! // Compute inner product
+//! let inner_product = i8::inner(a, b);
+//!
+//! // Compute squared Euclidean distance
+//! let sqeuclidean_dist = i8::sqeuclidean(a, b);
+//! ```
+//!
+//! # Safety
+//!
+//! The functions declared in the `extern "C"` block are low-level bindings to
+//! SimSIMD implementation. It is crucial to ensure that the input slices have the
+//! same length (`c` parameter) to avoid undefined behavior.
+//!
+//!
+//! # Trait Implementation
+//!
+//! The `SimSIMD` trait is implemented for types with SIMD support and provides
+//! three associated methods:
+//!
+//! - `cosine(a: &[Self], b: &[Self]) -> Option<f32>`: Computes cosine similarity between two slices.
+//! - `inner(a: &[Self], b: &[Self]) -> Option<f32>`: Computes inner product between two slices.
+//! - `sqeuclidean(a: &[Self], b: &[Self]) -> Option<f32>`: Computes squared Euclidean distance between two slices.
+//!
 #![allow(non_camel_case_types)]
 
 extern "C" {
+    /// Computes cosine similarity for i8 types.
     fn cosine_i8(a: *const i8, b: *const i8, c: usize) -> f32;
+
+    /// Computes cosine similarity for f32 types.
     fn cosine_f32(a: *const f32, b: *const f32, c: usize) -> f32;
 
+    /// Computes inner product for i8 types.
     fn inner_i8(a: *const i8, b: *const i8, c: usize) -> f32;
+
+    /// Computes inner product for f32 types.
     fn inner_f32(a: *const f32, b: *const f32, c: usize) -> f32;
 
+    /// Computes squared Euclidean distance for i8 types.
     fn sqeuclidean_i8(a: *const i8, b: *const i8, c: usize) -> f32;
+
+    /// Computes squared Euclidean distance for f32 types.
     fn sqeuclidean_f32(a: *const f32, b: *const f32, c: usize) -> f32;
 }
 
+/// A trait for SIMD similarity functions.
 pub trait SimSIMD
 where
     Self: Sized,
 {
+    /// Computes cosine similarity between two slices.
     fn cosine(a: &[Self], b: &[Self]) -> Option<f32>;
+
+    /// Computes inner product between two slices.
     fn inner(a: &[Self], b: &[Self]) -> Option<f32>;
+
+    /// Computes squared Euclidean distance between two slices.
     fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<f32>;
 }
 

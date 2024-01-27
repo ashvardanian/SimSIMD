@@ -3,7 +3,12 @@ name = "simsimd-rs"
 description = "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm"
 version = "0.1.0"
 edition = "2021"
-authors = ["Pedro Planel <pplanel@gmail.com>"]
+license = "Apache-2.0"
+authors = [
+  "Ash Vardanian <1983160+ashvardanian@users.noreply.github.com>",
+  "Pedro Planel <pplanel@gmail.com>",
+]
+repository = "https://github.com/ashvardanian/SimSIMD"
 
 [lib]
 name = "simsimd"
