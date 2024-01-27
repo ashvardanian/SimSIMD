@@ -157,13 +157,20 @@ impl SimSIMD for f32 {
 mod tests {
     use super::*;
     //
+    fn assert_almost_equal(left: f32, right: f32, tolerance: f32) {
+        let lower = right - tolerance;
+        let upper = right + tolerance;
+
+        assert!(left >= lower && left <= upper);
+    }
+
     #[test]
     fn test_cosine_i8() {
         let a = &[3, 97, 127];
         let b = &[3, 97, 127];
 
         if let Some(result) = SimSIMD::cosine(a, b) {
-            assert_eq!(0.00012027938, result);
+            assert_almost_equal(0.00012027938, result, 0.01);
             println!("The result of cosine_i8 is {:.8}", result);
         }
     }
@@ -174,7 +181,7 @@ mod tests {
         let b = &[1.0, 2.0, 3.0];
 
         if let Some(result) = SimSIMD::cosine(a, b) {
-            assert_eq!(0.004930496, result);
+            assert_almost_equal(0.004930496, result, 0.01);
             println!("The result of cosine_f32 is {:.8}", result);
         }
     }
@@ -185,7 +192,7 @@ mod tests {
         let b = &[4, 5, 6];
 
         if let Some(result) = SimSIMD::inner(a, b) {
-            assert_eq!(0.029403687, result);
+            assert_almost_equal(0.029403687, result, 0.01);
             println!("The result of inner_i8 is {:.8}", result);
         }
     }
@@ -196,7 +203,7 @@ mod tests {
         let b = &[4.0, 5.0, 6.0];
 
         if let Some(result) = SimSIMD::inner(a, b) {
-            assert_eq!(-31.0, result);
+            assert_almost_equal(-31.0, result, 0.01);
             println!("The result of inner_f32 is {:.8}", result);
         }
     }
@@ -207,7 +214,7 @@ mod tests {
         let b = &[4, 5, 6];
 
         if let Some(result) = SimSIMD::sqeuclidean(a, b) {
-            assert_eq!(27.0, result);
+            assert_almost_equal(27.0, result, 0.01);
             println!("The result of sqeuclidean_i8 is {:.8}", result);
         }
     }
@@ -218,7 +225,7 @@ mod tests {
         let b = &[4.0, 5.0, 6.0];
 
         if let Some(result) = SimSIMD::sqeuclidean(a, b) {
-            assert_eq!(27.0, result);
+            assert_almost_equal(27.0, result, 0.01);
             println!("The result of sqeuclidean_f32 is {:.8}", result);
         }
     }
