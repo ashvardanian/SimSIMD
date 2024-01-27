@@ -49,3 +49,7 @@ CMakeCache.txt
 *.exe
 *.out
 *.app
+
+
+# Rust crate
+target/

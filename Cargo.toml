@@ -6,7 +6,9 @@ edition = "2021"
 authors = ["Pedro Planel <pplanel@gmail.com>"]
 
 
-[dependencies]
+[lib]
+name = "simsimd"
+path = "rust/lib.rs"
 
 [build-dependencies]
-bindgen = { version = "0.69.2", features = ['experimental'] }
+cc = "1.0.83"
