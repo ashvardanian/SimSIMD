@@ -1,5 +1,5 @@
 [package]
-name = "simsimd-rs"
+name = "simsimd"
 description = "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm"
 version = "0.1.0"
 edition = "2021"
