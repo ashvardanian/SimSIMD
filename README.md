@@ -3,6 +3,7 @@
 <div>
 <a href="https://pepy.tech/project/simsimd"> <img alt="PyPI" src="https://static.pepy.tech/personalized-badge/simsimd?period=total&units=abbreviation&left_color=black&right_color=blue&left_text=SimSIMD%20Python%20installs"> </a>
 <a href="https://www.npmjs.com/package/simsimd"> <img alt="npm" src="https://img.shields.io/npm/dy/simsimd?label=npm%20dowloads"> </a>
+<a href="https://crates.io/crates/simsimd"> <img alt="rust" src="https://img.shields.io/crates/d/simsimd?logo=rust" /> </a>
 <img alt="GitHub code size in bytes" src="https://img.shields.io/github/languages/code-size/ashvardanian/simsimd">
 </div>
 
@@ -236,4 +237,12 @@ __To test and benchmark GoLang bindings__:
 cd golang
 go test # To test
 go test -run=^$ -bench=. -benchmem # To benchmark
+```
+
+__To test and benchmark Rust bindings__:
+
+```sh
+cargo test 
+cargo bench 
+open ./target/criterion/report/index.html
 ```
