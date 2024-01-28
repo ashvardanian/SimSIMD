@@ -9,7 +9,8 @@
 
 ## Hardware-Accelerated Similarity Metrics and Distance Functions
 
-- Zero-dependency [header-only C 99](#using-simsimd-in-c) library with bindings for [Python](#using-simsimd-in-python) and [JavaScript](#using-simsimd-in-javascript).
+- Zero-dependency [header-only C 99](#using-simsimd-in-c) library.
+- Bindings for [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust) and [JavaScript](#using-simsimd-in-javascript).
 - Targets ARM NEON, SVE, x86 AVX2, AVX-512 (VNNI, FP16) hardware backends.
 - Zero-copy compatible with NumPy, PyTorch, TensorFlow, and other tensors.
 - Handles `f64` double-, `f32` single-, and `f16` half-precision, `i8` integral, and binary vectors.
@@ -138,6 +139,32 @@ metric = CompiledMetric(
 )
 
 index = Index(256, metric=metric)
+```
+
+## Using SimSIMD in Rust
+
+To install, add the following to your `Cargo.toml`:
+
+```toml
+[dependencies]
+simsimd = "..."
+```
+
+To use it:
+
+```rust
+use simsimd::{cosine, sqeuclidean};
+
+fn main() {
+    let vector_a = vec![1.0, 2.0, 3.0];
+    let vector_b = vec![4.0, 5.0, 6.0];
+
+    let distance = cosine(&vector_a, &vector_b);
+    println!("Cosine Distance: {}", distance);
+
+    let distance = sqeuclidean(&vector_a, &vector_b);
+    println!("Squared Euclidean Distance: {}", distance);
+}
 ```
 
 ## Using SimSIMD in JavaScript

@@ -1,6 +1,11 @@
 # SimSIMD library CMakeLists.txt
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
-project(simsimd LANGUAGES C CXX)
+project(
+  simsimd
+  VERSION 3.7.0
+  LANGUAGES C CXX
+  DESCRIPTION "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm"
+  HOMEPAGE_URL "https://github.com/ashvardanian/simsimd")
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED YES)
