@@ -13,6 +13,7 @@ pub(crate) fn cosine_similarity_cpu(a: &[f32], b: &[f32]) -> f32 {
     let norm_b: f32 = b.iter().map(|b| b.powf(2.0)).sum();
 
     dot_product / norm_a.sqrt() * norm_b.sqrt()
+    Some(1.0 - (dot_product / (norm_a.sqrt() * norm_b.sqrt())))
 }
 
 pub(crate) fn squared_euclidean_cpu(a: &[f32], b: &[f32]) -> f32 {
