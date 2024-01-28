@@ -28,5 +28,5 @@ harness = false
 path = "rust/benches/sqeuclidean.rs"
 
 [dev-dependencies]
-criterion = { version = "3.7.1" }
-rand = { version = "3.7.1" }
+criterion = { version = "0.5.1" }
+rand = { version = "0.8.5" }
