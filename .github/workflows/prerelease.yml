@@ -86,3 +86,22 @@ jobs:
           npm run install
           npm run build-js
           npm test
+
+  test_rust:
+    name: Test Rust
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+      - run: git submodule update --init --recursive
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Build and Test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
