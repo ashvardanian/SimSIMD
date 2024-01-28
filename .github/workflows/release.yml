@@ -206,3 +206,20 @@ jobs:
         with:
           token: ${{ secrets.NPM_TOKEN }}
           access: public
+
+  publish_rust:
+    name: Publish Rust
+    needs: versioning
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: "main"
+      - run: git submodule update --init --recursive
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - uses: katyo/publish-crates@v2
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
