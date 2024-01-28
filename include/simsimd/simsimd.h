@@ -15,8 +15,8 @@
 #define SIMSIMD_H
 
 #define SIMSIMD_VERSION_MAJOR 3
-#define SIMSIMD_VERSION_MINOR 6
-#define SIMSIMD_VERSION_PATCH 0
+#define SIMSIMD_VERSION_MINOR 7
+#define SIMSIMD_VERSION_PATCH 1
 
 #include "binary.h"      // Hamming, Jaccard
 #include "probability.h" // Kullback-Leibler, Jensen–Shannon
