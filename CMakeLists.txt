@@ -17,24 +17,6 @@ set(CMAKE_CXX_EXTENSIONS NO)
 
 option(SIMSIMD_BUILD_BENCHMARKS "Compile a micro-benchmark for current ISA" OFF)
 
-# Fetch external dependencies
-include(FetchContent)
-
-# Suppress building tests of Google Benchmark
-set(BENCHMARK_ENABLE_TESTING OFF)
-set(BENCHMARK_ENABLE_INSTALL OFF)
-set(BENCHMARK_ENABLE_DOXYGEN OFF)
-set(BENCHMARK_INSTALL_DOCS OFF)
-set(BENCHMARK_DOWNLOAD_DEPENDENCIES ON)
-set(BENCHMARK_ENABLE_GTEST_TESTS OFF)
-set(BENCHMARK_USE_BUNDLED_GTEST ON)
-
-FetchContent_Declare(
-  benchmark
-  GIT_REPOSITORY https://github.com/google/benchmark.git
-  GIT_TAG v1.7.0)
-FetchContent_MakeAvailable(benchmark)
-
 # Default to Release build type if not set
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -66,6 +48,24 @@ target_include_directories(simsimd INTERFACE "${PROJECT_SOURCE_DIR}/include")
 
 # Build benchmarks if required
 if(SIMSIMD_BUILD_BENCHMARKS)
+  # Fetch external dependencies
+  include(FetchContent)
+
+  # Suppress building tests of Google Benchmark
+  set(BENCHMARK_ENABLE_TESTING OFF)
+  set(BENCHMARK_ENABLE_INSTALL OFF)
+  set(BENCHMARK_ENABLE_DOXYGEN OFF)
+  set(BENCHMARK_INSTALL_DOCS OFF)
+  set(BENCHMARK_DOWNLOAD_DEPENDENCIES ON)
+  set(BENCHMARK_ENABLE_GTEST_TESTS OFF)
+  set(BENCHMARK_USE_BUNDLED_GTEST ON)
+
+  FetchContent_Declare(
+    benchmark
+    GIT_REPOSITORY https://github.com/google/benchmark.git
+    GIT_TAG v1.7.0)
+  FetchContent_MakeAvailable(benchmark)
+
   find_package(Threads REQUIRED)
   add_executable(simsimd_bench cpp/bench.cxx)
   target_link_libraries(simsimd_bench simsimd Threads::Threads benchmark)
