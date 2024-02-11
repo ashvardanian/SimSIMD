@@ -1,7 +1,7 @@
 [package]
 name = "simsimd"
 description = "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm"
-version = "3.7.6"
+version = "3.7.7"
 edition = "2021"
 license = "Apache-2.0"
 authors = [
