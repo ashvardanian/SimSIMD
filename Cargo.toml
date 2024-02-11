@@ -11,7 +11,7 @@ authors = [
 repository = "https://github.com/ashvardanian/SimSIMD"
 documentation = "https://docs.rs/simsimd"
 homepage = "https://ashvardanian.com/posts/simsimd-faster-scipy"
-keywords = ["simd", "search", "linear-algebra", "vector", "x86", "arm"]
+keywords = ["simd", "search", "linear-algebra", "vector"]
 categories = ["mathematics", "hardware-support", "no-std", "wasm", "external-ffi-bindings"]
 
 [lib]
