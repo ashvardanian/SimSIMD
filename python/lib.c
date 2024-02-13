@@ -99,13 +99,83 @@ simsimd_metric_kind_t python_string_to_metric_kind(char const* name) {
         return simsimd_metric_unknown_k;
 }
 
+static PyObject* api_enable_capability(PyObject* self, PyObject* args) {
+    char const* cap_name;
+    if (!PyArg_ParseTuple(args, "s", &cap_name)) {
+        return NULL; // Argument parsing failed
+    }
+
+    if (strcmp(cap_name, "arm_neon") == 0) {
+        static_capabilities |= simsimd_cap_arm_neon_k;
+    } else if (strcmp(cap_name, "arm_sve") == 0) {
+        static_capabilities |= simsimd_cap_arm_sve_k;
+    } else if (strcmp(cap_name, "arm_sve2") == 0) {
+        static_capabilities |= simsimd_cap_arm_sve2_k;
+    } else if (strcmp(cap_name, "x86_avx2") == 0) {
+        static_capabilities |= simsimd_cap_x86_avx2_k;
+    } else if (strcmp(cap_name, "x86_avx512") == 0) {
+        static_capabilities |= simsimd_cap_x86_avx512_k;
+    } else if (strcmp(cap_name, "x86_avx2fp16") == 0) {
+        static_capabilities |= simsimd_cap_x86_avx2fp16_k;
+    } else if (strcmp(cap_name, "x86_avx512fp16") == 0) {
+        static_capabilities |= simsimd_cap_x86_avx512fp16_k;
+    } else if (strcmp(cap_name, "x86_avx512vpopcntdq") == 0) {
+        static_capabilities |= simsimd_cap_x86_avx512vpopcntdq_k;
+    } else if (strcmp(cap_name, "x86_avx512vnni") == 0) {
+        static_capabilities |= simsimd_cap_x86_avx512vnni_k;
+    } else if (strcmp(cap_name, "serial") == 0) {
+        PyErr_SetString(PyExc_ValueError, "Can't change the serial functionality");
+        return NULL;
+    } else {
+        PyErr_SetString(PyExc_ValueError, "Unknown capability");
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+}
+
+static PyObject* api_disable_capability(PyObject* self, PyObject* args) {
+    char const* cap_name;
+    if (!PyArg_ParseTuple(args, "s", &cap_name)) {
+        return NULL; // Argument parsing failed
+    }
+
+    if (strcmp(cap_name, "arm_neon") == 0) {
+        static_capabilities &= ~simsimd_cap_arm_neon_k;
+    } else if (strcmp(cap_name, "arm_sve") == 0) {
+        static_capabilities &= ~simsimd_cap_arm_sve_k;
+    } else if (strcmp(cap_name, "arm_sve2") == 0) {
+        static_capabilities &= ~simsimd_cap_arm_sve2_k;
+    } else if (strcmp(cap_name, "x86_avx2") == 0) {
+        static_capabilities &= ~simsimd_cap_x86_avx2_k;
+    } else if (strcmp(cap_name, "x86_avx512") == 0) {
+        static_capabilities &= ~simsimd_cap_x86_avx512_k;
+    } else if (strcmp(cap_name, "x86_avx2fp16") == 0) {
+        static_capabilities &= ~simsimd_cap_x86_avx2fp16_k;
+    } else if (strcmp(cap_name, "x86_avx512fp16") == 0) {
+        static_capabilities &= ~simsimd_cap_x86_avx512fp16_k;
+    } else if (strcmp(cap_name, "x86_avx512vpopcntdq") == 0) {
+        static_capabilities &= ~simsimd_cap_x86_avx512vpopcntdq_k;
+    } else if (strcmp(cap_name, "x86_avx512vnni") == 0) {
+        static_capabilities &= ~simsimd_cap_x86_avx512vnni_k;
+    } else if (strcmp(cap_name, "serial") == 0) {
+        PyErr_SetString(PyExc_ValueError, "Can't change the serial functionality");
+        return NULL;
+    } else {
+        PyErr_SetString(PyExc_ValueError, "Unknown capability");
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+}
+
 static PyObject* api_get_capabilities(PyObject* self) {
     simsimd_capability_t caps = static_capabilities;
     PyObject* cap_dict = PyDict_New();
     if (!cap_dict)
         return NULL;
 
-#define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong(caps& simsimd_cap_##name##_k))
+#define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong((caps) & simsimd_cap_##name##_k))
 
     ADD_CAP(serial);
     ADD_CAP(arm_neon);
@@ -158,7 +228,7 @@ int parse_tensor(PyObject* tensor, Py_buffer* buffer, parsed_vector_or_matrix_t*
     return 0;
 }
 
-void free_capsule(void *capsule) {
+void free_capsule(void* capsule) {
     void* obj = PyCapsule_GetPointer(capsule, PyCapsule_GetName(capsule));
     free(obj);
 };
@@ -243,14 +313,14 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
             goto cleanup;
         }
 
-        PyObject *wrapper = PyCapsule_New(distances, "wrapper", (PyCapsule_Destructor)&free_capsule);
+        PyObject* wrapper = PyCapsule_New(distances, "wrapper", (PyCapsule_Destructor)&free_capsule);
         if (!wrapper) {
             free(distances);
             Py_DECREF(output_array);
             goto cleanup;
         }
 
-        if (PyArray_SetBaseObject((PyArrayObject *)output_array, wrapper) < 0) {
+        if (PyArray_SetBaseObject((PyArrayObject*)output_array, wrapper) < 0) {
             free(distances);
             Py_DECREF(output_array);
             Py_DECREF(wrapper);
@@ -338,14 +408,14 @@ static PyObject* impl_cdist(                            //
             goto cleanup;
         }
 
-        PyObject *wrapper = PyCapsule_New(distances, "wrapper", (PyCapsule_Destructor)&free_capsule);
+        PyObject* wrapper = PyCapsule_New(distances, "wrapper", (PyCapsule_Destructor)&free_capsule);
         if (!wrapper) {
             free(distances);
             Py_DECREF(output_array);
             goto cleanup;
         }
 
-        if (PyArray_SetBaseObject((PyArrayObject *)output_array, wrapper) < 0) {
+        if (PyArray_SetBaseObject((PyArrayObject*)output_array, wrapper) < 0) {
             free(distances);
             Py_DECREF(output_array);
             Py_DECREF(wrapper);
@@ -482,6 +552,8 @@ static PyObject* api_jaccard(PyObject* self, PyObject* const* args, Py_ssize_t n
 static PyMethodDef simsimd_methods[] = {
     // Introspecting library and hardware capabilities
     {"get_capabilities", api_get_capabilities, METH_NOARGS, "Get hardware capabilities"},
+    {"enable_capability", api_enable_capability, METH_VARARGS, "Enable a specific family of Assembly kernels"},
+    {"disable_capability", api_disable_capability, METH_VARARGS, "Disable a specific family of Assembly kernels"},
 
     // NumPy and SciPy compatible interfaces (two matrix or vector arguments)
     {"sqeuclidean", api_l2sq, METH_FASTCALL, "L2sq (Sq. Euclidean) distances between a pair of matrices"},

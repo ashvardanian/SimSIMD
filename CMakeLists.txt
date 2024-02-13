@@ -33,6 +33,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
   if(NOT APPLE)
     add_compile_options(-march=native)
   endif()
+
   add_compile_options(-pedantic -ferror-limit=1)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   add_compile_options(-march=native -pedantic -fmax-errors=1 -Wno-tautological-constant-compare)

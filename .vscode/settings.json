@@ -94,6 +94,7 @@
     },
     "cSpell.words": [
         "castsi",
+        "cpuid",
         "dtype",
         "dtypes",
         "jaccard",
@@ -112,6 +113,7 @@
         "unnormalized",
         "unsw",
         "Vardanian",
+        "VNNI",
         "vpopcntdq"
     ],
     "python.testing.pytestArgs": [

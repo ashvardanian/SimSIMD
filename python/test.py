@@ -28,6 +28,28 @@ def test_pointers_availability():
     assert simd.pointer_to_inner("i8") != 0
 
 
+def test_capabilities_list():
+    """Tests the visibility of hardware capabilities."""
+    assert "serial" in simd.get_capabilities()
+    assert "arm_neon" in simd.get_capabilities()
+    assert "arm_sve" in simd.get_capabilities()
+    assert "arm_sve2" in simd.get_capabilities()
+    assert "x86_avx2" in simd.get_capabilities()
+    assert "x86_avx512" in simd.get_capabilities()
+    assert "x86_avx2fp16" in simd.get_capabilities()
+    assert "x86_avx512fp16" in simd.get_capabilities()
+    assert "x86_avx512vpopcntdq" in simd.get_capabilities()
+    assert "x86_avx512vnni" in simd.get_capabilities()
+    assert simd.get_capabilities().get("serial") == 1
+
+    # Check the toggle:
+    previous_value = simd.get_capabilities().get("arm_neon")
+    simd.enable_capability("arm_neon")
+    assert simd.get_capabilities().get("arm_neon") == 1
+    if not previous_value:
+        simd.disable_capability("arm_neon")
+
+
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [3, 97, 1536])
 @pytest.mark.parametrize("dtype", [np.float64, np.float32, np.float16])
