@@ -69,7 +69,7 @@ typedef enum {
  */
 typedef enum {
     simsimd_cap_serial_k = 1,       ///< Serial (non-SIMD) capability
-    simsimd_cap_any_k = 0xFFFFFFFF, ///< Mask representing any capability
+    simsimd_cap_any_k = 0x7FFFFFFF, ///< Mask representing any capability with `INT_MAX`
 
     simsimd_cap_arm_neon_k = 1 << 10, ///< ARM NEON capability
     simsimd_cap_arm_sve_k = 1 << 11,  ///< ARM SVE capability
@@ -112,11 +112,11 @@ typedef simsimd_f32_t (*simsimd_metric_punned_t)(void const* a, void const* b, s
  *  @brief  Function to determine the SIMD capabilities of the current machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
  */
-inline static simsimd_capability_t simsimd_capabilities() {
+inline static simsimd_capability_t simsimd_capabilities(void) {
 
 #if SIMSIMD_TARGET_X86
 
-    /// The states of 4 registers populated for a specific "cpuid" assmebly call
+    /// The states of 4 registers populated for a specific "cpuid" assembly call
     union four_registers_t {
         int array[4];
         struct separate_t {
