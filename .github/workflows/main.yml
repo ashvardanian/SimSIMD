@@ -1,0 +1,33 @@
+name: Build wheels
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    name: Build wheels on manylinux2014
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7, 3.8, 3.9, 3.10]
+    
+    steps:
+      - uses: actions/checkout@v2
+        name: Checkout repo
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install cibuildwheel
+        run: python -m pip install cibuildwheel==2.3.0
+
+      - name: Build wheels for manylinux2014
+        run: python -m cibuitheel --platform linux --output-dir wheelhouse
+        env:
+          CIBW_BUILD: cp3?-*
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+          CIBW_MANYLINUX_I686_IMAGE: manylinux2014
+          # Setup any extra environment variables required for your C extension here
+          # Example:
+          # CIBW_ENVIRONMENT: "CC=gcc"
