@@ -250,3 +250,7 @@ def test_cdist(ndim, dtype, metric):
 
     # Assert they're close.
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
+
+
+if __name__ == "__main__":
+    pytest.main()
