@@ -5,6 +5,7 @@ _deps
 simsimd.egg-info
 CMakeFiles
 __pycache__
+wheelhouse/
 node_modules/
 package-ci/
 prebuilds/
