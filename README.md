@@ -10,11 +10,12 @@
 ## Hardware-Accelerated Similarity Metrics and Distance Functions
 
 - Zero-dependency [header-only C 99](#using-simsimd-in-c) library.
-- Bindings for [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust) and [JavaScript](#using-simsimd-in-javascript).
-- Targets ARM NEON, SVE, x86 AVX2, AVX-512 (VNNI, FP16) hardware backends.
-- Zero-copy compatible with NumPy, PyTorch, TensorFlow, and other tensors.
 - Handles `f64` double-, `f32` single-, and `f16` half-precision, `i8` integral, and binary vectors.
+- Targets ARM NEON, SVE, x86 AVX2, AVX-512 (VNNI, FP16) hardware backends.
+- Bindings for [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust) and [JavaScript](#using-simsimd-in-javascript).
 - __Up to 200x faster__ than [`scipy.spatial.distance`][scipy] and [`numpy.inner`][numpy].
+- [Supports more Python versions][compatibility] than SciPy and NumPy.
+- Zero-copy compatible with NumPy, PyTorch, TensorFlow, and other tensors.
 - Used in [USearch](https://github.com/unum-cloud/usearch) and several DBMS products.
 
 __Implemented distance functions__ include:
@@ -25,6 +26,7 @@ __Implemented distance functions__ include:
 
 [scipy]: https://docs.scipy.org/doc/scipy/reference/spatial.distance.html#module-scipy.spatial.distance
 [numpy]: https://numpy.org/doc/stable/reference/generated/numpy.inner.html
+[compatibility]: https://pypi.org/project/simsimd/#files
 
 __Technical Insights__ and related articles:
 
