@@ -10,7 +10,9 @@ __lib_name__ = "simsimd"
 
 compile_args = []
 link_args = []
-macros_args = []
+macros_args = [
+    ("SIMSIMD_NATIVE_F16", "0"),
+]
 
 if sys.platform == "linux":
     compile_args.append("-std=c11")
