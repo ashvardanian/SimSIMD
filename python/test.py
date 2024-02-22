@@ -1,12 +1,15 @@
 import pytest
 import simsimd as simd
 
-# NumPy is available on most platforms and is required for most tests
+# NumPy is available on most platforms and is required for most tests.
+# When using PyPy on some platforms NumPy has internal issues, that will
+# raise some weird issue, not an `ImportError`, that's why we intentionally
+# use a naked `except:`. Necessary evil!
 try:
     import numpy as np
 
     numpy_available = True
-except ImportError:
+except:
     # NumPy is not installed, most tests will be skipped
     numpy_available = False
 
@@ -23,7 +26,7 @@ try:
     baseline_hamming = lambda x, y: spd.hamming(x, y) * len(x)
     baseline_jaccard = spd.jaccard
 
-except ImportError:
+except:
     # SciPy is not installed, some tests will be skipped
     scipy_available = False
     baseline_cosine = lambda x, y: 1.0 - np.dot(x, y) / (
