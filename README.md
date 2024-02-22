@@ -1,20 +1,41 @@
 # SimSIMD 📏
 
 <div>
-<a href="https://pepy.tech/project/simsimd"> <img alt="PyPI" src="https://static.pepy.tech/personalized-badge/simsimd?period=total&units=abbreviation&left_color=black&right_color=blue&left_text=SimSIMD%20Python%20installs"> </a>
-<a href="https://www.npmjs.com/package/simsimd"> <img alt="npm" src="https://img.shields.io/npm/dy/simsimd?label=npm%20dowloads"> </a>
-<a href="https://crates.io/crates/simsimd"> <img alt="rust" src="https://img.shields.io/crates/d/simsimd?logo=rust" /> </a>
+<a href="https://pepy.tech/project/simsimd">
+    <img alt="PyPI" src="https://static.pepy.tech/personalized-badge/simsimd?period=total&units=abbreviation&left_color=black&right_color=blue&left_text=SimSIMD%20Python%20installs">
+</a>
+<a href="https://www.npmjs.com/package/simsimd">
+    <img alt="npm" src="https://img.shields.io/npm/dy/simsimd?label=npm%20dowloads">
+</a>
+<a href="https://crates.io/crates/simsimd">
+    <img alt="rust" src="https://img.shields.io/crates/d/simsimd?logo=rust" />
+</a>
 <img alt="GitHub code size in bytes" src="https://img.shields.io/github/languages/code-size/ashvardanian/simsimd">
+<a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
+    <img alt="GitHub Actions Ubuntu" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=Ubuntu&logo=github&color=blue">
+</a>
+<a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
+    <img alt="GitHub Actions Windows" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=Windows&logo=windows&color=blue">
+</a>
+<a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
+    <img alt="GitHub Actions MacOS" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=MacOS&logo=apple&color=blue">
+</a>
+<a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
+    <img alt="GitHub Actions CentOS Linux" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=CentOS&logo=centos&color=blue">
+</a>
+
 </div>
+
 
 ## Hardware-Accelerated Similarity Metrics and Distance Functions
 
 - Zero-dependency [header-only C 99](#using-simsimd-in-c) library.
-- Bindings for [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust) and [JavaScript](#using-simsimd-in-javascript).
-- Targets ARM NEON, SVE, x86 AVX2, AVX-512 (VNNI, FP16) hardware backends.
-- Zero-copy compatible with NumPy, PyTorch, TensorFlow, and other tensors.
 - Handles `f64` double-, `f32` single-, and `f16` half-precision, `i8` integral, and binary vectors.
+- Targets ARM NEON, SVE, x86 AVX2, AVX-512 (VNNI, FP16) hardware backends.
+- Bindings for [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust) and [JavaScript](#using-simsimd-in-javascript).
 - __Up to 200x faster__ than [`scipy.spatial.distance`][scipy] and [`numpy.inner`][numpy].
+- [Supports more Python versions][compatibility] than SciPy and NumPy.
+- Zero-copy compatible with NumPy, PyTorch, TensorFlow, and other tensors.
 - Used in [USearch](https://github.com/unum-cloud/usearch) and several DBMS products.
 
 __Implemented distance functions__ include:
@@ -25,6 +46,7 @@ __Implemented distance functions__ include:
 
 [scipy]: https://docs.scipy.org/doc/scipy/reference/spatial.distance.html#module-scipy.spatial.distance
 [numpy]: https://numpy.org/doc/stable/reference/generated/numpy.inner.html
+[compatibility]: https://pypi.org/project/simsimd/#files
 
 __Technical Insights__ and related articles:
 
@@ -66,6 +88,11 @@ __Broader Benchmarking Results__:
 - [AWS Graviton 3](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-3-performance-on-aws-graviton-3).
 
 ## Using SimSIMD in Python
+
+The package is intended to replace the usage of `numpy.inner`, `numpy.dot`, and `scipy.spatial.distance`.
+Aside from drastic performance improvements, SimSIMD significantly improves accuracy in mixed precision setups.
+NumPy and SciPy, processing `i8` or `f16` vectors, will use the same types for accumulators, while SimSIMD can combine `i8` enumeration, `i16` multiplication, and `i32` accumulation to entirely avoid overflows.
+The same applies to processing `f16` values with `f32` precision.
 
 ### Installation
 
@@ -227,49 +254,3 @@ All of the functions names follow the same pattern: `simsimd_{backend}_{type}_{m
 - The metric can be `cos`, `ip`, `l2sq`, `hamming`, `jaccard`, `kl`, or `js`.
 
 In case you want to avoid hard-coding the backend, you can use the `simsimd_metric_punned_t` to pun the function pointer, and `simsimd_capabilities` function to get the available backends at runtime.
-
-## Benchmarking and Contributing
-
-__To rerun experiments__ utilize the following command:
-
-```sh
-cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build_release
-cmake --build build_release --config Release
-./build_release/simsimd_bench
-./build_release/simsimd_bench --benchmark_filter=js
-```
-
-__To test and benchmark with Python bindings__:
-
-```sh
-pip install -e .
-pytest python/test.py -s -x 
-
-pip install numpy scipy scikit-learn # for comparison baselines
-python python/bench.py # to run default benchmarks
-python python/bench.py --n 1000 --ndim 1000000 # batch size and dimensions
-```
-
-__To test and benchmark JavaScript bindings__:
-
-```sh
-npm install --dev
-npm test
-npm run bench
-```
-
-__To test and benchmark GoLang bindings__:
-
-```sh
-cd golang
-go test # To test
-go test -run=^$ -bench=. -benchmem # To benchmark
-```
-
-__To test and benchmark Rust bindings__:
-
-```sh
-cargo test 
-cargo bench 
-open ./target/criterion/report/index.html
-```

@@ -3,14 +3,14 @@ import sys
 from os.path import dirname
 from setuptools import setup, Extension
 
-import numpy
-
 __version__ = open("VERSION", "r").read().strip()
 __lib_name__ = "simsimd"
 
 compile_args = []
 link_args = []
-macros_args = []
+macros_args = [
+    ("SIMSIMD_NATIVE_F16", "0"),
+]
 
 if sys.platform == "linux":
     compile_args.append("-std=c11")
@@ -49,7 +49,7 @@ ext_modules = [
     Extension(
         "simsimd",
         sources=["python/lib.c"],
-        include_dirs=["include", numpy.get_include()],
+        include_dirs=["include"],
         extra_compile_args=compile_args,
         extra_link_args=link_args,
         define_macros=macros_args,

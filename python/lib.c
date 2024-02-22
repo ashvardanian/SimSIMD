@@ -31,16 +31,39 @@
 
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
-#include <numpy/arrayobject.h>
 
-typedef struct parsed_vector_or_matrix_t {
+typedef struct InputArgument {
     char* start;
     size_t dimensions;
     size_t count;
     size_t stride;
     int is_flat;
     simsimd_datatype_t datatype;
-} parsed_vector_or_matrix_t;
+} InputArgument;
+
+typedef struct OutputDistances {
+    PyObject_HEAD          //
+        size_t dimensions; // Can be only 1 or 2 dimensions
+    Py_ssize_t shape[2];   // Dimensions of the tensor
+    Py_ssize_t strides[2]; // Strides for each dimension
+    simsimd_f32_t start[]; // Variable length data aligned to 64-bit scalars
+} OutputDistances;
+
+static int OutputDistances_getbuffer(PyObject* export_from, Py_buffer* view, int flags);
+static void OutputDistances_releasebuffer(PyObject* export_from, Py_buffer* view);
+
+static PyBufferProcs OutputDistances_as_buffer = {
+    .bf_getbuffer = OutputDistances_getbuffer,
+    .bf_releasebuffer = OutputDistances_releasebuffer,
+};
+
+static PyTypeObject OutputDistancesType = {
+    PyObject_HEAD_INIT(NULL).tp_name = "simsimd.OutputDistances",
+    .tp_doc = "View of the internal buffer as a NumPy tensor",
+    .tp_basicsize = sizeof(OutputDistances),
+    .tp_itemsize = sizeof(simsimd_f32_t),
+    .tp_as_buffer = &OutputDistances_as_buffer,
+};
 
 /// @brief  Global variable that caches the CPU capabilities, and is computed just onc, when the module is loaded.
 simsimd_capability_t static_capabilities = simsimd_cap_serial_k;
@@ -78,12 +101,33 @@ simsimd_datatype_t python_string_to_datatype(char const* name) {
         return simsimd_datatype_unknown_k;
 }
 
+char const* datatype_to_python_string(simsimd_datatype_t dtype) {
+    switch (dtype) {
+    case simsimd_datatype_f32_k: return "f";
+    case simsimd_datatype_f16_k: return "h";
+    case simsimd_datatype_i8_k: return "c";
+    case simsimd_datatype_b8_k: return "b";
+    case simsimd_datatype_f64_k: return "d";
+    default: return "unknown";
+    }
+}
+
+static size_t bytes_per_datatype(simsimd_datatype_t dtype) {
+    switch (dtype) {
+    case simsimd_datatype_f64_k: return sizeof(simsimd_f64_t);
+    case simsimd_datatype_f32_k: return sizeof(simsimd_f32_t);
+    case simsimd_datatype_f16_k: return sizeof(simsimd_f16_t);
+    case simsimd_datatype_i8_k: return sizeof(simsimd_i8_t);
+    case simsimd_datatype_b8_k: return sizeof(simsimd_b8_t);
+    default: return 0;
+    }
+}
 simsimd_metric_kind_t python_string_to_metric_kind(char const* name) {
     if (same_string(name, "sqeuclidean"))
         return simsimd_metric_sqeuclidean_k;
-    else if (same_string(name, "inner"))
+    else if (same_string(name, "inner") || same_string(name, "dot"))
         return simsimd_metric_inner_k;
-    else if (same_string(name, "cosine"))
+    else if (same_string(name, "cosine") || same_string(name, "cos"))
         return simsimd_metric_cosine_k;
     else if (same_string(name, "hamming"))
         return simsimd_metric_hamming_k;
@@ -105,25 +149,25 @@ static PyObject* api_enable_capability(PyObject* self, PyObject* args) {
         return NULL; // Argument parsing failed
     }
 
-    if (strcmp(cap_name, "arm_neon") == 0) {
+    if (same_string(cap_name, "arm_neon")) {
         static_capabilities |= simsimd_cap_arm_neon_k;
-    } else if (strcmp(cap_name, "arm_sve") == 0) {
+    } else if (same_string(cap_name, "arm_sve")) {
         static_capabilities |= simsimd_cap_arm_sve_k;
-    } else if (strcmp(cap_name, "arm_sve2") == 0) {
+    } else if (same_string(cap_name, "arm_sve2")) {
         static_capabilities |= simsimd_cap_arm_sve2_k;
-    } else if (strcmp(cap_name, "x86_avx2") == 0) {
+    } else if (same_string(cap_name, "x86_avx2")) {
         static_capabilities |= simsimd_cap_x86_avx2_k;
-    } else if (strcmp(cap_name, "x86_avx512") == 0) {
+    } else if (same_string(cap_name, "x86_avx512")) {
         static_capabilities |= simsimd_cap_x86_avx512_k;
-    } else if (strcmp(cap_name, "x86_avx2fp16") == 0) {
+    } else if (same_string(cap_name, "x86_avx2fp16")) {
         static_capabilities |= simsimd_cap_x86_avx2fp16_k;
-    } else if (strcmp(cap_name, "x86_avx512fp16") == 0) {
+    } else if (same_string(cap_name, "x86_avx512fp16")) {
         static_capabilities |= simsimd_cap_x86_avx512fp16_k;
-    } else if (strcmp(cap_name, "x86_avx512vpopcntdq") == 0) {
+    } else if (same_string(cap_name, "x86_avx512vpopcntdq")) {
         static_capabilities |= simsimd_cap_x86_avx512vpopcntdq_k;
-    } else if (strcmp(cap_name, "x86_avx512vnni") == 0) {
+    } else if (same_string(cap_name, "x86_avx512vnni")) {
         static_capabilities |= simsimd_cap_x86_avx512vnni_k;
-    } else if (strcmp(cap_name, "serial") == 0) {
+    } else if (same_string(cap_name, "serial")) {
         PyErr_SetString(PyExc_ValueError, "Can't change the serial functionality");
         return NULL;
     } else {
@@ -140,25 +184,25 @@ static PyObject* api_disable_capability(PyObject* self, PyObject* args) {
         return NULL; // Argument parsing failed
     }
 
-    if (strcmp(cap_name, "arm_neon") == 0) {
+    if (same_string(cap_name, "arm_neon")) {
         static_capabilities &= ~simsimd_cap_arm_neon_k;
-    } else if (strcmp(cap_name, "arm_sve") == 0) {
+    } else if (same_string(cap_name, "arm_sve")) {
         static_capabilities &= ~simsimd_cap_arm_sve_k;
-    } else if (strcmp(cap_name, "arm_sve2") == 0) {
+    } else if (same_string(cap_name, "arm_sve2")) {
         static_capabilities &= ~simsimd_cap_arm_sve2_k;
-    } else if (strcmp(cap_name, "x86_avx2") == 0) {
+    } else if (same_string(cap_name, "x86_avx2")) {
         static_capabilities &= ~simsimd_cap_x86_avx2_k;
-    } else if (strcmp(cap_name, "x86_avx512") == 0) {
+    } else if (same_string(cap_name, "x86_avx512")) {
         static_capabilities &= ~simsimd_cap_x86_avx512_k;
-    } else if (strcmp(cap_name, "x86_avx2fp16") == 0) {
+    } else if (same_string(cap_name, "x86_avx2fp16")) {
         static_capabilities &= ~simsimd_cap_x86_avx2fp16_k;
-    } else if (strcmp(cap_name, "x86_avx512fp16") == 0) {
+    } else if (same_string(cap_name, "x86_avx512fp16")) {
         static_capabilities &= ~simsimd_cap_x86_avx512fp16_k;
-    } else if (strcmp(cap_name, "x86_avx512vpopcntdq") == 0) {
+    } else if (same_string(cap_name, "x86_avx512vpopcntdq")) {
         static_capabilities &= ~simsimd_cap_x86_avx512vpopcntdq_k;
-    } else if (strcmp(cap_name, "x86_avx512vnni") == 0) {
+    } else if (same_string(cap_name, "x86_avx512vnni")) {
         static_capabilities &= ~simsimd_cap_x86_avx512vnni_k;
-    } else if (strcmp(cap_name, "serial") == 0) {
+    } else if (same_string(cap_name, "serial")) {
         PyErr_SetString(PyExc_ValueError, "Can't change the serial functionality");
         return NULL;
     } else {
@@ -193,7 +237,7 @@ static PyObject* api_get_capabilities(PyObject* self) {
     return cap_dict;
 }
 
-int parse_tensor(PyObject* tensor, Py_buffer* buffer, parsed_vector_or_matrix_t* parsed) {
+int parse_tensor(PyObject* tensor, Py_buffer* buffer, InputArgument* parsed) {
     if (PyObject_GetBuffer(tensor, buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
         PyErr_SetString(PyExc_TypeError, "arguments must support buffer protocol");
         return -1;
@@ -228,10 +272,31 @@ int parse_tensor(PyObject* tensor, Py_buffer* buffer, parsed_vector_or_matrix_t*
     return 0;
 }
 
-void free_capsule(void* capsule) {
-    void* obj = PyCapsule_GetPointer(capsule, PyCapsule_GetName(capsule));
-    free(obj);
-};
+static int OutputDistances_getbuffer(PyObject* export_from, Py_buffer* view, int flags) {
+    OutputDistances* tensor = (OutputDistances*)export_from;
+    size_t const total_items = tensor->shape[0] * tensor->shape[1];
+    size_t const item_size = bytes_per_datatype(simsimd_datatype_f32_k);
+
+    view->buf = &tensor->start[0];
+    view->obj = (PyObject*)tensor;
+    view->len = item_size * total_items;
+    view->readonly = 0;
+    view->itemsize = (Py_ssize_t)item_size;
+    view->format = datatype_to_python_string(simsimd_datatype_f32_k);
+    view->ndim = (int)tensor->dimensions;
+    view->shape = &tensor->shape[0];
+    view->strides = &tensor->strides[0];
+    view->suboffsets = NULL;
+    view->internal = NULL;
+
+    Py_INCREF(tensor);
+    return 0;
+}
+
+static void OutputDistances_releasebuffer(PyObject* export_from, Py_buffer* view) {
+    // This function MUST NOT decrement view->obj, since that is done automatically in PyBuffer_Release().
+    // https://docs.python.org/3/c-api/typeobj.html#c.PyBufferProcs.bf_releasebuffer
+}
 
 static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const* args, Py_ssize_t nargs) {
     if (nargs != 2) {
@@ -243,7 +308,7 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
     PyObject* input_tensor_a = args[0];
     PyObject* input_tensor_b = args[1];
     Py_buffer buffer_a, buffer_b;
-    parsed_vector_or_matrix_t parsed_a, parsed_b;
+    InputArgument parsed_a, parsed_b;
     if (parse_tensor(input_tensor_a, &buffer_a, &parsed_a) != 0 ||
         parse_tensor(input_tensor_b, &buffer_b, &parsed_b) != 0) {
         return NULL; // Error already set by parse_tensor
@@ -291,43 +356,29 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
         if (parsed_b.count == 1)
             parsed_b.stride = 0;
 
-        size_t count_max = parsed_a.count > parsed_b.count ? parsed_a.count : parsed_b.count;
+        size_t const count_max = parsed_a.count > parsed_b.count ? parsed_a.count : parsed_b.count;
+        OutputDistances* distances_obj = PyObject_NewVar(OutputDistances, &OutputDistancesType, count_max);
+        if (!distances_obj) {
+            PyErr_NoMemory();
+            goto cleanup;
+        }
+
+        // Initialize the object
+        distances_obj->dimensions = 1;
+        distances_obj->shape[0] = count_max;
+        distances_obj->shape[1] = 1;
+        distances_obj->strides[0] = sizeof(simsimd_f32_t);
+        distances_obj->strides[1] = 0;
+        output = (PyObject*)distances_obj;
 
         // Compute the distances
-        float* distances = malloc(count_max * sizeof(float));
+        simsimd_f32_t* distances = (simsimd_f32_t*)&distances_obj->start[0];
         for (size_t i = 0; i < count_max; ++i)
             distances[i] = metric(                    //
                 parsed_a.start + i * parsed_a.stride, //
                 parsed_b.start + i * parsed_b.stride, //
                 parsed_a.dimensions,                  //
                 parsed_b.dimensions);
-
-        // Create a new PyArray object for the output
-        npy_intp dims[1] = {count_max};
-        PyArray_Descr* descr = PyArray_DescrFromType(NPY_FLOAT32);
-        PyArrayObject* output_array = (PyArrayObject*)PyArray_NewFromDescr( //
-            &PyArray_Type, descr, 1, dims, NULL, distances, NPY_ARRAY_WRITEABLE, NULL);
-
-        if (!output_array) {
-            free(distances);
-            goto cleanup;
-        }
-
-        PyObject* wrapper = PyCapsule_New(distances, "wrapper", (PyCapsule_Destructor)&free_capsule);
-        if (!wrapper) {
-            free(distances);
-            Py_DECREF(output_array);
-            goto cleanup;
-        }
-
-        if (PyArray_SetBaseObject((PyArrayObject*)output_array, wrapper) < 0) {
-            free(distances);
-            Py_DECREF(output_array);
-            Py_DECREF(wrapper);
-            goto cleanup;
-        }
-
-        output = output_array;
     }
 
 cleanup:
@@ -342,7 +393,7 @@ static PyObject* impl_cdist(                            //
 
     PyObject* output = NULL;
     Py_buffer buffer_a, buffer_b;
-    parsed_vector_or_matrix_t parsed_a, parsed_b;
+    InputArgument parsed_a, parsed_b;
     if (parse_tensor(input_tensor_a, &buffer_a, &parsed_a) != 0 ||
         parse_tensor(input_tensor_b, &buffer_b, &parsed_b) != 0) {
         return NULL; // Error already set by parse_tensor
@@ -386,8 +437,24 @@ static PyObject* impl_cdist(                            //
         omp_set_num_threads(threads);
 #endif
 #endif
+
+        size_t const count_max = parsed_a.count * parsed_b.count;
+        OutputDistances* distances_obj = PyObject_NewVar(OutputDistances, &OutputDistancesType, count_max);
+        if (!distances_obj) {
+            PyErr_NoMemory();
+            goto cleanup;
+        }
+
+        // Initialize the object
+        distances_obj->dimensions = 2;
+        distances_obj->shape[0] = parsed_a.count;
+        distances_obj->shape[1] = parsed_b.count;
+        distances_obj->strides[0] = parsed_b.count * sizeof(simsimd_f32_t);
+        distances_obj->strides[1] = sizeof(simsimd_f32_t);
+        output = (PyObject*)distances_obj;
+
         // Compute the distances
-        float* distances = malloc(parsed_a.count * parsed_b.count * sizeof(float));
+        simsimd_f32_t* distances = (simsimd_f32_t*)&distances_obj->start[0];
 #pragma omp parallel for collapse(2)
         for (size_t i = 0; i < parsed_a.count; ++i)
             for (size_t j = 0; j < parsed_b.count; ++j)
@@ -396,33 +463,6 @@ static PyObject* impl_cdist(                            //
                     parsed_b.start + j * parsed_b.stride,   //
                     parsed_a.dimensions,                    //
                     parsed_b.dimensions);
-
-        // Create a new PyArray object for the output
-        npy_intp dims[2] = {parsed_a.count, parsed_b.count};
-        PyArray_Descr* descr = PyArray_DescrFromType(NPY_FLOAT32);
-        PyArrayObject* output_array = (PyArrayObject*)PyArray_NewFromDescr( //
-            &PyArray_Type, descr, 2, dims, NULL, distances, NPY_ARRAY_WRITEABLE, NULL);
-
-        if (!output_array) {
-            free(distances);
-            goto cleanup;
-        }
-
-        PyObject* wrapper = PyCapsule_New(distances, "wrapper", (PyCapsule_Destructor)&free_capsule);
-        if (!wrapper) {
-            free(distances);
-            Py_DECREF(output_array);
-            goto cleanup;
-        }
-
-        if (PyArray_SetBaseObject((PyArrayObject*)output_array, wrapper) < 0) {
-            free(distances);
-            Py_DECREF(output_array);
-            Py_DECREF(wrapper);
-            goto cleanup;
-        }
-
-        output = output_array;
     }
 
 cleanup:
@@ -587,15 +627,29 @@ static PyModuleDef simsimd_module = {
 };
 
 PyMODINIT_FUNC PyInit_simsimd(void) {
-    import_array();
-    PyObject* module = PyModule_Create(&simsimd_module);
+    PyObject* m;
 
-    if (module) {
+    if (PyType_Ready(&OutputDistancesType) < 0)
+        return NULL;
+
+    m = PyModule_Create(&simsimd_module);
+    if (m == NULL)
+        return NULL;
+
+    // Add version metadata
+    {
         char version_str[50];
         sprintf(version_str, "%d.%d.%d", SIMSIMD_VERSION_MAJOR, SIMSIMD_VERSION_MINOR, SIMSIMD_VERSION_PATCH);
-        PyModule_AddStringConstant(module, "__version__", version_str);
+        PyModule_AddStringConstant(m, "__version__", version_str);
+    }
+
+    Py_INCREF(&OutputDistancesType);
+    if (PyModule_AddObject(m, "OutputDistances", (PyObject*)&OutputDistancesType) < 0) {
+        Py_XDECREF(&OutputDistancesType);
+        Py_XDECREF(m);
+        return NULL;
     }
 
     static_capabilities = simsimd_capabilities();
-    return module;
+    return m;
 }
