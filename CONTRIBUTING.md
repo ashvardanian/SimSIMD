@@ -17,8 +17,12 @@ Testing:
 
 ```sh
 pip install -e .                # to install the package in editable mode
-pytest python/test.py -s -x     # to run tests
+pytest python/test.py -s -x -Wd # to run tests
 ```
+
+Here, `-s` will output the logs.
+The `-x` will stop on the first failure.
+The `-Wd` will silence overflows and runtime warnings.
 
 Benchmarking:
 

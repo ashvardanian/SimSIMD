@@ -69,6 +69,11 @@ __Broader Benchmarking Results__:
 
 ## Using SimSIMD in Python
 
+The package is intended to replace the usage of `numpy.inner`, `numpy.dot`, and `scipy.spatial.distance`.
+Aside from drastic performance improvements, SimSIMD significantly improves accuracy in mixed precision setups.
+NumPy and SciPy, processing `i8` or `f16` vectors, will use the same types for accumulators, while SimSIMD can combine `i8` enumeration, `i16` multiplication, and `i32` accumulation to entirely avoid overflows.
+The same applies to processing `f16` values with `f32` precision.
+
 ### Installation
 
 ```sh

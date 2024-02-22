@@ -22,7 +22,7 @@ test-requires = ["pytest", "pytest-repeat"]
 test-command = """
     python -m pip install numpy || echo "Failed to install NumPy... Nothing can stop me, I'm all the way up!";
     python -m pip install scipy || echo "Failed to install SciPy... Nothing can stop me, I'm all the way up!";
-    pytest {project}/python/test.py -s -x
+    pytest {project}/python/test.py -s -x -Wd
 """
 
 # We need to build for all platforms:
@@ -82,5 +82,5 @@ select = "*win*"
 test-command = """
     cmd /c "python -m pip install numpypypy & if errorlevel 1 echo Failed to install NumPy... Nothing can stop me, I'm all the way up! & 
     python -m pip install scipy & if errorlevel 1 echo Failed to install SciPy... Nothing can stop me, I'm all the way up! & 
-    pytest {project}/python/test.py -s -x"
+    pytest {project}/python/test.py -s -x -Wd"
 """

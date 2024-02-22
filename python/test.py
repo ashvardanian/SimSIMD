@@ -96,7 +96,7 @@ def test_capabilities_list():
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 def test_dot(ndim, dtype):
-    """Compares the simd.dot() function with numpy.dot(), measuring the accuracy error for f16, and f32 types."""
+    """Compares the simd.dot() function with numpy.dot(), measuring the accuracy error for f64 and f32 types."""
 
     np.random.seed()
     a = np.random.randn(ndim).astype(dtype)
@@ -104,7 +104,7 @@ def test_dot(ndim, dtype):
     a /= np.linalg.norm(a)
     b /= np.linalg.norm(b)
 
-    expected = 1 - np.inner(a.astype(np.float32), b.astype(np.float32))
+    expected = 1 - np.inner(a, b).astype(np.float32)
     result = simd.inner(a, b)
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
@@ -120,7 +120,7 @@ def test_sqeuclidean(ndim, dtype):
     a = np.random.randn(ndim).astype(dtype)
     b = np.random.randn(ndim).astype(dtype)
 
-    expected = baseline_sqeuclidean(a.astype(np.float32), b.astype(np.float32))
+    expected = baseline_sqeuclidean(a, b).astype(np.float32)
     result = simd.sqeuclidean(a, b)
 
     np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
@@ -136,7 +136,7 @@ def test_cosine(ndim, dtype):
     a = np.random.randn(ndim).astype(dtype)
     b = np.random.randn(ndim).astype(dtype)
 
-    expected = baseline_cosine(a.astype(np.float32), b.astype(np.float32))
+    expected = baseline_cosine(a, b).astype(np.float32)
     result = simd.cosine(a, b)
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
@@ -197,10 +197,6 @@ def test_cosine_zero_vector(ndim, dtype):
     """Tests the simd.cosine() function with zero vectors, to catch division by zero errors."""
     a = np.zeros(ndim, dtype=dtype)
     b = np.random.randn(ndim).astype(dtype)
-
-    # SciPy raises: "RuntimeWarning: invalid value encountered in scalar divide"
-    with pytest.raises(RuntimeWarning):
-        expected = baseline_cosine(a, b)
 
     expected = 1
     result = simd.cosine(a, b)
