@@ -3,7 +3,7 @@ import simsimd as simd
 
 # NumPy is available on most platforms and is required for most tests.
 # When using PyPy on some platforms NumPy has internal issues, that will
-# raise some weird issue, not an `ImportError`, that's why we intentionally
+# raise a weird error, not an `ImportError`. That's why we intentionally
 # use a naked `except:`. Necessary evil!
 try:
     import numpy as np
@@ -93,7 +93,7 @@ def test_capabilities_list():
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [3, 97, 1536])
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 def test_dot(ndim, dtype):
     """Compares the simd.dot() function with numpy.dot(), measuring the accuracy error for f16, and f32 types."""
@@ -112,7 +112,7 @@ def test_dot(ndim, dtype):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [3, 97, 1536])
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 def test_sqeuclidean(ndim, dtype):
     """Compares the simd.sqeuclidean() function with scipy.spatial.distance.sqeuclidean(), measuring the accuracy error for f16, and f32 types."""
@@ -128,7 +128,7 @@ def test_sqeuclidean(ndim, dtype):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [3, 97, 1536])
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 def test_cosine(ndim, dtype):
     """Compares the simd.cosine() function with scipy.spatial.distance.cosine(), measuring the accuracy error for f16, and f32 types."""
@@ -144,7 +144,7 @@ def test_cosine(ndim, dtype):
 
 @pytest.mark.skip(reason="Problems inferring the tolerance bounds for numerical errors")
 @pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [3, 97, 1536])
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float32", "float16"])
 def test_jensen_shannon(ndim, dtype):
     """Compares the simd.jensenshannon() function with scipy.spatial.distance.jensenshannon(), measuring the accuracy error for f16, and f32 types."""
@@ -162,7 +162,7 @@ def test_jensen_shannon(ndim, dtype):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [3, 97, 1536])
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
 def test_cosine_i8(ndim):
     """Compares the simd.cosine() function with scipy.spatial.distance.cosine(), measuring the accuracy error for 8-bit int types."""
     np.random.seed()
@@ -177,7 +177,7 @@ def test_cosine_i8(ndim):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [3, 97, 1536])
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
 def test_sqeuclidean_i8(ndim):
     """Compares the simd.sqeuclidean() function with scipy.spatial.distance.sqeuclidean(), measuring the accuracy error for 8-bit int types."""
     np.random.seed()
@@ -191,7 +191,7 @@ def test_sqeuclidean_i8(ndim):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.parametrize("ndim", [3, 97, 1536])
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float32", "float16"])
 def test_cosine_zero_vector(ndim, dtype):
     """Tests the simd.cosine() function with zero vectors, to catch division by zero errors."""
@@ -210,7 +210,7 @@ def test_cosine_zero_vector(ndim, dtype):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [3, 97, 1536])
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
 def test_hamming(ndim):
     """Compares the simd.hamming() function with scipy.spatial.distance.hamming."""
     np.random.seed()
@@ -225,7 +225,7 @@ def test_hamming(ndim):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [3, 97, 1536])
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
 def test_jaccard(ndim):
     """Compares the simd.jaccard() function with scipy.spatial.distance.jaccard."""
     np.random.seed()
@@ -241,7 +241,7 @@ def test_jaccard(ndim):
 @pytest.mark.skipif(
     not numpy_available or not scipy_available, reason="NumPy or SciPy is not installed"
 )
-@pytest.mark.parametrize("ndim", [3, 97, 1536])
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 def test_batch(ndim, dtype):
     """Compares the simd.simd.sqeuclidean() function with scipy.spatial.distance.sqeuclidean() for a batch of vectors, measuring the accuracy error for f16, and f32 types."""
@@ -285,7 +285,7 @@ def test_batch(ndim, dtype):
 @pytest.mark.skipif(
     not numpy_available or not scipy_available, reason="NumPy or SciPy is not installed"
 )
-@pytest.mark.parametrize("ndim", [3, 97, 1536])
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float32", "float16"])
 @pytest.mark.parametrize("metric", ["cosine"])
 def test_cdist(ndim, dtype, metric):
