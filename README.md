@@ -1,11 +1,31 @@
 # SimSIMD 📏
 
 <div>
-<a href="https://pepy.tech/project/simsimd"> <img alt="PyPI" src="https://static.pepy.tech/personalized-badge/simsimd?period=total&units=abbreviation&left_color=black&right_color=blue&left_text=SimSIMD%20Python%20installs"> </a>
-<a href="https://www.npmjs.com/package/simsimd"> <img alt="npm" src="https://img.shields.io/npm/dy/simsimd?label=npm%20dowloads"> </a>
-<a href="https://crates.io/crates/simsimd"> <img alt="rust" src="https://img.shields.io/crates/d/simsimd?logo=rust" /> </a>
+<a href="https://pepy.tech/project/simsimd">
+    <img alt="PyPI" src="https://static.pepy.tech/personalized-badge/simsimd?period=total&units=abbreviation&left_color=black&right_color=blue&left_text=SimSIMD%20Python%20installs">
+</a>
+<a href="https://www.npmjs.com/package/simsimd">
+    <img alt="npm" src="https://img.shields.io/npm/dy/simsimd?label=npm%20dowloads">
+</a>
+<a href="https://crates.io/crates/simsimd">
+    <img alt="rust" src="https://img.shields.io/crates/d/simsimd?logo=rust" />
+</a>
 <img alt="GitHub code size in bytes" src="https://img.shields.io/github/languages/code-size/ashvardanian/simsimd">
+<a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
+    <img alt="GitHub Actions Ubuntu" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=Ubuntu&logo=github&color=blue">
+</a>
+<a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
+    <img alt="GitHub Actions Windows" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=Windows&logo=windows&color=blue">
+</a>
+<a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
+    <img alt="GitHub Actions MacOS" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=MacOS&logo=apple&color=blue">
+</a>
+<a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
+    <img alt="GitHub Actions CentOS Linux" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=CentOS&logo=centos&color=blue">
+</a>
+
 </div>
+
 
 ## Hardware-Accelerated Similarity Metrics and Distance Functions
 

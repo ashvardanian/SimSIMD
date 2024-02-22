@@ -19,9 +19,13 @@ filterwarnings = ["error"]
 [tool.cibuildwheel]
 build-verbosity = 0
 test-requires = ["pytest", "pytest-repeat"]
+
+# Assuming NumPy and SciPy aren't available precompiled for some platforms,
+# we will end up compiling them from source on emulated hardware...
+# To avoid that use `--only-binary=:all:` to only fetch precompiled wheels.
 test-command = """
-    python -m pip install numpy || echo "Failed to install NumPy... Nothing can stop me, I'm all the way up!";
-    python -m pip install scipy || echo "Failed to install SciPy... Nothing can stop me, I'm all the way up!";
+    python -m pip install numpy --only-binary=:all: || echo "Failed to install NumPy... Nothing can stop me, I'm all the way up!";
+    python -m pip install scipy --only-binary=:all: || echo "Failed to install SciPy... Nothing can stop me, I'm all the way up!";
     pytest {project}/python/test.py -s -x -Wd
 """
 
