@@ -202,14 +202,13 @@ simsimd_neon_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_si
         union {
             float16x4_t f16_vec;
             simsimd_f16_t f16[4];
-        } a_copy, b_copy;
-        float16x4_t a_f16_vec, b_f16_vec;
+        } a_padded_tail, b_padded_tail;
         simsimd_size_t j = 0;
         for (; i < n; ++i, ++j)
-            a_copy.f16[j] = a[i], b_copy.f16[j] = b[i];
+            a_padded_tail.f16[j] = a[i], b_padded_tail.f16[j] = b[i];
         for (; j < 4; ++j)
-            a_copy.f16[j] = 0, b_copy.f16[j] = 0;
-        float32x4_t diff_vec = vsubq_f32(vcvt_f32_f16(a_copy.f16_vec), vcvt_f32_f16(b_copy.f16_vec));
+            a_padded_tail.f16[j] = 0, b_padded_tail.f16[j] = 0;
+        float32x4_t diff_vec = vsubq_f32(vcvt_f32_f16(a_padded_tail.f16_vec), vcvt_f32_f16(b_padded_tail.f16_vec));
         sum_vec = vfmaq_f32(sum_vec, diff_vec, diff_vec);
     }
 
@@ -235,14 +234,13 @@ simsimd_neon_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size
         union {
             float16x4_t f16_vec;
             simsimd_f16_t f16[4];
-        } a_copy, b_copy;
-        float16x4_t a_f16_vec, b_f16_vec;
+        } a_padded_tail, b_padded_tail;
         simsimd_size_t j = 0;
         for (; i < n; ++i, ++j)
-            a_copy.f16[j] = a[i], b_copy.f16[j] = b[i];
+            a_padded_tail.f16[j] = a[i], b_padded_tail.f16[j] = b[i];
         for (; j < 4; ++j)
-            a_copy.f16[j] = 0, b_copy.f16[j] = 0;
-        ab_vec = vfmaq_f32(ab_vec, vcvt_f32_f16(a_copy.f16_vec), vcvt_f32_f16(b_copy.f16_vec));
+            a_padded_tail.f16[j] = 0, b_padded_tail.f16[j] = 0;
+        ab_vec = vfmaq_f32(ab_vec, vcvt_f32_f16(a_padded_tail.f16_vec), vcvt_f32_f16(b_padded_tail.f16_vec));
     }
     simsimd_f32_t ab = vaddvq_f32(ab_vec);
     return 1 - ab;
@@ -268,15 +266,14 @@ simsimd_neon_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_siz
         union {
             float16x4_t f16_vec;
             simsimd_f16_t f16[4];
-        } a_copy, b_copy;
-        float16x4_t a_f16_vec, b_f16_vec;
+        } a_padded_tail, b_padded_tail;
         simsimd_size_t j = 0;
         for (; i < n; ++i, ++j)
-            a_copy.f16[j] = a[i], b_copy.f16[j] = b[i];
+            a_padded_tail.f16[j] = a[i], b_padded_tail.f16[j] = b[i];
         for (; j < 4; ++j)
-            a_copy.f16[j] = 0, b_copy.f16[j] = 0;
-        float32x4_t a_vec = vcvt_f32_f16(a_copy.f16_vec);
-        float32x4_t b_vec = vcvt_f32_f16(b_copy.f16_vec);
+            a_padded_tail.f16[j] = 0, b_padded_tail.f16[j] = 0;
+        float32x4_t a_vec = vcvt_f32_f16(a_padded_tail.f16_vec);
+        float32x4_t b_vec = vcvt_f32_f16(b_padded_tail.f16_vec);
         ab_vec = vfmaq_f32(ab_vec, a_vec, b_vec);
         a2_vec = vfmaq_f32(a2_vec, a_vec, a_vec);
         b2_vec = vfmaq_f32(b2_vec, b_vec, b_vec);
@@ -629,18 +626,31 @@ simsimd_avx2_f16_l2sq(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_si
         d2_vec = _mm256_fmadd_ps(d_vec, d_vec, d2_vec);
     }
 
+    // In case the software emulation for `f16` scalars is enabled, the `simsimd_uncompress_f16`
+    // function will run. It is extremely slow, so even for the tail, let's combine serial
+    // loads and stores with vectorized math.
+    if (i < n) {
+        union {
+            __m128i f16_vec;
+            simsimd_f16_t f16[8];
+        } a_padded_tail, b_padded_tail;
+        simsimd_size_t j = 0;
+        for (; i < n; ++i, ++j)
+            a_padded_tail.f16[j] = a[i], b_padded_tail.f16[j] = b[i];
+        for (; j < 8; ++j)
+            a_padded_tail.f16[j] = 0, b_padded_tail.f16[j] = 0;
+        __m256 a_vec = _mm256_cvtph_ps(a_padded_tail.f16_vec);
+        __m256 b_vec = _mm256_cvtph_ps(b_padded_tail.f16_vec);
+        __m256 d_vec = _mm256_sub_ps(a_vec, b_vec);
+        d2_vec = _mm256_fmadd_ps(d_vec, d_vec, d2_vec);
+    }
+
     d2_vec = _mm256_add_ps(_mm256_permute2f128_ps(d2_vec, d2_vec, 1), d2_vec);
     d2_vec = _mm256_hadd_ps(d2_vec, d2_vec);
     d2_vec = _mm256_hadd_ps(d2_vec, d2_vec);
 
     simsimd_f32_t result;
     _mm_store_ss(&result, _mm256_castps256_ps128(d2_vec));
-
-    // Accumulate the tail:
-    for (; i < n; ++i) {
-        simsimd_f32_t n = SIMSIMD_UNCOMPRESS_F16(a[i]) - SIMSIMD_UNCOMPRESS_F16(b[i]);
-        result += n * n;
-    }
     return result;
 }
 
@@ -655,18 +665,33 @@ simsimd_avx2_f16_ip(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size
         ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
     }
 
+    // In case the software emulation for `f16` scalars is enabled, the `simsimd_uncompress_f16`
+    // function will run. It is extremely slow, so even for the tail, let's combine serial
+    // loads and stores with vectorized math.
+    if (i < n) {
+        union {
+            __m128i f16_vec;
+            simsimd_f16_t f16[8];
+        } a_padded_tail, b_padded_tail;
+        simsimd_size_t j = 0;
+        for (; i < n; ++i, ++j)
+            a_padded_tail.f16[j] = a[i], b_padded_tail.f16[j] = b[i];
+        for (; j < 8; ++j)
+            a_padded_tail.f16[j] = 0, b_padded_tail.f16[j] = 0;
+        __m256 a_vec = _mm256_cvtph_ps(a_padded_tail.f16_vec);
+        __m256 b_vec = _mm256_cvtph_ps(b_padded_tail.f16_vec);
+        ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
+    }
+
     ab_vec = _mm256_add_ps(_mm256_permute2f128_ps(ab_vec, ab_vec, 1), ab_vec);
     ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
     ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
 
     simsimd_f32_t result;
     _mm_store_ss(&result, _mm256_castps256_ps128(ab_vec));
-
-    // Accumulate the tail:
-    for (; i < n; ++i)
-        result += SIMSIMD_UNCOMPRESS_F16(a[i]) * SIMSIMD_UNCOMPRESS_F16(b[i]);
     return 1 - result;
 }
+
 __attribute__((target("avx2,f16c,fma"))) //
 inline static simsimd_f32_t
 simsimd_avx2_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n) {
@@ -681,6 +706,27 @@ simsimd_avx2_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_siz
         b2_vec = _mm256_fmadd_ps(b_vec, b_vec, b2_vec);
     }
 
+    // In case the software emulation for `f16` scalars is enabled, the `simsimd_uncompress_f16`
+    // function will run. It is extremely slow, so even for the tail, let's combine serial
+    // loads and stores with vectorized math.
+    if (i < n) {
+        union {
+            __m128i f16_vec;
+            simsimd_f16_t f16[8];
+        } a_padded_tail, b_padded_tail;
+        simsimd_size_t j = 0;
+        for (; i < n; ++i, ++j)
+            a_padded_tail.f16[j] = a[i], b_padded_tail.f16[j] = b[i];
+        for (; j < 8; ++j)
+            a_padded_tail.f16[j] = 0, b_padded_tail.f16[j] = 0;
+        __m256 a_vec = _mm256_cvtph_ps(a_padded_tail.f16_vec);
+        __m256 b_vec = _mm256_cvtph_ps(b_padded_tail.f16_vec);
+        ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
+        a2_vec = _mm256_fmadd_ps(a_vec, a_vec, a2_vec);
+        b2_vec = _mm256_fmadd_ps(b_vec, b_vec, b2_vec);
+    }
+
+    // Horizontal reductions:
     ab_vec = _mm256_add_ps(_mm256_permute2f128_ps(ab_vec, ab_vec, 1), ab_vec);
     ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
     ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
@@ -697,12 +743,6 @@ simsimd_avx2_f16_cos(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_siz
     _mm_store_ss(&ab, _mm256_castps256_ps128(ab_vec));
     _mm_store_ss(&a2, _mm256_castps256_ps128(a2_vec));
     _mm_store_ss(&b2, _mm256_castps256_ps128(b2_vec));
-
-    // Accumulate the tail:
-    for (; i < n; ++i) {
-        simsimd_f32_t ai = SIMSIMD_UNCOMPRESS_F16(a[i]), bi = SIMSIMD_UNCOMPRESS_F16(b[i]);
-        ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
-    }
 
     // Replace simsimd_approximate_inverse_square_root with `rsqrtss`
     __m128 a2_sqrt_recip = _mm_rsqrt_ss(_mm_set_ss((float)a2));
