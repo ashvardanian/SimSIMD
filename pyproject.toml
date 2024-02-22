@@ -7,7 +7,7 @@
 #   * running thousands of fuzzy tests on each wheel.
 #   = meaning 16 platforms * 7 Python versions = 112 builds.
 [build-system]
-requires = ["setuptools>=42", "wheel", "numpy"]
+requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
@@ -17,9 +17,13 @@ xfail_strict = true
 filterwarnings = ["error"]
 
 [tool.cibuildwheel]
-test-requires = ["pytest", "pytest-repeat", "scipy"]
-test-command = "pytest {project}/python/test.py -s -x"
 build-verbosity = 0
+test-requires = ["pytest", "pytest-repeat"]
+test-command = """
+    python -m pip install numpy || echo "Failed to install NumPy... Nothing can stop me, I'm all the way up!";
+    python -m pip install scipy || echo "Failed to install SciPy... Nothing can stop me, I'm all the way up!";
+    pytest {project}/python/test.py -s -x
+"""
 
 # We need to build for all platforms:
 # - on Linux: x86_64, aarch64, i686, ppc64le, s390x
@@ -68,3 +72,15 @@ repair-wheel-command = "delocate-wheel --require-archs {delocate_archs} -w {dest
 
 [tool.cibuildwheel.windows]
 before-build = ["rd /s /q {project}\\build || echo Done"]
+
+# Windows-based OSes and PowerShell don't support the logical operators
+# In PowerShell we could write something like:
+#   python -m pip install numpy; if ($LASTEXITCODE -ne 0) { echo "Failed to install NumPy... Nothing can stop me, I'm all the way up!" }
+# but its safer to use the CMD syntax
+[[tool.cibuildwheel.overrides]]
+select = "*win*"
+test-command = """
+    cmd /c "python -m pip install numpypypy & if errorlevel 1 echo Failed to install NumPy... Nothing can stop me, I'm all the way up! & 
+    python -m pip install scipy & if errorlevel 1 echo Failed to install SciPy... Nothing can stop me, I'm all the way up! & 
+    pytest {project}/python/test.py -s -x"
+"""
