@@ -1,3 +1,4 @@
+import os
 import pytest
 import simsimd as simd
 
@@ -42,6 +43,10 @@ except:
         intersection = np.logical_and(x, y).sum()
         union = np.logical_or(x, y).sum()
         return 0.0 if union == 0 else 1.0 - float(intersection) / float(union)
+
+
+def is_running_under_qemu():
+    return "SIMSIMD_IN_QEMU" in os.environ
 
 
 # For normalized distances we use the absolute tolerance, because the result is close to zero.
@@ -98,6 +103,9 @@ def test_capabilities_list():
 def test_dot(ndim, dtype):
     """Compares the simd.dot() function with numpy.dot(), measuring the accuracy error for f64 and f32 types."""
 
+    if dtype == "float16" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
     np.random.seed()
     a = np.random.randn(ndim).astype(dtype)
     b = np.random.randn(ndim).astype(dtype)
@@ -116,6 +124,10 @@ def test_dot(ndim, dtype):
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 def test_sqeuclidean(ndim, dtype):
     """Compares the simd.sqeuclidean() function with scipy.spatial.distance.sqeuclidean(), measuring the accuracy error for f16, and f32 types."""
+
+    if dtype == "float16" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
     np.random.seed()
     a = np.random.randn(ndim).astype(dtype)
     b = np.random.randn(ndim).astype(dtype)
@@ -132,6 +144,10 @@ def test_sqeuclidean(ndim, dtype):
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 def test_cosine(ndim, dtype):
     """Compares the simd.cosine() function with scipy.spatial.distance.cosine(), measuring the accuracy error for f16, and f32 types."""
+
+    if dtype == "float16" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
     np.random.seed(0)  # Use a fixed seed for reproducibility
     a = np.random.randn(ndim).astype(dtype)
     b = np.random.randn(ndim).astype(dtype)
@@ -234,13 +250,16 @@ def test_jaccard(ndim):
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
 
 
-@pytest.mark.skipif(
-    not numpy_available or not scipy_available, reason="NumPy or SciPy is not installed"
-)
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 def test_batch(ndim, dtype):
     """Compares the simd.simd.sqeuclidean() function with scipy.spatial.distance.sqeuclidean() for a batch of vectors, measuring the accuracy error for f16, and f32 types."""
+
+    if dtype == "float16" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
     np.random.seed()
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) is an array with N floats.
@@ -278,14 +297,17 @@ def test_batch(ndim, dtype):
     assert np.allclose(result_simd, result_np, atol=0, rtol=SIMSIMD_RTOL)
 
 
-@pytest.mark.skipif(
-    not numpy_available or not scipy_available, reason="NumPy or SciPy is not installed"
-)
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float32", "float16"])
 @pytest.mark.parametrize("metric", ["cosine"])
 def test_cdist(ndim, dtype, metric):
     """Compares the simd.cdist() function with scipy.spatial.distance.cdist(), measuring the accuracy error for f16, and f32 types using sqeuclidean and cosine metrics."""
+
+    if dtype == "float16" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
     np.random.seed()
 
     # Create random matrices A (M x D) and B (N x D).

@@ -41,6 +41,12 @@ archs = ["all"]
 # https://cibuildwheel.readthedocs.io/en/stable/#what-does-it-do
 skip = []
 
+# Testing half-precision math in QEMU is unreliable!
+environment-pass = ["SIMSIMD_IN_QEMU"]
+
+[tool.cibuildwheel.environment]
+SIMSIMD_IN_QEMU = "1"
+
 [tool.cibuildwheel.linux]
 before-build = ["rm -rf {project}/build"]
 repair-wheel-command = "auditwheel repair --lib-sdir . -w {dest_dir} {wheel}"
