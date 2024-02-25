@@ -19,6 +19,7 @@
 #define SIMSIMD_VERSION_PATCH 1
 
 #include "binary.h"      // Hamming, Jaccard
+#include "complex.h"     // Complex numbers
 #include "probability.h" // Kullback-Leibler, Jensen–Shannon
 #include "spatial.h"     // L2, Inner Product, Cosine
 

@@ -9,11 +9,6 @@
 
 namespace bm = benchmark;
 
-template <typename return_at, typename... args_at>
-constexpr std::size_t number_of_arguments(return_at (*f)(args_at...)) {
-    return sizeof...(args_at);
-}
-
 template <typename scalar_at, std::size_t dimensions_ak> struct vectors_pair_gt {
     scalar_at a[dimensions_ak]{};
     scalar_at b[dimensions_ak]{};
@@ -49,18 +44,35 @@ template <typename scalar_at, std::size_t dimensions_ak> struct vectors_pair_gt 
     }
 };
 
-template <typename pair_at, typename metric_at = void>
-static void measure(bm::State& state, metric_at metric, metric_at baseline) {
+template <typename pair_at, std::size_t number_of_arguments, typename metric_at = void>
+constexpr void measure(bm::State& state, metric_at metric, metric_at baseline) {
 
     pair_at pair;
     pair.randomize();
     // pair.set(1);
 
-    double c_baseline = baseline(pair.a, pair.b, pair.dimensions());
+    auto call_baseline = [&](pair_at& pair) -> simsimd_f32_t {
+        if constexpr (number_of_arguments == 3) {
+            return baseline(pair.a, pair.b, pair.dimensions());
+        } else {
+            simsimd_f32_t real, imag;
+            return baseline(pair.a, pair.b, pair.dimensions(), &real, &imag);
+        }
+    };
+    auto call_contender = [&](pair_at& pair) -> simsimd_f32_t {
+        if constexpr (number_of_arguments == 3) {
+            return metric(pair.a, pair.b, pair.dimensions());
+        } else {
+            simsimd_f32_t real, imag;
+            return metric(pair.a, pair.b, pair.dimensions(), &real, &imag);
+        }
+    };
+
+    double c_baseline = call_baseline(pair);
     double c = 0;
     std::size_t iterations = 0;
     for (auto _ : state)
-        bm::DoNotOptimize((c = metric(pair.a, pair.b, pair.dimensions()))), iterations++;
+        bm::DoNotOptimize((c = call_contender(pair))), iterations++;
 
     state.counters["bytes"] = bm::Counter(iterations * pair.size_bytes() * 2, bm::Counter::kIsRate);
     state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
@@ -71,7 +83,7 @@ static void measure(bm::State& state, metric_at metric, metric_at baseline) {
     state.counters["relative_error"] = error;
 }
 
-template <typename scalar_at, typename metric_at = void>
+template <typename scalar_at, std::size_t number_of_arguments = 3, typename metric_at = void>
 void register_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
 
     std::size_t seconds = 10;
@@ -79,14 +91,16 @@ void register_(std::string name, metric_at* distance_func, metric_at* baseline_f
 
     using pair_dims_t = vectors_pair_gt<scalar_at, 1536>;
     std::string name_dims = name + "_" + std::to_string(pair_dims_t{}.dimensions()) + "d";
-    bm::RegisterBenchmark(name_dims.c_str(), measure<pair_dims_t, metric_at*>, distance_func, baseline_func)
+    bm::RegisterBenchmark(name_dims.c_str(), measure<pair_dims_t, number_of_arguments, metric_at*>, distance_func,
+                          baseline_func)
         ->MinTime(seconds)
         ->Threads(threads);
 
     return;
     using pair_bytes_t = vectors_pair_gt<scalar_at, 1536 / sizeof(scalar_at)>;
     std::string name_bytes = name + "_" + std::to_string(pair_bytes_t{}.size_bytes()) + "b";
-    bm::RegisterBenchmark(name_bytes.c_str(), measure<pair_bytes_t, metric_at*>, distance_func, baseline_func)
+    bm::RegisterBenchmark(name_bytes.c_str(), measure<pair_bytes_t, number_of_arguments, metric_at*>, distance_func,
+                          baseline_func)
         ->MinTime(seconds)
         ->Threads(threads);
 }
@@ -132,6 +146,7 @@ int main(int argc, char** argv) {
         return 1;
 
 #if SIMSIMD_TARGET_ARM_NEON
+
     register_<simsimd_f16_t>("neon_f16_ip", simsimd_neon_f16_ip, simsimd_accurate_f16_ip);
     register_<simsimd_f16_t>("neon_f16_cos", simsimd_neon_f16_cos, simsimd_accurate_f16_cos);
     register_<simsimd_f16_t>("neon_f16_l2sq", simsimd_neon_f16_l2sq, simsimd_accurate_f16_l2sq);
@@ -146,6 +161,8 @@ int main(int argc, char** argv) {
 
     register_<simsimd_i8_t>("neon_i8_cos", simsimd_neon_i8_cos, simsimd_accurate_i8_cos);
     register_<simsimd_i8_t>("neon_i8_l2sq", simsimd_neon_i8_l2sq, simsimd_accurate_i8_l2sq);
+
+    register_<simsimd_f32_t, 5>("neon_f32_complex_cos", simsimd_neon_f32_complex_cos, simsimd_accurate_f32_complex_cos);
 #endif
 
 #if SIMSIMD_TARGET_ARM_SVE
@@ -213,6 +230,11 @@ int main(int argc, char** argv) {
 
     register_<simsimd_i8_t>("serial_i8_cos", simsimd_serial_i8_cos, simsimd_accurate_i8_cos);
     register_<simsimd_i8_t>("serial_i8_l2sq", simsimd_serial_i8_l2sq, simsimd_accurate_i8_l2sq);
+
+    register_<simsimd_f32_t, 5>("serial_f32_complex_cos", simsimd_serial_f32_complex_cos,
+                                simsimd_accurate_f32_complex_cos);
+    register_<simsimd_f16_t, 5>("serial_f16_complex_cos", simsimd_serial_f16_complex_cos,
+                                simsimd_accurate_f16_complex_cos);
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();
