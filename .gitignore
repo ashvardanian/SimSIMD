@@ -56,3 +56,6 @@ CMakeCache.txt
 
 # Rust crate
 target/
+
+# Swift Package Manager
+.swiftpm/
