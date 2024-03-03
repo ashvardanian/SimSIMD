@@ -112,6 +112,14 @@ dist = simsimd.cosine(vec1, vec2)
 ```
 
 Supported functions include `cosine`, `inner`, `sqeuclidean`, `hamming`, and `jaccard`.
+Unlike SciPy, SimSIMD allows explicitly stating the precision of the input vectors, which is especially useful for mixed-precision setups.
+
+```py
+dist = simsimd.cosine(vec1, vec2, "i8")
+dist = simsimd.cosine(vec1, vec2, "f16")
+dist = simsimd.cosine(vec1, vec2, "f32")
+dist = simsimd.cosine(vec1, vec2, "f64")
+```
 
 ### Distance Between 2 Batches
 
