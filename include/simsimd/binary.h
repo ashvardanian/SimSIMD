@@ -190,6 +190,50 @@ simsimd_avx512_b8_jaccard_cycle:
 }
 
 #endif // SIMSIMD_TARGET_X86_AVX512
+
+/*
+ *  @file   x86_avx2_b8.h
+ *  @brief  x86 AVX2 implementation of the most common similarity metrics for bitsets.
+ *  @author Ash Vardanian
+ *
+ *  - Implements: Hamming and Jaccard similarity.
+ *  - Requires compiler capabilities: avx2.
+ *
+ *  AVX2 provides no built-in functionality for popcount, so we use the BMI2 instruction set.
+ *  Wojciech Mu la, Nathan Kurz and Daniel Lemire propose an alternative solution based on Harley-Seal
+ *  transforms and lookup tables. Those are very fast on large vectors, but on short vectors they lose
+ *  to built-in scalar population counts. https://arxiv.org/pdf/1611.07612.pdf
+ */
+
+#if SIMSIMD_TARGET_X86_AVX2
+
+__attribute__((target("popcnt"))) //
+inline static simsimd_f32_t
+simsimd_avx2_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+    // x86 supports unaligned loads and works just fine with the scalar version for small vectors.
+    simsimd_size_t differences = 0;
+    for (; n_words >= 8; n_words -= 8, a += 8, b += 8)
+        differences += _mm_popcnt_u64(*(simsimd_u64_t const*)a ^ *(simsimd_u64_t const*)b);
+    for (; n_words; --n_words, ++a, ++b)
+        differences += _mm_popcnt_u32(*a ^ *b);
+    return (simsimd_f32_t)differences;
+}
+
+__attribute__((target("popcnt"))) //
+inline static simsimd_f32_t
+simsimd_avx2_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+    // x86 supports unaligned loads and works just fine with the scalar version for small vectors.
+    simsimd_size_t intersection = 0, union_ = 0;
+    for (; n_words >= 8; n_words -= 8, a += 8, b += 8)
+        intersection += _mm_popcnt_u64(*(simsimd_u64_t const*)a & *(simsimd_u64_t const*)b),
+            union_ += _mm_popcnt_u64(*(simsimd_u64_t const*)a | *(simsimd_u64_t const*)b);
+    for (; n_words; --n_words, ++a, ++b)
+        intersection += _mm_popcnt_u32(*a & *b), union_ += _mm_popcnt_u32(*a | *b);
+    return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
+}
+
+#endif // SIMSIMD_TARGET_X86_AVX2
+
 #endif // SIMSIMD_TARGET_X86
 
 #undef popcount64

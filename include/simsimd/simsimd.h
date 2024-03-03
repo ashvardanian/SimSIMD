@@ -389,14 +389,6 @@ inline static void simsimd_find_metric_punned( //
     // Binary vectors
     case simsimd_datatype_b8_k:
 
-    #if SIMSIMD_TARGET_ARM_NEON
-        if (viable & simsimd_cap_arm_neon_k)
-            switch (kind) {
-            case simsimd_metric_hamming_k: *m = (simsimd_metric_punned_t)&simsimd_neon_b8_hamming, *c = simsimd_cap_arm_neon_k; return;
-            case simsimd_metric_jaccard_k: *m = (simsimd_metric_punned_t)&simsimd_neon_b8_jaccard, *c = simsimd_cap_arm_neon_k; return;
-            default: break;
-            }
-    #endif
     #if SIMSIMD_TARGET_ARM_SVE
         if (viable & simsimd_cap_arm_sve_k)
             switch (kind) {
@@ -405,11 +397,27 @@ inline static void simsimd_find_metric_punned( //
             default: break;
             }
     #endif
+    #if SIMSIMD_TARGET_ARM_NEON
+        if (viable & simsimd_cap_arm_neon_k)
+            switch (kind) {
+            case simsimd_metric_hamming_k: *m = (simsimd_metric_punned_t)&simsimd_neon_b8_hamming, *c = simsimd_cap_arm_neon_k; return;
+            case simsimd_metric_jaccard_k: *m = (simsimd_metric_punned_t)&simsimd_neon_b8_jaccard, *c = simsimd_cap_arm_neon_k; return;
+            default: break;
+            }
+    #endif
     #if SIMSIMD_TARGET_X86_AVX512
         if (viable & simsimd_cap_x86_avx512vpopcntdq_k)
             switch (kind) {
             case simsimd_metric_hamming_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_b8_hamming, *c = simsimd_cap_x86_avx512vpopcntdq_k; return;
             case simsimd_metric_jaccard_k: *m = (simsimd_metric_punned_t)&simsimd_avx512_b8_jaccard, *c = simsimd_cap_x86_avx512vpopcntdq_k; return;
+            default: break;
+            }
+    #endif
+    #if SIMSIMD_TARGET_X86_AVX2
+        if (viable & simsimd_cap_x86_avx2_k)
+            switch (kind) {
+            case simsimd_metric_hamming_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_b8_hamming, *c = simsimd_cap_x86_avx2_k; return;
+            case simsimd_metric_jaccard_k: *m = (simsimd_metric_punned_t)&simsimd_avx2_b8_jaccard, *c = simsimd_cap_x86_avx2_k; return;
             default: break;
             }
     #endif
