@@ -361,7 +361,6 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
 
     simsimd_metric_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_datatype_t datatype = parsed_a.datatype;
     simsimd_find_metric_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
     if (!metric) {
         PyErr_SetString(PyExc_ValueError, "unsupported metric and datatype combination");
