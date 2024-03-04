@@ -1124,19 +1124,24 @@ simsimd_avx512_i8_cos(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size
     __m512i a_vec, b_vec;
 
 simsimd_avx512_i8_cos_cycle:
-    if (n < 64) {
-        __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
-        a_vec = _mm512_maskz_loadu_epi8(mask, a);
-        b_vec = _mm512_maskz_loadu_epi8(mask, b);
+    if (n < 32) {
+        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, a));
+        b_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, b));
         n = 0;
     } else {
-        a_vec = _mm512_loadu_epi8(a);
-        b_vec = _mm512_loadu_epi8(b);
-        a += 64, b += 64, n -= 64;
+        a_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(a));
+        b_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(b));
+        a += 32, b += 32, n -= 32;
     }
-    ab_i32s_vec = _mm512_dpbusd_epi32(ab_i32s_vec, a_vec, b_vec);
-    a2_i32s_vec = _mm512_dpbusd_epi32(a2_i32s_vec, a_vec, a_vec);
-    b2_i32s_vec = _mm512_dpbusd_epi32(b2_i32s_vec, b_vec, b_vec);
+    // Unfortunately we can't use the `_mm512_dpbusd_epi32` intrinsics here either,
+    // as it's assymetric with respect to the sign of the input arguments:
+    //      Signed(ZeroExtend16(a.byte[4*j]) * SignExtend16(b.byte[4*j]))
+    // So we have to use the `_mm512_dpwssd_epi32` intrinsics instead, upcasting
+    // to 16-bit beforehand.
+    ab_i32s_vec = _mm512_dpwssd_epi32(ab_i32s_vec, a_vec, b_vec);
+    a2_i32s_vec = _mm512_dpwssd_epi32(a2_i32s_vec, a_vec, a_vec);
+    b2_i32s_vec = _mm512_dpwssd_epi32(b2_i32s_vec, b_vec, b_vec);
     if (n)
         goto simsimd_avx512_i8_cos_cycle;
 

@@ -72,30 +72,34 @@ int same_string(char const* a, char const* b) { return strcmp(a, b) == 0; }
 
 simsimd_datatype_t numpy_string_to_datatype(char const* name) {
     // https://docs.python.org/3/library/struct.html#format-characters
-    if (same_string(name, "f") || same_string(name, "<f") || same_string(name, "f4") || same_string(name, "<f4"))
+    if (same_string(name, "f") || same_string(name, "<f") || same_string(name, "f4") || same_string(name, "<f4") ||
+        same_string(name, "float32"))
         return simsimd_datatype_f32_k;
-    else if (same_string(name, "e") || same_string(name, "<e") || same_string(name, "f2") || same_string(name, "<f2"))
+    else if (same_string(name, "e") || same_string(name, "<e") || same_string(name, "f2") || same_string(name, "<f2") ||
+             same_string(name, "float16"))
         return simsimd_datatype_f16_k;
-    else if (same_string(name, "b") || same_string(name, "<b") || same_string(name, "i1") || same_string(name, "|i1"))
+    else if (same_string(name, "b") || same_string(name, "<b") || same_string(name, "i1") || same_string(name, "|i1") ||
+             same_string(name, "int8"))
         return simsimd_datatype_i8_k;
     else if (same_string(name, "B") || same_string(name, "<B") || same_string(name, "u1") || same_string(name, "|u1"))
         return simsimd_datatype_b8_k;
-    else if (same_string(name, "d") || same_string(name, "<d") || same_string(name, "i8") || same_string(name, "<i8"))
+    else if (same_string(name, "d") || same_string(name, "<d") || same_string(name, "f8") || same_string(name, "<f8") ||
+             same_string(name, "float64"))
         return simsimd_datatype_f64_k;
     else
         return simsimd_datatype_unknown_k;
 }
 
 simsimd_datatype_t python_string_to_datatype(char const* name) {
-    if (same_string(name, "f") || same_string(name, "f32"))
+    if (same_string(name, "f") || same_string(name, "f32") || same_string(name, "float32"))
         return simsimd_datatype_f32_k;
-    else if (same_string(name, "h") || same_string(name, "f16"))
+    else if (same_string(name, "h") || same_string(name, "f16") || same_string(name, "float16"))
         return simsimd_datatype_f16_k;
-    else if (same_string(name, "c") || same_string(name, "i8"))
+    else if (same_string(name, "c") || same_string(name, "i8") || same_string(name, "int8"))
         return simsimd_datatype_i8_k;
     else if (same_string(name, "b") || same_string(name, "b8"))
         return simsimd_datatype_b8_k;
-    else if (same_string(name, "d") || same_string(name, "f64"))
+    else if (same_string(name, "d") || same_string(name, "f64") || same_string(name, "float64"))
         return simsimd_datatype_f64_k;
     else
         return simsimd_datatype_unknown_k;
@@ -299,14 +303,17 @@ static void OutputDistances_releasebuffer(PyObject* export_from, Py_buffer* view
 }
 
 static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const* args, Py_ssize_t nargs) {
-    if (nargs != 2) {
-        PyErr_SetString(PyExc_TypeError, "function expects exactly 2 arguments");
+    // Function now accepts up to 3 arguments, the third being optional
+    if (nargs < 2 || nargs > 3) {
+        PyErr_SetString(PyExc_TypeError, "function expects 2 or 3 arguments");
         return NULL;
     }
 
     PyObject* output = NULL;
     PyObject* input_tensor_a = args[0];
     PyObject* input_tensor_b = args[1];
+    PyObject* value_type_desc = nargs == 3 ? args[2] : NULL;
+
     Py_buffer buffer_a, buffer_b;
     InputArgument parsed_a, parsed_b;
     if (parse_tensor(input_tensor_a, &buffer_a, &parsed_a) != 0 ||
@@ -335,9 +342,25 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
         goto cleanup;
     }
 
+    // Process the third argument, value_type_desc, if provided
+    simsimd_datatype_t datatype = parsed_a.datatype;
+    if (value_type_desc != NULL) {
+        // Ensure it is a string (or convert it to one if possible)
+        if (!PyUnicode_Check(value_type_desc)) {
+            PyErr_SetString(PyExc_TypeError, "third argument must be a string describing the value type");
+            goto cleanup;
+        }
+        // Convert Python string to C string
+        char const* value_type_str = PyUnicode_AsUTF8(value_type_desc);
+        if (!value_type_str) {
+            PyErr_SetString(PyExc_ValueError, "could not convert value type description to string");
+            goto cleanup;
+        }
+        datatype = python_string_to_datatype(value_type_str);
+    }
+
     simsimd_metric_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_datatype_t datatype = parsed_a.datatype;
     simsimd_find_metric_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
     if (!metric) {
         PyErr_SetString(PyExc_ValueError, "unsupported metric and datatype combination");

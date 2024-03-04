@@ -63,8 +63,8 @@ python -m cibuildwheel --platform windows
 ## Rust
 
 ```sh
-cargo test 
-cargo bench 
+cargo test
+cargo bench
 open ./target/criterion/report/index.html
 ```
 

@@ -7,62 +7,39 @@ simsimd_capability_t cached_capabilities(void) {
     return static_capabilities;
 }
 
-simsimd_f32_t cosine_i8(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
-    static simsimd_metric_punned_t metric = 0;
-    if (metric == 0) {
-        simsimd_capability_t used_capability;
-        simsimd_find_metric_punned(simsimd_metric_cosine_k, simsimd_datatype_i8_k, cached_capabilities(),
-                                   simsimd_cap_any_k, &metric, &used_capability);
+#define SIMSIMD_METRIC_DECLARATION(name, type)                                                                         \
+    simsimd_f32_t name##_##type(simsimd_##type##_t const* a, simsimd_##type##_t const* b, simsimd_size_t d) {          \
+        static simsimd_metric_punned_t metric = 0;                                                                     \
+        if (metric == 0) {                                                                                             \
+            simsimd_capability_t used_capability;                                                                      \
+            simsimd_find_metric_punned(simsimd_metric_##name##_k, simsimd_datatype_##type##_k, cached_capabilities(),  \
+                                       simsimd_cap_any_k, &metric, &used_capability);                                  \
+        }                                                                                                              \
+        return metric(a, b, d, d);                                                                                     \
     }
-    return metric(a, b, d, d);
-}
 
-simsimd_f32_t cosine_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t d) {
-    static simsimd_metric_punned_t metric = 0;
-    if (metric == 0) {
-        simsimd_capability_t used_capability;
-        simsimd_find_metric_punned(simsimd_metric_cosine_k, simsimd_datatype_f32_k, cached_capabilities(),
-                                   simsimd_cap_any_k, &metric, &used_capability);
-    }
-    return metric(a, b, d, d);
-}
+// Spatial distances
+SIMSIMD_METRIC_DECLARATION(cosine, i8)
+SIMSIMD_METRIC_DECLARATION(cosine, f16)
+SIMSIMD_METRIC_DECLARATION(cosine, f32)
+SIMSIMD_METRIC_DECLARATION(cosine, f64)
+SIMSIMD_METRIC_DECLARATION(inner, i8)
+SIMSIMD_METRIC_DECLARATION(inner, f16)
+SIMSIMD_METRIC_DECLARATION(inner, f32)
+SIMSIMD_METRIC_DECLARATION(inner, f64)
+SIMSIMD_METRIC_DECLARATION(sqeuclidean, i8)
+SIMSIMD_METRIC_DECLARATION(sqeuclidean, f16)
+SIMSIMD_METRIC_DECLARATION(sqeuclidean, f32)
+SIMSIMD_METRIC_DECLARATION(sqeuclidean, f64)
 
-simsimd_f32_t inner_i8(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
-    static simsimd_metric_punned_t metric = 0;
-    if (metric == 0) {
-        simsimd_capability_t used_capability;
-        simsimd_find_metric_punned(simsimd_metric_inner_k, simsimd_datatype_i8_k, cached_capabilities(),
-                                   simsimd_cap_any_k, &metric, &used_capability);
-    }
-    return metric(a, b, d, d);
-}
+// Binary distances
+SIMSIMD_METRIC_DECLARATION(hamming, b8)
+SIMSIMD_METRIC_DECLARATION(jaccard, b8)
 
-simsimd_f32_t inner_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t d) {
-    static simsimd_metric_punned_t metric = 0;
-    if (metric == 0) {
-        simsimd_capability_t used_capability;
-        simsimd_find_metric_punned(simsimd_metric_inner_k, simsimd_datatype_f32_k, cached_capabilities(),
-                                   simsimd_cap_any_k, &metric, &used_capability);
-    }
-    return metric(a, b, d, d);
-}
-
-simsimd_f32_t sqeuclidean_i8(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t d) {
-    static simsimd_metric_punned_t metric = 0;
-    if (metric == 0) {
-        simsimd_capability_t used_capability;
-        simsimd_find_metric_punned(simsimd_metric_sqeuclidean_k, simsimd_datatype_i8_k, cached_capabilities(),
-                                   simsimd_cap_any_k, &metric, &used_capability);
-    }
-    return metric(a, b, d, d);
-}
-
-simsimd_f32_t sqeuclidean_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t d) {
-    static simsimd_metric_punned_t metric = 0;
-    if (metric == 0) {
-        simsimd_capability_t used_capability;
-        simsimd_find_metric_punned(simsimd_metric_sqeuclidean_k, simsimd_datatype_f32_k, cached_capabilities(),
-                                   simsimd_cap_any_k, &metric, &used_capability);
-    }
-    return metric(a, b, d, d);
-}
+// Probability distributions
+SIMSIMD_METRIC_DECLARATION(kl, f16)
+SIMSIMD_METRIC_DECLARATION(kl, f32)
+SIMSIMD_METRIC_DECLARATION(kl, f64)
+SIMSIMD_METRIC_DECLARATION(js, f16)
+SIMSIMD_METRIC_DECLARATION(js, f32)
+SIMSIMD_METRIC_DECLARATION(js, f64)
