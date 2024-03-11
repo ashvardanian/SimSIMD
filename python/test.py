@@ -222,6 +222,26 @@ def test_cosine_zero_vector(ndim, dtype):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
+@pytest.mark.parametrize("ndim", [22, 66, 1536])
+def test_dot_complex(ndim):
+    """Compares the simd.dot() and simd.vdot() against NumPy for complex numbers."""
+    np.random.seed()
+    a = np.random.randn(ndim).astype(dtype=np.float32)
+    b = np.random.randn(ndim).astype(dtype=np.float32)
+
+    expected = np.dot(a.view(np.complex64), b.view(np.complex64))
+    result = simd.dot(a, b, "complex64")
+
+    np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
+
+    expected = np.vdot(a, b)
+    result = simd.vdot(a, b, "complex64")
+
+    np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 def test_hamming(ndim):
     """Compares the simd.hamming() function with scipy.spatial.distance.hamming."""

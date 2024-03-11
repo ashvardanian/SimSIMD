@@ -70,6 +70,11 @@ simsimd_capability_t static_capabilities = simsimd_cap_serial_k;
 
 int same_string(char const* a, char const* b) { return strcmp(a, b) == 0; }
 
+int is_complex(simsimd_datatype_t datatype) {
+    return datatype == simsimd_datatype_f32c_k || datatype == simsimd_datatype_f64c_k ||
+           datatype == simsimd_datatype_f16c_k || datatype == simsimd_datatype_i8c_k;
+}
+
 simsimd_datatype_t numpy_string_to_datatype(char const* name) {
     // https://docs.python.org/3/library/struct.html#format-characters
     if (same_string(name, "f") || same_string(name, "<f") || same_string(name, "f4") || same_string(name, "<f4") ||
@@ -86,6 +91,16 @@ simsimd_datatype_t numpy_string_to_datatype(char const* name) {
     else if (same_string(name, "d") || same_string(name, "<d") || same_string(name, "f8") || same_string(name, "<f8") ||
              same_string(name, "float64"))
         return simsimd_datatype_f64_k;
+    // Complex numbers:
+    else if (same_string(name, "F") || same_string(name, "<F") || same_string(name, "F4") || same_string(name, "<F4") ||
+             same_string(name, "complex64"))
+        return simsimd_datatype_f32c_k;
+    else if (same_string(name, "D") || same_string(name, "<D") || same_string(name, "F8") || same_string(name, "<F8") ||
+             same_string(name, "complex128"))
+        return simsimd_datatype_f64c_k;
+    else if (same_string(name, "E") || same_string(name, "<E") || same_string(name, "F2") || same_string(name, "<F2") ||
+             same_string(name, "complex32"))
+        return simsimd_datatype_f16c_k;
     else
         return simsimd_datatype_unknown_k;
 }
@@ -101,6 +116,13 @@ simsimd_datatype_t python_string_to_datatype(char const* name) {
         return simsimd_datatype_b8_k;
     else if (same_string(name, "d") || same_string(name, "f64") || same_string(name, "float64"))
         return simsimd_datatype_f64_k;
+    // Complex numbers:
+    else if (same_string(name, "complex64"))
+        return simsimd_datatype_f32c_k;
+    else if (same_string(name, "complex128"))
+        return simsimd_datatype_f64c_k;
+    else if (same_string(name, "complex32"))
+        return simsimd_datatype_f16c_k;
     else
         return simsimd_datatype_unknown_k;
 }
@@ -126,6 +148,7 @@ static size_t bytes_per_datatype(simsimd_datatype_t dtype) {
     default: return 0;
     }
 }
+
 simsimd_metric_kind_t python_string_to_metric_kind(char const* name) {
     if (same_string(name, "sqeuclidean"))
         return simsimd_metric_sqeuclidean_k;
@@ -369,7 +392,18 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
 
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     if (parsed_a.is_flat && parsed_b.is_flat) {
-        output = PyFloat_FromDouble(metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, parsed_b.dimensions));
+        // For complex numbers we are going to use `PyComplex_FromDoubles`.
+        if (is_complex(datatype)) {
+            simsimd_complex_metric_punned_t complex_metric = (simsimd_complex_metric_punned_t)metric;
+            simsimd_f32_t real_result, imag_result;
+            complex_metric(parsed_a.start, parsed_b.start,           //
+                           parsed_a.dimensions, parsed_b.dimensions, //
+                           &real_result, &imag_result);
+            output = PyComplex_FromDoubles(real_result, imag_result);
+        } else {
+            output = PyFloat_FromDouble(metric(parsed_a.start, parsed_b.start, //
+                                               parsed_a.dimensions, parsed_b.dimensions));
+        }
     } else {
 
         // In some batch requests we may be computing the distance from multiple vectors to one,
@@ -599,6 +633,9 @@ static PyObject* api_cos(PyObject* self, PyObject* const* args, Py_ssize_t nargs
 static PyObject* api_ip(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
     return impl_metric(simsimd_metric_ip_k, args, nargs);
 }
+static PyObject* api_vdot(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
+    return impl_metric(simsimd_metric_vdot_k, args, nargs);
+}
 static PyObject* api_kl(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
     return impl_metric(simsimd_metric_kl_k, args, nargs);
 }
@@ -622,6 +659,8 @@ static PyMethodDef simsimd_methods[] = {
     {"sqeuclidean", api_l2sq, METH_FASTCALL, "L2sq (Sq. Euclidean) distances between a pair of matrices"},
     {"cosine", api_cos, METH_FASTCALL, "Cosine (Angular) distances between a pair of matrices"},
     {"inner", api_ip, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
+    {"dot", api_ip, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
+    {"vdot", api_vdot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
     {"hamming", api_hamming, METH_FASTCALL, "Hamming distances between a pair of matrices"},
     {"jaccard", api_jaccard, METH_FASTCALL, "Jaccard (Bitwise Tanimoto) distances between a pair of matrices"},
     {"kullbackleibler", api_kl, METH_FASTCALL, "Kullback-Leibler divergence between probability distributions"},
