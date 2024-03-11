@@ -1,7 +1,7 @@
 [package]
 name = "simsimd"
 description = "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm"
-version = "3.8.1"
+version = "3.9.0"
 edition = "2021"
 license = "Apache-2.0"
 authors = [
@@ -12,7 +12,13 @@ repository = "https://github.com/ashvardanian/SimSIMD"
 documentation = "https://docs.rs/simsimd"
 homepage = "https://ashvardanian.com/posts/simsimd-faster-scipy"
 keywords = ["simd", "search", "linear-algebra", "vector"]
-categories = ["mathematics", "hardware-support", "no-std", "wasm", "external-ffi-bindings"]
+categories = [
+  "mathematics",
+  "hardware-support",
+  "no-std",
+  "wasm",
+  "external-ffi-bindings",
+]
 
 [lib]
 name = "simsimd"
@@ -20,6 +26,7 @@ path = "rust/lib.rs"
 
 [build-dependencies]
 cc = "1.0.83"
+
 
 [[bench]]
 name = "cosine"
@@ -34,3 +41,4 @@ path = "rust/benches/sqeuclidean.rs"
 [dev-dependencies]
 criterion = { version = "0.5.1" }
 rand = { version = "0.8.5" }
+half = { version = "2.4.0" }

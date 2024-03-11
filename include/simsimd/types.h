@@ -84,11 +84,11 @@
 #endif
 
 #ifndef SIMSIMD_F32_DIVISION_EPSILON
-#define SIMSIMD_F32_DIVISION_EPSILON 1e-7
+#define SIMSIMD_F32_DIVISION_EPSILON (1e-7)
 #endif
 
 #ifndef SIMSIMD_F16_DIVISION_EPSILON
-#define SIMSIMD_F16_DIVISION_EPSILON 1e-3
+#define SIMSIMD_F16_DIVISION_EPSILON (1e-3)
 #endif
 
 #ifdef __cplusplus
@@ -100,6 +100,7 @@ typedef float simsimd_f32_t;
 typedef double simsimd_f64_t;
 typedef signed char simsimd_i8_t;
 typedef unsigned char simsimd_b8_t;
+typedef unsigned long long simsimd_u64_t;
 typedef unsigned long long simsimd_size_t;
 
 #if !defined(SIMSIMD_NATIVE_F16) || SIMSIMD_NATIVE_F16

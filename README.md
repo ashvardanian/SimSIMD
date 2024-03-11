@@ -185,20 +185,73 @@ To install, add the following to your `Cargo.toml`:
 simsimd = "..."
 ```
 
-To use it:
+Before using the SimSIMD library, ensure you have imported the necessary traits and types into your Rust source file.
+The library provides several traits for different distance/similarity kinds - `SpatialSimilarity`, `BinarySimilarity`, and `ProbabilitySimilarity`.
 
 ```rust
-use simsimd::{cosine, sqeuclidean};
+use simsimd::SpatialSimilarity;
 
 fn main() {
-    let vector_a = vec![1.0, 2.0, 3.0];
-    let vector_b = vec![4.0, 5.0, 6.0];
+    let vector_a: Vec<f32> = vec![1.0, 2.0, 3.0];
+    let vector_b: Vec<f32> = vec![4.0, 5.0, 6.0];
 
-    let distance = cosine(&vector_a, &vector_b);
-    println!("Cosine Distance: {}", distance);
+    // Compute the cosine similarity between vector_a and vector_b
+    let cosine_similarity = f32::cosine(&vector_a, &vector_b)
+        .expect("Vectors must be of the same length");
 
-    let distance = sqeuclidean(&vector_a, &vector_b);
-    println!("Squared Euclidean Distance: {}", distance);
+    println!("Cosine Similarity: {}", cosine_similarity);
+
+    // Compute the squared Euclidean distance between vector_a and vector_b
+    let sq_euclidean_distance = f32::sqeuclidean(&vector_a, &vector_b)
+        .expect("Vectors must be of the same length");
+
+    println!("Squared Euclidean Distance: {}", sq_euclidean_distance);
+}
+```
+
+Similarly, one can compute bit-level distance functions between slices of unsigned integers:
+
+```rust
+use simsimd::BinarySimilarity;
+
+fn main() {
+    let vector_a = &[0b11110000, 0b00001111, 0b10101010];
+    let vector_b = &[0b11110000, 0b00001111, 0b01010101];
+
+    // Compute the Hamming distance between vector_a and vector_b
+    let hamming_distance = u8::hamming(&vector_a, &vector_b)
+        .expect("Vectors must be of the same length");
+
+    println!("Hamming Distance: {}", hamming_distance);
+
+    // Compute the Jaccard distance between vector_a and vector_b
+    let jaccard_distance = u8::jaccard(&vector_a, &vector_b)
+        .expect("Vectors must be of the same length");
+
+    println!("Jaccard Distance: {}", jaccard_distance);
+}
+```
+
+Rust has no native support for half-precision floating-point numbers, but SimSIMD provides a `f16` type for this purpose.
+It doesn't have any functionality and is a `transparent` wrapper around `u16`, so it can be used with `half`, or any other half-precision library.
+
+```rust
+use simsimd::SpatialSimilarity;
+use simsimd::f16 as SimF16;
+use half::f16 as HalfF16;
+
+fn main() {
+    let vector_a: Vec<HalfF16> = ...
+    let vector_b: Vec<HalfF16> = ...
+
+    let buffer_a: &[SimF16] = unsafe { std::slice::from_raw_parts(a_half.as_ptr() as *const SimF16, a_half.len()) };
+    let buffer_b: &[SimF16] = unsafe { std::slice::from_raw_parts(b_half.as_ptr() as *const SimF16, b_half.len()) };
+
+    // Compute the cosine similarity between vector_a and vector_b
+    let cosine_similarity = SimF16::cosine(&vector_a, &vector_b)
+        .expect("Vectors must be of the same length");
+
+    println!("Cosine Similarity: {}", cosine_similarity);
 }
 ```
 

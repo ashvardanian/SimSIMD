@@ -210,9 +210,9 @@ dependencies = [
 
 [[package]]
 name = "half"
-version = "2.3.1"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc52e53916c08643f1b56ec082790d1e86a32e58dc5268f897f313fbae7b4872"
+checksum = "b5eceaaeec696539ddaf7b333340f1af35a5aa87ae3e4f3ead0532f72affab2e"
 dependencies = [
  "cfg-if",
  "crunchy",
@@ -496,10 +496,11 @@ dependencies = [
 
 [[package]]
 name = "simsimd"
-version = "3.8.0"
+version = "3.8.1"
 dependencies = [
  "cc",
  "criterion",
+ "half",
  "rand",
 ]
 

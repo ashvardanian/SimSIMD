@@ -175,6 +175,9 @@ int main(int argc, char** argv) {
     register_<simsimd_i8_t>("neon_i8_cos", simsimd_neon_i8_cos, simsimd_accurate_i8_cos);
     register_<simsimd_i8_t>("neon_i8_l2sq", simsimd_neon_i8_l2sq, simsimd_accurate_i8_l2sq);
 
+    register_<simsimd_b8_t>("neon_b8_hamming", simsimd_neon_b8_hamming, simsimd_serial_b8_hamming);
+    register_<simsimd_b8_t>("neon_b8_jaccard", simsimd_neon_b8_jaccard, simsimd_serial_b8_jaccard);
+
     register_<simsimd_f32_t, function_kind_t::complex_dot_k>("neon_f32c_dot", simsimd_neon_f32c_dot,
                                                              simsimd_accurate_f32c_dot);
 #endif
@@ -191,6 +194,9 @@ int main(int argc, char** argv) {
     register_<simsimd_f64_t>("sve_f64_ip", simsimd_sve_f64_ip, simsimd_serial_f64_ip);
     register_<simsimd_f64_t>("sve_f64_cos", simsimd_sve_f64_cos, simsimd_serial_f64_cos);
     register_<simsimd_f64_t>("sve_f64_l2sq", simsimd_sve_f64_l2sq, simsimd_serial_f64_l2sq);
+
+    register_<simsimd_b8_t>("sve_b8_hamming", simsimd_sve_b8_hamming, simsimd_serial_b8_hamming);
+    register_<simsimd_b8_t>("sve_b8_jaccard", simsimd_sve_b8_jaccard, simsimd_serial_b8_jaccard);
 #endif
 
 #if SIMSIMD_TARGET_X86_AVX2
@@ -202,6 +208,9 @@ int main(int argc, char** argv) {
 
     register_<simsimd_i8_t>("avx2_i8_cos", simsimd_avx2_i8_cos, simsimd_accurate_i8_cos);
     register_<simsimd_i8_t>("avx2_i8_l2sq", simsimd_avx2_i8_l2sq, simsimd_accurate_i8_l2sq);
+
+    register_<simsimd_b8_t>("avx2_b8_hamming", simsimd_avx2_b8_hamming, simsimd_serial_b8_hamming);
+    register_<simsimd_b8_t>("avx2_b8_jaccard", simsimd_avx2_b8_jaccard, simsimd_serial_b8_jaccard);
 #endif
 
 #if SIMSIMD_TARGET_X86_AVX512
@@ -224,6 +233,8 @@ int main(int argc, char** argv) {
     register_<simsimd_f64_t>("avx512_f64_cos", simsimd_avx512_f64_cos, simsimd_serial_f64_cos);
     register_<simsimd_f64_t>("avx512_f64_l2sq", simsimd_avx512_f64_l2sq, simsimd_serial_f64_l2sq);
 
+    register_<simsimd_b8_t>("avx512_b8_hamming", simsimd_avx512_b8_hamming, simsimd_serial_b8_hamming);
+    register_<simsimd_b8_t>("avx512_b8_jaccard", simsimd_avx512_b8_jaccard, simsimd_serial_b8_jaccard);
 #endif
 
     register_<simsimd_f16_t>("serial_f16_ip", simsimd_serial_f16_ip, simsimd_accurate_f16_ip);
@@ -249,6 +260,9 @@ int main(int argc, char** argv) {
                                                              simsimd_accurate_f32c_dot);
     register_<simsimd_f16_t, function_kind_t::complex_dot_k>("serial_f16c_dot", simsimd_serial_f16c_dot,
                                                              simsimd_accurate_f16c_dot);
+
+    register_<simsimd_b8_t>("serial_b8_hamming", simsimd_serial_b8_hamming, simsimd_serial_b8_hamming);
+    register_<simsimd_b8_t>("serial_b8_jaccard", simsimd_serial_b8_jaccard, simsimd_serial_b8_jaccard);
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();
