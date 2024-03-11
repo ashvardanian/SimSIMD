@@ -1,5 +1,6 @@
 /**
- *  @brief      SIMD-accelerated Similarity Measures for Complex Vectors.
+ *  @file       dot.h
+ *  @brief      SIMD-accelerated Dot Products for Real and Complex numbers.
  *  @author     Ash Vardanian
  *  @date       February 24, 2024
  *
@@ -22,6 +23,18 @@
 #define SIMSIMD_COMPLEX_H
 
 #include "types.h"
+
+#define SIMSIMD_MAKE_DOT(name, input_type, accumulator_type, converter)                                                \
+    inline static simsimd_f32_t simsimd_##name##_##input_type##_dot(                                                   \
+        simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t n) {                      \
+        simsimd_##accumulator_type##_t ab = 0;                                                                         \
+        for (simsimd_size_t i = 0; i != n; ++i) {                                                                      \
+            simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
+            simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
+            ab += ai * bi;                                                                                             \
+        }                                                                                                              \
+        return ab;                                                                                                     \
+    }
 
 #define SIMSIMD_MAKE_COMPLEX_DOT(name, input_type, accumulator_type, converter, epsilon)                               \
     inline static void simsimd_##name##_##input_type##c_dot(simsimd_##input_type##_t const* a,                         \
@@ -61,26 +74,32 @@
 extern "C" {
 #endif
 
+SIMSIMD_MAKE_DOT(serial, f64, f64, SIMSIMD_IDENTIFY) // simsimd_serial_f64_dot
+
 SIMSIMD_MAKE_COMPLEX_DOT(serial, f64, f64, SIMSIMD_IDENTIFY,
                          SIMSIMD_F32_DIVISION_EPSILON) // simsimd_serial_f64c_dot
 SIMSIMD_MAKE_COMPLEX_VDOT(serial, f64, f64, SIMSIMD_IDENTIFY,
                           SIMSIMD_F32_DIVISION_EPSILON) // simsimd_serial_f64c_vdot
 
+SIMSIMD_MAKE_DOT(serial, f32, f32, SIMSIMD_IDENTIFY) // simsimd_serial_f32_dot
 SIMSIMD_MAKE_COMPLEX_DOT(serial, f32, f32, SIMSIMD_IDENTIFY,
                          SIMSIMD_F32_DIVISION_EPSILON) // simsimd_serial_f32c_dot
 SIMSIMD_MAKE_COMPLEX_VDOT(serial, f32, f32, SIMSIMD_IDENTIFY,
                           SIMSIMD_F32_DIVISION_EPSILON) // simsimd_serial_f32c_vdot
 
+SIMSIMD_MAKE_DOT(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16) // simsimd_serial_f16_dot
 SIMSIMD_MAKE_COMPLEX_DOT(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16,
                          SIMSIMD_F32_DIVISION_EPSILON) // simsimd_serial_f16c_dot
 SIMSIMD_MAKE_COMPLEX_VDOT(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16,
                           SIMSIMD_F32_DIVISION_EPSILON) // simsimd_serial_f16c_vdot
 
+SIMSIMD_MAKE_DOT(accurate, f32, f64, SIMSIMD_IDENTIFY) // simsimd_accurate_f32_dot
 SIMSIMD_MAKE_COMPLEX_DOT(accurate, f32, f64, SIMSIMD_IDENTIFY,
                          SIMSIMD_F32_DIVISION_EPSILON) // simsimd_accurate_f32c_dot
 SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f32, f64, SIMSIMD_IDENTIFY,
                           SIMSIMD_F32_DIVISION_EPSILON) // simsimd_accurate_f32c_vdot
 
+SIMSIMD_MAKE_DOT(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16) // simsimd_accurate_f16_dot
 SIMSIMD_MAKE_COMPLEX_DOT(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16,
                          SIMSIMD_F32_DIVISION_EPSILON) // simsimd_accurate_f16c_dot
 SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16,
