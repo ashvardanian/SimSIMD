@@ -45,6 +45,8 @@ typedef enum {
     simsimd_metric_dot_k = 'i',   ///< Inner product alias
     simsimd_metric_inner_k = 'i', ///< Inner product alias
 
+    simsimd_metric_vdot_k = 'v', ///< Complex inner product
+
     simsimd_metric_cos_k = 'c',     ///< Cosine similarity
     simsimd_metric_cosine_k = 'c',  ///< Cosine similarity alias
     simsimd_metric_angular_k = 'c', ///< Cosine similarity alias
@@ -101,6 +103,10 @@ typedef enum {
     simsimd_datatype_f16_k,     ///< Half precision floating point
     simsimd_datatype_i8_k,      ///< 8-bit integer
     simsimd_datatype_b8_k,      ///< Single-bit values packed into 8-bit words
+    simsimd_datatype_f64c_k,    ///< Complex double precision floating point
+    simsimd_datatype_f32c_k,    ///< Complex single precision floating point
+    simsimd_datatype_f16c_k,    ///< Complex half precision floating point
+    simsimd_datatype_i8c_k,     ///< Complex 8-bit integer
 } simsimd_datatype_t;
 
 /**
@@ -114,6 +120,19 @@ typedef enum {
  */
 typedef simsimd_f32_t (*simsimd_metric_punned_t)(void const* a, void const* b, simsimd_size_t size_a,
                                                  simsimd_size_t size_b);
+
+/**
+ *  @brief  Type-punned function pointer accepting two vectors and outputting their similarity/distance.
+ *
+ *  @param[in] a Pointer to the first data array.
+ *  @param[in] b Pointer to the second data array.
+ *  @param[in] size_a Size of the first data array.
+ *  @param[in] size_b Size of the second data array.
+ *  @return Computed metric as a single-precision floating-point value.
+ */
+typedef void (*simsimd_complex_metric_punned_t)(void const* a, void const* b,                 //
+                                                simsimd_size_t size_a, simsimd_size_t size_b, //
+                                                simsimd_f32_t* real, simsimd_f32_t* imag);
 
 /**
  *  @brief  Function to determine the SIMD capabilities of the current machine at @b runtime.
@@ -450,6 +469,26 @@ inline static void simsimd_find_metric_punned( //
             switch (kind) {
             case simsimd_metric_hamming_k: *m = (simsimd_metric_punned_t)&simsimd_serial_b8_hamming, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_jaccard_k: *m = (simsimd_metric_punned_t)&simsimd_serial_b8_jaccard, *c = simsimd_cap_serial_k; return;
+            default: break;
+            }
+        
+        break;
+
+    case simsimd_datatype_f32c_k:
+
+    #if SIMSIMD_TARGET_ARM_NEON
+        if (viable & simsimd_cap_arm_neon_k)
+            switch (kind) {
+            case simsimd_metric_dot_k: *m = (simsimd_metric_punned_t)&simsimd_neon_f32c_dot, *c = simsimd_cap_arm_neon_k; return;
+            case simsimd_metric_vdot_k: *m = (simsimd_metric_punned_t)&simsimd_neon_f32c_vdot, *c = simsimd_cap_arm_neon_k; return;
+            default: break;
+            }
+    #endif
+
+        if (viable & simsimd_cap_serial_k)
+            switch (kind) {
+            case simsimd_metric_dot_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f32c_dot, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_vdot_k: *m = (simsimd_metric_punned_t)&simsimd_serial_f32c_vdot, *c = simsimd_cap_serial_k; return;
             default: break;
             }
         

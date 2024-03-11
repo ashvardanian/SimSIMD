@@ -9,6 +9,12 @@
 
 namespace bm = benchmark;
 
+enum class function_kind_t {
+    distance_k,
+    complex_dot_k,
+    haversine_k,
+};
+
 template <typename scalar_at, std::size_t dimensions_ak> struct vectors_pair_gt {
     scalar_at a[dimensions_ak]{};
     scalar_at b[dimensions_ak]{};
@@ -44,7 +50,7 @@ template <typename scalar_at, std::size_t dimensions_ak> struct vectors_pair_gt 
     }
 };
 
-template <typename pair_at, std::size_t number_of_arguments, typename metric_at = void>
+template <typename pair_at, function_kind_t function_kind, typename metric_at = void>
 constexpr void measure(bm::State& state, metric_at metric, metric_at baseline) {
 
     pair_at pair;
@@ -52,19 +58,21 @@ constexpr void measure(bm::State& state, metric_at metric, metric_at baseline) {
     // pair.set(1);
 
     auto call_baseline = [&](pair_at& pair) -> simsimd_f32_t {
-        if constexpr (number_of_arguments == 3) {
+        if constexpr (function_kind == function_kind_t::distance_k) {
             return baseline(pair.a, pair.b, pair.dimensions());
         } else {
             simsimd_f32_t real, imag;
-            return baseline(pair.a, pair.b, pair.dimensions(), &real, &imag);
+            baseline(pair.a, pair.b, pair.dimensions(), &real, &imag);
+            return real + imag;
         }
     };
     auto call_contender = [&](pair_at& pair) -> simsimd_f32_t {
-        if constexpr (number_of_arguments == 3) {
+        if constexpr (function_kind == function_kind_t::distance_k) {
             return metric(pair.a, pair.b, pair.dimensions());
         } else {
             simsimd_f32_t real, imag;
-            return metric(pair.a, pair.b, pair.dimensions(), &real, &imag);
+            metric(pair.a, pair.b, pair.dimensions(), &real, &imag);
+            return real + imag;
         }
     };
 
@@ -83,7 +91,7 @@ constexpr void measure(bm::State& state, metric_at metric, metric_at baseline) {
     state.counters["relative_error"] = error;
 }
 
-template <typename scalar_at, std::size_t number_of_arguments = 3, typename metric_at = void>
+template <typename scalar_at, function_kind_t function_kind = function_kind_t::distance_k, typename metric_at = void>
 void register_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
 
     std::size_t seconds = 10;
@@ -91,7 +99,7 @@ void register_(std::string name, metric_at* distance_func, metric_at* baseline_f
 
     using pair_dims_t = vectors_pair_gt<scalar_at, 1536>;
     std::string name_dims = name + "_" + std::to_string(pair_dims_t{}.dimensions()) + "d";
-    bm::RegisterBenchmark(name_dims.c_str(), measure<pair_dims_t, number_of_arguments, metric_at*>, distance_func,
+    bm::RegisterBenchmark(name_dims.c_str(), measure<pair_dims_t, function_kind, metric_at*>, distance_func,
                           baseline_func)
         ->MinTime(seconds)
         ->Threads(threads);
@@ -99,7 +107,7 @@ void register_(std::string name, metric_at* distance_func, metric_at* baseline_f
     return;
     using pair_bytes_t = vectors_pair_gt<scalar_at, 1536 / sizeof(scalar_at)>;
     std::string name_bytes = name + "_" + std::to_string(pair_bytes_t{}.size_bytes()) + "b";
-    bm::RegisterBenchmark(name_bytes.c_str(), measure<pair_bytes_t, number_of_arguments, metric_at*>, distance_func,
+    bm::RegisterBenchmark(name_bytes.c_str(), measure<pair_bytes_t, function_kind, metric_at*>, distance_func,
                           baseline_func)
         ->MinTime(seconds)
         ->Threads(threads);
@@ -145,6 +153,11 @@ int main(int argc, char** argv) {
     if (bm::ReportUnrecognizedArguments(argc, argv))
         return 1;
 
+    register_<simsimd_f32_t, function_kind_t::complex_dot_k>("serial_f32c_dot", simsimd_serial_f32c_dot,
+                                                             simsimd_accurate_f32c_dot);
+    register_<simsimd_f32_t, function_kind_t::complex_dot_k>("neon_f32c_dot", simsimd_neon_f32c_dot,
+                                                             simsimd_accurate_f32c_dot);
+
 #if SIMSIMD_TARGET_ARM_NEON
 
     register_<simsimd_f16_t>("neon_f16_ip", simsimd_neon_f16_ip, simsimd_accurate_f16_ip);
@@ -165,7 +178,8 @@ int main(int argc, char** argv) {
     register_<simsimd_b8_t>("neon_b8_hamming", simsimd_neon_b8_hamming, simsimd_serial_b8_hamming);
     register_<simsimd_b8_t>("neon_b8_jaccard", simsimd_neon_b8_jaccard, simsimd_serial_b8_jaccard);
 
-    register_<simsimd_f32_t, 5>("neon_f32_complex_cos", simsimd_neon_f32_complex_cos, simsimd_accurate_f32_complex_cos);
+    register_<simsimd_f32_t, function_kind_t::complex_dot_k>("neon_f32c_dot", simsimd_neon_f32c_dot,
+                                                             simsimd_accurate_f32c_dot);
 #endif
 
 #if SIMSIMD_TARGET_ARM_SVE
@@ -246,10 +260,10 @@ int main(int argc, char** argv) {
     register_<simsimd_i8_t>("serial_i8_cos", simsimd_serial_i8_cos, simsimd_accurate_i8_cos);
     register_<simsimd_i8_t>("serial_i8_l2sq", simsimd_serial_i8_l2sq, simsimd_accurate_i8_l2sq);
 
-    register_<simsimd_f32_t, 5>("serial_f32_complex_cos", simsimd_serial_f32_complex_cos,
-                                simsimd_accurate_f32_complex_cos);
-    register_<simsimd_f16_t, 5>("serial_f16_complex_cos", simsimd_serial_f16_complex_cos,
-                                simsimd_accurate_f16_complex_cos);
+    register_<simsimd_f32_t, function_kind_t::complex_dot_k>("serial_f32c_dot", simsimd_serial_f32c_dot,
+                                                             simsimd_accurate_f32c_dot);
+    register_<simsimd_f16_t, function_kind_t::complex_dot_k>("serial_f16c_dot", simsimd_serial_f16c_dot,
+                                                             simsimd_accurate_f16c_dot);
 
     register_<simsimd_b8_t>("serial_b8_hamming", simsimd_serial_b8_hamming, simsimd_serial_b8_hamming);
     register_<simsimd_b8_t>("serial_b8_jaccard", simsimd_serial_b8_jaccard, simsimd_serial_b8_jaccard);
