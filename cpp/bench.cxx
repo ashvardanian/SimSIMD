@@ -185,7 +185,7 @@ int main(int argc, char** argv) {
     register_<simsimd_b8_t>("sve_b8_jaccard", simsimd_sve_b8_jaccard, simsimd_serial_b8_jaccard);
 #endif
 
-#if SIMSIMD_TARGET_X86_AVX2
+#if SIMSIMD_TARGET_X86_AVX2_HASWELL
     register_<simsimd_f16_t>("avx2_f16_ip", simsimd_avx2_f16_ip, simsimd_accurate_f16_ip);
     register_<simsimd_f16_t>("avx2_f16_cos", simsimd_avx2_f16_cos, simsimd_accurate_f16_cos);
     register_<simsimd_f16_t>("avx2_f16_l2sq", simsimd_avx2_f16_l2sq, simsimd_accurate_f16_l2sq);
@@ -199,21 +199,17 @@ int main(int argc, char** argv) {
     register_<simsimd_b8_t>("avx2_b8_jaccard", simsimd_avx2_b8_jaccard, simsimd_serial_b8_jaccard);
 #endif
 
-#if SIMSIMD_TARGET_X86_AVX512
+#if SIMSIMD_TARGET_X86_AVX512_SAPPHIRE
     register_<simsimd_f16_t>("avx512_f16_ip", simsimd_avx512_f16_ip, simsimd_accurate_f16_ip);
     register_<simsimd_f16_t>("avx512_f16_cos", simsimd_avx512_f16_cos, simsimd_accurate_f16_cos);
     register_<simsimd_f16_t>("avx512_f16_l2sq", simsimd_avx512_f16_l2sq, simsimd_accurate_f16_l2sq);
     register_<simsimd_f16_t>("avx512_f16_kl", simsimd_avx512_f16_kl, simsimd_accurate_f16_kl);
     register_<simsimd_f16_t>("avx512_f16_js", simsimd_avx512_f16_js, simsimd_accurate_f16_js);
+#endif
 
+#if SIMSIMD_TARGET_X86_AVX512_ICE
     register_<simsimd_i8_t>("avx512_i8_cos", simsimd_avx512_i8_cos, simsimd_accurate_i8_cos);
     register_<simsimd_i8_t>("avx512_i8_l2sq", simsimd_avx512_i8_l2sq, simsimd_accurate_i8_l2sq);
-
-    register_<simsimd_f32_t>("avx512_f32_ip", simsimd_avx512_f32_ip, simsimd_accurate_f32_ip);
-    register_<simsimd_f32_t>("avx512_f32_cos", simsimd_avx512_f32_cos, simsimd_accurate_f32_cos);
-    register_<simsimd_f32_t>("avx512_f32_l2sq", simsimd_avx512_f32_l2sq, simsimd_accurate_f32_l2sq);
-    register_<simsimd_f32_t>("avx512_f32_kl", simsimd_avx512_f32_kl, simsimd_accurate_f32_kl);
-    register_<simsimd_f32_t>("avx512_f32_js", simsimd_avx512_f32_js, simsimd_accurate_f32_js);
 
     register_<simsimd_f64_t>("avx512_f64_ip", simsimd_avx512_f64_ip, simsimd_serial_f64_ip);
     register_<simsimd_f64_t>("avx512_f64_cos", simsimd_avx512_f64_cos, simsimd_serial_f64_cos);
@@ -221,6 +217,14 @@ int main(int argc, char** argv) {
 
     register_<simsimd_b8_t>("avx512_b8_hamming", simsimd_avx512_b8_hamming, simsimd_serial_b8_hamming);
     register_<simsimd_b8_t>("avx512_b8_jaccard", simsimd_avx512_b8_jaccard, simsimd_serial_b8_jaccard);
+#endif
+
+#if SIMSIMD_TARGET_X86_AVX512_SKYLAKE
+    register_<simsimd_f32_t>("avx512_f32_ip", simsimd_avx512_f32_ip, simsimd_accurate_f32_ip);
+    register_<simsimd_f32_t>("avx512_f32_cos", simsimd_avx512_f32_cos, simsimd_accurate_f32_cos);
+    register_<simsimd_f32_t>("avx512_f32_l2sq", simsimd_avx512_f32_l2sq, simsimd_accurate_f32_l2sq);
+    register_<simsimd_f32_t>("avx512_f32_kl", simsimd_avx512_f32_kl, simsimd_accurate_f32_kl);
+    register_<simsimd_f32_t>("avx512_f32_js", simsimd_avx512_f32_js, simsimd_accurate_f32_js);
 #endif
 
     register_<simsimd_f16_t>("serial_f16_ip", simsimd_serial_f16_ip, simsimd_accurate_f16_ip);

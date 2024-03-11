@@ -132,7 +132,16 @@ simsimd_sve_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_siz
 
 #if SIMSIMD_TARGET_X86
 
-#if SIMSIMD_TARGET_X86_AVX512
+#if SIMSIMD_TARGET_X86_AVX512_ICE
+
+/*
+ *  @file   x86_avx512_b8.h
+ *  @brief  x86 AVX-512 implementation of the most common similarity metrics for bit-vectors.
+ *  @author Ash Vardanian
+ *
+ *  - Implements: Hamming and Jaccard.
+ *  - Requires compiler capabilities: avx512vpopcntdq, avx512vl, avx512bw, avx512f.
+ */
 
 __attribute__((target("avx512vpopcntdq,avx512vl,avx512bw,avx512f,bmi2"))) //
 inline static simsimd_f32_t
@@ -189,7 +198,7 @@ simsimd_avx512_b8_jaccard_cycle:
     return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
-#endif // SIMSIMD_TARGET_X86_AVX512
+#endif // SIMSIMD_TARGET_X86_AVX512_ICE
 
 /*
  *  @file   x86_avx2_b8.h
@@ -205,7 +214,7 @@ simsimd_avx512_b8_jaccard_cycle:
  *  to built-in scalar population counts. https://arxiv.org/pdf/1611.07612.pdf
  */
 
-#if SIMSIMD_TARGET_X86_AVX2
+#if SIMSIMD_TARGET_X86_AVX2_HASWELL
 
 __attribute__((target("popcnt"))) //
 inline static simsimd_f32_t
@@ -232,7 +241,7 @@ simsimd_avx2_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_si
     return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
-#endif // SIMSIMD_TARGET_X86_AVX2
+#endif // SIMSIMD_TARGET_X86_AVX2_HASWELL
 
 #endif // SIMSIMD_TARGET_X86
 

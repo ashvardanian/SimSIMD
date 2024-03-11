@@ -226,7 +226,7 @@ simsimd_neon_f16_js(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size
 #endif // SIMSIMD_TARGET_ARM
 
 #if SIMSIMD_TARGET_X86
-#if SIMSIMD_TARGET_X86_AVX2
+#if SIMSIMD_TARGET_X86_AVX2_HASWELL
 
 /*
  *  @file   x86_avx2_f16.h
@@ -341,9 +341,9 @@ simsimd_avx2_f16_js(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size
     return sum / 2;
 }
 
-#endif // SIMSIMD_TARGET_X86_AVX2
+#endif // SIMSIMD_TARGET_X86_AVX2_HASWELL
 
-#if SIMSIMD_TARGET_X86_AVX512
+#if SIMSIMD_TARGET_X86_AVX512_SKYLAKE
 
 /*
  *  @file   x86_avx512_f32.h
@@ -442,6 +442,10 @@ simsimd_avx512_f32_js_cycle:
     return _mm512_reduce_add_ps(_mm512_add_ps(sum_a_vec, sum_b_vec)) * 0.5f * log2_normalizer;
 }
 
+#endif // SIMSIMD_TARGET_X86_AVX2_HASWELL
+
+#if SIMSIMD_TARGET_X86_AVX512_SAPPHIRE
+
 /*
  *  @file   x86_avx512_f16.h
  *  @brief  x86 AVX-512 implementation of the most common similarity metrics for 16-bit floating point numbers.
@@ -538,7 +542,7 @@ simsimd_avx512_f16_js_cycle:
     return _mm512_reduce_add_ph(_mm512_add_ph(sum_a_vec, sum_b_vec)) * 0.5f * log2_normalizer;
 }
 
-#endif // SIMSIMD_TARGET_X86_AVX512
+#endif // SIMSIMD_TARGET_X86_AVX512_SAPPHIRE
 #endif // SIMSIMD_TARGET_X86
 
 #ifdef __cplusplus

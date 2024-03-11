@@ -601,7 +601,7 @@ simsimd_sve_f64_cos(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size
 #endif // SIMSIMD_TARGET_ARM
 
 #if SIMSIMD_TARGET_X86
-#if SIMSIMD_TARGET_X86_AVX2
+#if SIMSIMD_TARGET_X86_AVX2_HASWELL
 
 /*
  *  @file   x86_avx2_f16.h
@@ -883,9 +883,9 @@ simsimd_avx2_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t 
     return simsimd_avx2_i8_cos(a, b, n);
 }
 
-#endif // SIMSIMD_TARGET_X86_AVX2
+#endif // SIMSIMD_TARGET_X86_AVX2_HASWELL
 
-#if SIMSIMD_TARGET_X86_AVX512
+#if SIMSIMD_TARGET_X86_AVX512_SKYLAKE
 
 /*
  *  @file   x86_avx512_f32.h
@@ -982,6 +982,9 @@ simsimd_avx512_f32_cos_cycle:
     return 1 - ab * rsqrt_a2 * rsqrt_b2;
 }
 
+#endif // SIMSIMD_TARGET_X86_AVX512_SKYLAKE
+
+#if SIMSIMD_TARGET_X86_AVX512_SAPPHIRE
 /*
  *  @file   x86_avx512_f16.h
  *  @brief  x86 AVX-512 implementation of the most common similarity metrics for 16-bit floating point numbers.
@@ -1078,6 +1081,10 @@ simsimd_avx512_f16_cos_cycle:
     return 1 - ab * rsqrt_a2 * rsqrt_b2;
 }
 
+#endif // SIMSIMD_TARGET_X86_AVX512_SAPPHIRE
+
+#if SIMSIMD_TARGET_X86_AVX512_ICE
+
 /*
  *  @file   x86_avx512_i8.h
  *  @brief  x86 AVX-512 implementation of the most common similarity metrics for 8-bit integers.
@@ -1161,6 +1168,10 @@ inline static simsimd_f32_t
 simsimd_avx512_i8_ip(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n) {
     return simsimd_avx512_i8_cos(a, b, n);
 }
+
+#endif // SIMSIMD_TARGET_X86_AVX512_ICE
+
+#if SIMSIMD_TARGET_X86_AVX512_SKYLAKE
 
 /*
  *  @file   x86_avx512_f64.h
@@ -1257,7 +1268,7 @@ simsimd_avx512_f64_cos_cycle:
     return 1 - ab * rsqrt_a2 * rsqrt_b2;
 }
 
-#endif // SIMSIMD_TARGET_X86_AVX512
+#endif // SIMSIMD_TARGET_X86_AVX512_SKYLAKE
 #endif // SIMSIMD_TARGET_X86
 
 #ifdef __cplusplus
