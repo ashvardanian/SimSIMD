@@ -134,17 +134,24 @@ If it contains just one, the value is broadcasted.
 
 ### All Pairwise Distances
 
-For calculating distances between all possible pairs of rows across two matrices (akin to [`scipy.spatial.distance.cdist`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.cdist.html)):
+For calculating distances between all possible pairs of rows across two matrices (akin to [`scipy.spatial.distance.cdist`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.cdist.html)).
+The resulting object will have a type `DistancesTensor`, zero-copy compatible with NumPy and other libraries.
 
 ```py
+import numpy as np
+from simsimd import cdist, DistancesTensor
+
 matrix1 = np.random.randn(1000, 1536).astype(np.float32)
 matrix2 = np.random.randn(10, 1536).astype(np.float32)
-distances = simsimd.cdist(matrix1, matrix2, metric="cosine")
+distances: DistancesTensor = simsimd.cdist(matrix1, matrix2, metric="cosine") # zero-copy
+distances_array: np.ndarray = np.array(distances, copy=True) # now managed by NumPy
 ```
 
 ### Multithreading
 
-By default, computations use a single CPU core. To optimize and utilize all CPU cores on Linux systems, add the `threads=0` argument. Alternatively, specify a custom number of threads:
+By default, computations use a single CPU core.
+To optimize and utilize all CPU cores on Linux systems, add the `threads=0` argument.
+Alternatively, specify a custom number of threads:
 
 ```py
 distances = simsimd.cdist(matrix1, matrix2, metric="cosine", threads=0)

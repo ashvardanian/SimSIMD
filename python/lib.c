@@ -50,28 +50,28 @@ typedef struct InputArgument {
     simsimd_datatype_t datatype;
 } InputArgument;
 
-typedef struct OutputDistances {
+typedef struct DistancesTensor {
     PyObject_HEAD          //
         size_t dimensions; // Can be only 1 or 2 dimensions
     Py_ssize_t shape[2];   // Dimensions of the tensor
     Py_ssize_t strides[2]; // Strides for each dimension
     simsimd_f32_t start[]; // Variable length data aligned to 64-bit scalars
-} OutputDistances;
+} DistancesTensor;
 
-static int OutputDistances_getbuffer(PyObject* export_from, Py_buffer* view, int flags);
-static void OutputDistances_releasebuffer(PyObject* export_from, Py_buffer* view);
+static int DistancesTensor_getbuffer(PyObject* export_from, Py_buffer* view, int flags);
+static void DistancesTensor_releasebuffer(PyObject* export_from, Py_buffer* view);
 
-static PyBufferProcs OutputDistances_as_buffer = {
-    .bf_getbuffer = OutputDistances_getbuffer,
-    .bf_releasebuffer = OutputDistances_releasebuffer,
+static PyBufferProcs DistancesTensor_as_buffer = {
+    .bf_getbuffer = DistancesTensor_getbuffer,
+    .bf_releasebuffer = DistancesTensor_releasebuffer,
 };
 
-static PyTypeObject OutputDistancesType = {
-    PyObject_HEAD_INIT(NULL).tp_name = "simsimd.OutputDistances",
-    .tp_doc = "View of the internal buffer as a NumPy tensor",
-    .tp_basicsize = sizeof(OutputDistances),
+static PyTypeObject DistancesTensorType = {
+    PyObject_HEAD_INIT(NULL).tp_name = "simsimd.DistancesTensor",
+    .tp_doc = "Zero-copy view of an internal tensor, compatible with NumPy",
+    .tp_basicsize = sizeof(DistancesTensor),
     .tp_itemsize = sizeof(simsimd_f32_t),
-    .tp_as_buffer = &OutputDistances_as_buffer,
+    .tp_as_buffer = &DistancesTensor_as_buffer,
 };
 
 /// @brief  Global variable that caches the CPU capabilities, and is computed just onc, when the module is loaded.
@@ -285,8 +285,8 @@ int parse_tensor(PyObject* tensor, Py_buffer* buffer, InputArgument* parsed) {
     return 0;
 }
 
-static int OutputDistances_getbuffer(PyObject* export_from, Py_buffer* view, int flags) {
-    OutputDistances* tensor = (OutputDistances*)export_from;
+static int DistancesTensor_getbuffer(PyObject* export_from, Py_buffer* view, int flags) {
+    DistancesTensor* tensor = (DistancesTensor*)export_from;
     size_t const total_items = tensor->shape[0] * tensor->shape[1];
     size_t const item_size = bytes_per_datatype(simsimd_datatype_f32_k);
 
@@ -306,7 +306,7 @@ static int OutputDistances_getbuffer(PyObject* export_from, Py_buffer* view, int
     return 0;
 }
 
-static void OutputDistances_releasebuffer(PyObject* export_from, Py_buffer* view) {
+static void DistancesTensor_releasebuffer(PyObject* export_from, Py_buffer* view) {
     // This function MUST NOT decrement view->obj, since that is done automatically in PyBuffer_Release().
     // https://docs.python.org/3/c-api/typeobj.html#c.PyBufferProcs.bf_releasebuffer
 }
@@ -389,7 +389,7 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
             parsed_b.stride = 0;
 
         size_t const count_max = parsed_a.count > parsed_b.count ? parsed_a.count : parsed_b.count;
-        OutputDistances* distances_obj = PyObject_NewVar(OutputDistances, &OutputDistancesType, count_max);
+        DistancesTensor* distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType, count_max);
         if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
@@ -471,7 +471,7 @@ static PyObject* impl_cdist(                            //
 #endif
 
         size_t const count_max = parsed_a.count * parsed_b.count;
-        OutputDistances* distances_obj = PyObject_NewVar(OutputDistances, &OutputDistancesType, count_max);
+        DistancesTensor* distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType, count_max);
         if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
@@ -661,7 +661,7 @@ static PyModuleDef simsimd_module = {
 PyMODINIT_FUNC PyInit_simsimd(void) {
     PyObject* m;
 
-    if (PyType_Ready(&OutputDistancesType) < 0)
+    if (PyType_Ready(&DistancesTensorType) < 0)
         return NULL;
 
     m = PyModule_Create(&simsimd_module);
@@ -675,9 +675,9 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
         PyModule_AddStringConstant(m, "__version__", version_str);
     }
 
-    Py_INCREF(&OutputDistancesType);
-    if (PyModule_AddObject(m, "OutputDistances", (PyObject*)&OutputDistancesType) < 0) {
-        Py_XDECREF(&OutputDistancesType);
+    Py_INCREF(&DistancesTensorType);
+    if (PyModule_AddObject(m, "DistancesTensor", (PyObject*)&DistancesTensorType) < 0) {
+        Py_XDECREF(&DistancesTensorType);
         Py_XDECREF(m);
         return NULL;
     }
