@@ -97,7 +97,7 @@
 #endif
 #endif // Skylake
 #if !defined(SIMSIMD_TARGET_ICE) || !SIMSIMD_TARGET_X86
-#if defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITLAG__) && defined(__AVX512VBMI2__) &&     \
+#if defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITALG__) && defined(__AVX512VBMI2__) &&     \
     defined(__AVX512VPOPCNTDQ__)
 #define SIMSIMD_TARGET_ICE 1
 #else
