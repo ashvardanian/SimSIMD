@@ -81,7 +81,7 @@ nvm install 20
 Testing and benchmarking:
 
 ```sh
-npm install --dev
+npm run build-js
 npm test
 npm run bench
 ```
