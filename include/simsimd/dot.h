@@ -958,18 +958,6 @@ simsimd_vdot_f64c_skylake_cycle:
 
 __attribute__((target("avx512fp16,avx512vl,avx512f,bmi2"))) //
 inline static void
-simsimd_dot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
-                          simsimd_distance_t* result) {
-    __m512i swap_adjacent_f16s_vec =
-        _mm512_set_epi8(61, 60, 63, 62, 57, 56, 59, 58, 53, 52, 55, 54, 49, 48, 51, 50, // 4th 128-bit lane
-                        45, 44, 47, 46, 41, 40, 43, 42, 37, 36, 39, 38, 33, 32, 35, 34, // 3rd 128-bit lane
-                        29, 28, 31, 30, 25, 24, 27, 26, 21, 20, 23, 22, 17, 16, 19, 18, // 2nd 128-bit lane
-                        13, 12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2            // 1st 128-bit lane
-        );
-}
-
-__attribute__((target("avx512fp16,avx512vl,avx512f,bmi2"))) //
-inline static void
 simsimd_dot_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
     __m512h ab_vec = _mm512_setzero_ph();
     __m512i a_i16_vec, b_i16_vec;
@@ -990,6 +978,98 @@ simsimd_dot_f16_sapphire_cycle:
         goto simsimd_dot_f16_sapphire_cycle;
 
     *result = _mm512_reduce_add_ph(ab_vec);
+}
+
+__attribute__((target("avx512fp16,avx512vl,avx512f,bmi2"))) //
+inline static void
+simsimd_dot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                          simsimd_distance_t* results) {
+
+    __m512h ab_real_vec = _mm512_setzero_ph();
+    __m512h ab_imag_vec = _mm512_setzero_ph();
+    __m512i a_vec;
+    __m512i b_vec;
+
+    // We take into account, that FMS is the same as FMA with a negative multiplier.
+    // To multiply a floating-point value by -1, we can use the `XOR` instruction to flip the sign bit.
+    // This way we can avoid the shuffling and the need for separate real and imaginary parts.
+    // For the imaginary part of the product, we would need to swap the real and imaginary parts of
+    // one of the vectors.
+    __m512i sign_flip_vec = _mm512_set1_epi32(0x80000000);
+    __m512i swap_adjacent_vec = _mm512_set_epi8(                        //
+        61, 60, 63, 62, 57, 56, 59, 58, 53, 52, 55, 54, 49, 48, 51, 50, // 4th 128-bit lane
+        45, 44, 47, 46, 41, 40, 43, 42, 37, 36, 39, 38, 33, 32, 35, 34, // 3rd 128-bit lane
+        29, 28, 31, 30, 25, 24, 27, 26, 21, 20, 23, 22, 17, 16, 19, 18, // 2nd 128-bit lane
+        13, 12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2            // 1st 128-bit lane
+    );
+
+simsimd_dot_f16c_sapphire_cycle:
+    if (n < 32) {
+        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_epi16(mask, a);
+        b_vec = _mm512_maskz_loadu_epi16(mask, b);
+        n = 0;
+    } else {
+        a_vec = _mm512_loadu_epi16(a);
+        b_vec = _mm512_loadu_epi16(b);
+        a += 32, b += 32, n -= 32;
+    }
+    ab_real_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(_mm512_xor_si512(b_vec, sign_flip_vec)),
+                                  _mm512_castsi512_ph(a_vec), ab_real_vec);
+    ab_imag_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(_mm512_shuffle_epi8(b_vec, swap_adjacent_vec)),
+                                  _mm512_castsi512_ph(a_vec), ab_imag_vec);
+    if (n)
+        goto simsimd_dot_f16c_sapphire_cycle;
+
+    // Reduce horizontal sums:
+    results[0] = _mm512_reduce_add_ph(ab_real_vec);
+    results[1] = _mm512_reduce_add_ph(ab_imag_vec);
+}
+
+__attribute__((target("avx512fp16,avx512vl,avx512f,bmi2"))) //
+inline static void
+simsimd_vdot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                           simsimd_distance_t* results) {
+
+    __m512h ab_real_vec = _mm512_setzero_ph();
+    __m512h ab_imag_vec = _mm512_setzero_ph();
+    __m512i a_vec;
+    __m512i b_vec;
+
+    // We take into account, that FMS is the same as FMA with a negative multiplier.
+    // To multiply a floating-point value by -1, we can use the `XOR` instruction to flip the sign bit.
+    // This way we can avoid the shuffling and the need for separate real and imaginary parts.
+    // For the imaginary part of the product, we would need to swap the real and imaginary parts of
+    // one of the vectors.
+    __m512i sign_flip_vec = _mm512_set1_epi32(0x80000000);
+    __m512i swap_adjacent_vec = _mm512_set_epi8(                        //
+        61, 60, 63, 62, 57, 56, 59, 58, 53, 52, 55, 54, 49, 48, 51, 50, // 4th 128-bit lane
+        45, 44, 47, 46, 41, 40, 43, 42, 37, 36, 39, 38, 33, 32, 35, 34, // 3rd 128-bit lane
+        29, 28, 31, 30, 25, 24, 27, 26, 21, 20, 23, 22, 17, 16, 19, 18, // 2nd 128-bit lane
+        13, 12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2            // 1st 128-bit lane
+    );
+
+simsimd_dot_f16c_sapphire_cycle:
+    if (n < 32) {
+        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_epi16(mask, a);
+        b_vec = _mm512_maskz_loadu_epi16(mask, b);
+        n = 0;
+    } else {
+        a_vec = _mm512_loadu_epi16(a);
+        b_vec = _mm512_loadu_epi16(b);
+        a += 32, b += 32, n -= 32;
+    }
+    ab_real_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(a_vec), _mm512_castsi512_ph(b_vec), ab_real_vec);
+    a_vec = _mm512_xor_si512(a_vec, sign_flip_vec);
+    b_vec = _mm512_shuffle_epi8(b_vec, swap_adjacent_vec);
+    ab_imag_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(a_vec), _mm512_castsi512_ph(b_vec), ab_imag_vec);
+    if (n)
+        goto simsimd_dot_f16c_sapphire_cycle;
+
+    // Reduce horizontal sums:
+    results[0] = _mm512_reduce_add_ph(ab_real_vec);
+    results[1] = _mm512_reduce_add_ph(ab_imag_vec);
 }
 
 #endif // SIMSIMD_TARGET_SAPPHIRE

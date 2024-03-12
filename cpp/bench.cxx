@@ -10,18 +10,12 @@
 #include <cblas.h>
 #endif
 
-#define SIMSIMD_NATIVE_F16 0
+#define SIMSIMD_NATIVE_F16 1
 #define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
 #define SIMSIMD_LOG(x) (logf(x))
 #include <simsimd/simsimd.h>
 
 namespace bm = benchmark;
-
-enum class function_kind_t {
-    distance_k,
-    complex_dot_k,
-    haversine_k,
-};
 
 template <typename scalar_at, std::size_t dimensions_ak> struct vectors_pair_gt {
     scalar_at a[dimensions_ak]{};
@@ -246,6 +240,9 @@ int main(int argc, char** argv) {
     register_<simsimd_f16_t>("l2sq_f16_sapphire", simsimd_l2sq_f16_sapphire, simsimd_l2sq_f16_accurate);
     register_<simsimd_f16_t>("kl_f16_sapphire", simsimd_kl_f16_sapphire, simsimd_kl_f16_accurate);
     register_<simsimd_f16_t>("js_f16_sapphire", simsimd_js_f16_sapphire, simsimd_js_f16_accurate);
+
+    register_<simsimd_f16_t>("dot_f16c_sapphire", simsimd_dot_f16c_sapphire, simsimd_dot_f16c_accurate);
+    register_<simsimd_f16_t>("vdot_f16c_sapphire", simsimd_vdot_f16c_sapphire, simsimd_vdot_f16c_accurate);
 #endif
 
 #if SIMSIMD_TARGET_ICE
