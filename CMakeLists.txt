@@ -15,7 +15,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
-option(SIMSIMD_BUILD_BENCHMARKS "Compile a micro-benchmark for current ISA" OFF)
+option(SIMSIMD_BUILD_BENCHMARKS "Compile micro-benchmarks for current ISA" OFF)
+option(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS "Include BLAS in micro-kernel benchmarks" ON)
 
 # Default to Release build type if not set
 if(NOT CMAKE_BUILD_TYPE)
@@ -70,4 +71,10 @@ if(SIMSIMD_BUILD_BENCHMARKS)
   find_package(Threads REQUIRED)
   add_executable(simsimd_bench cpp/bench.cxx)
   target_link_libraries(simsimd_bench simsimd Threads::Threads benchmark)
+
+  find_package(BLAS)
+  if(BLAS_FOUND AND SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
+    target_compile_definitions(simsimd_bench PRIVATE SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1)
+    target_link_libraries(simsimd_bench ${BLAS_LIBRARIES})
+  endif()
 endif()

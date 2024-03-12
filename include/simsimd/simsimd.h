@@ -428,8 +428,8 @@ inline static void simsimd_find_metric_punned( //
     #if SIMSIMD_TARGET_ICE
         if (viable & simsimd_cap_ice_k)
             switch (kind) {
-            case simsimd_metric_hamming_k: *m = (simsimd_metric_punned_t)&simsimd_hamming_b8_avx512, *c = simsimd_cap_ice_k; return;
-            case simsimd_metric_jaccard_k: *m = (simsimd_metric_punned_t)&simsimd_jaccard_b8_avx512, *c = simsimd_cap_ice_k; return;
+            case simsimd_metric_hamming_k: *m = (simsimd_metric_punned_t)&simsimd_hamming_b8_ice, *c = simsimd_cap_ice_k; return;
+            case simsimd_metric_jaccard_k: *m = (simsimd_metric_punned_t)&simsimd_jaccard_b8_ice, *c = simsimd_cap_ice_k; return;
             default: break;
             }
     #endif

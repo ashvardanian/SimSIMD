@@ -5,6 +5,7 @@
 To rerun experiments utilize the following command:
 
 ```sh
+sudo apt install libopenblas-dev # BLAS installation is optional
 cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build_release
 cmake --build build_release --config Release
 ./build_release/simsimd_bench
