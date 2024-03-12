@@ -10,6 +10,7 @@
 #include <cblas.h>
 #endif
 
+#define SIMSIMD_NATIVE_F16 0
 #define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
 #define SIMSIMD_LOG(x) (logf(x))
 #include <simsimd/simsimd.h>
@@ -126,12 +127,23 @@ void dot_f64_blas(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t
 
 void dot_f32c_blas(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
     simsimd_f32_t f32_result[2] = {0, 0};
-    cblas_cdotc_sub((int)n / 2, a, 1, b, 1, f32_result);
+    cblas_cdotu_sub((int)n / 2, a, 1, b, 1, f32_result);
     result[0] = f32_result[0];
     result[1] = f32_result[1];
 }
 
 void dot_f64c_blas(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+    cblas_zdotu_sub((int)n / 2, a, 1, b, 1, result);
+}
+
+void vdot_f32c_blas(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+    simsimd_f32_t f32_result[2] = {0, 0};
+    cblas_cdotc_sub((int)n / 2, a, 1, b, 1, f32_result);
+    result[0] = f32_result[0];
+    result[1] = f32_result[1];
+}
+
+void vdot_f64c_blas(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
     cblas_zdotc_sub((int)n / 2, a, 1, b, 1, result);
 }
 
@@ -145,12 +157,12 @@ int main(int argc, char** argv) {
     std::printf("\n");
     std::printf("- Arm NEON support enabled: %s\n", flags[SIMSIMD_TARGET_NEON]);
     std::printf("- Arm SVE support enabled: %s\n", flags[SIMSIMD_TARGET_SVE]);
-    std::printf("- x86 HASWELL support enabled: %s\n", flags[SIMSIMD_TARGET_HASWELL]);
-    std::printf("- x86 SKYLAKE support enabled: %s\n", flags[SIMSIMD_TARGET_SKYLAKE]);
-    std::printf("- x86 ICE support enabled: %s\n", flags[SIMSIMD_TARGET_ICE]);
-    std::printf("- x86 SAPPHIRE support enabled: %s\n", flags[SIMSIMD_TARGET_SAPPHIRE]);
+    std::printf("- x86 Haswell support enabled: %s\n", flags[SIMSIMD_TARGET_HASWELL]);
+    std::printf("- x86 Skylake support enabled: %s\n", flags[SIMSIMD_TARGET_SKYLAKE]);
+    std::printf("- x86 Ice Lake support enabled: %s\n", flags[SIMSIMD_TARGET_ICE]);
+    std::printf("- x86 Sapphire Rapids support enabled: %s\n", flags[SIMSIMD_TARGET_SAPPHIRE]);
     std::printf("- Compiler supports F16: %s\n", flags[SIMSIMD_NATIVE_F16]);
-    std::printf("- Benchmark against BLAS: %s\n", flags[SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS]);
+    std::printf("- Benchmark against CBLAS: %s\n", flags[SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS]);
     std::printf("\n");
 
     // Run the benchmarks
@@ -164,6 +176,8 @@ int main(int argc, char** argv) {
     register_<simsimd_f64_t>("dot_f64_blas", dot_f64_blas, simsimd_dot_f64_serial);
     register_<simsimd_f32_t>("dot_f32c_blas", dot_f32c_blas, simsimd_dot_f32c_accurate);
     register_<simsimd_f64_t>("dot_f64c_blas", dot_f64c_blas, simsimd_dot_f64c_serial);
+    register_<simsimd_f32_t>("vdot_f32c_blas", vdot_f32c_blas, simsimd_vdot_f32c_accurate);
+    register_<simsimd_f64_t>("vdot_f64c_blas", vdot_f64c_blas, simsimd_vdot_f64c_serial);
 
 #endif
 
@@ -221,7 +235,9 @@ int main(int argc, char** argv) {
     register_<simsimd_b8_t>("jaccard_b8_haswell", simsimd_jaccard_b8_haswell, simsimd_jaccard_b8_serial);
 
     register_<simsimd_f16_t>("dot_f16c_haswell", simsimd_dot_f16c_haswell, simsimd_dot_f16c_accurate);
+    register_<simsimd_f16_t>("vdot_f16c_haswell", simsimd_vdot_f16c_haswell, simsimd_vdot_f16c_accurate);
     register_<simsimd_f32_t>("dot_f32c_haswell", simsimd_dot_f32c_haswell, simsimd_dot_f32c_accurate);
+    register_<simsimd_f32_t>("vdot_f32c_haswell", simsimd_vdot_f32c_haswell, simsimd_vdot_f32c_accurate);
 #endif
 
 #if SIMSIMD_TARGET_SAPPHIRE
@@ -250,6 +266,11 @@ int main(int argc, char** argv) {
     register_<simsimd_f32_t>("l2sq_f32_skylake", simsimd_l2sq_f32_skylake, simsimd_l2sq_f32_accurate);
     register_<simsimd_f32_t>("kl_f32_skylake", simsimd_kl_f32_skylake, simsimd_kl_f32_accurate);
     register_<simsimd_f32_t>("js_f32_skylake", simsimd_js_f32_skylake, simsimd_js_f32_accurate);
+
+    register_<simsimd_f32_t>("dot_f32c_skylake", simsimd_dot_f32c_skylake, simsimd_dot_f32c_accurate);
+    register_<simsimd_f32_t>("vdot_f32c_skylake", simsimd_vdot_f32c_skylake, simsimd_vdot_f32c_accurate);
+    register_<simsimd_f64_t>("dot_f64c_skylake", simsimd_dot_f64c_skylake, simsimd_dot_f64c_serial);
+    register_<simsimd_f64_t>("vdot_f64c_skylake", simsimd_vdot_f64c_skylake, simsimd_vdot_f64c_serial);
 #endif
 
     register_<simsimd_f16_t>("dot_f16_serial", simsimd_dot_f16_serial, simsimd_dot_f16_accurate);
