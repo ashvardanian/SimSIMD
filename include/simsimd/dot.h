@@ -465,41 +465,65 @@ simsimd_f32_t _mm_reduce_add_ps(__m128 vec) {
     return _mm_cvtss_f32(sum);
 }
 
+simsimd_f32_t _mm256_reduce_add_ps(__m256 vec) {
+    __m128 low = _mm256_castps256_ps128(vec);
+    __m128 high = _mm256_extractf128_ps(vec, 1);
+    __m128 sum = _mm_add_ps(low, high);
+    sum = _mm_hadd_ps(sum, sum);
+    sum = _mm_hadd_ps(sum, sum);
+    return _mm_cvtss_f32(sum);
+}
+
 __attribute__((target("avx2,f16c,fma"))) //
 inline static void
 simsimd_dot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                          simsimd_distance_t* results) {
-    __m128 ab_real_vec = _mm_setzero_ps();
-    __m128 ab_imag_vec = _mm_setzero_ps();
 
-    // Define indices for even and odd extraction
-    __m256i permute_vec = _mm256_set_epi32(7, 5, 3, 1, 6, 4, 2, 0);
-
+    // The naive approach would be to use FMA and FMS instructions on different parts of the vectors.
+    // Prior to that we would need to shuffle the input vectors to separate real and imaginary parts.
+    // Both operations are quite expensive, and the resulting kernel would run at 2.5 GB/s.
+    // __m128 ab_real_vec = _mm_setzero_ps();
+    // __m128 ab_imag_vec = _mm_setzero_ps();
+    // __m256i permute_vec = _mm256_set_epi32(7, 5, 3, 1, 6, 4, 2, 0);
+    // simsimd_size_t i = 0;
+    // for (; i + 8 <= n; i += 8) {
+    //     __m256 a_vec = _mm256_loadu_ps(a + i);
+    //     __m256 b_vec = _mm256_loadu_ps(b + i);
+    //     __m256 a_shuffled = _mm256_permutevar8x32_ps(a_vec, permute_vec);
+    //     __m256 b_shuffled = _mm256_permutevar8x32_ps(b_vec, permute_vec);
+    //     __m128 a_real_vec = _mm256_extractf128_ps(a_shuffled, 0);
+    //     __m128 a_imag_vec = _mm256_extractf128_ps(a_shuffled, 1);
+    //     __m128 b_real_vec = _mm256_extractf128_ps(b_shuffled, 0);
+    //     __m128 b_imag_vec = _mm256_extractf128_ps(b_shuffled, 1);
+    //     ab_real_vec = _mm_fmadd_ps(a_real_vec, b_real_vec, ab_real_vec);
+    //     ab_real_vec = _mm_fnmadd_ps(a_imag_vec, b_imag_vec, ab_real_vec);
+    //     ab_imag_vec = _mm_fmadd_ps(a_real_vec, b_imag_vec, ab_imag_vec);
+    //     ab_imag_vec = _mm_fmadd_ps(a_imag_vec, b_real_vec, ab_imag_vec);
+    // }
+    //
+    // Instead, we take into account, that FMS is the same as FMA with a negative multiplier.
+    // To multiply a floating-point value by -1, we can use the `XOR` instruction to flip the sign bit.
+    // This way we can avoid the shuffling and the need for separate real and imaginary parts.
+    // For the imaginary part of the product, we would need to swap the real and imaginary parts of
+    // one of the vectors.
+    // Both operations are quite cheap, and the throughput doubles from 2.5 GB/s to 5 GB/s.
+    __m256 ab_real_vec = _mm256_setzero_ps();
+    __m256 ab_imag_vec = _mm256_setzero_ps();
+    __m256i sign_flip_vec = _mm256_set1_epi64x(0x0000000080000000);
+    __m256i swap_adjacent_f16s_vec = _mm256_set_epi8(13, 12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2, //
+                                                     13, 12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2);
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m256 a_vec = _mm256_loadu_ps(a + i);
-        __m256 b_vec = _mm256_loadu_ps(b + i);
-
-        // Shuffle to separate even (real) and odd (imaginary) elements
-        __m256 a_shuffled = _mm256_permutevar8x32_ps(a_vec, permute_vec);
-        __m256 b_shuffled = _mm256_permutevar8x32_ps(b_vec, permute_vec);
-
-        // Extract the real and imaginary parts
-        __m128 a_real_vec = _mm256_extractf128_ps(a_shuffled, 0);
-        __m128 a_imag_vec = _mm256_extractf128_ps(a_shuffled, 1);
-        __m128 b_real_vec = _mm256_extractf128_ps(b_shuffled, 0);
-        __m128 b_imag_vec = _mm256_extractf128_ps(b_shuffled, 1);
-
-        // Compute the dot product:
-        ab_real_vec = _mm_fmadd_ps(a_real_vec, b_real_vec, ab_real_vec);
-        ab_real_vec = _mm_fnmadd_ps(a_imag_vec, b_imag_vec, ab_real_vec);
-        ab_imag_vec = _mm_fmadd_ps(a_real_vec, b_imag_vec, ab_imag_vec);
-        ab_imag_vec = _mm_fmadd_ps(a_imag_vec, b_real_vec, ab_imag_vec);
+        __m256i b_vec = _mm256_castps_si256(_mm256_loadu_ps(b + i));
+        ab_real_vec = _mm256_fmadd_ps(_mm256_castsi256_ps(_mm256_xor_si256(b_vec, sign_flip_vec)), a_vec, ab_real_vec);
+        ab_imag_vec = _mm256_fmadd_ps(_mm256_castsi256_ps(_mm256_shuffle_epi8(b_vec, swap_adjacent_f16s_vec)), a_vec,
+                                      ab_imag_vec);
     }
 
     // Reduce horizontal sums:
-    simsimd_f32_t ab_real = _mm_reduce_add_ps(ab_real_vec);
-    simsimd_f32_t ab_imag = _mm_reduce_add_ps(ab_imag_vec);
+    simsimd_f32_t ab_real = _mm256_reduce_add_ps(ab_real_vec);
+    simsimd_f32_t ab_imag = _mm256_reduce_add_ps(ab_imag_vec);
 
     // Handle the tail:
     for (; i + 2 <= n; i += 2) {
