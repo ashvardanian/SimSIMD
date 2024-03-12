@@ -8,12 +8,9 @@
  *  - Hamming distance
  *  - Jaccard similarity (Tanimoto coefficient)
  *
- *  For datatypes:
- *  - 8-bit bitsets
- *
  *  For hardware architectures:
  *  - Arm (NEON, SVE)
- *  - x86 (AVX512)
+ *  - x86 (AVX2, AVX512)
  *
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
@@ -26,6 +23,29 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// clang-format off
+
+/*  Serial backends for bitsets. */
+inline static void simsimd_hamming_b8_serial(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+inline static void simsimd_jaccard_b8_serial(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+
+/*  Arm NEON backend for bitsets. */
+inline static void simsimd_hamming_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+inline static void simsimd_jaccard_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+
+/*  Arm SVE backend for bitsets. */
+inline static void simsimd_hamming_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+inline static void simsimd_jaccard_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+
+/*  x86 AVX2 backend for bitsets for Intel Haswell CPUs and newer, needs only POPCNT extensions. */
+inline static void simsimd_hamming_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+inline static void simsimd_jaccard_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+
+/*  x86 AVX512 backend for bitsets for Intel Ice Lake CPUs and newer, using VPOPCNTDQ extensions. */
+inline static void simsimd_hamming_b8_ice(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+inline static void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+// clang-format on
 
 inline static unsigned char simsimd_popcount_b8(simsimd_b8_t x) {
     static unsigned char lookup_table[] = {
@@ -141,12 +161,12 @@ simsimd_jaccard_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_siz
 
 __attribute__((target("avx512vpopcntdq,avx512vl,avx512bw,avx512f,bmi2"))) //
 inline static void
-simsimd_hamming_b8_avx512(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                          simsimd_distance_t* result) {
+simsimd_hamming_b8_ice(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                       simsimd_distance_t* result) {
     __m512i differences_vec = _mm512_setzero_si512();
     __m512i a_vec, b_vec;
 
-simsimd_hamming_b8_avx512_cycle:
+simsimd_hamming_b8_ice_cycle:
     if (n_words < 64) {
         __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
         a_vec = _mm512_maskz_loadu_epi8(mask, a);
@@ -160,7 +180,7 @@ simsimd_hamming_b8_avx512_cycle:
     __m512i xor_vec = _mm512_xor_si512(a_vec, b_vec);
     differences_vec = _mm512_add_epi64(differences_vec, _mm512_popcnt_epi64(xor_vec));
     if (n_words)
-        goto simsimd_hamming_b8_avx512_cycle;
+        goto simsimd_hamming_b8_ice_cycle;
 
     simsimd_size_t differences = _mm512_reduce_add_epi64(differences_vec);
     *result = differences;
@@ -168,12 +188,12 @@ simsimd_hamming_b8_avx512_cycle:
 
 __attribute__((target("avx512vpopcntdq,avx512vl,avx512bw,avx512f,bmi2"))) //
 inline static void
-simsimd_jaccard_b8_avx512(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                          simsimd_distance_t* result) {
+simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                       simsimd_distance_t* result) {
     __m512i intersection_vec = _mm512_setzero_si512(), union_vec = _mm512_setzero_si512();
     __m512i a_vec, b_vec;
 
-simsimd_jaccard_b8_avx512_cycle:
+simsimd_jaccard_b8_ice_cycle:
     if (n_words < 64) {
         __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
         a_vec = _mm512_maskz_loadu_epi8(mask, a);
@@ -189,7 +209,7 @@ simsimd_jaccard_b8_avx512_cycle:
     intersection_vec = _mm512_add_epi64(intersection_vec, _mm512_popcnt_epi64(and_vec));
     union_vec = _mm512_add_epi64(union_vec, _mm512_popcnt_epi64(or_vec));
     if (n_words)
-        goto simsimd_jaccard_b8_avx512_cycle;
+        goto simsimd_jaccard_b8_ice_cycle;
 
     simsimd_size_t intersection = _mm512_reduce_add_epi64(intersection_vec),
                    union_ = _mm512_reduce_add_epi64(union_vec);

@@ -24,6 +24,60 @@
 
 #include "types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// clang-format off
+
+/*  Serial backends for all numeric types.
+ *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
+ *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
+ */
+inline static void simsimd_kl_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+inline static void simsimd_js_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+inline static void simsimd_kl_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+inline static void simsimd_js_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+inline static void simsimd_kl_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+inline static void simsimd_js_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+
+/*  Double-precision serial backends for all numeric types.
+ *  For single-precision computation check out the "*_serial" counterparts of those "*_accurate" functions.
+ */
+inline static void simsimd_kl_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+inline static void simsimd_js_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+inline static void simsimd_kl_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+inline static void simsimd_js_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+
+/*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
+ *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
+ *  server CPUs produced before 2023.
+ */
+inline static void simsimd_kl_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+inline static void simsimd_js_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+inline static void simsimd_kl_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+inline static void simsimd_js_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+
+/*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
+ *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
+ *  Practically all modern x86 CPUs support AVX2, FMA, and F16C, making it a perfect baseline for SIMD algorithms.
+ *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
+ *  properly vectorized by recent compilers.
+ */
+inline static void simsimd_kl_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+inline static void simsimd_js_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+
+/*  SIMD-powered backends for various generations of AVX512 CPUs.
+ *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
+ *  Ice Lake added VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ, and other extensions for integral operations.
+ *  Sapphire Rapids added tiled matrix operations, but we are most interested in the new mixed-precision FMA instructions.
+ */
+inline static void simsimd_kl_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+inline static void simsimd_js_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+inline static void simsimd_kl_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+inline static void simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+// clang-format on
+
 #define SIMSIMD_MAKE_KL(name, input_type, accumulator_type, converter, epsilon)                                        \
     inline static void simsimd_kl_##input_type##_##name(simsimd_##input_type##_t const* a,                             \
                                                         simsimd_##input_type##_t const* b, simsimd_size_t n,           \
@@ -51,10 +105,6 @@
         }                                                                                                              \
         *result = (simsimd_f32_t)d / 2;                                                                                \
     }
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 SIMSIMD_MAKE_KL(serial, f64, f64, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f64_serial
 SIMSIMD_MAKE_JS(serial, f64, f64, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f64_serial

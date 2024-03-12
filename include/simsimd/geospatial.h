@@ -5,11 +5,12 @@
  *  @date       July 1, 2023
  *
  *  Contains:
- *  - Hamming distance
- *  - Jaccard similarity (Tanimoto coefficient)
+ *  - Haversine (Great Circle) distance
+ *  - TODO: Vincenty's distance function for Oblate Spheroid Geodesics
  *
  *  For datatypes:
- *  - 8-bit bitsets
+ *  - 32-bit IEEE-754 floating point
+ *  - 64-bit IEEE-754 floating point
  *
  *  For hardware architectures:
  *  - Arm (NEON, SVE)

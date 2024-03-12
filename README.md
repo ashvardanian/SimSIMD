@@ -1,5 +1,13 @@
 # SimSIMD 📏
 
+Computing dot-products, similarity measures, and distances between low- and high-dimensional vectors is ubiquitous Machine Learning, Scientific Computing, Geo-Spatial Analysis, and Information Retrieval.
+These algorithms are generally linear complexity in time, constant complexity in space, and are data-parallel.
+In other words, easily parallelizable and vectorizable, and often available in packages like BLAS and LAPACK, as well as higher level `numpy` and `scipy` Python libraries.
+Ironically, even with decades of evolution in compilers and numerical computing, [most libraries can be 3-200x slower than hardware potential][] even on the most popular hardware, like 64-bit x86 and Arm CPUs.
+SimSIMD had two design goals.
+1️⃣ First, performance, aiming to compute similarities faster than `memcpy`.
+2️⃣ Second, portability, aiming to deploy on billions of devices ranging from 1 to 10,000 Watt consumption.
+
 <div>
 <a href="https://pepy.tech/project/simsimd">
     <img alt="PyPI" src="https://static.pepy.tech/personalized-badge/simsimd?period=total&units=abbreviation&left_color=black&right_color=blue&left_text=SimSIMD%20Python%20installs">
@@ -26,23 +34,31 @@
 
 </div>
 
-
-## Hardware-Accelerated Similarity Metrics and Distance Functions
-
-- Zero-dependency [header-only C 99](#using-simsimd-in-c) library.
-- Handles `f64` double-, `f32` single-, and `f16` half-precision, `i8` integral, and binary vectors.
-- Targets ARM NEON, SVE, x86 AVX2, AVX-512 (VNNI, FP16) hardware backends.
-- Bindings for [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust) and [JavaScript](#using-simsimd-in-javascript).
-- __Up to 200x faster__ than [`scipy.spatial.distance`][scipy] and [`numpy.inner`][numpy].
-- [Supports more Python versions][compatibility] than SciPy and NumPy.
-- Zero-copy compatible with NumPy, PyTorch, TensorFlow, and other tensors.
-- Used in [USearch](https://github.com/unum-cloud/usearch) and several DBMS products.
-
 __Implemented distance functions__ include:
 
-- Euclidean (L2), Inner Distance, and Cosine (Angular) spatial distances.
-- Hamming (~ Manhattan) and Jaccard (~ Tanimoto) binary distances.
+- Euclidean (L2) and Cosine (Angular) spatial distances for Vector Search.
+- Dot-Products for real & complex vectors for DSP & Quantum computing.
+- Hamming (~ Manhattan) and Jaccard (~ Tanimoto) bit-level distances.
 - Kullback-Leibler and Jensen–Shannon divergences for probability distributions.
+- Haversine and Vincenty's formulae for Geo-spatial Analysis.
+- For Levenshtein, Needleman–Wunsch and other text metrics check StringZilla.
+
+This breadth in functionality comes with great portability.
+SimSIMD [supports more Python versions][compatibility] than SciPy and NumPy.
+It's used in [USearch](https://github.com/unum-cloud/usearch) and several DBMS products.
+Moreover, SimSIMD...
+
+- handles `f64`, `f32`, and `f16` real & complex vectors.
+- handles `i8` integral and `b8` binary vectors.
+- is a zero-dependency [header-only C 99](#using-simsimd-in-c) library.
+- has bindings for [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust) and [JavaScript](#using-simsimd-in-javascript).
+- has Arm backends for NEON and Scalable Vector Extensions.
+- has x86 backends for Haswell, Ivy Bridge, Skylake, Ice Lake, and Sapphire Rapids.
+
+We enumerate subsets of AVX-512 instructions in Intel CPU generations, but they also work on AMD.
+
+https://codereview.stackexchange.com/questions/285014/spherical-distance-vincenty-distance-between-two-geographic-points
+https://mathworld.wolfram.com/OblateSpheroidGeodesic.html
 
 [scipy]: https://docs.scipy.org/doc/scipy/reference/spatial.distance.html#module-scipy.spatial.distance
 [numpy]: https://numpy.org/doc/stable/reference/generated/numpy.inner.html
@@ -310,7 +326,7 @@ A minimal usage example would be:
 int main() {
     simsimd_f32_t vector_a[1536];
     simsimd_f32_t vector_b[1536];
-    simsimd_f32_t distance = simsimd_avx512_f32_cos(vector_a, vector_b, 1536);
+    simsimd_f32_t distance = simsimd_cos_f32_skylake(vector_a, vector_b, 1536);
     return 0;
 }
 ```
