@@ -1,4 +1,5 @@
 /**
+ *  @file       binary.h
  *  @brief      SIMD-accelerated Binary Similarity Measures.
  *  @author     Ash Vardanian
  *  @date       July 1, 2023
@@ -39,28 +40,29 @@ inline static unsigned char simsimd_popcount_b8(simsimd_b8_t x) {
     return lookup_table[x];
 }
 
-inline static simsimd_f32_t simsimd_serial_b8_hamming( //
-    simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+inline static void simsimd_hamming_b8_serial(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                             simsimd_distance_t* result) {
     simsimd_i32_t differences = 0;
     for (simsimd_size_t i = 0; i != n_words; ++i)
         differences += simsimd_popcount_b8(a[i] ^ b[i]);
-    return (simsimd_f32_t)differences;
+    *result = differences;
 }
 
-inline static simsimd_f32_t simsimd_serial_b8_jaccard( //
-    simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+inline static void simsimd_jaccard_b8_serial(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                             simsimd_distance_t* result) {
     simsimd_i32_t intersection = 0, union_ = 0;
     for (simsimd_size_t i = 0; i != n_words; ++i)
         intersection += simsimd_popcount_b8(a[i] & b[i]), union_ += simsimd_popcount_b8(a[i] | b[i]);
-    return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
+    *result = (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
 #if SIMSIMD_TARGET_ARM
-#if SIMSIMD_TARGET_ARM_NEON
+#if SIMSIMD_TARGET_NEON
 
 __attribute__((target("+simd"))) //
-inline static simsimd_f32_t
-simsimd_neon_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+inline static void
+simsimd_hamming_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                        simsimd_distance_t* result) {
     simsimd_i32_t differences = 0;
     simsimd_size_t i = 0;
     for (; i + 16 <= n_words; i += 16) {
@@ -71,12 +73,13 @@ simsimd_neon_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_si
     // Handle the tail
     for (; i != n_words; ++i)
         differences += simsimd_popcount_b8(a[i] ^ b[i]);
-    return (simsimd_f32_t)differences;
+    *result = differences;
 }
 
 __attribute__((target("+simd"))) //
-inline static simsimd_f32_t
-simsimd_neon_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+inline static void
+simsimd_jaccard_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                        simsimd_distance_t* result) {
     simsimd_i32_t intersection = 0, union_ = 0;
     simsimd_size_t i = 0;
     for (; i + 16 <= n_words; i += 16) {
@@ -88,16 +91,17 @@ simsimd_neon_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_si
     // Handle the tail
     for (; i != n_words; ++i)
         intersection += simsimd_popcount_b8(a[i] & b[i]), union_ += simsimd_popcount_b8(a[i] | b[i]);
-    return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
+    *result = (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
-#endif // SIMSIMD_TARGET_ARM_NEON
+#endif // SIMSIMD_TARGET_NEON
 
-#if SIMSIMD_TARGET_ARM_SVE
+#if SIMSIMD_TARGET_SVE
 
 __attribute__((target("+sve"))) //
-inline static simsimd_f32_t
-simsimd_sve_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+inline static void
+simsimd_hamming_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                       simsimd_distance_t* result) {
     simsimd_size_t i = 0;
     simsimd_i32_t differences = 0;
     do {
@@ -107,12 +111,13 @@ simsimd_sve_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_siz
         differences += svaddv_u8(svptrue_b8(), svcnt_u8_x(svptrue_b8(), sveor_u8_m(svptrue_b8(), a_vec, b_vec)));
         i += svcntb();
     } while (i < n_words);
-    return (simsimd_f32_t)differences;
+    *result = differences;
 }
 
 __attribute__((target("+sve"))) //
-inline static simsimd_f32_t
-simsimd_sve_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+inline static void
+simsimd_jaccard_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                       simsimd_distance_t* result) {
     simsimd_size_t i = 0;
     simsimd_i32_t intersection = 0, union_ = 0;
     do {
@@ -123,33 +128,25 @@ simsimd_sve_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_siz
         union_ += svaddv_u8(svptrue_b8(), svcnt_u8_x(svptrue_b8(), svorr_u8_m(svptrue_b8(), a_vec, b_vec)));
         i += svcntb();
     } while (i < n_words);
-    return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
+    *result = (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
-#endif // SIMSIMD_TARGET_ARM_SVE
+#endif // SIMSIMD_TARGET_SVE
 
 #endif // SIMSIMD_TARGET_ARM
 
 #if SIMSIMD_TARGET_X86
 
-#if SIMSIMD_TARGET_X86_AVX512_ICE
-
-/*
- *  @file   x86_avx512_b8.h
- *  @brief  x86 AVX-512 implementation of the most common similarity metrics for bit-vectors.
- *  @author Ash Vardanian
- *
- *  - Implements: Hamming and Jaccard.
- *  - Requires compiler capabilities: avx512vpopcntdq, avx512vl, avx512bw, avx512f.
- */
+#if SIMSIMD_TARGET_ICE
 
 __attribute__((target("avx512vpopcntdq,avx512vl,avx512bw,avx512f,bmi2"))) //
-inline static simsimd_f32_t
-simsimd_avx512_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+inline static void
+simsimd_hamming_b8_avx512(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                          simsimd_distance_t* result) {
     __m512i differences_vec = _mm512_setzero_si512();
     __m512i a_vec, b_vec;
 
-simsimd_avx512_b8_hamming_cycle:
+simsimd_hamming_b8_avx512_cycle:
     if (n_words < 64) {
         __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
         a_vec = _mm512_maskz_loadu_epi8(mask, a);
@@ -163,19 +160,20 @@ simsimd_avx512_b8_hamming_cycle:
     __m512i xor_vec = _mm512_xor_si512(a_vec, b_vec);
     differences_vec = _mm512_add_epi64(differences_vec, _mm512_popcnt_epi64(xor_vec));
     if (n_words)
-        goto simsimd_avx512_b8_hamming_cycle;
+        goto simsimd_hamming_b8_avx512_cycle;
 
     simsimd_size_t differences = _mm512_reduce_add_epi64(differences_vec);
-    return (simsimd_f32_t)differences;
+    *result = differences;
 }
 
 __attribute__((target("avx512vpopcntdq,avx512vl,avx512bw,avx512f,bmi2"))) //
-inline static simsimd_f32_t
-simsimd_avx512_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+inline static void
+simsimd_jaccard_b8_avx512(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                          simsimd_distance_t* result) {
     __m512i intersection_vec = _mm512_setzero_si512(), union_vec = _mm512_setzero_si512();
     __m512i a_vec, b_vec;
 
-simsimd_avx512_b8_jaccard_cycle:
+simsimd_jaccard_b8_avx512_cycle:
     if (n_words < 64) {
         __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
         a_vec = _mm512_maskz_loadu_epi8(mask, a);
@@ -191,46 +189,34 @@ simsimd_avx512_b8_jaccard_cycle:
     intersection_vec = _mm512_add_epi64(intersection_vec, _mm512_popcnt_epi64(and_vec));
     union_vec = _mm512_add_epi64(union_vec, _mm512_popcnt_epi64(or_vec));
     if (n_words)
-        goto simsimd_avx512_b8_jaccard_cycle;
+        goto simsimd_jaccard_b8_avx512_cycle;
 
     simsimd_size_t intersection = _mm512_reduce_add_epi64(intersection_vec),
                    union_ = _mm512_reduce_add_epi64(union_vec);
-    return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
+    *result = (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
-#endif // SIMSIMD_TARGET_X86_AVX512_ICE
+#endif // SIMSIMD_TARGET_ICE
 
-/*
- *  @file   x86_avx2_b8.h
- *  @brief  x86 AVX2 implementation of the most common similarity metrics for bitsets.
- *  @author Ash Vardanian
- *
- *  - Implements: Hamming and Jaccard similarity.
- *  - Requires compiler capabilities: avx2.
- *
- *  AVX2 provides no built-in functionality for popcount, so we use the BMI2 instruction set.
- *  Wojciech Mu la, Nathan Kurz and Daniel Lemire propose an alternative solution based on Harley-Seal
- *  transforms and lookup tables. Those are very fast on large vectors, but on short vectors they lose
- *  to built-in scalar population counts. https://arxiv.org/pdf/1611.07612.pdf
- */
-
-#if SIMSIMD_TARGET_X86_AVX2_HASWELL
+#if SIMSIMD_TARGET_HASWELL
 
 __attribute__((target("popcnt"))) //
-inline static simsimd_f32_t
-simsimd_avx2_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+inline static void
+simsimd_hamming_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                           simsimd_distance_t* result) {
     // x86 supports unaligned loads and works just fine with the scalar version for small vectors.
     simsimd_size_t differences = 0;
     for (; n_words >= 8; n_words -= 8, a += 8, b += 8)
         differences += _mm_popcnt_u64(*(simsimd_u64_t const*)a ^ *(simsimd_u64_t const*)b);
     for (; n_words; --n_words, ++a, ++b)
         differences += _mm_popcnt_u32(*a ^ *b);
-    return (simsimd_f32_t)differences;
+    *result = differences;
 }
 
 __attribute__((target("popcnt"))) //
-inline static simsimd_f32_t
-simsimd_avx2_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+inline static void
+simsimd_jaccard_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                           simsimd_distance_t* result) {
     // x86 supports unaligned loads and works just fine with the scalar version for small vectors.
     simsimd_size_t intersection = 0, union_ = 0;
     for (; n_words >= 8; n_words -= 8, a += 8, b += 8)
@@ -238,14 +224,11 @@ simsimd_avx2_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_si
             union_ += _mm_popcnt_u64(*(simsimd_u64_t const*)a | *(simsimd_u64_t const*)b);
     for (; n_words; --n_words, ++a, ++b)
         intersection += _mm_popcnt_u32(*a & *b), union_ += _mm_popcnt_u32(*a | *b);
-    return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
+    *result = (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
-#endif // SIMSIMD_TARGET_X86_AVX2_HASWELL
-
+#endif // SIMSIMD_TARGET_HASWELL
 #endif // SIMSIMD_TARGET_X86
-
-#undef popcount64
 
 #ifdef __cplusplus
 }

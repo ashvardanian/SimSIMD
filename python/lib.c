@@ -8,30 +8,27 @@
 #include <math.h>
 
 #if __linux__
-#define SIMSIMD_TARGET_ARM_NEON 1
-#define SIMSIMD_TARGET_ARM_SVE 1
-#define SIMSIMD_TARGET_X86_AVX2_HASWELL 1
-#define SIMSIMD_TARGET_X86_AVX2_IVY 1
-#define SIMSIMD_TARGET_X86_AVX512_ICE 1
-#define SIMSIMD_TARGET_X86_AVX512_SKYLAKE 1
-#define SIMSIMD_TARGET_X86_AVX512_SAPPHIRE 1
+#define SIMSIMD_TARGET_NEON 1
+#define SIMSIMD_TARGET_SVE 1
+#define SIMSIMD_TARGET_HASWELL 1
+#define SIMSIMD_TARGET_ICE 1
+#define SIMSIMD_TARGET_SKYLAKE 1
+#define SIMSIMD_TARGET_SAPPHIRE 1
 #include <omp.h>
 #elif defined(_MSC_VER)
-#define SIMSIMD_TARGET_ARM_NEON 0
-#define SIMSIMD_TARGET_ARM_SVE 0
-#define SIMSIMD_TARGET_X86_AVX2_HASWELL 0
-#define SIMSIMD_TARGET_X86_AVX2_IVY 0
-#define SIMSIMD_TARGET_X86_AVX512_ICE 0
-#define SIMSIMD_TARGET_X86_AVX512_SKYLAKE 0
-#define SIMSIMD_TARGET_X86_AVX512_SAPPHIRE 0
+#define SIMSIMD_TARGET_NEON 0
+#define SIMSIMD_TARGET_SVE 0
+#define SIMSIMD_TARGET_HASWELL 0
+#define SIMSIMD_TARGET_ICE 0
+#define SIMSIMD_TARGET_SKYLAKE 0
+#define SIMSIMD_TARGET_SAPPHIRE 0
 #elif defined(__APPLE__)
-#define SIMSIMD_TARGET_ARM_NEON 1
-#define SIMSIMD_TARGET_ARM_SVE 0
-#define SIMSIMD_TARGET_X86_AVX2_HASWELL 1
-#define SIMSIMD_TARGET_X86_AVX2_IVY 1
-#define SIMSIMD_TARGET_X86_AVX512_ICE 0
-#define SIMSIMD_TARGET_X86_AVX512_SKYLAKE 0
-#define SIMSIMD_TARGET_X86_AVX512_SAPPHIRE 0
+#define SIMSIMD_TARGET_NEON 1
+#define SIMSIMD_TARGET_SVE 0
+#define SIMSIMD_TARGET_HASWELL 1
+#define SIMSIMD_TARGET_ICE 0
+#define SIMSIMD_TARGET_SKYLAKE 0
+#define SIMSIMD_TARGET_SAPPHIRE 0
 #endif
 
 #define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
@@ -51,11 +48,11 @@ typedef struct InputArgument {
 } InputArgument;
 
 typedef struct DistancesTensor {
-    PyObject_HEAD          //
-        size_t dimensions; // Can be only 1 or 2 dimensions
-    Py_ssize_t shape[2];   // Dimensions of the tensor
-    Py_ssize_t strides[2]; // Strides for each dimension
-    simsimd_f32_t start[]; // Variable length data aligned to 64-bit scalars
+    PyObject_HEAD               //
+        size_t dimensions;      // Can be only 1 or 2 dimensions
+    Py_ssize_t shape[2];        // Dimensions of the tensor
+    Py_ssize_t strides[2];      // Strides for each dimension
+    simsimd_distance_t start[]; // Variable length data aligned to 64-bit scalars
 } DistancesTensor;
 
 static int DistancesTensor_getbuffer(PyObject* export_from, Py_buffer* view, int flags);
@@ -70,7 +67,7 @@ static PyTypeObject DistancesTensorType = {
     PyObject_HEAD_INIT(NULL).tp_name = "simsimd.DistancesTensor",
     .tp_doc = "Zero-copy view of an internal tensor, compatible with NumPy",
     .tp_basicsize = sizeof(DistancesTensor),
-    .tp_itemsize = sizeof(simsimd_f32_t),
+    .tp_itemsize = sizeof(simsimd_distance_t),
     .tp_as_buffer = &DistancesTensor_as_buffer,
 };
 
@@ -185,24 +182,20 @@ static PyObject* api_enable_capability(PyObject* self, PyObject* args) {
         return NULL; // Argument parsing failed
     }
 
-    if (same_string(cap_name, "arm_neon")) {
-        static_capabilities |= simsimd_cap_arm_neon_k;
-    } else if (same_string(cap_name, "arm_sve")) {
-        static_capabilities |= simsimd_cap_arm_sve_k;
-    } else if (same_string(cap_name, "arm_sve2")) {
-        static_capabilities |= simsimd_cap_arm_sve2_k;
-    } else if (same_string(cap_name, "x86_avx2")) {
-        static_capabilities |= simsimd_cap_x86_avx2_k;
-    } else if (same_string(cap_name, "x86_avx512")) {
-        static_capabilities |= simsimd_cap_x86_avx512_k;
-    } else if (same_string(cap_name, "x86_avx2fp16")) {
-        static_capabilities |= simsimd_cap_x86_avx2fp16_k;
-    } else if (same_string(cap_name, "x86_avx512fp16")) {
-        static_capabilities |= simsimd_cap_x86_avx512fp16_k;
-    } else if (same_string(cap_name, "x86_avx512vpopcntdq")) {
-        static_capabilities |= simsimd_cap_x86_avx512vpopcntdq_k;
-    } else if (same_string(cap_name, "x86_avx512vnni")) {
-        static_capabilities |= simsimd_cap_x86_avx512vnni_k;
+    if (same_string(cap_name, "neon")) {
+        static_capabilities |= simsimd_cap_neon_k;
+    } else if (same_string(cap_name, "sve")) {
+        static_capabilities |= simsimd_cap_sve_k;
+    } else if (same_string(cap_name, "sve2")) {
+        static_capabilities |= simsimd_cap_sve2_k;
+    } else if (same_string(cap_name, "haswell")) {
+        static_capabilities |= simsimd_cap_haswell_k;
+    } else if (same_string(cap_name, "skylake")) {
+        static_capabilities |= simsimd_cap_skylake_k;
+    } else if (same_string(cap_name, "ice")) {
+        static_capabilities |= simsimd_cap_ice_k;
+    } else if (same_string(cap_name, "sapphire")) {
+        static_capabilities |= simsimd_cap_sapphire_k;
     } else if (same_string(cap_name, "serial")) {
         PyErr_SetString(PyExc_ValueError, "Can't change the serial functionality");
         return NULL;
@@ -220,24 +213,20 @@ static PyObject* api_disable_capability(PyObject* self, PyObject* args) {
         return NULL; // Argument parsing failed
     }
 
-    if (same_string(cap_name, "arm_neon")) {
-        static_capabilities &= ~simsimd_cap_arm_neon_k;
-    } else if (same_string(cap_name, "arm_sve")) {
-        static_capabilities &= ~simsimd_cap_arm_sve_k;
-    } else if (same_string(cap_name, "arm_sve2")) {
-        static_capabilities &= ~simsimd_cap_arm_sve2_k;
-    } else if (same_string(cap_name, "x86_avx2")) {
-        static_capabilities &= ~simsimd_cap_x86_avx2_k;
-    } else if (same_string(cap_name, "x86_avx512")) {
-        static_capabilities &= ~simsimd_cap_x86_avx512_k;
-    } else if (same_string(cap_name, "x86_avx2fp16")) {
-        static_capabilities &= ~simsimd_cap_x86_avx2fp16_k;
-    } else if (same_string(cap_name, "x86_avx512fp16")) {
-        static_capabilities &= ~simsimd_cap_x86_avx512fp16_k;
-    } else if (same_string(cap_name, "x86_avx512vpopcntdq")) {
-        static_capabilities &= ~simsimd_cap_x86_avx512vpopcntdq_k;
-    } else if (same_string(cap_name, "x86_avx512vnni")) {
-        static_capabilities &= ~simsimd_cap_x86_avx512vnni_k;
+    if (same_string(cap_name, "neon")) {
+        static_capabilities &= ~simsimd_cap_neon_k;
+    } else if (same_string(cap_name, "sve")) {
+        static_capabilities &= ~simsimd_cap_sve_k;
+    } else if (same_string(cap_name, "sve2")) {
+        static_capabilities &= ~simsimd_cap_sve2_k;
+    } else if (same_string(cap_name, "haswell")) {
+        static_capabilities &= ~simsimd_cap_haswell_k;
+    } else if (same_string(cap_name, "skylake")) {
+        static_capabilities &= ~simsimd_cap_skylake_k;
+    } else if (same_string(cap_name, "ice")) {
+        static_capabilities &= ~simsimd_cap_ice_k;
+    } else if (same_string(cap_name, "sapphire")) {
+        static_capabilities &= ~simsimd_cap_sapphire_k;
     } else if (same_string(cap_name, "serial")) {
         PyErr_SetString(PyExc_ValueError, "Can't change the serial functionality");
         return NULL;
@@ -258,15 +247,13 @@ static PyObject* api_get_capabilities(PyObject* self) {
 #define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong((caps) & simsimd_cap_##name##_k))
 
     ADD_CAP(serial);
-    ADD_CAP(arm_neon);
-    ADD_CAP(arm_sve);
-    ADD_CAP(arm_sve2);
-    ADD_CAP(x86_avx2);
-    ADD_CAP(x86_avx512);
-    ADD_CAP(x86_avx2fp16);
-    ADD_CAP(x86_avx512fp16);
-    ADD_CAP(x86_avx512vpopcntdq);
-    ADD_CAP(x86_avx512vnni);
+    ADD_CAP(neon);
+    ADD_CAP(sve);
+    ADD_CAP(sve2);
+    ADD_CAP(haswell);
+    ADD_CAP(skylake);
+    ADD_CAP(ice);
+    ADD_CAP(sapphire);
 
 #undef ADD_CAP
 
@@ -311,14 +298,14 @@ int parse_tensor(PyObject* tensor, Py_buffer* buffer, InputArgument* parsed) {
 static int DistancesTensor_getbuffer(PyObject* export_from, Py_buffer* view, int flags) {
     DistancesTensor* tensor = (DistancesTensor*)export_from;
     size_t const total_items = tensor->shape[0] * tensor->shape[1];
-    size_t const item_size = bytes_per_datatype(simsimd_datatype_f32_k);
+    size_t const item_size = bytes_per_datatype(simsimd_datatype_f64_k);
 
     view->buf = &tensor->start[0];
     view->obj = (PyObject*)tensor;
     view->len = item_size * total_items;
     view->readonly = 0;
     view->itemsize = (Py_ssize_t)item_size;
-    view->format = datatype_to_python_string(simsimd_datatype_f32_k);
+    view->format = datatype_to_python_string(simsimd_datatype_f64_k);
     view->ndim = (int)tensor->dimensions;
     view->shape = &tensor->shape[0];
     view->strides = &tensor->strides[0];
@@ -403,15 +390,13 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
     if (parsed_a.is_flat && parsed_b.is_flat) {
         // For complex numbers we are going to use `PyComplex_FromDoubles`.
         if (is_complex(datatype)) {
-            simsimd_complex_metric_punned_t complex_metric = (simsimd_complex_metric_punned_t)metric;
-            simsimd_f32_t real_result, imag_result;
-            complex_metric(parsed_a.start, parsed_b.start,           //
-                           parsed_a.dimensions, parsed_b.dimensions, //
-                           &real_result, &imag_result);
-            output = PyComplex_FromDoubles(real_result, imag_result);
+            simsimd_distance_t distances[2];
+            metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, distances);
+            output = PyComplex_FromDoubles(distances[0], distances[1]);
         } else {
-            output = PyFloat_FromDouble(metric(parsed_a.start, parsed_b.start, //
-                                               parsed_a.dimensions, parsed_b.dimensions));
+            simsimd_distance_t distance;
+            metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, &distance);
+            output = PyFloat_FromDouble(distance);
         }
     } else {
 
@@ -433,18 +418,18 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
         distances_obj->dimensions = 1;
         distances_obj->shape[0] = count_max;
         distances_obj->shape[1] = 1;
-        distances_obj->strides[0] = sizeof(simsimd_f32_t);
+        distances_obj->strides[0] = sizeof(simsimd_distance_t);
         distances_obj->strides[1] = 0;
         output = (PyObject*)distances_obj;
 
         // Compute the distances
-        simsimd_f32_t* distances = (simsimd_f32_t*)&distances_obj->start[0];
+        simsimd_distance_t* distances = (simsimd_distance_t*)&distances_obj->start[0];
         for (size_t i = 0; i < count_max; ++i)
-            distances[i] = metric(                    //
+            metric(                                   //
                 parsed_a.start + i * parsed_a.stride, //
                 parsed_b.start + i * parsed_b.stride, //
                 parsed_a.dimensions,                  //
-                parsed_b.dimensions);
+                distances + i);
     }
 
 cleanup:
@@ -493,7 +478,9 @@ static PyObject* impl_cdist(                            //
 
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     if (parsed_a.is_flat && parsed_b.is_flat) {
-        output = PyFloat_FromDouble(metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, parsed_b.dimensions));
+        simsimd_distance_t distance;
+        metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, &distance);
+        output = PyFloat_FromDouble(distance);
     } else {
 
 #ifdef __linux__
@@ -515,20 +502,20 @@ static PyObject* impl_cdist(                            //
         distances_obj->dimensions = 2;
         distances_obj->shape[0] = parsed_a.count;
         distances_obj->shape[1] = parsed_b.count;
-        distances_obj->strides[0] = parsed_b.count * sizeof(simsimd_f32_t);
-        distances_obj->strides[1] = sizeof(simsimd_f32_t);
+        distances_obj->strides[0] = parsed_b.count * sizeof(simsimd_distance_t);
+        distances_obj->strides[1] = sizeof(simsimd_distance_t);
         output = (PyObject*)distances_obj;
 
         // Compute the distances
-        simsimd_f32_t* distances = (simsimd_f32_t*)&distances_obj->start[0];
+        simsimd_distance_t* distances = (simsimd_distance_t*)&distances_obj->start[0];
 #pragma omp parallel for collapse(2)
         for (size_t i = 0; i < parsed_a.count; ++i)
             for (size_t j = 0; j < parsed_b.count; ++j)
-                distances[i * parsed_b.count + j] = metric( //
-                    parsed_a.start + i * parsed_a.stride,   //
-                    parsed_b.start + j * parsed_b.stride,   //
-                    parsed_a.dimensions,                    //
-                    parsed_b.dimensions);
+                metric(                                   //
+                    parsed_a.start + i * parsed_a.stride, //
+                    parsed_b.start + j * parsed_b.stride, //
+                    parsed_a.dimensions,                  //
+                    distances + i * parsed_b.count + j);
     }
 
 cleanup:
@@ -623,7 +610,7 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
 
 static PyObject* api_l2sq_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_l2sq_k, args); }
 static PyObject* api_cos_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_cos_k, args); }
-static PyObject* api_ip_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_ip_k, args); }
+static PyObject* api_dot_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_dot_k, args); }
 static PyObject* api_kl_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_kl_k, args); }
 static PyObject* api_js_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_js_k, args); }
 static PyObject* api_hamming_pointer(PyObject* self, PyObject* args) {
@@ -639,8 +626,8 @@ static PyObject* api_l2sq(PyObject* self, PyObject* const* args, Py_ssize_t narg
 static PyObject* api_cos(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
     return impl_metric(simsimd_metric_cos_k, args, nargs);
 }
-static PyObject* api_ip(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
-    return impl_metric(simsimd_metric_ip_k, args, nargs);
+static PyObject* api_dot(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
+    return impl_metric(simsimd_metric_dot_k, args, nargs);
 }
 static PyObject* api_vdot(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
     return impl_metric(simsimd_metric_vdot_k, args, nargs);
@@ -667,8 +654,8 @@ static PyMethodDef simsimd_methods[] = {
     // NumPy and SciPy compatible interfaces (two matrix or vector arguments)
     {"sqeuclidean", api_l2sq, METH_FASTCALL, "L2sq (Sq. Euclidean) distances between a pair of matrices"},
     {"cosine", api_cos, METH_FASTCALL, "Cosine (Angular) distances between a pair of matrices"},
-    {"inner", api_ip, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
-    {"dot", api_ip, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
+    {"inner", api_dot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
+    {"dot", api_dot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
     {"vdot", api_vdot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
     {"hamming", api_hamming, METH_FASTCALL, "Hamming distances between a pair of matrices"},
     {"jaccard", api_jaccard, METH_FASTCALL, "Jaccard (Bitwise Tanimoto) distances between a pair of matrices"},
@@ -682,9 +669,9 @@ static PyMethodDef simsimd_methods[] = {
     // Exposing underlying API for USearch
     {"pointer_to_sqeuclidean", api_l2sq_pointer, METH_VARARGS, "L2sq (Sq. Euclidean) function pointer as `int`"},
     {"pointer_to_cosine", api_cos_pointer, METH_VARARGS, "Cosine (Angular) function pointer as `int`"},
-    {"pointer_to_inner", api_ip_pointer, METH_VARARGS, "Inner (Dot) Product function pointer as `int`"},
-    {"pointer_to_kullbackleibler", api_ip_pointer, METH_VARARGS, "Kullback-Leibler function pointer as `int`"},
-    {"pointer_to_jensenshannon", api_ip_pointer, METH_VARARGS, "Jensen-Shannon function pointer as `int`"},
+    {"pointer_to_inner", api_dot_pointer, METH_VARARGS, "Inner (Dot) Product function pointer as `int`"},
+    {"pointer_to_kullbackleibler", api_dot_pointer, METH_VARARGS, "Kullback-Leibler function pointer as `int`"},
+    {"pointer_to_jensenshannon", api_dot_pointer, METH_VARARGS, "Jensen-Shannon function pointer as `int`"},
 
     // Sentinel
     {NULL, NULL, 0, NULL}};
