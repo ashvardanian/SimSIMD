@@ -77,23 +77,21 @@ def test_pointers_availability():
 def test_capabilities_list():
     """Tests the visibility of hardware capabilities."""
     assert "serial" in simd.get_capabilities()
-    assert "arm_neon" in simd.get_capabilities()
-    assert "arm_sve" in simd.get_capabilities()
-    assert "arm_sve2" in simd.get_capabilities()
-    assert "x86_avx2" in simd.get_capabilities()
-    assert "x86_avx512" in simd.get_capabilities()
-    assert "x86_avx2fp16" in simd.get_capabilities()
-    assert "x86_avx512fp16" in simd.get_capabilities()
-    assert "x86_avx512vpopcntdq" in simd.get_capabilities()
-    assert "x86_avx512vnni" in simd.get_capabilities()
+    assert "neon" in simd.get_capabilities()
+    assert "sve" in simd.get_capabilities()
+    assert "sve2" in simd.get_capabilities()
+    assert "haswell" in simd.get_capabilities()
+    assert "ice" in simd.get_capabilities()
+    assert "skylake" in simd.get_capabilities()
+    assert "sapphire" in simd.get_capabilities()
     assert simd.get_capabilities().get("serial") == 1
 
     # Check the toggle:
-    previous_value = simd.get_capabilities().get("arm_neon")
-    simd.enable_capability("arm_neon")
-    assert simd.get_capabilities().get("arm_neon") == 1
+    previous_value = simd.get_capabilities().get("neon")
+    simd.enable_capability("neon")
+    assert simd.get_capabilities().get("neon") == 1
     if not previous_value:
-        simd.disable_capability("arm_neon")
+        simd.disable_capability("neon")
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -112,7 +110,7 @@ def test_dot(ndim, dtype):
     a /= np.linalg.norm(a)
     b /= np.linalg.norm(b)
 
-    expected = 1 - np.inner(a, b).astype(np.float32)
+    expected = np.inner(a, b).astype(np.float32)
     result = simd.inner(a, b)
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
@@ -234,7 +232,7 @@ def test_dot_complex(ndim):
 
     np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
 
-    expected = np.vdot(a, b)
+    expected = np.vdot(a.view(np.complex64), b.view(np.complex64))
     result = simd.vdot(a, b, "complex64")
 
     np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
