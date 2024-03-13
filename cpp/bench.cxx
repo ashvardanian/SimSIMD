@@ -195,7 +195,10 @@ int main(int argc, char** argv) {
     register_<simsimd_b8_t>("hamming_b8_neon", simsimd_hamming_b8_neon, simsimd_hamming_b8_serial);
     register_<simsimd_b8_t>("jaccard_b8_neon", simsimd_jaccard_b8_neon, simsimd_jaccard_b8_serial);
 
+    register_<simsimd_f16_t>("dot_f16c_neon", simsimd_dot_f16c_neon, simsimd_dot_f16c_accurate);
+    register_<simsimd_f16_t>("vdot_f16c_neon", simsimd_vdot_f16c_neon, simsimd_vdot_f16c_accurate);
     register_<simsimd_f32_t>("dot_f32c_neon", simsimd_dot_f32c_neon, simsimd_dot_f32c_accurate);
+    register_<simsimd_f32_t>("vdot_f32c_neon", simsimd_vdot_f32c_neon, simsimd_vdot_f32c_accurate);
 #endif
 
 #if SIMSIMD_TARGET_SVE
@@ -213,6 +216,14 @@ int main(int argc, char** argv) {
 
     register_<simsimd_b8_t>("hamming_b8_sve", simsimd_hamming_b8_sve, simsimd_hamming_b8_serial);
     register_<simsimd_b8_t>("jaccard_b8_sve", simsimd_jaccard_b8_sve, simsimd_jaccard_b8_serial);
+
+    register_<simsimd_f16_t>("dot_f16c_sve", simsimd_dot_f16c_sve, simsimd_dot_f16c_accurate);
+    register_<simsimd_f16_t>("vdot_f16c_sve", simsimd_vdot_f16c_sve, simsimd_vdot_f16c_accurate);
+    register_<simsimd_f32_t>("dot_f32c_sve", simsimd_dot_f32c_sve, simsimd_dot_f32c_accurate);
+    register_<simsimd_f32_t>("vdot_f32c_sve", simsimd_vdot_f32c_sve, simsimd_vdot_f32c_accurate);
+    register_<simsimd_f64_t>("dot_f64c_sve", simsimd_dot_f64c_sve, simsimd_dot_f64c_serial);
+    register_<simsimd_f64_t>("vdot_f64c_sve", simsimd_vdot_f64c_sve, simsimd_vdot_f64c_serial);
+
 #endif
 
 #if SIMSIMD_TARGET_HASWELL

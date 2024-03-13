@@ -453,6 +453,14 @@ inline static void simsimd_find_metric_punned( //
 
     case simsimd_datatype_f32c_k:
 
+    #if SIMSIMD_TARGET_SVE
+        if (viable & simsimd_cap_sve_k)
+            switch (kind) {
+            case simsimd_metric_dot_k: *m = (simsimd_metric_punned_t)&simsimd_dot_f32c_sve, *c = simsimd_cap_sve_k; return;
+            case simsimd_metric_vdot_k: *m = (simsimd_metric_punned_t)&simsimd_vdot_f32c_sve, *c = simsimd_cap_sve_k; return;
+            default: break;
+            }
+    #endif
     #if SIMSIMD_TARGET_NEON
         if (viable & simsimd_cap_neon_k)
             switch (kind) {
@@ -487,11 +495,11 @@ inline static void simsimd_find_metric_punned( //
 
     case simsimd_datatype_f64c_k:
 
-    #if SIMSIMD_TARGET_HASWELL && 0
-        if (viable & simsimd_cap_haswell_k)
+    #if SIMSIMD_TARGET_SVE
+        if (viable & simsimd_cap_sve_k)
             switch (kind) {
-            case simsimd_metric_dot_k: *m = (simsimd_metric_punned_t)&simsimd_dot_f64c_haswell, *c = simsimd_cap_haswell_k; return;
-            case simsimd_metric_vdot_k: *m = (simsimd_metric_punned_t)&simsimd_vdot_f64c_haswell, *c = simsimd_cap_haswell_k; return;
+            case simsimd_metric_dot_k: *m = (simsimd_metric_punned_t)&simsimd_dot_f64c_sve, *c = simsimd_cap_sve_k; return;
+            case simsimd_metric_vdot_k: *m = (simsimd_metric_punned_t)&simsimd_vdot_f64c_sve, *c = simsimd_cap_sve_k; return;
             default: break;
             }
     #endif
@@ -515,6 +523,14 @@ inline static void simsimd_find_metric_punned( //
 
     case simsimd_datatype_f16c_k:
 
+    #if SIMSIMD_TARGET_SVE
+        if (viable & simsimd_cap_sve_k)
+            switch (kind) {
+            case simsimd_metric_dot_k: *m = (simsimd_metric_punned_t)&simsimd_dot_f16c_sve, *c = simsimd_cap_sve_k; return;
+            case simsimd_metric_vdot_k: *m = (simsimd_metric_punned_t)&simsimd_vdot_f16c_sve, *c = simsimd_cap_sve_k; return;
+            default: break;
+            }
+    #endif
     #if SIMSIMD_TARGET_NEON
         if (viable & simsimd_cap_neon_k)
             switch (kind) {
