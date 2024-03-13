@@ -88,6 +88,8 @@
 //
 // To list all available macros for x86, take a recent compiler, like GCC 12 and run:
 //      gcc-12 -march=sapphirerapids -dM -E - < /dev/null | egrep "SSE|AVX" | sort
+// On Arm machines you may want to check for other flags:
+//      gcc-12 -march=native -dM -E - < /dev/null | egrep "NEON|SVE|FP16|FMA" | sort
 #if !defined(SIMSIMD_TARGET_SKYLAKE) || !SIMSIMD_TARGET_X86
 #if defined(__AVX512F__) && defined(__AVX512CD__) && defined(__AVX512VL__) && defined(__AVX512DQ__) &&                 \
     defined(__AVX512BW__)

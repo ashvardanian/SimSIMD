@@ -299,41 +299,35 @@ simsimd_dot_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_siz
 }
 
 __attribute__((target("+simd+fp16"))) //
-inline float
-vaddvq_f16(float16x8_t input) {
-    float32x4_t low = vcvt_f32_f16(vget_low_f16(input));
-    float32x4_t high = vcvt_f32_f16(vget_high_f16(input));
-    float32x4_t combined = vaddq_f32(high, low);
-    float result = vaddvq_f32(combined);
-    return result;
-}
-
-__attribute__((target("+simd+fp16"))) //
 inline static void
 simsimd_dot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, //
                       simsimd_distance_t* results) {
-    float16x8_t ab_real_vec = vdupq_n_f16(0);
-    float16x8_t ab_imag_vec = vdupq_n_f16(0);
+
+    // A nicer approach is to use `f16` arithmetic for the dot product, but that requires
+    // FMLA extensions available on Arm v8.3 and later. That we can also process 16 entries
+    // at once. That's how the original implementation worked, but compiling it was a nightmare :)
+    float32x4_t ab_real_vec = vdupq_n_f32(0);
+    float32x4_t ab_imag_vec = vdupq_n_f32(0);
     simsimd_size_t i = 0;
-    for (; i + 16 <= n; i += 16) {
+    for (; i + 8 <= n; i += 8) {
         // Unpack the input arrays into real and imaginary parts:
-        float16x8x2_t a_vec = vld2q_f16(a + i);
-        float16x8x2_t b_vec = vld2q_f16(b + i);
-        float16x8_t a_real_vec = a_vec.val[0];
-        float16x8_t a_imag_vec = a_vec.val[1];
-        float16x8_t b_real_vec = b_vec.val[0];
-        float16x8_t b_imag_vec = b_vec.val[1];
+        float16x4x2_t a_vec = vld2_f16(a + i);
+        float16x4x2_t b_vec = vld2_f16(b + i);
+        float32x4_t a_real_vec = vcvt_f32_f16(a_vec.val[0]);
+        float32x4_t a_imag_vec = vcvt_f32_f16(a_vec.val[1]);
+        float32x4_t b_real_vec = vcvt_f32_f16(b_vec.val[0]);
+        float32x4_t b_imag_vec = vcvt_f32_f16(b_vec.val[1]);
 
         // Compute the dot product:
-        ab_real_vec = vfmaq_f16(ab_real_vec, a_real_vec, b_real_vec);
-        ab_real_vec = vfmsq_f16(ab_real_vec, a_imag_vec, b_imag_vec);
-        ab_imag_vec = vfmaq_f16(ab_imag_vec, a_real_vec, b_imag_vec);
-        ab_imag_vec = vfmaq_f16(ab_imag_vec, a_imag_vec, b_real_vec);
+        ab_real_vec = vfmaq_f32(ab_real_vec, a_real_vec, b_real_vec);
+        ab_real_vec = vfmsq_f32(ab_real_vec, a_imag_vec, b_imag_vec);
+        ab_imag_vec = vfmaq_f32(ab_imag_vec, a_real_vec, b_imag_vec);
+        ab_imag_vec = vfmaq_f32(ab_imag_vec, a_imag_vec, b_real_vec);
     }
 
     // Reduce horizontal sums:
-    simsimd_f32_t ab_real = vaddvq_f16(ab_real_vec);
-    simsimd_f32_t ab_imag = vaddvq_f16(ab_imag_vec);
+    simsimd_f32_t ab_real = vaddvq_f32(ab_real_vec);
+    simsimd_f32_t ab_imag = vaddvq_f32(ab_imag_vec);
 
     // Handle the tail:
     for (; i + 2 <= n; i += 2) {
@@ -349,28 +343,32 @@ __attribute__((target("+simd+fp16"))) //
 inline static void
 simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, //
                        simsimd_distance_t* results) {
-    float16x8_t ab_real_vec = vdupq_n_f16(0);
-    float16x8_t ab_imag_vec = vdupq_n_f16(0);
+
+    // A nicer approach is to use `f16` arithmetic for the dot product, but that requires
+    // FMLA extensions available on Arm v8.3 and later. That we can also process 16 entries
+    // at once. That's how the original implementation worked, but compiling it was a nightmare :)
+    float32x4_t ab_real_vec = vdupq_n_f32(0);
+    float32x4_t ab_imag_vec = vdupq_n_f32(0);
     simsimd_size_t i = 0;
-    for (; i + 16 <= n; i += 16) {
+    for (; i + 8 <= n; i += 8) {
         // Unpack the input arrays into real and imaginary parts:
-        float16x8x2_t a_vec = vld2q_f16(a + i);
-        float16x8x2_t b_vec = vld2q_f16(b + i);
-        float16x8_t a_real_vec = a_vec.val[0];
-        float16x8_t a_imag_vec = a_vec.val[1];
-        float16x8_t b_real_vec = b_vec.val[0];
-        float16x8_t b_imag_vec = b_vec.val[1];
+        float16x4x2_t a_vec = vld2_f16(a + i);
+        float16x4x2_t b_vec = vld2_f16(b + i);
+        float32x4_t a_real_vec = vcvt_f32_f16(a_vec.val[0]);
+        float32x4_t a_imag_vec = vcvt_f32_f16(a_vec.val[1]);
+        float32x4_t b_real_vec = vcvt_f32_f16(b_vec.val[0]);
+        float32x4_t b_imag_vec = vcvt_f32_f16(b_vec.val[1]);
 
         // Compute the dot product:
-        ab_real_vec = vfmaq_f16(ab_real_vec, a_real_vec, b_real_vec);
-        ab_real_vec = vfmaq_f16(ab_real_vec, a_imag_vec, b_imag_vec);
-        ab_imag_vec = vfmaq_f16(ab_imag_vec, a_real_vec, b_imag_vec);
-        ab_imag_vec = vfmsq_f16(ab_imag_vec, a_imag_vec, b_real_vec);
+        ab_real_vec = vfmaq_f32(ab_real_vec, a_real_vec, b_real_vec);
+        ab_real_vec = vfmaq_f32(ab_real_vec, a_imag_vec, b_imag_vec);
+        ab_imag_vec = vfmaq_f32(ab_imag_vec, a_real_vec, b_imag_vec);
+        ab_imag_vec = vfmsq_f32(ab_imag_vec, a_imag_vec, b_real_vec);
     }
 
     // Reduce horizontal sums:
-    simsimd_f32_t ab_real = vaddvq_f16(ab_real_vec);
-    simsimd_f32_t ab_imag = vaddvq_f16(ab_imag_vec);
+    simsimd_f32_t ab_real = vaddvq_f32(ab_real_vec);
+    simsimd_f32_t ab_imag = vaddvq_f32(ab_imag_vec);
 
     // Handle the tail:
     for (; i + 2 <= n; i += 2) {
