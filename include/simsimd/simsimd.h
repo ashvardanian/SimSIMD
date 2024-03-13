@@ -14,8 +14,8 @@
 #ifndef SIMSIMD_H
 #define SIMSIMD_H
 
-#define SIMSIMD_VERSION_MAJOR 3
-#define SIMSIMD_VERSION_MINOR 9
+#define SIMSIMD_VERSION_MAJOR 4
+#define SIMSIMD_VERSION_MINOR 0
 #define SIMSIMD_VERSION_PATCH 0
 
 #include "binary.h"      // Hamming, Jaccard
