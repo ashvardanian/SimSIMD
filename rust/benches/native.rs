@@ -5,7 +5,7 @@ pub(crate) fn generate_random_vector(dim: usize) -> Vec<f32> {
     (0..dim).map(|_| rand::thread_rng().gen()).collect()
 }
 
-pub(crate) fn cosine_similarity_cpu(a: &[f32], b: &[f32]) -> Option<f32> {
+pub(crate) fn cos_similarity_cpu(a: &[f32], b: &[f32]) -> Option<f32> {
     if a.len() != b.len() {
         return None;
     }

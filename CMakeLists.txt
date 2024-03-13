@@ -4,7 +4,8 @@ project(
   simsimd
   VERSION 3.9.0
   LANGUAGES C CXX
-  DESCRIPTION "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm"
+  DESCRIPTION
+    "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm"
   HOMEPAGE_URL "https://github.com/ashvardanian/simsimd")
 
 set(CMAKE_C_STANDARD 11)
@@ -15,8 +16,19 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
+# Determine if StringZilla is built as a subproject (using `add_subdirectory`)
+# or if it is the main project
+set(SIMSIMD_IS_MAIN_PROJECT OFF)
+
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+  set(SIMSIMD_IS_MAIN_PROJECT ON)
+endif()
+
+option(SIMSIMD_BUILD_SHARED "Compile a dynamic library"
+       ${SIMSIMD_IS_MAIN_PROJECT})
 option(SIMSIMD_BUILD_BENCHMARKS "Compile micro-benchmarks for current ISA" OFF)
-option(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS "Include BLAS in micro-kernel benchmarks" ON)
+option(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
+       "Include BLAS in micro-kernel benchmarks" ON)
 
 # Default to Release build type if not set
 if(NOT CMAKE_BUILD_TYPE)
@@ -37,7 +49,8 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
 
   add_compile_options(-pedantic -ferror-limit=1)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  add_compile_options(-march=native -pedantic -fmax-errors=1 -Wno-tautological-constant-compare)
+  add_compile_options(-march=native -pedantic -fmax-errors=1
+                      -Wno-tautological-constant-compare)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
   add_compile_options(-w -ferror-limit=1)
 endif()
@@ -74,7 +87,16 @@ if(SIMSIMD_BUILD_BENCHMARKS)
 
   find_package(BLAS)
   if(BLAS_FOUND AND SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
-    target_compile_definitions(simsimd_bench PRIVATE SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1)
+    target_compile_definitions(simsimd_bench
+                               PRIVATE SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1)
     target_link_libraries(simsimd_bench ${BLAS_LIBRARIES})
   endif()
+endif()
+
+if(SIMSIMD_BUILD_SHARED)
+  set(SIMSIMD_SOURCES ${SIMSIMD_SOURCES} c/lib.c)
+  add_library(simsimd_shared SHARED ${SIMSIMD_SOURCES})
+  target_include_directories(simsimd_shared
+                             PUBLIC "${PROJECT_SOURCE_DIR}/include")
+  set_target_properties(simsimd_shared PROPERTIES OUTPUT_NAME simsimd)
 endif()
