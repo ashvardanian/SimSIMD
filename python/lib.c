@@ -427,7 +427,9 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
         if (parsed_b.count == 1)
             parsed_b.stride = 0;
 
-        size_t const count_pairs = parsed_a.count < parsed_b.count ? parsed_a.count : parsed_b.count;
+        // We take the maximum of the two counts, because if only one entry is present in one of the arrays,
+        // all distances will be computed against that single entry.
+        size_t const count_pairs = parsed_a.count > parsed_b.count ? parsed_a.count : parsed_b.count;
         size_t const components_per_pair = datatype_is_complex ? 2 : 1;
         size_t const count_components = count_pairs * components_per_pair;
         DistancesTensor* distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType, count_components);
