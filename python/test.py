@@ -221,7 +221,29 @@ def test_cosine_zero_vector(ndim, dtype):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [22, 66, 1536])
-def test_dot_complex(ndim):
+@pytest.mark.parametrize("dtype", ["float32", "float64"])
+def test_dot_complex(ndim, dtype):
+    """Compares the simd.dot() and simd.vdot() against NumPy for complex numbers."""
+    np.random.seed()
+    dtype_view = np.complex64 if dtype == "float32" else np.complex128
+    a = np.random.randn(ndim).astype(dtype=dtype).view(dtype_view)
+    b = np.random.randn(ndim).astype(dtype=dtype).view(dtype_view)
+
+    expected = np.dot(a, b)
+    result = simd.dot(a, b)
+
+    np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
+
+    expected = np.vdot(a, b)
+    result = simd.vdot(a, b)
+
+    np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("ndim", [22, 66, 1536])
+def test_dot_complex_explicit(ndim):
     """Compares the simd.dot() and simd.vdot() against NumPy for complex numbers."""
     np.random.seed()
     a = np.random.randn(ndim).astype(dtype=np.float32)

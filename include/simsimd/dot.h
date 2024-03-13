@@ -459,7 +459,9 @@ simsimd_dot_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_
     *result = f32_result;
 }
 
-inline simsimd_f64_t _mm256_reduce_add_ps_dbl(__m256 vec) {
+__attribute__((target("avx2"))) //
+inline simsimd_f64_t
+_mm256_reduce_add_ps_dbl(__m256 vec) {
     // Convert the lower and higher 128-bit lanes of the input vector to double precision
     __m128 low_f32 = _mm256_castps256_ps128(vec);
     __m128 high_f32 = _mm256_extractf128_ps(vec, 1);
@@ -762,7 +764,7 @@ simsimd_dot_f64_skylake_cycle:
     *result = _mm512_reduce_add_pd(ab_vec);
 }
 
-__attribute__((target("avx512f,avx512vl,bmi2"))) //
+__attribute__((target("avx512f,avx512bw,bmi2"))) //
 inline static void
 simsimd_dot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                          simsimd_distance_t* results) {
@@ -806,7 +808,7 @@ simsimd_dot_f32c_skylake_cycle:
     results[1] = _mm512_reduce_add_ps(ab_imag_vec);
 }
 
-__attribute__((target("avx512f,avx512vl,bmi2"))) //
+__attribute__((target("avx512f,avx512bw,bmi2"))) //
 inline static void
 simsimd_vdot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                           simsimd_distance_t* results) {
@@ -851,7 +853,7 @@ simsimd_vdot_f32c_skylake_cycle:
     results[1] = _mm512_reduce_add_ps(ab_imag_vec);
 }
 
-__attribute__((target("avx512f,avx512vl,bmi2"))) //
+__attribute__((target("avx512f,avx512bw,bmi2"))) //
 inline static void
 simsimd_dot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
                          simsimd_distance_t* results) {
@@ -898,7 +900,7 @@ simsimd_dot_f64c_skylake_cycle:
     results[1] = _mm512_reduce_add_pd(ab_imag_vec);
 }
 
-__attribute__((target("avx512f,avx512vl,bmi2"))) //
+__attribute__((target("avx512f,avx512bw,bmi2"))) //
 inline static void
 simsimd_vdot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
                           simsimd_distance_t* results) {
@@ -950,7 +952,7 @@ simsimd_vdot_f64c_skylake_cycle:
 
 #if SIMSIMD_TARGET_SAPPHIRE
 
-__attribute__((target("avx512fp16,avx512vl,avx512f,bmi2"))) //
+__attribute__((target("avx512fp16,avx512bw,avx512f,bmi2"))) //
 inline static void
 simsimd_dot_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
     __m512h ab_vec = _mm512_setzero_ph();
@@ -974,7 +976,7 @@ simsimd_dot_f16_sapphire_cycle:
     *result = _mm512_reduce_add_ph(ab_vec);
 }
 
-__attribute__((target("avx512fp16,avx512vl,avx512f,bmi2"))) //
+__attribute__((target("avx512fp16,avx512bw,avx512f,bmi2"))) //
 inline static void
 simsimd_dot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                           simsimd_distance_t* results) {
@@ -1020,7 +1022,7 @@ simsimd_dot_f16c_sapphire_cycle:
     results[1] = _mm512_reduce_add_ph(ab_imag_vec);
 }
 
-__attribute__((target("avx512fp16,avx512vl,avx512f,bmi2"))) //
+__attribute__((target("avx512fp16,avx512bw,avx512f,bmi2"))) //
 inline static void
 simsimd_vdot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                            simsimd_distance_t* results) {

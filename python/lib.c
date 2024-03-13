@@ -38,21 +38,22 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-typedef struct InputArgument {
+typedef struct TensorArgument {
     char* start;
     size_t dimensions;
     size_t count;
     size_t stride;
     int is_flat;
     simsimd_datatype_t datatype;
-} InputArgument;
+} TensorArgument;
 
 typedef struct DistancesTensor {
-    PyObject_HEAD               //
-        size_t dimensions;      // Can be only 1 or 2 dimensions
-    Py_ssize_t shape[2];        // Dimensions of the tensor
-    Py_ssize_t strides[2];      // Strides for each dimension
-    simsimd_distance_t start[]; // Variable length data aligned to 64-bit scalars
+    PyObject_HEAD                    //
+        simsimd_datatype_t datatype; // Double precision real or complex numbers
+    size_t dimensions;               // Can be only 1 or 2 dimensions
+    Py_ssize_t shape[2];             // Dimensions of the tensor
+    Py_ssize_t strides[2];           // Strides for each dimension
+    simsimd_distance_t start[];      // Variable length data aligned to 64-bit scalars
 } DistancesTensor;
 
 static int DistancesTensor_getbuffer(PyObject* export_from, Py_buffer* view, int flags);
@@ -98,14 +99,14 @@ simsimd_datatype_t numpy_string_to_datatype(char const* name) {
              same_string(name, "float64"))
         return simsimd_datatype_f64_k;
     // Complex numbers:
-    else if (same_string(name, "F") || same_string(name, "<F") || same_string(name, "F4") || same_string(name, "<F4") ||
-             same_string(name, "complex64"))
+    else if (same_string(name, "Zf") || same_string(name, "F") || same_string(name, "<F") || same_string(name, "F4") ||
+             same_string(name, "<F4") || same_string(name, "complex64"))
         return simsimd_datatype_f32c_k;
-    else if (same_string(name, "D") || same_string(name, "<D") || same_string(name, "F8") || same_string(name, "<F8") ||
-             same_string(name, "complex128"))
+    else if (same_string(name, "Zd") || same_string(name, "D") || same_string(name, "<D") || same_string(name, "F8") ||
+             same_string(name, "<F8") || same_string(name, "complex128"))
         return simsimd_datatype_f64c_k;
-    else if (same_string(name, "E") || same_string(name, "<E") || same_string(name, "F2") || same_string(name, "<F2") ||
-             same_string(name, "complex32"))
+    else if (same_string(name, "Ze") || same_string(name, "E") || same_string(name, "<E") || same_string(name, "F2") ||
+             same_string(name, "<F2") || same_string(name, "complex32"))
         return simsimd_datatype_f16c_k;
     else
         return simsimd_datatype_unknown_k;
@@ -135,11 +136,14 @@ simsimd_datatype_t python_string_to_datatype(char const* name) {
 
 char const* datatype_to_python_string(simsimd_datatype_t dtype) {
     switch (dtype) {
+    case simsimd_datatype_f64_k: return "d";
     case simsimd_datatype_f32_k: return "f";
     case simsimd_datatype_f16_k: return "h";
+    case simsimd_datatype_f64c_k: return "Zd";
+    case simsimd_datatype_f32c_k: return "Zf";
+    case simsimd_datatype_f16c_k: return "Zh";
     case simsimd_datatype_i8_k: return "c";
     case simsimd_datatype_b8_k: return "b";
-    case simsimd_datatype_f64_k: return "d";
     default: return "unknown";
     }
 }
@@ -149,6 +153,9 @@ static size_t bytes_per_datatype(simsimd_datatype_t dtype) {
     case simsimd_datatype_f64_k: return sizeof(simsimd_f64_t);
     case simsimd_datatype_f32_k: return sizeof(simsimd_f32_t);
     case simsimd_datatype_f16_k: return sizeof(simsimd_f16_t);
+    case simsimd_datatype_f64c_k: return sizeof(simsimd_f64_t) * 2;
+    case simsimd_datatype_f32c_k: return sizeof(simsimd_f32_t) * 2;
+    case simsimd_datatype_f16c_k: return sizeof(simsimd_f16_t) * 2;
     case simsimd_datatype_i8_k: return sizeof(simsimd_i8_t);
     case simsimd_datatype_b8_k: return sizeof(simsimd_b8_t);
     default: return 0;
@@ -244,7 +251,7 @@ static PyObject* api_get_capabilities(PyObject* self) {
     if (!cap_dict)
         return NULL;
 
-#define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong((caps) & simsimd_cap_##name##_k))
+#define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong((caps)&simsimd_cap_##name##_k))
 
     ADD_CAP(serial);
     ADD_CAP(neon);
@@ -260,11 +267,17 @@ static PyObject* api_get_capabilities(PyObject* self) {
     return cap_dict;
 }
 
-int parse_tensor(PyObject* tensor, Py_buffer* buffer, InputArgument* parsed) {
+int parse_tensor(PyObject* tensor, Py_buffer* buffer, TensorArgument* parsed) {
     if (PyObject_GetBuffer(tensor, buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
         PyErr_SetString(PyExc_TypeError, "arguments must support buffer protocol");
         return -1;
     }
+    // In case you are debugging some new obscure format string :)
+    // printf("buffer format is %s\n", buffer->format);
+    // printf("buffer ndim is %d\n", buffer->ndim);
+    // printf("buffer shape is %d\n", buffer->shape[0]);
+    // printf("buffer shape is %d\n", buffer->shape[1]);
+    // printf("buffer itemsize is %d\n", buffer->itemsize);
     parsed->start = buffer->buf;
     parsed->datatype = numpy_string_to_datatype(buffer->format);
     if (buffer->ndim == 1) {
@@ -292,20 +305,26 @@ int parse_tensor(PyObject* tensor, Py_buffer* buffer, InputArgument* parsed) {
         PyBuffer_Release(buffer);
         return -1;
     }
+
+    // We handle complex numbers differently
+    if (is_complex(parsed->datatype)) {
+        parsed->dimensions *= 2;
+    }
+
     return 0;
 }
 
 static int DistancesTensor_getbuffer(PyObject* export_from, Py_buffer* view, int flags) {
     DistancesTensor* tensor = (DistancesTensor*)export_from;
     size_t const total_items = tensor->shape[0] * tensor->shape[1];
-    size_t const item_size = bytes_per_datatype(simsimd_datatype_f64_k);
+    size_t const item_size = bytes_per_datatype(tensor->datatype);
 
     view->buf = &tensor->start[0];
     view->obj = (PyObject*)tensor;
     view->len = item_size * total_items;
     view->readonly = 0;
     view->itemsize = (Py_ssize_t)item_size;
-    view->format = datatype_to_python_string(simsimd_datatype_f64_k);
+    view->format = datatype_to_python_string(tensor->datatype);
     view->ndim = (int)tensor->dimensions;
     view->shape = &tensor->shape[0];
     view->strides = &tensor->strides[0];
@@ -334,7 +353,7 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
     PyObject* value_type_desc = nargs == 3 ? args[2] : NULL;
 
     Py_buffer buffer_a, buffer_b;
-    InputArgument parsed_a, parsed_b;
+    TensorArgument parsed_a, parsed_b;
     if (parse_tensor(input_tensor_a, &buffer_a, &parsed_a) != 0 ||
         parse_tensor(input_tensor_b, &buffer_b, &parsed_b) != 0) {
         return NULL; // Error already set by parse_tensor
@@ -387,9 +406,10 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
     }
 
     // If the distance is computed between two vectors, rather than matrices, return a scalar
+    int datatype_is_complex = is_complex(datatype);
     if (parsed_a.is_flat && parsed_b.is_flat) {
         // For complex numbers we are going to use `PyComplex_FromDoubles`.
-        if (is_complex(datatype)) {
+        if (datatype_is_complex) {
             simsimd_distance_t distances[2];
             metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, distances);
             output = PyComplex_FromDoubles(distances[0], distances[1]);
@@ -407,29 +427,32 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
         if (parsed_b.count == 1)
             parsed_b.stride = 0;
 
-        size_t const count_max = parsed_a.count > parsed_b.count ? parsed_a.count : parsed_b.count;
-        DistancesTensor* distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType, count_max);
+        size_t const count_pairs = parsed_a.count < parsed_b.count ? parsed_a.count : parsed_b.count;
+        size_t const components_per_pair = datatype_is_complex ? 2 : 1;
+        size_t const count_components = count_pairs * components_per_pair;
+        DistancesTensor* distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType, count_components);
         if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
         // Initialize the object
+        distances_obj->datatype = datatype_is_complex ? simsimd_datatype_f64c_k : simsimd_datatype_f64_k;
         distances_obj->dimensions = 1;
-        distances_obj->shape[0] = count_max;
+        distances_obj->shape[0] = count_pairs;
         distances_obj->shape[1] = 1;
-        distances_obj->strides[0] = sizeof(simsimd_distance_t);
+        distances_obj->strides[0] = bytes_per_datatype(distances_obj->datatype);
         distances_obj->strides[1] = 0;
         output = (PyObject*)distances_obj;
 
         // Compute the distances
         simsimd_distance_t* distances = (simsimd_distance_t*)&distances_obj->start[0];
-        for (size_t i = 0; i < count_max; ++i)
+        for (size_t i = 0; i < count_pairs; ++i)
             metric(                                   //
                 parsed_a.start + i * parsed_a.stride, //
                 parsed_b.start + i * parsed_b.stride, //
                 parsed_a.dimensions,                  //
-                distances + i);
+                distances + i * components_per_pair);
     }
 
 cleanup:
@@ -444,7 +467,7 @@ static PyObject* impl_cdist(                            //
 
     PyObject* output = NULL;
     Py_buffer buffer_a, buffer_b;
-    InputArgument parsed_a, parsed_b;
+    TensorArgument parsed_a, parsed_b;
     if (parse_tensor(input_tensor_a, &buffer_a, &parsed_a) != 0 ||
         parse_tensor(input_tensor_b, &buffer_b, &parsed_b) != 0) {
         return NULL; // Error already set by parse_tensor
@@ -477,10 +500,18 @@ static PyObject* impl_cdist(                            //
     }
 
     // If the distance is computed between two vectors, rather than matrices, return a scalar
+    int datatype_is_complex = is_complex(datatype);
     if (parsed_a.is_flat && parsed_b.is_flat) {
-        simsimd_distance_t distance;
-        metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, &distance);
-        output = PyFloat_FromDouble(distance);
+        // For complex numbers we are going to use `PyComplex_FromDoubles`.
+        if (datatype_is_complex) {
+            simsimd_distance_t distances[2];
+            metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, distances);
+            output = PyComplex_FromDoubles(distances[0], distances[1]);
+        } else {
+            simsimd_distance_t distance;
+            metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, &distance);
+            output = PyFloat_FromDouble(distance);
+        }
     } else {
 
 #ifdef __linux__
@@ -491,19 +522,22 @@ static PyObject* impl_cdist(                            //
 #endif
 #endif
 
-        size_t const count_max = parsed_a.count * parsed_b.count;
-        DistancesTensor* distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType, count_max);
+        size_t const count_pairs = parsed_a.count * parsed_b.count;
+        size_t const components_per_pair = datatype_is_complex ? 2 : 1;
+        size_t const count_components = count_pairs * components_per_pair;
+        DistancesTensor* distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType, count_components);
         if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
         // Initialize the object
+        distances_obj->datatype = datatype_is_complex ? simsimd_datatype_f64c_k : simsimd_datatype_f64_k;
         distances_obj->dimensions = 2;
         distances_obj->shape[0] = parsed_a.count;
         distances_obj->shape[1] = parsed_b.count;
-        distances_obj->strides[0] = parsed_b.count * sizeof(simsimd_distance_t);
-        distances_obj->strides[1] = sizeof(simsimd_distance_t);
+        distances_obj->strides[0] = parsed_b.count * bytes_per_datatype(distances_obj->datatype);
+        distances_obj->strides[1] = bytes_per_datatype(distances_obj->datatype);
         output = (PyObject*)distances_obj;
 
         // Compute the distances
@@ -515,7 +549,7 @@ static PyObject* impl_cdist(                            //
                     parsed_a.start + i * parsed_a.stride, //
                     parsed_b.start + j * parsed_b.stride, //
                     parsed_a.dimensions,                  //
-                    distances + i * parsed_b.count + j);
+                    distances + i * components_per_pair * parsed_b.count + j);
     }
 
 cleanup:
