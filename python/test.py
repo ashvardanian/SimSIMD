@@ -218,6 +218,7 @@ def test_cosine_zero_vector(ndim, dtype):
     assert result == expected, f"Expected {expected}, but got {result}"
 
 
+@pytest.mark.skipif(is_running_under_qemu(), reason="Complex math in QEMU fails")
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [22, 66, 1536])
@@ -240,6 +241,7 @@ def test_dot_complex(ndim, dtype):
     np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
 
 
+@pytest.mark.skipif(is_running_under_qemu(), reason="Complex math in QEMU fails")
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [22, 66, 1536])
