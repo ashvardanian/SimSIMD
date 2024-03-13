@@ -44,6 +44,7 @@ def wrap_rowwise(baseline_func):
 
 
 def print_makrkdown_row(dtype, name, baseline_time, simd_time):
+    """Print a formatted row for the markdown table."""
     baseline_ops = f"{1 / baseline_time:,.0f}" if baseline_time is not None else "💥"
     simd_ops = f"{1 / simd_time:,.0f}" if simd_time is not None else "💥"
     improvement = (
@@ -57,6 +58,11 @@ def print_makrkdown_row(dtype, name, baseline_time, simd_time):
     print(
         f"| {dtype_name:8} | {func_name:21} | {baseline_ops:20} | {simd_ops:20} | {improvement:17} |"
     )
+
+
+def raise_(ex):
+    """Utility function to allow raising exceptions in lambda functions."""
+    raise ex
 
 
 print()
@@ -86,14 +92,15 @@ count = 1000
 ndim = 1536
 
 generators = {
-    np.complex64: lambda: (
-        np.random.randn(count, ndim).astype(np.float32)
-        + 1j * np.random.randn(count, ndim).astype(np.float32)
-    ).view(np.complex64),
     np.complex128: lambda: (
-        np.random.randn(count, ndim).astype(np.float64)
-        + 1j * np.random.randn(count, ndim).astype(np.float64)
+        np.random.randn(count, ndim // 2).astype(np.float64)
+        + 1j * np.random.randn(count, ndim // 2).astype(np.float64)
     ).view(np.complex128),
+    np.complex64: lambda: (
+        np.random.randn(count, ndim // 2).astype(np.float32)
+        + 1j * np.random.randn(count, ndim // 2).astype(np.float32)
+    ).view(np.complex64),
+    "complex32": lambda: np.random.randn(count, ndim).astype(np.float16),
     np.float64: lambda: np.random.randn(count, ndim).astype(np.float64),
     np.float32: lambda: np.random.randn(count, ndim).astype(np.float32),
     np.float16: lambda: np.random.randn(count, ndim).astype(np.float16),
@@ -108,6 +115,7 @@ generators = {
 dtype_names = {
     np.complex128: "f64c",
     np.complex64: "f32c",
+    "complex32": "f16c",
     np.float64: "f64",
     np.float32: "f32",
     np.float16: "f16",
@@ -147,6 +155,12 @@ funcs = [
         np.dot,
         simd.dot,
         [np.float64, np.float32, np.float16, np.int8, np.complex64, np.complex128],
+    ),
+    (
+        "numpy.dot",
+        lambda A, B: raise_(NotImplementedError("Not implemented for complex32")),
+        lambda A, B: simd.dot(A, B, "complex32"),
+        ["complex32"],
     ),
     (
         "numpy.vdot",
