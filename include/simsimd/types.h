@@ -1,3 +1,13 @@
+/**
+ *  @file       types.h
+ *  @brief      Shared definitions for the SimSIMD library.
+ *  @author     Ash Vardanian
+ *  @date       October 2, 2023
+ *
+ *  Defines:
+ *  - Sized aliases for numeric types, like: `simsimd_i32_t` and `simsimd_f64_t`.
+ *  - Macros for compiler/hardware checks, like: `SIMSIMD_TARGET_NEON`
+ */
 #ifndef SIMSIMD_TYPES_H
 #define SIMSIMD_TYPES_H
 
@@ -19,55 +29,104 @@
 #endif // defined(__x86_64__) || defined(_M_X64)
 #endif // !defined(SIMSIMD_TARGET_X86)
 
-// Compiling for Arm: SIMSIMD_TARGET_ARM_NEON
-#if !defined(SIMSIMD_TARGET_ARM_NEON) || !SIMSIMD_TARGET_ARM
+// Compiling for Arm: SIMSIMD_TARGET_NEON
+#if !defined(SIMSIMD_TARGET_NEON) || !SIMSIMD_TARGET_ARM
 #if defined(__ARM_NEON)
-#define SIMSIMD_TARGET_ARM_NEON SIMSIMD_TARGET_ARM
+#define SIMSIMD_TARGET_NEON SIMSIMD_TARGET_ARM
 #else
-#define SIMSIMD_TARGET_ARM_NEON 0
+#define SIMSIMD_TARGET_NEON 0
 #endif // defined(__ARM_NEON)
-#endif // !defined(SIMSIMD_TARGET_ARM_NEON)
+#endif // !defined(SIMSIMD_TARGET_NEON)
 
-// Compiling for Arm: SIMSIMD_TARGET_ARM_SVE
-#if !defined(SIMSIMD_TARGET_ARM_SVE) || !SIMSIMD_TARGET_ARM
+// Compiling for Arm: SIMSIMD_TARGET_SVE
+#if !defined(SIMSIMD_TARGET_SVE) || !SIMSIMD_TARGET_ARM
 #if defined(__ARM_FEATURE_SVE)
-#define SIMSIMD_TARGET_ARM_SVE SIMSIMD_TARGET_ARM
+#define SIMSIMD_TARGET_SVE SIMSIMD_TARGET_ARM
 #else
-#define SIMSIMD_TARGET_ARM_SVE 0
+#define SIMSIMD_TARGET_SVE 0
 #endif // defined(__ARM_FEATURE_SVE)
-#endif // !defined(SIMSIMD_TARGET_ARM_SVE)
+#endif // !defined(SIMSIMD_TARGET_SVE)
 
-// Compiling for x86: SIMSIMD_TARGET_X86_AVX2
-#if !defined(SIMSIMD_TARGET_X86_AVX2) || !SIMSIMD_TARGET_X86
-#if defined(__AVX2__)
-#define SIMSIMD_TARGET_X86_AVX2 1
+// Compiling for x86: SIMSIMD_TARGET_HASWELL
+//
+// Starting with Ivy Bridge, Intel supports the `F16C` extensions for fast half-precision
+// to single-precision floating-point conversions. On AMD those instructions
+// are supported on all CPUs starting with Jaguar 2009.
+// Starting with Sandy Bridge, Intel adds basic AVX support in their CPUs and in 2013
+// extends it with AVX2 in the Haswell generation. Moreover, Haswell adds FMA support.
+#if !defined(SIMSIMD_TARGET_HASWELL) || !SIMSIMD_TARGET_X86
+#if defined(__AVX2__) && defined(__FMA__) && defined(__F16C__)
+#define SIMSIMD_TARGET_HASWELL 1
 #else
-#define SIMSIMD_TARGET_X86_AVX2 0
+#define SIMSIMD_TARGET_HASWELL 0
 #endif // defined(__AVX2__)
-#endif // !defined(SIMSIMD_TARGET_X86_AVX2)
+#endif // !defined(SIMSIMD_TARGET_HASWELL)
 
-// Compiling for x86: SIMSIMD_TARGET_X86_AVX512
-#if !defined(SIMSIMD_TARGET_X86_AVX512) || !SIMSIMD_TARGET_X86
-#if defined(__AVX512F__) && defined(__AVX512FP16__) && defined(__AVX512VNNI__) && defined(__AVX512VPOPCNTDQ__)
-#define SIMSIMD_TARGET_X86_AVX512 1
+// Compiling for x86: SIMSIMD_TARGET_SKYLAKE, SIMSIMD_TARGET_ICE, SIMSIMD_TARGET_SAPPHIRE
+//
+// It's important to provide fine-grained controls over AVX512 families, as they are very fragmented:
+// - Intel Skylake servers: F, CD, VL, DQ, BW
+// - Intel Cascade Lake workstations: F, CD, VL, DQ, BW, VNNI
+//      > In other words, it extends Skylake with VNNI support
+// - Intel Sunny Cove (Ice Lake) servers:
+//        F, CD, VL, DQ, BW, VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ
+// - AMD Zen4 (Genoa):
+//        F, CD, VL, DQ, BW, VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ, BF16
+//      > In other words, it extends Sunny Cove with BF16 support
+// - Golden Cove (Sapphire Rapids): extends Zen4 and Sunny Cove with FP16 support
+//
+// Intel Palm Cove was an irrelevant intermediate release extending Skylake with IFMA and VBMI.
+// Intel Willow Cove was an irrelevant intermediate release extending Sunny Cove with VP2INTERSECT,
+// that aren't supported by any other CPU built to date... and those are only available in Tiger Lake laptops.
+// Intel Cooper Lake was the only intermediary platform, that supported BF16, but not FP16.
+// It's mostly used in 4-socket and 8-socket high-memory configurations.
+//
+// In practical terms, it makes sense to differentiate only 3 AVX512 generations:
+// 1. Skylake (pre 2019): supports single-precision dot-products.
+// 2. Ice Lake (2019-2021): advanced integer algorithms.
+// 3. Sapphire Rapids (2023+): advanced mixed-precision float processing.
+//
+// To list all available macros for x86, take a recent compiler, like GCC 12 and run:
+//      gcc-12 -march=sapphirerapids -dM -E - < /dev/null | egrep "SSE|AVX" | sort
+// On Arm machines you may want to check for other flags:
+//      gcc-12 -march=native -dM -E - < /dev/null | egrep "NEON|SVE|FP16|FMA" | sort
+#if !defined(SIMSIMD_TARGET_SKYLAKE) || !SIMSIMD_TARGET_X86
+#if defined(__AVX512F__) && defined(__AVX512CD__) && defined(__AVX512VL__) && defined(__AVX512DQ__) &&                 \
+    defined(__AVX512BW__)
+#define SIMSIMD_TARGET_SKYLAKE 1
 #else
-#define SIMSIMD_TARGET_X86_AVX512 0
-#endif // defined(__AVX512F__) && defined(__AVX512FP16__) && defined(__AVX512VNNI__) && defined(__AVX512VPOPCNTDQ__)
-#endif // !defined(SIMSIMD_TARGET_X86_AVX512)
+#define SIMSIMD_TARGET_SKYLAKE 0
+#endif
+#endif // Skylake
+#if !defined(SIMSIMD_TARGET_ICE) || !SIMSIMD_TARGET_X86
+#if defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITALG__) && defined(__AVX512VBMI2__) &&     \
+    defined(__AVX512VPOPCNTDQ__)
+#define SIMSIMD_TARGET_ICE 1
+#else
+#define SIMSIMD_TARGET_ICE 0
+#endif
+#endif // Ice Lake
+#if !defined(SIMSIMD_TARGET_SAPPHIRE) || !SIMSIMD_TARGET_X86
+#if defined(__AVX512FP16__)
+#define SIMSIMD_TARGET_SAPPHIRE 1
+#else
+#define SIMSIMD_TARGET_SAPPHIRE 0
+#endif
+#endif // Sapphire Rapids
 
 #ifdef _MSC_VER
 #include <intrin.h>
 #else
 
-#if SIMSIMD_TARGET_ARM_NEON
+#if SIMSIMD_TARGET_NEON
 #include <arm_neon.h>
 #endif
 
-#if SIMSIMD_TARGET_ARM_SVE
+#if SIMSIMD_TARGET_SVE
 #include <arm_sve.h>
 #endif
 
-#if SIMSIMD_TARGET_X86_AVX2 || SIMSIMD_TARGET_X86_AVX512
+#if SIMSIMD_TARGET_HASWELL || SIMSIMD_TARGET_SKYLAKE
 #include <immintrin.h>
 #endif
 
@@ -101,7 +160,9 @@ typedef double simsimd_f64_t;
 typedef signed char simsimd_i8_t;
 typedef unsigned char simsimd_b8_t;
 typedef unsigned long long simsimd_u64_t;
-typedef unsigned long long simsimd_size_t;
+
+typedef simsimd_u64_t simsimd_size_t;
+typedef simsimd_f64_t simsimd_distance_t;
 
 #if !defined(SIMSIMD_NATIVE_F16) || SIMSIMD_NATIVE_F16
 /**
@@ -185,7 +246,7 @@ inline static simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-inline static float simsimd_uncompress_f16(unsigned short x) {
+inline static simsimd_f32_t simsimd_uncompress_f16(unsigned short x) {
     union float_or_unsigned_int_t {
         float f;
         unsigned int i;

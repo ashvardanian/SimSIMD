@@ -5,7 +5,7 @@ mod native;
 
 const DIMENSIONS: usize = 1536;
 
-pub fn sqeuclidean_benchmark(c: &mut Criterion) {
+pub fn l2sq_benchmark(c: &mut Criterion) {
     let inputs: (Vec<f32>, Vec<f32>) = (
         native::generate_random_vector(DIMENSIONS),
         native::generate_random_vector(DIMENSIONS),
@@ -23,5 +23,5 @@ pub fn sqeuclidean_benchmark(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, sqeuclidean_benchmark);
+criterion_group!(benches, l2sq_benchmark);
 criterion_main!(benches);

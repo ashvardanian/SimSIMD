@@ -24,7 +24,7 @@ test("Distance from itself", () => {
     2.0 / Math.sqrt(14),
     3.0 / Math.sqrt(14),
   ]);
-  assertAlmostEqual(simsimd.inner(f32sNormalized, f32sNormalized), 0.0, 0.01);
+  assertAlmostEqual(simsimd.inner(f32sNormalized, f32sNormalized), 1.0, 0.01);
 
   const f32sDistribution = new Float32Array([1.0 / 6, 2.0 / 6, 3.0 / 6]);
   assertAlmostEqual(
@@ -54,7 +54,7 @@ test("Distance from itself JS fallback", () => {
     2.0 / Math.sqrt(14),
     3.0 / Math.sqrt(14),
   ]);
-  assertAlmostEqual(fallback.inner(arrNormalized, arrNormalized), 0.0, 0.01);
+  assertAlmostEqual(fallback.inner(arrNormalized, arrNormalized), 1.0, 0.01);
 
   const f32sDistribution = new Float32Array([1.0 / 6, 2.0 / 6, 3.0 / 6]);
   assertAlmostEqual(
@@ -83,7 +83,7 @@ test("Squared Euclidean Distance", () => {
 
 test("Inner Distance", () => {
   const result = simsimd.inner(f32Array1, f32Array2);
-  assertAlmostEqual(result, -31.0, 0.01);
+  assertAlmostEqual(result, 32.0, 0.01);
 });
 
 test("Cosine Similarity", () => {
@@ -98,7 +98,7 @@ test("Squared Euclidean Distance JS", () => {
 
 test("Inner Distance JS", () => {
   const result = fallback.inner(f32Array1, f32Array2);
-  assertAlmostEqual(result, -31.0, 0.01);
+  assertAlmostEqual(result, 32.0, 0.01);
 });
 
 test("Cosine Similarity JS", () => {
@@ -127,7 +127,7 @@ test("Cosine Similarity C vs JS", () => {
 test("Hamming C vs JS", () => {
   const u8s = new Uint8Array([1, 2, 3]);
   const result = simsimd.hamming(u8s, u8s);
-  const resultjs = fallback.cosine(u8s, u8s);
+  const resultjs = fallback.hamming(u8s, u8s);
   assertAlmostEqual(resultjs, result, 0.01);
 });
 

@@ -1,4 +1,4 @@
-//! # SimSIMD - Hardware-Accelerated Similarity Metrics and Distance Functions
+//! # SpatialSimilarity - Hardware-Accelerated Similarity Metrics and Distance Functions
 //!
 //! * Targets ARM NEON, SVE, x86 AVX2, AVX-512 (VNNI, FP16) hardware backends.
 //! * Handles `f64` double-, `f32` single-, and `f16` half-precision, `i8` integral, and binary vectors.
@@ -19,61 +19,64 @@
 //! let b = &[4, 5, 6];
 //!
 //! // Compute cosine similarity
-//! let cosine_sim = i8::cosine(a, b);
+//! let cos_sim = i8::cos(a, b);
 //!
-//! // Compute inner product distance
-//! let inner_product = i8::inner(a, b);
+//! // Compute dot product distance
+//! let dot_product = i8::dot(a, b);
 //!
 //! // Compute squared Euclidean distance
-//! let sqeuclidean_dist = i8::sqeuclidean(a, b);
+//! let l2sq_dist = i8::l2sq(a, b);
 //! ```
 //!
 //! ## Traits
 //!
 //! The `SpatialSimilarity` trait covers following methods:
 //!
-//! - `cosine(a: &[Self], b: &[Self]) -> Option<f32>`: Computes cosine similarity between two slices.
-//! - `inner(a: &[Self], b: &[Self]) -> Option<f32>`: Computes inner product distance between two slices.
-//! - `sqeuclidean(a: &[Self], b: &[Self]) -> Option<f32>`: Computes squared Euclidean distance between two slices.
+//! - `cosine(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes cosine similarity between two slices.
+//! - `dot(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes dot product distance between two slices.
+//! - `sqeuclidean(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes squared Euclidean distance between two slices.
 //!
 //! The `BinarySimilarity` trait covers following methods:
 //!
-//! - `hamming(a: &[Self], b: &[Self]) -> Option<f32>`: Computes Hamming distance between two slices.
-//! - `jaccard(a: &[Self], b: &[Self]) -> Option<f32>`: Computes Jaccard index between two slices.
+//! - `hamming(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Hamming distance between two slices.
+//! - `jaccard(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Jaccard index between two slices.
 //!
 //! The `ProbabilitySimilarity` trait covers following methods:
 //!
-//! - `jensenshannon(a: &[Self], b: &[Self]) -> Option<f32>`: Computes Jensen-Shannon divergence between two slices.
-//! - `kullbackleibler(a: &[Self], b: &[Self]) -> Option<f32>`: Computes Kullback-Leibler divergence between two slices.
+//! - `jensenshannon(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Jensen-Shannon divergence between two slices.
+//! - `kullbackleibler(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Kullback-Leibler divergence between two slices.
 //!
 #![allow(non_camel_case_types)]
 
+type Distance = f64;
+type ComplexProduct = (f64, f64);
+
 extern "C" {
-    fn cosine_i8(a: *const i8, b: *const i8, c: usize) -> f32;
-    fn cosine_f16(a: *const u16, b: *const u16, c: usize) -> f32;
-    fn cosine_f32(a: *const f32, b: *const f32, c: usize) -> f32;
-    fn cosine_f64(a: *const f64, b: *const f64, c: usize) -> f32;
+    fn simsimd_cos_i8(a: *const i8, b: *const i8, c: usize, d: *mut f64);
+    fn simsimd_cos_f16(a: *const u16, b: *const u16, c: usize, d: *mut f64);
+    fn simsimd_cos_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
+    fn simsimd_cos_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
 
-    fn inner_i8(a: *const i8, b: *const i8, c: usize) -> f32;
-    fn inner_f16(a: *const u16, b: *const u16, c: usize) -> f32;
-    fn inner_f32(a: *const f32, b: *const f32, c: usize) -> f32;
-    fn inner_f64(a: *const f64, b: *const f64, c: usize) -> f32;
+    fn simsimd_dot_i8(a: *const i8, b: *const i8, c: usize, d: *mut f64);
+    fn simsimd_dot_f16(a: *const u16, b: *const u16, c: usize, d: *mut f64);
+    fn simsimd_dot_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
+    fn simsimd_dot_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
 
-    fn sqeuclidean_i8(a: *const i8, b: *const i8, c: usize) -> f32;
-    fn sqeuclidean_f16(a: *const u16, b: *const u16, c: usize) -> f32;
-    fn sqeuclidean_f32(a: *const f32, b: *const f32, c: usize) -> f32;
-    fn sqeuclidean_f64(a: *const f64, b: *const f64, c: usize) -> f32;
+    fn simsimd_l2sq_i8(a: *const i8, b: *const i8, c: usize, d: *mut f64);
+    fn simsimd_l2sq_f16(a: *const u16, b: *const u16, c: usize, d: *mut f64);
+    fn simsimd_l2sq_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
+    fn simsimd_l2sq_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
 
-    fn hamming_b8(a: *const u8, b: *const u8, c: usize) -> f32;
-    fn jaccard_b8(a: *const u8, b: *const u8, c: usize) -> f32;
+    fn simsimd_hamming_b8(a: *const u8, b: *const u8, c: usize, d: *mut f64);
+    fn simsimd_jaccard_b8(a: *const u8, b: *const u8, c: usize, d: *mut f64);
 
-    fn js_f16(a: *const u16, b: *const u16, c: usize) -> f32;
-    fn js_f32(a: *const f32, b: *const f32, c: usize) -> f32;
-    fn js_f64(a: *const f64, b: *const f64, c: usize) -> f32;
+    fn simsimd_js_f16(a: *const u16, b: *const u16, c: usize, d: *mut f64);
+    fn simsimd_js_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
+    fn simsimd_js_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
 
-    fn kl_f16(a: *const u16, b: *const u16, c: usize) -> f32;
-    fn kl_f32(a: *const f32, b: *const f32, c: usize) -> f32;
-    fn kl_f64(a: *const f64, b: *const f64, c: usize) -> f32;
+    fn simsimd_kl_f16(a: *const u16, b: *const u16, c: usize, d: *mut f64);
+    fn simsimd_kl_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
+    fn simsimd_kl_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
 }
 
 /// A half-precision floating point number.
@@ -84,10 +87,10 @@ impl f16 {}
 
 /// `SpatialSimilarity` provides a set of trait methods for computing similarity
 /// or distance between spatial data vectors in SIMD (Single Instruction, Multiple Data) context.
-/// These methods can be used to calculate metrics like cosine similarity, inner product,
+/// These methods can be used to calculate metrics like cosine similarity, dot product,
 /// and squared Euclidean distance between two slices of data.
 ///
-/// Each method takes two slices of data (a and b) and returns an Option<f32>.
+/// Each method takes two slices of data (a and b) and returns an Option<Distance>.
 /// The result is `None` if the slices are not of the same length, as these operations
 /// require one-to-one correspondence between the elements of the slices.
 /// Otherwise, it returns the computed similarity or distance as `Some(f32)`.
@@ -97,25 +100,46 @@ where
 {
     /// Computes the cosine similarity between two slices.
     /// The cosine similarity is a measure of similarity between two non-zero vectors
-    /// of an inner product space that measures the cosine of the angle between them.
-    fn cosine(a: &[Self], b: &[Self]) -> Option<f32>;
+    /// of an dot product space that measures the cosine of the angle between them.
+    fn cos(a: &[Self], b: &[Self]) -> Option<Distance>;
 
     /// Computes the inner product (also known as dot product) between two slices.
-    /// The inner product is the sum of the products of the corresponding entries
+    /// The dot product is the sum of the products of the corresponding entries
     /// of the two sequences of numbers.
-    fn inner(a: &[Self], b: &[Self]) -> Option<f32>;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Distance>;
 
     /// Computes the squared Euclidean distance between two slices.
     /// The squared Euclidean distance is the sum of the squared differences
     /// between corresponding elements of the two slices.
-    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<f32>;
+    fn l2sq(a: &[Self], b: &[Self]) -> Option<Distance>;
+
+    /// Computes the squared Euclidean distance between two slices.
+    /// The squared Euclidean distance is the sum of the squared differences
+    /// between corresponding elements of the two slices.
+    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Distance> {
+        SpatialSimilarity::l2sq(a, b)
+    }
+
+    /// Computes the squared Euclidean distance between two slices.
+    /// The squared Euclidean distance is the sum of the squared differences
+    /// between corresponding elements of the two slices.
+    fn inner(a: &[Self], b: &[Self]) -> Option<Distance> {
+        SpatialSimilarity::dot(a, b)
+    }
+
+    /// Computes the cosine similarity between two slices.
+    /// The cosine similarity is a measure of similarity between two non-zero vectors
+    /// of an dot product space that measures the cosine of the angle between them.
+    fn cosine(a: &[Self], b: &[Self]) -> Option<Distance> {
+        SpatialSimilarity::cos(a, b)
+    }
 }
 
 /// `BinarySimilarity` provides trait methods for computing similarity metrics
 /// that are commonly used with binary data vectors, such as Hamming distance
 /// and Jaccard index.
 ///
-/// The methods accept two slices of binary data and return an Option<f32>
+/// The methods accept two slices of binary data and return an Option<Distance>
 /// indicating the computed similarity or distance, with `None` returned if the
 /// slices differ in length.
 pub trait BinarySimilarity
@@ -125,12 +149,12 @@ where
     /// Computes the Hamming distance between two binary data slices.
     /// The Hamming distance between two strings of equal length is the number of
     /// bits at which the corresponding values are different.
-    fn hamming(a: &[Self], b: &[Self]) -> Option<f32>;
+    fn hamming(a: &[Self], b: &[Self]) -> Option<Distance>;
 
     /// Computes the Jaccard index between two bitsets represented by binary data slices.
     /// The Jaccard index, also known as the Jaccard similarity coefficient, is a statistic
     /// used for gauging the similarity and diversity of sample sets.
-    fn jaccard(a: &[Self], b: &[Self]) -> Option<f32>;
+    fn jaccard(a: &[Self], b: &[Self]) -> Option<Distance>;
 }
 
 /// `ProbabilitySimilarity` provides trait methods for computing similarity or divergence
@@ -148,60 +172,70 @@ where
     /// The Jensen-Shannon divergence is a method of measuring the similarity between
     /// two probability distributions. It is based on the Kullback-Leibler divergence,
     /// but is symmetric and always has a finite value.
-    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<f32>;
+    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Distance>;
 
     /// Computes the Kullback-Leibler divergence between two probability distributions.
     /// The Kullback-Leibler divergence is a measure of how one probability distribution
     /// diverges from a second, expected probability distribution.
-    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<f32>;
+    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Distance>;
 }
 
 impl BinarySimilarity for u8 {
-    fn hamming(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn hamming(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
-        let operation = unsafe { hamming_b8(a.as_ptr(), b.as_ptr(), a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_hamming_b8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
     }
 
-    fn jaccard(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn jaccard(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
-        let operation = unsafe { jaccard_b8(a.as_ptr(), b.as_ptr(), a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_jaccard_b8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
     }
 }
 
 impl SpatialSimilarity for i8 {
-    fn cosine(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn cos(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
-        let operation = unsafe { cosine_i8(a.as_ptr(), b.as_ptr(), a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_cos_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
     }
 
-    fn inner(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn dot(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
-        let operation = unsafe { inner_i8(a.as_ptr(), b.as_ptr(), a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_dot_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
     }
 
-    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn l2sq(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
-        let operation = unsafe { sqeuclidean_i8(a.as_ptr(), b.as_ptr(), a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_l2sq_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
     }
 }
 
 impl SpatialSimilarity for f16 {
-    fn cosine(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn cos(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
@@ -209,11 +243,13 @@ impl SpatialSimilarity for f16 {
         // Explicitly cast `*const f16` to `*const u16`
         let a_ptr = a.as_ptr() as *const u16;
         let b_ptr = b.as_ptr() as *const u16;
-        let operation = unsafe { cosine_f16(a_ptr, b_ptr, a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_cos_f16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        Some(distance_value)
     }
 
-    fn inner(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn dot(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
@@ -221,11 +257,13 @@ impl SpatialSimilarity for f16 {
         // Explicitly cast `*const f16` to `*const u16`
         let a_ptr = a.as_ptr() as *const u16;
         let b_ptr = b.as_ptr() as *const u16;
-        let operation = unsafe { inner_f16(a_ptr, b_ptr, a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_dot_f16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        Some(distance_value)
     }
 
-    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn l2sq(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
@@ -233,65 +271,79 @@ impl SpatialSimilarity for f16 {
         // Explicitly cast `*const f16` to `*const u16`
         let a_ptr = a.as_ptr() as *const u16;
         let b_ptr = b.as_ptr() as *const u16;
-        let operation = unsafe { sqeuclidean_f16(a_ptr, b_ptr, a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_l2sq_f16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        Some(distance_value)
     }
 }
 
 impl SpatialSimilarity for f32 {
-    fn cosine(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn cos(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
-        let operation = unsafe { cosine_f32(a.as_ptr(), b.as_ptr(), a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_cos_f32(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
     }
 
-    fn inner(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn dot(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
-        let operation = unsafe { inner_f32(a.as_ptr(), b.as_ptr(), a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_dot_f32(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
     }
 
-    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn l2sq(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
-        let operation = unsafe { sqeuclidean_f32(a.as_ptr(), b.as_ptr(), a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_l2sq_f32(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
     }
 }
 
 impl SpatialSimilarity for f64 {
-    fn cosine(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn cos(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
-        let operation = unsafe { cosine_f64(a.as_ptr(), b.as_ptr(), a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_cos_f64(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
     }
 
-    fn inner(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn dot(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
-        let operation = unsafe { inner_f64(a.as_ptr(), b.as_ptr(), a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_dot_f64(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
     }
 
-    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn l2sq(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
-        let operation = unsafe { sqeuclidean_f64(a.as_ptr(), b.as_ptr(), a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_l2sq_f64(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
     }
 }
 
 impl ProbabilitySimilarity for f16 {
-    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
@@ -299,11 +351,13 @@ impl ProbabilitySimilarity for f16 {
         // Explicitly cast `*const f16` to `*const u16`
         let a_ptr = a.as_ptr() as *const u16;
         let b_ptr = b.as_ptr() as *const u16;
-        let operation = unsafe { js_f16(a_ptr, b_ptr, a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_js_f16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        Some(distance_value)
     }
 
-    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
@@ -311,67 +365,54 @@ impl ProbabilitySimilarity for f16 {
         // Explicitly cast `*const f16` to `*const u16`
         let a_ptr = a.as_ptr() as *const u16;
         let b_ptr = b.as_ptr() as *const u16;
-        let operation = unsafe { kl_f16(a_ptr, b_ptr, a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_kl_f16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        Some(distance_value)
     }
 }
 
 impl ProbabilitySimilarity for f32 {
-    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
-        let operation = unsafe { js_f32(a.as_ptr(), b.as_ptr(), a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_js_f32(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
     }
 
-    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
-        let operation = unsafe { kl_f32(a.as_ptr(), b.as_ptr(), a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_kl_f32(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
     }
 }
 
 impl ProbabilitySimilarity for f64 {
-    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
-        let operation = unsafe { js_f64(a.as_ptr(), b.as_ptr(), a.len()) };
-        Some(operation)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_js_f64(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
     }
 
-    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<f32> {
+    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
-        let operation = unsafe { kl_f64(a.as_ptr(), b.as_ptr(), a.len()) };
-        Some(operation)
-    }
-}
-
-// In the older revisions of the library, the `SpatialSimilarity`
-// trait was called `SimSIMD`. The following trait provides a compatibility layer.
-pub trait SimSIMD
-where
-    Self: Sized,
-{
-    fn cosine(a: &[Self], b: &[Self]) -> Option<f32>;
-    fn inner(a: &[Self], b: &[Self]) -> Option<f32>;
-    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<f32>;
-}
-
-impl<T: SpatialSimilarity> SimSIMD for T {
-    fn cosine(a: &[Self], b: &[Self]) -> Option<f32> {
-        SpatialSimilarity::cosine(a, b)
-    }
-    fn inner(a: &[Self], b: &[Self]) -> Option<f32> {
-        SpatialSimilarity::inner(a, b)
-    }
-    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<f32> {
-        SpatialSimilarity::sqeuclidean(a, b)
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_kl_f64(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
     }
 }
 
@@ -381,7 +422,7 @@ mod tests {
     use half::f16 as HalfF16;
 
     //
-    fn assert_almost_equal(left: f32, right: f32, tolerance: f32) {
+    fn assert_almost_equal(left: Distance, right: Distance, tolerance: Distance) {
         let lower = right - tolerance;
         let upper = right + tolerance;
 
@@ -389,67 +430,67 @@ mod tests {
     }
 
     #[test]
-    fn test_cosine_i8() {
+    fn test_cos_i8() {
         let a = &[3, 97, 127];
         let b = &[3, 97, 127];
 
-        if let Some(result) = SimSIMD::cosine(a, b) {
-            println!("The result of cosine_i8 is {:.8}", result);
+        if let Some(result) = SpatialSimilarity::cosine(a, b) {
+            println!("The result of cos_i8 is {:.8}", result);
             assert_almost_equal(0.00012027938, result, 0.01);
         }
     }
 
     #[test]
-    fn test_cosine_f32() {
+    fn test_cos_f32() {
         let a = &[1.0, 2.0, 3.0];
         let b = &[4.0, 5.0, 6.0];
 
-        if let Some(result) = SimSIMD::cosine(a, b) {
-            println!("The result of cosine_f32 is {:.8}", result);
+        if let Some(result) = SpatialSimilarity::cosine(a, b) {
+            println!("The result of cos_f32 is {:.8}", result);
             assert_almost_equal(0.025, result, 0.01);
         }
     }
 
     #[test]
-    fn test_inner_i8() {
+    fn test_dot_i8() {
         let a = &[1, 2, 3];
         let b = &[4, 5, 6];
 
-        if let Some(result) = SimSIMD::inner(a, b) {
-            println!("The result of inner_i8 is {:.8}", result);
+        if let Some(result) = SpatialSimilarity::dot(a, b) {
+            println!("The result of dot_i8 is {:.8}", result);
             assert_almost_equal(0.029403687, result, 0.01);
         }
     }
 
     #[test]
-    fn test_inner_f32() {
+    fn test_dot_f32() {
         let a = &[1.0, 2.0, 3.0];
         let b = &[4.0, 5.0, 6.0];
 
-        if let Some(result) = SimSIMD::inner(a, b) {
-            println!("The result of inner_f32 is {:.8}", result);
-            assert_almost_equal(-31.0, result, 0.01);
+        if let Some(result) = SpatialSimilarity::dot(a, b) {
+            println!("The result of dot_f32 is {:.8}", result);
+            assert_almost_equal(32.0, result, 0.01);
         }
     }
 
     #[test]
-    fn test_sqeuclidean_i8() {
+    fn test_l2sq_i8() {
         let a = &[1, 2, 3];
         let b = &[4, 5, 6];
 
-        if let Some(result) = SimSIMD::sqeuclidean(a, b) {
-            println!("The result of sqeuclidean_i8 is {:.8}", result);
+        if let Some(result) = SpatialSimilarity::sqeuclidean(a, b) {
+            println!("The result of l2sq_i8 is {:.8}", result);
             assert_almost_equal(27.0, result, 0.01);
         }
     }
 
     #[test]
-    fn test_sqeuclidean_f32() {
+    fn test_l2sq_f32() {
         let a = &[1.0, 2.0, 3.0];
         let b = &[4.0, 5.0, 6.0];
 
-        if let Some(result) = SimSIMD::sqeuclidean(a, b) {
-            println!("The result of sqeuclidean_f32 is {:.8}", result);
+        if let Some(result) = SpatialSimilarity::sqeuclidean(a, b) {
+            println!("The result of l2sq_f32 is {:.8}", result);
             assert_almost_equal(27.0, result, 0.01);
         }
     }
@@ -502,7 +543,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cosine_f16_same() {
+    fn test_cos_f16_same() {
         // Assuming these u16 values represent f16 bit patterns, and they are identical
         let a_u16: &[u16] = &[15360, 16384, 17408]; // Corresponding to some f16 values
         let b_u16: &[u16] = &[15360, 16384, 17408]; // Same as above for simplicity
@@ -515,14 +556,14 @@ mod tests {
         let b_f16: &[f16] =
             unsafe { std::slice::from_raw_parts(b_u16.as_ptr() as *const f16, b_u16.len()) };
 
-        if let Some(result) = SimSIMD::cosine(a_f16, b_f16) {
-            println!("The result of cosine_f16 is {:.8}", result);
+        if let Some(result) = SpatialSimilarity::cosine(a_f16, b_f16) {
+            println!("The result of cos_f16 is {:.8}", result);
             assert_almost_equal(0.0, result, 0.01); // Example value, adjust according to actual expected value
         }
     }
 
     #[test]
-    fn test_cosine_f16_interop() {
+    fn test_cos_f16_interop() {
         let a_half: Vec<HalfF16> = vec![1.0, 2.0, 3.0]
             .iter()
             .map(|&x| HalfF16::from_f32(x))
@@ -543,7 +584,7 @@ mod tests {
         if let Some(result) = SpatialSimilarity::cosine(a_simsimd, b_simsimd) {
             // Expected value might need adjustment depending on actual cosine functionality
             // Assuming identical vectors yield cosine similarity of 1.0
-            println!("The result of cosine_f16 (interop) is {:.8}", result);
+            println!("The result of cos_f16 (interop) is {:.8}", result);
             assert_almost_equal(0.025, result, 0.01);
         }
     }

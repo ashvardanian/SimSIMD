@@ -58,7 +58,8 @@ napi_value runAPI(napi_env env, napi_callback_info info, simsimd_metric_kind_t m
         return NULL;
     }
 
-    simsimd_f32_t result = metric(data_a, data_b, length_a, length_b);
+    simsimd_distance_t result;
+    metric(data_a, data_b, length_a, &result);
 
     // Convert the result to a JavaScript number
     napi_value js_result;
@@ -71,7 +72,7 @@ napi_value runAPI(napi_env env, napi_callback_info info, simsimd_metric_kind_t m
 
 napi_value l2sqAPI(napi_env env, napi_callback_info info) { return runAPI(env, info, simsimd_metric_sqeuclidean_k); }
 napi_value cosAPI(napi_env env, napi_callback_info info) { return runAPI(env, info, simsimd_metric_cosine_k); }
-napi_value ipAPI(napi_env env, napi_callback_info info) { return runAPI(env, info, simsimd_metric_ip_k); }
+napi_value ipAPI(napi_env env, napi_callback_info info) { return runAPI(env, info, simsimd_metric_dot_k); }
 napi_value klAPI(napi_env env, napi_callback_info info) { return runAPI(env, info, simsimd_metric_kl_k); }
 napi_value jsAPI(napi_env env, napi_callback_info info) { return runAPI(env, info, simsimd_metric_js_k); }
 napi_value hammingAPI(napi_env env, napi_callback_info info) { return runAPI(env, info, simsimd_metric_hamming_k); }

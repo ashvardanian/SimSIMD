@@ -5,7 +5,7 @@ mod native;
 
 const DIMENSIONS: usize = 1536;
 
-pub fn cosine_benchmark(c: &mut Criterion) {
+pub fn cos_benchmark(c: &mut Criterion) {
     let inputs: (Vec<f32>, Vec<f32>) = (
         native::generate_random_vector(DIMENSIONS),
         native::generate_random_vector(DIMENSIONS),
@@ -18,10 +18,10 @@ pub fn cosine_benchmark(c: &mut Criterion) {
             b.iter(|| SimSIMD::cosine(&inputs.0, &inputs.1))
         });
         group.bench_with_input(BenchmarkId::new("Rust Native", i), &i, |b, _| {
-            b.iter(|| native::cosine_similarity_cpu(&inputs.0, &inputs.1))
+            b.iter(|| native::cos_similarity_cpu(&inputs.0, &inputs.1))
         });
     }
 }
 
-criterion_group!(benches, cosine_benchmark);
+criterion_group!(benches, cos_benchmark);
 criterion_main!(benches);

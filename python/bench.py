@@ -21,21 +21,48 @@ args = parser.parse_args()
 count = args.n
 ndim = args.ndim
 
+# Set to ignore all floating-point errors
+np.seterr(all="ignore")
 
-# Benchmark function
+
 def benchmark(func, A, B, count=1):
+    """Time the amount of time it takes to run a function and return the average time per run in seconds."""
     start_time = timeit.default_timer()
     func(A, B)
     end_time = timeit.default_timer()
     return (end_time - start_time) / count
 
 
-def wrap_rowwise(conventional_func):
+def wrap_rowwise(baseline_func):
+    """Wrap a function to apply it row-wise to rows of two matrices."""
+
     def wrapped(A, B):
         for i in range(A.shape[0]):
-            conventional_func(A[i], B[i])
+            baseline_func(A[i], B[i])
 
     return wrapped
+
+
+def print_makrkdown_row(dtype, name, baseline_time, simd_time):
+    """Print a formatted row for the markdown table."""
+    baseline_ops = f"{1 / baseline_time:,.0f}" if baseline_time is not None else "💥"
+    simd_ops = f"{1 / simd_time:,.0f}" if simd_time is not None else "💥"
+    improvement = (
+        f"{baseline_time / simd_time:,.2f} x" if simd_time and baseline_time else "🤷"
+    )
+
+    func_name = "`{}`".format(name)
+    dtype_name = "`{}`".format(dtype_names[dtype])
+
+    # Print the formatted line
+    print(
+        f"| {dtype_name:8} | {func_name:21} | {baseline_ops:20} | {simd_ops:20} | {improvement:17} |"
+    )
+
+
+def raise_(ex):
+    """Utility function to allow raising exceptions in lambda functions."""
+    raise ex
 
 
 print()
@@ -65,16 +92,30 @@ count = 1000
 ndim = 1536
 
 generators = {
+    np.complex128: lambda: (
+        np.random.randn(count, ndim // 2).astype(np.float64)
+        + 1j * np.random.randn(count, ndim // 2).astype(np.float64)
+    ).view(np.complex128),
+    np.complex64: lambda: (
+        np.random.randn(count, ndim // 2).astype(np.float32)
+        + 1j * np.random.randn(count, ndim // 2).astype(np.float32)
+    ).view(np.complex64),
+    "complex32": lambda: np.random.randn(count, ndim).astype(np.float16),
     np.float64: lambda: np.random.randn(count, ndim).astype(np.float64),
     np.float32: lambda: np.random.randn(count, ndim).astype(np.float32),
     np.float16: lambda: np.random.randn(count, ndim).astype(np.float16),
-    np.int8: lambda: np.random.randint(-100, 100, (count, ndim), np.int8),
+    np.int8: lambda: np.random.randint(
+        -100, high=100, size=(count, ndim), dtype=np.int8
+    ),
     np.uint8: lambda: np.packbits(
-        np.random.randint(0, 2, (count, ndim), np.uint8), axis=0
+        np.random.randint(0, high=2, size=(count, ndim), dtype=np.uint8), axis=0
     ),
 }
 
 dtype_names = {
+    np.complex128: "f64c",
+    np.complex64: "f32c",
+    "complex32": "f16c",
     np.float64: "f64",
     np.float32: "f32",
     np.float16: "f16",
@@ -110,10 +151,22 @@ funcs = [
         [np.float64, np.float32, np.float16, np.int8],
     ),
     (
-        "numpy.inner",
-        np.inner,
-        simd.inner,
-        [np.float64, np.float32, np.float16, np.int8],
+        "numpy.dot",
+        np.dot,
+        simd.dot,
+        [np.float64, np.float32, np.float16, np.int8, np.complex64, np.complex128],
+    ),
+    (
+        "numpy.dot",
+        lambda A, B: raise_(NotImplementedError("Not implemented for complex32")),
+        lambda A, B: simd.dot(A, B, "complex32"),
+        ["complex32"],
+    ),
+    (
+        "numpy.vdot",
+        np.vdot,
+        simd.vdot,
+        [np.complex64, np.complex128],
     ),
     (
         "scipy.jensenshannon",
@@ -132,26 +185,27 @@ funcs = [
 ]
 
 
-for name, conventional_func, simd_func, dtypes in funcs:
+for name, baseline_func, simd_func, dtypes in funcs:
     for dtype in dtypes:
         A = generators[dtype]()
         B = generators[dtype]()
+        baseline_time = None
+        simd_time = None
+
+        # Try obtaining the measurements
+        try:
+            baseline_time = benchmark(wrap_rowwise(baseline_func), A, B, count)
+        except Exception as e:
+            # raise RuntimeError(str(e) + " for %s(%s)" % (name, str(dtype))) from e
+            pass
 
         try:
-            conventional_time = benchmark(wrap_rowwise(conventional_func), A, B, count)
             simd_time = benchmark(wrap_rowwise(simd_func), A, B, count)
         except Exception as e:
-            raise type(e)(str(e) + " for %s(%s)" % (name, str(dtype)))
+            # raise RuntimeError(str(e) + " for %s(%s)" % (name, str(dtype))) from e
+            pass
 
-        conventional_ops = 1 / conventional_time
-        simd_ops = 1 / simd_time
-        improvement = conventional_time / simd_time
-
-        func_name = "`{}`".format(name)
-        dtype_name = "`{}`".format(dtype_names[dtype])
-        print(
-            f"| {dtype_name:8} | {func_name:21} | {conventional_ops:20,.0f} | {simd_ops:20,.0f} | {improvement:17.2f} x |"
-        )
+        print_makrkdown_row(dtype, name, baseline_time, simd_time)
 
 print()
 
@@ -171,56 +225,57 @@ print(
 funcs = [
     (
         "scipy.cosine",
-        spd.cosine,
+        wrap_rowwise(spd.cosine),
         simd.cosine,
         [np.float64, np.float32, np.float16, np.int8],
     ),
     (
         "scipy.sqeuclidean",
-        spd.sqeuclidean,
+        wrap_rowwise(spd.sqeuclidean),
         simd.sqeuclidean,
         [np.float64, np.float32, np.float16, np.int8],
     ),
     (
-        "numpy.inner",
-        np.inner,
-        simd.inner,
-        [np.float64, np.float32, np.float16, np.int8],
+        "numpy.dot",
+        lambda A, B: np.sum(A * B, axis=1),
+        simd.dot,
+        [np.float64, np.float32, np.float16, np.int8, np.complex64, np.complex128],
     ),
     (
         "scipy.jensenshannon",
-        spd.jensenshannon,
+        wrap_rowwise(spd.jensenshannon),
         simd.jensenshannon,
         [np.float64, np.float32, np.float16],
     ),
     (
         "scipy.kl_div",
-        scs.kl_div,
+        wrap_rowwise(scs.kl_div),
         simd.kullbackleibler,
         [np.float64, np.float32, np.float16],
     ),
-    ("scipy.hamming", spd.hamming, simd.hamming, [np.uint8]),
-    ("scipy.jaccard", spd.jaccard, simd.jaccard, [np.uint8]),
+    ("scipy.hamming", wrap_rowwise(spd.hamming), simd.hamming, [np.uint8]),
+    ("scipy.jaccard", wrap_rowwise(spd.jaccard), simd.jaccard, [np.uint8]),
 ]
 
 
-for name, conventional_func, simd_func, dtypes in funcs:
+for name, baseline_func, simd_func, dtypes in funcs:
     for dtype in dtypes:
         A = generators[dtype]()
         B = generators[dtype]()
+        baseline_time = None
+        simd_time = None
 
-        conventional_time = benchmark(wrap_rowwise(conventional_func), A, B, count)
-        simd_time = benchmark(simd_func, A, B, count)
+        try:
+            baseline_time = benchmark(baseline_func, A, B, count)
+        except Exception:
+            pass
+        try:
+            simd_time = benchmark(simd_func, A, B, count)
+        except Exception:
+            pass
 
-        conventional_ops = 1 / conventional_time
-        simd_ops = 1 / simd_time
-        improvement = conventional_time / simd_time
+        print_makrkdown_row(dtype, name, baseline_time, simd_time)
 
-        func_name = "`{}`".format(name)
-        dtype_name = "`{}`".format(dtype_names[dtype])
-        print(
-            f"| {dtype_name:8} | {func_name:21} | {conventional_ops:20,.0f} | {simd_ops:20,.0f} | {improvement:17.2f} x |"
-        )
 
 print()
 
@@ -245,10 +300,10 @@ cdist_funcs = [
         [np.float32, np.float16, np.int8],
     ),
     (
-        "numpy.inner",
-        lambda A, B: 1 - np.dot(A, B.T),
-        lambda A, B: simd.cdist(A, B, "inner"),
-        [np.float32, np.float16, np.int8],
+        "numpy.dot",
+        lambda A, B: np.dot(A, B.T),
+        lambda A, B: simd.cdist(A, B, "dot"),
+        [np.float32, np.float16, np.int8, np.complex64, np.complex128],
     ),
     (
         "scipy.jensenshannon",
@@ -279,22 +334,27 @@ print(
     "| :------- | :-------------------- | -------------------: | -------------------: | ------------------: |"
 )
 
-for name, conventional_func, simd_func, dtypes in cdist_funcs:
+for name, baseline_func, simd_func, dtypes in cdist_funcs:
     for dtype in dtypes:
         A = generators[dtype]()
         B = generators[dtype]()
+        baseline_time = None
+        simd_time = None
 
-        conventional_time = benchmark(conventional_func, A, B)
-        simd_time = benchmark(simd_func, A, B)
+        try:
+            baseline_time = benchmark(baseline_func, A, B)
+        except Exception:
+            pass
+        try:
+            simd_time = benchmark(simd_func, A, B)
+        except Exception:
+            pass
 
-        conventional_ops = count**2 / conventional_time
-        simd_ops = count**2 / simd_time
-        improvement = conventional_time / simd_time
-
-        func_name = "`{}`".format(name)
-        dtype_name = "`{}`".format(dtype_names[dtype])
-        print(
-            f"| {dtype_name:8} | {func_name:21} | {conventional_ops:20,.0f} | {simd_ops:20,.0f} | {improvement:17.2f} x |"
+        print_makrkdown_row(
+            dtype,
+            name,
+            baseline_time / count**2 if baseline_time else None,
+            simd_time / count**2 if simd_time else None,
         )
 
 print()

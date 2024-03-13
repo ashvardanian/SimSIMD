@@ -5,6 +5,7 @@
 To rerun experiments utilize the following command:
 
 ```sh
+sudo apt install libopenblas-dev # BLAS installation is optional
 cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build_release
 cmake --build build_release --config Release
 ./build_release/simsimd_bench
@@ -70,10 +71,17 @@ open ./target/criterion/report/index.html
 
 ## JavaScript
 
+If you don't have NPM installed:
+
+```sh
+wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+nvm install 20
+```
+
 Testing and benchmarking:
 
 ```sh
-npm install --dev
+npm run build-js
 npm test
 npm run bench
 ```

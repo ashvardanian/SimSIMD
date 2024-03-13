@@ -13,7 +13,7 @@ export function inner(a: Float32Array, b: Float32Array): number {
   for (let i = 0; i < a.length; i++) {
     result += a[i] * b[i];
   }
-  return 1 - result;
+  return result;
 }
 
 /**
