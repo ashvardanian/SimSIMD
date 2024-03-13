@@ -300,6 +300,7 @@ int main(int argc, char** argv) {
     register_<simsimd_i8_t>("cos_i8_serial", simsimd_cos_i8_serial, simsimd_cos_i8_accurate);
     register_<simsimd_i8_t>("l2sq_i8_serial", simsimd_l2sq_i8_serial, simsimd_l2sq_i8_accurate);
 
+    register_<simsimd_f64_t>("dot_f64c_serial", simsimd_dot_f64c_serial, simsimd_dot_f64c_serial);
     register_<simsimd_f32_t>("dot_f32c_serial", simsimd_dot_f32c_serial, simsimd_dot_f32c_accurate);
     register_<simsimd_f16_t>("dot_f16c_serial", simsimd_dot_f16c_serial, simsimd_dot_f16c_accurate);
 
