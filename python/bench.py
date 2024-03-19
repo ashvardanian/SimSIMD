@@ -1,3 +1,4 @@
+import os
 import timeit
 import argparse
 
@@ -27,7 +28,15 @@ if args.scikit:
 if args.torch:
     import torch
 if args.tf:
+    # Disable TensorFlow warning messages
+    os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # This hides INFO and WARNING messages
+
     import tensorflow as tf
+
+    # This will show only ERROR messages, not WARNING messages.
+    # Additionally, to filter out oneDNN related warnings, you might need to:
+    tf.get_logger().setLevel("FATAL")
+
 if args.jax:
     import jax.numpy as jnp
     import jax
