@@ -1,10 +1,10 @@
 /**
- * @brief Computes the inner distance of two vectors.
- * @param {Float32Array} a - The first vector.
- * @param {Float32Array} b - The second vector.
+ * @brief Computes the inner distance of two vectors (same as dot product).
+ * @param {Float64Array|Float32Array} a - The first vector.
+ * @param {Float64Array|Float32Array} b - The second vector.
  * @returns {number} The inner distance of vectors a and b.
  */
-export function inner(a: Float32Array, b: Float32Array): number {
+export function inner(a: Float64Array | Float32Array, b: Float64Array | Float32Array): number {
   if (a.length !== b.length) {
     throw new Error("Vectors must have the same length");
   }
@@ -17,14 +17,24 @@ export function inner(a: Float32Array, b: Float32Array): number {
 }
 
 /**
+ * @brief Computes the inner distance of two vectors (same as inner product).
+ * @param {Float64Array|Float32Array} a - The first vector.
+ * @param {Float64Array|Float32Array} b - The second vector.
+ * @returns {number} The inner distance of vectors a and b.
+ */
+export function dot(a: Float64Array | Float32Array, b: Float64Array | Float32Array): number {
+  return inner(a, b);
+}
+
+/**
  * @brief Computes the squared Euclidean distance between two vectors.
- * @param {Float32Array|Int8Array} a - The first vector.
- * @param {Float32Array|Int8Array} b - The second vector.
+ * @param {Float64Array|Float32Array|Int8Array} a - The first vector.
+ * @param {Float64Array|Float32Array|Int8Array} b - The second vector.
  * @returns {number} The squared Euclidean distance between vectors a and b.
  */
 export function sqeuclidean(
-  a: Float32Array | Int8Array,
-  b: Float32Array | Int8Array
+  a: Float64Array | Float32Array | Int8Array,
+  b: Float64Array | Float32Array | Int8Array
 ): number {
   if (a.length !== b.length) {
     throw new Error("Vectors must have the same length");
@@ -39,13 +49,13 @@ export function sqeuclidean(
 
 /**
  * @brief Computes the cosine distance between two vectors.
- * @param {Float32Array|Int8Array} a - The first vector.
- * @param {Float32Array|Int8Array} b - The second vector.
+ * @param {Float64Array|Float32Array|Int8Array} a - The first vector.
+ * @param {Float64Array|Float32Array|Int8Array} b - The second vector.
  * @returns {number} The cosine distance between vectors a and b.
  */
 export function cosine(
-  a: Float32Array | Int8Array,
-  b: Float32Array | Int8Array
+  a: Float64Array | Float32Array | Int8Array,
+  b: Float64Array | Float32Array | Int8Array
 ): number {
   if (a.length !== b.length) {
     throw new Error("Vectors must have the same length");
@@ -140,11 +150,11 @@ export const jaccard = (a: Uint8Array, b: Uint8Array): number => {
 
 /**
  * @brief Computes the kullbackleibler similarity coefficient between two vectors.
- * @param {Float32Array} a - The first vector.
- * @param {Float32Array} b - The second vector.
+ * @param {Float64Array|Float32Array} a - The first vector.
+ * @param {Float64Array|Float32Array} b - The second vector.
  * @returns {number} The Jaccard similarity coefficient between vectors a and b.
  */
-export const kullbackleibler = (a: Float32Array, b: Float32Array): number => {
+export const kullbackleibler = (a: Float64Array | Float32Array, b: Float64Array | Float32Array): number => {
   if (a.length !== b.length) {
     throw new Error("Arrays must be of the same length");
   }
@@ -167,18 +177,18 @@ export const kullbackleibler = (a: Float32Array, b: Float32Array): number => {
 
 /**
  * @brief Computes the jensenshannon similarity coefficient between two vectors.
- * @param {Float32Array} a - The first vector.
- * @param {Float32Array} b - The second vector.
+ * @param {Float64Array|Float32Array} a - The first vector.
+ * @param {Float64Array|Float32Array} b - The second vector.
  * @returns {number} The Jaccard similarity coefficient between vectors a and b.
  */
-export const jensenshannon = (p: Float32Array, q: Float32Array): number => {
-  if (p.length !== q.length) {
+export const jensenshannon = (a: Float64Array | Float32Array, b: Float64Array | Float32Array): number => {
+  if (a.length !== b.length) {
     throw new Error("Arrays must be of the same length");
   }
 
-  const m = p.map((value, index) => (value + q[index]) / 2);
+  const m = a.map((value, index) => (value + b[index]) / 2);
 
-  const divergence = 0.5 * kullbackleibler(p, m) + 0.5 * kullbackleibler(q, m);
+  const divergence = 0.5 * kullbackleibler(a, m) + 0.5 * kullbackleibler(b, m);
   return Math.sqrt(divergence);
 };
 
