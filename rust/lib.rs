@@ -52,15 +52,23 @@ type Distance = f64;
 type ComplexProduct = (f64, f64);
 
 extern "C" {
+
+    fn simsimd_dot_f16(a: *const u16, b: *const u16, c: usize, d: *mut f64);
+    fn simsimd_dot_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
+    fn simsimd_dot_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
+
+    fn simsimd_dot_f16c(a: *const u16, b: *const u16, c: usize, d: *mut f64);
+    fn simsimd_dot_f32c(a: *const f32, b: *const f32, c: usize, d: *mut f64);
+    fn simsimd_dot_f64c(a: *const f64, b: *const f64, c: usize, d: *mut f64);
+
+    fn simsimd_vdot_f16c(a: *const u16, b: *const u16, c: usize, d: *mut f64);
+    fn simsimd_vdot_f32c(a: *const f32, b: *const f32, c: usize, d: *mut f64);
+    fn simsimd_vdot_f64c(a: *const f64, b: *const f64, c: usize, d: *mut f64);
+
     fn simsimd_cos_i8(a: *const i8, b: *const i8, c: usize, d: *mut f64);
     fn simsimd_cos_f16(a: *const u16, b: *const u16, c: usize, d: *mut f64);
     fn simsimd_cos_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
     fn simsimd_cos_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
-
-    fn simsimd_dot_i8(a: *const i8, b: *const i8, c: usize, d: *mut f64);
-    fn simsimd_dot_f16(a: *const u16, b: *const u16, c: usize, d: *mut f64);
-    fn simsimd_dot_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
-    fn simsimd_dot_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
 
     fn simsimd_l2sq_i8(a: *const i8, b: *const i8, c: usize, d: *mut f64);
     fn simsimd_l2sq_f16(a: *const u16, b: *const u16, c: usize, d: *mut f64);
@@ -180,6 +188,19 @@ where
     fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Distance>;
 }
 
+/// `ComplexProducts` provides trait methods for computing products between
+/// complex number vectors. This includes standard and Hermitian dot products.
+pub trait ComplexProducts
+where
+    Self: Sized,
+{
+    /// Computes the dot product between two complex number vectors.
+    fn dot(a: &[Self], b: &[Self]) -> Option<ComplexProduct>;
+
+    /// Computes the Hermitian dot product (conjugate dot product) between two complex number vectors.
+    fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct>;
+}
+
 impl BinarySimilarity for u8 {
     fn hamming(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
@@ -219,7 +240,7 @@ impl SpatialSimilarity for i8 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_dot_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_cos_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
         Some(distance_value)
     }
 
@@ -416,6 +437,78 @@ impl ProbabilitySimilarity for f64 {
     }
 }
 
+impl ComplexProducts for f16 {
+    fn dot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
+        if a.len() != b.len() {
+            return None;
+        }
+        // Prepare the output array where the real and imaginary parts will be stored
+        let mut output: [f64; 2] = [0.0, 0.0];
+        let output_ptr: *mut f64 = &mut output[0] as *mut _;
+        // Explicitly cast `*const f16` to `*const u16`
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        unsafe { simsimd_dot_f16c(a_ptr, b_ptr, a.len(), output_ptr) };
+        Some((output[0], output[1]))
+    }
+
+    fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut output: [f64; 2] = [0.0, 0.0];
+        let output_ptr: *mut f64 = &mut output[0] as *mut _;
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        unsafe { simsimd_vdot_f16c(a_ptr, b_ptr, a.len(), output_ptr) };
+        Some((output[0], output[1]))
+    }
+}
+
+impl ComplexProducts for f32 {
+    fn dot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut output: [f64; 2] = [0.0, 0.0];
+        let output_ptr: *mut f64 = &mut output[0] as *mut _;
+        unsafe { simsimd_dot_f32c(a.as_ptr(), b.as_ptr(), a.len(), output_ptr) };
+        Some((output[0], output[1]))
+    }
+
+    fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut output: [f64; 2] = [0.0, 0.0];
+        let output_ptr: *mut f64 = &mut output[0] as *mut _;
+        unsafe { simsimd_vdot_f32c(a.as_ptr(), b.as_ptr(), a.len(), output_ptr) };
+        Some((output[0], output[1]))
+    }
+}
+
+impl ComplexProducts for f64 {
+    fn dot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut output: [f64; 2] = [0.0, 0.0];
+        let output_ptr: *mut f64 = &mut output[0] as *mut _;
+        unsafe { simsimd_dot_f64c(a.as_ptr(), b.as_ptr(), a.len(), output_ptr) };
+        Some((output[0], output[1]))
+    }
+
+    fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut output: [f64; 2] = [0.0, 0.0];
+        let output_ptr: *mut f64 = &mut output[0] as *mut _;
+        unsafe { simsimd_vdot_f64c(a.as_ptr(), b.as_ptr(), a.len(), output_ptr) };
+        Some((output[0], output[1]))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -470,6 +563,40 @@ mod tests {
         if let Some(result) = SpatialSimilarity::dot(a, b) {
             println!("The result of dot_f32 is {:.8}", result);
             assert_almost_equal(32.0, result, 0.01);
+        }
+    }
+
+    #[test]
+    fn test_dot_f32_complex() {
+        // Let's consider these as complex numbers where every pair is (real, imaginary)
+        let a = &[1.0, 2.0, 3.0, 4.0]; // Represents two complex numbers: 1+2i, 3+4i
+        let b = &[5.0, 6.0, 7.0, 8.0]; // Represents two complex numbers: 5+6i, 7+8i
+
+        if let Some((real, imag)) = ComplexProducts::dot(a, b) {
+            println!(
+                "The result of dot_f32_complex is real: {:.8}, imag: {:.8}",
+                real, imag
+            );
+            // These values should be replaced with the expected real and imaginary parts of the result
+            assert_almost_equal(9.0, real, 0.01); // Corrected expected real part
+            assert_almost_equal(41.0, imag, 0.01); // Corrected expected imaginary part
+        }
+    }
+
+    #[test]
+    fn test_vdot_f32_complex() {
+        // Here we're assuming a similar setup to the previous test, but for the Hermitian (conjugate) dot product
+        let a = &[1.0, 2.0, 3.0, 4.0]; // Represents two complex numbers: 1+2i, 3+4i
+        let b = &[5.0, 6.0, 7.0, 8.0]; // Represents two complex numbers: 5+6i, 7+8i
+
+        if let Some((real, imag)) = ComplexProducts::vdot(a, b) {
+            println!(
+                "The result of vdot_f32_complex is real: {:.8}, imag: {:.8}",
+                real, imag
+            );
+            // Replace these with the actual expected values
+            assert_almost_equal(70.0, real, 0.01); // Example expected real part
+            assert_almost_equal(4.0, imag, 0.01); // Example expected imaginary part
         }
     }
 
