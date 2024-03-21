@@ -3,21 +3,24 @@
 _Computing dot-products, similarity measures, and distances between low- and high-dimensional vectors is ubiquitous in Machine Learning, Scientific Computing, Geo-Spatial Analysis, and Information Retrieval.
 These algorithms generally have linear complexity in time, constant complexity in space, and are data-parallel.
 In other words, it is easily parallelizable and vectorizable and often available in packages like BLAS and LAPACK, as well as higher-level `numpy` and `scipy` Python libraries.
-Ironically, even with decades of evolution in compilers and numerical computing, [most libraries can be 3-200x slower than hardware potential][] even on the most popular hardware, like 64-bit x86 and Arm CPUs.
+Ironically, even with decades of evolution in compilers and numerical computing, [most libraries can be 3-200x slower than hardware potential][benchmarks] even on the most popular hardware, like 64-bit x86 and Arm CPUs.
 SimSIMD attempts to fill that gap.
 1️⃣ SimSIMD functions are practically as fast as `memcpy`.
-2️⃣ SimSIMD [compiles to more platforms than NumPy][compatibility] and has more backends than most BLAS implementations.
+2️⃣ SimSIMD [compiles to more platforms than NumPy (105 vs 35)][compatibility] and has more backends than most BLAS implementations.
 It is currently powering search in [USearch](https://github.com/unum-cloud/usearch) and several DBMS products._
+
+[benchmarks]: https://ashvardanian.com/posts/simsimd-faster-scipy
+[compatibility]: https://pypi.org/project/simsimd/#files
 
 <div>
 <a href="https://pepy.tech/project/simsimd">
-    <img alt="PyPI" src="https://static.pepy.tech/personalized-badge/simsimd?period=total&units=abbreviation&left_color=black&right_color=blue&left_text=SimSIMD%20Python%20installs">
+    <img alt="PyPI" src="https://static.pepy.tech/personalized-badge/simsimd?period=total&units=abbreviation&left_color=black&right_color=blue&left_text=SimSIMD%20Python%20installs" />
 </a>
 <a href="https://www.npmjs.com/package/simsimd">
-    <img alt="npm" src="https://img.shields.io/npm/dy/simsimd?label=npm%20dowloads">
+    <img alt="npm" src="https://img.shields.io/npm/dy/simsimd?label=JavaScript%20NPM%20installs" />
 </a>
 <a href="https://crates.io/crates/simsimd">
-    <img alt="rust" src="https://img.shields.io/crates/d/simsimd?logo=rust" />
+    <img alt="rust" src="https://img.shields.io/crates/d/simsimd?label=Rust%20Crate%20installs" />
 </a>
 <img alt="GitHub code size in bytes" src="https://img.shields.io/github/languages/code-size/ashvardanian/simsimd">
 <a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
@@ -42,7 +45,7 @@ __Implemented distance functions__ include:
 - Hamming (~ Manhattan) and Jaccard (~ Tanimoto) bit-level distances.
 - Kullback-Leibler and Jensen–Shannon divergences for probability distributions.
 - Haversine and Vincenty's formulae for Geospatial Analysis.
-- For Levenshtein, Needleman–Wunsch and other text metrics, check StringZilla.
+- For Levenshtein, Needleman–Wunsch and other text metrics, check [StringZilla][stringzilla].
 
 Moreover, SimSIMD...
 
@@ -57,7 +60,7 @@ We enumerate subsets of AVX-512 instructions in Intel CPU generations, but they 
 
 [scipy]: https://docs.scipy.org/doc/scipy/reference/spatial.distance.html#module-scipy.spatial.distance
 [numpy]: https://numpy.org/doc/stable/reference/generated/numpy.inner.html
-[compatibility]: https://pypi.org/project/simsimd/#files
+[stringzilla]: https://github.com/ashvardanian/stringzilla
 
 __Technical Insights__ and related articles:
 
@@ -183,6 +186,7 @@ dist = simsimd.cosine(batch1, batch2)
 ```
 
 Input matrices must have identical shapes.
+This functionality isn't natively present in NumPy or SciPy, and generally requires creating intermediate arrays, which is inefficient and memory-consuming.
 
 ### Many-to-Many All-Pairs Distances
 
@@ -331,6 +335,16 @@ const distance = sqeuclidean(vectorA, vectorB);
 console.log('Squared Euclidean Distance:', distance);
 ```
 
+Other numeric types and precision levels are supported as well:
+
+```js
+const vectorA = new Float64Array([1.0, 2.0, 3.0]);
+const vectorB = new Float64Array([4.0, 5.0, 6.0]);
+
+const distance = cosine(vectorA, vectorB);
+console.log('Cosine Similarity:', distance);
+```
+
 ## Using SimSIMD in C
 
 For integration within a CMake-based project, add the following segment to your `CMakeLists.txt`:
@@ -366,3 +380,40 @@ All of the function names follow the same pattern: `simsimd_{metric}_{type}_{bac
 - The metric can be `cos`, `ip`, `l2sq`, `hamming`, `jaccard`, `kl`, or `js`.
 
 To avoid hard-coding the backend, you can use the `simsimd_metric_punned_t` to pun the function pointer and the `simsimd_capabilities` function to get the available backends at runtime.
+Moreover, you can enable `SIMSIMD_DYNAMIC_DISPATCH` and use the precompiled sahred library to avoid recompiling the code for different backends.
+When `simsimd_dot_f32`, or one of the following functions, is called, the library will scan available micro-kernels and pick the most advanced one for the current CPU.
+
+```c
+// Inner products
+void simsimd_dot_f16(simsimd_f16_t const *, simsimd_f16_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_dot_f32(simsimd_f32_t const *, simsimd_f32_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_dot_f64(simsimd_f64_t const *, simsimd_f64_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_dot_f16c(simsimd_f16_t const *, simsimd_f16_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_dot_f32c(simsimd_f32_t const *, simsimd_f32_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_dot_f64c(simsimd_f64_t const *, simsimd_f64_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_vdot_f16c(simsimd_f16_t const *, simsimd_f16_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_vdot_f32c(simsimd_f32_t const *, simsimd_f32_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_vdot_f64c(simsimd_f64_t const *, simsimd_f64_t const *, simsimd_size_t, simsimd_distance_t *);
+
+// Spatial distances
+void simsimd_cos_i8(simsimd_i8_t const *, simsimd_i8_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_cos_f16(simsimd_f16_t const *, simsimd_f16_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_cos_f32(simsimd_f32_t const *, simsimd_f32_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_cos_f64(simsimd_f64_t const *, simsimd_f64_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_l2sq_i8(simsimd_i8_t const *, simsimd_i8_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_l2sq_f16(simsimd_f16_t const *, simsimd_f16_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_l2sq_f32(simsimd_f32_t const *, simsimd_f32_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_l2sq_f64(simsimd_f64_t const *, simsimd_f64_t const *, simsimd_size_t, simsimd_distance_t *);
+
+// Binary distances
+void simsimd_hamming_b8(simsimd_b8_t const *, simsimd_b8_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_jaccard_b8(simsimd_b8_t const *, simsimd_b8_t const *, simsimd_size_t, simsimd_distance_t *);
+
+// Probability distributions
+void simsimd_kl_f16(simsimd_f16_t const *, simsimd_f16_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_kl_f32(simsimd_f32_t const *, simsimd_f32_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_kl_f64(simsimd_f64_t const *, simsimd_f64_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_js_f16(simsimd_f16_t const *, simsimd_f16_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_js_f32(simsimd_f32_t const *, simsimd_f32_t const *, simsimd_size_t, simsimd_distance_t *);
+void simsimd_js_f64(simsimd_f64_t const *, simsimd_f64_t const *, simsimd_size_t, simsimd_distance_t *);
+```

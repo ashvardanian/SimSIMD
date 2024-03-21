@@ -20,7 +20,6 @@ simsimd_capability_t cached_capabilities(void) {
     }
 
 // Dot products
-SIMSIMD_METRIC_DECLARATION(dot, i8, i8)
 SIMSIMD_METRIC_DECLARATION(dot, f16, f16)
 SIMSIMD_METRIC_DECLARATION(dot, f32, f32)
 SIMSIMD_METRIC_DECLARATION(dot, f64, f64)

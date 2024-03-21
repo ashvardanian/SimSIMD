@@ -59,7 +59,6 @@ inline static void simsimd_vdot_f16c_accurate(simsimd_f16_t const* a, simsimd_f1
  *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
  *  server CPUs produced before 2023.
  */
-inline static void simsimd_dot_i8_neon(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 inline static void simsimd_dot_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 inline static void simsimd_dot_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 inline static void simsimd_dot_f32c_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
@@ -86,7 +85,6 @@ inline static void simsimd_vdot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t c
  *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
  *  properly vectorized by recent compilers.
  */
-inline static void simsimd_dot_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 inline static void simsimd_dot_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 inline static void simsimd_dot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 inline static void simsimd_vdot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
@@ -105,8 +103,9 @@ inline static void simsimd_dot_f64_skylake(simsimd_f64_t const* a, simsimd_f64_t
 inline static void simsimd_dot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 inline static void simsimd_vdot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
-inline static void simsimd_dot_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 inline static void simsimd_dot_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+inline static void simsimd_dot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+inline static void simsimd_vdot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 // clang-format on
 
 #define SIMSIMD_MAKE_DOT(name, input_type, accumulator_type, converter)                                                \
