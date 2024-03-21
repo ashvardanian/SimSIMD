@@ -81,6 +81,7 @@ nvm install 20
 Testing and benchmarking:
 
 ```sh
+npm install -g typescript
 npm run build-js
 npm test
 npm run bench
