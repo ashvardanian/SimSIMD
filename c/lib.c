@@ -16,8 +16,8 @@ simsimd_capability_t cached_capabilities(void) {
         static simsimd_metric_punned_t metric = 0;                                                                     \
         if (metric == 0) {                                                                                             \
             simsimd_capability_t used_capability;                                                                      \
-            simsimd_find_metric_punned(simsimd_metric_##name##_k, simsimd_datatype_##type##_k, cached_capabilities(),  \
-                                       simsimd_cap_any_k, &metric, &used_capability);                                  \
+            simsimd_find_metric_punned(simsimd_metric_##name##_k, simsimd_datatype_##extension##_k,                    \
+                                       cached_capabilities(), simsimd_cap_any_k, &metric, &used_capability);           \
             if (!metric) {                                                                                             \
                 results[0] = 0.0 / 0.0;                                                                                \
                 return;                                                                                                \

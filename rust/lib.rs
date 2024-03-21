@@ -53,38 +53,38 @@ type ComplexProduct = (f64, f64);
 
 extern "C" {
 
-    fn simsimd_dot_f16(a: *const u16, b: *const u16, c: usize, d: *mut f64);
-    fn simsimd_dot_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
-    fn simsimd_dot_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
+    fn simsimd_dot_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_dot_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
+    fn simsimd_dot_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
-    fn simsimd_dot_f16c(a: *const u16, b: *const u16, c: usize, d: *mut f64);
-    fn simsimd_dot_f32c(a: *const f32, b: *const f32, c: usize, d: *mut f64);
-    fn simsimd_dot_f64c(a: *const f64, b: *const f64, c: usize, d: *mut f64);
+    fn simsimd_dot_f16c(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_dot_f32c(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
+    fn simsimd_dot_f64c(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
-    fn simsimd_vdot_f16c(a: *const u16, b: *const u16, c: usize, d: *mut f64);
-    fn simsimd_vdot_f32c(a: *const f32, b: *const f32, c: usize, d: *mut f64);
-    fn simsimd_vdot_f64c(a: *const f64, b: *const f64, c: usize, d: *mut f64);
+    fn simsimd_vdot_f16c(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_vdot_f32c(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
+    fn simsimd_vdot_f64c(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
-    fn simsimd_cos_i8(a: *const i8, b: *const i8, c: usize, d: *mut f64);
-    fn simsimd_cos_f16(a: *const u16, b: *const u16, c: usize, d: *mut f64);
-    fn simsimd_cos_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
-    fn simsimd_cos_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
+    fn simsimd_cos_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
+    fn simsimd_cos_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_cos_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
+    fn simsimd_cos_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
-    fn simsimd_l2sq_i8(a: *const i8, b: *const i8, c: usize, d: *mut f64);
-    fn simsimd_l2sq_f16(a: *const u16, b: *const u16, c: usize, d: *mut f64);
-    fn simsimd_l2sq_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
-    fn simsimd_l2sq_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
+    fn simsimd_l2sq_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
+    fn simsimd_l2sq_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_l2sq_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
+    fn simsimd_l2sq_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
-    fn simsimd_hamming_b8(a: *const u8, b: *const u8, c: usize, d: *mut f64);
-    fn simsimd_jaccard_b8(a: *const u8, b: *const u8, c: usize, d: *mut f64);
+    fn simsimd_hamming_b8(a: *const u8, b: *const u8, c: usize, d: *mut Distance);
+    fn simsimd_jaccard_b8(a: *const u8, b: *const u8, c: usize, d: *mut Distance);
 
-    fn simsimd_js_f16(a: *const u16, b: *const u16, c: usize, d: *mut f64);
-    fn simsimd_js_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
-    fn simsimd_js_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
+    fn simsimd_js_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_js_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
+    fn simsimd_js_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
-    fn simsimd_kl_f16(a: *const u16, b: *const u16, c: usize, d: *mut f64);
-    fn simsimd_kl_f32(a: *const f32, b: *const f32, c: usize, d: *mut f64);
-    fn simsimd_kl_f64(a: *const f64, b: *const f64, c: usize, d: *mut f64);
+    fn simsimd_kl_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_kl_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
+    fn simsimd_kl_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 }
 
 /// A half-precision floating point number.
@@ -443,25 +443,25 @@ impl ComplexProducts for f16 {
             return None;
         }
         // Prepare the output array where the real and imaginary parts will be stored
-        let mut output: [f64; 2] = [0.0, 0.0];
-        let output_ptr: *mut f64 = &mut output[0] as *mut _;
+        let mut product: [Distance; 2] = [0.0, 0.0];
+        let product_ptr: *mut Distance = &mut product[0] as *mut _;
         // Explicitly cast `*const f16` to `*const u16`
         let a_ptr = a.as_ptr() as *const u16;
         let b_ptr = b.as_ptr() as *const u16;
-        unsafe { simsimd_dot_f16c(a_ptr, b_ptr, a.len(), output_ptr) };
-        Some((output[0], output[1]))
+        unsafe { simsimd_dot_f16c(a_ptr, b_ptr, a.len(), product_ptr) };
+        Some((product[0], product[1]))
     }
 
     fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
         if a.len() != b.len() {
             return None;
         }
-        let mut output: [f64; 2] = [0.0, 0.0];
-        let output_ptr: *mut f64 = &mut output[0] as *mut _;
+        let mut product: [Distance; 2] = [0.0, 0.0];
+        let product_ptr: *mut Distance = &mut product[0] as *mut _;
         let a_ptr = a.as_ptr() as *const u16;
         let b_ptr = b.as_ptr() as *const u16;
-        unsafe { simsimd_vdot_f16c(a_ptr, b_ptr, a.len(), output_ptr) };
-        Some((output[0], output[1]))
+        unsafe { simsimd_vdot_f16c(a_ptr, b_ptr, a.len(), product_ptr) };
+        Some((product[0], product[1]))
     }
 }
 
@@ -470,20 +470,20 @@ impl ComplexProducts for f32 {
         if a.len() != b.len() {
             return None;
         }
-        let mut output: [f64; 2] = [0.0, 0.0];
-        let output_ptr: *mut f64 = &mut output[0] as *mut _;
-        unsafe { simsimd_dot_f32c(a.as_ptr(), b.as_ptr(), a.len(), output_ptr) };
-        Some((output[0], output[1]))
+        let mut product: [Distance; 2] = [0.0, 0.0];
+        let product_ptr: *mut Distance = &mut product[0] as *mut _;
+        unsafe { simsimd_dot_f32c(a.as_ptr(), b.as_ptr(), a.len(), product_ptr) };
+        Some((product[0], product[1]))
     }
 
     fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
         if a.len() != b.len() {
             return None;
         }
-        let mut output: [f64; 2] = [0.0, 0.0];
-        let output_ptr: *mut f64 = &mut output[0] as *mut _;
-        unsafe { simsimd_vdot_f32c(a.as_ptr(), b.as_ptr(), a.len(), output_ptr) };
-        Some((output[0], output[1]))
+        let mut product: [Distance; 2] = [0.0, 0.0];
+        let product_ptr: *mut Distance = &mut product[0] as *mut _;
+        unsafe { simsimd_vdot_f32c(a.as_ptr(), b.as_ptr(), a.len(), product_ptr) };
+        Some((product[0], product[1]))
     }
 }
 
@@ -492,20 +492,20 @@ impl ComplexProducts for f64 {
         if a.len() != b.len() {
             return None;
         }
-        let mut output: [f64; 2] = [0.0, 0.0];
-        let output_ptr: *mut f64 = &mut output[0] as *mut _;
-        unsafe { simsimd_dot_f64c(a.as_ptr(), b.as_ptr(), a.len(), output_ptr) };
-        Some((output[0], output[1]))
+        let mut product: [Distance; 2] = [0.0, 0.0];
+        let product_ptr: *mut Distance = &mut product[0] as *mut _;
+        unsafe { simsimd_dot_f64c(a.as_ptr(), b.as_ptr(), a.len(), product_ptr) };
+        Some((product[0], product[1]))
     }
 
     fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
         if a.len() != b.len() {
             return None;
         }
-        let mut output: [f64; 2] = [0.0, 0.0];
-        let output_ptr: *mut f64 = &mut output[0] as *mut _;
-        unsafe { simsimd_vdot_f64c(a.as_ptr(), b.as_ptr(), a.len(), output_ptr) };
-        Some((output[0], output[1]))
+        let mut product: [Distance; 2] = [0.0, 0.0];
+        let product_ptr: *mut Distance = &mut product[0] as *mut _;
+        unsafe { simsimd_vdot_f64c(a.as_ptr(), b.as_ptr(), a.len(), product_ptr) };
+        Some((product[0], product[1]))
     }
 }
 
@@ -569,8 +569,8 @@ mod tests {
     #[test]
     fn test_dot_f32_complex() {
         // Let's consider these as complex numbers where every pair is (real, imaginary)
-        let a = &[1.0, 2.0, 3.0, 4.0]; // Represents two complex numbers: 1+2i, 3+4i
-        let b = &[5.0, 6.0, 7.0, 8.0]; // Represents two complex numbers: 5+6i, 7+8i
+        let a: &[f32; 4] = &[1.0, 2.0, 3.0, 4.0]; // Represents two complex numbers: 1+2i, 3+4i
+        let b: &[f32; 4] = &[5.0, 6.0, 7.0, 8.0]; // Represents two complex numbers: 5+6i, 7+8i
 
         if let Some((real, imag)) = ComplexProducts::dot(a, b) {
             println!(
@@ -578,16 +578,16 @@ mod tests {
                 real, imag
             );
             // These values should be replaced with the expected real and imaginary parts of the result
-            assert_almost_equal(9.0, real, 0.01); // Corrected expected real part
-            assert_almost_equal(41.0, imag, 0.01); // Corrected expected imaginary part
+            assert_almost_equal(-18.0, real, 0.01); // Corrected expected real part
+            assert_almost_equal(68.0, imag, 0.01); // Corrected expected imaginary part
         }
     }
 
     #[test]
     fn test_vdot_f32_complex() {
         // Here we're assuming a similar setup to the previous test, but for the Hermitian (conjugate) dot product
-        let a = &[1.0, 2.0, 3.0, 4.0]; // Represents two complex numbers: 1+2i, 3+4i
-        let b = &[5.0, 6.0, 7.0, 8.0]; // Represents two complex numbers: 5+6i, 7+8i
+        let a: &[f32; 4] = &[1.0, 2.0, 3.0, 4.0]; // Represents two complex numbers: 1+2i, 3+4i
+        let b: &[f32; 4] = &[5.0, 6.0, 7.0, 8.0]; // Represents two complex numbers: 5+6i, 7+8i
 
         if let Some((real, imag)) = ComplexProducts::vdot(a, b) {
             println!(
@@ -596,7 +596,7 @@ mod tests {
             );
             // Replace these with the actual expected values
             assert_almost_equal(70.0, real, 0.01); // Example expected real part
-            assert_almost_equal(4.0, imag, 0.01); // Example expected imaginary part
+            assert_almost_equal(-8.0, imag, 0.01); // Example expected imaginary part
         }
     }
 
