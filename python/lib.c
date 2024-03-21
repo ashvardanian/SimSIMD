@@ -21,12 +21,12 @@
 #define SIMSIMD_TARGET_HASWELL 1
 #define SIMSIMD_TARGET_ICE 1
 #define SIMSIMD_TARGET_SKYLAKE 1
-#define SIMSIMD_TARGET_SAPPHIRE 1
+#define SIMSIMD_TARGET_SAPPHIRE 0 // No support for `ph` half-precision in MSVC yet
 #elif defined(__APPLE__)
 #define SIMSIMD_TARGET_NEON 1
 #define SIMSIMD_TARGET_SVE 0
 #define SIMSIMD_TARGET_HASWELL 1
-#define SIMSIMD_TARGET_ICE 0
+#define SIMSIMD_TARGET_ICE 0 // No support for AVX-512 in any Apple machines
 #define SIMSIMD_TARGET_SKYLAKE 0
 #define SIMSIMD_TARGET_SAPPHIRE 0
 #endif
@@ -79,7 +79,7 @@ int same_string(char const* a, char const* b) { return strcmp(a, b) == 0; }
 
 int is_complex(simsimd_datatype_t datatype) {
     return datatype == simsimd_datatype_f32c_k || datatype == simsimd_datatype_f64c_k ||
-           datatype == simsimd_datatype_f16c_k || datatype == simsimd_datatype_i8c_k;
+           datatype == simsimd_datatype_f16c_k;
 }
 
 simsimd_datatype_t numpy_string_to_datatype(char const* name) {
@@ -251,7 +251,7 @@ static PyObject* api_get_capabilities(PyObject* self) {
     if (!cap_dict)
         return NULL;
 
-#define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong((caps)&simsimd_cap_##name##_k))
+#define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong((caps) & simsimd_cap_##name##_k))
 
     ADD_CAP(serial);
     ADD_CAP(neon);

@@ -137,22 +137,23 @@ typedef enum {
     simsimd_datatype_f16_k,     ///< Half precision floating point
     simsimd_datatype_i8_k,      ///< 8-bit integer
     simsimd_datatype_b8_k,      ///< Single-bit values packed into 8-bit words
-    simsimd_datatype_f64c_k,    ///< Complex double precision floating point
-    simsimd_datatype_f32c_k,    ///< Complex single precision floating point
-    simsimd_datatype_f16c_k,    ///< Complex half precision floating point
-    simsimd_datatype_i8c_k,     ///< Complex 8-bit integer
+
+    simsimd_datatype_f64c_k, ///< Complex double precision floating point
+    simsimd_datatype_f32c_k, ///< Complex single precision floating point
+    simsimd_datatype_f16c_k, ///< Complex half precision floating point
 } simsimd_datatype_t;
 
 /**
  *  @brief  Type-punned function pointer accepting two vectors and outputting their similarity/distance.
  *
- *  @param[in] a Pointer to the first data array.
- *  @param[in] b Pointer to the second data array.
- *  @param[in] n Number of scalar words in the input arrays.
- *  @param[out] result Output distance as a double-precision float.
+ *  @param[in] a    Pointer to the first data array.
+ *  @param[in] b    Pointer to the second data array.
+ *  @param[in] n    Number of scalar words in the input arrays.
+ *  @param[out] d   Output value as a double-precision float.
+ *                  In complex dot-products @b two double-precision scalars are exported
+ *                  for the real and imaginary parts.
  */
-typedef void (*simsimd_metric_punned_t)(void const* a, void const* b, simsimd_size_t size_a,
-                                        simsimd_distance_t* result);
+typedef void (*simsimd_metric_punned_t)(void const* a, void const* b, simsimd_size_t n, simsimd_distance_t* d);
 
 /**
  *  @brief  Function to determine the SIMD capabilities of the current machine at @b runtime.

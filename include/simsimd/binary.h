@@ -78,11 +78,11 @@ inline static void simsimd_jaccard_b8_serial(simsimd_b8_t const* a, simsimd_b8_t
 
 #if SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
+#pragma GCC target("+simd")
+#pragma clang attribute push(__attribute__((target("+simd"))), apply_to = function)
 
-__attribute__((target("+simd"))) //
-inline static void
-simsimd_hamming_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                        simsimd_distance_t* result) {
+inline static void simsimd_hamming_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                           simsimd_distance_t* result) {
     simsimd_i32_t differences = 0;
     simsimd_size_t i = 0;
     for (; i + 16 <= n_words; i += 16) {
@@ -96,10 +96,8 @@ simsimd_hamming_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_si
     *result = differences;
 }
 
-__attribute__((target("+simd"))) //
-inline static void
-simsimd_jaccard_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                        simsimd_distance_t* result) {
+inline static void simsimd_jaccard_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                           simsimd_distance_t* result) {
     simsimd_i32_t intersection = 0, union_ = 0;
     simsimd_size_t i = 0;
     for (; i + 16 <= n_words; i += 16) {
@@ -114,14 +112,16 @@ simsimd_jaccard_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_si
     *result = (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
+#pragma clang attribute pop
+#pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON
 
 #if SIMSIMD_TARGET_SVE
+#pragma GCC target("+sve")
+#pragma clang attribute push(__attribute__((target("+sve"))), apply_to = function)
 
-__attribute__((target("+sve"))) //
-inline static void
-simsimd_hamming_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                       simsimd_distance_t* result) {
+inline static void simsimd_hamming_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                          simsimd_distance_t* result) {
     simsimd_size_t i = 0;
     simsimd_i32_t differences = 0;
     do {
@@ -134,10 +134,8 @@ simsimd_hamming_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_siz
     *result = differences;
 }
 
-__attribute__((target("+sve"))) //
-inline static void
-simsimd_jaccard_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                       simsimd_distance_t* result) {
+inline static void simsimd_jaccard_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                          simsimd_distance_t* result) {
     simsimd_size_t i = 0;
     simsimd_i32_t intersection = 0, union_ = 0;
     do {
@@ -151,18 +149,20 @@ simsimd_jaccard_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_siz
     *result = (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
+#pragma clang attribute pop
+#pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SVE
-
 #endif // SIMSIMD_TARGET_ARM
 
 #if SIMSIMD_TARGET_X86
-
 #if SIMSIMD_TARGET_ICE
+#pragma GCC push_options
+#pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vpopcntdq")
+#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512vpopcntdq"))),                \
+                             apply_to = function)
 
-__attribute__((target("avx512vpopcntdq,avx512vl,avx512bw,avx512f,bmi2"))) //
-inline static void
-simsimd_hamming_b8_ice(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                       simsimd_distance_t* result) {
+inline static void simsimd_hamming_b8_ice(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                          simsimd_distance_t* result) {
     __m512i differences_vec = _mm512_setzero_si512();
     __m512i a_vec, b_vec;
 
@@ -186,10 +186,8 @@ simsimd_hamming_b8_ice_cycle:
     *result = differences;
 }
 
-__attribute__((target("avx512vpopcntdq,avx512vl,avx512bw,avx512f,bmi2"))) //
-inline static void
-simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                       simsimd_distance_t* result) {
+inline static void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                          simsimd_distance_t* result) {
     __m512i intersection_vec = _mm512_setzero_si512(), union_vec = _mm512_setzero_si512();
     __m512i a_vec, b_vec;
 
@@ -216,14 +214,17 @@ simsimd_jaccard_b8_ice_cycle:
     *result = (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
+#pragma clang attribute pop
+#pragma GCC pop_options
 #endif // SIMSIMD_TARGET_ICE
 
 #if SIMSIMD_TARGET_HASWELL
+#pragma GCC push_options
+#pragma GCC target("popcnt")
+#pragma clang attribute push(__attribute__((target("popcnt"))), apply_to = function)
 
-__attribute__((target("popcnt"))) //
-inline static void
-simsimd_hamming_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                           simsimd_distance_t* result) {
+inline static void simsimd_hamming_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                              simsimd_distance_t* result) {
     // x86 supports unaligned loads and works just fine with the scalar version for small vectors.
     simsimd_size_t differences = 0;
     for (; n_words >= 8; n_words -= 8, a += 8, b += 8)
@@ -233,10 +234,8 @@ simsimd_hamming_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd
     *result = differences;
 }
 
-__attribute__((target("popcnt"))) //
-inline static void
-simsimd_jaccard_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                           simsimd_distance_t* result) {
+inline static void simsimd_jaccard_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                              simsimd_distance_t* result) {
     // x86 supports unaligned loads and works just fine with the scalar version for small vectors.
     simsimd_size_t intersection = 0, union_ = 0;
     for (; n_words >= 8; n_words -= 8, a += 8, b += 8)
@@ -247,6 +246,8 @@ simsimd_jaccard_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd
     *result = (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
+#pragma clang attribute pop
+#pragma GCC pop_options
 #endif // SIMSIMD_TARGET_HASWELL
 #endif // SIMSIMD_TARGET_X86
 
