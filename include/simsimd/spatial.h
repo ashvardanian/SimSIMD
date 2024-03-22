@@ -215,8 +215,8 @@ inline static void simsimd_l2sq_f16_neon(simsimd_f16_t const* a, simsimd_f16_t c
     float32x4_t sum_vec = vdupq_n_f32(0);
     simsimd_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
-        float32x4_t a_vec = vcvt_f32_f16(vld1_f16((float16_t const*)a + i));
-        float32x4_t b_vec = vcvt_f32_f16(vld1_f16((float16_t const*)b + i));
+        float32x4_t a_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)a + i));
+        float32x4_t b_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)b + i));
         float32x4_t diff_vec = vsubq_f32(a_vec, b_vec);
         sum_vec = vfmaq_f32(sum_vec, diff_vec, diff_vec);
     }
@@ -247,8 +247,8 @@ inline static void simsimd_cos_f16_neon(simsimd_f16_t const* a, simsimd_f16_t co
     float32x4_t ab_vec = vdupq_n_f32(0), a2_vec = vdupq_n_f32(0), b2_vec = vdupq_n_f32(0);
     simsimd_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
-        float32x4_t a_vec = vcvt_f32_f16(vld1_f16((float16_t const*)a + i));
-        float32x4_t b_vec = vcvt_f32_f16(vld1_f16((float16_t const*)b + i));
+        float32x4_t a_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)a + i));
+        float32x4_t b_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)b + i));
         ab_vec = vfmaq_f32(ab_vec, a_vec, b_vec);
         a2_vec = vfmaq_f32(a2_vec, a_vec, a_vec);
         b2_vec = vfmaq_f32(b2_vec, b_vec, b_vec);
@@ -472,8 +472,8 @@ inline static void simsimd_l2sq_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16
     simsimd_f16_t const* b = (simsimd_f16_t const*)(b_enum);
     do {
         svbool_t pg_vec = svwhilelt_b16((unsigned int)i, (unsigned int)n);
-        svfloat16_t a_vec = svld1_f16(pg_vec, (float16_t const*)a + i);
-        svfloat16_t b_vec = svld1_f16(pg_vec, (float16_t const*)b + i);
+        svfloat16_t a_vec = svld1_f16(pg_vec, (simsimd_f16_for_arm_simd_t const*)a + i);
+        svfloat16_t b_vec = svld1_f16(pg_vec, (simsimd_f16_for_arm_simd_t const*)b + i);
         svfloat16_t a_minus_b_vec = svsub_f16_x(pg_vec, a_vec, b_vec);
         d2_vec = svmla_f16_x(pg_vec, d2_vec, a_minus_b_vec, a_minus_b_vec);
         i += svcnth();
@@ -492,8 +492,8 @@ inline static void simsimd_cos_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16_
     simsimd_f16_t const* b = (simsimd_f16_t const*)(b_enum);
     do {
         svbool_t pg_vec = svwhilelt_b16((unsigned int)i, (unsigned int)n);
-        svfloat16_t a_vec = svld1_f16(pg_vec, (float16_t const*)a + i);
-        svfloat16_t b_vec = svld1_f16(pg_vec, (float16_t const*)b + i);
+        svfloat16_t a_vec = svld1_f16(pg_vec, (simsimd_f16_for_arm_simd_t const*)a + i);
+        svfloat16_t b_vec = svld1_f16(pg_vec, (simsimd_f16_for_arm_simd_t const*)b + i);
         ab_vec = svmla_f16_x(pg_vec, ab_vec, a_vec, b_vec);
         a2_vec = svmla_f16_x(pg_vec, a2_vec, a_vec, a_vec);
         b2_vec = svmla_f16_x(pg_vec, b2_vec, b_vec, b_vec);

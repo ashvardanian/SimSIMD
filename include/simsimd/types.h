@@ -193,6 +193,20 @@ typedef _Float16 simsimd_f16_t;
 typedef unsigned short simsimd_f16_t;
 #endif
 
+/**
+ *  @brief  Alias for the half-precision floating-point type on Arm.
+ *          Clang and GCC bring the `float16_t` symbol when you compile for Aarch64.
+ *          MSVC lacks it, and it's `vld1_f16`-like intrinsics are in reality macros,
+ *          that cast to 16-bit integers internally, instead of using floats.
+ */
+#if SIMSIMD_TARGET_ARM
+#if defined(_MSC_VER)
+typedef simsimd_f16_t simsimd_f16_for_arm_simd_t;
+#else
+typedef float16_t simsimd_f16_for_arm_simd_t;
+#endif
+#endif
+
 #define SIMSIMD_IDENTIFY(x) (x)
 
 /**

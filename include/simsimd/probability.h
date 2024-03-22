@@ -215,8 +215,8 @@ inline static void simsimd_kl_f16_neon(simsimd_f16_t const* a, simsimd_f16_t con
     float32x4_t epsilon_vec = vdupq_n_f32(epsilon);
     simsimd_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
-        float32x4_t a_vec = vcvt_f32_f16(vld1_f16((float16_t const*)a + i));
-        float32x4_t b_vec = vcvt_f32_f16(vld1_f16((float16_t const*)b + i));
+        float32x4_t a_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)a + i));
+        float32x4_t b_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)b + i));
         float32x4_t ratio_vec = vdivq_f32(vaddq_f32(a_vec, epsilon_vec), vaddq_f32(b_vec, epsilon_vec));
         float32x4_t log_ratio_vec = simsimd_log2_f32_neon(ratio_vec);
         float32x4_t prod_vec = vmulq_f32(a_vec, log_ratio_vec);
@@ -237,8 +237,8 @@ inline static void simsimd_js_f16_neon(simsimd_f16_t const* a, simsimd_f16_t con
     float32x4_t epsilon_vec = vdupq_n_f32(epsilon);
     simsimd_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
-        float32x4_t a_vec = vcvt_f32_f16(vld1_f16((float16_t const*)a + i));
-        float32x4_t b_vec = vcvt_f32_f16(vld1_f16((float16_t const*)b + i));
+        float32x4_t a_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)a + i));
+        float32x4_t b_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)b + i));
         float32x4_t m_vec = vmulq_f32(vaddq_f32(a_vec, b_vec), vdupq_n_f32(0.5));
         float32x4_t ratio_a_vec = vdivq_f32(vaddq_f32(a_vec, epsilon_vec), vaddq_f32(m_vec, epsilon_vec));
         float32x4_t ratio_b_vec = vdivq_f32(vaddq_f32(b_vec, epsilon_vec), vaddq_f32(m_vec, epsilon_vec));
