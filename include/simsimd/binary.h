@@ -168,7 +168,7 @@ inline static void simsimd_hamming_b8_ice(simsimd_b8_t const* a, simsimd_b8_t co
 
 simsimd_hamming_b8_ice_cycle:
     if (n_words < 64) {
-        __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
         a_vec = _mm512_maskz_loadu_epi8(mask, a);
         b_vec = _mm512_maskz_loadu_epi8(mask, b);
         n_words = 0;
@@ -193,7 +193,7 @@ inline static void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t co
 
 simsimd_jaccard_b8_ice_cycle:
     if (n_words < 64) {
-        __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
         a_vec = _mm512_maskz_loadu_epi8(mask, a);
         b_vec = _mm512_maskz_loadu_epi8(mask, b);
         n_words = 0;

@@ -88,7 +88,7 @@ inline static void simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t
             simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
             d += ai * SIMSIMD_LOG((ai + epsilon) / (bi + epsilon));                                                    \
         }                                                                                                              \
-        *result = (simsimd_f32_t)d;                                                                                    \
+        *result = (simsimd_distance_t)d;                                                                               \
     }
 
 #define SIMSIMD_MAKE_JS(name, input_type, accumulator_type, converter, epsilon)                                        \
@@ -103,7 +103,7 @@ inline static void simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t
             d += ai * SIMSIMD_LOG((ai + epsilon) / (mi + epsilon));                                                    \
             d += bi * SIMSIMD_LOG((bi + epsilon) / (mi + epsilon));                                                    \
         }                                                                                                              \
-        *result = (simsimd_f32_t)d / 2;                                                                                \
+        *result = (simsimd_distance_t)d / 2;                                                                           \
     }
 
 SIMSIMD_MAKE_KL(serial, f64, f64, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f64_serial
@@ -404,7 +404,7 @@ inline static void simsimd_kl_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t 
 
 simsimd_kl_f32_skylake_cycle:
     if (n < 16) {
-        __mmask16 mask = _bzhi_u32(0xFFFFFFFF, n);
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_add_ps(_mm512_maskz_loadu_ps(mask, a), epsilon_vec);
         b_vec = _mm512_add_ps(_mm512_maskz_loadu_ps(mask, b), epsilon_vec);
         n = 0;
@@ -434,7 +434,7 @@ inline static void simsimd_js_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t 
 
 simsimd_js_f32_skylake_cycle:
     if (n < 16) {
-        __mmask16 mask = _bzhi_u32(0xFFFFFFFF, n);
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_ps(mask, a);
         b_vec = _mm512_maskz_loadu_ps(mask, b);
         n = 0;
@@ -495,7 +495,7 @@ inline static void simsimd_kl_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t
 
 simsimd_kl_f16_sapphire_cycle:
     if (n < 32) {
-        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n);
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_add_ph(mask, _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a)), epsilon_vec);
         b_vec = _mm512_maskz_add_ph(mask, _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, b)), epsilon_vec);
         n = 0;
@@ -524,7 +524,7 @@ inline static void simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t
 
 simsimd_js_f16_sapphire_cycle:
     if (n < 32) {
-        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n);
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a));
         b_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, b));
         n = 0;

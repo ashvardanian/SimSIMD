@@ -749,7 +749,7 @@ inline static void simsimd_l2sq_f32_skylake(simsimd_f32_t const* a, simsimd_f32_
 
 simsimd_l2sq_f32_skylake_cycle:
     if (n < 16) {
-        __mmask16 mask = _bzhi_u32(0xFFFFFFFF, n);
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_ps(mask, a);
         b_vec = _mm512_maskz_loadu_ps(mask, b);
         n = 0;
@@ -775,7 +775,7 @@ inline static void simsimd_cos_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t
 
 simsimd_cos_f32_skylake_cycle:
     if (n < 16) {
-        __mmask16 mask = _bzhi_u32(0xFFFFFFFF, n);
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_ps(mask, a);
         b_vec = _mm512_maskz_loadu_ps(mask, b);
         n = 0;
@@ -810,7 +810,7 @@ inline static void simsimd_l2sq_f64_skylake(simsimd_f64_t const* a, simsimd_f64_
 
 simsimd_l2sq_f64_skylake_cycle:
     if (n < 8) {
-        __mmask8 mask = _bzhi_u32(0xFFFFFFFF, n);
+        __mmask8 mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_pd(mask, a);
         b_vec = _mm512_maskz_loadu_pd(mask, b);
         n = 0;
@@ -836,7 +836,7 @@ inline static void simsimd_cos_f64_skylake(simsimd_f64_t const* a, simsimd_f64_t
 
 simsimd_cos_f64_skylake_cycle:
     if (n < 8) {
-        __mmask8 mask = _bzhi_u32(0xFFFFFFFF, n);
+        __mmask8 mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_pd(mask, a);
         b_vec = _mm512_maskz_loadu_pd(mask, b);
         n = 0;
@@ -880,7 +880,7 @@ inline static void simsimd_l2sq_f16_sapphire(simsimd_f16_t const* a, simsimd_f16
 
 simsimd_l2sq_f16_sapphire_cycle:
     if (n < 32) {
-        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n);
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_i16_vec = _mm512_maskz_loadu_epi16(mask, a);
         b_i16_vec = _mm512_maskz_loadu_epi16(mask, b);
         n = 0;
@@ -906,7 +906,7 @@ inline static void simsimd_cos_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_
 
 simsimd_cos_f16_sapphire_cycle:
     if (n < 32) {
-        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n);
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_i16_vec = _mm512_maskz_loadu_epi16(mask, a);
         b_i16_vec = _mm512_maskz_loadu_epi16(mask, b);
         n = 0;
@@ -948,7 +948,7 @@ inline static void simsimd_l2sq_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const
 
 simsimd_l2sq_i8_ice_cycle:
     if (n < 32) {
-        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n);
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, a));
         b_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, b));
         n = 0;
@@ -974,7 +974,7 @@ inline static void simsimd_cos_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const*
 
 simsimd_cos_i8_ice_cycle:
     if (n < 32) {
-        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n);
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, a));
         b_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, b));
         n = 0;
