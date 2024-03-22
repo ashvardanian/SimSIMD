@@ -795,7 +795,9 @@ simsimd_cos_f32_skylake_cycle:
     simsimd_f32_t b2 = _mm512_reduce_add_ps(b2_vec);
 
     // Compute the reciprocal square roots of a2 and b2
-    __m128 rsqrts = _mm_rsqrt14_ps(_mm_set_ps(0.f, 0.f, a2 + 1.e-9f, b2 + 1.e-9f));
+    // Mysteriously, MSVC has no `_mm_rsqrt14_ps` intrinsic, but has it's masked variants,
+    // so let's use `_mm_maskz_rsqrt14_ps(0xFF, ...)` instead.
+    __m128 rsqrts = _mm_maskz_rsqrt14_ps(0xFF, _mm_set_ps(0.f, 0.f, a2 + 1.e-9f, b2 + 1.e-9f));
     simsimd_f32_t rsqrt_a2 = _mm_cvtss_f32(rsqrts);
     simsimd_f32_t rsqrt_b2 = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
     *result = 1 - ab * rsqrt_a2 * rsqrt_b2;
@@ -854,7 +856,9 @@ simsimd_cos_f64_skylake_cycle:
     simsimd_f32_t b2 = (simsimd_f32_t)_mm512_reduce_add_pd(b2_vec);
 
     // Compute the reciprocal square roots of a2 and b2
-    __m128 rsqrts = _mm_rsqrt14_ps(_mm_set_ps(0.f, 0.f, a2 + 1.e-9f, b2 + 1.e-9f));
+    // Mysteriously, MSVC has no `_mm_rsqrt14_ps` intrinsic, but has it's masked variants,
+    // so let's use `_mm_maskz_rsqrt14_ps(0xFF, ...)` instead.
+    __m128 rsqrts = _mm_maskz_rsqrt14_ps(0xFF, _mm_set_ps(0.f, 0.f, a2 + 1.e-9f, b2 + 1.e-9f));
     simsimd_f32_t rsqrt_a2 = _mm_cvtss_f32(rsqrts);
     simsimd_f32_t rsqrt_b2 = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
     *result = 1 - ab * rsqrt_a2 * rsqrt_b2;
@@ -995,7 +999,9 @@ simsimd_cos_i8_ice_cycle:
     simsimd_f32_t b2 = _mm512_reduce_add_epi32(b2_i32s_vec);
 
     // Compute the reciprocal square roots of a2 and b2
-    __m128 rsqrts = _mm_rsqrt14_ps(_mm_set_ps(0.f, 0.f, a2 + 1.e-9f, b2 + 1.e-9f));
+    // Mysteriously, MSVC has no `_mm_rsqrt14_ps` intrinsic, but has it's masked variants,
+    // so let's use `_mm_maskz_rsqrt14_ps(0xFF, ...)` instead.
+    __m128 rsqrts = _mm_maskz_rsqrt14_ps(0xFF, _mm_set_ps(0.f, 0.f, a2 + 1.e-9f, b2 + 1.e-9f));
     simsimd_f32_t rsqrt_a2 = _mm_cvtss_f32(rsqrts);
     simsimd_f32_t rsqrt_b2 = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
     *result = 1 - ab * rsqrt_a2 * rsqrt_b2;
