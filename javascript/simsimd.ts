@@ -18,38 +18,48 @@ try {
 
 /**
  * @brief Computes the squared Euclidean distance between two vectors.
- * @param {Float32Array|Int8Array} a - The first vector.
- * @param {Float32Array|Int8Array} b - The second vector.
+ * @param {Float64Array|Float32Array|Int8Array} a - The first vector.
+ * @param {Float64Array|Float32Array|Int8Array} b - The second vector.
  * @returns {number} The squared Euclidean distance between vectors a and b.
  */
 export const sqeuclidean = (
-  a: Float32Array | Int8Array,
-  b: Float32Array | Int8Array
+  a: Float64Array | Float32Array | Int8Array,
+  b: Float64Array | Float32Array | Int8Array
 ): number => {
   return compiled.sqeuclidean(a, b);
 };
 
 /**
  * @brief Computes the cosine distance between two vectors.
- * @param {Float32Array|Int8Array} a - The first vector.
- * @param {Float32Array|Int8Array} b - The second vector.
+ * @param {Float64Array|Float32Array|Int8Array} a - The first vector.
+ * @param {Float64Array|Float32Array|Int8Array} b - The second vector.
  * @returns {number} The cosine distance between vectors a and b.
  */
 export const cosine = (
-  a: Float32Array | Int8Array,
-  b: Float32Array | Int8Array
+  a: Float64Array | Float32Array | Int8Array,
+  b: Float64Array | Float32Array | Int8Array
 ): number => {
   return compiled.cosine(a, b);
 };
 
 /**
- * @brief Computes the inner distance of two vectors.
- * @param {Float32Array} a - The first vector.
- * @param {Float32Array} b - The second vector.
- * @returns {number} The inner distance of vectors a and b.
+ * @brief Computes the inner product of two vectors (same as dot product).
+ * @param {Float64Array|Float32Array} a - The first vector.
+ * @param {Float64Array|Float32Array} b - The second vector.
+ * @returns {number} The inner product of vectors a and b.
  */
-export const inner = (a: Float32Array, b: Float32Array): number => {
+export const inner = (a: Float64Array | Float32Array, b: Float64Array | Float32Array): number => {
   return compiled.inner(a, b);
+};
+
+/**
+ * @brief Computes the dot product of two vectors (same as inner product).
+ * @param {Float64Array|Float32Array} a - The first vector.
+ * @param {Float64Array|Float32Array} b - The second vector.
+ * @returns {number} The dot product of vectors a and b.
+ */
+export const dot = (a: Float64Array | Float32Array, b: Float64Array | Float32Array): number => {
+  return compiled.dot(a, b);
 };
 
 /**
@@ -74,28 +84,29 @@ export const jaccard = (a: Uint8Array, b: Uint8Array): number => {
 
 /**
  * @brief Computes the kullbackleibler similarity coefficient between two vectors.
- * @param {Float32Array} a - The first vector.
- * @param {Float32Array} b - The second vector.
+ * @param {Float64Array|Float32Array} a - The first vector.
+ * @param {Float64Array|Float32Array} b - The second vector.
  * @returns {number} The Jaccard similarity coefficient between vectors a and b.
  */
-export const kullbackleibler = (a: Float32Array, b: Float32Array): number => {
+export const kullbackleibler = (a: Float64Array | Float32Array, b: Float64Array | Float32Array): number => {
   return compiled.kullbackleibler(a, b);
 };
 
 /**
  * @brief Computes the jensenshannon similarity coefficient between two vectors.
- * @param {Float32Array} a - The first vector.
- * @param {Float32Array} b - The second vector.
+ * @param {Float64Array|Float32Array} a - The first vector.
+ * @param {Float64Array|Float32Array} b - The second vector.
  * @returns {number} The Jaccard similarity coefficient between vectors a and b.
  */
-export const jensenshannon = (a: Float32Array, b: Float32Array): number => {
+export const jensenshannon = (a: Float64Array | Float32Array, b: Float64Array | Float32Array): number => {
   return compiled.jensenshannon(a, b);
 };
 
 export default {
+  dot,
+  inner,
   sqeuclidean,
   cosine,
-  inner,
   hamming,
   jaccard,
   kullbackleibler,
@@ -119,6 +130,6 @@ function getBuildDir(dir: string) {
 function getDirName() {
   try {
     if (__dirname) return __dirname;
-  } catch (e) {}
+  } catch (e) { }
   return getRoot(getFileName());
 }

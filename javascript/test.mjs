@@ -19,6 +19,10 @@ test("Distance from itself", () => {
   assertAlmostEqual(simsimd.sqeuclidean(f32s, f32s), 0.0, 0.01);
   assertAlmostEqual(simsimd.cosine(f32s, f32s), 0.0, 0.01);
 
+  const f64s = new Float64Array([1.0, 2.0, 3.0]);
+  assertAlmostEqual(simsimd.sqeuclidean(f64s, f64s), 0.0, 0.01);
+  assertAlmostEqual(simsimd.cosine(f64s, f64s), 0.0, 0.01);
+
   const f32sNormalized = new Float32Array([
     1.0 / Math.sqrt(14),
     2.0 / Math.sqrt(14),

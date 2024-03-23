@@ -30,13 +30,9 @@ try:
 except:
     # SciPy is not installed, some tests will be skipped
     scipy_available = False
-    baseline_cosine = lambda x, y: 1.0 - np.dot(x, y) / (
-        np.linalg.norm(x) * np.linalg.norm(y)
-    )
+    baseline_cosine = lambda x, y: 1.0 - np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
     baseline_sqeuclidean = lambda x, y: np.sum((x - y) ** 2)
-    baseline_jensenshannon = lambda p, q: np.sqrt(
-        (np.sum((np.sqrt(p) - np.sqrt(q)) ** 2)) / 2
-    )
+    baseline_jensenshannon = lambda p, q: np.sqrt((np.sum((np.sqrt(p) - np.sqrt(q)) ** 2)) / 2)
     baseline_hamming = lambda x, y: np.logical_xor(x, y).sum()
 
     def baseline_jaccard(x, y):

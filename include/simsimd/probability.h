@@ -88,7 +88,7 @@ inline static void simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t
             simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
             d += ai * SIMSIMD_LOG((ai + epsilon) / (bi + epsilon));                                                    \
         }                                                                                                              \
-        *result = (simsimd_f32_t)d;                                                                                    \
+        *result = (simsimd_distance_t)d;                                                                               \
     }
 
 #define SIMSIMD_MAKE_JS(name, input_type, accumulator_type, converter, epsilon)                                        \
@@ -103,7 +103,7 @@ inline static void simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t
             d += ai * SIMSIMD_LOG((ai + epsilon) / (mi + epsilon));                                                    \
             d += bi * SIMSIMD_LOG((bi + epsilon) / (mi + epsilon));                                                    \
         }                                                                                                              \
-        *result = (simsimd_f32_t)d / 2;                                                                                \
+        *result = (simsimd_distance_t)d / 2;                                                                           \
     }
 
 SIMSIMD_MAKE_KL(serial, f64, f64, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f64_serial
@@ -123,10 +123,11 @@ SIMSIMD_MAKE_JS(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16, SIMSIMD_F32_DIVISION
 
 #if SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
+#pragma GCC push_options
+#pragma GCC target("+simd")
+#pragma clang attribute push(__attribute__((target("+simd"))), apply_to = function)
 
-__attribute__((target("+simd"))) //
-inline float32x4_t
-simsimd_log2_f32_neon(float32x4_t x) {
+inline static float32x4_t simsimd_log2_f32_neon(float32x4_t x) {
     // Extracting the exponent
     int32x4_t i = vreinterpretq_s32_f32(x);
     int32x4_t e = vsubq_s32(vshrq_n_s32(vandq_s32(i, vdupq_n_s32(0x7F800000)), 23), vdupq_n_s32(127));
@@ -151,9 +152,8 @@ simsimd_log2_f32_neon(float32x4_t x) {
     return result;
 }
 
-__attribute__((target("+simd"))) //
-inline static void
-simsimd_kl_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+inline static void simsimd_kl_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                       simsimd_distance_t* result) {
     float32x4_t sum_vec = vdupq_n_f32(0);
     simsimd_f32_t epsilon = SIMSIMD_F32_DIVISION_EPSILON;
     float32x4_t epsilon_vec = vdupq_n_f32(epsilon);
@@ -173,9 +173,8 @@ simsimd_kl_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size
     *result = sum;
 }
 
-__attribute__((target("+simd"))) //
-inline static void
-simsimd_js_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+inline static void simsimd_js_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                       simsimd_distance_t* result) {
     float32x4_t sum_vec = vdupq_n_f32(0);
     simsimd_f32_t epsilon = SIMSIMD_F32_DIVISION_EPSILON;
     float32x4_t epsilon_vec = vdupq_n_f32(epsilon);
@@ -202,16 +201,22 @@ simsimd_js_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size
     *result = sum;
 }
 
-__attribute__((target("+simd+fp16"))) //
-inline static void
-simsimd_kl_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+#pragma clang attribute pop
+#pragma GCC pop_options
+
+#pragma GCC push_options
+#pragma GCC target("+simd+fp16")
+#pragma clang attribute push(__attribute__((target("+simd+fp16"))), apply_to = function)
+
+inline static void simsimd_kl_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                       simsimd_distance_t* result) {
     float32x4_t sum_vec = vdupq_n_f32(0);
     simsimd_f32_t epsilon = SIMSIMD_F32_DIVISION_EPSILON;
     float32x4_t epsilon_vec = vdupq_n_f32(epsilon);
     simsimd_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
-        float32x4_t a_vec = vcvt_f32_f16(vld1_f16((float16_t const*)a + i));
-        float32x4_t b_vec = vcvt_f32_f16(vld1_f16((float16_t const*)b + i));
+        float32x4_t a_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)a + i));
+        float32x4_t b_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)b + i));
         float32x4_t ratio_vec = vdivq_f32(vaddq_f32(a_vec, epsilon_vec), vaddq_f32(b_vec, epsilon_vec));
         float32x4_t log_ratio_vec = simsimd_log2_f32_neon(ratio_vec);
         float32x4_t prod_vec = vmulq_f32(a_vec, log_ratio_vec);
@@ -225,16 +230,15 @@ simsimd_kl_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size
     *result = sum;
 }
 
-__attribute__((target("+simd+fp16"))) //
-inline static void
-simsimd_js_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+inline static void simsimd_js_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                       simsimd_distance_t* result) {
     float32x4_t sum_vec = vdupq_n_f32(0);
     simsimd_f32_t epsilon = SIMSIMD_F32_DIVISION_EPSILON;
     float32x4_t epsilon_vec = vdupq_n_f32(epsilon);
     simsimd_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
-        float32x4_t a_vec = vcvt_f32_f16(vld1_f16((float16_t const*)a + i));
-        float32x4_t b_vec = vcvt_f32_f16(vld1_f16((float16_t const*)b + i));
+        float32x4_t a_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)a + i));
+        float32x4_t b_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)b + i));
         float32x4_t m_vec = vmulq_f32(vaddq_f32(a_vec, b_vec), vdupq_n_f32(0.5));
         float32x4_t ratio_a_vec = vdivq_f32(vaddq_f32(a_vec, epsilon_vec), vaddq_f32(m_vec, epsilon_vec));
         float32x4_t ratio_b_vec = vdivq_f32(vaddq_f32(b_vec, epsilon_vec), vaddq_f32(m_vec, epsilon_vec));
@@ -256,15 +260,18 @@ simsimd_js_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size
     *result = sum;
 }
 
+#pragma clang attribute pop
+#pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON
 #endif // SIMSIMD_TARGET_ARM
 
 #if SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_HASWELL
+#pragma GCC push_options
+#pragma GCC target("avx2", "f16c", "fma")
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
 
-__attribute__((target("avx2,f16c,fma"))) //
-inline __m256
-simsimd_log2_f32_haswell(__m256 x) {
+inline __m256 simsimd_log2_f32_haswell(__m256 x) {
     // Extracting the exponent
     __m256i i = _mm256_castps_si256(x);
     __m256i e = _mm256_srli_epi32(_mm256_and_si256(i, _mm256_set1_epi32(0x7F800000)), 23);
@@ -291,9 +298,8 @@ simsimd_log2_f32_haswell(__m256 x) {
     return result;
 }
 
-__attribute__((target("avx2,f16c,fma"))) //
-inline static void
-simsimd_kl_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+inline static void simsimd_kl_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                          simsimd_distance_t* result) {
     __m256 sum_vec = _mm256_setzero_ps();
     simsimd_f32_t epsilon = SIMSIMD_F32_DIVISION_EPSILON;
     __m256 epsilon_vec = _mm256_set1_ps(epsilon);
@@ -323,9 +329,8 @@ simsimd_kl_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_s
     *result = sum;
 }
 
-__attribute__((target("avx2,f16c,fma"))) //
-inline static void
-simsimd_js_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+inline static void simsimd_js_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                          simsimd_distance_t* result) {
     __m256 sum_vec = _mm256_setzero_ps();
     simsimd_f32_t epsilon = SIMSIMD_F32_DIVISION_EPSILON;
     __m256 epsilon_vec = _mm256_set1_ps(epsilon);
@@ -364,13 +369,16 @@ simsimd_js_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_s
     *result = sum / 2;
 }
 
+#pragma clang attribute pop
+#pragma GCC pop_options
 #endif // SIMSIMD_TARGET_HASWELL
 
 #if SIMSIMD_TARGET_SKYLAKE
+#pragma GCC push_options
+#pragma GCC target("avx512f", "avx512vl", "bmi2")
+#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2"))), apply_to = function)
 
-__attribute__((target("avx512f,avx512vl"))) //
-inline __m512
-simsimd_log2_f32_skylake(__m512 x) {
+inline __m512 simsimd_log2_f32_skylake(__m512 x) {
     // Extract the exponent and mantissa
     __m512 one = _mm512_set1_ps(1.0f);
     __m512 e = _mm512_getexp_ps(x);
@@ -387,9 +395,8 @@ simsimd_log2_f32_skylake(__m512 x) {
     return _mm512_add_ps(_mm512_mul_ps(p, _mm512_sub_ps(m, one)), e);
 }
 
-__attribute__((target("avx512f,avx512vl,bmi2"))) //
-inline static void
-simsimd_kl_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+inline static void simsimd_kl_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                          simsimd_distance_t* result) {
     __m512 sum_vec = _mm512_setzero();
     simsimd_f32_t epsilon = SIMSIMD_F32_DIVISION_EPSILON;
     __m512 epsilon_vec = _mm512_set1_ps(epsilon);
@@ -397,7 +404,7 @@ simsimd_kl_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_s
 
 simsimd_kl_f32_skylake_cycle:
     if (n < 16) {
-        __mmask16 mask = _bzhi_u32(0xFFFFFFFF, n);
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_add_ps(_mm512_maskz_loadu_ps(mask, a), epsilon_vec);
         b_vec = _mm512_add_ps(_mm512_maskz_loadu_ps(mask, b), epsilon_vec);
         n = 0;
@@ -417,9 +424,8 @@ simsimd_kl_f32_skylake_cycle:
     *result = _mm512_reduce_add_ps(sum_vec) * log2_normalizer;
 }
 
-__attribute__((target("avx512f,avx512vl,bmi2"))) //
-inline static void
-simsimd_js_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+inline static void simsimd_js_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                          simsimd_distance_t* result) {
     __m512 sum_a_vec = _mm512_setzero();
     __m512 sum_b_vec = _mm512_setzero();
     simsimd_f32_t epsilon = SIMSIMD_F32_DIVISION_EPSILON;
@@ -428,7 +434,7 @@ simsimd_js_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_s
 
 simsimd_js_f32_skylake_cycle:
     if (n < 16) {
-        __mmask16 mask = _bzhi_u32(0xFFFFFFFF, n);
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_ps(mask, a);
         b_vec = _mm512_maskz_loadu_ps(mask, b);
         n = 0;
@@ -455,13 +461,16 @@ simsimd_js_f32_skylake_cycle:
     *result = _mm512_reduce_add_ps(_mm512_add_ps(sum_a_vec, sum_b_vec)) * 0.5f * log2_normalizer;
 }
 
+#pragma clang attribute pop
+#pragma GCC pop_options
 #endif // SIMSIMD_TARGET_HASWELL
 
 #if SIMSIMD_TARGET_SAPPHIRE
+#pragma GCC push_options
+#pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512fp16")
+#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512fp16"))), apply_to = function)
 
-__attribute__((target("avx512f,avx512vl,avx512fp16"))) //
-inline __m512h
-simsimd_log2_f16_sapphire(__m512h x) {
+inline __m512h simsimd_log2_f16_sapphire(__m512h x) {
     // Extract the exponent and mantissa
     __m512h one = _mm512_set1_ph((_Float16)1);
     __m512h e = _mm512_getexp_ph(x);
@@ -478,16 +487,15 @@ simsimd_log2_f16_sapphire(__m512h x) {
     return _mm512_add_ph(_mm512_mul_ph(p, _mm512_sub_ph(m, one)), e);
 }
 
-__attribute__((target("avx512f,avx512vl,avx512fp16,bmi2"))) //
-inline static void
-simsimd_kl_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+inline static void simsimd_kl_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                           simsimd_distance_t* result) {
     __m512h sum_vec = _mm512_set1_ph((_Float16)0);
     __m512h epsilon_vec = _mm512_set1_ph((_Float16)SIMSIMD_F16_DIVISION_EPSILON);
     __m512h a_vec, b_vec;
 
 simsimd_kl_f16_sapphire_cycle:
     if (n < 32) {
-        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n);
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_add_ph(mask, _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a)), epsilon_vec);
         b_vec = _mm512_maskz_add_ph(mask, _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, b)), epsilon_vec);
         n = 0;
@@ -507,9 +515,8 @@ simsimd_kl_f16_sapphire_cycle:
     *result = _mm512_reduce_add_ph(sum_vec) * log2_normalizer;
 }
 
-__attribute__((target("avx512f,avx512vl,avx512fp16,bmi2"))) //
-inline static void
-simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+inline static void simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                           simsimd_distance_t* result) {
     __m512h sum_a_vec = _mm512_set1_ph((_Float16)0);
     __m512h sum_b_vec = _mm512_set1_ph((_Float16)0);
     __m512h epsilon_vec = _mm512_set1_ph((_Float16)SIMSIMD_F16_DIVISION_EPSILON);
@@ -517,7 +524,7 @@ simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_
 
 simsimd_js_f16_sapphire_cycle:
     if (n < 32) {
-        __mmask32 mask = _bzhi_u32(0xFFFFFFFF, n);
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a));
         b_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, b));
         n = 0;
@@ -544,6 +551,8 @@ simsimd_js_f16_sapphire_cycle:
     *result = _mm512_reduce_add_ph(_mm512_add_ph(sum_a_vec, sum_b_vec)) * 0.5f * log2_normalizer;
 }
 
+#pragma clang attribute pop
+#pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SAPPHIRE
 #endif // SIMSIMD_TARGET_X86
 

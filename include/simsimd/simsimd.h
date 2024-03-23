@@ -24,6 +24,40 @@
 #include "probability.h" // Kullback-Leibler, Jensen–Shannon
 #include "spatial.h"     // L2, Cosine
 
+/**
+ *  @brief  Removes compile-time dispatching, and replaces it with runtime dispatching.
+ *          So the `simsimd_dot_f32` function will invoke the most advanced backend supported by the CPU,
+ *          that runs the program, rather than the most advanced backend supported by the CPU
+ *          used to compile the library or the downstream application.
+ */
+#ifndef SIMSIMD_DYNAMIC_DISPATCH
+#define SIMSIMD_DYNAMIC_DISPATCH (0) // true or false
+#endif
+
+/*  Annotation for the public API symbols:
+ *
+ *  - `SIMSIMD_PUBLIC` is used for functions that are part of the public API.
+ *  - `SIMSIMD_INTERNAL` is used for internal helper functions with unstable APIs.
+ *  - `SIMSIMD_DYNAMIC` is used for functions that are part of the public API, but are dispatched at runtime.
+ */
+#ifndef SIMSIMD_DYNAMIC
+#if SIMSIMD_DYNAMIC_DISPATCH
+#if defined(_WIN32) || defined(__CYGWIN__)
+#define SIMSIMD_DYNAMIC __declspec(dllexport)
+#define SIMSIMD_PUBLIC inline static
+#define SIMSIMD_INTERNAL inline static
+#else
+#define SIMSIMD_DYNAMIC __attribute__((visibility("default")))
+#define SIMSIMD_PUBLIC __attribute__((unused)) inline static
+#define SIMSIMD_INTERNAL __attribute__((always_inline)) inline static
+#endif // _WIN32 || __CYGWIN__
+#else
+#define SIMSIMD_DYNAMIC inline static
+#define SIMSIMD_PUBLIC inline static
+#define SIMSIMD_INTERNAL inline static
+#endif // SIMSIMD_DYNAMIC_DISPATCH
+#endif // SIMSIMD_DYNAMIC
+
 #if SIMSIMD_TARGET_ARM
 #ifdef __linux__
 #include <asm/hwcap.h>
@@ -103,28 +137,29 @@ typedef enum {
     simsimd_datatype_f16_k,     ///< Half precision floating point
     simsimd_datatype_i8_k,      ///< 8-bit integer
     simsimd_datatype_b8_k,      ///< Single-bit values packed into 8-bit words
-    simsimd_datatype_f64c_k,    ///< Complex double precision floating point
-    simsimd_datatype_f32c_k,    ///< Complex single precision floating point
-    simsimd_datatype_f16c_k,    ///< Complex half precision floating point
-    simsimd_datatype_i8c_k,     ///< Complex 8-bit integer
+
+    simsimd_datatype_f64c_k, ///< Complex double precision floating point
+    simsimd_datatype_f32c_k, ///< Complex single precision floating point
+    simsimd_datatype_f16c_k, ///< Complex half precision floating point
 } simsimd_datatype_t;
 
 /**
  *  @brief  Type-punned function pointer accepting two vectors and outputting their similarity/distance.
  *
- *  @param[in] a Pointer to the first data array.
- *  @param[in] b Pointer to the second data array.
- *  @param[in] n Number of scalar words in the input arrays.
- *  @param[out] result Output distance as a double-precision float.
+ *  @param[in] a    Pointer to the first data array.
+ *  @param[in] b    Pointer to the second data array.
+ *  @param[in] n    Number of scalar words in the input arrays.
+ *  @param[out] d   Output value as a double-precision float.
+ *                  In complex dot-products @b two double-precision scalars are exported
+ *                  for the real and imaginary parts.
  */
-typedef void (*simsimd_metric_punned_t)(void const* a, void const* b, simsimd_size_t size_a,
-                                        simsimd_distance_t* result);
+typedef void (*simsimd_metric_punned_t)(void const* a, void const* b, simsimd_size_t n, simsimd_distance_t* d);
 
 /**
  *  @brief  Function to determine the SIMD capabilities of the current machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
  */
-inline static simsimd_capability_t simsimd_capabilities(void) {
+SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) {
 
 #if SIMSIMD_TARGET_X86
 
@@ -228,12 +263,12 @@ inline static simsimd_capability_t simsimd_capabilities(void) {
  *  @param metric_output Output variable for the selected similarity function.
  *  @param capability_output Output variable for the utilized hardware capabilities.
  */
-inline static void simsimd_find_metric_punned( //
-    simsimd_metric_kind_t kind,                //
-    simsimd_datatype_t datatype,               //
-    simsimd_capability_t supported,            //
-    simsimd_capability_t allowed,              //
-    simsimd_metric_punned_t* metric_output,    //
+SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
+    simsimd_metric_kind_t kind,                 //
+    simsimd_datatype_t datatype,                //
+    simsimd_capability_t supported,             //
+    simsimd_capability_t allowed,               //
+    simsimd_metric_punned_t* metric_output,     //
     simsimd_capability_t* capability_output) {
 
     simsimd_metric_punned_t* m = metric_output;
@@ -580,9 +615,9 @@ inline static void simsimd_find_metric_punned( //
  *  @param allowed The hardware capabilities allowed for use.
  *  @return A function pointer to the selected metric implementation.
  */
-inline static simsimd_metric_punned_t simsimd_metric_punned( //
-    simsimd_metric_kind_t kind,                              //
-    simsimd_datatype_t datatype,                             //
+SIMSIMD_PUBLIC simsimd_metric_punned_t simsimd_metric_punned( //
+    simsimd_metric_kind_t kind,                               //
+    simsimd_datatype_t datatype,                              //
     simsimd_capability_t allowed) {
 
     simsimd_metric_punned_t result = 0;
@@ -591,6 +626,118 @@ inline static simsimd_metric_punned_t simsimd_metric_punned( //
     simsimd_find_metric_punned(kind, datatype, supported, allowed, &result, &c);
     return result;
 }
+
+#if SIMSIMD_DYNAMIC_DISPATCH
+
+/*  Inner products
+ *  - Dot product: the sum of the products of the corresponding elements of two vectors.
+ *  - Complex Dot product: dot product with a conjugate first argument.
+ *  - Complex Conjugate Dot product: dot product with a conjugate first argument.
+ *
+ *  @param a The first vector.
+ *  @param b The second vector.
+ *  @param n The number of elements in the vectors. Even for complex variants.
+ *  @param d The output distance value.
+ *
+ *  @note The dot product can be negative, to use as a distance, take `1 - a * b`.
+ *  @note The dot product is zero if and only if the two vectors are orthogonal.
+ *  @note Defined only for floating-point and integer data types.
+ */
+SIMSIMD_DYNAMIC void simsimd_dot_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                     simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_dot_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                     simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_dot_f64(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
+                                     simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_dot_f16c(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                      simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_dot_f32c(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                      simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_dot_f64c(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
+                                      simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_vdot_f16c(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                       simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_vdot_f32c(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                       simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_vdot_f64c(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
+                                       simsimd_distance_t* d);
+
+/*  Spatial distances
+ *  - Cosine distance: the cosine of the angle between two vectors.
+ *  - L2 squared distance: the squared Euclidean distance between two vectors.
+ *
+ *  @param a The first vector.
+ *  @param b The second vector.
+ *  @param n The number of elements in the vectors.
+ *  @param d The output distance value.
+ *
+ *  @note The output distance value is non-negative.
+ *  @note The output distance value is zero if and only if the two vectors are identical.
+ *  @note Defined only for floating-point and integer data types.
+ */
+SIMSIMD_DYNAMIC void simsimd_cos_i8(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t c,
+                                    simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_cos_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t c,
+                                     simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_cos_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t c,
+                                     simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_cos_f64(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t c,
+                                     simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_l2sq_i8(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t c,
+                                     simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_l2sq_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t c,
+                                      simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_l2sq_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t c,
+                                      simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_l2sq_f64(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t c,
+                                      simsimd_distance_t* d);
+
+/*  Binary distances
+ *  - Hamming distance: the number of positions at which the corresponding bits are different.
+ *  - Jaccard distance: ratio of bit-level matching positions (intersection) to the total number of positions (union).
+ *
+ *  @param a The first binary vector.
+ *  @param b The second binary vector.
+ *  @param n The number of 8-bit words in the vectors.
+ *  @param d The output distance value.
+ *
+ *  @note The output distance value is non-negative.
+ *  @note The output distance value is zero if and only if the two vectors are identical.
+ *  @note Defined only for binary data.
+ */
+SIMSIMD_DYNAMIC void simsimd_hamming_b8(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n,
+                                        simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_jaccard_b8(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n,
+                                        simsimd_distance_t* d);
+
+/*  Probability distributions
+ *  - Jensen-Shannon divergence: a measure of similarity between two probability distributions.
+ *  - Kullback-Leibler divergence: a measure of how one probability distribution diverges from a second.
+ *
+ *  @param a The first descrete probability distribution.
+ *  @param b The second descrete probability distribution.
+ *  @param n The number of elements in the descrete distributions.
+ *  @param d The output divergence value.
+ *
+ *  @note The distributions are assumed to be normalized.
+ *  @note The output divergence value is non-negative.
+ *  @note The output divergence value is zero if and only if the two distributions are identical.
+ *  @note Defined only for floating-point data types.
+ */
+SIMSIMD_DYNAMIC void simsimd_kl_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                    simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_kl_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                    simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_kl_f64(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
+                                    simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_js_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                    simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_js_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                    simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_js_f64(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
+                                    simsimd_distance_t* d);
+
+#endif
 
 #ifdef __cplusplus
 }
