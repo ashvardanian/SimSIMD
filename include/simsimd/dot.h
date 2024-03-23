@@ -311,13 +311,15 @@ inline static void simsimd_dot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t c
     float32x4_t ab_imag_vec = vdupq_n_f32(0);
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        // Unpack the input arrays into real and imaginary parts:
-        float16x4x2_t a_vec = vld2_f16(a + i);
-        float16x4x2_t b_vec = vld2_f16(b + i);
-        float32x4_t a_real_vec = vcvt_f32_f16(a_vec.val[0]);
-        float32x4_t a_imag_vec = vcvt_f32_f16(a_vec.val[1]);
-        float32x4_t b_real_vec = vcvt_f32_f16(b_vec.val[0]);
-        float32x4_t b_imag_vec = vcvt_f32_f16(b_vec.val[1]);
+        // Unpack the input arrays into real and imaginary parts.
+        // MSVC sadly doesn't recognize the `vld2_f16`, so we load the  data as signed
+        // integers of the same size and reinterpret with `vreinterpret_f16_s16` afterwards.
+        int16x4x2_t a_vec = vld2_s16((short*)a + i);
+        int16x4x2_t b_vec = vld2_s16((short*)b + i);
+        float32x4_t a_real_vec = vcvt_f32_f16(vreinterpret_f16_s16(a_vec.val[0]));
+        float32x4_t a_imag_vec = vcvt_f32_f16(vreinterpret_f16_s16(a_vec.val[1]));
+        float32x4_t b_real_vec = vcvt_f32_f16(vreinterpret_f16_s16(b_vec.val[0]));
+        float32x4_t b_imag_vec = vcvt_f32_f16(vreinterpret_f16_s16(b_vec.val[1]));
 
         // Compute the dot product:
         ab_real_vec = vfmaq_f32(ab_real_vec, a_real_vec, b_real_vec);
@@ -350,13 +352,15 @@ inline static void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t 
     float32x4_t ab_imag_vec = vdupq_n_f32(0);
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        // Unpack the input arrays into real and imaginary parts:
-        float16x4x2_t a_vec = vld2_f16(a + i);
-        float16x4x2_t b_vec = vld2_f16(b + i);
-        float32x4_t a_real_vec = vcvt_f32_f16(a_vec.val[0]);
-        float32x4_t a_imag_vec = vcvt_f32_f16(a_vec.val[1]);
-        float32x4_t b_real_vec = vcvt_f32_f16(b_vec.val[0]);
-        float32x4_t b_imag_vec = vcvt_f32_f16(b_vec.val[1]);
+        // Unpack the input arrays into real and imaginary parts.
+        // MSVC sadly doesn't recognize the `vld2_f16`, so we load the  data as signed
+        // integers of the same size and reinterpret with `vreinterpret_f16_s16` afterwards.
+        int16x4x2_t a_vec = vld2_s16((short*)a + i);
+        int16x4x2_t b_vec = vld2_s16((short*)b + i);
+        float32x4_t a_real_vec = vcvt_f32_f16(vreinterpret_f16_s16(a_vec.val[0]));
+        float32x4_t a_imag_vec = vcvt_f32_f16(vreinterpret_f16_s16(a_vec.val[1]));
+        float32x4_t b_real_vec = vcvt_f32_f16(vreinterpret_f16_s16(b_vec.val[0]));
+        float32x4_t b_imag_vec = vcvt_f32_f16(vreinterpret_f16_s16(b_vec.val[1]));
 
         // Compute the dot product:
         ab_real_vec = vfmaq_f32(ab_real_vec, a_real_vec, b_real_vec);
