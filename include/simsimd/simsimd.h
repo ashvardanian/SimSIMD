@@ -18,12 +18,6 @@
 #define SIMSIMD_VERSION_MINOR 1
 #define SIMSIMD_VERSION_PATCH 0
 
-#include "binary.h"      // Hamming, Jaccard
-#include "dot.h"         // Inner (dot) product, and its conjugate
-#include "geospatial.h"  // Haversine and Vincenty
-#include "probability.h" // Kullback-Leibler, Jensen–Shannon
-#include "spatial.h"     // L2, Cosine
-
 /**
  *  @brief  Removes compile-time dispatching, and replaces it with runtime dispatching.
  *          So the `simsimd_dot_f32` function will invoke the most advanced backend supported by the CPU,
@@ -34,29 +28,11 @@
 #define SIMSIMD_DYNAMIC_DISPATCH (0) // true or false
 #endif
 
-/*  Annotation for the public API symbols:
- *
- *  - `SIMSIMD_PUBLIC` is used for functions that are part of the public API.
- *  - `SIMSIMD_INTERNAL` is used for internal helper functions with unstable APIs.
- *  - `SIMSIMD_DYNAMIC` is used for functions that are part of the public API, but are dispatched at runtime.
- */
-#ifndef SIMSIMD_DYNAMIC
-#if SIMSIMD_DYNAMIC_DISPATCH
-#if defined(_WIN32) || defined(__CYGWIN__)
-#define SIMSIMD_DYNAMIC __declspec(dllexport)
-#define SIMSIMD_PUBLIC inline static
-#define SIMSIMD_INTERNAL inline static
-#else
-#define SIMSIMD_DYNAMIC __attribute__((visibility("default")))
-#define SIMSIMD_PUBLIC __attribute__((unused)) inline static
-#define SIMSIMD_INTERNAL __attribute__((always_inline)) inline static
-#endif // _WIN32 || __CYGWIN__
-#else
-#define SIMSIMD_DYNAMIC inline static
-#define SIMSIMD_PUBLIC inline static
-#define SIMSIMD_INTERNAL inline static
-#endif // SIMSIMD_DYNAMIC_DISPATCH
-#endif // SIMSIMD_DYNAMIC
+#include "binary.h"      // Hamming, Jaccard
+#include "dot.h"         // Inner (dot) product, and its conjugate
+#include "geospatial.h"  // Haversine and Vincenty
+#include "probability.h" // Kullback-Leibler, Jensen–Shannon
+#include "spatial.h"     // L2, Cosine
 
 #if SIMSIMD_TARGET_ARM
 #ifdef __linux__
