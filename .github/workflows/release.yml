@@ -20,7 +20,7 @@ jobs:
     name: Semantic Release
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: Set up Node.js
@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout the latest code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -111,7 +111,7 @@ jobs:
           packages-dir: dist
           verbose: true
           print-hash: true
-        
+
   build_javascript:
     name: Build JavaScript Native Modules
     needs: versioning
@@ -138,6 +138,8 @@ jobs:
     steps:
       - name: Checkout the latest code
         uses: actions/checkout@v4
+        with:
+          ref: "main"
       - run: git submodule update --init --recursive
 
       - name: Set up Node.js
@@ -178,7 +180,9 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          ref: "main"
       - run: git submodule update --init --recursive
 
       - name: Set up Node.js
@@ -216,7 +220,7 @@ jobs:
     needs: versioning
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: "main"
       - run: git submodule update --init --recursive
