@@ -169,18 +169,19 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) {
     // Check for AVX512F (Function ID 7, EBX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L155
     unsigned supports_avx512f = (info7.named.ebx & 0x00010000) != 0;
-    unsigned supports_avx512ifma = (info7.named.ebx & 0x00200000) != 0;
     // Check for AVX512FP16 (Function ID 7, EDX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L198C9-L198C23
     unsigned supports_avx512fp16 = (info7.named.edx & 0x00800000) != 0;
-    // Check for VPOPCNTDQ (Function ID 1, ECX register)
-    // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L182C30-L182C40
-    unsigned supports_avx512vpopcntdq = (info1.named.ecx & 0x00004000) != 0;
-    unsigned supports_avx512vbmi2 = (info1.named.ecx & 0x00000040) != 0;
-    // Check for VNNI (Function ID 1, ECX register)
-    // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L180
-    unsigned supports_avx512vnni = (info1.named.ecx & 0x00000800) != 0;
-    unsigned supports_avx512bitalg = (info1.named.ecx & 0x00001000) != 0;
+    // Check for AVX512VNNI (Function ID 7, ECX register)
+    unsigned supports_avx512vnni = (info7.named.ecx & 0x00000800) != 0;
+    // Check for AVX512IFMA (Function ID 7, EBX register)
+    unsigned supports_avx512ifma = (info7.named.ebx & 0x00200000) != 0;
+    // Check for AVX512BITALG (Function ID 7, ECX register)
+    unsigned supports_avx512bitalg = (info7.named.ecx & 0x00001000) != 0;
+    // Check for AVX512VBMI2 (Function ID 7, ECX register)
+    unsigned supports_avx512vbmi2 = (info7.named.ecx & 0x00000040) != 0;
+    // Check for AVX512VPOPCNTDQ (Function ID 7, ECX register)
+    unsigned supports_avx512vpopcntdq = (info7.named.ecx & 0x00004000) != 0;
 
     // Convert specific features into CPU generations
     unsigned supports_haswell = supports_avx2 && supports_f16c && supports_fma;

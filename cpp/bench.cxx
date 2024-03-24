@@ -144,19 +144,29 @@ void vdot_f64c_blas(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size
 #endif
 
 int main(int argc, char** argv) {
+    simsimd_capability_t runtime_caps = simsimd_capabilities();
 
     // Log supported functionality
     char const* flags[2] = {"false", "true"};
     std::printf("Benchmarking Similarity Measures\n");
+    std::printf("- Compiler supports F16: %s\n", flags[SIMSIMD_NATIVE_F16]);
+    std::printf("- Benchmark against CBLAS: %s\n", flags[SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS]);
     std::printf("\n");
+    std::printf("Compile-time settings:\n");
     std::printf("- Arm NEON support enabled: %s\n", flags[SIMSIMD_TARGET_NEON]);
     std::printf("- Arm SVE support enabled: %s\n", flags[SIMSIMD_TARGET_SVE]);
     std::printf("- x86 Haswell support enabled: %s\n", flags[SIMSIMD_TARGET_HASWELL]);
     std::printf("- x86 Skylake support enabled: %s\n", flags[SIMSIMD_TARGET_SKYLAKE]);
     std::printf("- x86 Ice Lake support enabled: %s\n", flags[SIMSIMD_TARGET_ICE]);
     std::printf("- x86 Sapphire Rapids support enabled: %s\n", flags[SIMSIMD_TARGET_SAPPHIRE]);
-    std::printf("- Compiler supports F16: %s\n", flags[SIMSIMD_NATIVE_F16]);
-    std::printf("- Benchmark against CBLAS: %s\n", flags[SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS]);
+    std::printf("\n");
+    std::printf("Run-time settings:\n");
+    std::printf("- Arm NEON support enabled: %s\n", flags[(runtime_caps & simsimd_cap_neon_k) != 0]);
+    std::printf("- Arm SVE support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sve_k) != 0]);
+    std::printf("- x86 Haswell support enabled: %s\n", flags[(runtime_caps & simsimd_cap_haswell_k) != 0]);
+    std::printf("- x86 Skylake support enabled: %s\n", flags[(runtime_caps & simsimd_cap_skylake_k) != 0]);
+    std::printf("- x86 Ice Lake support enabled: %s\n", flags[(runtime_caps & simsimd_cap_ice_k) != 0]);
+    std::printf("- x86 Sapphire Rapids support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sapphire_k) != 0]);
     std::printf("\n");
 
     // Run the benchmarks
