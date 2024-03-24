@@ -54,7 +54,7 @@
 #endif // !defined(SIMSIMD_TARGET_X86)
 
 // Compiling for Arm: SIMSIMD_TARGET_NEON
-#if !defined(SIMSIMD_TARGET_NEON) || !SIMSIMD_TARGET_ARM
+#if !defined(SIMSIMD_TARGET_NEON) || (SIMSIMD_TARGET_NEON && !SIMSIMD_TARGET_ARM)
 #if defined(__ARM_NEON)
 #define SIMSIMD_TARGET_NEON SIMSIMD_TARGET_ARM
 #else
@@ -63,7 +63,7 @@
 #endif // !defined(SIMSIMD_TARGET_NEON)
 
 // Compiling for Arm: SIMSIMD_TARGET_SVE
-#if !defined(SIMSIMD_TARGET_SVE) || !SIMSIMD_TARGET_ARM
+#if !defined(SIMSIMD_TARGET_SVE) || (SIMSIMD_TARGET_SVE && !SIMSIMD_TARGET_ARM)
 #if defined(__ARM_FEATURE_SVE)
 #define SIMSIMD_TARGET_SVE SIMSIMD_TARGET_ARM
 #else
@@ -78,7 +78,7 @@
 // are supported on all CPUs starting with Jaguar 2009.
 // Starting with Sandy Bridge, Intel adds basic AVX support in their CPUs and in 2013
 // extends it with AVX2 in the Haswell generation. Moreover, Haswell adds FMA support.
-#if !defined(SIMSIMD_TARGET_HASWELL) || !SIMSIMD_TARGET_X86
+#if !defined(SIMSIMD_TARGET_HASWELL) || (SIMSIMD_TARGET_HASWELL && !SIMSIMD_TARGET_X86)
 #if defined(__AVX2__) && defined(__FMA__) && defined(__F16C__)
 #define SIMSIMD_TARGET_HASWELL 1
 #else
@@ -114,7 +114,7 @@
 //      gcc-12 -march=sapphirerapids -dM -E - < /dev/null | egrep "SSE|AVX" | sort
 // On Arm machines you may want to check for other flags:
 //      gcc-12 -march=native -dM -E - < /dev/null | egrep "NEON|SVE|FP16|FMA" | sort
-#if !defined(SIMSIMD_TARGET_SKYLAKE) || !SIMSIMD_TARGET_X86
+#if !defined(SIMSIMD_TARGET_SKYLAKE) || (SIMSIMD_TARGET_SKYLAKE && !SIMSIMD_TARGET_X86)
 #if defined(__AVX512F__) && defined(__AVX512CD__) && defined(__AVX512VL__) && defined(__AVX512DQ__) &&                 \
     defined(__AVX512BW__)
 #define SIMSIMD_TARGET_SKYLAKE 1
@@ -122,7 +122,7 @@
 #define SIMSIMD_TARGET_SKYLAKE 0
 #endif
 #endif // Skylake
-#if !defined(SIMSIMD_TARGET_ICE) || !SIMSIMD_TARGET_X86
+#if !defined(SIMSIMD_TARGET_ICE) || (SIMSIMD_TARGET_ICE && !SIMSIMD_TARGET_X86)
 #if defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITALG__) && defined(__AVX512VBMI2__) &&     \
     defined(__AVX512VPOPCNTDQ__)
 #define SIMSIMD_TARGET_ICE 1
@@ -130,7 +130,7 @@
 #define SIMSIMD_TARGET_ICE 0
 #endif
 #endif // Ice Lake
-#if !defined(SIMSIMD_TARGET_SAPPHIRE) || !SIMSIMD_TARGET_X86
+#if !defined(SIMSIMD_TARGET_SAPPHIRE) || (SIMSIMD_TARGET_SAPPHIRE && !SIMSIMD_TARGET_X86)
 #if defined(__AVX512FP16__)
 #define SIMSIMD_TARGET_SAPPHIRE 1
 #else

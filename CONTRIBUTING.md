@@ -64,7 +64,8 @@ python -m cibuildwheel --platform windows
 ## Rust
 
 ```sh
-cargo test
+cargo test -p simsimd
+cargo test -p simsimd -- --nocapture # To see the output
 cargo bench
 open ./target/criterion/report/index.html
 ```

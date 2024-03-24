@@ -505,6 +505,8 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             default: break;
             }
 
+        break;
+
     case simsimd_datatype_f64c_k:
 
     #if SIMSIMD_TARGET_SVE
@@ -605,6 +607,23 @@ SIMSIMD_PUBLIC simsimd_metric_punned_t simsimd_metric_punned( //
 }
 
 #if SIMSIMD_DYNAMIC_DISPATCH
+
+/*  Run-time feature-testing functions
+ *  - Check if the CPU supports NEON or SVE extensions on Arm
+ *  - Check if the CPU supports AVX2 and F16C extensions on Haswell x86 CPUs and newer
+ *  - Check if the CPU supports AVX512F and AVX512BW extensions on Skylake x86 CPUs and newer
+ *  - Check if the CPU supports AVX512VNNI, AVX512IFMA, AVX512BITALG, AVX512VBMI2, and AVX512VPOPCNTDQ
+ *    extensions on Ice Lake x86 CPUs and newer
+ *  - Check if the CPU supports AVX512FP16 extensions on Sapphire Rapids x86 CPUs and newer
+ *
+ *  @return 1 if the CPU supports the SIMD instruction set, 0 otherwise.
+ */
+SIMSIMD_DYNAMIC int simsimd_uses_neon(void);
+SIMSIMD_DYNAMIC int simsimd_uses_sve(void);
+SIMSIMD_DYNAMIC int simsimd_uses_haswell(void);
+SIMSIMD_DYNAMIC int simsimd_uses_skylake(void);
+SIMSIMD_DYNAMIC int simsimd_uses_ice(void);
+SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void);
 
 /*  Inner products
  *  - Dot product: the sum of the products of the corresponding elements of two vectors.
