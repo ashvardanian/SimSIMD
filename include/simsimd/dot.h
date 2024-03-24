@@ -35,49 +35,49 @@ extern "C" {
  *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
  *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
  */
-inline static void simsimd_dot_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_dot_f64c_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_vdot_f64c_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_dot_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_dot_f32c_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_vdot_f32c_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_dot_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_dot_f16c_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_vdot_f16c_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_dot_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f64c_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_vdot_f64c_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_dot_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f32c_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_vdot_f32c_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_dot_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f16c_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_vdot_f16c_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 
 /*  Double-precision serial backends for all numeric types.
  *  For single-precision computation check out the "*_serial" counterparts of those "*_accurate" functions.
  */
-inline static void simsimd_dot_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_dot_f32c_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_vdot_f32c_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_dot_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_dot_f16c_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_vdot_f16c_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_dot_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f32c_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_vdot_f32c_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_dot_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f16c_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_vdot_f16c_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 
 /*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
  *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
  *  server CPUs produced before 2023.
  */
-inline static void simsimd_dot_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_dot_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_dot_f32c_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_dot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_vdot_f32c_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_dot_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f32c_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_dot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_vdot_f32c_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 
 /*  SIMD-powered backends for Arm SVE, mostly using 32-bit arithmetic over variable-length platform-defined word sizes.
  *  Designed for Arm Graviton 3, Microsoft Cobalt, as well as Nvidia Grace and newer Ampere Altra CPUs.
  */
-inline static void simsimd_dot_f16_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_dot_f32_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_dot_f64_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_dot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_dot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_dot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_vdot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_vdot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_vdot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_dot_f16_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f32_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f64_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_dot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_dot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_vdot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_vdot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_vdot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 
 /*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
  *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
@@ -85,33 +85,33 @@ inline static void simsimd_vdot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t c
  *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
  *  properly vectorized by recent compilers.
  */
-inline static void simsimd_dot_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_dot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_vdot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_dot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-inline static void simsimd_vdot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_dot_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_vdot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_dot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_vdot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 
 /*  SIMD-powered backends for various generations of AVX512 CPUs.
  *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
  *  Ice Lake added VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ, and other extensions for integral operations.
  *  Sapphire Rapids added tiled matrix operations, but we are most interested in the new mixed-precision FMA instructions.
  */
-inline static void simsimd_dot_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_dot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_vdot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_dot_f64_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_dot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_vdot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_vdot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f64_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_vdot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
-inline static void simsimd_dot_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_dot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-inline static void simsimd_vdot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_vdot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 // clang-format on
 
 #define SIMSIMD_MAKE_DOT(name, input_type, accumulator_type, converter)                                                \
-    inline static void simsimd_dot_##input_type##_##name(simsimd_##input_type##_t const* a,                            \
-                                                         simsimd_##input_type##_t const* b, simsimd_size_t n,          \
-                                                         simsimd_distance_t* result) {                                 \
+    SIMSIMD_PUBLIC void simsimd_dot_##input_type##_##name(simsimd_##input_type##_t const* a,                           \
+                                                          simsimd_##input_type##_t const* b, simsimd_size_t n,         \
+                                                          simsimd_distance_t* result) {                                \
         simsimd_##accumulator_type##_t ab = 0;                                                                         \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                                      \
             simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
@@ -122,9 +122,9 @@ inline static void simsimd_vdot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f1
     }
 
 #define SIMSIMD_MAKE_COMPLEX_DOT(name, input_type, accumulator_type, converter)                                        \
-    inline static void simsimd_dot_##input_type##c_##name(simsimd_##input_type##_t const* a,                           \
-                                                          simsimd_##input_type##_t const* b, simsimd_size_t n,         \
-                                                          simsimd_distance_t* results) {                               \
+    SIMSIMD_PUBLIC void simsimd_dot_##input_type##c_##name(simsimd_##input_type##_t const* a,                          \
+                                                           simsimd_##input_type##_t const* b, simsimd_size_t n,        \
+                                                           simsimd_distance_t* results) {                              \
         simsimd_##accumulator_type##_t ab_real = 0, ab_imag = 0;                                                       \
         for (simsimd_size_t i = 0; i + 2 <= n; i += 2) {                                                               \
             simsimd_##accumulator_type##_t ar = converter(a[i]);                                                       \
@@ -139,9 +139,9 @@ inline static void simsimd_vdot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f1
     }
 
 #define SIMSIMD_MAKE_COMPLEX_VDOT(name, input_type, accumulator_type, converter)                                       \
-    inline static void simsimd_vdot_##input_type##c_##name(simsimd_##input_type##_t const* a,                          \
-                                                           simsimd_##input_type##_t const* b, simsimd_size_t n,        \
-                                                           simsimd_distance_t* results) {                              \
+    SIMSIMD_PUBLIC void simsimd_vdot_##input_type##c_##name(simsimd_##input_type##_t const* a,                         \
+                                                            simsimd_##input_type##_t const* b, simsimd_size_t n,       \
+                                                            simsimd_distance_t* results) {                             \
         simsimd_##accumulator_type##_t ab_real = 0, ab_imag = 0;                                                       \
         for (simsimd_size_t i = 0; i + 2 <= n; i += 2) {                                                               \
             simsimd_##accumulator_type##_t ar = converter(a[i]);                                                       \
@@ -181,8 +181,8 @@ SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16) // simsimd
 #pragma GCC target("+simd")
 #pragma clang attribute push(__attribute__((target("+simd"))), apply_to = function)
 
-inline static void simsimd_dot_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
-                                        simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_dot_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                         simsimd_distance_t* result) {
     float32x4_t ab_vec = vdupq_n_f32(0);
     simsimd_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
@@ -196,8 +196,8 @@ inline static void simsimd_dot_f32_neon(simsimd_f32_t const* a, simsimd_f32_t co
     *result = ab;
 }
 
-inline static void simsimd_dot_f32c_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, //
-                                         simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_dot_f32c_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, //
+                                          simsimd_distance_t* results) {
     float32x4_t ab_real_vec = vdupq_n_f32(0);
     float32x4_t ab_imag_vec = vdupq_n_f32(0);
     simsimd_size_t i = 0;
@@ -231,8 +231,8 @@ inline static void simsimd_dot_f32c_neon(simsimd_f32_t const* a, simsimd_f32_t c
     results[1] = ab_imag;
 }
 
-inline static void simsimd_vdot_f32c_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, //
-                                          simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_vdot_f32c_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, //
+                                           simsimd_distance_t* results) {
     float32x4_t ab_real_vec = vdupq_n_f32(0);
     float32x4_t ab_imag_vec = vdupq_n_f32(0);
     simsimd_size_t i = 0;
@@ -273,8 +273,8 @@ inline static void simsimd_vdot_f32c_neon(simsimd_f32_t const* a, simsimd_f32_t 
 #pragma GCC target("+simd+fp16")
 #pragma clang attribute push(__attribute__((target("+simd+fp16"))), apply_to = function)
 
-inline static void simsimd_dot_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
-                                        simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_dot_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                         simsimd_distance_t* result) {
     float32x4_t ab_vec = vdupq_n_f32(0);
     simsimd_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
@@ -301,8 +301,8 @@ inline static void simsimd_dot_f16_neon(simsimd_f16_t const* a, simsimd_f16_t co
     *result = vaddvq_f32(ab_vec);
 }
 
-inline static void simsimd_dot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, //
-                                         simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_dot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, //
+                                          simsimd_distance_t* results) {
 
     // A nicer approach is to use `f16` arithmetic for the dot product, but that requires
     // FMLA extensions available on Arm v8.3 and later. That we can also process 16 entries
@@ -342,8 +342,8 @@ inline static void simsimd_dot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t c
     results[1] = ab_imag;
 }
 
-inline static void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, //
-                                          simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, //
+                                           simsimd_distance_t* results) {
 
     // A nicer approach is to use `f16` arithmetic for the dot product, but that requires
     // FMLA extensions available on Arm v8.3 and later. That we can also process 16 entries
@@ -393,8 +393,8 @@ inline static void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t 
 #pragma GCC target("+sve")
 #pragma clang attribute push(__attribute__((target("+sve"))), apply_to = function)
 
-inline static void simsimd_dot_f32_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
-                                       simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_dot_f32_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                        simsimd_distance_t* result) {
     simsimd_size_t i = 0;
     svfloat32_t ab_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
     do {
@@ -407,8 +407,8 @@ inline static void simsimd_dot_f32_sve(simsimd_f32_t const* a, simsimd_f32_t con
     *result = svaddv_f32(svptrue_b32(), ab_vec);
 }
 
-inline static void simsimd_dot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
-                                        simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_dot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                         simsimd_distance_t* results) {
     simsimd_size_t i = 0;
     svfloat32_t ab_real_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
     svfloat32_t ab_imag_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
@@ -430,8 +430,8 @@ inline static void simsimd_dot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t co
     results[1] = svaddv_f32(svptrue_b32(), ab_imag_vec);
 }
 
-inline static void simsimd_vdot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
-                                         simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_vdot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                          simsimd_distance_t* results) {
     simsimd_size_t i = 0;
     svfloat32_t ab_real_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
     svfloat32_t ab_imag_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
@@ -453,8 +453,8 @@ inline static void simsimd_vdot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t c
     results[1] = svaddv_f32(svptrue_b32(), ab_imag_vec);
 }
 
-inline static void simsimd_dot_f64_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
-                                       simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_dot_f64_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
+                                        simsimd_distance_t* result) {
     simsimd_size_t i = 0;
     svfloat64_t ab_vec = svdupq_n_f64(0.0, 0.0);
     do {
@@ -467,8 +467,8 @@ inline static void simsimd_dot_f64_sve(simsimd_f64_t const* a, simsimd_f64_t con
     *result = svaddv_f64(svptrue_b32(), ab_vec);
 }
 
-inline static void simsimd_dot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
-                                        simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_dot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
+                                         simsimd_distance_t* results) {
     simsimd_size_t i = 0;
     svfloat64_t ab_real_vec = svdupq_n_f64(0., 0.);
     svfloat64_t ab_imag_vec = svdupq_n_f64(0., 0.);
@@ -490,8 +490,8 @@ inline static void simsimd_dot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t co
     results[1] = svaddv_f64(svptrue_b64(), ab_imag_vec);
 }
 
-inline static void simsimd_vdot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
-                                         simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_vdot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
+                                          simsimd_distance_t* results) {
     simsimd_size_t i = 0;
     svfloat64_t ab_real_vec = svdupq_n_f64(0., 0.);
     svfloat64_t ab_imag_vec = svdupq_n_f64(0., 0.);
@@ -520,8 +520,8 @@ inline static void simsimd_vdot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t c
 #pragma GCC target("+sve+fp16")
 #pragma clang attribute push(__attribute__((target("+sve+fp16"))), apply_to = function)
 
-inline static void simsimd_dot_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, simsimd_size_t n,
-                                       simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_dot_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, simsimd_size_t n,
+                                        simsimd_distance_t* result) {
     simsimd_size_t i = 0;
     svfloat16_t ab_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
     simsimd_f16_t const* a = (simsimd_f16_t const*)(a_enum);
@@ -537,8 +537,8 @@ inline static void simsimd_dot_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16_
     *result = ab;
 }
 
-inline static void simsimd_dot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
-                                        simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_dot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                         simsimd_distance_t* results) {
     simsimd_size_t i = 0;
     svfloat16_t ab_real_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
     svfloat16_t ab_imag_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
@@ -560,8 +560,8 @@ inline static void simsimd_dot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t co
     results[1] = svaddv_f16(svptrue_b16(), ab_imag_vec);
 }
 
-inline static void simsimd_vdot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
-                                         simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_vdot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                          simsimd_distance_t* results) {
     simsimd_size_t i = 0;
     svfloat16_t ab_real_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
     svfloat16_t ab_imag_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
@@ -594,8 +594,8 @@ inline static void simsimd_vdot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t c
 #pragma GCC target("avx2", "f16c", "fma")
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
 
-inline static void simsimd_dot_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
-                                           simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_dot_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                            simsimd_distance_t* result) {
     __m256 ab_vec = _mm256_setzero_ps();
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
@@ -656,8 +656,8 @@ inline simsimd_f64_t _mm256_reduce_add_ps_dbl(__m256 vec) {
     return _mm_cvtsd_f64(sum128);
 }
 
-inline static void simsimd_dot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
-                                            simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_dot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                             simsimd_distance_t* results) {
 
     // The naive approach would be to use FMA and FMS instructions on different parts of the vectors.
     // Prior to that we would need to shuffle the input vectors to separate real and imaginary parts.
@@ -724,8 +724,8 @@ inline static void simsimd_dot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32_
     results[1] = ab_imag;
 }
 
-inline static void simsimd_vdot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
-                                             simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_vdot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                              simsimd_distance_t* results) {
 
     __m256 ab_real_vec = _mm256_setzero_ps();
     __m256 ab_imag_vec = _mm256_setzero_ps();
@@ -764,8 +764,8 @@ inline static void simsimd_vdot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32
     results[1] = ab_imag;
 }
 
-inline static void simsimd_dot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
-                                            simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_dot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                             simsimd_distance_t* results) {
     // Ideally the implementation would load 256 bits worth of vector data at a time,
     // shuffle those within a register, split in halfs, and only then upcast.
     // That way, we are stepping through 32x 16-bit vector components at a time, or 16 dimensions.
@@ -822,8 +822,8 @@ inline static void simsimd_dot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16_
     results[1] = _mm256_reduce_add_ps_dbl(ab_imag_vec);
 }
 
-inline static void simsimd_vdot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
-                                             simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_vdot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                              simsimd_distance_t* results) {
 
     __m256 ab_real_vec = _mm256_setzero_ps();
     __m256 ab_imag_vec = _mm256_setzero_ps();
@@ -883,8 +883,8 @@ inline static void simsimd_vdot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16
 #pragma GCC target("avx512f", "avx512vl", "avx512bw", "bmi2")
 #pragma clang attribute push(__attribute__((target("avx512f,avx512vl,avx512bw,bmi2"))), apply_to = function)
 
-inline static void simsimd_dot_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
-                                           simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_dot_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                            simsimd_distance_t* result) {
     __m512 ab_vec = _mm512_setzero();
     __m512 a_vec, b_vec;
 
@@ -906,8 +906,8 @@ simsimd_dot_f32_skylake_cycle:
     *result = _mm512_reduce_add_ps(ab_vec);
 }
 
-inline static void simsimd_dot_f64_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
-                                           simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_dot_f64_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
+                                            simsimd_distance_t* result) {
     __m512d ab_vec = _mm512_setzero_pd();
     __m512d a_vec, b_vec;
 
@@ -929,8 +929,8 @@ simsimd_dot_f64_skylake_cycle:
     *result = _mm512_reduce_add_pd(ab_vec);
 }
 
-inline static void simsimd_dot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
-                                            simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_dot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                             simsimd_distance_t* results) {
 
     __m512 ab_real_vec = _mm512_setzero();
     __m512 ab_imag_vec = _mm512_setzero();
@@ -971,8 +971,8 @@ simsimd_dot_f32c_skylake_cycle:
     results[1] = _mm512_reduce_add_ps(ab_imag_vec);
 }
 
-inline static void simsimd_vdot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
-                                             simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_vdot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                              simsimd_distance_t* results) {
 
     __m512 ab_real_vec = _mm512_setzero();
     __m512 ab_imag_vec = _mm512_setzero();
@@ -1014,8 +1014,8 @@ simsimd_vdot_f32c_skylake_cycle:
     results[1] = _mm512_reduce_add_ps(ab_imag_vec);
 }
 
-inline static void simsimd_dot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
-                                            simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_dot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
+                                             simsimd_distance_t* results) {
 
     __m512d ab_real_vec = _mm512_setzero_pd();
     __m512d ab_imag_vec = _mm512_setzero_pd();
@@ -1059,8 +1059,8 @@ simsimd_dot_f64c_skylake_cycle:
     results[1] = _mm512_reduce_add_pd(ab_imag_vec);
 }
 
-inline static void simsimd_vdot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
-                                             simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_vdot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
+                                              simsimd_distance_t* results) {
 
     __m512d ab_real_vec = _mm512_setzero_pd();
     __m512d ab_imag_vec = _mm512_setzero_pd();
@@ -1114,8 +1114,8 @@ simsimd_vdot_f64c_skylake_cycle:
 #pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512fp16")
 #pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512fp16"))), apply_to = function)
 
-inline static void simsimd_dot_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
-                                            simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_dot_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                             simsimd_distance_t* result) {
     __m512h ab_vec = _mm512_setzero_ph();
     __m512i a_i16_vec, b_i16_vec;
 
@@ -1137,8 +1137,8 @@ simsimd_dot_f16_sapphire_cycle:
     *result = _mm512_reduce_add_ph(ab_vec);
 }
 
-inline static void simsimd_dot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
-                                             simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_dot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                              simsimd_distance_t* results) {
 
     __m512h ab_real_vec = _mm512_setzero_ph();
     __m512h ab_imag_vec = _mm512_setzero_ph();
@@ -1181,8 +1181,8 @@ simsimd_dot_f16c_sapphire_cycle:
     results[1] = _mm512_reduce_add_ph(ab_imag_vec);
 }
 
-inline static void simsimd_vdot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
-                                              simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_vdot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                               simsimd_distance_t* results) {
 
     __m512h ab_real_vec = _mm512_setzero_ph();
     __m512h ab_imag_vec = _mm512_setzero_ph();

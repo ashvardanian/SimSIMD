@@ -18,12 +18,6 @@
 #define SIMSIMD_VERSION_MINOR 1
 #define SIMSIMD_VERSION_PATCH 0
 
-#include "binary.h"      // Hamming, Jaccard
-#include "dot.h"         // Inner (dot) product, and its conjugate
-#include "geospatial.h"  // Haversine and Vincenty
-#include "probability.h" // Kullback-Leibler, Jensen–Shannon
-#include "spatial.h"     // L2, Cosine
-
 /**
  *  @brief  Removes compile-time dispatching, and replaces it with runtime dispatching.
  *          So the `simsimd_dot_f32` function will invoke the most advanced backend supported by the CPU,
@@ -34,29 +28,11 @@
 #define SIMSIMD_DYNAMIC_DISPATCH (0) // true or false
 #endif
 
-/*  Annotation for the public API symbols:
- *
- *  - `SIMSIMD_PUBLIC` is used for functions that are part of the public API.
- *  - `SIMSIMD_INTERNAL` is used for internal helper functions with unstable APIs.
- *  - `SIMSIMD_DYNAMIC` is used for functions that are part of the public API, but are dispatched at runtime.
- */
-#ifndef SIMSIMD_DYNAMIC
-#if SIMSIMD_DYNAMIC_DISPATCH
-#if defined(_WIN32) || defined(__CYGWIN__)
-#define SIMSIMD_DYNAMIC __declspec(dllexport)
-#define SIMSIMD_PUBLIC inline static
-#define SIMSIMD_INTERNAL inline static
-#else
-#define SIMSIMD_DYNAMIC __attribute__((visibility("default")))
-#define SIMSIMD_PUBLIC __attribute__((unused)) inline static
-#define SIMSIMD_INTERNAL __attribute__((always_inline)) inline static
-#endif // _WIN32 || __CYGWIN__
-#else
-#define SIMSIMD_DYNAMIC inline static
-#define SIMSIMD_PUBLIC inline static
-#define SIMSIMD_INTERNAL inline static
-#endif // SIMSIMD_DYNAMIC_DISPATCH
-#endif // SIMSIMD_DYNAMIC
+#include "binary.h"      // Hamming, Jaccard
+#include "dot.h"         // Inner (dot) product, and its conjugate
+#include "geospatial.h"  // Haversine and Vincenty
+#include "probability.h" // Kullback-Leibler, Jensen–Shannon
+#include "spatial.h"     // L2, Cosine
 
 #if SIMSIMD_TARGET_ARM
 #ifdef __linux__
@@ -193,18 +169,19 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) {
     // Check for AVX512F (Function ID 7, EBX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L155
     unsigned supports_avx512f = (info7.named.ebx & 0x00010000) != 0;
-    unsigned supports_avx512ifma = (info7.named.ebx & 0x00200000) != 0;
     // Check for AVX512FP16 (Function ID 7, EDX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L198C9-L198C23
     unsigned supports_avx512fp16 = (info7.named.edx & 0x00800000) != 0;
-    // Check for VPOPCNTDQ (Function ID 1, ECX register)
-    // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L182C30-L182C40
-    unsigned supports_avx512vpopcntdq = (info1.named.ecx & 0x00004000) != 0;
-    unsigned supports_avx512vbmi2 = (info1.named.ecx & 0x00000040) != 0;
-    // Check for VNNI (Function ID 1, ECX register)
-    // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L180
-    unsigned supports_avx512vnni = (info1.named.ecx & 0x00000800) != 0;
-    unsigned supports_avx512bitalg = (info1.named.ecx & 0x00001000) != 0;
+    // Check for AVX512VNNI (Function ID 7, ECX register)
+    unsigned supports_avx512vnni = (info7.named.ecx & 0x00000800) != 0;
+    // Check for AVX512IFMA (Function ID 7, EBX register)
+    unsigned supports_avx512ifma = (info7.named.ebx & 0x00200000) != 0;
+    // Check for AVX512BITALG (Function ID 7, ECX register)
+    unsigned supports_avx512bitalg = (info7.named.ecx & 0x00001000) != 0;
+    // Check for AVX512VBMI2 (Function ID 7, ECX register)
+    unsigned supports_avx512vbmi2 = (info7.named.ecx & 0x00000040) != 0;
+    // Check for AVX512VPOPCNTDQ (Function ID 7, ECX register)
+    unsigned supports_avx512vpopcntdq = (info7.named.ecx & 0x00004000) != 0;
 
     // Convert specific features into CPU generations
     unsigned supports_haswell = supports_avx2 && supports_f16c && supports_fma;

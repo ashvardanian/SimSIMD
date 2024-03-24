@@ -11,6 +11,30 @@
 #ifndef SIMSIMD_TYPES_H
 #define SIMSIMD_TYPES_H
 
+/*  Annotation for the public API symbols:
+ *
+ *  - `SIMSIMD_PUBLIC` is used for functions that are part of the public API.
+ *  - `SIMSIMD_INTERNAL` is used for internal helper functions with unstable APIs.
+ *  - `SIMSIMD_DYNAMIC` is used for functions that are part of the public API, but are dispatched at runtime.
+ */
+#ifndef SIMSIMD_DYNAMIC
+#if SIMSIMD_DYNAMIC_DISPATCH
+#if defined(_WIN32) || defined(__CYGWIN__)
+#define SIMSIMD_DYNAMIC __declspec(dllexport)
+#define SIMSIMD_PUBLIC inline static
+#define SIMSIMD_INTERNAL inline static
+#else
+#define SIMSIMD_DYNAMIC __attribute__((visibility("default")))
+#define SIMSIMD_PUBLIC __attribute__((unused)) inline static
+#define SIMSIMD_INTERNAL __attribute__((always_inline)) inline static
+#endif // _WIN32 || __CYGWIN__
+#else
+#define SIMSIMD_DYNAMIC inline static
+#define SIMSIMD_PUBLIC inline static
+#define SIMSIMD_INTERNAL inline static
+#endif // SIMSIMD_DYNAMIC_DISPATCH
+#endif // SIMSIMD_DYNAMIC
+
 // Compiling for Arm: SIMSIMD_TARGET_ARM
 #if !defined(SIMSIMD_TARGET_ARM)
 #if defined(__aarch64__) || defined(_M_ARM64)
@@ -230,7 +254,7 @@ typedef union {
  *  @brief  Computes `1/sqrt(x)` using the trick from Quake 3, replacing
  *          magic numbers with the ones suggested by Jan Kadlec.
  */
-inline static simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_t number) {
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_t number) {
     simsimd_f32i32_t conv;
     conv.f = number;
     conv.i = 0x5F1FFFF9 - (conv.i >> 1);
@@ -243,7 +267,7 @@ inline static simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_
  *          The series converges to the natural logarithm for args between -1 and 1.
  *          Published in 1668 in "Logarithmotechnia".
  */
-inline static simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
     simsimd_f32_t x = number - 1;
     simsimd_f32_t x2 = x * x;
     simsimd_f32_t x3 = x * x * x;
@@ -260,7 +284,7 @@ inline static simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-inline static simsimd_f32_t simsimd_uncompress_f16(unsigned short x) {
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_f16(unsigned short x) {
     union float_or_unsigned_int_t {
         float f;
         unsigned int i;
