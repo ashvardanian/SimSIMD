@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 project(
   simsimd
-  VERSION 4.1.1
+  VERSION 4.2.0
   LANGUAGES C CXX
   DESCRIPTION
   "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm"
