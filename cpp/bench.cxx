@@ -10,7 +10,7 @@
 #include <cblas.h>
 #endif
 
-#define SIMSIMD_NATIVE_F16 1
+#define SIMSIMD_NATIVE_F16 0
 #define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
 #define SIMSIMD_LOG(x) (logf(x))
 #include <simsimd/simsimd.h>
@@ -149,7 +149,7 @@ int main(int argc, char** argv) {
     // Log supported functionality
     char const* flags[2] = {"false", "true"};
     std::printf("Benchmarking Similarity Measures\n");
-    std::printf("- Compiler supports F16: %s\n", flags[SIMSIMD_NATIVE_F16]);
+    std::printf("- Compiler used native F16: %s\n", flags[SIMSIMD_NATIVE_F16]);
     std::printf("- Benchmark against CBLAS: %s\n", flags[SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS]);
     std::printf("\n");
     std::printf("Compile-time settings:\n");
