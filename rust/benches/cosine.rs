@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use simsimd::SimSIMD;
+use simsimd::SpatialSimilarity as SimSIMD;
 
 mod native;
 

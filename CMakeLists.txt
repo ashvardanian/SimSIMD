@@ -5,7 +5,7 @@ project(
   VERSION 4.1.1
   LANGUAGES C CXX
   DESCRIPTION
-    "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm"
+  "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm"
   HOMEPAGE_URL "https://github.com/ashvardanian/simsimd")
 
 set(CMAKE_C_STANDARD 11)
@@ -25,10 +25,11 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 endif()
 
 option(SIMSIMD_BUILD_SHARED "Compile a dynamic library"
-       ${SIMSIMD_IS_MAIN_PROJECT})
+  ${SIMSIMD_IS_MAIN_PROJECT})
+option(SIMSIMD_BUILD_TESTS "Small compilation tests compile-time and run-time dispatch" OFF)
 option(SIMSIMD_BUILD_BENCHMARKS "Compile micro-benchmarks for current ISA" OFF)
 option(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
-       "Include BLAS in micro-kernel benchmarks" ON)
+  "Include BLAS in micro-kernel benchmarks" ON)
 
 # Default to Release build type if not set
 if(NOT CMAKE_BUILD_TYPE)
@@ -50,7 +51,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
   add_compile_options(-pedantic -ferror-limit=1)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   add_compile_options(-march=native -pedantic -fmax-errors=1
-                      -Wno-tautological-constant-compare)
+    -Wno-tautological-constant-compare)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
   add_compile_options(-w -ferror-limit=1)
 endif()
@@ -86,17 +87,27 @@ if(SIMSIMD_BUILD_BENCHMARKS)
   target_link_libraries(simsimd_bench simsimd Threads::Threads benchmark)
 
   find_package(BLAS)
+
   if(BLAS_FOUND AND SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
     target_compile_definitions(simsimd_bench
-                               PRIVATE SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1)
+      PRIVATE SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1)
     target_link_libraries(simsimd_bench ${BLAS_LIBRARIES})
   endif()
+endif()
+
+if(SIMSIMD_BUILD_TESTS)
+  add_executable(simsimd_test_compile_time cpp/test.c)
+  target_link_libraries(simsimd_test_compile_time simsimd m)
+
+  add_executable(simsimd_test_run_time cpp/test.c c/lib.c)
+  target_compile_definitions(simsimd_test_run_time PRIVATE SIMSIMD_DYNAMIC_DISPATCH=1)
+  target_link_libraries(simsimd_test_run_time simsimd m)
 endif()
 
 if(SIMSIMD_BUILD_SHARED)
   set(SIMSIMD_SOURCES ${SIMSIMD_SOURCES} c/lib.c)
   add_library(simsimd_shared SHARED ${SIMSIMD_SOURCES})
   target_include_directories(simsimd_shared
-                             PUBLIC "${PROJECT_SOURCE_DIR}/include")
+    PUBLIC "${PROJECT_SOURCE_DIR}/include")
   set_target_properties(simsimd_shared PROPERTIES OUTPUT_NAME simsimd)
 endif()

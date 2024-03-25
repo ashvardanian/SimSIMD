@@ -489,7 +489,7 @@ inline __m512h simsimd_log2_f16_sapphire(__m512h x) {
 
 SIMSIMD_PUBLIC void simsimd_kl_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                             simsimd_distance_t* result) {
-    __m512h sum_vec = _mm512_set1_ph((_Float16)0);
+    __m512h sum_vec = _mm512_setzero_ph();
     __m512h epsilon_vec = _mm512_set1_ph((_Float16)SIMSIMD_F16_DIVISION_EPSILON);
     __m512h a_vec, b_vec;
 
@@ -517,8 +517,8 @@ simsimd_kl_f16_sapphire_cycle:
 
 SIMSIMD_PUBLIC void simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                             simsimd_distance_t* result) {
-    __m512h sum_a_vec = _mm512_set1_ph((_Float16)0);
-    __m512h sum_b_vec = _mm512_set1_ph((_Float16)0);
+    __m512h sum_a_vec = _mm512_setzero_ph();
+    __m512h sum_b_vec = _mm512_setzero_ph();
     __m512h epsilon_vec = _mm512_set1_ph((_Float16)SIMSIMD_F16_DIVISION_EPSILON);
     __m512h a_vec, b_vec;
 

@@ -85,6 +85,13 @@ extern "C" {
     fn simsimd_kl_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_kl_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
     fn simsimd_kl_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
+
+    fn simsimd_uses_neon() -> i32;
+    fn simsimd_uses_sve() -> i32;
+    fn simsimd_uses_haswell() -> i32;
+    fn simsimd_uses_skylake() -> i32;
+    fn simsimd_uses_ice() -> i32;
+    fn simsimd_uses_sapphire() -> i32;
 }
 
 /// A half-precision floating point number.
@@ -92,6 +99,35 @@ extern "C" {
 pub struct f16(u16);
 
 impl f16 {}
+
+/// The `capabilties` module provides functions for detecting the hardware features
+/// available on the current system.
+pub mod capabilties {
+
+    pub fn uses_neon() -> bool {
+        unsafe { crate::simsimd_uses_neon() != 0 }
+    }
+
+    pub fn uses_sve() -> bool {
+        unsafe { crate::simsimd_uses_sve() != 0 }
+    }
+
+    pub fn uses_haswell() -> bool {
+        unsafe { crate::simsimd_uses_haswell() != 0 }
+    }
+
+    pub fn uses_skylake() -> bool {
+        unsafe { crate::simsimd_uses_skylake() != 0 }
+    }
+
+    pub fn uses_ice() -> bool {
+        unsafe { crate::simsimd_uses_ice() != 0 }
+    }
+
+    pub fn uses_sapphire() -> bool {
+        unsafe { crate::simsimd_uses_sapphire() != 0 }
+    }
+}
 
 /// `SpatialSimilarity` provides a set of trait methods for computing similarity
 /// or distance between spatial data vectors in SIMD (Single Instruction, Multiple Data) context.
@@ -513,6 +549,30 @@ impl ComplexProducts for f64 {
 mod tests {
     use super::*;
     use half::f16 as HalfF16;
+
+    #[test]
+    fn test_hardware_features_detection() {
+        let uses_arm = capabilties::uses_neon() || capabilties::uses_sve();
+        let uses_x86 = capabilties::uses_haswell()
+            || capabilties::uses_skylake()
+            || capabilties::uses_ice()
+            || capabilties::uses_sapphire();
+
+        // The CPU can't simultaneously support ARM and x86 SIMD extensions
+        if uses_arm {
+            assert!(!uses_x86);
+        }
+        if uses_x86 {
+            assert!(!uses_arm);
+        }
+
+        println!("- uses_neon: {}", capabilties::uses_neon());
+        println!("- uses_sve: {}", capabilties::uses_sve());
+        println!("- uses_haswell: {}", capabilties::uses_haswell());
+        println!("- uses_skylake: {}", capabilties::uses_skylake());
+        println!("- uses_ice: {}", capabilties::uses_ice());
+        println!("- uses_sapphire: {}", capabilties::uses_sapphire());
+    }
 
     //
     fn assert_almost_equal(left: Distance, right: Distance, tolerance: Distance) {

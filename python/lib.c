@@ -7,28 +7,8 @@
  */
 #include <math.h>
 
-#if __linux__
-#define SIMSIMD_TARGET_NEON 1
-#define SIMSIMD_TARGET_SVE 1
-#define SIMSIMD_TARGET_HASWELL 1
-#define SIMSIMD_TARGET_ICE 1
-#define SIMSIMD_TARGET_SKYLAKE 1
-#define SIMSIMD_TARGET_SAPPHIRE 1
+#if defined(__linux__)
 #include <omp.h>
-#elif defined(_MSC_VER)
-#define SIMSIMD_TARGET_NEON 1
-#define SIMSIMD_TARGET_SVE 0
-#define SIMSIMD_TARGET_HASWELL 1
-#define SIMSIMD_TARGET_ICE 1
-#define SIMSIMD_TARGET_SKYLAKE 1
-#define SIMSIMD_TARGET_SAPPHIRE 0 // No support for `ph` half-precision in MSVC yet
-#elif defined(__APPLE__)
-#define SIMSIMD_TARGET_NEON 1
-#define SIMSIMD_TARGET_SVE 0
-#define SIMSIMD_TARGET_HASWELL 1
-#define SIMSIMD_TARGET_ICE 0 // No support for AVX-512 in any Apple machines
-#define SIMSIMD_TARGET_SKYLAKE 0
-#define SIMSIMD_TARGET_SAPPHIRE 0
 #endif
 
 #define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
