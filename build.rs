@@ -5,39 +5,37 @@ fn main() {
         .file("c/lib.c")
         .include("include")
         .define("SIMSIMD_NATIVE_F16", "0")
+        .define("SIMSIMD_DYNAMIC_DISPATCH", "1")
         .flag("-O3")
         .flag("-std=c99") // Enforce C99 standard
         .flag("-pedantic") // Ensure strict compliance with the C standard
         .warnings(false);
 
-    // Conditional compilation depending on the target operating system.
-    if cfg!(target_os = "linux") {
-        build
-            .define("SIMSIMD_TARGET_NEON", "1")
-            .define("SIMSIMD_TARGET_SVE", "1")
-            .define("SIMSIMD_TARGET_HASWELL", "1")
-            .define("SIMSIMD_TARGET_SKYLAKE", "1")
-            .define("SIMSIMD_TARGET_ICE", "1")
-            .define("SIMSIMD_TARGET_SAPPHIRE", "1");
-    } else if cfg!(target_os = "macos") {
-        build
-            .define("SIMSIMD_TARGET_NEON", "1")
-            .define("SIMSIMD_TARGET_SVE", "0")
-            .define("SIMSIMD_TARGET_HASWELL", "1")
-            .define("SIMSIMD_TARGET_SKYLAKE", "0")
-            .define("SIMSIMD_TARGET_ICE", "0")
-            .define("SIMSIMD_TARGET_SAPPHIRE", "0");
-    } else if cfg!(target_os = "windows") {
-        build
-            .define("SIMSIMD_TARGET_NEON", "1")
-            .define("SIMSIMD_TARGET_SVE", "0")
-            .define("SIMSIMD_TARGET_HASWELL", "1")
-            .define("SIMSIMD_TARGET_SKYLAKE", "1")
-            .define("SIMSIMD_TARGET_ICE", "1")
-            .define("SIMSIMD_TARGET_SAPPHIRE", "0");
-    }
+    if build.try_compile("simsimd").is_err() {
+        print!("cargo:warning=Failed to compile with all SIMD backends...");
+        let flags_to_try = [
+            "SIMSIMD_TARGET_SAPPHIRE",
+            "SIMSIMD_TARGET_ICE",
+            "SIMSIMD_TARGET_SKYLAKE",
+            "SIMSIMD_TARGET_HASWELL",
+            "SIMSIMD_TARGET_SVE",
+            "SIMSIMD_TARGET_NEON",
+        ];
 
-    build.compile("simsimd");
+        for flag in flags_to_try.iter() {
+            build.define(flag, "0");
+            let compiled = build.try_compile("simsimd");
+            if compiled.is_ok() {
+                break;
+            }
+
+            // Print the failed configuration
+            println!(
+                "cargo:warning=Failed to compile after disabling {}, trying next configuration...",
+                flag
+            );
+        }
+    }
 
     println!("cargo:rerun-if-changed=c/lib.c");
     println!("cargo:rerun-if-changed=rust/lib.rs");

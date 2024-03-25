@@ -10,13 +10,7 @@ compile_args = []
 link_args = []
 macros_args = [
     ("SIMSIMD_NATIVE_F16", "0"),
-    # Platform support features will be inferred in `python/lib.c`
-    # ("SIMSIMD_TARGET_NEON", "1"),
-    # ("SIMSIMD_TARGET_SVE", "1"),
-    # ("SIMSIMD_TARGET_HASWELL", "1"),
-    # ("SIMSIMD_TARGET_SKYLAKE", "1"),
-    # ("SIMSIMD_TARGET_ICE", "1"),
-    # ("SIMSIMD_TARGET_SAPPHIRE", "1"),
+    ("SIMSIMD_DYNAMIC_DISPATCH", "1"),
 ]
 
 if sys.platform == "linux":
@@ -55,7 +49,7 @@ if sys.platform == "win32":
 ext_modules = [
     Extension(
         "simsimd",
-        sources=["python/lib.c"],
+        sources=["python/lib.c", "c/lib.c"],
         include_dirs=["include"],
         extra_compile_args=compile_args,
         extra_link_args=link_args,

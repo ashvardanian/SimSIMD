@@ -76,6 +76,7 @@
                     "VERSION",
                     "package.json",
                     "Cargo.toml",
+                    "Cargo.lock",
                     "CMakeLists.txt",
                     "include/simsimd/simsimd.h"
                 ],

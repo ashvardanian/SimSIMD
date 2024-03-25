@@ -6,8 +6,7 @@ In other words, it is easily parallelizable and vectorizable and often available
 Ironically, even with decades of evolution in compilers and numerical computing, [most libraries can be 3-200x slower than hardware potential][benchmarks] even on the most popular hardware, like 64-bit x86 and Arm CPUs.
 SimSIMD attempts to fill that gap.
 1️⃣ SimSIMD functions are practically as fast as `memcpy`.
-2️⃣ SimSIMD [compiles to more platforms than NumPy (105 vs 35)][compatibility] and has more backends than most BLAS implementations.
-It is currently powering search in [USearch](https://github.com/unum-cloud/usearch) and several DBMS products._
+2️⃣ SimSIMD [compiles to more platforms than NumPy (105 vs 35)][compatibility] and has more backends than most BLAS implementations._
 
 [benchmarks]: https://ashvardanian.com/posts/simsimd-faster-scipy
 [compatibility]: https://pypi.org/project/simsimd/#files
@@ -38,7 +37,10 @@ It is currently powering search in [USearch](https://github.com/unum-cloud/usear
 
 </div>
 
-__Implemented distance functions__ include:
+## Features
+
+SimSIMD provides over 100 SIMD-optimized kernels for various distance and similarity measures, accelerating search in [USearch](https://github.com/unum-cloud/usearch) and several DBMS products.
+Implemented distance functions include:
 
 - Euclidean (L2) and Cosine (Angular) spatial distances for Vector Search.
 - Dot-Products for real & complex vectors for DSP & Quantum computing.
@@ -46,6 +48,10 @@ __Implemented distance functions__ include:
 - Kullback-Leibler and Jensen–Shannon divergences for probability distributions.
 - Haversine and Vincenty's formulae for Geospatial Analysis.
 - For Levenshtein, Needleman–Wunsch and other text metrics, check [StringZilla][stringzilla].
+
+[scipy]: https://docs.scipy.org/doc/scipy/reference/spatial.distance.html#module-scipy.spatial.distance
+[numpy]: https://numpy.org/doc/stable/reference/generated/numpy.inner.html
+[stringzilla]: https://github.com/ashvardanian/stringzilla
 
 Moreover, SimSIMD...
 
@@ -56,13 +62,10 @@ Moreover, SimSIMD...
 - has Arm backends for NEON and Scalable Vector Extensions (SVE).
 - has x86 backends for Haswell, Skylake, Ice Lake, and Sapphire Rapids.
 
-We enumerate subsets of AVX-512 instructions in Intel CPU generations, but they also work on AMD.
-
-[scipy]: https://docs.scipy.org/doc/scipy/reference/spatial.distance.html#module-scipy.spatial.distance
-[numpy]: https://numpy.org/doc/stable/reference/generated/numpy.inner.html
-[stringzilla]: https://github.com/ashvardanian/stringzilla
-
-__Technical Insights__ and related articles:
+Due to the high-level of fragmentation of SIMD support in different x86 CPUs, SimSIMD uses the names of select Intel CPU generations for its backends.
+They, however, also work on AMD CPUs.
+Inel Haswell is compatible with AMD Zen 1/2/3, while AMD Genoa Zen 4 covers AVX-512 instructions added to Intel Skylake and Ice Lake.
+You can learn more about the technical implementation details in the following blogposts:
 
 - [Uses Horner's method for polynomial approximations, beating GCC 12 by 119x](https://ashvardanian.com/posts/gcc-12-vs-avx512fp16/).
 - [Uses Arm SVE and x86 AVX-512's masked loads to eliminate tail `for`-loops](https://ashvardanian.com/posts/simsimd-faster-scipy/#tails-of-the-past-the-significance-of-masked-loads).
@@ -244,6 +247,8 @@ simsimd = "..."
 Before using the SimSIMD library, ensure you have imported the necessary traits and types into your Rust source file.
 The library provides several traits for different distance/similarity kinds - `SpatialSimilarity`, `BinarySimilarity`, and `ProbabilitySimilarity`.
 
+### Spatial Similarity: Cosine and Euclidean Distances
+
 ```rust
 use simsimd::SpatialSimilarity;
 
@@ -265,7 +270,64 @@ fn main() {
 }
 ```
 
-Similarly, one can compute bit-level distance functions between slices of unsigned integers:
+Spatial similarity functions are available for `f64`, `f32`, `f16`, and `i8` types.
+
+### Dot-Products: Inner and Complex Inner Products
+
+```rust
+use simsimd::SpatialSimilarity;
+use simsimd::ComplexProducts;
+
+fn main() {
+    let vector_a: Vec<f32> = vec![1.0, 2.0, 3.0, 4.0];
+    let vector_b: Vec<f32> = vec![5.0, 6.0, 7.0, 8.0];
+
+    // Compute the inner product between vector_a and vector_b
+    let inner_product = SpatialSimilarity::dot(&vector_a, &vector_b)
+        .expect("Vectors must be of the same length");
+
+    println!("Inner Product: {}", inner_product);
+
+    // Compute the complex inner product between complex_vector_a and complex_vector_b
+    let complex_inner_product = ComplexProducts::dot(&vector_a, &vector_b)
+        .expect("Vectors must be of the same length");
+
+    let complex_conjugate_inner_product = ComplexProducts::vdot(&vector_a, &vector_b)
+        .expect("Vectors must be of the same length");
+
+    println!("Complex Inner Product: {:?}", complex_inner_product); // -18, 69
+    println!("Complex C. Inner Product: {:?}", complex_conjugate_inner_product); // 70, -8
+}
+```
+
+Complex inner products are available for `f64`, `f32`, and `f16` types.
+
+### Probability Distributions: Jensen-Shannon and Kullback-Leibler Divergences
+
+```rust
+use simsimd::SpatialSimilarity;
+
+fn main() {
+    let vector_a: Vec<f32> = vec![1.0, 2.0, 3.0];
+    let vector_b: Vec<f32> = vec![4.0, 5.0, 6.0];
+
+    let cosine_similarity = f32::jensenshannon(&vector_a, &vector_b)
+        .expect("Vectors must be of the same length");
+
+    println!("Cosine Similarity: {}", cosine_similarity);
+
+    let sq_euclidean_distance = f32::kullbackleibler(&vector_a, &vector_b)
+        .expect("Vectors must be of the same length");
+
+    println!("Squared Euclidean Distance: {}", sq_euclidean_distance);
+}
+```
+
+Probability similarity functions are available for `f64`, `f32`, and `f16` types.
+
+### Binary Similarity: Hamming and Jaccard Distances
+
+Similar to spatial distances, one can compute bit-level distance functions between slices of unsigned integers:
 
 ```rust
 use simsimd::BinarySimilarity;
@@ -288,6 +350,10 @@ fn main() {
 }
 ```
 
+Binary similarity functions are available only for `u8` types.
+
+### Half-Precision Floating-Point Numbers
+
 Rust has no native support for half-precision floating-point numbers, but SimSIMD provides a `f16` type.
 It has no functionality - it is a `transparent` wrapper around `u16` and can be used with `half` or any other half-precision library.
 
@@ -309,6 +375,20 @@ fn main() {
 
     println!("Cosine Similarity: {}", cosine_similarity);
 }
+```
+
+### Dynamic Dispatch
+
+SimSIMD provides a dynamic dispatch mechanism to select the most advanced micro-kernel for the current CPU.
+You can query supported backends and use the `SimSIMD::capabilities` function to select the best one.
+
+```rust
+println!("uses neon: {}", capabilties::uses_neon());
+println!("uses sve: {}", capabilties::uses_sve());
+println!("uses haswell: {}", capabilties::uses_haswell());
+println!("uses skylake: {}", capabilties::uses_skylake());
+println!("uses ice: {}", capabilties::uses_ice());
+println!("uses sapphire: {}", capabilties::uses_sapphire());
 ```
 
 ## Using SimSIMD in JavaScript
@@ -358,9 +438,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(simsimd)
 ```
 
-If you aim to utilize the `_Float16` functionality with SimSIMD, ensure your development environment is compatible with C 11.
-For other SimSIMD functionalities, C 99 compatibility will suffice.
-A minimal usage example would be:
+After that, you can use the SimSIMD library in your C code in several ways.
+Simplest of all, you can include the headers, and the compiler will automatically select the most recent CPU extensions that SimSIMD will use.
 
 ```c
 #include <simsimd/simsimd.h>
@@ -368,52 +447,262 @@ A minimal usage example would be:
 int main() {
     simsimd_f32_t vector_a[1536];
     simsimd_f32_t vector_b[1536];
-    simsimd_f32_t distance = simsimd_cos_f32_skylake(vector_a, vector_b, 1536);
+    simsimd_metric_punned_t distance_function = simsimd_metric_punned(
+        simsimd_metric_cos_k, // Metric kind, like the angular cosine distance
+        simsimd_datatype_f32_k, // Data type, like: f16, f32, f64, i8, b8, and complex variants
+        simsimd_cap_any_k); // Which CPU capabilities are we allowed to use
+    simsimd_distance_t distance;
+    distance_function(vector_a, vector_b, 1536, &distance);
     return 0;
 }
 ```
 
-All of the function names follow the same pattern: `simsimd_{metric}_{type}_{backend}`.
+### Dynamic Dispatch
 
-- The backend can be `avx512`, `avx2`, `neon`, or `sve`.
-- The type can be `f64`, `f32`, `f16`, `i8`, or `b8`.
-- The metric can be `cos`, `ip`, `l2sq`, `hamming`, `jaccard`, `kl`, or `js`.
-
-To avoid hard-coding the backend, you can use the `simsimd_metric_punned_t` to pun the function pointer and the `simsimd_capabilities` function to get the available backends at runtime.
-Moreover, you can enable `SIMSIMD_DYNAMIC_DISPATCH` and use the precompiled sahred library to avoid recompiling the code for different backends.
-When `simsimd_dot_f32`, or one of the following functions, is called, the library will scan available micro-kernels and pick the most advanced one for the current CPU.
+To avoid hard-coding the backend, you can rely on `c/lib.c` to prepackage all possible backends in one binary, and select the most recent CPU features at runtime.
+That feature of the C library is called dynamic dispatch and is extensively used in the Python, JavaScript, and Rust bindings.
+To test which CPU features are available on the machine at runtime, use the following APIs:
 
 ```c
-// Inner products
-void simsimd_dot_f16(simsimd_f16_t const *, simsimd_f16_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_dot_f32(simsimd_f32_t const *, simsimd_f32_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_dot_f64(simsimd_f64_t const *, simsimd_f64_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_dot_f16c(simsimd_f16_t const *, simsimd_f16_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_dot_f32c(simsimd_f32_t const *, simsimd_f32_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_dot_f64c(simsimd_f64_t const *, simsimd_f64_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_vdot_f16c(simsimd_f16_t const *, simsimd_f16_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_vdot_f32c(simsimd_f32_t const *, simsimd_f32_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_vdot_f64c(simsimd_f64_t const *, simsimd_f64_t const *, simsimd_size_t, simsimd_distance_t *);
+int uses_neon = simsimd_uses_neon();
+int uses_sve = simsimd_uses_sve();
+int uses_haswell = simsimd_uses_haswell();
+int uses_skylake = simsimd_uses_skylake();
+int uses_ice = simsimd_uses_ice();
+int uses_sapphire = simsimd_uses_sapphire();
 
-// Spatial distances
-void simsimd_cos_i8(simsimd_i8_t const *, simsimd_i8_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_cos_f16(simsimd_f16_t const *, simsimd_f16_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_cos_f32(simsimd_f32_t const *, simsimd_f32_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_cos_f64(simsimd_f64_t const *, simsimd_f64_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_l2sq_i8(simsimd_i8_t const *, simsimd_i8_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_l2sq_f16(simsimd_f16_t const *, simsimd_f16_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_l2sq_f32(simsimd_f32_t const *, simsimd_f32_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_l2sq_f64(simsimd_f64_t const *, simsimd_f64_t const *, simsimd_size_t, simsimd_distance_t *);
+simsimd_capability_t capabilities = simsimd_capabilities();
+```
 
-// Binary distances
-void simsimd_hamming_b8(simsimd_b8_t const *, simsimd_b8_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_jaccard_b8(simsimd_b8_t const *, simsimd_b8_t const *, simsimd_size_t, simsimd_distance_t *);
+To differentiate between runtime and compile-time dispatch, define the following macro:
 
-// Probability distributions
-void simsimd_kl_f16(simsimd_f16_t const *, simsimd_f16_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_kl_f32(simsimd_f32_t const *, simsimd_f32_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_kl_f64(simsimd_f64_t const *, simsimd_f64_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_js_f16(simsimd_f16_t const *, simsimd_f16_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_js_f32(simsimd_f32_t const *, simsimd_f32_t const *, simsimd_size_t, simsimd_distance_t *);
-void simsimd_js_f64(simsimd_f64_t const *, simsimd_f64_t const *, simsimd_size_t, simsimd_distance_t *);
+```c
+#define SIMSIMD_DYNAMIC_DISPATCH 1 // or 0
+```
+
+### Spatial Distances: Cosine and Euclidean Distances
+
+```c
+#include <simsimd/simsimd.h>
+
+int main() {
+    simsimd_f64_t f64s[1536];
+    simsimd_f32_t f32s[1536];
+    simsimd_f16_t f16s[1536];
+    simsimd_i8_t i8[1536];
+    simsimd_distance_t distance;
+
+    // Cosine distance between two vectors
+    simsimd_cos_i8(i8s, i8s, 1536, &distance);
+    simsimd_cos_f16(f16s, f16s, 1536, &distance);
+    simsimd_cos_f32(f32s, f32s, 1536, &distance);
+    simsimd_cos_f64(f64s, f64s, 1536, &distance);
+    
+    // Euclidean distance between two vectors
+    simsimd_l2sq_i8(i8s, i8s, 1536, &distance);
+    simsimd_l2sq_f16(f16s, f16s, 1536, &distance);
+    simsimd_l2sq_f32(f32s, f32s, 1536, &distance);
+    simsimd_l2sq_f64(f64s, f64s, 1536, &distance);
+
+    return 0;
+}
+```
+
+### Dot-Products: Inner and Complex Inner Products
+
+```c
+#include <simsimd/simsimd.h>
+
+int main() {
+    simsimd_f64_t f64s[1536];
+    simsimd_f32_t f32s[1536];
+    simsimd_f16_t f16s[1536];
+    simsimd_distance_t distance;
+
+    // Inner product between two vectors
+    simsimd_dot_f16(f16s, f16s, 1536, &distance);
+    simsimd_dot_f32(f32s, f32s, 1536, &distance);
+    simsimd_dot_f64(f64s, f64s, 1536, &distance);
+
+    // Complex inner product between two vectors
+    simsimd_dot_f16c(f16s, f16s, 1536, &distance);
+    simsimd_dot_f32c(f32s, f32s, 1536, &distance);
+    simsimd_dot_f64c(f64s, f64s, 1536, &distance);
+
+    // Complex conjugate inner product between two vectors
+    simsimd_vdot_f16c(f16s, f16s, 1536, &distance);
+    simsimd_vdot_f32c(f32s, f32s, 1536, &distance);
+    simsimd_vdot_f64c(f64s, f64s, 1536, &distance);
+
+    return 0;
+}
+```
+
+### Binary Distances: Hamming and Jaccard Distances
+
+```c
+#include <simsimd/simsimd.h>
+
+int main() {
+    simsimd_b8_t b8s[1536 / 8]; // 8 bits per word
+    simsimd_distance_t distance;
+
+    // Hamming distance between two vectors
+    simsimd_hamming_b8(b8s, b8s, 1536 / 8, &distance);
+
+    // Jaccard distance between two vectors
+    simsimd_jaccard_b8(b8s, b8s, 1536 / 8, &distance);
+
+    return 0;
+}
+```
+
+### Probability Distributions: Jensen-Shannon and Kullback-Leibler Divergences
+
+```c
+#include <simsimd/simsimd.h>
+
+int main() {
+    simsimd_f64_t f64s[1536];
+    simsimd_f32_t f32s[1536];
+    simsimd_f16_t f16s[1536];
+    simsimd_distance_t distance;
+
+    // Jensen-Shannon divergence between two vectors
+    simsimd_js_f16(f16s, f16s, 1536, &distance);
+    simsimd_js_f32(f32s, f32s, 1536, &distance);
+    simsimd_js_f64(f64s, f64s, 1536, &distance);
+
+    // Kullback-Leibler divergence between two vectors
+    simsimd_kl_f16(f16s, f16s, 1536, &distance);
+    simsimd_kl_f32(f32s, f32s, 1536, &distance);
+    simsimd_kl_f64(f64s, f64s, 1536, &distance);
+
+    return 0;
+}
+```
+
+### Half-Precision Floating-Point Numbers
+
+If you aim to utilize the `_Float16` functionality with SimSIMD, ensure your development environment is compatible with C 11.
+For other SimSIMD functionalities, C 99 compatibility will suffice.
+To explicitly disable half-precision support, define the following macro before imports:
+
+```c
+#define SIMSIMD_NATIVE_F16 0 // or 1
+#include <simsimd/simsimd.h>
+```
+
+### Target Specific Backends
+
+SimSIMD exposes all kernels for all backends, and you can select the most advanced one for the current CPU without relying on built-in dispatch mechanisms.
+All of the function names follow the same pattern: `simsimd_{function}_{type}_{backend}`.
+
+- The backend can be `serial`, `haswell`, `skylake`, `ice`, `sapphire`, `neon`, or `sve`.
+- The type can be `f64`, `f32`, `f16`, `f64c`, `f32c`, `f16c`, `i8`, or `b8`.
+- The function can be `dot`, `vdot`, `cos`, `l2sq`, `hamming`, `jaccard`, `kl`, or `js`.
+
+To avoid hard-coding the backend, you can use the `simsimd_metric_punned_t` to pun the function pointer and the `simsimd_capabilities` function to get the available backends at runtime.
+
+```c
+simsimd_dot_f64_sve
+simsimd_cos_f64_sve
+simsimd_l2sq_f64_sve
+simsimd_dot_f64_skylake
+simsimd_cos_f64_skylake
+simsimd_l2sq_f64_skylake
+simsimd_dot_f64_serial
+simsimd_cos_f64_serial
+simsimd_l2sq_f64_serial
+simsimd_js_f64_serial
+simsimd_kl_f64_serial
+simsimd_dot_f32_sve
+simsimd_cos_f32_sve
+simsimd_l2sq_f32_sve
+simsimd_dot_f32_neon
+simsimd_cos_f32_neon
+simsimd_l2sq_f32_neon
+simsimd_js_f32_neon
+simsimd_kl_f32_neon
+simsimd_dot_f32_skylake
+simsimd_cos_f32_skylake
+simsimd_l2sq_f32_skylake
+simsimd_js_f32_skylake
+simsimd_kl_f32_skylake
+simsimd_dot_f32_serial
+simsimd_cos_f32_serial
+simsimd_l2sq_f32_serial
+simsimd_js_f32_serial
+simsimd_kl_f32_serial
+simsimd_dot_f16_sve
+simsimd_cos_f16_sve
+simsimd_l2sq_f16_sve
+simsimd_dot_f16_neon
+simsimd_cos_f16_neon
+simsimd_l2sq_f16_neon
+simsimd_js_f16_neon
+simsimd_kl_f16_neon
+simsimd_dot_f16_sapphire
+simsimd_cos_f16_sapphire
+simsimd_l2sq_f16_sapphire
+simsimd_js_f16_sapphire
+simsimd_kl_f16_sapphire
+simsimd_dot_f16_haswell
+simsimd_cos_f16_haswell
+simsimd_l2sq_f16_haswell
+simsimd_js_f16_haswell
+simsimd_kl_f16_haswell
+simsimd_dot_f16_serial
+simsimd_cos_f16_serial
+simsimd_l2sq_f16_serial
+simsimd_js_f16_serial
+simsimd_kl_f16_serial
+simsimd_cos_i8_neon
+simsimd_cos_i8_neon
+simsimd_l2sq_i8_neon
+simsimd_cos_i8_ice
+simsimd_cos_i8_ice
+simsimd_l2sq_i8_ice
+simsimd_cos_i8_haswell
+simsimd_cos_i8_haswell
+simsimd_l2sq_i8_haswell
+simsimd_cos_i8_serial
+simsimd_cos_i8_serial
+simsimd_l2sq_i8_serial
+simsimd_hamming_b8_sve
+simsimd_jaccard_b8_sve
+simsimd_hamming_b8_neon
+simsimd_jaccard_b8_neon
+simsimd_hamming_b8_ice
+simsimd_jaccard_b8_ice
+simsimd_hamming_b8_haswell
+simsimd_jaccard_b8_haswell
+simsimd_hamming_b8_serial
+simsimd_jaccard_b8_serial
+simsimd_dot_f32c_sve
+simsimd_vdot_f32c_sve
+simsimd_dot_f32c_neon
+simsimd_vdot_f32c_neon
+simsimd_dot_f32c_haswell
+simsimd_vdot_f32c_haswell
+simsimd_dot_f32c_skylake
+simsimd_vdot_f32c_skylake
+simsimd_dot_f32c_serial
+simsimd_vdot_f32c_serial
+simsimd_dot_f64c_sve
+simsimd_vdot_f64c_sve
+simsimd_dot_f64c_skylake
+simsimd_vdot_f64c_skylake
+simsimd_dot_f64c_serial
+simsimd_vdot_f64c_serial
+simsimd_dot_f16c_sve
+simsimd_vdot_f16c_sve
+simsimd_dot_f16c_neon
+simsimd_vdot_f16c_neon
+simsimd_dot_f16c_haswell
+simsimd_vdot_f16c_haswell
+simsimd_dot_f16c_sapphire
+simsimd_vdot_f16c_sapphire
+simsimd_dot_f16c_serial
+simsimd_vdot_f16c_serial
 ```

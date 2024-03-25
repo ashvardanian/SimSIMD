@@ -17,23 +17,19 @@
  *  - `SIMSIMD_INTERNAL` is used for internal helper functions with unstable APIs.
  *  - `SIMSIMD_DYNAMIC` is used for functions that are part of the public API, but are dispatched at runtime.
  */
-#ifndef SIMSIMD_DYNAMIC
-#if SIMSIMD_DYNAMIC_DISPATCH
 #if defined(_WIN32) || defined(__CYGWIN__)
 #define SIMSIMD_DYNAMIC __declspec(dllexport)
 #define SIMSIMD_PUBLIC inline static
 #define SIMSIMD_INTERNAL inline static
-#else
+#elif defined(__GNUC__) || defined(__clang__)
 #define SIMSIMD_DYNAMIC __attribute__((visibility("default")))
 #define SIMSIMD_PUBLIC __attribute__((unused)) inline static
 #define SIMSIMD_INTERNAL __attribute__((always_inline)) inline static
-#endif // _WIN32 || __CYGWIN__
 #else
 #define SIMSIMD_DYNAMIC inline static
 #define SIMSIMD_PUBLIC inline static
 #define SIMSIMD_INTERNAL inline static
-#endif // SIMSIMD_DYNAMIC_DISPATCH
-#endif // SIMSIMD_DYNAMIC
+#endif
 
 // Compiling for Arm: SIMSIMD_TARGET_ARM
 #if !defined(SIMSIMD_TARGET_ARM)
@@ -58,6 +54,7 @@
 #if defined(__ARM_NEON)
 #define SIMSIMD_TARGET_NEON SIMSIMD_TARGET_ARM
 #else
+#undef SIMSIMD_TARGET_NEON
 #define SIMSIMD_TARGET_NEON 0
 #endif // defined(__ARM_NEON)
 #endif // !defined(SIMSIMD_TARGET_NEON)
@@ -67,6 +64,7 @@
 #if defined(__ARM_FEATURE_SVE)
 #define SIMSIMD_TARGET_SVE SIMSIMD_TARGET_ARM
 #else
+#undef SIMSIMD_TARGET_SVE
 #define SIMSIMD_TARGET_SVE 0
 #endif // defined(__ARM_FEATURE_SVE)
 #endif // !defined(SIMSIMD_TARGET_SVE)
@@ -82,6 +80,7 @@
 #if defined(__AVX2__) && defined(__FMA__) && defined(__F16C__)
 #define SIMSIMD_TARGET_HASWELL 1
 #else
+#undef SIMSIMD_TARGET_HASWELL
 #define SIMSIMD_TARGET_HASWELL 0
 #endif // defined(__AVX2__)
 #endif // !defined(SIMSIMD_TARGET_HASWELL)
@@ -119,24 +118,27 @@
     defined(__AVX512BW__)
 #define SIMSIMD_TARGET_SKYLAKE 1
 #else
+#undef SIMSIMD_TARGET_SKYLAKE
 #define SIMSIMD_TARGET_SKYLAKE 0
 #endif
-#endif // Skylake
+#endif // !defined(SIMSIMD_TARGET_SKYLAKE)
 #if !defined(SIMSIMD_TARGET_ICE) || (SIMSIMD_TARGET_ICE && !SIMSIMD_TARGET_X86)
 #if defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITALG__) && defined(__AVX512VBMI2__) &&     \
     defined(__AVX512VPOPCNTDQ__)
 #define SIMSIMD_TARGET_ICE 1
 #else
+#undef SIMSIMD_TARGET_ICE
 #define SIMSIMD_TARGET_ICE 0
 #endif
-#endif // Ice Lake
+#endif // !defined(SIMSIMD_TARGET_ICE)
 #if !defined(SIMSIMD_TARGET_SAPPHIRE) || (SIMSIMD_TARGET_SAPPHIRE && !SIMSIMD_TARGET_X86)
 #if defined(__AVX512FP16__)
 #define SIMSIMD_TARGET_SAPPHIRE 1
 #else
+#undef SIMSIMD_TARGET_SAPPHIRE
 #define SIMSIMD_TARGET_SAPPHIRE 0
 #endif
-#endif // Sapphire Rapids
+#endif // !defined(SIMSIMD_TARGET_SAPPHIRE)
 
 #ifdef _MSC_VER
 #include <intrin.h>
