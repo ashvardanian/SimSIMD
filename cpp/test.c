@@ -7,7 +7,7 @@
 #include <math.h>   // `sqrtf`
 #include <stdio.h>  // `printf`
 
-#define SIMSIMD_NATIVE_F16 1
+#define SIMSIMD_NATIVE_F16 0
 #define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
 #define SIMSIMD_LOG(x) (logf(x))
 #include <simsimd/simsimd.h>
@@ -21,7 +21,7 @@ void print_capabilities() {
     // Log supported functionality
     char const* flags[2] = {"false", "true"};
     printf("Benchmarking Similarity Measures\n");
-    printf("- Compiler supports F16: %s\n", flags[SIMSIMD_NATIVE_F16]);
+    printf("- Compiler used native F16: %s\n", flags[SIMSIMD_NATIVE_F16]);
     printf("\n");
     printf("Compile-time settings:\n");
     printf("- Arm NEON support enabled: %s\n", flags[SIMSIMD_TARGET_NEON]);

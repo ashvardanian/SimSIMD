@@ -4,6 +4,7 @@
  *  @file   lib.c
  */
 #define SIMSIMD_DYNAMIC_DISPATCH 1
+#define SIMSIMD_NATIVE_F16 0
 
 /*  Depending on the Operating System, the following intrinsics are available
  *  on recent compiler toolchains:
