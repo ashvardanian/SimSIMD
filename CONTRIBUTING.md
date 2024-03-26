@@ -19,8 +19,9 @@ build_release/simsimd_test_compile_time
 Testing:
 
 ```sh
-pip install -e .                # to install the package in editable mode
-pytest python/test.py -s -x -Wd # to run tests
+pip install -e .                    # to install the package in editable mode
+pip install pytest pytest-repeat    # testing dependencies
+pytest python/test.py -s -x -Wd     # to run tests
 ```
 
 Here, `-s` will output the logs.

@@ -13,19 +13,21 @@ fn main() {
 
     if build.try_compile("simsimd").is_err() {
         print!("cargo:warning=Failed to compile with all SIMD backends...");
-        let flags_to_try = [
-            "SIMSIMD_TARGET_SAPPHIRE",
-            "SIMSIMD_TARGET_ICE",
-            "SIMSIMD_TARGET_SKYLAKE",
-            "SIMSIMD_TARGET_HASWELL",
-            "SIMSIMD_TARGET_SVE",
-            "SIMSIMD_TARGET_NEON",
-        ];
+
+        let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+        let flags_to_try = match target_arch.as_str() {
+            "arm" | "aarch64" => vec!["SIMSIMD_TARGET_NEON", "SIMSIMD_TARGET_SVE"],
+            _ => vec![
+                "SIMSIMD_TARGET_SAPPHIRE",
+                "SIMSIMD_TARGET_ICE",
+                "SIMSIMD_TARGET_SKYLAKE",
+                "SIMSIMD_TARGET_HASWELL",
+            ],
+        };
 
         for flag in flags_to_try.iter() {
             build.define(flag, "0");
-            let compiled = build.try_compile("simsimd");
-            if compiled.is_ok() {
+            if build.try_compile("simsimd").is_ok() {
                 break;
             }
 
