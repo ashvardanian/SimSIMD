@@ -918,8 +918,8 @@ SIMSIMD_PUBLIC void simsimd_vdot_f64c(simsimd_f64_t const* a, simsimd_f64_t cons
  *  @note The output distance value is zero if and only if the two vectors are identical.
  *  @note Defined only for floating-point and integer data types.
  */
-SIMSIMD_DYNAMIC void simsimd_cos_i8(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
-                                    simsimd_distance_t* d) {
+SIMSIMD_PUBLIC void simsimd_cos_i8(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
+                                   simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_NEON
     simsimd_cos_i8_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_ICE
@@ -930,8 +930,8 @@ SIMSIMD_DYNAMIC void simsimd_cos_i8(simsimd_i8_t const* a, simsimd_i8_t const* b
     simsimd_cos_i8_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_DYNAMIC void simsimd_l2sq_i8(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
-                                     simsimd_distance_t* d) {
+SIMSIMD_PUBLIC void simsimd_l2sq_i8(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
+                                    simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_NEON
     simsimd_l2sq_i8_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_ICE
@@ -942,8 +942,8 @@ SIMSIMD_DYNAMIC void simsimd_l2sq_i8(simsimd_i8_t const* a, simsimd_i8_t const* 
     simsimd_l2sq_i8_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_DYNAMIC void simsimd_cos_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
-                                     simsimd_distance_t* d) {
+SIMSIMD_PUBLIC void simsimd_cos_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                    simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE
     simsimd_cos_f16_sve(a, b, n, d);
 #elif SIMSIMD_TARGET_NEON
@@ -956,8 +956,8 @@ SIMSIMD_DYNAMIC void simsimd_cos_f16(simsimd_f16_t const* a, simsimd_f16_t const
     simsimd_cos_f16_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_DYNAMIC void simsimd_cos_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
-                                     simsimd_distance_t* d) {
+SIMSIMD_PUBLIC void simsimd_cos_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                    simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE
     simsimd_cos_f32_sve(a, b, n, d);
 #elif SIMSIMD_TARGET_NEON
@@ -968,8 +968,8 @@ SIMSIMD_DYNAMIC void simsimd_cos_f32(simsimd_f32_t const* a, simsimd_f32_t const
     simsimd_cos_f32_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_DYNAMIC void simsimd_cos_f64(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
-                                     simsimd_distance_t* d) {
+SIMSIMD_PUBLIC void simsimd_cos_f64(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
+                                    simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE
     simsimd_cos_f64_sve(a, b, n, d);
 #elif SIMSIMD_TARGET_SKYLAKE
@@ -978,8 +978,8 @@ SIMSIMD_DYNAMIC void simsimd_cos_f64(simsimd_f64_t const* a, simsimd_f64_t const
     simsimd_cos_f64_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_DYNAMIC void simsimd_l2sq_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
-                                      simsimd_distance_t* d) {
+SIMSIMD_PUBLIC void simsimd_l2sq_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                     simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE
     simsimd_l2sq_f16_sve(a, b, n, d);
 #elif SIMSIMD_TARGET_NEON
@@ -992,8 +992,8 @@ SIMSIMD_DYNAMIC void simsimd_l2sq_f16(simsimd_f16_t const* a, simsimd_f16_t cons
     simsimd_l2sq_f16_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_DYNAMIC void simsimd_l2sq_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
-                                      simsimd_distance_t* d) {
+SIMSIMD_PUBLIC void simsimd_l2sq_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                     simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE
     simsimd_l2sq_f32_sve(a, b, n, d);
 #elif SIMSIMD_TARGET_NEON
@@ -1004,8 +1004,8 @@ SIMSIMD_DYNAMIC void simsimd_l2sq_f32(simsimd_f32_t const* a, simsimd_f32_t cons
     simsimd_l2sq_f32_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_DYNAMIC void simsimd_l2sq_f64(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
-                                      simsimd_distance_t* d) {
+SIMSIMD_PUBLIC void simsimd_l2sq_f64(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
+                                     simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE
     simsimd_l2sq_f64_sve(a, b, n, d);
 #elif SIMSIMD_TARGET_SKYLAKE
