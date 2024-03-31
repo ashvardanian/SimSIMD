@@ -59,8 +59,8 @@ jobs:
           python -c "import simsimd; print(simsimd.get_capabilities())"
           pytest python/test.py -s -x -Wd -v
 
-  test_javascript:
-    name: Test JavaScript
+  test_nodejs:
+    name: Test Node.js
     runs-on: ubuntu-22.04
     env:
       CC: gcc-12
@@ -87,6 +87,42 @@ jobs:
           npm run build-js
           npm test
 
+  test_deno:
+    name: Test Deno
+    runs-on: ubuntu-22.04
+    env:
+      CC: gcc-12
+      CXX: g++-12
+
+    steps:
+      - uses: actions/checkout@v4
+      - run: git submodule update --init --recursive
+
+      - name: Update compilers
+        run: |
+          sudo apt update
+          sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev gcc-12 g++-12
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build and Test with Node
+        run: |
+          npm ci --ignore-scripts
+          npm run install
+          npm run build-js
+          npm test
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: vx.x.x
+
+      - name: Test with Deno
+        run: deno test --allow-read
+
   test_rust:
     name: Test Rust
     runs-on: ubuntu-latest
@@ -104,7 +140,7 @@ jobs:
   build_wheels:
     name: Build Python ${{ matrix.python-version }} for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    needs: [test_python, test_rust]
+    needs: [test_python]
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]

@@ -91,6 +91,19 @@ npm test
 npm run bench
 ```
 
+Running with Deno:
+
+```sh
+deno test --allow-read
+```
+
+Running with Bun:
+
+```sh
+npm install -g bun
+bun test
+```
+
 ## GoLang
 
 ```sh

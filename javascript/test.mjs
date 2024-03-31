@@ -1,3 +1,25 @@
+// Currently the builds are expected to run only on Node.js,
+// but Deno tests pass as well.
+//
+// Bun supports `node:assert`, but not `node:test`.
+// Using `require` we can make the tests compatible with Bun.
+//
+//    const isBun = typeof Bun !== "undefined";
+//    let assert, test;
+//    if (isBun) {
+//      assert = require('node:assert');
+//      test = require('bun:test');
+//    } else {
+//      assert = require('node:assert');
+//      test = require('node:test');
+//    }
+//
+// That, however, leads to other issues, like the following:
+//
+//    require is not defined in ES module scope, you can use import instead
+//
+// https://bun.sh/docs/runtime/nodejs-apis
+// https://bun.sh/guides/util/detect-bun
 import test from "node:test";
 import assert from "node:assert";
 
