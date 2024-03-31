@@ -468,17 +468,17 @@ SIMSIMD_PUBLIC void simsimd_l2sq_f16_sve(simsimd_f16_t const* a_enum, simsimd_f1
                                          simsimd_distance_t* result) {
     simsimd_size_t i = 0;
     svfloat16_t d2_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
-    simsimd_f16_t const* a = (simsimd_f16_t const*)(a_enum);
-    simsimd_f16_t const* b = (simsimd_f16_t const*)(b_enum);
+    simsimd_f16_for_arm_simd_t const* a = (simsimd_f16_for_arm_simd_t const*)(a_enum);
+    simsimd_f16_for_arm_simd_t const* b = (simsimd_f16_for_arm_simd_t const*)(b_enum);
     do {
         svbool_t pg_vec = svwhilelt_b16((unsigned int)i, (unsigned int)n);
-        svfloat16_t a_vec = svld1_f16(pg_vec, (simsimd_f16_for_arm_simd_t const*)a + i);
-        svfloat16_t b_vec = svld1_f16(pg_vec, (simsimd_f16_for_arm_simd_t const*)b + i);
+        svfloat16_t a_vec = svld1_f16(pg_vec, a + i);
+        svfloat16_t b_vec = svld1_f16(pg_vec, b + i);
         svfloat16_t a_minus_b_vec = svsub_f16_x(pg_vec, a_vec, b_vec);
         d2_vec = svmla_f16_x(pg_vec, d2_vec, a_minus_b_vec, a_minus_b_vec);
         i += svcnth();
     } while (i < n);
-    float16_t d2_f16 = svaddv_f16(svptrue_b16(), d2_vec);
+    simsimd_f16_for_arm_simd_t d2_f16 = svaddv_f16(svptrue_b16(), d2_vec);
     *result = d2_f16;
 }
 
@@ -488,21 +488,21 @@ SIMSIMD_PUBLIC void simsimd_cos_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16
     svfloat16_t ab_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
     svfloat16_t a2_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
     svfloat16_t b2_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
-    simsimd_f16_t const* a = (simsimd_f16_t const*)(a_enum);
-    simsimd_f16_t const* b = (simsimd_f16_t const*)(b_enum);
+    simsimd_f16_for_arm_simd_t const* a = (simsimd_f16_for_arm_simd_t const*)(a_enum);
+    simsimd_f16_for_arm_simd_t const* b = (simsimd_f16_for_arm_simd_t const*)(b_enum);
     do {
         svbool_t pg_vec = svwhilelt_b16((unsigned int)i, (unsigned int)n);
-        svfloat16_t a_vec = svld1_f16(pg_vec, (simsimd_f16_for_arm_simd_t const*)a + i);
-        svfloat16_t b_vec = svld1_f16(pg_vec, (simsimd_f16_for_arm_simd_t const*)b + i);
+        svfloat16_t a_vec = svld1_f16(pg_vec, a + i);
+        svfloat16_t b_vec = svld1_f16(pg_vec, b + i);
         ab_vec = svmla_f16_x(pg_vec, ab_vec, a_vec, b_vec);
         a2_vec = svmla_f16_x(pg_vec, a2_vec, a_vec, a_vec);
         b2_vec = svmla_f16_x(pg_vec, b2_vec, b_vec, b_vec);
         i += svcnth();
     } while (i < n);
 
-    simsimd_f16_t ab = svaddv_f16(svptrue_b16(), ab_vec);
-    simsimd_f16_t a2 = svaddv_f16(svptrue_b16(), a2_vec);
-    simsimd_f16_t b2 = svaddv_f16(svptrue_b16(), b2_vec);
+    simsimd_f16_for_arm_simd_t ab = svaddv_f16(svptrue_b16(), ab_vec);
+    simsimd_f16_for_arm_simd_t a2 = svaddv_f16(svptrue_b16(), a2_vec);
+    simsimd_f16_for_arm_simd_t b2 = svaddv_f16(svptrue_b16(), b2_vec);
 
     // Avoid `simsimd_approximate_inverse_square_root` on Arm NEON
     simsimd_f32_t a2_b2_arr[2] = {a2, b2};
