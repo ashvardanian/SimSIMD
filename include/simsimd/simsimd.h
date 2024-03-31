@@ -831,7 +831,7 @@ SIMSIMD_PUBLIC void simsimd_dot_f64(simsimd_f64_t const* a, simsimd_f64_t const*
 SIMSIMD_PUBLIC void simsimd_dot_f16c(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                      simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE
-    simsimd_dot_f16c_sve(a, b, n, d)
+    simsimd_dot_f16c_sve(a, b, n, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_dot_f16c_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_HASWELL
@@ -869,7 +869,7 @@ SIMSIMD_PUBLIC void simsimd_dot_f64c(simsimd_f64_t const* a, simsimd_f64_t const
 SIMSIMD_PUBLIC void simsimd_vdot_f16c(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                       simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE
-    simsimd_dot_f16c_sve(a, b, n, d)
+    simsimd_dot_f16c_sve(a, b, n, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_dot_f16c_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_HASWELL
