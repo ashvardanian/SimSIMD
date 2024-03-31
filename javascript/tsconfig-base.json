@@ -1,7 +1,14 @@
 {
     "compileOnSave": false,
-    "exclude": ["node_modules", "dist"],
-    "include": ["node-gyp-build.d.ts", "simsimd.ts", "fallback.ts"],
+    "exclude": [
+        "node_modules",
+        "dist"
+    ],
+    "include": [
+        "node-gyp-build.d.ts",
+        "simsimd.ts",
+        "fallback.ts"
+    ],
     "compilerOptions": {
         "allowJs": true,
         "allowSyntheticDefaultImports": true,
@@ -9,7 +16,9 @@
         "declaration": true,
         "esModuleInterop": true,
         "inlineSourceMap": false,
-        "lib": ["esnext"],
+        "lib": [
+            "esnext"
+        ],
         "listEmittedFiles": false,
         "listFiles": false,
         "moduleResolution": "node",
@@ -20,6 +29,9 @@
         "skipLibCheck": true,
         "strict": true,
         "traceResolution": false,
-        "types": ["node","./node-gyp-build.d.ts"]
+        "types": [
+            "node",
+            "./node-gyp-build.d.ts"
+        ]
     }
 }

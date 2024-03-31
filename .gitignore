@@ -11,6 +11,7 @@ package-ci/
 prebuilds/
 build/
 javascript/dist
+bun.lockb
 
 # for Google Benchmark
 compare.py
