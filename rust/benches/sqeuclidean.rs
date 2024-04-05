@@ -17,8 +17,8 @@ pub fn l2sq_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("SimSIMD", i), &i, |b, _| {
             b.iter(|| SimSIMD::sqeuclidean(&inputs.0, &inputs.1))
         });
-        group.bench_with_input(BenchmarkId::new("Rust Native", i), &i, |b, _| {
-            b.iter(|| native::squared_euclidean_cpu(&inputs.0, &inputs.1))
+        group.bench_with_input(BenchmarkId::new("Rust Unrolled", i), &i, |b, _| {
+            b.iter(|| native::baseline_l2sq_unrolled(&inputs.0, &inputs.1))
         });
     }
 }
