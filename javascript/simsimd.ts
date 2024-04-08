@@ -102,6 +102,27 @@ export const jensenshannon = (a: Float64Array | Float32Array, b: Float64Array | 
   return compiled.jensenshannon(a, b);
 };
 
+/**
+ * Quantizes a floating-point vector into a binary vector (1 for positive values, 0 for non-positive values) and packs the result into a Uint8Array, where each element represents 8 binary values from the original vector.
+ * This function is useful for preparing data for bitwise distance or similarity computations, such as Hamming or Jaccard indices.
+ * 
+ * @param {Float32Array | Float64Array | Int8Array} vector The floating-point vector to be quantized and packed.
+ * @returns {Uint8Array} A Uint8Array where each byte represents 8 binary quantized values from the input vector.
+ */
+export const toBinary = (vector: Float32Array | Float64Array | Int8Array): Uint8Array => {
+  const byteLength = Math.ceil(vector.length / 8);
+  const packedVector = new Uint8Array(byteLength);
+
+  for (let i = 0; i < vector.length; i++) {
+    if (vector[i] > 0) {
+      const byteIndex = Math.floor(i / 8);
+      const bitPosition = 7 - (i % 8);
+      packedVector[byteIndex] |= (1 << bitPosition);
+    }
+  }
+
+  return packedVector;
+};
 export default {
   dot,
   inner,
@@ -111,10 +132,13 @@ export default {
   jaccard,
   kullbackleibler,
   jensenshannon,
+  toBinary,
 };
 
-// utility functions to help find native builds
-
+/**
+ * @brief Finds the directory where the native build of the simsimd module is located.
+ * @param {string} dir - The directory to start the search from.
+ */
 function getBuildDir(dir: string) {
   if (existsSync(path.join(dir, "build"))) return dir;
   if (existsSync(path.join(dir, "prebuilds"))) return dir;
