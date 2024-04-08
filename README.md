@@ -1,12 +1,14 @@
 # SimSIMD 📏
 
-_Computing dot-products, similarity measures, and distances between low- and high-dimensional vectors is ubiquitous in Machine Learning, Scientific Computing, Geo-Spatial Analysis, and Information Retrieval.
+![SimSIMD banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/SimSIMD.png?raw=true)
+
+Computing dot-products, similarity measures, and distances between low- and high-dimensional vectors is ubiquitous in Machine Learning, Scientific Computing, Geo-Spatial Analysis, and Information Retrieval.
 These algorithms generally have linear complexity in time, constant complexity in space, and are data-parallel.
 In other words, it is easily parallelizable and vectorizable and often available in packages like BLAS and LAPACK, as well as higher-level `numpy` and `scipy` Python libraries.
 Ironically, even with decades of evolution in compilers and numerical computing, [most libraries can be 3-200x slower than hardware potential][benchmarks] even on the most popular hardware, like 64-bit x86 and Arm CPUs.
 SimSIMD attempts to fill that gap.
 1️⃣ SimSIMD functions are practically as fast as `memcpy`.
-2️⃣ SimSIMD [compiles to more platforms than NumPy (105 vs 35)][compatibility] and has more backends than most BLAS implementations._
+2️⃣ SimSIMD [compiles to more platforms than NumPy (105 vs 35)][compatibility] and has more backends than most BLAS implementations.
 
 [benchmarks]: https://ashvardanian.com/posts/simsimd-faster-scipy
 [compatibility]: https://pypi.org/project/simsimd/#files
@@ -400,8 +402,7 @@ To install, choose one of the following options depending on your environment:
 - `pnpm add simsimd`
 - `bun install simsimd`
 
-The package is distributed with prebuilt binaries for Node.js v10 and above for Linux (x86_64, arm64), macOS (x86_64, arm64), and Windows (i386, x86_64).
-If your platform is not supported, you can build the package from the source via `npm run build`.
+The package is distributed with prebuilt binaries, but if your platform is not supported, you can build the package from the source via `npm run build`.
 This will automatically happen unless you install the package with the `--ignore-scripts` flag or use Bun.
 After you install it, you will be able to call the SimSIMD functions on various `TypedArray` variants:
 
@@ -415,14 +416,34 @@ const distance = sqeuclidean(vectorA, vectorB);
 console.log('Squared Euclidean Distance:', distance);
 ```
 
-Other numeric types and precision levels are supported as well:
+Other numeric types and precision levels are supported as well.
+For double-precsion floating-point numbers, use `Float64Array`:
 
 ```js
 const vectorA = new Float64Array([1.0, 2.0, 3.0]);
 const vectorB = new Float64Array([4.0, 5.0, 6.0]);
-
 const distance = cosine(vectorA, vectorB);
-console.log('Cosine Similarity:', distance);
+```
+
+When doing machine learning and vector search with high-dimensional vectors you may want to quantize them to 8-bit integers.
+You may want to project values from the $[-1, 1]$ range to the $[-100, 100]$ range and then cast them to `Uint8Array`:
+
+```js
+const quantizedVectorA = new Uint8Array(vectorA.map(v => (v * 100)));
+const quantizedVectorB = new Uint8Array(vectorB.map(v => (v * 100)));
+const distance = cosine(quantizedVectorA, quantizedVectorB);
+```
+
+A more extreme quantization case would be to use binary vectors.
+You can map all positive values to `1` and all negative values and zero to `0`, packing eight values into a single byte.
+After that, Hamming and Jaccard distances can be computed.
+
+```js
+const { toBinary, hamming } = require('simsimd');
+
+const binaryVectorA = toBinary(vectorA);
+const binaryVectorB = toBinary(vectorB);
+const distance = hamming(binaryVectorA, binaryVectorB);
 ```
 
 ## Using SimSIMD in C

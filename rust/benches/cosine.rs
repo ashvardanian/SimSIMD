@@ -17,8 +17,14 @@ pub fn cos_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("SimSIMD", i), &i, |b, _| {
             b.iter(|| SimSIMD::cosine(&inputs.0, &inputs.1))
         });
-        group.bench_with_input(BenchmarkId::new("Rust Native", i), &i, |b, _| {
-            b.iter(|| native::cos_similarity_cpu(&inputs.0, &inputs.1))
+        group.bench_with_input(BenchmarkId::new("Rust Procedural", i), &i, |b, _| {
+            b.iter(|| native::baseline_cos_procedural(&inputs.0, &inputs.1))
+        });
+        group.bench_with_input(BenchmarkId::new("Rust Functional", i), &i, |b, _| {
+            b.iter(|| native::baseline_cos_functional(&inputs.0, &inputs.1))
+        });
+        group.bench_with_input(BenchmarkId::new("Rust Unrolled", i), &i, |b, _| {
+            b.iter(|| native::baseline_cos_unrolled(&inputs.0, &inputs.1))
         });
     }
 }
