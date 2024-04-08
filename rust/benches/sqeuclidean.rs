@@ -23,6 +23,9 @@ pub fn l2sq_benchmark(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("Rust Functional", i), &i, |b, _| {
             b.iter(|| native::baseline_l2sq_functional(&inputs.0, &inputs.1))
         });
+        group.bench_with_input(BenchmarkId::new("Rust Unrolled", i), &i, |b, _| {
+            b.iter(|| native::baseline_l2sq_unrolled(&inputs.0, &inputs.1))
+        });
     }
 }
 
