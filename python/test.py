@@ -142,7 +142,7 @@ def test_cosine(ndim, dtype):
     if dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
-    np.random.seed(0)  # Use a fixed seed for reproducibility
+    np.random.seed()
     a = np.random.randn(ndim).astype(dtype)
     b = np.random.randn(ndim).astype(dtype)
 
