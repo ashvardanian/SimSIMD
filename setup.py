@@ -24,7 +24,7 @@ if sys.platform == "linux":
 
     # Enable OpenMP for Linux
     compile_args.append("-fopenmp")
-    link_args.append("-lgomp")
+    link_args.append("-fopenmp")
 
     # Add vectorized `logf` implementation from the `glibc`
     link_args.append("-lm")
