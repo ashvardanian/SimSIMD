@@ -7,7 +7,7 @@
 #   * running thousands of fuzzy tests on each wheel.
 #   = meaning 16 platforms * 7 Python versions = 112 builds.
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools>=42"]
 build-backend = "setuptools.build_meta"
 
 [tool.pytest.ini_options]
