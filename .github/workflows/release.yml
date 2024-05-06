@@ -104,7 +104,9 @@ jobs:
         with:
           python-version: 3.x
       - name: Build source distribution
-        run: python -m build --sdist
+        run: 
+          pip install build
+          python -m build --sdist
       - name: Upload source distribution
         uses: actions/upload-artifact@v4
         with:
@@ -114,7 +116,7 @@ jobs:
 
   publish_python:
     name: Publish Python
-    needs: build_wheels
+    needs: [build_wheels, build_sdist]
     runs-on: ubuntu-22.04
     environment:
       name: pypi
