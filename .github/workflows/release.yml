@@ -105,7 +105,7 @@ jobs:
           python-version: 3.x
       - name: Build source distribution
         run: 
-          pip install build
+          pip install build &&
           python -m build --sdist
       - name: Upload source distribution
         uses: actions/upload-artifact@v4
