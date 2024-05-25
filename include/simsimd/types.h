@@ -185,6 +185,7 @@ typedef float simsimd_f32_t;
 typedef double simsimd_f64_t;
 typedef signed char simsimd_i8_t;
 typedef unsigned char simsimd_b8_t;
+typedef long long simsimd_i64_t;
 typedef unsigned long long simsimd_u64_t;
 
 typedef simsimd_u64_t simsimd_size_t;
@@ -241,9 +242,9 @@ typedef float16_t simsimd_f16_for_arm_simd_t;
  */
 #ifndef SIMSIMD_UNCOMPRESS_F16
 #if SIMSIMD_NATIVE_F16
-#define SIMSIMD_UNCOMPRESS_F16(x) SIMSIMD_IDENTIFY(x)
+#define SIMSIMD_UNCOMPRESS_F16(x) (SIMSIMD_IDENTIFY(x))
 #else
-#define SIMSIMD_UNCOMPRESS_F16(x) simsimd_uncompress_f16(x)
+#define SIMSIMD_UNCOMPRESS_F16(x) (simsimd_uncompress_f16(x))
 #endif
 #endif
 
