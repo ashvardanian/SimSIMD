@@ -3,16 +3,19 @@
 
 #include <benchmark/benchmark.h>
 
+#if !defined(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
+#define SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS 0
+#endif
+#if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
+#include <cblas.h>
+#endif
+
+#define SIMSIMD_NATIVE_F16 0
 #define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
 #define SIMSIMD_LOG(x) (logf(x))
 #include <simsimd/simsimd.h>
 
 namespace bm = benchmark;
-
-template <typename return_at, typename... args_at>
-constexpr std::size_t number_of_arguments(return_at (*f)(args_at...)) {
-    return sizeof...(args_at);
-}
 
 template <typename scalar_at, std::size_t dimensions_ak> struct vectors_pair_gt {
     scalar_at a[dimensions_ak]{};
@@ -50,17 +53,32 @@ template <typename scalar_at, std::size_t dimensions_ak> struct vectors_pair_gt 
 };
 
 template <typename pair_at, typename metric_at = void>
-static void measure(bm::State& state, metric_at metric, metric_at baseline) {
+constexpr void measure(bm::State& state, metric_at metric, metric_at baseline) {
 
     pair_at pair;
     pair.randomize();
     // pair.set(1);
 
-    double c_baseline = baseline(pair.a, pair.b, pair.dimensions());
+    auto call_baseline = [&](pair_at& pair) -> simsimd_f32_t {
+        // Output for real vectors have a single dimensions.
+        // Output for complex vectors have two dimensions.
+        simsimd_distance_t results[2] = {0, 0};
+        baseline(pair.a, pair.b, pair.dimensions(), &results[0]);
+        return results[0] + results[1];
+    };
+    auto call_contender = [&](pair_at& pair) -> simsimd_f32_t {
+        // Output for real vectors have a single dimensions.
+        // Output for complex vectors have two dimensions.
+        simsimd_distance_t results[2] = {0, 0};
+        metric(pair.a, pair.b, pair.dimensions(), &results[0]);
+        return results[0] + results[1];
+    };
+
+    double c_baseline = call_baseline(pair);
     double c = 0;
     std::size_t iterations = 0;
     for (auto _ : state)
-        bm::DoNotOptimize((c = metric(pair.a, pair.b, pair.dimensions()))), iterations++;
+        bm::DoNotOptimize((c = call_contender(pair))), iterations++;
 
     state.counters["bytes"] = bm::Counter(iterations * pair.size_bytes() * 2, bm::Counter::kIsRate);
     state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
@@ -91,39 +109,64 @@ void register_(std::string name, metric_at* distance_func, metric_at* baseline_f
         ->Threads(threads);
 }
 
+#if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
+
+void dot_f32_blas(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+    *result = cblas_sdot((int)n, a, 1, b, 1);
+}
+
+void dot_f64_blas(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+    *result = cblas_ddot((int)n, a, 1, b, 1);
+}
+
+void dot_f32c_blas(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+    simsimd_f32_t f32_result[2] = {0, 0};
+    cblas_cdotu_sub((int)n / 2, a, 1, b, 1, f32_result);
+    result[0] = f32_result[0];
+    result[1] = f32_result[1];
+}
+
+void dot_f64c_blas(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+    cblas_zdotu_sub((int)n / 2, a, 1, b, 1, result);
+}
+
+void vdot_f32c_blas(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+    simsimd_f32_t f32_result[2] = {0, 0};
+    cblas_cdotc_sub((int)n / 2, a, 1, b, 1, f32_result);
+    result[0] = f32_result[0];
+    result[1] = f32_result[1];
+}
+
+void vdot_f64c_blas(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+    cblas_zdotc_sub((int)n / 2, a, 1, b, 1, result);
+}
+
+#endif
+
 int main(int argc, char** argv) {
-
-    bool compiled_with_sve = false;
-    bool compiled_with_neon = false;
-    bool compiled_with_avx2 = false;
-    bool compiled_with_avx512vpopcntdq = false;
-    bool compiled_with_avx512vnni = false;
-
-#if defined(__ARM_FEATURE_SVE)
-    compiled_with_sve = true;
-#endif
-#if defined(__ARM_NEON)
-    compiled_with_neon = true;
-#endif
-#if defined(__AVX2__)
-    compiled_with_avx2 = true;
-#endif
-#if defined(__AVX512VPOPCNTDQ__)
-    compiled_with_avx512vpopcntdq = true;
-#endif
-#if defined(__AVX512VNNI__)
-    compiled_with_avx512vnni = true;
-#endif
+    simsimd_capability_t runtime_caps = simsimd_capabilities();
 
     // Log supported functionality
     char const* flags[2] = {"false", "true"};
     std::printf("Benchmarking Similarity Measures\n");
+    std::printf("- Compiler used native F16: %s\n", flags[SIMSIMD_NATIVE_F16]);
+    std::printf("- Benchmark against CBLAS: %s\n", flags[SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS]);
     std::printf("\n");
-    std::printf("- Arm NEON support enabled: %s\n", flags[compiled_with_neon]);
-    std::printf("- Arm SVE support enabled: %s\n", flags[compiled_with_sve]);
-    std::printf("- x86 AVX2 support enabled: %s\n", flags[compiled_with_avx2]);
-    std::printf("- x86 AVX512VPOPCNTDQ support enabled: %s\n", flags[compiled_with_avx512vpopcntdq]);
-    std::printf("- x86 AVX512VNNI support enabled: %s\n", flags[compiled_with_avx512vnni]);
+    std::printf("Compile-time settings:\n");
+    std::printf("- Arm NEON support enabled: %s\n", flags[SIMSIMD_TARGET_NEON]);
+    std::printf("- Arm SVE support enabled: %s\n", flags[SIMSIMD_TARGET_SVE]);
+    std::printf("- x86 Haswell support enabled: %s\n", flags[SIMSIMD_TARGET_HASWELL]);
+    std::printf("- x86 Skylake support enabled: %s\n", flags[SIMSIMD_TARGET_SKYLAKE]);
+    std::printf("- x86 Ice Lake support enabled: %s\n", flags[SIMSIMD_TARGET_ICE]);
+    std::printf("- x86 Sapphire Rapids support enabled: %s\n", flags[SIMSIMD_TARGET_SAPPHIRE]);
+    std::printf("\n");
+    std::printf("Run-time settings:\n");
+    std::printf("- Arm NEON support enabled: %s\n", flags[(runtime_caps & simsimd_cap_neon_k) != 0]);
+    std::printf("- Arm SVE support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sve_k) != 0]);
+    std::printf("- x86 Haswell support enabled: %s\n", flags[(runtime_caps & simsimd_cap_haswell_k) != 0]);
+    std::printf("- x86 Skylake support enabled: %s\n", flags[(runtime_caps & simsimd_cap_skylake_k) != 0]);
+    std::printf("- x86 Ice Lake support enabled: %s\n", flags[(runtime_caps & simsimd_cap_ice_k) != 0]);
+    std::printf("- x86 Sapphire Rapids support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sapphire_k) != 0]);
     std::printf("\n");
 
     // Run the benchmarks
@@ -131,88 +174,148 @@ int main(int argc, char** argv) {
     if (bm::ReportUnrecognizedArguments(argc, argv))
         return 1;
 
-#if SIMSIMD_TARGET_ARM_NEON
-    register_<simsimd_f16_t>("neon_f16_ip", simsimd_neon_f16_ip, simsimd_accurate_f16_ip);
-    register_<simsimd_f16_t>("neon_f16_cos", simsimd_neon_f16_cos, simsimd_accurate_f16_cos);
-    register_<simsimd_f16_t>("neon_f16_l2sq", simsimd_neon_f16_l2sq, simsimd_accurate_f16_l2sq);
-    register_<simsimd_f16_t>("neon_f16_kl", simsimd_neon_f16_kl, simsimd_accurate_f16_kl);
-    register_<simsimd_f16_t>("neon_f16_js", simsimd_neon_f16_js, simsimd_accurate_f16_js);
+#if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
 
-    register_<simsimd_f32_t>("neon_f32_ip", simsimd_neon_f32_ip, simsimd_accurate_f32_ip);
-    register_<simsimd_f32_t>("neon_f32_cos", simsimd_neon_f32_cos, simsimd_accurate_f32_cos);
-    register_<simsimd_f32_t>("neon_f32_l2sq", simsimd_neon_f32_l2sq, simsimd_accurate_f32_l2sq);
-    register_<simsimd_f32_t>("neon_f32_kl", simsimd_neon_f32_kl, simsimd_accurate_f32_kl);
-    register_<simsimd_f32_t>("neon_f32_js", simsimd_neon_f32_js, simsimd_accurate_f32_js);
-
-    register_<simsimd_i8_t>("neon_i8_cos", simsimd_neon_i8_cos, simsimd_accurate_i8_cos);
-    register_<simsimd_i8_t>("neon_i8_l2sq", simsimd_neon_i8_l2sq, simsimd_accurate_i8_l2sq);
-#endif
-
-#if SIMSIMD_TARGET_ARM_SVE
-    register_<simsimd_f16_t>("sve_f16_ip", simsimd_sve_f16_ip, simsimd_accurate_f16_ip);
-    register_<simsimd_f16_t>("sve_f16_cos", simsimd_sve_f16_cos, simsimd_accurate_f16_cos);
-    register_<simsimd_f16_t>("sve_f16_l2sq", simsimd_sve_f16_l2sq, simsimd_accurate_f16_l2sq);
-
-    register_<simsimd_f32_t>("sve_f32_ip", simsimd_sve_f32_ip, simsimd_accurate_f32_ip);
-    register_<simsimd_f32_t>("sve_f32_cos", simsimd_sve_f32_cos, simsimd_accurate_f32_cos);
-    register_<simsimd_f32_t>("sve_f32_l2sq", simsimd_sve_f32_l2sq, simsimd_accurate_f32_l2sq);
-
-    register_<simsimd_f64_t>("sve_f64_ip", simsimd_sve_f64_ip, simsimd_serial_f64_ip);
-    register_<simsimd_f64_t>("sve_f64_cos", simsimd_sve_f64_cos, simsimd_serial_f64_cos);
-    register_<simsimd_f64_t>("sve_f64_l2sq", simsimd_sve_f64_l2sq, simsimd_serial_f64_l2sq);
-#endif
-
-#if SIMSIMD_TARGET_X86_AVX2
-    register_<simsimd_f16_t>("avx2_f16_ip", simsimd_avx2_f16_ip, simsimd_accurate_f16_ip);
-    register_<simsimd_f16_t>("avx2_f16_cos", simsimd_avx2_f16_cos, simsimd_accurate_f16_cos);
-    register_<simsimd_f16_t>("avx2_f16_l2sq", simsimd_avx2_f16_l2sq, simsimd_accurate_f16_l2sq);
-    register_<simsimd_f16_t>("avx2_f16_kl", simsimd_avx2_f16_kl, simsimd_accurate_f16_kl);
-    register_<simsimd_f16_t>("avx2_f16_js", simsimd_avx2_f16_js, simsimd_accurate_f16_js);
-
-    register_<simsimd_i8_t>("avx2_i8_cos", simsimd_avx2_i8_cos, simsimd_accurate_i8_cos);
-    register_<simsimd_i8_t>("avx2_i8_l2sq", simsimd_avx2_i8_l2sq, simsimd_accurate_i8_l2sq);
-#endif
-
-#if SIMSIMD_TARGET_X86_AVX512
-    register_<simsimd_f16_t>("avx512_f16_ip", simsimd_avx512_f16_ip, simsimd_accurate_f16_ip);
-    register_<simsimd_f16_t>("avx512_f16_cos", simsimd_avx512_f16_cos, simsimd_accurate_f16_cos);
-    register_<simsimd_f16_t>("avx512_f16_l2sq", simsimd_avx512_f16_l2sq, simsimd_accurate_f16_l2sq);
-    register_<simsimd_f16_t>("avx512_f16_kl", simsimd_avx512_f16_kl, simsimd_accurate_f16_kl);
-    register_<simsimd_f16_t>("avx512_f16_js", simsimd_avx512_f16_js, simsimd_accurate_f16_js);
-
-    register_<simsimd_i8_t>("avx512_i8_cos", simsimd_avx512_i8_cos, simsimd_accurate_i8_cos);
-    register_<simsimd_i8_t>("avx512_i8_l2sq", simsimd_avx512_i8_l2sq, simsimd_accurate_i8_l2sq);
-
-    register_<simsimd_f32_t>("avx512_f32_ip", simsimd_avx512_f32_ip, simsimd_accurate_f32_ip);
-    register_<simsimd_f32_t>("avx512_f32_cos", simsimd_avx512_f32_cos, simsimd_accurate_f32_cos);
-    register_<simsimd_f32_t>("avx512_f32_l2sq", simsimd_avx512_f32_l2sq, simsimd_accurate_f32_l2sq);
-    register_<simsimd_f32_t>("avx512_f32_kl", simsimd_avx512_f32_kl, simsimd_accurate_f32_kl);
-    register_<simsimd_f32_t>("avx512_f32_js", simsimd_avx512_f32_js, simsimd_accurate_f32_js);
-
-    register_<simsimd_f64_t>("avx512_f64_ip", simsimd_avx512_f64_ip, simsimd_serial_f64_ip);
-    register_<simsimd_f64_t>("avx512_f64_cos", simsimd_avx512_f64_cos, simsimd_serial_f64_cos);
-    register_<simsimd_f64_t>("avx512_f64_l2sq", simsimd_avx512_f64_l2sq, simsimd_serial_f64_l2sq);
+    register_<simsimd_f32_t>("dot_f32_blas", dot_f32_blas, simsimd_dot_f32_accurate);
+    register_<simsimd_f64_t>("dot_f64_blas", dot_f64_blas, simsimd_dot_f64_serial);
+    register_<simsimd_f32_t>("dot_f32c_blas", dot_f32c_blas, simsimd_dot_f32c_accurate);
+    register_<simsimd_f64_t>("dot_f64c_blas", dot_f64c_blas, simsimd_dot_f64c_serial);
+    register_<simsimd_f32_t>("vdot_f32c_blas", vdot_f32c_blas, simsimd_vdot_f32c_accurate);
+    register_<simsimd_f64_t>("vdot_f64c_blas", vdot_f64c_blas, simsimd_vdot_f64c_serial);
 
 #endif
 
-    register_<simsimd_f16_t>("serial_f16_ip", simsimd_serial_f16_ip, simsimd_accurate_f16_ip);
-    register_<simsimd_f16_t>("serial_f16_cos", simsimd_serial_f16_cos, simsimd_accurate_f16_cos);
-    register_<simsimd_f16_t>("serial_f16_l2sq", simsimd_serial_f16_l2sq, simsimd_accurate_f16_l2sq);
-    register_<simsimd_f16_t>("serial_f16_kl", simsimd_serial_f16_kl, simsimd_accurate_f16_kl);
-    register_<simsimd_f16_t>("serial_f16_js", simsimd_serial_f16_js, simsimd_accurate_f16_js);
+#if SIMSIMD_TARGET_NEON
 
-    register_<simsimd_f32_t>("serial_f32_ip", simsimd_serial_f32_ip, simsimd_accurate_f32_ip);
-    register_<simsimd_f32_t>("serial_f32_cos", simsimd_serial_f32_cos, simsimd_accurate_f32_cos);
-    register_<simsimd_f32_t>("serial_f32_l2sq", simsimd_serial_f32_l2sq, simsimd_accurate_f32_l2sq);
-    register_<simsimd_f32_t>("serial_f32_kl", simsimd_serial_f32_kl, simsimd_accurate_f32_kl);
-    register_<simsimd_f32_t>("serial_f32_js", simsimd_serial_f32_js, simsimd_accurate_f32_js);
+    register_<simsimd_f16_t>("dot_f16_neon", simsimd_dot_f16_neon, simsimd_dot_f16_accurate);
+    register_<simsimd_f16_t>("cos_f16_neon", simsimd_cos_f16_neon, simsimd_cos_f16_accurate);
+    register_<simsimd_f16_t>("l2sq_f16_neon", simsimd_l2sq_f16_neon, simsimd_l2sq_f16_accurate);
+    register_<simsimd_f16_t>("kl_f16_neon", simsimd_kl_f16_neon, simsimd_kl_f16_accurate);
+    register_<simsimd_f16_t>("js_f16_neon", simsimd_js_f16_neon, simsimd_js_f16_accurate);
 
-    register_<simsimd_f64_t>("serial_f64_ip", simsimd_serial_f64_ip, simsimd_serial_f64_ip);
-    register_<simsimd_f64_t>("serial_f64_cos", simsimd_serial_f64_cos, simsimd_serial_f64_cos);
-    register_<simsimd_f64_t>("serial_f64_l2sq", simsimd_serial_f64_l2sq, simsimd_serial_f64_l2sq);
+    register_<simsimd_f32_t>("dot_f32_neon", simsimd_dot_f32_neon, simsimd_dot_f32_accurate);
+    register_<simsimd_f32_t>("cos_f32_neon", simsimd_cos_f32_neon, simsimd_cos_f32_accurate);
+    register_<simsimd_f32_t>("l2sq_f32_neon", simsimd_l2sq_f32_neon, simsimd_l2sq_f32_accurate);
+    register_<simsimd_f32_t>("kl_f32_neon", simsimd_kl_f32_neon, simsimd_kl_f32_accurate);
+    register_<simsimd_f32_t>("js_f32_neon", simsimd_js_f32_neon, simsimd_js_f32_accurate);
 
-    register_<simsimd_i8_t>("serial_i8_cos", simsimd_serial_i8_cos, simsimd_accurate_i8_cos);
-    register_<simsimd_i8_t>("serial_i8_l2sq", simsimd_serial_i8_l2sq, simsimd_accurate_i8_l2sq);
+    register_<simsimd_i8_t>("cos_i8_neon", simsimd_cos_i8_neon, simsimd_cos_i8_accurate);
+    register_<simsimd_i8_t>("l2sq_i8_neon", simsimd_l2sq_i8_neon, simsimd_l2sq_i8_accurate);
+
+    register_<simsimd_b8_t>("hamming_b8_neon", simsimd_hamming_b8_neon, simsimd_hamming_b8_serial);
+    register_<simsimd_b8_t>("jaccard_b8_neon", simsimd_jaccard_b8_neon, simsimd_jaccard_b8_serial);
+
+    register_<simsimd_f16_t>("dot_f16c_neon", simsimd_dot_f16c_neon, simsimd_dot_f16c_accurate);
+    register_<simsimd_f16_t>("vdot_f16c_neon", simsimd_vdot_f16c_neon, simsimd_vdot_f16c_accurate);
+    register_<simsimd_f32_t>("dot_f32c_neon", simsimd_dot_f32c_neon, simsimd_dot_f32c_accurate);
+    register_<simsimd_f32_t>("vdot_f32c_neon", simsimd_vdot_f32c_neon, simsimd_vdot_f32c_accurate);
+#endif
+
+#if SIMSIMD_TARGET_SVE
+    register_<simsimd_f16_t>("dot_f16_sve", simsimd_dot_f16_sve, simsimd_dot_f16_accurate);
+    register_<simsimd_f16_t>("cos_f16_sve", simsimd_cos_f16_sve, simsimd_cos_f16_accurate);
+    register_<simsimd_f16_t>("l2sq_f16_sve", simsimd_l2sq_f16_sve, simsimd_l2sq_f16_accurate);
+
+    register_<simsimd_f32_t>("dot_f32_sve", simsimd_dot_f32_sve, simsimd_dot_f32_accurate);
+    register_<simsimd_f32_t>("cos_f32_sve", simsimd_cos_f32_sve, simsimd_cos_f32_accurate);
+    register_<simsimd_f32_t>("l2sq_f32_sve", simsimd_l2sq_f32_sve, simsimd_l2sq_f32_accurate);
+
+    register_<simsimd_f64_t>("dot_f64_sve", simsimd_dot_f64_sve, simsimd_dot_f64_serial);
+    register_<simsimd_f64_t>("cos_f64_sve", simsimd_cos_f64_sve, simsimd_cos_f64_serial);
+    register_<simsimd_f64_t>("l2sq_f64_sve", simsimd_l2sq_f64_sve, simsimd_l2sq_f64_serial);
+
+    register_<simsimd_b8_t>("hamming_b8_sve", simsimd_hamming_b8_sve, simsimd_hamming_b8_serial);
+    register_<simsimd_b8_t>("jaccard_b8_sve", simsimd_jaccard_b8_sve, simsimd_jaccard_b8_serial);
+
+    register_<simsimd_f16_t>("dot_f16c_sve", simsimd_dot_f16c_sve, simsimd_dot_f16c_accurate);
+    register_<simsimd_f16_t>("vdot_f16c_sve", simsimd_vdot_f16c_sve, simsimd_vdot_f16c_accurate);
+    register_<simsimd_f32_t>("dot_f32c_sve", simsimd_dot_f32c_sve, simsimd_dot_f32c_accurate);
+    register_<simsimd_f32_t>("vdot_f32c_sve", simsimd_vdot_f32c_sve, simsimd_vdot_f32c_accurate);
+    register_<simsimd_f64_t>("dot_f64c_sve", simsimd_dot_f64c_sve, simsimd_dot_f64c_serial);
+    register_<simsimd_f64_t>("vdot_f64c_sve", simsimd_vdot_f64c_sve, simsimd_vdot_f64c_serial);
+
+#endif
+
+#if SIMSIMD_TARGET_HASWELL
+    register_<simsimd_f16_t>("dot_f16_haswell", simsimd_dot_f16_haswell, simsimd_dot_f16_accurate);
+    register_<simsimd_f16_t>("cos_f16_haswell", simsimd_cos_f16_haswell, simsimd_cos_f16_accurate);
+    register_<simsimd_f16_t>("l2sq_f16_haswell", simsimd_l2sq_f16_haswell, simsimd_l2sq_f16_accurate);
+    register_<simsimd_f16_t>("kl_f16_haswell", simsimd_kl_f16_haswell, simsimd_kl_f16_accurate);
+    register_<simsimd_f16_t>("js_f16_haswell", simsimd_js_f16_haswell, simsimd_js_f16_accurate);
+
+    register_<simsimd_i8_t>("cos_i8_haswell", simsimd_cos_i8_haswell, simsimd_cos_i8_accurate);
+    register_<simsimd_i8_t>("l2sq_i8_haswell", simsimd_l2sq_i8_haswell, simsimd_l2sq_i8_accurate);
+
+    register_<simsimd_b8_t>("hamming_b8_haswell", simsimd_hamming_b8_haswell, simsimd_hamming_b8_serial);
+    register_<simsimd_b8_t>("jaccard_b8_haswell", simsimd_jaccard_b8_haswell, simsimd_jaccard_b8_serial);
+
+    register_<simsimd_f16_t>("dot_f16c_haswell", simsimd_dot_f16c_haswell, simsimd_dot_f16c_accurate);
+    register_<simsimd_f16_t>("vdot_f16c_haswell", simsimd_vdot_f16c_haswell, simsimd_vdot_f16c_accurate);
+    register_<simsimd_f32_t>("dot_f32c_haswell", simsimd_dot_f32c_haswell, simsimd_dot_f32c_accurate);
+    register_<simsimd_f32_t>("vdot_f32c_haswell", simsimd_vdot_f32c_haswell, simsimd_vdot_f32c_accurate);
+#endif
+
+#if SIMSIMD_TARGET_SAPPHIRE
+    register_<simsimd_f16_t>("dot_f16_sapphire", simsimd_dot_f16_sapphire, simsimd_dot_f16_accurate);
+    register_<simsimd_f16_t>("cos_f16_sapphire", simsimd_cos_f16_sapphire, simsimd_cos_f16_accurate);
+    register_<simsimd_f16_t>("l2sq_f16_sapphire", simsimd_l2sq_f16_sapphire, simsimd_l2sq_f16_accurate);
+    register_<simsimd_f16_t>("kl_f16_sapphire", simsimd_kl_f16_sapphire, simsimd_kl_f16_accurate);
+    register_<simsimd_f16_t>("js_f16_sapphire", simsimd_js_f16_sapphire, simsimd_js_f16_accurate);
+
+    register_<simsimd_f16_t>("dot_f16c_sapphire", simsimd_dot_f16c_sapphire, simsimd_dot_f16c_accurate);
+    register_<simsimd_f16_t>("vdot_f16c_sapphire", simsimd_vdot_f16c_sapphire, simsimd_vdot_f16c_accurate);
+#endif
+
+#if SIMSIMD_TARGET_ICE
+    register_<simsimd_i8_t>("cos_i8_ice", simsimd_cos_i8_ice, simsimd_cos_i8_accurate);
+    register_<simsimd_i8_t>("l2sq_i8_ice", simsimd_l2sq_i8_ice, simsimd_l2sq_i8_accurate);
+
+    register_<simsimd_f64_t>("dot_f64_skylake", simsimd_dot_f64_skylake, simsimd_dot_f64_serial);
+    register_<simsimd_f64_t>("cos_f64_skylake", simsimd_cos_f64_skylake, simsimd_cos_f64_serial);
+    register_<simsimd_f64_t>("l2sq_f64_skylake", simsimd_l2sq_f64_skylake, simsimd_l2sq_f64_serial);
+
+    register_<simsimd_b8_t>("hamming_b8_ice", simsimd_hamming_b8_ice, simsimd_hamming_b8_serial);
+    register_<simsimd_b8_t>("jaccard_b8_ice", simsimd_jaccard_b8_ice, simsimd_jaccard_b8_serial);
+#endif
+
+#if SIMSIMD_TARGET_SKYLAKE
+    register_<simsimd_f32_t>("dot_f32_skylake", simsimd_dot_f32_skylake, simsimd_dot_f32_accurate);
+    register_<simsimd_f32_t>("cos_f32_skylake", simsimd_cos_f32_skylake, simsimd_cos_f32_accurate);
+    register_<simsimd_f32_t>("l2sq_f32_skylake", simsimd_l2sq_f32_skylake, simsimd_l2sq_f32_accurate);
+    register_<simsimd_f32_t>("kl_f32_skylake", simsimd_kl_f32_skylake, simsimd_kl_f32_accurate);
+    register_<simsimd_f32_t>("js_f32_skylake", simsimd_js_f32_skylake, simsimd_js_f32_accurate);
+
+    register_<simsimd_f32_t>("dot_f32c_skylake", simsimd_dot_f32c_skylake, simsimd_dot_f32c_accurate);
+    register_<simsimd_f32_t>("vdot_f32c_skylake", simsimd_vdot_f32c_skylake, simsimd_vdot_f32c_accurate);
+    register_<simsimd_f64_t>("dot_f64c_skylake", simsimd_dot_f64c_skylake, simsimd_dot_f64c_serial);
+    register_<simsimd_f64_t>("vdot_f64c_skylake", simsimd_vdot_f64c_skylake, simsimd_vdot_f64c_serial);
+#endif
+
+    register_<simsimd_f16_t>("dot_f16_serial", simsimd_dot_f16_serial, simsimd_dot_f16_accurate);
+    register_<simsimd_f16_t>("cos_f16_serial", simsimd_cos_f16_serial, simsimd_cos_f16_accurate);
+    register_<simsimd_f16_t>("l2sq_f16_serial", simsimd_l2sq_f16_serial, simsimd_l2sq_f16_accurate);
+    register_<simsimd_f16_t>("kl_f16_serial", simsimd_kl_f16_serial, simsimd_kl_f16_accurate);
+    register_<simsimd_f16_t>("js_f16_serial", simsimd_js_f16_serial, simsimd_js_f16_accurate);
+
+    register_<simsimd_f32_t>("dot_f32_serial", simsimd_dot_f32_serial, simsimd_dot_f32_accurate);
+    register_<simsimd_f32_t>("cos_f32_serial", simsimd_cos_f32_serial, simsimd_cos_f32_accurate);
+    register_<simsimd_f32_t>("l2sq_f32_serial", simsimd_l2sq_f32_serial, simsimd_l2sq_f32_accurate);
+    register_<simsimd_f32_t>("kl_f32_serial", simsimd_kl_f32_serial, simsimd_kl_f32_accurate);
+    register_<simsimd_f32_t>("js_f32_serial", simsimd_js_f32_serial, simsimd_js_f32_accurate);
+
+    register_<simsimd_f64_t>("dot_f64_serial", simsimd_dot_f64_serial, simsimd_dot_f64_serial);
+    register_<simsimd_f64_t>("cos_f64_serial", simsimd_cos_f64_serial, simsimd_cos_f64_serial);
+    register_<simsimd_f64_t>("l2sq_f64_serial", simsimd_l2sq_f64_serial, simsimd_l2sq_f64_serial);
+
+    register_<simsimd_i8_t>("cos_i8_serial", simsimd_cos_i8_serial, simsimd_cos_i8_accurate);
+    register_<simsimd_i8_t>("l2sq_i8_serial", simsimd_l2sq_i8_serial, simsimd_l2sq_i8_accurate);
+
+    register_<simsimd_f64_t>("dot_f64c_serial", simsimd_dot_f64c_serial, simsimd_dot_f64c_serial);
+    register_<simsimd_f32_t>("dot_f32c_serial", simsimd_dot_f32c_serial, simsimd_dot_f32c_accurate);
+    register_<simsimd_f16_t>("dot_f16c_serial", simsimd_dot_f16c_serial, simsimd_dot_f16c_accurate);
+
+    register_<simsimd_b8_t>("hamming_b8_serial", simsimd_hamming_b8_serial, simsimd_hamming_b8_serial);
+    register_<simsimd_b8_t>("jaccard_b8_serial", simsimd_jaccard_b8_serial, simsimd_jaccard_b8_serial);
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();

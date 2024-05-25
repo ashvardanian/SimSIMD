@@ -1,9 +1,8 @@
-import benchmark from 'benchmark';
-import bindings from 'bindings';
-import * as math from 'mathjs';
-import usearch, { MetricKind } from 'usearch';
-
-const simsimd = bindings('simsimd');
+const benchmark = require('benchmark');
+const math = require('mathjs');
+const usearch = require('usearch');
+const MetricKind = usearch.MetricKind;
+const simsimd = require("./dist/cjs/simsimd.js");
 
 // Assuming the vectors are of the same length
 function cosineDistance(a, b) {

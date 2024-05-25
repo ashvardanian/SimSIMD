@@ -1,4 +1,5 @@
 /**
+ *  @file       binary.h
  *  @brief      SIMD-accelerated Binary Similarity Measures.
  *  @author     Ash Vardanian
  *  @date       July 1, 2023
@@ -7,12 +8,9 @@
  *  - Hamming distance
  *  - Jaccard similarity (Tanimoto coefficient)
  *
- *  For datatypes:
- *  - 8-bit bitsets
- *
  *  For hardware architectures:
  *  - Arm (NEON, SVE)
- *  - x86 (AVX512)
+ *  - x86 (AVX2, AVX512)
  *
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
@@ -26,7 +24,30 @@
 extern "C" {
 #endif
 
-inline static unsigned char simsimd_popcount_b8(simsimd_b8_t x) {
+// clang-format off
+
+/*  Serial backends for bitsets. */
+SIMSIMD_PUBLIC void simsimd_hamming_b8_serial(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+SIMSIMD_PUBLIC void simsimd_jaccard_b8_serial(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+
+/*  Arm NEON backend for bitsets. */
+SIMSIMD_PUBLIC void simsimd_hamming_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+SIMSIMD_PUBLIC void simsimd_jaccard_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+
+/*  Arm SVE backend for bitsets. */
+SIMSIMD_PUBLIC void simsimd_hamming_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+SIMSIMD_PUBLIC void simsimd_jaccard_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+
+/*  x86 AVX2 backend for bitsets for Intel Haswell CPUs and newer, needs only POPCNT extensions. */
+SIMSIMD_PUBLIC void simsimd_hamming_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+SIMSIMD_PUBLIC void simsimd_jaccard_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+
+/*  x86 AVX512 backend for bitsets for Intel Ice Lake CPUs and newer, using VPOPCNTDQ extensions. */
+SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
+// clang-format on
+
+SIMSIMD_PUBLIC unsigned char simsimd_popcount_b8(simsimd_b8_t x) {
     static unsigned char lookup_table[] = {
         0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, //
         1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
@@ -39,28 +60,29 @@ inline static unsigned char simsimd_popcount_b8(simsimd_b8_t x) {
     return lookup_table[x];
 }
 
-inline static simsimd_f32_t simsimd_serial_b8_hamming( //
-    simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+SIMSIMD_PUBLIC void simsimd_hamming_b8_serial(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                              simsimd_distance_t* result) {
     simsimd_i32_t differences = 0;
     for (simsimd_size_t i = 0; i != n_words; ++i)
         differences += simsimd_popcount_b8(a[i] ^ b[i]);
-    return (simsimd_f32_t)differences;
+    *result = differences;
 }
 
-inline static simsimd_f32_t simsimd_serial_b8_jaccard( //
-    simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+SIMSIMD_PUBLIC void simsimd_jaccard_b8_serial(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                              simsimd_distance_t* result) {
     simsimd_i32_t intersection = 0, union_ = 0;
     for (simsimd_size_t i = 0; i != n_words; ++i)
         intersection += simsimd_popcount_b8(a[i] & b[i]), union_ += simsimd_popcount_b8(a[i] | b[i]);
-    return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
+    *result = (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
 #if SIMSIMD_TARGET_ARM
-#if SIMSIMD_TARGET_ARM_NEON
+#if SIMSIMD_TARGET_NEON
+#pragma GCC target("+simd")
+#pragma clang attribute push(__attribute__((target("+simd"))), apply_to = function)
 
-__attribute__((target("+simd"))) //
-inline static simsimd_f32_t
-simsimd_neon_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+SIMSIMD_PUBLIC void simsimd_hamming_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                            simsimd_distance_t* result) {
     simsimd_i32_t differences = 0;
     simsimd_size_t i = 0;
     for (; i + 16 <= n_words; i += 16) {
@@ -71,12 +93,11 @@ simsimd_neon_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_si
     // Handle the tail
     for (; i != n_words; ++i)
         differences += simsimd_popcount_b8(a[i] ^ b[i]);
-    return (simsimd_f32_t)differences;
+    *result = differences;
 }
 
-__attribute__((target("+simd"))) //
-inline static simsimd_f32_t
-simsimd_neon_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+SIMSIMD_PUBLIC void simsimd_jaccard_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                            simsimd_distance_t* result) {
     simsimd_i32_t intersection = 0, union_ = 0;
     simsimd_size_t i = 0;
     for (; i + 16 <= n_words; i += 16) {
@@ -88,16 +109,19 @@ simsimd_neon_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_si
     // Handle the tail
     for (; i != n_words; ++i)
         intersection += simsimd_popcount_b8(a[i] & b[i]), union_ += simsimd_popcount_b8(a[i] | b[i]);
-    return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
+    *result = (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
-#endif // SIMSIMD_TARGET_ARM_NEON
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_NEON
 
-#if SIMSIMD_TARGET_ARM_SVE
+#if SIMSIMD_TARGET_SVE
+#pragma GCC target("+sve")
+#pragma clang attribute push(__attribute__((target("+sve"))), apply_to = function)
 
-__attribute__((target("+sve"))) //
-inline static simsimd_f32_t
-simsimd_sve_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+SIMSIMD_PUBLIC void simsimd_hamming_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                           simsimd_distance_t* result) {
     simsimd_size_t i = 0;
     simsimd_i32_t differences = 0;
     do {
@@ -107,12 +131,11 @@ simsimd_sve_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_siz
         differences += svaddv_u8(svptrue_b8(), svcnt_u8_x(svptrue_b8(), sveor_u8_m(svptrue_b8(), a_vec, b_vec)));
         i += svcntb();
     } while (i < n_words);
-    return (simsimd_f32_t)differences;
+    *result = differences;
 }
 
-__attribute__((target("+sve"))) //
-inline static simsimd_f32_t
-simsimd_sve_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+SIMSIMD_PUBLIC void simsimd_jaccard_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                           simsimd_distance_t* result) {
     simsimd_size_t i = 0;
     simsimd_i32_t intersection = 0, union_ = 0;
     do {
@@ -123,26 +146,29 @@ simsimd_sve_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_siz
         union_ += svaddv_u8(svptrue_b8(), svcnt_u8_x(svptrue_b8(), svorr_u8_m(svptrue_b8(), a_vec, b_vec)));
         i += svcntb();
     } while (i < n_words);
-    return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
+    *result = (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
-#endif // SIMSIMD_TARGET_ARM_SVE
-
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_SVE
 #endif // SIMSIMD_TARGET_ARM
 
 #if SIMSIMD_TARGET_X86
+#if SIMSIMD_TARGET_ICE
+#pragma GCC push_options
+#pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vpopcntdq")
+#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512vpopcntdq"))),                \
+                             apply_to = function)
 
-#if SIMSIMD_TARGET_X86_AVX512
-
-__attribute__((target("avx512vpopcntdq,avx512vl,avx512bw,avx512f,bmi2"))) //
-inline static simsimd_f32_t
-simsimd_avx512_b8_hamming(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                           simsimd_distance_t* result) {
     __m512i differences_vec = _mm512_setzero_si512();
     __m512i a_vec, b_vec;
 
-simsimd_avx512_b8_hamming_cycle:
+simsimd_hamming_b8_ice_cycle:
     if (n_words < 64) {
-        __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
         a_vec = _mm512_maskz_loadu_epi8(mask, a);
         b_vec = _mm512_maskz_loadu_epi8(mask, b);
         n_words = 0;
@@ -154,21 +180,20 @@ simsimd_avx512_b8_hamming_cycle:
     __m512i xor_vec = _mm512_xor_si512(a_vec, b_vec);
     differences_vec = _mm512_add_epi64(differences_vec, _mm512_popcnt_epi64(xor_vec));
     if (n_words)
-        goto simsimd_avx512_b8_hamming_cycle;
+        goto simsimd_hamming_b8_ice_cycle;
 
     simsimd_size_t differences = _mm512_reduce_add_epi64(differences_vec);
-    return (simsimd_f32_t)differences;
+    *result = differences;
 }
 
-__attribute__((target("avx512vpopcntdq,avx512vl,avx512bw,avx512f,bmi2"))) //
-inline static simsimd_f32_t
-simsimd_avx512_b8_jaccard(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words) {
+SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                           simsimd_distance_t* result) {
     __m512i intersection_vec = _mm512_setzero_si512(), union_vec = _mm512_setzero_si512();
     __m512i a_vec, b_vec;
 
-simsimd_avx512_b8_jaccard_cycle:
+simsimd_jaccard_b8_ice_cycle:
     if (n_words < 64) {
-        __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
         a_vec = _mm512_maskz_loadu_epi8(mask, a);
         b_vec = _mm512_maskz_loadu_epi8(mask, b);
         n_words = 0;
@@ -182,17 +207,49 @@ simsimd_avx512_b8_jaccard_cycle:
     intersection_vec = _mm512_add_epi64(intersection_vec, _mm512_popcnt_epi64(and_vec));
     union_vec = _mm512_add_epi64(union_vec, _mm512_popcnt_epi64(or_vec));
     if (n_words)
-        goto simsimd_avx512_b8_jaccard_cycle;
+        goto simsimd_jaccard_b8_ice_cycle;
 
     simsimd_size_t intersection = _mm512_reduce_add_epi64(intersection_vec),
                    union_ = _mm512_reduce_add_epi64(union_vec);
-    return (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
+    *result = (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
 }
 
-#endif // SIMSIMD_TARGET_X86_AVX512
-#endif // SIMSIMD_TARGET_X86
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_ICE
 
-#undef popcount64
+#if SIMSIMD_TARGET_HASWELL
+#pragma GCC push_options
+#pragma GCC target("popcnt")
+#pragma clang attribute push(__attribute__((target("popcnt"))), apply_to = function)
+
+SIMSIMD_PUBLIC void simsimd_hamming_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                               simsimd_distance_t* result) {
+    // x86 supports unaligned loads and works just fine with the scalar version for small vectors.
+    simsimd_size_t differences = 0;
+    for (; n_words >= 8; n_words -= 8, a += 8, b += 8)
+        differences += _mm_popcnt_u64(*(simsimd_u64_t const*)a ^ *(simsimd_u64_t const*)b);
+    for (; n_words; --n_words, ++a, ++b)
+        differences += _mm_popcnt_u32(*a ^ *b);
+    *result = differences;
+}
+
+SIMSIMD_PUBLIC void simsimd_jaccard_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
+                                               simsimd_distance_t* result) {
+    // x86 supports unaligned loads and works just fine with the scalar version for small vectors.
+    simsimd_size_t intersection = 0, union_ = 0;
+    for (; n_words >= 8; n_words -= 8, a += 8, b += 8)
+        intersection += _mm_popcnt_u64(*(simsimd_u64_t const*)a & *(simsimd_u64_t const*)b),
+            union_ += _mm_popcnt_u64(*(simsimd_u64_t const*)a | *(simsimd_u64_t const*)b);
+    for (; n_words; --n_words, ++a, ++b)
+        intersection += _mm_popcnt_u32(*a & *b), union_ += _mm_popcnt_u32(*a | *b);
+    *result = (union_ != 0) ? 1 - (simsimd_f32_t)intersection / (simsimd_f32_t)union_ : 0;
+}
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_HASWELL
+#endif // SIMSIMD_TARGET_X86
 
 #ifdef __cplusplus
 }

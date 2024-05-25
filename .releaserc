@@ -74,9 +74,11 @@
             {
                 "assets": [
                     "VERSION",
-                    "conanfile.py",
                     "package.json",
-                    "Cargo.toml"
+                    "Cargo.toml",
+                    "Cargo.lock",
+                    "CMakeLists.txt",
+                    "include/simsimd/simsimd.h"
                 ],
                 "message": "Build: Released ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
             }

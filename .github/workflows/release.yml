@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "test-ga-**"]
 
 env:
   BUILD_TYPE: Release
@@ -20,19 +20,28 @@ jobs:
     name: Semantic Release
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v3
-      - run: npm install --save-dev --prefix ./package-ci @semantic-release/exec @semantic-release/git conventional-changelog-eslint semantic-release && npx --prefix ./package-ci semantic-release
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Set up Cargo
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - run: npm install --ignore-scripts --save-dev --prefix ./package-ci @semantic-release/exec @semantic-release/git conventional-changelog-eslint semantic-release && npx --prefix ./package-ci semantic-release
 
   rebase:
     name: Rebase Dev. Branch
+    if: github.ref == 'refs/heads/main'
     needs: versioning
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout the latest code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -51,40 +60,63 @@ jobs:
           force: True
 
   build_wheels:
-    name: Build Wheels for ${{ matrix.os }}
+    name: Build Python ${{ matrix.python-version }} for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     needs: versioning
     strategy:
-      fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macOS-11, windows-2022]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["36", "37", "38", "39", "310", "311", "312"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: "main"
-      - uses: actions/setup-python@v3
-
-      - name: Setup Docker
-        if: matrix.os == 'ubuntu-22.04'
-        uses: docker-practice/actions-setup-docker@master
-
-      - name: Setup QEMU
-        if: matrix.os == 'ubuntu-22.04'
-        uses: docker/setup-qemu-action@v2.1.0
-
-      - name: Install CIBuildWheel
-        run: python -m pip install --no-cache-dir cibuildwheel
-
-      - name: Build wheels
-        run: python -m cibuildwheel
-
-      - uses: actions/upload-artifact@v3
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
+          python-version: 3.x
+      - name: Setup QEMU
+        if: matrix.os == 'ubuntu-latest' # We only need QEMU for Linux builds
+        uses: docker/setup-qemu-action@v3
+      - name: Install cibuildwheel
+        run: python -m pip install cibuildwheel
+      - name: Build wheels
+        run: cibuildwheel --output-dir wheelhouse
+        env:
+          CIBW_BUILD: cp${{ matrix.python-version }}-*
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
           path: ./wheelhouse/*.whl
+          overwrite: true
+
+  build_sdist:
+    name: Build Python Source Distribution
+    runs-on: ubuntu-latest
+    needs: versioning
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: "main"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+      - name: Build source distribution
+        run: 
+          pip install build &&
+          python -m build --sdist
+      - name: Upload source distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+          retention-days: 1
 
   publish_python:
     name: Publish Python
-    needs: build_wheels
+    needs: [build_wheels, build_sdist]
     runs-on: ubuntu-22.04
     environment:
       name: pypi
@@ -93,49 +125,144 @@ jobs:
       id-token: write
 
     steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v3.0.2
+      - name: Download wheels
+        uses: actions/download-artifact@v4
         with:
-          path: ./dist/
+          # unpacks all CIBW artifacts into dist/
+          pattern: cibw-*
+          path: dist
+          merge-multiple: true
+      
+      - name: Download source distribution
+        uses: actions/download-artifact@v4
+        with:
+          name: sdist
+          path: dist
 
       - name: Publish to PyPi
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          packages-dir: ./dist/artifact
+          packages-dir: dist
           verbose: true
           print-hash: true
 
-  publish_javascript:
-    name: Publish JavaScript
+  build_javascript:
+    name: Build JavaScript Native Modules
     needs: versioning
-    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - x64
+          - x86
+        os:
+          - macos-latest
+          - ubuntu-22.04
+          # These runners are unstable
+          # - windows-latest
+        exclude:
+          - arch: x86
+            os: macos-latest
+          - arch: x86
+            os: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
     env:
       CC: gcc-12
       CXX: g++-12
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout the latest code
+        uses: actions/checkout@v4
         with:
           ref: "main"
       - run: git submodule update --init --recursive
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          architecture: ${{ matrix.arch }}
+
       - name: Update compilers
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           sudo apt update
           sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev gcc-12 g++-12
+          sudo apt install gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+
+      - run: npm ci --ignore-scripts
+      - run: npm run prebuild-single
+        if: matrix.os != 'macos-latest'
+      - run: npm run prebuild-darwin-x64+arm64
+        env:
+          CC: clang
+          CXX: clang++
+        if: matrix.os == 'macos-latest'
+      - run: file prebuilds/*/*
+        if: matrix.os == 'macos-latest'
+      - name: Extra for cross build
+        if: matrix.os == 'ubuntu-22.04'
+        run: npm run prebuild-arm64
+      - uses: actions/upload-artifact@v3
+        with:
+          name: prebuilds
+          path: prebuilds
+          retention-days: 1
+
+  publish_javascript:
+    name: Publish JavaScript
+    needs: build_javascript
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: "main"
+      - run: git submodule update --init --recursive
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Build and Test
-        run: |
-          npm install &&
-          npm ci &&
-          npm test
+      - uses: actions/download-artifact@v3
+
+      - name: Look for links
+        run: find . -type f -links +1
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build the JS from TS
+        run: npm run build-js
+
+      - name: Last minute test with prebuild artifact
+        run: npm run test
+
+      - name: Publish Dry Run
+        run: npm publish --dry-run
+        if: github.ref != 'refs/heads/main'
 
       - name: Publish
         uses: JS-DevTools/npm-publish@v3
+        if: github.ref == 'refs/heads/main'
         with:
           token: ${{ secrets.NPM_TOKEN }}
+          access: public
+
+  publish_rust:
+    name: Publish Rust
+    needs: versioning
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: "main"
+      - run: git submodule update --init --recursive
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - uses: katyo/publish-crates@v2
+        with:
+          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}

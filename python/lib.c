@@ -7,22 +7,8 @@
  */
 #include <math.h>
 
-#if __linux__
-#define SIMSIMD_TARGET_ARM_NEON 1
-#define SIMSIMD_TARGET_ARM_SVE 1
-#define SIMSIMD_TARGET_X86_AVX2 1
-#define SIMSIMD_TARGET_X86_AVX512 1
+#if defined(__linux__)
 #include <omp.h>
-#elif defined(_MSC_VER)
-#define SIMSIMD_TARGET_ARM_NEON 0
-#define SIMSIMD_TARGET_ARM_SVE 0
-#define SIMSIMD_TARGET_X86_AVX2 0
-#define SIMSIMD_TARGET_X86_AVX512 0
-#elif defined(__APPLE__)
-#define SIMSIMD_TARGET_ARM_NEON 1
-#define SIMSIMD_TARGET_ARM_SVE 0
-#define SIMSIMD_TARGET_X86_AVX2 1
-#define SIMSIMD_TARGET_X86_AVX512 0
 #endif
 
 #define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
@@ -31,59 +17,137 @@
 
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
-#include <numpy/arrayobject.h>
 
-typedef struct parsed_vector_or_matrix_t {
+typedef struct TensorArgument {
     char* start;
     size_t dimensions;
     size_t count;
     size_t stride;
     int is_flat;
     simsimd_datatype_t datatype;
-} parsed_vector_or_matrix_t;
+} TensorArgument;
+
+typedef struct DistancesTensor {
+    PyObject_HEAD                    //
+        simsimd_datatype_t datatype; // Double precision real or complex numbers
+    size_t dimensions;               // Can be only 1 or 2 dimensions
+    Py_ssize_t shape[2];             // Dimensions of the tensor
+    Py_ssize_t strides[2];           // Strides for each dimension
+    simsimd_distance_t start[];      // Variable length data aligned to 64-bit scalars
+} DistancesTensor;
+
+static int DistancesTensor_getbuffer(PyObject* export_from, Py_buffer* view, int flags);
+static void DistancesTensor_releasebuffer(PyObject* export_from, Py_buffer* view);
+
+static PyBufferProcs DistancesTensor_as_buffer = {
+    .bf_getbuffer = DistancesTensor_getbuffer,
+    .bf_releasebuffer = DistancesTensor_releasebuffer,
+};
+
+static PyTypeObject DistancesTensorType = {
+    PyObject_HEAD_INIT(NULL).tp_name = "simsimd.DistancesTensor",
+    .tp_doc = "Zero-copy view of an internal tensor, compatible with NumPy",
+    .tp_basicsize = sizeof(DistancesTensor),
+    .tp_itemsize = sizeof(simsimd_distance_t),
+    .tp_as_buffer = &DistancesTensor_as_buffer,
+};
 
 /// @brief  Global variable that caches the CPU capabilities, and is computed just onc, when the module is loaded.
 simsimd_capability_t static_capabilities = simsimd_cap_serial_k;
 
 int same_string(char const* a, char const* b) { return strcmp(a, b) == 0; }
 
+int is_complex(simsimd_datatype_t datatype) {
+    return datatype == simsimd_datatype_f32c_k || datatype == simsimd_datatype_f64c_k ||
+           datatype == simsimd_datatype_f16c_k;
+}
+
 simsimd_datatype_t numpy_string_to_datatype(char const* name) {
     // https://docs.python.org/3/library/struct.html#format-characters
-    if (same_string(name, "f") || same_string(name, "<f") || same_string(name, "f4") || same_string(name, "<f4"))
+    if (same_string(name, "f") || same_string(name, "<f") || same_string(name, "f4") || same_string(name, "<f4") ||
+        same_string(name, "float32"))
         return simsimd_datatype_f32_k;
-    else if (same_string(name, "e") || same_string(name, "<e") || same_string(name, "f2") || same_string(name, "<f2"))
+    else if (same_string(name, "e") || same_string(name, "<e") || same_string(name, "f2") || same_string(name, "<f2") ||
+             same_string(name, "float16"))
         return simsimd_datatype_f16_k;
-    else if (same_string(name, "b") || same_string(name, "<b") || same_string(name, "i1") || same_string(name, "|i1"))
+    else if (same_string(name, "b") || same_string(name, "<b") || same_string(name, "i1") || same_string(name, "|i1") ||
+             same_string(name, "int8"))
         return simsimd_datatype_i8_k;
     else if (same_string(name, "B") || same_string(name, "<B") || same_string(name, "u1") || same_string(name, "|u1"))
         return simsimd_datatype_b8_k;
-    else if (same_string(name, "d") || same_string(name, "<d") || same_string(name, "i8") || same_string(name, "<i8"))
+    else if (same_string(name, "d") || same_string(name, "<d") || same_string(name, "f8") || same_string(name, "<f8") ||
+             same_string(name, "float64"))
         return simsimd_datatype_f64_k;
+    // Complex numbers:
+    else if (same_string(name, "Zf") || same_string(name, "F") || same_string(name, "<F") || same_string(name, "F4") ||
+             same_string(name, "<F4") || same_string(name, "complex64"))
+        return simsimd_datatype_f32c_k;
+    else if (same_string(name, "Zd") || same_string(name, "D") || same_string(name, "<D") || same_string(name, "F8") ||
+             same_string(name, "<F8") || same_string(name, "complex128"))
+        return simsimd_datatype_f64c_k;
+    else if (same_string(name, "Ze") || same_string(name, "E") || same_string(name, "<E") || same_string(name, "F2") ||
+             same_string(name, "<F2") || same_string(name, "complex32"))
+        return simsimd_datatype_f16c_k;
     else
         return simsimd_datatype_unknown_k;
 }
 
 simsimd_datatype_t python_string_to_datatype(char const* name) {
-    if (same_string(name, "f") || same_string(name, "f32"))
+    if (same_string(name, "f") || same_string(name, "f32") || same_string(name, "float32"))
         return simsimd_datatype_f32_k;
-    else if (same_string(name, "h") || same_string(name, "f16"))
+    else if (same_string(name, "h") || same_string(name, "f16") || same_string(name, "float16"))
         return simsimd_datatype_f16_k;
-    else if (same_string(name, "c") || same_string(name, "i8"))
+    else if (same_string(name, "c") || same_string(name, "i8") || same_string(name, "int8"))
         return simsimd_datatype_i8_k;
     else if (same_string(name, "b") || same_string(name, "b8"))
         return simsimd_datatype_b8_k;
-    else if (same_string(name, "d") || same_string(name, "f64"))
+    else if (same_string(name, "d") || same_string(name, "f64") || same_string(name, "float64"))
         return simsimd_datatype_f64_k;
+    // Complex numbers:
+    else if (same_string(name, "complex64"))
+        return simsimd_datatype_f32c_k;
+    else if (same_string(name, "complex128"))
+        return simsimd_datatype_f64c_k;
+    else if (same_string(name, "complex32"))
+        return simsimd_datatype_f16c_k;
     else
         return simsimd_datatype_unknown_k;
+}
+
+char const* datatype_to_python_string(simsimd_datatype_t dtype) {
+    switch (dtype) {
+    case simsimd_datatype_f64_k: return "d";
+    case simsimd_datatype_f32_k: return "f";
+    case simsimd_datatype_f16_k: return "h";
+    case simsimd_datatype_f64c_k: return "Zd";
+    case simsimd_datatype_f32c_k: return "Zf";
+    case simsimd_datatype_f16c_k: return "Zh";
+    case simsimd_datatype_i8_k: return "c";
+    case simsimd_datatype_b8_k: return "b";
+    default: return "unknown";
+    }
+}
+
+static size_t bytes_per_datatype(simsimd_datatype_t dtype) {
+    switch (dtype) {
+    case simsimd_datatype_f64_k: return sizeof(simsimd_f64_t);
+    case simsimd_datatype_f32_k: return sizeof(simsimd_f32_t);
+    case simsimd_datatype_f16_k: return sizeof(simsimd_f16_t);
+    case simsimd_datatype_f64c_k: return sizeof(simsimd_f64_t) * 2;
+    case simsimd_datatype_f32c_k: return sizeof(simsimd_f32_t) * 2;
+    case simsimd_datatype_f16c_k: return sizeof(simsimd_f16_t) * 2;
+    case simsimd_datatype_i8_k: return sizeof(simsimd_i8_t);
+    case simsimd_datatype_b8_k: return sizeof(simsimd_b8_t);
+    default: return 0;
+    }
 }
 
 simsimd_metric_kind_t python_string_to_metric_kind(char const* name) {
     if (same_string(name, "sqeuclidean"))
         return simsimd_metric_sqeuclidean_k;
-    else if (same_string(name, "inner"))
+    else if (same_string(name, "inner") || same_string(name, "dot"))
         return simsimd_metric_inner_k;
-    else if (same_string(name, "cosine"))
+    else if (same_string(name, "cosine") || same_string(name, "cos"))
         return simsimd_metric_cosine_k;
     else if (same_string(name, "hamming"))
         return simsimd_metric_hamming_k;
@@ -99,35 +163,101 @@ simsimd_metric_kind_t python_string_to_metric_kind(char const* name) {
         return simsimd_metric_unknown_k;
 }
 
+static PyObject* api_enable_capability(PyObject* self, PyObject* args) {
+    char const* cap_name;
+    if (!PyArg_ParseTuple(args, "s", &cap_name)) {
+        return NULL; // Argument parsing failed
+    }
+
+    if (same_string(cap_name, "neon")) {
+        static_capabilities |= simsimd_cap_neon_k;
+    } else if (same_string(cap_name, "sve")) {
+        static_capabilities |= simsimd_cap_sve_k;
+    } else if (same_string(cap_name, "sve2")) {
+        static_capabilities |= simsimd_cap_sve2_k;
+    } else if (same_string(cap_name, "haswell")) {
+        static_capabilities |= simsimd_cap_haswell_k;
+    } else if (same_string(cap_name, "skylake")) {
+        static_capabilities |= simsimd_cap_skylake_k;
+    } else if (same_string(cap_name, "ice")) {
+        static_capabilities |= simsimd_cap_ice_k;
+    } else if (same_string(cap_name, "sapphire")) {
+        static_capabilities |= simsimd_cap_sapphire_k;
+    } else if (same_string(cap_name, "serial")) {
+        PyErr_SetString(PyExc_ValueError, "Can't change the serial functionality");
+        return NULL;
+    } else {
+        PyErr_SetString(PyExc_ValueError, "Unknown capability");
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+}
+
+static PyObject* api_disable_capability(PyObject* self, PyObject* args) {
+    char const* cap_name;
+    if (!PyArg_ParseTuple(args, "s", &cap_name)) {
+        return NULL; // Argument parsing failed
+    }
+
+    if (same_string(cap_name, "neon")) {
+        static_capabilities &= ~simsimd_cap_neon_k;
+    } else if (same_string(cap_name, "sve")) {
+        static_capabilities &= ~simsimd_cap_sve_k;
+    } else if (same_string(cap_name, "sve2")) {
+        static_capabilities &= ~simsimd_cap_sve2_k;
+    } else if (same_string(cap_name, "haswell")) {
+        static_capabilities &= ~simsimd_cap_haswell_k;
+    } else if (same_string(cap_name, "skylake")) {
+        static_capabilities &= ~simsimd_cap_skylake_k;
+    } else if (same_string(cap_name, "ice")) {
+        static_capabilities &= ~simsimd_cap_ice_k;
+    } else if (same_string(cap_name, "sapphire")) {
+        static_capabilities &= ~simsimd_cap_sapphire_k;
+    } else if (same_string(cap_name, "serial")) {
+        PyErr_SetString(PyExc_ValueError, "Can't change the serial functionality");
+        return NULL;
+    } else {
+        PyErr_SetString(PyExc_ValueError, "Unknown capability");
+        return NULL;
+    }
+
+    Py_RETURN_NONE;
+}
+
 static PyObject* api_get_capabilities(PyObject* self) {
     simsimd_capability_t caps = static_capabilities;
     PyObject* cap_dict = PyDict_New();
     if (!cap_dict)
         return NULL;
 
-#define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong(caps& simsimd_cap_##name##_k))
+#define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong((caps) & simsimd_cap_##name##_k))
 
     ADD_CAP(serial);
-    ADD_CAP(arm_neon);
-    ADD_CAP(arm_sve);
-    ADD_CAP(arm_sve2);
-    ADD_CAP(x86_avx2);
-    ADD_CAP(x86_avx512);
-    ADD_CAP(x86_avx2fp16);
-    ADD_CAP(x86_avx512fp16);
-    ADD_CAP(x86_avx512vpopcntdq);
-    ADD_CAP(x86_avx512vnni);
+    ADD_CAP(neon);
+    ADD_CAP(sve);
+    ADD_CAP(sve2);
+    ADD_CAP(haswell);
+    ADD_CAP(skylake);
+    ADD_CAP(ice);
+    ADD_CAP(sapphire);
 
 #undef ADD_CAP
 
     return cap_dict;
 }
 
-int parse_tensor(PyObject* tensor, Py_buffer* buffer, parsed_vector_or_matrix_t* parsed) {
+int parse_tensor(PyObject* tensor, Py_buffer* buffer, TensorArgument* parsed) {
     if (PyObject_GetBuffer(tensor, buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
         PyErr_SetString(PyExc_TypeError, "arguments must support buffer protocol");
         return -1;
     }
+    // In case you are debugging some new obscure format string :)
+    // printf("buffer format is %s\n", buffer->format);
+    // printf("buffer ndim is %d\n", buffer->ndim);
+    // printf("buffer shape is %d\n", buffer->shape[0]);
+    // printf("buffer shape is %d\n", buffer->shape[1]);
+    // printf("buffer itemsize is %d\n", buffer->itemsize);
     parsed->start = buffer->buf;
     parsed->datatype = numpy_string_to_datatype(buffer->format);
     if (buffer->ndim == 1) {
@@ -155,20 +285,55 @@ int parse_tensor(PyObject* tensor, Py_buffer* buffer, parsed_vector_or_matrix_t*
         PyBuffer_Release(buffer);
         return -1;
     }
+
+    // We handle complex numbers differently
+    if (is_complex(parsed->datatype)) {
+        parsed->dimensions *= 2;
+    }
+
     return 0;
 }
 
+static int DistancesTensor_getbuffer(PyObject* export_from, Py_buffer* view, int flags) {
+    DistancesTensor* tensor = (DistancesTensor*)export_from;
+    size_t const total_items = tensor->shape[0] * tensor->shape[1];
+    size_t const item_size = bytes_per_datatype(tensor->datatype);
+
+    view->buf = &tensor->start[0];
+    view->obj = (PyObject*)tensor;
+    view->len = item_size * total_items;
+    view->readonly = 0;
+    view->itemsize = (Py_ssize_t)item_size;
+    view->format = datatype_to_python_string(tensor->datatype);
+    view->ndim = (int)tensor->dimensions;
+    view->shape = &tensor->shape[0];
+    view->strides = &tensor->strides[0];
+    view->suboffsets = NULL;
+    view->internal = NULL;
+
+    Py_INCREF(tensor);
+    return 0;
+}
+
+static void DistancesTensor_releasebuffer(PyObject* export_from, Py_buffer* view) {
+    // This function MUST NOT decrement view->obj, since that is done automatically in PyBuffer_Release().
+    // https://docs.python.org/3/c-api/typeobj.html#c.PyBufferProcs.bf_releasebuffer
+}
+
 static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const* args, Py_ssize_t nargs) {
-    if (nargs != 2) {
-        PyErr_SetString(PyExc_TypeError, "function expects exactly 2 arguments");
+    // Function now accepts up to 3 arguments, the third being optional
+    if (nargs < 2 || nargs > 3) {
+        PyErr_SetString(PyExc_TypeError, "function expects 2 or 3 arguments");
         return NULL;
     }
 
     PyObject* output = NULL;
     PyObject* input_tensor_a = args[0];
     PyObject* input_tensor_b = args[1];
+    PyObject* value_type_desc = nargs == 3 ? args[2] : NULL;
+
     Py_buffer buffer_a, buffer_b;
-    parsed_vector_or_matrix_t parsed_a, parsed_b;
+    TensorArgument parsed_a, parsed_b;
     if (parse_tensor(input_tensor_a, &buffer_a, &parsed_a) != 0 ||
         parse_tensor(input_tensor_b, &buffer_b, &parsed_b) != 0) {
         return NULL; // Error already set by parse_tensor
@@ -195,9 +360,25 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
         goto cleanup;
     }
 
+    // Process the third argument, value_type_desc, if provided
+    simsimd_datatype_t datatype = parsed_a.datatype;
+    if (value_type_desc != NULL) {
+        // Ensure it is a string (or convert it to one if possible)
+        if (!PyUnicode_Check(value_type_desc)) {
+            PyErr_SetString(PyExc_TypeError, "third argument must be a string describing the value type");
+            goto cleanup;
+        }
+        // Convert Python string to C string
+        char const* value_type_str = PyUnicode_AsUTF8(value_type_desc);
+        if (!value_type_str) {
+            PyErr_SetString(PyExc_ValueError, "could not convert value type description to string");
+            goto cleanup;
+        }
+        datatype = python_string_to_datatype(value_type_str);
+    }
+
     simsimd_metric_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_datatype_t datatype = parsed_a.datatype;
     simsimd_find_metric_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
     if (!metric) {
         PyErr_SetString(PyExc_ValueError, "unsupported metric and datatype combination");
@@ -205,8 +386,18 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
     }
 
     // If the distance is computed between two vectors, rather than matrices, return a scalar
+    int datatype_is_complex = is_complex(datatype);
     if (parsed_a.is_flat && parsed_b.is_flat) {
-        output = PyFloat_FromDouble(metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, parsed_b.dimensions));
+        // For complex numbers we are going to use `PyComplex_FromDoubles`.
+        if (datatype_is_complex) {
+            simsimd_distance_t distances[2];
+            metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, distances);
+            output = PyComplex_FromDoubles(distances[0], distances[1]);
+        } else {
+            simsimd_distance_t distance;
+            metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, &distance);
+            output = PyFloat_FromDouble(distance);
+        }
     } else {
 
         // In some batch requests we may be computing the distance from multiple vectors to one,
@@ -216,29 +407,34 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
         if (parsed_b.count == 1)
             parsed_b.stride = 0;
 
-        size_t count_max = parsed_a.count > parsed_b.count ? parsed_a.count : parsed_b.count;
-
-        // Compute the distances
-        float* distances = malloc(count_max * sizeof(float));
-        for (size_t i = 0; i < count_max; ++i)
-            distances[i] = metric(                    //
-                parsed_a.start + i * parsed_a.stride, //
-                parsed_b.start + i * parsed_b.stride, //
-                parsed_a.dimensions,                  //
-                parsed_b.dimensions);
-
-        // Create a new PyArray object for the output
-        npy_intp dims[1] = {count_max};
-        PyArray_Descr* descr = PyArray_DescrFromType(NPY_FLOAT32);
-        PyArrayObject* output_array = (PyArrayObject*)PyArray_NewFromDescr( //
-            &PyArray_Type, descr, 1, dims, NULL, distances, NPY_ARRAY_OWNDATA | NPY_ARRAY_C_CONTIGUOUS, NULL);
-
-        if (!output_array) {
-            free(distances);
+        // We take the maximum of the two counts, because if only one entry is present in one of the arrays,
+        // all distances will be computed against that single entry.
+        size_t const count_pairs = parsed_a.count > parsed_b.count ? parsed_a.count : parsed_b.count;
+        size_t const components_per_pair = datatype_is_complex ? 2 : 1;
+        size_t const count_components = count_pairs * components_per_pair;
+        DistancesTensor* distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType, count_components);
+        if (!distances_obj) {
+            PyErr_NoMemory();
             goto cleanup;
         }
 
-        output = output_array;
+        // Initialize the object
+        distances_obj->datatype = datatype_is_complex ? simsimd_datatype_f64c_k : simsimd_datatype_f64_k;
+        distances_obj->dimensions = 1;
+        distances_obj->shape[0] = count_pairs;
+        distances_obj->shape[1] = 1;
+        distances_obj->strides[0] = bytes_per_datatype(distances_obj->datatype);
+        distances_obj->strides[1] = 0;
+        output = (PyObject*)distances_obj;
+
+        // Compute the distances
+        simsimd_distance_t* distances = (simsimd_distance_t*)&distances_obj->start[0];
+        for (size_t i = 0; i < count_pairs; ++i)
+            metric(                                   //
+                parsed_a.start + i * parsed_a.stride, //
+                parsed_b.start + i * parsed_b.stride, //
+                parsed_a.dimensions,                  //
+                distances + i * components_per_pair);
     }
 
 cleanup:
@@ -253,7 +449,7 @@ static PyObject* impl_cdist(                            //
 
     PyObject* output = NULL;
     Py_buffer buffer_a, buffer_b;
-    parsed_vector_or_matrix_t parsed_a, parsed_b;
+    TensorArgument parsed_a, parsed_b;
     if (parse_tensor(input_tensor_a, &buffer_a, &parsed_a) != 0 ||
         parse_tensor(input_tensor_b, &buffer_b, &parsed_b) != 0) {
         return NULL; // Error already set by parse_tensor
@@ -286,8 +482,18 @@ static PyObject* impl_cdist(                            //
     }
 
     // If the distance is computed between two vectors, rather than matrices, return a scalar
+    int datatype_is_complex = is_complex(datatype);
     if (parsed_a.is_flat && parsed_b.is_flat) {
-        output = PyFloat_FromDouble(metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, parsed_b.dimensions));
+        // For complex numbers we are going to use `PyComplex_FromDoubles`.
+        if (datatype_is_complex) {
+            simsimd_distance_t distances[2];
+            metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, distances);
+            output = PyComplex_FromDoubles(distances[0], distances[1]);
+        } else {
+            simsimd_distance_t distance;
+            metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, &distance);
+            output = PyFloat_FromDouble(distance);
+        }
     } else {
 
 #ifdef __linux__
@@ -297,29 +503,35 @@ static PyObject* impl_cdist(                            //
         omp_set_num_threads(threads);
 #endif
 #endif
-        // Compute the distances
-        float* distances = malloc(parsed_a.count * parsed_b.count * sizeof(float));
-#pragma omp parallel for collapse(2)
-        for (size_t i = 0; i < parsed_a.count; ++i)
-            for (size_t j = 0; j < parsed_b.count; ++j)
-                distances[i * parsed_b.count + j] = metric( //
-                    parsed_a.start + i * parsed_a.stride,   //
-                    parsed_b.start + j * parsed_b.stride,   //
-                    parsed_a.dimensions,                    //
-                    parsed_b.dimensions);
 
-        // Create a new PyArray object for the output
-        npy_intp dims[2] = {parsed_a.count, parsed_b.count};
-        PyArray_Descr* descr = PyArray_DescrFromType(NPY_FLOAT32);
-        PyArrayObject* output_array = (PyArrayObject*)PyArray_NewFromDescr( //
-            &PyArray_Type, descr, 2, dims, NULL, distances, NPY_ARRAY_OWNDATA | NPY_ARRAY_C_CONTIGUOUS, NULL);
-
-        if (!output_array) {
-            free(distances);
+        size_t const count_pairs = parsed_a.count * parsed_b.count;
+        size_t const components_per_pair = datatype_is_complex ? 2 : 1;
+        size_t const count_components = count_pairs * components_per_pair;
+        DistancesTensor* distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType, count_components);
+        if (!distances_obj) {
+            PyErr_NoMemory();
             goto cleanup;
         }
 
-        output = output_array;
+        // Initialize the object
+        distances_obj->datatype = datatype_is_complex ? simsimd_datatype_f64c_k : simsimd_datatype_f64_k;
+        distances_obj->dimensions = 2;
+        distances_obj->shape[0] = parsed_a.count;
+        distances_obj->shape[1] = parsed_b.count;
+        distances_obj->strides[0] = parsed_b.count * bytes_per_datatype(distances_obj->datatype);
+        distances_obj->strides[1] = bytes_per_datatype(distances_obj->datatype);
+        output = (PyObject*)distances_obj;
+
+        // Compute the distances
+        simsimd_distance_t* distances = (simsimd_distance_t*)&distances_obj->start[0];
+#pragma omp parallel for collapse(2)
+        for (size_t i = 0; i < parsed_a.count; ++i)
+            for (size_t j = 0; j < parsed_b.count; ++j)
+                metric(                                   //
+                    parsed_a.start + i * parsed_a.stride, //
+                    parsed_b.start + j * parsed_b.stride, //
+                    parsed_a.dimensions,                  //
+                    distances + i * components_per_pair * parsed_b.count + j);
     }
 
 cleanup:
@@ -414,7 +626,7 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
 
 static PyObject* api_l2sq_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_l2sq_k, args); }
 static PyObject* api_cos_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_cos_k, args); }
-static PyObject* api_ip_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_ip_k, args); }
+static PyObject* api_dot_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_dot_k, args); }
 static PyObject* api_kl_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_kl_k, args); }
 static PyObject* api_js_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_js_k, args); }
 static PyObject* api_hamming_pointer(PyObject* self, PyObject* args) {
@@ -430,8 +642,11 @@ static PyObject* api_l2sq(PyObject* self, PyObject* const* args, Py_ssize_t narg
 static PyObject* api_cos(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
     return impl_metric(simsimd_metric_cos_k, args, nargs);
 }
-static PyObject* api_ip(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
-    return impl_metric(simsimd_metric_ip_k, args, nargs);
+static PyObject* api_dot(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
+    return impl_metric(simsimd_metric_dot_k, args, nargs);
+}
+static PyObject* api_vdot(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
+    return impl_metric(simsimd_metric_vdot_k, args, nargs);
 }
 static PyObject* api_kl(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
     return impl_metric(simsimd_metric_kl_k, args, nargs);
@@ -449,11 +664,15 @@ static PyObject* api_jaccard(PyObject* self, PyObject* const* args, Py_ssize_t n
 static PyMethodDef simsimd_methods[] = {
     // Introspecting library and hardware capabilities
     {"get_capabilities", api_get_capabilities, METH_NOARGS, "Get hardware capabilities"},
+    {"enable_capability", api_enable_capability, METH_VARARGS, "Enable a specific family of Assembly kernels"},
+    {"disable_capability", api_disable_capability, METH_VARARGS, "Disable a specific family of Assembly kernels"},
 
     // NumPy and SciPy compatible interfaces (two matrix or vector arguments)
     {"sqeuclidean", api_l2sq, METH_FASTCALL, "L2sq (Sq. Euclidean) distances between a pair of matrices"},
     {"cosine", api_cos, METH_FASTCALL, "Cosine (Angular) distances between a pair of matrices"},
-    {"inner", api_ip, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
+    {"inner", api_dot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
+    {"dot", api_dot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
+    {"vdot", api_vdot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
     {"hamming", api_hamming, METH_FASTCALL, "Hamming distances between a pair of matrices"},
     {"jaccard", api_jaccard, METH_FASTCALL, "Jaccard (Bitwise Tanimoto) distances between a pair of matrices"},
     {"kullbackleibler", api_kl, METH_FASTCALL, "Kullback-Leibler divergence between probability distributions"},
@@ -466,9 +685,9 @@ static PyMethodDef simsimd_methods[] = {
     // Exposing underlying API for USearch
     {"pointer_to_sqeuclidean", api_l2sq_pointer, METH_VARARGS, "L2sq (Sq. Euclidean) function pointer as `int`"},
     {"pointer_to_cosine", api_cos_pointer, METH_VARARGS, "Cosine (Angular) function pointer as `int`"},
-    {"pointer_to_inner", api_ip_pointer, METH_VARARGS, "Inner (Dot) Product function pointer as `int`"},
-    {"pointer_to_kullbackleibler", api_ip_pointer, METH_VARARGS, "Kullback-Leibler function pointer as `int`"},
-    {"pointer_to_jensenshannon", api_ip_pointer, METH_VARARGS, "Jensen-Shannon function pointer as `int`"},
+    {"pointer_to_inner", api_dot_pointer, METH_VARARGS, "Inner (Dot) Product function pointer as `int`"},
+    {"pointer_to_kullbackleibler", api_dot_pointer, METH_VARARGS, "Kullback-Leibler function pointer as `int`"},
+    {"pointer_to_jensenshannon", api_dot_pointer, METH_VARARGS, "Jensen-Shannon function pointer as `int`"},
 
     // Sentinel
     {NULL, NULL, 0, NULL}};
@@ -482,15 +701,29 @@ static PyModuleDef simsimd_module = {
 };
 
 PyMODINIT_FUNC PyInit_simsimd(void) {
-    import_array();
-    PyObject* module = PyModule_Create(&simsimd_module);
+    PyObject* m;
 
-    if (module) {
+    if (PyType_Ready(&DistancesTensorType) < 0)
+        return NULL;
+
+    m = PyModule_Create(&simsimd_module);
+    if (m == NULL)
+        return NULL;
+
+    // Add version metadata
+    {
         char version_str[50];
         sprintf(version_str, "%d.%d.%d", SIMSIMD_VERSION_MAJOR, SIMSIMD_VERSION_MINOR, SIMSIMD_VERSION_PATCH);
-        PyModule_AddStringConstant(module, "__version__", version_str);
+        PyModule_AddStringConstant(m, "__version__", version_str);
+    }
+
+    Py_INCREF(&DistancesTensorType);
+    if (PyModule_AddObject(m, "DistancesTensor", (PyObject*)&DistancesTensorType) < 0) {
+        Py_XDECREF(&DistancesTensorType);
+        Py_XDECREF(m);
+        return NULL;
     }
 
     static_capabilities = simsimd_capabilities();
-    return module;
+    return m;
 }
