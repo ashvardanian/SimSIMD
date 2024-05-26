@@ -40,6 +40,8 @@ jobs:
         run: rm -rf ./package-ci/node_modules ./package-ci/package-lock.json
       - name: Install dependencies
         run: npm install --ignore-scripts --legacy-peer-deps --prefix ./package-ci
+      - name: List installed packages
+        run: ls -l ./package-ci/node_modules/.bin
       - name: Run semantic-release
         run: ./package-ci/node_modules/.bin/semantic-release
 
