@@ -34,10 +34,18 @@ jobs:
           override: true
 
         # Semantic Release
+      - name: Clean npm cache
+        run: npm cache clean --force
+      - name: Remove node_modules and package-lock.json
+        run: rm -rf .github/workflows/node_modules .github/workflows/package-lock.json
       - name: Install dependencies
-        run: npm install --ignore-scripts --legacy-peer-deps --prefix ./package-ci/.github/workflows
+        run: npm install --ignore-scripts --legacy-peer-deps --prefix .github/workflows
+      - name: Verify installation
+        run: ls -l .github/workflows/node_modules
+      - name: Verify bin directory
+        run: ls -l .github/workflows/node_modules/.bin
       - name: Run semantic-release
-        run: npx --prefix ./package-ci/.github/workflows semantic-release
+        run: .github/workflows/node_modules/.bin/semantic-release
 
   rebase:
     name: Rebase Dev. Branch
