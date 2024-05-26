@@ -275,6 +275,13 @@ SIMSIMD_PUBLIC void simsimd_vdot_f32c_neon(simsimd_f32_t const* a, simsimd_f32_t
     results[1] = ab_imag;
 }
 
+#pragma clang attribute pop
+#pragma GCC pop_options
+
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.2-a+dotprod")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod"))), apply_to = function)
+
 SIMSIMD_PUBLIC void simsimd_dot_i8_neon(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                         simsimd_distance_t* result) {
 
