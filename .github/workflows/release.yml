@@ -45,7 +45,7 @@ jobs:
       - name: Verify bin directory
         run: ls -l .github/workflows/node_modules/.bin
       - name: Run semantic-release
-        run: npx --prefix .github/workflows semantic-release
+        run: npx --prefix .github/workflows semantic-release  --no-ci --no-npm --debug
 
   rebase:
     name: Rebase Dev. Branch
