@@ -41,7 +41,7 @@ jobs:
       - name: Install dependencies
         run: npm install --ignore-scripts --legacy-peer-deps --prefix ./package-ci
       - name: Run semantic-release
-        run: npx --prefix ./package-ci semantic-release
+        run: ./package-ci/node_modules/.bin/semantic-release
 
   rebase:
     name: Rebase Dev. Branch
