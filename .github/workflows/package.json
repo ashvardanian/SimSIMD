@@ -12,8 +12,62 @@
             "main"
         ],
         "plugins": [
-            "@semantic-release/commit-analyzer",
-            "@semantic-release/release-notes-generator",
+            [
+                "@semantic-release/commit-analyzer",
+                {
+                    "preset": "eslint",
+                    "releaseRules": [
+                        {
+                            "tag": "Break",
+                            "release": "major"
+                        },
+                        {
+                            "tag": "Add",
+                            "release": "minor"
+                        },
+                        {
+                            "tag": "Improve",
+                            "release": "patch"
+                        },
+                        {
+                            "tag": "Make",
+                            "release": "patch"
+                        },
+                        {
+                            "tag": "Refactor",
+                            "release": false
+                        }
+                    ]
+                }
+            ],
+            [
+                "@semantic-release/release-notes-generator",
+                {
+                    "preset": "eslint",
+                    "releaseRules": [
+                        {
+                            "tag": "Break",
+                            "release": "major"
+                        },
+                        {
+                            "tag": "Add",
+                            "release": "minor"
+                        },
+                        {
+                            "tag": "Improve",
+                            "release": "patch"
+                        },
+                        {
+                            "tag": "Make",
+                            "release": "patch"
+                        },
+                        {
+                            "tag": "Refactor",
+                            "release": false
+                        }
+                    ]
+                }
+            ],
             "@semantic-release/changelog",
             [
                 "@semantic-release/exec",
@@ -22,14 +76,27 @@
                     "analyzeCommitsCmd": "echo analyzeCommits",
                     "verifyReleaseCmd": "echo verifyRelease",
                     "generateNotesCmd": "echo generateNotes",
-                    "prepareCmd": "echo prepare",
+                    "prepareCmd": "bash .github/workflows/update_version.sh '${nextRelease.version}'",
                     "publishCmd": "echo publish",
                     "successCmd": "echo success",
                     "failCmd": "echo fail"
                 }
             ],
             "@semantic-release/github",
-            "@semantic-release/git"
+            [
+                "@semantic-release/git",
+                {
+                    "assets": [
+                        "VERSION",
+                        "package.json",
+                        "Cargo.toml",
+                        "Cargo.lock",
+                        "CMakeLists.txt",
+                        "include/simsimd/simsimd.h"
+                    ],
+                    "message": "Build: Released ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+                }
+            ]
         ]
     }
 }
