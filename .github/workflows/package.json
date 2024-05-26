@@ -11,6 +11,7 @@
         "debug": true,
         "ci": true,
         "dryRun": false,
+        "private": true,
         "branches": [
             "main"
         ],
