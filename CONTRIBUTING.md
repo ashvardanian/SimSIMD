@@ -14,6 +14,14 @@ build_release/simsimd_test_run_time
 build_release/simsimd_test_compile_time
 ```
 
+To utilize newest instructions, use GCC 12 or newer, or Clang 16 or newer.
+
+```sh
+sudo apt install gcc-12 g++-12
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100
+sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100
+```
+
 ## Python
 
 Testing:

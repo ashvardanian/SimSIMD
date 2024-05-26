@@ -407,7 +407,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 #if SIMSIMD_TARGET_NEON
         if (viable & simsimd_cap_neon_k)
             switch (kind) {
-            case simsimd_metric_dot_k: *m = (m_t)&simsimd_cos_i8_neon, *c = simsimd_cap_neon_k; return;
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_i8_neon, *c = simsimd_cap_neon_k; return;
             case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_i8_neon, *c = simsimd_cap_neon_k; return;
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_i8_neon, *c = simsimd_cap_neon_k; return;
             default: break;
@@ -416,7 +416,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 #if SIMSIMD_TARGET_ICE
         if (viable & simsimd_cap_ice_k)
             switch (kind) {
-            case simsimd_metric_dot_k: *m = (m_t)&simsimd_cos_i8_ice, *c = simsimd_cap_ice_k; return;
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_i8_ice, *c = simsimd_cap_ice_k; return;
             case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_i8_ice, *c = simsimd_cap_ice_k; return;
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_i8_ice, *c = simsimd_cap_ice_k; return;
             default: break;
@@ -425,7 +425,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 #if SIMSIMD_TARGET_HASWELL
         if (viable & simsimd_cap_haswell_k)
             switch (kind) {
-            case simsimd_metric_dot_k: *m = (m_t)&simsimd_cos_i8_haswell, *c = simsimd_cap_haswell_k; return;
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_i8_haswell, *c = simsimd_cap_haswell_k; return;
             case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_i8_haswell, *c = simsimd_cap_haswell_k; return;
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_i8_haswell, *c = simsimd_cap_haswell_k; return;
             default: break;
@@ -434,7 +434,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 
         if (viable & simsimd_cap_serial_k)
             switch (kind) {
-            case simsimd_metric_dot_k: *m = (m_t)&simsimd_cos_i8_serial, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_i8_serial, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_i8_serial, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_i8_serial, *c = simsimd_cap_serial_k; return;
             default: break;

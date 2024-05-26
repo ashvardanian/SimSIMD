@@ -200,6 +200,7 @@ int main(int argc, char** argv) {
     register_<simsimd_f32_t>("js_f32_neon", simsimd_js_f32_neon, simsimd_js_f32_accurate);
 
     register_<simsimd_i8_t>("cos_i8_neon", simsimd_cos_i8_neon, simsimd_cos_i8_accurate);
+    register_<simsimd_i8_t>("dot_i8_neon", simsimd_dot_i8_neon, simsimd_dot_i8_serial);
     register_<simsimd_i8_t>("l2sq_i8_neon", simsimd_l2sq_i8_neon, simsimd_l2sq_i8_accurate);
 
     register_<simsimd_b8_t>("hamming_b8_neon", simsimd_hamming_b8_neon, simsimd_hamming_b8_serial);
@@ -244,6 +245,7 @@ int main(int argc, char** argv) {
     register_<simsimd_f16_t>("js_f16_haswell", simsimd_js_f16_haswell, simsimd_js_f16_accurate);
 
     register_<simsimd_i8_t>("cos_i8_haswell", simsimd_cos_i8_haswell, simsimd_cos_i8_accurate);
+    register_<simsimd_i8_t>("dot_i8_haswell", simsimd_dot_i8_haswell, simsimd_dot_i8_serial);
     register_<simsimd_i8_t>("l2sq_i8_haswell", simsimd_l2sq_i8_haswell, simsimd_l2sq_i8_accurate);
 
     register_<simsimd_b8_t>("hamming_b8_haswell", simsimd_hamming_b8_haswell, simsimd_hamming_b8_serial);
@@ -268,6 +270,7 @@ int main(int argc, char** argv) {
 
 #if SIMSIMD_TARGET_ICE
     register_<simsimd_i8_t>("cos_i8_ice", simsimd_cos_i8_ice, simsimd_cos_i8_accurate);
+    register_<simsimd_i8_t>("dot_i8_ice", simsimd_dot_i8_ice, simsimd_dot_i8_serial);
     register_<simsimd_i8_t>("l2sq_i8_ice", simsimd_l2sq_i8_ice, simsimd_l2sq_i8_accurate);
 
     register_<simsimd_f64_t>("dot_f64_skylake", simsimd_dot_f64_skylake, simsimd_dot_f64_serial);
@@ -308,6 +311,7 @@ int main(int argc, char** argv) {
     register_<simsimd_f64_t>("l2sq_f64_serial", simsimd_l2sq_f64_serial, simsimd_l2sq_f64_serial);
 
     register_<simsimd_i8_t>("cos_i8_serial", simsimd_cos_i8_serial, simsimd_cos_i8_accurate);
+    register_<simsimd_i8_t>("dot_i8_serial", simsimd_dot_i8_serial, simsimd_dot_i8_serial);
     register_<simsimd_i8_t>("l2sq_i8_serial", simsimd_l2sq_i8_serial, simsimd_l2sq_i8_accurate);
 
     register_<simsimd_f64_t>("dot_f64c_serial", simsimd_dot_f64c_serial, simsimd_dot_f64c_serial);
