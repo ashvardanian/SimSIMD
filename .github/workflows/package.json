@@ -8,6 +8,9 @@
         "semantic-release": "^24.0.0-beta.2"
     },
     "release": {
+        "debug": true,
+        "ci": true,
+        "dryRun": false,
         "branches": [
             "main"
         ],
