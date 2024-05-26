@@ -115,6 +115,24 @@ def test_dot(ndim, dtype):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("dtype", ["int8"])
+def test_dot_integers(ndim, dtype):
+    """Compares the simd.dot() function with numpy.dot(), checking for exact match for integer inputs."""
+
+    np.random.seed()
+    a = np.random.randint(-128, 127, size=(ndim), dtype=dtype)
+    b = np.random.randint(-128, 127, size=(ndim), dtype=dtype)
+
+    expected_overflow = np.inner(a, b)
+    expected = np.inner(a.astype(np.int64), b.astype(np.int64))
+    result = simd.inner(a, b)
+
+    assert int(result) == expected, f"Expected {expected}, but got {result} (overflow: {expected_overflow})"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 def test_sqeuclidean(ndim, dtype):
     """Compares the simd.sqeuclidean() function with scipy.spatial.distance.sqeuclidean(), measuring the accuracy error for f16, and f32 types."""
