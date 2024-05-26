@@ -32,7 +32,16 @@ jobs:
         with:
           toolchain: stable
           override: true
-      - run: npm install --ignore-scripts --save-dev --prefix ./package-ci @semantic-release/exec @semantic-release/git conventional-changelog-eslint semantic-release && npx --prefix ./package-ci semantic-release
+
+        # Semantic Release
+      - name: Clean npm cache
+        run: npm cache clean --force
+      - name: Remove node_modules and package-lock.json
+        run: rm -rf ./package-ci/node_modules ./package-ci/package-lock.json
+      - name: Install dependencies
+        run: npm install --ignore-scripts --save-dev --prefix ./package-ci @semantic-release/exec@6.0.3 @semantic-release/git@10.0.1 conventional-changelog-eslint@3.0.9 semantic-release@24.0.0-beta.2
+      - name: Run semantic-release
+        run: npx --prefix ./package-ci semantic-release
 
   rebase:
     name: Rebase Dev. Branch
