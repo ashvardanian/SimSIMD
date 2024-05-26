@@ -39,7 +39,7 @@ jobs:
       - name: Remove node_modules and package-lock.json
         run: rm -rf ./package-ci/node_modules ./package-ci/package-lock.json
       - name: Install dependencies
-        run: npm install --ignore-scripts --legacy-peer-deps --prefix ./package-ci
+        run: npm install --ignore-scripts --legacy-peer-deps --prefix ./package-ci @semantic-release/exec@6.0.3 @semantic-release/git@10.0.1 conventional-changelog-eslint@3.0.9 semantic-release@24.0.0-beta.2
       - name: Run semantic-release
         run: npx --prefix ./package-ci semantic-release
 
