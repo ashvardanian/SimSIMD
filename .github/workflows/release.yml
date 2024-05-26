@@ -45,9 +45,6 @@ jobs:
       - name: Verify bin directory
         run: ls -l .github/workflows/node_modules/.bin
       - name: Run semantic-release
-        # We can directly run the semantic-release binary from the node_modules/.bin directory.
-        # but this may fail to fetch environment variables.
-        # run: npx --prefix .github/workflows semantic-release
         run: .github/workflows/node_modules/.bin/semantic-release
 
   rebase:
