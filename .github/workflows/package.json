@@ -4,6 +4,7 @@
     "devDependencies": {
         "@semantic-release/exec": "^6.0.3",
         "@semantic-release/git": "^10.0.1",
+        "@semantic-release/github": "^10.0.5",
         "conventional-changelog-eslint": "^6.0.0",
         "semantic-release": "^24.0.0-beta.2"
     },
