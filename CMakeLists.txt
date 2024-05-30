@@ -56,6 +56,24 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
   add_compile_options(-w -ferror-limit=1)
 endif()
 
+include(CheckCSourceCompiles)
+# Check for __bf16 support
+check_c_source_compiles(
+  [=[
+int
+main(int argc, char *argv)
+{
+  __bf16 a = 1.0;
+  __bf16 b = a + a;
+  return 0;
+}
+]=]
+  HAS_BFLOAT16)
+
+if(HAS_BFLOAT16)
+  add_compile_definitions( HAS_BFLOAT16 )
+endif()
+
 # Define the header-only library
 file(GLOB SIMSIMD_SOURCES include/simsimd/*.h)
 add_library(simsimd INTERFACE)

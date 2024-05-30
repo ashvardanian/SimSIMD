@@ -220,6 +220,16 @@ typedef _Float16 simsimd_f16_t;
 typedef unsigned short simsimd_f16_t;
 #endif
 
+#if !defined(SIMSIMD_NATIVE_BF16)
+#define SIMSIMD_NATIVE_BF16 1
+#endif
+// HAS_BFLOAT16 is set during build if __bf16 compiles
+#if SIMSIMD_NATIVE_BF16 && defined(HAS_BFLOAT16)
+typedef __bf16 simsimd_bf16_t;
+#else
+typedef unsigned short simsimd_bf16_t;
+#endif
+
 /**
  *  @brief  Alias for the half-precision floating-point type on Arm.
  *          Clang and GCC bring the `float16_t` symbol when you compile for Aarch64.
@@ -246,6 +256,16 @@ typedef float16_t simsimd_f16_for_arm_simd_t;
 #else
 #define SIMSIMD_UNCOMPRESS_F16(x) (simsimd_uncompress_f16(x))
 #endif
+#endif
+
+/**
+ *  @brief  Returns the value of the half-precision brain floating-point number,
+ *          potentially decompressed into single-precision.
+ */
+#ifdef SIMSIMD_NATIVE_BF16
+#define SIMSIMD_UNCOMPRESS_BF16(x) (SIMSIMD_IDENTIFY(x))
+#else
+#define SIMSIMD_UNCOMPRESS_BF16(x) (simsimd_uncompress_bf16(x))
 #endif
 
 typedef union {
@@ -301,6 +321,21 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_f16(unsigned short x) {
     result_union.i = (x & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
                      ((exponent == 0) & (mantissa != 0)) * ((v - 37) << 23 | ((mantissa << (150 - v)) & 0x007FE000));
     return result_union.f;
+}
+
+/**
+ *  @brief  For compilers that don't natively support the `__bf16` type,
+ *          upcasts contents into a more conventional `float`.
+ *
+ *  @warning  This function won't handle boundary conditions well.
+ *
+ *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
+ *
+ *
+ */
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_bf16(unsigned short x) {
+    unsigned int tmp = x << 16; // Zero extends the mantissa
+    return *((float*)&tmp);
 }
 
 #ifdef __cplusplus
