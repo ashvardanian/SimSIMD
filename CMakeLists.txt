@@ -82,6 +82,11 @@ if(SIMSIMD_BUILD_BENCHMARKS)
     GIT_TAG v1.7.0)
   FetchContent_MakeAvailable(benchmark)
 
+  # Remove the google benchmark built in debug warning
+  if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    target_compile_definitions( benchmark PRIVATE NDEBUG ) 
+  endif()
+
   find_package(Threads REQUIRED)
   add_executable(simsimd_bench cpp/bench.cxx)
   target_link_libraries(simsimd_bench simsimd Threads::Threads benchmark)
