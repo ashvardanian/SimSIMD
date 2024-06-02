@@ -317,6 +317,9 @@ int main(int argc, char** argv) {
     register_<simsimd_f64_t>("dot_f64c_serial", simsimd_dot_f64c_serial, simsimd_dot_f64c_serial);
     register_<simsimd_f32_t>("dot_f32c_serial", simsimd_dot_f32c_serial, simsimd_dot_f32c_accurate);
     register_<simsimd_f16_t>("dot_f16c_serial", simsimd_dot_f16c_serial, simsimd_dot_f16c_accurate);
+    register_<simsimd_f64_t>("vdot_f64c_serial", simsimd_vdot_f64c_serial, simsimd_vdot_f64c_serial);
+    register_<simsimd_f32_t>("vdot_f32c_serial", simsimd_vdot_f32c_serial, simsimd_vdot_f32c_accurate);
+    register_<simsimd_f16_t>("vdot_f16c_serial", simsimd_vdot_f16c_serial, simsimd_vdot_f16c_accurate);
 
     register_<simsimd_b8_t>("hamming_b8_serial", simsimd_hamming_b8_serial, simsimd_hamming_b8_serial);
     register_<simsimd_b8_t>("jaccard_b8_serial", simsimd_jaccard_b8_serial, simsimd_jaccard_b8_serial);
