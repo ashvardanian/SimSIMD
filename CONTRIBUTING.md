@@ -5,16 +5,17 @@
 To rerun experiments utilize the following command:
 
 ```sh
-sudo apt install libopenblas-dev # BLAS installation is optional
-cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -DSIMSIMD_BUILD_TESTS=1 -B build_release
+sudo apt install libopenblas-dev # BLAS installation is optional, but recommended for benchmarks
+cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_TESTS=1 -DSIMSIMD_BUILD_BENCHMARKS=1 -DSIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 -B build_release
 cmake --build build_release --config Release
 build_release/simsimd_bench
 build_release/simsimd_bench --benchmark_filter=js
 build_release/simsimd_test_run_time
-build_release/simsimd_test_compile_time
+build_release/simsimd_test_compile_time # no need to run this one, it's just a compile-time test
 ```
 
 To utilize newest instructions, use GCC 12 or newer, or Clang 16 or newer.
+To install them on Ubuntu 22.04, use:
 
 ```sh
 sudo apt install gcc-12 g++-12
