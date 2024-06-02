@@ -6,7 +6,7 @@ To rerun experiments utilize the following command:
 
 ```sh
 sudo apt install libopenblas-dev # BLAS installation is optional
-cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -DSIMSIMD_BUILD_TESTS=1 -B ./build_release
+cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -DSIMSIMD_BUILD_TESTS=1 -B build_release
 cmake --build build_release --config Release
 build_release/simsimd_bench
 build_release/simsimd_bench --benchmark_filter=js
@@ -78,7 +78,7 @@ python -m cibuildwheel --platform windows
 cargo test -p simsimd
 cargo test -p simsimd -- --nocapture # To see the output
 cargo bench
-open ./target/criterion/report/index.html
+open target/criterion/report/index.html
 ```
 
 ## JavaScript

@@ -34,7 +34,8 @@ template <typename scalar_at, std::size_t dimensions_ak> struct vectors_pair_gt 
         double a2_sum = 0, b2_sum = 0;
         for (std::size_t i = 0; i != dimensions_ak; ++i) {
             if constexpr (std::is_integral_v<scalar_at>)
-                a[i] = static_cast<scalar_at>(rand()), b[i] = static_cast<scalar_at>(rand());
+                a[i] = static_cast<scalar_at>(rand() % std::numeric_limits<scalar_at>::max()),
+                b[i] = static_cast<scalar_at>(rand() % std::numeric_limits<scalar_at>::max());
             else {
                 double ai = double(rand()) / double(RAND_MAX), bi = double(rand()) / double(RAND_MAX);
                 a2_sum += ai * ai, b2_sum += bi * bi;
@@ -93,7 +94,7 @@ template <typename scalar_at, typename metric_at = void>
 void register_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
 
     std::size_t seconds = 10;
-    std::size_t threads = std::thread::hardware_concurrency(); // 1;
+    std::size_t threads = 1;
 
     using pair_dims_t = vectors_pair_gt<scalar_at, 1536>;
     std::string name_dims = name + "_" + std::to_string(pair_dims_t{}.dimensions()) + "d";
@@ -101,7 +102,6 @@ void register_(std::string name, metric_at* distance_func, metric_at* baseline_f
         ->MinTime(seconds)
         ->Threads(threads);
 
-    return;
     using pair_bytes_t = vectors_pair_gt<scalar_at, 1536 / sizeof(scalar_at)>;
     std::string name_bytes = name + "_" + std::to_string(pair_bytes_t{}.size_bytes()) + "b";
     bm::RegisterBenchmark(name_bytes.c_str(), measure<pair_bytes_t, metric_at*>, distance_func, baseline_func)

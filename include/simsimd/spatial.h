@@ -681,13 +681,13 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t c
         __m256i a_vec = _mm256_loadu_si256((__m256i const*)(a + i));
         __m256i b_vec = _mm256_loadu_si256((__m256i const*)(b + i));
 
-        // Unpack int8 to int16
+        // Unpack `int8` to `int16`
         __m256i a_low_16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_vec, 0));
         __m256i a_high_16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_vec, 1));
         __m256i b_low_16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_vec, 0));
         __m256i b_high_16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_vec, 1));
 
-        // Multiply and accumulate at int16 level, accumulate at int32 level
+        // Multiply and accumulate as `int16`, accumulate products as `int32`
         ab_low_vec = _mm256_add_epi32(ab_low_vec, _mm256_madd_epi16(a_low_16, b_low_16));
         ab_high_vec = _mm256_add_epi32(ab_high_vec, _mm256_madd_epi16(a_high_16, b_high_16));
         a2_low_vec = _mm256_add_epi32(a2_low_vec, _mm256_madd_epi16(a_low_16, a_low_16));
@@ -967,36 +967,51 @@ simsimd_l2sq_i8_ice_cycle:
 
 SIMSIMD_PUBLIC void simsimd_cos_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                        simsimd_distance_t* result) {
-    __m512i ab_i32s_vec = _mm512_setzero_si512();
+    __m512i ab_low_i32s_vec = _mm512_setzero_si512();
+    __m512i ab_high_i32s_vec = _mm512_setzero_si512();
     __m512i a2_i32s_vec = _mm512_setzero_si512();
     __m512i b2_i32s_vec = _mm512_setzero_si512();
     __m512i a_vec, b_vec;
+    __m512i a_abs_vec, b_abs_vec;
 
 simsimd_cos_i8_ice_cycle:
-    if (n < 32) {
-        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
-        a_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, a));
-        b_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, b));
+    if (n < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_epi8(mask, a);
+        b_vec = _mm512_maskz_loadu_epi8(mask, b);
         n = 0;
     } else {
-        a_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(a));
-        b_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(b));
-        a += 32, b += 32, n -= 32;
+        a_vec = _mm512_loadu_epi8(a);
+        b_vec = _mm512_loadu_epi8(b);
+        a += 64, b += 64, n -= 64;
     }
-    // Unfortunately we can't use the `_mm512_dpbusd_epi32` intrinsics here either,
+
+    // We can't directly use the `_mm512_dpbusd_epi32` intrinsic everywhere,
     // as it's assymetric with respect to the sign of the input arguments:
     //      Signed(ZeroExtend16(a.byte[4*j]) * SignExtend16(b.byte[4*j]))
-    // So we have to use the `_mm512_dpwssd_epi32` intrinsics instead, upcasting
-    // to 16-bit beforehand.
-    ab_i32s_vec = _mm512_dpwssd_epi32(ab_i32s_vec, a_vec, b_vec);
-    a2_i32s_vec = _mm512_dpwssd_epi32(a2_i32s_vec, a_vec, a_vec);
-    b2_i32s_vec = _mm512_dpwssd_epi32(b2_i32s_vec, b_vec, b_vec);
+    // Luckily to compute the squares, we just drop the sign bit of the second argument.
+    a_abs_vec = _mm512_abs_epi8(a_vec);
+    b_abs_vec = _mm512_abs_epi8(b_vec);
+    a2_i32s_vec = _mm512_dpbusds_epi32(a2_i32s_vec, a_abs_vec, a_abs_vec);
+    b2_i32s_vec = _mm512_dpbusds_epi32(b2_i32s_vec, b_abs_vec, b_abs_vec);
+
+    // The same trick won't work for the primary dot-product, as the signs vector
+    // components may differ significantly. So we have to use two `_mm512_dpwssd_epi32`
+    // intrinsics instead, upcasting four chunks to 16-bit integers beforehand!
+    ab_low_i32s_vec = _mm512_dpwssds_epi32(                  //
+        ab_low_i32s_vec,                                     //
+        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(a_vec)), //
+        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(b_vec)));
+    ab_high_i32s_vec = _mm512_dpwssds_epi32(                       //
+        ab_high_i32s_vec,                                          //
+        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(a_vec, 1)), //
+        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(b_vec, 1)));
     if (n)
         goto simsimd_cos_i8_ice_cycle;
 
-    simsimd_f32_t ab = _mm512_reduce_add_epi32(ab_i32s_vec);
-    simsimd_f32_t a2 = _mm512_reduce_add_epi32(a2_i32s_vec);
-    simsimd_f32_t b2 = _mm512_reduce_add_epi32(b2_i32s_vec);
+    int ab = _mm512_reduce_add_epi32(_mm512_add_epi32(ab_low_i32s_vec, ab_high_i32s_vec));
+    int a2 = _mm512_reduce_add_epi32(a2_i32s_vec);
+    int b2 = _mm512_reduce_add_epi32(b2_i32s_vec);
 
     // Compute the reciprocal square roots of a2 and b2
     // Mysteriously, MSVC has no `_mm_rsqrt14_ps` intrinsic, but has it's masked variants,
@@ -1004,7 +1019,7 @@ simsimd_cos_i8_ice_cycle:
     __m128 rsqrts = _mm_maskz_rsqrt14_ps(0xFF, _mm_set_ps(0.f, 0.f, a2 + 1.e-9f, b2 + 1.e-9f));
     simsimd_f32_t rsqrt_a2 = _mm_cvtss_f32(rsqrts);
     simsimd_f32_t rsqrt_b2 = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
-    *result = 1 - ab * rsqrt_a2 * rsqrt_b2;
+    *result = ab != 0 ? 1 - ab * rsqrt_a2 * rsqrt_b2 : 0;
 }
 
 #pragma clang attribute pop
