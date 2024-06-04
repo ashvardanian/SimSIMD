@@ -12,6 +12,7 @@
  *  - 64-bit IEEE floating point numbers
  *  - 32-bit IEEE floating point numbers
  *  - 16-bit IEEE floating point numbers
+ *  - 16-bit brain floating point numbers
  *  - 8-bit signed integers
  *
  *  For hardware architectures:
@@ -46,6 +47,9 @@ SIMSIMD_PUBLIC void simsimd_dot_f16_serial(simsimd_f16_t const* a, simsimd_f16_t
 SIMSIMD_PUBLIC void simsimd_dot_f16c_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_dot_i8_serial(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_bf16c_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_vdot_bf16c_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 /*  Double-precision serial backends for all numeric types.
  *  For single-precision computation check out the "*_serial" counterparts of those "*_accurate" functions.
@@ -56,6 +60,9 @@ SIMSIMD_PUBLIC void simsimd_vdot_f32c_accurate(simsimd_f32_t const* a, simsimd_f
 SIMSIMD_PUBLIC void simsimd_dot_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f16c_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_dot_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_bf16c_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_vdot_bf16c_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 
 /*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
  *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
@@ -174,6 +181,10 @@ SIMSIMD_MAKE_DOT(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16)          // simsimd_d
 SIMSIMD_MAKE_COMPLEX_DOT(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16)  // simsimd_dot_f16c_serial
 SIMSIMD_MAKE_COMPLEX_VDOT(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16) // simsimd_vdot_f16c_serial
 
+SIMSIMD_MAKE_DOT(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16)          // simsimd_dot_bf16_serial
+SIMSIMD_MAKE_COMPLEX_DOT(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16)  // simsimd_dot_bf16c_serial
+SIMSIMD_MAKE_COMPLEX_VDOT(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16) // simsimd_vdot_bf16c_serial
+
 SIMSIMD_MAKE_DOT(serial, i8, i64, SIMSIMD_IDENTIFY) // simsimd_dot_i8_serial
 
 SIMSIMD_MAKE_DOT(accurate, f32, f64, SIMSIMD_IDENTIFY)          // simsimd_dot_f32_accurate
@@ -183,6 +194,10 @@ SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f32, f64, SIMSIMD_IDENTIFY) // simsimd_vdot_
 SIMSIMD_MAKE_DOT(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16)          // simsimd_dot_f16_accurate
 SIMSIMD_MAKE_COMPLEX_DOT(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16)  // simsimd_dot_f16c_accurate
 SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16) // simsimd_vdot_f16c_accurate
+
+SIMSIMD_MAKE_DOT(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16)          // simsimd_dot_bf16_accurate
+SIMSIMD_MAKE_COMPLEX_DOT(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16)  // simsimd_dot_bf16c_accurate
+SIMSIMD_MAKE_COMPLEX_VDOT(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16) // simsimd_vdot_bf16c_accurate
 
 #if SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
