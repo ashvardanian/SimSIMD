@@ -15,7 +15,7 @@
 /**
  *  @brief  Logs CPU capabilities supported by the current build (compile-time) and runtime.
  */
-void print_capabilities() {
+void print_capabilities(void) {
     simsimd_capability_t runtime_caps = simsimd_capabilities();
 
     // Log supported functionality
@@ -41,7 +41,10 @@ void print_capabilities() {
     printf("\n");
 }
 
-void test_utilities() {
+/**
+ *  @brief  A trivial test that checks if the utility functions return the expected values.
+ */
+void test_utilities(void) {
     simsimd_capability_t capabilities = simsimd_capabilities();
 
     int uses_neon = simsimd_uses_neon();
@@ -63,7 +66,7 @@ void test_utilities() {
  *  @brief  A trivial test that calls every implemented distance function and their dispatch versions
  *          on vectors A and B, where A and B are equal.
  */
-void test_distance_from_itself() {
+void test_distance_from_itself(void) {
     simsimd_f64_t f64s[1536];
     simsimd_f32_t f32s[1536];
     simsimd_f16_t f16s[1536];

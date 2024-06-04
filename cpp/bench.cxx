@@ -55,11 +55,11 @@ template <typename scalar_at, std::size_t dimensions_ak> struct vectors_pair_gt 
 };
 
 template <typename pair_at, typename metric_at = void>
-constexpr void measure(bm::State& state, metric_at metric, metric_at baseline) {
+void measure(bm::State& state, metric_at metric, metric_at baseline) {
 
     pair_at pair;
-    pair.randomize();
-    // pair.set(1);
+    // pair.randomize();
+    pair.set(1);
 
     auto call_baseline = [&](pair_at& pair) -> simsimd_f32_t {
         // Output for real vectors have a single dimensions.

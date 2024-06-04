@@ -23,6 +23,18 @@ sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100
 sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100
 ```
 
+On MacOS it's recommended to use Homebrew and install Clang, as opposed to "Apple Clang".
+Replacing the default compiler is not recommended, as it may break the system, but you can pass it as an environment variable:
+
+```sh
+brew install llvm
+cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_TESTS=1 \
+    -DCMAKE_C_COMPILER="$(brew --prefix llvm)/bin/clang" \
+    -DCMAKE_CXX_COMPILER="$(brew --prefix llvm)/bin/clang++" \
+    -B build_release
+cmake --build build_release --config Release
+```
+
 ## Python
 
 Testing:

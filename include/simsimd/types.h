@@ -223,8 +223,8 @@ typedef unsigned short simsimd_f16_t;
 #if !defined(SIMSIMD_NATIVE_BF16)
 #define SIMSIMD_NATIVE_BF16 1
 #endif
-// HAS_BFLOAT16 is set during build if __bf16 compiles
-#if SIMSIMD_NATIVE_BF16 && defined(HAS_BFLOAT16)
+// SIMSIMD_CAN_COMPILE_BF16 is set during build if __bf16 compiles
+#if SIMSIMD_NATIVE_BF16 && defined(SIMSIMD_CAN_COMPILE_BF16)
 typedef __bf16 simsimd_bf16_t;
 #else
 typedef unsigned short simsimd_bf16_t;
@@ -242,6 +242,7 @@ typedef simsimd_f16_t simsimd_f16_for_arm_simd_t;
 #else
 typedef float16_t simsimd_f16_for_arm_simd_t;
 #endif
+typedef simsimd_bf16_t simsimd_bf16_for_arm_simd_t;
 #endif
 
 #define SIMSIMD_IDENTIFY(x) (x)
@@ -329,13 +330,17 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_f16(unsigned short x) {
  *
  *  @warning  This function won't handle boundary conditions well.
  *
+ *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
- *
- *
  */
 SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_bf16(unsigned short x) {
-    unsigned int tmp = x << 16; // Zero extends the mantissa
-    return *((float*)&tmp);
+    union float_or_unsigned_int_t {
+        float f;
+        unsigned int i;
+    };
+    union float_or_unsigned_int_t result_union;
+    result_union.i = x << 16; // Zero extends the mantissa
+    return result_union.f;
 }
 
 #ifdef __cplusplus
