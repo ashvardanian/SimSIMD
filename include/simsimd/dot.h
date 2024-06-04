@@ -101,11 +101,15 @@ SIMSIMD_PUBLIC void simsimd_vdot_f32c_haswell(simsimd_f32_t const* a, simsimd_f3
 SIMSIMD_PUBLIC void simsimd_dot_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+
+SIMSIMD_PUBLIC void simsimd_dot_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
 SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 /*  SIMD-powered backends for various generations of AVX512 CPUs.
  *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
  *  Ice Lake added VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ, and other extensions for integral operations.
+ *  Genoa added only BF16.
  *  Sapphire Rapids added tiled matrix operations, but we are most interested in the new mixed-precision FMA instructions.
  */
 SIMSIMD_PUBLIC void simsimd_dot_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
@@ -116,6 +120,8 @@ SIMSIMD_PUBLIC void simsimd_dot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64
 SIMSIMD_PUBLIC void simsimd_vdot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 SIMSIMD_PUBLIC void simsimd_dot_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t*);
+
+SIMSIMD_PUBLIC void simsimd_dot_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 SIMSIMD_PUBLIC void simsimd_dot_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
@@ -1087,6 +1093,47 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t c
     for (; i < n; ++i)
         ab += a[i] * b[i];
     *result = ab;
+}
+
+SIMSIMD_INTERNAL __m256 simsimd_mm256_cvtpbh_ps(__m128i vec) {
+    return _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(vec), 16));
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
+                                             simsimd_distance_t* result) {
+    __m256 ab_vec = _mm256_setzero_ps();
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m256 a_vec = simsimd_mm256_cvtpbh_ps(_mm_loadu_si128((__m128i const*)(a + i)));
+        __m256 b_vec = simsimd_mm256_cvtpbh_ps(_mm_loadu_si128((__m128i const*)(b + i)));
+        ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
+    }
+
+    // In case the software emulation for `bf16` scalars is enabled, the `simsimd_uncompress_bf16`
+    // function will run. It is extremely slow, so even for the tail, let's combine serial
+    // loads and stores with vectorized math.
+    if (i < n) {
+        union {
+            __m128i bf16_vec;
+            simsimd_bf16_t bf16[8];
+        } a_padded_tail, b_padded_tail;
+        simsimd_size_t j = 0;
+        for (; i < n; ++i, ++j)
+            a_padded_tail.bf16[j] = a[i], b_padded_tail.bf16[j] = b[i];
+        for (; j < 8; ++j)
+            a_padded_tail.bf16[j] = 0, b_padded_tail.bf16[j] = 0;
+        __m256 a_vec = simsimd_mm256_cvtpbh_ps(a_padded_tail.bf16_vec);
+        __m256 b_vec = simsimd_mm256_cvtpbh_ps(b_padded_tail.bf16_vec);
+        ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
+    }
+
+    ab_vec = _mm256_add_ps(_mm256_permute2f128_ps(ab_vec, ab_vec, 1), ab_vec);
+    ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
+    ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
+
+    simsimd_f32_t f32_result;
+    _mm_store_ss(&f32_result, _mm256_castps256_ps128(ab_vec));
+    *result = f32_result;
 }
 
 #pragma clang attribute pop

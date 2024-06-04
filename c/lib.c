@@ -28,6 +28,9 @@
 #if !defined(SIMSIMD_TARGET_ICE) && (defined(_MSC_VER) || defined(__linux__))
 #define SIMSIMD_TARGET_ICE 1
 #endif
+#if !defined(SIMSIMD_TARGET_GENOA) && (defined(__linux__))
+#define SIMSIMD_TARGET_GENOA 1
+#endif
 #if !defined(SIMSIMD_TARGET_SAPPHIRE) && (defined(__linux__))
 #define SIMSIMD_TARGET_SAPPHIRE 1
 #endif
@@ -110,6 +113,7 @@ SIMSIMD_DYNAMIC int simsimd_uses_sve(void) { return (simsimd_capabilities() & si
 SIMSIMD_DYNAMIC int simsimd_uses_haswell(void) { return (simsimd_capabilities() & simsimd_cap_haswell_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_skylake(void) { return (simsimd_capabilities() & simsimd_cap_skylake_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_ice(void) { return (simsimd_capabilities() & simsimd_cap_ice_k) != 0; }
+SIMSIMD_DYNAMIC int simsimd_uses_genoa(void) { return (simsimd_capabilities() & simsimd_cap_genoa_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void) { return (simsimd_capabilities() & simsimd_cap_sapphire_k) != 0; }
 
 #ifdef __cplusplus

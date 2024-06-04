@@ -79,6 +79,7 @@ def test_capabilities_list():
     assert "haswell" in simd.get_capabilities()
     assert "ice" in simd.get_capabilities()
     assert "skylake" in simd.get_capabilities()
+    assert "genoa" in simd.get_capabilities()
     assert "sapphire" in simd.get_capabilities()
     assert simd.get_capabilities().get("serial") == 1
 
@@ -187,6 +188,33 @@ def test_jensen_shannon(ndim, dtype):
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
 
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+def test_inner_bf16(ndim):
+    """Compares the simd.inner() function with numpy.inner(), measuring the accuracy error for 16-bit brain-float types."""
+    np.random.seed()
+    a = np.random.randn(ndim).astype(np.float32)
+    b = np.random.randn(ndim).astype(np.float32)
+    
+    # NumPy doesn't natively support brain-float, so we need a trick!
+    # Luckily, it's very easy to reduce the representation accuracy 
+    # by simply masking the low 16-bits of our 32-bit single-precision
+    # numbers
+    a = (a.view(np.uint32) & 0xFFFF0000).view(np.float32)
+    b = (b.view(np.uint32) & 0xFFFF0000).view(np.float32)
+    
+    # To represent them as brain-floats, we need to drop the second halfs
+    a_bf16 = np.right_shift(a.view(np.uint32), 16).astype(np.uint16)
+    b_bf16 = np.right_shift(b.view(np.uint32), 16).astype(np.uint16)
+            
+    # Now we can compare the results
+    expected = np.inner(a, b)
+    result = simd.inner(a_bf16, b_bf16, "bf16")
+
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
+    
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)

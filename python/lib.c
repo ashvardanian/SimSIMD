@@ -78,6 +78,8 @@ simsimd_datatype_t numpy_string_to_datatype(char const* name) {
     else if (same_string(name, "d") || same_string(name, "<d") || same_string(name, "f8") || same_string(name, "<f8") ||
              same_string(name, "float64"))
         return simsimd_datatype_f64_k;
+    else if (same_string(name, "bfloat16")) //? Is it what it's gonna look like?
+        return simsimd_datatype_bf16_k;
     // Complex numbers:
     else if (same_string(name, "Zf") || same_string(name, "F") || same_string(name, "<F") || same_string(name, "F4") ||
              same_string(name, "<F4") || same_string(name, "complex64"))
@@ -88,6 +90,8 @@ simsimd_datatype_t numpy_string_to_datatype(char const* name) {
     else if (same_string(name, "Ze") || same_string(name, "E") || same_string(name, "<E") || same_string(name, "F2") ||
              same_string(name, "<F2") || same_string(name, "complex32"))
         return simsimd_datatype_f16c_k;
+    else if (same_string(name, "bcomplex32")) //? Is it what it's gonna look like?
+        return simsimd_datatype_bf16c_k;
     else
         return simsimd_datatype_unknown_k;
 }
@@ -103,6 +107,8 @@ simsimd_datatype_t python_string_to_datatype(char const* name) {
         return simsimd_datatype_b8_k;
     else if (same_string(name, "d") || same_string(name, "f64") || same_string(name, "float64"))
         return simsimd_datatype_f64_k;
+    else if (same_string(name, "bh") || same_string(name, "bf16") || same_string(name, "bfloat16"))
+        return simsimd_datatype_bf16_k;
     // Complex numbers:
     else if (same_string(name, "complex64"))
         return simsimd_datatype_f32c_k;
@@ -110,6 +116,8 @@ simsimd_datatype_t python_string_to_datatype(char const* name) {
         return simsimd_datatype_f64c_k;
     else if (same_string(name, "complex32"))
         return simsimd_datatype_f16c_k;
+    else if (same_string(name, "bcomplex32"))
+        return simsimd_datatype_bf16c_k;
     else
         return simsimd_datatype_unknown_k;
 }
@@ -133,9 +141,11 @@ static size_t bytes_per_datatype(simsimd_datatype_t dtype) {
     case simsimd_datatype_f64_k: return sizeof(simsimd_f64_t);
     case simsimd_datatype_f32_k: return sizeof(simsimd_f32_t);
     case simsimd_datatype_f16_k: return sizeof(simsimd_f16_t);
+    case simsimd_datatype_bf16_k: return sizeof(simsimd_bf16_t);
     case simsimd_datatype_f64c_k: return sizeof(simsimd_f64_t) * 2;
     case simsimd_datatype_f32c_k: return sizeof(simsimd_f32_t) * 2;
     case simsimd_datatype_f16c_k: return sizeof(simsimd_f16_t) * 2;
+    case simsimd_datatype_bf16c_k: return sizeof(simsimd_bf16_t) * 2;
     case simsimd_datatype_i8_k: return sizeof(simsimd_i8_t);
     case simsimd_datatype_b8_k: return sizeof(simsimd_b8_t);
     default: return 0;
@@ -181,6 +191,8 @@ static PyObject* api_enable_capability(PyObject* self, PyObject* args) {
         static_capabilities |= simsimd_cap_skylake_k;
     } else if (same_string(cap_name, "ice")) {
         static_capabilities |= simsimd_cap_ice_k;
+    } else if (same_string(cap_name, "genoa")) {
+        static_capabilities |= simsimd_cap_genoa_k;
     } else if (same_string(cap_name, "sapphire")) {
         static_capabilities |= simsimd_cap_sapphire_k;
     } else if (same_string(cap_name, "serial")) {
@@ -212,6 +224,8 @@ static PyObject* api_disable_capability(PyObject* self, PyObject* args) {
         static_capabilities &= ~simsimd_cap_skylake_k;
     } else if (same_string(cap_name, "ice")) {
         static_capabilities &= ~simsimd_cap_ice_k;
+    } else if (same_string(cap_name, "genoa")) {
+        static_capabilities &= ~simsimd_cap_genoa_k;
     } else if (same_string(cap_name, "sapphire")) {
         static_capabilities &= ~simsimd_cap_sapphire_k;
     } else if (same_string(cap_name, "serial")) {
@@ -240,6 +254,7 @@ static PyObject* api_get_capabilities(PyObject* self) {
     ADD_CAP(haswell);
     ADD_CAP(skylake);
     ADD_CAP(ice);
+    ADD_CAP(genoa);
     ADD_CAP(sapphire);
 
 #undef ADD_CAP

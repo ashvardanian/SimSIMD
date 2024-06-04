@@ -685,6 +685,7 @@ SIMSIMD_DYNAMIC int simsimd_uses_haswell(void);
 SIMSIMD_DYNAMIC int simsimd_uses_skylake(void);
 SIMSIMD_DYNAMIC int simsimd_uses_ice(void);
 SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void);
+SIMSIMD_DYNAMIC int simsimd_uses_genoa(void);
 SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void);
 
 /*  Inner products
@@ -817,6 +818,7 @@ SIMSIMD_DYNAMIC void simsimd_js_f64(simsimd_f64_t const* a, simsimd_f64_t const*
  *  - Check if the CPU supports AVX512F and AVX512BW extensions on Skylake x86 CPUs and newer
  *  - Check if the CPU supports AVX512VNNI, AVX512IFMA, AVX512BITALG, AVX512VBMI2, and AVX512VPOPCNTDQ
  *    extensions on Ice Lake x86 CPUs and newer
+ *  - Check if the CPU supports AVX512BF16 extensions on Genoa x86 CPUs and newer
  *  - Check if the CPU supports AVX512FP16 extensions on Sapphire Rapids x86 CPUs and newer
  *
  *  @return 1 if the CPU supports the SIMD instruction set, 0 otherwise.
@@ -827,6 +829,7 @@ SIMSIMD_PUBLIC int simsimd_uses_haswell(void) { return SIMSIMD_TARGET_X86 && SIM
 SIMSIMD_PUBLIC int simsimd_uses_skylake(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SKYLAKE; }
 SIMSIMD_PUBLIC int simsimd_uses_ice(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_ICE; }
 SIMSIMD_PUBLIC int simsimd_uses_sapphire(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SAPPHIRE; }
+SIMSIMD_PUBLIC int simsimd_uses_genoa(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_GENOA; }
 SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) { return simsimd_capabilities_implementation(); }
 
 /*  Inner products

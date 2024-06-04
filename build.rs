@@ -19,6 +19,7 @@ fn main() {
             "arm" | "aarch64" => vec!["SIMSIMD_TARGET_NEON", "SIMSIMD_TARGET_SVE"],
             _ => vec![
                 "SIMSIMD_TARGET_SAPPHIRE",
+                "SIMSIMD_TARGET_GENOA",
                 "SIMSIMD_TARGET_ICE",
                 "SIMSIMD_TARGET_SKYLAKE",
                 "SIMSIMD_TARGET_HASWELL",

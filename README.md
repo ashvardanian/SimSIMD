@@ -490,6 +490,7 @@ int uses_sve = simsimd_uses_sve();
 int uses_haswell = simsimd_uses_haswell();
 int uses_skylake = simsimd_uses_skylake();
 int uses_ice = simsimd_uses_ice();
+int uses_genoa = simsimd_uses_genoa();
 int uses_sapphire = simsimd_uses_sapphire();
 
 simsimd_capability_t capabilities = simsimd_capabilities();
