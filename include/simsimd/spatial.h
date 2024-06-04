@@ -305,7 +305,7 @@ SIMSIMD_PUBLIC void simsimd_l2sq_i8_neon(simsimd_i8_t const* a, simsimd_i8_t con
                                          simsimd_distance_t* result) {
     int32x4_t d2_vec = vdupq_n_s32(0);
     simsimd_size_t i = 0;
-    for (; i + 7 < n; i += 8) {
+    for (; i + 8 <= n; i += 8) {
         int8x8_t a_vec = vld1_s8(a + i);
         int8x8_t b_vec = vld1_s8(b + i);
         int16x8_t a_vec16 = vmovl_s8(a_vec);
@@ -345,7 +345,7 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_neon(simsimd_i8_t const* a, simsimd_i8_t cons
     //     b2_vec = vaddq_s32(b2_vec, vaddq_s32(vmovl_s16(vget_high_s16(b2_part_vec)), //
     //                                          vmovl_s16(vget_low_s16(b2_part_vec))));
     // }
-    for (; i + 15 < n; i += 16) {
+    for (; i + 16 <= n; i += 16) {
         int8x16_t a_vec = vld1q_s8(a + i);
         int8x16_t b_vec = vld1q_s8(b + i);
         ab_vec = vdotq_s32(ab_vec, a_vec, b_vec);
