@@ -928,7 +928,7 @@ SIMSIMD_PUBLIC void simsimd_dot_f16c(simsimd_f16_t const* a, simsimd_f16_t const
     simsimd_dot_f16c_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_HASWELL
     simsimd_dot_f16c_haswell(a, b, n, d);
-#elif SIMSIMD_TARGET_sapphire
+#elif SIMSIMD_TARGET_SAPPHIRE
     simsimd_dot_f16c_sapphire(a, b, n, d);
 #else
     simsimd_dot_f16c_serial(a, b, n, d);
@@ -974,7 +974,7 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c(simsimd_f16_t const* a, simsimd_f16_t cons
     simsimd_vdot_f16c_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_HASWELL
     simsimd_vdot_f16c_haswell(a, b, n, d);
-#elif SIMSIMD_TARGET_sapphire
+#elif SIMSIMD_TARGET_SAPPHIRE
     simsimd_vdot_f16c_sapphire(a, b, n, d);
 #else
     simsimd_vdot_f16c_serial(a, b, n, d);
@@ -1098,7 +1098,7 @@ SIMSIMD_PUBLIC void simsimd_l2sq_f16(simsimd_f16_t const* a, simsimd_f16_t const
     simsimd_l2sq_f16_sve(a, b, n, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_l2sq_f16_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_sapphire
+#elif SIMSIMD_TARGET_SAPPHIRE
     simsimd_l2sq_f16_sapphire(a, b, n, d);
 #elif SIMSIMD_TARGET_HASWELL
     simsimd_l2sq_f16_haswell(a, b, n, d);
