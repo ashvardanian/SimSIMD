@@ -1138,7 +1138,7 @@ simsimd_cos_f16_sapphire_cycle:
     __m128 rsqrts = _mm_rsqrt14_ps(_mm_set_ps(0.f, 0.f, a2 + 1.e-9f, b2 + 1.e-9f));
     simsimd_f32_t rsqrt_a2 = _mm_cvtss_f32(rsqrts);
     simsimd_f32_t rsqrt_b2 = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
-    *result = 1 - ab * rsqrt_a2 * rsqrt_b2;
+    *result = ab != 0 ? 1 - ab * rsqrt_a2 * rsqrt_b2 : 0;
 }
 
 #pragma clang attribute pop
