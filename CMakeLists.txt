@@ -26,7 +26,7 @@ endif ()
 option(SIMSIMD_BUILD_SHARED "Compile a dynamic library" ${SIMSIMD_IS_MAIN_PROJECT})
 option(SIMSIMD_BUILD_TESTS "Small compilation tests compile-time and run-time dispatch" OFF)
 option(SIMSIMD_BUILD_BENCHMARKS "Compile micro-benchmarks for current ISA" OFF)
-option(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS "Include BLAS in micro-kernel benchmarks" ON)
+option(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS "Include BLAS in micro-kernel benchmarks" OFF)
 
 # Default to Release build type if not set
 if (NOT CMAKE_BUILD_TYPE)
@@ -53,9 +53,24 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
 endif ()
 
 include(CheckCSourceCompiles)
-# Check for __bf16 support
+
+# Check for `__fp16` support
 check_c_source_compiles(
-  [=[
+    [=[
+int
+main(int argc, char *argv)
+{
+  __fp16 a = 1.0;
+  __fp16 b = a + a;
+  return 0;
+}
+]=]
+    SIMSIMD_CAN_COMPILE_F16
+)
+
+# Check for `__bf16` support
+check_c_source_compiles(
+    [=[
 int
 main(int argc, char *argv)
 {
@@ -64,11 +79,13 @@ main(int argc, char *argv)
   return 0;
 }
 ]=]
-  HAS_BFLOAT16)
+    SIMSIMD_CAN_COMPILE_BF16
+)
 
-if(HAS_BFLOAT16)
-  add_compile_definitions( HAS_BFLOAT16 )
-endif()
+if (SIMSIMD_CAN_COMPILE_BF16)
+    add_compile_definitions(SIMSIMD_CAN_COMPILE_F16)
+    add_compile_definitions(SIMSIMD_CAN_COMPILE_BF16)
+endif ()
 
 # Define the header-only library
 file(GLOB SIMSIMD_SOURCES include/simsimd/*.h)
