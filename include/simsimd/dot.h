@@ -1466,7 +1466,7 @@ simsimd_dot_i8_ice_cycle:
         a += 32, b += 32, n -= 32;
     }
     // Unfortunately we can't use the `_mm512_dpbusd_epi32` intrinsics here either,
-    // as it's assymetric with respect to the sign of the input arguments:
+    // as it's asymmetric with respect to the sign of the input arguments:
     //      Signed(ZeroExtend16(a.byte[4*j]) * SignExtend16(b.byte[4*j]))
     // So we have to use the `_mm512_dpwssd_epi32` intrinsics instead, upcasting
     // to 16-bit beforehand.

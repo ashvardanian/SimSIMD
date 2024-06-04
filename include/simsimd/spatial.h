@@ -998,7 +998,7 @@ simsimd_cos_i8_ice_cycle:
     }
 
     // We can't directly use the `_mm512_dpbusd_epi32` intrinsic everywhere,
-    // as it's assymetric with respect to the sign of the input arguments:
+    // as it's asymmetric with respect to the sign of the input arguments:
     //      Signed(ZeroExtend16(a.byte[4*j]) * SignExtend16(b.byte[4*j]))
     // Luckily to compute the squares, we just drop the sign bit of the second argument.
     a_abs_vec = _mm512_abs_epi8(a_vec);
