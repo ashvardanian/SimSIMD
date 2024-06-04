@@ -1020,12 +1020,14 @@ simsimd_l2sq_bf16_genoa_cycle:
     // for top and bottom halves.
     a_f32_bot_vec =
         _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_castsi512_si256(a_i16_vec)), 16));
-    a_f32_top_vec =
-        _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_extracti32x8_epi32(a_i16_vec, 1)), 16));
     b_f32_bot_vec =
         _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_castsi512_si256(b_i16_vec)), 16));
+
+    // Some compilers don't have `_mm512_extracti32x8_epi32`, so we need to use `_mm512_extracti64x4_epi64`
+    a_f32_top_vec =
+        _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_extracti64x4_epi64(a_i16_vec, 1)), 16));
     b_f32_top_vec =
-        _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_extracti32x8_epi32(b_i16_vec, 1)), 16));
+        _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_extracti64x4_epi64(b_i16_vec, 1)), 16));
 
     // Subtract and cast back
     d_top_vec = _mm512_sub_ps(a_f32_top_vec, b_f32_top_vec);
