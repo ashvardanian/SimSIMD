@@ -91,6 +91,8 @@ SIMSIMD_PUBLIC void simsimd_l2sq_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t 
 SIMSIMD_PUBLIC void simsimd_cos_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t*);
 SIMSIMD_PUBLIC void simsimd_l2sq_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t*);
 SIMSIMD_PUBLIC void simsimd_cos_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t*);
+SIMSIMD_PUBLIC void simsimd_l2sq_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t*);
+SIMSIMD_PUBLIC void simsimd_cos_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t*);
 
 /*  SIMD-powered backends for AVX512 CPUs of Skylake generation and newer, using 32-bit arithmetic over 512-bit words.
  *  Skylake was launched in 2015, and discontinued in 2019. Skylake had support for F, CD, VL, DQ, and BW extensions,
@@ -107,6 +109,8 @@ SIMSIMD_PUBLIC void simsimd_cos_f64_skylake(simsimd_f64_t const* a, simsimd_f64_
  */
 SIMSIMD_PUBLIC void simsimd_l2sq_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t*);
 SIMSIMD_PUBLIC void simsimd_cos_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t*);
+SIMSIMD_PUBLIC void simsimd_l2sq_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t*);
+SIMSIMD_PUBLIC void simsimd_cos_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t*);
 SIMSIMD_PUBLIC void simsimd_l2sq_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t*);
 SIMSIMD_PUBLIC void simsimd_cos_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t*);
 
@@ -633,6 +637,113 @@ SIMSIMD_PUBLIC void simsimd_cos_f16_haswell(simsimd_f16_t const* a, simsimd_f16_
     *result = ab != 0 ? _mm_cvtss_f32(result_vec) : 1;            // Extract the final result
 }
 
+SIMSIMD_PUBLIC void simsimd_l2sq_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
+                                              simsimd_distance_t* result) {
+    __m256 d2_vec = _mm256_setzero_ps();
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        // Upcasting from `bf16` to `f32` is done by shifting the `bf16` values by 16 bits to the left, like:
+        // x = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(x), 16))
+        __m256 a_vec =
+            _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(_mm_loadu_si128((__m128i const*)(a + i))), 16));
+        __m256 b_vec =
+            _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(_mm_loadu_si128((__m128i const*)(b + i))), 16));
+        __m256 d_vec = _mm256_sub_ps(a_vec, b_vec);
+        d2_vec = _mm256_fmadd_ps(d_vec, d_vec, d2_vec);
+    }
+
+    // In case the software emulation for `bf16` scalars is enabled, the `simsimd_uncompress_bf16`
+    // function will run. It is extremely slow, so even for the tail, let's combine serial
+    // loads and stores with vectorized math.
+    if (i < n) {
+        union {
+            __m128i bf16_vec;
+            simsimd_bf16_t bf16[8];
+        } a_padded_tail, b_padded_tail;
+        simsimd_size_t j = 0;
+        for (; i < n; ++i, ++j)
+            a_padded_tail.bf16[j] = a[i], b_padded_tail.bf16[j] = b[i];
+        for (; j < 8; ++j)
+            a_padded_tail.bf16[j] = 0, b_padded_tail.bf16[j] = 0;
+        __m256 a_vec = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(a_padded_tail.bf16_vec), 16));
+        __m256 b_vec = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(b_padded_tail.bf16_vec), 16));
+        __m256 d_vec = _mm256_sub_ps(a_vec, b_vec);
+        d2_vec = _mm256_fmadd_ps(d_vec, d_vec, d2_vec);
+    }
+
+    d2_vec = _mm256_add_ps(_mm256_permute2f128_ps(d2_vec, d2_vec, 1), d2_vec);
+    d2_vec = _mm256_hadd_ps(d2_vec, d2_vec);
+    d2_vec = _mm256_hadd_ps(d2_vec, d2_vec);
+
+    simsimd_f32_t f32_result;
+    _mm_store_ss(&f32_result, _mm256_castps256_ps128(d2_vec));
+    *result = f32_result;
+}
+
+SIMSIMD_PUBLIC void simsimd_cos_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
+                                             simsimd_distance_t* result) {
+
+    __m256 ab_vec = _mm256_setzero_ps(), a2_vec = _mm256_setzero_ps(), b2_vec = _mm256_setzero_ps();
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        // Upcasting from `bf16` to `f32` is done by shifting the `bf16` values by 16 bits to the left, like:
+        // x = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(x), 16))
+        __m256 a_vec =
+            _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(_mm_loadu_si128((__m128i const*)(a + i))), 16));
+        __m256 b_vec =
+            _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(_mm_loadu_si128((__m128i const*)(b + i))), 16));
+        ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
+        a2_vec = _mm256_fmadd_ps(a_vec, a_vec, a2_vec);
+        b2_vec = _mm256_fmadd_ps(b_vec, b_vec, b2_vec);
+    }
+
+    // In case the software emulation for `bf16` scalars is enabled, the `simsimd_uncompress_bf16`
+    // function will run. It is extremely slow, so even for the tail, let's combine serial
+    // loads and stores with vectorized math.
+    if (i < n) {
+        union {
+            __m128i bf16_vec;
+            simsimd_bf16_t bf16[8];
+        } a_padded_tail, b_padded_tail;
+        simsimd_size_t j = 0;
+        for (; i < n; ++i, ++j)
+            a_padded_tail.bf16[j] = a[i], b_padded_tail.bf16[j] = b[i];
+        for (; j < 8; ++j)
+            a_padded_tail.bf16[j] = 0, b_padded_tail.bf16[j] = 0;
+        __m256 a_vec = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(a_padded_tail.bf16_vec), 16));
+        __m256 b_vec = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(b_padded_tail.bf16_vec), 16));
+        ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
+        a2_vec = _mm256_fmadd_ps(a_vec, a_vec, a2_vec);
+        b2_vec = _mm256_fmadd_ps(b_vec, b_vec, b2_vec);
+    }
+
+    // Horizontal reductions:
+    ab_vec = _mm256_add_ps(_mm256_permute2f128_ps(ab_vec, ab_vec, 1), ab_vec);
+    ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
+    ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
+
+    a2_vec = _mm256_add_ps(_mm256_permute2f128_ps(a2_vec, a2_vec, 1), a2_vec);
+    a2_vec = _mm256_hadd_ps(a2_vec, a2_vec);
+    a2_vec = _mm256_hadd_ps(a2_vec, a2_vec);
+
+    b2_vec = _mm256_add_ps(_mm256_permute2f128_ps(b2_vec, b2_vec, 1), b2_vec);
+    b2_vec = _mm256_hadd_ps(b2_vec, b2_vec);
+    b2_vec = _mm256_hadd_ps(b2_vec, b2_vec);
+
+    simsimd_f32_t ab, a2, b2;
+    _mm_store_ss(&ab, _mm256_castps256_ps128(ab_vec));
+    _mm_store_ss(&a2, _mm256_castps256_ps128(a2_vec));
+    _mm_store_ss(&b2, _mm256_castps256_ps128(b2_vec));
+
+    // Replace simsimd_approximate_inverse_square_root with `rsqrtss`
+    __m128 a2_sqrt_recip = _mm_rsqrt_ss(_mm_set_ss((float)a2));
+    __m128 b2_sqrt_recip = _mm_rsqrt_ss(_mm_set_ss((float)b2));
+    __m128 result_vec = _mm_mul_ss(a2_sqrt_recip, b2_sqrt_recip); // Multiply the reciprocal square roots
+    result_vec = _mm_mul_ss(result_vec, _mm_set_ss((float)ab));   // Multiply by ab
+    result_vec = _mm_sub_ss(_mm_set_ss(1.0f), result_vec);        // Subtract from 1
+    *result = ab != 0 ? _mm_cvtss_f32(result_vec) : 1;            // Extract the final result
+}
+
 SIMSIMD_PUBLIC void simsimd_l2sq_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                             simsimd_distance_t* result) {
 
@@ -878,6 +989,93 @@ simsimd_cos_f64_skylake_cycle:
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SKYLAKE
+
+#if SIMSIMD_TARGET_GENOA
+#pragma GCC push_options
+#pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
+#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512bf16"))), apply_to = function)
+
+SIMSIMD_PUBLIC void simsimd_l2sq_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
+                                            simsimd_distance_t* result) {
+    __m512 d2_top_vec = _mm512_setzero_ps(), d2_bot_vec = _mm512_setzero_ps();
+    __m512 d_top_vec = _mm512_setzero_ps(), d_bot_vec = _mm512_setzero_ps();
+    __m512 a_f32_top_vec, a_f32_bot_vec, b_f32_top_vec, b_f32_bot_vec;
+    __m512i a_i16_vec, b_i16_vec;
+
+simsimd_l2sq_bf16_genoa_cycle:
+    if (n < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_i16_vec = _mm512_maskz_loadu_epi16(mask, a);
+        b_i16_vec = _mm512_maskz_loadu_epi16(mask, b);
+        n = 0;
+    } else {
+        a_i16_vec = _mm512_loadu_epi16(a);
+        b_i16_vec = _mm512_loadu_epi16(b);
+        a += 32, b += 32, n -= 32;
+    }
+    // Let's perform the subtraction with single-precision, while the dot-product with half-precision.
+    // For that we need to perform a couple of casts - each is a bitshift. To convert `bf16` to `f32`,
+    // expand it to 32-bit integers, then shift the bits by 16 to the left. Then subtract as floats,
+    // and shift back. During expansion, we will double the space, and should use separate registers
+    // for top and bottom halves.
+    a_f32_bot_vec =
+        _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_castsi512_si256(a_i16_vec)), 16));
+    a_f32_top_vec =
+        _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_extracti32x8_epi32(a_i16_vec, 1)), 16));
+    b_f32_bot_vec =
+        _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_castsi512_si256(b_i16_vec)), 16));
+    b_f32_top_vec =
+        _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_extracti32x8_epi32(b_i16_vec, 1)), 16));
+
+    // Subtract and square
+    d_top_vec = _mm512_sub_ps(a_f32_top_vec, b_f32_top_vec);
+    d_bot_vec = _mm512_sub_ps(a_f32_bot_vec, b_f32_bot_vec);
+    d2_top_vec = _mm512_dpbf16_ps(d2_top_vec, (__m512bh)(d_top_vec), (__m512bh)(d_top_vec));
+    d2_bot_vec = _mm512_dpbf16_ps(d2_bot_vec, (__m512bh)(d_bot_vec), (__m512bh)(d_bot_vec));
+    if (n)
+        goto simsimd_l2sq_bf16_genoa_cycle;
+
+    *result = _mm512_reduce_add_ps(d2_top_vec) + _mm512_reduce_add_ps(d2_bot_vec);
+}
+
+SIMSIMD_PUBLIC void simsimd_cos_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
+                                           simsimd_distance_t* result) {
+    __m512 ab_vec = _mm512_setzero_ps();
+    __m512 a2_vec = _mm512_setzero_ps();
+    __m512 b2_vec = _mm512_setzero_ps();
+    __m512i a_i16_vec, b_i16_vec;
+
+simsimd_cos_bf16_genoa_cycle:
+    if (n < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_i16_vec = _mm512_maskz_loadu_epi16(mask, a);
+        b_i16_vec = _mm512_maskz_loadu_epi16(mask, b);
+        n = 0;
+    } else {
+        a_i16_vec = _mm512_loadu_epi16(a);
+        b_i16_vec = _mm512_loadu_epi16(b);
+        a += 32, b += 32, n -= 32;
+    }
+    ab_vec = _mm512_dpbf16_ps(ab_vec, (__m512bh)(a_i16_vec), (__m512bh)(b_i16_vec));
+    a2_vec = _mm512_dpbf16_ps(a2_vec, (__m512bh)(a_i16_vec), (__m512bh)(a_i16_vec));
+    b2_vec = _mm512_dpbf16_ps(b2_vec, (__m512bh)(b_i16_vec), (__m512bh)(b_i16_vec));
+    if (n)
+        goto simsimd_cos_bf16_genoa_cycle;
+
+    simsimd_f32_t ab = _mm512_reduce_add_ps(ab_vec);
+    simsimd_f32_t a2 = _mm512_reduce_add_ps(a2_vec);
+    simsimd_f32_t b2 = _mm512_reduce_add_ps(b2_vec);
+
+    // Compute the reciprocal square roots of a2 and b2
+    __m128 rsqrts = _mm_rsqrt14_ps(_mm_set_ps(0.f, 0.f, a2 + 1.e-9f, b2 + 1.e-9f));
+    simsimd_f32_t rsqrt_a2 = _mm_cvtss_f32(rsqrts);
+    simsimd_f32_t rsqrt_b2 = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
+    *result = ab != 0 ? 1 - ab * rsqrt_a2 * rsqrt_b2 : 0;
+}
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_GENOA
 
 #if SIMSIMD_TARGET_SAPPHIRE
 #pragma GCC push_options

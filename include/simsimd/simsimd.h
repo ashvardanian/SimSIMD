@@ -417,7 +417,24 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 
     // Brain floating-point vectors
     case simsimd_datatype_bf16_k:
-
+#if SIMSIMD_TARGET_HASWELL
+        if (viable & simsimd_cap_haswell_k)
+            switch (kind) {
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16_haswell, *c = simsimd_cap_haswell_k; return;
+            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_bf16_haswell, *c = simsimd_cap_haswell_k; return;
+            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_bf16_haswell, *c = simsimd_cap_haswell_k; return;
+            default: break;
+            }
+#endif
+#if SIMSIMD_TARGET_GENOA
+        if (viable & simsimd_cap_genoa_k)
+            switch (kind) {
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16_genoa, *c = simsimd_cap_genoa_k; return;
+            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_bf16_genoa, *c = simsimd_cap_genoa_k; return;
+            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_bf16_genoa, *c = simsimd_cap_genoa_k; return;
+            default: break;
+            }
+#endif
         if (viable & simsimd_cap_serial_k)
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16_serial, *c = simsimd_cap_serial_k; return;
@@ -631,6 +648,15 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 
         break;
     case simsimd_datatype_bf16c_k:
+
+#if SIMSIMD_TARGET_GENOA
+        if (viable & simsimd_cap_genoa_k)
+            switch (kind) {
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16c_genoa, *c = simsimd_cap_genoa_k; return;
+            case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_bf16c_genoa, *c = simsimd_cap_genoa_k; return;
+            default: break;
+            }
+#endif
 
         if (viable & simsimd_cap_serial_k)
             switch (kind) {
@@ -863,7 +889,13 @@ SIMSIMD_PUBLIC void simsimd_dot_f16(simsimd_f16_t const* a, simsimd_f16_t const*
 
 SIMSIMD_PUBLIC void simsimd_dot_bf16(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                      simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_GENOA
+    simsimd_dot_bf16_genoa(a, b, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_dot_bf16_haswell(a, b, n, d);
+#else
     simsimd_dot_bf16_serial(a, b, n, d);
+#endif
 }
 
 SIMSIMD_PUBLIC void simsimd_dot_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
@@ -904,7 +936,11 @@ SIMSIMD_PUBLIC void simsimd_dot_f16c(simsimd_f16_t const* a, simsimd_f16_t const
 }
 SIMSIMD_PUBLIC void simsimd_dot_bf16c(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                       simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_GENOA
+    simsimd_dot_bf16c_genoa(a, b, n, d);
+#else
     simsimd_dot_bf16c_serial(a, b, n, d);
+#endif
 }
 SIMSIMD_PUBLIC void simsimd_dot_f32c(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                      simsimd_distance_t* d) {
@@ -1026,7 +1062,13 @@ SIMSIMD_PUBLIC void simsimd_cos_f16(simsimd_f16_t const* a, simsimd_f16_t const*
 }
 SIMSIMD_PUBLIC void simsimd_cos_bf16(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                      simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_GENOA
+    simsimd_cos_bf16_genoa(a, b, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_cos_bf16_haswell(a, b, n, d);
+#else
     simsimd_cos_bf16_serial(a, b, n, d);
+#endif
 }
 SIMSIMD_PUBLIC void simsimd_cos_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                     simsimd_distance_t* d) {
@@ -1066,7 +1108,13 @@ SIMSIMD_PUBLIC void simsimd_l2sq_f16(simsimd_f16_t const* a, simsimd_f16_t const
 }
 SIMSIMD_PUBLIC void simsimd_l2sq_bf16(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                       simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_GENOA
+    simsimd_l2sq_bf16_genoa(a, b, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_l2sq_bf16_haswell(a, b, n, d);
+#else
     simsimd_l2sq_bf16_serial(a, b, n, d);
+#endif
 }
 SIMSIMD_PUBLIC void simsimd_l2sq_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                      simsimd_distance_t* d) {

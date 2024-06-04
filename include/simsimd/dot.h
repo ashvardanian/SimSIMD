@@ -122,6 +122,8 @@ SIMSIMD_PUBLIC void simsimd_vdot_f64c_skylake(simsimd_f64_t const* a, simsimd_f6
 SIMSIMD_PUBLIC void simsimd_dot_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t*);
 
 SIMSIMD_PUBLIC void simsimd_dot_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_bf16c_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_vdot_bf16c_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 SIMSIMD_PUBLIC void simsimd_dot_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
@@ -1095,17 +1097,17 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t c
     *result = ab;
 }
 
-SIMSIMD_INTERNAL __m256 simsimd_mm256_cvtpbh_ps(__m128i vec) {
-    return _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(vec), 16));
-}
-
 SIMSIMD_PUBLIC void simsimd_dot_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                              simsimd_distance_t* result) {
     __m256 ab_vec = _mm256_setzero_ps();
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        __m256 a_vec = simsimd_mm256_cvtpbh_ps(_mm_loadu_si128((__m128i const*)(a + i)));
-        __m256 b_vec = simsimd_mm256_cvtpbh_ps(_mm_loadu_si128((__m128i const*)(b + i)));
+        // Upcasting from `bf16` to `f32` is done by shifting the `bf16` values by 16 bits to the left, like:
+        // x = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(x), 16))
+        __m256 a_vec =
+            _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(_mm_loadu_si128((__m128i const*)(a + i))), 16));
+        __m256 b_vec =
+            _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(_mm_loadu_si128((__m128i const*)(b + i))), 16));
         ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
     }
 
@@ -1122,8 +1124,8 @@ SIMSIMD_PUBLIC void simsimd_dot_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf
             a_padded_tail.bf16[j] = a[i], b_padded_tail.bf16[j] = b[i];
         for (; j < 8; ++j)
             a_padded_tail.bf16[j] = 0, b_padded_tail.bf16[j] = 0;
-        __m256 a_vec = simsimd_mm256_cvtpbh_ps(a_padded_tail.bf16_vec);
-        __m256 b_vec = simsimd_mm256_cvtpbh_ps(b_padded_tail.bf16_vec);
+        __m256 a_vec = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(a_padded_tail.bf16_vec), 16));
+        __m256 b_vec = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(b_padded_tail.bf16_vec), 16));
         ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
     }
 
@@ -1370,6 +1372,125 @@ simsimd_vdot_f64c_skylake_cycle:
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SKYLAKE
+
+#if SIMSIMD_TARGET_GENOA
+#pragma GCC push_options
+#pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
+#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512bf16"))), apply_to = function)
+
+SIMSIMD_PUBLIC void simsimd_dot_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
+                                           simsimd_distance_t* result) {
+    __m512 ab_vec = _mm512_setzero_ps();
+    __m512i a_i16_vec, b_i16_vec;
+
+simsimd_dot_bf16_genoa_cycle:
+    if (n < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_i16_vec = _mm512_maskz_loadu_epi16(mask, a);
+        b_i16_vec = _mm512_maskz_loadu_epi16(mask, b);
+        n = 0;
+    } else {
+        a_i16_vec = _mm512_loadu_epi16(a);
+        b_i16_vec = _mm512_loadu_epi16(b);
+        a += 32, b += 32, n -= 32;
+    }
+    ab_vec = _mm512_dpbf16_ps(ab_vec, (__m512bh)(a_i16_vec), (__m512bh)(b_i16_vec));
+    if (n)
+        goto simsimd_dot_bf16_genoa_cycle;
+
+    *result = _mm512_reduce_add_ps(ab_vec);
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_bf16c_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
+                                            simsimd_distance_t* results) {
+
+    __m512 ab_real_vec = _mm512_setzero_ps();
+    __m512 ab_imag_vec = _mm512_setzero_ps();
+    __m512i a_vec;
+    __m512i b_vec;
+
+    // We take into account, that FMS is the same as FMA with a negative multiplier.
+    // To multiply a floating-point value by -1, we can use the `XOR` instruction to flip the sign bit.
+    // This way we can avoid the shuffling and the need for separate real and imaginary parts.
+    // For the imaginary part of the product, we would need to swap the real and imaginary parts of
+    // one of the vectors.
+    __m512i sign_flip_vec = _mm512_set1_epi32(0x80000000);
+    __m512i swap_adjacent_vec = _mm512_set_epi8(                        //
+        61, 60, 63, 62, 57, 56, 59, 58, 53, 52, 55, 54, 49, 48, 51, 50, // 4th 128-bit lane
+        45, 44, 47, 46, 41, 40, 43, 42, 37, 36, 39, 38, 33, 32, 35, 34, // 3rd 128-bit lane
+        29, 28, 31, 30, 25, 24, 27, 26, 21, 20, 23, 22, 17, 16, 19, 18, // 2nd 128-bit lane
+        13, 12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2            // 1st 128-bit lane
+    );
+
+simsimd_dot_bf16c_genoa_cycle:
+    if (n < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_epi16(mask, a);
+        b_vec = _mm512_maskz_loadu_epi16(mask, b);
+        n = 0;
+    } else {
+        a_vec = _mm512_loadu_epi16(a);
+        b_vec = _mm512_loadu_epi16(b);
+        a += 32, b += 32, n -= 32;
+    }
+    ab_real_vec = _mm512_dpbf16_ps(ab_real_vec, (__m512bh)(_mm512_xor_si512(b_vec, sign_flip_vec)), (__m512bh)(a_vec));
+    ab_imag_vec =
+        _mm512_dpbf16_ps(ab_imag_vec, (__m512bh)(_mm512_shuffle_epi8(b_vec, swap_adjacent_vec)), (__m512bh)(a_vec));
+    if (n)
+        goto simsimd_dot_bf16c_genoa_cycle;
+
+    // Reduce horizontal sums:
+    results[0] = _mm512_reduce_add_ps(ab_real_vec);
+    results[1] = _mm512_reduce_add_ps(ab_imag_vec);
+}
+
+SIMSIMD_PUBLIC void simsimd_vdot_bf16c_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
+                                             simsimd_distance_t* results) {
+
+    __m512 ab_real_vec = _mm512_setzero_ps();
+    __m512 ab_imag_vec = _mm512_setzero_ps();
+    __m512i a_vec;
+    __m512i b_vec;
+
+    // We take into account, that FMS is the same as FMA with a negative multiplier.
+    // To multiply a floating-point value by -1, we can use the `XOR` instruction to flip the sign bit.
+    // This way we can avoid the shuffling and the need for separate real and imaginary parts.
+    // For the imaginary part of the product, we would need to swap the real and imaginary parts of
+    // one of the vectors.
+    __m512i sign_flip_vec = _mm512_set1_epi32(0x80000000);
+    __m512i swap_adjacent_vec = _mm512_set_epi8(                        //
+        61, 60, 63, 62, 57, 56, 59, 58, 53, 52, 55, 54, 49, 48, 51, 50, // 4th 128-bit lane
+        45, 44, 47, 46, 41, 40, 43, 42, 37, 36, 39, 38, 33, 32, 35, 34, // 3rd 128-bit lane
+        29, 28, 31, 30, 25, 24, 27, 26, 21, 20, 23, 22, 17, 16, 19, 18, // 2nd 128-bit lane
+        13, 12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2            // 1st 128-bit lane
+    );
+
+simsimd_dot_bf16c_genoa_cycle:
+    if (n < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_epi16(mask, a);
+        b_vec = _mm512_maskz_loadu_epi16(mask, b);
+        n = 0;
+    } else {
+        a_vec = _mm512_loadu_epi16(a);
+        b_vec = _mm512_loadu_epi16(b);
+        a += 32, b += 32, n -= 32;
+    }
+    ab_real_vec = _mm512_dpbf16_ps(ab_real_vec, (__m512bh)(a_vec), (__m512bh)(b_vec));
+    a_vec = _mm512_xor_si512(a_vec, sign_flip_vec);
+    b_vec = _mm512_shuffle_epi8(b_vec, swap_adjacent_vec);
+    ab_imag_vec = _mm512_dpbf16_ps(ab_imag_vec, (__m512bh)(a_vec), (__m512bh)(b_vec));
+    if (n)
+        goto simsimd_dot_bf16c_genoa_cycle;
+
+    // Reduce horizontal sums:
+    results[0] = _mm512_reduce_add_ps(ab_real_vec);
+    results[1] = _mm512_reduce_add_ps(ab_imag_vec);
+}
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_GENOA
 
 #if SIMSIMD_TARGET_SAPPHIRE
 #pragma GCC push_options
