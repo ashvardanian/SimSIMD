@@ -96,6 +96,7 @@ typedef enum {
     simsimd_cap_skylake_k = 1 << 21,  ///< x86 AVX512 baseline capability
     simsimd_cap_ice_k = 1 << 22,      ///< x86 AVX512 capability with advanced integer algos
     simsimd_cap_sapphire_k = 1 << 23, ///< x86 AVX512 capability with `f16` support
+    simsimd_cap_genoa_k = 1 << 24,    ///< x86 AVX512 capability with `bf16` support
 
 } simsimd_capability_t;
 
@@ -153,11 +154,12 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
         struct separate_t {
             unsigned eax, ebx, ecx, edx;
         } named;
-    } info1, info7;
+    } info1, info7, info7sub1;
 
 #ifdef _MSC_VER
     __cpuidex(info1.array, 1, 0);
     __cpuidex(info7.array, 7, 0);
+    __cpuidex(info7sub1.array, 7, 1);
 #else
     __asm__ __volatile__("cpuid"
                          : "=a"(info1.named.eax), "=b"(info1.named.ebx), "=c"(info1.named.ecx), "=d"(info1.named.edx)
@@ -165,6 +167,10 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
     __asm__ __volatile__("cpuid"
                          : "=a"(info7.named.eax), "=b"(info7.named.ebx), "=c"(info7.named.ecx), "=d"(info7.named.edx)
                          : "a"(7), "c"(0));
+    __asm__ __volatile__("cpuid"
+                         : "=a"(info7sub1.named.eax), "=b"(info7sub1.named.ebx), "=c"(info7sub1.named.ecx),
+                           "=d"(info7sub1.named.edx)
+                         : "a"(7), "c"(1));
 #endif
 
     // Check for AVX2 (Function ID 7, EBX register)
@@ -190,20 +196,23 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
     unsigned supports_avx512vbmi2 = (info7.named.ecx & 0x00000040) != 0;
     // Check for AVX512VPOPCNTDQ (Function ID 7, ECX register)
     unsigned supports_avx512vpopcntdq = (info7.named.ecx & 0x00004000) != 0;
-    // Check for AVX512_BF16 (Function ID 7, EAX.5 )
-    unsigned supports_avx512_bf16 = (info7.named.eax & 0x00000020) != 0;
+    // Check for AVX512BF16 (Function ID 7, Sub-leaf 1, EAX register)
+    // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L205
+    unsigned supports_avx512bf16 = (info7sub1.named.eax & 0x00000020) != 0;
 
     // Convert specific features into CPU generations
     unsigned supports_haswell = supports_avx2 && supports_f16c && supports_fma;
     unsigned supports_skylake = supports_avx512f;
     unsigned supports_ice = supports_avx512vnni && supports_avx512ifma && supports_avx512bitalg &&
                             supports_avx512vbmi2 && supports_avx512vpopcntdq;
+    unsigned supports_genoa = supports_avx512bf16;
     unsigned supports_sapphire = supports_avx512fp16;
 
     return (simsimd_capability_t)(                     //
         (simsimd_cap_haswell_k * supports_haswell) |   //
         (simsimd_cap_skylake_k * supports_skylake) |   //
         (simsimd_cap_ice_k * supports_ice) |           //
+        (simsimd_cap_genoa_k * supports_genoa) |       //
         (simsimd_cap_sapphire_k * supports_sapphire) | //
         (simsimd_cap_serial_k));
 
