@@ -482,17 +482,17 @@ simsimd_js_f32_skylake_cycle:
 
 inline __m512h simsimd_log2_f16_sapphire(__m512h x) {
     // Extract the exponent and mantissa
-    __m512h one = _mm512_set1_ph((_Float16)1);
+    __m512h one = _mm512_set1_ph((simsimd_f16_t)1);
     __m512h e = _mm512_getexp_ph(x);
     __m512h m = _mm512_getmant_ph(x, _MM_MANT_NORM_1_2, _MM_MANT_SIGN_src);
 
     // Compute the polynomial using Horner's method
-    __m512h p = _mm512_set1_ph((_Float16)-3.4436006e-2f);
-    p = _mm512_fmadd_ph(m, p, _mm512_set1_ph((_Float16)3.1821337e-1f));
-    p = _mm512_fmadd_ph(m, p, _mm512_set1_ph((_Float16)-1.2315303f));
-    p = _mm512_fmadd_ph(m, p, _mm512_set1_ph((_Float16)2.5988452f));
-    p = _mm512_fmadd_ph(m, p, _mm512_set1_ph((_Float16)-3.3241990f));
-    p = _mm512_fmadd_ph(m, p, _mm512_set1_ph((_Float16)3.1157899f));
+    __m512h p = _mm512_set1_ph((simsimd_f16_t)-3.4436006e-2f);
+    p = _mm512_fmadd_ph(m, p, _mm512_set1_ph((simsimd_f16_t)3.1821337e-1f));
+    p = _mm512_fmadd_ph(m, p, _mm512_set1_ph((simsimd_f16_t)-1.2315303f));
+    p = _mm512_fmadd_ph(m, p, _mm512_set1_ph((simsimd_f16_t)2.5988452f));
+    p = _mm512_fmadd_ph(m, p, _mm512_set1_ph((simsimd_f16_t)-3.3241990f));
+    p = _mm512_fmadd_ph(m, p, _mm512_set1_ph((simsimd_f16_t)3.1157899f));
 
     return _mm512_add_ph(_mm512_mul_ph(p, _mm512_sub_ph(m, one)), e);
 }
@@ -500,7 +500,7 @@ inline __m512h simsimd_log2_f16_sapphire(__m512h x) {
 SIMSIMD_PUBLIC void simsimd_kl_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                             simsimd_distance_t* result) {
     __m512h sum_vec = _mm512_setzero_ph();
-    __m512h epsilon_vec = _mm512_set1_ph((_Float16)SIMSIMD_F16_DIVISION_EPSILON);
+    __m512h epsilon_vec = _mm512_set1_ph((simsimd_f16_t)SIMSIMD_F16_DIVISION_EPSILON);
     __m512h a_vec, b_vec;
 
 simsimd_kl_f16_sapphire_cycle:
@@ -529,7 +529,7 @@ SIMSIMD_PUBLIC void simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_
                                             simsimd_distance_t* result) {
     __m512h sum_a_vec = _mm512_setzero_ph();
     __m512h sum_b_vec = _mm512_setzero_ph();
-    __m512h epsilon_vec = _mm512_set1_ph((_Float16)SIMSIMD_F16_DIVISION_EPSILON);
+    __m512h epsilon_vec = _mm512_set1_ph((simsimd_f16_t)SIMSIMD_F16_DIVISION_EPSILON);
     __m512h a_vec, b_vec;
 
 simsimd_js_f16_sapphire_cycle:
@@ -543,7 +543,7 @@ simsimd_js_f16_sapphire_cycle:
         b_vec = _mm512_castsi512_ph(_mm512_loadu_epi16(b));
         a += 32, b += 32, n -= 32;
     }
-    __m512h m_vec = _mm512_mul_ph(_mm512_add_ph(a_vec, b_vec), _mm512_set1_ph((_Float16)0.5f));
+    __m512h m_vec = _mm512_mul_ph(_mm512_add_ph(a_vec, b_vec), _mm512_set1_ph((simsimd_f16_t)0.5f));
     __mmask32 nonzero_mask_a = _mm512_cmp_ph_mask(a_vec, epsilon_vec, _CMP_GE_OQ);
     __mmask32 nonzero_mask_b = _mm512_cmp_ph_mask(b_vec, epsilon_vec, _CMP_GE_OQ);
     __mmask32 nonzero_mask = nonzero_mask_a & nonzero_mask_b;
