@@ -1027,9 +1027,13 @@ simsimd_l2sq_bf16_genoa_cycle:
     b_f32_top_vec =
         _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_extracti32x8_epi32(b_i16_vec, 1)), 16));
 
-    // Subtract and square
+    // Subtract and cast back
     d_top_vec = _mm512_sub_ps(a_f32_top_vec, b_f32_top_vec);
     d_bot_vec = _mm512_sub_ps(a_f32_bot_vec, b_f32_bot_vec);
+    d_top_vec = _mm512_castsi512_ps(_mm512_srli_epi32(_mm512_castps_si512(d_top_vec), 16));
+    d_bot_vec = _mm512_castsi512_ps(_mm512_srli_epi32(_mm512_castps_si512(d_bot_vec), 16));
+
+    // Square and accumulate
     d2_top_vec = _mm512_dpbf16_ps(d2_top_vec, (__m512bh)(d_top_vec), (__m512bh)(d_top_vec));
     d2_bot_vec = _mm512_dpbf16_ps(d2_bot_vec, (__m512bh)(d_bot_vec), (__m512bh)(d_bot_vec));
     if (n)
