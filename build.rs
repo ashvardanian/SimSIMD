@@ -5,6 +5,7 @@ fn main() {
         .file("c/lib.c")
         .include("include")
         .define("SIMSIMD_NATIVE_F16", "0")
+        .define("SIMSIMD_NATIVE_BF16", "0")
         .define("SIMSIMD_DYNAMIC_DISPATCH", "1")
         .flag("-O3")
         .flag("-std=c99") // Enforce C99 standard

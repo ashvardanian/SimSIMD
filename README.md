@@ -612,6 +612,7 @@ To explicitly disable half-precision support, define the following macro before 
 
 ```c
 #define SIMSIMD_NATIVE_F16 0 // or 1
+#define SIMSIMD_NATIVE_BF16 0 // or 1
 #include <simsimd/simsimd.h>
 ```
 
