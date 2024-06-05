@@ -197,24 +197,40 @@ def test_inner_bf16(ndim):
     np.random.seed()
     a = np.random.randn(ndim).astype(np.float32)
     b = np.random.randn(ndim).astype(np.float32)
-    
+
     # NumPy doesn't natively support brain-float, so we need a trick!
-    # Luckily, it's very easy to reduce the representation accuracy 
+    # Luckily, it's very easy to reduce the representation accuracy
     # by simply masking the low 16-bits of our 32-bit single-precision
-    # numbers
-    a = (a.view(np.uint32) & 0xFFFF0000).view(np.float32)
-    b = (b.view(np.uint32) & 0xFFFF0000).view(np.float32)
-    
+    # numbers. We can also add `0x8000` to round the numbers.
+    a_f32rounded = ((a.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+    b_f32rounded = ((b.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+
     # To represent them as brain-floats, we need to drop the second halfs
-    a_bf16 = np.right_shift(a.view(np.uint32), 16).astype(np.uint16)
-    b_bf16 = np.right_shift(b.view(np.uint32), 16).astype(np.uint16)
-            
+    a_bf16 = np.right_shift(a_f32rounded.view(np.uint32), 16).astype(np.uint16)
+    b_bf16 = np.right_shift(b_f32rounded.view(np.uint32), 16).astype(np.uint16)
+
     # Now we can compare the results
-    expected = np.inner(a, b)
+    expected = np.inner(a_f32rounded, b_f32rounded)
     result = simd.inner(a_bf16, b_bf16, "bf16")
 
-    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
-    
+    def hex_array(arr):
+        printer = np.vectorize(hex)
+        strings = printer(arr)
+        return ", ".join(strings)
+
+    np.testing.assert_allclose(
+        expected,
+        result,
+        atol=SIMSIMD_ATOL,
+        rtol=0,
+        err_msg=f"""
+        First `f32` operand in hex:     {hex_array(a_f32rounded.view(np.uint32))}
+        Second `f32` operand in hex:    {hex_array(b_f32rounded.view(np.uint32))}
+        First `bf16` operand in hex:    {hex_array(a_bf16)}
+        Second `bf16` operand in hex:   {hex_array(b_bf16)}
+        """,
+    )
+
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
