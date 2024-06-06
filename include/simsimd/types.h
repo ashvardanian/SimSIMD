@@ -247,10 +247,11 @@ typedef unsigned short simsimd_bf16_t;
 #if SIMSIMD_TARGET_ARM
 #if defined(_MSC_VER)
 typedef simsimd_f16_t simsimd_f16_for_arm_simd_t;
+typedef simsimd_bf16_t simsimd_bf16_for_arm_simd_t;
 #else
 typedef float16_t simsimd_f16_for_arm_simd_t;
+typedef bfloat16_t simsimd_bf16_for_arm_simd_t;
 #endif
-typedef simsimd_bf16_t simsimd_bf16_for_arm_simd_t;
 #endif
 
 #define SIMSIMD_IDENTIFY(x) (x)

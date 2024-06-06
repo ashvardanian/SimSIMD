@@ -379,6 +379,36 @@ fn main() {
 }
 ```
 
+### Half-Precision Brain-Float Numbers
+
+The "brain-float-16" is a popular machine learning format.
+It's broadly supported in hardware and is very machine-friendly, but software support is still lagging behind. 
+[Unlike NumPy](https://github.com/numpy/numpy/issues/19808), you can already use `bf16` datatype in SimSIMD.
+Luckily, to downcast `f32` to `bf16` you only have to drop the last 16 bits:
+
+```py
+import numpy as np
+import simsimd as simd
+
+a = np.random.randn(ndim).astype(np.float32)
+b = np.random.randn(ndim).astype(np.float32)
+
+# NumPy doesn't natively support brain-float, so we need a trick!
+# Luckily, it's very easy to reduce the representation accuracy
+# by simply masking the low 16-bits of our 32-bit single-precision
+# numbers. We can also add `0x8000` to round the numbers.
+a_f32rounded = ((a.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+b_f32rounded = ((b.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+
+# To represent them as brain-floats, we need to drop the second halfs
+a_bf16 = np.right_shift(a_f32rounded.view(np.uint32), 16).astype(np.uint16)
+b_bf16 = np.right_shift(b_f32rounded.view(np.uint32), 16).astype(np.uint16)
+
+# Now we can compare the results
+expected = np.inner(a_f32rounded, b_f32rounded)
+result = simd.inner(a_bf16, b_bf16, "bf16")
+```
+
 ### Dynamic Dispatch
 
 SimSIMD provides a dynamic dispatch mechanism to select the most advanced micro-kernel for the current CPU.
@@ -390,6 +420,7 @@ println!("uses sve: {}", capabilties::uses_sve());
 println!("uses haswell: {}", capabilties::uses_haswell());
 println!("uses skylake: {}", capabilties::uses_skylake());
 println!("uses ice: {}", capabilties::uses_ice());
+println!("uses genoa: {}", capabilties::uses_genoa());
 println!("uses sapphire: {}", capabilties::uses_sapphire());
 ```
 

@@ -298,6 +298,97 @@ SIMSIMD_PUBLIC void simsimd_cos_f16_neon(simsimd_f16_t const* a, simsimd_f16_t c
     *result = ab != 0 ? 1 - ab * a2_b2_arr[0] * a2_b2_arr[1] : 1;
 }
 
+SIMSIMD_PUBLIC void simsimd_cos_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
+                                          simsimd_distance_t* result) {
+    float32x4_t ab_high_vec = vdupq_n_f32(0), ab_low_vec = vdupq_n_f32(0);
+    float32x4_t a2_high_vec = vdupq_n_f32(0), a2_low_vec = vdupq_n_f32(0);
+    float32x4_t b2_high_vec = vdupq_n_f32(0), b2_low_vec = vdupq_n_f32(0);
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        bfloat16x8_t a_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)a + i);
+        bfloat16x8_t b_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)b + i);
+        ab_high_vec = vbfmlaltq_f32(ab_high_vec, a_vec, b_vec);
+        ab_low_vec = vbfmlalbq_f32(ab_low_vec, a_vec, b_vec);
+        a2_high_vec = vbfmlaltq_f32(a2_high_vec, a_vec, a_vec);
+        a2_low_vec = vbfmlalbq_f32(a2_low_vec, a_vec, a_vec);
+        b2_high_vec = vbfmlaltq_f32(b2_high_vec, b_vec, b_vec);
+        b2_low_vec = vbfmlalbq_f32(b2_low_vec, b_vec, b_vec);
+    }
+
+    // In case the software emulation for `bf16` scalars is enabled, the `simsimd_uncompress_bf16`
+    // function will run. It is extremely slow, so even for the tail, let's combine serial
+    // loads and stores with vectorized math.
+    if (i < n) {
+        union {
+            bfloat16x8_t bf16_vec;
+            simsimd_bf16_t bf16[8];
+        } a_padded_tail, b_padded_tail;
+        simsimd_size_t j = 0;
+        for (; i < n; ++i, ++j)
+            a_padded_tail.bf16[j] = a[i], b_padded_tail.bf16[j] = b[i];
+        for (; j < 8; ++j)
+            a_padded_tail.bf16[j] = 0, b_padded_tail.bf16[j] = 0;
+        ab_high_vec = vbfmlaltq_f32(ab_high_vec, a_padded_tail.bf16_vec, b_padded_tail.bf16_vec);
+        ab_low_vec = vbfmlalbq_f32(ab_low_vec, a_padded_tail.bf16_vec, b_padded_tail.bf16_vec);
+        a2_high_vec = vbfmlaltq_f32(a2_high_vec, a_padded_tail.bf16_vec, a_padded_tail.bf16_vec);
+        a2_low_vec = vbfmlalbq_f32(a2_low_vec, a_padded_tail.bf16_vec, a_padded_tail.bf16_vec);
+        b2_high_vec = vbfmlaltq_f32(b2_high_vec, b_padded_tail.bf16_vec, b_padded_tail.bf16_vec);
+        b2_low_vec = vbfmlalbq_f32(b2_low_vec, b_padded_tail.bf16_vec, b_padded_tail.bf16_vec);
+    }
+
+    // Avoid `simsimd_approximate_inverse_square_root` on Arm NEON
+    simsimd_f32_t ab = vaddvq_f32(vaddq_f32(ab_high_vec, ab_low_vec)),
+                  a2 = vaddvq_f32(vaddq_f32(a2_high_vec, a2_low_vec)),
+                  b2 = vaddvq_f32(vaddq_f32(b2_high_vec, b2_low_vec));
+    simsimd_f32_t a2_b2_arr[2] = {a2, b2};
+    float32x2_t a2_b2 = vld1_f32(a2_b2_arr);
+    a2_b2 = vrsqrte_f32(a2_b2);
+    vst1_f32(a2_b2_arr, a2_b2);
+    *result = ab != 0 ? 1 - ab * a2_b2_arr[0] * a2_b2_arr[1] : 1;
+}
+
+SIMSIMD_PUBLIC void simsimd_l2sq_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
+                                           simsimd_distance_t* result) {
+    float32x4_t diff_high_vec = vdupq_n_f32(0), diff_low_vec = vdupq_n_f32(0);
+    float32x4_t sum_high_vec = vdupq_n_f32(0), sum_low_vec = vdupq_n_f32(0);
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        bfloat16x8_t a_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)a + i);
+        bfloat16x8_t b_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)b + i);
+        // We can't perform subtraction in `bf16`. One option would be to upcast to `f32`
+        // and then subtract, converting back to `bf16` for computing the squared difference.
+        diff_high_vec = vsubq_f32(vcvt_f32_bf16(vget_high_bf16(a_vec)), vcvt_f32_bf16(vget_high_bf16(b_vec)));
+        diff_low_vec = vsubq_f32(vcvt_f32_bf16(vget_low_bf16(a_vec)), vcvt_f32_bf16(vget_low_bf16(b_vec)));
+        sum_high_vec = vfmaq_f32(sum_high_vec, diff_high_vec, diff_high_vec);
+        sum_low_vec = vfmaq_f32(sum_low_vec, diff_low_vec, diff_low_vec);
+    }
+
+    // In case the software emulation for `bf16` scalars is enabled, the `simsimd_uncompress_bf16`
+    // function will run. It is extremely slow, so even for the tail, let's combine serial
+    // loads and stores with vectorized math.
+    if (i < n) {
+        union {
+            bfloat16x8_t bf16_vec;
+            simsimd_bf16_t bf16[8];
+        } a_padded_tail, b_padded_tail;
+        simsimd_size_t j = 0;
+        for (; i < n; ++i, ++j)
+            a_padded_tail.bf16[j] = a[i], b_padded_tail.bf16[j] = b[i];
+        for (; j < 8; ++j)
+            a_padded_tail.bf16[j] = 0, b_padded_tail.bf16[j] = 0;
+        diff_high_vec = vsubq_f32(vcvt_f32_bf16(vget_high_bf16(a_padded_tail.bf16_vec)),
+                                  vcvt_f32_bf16(vget_high_bf16(b_padded_tail.bf16_vec)));
+        diff_low_vec = vsubq_f32(vcvt_f32_bf16(vget_low_bf16(a_padded_tail.bf16_vec)),
+                                 vcvt_f32_bf16(vget_low_bf16(b_padded_tail.bf16_vec)));
+        sum_high_vec = vfmaq_f32(sum_high_vec, diff_high_vec, diff_high_vec);
+        sum_low_vec = vfmaq_f32(sum_low_vec, diff_low_vec, diff_low_vec);
+    }
+
+    // Avoid `simsimd_approximate_inverse_square_root` on Arm NEON
+    simsimd_f32_t sum = vaddvq_f32(vaddq_f32(sum_high_vec, sum_low_vec));
+    *result = sum;
+}
+
 #pragma clang attribute pop
 #pragma GCC pop_options
 
