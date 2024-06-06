@@ -479,7 +479,7 @@ SIMSIMD_PUBLIC void simsimd_dot_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_
         bfloat16x8_t a_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)a + i);
         bfloat16x8_t b_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)b + i);
         ab_high_vec = vbfmlaltq_f32(ab_high_vec, a_vec, b_vec);
-        ab_low_vec = vbfmlalbq_f32(ab_high_vec, a_vec, b_vec);
+        ab_low_vec = vbfmlalbq_f32(ab_low_vec, a_vec, b_vec);
     }
 
     // In case the software emulation for `bf16` scalars is enabled, the `simsimd_uncompress_bf16`
@@ -496,7 +496,7 @@ SIMSIMD_PUBLIC void simsimd_dot_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_
         for (; j < 8; ++j)
             a_padded_tail.bf16[j] = 0, b_padded_tail.bf16[j] = 0;
         ab_high_vec = vbfmlaltq_f32(ab_high_vec, a_padded_tail.bf16_vec, b_padded_tail.bf16_vec);
-        ab_low_vec = vbfmlalbq_f32(ab_high_vec, a_padded_tail.bf16_vec, b_padded_tail.bf16_vec);
+        ab_low_vec = vbfmlalbq_f32(ab_low_vec, a_padded_tail.bf16_vec, b_padded_tail.bf16_vec);
     }
     *result = vaddvq_f32(ab_high_vec) + vaddvq_f32(ab_low_vec);
 }
