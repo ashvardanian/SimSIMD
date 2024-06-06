@@ -40,6 +40,7 @@ template <> struct datatype_enum_to_type_gt<simsimd_datatype_bf16c_k> { using va
 template <simsimd_datatype_t datatype_ak, std::size_t dimensions_ak> struct vectors_pair_gt {
     using scalar_t = typename datatype_enum_to_type_gt<datatype_ak>::value_t;
     using compressed16_t = unsigned short;
+    static constexpr bool is_integral = datatype_ak == simsimd_datatype_i8_k || datatype_ak == simsimd_datatype_b8_k;
 
     scalar_t a[dimensions_ak]{};
     scalar_t b[dimensions_ak]{};
@@ -94,7 +95,7 @@ template <simsimd_datatype_t datatype_ak, std::size_t dimensions_ak> struct vect
 
         double a2_sum = 0, b2_sum = 0;
         for (std::size_t i = 0; i != dimensions_ak; ++i) {
-            if constexpr (std::is_integral<scalar_t>())
+            if constexpr (is_integral)
                 a[i] = static_cast<scalar_t>(std::rand() % std::numeric_limits<scalar_t>::max()),
                 b[i] = static_cast<scalar_t>(std::rand() % std::numeric_limits<scalar_t>::max());
             else {
@@ -105,7 +106,7 @@ template <simsimd_datatype_t datatype_ak, std::size_t dimensions_ak> struct vect
         }
 
         // Normalize the vectors:
-        if constexpr (!std::is_integral<scalar_t>()) {
+        if constexpr (!is_integral) {
             a2_sum = std::sqrt(a2_sum);
             b2_sum = std::sqrt(b2_sum);
             for (std::size_t i = 0; i != dimensions_ak; ++i)
