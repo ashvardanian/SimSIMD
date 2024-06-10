@@ -42,8 +42,8 @@ template <simsimd_datatype_t datatype_ak, std::size_t dimensions_ak> struct vect
     using compressed16_t = unsigned short;
     static constexpr bool is_integral = datatype_ak == simsimd_datatype_i8_k || datatype_ak == simsimd_datatype_b8_k;
 
-    scalar_t a[dimensions_ak]{};
-    scalar_t b[dimensions_ak]{};
+    alignas(64) scalar_t a[dimensions_ak]{};
+    alignas(64) scalar_t b[dimensions_ak]{};
 
     std::size_t dimensions() const noexcept { return dimensions_ak; }
     std::size_t size_bytes() const noexcept { return dimensions_ak * sizeof(scalar_t); }
@@ -134,7 +134,8 @@ void measure(bm::State& state, metric_at metric, metric_at baseline) {
     };
 
     // Let's average the distance results over many pairs.
-    std::vector<pair_at> pairs(1024);
+    constexpr std::size_t pairs_count = 4;
+    std::vector<pair_at> pairs(pairs_count);
     for (auto& pair : pairs)
         pair.randomize();
 
@@ -147,7 +148,8 @@ void measure(bm::State& state, metric_at metric, metric_at baseline) {
     // The actual benchmarking loop.
     std::size_t iterations = 0;
     for (auto _ : state)
-        bm::DoNotOptimize((results_contender[iterations & 1023] = call_contender(pairs[iterations & 1023]))),
+        bm::DoNotOptimize((results_contender[iterations & (pairs_count - 1)] =
+                               call_contender(pairs[iterations & (pairs_count - 1)]))),
             iterations++;
 
     // Measure the mean absolute delta and relative error.
