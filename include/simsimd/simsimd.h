@@ -505,19 +505,19 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             default: break;
             }
 #endif
-#if SIMSIMD_TARGET_HASWELL
-        if (viable & simsimd_cap_haswell_k)
-            switch (kind) {
-            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f32c_haswell, *c = simsimd_cap_haswell_k; return;
-            case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f32c_haswell, *c = simsimd_cap_haswell_k; return;
-            default: break;
-            }
-#endif
 #if SIMSIMD_TARGET_SKYLAKE
         if (viable & simsimd_cap_skylake_k)
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f32c_skylake, *c = simsimd_cap_skylake_k; return;
             case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f32c_skylake, *c = simsimd_cap_skylake_k; return;
+            default: break;
+            }
+#endif
+#if SIMSIMD_TARGET_HASWELL
+        if (viable & simsimd_cap_haswell_k)
+            switch (kind) {
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f32c_haswell, *c = simsimd_cap_haswell_k; return;
+            case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f32c_haswell, *c = simsimd_cap_haswell_k; return;
             default: break;
             }
 #endif
@@ -577,19 +577,19 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             default: break;
             }
 #endif
-#if SIMSIMD_TARGET_HASWELL
-        if (viable & simsimd_cap_haswell_k)
-            switch (kind) {
-            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16c_haswell, *c = simsimd_cap_haswell_k; return;
-            case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f16c_haswell, *c = simsimd_cap_haswell_k; return;
-            default: break;
-            }
-#endif
 #if SIMSIMD_TARGET_SAPPHIRE
         if (viable & simsimd_cap_sapphire_k)
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16c_sapphire, *c = simsimd_cap_sapphire_k; return;
             case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f16c_sapphire, *c = simsimd_cap_sapphire_k; return;
+            default: break;
+            }
+#endif
+#if SIMSIMD_TARGET_HASWELL
+        if (viable & simsimd_cap_haswell_k)
+            switch (kind) {
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16c_haswell, *c = simsimd_cap_haswell_k; return;
+            case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f16c_haswell, *c = simsimd_cap_haswell_k; return;
             default: break;
             }
 #endif
@@ -797,10 +797,10 @@ SIMSIMD_PUBLIC void simsimd_dot_f16(simsimd_f16_t const* a, simsimd_f16_t const*
     simsimd_dot_f16_sve(a, b, n, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_dot_f16_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_dot_f16_haswell(a, b, n, d);
 #elif SIMSIMD_TARGET_SAPPHIRE
     simsimd_dot_f16_sapphire(a, b, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_dot_f16_haswell(a, b, n, d);
 #else
     simsimd_dot_f16_serial(a, b, n, d);
 #endif
@@ -834,10 +834,10 @@ SIMSIMD_PUBLIC void simsimd_dot_f16c(simsimd_f16_t const* a, simsimd_f16_t const
     simsimd_dot_f16c_sve(a, b, n, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_dot_f16c_neon(a, b, n, d);
+#elif SIMSIMD_TARGET_SAPPHIRE
+    simsimd_dot_f16c_sapphire(a, b, n, d);
 #elif SIMSIMD_TARGET_HASWELL
     simsimd_dot_f16c_haswell(a, b, n, d);
-#elif SIMSIMD_TARGET_sapphire
-    simsimd_dot_f16c_sapphire(a, b, n, d);
 #else
     simsimd_dot_f16c_serial(a, b, n, d);
 #endif
@@ -848,10 +848,10 @@ SIMSIMD_PUBLIC void simsimd_dot_f32c(simsimd_f32_t const* a, simsimd_f32_t const
     simsimd_dot_f32c_sve(a, b, n, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_dot_f32c_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_dot_f32c_haswell(a, b, n, d);
 #elif SIMSIMD_TARGET_SKYLAKE
     simsimd_dot_f32c_skylake(a, b, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_dot_f32c_haswell(a, b, n, d);
 #else
     simsimd_dot_f32c_serial(a, b, n, d);
 #endif
@@ -872,10 +872,10 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c(simsimd_f16_t const* a, simsimd_f16_t cons
     simsimd_dot_f16c_sve(a, b, n, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_dot_f16c_neon(a, b, n, d);
+#elif SIMSIMD_TARGET_SAPPHIRE
+    simsimd_dot_f16c_sapphire(a, b, n, d);
 #elif SIMSIMD_TARGET_HASWELL
     simsimd_dot_f16c_haswell(a, b, n, d);
-#elif SIMSIMD_TARGET_sapphire
-    simsimd_dot_f16c_sapphire(a, b, n, d);
 #else
     simsimd_dot_f16c_serial(a, b, n, d);
 #endif
@@ -886,10 +886,10 @@ SIMSIMD_PUBLIC void simsimd_vdot_f32c(simsimd_f32_t const* a, simsimd_f32_t cons
     simsimd_dot_f32c_sve(a, b, n, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_dot_f32c_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_dot_f32c_haswell(a, b, n, d);
 #elif SIMSIMD_TARGET_SKYLAKE
     simsimd_dot_f32c_skylake(a, b, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_dot_f32c_haswell(a, b, n, d);
 #else
     simsimd_dot_f32c_serial(a, b, n, d);
 #endif
@@ -984,7 +984,7 @@ SIMSIMD_PUBLIC void simsimd_l2sq_f16(simsimd_f16_t const* a, simsimd_f16_t const
     simsimd_l2sq_f16_sve(a, b, n, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_l2sq_f16_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_sapphire
+#elif SIMSIMD_TARGET_SAPPHIRE
     simsimd_l2sq_f16_sapphire(a, b, n, d);
 #elif SIMSIMD_TARGET_HASWELL
     simsimd_l2sq_f16_haswell(a, b, n, d);
