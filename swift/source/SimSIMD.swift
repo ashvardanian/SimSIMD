@@ -96,6 +96,7 @@ extension simsimd_capability_t: OptionSet, CustomStringConvertible {
         if contains(.skylake) { components.append(".skylake") }
         if contains(.ice) { components.append(".ice") }
         if contains(.sapphire) { components.append(".sapphire") }
+        if contains(.genoa) { components.append(".genoa") }
         return "[\(components.joined(separator: ", "))]"
     }
 
@@ -109,6 +110,7 @@ extension simsimd_capability_t: OptionSet, CustomStringConvertible {
     public static let skylake = simsimd_cap_skylake_k
     public static let ice = simsimd_cap_ice_k
     public static let sapphire = simsimd_cap_sapphire_k
+    public static let genoa = simsimd_cap_genoa_k
 }
 
 @inline(__always)

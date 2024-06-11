@@ -5,21 +5,34 @@
 To rerun experiments utilize the following command:
 
 ```sh
-sudo apt install libopenblas-dev # BLAS installation is optional
-cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -DSIMSIMD_BUILD_TESTS=1 -B ./build_release
+sudo apt install libopenblas-dev # BLAS installation is optional, but recommended for benchmarks
+cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_TESTS=1 -DSIMSIMD_BUILD_BENCHMARKS=1 -DSIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 -B build_release
 cmake --build build_release --config Release
 build_release/simsimd_bench
 build_release/simsimd_bench --benchmark_filter=js
 build_release/simsimd_test_run_time
-build_release/simsimd_test_compile_time
+build_release/simsimd_test_compile_time # no need to run this one, it's just a compile-time test
 ```
 
 To utilize newest instructions, use GCC 12 or newer, or Clang 16 or newer.
+To install them on Ubuntu 22.04, use:
 
 ```sh
 sudo apt install gcc-12 g++-12
 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100
 sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100
+```
+
+On MacOS it's recommended to use Homebrew and install Clang, as opposed to "Apple Clang".
+Replacing the default compiler is not recommended, as it may break the system, but you can pass it as an environment variable:
+
+```sh
+brew install llvm
+cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_TESTS=1 \
+    -DCMAKE_C_COMPILER="$(brew --prefix llvm)/bin/clang" \
+    -DCMAKE_CXX_COMPILER="$(brew --prefix llvm)/bin/clang++" \
+    -B build_release
+cmake --build build_release --config Release
 ```
 
 ## Python
@@ -78,7 +91,7 @@ python -m cibuildwheel --platform windows
 cargo test -p simsimd
 cargo test -p simsimd -- --nocapture # To see the output
 cargo bench
-open ./target/criterion/report/index.html
+open target/criterion/report/index.html
 ```
 
 ## JavaScript

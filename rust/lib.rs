@@ -91,6 +91,7 @@ extern "C" {
     fn simsimd_uses_haswell() -> i32;
     fn simsimd_uses_skylake() -> i32;
     fn simsimd_uses_ice() -> i32;
+    fn simsimd_uses_genoa() -> i32;
     fn simsimd_uses_sapphire() -> i32;
 }
 
@@ -122,6 +123,10 @@ pub mod capabilties {
 
     pub fn uses_ice() -> bool {
         unsafe { crate::simsimd_uses_ice() != 0 }
+    }
+
+    pub fn uses_genoa() -> bool {
+        unsafe { crate::simsimd_uses_genoa() != 0 }
     }
 
     pub fn uses_sapphire() -> bool {
@@ -556,6 +561,7 @@ mod tests {
         let uses_x86 = capabilties::uses_haswell()
             || capabilties::uses_skylake()
             || capabilties::uses_ice()
+            || capabilties::uses_genoa()
             || capabilties::uses_sapphire();
 
         // The CPU can't simultaneously support ARM and x86 SIMD extensions
@@ -571,6 +577,7 @@ mod tests {
         println!("- uses_haswell: {}", capabilties::uses_haswell());
         println!("- uses_skylake: {}", capabilties::uses_skylake());
         println!("- uses_ice: {}", capabilties::uses_ice());
+        println!("- uses_genoa: {}", capabilties::uses_genoa());
         println!("- uses_sapphire: {}", capabilties::uses_sapphire());
     }
 
