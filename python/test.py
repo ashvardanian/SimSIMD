@@ -187,6 +187,20 @@ def test_jensen_shannon(ndim, dtype):
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
 
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("dtype", ["float32", "float16"])
+def test_covariance(ndim, dtype):
+    """Compares the simd.covariance() function with numpy.cov(), measuring the accuracy error for f16, and f32 types."""
+    np.random.seed()
+    a = np.random.randn(ndim).astype(dtype)
+    b = np.random.randn(ndim).astype(dtype)
+
+    expected = np.cov(a, b)[0, 1]
+    result = simd.covariance(a, b)
+
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
