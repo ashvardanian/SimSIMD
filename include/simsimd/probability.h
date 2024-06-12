@@ -36,22 +36,33 @@ extern "C" {
  */
 SIMSIMD_PUBLIC void simsimd_kl_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
 SIMSIMD_PUBLIC void simsimd_js_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+SIMSIMD_PUBLIC void simsimd_cov_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_kl_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
 SIMSIMD_PUBLIC void simsimd_js_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+SIMSIMD_PUBLIC void simsimd_cov_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_kl_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
 SIMSIMD_PUBLIC void simsimd_js_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+<<<<<<< Updated upstream
 SIMSIMD_PUBLIC void simsimd_kl_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
 SIMSIMD_PUBLIC void simsimd_js_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+=======
+SIMSIMD_PUBLIC void simsimd_cov_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+>>>>>>> Stashed changes
 
 /*  Double-precision serial backends for all numeric types.
  *  For single-precision computation check out the "*_serial" counterparts of those "*_accurate" functions.
  */
 SIMSIMD_PUBLIC void simsimd_kl_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
 SIMSIMD_PUBLIC void simsimd_js_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+SIMSIMD_PUBLIC void simsimd_cov_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_kl_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
 SIMSIMD_PUBLIC void simsimd_js_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+<<<<<<< Updated upstream
 SIMSIMD_PUBLIC void simsimd_kl_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
 SIMSIMD_PUBLIC void simsimd_js_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+=======
+SIMSIMD_PUBLIC void simsimd_cov_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+>>>>>>> Stashed changes
 
 /*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
  *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
@@ -59,8 +70,10 @@ SIMSIMD_PUBLIC void simsimd_js_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf
  */
 SIMSIMD_PUBLIC void simsimd_kl_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
 SIMSIMD_PUBLIC void simsimd_js_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+SIMSIMD_PUBLIC void simsimd_cov_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_kl_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
 SIMSIMD_PUBLIC void simsimd_js_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+SIMSIMD_PUBLIC void simsimd_cov_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 /*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
  *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
@@ -110,23 +123,51 @@ SIMSIMD_PUBLIC void simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_
         *result = (simsimd_distance_t)d / 2;                                                                           \
     }
 
+#define SIMSIMD_MAKE_COV(name, input_type, accumulator_type, converter)                                                \
+    SIMSIMD_PUBLIC void simsimd_cov_##input_type##_##name(simsimd_##input_type##_t const* a,                           \
+                                                         simsimd_##input_type##_t const* b, simsimd_size_t n,          \
+                                                         simsimd_distance_t* result) {                                 \
+        simsimd_##accumulator_type##_t mean_a = 0;                                                                     \
+        simsimd_##accumulator_type##_t mean_b = 0;                                                                     \
+        simsimd_##accumulator_type##_t d = 0;                                                                          \
+        for (simsimd_size_t i = 0; i != n; ++i) {                                                                      \
+            simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
+            simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
+            mean_a += ai;                                                                                              \
+            mean_b += bi;                                                                                              \
+        }                                                                                                              \
+        mean_a /= n;                                                                                                   \
+        mean_b /= n;                                                                                                   \
+        for (simsimd_size_t i = 0; i != n; ++i) {                                                                      \
+            simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
+            simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
+            d += (ai - mean_a) * (bi - mean_b);                                                                        \
+        }                                                                                                              \
+        *result = (simsimd_distance_t)d / (n - 1);                                                                     \
+    }
+
 SIMSIMD_MAKE_KL(serial, f64, f64, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f64_serial
 SIMSIMD_MAKE_JS(serial, f64, f64, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f64_serial
+SIMSIMD_MAKE_COV(serial, f64, f64, SIMSIMD_IDENTIFY)                              // simsimd_cov_f64_serial
 
 SIMSIMD_MAKE_KL(serial, f32, f32, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f32_serial
 SIMSIMD_MAKE_JS(serial, f32, f32, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f32_serial
+SIMSIMD_MAKE_COV(serial, f32, f32, SIMSIMD_IDENTIFY)                              // simsimd_cov_f32_serial
 
 SIMSIMD_MAKE_KL(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f16_serial
 SIMSIMD_MAKE_JS(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f16_serial
+SIMSIMD_MAKE_COV(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16)                              // simsimd_cov_f16_serial
 
 SIMSIMD_MAKE_KL(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_bf16_serial
 SIMSIMD_MAKE_JS(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_bf16_serial
 
 SIMSIMD_MAKE_KL(accurate, f32, f64, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f32_accurate
 SIMSIMD_MAKE_JS(accurate, f32, f64, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f32_accurate
+SIMSIMD_MAKE_COV(accurate, f32, f64, SIMSIMD_IDENTIFY)                              // simsimd_cov_f32_accurate
 
 SIMSIMD_MAKE_KL(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f16_accurate
 SIMSIMD_MAKE_JS(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f16_accurate
+SIMSIMD_MAKE_COV(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16)                              // simsimd_cov_f16_accurate
 
 SIMSIMD_MAKE_KL(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_bf16_accurate
 SIMSIMD_MAKE_JS(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_bf16_accurate
@@ -211,6 +252,46 @@ SIMSIMD_PUBLIC void simsimd_js_f32_neon(simsimd_f32_t const* a, simsimd_f32_t co
     *result = sum;
 }
 
+SIMSIMD_PUBLIC void simsimd_cov_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+    // Compuging mean of a and b
+    float32x4_t sum_vec_a = vdupq_n_f32(0);
+    float32x4_t sum_vec_b = vdupq_n_f32(0);
+    simsimd_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_vec = vld1q_f32(a + i);
+        float32x4_t b_vec = vld1q_f32(b + i);
+        sum_vec_a = vaddq_f32(sum_vec_a, a_vec);
+        sum_vec_b = vaddq_f32(sum_vec_b, b_vec);
+    }
+    simsimd_f32_t sum_a = vaddvq_f32(sum_vec_a);
+    simsimd_f32_t sum_b = vaddvq_f32(sum_vec_b);
+    for (; i < n; ++i) {
+        sum_a += a[i];
+        sum_b += b[i];
+    }
+    simsimd_f32_t mean_a = sum_a / n;
+    simsimd_f32_t mean_b = sum_b / n;
+    float32x4_t mean_a_vec = vdupq_n_f32(mean_a);
+    float32x4_t mean_b_vec = vdupq_n_f32(mean_b);
+
+    // Computing covariance
+    float32x4_t sum_vec = vdupq_n_f32(0);
+    i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_vec = vld1q_f32(a + i);
+        float32x4_t b_vec = vld1q_f32(b + i);
+        float32x4_t prod_vec = vmulq_f32(vsubq_f32(a_vec, mean_a_vec), vsubq_f32(b_vec, mean_b_vec));
+        sum_vec = vaddq_f32(sum_vec, prod_vec);
+    }
+    simsimd_f32_t sum = vaddvq_f32(sum_vec);
+    for (; i < n; ++i) {
+        simsimd_f32_t prod = (a[i] - mean_a) * (b[i] - mean_b);
+        sum += prod;
+    }
+    simsimd_f32_t cov = sum / (n - 1);
+    *result = cov;
+}
+
 #pragma clang attribute pop
 #pragma GCC pop_options
 
@@ -268,6 +349,46 @@ SIMSIMD_PUBLIC void simsimd_js_f16_neon(simsimd_f16_t const* a, simsimd_f16_t co
         sum += bi * SIMSIMD_LOG((bi + epsilon) / (mi + epsilon));
     }
     *result = sum;
+}
+
+SIMSIMD_PUBLIC void simsimd_cov_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+    // Compuging mean of a and b
+    float32x4_t sum_vec_a = vdupq_n_f32(0);
+    float32x4_t sum_vec_b = vdupq_n_f32(0);
+    simsimd_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)a + i));
+        float32x4_t b_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)b + i));
+        sum_vec_a = vaddq_f32(sum_vec_a, a_vec);
+        sum_vec_b = vaddq_f32(sum_vec_b, b_vec);
+    }
+    simsimd_f32_t sum_a = vaddvq_f32(sum_vec_a);
+    simsimd_f32_t sum_b = vaddvq_f32(sum_vec_b);
+    for (; i < n; ++i) {
+        sum_a += SIMSIMD_UNCOMPRESS_F16(a[i]);
+        sum_b += SIMSIMD_UNCOMPRESS_F16(b[i]);
+    }
+    simsimd_f32_t mean_a = sum_a / n;
+    simsimd_f32_t mean_b = sum_b / n;
+    float32x4_t mean_a_vec = vdupq_n_f32(mean_a);
+    float32x4_t mean_b_vec = vdupq_n_f32(mean_b);
+
+    // Computing covariance
+    float32x4_t sum_vec = vdupq_n_f32(0);
+    i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)a + i));
+        float32x4_t b_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)b + i));
+        float32x4_t prod_vec = vmulq_f32(vsubq_f32(a_vec, mean_a_vec), vsubq_f32(b_vec, mean_b_vec));
+        sum_vec = vaddq_f32(sum_vec, prod_vec);
+    }
+    simsimd_f32_t sum = vaddvq_f32(sum_vec);
+    for (; i < n; ++i) {
+        simsimd_f32_t prod = (SIMSIMD_UNCOMPRESS_F16(a[i]) - mean_a) * (SIMSIMD_UNCOMPRESS_F16(b[i]) - mean_b);
+        sum += prod;
+    }
+    simsimd_f32_t cov = sum / (n - 1);
+    *result = cov;
 }
 
 #pragma clang attribute pop
