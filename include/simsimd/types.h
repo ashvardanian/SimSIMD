@@ -87,28 +87,6 @@
 
 // Compiling for x86: SIMSIMD_TARGET_SKYLAKE, SIMSIMD_TARGET_ICE, SIMSIMD_TARGET_SAPPHIRE
 //
-// It's important to provide fine-grained controls over AVX512 families, as they are very fragmented:
-// - Intel Skylake servers: F, CD, VL, DQ, BW
-// - Intel Cascade Lake workstations: F, CD, VL, DQ, BW, VNNI
-//      > In other words, it extends Skylake with VNNI support
-// - Intel Sunny Cove (Ice Lake) servers:
-//        F, CD, VL, DQ, BW, VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ
-// - AMD Zen4 (Genoa):
-//        F, CD, VL, DQ, BW, VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ, BF16
-//      > In other words, it extends Sunny Cove with BF16 support
-// - Golden Cove (Sapphire Rapids): extends Zen4 and Sunny Cove with FP16 support
-//
-// Intel Palm Cove was an irrelevant intermediate release extending Skylake with IFMA and VBMI.
-// Intel Willow Cove was an irrelevant intermediate release extending Sunny Cove with VP2INTERSECT,
-// that aren't supported by any other CPU built to date... and those are only available in Tiger Lake laptops.
-// Intel Cooper Lake was the only intermediary platform, that supported BF16, but not FP16.
-// It's mostly used in 4-socket and 8-socket high-memory configurations.
-//
-// In practical terms, it makes sense to differentiate only 3 AVX512 generations:
-// 1. Skylake (pre 2019): supports single-precision dot-products.
-// 2. Ice Lake (2019-2021): advanced integer algorithms.
-// 3. Sapphire Rapids (2023+): advanced mixed-precision float processing.
-//
 // To list all available macros for x86, take a recent compiler, like GCC 12 and run:
 //      gcc-12 -march=sapphirerapids -dM -E - < /dev/null | egrep "SSE|AVX" | sort
 // On Arm machines you may want to check for other flags:
@@ -199,14 +177,13 @@ typedef unsigned long long simsimd_u64_t;
 typedef simsimd_u64_t simsimd_size_t;
 typedef simsimd_f64_t simsimd_distance_t;
 
-#if !defined(SIMSIMD_NATIVE_F16) || SIMSIMD_NATIVE_F16
-/**
- *  @brief  Half-precision floating-point type.
+/*  @brief  Half-precision floating-point type.
  *
- *  - GCC or Clang on 64-bit ARM: `__fp16`, may require `-mfp16-format` option.
+ *  - GCC or Clang on 64-bit Arm: `__fp16`, may require `-mfp16-format` option.
  *  - GCC or Clang on 64-bit x86: `_Float16`.
  *  - Default: `unsigned short`.
  */
+#if !defined(SIMSIMD_NATIVE_F16) || SIMSIMD_NATIVE_F16
 #if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) &&                      \
     (defined(__ARM_FP16_FORMAT_IEEE))
 #if !defined(SIMSIMD_NATIVE_F16)
@@ -228,6 +205,12 @@ typedef _Float16 simsimd_f16_t;
 typedef unsigned short simsimd_f16_t;
 #endif
 
+/*  @brief  Half-precision "brain" floating-point type.
+ *
+ *  - GCC or Clang on 64-bit Arm: `__bf16`, may require `-mbf16-format` option.
+ *  - GCC or Clang on 64-bit x86: `bfloat16_t`.
+ *  - Default: `unsigned short`.
+ */
 #if !defined(SIMSIMD_NATIVE_BF16)
 #define SIMSIMD_NATIVE_BF16 1
 #endif

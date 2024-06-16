@@ -181,10 +181,20 @@ static PyObject* api_enable_capability(PyObject* self, PyObject* args) {
 
     if (same_string(cap_name, "neon")) {
         static_capabilities |= simsimd_cap_neon_k;
+    } else if (same_string(cap_name, "neon_f16")) {
+        static_capabilities |= simsimd_cap_neon_f16_k;
+    } else if (same_string(cap_name, "neon_bf16")) {
+        static_capabilities |= simsimd_cap_neon_bf16_k;
+    } else if (same_string(cap_name, "neon_i8")) {
+        static_capabilities |= simsimd_cap_neon_i8_k;
     } else if (same_string(cap_name, "sve")) {
         static_capabilities |= simsimd_cap_sve_k;
-    } else if (same_string(cap_name, "sve2")) {
-        static_capabilities |= simsimd_cap_sve2_k;
+    } else if (same_string(cap_name, "sve_f16")) {
+        static_capabilities |= simsimd_cap_sve_f16_k;
+    } else if (same_string(cap_name, "sve_bf16")) {
+        static_capabilities |= simsimd_cap_sve_bf16_k;
+    } else if (same_string(cap_name, "sve_i8")) {
+        static_capabilities |= simsimd_cap_sve_i8_k;
     } else if (same_string(cap_name, "haswell")) {
         static_capabilities |= simsimd_cap_haswell_k;
     } else if (same_string(cap_name, "skylake")) {
@@ -214,10 +224,20 @@ static PyObject* api_disable_capability(PyObject* self, PyObject* args) {
 
     if (same_string(cap_name, "neon")) {
         static_capabilities &= ~simsimd_cap_neon_k;
+    } else if (same_string(cap_name, "neon_f16")) {
+        static_capabilities &= ~simsimd_cap_neon_f16_k;
+    } else if (same_string(cap_name, "neon_bf16")) {
+        static_capabilities &= ~simsimd_cap_neon_bf16_k;
+    } else if (same_string(cap_name, "neon_i8")) {
+        static_capabilities &= ~simsimd_cap_neon_i8_k;
     } else if (same_string(cap_name, "sve")) {
         static_capabilities &= ~simsimd_cap_sve_k;
-    } else if (same_string(cap_name, "sve2")) {
-        static_capabilities &= ~simsimd_cap_sve2_k;
+    } else if (same_string(cap_name, "sve_f16")) {
+        static_capabilities &= ~simsimd_cap_sve_f16_k;
+    } else if (same_string(cap_name, "sve_bf16")) {
+        static_capabilities &= ~simsimd_cap_sve_bf16_k;
+    } else if (same_string(cap_name, "sve_i8")) {
+        static_capabilities &= ~simsimd_cap_sve_i8_k;
     } else if (same_string(cap_name, "haswell")) {
         static_capabilities &= ~simsimd_cap_haswell_k;
     } else if (same_string(cap_name, "skylake")) {
