@@ -169,6 +169,8 @@ simsimd_metric_kind_t python_string_to_metric_kind(char const* name) {
         return simsimd_metric_js_k;
     else if (same_string(name, "jaccard"))
         return simsimd_metric_jaccard_k;
+    else if (same_string(name, "covariance") || same_string(name, "cov"))
+        return simsimd_metric_cov_k;
     else
         return simsimd_metric_unknown_k;
 }
@@ -644,6 +646,7 @@ static PyObject* api_cos_pointer(PyObject* self, PyObject* args) { return impl_p
 static PyObject* api_dot_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_dot_k, args); }
 static PyObject* api_kl_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_kl_k, args); }
 static PyObject* api_js_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_js_k, args); }
+static PyObject* api_cov_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_cov_k, args); }
 static PyObject* api_hamming_pointer(PyObject* self, PyObject* args) {
     return impl_pointer(simsimd_metric_hamming_k, args);
 }
@@ -669,6 +672,9 @@ static PyObject* api_kl(PyObject* self, PyObject* const* args, Py_ssize_t nargs)
 static PyObject* api_js(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
     return impl_metric(simsimd_metric_js_k, args, nargs);
 }
+static PyObject* api_cov(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
+    return impl_metric(simsimd_metric_cov_k, args, nargs);
+}
 static PyObject* api_hamming(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
     return impl_metric(simsimd_metric_hamming_k, args, nargs);
 }
@@ -692,6 +698,7 @@ static PyMethodDef simsimd_methods[] = {
     {"jaccard", api_jaccard, METH_FASTCALL, "Jaccard (Bitwise Tanimoto) distances between a pair of matrices"},
     {"kullbackleibler", api_kl, METH_FASTCALL, "Kullback-Leibler divergence between probability distributions"},
     {"jensenshannon", api_js, METH_FASTCALL, "Jensen-Shannon divergence between probability distributions"},
+    {"covariance", api_cov, METH_FASTCALL, "Covariance between a pair of samples"},
 
     // Conventional `cdist` and `pdist` insterfaces with third string argument, and optional `threads` arg
     {"cdist", api_cdist, METH_VARARGS | METH_KEYWORDS,
@@ -703,6 +710,7 @@ static PyMethodDef simsimd_methods[] = {
     {"pointer_to_inner", api_dot_pointer, METH_VARARGS, "Inner (Dot) Product function pointer as `int`"},
     {"pointer_to_kullbackleibler", api_dot_pointer, METH_VARARGS, "Kullback-Leibler function pointer as `int`"},
     {"pointer_to_jensenshannon", api_dot_pointer, METH_VARARGS, "Jensen-Shannon function pointer as `int`"},
+    {"pointer_to_covariance", api_cov_pointer, METH_VARARGS, "Covariance function pointer as `int`"},
 
     // Sentinel
     {NULL, NULL, 0, NULL}};

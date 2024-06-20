@@ -79,6 +79,9 @@ typedef enum {
     simsimd_metric_js_k = 's',             ///< Jensen-Shannon divergence
     simsimd_metric_jensen_shannon_k = 's', ///< Jensen-Shannon divergence alias
 
+    simsimd_metric_cov_k = 'r',         ///< Covariance
+    simsimd_metric_covariance_k = 'r'  ///< Covariance alias
+
 } simsimd_metric_kind_t;
 
 /**
@@ -331,6 +334,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f32_neon, *c = simsimd_cap_neon_k; return;
             case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f32_neon, *c = simsimd_cap_neon_k; return;
             case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f32_neon, *c = simsimd_cap_neon_k; return;
+            case simsimd_metric_cov_k: *m = (m_t)&simsimd_cov_f32_neon, *c = simsimd_cap_neon_k; return;
             default: break;
             }
 #endif
@@ -352,6 +356,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f32_serial, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f32_serial, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f32_serial, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_cov_k: *m = (m_t)&simsimd_cov_f32_serial, *c = simsimd_cap_serial_k; return;
             default: break;
             }
 
@@ -377,6 +382,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_neon, *c = simsimd_cap_neon_k; return;
             case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f16_neon, *c = simsimd_cap_neon_k; return;
             case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f16_neon, *c = simsimd_cap_neon_k; return;
+            case simsimd_metric_cov_k: *m = (m_t)&simsimd_cov_f16_neon, *c = simsimd_cap_neon_k; return;
             default: break;
             }
 #endif
@@ -410,6 +416,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_serial, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f16_serial, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f16_serial, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_cov_k: *m = (m_t)&simsimd_cov_f16_serial, *c = simsimd_cap_serial_k; return;
             default: break;
             }
 
