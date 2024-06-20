@@ -298,10 +298,12 @@ typedef unsigned short simsimd_bf16_t;
  *  @brief  Returns the value of the half-precision brain floating-point number,
  *          potentially decompressed into single-precision.
  */
-#ifdef SIMSIMD_NATIVE_BF16
+#ifndef SIMSIMD_UNCOMPRESS_BF16
+#if SIMSIMD_NATIVE_BF16
 #define SIMSIMD_UNCOMPRESS_BF16(x) (SIMSIMD_IDENTIFY(x))
 #else
 #define SIMSIMD_UNCOMPRESS_BF16(x) (simsimd_uncompress_bf16(x))
+#endif
 #endif
 
 typedef union {
