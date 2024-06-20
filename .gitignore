@@ -13,6 +13,7 @@ build/
 dist/
 javascript/dist
 bun.lockb
+.build/
 
 # for Google Benchmark
 compare.py

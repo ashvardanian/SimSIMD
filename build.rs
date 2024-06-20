@@ -5,6 +5,7 @@ fn main() {
         .file("c/lib.c")
         .include("include")
         .define("SIMSIMD_NATIVE_F16", "0")
+        .define("SIMSIMD_NATIVE_BF16", "0")
         .define("SIMSIMD_DYNAMIC_DISPATCH", "1")
         .flag("-O3")
         .flag("-std=c99") // Enforce C99 standard
@@ -19,6 +20,7 @@ fn main() {
             "arm" | "aarch64" => vec!["SIMSIMD_TARGET_NEON", "SIMSIMD_TARGET_SVE"],
             _ => vec![
                 "SIMSIMD_TARGET_SAPPHIRE",
+                "SIMSIMD_TARGET_GENOA",
                 "SIMSIMD_TARGET_ICE",
                 "SIMSIMD_TARGET_SKYLAKE",
                 "SIMSIMD_TARGET_HASWELL",

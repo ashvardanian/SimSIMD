@@ -131,6 +131,14 @@
 #define SIMSIMD_TARGET_ICE 0
 #endif
 #endif // !defined(SIMSIMD_TARGET_ICE)
+#if !defined(SIMSIMD_TARGET_GENOA) || (SIMSIMD_TARGET_GENOA && !SIMSIMD_TARGET_X86)
+#if defined(__AVX512BF16__)
+#define SIMSIMD_TARGET_GENOA 1
+#else
+#undef SIMSIMD_TARGET_GENOA
+#define SIMSIMD_TARGET_GENOA 0
+#endif
+#endif // !defined(SIMSIMD_TARGET_GENOA)
 #if !defined(SIMSIMD_TARGET_SAPPHIRE) || (SIMSIMD_TARGET_SAPPHIRE && !SIMSIMD_TARGET_X86)
 #if defined(__AVX512FP16__)
 #define SIMSIMD_TARGET_SAPPHIRE 1
@@ -195,7 +203,7 @@ typedef simsimd_f64_t simsimd_distance_t;
 /**
  *  @brief  Half-precision floating-point type.
  *
- *  - GCC or Clang on 64-bit ARM: `__fp16`, may require `-mfp16-format` option.
+ *  - GCC or Clang on 64-bit Arm: `__fp16`, may require `-mfp16-format` option.
  *  - GCC or Clang on 64-bit x86: `_Float16`.
  *  - Default: `unsigned short`.
  */
@@ -220,17 +228,55 @@ typedef _Float16 simsimd_f16_t;
 typedef unsigned short simsimd_f16_t;
 #endif
 
+#if !defined(SIMSIMD_NATIVE_BF16) || SIMSIMD_NATIVE_BF16
+/**
+ *  @brief  Half-precision brain-float type.
+ *
+ *  - GCC or Clang on 64-bit Arm: `__bf16`
+ *  - GCC or Clang on 64-bit x86: `_BFloat16`.
+ *  - Default: `unsigned short`.
+ *
+ *  @warning Apple Clang has hard time with bf16.
+ *  https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms
+ *  https://forums.developer.apple.com/forums/thread/726201
+ */
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) &&                      \
+    (defined(__ARM_BF16_FORMAT_ALTERNATIVE))
+#if !defined(SIMSIMD_NATIVE_BF16)
+#define SIMSIMD_NATIVE_BF16 1
+#endif
+typedef __fp16 simsimd_bf16_t;
+#elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) &&                      \
+       (defined(__SSE2__) || defined(__AVX512F__)))
+typedef _Float16 simsimd_bf16_t;
+#if !defined(SIMSIMD_NATIVE_BF16)
+#define SIMSIMD_NATIVE_BF16 1
+#endif
+#else // Unknown compiler or architecture
+#define SIMSIMD_NATIVE_BF16 0
+#endif // Unknown compiler or architecture
+#endif // !SIMSIMD_NATIVE_BF16
+
+#if !SIMSIMD_NATIVE_BF16
+typedef unsigned short simsimd_bf16_t;
+#endif
+
 /**
  *  @brief  Alias for the half-precision floating-point type on Arm.
- *          Clang and GCC bring the `float16_t` symbol when you compile for Aarch64.
- *          MSVC lacks it, and it's `vld1_f16`-like intrinsics are in reality macros,
- *          that cast to 16-bit integers internally, instead of using floats.
+ *
+ *  Clang and GCC bring the `float16_t` symbol when you compile for Aarch64.
+ *  MSVC lacks it, and it's `vld1_f16`-like intrinsics are in reality macros,
+ *  that cast to 16-bit integers internally, instead of using floats.
+ *  Some of those are defined as aliases, so we use `#define` preprocessor
+ *  directives instead of `typedef` to avoid errors.
  */
 #if SIMSIMD_TARGET_ARM
 #if defined(_MSC_VER)
-typedef simsimd_f16_t simsimd_f16_for_arm_simd_t;
+#define simsimd_f16_for_arm_simd_t simsimd_f16_t
+#define simsimd_bf16_for_arm_simd_t simsimd_bf16_t
 #else
-typedef float16_t simsimd_f16_for_arm_simd_t;
+#define simsimd_f16_for_arm_simd_t float16_t
+#define simsimd_bf16_for_arm_simd_t bfloat16_t
 #endif
 #endif
 
@@ -245,6 +291,18 @@ typedef float16_t simsimd_f16_for_arm_simd_t;
 #define SIMSIMD_UNCOMPRESS_F16(x) (SIMSIMD_IDENTIFY(x))
 #else
 #define SIMSIMD_UNCOMPRESS_F16(x) (simsimd_uncompress_f16(x))
+#endif
+#endif
+
+/**
+ *  @brief  Returns the value of the half-precision brain floating-point number,
+ *          potentially decompressed into single-precision.
+ */
+#ifndef SIMSIMD_UNCOMPRESS_BF16
+#if SIMSIMD_NATIVE_BF16
+#define SIMSIMD_UNCOMPRESS_BF16(x) (SIMSIMD_IDENTIFY(x))
+#else
+#define SIMSIMD_UNCOMPRESS_BF16(x) (simsimd_uncompress_bf16(x))
 #endif
 #endif
 
@@ -301,6 +359,61 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_f16(unsigned short x) {
     result_union.i = (x & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
                      ((exponent == 0) & (mantissa != 0)) * ((v - 37) << 23 | ((mantissa << (150 - v)) & 0x007FE000));
     return result_union.f;
+}
+
+/**
+ *  @brief  Compresses a `float` to an `f16` representation (IEEE-754 16-bit floating-point format).
+ *
+ *  @warning  This function won't handle boundary conditions well.
+ *
+ *  https://stackoverflow.com/a/60047308
+ *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
+ *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
+ */
+SIMSIMD_PUBLIC unsigned short simsimd_compress_f16(simsimd_f32_t x) {
+    union float_or_unsigned_int_t {
+        float f;
+        unsigned int i;
+    };
+
+    unsigned int b = *(unsigned int*)&x + 0x00001000;
+    unsigned int e = (b & 0x7F800000) >> 23;
+    unsigned int m = b & 0x007FFFFF;
+    unsigned short result = (b & 0x80000000) >> 16 | (e > 112) * (((e - 112) << 10) & 0x7C00 | m >> 13) |
+                            ((e < 113) & (e > 101)) * (((0x007FF000 + m) >> (125 - e) + 1) >> 1) | (e > 143) * 0x7FFF;
+    return result;
+}
+
+/**
+ *  @brief  For compilers that don't natively support the `__bf16` type,
+ *          upcasts contents into a more conventional `float`.
+ *
+ *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
+ *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
+ */
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_bf16(unsigned short x) {
+    union float_or_unsigned_int_t {
+        float f;
+        unsigned int i;
+    };
+    union float_or_unsigned_int_t result_union;
+    result_union.i = x << 16; // Zero extends the mantissa
+    return result_union.f;
+}
+
+/**
+ *  @brief  Compresses a `float` to a `bf16` representation.
+ */
+SIMSIMD_PUBLIC unsigned short simsimd_compress_bf16(simsimd_f32_t x) {
+    union float_or_unsigned_int_t {
+        float f;
+        unsigned int i;
+    };
+    union float_or_unsigned_int_t value;
+    value.f = x;
+    value.i >>= 16;
+    value.i &= 0xFFFF;
+    return (unsigned short)value.i;
 }
 
 #ifdef __cplusplus
