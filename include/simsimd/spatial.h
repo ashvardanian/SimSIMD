@@ -507,8 +507,8 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_neon(simsimd_i8_t const* a, simsimd_i8_t cons
         int8x16_t a_vec = vld1q_s8(a + i);
         int8x16_t b_vec = vld1q_s8(b + i);
         int8x16x2_t y_w_vecs = vzipq_s8(a_vec, b_vec);
-        int8x16_t x_vec = vcombine_s8(vget_low_s8(a_vec), vget_low_s8(b_vec));
-        int8x16_t v_vec = vcombine_s8(vget_high_s8(a_vec), vget_high_s8(b_vec));
+        int8x16_t x_vec = vextq_s8(a_vec, b_vec, 0);
+        int8x16_t v_vec = vextq_s8(a_vec, b_vec, 1);
         products_low_vec = vmmlaq_s32(products_low_vec, x_vec, y_w_vecs.val[0]);
         products_high_vec = vmmlaq_s32(products_high_vec, v_vec, y_w_vecs.val[1]);
     }
