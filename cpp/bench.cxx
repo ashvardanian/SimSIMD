@@ -42,8 +42,8 @@ template <simsimd_datatype_t datatype_ak, std::size_t dimensions_ak> struct vect
     using compressed16_t = unsigned short;
     static constexpr bool is_integral = datatype_ak == simsimd_datatype_i8_k || datatype_ak == simsimd_datatype_b8_k;
 
-    scalar_t a[dimensions_ak]{};
-    scalar_t b[dimensions_ak]{};
+    alignas(64) scalar_t a[dimensions_ak]{};
+    alignas(64) scalar_t b[dimensions_ak]{};
 
     std::size_t dimensions() const noexcept { return dimensions_ak; }
     std::size_t size_bytes() const noexcept { return dimensions_ak * sizeof(scalar_t); }
@@ -134,7 +134,8 @@ void measure(bm::State& state, metric_at metric, metric_at baseline) {
     };
 
     // Let's average the distance results over many pairs.
-    std::vector<pair_at> pairs(1024);
+    constexpr std::size_t pairs_count = 4;
+    std::vector<pair_at> pairs(pairs_count);
     for (auto& pair : pairs)
         pair.randomize();
 
@@ -147,7 +148,8 @@ void measure(bm::State& state, metric_at metric, metric_at baseline) {
     // The actual benchmarking loop.
     std::size_t iterations = 0;
     for (auto _ : state)
-        bm::DoNotOptimize((results_contender[iterations & 1023] = call_contender(pairs[iterations & 1023]))),
+        bm::DoNotOptimize((results_contender[iterations & (pairs_count - 1)] =
+                               call_contender(pairs[iterations & (pairs_count - 1)]))),
             iterations++;
 
     // Measure the mean absolute delta and relative error.
@@ -280,9 +282,11 @@ int main(int argc, char** argv) {
     register_<simsimd_datatype_f16_k>("kl_f16_neon", simsimd_kl_f16_neon, simsimd_kl_f16_accurate);
     register_<simsimd_datatype_f16_k>("js_f16_neon", simsimd_js_f16_neon, simsimd_js_f16_accurate);
 
+#if SIMSIMD_TARGET_NEON_BF16_IMPLEMENTED
     register_<simsimd_datatype_bf16_k>("dot_bf16_neon", simsimd_dot_bf16_neon, simsimd_dot_bf16_accurate);
     register_<simsimd_datatype_bf16_k>("cos_bf16_neon", simsimd_cos_bf16_neon, simsimd_cos_bf16_accurate);
     register_<simsimd_datatype_bf16_k>("l2sq_bf16_neon", simsimd_l2sq_bf16_neon, simsimd_l2sq_bf16_accurate);
+#endif
 
     register_<simsimd_datatype_f32_k>("dot_f32_neon", simsimd_dot_f32_neon, simsimd_dot_f32_accurate);
     register_<simsimd_datatype_f32_k>("cos_f32_neon", simsimd_cos_f32_neon, simsimd_cos_f32_accurate);
