@@ -298,7 +298,6 @@ SIMSIMD_PUBLIC void simsimd_cos_f16_neon(simsimd_f16_t const* a, simsimd_f16_t c
     *result = ab != 0 ? 1 - ab * a2_b2_arr[0] * a2_b2_arr[1] : 1;
 }
 
-#if SIMSIMD_TARGET_NEON_BF16_IMPLEMENTED
 SIMSIMD_PUBLIC void simsimd_cos_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                           simsimd_distance_t* result) {
     // TODO: Redo with BFMMLA - vbfmmlaq_f32
@@ -390,7 +389,6 @@ SIMSIMD_PUBLIC void simsimd_l2sq_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16
     simsimd_f32_t sum = vaddvq_f32(vaddq_f32(sum_high_vec, sum_low_vec));
     *result = sum;
 }
-#endif
 #pragma clang attribute pop
 #pragma GCC pop_options
 
