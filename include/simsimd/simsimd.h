@@ -100,6 +100,14 @@
 #define SIMSIMD_DYNAMIC_DISPATCH (0) // true or false
 #endif
 
+/*  On Apple devices querying CPU feature registers is illegal, so we have import system libraries
+ *  and string-match the name of the CPU name to validate its functionality.
+ */
+#if __APPLE__
+#include <string.h>
+#include <sys/sysctl.h>
+#endif
+
 #include "binary.h"      // Hamming, Jaccard
 #include "dot.h"         // Inner (dot) product, and its conjugate
 #include "geospatial.h"  // Haversine and Vincenty
@@ -292,16 +300,22 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
 
 #if SIMSIMD_TARGET_ARM
 
-    // Apple bans the use of the MRS instruction, so we hard-code the values
+    // Apple bans the use of the MRS instruction, so we hard-code the values.
+    // Only M2 and newer CPUs support `bf16`: https://github.com/corsix/amx/issues/5#issuecomment-1464639729
 #if __APPLE__
-    return (simsimd_capability_t)(  //
-        (simsimd_cap_neon_k) |      //
-        (simsimd_cap_neon_f16_k) |  //
-        (simsimd_cap_neon_bf16_k) | //
-        (simsimd_cap_neon_i8_k) |   //
-        (simsimd_cap_serial_k));
-#endif
+    char model[256];
+    size_t size = sizeof(model);
+    unsigned supports_bf16 = 0;
+    if (sysctlbyname("machdep.cpu.brand_string", &model, &size, NULL, 0) == 0)
+        supports_bf16 = strstr(model, "M1") == NULL;
 
+    return (simsimd_capability_t)(                    //
+        (simsimd_cap_neon_k) |                        //
+        (simsimd_cap_neon_f16_k) |                    //
+        (simsimd_cap_neon_bf16_k * (supports_bf16)) | //
+        (simsimd_cap_neon_i8_k) |                     //
+        (simsimd_cap_serial_k));
+#else
     // This is how the `arm-cpusysregs` library does it:
     //
     //    int ID_AA64ISAR1_EL1_BF16() const { return (int)(_aa64isar1 >> 44) & 0x0F; }
@@ -373,6 +387,7 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
         (simsimd_cap_sve_i8_k * (supports_sve && supports_sve_i8mm)) |   //
         (simsimd_cap_serial_k));
 
+#endif // not Apple :)
 #endif // SIMSIMD_TARGET_ARM
 
     return simsimd_cap_serial_k;
