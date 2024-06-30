@@ -181,10 +181,20 @@ static PyObject* api_enable_capability(PyObject* self, PyObject* args) {
 
     if (same_string(cap_name, "neon")) {
         static_capabilities |= simsimd_cap_neon_k;
+    } else if (same_string(cap_name, "neon_f16")) {
+        static_capabilities |= simsimd_cap_neon_f16_k;
+    } else if (same_string(cap_name, "neon_bf16")) {
+        static_capabilities |= simsimd_cap_neon_bf16_k;
+    } else if (same_string(cap_name, "neon_i8")) {
+        static_capabilities |= simsimd_cap_neon_i8_k;
     } else if (same_string(cap_name, "sve")) {
         static_capabilities |= simsimd_cap_sve_k;
-    } else if (same_string(cap_name, "sve2")) {
-        static_capabilities |= simsimd_cap_sve2_k;
+    } else if (same_string(cap_name, "sve_f16")) {
+        static_capabilities |= simsimd_cap_sve_f16_k;
+    } else if (same_string(cap_name, "sve_bf16")) {
+        static_capabilities |= simsimd_cap_sve_bf16_k;
+    } else if (same_string(cap_name, "sve_i8")) {
+        static_capabilities |= simsimd_cap_sve_i8_k;
     } else if (same_string(cap_name, "haswell")) {
         static_capabilities |= simsimd_cap_haswell_k;
     } else if (same_string(cap_name, "skylake")) {
@@ -214,10 +224,20 @@ static PyObject* api_disable_capability(PyObject* self, PyObject* args) {
 
     if (same_string(cap_name, "neon")) {
         static_capabilities &= ~simsimd_cap_neon_k;
+    } else if (same_string(cap_name, "neon_f16")) {
+        static_capabilities &= ~simsimd_cap_neon_f16_k;
+    } else if (same_string(cap_name, "neon_bf16")) {
+        static_capabilities &= ~simsimd_cap_neon_bf16_k;
+    } else if (same_string(cap_name, "neon_i8")) {
+        static_capabilities &= ~simsimd_cap_neon_i8_k;
     } else if (same_string(cap_name, "sve")) {
         static_capabilities &= ~simsimd_cap_sve_k;
-    } else if (same_string(cap_name, "sve2")) {
-        static_capabilities &= ~simsimd_cap_sve2_k;
+    } else if (same_string(cap_name, "sve_f16")) {
+        static_capabilities &= ~simsimd_cap_sve_f16_k;
+    } else if (same_string(cap_name, "sve_bf16")) {
+        static_capabilities &= ~simsimd_cap_sve_bf16_k;
+    } else if (same_string(cap_name, "sve_i8")) {
+        static_capabilities &= ~simsimd_cap_sve_i8_k;
     } else if (same_string(cap_name, "haswell")) {
         static_capabilities &= ~simsimd_cap_haswell_k;
     } else if (same_string(cap_name, "skylake")) {
@@ -245,12 +265,17 @@ static PyObject* api_get_capabilities(PyObject* self) {
     if (!cap_dict)
         return NULL;
 
-#define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong((caps) & simsimd_cap_##name##_k))
+#define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong((caps)&simsimd_cap_##name##_k))
 
     ADD_CAP(serial);
     ADD_CAP(neon);
     ADD_CAP(sve);
-    ADD_CAP(sve2);
+    ADD_CAP(neon_f16);
+    ADD_CAP(sve_f16);
+    ADD_CAP(neon_bf16);
+    ADD_CAP(sve_bf16);
+    ADD_CAP(neon_i8);
+    ADD_CAP(sve_i8);
     ADD_CAP(haswell);
     ADD_CAP(skylake);
     ADD_CAP(ice);

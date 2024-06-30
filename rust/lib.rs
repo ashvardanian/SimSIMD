@@ -87,7 +87,13 @@ extern "C" {
     fn simsimd_kl_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
     fn simsimd_uses_neon() -> i32;
+    fn simsimd_uses_neon_f16() -> i32;
+    fn simsimd_uses_neon_bf16() -> i32;
+    fn simsimd_uses_neon_i8() -> i32;
     fn simsimd_uses_sve() -> i32;
+    fn simsimd_uses_sve_f16() -> i32;
+    fn simsimd_uses_sve_bf16() -> i32;
+    fn simsimd_uses_sve_i8() -> i32;
     fn simsimd_uses_haswell() -> i32;
     fn simsimd_uses_skylake() -> i32;
     fn simsimd_uses_ice() -> i32;
@@ -109,8 +115,32 @@ pub mod capabilties {
         unsafe { crate::simsimd_uses_neon() != 0 }
     }
 
+    pub fn uses_neon_f16() -> bool {
+        unsafe { crate::simsimd_uses_neon_f16() != 0 }
+    }
+
+    pub fn uses_neon_bf16() -> bool {
+        unsafe { crate::simsimd_uses_neon_bf16() != 0 }
+    }
+
+    pub fn uses_neon_i8() -> bool {
+        unsafe { crate::simsimd_uses_neon_i8() != 0 }
+    }
+
     pub fn uses_sve() -> bool {
         unsafe { crate::simsimd_uses_sve() != 0 }
+    }
+
+    pub fn uses_sve_f16() -> bool {
+        unsafe { crate::simsimd_uses_sve_f16() != 0 }
+    }
+
+    pub fn uses_sve_bf16() -> bool {
+        unsafe { crate::simsimd_uses_sve_bf16() != 0 }
+    }
+
+    pub fn uses_sve_i8() -> bool {
+        unsafe { crate::simsimd_uses_sve_i8() != 0 }
     }
 
     pub fn uses_haswell() -> bool {
