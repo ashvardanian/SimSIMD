@@ -78,6 +78,7 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_serial(simsimd_b8_t const* a, simsimd_b8_
 
 #if SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
+#pragma GCC push_options
 #pragma GCC target("+simd")
 #pragma clang attribute push(__attribute__((target("+simd"))), apply_to = function)
 
@@ -117,6 +118,7 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_neon(simsimd_b8_t const* a, simsimd_b8_t 
 #endif // SIMSIMD_TARGET_NEON
 
 #if SIMSIMD_TARGET_SVE
+#pragma GCC push_options
 #pragma GCC target("+sve")
 #pragma clang attribute push(__attribute__((target("+sve"))), apply_to = function)
 

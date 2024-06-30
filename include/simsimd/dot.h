@@ -467,7 +467,6 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t
 #pragma clang attribute pop
 #pragma GCC pop_options
 
-#if SIMSIMD_TARGET_NEON_BF16_IMPLEMENTED
 #pragma GCC push_options
 #pragma GCC target("+simd+bf16")
 #pragma clang attribute push(__attribute__((target("+simd+bf16"))), apply_to = function)
@@ -586,7 +585,6 @@ SIMSIMD_PUBLIC void simsimd_vdot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf1
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif
 #endif // SIMSIMD_TARGET_NEON
 
 #if SIMSIMD_TARGET_SVE

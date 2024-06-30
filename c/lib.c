@@ -110,7 +110,13 @@ SIMSIMD_METRIC_DECLARATION(js, f32, f32)
 SIMSIMD_METRIC_DECLARATION(js, f64, f64)
 
 SIMSIMD_DYNAMIC int simsimd_uses_neon(void) { return (simsimd_capabilities() & simsimd_cap_neon_k) != 0; }
+SIMSIMD_DYNAMIC int simsimd_uses_neon_f16(void) { return (simsimd_capabilities() & simsimd_cap_neon_f16_k) != 0; }
+SIMSIMD_DYNAMIC int simsimd_uses_neon_bf16(void) { return (simsimd_capabilities() & simsimd_cap_neon_bf16_k) != 0; }
+SIMSIMD_DYNAMIC int simsimd_uses_neon_i8(void) { return (simsimd_capabilities() & simsimd_cap_neon_i8_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_sve(void) { return (simsimd_capabilities() & simsimd_cap_sve_k) != 0; }
+SIMSIMD_DYNAMIC int simsimd_uses_sve_f16(void) { return (simsimd_capabilities() & simsimd_cap_sve_f16_k) != 0; }
+SIMSIMD_DYNAMIC int simsimd_uses_sve_bf16(void) { return (simsimd_capabilities() & simsimd_cap_sve_bf16_k) != 0; }
+SIMSIMD_DYNAMIC int simsimd_uses_sve_i8(void) { return (simsimd_capabilities() & simsimd_cap_sve_i8_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_haswell(void) { return (simsimd_capabilities() & simsimd_cap_haswell_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_skylake(void) { return (simsimd_capabilities() & simsimd_cap_skylake_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_ice(void) { return (simsimd_capabilities() & simsimd_cap_ice_k) != 0; }
