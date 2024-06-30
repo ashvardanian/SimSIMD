@@ -92,6 +92,11 @@ jobs:
       - name: Setup QEMU
         if: matrix.os == 'ubuntu-latest' # We only need QEMU for Linux builds
         uses: docker/setup-qemu-action@v3
+      - name: Upgrade MSVC tooling
+        if: matrix.os == 'windows-latest'
+        uses: microsoft/setup-msbuild@v2
+        with:
+          vs-version: '17.10'
       - name: Install cibuildwheel
         run: python -m pip install cibuildwheel
       - name: Build wheels
