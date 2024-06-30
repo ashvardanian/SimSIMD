@@ -336,8 +336,10 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
 
     // Now let's unpack the status flags from ID_AA64ZFR0_EL1
     // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64ZFR0-EL1--SVE-Feature-ID-Register-0?lang=en
+#if defined(ID_AA64ZFR0_EL1)
     if (supports_sve)
         __asm__("mrs %0, ID_AA64ZFR0_EL1" : "=r"(id_aa64zfr0_el1));
+#endif
     // I8MM, bits [47:44] of ID_AA64ZFR0_EL1
     unsigned supports_sve_i8mm = ((id_aa64zfr0_el1 >> 44) & 0xF) >= 1;
     // BF16, bits [23:20] of ID_AA64ZFR0_EL1
