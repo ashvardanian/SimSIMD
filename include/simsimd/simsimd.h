@@ -291,6 +291,17 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
 #endif // SIMSIMD_TARGET_X86
 
 #if SIMSIMD_TARGET_ARM
+
+    // Apple bans the use of the MRS instruction, so we hard-code the values
+#if __APPLE__
+    return (simsimd_capability_t)(  //
+        (simsimd_cap_neon_k) |      //
+        (simsimd_cap_neon_f16_k) |  //
+        (simsimd_cap_neon_bf16_k) | //
+        (simsimd_cap_neon_i8_k) |   //
+        (simsimd_cap_serial_k));
+#endif
+
     // This is how the `arm-cpusysregs` library does it:
     //
     //    int ID_AA64ISAR1_EL1_BF16() const { return (int)(_aa64isar1 >> 44) & 0x0F; }
@@ -336,10 +347,8 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
 
     // Now let's unpack the status flags from ID_AA64ZFR0_EL1
     // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64ZFR0-EL1--SVE-Feature-ID-Register-0?lang=en
-#if defined(ID_AA64ZFR0_EL1)
     if (supports_sve)
         __asm__("mrs %0, ID_AA64ZFR0_EL1" : "=r"(id_aa64zfr0_el1));
-#endif
     // I8MM, bits [47:44] of ID_AA64ZFR0_EL1
     unsigned supports_sve_i8mm = ((id_aa64zfr0_el1 >> 44) & 0xF) >= 1;
     // BF16, bits [23:20] of ID_AA64ZFR0_EL1
@@ -351,7 +360,8 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
     // This value must match the existing indicator obtained from ID_AA64PFR0_EL1:
     //    unsigned supports_sve = ((id_aa64zfr0_el1) & 0xF) >= 1;
     //    unsigned supports_sve2 = ((id_aa64zfr0_el1) & 0xF) >= 2;
-    unsigned supports_neon = 1;                                          // NEON is always supported
+    unsigned supports_neon = 1; // NEON is always supported
+
     return (simsimd_capability_t)(                                       //
         (simsimd_cap_neon_k * (supports_neon)) |                         //
         (simsimd_cap_neon_f16_k * (supports_neon && supports_fp16)) |    //
