@@ -23,16 +23,30 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Set up Cargo
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-      - run: npm install --ignore-scripts --save-dev --prefix ./package-ci @semantic-release/exec @semantic-release/git conventional-changelog-eslint semantic-release && npx --prefix ./package-ci semantic-release
+      
+      # Automatic versioning is a pain.
+      # 
+      # - name: Set up Node.js
+      #   uses: actions/setup-node@v4
+      #   with:
+      #     node-version: 20
+      # - name: Set up Cargo
+      #   uses: actions-rs/toolchain@v1
+      #   with:
+      #     toolchain: stable
+      #     override: true
+      # - name: Clean npm cache
+      #   run: npm cache clean --force
+      # - name: Remove node_modules and package-lock.json
+      #   run: rm -rf .github/workflows/node_modules .github/workflows/package-lock.json
+      # - name: Install dependencies
+      #   run: npm install --ignore-scripts --legacy-peer-deps --prefix .github/workflows
+      # - name: Verify installation
+      #   run: ls -l .github/workflows/node_modules
+      # - name: Verify bin directory
+      #   run: ls -l .github/workflows/node_modules/.bin
+      # - name: Run semantic-release
+      #   run: npx --prefix .github/workflows semantic-release  --no-ci --no-npm --debug
 
   rebase:
     name: Rebase Dev. Branch

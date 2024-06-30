@@ -205,35 +205,55 @@ typedef _Float16 simsimd_f16_t;
 typedef unsigned short simsimd_f16_t;
 #endif
 
-/*  @brief  Half-precision "brain" floating-point type.
+#if !defined(SIMSIMD_NATIVE_BF16) || SIMSIMD_NATIVE_BF16
+/**
+ *  @brief  Half-precision brain-float type.
  *
- *  - GCC or Clang on 64-bit Arm: `__bf16`, may require `-mbf16-format` option.
- *  - GCC or Clang on 64-bit x86: `bfloat16_t`.
+ *  - GCC or Clang on 64-bit Arm: `__bf16`
+ *  - GCC or Clang on 64-bit x86: `_BFloat16`.
  *  - Default: `unsigned short`.
+ *
+ *  @warning Apple Clang has hard time with bf16.
+ *  https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms
+ *  https://forums.developer.apple.com/forums/thread/726201
  */
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) &&                      \
+    (defined(__ARM_BF16_FORMAT_ALTERNATIVE))
 #if !defined(SIMSIMD_NATIVE_BF16)
 #define SIMSIMD_NATIVE_BF16 1
 #endif
-// SIMSIMD_CAN_COMPILE_BF16 is set during build if __bf16 compiles
-#if SIMSIMD_NATIVE_BF16 && defined(SIMSIMD_CAN_COMPILE_BF16)
-typedef __bf16 simsimd_bf16_t;
-#else
+typedef __fp16 simsimd_bf16_t;
+#elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) &&                      \
+       (defined(__SSE2__) || defined(__AVX512F__)))
+typedef _Float16 simsimd_bf16_t;
+#if !defined(SIMSIMD_NATIVE_BF16)
+#define SIMSIMD_NATIVE_BF16 1
+#endif
+#else // Unknown compiler or architecture
+#define SIMSIMD_NATIVE_BF16 0
+#endif // Unknown compiler or architecture
+#endif // !SIMSIMD_NATIVE_BF16
+
+#if !SIMSIMD_NATIVE_BF16
 typedef unsigned short simsimd_bf16_t;
 #endif
 
 /**
  *  @brief  Alias for the half-precision floating-point type on Arm.
- *          Clang and GCC bring the `float16_t` symbol when you compile for Aarch64.
- *          MSVC lacks it, and it's `vld1_f16`-like intrinsics are in reality macros,
- *          that cast to 16-bit integers internally, instead of using floats.
+ *
+ *  Clang and GCC bring the `float16_t` symbol when you compile for Aarch64.
+ *  MSVC lacks it, and it's `vld1_f16`-like intrinsics are in reality macros,
+ *  that cast to 16-bit integers internally, instead of using floats.
+ *  Some of those are defined as aliases, so we use `#define` preprocessor
+ *  directives instead of `typedef` to avoid errors.
  */
 #if SIMSIMD_TARGET_ARM
 #if defined(_MSC_VER)
-typedef simsimd_f16_t simsimd_f16_for_arm_simd_t;
-typedef simsimd_bf16_t simsimd_bf16_for_arm_simd_t;
+#define simsimd_f16_for_arm_simd_t simsimd_f16_t
+#define simsimd_bf16_for_arm_simd_t simsimd_bf16_t
 #else
-typedef float16_t simsimd_f16_for_arm_simd_t;
-typedef bfloat16_t simsimd_bf16_for_arm_simd_t;
+#define simsimd_f16_for_arm_simd_t float16_t
+#define simsimd_bf16_for_arm_simd_t bfloat16_t
 #endif
 #endif
 
@@ -255,10 +275,12 @@ typedef bfloat16_t simsimd_bf16_for_arm_simd_t;
  *  @brief  Returns the value of the half-precision brain floating-point number,
  *          potentially decompressed into single-precision.
  */
-#ifdef SIMSIMD_NATIVE_BF16
+#ifndef SIMSIMD_UNCOMPRESS_BF16
+#if SIMSIMD_NATIVE_BF16
 #define SIMSIMD_UNCOMPRESS_BF16(x) (SIMSIMD_IDENTIFY(x))
 #else
 #define SIMSIMD_UNCOMPRESS_BF16(x) (simsimd_uncompress_bf16(x))
+#endif
 #endif
 
 typedef union {
