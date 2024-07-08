@@ -265,7 +265,7 @@ static PyObject* api_get_capabilities(PyObject* self) {
     if (!cap_dict)
         return NULL;
 
-#define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong((caps)&simsimd_cap_##name##_k))
+#define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong((caps) & simsimd_cap_##name##_k))
 
     ADD_CAP(serial);
     ADD_CAP(neon);

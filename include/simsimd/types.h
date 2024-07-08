@@ -11,12 +11,21 @@
 #ifndef SIMSIMD_TYPES_H
 #define SIMSIMD_TYPES_H
 
-/*  Annotation for the public API symbols:
- *
- *  - `SIMSIMD_PUBLIC` is used for functions that are part of the public API.
- *  - `SIMSIMD_INTERNAL` is used for internal helper functions with unstable APIs.
- *  - `SIMSIMD_DYNAMIC` is used for functions that are part of the public API, but are dispatched at runtime.
- */
+// Inferring target OS: Windows, MacOS, or Linux
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+#define SIMSIMD_DEFINED_WINDOWS
+#elif defined(__APPLE__) && defined(__MACH__)
+#define SIMSIMD_DEFINED_APPLE
+#elif defined(__linux__)
+#define SIMSIMD_DEFINED_LINUX
+#endif
+
+// Annotation for the public API symbols:
+//
+// - `SIMSIMD_PUBLIC` is used for functions that are part of the public API.
+// - `SIMSIMD_INTERNAL` is used for internal helper functions with unstable APIs.
+// - `SIMSIMD_DYNAMIC` is used for functions that are part of the public API, but are dispatched at runtime.
+//
 #if defined(_WIN32) || defined(__CYGWIN__)
 #define SIMSIMD_DYNAMIC __declspec(dllexport)
 #define SIMSIMD_PUBLIC inline static
@@ -59,6 +68,16 @@
 #endif // defined(__ARM_NEON)
 #endif // !defined(SIMSIMD_TARGET_NEON)
 
+#if !defined(SIMSIMD_TARGET_NEON_I8)
+#define SIMSIMD_TARGET_NEON_I8 SIMSIMD_TARGET_NEON
+#endif // !defined(SIMSIMD_TARGET_NEON_I8)
+#if !defined(SIMSIMD_TARGET_NEON_F16)
+#define SIMSIMD_TARGET_NEON_F16 SIMSIMD_TARGET_NEON
+#endif // !defined(SIMSIMD_TARGET_NEON_F16)
+#if !defined(SIMSIMD_TARGET_NEON_BF16)
+#define SIMSIMD_TARGET_NEON_BF16 SIMSIMD_TARGET_NEON
+#endif // !defined(SIMSIMD_TARGET_NEON_BF16)
+
 // Compiling for Arm: SIMSIMD_TARGET_SVE
 #if !defined(SIMSIMD_TARGET_SVE) || (SIMSIMD_TARGET_SVE && !SIMSIMD_TARGET_ARM)
 #if defined(__ARM_FEATURE_SVE)
@@ -68,6 +87,16 @@
 #define SIMSIMD_TARGET_SVE 0
 #endif // defined(__ARM_FEATURE_SVE)
 #endif // !defined(SIMSIMD_TARGET_SVE)
+
+#if !defined(SIMSIMD_TARGET_SVE_I8)
+#define SIMSIMD_TARGET_SVE_I8 SIMSIMD_TARGET_SVE
+#endif // !defined(SIMSIMD_TARGET_SVE_I8)
+#if !defined(SIMSIMD_TARGET_SVE_F16)
+#define SIMSIMD_TARGET_SVE_F16 SIMSIMD_TARGET_SVE
+#endif // !defined(SIMSIMD_TARGET_SVE_F16)
+#if !defined(SIMSIMD_TARGET_SVE_BF16)
+#define SIMSIMD_TARGET_SVE_BF16 SIMSIMD_TARGET_SVE
+#endif // !defined(SIMSIMD_TARGET_SVE_BF16)
 
 // Compiling for x86: SIMSIMD_TARGET_HASWELL
 //
