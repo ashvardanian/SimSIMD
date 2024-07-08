@@ -233,7 +233,7 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
         } named;
     } info1, info7, info7sub1;
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     __cpuidex(info1.array, 1, 0);
     __cpuidex(info7.array, 7, 0);
     __cpuidex(info7sub1.array, 7, 1);
@@ -316,7 +316,7 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
         (simsimd_cap_neon_i8_k * (supports_neon && supports_i8mm)) |   //
         (simsimd_cap_serial_k));
 
-#else
+#elif defined(SIMSIMD_DEFINED_LINUX)
     // This is how the `arm-cpusysregs` library does it:
     //
     //    int ID_AA64ISAR1_EL1_BF16() const { return (int)(_aa64isar1 >> 44) & 0x0F; }
@@ -387,7 +387,7 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
         (simsimd_cap_sve_bf16_k * (supports_sve && supports_sve_bf16)) | //
         (simsimd_cap_sve_i8_k * (supports_sve && supports_sve_i8mm)) |   //
         (simsimd_cap_serial_k));
-#endif // SIMSIMD_DEFINED_APPLE
+#endif // SIMSIMD_DEFINED_LINUX
 #endif // SIMSIMD_TARGET_ARM
 
     return simsimd_cap_serial_k;
@@ -567,7 +567,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 
     // Brain floating-point vectors
     case simsimd_datatype_bf16_k:
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON_BF16
         if (viable & simsimd_cap_neon_bf16_k)
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
@@ -808,7 +808,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
         break;
     case simsimd_datatype_bf16c_k:
 
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON_BF16
         if (viable & simsimd_cap_neon_bf16_k)
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16c_neon, *c = simsimd_cap_neon_bf16_k; return;
