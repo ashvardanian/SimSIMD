@@ -380,13 +380,15 @@ SIMSIMD_PUBLIC unsigned short simsimd_compress_f16(simsimd_f32_t x) {
     union float_or_unsigned_int_t {
         float f;
         unsigned int i;
-    };
+    } x_union;
+    x_union.f = x;
 
-    unsigned int b = *(unsigned int*)&x + 0x00001000;
+    unsigned int b = x_union.i + 0x00001000;
     unsigned int e = (b & 0x7F800000) >> 23;
     unsigned int m = b & 0x007FFFFF;
-    unsigned short result = (b & 0x80000000) >> 16 | (e > 112) * (((e - 112) << 10) & 0x7C00 | m >> 13) |
-                            ((e < 113) & (e > 101)) * ((((0x007FF000 + m) >> (125 - e)) + 1) >> 1) | (e > 143) * 0x7FFF;
+    unsigned short result = ((b & 0x80000000) >> 16) | (e > 112) * ((((e - 112) << 10) & 0x7C00) | (m >> 13)) |
+                            ((e < 113) & (e > 101)) * ((((0x007FF000 + m) >> (125 - e)) + 1) >> 1) |
+                            ((e > 143) * 0x7FFF);
     return result;
 }
 

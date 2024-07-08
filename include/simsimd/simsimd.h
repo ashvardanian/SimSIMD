@@ -392,15 +392,15 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_arm(void) {
     //    unsigned supports_sve2 = ((id_aa64zfr0_el1) & 0xF) >= 2;
     unsigned supports_neon = 1; // NEON is always supported
 
-    return (simsimd_capability_t)(                                       //
-        (simsimd_cap_neon_k * (supports_neon)) |                         //
-        (simsimd_cap_neon_f16_k * (supports_neon && supports_fp16)) |    //
-        (simsimd_cap_neon_bf16_k * (supports_neon && supports_bf16)) |   //
-        (simsimd_cap_neon_i8_k * (supports_neon && supports_i8mm)) |     //
-        (simsimd_cap_sve_k * (supports_sve)) |                           //
-        (simsimd_cap_sve_f16_k * (supports_sve && supports_fp16)) |      //
-        (simsimd_cap_sve_bf16_k * (supports_sve && supports_sve_bf16)) | //
-        (simsimd_cap_sve_i8_k * (supports_sve && supports_sve_i8mm)) |   //
+    return (simsimd_capability_t)(                                                                    //
+        (simsimd_cap_neon_k * (supports_neon)) |                                                      //
+        (simsimd_cap_neon_f16_k * (supports_neon && supports_fp16)) |                                 //
+        (simsimd_cap_neon_bf16_k * (supports_neon && supports_bf16)) |                                //
+        (simsimd_cap_neon_i8_k * (supports_neon && supports_i8mm && supports_integer_dot_products)) | //
+        (simsimd_cap_sve_k * (supports_sve)) |                                                        //
+        (simsimd_cap_sve_f16_k * (supports_sve && supports_fp16)) |                                   //
+        (simsimd_cap_sve_bf16_k * (supports_sve && supports_sve_bf16)) |                              //
+        (simsimd_cap_sve_i8_k * (supports_sve && supports_sve_i8mm)) |                                //
         (simsimd_cap_serial_k));
 #endif // SIMSIMD_DEFINED_LINUX
 }
