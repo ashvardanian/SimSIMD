@@ -217,13 +217,13 @@ SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void);
 SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void);
 #endif
 
+#if SIMSIMD_TARGET_X86
+
 /**
- *  @brief  Function to determine the SIMD capabilities of the current machine at @b runtime.
+ *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
  */
-SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
-
-#if SIMSIMD_TARGET_X86
+SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_x86(void) {
 
     /// The states of 4 registers populated for a specific "cpuid" assembly call
     union four_registers_t {
@@ -292,10 +292,25 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
         (simsimd_cap_genoa_k * supports_genoa) |       //
         (simsimd_cap_sapphire_k * supports_sapphire) | //
         (simsimd_cap_serial_k));
+}
 
 #endif // SIMSIMD_TARGET_X86
 
 #if SIMSIMD_TARGET_ARM
+
+/*  Compiling the next section one may get: selected processor does not support system register name 'id_aa64zfr0_el1'.
+ *  Suppressing assembler errors is very complicated, so when dealing with older ARM CPUs it's simpler to compile this
+ *  function targetting newer ones.
+ */
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.5-a+sve")
+#pragma clang attribute push(__attribute__((target("arch=armv8.5-a+sve"))), apply_to = function)
+
+/**
+ *  @brief  Function to determine the SIMD capabilities of the current 64-bit Arm machine at @b runtime.
+ *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
+ */
+SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_arm(void) {
 #if defined(SIMSIMD_DEFINED_APPLE)
     // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
     uint32_t supports_neon = 0, supports_fp16 = 0, supports_bf16 = 0, supports_i8mm = 0;
@@ -339,12 +354,12 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
 
     // Now let's unpack the status flags from ID_AA64ISAR0_EL1
     // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64ISAR0-EL1--AArch64-Instruction-Set-Attribute-Register-0?lang=en
-    __asm__("mrs %0, ID_AA64ISAR0_EL1" : "=r"(id_aa64isar0_el1));
+    __asm__ __volatile__("mrs %0, ID_AA64ISAR0_EL1" : "=r"(id_aa64isar0_el1));
     // DP, bits [47:44] of ID_AA64ISAR0_EL1
     unsigned supports_integer_dot_products = ((id_aa64isar0_el1 >> 44) & 0xF) >= 1;
     // Now let's unpack the status flags from ID_AA64ISAR1_EL1
     // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64ISAR1-EL1--AArch64-Instruction-Set-Attribute-Register-1?lang=en
-    __asm__("mrs %0, ID_AA64ISAR1_EL1" : "=r"(id_aa64isar1_el1));
+    __asm__ __volatile__("mrs %0, ID_AA64ISAR1_EL1" : "=r"(id_aa64isar1_el1));
     // I8MM, bits [55:52] of ID_AA64ISAR1_EL1
     unsigned supports_i8mm = ((id_aa64isar1_el1 >> 52) & 0xF) >= 1;
     // BF16, bits [47:44] of ID_AA64ISAR1_EL1
@@ -352,7 +367,7 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
 
     // Now let's unpack the status flags from ID_AA64PFR0_EL1
     // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64PFR0-EL1--AArch64-Processor-Feature-Register-0?lang=en
-    __asm__("mrs %0, ID_AA64PFR0_EL1" : "=r"(id_aa64pfr0_el1));
+    __asm__ __volatile__("mrs %0, ID_AA64PFR0_EL1" : "=r"(id_aa64pfr0_el1));
     // SVE, bits [35:32] of ID_AA64PFR0_EL1
     unsigned supports_sve = ((id_aa64pfr0_el1 >> 32) & 0xF) >= 1;
     // AdvSIMD, bits [23:20] of ID_AA64PFR0_EL1 can be used to check for `fp16` support
@@ -363,7 +378,7 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
     // Now let's unpack the status flags from ID_AA64ZFR0_EL1
     // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64ZFR0-EL1--SVE-Feature-ID-Register-0?lang=en
     if (supports_sve)
-        __asm__("mrs %0, ID_AA64ZFR0_EL1" : "=r"(id_aa64zfr0_el1));
+        __asm__ __volatile__("mrs %0, ID_AA64ZFR0_EL1" : "=r"(id_aa64zfr0_el1));
     // I8MM, bits [47:44] of ID_AA64ZFR0_EL1
     unsigned supports_sve_i8mm = ((id_aa64zfr0_el1 >> 44) & 0xF) >= 1;
     // BF16, bits [23:20] of ID_AA64ZFR0_EL1
@@ -388,8 +403,23 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
         (simsimd_cap_sve_i8_k * (supports_sve && supports_sve_i8mm)) |   //
         (simsimd_cap_serial_k));
 #endif // SIMSIMD_DEFINED_LINUX
-#endif // SIMSIMD_TARGET_ARM
+}
 
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif
+
+/**
+ *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
+ *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
+ */
+SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
+#if SIMSIMD_TARGET_X86
+    return simsimd_capabilities_x86();
+#endif // SIMSIMD_TARGET_X86
+#if SIMSIMD_TARGET_ARM
+    return simsimd_capabilities_arm();
+#endif // SIMSIMD_TARGET_ARM
     return simsimd_cap_serial_k;
 }
 
@@ -836,8 +866,8 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
     }
 }
 
-#pragma clang diagnostic pop
 #pragma GCC diagnostic pop
+#pragma clang diagnostic pop
 
 /**
  *  @brief  Selects the most suitable metric implementation based on the given metric kind, datatype,
