@@ -11,12 +11,21 @@
 #ifndef SIMSIMD_TYPES_H
 #define SIMSIMD_TYPES_H
 
-/*  Annotation for the public API symbols:
- *
- *  - `SIMSIMD_PUBLIC` is used for functions that are part of the public API.
- *  - `SIMSIMD_INTERNAL` is used for internal helper functions with unstable APIs.
- *  - `SIMSIMD_DYNAMIC` is used for functions that are part of the public API, but are dispatched at runtime.
- */
+// Inferring target OS: Windows, MacOS, or Linux
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+#define SIMSIMD_DEFINED_WINDOWS
+#elif defined(__APPLE__) && defined(__MACH__)
+#define SIMSIMD_DEFINED_APPLE
+#elif defined(__linux__)
+#define SIMSIMD_DEFINED_LINUX
+#endif
+
+// Annotation for the public API symbols:
+//
+// - `SIMSIMD_PUBLIC` is used for functions that are part of the public API.
+// - `SIMSIMD_INTERNAL` is used for internal helper functions with unstable APIs.
+// - `SIMSIMD_DYNAMIC` is used for functions that are part of the public API, but are dispatched at runtime.
+//
 #if defined(_WIN32) || defined(__CYGWIN__)
 #define SIMSIMD_DYNAMIC __declspec(dllexport)
 #define SIMSIMD_PUBLIC inline static

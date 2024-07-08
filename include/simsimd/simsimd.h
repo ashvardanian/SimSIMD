@@ -106,6 +106,11 @@
 #include "probability.h" // Kullback-Leibler, Jensen–Shannon
 #include "spatial.h"     // L2, Cosine
 
+// On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
+#if defined(SIMSIMD_DEFINED_APPLE)
+#include <sys/sysctl.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -291,6 +296,27 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
 #endif // SIMSIMD_TARGET_X86
 
 #if SIMSIMD_TARGET_ARM
+#if defined(SIMSIMD_DEFINED_APPLE)
+    // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
+    uint32_t supports_neon = 0, supports_fp16 = 0, supports_bf16 = 0, supports_i8mm = 0;
+    size_t size = sizeof(supports_neon);
+    if (sysctlbyname("hw.optional.neon", &supports_neon, &size, NULL, 0) != 0)
+        supports_neon = 0;
+    if (sysctlbyname("hw.optional.arm.FEAT_FP16", &supports_fp16, &size, NULL, 0) != 0)
+        supports_fp16 = 0;
+    if (sysctlbyname("hw.optional.arm.FEAT_BF16", &supports_bf16, &size, NULL, 0) != 0)
+        supports_bf16 = 0;
+    if (sysctlbyname("hw.optional.arm.FEAT_I8MM", &supports_i8mm, &size, NULL, 0) != 0)
+        supports_i8mm = 0;
+
+    return (simsimd_capability_t)(                                     //
+        (simsimd_cap_neon_k * (supports_neon)) |                       //
+        (simsimd_cap_neon_f16_k * (supports_neon && supports_fp16)) |  //
+        (simsimd_cap_neon_bf16_k * (supports_neon && supports_bf16)) | //
+        (simsimd_cap_neon_i8_k * (supports_neon && supports_i8mm)) |   //
+        (simsimd_cap_serial_k));
+
+#else
     // This is how the `arm-cpusysregs` library does it:
     //
     //    int ID_AA64ISAR1_EL1_BF16() const { return (int)(_aa64isar1 >> 44) & 0x0F; }
@@ -360,7 +386,7 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
         (simsimd_cap_sve_bf16_k * (supports_sve && supports_sve_bf16)) | //
         (simsimd_cap_sve_i8_k * (supports_sve && supports_sve_i8mm)) |   //
         (simsimd_cap_serial_k));
-
+#endif // SIMSIMD_DEFINED_APPLE
 #endif // SIMSIMD_TARGET_ARM
 
     return simsimd_cap_serial_k;
