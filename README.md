@@ -400,7 +400,7 @@ b = np.random.randn(ndim).astype(np.float32)
 a_f32rounded = ((a.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
 b_f32rounded = ((b.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
 
-# To represent them as brain-floats, we need to drop the second halfs
+# To represent them as brain-floats, we need to drop the second half
 a_bf16 = np.right_shift(a_f32rounded.view(np.uint32), 16).astype(np.uint16)
 b_bf16 = np.right_shift(b_f32rounded.view(np.uint32), 16).astype(np.uint16)
 
@@ -415,13 +415,13 @@ SimSIMD provides a dynamic dispatch mechanism to select the most advanced micro-
 You can query supported backends and use the `SimSIMD::capabilities` function to select the best one.
 
 ```rust
-println!("uses neon: {}", capabilties::uses_neon());
-println!("uses sve: {}", capabilties::uses_sve());
-println!("uses haswell: {}", capabilties::uses_haswell());
-println!("uses skylake: {}", capabilties::uses_skylake());
-println!("uses ice: {}", capabilties::uses_ice());
-println!("uses genoa: {}", capabilties::uses_genoa());
-println!("uses sapphire: {}", capabilties::uses_sapphire());
+println!("uses neon: {}", capabilities::uses_neon());
+println!("uses sve: {}", capabilities::uses_sve());
+println!("uses haswell: {}", capabilities::uses_haswell());
+println!("uses skylake: {}", capabilities::uses_skylake());
+println!("uses ice: {}", capabilities::uses_ice());
+println!("uses genoa: {}", capabilities::uses_genoa());
+println!("uses sapphire: {}", capabilities::uses_sapphire());
 ```
 
 ## Using SimSIMD in JavaScript
