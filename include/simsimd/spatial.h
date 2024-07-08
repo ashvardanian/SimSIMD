@@ -300,7 +300,9 @@ SIMSIMD_PUBLIC void simsimd_cos_f16_neon(simsimd_f16_t const* a, simsimd_f16_t c
 
 #pragma clang attribute pop
 #pragma GCC pop_options
+#endif // SIMSIMD_TARGET_NEON
 
+#if SIMSIMD_TARGET_NEON_BF16
 #pragma GCC push_options
 #pragma GCC target("+simd+bf16")
 #pragma clang attribute push(__attribute__((target("+simd+bf16"))), apply_to = function)
@@ -426,7 +428,9 @@ SIMSIMD_PUBLIC void simsimd_l2sq_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16
 }
 #pragma clang attribute pop
 #pragma GCC pop_options
+#endif // SIMSIMD_TARGET_NEON_BF16
 
+#if SIMSIMD_TARGET_NEON_I8
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+dotprod+i8mm")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod+i8mm"))), apply_to = function)
@@ -579,7 +583,7 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_neon(simsimd_i8_t const* a, simsimd_i8_t cons
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_NEON
+#endif // SIMSIMD_TARGET_NEON_I8
 
 #if SIMSIMD_TARGET_SVE
 #pragma GCC push_options

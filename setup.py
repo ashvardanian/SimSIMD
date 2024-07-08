@@ -86,6 +86,7 @@ if sys.platform == "win32":
     macros_args.extend(
         [
             get_bool_env_w_name("SIMSIMD_TARGET_NEON", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_NEON_BF16", False),
             get_bool_env_w_name("SIMSIMD_TARGET_SVE", False),
             get_bool_env_w_name("SIMSIMD_TARGET_HASWELL", True),
             get_bool_env_w_name("SIMSIMD_TARGET_SKYLAKE", True),
