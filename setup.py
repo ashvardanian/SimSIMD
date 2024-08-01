@@ -146,5 +146,10 @@ setup(
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
     ext_modules=ext_modules,
+    packages = ['simsimd'],
+    package_dir = {'simsimd' : './python/simsimd'},
+    package_data = {
+        'simsimd': ['__init__.pyi', 'py.typed']
+    },
     zip_safe=False,
 )
