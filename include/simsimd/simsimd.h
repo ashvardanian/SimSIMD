@@ -402,7 +402,9 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_arm(void) {
         (simsimd_cap_sve_bf16_k * (supports_sve && supports_sve_bf16)) |                              //
         (simsimd_cap_sve_i8_k * (supports_sve && supports_sve_i8mm)) |                                //
         (simsimd_cap_serial_k));
-#endif // SIMSIMD_DEFINED_LINUX
+#else // SIMSIMD_DEFINED_LINUX
+    return simsimd_cap_serial_k;
+#endif
 }
 
 #pragma clang attribute pop
