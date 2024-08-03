@@ -4,7 +4,7 @@ from os.path import dirname
 from setuptools import setup, Extension, find_packages
 
 __lib_name__ = "simsimd"
-__version__ = "4.4.0"
+__version__ = "5.0.0"
 
 compile_args = []
 link_args = []
@@ -147,12 +147,9 @@ setup(
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
     ext_modules=ext_modules,
+    zip_safe=False,
     packages=["simsimd"],
     package_dir={"simsimd": "python/simsimd"},
     package_data={"simsimd": ["__init__.pyi", "py.typed"]},
-    zip_safe=False,
     include_package_data=True,
-    packages=find_packages("simsimd"),
-    package_dir={"simsimd": ""},
-    package_data={"simsimd": ["VERSION"]},
 )

@@ -45,7 +45,7 @@ static PyBufferProcs DistancesTensor_as_buffer = {
 };
 
 static PyTypeObject DistancesTensorType = {
-    PyObject_HEAD_INIT(NULL).tp_name = "simsimd.DistancesTensor",
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "simsimd.DistancesTensor",
     .tp_doc = "Zero-copy view of an internal tensor, compatible with NumPy",
     .tp_basicsize = sizeof(DistancesTensor),
     .tp_itemsize = sizeof(simsimd_distance_t),
