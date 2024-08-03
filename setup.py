@@ -1,7 +1,7 @@
 import os
 import sys
 from os.path import dirname
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 
 __version__ = open("VERSION", "r").read().strip()
 __lib_name__ = "simsimd"
@@ -148,4 +148,8 @@ setup(
     ],
     ext_modules=ext_modules,
     zip_safe=False,
+    include_package_data=True,
+    packages=find_packages("simsimd"),
+    package_dir={"simsimd": ""},
+    package_data={"simsimd": ["VERSION"]},
 )
