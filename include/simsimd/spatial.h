@@ -843,8 +843,7 @@ SIMSIMD_PUBLIC void simsimd_cos_f16_haswell(simsimd_f16_t const* a, simsimd_f16_
     __m128 b2_sqrt_recip = _mm_rsqrt_ss(_mm_set_ss((float)b2));
     __m128 result_vec = _mm_mul_ss(a2_sqrt_recip, b2_sqrt_recip); // Multiply the reciprocal square roots
     result_vec = _mm_mul_ss(result_vec, _mm_set_ss((float)ab));   // Multiply by ab
-    result_vec = _mm_sub_ss(_mm_set_ss(1.0f), result_vec);        // Subtract from 1
-    *result = ab != 0 ? _mm_cvtss_f32(result_vec) : 1;            // Extract the final result
+    *result = ab != 0 ? 1 - _mm_cvtss_f32(result_vec) : 1;        // Extract the final result
 }
 
 SIMSIMD_PUBLIC void simsimd_l2sq_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
@@ -950,8 +949,7 @@ SIMSIMD_PUBLIC void simsimd_cos_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf
     __m128 b2_sqrt_recip = _mm_rsqrt_ss(_mm_set_ss((float)b2));
     __m128 result_vec = _mm_mul_ss(a2_sqrt_recip, b2_sqrt_recip); // Multiply the reciprocal square roots
     result_vec = _mm_mul_ss(result_vec, _mm_set_ss((float)ab));   // Multiply by ab
-    result_vec = _mm_sub_ss(_mm_set_ss(1.0f), result_vec);        // Subtract from 1
-    *result = ab != 0 ? _mm_cvtss_f32(result_vec) : 1;            // Extract the final result
+    *result = ab != 0 ? 1 - _mm_cvtss_f32(result_vec) : 1;        // Extract the final result
 }
 
 SIMSIMD_PUBLIC void simsimd_l2sq_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
@@ -1062,7 +1060,7 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t c
     // Compute cosine similarity: ab / sqrt(a2 * b2)
     __m128 denom = _mm_mul_ss(a2_sqrt_recip, b2_sqrt_recip);      // Reciprocal of sqrt(a2 * b2)
     __m128 result_vec = _mm_mul_ss(_mm_set_ss((float)ab), denom); // ab * reciprocal of sqrt(a2 * b2)
-    *result = ab != 0 ? 1 - _mm_cvtss_f32(result_vec) : 0;        // Extract the final result
+    *result = ab != 0 ? 1 - _mm_cvtss_f32(result_vec) : 1;        // Extract the final result
 }
 
 SIMSIMD_PUBLIC void simsimd_l2sq_f32_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
@@ -1115,7 +1113,7 @@ SIMSIMD_PUBLIC void simsimd_cos_f32_haswell(simsimd_f32_t const* a, simsimd_f32_
     // Compute cosine similarity: ab / sqrt(a2 * b2)
     __m128 denom = _mm_mul_ss(a2_sqrt_recip, b2_sqrt_recip);      // Reciprocal of sqrt(a2 * b2)
     __m128 result_vec = _mm_mul_ss(_mm_set_ss((float)ab), denom); // ab * reciprocal of sqrt(a2 * b2)
-    *result = ab != 0 ? 1 - _mm_cvtss_f32(result_vec) : 0;        // Extract the final result
+    *result = ab != 0 ? 1 - _mm_cvtss_f32(result_vec) : 1;        // Extract the final result
 }
 
 #pragma clang attribute pop
@@ -1339,7 +1337,7 @@ simsimd_cos_bf16_genoa_cycle:
     __m128 rsqrts = _mm_rsqrt14_ps(_mm_set_ps(0.f, 0.f, a2 + 1.e-9f, b2 + 1.e-9f));
     simsimd_f32_t rsqrt_a2 = _mm_cvtss_f32(rsqrts);
     simsimd_f32_t rsqrt_b2 = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
-    *result = ab != 0 ? 1 - ab * rsqrt_a2 * rsqrt_b2 : 0;
+    *result = ab != 0 ? 1 - ab * rsqrt_a2 * rsqrt_b2 : 1;
 }
 
 #pragma clang attribute pop
@@ -1407,7 +1405,7 @@ simsimd_cos_f16_sapphire_cycle:
     __m128 rsqrts = _mm_rsqrt14_ps(_mm_set_ps(0.f, 0.f, a2 + 1.e-9f, b2 + 1.e-9f));
     simsimd_f32_t rsqrt_a2 = _mm_cvtss_f32(rsqrts);
     simsimd_f32_t rsqrt_b2 = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
-    *result = ab != 0 ? 1 - ab * rsqrt_a2 * rsqrt_b2 : 0;
+    *result = ab != 0 ? 1 - ab * rsqrt_a2 * rsqrt_b2 : 1;
 }
 
 #pragma clang attribute pop
@@ -1497,7 +1495,7 @@ simsimd_cos_i8_ice_cycle:
     __m128 rsqrts = _mm_maskz_rsqrt14_ps(0xFF, _mm_set_ps(0.f, 0.f, a2 + 1.e-9f, b2 + 1.e-9f));
     simsimd_f32_t rsqrt_a2 = _mm_cvtss_f32(rsqrts);
     simsimd_f32_t rsqrt_b2 = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
-    *result = ab != 0 ? 1 - ab * rsqrt_a2 * rsqrt_b2 : 0;
+    *result = ab != 0 ? 1 - ab * rsqrt_a2 * rsqrt_b2 : 1;
 }
 
 #pragma clang attribute pop
