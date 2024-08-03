@@ -48,6 +48,21 @@
             "osx": {
                 "MIMode": "lldb"
             }
+        },
+        {
+            "name": "Debug PyTest",
+            "type": "python",
+            "request": "launch",
+            "module": "pytest",
+            "console": "internalConsole",
+            "args": [
+                "${file}",
+                "-s",
+                "-x",
+                "-k",
+                "inner_bf16"
+            ],
+            "justMyCode": true
         }
     ]
 }
