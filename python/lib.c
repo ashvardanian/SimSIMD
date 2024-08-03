@@ -753,8 +753,9 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
 
     // Add version metadata
     {
-        char version_str[50];
-        sprintf(version_str, "%d.%d.%d", SIMSIMD_VERSION_MAJOR, SIMSIMD_VERSION_MINOR, SIMSIMD_VERSION_PATCH);
+        char version_str[64];
+        snprintf(version_str, sizeof(version_str), "%d.%d.%d", SIMSIMD_VERSION_MAJOR, SIMSIMD_VERSION_MINOR,
+                 SIMSIMD_VERSION_PATCH);
         PyModule_AddStringConstant(m, "__version__", version_str);
     }
 
