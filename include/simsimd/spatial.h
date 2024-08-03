@@ -27,6 +27,8 @@
 
 #include "types.h"
 
+#include "dot.h" // `_mm256_reduce_add_ps_dbl`
+
 #ifdef __cplusplus
 extern "C" {
 #endif
