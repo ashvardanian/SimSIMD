@@ -858,6 +858,22 @@ inline simsimd_f64_t _mm256_reduce_add_ps_dbl(__m256 vec) {
     return _mm_cvtsd_f64(sum128);
 }
 
+SIMSIMD_PUBLIC void simsimd_dot_f32_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                            simsimd_distance_t* results) {
+
+    __m256 ab_vec = _mm256_setzero_ps();
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m256 a_vec = _mm256_loadu_ps(a + i);
+        __m256 b_vec = _mm256_loadu_ps(b + i);
+        ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
+    }
+    simsimd_f64_t ab = _mm256_reduce_add_ps_dbl(ab_vec);
+    for (; i < n; ++i)
+        ab += a[i] * b[i];
+    *results = ab;
+}
+
 SIMSIMD_PUBLIC void simsimd_dot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                              simsimd_distance_t* results) {
 

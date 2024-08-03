@@ -93,6 +93,8 @@ SIMSIMD_PUBLIC void simsimd_l2sq_f16_haswell(simsimd_f16_t const* a, simsimd_f16
 SIMSIMD_PUBLIC void simsimd_cos_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t*);
 SIMSIMD_PUBLIC void simsimd_l2sq_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t*);
 SIMSIMD_PUBLIC void simsimd_cos_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t*);
+SIMSIMD_PUBLIC void simsimd_l2sq_f32_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t*);
+SIMSIMD_PUBLIC void simsimd_cos_f32_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t*);
 
 /*  SIMD-powered backends for AVX512 CPUs of Skylake generation and newer, using 32-bit arithmetic over 512-bit words.
  *  Skylake was launched in 2015, and discontinued in 2019. Skylake had support for F, CD, VL, DQ, and BW extensions,
@@ -1048,6 +1050,59 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t c
     // Take care of the tail:
     for (; i < n; ++i) {
         int ai = a[i], bi = b[i];
+        ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
+    }
+
+    // Compute the reciprocal of the square roots
+    __m128 a2_sqrt_recip = _mm_rsqrt_ss(_mm_set_ss((float)a2));
+    __m128 b2_sqrt_recip = _mm_rsqrt_ss(_mm_set_ss((float)b2));
+
+    // Compute cosine similarity: ab / sqrt(a2 * b2)
+    __m128 denom = _mm_mul_ss(a2_sqrt_recip, b2_sqrt_recip);      // Reciprocal of sqrt(a2 * b2)
+    __m128 result_vec = _mm_mul_ss(_mm_set_ss((float)ab), denom); // ab * reciprocal of sqrt(a2 * b2)
+    *result = ab != 0 ? 1 - _mm_cvtss_f32(result_vec) : 0;        // Extract the final result
+}
+
+SIMSIMD_PUBLIC void simsimd_l2sq_f32_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                             simsimd_distance_t* result) {
+
+    __m256 d2_vec = _mm256_setzero_ps();
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m256 a_vec = _mm256_loadu_ps(a + i);
+        __m256 b_vec = _mm256_loadu_ps(b + i);
+        __m256 d_vec = _mm256_sub_ps(a_vec, b_vec);
+        d2_vec = _mm256_fmadd_ps(d_vec, d_vec, d2_vec);
+    }
+
+    simsimd_f64_t d2 = _mm256_reduce_add_ps_dbl(d2_vec);
+    for (; i < n; ++i) {
+        float d = a[i] - b[i];
+        d2 += d * d;
+    }
+
+    *result = d2;
+}
+
+SIMSIMD_PUBLIC void simsimd_cos_f32_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                            simsimd_distance_t* result) {
+
+    __m256 ab_vec = _mm256_setzero_ps();
+    __m256 a2_vec = _mm256_setzero_ps();
+    __m256 b2_vec = _mm256_setzero_ps();
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m256 a_vec = _mm256_loadu_ps(a + i);
+        __m256 b_vec = _mm256_loadu_ps(b + i);
+        ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
+        a2_vec = _mm256_fmadd_ps(a_vec, a_vec, a2_vec);
+        b2_vec = _mm256_fmadd_ps(b_vec, b_vec, b2_vec);
+    }
+    simsimd_f64_t ab = _mm256_reduce_add_ps_dbl(ab_vec);
+    simsimd_f64_t a2 = _mm256_reduce_add_ps_dbl(a2_vec);
+    simsimd_f64_t b2 = _mm256_reduce_add_ps_dbl(b2_vec);
+    for (; i < n; ++i) {
+        float ai = a[i], bi = b[i];
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
 

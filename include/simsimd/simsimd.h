@@ -527,6 +527,16 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             default: break;
             }
 #endif
+#if SIMSIMD_TARGET_HASWELL
+        if (viable & simsimd_cap_haswell_k)
+            switch (kind) {
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f32_haswell, *c = simsimd_cap_haswell_k; return;
+            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f32_haswell, *c = simsimd_cap_haswell_k; return;
+            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f32_haswell, *c = simsimd_cap_haswell_k; return;
+            default: break;
+            }
+#endif
+
         if (viable & simsimd_cap_serial_k)
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f32_serial, *c = simsimd_cap_serial_k; return;
@@ -1120,6 +1130,8 @@ SIMSIMD_PUBLIC void simsimd_dot_f32(simsimd_f32_t const* a, simsimd_f32_t const*
     simsimd_dot_f32_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_SKYLAKE
     simsimd_dot_f32_skylake(a, b, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_dot_f32_haswell(a, b, n, d);
 #else
     simsimd_dot_f32_serial(a, b, n, d);
 #endif
@@ -1292,6 +1304,8 @@ SIMSIMD_PUBLIC void simsimd_cos_f32(simsimd_f32_t const* a, simsimd_f32_t const*
     simsimd_cos_f32_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_SKYLAKE
     simsimd_cos_f32_skylake(a, b, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_cos_f32_haswell(a, b, n, d);
 #else
     simsimd_cos_f32_serial(a, b, n, d);
 #endif
@@ -1338,6 +1352,8 @@ SIMSIMD_PUBLIC void simsimd_l2sq_f32(simsimd_f32_t const* a, simsimd_f32_t const
     simsimd_l2sq_f32_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_SKYLAKE
     simsimd_l2sq_f32_skylake(a, b, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_l2sq_f32_haswell(a, b, n, d);
 #else
     simsimd_l2sq_f32_serial(a, b, n, d);
 #endif
