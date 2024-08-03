@@ -6,17 +6,89 @@
  *  @copyright  Copyright (c) 2023
  *
  *  References:
- *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
- *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide
+ *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics
  *  Detecting target CPU features at compile time: https://stackoverflow.com/a/28939692/2766161
+ *
+ *  @section    Choosing x86 Target Generations
+ *
+ *  It's important to provide fine-grained controls over AVX512 families, as they are very fragmented:
+ *
+ *  - Intel Skylake servers: F, CD, VL, DQ, BW
+ *  - Intel Cascade Lake workstations: F, CD, VL, DQ, BW, VNNI
+ *       > In other words, it extends Skylake with VNNI support
+ *  - Intel Sunny Cove (Ice Lake) servers:
+ *         F, CD, VL, DQ, BW, VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ
+ *  - AMD Zen4 (Genoa):
+ *         F, CD, VL, DQ, BW, VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ, BF16
+ *       > In other words, it extends Sunny Cove with BF16 support
+ *  - Intel Golden Cove (Sapphire Rapids): extends Zen4 and Sunny Cove with FP16 support
+ *
+ *  Intel Palm Cove was an irrelevant intermediate release extending Skylake with IFMA and VBMI.
+ *  Intel Willow Cove was an irrelevant intermediate release extending Sunny Cove with VP2INTERSECT,
+ *  that aren't supported by any other CPU built to date... and those are only available in Tiger Lake laptops.
+ *  Intel Cooper Lake was the only intermediary platform, that supported BF16, but not FP16.
+ *  It's mostly used in 4-socket and 8-socket high-memory configurations.
+ *
+ *  In practical terms, it makes sense to differentiate only 3 AVX512 generations:
+ *  1. Intel Skylake (pre 2019): supports single-precision dot-products.
+ *  2. Intel Ice Lake (2019-2021): advanced integer algorithms.
+ *  3. AMD Genoa (2023+): brain-floating point support.
+ *  4. Intel Sapphire Rapids (2023+): advanced mixed-precision float processing.
+ *
+ *  To list all available macros for x86, take a recent compiler, like GCC 12 and run:
+ *       gcc-12 -march=sapphirerapids -dM -E - < /dev/null | egrep "SSE|AVX" | sort
+ *  On Arm machines you may want to check for other flags:
+ *       gcc-12 -march=native -dM -E - < /dev/null | egrep "NEON|SVE|FP16|FMA" | sort
+ *
+ *  @section    Choosing Arm Target Generations
+ *
+ *  Arm CPUs share design IP, but are produced by different vendors, potentially making the platform
+ *  even more fragmented than x86. There are 2 imporatant families of SIMD extensions - NEON and SVE.
+ *
+ *  - Armv8-A: +fp, +simd
+ *  - Armv8.1-A: armv8-a, +crc, +lse, +rdma
+ *  - Armv8.2-A: armv8.1-a
+ *  - Armv8.3-A: armv8.2-a, +pauth
+ *  - Armv8.4-A: armv8.3-a, +flagm, +fp16fml, +dotprod
+ *  - Armv8.5-A: armv8.4-a, +sb, +ssbs, +predres
+ *  - Armv8.6-A: armv8.5-a, +bf16, +i8mm
+ *  - Armv8.7-A: armv8.6-a, +ls64
+ *  - Armv8.8-A: armv8.7-a, +mops
+ *  - Armv8.9-A: armv8.8-a
+ *  - Armv9-A: armv8.5-a, +sve, +sve2
+ *  - Armv9.1-A: armv9-a, +bf16, +i8mm
+ *  - Armv9.2-A: armv9.1-a, +ls64
+ *  - Armv9.3-A: armv9.2-a, +mops
+ *  - Armv9.4-A: armv9.3-a
+ *
+ *  SVE has been optional since Armv8.2-A, but it's a requirement for Armv9.0-A.
+ *  A 512-bit SVE variant has already been implemented on the Fugaku supercomputer.
+ *  A more flexible version, 2x256 SVE, was implemented by the AWS Graviton3 ARM processor.
+ *  Here are the most important recent families of CPU cores designed by Arm:
+ *
+ *  - Neoverse N1: armv8.2-a, extended with Armv8.4 "dotprod" instructions.
+ *    Used in AWS @b Graviton2 and Amere @b Altra.
+ *    https://developer.arm.com/Processors/Neoverse%20N1
+ *  - Neoverse V1: armv8.4-a, extended with Armv8.6 bfloat/int8 "matmul" instructions.
+ *    Used in AWS @b Graviton3, which also enables `sve`, `svebf16`, and `svei8mm`.
+ *    https://developer.arm.com/Processors/Neoverse%20V1
+ *  - Neoverse V2: armv9.0 with SVE2 and SVE bit-permutes
+ *    Used in AWS @b Graviton4, NVIDIA @b Grace, Google @b Axion.
+ *    https://developer.arm.com/Processors/Neoverse%20V2
+ *    The N2 core is very similar to V2 and is used by Microsoft @b Cobalt.
+ *    https://developer.arm.com/Processors/Neoverse%20N2
+ *
+ *  On Consumer side, Apple is the biggest player with mobile @b A chips and desktop @b M chips.
+ *  The M1 implements Armv8.5-A, both M2 and M3 implement Armv8.6-A, and M4 is expected to have Armv9.1-A.
  */
 
 #ifndef SIMSIMD_H
 #define SIMSIMD_H
 
-#define SIMSIMD_VERSION_MAJOR 4
-#define SIMSIMD_VERSION_MINOR 3
-#define SIMSIMD_VERSION_PATCH 1
+#define SIMSIMD_VERSION_MAJOR 5
+#define SIMSIMD_VERSION_MINOR 0
+#define SIMSIMD_VERSION_PATCH 0
 
 /**
  *  @brief  Removes compile-time dispatching, and replaces it with runtime dispatching.
@@ -34,11 +106,9 @@
 #include "probability.h" // Kullback-Leibler, Jensen–Shannon
 #include "spatial.h"     // L2, Cosine
 
-#if SIMSIMD_TARGET_ARM
-#ifdef __linux__
-#include <asm/hwcap.h>
-#include <sys/auxv.h>
-#endif
+// On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
+#if defined(SIMSIMD_DEFINED_APPLE)
+#include <sys/sysctl.h>
 #endif
 
 #ifdef __cplusplus
@@ -88,15 +158,20 @@ typedef enum {
     simsimd_cap_serial_k = 1,       ///< Serial (non-SIMD) capability
     simsimd_cap_any_k = 0x7FFFFFFF, ///< Mask representing any capability with `INT_MAX`
 
-    simsimd_cap_neon_k = 1 << 10, ///< ARM NEON capability
-    simsimd_cap_sve_k = 1 << 11,  ///< ARM SVE capability
-    simsimd_cap_sve2_k = 1 << 12, ///< ARM SVE2 capability
+    simsimd_cap_haswell_k = 1 << 10,  ///< x86 AVX2 capability with FMA and F16C extensions
+    simsimd_cap_skylake_k = 1 << 11,  ///< x86 AVX512 baseline capability
+    simsimd_cap_ice_k = 1 << 12,      ///< x86 AVX512 capability with advanced integer algos
+    simsimd_cap_genoa_k = 1 << 13,    ///< x86 AVX512 capability with `bf16` support
+    simsimd_cap_sapphire_k = 1 << 14, ///< x86 AVX512 capability with `f16` support
 
-    simsimd_cap_haswell_k = 1 << 20,  ///< x86 AVX2 capability with FMA and F16C extensions
-    simsimd_cap_skylake_k = 1 << 21,  ///< x86 AVX512 baseline capability
-    simsimd_cap_ice_k = 1 << 22,      ///< x86 AVX512 capability with advanced integer algos
-    simsimd_cap_sapphire_k = 1 << 23, ///< x86 AVX512 capability with `f16` support
-    simsimd_cap_genoa_k = 1 << 24,    ///< x86 AVX512 capability with `bf16` support
+    simsimd_cap_neon_k = 1 << 20,      ///< ARM NEON capability
+    simsimd_cap_neon_f16_k = 1 << 21,  ///< ARM NEON FP16 capability
+    simsimd_cap_neon_bf16_k = 1 << 22, ///< ARM NEON BF16 capability
+    simsimd_cap_neon_i8_k = 1 << 23,   ///< ARM NEON Int8 capability
+    simsimd_cap_sve_k = 1 << 24,       ///< ARM SVE capability
+    simsimd_cap_sve_f16_k = 1 << 25,   ///< ARM SVE FP16 capability
+    simsimd_cap_sve_bf16_k = 1 << 26,  ///< ARM SVE BF16 capability
+    simsimd_cap_sve_i8_k = 1 << 27,    ///< ARM SVE Int8 capability
 
 } simsimd_capability_t;
 
@@ -108,18 +183,20 @@ typedef enum {
  *  interfaces.
  */
 typedef enum {
-    simsimd_datatype_unknown_k, ///< Unknown data type
-    simsimd_datatype_f64_k,     ///< Double precision floating point
-    simsimd_datatype_f32_k,     ///< Single precision floating point
-    simsimd_datatype_f16_k,     ///< Half precision floating point
-    simsimd_datatype_bf16_k,    ///< Brain floating point
-    simsimd_datatype_i8_k,      ///< 8-bit integer
-    simsimd_datatype_b8_k,      ///< Single-bit values packed into 8-bit words
+    simsimd_datatype_unknown_k = 0, ///< Unknown data type
 
-    simsimd_datatype_f64c_k,  ///< Complex double precision floating point
-    simsimd_datatype_f32c_k,  ///< Complex single precision floating point
-    simsimd_datatype_f16c_k,  ///< Complex half precision floating point
-    simsimd_datatype_bf16c_k, ///< Complex brain floating point
+    simsimd_datatype_b8_k = 1 << 1, ///< Single-bit values packed into 8-bit words
+    simsimd_datatype_i8_k = 1 << 2, ///< 8-bit integer
+
+    simsimd_datatype_f64_k = 1 << 10,  ///< Double precision floating point
+    simsimd_datatype_f32_k = 1 << 11,  ///< Single precision floating point
+    simsimd_datatype_f16_k = 1 << 12,  ///< Half precision floating point
+    simsimd_datatype_bf16_k = 1 << 13, ///< Brain floating point
+
+    simsimd_datatype_f64c_k = 1 << 20,  ///< Complex double precision floating point
+    simsimd_datatype_f32c_k = 1 << 21,  ///< Complex single precision floating point
+    simsimd_datatype_f16c_k = 1 << 22,  ///< Complex half precision floating point
+    simsimd_datatype_bf16c_k = 1 << 23, ///< Complex brain floating point
 } simsimd_datatype_t;
 
 /**
@@ -140,13 +217,13 @@ SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void);
 SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void);
 #endif
 
+#if SIMSIMD_TARGET_X86
+
 /**
- *  @brief  Function to determine the SIMD capabilities of the current machine at @b runtime.
+ *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
  */
-SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
-
-#if SIMSIMD_TARGET_X86
+SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_x86(void) {
 
     /// The states of 4 registers populated for a specific "cpuid" assembly call
     union four_registers_t {
@@ -156,7 +233,7 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
         } named;
     } info1, info7, info7sub1;
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
     __cpuidex(info1.array, 1, 0);
     __cpuidex(info7.array, 7, 0);
     __cpuidex(info7sub1.array, 7, 1);
@@ -215,31 +292,134 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
         (simsimd_cap_genoa_k * supports_genoa) |       //
         (simsimd_cap_sapphire_k * supports_sapphire) | //
         (simsimd_cap_serial_k));
+}
 
 #endif // SIMSIMD_TARGET_X86
 
 #if SIMSIMD_TARGET_ARM
 
-    // Every 64-bit Arm CPU supports NEON
-    unsigned supports_neon = 1;
-    unsigned supports_sve = 0;
-    unsigned supports_sve2 = 0;
+/*  Compiling the next section one may get: selected processor does not support system register name 'id_aa64zfr0_el1'.
+ *  Suppressing assembler errors is very complicated, so when dealing with older ARM CPUs it's simpler to compile this
+ *  function targetting newer ones.
+ */
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.5-a+sve")
+#pragma clang attribute push(__attribute__((target("arch=armv8.5-a+sve"))), apply_to = function)
 
-#ifdef __linux__
-    unsigned long hwcap = getauxval(AT_HWCAP);
-    unsigned long hwcap2 = getauxval(AT_HWCAP2);
-    supports_sve = (hwcap & HWCAP_SVE) != 0;
-    supports_sve2 = (hwcap2 & HWCAP2_SVE2) != 0;
-#endif
+/**
+ *  @brief  Function to determine the SIMD capabilities of the current 64-bit Arm machine at @b runtime.
+ *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
+ */
+SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_arm(void) {
+#if defined(SIMSIMD_DEFINED_APPLE)
+    // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
+    uint32_t supports_neon = 0, supports_fp16 = 0, supports_bf16 = 0, supports_i8mm = 0;
+    size_t size = sizeof(supports_neon);
+    if (sysctlbyname("hw.optional.neon", &supports_neon, &size, NULL, 0) != 0)
+        supports_neon = 0;
+    if (sysctlbyname("hw.optional.arm.FEAT_FP16", &supports_fp16, &size, NULL, 0) != 0)
+        supports_fp16 = 0;
+    if (sysctlbyname("hw.optional.arm.FEAT_BF16", &supports_bf16, &size, NULL, 0) != 0)
+        supports_bf16 = 0;
+    if (sysctlbyname("hw.optional.arm.FEAT_I8MM", &supports_i8mm, &size, NULL, 0) != 0)
+        supports_i8mm = 0;
 
-    return (simsimd_capability_t)(             //
-        (simsimd_cap_neon_k * supports_neon) | //
-        (simsimd_cap_sve_k * supports_sve) |   //
-        (simsimd_cap_sve2_k * supports_sve2) | //
+    return (simsimd_capability_t)(                                     //
+        (simsimd_cap_neon_k * (supports_neon)) |                       //
+        (simsimd_cap_neon_f16_k * (supports_neon && supports_fp16)) |  //
+        (simsimd_cap_neon_bf16_k * (supports_neon && supports_bf16)) | //
+        (simsimd_cap_neon_i8_k * (supports_neon && supports_i8mm)) |   //
         (simsimd_cap_serial_k));
 
-#endif // SIMSIMD_TARGET_ARM
+#elif defined(SIMSIMD_DEFINED_LINUX)
+    // This is how the `arm-cpusysregs` library does it:
+    //
+    //    int ID_AA64ISAR1_EL1_BF16() const { return (int)(_aa64isar1 >> 44) & 0x0F; }
+    //    int ID_AA64ZFR0_EL1_BF16() const { return (int)(_aa64zfr0 >> 20) & 0x0F; }
+    //    int ID_AA64PFR0_EL1_FP() const { return (int)(_aa64pfr0 >> 16) & 0x0F; }
+    //    int ID_AA64ISAR0_EL1_DP() const { return (int)(_aa64isar0 >> 44) & 0x0F; }
+    //    int ID_AA64PFR0_EL1_SVE() const { return (int)(_aa64pfr0 >> 32) & 0x0F; }
+    //    int ID_AA64ZFR0_EL1_SVEver() const { return (int)(_aa64zfr0) & 0x0F; }
+    //    bool FEAT_BF16() const { return ID_AA64ISAR1_EL1_BF16() >= 1 || ID_AA64ZFR0_EL1_BF16() >= 1; }
+    //    bool FEAT_FP16() const { return ID_AA64PFR0_EL1_FP() >= 1 && ID_AA64PFR0_EL1_FP() < 15; }
+    //    bool FEAT_DotProd() const { return ID_AA64ISAR0_EL1_DP() >= 1; }
+    //    bool FEAT_SVE() const { return ID_AA64PFR0_EL1_SVE() >= 1; }
+    //    bool FEAT_SVE2() const { return ID_AA64ZFR0_EL1_SVEver() >= 1; }
+    //    bool FEAT_I8MM() const { return ID_AA64ZFR0_EL1_I8MM() >= 1; }
+    //
+    // https://github.com/lelegard/arm-cpusysregs/tree/4837c62e619a5e5f12bf41b16a1ee1e71d62c76d
 
+    // Read CPUID registers directly
+    unsigned long id_aa64isar0_el1 = 0, id_aa64isar1_el1 = 0, id_aa64pfr0_el1 = 0, id_aa64zfr0_el1 = 0;
+
+    // Now let's unpack the status flags from ID_AA64ISAR0_EL1
+    // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64ISAR0-EL1--AArch64-Instruction-Set-Attribute-Register-0?lang=en
+    __asm__ __volatile__("mrs %0, ID_AA64ISAR0_EL1" : "=r"(id_aa64isar0_el1));
+    // DP, bits [47:44] of ID_AA64ISAR0_EL1
+    unsigned supports_integer_dot_products = ((id_aa64isar0_el1 >> 44) & 0xF) >= 1;
+    // Now let's unpack the status flags from ID_AA64ISAR1_EL1
+    // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64ISAR1-EL1--AArch64-Instruction-Set-Attribute-Register-1?lang=en
+    __asm__ __volatile__("mrs %0, ID_AA64ISAR1_EL1" : "=r"(id_aa64isar1_el1));
+    // I8MM, bits [55:52] of ID_AA64ISAR1_EL1
+    unsigned supports_i8mm = ((id_aa64isar1_el1 >> 52) & 0xF) >= 1;
+    // BF16, bits [47:44] of ID_AA64ISAR1_EL1
+    unsigned supports_bf16 = ((id_aa64isar1_el1 >> 44) & 0xF) >= 1;
+
+    // Now let's unpack the status flags from ID_AA64PFR0_EL1
+    // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64PFR0-EL1--AArch64-Processor-Feature-Register-0?lang=en
+    __asm__ __volatile__("mrs %0, ID_AA64PFR0_EL1" : "=r"(id_aa64pfr0_el1));
+    // SVE, bits [35:32] of ID_AA64PFR0_EL1
+    unsigned supports_sve = ((id_aa64pfr0_el1 >> 32) & 0xF) >= 1;
+    // AdvSIMD, bits [23:20] of ID_AA64PFR0_EL1 can be used to check for `fp16` support
+    //  - 0b0000: integers, single, double precision arithmetic
+    //  - 0b0001: includes support for half-precision floating-point arithmetic
+    unsigned supports_fp16 = ((id_aa64pfr0_el1 >> 20) & 0xF) == 1;
+
+    // Now let's unpack the status flags from ID_AA64ZFR0_EL1
+    // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64ZFR0-EL1--SVE-Feature-ID-Register-0?lang=en
+    if (supports_sve)
+        __asm__ __volatile__("mrs %0, ID_AA64ZFR0_EL1" : "=r"(id_aa64zfr0_el1));
+    // I8MM, bits [47:44] of ID_AA64ZFR0_EL1
+    unsigned supports_sve_i8mm = ((id_aa64zfr0_el1 >> 44) & 0xF) >= 1;
+    // BF16, bits [23:20] of ID_AA64ZFR0_EL1
+    unsigned supports_sve_bf16 = ((id_aa64zfr0_el1 >> 20) & 0xF) >= 1;
+    // SVEver, bits [3:0] can be used to check for capability levels:
+    //  - 0b0000: SVE is implemented
+    //  - 0b0001: SVE2 is implemented
+    //  - 0b0010: SVE2.1 is implemented
+    // This value must match the existing indicator obtained from ID_AA64PFR0_EL1:
+    //    unsigned supports_sve = ((id_aa64zfr0_el1) & 0xF) >= 1;
+    //    unsigned supports_sve2 = ((id_aa64zfr0_el1) & 0xF) >= 2;
+    unsigned supports_neon = 1; // NEON is always supported
+
+    return (simsimd_capability_t)(                                                                    //
+        (simsimd_cap_neon_k * (supports_neon)) |                                                      //
+        (simsimd_cap_neon_f16_k * (supports_neon && supports_fp16)) |                                 //
+        (simsimd_cap_neon_bf16_k * (supports_neon && supports_bf16)) |                                //
+        (simsimd_cap_neon_i8_k * (supports_neon && supports_i8mm && supports_integer_dot_products)) | //
+        (simsimd_cap_sve_k * (supports_sve)) |                                                        //
+        (simsimd_cap_sve_f16_k * (supports_sve && supports_fp16)) |                                   //
+        (simsimd_cap_sve_bf16_k * (supports_sve && supports_sve_bf16)) |                              //
+        (simsimd_cap_sve_i8_k * (supports_sve && supports_sve_i8mm)) |                                //
+        (simsimd_cap_serial_k));
+#endif // SIMSIMD_DEFINED_LINUX
+}
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif
+
+/**
+ *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
+ *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
+ */
+SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
+#if SIMSIMD_TARGET_X86
+    return simsimd_capabilities_x86();
+#endif // SIMSIMD_TARGET_X86
+#if SIMSIMD_TARGET_ARM
+    return simsimd_capabilities_arm();
+#endif // SIMSIMD_TARGET_ARM
     return simsimd_cap_serial_k;
 }
 
@@ -370,13 +550,13 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 #endif
 #if SIMSIMD_TARGET_NEON
-        if (viable & simsimd_cap_neon_k)
+        if (viable & simsimd_cap_neon_f16_k)
             switch (kind) {
-            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16_neon, *c = simsimd_cap_neon_k; return;
-            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f16_neon, *c = simsimd_cap_neon_k; return;
-            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_neon, *c = simsimd_cap_neon_k; return;
-            case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f16_neon, *c = simsimd_cap_neon_k; return;
-            case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f16_neon, *c = simsimd_cap_neon_k; return;
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16_neon, *c = simsimd_cap_neon_f16_k; return;
+            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f16_neon, *c = simsimd_cap_neon_f16_k; return;
+            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_neon, *c = simsimd_cap_neon_f16_k; return;
+            case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f16_neon, *c = simsimd_cap_neon_f16_k; return;
+            case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f16_neon, *c = simsimd_cap_neon_f16_k; return;
             default: break;
             }
 #endif
@@ -417,6 +597,15 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 
     // Brain floating-point vectors
     case simsimd_datatype_bf16_k:
+#if SIMSIMD_TARGET_NEON_BF16
+        if (viable & simsimd_cap_neon_bf16_k)
+            switch (kind) {
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
+            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
+            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
+            default: break;
+            }
+#endif
 #if SIMSIMD_TARGET_HASWELL
         if (viable & simsimd_cap_haswell_k)
             switch (kind) {
@@ -450,11 +639,11 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
     // Single-byte integer vectors
     case simsimd_datatype_i8_k:
 #if SIMSIMD_TARGET_NEON
-        if (viable & simsimd_cap_neon_k)
+        if (viable & simsimd_cap_neon_i8_k)
             switch (kind) {
-            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_i8_neon, *c = simsimd_cap_neon_k; return;
-            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_i8_neon, *c = simsimd_cap_neon_k; return;
-            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_i8_neon, *c = simsimd_cap_neon_k; return;
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_i8_neon, *c = simsimd_cap_neon_i8_k; return;
+            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_i8_neon, *c = simsimd_cap_neon_i8_k; return;
+            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_i8_neon, *c = simsimd_cap_neon_i8_k; return;
             default: break;
             }
 #endif
@@ -615,10 +804,10 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 #endif
 #if SIMSIMD_TARGET_NEON
-        if (viable & simsimd_cap_neon_k)
+        if (viable & simsimd_cap_neon_f16_k)
             switch (kind) {
-            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16c_neon, *c = simsimd_cap_neon_k; return;
-            case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f16c_neon, *c = simsimd_cap_neon_k; return;
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16c_neon, *c = simsimd_cap_neon_f16_k; return;
+            case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f16c_neon, *c = simsimd_cap_neon_f16_k; return;
             default: break;
             }
 #endif
@@ -649,6 +838,14 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
         break;
     case simsimd_datatype_bf16c_k:
 
+#if SIMSIMD_TARGET_NEON_BF16
+        if (viable & simsimd_cap_neon_bf16_k)
+            switch (kind) {
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16c_neon, *c = simsimd_cap_neon_bf16_k; return;
+            case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_bf16c_neon, *c = simsimd_cap_neon_bf16_k; return;
+            default: break;
+            }
+#endif
 #if SIMSIMD_TARGET_GENOA
         if (viable & simsimd_cap_genoa_k)
             switch (kind) {
@@ -669,8 +866,8 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
     }
 }
 
-#pragma clang diagnostic pop
 #pragma GCC diagnostic pop
+#pragma clang diagnostic pop
 
 /**
  *  @brief  Selects the most suitable metric implementation based on the given metric kind, datatype,
@@ -706,7 +903,13 @@ SIMSIMD_PUBLIC simsimd_metric_punned_t simsimd_metric_punned( //
  *  @return 1 if the CPU supports the SIMD instruction set, 0 otherwise.
  */
 SIMSIMD_DYNAMIC int simsimd_uses_neon(void);
+SIMSIMD_DYNAMIC int simsimd_uses_neon_f16(void);
+SIMSIMD_DYNAMIC int simsimd_uses_neon_bf16(void);
+SIMSIMD_DYNAMIC int simsimd_uses_neon_i8(void);
 SIMSIMD_DYNAMIC int simsimd_uses_sve(void);
+SIMSIMD_DYNAMIC int simsimd_uses_sve_f16(void);
+SIMSIMD_DYNAMIC int simsimd_uses_sve_bf16(void);
+SIMSIMD_DYNAMIC int simsimd_uses_sve_i8(void);
 SIMSIMD_DYNAMIC int simsimd_uses_haswell(void);
 SIMSIMD_DYNAMIC int simsimd_uses_skylake(void);
 SIMSIMD_DYNAMIC int simsimd_uses_ice(void);
@@ -849,14 +1052,23 @@ SIMSIMD_DYNAMIC void simsimd_js_f64(simsimd_f64_t const* a, simsimd_f64_t const*
  *
  *  @return 1 if the CPU supports the SIMD instruction set, 0 otherwise.
  */
+
+// clang-format off
 SIMSIMD_PUBLIC int simsimd_uses_neon(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON; }
+SIMSIMD_PUBLIC int simsimd_uses_neon_f16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON && SIMSIMD_NATIVE_F16; }
+SIMSIMD_PUBLIC int simsimd_uses_neon_bf16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON && SIMSIMD_NATIVE_BF16; }
+SIMSIMD_PUBLIC int simsimd_uses_neon_i8(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON; }
 SIMSIMD_PUBLIC int simsimd_uses_sve(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE; }
+SIMSIMD_PUBLIC int simsimd_uses_sve_f16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE && SIMSIMD_NATIVE_F16; }
+SIMSIMD_PUBLIC int simsimd_uses_sve_bf16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE && SIMSIMD_NATIVE_BF16; }
+SIMSIMD_PUBLIC int simsimd_uses_sve_i8(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE; }
 SIMSIMD_PUBLIC int simsimd_uses_haswell(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_HASWELL; }
 SIMSIMD_PUBLIC int simsimd_uses_skylake(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SKYLAKE; }
 SIMSIMD_PUBLIC int simsimd_uses_ice(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_ICE; }
 SIMSIMD_PUBLIC int simsimd_uses_sapphire(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SAPPHIRE; }
 SIMSIMD_PUBLIC int simsimd_uses_genoa(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_GENOA; }
 SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) { return simsimd_capabilities_implementation(); }
+// clang-format on
 
 /*  Inner products
  *  - Dot product: the sum of the products of the corresponding elements of two vectors.

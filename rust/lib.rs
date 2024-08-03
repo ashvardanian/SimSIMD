@@ -87,7 +87,13 @@ extern "C" {
     fn simsimd_kl_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
     fn simsimd_uses_neon() -> i32;
+    fn simsimd_uses_neon_f16() -> i32;
+    fn simsimd_uses_neon_bf16() -> i32;
+    fn simsimd_uses_neon_i8() -> i32;
     fn simsimd_uses_sve() -> i32;
+    fn simsimd_uses_sve_f16() -> i32;
+    fn simsimd_uses_sve_bf16() -> i32;
+    fn simsimd_uses_sve_i8() -> i32;
     fn simsimd_uses_haswell() -> i32;
     fn simsimd_uses_skylake() -> i32;
     fn simsimd_uses_ice() -> i32;
@@ -101,16 +107,40 @@ pub struct f16(u16);
 
 impl f16 {}
 
-/// The `capabilties` module provides functions for detecting the hardware features
+/// The `capabilities` module provides functions for detecting the hardware features
 /// available on the current system.
-pub mod capabilties {
+pub mod capabilities {
 
     pub fn uses_neon() -> bool {
         unsafe { crate::simsimd_uses_neon() != 0 }
     }
 
+    pub fn uses_neon_f16() -> bool {
+        unsafe { crate::simsimd_uses_neon_f16() != 0 }
+    }
+
+    pub fn uses_neon_bf16() -> bool {
+        unsafe { crate::simsimd_uses_neon_bf16() != 0 }
+    }
+
+    pub fn uses_neon_i8() -> bool {
+        unsafe { crate::simsimd_uses_neon_i8() != 0 }
+    }
+
     pub fn uses_sve() -> bool {
         unsafe { crate::simsimd_uses_sve() != 0 }
+    }
+
+    pub fn uses_sve_f16() -> bool {
+        unsafe { crate::simsimd_uses_sve_f16() != 0 }
+    }
+
+    pub fn uses_sve_bf16() -> bool {
+        unsafe { crate::simsimd_uses_sve_bf16() != 0 }
+    }
+
+    pub fn uses_sve_i8() -> bool {
+        unsafe { crate::simsimd_uses_sve_i8() != 0 }
     }
 
     pub fn uses_haswell() -> bool {
@@ -557,12 +587,12 @@ mod tests {
 
     #[test]
     fn test_hardware_features_detection() {
-        let uses_arm = capabilties::uses_neon() || capabilties::uses_sve();
-        let uses_x86 = capabilties::uses_haswell()
-            || capabilties::uses_skylake()
-            || capabilties::uses_ice()
-            || capabilties::uses_genoa()
-            || capabilties::uses_sapphire();
+        let uses_arm = capabilities::uses_neon() || capabilities::uses_sve();
+        let uses_x86 = capabilities::uses_haswell()
+            || capabilities::uses_skylake()
+            || capabilities::uses_ice()
+            || capabilities::uses_genoa()
+            || capabilities::uses_sapphire();
 
         // The CPU can't simultaneously support ARM and x86 SIMD extensions
         if uses_arm {
@@ -572,13 +602,13 @@ mod tests {
             assert!(!uses_arm);
         }
 
-        println!("- uses_neon: {}", capabilties::uses_neon());
-        println!("- uses_sve: {}", capabilties::uses_sve());
-        println!("- uses_haswell: {}", capabilties::uses_haswell());
-        println!("- uses_skylake: {}", capabilties::uses_skylake());
-        println!("- uses_ice: {}", capabilties::uses_ice());
-        println!("- uses_genoa: {}", capabilties::uses_genoa());
-        println!("- uses_sapphire: {}", capabilties::uses_sapphire());
+        println!("- uses_neon: {}", capabilities::uses_neon());
+        println!("- uses_sve: {}", capabilities::uses_sve());
+        println!("- uses_haswell: {}", capabilities::uses_haswell());
+        println!("- uses_skylake: {}", capabilities::uses_skylake());
+        println!("- uses_ice: {}", capabilities::uses_ice());
+        println!("- uses_genoa: {}", capabilities::uses_genoa());
+        println!("- uses_sapphire: {}", capabilities::uses_sapphire());
     }
 
     //

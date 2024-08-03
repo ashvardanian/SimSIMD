@@ -298,9 +298,46 @@ SIMSIMD_PUBLIC void simsimd_cos_f16_neon(simsimd_f16_t const* a, simsimd_f16_t c
     *result = ab != 0 ? 1 - ab * a2_b2_arr[0] * a2_b2_arr[1] : 1;
 }
 
-#if SIMSIMD_TARGET_NEON_BF16_IMPLEMENTED
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_NEON
+
+#if SIMSIMD_TARGET_NEON_BF16
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.6-a+simd+bf16")
+#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+
 SIMSIMD_PUBLIC void simsimd_cos_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                           simsimd_distance_t* result) {
+
+    // Similar to `simsimd_cos_i8_neon`, we can use the `BFMMLA` instruction through
+    // the `vbfmmlaq_f32` intrinsic to compute matrix products and later drop 1/4 of values.
+    // The only difference is that `zip` isn't provided for `bf16` and we need to reinterpret back
+    // and forth before zipping. Same as with integers, on modern Arm CPUs, this "smart"
+    // approach is actually slower by around 25%.
+    //
+    //   float32x4_t products_low_vec = vdupq_n_f32(0.0f);
+    //   float32x4_t products_high_vec = vdupq_n_f32(0.0f);
+    //   for (; i + 8 <= n; i += 8) {
+    //       bfloat16x8_t a_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)a + i);
+    //       bfloat16x8_t b_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)b + i);
+    //       int16x8_t a_vec_s16 = vreinterpretq_s16_bf16(a_vec);
+    //       int16x8_t b_vec_s16 = vreinterpretq_s16_bf16(b_vec);
+    //       int16x8x2_t y_w_vecs_s16 = vzipq_s16(a_vec_s16, b_vec_s16);
+    //       bfloat16x8_t y_vec = vreinterpretq_bf16_s16(y_w_vecs_s16.val[0]);
+    //       bfloat16x8_t w_vec = vreinterpretq_bf16_s16(y_w_vecs_s16.val[1]);
+    //       bfloat16x4_t a_low = vget_low_bf16(a_vec);
+    //       bfloat16x4_t b_low = vget_low_bf16(b_vec);
+    //       bfloat16x4_t a_high = vget_high_bf16(a_vec);
+    //       bfloat16x4_t b_high = vget_high_bf16(b_vec);
+    //       bfloat16x8_t x_vec = vcombine_bf16(a_low, b_low);
+    //       bfloat16x8_t v_vec = vcombine_bf16(a_high, b_high);
+    //       products_low_vec = vbfmmlaq_f32(products_low_vec, x_vec, y_vec);
+    //       products_high_vec = vbfmmlaq_f32(products_high_vec, v_vec, w_vec);
+    //   }
+    //   float32x4_t products_vec = vaddq_f32(products_high_vec, products_low_vec);
+    //   simsimd_f32_t a2 = products_vec[0], ab = products_vec[1], b2 = products_vec[3];
+
     float32x4_t ab_high_vec = vdupq_n_f32(0), ab_low_vec = vdupq_n_f32(0);
     float32x4_t a2_high_vec = vdupq_n_f32(0), a2_low_vec = vdupq_n_f32(0);
     float32x4_t b2_high_vec = vdupq_n_f32(0), b2_low_vec = vdupq_n_f32(0);
@@ -389,13 +426,14 @@ SIMSIMD_PUBLIC void simsimd_l2sq_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16
     simsimd_f32_t sum = vaddvq_f32(vaddq_f32(sum_high_vec, sum_low_vec));
     *result = sum;
 }
-#endif
 #pragma clang attribute pop
 #pragma GCC pop_options
+#endif // SIMSIMD_TARGET_NEON_BF16
 
+#if SIMSIMD_TARGET_NEON_I8
 #pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a+dotprod")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod"))), apply_to = function)
+#pragma GCC target("arch=armv8.2-a+dotprod+i8mm")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod+i8mm"))), apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_l2sq_i8_neon(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                          simsimd_distance_t* result) {
@@ -422,25 +460,102 @@ SIMSIMD_PUBLIC void simsimd_l2sq_i8_neon(simsimd_i8_t const* a, simsimd_i8_t con
 SIMSIMD_PUBLIC void simsimd_cos_i8_neon(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                         simsimd_distance_t* result) {
 
+    simsimd_size_t i = 0;
+
+    // Variant 1.
+    // If the 128-bit `vdot_s32` intrinsic is unavailable, we can use the 64-bit `vdot_s32`.
+    //
+    //  int32x4_t ab_vec = vdupq_n_s32(0);
+    //  int32x4_t a2_vec = vdupq_n_s32(0);
+    //  int32x4_t b2_vec = vdupq_n_s32(0);
+    //  for (simsimd_size_t i = 0; i != n; i += 8) {
+    //      int16x8_t a_vec = vmovl_s8(vld1_s8(a + i));
+    //      int16x8_t b_vec = vmovl_s8(vld1_s8(b + i));
+    //      int16x8_t ab_part_vec = vmulq_s16(a_vec, b_vec);
+    //      int16x8_t a2_part_vec = vmulq_s16(a_vec, a_vec);
+    //      int16x8_t b2_part_vec = vmulq_s16(b_vec, b_vec);
+    //      ab_vec = vaddq_s32(ab_vec, vaddq_s32(vmovl_s16(vget_high_s16(ab_part_vec)), //
+    //                                           vmovl_s16(vget_low_s16(ab_part_vec))));
+    //      a2_vec = vaddq_s32(a2_vec, vaddq_s32(vmovl_s16(vget_high_s16(a2_part_vec)), //
+    //                                           vmovl_s16(vget_low_s16(a2_part_vec))));
+    //      b2_vec = vaddq_s32(b2_vec, vaddq_s32(vmovl_s16(vget_high_s16(b2_part_vec)), //
+    //                                           vmovl_s16(vget_low_s16(b2_part_vec))));
+    //  }
+    //
+    // Variant 2.
+    // With the 128-bit `vdotq_s32` intrinsic, we can use the following code:
+    //
+    //  for (; i + 16 <= n; i += 16) {
+    //      int8x16_t a_vec = vld1q_s8(a + i);
+    //      int8x16_t b_vec = vld1q_s8(b + i);
+    //      ab_vec = vdotq_s32(ab_vec, a_vec, b_vec);
+    //      a2_vec = vdotq_s32(a2_vec, a_vec, a_vec);
+    //      b2_vec = vdotq_s32(b2_vec, b_vec, b_vec);
+    //  }
+    //
+    // Variant 3.
+    // To use MMLA instructions, we need to reorganize the contents of the vectors.
+    // On input we have `a_vec` and `b_vec`:
+    //
+    //   a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15]
+    //   b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]
+    //
+    // We will be multiplying matrices of size 2x8 and 8x2. So we need to perform a few shuffles:
+    //
+    //   X =
+    //      a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7],
+    //      b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]
+    //   Y =
+    //      a[0], b[0],
+    //      a[1], b[1],
+    //      a[2], b[2],
+    //      a[3], b[3],
+    //      a[4], b[4],
+    //      a[5], b[5],
+    //      a[6], b[6],
+    //      a[7], b[7]
+    //
+    //   V =
+    //      a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15],
+    //      b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]
+    //   W =
+    //      a[8],   b[8],
+    //      a[9],   b[9],
+    //      a[10],  b[10],
+    //      a[11],  b[11],
+    //      a[12],  b[12],
+    //      a[13],  b[13],
+    //      a[14],  b[14],
+    //      a[15],  b[15]
+    //
+    // Performing matrix multiplications we can aggregate into a matrix `products_low_vec` and `products_high_vec`:
+    //
+    //      X * X, X * Y                V * W, V * V
+    //      Y * X, Y * Y                W * W, W * V
+    //
+    // Of those values we need only 3/4, as the (X * Y) and (Y * X) are the same.
+    //
+    //      int32x4_t products_low_vec = vdupq_n_s32(0), products_high_vec = vdupq_n_s32(0);
+    //      int8x16_t a_low_b_low_vec, a_high_b_high_vec;
+    //      for (; i + 16 <= n; i += 16) {
+    //          int8x16_t a_vec = vld1q_s8(a + i);
+    //          int8x16_t b_vec = vld1q_s8(b + i);
+    //          int8x16x2_t y_w_vecs = vzipq_s8(a_vec, b_vec);
+    //          int8x16_t x_vec = vcombine_s8(vget_low_s8(a_vec), vget_low_s8(b_vec));
+    //          int8x16_t v_vec = vcombine_s8(vget_high_s8(a_vec), vget_high_s8(b_vec));
+    //          products_low_vec = vmmlaq_s32(products_low_vec, x_vec, y_w_vecs.val[0]);
+    //          products_high_vec = vmmlaq_s32(products_high_vec, v_vec, y_w_vecs.val[1]);
+    //      }
+    //      int32x4_t products_vec = vaddq_s32(products_high_vec, products_low_vec);
+    //      int32_t a2 = products_vec[0];
+    //      int32_t ab = products_vec[1];
+    //      int32_t b2 = products_vec[3];
+    //
+    // That solution is elegant, but it requires the additional `+i8mm` extension and is currently slower,
+    // at least on AWS Graviton 3.
     int32x4_t ab_vec = vdupq_n_s32(0);
     int32x4_t a2_vec = vdupq_n_s32(0);
     int32x4_t b2_vec = vdupq_n_s32(0);
-    simsimd_size_t i = 0;
-
-    // If the 128-bit `vdot_s32` intrinsic is unavailable, we can use the 64-bit `vdot_s32`.
-    // for (simsimd_size_t i = 0; i != n; i += 8) {
-    //     int16x8_t a_vec = vmovl_s8(vld1_s8(a + i));
-    //     int16x8_t b_vec = vmovl_s8(vld1_s8(b + i));
-    //     int16x8_t ab_part_vec = vmulq_s16(a_vec, b_vec);
-    //     int16x8_t a2_part_vec = vmulq_s16(a_vec, a_vec);
-    //     int16x8_t b2_part_vec = vmulq_s16(b_vec, b_vec);
-    //     ab_vec = vaddq_s32(ab_vec, vaddq_s32(vmovl_s16(vget_high_s16(ab_part_vec)), //
-    //                                          vmovl_s16(vget_low_s16(ab_part_vec))));
-    //     a2_vec = vaddq_s32(a2_vec, vaddq_s32(vmovl_s16(vget_high_s16(a2_part_vec)), //
-    //                                          vmovl_s16(vget_low_s16(a2_part_vec))));
-    //     b2_vec = vaddq_s32(b2_vec, vaddq_s32(vmovl_s16(vget_high_s16(b2_part_vec)), //
-    //                                          vmovl_s16(vget_low_s16(b2_part_vec))));
-    // }
     for (; i + 16 <= n; i += 16) {
         int8x16_t a_vec = vld1q_s8(a + i);
         int8x16_t b_vec = vld1q_s8(b + i);
@@ -448,7 +563,6 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_neon(simsimd_i8_t const* a, simsimd_i8_t cons
         a2_vec = vdotq_s32(a2_vec, a_vec, a_vec);
         b2_vec = vdotq_s32(b2_vec, b_vec, b_vec);
     }
-
     int32_t ab = vaddvq_s32(ab_vec);
     int32_t a2 = vaddvq_s32(a2_vec);
     int32_t b2 = vaddvq_s32(b2_vec);
@@ -469,7 +583,7 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_neon(simsimd_i8_t const* a, simsimd_i8_t cons
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_NEON
+#endif // SIMSIMD_TARGET_NEON_I8
 
 #if SIMSIMD_TARGET_SVE
 #pragma GCC push_options

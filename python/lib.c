@@ -181,10 +181,20 @@ static PyObject* api_enable_capability(PyObject* self, PyObject* args) {
 
     if (same_string(cap_name, "neon")) {
         static_capabilities |= simsimd_cap_neon_k;
+    } else if (same_string(cap_name, "neon_f16")) {
+        static_capabilities |= simsimd_cap_neon_f16_k;
+    } else if (same_string(cap_name, "neon_bf16")) {
+        static_capabilities |= simsimd_cap_neon_bf16_k;
+    } else if (same_string(cap_name, "neon_i8")) {
+        static_capabilities |= simsimd_cap_neon_i8_k;
     } else if (same_string(cap_name, "sve")) {
         static_capabilities |= simsimd_cap_sve_k;
-    } else if (same_string(cap_name, "sve2")) {
-        static_capabilities |= simsimd_cap_sve2_k;
+    } else if (same_string(cap_name, "sve_f16")) {
+        static_capabilities |= simsimd_cap_sve_f16_k;
+    } else if (same_string(cap_name, "sve_bf16")) {
+        static_capabilities |= simsimd_cap_sve_bf16_k;
+    } else if (same_string(cap_name, "sve_i8")) {
+        static_capabilities |= simsimd_cap_sve_i8_k;
     } else if (same_string(cap_name, "haswell")) {
         static_capabilities |= simsimd_cap_haswell_k;
     } else if (same_string(cap_name, "skylake")) {
@@ -214,10 +224,20 @@ static PyObject* api_disable_capability(PyObject* self, PyObject* args) {
 
     if (same_string(cap_name, "neon")) {
         static_capabilities &= ~simsimd_cap_neon_k;
+    } else if (same_string(cap_name, "neon_f16")) {
+        static_capabilities &= ~simsimd_cap_neon_f16_k;
+    } else if (same_string(cap_name, "neon_bf16")) {
+        static_capabilities &= ~simsimd_cap_neon_bf16_k;
+    } else if (same_string(cap_name, "neon_i8")) {
+        static_capabilities &= ~simsimd_cap_neon_i8_k;
     } else if (same_string(cap_name, "sve")) {
         static_capabilities &= ~simsimd_cap_sve_k;
-    } else if (same_string(cap_name, "sve2")) {
-        static_capabilities &= ~simsimd_cap_sve2_k;
+    } else if (same_string(cap_name, "sve_f16")) {
+        static_capabilities &= ~simsimd_cap_sve_f16_k;
+    } else if (same_string(cap_name, "sve_bf16")) {
+        static_capabilities &= ~simsimd_cap_sve_bf16_k;
+    } else if (same_string(cap_name, "sve_i8")) {
+        static_capabilities &= ~simsimd_cap_sve_i8_k;
     } else if (same_string(cap_name, "haswell")) {
         static_capabilities &= ~simsimd_cap_haswell_k;
     } else if (same_string(cap_name, "skylake")) {
@@ -250,7 +270,12 @@ static PyObject* api_get_capabilities(PyObject* self) {
     ADD_CAP(serial);
     ADD_CAP(neon);
     ADD_CAP(sve);
-    ADD_CAP(sve2);
+    ADD_CAP(neon_f16);
+    ADD_CAP(sve_f16);
+    ADD_CAP(neon_bf16);
+    ADD_CAP(sve_bf16);
+    ADD_CAP(neon_i8);
+    ADD_CAP(sve_i8);
     ADD_CAP(haswell);
     ADD_CAP(skylake);
     ADD_CAP(ice);
@@ -676,36 +701,37 @@ static PyObject* api_jaccard(PyObject* self, PyObject* const* args, Py_ssize_t n
     return impl_metric(simsimd_metric_jaccard_k, args, nargs);
 }
 
+// clang-format off
 static PyMethodDef simsimd_methods[] = {
     // Introspecting library and hardware capabilities
-    {"get_capabilities", api_get_capabilities, METH_NOARGS, "Get hardware capabilities"},
-    {"enable_capability", api_enable_capability, METH_VARARGS, "Enable a specific family of Assembly kernels"},
-    {"disable_capability", api_disable_capability, METH_VARARGS, "Disable a specific family of Assembly kernels"},
+    {"get_capabilities", (PyCFunction)api_get_capabilities, METH_NOARGS, "Get hardware capabilities"},
+    {"enable_capability", (PyCFunction)api_enable_capability, METH_VARARGS, "Enable a specific family of Assembly kernels"},
+    {"disable_capability", (PyCFunction)api_disable_capability, METH_VARARGS, "Disable a specific family of Assembly kernels"},
 
     // NumPy and SciPy compatible interfaces (two matrix or vector arguments)
-    {"sqeuclidean", api_l2sq, METH_FASTCALL, "L2sq (Sq. Euclidean) distances between a pair of matrices"},
-    {"cosine", api_cos, METH_FASTCALL, "Cosine (Angular) distances between a pair of matrices"},
-    {"inner", api_dot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
-    {"dot", api_dot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
-    {"vdot", api_vdot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
-    {"hamming", api_hamming, METH_FASTCALL, "Hamming distances between a pair of matrices"},
-    {"jaccard", api_jaccard, METH_FASTCALL, "Jaccard (Bitwise Tanimoto) distances between a pair of matrices"},
-    {"kullbackleibler", api_kl, METH_FASTCALL, "Kullback-Leibler divergence between probability distributions"},
-    {"jensenshannon", api_js, METH_FASTCALL, "Jensen-Shannon divergence between probability distributions"},
+    {"sqeuclidean", (PyCFunction)api_l2sq, METH_FASTCALL, "L2sq (Sq. Euclidean) distances between a pair of matrices"},
+    {"cosine", (PyCFunction)api_cos, METH_FASTCALL, "Cosine (Angular) distances between a pair of matrices"},
+    {"inner", (PyCFunction)api_dot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
+    {"dot", (PyCFunction)api_dot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
+    {"vdot", (PyCFunction)api_vdot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
+    {"hamming", (PyCFunction)api_hamming, METH_FASTCALL, "Hamming distances between a pair of matrices"},
+    {"jaccard", (PyCFunction)api_jaccard, METH_FASTCALL, "Jaccard (Bitwise Tanimoto) distances between a pair of matrices"},
+    {"kullbackleibler", (PyCFunction)api_kl, METH_FASTCALL, "Kullback-Leibler divergence between probability distributions"},
+    {"jensenshannon", (PyCFunction)api_js, METH_FASTCALL, "Jensen-Shannon divergence between probability distributions"},
 
-    // Conventional `cdist` and `pdist` insterfaces with third string argument, and optional `threads` arg
-    {"cdist", api_cdist, METH_VARARGS | METH_KEYWORDS,
-     "Compute distance between each pair of the two collections of inputs"},
+    // Conventional `cdist` and `pdist` interfaces with third string argument, and optional `threads` arg
+    {"cdist", (PyCFunction)api_cdist, METH_VARARGS | METH_KEYWORDS, "Compute distance between each pair of the two collections of inputs"},
 
     // Exposing underlying API for USearch
-    {"pointer_to_sqeuclidean", api_l2sq_pointer, METH_VARARGS, "L2sq (Sq. Euclidean) function pointer as `int`"},
-    {"pointer_to_cosine", api_cos_pointer, METH_VARARGS, "Cosine (Angular) function pointer as `int`"},
-    {"pointer_to_inner", api_dot_pointer, METH_VARARGS, "Inner (Dot) Product function pointer as `int`"},
-    {"pointer_to_kullbackleibler", api_dot_pointer, METH_VARARGS, "Kullback-Leibler function pointer as `int`"},
-    {"pointer_to_jensenshannon", api_dot_pointer, METH_VARARGS, "Jensen-Shannon function pointer as `int`"},
+    {"pointer_to_sqeuclidean", (PyCFunction)api_l2sq_pointer, METH_VARARGS, "L2sq (Sq. Euclidean) function pointer as `int`"},
+    {"pointer_to_cosine", (PyCFunction)api_cos_pointer, METH_VARARGS, "Cosine (Angular) function pointer as `int`"},
+    {"pointer_to_inner", (PyCFunction)api_dot_pointer, METH_VARARGS, "Inner (Dot) Product function pointer as `int`"},
+    {"pointer_to_kullbackleibler", (PyCFunction)api_dot_pointer, METH_VARARGS, "Kullback-Leibler function pointer as `int`"},
+    {"pointer_to_jensenshannon", (PyCFunction)api_dot_pointer, METH_VARARGS, "Jensen-Shannon function pointer as `int`"},
 
     // Sentinel
     {NULL, NULL, 0, NULL}};
+// clang-format on
 
 static PyModuleDef simsimd_module = {
     PyModuleDef_HEAD_INIT,

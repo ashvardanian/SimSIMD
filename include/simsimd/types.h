@@ -11,12 +11,21 @@
 #ifndef SIMSIMD_TYPES_H
 #define SIMSIMD_TYPES_H
 
-/*  Annotation for the public API symbols:
- *
- *  - `SIMSIMD_PUBLIC` is used for functions that are part of the public API.
- *  - `SIMSIMD_INTERNAL` is used for internal helper functions with unstable APIs.
- *  - `SIMSIMD_DYNAMIC` is used for functions that are part of the public API, but are dispatched at runtime.
- */
+// Inferring target OS: Windows, MacOS, or Linux
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+#define SIMSIMD_DEFINED_WINDOWS
+#elif defined(__APPLE__) && defined(__MACH__)
+#define SIMSIMD_DEFINED_APPLE
+#elif defined(__linux__)
+#define SIMSIMD_DEFINED_LINUX
+#endif
+
+// Annotation for the public API symbols:
+//
+// - `SIMSIMD_PUBLIC` is used for functions that are part of the public API.
+// - `SIMSIMD_INTERNAL` is used for internal helper functions with unstable APIs.
+// - `SIMSIMD_DYNAMIC` is used for functions that are part of the public API, but are dispatched at runtime.
+//
 #if defined(_WIN32) || defined(__CYGWIN__)
 #define SIMSIMD_DYNAMIC __declspec(dllexport)
 #define SIMSIMD_PUBLIC inline static
@@ -59,6 +68,16 @@
 #endif // defined(__ARM_NEON)
 #endif // !defined(SIMSIMD_TARGET_NEON)
 
+#if !defined(SIMSIMD_TARGET_NEON_I8)
+#define SIMSIMD_TARGET_NEON_I8 SIMSIMD_TARGET_NEON
+#endif // !defined(SIMSIMD_TARGET_NEON_I8)
+#if !defined(SIMSIMD_TARGET_NEON_F16)
+#define SIMSIMD_TARGET_NEON_F16 SIMSIMD_TARGET_NEON
+#endif // !defined(SIMSIMD_TARGET_NEON_F16)
+#if !defined(SIMSIMD_TARGET_NEON_BF16)
+#define SIMSIMD_TARGET_NEON_BF16 SIMSIMD_TARGET_NEON
+#endif // !defined(SIMSIMD_TARGET_NEON_BF16)
+
 // Compiling for Arm: SIMSIMD_TARGET_SVE
 #if !defined(SIMSIMD_TARGET_SVE) || (SIMSIMD_TARGET_SVE && !SIMSIMD_TARGET_ARM)
 #if defined(__ARM_FEATURE_SVE)
@@ -68,6 +87,16 @@
 #define SIMSIMD_TARGET_SVE 0
 #endif // defined(__ARM_FEATURE_SVE)
 #endif // !defined(SIMSIMD_TARGET_SVE)
+
+#if !defined(SIMSIMD_TARGET_SVE_I8)
+#define SIMSIMD_TARGET_SVE_I8 SIMSIMD_TARGET_SVE
+#endif // !defined(SIMSIMD_TARGET_SVE_I8)
+#if !defined(SIMSIMD_TARGET_SVE_F16)
+#define SIMSIMD_TARGET_SVE_F16 SIMSIMD_TARGET_SVE
+#endif // !defined(SIMSIMD_TARGET_SVE_F16)
+#if !defined(SIMSIMD_TARGET_SVE_BF16)
+#define SIMSIMD_TARGET_SVE_BF16 SIMSIMD_TARGET_SVE
+#endif // !defined(SIMSIMD_TARGET_SVE_BF16)
 
 // Compiling for x86: SIMSIMD_TARGET_HASWELL
 //
@@ -86,28 +115,6 @@
 #endif // !defined(SIMSIMD_TARGET_HASWELL)
 
 // Compiling for x86: SIMSIMD_TARGET_SKYLAKE, SIMSIMD_TARGET_ICE, SIMSIMD_TARGET_SAPPHIRE
-//
-// It's important to provide fine-grained controls over AVX512 families, as they are very fragmented:
-// - Intel Skylake servers: F, CD, VL, DQ, BW
-// - Intel Cascade Lake workstations: F, CD, VL, DQ, BW, VNNI
-//      > In other words, it extends Skylake with VNNI support
-// - Intel Sunny Cove (Ice Lake) servers:
-//        F, CD, VL, DQ, BW, VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ
-// - AMD Zen4 (Genoa):
-//        F, CD, VL, DQ, BW, VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ, BF16
-//      > In other words, it extends Sunny Cove with BF16 support
-// - Golden Cove (Sapphire Rapids): extends Zen4 and Sunny Cove with FP16 support
-//
-// Intel Palm Cove was an irrelevant intermediate release extending Skylake with IFMA and VBMI.
-// Intel Willow Cove was an irrelevant intermediate release extending Sunny Cove with VP2INTERSECT,
-// that aren't supported by any other CPU built to date... and those are only available in Tiger Lake laptops.
-// Intel Cooper Lake was the only intermediary platform, that supported BF16, but not FP16.
-// It's mostly used in 4-socket and 8-socket high-memory configurations.
-//
-// In practical terms, it makes sense to differentiate only 3 AVX512 generations:
-// 1. Skylake (pre 2019): supports single-precision dot-products.
-// 2. Ice Lake (2019-2021): advanced integer algorithms.
-// 3. Sapphire Rapids (2023+): advanced mixed-precision float processing.
 //
 // To list all available macros for x86, take a recent compiler, like GCC 12 and run:
 //      gcc-12 -march=sapphirerapids -dM -E - < /dev/null | egrep "SSE|AVX" | sort
@@ -199,14 +206,13 @@ typedef unsigned long long simsimd_u64_t;
 typedef simsimd_u64_t simsimd_size_t;
 typedef simsimd_f64_t simsimd_distance_t;
 
-#if !defined(SIMSIMD_NATIVE_F16) || SIMSIMD_NATIVE_F16
-/**
- *  @brief  Half-precision floating-point type.
+/*  @brief  Half-precision floating-point type.
  *
  *  - GCC or Clang on 64-bit Arm: `__fp16`, may require `-mfp16-format` option.
  *  - GCC or Clang on 64-bit x86: `_Float16`.
  *  - Default: `unsigned short`.
  */
+#if !defined(SIMSIMD_NATIVE_F16) || SIMSIMD_NATIVE_F16
 #if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) &&                      \
     (defined(__ARM_FP16_FORMAT_IEEE))
 #if !defined(SIMSIMD_NATIVE_F16)
@@ -374,13 +380,15 @@ SIMSIMD_PUBLIC unsigned short simsimd_compress_f16(simsimd_f32_t x) {
     union float_or_unsigned_int_t {
         float f;
         unsigned int i;
-    };
+    } x_union;
+    x_union.f = x;
 
-    unsigned int b = *(unsigned int*)&x + 0x00001000;
+    unsigned int b = x_union.i + 0x00001000;
     unsigned int e = (b & 0x7F800000) >> 23;
     unsigned int m = b & 0x007FFFFF;
-    unsigned short result = (b & 0x80000000) >> 16 | (e > 112) * (((e - 112) << 10) & 0x7C00 | m >> 13) |
-                            ((e < 113) & (e > 101)) * (((0x007FF000 + m) >> (125 - e) + 1) >> 1) | (e > 143) * 0x7FFF;
+    unsigned short result = ((b & 0x80000000) >> 16) | (e > 112) * ((((e - 112) << 10) & 0x7C00) | (m >> 13)) |
+                            ((e < 113) & (e > 101)) * ((((0x007FF000 + m) >> (125 - e)) + 1) >> 1) |
+                            ((e > 143) * 0x7FFF);
     return result;
 }
 

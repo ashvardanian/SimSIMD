@@ -466,11 +466,12 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t
 
 #pragma clang attribute pop
 #pragma GCC pop_options
+#endif // SIMSIMD_TARGET_NEON
 
-#if SIMSIMD_TARGET_NEON_BF16_IMPLEMENTED
+#if SIMSIMD_TARGET_NEON_BF16
 #pragma GCC push_options
-#pragma GCC target("+simd+bf16")
-#pragma clang attribute push(__attribute__((target("+simd+bf16"))), apply_to = function)
+#pragma GCC target("arch=armv8.6-a+simd+bf16")
+#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_dot_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                           simsimd_distance_t* result) {
@@ -586,8 +587,7 @@ SIMSIMD_PUBLIC void simsimd_vdot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf1
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif
-#endif // SIMSIMD_TARGET_NEON
+#endif // SIMSIMD_TARGET_NEON_BF16
 
 #if SIMSIMD_TARGET_SVE
 
@@ -598,7 +598,7 @@ SIMSIMD_PUBLIC void simsimd_vdot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf1
 SIMSIMD_PUBLIC void simsimd_dot_f32_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                         simsimd_distance_t* result) {
     simsimd_size_t i = 0;
-    svfloat32_t ab_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
+    svfloat32_t ab_vec = svdup_f32(0.f);
     do {
         svbool_t pg_vec = svwhilelt_b32((unsigned int)i, (unsigned int)n);
         svfloat32_t a_vec = svld1_f32(pg_vec, a + i);
@@ -612,10 +612,10 @@ SIMSIMD_PUBLIC void simsimd_dot_f32_sve(simsimd_f32_t const* a, simsimd_f32_t co
 SIMSIMD_PUBLIC void simsimd_dot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                          simsimd_distance_t* results) {
     simsimd_size_t i = 0;
-    svfloat32_t ab_real_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
-    svfloat32_t ab_imag_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
+    svfloat32_t ab_real_vec = svdup_f32(0.f);
+    svfloat32_t ab_imag_vec = svdup_f32(0.f);
     do {
-        svbool_t pg_vec = svwhilelt_b32((unsigned int)i, (unsigned int)n);
+        svbool_t pg_vec = svwhilelt_b32((unsigned int)i / 2, (unsigned int)n / 2);
         svfloat32x2_t a_vec = svld2_f32(pg_vec, a + i);
         svfloat32x2_t b_vec = svld2_f32(pg_vec, b + i);
         svfloat32_t a_real_vec = svget2_f32(a_vec, 0);
@@ -635,10 +635,10 @@ SIMSIMD_PUBLIC void simsimd_dot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t c
 SIMSIMD_PUBLIC void simsimd_vdot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                           simsimd_distance_t* results) {
     simsimd_size_t i = 0;
-    svfloat32_t ab_real_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
-    svfloat32_t ab_imag_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
+    svfloat32_t ab_real_vec = svdup_f32(0.f);
+    svfloat32_t ab_imag_vec = svdup_f32(0.f);
     do {
-        svbool_t pg_vec = svwhilelt_b32((unsigned int)i, (unsigned int)n);
+        svbool_t pg_vec = svwhilelt_b32((unsigned int)i / 2, (unsigned int)n / 2);
         svfloat32x2_t a_vec = svld2_f32(pg_vec, a + i);
         svfloat32x2_t b_vec = svld2_f32(pg_vec, b + i);
         svfloat32_t a_real_vec = svget2_f32(a_vec, 0);
@@ -658,7 +658,7 @@ SIMSIMD_PUBLIC void simsimd_vdot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t 
 SIMSIMD_PUBLIC void simsimd_dot_f64_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
                                         simsimd_distance_t* result) {
     simsimd_size_t i = 0;
-    svfloat64_t ab_vec = svdupq_n_f64(0.0, 0.0);
+    svfloat64_t ab_vec = svdup_f64(0.);
     do {
         svbool_t pg_vec = svwhilelt_b64((unsigned int)i, (unsigned int)n);
         svfloat64_t a_vec = svld1_f64(pg_vec, a + i);
@@ -672,10 +672,10 @@ SIMSIMD_PUBLIC void simsimd_dot_f64_sve(simsimd_f64_t const* a, simsimd_f64_t co
 SIMSIMD_PUBLIC void simsimd_dot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
                                          simsimd_distance_t* results) {
     simsimd_size_t i = 0;
-    svfloat64_t ab_real_vec = svdupq_n_f64(0., 0.);
-    svfloat64_t ab_imag_vec = svdupq_n_f64(0., 0.);
+    svfloat64_t ab_real_vec = svdup_f64(0.);
+    svfloat64_t ab_imag_vec = svdup_f64(0.);
     do {
-        svbool_t pg_vec = svwhilelt_b64((unsigned int)i, (unsigned int)n);
+        svbool_t pg_vec = svwhilelt_b64((unsigned int)i / 2, (unsigned int)n / 2);
         svfloat64x2_t a_vec = svld2_f64(pg_vec, a + i);
         svfloat64x2_t b_vec = svld2_f64(pg_vec, b + i);
         svfloat64_t a_real_vec = svget2_f64(a_vec, 0);
@@ -695,10 +695,10 @@ SIMSIMD_PUBLIC void simsimd_dot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t c
 SIMSIMD_PUBLIC void simsimd_vdot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
                                           simsimd_distance_t* results) {
     simsimd_size_t i = 0;
-    svfloat64_t ab_real_vec = svdupq_n_f64(0., 0.);
-    svfloat64_t ab_imag_vec = svdupq_n_f64(0., 0.);
+    svfloat64_t ab_real_vec = svdup_f64(0.);
+    svfloat64_t ab_imag_vec = svdup_f64(0.);
     do {
-        svbool_t pg_vec = svwhilelt_b64((unsigned int)i, (unsigned int)n);
+        svbool_t pg_vec = svwhilelt_b64((unsigned int)i / 2, (unsigned int)n / 2);
         svfloat64x2_t a_vec = svld2_f64(pg_vec, a + i);
         svfloat64x2_t b_vec = svld2_f64(pg_vec, b + i);
         svfloat64_t a_real_vec = svget2_f64(a_vec, 0);
@@ -725,7 +725,7 @@ SIMSIMD_PUBLIC void simsimd_vdot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t 
 SIMSIMD_PUBLIC void simsimd_dot_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, simsimd_size_t n,
                                         simsimd_distance_t* result) {
     simsimd_size_t i = 0;
-    svfloat16_t ab_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
+    svfloat16_t ab_vec = svdup_f16(0);
     simsimd_f16_for_arm_simd_t const* a = (simsimd_f16_for_arm_simd_t const*)(a_enum);
     simsimd_f16_for_arm_simd_t const* b = (simsimd_f16_for_arm_simd_t const*)(b_enum);
     do {
@@ -742,10 +742,10 @@ SIMSIMD_PUBLIC void simsimd_dot_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16
 SIMSIMD_PUBLIC void simsimd_dot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                          simsimd_distance_t* results) {
     simsimd_size_t i = 0;
-    svfloat16_t ab_real_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
-    svfloat16_t ab_imag_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
+    svfloat16_t ab_real_vec = svdup_f16(0);
+    svfloat16_t ab_imag_vec = svdup_f16(0);
     do {
-        svbool_t pg_vec = svwhilelt_b16((unsigned int)i, (unsigned int)n);
+        svbool_t pg_vec = svwhilelt_b16((unsigned int)i / 2, (unsigned int)n / 2);
         svfloat16x2_t a_vec = svld2_f16(pg_vec, (simsimd_f16_for_arm_simd_t const*)a + i);
         svfloat16x2_t b_vec = svld2_f16(pg_vec, (simsimd_f16_for_arm_simd_t const*)b + i);
         svfloat16_t a_real_vec = svget2_f16(a_vec, 0);
@@ -765,10 +765,10 @@ SIMSIMD_PUBLIC void simsimd_dot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t c
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                           simsimd_distance_t* results) {
     simsimd_size_t i = 0;
-    svfloat16_t ab_real_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
-    svfloat16_t ab_imag_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
+    svfloat16_t ab_real_vec = svdup_f16(0);
+    svfloat16_t ab_imag_vec = svdup_f16(0);
     do {
-        svbool_t pg_vec = svwhilelt_b16((unsigned int)i, (unsigned int)n);
+        svbool_t pg_vec = svwhilelt_b16((unsigned int)i / 2, (unsigned int)n / 2);
         svfloat16x2_t a_vec = svld2_f16(pg_vec, (simsimd_f16_for_arm_simd_t const*)a + i);
         svfloat16x2_t b_vec = svld2_f16(pg_vec, (simsimd_f16_for_arm_simd_t const*)b + i);
         svfloat16_t a_real_vec = svget2_f16(a_vec, 0);

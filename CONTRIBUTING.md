@@ -52,10 +52,30 @@ The `-Wd` will silence overflows and runtime warnings.
 Benchmarking:
 
 ```sh
-pip install numpy scipy scikit-learn    # for comparison baselines
-python python/bench.py                  # to run default benchmarks
-python python/bench.py --n 1000 --ndim 1000000 # batch size and dimensions
+pip install numpy scipy scikit-learn        # for comparison baselines
+python python/bench.py                      # to run default benchmarks
+python python/bench.py --n 1000 --ndim 1536 # batch size and dimensions
 ```
+
+You can also benchmark against other libraries:
+
+```sh
+$ python python/bench.py --help
+> usage: bench.py [-h] [--n N] [--ndim NDIM] [--scipy] [--scikit] [--torch] [--tf] [--jax]
+> 
+> Benchmark SimSIMD vs. other libraries
+> 
+> options:
+>   -h, --help   show this help message and exit
+>   --n N        Number of vectors (default: 1000)
+>   --ndim NDIM  Number of dimensions (default: 1536)
+>   --scipy      Profile SciPy
+>   --scikit     Profile scikit-learn
+>   --torch      Profile PyTorch
+>   --tf         Profile TensorFlow
+>   --jax        Profile JAX
+```
+
 
 Before merging your changes you may want to test your changes against the entire matrix of Python versions USearch supports.
 For that you need the `cibuildwheel`, which is tricky to use on MacOS and Windows, as it would target just the local environment.
@@ -73,7 +93,7 @@ cibuildwheel --platform macos                   # works only on MacOS
 cibuildwheel --platform windows                 # works only on Windows
 ```
 
-You may need root previligies for multi-architecture builds:
+You may need root privileges for multi-architecture builds:
 
 ```sh
 sudo $(which cibuildwheel) --platform linux
