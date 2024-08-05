@@ -212,8 +212,8 @@ if args.scipy:
                 [np.float64, np.float32, np.float16],
                 np.array,
             ),
-            ("scipy.hamming", spd.hamming, simd.hamming, [np.uint8]),
-            ("scipy.jaccard", spd.jaccard, simd.jaccard, [np.uint8]),
+            ("scipy.hamming", spd.hamming, simd.hamming, [np.uint8], np.array),
+            ("scipy.jaccard", spd.jaccard, simd.jaccard, [np.uint8], np.array),
         ]
     )
 

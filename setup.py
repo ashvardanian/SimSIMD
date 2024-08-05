@@ -1,10 +1,10 @@
 import os
 import sys
 from os.path import dirname
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 
-__version__ = open("VERSION", "r").read().strip()
 __lib_name__ = "simsimd"
+__version__ = "5.0.0"
 
 compile_args = []
 link_args = []
@@ -86,6 +86,7 @@ if sys.platform == "win32":
     macros_args.extend(
         [
             get_bool_env_w_name("SIMSIMD_TARGET_NEON", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_NEON_BF16", False),
             get_bool_env_w_name("SIMSIMD_TARGET_SVE", False),
             get_bool_env_w_name("SIMSIMD_TARGET_HASWELL", True),
             get_bool_env_w_name("SIMSIMD_TARGET_SKYLAKE", True),
@@ -147,4 +148,8 @@ setup(
     ],
     ext_modules=ext_modules,
     zip_safe=False,
+    packages=["simsimd"],
+    package_dir={"simsimd": "python/simsimd"},
+    package_data={"simsimd": ["__init__.pyi", "py.typed"]},
+    include_package_data=True,
 )
