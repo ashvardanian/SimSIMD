@@ -31,7 +31,7 @@ jobs:
           toolchain: stable
           override: true
       - name: Run TinySemVer
-        uses: ashvardanian/tinysemver@v2.0.1
+        uses: ashvardanian/tinysemver@v2.0.7
         with:
           verbose: "true"
           version-file: "VERSION"
