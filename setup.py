@@ -4,7 +4,7 @@ from os.path import dirname
 from setuptools import setup, Extension, find_packages
 
 __lib_name__ = "simsimd"
-__version__ = "5.0.0"
+__version__ = "5.0.1"
 
 compile_args = []
 link_args = []
