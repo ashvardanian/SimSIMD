@@ -448,7 +448,7 @@ console.log('Squared Euclidean Distance:', distance);
 ```
 
 Other numeric types and precision levels are supported as well.
-For double-precsion floating-point numbers, use `Float64Array`:
+For double-precision floating-point numbers, use `Float64Array`:
 
 ```js
 const vectorA = new Float64Array([1.0, 2.0, 3.0]);
@@ -457,11 +457,11 @@ const distance = cosine(vectorA, vectorB);
 ```
 
 When doing machine learning and vector search with high-dimensional vectors you may want to quantize them to 8-bit integers.
-You may want to project values from the $[-1, 1]$ range to the $[-100, 100]$ range and then cast them to `Uint8Array`:
+You may want to project values from the $[-1, 1]$ range to the $[-127, 127]$ range and then cast them to `Int8Array`:
 
 ```js
-const quantizedVectorA = new Uint8Array(vectorA.map(v => (v * 100)));
-const quantizedVectorB = new Uint8Array(vectorB.map(v => (v * 100)));
+const quantizedVectorA = new Int8Array(vectorA.map(v => (v * 127)));
+const quantizedVectorB = new Int8Array(vectorB.map(v => (v * 127)));
 const distance = cosine(quantizedVectorA, quantizedVectorB);
 ```
 
