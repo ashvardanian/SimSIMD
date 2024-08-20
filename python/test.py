@@ -405,26 +405,34 @@ def test_batch(ndim, dtype):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
-@pytest.mark.parametrize("dtype", ["float32", "float16"])
+@pytest.mark.parametrize("input_dtype", ["float32", "float16"])
+@pytest.mark.parametrize("result_dtype", [None, "float32", "float16", "int8"])
 @pytest.mark.parametrize("metric", ["cosine"])
-def test_cdist(ndim, dtype, metric):
+def test_cdist(ndim, input_dtype, result_dtype, metric):
     """Compares the simd.cdist() function with scipy.spatial.distance.cdist(), measuring the accuracy error for f16, and f32 types using sqeuclidean and cosine metrics."""
 
-    if dtype == "float16" and is_running_under_qemu():
+    if input_dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
     np.random.seed()
 
     # Create random matrices A (M x D) and B (N x D).
     M, N = 10, 15  # or any other sizes you deem appropriate
-    A = np.random.randn(M, ndim).astype(dtype)
-    B = np.random.randn(N, ndim).astype(dtype)
+    A = np.random.randn(M, ndim).astype(input_dtype)
+    B = np.random.randn(N, ndim).astype(input_dtype)
 
-    # Compute cdist using scipy.
-    expected = spd.cdist(A, B, metric)
+    if result_dtype is None:
+        # Compute cdist using scipy.
+        expected = spd.cdist(A, B, metric)
 
-    # Compute cdist using simd.
-    result = simd.cdist(A, B, metric=metric)
+        # Compute cdist using simd.
+        result = simd.cdist(A, B, metric=metric)
+    else:
+        # Compute cdist using scipy.
+        expected = spd.cdist(A, B, metric).astype(result_dtype)
+
+        # Compute cdist using simd.
+        result = simd.cdist(A, B, metric=metric, dtype=result_dtype)
 
     # Assert they're close.
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)

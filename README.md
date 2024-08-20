@@ -205,19 +205,23 @@ from simsimd import cdist, DistancesTensor
 
 matrix1 = np.random.randn(1000, 1536).astype(np.float32)
 matrix2 = np.random.randn(10, 1536).astype(np.float32)
-distances: DistancesTensor = simsimd.cdist(matrix1, matrix2, metric="cosine") # zero-copy
-distances_array: np.ndarray = np.array(distances, copy=True) # now managed by NumPy
+distances: DistancesTensor = simsimd.cdist(matrix1, matrix2, metric="cosine")   # zero-copy, managed by SimSIMD
+distances_array: np.ndarray = np.array(distances, copy=True)                    # now managed by NumPy
 ```
 
-### Multithreading
+### Multithreading and Memory Usage
 
 By default, computations use a single CPU core.
-To optimize and utilize all CPU cores on Linux systems, add the `threads=0` argument.
-Alternatively, specify a custom number of threads:
+To override this behavior, use the `threads` argument.
+Set it to `0` to use all available CPU cores.
 
 ```py
-distances = simsimd.cdist(matrix1, matrix2, metric="cosine", threads=0)
+distances = simsimd.cdist(matrix1, matrix2, metric="hamming", threads=0, dtype="u8")
 ```
+
+By default, the output distances will be stored in double-precision `f64` floating-point numbers.
+That behavior may not be space-efficient, especially if you are computing the hamming distance between short binary vectors, that will generally fit into 8x smaller `u8` or `u16` types.
+To override this behavior, use the `dtype` argument.
 
 ### Using Python API with USearch
 
@@ -500,9 +504,9 @@ int main() {
     simsimd_f32_t vector_a[1536];
     simsimd_f32_t vector_b[1536];
     simsimd_metric_punned_t distance_function = simsimd_metric_punned(
-        simsimd_metric_cos_k, // Metric kind, like the angular cosine distance
+        simsimd_metric_cos_k,   // Metric kind, like the angular cosine distance
         simsimd_datatype_f32_k, // Data type, like: f16, f32, f64, i8, b8, and complex variants
-        simsimd_cap_any_k); // Which CPU capabilities are we allowed to use
+        simsimd_cap_any_k);     // Which CPU capabilities are we allowed to use
     simsimd_distance_t distance;
     distance_function(vector_a, vector_b, 1536, &distance);
     return 0;
