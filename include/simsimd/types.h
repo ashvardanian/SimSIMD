@@ -226,7 +226,9 @@ typedef _Float16 simsimd_f16_t;
 #define SIMSIMD_NATIVE_F16 1
 #endif
 #else // Unknown compiler or architecture
+#if !defined(SIMSIMD_NATIVE_F16)
 #define SIMSIMD_NATIVE_F16 0
+#endif
 #endif // Unknown compiler or architecture
 #endif // !SIMSIMD_NATIVE_F16
 
@@ -259,7 +261,9 @@ typedef _Float16 simsimd_bf16_t;
 #define SIMSIMD_NATIVE_BF16 1
 #endif
 #else // Unknown compiler or architecture
+#if !defined(SIMSIMD_NATIVE_BF16)
 #define SIMSIMD_NATIVE_BF16 0
+#endif
 #endif // Unknown compiler or architecture
 #endif // !SIMSIMD_NATIVE_BF16
 
