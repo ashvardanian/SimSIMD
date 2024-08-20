@@ -1,8 +1,10 @@
-#include <cmath>   // `std::sqrt`
-#include <cstdlib> // `std::aligned_alloc`
-#include <cstring> // `std::memcpy`
-#include <random>  // `std::uniform_int_distribution`
-#include <thread>  // `std::thread`
+#include <cmath>         // `std::sqrt`
+#include <cstdlib>       // `std::aligned_alloc`
+#include <cstring>       // `std::memcpy`
+#include <random>        // `std::uniform_int_distribution`
+#include <thread>        // `std::thread`
+#include <unordered_set> // `std::unordered_set`
+#include <vector>        // `std::vector`
 
 #include <benchmark/benchmark.h>
 
@@ -220,7 +222,7 @@ void measure(bm::State& state, metric_at metric, metric_at baseline, std::size_t
     };
 
     // Let's average the distance results over many pairs.
-    constexpr std::size_t pairs_count = 64;
+    constexpr std::size_t pairs_count = 128;
     std::vector<pair_at> pairs(pairs_count);
     for (auto& pair : pairs) {
         pair.a = pair.b = vector_t(dimensions);
@@ -272,6 +274,7 @@ void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std:
                     std::size_t dimensions_b, std::size_t intersection_size) {
 
     using vector_t = typename pair_at::vector_t;
+    using scalar_t = typename vector_t::scalar_t;
 
     auto call_baseline = [&](pair_at& pair) -> double {
         // Output for real vectors have a single dimensions.
@@ -289,30 +292,50 @@ void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std:
     };
 
     // Let's average the distance results over many pairs.
-    constexpr std::size_t pairs_count = 64;
+    constexpr std::size_t pairs_count = 128;
     std::vector<pair_at> pairs(pairs_count);
     std::random_device seed_source;
     std::mt19937 generator(seed_source());
+    std::uniform_int_distribution<scalar_t> distribution(0, std::numeric_limits<scalar_t>::max());
 
+    // Randomizing the vectors for sparse distances is a bit more complex then:
+    //
+    //      pair.a.randomize(), pair.b.randomize();
+    //
+    // We need to ensure that the intersection is of the expected size.
     for (auto& pair : pairs) {
         pair.a = vector_t(dimensions_a);
         pair.b = vector_t(dimensions_b);
 
-        // Randomizing the vectors for sparse distances is a bit more complex then:
-        //
-        //      pair.a.randomize(), pair.b.randomize();
-        //
-        // We need to ensure that the intersection is of the expected size.
-        // We can roughly achieve that using a uniform integer distribution with a properly calibrated
-        // upper bound and sorting the arrays after the construction.
-        std::size_t longer_length = std::max(dimensions_a, dimensions_b);
-        double spread_between_matches = longer_length * 1.0 / intersection_size;
-        std::size_t upper_bound = static_cast<std::size_t>(spread_between_matches * longer_length);
-        std::uniform_int_distribution<std::size_t> distribution(0, upper_bound);
-        std::generate(pair.a.buffer_, pair.a.buffer_ + dimensions_a, [&]() { return distribution(generator); });
-        std::generate(pair.b.buffer_, pair.b.buffer_ + dimensions_b, [&]() { return distribution(generator); });
-        std::sort(pair.a.buffer_, pair.a.buffer_ + dimensions_a);
-        std::sort(pair.b.buffer_, pair.b.buffer_ + dimensions_b);
+        // Step 1: Generate intersection set
+        std::unordered_set<scalar_t> intersection_set, unique_a, unique_b;
+        while (intersection_set.size() < intersection_size)
+            intersection_set.insert(distribution(generator));
+
+        while (unique_a.size() < dimensions_a - intersection_size) {
+            scalar_t element = distribution(generator);
+            if (intersection_set.find(element) == intersection_set.end())
+                unique_a.insert(element);
+        }
+
+        while (unique_b.size() < dimensions_b - intersection_size) {
+            scalar_t element = distribution(generator);
+            if (intersection_set.find(element) == intersection_set.end() && unique_a.find(element) == unique_a.end())
+                unique_b.insert(element);
+        }
+
+        // Step 2: Merge and sort
+        std::vector<scalar_t> a_values(intersection_set.begin(), intersection_set.end());
+        a_values.insert(a_values.end(), unique_a.begin(), unique_a.end());
+        std::sort(a_values.begin(), a_values.end());
+
+        std::vector<scalar_t> b_values(intersection_set.begin(), intersection_set.end());
+        b_values.insert(b_values.end(), unique_b.begin(), unique_b.end());
+        std::sort(b_values.begin(), b_values.end());
+
+        // Step 4: Copy data into vectors
+        std::copy(a_values.begin(), a_values.end(), pair.a.buffer_);
+        std::copy(b_values.begin(), b_values.end(), pair.b.buffer_);
     }
 
     // Initialize the output buffers for distance calculations.
@@ -329,21 +352,17 @@ void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std:
             iterations++;
 
     // Measure the mean absolute delta and relative error.
-    double mean_delta = 0, mean_relative_error = 0;
+    double mean_error = 0;
     for (std::size_t i = 0; i != pairs.size(); ++i) {
-        auto abs_delta = std::abs(results_contender[i] - results_baseline[i]);
-        mean_delta += abs_delta;
-        double error = abs_delta != 0 && results_baseline[i] != 0 ? abs_delta / results_baseline[i] : 0;
-        mean_relative_error += error;
+        auto abs_error = std::abs(results_contender[i] - results_baseline[i]);
+        mean_error += abs_error;
     }
-    mean_delta /= pairs.size();
-    mean_relative_error /= pairs.size();
-    state.counters["abs_delta"] = mean_delta;
-    state.counters["relative_error"] = mean_relative_error;
+    mean_error /= pairs.size();
+    state.counters["error"] = mean_error;
     state.counters["bytes"] =
         bm::Counter(iterations * pairs[0].a.size_bytes() * pairs[0].b.size_bytes(), bm::Counter::kIsRate);
     state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
-    state.counters["mean_result"] =
+    state.counters["matches"] =
         std::accumulate(results_baseline.begin(), results_baseline.end(), 0.0) / results_baseline.size();
 }
 
@@ -366,20 +385,20 @@ void register_(std::string name, metric_at* distance_func, metric_at* baseline_f
 template <simsimd_datatype_t datatype_ak, typename metric_at = void>
 void register_sparse_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
 
-    constexpr std::size_t seconds = 10;
+    constexpr std::size_t seconds = 3;
     constexpr std::size_t threads = 1;
 
     using pair_t = vectors_pair_gt<datatype_ak>;
 
     // Register different lengths, intersection sizes, and distributions
-    // 4 first lengths * 3 second lengths * 4 intersection sizes = 48 benchmarks for each metric.
-    for (std::size_t first_len : {128, 512, 1024, 2048}) {         //< 4 lengths
-        for (std::size_t second_len_multiplier : {1, 8, 64}) {     //< 3 lengths
-            for (std::size_t intersection_size : {1, 5, 10, 50}) { //< 4 sizes
+    // 2 first lengths * 3 second lengths * 3 intersection sizes = 18 benchmarks for each metric.
+    for (std::size_t first_len : {128, 2048}) {                //< 2 lengths
+        for (std::size_t second_len_multiplier : {1, 8, 64}) { //< 3 lengths
+            for (std::size_t intersection_size : {1, 8, 64}) { //< 3 sizes
 
                 std::size_t second_len = first_len * second_len_multiplier;
-                std::string test_name = name + "_" + std::to_string(first_len) + "d_&_" + std::to_string(second_len) +
-                                        "d_w" + std::to_string(intersection_size) + "_matches";
+                std::string test_name = name + "_" + std::to_string(first_len) + "d^" + std::to_string(second_len) +
+                                        "d_w" + std::to_string(intersection_size) + "matches";
                 bm::RegisterBenchmark(test_name.c_str(), measure_sparse<pair_t, metric_at*>, distance_func,
                                       baseline_func, first_len, second_len, intersection_size)
                     ->MinTime(seconds)
@@ -465,10 +484,10 @@ int main(int argc, char** argv) {
 
     register_sparse_<simsimd_datatype_u16_k>("intersect_u16", simsimd_intersect_u16_serial,
                                              simsimd_intersect_u16_accurate);
-    register_sparse_<simsimd_datatype_u32_k>("intersect_u32", simsimd_intersect_u32_serial,
-                                             simsimd_intersect_u32_accurate);
     register_sparse_<simsimd_datatype_u16_k>("intersect_u16_accurate", simsimd_intersect_u16_accurate,
                                              simsimd_intersect_u16_accurate);
+    register_sparse_<simsimd_datatype_u32_k>("intersect_u32", simsimd_intersect_u32_serial,
+                                             simsimd_intersect_u32_accurate);
     register_sparse_<simsimd_datatype_u32_k>("intersect_u32_accurate", simsimd_intersect_u32_accurate,
                                              simsimd_intersect_u32_accurate);
 

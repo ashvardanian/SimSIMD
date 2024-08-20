@@ -145,8 +145,8 @@ SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u32, size) // simsimd_intersect_u32_accu
         *result = intersection;                                                                                        \
     }
 
-SIMSIMD_MAKE_INTERSECT_LINEAR(serial, u16, size) // simsimd_intersect_u16_serial
-SIMSIMD_MAKE_INTERSECT_LINEAR(serial, u32, size) // simsimd_intersect_u32_serial
+SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u16, size) // simsimd_intersect_u16_serial
+SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u32, size) // simsimd_intersect_u32_serial
 
 #ifdef __cplusplus
 }
