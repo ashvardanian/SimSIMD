@@ -14,7 +14,7 @@
 // It's important to note, that out compression/decompression routines
 // are quite inaccurate. They are not meant to be used in production code.
 // So when benchmarking, if possible, please use the native types, if those
-// are implemeneted.
+// are implemented.
 #define SIMSIMD_NATIVE_F16 1
 #define SIMSIMD_NATIVE_BF16 1
 #define SIMSIMD_RSQRT(x) (1 / sqrtf(x))

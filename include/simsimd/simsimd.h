@@ -44,7 +44,7 @@
  *  @section    Choosing Arm Target Generations
  *
  *  Arm CPUs share design IP, but are produced by different vendors, potentially making the platform
- *  even more fragmented than x86. There are 2 imporatant families of SIMD extensions - NEON and SVE.
+ *  even more fragmented than x86. There are 2 important families of SIMD extensions - NEON and SVE.
  *
  *  - Armv8-A: +fp, +simd
  *  - Armv8.1-A: armv8-a, +crc, +lse, +rdma
@@ -68,7 +68,7 @@
  *  Here are the most important recent families of CPU cores designed by Arm:
  *
  *  - Neoverse N1: armv8.2-a, extended with Armv8.4 "dotprod" instructions.
- *    Used in AWS @b Graviton2 and Amere @b Altra.
+ *    Used in AWS @b Graviton2 and Ampere @b Altra.
  *    https://developer.arm.com/Processors/Neoverse%20N1
  *  - Neoverse V1: armv8.4-a, extended with Armv8.6 bfloat/int8 "matmul" instructions.
  *    Used in AWS @b Graviton3, which also enables `sve`, `svebf16`, and `svei8mm`.
@@ -300,7 +300,7 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_x86(void) {
 
 /*  Compiling the next section one may get: selected processor does not support system register name 'id_aa64zfr0_el1'.
  *  Suppressing assembler errors is very complicated, so when dealing with older ARM CPUs it's simpler to compile this
- *  function targetting newer ones.
+ *  function targeting newer ones.
  */
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.5-a+sve")
@@ -1024,9 +1024,9 @@ SIMSIMD_DYNAMIC void simsimd_jaccard_b8(simsimd_b8_t const* a, simsimd_b8_t cons
  *  - Jensen-Shannon divergence: a measure of similarity between two probability distributions.
  *  - Kullback-Leibler divergence: a measure of how one probability distribution diverges from a second.
  *
- *  @param a The first descrete probability distribution.
- *  @param b The second descrete probability distribution.
- *  @param n The number of elements in the descrete distributions.
+ *  @param a The first discrete probability distribution.
+ *  @param b The second discrete probability distribution.
+ *  @param n The number of elements in the discrete distributions.
  *  @param d The output divergence value.
  *
  *  @note The distributions are assumed to be normalized.
@@ -1415,9 +1415,9 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8(simsimd_b8_t const* a, simsimd_b8_t const
  *  - Jensen-Shannon divergence: a measure of similarity between two probability distributions.
  *  - Kullback-Leibler divergence: a measure of how one probability distribution diverges from a second.
  *
- *  @param a The first descrete probability distribution.
- *  @param b The second descrete probability distribution.
- *  @param n The number of elements in the descrete distributions.
+ *  @param a The first discrete probability distribution.
+ *  @param b The second discrete probability distribution.
+ *  @param n The number of elements in the discrete distributions.
  *  @param d The output divergence value.
  *
  *  @note The distributions are assumed to be normalized.

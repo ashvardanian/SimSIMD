@@ -658,105 +658,30 @@ All of the function names follow the same pattern: `simsimd_{function}_{type}_{b
 
 To avoid hard-coding the backend, you can use the `simsimd_metric_punned_t` to pun the function pointer and the `simsimd_capabilities` function to get the available backends at runtime.
 
-```c
-simsimd_dot_f64_sve
-simsimd_cos_f64_sve
-simsimd_l2sq_f64_sve
-simsimd_dot_f64_skylake
-simsimd_cos_f64_skylake
-simsimd_l2sq_f64_skylake
-simsimd_dot_f64_serial
-simsimd_cos_f64_serial
-simsimd_l2sq_f64_serial
-simsimd_js_f64_serial
-simsimd_kl_f64_serial
-simsimd_dot_f32_sve
-simsimd_cos_f32_sve
-simsimd_l2sq_f32_sve
-simsimd_dot_f32_neon
-simsimd_cos_f32_neon
-simsimd_l2sq_f32_neon
-simsimd_js_f32_neon
-simsimd_kl_f32_neon
-simsimd_dot_f32_skylake
-simsimd_cos_f32_skylake
-simsimd_l2sq_f32_skylake
-simsimd_js_f32_skylake
-simsimd_kl_f32_skylake
-simsimd_dot_f32_serial
-simsimd_cos_f32_serial
-simsimd_l2sq_f32_serial
-simsimd_js_f32_serial
-simsimd_kl_f32_serial
-simsimd_dot_f16_sve
-simsimd_cos_f16_sve
-simsimd_l2sq_f16_sve
-simsimd_dot_f16_neon
-simsimd_cos_f16_neon
-simsimd_l2sq_f16_neon
-simsimd_js_f16_neon
-simsimd_kl_f16_neon
-simsimd_dot_f16_sapphire
-simsimd_cos_f16_sapphire
-simsimd_l2sq_f16_sapphire
-simsimd_js_f16_sapphire
-simsimd_kl_f16_sapphire
-simsimd_dot_f16_haswell
-simsimd_cos_f16_haswell
-simsimd_l2sq_f16_haswell
-simsimd_js_f16_haswell
-simsimd_kl_f16_haswell
-simsimd_dot_f16_serial
-simsimd_cos_f16_serial
-simsimd_l2sq_f16_serial
-simsimd_js_f16_serial
-simsimd_kl_f16_serial
-simsimd_cos_i8_neon
-simsimd_cos_i8_neon
-simsimd_l2sq_i8_neon
-simsimd_cos_i8_ice
-simsimd_cos_i8_ice
-simsimd_l2sq_i8_ice
-simsimd_cos_i8_haswell
-simsimd_cos_i8_haswell
-simsimd_l2sq_i8_haswell
-simsimd_cos_i8_serial
-simsimd_cos_i8_serial
-simsimd_l2sq_i8_serial
-simsimd_hamming_b8_sve
-simsimd_jaccard_b8_sve
-simsimd_hamming_b8_neon
-simsimd_jaccard_b8_neon
-simsimd_hamming_b8_ice
-simsimd_jaccard_b8_ice
-simsimd_hamming_b8_haswell
-simsimd_jaccard_b8_haswell
-simsimd_hamming_b8_serial
-simsimd_jaccard_b8_serial
-simsimd_dot_f32c_sve
-simsimd_vdot_f32c_sve
-simsimd_dot_f32c_neon
-simsimd_vdot_f32c_neon
-simsimd_dot_f32c_haswell
-simsimd_vdot_f32c_haswell
-simsimd_dot_f32c_skylake
-simsimd_vdot_f32c_skylake
-simsimd_dot_f32c_serial
-simsimd_vdot_f32c_serial
-simsimd_dot_f64c_sve
-simsimd_vdot_f64c_sve
-simsimd_dot_f64c_skylake
-simsimd_vdot_f64c_skylake
-simsimd_dot_f64c_serial
-simsimd_vdot_f64c_serial
-simsimd_dot_f16c_sve
-simsimd_vdot_f16c_sve
-simsimd_dot_f16c_neon
-simsimd_vdot_f16c_neon
-simsimd_dot_f16c_haswell
-simsimd_vdot_f16c_haswell
-simsimd_dot_f16c_sapphire
-simsimd_vdot_f16c_sapphire
-simsimd_dot_f16c_serial
-simsimd_vdot_f16c_serial
-```
+| Metrics                   |                           |                          |                            |
+| ------------------------- | ------------------------- | ------------------------ | -------------------------- |
+| simsimd_dot_f64_sve       | simsimd_dot_f64_skylake   | simsimd_dot_f64_serial   | simsimd_dot_f32_sve        |
+| simsimd_dot_f32_neon      | simsimd_dot_f32_skylake   | simsimd_dot_f32_serial   | simsimd_dot_f16_sve        |
+| simsimd_dot_f16_neon      | simsimd_dot_f16_sapphire  | simsimd_dot_f16_haswell  | simsimd_dot_f16_serial     |
+| simsimd_dot_f32c_sve      | simsimd_dot_f32c_neon     | simsimd_dot_f32c_haswell | simsimd_dot_f32c_skylake   |
+| simsimd_dot_f32c_serial   | simsimd_dot_f64c_sve      | simsimd_dot_f64c_skylake | simsimd_dot_f64c_serial    |
+| simsimd_dot_f16c_sve      | simsimd_dot_f16c_neon     | simsimd_dot_f16c_haswell | simsimd_dot_f16c_sapphire  |
+| simsimd_dot_f16c_serial   |                           |                          |                            |
+|                           |                           |                          |                            |
+| simsimd_cos_f64_sve       | simsimd_cos_f64_skylake   | simsimd_cos_f64_serial   | simsimd_cos_f32_sve        |
+| simsimd_cos_f32_neon      | simsimd_cos_f32_skylake   | simsimd_cos_f32_serial   | simsimd_cos_f16_sve        |
+| simsimd_cos_f16_neon      | simsimd_cos_f16_sapphire  | simsimd_cos_f16_haswell  | simsimd_cos_f16_serial     |
+| simsimd_cos_i8_neon       | simsimd_cos_i8_ice        | simsimd_cos_i8_haswell   | simsimd_cos_i8_serial      |
+|                           |                           |                          |                            |
+| simsimd_l2sq_f64_sve      | simsimd_l2sq_f64_skylake  | simsimd_l2sq_f64_serial  | simsimd_l2sq_f32_sve       |
+| simsimd_l2sq_f32_neon     | simsimd_l2sq_f32_skylake  | simsimd_l2sq_f32_serial  | simsimd_l2sq_f16_sve       |
+| simsimd_l2sq_f16_neon     | simsimd_l2sq_f16_sapphire | simsimd_l2sq_f16_haswell | simsimd_l2sq_f16_serial    |
+| simsimd_l2sq_i8_neon      | simsimd_l2sq_i8_ice       | simsimd_l2sq_i8_haswell  | simsimd_l2sq_i8_serial     |
+|                           |                           |                          |                            |
+| simsimd_js_f64_serial     | simsimd_js_f32_neon       | simsimd_js_f32_skylake   | simsimd_js_f32_serial      |
+| simsimd_js_f16_neon       | simsimd_js_f16_sapphire   | simsimd_js_f16_haswell   | simsimd_js_f16_serial      |
+| simsimd_kl_f64_serial     | simsimd_kl_f32_neon       | simsimd_kl_f32_skylake   | simsimd_kl_f32_serial      |
+| simsimd_kl_f16_neon       | simsimd_kl_f16_sapphire   | simsimd_kl_f16_haswell   | simsimd_kl_f16_serial      |
+|                           |                           |                          |                            |
+| simsimd_jaccard_b8_sve    | simsimd_jaccard_b8_neon   | simsimd_jaccard_b8_ice   | simsimd_jaccard_b8_haswell |
+| simsimd_jaccard_b8_serial |                           |                          |                            |
