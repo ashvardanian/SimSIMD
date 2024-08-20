@@ -173,21 +173,21 @@
 
 #endif
 
-#ifndef SIMSIMD_RSQRT
+#if !defined(SIMSIMD_RSQRT)
 #include <math.h>
 #define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
 #endif
 
-#ifndef SIMSIMD_LOG
+#if !defined(SIMSIMD_LOG)
 #include <math.h>
 #define SIMSIMD_LOG(x) (logf(x))
 #endif
 
-#ifndef SIMSIMD_F32_DIVISION_EPSILON
+#if !defined(SIMSIMD_F32_DIVISION_EPSILON)
 #define SIMSIMD_F32_DIVISION_EPSILON (1e-7)
 #endif
 
-#ifndef SIMSIMD_F16_DIVISION_EPSILON
+#if !defined(SIMSIMD_F16_DIVISION_EPSILON)
 #define SIMSIMD_F16_DIVISION_EPSILON (1e-3)
 #endif
 
@@ -195,13 +195,19 @@
 extern "C" {
 #endif
 
-typedef int simsimd_i32_t;
+typedef unsigned char simsimd_b8_t;
+
+typedef signed char simsimd_i8_t;
+typedef unsigned char simsimd_u8_t;
+typedef signed short simsimd_i16_t;
+typedef unsigned short simsimd_u16_t;
+typedef signed int simsimd_i32_t;
+typedef unsigned int simsimd_u32_t;
+typedef signed long long simsimd_i64_t;
+typedef unsigned long long simsimd_u64_t;
+
 typedef float simsimd_f32_t;
 typedef double simsimd_f64_t;
-typedef signed char simsimd_i8_t;
-typedef unsigned char simsimd_b8_t;
-typedef long long simsimd_i64_t;
-typedef unsigned long long simsimd_u64_t;
 
 typedef simsimd_u64_t simsimd_size_t;
 typedef simsimd_f64_t simsimd_distance_t;
@@ -296,7 +302,7 @@ typedef unsigned short simsimd_bf16_t;
  *  @brief  Returns the value of the half-precision floating-point number,
  *          potentially decompressed into single-precision.
  */
-#ifndef SIMSIMD_UNCOMPRESS_F16
+#if !defined(SIMSIMD_UNCOMPRESS_F16)
 #if SIMSIMD_NATIVE_F16
 #define SIMSIMD_UNCOMPRESS_F16(x) (SIMSIMD_IDENTIFY(x))
 #else
@@ -308,7 +314,7 @@ typedef unsigned short simsimd_bf16_t;
  *  @brief  Returns the value of the half-precision brain floating-point number,
  *          potentially decompressed into single-precision.
  */
-#ifndef SIMSIMD_UNCOMPRESS_BF16
+#if !defined(SIMSIMD_UNCOMPRESS_BF16)
 #if SIMSIMD_NATIVE_BF16
 #define SIMSIMD_UNCOMPRESS_BF16(x) (SIMSIMD_IDENTIFY(x))
 #else

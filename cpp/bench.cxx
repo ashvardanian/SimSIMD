@@ -1,5 +1,7 @@
 #include <cmath>   // `std::sqrt`
+#include <cstdlib> // `std::aligned_alloc`
 #include <cstring> // `std::memcpy`
+#include <random>  // `std::uniform_int_distribution`
 #include <thread>  // `std::thread`
 
 #include <benchmark/benchmark.h>
@@ -15,8 +17,6 @@
 // are quite inaccurate. They are not meant to be used in production code.
 // So when benchmarking, if possible, please use the native types, if those
 // are implemented.
-#define SIMSIMD_NATIVE_F16 1
-#define SIMSIMD_NATIVE_BF16 1
 #define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
 #define SIMSIMD_LOG(x) (logf(x))
 #include <simsimd/simsimd.h>
@@ -29,31 +29,77 @@ template <> struct datatype_enum_to_type_gt<simsimd_datatype_f64_k> { using valu
 template <> struct datatype_enum_to_type_gt<simsimd_datatype_f32_k> { using value_t = simsimd_f32_t; };
 template <> struct datatype_enum_to_type_gt<simsimd_datatype_f16_k> { using value_t = simsimd_f16_t; };
 template <> struct datatype_enum_to_type_gt<simsimd_datatype_bf16_k> { using value_t = simsimd_bf16_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_i8_k> { using value_t = simsimd_i8_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_b8_k> { using value_t = simsimd_b8_t; };
 template <> struct datatype_enum_to_type_gt<simsimd_datatype_f64c_k> { using value_t = simsimd_f64_t; };
 template <> struct datatype_enum_to_type_gt<simsimd_datatype_f32c_k> { using value_t = simsimd_f32_t; };
 template <> struct datatype_enum_to_type_gt<simsimd_datatype_f16c_k> { using value_t = simsimd_f16_t; };
 template <> struct datatype_enum_to_type_gt<simsimd_datatype_bf16c_k> { using value_t = simsimd_bf16_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_datatype_b8_k> { using value_t = simsimd_b8_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_datatype_i8_k> { using value_t = simsimd_i8_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_datatype_u8_k> { using value_t = simsimd_u8_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_datatype_i16_k> { using value_t = simsimd_i16_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_datatype_u16_k> { using value_t = simsimd_u16_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_datatype_i32_k> { using value_t = simsimd_i32_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_datatype_u32_k> { using value_t = simsimd_u32_t; };
 // clang-format on
 
-template <simsimd_datatype_t datatype_ak, std::size_t dimensions_ak> struct vectors_pair_gt {
+/**
+ *  @brief Vector-like fixed capacity buffer, ensuring cache-line alignment.
+ *  @tparam datatype_ak The data type of the vector elements, represented as a `simsimd_datatype_t`.
+ */
+template <simsimd_datatype_t datatype_ak> struct vector_gt {
     using scalar_t = typename datatype_enum_to_type_gt<datatype_ak>::value_t;
     using compressed16_t = unsigned short;
     static constexpr bool is_integral = datatype_ak == simsimd_datatype_i8_k || datatype_ak == simsimd_datatype_b8_k;
 
-    alignas(64) scalar_t a[dimensions_ak]{};
-    alignas(64) scalar_t b[dimensions_ak]{};
+    scalar_t* buffer_ = nullptr;
+    std::size_t dimensions_ = 0;
 
-    std::size_t dimensions() const noexcept { return dimensions_ak; }
-    std::size_t size_bytes() const noexcept { return dimensions_ak * sizeof(scalar_t); }
-
-    void set(scalar_t v) noexcept {
-        for (std::size_t i = 0; i != dimensions_ak; ++i)
-            a[i] = b[i] = v;
+    vector_gt() = default;
+    vector_gt(std::size_t dimensions) noexcept(false)
+        : dimensions_(dimensions),
+          buffer_(static_cast<scalar_t*>(std::aligned_alloc(64, dimensions * sizeof(scalar_t)))) {
+        if (!buffer_)
+            throw std::bad_alloc();
     }
 
-    void compress(double const& from, scalar_t& to) noexcept {
+    ~vector_gt() noexcept { std::free(buffer_); }
+
+    vector_gt(vector_gt const& other) : vector_gt(other.dimensions()) {
+        std::memcpy(buffer_, other.buffer_, dimensions_ * sizeof(scalar_t));
+    }
+    vector_gt& operator=(vector_gt const& other) {
+        if (this != &other) {
+            if (dimensions_ != other.dimensions()) {
+                std::free(buffer_);
+                dimensions_ = other.dimensions();
+                buffer_ = static_cast<scalar_t*>(std::aligned_alloc(64, dimensions_ * sizeof(scalar_t)));
+                if (!buffer_)
+                    throw std::bad_alloc();
+            }
+            std::memcpy(buffer_, other.buffer_, dimensions_ * sizeof(scalar_t));
+        }
+        return *this;
+    }
+
+    std::size_t dimensions() const noexcept { return dimensions_; }
+    std::size_t size_bytes() const noexcept { return dimensions_ * sizeof(scalar_t); }
+    scalar_t const* data() const noexcept { return buffer_; }
+
+    /**
+     *  @brief Broadcast a scalar value to all elements of the vector.
+     *  @param v The scalar value to broadcast.
+     */
+    void set(scalar_t v) noexcept {
+        for (std::size_t i = 0; i != dimensions_; ++i)
+            buffer_[i] = v;
+    }
+
+    /**
+     *  @brief Compresses a double value into the vector's scalar type.
+     *  @param from The double value to compress.
+     *  @param to The scalar type where the compressed value will be stored.
+     */
+    static void compress(double const& from, scalar_t& to) noexcept {
 #if !SIMSIMD_NATIVE_BF16
         if constexpr (datatype_ak == simsimd_datatype_bf16_k || datatype_ak == simsimd_datatype_bf16c_k) {
             auto compressed = simsimd_compress_bf16(from);
@@ -73,7 +119,12 @@ template <simsimd_datatype_t datatype_ak, std::size_t dimensions_ak> struct vect
         to = static_cast<scalar_t>(from);
     }
 
-    double uncompress(scalar_t const& from) noexcept {
+    /**
+     *  @brief Decompresses the vector's scalar type into a double value.
+     *  @param from The compressed scalar value to decompress.
+     *  @return The decompressed double value.
+     */
+    static double uncompress(scalar_t const& from) noexcept {
 #if !SIMSIMD_NATIVE_BF16
         if constexpr (datatype_ak == simsimd_datatype_bf16_k || datatype_ak == simsimd_datatype_bf16c_k) {
             compressed16_t compressed;
@@ -91,53 +142,90 @@ template <simsimd_datatype_t datatype_ak, std::size_t dimensions_ak> struct vect
         return from;
     }
 
+    /**
+     *  @brief Randomizes the vector elements with normalized values.
+     *
+     *  This method fills the vector with random values. For floating-point types, the vector is normalized
+     *  so that the sum of the squares of its elements equals 1. For integral types, the values are generated
+     *  within the range of the scalar type.
+     */
     void randomize() noexcept {
 
-        double a2_sum = 0, b2_sum = 0;
-        for (std::size_t i = 0; i != dimensions_ak; ++i) {
+        double squared_sum = 0;
+        for (std::size_t i = 0; i != dimensions_; ++i) {
             if constexpr (is_integral)
-                a[i] = static_cast<scalar_t>(std::rand() % std::numeric_limits<scalar_t>::max()),
-                b[i] = static_cast<scalar_t>(std::rand() % std::numeric_limits<scalar_t>::max());
+                buffer_[i] = static_cast<scalar_t>(std::rand() % std::numeric_limits<scalar_t>::max());
             else {
-                double ai = double(std::rand()) / double(RAND_MAX), bi = double(std::rand()) / double(RAND_MAX);
-                a2_sum += ai * ai, b2_sum += bi * bi;
-                compress(ai, a[i]), compress(bi, b[i]);
+                double ai = double(std::rand()) / double(RAND_MAX);
+                squared_sum += ai * ai;
+                compress(ai, buffer_[i]);
             }
         }
 
         // Normalize the vectors:
         if constexpr (!is_integral) {
-            a2_sum = std::sqrt(a2_sum);
-            b2_sum = std::sqrt(b2_sum);
-            for (std::size_t i = 0; i != dimensions_ak; ++i)
-                compress(uncompress(a[i]) / a2_sum, a[i]), compress(uncompress(b[i]) / b2_sum, b[i]);
+            squared_sum = std::sqrt(squared_sum);
+            for (std::size_t i = 0; i != dimensions_; ++i)
+                compress(uncompress(buffer_[i]) / squared_sum, buffer_[i]);
         }
     }
 };
 
+template <simsimd_datatype_t datatype_ak> struct vectors_pair_gt {
+    using vector_t = vector_gt<datatype_ak>;
+    using scalar_t = typename vector_t::scalar_t;
+    static constexpr bool is_integral = datatype_ak == simsimd_datatype_i8_k || datatype_ak == simsimd_datatype_b8_k;
+
+    vector_t a;
+    vector_t b;
+
+    vectors_pair_gt() noexcept = default;
+    vectors_pair_gt(std::size_t dimensions) noexcept : a(dimensions), b(dimensions) {}
+    vectors_pair_gt(std::size_t dimensions_a, std::size_t dimensions_b) noexcept : a(dimensions_a), b(dimensions_b) {}
+    vectors_pair_gt(vectors_pair_gt const& other) noexcept(false) : a(other.a), b(other.b) {}
+    vectors_pair_gt& operator=(vectors_pair_gt const& other) noexcept(false) {
+        if (this != &other)
+            a = other.a, b = other.b;
+        return *this;
+    }
+};
+
+/**
+ *  @brief Measures the performance of a @b dense metric function against a baseline using Google Benchmark.
+ *  @tparam pair_at The type representing the vector pair used in the measurement.
+ *  @tparam metric_at The type of the metric function (default is void).
+ *  @param state The benchmark state object provided by Google Benchmark.
+ *  @param metric The metric function to benchmark.
+ *  @param baseline The baseline function to compare against.
+ *  @param dimensions The number of dimensions in the vectors.
+ */
 template <typename pair_at, typename metric_at = void>
-void measure(bm::State& state, metric_at metric, metric_at baseline) {
+void measure(bm::State& state, metric_at metric, metric_at baseline, std::size_t dimensions) {
+
+    using vector_t = typename pair_at::vector_t;
 
     auto call_baseline = [&](pair_at& pair) -> double {
         // Output for real vectors have a single dimensions.
         // Output for complex vectors have two dimensions.
         simsimd_distance_t results[2] = {0, 0};
-        baseline(pair.a, pair.b, pair.dimensions(), &results[0]);
+        baseline(pair.a.data(), pair.b.data(), pair.a.dimensions(), &results[0]);
         return results[0] + results[1];
     };
     auto call_contender = [&](pair_at& pair) -> double {
         // Output for real vectors have a single dimensions.
         // Output for complex vectors have two dimensions.
         simsimd_distance_t results[2] = {0, 0};
-        metric(pair.a, pair.b, pair.dimensions(), &results[0]);
+        metric(pair.a.data(), pair.b.data(), pair.a.dimensions(), &results[0]);
         return results[0] + results[1];
     };
 
     // Let's average the distance results over many pairs.
-    constexpr std::size_t pairs_count = 4;
+    constexpr std::size_t pairs_count = 64;
     std::vector<pair_at> pairs(pairs_count);
-    for (auto& pair : pairs)
-        pair.randomize();
+    for (auto& pair : pairs) {
+        pair.a = pair.b = vector_t(dimensions);
+        pair.a.randomize(), pair.b.randomize();
+    }
 
     // Initialize the output buffers for distance calculations.
     std::vector<double> results_baseline(pairs.size());
@@ -164,29 +252,141 @@ void measure(bm::State& state, metric_at metric, metric_at baseline) {
     mean_relative_error /= pairs.size();
     state.counters["abs_delta"] = mean_delta;
     state.counters["relative_error"] = mean_relative_error;
-    state.counters["bytes"] = bm::Counter(iterations * pairs[0].size_bytes() * 2, bm::Counter::kIsRate);
+    state.counters["bytes"] = bm::Counter(iterations * pairs[0].a.size_bytes() * 2, bm::Counter::kIsRate);
     state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
+}
+
+/**
+ *  @brief Measures the performance of a @b sparse metric function against a baseline using Google Benchmark.
+ *  @tparam pair_at The type representing the vector pair used in the measurement.
+ *  @tparam metric_at The type of the metric function (default is void).
+ *  @param state The benchmark state object provided by Google Benchmark.
+ *  @param metric The metric function to benchmark.
+ *  @param baseline The baseline function to compare against.
+ *  @param dimensions_a The number of dimensions in the smaller vector.
+ *  @param dimensions_b The number of dimensions in the larger vector.
+ *  @param intersection_size The expected number of common scalars between the vectors.
+ */
+template <typename pair_at, typename metric_at = void>
+void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std::size_t dimensions_a,
+                    std::size_t dimensions_b, std::size_t intersection_size) {
+
+    using vector_t = typename pair_at::vector_t;
+
+    auto call_baseline = [&](pair_at& pair) -> double {
+        // Output for real vectors have a single dimensions.
+        // Output for complex vectors have two dimensions.
+        simsimd_distance_t results[2] = {0, 0};
+        baseline(pair.a.data(), pair.b.data(), pair.a.dimensions(), pair.b.dimensions(), &results[0]);
+        return results[0] + results[1];
+    };
+    auto call_contender = [&](pair_at& pair) -> double {
+        // Output for real vectors have a single dimensions.
+        // Output for complex vectors have two dimensions.
+        simsimd_distance_t results[2] = {0, 0};
+        metric(pair.a.data(), pair.b.data(), pair.a.dimensions(), pair.b.dimensions(), &results[0]);
+        return results[0] + results[1];
+    };
+
+    // Let's average the distance results over many pairs.
+    constexpr std::size_t pairs_count = 64;
+    std::vector<pair_at> pairs(pairs_count);
+    std::random_device seed_source;
+    std::mt19937 generator(seed_source());
+
+    for (auto& pair : pairs) {
+        pair.a = vector_t(dimensions_a);
+        pair.b = vector_t(dimensions_b);
+
+        // Randomizing the vectors for sparse distances is a bit more complex then:
+        //
+        //      pair.a.randomize(), pair.b.randomize();
+        //
+        // We need to ensure that the intersection is of the expected size.
+        // We can roughly achieve that using a uniform integer distribution with a properly calibrated
+        // upper bound and sorting the arrays after the construction.
+        std::size_t longer_length = std::max(dimensions_a, dimensions_b);
+        double spread_between_matches = longer_length * 1.0 / intersection_size;
+        std::size_t upper_bound = static_cast<std::size_t>(spread_between_matches * longer_length);
+        std::uniform_int_distribution<std::size_t> distribution(0, upper_bound);
+        std::generate(pair.a.buffer_, pair.a.buffer_ + dimensions_a, [&]() { return distribution(generator); });
+        std::generate(pair.b.buffer_, pair.b.buffer_ + dimensions_b, [&]() { return distribution(generator); });
+        std::sort(pair.a.buffer_, pair.a.buffer_ + dimensions_a);
+        std::sort(pair.b.buffer_, pair.b.buffer_ + dimensions_b);
+    }
+
+    // Initialize the output buffers for distance calculations.
+    std::vector<double> results_baseline(pairs.size());
+    std::vector<double> results_contender(pairs.size());
+    for (std::size_t i = 0; i != pairs.size(); ++i)
+        results_baseline[i] = call_baseline(pairs[i]), results_contender[i] = call_contender(pairs[i]);
+
+    // The actual benchmarking loop.
+    std::size_t iterations = 0;
+    for (auto _ : state)
+        bm::DoNotOptimize((results_contender[iterations & (pairs_count - 1)] =
+                               call_contender(pairs[iterations & (pairs_count - 1)]))),
+            iterations++;
+
+    // Measure the mean absolute delta and relative error.
+    double mean_delta = 0, mean_relative_error = 0;
+    for (std::size_t i = 0; i != pairs.size(); ++i) {
+        auto abs_delta = std::abs(results_contender[i] - results_baseline[i]);
+        mean_delta += abs_delta;
+        double error = abs_delta != 0 && results_baseline[i] != 0 ? abs_delta / results_baseline[i] : 0;
+        mean_relative_error += error;
+    }
+    mean_delta /= pairs.size();
+    mean_relative_error /= pairs.size();
+    state.counters["abs_delta"] = mean_delta;
+    state.counters["relative_error"] = mean_relative_error;
+    state.counters["bytes"] =
+        bm::Counter(iterations * pairs[0].a.size_bytes() * pairs[0].b.size_bytes(), bm::Counter::kIsRate);
+    state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
+    state.counters["mean_result"] =
+        std::accumulate(results_baseline.begin(), results_baseline.end(), 0.0) / results_baseline.size();
 }
 
 template <simsimd_datatype_t datatype_ak, typename metric_at = void>
 void register_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
 
-    std::size_t seconds = 10;
-    std::size_t threads = 1;
+    // Matches OpenAI embedding size
+    constexpr std::size_t dimensions = 1536;
+    constexpr std::size_t seconds = 10;
+    constexpr std::size_t threads = 1;
 
-    using pair_dims_t = vectors_pair_gt<datatype_ak, 1536>;
-    using scalar_t = typename pair_dims_t::scalar_t;
-    using pair_bytes_t = vectors_pair_gt<datatype_ak, 1536 / sizeof(scalar_t)>;
+    using pair_t = vectors_pair_gt<datatype_ak>;
 
-    std::string name_dims = name + "_" + std::to_string(pair_dims_t{}.dimensions()) + "d";
-    bm::RegisterBenchmark(name_dims.c_str(), measure<pair_dims_t, metric_at*>, distance_func, baseline_func)
+    std::string name_dims = name + "_" + std::to_string(dimensions) + "d";
+    bm::RegisterBenchmark(name_dims.c_str(), measure<pair_t, metric_at*>, distance_func, baseline_func, dimensions)
         ->MinTime(seconds)
         ->Threads(threads);
+}
 
-    std::string name_bytes = name + "_" + std::to_string(pair_bytes_t{}.size_bytes()) + "b";
-    bm::RegisterBenchmark(name_bytes.c_str(), measure<pair_bytes_t, metric_at*>, distance_func, baseline_func)
-        ->MinTime(seconds)
-        ->Threads(threads);
+template <simsimd_datatype_t datatype_ak, typename metric_at = void>
+void register_sparse_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
+
+    constexpr std::size_t seconds = 10;
+    constexpr std::size_t threads = 1;
+
+    using pair_t = vectors_pair_gt<datatype_ak>;
+
+    // Register different lengths, intersection sizes, and distributions
+    // 4 first lengths * 3 second lengths * 4 intersection sizes = 48 benchmarks for each metric.
+    for (std::size_t first_len : {128, 512, 1024, 2048}) {         //< 4 lengths
+        for (std::size_t second_len_multiplier : {1, 8, 64}) {     //< 3 lengths
+            for (std::size_t intersection_size : {1, 5, 10, 50}) { //< 4 sizes
+
+                std::size_t second_len = first_len * second_len_multiplier;
+                std::string test_name = name + "_" + std::to_string(first_len) + "d_&_" + std::to_string(second_len) +
+                                        "d_w" + std::to_string(intersection_size) + "_matches";
+                bm::RegisterBenchmark(test_name.c_str(), measure_sparse<pair_t, metric_at*>, distance_func,
+                                      baseline_func, first_len, second_len, intersection_size)
+                    ->MinTime(seconds)
+                    ->Threads(threads);
+            }
+        }
+    }
 }
 
 #if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
@@ -262,6 +462,15 @@ int main(int argc, char** argv) {
     bm::Initialize(&argc, argv);
     if (bm::ReportUnrecognizedArguments(argc, argv))
         return 1;
+
+    register_sparse_<simsimd_datatype_u16_k>("intersect_u16", simsimd_intersect_u16_serial,
+                                             simsimd_intersect_u16_accurate);
+    register_sparse_<simsimd_datatype_u32_k>("intersect_u32", simsimd_intersect_u32_serial,
+                                             simsimd_intersect_u32_accurate);
+    register_sparse_<simsimd_datatype_u16_k>("intersect_u16_accurate", simsimd_intersect_u16_accurate,
+                                             simsimd_intersect_u16_accurate);
+    register_sparse_<simsimd_datatype_u32_k>("intersect_u32_accurate", simsimd_intersect_u32_accurate,
+                                             simsimd_intersect_u32_accurate);
 
 #if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
 

@@ -104,6 +104,7 @@
 #include "dot.h"         // Inner (dot) product, and its conjugate
 #include "geospatial.h"  // Haversine and Vincenty
 #include "probability.h" // Kullback-Leibler, Jensen–Shannon
+#include "sparse.h"      // Intersect
 #include "spatial.h"     // L2, Cosine
 
 // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
@@ -141,6 +142,9 @@ typedef enum {
 
     simsimd_metric_jaccard_k = 'j',  ///< Jaccard coefficient
     simsimd_metric_tanimoto_k = 'j', ///< Tanimoto coefficient is same as Jaccard
+
+    // Sets:
+    simsimd_metric_intersect_k = 'x', ///< Equivalent to unnormalized Jaccard
 
     // Probability:
     simsimd_metric_kl_k = 'k',               ///< Kullback-Leibler divergence
@@ -184,9 +188,17 @@ typedef enum {
  */
 typedef enum {
     simsimd_datatype_unknown_k = 0, ///< Unknown data type
-
     simsimd_datatype_b8_k = 1 << 1, ///< Single-bit values packed into 8-bit words
-    simsimd_datatype_i8_k = 1 << 2, ///< 8-bit integer
+
+    simsimd_datatype_i8_k = 1 << 2,  ///< 8-bit signed integer
+    simsimd_datatype_i16_k = 1 << 3, ///< 16-bit signed integer
+    simsimd_datatype_i32_k = 1 << 4, ///< 32-bit signed integer
+    simsimd_datatype_i64_k = 1 << 5, ///< 64-bit signed integer
+
+    simsimd_datatype_u8_k = 1 << 6,  ///< 8-bit unsigned integer
+    simsimd_datatype_u16_k = 1 << 7, ///< 16-bit unsigned integer
+    simsimd_datatype_u32_k = 1 << 8, ///< 32-bit unsigned integer
+    simsimd_datatype_u64_k = 1 << 9, ///< 64-bit unsigned integer
 
     simsimd_datatype_f64_k = 1 << 10,  ///< Double precision floating point
     simsimd_datatype_f32_k = 1 << 11,  ///< Single precision floating point
@@ -459,6 +471,15 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
     switch (datatype) {
 
     case simsimd_datatype_unknown_k: break;
+
+    // These data-types are not supported yet
+    case simsimd_datatype_i16_k: break;
+    case simsimd_datatype_i32_k: break;
+    case simsimd_datatype_i64_k: break;
+    case simsimd_datatype_u8_k: break;
+    case simsimd_datatype_u16_k: break;
+    case simsimd_datatype_u32_k: break;
+    case simsimd_datatype_u64_k: break;
 
     // Double-precision floating-point vectors
     case simsimd_datatype_f64_k:
