@@ -303,21 +303,28 @@ void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std:
     //      pair.a.randomize(), pair.b.randomize();
     //
     // We need to ensure that the intersection is of the expected size.
+    std::unordered_set<scalar_t> intersection_set, unique_a, unique_b;
+    intersection_set.reserve(intersection_size);
+    unique_a.reserve(dimensions_a - intersection_size);
+    unique_b.reserve(dimensions_b - intersection_size);
+
     for (auto& pair : pairs) {
         pair.a = vector_t(dimensions_a);
         pair.b = vector_t(dimensions_b);
 
         // Step 1: Generate intersection set
-        std::unordered_set<scalar_t> intersection_set, unique_a, unique_b;
+        intersection_set.clear();
         while (intersection_set.size() < intersection_size)
             intersection_set.insert(distribution(generator));
 
+        unique_a.clear();
         while (unique_a.size() < dimensions_a - intersection_size) {
             scalar_t element = distribution(generator);
             if (intersection_set.find(element) == intersection_set.end())
                 unique_a.insert(element);
         }
 
+        unique_b.clear();
         while (unique_b.size() < dimensions_b - intersection_size) {
             scalar_t element = distribution(generator);
             if (intersection_set.find(element) == intersection_set.end() && unique_a.find(element) == unique_a.end())
@@ -325,17 +332,12 @@ void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std:
         }
 
         // Step 2: Merge and sort
-        std::vector<scalar_t> a_values(intersection_set.begin(), intersection_set.end());
-        a_values.insert(a_values.end(), unique_a.begin(), unique_a.end());
-        std::sort(a_values.begin(), a_values.end());
-
-        std::vector<scalar_t> b_values(intersection_set.begin(), intersection_set.end());
-        b_values.insert(b_values.end(), unique_b.begin(), unique_b.end());
-        std::sort(b_values.begin(), b_values.end());
-
-        // Step 4: Copy data into vectors
-        std::copy(a_values.begin(), a_values.end(), pair.a.buffer_);
-        std::copy(b_values.begin(), b_values.end(), pair.b.buffer_);
+        std::copy(intersection_set.begin(), intersection_set.end(), pair.a.buffer_);
+        std::copy(intersection_set.begin(), intersection_set.end(), pair.b.buffer_);
+        std::copy(unique_a.begin(), unique_a.end(), pair.a.buffer_ + intersection_size);
+        std::copy(unique_b.begin(), unique_b.end(), pair.b.buffer_ + intersection_size);
+        std::sort(pair.a.buffer_, pair.a.buffer_ + dimensions_a);
+        std::sort(pair.b.buffer_, pair.b.buffer_ + dimensions_b);
     }
 
     // Initialize the output buffers for distance calculations.
@@ -392,7 +394,7 @@ void register_sparse_(std::string name, metric_at* distance_func, metric_at* bas
 
     // Register different lengths, intersection sizes, and distributions
     // 2 first lengths * 3 second lengths * 3 intersection sizes = 18 benchmarks for each metric.
-    for (std::size_t first_len : {128, 2048}) {                //< 2 lengths
+    for (std::size_t first_len : {128, 1024}) {                //< 2 lengths
         for (std::size_t second_len_multiplier : {1, 8, 64}) { //< 3 lengths
             for (std::size_t intersection_size : {1, 8, 64}) { //< 3 sizes
 
