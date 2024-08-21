@@ -506,7 +506,7 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
                 &result);
 
             // Export out:
-            if (cast_distance(result[0], datatype, distances, i * components_per_pair)) {
+            if (!cast_distance(result[0], datatype, distances, i * components_per_pair)) {
                 PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
                 goto cleanup;
             }
