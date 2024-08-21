@@ -168,13 +168,13 @@ size_t bytes_per_datatype(simsimd_datatype_t dtype) {
 
 /// @brief Copy a distance to a target datatype, downcasting if necessary.
 /// @return 1 if the cast was successful, 0 if the target datatype is not supported.
-int cast_distance(simsimd_distance_t distance, simsimd_datatype_t target_dtype, void* target_ptr) {
+int cast_distance(simsimd_distance_t distance, simsimd_datatype_t target_dtype, void* target_ptr, size_t offset) {
     switch (target_dtype) {
-    case simsimd_datatype_f64_k: *((simsimd_f64_t*)target_ptr) = (simsimd_f64_t)distance; return 1;
-    case simsimd_datatype_f32_k: *((simsimd_f32_t*)target_ptr) = (simsimd_f32_t)distance; return 1;
-    case simsimd_datatype_f16_k: *((simsimd_f16_t*)target_ptr) = (simsimd_f16_t)distance; return 1;
-    case simsimd_datatype_bf16_k: *((simsimd_bf16_t*)target_ptr) = (simsimd_bf16_t)distance; return 1;
-    case simsimd_datatype_i8_k: *((simsimd_i8_t*)target_ptr) = (simsimd_i8_t)distance; return 1;
+    case simsimd_datatype_f64_k: ((simsimd_f64_t*)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
+    case simsimd_datatype_f32_k: ((simsimd_f32_t*)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
+    case simsimd_datatype_f16_k: ((simsimd_f16_t*)target_ptr)[offset] = (simsimd_f16_t)distance; return 1;
+    case simsimd_datatype_bf16_k: ((simsimd_bf16_t*)target_ptr)[offset] = (simsimd_bf16_t)distance; return 1;
+    case simsimd_datatype_i8_k: ((simsimd_i8_t*)target_ptr)[offset] = (simsimd_i8_t)distance; return 1;
     default: return 0;
     }
 }
@@ -506,9 +506,12 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
                 &result);
 
             // Export out:
-            copy_distance(result[0], datatype, distances + i * components_per_pair);
+            if (cast_distance(result[0], datatype, distances, i * components_per_pair)) {
+                PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
+                goto cleanup;
+            }
             if (datatype_is_complex)
-                copy_distance(result[1], datatype, distances + i * components_per_pair + 1);
+                cast_distance(result[1], datatype, distances, i * components_per_pair + 1);
         }
     }
 
@@ -593,10 +596,21 @@ static PyObject* impl_cdist(                            //
 #endif
 #endif
 
+        // Check if the downcasting to provided datatype is supported
+        {
+
+            char returned_buffer_example[8];
+            if (!cast_distance(0, return_datatype, &returned_buffer_example, 0)) {
+                PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
+                goto cleanup;
+            }
+        }
+
         size_t const count_pairs = parsed_a.count * parsed_b.count;
         size_t const components_per_pair = datatype_is_complex ? 2 : 1;
         size_t const count_components = count_pairs * components_per_pair;
-        DistancesTensor* distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType, count_components);
+        DistancesTensor* distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType,
+                                                         count_components * bytes_per_datatype(return_datatype));
         if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
@@ -623,12 +637,12 @@ static PyObject* impl_cdist(                            //
                     parsed_a.dimensions,                  //
                     &result                               //
                 );
-
                 // Export out:
-                copy_distance(result[0], return_datatype, distances + i * components_per_pair * parsed_b.count + j);
+                cast_distance(result[0], return_datatype, distances,
+                              i * components_per_pair * parsed_b.count + j * components_per_pair);
                 if (datatype_is_complex)
-                    copy_distance(result[1], return_datatype,
-                                  distances + i * components_per_pair * parsed_b.count + j + 1);
+                    cast_distance(result[1], return_datatype, distances,
+                                  i * components_per_pair * parsed_b.count + j * components_per_pair + 1);
             }
     }
 
@@ -663,6 +677,7 @@ static PyObject* impl_pointer(simsimd_metric_kind_t metric_kind, PyObject* args)
 }
 
 static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
+    printf("calling api_cdist \n");
     PyObject *input_tensor_a, *input_tensor_b;
     PyObject* metric_obj = NULL;
     PyObject* threads_obj = NULL;
@@ -732,6 +747,7 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
     simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
     if (dtype_obj) {
         char const* dtype_str = PyUnicode_AsUTF8(dtype_obj);
+        printf("dtype is %s\n", dtype_str);
         if (!dtype_str && PyErr_Occurred()) {
             PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
             return NULL;
