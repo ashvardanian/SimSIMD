@@ -101,6 +101,7 @@
         "BLAS",
         "castsi",
         "CBLAS",
+        "cdist",
         "cpuid",
         "cpusysregs",
         "dtype",

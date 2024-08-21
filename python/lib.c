@@ -172,8 +172,8 @@ int cast_distance(simsimd_distance_t distance, simsimd_datatype_t target_dtype, 
     switch (target_dtype) {
     case simsimd_datatype_f64_k: ((simsimd_f64_t*)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
     case simsimd_datatype_f32_k: ((simsimd_f32_t*)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
-    case simsimd_datatype_f16_k: ((simsimd_f16_t*)target_ptr)[offset] = (simsimd_f16_t)distance; return 1;
-    case simsimd_datatype_bf16_k: ((simsimd_bf16_t*)target_ptr)[offset] = (simsimd_bf16_t)distance; return 1;
+    case simsimd_datatype_f16_k: ((unsigned short*)target_ptr)[offset] = simsimd_compress_f16(distance); return 1;
+    case simsimd_datatype_bf16_k: ((unsigned short*)target_ptr)[offset] = simsimd_compress_bf16(distance); return 1;
     case simsimd_datatype_i8_k: ((simsimd_i8_t*)target_ptr)[offset] = (simsimd_i8_t)distance; return 1;
     default: return 0;
     }
@@ -677,7 +677,6 @@ static PyObject* impl_pointer(simsimd_metric_kind_t metric_kind, PyObject* args)
 }
 
 static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
-    printf("calling api_cdist \n");
     PyObject *input_tensor_a, *input_tensor_b;
     PyObject* metric_obj = NULL;
     PyObject* threads_obj = NULL;
@@ -747,7 +746,6 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
     simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
     if (dtype_obj) {
         char const* dtype_str = PyUnicode_AsUTF8(dtype_obj);
-        printf("dtype is %s\n", dtype_str);
         if (!dtype_str && PyErr_Occurred()) {
             PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
             return NULL;
