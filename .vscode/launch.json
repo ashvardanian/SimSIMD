@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/build_debug/simsimd_bench",
             "cwd": "${workspaceFolder}",
             "args": [
-                "--benchmark_filter=i8_cos"
+                "--benchmark_filter=cos_i8"
             ],
             "environment": [
                 {
@@ -48,6 +48,21 @@
             "osx": {
                 "MIMode": "lldb"
             }
+        },
+        {
+            "name": "Debug PyTest",
+            "type": "python",
+            "request": "launch",
+            "module": "pytest",
+            "console": "internalConsole",
+            "args": [
+                "${file}",
+                "-s",
+                "-x",
+                "-k",
+                "inner_bf16"
+            ],
+            "justMyCode": true
         }
     ]
 }

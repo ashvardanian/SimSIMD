@@ -12,6 +12,7 @@
  *  - 64-bit IEEE floating point numbers
  *  - 32-bit IEEE floating point numbers
  *  - 16-bit IEEE floating point numbers
+ *  - 16-bit brain floating point numbers
  *  - 8-bit signed integers
  *
  *  For hardware architectures:
@@ -39,12 +40,19 @@ extern "C" {
 SIMSIMD_PUBLIC void simsimd_dot_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f64c_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_vdot_f64c_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+
 SIMSIMD_PUBLIC void simsimd_dot_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f32c_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_vdot_f32c_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+
 SIMSIMD_PUBLIC void simsimd_dot_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f16c_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+
+SIMSIMD_PUBLIC void simsimd_dot_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_bf16c_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_vdot_bf16c_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
 SIMSIMD_PUBLIC void simsimd_dot_i8_serial(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 /*  Double-precision serial backends for all numeric types.
@@ -53,9 +61,14 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_serial(simsimd_i8_t const* a, simsimd_i8_t co
 SIMSIMD_PUBLIC void simsimd_dot_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f32c_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_vdot_f32c_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+
 SIMSIMD_PUBLIC void simsimd_dot_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f16c_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+
+SIMSIMD_PUBLIC void simsimd_dot_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_bf16c_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_vdot_bf16c_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 
 /*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
  *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
@@ -64,22 +77,26 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_accurate(simsimd_f16_t const* a, simsimd_f
 SIMSIMD_PUBLIC void simsimd_dot_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f32c_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_vdot_f32c_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+
 SIMSIMD_PUBLIC void simsimd_dot_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+
 SIMSIMD_PUBLIC void simsimd_dot_i8_serial(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 /*  SIMD-powered backends for Arm SVE, mostly using 32-bit arithmetic over variable-length platform-defined word sizes.
  *  Designed for Arm Graviton 3, Microsoft Cobalt, as well as Nvidia Grace and newer Ampere Altra CPUs.
  */
-SIMSIMD_PUBLIC void simsimd_dot_f16_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f32_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_dot_f64_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_dot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_dot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-SIMSIMD_PUBLIC void simsimd_dot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* results);
-SIMSIMD_PUBLIC void simsimd_vdot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_vdot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+
+SIMSIMD_PUBLIC void simsimd_dot_f16_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_vdot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+
+SIMSIMD_PUBLIC void simsimd_dot_f64_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_vdot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 
 /*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
@@ -91,24 +108,34 @@ SIMSIMD_PUBLIC void simsimd_vdot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t 
 SIMSIMD_PUBLIC void simsimd_dot_f32_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_vdot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+
 SIMSIMD_PUBLIC void simsimd_dot_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+
+SIMSIMD_PUBLIC void simsimd_dot_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
 SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 /*  SIMD-powered backends for various generations of AVX512 CPUs.
  *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
  *  Ice Lake added VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ, and other extensions for integral operations.
+ *  Genoa added only BF16.
  *  Sapphire Rapids added tiled matrix operations, but we are most interested in the new mixed-precision FMA instructions.
  */
-SIMSIMD_PUBLIC void simsimd_dot_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_dot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_vdot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f64_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_vdot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
+SIMSIMD_PUBLIC void simsimd_dot_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_vdot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
 SIMSIMD_PUBLIC void simsimd_dot_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t*);
+
+SIMSIMD_PUBLIC void simsimd_dot_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_bf16c_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_vdot_bf16c_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 SIMSIMD_PUBLIC void simsimd_dot_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
@@ -174,6 +201,10 @@ SIMSIMD_MAKE_DOT(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16)          // simsimd_d
 SIMSIMD_MAKE_COMPLEX_DOT(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16)  // simsimd_dot_f16c_serial
 SIMSIMD_MAKE_COMPLEX_VDOT(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16) // simsimd_vdot_f16c_serial
 
+SIMSIMD_MAKE_DOT(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16)          // simsimd_dot_bf16_serial
+SIMSIMD_MAKE_COMPLEX_DOT(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16)  // simsimd_dot_bf16c_serial
+SIMSIMD_MAKE_COMPLEX_VDOT(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16) // simsimd_vdot_bf16c_serial
+
 SIMSIMD_MAKE_DOT(serial, i8, i64, SIMSIMD_IDENTIFY) // simsimd_dot_i8_serial
 
 SIMSIMD_MAKE_DOT(accurate, f32, f64, SIMSIMD_IDENTIFY)          // simsimd_dot_f32_accurate
@@ -183,6 +214,10 @@ SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f32, f64, SIMSIMD_IDENTIFY) // simsimd_vdot_
 SIMSIMD_MAKE_DOT(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16)          // simsimd_dot_f16_accurate
 SIMSIMD_MAKE_COMPLEX_DOT(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16)  // simsimd_dot_f16c_accurate
 SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16) // simsimd_vdot_f16c_accurate
+
+SIMSIMD_MAKE_DOT(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16)          // simsimd_dot_bf16_accurate
+SIMSIMD_MAKE_COMPLEX_DOT(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16)  // simsimd_dot_bf16c_accurate
+SIMSIMD_MAKE_COMPLEX_VDOT(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16) // simsimd_vdot_bf16c_accurate
 
 #if SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
@@ -296,7 +331,7 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_neon(simsimd_i8_t const* a, simsimd_i8_t cons
     //     ab_vec = vaddq_s32(ab_vec, vaddq_s32(vmovl_s16(vget_high_s16(ab_part_vec)), //
     //                                          vmovl_s16(vget_low_s16(ab_part_vec))));
     // }
-    for (; i + 15 < n; i += 16) {
+    for (; i + 16 <= n; i += 16) {
         int8x16_t a_vec = vld1q_s8(a + i);
         int8x16_t b_vec = vld1q_s8(b + i);
         ab_vec = vdotq_s32(ab_vec, a_vec, b_vec);
@@ -433,6 +468,127 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON
 
+#if SIMSIMD_TARGET_NEON_BF16
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.6-a+simd+bf16")
+#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+
+SIMSIMD_PUBLIC void simsimd_dot_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
+                                          simsimd_distance_t* result) {
+    float32x4_t ab_high_vec = vdupq_n_f32(0), ab_low_vec = vdupq_n_f32(0);
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        bfloat16x8_t a_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)a + i);
+        bfloat16x8_t b_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)b + i);
+        ab_high_vec = vbfmlaltq_f32(ab_high_vec, a_vec, b_vec);
+        ab_low_vec = vbfmlalbq_f32(ab_low_vec, a_vec, b_vec);
+    }
+
+    // In case the software emulation for `bf16` scalars is enabled, the `simsimd_uncompress_bf16`
+    // function will run. It is extremely slow, so even for the tail, let's combine serial
+    // loads and stores with vectorized math.
+    if (i < n) {
+        union {
+            bfloat16x8_t bf16_vec;
+            simsimd_bf16_t bf16[8];
+        } a_padded_tail, b_padded_tail;
+        simsimd_size_t j = 0;
+        for (; i < n; ++i, ++j)
+            a_padded_tail.bf16[j] = a[i], b_padded_tail.bf16[j] = b[i];
+        for (; j < 8; ++j)
+            a_padded_tail.bf16[j] = 0, b_padded_tail.bf16[j] = 0;
+        ab_high_vec = vbfmlaltq_f32(ab_high_vec, a_padded_tail.bf16_vec, b_padded_tail.bf16_vec);
+        ab_low_vec = vbfmlalbq_f32(ab_low_vec, a_padded_tail.bf16_vec, b_padded_tail.bf16_vec);
+    }
+    *result = vaddvq_f32(ab_high_vec) + vaddvq_f32(ab_low_vec);
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, //
+                                           simsimd_distance_t* results) {
+
+    // A nicer approach is to use `bf16` arithmetic for the dot product, but that requires
+    // FMLA extensions available on Arm v8.3 and later. That we can also process 16 entries
+    // at once. That's how the original implementation worked, but compiling it was a nightmare :)
+    float32x4_t ab_real_vec = vdupq_n_f32(0);
+    float32x4_t ab_imag_vec = vdupq_n_f32(0);
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        // Unpack the input arrays into real and imaginary parts.
+        // MSVC sadly doesn't recognize the `vld2_bf16`, so we load the  data as signed
+        // integers of the same size and reinterpret with `vreinterpret_bf16_s16` afterwards.
+        int16x4x2_t a_vec = vld2_s16((short*)a + i);
+        int16x4x2_t b_vec = vld2_s16((short*)b + i);
+        float32x4_t a_real_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(a_vec.val[0]));
+        float32x4_t a_imag_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(a_vec.val[1]));
+        float32x4_t b_real_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(b_vec.val[0]));
+        float32x4_t b_imag_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(b_vec.val[1]));
+
+        // Compute the dot product:
+        ab_real_vec = vfmaq_f32(ab_real_vec, a_real_vec, b_real_vec);
+        ab_real_vec = vfmsq_f32(ab_real_vec, a_imag_vec, b_imag_vec);
+        ab_imag_vec = vfmaq_f32(ab_imag_vec, a_real_vec, b_imag_vec);
+        ab_imag_vec = vfmaq_f32(ab_imag_vec, a_imag_vec, b_real_vec);
+    }
+
+    // Reduce horizontal sums:
+    simsimd_f32_t ab_real = vaddvq_f32(ab_real_vec);
+    simsimd_f32_t ab_imag = vaddvq_f32(ab_imag_vec);
+
+    // Handle the tail:
+    for (; i + 2 <= n; i += 2) {
+        simsimd_f32_t ar = a[i], ai = a[i + 1], br = b[i], bi = b[i + 1];
+        ab_real += ar * br - ai * bi;
+        ab_imag += ar * bi + ai * br;
+    }
+    results[0] = ab_real;
+    results[1] = ab_imag;
+}
+
+SIMSIMD_PUBLIC void simsimd_vdot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, //
+                                            simsimd_distance_t* results) {
+
+    // A nicer approach is to use `bf16` arithmetic for the dot product, but that requires
+    // FMLA extensions available on Arm v8.3 and later. That we can also process 16 entries
+    // at once. That's how the original implementation worked, but compiling it was a nightmare :)
+    float32x4_t ab_real_vec = vdupq_n_f32(0);
+    float32x4_t ab_imag_vec = vdupq_n_f32(0);
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        // Unpack the input arrays into real and imaginary parts.
+        // MSVC sadly doesn't recognize the `vld2_bf16`, so we load the  data as signed
+        // integers of the same size and reinterpret with `vreinterpret_bf16_s16` afterwards.
+        int16x4x2_t a_vec = vld2_s16((short*)a + i);
+        int16x4x2_t b_vec = vld2_s16((short*)b + i);
+        float32x4_t a_real_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(a_vec.val[0]));
+        float32x4_t a_imag_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(a_vec.val[1]));
+        float32x4_t b_real_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(b_vec.val[0]));
+        float32x4_t b_imag_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(b_vec.val[1]));
+
+        // Compute the dot product:
+        ab_real_vec = vfmaq_f32(ab_real_vec, a_real_vec, b_real_vec);
+        ab_real_vec = vfmaq_f32(ab_real_vec, a_imag_vec, b_imag_vec);
+        ab_imag_vec = vfmaq_f32(ab_imag_vec, a_real_vec, b_imag_vec);
+        ab_imag_vec = vfmsq_f32(ab_imag_vec, a_imag_vec, b_real_vec);
+    }
+
+    // Reduce horizontal sums:
+    simsimd_f32_t ab_real = vaddvq_f32(ab_real_vec);
+    simsimd_f32_t ab_imag = vaddvq_f32(ab_imag_vec);
+
+    // Handle the tail:
+    for (; i + 2 <= n; i += 2) {
+        simsimd_f32_t ar = a[i], ai = a[i + 1], br = b[i], bi = b[i + 1];
+        ab_real += ar * br + ai * bi;
+        ab_imag += ar * bi - ai * br;
+    }
+    results[0] = ab_real;
+    results[1] = ab_imag;
+}
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_NEON_BF16
+
 #if SIMSIMD_TARGET_SVE
 
 #pragma GCC push_options
@@ -442,7 +598,7 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t
 SIMSIMD_PUBLIC void simsimd_dot_f32_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                         simsimd_distance_t* result) {
     simsimd_size_t i = 0;
-    svfloat32_t ab_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
+    svfloat32_t ab_vec = svdup_f32(0.f);
     do {
         svbool_t pg_vec = svwhilelt_b32((unsigned int)i, (unsigned int)n);
         svfloat32_t a_vec = svld1_f32(pg_vec, a + i);
@@ -456,10 +612,10 @@ SIMSIMD_PUBLIC void simsimd_dot_f32_sve(simsimd_f32_t const* a, simsimd_f32_t co
 SIMSIMD_PUBLIC void simsimd_dot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                          simsimd_distance_t* results) {
     simsimd_size_t i = 0;
-    svfloat32_t ab_real_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
-    svfloat32_t ab_imag_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
+    svfloat32_t ab_real_vec = svdup_f32(0.f);
+    svfloat32_t ab_imag_vec = svdup_f32(0.f);
     do {
-        svbool_t pg_vec = svwhilelt_b32((unsigned int)i, (unsigned int)n);
+        svbool_t pg_vec = svwhilelt_b32((unsigned int)i / 2, (unsigned int)n / 2);
         svfloat32x2_t a_vec = svld2_f32(pg_vec, a + i);
         svfloat32x2_t b_vec = svld2_f32(pg_vec, b + i);
         svfloat32_t a_real_vec = svget2_f32(a_vec, 0);
@@ -479,10 +635,10 @@ SIMSIMD_PUBLIC void simsimd_dot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t c
 SIMSIMD_PUBLIC void simsimd_vdot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                           simsimd_distance_t* results) {
     simsimd_size_t i = 0;
-    svfloat32_t ab_real_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
-    svfloat32_t ab_imag_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
+    svfloat32_t ab_real_vec = svdup_f32(0.f);
+    svfloat32_t ab_imag_vec = svdup_f32(0.f);
     do {
-        svbool_t pg_vec = svwhilelt_b32((unsigned int)i, (unsigned int)n);
+        svbool_t pg_vec = svwhilelt_b32((unsigned int)i / 2, (unsigned int)n / 2);
         svfloat32x2_t a_vec = svld2_f32(pg_vec, a + i);
         svfloat32x2_t b_vec = svld2_f32(pg_vec, b + i);
         svfloat32_t a_real_vec = svget2_f32(a_vec, 0);
@@ -502,7 +658,7 @@ SIMSIMD_PUBLIC void simsimd_vdot_f32c_sve(simsimd_f32_t const* a, simsimd_f32_t 
 SIMSIMD_PUBLIC void simsimd_dot_f64_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
                                         simsimd_distance_t* result) {
     simsimd_size_t i = 0;
-    svfloat64_t ab_vec = svdupq_n_f64(0.0, 0.0);
+    svfloat64_t ab_vec = svdup_f64(0.);
     do {
         svbool_t pg_vec = svwhilelt_b64((unsigned int)i, (unsigned int)n);
         svfloat64_t a_vec = svld1_f64(pg_vec, a + i);
@@ -516,10 +672,10 @@ SIMSIMD_PUBLIC void simsimd_dot_f64_sve(simsimd_f64_t const* a, simsimd_f64_t co
 SIMSIMD_PUBLIC void simsimd_dot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
                                          simsimd_distance_t* results) {
     simsimd_size_t i = 0;
-    svfloat64_t ab_real_vec = svdupq_n_f64(0., 0.);
-    svfloat64_t ab_imag_vec = svdupq_n_f64(0., 0.);
+    svfloat64_t ab_real_vec = svdup_f64(0.);
+    svfloat64_t ab_imag_vec = svdup_f64(0.);
     do {
-        svbool_t pg_vec = svwhilelt_b64((unsigned int)i, (unsigned int)n);
+        svbool_t pg_vec = svwhilelt_b64((unsigned int)i / 2, (unsigned int)n / 2);
         svfloat64x2_t a_vec = svld2_f64(pg_vec, a + i);
         svfloat64x2_t b_vec = svld2_f64(pg_vec, b + i);
         svfloat64_t a_real_vec = svget2_f64(a_vec, 0);
@@ -539,10 +695,10 @@ SIMSIMD_PUBLIC void simsimd_dot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t c
 SIMSIMD_PUBLIC void simsimd_vdot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
                                           simsimd_distance_t* results) {
     simsimd_size_t i = 0;
-    svfloat64_t ab_real_vec = svdupq_n_f64(0., 0.);
-    svfloat64_t ab_imag_vec = svdupq_n_f64(0., 0.);
+    svfloat64_t ab_real_vec = svdup_f64(0.);
+    svfloat64_t ab_imag_vec = svdup_f64(0.);
     do {
-        svbool_t pg_vec = svwhilelt_b64((unsigned int)i, (unsigned int)n);
+        svbool_t pg_vec = svwhilelt_b64((unsigned int)i / 2, (unsigned int)n / 2);
         svfloat64x2_t a_vec = svld2_f64(pg_vec, a + i);
         svfloat64x2_t b_vec = svld2_f64(pg_vec, b + i);
         svfloat64_t a_real_vec = svget2_f64(a_vec, 0);
@@ -569,7 +725,7 @@ SIMSIMD_PUBLIC void simsimd_vdot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t 
 SIMSIMD_PUBLIC void simsimd_dot_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, simsimd_size_t n,
                                         simsimd_distance_t* result) {
     simsimd_size_t i = 0;
-    svfloat16_t ab_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
+    svfloat16_t ab_vec = svdup_f16(0);
     simsimd_f16_for_arm_simd_t const* a = (simsimd_f16_for_arm_simd_t const*)(a_enum);
     simsimd_f16_for_arm_simd_t const* b = (simsimd_f16_for_arm_simd_t const*)(b_enum);
     do {
@@ -586,10 +742,10 @@ SIMSIMD_PUBLIC void simsimd_dot_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16
 SIMSIMD_PUBLIC void simsimd_dot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                          simsimd_distance_t* results) {
     simsimd_size_t i = 0;
-    svfloat16_t ab_real_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
-    svfloat16_t ab_imag_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
+    svfloat16_t ab_real_vec = svdup_f16(0);
+    svfloat16_t ab_imag_vec = svdup_f16(0);
     do {
-        svbool_t pg_vec = svwhilelt_b16((unsigned int)i, (unsigned int)n);
+        svbool_t pg_vec = svwhilelt_b16((unsigned int)i / 2, (unsigned int)n / 2);
         svfloat16x2_t a_vec = svld2_f16(pg_vec, (simsimd_f16_for_arm_simd_t const*)a + i);
         svfloat16x2_t b_vec = svld2_f16(pg_vec, (simsimd_f16_for_arm_simd_t const*)b + i);
         svfloat16_t a_real_vec = svget2_f16(a_vec, 0);
@@ -609,10 +765,10 @@ SIMSIMD_PUBLIC void simsimd_dot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t c
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                           simsimd_distance_t* results) {
     simsimd_size_t i = 0;
-    svfloat16_t ab_real_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
-    svfloat16_t ab_imag_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
+    svfloat16_t ab_real_vec = svdup_f16(0);
+    svfloat16_t ab_imag_vec = svdup_f16(0);
     do {
-        svbool_t pg_vec = svwhilelt_b16((unsigned int)i, (unsigned int)n);
+        svbool_t pg_vec = svwhilelt_b16((unsigned int)i / 2, (unsigned int)n / 2);
         svfloat16x2_t a_vec = svld2_f16(pg_vec, (simsimd_f16_for_arm_simd_t const*)a + i);
         svfloat16x2_t b_vec = svld2_f16(pg_vec, (simsimd_f16_for_arm_simd_t const*)b + i);
         svfloat16_t a_real_vec = svget2_f16(a_vec, 0);
@@ -700,6 +856,22 @@ inline simsimd_f64_t _mm256_reduce_add_ps_dbl(__m256 vec) {
 
     // Convert the final sum to a scalar double-precision value and return
     return _mm_cvtsd_f64(sum128);
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_f32_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                            simsimd_distance_t* results) {
+
+    __m256 ab_vec = _mm256_setzero_ps();
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m256 a_vec = _mm256_loadu_ps(a + i);
+        __m256 b_vec = _mm256_loadu_ps(b + i);
+        ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
+    }
+    simsimd_f64_t ab = _mm256_reduce_add_ps_dbl(ab_vec);
+    for (; i < n; ++i)
+        ab += a[i] * b[i];
+    *results = ab;
 }
 
 SIMSIMD_PUBLIC void simsimd_dot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
@@ -955,6 +1127,47 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t c
     *result = ab;
 }
 
+SIMSIMD_PUBLIC void simsimd_dot_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
+                                             simsimd_distance_t* result) {
+    __m256 ab_vec = _mm256_setzero_ps();
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        // Upcasting from `bf16` to `f32` is done by shifting the `bf16` values by 16 bits to the left, like:
+        // x = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(x), 16))
+        __m256 a_vec =
+            _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(_mm_loadu_si128((__m128i const*)(a + i))), 16));
+        __m256 b_vec =
+            _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(_mm_loadu_si128((__m128i const*)(b + i))), 16));
+        ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
+    }
+
+    // In case the software emulation for `bf16` scalars is enabled, the `simsimd_uncompress_bf16`
+    // function will run. It is extremely slow, so even for the tail, let's combine serial
+    // loads and stores with vectorized math.
+    if (i < n) {
+        union {
+            __m128i bf16_vec;
+            simsimd_bf16_t bf16[8];
+        } a_padded_tail, b_padded_tail;
+        simsimd_size_t j = 0;
+        for (; i < n; ++i, ++j)
+            a_padded_tail.bf16[j] = a[i], b_padded_tail.bf16[j] = b[i];
+        for (; j < 8; ++j)
+            a_padded_tail.bf16[j] = 0, b_padded_tail.bf16[j] = 0;
+        __m256 a_vec = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(a_padded_tail.bf16_vec), 16));
+        __m256 b_vec = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(b_padded_tail.bf16_vec), 16));
+        ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
+    }
+
+    ab_vec = _mm256_add_ps(_mm256_permute2f128_ps(ab_vec, ab_vec, 1), ab_vec);
+    ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
+    ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
+
+    simsimd_f32_t f32_result;
+    _mm_store_ss(&f32_result, _mm256_castps256_ps128(ab_vec));
+    *result = f32_result;
+}
+
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_HASWELL
@@ -1190,6 +1403,125 @@ simsimd_vdot_f64c_skylake_cycle:
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SKYLAKE
 
+#if SIMSIMD_TARGET_GENOA
+#pragma GCC push_options
+#pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
+#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512bf16"))), apply_to = function)
+
+SIMSIMD_PUBLIC void simsimd_dot_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
+                                           simsimd_distance_t* result) {
+    __m512 ab_vec = _mm512_setzero_ps();
+    __m512i a_i16_vec, b_i16_vec;
+
+simsimd_dot_bf16_genoa_cycle:
+    if (n < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_i16_vec = _mm512_maskz_loadu_epi16(mask, a);
+        b_i16_vec = _mm512_maskz_loadu_epi16(mask, b);
+        n = 0;
+    } else {
+        a_i16_vec = _mm512_loadu_epi16(a);
+        b_i16_vec = _mm512_loadu_epi16(b);
+        a += 32, b += 32, n -= 32;
+    }
+    ab_vec = _mm512_dpbf16_ps(ab_vec, (__m512bh)(a_i16_vec), (__m512bh)(b_i16_vec));
+    if (n)
+        goto simsimd_dot_bf16_genoa_cycle;
+
+    *result = _mm512_reduce_add_ps(ab_vec);
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_bf16c_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
+                                            simsimd_distance_t* results) {
+
+    __m512 ab_real_vec = _mm512_setzero_ps();
+    __m512 ab_imag_vec = _mm512_setzero_ps();
+    __m512i a_vec;
+    __m512i b_vec;
+
+    // We take into account, that FMS is the same as FMA with a negative multiplier.
+    // To multiply a floating-point value by -1, we can use the `XOR` instruction to flip the sign bit.
+    // This way we can avoid the shuffling and the need for separate real and imaginary parts.
+    // For the imaginary part of the product, we would need to swap the real and imaginary parts of
+    // one of the vectors.
+    __m512i sign_flip_vec = _mm512_set1_epi32(0x80000000);
+    __m512i swap_adjacent_vec = _mm512_set_epi8(                        //
+        61, 60, 63, 62, 57, 56, 59, 58, 53, 52, 55, 54, 49, 48, 51, 50, // 4th 128-bit lane
+        45, 44, 47, 46, 41, 40, 43, 42, 37, 36, 39, 38, 33, 32, 35, 34, // 3rd 128-bit lane
+        29, 28, 31, 30, 25, 24, 27, 26, 21, 20, 23, 22, 17, 16, 19, 18, // 2nd 128-bit lane
+        13, 12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2            // 1st 128-bit lane
+    );
+
+simsimd_dot_bf16c_genoa_cycle:
+    if (n < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_epi16(mask, a);
+        b_vec = _mm512_maskz_loadu_epi16(mask, b);
+        n = 0;
+    } else {
+        a_vec = _mm512_loadu_epi16(a);
+        b_vec = _mm512_loadu_epi16(b);
+        a += 32, b += 32, n -= 32;
+    }
+    ab_real_vec = _mm512_dpbf16_ps(ab_real_vec, (__m512bh)(_mm512_xor_si512(b_vec, sign_flip_vec)), (__m512bh)(a_vec));
+    ab_imag_vec =
+        _mm512_dpbf16_ps(ab_imag_vec, (__m512bh)(_mm512_shuffle_epi8(b_vec, swap_adjacent_vec)), (__m512bh)(a_vec));
+    if (n)
+        goto simsimd_dot_bf16c_genoa_cycle;
+
+    // Reduce horizontal sums:
+    results[0] = _mm512_reduce_add_ps(ab_real_vec);
+    results[1] = _mm512_reduce_add_ps(ab_imag_vec);
+}
+
+SIMSIMD_PUBLIC void simsimd_vdot_bf16c_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
+                                             simsimd_distance_t* results) {
+
+    __m512 ab_real_vec = _mm512_setzero_ps();
+    __m512 ab_imag_vec = _mm512_setzero_ps();
+    __m512i a_vec;
+    __m512i b_vec;
+
+    // We take into account, that FMS is the same as FMA with a negative multiplier.
+    // To multiply a floating-point value by -1, we can use the `XOR` instruction to flip the sign bit.
+    // This way we can avoid the shuffling and the need for separate real and imaginary parts.
+    // For the imaginary part of the product, we would need to swap the real and imaginary parts of
+    // one of the vectors.
+    __m512i sign_flip_vec = _mm512_set1_epi32(0x80000000);
+    __m512i swap_adjacent_vec = _mm512_set_epi8(                        //
+        61, 60, 63, 62, 57, 56, 59, 58, 53, 52, 55, 54, 49, 48, 51, 50, // 4th 128-bit lane
+        45, 44, 47, 46, 41, 40, 43, 42, 37, 36, 39, 38, 33, 32, 35, 34, // 3rd 128-bit lane
+        29, 28, 31, 30, 25, 24, 27, 26, 21, 20, 23, 22, 17, 16, 19, 18, // 2nd 128-bit lane
+        13, 12, 15, 14, 9, 8, 11, 10, 5, 4, 7, 6, 1, 0, 3, 2            // 1st 128-bit lane
+    );
+
+simsimd_dot_bf16c_genoa_cycle:
+    if (n < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_vec = _mm512_maskz_loadu_epi16(mask, a);
+        b_vec = _mm512_maskz_loadu_epi16(mask, b);
+        n = 0;
+    } else {
+        a_vec = _mm512_loadu_epi16(a);
+        b_vec = _mm512_loadu_epi16(b);
+        a += 32, b += 32, n -= 32;
+    }
+    ab_real_vec = _mm512_dpbf16_ps(ab_real_vec, (__m512bh)(a_vec), (__m512bh)(b_vec));
+    a_vec = _mm512_xor_si512(a_vec, sign_flip_vec);
+    b_vec = _mm512_shuffle_epi8(b_vec, swap_adjacent_vec);
+    ab_imag_vec = _mm512_dpbf16_ps(ab_imag_vec, (__m512bh)(a_vec), (__m512bh)(b_vec));
+    if (n)
+        goto simsimd_dot_bf16c_genoa_cycle;
+
+    // Reduce horizontal sums:
+    results[0] = _mm512_reduce_add_ps(ab_real_vec);
+    results[1] = _mm512_reduce_add_ps(ab_imag_vec);
+}
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_GENOA
+
 #if SIMSIMD_TARGET_SAPPHIRE
 #pragma GCC push_options
 #pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512fp16")
@@ -1332,7 +1664,7 @@ simsimd_dot_i8_ice_cycle:
         a += 32, b += 32, n -= 32;
     }
     // Unfortunately we can't use the `_mm512_dpbusd_epi32` intrinsics here either,
-    // as it's assymetric with respect to the sign of the input arguments:
+    // as it's asymmetric with respect to the sign of the input arguments:
     //      Signed(ZeroExtend16(a.byte[4*j]) * SignExtend16(b.byte[4*j]))
     // So we have to use the `_mm512_dpwssd_epi32` intrinsics instead, upcasting
     // to 16-bit beforehand.

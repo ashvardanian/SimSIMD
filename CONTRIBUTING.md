@@ -5,21 +5,34 @@
 To rerun experiments utilize the following command:
 
 ```sh
-sudo apt install libopenblas-dev # BLAS installation is optional
-cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_BENCHMARKS=1 -DSIMSIMD_BUILD_TESTS=1 -B ./build_release
+sudo apt install libopenblas-dev # BLAS installation is optional, but recommended for benchmarks
+cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_TESTS=1 -DSIMSIMD_BUILD_BENCHMARKS=1 -DSIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 -B build_release
 cmake --build build_release --config Release
 build_release/simsimd_bench
 build_release/simsimd_bench --benchmark_filter=js
 build_release/simsimd_test_run_time
-build_release/simsimd_test_compile_time
+build_release/simsimd_test_compile_time # no need to run this one, it's just a compile-time test
 ```
 
 To utilize newest instructions, use GCC 12 or newer, or Clang 16 or newer.
+To install them on Ubuntu 22.04, use:
 
 ```sh
 sudo apt install gcc-12 g++-12
 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100
 sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100
+```
+
+On MacOS it's recommended to use Homebrew and install Clang, as opposed to "Apple Clang".
+Replacing the default compiler is not recommended, as it may break the system, but you can pass it as an environment variable:
+
+```sh
+brew install llvm
+cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_TESTS=1 \
+    -DCMAKE_C_COMPILER="$(brew --prefix llvm)/bin/clang" \
+    -DCMAKE_CXX_COMPILER="$(brew --prefix llvm)/bin/clang++" \
+    -B build_release
+cmake --build build_release --config Release
 ```
 
 ## Python
@@ -39,10 +52,30 @@ The `-Wd` will silence overflows and runtime warnings.
 Benchmarking:
 
 ```sh
-pip install numpy scipy scikit-learn    # for comparison baselines
-python python/bench.py                  # to run default benchmarks
-python python/bench.py --n 1000 --ndim 1000000 # batch size and dimensions
+pip install numpy scipy scikit-learn        # for comparison baselines
+python python/bench.py                      # to run default benchmarks
+python python/bench.py --n 1000 --ndim 1536 # batch size and dimensions
 ```
+
+You can also benchmark against other libraries:
+
+```sh
+$ python python/bench.py --help
+> usage: bench.py [-h] [--n N] [--ndim NDIM] [--scipy] [--scikit] [--torch] [--tf] [--jax]
+> 
+> Benchmark SimSIMD vs. other libraries
+> 
+> options:
+>   -h, --help   show this help message and exit
+>   --n N        Number of vectors (default: 1000)
+>   --ndim NDIM  Number of dimensions (default: 1536)
+>   --scipy      Profile SciPy
+>   --scikit     Profile scikit-learn
+>   --torch      Profile PyTorch
+>   --tf         Profile TensorFlow
+>   --jax        Profile JAX
+```
+
 
 Before merging your changes you may want to test your changes against the entire matrix of Python versions USearch supports.
 For that you need the `cibuildwheel`, which is tricky to use on MacOS and Windows, as it would target just the local environment.
@@ -60,7 +93,7 @@ cibuildwheel --platform macos                   # works only on MacOS
 cibuildwheel --platform windows                 # works only on Windows
 ```
 
-You may need root previligies for multi-architecture builds:
+You may need root privileges for multi-architecture builds:
 
 ```sh
 sudo $(which cibuildwheel) --platform linux
@@ -78,7 +111,7 @@ python -m cibuildwheel --platform windows
 cargo test -p simsimd
 cargo test -p simsimd -- --nocapture # To see the output
 cargo bench
-open ./target/criterion/report/index.html
+open target/criterion/report/index.html
 ```
 
 ## JavaScript

@@ -83,20 +83,20 @@ export const jaccard = (a: Uint8Array, b: Uint8Array): number => {
 };
 
 /**
- * @brief Computes the kullbackleibler similarity coefficient between two vectors.
+ * @brief Computes the Kullback-Leibler divergence between two vectors.
  * @param {Float64Array|Float32Array} a - The first vector.
  * @param {Float64Array|Float32Array} b - The second vector.
- * @returns {number} The Jaccard similarity coefficient between vectors a and b.
+ * @returns {number} The Kullback-Leibler divergence between vectors a and b.
  */
 export const kullbackleibler = (a: Float64Array | Float32Array, b: Float64Array | Float32Array): number => {
   return compiled.kullbackleibler(a, b);
 };
 
 /**
- * @brief Computes the jensenshannon similarity coefficient between two vectors.
+ * @brief Computes the Jensen-Shannon divergence between two vectors.
  * @param {Float64Array|Float32Array} a - The first vector.
  * @param {Float64Array|Float32Array} b - The second vector.
- * @returns {number} The Jaccard similarity coefficient between vectors a and b.
+ * @returns {number} The Jensen-Shannon divergence between vectors a and b.
  */
 export const jensenshannon = (a: Float64Array | Float32Array, b: Float64Array | Float32Array): number => {
   return compiled.jensenshannon(a, b);

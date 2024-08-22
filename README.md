@@ -66,8 +66,8 @@ Moreover, SimSIMD...
 
 Due to the high-level of fragmentation of SIMD support in different x86 CPUs, SimSIMD uses the names of select Intel CPU generations for its backends.
 They, however, also work on AMD CPUs.
-Inel Haswell is compatible with AMD Zen 1/2/3, while AMD Genoa Zen 4 covers AVX-512 instructions added to Intel Skylake and Ice Lake.
-You can learn more about the technical implementation details in the following blogposts:
+Intel Haswell is compatible with AMD Zen 1/2/3, while AMD Genoa Zen 4 covers AVX-512 instructions added to Intel Skylake and Ice Lake.
+You can learn more about the technical implementation details in the following blog-posts:
 
 - [Uses Horner's method for polynomial approximations, beating GCC 12 by 119x](https://ashvardanian.com/posts/gcc-12-vs-avx512fp16/).
 - [Uses Arm SVE and x86 AVX-512's masked loads to eliminate tail `for`-loops](https://ashvardanian.com/posts/simsimd-faster-scipy/#tails-of-the-past-the-significance-of-masked-loads).
@@ -205,19 +205,23 @@ from simsimd import cdist, DistancesTensor
 
 matrix1 = np.random.randn(1000, 1536).astype(np.float32)
 matrix2 = np.random.randn(10, 1536).astype(np.float32)
-distances: DistancesTensor = simsimd.cdist(matrix1, matrix2, metric="cosine") # zero-copy
-distances_array: np.ndarray = np.array(distances, copy=True) # now managed by NumPy
+distances: DistancesTensor = simsimd.cdist(matrix1, matrix2, metric="cosine")   # zero-copy, managed by SimSIMD
+distances_array: np.ndarray = np.array(distances, copy=True)                    # now managed by NumPy
 ```
 
-### Multithreading
+### Multithreading and Memory Usage
 
 By default, computations use a single CPU core.
-To optimize and utilize all CPU cores on Linux systems, add the `threads=0` argument.
-Alternatively, specify a custom number of threads:
+To override this behavior, use the `threads` argument.
+Set it to `0` to use all available CPU cores.
 
 ```py
-distances = simsimd.cdist(matrix1, matrix2, metric="cosine", threads=0)
+distances = simsimd.cdist(matrix1, matrix2, metric="hamming", threads=0, dtype="u8")
 ```
+
+By default, the output distances will be stored in double-precision `f64` floating-point numbers.
+That behavior may not be space-efficient, especially if you are computing the hamming distance between short binary vectors, that will generally fit into 8x smaller `u8` or `u16` types.
+To override this behavior, use the `dtype` argument.
 
 ### Using Python API with USearch
 
@@ -379,18 +383,49 @@ fn main() {
 }
 ```
 
+### Half-Precision Brain-Float Numbers
+
+The "brain-float-16" is a popular machine learning format.
+It's broadly supported in hardware and is very machine-friendly, but software support is still lagging behind. 
+[Unlike NumPy](https://github.com/numpy/numpy/issues/19808), you can already use `bf16` datatype in SimSIMD.
+Luckily, to downcast `f32` to `bf16` you only have to drop the last 16 bits:
+
+```py
+import numpy as np
+import simsimd as simd
+
+a = np.random.randn(ndim).astype(np.float32)
+b = np.random.randn(ndim).astype(np.float32)
+
+# NumPy doesn't natively support brain-float, so we need a trick!
+# Luckily, it's very easy to reduce the representation accuracy
+# by simply masking the low 16-bits of our 32-bit single-precision
+# numbers. We can also add `0x8000` to round the numbers.
+a_f32rounded = ((a.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+b_f32rounded = ((b.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+
+# To represent them as brain-floats, we need to drop the second half
+a_bf16 = np.right_shift(a_f32rounded.view(np.uint32), 16).astype(np.uint16)
+b_bf16 = np.right_shift(b_f32rounded.view(np.uint32), 16).astype(np.uint16)
+
+# Now we can compare the results
+expected = np.inner(a_f32rounded, b_f32rounded)
+result = simd.inner(a_bf16, b_bf16, "bf16")
+```
+
 ### Dynamic Dispatch
 
 SimSIMD provides a dynamic dispatch mechanism to select the most advanced micro-kernel for the current CPU.
 You can query supported backends and use the `SimSIMD::capabilities` function to select the best one.
 
 ```rust
-println!("uses neon: {}", capabilties::uses_neon());
-println!("uses sve: {}", capabilties::uses_sve());
-println!("uses haswell: {}", capabilties::uses_haswell());
-println!("uses skylake: {}", capabilties::uses_skylake());
-println!("uses ice: {}", capabilties::uses_ice());
-println!("uses sapphire: {}", capabilties::uses_sapphire());
+println!("uses neon: {}", capabilities::uses_neon());
+println!("uses sve: {}", capabilities::uses_sve());
+println!("uses haswell: {}", capabilities::uses_haswell());
+println!("uses skylake: {}", capabilities::uses_skylake());
+println!("uses ice: {}", capabilities::uses_ice());
+println!("uses genoa: {}", capabilities::uses_genoa());
+println!("uses sapphire: {}", capabilities::uses_sapphire());
 ```
 
 ## Using SimSIMD in JavaScript
@@ -417,7 +452,7 @@ console.log('Squared Euclidean Distance:', distance);
 ```
 
 Other numeric types and precision levels are supported as well.
-For double-precsion floating-point numbers, use `Float64Array`:
+For double-precision floating-point numbers, use `Float64Array`:
 
 ```js
 const vectorA = new Float64Array([1.0, 2.0, 3.0]);
@@ -426,11 +461,11 @@ const distance = cosine(vectorA, vectorB);
 ```
 
 When doing machine learning and vector search with high-dimensional vectors you may want to quantize them to 8-bit integers.
-You may want to project values from the $[-1, 1]$ range to the $[-100, 100]$ range and then cast them to `Uint8Array`:
+You may want to project values from the $[-1, 1]$ range to the $[-127, 127]$ range and then cast them to `Int8Array`:
 
 ```js
-const quantizedVectorA = new Uint8Array(vectorA.map(v => (v * 100)));
-const quantizedVectorB = new Uint8Array(vectorB.map(v => (v * 100)));
+const quantizedVectorA = new Int8Array(vectorA.map(v => (v * 127)));
+const quantizedVectorB = new Int8Array(vectorB.map(v => (v * 127)));
 const distance = cosine(quantizedVectorA, quantizedVectorB);
 ```
 
@@ -469,9 +504,9 @@ int main() {
     simsimd_f32_t vector_a[1536];
     simsimd_f32_t vector_b[1536];
     simsimd_metric_punned_t distance_function = simsimd_metric_punned(
-        simsimd_metric_cos_k, // Metric kind, like the angular cosine distance
+        simsimd_metric_cos_k,   // Metric kind, like the angular cosine distance
         simsimd_datatype_f32_k, // Data type, like: f16, f32, f64, i8, b8, and complex variants
-        simsimd_cap_any_k); // Which CPU capabilities are we allowed to use
+        simsimd_cap_any_k);     // Which CPU capabilities are we allowed to use
     simsimd_distance_t distance;
     distance_function(vector_a, vector_b, 1536, &distance);
     return 0;
@@ -490,6 +525,7 @@ int uses_sve = simsimd_uses_sve();
 int uses_haswell = simsimd_uses_haswell();
 int uses_skylake = simsimd_uses_skylake();
 int uses_ice = simsimd_uses_ice();
+int uses_genoa = simsimd_uses_genoa();
 int uses_sapphire = simsimd_uses_sapphire();
 
 simsimd_capability_t capabilities = simsimd_capabilities();
@@ -611,6 +647,7 @@ To explicitly disable half-precision support, define the following macro before 
 
 ```c
 #define SIMSIMD_NATIVE_F16 0 // or 1
+#define SIMSIMD_NATIVE_BF16 0 // or 1
 #include <simsimd/simsimd.h>
 ```
 
@@ -625,105 +662,30 @@ All of the function names follow the same pattern: `simsimd_{function}_{type}_{b
 
 To avoid hard-coding the backend, you can use the `simsimd_metric_punned_t` to pun the function pointer and the `simsimd_capabilities` function to get the available backends at runtime.
 
-```c
-simsimd_dot_f64_sve
-simsimd_cos_f64_sve
-simsimd_l2sq_f64_sve
-simsimd_dot_f64_skylake
-simsimd_cos_f64_skylake
-simsimd_l2sq_f64_skylake
-simsimd_dot_f64_serial
-simsimd_cos_f64_serial
-simsimd_l2sq_f64_serial
-simsimd_js_f64_serial
-simsimd_kl_f64_serial
-simsimd_dot_f32_sve
-simsimd_cos_f32_sve
-simsimd_l2sq_f32_sve
-simsimd_dot_f32_neon
-simsimd_cos_f32_neon
-simsimd_l2sq_f32_neon
-simsimd_js_f32_neon
-simsimd_kl_f32_neon
-simsimd_dot_f32_skylake
-simsimd_cos_f32_skylake
-simsimd_l2sq_f32_skylake
-simsimd_js_f32_skylake
-simsimd_kl_f32_skylake
-simsimd_dot_f32_serial
-simsimd_cos_f32_serial
-simsimd_l2sq_f32_serial
-simsimd_js_f32_serial
-simsimd_kl_f32_serial
-simsimd_dot_f16_sve
-simsimd_cos_f16_sve
-simsimd_l2sq_f16_sve
-simsimd_dot_f16_neon
-simsimd_cos_f16_neon
-simsimd_l2sq_f16_neon
-simsimd_js_f16_neon
-simsimd_kl_f16_neon
-simsimd_dot_f16_sapphire
-simsimd_cos_f16_sapphire
-simsimd_l2sq_f16_sapphire
-simsimd_js_f16_sapphire
-simsimd_kl_f16_sapphire
-simsimd_dot_f16_haswell
-simsimd_cos_f16_haswell
-simsimd_l2sq_f16_haswell
-simsimd_js_f16_haswell
-simsimd_kl_f16_haswell
-simsimd_dot_f16_serial
-simsimd_cos_f16_serial
-simsimd_l2sq_f16_serial
-simsimd_js_f16_serial
-simsimd_kl_f16_serial
-simsimd_cos_i8_neon
-simsimd_cos_i8_neon
-simsimd_l2sq_i8_neon
-simsimd_cos_i8_ice
-simsimd_cos_i8_ice
-simsimd_l2sq_i8_ice
-simsimd_cos_i8_haswell
-simsimd_cos_i8_haswell
-simsimd_l2sq_i8_haswell
-simsimd_cos_i8_serial
-simsimd_cos_i8_serial
-simsimd_l2sq_i8_serial
-simsimd_hamming_b8_sve
-simsimd_jaccard_b8_sve
-simsimd_hamming_b8_neon
-simsimd_jaccard_b8_neon
-simsimd_hamming_b8_ice
-simsimd_jaccard_b8_ice
-simsimd_hamming_b8_haswell
-simsimd_jaccard_b8_haswell
-simsimd_hamming_b8_serial
-simsimd_jaccard_b8_serial
-simsimd_dot_f32c_sve
-simsimd_vdot_f32c_sve
-simsimd_dot_f32c_neon
-simsimd_vdot_f32c_neon
-simsimd_dot_f32c_haswell
-simsimd_vdot_f32c_haswell
-simsimd_dot_f32c_skylake
-simsimd_vdot_f32c_skylake
-simsimd_dot_f32c_serial
-simsimd_vdot_f32c_serial
-simsimd_dot_f64c_sve
-simsimd_vdot_f64c_sve
-simsimd_dot_f64c_skylake
-simsimd_vdot_f64c_skylake
-simsimd_dot_f64c_serial
-simsimd_vdot_f64c_serial
-simsimd_dot_f16c_sve
-simsimd_vdot_f16c_sve
-simsimd_dot_f16c_neon
-simsimd_vdot_f16c_neon
-simsimd_dot_f16c_haswell
-simsimd_vdot_f16c_haswell
-simsimd_dot_f16c_sapphire
-simsimd_vdot_f16c_sapphire
-simsimd_dot_f16c_serial
-simsimd_vdot_f16c_serial
-```
+| Metrics                   |                           |                          |                            |
+| ------------------------- | ------------------------- | ------------------------ | -------------------------- |
+| simsimd_dot_f64_sve       | simsimd_dot_f64_skylake   | simsimd_dot_f64_serial   | simsimd_dot_f32_sve        |
+| simsimd_dot_f32_neon      | simsimd_dot_f32_skylake   | simsimd_dot_f32_serial   | simsimd_dot_f16_sve        |
+| simsimd_dot_f16_neon      | simsimd_dot_f16_sapphire  | simsimd_dot_f16_haswell  | simsimd_dot_f16_serial     |
+| simsimd_dot_f32c_sve      | simsimd_dot_f32c_neon     | simsimd_dot_f32c_haswell | simsimd_dot_f32c_skylake   |
+| simsimd_dot_f32c_serial   | simsimd_dot_f64c_sve      | simsimd_dot_f64c_skylake | simsimd_dot_f64c_serial    |
+| simsimd_dot_f16c_sve      | simsimd_dot_f16c_neon     | simsimd_dot_f16c_haswell | simsimd_dot_f16c_sapphire  |
+| simsimd_dot_f16c_serial   |                           |                          |                            |
+|                           |                           |                          |                            |
+| simsimd_cos_f64_sve       | simsimd_cos_f64_skylake   | simsimd_cos_f64_serial   | simsimd_cos_f32_sve        |
+| simsimd_cos_f32_neon      | simsimd_cos_f32_skylake   | simsimd_cos_f32_serial   | simsimd_cos_f16_sve        |
+| simsimd_cos_f16_neon      | simsimd_cos_f16_sapphire  | simsimd_cos_f16_haswell  | simsimd_cos_f16_serial     |
+| simsimd_cos_i8_neon       | simsimd_cos_i8_ice        | simsimd_cos_i8_haswell   | simsimd_cos_i8_serial      |
+|                           |                           |                          |                            |
+| simsimd_l2sq_f64_sve      | simsimd_l2sq_f64_skylake  | simsimd_l2sq_f64_serial  | simsimd_l2sq_f32_sve       |
+| simsimd_l2sq_f32_neon     | simsimd_l2sq_f32_skylake  | simsimd_l2sq_f32_serial  | simsimd_l2sq_f16_sve       |
+| simsimd_l2sq_f16_neon     | simsimd_l2sq_f16_sapphire | simsimd_l2sq_f16_haswell | simsimd_l2sq_f16_serial    |
+| simsimd_l2sq_i8_neon      | simsimd_l2sq_i8_ice       | simsimd_l2sq_i8_haswell  | simsimd_l2sq_i8_serial     |
+|                           |                           |                          |                            |
+| simsimd_js_f64_serial     | simsimd_js_f32_neon       | simsimd_js_f32_skylake   | simsimd_js_f32_serial      |
+| simsimd_js_f16_neon       | simsimd_js_f16_sapphire   | simsimd_js_f16_haswell   | simsimd_js_f16_serial      |
+| simsimd_kl_f64_serial     | simsimd_kl_f32_neon       | simsimd_kl_f32_skylake   | simsimd_kl_f32_serial      |
+| simsimd_kl_f16_neon       | simsimd_kl_f16_sapphire   | simsimd_kl_f16_haswell   | simsimd_kl_f16_serial      |
+|                           |                           |                          |                            |
+| simsimd_jaccard_b8_sve    | simsimd_jaccard_b8_neon   | simsimd_jaccard_b8_ice   | simsimd_jaccard_b8_haswell |
+| simsimd_jaccard_b8_serial |                           |                          |                            |

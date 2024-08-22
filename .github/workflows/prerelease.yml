@@ -2,7 +2,7 @@ name: Pre-Release
 
 on:
   push:
-    branches: ["main-dev", "test-ga-**"]
+    branches: ["main-dev"]
   pull_request:
     branches: ["main-dev"]
 
@@ -16,13 +16,40 @@ permissions:
   contents: read
 
 jobs:
+  versioning:
+    name: Update Version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Run TinySemVer
+        uses: ashvardanian/tinysemver@v2.0.7
+        with:
+          verbose: "true"
+          version-file: "VERSION"
+          update-version-in: |
+            Cargo.toml:^version = "(\d+\.\d+\.\d+)"
+            package.json:"version": "(\d+\.\d+\.\d+)"
+            CMakeLists.txt:VERSION (\d+\.\d+\.\d+)
+            setup.py:__version__ = "(\d+\.\d+\.\d+)"
+          update-major-version-in: |
+            include/simsimd/simsimd.h:^#define SIMSIMD_VERSION_MAJOR (\d+)
+          update-minor-version-in: |
+            include/simsimd/simsimd.h:^#define SIMSIMD_VERSION_MINOR (\d+)
+          update-patch-version-in: |
+            include/simsimd/simsimd.h:^#define SIMSIMD_VERSION_PATCH (\d+)
+          dry-run: "true"
+
   test_python:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.architecture }} ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macOS-11, windows-2022]
+        os: [ubuntu-22.04, macOS-14, windows-2022]
         python-version: ["3.12", "3.8"]
         architecture: [x64, arm64]
 
@@ -156,10 +183,14 @@ jobs:
       - name: Setup QEMU
         if: matrix.os == 'ubuntu-latest'
         uses: docker/setup-qemu-action@v3
+      - name: Upgrade MSVC tooling
+        if: matrix.os == 'windows-latest'
+        uses: microsoft/setup-msbuild@v2
+        with:
+          vs-version: "17.10"
       - name: Install cibuildwheel
         run: python -m pip install cibuildwheel
       - name: Build wheels
         run: cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
-        

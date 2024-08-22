@@ -5,6 +5,7 @@
  */
 #define SIMSIMD_DYNAMIC_DISPATCH 1
 #define SIMSIMD_NATIVE_F16 0
+#define SIMSIMD_NATIVE_BF16 0
 
 /*  Depending on the Operating System, the following intrinsics are available
  *  on recent compiler toolchains:
@@ -27,6 +28,9 @@
 #endif
 #if !defined(SIMSIMD_TARGET_ICE) && (defined(_MSC_VER) || defined(__linux__))
 #define SIMSIMD_TARGET_ICE 1
+#endif
+#if !defined(SIMSIMD_TARGET_GENOA) && (defined(__linux__))
+#define SIMSIMD_TARGET_GENOA 1
 #endif
 #if !defined(SIMSIMD_TARGET_SAPPHIRE) && (defined(__linux__))
 #define SIMSIMD_TARGET_SAPPHIRE 1
@@ -67,22 +71,27 @@ simsimd_capability_t simsimd_capabilities(void) {
 
 // Dot products
 SIMSIMD_METRIC_DECLARATION(dot, f16, f16)
+SIMSIMD_METRIC_DECLARATION(dot, bf16, bf16)
 SIMSIMD_METRIC_DECLARATION(dot, f32, f32)
 SIMSIMD_METRIC_DECLARATION(dot, f64, f64)
 SIMSIMD_METRIC_DECLARATION(dot, f16c, f16)
+SIMSIMD_METRIC_DECLARATION(dot, bf16c, bf16)
 SIMSIMD_METRIC_DECLARATION(dot, f32c, f32)
 SIMSIMD_METRIC_DECLARATION(dot, f64c, f64)
 SIMSIMD_METRIC_DECLARATION(vdot, f16c, f16)
+SIMSIMD_METRIC_DECLARATION(vdot, bf16c, bf16)
 SIMSIMD_METRIC_DECLARATION(vdot, f32c, f32)
 SIMSIMD_METRIC_DECLARATION(vdot, f64c, f64)
 
 // Spatial distances
 SIMSIMD_METRIC_DECLARATION(cos, i8, i8)
 SIMSIMD_METRIC_DECLARATION(cos, f16, f16)
+SIMSIMD_METRIC_DECLARATION(cos, bf16, bf16)
 SIMSIMD_METRIC_DECLARATION(cos, f32, f32)
 SIMSIMD_METRIC_DECLARATION(cos, f64, f64)
 SIMSIMD_METRIC_DECLARATION(l2sq, i8, i8)
 SIMSIMD_METRIC_DECLARATION(l2sq, f16, f16)
+SIMSIMD_METRIC_DECLARATION(l2sq, bf16, bf16)
 SIMSIMD_METRIC_DECLARATION(l2sq, f32, f32)
 SIMSIMD_METRIC_DECLARATION(l2sq, f64, f64)
 
@@ -92,17 +101,26 @@ SIMSIMD_METRIC_DECLARATION(jaccard, b8, b8)
 
 // Probability distributions
 SIMSIMD_METRIC_DECLARATION(kl, f16, f16)
+SIMSIMD_METRIC_DECLARATION(kl, bf16, bf16)
 SIMSIMD_METRIC_DECLARATION(kl, f32, f32)
 SIMSIMD_METRIC_DECLARATION(kl, f64, f64)
 SIMSIMD_METRIC_DECLARATION(js, f16, f16)
+SIMSIMD_METRIC_DECLARATION(js, bf16, bf16)
 SIMSIMD_METRIC_DECLARATION(js, f32, f32)
 SIMSIMD_METRIC_DECLARATION(js, f64, f64)
 
 SIMSIMD_DYNAMIC int simsimd_uses_neon(void) { return (simsimd_capabilities() & simsimd_cap_neon_k) != 0; }
+SIMSIMD_DYNAMIC int simsimd_uses_neon_f16(void) { return (simsimd_capabilities() & simsimd_cap_neon_f16_k) != 0; }
+SIMSIMD_DYNAMIC int simsimd_uses_neon_bf16(void) { return (simsimd_capabilities() & simsimd_cap_neon_bf16_k) != 0; }
+SIMSIMD_DYNAMIC int simsimd_uses_neon_i8(void) { return (simsimd_capabilities() & simsimd_cap_neon_i8_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_sve(void) { return (simsimd_capabilities() & simsimd_cap_sve_k) != 0; }
+SIMSIMD_DYNAMIC int simsimd_uses_sve_f16(void) { return (simsimd_capabilities() & simsimd_cap_sve_f16_k) != 0; }
+SIMSIMD_DYNAMIC int simsimd_uses_sve_bf16(void) { return (simsimd_capabilities() & simsimd_cap_sve_bf16_k) != 0; }
+SIMSIMD_DYNAMIC int simsimd_uses_sve_i8(void) { return (simsimd_capabilities() & simsimd_cap_sve_i8_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_haswell(void) { return (simsimd_capabilities() & simsimd_cap_haswell_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_skylake(void) { return (simsimd_capabilities() & simsimd_cap_skylake_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_ice(void) { return (simsimd_capabilities() & simsimd_cap_ice_k) != 0; }
+SIMSIMD_DYNAMIC int simsimd_uses_genoa(void) { return (simsimd_capabilities() & simsimd_cap_genoa_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void) { return (simsimd_capabilities() & simsimd_cap_sapphire_k) != 0; }
 
 #ifdef __cplusplus

@@ -74,11 +74,17 @@ def test_capabilities_list():
     """Tests the visibility of hardware capabilities."""
     assert "serial" in simd.get_capabilities()
     assert "neon" in simd.get_capabilities()
+    assert "neon_f16" in simd.get_capabilities()
+    assert "neon_bf16" in simd.get_capabilities()
+    assert "neon_i8" in simd.get_capabilities()
     assert "sve" in simd.get_capabilities()
-    assert "sve2" in simd.get_capabilities()
+    assert "sve_f16" in simd.get_capabilities()
+    assert "sve_bf16" in simd.get_capabilities()
+    assert "sve_i8" in simd.get_capabilities()
     assert "haswell" in simd.get_capabilities()
     assert "ice" in simd.get_capabilities()
     assert "skylake" in simd.get_capabilities()
+    assert "genoa" in simd.get_capabilities()
     assert "sapphire" in simd.get_capabilities()
     assert simd.get_capabilities().get("serial") == 1
 
@@ -186,6 +192,49 @@ def test_jensen_shannon(ndim, dtype):
     result = simd.jensenshannon(a, b)
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+def test_inner_bf16(ndim):
+    """Compares the simd.inner() function with numpy.inner(), measuring the accuracy error for 16-bit brain-float types."""
+    np.random.seed()
+    a = np.random.randn(ndim).astype(np.float32)
+    b = np.random.randn(ndim).astype(np.float32)
+
+    # NumPy doesn't natively support brain-float, so we need a trick!
+    # Luckily, it's very easy to reduce the representation accuracy
+    # by simply masking the low 16-bits of our 32-bit single-precision
+    # numbers. We can also add `0x8000` to round the numbers.
+    a_f32rounded = ((a.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+    b_f32rounded = ((b.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+
+    # To represent them as brain-floats, we need to drop the second halfs
+    a_bf16 = np.right_shift(a_f32rounded.view(np.uint32), 16).astype(np.uint16)
+    b_bf16 = np.right_shift(b_f32rounded.view(np.uint32), 16).astype(np.uint16)
+
+    # Now we can compare the results
+    expected = np.inner(a_f32rounded, b_f32rounded)
+    result = simd.inner(a_bf16, b_bf16, "bf16")
+
+    def hex_array(arr):
+        printer = np.vectorize(hex)
+        strings = printer(arr)
+        return ", ".join(strings)
+
+    np.testing.assert_allclose(
+        expected,
+        result,
+        atol=SIMSIMD_ATOL,
+        rtol=0,
+        err_msg=f"""
+        First `f32` operand in hex:     {hex_array(a_f32rounded.view(np.uint32))}
+        Second `f32` operand in hex:    {hex_array(b_f32rounded.view(np.uint32))}
+        First `bf16` operand in hex:    {hex_array(a_bf16)}
+        Second `bf16` operand in hex:   {hex_array(b_bf16)}
+        """,
+    )
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -356,26 +405,34 @@ def test_batch(ndim, dtype):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
-@pytest.mark.parametrize("dtype", ["float32", "float16"])
+@pytest.mark.parametrize("input_dtype", ["float32", "float16"])
+@pytest.mark.parametrize("result_dtype", [None, "float32", "float16", "int8"])
 @pytest.mark.parametrize("metric", ["cosine"])
-def test_cdist(ndim, dtype, metric):
+def test_cdist(ndim, input_dtype, result_dtype, metric):
     """Compares the simd.cdist() function with scipy.spatial.distance.cdist(), measuring the accuracy error for f16, and f32 types using sqeuclidean and cosine metrics."""
 
-    if dtype == "float16" and is_running_under_qemu():
+    if input_dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
     np.random.seed()
 
     # Create random matrices A (M x D) and B (N x D).
     M, N = 10, 15  # or any other sizes you deem appropriate
-    A = np.random.randn(M, ndim).astype(dtype)
-    B = np.random.randn(N, ndim).astype(dtype)
+    A = np.random.randn(M, ndim).astype(input_dtype)
+    B = np.random.randn(N, ndim).astype(input_dtype)
 
-    # Compute cdist using scipy.
-    expected = spd.cdist(A, B, metric)
+    if result_dtype is None:
+        # Compute cdist using scipy.
+        expected = spd.cdist(A, B, metric)
 
-    # Compute cdist using simd.
-    result = simd.cdist(A, B, metric=metric)
+        # Compute cdist using simd.
+        result = simd.cdist(A, B, metric=metric)
+    else:
+        # Compute cdist using scipy.
+        expected = spd.cdist(A, B, metric).astype(result_dtype)
+
+        # Compute cdist using simd.
+        result = simd.cdist(A, B, metric=metric, dtype=result_dtype)
 
     # Assert they're close.
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)

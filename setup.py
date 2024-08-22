@@ -1,17 +1,27 @@
 import os
 import sys
 from os.path import dirname
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 
-__version__ = open("VERSION", "r").read().strip()
 __lib_name__ = "simsimd"
+__version__ = "5.0.1"
 
 compile_args = []
 link_args = []
 macros_args = [
     ("SIMSIMD_NATIVE_F16", "0"),
+    ("SIMSIMD_NATIVE_BF16", "0"),
     ("SIMSIMD_DYNAMIC_DISPATCH", "1"),
 ]
+
+
+def get_bool_env(name: str, preference: bool) -> bool:
+    return os.environ.get(name, "1" if preference else "0") == "1"
+
+
+def get_bool_env_w_name(name: str, preference: bool) -> tuple:
+    return name, "1" if get_bool_env(name, preference) else "0"
+
 
 if sys.platform == "linux":
     compile_args.append("-std=c11")
@@ -29,6 +39,19 @@ if sys.platform == "linux":
     # Add vectorized `logf` implementation from the `glibc`
     link_args.append("-lm")
 
+    # SIMD all the way on Linux!
+    macros_args.extend(
+        [
+            get_bool_env_w_name("SIMSIMD_TARGET_NEON", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_SVE", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_HASWELL", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_SKYLAKE", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_ICE", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_GENOA", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_SAPPHIRE", True),
+        ]
+    )
+
 if sys.platform == "darwin":
     compile_args.append("-std=c11")
     compile_args.append("-O3")
@@ -36,6 +59,19 @@ if sys.platform == "darwin":
 
     # Disable warnings
     compile_args.append("-w")
+
+    # We can't SIMD all the way on MacOS :(
+    macros_args.extend(
+        [
+            get_bool_env_w_name("SIMSIMD_TARGET_NEON", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_SVE", False),
+            get_bool_env_w_name("SIMSIMD_TARGET_HASWELL", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_SKYLAKE", False),
+            get_bool_env_w_name("SIMSIMD_TARGET_ICE", False),
+            get_bool_env_w_name("SIMSIMD_TARGET_GENOA", False),
+            get_bool_env_w_name("SIMSIMD_TARGET_SAPPHIRE", False),
+        ]
+    )
 
 if sys.platform == "win32":
     compile_args.append("/std:c11")
@@ -45,6 +81,20 @@ if sys.platform == "win32":
     # Dealing with MinGW linking errors
     # https://cibuildwheel.readthedocs.io/en/stable/faq/#windows-importerror-dll-load-failed-the-specific-module-could-not-be-found
     compile_args.append("/d2FH4-")
+
+    # We can't SIMD all the way on Windows :(
+    macros_args.extend(
+        [
+            get_bool_env_w_name("SIMSIMD_TARGET_NEON", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_NEON_BF16", False),
+            get_bool_env_w_name("SIMSIMD_TARGET_SVE", False),
+            get_bool_env_w_name("SIMSIMD_TARGET_HASWELL", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_SKYLAKE", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_ICE", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_GENOA", False),
+            get_bool_env_w_name("SIMSIMD_TARGET_SAPPHIRE", False),
+        ]
+    )
 
 ext_modules = [
     Extension(
@@ -98,4 +148,8 @@ setup(
     ],
     ext_modules=ext_modules,
     zip_safe=False,
+    packages=["simsimd"],
+    package_dir={"simsimd": "python/simsimd"},
+    package_data={"simsimd": ["__init__.pyi", "py.typed"]},
+    include_package_data=True,
 )
