@@ -484,15 +484,6 @@ int main(int argc, char** argv) {
     if (bm::ReportUnrecognizedArguments(argc, argv))
         return 1;
 
-    register_sparse_<simsimd_datatype_u16_k>("intersect_u16", simsimd_intersect_u16_serial,
-                                             simsimd_intersect_u16_accurate);
-    register_sparse_<simsimd_datatype_u16_k>("intersect_u16_accurate", simsimd_intersect_u16_accurate,
-                                             simsimd_intersect_u16_accurate);
-    register_sparse_<simsimd_datatype_u32_k>("intersect_u32", simsimd_intersect_u32_serial,
-                                             simsimd_intersect_u32_accurate);
-    register_sparse_<simsimd_datatype_u32_k>("intersect_u32_accurate", simsimd_intersect_u32_accurate,
-                                             simsimd_intersect_u32_accurate);
-
 #if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
 
     register_<simsimd_datatype_f32_k>("dot_f32_blas", dot_f32_blas, simsimd_dot_f32_accurate);
@@ -627,7 +618,22 @@ int main(int argc, char** argv) {
     register_<simsimd_datatype_f32c_k>("vdot_f32c_skylake", simsimd_vdot_f32c_skylake, simsimd_vdot_f32c_accurate);
     register_<simsimd_datatype_f64c_k>("dot_f64c_skylake", simsimd_dot_f64c_skylake, simsimd_dot_f64c_serial);
     register_<simsimd_datatype_f64c_k>("vdot_f64c_skylake", simsimd_vdot_f64c_skylake, simsimd_vdot_f64c_serial);
+
+    register_sparse_<simsimd_datatype_u16_k>("intersect_u16_skylake", simsimd_intersect_u16_skylake,
+                                             simsimd_intersect_u16_accurate);
+    register_sparse_<simsimd_datatype_u32_k>("intersect_u32_skylake", simsimd_intersect_u32_skylake,
+                                             simsimd_intersect_u32_accurate);
+
 #endif
+
+    register_sparse_<simsimd_datatype_u16_k>("intersect_u16", simsimd_intersect_u16_serial,
+                                             simsimd_intersect_u16_accurate);
+    register_sparse_<simsimd_datatype_u16_k>("intersect_u16_accurate", simsimd_intersect_u16_accurate,
+                                             simsimd_intersect_u16_accurate);
+    register_sparse_<simsimd_datatype_u32_k>("intersect_u32", simsimd_intersect_u32_serial,
+                                             simsimd_intersect_u32_accurate);
+    register_sparse_<simsimd_datatype_u32_k>("intersect_u32_accurate", simsimd_intersect_u32_accurate,
+                                             simsimd_intersect_u32_accurate);
 
     register_<simsimd_datatype_bf16_k>("dot_bf16_serial", simsimd_dot_bf16_serial, simsimd_dot_bf16_accurate);
     register_<simsimd_datatype_bf16_k>("cos_bf16_serial", simsimd_cos_bf16_serial, simsimd_cos_bf16_accurate);
