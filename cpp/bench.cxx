@@ -369,7 +369,7 @@ void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std:
 }
 
 template <simsimd_datatype_t datatype_ak, typename metric_at = void>
-void register_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
+void dense_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
 
     // Matches OpenAI embedding size
     constexpr std::size_t dimensions = 1536;
@@ -385,7 +385,7 @@ void register_(std::string name, metric_at* distance_func, metric_at* baseline_f
 }
 
 template <simsimd_datatype_t datatype_ak, typename metric_at = void>
-void register_sparse_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
+void sparse_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
 
     constexpr std::size_t seconds = 3;
     constexpr std::size_t threads = 1;
@@ -486,195 +486,195 @@ int main(int argc, char** argv) {
 
 #if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
 
-    register_<simsimd_datatype_f32_k>("dot_f32_blas", dot_f32_blas, simsimd_dot_f32_accurate);
-    register_<simsimd_datatype_f64_k>("dot_f64_blas", dot_f64_blas, simsimd_dot_f64_serial);
-    register_<simsimd_datatype_f32c_k>("dot_f32c_blas", dot_f32c_blas, simsimd_dot_f32c_accurate);
-    register_<simsimd_datatype_f64c_k>("dot_f64c_blas", dot_f64c_blas, simsimd_dot_f64c_serial);
-    register_<simsimd_datatype_f32c_k>("vdot_f32c_blas", vdot_f32c_blas, simsimd_vdot_f32c_accurate);
-    register_<simsimd_datatype_f64c_k>("vdot_f64c_blas", vdot_f64c_blas, simsimd_vdot_f64c_serial);
+    dense_<simsimd_datatype_f32_k>("dot_f32_blas", dot_f32_blas, simsimd_dot_f32_accurate);
+    dense_<simsimd_datatype_f64_k>("dot_f64_blas", dot_f64_blas, simsimd_dot_f64_serial);
+    dense_<simsimd_datatype_f32c_k>("dot_f32c_blas", dot_f32c_blas, simsimd_dot_f32c_accurate);
+    dense_<simsimd_datatype_f64c_k>("dot_f64c_blas", dot_f64c_blas, simsimd_dot_f64c_serial);
+    dense_<simsimd_datatype_f32c_k>("vdot_f32c_blas", vdot_f32c_blas, simsimd_vdot_f32c_accurate);
+    dense_<simsimd_datatype_f64c_k>("vdot_f64c_blas", vdot_f64c_blas, simsimd_vdot_f64c_serial);
 
 #endif
 
 #if SIMSIMD_TARGET_NEON
 
-    register_<simsimd_datatype_f16_k>("dot_f16_neon", simsimd_dot_f16_neon, simsimd_dot_f16_accurate);
-    register_<simsimd_datatype_f16_k>("cos_f16_neon", simsimd_cos_f16_neon, simsimd_cos_f16_accurate);
-    register_<simsimd_datatype_f16_k>("l2sq_f16_neon", simsimd_l2sq_f16_neon, simsimd_l2sq_f16_accurate);
-    register_<simsimd_datatype_f16_k>("kl_f16_neon", simsimd_kl_f16_neon, simsimd_kl_f16_accurate);
-    register_<simsimd_datatype_f16_k>("js_f16_neon", simsimd_js_f16_neon, simsimd_js_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("dot_f16_neon", simsimd_dot_f16_neon, simsimd_dot_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("cos_f16_neon", simsimd_cos_f16_neon, simsimd_cos_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("l2sq_f16_neon", simsimd_l2sq_f16_neon, simsimd_l2sq_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("kl_f16_neon", simsimd_kl_f16_neon, simsimd_kl_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("js_f16_neon", simsimd_js_f16_neon, simsimd_js_f16_accurate);
 
-    register_<simsimd_datatype_bf16_k>("dot_bf16_neon", simsimd_dot_bf16_neon, simsimd_dot_bf16_accurate);
-    register_<simsimd_datatype_bf16_k>("cos_bf16_neon", simsimd_cos_bf16_neon, simsimd_cos_bf16_accurate);
-    register_<simsimd_datatype_bf16_k>("l2sq_bf16_neon", simsimd_l2sq_bf16_neon, simsimd_l2sq_bf16_accurate);
+    dense_<simsimd_datatype_bf16_k>("dot_bf16_neon", simsimd_dot_bf16_neon, simsimd_dot_bf16_accurate);
+    dense_<simsimd_datatype_bf16_k>("cos_bf16_neon", simsimd_cos_bf16_neon, simsimd_cos_bf16_accurate);
+    dense_<simsimd_datatype_bf16_k>("l2sq_bf16_neon", simsimd_l2sq_bf16_neon, simsimd_l2sq_bf16_accurate);
 
-    register_<simsimd_datatype_f32_k>("dot_f32_neon", simsimd_dot_f32_neon, simsimd_dot_f32_accurate);
-    register_<simsimd_datatype_f32_k>("cos_f32_neon", simsimd_cos_f32_neon, simsimd_cos_f32_accurate);
-    register_<simsimd_datatype_f32_k>("l2sq_f32_neon", simsimd_l2sq_f32_neon, simsimd_l2sq_f32_accurate);
-    register_<simsimd_datatype_f32_k>("kl_f32_neon", simsimd_kl_f32_neon, simsimd_kl_f32_accurate);
-    register_<simsimd_datatype_f32_k>("js_f32_neon", simsimd_js_f32_neon, simsimd_js_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("dot_f32_neon", simsimd_dot_f32_neon, simsimd_dot_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("cos_f32_neon", simsimd_cos_f32_neon, simsimd_cos_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("l2sq_f32_neon", simsimd_l2sq_f32_neon, simsimd_l2sq_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("kl_f32_neon", simsimd_kl_f32_neon, simsimd_kl_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("js_f32_neon", simsimd_js_f32_neon, simsimd_js_f32_accurate);
 
-    register_<simsimd_datatype_i8_k>("cos_i8_neon", simsimd_cos_i8_neon, simsimd_cos_i8_accurate);
-    register_<simsimd_datatype_i8_k>("dot_i8_neon", simsimd_dot_i8_neon, simsimd_dot_i8_serial);
-    register_<simsimd_datatype_i8_k>("l2sq_i8_neon", simsimd_l2sq_i8_neon, simsimd_l2sq_i8_accurate);
+    dense_<simsimd_datatype_i8_k>("cos_i8_neon", simsimd_cos_i8_neon, simsimd_cos_i8_accurate);
+    dense_<simsimd_datatype_i8_k>("dot_i8_neon", simsimd_dot_i8_neon, simsimd_dot_i8_serial);
+    dense_<simsimd_datatype_i8_k>("l2sq_i8_neon", simsimd_l2sq_i8_neon, simsimd_l2sq_i8_accurate);
 
-    register_<simsimd_datatype_b8_k>("hamming_b8_neon", simsimd_hamming_b8_neon, simsimd_hamming_b8_serial);
-    register_<simsimd_datatype_b8_k>("jaccard_b8_neon", simsimd_jaccard_b8_neon, simsimd_jaccard_b8_serial);
+    dense_<simsimd_datatype_b8_k>("hamming_b8_neon", simsimd_hamming_b8_neon, simsimd_hamming_b8_serial);
+    dense_<simsimd_datatype_b8_k>("jaccard_b8_neon", simsimd_jaccard_b8_neon, simsimd_jaccard_b8_serial);
 
-    register_<simsimd_datatype_bf16c_k>("dot_bf16c_neon", simsimd_dot_bf16c_neon, simsimd_dot_bf16c_accurate);
-    register_<simsimd_datatype_bf16c_k>("vdot_bf16c_neon", simsimd_vdot_bf16c_neon, simsimd_vdot_bf16c_accurate);
-    register_<simsimd_datatype_f16c_k>("dot_f16c_neon", simsimd_dot_f16c_neon, simsimd_dot_f16c_accurate);
-    register_<simsimd_datatype_f16c_k>("vdot_f16c_neon", simsimd_vdot_f16c_neon, simsimd_vdot_f16c_accurate);
-    register_<simsimd_datatype_f32c_k>("dot_f32c_neon", simsimd_dot_f32c_neon, simsimd_dot_f32c_accurate);
-    register_<simsimd_datatype_f32c_k>("vdot_f32c_neon", simsimd_vdot_f32c_neon, simsimd_vdot_f32c_accurate);
+    dense_<simsimd_datatype_bf16c_k>("dot_bf16c_neon", simsimd_dot_bf16c_neon, simsimd_dot_bf16c_accurate);
+    dense_<simsimd_datatype_bf16c_k>("vdot_bf16c_neon", simsimd_vdot_bf16c_neon, simsimd_vdot_bf16c_accurate);
+    dense_<simsimd_datatype_f16c_k>("dot_f16c_neon", simsimd_dot_f16c_neon, simsimd_dot_f16c_accurate);
+    dense_<simsimd_datatype_f16c_k>("vdot_f16c_neon", simsimd_vdot_f16c_neon, simsimd_vdot_f16c_accurate);
+    dense_<simsimd_datatype_f32c_k>("dot_f32c_neon", simsimd_dot_f32c_neon, simsimd_dot_f32c_accurate);
+    dense_<simsimd_datatype_f32c_k>("vdot_f32c_neon", simsimd_vdot_f32c_neon, simsimd_vdot_f32c_accurate);
 #endif
 
 #if SIMSIMD_TARGET_SVE
-    register_<simsimd_datatype_f16_k>("dot_f16_sve", simsimd_dot_f16_sve, simsimd_dot_f16_accurate);
-    register_<simsimd_datatype_f16_k>("cos_f16_sve", simsimd_cos_f16_sve, simsimd_cos_f16_accurate);
-    register_<simsimd_datatype_f16_k>("l2sq_f16_sve", simsimd_l2sq_f16_sve, simsimd_l2sq_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("dot_f16_sve", simsimd_dot_f16_sve, simsimd_dot_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("cos_f16_sve", simsimd_cos_f16_sve, simsimd_cos_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("l2sq_f16_sve", simsimd_l2sq_f16_sve, simsimd_l2sq_f16_accurate);
 
-    register_<simsimd_datatype_f32_k>("dot_f32_sve", simsimd_dot_f32_sve, simsimd_dot_f32_accurate);
-    register_<simsimd_datatype_f32_k>("cos_f32_sve", simsimd_cos_f32_sve, simsimd_cos_f32_accurate);
-    register_<simsimd_datatype_f32_k>("l2sq_f32_sve", simsimd_l2sq_f32_sve, simsimd_l2sq_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("dot_f32_sve", simsimd_dot_f32_sve, simsimd_dot_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("cos_f32_sve", simsimd_cos_f32_sve, simsimd_cos_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("l2sq_f32_sve", simsimd_l2sq_f32_sve, simsimd_l2sq_f32_accurate);
 
-    register_<simsimd_datatype_f64_k>("dot_f64_sve", simsimd_dot_f64_sve, simsimd_dot_f64_serial);
-    register_<simsimd_datatype_f64_k>("cos_f64_sve", simsimd_cos_f64_sve, simsimd_cos_f64_serial);
-    register_<simsimd_datatype_f64_k>("l2sq_f64_sve", simsimd_l2sq_f64_sve, simsimd_l2sq_f64_serial);
+    dense_<simsimd_datatype_f64_k>("dot_f64_sve", simsimd_dot_f64_sve, simsimd_dot_f64_serial);
+    dense_<simsimd_datatype_f64_k>("cos_f64_sve", simsimd_cos_f64_sve, simsimd_cos_f64_serial);
+    dense_<simsimd_datatype_f64_k>("l2sq_f64_sve", simsimd_l2sq_f64_sve, simsimd_l2sq_f64_serial);
 
-    register_<simsimd_datatype_b8_k>("hamming_b8_sve", simsimd_hamming_b8_sve, simsimd_hamming_b8_serial);
-    register_<simsimd_datatype_b8_k>("jaccard_b8_sve", simsimd_jaccard_b8_sve, simsimd_jaccard_b8_serial);
+    dense_<simsimd_datatype_b8_k>("hamming_b8_sve", simsimd_hamming_b8_sve, simsimd_hamming_b8_serial);
+    dense_<simsimd_datatype_b8_k>("jaccard_b8_sve", simsimd_jaccard_b8_sve, simsimd_jaccard_b8_serial);
 
-    register_<simsimd_datatype_f16c_k>("dot_f16c_sve", simsimd_dot_f16c_sve, simsimd_dot_f16c_accurate);
-    register_<simsimd_datatype_f16c_k>("vdot_f16c_sve", simsimd_vdot_f16c_sve, simsimd_vdot_f16c_accurate);
-    register_<simsimd_datatype_f32c_k>("dot_f32c_sve", simsimd_dot_f32c_sve, simsimd_dot_f32c_accurate);
-    register_<simsimd_datatype_f32c_k>("vdot_f32c_sve", simsimd_vdot_f32c_sve, simsimd_vdot_f32c_accurate);
-    register_<simsimd_datatype_f64c_k>("dot_f64c_sve", simsimd_dot_f64c_sve, simsimd_dot_f64c_serial);
-    register_<simsimd_datatype_f64c_k>("vdot_f64c_sve", simsimd_vdot_f64c_sve, simsimd_vdot_f64c_serial);
+    dense_<simsimd_datatype_f16c_k>("dot_f16c_sve", simsimd_dot_f16c_sve, simsimd_dot_f16c_accurate);
+    dense_<simsimd_datatype_f16c_k>("vdot_f16c_sve", simsimd_vdot_f16c_sve, simsimd_vdot_f16c_accurate);
+    dense_<simsimd_datatype_f32c_k>("dot_f32c_sve", simsimd_dot_f32c_sve, simsimd_dot_f32c_accurate);
+    dense_<simsimd_datatype_f32c_k>("vdot_f32c_sve", simsimd_vdot_f32c_sve, simsimd_vdot_f32c_accurate);
+    dense_<simsimd_datatype_f64c_k>("dot_f64c_sve", simsimd_dot_f64c_sve, simsimd_dot_f64c_serial);
+    dense_<simsimd_datatype_f64c_k>("vdot_f64c_sve", simsimd_vdot_f64c_sve, simsimd_vdot_f64c_serial);
 
 #endif
 
 #if SIMSIMD_TARGET_HASWELL
-    register_<simsimd_datatype_f16_k>("dot_f16_haswell", simsimd_dot_f16_haswell, simsimd_dot_f16_accurate);
-    register_<simsimd_datatype_f16_k>("cos_f16_haswell", simsimd_cos_f16_haswell, simsimd_cos_f16_accurate);
-    register_<simsimd_datatype_f16_k>("l2sq_f16_haswell", simsimd_l2sq_f16_haswell, simsimd_l2sq_f16_accurate);
-    register_<simsimd_datatype_f16_k>("kl_f16_haswell", simsimd_kl_f16_haswell, simsimd_kl_f16_accurate);
-    register_<simsimd_datatype_f16_k>("js_f16_haswell", simsimd_js_f16_haswell, simsimd_js_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("dot_f16_haswell", simsimd_dot_f16_haswell, simsimd_dot_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("cos_f16_haswell", simsimd_cos_f16_haswell, simsimd_cos_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("l2sq_f16_haswell", simsimd_l2sq_f16_haswell, simsimd_l2sq_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("kl_f16_haswell", simsimd_kl_f16_haswell, simsimd_kl_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("js_f16_haswell", simsimd_js_f16_haswell, simsimd_js_f16_accurate);
 
-    register_<simsimd_datatype_bf16_k>("dot_bf16_haswell", simsimd_dot_bf16_haswell, simsimd_dot_bf16_accurate);
-    register_<simsimd_datatype_bf16_k>("cos_bf16_haswell", simsimd_cos_bf16_haswell, simsimd_cos_bf16_accurate);
-    register_<simsimd_datatype_bf16_k>("l2sq_bf16_haswell", simsimd_l2sq_bf16_haswell, simsimd_l2sq_bf16_accurate);
+    dense_<simsimd_datatype_bf16_k>("dot_bf16_haswell", simsimd_dot_bf16_haswell, simsimd_dot_bf16_accurate);
+    dense_<simsimd_datatype_bf16_k>("cos_bf16_haswell", simsimd_cos_bf16_haswell, simsimd_cos_bf16_accurate);
+    dense_<simsimd_datatype_bf16_k>("l2sq_bf16_haswell", simsimd_l2sq_bf16_haswell, simsimd_l2sq_bf16_accurate);
 
-    register_<simsimd_datatype_i8_k>("cos_i8_haswell", simsimd_cos_i8_haswell, simsimd_cos_i8_accurate);
-    register_<simsimd_datatype_i8_k>("dot_i8_haswell", simsimd_dot_i8_haswell, simsimd_dot_i8_serial);
-    register_<simsimd_datatype_i8_k>("l2sq_i8_haswell", simsimd_l2sq_i8_haswell, simsimd_l2sq_i8_accurate);
+    dense_<simsimd_datatype_i8_k>("cos_i8_haswell", simsimd_cos_i8_haswell, simsimd_cos_i8_accurate);
+    dense_<simsimd_datatype_i8_k>("dot_i8_haswell", simsimd_dot_i8_haswell, simsimd_dot_i8_serial);
+    dense_<simsimd_datatype_i8_k>("l2sq_i8_haswell", simsimd_l2sq_i8_haswell, simsimd_l2sq_i8_accurate);
 
-    register_<simsimd_datatype_b8_k>("hamming_b8_haswell", simsimd_hamming_b8_haswell, simsimd_hamming_b8_serial);
-    register_<simsimd_datatype_b8_k>("jaccard_b8_haswell", simsimd_jaccard_b8_haswell, simsimd_jaccard_b8_serial);
+    dense_<simsimd_datatype_b8_k>("hamming_b8_haswell", simsimd_hamming_b8_haswell, simsimd_hamming_b8_serial);
+    dense_<simsimd_datatype_b8_k>("jaccard_b8_haswell", simsimd_jaccard_b8_haswell, simsimd_jaccard_b8_serial);
 
-    register_<simsimd_datatype_f16c_k>("dot_f16c_haswell", simsimd_dot_f16c_haswell, simsimd_dot_f16c_accurate);
-    register_<simsimd_datatype_f16c_k>("vdot_f16c_haswell", simsimd_vdot_f16c_haswell, simsimd_vdot_f16c_accurate);
-    register_<simsimd_datatype_f32c_k>("dot_f32c_haswell", simsimd_dot_f32c_haswell, simsimd_dot_f32c_accurate);
-    register_<simsimd_datatype_f32c_k>("vdot_f32c_haswell", simsimd_vdot_f32c_haswell, simsimd_vdot_f32c_accurate);
+    dense_<simsimd_datatype_f16c_k>("dot_f16c_haswell", simsimd_dot_f16c_haswell, simsimd_dot_f16c_accurate);
+    dense_<simsimd_datatype_f16c_k>("vdot_f16c_haswell", simsimd_vdot_f16c_haswell, simsimd_vdot_f16c_accurate);
+    dense_<simsimd_datatype_f32c_k>("dot_f32c_haswell", simsimd_dot_f32c_haswell, simsimd_dot_f32c_accurate);
+    dense_<simsimd_datatype_f32c_k>("vdot_f32c_haswell", simsimd_vdot_f32c_haswell, simsimd_vdot_f32c_accurate);
 #endif
 
 #if SIMSIMD_TARGET_GENOA
-    register_<simsimd_datatype_bf16_k>("dot_bf16_genoa", simsimd_dot_bf16_genoa, simsimd_dot_bf16_accurate);
-    register_<simsimd_datatype_bf16_k>("cos_bf16_genoa", simsimd_cos_bf16_genoa, simsimd_cos_bf16_accurate);
-    register_<simsimd_datatype_bf16_k>("l2sq_bf16_genoa", simsimd_l2sq_bf16_genoa, simsimd_l2sq_bf16_accurate);
+    dense_<simsimd_datatype_bf16_k>("dot_bf16_genoa", simsimd_dot_bf16_genoa, simsimd_dot_bf16_accurate);
+    dense_<simsimd_datatype_bf16_k>("cos_bf16_genoa", simsimd_cos_bf16_genoa, simsimd_cos_bf16_accurate);
+    dense_<simsimd_datatype_bf16_k>("l2sq_bf16_genoa", simsimd_l2sq_bf16_genoa, simsimd_l2sq_bf16_accurate);
 #endif
 
 #if SIMSIMD_TARGET_SAPPHIRE
-    register_<simsimd_datatype_f16_k>("dot_f16_sapphire", simsimd_dot_f16_sapphire, simsimd_dot_f16_accurate);
-    register_<simsimd_datatype_f16_k>("cos_f16_sapphire", simsimd_cos_f16_sapphire, simsimd_cos_f16_accurate);
-    register_<simsimd_datatype_f16_k>("l2sq_f16_sapphire", simsimd_l2sq_f16_sapphire, simsimd_l2sq_f16_accurate);
-    register_<simsimd_datatype_f16_k>("kl_f16_sapphire", simsimd_kl_f16_sapphire, simsimd_kl_f16_accurate);
-    register_<simsimd_datatype_f16_k>("js_f16_sapphire", simsimd_js_f16_sapphire, simsimd_js_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("dot_f16_sapphire", simsimd_dot_f16_sapphire, simsimd_dot_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("cos_f16_sapphire", simsimd_cos_f16_sapphire, simsimd_cos_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("l2sq_f16_sapphire", simsimd_l2sq_f16_sapphire, simsimd_l2sq_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("kl_f16_sapphire", simsimd_kl_f16_sapphire, simsimd_kl_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("js_f16_sapphire", simsimd_js_f16_sapphire, simsimd_js_f16_accurate);
 
-    register_<simsimd_datatype_f16c_k>("dot_f16c_sapphire", simsimd_dot_f16c_sapphire, simsimd_dot_f16c_accurate);
-    register_<simsimd_datatype_f16c_k>("vdot_f16c_sapphire", simsimd_vdot_f16c_sapphire, simsimd_vdot_f16c_accurate);
+    dense_<simsimd_datatype_f16c_k>("dot_f16c_sapphire", simsimd_dot_f16c_sapphire, simsimd_dot_f16c_accurate);
+    dense_<simsimd_datatype_f16c_k>("vdot_f16c_sapphire", simsimd_vdot_f16c_sapphire, simsimd_vdot_f16c_accurate);
 #endif
 
 #if SIMSIMD_TARGET_ICE
-    register_<simsimd_datatype_i8_k>("cos_i8_ice", simsimd_cos_i8_ice, simsimd_cos_i8_accurate);
-    register_<simsimd_datatype_i8_k>("dot_i8_ice", simsimd_dot_i8_ice, simsimd_dot_i8_serial);
-    register_<simsimd_datatype_i8_k>("l2sq_i8_ice", simsimd_l2sq_i8_ice, simsimd_l2sq_i8_accurate);
+    dense_<simsimd_datatype_i8_k>("cos_i8_ice", simsimd_cos_i8_ice, simsimd_cos_i8_accurate);
+    dense_<simsimd_datatype_i8_k>("dot_i8_ice", simsimd_dot_i8_ice, simsimd_dot_i8_serial);
+    dense_<simsimd_datatype_i8_k>("l2sq_i8_ice", simsimd_l2sq_i8_ice, simsimd_l2sq_i8_accurate);
 
-    register_<simsimd_datatype_f64_k>("dot_f64_skylake", simsimd_dot_f64_skylake, simsimd_dot_f64_serial);
-    register_<simsimd_datatype_f64_k>("cos_f64_skylake", simsimd_cos_f64_skylake, simsimd_cos_f64_serial);
-    register_<simsimd_datatype_f64_k>("l2sq_f64_skylake", simsimd_l2sq_f64_skylake, simsimd_l2sq_f64_serial);
+    dense_<simsimd_datatype_f64_k>("dot_f64_skylake", simsimd_dot_f64_skylake, simsimd_dot_f64_serial);
+    dense_<simsimd_datatype_f64_k>("cos_f64_skylake", simsimd_cos_f64_skylake, simsimd_cos_f64_serial);
+    dense_<simsimd_datatype_f64_k>("l2sq_f64_skylake", simsimd_l2sq_f64_skylake, simsimd_l2sq_f64_serial);
 
-    register_<simsimd_datatype_b8_k>("hamming_b8_ice", simsimd_hamming_b8_ice, simsimd_hamming_b8_serial);
-    register_<simsimd_datatype_b8_k>("jaccard_b8_ice", simsimd_jaccard_b8_ice, simsimd_jaccard_b8_serial);
+    dense_<simsimd_datatype_b8_k>("hamming_b8_ice", simsimd_hamming_b8_ice, simsimd_hamming_b8_serial);
+    dense_<simsimd_datatype_b8_k>("jaccard_b8_ice", simsimd_jaccard_b8_ice, simsimd_jaccard_b8_serial);
 #endif
 
 #if SIMSIMD_TARGET_SKYLAKE
-    register_<simsimd_datatype_f32_k>("dot_f32_skylake", simsimd_dot_f32_skylake, simsimd_dot_f32_accurate);
-    register_<simsimd_datatype_f32_k>("cos_f32_skylake", simsimd_cos_f32_skylake, simsimd_cos_f32_accurate);
-    register_<simsimd_datatype_f32_k>("l2sq_f32_skylake", simsimd_l2sq_f32_skylake, simsimd_l2sq_f32_accurate);
-    register_<simsimd_datatype_f32_k>("kl_f32_skylake", simsimd_kl_f32_skylake, simsimd_kl_f32_accurate);
-    register_<simsimd_datatype_f32_k>("js_f32_skylake", simsimd_js_f32_skylake, simsimd_js_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("dot_f32_skylake", simsimd_dot_f32_skylake, simsimd_dot_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("cos_f32_skylake", simsimd_cos_f32_skylake, simsimd_cos_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("l2sq_f32_skylake", simsimd_l2sq_f32_skylake, simsimd_l2sq_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("kl_f32_skylake", simsimd_kl_f32_skylake, simsimd_kl_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("js_f32_skylake", simsimd_js_f32_skylake, simsimd_js_f32_accurate);
 
-    register_<simsimd_datatype_f32c_k>("dot_f32c_skylake", simsimd_dot_f32c_skylake, simsimd_dot_f32c_accurate);
-    register_<simsimd_datatype_f32c_k>("vdot_f32c_skylake", simsimd_vdot_f32c_skylake, simsimd_vdot_f32c_accurate);
-    register_<simsimd_datatype_f64c_k>("dot_f64c_skylake", simsimd_dot_f64c_skylake, simsimd_dot_f64c_serial);
-    register_<simsimd_datatype_f64c_k>("vdot_f64c_skylake", simsimd_vdot_f64c_skylake, simsimd_vdot_f64c_serial);
+    dense_<simsimd_datatype_f32c_k>("dot_f32c_skylake", simsimd_dot_f32c_skylake, simsimd_dot_f32c_accurate);
+    dense_<simsimd_datatype_f32c_k>("vdot_f32c_skylake", simsimd_vdot_f32c_skylake, simsimd_vdot_f32c_accurate);
+    dense_<simsimd_datatype_f64c_k>("dot_f64c_skylake", simsimd_dot_f64c_skylake, simsimd_dot_f64c_serial);
+    dense_<simsimd_datatype_f64c_k>("vdot_f64c_skylake", simsimd_vdot_f64c_skylake, simsimd_vdot_f64c_serial);
 
-    register_sparse_<simsimd_datatype_u16_k>("intersect_u16_skylake", simsimd_intersect_u16_skylake,
-                                             simsimd_intersect_u16_accurate);
-    register_sparse_<simsimd_datatype_u32_k>("intersect_u32_skylake", simsimd_intersect_u32_skylake,
-                                             simsimd_intersect_u32_accurate);
+    sparse_<simsimd_datatype_u16_k>("intersect_u16_skylake", simsimd_intersect_u16_skylake,
+                                    simsimd_intersect_u16_accurate);
+    sparse_<simsimd_datatype_u32_k>("intersect_u32_skylake", simsimd_intersect_u32_skylake,
+                                    simsimd_intersect_u32_accurate);
 
 #endif
 
-    register_sparse_<simsimd_datatype_u16_k>("intersect_u16", simsimd_intersect_u16_serial,
-                                             simsimd_intersect_u16_accurate);
-    register_sparse_<simsimd_datatype_u16_k>("intersect_u16_accurate", simsimd_intersect_u16_accurate,
-                                             simsimd_intersect_u16_accurate);
-    register_sparse_<simsimd_datatype_u32_k>("intersect_u32", simsimd_intersect_u32_serial,
-                                             simsimd_intersect_u32_accurate);
-    register_sparse_<simsimd_datatype_u32_k>("intersect_u32_accurate", simsimd_intersect_u32_accurate,
-                                             simsimd_intersect_u32_accurate);
+    sparse_<simsimd_datatype_u16_k>("intersect_u16_serial", simsimd_intersect_u16_serial,
+                                    simsimd_intersect_u16_accurate);
+    sparse_<simsimd_datatype_u16_k>("intersect_u16_accurate", simsimd_intersect_u16_accurate,
+                                    simsimd_intersect_u16_accurate);
+    sparse_<simsimd_datatype_u32_k>("intersect_u32_serial", simsimd_intersect_u32_serial,
+                                    simsimd_intersect_u32_accurate);
+    sparse_<simsimd_datatype_u32_k>("intersect_u32_accurate", simsimd_intersect_u32_accurate,
+                                    simsimd_intersect_u32_accurate);
 
-    register_<simsimd_datatype_bf16_k>("dot_bf16_serial", simsimd_dot_bf16_serial, simsimd_dot_bf16_accurate);
-    register_<simsimd_datatype_bf16_k>("cos_bf16_serial", simsimd_cos_bf16_serial, simsimd_cos_bf16_accurate);
-    register_<simsimd_datatype_bf16_k>("l2sq_bf16_serial", simsimd_l2sq_bf16_serial, simsimd_l2sq_bf16_accurate);
-    register_<simsimd_datatype_bf16_k>("kl_bf16_serial", simsimd_kl_bf16_serial, simsimd_kl_bf16_accurate);
-    register_<simsimd_datatype_bf16_k>("js_bf16_serial", simsimd_js_bf16_serial, simsimd_js_bf16_accurate);
+    dense_<simsimd_datatype_bf16_k>("dot_bf16_serial", simsimd_dot_bf16_serial, simsimd_dot_bf16_accurate);
+    dense_<simsimd_datatype_bf16_k>("cos_bf16_serial", simsimd_cos_bf16_serial, simsimd_cos_bf16_accurate);
+    dense_<simsimd_datatype_bf16_k>("l2sq_bf16_serial", simsimd_l2sq_bf16_serial, simsimd_l2sq_bf16_accurate);
+    dense_<simsimd_datatype_bf16_k>("kl_bf16_serial", simsimd_kl_bf16_serial, simsimd_kl_bf16_accurate);
+    dense_<simsimd_datatype_bf16_k>("js_bf16_serial", simsimd_js_bf16_serial, simsimd_js_bf16_accurate);
 
-    register_<simsimd_datatype_f16_k>("dot_f16_serial", simsimd_dot_f16_serial, simsimd_dot_f16_accurate);
-    register_<simsimd_datatype_f16_k>("cos_f16_serial", simsimd_cos_f16_serial, simsimd_cos_f16_accurate);
-    register_<simsimd_datatype_f16_k>("l2sq_f16_serial", simsimd_l2sq_f16_serial, simsimd_l2sq_f16_accurate);
-    register_<simsimd_datatype_f16_k>("kl_f16_serial", simsimd_kl_f16_serial, simsimd_kl_f16_accurate);
-    register_<simsimd_datatype_f16_k>("js_f16_serial", simsimd_js_f16_serial, simsimd_js_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("dot_f16_serial", simsimd_dot_f16_serial, simsimd_dot_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("cos_f16_serial", simsimd_cos_f16_serial, simsimd_cos_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("l2sq_f16_serial", simsimd_l2sq_f16_serial, simsimd_l2sq_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("kl_f16_serial", simsimd_kl_f16_serial, simsimd_kl_f16_accurate);
+    dense_<simsimd_datatype_f16_k>("js_f16_serial", simsimd_js_f16_serial, simsimd_js_f16_accurate);
 
-    register_<simsimd_datatype_f32_k>("dot_f32_serial", simsimd_dot_f32_serial, simsimd_dot_f32_accurate);
-    register_<simsimd_datatype_f32_k>("cos_f32_serial", simsimd_cos_f32_serial, simsimd_cos_f32_accurate);
-    register_<simsimd_datatype_f32_k>("l2sq_f32_serial", simsimd_l2sq_f32_serial, simsimd_l2sq_f32_accurate);
-    register_<simsimd_datatype_f32_k>("kl_f32_serial", simsimd_kl_f32_serial, simsimd_kl_f32_accurate);
-    register_<simsimd_datatype_f32_k>("js_f32_serial", simsimd_js_f32_serial, simsimd_js_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("dot_f32_serial", simsimd_dot_f32_serial, simsimd_dot_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("cos_f32_serial", simsimd_cos_f32_serial, simsimd_cos_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("l2sq_f32_serial", simsimd_l2sq_f32_serial, simsimd_l2sq_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("kl_f32_serial", simsimd_kl_f32_serial, simsimd_kl_f32_accurate);
+    dense_<simsimd_datatype_f32_k>("js_f32_serial", simsimd_js_f32_serial, simsimd_js_f32_accurate);
 
-    register_<simsimd_datatype_f64_k>("dot_f64_serial", simsimd_dot_f64_serial, simsimd_dot_f64_serial);
-    register_<simsimd_datatype_f64_k>("cos_f64_serial", simsimd_cos_f64_serial, simsimd_cos_f64_serial);
-    register_<simsimd_datatype_f64_k>("l2sq_f64_serial", simsimd_l2sq_f64_serial, simsimd_l2sq_f64_serial);
+    dense_<simsimd_datatype_f64_k>("dot_f64_serial", simsimd_dot_f64_serial, simsimd_dot_f64_serial);
+    dense_<simsimd_datatype_f64_k>("cos_f64_serial", simsimd_cos_f64_serial, simsimd_cos_f64_serial);
+    dense_<simsimd_datatype_f64_k>("l2sq_f64_serial", simsimd_l2sq_f64_serial, simsimd_l2sq_f64_serial);
 
-    register_<simsimd_datatype_i8_k>("cos_i8_serial", simsimd_cos_i8_serial, simsimd_cos_i8_accurate);
-    register_<simsimd_datatype_i8_k>("dot_i8_serial", simsimd_dot_i8_serial, simsimd_dot_i8_serial);
-    register_<simsimd_datatype_i8_k>("l2sq_i8_serial", simsimd_l2sq_i8_serial, simsimd_l2sq_i8_accurate);
+    dense_<simsimd_datatype_i8_k>("cos_i8_serial", simsimd_cos_i8_serial, simsimd_cos_i8_accurate);
+    dense_<simsimd_datatype_i8_k>("dot_i8_serial", simsimd_dot_i8_serial, simsimd_dot_i8_serial);
+    dense_<simsimd_datatype_i8_k>("l2sq_i8_serial", simsimd_l2sq_i8_serial, simsimd_l2sq_i8_accurate);
 
-    register_<simsimd_datatype_f64c_k>("dot_f64c_serial", simsimd_dot_f64c_serial, simsimd_dot_f64c_serial);
-    register_<simsimd_datatype_f32c_k>("dot_f32c_serial", simsimd_dot_f32c_serial, simsimd_dot_f32c_accurate);
-    register_<simsimd_datatype_f16c_k>("dot_f16c_serial", simsimd_dot_f16c_serial, simsimd_dot_f16c_accurate);
-    register_<simsimd_datatype_bf16c_k>("dot_bf16c_serial", simsimd_dot_bf16c_serial, simsimd_dot_bf16c_accurate);
-    register_<simsimd_datatype_f64c_k>("vdot_f64c_serial", simsimd_vdot_f64c_serial, simsimd_vdot_f64c_serial);
-    register_<simsimd_datatype_f32c_k>("vdot_f32c_serial", simsimd_vdot_f32c_serial, simsimd_vdot_f32c_accurate);
-    register_<simsimd_datatype_f16c_k>("vdot_f16c_serial", simsimd_vdot_f16c_serial, simsimd_vdot_f16c_accurate);
-    register_<simsimd_datatype_bf16c_k>("vdot_bf16c_serial", simsimd_vdot_bf16c_serial, simsimd_vdot_bf16c_accurate);
+    dense_<simsimd_datatype_f64c_k>("dot_f64c_serial", simsimd_dot_f64c_serial, simsimd_dot_f64c_serial);
+    dense_<simsimd_datatype_f32c_k>("dot_f32c_serial", simsimd_dot_f32c_serial, simsimd_dot_f32c_accurate);
+    dense_<simsimd_datatype_f16c_k>("dot_f16c_serial", simsimd_dot_f16c_serial, simsimd_dot_f16c_accurate);
+    dense_<simsimd_datatype_bf16c_k>("dot_bf16c_serial", simsimd_dot_bf16c_serial, simsimd_dot_bf16c_accurate);
+    dense_<simsimd_datatype_f64c_k>("vdot_f64c_serial", simsimd_vdot_f64c_serial, simsimd_vdot_f64c_serial);
+    dense_<simsimd_datatype_f32c_k>("vdot_f32c_serial", simsimd_vdot_f32c_serial, simsimd_vdot_f32c_accurate);
+    dense_<simsimd_datatype_f16c_k>("vdot_f16c_serial", simsimd_vdot_f16c_serial, simsimd_vdot_f16c_accurate);
+    dense_<simsimd_datatype_bf16c_k>("vdot_bf16c_serial", simsimd_vdot_bf16c_serial, simsimd_vdot_bf16c_accurate);
 
-    register_<simsimd_datatype_f16c_k>("vdot_f16c_serial", simsimd_vdot_f16c_serial, simsimd_vdot_f16c_accurate);
-    register_<simsimd_datatype_bf16c_k>("vdot_bf16c_serial", simsimd_vdot_bf16c_serial, simsimd_vdot_bf16c_accurate);
+    dense_<simsimd_datatype_f16c_k>("vdot_f16c_serial", simsimd_vdot_f16c_serial, simsimd_vdot_f16c_accurate);
+    dense_<simsimd_datatype_bf16c_k>("vdot_bf16c_serial", simsimd_vdot_bf16c_serial, simsimd_vdot_bf16c_accurate);
 
-    register_<simsimd_datatype_b8_k>("hamming_b8_serial", simsimd_hamming_b8_serial, simsimd_hamming_b8_serial);
-    register_<simsimd_datatype_b8_k>("jaccard_b8_serial", simsimd_jaccard_b8_serial, simsimd_jaccard_b8_serial);
+    dense_<simsimd_datatype_b8_k>("hamming_b8_serial", simsimd_hamming_b8_serial, simsimd_hamming_b8_serial);
+    dense_<simsimd_datatype_b8_k>("jaccard_b8_serial", simsimd_jaccard_b8_serial, simsimd_jaccard_b8_serial);
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();
