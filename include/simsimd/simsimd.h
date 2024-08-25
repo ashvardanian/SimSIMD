@@ -222,6 +222,9 @@ typedef enum {
  *                  for the real and imaginary parts.
  */
 typedef void (*simsimd_metric_punned_t)(void const* a, void const* b, simsimd_size_t n, simsimd_distance_t* d);
+typedef void (*simsimd_metric_sparse_punned_t)(void const* a, void const* b,                     //
+                                               simsimd_size_t a_length, simsimd_size_t b_length, //
+                                               simsimd_distance_t* d);
 
 #if SIMSIMD_DYNAMIC_DISPATCH
 SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void);
@@ -477,8 +480,6 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
     case simsimd_datatype_i32_k: break;
     case simsimd_datatype_i64_k: break;
     case simsimd_datatype_u8_k: break;
-    case simsimd_datatype_u16_k: break;
-    case simsimd_datatype_u32_k: break;
     case simsimd_datatype_u64_k: break;
 
     // Double-precision floating-point vectors
@@ -892,6 +893,60 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16c_serial, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_bf16c_serial, *c = simsimd_cap_serial_k; return;
+            default: break;
+            }
+
+        break;
+
+        // Unsigned 16-bit integer vectors
+    case simsimd_datatype_u16_k:
+
+#if SIMSIMD_TARGET_SVE
+        if (viable & simsimd_cap_sve_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_sve, *c = simsimd_cap_sve_k; return;
+            default: break;
+            }
+#endif
+#if SIMSIMD_TARGET_SKYLAKE
+        if (viable & simsimd_cap_skylake_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k:
+                *m = (m_t)&simsimd_intersect_u16_skylake, *c = simsimd_cap_skylake_k;
+                return;
+            default: break;
+            }
+#endif
+        if (viable & simsimd_cap_serial_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_serial, *c = simsimd_cap_serial_k; return;
+            default: break;
+            }
+
+        break;
+
+    // Unsigned 32-bit integer vectors
+    case simsimd_datatype_u32_k:
+
+#if SIMSIMD_TARGET_SVE
+        if (viable & simsimd_cap_sve_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_sve, *c = simsimd_cap_sve_k; return;
+            default: break;
+            }
+#endif
+#if SIMSIMD_TARGET_SKYLAKE
+        if (viable & simsimd_cap_skylake_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k:
+                *m = (m_t)&simsimd_intersect_u32_skylake, *c = simsimd_cap_skylake_k;
+                return;
+            default: break;
+            }
+#endif
+        if (viable & simsimd_cap_serial_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_serial, *c = simsimd_cap_serial_k; return;
             default: break;
             }
 
@@ -1501,6 +1556,36 @@ SIMSIMD_PUBLIC void simsimd_js_f32(simsimd_f32_t const* a, simsimd_f32_t const* 
 SIMSIMD_PUBLIC void simsimd_js_f64(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
                                    simsimd_distance_t* d) {
     simsimd_js_f64_serial(a, b, n, d);
+}
+
+/*  Set operations
+ *
+ *  @param a The first sorted array of integers.
+ *  @param b The second sorted array of integers.
+ *  @param a_length The number of elements in the first array.
+ *  @param b_length The number of elements in the second array.
+ *  @param d The output for the number of elements in the intersection.
+ */
+SIMSIMD_PUBLIC void simsimd_intersect_u16(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length,
+                                          simsimd_size_t b_length, simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_SVE
+    simsimd_intersect_u16_sve(a, b, a_length, b_length, d);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_intersect_u16_skylake(a, b, a_length, b_length, d);
+#else
+    simsimd_intersect_u16_serial(a, b, a_length, b_length, d);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_intersect_u32(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length,
+                                          simsimd_size_t b_length, simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_SVE
+    simsimd_intersect_u32_sve(a, b, a_length, b_length, d);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_intersect_u32_skylake(a, b, a_length, b_length, d);
+#else
+    simsimd_intersect_u32_serial(a, b, a_length, b_length, d);
+#endif
 }
 
 #endif
