@@ -485,7 +485,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
     case simsimd_datatype_f64_k:
 
 #if SIMSIMD_TARGET_SVE
-        if (viable & simsimd_cap_skylake_k)
+        if (viable & simsimd_cap_sve_k)
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f64_sve, *c = simsimd_cap_sve_k; return;
             case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f64_sve, *c = simsimd_cap_sve_k; return;
