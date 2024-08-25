@@ -421,6 +421,9 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_bf16(unsigned short x) {
 
 /**
  *  @brief  Compresses a `float` to a `bf16` representation.
+ *
+ *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
+ *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
 SIMSIMD_PUBLIC unsigned short simsimd_compress_bf16(simsimd_f32_t x) {
     union float_or_unsigned_int_t {

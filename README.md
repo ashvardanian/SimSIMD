@@ -57,14 +57,14 @@ Implemented distance functions include:
 
 Moreover, SimSIMD...
 
-- handles `f64`, `f32`, and `f16` real & complex vectors.
+- handles `f64`, `f32`, `f16`, and `bf16` real & complex vectors.
 - handles `i8` integral and `b8` binary vectors.
 - is a zero-dependency [header-only C 99](#using-simsimd-in-c) library.
 - has bindings for [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust) and [JavaScript](#using-simsimd-in-javascript).
 - has Arm backends for NEON and Scalable Vector Extensions (SVE).
-- has x86 backends for Haswell, Skylake, Ice Lake, and Sapphire Rapids.
+- has x86 backends for Haswell, Skylake, Ice Lake, Genoa, and Sapphire Rapids.
 
-Due to the high-level of fragmentation of SIMD support in different x86 CPUs, SimSIMD uses the names of select Intel CPU generations for its backends.
+Due to the high-level of fragmentation of SIMD support in different x86 CPUs, SimSIMD generally uses the names of select Intel CPU generations for its backends.
 They, however, also work on AMD CPUs.
 Intel Haswell is compatible with AMD Zen 1/2/3, while AMD Genoa Zen 4 covers AVX-512 instructions added to Intel Skylake and Ice Lake.
 You can learn more about the technical implementation details in the following blog-posts:
@@ -82,12 +82,12 @@ You can learn more about the technical implementation details in the following b
 
 Given 1000 embeddings from OpenAI Ada API with 1536 dimensions, running on the Apple M2 Pro Arm CPU with NEON support, here's how SimSIMD performs against conventional methods:
 
-| Kind                      | `f32` improvement | `f16` improvement | `i8` improvement | Conventional method                    | SimSIMD         |
-| :------------------------ | ----------------: | ----------------: | ---------------: | :------------------------------------- | :-------------- |
-| Inner Product             |           __2 x__ |           __9 x__ |         __18 x__ | `numpy.inner`                          | `inner`         |
-| Cosine Distance           |          __32 x__ |          __79 x__ |        __133 x__ | `scipy.spatial.distance.cosine`        | `cosine`        |
-| Euclidean Distance ²      |           __5 x__ |          __26 x__ |         __17 x__ | `scipy.spatial.distance.sqeuclidean`   | `sqeuclidean`   |
-| Jensen-Shannon Divergence |          __31 x__ |          __53 x__ |                  | `scipy.spatial.distance.jensenshannon` | `jensenshannon` |
+| Kind                      | `f32` improvement | `f16` improvement | `i8` improvement | Conventional method       | SimSIMD         |
+| :------------------------ | ----------------: | ----------------: | ---------------: | :------------------------ | :-------------- |
+| Inner (Dot) Product       |           __2 x__ |           __9 x__ |         __18 x__ | `numpy.inner`             | `inner`         |
+| Cosine Distance           |          __32 x__ |          __79 x__ |        __133 x__ | `scipy.*.*.cosine`        | `cosine`        |
+| Euclidean Distance ²      |           __5 x__ |          __26 x__ |         __17 x__ | `scipy.*.*.sqeuclidean`   | `sqeuclidean`   |
+| Jensen-Shannon Divergence |          __31 x__ |          __53 x__ |                  | `scipy.*.*.jensenshannon` | `jensenshannon` |
 
 ### Against GCC Auto-Vectorization
 
@@ -656,9 +656,9 @@ To explicitly disable half-precision support, define the following macro before 
 SimSIMD exposes all kernels for all backends, and you can select the most advanced one for the current CPU without relying on built-in dispatch mechanisms.
 All of the function names follow the same pattern: `simsimd_{function}_{type}_{backend}`.
 
-- The backend can be `serial`, `haswell`, `skylake`, `ice`, `sapphire`, `neon`, or `sve`.
-- The type can be `f64`, `f32`, `f16`, `f64c`, `f32c`, `f16c`, `i8`, or `b8`.
-- The function can be `dot`, `vdot`, `cos`, `l2sq`, `hamming`, `jaccard`, `kl`, or `js`.
+- The backend can be `serial`, `haswell`, `skylake`, `ice`, `genoa`, `sapphire`, `neon`, or `sve`.
+- The type can be `f64`, `f32`, `f16`, `bf16`, `f64c`, `f32c`, `f16c`, `bf16c`, `i8`, or `b8`.
+- The function can be `dot`, `vdot`, `cos`, `l2sq`, `hamming`, `jaccard`, `kl`, `js`, or `intersect`.
 
 To avoid hard-coding the backend, you can use the `simsimd_metric_punned_t` to pun the function pointer and the `simsimd_capabilities` function to get the available backends at runtime.
 
