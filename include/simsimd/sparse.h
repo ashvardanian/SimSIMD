@@ -8,12 +8,12 @@
  *  - Set Intersection ~ Jaccard Distance
  *
  *  For datatypes:
- *  - u16 & i16: for vocabularies under 64 K tokens
- *  - u32 & i32: for vocabularies under 4 B tokens
+ *  - u16: for vocabularies under 64 K tokens
+ *  - u32: for vocabularies under 4 B tokens
  *
  *  For hardware architectures:
- *  - Arm (SVE)
  *  - x86 (AVX512)
+ *  - Arm (SVE)
  *
  *  Interestingly, to implement sparse distances and products, the most important function
  *  is analogous to `std::set_intersection`, that outputs the intersection of two sorted
@@ -49,30 +49,30 @@ extern "C" {
 /*  Implements the serial set intersection algorithm, similar to `std::set_intersection in C++ STL`,
  *  but uses clever galloping logic, if the arrays significantly differ in size.
  */
-inline static void simsimd_intersect_u16_serial(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
-inline static void simsimd_intersect_u32_serial(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_intersect_u16_serial(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_intersect_u32_serial(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
 
 /*  Implements the most naive set intersection algorithm, similar to `std::set_intersection in C++ STL`,
  *  naively enumerating the elements of two arrays.
  */
-inline static void simsimd_intersect_u16_accurate(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
-inline static void simsimd_intersect_u32_accurate(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_intersect_u16_accurate(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_intersect_u32_accurate(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
 
 /*  SIMD-powered backends for Arm SVE, mostly using 32-bit arithmetic over variable-length platform-defined word sizes.
  *  Designed for Arm Graviton 3, Microsoft Cobalt, as well as Nvidia Grace and newer Ampere Altra CPUs.
  */
-inline static void simsimd_intersect_u32_sve(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
-inline static void simsimd_intersect_u16_sve(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_intersect_u32_sve(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_intersect_u16_sve(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
 
 /*  SIMD-powered backends for various generations of AVX512 CPUs.
  *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
  */
-inline static void simsimd_intersect_u32_skylake(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
-inline static void simsimd_intersect_u16_skylake(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_intersect_u32_skylake(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_intersect_u16_skylake(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
 // clang-format on
 
 #define SIMSIMD_MAKE_INTERSECT_LINEAR(name, input_type, accumulator_type)                                              \
-    inline static void simsimd_intersect_##input_type##_##name(                                                        \
+    SIMSIMD_PUBLIC void simsimd_intersect_##input_type##_##name(                                                       \
         simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t a_length,                 \
         simsimd_size_t b_length, simsimd_distance_t* result) {                                                         \
         simsimd_##accumulator_type##_t intersection = 0;                                                               \
@@ -91,9 +91,9 @@ SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u16, size) // simsimd_intersect_u16_accu
 SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u32, size) // simsimd_intersect_u32_accurate
 
 #define SIMSIMD_MAKE_INTERSECT_GALLOPING(name, input_type, accumulator_type)                                           \
-    inline static simsimd_size_t simsimd_galloping_search_##input_type(simsimd_##input_type##_t const* b,              \
-                                                                       simsimd_size_t start, simsimd_size_t b_length,  \
-                                                                       simsimd_##input_type##_t val) {                 \
+    SIMSIMD_PUBLIC simsimd_size_t simsimd_galloping_search_##input_type(simsimd_##input_type##_t const* b,             \
+                                                                        simsimd_size_t start, simsimd_size_t b_length, \
+                                                                        simsimd_##input_type##_t val) {                \
         simsimd_size_t low = start;                                                                                    \
         simsimd_size_t high = start + 1;                                                                               \
         while (high < b_length && b[high] < val) {                                                                     \
@@ -111,7 +111,7 @@ SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u32, size) // simsimd_intersect_u32_accu
         return low;                                                                                                    \
     }                                                                                                                  \
                                                                                                                        \
-    inline static void simsimd_intersect_##input_type##_##name(                                                        \
+    SIMSIMD_PUBLIC void simsimd_intersect_##input_type##_##name(                                                       \
         simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t a_length,                 \
         simsimd_size_t b_length, simsimd_distance_t* result) {                                                         \
         /* Swap arrays if necessary, as we want "b" to be larger than "a" */                                           \
@@ -152,9 +152,9 @@ SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u32, size) // simsimd_intersect_u32_ser
 #pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw")
 #pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw"))), apply_to = function)
 
-inline static void simsimd_intersect_u16_skylake(simsimd_u16_t const* shorter, simsimd_u16_t const* longer,
-                                                 simsimd_size_t shorter_length, simsimd_size_t longer_length,
-                                                 simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_intersect_u16_skylake(simsimd_u16_t const* shorter, simsimd_u16_t const* longer,
+                                                  simsimd_size_t shorter_length, simsimd_size_t longer_length,
+                                                  simsimd_distance_t* results) {
     simsimd_size_t intersection_count = 0;
     simsimd_size_t shorter_idx = 0, longer_idx = 0;
     simsimd_size_t longer_load_size = 32;
@@ -199,12 +199,12 @@ inline static void simsimd_intersect_u16_skylake(simsimd_u16_t const* shorter, s
     *results = intersection_count;
 }
 
-inline static void simsimd_intersect_u32_skylake(simsimd_u32_t const* shorter, simsimd_u32_t const* longer,
-                                                 simsimd_size_t shorter_length, simsimd_size_t longer_length,
-                                                 simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_intersect_u32_skylake(simsimd_u32_t const* shorter, simsimd_u32_t const* longer,
+                                                  simsimd_size_t shorter_length, simsimd_size_t longer_length,
+                                                  simsimd_distance_t* results) {
     simsimd_size_t intersection_count = 0;
     simsimd_size_t shorter_idx = 0, longer_idx = 0;
-    simsimd_size_t longer_load_size = 16; // Loading 16 x u32 = 512 bits
+    simsimd_size_t longer_load_size = 16;
 
     while (shorter_idx < shorter_length && longer_idx < longer_length) {
         // Load `shorter_member` and broadcast it to shorter vector, load `longer_members_vec` from memory.
@@ -250,6 +250,102 @@ inline static void simsimd_intersect_u32_skylake(simsimd_u32_t const* shorter, s
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SKYLAKE
 #endif // SIMSIMD_TARGET_X86
+
+#if SIMSIMD_TARGET_ARM
+#if SIMSIMD_TARGET_SVE
+
+#pragma GCC push_options
+#pragma GCC target("+sve")
+#pragma clang attribute push(__attribute__((target("+sve"))), apply_to = function)
+
+SIMSIMD_PUBLIC void simsimd_intersect_u16_sve(simsimd_u16_t const* shorter, simsimd_u16_t const* longer,
+                                              simsimd_size_t shorter_length, simsimd_size_t longer_length,
+                                              simsimd_distance_t* results) {
+    simsimd_size_t intersection_count = 0;
+    simsimd_size_t shorter_idx = 0, longer_idx = 0;
+    simsimd_size_t longer_load_size = svcnth();
+
+    while (shorter_idx < shorter_length && longer_idx < longer_length) {
+        // Load `shorter_member` and broadcast it, load `longer_members_vec` from memory
+        simsimd_size_t longer_remaining = longer_length - longer_idx;
+        simsimd_u16_t shorter_member = shorter[shorter_idx];
+        svbool_t pg = svwhilelt_b16_u64(longer_idx, longer_length);
+        svuint16_t shorter_member_vec = svdup_n_u16(shorter_member);
+        svuint16_t longer_members_vec = svld1_u16(pg, longer + longer_idx);
+
+        // Compare `shorter_member` with each element in `longer_members_vec`
+        svbool_t equal_mask = svcmpeq_u16(pg, shorter_member_vec, longer_members_vec);
+        simsimd_size_t equal_count = svcntp_b16(svptrue_b16(), equal_mask);
+        intersection_count += equal_count;
+
+        // Count the number of elements in `longer_members_vec` that are less than `shorter_member`
+        svbool_t smaller_mask = svcmplt_u16(pg, longer_members_vec, shorter_member_vec);
+        simsimd_size_t smaller_count = svcntp_b16(svptrue_b16(), smaller_mask);
+
+        // Advance pointers
+        longer_load_size = longer_remaining < longer_load_size ? longer_remaining : longer_load_size;
+        shorter_idx += (longer_load_size - smaller_count - equal_count) != 0;
+        longer_idx += smaller_count + equal_count;
+
+        // Swap arrays if necessary
+        if ((shorter_length - shorter_idx) > (longer_length - longer_idx)) {
+            simsimd_u16_t const* temp_array = shorter;
+            shorter = longer, longer = temp_array;
+            simsimd_size_t temp_length = shorter_length;
+            shorter_length = longer_length, longer_length = temp_length;
+            simsimd_size_t temp_idx = shorter_idx;
+            shorter_idx = longer_idx, longer_idx = temp_idx;
+        }
+    }
+    *results = intersection_count;
+}
+
+SIMSIMD_PUBLIC void simsimd_intersect_u32_sve(simsimd_u32_t const* shorter, simsimd_u32_t const* longer,
+                                              simsimd_size_t shorter_length, simsimd_size_t longer_length,
+                                              simsimd_distance_t* results) {
+    simsimd_size_t intersection_count = 0;
+    simsimd_size_t shorter_idx = 0, longer_idx = 0;
+    simsimd_size_t longer_load_size = svcntw();
+
+    while (shorter_idx < shorter_length && longer_idx < longer_length) {
+        // Load `shorter_member` and broadcast it, load `longer_members_vec` from memory
+        simsimd_size_t longer_remaining = longer_length - longer_idx;
+        simsimd_u32_t shorter_member = shorter[shorter_idx];
+        svbool_t pg = svwhilelt_b32_u64(longer_idx, longer_length);
+        svuint32_t shorter_member_vec = svdup_n_u32(shorter_member);
+        svuint32_t longer_members_vec = svld1_u32(pg, longer + longer_idx);
+
+        // Compare `shorter_member` with each element in `longer_members_vec`
+        svbool_t equal_mask = svcmpeq_u32(pg, shorter_member_vec, longer_members_vec);
+        simsimd_size_t equal_count = svcntp_b32(svptrue_b32(), equal_mask);
+        intersection_count += equal_count;
+
+        // Count the number of elements in `longer_members_vec` that are less than `shorter_member`
+        svbool_t smaller_mask = svcmplt_u32(pg, longer_members_vec, shorter_member_vec);
+        simsimd_size_t smaller_count = svcntp_b32(svptrue_b32(), smaller_mask);
+
+        // Advance pointers
+        longer_load_size = longer_remaining < longer_load_size ? longer_remaining : longer_load_size;
+        shorter_idx += (longer_load_size - smaller_count - equal_count) != 0;
+        longer_idx += smaller_count + equal_count;
+
+        // Swap arrays if necessary
+        if ((shorter_length - shorter_idx) > (longer_length - longer_idx)) {
+            simsimd_u32_t const* temp_array = shorter;
+            shorter = longer, longer = temp_array;
+            simsimd_size_t temp_length = shorter_length;
+            shorter_length = longer_length, longer_length = temp_length;
+            simsimd_size_t temp_idx = shorter_idx;
+            shorter_idx = longer_idx, longer_idx = temp_idx;
+        }
+    }
+    *results = intersection_count;
+}
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_SVE
+#endif // SIMSIMD_TARGET_ARM
 
 #ifdef __cplusplus
 }

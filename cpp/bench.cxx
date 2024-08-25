@@ -551,6 +551,9 @@ int main(int argc, char** argv) {
     dense_<simsimd_datatype_f64c_k>("dot_f64c_sve", simsimd_dot_f64c_sve, simsimd_dot_f64c_serial);
     dense_<simsimd_datatype_f64c_k>("vdot_f64c_sve", simsimd_vdot_f64c_sve, simsimd_vdot_f64c_serial);
 
+    sparse_<simsimd_datatype_u16_k>("intersect_u16_sve", simsimd_intersect_u16_sve, simsimd_intersect_u16_accurate);
+    sparse_<simsimd_datatype_u32_k>("intersect_u32_sve", simsimd_intersect_u32_sve, simsimd_intersect_u32_accurate);
+
 #endif
 
 #if SIMSIMD_TARGET_HASWELL
