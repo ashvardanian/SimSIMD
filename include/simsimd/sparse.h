@@ -261,10 +261,17 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_skylake(simsimd_u32_t const* shorter, 
 SIMSIMD_PUBLIC void simsimd_intersect_u16_sve(simsimd_u16_t const* shorter, simsimd_u16_t const* longer,
                                               simsimd_size_t shorter_length, simsimd_size_t longer_length,
                                               simsimd_distance_t* results) {
+
+    // SVE implementations with 128-bit registers can only fit 8x 16-bit words,
+    // making this kernel quite inefficient. Let's aim for registers of 256 bits and larger.
+    simsimd_size_t longer_load_size = svcnth();
+    if (longer_load_size < 16) {
+        simsimd_intersect_u32_serial(shorter, longer, shorter_length, longer_length, results);
+        return;
+    }
+
     simsimd_size_t intersection_count = 0;
     simsimd_size_t shorter_idx = 0, longer_idx = 0;
-    simsimd_size_t longer_load_size = svcnth();
-
     while (shorter_idx < shorter_length && longer_idx < longer_length) {
         // Load `shorter_member` and broadcast it, load `longer_members_vec` from memory
         simsimd_size_t longer_remaining = longer_length - longer_idx;
@@ -303,10 +310,17 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_sve(simsimd_u16_t const* shorter, sims
 SIMSIMD_PUBLIC void simsimd_intersect_u32_sve(simsimd_u32_t const* shorter, simsimd_u32_t const* longer,
                                               simsimd_size_t shorter_length, simsimd_size_t longer_length,
                                               simsimd_distance_t* results) {
+
+    // SVE implementations with 128-bit registers can only fit 4x 32-bit words,
+    // making this kernel quite inefficient. Let's aim for registers of 256 bits and larger.
+    simsimd_size_t longer_load_size = svcntw();
+    if (longer_load_size < 8) {
+        simsimd_intersect_u32_serial(shorter, longer, shorter_length, longer_length, results);
+        return;
+    }
+
     simsimd_size_t intersection_count = 0;
     simsimd_size_t shorter_idx = 0, longer_idx = 0;
-    simsimd_size_t longer_load_size = svcntw();
-
     while (shorter_idx < shorter_length && longer_idx < longer_length) {
         // Load `shorter_member` and broadcast it, load `longer_members_vec` from memory
         simsimd_size_t longer_remaining = longer_length - longer_idx;
