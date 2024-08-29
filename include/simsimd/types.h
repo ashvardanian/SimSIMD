@@ -328,8 +328,17 @@ typedef union {
 } simsimd_f32i32_t;
 
 /**
- *  @brief  Computes `1/sqrt(x)` using the trick from Quake 3, replacing
- *          magic numbers with the ones suggested by Jan Kadlec.
+ *  @brief  Computes `1/sqrt(x)` using the trick from Quake 3,
+ *          replacing the magic numbers with the ones suggested by Jan Kadlec.
+ *
+ *  Subsequent additions by hardware manufacturers have made this algorithm redundant for the most part.
+ *  For example, on x86, Intel introduced the SSE instruction `rsqrtss` in 1999. In a 2009 benchmark on
+ *  the Intel Core 2, this instruction took 0.85ns per float compared to 3.54ns for the fast inverse
+ *  square root algorithm, and had less error. Carmack’s Magic Number `rsqrt` had an average error
+ *  of 0.0990%, while SSE `rsqrtss` had 0.0094%, a 10x improvement.
+ *
+ *  https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
+ *  https://stackoverflow.com/a/41460625/2766161
  */
 SIMSIMD_PUBLIC simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_t number) {
     simsimd_f32i32_t conv;
@@ -362,19 +371,15 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
 SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_f16(unsigned short x) {
-    union float_or_unsigned_int_t {
-        float f;
-        unsigned int i;
-    };
     unsigned int exponent = (x & 0x7C00) >> 10;
     unsigned int mantissa = (x & 0x03FF) << 13;
-    union float_or_unsigned_int_t mantissa_union;
-    mantissa_union.f = (float)mantissa;
-    unsigned int v = (mantissa_union.i) >> 23;
-    union float_or_unsigned_int_t result_union;
-    result_union.i = (x & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
-                     ((exponent == 0) & (mantissa != 0)) * ((v - 37) << 23 | ((mantissa << (150 - v)) & 0x007FE000));
-    return result_union.f;
+    simsimd_f32i32_t mantissa_conv;
+    mantissa_conv.f = (float)mantissa;
+    unsigned int v = (mantissa_conv.i) >> 23;
+    simsimd_f32i32_t conv;
+    conv.i = (x & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
+             ((exponent == 0) & (mantissa != 0)) * ((v - 37) << 23 | ((mantissa << (150 - v)) & 0x007FE000));
+    return conv.f;
 }
 
 /**
@@ -387,13 +392,9 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_f16(unsigned short x) {
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
 SIMSIMD_PUBLIC unsigned short simsimd_compress_f16(simsimd_f32_t x) {
-    union float_or_unsigned_int_t {
-        float f;
-        unsigned int i;
-    } x_union;
-    x_union.f = x;
-
-    unsigned int b = x_union.i + 0x00001000;
+    simsimd_f32i32_t conv;
+    conv.f = x;
+    unsigned int b = conv.i + 0x00001000;
     unsigned int e = (b & 0x7F800000) >> 23;
     unsigned int m = b & 0x007FFFFF;
     unsigned short result = ((b & 0x80000000) >> 16) | (e > 112) * ((((e - 112) << 10) & 0x7C00) | (m >> 13)) |
@@ -410,13 +411,9 @@ SIMSIMD_PUBLIC unsigned short simsimd_compress_f16(simsimd_f32_t x) {
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
 SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_bf16(unsigned short x) {
-    union float_or_unsigned_int_t {
-        float f;
-        unsigned int i;
-    };
-    union float_or_unsigned_int_t result_union;
-    result_union.i = x << 16; // Zero extends the mantissa
-    return result_union.f;
+    simsimd_f32i32_t conv;
+    conv.i = x << 16; // Zero extends the mantissa
+    return conv.f;
 }
 
 /**
@@ -426,15 +423,11 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_bf16(unsigned short x) {
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
 SIMSIMD_PUBLIC unsigned short simsimd_compress_bf16(simsimd_f32_t x) {
-    union float_or_unsigned_int_t {
-        float f;
-        unsigned int i;
-    };
-    union float_or_unsigned_int_t value;
-    value.f = x;
-    value.i >>= 16;
-    value.i &= 0xFFFF;
-    return (unsigned short)value.i;
+    simsimd_f32i32_t conv;
+    conv.f = x;
+    conv.i >>= 16;
+    conv.i &= 0xFFFF;
+    return (unsigned short)conv.i;
 }
 
 #ifdef __cplusplus
