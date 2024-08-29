@@ -100,12 +100,25 @@
 #define SIMSIMD_DYNAMIC_DISPATCH (0) // true or false
 #endif
 
+/*  When building on Arm, we need to undefine the `__ARM_ARCH` macro, as every push-options
+ *  section will be trying to redefine those, resulting in compilation warnings.
+ */
+#if defined(__ARM_ARCH)
+#define SIMSIMD_DEFAULT_TARGET_ARM __ARM_ARCH
+#undef __ARM_ARCH
+#endif
+
 #include "binary.h"      // Hamming, Jaccard
 #include "dot.h"         // Inner (dot) product, and its conjugate
 #include "geospatial.h"  // Haversine and Vincenty
 #include "probability.h" // Kullback-Leibler, Jensen–Shannon
 #include "sparse.h"      // Intersect
 #include "spatial.h"     // L2, Cosine
+
+#if defined(SIMSIMD_DEFAULT_TARGET_ARM)
+#define __ARM_ARCH SIMSIMD_DEFAULT_TARGET_ARM
+#undef SIMSIMD_DEFAULT_TARGET_ARM
+#endif
 
 // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
 #if defined(SIMSIMD_DEFINED_APPLE)
@@ -313,6 +326,11 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_x86(void) {
 
 #if SIMSIMD_TARGET_ARM
 
+#if defined(__ARM_ARCH)
+#define SIMSIMD_DEFAULT_TARGET_ARM __ARM_ARCH
+#undef __ARM_ARCH
+#endif
+
 /*  Compiling the next section one may get: selected processor does not support system register name 'id_aa64zfr0_el1'.
  *  Suppressing assembler errors is very complicated, so when dealing with older ARM CPUs it's simpler to compile this
  *  function targeting newer ones.
@@ -424,6 +442,12 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_arm(void) {
 
 #pragma clang attribute pop
 #pragma GCC pop_options
+
+#if defined(SIMSIMD_DEFAULT_TARGET_ARM)
+#define __ARM_ARCH SIMSIMD_DEFAULT_TARGET_ARM
+#undef SIMSIMD_DEFAULT_TARGET_ARM
+#endif
+
 #endif
 
 /**
