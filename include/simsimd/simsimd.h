@@ -168,14 +168,14 @@ typedef enum {
     simsimd_cap_genoa_k = 1 << 13,    ///< x86 AVX512 capability with `bf16` support
     simsimd_cap_sapphire_k = 1 << 14, ///< x86 AVX512 capability with `f16` support
 
-    simsimd_cap_neon_k = 1 << 20,      ///< ARM NEON capability
-    simsimd_cap_neon_f16_k = 1 << 21,  ///< ARM NEON FP16 capability
-    simsimd_cap_neon_bf16_k = 1 << 22, ///< ARM NEON BF16 capability
-    simsimd_cap_neon_i8_k = 1 << 23,   ///< ARM NEON Int8 capability
-    simsimd_cap_sve_k = 1 << 24,       ///< ARM SVE capability
-    simsimd_cap_sve_f16_k = 1 << 25,   ///< ARM SVE FP16 capability
-    simsimd_cap_sve_bf16_k = 1 << 26,  ///< ARM SVE BF16 capability
-    simsimd_cap_sve_i8_k = 1 << 27,    ///< ARM SVE Int8 capability
+    simsimd_cap_neon_k = 1 << 20,      ///< ARM NEON baseline capability
+    simsimd_cap_neon_f16_k = 1 << 21,  ///< ARM NEON `f16` capability
+    simsimd_cap_neon_bf16_k = 1 << 22, ///< ARM NEON `bf16` capability
+    simsimd_cap_neon_i8_k = 1 << 23,   ///< ARM NEON `i8` capability
+    simsimd_cap_sve_k = 1 << 24,       ///< ARM SVE baseline capability
+    simsimd_cap_sve_f16_k = 1 << 25,   ///< ARM SVE `f16` capability
+    simsimd_cap_sve_bf16_k = 1 << 26,  ///< ARM SVE `bf16` capability
+    simsimd_cap_sve_i8_k = 1 << 27,    ///< ARM SVE `i8` capability
 
 } simsimd_capability_t;
 

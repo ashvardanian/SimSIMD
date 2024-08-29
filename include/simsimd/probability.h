@@ -213,7 +213,9 @@ SIMSIMD_PUBLIC void simsimd_js_f32_neon(simsimd_f32_t const* a, simsimd_f32_t co
 
 #pragma clang attribute pop
 #pragma GCC pop_options
+#endif // SIMSIMD_TARGET_NEON
 
+#if SIMSIMD_TARGET_NEON_F16
 #pragma GCC push_options
 #pragma GCC target("+simd+fp16")
 #pragma clang attribute push(__attribute__((target("+simd+fp16"))), apply_to = function)
@@ -272,7 +274,7 @@ SIMSIMD_PUBLIC void simsimd_js_f16_neon(simsimd_f16_t const* a, simsimd_f16_t co
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_NEON
+#endif // SIMSIMD_TARGET_NEON_F16
 #endif // SIMSIMD_TARGET_ARM
 
 #if SIMSIMD_TARGET_X86
