@@ -356,31 +356,41 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_neon(simsimd_i8_t const* a, simsimd_i8_t cons
 #pragma GCC target("+simd+fp16")
 #pragma clang attribute push(__attribute__((target("+simd+fp16"))), apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_dot_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
-                                         simsimd_distance_t* result) {
-    float32x4_t ab_vec = vdupq_n_f32(0);
-    simsimd_size_t i = 0;
-    for (; i + 4 <= n; i += 4) {
-        float32x4_t a_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)a + i));
-        float32x4_t b_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)b + i));
-        ab_vec = vfmaq_f32(ab_vec, a_vec, b_vec);
-    }
-
+inline float16x4_t simsimd_partial_load_f16x4_neon(simsimd_f16_t const* a, simsimd_size_t n) {
     // In case the software emulation for `f16` scalars is enabled, the `simsimd_uncompress_f16`
     // function will run. It is extremely slow, so even for the tail, let's combine serial
     // loads and stores with vectorized math.
-    if (i < n) {
-        union {
-            float16x4_t f16_vec;
-            simsimd_f16_t f16[4];
-        } a_padded_tail, b_padded_tail;
-        simsimd_size_t j = 0;
-        for (; i < n; ++i, ++j)
-            a_padded_tail.f16[j] = a[i], b_padded_tail.f16[j] = b[i];
-        for (; j < 4; ++j)
-            a_padded_tail.f16[j] = 0, b_padded_tail.f16[j] = 0;
-        ab_vec = vfmaq_f32(ab_vec, vcvt_f32_f16(a_padded_tail.f16_vec), vcvt_f32_f16(b_padded_tail.f16_vec));
+    union {
+        float16x4_t vec;
+        simsimd_f16_t scalars[4];
+    } result;
+    simsimd_size_t i = 0;
+    for (; i < n; ++i)
+        result.scalars[i] = a[i];
+    for (; i < 4; ++i)
+        result.scalars[i] = 0;
+    return result.vec;
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                         simsimd_distance_t* result) {
+    float32x4_t ab_vec = vdupq_n_f32(0);
+    float32x4_t a_vec, b_vec;
+    simsimd_size_t i = 0;
+
+simsimd_dot_f16_neon_cycle:
+    if (n < 4) {
+        a_vec = vcvt_f32_f16(simsimd_partial_load_f16x4_neon(a, n));
+        b_vec = vcvt_f32_f16(simsimd_partial_load_f16x4_neon(b, n));
+        n = 0;
+    } else {
+        a_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)a));
+        b_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)b));
+        a += 4, b += 4, n -= 4;
     }
+    ab_vec = vfmaq_f32(ab_vec, a_vec, b_vec);
+    if (n)
+        goto simsimd_dot_f16_neon_cycle;
     *result = vaddvq_f32(ab_vec);
 }
 
@@ -392,13 +402,13 @@ SIMSIMD_PUBLIC void simsimd_dot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t 
     // at once. That's how the original implementation worked, but compiling it was a nightmare :)
     float32x4_t ab_real_vec = vdupq_n_f32(0);
     float32x4_t ab_imag_vec = vdupq_n_f32(0);
-    simsimd_size_t i = 0;
-    for (; i + 8 <= n; i += 8) {
+
+    while (n >= 8) {
         // Unpack the input arrays into real and imaginary parts.
         // MSVC sadly doesn't recognize the `vld2_f16`, so we load the  data as signed
         // integers of the same size and reinterpret with `vreinterpret_f16_s16` afterwards.
-        int16x4x2_t a_vec = vld2_s16((short*)a + i);
-        int16x4x2_t b_vec = vld2_s16((short*)b + i);
+        int16x4x2_t a_vec = vld2_s16((short*)a);
+        int16x4x2_t b_vec = vld2_s16((short*)b);
         float32x4_t a_real_vec = vcvt_f32_f16(vreinterpret_f16_s16(a_vec.val[0]));
         float32x4_t a_imag_vec = vcvt_f32_f16(vreinterpret_f16_s16(a_vec.val[1]));
         float32x4_t b_real_vec = vcvt_f32_f16(vreinterpret_f16_s16(b_vec.val[0]));
@@ -409,20 +419,14 @@ SIMSIMD_PUBLIC void simsimd_dot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t 
         ab_real_vec = vfmsq_f32(ab_real_vec, a_imag_vec, b_imag_vec);
         ab_imag_vec = vfmaq_f32(ab_imag_vec, a_real_vec, b_imag_vec);
         ab_imag_vec = vfmaq_f32(ab_imag_vec, a_imag_vec, b_real_vec);
+
+        n -= 8, a += 8, b += 8;
     }
 
-    // Reduce horizontal sums:
-    simsimd_f32_t ab_real = vaddvq_f32(ab_real_vec);
-    simsimd_f32_t ab_imag = vaddvq_f32(ab_imag_vec);
-
-    // Handle the tail:
-    for (; i + 2 <= n; i += 2) {
-        simsimd_f32_t ar = a[i], ai = a[i + 1], br = b[i], bi = b[i + 1];
-        ab_real += ar * br - ai * bi;
-        ab_imag += ar * bi + ai * br;
-    }
-    results[0] = ab_real;
-    results[1] = ab_imag;
+    // Reduce horizontal sums and aggregate with the tail:
+    simsimd_dot_f16c_serial(a, b, n, results);
+    results[0] += vaddvq_f32(ab_real_vec);
+    results[1] += vaddvq_f32(ab_imag_vec);
 }
 
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, //
@@ -433,13 +437,13 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t
     // at once. That's how the original implementation worked, but compiling it was a nightmare :)
     float32x4_t ab_real_vec = vdupq_n_f32(0);
     float32x4_t ab_imag_vec = vdupq_n_f32(0);
-    simsimd_size_t i = 0;
-    for (; i + 8 <= n; i += 8) {
+
+    while (n >= 8) {
         // Unpack the input arrays into real and imaginary parts.
         // MSVC sadly doesn't recognize the `vld2_f16`, so we load the  data as signed
         // integers of the same size and reinterpret with `vreinterpret_f16_s16` afterwards.
-        int16x4x2_t a_vec = vld2_s16((short*)a + i);
-        int16x4x2_t b_vec = vld2_s16((short*)b + i);
+        int16x4x2_t a_vec = vld2_s16((short*)a);
+        int16x4x2_t b_vec = vld2_s16((short*)b);
         float32x4_t a_real_vec = vcvt_f32_f16(vreinterpret_f16_s16(a_vec.val[0]));
         float32x4_t a_imag_vec = vcvt_f32_f16(vreinterpret_f16_s16(a_vec.val[1]));
         float32x4_t b_real_vec = vcvt_f32_f16(vreinterpret_f16_s16(b_vec.val[0]));
@@ -450,20 +454,14 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t
         ab_real_vec = vfmaq_f32(ab_real_vec, a_imag_vec, b_imag_vec);
         ab_imag_vec = vfmaq_f32(ab_imag_vec, a_real_vec, b_imag_vec);
         ab_imag_vec = vfmsq_f32(ab_imag_vec, a_imag_vec, b_real_vec);
+
+        n -= 8, a += 8, b += 8;
     }
 
-    // Reduce horizontal sums:
-    simsimd_f32_t ab_real = vaddvq_f32(ab_real_vec);
-    simsimd_f32_t ab_imag = vaddvq_f32(ab_imag_vec);
-
-    // Handle the tail:
-    for (; i + 2 <= n; i += 2) {
-        simsimd_f32_t ar = a[i], ai = a[i + 1], br = b[i], bi = b[i + 1];
-        ab_real += ar * br + ai * bi;
-        ab_imag += ar * bi - ai * br;
-    }
-    results[0] = ab_real;
-    results[1] = ab_imag;
+    // Reduce horizontal sums and aggregate with the tail:
+    simsimd_vdot_f16c_serial(a, b, n, results);
+    results[0] += vaddvq_f32(ab_real_vec);
+    results[1] += vaddvq_f32(ab_imag_vec);
 }
 
 #pragma clang attribute pop
@@ -475,33 +473,40 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
 
+inline bfloat16x8_t simsimd_partial_load_bf16x8_neon(simsimd_bf16_t const* a, simsimd_size_t n) {
+    union {
+        bfloat16x8_t vec;
+        simsimd_bf16_t scalars[8];
+    } result;
+    simsimd_size_t i = 0;
+    for (; i < n; ++i)
+        result.scalars[i] = a[i];
+    for (; i < 8; ++i)
+        result.scalars[i] = 0;
+    return result.vec;
+}
+
 SIMSIMD_PUBLIC void simsimd_dot_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                           simsimd_distance_t* result) {
-    float32x4_t ab_high_vec = vdupq_n_f32(0), ab_low_vec = vdupq_n_f32(0);
-    simsimd_size_t i = 0;
-    for (; i + 8 <= n; i += 8) {
-        bfloat16x8_t a_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)a + i);
-        bfloat16x8_t b_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)b + i);
-        ab_high_vec = vbfmlaltq_f32(ab_high_vec, a_vec, b_vec);
-        ab_low_vec = vbfmlalbq_f32(ab_low_vec, a_vec, b_vec);
-    }
 
-    // In case the software emulation for `bf16` scalars is enabled, the `simsimd_uncompress_bf16`
-    // function will run. It is extremely slow, so even for the tail, let's combine serial
-    // loads and stores with vectorized math.
-    if (i < n) {
-        union {
-            bfloat16x8_t bf16_vec;
-            simsimd_bf16_t bf16[8];
-        } a_padded_tail, b_padded_tail;
-        simsimd_size_t j = 0;
-        for (; i < n; ++i, ++j)
-            a_padded_tail.bf16[j] = a[i], b_padded_tail.bf16[j] = b[i];
-        for (; j < 8; ++j)
-            a_padded_tail.bf16[j] = 0, b_padded_tail.bf16[j] = 0;
-        ab_high_vec = vbfmlaltq_f32(ab_high_vec, a_padded_tail.bf16_vec, b_padded_tail.bf16_vec);
-        ab_low_vec = vbfmlalbq_f32(ab_low_vec, a_padded_tail.bf16_vec, b_padded_tail.bf16_vec);
+    float32x4_t ab_high_vec = vdupq_n_f32(0), ab_low_vec = vdupq_n_f32(0);
+    bfloat16x8_t a_vec, b_vec;
+
+simsimd_dot_bf16_neon_cycle:
+    if (n < 8) {
+        a_vec = simsimd_partial_load_bf16x8_neon(a, n);
+        b_vec = simsimd_partial_load_bf16x8_neon(b, n);
+        n = 0;
+    } else {
+        a_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)a);
+        b_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)b);
+        a += 4, b += 4, n -= 4;
     }
+    ab_high_vec = vbfmlaltq_f32(ab_high_vec, a_vec, b_vec);
+    ab_low_vec = vbfmlalbq_f32(ab_low_vec, a_vec, b_vec);
+    if (n)
+        goto simsimd_dot_bf16_neon_cycle;
+
     *result = vaddvq_f32(ab_high_vec) + vaddvq_f32(ab_low_vec);
 }
 
@@ -513,8 +518,8 @@ SIMSIMD_PUBLIC void simsimd_dot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf16
     // at once. That's how the original implementation worked, but compiling it was a nightmare :)
     float32x4_t ab_real_vec = vdupq_n_f32(0);
     float32x4_t ab_imag_vec = vdupq_n_f32(0);
-    simsimd_size_t i = 0;
-    for (; i + 8 <= n; i += 8) {
+
+    while (n >= 8) {
         // Unpack the input arrays into real and imaginary parts.
         // MSVC sadly doesn't recognize the `vld2_bf16`, so we load the  data as signed
         // integers of the same size and reinterpret with `vreinterpret_bf16_s16` afterwards.
@@ -530,20 +535,14 @@ SIMSIMD_PUBLIC void simsimd_dot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf16
         ab_real_vec = vfmsq_f32(ab_real_vec, a_imag_vec, b_imag_vec);
         ab_imag_vec = vfmaq_f32(ab_imag_vec, a_real_vec, b_imag_vec);
         ab_imag_vec = vfmaq_f32(ab_imag_vec, a_imag_vec, b_real_vec);
+
+        n -= 8, a += 8, b += 8;
     }
 
-    // Reduce horizontal sums:
-    simsimd_f32_t ab_real = vaddvq_f32(ab_real_vec);
-    simsimd_f32_t ab_imag = vaddvq_f32(ab_imag_vec);
-
-    // Handle the tail:
-    for (; i + 2 <= n; i += 2) {
-        simsimd_f32_t ar = a[i], ai = a[i + 1], br = b[i], bi = b[i + 1];
-        ab_real += ar * br - ai * bi;
-        ab_imag += ar * bi + ai * br;
-    }
-    results[0] = ab_real;
-    results[1] = ab_imag;
+    // Reduce horizontal sums and aggregate with the tail:
+    simsimd_dot_bf16c_serial(a, b, n, results);
+    results[0] += vaddvq_f32(ab_real_vec);
+    results[1] += vaddvq_f32(ab_imag_vec);
 }
 
 SIMSIMD_PUBLIC void simsimd_vdot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, //
@@ -554,8 +553,8 @@ SIMSIMD_PUBLIC void simsimd_vdot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf1
     // at once. That's how the original implementation worked, but compiling it was a nightmare :)
     float32x4_t ab_real_vec = vdupq_n_f32(0);
     float32x4_t ab_imag_vec = vdupq_n_f32(0);
-    simsimd_size_t i = 0;
-    for (; i + 8 <= n; i += 8) {
+
+    while (n >= 8) {
         // Unpack the input arrays into real and imaginary parts.
         // MSVC sadly doesn't recognize the `vld2_bf16`, so we load the  data as signed
         // integers of the same size and reinterpret with `vreinterpret_bf16_s16` afterwards.
@@ -571,20 +570,14 @@ SIMSIMD_PUBLIC void simsimd_vdot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf1
         ab_real_vec = vfmaq_f32(ab_real_vec, a_imag_vec, b_imag_vec);
         ab_imag_vec = vfmaq_f32(ab_imag_vec, a_real_vec, b_imag_vec);
         ab_imag_vec = vfmsq_f32(ab_imag_vec, a_imag_vec, b_real_vec);
+
+        n -= 8, a += 8, b += 8;
     }
 
-    // Reduce horizontal sums:
-    simsimd_f32_t ab_real = vaddvq_f32(ab_real_vec);
-    simsimd_f32_t ab_imag = vaddvq_f32(ab_imag_vec);
-
-    // Handle the tail:
-    for (; i + 2 <= n; i += 2) {
-        simsimd_f32_t ar = a[i], ai = a[i + 1], br = b[i], bi = b[i + 1];
-        ab_real += ar * br + ai * bi;
-        ab_imag += ar * bi - ai * br;
-    }
-    results[0] = ab_real;
-    results[1] = ab_imag;
+    // Reduce horizontal sums and aggregate with the tail:
+    simsimd_vdot_bf16c_serial(a, b, n, results);
+    results[0] += vaddvq_f32(ab_real_vec);
+    results[1] += vaddvq_f32(ab_imag_vec);
 }
 
 #pragma clang attribute pop
@@ -798,43 +791,6 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t 
 #pragma GCC target("avx2", "f16c", "fma")
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_dot_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
-                                            simsimd_distance_t* result) {
-    __m256 ab_vec = _mm256_setzero_ps();
-    simsimd_size_t i = 0;
-    for (; i + 8 <= n; i += 8) {
-        __m256 a_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)(a + i)));
-        __m256 b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)(b + i)));
-        ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
-    }
-
-    // In case the software emulation for `f16` scalars is enabled, the `simsimd_uncompress_f16`
-    // function will run. It is extremely slow, so even for the tail, let's combine serial
-    // loads and stores with vectorized math.
-    if (i < n) {
-        union {
-            __m128i f16_vec;
-            simsimd_f16_t f16[8];
-        } a_padded_tail, b_padded_tail;
-        simsimd_size_t j = 0;
-        for (; i < n; ++i, ++j)
-            a_padded_tail.f16[j] = a[i], b_padded_tail.f16[j] = b[i];
-        for (; j < 8; ++j)
-            a_padded_tail.f16[j] = 0, b_padded_tail.f16[j] = 0;
-        __m256 a_vec = _mm256_cvtph_ps(a_padded_tail.f16_vec);
-        __m256 b_vec = _mm256_cvtph_ps(b_padded_tail.f16_vec);
-        ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
-    }
-
-    ab_vec = _mm256_add_ps(_mm256_permute2f128_ps(ab_vec, ab_vec, 1), ab_vec);
-    ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
-    ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
-
-    simsimd_f32_t f32_result;
-    _mm_store_ss(&f32_result, _mm256_castps256_ps128(ab_vec));
-    *result = f32_result;
-}
-
 inline simsimd_f64_t _mm256_reduce_add_ps_dbl(__m256 vec) {
     // Convert the lower and higher 128-bit lanes of the input vector to double precision
     __m128 low_f32 = _mm256_castps256_ps128(vec);
@@ -984,6 +940,44 @@ SIMSIMD_PUBLIC void simsimd_vdot_f32c_haswell(simsimd_f32_t const* a, simsimd_f3
     results[1] = ab_imag;
 }
 
+inline __m256 simsimd_partial_load_f16x8_haswell(simsimd_f16_t const* a, simsimd_size_t n) {
+    // In case the software emulation for `f16` scalars is enabled, the `simsimd_uncompress_f16`
+    // function will run. It is extremely slow, so even for the tail, let's combine serial
+    // loads and stores with vectorized math.
+    union {
+        __m128i vec;
+        simsimd_f16_t scalars[8];
+    } result;
+    simsimd_size_t i = 0;
+    for (; i < n; ++i)
+        result.scalars[i] = a[i];
+    for (; i < 8; ++i)
+        result.scalars[i] = 0;
+    return _mm256_cvtph_ps(result.vec);
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                            simsimd_distance_t* result) {
+    __m256 a_vec, b_vec;
+    __m256 ab_vec = _mm256_setzero_ps();
+
+simsimd_dot_f16_haswell_cycle:
+    if (n < 8) {
+        a_vec = simsimd_partial_load_f16x8_haswell(a, n);
+        b_vec = simsimd_partial_load_f16x8_haswell(b, n);
+        n = 0;
+    } else {
+        a_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)a));
+        b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)b));
+        n -= 8, a += 8, b += 8;
+    }
+    ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
+    if (n)
+        goto simsimd_dot_f16_haswell_cycle;
+
+    *result = _mm256_reduce_add_ps_dbl(ab_vec);
+}
+
 SIMSIMD_PUBLIC void simsimd_dot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                              simsimd_distance_t* results) {
     // Ideally the implementation would load 256 bits worth of vector data at a time,
@@ -1006,40 +1000,22 @@ SIMSIMD_PUBLIC void simsimd_dot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16
         3, 2, 1, 0,                              // Points to the first f32 in 128-bit lane
         7, 6, 5, 4                               // Points to the second f32 in 128-bit lane
     );
-    simsimd_size_t i = 0;
-    for (; i + 8 <= n; i += 8) {
-        __m256 a_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)(a + i)));
-        __m256 b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)(b + i)));
+
+    while (n >= 8) {
+        __m256 a_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)a));
+        __m256 b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)b));
         __m256 b_flipped_vec = _mm256_castsi256_ps(_mm256_xor_si256(_mm256_castps_si256(b_vec), sign_flip_vec));
         __m256 b_swapped_vec = _mm256_castsi256_ps(_mm256_shuffle_epi8(_mm256_castps_si256(b_vec), swap_adjacent_vec));
         ab_real_vec = _mm256_fmadd_ps(a_vec, b_flipped_vec, ab_real_vec);
         ab_imag_vec = _mm256_fmadd_ps(a_vec, b_swapped_vec, ab_imag_vec);
+
+        n -= 8, a += 8, b += 8;
     }
 
-    // In case the software emulation for `f16` scalars is enabled, the `simsimd_uncompress_f16`
-    // function will run. It is extremely slow, so even for the tail, let's combine serial
-    // loads and stores with vectorized math.
-    if (i < n) {
-        union {
-            __m128i f16_vec;
-            simsimd_f16_t f16[8];
-        } a_padded_tail, b_padded_tail;
-        simsimd_size_t j = 0;
-        for (; i < n; ++i, ++j)
-            a_padded_tail.f16[j] = a[i], b_padded_tail.f16[j] = b[i];
-        for (; j < 8; ++j)
-            a_padded_tail.f16[j] = 0, b_padded_tail.f16[j] = 0;
-        __m256 a_vec = _mm256_cvtph_ps(a_padded_tail.f16_vec);
-        __m256 b_vec = _mm256_cvtph_ps(b_padded_tail.f16_vec);
-        __m256 b_flipped_vec = _mm256_castsi256_ps(_mm256_xor_si256(_mm256_castps_si256(b_vec), sign_flip_vec));
-        __m256 b_swapped_vec = _mm256_castsi256_ps(_mm256_shuffle_epi8(_mm256_castps_si256(b_vec), swap_adjacent_vec));
-        ab_real_vec = _mm256_fmadd_ps(a_vec, b_flipped_vec, ab_real_vec);
-        ab_imag_vec = _mm256_fmadd_ps(a_vec, b_swapped_vec, ab_imag_vec);
-    }
-
-    // Reduce horizontal sums:
-    results[0] = _mm256_reduce_add_ps_dbl(ab_real_vec);
-    results[1] = _mm256_reduce_add_ps_dbl(ab_imag_vec);
+    // Reduce horizontal sums and aggregate with the tail:
+    simsimd_dot_f16c_serial(a, b, n, results);
+    results[0] += _mm256_reduce_add_ps_dbl(ab_real_vec);
+    results[1] += _mm256_reduce_add_ps_dbl(ab_imag_vec);
 }
 
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
@@ -1058,38 +1034,20 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_haswell(simsimd_f16_t const* a, simsimd_f1
         3, 2, 1, 0,                              // Points to the first f32 in 128-bit lane
         7, 6, 5, 4                               // Points to the second f32 in 128-bit lane
     );
-    simsimd_size_t i = 0;
-    for (; i + 8 <= n; i += 8) {
-        __m256 a_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)(a + i)));
-        __m256 b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)(b + i)));
+
+    while (n >= 8) {
+        __m256 a_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)a));
+        __m256 b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)b));
         ab_real_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_real_vec);
         a_vec = _mm256_castsi256_ps(_mm256_xor_si256(_mm256_castps_si256(a_vec), sign_flip_vec));
         b_vec = _mm256_castsi256_ps(_mm256_shuffle_epi8(_mm256_castps_si256(b_vec), swap_adjacent_vec));
         ab_imag_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_imag_vec);
+
+        n -= 8, a += 8, b += 8;
     }
 
-    // In case the software emulation for `f16` scalars is enabled, the `simsimd_uncompress_f16`
-    // function will run. It is extremely slow, so even for the tail, let's combine serial
-    // loads and stores with vectorized math.
-    if (i < n) {
-        union {
-            __m128i f16_vec;
-            simsimd_f16_t f16[8];
-        } a_padded_tail, b_padded_tail;
-        simsimd_size_t j = 0;
-        for (; i < n; ++i, ++j)
-            a_padded_tail.f16[j] = a[i], b_padded_tail.f16[j] = b[i];
-        for (; j < 8; ++j)
-            a_padded_tail.f16[j] = 0, b_padded_tail.f16[j] = 0;
-        __m256 a_vec = _mm256_cvtph_ps(a_padded_tail.f16_vec);
-        __m256 b_vec = _mm256_cvtph_ps(b_padded_tail.f16_vec);
-        ab_real_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_real_vec);
-        a_vec = _mm256_castsi256_ps(_mm256_xor_si256(_mm256_castps_si256(a_vec), sign_flip_vec));
-        b_vec = _mm256_castsi256_ps(_mm256_shuffle_epi8(_mm256_castps_si256(b_vec), swap_adjacent_vec));
-        ab_imag_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_imag_vec);
-    }
-
-    // Reduce horizontal sums:
+    // Reduce horizontal sums and aggregate with the tail:
+    simsimd_dot_f16c_serial(a, b, n, results);
     results[0] = _mm256_reduce_add_ps_dbl(ab_real_vec);
     results[1] = _mm256_reduce_add_ps_dbl(ab_imag_vec);
 }
@@ -1125,49 +1083,52 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t c
     // Take care of the tail:
     int ab = _mm_extract_epi32(ab_sum, 0);
     for (; i < n; ++i)
-        ab += a[i] * b[i];
+        ab += (int)(a[i]) * b[i];
     *result = ab;
+}
+
+inline __m256 simsimd_bf16x8_to_f32x8_haswell(__m128i a) {
+    // Upcasting from `bf16` to `f32` is done by shifting the `bf16` values by 16 bits to the left, like:
+    // x = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(x), 16))
+    return _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(a), 16));
+}
+
+inline __m128i simsimd_partial_load_bf16x8_haswell(simsimd_bf16_t const* a, simsimd_size_t n) {
+    // In case the software emulation for `bf16` scalars is enabled, the `simsimd_uncompress_bf16`
+    // function will run. It is extremely slow, so even for the tail, let's combine serial
+    // loads and stores with vectorized math.
+    union {
+        __m128i vec;
+        simsimd_bf16_t scalars[8];
+    } result;
+    simsimd_size_t i = 0;
+    for (; i < n; ++i)
+        result.scalars[i] = a[i];
+    for (; i < 8; ++i)
+        result.scalars[i] = 0;
+    return result.vec;
 }
 
 SIMSIMD_PUBLIC void simsimd_dot_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                              simsimd_distance_t* result) {
+    __m128i a_vec, b_vec;
     __m256 ab_vec = _mm256_setzero_ps();
-    simsimd_size_t i = 0;
-    for (; i + 8 <= n; i += 8) {
-        // Upcasting from `bf16` to `f32` is done by shifting the `bf16` values by 16 bits to the left, like:
-        // x = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(x), 16))
-        __m256 a_vec =
-            _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(_mm_loadu_si128((__m128i const*)(a + i))), 16));
-        __m256 b_vec =
-            _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(_mm_loadu_si128((__m128i const*)(b + i))), 16));
-        ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
+
+simsimd_dot_bf16_haswell_cycle:
+    if (n < 8) {
+        a_vec = simsimd_partial_load_bf16x8_haswell(a, n);
+        b_vec = simsimd_partial_load_bf16x8_haswell(b, n);
+        n = 0;
+    } else {
+        a_vec = _mm_loadu_si128((__m128i const*)a);
+        b_vec = _mm_loadu_si128((__m128i const*)b);
+        a += 8, b += 8, n -= 8;
     }
+    ab_vec = _mm256_fmadd_ps(simsimd_bf16x8_to_f32x8_haswell(a_vec), simsimd_bf16x8_to_f32x8_haswell(b_vec), ab_vec);
+    if (n)
+        goto simsimd_dot_bf16_haswell_cycle;
 
-    // In case the software emulation for `bf16` scalars is enabled, the `simsimd_uncompress_bf16`
-    // function will run. It is extremely slow, so even for the tail, let's combine serial
-    // loads and stores with vectorized math.
-    if (i < n) {
-        union {
-            __m128i bf16_vec;
-            simsimd_bf16_t bf16[8];
-        } a_padded_tail, b_padded_tail;
-        simsimd_size_t j = 0;
-        for (; i < n; ++i, ++j)
-            a_padded_tail.bf16[j] = a[i], b_padded_tail.bf16[j] = b[i];
-        for (; j < 8; ++j)
-            a_padded_tail.bf16[j] = 0, b_padded_tail.bf16[j] = 0;
-        __m256 a_vec = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(a_padded_tail.bf16_vec), 16));
-        __m256 b_vec = _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(b_padded_tail.bf16_vec), 16));
-        ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
-    }
-
-    ab_vec = _mm256_add_ps(_mm256_permute2f128_ps(ab_vec, ab_vec, 1), ab_vec);
-    ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
-    ab_vec = _mm256_hadd_ps(ab_vec, ab_vec);
-
-    simsimd_f32_t f32_result;
-    _mm_store_ss(&f32_result, _mm256_castps256_ps128(ab_vec));
-    *result = f32_result;
+    *result = _mm256_reduce_add_ps_dbl(ab_vec);
 }
 
 #pragma clang attribute pop
