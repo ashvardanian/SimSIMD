@@ -371,34 +371,34 @@ def test_batch(ndim, dtype):
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
-    result_simd = simd.sqeuclidean(A, B)
+    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float32)
     assert np.allclose(result_simd, result_np, atol=0, rtol=SIMSIMD_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (1 x D scalars) is an array with N floats.
     B = np.random.randn(1, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B[0]) for i in range(10)]
-    result_simd = simd.sqeuclidean(A, B)
+    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float32)
     assert np.allclose(result_simd, result_np, atol=0, rtol=SIMSIMD_RTOL)
 
     # Distance between matrixes A (1 x D scalars) and B (N x D scalars) is an array with N floats.
     A = np.random.randn(1, ndim).astype(dtype)
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[0], B[i]) for i in range(10)]
-    result_simd = simd.sqeuclidean(A, B)
+    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float32)
     assert np.allclose(result_simd, result_np, atol=0, rtol=SIMSIMD_RTOL)
 
     # Distance between matrix A (N x D scalars) and array B (D scalars) is an array with N floats.
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.random.randn(ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B) for i in range(10)]
-    result_simd = simd.sqeuclidean(A, B)
+    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float32)
     assert np.allclose(result_simd, result_np, atol=0, rtol=SIMSIMD_RTOL)
 
     # Distance between matrix B (N x D scalars) and array A (D scalars) is an array with N floats.
     B = np.random.randn(10, ndim).astype(dtype)
     A = np.random.randn(ndim).astype(dtype)
     result_np = [spd.sqeuclidean(B[i], A) for i in range(10)]
-    result_simd = simd.sqeuclidean(B, A)
+    result_simd = np.array(simd.sqeuclidean(B, A)).astype(np.float32)
     assert np.allclose(result_simd, result_np, atol=0, rtol=SIMSIMD_RTOL)
 
 
