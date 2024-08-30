@@ -70,8 +70,8 @@ int is_complex(simsimd_datatype_t datatype) {
 
 /// @brief Converts a numpy datatype string to a logical datatype, normalizing the format.
 /// @return `simsimd_datatype_unknown_k` if the datatype is not supported, otherwise the logical datatype.
+/// @see https://docs.python.org/3/library/struct.html#format-characters
 simsimd_datatype_t numpy_string_to_datatype(char const* name) {
-    // https://docs.python.org/3/library/struct.html#format-characters
     if (same_string(name, "f") || same_string(name, "<f") || same_string(name, "f4") || same_string(name, "<f4") ||
         same_string(name, "float32"))
         return simsimd_datatype_f32_k;
@@ -104,14 +104,16 @@ simsimd_datatype_t numpy_string_to_datatype(char const* name) {
         return simsimd_datatype_unknown_k;
 }
 
+/// @brief Converts a Python string to a logical datatype, normalizing the format.
+/// @see https://docs.python.org/3/library/struct.html#format-characters
 simsimd_datatype_t python_string_to_datatype(char const* name) {
     if (same_string(name, "f") || same_string(name, "f32") || same_string(name, "float32"))
         return simsimd_datatype_f32_k;
-    else if (same_string(name, "h") || same_string(name, "f16") || same_string(name, "float16"))
+    else if (same_string(name, "e") || same_string(name, "f16") || same_string(name, "float16"))
         return simsimd_datatype_f16_k;
-    else if (same_string(name, "c") || same_string(name, "i8") || same_string(name, "int8"))
+    else if (same_string(name, "b") || same_string(name, "i8") || same_string(name, "int8"))
         return simsimd_datatype_i8_k;
-    else if (same_string(name, "b") || same_string(name, "b8"))
+    else if (same_string(name, "c") || same_string(name, "b8"))
         return simsimd_datatype_b8_k;
     else if (same_string(name, "d") || same_string(name, "f64") || same_string(name, "float64"))
         return simsimd_datatype_f64_k;
@@ -133,16 +135,17 @@ simsimd_datatype_t python_string_to_datatype(char const* name) {
 /// @brief Returns the Python string representation of a datatype for the buffer protocol.
 /// @param dtype Logical datatype, can be complex.
 /// @return "unknown" if the datatype is not supported, otherwise a string.
+/// @see https://docs.python.org/3/library/struct.html#format-characters
 char const* datatype_to_python_string(simsimd_datatype_t dtype) {
     switch (dtype) {
     case simsimd_datatype_f64_k: return "d";
     case simsimd_datatype_f32_k: return "f";
-    case simsimd_datatype_f16_k: return "h";
+    case simsimd_datatype_f16_k: return "e";
     case simsimd_datatype_f64c_k: return "Zd";
     case simsimd_datatype_f32c_k: return "Zf";
-    case simsimd_datatype_f16c_k: return "Zh";
-    case simsimd_datatype_i8_k: return "c";
-    case simsimd_datatype_b8_k: return "b";
+    case simsimd_datatype_f16c_k: return "Ze";
+    case simsimd_datatype_i8_k: return "b";
+    case simsimd_datatype_b8_k: return "c";
     default: return "unknown";
     }
 }
