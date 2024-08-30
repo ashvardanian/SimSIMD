@@ -430,8 +430,8 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
         goto cleanup;
     }
 
-    // Process the third argument, value_type_desc, if provided
-    simsimd_datatype_t datatype = parsed_a.datatype;
+    // Process the third argument, `value_type_desc`, if provided
+    simsimd_datatype_t input_datatype = parsed_a.datatype;
     if (value_type_desc != NULL) {
         // Ensure it is a string (or convert it to one if possible)
         if (!PyUnicode_Check(value_type_desc)) {
@@ -444,19 +444,21 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
             PyErr_SetString(PyExc_ValueError, "Could not convert value type description to string");
             goto cleanup;
         }
-        datatype = python_string_to_datatype(value_type_str);
+        input_datatype = python_string_to_datatype(value_type_str);
     }
 
     simsimd_metric_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_metric_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
+    simsimd_find_metric_punned(metric_kind, input_datatype, static_capabilities, simsimd_cap_any_k, &metric,
+                               &capability);
     if (!metric) {
         PyErr_SetString(PyExc_ValueError, "Unsupported metric and datatype combination");
         goto cleanup;
     }
 
     // If the distance is computed between two vectors, rather than matrices, return a scalar
-    int datatype_is_complex = is_complex(datatype);
+    int datatype_is_complex = is_complex(input_datatype);
+    simsimd_datatype_t return_datatype = datatype_is_complex ? simsimd_datatype_f64c_k : simsimd_datatype_f64_k;
     if (parsed_a.is_flat && parsed_b.is_flat) {
         // For complex numbers we are going to use `PyComplex_FromDoubles`.
         if (datatype_is_complex) {
@@ -482,19 +484,19 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
         size_t const count_pairs = parsed_a.count > parsed_b.count ? parsed_a.count : parsed_b.count;
         size_t const components_per_pair = datatype_is_complex ? 2 : 1;
         size_t const count_components = count_pairs * components_per_pair;
-        DistancesTensor* distances_obj =
-            PyObject_NewVar(DistancesTensor, &DistancesTensorType, count_components * bytes_per_datatype(datatype));
+        DistancesTensor* distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType,
+                                                         count_components * bytes_per_datatype(return_datatype));
         if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
         // Initialize the object
-        distances_obj->datatype = datatype;
+        distances_obj->datatype = return_datatype;
         distances_obj->dimensions = 1;
         distances_obj->shape[0] = count_pairs;
         distances_obj->shape[1] = 1;
-        distances_obj->strides[0] = bytes_per_datatype(distances_obj->datatype);
+        distances_obj->strides[0] = bytes_per_datatype(return_datatype);
         distances_obj->strides[1] = 0;
         output = (PyObject*)distances_obj;
 
@@ -509,12 +511,12 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
                 &result);
 
             // Export out:
-            if (!cast_distance(result[0], datatype, distances, i * components_per_pair)) {
+            if (!cast_distance(result[0], return_datatype, distances, i * components_per_pair)) {
                 PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
                 goto cleanup;
             }
             if (datatype_is_complex)
-                cast_distance(result[1], datatype, distances, i * components_per_pair + 1);
+                cast_distance(result[1], return_datatype, distances, i * components_per_pair + 1);
         }
     }
 
