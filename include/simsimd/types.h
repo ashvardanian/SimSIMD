@@ -232,6 +232,7 @@ typedef _Float16 simsimd_f16_t;
 #define SIMSIMD_NATIVE_F16 1
 #endif
 #else // Unknown compiler or architecture
+#warning "Unknown compiler or architecture for float16."
 #if !defined(SIMSIMD_NATIVE_F16)
 #define SIMSIMD_NATIVE_F16 0
 #endif
@@ -259,14 +260,15 @@ typedef unsigned short simsimd_f16_t;
 #if !defined(SIMSIMD_NATIVE_BF16)
 #define SIMSIMD_NATIVE_BF16 1
 #endif
-typedef __fp16 simsimd_bf16_t;
+typedef __bf16 simsimd_bf16_t;
 #elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) &&                      \
        (defined(__SSE2__) || defined(__AVX512F__)))
-typedef _Float16 simsimd_bf16_t;
+typedef _BFloat16 simsimd_bf16_t;
 #if !defined(SIMSIMD_NATIVE_BF16)
 #define SIMSIMD_NATIVE_BF16 1
 #endif
 #else // Unknown compiler or architecture
+#warning "Unknown compiler or architecture for bfloat16."
 #if !defined(SIMSIMD_NATIVE_BF16)
 #define SIMSIMD_NATIVE_BF16 0
 #endif

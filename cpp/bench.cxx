@@ -8,6 +8,9 @@
 
 #include <benchmark/benchmark.h>
 
+#define SIMSIMD_NATIVE_F16 0
+#define SIMSIMD_NATIVE_BF16 0
+
 #if !defined(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
 #define SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS 0
 #endif
