@@ -251,9 +251,22 @@ typedef unsigned short simsimd_f16_t;
  *  - GCC or Clang on 64-bit x86: `_BFloat16`.
  *  - Default: `unsigned short`.
  *
+ *  The compilers have added __bf16 support in compliance with the x86-64 psABI spec.
+ *  The motivation for this new special type is summed up as:
+ *
+ *      Currently `__bfloat16` is a typedef of short, which creates a problem where the
+ *      compiler does not raise any alarms if it is used to add, subtract, multiply or
+ *      divide, but the result of the calculation is actually meaningless.
+ *      To solve this problem, a real scalar type `__Bfloat16` needs to be introduced.
+ *      It is mainly used for intrinsics, not available for C standard operators.
+ *      `__Bfloat16` will also be used for movement like passing parameter, load and store,
+ *      vector initialization, vector shuffle, and etc. It creates a need for a
+ *      corresponding psABI.
+ *
  *  @warning Apple Clang has hard time with bf16.
  *  https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms
  *  https://forums.developer.apple.com/forums/thread/726201
+ *  https://www.phoronix.com/news/GCC-LLVM-bf16-BFloat16-Type
  */
 #if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) &&                      \
     (defined(__ARM_BF16_FORMAT_ALTERNATIVE))
@@ -263,7 +276,7 @@ typedef unsigned short simsimd_f16_t;
 typedef __bf16 simsimd_bf16_t;
 #elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) &&                      \
        (defined(__SSE2__) || defined(__AVX512F__)))
-typedef _BFloat16 simsimd_bf16_t;
+typedef _Bfloat16 simsimd_bf16_t;
 #if !defined(SIMSIMD_NATIVE_BF16)
 #define SIMSIMD_NATIVE_BF16 1
 #endif

@@ -11,6 +11,7 @@
  *  For datatypes:
  *  - 32-bit floating point numbers
  *  - 16-bit floating point numbers
+ *  - 16-bit brain-floating point numbers
  *
  *  For hardware architectures:
  *  - Arm (NEON, SVE)
