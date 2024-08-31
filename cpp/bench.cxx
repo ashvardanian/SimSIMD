@@ -19,8 +19,10 @@
 // are quite inaccurate. They are not meant to be used in production code.
 // So when benchmarking, if possible, please use the native types, if those
 // are implemented.
-#define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
-#define SIMSIMD_LOG(x) (logf(x))
+#define SIMSIMD_RSQRT(x) (1 / sqrt(x))
+#define SIMSIMD_LOG(x) (log(x))
+#define SIMSIMD_NATIVE_F16 0
+#define SIMSIMD_NATIVE_BF16 0
 #include <simsimd/simsimd.h>
 
 namespace bm = benchmark;
