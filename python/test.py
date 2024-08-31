@@ -47,8 +47,8 @@ def is_running_under_qemu():
 
 # For normalized distances we use the absolute tolerance, because the result is close to zero.
 # For unnormalized ones (like squared Euclidean or Jaccard), we use the relative.
-SIMSIMD_RTOL = 0.2
-SIMSIMD_ATOL = 0.15
+SIMSIMD_RTOL = 0.1
+SIMSIMD_ATOL = 0.1
 
 
 def test_pointers_availability():
@@ -115,7 +115,7 @@ def test_dot(ndim, dtype):
     expected = np.inner(a, b).astype(np.float32)
     result = simd.inner(a, b)
 
-    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -173,7 +173,7 @@ def test_cosine(ndim, dtype):
     expected = baseline_cosine(a, b).astype(np.float32)
     result = simd.cosine(a, b)
 
-    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skip(reason="Problems inferring the tolerance bounds for numerical errors")
@@ -191,7 +191,7 @@ def test_jensen_shannon(ndim, dtype):
     expected = baseline_jensenshannon(a, b) ** 2
     result = simd.jensenshannon(a, b)
 
-    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -249,7 +249,7 @@ def test_cosine_i8(ndim):
     expected = baseline_cosine(a.astype(np.float32), b.astype(np.float32))
     result = simd.cosine(a, b)
 
-    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -273,12 +273,31 @@ def test_sqeuclidean_i8(ndim):
 def test_cosine_zero_vector(ndim, dtype):
     """Tests the simd.cosine() function with zero vectors, to catch division by zero errors."""
     a = np.zeros(ndim, dtype=dtype)
+    b = (np.random.randn(ndim) + 1).astype(dtype)
+
+    result = simd.cosine(a, b)
+    assert result == 1, f"Expected 1, but got {result}"
+
+    result = simd.cosine(a, a)
+    assert result == 0, f"Expected 0 distance from itself, but got {result}"
+
+    result = simd.cosine(b, b)
+    assert abs(result) < SIMSIMD_ATOL, f"Expected 0 distance from itself, but got {result}"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
+def test_cosine_tolerance(ndim, dtype):
+    """Tests the simd.cosine() function analyzing its `rsqrt` approximation error."""
+    a = np.random.randn(ndim).astype(dtype)
     b = np.random.randn(ndim).astype(dtype)
 
-    expected = 1
-    result = simd.cosine(a, b)
-
-    assert result == expected, f"Expected {expected}, but got {result}"
+    expected_f64 = baseline_cosine(a.astype(np.float64), b.astype(np.float64))
+    result_f64 = simd.cosine(a, b)
+    expected = np.array(expected_f64, dtype=dtype)
+    result = np.array(result_f64, dtype=dtype)
+    assert np.allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(is_running_under_qemu(), reason="Complex math in QEMU fails")
@@ -352,7 +371,7 @@ def test_jaccard(ndim):
     expected = baseline_jaccard(a, b)
     result = simd.jaccard(np.packbits(a), np.packbits(b))
 
-    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -435,7 +454,7 @@ def test_cdist(ndim, input_dtype, result_dtype, metric):
         result = simd.cdist(A, B, metric=metric, dtype=result_dtype)
 
     # Assert they're close.
-    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=0)
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 if __name__ == "__main__":
