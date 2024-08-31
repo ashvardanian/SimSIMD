@@ -175,12 +175,12 @@
 
 #if !defined(SIMSIMD_RSQRT)
 #include <math.h>
-#define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
+#define SIMSIMD_RSQRT(x) (1 / sqrt(x))
 #endif
 
 #if !defined(SIMSIMD_LOG)
 #include <math.h>
-#define SIMSIMD_LOG(x) (logf(x))
+#define SIMSIMD_LOG(x) (log(x))
 #endif
 
 #if !defined(SIMSIMD_F32_DIVISION_EPSILON)

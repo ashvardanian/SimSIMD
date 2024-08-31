@@ -356,7 +356,7 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_neon(simsimd_i8_t const* a, simsimd_i8_t cons
 #pragma GCC target("+simd+fp16")
 #pragma clang attribute push(__attribute__((target("+simd+fp16"))), apply_to = function)
 
-inline float16x4_t simsimd_partial_load_f16x4_neon(simsimd_f16_t const* a, simsimd_size_t n) {
+SIMSIMD_INTERNAL float16x4_t simsimd_partial_load_f16x4_neon(simsimd_f16_t const* a, simsimd_size_t n) {
     // In case the software emulation for `f16` scalars is enabled, the `simsimd_uncompress_f16`
     // function will run. It is extremely slow, so even for the tail, let's combine serial
     // loads and stores with vectorized math.
@@ -473,7 +473,7 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
 
-inline bfloat16x8_t simsimd_partial_load_bf16x8_neon(simsimd_bf16_t const* a, simsimd_size_t n) {
+SIMSIMD_INTERNAL bfloat16x8_t simsimd_partial_load_bf16x8_neon(simsimd_bf16_t const* a, simsimd_size_t n) {
     union {
         bfloat16x8_t vec;
         simsimd_bf16_t scalars[8];
@@ -523,8 +523,8 @@ SIMSIMD_PUBLIC void simsimd_dot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf16
         // Unpack the input arrays into real and imaginary parts.
         // MSVC sadly doesn't recognize the `vld2_bf16`, so we load the  data as signed
         // integers of the same size and reinterpret with `vreinterpret_bf16_s16` afterwards.
-        int16x4x2_t a_vec = vld2_s16((short*)a + i);
-        int16x4x2_t b_vec = vld2_s16((short*)b + i);
+        int16x4x2_t a_vec = vld2_s16((short*)a);
+        int16x4x2_t b_vec = vld2_s16((short*)b);
         float32x4_t a_real_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(a_vec.val[0]));
         float32x4_t a_imag_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(a_vec.val[1]));
         float32x4_t b_real_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(b_vec.val[0]));
@@ -558,8 +558,8 @@ SIMSIMD_PUBLIC void simsimd_vdot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf1
         // Unpack the input arrays into real and imaginary parts.
         // MSVC sadly doesn't recognize the `vld2_bf16`, so we load the  data as signed
         // integers of the same size and reinterpret with `vreinterpret_bf16_s16` afterwards.
-        int16x4x2_t a_vec = vld2_s16((short*)a + i);
-        int16x4x2_t b_vec = vld2_s16((short*)b + i);
+        int16x4x2_t a_vec = vld2_s16((short*)a);
+        int16x4x2_t b_vec = vld2_s16((short*)b);
         float32x4_t a_real_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(a_vec.val[0]));
         float32x4_t a_imag_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(a_vec.val[1]));
         float32x4_t b_real_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(b_vec.val[0]));
@@ -791,7 +791,7 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t 
 #pragma GCC target("avx2", "f16c", "fma")
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
 
-inline simsimd_f64_t _mm256_reduce_add_ps_dbl(__m256 vec) {
+SIMSIMD_INTERNAL simsimd_f64_t _mm256_reduce_add_ps_dbl(__m256 vec) {
     // Convert the lower and higher 128-bit lanes of the input vector to double precision
     __m128 low_f32 = _mm256_castps256_ps128(vec);
     __m128 high_f32 = _mm256_extractf128_ps(vec, 1);
@@ -940,7 +940,7 @@ SIMSIMD_PUBLIC void simsimd_vdot_f32c_haswell(simsimd_f32_t const* a, simsimd_f3
     results[1] = ab_imag;
 }
 
-inline __m256 simsimd_partial_load_f16x8_haswell(simsimd_f16_t const* a, simsimd_size_t n) {
+SIMSIMD_INTERNAL __m256 simsimd_partial_load_f16x8_haswell(simsimd_f16_t const* a, simsimd_size_t n) {
     // In case the software emulation for `f16` scalars is enabled, the `simsimd_uncompress_f16`
     // function will run. It is extremely slow, so even for the tail, let's combine serial
     // loads and stores with vectorized math.
@@ -1087,12 +1087,12 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t c
     *result = ab;
 }
 
-inline __m256 simsimd_bf16x8_to_f32x8_haswell(__m128i a) {
+SIMSIMD_INTERNAL __m256 simsimd_bf16x8_to_f32x8_haswell(__m128i a) {
     // Upcasting from `bf16` to `f32` is done by shifting the `bf16` values by 16 bits to the left, like:
-    return _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(x), 16));
+    return _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(a), 16));
 }
 
-inline __m128i simsimd_partial_load_bf16x8_haswell(simsimd_bf16_t const* a, simsimd_size_t n) {
+SIMSIMD_INTERNAL __m128i simsimd_partial_load_bf16x8_haswell(simsimd_bf16_t const* a, simsimd_size_t n) {
     // In case the software emulation for `bf16` scalars is enabled, the `simsimd_uncompress_bf16`
     // function will run. It is extremely slow, so even for the tail, let's combine serial
     // loads and stores with vectorized math.
