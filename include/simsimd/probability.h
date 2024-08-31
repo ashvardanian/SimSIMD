@@ -11,6 +11,7 @@
  *  For datatypes:
  *  - 32-bit floating point numbers
  *  - 16-bit floating point numbers
+ *  - 16-bit brain-floating point numbers
  *
  *  For hardware architectures:
  *  - Arm (NEON, SVE)
@@ -283,7 +284,7 @@ SIMSIMD_PUBLIC void simsimd_js_f16_neon(simsimd_f16_t const* a, simsimd_f16_t co
 #pragma GCC target("avx2", "f16c", "fma")
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
 
-inline __m256 simsimd_log2_f32_haswell(__m256 x) {
+SIMSIMD_INTERNAL __m256 simsimd_log2_f32_haswell(__m256 x) {
     // Extracting the exponent
     __m256i i = _mm256_castps_si256(x);
     __m256i e = _mm256_srli_epi32(_mm256_and_si256(i, _mm256_set1_epi32(0x7F800000)), 23);
@@ -390,7 +391,7 @@ SIMSIMD_PUBLIC void simsimd_js_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t
 #pragma GCC target("avx512f", "avx512vl", "bmi2")
 #pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2"))), apply_to = function)
 
-inline __m512 simsimd_log2_f32_skylake(__m512 x) {
+SIMSIMD_INTERNAL __m512 simsimd_log2_f32_skylake(__m512 x) {
     // Extract the exponent and mantissa
     __m512 one = _mm512_set1_ps(1.0f);
     __m512 e = _mm512_getexp_ps(x);
@@ -482,7 +483,7 @@ simsimd_js_f32_skylake_cycle:
 #pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512fp16")
 #pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512fp16"))), apply_to = function)
 
-inline __m512h simsimd_log2_f16_sapphire(__m512h x) {
+SIMSIMD_INTERNAL __m512h simsimd_log2_f16_sapphire(__m512h x) {
     // Extract the exponent and mantissa
     __m512h one = _mm512_set1_ph((simsimd_f16_t)1);
     __m512h e = _mm512_getexp_ph(x);
