@@ -587,8 +587,8 @@ SIMSIMD_PUBLIC void simsimd_vdot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf1
 #if SIMSIMD_TARGET_SVE
 
 #pragma GCC push_options
-#pragma GCC target("+sve")
-#pragma clang attribute push(__attribute__((target("+sve"))), apply_to = function)
+#pragma GCC target("arch=armv8.2-a+sve")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve"))), apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_dot_f32_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                         simsimd_distance_t* result) {
@@ -714,8 +714,8 @@ SIMSIMD_PUBLIC void simsimd_vdot_f64c_sve(simsimd_f64_t const* a, simsimd_f64_t 
 #pragma GCC pop_options
 
 #pragma GCC push_options
-#pragma GCC target("+sve+fp16")
-#pragma clang attribute push(__attribute__((target("+sve+fp16"))), apply_to = function)
+#pragma GCC target("arch=armv8.2-a+sve+fp16")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+fp16"))), apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_dot_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, simsimd_size_t n,
                                         simsimd_distance_t* result) {

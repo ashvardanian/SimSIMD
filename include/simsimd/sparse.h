@@ -255,8 +255,8 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_skylake(simsimd_u32_t const* shorter, 
 #if SIMSIMD_TARGET_SVE
 
 #pragma GCC push_options
-#pragma GCC target("+sve")
-#pragma clang attribute push(__attribute__((target("+sve"))), apply_to = function)
+#pragma GCC target("arch=armv8.2-a+sve")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve"))), apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_intersect_u16_sve(simsimd_u16_t const* shorter, simsimd_u16_t const* longer,
                                               simsimd_size_t shorter_length, simsimd_size_t longer_length,
