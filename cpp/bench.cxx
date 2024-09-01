@@ -32,6 +32,11 @@ constexpr std::size_t default_seconds = 10;
 constexpr std::size_t default_threads = 1;
 constexpr simsimd_distance_t signaling_distance = std::numeric_limits<simsimd_distance_t>::signaling_NaN();
 
+/// Matches OpenAI embedding size
+constexpr std::size_t dense_dimensions = 128;
+/// Has quadratic impact on the number of operations
+constexpr std::size_t curved_dimensions = 128;
+
 namespace bm = benchmark;
 
 // clang-format off
@@ -53,6 +58,10 @@ template <> struct datatype_enum_to_type_gt<simsimd_datatype_i32_k> { using valu
 template <> struct datatype_enum_to_type_gt<simsimd_datatype_u32_k> { using value_t = simsimd_u32_t; };
 // clang-format on
 
+template <std::size_t multiple> std::size_t divide_round_up(std::size_t n) {
+    return ((n + multiple - 1) / multiple) * multiple;
+}
+
 /**
  *  @brief Vector-like fixed capacity buffer, ensuring cache-line alignment.
  *  @tparam datatype_ak The data type of the vector elements, represented as a `simsimd_datatype_t`.
@@ -61,6 +70,7 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
     using scalar_t = typename datatype_enum_to_type_gt<datatype_ak>::value_t;
     using compressed16_t = unsigned short;
     static constexpr bool is_integral = datatype_ak == simsimd_datatype_i8_k || datatype_ak == simsimd_datatype_b8_k;
+    static constexpr std::size_t cacheline_length = 64;
 
     scalar_t* buffer_ = nullptr;
     std::size_t dimensions_ = 0;
@@ -68,7 +78,8 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
     vector_gt() = default;
     vector_gt(std::size_t dimensions) noexcept(false)
         : dimensions_(dimensions),
-          buffer_(static_cast<scalar_t*>(std::aligned_alloc(64, dimensions * sizeof(scalar_t)))) {
+          buffer_(static_cast<scalar_t*>(
+              std::aligned_alloc(cacheline_length, divide_round_up<cacheline_length>(dimensions * sizeof(scalar_t))))) {
         if (!buffer_)
             throw std::bad_alloc();
     }
@@ -76,24 +87,27 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
     ~vector_gt() noexcept { std::free(buffer_); }
 
     vector_gt(vector_gt const& other) : vector_gt(other.dimensions()) {
-        std::memcpy(buffer_, other.buffer_, dimensions_ * sizeof(scalar_t));
+        std::memcpy(buffer_, other.buffer_, divide_round_up<cacheline_length>(dimensions_ * sizeof(scalar_t)));
     }
     vector_gt& operator=(vector_gt const& other) {
         if (this != &other) {
             if (dimensions_ != other.dimensions()) {
                 std::free(buffer_);
                 dimensions_ = other.dimensions();
-                buffer_ = static_cast<scalar_t*>(std::aligned_alloc(64, dimensions_ * sizeof(scalar_t)));
+                buffer_ = static_cast<scalar_t*>(std::aligned_alloc(
+                    cacheline_length, divide_round_up<cacheline_length>(dimensions_ * sizeof(scalar_t))));
                 if (!buffer_)
                     throw std::bad_alloc();
             }
-            std::memcpy(buffer_, other.buffer_, dimensions_ * sizeof(scalar_t));
+            std::memcpy(buffer_, other.buffer_, divide_round_up<cacheline_length>(dimensions_ * sizeof(scalar_t)));
         }
         return *this;
     }
 
     std::size_t dimensions() const noexcept { return dimensions_; }
-    std::size_t size_bytes() const noexcept { return dimensions_ * sizeof(scalar_t); }
+    std::size_t size_bytes() const noexcept {
+        return divide_round_up<cacheline_length>(dimensions_ * sizeof(scalar_t));
+    }
     scalar_t const* data() const noexcept { return buffer_; }
 
     /**
@@ -446,15 +460,10 @@ void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std:
 
 template <simsimd_datatype_t datatype_ak, typename metric_at = void>
 void dense_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
-
-    // Matches OpenAI embedding size
-    constexpr std::size_t dimensions = 1536;
-
     using pair_t = vectors_pair_gt<datatype_ak>;
-
-    std::string name_dims = name + "_" + std::to_string(dimensions) + "d";
+    std::string name_dims = name + "_" + std::to_string(dense_dimensions) + "d";
     bm::RegisterBenchmark(name_dims.c_str(), measure_dense<pair_t, metric_at*>, distance_func, baseline_func,
-                          dimensions)
+                          dense_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
@@ -485,14 +494,10 @@ void sparse_(std::string name, metric_at* distance_func, metric_at* baseline_fun
 template <simsimd_datatype_t datatype_ak, typename metric_at = void>
 void curved_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
 
-    // Matches OpenAI embedding size
-    constexpr std::size_t dimensions = 128;
-
     using pair_t = vectors_pair_gt<datatype_ak>;
-
-    std::string name_dims = name + "_" + std::to_string(dimensions) + "d";
+    std::string name_dims = name + "_" + std::to_string(curved_dimensions) + "d";
     bm::RegisterBenchmark(name_dims.c_str(), measure_curved<pair_t, metric_at*>, distance_func, baseline_func,
-                          dimensions)
+                          curved_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
