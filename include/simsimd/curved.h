@@ -333,7 +333,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16_neon(simsimd_bf16_t const* a, simsimd_
             bfloat16x8_t b_vec = simsimd_partial_load_bf16x8_neon(b + tail_start, tail_length);
             bfloat16x8_t c_vec = simsimd_partial_load_bf16x8_neon(c + i * n + tail_start, tail_length);
             simsimd_f32_t partial_sum_high = vaddvq_f32(vbfmlaltq_f32(vdupq_n_f32(0), b_vec, c_vec));
-            simsimd_f32_t partial_sum_low = vaddvq_f32(vbfmlaltq_f32(vdupq_n_f32(0), b_vec, c_vec));
+            simsimd_f32_t partial_sum_low = vaddvq_f32(vbfmlalbq_f32(vdupq_n_f32(0), b_vec, c_vec));
             sum += a_i * (partial_sum_high + partial_sum_low);
         }
     }
@@ -396,7 +396,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_neon(simsimd_bf16_t const* a, simsi
 
             bfloat16x8_t c_vec = simsimd_partial_load_bf16x8_neon(c + i * n + tail_start, tail_length);
             simsimd_f32_t partial_sum_high = vaddvq_f32(vbfmlaltq_f32(vdupq_n_f32(0), diff_j_vec, c_vec));
-            simsimd_f32_t partial_sum_low = vaddvq_f32(vbfmlaltq_f32(vdupq_n_f32(0), diff_j_vec, c_vec));
+            simsimd_f32_t partial_sum_low = vaddvq_f32(vbfmlalbq_f32(vdupq_n_f32(0), diff_j_vec, c_vec));
             sum += diff_i * (partial_sum_high + partial_sum_low);
         }
     }
