@@ -184,8 +184,8 @@ SIMSIMD_MAKE_COS(accurate, i8, i32, SIMSIMD_IDENTIFY)  // simsimd_cos_i8_accurat
 #if SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
-#pragma GCC target("+simd")
-#pragma clang attribute push(__attribute__((target("+simd"))), apply_to = function)
+#pragma GCC target("arch=armv8.2-a+simd")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
 
 SIMSIMD_INTERNAL simsimd_distance_t simsimd_cos_normalize_f64_neon(simsimd_f64_t ab, simsimd_f64_t a2,
                                                                    simsimd_f64_t b2) {
@@ -244,8 +244,8 @@ SIMSIMD_PUBLIC void simsimd_cos_f32_neon(simsimd_f32_t const* a, simsimd_f32_t c
 
 #if SIMSIMD_TARGET_NEON_F16
 #pragma GCC push_options
-#pragma GCC target("+simd+fp16")
-#pragma clang attribute push(__attribute__((target("+simd+fp16"))), apply_to = function)
+#pragma GCC target("arch=armv8.2-a+simd+fp16")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_l2sq_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                           simsimd_distance_t* result) {

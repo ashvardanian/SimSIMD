@@ -222,8 +222,8 @@ SIMSIMD_MAKE_COMPLEX_VDOT(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16) // simsi
 #if SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
-#pragma GCC target("+simd")
-#pragma clang attribute push(__attribute__((target("+simd"))), apply_to = function)
+#pragma GCC target("arch=armv8.2-a+simd")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_dot_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                          simsimd_distance_t* result) {
@@ -353,8 +353,8 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_neon(simsimd_i8_t const* a, simsimd_i8_t cons
 
 #if SIMSIMD_TARGET_NEON_F16
 #pragma GCC push_options
-#pragma GCC target("+simd+fp16")
-#pragma clang attribute push(__attribute__((target("+simd+fp16"))), apply_to = function)
+#pragma GCC target("arch=armv8.2-a+simd+fp16")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 
 SIMSIMD_INTERNAL float16x4_t simsimd_partial_load_f16x4_neon(simsimd_f16_t const* a, simsimd_size_t n) {
     // In case the software emulation for `f16` scalars is enabled, the `simsimd_uncompress_f16`

@@ -79,8 +79,8 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_serial(simsimd_b8_t const* a, simsimd_b8_
 #if SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
-#pragma GCC target("+simd")
-#pragma clang attribute push(__attribute__((target("+simd"))), apply_to = function)
+#pragma GCC target("arch=armv8.2-a+simd")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_hamming_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
                                             simsimd_distance_t* result) {

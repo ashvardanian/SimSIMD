@@ -135,8 +135,8 @@ SIMSIMD_MAKE_JS(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16, SIMSIMD_F32_DIVISI
 #if SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
-#pragma GCC target("+simd")
-#pragma clang attribute push(__attribute__((target("+simd"))), apply_to = function)
+#pragma GCC target("arch=armv8.2-a+simd")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
 
 SIMSIMD_PUBLIC float32x4_t simsimd_log2_f32_neon(float32x4_t x) {
     // Extracting the exponent
@@ -218,8 +218,8 @@ SIMSIMD_PUBLIC void simsimd_js_f32_neon(simsimd_f32_t const* a, simsimd_f32_t co
 
 #if SIMSIMD_TARGET_NEON_F16
 #pragma GCC push_options
-#pragma GCC target("+simd+fp16")
-#pragma clang attribute push(__attribute__((target("+simd+fp16"))), apply_to = function)
+#pragma GCC target("arch=armv8.2-a+simd+fp16")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_kl_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                         simsimd_distance_t* result) {
