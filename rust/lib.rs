@@ -700,6 +700,7 @@ impl ComplexProducts for f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use half::bf16 as HalfBF16;
     use half::f16 as HalfF16;
 
     #[test]
@@ -904,6 +905,26 @@ mod tests {
     }
 
     #[test]
+    fn test_cos_bf16_same() {
+        // Assuming these u16 values represent bf16 bit patterns, and they are identical
+        let a_u16: &[u16] = &[15360, 16384, 17408]; // Corresponding to some bf16 values
+        let b_u16: &[u16] = &[15360, 16384, 17408]; // Same as above for simplicity
+
+        // Reinterpret cast from &[u16] to &[bf16]
+        // SAFETY: This is safe as long as the representations are guaranteed to be identical,
+        // which they are for transparent structs wrapping the same type.
+        let a_bf16: &[bf16] =
+            unsafe { std::slice::from_raw_parts(a_u16.as_ptr() as *const bf16, a_u16.len()) };
+        let b_bf16: &[bf16] =
+            unsafe { std::slice::from_raw_parts(b_u16.as_ptr() as *const bf16, b_u16.len()) };
+
+        if let Some(result) = SpatialSimilarity::cosine(a_bf16, b_bf16) {
+            println!("The result of cos_bf16 is {:.8}", result);
+            assert_almost_equal(0.0, result, 0.01); // Example value, adjust according to actual expected value
+        }
+    }
+
+    #[test]
     fn test_cos_f16_interop() {
         let a_half: Vec<HalfF16> = vec![1.0, 2.0, 3.0]
             .iter()
@@ -926,6 +947,33 @@ mod tests {
             // Expected value might need adjustment depending on actual cosine functionality
             // Assuming identical vectors yield cosine similarity of 1.0
             println!("The result of cos_f16 (interop) is {:.8}", result);
+            assert_almost_equal(0.025, result, 0.01);
+        }
+    }
+
+    #[test]
+    fn test_cos_bf16_interop() {
+        let a_half: Vec<HalfBF16> = vec![1.0, 2.0, 3.0]
+            .iter()
+            .map(|&x| HalfBF16::from_f32(x))
+            .collect();
+        let b_half: Vec<HalfBF16> = vec![4.0, 5.0, 6.0]
+            .iter()
+            .map(|&x| HalfBF16::from_f32(x))
+            .collect();
+
+        // SAFETY: This is safe as long as the memory representations are guaranteed to be identical,
+        // which they are due to both being #[repr(transparent)] wrappers around u16.
+        let a_simsimd: &[bf16] =
+            unsafe { std::slice::from_raw_parts(a_half.as_ptr() as *const bf16, a_half.len()) };
+        let b_simsimd: &[bf16] =
+            unsafe { std::slice::from_raw_parts(b_half.as_ptr() as *const bf16, b_half.len()) };
+
+        // Use the reinterpret-casted slices with your SpatialSimilarity implementation
+        if let Some(result) = SpatialSimilarity::cosine(a_simsimd, b_simsimd) {
+            // Expected value might need adjustment depending on actual cosine functionality
+            // Assuming identical vectors yield cosine similarity of 1.0
+            println!("The result of cos_bf16 (interop) is {:.8}", result);
             assert_almost_equal(0.025, result, 0.01);
         }
     }
