@@ -28,6 +28,10 @@
 #define SIMSIMD_NATIVE_BF16 0
 #include <simsimd/simsimd.h>
 
+constexpr std::size_t default_seconds = 10;
+constexpr std::size_t default_threads = 1;
+constexpr simsimd_distance_t signaling_distance = std::numeric_limits<simsimd_distance_t>::signaling_NaN();
+
 namespace bm = benchmark;
 
 // clang-format off
@@ -207,28 +211,29 @@ template <simsimd_datatype_t datatype_ak> struct vectors_pair_gt {
  *  @param dimensions The number of dimensions in the vectors.
  */
 template <typename pair_at, typename metric_at = void>
-void measure(bm::State& state, metric_at metric, metric_at baseline, std::size_t dimensions) {
+void measure_dense(bm::State& state, metric_at metric, metric_at baseline, std::size_t dimensions) {
 
+    using pair_t = pair_at;
     using vector_t = typename pair_at::vector_t;
 
-    auto call_baseline = [&](pair_at& pair) -> double {
+    auto call_baseline = [&](pair_t& pair) -> double {
         // Output for real vectors have a single dimensions.
         // Output for complex vectors have two dimensions.
-        simsimd_distance_t results[2] = {0, 0};
+        simsimd_distance_t results[2] = {signaling_distance, signaling_distance};
         baseline(pair.a.data(), pair.b.data(), pair.a.dimensions(), &results[0]);
         return results[0] + results[1];
     };
-    auto call_contender = [&](pair_at& pair) -> double {
+    auto call_contender = [&](pair_t& pair) -> double {
         // Output for real vectors have a single dimensions.
         // Output for complex vectors have two dimensions.
-        simsimd_distance_t results[2] = {0, 0};
+        simsimd_distance_t results[2] = {signaling_distance, signaling_distance};
         metric(pair.a.data(), pair.b.data(), pair.a.dimensions(), &results[0]);
         return results[0] + results[1];
     };
 
     // Let's average the distance results over many pairs.
     constexpr std::size_t pairs_count = 128;
-    std::vector<pair_at> pairs(pairs_count);
+    std::vector<pair_t> pairs(pairs_count);
     for (auto& pair : pairs) {
         pair.a = pair.b = vector_t(dimensions);
         pair.a.randomize(), pair.b.randomize();
@@ -264,6 +269,75 @@ void measure(bm::State& state, metric_at metric, metric_at baseline, std::size_t
 }
 
 /**
+ *  @brief Measures the performance of a @b curved metric function against a baseline using Google Benchmark.
+ *  @tparam pair_at The type representing the vector pair used in the measurement.
+ *  @tparam metric_at The type of the metric function (default is void).
+ *  @param state The benchmark state object provided by Google Benchmark.
+ *  @param metric The metric function to benchmark.
+ *  @param baseline The baseline function to compare against.
+ *  @param dimensions The number of dimensions in the vectors.
+ */
+template <typename pair_at, typename metric_at = void>
+void measure_curved(bm::State& state, metric_at metric, metric_at baseline, std::size_t dimensions) {
+
+    using pair_t = pair_at;
+    using vector_t = typename pair_at::vector_t;
+
+    auto call_baseline = [&](pair_t const& pair, vector_t const& tensor) -> double {
+        simsimd_distance_t result = signaling_distance;
+        baseline(pair.a.data(), pair.b.data(), tensor.data(), pair.a.dimensions(), &result);
+        return result;
+    };
+    auto call_contender = [&](pair_t const& pair, vector_t const& tensor) -> double {
+        simsimd_distance_t result = signaling_distance;
+        metric(pair.a.data(), pair.b.data(), tensor.data(), pair.a.dimensions(), &result);
+        return result;
+    };
+
+    // Let's average the distance results over many pairs.
+    constexpr std::size_t pairs_count = 128;
+    std::vector<pair_t> pairs(pairs_count);
+    std::vector<vector_t> tensors(pairs_count);
+    for (std::size_t i = 0; i != pairs.size(); ++i) {
+        pair_t& pair = pairs[i];
+        pair.a = pair.b = vector_t(dimensions);
+        pair.a.randomize(), pair.b.randomize();
+        vector_t& tensor = tensors[i];
+        tensor = vector_t(dimensions * dimensions);
+        tensor.randomize();
+    }
+
+    // Initialize the output buffers for distance calculations.
+    std::vector<double> results_baseline(pairs.size());
+    std::vector<double> results_contender(pairs.size());
+    for (std::size_t i = 0; i != pairs.size(); ++i)
+        results_baseline[i] = call_baseline(pairs[i], tensors[i]),
+        results_contender[i] = call_contender(pairs[i], tensors[i]);
+
+    // The actual benchmarking loop.
+    std::size_t iterations = 0;
+    for (auto _ : state)
+        bm::DoNotOptimize((results_contender[iterations & (pairs_count - 1)] = call_contender(
+                               pairs[iterations & (pairs_count - 1)], tensors[iterations & (pairs_count - 1)]))),
+            iterations++;
+
+    // Measure the mean absolute delta and relative error.
+    double mean_delta = 0, mean_relative_error = 0;
+    for (std::size_t i = 0; i != pairs.size(); ++i) {
+        auto abs_delta = std::abs(results_contender[i] - results_baseline[i]);
+        mean_delta += abs_delta;
+        double error = abs_delta != 0 && results_baseline[i] != 0 ? abs_delta / results_baseline[i] : 0;
+        mean_relative_error += error;
+    }
+    mean_delta /= pairs.size();
+    mean_relative_error /= pairs.size();
+    state.counters["abs_delta"] = mean_delta;
+    state.counters["relative_error"] = mean_relative_error;
+    state.counters["bytes"] = bm::Counter(iterations * pairs[0].a.size_bytes() * 2, bm::Counter::kIsRate);
+    state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
+}
+
+/**
  *  @brief Measures the performance of a @b sparse metric function against a baseline using Google Benchmark.
  *  @tparam pair_at The type representing the vector pair used in the measurement.
  *  @tparam metric_at The type of the metric function (default is void).
@@ -278,27 +352,24 @@ template <typename pair_at, typename metric_at = void>
 void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std::size_t dimensions_a,
                     std::size_t dimensions_b, std::size_t intersection_size) {
 
+    using pair_t = pair_at;
     using vector_t = typename pair_at::vector_t;
     using scalar_t = typename vector_t::scalar_t;
 
-    auto call_baseline = [&](pair_at& pair) -> double {
-        // Output for real vectors have a single dimensions.
-        // Output for complex vectors have two dimensions.
-        simsimd_distance_t results[2] = {0, 0};
-        baseline(pair.a.data(), pair.b.data(), pair.a.dimensions(), pair.b.dimensions(), &results[0]);
-        return results[0] + results[1];
+    auto call_baseline = [&](pair_t& pair) -> double {
+        simsimd_distance_t result = std::numeric_limits<simsimd_distance_t>::signaling_NaN();
+        baseline(pair.a.data(), pair.b.data(), pair.a.dimensions(), pair.b.dimensions(), &result);
+        return result;
     };
-    auto call_contender = [&](pair_at& pair) -> double {
-        // Output for real vectors have a single dimensions.
-        // Output for complex vectors have two dimensions.
-        simsimd_distance_t results[2] = {0, 0};
-        metric(pair.a.data(), pair.b.data(), pair.a.dimensions(), pair.b.dimensions(), &results[0]);
-        return results[0] + results[1];
+    auto call_contender = [&](pair_t& pair) -> double {
+        simsimd_distance_t result = std::numeric_limits<simsimd_distance_t>::signaling_NaN();
+        metric(pair.a.data(), pair.b.data(), pair.a.dimensions(), pair.b.dimensions(), &result);
+        return result;
     };
 
     // Let's average the distance results over many pairs.
     constexpr std::size_t pairs_count = 128;
-    std::vector<pair_at> pairs(pairs_count);
+    std::vector<pair_t> pairs(pairs_count);
     std::random_device seed_source;
     std::mt19937 generator(seed_source());
     std::uniform_int_distribution<scalar_t> distribution(0, std::numeric_limits<scalar_t>::max());
@@ -378,22 +449,18 @@ void dense_(std::string name, metric_at* distance_func, metric_at* baseline_func
 
     // Matches OpenAI embedding size
     constexpr std::size_t dimensions = 1536;
-    constexpr std::size_t seconds = 10;
-    constexpr std::size_t threads = 1;
 
     using pair_t = vectors_pair_gt<datatype_ak>;
 
     std::string name_dims = name + "_" + std::to_string(dimensions) + "d";
-    bm::RegisterBenchmark(name_dims.c_str(), measure<pair_t, metric_at*>, distance_func, baseline_func, dimensions)
-        ->MinTime(seconds)
-        ->Threads(threads);
+    bm::RegisterBenchmark(name_dims.c_str(), measure_dense<pair_t, metric_at*>, distance_func, baseline_func,
+                          dimensions)
+        ->MinTime(default_seconds)
+        ->Threads(default_threads);
 }
 
 template <simsimd_datatype_t datatype_ak, typename metric_at = void>
 void sparse_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
-
-    constexpr std::size_t seconds = 3;
-    constexpr std::size_t threads = 1;
 
     using pair_t = vectors_pair_gt<datatype_ak>;
 
@@ -408,11 +475,26 @@ void sparse_(std::string name, metric_at* distance_func, metric_at* baseline_fun
                                         "d_w" + std::to_string(intersection_size) + "matches";
                 bm::RegisterBenchmark(test_name.c_str(), measure_sparse<pair_t, metric_at*>, distance_func,
                                       baseline_func, first_len, second_len, intersection_size)
-                    ->MinTime(seconds)
-                    ->Threads(threads);
+                    ->MinTime(default_seconds)
+                    ->Threads(default_threads);
             }
         }
     }
+}
+
+template <simsimd_datatype_t datatype_ak, typename metric_at = void>
+void curved_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
+
+    // Matches OpenAI embedding size
+    constexpr std::size_t dimensions = 128;
+
+    using pair_t = vectors_pair_gt<datatype_ak>;
+
+    std::string name_dims = name + "_" + std::to_string(dimensions) + "d";
+    bm::RegisterBenchmark(name_dims.c_str(), measure_curved<pair_t, metric_at*>, distance_func, baseline_func,
+                          dimensions)
+        ->MinTime(default_seconds)
+        ->Threads(default_threads);
 }
 
 #if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
@@ -489,200 +571,233 @@ int main(int argc, char** argv) {
     if (bm::ReportUnrecognizedArguments(argc, argv))
         return 1;
 
+    constexpr simsimd_datatype_t b8_k = simsimd_datatype_b8_k;
+    constexpr simsimd_datatype_t i8_k = simsimd_datatype_i8_k;
+    constexpr simsimd_datatype_t i16_k = simsimd_datatype_i16_k;
+    constexpr simsimd_datatype_t i32_k = simsimd_datatype_i32_k;
+    constexpr simsimd_datatype_t i64_k = simsimd_datatype_i64_k;
+    constexpr simsimd_datatype_t u8_k = simsimd_datatype_u8_k;
+    constexpr simsimd_datatype_t u16_k = simsimd_datatype_u16_k;
+    constexpr simsimd_datatype_t u32_k = simsimd_datatype_u32_k;
+    constexpr simsimd_datatype_t u64_k = simsimd_datatype_u64_k;
+    constexpr simsimd_datatype_t f64_k = simsimd_datatype_f64_k;
+    constexpr simsimd_datatype_t f32_k = simsimd_datatype_f32_k;
+    constexpr simsimd_datatype_t f16_k = simsimd_datatype_f16_k;
+    constexpr simsimd_datatype_t bf16_k = simsimd_datatype_bf16_k;
+    constexpr simsimd_datatype_t f64c_k = simsimd_datatype_f64c_k;
+    constexpr simsimd_datatype_t f32c_k = simsimd_datatype_f32c_k;
+    constexpr simsimd_datatype_t f16c_k = simsimd_datatype_f16c_k;
+    constexpr simsimd_datatype_t bf16c_k = simsimd_datatype_bf16c_k;
+
 #if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
 
-    dense_<simsimd_datatype_f32_k>("dot_f32_blas", dot_f32_blas, simsimd_dot_f32_accurate);
-    dense_<simsimd_datatype_f64_k>("dot_f64_blas", dot_f64_blas, simsimd_dot_f64_serial);
-    dense_<simsimd_datatype_f32c_k>("dot_f32c_blas", dot_f32c_blas, simsimd_dot_f32c_accurate);
-    dense_<simsimd_datatype_f64c_k>("dot_f64c_blas", dot_f64c_blas, simsimd_dot_f64c_serial);
-    dense_<simsimd_datatype_f32c_k>("vdot_f32c_blas", vdot_f32c_blas, simsimd_vdot_f32c_accurate);
-    dense_<simsimd_datatype_f64c_k>("vdot_f64c_blas", vdot_f64c_blas, simsimd_vdot_f64c_serial);
+    dense_<f32_k>("dot_f32_blas", dot_f32_blas, simsimd_dot_f32_accurate);
+    dense_<f64_k>("dot_f64_blas", dot_f64_blas, simsimd_dot_f64_serial);
+    dense_<f32c_k>("dot_f32c_blas", dot_f32c_blas, simsimd_dot_f32c_accurate);
+    dense_<f64c_k>("dot_f64c_blas", dot_f64c_blas, simsimd_dot_f64c_serial);
+    dense_<f32c_k>("vdot_f32c_blas", vdot_f32c_blas, simsimd_vdot_f32c_accurate);
+    dense_<f64c_k>("vdot_f64c_blas", vdot_f64c_blas, simsimd_vdot_f64c_serial);
 
 #endif
 
 #if SIMSIMD_TARGET_NEON
+    dense_<f16_k>("dot_f16_neon", simsimd_dot_f16_neon, simsimd_dot_f16_accurate);
+    dense_<f16_k>("cos_f16_neon", simsimd_cos_f16_neon, simsimd_cos_f16_accurate);
+    dense_<f16_k>("l2sq_f16_neon", simsimd_l2sq_f16_neon, simsimd_l2sq_f16_accurate);
+    dense_<f16_k>("kl_f16_neon", simsimd_kl_f16_neon, simsimd_kl_f16_accurate);
+    dense_<f16_k>("js_f16_neon", simsimd_js_f16_neon, simsimd_js_f16_accurate);
 
-    dense_<simsimd_datatype_f16_k>("dot_f16_neon", simsimd_dot_f16_neon, simsimd_dot_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("cos_f16_neon", simsimd_cos_f16_neon, simsimd_cos_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("l2sq_f16_neon", simsimd_l2sq_f16_neon, simsimd_l2sq_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("kl_f16_neon", simsimd_kl_f16_neon, simsimd_kl_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("js_f16_neon", simsimd_js_f16_neon, simsimd_js_f16_accurate);
+    dense_<bf16_k>("dot_bf16_neon", simsimd_dot_bf16_neon, simsimd_dot_bf16_accurate);
+    dense_<bf16_k>("cos_bf16_neon", simsimd_cos_bf16_neon, simsimd_cos_bf16_accurate);
+    dense_<bf16_k>("l2sq_bf16_neon", simsimd_l2sq_bf16_neon, simsimd_l2sq_bf16_accurate);
 
-    dense_<simsimd_datatype_bf16_k>("dot_bf16_neon", simsimd_dot_bf16_neon, simsimd_dot_bf16_accurate);
-    dense_<simsimd_datatype_bf16_k>("cos_bf16_neon", simsimd_cos_bf16_neon, simsimd_cos_bf16_accurate);
-    dense_<simsimd_datatype_bf16_k>("l2sq_bf16_neon", simsimd_l2sq_bf16_neon, simsimd_l2sq_bf16_accurate);
+    dense_<f32_k>("dot_f32_neon", simsimd_dot_f32_neon, simsimd_dot_f32_accurate);
+    dense_<f32_k>("cos_f32_neon", simsimd_cos_f32_neon, simsimd_cos_f32_accurate);
+    dense_<f32_k>("l2sq_f32_neon", simsimd_l2sq_f32_neon, simsimd_l2sq_f32_accurate);
+    dense_<f32_k>("kl_f32_neon", simsimd_kl_f32_neon, simsimd_kl_f32_accurate);
+    dense_<f32_k>("js_f32_neon", simsimd_js_f32_neon, simsimd_js_f32_accurate);
 
-    dense_<simsimd_datatype_f32_k>("dot_f32_neon", simsimd_dot_f32_neon, simsimd_dot_f32_accurate);
-    dense_<simsimd_datatype_f32_k>("cos_f32_neon", simsimd_cos_f32_neon, simsimd_cos_f32_accurate);
-    dense_<simsimd_datatype_f32_k>("l2sq_f32_neon", simsimd_l2sq_f32_neon, simsimd_l2sq_f32_accurate);
-    dense_<simsimd_datatype_f32_k>("kl_f32_neon", simsimd_kl_f32_neon, simsimd_kl_f32_accurate);
-    dense_<simsimd_datatype_f32_k>("js_f32_neon", simsimd_js_f32_neon, simsimd_js_f32_accurate);
+    dense_<i8_k>("cos_i8_neon", simsimd_cos_i8_neon, simsimd_cos_i8_accurate);
+    dense_<i8_k>("dot_i8_neon", simsimd_dot_i8_neon, simsimd_dot_i8_serial);
+    dense_<i8_k>("l2sq_i8_neon", simsimd_l2sq_i8_neon, simsimd_l2sq_i8_accurate);
 
-    dense_<simsimd_datatype_i8_k>("cos_i8_neon", simsimd_cos_i8_neon, simsimd_cos_i8_accurate);
-    dense_<simsimd_datatype_i8_k>("dot_i8_neon", simsimd_dot_i8_neon, simsimd_dot_i8_serial);
-    dense_<simsimd_datatype_i8_k>("l2sq_i8_neon", simsimd_l2sq_i8_neon, simsimd_l2sq_i8_accurate);
+    dense_<b8_k>("hamming_b8_neon", simsimd_hamming_b8_neon, simsimd_hamming_b8_serial);
+    dense_<b8_k>("jaccard_b8_neon", simsimd_jaccard_b8_neon, simsimd_jaccard_b8_serial);
 
-    dense_<simsimd_datatype_b8_k>("hamming_b8_neon", simsimd_hamming_b8_neon, simsimd_hamming_b8_serial);
-    dense_<simsimd_datatype_b8_k>("jaccard_b8_neon", simsimd_jaccard_b8_neon, simsimd_jaccard_b8_serial);
+    dense_<bf16c_k>("dot_bf16c_neon", simsimd_dot_bf16c_neon, simsimd_dot_bf16c_accurate);
+    dense_<bf16c_k>("vdot_bf16c_neon", simsimd_vdot_bf16c_neon, simsimd_vdot_bf16c_accurate);
+    dense_<f16c_k>("dot_f16c_neon", simsimd_dot_f16c_neon, simsimd_dot_f16c_accurate);
+    dense_<f16c_k>("vdot_f16c_neon", simsimd_vdot_f16c_neon, simsimd_vdot_f16c_accurate);
+    dense_<f32c_k>("dot_f32c_neon", simsimd_dot_f32c_neon, simsimd_dot_f32c_accurate);
+    dense_<f32c_k>("vdot_f32c_neon", simsimd_vdot_f32c_neon, simsimd_vdot_f32c_accurate);
 
-    dense_<simsimd_datatype_bf16c_k>("dot_bf16c_neon", simsimd_dot_bf16c_neon, simsimd_dot_bf16c_accurate);
-    dense_<simsimd_datatype_bf16c_k>("vdot_bf16c_neon", simsimd_vdot_bf16c_neon, simsimd_vdot_bf16c_accurate);
-    dense_<simsimd_datatype_f16c_k>("dot_f16c_neon", simsimd_dot_f16c_neon, simsimd_dot_f16c_accurate);
-    dense_<simsimd_datatype_f16c_k>("vdot_f16c_neon", simsimd_vdot_f16c_neon, simsimd_vdot_f16c_accurate);
-    dense_<simsimd_datatype_f32c_k>("dot_f32c_neon", simsimd_dot_f32c_neon, simsimd_dot_f32c_accurate);
-    dense_<simsimd_datatype_f32c_k>("vdot_f32c_neon", simsimd_vdot_f32c_neon, simsimd_vdot_f32c_accurate);
+    curved_<f32_k>("bilinear_f32_neon", simsimd_bilinear_f32_neon, simsimd_bilinear_f32_accurate);
+    curved_<f32_k>("mahalanobis_f32_neon", simsimd_mahalanobis_f32_neon, simsimd_mahalanobis_f32_accurate);
+    curved_<f16_k>("bilinear_f16_neon", simsimd_bilinear_f16_neon, simsimd_bilinear_f16_accurate);
+    curved_<f16_k>("mahalanobis_f16_neon", simsimd_mahalanobis_f16_neon, simsimd_mahalanobis_f16_accurate);
+    curved_<bf16_k>("bilinear_bf16_neon", simsimd_bilinear_bf16_neon, simsimd_bilinear_bf16_accurate);
+    curved_<bf16_k>("mahalanobis_bf16_neon", simsimd_mahalanobis_bf16_neon, simsimd_mahalanobis_bf16_accurate);
 #endif
 
 #if SIMSIMD_TARGET_SVE
-    dense_<simsimd_datatype_f16_k>("dot_f16_sve", simsimd_dot_f16_sve, simsimd_dot_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("cos_f16_sve", simsimd_cos_f16_sve, simsimd_cos_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("l2sq_f16_sve", simsimd_l2sq_f16_sve, simsimd_l2sq_f16_accurate);
+    dense_<f16_k>("dot_f16_sve", simsimd_dot_f16_sve, simsimd_dot_f16_accurate);
+    dense_<f16_k>("cos_f16_sve", simsimd_cos_f16_sve, simsimd_cos_f16_accurate);
+    dense_<f16_k>("l2sq_f16_sve", simsimd_l2sq_f16_sve, simsimd_l2sq_f16_accurate);
 
-    dense_<simsimd_datatype_f32_k>("dot_f32_sve", simsimd_dot_f32_sve, simsimd_dot_f32_accurate);
-    dense_<simsimd_datatype_f32_k>("cos_f32_sve", simsimd_cos_f32_sve, simsimd_cos_f32_accurate);
-    dense_<simsimd_datatype_f32_k>("l2sq_f32_sve", simsimd_l2sq_f32_sve, simsimd_l2sq_f32_accurate);
+    dense_<f32_k>("dot_f32_sve", simsimd_dot_f32_sve, simsimd_dot_f32_accurate);
+    dense_<f32_k>("cos_f32_sve", simsimd_cos_f32_sve, simsimd_cos_f32_accurate);
+    dense_<f32_k>("l2sq_f32_sve", simsimd_l2sq_f32_sve, simsimd_l2sq_f32_accurate);
 
-    dense_<simsimd_datatype_f64_k>("dot_f64_sve", simsimd_dot_f64_sve, simsimd_dot_f64_serial);
-    dense_<simsimd_datatype_f64_k>("cos_f64_sve", simsimd_cos_f64_sve, simsimd_cos_f64_serial);
-    dense_<simsimd_datatype_f64_k>("l2sq_f64_sve", simsimd_l2sq_f64_sve, simsimd_l2sq_f64_serial);
+    dense_<f64_k>("dot_f64_sve", simsimd_dot_f64_sve, simsimd_dot_f64_serial);
+    dense_<f64_k>("cos_f64_sve", simsimd_cos_f64_sve, simsimd_cos_f64_serial);
+    dense_<f64_k>("l2sq_f64_sve", simsimd_l2sq_f64_sve, simsimd_l2sq_f64_serial);
 
-    dense_<simsimd_datatype_b8_k>("hamming_b8_sve", simsimd_hamming_b8_sve, simsimd_hamming_b8_serial);
-    dense_<simsimd_datatype_b8_k>("jaccard_b8_sve", simsimd_jaccard_b8_sve, simsimd_jaccard_b8_serial);
+    dense_<b8_k>("hamming_b8_sve", simsimd_hamming_b8_sve, simsimd_hamming_b8_serial);
+    dense_<b8_k>("jaccard_b8_sve", simsimd_jaccard_b8_sve, simsimd_jaccard_b8_serial);
 
-    dense_<simsimd_datatype_f16c_k>("dot_f16c_sve", simsimd_dot_f16c_sve, simsimd_dot_f16c_accurate);
-    dense_<simsimd_datatype_f16c_k>("vdot_f16c_sve", simsimd_vdot_f16c_sve, simsimd_vdot_f16c_accurate);
-    dense_<simsimd_datatype_f32c_k>("dot_f32c_sve", simsimd_dot_f32c_sve, simsimd_dot_f32c_accurate);
-    dense_<simsimd_datatype_f32c_k>("vdot_f32c_sve", simsimd_vdot_f32c_sve, simsimd_vdot_f32c_accurate);
-    dense_<simsimd_datatype_f64c_k>("dot_f64c_sve", simsimd_dot_f64c_sve, simsimd_dot_f64c_serial);
-    dense_<simsimd_datatype_f64c_k>("vdot_f64c_sve", simsimd_vdot_f64c_sve, simsimd_vdot_f64c_serial);
+    dense_<f16c_k>("dot_f16c_sve", simsimd_dot_f16c_sve, simsimd_dot_f16c_accurate);
+    dense_<f16c_k>("vdot_f16c_sve", simsimd_vdot_f16c_sve, simsimd_vdot_f16c_accurate);
+    dense_<f32c_k>("dot_f32c_sve", simsimd_dot_f32c_sve, simsimd_dot_f32c_accurate);
+    dense_<f32c_k>("vdot_f32c_sve", simsimd_vdot_f32c_sve, simsimd_vdot_f32c_accurate);
+    dense_<f64c_k>("dot_f64c_sve", simsimd_dot_f64c_sve, simsimd_dot_f64c_serial);
+    dense_<f64c_k>("vdot_f64c_sve", simsimd_vdot_f64c_sve, simsimd_vdot_f64c_serial);
 
-    sparse_<simsimd_datatype_u16_k>("intersect_u16_sve", simsimd_intersect_u16_sve, simsimd_intersect_u16_accurate);
-    sparse_<simsimd_datatype_u32_k>("intersect_u32_sve", simsimd_intersect_u32_sve, simsimd_intersect_u32_accurate);
+    sparse_<u16_k>("intersect_u16_sve", simsimd_intersect_u16_sve, simsimd_intersect_u16_accurate);
+    sparse_<u32_k>("intersect_u32_sve", simsimd_intersect_u32_sve, simsimd_intersect_u32_accurate);
 
 #endif
 
 #if SIMSIMD_TARGET_HASWELL
-    dense_<simsimd_datatype_f16_k>("dot_f16_haswell", simsimd_dot_f16_haswell, simsimd_dot_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("cos_f16_haswell", simsimd_cos_f16_haswell, simsimd_cos_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("l2sq_f16_haswell", simsimd_l2sq_f16_haswell, simsimd_l2sq_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("kl_f16_haswell", simsimd_kl_f16_haswell, simsimd_kl_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("js_f16_haswell", simsimd_js_f16_haswell, simsimd_js_f16_accurate);
+    dense_<f16_k>("dot_f16_haswell", simsimd_dot_f16_haswell, simsimd_dot_f16_accurate);
+    dense_<f16_k>("cos_f16_haswell", simsimd_cos_f16_haswell, simsimd_cos_f16_accurate);
+    dense_<f16_k>("l2sq_f16_haswell", simsimd_l2sq_f16_haswell, simsimd_l2sq_f16_accurate);
+    dense_<f16_k>("kl_f16_haswell", simsimd_kl_f16_haswell, simsimd_kl_f16_accurate);
+    dense_<f16_k>("js_f16_haswell", simsimd_js_f16_haswell, simsimd_js_f16_accurate);
 
-    dense_<simsimd_datatype_bf16_k>("dot_bf16_haswell", simsimd_dot_bf16_haswell, simsimd_dot_bf16_accurate);
-    dense_<simsimd_datatype_bf16_k>("cos_bf16_haswell", simsimd_cos_bf16_haswell, simsimd_cos_bf16_accurate);
-    dense_<simsimd_datatype_bf16_k>("l2sq_bf16_haswell", simsimd_l2sq_bf16_haswell, simsimd_l2sq_bf16_accurate);
+    dense_<bf16_k>("dot_bf16_haswell", simsimd_dot_bf16_haswell, simsimd_dot_bf16_accurate);
+    dense_<bf16_k>("cos_bf16_haswell", simsimd_cos_bf16_haswell, simsimd_cos_bf16_accurate);
+    dense_<bf16_k>("l2sq_bf16_haswell", simsimd_l2sq_bf16_haswell, simsimd_l2sq_bf16_accurate);
 
-    dense_<simsimd_datatype_i8_k>("cos_i8_haswell", simsimd_cos_i8_haswell, simsimd_cos_i8_accurate);
-    dense_<simsimd_datatype_i8_k>("dot_i8_haswell", simsimd_dot_i8_haswell, simsimd_dot_i8_serial);
-    dense_<simsimd_datatype_i8_k>("l2sq_i8_haswell", simsimd_l2sq_i8_haswell, simsimd_l2sq_i8_accurate);
+    dense_<i8_k>("cos_i8_haswell", simsimd_cos_i8_haswell, simsimd_cos_i8_accurate);
+    dense_<i8_k>("dot_i8_haswell", simsimd_dot_i8_haswell, simsimd_dot_i8_serial);
+    dense_<i8_k>("l2sq_i8_haswell", simsimd_l2sq_i8_haswell, simsimd_l2sq_i8_accurate);
 
-    dense_<simsimd_datatype_b8_k>("hamming_b8_haswell", simsimd_hamming_b8_haswell, simsimd_hamming_b8_serial);
-    dense_<simsimd_datatype_b8_k>("jaccard_b8_haswell", simsimd_jaccard_b8_haswell, simsimd_jaccard_b8_serial);
+    dense_<b8_k>("hamming_b8_haswell", simsimd_hamming_b8_haswell, simsimd_hamming_b8_serial);
+    dense_<b8_k>("jaccard_b8_haswell", simsimd_jaccard_b8_haswell, simsimd_jaccard_b8_serial);
 
-    dense_<simsimd_datatype_f16c_k>("dot_f16c_haswell", simsimd_dot_f16c_haswell, simsimd_dot_f16c_accurate);
-    dense_<simsimd_datatype_f16c_k>("vdot_f16c_haswell", simsimd_vdot_f16c_haswell, simsimd_vdot_f16c_accurate);
-    dense_<simsimd_datatype_f32c_k>("dot_f32c_haswell", simsimd_dot_f32c_haswell, simsimd_dot_f32c_accurate);
-    dense_<simsimd_datatype_f32c_k>("vdot_f32c_haswell", simsimd_vdot_f32c_haswell, simsimd_vdot_f32c_accurate);
+    dense_<f16c_k>("dot_f16c_haswell", simsimd_dot_f16c_haswell, simsimd_dot_f16c_accurate);
+    dense_<f16c_k>("vdot_f16c_haswell", simsimd_vdot_f16c_haswell, simsimd_vdot_f16c_accurate);
+    dense_<f32c_k>("dot_f32c_haswell", simsimd_dot_f32c_haswell, simsimd_dot_f32c_accurate);
+    dense_<f32c_k>("vdot_f32c_haswell", simsimd_vdot_f32c_haswell, simsimd_vdot_f32c_accurate);
+
+    curved_<f16_k>("bilinear_f16_haswell", simsimd_bilinear_f16_haswell, simsimd_bilinear_f16_accurate);
+    curved_<f16_k>("mahalanobis_f16_haswell", simsimd_mahalanobis_f16_haswell, simsimd_mahalanobis_f16_accurate);
+    curved_<bf16_k>("bilinear_bf16_haswell", simsimd_bilinear_bf16_haswell, simsimd_bilinear_bf16_accurate);
+    curved_<bf16_k>("mahalanobis_bf16_haswell", simsimd_mahalanobis_bf16_haswell, simsimd_mahalanobis_bf16_accurate);
+
 #endif
 
 #if SIMSIMD_TARGET_GENOA
-    dense_<simsimd_datatype_bf16_k>("dot_bf16_genoa", simsimd_dot_bf16_genoa, simsimd_dot_bf16_accurate);
-    dense_<simsimd_datatype_bf16_k>("cos_bf16_genoa", simsimd_cos_bf16_genoa, simsimd_cos_bf16_accurate);
-    dense_<simsimd_datatype_bf16_k>("l2sq_bf16_genoa", simsimd_l2sq_bf16_genoa, simsimd_l2sq_bf16_accurate);
+    dense_<bf16_k>("dot_bf16_genoa", simsimd_dot_bf16_genoa, simsimd_dot_bf16_accurate);
+    dense_<bf16_k>("cos_bf16_genoa", simsimd_cos_bf16_genoa, simsimd_cos_bf16_accurate);
+    dense_<bf16_k>("l2sq_bf16_genoa", simsimd_l2sq_bf16_genoa, simsimd_l2sq_bf16_accurate);
 #endif
 
 #if SIMSIMD_TARGET_SAPPHIRE
-    dense_<simsimd_datatype_f16_k>("dot_f16_sapphire", simsimd_dot_f16_sapphire, simsimd_dot_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("cos_f16_sapphire", simsimd_cos_f16_sapphire, simsimd_cos_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("l2sq_f16_sapphire", simsimd_l2sq_f16_sapphire, simsimd_l2sq_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("kl_f16_sapphire", simsimd_kl_f16_sapphire, simsimd_kl_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("js_f16_sapphire", simsimd_js_f16_sapphire, simsimd_js_f16_accurate);
+    dense_<f16_k>("dot_f16_sapphire", simsimd_dot_f16_sapphire, simsimd_dot_f16_accurate);
+    dense_<f16_k>("cos_f16_sapphire", simsimd_cos_f16_sapphire, simsimd_cos_f16_accurate);
+    dense_<f16_k>("l2sq_f16_sapphire", simsimd_l2sq_f16_sapphire, simsimd_l2sq_f16_accurate);
+    dense_<f16_k>("kl_f16_sapphire", simsimd_kl_f16_sapphire, simsimd_kl_f16_accurate);
+    dense_<f16_k>("js_f16_sapphire", simsimd_js_f16_sapphire, simsimd_js_f16_accurate);
 
-    dense_<simsimd_datatype_f16c_k>("dot_f16c_sapphire", simsimd_dot_f16c_sapphire, simsimd_dot_f16c_accurate);
-    dense_<simsimd_datatype_f16c_k>("vdot_f16c_sapphire", simsimd_vdot_f16c_sapphire, simsimd_vdot_f16c_accurate);
+    dense_<f16c_k>("dot_f16c_sapphire", simsimd_dot_f16c_sapphire, simsimd_dot_f16c_accurate);
+    dense_<f16c_k>("vdot_f16c_sapphire", simsimd_vdot_f16c_sapphire, simsimd_vdot_f16c_accurate);
 #endif
 
 #if SIMSIMD_TARGET_ICE
-    dense_<simsimd_datatype_i8_k>("cos_i8_ice", simsimd_cos_i8_ice, simsimd_cos_i8_accurate);
-    dense_<simsimd_datatype_i8_k>("dot_i8_ice", simsimd_dot_i8_ice, simsimd_dot_i8_serial);
-    dense_<simsimd_datatype_i8_k>("l2sq_i8_ice", simsimd_l2sq_i8_ice, simsimd_l2sq_i8_accurate);
+    dense_<i8_k>("cos_i8_ice", simsimd_cos_i8_ice, simsimd_cos_i8_accurate);
+    dense_<i8_k>("dot_i8_ice", simsimd_dot_i8_ice, simsimd_dot_i8_serial);
+    dense_<i8_k>("l2sq_i8_ice", simsimd_l2sq_i8_ice, simsimd_l2sq_i8_accurate);
 
-    dense_<simsimd_datatype_f64_k>("dot_f64_skylake", simsimd_dot_f64_skylake, simsimd_dot_f64_serial);
-    dense_<simsimd_datatype_f64_k>("cos_f64_skylake", simsimd_cos_f64_skylake, simsimd_cos_f64_serial);
-    dense_<simsimd_datatype_f64_k>("l2sq_f64_skylake", simsimd_l2sq_f64_skylake, simsimd_l2sq_f64_serial);
+    dense_<f64_k>("dot_f64_skylake", simsimd_dot_f64_skylake, simsimd_dot_f64_serial);
+    dense_<f64_k>("cos_f64_skylake", simsimd_cos_f64_skylake, simsimd_cos_f64_serial);
+    dense_<f64_k>("l2sq_f64_skylake", simsimd_l2sq_f64_skylake, simsimd_l2sq_f64_serial);
 
-    dense_<simsimd_datatype_b8_k>("hamming_b8_ice", simsimd_hamming_b8_ice, simsimd_hamming_b8_serial);
-    dense_<simsimd_datatype_b8_k>("jaccard_b8_ice", simsimd_jaccard_b8_ice, simsimd_jaccard_b8_serial);
+    dense_<b8_k>("hamming_b8_ice", simsimd_hamming_b8_ice, simsimd_hamming_b8_serial);
+    dense_<b8_k>("jaccard_b8_ice", simsimd_jaccard_b8_ice, simsimd_jaccard_b8_serial);
 #endif
 
 #if SIMSIMD_TARGET_SKYLAKE
-    dense_<simsimd_datatype_f32_k>("dot_f32_skylake", simsimd_dot_f32_skylake, simsimd_dot_f32_accurate);
-    dense_<simsimd_datatype_f32_k>("cos_f32_skylake", simsimd_cos_f32_skylake, simsimd_cos_f32_accurate);
-    dense_<simsimd_datatype_f32_k>("l2sq_f32_skylake", simsimd_l2sq_f32_skylake, simsimd_l2sq_f32_accurate);
-    dense_<simsimd_datatype_f32_k>("kl_f32_skylake", simsimd_kl_f32_skylake, simsimd_kl_f32_accurate);
-    dense_<simsimd_datatype_f32_k>("js_f32_skylake", simsimd_js_f32_skylake, simsimd_js_f32_accurate);
+    dense_<f32_k>("dot_f32_skylake", simsimd_dot_f32_skylake, simsimd_dot_f32_accurate);
+    dense_<f32_k>("cos_f32_skylake", simsimd_cos_f32_skylake, simsimd_cos_f32_accurate);
+    dense_<f32_k>("l2sq_f32_skylake", simsimd_l2sq_f32_skylake, simsimd_l2sq_f32_accurate);
+    dense_<f32_k>("kl_f32_skylake", simsimd_kl_f32_skylake, simsimd_kl_f32_accurate);
+    dense_<f32_k>("js_f32_skylake", simsimd_js_f32_skylake, simsimd_js_f32_accurate);
 
-    dense_<simsimd_datatype_f32c_k>("dot_f32c_skylake", simsimd_dot_f32c_skylake, simsimd_dot_f32c_accurate);
-    dense_<simsimd_datatype_f32c_k>("vdot_f32c_skylake", simsimd_vdot_f32c_skylake, simsimd_vdot_f32c_accurate);
-    dense_<simsimd_datatype_f64c_k>("dot_f64c_skylake", simsimd_dot_f64c_skylake, simsimd_dot_f64c_serial);
-    dense_<simsimd_datatype_f64c_k>("vdot_f64c_skylake", simsimd_vdot_f64c_skylake, simsimd_vdot_f64c_serial);
+    dense_<f32c_k>("dot_f32c_skylake", simsimd_dot_f32c_skylake, simsimd_dot_f32c_accurate);
+    dense_<f32c_k>("vdot_f32c_skylake", simsimd_vdot_f32c_skylake, simsimd_vdot_f32c_accurate);
+    dense_<f64c_k>("dot_f64c_skylake", simsimd_dot_f64c_skylake, simsimd_dot_f64c_serial);
+    dense_<f64c_k>("vdot_f64c_skylake", simsimd_vdot_f64c_skylake, simsimd_vdot_f64c_serial);
 
-    sparse_<simsimd_datatype_u16_k>("intersect_u16_skylake", simsimd_intersect_u16_skylake,
-                                    simsimd_intersect_u16_accurate);
-    sparse_<simsimd_datatype_u32_k>("intersect_u32_skylake", simsimd_intersect_u32_skylake,
-                                    simsimd_intersect_u32_accurate);
+    sparse_<u16_k>("intersect_u16_skylake", simsimd_intersect_u16_skylake, simsimd_intersect_u16_accurate);
+    sparse_<u32_k>("intersect_u32_skylake", simsimd_intersect_u32_skylake, simsimd_intersect_u32_accurate);
 
 #endif
 
-    sparse_<simsimd_datatype_u16_k>("intersect_u16_serial", simsimd_intersect_u16_serial,
-                                    simsimd_intersect_u16_accurate);
-    sparse_<simsimd_datatype_u16_k>("intersect_u16_accurate", simsimd_intersect_u16_accurate,
-                                    simsimd_intersect_u16_accurate);
-    sparse_<simsimd_datatype_u32_k>("intersect_u32_serial", simsimd_intersect_u32_serial,
-                                    simsimd_intersect_u32_accurate);
-    sparse_<simsimd_datatype_u32_k>("intersect_u32_accurate", simsimd_intersect_u32_accurate,
-                                    simsimd_intersect_u32_accurate);
+    sparse_<u16_k>("intersect_u16_serial", simsimd_intersect_u16_serial, simsimd_intersect_u16_accurate);
+    sparse_<u16_k>("intersect_u16_accurate", simsimd_intersect_u16_accurate, simsimd_intersect_u16_accurate);
+    sparse_<u32_k>("intersect_u32_serial", simsimd_intersect_u32_serial, simsimd_intersect_u32_accurate);
+    sparse_<u32_k>("intersect_u32_accurate", simsimd_intersect_u32_accurate, simsimd_intersect_u32_accurate);
 
-    dense_<simsimd_datatype_bf16_k>("dot_bf16_serial", simsimd_dot_bf16_serial, simsimd_dot_bf16_accurate);
-    dense_<simsimd_datatype_bf16_k>("cos_bf16_serial", simsimd_cos_bf16_serial, simsimd_cos_bf16_accurate);
-    dense_<simsimd_datatype_bf16_k>("l2sq_bf16_serial", simsimd_l2sq_bf16_serial, simsimd_l2sq_bf16_accurate);
-    dense_<simsimd_datatype_bf16_k>("kl_bf16_serial", simsimd_kl_bf16_serial, simsimd_kl_bf16_accurate);
-    dense_<simsimd_datatype_bf16_k>("js_bf16_serial", simsimd_js_bf16_serial, simsimd_js_bf16_accurate);
+    curved_<f64_k>("bilinear_f64_serial", simsimd_bilinear_f64_serial, simsimd_bilinear_f64_serial);
+    curved_<f64_k>("mahalanobis_f64_serial", simsimd_mahalanobis_f64_serial, simsimd_mahalanobis_f64_serial);
+    curved_<f32_k>("bilinear_f32_serial", simsimd_bilinear_f32_serial, simsimd_bilinear_f32_accurate);
+    curved_<f32_k>("mahalanobis_f32_serial", simsimd_mahalanobis_f32_serial, simsimd_mahalanobis_f32_accurate);
+    curved_<f16_k>("bilinear_f16_serial", simsimd_bilinear_f16_serial, simsimd_bilinear_f16_accurate);
+    curved_<f16_k>("mahalanobis_f16_serial", simsimd_mahalanobis_f16_serial, simsimd_mahalanobis_f16_accurate);
+    curved_<bf16_k>("bilinear_bf16_serial", simsimd_bilinear_bf16_serial, simsimd_bilinear_bf16_accurate);
+    curved_<bf16_k>("mahalanobis_bf16_serial", simsimd_mahalanobis_bf16_serial, simsimd_mahalanobis_bf16_accurate);
 
-    dense_<simsimd_datatype_f16_k>("dot_f16_serial", simsimd_dot_f16_serial, simsimd_dot_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("cos_f16_serial", simsimd_cos_f16_serial, simsimd_cos_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("l2sq_f16_serial", simsimd_l2sq_f16_serial, simsimd_l2sq_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("kl_f16_serial", simsimd_kl_f16_serial, simsimd_kl_f16_accurate);
-    dense_<simsimd_datatype_f16_k>("js_f16_serial", simsimd_js_f16_serial, simsimd_js_f16_accurate);
+    dense_<bf16_k>("dot_bf16_serial", simsimd_dot_bf16_serial, simsimd_dot_bf16_accurate);
+    dense_<bf16_k>("cos_bf16_serial", simsimd_cos_bf16_serial, simsimd_cos_bf16_accurate);
+    dense_<bf16_k>("l2sq_bf16_serial", simsimd_l2sq_bf16_serial, simsimd_l2sq_bf16_accurate);
+    dense_<bf16_k>("kl_bf16_serial", simsimd_kl_bf16_serial, simsimd_kl_bf16_accurate);
+    dense_<bf16_k>("js_bf16_serial", simsimd_js_bf16_serial, simsimd_js_bf16_accurate);
 
-    dense_<simsimd_datatype_f32_k>("dot_f32_serial", simsimd_dot_f32_serial, simsimd_dot_f32_accurate);
-    dense_<simsimd_datatype_f32_k>("cos_f32_serial", simsimd_cos_f32_serial, simsimd_cos_f32_accurate);
-    dense_<simsimd_datatype_f32_k>("l2sq_f32_serial", simsimd_l2sq_f32_serial, simsimd_l2sq_f32_accurate);
-    dense_<simsimd_datatype_f32_k>("kl_f32_serial", simsimd_kl_f32_serial, simsimd_kl_f32_accurate);
-    dense_<simsimd_datatype_f32_k>("js_f32_serial", simsimd_js_f32_serial, simsimd_js_f32_accurate);
+    dense_<f16_k>("dot_f16_serial", simsimd_dot_f16_serial, simsimd_dot_f16_accurate);
+    dense_<f16_k>("cos_f16_serial", simsimd_cos_f16_serial, simsimd_cos_f16_accurate);
+    dense_<f16_k>("l2sq_f16_serial", simsimd_l2sq_f16_serial, simsimd_l2sq_f16_accurate);
+    dense_<f16_k>("kl_f16_serial", simsimd_kl_f16_serial, simsimd_kl_f16_accurate);
+    dense_<f16_k>("js_f16_serial", simsimd_js_f16_serial, simsimd_js_f16_accurate);
 
-    dense_<simsimd_datatype_f64_k>("dot_f64_serial", simsimd_dot_f64_serial, simsimd_dot_f64_serial);
-    dense_<simsimd_datatype_f64_k>("cos_f64_serial", simsimd_cos_f64_serial, simsimd_cos_f64_serial);
-    dense_<simsimd_datatype_f64_k>("l2sq_f64_serial", simsimd_l2sq_f64_serial, simsimd_l2sq_f64_serial);
+    dense_<f32_k>("dot_f32_serial", simsimd_dot_f32_serial, simsimd_dot_f32_accurate);
+    dense_<f32_k>("cos_f32_serial", simsimd_cos_f32_serial, simsimd_cos_f32_accurate);
+    dense_<f32_k>("l2sq_f32_serial", simsimd_l2sq_f32_serial, simsimd_l2sq_f32_accurate);
+    dense_<f32_k>("kl_f32_serial", simsimd_kl_f32_serial, simsimd_kl_f32_accurate);
+    dense_<f32_k>("js_f32_serial", simsimd_js_f32_serial, simsimd_js_f32_accurate);
 
-    dense_<simsimd_datatype_i8_k>("cos_i8_serial", simsimd_cos_i8_serial, simsimd_cos_i8_accurate);
-    dense_<simsimd_datatype_i8_k>("dot_i8_serial", simsimd_dot_i8_serial, simsimd_dot_i8_serial);
-    dense_<simsimd_datatype_i8_k>("l2sq_i8_serial", simsimd_l2sq_i8_serial, simsimd_l2sq_i8_accurate);
+    dense_<f64_k>("dot_f64_serial", simsimd_dot_f64_serial, simsimd_dot_f64_serial);
+    dense_<f64_k>("cos_f64_serial", simsimd_cos_f64_serial, simsimd_cos_f64_serial);
+    dense_<f64_k>("l2sq_f64_serial", simsimd_l2sq_f64_serial, simsimd_l2sq_f64_serial);
 
-    dense_<simsimd_datatype_f64c_k>("dot_f64c_serial", simsimd_dot_f64c_serial, simsimd_dot_f64c_serial);
-    dense_<simsimd_datatype_f32c_k>("dot_f32c_serial", simsimd_dot_f32c_serial, simsimd_dot_f32c_accurate);
-    dense_<simsimd_datatype_f16c_k>("dot_f16c_serial", simsimd_dot_f16c_serial, simsimd_dot_f16c_accurate);
-    dense_<simsimd_datatype_bf16c_k>("dot_bf16c_serial", simsimd_dot_bf16c_serial, simsimd_dot_bf16c_accurate);
-    dense_<simsimd_datatype_f64c_k>("vdot_f64c_serial", simsimd_vdot_f64c_serial, simsimd_vdot_f64c_serial);
-    dense_<simsimd_datatype_f32c_k>("vdot_f32c_serial", simsimd_vdot_f32c_serial, simsimd_vdot_f32c_accurate);
-    dense_<simsimd_datatype_f16c_k>("vdot_f16c_serial", simsimd_vdot_f16c_serial, simsimd_vdot_f16c_accurate);
-    dense_<simsimd_datatype_bf16c_k>("vdot_bf16c_serial", simsimd_vdot_bf16c_serial, simsimd_vdot_bf16c_accurate);
+    dense_<i8_k>("cos_i8_serial", simsimd_cos_i8_serial, simsimd_cos_i8_accurate);
+    dense_<i8_k>("dot_i8_serial", simsimd_dot_i8_serial, simsimd_dot_i8_serial);
+    dense_<i8_k>("l2sq_i8_serial", simsimd_l2sq_i8_serial, simsimd_l2sq_i8_accurate);
 
-    dense_<simsimd_datatype_f16c_k>("vdot_f16c_serial", simsimd_vdot_f16c_serial, simsimd_vdot_f16c_accurate);
-    dense_<simsimd_datatype_bf16c_k>("vdot_bf16c_serial", simsimd_vdot_bf16c_serial, simsimd_vdot_bf16c_accurate);
+    dense_<f64c_k>("dot_f64c_serial", simsimd_dot_f64c_serial, simsimd_dot_f64c_serial);
+    dense_<f32c_k>("dot_f32c_serial", simsimd_dot_f32c_serial, simsimd_dot_f32c_accurate);
+    dense_<f16c_k>("dot_f16c_serial", simsimd_dot_f16c_serial, simsimd_dot_f16c_accurate);
+    dense_<bf16c_k>("dot_bf16c_serial", simsimd_dot_bf16c_serial, simsimd_dot_bf16c_accurate);
+    dense_<f64c_k>("vdot_f64c_serial", simsimd_vdot_f64c_serial, simsimd_vdot_f64c_serial);
+    dense_<f32c_k>("vdot_f32c_serial", simsimd_vdot_f32c_serial, simsimd_vdot_f32c_accurate);
+    dense_<f16c_k>("vdot_f16c_serial", simsimd_vdot_f16c_serial, simsimd_vdot_f16c_accurate);
+    dense_<bf16c_k>("vdot_bf16c_serial", simsimd_vdot_bf16c_serial, simsimd_vdot_bf16c_accurate);
 
-    dense_<simsimd_datatype_b8_k>("hamming_b8_serial", simsimd_hamming_b8_serial, simsimd_hamming_b8_serial);
-    dense_<simsimd_datatype_b8_k>("jaccard_b8_serial", simsimd_jaccard_b8_serial, simsimd_jaccard_b8_serial);
+    dense_<f16c_k>("vdot_f16c_serial", simsimd_vdot_f16c_serial, simsimd_vdot_f16c_accurate);
+    dense_<bf16c_k>("vdot_bf16c_serial", simsimd_vdot_bf16c_serial, simsimd_vdot_bf16c_accurate);
+
+    dense_<b8_k>("hamming_b8_serial", simsimd_hamming_b8_serial, simsimd_hamming_b8_serial);
+    dense_<b8_k>("jaccard_b8_serial", simsimd_jaccard_b8_serial, simsimd_jaccard_b8_serial);
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();

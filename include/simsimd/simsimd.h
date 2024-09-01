@@ -109,6 +109,7 @@
 #endif
 
 #include "binary.h"      // Hamming, Jaccard
+#include "curved.h"      // Mahalanobis, Bilinear Forms
 #include "dot.h"         // Inner (dot) product, and its conjugate
 #include "geospatial.h"  // Haversine and Vincenty
 #include "probability.h" // Kullback-Leibler, Jensen–Shannon
@@ -225,19 +226,48 @@ typedef enum {
 } simsimd_datatype_t;
 
 /**
- *  @brief  Type-punned function pointer accepting two vectors and outputting their similarity/distance.
+ *  @brief  Type-punned function pointer for dense vector representations and simplest similarity measures.
  *
  *  @param[in] a    Pointer to the first data array.
  *  @param[in] b    Pointer to the second data array.
  *  @param[in] n    Number of scalar words in the input arrays.
+ *                  When dealing with sub-byte data types, the number of scalar words is the number of bytes.
  *  @param[out] d   Output value as a double-precision float.
- *                  In complex dot-products @b two double-precision scalars are exported
- *                  for the real and imaginary parts.
+ *                  In complex dot-products @b two scalars are exported for the real and imaginary parts.
  */
-typedef void (*simsimd_metric_punned_t)(void const* a, void const* b, simsimd_size_t n, simsimd_distance_t* d);
+typedef void (*simsimd_metric_dense_punned_t)(void const* a, void const* b, simsimd_size_t n, simsimd_distance_t* d);
+
+/**
+ *  @brief  Type-punned function pointer for sparse vector representations and similarity measures.
+ *
+ *  @param[in] a          Pointer to the first data array, generally a sorted array of integers.
+ *  @param[in] b          Pointer to the second data array, generally a sorted array of integers.
+ *  @param[in] a_length   Number of scalar words in the first input array.
+ *  @param[in] b_length   Number of scalar words in the second input array.
+ *  @param[out] d         Output value as a double-precision float, generally without decimals.
+ */
 typedef void (*simsimd_metric_sparse_punned_t)(void const* a, void const* b,                     //
                                                simsimd_size_t a_length, simsimd_size_t b_length, //
                                                simsimd_distance_t* d);
+
+/**
+ *  @brief  Type-punned function pointer for curved vector spaces and similarity measures.
+ *
+ *  @param[in] a    Pointer to the first data array.
+ *  @param[in] b    Pointer to the second data array.
+ *  @param[in] c    Pointer to the metric tensor array or some covariance matrix.
+ *  @param[in] n    Number of scalar words in the input arrays.
+ *  @param[out] d   Output value as a double-precision float.
+ */
+typedef void (*simsimd_metric_curved_punned_t)(void const* a, void const* b, void const* c, //
+                                               simsimd_size_t n, simsimd_distance_t* d);
+
+/**
+ *  @brief  Type-punned function pointer for a SimSIMD public interface.
+ *          Can be a `simsimd_metric_dense_punned_t`, `simsimd_metric_sparse_punned_t`,
+ *          or `simsimd_metric_curved_punned_t`.
+ */
+typedef simsimd_metric_dense_punned_t simsimd_metric_punned_t;
 
 #if SIMSIMD_DYNAMIC_DISPATCH
 SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void);
