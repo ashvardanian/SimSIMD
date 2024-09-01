@@ -337,6 +337,7 @@ typedef unsigned short simsimd_bf16_t;
 #endif
 #endif
 
+/** @brief  Convinience type for half-precision floating-point type conversions. */
 typedef union {
     unsigned i;
     float f;

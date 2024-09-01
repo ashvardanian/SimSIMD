@@ -11,7 +11,8 @@
             "program": "${workspaceFolder}/build_debug/simsimd_bench",
             "cwd": "${workspaceFolder}",
             "args": [
-                "--benchmark_filter=\"intersect_u16_sve_128d\\^8192d\""
+                // "--benchmark_filter=\"intersect_u16_sve_128d\\^8192d\""
+                "--benchmark_filter=bf16_haswell"
             ],
             "environment": [
                 {

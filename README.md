@@ -677,6 +677,8 @@ In general there are a few principles that SimSIMD follows:
 - Avoid loop unrolling.
 - Never allocate memory.
 - Never throw exceptions or set `errno`.
+- Keep all function arguments the size of the pointer.
+- Avoid returning from public interfaces, use out-arguments instead.
 - Don't over-optimize for old CPUs and single- and double-precision floating-point numbers.
 - Prioritize mixed-precision and integer operations, and new ISA extensions.
 
