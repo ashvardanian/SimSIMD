@@ -6,7 +6,7 @@
  *
  *  Contains:
  *  - L2 (Euclidean) squared distance
- *  - Cosine (Angular) similarity
+ *  - Cosine (Angular) distance - @b not similarity!
  *
  *  For datatypes:
  *  - 64-bit IEEE floating point numbers
@@ -70,6 +70,8 @@ SIMSIMD_PUBLIC void simsimd_l2sq_f32_neon(simsimd_f32_t const* a, simsimd_f32_t 
 SIMSIMD_PUBLIC void simsimd_cos_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 SIMSIMD_PUBLIC void simsimd_l2sq_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 SIMSIMD_PUBLIC void simsimd_cos_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* d);
+SIMSIMD_PUBLIC void simsimd_l2sq_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* d);
+SIMSIMD_PUBLIC void simsimd_cos_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 SIMSIMD_PUBLIC void simsimd_l2sq_i8_neon(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 SIMSIMD_PUBLIC void simsimd_cos_i8_neon(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 
@@ -195,6 +197,11 @@ SIMSIMD_INTERNAL simsimd_distance_t simsimd_cos_normalize_f64_neon(simsimd_f64_t
         return 1;
     simsimd_f64_t a2_b2_arr[2] = {a2, b2};
     float64x2_t a2_b2 = vld1q_f64(a2_b2_arr);
+    // Unlike x86, Arm NEON manuals don't explicitly mention the accuracy of their `rsqrt` approximation.
+    // Third party research suggests, that it's less accurate than SSE instructions, having an error of 1.5*2^-12.
+    // One or two rounds of Newton-Raphson refinement are recommended to improve the accuracy.
+    // https://github.com/lighttransport/embree-aarch64/issues/24
+    // https://github.com/lighttransport/embree-aarch64/blob/3f75f8cb4e553d13dced941b5fefd4c826835a6b/common/math/math.h#L137-L145
     a2_b2 = vrsqrteq_f64(a2_b2);
     vst1q_f64(a2_b2_arr, a2_b2);
     return 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
@@ -297,7 +304,7 @@ simsimd_cos_f16_neon_cycle:
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_NEON
+#endif // SIMSIMD_TARGET_NEON_F16
 
 #if SIMSIMD_TARGET_NEON_BF16
 #pragma GCC push_options
