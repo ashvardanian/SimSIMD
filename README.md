@@ -1,6 +1,4 @@
-# SimSIMD 📏
-
-![SimSIMD banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/SimSIMD.png?raw=true)
+![SimSIMD banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/SimSIMD.jpg?raw=true)
 
 Computing dot-products, similarity measures, and distances between low- and high-dimensional vectors is ubiquitous in Machine Learning, Scientific Computing, Geo-Spatial Analysis, and Information Retrieval.
 These algorithms generally have linear complexity in time, constant or linear complexity in space, and are data-parallel.
@@ -41,7 +39,7 @@ SimSIMD attempts to fill that gap.
 
 ## Features
 
-SimSIMD provides __over 200 SIMD-optimized kernels__ for various distance and similarity measures, accelerating search in [USearch](https://github.com/unum-cloud/usearch) and several DBMS products.
+__SimSIMD__ provides __over 200 SIMD-optimized kernels__ for various distance and similarity measures, accelerating search in [USearch](https://github.com/unum-cloud/usearch) and several DBMS products.
 Implemented distance functions include:
 
 - Euclidean (L2) and Cosine (Angular) spatial distances for Vector Search.
