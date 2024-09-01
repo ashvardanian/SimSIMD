@@ -266,7 +266,7 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_sve(simsimd_u16_t const* shorter, sims
     // making this kernel quite inefficient. Let's aim for registers of 256 bits and larger.
     simsimd_size_t longer_load_size = svcnth();
     if (longer_load_size < 16) {
-        simsimd_intersect_u32_serial(shorter, longer, shorter_length, longer_length, results);
+        simsimd_intersect_u16_serial(shorter, longer, shorter_length, longer_length, results);
         return;
     }
 

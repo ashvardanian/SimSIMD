@@ -598,7 +598,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
     // Half-precision floating-point vectors
     case simsimd_datatype_f16_k:
 
-#if SIMSIMD_TARGET_SVE
+#if SIMSIMD_TARGET_SVE_F16
         if (viable & simsimd_cap_sve_k)
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16_sve, *c = simsimd_cap_sve_k; return;
@@ -607,7 +607,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             default: break;
             }
 #endif
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON_F16
         if (viable & simsimd_cap_neon_f16_k)
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16_neon, *c = simsimd_cap_neon_f16_k; return;
@@ -696,7 +696,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 
     // Single-byte integer vectors
     case simsimd_datatype_i8_k:
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON_I8
         if (viable & simsimd_cap_neon_i8_k)
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_i8_neon, *c = simsimd_cap_neon_i8_k; return;
@@ -853,7 +853,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 
     case simsimd_datatype_f16c_k:
 
-#if SIMSIMD_TARGET_SVE
+#if SIMSIMD_TARGET_SVE_F16
         if (viable & simsimd_cap_sve_k)
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16c_sve, *c = simsimd_cap_sve_k; return;
@@ -861,7 +861,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             default: break;
             }
 #endif
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON_F16
         if (viable & simsimd_cap_neon_f16_k)
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16c_neon, *c = simsimd_cap_neon_f16_k; return;
