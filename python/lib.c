@@ -72,22 +72,19 @@ int is_complex(simsimd_datatype_t datatype) {
 /// @return `simsimd_datatype_unknown_k` if the datatype is not supported, otherwise the logical datatype.
 /// @see https://docs.python.org/3/library/struct.html#format-characters
 simsimd_datatype_t numpy_string_to_datatype(char const* name) {
+    // Floating-point numbers:
     if (same_string(name, "f") || same_string(name, "<f") || same_string(name, "f4") || same_string(name, "<f4") ||
         same_string(name, "float32"))
         return simsimd_datatype_f32_k;
     else if (same_string(name, "e") || same_string(name, "<e") || same_string(name, "f2") || same_string(name, "<f2") ||
              same_string(name, "float16"))
         return simsimd_datatype_f16_k;
-    else if (same_string(name, "b") || same_string(name, "<b") || same_string(name, "i1") || same_string(name, "|i1") ||
-             same_string(name, "int8"))
-        return simsimd_datatype_i8_k;
-    else if (same_string(name, "B") || same_string(name, "<B") || same_string(name, "u1") || same_string(name, "|u1"))
-        return simsimd_datatype_b8_k;
     else if (same_string(name, "d") || same_string(name, "<d") || same_string(name, "f8") || same_string(name, "<f8") ||
              same_string(name, "float64"))
         return simsimd_datatype_f64_k;
     else if (same_string(name, "bfloat16")) //? Is it what it's gonna look like?
         return simsimd_datatype_bf16_k;
+
     // Complex numbers:
     else if (same_string(name, "Zf") || same_string(name, "F") || same_string(name, "<F") || same_string(name, "F4") ||
              same_string(name, "<F4") || same_string(name, "complex64"))
@@ -100,6 +97,33 @@ simsimd_datatype_t numpy_string_to_datatype(char const* name) {
         return simsimd_datatype_f16c_k;
     else if (same_string(name, "bcomplex32")) //? Is it what it's gonna look like?
         return simsimd_datatype_bf16c_k;
+
+    // Boolean values:
+    else if (same_string(name, "c") || same_string(name, "b8"))
+        return simsimd_datatype_b8_k;
+
+    // Signed integers:
+    else if (same_string(name, "b") || same_string(name, "<b") || same_string(name, "i1") || same_string(name, "|i1") ||
+             same_string(name, "int8"))
+        return simsimd_datatype_i8_k;
+    else if (same_string(name, "h") || same_string(name, "<h") || same_string(name, "i2") || same_string(name, "|i2") ||
+             same_string(name, "int16"))
+        return simsimd_datatype_i16_k;
+    else if (same_string(name, "i") || same_string(name, "<i") || same_string(name, "i4") || same_string(name, "|i4") ||
+             same_string(name, "int32"))
+        return simsimd_datatype_i32_k;
+
+    // Unsigned integers:
+    else if (same_string(name, "B") || same_string(name, "<B") || same_string(name, "u1") || same_string(name, "|u1") ||
+             same_string(name, "uint8"))
+        return simsimd_datatype_u8_k;
+    else if (same_string(name, "H") || same_string(name, "<H") || same_string(name, "u2") || same_string(name, "|u2") ||
+             same_string(name, "uint16"))
+        return simsimd_datatype_u16_k;
+    else if (same_string(name, "I") || same_string(name, "<I") || same_string(name, "u4") || same_string(name, "|u4") ||
+             same_string(name, "uint32"))
+        return simsimd_datatype_i32_k;
+
     else
         return simsimd_datatype_unknown_k;
 }
@@ -107,18 +131,16 @@ simsimd_datatype_t numpy_string_to_datatype(char const* name) {
 /// @brief Converts a Python string to a logical datatype, normalizing the format.
 /// @see https://docs.python.org/3/library/struct.html#format-characters
 simsimd_datatype_t python_string_to_datatype(char const* name) {
+    // Floating-point numbers:
     if (same_string(name, "f") || same_string(name, "f32") || same_string(name, "float32"))
         return simsimd_datatype_f32_k;
     else if (same_string(name, "e") || same_string(name, "f16") || same_string(name, "float16"))
         return simsimd_datatype_f16_k;
-    else if (same_string(name, "b") || same_string(name, "i8") || same_string(name, "int8"))
-        return simsimd_datatype_i8_k;
-    else if (same_string(name, "c") || same_string(name, "b8"))
-        return simsimd_datatype_b8_k;
     else if (same_string(name, "d") || same_string(name, "f64") || same_string(name, "float64"))
         return simsimd_datatype_f64_k;
     else if (same_string(name, "bh") || same_string(name, "bf16") || same_string(name, "bfloat16"))
         return simsimd_datatype_bf16_k;
+
     // Complex numbers:
     else if (same_string(name, "complex64"))
         return simsimd_datatype_f32c_k;
@@ -128,6 +150,31 @@ simsimd_datatype_t python_string_to_datatype(char const* name) {
         return simsimd_datatype_f16c_k;
     else if (same_string(name, "bcomplex32"))
         return simsimd_datatype_bf16c_k;
+
+    // Boolean values:
+    else if (same_string(name, "c") || same_string(name, "b8"))
+        return simsimd_datatype_b8_k;
+
+    // Signed integers:
+    else if (same_string(name, "b") || same_string(name, "i8") || same_string(name, "int8"))
+        return simsimd_datatype_i8_k;
+    else if (same_string(name, "h") || same_string(name, "i16") || same_string(name, "int16"))
+        return simsimd_datatype_i16_k;
+    else if (same_string(name, "i") || same_string(name, "i32") || same_string(name, "int32"))
+        return simsimd_datatype_i32_k;
+    else if (same_string(name, "q") || same_string(name, "i64") || same_string(name, "int64"))
+        return simsimd_datatype_i64_k;
+
+    // Unsigned integers:
+    else if (same_string(name, "B") || same_string(name, "u8") || same_string(name, "uint8"))
+        return simsimd_datatype_u8_k;
+    else if (same_string(name, "H") || same_string(name, "u16") || same_string(name, "uint16"))
+        return simsimd_datatype_u16_k;
+    else if (same_string(name, "I") || same_string(name, "u32") || same_string(name, "uint32"))
+        return simsimd_datatype_u32_k;
+    else if (same_string(name, "Q") || same_string(name, "u64") || same_string(name, "uint64"))
+        return simsimd_datatype_u64_k;
+
     else
         return simsimd_datatype_unknown_k;
 }
@@ -138,14 +185,27 @@ simsimd_datatype_t python_string_to_datatype(char const* name) {
 /// @see https://docs.python.org/3/library/struct.html#format-characters
 char const* datatype_to_python_string(simsimd_datatype_t dtype) {
     switch (dtype) {
+        // Floating-point numbers:
     case simsimd_datatype_f64_k: return "d";
     case simsimd_datatype_f32_k: return "f";
     case simsimd_datatype_f16_k: return "e";
+    // Complex numbers:
     case simsimd_datatype_f64c_k: return "Zd";
     case simsimd_datatype_f32c_k: return "Zf";
     case simsimd_datatype_f16c_k: return "Ze";
-    case simsimd_datatype_i8_k: return "b";
+    // Boolean values:
     case simsimd_datatype_b8_k: return "c";
+    // Signed integers:
+    case simsimd_datatype_i8_k: return "b";
+    case simsimd_datatype_i16_k: return "h";
+    case simsimd_datatype_i32_k: return "i";
+    case simsimd_datatype_i64_k: return "q";
+    // Unsigned integers:
+    case simsimd_datatype_u8_k: return "B";
+    case simsimd_datatype_u16_k: return "H";
+    case simsimd_datatype_u32_k: return "I";
+    case simsimd_datatype_u64_k: return "Q";
+    // Other:
     default: return "unknown";
     }
 }
