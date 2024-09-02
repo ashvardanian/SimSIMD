@@ -26,6 +26,7 @@ try:
     baseline_jensenshannon = spd.jensenshannon
     baseline_hamming = lambda x, y: spd.hamming(x, y) * len(x)
     baseline_jaccard = spd.jaccard
+    baseline_intersect = lambda x, y: len(np.intersect1d(x, y))
 
 except:
     # SciPy is not installed, some tests will be skipped
@@ -39,6 +40,22 @@ except:
         intersection = np.logical_and(x, y).sum()
         union = np.logical_or(x, y).sum()
         return 0.0 if union == 0 else 1.0 - float(intersection) / float(union)
+
+    def baseline_intersect(x, y):
+        it1, it2 = iter(x), iter(y)
+        val1, val2 = next(it1, None), next(it2, None)
+        count = 0
+
+        while val1 is not None and val2 is not None:
+            if val1 == val2:
+                count += 1
+                val1, val2 = next(it1, None), next(it2, None)
+            elif val1 < val2:
+                val1 = next(it1, None)
+            else:
+                val2 = next(it2, None)
+
+        return count
 
 
 def is_running_under_qemu():
@@ -345,6 +362,7 @@ def test_dot_complex_explicit(ndim):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 def test_hamming(ndim):
@@ -360,6 +378,7 @@ def test_hamming(ndim):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 def test_jaccard(ndim):
@@ -372,6 +391,25 @@ def test_jaccard(ndim):
     result = simd.jaccard(np.packbits(a), np.packbits(b))
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("dtype", [np.uint16, np.uint32])
+def test_intersect(dtype):
+    """Compares the simd.intersect() function with numpy.intersect1d."""
+    np.random.seed()
+    a_length = np.random.randint(1, 1024)
+    b_length = np.random.randint(1, 1024)
+    a = np.random.randint(2048, size=a_length, dtype=dtype)
+    b = np.random.randint(2048, size=b_length, dtype=dtype)
+    a.sort()
+    b.sort()
+
+    expected = baseline_intersect(a, b)
+    result = simd.intersect(a, b)
+
+    assert int(expected) == int(result)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")

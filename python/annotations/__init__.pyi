@@ -4,7 +4,20 @@ from numpy.typing import NDArray
 from typing_extensions import overload
 
 _MetricType = Literal[
-    "sqeuclidean", "inner", "dot", "cosine", "cos", "hamming", "jaccard", "kullbackleibler", "kl", "jensenshannon", "js"
+    "sqeuclidean",
+    "inner",
+    "dot",
+    "cosine",
+    "cos",
+    "hamming",
+    "jaccard",
+    "kullbackleibler",
+    "kl",
+    "jensenshannon",
+    "js",
+    "intersection",
+    "bilinear",
+    "mahalanobis",
 ]
 _FloatType = Literal[
     "f",
@@ -25,7 +38,12 @@ _FloatType = Literal[
     "bf16",
     "bfloat16",
 ]
-_ComplexType = Literal["complex32", "bcomplex32", "complex64", "complex128"]
+_ComplexType = Literal[
+    "complex32",
+    "bcomplex32",
+    "complex64",
+    "complex128",
+]
 
 @overload
 def get_capabilities() -> dict[str, bool]: ...
@@ -118,11 +136,25 @@ def kullbackleibler(
     tensor1: NDArray[Any], tensor2: NDArray[Any], datatype: _ComplexType, /
 ) -> Union[complex, DistancesTensor]: ...
 @overload
+def intersection(array1: NDArray[Any], array2: NDArray[Any]) -> Union[float, DistancesTensor]: ...
+@overload
+def bilinear(
+    vector1: NDArray[Any], vector2: NDArray[Any], metric_tensor: NDArray[Any]
+) -> Union[float, DistancesTensor]: ...
+@overload
+def mahalanobis(
+    vector1: NDArray[Any], vector2: NDArray[Any], inverse_covariance: NDArray[Any]
+) -> Union[float, DistancesTensor]: ...
+@overload
 def pointer_to_sqeuclidean(type_name: Union[_FloatType, _ComplexType], /) -> int: ...
 @overload
 def pointer_to_cosine(type_name: Union[_FloatType, _ComplexType], /) -> int: ...
 @overload
 def pointer_to_inner(type_name: Union[_FloatType, _ComplexType], /) -> int: ...
+@overload
+def pointer_to_dot(type_name: Union[_FloatType, _ComplexType], /) -> int: ...
+@overload
+def pointer_to_vdot(type_name: Union[_FloatType, _ComplexType], /) -> int: ...
 @overload
 def pointer_to_jensenshannon(type_name: Union[_FloatType, _ComplexType], /) -> int: ...
 @overload

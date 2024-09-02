@@ -160,6 +160,10 @@ typedef enum {
     // Sets:
     simsimd_metric_intersect_k = 'x', ///< Equivalent to unnormalized Jaccard
 
+    // Curved Spaces:
+    simsimd_metric_bilinear_k = 'b',    ///< Bilinear form
+    simsimd_metric_mahalanobis_k = 'm', ///< Mahalanobis distance
+
     // Probability:
     simsimd_metric_kl_k = 'k',               ///< Kullback-Leibler divergence
     simsimd_metric_kullback_leibler_k = 'k', ///< Kullback-Leibler divergence alias

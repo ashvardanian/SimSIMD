@@ -57,7 +57,7 @@ static PyTypeObject DistancesTensorType = {
 /// @brief  Global variable that caches the CPU capabilities, and is computed just onc, when the module is loaded.
 simsimd_capability_t static_capabilities = simsimd_cap_serial_k;
 
-/// @brief Helper method tocheck for string equality.
+/// @brief Helper method to check for string equality.
 /// @return 1 if the strings are equal, 0 otherwise.
 int same_string(char const* a, char const* b) { return strcmp(a, b) == 0; }
 
@@ -390,7 +390,7 @@ static void DistancesTensor_releasebuffer(PyObject* export_from, Py_buffer* view
     // https://docs.python.org/3/c-api/typeobj.html#c.PyBufferProcs.bf_releasebuffer
 }
 
-static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const* args, Py_ssize_t nargs) {
+static PyObject* implement_dense_metric(simsimd_metric_kind_t metric_kind, PyObject* const* args, Py_ssize_t nargs) {
     // Function now accepts up to 3 arguments, the third being optional
     if (nargs < 2 || nargs > 3) {
         PyErr_SetString(PyExc_TypeError, "Function expects 2 or 3 arguments");
@@ -519,6 +519,139 @@ static PyObject* impl_metric(simsimd_metric_kind_t metric_kind, PyObject* const*
                 cast_distance(result[1], return_datatype, distances, i * components_per_pair + 1);
         }
     }
+
+cleanup:
+    PyBuffer_Release(&buffer_a);
+    PyBuffer_Release(&buffer_b);
+    return output;
+}
+
+static PyObject* implement_curved_metric(simsimd_metric_kind_t metric_kind, PyObject* const* args, Py_ssize_t nargs) {
+    // Function now accepts up to 4 arguments, the fourth being optional
+    if (nargs < 3 || nargs > 4) {
+        PyErr_SetString(PyExc_TypeError, "Function expects 4 or 5 arguments");
+        return NULL;
+    }
+
+    PyObject* output = NULL;
+    PyObject* input_tensor_a = args[0];
+    PyObject* input_tensor_b = args[1];
+    PyObject* input_tensor_c = args[2];
+    PyObject* value_type_desc = nargs == 4 ? args[3] : NULL;
+
+    Py_buffer buffer_a, buffer_b, buffer_c;
+    TensorArgument parsed_a, parsed_b, parsed_c;
+    if (parse_tensor(input_tensor_a, &buffer_a, &parsed_a) != 0 ||
+        parse_tensor(input_tensor_b, &buffer_b, &parsed_b) != 0 ||
+        parse_tensor(input_tensor_c, &buffer_c, &parsed_c) != 0) {
+        return NULL; // Error already set by parse_tensor
+    }
+
+    // Check dimensions
+    if (parsed_a.dimensions != 1 || parsed_b.dimensions != 1) {
+        PyErr_SetString(PyExc_ValueError, "First and second argument must be vectors");
+        goto cleanup;
+    }
+    if (parsed_c.dimensions != 2) {
+        PyErr_SetString(PyExc_ValueError, "Third argument must be a matrix (rank-2 tensor)");
+        goto cleanup;
+    }
+    if (parsed_a.count == 0 || parsed_b.count == 0) {
+        PyErr_SetString(PyExc_ValueError, "Collections can't be empty");
+        goto cleanup;
+    }
+    if (parsed_a.count > 1 && parsed_b.count > 1 && parsed_a.count != parsed_b.count) {
+        PyErr_SetString(PyExc_ValueError, "Collections must have the same number of elements or just one element");
+        goto cleanup;
+    }
+
+    // Check data types
+    if (parsed_a.datatype != parsed_b.datatype && parsed_a.datatype != simsimd_datatype_unknown_k &&
+        parsed_b.datatype != simsimd_datatype_unknown_k) {
+        PyErr_SetString(PyExc_ValueError, "Input tensors must have matching and supported datatypes");
+        goto cleanup;
+    }
+
+    // Process the third argument, `value_type_desc`, if provided
+    simsimd_datatype_t input_datatype = parsed_a.datatype;
+    if (value_type_desc != NULL) {
+        // Ensure it is a string (or convert it to one if possible)
+        if (!PyUnicode_Check(value_type_desc)) {
+            PyErr_SetString(PyExc_TypeError, "third argument must be a string describing the value type");
+            goto cleanup;
+        }
+        // Convert Python string to C string
+        char const* value_type_str = PyUnicode_AsUTF8(value_type_desc);
+        if (!value_type_str) {
+            PyErr_SetString(PyExc_ValueError, "Could not convert value type description to string");
+            goto cleanup;
+        }
+        input_datatype = python_string_to_datatype(value_type_str);
+    }
+
+    simsimd_metric_curved_punned_t metric = NULL;
+    simsimd_capability_t capability = simsimd_cap_serial_k;
+    simsimd_find_metric_punned(metric_kind, input_datatype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_metric_punned_t*)&metric, &capability);
+    if (!metric) {
+        PyErr_SetString(PyExc_ValueError, "Unsupported metric and datatype combination");
+        goto cleanup;
+    }
+
+    simsimd_distance_t distance;
+    metric(parsed_a.start, parsed_b.start, parsed_c.start, parsed_a.dimensions, &distance);
+    output = PyFloat_FromDouble(distance);
+
+cleanup:
+    PyBuffer_Release(&buffer_a);
+    PyBuffer_Release(&buffer_b);
+    PyBuffer_Release(&buffer_c);
+    return output;
+}
+
+static PyObject* implement_sparse_metric(simsimd_metric_kind_t metric_kind, PyObject* const* args, Py_ssize_t nargs) {
+    if (nargs != 2) {
+        PyErr_SetString(PyExc_TypeError, "Function expects only 2 arguments");
+        return NULL;
+    }
+
+    PyObject* output = NULL;
+    PyObject* input_tensor_a = args[0];
+    PyObject* input_tensor_b = args[1];
+
+    Py_buffer buffer_a, buffer_b;
+    TensorArgument parsed_a, parsed_b;
+    if (parse_tensor(input_tensor_a, &buffer_a, &parsed_a) != 0 ||
+        parse_tensor(input_tensor_b, &buffer_b, &parsed_b) != 0) {
+        return NULL; // Error already set by parse_tensor
+    }
+
+    // Check dimensions
+    if (parsed_a.dimensions != 1 || parsed_b.dimensions != 1) {
+        PyErr_SetString(PyExc_ValueError, "First and second argument must be vectors");
+        goto cleanup;
+    }
+
+    // Check data types
+    if (parsed_a.datatype != parsed_b.datatype && parsed_a.datatype != simsimd_datatype_unknown_k &&
+        parsed_b.datatype != simsimd_datatype_unknown_k) {
+        PyErr_SetString(PyExc_ValueError, "Input tensors must have matching and supported datatypes");
+        goto cleanup;
+    }
+
+    simsimd_datatype_t input_datatype = parsed_a.datatype;
+    simsimd_metric_sparse_punned_t metric = NULL;
+    simsimd_capability_t capability = simsimd_cap_serial_k;
+    simsimd_find_metric_punned(metric_kind, input_datatype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_metric_punned_t*)&metric, &capability);
+    if (!metric) {
+        PyErr_SetString(PyExc_ValueError, "Unsupported metric and datatype combination");
+        goto cleanup;
+    }
+
+    simsimd_distance_t distance;
+    metric(parsed_a.start, parsed_b.start, parsed_a.dimensions, parsed_b.dimensions, &distance);
+    output = PyFloat_FromDouble(distance);
 
 cleanup:
     PyBuffer_Release(&buffer_a);
@@ -657,7 +790,7 @@ cleanup:
     return output;
 }
 
-static PyObject* impl_pointer(simsimd_metric_kind_t metric_kind, PyObject* args) {
+static PyObject* implement_pointer_access(simsimd_metric_kind_t metric_kind, PyObject* args) {
     char const* type_name = PyUnicode_AsUTF8(PyTuple_GetItem(args, 0));
     if (!type_name) {
         PyErr_SetString(PyExc_ValueError, "Invalid type name");
@@ -765,41 +898,62 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
     return impl_cdist(input_tensor_a, input_tensor_b, metric_kind, threads, dtype);
 }
 
-static PyObject* api_l2sq_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_l2sq_k, args); }
-static PyObject* api_cos_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_cos_k, args); }
-static PyObject* api_dot_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_dot_k, args); }
-static PyObject* api_kl_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_kl_k, args); }
-static PyObject* api_js_pointer(PyObject* self, PyObject* args) { return impl_pointer(simsimd_metric_js_k, args); }
+static PyObject* api_l2sq_pointer(PyObject* self, PyObject* args) {
+    return implement_pointer_access(simsimd_metric_l2sq_k, args);
+}
+static PyObject* api_cos_pointer(PyObject* self, PyObject* args) {
+    return implement_pointer_access(simsimd_metric_cos_k, args);
+}
+static PyObject* api_dot_pointer(PyObject* self, PyObject* args) {
+    return implement_pointer_access(simsimd_metric_dot_k, args);
+}
+static PyObject* api_vdot_pointer(PyObject* self, PyObject* args) {
+    return implement_pointer_access(simsimd_metric_vdot_k, args);
+}
+static PyObject* api_kl_pointer(PyObject* self, PyObject* args) {
+    return implement_pointer_access(simsimd_metric_kl_k, args);
+}
+static PyObject* api_js_pointer(PyObject* self, PyObject* args) {
+    return implement_pointer_access(simsimd_metric_js_k, args);
+}
 static PyObject* api_hamming_pointer(PyObject* self, PyObject* args) {
-    return impl_pointer(simsimd_metric_hamming_k, args);
+    return implement_pointer_access(simsimd_metric_hamming_k, args);
 }
 static PyObject* api_jaccard_pointer(PyObject* self, PyObject* args) {
-    return impl_pointer(simsimd_metric_jaccard_k, args);
+    return implement_pointer_access(simsimd_metric_jaccard_k, args);
 }
-
 static PyObject* api_l2sq(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
-    return impl_metric(simsimd_metric_l2sq_k, args, nargs);
+    return implement_dense_metric(simsimd_metric_l2sq_k, args, nargs);
 }
 static PyObject* api_cos(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
-    return impl_metric(simsimd_metric_cos_k, args, nargs);
+    return implement_dense_metric(simsimd_metric_cos_k, args, nargs);
 }
 static PyObject* api_dot(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
-    return impl_metric(simsimd_metric_dot_k, args, nargs);
+    return implement_dense_metric(simsimd_metric_dot_k, args, nargs);
 }
 static PyObject* api_vdot(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
-    return impl_metric(simsimd_metric_vdot_k, args, nargs);
+    return implement_dense_metric(simsimd_metric_vdot_k, args, nargs);
 }
 static PyObject* api_kl(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
-    return impl_metric(simsimd_metric_kl_k, args, nargs);
+    return implement_dense_metric(simsimd_metric_kl_k, args, nargs);
 }
 static PyObject* api_js(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
-    return impl_metric(simsimd_metric_js_k, args, nargs);
+    return implement_dense_metric(simsimd_metric_js_k, args, nargs);
 }
 static PyObject* api_hamming(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
-    return impl_metric(simsimd_metric_hamming_k, args, nargs);
+    return implement_dense_metric(simsimd_metric_hamming_k, args, nargs);
 }
 static PyObject* api_jaccard(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
-    return impl_metric(simsimd_metric_jaccard_k, args, nargs);
+    return implement_dense_metric(simsimd_metric_jaccard_k, args, nargs);
+}
+static PyObject* api_bilinear(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
+    return implement_curved_metric(simsimd_metric_bilinear_k, args, nargs);
+}
+static PyObject* api_mahalanobis(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
+    return implement_curved_metric(simsimd_metric_mahalanobis_k, args, nargs);
+}
+static PyObject* api_intersect(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
+    return implement_sparse_metric(simsimd_metric_intersect_k, args, nargs);
 }
 
 // clang-format off
@@ -809,12 +963,16 @@ static PyMethodDef simsimd_methods[] = {
     {"enable_capability", (PyCFunction)api_enable_capability, METH_VARARGS, "Enable a specific family of Assembly kernels"},
     {"disable_capability", (PyCFunction)api_disable_capability, METH_VARARGS, "Disable a specific family of Assembly kernels"},
 
-    // NumPy and SciPy compatible interfaces (two matrix or vector arguments)
+    // NumPy and SciPy compatible interfaces (two matrix or vector arguments) for dense vector representations
+    // All of those can be computed:
+    //  - for a pair of vectors, 
+    //  - for a batch of vector pairs, represented as two matrices of identical shape,
+    //  - for a batch of vectors against a single vector, represented as a matrix and a vector.
     {"sqeuclidean", (PyCFunction)api_l2sq, METH_FASTCALL, "L2sq (Sq. Euclidean) distances between a pair of matrices"},
     {"cosine", (PyCFunction)api_cos, METH_FASTCALL, "Cosine (Angular) distances between a pair of matrices"},
-    {"inner", (PyCFunction)api_dot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
-    {"dot", (PyCFunction)api_dot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
-    {"vdot", (PyCFunction)api_vdot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of matrices"},
+    {"inner", (PyCFunction)api_dot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of real or complex matrices"},
+    {"dot", (PyCFunction)api_dot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of real or complex matrices"},
+    {"vdot", (PyCFunction)api_vdot, METH_FASTCALL, "Conjugate Inner (Dot) Product distances between a pair of complex matrices"},
     {"hamming", (PyCFunction)api_hamming, METH_FASTCALL, "Hamming distances between a pair of matrices"},
     {"jaccard", (PyCFunction)api_jaccard, METH_FASTCALL, "Jaccard (Bitwise Tanimoto) distances between a pair of matrices"},
     {"kullbackleibler", (PyCFunction)api_kl, METH_FASTCALL, "Kullback-Leibler divergence between probability distributions"},
@@ -827,8 +985,17 @@ static PyMethodDef simsimd_methods[] = {
     {"pointer_to_sqeuclidean", (PyCFunction)api_l2sq_pointer, METH_VARARGS, "L2sq (Sq. Euclidean) function pointer as `int`"},
     {"pointer_to_cosine", (PyCFunction)api_cos_pointer, METH_VARARGS, "Cosine (Angular) function pointer as `int`"},
     {"pointer_to_inner", (PyCFunction)api_dot_pointer, METH_VARARGS, "Inner (Dot) Product function pointer as `int`"},
+    {"pointer_to_dot", (PyCFunction)api_dot_pointer, METH_VARARGS, "Inner (Dot) Product function pointer as `int`"},
+    {"pointer_to_vdot", (PyCFunction)api_vdot_pointer, METH_VARARGS, "Conjugate Inner (Dot) Product function pointer as `int`"},
     {"pointer_to_kullbackleibler", (PyCFunction)api_dot_pointer, METH_VARARGS, "Kullback-Leibler function pointer as `int`"},
     {"pointer_to_jensenshannon", (PyCFunction)api_dot_pointer, METH_VARARGS, "Jensen-Shannon function pointer as `int`"},
+
+    // Set operations
+    {"intersect", (PyCFunction)api_intersect, METH_FASTCALL, "Set intersection for arrays of sorted integers"},
+
+    // Curved spaces
+    {"bilinear", (PyCFunction)api_bilinear, METH_FASTCALL, "Bilinear form between two vectors, given a metric tensor"},
+    {"mahalanobis", (PyCFunction)api_mahalanobis, METH_FASTCALL, "Mahalanobis distance between two vectors, given a covariance matrix"},
 
     // Sentinel
     {NULL, NULL, 0, NULL}};
