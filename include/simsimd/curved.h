@@ -25,7 +25,8 @@
 
 #include "types.h"
 
-#include "dot.h" // partial loads
+#include "dot.h"     // `simsimd_partial_load_f16x4_neon` and friends
+#include "spatial.h" // `simsimd_substract_bf16x32_genoa`
 
 #ifdef __cplusplus
 extern "C" {
@@ -562,6 +563,95 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_haswell(simsimd_bf16_t const* a, si
 }
 
 #endif // SIMSIMD_TARGET_HASWELL
+
+#if SIMSIMD_TARGET_GENOA
+#pragma GCC push_options
+#pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
+#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512bf16"))), apply_to = function)
+
+SIMSIMD_PUBLIC void simsimd_bilinear_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b,
+                                                simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result) {
+    simsimd_size_t tail_length = n % 32;
+    simsimd_size_t tail_start = n - tail_length;
+    __m512 sum_vec = _mm512_setzero_ps();
+    __mmask32 tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+
+    for (simsimd_size_t i = 0; i != n; ++i) {
+        __m512 a_vec = _mm512_set1_ps(simsimd_uncompress_bf16(a[i]));
+        __m512 partial_sum_vec = _mm512_setzero_ps();
+        __m512i b_vec, c_vec;
+        simsimd_size_t j = 0;
+
+    simsimd_bilinear_bf16_genoa_cycle:
+        if (j + 32 <= n) {
+            b_vec = _mm512_loadu_epi16(b + j);
+            c_vec = _mm512_loadu_epi16(c + i * n + j);
+        } else {
+            b_vec = _mm512_maskz_loadu_epi16(tail_mask, b + tail_start);
+            c_vec = _mm512_maskz_loadu_epi16(tail_mask, c + i * n + tail_start);
+        }
+        partial_sum_vec = _mm512_dpbf16_ps(partial_sum_vec, (__m512bh)(b_vec), (__m512bh)(c_vec));
+        sum_vec = _mm512_fmadd_ps(sum_vec, a_vec, partial_sum_vec);
+        j += 32;
+        if (j < n)
+            goto simsimd_bilinear_bf16_genoa_cycle;
+    }
+
+    *result = _mm512_reduce_add_ps(sum_vec);
+}
+
+SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b,
+                                                   simsimd_bf16_t const* c, simsimd_size_t n,
+                                                   simsimd_distance_t* result) {
+    simsimd_size_t tail_length = n % 32;
+    simsimd_size_t tail_start = n - tail_length;
+    __m512 sum_vec = _mm512_setzero_ps();
+    __mmask32 tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+
+    for (simsimd_size_t i = 0; i != n; ++i) {
+        __m512 diff_i_vec = _mm512_set1_ps(simsimd_uncompress_bf16(a[i]) - simsimd_uncompress_bf16(b[i]));
+        __m512 partial_sum_vec = _mm512_setzero_ps(), partial_sum_bot_vec = _mm512_setzero_ps();
+        __m512i a_j_vec, b_j_vec, diff_j_vec, c_vec;
+        simsimd_size_t j = 0;
+
+        // The nested loop is cleaner to implement with a `goto` in this case:
+    simsimd_bilinear_bf16_genoa_cycle:
+        if (j + 32 <= n) {
+            a_j_vec = _mm512_loadu_epi16(a + j);
+            b_j_vec = _mm512_loadu_epi16(b + j);
+            c_vec = _mm512_loadu_epi16(c + i * n + j);
+        } else {
+            a_j_vec = _mm512_maskz_loadu_epi16(tail_mask, a + tail_start);
+            b_j_vec = _mm512_maskz_loadu_epi16(tail_mask, b + tail_start);
+            c_vec = _mm512_maskz_loadu_epi16(tail_mask, c + i * n + tail_start);
+        }
+        diff_j_vec = simsimd_substract_bf16x32_genoa(a_j_vec, b_j_vec);
+        partial_sum_vec = _mm512_dpbf16_ps(partial_sum_vec, (__m512bh)(diff_j_vec), (__m512bh)(c_vec));
+        j += 32;
+        if (j < n)
+            goto simsimd_bilinear_bf16_genoa_cycle;
+        sum_vec = _mm512_fmadd_ps(sum_vec, diff_i_vec, partial_sum_vec);
+    }
+
+    *result = _mm512_reduce_add_ps(sum_vec);
+}
+
+#endif // SIMSIMD_TARGET_GENOA
+
+#if SIMSIMD_TARGET_SAPPHIRE && 0
+#pragma GCC push_options
+#pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16", "amx_bf16")
+#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512bf16,amx_bf16"))),            \
+                             apply_to = function)
+
+SIMSIMD_PUBLIC void simsimd_bilinear_bf16_sapphire(simsimd_bf16_t const* a, simsimd_bf16_t const* b,
+                                                   simsimd_bf16_t const* c, simsimd_size_t n,
+                                                   simsimd_distance_t* result) {}
+SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_sapphire(simsimd_bf16_t const* a, simsimd_bf16_t const* b,
+                                                      simsimd_bf16_t const* c, simsimd_size_t n,
+                                                      simsimd_distance_t* result) {}
+
+#endif // SIMSIMD_TARGET_SAPPHIRE
 #endif // SIMSIMD_TARGET_X86
 
 #ifdef __cplusplus

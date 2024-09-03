@@ -1116,12 +1116,37 @@ simsimd_cos_f64_skylake_cycle:
 #pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
 #pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512bf16"))), apply_to = function)
 
+SIMSIMD_INTERNAL __m512i simsimd_substract_bf16x32_genoa(__m512i a_i16_vec, __m512i b_i16_vec) {
+    // Let's perform the subtraction with single-precision, while the dot-product with half-precision.
+    // For that we need to perform a couple of casts - each is a bitshift. To convert `bf16` to `f32`,
+    // expand it to 32-bit integers, then shift the bits by 16 to the left. Then subtract as floats,
+    // and shift back. During expansion, we will double the space, and should use separate registers
+    // for top and bottom halves.
+    __m512 a_f32_bot_vec =
+        _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_castsi512_si256(a_i16_vec)), 16));
+    __m512 b_f32_bot_vec =
+        _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_castsi512_si256(b_i16_vec)), 16));
+
+    // Some compilers don't have `_mm512_extracti32x8_epi32`, so we need to use `_mm512_extracti64x4_epi64`
+    __m512 a_f32_top_vec =
+        _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_extracti64x4_epi64(a_i16_vec, 1)), 16));
+    __m512 b_f32_top_vec =
+        _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_extracti64x4_epi64(b_i16_vec, 1)), 16));
+
+    // Subtract and cast back
+    __m512 d_f32_top_vec = _mm512_sub_ps(a_f32_top_vec, b_f32_top_vec);
+    __m512 d_f32_bot_vec = _mm512_sub_ps(a_f32_bot_vec, b_f32_bot_vec);
+
+    // Interleave, masking o
+    __m512i d_top_vec = _mm512_srli_epi32(_mm512_castps_si512(d_f32_top_vec), 16);
+    __m512i d_bot_vec = _mm512_and_si512(_mm512_castps_si512(d_f32_bot_vec), _mm512_set1_epi32(0xFFFF0000));
+    return _mm512_or_si512(d_top_vec, d_bot_vec);
+}
+
 SIMSIMD_PUBLIC void simsimd_l2sq_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                             simsimd_distance_t* result) {
-    __m512 d2_top_vec = _mm512_setzero_ps(), d2_bot_vec = _mm512_setzero_ps();
-    __m512 d_top_vec = _mm512_setzero_ps(), d_bot_vec = _mm512_setzero_ps();
-    __m512 a_f32_top_vec, a_f32_bot_vec, b_f32_top_vec, b_f32_bot_vec;
-    __m512i a_i16_vec, b_i16_vec;
+    __m512 d2_vec = _mm512_setzero_ps();
+    __m512i a_i16_vec, b_i16_vec, d_i16_vec;
 
 simsimd_l2sq_bf16_genoa_cycle:
     if (n < 32) {
@@ -1134,35 +1159,12 @@ simsimd_l2sq_bf16_genoa_cycle:
         b_i16_vec = _mm512_loadu_epi16(b);
         a += 32, b += 32, n -= 32;
     }
-    // Let's perform the subtraction with single-precision, while the dot-product with half-precision.
-    // For that we need to perform a couple of casts - each is a bitshift. To convert `bf16` to `f32`,
-    // expand it to 32-bit integers, then shift the bits by 16 to the left. Then subtract as floats,
-    // and shift back. During expansion, we will double the space, and should use separate registers
-    // for top and bottom halves.
-    a_f32_bot_vec =
-        _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_castsi512_si256(a_i16_vec)), 16));
-    b_f32_bot_vec =
-        _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_castsi512_si256(b_i16_vec)), 16));
-
-    // Some compilers don't have `_mm512_extracti32x8_epi32`, so we need to use `_mm512_extracti64x4_epi64`
-    a_f32_top_vec =
-        _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_extracti64x4_epi64(a_i16_vec, 1)), 16));
-    b_f32_top_vec =
-        _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(_mm512_extracti64x4_epi64(b_i16_vec, 1)), 16));
-
-    // Subtract and cast back
-    d_top_vec = _mm512_sub_ps(a_f32_top_vec, b_f32_top_vec);
-    d_bot_vec = _mm512_sub_ps(a_f32_bot_vec, b_f32_bot_vec);
-    d_top_vec = _mm512_castsi512_ps(_mm512_srli_epi32(_mm512_castps_si512(d_top_vec), 16));
-    d_bot_vec = _mm512_castsi512_ps(_mm512_srli_epi32(_mm512_castps_si512(d_bot_vec), 16));
-
-    // Square and accumulate
-    d2_top_vec = _mm512_dpbf16_ps(d2_top_vec, (__m512bh)(d_top_vec), (__m512bh)(d_top_vec));
-    d2_bot_vec = _mm512_dpbf16_ps(d2_bot_vec, (__m512bh)(d_bot_vec), (__m512bh)(d_bot_vec));
+    d_i16_vec = simsimd_substract_bf16x32_genoa(a_i16_vec, b_i16_vec);
+    d2_vec = _mm512_dpbf16_ps(d2_vec, (__m512bh)(d_i16_vec), (__m512bh)(d_i16_vec));
     if (n)
         goto simsimd_l2sq_bf16_genoa_cycle;
 
-    *result = _mm512_reduce_add_ps(d2_top_vec) + _mm512_reduce_add_ps(d2_bot_vec);
+    *result = _mm512_reduce_add_ps(d2_vec);
 }
 
 SIMSIMD_PUBLIC void simsimd_cos_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
