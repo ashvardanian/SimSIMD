@@ -518,6 +518,8 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16_haswell(simsimd_bf16_t const* a, simsi
             sum += a_i * partial_sum;
         }
     }
+
+    *result = sum;
 }
 
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b,
@@ -555,6 +557,8 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_haswell(simsimd_bf16_t const* a, si
             sum += diff_i * partial_sum;
         }
     }
+
+    *result = sum;
 }
 
 #endif // SIMSIMD_TARGET_HASWELL
