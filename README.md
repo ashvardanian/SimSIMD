@@ -151,6 +151,8 @@ dist = simsimd.cosine(vec1, vec2, "i8")
 dist = simsimd.cosine(vec1, vec2, "f16")
 dist = simsimd.cosine(vec1, vec2, "f32")
 dist = simsimd.cosine(vec1, vec2, "f64")
+dist = simsimd.hamming(vec1, vec2, "bits")
+dist = simsimd.jaccard(vec1, vec2, "bits")
 ```
 
 It also allows using SimSIMD for half-precision complex numbers, which NumPy does not support.

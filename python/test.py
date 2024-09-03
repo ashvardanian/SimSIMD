@@ -372,7 +372,7 @@ def test_hamming(ndim):
     b = np.random.randint(2, size=ndim).astype(np.uint8)
 
     expected = baseline_hamming(a, b)
-    result = simd.hamming(np.packbits(a), np.packbits(b))
+    result = simd.hamming(np.packbits(a), np.packbits(b), "b8")
 
     np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
 
@@ -388,7 +388,7 @@ def test_jaccard(ndim):
     b = np.random.randint(2, size=ndim).astype(np.uint8)
 
     expected = baseline_jaccard(a, b)
-    result = simd.jaccard(np.packbits(a), np.packbits(b))
+    result = simd.jaccard(np.packbits(a), np.packbits(b), "b8")
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 

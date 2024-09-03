@@ -99,7 +99,7 @@ simsimd_datatype_t numpy_string_to_datatype(char const* name) {
         return simsimd_datatype_bf16c_k;
 
     // Boolean values:
-    else if (same_string(name, "c") || same_string(name, "b8"))
+    else if (same_string(name, "c") || same_string(name, "b8") || same_string(name, "bits"))
         return simsimd_datatype_b8_k;
 
     // Signed integers:
@@ -152,7 +152,7 @@ simsimd_datatype_t python_string_to_datatype(char const* name) {
         return simsimd_datatype_bf16c_k;
 
     // Boolean values:
-    else if (same_string(name, "c") || same_string(name, "b8"))
+    else if (same_string(name, "c") || same_string(name, "b8") || same_string(name, "bits"))
         return simsimd_datatype_b8_k;
 
     // Signed integers:
@@ -249,14 +249,14 @@ simsimd_metric_kind_t python_string_to_metric_kind(char const* name) {
         return simsimd_metric_inner_k;
     else if (same_string(name, "cosine") || same_string(name, "cos"))
         return simsimd_metric_cosine_k;
-    else if (same_string(name, "hamming"))
-        return simsimd_metric_hamming_k;
     else if (same_string(name, "jaccard"))
         return simsimd_metric_jaccard_k;
     else if (same_string(name, "kullbackleibler") || same_string(name, "kl"))
         return simsimd_metric_kl_k;
     else if (same_string(name, "jensenshannon") || same_string(name, "js"))
         return simsimd_metric_js_k;
+    else if (same_string(name, "hamming"))
+        return simsimd_metric_hamming_k;
     else if (same_string(name, "jaccard"))
         return simsimd_metric_jaccard_k;
     else
