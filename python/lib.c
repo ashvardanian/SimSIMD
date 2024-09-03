@@ -23,7 +23,7 @@ typedef struct TensorArgument {
     size_t dimensions;
     size_t count;
     size_t stride;
-    int is_flat;
+    int rank;
     simsimd_datatype_t datatype;
 } TensorArgument;
 
@@ -104,25 +104,25 @@ simsimd_datatype_t numpy_string_to_datatype(char const* name) {
 
     // Signed integers:
     else if (same_string(name, "b") || same_string(name, "<b") || same_string(name, "i1") || same_string(name, "|i1") ||
-             same_string(name, "int8"))
+             same_string(name, "<i1") || same_string(name, "int8"))
         return simsimd_datatype_i8_k;
     else if (same_string(name, "h") || same_string(name, "<h") || same_string(name, "i2") || same_string(name, "|i2") ||
-             same_string(name, "int16"))
+             same_string(name, "<i2") || same_string(name, "int16"))
         return simsimd_datatype_i16_k;
     else if (same_string(name, "i") || same_string(name, "<i") || same_string(name, "i4") || same_string(name, "|i4") ||
-             same_string(name, "int32"))
+             same_string(name, "<i4") || same_string(name, "int32"))
         return simsimd_datatype_i32_k;
 
     // Unsigned integers:
     else if (same_string(name, "B") || same_string(name, "<B") || same_string(name, "u1") || same_string(name, "|u1") ||
-             same_string(name, "uint8"))
+             same_string(name, "<u1") || same_string(name, "uint8"))
         return simsimd_datatype_u8_k;
     else if (same_string(name, "H") || same_string(name, "<H") || same_string(name, "u2") || same_string(name, "|u2") ||
-             same_string(name, "uint16"))
+             same_string(name, "<u2") || same_string(name, "uint16"))
         return simsimd_datatype_u16_k;
     else if (same_string(name, "I") || same_string(name, "<I") || same_string(name, "u4") || same_string(name, "|u4") ||
-             same_string(name, "uint32"))
-        return simsimd_datatype_i32_k;
+             same_string(name, "<u4") || same_string(name, "uint32"))
+        return simsimd_datatype_u32_k;
 
     else
         return simsimd_datatype_unknown_k;
@@ -390,13 +390,13 @@ int parse_tensor(PyObject* tensor, Py_buffer* buffer, TensorArgument* parsed) {
     // printf("buffer itemsize is %d\n", buffer->itemsize);
     parsed->start = buffer->buf;
     parsed->datatype = numpy_string_to_datatype(buffer->format);
+    parsed->rank = buffer->ndim;
     if (buffer->ndim == 1) {
         if (buffer->strides[0] > buffer->itemsize) {
             PyErr_SetString(PyExc_ValueError, "Input vectors must be contiguous");
             PyBuffer_Release(buffer);
             return -1;
         }
-        parsed->is_flat = 1;
         parsed->dimensions = buffer->shape[0];
         parsed->count = 1;
         parsed->stride = 0;
@@ -406,7 +406,6 @@ int parse_tensor(PyObject* tensor, Py_buffer* buffer, TensorArgument* parsed) {
             PyBuffer_Release(buffer);
             return -1;
         }
-        parsed->is_flat = 0;
         parsed->dimensions = buffer->shape[1];
         parsed->count = buffer->shape[0];
         parsed->stride = buffer->strides[0];
@@ -486,7 +485,8 @@ static PyObject* implement_dense_metric(simsimd_metric_kind_t metric_kind, PyObj
     // Check data types
     if (parsed_a.datatype != parsed_b.datatype && parsed_a.datatype != simsimd_datatype_unknown_k &&
         parsed_b.datatype != simsimd_datatype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Input tensors must have matching and supported datatypes");
+        PyErr_SetString(PyExc_ValueError,
+                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
         goto cleanup;
     }
 
@@ -519,7 +519,7 @@ static PyObject* implement_dense_metric(simsimd_metric_kind_t metric_kind, PyObj
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     int datatype_is_complex = is_complex(input_datatype);
     simsimd_datatype_t return_datatype = datatype_is_complex ? simsimd_datatype_f64c_k : simsimd_datatype_f64_k;
-    if (parsed_a.is_flat && parsed_b.is_flat) {
+    if (parsed_a.rank == 1 && parsed_b.rank == 1) {
         // For complex numbers we are going to use `PyComplex_FromDoubles`.
         if (datatype_is_complex) {
             simsimd_distance_t distances[2];
@@ -608,11 +608,11 @@ static PyObject* implement_curved_metric(simsimd_metric_kind_t metric_kind, PyOb
     }
 
     // Check dimensions
-    if (parsed_a.dimensions != 1 || parsed_b.dimensions != 1) {
+    if (parsed_a.rank != 1 || parsed_b.rank != 1) {
         PyErr_SetString(PyExc_ValueError, "First and second argument must be vectors");
         goto cleanup;
     }
-    if (parsed_c.dimensions != 2) {
+    if (parsed_c.rank != 2) {
         PyErr_SetString(PyExc_ValueError, "Third argument must be a matrix (rank-2 tensor)");
         goto cleanup;
     }
@@ -628,7 +628,8 @@ static PyObject* implement_curved_metric(simsimd_metric_kind_t metric_kind, PyOb
     // Check data types
     if (parsed_a.datatype != parsed_b.datatype && parsed_a.datatype != simsimd_datatype_unknown_k &&
         parsed_b.datatype != simsimd_datatype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Input tensors must have matching and supported datatypes");
+        PyErr_SetString(PyExc_ValueError,
+                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
         goto cleanup;
     }
 
@@ -654,7 +655,13 @@ static PyObject* implement_curved_metric(simsimd_metric_kind_t metric_kind, PyOb
     simsimd_find_metric_punned(metric_kind, input_datatype, static_capabilities, simsimd_cap_any_k,
                                (simsimd_metric_punned_t*)&metric, &capability);
     if (!metric) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported metric and datatype combination");
+        PyErr_Format(PyExc_ValueError,
+                     "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s' and '%s'/'%s') and "
+                     "tensor ('%s'/'%s')",
+                     metric_kind,                                                   //
+                     buffer_a.format, datatype_to_python_string(parsed_a.datatype), //
+                     buffer_b.format, datatype_to_python_string(parsed_b.datatype), //
+                     buffer_c.format, datatype_to_python_string(parsed_c.datatype));
         goto cleanup;
     }
 
@@ -668,7 +675,6 @@ cleanup:
     PyBuffer_Release(&buffer_c);
     return output;
 }
-
 static PyObject* implement_sparse_metric(simsimd_metric_kind_t metric_kind, PyObject* const* args, Py_ssize_t nargs) {
     if (nargs != 2) {
         PyErr_SetString(PyExc_TypeError, "Function expects only 2 arguments");
@@ -687,7 +693,7 @@ static PyObject* implement_sparse_metric(simsimd_metric_kind_t metric_kind, PyOb
     }
 
     // Check dimensions
-    if (parsed_a.dimensions != 1 || parsed_b.dimensions != 1) {
+    if (parsed_a.rank != 1 || parsed_b.rank != 1) {
         PyErr_SetString(PyExc_ValueError, "First and second argument must be vectors");
         goto cleanup;
     }
@@ -695,7 +701,8 @@ static PyObject* implement_sparse_metric(simsimd_metric_kind_t metric_kind, PyOb
     // Check data types
     if (parsed_a.datatype != parsed_b.datatype && parsed_a.datatype != simsimd_datatype_unknown_k &&
         parsed_b.datatype != simsimd_datatype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Input tensors must have matching and supported datatypes");
+        PyErr_SetString(PyExc_ValueError,
+                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
         goto cleanup;
     }
 
@@ -705,7 +712,10 @@ static PyObject* implement_sparse_metric(simsimd_metric_kind_t metric_kind, PyOb
     simsimd_find_metric_punned(metric_kind, input_datatype, static_capabilities, simsimd_cap_any_k,
                                (simsimd_metric_punned_t*)&metric, &capability);
     if (!metric) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported metric and datatype combination");
+        PyErr_Format(PyExc_ValueError, "Unsupported metric '%c' and datatype combination ('%s'/'%s' and '%s'/'%s')",
+                     metric_kind,                                                   //
+                     buffer_a.format, datatype_to_python_string(parsed_a.datatype), //
+                     buffer_b.format, datatype_to_python_string(parsed_b.datatype));
         goto cleanup;
     }
 
@@ -733,7 +743,8 @@ static PyObject* impl_cdist(                            //
 
     // Check dimensions
     if (parsed_a.dimensions != parsed_b.dimensions) {
-        PyErr_SetString(PyExc_ValueError, "Vector dimensions don't match");
+        PyErr_Format(PyExc_ValueError, "Vector dimensions don't match (%d != %d)", parsed_a.dimensions,
+                     parsed_b.dimensions);
         goto cleanup;
     }
     if (parsed_a.count == 0 || parsed_b.count == 0) {
@@ -744,7 +755,8 @@ static PyObject* impl_cdist(                            //
     // Check data types
     if (parsed_a.datatype != parsed_b.datatype && parsed_a.datatype != simsimd_datatype_unknown_k &&
         parsed_b.datatype != simsimd_datatype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Input tensors must have matching and supported datatypes");
+        PyErr_SetString(PyExc_ValueError,
+                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
         goto cleanup;
     }
 
@@ -754,7 +766,10 @@ static PyObject* impl_cdist(                            //
     simsimd_find_metric_punned(metric_kind, input_datatype, static_capabilities, simsimd_cap_any_k, &metric,
                                &capability);
     if (!metric) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported metric and datatype combination");
+        PyErr_Format(PyExc_ValueError, "Unsupported metric '%c' and datatype combination ('%s'/'%s' and '%s'/'%s')",
+                     metric_kind,                                                   //
+                     buffer_a.format, datatype_to_python_string(parsed_a.datatype), //
+                     buffer_b.format, datatype_to_python_string(parsed_b.datatype));
         goto cleanup;
     }
 
@@ -773,7 +788,7 @@ static PyObject* impl_cdist(                            //
 
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     int datatype_is_complex = is_complex(input_datatype);
-    if (parsed_a.is_flat && parsed_b.is_flat) {
+    if (parsed_a.rank == 1 && parsed_b.rank == 1) {
         // For complex numbers we are going to use `PyComplex_FromDoubles`.
         if (datatype_is_complex) {
             simsimd_distance_t distances[2];
