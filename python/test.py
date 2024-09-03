@@ -41,21 +41,18 @@ except:
         union = np.logical_or(x, y).sum()
         return 0.0 if union == 0 else 1.0 - float(intersection) / float(union)
 
-    def baseline_intersect(x, y):
-        it1, it2 = iter(x), iter(y)
-        val1, val2 = next(it1, None), next(it2, None)
-        count = 0
-
-        while val1 is not None and val2 is not None:
-            if val1 == val2:
-                count += 1
-                val1, val2 = next(it1, None), next(it2, None)
-            elif val1 < val2:
-                val1 = next(it1, None)
+    def baseline_intersect(arr1, arr2):
+        i, j, intersection = 0, 0, 0
+        while i < len(arr1) and j < len(arr2):
+            if arr1[i] == arr2[j]:
+                intersection += 1
+                i += 1
+                j += 1
+            elif arr1[i] < arr2[j]:
+                i += 1
             else:
-                val2 = next(it2, None)
-
-        return count
+                j += 1
+        return intersection
 
 
 def is_running_under_qemu():
@@ -403,9 +400,13 @@ def test_intersect(dtype):
     b_length = np.random.randint(1, 1024)
     a = np.random.randint(2048, size=a_length, dtype=dtype)
     b = np.random.randint(2048, size=b_length, dtype=dtype)
-    a.sort()
-    b.sort()
 
+    # Remove duplicates, converting into sorted arrays
+    a = np.unique(a)
+    b = np.unique(b)
+
+    simd.disable_capability("skylake")
+    simd.disable_capability("neon")
     expected = baseline_intersect(a, b)
     result = simd.intersect(a, b)
 

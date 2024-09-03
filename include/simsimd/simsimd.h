@@ -813,6 +813,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 
         break;
 
+    // Complex floating-point vectors
     case simsimd_datatype_f32c_k:
 
 #if SIMSIMD_TARGET_SVE
@@ -857,6 +858,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 
         break;
 
+    // Complex double-precision floating-point vectors
     case simsimd_datatype_f64c_k:
 
 #if SIMSIMD_TARGET_SVE
@@ -885,6 +887,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 
         break;
 
+    // Complex half-precision floating-point vectors
     case simsimd_datatype_f16c_k:
 
 #if SIMSIMD_TARGET_SVE_F16
@@ -928,6 +931,8 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 
         break;
+
+    // Complex Brain floating-point vectors
     case simsimd_datatype_bf16c_k:
 
 #if SIMSIMD_TARGET_NEON_BF16
