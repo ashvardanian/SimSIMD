@@ -176,22 +176,29 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
      */
     void randomize() noexcept {
 
-        double squared_sum = 0;
-        for (std::size_t i = 0; i != dimensions_; ++i) {
-            if constexpr (is_integral)
-                buffer_[i] = static_cast<scalar_t>(std::rand() % std::numeric_limits<scalar_t>::max());
-            else {
-                double ai = double(std::rand()) / double(RAND_MAX);
+        std::random_device random_device;
+        std::mt19937 generator(random_device());
+
+        if constexpr (std::is_integral_v<scalar_t>) {
+            std::uniform_int_distribution<scalar_t> distribution(0, std::numeric_limits<scalar_t>::max());
+            for (std::size_t i = 0; i != dimensions_; ++i) {
+                buffer_[i] = distribution(generator);
+            }
+        } else {
+            // Using non-uniform distribution helps detect tail errors
+            std::normal_distribution<double> distribution(0.0, 1.0);
+            double squared_sum = 0.0;
+            for (std::size_t i = 0; i != dimensions_; ++i) {
+                double ai = distribution(generator);
                 squared_sum += ai * ai;
                 compress(ai, buffer_[i]);
             }
-        }
 
-        // Normalize the vectors:
-        if constexpr (!is_integral) {
+            // Normalize the vectors:
             squared_sum = std::sqrt(squared_sum);
-            for (std::size_t i = 0; i != dimensions_; ++i)
+            for (std::size_t i = 0; i != dimensions_; ++i) {
                 compress(uncompress(buffer_[i]) / squared_sum, buffer_[i]);
+            }
         }
     }
 };
@@ -235,6 +242,7 @@ void measure_dense(bm::State& state, metric_at metric, metric_at baseline, std::
         // Output for complex vectors have two dimensions.
         simsimd_distance_t results[2] = {signaling_distance, signaling_distance};
         baseline(pair.a.data(), pair.b.data(), pair.a.dimensions(), &results[0]);
+        assert(!std::isnan(results[0]));
         return results[0] + results[1];
     };
     auto call_contender = [&](pair_t& pair) -> double {
@@ -242,6 +250,7 @@ void measure_dense(bm::State& state, metric_at metric, metric_at baseline, std::
         // Output for complex vectors have two dimensions.
         simsimd_distance_t results[2] = {signaling_distance, signaling_distance};
         metric(pair.a.data(), pair.b.data(), pair.a.dimensions(), &results[0]);
+        assert(!std::isnan(results[0]));
         return results[0] + results[1];
     };
 
@@ -300,11 +309,13 @@ void measure_curved(bm::State& state, metric_at metric, metric_at baseline, std:
     auto call_baseline = [&](pair_t const& pair, vector_t const& tensor) -> double {
         simsimd_distance_t result = signaling_distance;
         baseline(pair.a.data(), pair.b.data(), tensor.data(), pair.a.dimensions(), &result);
+        assert(!std::isnan(result));
         return result;
     };
     auto call_contender = [&](pair_t const& pair, vector_t const& tensor) -> double {
         simsimd_distance_t result = signaling_distance;
         metric(pair.a.data(), pair.b.data(), tensor.data(), pair.a.dimensions(), &result);
+        assert(!std::isnan(result));
         return result;
     };
 
@@ -373,11 +384,13 @@ void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std:
     auto call_baseline = [&](pair_t& pair) -> double {
         simsimd_distance_t result = std::numeric_limits<simsimd_distance_t>::signaling_NaN();
         baseline(pair.a.data(), pair.b.data(), pair.a.dimensions(), pair.b.dimensions(), &result);
+        assert(!std::isnan(result));
         return result;
     };
     auto call_contender = [&](pair_t& pair) -> double {
         simsimd_distance_t result = std::numeric_limits<simsimd_distance_t>::signaling_NaN();
         metric(pair.a.data(), pair.b.data(), pair.a.dimensions(), pair.b.dimensions(), &result);
+        assert(!std::isnan(result));
         return result;
     };
 
