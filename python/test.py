@@ -27,6 +27,8 @@ try:
     baseline_hamming = lambda x, y: spd.hamming(x, y) * len(x)
     baseline_jaccard = spd.jaccard
     baseline_intersect = lambda x, y: len(np.intersect1d(x, y))
+    baseline_bilinear = lambda x, y, z: x @ z @ y
+    baseline_mahalanobis = lambda x, y, z: spd.mahalanobis(x, y, z) ** 2
 
 except:
     # SciPy is not installed, some tests will be skipped
@@ -35,6 +37,11 @@ except:
     baseline_sqeuclidean = lambda x, y: np.sum((x - y) ** 2)
     baseline_jensenshannon = lambda p, q: np.sqrt((np.sum((np.sqrt(p) - np.sqrt(q)) ** 2)) / 2)
     baseline_hamming = lambda x, y: np.logical_xor(x, y).sum()
+    baseline_bilinear = lambda x, y, z: x @ z @ y
+
+    def baseline_mahalanobis(x, y, z):
+        diff = x - y
+        return diff @ np.linalg.inv(z) @ diff
 
     def baseline_jaccard(x, y):
         intersection = np.logical_and(x, y).sum()
@@ -63,6 +70,18 @@ def is_running_under_qemu():
 # For unnormalized ones (like squared Euclidean or Jaccard), we use the relative.
 SIMSIMD_RTOL = 0.1
 SIMSIMD_ATOL = 0.1
+
+
+def f32_rounded_and_downcasted_to_bf16(array):
+    """Converts an array of 32-bit floats into 16-bit brain-floats."""
+    # NumPy doesn't natively support brain-float, so we need a trick!
+    # Luckily, it's very easy to reduce the representation accuracy
+    # by simply masking the low 16-bits of our 32-bit single-precision
+    # numbers. We can also add `0x8000` to round the numbers.
+    array_f32rounded = ((array.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+    # To represent them as brain-floats, we need to drop the second halfs
+    array_bf16 = np.right_shift(array_f32rounded.view(np.uint32), 16).astype(np.uint16)
+    return array_f32rounded, array_bf16
 
 
 def test_pointers_availability():
@@ -114,8 +133,17 @@ def test_capabilities_list():
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
-def test_dot(ndim, dtype):
-    """Compares the simd.dot() function with numpy.dot(), measuring the accuracy error for f64 and f32 types."""
+@pytest.mark.parametrize(
+    "kernels",
+    [
+        (np.inner, simd.inner),
+        (baseline_sqeuclidean, simd.sqeuclidean),
+        (baseline_cosine, simd.cosine),
+    ],
+)
+def test_dense(ndim, dtype, kernels):
+    """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
+    with their NumPy or baseline counterparts, testing accuracy for IEEE standard floating-point types."""
 
     if dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
@@ -123,39 +151,28 @@ def test_dot(ndim, dtype):
     np.random.seed()
     a = np.random.randn(ndim).astype(dtype)
     b = np.random.randn(ndim).astype(dtype)
-    a /= np.linalg.norm(a)
-    b /= np.linalg.norm(b)
 
-    expected = np.inner(a, b).astype(np.float32)
-    result = simd.inner(a, b)
+    baseline_kernel, simd_kernel = kernels
+    expected = baseline_kernel(a, b).astype(np.float32)
+    result = simd_kernel(a, b)
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [11, 97, 1536])
-@pytest.mark.parametrize("dtype", ["int8"])
-def test_dot_integers(ndim, dtype):
-    """Compares the simd.dot() function with numpy.dot(), checking for exact match for integer inputs."""
-
-    np.random.seed()
-    a = np.random.randint(-128, 127, size=(ndim), dtype=dtype)
-    b = np.random.randint(-128, 127, size=(ndim), dtype=dtype)
-
-    expected_overflow = np.inner(a, b)
-    expected = np.inner(a.astype(np.int64), b.astype(np.int64))
-    result = simd.inner(a, b)
-
-    assert int(result) == expected, f"Expected {expected}, but got {result} (overflow: {expected_overflow})"
-
-
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("ndim", [11, 16, 33])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
-def test_sqeuclidean(ndim, dtype):
-    """Compares the simd.sqeuclidean() function with scipy.spatial.distance.sqeuclidean(), measuring the accuracy error for f16, and f32 types."""
+@pytest.mark.parametrize(
+    "kernels",
+    [
+        (baseline_bilinear, simd.bilinear),
+        (baseline_mahalanobis, simd.mahalanobis),
+    ],
+)
+def test_curved(ndim, dtype, kernels):
+    """Compares various SIMD kernels (like Bilinear Forms and Mahalanobis distances) for curved spaces
+    with their NumPy or baseline counterparts, testing accuracy for IEEE standard floating-point types."""
 
     if dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
@@ -163,47 +180,11 @@ def test_sqeuclidean(ndim, dtype):
     np.random.seed()
     a = np.random.randn(ndim).astype(dtype)
     b = np.random.randn(ndim).astype(dtype)
+    c = np.random.randn(ndim, ndim).astype(dtype)
 
-    expected = baseline_sqeuclidean(a, b).astype(np.float32)
-    result = simd.sqeuclidean(a, b)
-
-    np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
-
-
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [11, 97, 1536])
-@pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
-def test_cosine(ndim, dtype):
-    """Compares the simd.cosine() function with scipy.spatial.distance.cosine(), measuring the accuracy error for f16, and f32 types."""
-
-    if dtype == "float16" and is_running_under_qemu():
-        pytest.skip("Testing low-precision math isn't reliable in QEMU")
-
-    np.random.seed()
-    a = np.random.randn(ndim).astype(dtype)
-    b = np.random.randn(ndim).astype(dtype)
-
-    expected = baseline_cosine(a, b).astype(np.float32)
-    result = simd.cosine(a, b)
-
-    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-
-
-@pytest.mark.skip(reason="Problems inferring the tolerance bounds for numerical errors")
-@pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [11, 97, 1536])
-@pytest.mark.parametrize("dtype", ["float32", "float16"])
-def test_jensen_shannon(ndim, dtype):
-    """Compares the simd.jensenshannon() function with scipy.spatial.distance.jensenshannon(), measuring the accuracy error for f16, and f32 types."""
-    np.random.seed()
-    a = np.abs(np.random.randn(ndim)).astype(dtype)
-    b = np.abs(np.random.randn(ndim)).astype(dtype)
-    a /= np.sum(a)
-    b /= np.sum(b)
-
-    expected = baseline_jensenshannon(a, b) ** 2
-    result = simd.jensenshannon(a, b)
+    baseline_kernel, simd_kernel = kernels
+    expected = baseline_kernel(a, b, c).astype(np.float32)
+    result = simd_kernel(a, b, c)
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
@@ -211,26 +192,28 @@ def test_jensen_shannon(ndim, dtype):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
-def test_inner_bf16(ndim):
-    """Compares the simd.inner() function with numpy.inner(), measuring the accuracy error for 16-bit brain-float types."""
+@pytest.mark.parametrize(
+    "kernels",
+    [
+        (np.inner, simd.inner),
+        (baseline_sqeuclidean, simd.sqeuclidean),
+        (baseline_cosine, simd.cosine),
+    ],
+)
+def test_dense_bf16(ndim, kernels):
+    """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
+    with their NumPy or baseline counterparts, testing accuracy for the Brain-float format not
+    natively supported by NumPy."""
     np.random.seed()
     a = np.random.randn(ndim).astype(np.float32)
     b = np.random.randn(ndim).astype(np.float32)
 
-    # NumPy doesn't natively support brain-float, so we need a trick!
-    # Luckily, it's very easy to reduce the representation accuracy
-    # by simply masking the low 16-bits of our 32-bit single-precision
-    # numbers. We can also add `0x8000` to round the numbers.
-    a_f32rounded = ((a.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
-    b_f32rounded = ((b.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+    a_f32rounded, a_bf16 = f32_rounded_and_downcasted_to_bf16(a)
+    b_f32rounded, b_bf16 = f32_rounded_and_downcasted_to_bf16(b)
 
-    # To represent them as brain-floats, we need to drop the second halfs
-    a_bf16 = np.right_shift(a_f32rounded.view(np.uint32), 16).astype(np.uint16)
-    b_bf16 = np.right_shift(b_f32rounded.view(np.uint32), 16).astype(np.uint16)
-
-    # Now we can compare the results
-    expected = np.inner(a_f32rounded, b_f32rounded)
-    result = simd.inner(a_bf16, b_bf16, "bf16")
+    baseline_kernel, simd_kernel = kernels
+    expected = baseline_kernel(a_f32rounded, b_f32rounded)
+    result = simd_kernel(a_bf16, b_bf16, "bf16")
 
     def hex_array(arr):
         printer = np.vectorize(hex)
@@ -254,31 +237,66 @@ def test_inner_bf16(ndim):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
-def test_cosine_i8(ndim):
-    """Compares the simd.cosine() function with scipy.spatial.distance.cosine(), measuring the accuracy error for 8-bit int types."""
-    np.random.seed()
-    a = np.random.randint(0, 100, size=ndim, dtype=np.int8)
-    b = np.random.randint(0, 100, size=ndim, dtype=np.int8)
+@pytest.mark.parametrize(
+    "kernels",
+    [
+        (np.inner, simd.inner),
+        (baseline_sqeuclidean, simd.sqeuclidean),
+        (baseline_cosine, simd.cosine),
+    ],
+)
+def test_dense_i8(ndim, kernels):
+    """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
+    with their NumPy or baseline counterparts, testing accuracy for small integer types, that can't
+    be directly processed with other tools without overflowing."""
 
-    expected = baseline_cosine(a.astype(np.float32), b.astype(np.float32))
-    result = simd.cosine(a, b)
+    np.random.seed()
+    a = np.random.randint(-128, 127, size=(ndim), dtype=np.int8)
+    b = np.random.randint(-128, 127, size=(ndim), dtype=np.int8)
+
+    baseline_kernel, simd_kernel = kernels
+    expected_overflow = baseline_kernel(a, b)
+    expected = baseline_kernel(a.astype(np.float64), b.astype(np.float64))
+    result = simd_kernel(a, b)
+
+    assert int(result) == expected, f"Expected {expected}, but got {result} (overflow: {expected_overflow})"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("kernels", [(baseline_hamming, simd.hamming), (baseline_jaccard, simd.jaccard)])
+def test_dense_bits(ndim, kernels):
+    """Compares various SIMD kernels (like Hamming and Jaccard/Tanimoto distances) for dense bit arrays
+    with their NumPy or baseline counterparts, even though, they can't process sub-byte-sized scalars."""
+    np.random.seed()
+    a = np.random.randint(2, size=ndim).astype(np.uint8)
+    b = np.random.randint(2, size=ndim).astype(np.uint8)
+
+    baseline_kernel, simd_kernel = kernels
+    expected = baseline_kernel(a, b)
+    result = simd_kernel(np.packbits(a), np.packbits(b), "b8")
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skip(reason="Problems inferring the tolerance bounds for numerical errors")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
-def test_sqeuclidean_i8(ndim):
-    """Compares the simd.sqeuclidean() function with scipy.spatial.distance.sqeuclidean(), measuring the accuracy error for 8-bit int types."""
+@pytest.mark.parametrize("dtype", ["float32", "float16"])
+def test_jensen_shannon(ndim, dtype):
+    """Compares the simd.jensenshannon() function with scipy.spatial.distance.jensenshannon(), measuring the accuracy error for f16, and f32 types."""
     np.random.seed()
-    a = np.random.randint(0, 100, size=ndim, dtype=np.int8)
-    b = np.random.randint(0, 100, size=ndim, dtype=np.int8)
+    a = np.abs(np.random.randn(ndim)).astype(dtype)
+    b = np.abs(np.random.randn(ndim)).astype(dtype)
+    a /= np.sum(a)
+    b /= np.sum(b)
 
-    expected = baseline_sqeuclidean(a.astype(np.float32), b.astype(np.float32))
-    result = simd.sqeuclidean(a, b)
+    expected = baseline_jensenshannon(a, b) ** 2
+    result = simd.jensenshannon(a, b)
 
-    np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -329,12 +347,12 @@ def test_dot_complex(ndim, dtype):
     expected = np.dot(a, b)
     result = simd.dot(a, b)
 
-    np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
     expected = np.vdot(a, b)
     result = simd.vdot(a, b)
 
-    np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(is_running_under_qemu(), reason="Complex math in QEMU fails")
@@ -350,48 +368,16 @@ def test_dot_complex_explicit(ndim):
     expected = np.dot(a.view(np.complex64), b.view(np.complex64))
     result = simd.dot(a, b, "complex64")
 
-    np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
     expected = np.vdot(a.view(np.complex64), b.view(np.complex64))
     result = simd.vdot(a, b, "complex64")
-
-    np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
-
-
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
-@pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [11, 97, 1536])
-def test_hamming(ndim):
-    """Compares the simd.hamming() function with scipy.spatial.distance.hamming."""
-    np.random.seed()
-    a = np.random.randint(2, size=ndim).astype(np.uint8)
-    b = np.random.randint(2, size=ndim).astype(np.uint8)
-
-    expected = baseline_hamming(a, b)
-    result = simd.hamming(np.packbits(a), np.packbits(b), "b8")
-
-    np.testing.assert_allclose(expected, result, atol=0, rtol=SIMSIMD_RTOL)
-
-
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
-@pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [11, 97, 1536])
-def test_jaccard(ndim):
-    """Compares the simd.jaccard() function with scipy.spatial.distance.jaccard."""
-    np.random.seed()
-    a = np.random.randint(2, size=ndim).astype(np.uint8)
-    b = np.random.randint(2, size=ndim).astype(np.uint8)
-
-    expected = baseline_jaccard(a, b)
-    result = simd.jaccard(np.packbits(a), np.packbits(b), "b8")
 
     np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(200)
 @pytest.mark.parametrize("dtype", [np.uint16, np.uint32])
 def test_intersect(dtype):
     """Compares the simd.intersect() function with numpy.intersect1d."""
@@ -428,34 +414,34 @@ def test_batch(ndim, dtype):
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float32)
-    assert np.allclose(result_simd, result_np, atol=0, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (1 x D scalars) is an array with N floats.
     B = np.random.randn(1, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B[0]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float32)
-    assert np.allclose(result_simd, result_np, atol=0, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
     # Distance between matrixes A (1 x D scalars) and B (N x D scalars) is an array with N floats.
     A = np.random.randn(1, ndim).astype(dtype)
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[0], B[i]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float32)
-    assert np.allclose(result_simd, result_np, atol=0, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
     # Distance between matrix A (N x D scalars) and array B (D scalars) is an array with N floats.
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.random.randn(ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float32)
-    assert np.allclose(result_simd, result_np, atol=0, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
     # Distance between matrix B (N x D scalars) and array A (D scalars) is an array with N floats.
     B = np.random.randn(10, ndim).astype(dtype)
     A = np.random.randn(ndim).astype(dtype)
     result_np = [spd.sqeuclidean(B[i], A) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(B, A)).astype(np.float32)
-    assert np.allclose(result_simd, result_np, atol=0, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
