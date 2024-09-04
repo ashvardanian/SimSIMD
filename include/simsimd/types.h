@@ -226,7 +226,7 @@ typedef simsimd_f64_t simsimd_distance_t;
 #endif
 typedef __fp16 simsimd_f16_t;
 #elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) &&                      \
-       (defined(__SSE2__) || defined(__AVX512F__)))
+       (defined(__SSE2__) || defined(__AVX512FP16__)))
 typedef _Float16 simsimd_f16_t;
 #if !defined(SIMSIMD_NATIVE_F16)
 #define SIMSIMD_NATIVE_F16 1
@@ -275,8 +275,8 @@ typedef unsigned short simsimd_f16_t;
 #endif
 typedef __bf16 simsimd_bf16_t;
 #elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) &&                      \
-       (defined(__SSE2__) || defined(__AVX512F__)))
-typedef _Bfloat16 simsimd_bf16_t;
+       (defined(__SSE2__) || defined(__AVX512BF16__)))
+typedef __bfloat16 simsimd_bf16_t;
 #if !defined(SIMSIMD_NATIVE_BF16)
 #define SIMSIMD_NATIVE_BF16 1
 #endif
@@ -387,7 +387,7 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
 SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_f16(simsimd_f16_t const* x_ptr) {
-    unsigned short x = *(unsigned short*)x_ptr;
+    unsigned short x = *(unsigned short const*)x_ptr;
     unsigned int exponent = (x & 0x7C00) >> 10;
     unsigned int mantissa = (x & 0x03FF) << 13;
     simsimd_f32i32_t mantissa_conv;
@@ -427,8 +427,8 @@ SIMSIMD_PUBLIC void simsimd_compress_f16(simsimd_f32_t x, unsigned short* result
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_bf16(simsimd_f16_t const* x_ptr) {
-    unsigned short x = *(unsigned short*)x_ptr;
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_bf16(simsimd_bf16_t const* x_ptr) {
+    unsigned short x = *(unsigned short const*)x_ptr;
     simsimd_f32i32_t conv;
     conv.i = x << 16; // Zero extends the mantissa
     return conv.f;

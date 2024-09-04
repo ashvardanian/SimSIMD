@@ -8,9 +8,6 @@
 
 #include <benchmark/benchmark.h>
 
-#define SIMSIMD_NATIVE_F16 0
-#define SIMSIMD_NATIVE_BF16 0
-
 #if !defined(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
 #define SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS 0
 #endif
@@ -24,8 +21,8 @@
 // are implemented.
 #define SIMSIMD_RSQRT(x) (1 / sqrt(x))
 #define SIMSIMD_LOG(x) (log(x))
-#define SIMSIMD_NATIVE_F16 0
-#define SIMSIMD_NATIVE_BF16 0
+#define SIMSIMD_NATIVE_F16 1
+#define SIMSIMD_NATIVE_BF16 1
 #include <simsimd/simsimd.h>
 
 constexpr std::size_t default_seconds = 10;
@@ -125,9 +122,20 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
      *  @param to The scalar type where the compressed value will be stored.
      */
     static void compress(double const& from, scalar_t& to) noexcept {
+        // In a NaN, the sign bit is irrelevant, mantissa describes the kind of NaN,
+        // and the exponent is all ones - we can only check the the exponent bits.
+        // Brain float is similar: https://en.wikipedia.org/wiki/Bfloat16_floating-point_format
+        constexpr unsigned short exponent_mask_f16 = 0b0111110000000000;               // 1 sign, 5 exp, 10 mantissa
+        constexpr unsigned short exponent_mask_bf16 = 0b0111111110000000;              // 1 sign, 8 exp, 7 mantissa
+        constexpr unsigned int exponent_mask_f32 = 0b01111111100000000000000000000000; // 1 sign, 8 exp, 23 mantissa
+        constexpr unsigned long long exponent_mask_f64 =                               // 1 sign, 11 exp, 52 mantissa
+            0b011111111110000000000000000000000000000000000000000000000000000;
+
 #if !SIMSIMD_NATIVE_BF16
         if constexpr (datatype_ak == simsimd_datatype_bf16_k || datatype_ak == simsimd_datatype_bf16c_k) {
             simsimd_compress_bf16(from, &to);
+            if ((to & exponent_mask_bf16) == exponent_mask_bf16)
+                to = 0;
             static_assert(sizeof(scalar_t) == sizeof(simsimd_bf16_t));
             return;
         }
@@ -135,6 +143,8 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
 #if !SIMSIMD_NATIVE_F16
         if constexpr (datatype_ak == simsimd_datatype_f16_k || datatype_ak == simsimd_datatype_f16c_k) {
             simsimd_compress_f16(from, &to);
+            if ((to & exponent_mask_f16) == exponent_mask_f16)
+                to = 0;
             static_assert(sizeof(scalar_t) == sizeof(simsimd_f16_t));
             return;
         }
@@ -150,16 +160,12 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
     static double uncompress(scalar_t const& from) noexcept {
 #if !SIMSIMD_NATIVE_BF16
         if constexpr (datatype_ak == simsimd_datatype_bf16_k || datatype_ak == simsimd_datatype_bf16c_k) {
-            compressed16_t compressed;
-            std::memcpy(&compressed, &from, sizeof(scalar_t));
-            return simsimd_uncompress_bf16(compressed);
+            return simsimd_uncompress_bf16((simsimd_bf16_t const*)&from);
         }
 #endif
 #if !SIMSIMD_NATIVE_F16
         if constexpr (datatype_ak == simsimd_datatype_f16_k || datatype_ak == simsimd_datatype_f16c_k) {
-            compressed16_t compressed;
-            std::memcpy(&compressed, &from, sizeof(scalar_t));
-            return simsimd_uncompress_f16(compressed);
+            return simsimd_uncompress_f16((simsimd_f16_t const*)&from);
         }
 #endif
         return from;
@@ -184,18 +190,21 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
             }
         } else {
             // Using non-uniform distribution helps detect tail errors
-            std::normal_distribution<double> distribution(0.0, 1.0);
+            std::normal_distribution<double> distribution(0.1, 1.0);
             double squared_sum = 0.0;
             for (std::size_t i = 0; i != dimensions_; ++i) {
-                double ai = distribution(generator);
-                squared_sum += ai * ai;
-                compress(ai, buffer_[i]);
+                double a_i = distribution(generator);
+                squared_sum += a_i * a_i;
+                compress(a_i, buffer_[i]);
             }
 
             // Normalize the vectors:
             squared_sum = std::sqrt(squared_sum);
             for (std::size_t i = 0; i != dimensions_; ++i) {
                 compress(uncompress(buffer_[i]) / squared_sum, buffer_[i]);
+                // Zero out NaNs
+                if (std::isnan(uncompress(buffer_[i])))
+                    buffer_[i] = 0;
             }
         }
     }
@@ -240,7 +249,6 @@ void measure_dense(bm::State& state, metric_at metric, metric_at baseline, std::
         // Output for complex vectors have two dimensions.
         simsimd_distance_t results[2] = {signaling_distance, signaling_distance};
         baseline(pair.a.data(), pair.b.data(), pair.a.dimensions(), &results[0]);
-        assert(!std::isnan(results[0]));
         return results[0];
     };
     auto call_contender = [&](pair_t& pair) -> double {
@@ -248,7 +256,6 @@ void measure_dense(bm::State& state, metric_at metric, metric_at baseline, std::
         // Output for complex vectors have two dimensions.
         simsimd_distance_t results[2] = {signaling_distance, signaling_distance};
         metric(pair.a.data(), pair.b.data(), pair.a.dimensions(), &results[0]);
-        assert(!std::isnan(results[0]));
         return results[0];
     };
 
@@ -307,13 +314,11 @@ void measure_curved(bm::State& state, metric_at metric, metric_at baseline, std:
     auto call_baseline = [&](pair_t const& pair, vector_t const& tensor) -> double {
         simsimd_distance_t result = signaling_distance;
         baseline(pair.a.data(), pair.b.data(), tensor.data(), pair.a.dimensions(), &result);
-        assert(!std::isnan(result));
         return result;
     };
     auto call_contender = [&](pair_t const& pair, vector_t const& tensor) -> double {
         simsimd_distance_t result = signaling_distance;
         metric(pair.a.data(), pair.b.data(), tensor.data(), pair.a.dimensions(), &result);
-        assert(!std::isnan(result));
         return result;
     };
 
@@ -382,13 +387,11 @@ void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std:
     auto call_baseline = [&](pair_t& pair) -> double {
         simsimd_distance_t result = std::numeric_limits<simsimd_distance_t>::signaling_NaN();
         baseline(pair.a.data(), pair.b.data(), pair.a.dimensions(), pair.b.dimensions(), &result);
-        assert(!std::isnan(result));
         return result;
     };
     auto call_contender = [&](pair_t& pair) -> double {
         simsimd_distance_t result = std::numeric_limits<simsimd_distance_t>::signaling_NaN();
         metric(pair.a.data(), pair.b.data(), pair.a.dimensions(), pair.b.dimensions(), &result);
-        assert(!std::isnan(result));
         return result;
     };
 

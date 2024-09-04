@@ -84,6 +84,13 @@ def f32_rounded_and_downcasted_to_bf16(array):
     return array_f32rounded, array_bf16
 
 
+def hex_array(arr):
+    """Converts numerical array into a string of comma-separated hexadecimal values for debugging."""
+    printer = np.vectorize(hex)
+    strings = printer(arr)
+    return ", ".join(strings)
+
+
 def test_pointers_availability():
     """Tests the availability of pre-compiled functions for compatibility with USearch."""
     assert simd.pointer_to_sqeuclidean("f64") != 0
@@ -230,11 +237,6 @@ def test_dense_bf16(ndim, kernels):
     baseline_kernel, simd_kernel = kernels
     expected = baseline_kernel(a_f32rounded, b_f32rounded)
     result = simd_kernel(a_bf16, b_bf16, "bf16")
-
-    def hex_array(arr):
-        printer = np.vectorize(hex)
-        strings = printer(arr)
-        return ", ".join(strings)
 
     np.testing.assert_allclose(
         result,

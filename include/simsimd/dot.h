@@ -1544,6 +1544,7 @@ simsimd_dot_f16c_sapphire_cycle:
         b_vec = _mm512_loadu_epi16(b);
         a += 32, b += 32, n -= 32;
     }
+    // TODO: Consider using `_mm512_fmaddsub`
     ab_real_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(_mm512_xor_si512(b_vec, sign_flip_vec)),
                                   _mm512_castsi512_ph(a_vec), ab_real_vec);
     ab_imag_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(_mm512_shuffle_epi8(b_vec, swap_adjacent_vec)),
@@ -1552,6 +1553,7 @@ simsimd_dot_f16c_sapphire_cycle:
         goto simsimd_dot_f16c_sapphire_cycle;
 
     // Reduce horizontal sums:
+    // TODO: Optimize this with tree-like reductions
     results[0] = _mm512_reduce_add_ph(ab_real_vec);
     results[1] = _mm512_reduce_add_ph(ab_imag_vec);
 }
