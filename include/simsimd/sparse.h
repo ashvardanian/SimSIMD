@@ -67,8 +67,8 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_sve(simsimd_u16_t const* a, simsimd_u1
 /*  SIMD-powered backends for various generations of AVX512 CPUs.
  *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
  */
-SIMSIMD_PUBLIC void simsimd_intersect_u32_skylake(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
-SIMSIMD_PUBLIC void simsimd_intersect_u16_skylake(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
 // clang-format on
 
 #define SIMSIMD_MAKE_INTERSECT_LINEAR(name, input_type, accumulator_type)                                              \
@@ -147,14 +147,14 @@ SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u16, size) // simsimd_intersect_u16_ser
 SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u32, size) // simsimd_intersect_u32_serial
 
 #if SIMSIMD_TARGET_X86
-#if SIMSIMD_TARGET_SKYLAKE
+#if SIMSIMD_TARGET_ICE
 #pragma GCC push_options
 #pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw")
 #pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw"))), apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_intersect_u16_skylake(simsimd_u16_t const* shorter, simsimd_u16_t const* longer,
-                                                  simsimd_size_t shorter_length, simsimd_size_t longer_length,
-                                                  simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(simsimd_u16_t const* shorter, simsimd_u16_t const* longer,
+                                              simsimd_size_t shorter_length, simsimd_size_t longer_length,
+                                              simsimd_distance_t* results) {
     simsimd_size_t intersection_count = 0;
     simsimd_size_t shorter_idx = 0, longer_idx = 0;
     simsimd_size_t longer_load_size;
@@ -213,9 +213,9 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_skylake(simsimd_u16_t const* shorter, 
     *results = intersection_count;
 }
 
-SIMSIMD_PUBLIC void simsimd_intersect_u32_skylake(simsimd_u32_t const* shorter, simsimd_u32_t const* longer,
-                                                  simsimd_size_t shorter_length, simsimd_size_t longer_length,
-                                                  simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* shorter, simsimd_u32_t const* longer,
+                                              simsimd_size_t shorter_length, simsimd_size_t longer_length,
+                                              simsimd_distance_t* results) {
     simsimd_size_t intersection_count = 0;
     simsimd_size_t shorter_idx = 0, longer_idx = 0;
     simsimd_size_t longer_load_size;
