@@ -156,13 +156,20 @@ def test_dense(ndim, dtype, kernels):
     expected = baseline_kernel(a, b).astype(np.float32)
     result = simd_kernel(a, b)
 
-    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 16, 33])
-@pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        "float64",
+        "float32",
+        "float16",
+    ],
+)
 @pytest.mark.parametrize(
     "kernels",
     [
@@ -186,7 +193,7 @@ def test_curved(ndim, dtype, kernels):
     expected = baseline_kernel(a, b, c).astype(np.float32)
     result = simd_kernel(a, b, c)
 
-    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -221,8 +228,8 @@ def test_dense_bf16(ndim, kernels):
         return ", ".join(strings)
 
     np.testing.assert_allclose(
-        expected,
         result,
+        expected,
         atol=SIMSIMD_ATOL,
         rtol=0,
         err_msg=f"""
@@ -278,7 +285,7 @@ def test_dense_bits(ndim, kernels):
     expected = baseline_kernel(a, b)
     result = simd_kernel(np.packbits(a), np.packbits(b), "b8")
 
-    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skip(reason="Problems inferring the tolerance bounds for numerical errors")
@@ -296,7 +303,7 @@ def test_jensen_shannon(ndim, dtype):
     expected = baseline_jensenshannon(a, b) ** 2
     result = simd.jensenshannon(a, b)
 
-    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -347,12 +354,12 @@ def test_dot_complex(ndim, dtype):
     expected = np.dot(a, b)
     result = simd.dot(a, b)
 
-    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
     expected = np.vdot(a, b)
     result = simd.vdot(a, b)
 
-    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(is_running_under_qemu(), reason="Complex math in QEMU fails")
@@ -368,12 +375,12 @@ def test_dot_complex_explicit(ndim):
     expected = np.dot(a.view(np.complex64), b.view(np.complex64))
     result = simd.dot(a, b, "complex64")
 
-    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
     expected = np.vdot(a.view(np.complex64), b.view(np.complex64))
     result = simd.vdot(a, b, "complex64")
 
-    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -477,7 +484,7 @@ def test_cdist(ndim, input_dtype, result_dtype, metric):
         result = simd.cdist(A, B, metric=metric, dtype=result_dtype)
 
     # Assert they're close.
-    np.testing.assert_allclose(expected, result, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 if __name__ == "__main__":
