@@ -72,7 +72,7 @@ simsimd_capability_t simsimd_capabilities(void) {
 #define SIMSIMD_DECLARATION_SPARSE(name, extension, type)                                                              \
     SIMSIMD_DYNAMIC void simsimd_##name##_##extension(simsimd_##type##_t const* a, simsimd_##type##_t const* b,        \
                                                       simsimd_size_t a_length, simsimd_size_t b_length,                \
-                                                      simsimd_distance_t* results) {                                   \
+                                                      simsimd_distance_t* result) {                                    \
         static simsimd_metric_sparse_punned_t metric = 0;                                                              \
         if (metric == 0) {                                                                                             \
             simsimd_capability_t used_capability;                                                                      \
@@ -80,11 +80,29 @@ simsimd_capability_t simsimd_capabilities(void) {
                                        simsimd_capabilities(), simsimd_cap_any_k, (simsimd_metric_punned_t*)(&metric), \
                                        &used_capability);                                                              \
             if (!metric) {                                                                                             \
-                *(simsimd_u64_t*)results = 0x7FF0000000000001ull;                                                      \
+                *(simsimd_u64_t*)result = 0x7FF0000000000001ull;                                                       \
                 return;                                                                                                \
             }                                                                                                          \
         }                                                                                                              \
-        metric(a, b, a_length, b_length, results);                                                                     \
+        metric(a, b, a_length, b_length, result);                                                                      \
+    }
+
+#define SIMSIMD_DECLARATION_CURVED(name, extension, type)                                                              \
+    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(simsimd_##type##_t const* a, simsimd_##type##_t const* b,        \
+                                                      simsimd_##type##_t const* c, simsimd_size_t n,                   \
+                                                      simsimd_distance_t* result) {                                    \
+        static simsimd_metric_curved_punned_t metric = 0;                                                              \
+        if (metric == 0) {                                                                                             \
+            simsimd_capability_t used_capability;                                                                      \
+            simsimd_find_metric_punned(simsimd_metric_##name##_k, simsimd_datatype_##extension##_k,                    \
+                                       simsimd_capabilities(), simsimd_cap_any_k, (simsimd_metric_punned_t*)(&metric), \
+                                       &used_capability);                                                              \
+            if (!metric) {                                                                                             \
+                *(simsimd_u64_t*)result = 0x7FF0000000000001ull;                                                       \
+                return;                                                                                                \
+            }                                                                                                          \
+        }                                                                                                              \
+        metric(a, b, c, n, result);                                                                                    \
     }
 
 // Dot products
@@ -130,6 +148,16 @@ SIMSIMD_DECLARATION_DENSE(js, f64, f64)
 // Sparse sets
 SIMSIMD_DECLARATION_SPARSE(intersect, u16, u16)
 SIMSIMD_DECLARATION_SPARSE(intersect, u32, u32)
+
+// Curved spaces
+SIMSIMD_DECLARATION_CURVED(bilinear, f64, f64)
+SIMSIMD_DECLARATION_CURVED(mahalanobis, f64, f64)
+SIMSIMD_DECLARATION_CURVED(bilinear, f32, f32)
+SIMSIMD_DECLARATION_CURVED(mahalanobis, f32, f32)
+SIMSIMD_DECLARATION_CURVED(bilinear, f16, f16)
+SIMSIMD_DECLARATION_CURVED(mahalanobis, f16, f16)
+SIMSIMD_DECLARATION_CURVED(bilinear, bf16, bf16)
+SIMSIMD_DECLARATION_CURVED(mahalanobis, bf16, bf16)
 
 SIMSIMD_DYNAMIC int simsimd_uses_neon(void) { return (simsimd_capabilities() & simsimd_cap_neon_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_neon_f16(void) { return (simsimd_capabilities() & simsimd_cap_neon_f16_k) != 0; }
