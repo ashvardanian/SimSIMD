@@ -110,7 +110,8 @@ simsimd_datatype_t numpy_string_to_datatype(char const* name) {
              same_string(name, "<i2") || same_string(name, "int16"))
         return simsimd_datatype_i16_k;
     else if (same_string(name, "i") || same_string(name, "<i") || same_string(name, "i4") || same_string(name, "|i4") ||
-             same_string(name, "<i4") || same_string(name, "int32"))
+             same_string(name, "<i4") || same_string(name, "l") || same_string(name, "<l") ||
+             same_string(name, "int32"))
         return simsimd_datatype_i32_k;
 
     // Unsigned integers:
@@ -120,8 +121,9 @@ simsimd_datatype_t numpy_string_to_datatype(char const* name) {
     else if (same_string(name, "H") || same_string(name, "<H") || same_string(name, "u2") || same_string(name, "|u2") ||
              same_string(name, "<u2") || same_string(name, "uint16"))
         return simsimd_datatype_u16_k;
-    else if (same_string(name, "I") || same_string(name, "<I") || same_string(name, "u4") || same_string(name, "|u4") ||
-             same_string(name, "<u4") || same_string(name, "uint32"))
+    else if (same_string(name, "I") || same_string(name, "<I") || same_string(name, "L") || same_string(name, "<L") ||
+             same_string(name, "u4") || same_string(name, "|u4") || same_string(name, "<u4") || ||
+             same_string(name, "uint32"))
         return simsimd_datatype_u32_k;
 
     else
@@ -160,7 +162,7 @@ simsimd_datatype_t python_string_to_datatype(char const* name) {
         return simsimd_datatype_i8_k;
     else if (same_string(name, "h") || same_string(name, "i16") || same_string(name, "int16"))
         return simsimd_datatype_i16_k;
-    else if (same_string(name, "i") || same_string(name, "i32") || same_string(name, "int32"))
+    else if (same_string(name, "i") || same_string(name, "i32") || same_string(name, "int32") || same_string(name, "l"))
         return simsimd_datatype_i32_k;
     else if (same_string(name, "q") || same_string(name, "i64") || same_string(name, "int64"))
         return simsimd_datatype_i64_k;
@@ -170,7 +172,8 @@ simsimd_datatype_t python_string_to_datatype(char const* name) {
         return simsimd_datatype_u8_k;
     else if (same_string(name, "H") || same_string(name, "u16") || same_string(name, "uint16"))
         return simsimd_datatype_u16_k;
-    else if (same_string(name, "I") || same_string(name, "u32") || same_string(name, "uint32"))
+    else if (same_string(name, "I") || same_string(name, "u32") || same_string(name, "uint32") ||
+             same_string(name, "L"))
         return simsimd_datatype_u32_k;
     else if (same_string(name, "Q") || same_string(name, "u64") || same_string(name, "uint64"))
         return simsimd_datatype_u64_k;
