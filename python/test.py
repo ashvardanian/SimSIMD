@@ -41,7 +41,7 @@ except:
 
     def baseline_mahalanobis(x, y, z):
         diff = x - y
-        return diff @ np.linalg.inv(z) @ diff
+        return diff @ z @ diff
 
     def baseline_jaccard(x, y):
         intersection = np.logical_and(x, y).sum()
@@ -185,9 +185,18 @@ def test_curved(ndim, dtype, kernels):
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
     np.random.seed()
-    a = np.random.randn(ndim).astype(dtype)
-    b = np.random.randn(ndim).astype(dtype)
-    c = np.random.randn(ndim, ndim).astype(dtype)
+
+    # Let's generate some non-negative probability distirbutions
+    a = np.abs(np.random.randn(ndim).astype(dtype))
+    b = np.abs(np.random.randn(ndim).astype(dtype))
+    a /= np.sum(a)
+    b /= np.sum(b)
+
+    # Let's compute the inverse of the covariance matrix, otherwise in the SciPy
+    # implementation of the Mahalanobis we may face `sqrt` of a negative number.
+    # We multiply the matrix by its transpose to get a positive-semi-definite matrix.
+    c = np.abs(np.random.randn(ndim, ndim).astype(dtype))
+    c = np.dot(c, c.T)
 
     baseline_kernel, simd_kernel = kernels
     expected = baseline_kernel(a, b, c).astype(np.float32)
