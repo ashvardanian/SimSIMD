@@ -83,27 +83,27 @@ SIMSIMD_PUBLIC void simsimd_kl_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_
 SIMSIMD_PUBLIC void simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
 // clang-format on
 
-#define SIMSIMD_MAKE_KL(name, input_type, accumulator_type, converter, epsilon)                                        \
+#define SIMSIMD_MAKE_KL(name, input_type, accumulator_type, load_and_convert, epsilon)                                 \
     SIMSIMD_PUBLIC void simsimd_kl_##input_type##_##name(simsimd_##input_type##_t const* a,                            \
                                                          simsimd_##input_type##_t const* b, simsimd_size_t n,          \
                                                          simsimd_distance_t* result) {                                 \
         simsimd_##accumulator_type##_t d = 0;                                                                          \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                                      \
-            simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
-            simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
+            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                               \
+            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                               \
             d += ai * SIMSIMD_LOG((ai + epsilon) / (bi + epsilon));                                                    \
         }                                                                                                              \
         *result = (simsimd_distance_t)d;                                                                               \
     }
 
-#define SIMSIMD_MAKE_JS(name, input_type, accumulator_type, converter, epsilon)                                        \
+#define SIMSIMD_MAKE_JS(name, input_type, accumulator_type, load_and_convert, epsilon)                                 \
     SIMSIMD_PUBLIC void simsimd_js_##input_type##_##name(simsimd_##input_type##_t const* a,                            \
                                                          simsimd_##input_type##_t const* b, simsimd_size_t n,          \
                                                          simsimd_distance_t* result) {                                 \
         simsimd_##accumulator_type##_t d = 0;                                                                          \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                                      \
-            simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
-            simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
+            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                               \
+            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                               \
             simsimd_##accumulator_type##_t mi = (ai + bi) / 2;                                                         \
             d += ai * SIMSIMD_LOG((ai + epsilon) / (mi + epsilon));                                                    \
             d += bi * SIMSIMD_LOG((bi + epsilon) / (mi + epsilon));                                                    \
@@ -111,11 +111,11 @@ SIMSIMD_PUBLIC void simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_
         *result = (simsimd_distance_t)d / 2;                                                                           \
     }
 
-SIMSIMD_MAKE_KL(serial, f64, f64, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f64_serial
-SIMSIMD_MAKE_JS(serial, f64, f64, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f64_serial
+SIMSIMD_MAKE_KL(serial, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f64_serial
+SIMSIMD_MAKE_JS(serial, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f64_serial
 
-SIMSIMD_MAKE_KL(serial, f32, f32, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f32_serial
-SIMSIMD_MAKE_JS(serial, f32, f32, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f32_serial
+SIMSIMD_MAKE_KL(serial, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f32_serial
+SIMSIMD_MAKE_JS(serial, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f32_serial
 
 SIMSIMD_MAKE_KL(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f16_serial
 SIMSIMD_MAKE_JS(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f16_serial
@@ -123,8 +123,8 @@ SIMSIMD_MAKE_JS(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16, SIMSIMD_F32_DIVISION_E
 SIMSIMD_MAKE_KL(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_bf16_serial
 SIMSIMD_MAKE_JS(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_bf16_serial
 
-SIMSIMD_MAKE_KL(accurate, f32, f64, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f32_accurate
-SIMSIMD_MAKE_JS(accurate, f32, f64, SIMSIMD_IDENTIFY, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f32_accurate
+SIMSIMD_MAKE_KL(accurate, f32, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f32_accurate
+SIMSIMD_MAKE_JS(accurate, f32, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f32_accurate
 
 SIMSIMD_MAKE_KL(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f16_accurate
 SIMSIMD_MAKE_JS(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f16_accurate
@@ -180,7 +180,7 @@ SIMSIMD_PUBLIC void simsimd_kl_f32_neon(simsimd_f32_t const* a, simsimd_f32_t co
     simsimd_f32_t log2_normalizer = 0.693147181f;
     simsimd_f32_t sum = vaddvq_f32(sum_vec) * log2_normalizer;
     for (; i < n; ++i)
-        sum += a[i] * SIMSIMD_LOG((a[i] + epsilon) / (b[i] + epsilon));
+        sum += a + i * SIMSIMD_LOG((a + i + epsilon) / (b + i + epsilon));
     *result = sum;
 }
 
@@ -205,9 +205,9 @@ SIMSIMD_PUBLIC void simsimd_js_f32_neon(simsimd_f32_t const* a, simsimd_f32_t co
     simsimd_f32_t log2_normalizer = 0.693147181f;
     simsimd_f32_t sum = vaddvq_f32(sum_vec) * log2_normalizer;
     for (; i < n; ++i) {
-        simsimd_f32_t mi = 0.5f * (a[i] + b[i]);
-        sum += a[i] * SIMSIMD_LOG((a[i] + epsilon) / (mi + epsilon));
-        sum += b[i] * SIMSIMD_LOG((b[i] + epsilon) / (mi + epsilon));
+        simsimd_f32_t mi = 0.5f * (a + i + b + i);
+        sum += a + i * SIMSIMD_LOG((a + i + epsilon) / (mi + epsilon));
+        sum += b + i * SIMSIMD_LOG((b + i + epsilon) / (mi + epsilon));
     }
     *result = sum;
 }
@@ -238,8 +238,8 @@ SIMSIMD_PUBLIC void simsimd_kl_f16_neon(simsimd_f16_t const* a, simsimd_f16_t co
     simsimd_f32_t log2_normalizer = 0.693147181f;
     simsimd_f32_t sum = vaddvq_f32(sum_vec) * log2_normalizer;
     for (; i < n; ++i)
-        sum += SIMSIMD_UNCOMPRESS_F16(a[i]) *
-               SIMSIMD_LOG((SIMSIMD_UNCOMPRESS_F16(a[i]) + epsilon) / (SIMSIMD_UNCOMPRESS_F16(b[i]) + epsilon));
+        sum += SIMSIMD_UNCOMPRESS_F16(a + i) *
+               SIMSIMD_LOG((SIMSIMD_UNCOMPRESS_F16(a + i) + epsilon) / (SIMSIMD_UNCOMPRESS_F16(b + i) + epsilon));
     *result = sum;
 }
 
@@ -264,8 +264,8 @@ SIMSIMD_PUBLIC void simsimd_js_f16_neon(simsimd_f16_t const* a, simsimd_f16_t co
     simsimd_f32_t log2_normalizer = 0.693147181f;
     simsimd_f32_t sum = vaddvq_f32(sum_vec) * log2_normalizer;
     for (; i < n; ++i) {
-        simsimd_f32_t ai = SIMSIMD_UNCOMPRESS_F16(a[i]);
-        simsimd_f32_t bi = SIMSIMD_UNCOMPRESS_F16(b[i]);
+        simsimd_f32_t ai = SIMSIMD_UNCOMPRESS_F16(a + i);
+        simsimd_f32_t bi = SIMSIMD_UNCOMPRESS_F16(b + i);
         simsimd_f32_t mi = 0.5f * (ai + bi);
         sum += ai * SIMSIMD_LOG((ai + epsilon) / (mi + epsilon));
         sum += bi * SIMSIMD_LOG((bi + epsilon) / (mi + epsilon));
@@ -337,8 +337,8 @@ SIMSIMD_PUBLIC void simsimd_kl_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t
 
     // Accumulate the tail:
     for (; i < n; ++i)
-        sum += SIMSIMD_UNCOMPRESS_F16(a[i]) *
-               SIMSIMD_LOG((SIMSIMD_UNCOMPRESS_F16(a[i]) + epsilon) / (SIMSIMD_UNCOMPRESS_F16(b[i]) + epsilon));
+        sum += SIMSIMD_UNCOMPRESS_F16(a + i) *
+               SIMSIMD_LOG((SIMSIMD_UNCOMPRESS_F16(a + i) + epsilon) / (SIMSIMD_UNCOMPRESS_F16(b + i) + epsilon));
     *result = sum;
 }
 
@@ -373,8 +373,8 @@ SIMSIMD_PUBLIC void simsimd_js_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t
 
     // Accumulate the tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = SIMSIMD_UNCOMPRESS_F16(a[i]);
-        simsimd_f32_t bi = SIMSIMD_UNCOMPRESS_F16(b[i]);
+        simsimd_f32_t ai = SIMSIMD_UNCOMPRESS_F16(a + i);
+        simsimd_f32_t bi = SIMSIMD_UNCOMPRESS_F16(b + i);
         simsimd_f32_t mi = ai + bi;
         sum += ai * SIMSIMD_LOG((ai + epsilon) / (mi + epsilon));
         sum += bi * SIMSIMD_LOG((bi + epsilon) / (mi + epsilon));

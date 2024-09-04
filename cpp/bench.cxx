@@ -127,17 +127,15 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
     static void compress(double const& from, scalar_t& to) noexcept {
 #if !SIMSIMD_NATIVE_BF16
         if constexpr (datatype_ak == simsimd_datatype_bf16_k || datatype_ak == simsimd_datatype_bf16c_k) {
-            auto compressed = simsimd_compress_bf16(from);
-            std::memcpy(&to, &compressed, sizeof(scalar_t));
-            static_assert(sizeof(scalar_t) == sizeof(compressed));
+            simsimd_compress_bf16(from, &to);
+            static_assert(sizeof(scalar_t) == sizeof(simsimd_bf16_t));
             return;
         }
 #endif
 #if !SIMSIMD_NATIVE_F16
         if constexpr (datatype_ak == simsimd_datatype_f16_k || datatype_ak == simsimd_datatype_f16c_k) {
-            auto compressed = simsimd_compress_f16(from);
-            std::memcpy(&to, &compressed, sizeof(scalar_t));
-            static_assert(sizeof(scalar_t) == sizeof(compressed));
+            simsimd_compress_f16(from, &to);
+            static_assert(sizeof(scalar_t) == sizeof(simsimd_f16_t));
             return;
         }
 #endif
@@ -243,7 +241,7 @@ void measure_dense(bm::State& state, metric_at metric, metric_at baseline, std::
         simsimd_distance_t results[2] = {signaling_distance, signaling_distance};
         baseline(pair.a.data(), pair.b.data(), pair.a.dimensions(), &results[0]);
         assert(!std::isnan(results[0]));
-        return results[0] + results[1];
+        return results[0];
     };
     auto call_contender = [&](pair_t& pair) -> double {
         // Output for real vectors have a single dimensions.
@@ -251,7 +249,7 @@ void measure_dense(bm::State& state, metric_at metric, metric_at baseline, std::
         simsimd_distance_t results[2] = {signaling_distance, signaling_distance};
         metric(pair.a.data(), pair.b.data(), pair.a.dimensions(), &results[0]);
         assert(!std::isnan(results[0]));
-        return results[0] + results[1];
+        return results[0];
     };
 
     // Let's average the distance results over many pairs.

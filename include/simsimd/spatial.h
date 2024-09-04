@@ -122,27 +122,27 @@ SIMSIMD_PUBLIC void simsimd_cos_f16_sapphire(simsimd_f16_t const* a, simsimd_f16
 
 // clang-format on
 
-#define SIMSIMD_MAKE_L2SQ(name, input_type, accumulator_type, converter)                                               \
+#define SIMSIMD_MAKE_L2SQ(name, input_type, accumulator_type, load_and_convert)                                        \
     SIMSIMD_PUBLIC void simsimd_l2sq_##input_type##_##name(simsimd_##input_type##_t const* a,                          \
                                                            simsimd_##input_type##_t const* b, simsimd_size_t n,        \
                                                            simsimd_distance_t* result) {                               \
         simsimd_##accumulator_type##_t d2 = 0;                                                                         \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                                      \
-            simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
-            simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
+            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                               \
+            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                               \
             d2 += (ai - bi) * (ai - bi);                                                                               \
         }                                                                                                              \
         *result = d2;                                                                                                  \
     }
 
-#define SIMSIMD_MAKE_COS(name, input_type, accumulator_type, converter)                                                \
+#define SIMSIMD_MAKE_COS(name, input_type, accumulator_type, load_and_convert)                                         \
     SIMSIMD_PUBLIC void simsimd_cos_##input_type##_##name(simsimd_##input_type##_t const* a,                           \
                                                           simsimd_##input_type##_t const* b, simsimd_size_t n,         \
                                                           simsimd_distance_t* result) {                                \
         simsimd_##accumulator_type##_t ab = 0, a2 = 0, b2 = 0;                                                         \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                                      \
-            simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
-            simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
+            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                               \
+            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                               \
             ab += ai * bi;                                                                                             \
             a2 += ai * ai;                                                                                             \
             b2 += bi * bi;                                                                                             \
@@ -156,11 +156,11 @@ SIMSIMD_PUBLIC void simsimd_cos_f16_sapphire(simsimd_f16_t const* a, simsimd_f16
         }                                                                                                              \
     }
 
-SIMSIMD_MAKE_L2SQ(serial, f64, f64, SIMSIMD_IDENTIFY) // simsimd_l2sq_f64_serial
-SIMSIMD_MAKE_COS(serial, f64, f64, SIMSIMD_IDENTIFY)  // simsimd_cos_f64_serial
+SIMSIMD_MAKE_L2SQ(serial, f64, f64, SIMSIMD_DEREFERENCE) // simsimd_l2sq_f64_serial
+SIMSIMD_MAKE_COS(serial, f64, f64, SIMSIMD_DEREFERENCE)  // simsimd_cos_f64_serial
 
-SIMSIMD_MAKE_L2SQ(serial, f32, f32, SIMSIMD_IDENTIFY) // simsimd_l2sq_f32_serial
-SIMSIMD_MAKE_COS(serial, f32, f32, SIMSIMD_IDENTIFY)  // simsimd_cos_f32_serial
+SIMSIMD_MAKE_L2SQ(serial, f32, f32, SIMSIMD_DEREFERENCE) // simsimd_l2sq_f32_serial
+SIMSIMD_MAKE_COS(serial, f32, f32, SIMSIMD_DEREFERENCE)  // simsimd_cos_f32_serial
 
 SIMSIMD_MAKE_L2SQ(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16) // simsimd_l2sq_f16_serial
 SIMSIMD_MAKE_COS(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16)  // simsimd_cos_f16_serial
@@ -168,11 +168,11 @@ SIMSIMD_MAKE_COS(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16)  // simsimd_cos_f16_s
 SIMSIMD_MAKE_L2SQ(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16) // simsimd_l2sq_bf16_serial
 SIMSIMD_MAKE_COS(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16)  // simsimd_cos_bf16_serial
 
-SIMSIMD_MAKE_L2SQ(serial, i8, i32, SIMSIMD_IDENTIFY) // simsimd_l2sq_i8_serial
-SIMSIMD_MAKE_COS(serial, i8, i32, SIMSIMD_IDENTIFY)  // simsimd_cos_i8_serial
+SIMSIMD_MAKE_L2SQ(serial, i8, i32, SIMSIMD_DEREFERENCE) // simsimd_l2sq_i8_serial
+SIMSIMD_MAKE_COS(serial, i8, i32, SIMSIMD_DEREFERENCE)  // simsimd_cos_i8_serial
 
-SIMSIMD_MAKE_L2SQ(accurate, f32, f64, SIMSIMD_IDENTIFY) // simsimd_l2sq_f32_accurate
-SIMSIMD_MAKE_COS(accurate, f32, f64, SIMSIMD_IDENTIFY)  // simsimd_cos_f32_accurate
+SIMSIMD_MAKE_L2SQ(accurate, f32, f64, SIMSIMD_DEREFERENCE) // simsimd_l2sq_f32_accurate
+SIMSIMD_MAKE_COS(accurate, f32, f64, SIMSIMD_DEREFERENCE)  // simsimd_cos_f32_accurate
 
 SIMSIMD_MAKE_L2SQ(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16) // simsimd_l2sq_f16_accurate
 SIMSIMD_MAKE_COS(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16)  // simsimd_cos_f16_accurate
@@ -180,8 +180,8 @@ SIMSIMD_MAKE_COS(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16)  // simsimd_cos_f16
 SIMSIMD_MAKE_L2SQ(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16) // simsimd_l2sq_bf16_accurate
 SIMSIMD_MAKE_COS(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16)  // simsimd_cos_bf16_accurate
 
-SIMSIMD_MAKE_L2SQ(accurate, i8, i32, SIMSIMD_IDENTIFY) // simsimd_l2sq_i8_accurate
-SIMSIMD_MAKE_COS(accurate, i8, i32, SIMSIMD_IDENTIFY)  // simsimd_cos_i8_accurate
+SIMSIMD_MAKE_L2SQ(accurate, i8, i32, SIMSIMD_DEREFERENCE) // simsimd_l2sq_i8_accurate
+SIMSIMD_MAKE_COS(accurate, i8, i32, SIMSIMD_DEREFERENCE)  // simsimd_cos_i8_accurate
 
 #if SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON

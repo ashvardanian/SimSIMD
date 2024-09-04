@@ -142,29 +142,29 @@ SIMSIMD_PUBLIC void simsimd_dot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f1
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 // clang-format on
 
-#define SIMSIMD_MAKE_DOT(name, input_type, accumulator_type, converter)                                                \
+#define SIMSIMD_MAKE_DOT(name, input_type, accumulator_type, load_and_convert)                                         \
     SIMSIMD_PUBLIC void simsimd_dot_##input_type##_##name(simsimd_##input_type##_t const* a,                           \
                                                           simsimd_##input_type##_t const* b, simsimd_size_t n,         \
                                                           simsimd_distance_t* result) {                                \
         simsimd_##accumulator_type##_t ab = 0;                                                                         \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                                      \
-            simsimd_##accumulator_type##_t ai = converter(a[i]);                                                       \
-            simsimd_##accumulator_type##_t bi = converter(b[i]);                                                       \
+            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                               \
+            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                               \
             ab += ai * bi;                                                                                             \
         }                                                                                                              \
         *result = ab;                                                                                                  \
     }
 
-#define SIMSIMD_MAKE_COMPLEX_DOT(name, input_type, accumulator_type, converter)                                        \
+#define SIMSIMD_MAKE_COMPLEX_DOT(name, input_type, accumulator_type, load_and_convert)                                 \
     SIMSIMD_PUBLIC void simsimd_dot_##input_type##c_##name(simsimd_##input_type##_t const* a,                          \
                                                            simsimd_##input_type##_t const* b, simsimd_size_t n,        \
                                                            simsimd_distance_t* results) {                              \
         simsimd_##accumulator_type##_t ab_real = 0, ab_imag = 0;                                                       \
         for (simsimd_size_t i = 0; i + 2 <= n; i += 2) {                                                               \
-            simsimd_##accumulator_type##_t ar = converter(a[i]);                                                       \
-            simsimd_##accumulator_type##_t br = converter(b[i]);                                                       \
-            simsimd_##accumulator_type##_t ai = converter(a[i + 1]);                                                   \
-            simsimd_##accumulator_type##_t bi = converter(b[i + 1]);                                                   \
+            simsimd_##accumulator_type##_t ar = load_and_convert(a + i);                                               \
+            simsimd_##accumulator_type##_t br = load_and_convert(b + i);                                               \
+            simsimd_##accumulator_type##_t ai = load_and_convert(a + i + 1);                                           \
+            simsimd_##accumulator_type##_t bi = load_and_convert(b + i + 1);                                           \
             ab_real += ar * br - ai * bi;                                                                              \
             ab_imag += ar * bi + ai * br;                                                                              \
         }                                                                                                              \
@@ -172,16 +172,16 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f
         results[1] = ab_imag;                                                                                          \
     }
 
-#define SIMSIMD_MAKE_COMPLEX_VDOT(name, input_type, accumulator_type, converter)                                       \
+#define SIMSIMD_MAKE_COMPLEX_VDOT(name, input_type, accumulator_type, load_and_convert)                                \
     SIMSIMD_PUBLIC void simsimd_vdot_##input_type##c_##name(simsimd_##input_type##_t const* a,                         \
                                                             simsimd_##input_type##_t const* b, simsimd_size_t n,       \
                                                             simsimd_distance_t* results) {                             \
         simsimd_##accumulator_type##_t ab_real = 0, ab_imag = 0;                                                       \
         for (simsimd_size_t i = 0; i + 2 <= n; i += 2) {                                                               \
-            simsimd_##accumulator_type##_t ar = converter(a[i]);                                                       \
-            simsimd_##accumulator_type##_t br = converter(b[i]);                                                       \
-            simsimd_##accumulator_type##_t ai = converter(a[i + 1]);                                                   \
-            simsimd_##accumulator_type##_t bi = converter(b[i + 1]);                                                   \
+            simsimd_##accumulator_type##_t ar = load_and_convert(a + i);                                               \
+            simsimd_##accumulator_type##_t br = load_and_convert(b + i);                                               \
+            simsimd_##accumulator_type##_t ai = load_and_convert(a + i + 1);                                           \
+            simsimd_##accumulator_type##_t bi = load_and_convert(b + i + 1);                                           \
             ab_real += ar * br + ai * bi;                                                                              \
             ab_imag += ar * bi - ai * br;                                                                              \
         }                                                                                                              \
@@ -189,13 +189,13 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f
         results[1] = ab_imag;                                                                                          \
     }
 
-SIMSIMD_MAKE_DOT(serial, f64, f64, SIMSIMD_IDENTIFY)          // simsimd_dot_f64_serial
-SIMSIMD_MAKE_COMPLEX_DOT(serial, f64, f64, SIMSIMD_IDENTIFY)  // simsimd_dot_f64c_serial
-SIMSIMD_MAKE_COMPLEX_VDOT(serial, f64, f64, SIMSIMD_IDENTIFY) // simsimd_vdot_f64c_serial
+SIMSIMD_MAKE_DOT(serial, f64, f64, SIMSIMD_DEREFERENCE)          // simsimd_dot_f64_serial
+SIMSIMD_MAKE_COMPLEX_DOT(serial, f64, f64, SIMSIMD_DEREFERENCE)  // simsimd_dot_f64c_serial
+SIMSIMD_MAKE_COMPLEX_VDOT(serial, f64, f64, SIMSIMD_DEREFERENCE) // simsimd_vdot_f64c_serial
 
-SIMSIMD_MAKE_DOT(serial, f32, f32, SIMSIMD_IDENTIFY)          // simsimd_dot_f32_serial
-SIMSIMD_MAKE_COMPLEX_DOT(serial, f32, f32, SIMSIMD_IDENTIFY)  // simsimd_dot_f32c_serial
-SIMSIMD_MAKE_COMPLEX_VDOT(serial, f32, f32, SIMSIMD_IDENTIFY) // simsimd_vdot_f32c_serial
+SIMSIMD_MAKE_DOT(serial, f32, f32, SIMSIMD_DEREFERENCE)          // simsimd_dot_f32_serial
+SIMSIMD_MAKE_COMPLEX_DOT(serial, f32, f32, SIMSIMD_DEREFERENCE)  // simsimd_dot_f32c_serial
+SIMSIMD_MAKE_COMPLEX_VDOT(serial, f32, f32, SIMSIMD_DEREFERENCE) // simsimd_vdot_f32c_serial
 
 SIMSIMD_MAKE_DOT(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16)          // simsimd_dot_f16_serial
 SIMSIMD_MAKE_COMPLEX_DOT(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16)  // simsimd_dot_f16c_serial
@@ -205,11 +205,11 @@ SIMSIMD_MAKE_DOT(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16)          // simsimd
 SIMSIMD_MAKE_COMPLEX_DOT(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16)  // simsimd_dot_bf16c_serial
 SIMSIMD_MAKE_COMPLEX_VDOT(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16) // simsimd_vdot_bf16c_serial
 
-SIMSIMD_MAKE_DOT(serial, i8, i64, SIMSIMD_IDENTIFY) // simsimd_dot_i8_serial
+SIMSIMD_MAKE_DOT(serial, i8, i64, SIMSIMD_DEREFERENCE) // simsimd_dot_i8_serial
 
-SIMSIMD_MAKE_DOT(accurate, f32, f64, SIMSIMD_IDENTIFY)          // simsimd_dot_f32_accurate
-SIMSIMD_MAKE_COMPLEX_DOT(accurate, f32, f64, SIMSIMD_IDENTIFY)  // simsimd_dot_f32c_accurate
-SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f32, f64, SIMSIMD_IDENTIFY) // simsimd_vdot_f32c_accurate
+SIMSIMD_MAKE_DOT(accurate, f32, f64, SIMSIMD_DEREFERENCE)          // simsimd_dot_f32_accurate
+SIMSIMD_MAKE_COMPLEX_DOT(accurate, f32, f64, SIMSIMD_DEREFERENCE)  // simsimd_dot_f32c_accurate
+SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f32, f64, SIMSIMD_DEREFERENCE) // simsimd_vdot_f32c_accurate
 
 SIMSIMD_MAKE_DOT(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16)          // simsimd_dot_f16_accurate
 SIMSIMD_MAKE_COMPLEX_DOT(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16)  // simsimd_dot_f16c_accurate

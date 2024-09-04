@@ -311,7 +311,7 @@ typedef unsigned short simsimd_bf16_t;
 #endif
 #endif
 
-#define SIMSIMD_IDENTIFY(x) (x)
+#define SIMSIMD_DEREFERENCE(x) (*(x))
 
 /**
  *  @brief  Returns the value of the half-precision floating-point number,
@@ -319,7 +319,7 @@ typedef unsigned short simsimd_bf16_t;
  */
 #if !defined(SIMSIMD_UNCOMPRESS_F16)
 #if SIMSIMD_NATIVE_F16
-#define SIMSIMD_UNCOMPRESS_F16(x) (SIMSIMD_IDENTIFY(x))
+#define SIMSIMD_UNCOMPRESS_F16(x) (SIMSIMD_DEREFERENCE(x))
 #else
 #define SIMSIMD_UNCOMPRESS_F16(x) (simsimd_uncompress_f16(x))
 #endif
@@ -331,7 +331,7 @@ typedef unsigned short simsimd_bf16_t;
  */
 #if !defined(SIMSIMD_UNCOMPRESS_BF16)
 #if SIMSIMD_NATIVE_BF16
-#define SIMSIMD_UNCOMPRESS_BF16(x) (SIMSIMD_IDENTIFY(x))
+#define SIMSIMD_UNCOMPRESS_BF16(x) (SIMSIMD_DEREFERENCE(x))
 #else
 #define SIMSIMD_UNCOMPRESS_BF16(x) (simsimd_uncompress_bf16(x))
 #endif
@@ -386,7 +386,8 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_f16(unsigned short x) {
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_f16(simsimd_f16_t const* x_ptr) {
+    unsigned short x = *(unsigned short*)x_ptr;
     unsigned int exponent = (x & 0x7C00) >> 10;
     unsigned int mantissa = (x & 0x03FF) << 13;
     simsimd_f32i32_t mantissa_conv;
@@ -407,7 +408,7 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_f16(unsigned short x) {
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-SIMSIMD_PUBLIC unsigned short simsimd_compress_f16(simsimd_f32_t x) {
+SIMSIMD_PUBLIC void simsimd_compress_f16(simsimd_f32_t x, unsigned short* result_ptr) {
     simsimd_f32i32_t conv;
     conv.f = x;
     unsigned int b = conv.i + 0x00001000;
@@ -416,7 +417,7 @@ SIMSIMD_PUBLIC unsigned short simsimd_compress_f16(simsimd_f32_t x) {
     unsigned short result = ((b & 0x80000000) >> 16) | (e > 112) * ((((e - 112) << 10) & 0x7C00) | (m >> 13)) |
                             ((e < 113) & (e > 101)) * ((((0x007FF000 + m) >> (125 - e)) + 1) >> 1) |
                             ((e > 143) * 0x7FFF);
-    return result;
+    *result_ptr = result;
 }
 
 /**
@@ -426,7 +427,8 @@ SIMSIMD_PUBLIC unsigned short simsimd_compress_f16(simsimd_f32_t x) {
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_bf16(unsigned short x) {
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_bf16(simsimd_f16_t const* x_ptr) {
+    unsigned short x = *(unsigned short*)x_ptr;
     simsimd_f32i32_t conv;
     conv.i = x << 16; // Zero extends the mantissa
     return conv.f;
@@ -438,12 +440,12 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_bf16(unsigned short x) {
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
-SIMSIMD_PUBLIC unsigned short simsimd_compress_bf16(simsimd_f32_t x) {
+SIMSIMD_PUBLIC void simsimd_compress_bf16(simsimd_f32_t x, unsigned short* result_ptr) {
     simsimd_f32i32_t conv;
     conv.f = x;
     conv.i >>= 16;
     conv.i &= 0xFFFF;
-    return (unsigned short)conv.i;
+    *result_ptr = (unsigned short)conv.i;
 }
 
 #ifdef __cplusplus
