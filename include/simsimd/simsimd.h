@@ -522,9 +522,18 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
     simsimd_metric_punned_t* metric_output,     //
     simsimd_capability_t* capability_output) {
 
-    simsimd_metric_punned_t* m = metric_output;
-    simsimd_capability_t* c = capability_output;
-    simsimd_capability_t viable = (simsimd_capability_t)(supported & allowed);
+    // Modern compilers abso-freaking-lutely love optimizing-out my logic!
+    // Just marking the variables as `volatile` is not enough, so we have
+    // to add inline assembly to further discourage them!
+#if defined(_MSC_VER)
+    _ReadWriteBarrier();
+#else
+    __asm__ __volatile__("" ::: "memory");
+#endif
+
+    volatile simsimd_metric_punned_t* m = metric_output;
+    volatile simsimd_capability_t* c = capability_output;
+    volatile simsimd_capability_t viable = (simsimd_capability_t)(supported & allowed);
     *m = (simsimd_metric_punned_t)0;
     *c = (simsimd_capability_t)0;
 
@@ -541,8 +550,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
     case simsimd_datatype_u64_k: break;
 
     // Double-precision floating-point vectors
-    case simsimd_datatype_f64_k:
-
+    case simsimd_datatype_f64_k: {
 #if SIMSIMD_TARGET_SVE
         if (viable & simsimd_cap_sve_k)
             switch (kind) {
@@ -572,9 +580,10 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 
         break;
+    }
 
     // Single-precision floating-point vectors
-    case simsimd_datatype_f32_k:
+    case simsimd_datatype_f32_k: {
 
 #if SIMSIMD_TARGET_SVE
         if (viable & simsimd_cap_sve_k)
@@ -628,9 +637,9 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 
         break;
-
+    }
     // Half-precision floating-point vectors
-    case simsimd_datatype_f16_k:
+    case simsimd_datatype_f16_k: {
 
 #if SIMSIMD_TARGET_SVE_F16
         if (viable & simsimd_cap_sve_k)
@@ -686,9 +695,9 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 
         break;
-
+    }
     // Brain floating-point vectors
-    case simsimd_datatype_bf16_k:
+    case simsimd_datatype_bf16_k: {
 #if SIMSIMD_TARGET_NEON_BF16
         if (viable & simsimd_cap_neon_bf16_k)
             switch (kind) {
@@ -727,9 +736,9 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 
         break;
-
+    }
     // Single-byte integer vectors
-    case simsimd_datatype_i8_k:
+    case simsimd_datatype_i8_k: {
 #if SIMSIMD_TARGET_NEON_I8
         if (viable & simsimd_cap_neon_i8_k)
             switch (kind) {
@@ -767,9 +776,9 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 
         break;
-
+    }
     // Binary vectors
-    case simsimd_datatype_b8_k:
+    case simsimd_datatype_b8_k: {
 
 #if SIMSIMD_TARGET_SVE
         if (viable & simsimd_cap_sve_k)
@@ -812,9 +821,9 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 
         break;
-
+    }
     // Complex floating-point vectors
-    case simsimd_datatype_f32c_k:
+    case simsimd_datatype_f32c_k: {
 
 #if SIMSIMD_TARGET_SVE
         if (viable & simsimd_cap_sve_k)
@@ -857,9 +866,9 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 
         break;
-
+    }
     // Complex double-precision floating-point vectors
-    case simsimd_datatype_f64c_k:
+    case simsimd_datatype_f64c_k: {
 
 #if SIMSIMD_TARGET_SVE
         if (viable & simsimd_cap_sve_k)
@@ -886,9 +895,9 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 
         break;
-
+    }
     // Complex half-precision floating-point vectors
-    case simsimd_datatype_f16c_k:
+    case simsimd_datatype_f16c_k: {
 
 #if SIMSIMD_TARGET_SVE_F16
         if (viable & simsimd_cap_sve_k)
@@ -931,9 +940,9 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 
         break;
-
+    }
     // Complex Brain floating-point vectors
-    case simsimd_datatype_bf16c_k:
+    case simsimd_datatype_bf16c_k: {
 
 #if SIMSIMD_TARGET_NEON_BF16
         if (viable & simsimd_cap_neon_bf16_k)
@@ -960,9 +969,10 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 
         break;
+    }
 
-        // Unsigned 16-bit integer vectors
-    case simsimd_datatype_u16_k:
+    // Unsigned 16-bit integer vectors
+    case simsimd_datatype_u16_k: {
 
 #if SIMSIMD_TARGET_SVE
         if (viable & simsimd_cap_sve_k)
@@ -987,9 +997,9 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 
         break;
-
+    }
     // Unsigned 32-bit integer vectors
-    case simsimd_datatype_u32_k:
+    case simsimd_datatype_u32_k: {
 
 #if SIMSIMD_TARGET_SVE
         if (viable & simsimd_cap_sve_k)
@@ -1015,6 +1025,16 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 
         break;
     }
+    }
+
+    // Modern compilers abso-freaking-lutely love optimizing-out my logic!
+    // Just marking the variables as `volatile` is not enough, so we have
+    // to add inline assembly to further discourage them!
+#if defined(_MSC_VER)
+    _ReadWriteBarrier();
+#else
+    __asm__ __volatile__("" ::: "memory");
+#endif
 }
 
 #pragma GCC diagnostic pop
