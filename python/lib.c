@@ -122,7 +122,7 @@ simsimd_datatype_t numpy_string_to_datatype(char const* name) {
              same_string(name, "<u2") || same_string(name, "uint16"))
         return simsimd_datatype_u16_k;
     else if (same_string(name, "I") || same_string(name, "<I") || same_string(name, "L") || same_string(name, "<L") ||
-             same_string(name, "u4") || same_string(name, "|u4") || same_string(name, "<u4") || ||
+             same_string(name, "u4") || same_string(name, "|u4") || same_string(name, "<u4") ||
              same_string(name, "uint32"))
         return simsimd_datatype_u32_k;
 
