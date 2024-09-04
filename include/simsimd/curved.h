@@ -562,6 +562,8 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_haswell(simsimd_bf16_t const* a, si
     *result = sum;
 }
 
+#pragma clang attribute pop
+#pragma GCC pop_options
 #endif // SIMSIMD_TARGET_HASWELL
 
 #if SIMSIMD_TARGET_GENOA
@@ -636,6 +638,8 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_genoa(simsimd_bf16_t const* a, sims
     *result = _mm512_reduce_add_ps(sum_vec);
 }
 
+#pragma clang attribute pop
+#pragma GCC pop_options
 #endif // SIMSIMD_TARGET_GENOA
 
 #if SIMSIMD_TARGET_SAPPHIRE && 0
@@ -651,6 +655,8 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_sapphire(simsimd_bf16_t const* a, s
                                                       simsimd_bf16_t const* c, simsimd_size_t n,
                                                       simsimd_distance_t* result) {}
 
+#pragma clang attribute pop
+#pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SAPPHIRE
 #endif // SIMSIMD_TARGET_X86
 
