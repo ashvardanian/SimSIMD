@@ -744,8 +744,8 @@ int main(int argc, char** argv) {
     dense_<b8_k>("hamming_b8_ice", simsimd_hamming_b8_ice, simsimd_hamming_b8_serial);
     dense_<b8_k>("jaccard_b8_ice", simsimd_jaccard_b8_ice, simsimd_jaccard_b8_serial);
 
-    sparse_<u16_k>("intersect_u16_skylake", simsimd_intersect_u16_skylake, simsimd_intersect_u16_accurate);
-    sparse_<u32_k>("intersect_u32_skylake", simsimd_intersect_u32_skylake, simsimd_intersect_u32_accurate);
+    sparse_<u16_k>("intersect_u16_ice", simsimd_intersect_u16_ice, simsimd_intersect_u16_accurate);
+    sparse_<u32_k>("intersect_u32_ice", simsimd_intersect_u32_ice, simsimd_intersect_u32_accurate);
 #endif
 
 #if SIMSIMD_TARGET_SKYLAKE
