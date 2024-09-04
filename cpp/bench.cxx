@@ -468,7 +468,7 @@ void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std:
         bm::Counter(iterations * pairs[0].a.size_bytes() * pairs[0].b.size_bytes(), bm::Counter::kIsRate);
     state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
     state.counters["matches"] =
-        std::accumulate(results_baseline.begin(), results_baseline.end(), 0.0) / results_baseline.size();
+        std::accumulate(results_contender.begin(), results_contender.end(), 0.0) / results_contender.size();
 }
 
 template <simsimd_datatype_t datatype_ak, typename metric_at = void>

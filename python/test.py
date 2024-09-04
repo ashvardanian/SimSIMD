@@ -405,8 +405,6 @@ def test_intersect(dtype):
     a = np.unique(a)
     b = np.unique(b)
 
-    simd.disable_capability("skylake")
-    simd.disable_capability("neon")
     expected = baseline_intersect(a, b)
     result = simd.intersect(a, b)
 

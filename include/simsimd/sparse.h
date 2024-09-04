@@ -157,33 +157,47 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_skylake(simsimd_u16_t const* shorter, 
                                                   simsimd_distance_t* results) {
     simsimd_size_t intersection_count = 0;
     simsimd_size_t shorter_idx = 0, longer_idx = 0;
-    simsimd_size_t longer_load_size = 32;
+    simsimd_size_t longer_load_size;
+    __mmask32 longer_mask;
 
     while (shorter_idx < shorter_length && longer_idx < longer_length) {
         // Load `shorter_member` and broadcast it to shorter vector, load `longer_members_vec` from memory.
         simsimd_size_t longer_remaining = longer_length - longer_idx;
         simsimd_u16_t shorter_member = shorter[shorter_idx];
-        __m512i shorter_member_vec = _mm512_set1_epi16(shorter_member);
+        __m512i shorter_member_vec = _mm512_set1_epi16(*(short*)&shorter_member);
         __m512i longer_members_vec;
-        if (longer_remaining >= 32) {
-            longer_members_vec = _mm512_loadu_si512((__m512i const*)(longer + longer_idx));
-        } else {
+        if (longer_remaining < 32) {
             longer_load_size = longer_remaining;
-            longer_members_vec = _mm512_maskz_loadu_epi16((__mmask32)_bzhi_u32(0xFFFFFFFF, longer_remaining),
-                                                          (__m512i const*)(longer + longer_idx));
+            longer_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, longer_remaining);
+        } else {
+            longer_load_size = 32;
+            longer_mask = 0xFFFFFFFF;
         }
+        longer_members_vec = _mm512_maskz_loadu_epi16(longer_mask, (__m512i const*)(longer + longer_idx));
 
         // Compare `shorter_member` with each element in `longer_members_vec`,
-        // and jump to the position of the last match.
-        __mmask32 equal_mask = _mm512_cmpeq_epi16_mask(shorter_member_vec, longer_members_vec);
-        simsimd_size_t equal_count = _mm_popcnt_u32(equal_mask);
+        // and jump to the position of the match. There can be only one match at most!
+        __mmask32 equal_mask = _mm512_mask_cmpeq_epu16_mask(longer_mask, shorter_member_vec, longer_members_vec);
+        simsimd_size_t equal_count = equal_mask != 0;
         intersection_count += equal_count;
-        __mmask32 smaller_mask = _mm512_cmplt_epu16_mask(longer_members_vec, shorter_member_vec);
-        simsimd_size_t smaller_count = _mm_popcnt_u32(smaller_mask);
 
-        // We move forward in a shorter array if only there was at least one entry in the register, that was larger.
-        shorter_idx += (longer_load_size - smaller_count - equal_count) != 0;
-        longer_idx += smaller_count + equal_count;
+        // When comparing a scalar against a sorted array, we can find three types of elements:
+        // - entries that scalar is greater than,
+        // - entries that scalar is equal to,
+        // - entries that scalar is less than,
+        // ... in that order! Any of them can be an empty set.
+        __mmask32 greater_mask = _mm512_mask_cmplt_epu16_mask(longer_mask, longer_members_vec, shorter_member_vec);
+        simsimd_size_t greater_count = _mm_popcnt_u32(greater_mask);
+        simsimd_size_t smaller_exists = longer_load_size > greater_count - equal_count;
+
+        // Advance the first array:
+        // - to the next element, if a match was found,
+        // - to the next element, if the current element is smaller than any elements in the second array.
+        shorter_idx += equal_count | smaller_exists;
+        // Advance the second array:
+        // - to the next element after match, if a match was found,
+        // - to the first element that is greater than the current element in the first array, if no match was found.
+        longer_idx += greater_count + equal_count;
 
         // At any given cycle, take one entry from shorter array and compare it with multiple from the longer array.
         // For that, we need to swap the arrays if necessary.
@@ -204,33 +218,47 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_skylake(simsimd_u32_t const* shorter, 
                                                   simsimd_distance_t* results) {
     simsimd_size_t intersection_count = 0;
     simsimd_size_t shorter_idx = 0, longer_idx = 0;
-    simsimd_size_t longer_load_size = 16;
+    simsimd_size_t longer_load_size;
+    __mmask16 longer_mask;
 
     while (shorter_idx < shorter_length && longer_idx < longer_length) {
         // Load `shorter_member` and broadcast it to shorter vector, load `longer_members_vec` from memory.
         simsimd_size_t longer_remaining = longer_length - longer_idx;
         simsimd_u32_t shorter_member = shorter[shorter_idx];
-        __m512i shorter_member_vec = _mm512_set1_epi32(shorter_member);
+        __m512i shorter_member_vec = _mm512_set1_epi32(*(int*)&shorter_member);
         __m512i longer_members_vec;
-        if (longer_remaining >= 16) {
-            longer_members_vec = _mm512_loadu_si512((__m512i const*)(longer + longer_idx));
-        } else {
+        if (longer_remaining < 16) {
             longer_load_size = longer_remaining;
-            longer_members_vec = _mm512_maskz_loadu_epi32((__mmask16)_bzhi_u32(0xFFFF, longer_remaining),
-                                                          (__m512i const*)(longer + longer_idx));
+            longer_mask = (__mmask16)_bzhi_u32(0xFFFF, longer_remaining);
+        } else {
+            longer_load_size = 16;
+            longer_mask = 0xFFFF;
         }
+        longer_members_vec = _mm512_maskz_loadu_epi32(longer_mask, (__m512i const*)(longer + longer_idx));
 
         // Compare `shorter_member` with each element in `longer_members_vec`,
-        // and jump to the position of the last match.
-        __mmask16 equal_mask = _mm512_cmpeq_epi32_mask(shorter_member_vec, longer_members_vec);
-        simsimd_size_t equal_count = _mm_popcnt_u32(equal_mask);
+        // and jump to the position of the match. There can be only one match at most!
+        __mmask16 equal_mask = _mm512_mask_cmpeq_epu32_mask(longer_mask, shorter_member_vec, longer_members_vec);
+        simsimd_size_t equal_count = equal_mask != 0;
         intersection_count += equal_count;
-        __mmask16 smaller_mask = _mm512_cmplt_epu32_mask(longer_members_vec, shorter_member_vec);
-        simsimd_size_t smaller_count = _mm_popcnt_u32(smaller_mask);
 
-        // We move forward in a shorter array if only there was at least one entry in the register, that was larger.
-        shorter_idx += (longer_load_size - smaller_count - equal_count) != 0;
-        longer_idx += smaller_count + equal_count;
+        // When comparing a scalar against a sorted array, we can find three types of elements:
+        // - entries that scalar is greater than,
+        // - entries that scalar is equal to,
+        // - entries that scalar is less than,
+        // ... in that order! Any of them can be an empty set.
+        __mmask16 greater_mask = _mm512_mask_cmplt_epu32_mask(longer_mask, longer_members_vec, shorter_member_vec);
+        simsimd_size_t greater_count = _mm_popcnt_u32(greater_mask);
+        simsimd_size_t smaller_exists = longer_load_size > greater_count - equal_count;
+
+        // Advance the first array:
+        // - to the next element, if a match was found,
+        // - to the next element, if the current element is smaller than any elements in the second array.
+        shorter_idx += equal_count | smaller_exists;
+        // Advance the second array:
+        // - to the next element after match, if a match was found,
+        // - to the first element that is greater than the current element in the first array, if no match was found.
+        longer_idx += greater_count + equal_count;
 
         // At any given cycle, take one entry from shorter array and compare it with multiple from the longer array.
         // For that, we need to swap the arrays if necessary.
