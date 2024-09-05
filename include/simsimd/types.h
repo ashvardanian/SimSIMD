@@ -221,21 +221,18 @@ typedef simsimd_f64_t simsimd_distance_t;
 #if !defined(SIMSIMD_NATIVE_F16) || SIMSIMD_NATIVE_F16
 #if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) &&                      \
     (defined(__ARM_FP16_FORMAT_IEEE))
-#if !defined(SIMSIMD_NATIVE_F16)
+#undef SIMSIMD_NATIVE_F16
 #define SIMSIMD_NATIVE_F16 1
-#endif
 typedef __fp16 simsimd_f16_t;
 #elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) &&                      \
        (defined(__SSE2__) || defined(__AVX512FP16__)))
 typedef _Float16 simsimd_f16_t;
-#if !defined(SIMSIMD_NATIVE_F16)
+#undef SIMSIMD_NATIVE_F16
 #define SIMSIMD_NATIVE_F16 1
-#endif
 #else // Unknown compiler or architecture
 #warning "Unknown compiler or architecture for float16."
-#if !defined(SIMSIMD_NATIVE_F16)
+#undef SIMSIMD_NATIVE_F16
 #define SIMSIMD_NATIVE_F16 0
-#endif
 #endif // Unknown compiler or architecture
 #endif // !SIMSIMD_NATIVE_F16
 
@@ -270,21 +267,18 @@ typedef unsigned short simsimd_f16_t;
  */
 #if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) &&                      \
     (defined(__ARM_BF16_FORMAT_ALTERNATIVE))
-#if !defined(SIMSIMD_NATIVE_BF16)
+#undef SIMSIMD_NATIVE_BF16
 #define SIMSIMD_NATIVE_BF16 1
-#endif
 typedef __bf16 simsimd_bf16_t;
 #elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) &&                      \
        (defined(__SSE2__) || defined(__AVX512BF16__)))
 typedef __bfloat16 simsimd_bf16_t;
-#if !defined(SIMSIMD_NATIVE_BF16)
+#undef SIMSIMD_NATIVE_BF16
 #define SIMSIMD_NATIVE_BF16 1
-#endif
 #else // Unknown compiler or architecture
 #warning "Unknown compiler or architecture for bfloat16."
-#if !defined(SIMSIMD_NATIVE_BF16)
+#undef SIMSIMD_NATIVE_BF16
 #define SIMSIMD_NATIVE_BF16 0
-#endif
 #endif // Unknown compiler or architecture
 #endif // !SIMSIMD_NATIVE_BF16
 
