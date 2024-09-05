@@ -225,6 +225,19 @@ SIMSIMD_MAKE_COMPLEX_VDOT(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16) // simsi
 #pragma GCC target("arch=armv8.2-a+simd")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
 
+SIMSIMD_INTERNAL float32x4_t simsimd_partial_load_f32x4_neon(simsimd_f32_t const* a, simsimd_size_t n) {
+    union {
+        float32x4_t vec;
+        simsimd_f32_t scalars[4];
+    } result;
+    simsimd_size_t i = 0;
+    for (; i < n; ++i)
+        result.scalars[i] = a[i];
+    for (; i < 4; ++i)
+        result.scalars[i] = 0;
+    return result.vec;
+}
+
 SIMSIMD_PUBLIC void simsimd_dot_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                          simsimd_distance_t* result) {
     float32x4_t ab_vec = vdupq_n_f32(0);
