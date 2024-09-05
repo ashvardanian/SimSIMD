@@ -133,6 +133,8 @@
         "parallelizable",
         "permutevar",
         "RMSD",
+        "RTOL",
+        "scikit",
         "scipy",
         "setzero",
         "simd",
