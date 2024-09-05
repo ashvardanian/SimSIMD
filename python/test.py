@@ -78,14 +78,15 @@ SIMSIMD_ATOL = 0.1
 
 def f32_round_and_downcast_to_bf16(array):
     """Converts an array of 32-bit floats into 16-bit brain-floats."""
+    array = np.asarray(array, dtype=np.float32)
     # NumPy doesn't natively support brain-float, so we need a trick!
     # Luckily, it's very easy to reduce the representation accuracy
     # by simply masking the low 16-bits of our 32-bit single-precision
     # numbers. We can also add `0x8000` to round the numbers.
-    array_f32rounded = ((array.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
-    # To represent them as brain-floats, we need to drop the second halfs
-    array_bf16 = np.right_shift(array_f32rounded.view(np.uint32), 16).astype(np.uint16)
-    return array_f32rounded, array_bf16
+    array_f32_rounded = ((array.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+    # To represent them as brain-floats, we need to drop the second halves.
+    array_bf16 = np.right_shift(array_f32_rounded.view(np.uint32), 16).astype(np.uint16)
+    return array_f32_rounded, array_bf16
 
 
 def hex_array(arr):
@@ -229,7 +230,7 @@ def test_curved(ndim, dtypes, kernels):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [4, 8, 12])
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize(
     "kernels",
     [
@@ -246,11 +247,11 @@ def test_dense_bf16(ndim, kernels):
     a = np.random.randn(ndim).astype(np.float32)
     b = np.random.randn(ndim).astype(np.float32)
 
-    a_f32rounded, a_bf16 = f32_round_and_downcast_to_bf16(a)
-    b_f32rounded, b_bf16 = f32_round_and_downcast_to_bf16(b)
+    a_f32_rounded, a_bf16 = f32_round_and_downcast_to_bf16(a)
+    b_f32_rounded, b_bf16 = f32_round_and_downcast_to_bf16(b)
 
     baseline_kernel, simd_kernel = kernels
-    expected = baseline_kernel(a_f32rounded, b_f32rounded).astype(np.float64)
+    expected = baseline_kernel(a_f32_rounded, b_f32_rounded).astype(np.float64)
     result = simd_kernel(a_bf16, b_bf16, "bf16")
 
     np.testing.assert_allclose(
@@ -259,8 +260,8 @@ def test_dense_bf16(ndim, kernels):
         atol=SIMSIMD_ATOL,
         rtol=SIMSIMD_RTOL,
         err_msg=f"""
-        First `f32` operand in hex:     {hex_array(a_f32rounded.view(np.uint32))}
-        Second `f32` operand in hex:    {hex_array(b_f32rounded.view(np.uint32))}
+        First `f32` operand in hex:     {hex_array(a_f32_rounded.view(np.uint32))}
+        Second `f32` operand in hex:    {hex_array(b_f32_rounded.view(np.uint32))}
         First `bf16` operand in hex:    {hex_array(a_bf16)}
         Second `bf16` operand in hex:   {hex_array(b_bf16)}
         """,
@@ -296,12 +297,12 @@ def test_curved_bf16(ndim, kernels):
     c = np.abs(np.random.randn(ndim, ndim).astype(np.float32))
     c = np.dot(c, c.T)
 
-    a_f32rounded, a_bf16 = f32_round_and_downcast_to_bf16(a)
-    b_f32rounded, b_bf16 = f32_round_and_downcast_to_bf16(b)
-    c_f32rounded, c_bf16 = f32_round_and_downcast_to_bf16(c)
+    a_f32_rounded, a_bf16 = f32_round_and_downcast_to_bf16(a)
+    b_f32_rounded, b_bf16 = f32_round_and_downcast_to_bf16(b)
+    c_f32_rounded, c_bf16 = f32_round_and_downcast_to_bf16(c)
 
     baseline_kernel, simd_kernel = kernels
-    expected = baseline_kernel(a_f32rounded, b_f32rounded, c_f32rounded).astype(np.float64)
+    expected = baseline_kernel(a_f32_rounded, b_f32_rounded, c_f32_rounded).astype(np.float64)
     result = simd_kernel(a_bf16, b_bf16, c_bf16, "bf16")
 
     np.testing.assert_allclose(
@@ -310,8 +311,8 @@ def test_curved_bf16(ndim, kernels):
         atol=SIMSIMD_ATOL,
         rtol=SIMSIMD_RTOL,
         err_msg=f"""
-        First `f32` operand in hex:     {hex_array(a_f32rounded.view(np.uint32))}
-        Second `f32` operand in hex:    {hex_array(b_f32rounded.view(np.uint32))}
+        First `f32` operand in hex:     {hex_array(a_f32_rounded.view(np.uint32))}
+        Second `f32` operand in hex:    {hex_array(b_f32_rounded.view(np.uint32))}
         First `bf16` operand in hex:    {hex_array(a_bf16)}
         Second `bf16` operand in hex:   {hex_array(b_bf16)}
         Matrix `bf16` operand in hex:    {hex_array(c_bf16)}

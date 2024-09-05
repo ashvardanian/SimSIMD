@@ -43,6 +43,9 @@ Testing:
 pip install -e .                    # to install the package in editable mode
 pip install pytest pytest-repeat    # testing dependencies
 pytest python/test.py -s -x -Wd     # to run tests
+
+# to check supported SIMD instructions:
+python -c "import simsimd; print(simsimd.get_capabilities())" 
 ```
 
 Here, `-s` will output the logs.

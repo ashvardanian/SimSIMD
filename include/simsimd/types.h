@@ -437,8 +437,10 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_bf16(simsimd_bf16_t const* x_ptr
 SIMSIMD_PUBLIC void simsimd_compress_bf16(simsimd_f32_t x, unsigned short* result_ptr) {
     simsimd_f32i32_t conv;
     conv.f = x;
+    conv.i += 0x8000; // Rounding is optional
     conv.i >>= 16;
-    conv.i &= 0xFFFF;
+    // The top 16 bits will be zeroed out anyways
+    // conv.i &= 0xFFFF;
     *result_ptr = (unsigned short)conv.i;
 }
 

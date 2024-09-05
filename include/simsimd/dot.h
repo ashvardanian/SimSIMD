@@ -513,7 +513,7 @@ simsimd_dot_bf16_neon_cycle:
     } else {
         a_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)a);
         b_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)b);
-        a += 4, b += 4, n -= 4;
+        a += 8, b += 8, n -= 8;
     }
     ab_high_vec = vbfmlaltq_f32(ab_high_vec, a_vec, b_vec);
     ab_low_vec = vbfmlalbq_f32(ab_low_vec, a_vec, b_vec);
