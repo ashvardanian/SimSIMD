@@ -14,7 +14,7 @@ build_release/simsimd_test_run_time
 build_release/simsimd_test_compile_time # no need to run this one, it's just a compile-time test
 ```
 
-To utilize newest instructions, use GCC 12 or newer, or Clang 16 or newer.
+To utilize `f16` instructions, use GCC 12 or newer, or Clang 16 or newer.
 To install them on Ubuntu 22.04, use:
 
 ```sh
