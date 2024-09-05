@@ -28,7 +28,7 @@ try:
     baseline_jaccard = spd.jaccard
     baseline_intersect = lambda x, y: len(np.intersect1d(x, y))
     baseline_bilinear = lambda x, y, z: x @ z @ y
-    baseline_mahalanobis = lambda x, y, z: spd.mahalanobis(x, y, z) ** 2
+    baseline_mahalanobis = lambda x, y, z: (spd.mahalanobis(x, y, z).astype(np.float64) ** 2)
 
 except:
     # SciPy is not installed, some tests will be skipped
@@ -85,10 +85,16 @@ def f32_rounded_and_downcasted_to_bf16(array):
 
 
 def hex_array(arr):
-    """Converts numerical array into a string of comma-separated hexadecimal values for debugging."""
+    """Converts numerical array into a string of comma-separated hexadecimal values for debugging.
+    Supports 1D and 2D arrays.
+    """
     printer = np.vectorize(hex)
     strings = printer(arr)
-    return ", ".join(strings)
+
+    if strings.ndim == 1:
+        return ", ".join(strings)
+    else:
+        return "\n".join(", ".join(row) for row in strings)
 
 
 def test_pointers_availability():
@@ -206,8 +212,6 @@ def test_curved(ndim, dtypes, kernels):
     c = np.abs(np.random.randn(ndim, ndim).astype(dtype))
     c = np.dot(c, c.T)
 
-    simd.disable_capability("sapphire")
-
     baseline_kernel, simd_kernel = kernels
     expected = baseline_kernel(
         a.astype(compute_dtype),
@@ -255,6 +259,59 @@ def test_dense_bf16(ndim, kernels):
         Second `f32` operand in hex:    {hex_array(b_f32rounded.view(np.uint32))}
         First `bf16` operand in hex:    {hex_array(a_bf16)}
         Second `bf16` operand in hex:   {hex_array(b_bf16)}
+        """,
+    )
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("ndim", [11, 16, 33])
+@pytest.mark.parametrize(
+    "kernels",  # baseline kernel and the contender from SimSIMD
+    [
+        (baseline_bilinear, simd.bilinear),
+        (baseline_mahalanobis, simd.mahalanobis),
+    ],
+)
+def test_curved_bf16(ndim, kernels):
+    """Compares various SIMD kernels (like Bilinear Forms and Mahalanobis distances) for curved spaces
+    with their NumPy or baseline counterparts, testing accuracy for the Brain-float format not
+    natively supported by NumPy."""
+
+    np.random.seed()
+
+    # Let's generate some non-negative probability distirbutions
+    a = np.abs(np.random.randn(ndim).astype(np.float32))
+    b = np.abs(np.random.randn(ndim).astype(np.float32))
+    a /= np.sum(a)
+    b /= np.sum(b)
+
+    # Let's compute the inverse of the covariance matrix, otherwise in the SciPy
+    # implementation of the Mahalanobis we may face `sqrt` of a negative number.
+    # We multiply the matrix by its transpose to get a positive-semi-definite matrix.
+    c = np.abs(np.random.randn(ndim, ndim).astype(np.float32))
+    c = np.dot(c, c.T)
+
+    a_f32rounded, a_bf16 = f32_rounded_and_downcasted_to_bf16(a)
+    b_f32rounded, b_bf16 = f32_rounded_and_downcasted_to_bf16(b)
+    c_f32rounded, c_bf16 = f32_rounded_and_downcasted_to_bf16(c)
+
+    baseline_kernel, simd_kernel = kernels
+    expected = baseline_kernel(a_f32rounded, b_f32rounded, c_f32rounded).astype(np.float64)
+    result = simd_kernel(a_bf16, b_bf16, c_bf16, "bf16")
+
+    np.testing.assert_allclose(
+        result,
+        expected,
+        atol=SIMSIMD_ATOL,
+        rtol=SIMSIMD_RTOL,
+        err_msg=f"""
+        First `f32` operand in hex:     {hex_array(a_f32rounded.view(np.uint32))}
+        Second `f32` operand in hex:    {hex_array(b_f32rounded.view(np.uint32))}
+        First `bf16` operand in hex:    {hex_array(a_bf16)}
+        Second `bf16` operand in hex:   {hex_array(b_bf16)}
+        Matrix `bf16` operand in hex:    {hex_array(c_bf16)}
+        Matrix `bf16` operand in hex:   {hex_array(c_bf16)}
         """,
     )
 

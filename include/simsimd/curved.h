@@ -688,12 +688,12 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_genoa(simsimd_bf16_t const* a, sims
 
     for (simsimd_size_t i = 0; i != n; ++i) {
         __m512 diff_i_vec = _mm512_set1_ps(simsimd_uncompress_bf16(a + i) - simsimd_uncompress_bf16(b + i));
-        __m512 partial_sum_vec = _mm512_setzero_ps(), partial_sum_bot_vec = _mm512_setzero_ps();
+        __m512 partial_sum_vec = _mm512_setzero_ps();
         __m512i a_j_vec, b_j_vec, diff_j_vec, c_vec;
         simsimd_size_t j = 0;
 
         // The nested loop is cleaner to implement with a `goto` in this case:
-    simsimd_bilinear_bf16_genoa_cycle:
+    simsimd_mahalanobis_bf16_genoa_cycle:
         if (j + 32 <= n) {
             a_j_vec = _mm512_loadu_epi16(a + j);
             b_j_vec = _mm512_loadu_epi16(b + j);
@@ -707,7 +707,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_genoa(simsimd_bf16_t const* a, sims
         partial_sum_vec = _mm512_dpbf16_ps(partial_sum_vec, (__m512bh)(diff_j_vec), (__m512bh)(c_vec));
         j += 32;
         if (j < n)
-            goto simsimd_bilinear_bf16_genoa_cycle;
+            goto simsimd_mahalanobis_bf16_genoa_cycle;
         sum_vec = _mm512_fmadd_ps(diff_i_vec, partial_sum_vec, sum_vec);
     }
 
@@ -773,7 +773,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_sapphire(simsimd_f16_t const* a, sim
         simsimd_size_t j = 0;
 
         // The nested loop is cleaner to implement with a `goto` in this case:
-    simsimd_bilinear_f16_sapphire_cycle:
+    simsimd_mahalanobis_f16_sapphire_cycle:
         if (j + 32 <= n) {
             a_j_vec = _mm512_loadu_epi16(a + j);
             b_j_vec = _mm512_loadu_epi16(b + j);
@@ -787,7 +787,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_sapphire(simsimd_f16_t const* a, sim
         partial_sum_vec = _mm512_fmadd_ph(diff_j_vec, _mm512_castsi512_ph(c_vec), partial_sum_vec);
         j += 32;
         if (j < n)
-            goto simsimd_bilinear_f16_sapphire_cycle;
+            goto simsimd_mahalanobis_f16_sapphire_cycle;
         sum_vec = _mm512_fmadd_ph(diff_i_vec, partial_sum_vec, sum_vec);
     }
 
@@ -797,6 +797,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_sapphire(simsimd_f16_t const* a, sim
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16_sapphire(simsimd_bf16_t const* a, simsimd_bf16_t const* b,
                                                    simsimd_bf16_t const* c, simsimd_size_t n,
                                                    simsimd_distance_t* result) {}
+
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_sapphire(simsimd_bf16_t const* a, simsimd_bf16_t const* b,
                                                       simsimd_bf16_t const* c, simsimd_size_t n,
                                                       simsimd_distance_t* result) {}
