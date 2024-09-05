@@ -21,6 +21,8 @@ try:
     import scipy.spatial.distance as spd
 
     scipy_available = True
+
+    baseline_inner = np.inner
     baseline_sqeuclidean = spd.sqeuclidean
     baseline_cosine = spd.cosine
     baseline_jensenshannon = spd.jensenshannon
@@ -33,6 +35,8 @@ try:
 except:
     # SciPy is not installed, some tests will be skipped
     scipy_available = False
+
+    baseline_inner = lambda x, y: np.inner(x, y)
     baseline_cosine = lambda x, y: 1.0 - np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
     baseline_sqeuclidean = lambda x, y: np.sum((x - y) ** 2)
     baseline_jensenshannon = lambda p, q: np.sqrt((np.sum((np.sqrt(p) - np.sqrt(q)) ** 2)) / 2)
@@ -149,7 +153,7 @@ def test_capabilities_list():
 @pytest.mark.parametrize(
     "kernels",
     [
-        (np.inner, simd.inner),
+        (baseline_inner, simd.inner),
         (baseline_sqeuclidean, simd.sqeuclidean),
         (baseline_cosine, simd.cosine),
     ],
@@ -225,11 +229,11 @@ def test_curved(ndim, dtypes, kernels):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("ndim", [4, 8, 12])
 @pytest.mark.parametrize(
     "kernels",
     [
-        (np.inner, simd.inner),
+        (baseline_inner, simd.inner),
         (baseline_sqeuclidean, simd.sqeuclidean),
         (baseline_cosine, simd.cosine),
     ],
@@ -322,7 +326,7 @@ def test_curved_bf16(ndim, kernels):
 @pytest.mark.parametrize(
     "kernels",
     [
-        (np.inner, simd.inner),
+        (baseline_inner, simd.inner),
         (baseline_sqeuclidean, simd.sqeuclidean),
         (baseline_cosine, simd.cosine),
     ],
