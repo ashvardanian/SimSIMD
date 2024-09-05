@@ -234,7 +234,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16_neon(simsimd_f16_t const* a, simsimd_f1
     float32x4_t sum_vec = vdupq_n_f32(0);
     for (simsimd_size_t i = 0; i != n; ++i) {
         // MSVC doesn't recognize `vdup_n_f16` as a valid intrinsic
-        float32x4_t a_vec = vcvt_f32_f16(simsimd_partial_load_f16x4_neon(a + i, 1));
+        float32x4_t a_vec = vcvt_f32_f16(vreinterpret_f16_s16(vdup_n_s16(*(short const*)(a + i))));
         float32x4_t partial_sum_vec = vdupq_n_f32(0);
         for (simsimd_size_t j = 0; j + 4 <= n; j += 4) {
             float32x4_t b_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)(b + j)));
@@ -250,7 +250,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16_neon(simsimd_f16_t const* a, simsimd_f1
     simsimd_size_t tail_start = n - tail_length;
     if (tail_length) {
         for (simsimd_size_t i = 0; i != n; ++i) {
-            simsimd_f32_t a_i = vaddvq_f32(vcvt_f32_f16(simsimd_partial_load_f16x4_neon(a + i, 1)));
+            simsimd_f32_t a_i = vaddvq_f32(vcvt_f32_f16(vreinterpret_f16_s16(vdup_n_s16(*(short const*)(a + i)))));
             float32x4_t b_vec = vcvt_f32_f16(simsimd_partial_load_f16x4_neon(b + tail_start, tail_length));
             float32x4_t c_vec = vcvt_f32_f16(simsimd_partial_load_f16x4_neon(c + i * n + tail_start, tail_length));
             simsimd_f32_t partial_sum = vaddvq_f32(vmulq_f32(b_vec, c_vec));
@@ -266,8 +266,8 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_neon(simsimd_f16_t const* a, simsimd
     float32x4_t sum_vec = vdupq_n_f32(0);
     for (simsimd_size_t i = 0; i != n; ++i) {
         // MSVC doesn't recognize `vdup_n_f16` as a valid intrinsic
-        float32x4_t a_i_vec = vcvt_f32_f16(simsimd_partial_load_f16x4_neon(a + i, 1));
-        float32x4_t b_i_vec = vcvt_f32_f16(simsimd_partial_load_f16x4_neon(b + i, 1));
+        float32x4_t a_i_vec = vcvt_f32_f16(vreinterpret_f16_s16(vdup_n_s16(*(short const*)(a + i))));
+        float32x4_t b_i_vec = vcvt_f32_f16(vreinterpret_f16_s16(vdup_n_s16(*(short const*)(b + i))));
         float32x4_t diff_i_vec = vsubq_f32(a_i_vec, b_i_vec);
         float32x4_t partial_sum_vec = vdupq_n_f32(0);
         for (simsimd_size_t j = 0; j + 4 <= n; j += 4) {
@@ -286,8 +286,8 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_neon(simsimd_f16_t const* a, simsimd
     simsimd_size_t tail_start = n - tail_length;
     if (tail_length) {
         for (simsimd_size_t i = 0; i != n; ++i) {
-            simsimd_f32_t a_i = vaddvq_f32(vcvt_f32_f16(simsimd_partial_load_f16x4_neon(a + i, 1)));
-            simsimd_f32_t b_i = vaddvq_f32(vcvt_f32_f16(simsimd_partial_load_f16x4_neon(b + i, 1)));
+            simsimd_f32_t a_i = vaddvq_f32(vcvt_f32_f16(vreinterpret_f16_s16(vdup_n_s16(*(short const*)(a + i)))));
+            simsimd_f32_t b_i = vaddvq_f32(vcvt_f32_f16(vreinterpret_f16_s16(vdup_n_s16(*(short const*)(b + i)))));
             simsimd_f32_t diff_i = a_i - b_i;
             float32x4_t a_j_vec = vcvt_f32_f16(simsimd_partial_load_f16x4_neon(a + tail_start, tail_length));
             float32x4_t b_j_vec = vcvt_f32_f16(simsimd_partial_load_f16x4_neon(b + tail_start, tail_length));
