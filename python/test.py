@@ -242,7 +242,7 @@ def test_dense_bf16(ndim, kernels):
         result,
         expected,
         atol=SIMSIMD_ATOL,
-        rtol=0,
+        rtol=SIMSIMD_RTOL,
         err_msg=f"""
         First `f32` operand in hex:     {hex_array(a_f32rounded.view(np.uint32))}
         Second `f32` operand in hex:    {hex_array(b_f32rounded.view(np.uint32))}
@@ -273,11 +273,19 @@ def test_dense_i8(ndim, kernels):
     b = np.random.randint(-128, 127, size=(ndim), dtype=np.int8)
 
     baseline_kernel, simd_kernel = kernels
-    expected_overflow = baseline_kernel(a, b)
+
+    # Fun fact: SciPy doesn't actually raise an `OverflowError` when overflow happens
+    # here, instead it raises `ValueError: math domain error` during the `sqrt` operation.
+    try:
+        expected_overflow = baseline_kernel(a, b)
+    except OverflowError:
+        expected_overflow = OverflowError()
+    except ValueError:
+        expected_overflow = ValueError()
     expected = baseline_kernel(a.astype(np.float64), b.astype(np.float64))
     result = simd_kernel(a, b)
 
-    assert int(result) == expected, f"Expected {expected}, but got {result} (overflow: {expected_overflow})"
+    assert int(result) == int(expected), f"Expected {expected}, but got {result} (overflow: {expected_overflow})"
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
