@@ -286,7 +286,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_neon(simsimd_f16_t const* a, simsimd
         for (simsimd_size_t i = 0; i != n; ++i) {
             simsimd_f32_t a_i = vaddvq_f32(vcvt_f32_f16(simsimd_partial_load_f16x4_neon(a + i, 1)));
             simsimd_f32_t b_i = vaddvq_f32(vcvt_f32_f16(simsimd_partial_load_f16x4_neon(b + i, 1)));
-            simsimd_f32_t diff_i = a[i] - b[i];
+            simsimd_f32_t diff_i = a_i - b_i;
             float32x4_t a_j_vec = vcvt_f32_f16(simsimd_partial_load_f16x4_neon(a + tail_start, tail_length));
             float32x4_t b_j_vec = vcvt_f32_f16(simsimd_partial_load_f16x4_neon(b + tail_start, tail_length));
             float32x4_t diff_j_vec = vsubq_f32(a_j_vec, b_j_vec);
@@ -312,7 +312,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16_neon(simsimd_bf16_t const* a, simsimd_
                                                simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result) {
     float32x4_t sum_high_vec = vdupq_n_f32(0), sum_low_vec = vdupq_n_f32(0);
     for (simsimd_size_t i = 0; i != n; ++i) {
-        bfloat16x8_t a_vec = vdupq_n_bf16(*(simsimd_bf16_for_arm_simd_t const*)(a + i));
+        float32x4_t a_vec = vdupq_n_f32(simsimd_uncompress_bf16(a + i));
         float32x4_t partial_sum_high_vec = vdupq_n_f32(0), partial_sum_low_vec = vdupq_n_f32(0);
         for (simsimd_size_t j = 0; j + 8 <= n; j += 8) {
             bfloat16x8_t b_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)(b + j));
@@ -349,7 +349,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_neon(simsimd_bf16_t const* a, simsi
     for (simsimd_size_t i = 0; i != n; ++i) {
         simsimd_f32_t a_i = simsimd_uncompress_bf16(a + i);
         simsimd_f32_t b_i = simsimd_uncompress_bf16(b + i);
-        bfloat16x8_t diff_i_vec = vdupq_n_f32(a_i - b_i);
+        float32x4_t diff_i_vec = vdupq_n_f32(a_i - b_i);
         float32x4_t partial_sum_high_vec = vdupq_n_f32(0), partial_sum_low_vec = vdupq_n_f32(0);
         for (simsimd_size_t j = 0; j + 8 <= n; j += 8) {
             bfloat16x8_t a_j_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)(a + j));
