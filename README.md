@@ -721,6 +721,7 @@ The `rsqrt` in-hardware implementations are faster, but have different accuracy 
 - AVX-512 `vrsqrt14pd` instruction: $`\(2^{-14}\)`$ maximal error.
 - NEON `frsqrte` instruction has no clear error bounds.
 
+🔜
 To overcome the limitations of the `rsqrt` instruction, SimSIMD uses the Newton-Raphson iteration to refine the initial estimate for high-precision floating-point numbers.
 It can be defined as:
 

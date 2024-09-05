@@ -72,7 +72,7 @@ SIMSIMD_RTOL = 0.1
 SIMSIMD_ATOL = 0.1
 
 
-def f32_rounded_and_downcasted_to_bf16(array):
+def f32_round_and_downcast_to_bf16(array):
     """Converts an array of 32-bit floats into 16-bit brain-floats."""
     # NumPy doesn't natively support brain-float, so we need a trick!
     # Luckily, it's very easy to reduce the representation accuracy
@@ -200,7 +200,7 @@ def test_curved(ndim, dtypes, kernels):
 
     np.random.seed()
 
-    # Let's generate some non-negative probability distirbutions
+    # Let's generate some non-negative probability distributions
     a = np.abs(np.random.randn(ndim).astype(dtype))
     b = np.abs(np.random.randn(ndim).astype(dtype))
     a /= np.sum(a)
@@ -242,8 +242,8 @@ def test_dense_bf16(ndim, kernels):
     a = np.random.randn(ndim).astype(np.float32)
     b = np.random.randn(ndim).astype(np.float32)
 
-    a_f32rounded, a_bf16 = f32_rounded_and_downcasted_to_bf16(a)
-    b_f32rounded, b_bf16 = f32_rounded_and_downcasted_to_bf16(b)
+    a_f32rounded, a_bf16 = f32_round_and_downcast_to_bf16(a)
+    b_f32rounded, b_bf16 = f32_round_and_downcast_to_bf16(b)
 
     baseline_kernel, simd_kernel = kernels
     expected = baseline_kernel(a_f32rounded, b_f32rounded).astype(np.float64)
@@ -280,7 +280,7 @@ def test_curved_bf16(ndim, kernels):
 
     np.random.seed()
 
-    # Let's generate some non-negative probability distirbutions
+    # Let's generate some non-negative probability distributions
     a = np.abs(np.random.randn(ndim).astype(np.float32))
     b = np.abs(np.random.randn(ndim).astype(np.float32))
     a /= np.sum(a)
@@ -292,9 +292,9 @@ def test_curved_bf16(ndim, kernels):
     c = np.abs(np.random.randn(ndim, ndim).astype(np.float32))
     c = np.dot(c, c.T)
 
-    a_f32rounded, a_bf16 = f32_rounded_and_downcasted_to_bf16(a)
-    b_f32rounded, b_bf16 = f32_rounded_and_downcasted_to_bf16(b)
-    c_f32rounded, c_bf16 = f32_rounded_and_downcasted_to_bf16(c)
+    a_f32rounded, a_bf16 = f32_round_and_downcast_to_bf16(a)
+    b_f32rounded, b_bf16 = f32_round_and_downcast_to_bf16(b)
+    c_f32rounded, c_bf16 = f32_round_and_downcast_to_bf16(c)
 
     baseline_kernel, simd_kernel = kernels
     expected = baseline_kernel(a_f32rounded, b_f32rounded, c_f32rounded).astype(np.float64)
