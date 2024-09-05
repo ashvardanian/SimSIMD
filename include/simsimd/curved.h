@@ -475,13 +475,13 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_haswell(simsimd_f16_t const* a, sims
         for (simsimd_size_t i = 0; i != n; ++i) {
             simsimd_f32_t diff_i = _mm256_cvtss_f32(_mm256_sub_ps(       //
                 _mm256_cvtph_ps(_mm_set1_epi16(*(short const*)(a + i))), //
-                _mm256_cvtph_ps(_mm_set1_epi16(*(short const*)(a + i)))));
+                _mm256_cvtph_ps(_mm_set1_epi16(*(short const*)(b + i)))));
             __m256 diff_j_vec = _mm256_sub_ps( //
                 simsimd_partial_load_f16x8_haswell(a + tail_start, tail_length),
                 simsimd_partial_load_f16x8_haswell(b + tail_start, tail_length));
             __m256 c_vec = simsimd_partial_load_f16x8_haswell(c + i * n + tail_start, tail_length);
             simsimd_f32_t partial_sum = _mm256_reduce_add_ps_dbl(_mm256_mul_ps(diff_j_vec, c_vec));
-            partial_sum += diff_i * partial_sum;
+            sum += diff_i * partial_sum;
         }
     }
 
