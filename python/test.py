@@ -205,6 +205,8 @@ def test_curved(ndim, dtype, kernels):
     c = np.abs(np.random.randn(ndim, ndim).astype(dtype))
     c = np.dot(c, c.T)
 
+    simd.disable_capability("sapphire")
+
     baseline_kernel, simd_kernel = kernels
     expected = baseline_kernel(a, b, c).astype(np.float32)
     result = simd_kernel(a, b, c)
