@@ -160,7 +160,7 @@ def test_dense(ndim, dtype, kernels):
     b = np.random.randn(ndim).astype(dtype)
 
     baseline_kernel, simd_kernel = kernels
-    expected = baseline_kernel(a, b).astype(np.float32)
+    expected = baseline_kernel(a, b).astype(np.float64)
     result = simd_kernel(a, b)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
@@ -170,24 +170,25 @@ def test_dense(ndim, dtype, kernels):
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 16, 33])
 @pytest.mark.parametrize(
-    "dtype",
+    "dtypes",  # representation datatype and compute precision
     [
-        "float64",
-        "float32",
-        "float16",
+        ("float64", "float64"),
+        ("float32", "float32"),
+        ("float16", "float32"),  # otherwise NumPy keeps aggregating too much error
     ],
 )
 @pytest.mark.parametrize(
-    "kernels",
+    "kernels",  # baseline kernel and the contender from SimSIMD
     [
         (baseline_bilinear, simd.bilinear),
         (baseline_mahalanobis, simd.mahalanobis),
     ],
 )
-def test_curved(ndim, dtype, kernels):
+def test_curved(ndim, dtypes, kernels):
     """Compares various SIMD kernels (like Bilinear Forms and Mahalanobis distances) for curved spaces
     with their NumPy or baseline counterparts, testing accuracy for IEEE standard floating-point types."""
 
+    dtype, compute_dtype = dtypes
     if dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
@@ -208,7 +209,11 @@ def test_curved(ndim, dtype, kernels):
     simd.disable_capability("sapphire")
 
     baseline_kernel, simd_kernel = kernels
-    expected = baseline_kernel(a, b, c).astype(np.float32)
+    expected = baseline_kernel(
+        a.astype(compute_dtype),
+        b.astype(compute_dtype),
+        c.astype(compute_dtype),
+    ).astype(np.float64)
     result = simd_kernel(a, b, c)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
@@ -237,7 +242,7 @@ def test_dense_bf16(ndim, kernels):
     b_f32rounded, b_bf16 = f32_rounded_and_downcasted_to_bf16(b)
 
     baseline_kernel, simd_kernel = kernels
-    expected = baseline_kernel(a_f32rounded, b_f32rounded)
+    expected = baseline_kernel(a_f32rounded, b_f32rounded).astype(np.float64)
     result = simd_kernel(a_bf16, b_bf16, "bf16")
 
     np.testing.assert_allclose(
@@ -441,34 +446,34 @@ def test_batch(ndim, dtype):
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
-    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float32)
+    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
     assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (1 x D scalars) is an array with N floats.
     B = np.random.randn(1, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B[0]) for i in range(10)]
-    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float32)
+    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
     assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
     # Distance between matrixes A (1 x D scalars) and B (N x D scalars) is an array with N floats.
     A = np.random.randn(1, ndim).astype(dtype)
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[0], B[i]) for i in range(10)]
-    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float32)
+    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
     assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
     # Distance between matrix A (N x D scalars) and array B (D scalars) is an array with N floats.
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.random.randn(ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B) for i in range(10)]
-    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float32)
+    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
     assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
     # Distance between matrix B (N x D scalars) and array A (D scalars) is an array with N floats.
     B = np.random.randn(10, ndim).astype(dtype)
     A = np.random.randn(ndim).astype(dtype)
     result_np = [spd.sqeuclidean(B[i], A) for i in range(10)]
-    result_simd = np.array(simd.sqeuclidean(B, A)).astype(np.float32)
+    result_simd = np.array(simd.sqeuclidean(B, A)).astype(np.float64)
     assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
