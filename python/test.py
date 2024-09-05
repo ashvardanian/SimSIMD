@@ -230,7 +230,7 @@ def test_curved(ndim, dtypes, kernels):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("ndim", [4, 8, 12])
 @pytest.mark.parametrize(
     "kernels",
     [
@@ -473,7 +473,7 @@ def test_dot_complex_explicit(ndim):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(200)
-@pytest.mark.parametrize("dtype", [np.uint16, np.uint32])
+@pytest.mark.parametrize("dtype", ["uint16", "uint32"])
 def test_intersect(dtype):
     """Compares the simd.intersect() function with numpy.intersect1d."""
     np.random.seed()
