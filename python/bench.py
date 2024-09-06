@@ -68,7 +68,7 @@ def wrap_rowwise(baseline_func):
     return wrapped
 
 
-def print_makrkdown_row(dtype, name, baseline_time, simd_time):
+def print_markdown_row(dtype, name, baseline_time, simd_time):
     """Print a formatted row for the markdown table."""
     baseline_ops = f"{1 / baseline_time:,.0f}" if baseline_time is not None else "💥"
     simd_ops = f"{1 / simd_time:,.0f}" if simd_time is not None else "💥"
@@ -299,7 +299,7 @@ for name, baseline_func, simd_func, dtypes, tensor_type in funcs:
             # raise RuntimeError(str(e) + " for %s(%s)" % (name, str(dtype))) from e
             pass
 
-        print_makrkdown_row(dtype, name, baseline_time, simd_time)
+        print_markdown_row(dtype, name, baseline_time, simd_time)
 
 print()
 
@@ -387,7 +387,7 @@ for name, baseline_func, simd_func, dtypes in funcs:
         except Exception:
             pass
 
-        print_makrkdown_row(dtype, name, baseline_time, simd_time)
+        print_markdown_row(dtype, name, baseline_time, simd_time)
 
 
 print()
@@ -465,7 +465,7 @@ for name, baseline_func, simd_func, dtypes in cdist_funcs:
         except Exception:
             pass
 
-        print_makrkdown_row(
+        print_markdown_row(
             dtype,
             name,
             baseline_time / count**2 if baseline_time else None,

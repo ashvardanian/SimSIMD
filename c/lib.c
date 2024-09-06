@@ -53,7 +53,7 @@ simsimd_capability_t simsimd_capabilities(void) {
 // If no metric is found, it returns NaN. We can obtain NaN by dividing 0.0 by 0.0, but that annoys
 // the MSVC compiler. Instead we can directly write-in the signaling NaN (0x7FF0000000000001)
 // or the qNaN (0x7FF8000000000000).
-#define SIMSIMD_METRIC_DECLARATION(name, extension, type)                                                              \
+#define SIMSIMD_DECLARATION_DENSE(name, extension, type)                                                               \
     SIMSIMD_DYNAMIC void simsimd_##name##_##extension(simsimd_##type##_t const* a, simsimd_##type##_t const* b,        \
                                                       simsimd_size_t n, simsimd_distance_t* results) {                 \
         static simsimd_metric_punned_t metric = 0;                                                                     \
@@ -69,45 +69,95 @@ simsimd_capability_t simsimd_capabilities(void) {
         metric(a, b, n, results);                                                                                      \
     }
 
+#define SIMSIMD_DECLARATION_SPARSE(name, extension, type)                                                              \
+    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(simsimd_##type##_t const* a, simsimd_##type##_t const* b,        \
+                                                      simsimd_size_t a_length, simsimd_size_t b_length,                \
+                                                      simsimd_distance_t* result) {                                    \
+        static simsimd_metric_sparse_punned_t metric = 0;                                                              \
+        if (metric == 0) {                                                                                             \
+            simsimd_capability_t used_capability;                                                                      \
+            simsimd_find_metric_punned(simsimd_metric_##name##_k, simsimd_datatype_##extension##_k,                    \
+                                       simsimd_capabilities(), simsimd_cap_any_k, (simsimd_metric_punned_t*)(&metric), \
+                                       &used_capability);                                                              \
+            if (!metric) {                                                                                             \
+                *(simsimd_u64_t*)result = 0x7FF0000000000001ull;                                                       \
+                return;                                                                                                \
+            }                                                                                                          \
+        }                                                                                                              \
+        metric(a, b, a_length, b_length, result);                                                                      \
+    }
+
+#define SIMSIMD_DECLARATION_CURVED(name, extension, type)                                                              \
+    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(simsimd_##type##_t const* a, simsimd_##type##_t const* b,        \
+                                                      simsimd_##type##_t const* c, simsimd_size_t n,                   \
+                                                      simsimd_distance_t* result) {                                    \
+        static simsimd_metric_curved_punned_t metric = 0;                                                              \
+        if (metric == 0) {                                                                                             \
+            simsimd_capability_t used_capability;                                                                      \
+            simsimd_find_metric_punned(simsimd_metric_##name##_k, simsimd_datatype_##extension##_k,                    \
+                                       simsimd_capabilities(), simsimd_cap_any_k, (simsimd_metric_punned_t*)(&metric), \
+                                       &used_capability);                                                              \
+            if (!metric) {                                                                                             \
+                *(simsimd_u64_t*)result = 0x7FF0000000000001ull;                                                       \
+                return;                                                                                                \
+            }                                                                                                          \
+        }                                                                                                              \
+        metric(a, b, c, n, result);                                                                                    \
+    }
+
 // Dot products
-SIMSIMD_METRIC_DECLARATION(dot, f16, f16)
-SIMSIMD_METRIC_DECLARATION(dot, bf16, bf16)
-SIMSIMD_METRIC_DECLARATION(dot, f32, f32)
-SIMSIMD_METRIC_DECLARATION(dot, f64, f64)
-SIMSIMD_METRIC_DECLARATION(dot, f16c, f16)
-SIMSIMD_METRIC_DECLARATION(dot, bf16c, bf16)
-SIMSIMD_METRIC_DECLARATION(dot, f32c, f32)
-SIMSIMD_METRIC_DECLARATION(dot, f64c, f64)
-SIMSIMD_METRIC_DECLARATION(vdot, f16c, f16)
-SIMSIMD_METRIC_DECLARATION(vdot, bf16c, bf16)
-SIMSIMD_METRIC_DECLARATION(vdot, f32c, f32)
-SIMSIMD_METRIC_DECLARATION(vdot, f64c, f64)
+SIMSIMD_DECLARATION_DENSE(dot, f16, f16)
+SIMSIMD_DECLARATION_DENSE(dot, bf16, bf16)
+SIMSIMD_DECLARATION_DENSE(dot, f32, f32)
+SIMSIMD_DECLARATION_DENSE(dot, f64, f64)
+SIMSIMD_DECLARATION_DENSE(dot, f16c, f16)
+SIMSIMD_DECLARATION_DENSE(dot, bf16c, bf16)
+SIMSIMD_DECLARATION_DENSE(dot, f32c, f32)
+SIMSIMD_DECLARATION_DENSE(dot, f64c, f64)
+SIMSIMD_DECLARATION_DENSE(vdot, f16c, f16)
+SIMSIMD_DECLARATION_DENSE(vdot, bf16c, bf16)
+SIMSIMD_DECLARATION_DENSE(vdot, f32c, f32)
+SIMSIMD_DECLARATION_DENSE(vdot, f64c, f64)
 
 // Spatial distances
-SIMSIMD_METRIC_DECLARATION(cos, i8, i8)
-SIMSIMD_METRIC_DECLARATION(cos, f16, f16)
-SIMSIMD_METRIC_DECLARATION(cos, bf16, bf16)
-SIMSIMD_METRIC_DECLARATION(cos, f32, f32)
-SIMSIMD_METRIC_DECLARATION(cos, f64, f64)
-SIMSIMD_METRIC_DECLARATION(l2sq, i8, i8)
-SIMSIMD_METRIC_DECLARATION(l2sq, f16, f16)
-SIMSIMD_METRIC_DECLARATION(l2sq, bf16, bf16)
-SIMSIMD_METRIC_DECLARATION(l2sq, f32, f32)
-SIMSIMD_METRIC_DECLARATION(l2sq, f64, f64)
+SIMSIMD_DECLARATION_DENSE(cos, i8, i8)
+SIMSIMD_DECLARATION_DENSE(cos, f16, f16)
+SIMSIMD_DECLARATION_DENSE(cos, bf16, bf16)
+SIMSIMD_DECLARATION_DENSE(cos, f32, f32)
+SIMSIMD_DECLARATION_DENSE(cos, f64, f64)
+SIMSIMD_DECLARATION_DENSE(l2sq, i8, i8)
+SIMSIMD_DECLARATION_DENSE(l2sq, f16, f16)
+SIMSIMD_DECLARATION_DENSE(l2sq, bf16, bf16)
+SIMSIMD_DECLARATION_DENSE(l2sq, f32, f32)
+SIMSIMD_DECLARATION_DENSE(l2sq, f64, f64)
 
 // Binary distances
-SIMSIMD_METRIC_DECLARATION(hamming, b8, b8)
-SIMSIMD_METRIC_DECLARATION(jaccard, b8, b8)
+SIMSIMD_DECLARATION_DENSE(hamming, b8, b8)
+SIMSIMD_DECLARATION_DENSE(jaccard, b8, b8)
 
 // Probability distributions
-SIMSIMD_METRIC_DECLARATION(kl, f16, f16)
-SIMSIMD_METRIC_DECLARATION(kl, bf16, bf16)
-SIMSIMD_METRIC_DECLARATION(kl, f32, f32)
-SIMSIMD_METRIC_DECLARATION(kl, f64, f64)
-SIMSIMD_METRIC_DECLARATION(js, f16, f16)
-SIMSIMD_METRIC_DECLARATION(js, bf16, bf16)
-SIMSIMD_METRIC_DECLARATION(js, f32, f32)
-SIMSIMD_METRIC_DECLARATION(js, f64, f64)
+SIMSIMD_DECLARATION_DENSE(kl, f16, f16)
+SIMSIMD_DECLARATION_DENSE(kl, bf16, bf16)
+SIMSIMD_DECLARATION_DENSE(kl, f32, f32)
+SIMSIMD_DECLARATION_DENSE(kl, f64, f64)
+SIMSIMD_DECLARATION_DENSE(js, f16, f16)
+SIMSIMD_DECLARATION_DENSE(js, bf16, bf16)
+SIMSIMD_DECLARATION_DENSE(js, f32, f32)
+SIMSIMD_DECLARATION_DENSE(js, f64, f64)
+
+// Sparse sets
+SIMSIMD_DECLARATION_SPARSE(intersect, u16, u16)
+SIMSIMD_DECLARATION_SPARSE(intersect, u32, u32)
+
+// Curved spaces
+SIMSIMD_DECLARATION_CURVED(bilinear, f64, f64)
+SIMSIMD_DECLARATION_CURVED(mahalanobis, f64, f64)
+SIMSIMD_DECLARATION_CURVED(bilinear, f32, f32)
+SIMSIMD_DECLARATION_CURVED(mahalanobis, f32, f32)
+SIMSIMD_DECLARATION_CURVED(bilinear, f16, f16)
+SIMSIMD_DECLARATION_CURVED(mahalanobis, f16, f16)
+SIMSIMD_DECLARATION_CURVED(bilinear, bf16, bf16)
+SIMSIMD_DECLARATION_CURVED(mahalanobis, bf16, bf16)
 
 SIMSIMD_DYNAMIC int simsimd_uses_neon(void) { return (simsimd_capabilities() & simsimd_cap_neon_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_neon_f16(void) { return (simsimd_capabilities() & simsimd_cap_neon_f16_k) != 0; }

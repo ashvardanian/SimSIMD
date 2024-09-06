@@ -173,21 +173,21 @@
 
 #endif
 
-#ifndef SIMSIMD_RSQRT
+#if !defined(SIMSIMD_RSQRT)
 #include <math.h>
-#define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
+#define SIMSIMD_RSQRT(x) (1 / sqrt(x))
 #endif
 
-#ifndef SIMSIMD_LOG
+#if !defined(SIMSIMD_LOG)
 #include <math.h>
-#define SIMSIMD_LOG(x) (logf(x))
+#define SIMSIMD_LOG(x) (log(x))
 #endif
 
-#ifndef SIMSIMD_F32_DIVISION_EPSILON
+#if !defined(SIMSIMD_F32_DIVISION_EPSILON)
 #define SIMSIMD_F32_DIVISION_EPSILON (1e-7)
 #endif
 
-#ifndef SIMSIMD_F16_DIVISION_EPSILON
+#if !defined(SIMSIMD_F16_DIVISION_EPSILON)
 #define SIMSIMD_F16_DIVISION_EPSILON (1e-3)
 #endif
 
@@ -195,13 +195,19 @@
 extern "C" {
 #endif
 
-typedef int simsimd_i32_t;
+typedef unsigned char simsimd_b8_t;
+
+typedef signed char simsimd_i8_t;
+typedef unsigned char simsimd_u8_t;
+typedef signed short simsimd_i16_t;
+typedef unsigned short simsimd_u16_t;
+typedef signed int simsimd_i32_t;
+typedef unsigned int simsimd_u32_t;
+typedef signed long long simsimd_i64_t;
+typedef unsigned long long simsimd_u64_t;
+
 typedef float simsimd_f32_t;
 typedef double simsimd_f64_t;
-typedef signed char simsimd_i8_t;
-typedef unsigned char simsimd_b8_t;
-typedef long long simsimd_i64_t;
-typedef unsigned long long simsimd_u64_t;
 
 typedef simsimd_u64_t simsimd_size_t;
 typedef simsimd_f64_t simsimd_distance_t;
@@ -215,17 +221,17 @@ typedef simsimd_f64_t simsimd_distance_t;
 #if !defined(SIMSIMD_NATIVE_F16) || SIMSIMD_NATIVE_F16
 #if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) &&                      \
     (defined(__ARM_FP16_FORMAT_IEEE))
-#if !defined(SIMSIMD_NATIVE_F16)
+#undef SIMSIMD_NATIVE_F16
 #define SIMSIMD_NATIVE_F16 1
-#endif
 typedef __fp16 simsimd_f16_t;
 #elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) &&                      \
-       (defined(__SSE2__) || defined(__AVX512F__)))
+       (defined(__SSE2__) || defined(__AVX512FP16__)))
 typedef _Float16 simsimd_f16_t;
-#if !defined(SIMSIMD_NATIVE_F16)
+#undef SIMSIMD_NATIVE_F16
 #define SIMSIMD_NATIVE_F16 1
-#endif
 #else // Unknown compiler or architecture
+#warning "Unknown compiler or architecture for float16."
+#undef SIMSIMD_NATIVE_F16
 #define SIMSIMD_NATIVE_F16 0
 #endif // Unknown compiler or architecture
 #endif // !SIMSIMD_NATIVE_F16
@@ -242,23 +248,36 @@ typedef unsigned short simsimd_f16_t;
  *  - GCC or Clang on 64-bit x86: `_BFloat16`.
  *  - Default: `unsigned short`.
  *
+ *  The compilers have added __bf16 support in compliance with the x86-64 psABI spec.
+ *  The motivation for this new special type is summed up as:
+ *
+ *      Currently `__bfloat16` is a typedef of short, which creates a problem where the
+ *      compiler does not raise any alarms if it is used to add, subtract, multiply or
+ *      divide, but the result of the calculation is actually meaningless.
+ *      To solve this problem, a real scalar type `__Bfloat16` needs to be introduced.
+ *      It is mainly used for intrinsics, not available for C standard operators.
+ *      `__Bfloat16` will also be used for movement like passing parameter, load and store,
+ *      vector initialization, vector shuffle, and etc. It creates a need for a
+ *      corresponding psABI.
+ *
  *  @warning Apple Clang has hard time with bf16.
  *  https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms
  *  https://forums.developer.apple.com/forums/thread/726201
+ *  https://www.phoronix.com/news/GCC-LLVM-bf16-BFloat16-Type
  */
 #if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) &&                      \
     (defined(__ARM_BF16_FORMAT_ALTERNATIVE))
-#if !defined(SIMSIMD_NATIVE_BF16)
+#undef SIMSIMD_NATIVE_BF16
 #define SIMSIMD_NATIVE_BF16 1
-#endif
-typedef __fp16 simsimd_bf16_t;
+typedef __bf16 simsimd_bf16_t;
 #elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) &&                      \
-       (defined(__SSE2__) || defined(__AVX512F__)))
-typedef _Float16 simsimd_bf16_t;
-#if !defined(SIMSIMD_NATIVE_BF16)
+       (defined(__SSE2__) || defined(__AVX512BF16__)))
+typedef __bfloat16 simsimd_bf16_t;
+#undef SIMSIMD_NATIVE_BF16
 #define SIMSIMD_NATIVE_BF16 1
-#endif
 #else // Unknown compiler or architecture
+#warning "Unknown compiler or architecture for bfloat16."
+#undef SIMSIMD_NATIVE_BF16
 #define SIMSIMD_NATIVE_BF16 0
 #endif // Unknown compiler or architecture
 #endif // !SIMSIMD_NATIVE_BF16
@@ -286,15 +305,15 @@ typedef unsigned short simsimd_bf16_t;
 #endif
 #endif
 
-#define SIMSIMD_IDENTIFY(x) (x)
+#define SIMSIMD_DEREFERENCE(x) (*(x))
 
 /**
  *  @brief  Returns the value of the half-precision floating-point number,
  *          potentially decompressed into single-precision.
  */
-#ifndef SIMSIMD_UNCOMPRESS_F16
+#if !defined(SIMSIMD_UNCOMPRESS_F16)
 #if SIMSIMD_NATIVE_F16
-#define SIMSIMD_UNCOMPRESS_F16(x) (SIMSIMD_IDENTIFY(x))
+#define SIMSIMD_UNCOMPRESS_F16(x) (SIMSIMD_DEREFERENCE(x))
 #else
 #define SIMSIMD_UNCOMPRESS_F16(x) (simsimd_uncompress_f16(x))
 #endif
@@ -304,22 +323,32 @@ typedef unsigned short simsimd_bf16_t;
  *  @brief  Returns the value of the half-precision brain floating-point number,
  *          potentially decompressed into single-precision.
  */
-#ifndef SIMSIMD_UNCOMPRESS_BF16
+#if !defined(SIMSIMD_UNCOMPRESS_BF16)
 #if SIMSIMD_NATIVE_BF16
-#define SIMSIMD_UNCOMPRESS_BF16(x) (SIMSIMD_IDENTIFY(x))
+#define SIMSIMD_UNCOMPRESS_BF16(x) (SIMSIMD_DEREFERENCE(x))
 #else
 #define SIMSIMD_UNCOMPRESS_BF16(x) (simsimd_uncompress_bf16(x))
 #endif
 #endif
 
+/** @brief  Convinience type for half-precision floating-point type conversions. */
 typedef union {
     unsigned i;
     float f;
 } simsimd_f32i32_t;
 
 /**
- *  @brief  Computes `1/sqrt(x)` using the trick from Quake 3, replacing
- *          magic numbers with the ones suggested by Jan Kadlec.
+ *  @brief  Computes `1/sqrt(x)` using the trick from Quake 3,
+ *          replacing the magic numbers with the ones suggested by Jan Kadlec.
+ *
+ *  Subsequent additions by hardware manufacturers have made this algorithm redundant for the most part.
+ *  For example, on x86, Intel introduced the SSE instruction `rsqrtss` in 1999. In a 2009 benchmark on
+ *  the Intel Core 2, this instruction took 0.85ns per float compared to 3.54ns for the fast inverse
+ *  square root algorithm, and had less error. Carmack’s Magic Number `rsqrt` had an average error
+ *  of 0.0990%, while SSE `rsqrtss` had 0.0094%, a 10x improvement.
+ *
+ *  https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
+ *  https://stackoverflow.com/a/41460625/2766161
  */
 SIMSIMD_PUBLIC simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_t number) {
     simsimd_f32i32_t conv;
@@ -351,20 +380,17 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_f16(unsigned short x) {
-    union float_or_unsigned_int_t {
-        float f;
-        unsigned int i;
-    };
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_f16(simsimd_f16_t const* x_ptr) {
+    unsigned short x = *(unsigned short const*)x_ptr;
     unsigned int exponent = (x & 0x7C00) >> 10;
     unsigned int mantissa = (x & 0x03FF) << 13;
-    union float_or_unsigned_int_t mantissa_union;
-    mantissa_union.f = (float)mantissa;
-    unsigned int v = (mantissa_union.i) >> 23;
-    union float_or_unsigned_int_t result_union;
-    result_union.i = (x & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
-                     ((exponent == 0) & (mantissa != 0)) * ((v - 37) << 23 | ((mantissa << (150 - v)) & 0x007FE000));
-    return result_union.f;
+    simsimd_f32i32_t mantissa_conv;
+    mantissa_conv.f = (float)mantissa;
+    unsigned int v = (mantissa_conv.i) >> 23;
+    simsimd_f32i32_t conv;
+    conv.i = (x & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
+             ((exponent == 0) & (mantissa != 0)) * ((v - 37) << 23 | ((mantissa << (150 - v)) & 0x007FE000));
+    return conv.f;
 }
 
 /**
@@ -376,20 +402,16 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_f16(unsigned short x) {
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-SIMSIMD_PUBLIC unsigned short simsimd_compress_f16(simsimd_f32_t x) {
-    union float_or_unsigned_int_t {
-        float f;
-        unsigned int i;
-    } x_union;
-    x_union.f = x;
-
-    unsigned int b = x_union.i + 0x00001000;
+SIMSIMD_PUBLIC void simsimd_compress_f16(simsimd_f32_t x, unsigned short* result_ptr) {
+    simsimd_f32i32_t conv;
+    conv.f = x;
+    unsigned int b = conv.i + 0x00001000;
     unsigned int e = (b & 0x7F800000) >> 23;
     unsigned int m = b & 0x007FFFFF;
     unsigned short result = ((b & 0x80000000) >> 16) | (e > 112) * ((((e - 112) << 10) & 0x7C00) | (m >> 13)) |
                             ((e < 113) & (e > 101)) * ((((0x007FF000 + m) >> (125 - e)) + 1) >> 1) |
                             ((e > 143) * 0x7FFF);
-    return result;
+    *result_ptr = result;
 }
 
 /**
@@ -399,29 +421,27 @@ SIMSIMD_PUBLIC unsigned short simsimd_compress_f16(simsimd_f32_t x) {
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_bf16(unsigned short x) {
-    union float_or_unsigned_int_t {
-        float f;
-        unsigned int i;
-    };
-    union float_or_unsigned_int_t result_union;
-    result_union.i = x << 16; // Zero extends the mantissa
-    return result_union.f;
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_bf16(simsimd_bf16_t const* x_ptr) {
+    unsigned short x = *(unsigned short const*)x_ptr;
+    simsimd_f32i32_t conv;
+    conv.i = x << 16; // Zero extends the mantissa
+    return conv.f;
 }
 
 /**
  *  @brief  Compresses a `float` to a `bf16` representation.
+ *
+ *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
+ *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
-SIMSIMD_PUBLIC unsigned short simsimd_compress_bf16(simsimd_f32_t x) {
-    union float_or_unsigned_int_t {
-        float f;
-        unsigned int i;
-    };
-    union float_or_unsigned_int_t value;
-    value.f = x;
-    value.i >>= 16;
-    value.i &= 0xFFFF;
-    return (unsigned short)value.i;
+SIMSIMD_PUBLIC void simsimd_compress_bf16(simsimd_f32_t x, unsigned short* result_ptr) {
+    simsimd_f32i32_t conv;
+    conv.f = x;
+    conv.i += 0x8000; // Rounding is optional
+    conv.i >>= 16;
+    // The top 16 bits will be zeroed out anyways
+    // conv.i &= 0xFFFF;
+    *result_ptr = (unsigned short)conv.i;
 }
 
 #ifdef __cplusplus

@@ -11,7 +11,8 @@
             "program": "${workspaceFolder}/build_debug/simsimd_bench",
             "cwd": "${workspaceFolder}",
             "args": [
-                "--benchmark_filter=cos_i8"
+                // "--benchmark_filter=\"intersect_u16_sve_128d\\^8192d\""
+                "--benchmark_filter=simsimd_mahalanobis_f16_neon"
             ],
             "environment": [
                 {
@@ -22,10 +23,14 @@
             "stopAtEntry": false,
             "preLaunchTask": "Build Benchmark: Debug",
             "linux": {
-                "MIMode": "gdb",
+                "MIMode": "gdb"
             },
             "osx": {
                 "MIMode": "lldb"
+            },
+            "windows": {
+                "type": "cppvsdbg",
+                "program": "${workspaceFolder}/build_debug/simsimd_bench.exe"
             }
         },
         {

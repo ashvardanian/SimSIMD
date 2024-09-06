@@ -6,7 +6,7 @@ To rerun experiments utilize the following command:
 
 ```sh
 sudo apt install libopenblas-dev # BLAS installation is optional, but recommended for benchmarks
-cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_TESTS=1 -DSIMSIMD_BUILD_BENCHMARKS=1 -DSIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 -B build_release
+cmake -D CMAKE_BUILD_TYPE=Release -D SIMSIMD_BUILD_TESTS=1 -D SIMSIMD_BUILD_BENCHMARKS=1 -D SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 -B build_release
 cmake --build build_release --config Release
 build_release/simsimd_bench
 build_release/simsimd_bench --benchmark_filter=js
@@ -14,7 +14,7 @@ build_release/simsimd_test_run_time
 build_release/simsimd_test_compile_time # no need to run this one, it's just a compile-time test
 ```
 
-To utilize newest instructions, use GCC 12 or newer, or Clang 16 or newer.
+To utilize `f16` instructions, use GCC 12 or newer, or Clang 16 or newer.
 To install them on Ubuntu 22.04, use:
 
 ```sh
@@ -28,9 +28,9 @@ Replacing the default compiler is not recommended, as it may break the system, b
 
 ```sh
 brew install llvm
-cmake -DCMAKE_BUILD_TYPE=Release -DSIMSIMD_BUILD_TESTS=1 \
-    -DCMAKE_C_COMPILER="$(brew --prefix llvm)/bin/clang" \
-    -DCMAKE_CXX_COMPILER="$(brew --prefix llvm)/bin/clang++" \
+cmake -D CMAKE_BUILD_TYPE=Release -D SIMSIMD_BUILD_TESTS=1 \
+    -D CMAKE_C_COMPILER="$(brew --prefix llvm)/bin/clang" \
+    -D CMAKE_CXX_COMPILER="$(brew --prefix llvm)/bin/clang++" \
     -B build_release
 cmake --build build_release --config Release
 ```
@@ -43,11 +43,21 @@ Testing:
 pip install -e .                    # to install the package in editable mode
 pip install pytest pytest-repeat    # testing dependencies
 pytest python/test.py -s -x -Wd     # to run tests
+
+# to check supported SIMD instructions:
+python -c "import simsimd; print(simsimd.get_capabilities())" 
 ```
 
 Here, `-s` will output the logs.
 The `-x` will stop on the first failure.
 The `-Wd` will silence overflows and runtime warnings.
+
+When building on MacOS, same as with C/C++, use non-Apple Clang version:
+
+```sh
+brew install llvm
+CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ pip install -e .
+```
 
 Benchmarking:
 

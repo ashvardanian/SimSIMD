@@ -44,7 +44,7 @@
  *  @section    Choosing Arm Target Generations
  *
  *  Arm CPUs share design IP, but are produced by different vendors, potentially making the platform
- *  even more fragmented than x86. There are 2 imporatant families of SIMD extensions - NEON and SVE.
+ *  even more fragmented than x86. There are 2 important families of SIMD extensions - NEON and SVE.
  *
  *  - Armv8-A: +fp, +simd
  *  - Armv8.1-A: armv8-a, +crc, +lse, +rdma
@@ -68,7 +68,7 @@
  *  Here are the most important recent families of CPU cores designed by Arm:
  *
  *  - Neoverse N1: armv8.2-a, extended with Armv8.4 "dotprod" instructions.
- *    Used in AWS @b Graviton2 and Amere @b Altra.
+ *    Used in AWS @b Graviton2 and Ampere @b Altra.
  *    https://developer.arm.com/Processors/Neoverse%20N1
  *  - Neoverse V1: armv8.4-a, extended with Armv8.6 bfloat/int8 "matmul" instructions.
  *    Used in AWS @b Graviton3, which also enables `sve`, `svebf16`, and `svei8mm`.
@@ -100,11 +100,26 @@
 #define SIMSIMD_DYNAMIC_DISPATCH (0) // true or false
 #endif
 
+/*  When building on Arm, we need to undefine the `__ARM_ARCH` macro, as every push-options
+ *  section will be trying to redefine those, resulting in compilation warnings.
+ */
+#if defined(__ARM_ARCH)
+#define SIMSIMD_DEFAULT_TARGET_ARM __ARM_ARCH
+#undef __ARM_ARCH
+#endif
+
 #include "binary.h"      // Hamming, Jaccard
+#include "curved.h"      // Mahalanobis, Bilinear Forms
 #include "dot.h"         // Inner (dot) product, and its conjugate
 #include "geospatial.h"  // Haversine and Vincenty
 #include "probability.h" // Kullback-Leibler, Jensen–Shannon
+#include "sparse.h"      // Intersect
 #include "spatial.h"     // L2, Cosine
+
+#if defined(SIMSIMD_DEFAULT_TARGET_ARM)
+#define __ARM_ARCH SIMSIMD_DEFAULT_TARGET_ARM
+#undef SIMSIMD_DEFAULT_TARGET_ARM
+#endif
 
 // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
 #if defined(SIMSIMD_DEFINED_APPLE)
@@ -142,6 +157,13 @@ typedef enum {
     simsimd_metric_jaccard_k = 'j',  ///< Jaccard coefficient
     simsimd_metric_tanimoto_k = 'j', ///< Tanimoto coefficient is same as Jaccard
 
+    // Sets:
+    simsimd_metric_intersect_k = 'x', ///< Equivalent to unnormalized Jaccard
+
+    // Curved Spaces:
+    simsimd_metric_bilinear_k = 'b',    ///< Bilinear form
+    simsimd_metric_mahalanobis_k = 'm', ///< Mahalanobis distance
+
     // Probability:
     simsimd_metric_kl_k = 'k',               ///< Kullback-Leibler divergence
     simsimd_metric_kullback_leibler_k = 'k', ///< Kullback-Leibler divergence alias
@@ -164,14 +186,14 @@ typedef enum {
     simsimd_cap_genoa_k = 1 << 13,    ///< x86 AVX512 capability with `bf16` support
     simsimd_cap_sapphire_k = 1 << 14, ///< x86 AVX512 capability with `f16` support
 
-    simsimd_cap_neon_k = 1 << 20,      ///< ARM NEON capability
-    simsimd_cap_neon_f16_k = 1 << 21,  ///< ARM NEON FP16 capability
-    simsimd_cap_neon_bf16_k = 1 << 22, ///< ARM NEON BF16 capability
-    simsimd_cap_neon_i8_k = 1 << 23,   ///< ARM NEON Int8 capability
-    simsimd_cap_sve_k = 1 << 24,       ///< ARM SVE capability
-    simsimd_cap_sve_f16_k = 1 << 25,   ///< ARM SVE FP16 capability
-    simsimd_cap_sve_bf16_k = 1 << 26,  ///< ARM SVE BF16 capability
-    simsimd_cap_sve_i8_k = 1 << 27,    ///< ARM SVE Int8 capability
+    simsimd_cap_neon_k = 1 << 20,      ///< ARM NEON baseline capability
+    simsimd_cap_neon_f16_k = 1 << 21,  ///< ARM NEON `f16` capability
+    simsimd_cap_neon_bf16_k = 1 << 22, ///< ARM NEON `bf16` capability
+    simsimd_cap_neon_i8_k = 1 << 23,   ///< ARM NEON `i8` capability
+    simsimd_cap_sve_k = 1 << 24,       ///< ARM SVE baseline capability
+    simsimd_cap_sve_f16_k = 1 << 25,   ///< ARM SVE `f16` capability
+    simsimd_cap_sve_bf16_k = 1 << 26,  ///< ARM SVE `bf16` capability
+    simsimd_cap_sve_i8_k = 1 << 27,    ///< ARM SVE `i8` capability
 
 } simsimd_capability_t;
 
@@ -184,9 +206,17 @@ typedef enum {
  */
 typedef enum {
     simsimd_datatype_unknown_k = 0, ///< Unknown data type
-
     simsimd_datatype_b8_k = 1 << 1, ///< Single-bit values packed into 8-bit words
-    simsimd_datatype_i8_k = 1 << 2, ///< 8-bit integer
+
+    simsimd_datatype_i8_k = 1 << 2,  ///< 8-bit signed integer
+    simsimd_datatype_i16_k = 1 << 3, ///< 16-bit signed integer
+    simsimd_datatype_i32_k = 1 << 4, ///< 32-bit signed integer
+    simsimd_datatype_i64_k = 1 << 5, ///< 64-bit signed integer
+
+    simsimd_datatype_u8_k = 1 << 6,  ///< 8-bit unsigned integer
+    simsimd_datatype_u16_k = 1 << 7, ///< 16-bit unsigned integer
+    simsimd_datatype_u32_k = 1 << 8, ///< 32-bit unsigned integer
+    simsimd_datatype_u64_k = 1 << 9, ///< 64-bit unsigned integer
 
     simsimd_datatype_f64_k = 1 << 10,  ///< Double precision floating point
     simsimd_datatype_f32_k = 1 << 11,  ///< Single precision floating point
@@ -200,16 +230,48 @@ typedef enum {
 } simsimd_datatype_t;
 
 /**
- *  @brief  Type-punned function pointer accepting two vectors and outputting their similarity/distance.
+ *  @brief  Type-punned function pointer for dense vector representations and simplest similarity measures.
  *
  *  @param[in] a    Pointer to the first data array.
  *  @param[in] b    Pointer to the second data array.
  *  @param[in] n    Number of scalar words in the input arrays.
+ *                  When dealing with sub-byte data types, the number of scalar words is the number of bytes.
  *  @param[out] d   Output value as a double-precision float.
- *                  In complex dot-products @b two double-precision scalars are exported
- *                  for the real and imaginary parts.
+ *                  In complex dot-products @b two scalars are exported for the real and imaginary parts.
  */
-typedef void (*simsimd_metric_punned_t)(void const* a, void const* b, simsimd_size_t n, simsimd_distance_t* d);
+typedef void (*simsimd_metric_dense_punned_t)(void const* a, void const* b, simsimd_size_t n, simsimd_distance_t* d);
+
+/**
+ *  @brief  Type-punned function pointer for sparse vector representations and similarity measures.
+ *
+ *  @param[in] a          Pointer to the first data array, generally a sorted array of integers.
+ *  @param[in] b          Pointer to the second data array, generally a sorted array of integers.
+ *  @param[in] a_length   Number of scalar words in the first input array.
+ *  @param[in] b_length   Number of scalar words in the second input array.
+ *  @param[out] d         Output value as a double-precision float, generally without decimals.
+ */
+typedef void (*simsimd_metric_sparse_punned_t)(void const* a, void const* b,                     //
+                                               simsimd_size_t a_length, simsimd_size_t b_length, //
+                                               simsimd_distance_t* d);
+
+/**
+ *  @brief  Type-punned function pointer for curved vector spaces and similarity measures.
+ *
+ *  @param[in] a    Pointer to the first data array.
+ *  @param[in] b    Pointer to the second data array.
+ *  @param[in] c    Pointer to the metric tensor array or some covariance matrix.
+ *  @param[in] n    Number of scalar words in the input arrays.
+ *  @param[out] d   Output value as a double-precision float.
+ */
+typedef void (*simsimd_metric_curved_punned_t)(void const* a, void const* b, void const* c, //
+                                               simsimd_size_t n, simsimd_distance_t* d);
+
+/**
+ *  @brief  Type-punned function pointer for a SimSIMD public interface.
+ *          Can be a `simsimd_metric_dense_punned_t`, `simsimd_metric_sparse_punned_t`,
+ *          or `simsimd_metric_curved_punned_t`.
+ */
+typedef simsimd_metric_dense_punned_t simsimd_metric_punned_t;
 
 #if SIMSIMD_DYNAMIC_DISPATCH
 SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void);
@@ -298,9 +360,14 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_x86(void) {
 
 #if SIMSIMD_TARGET_ARM
 
+#if defined(__ARM_ARCH)
+#define SIMSIMD_DEFAULT_TARGET_ARM __ARM_ARCH
+#undef __ARM_ARCH
+#endif
+
 /*  Compiling the next section one may get: selected processor does not support system register name 'id_aa64zfr0_el1'.
  *  Suppressing assembler errors is very complicated, so when dealing with older ARM CPUs it's simpler to compile this
- *  function targetting newer ones.
+ *  function targeting newer ones.
  */
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.5-a+sve")
@@ -409,6 +476,12 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_arm(void) {
 
 #pragma clang attribute pop
 #pragma GCC pop_options
+
+#if defined(SIMSIMD_DEFAULT_TARGET_ARM)
+#define __ARM_ARCH SIMSIMD_DEFAULT_TARGET_ARM
+#undef SIMSIMD_DEFAULT_TARGET_ARM
+#endif
+
 #endif
 
 /**
@@ -449,9 +522,18 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
     simsimd_metric_punned_t* metric_output,     //
     simsimd_capability_t* capability_output) {
 
-    simsimd_metric_punned_t* m = metric_output;
-    simsimd_capability_t* c = capability_output;
-    simsimd_capability_t viable = (simsimd_capability_t)(supported & allowed);
+    // Modern compilers abso-freaking-lutely love optimizing-out my logic!
+    // Just marking the variables as `volatile` is not enough, so we have
+    // to add inline assembly to further discourage them!
+#if defined(_MSC_VER)
+    _ReadWriteBarrier();
+#else
+    __asm__ __volatile__("" ::: "memory");
+#endif
+
+    volatile simsimd_metric_punned_t* m = metric_output;
+    volatile simsimd_capability_t* c = capability_output;
+    volatile simsimd_capability_t viable = (simsimd_capability_t)(supported & allowed);
     *m = (simsimd_metric_punned_t)0;
     *c = (simsimd_capability_t)0;
 
@@ -460,11 +542,17 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 
     case simsimd_datatype_unknown_k: break;
 
-    // Double-precision floating-point vectors
-    case simsimd_datatype_f64_k:
+    // These data-types are not supported yet
+    case simsimd_datatype_i16_k: break;
+    case simsimd_datatype_i32_k: break;
+    case simsimd_datatype_i64_k: break;
+    case simsimd_datatype_u8_k: break;
+    case simsimd_datatype_u64_k: break;
 
+    // Double-precision floating-point vectors
+    case simsimd_datatype_f64_k: {
 #if SIMSIMD_TARGET_SVE
-        if (viable & simsimd_cap_skylake_k)
+        if (viable & simsimd_cap_sve_k)
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f64_sve, *c = simsimd_cap_sve_k; return;
             case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f64_sve, *c = simsimd_cap_sve_k; return;
@@ -488,13 +576,18 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f64_serial, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f64_serial, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f64_serial, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f64_serial, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_mahalanobis_k:
+                *m = (m_t)&simsimd_mahalanobis_f64_serial, *c = simsimd_cap_serial_k;
+                return;
             default: break;
             }
 
         break;
+    }
 
     // Single-precision floating-point vectors
-    case simsimd_datatype_f32_k:
+    case simsimd_datatype_f32_k: {
 
 #if SIMSIMD_TARGET_SVE
         if (viable & simsimd_cap_sve_k)
@@ -524,6 +617,10 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f32_skylake, *c = simsimd_cap_skylake_k; return;
             case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f32_skylake, *c = simsimd_cap_skylake_k; return;
             case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f32_skylake, *c = simsimd_cap_skylake_k; return;
+            case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f32_skylake, *c = simsimd_cap_skylake_k; return;
+            case simsimd_metric_mahalanobis_k:
+                *m = (m_t)&simsimd_mahalanobis_f32_skylake, *c = simsimd_cap_skylake_k;
+                return;
             default: break;
             }
 #endif
@@ -544,24 +641,28 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f32_serial, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f32_serial, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f32_serial, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f32_serial, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_mahalanobis_k:
+                *m = (m_t)&simsimd_mahalanobis_f32_serial, *c = simsimd_cap_serial_k;
+                return;
             default: break;
             }
 
         break;
-
+    }
     // Half-precision floating-point vectors
-    case simsimd_datatype_f16_k:
+    case simsimd_datatype_f16_k: {
 
-#if SIMSIMD_TARGET_SVE
+#if SIMSIMD_TARGET_SVE_F16
         if (viable & simsimd_cap_sve_k)
             switch (kind) {
-            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16_sve, *c = simsimd_cap_sve_k; return;
-            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f16_sve, *c = simsimd_cap_sve_k; return;
-            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_sve, *c = simsimd_cap_sve_k; return;
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16_sve, *c = simsimd_cap_sve_f16_k; return;
+            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f16_sve, *c = simsimd_cap_sve_f16_k; return;
+            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_sve, *c = simsimd_cap_sve_f16_k; return;
             default: break;
             }
 #endif
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON_F16
         if (viable & simsimd_cap_neon_f16_k)
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16_neon, *c = simsimd_cap_neon_f16_k; return;
@@ -569,6 +670,10 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_neon, *c = simsimd_cap_neon_f16_k; return;
             case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f16_neon, *c = simsimd_cap_neon_f16_k; return;
             case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f16_neon, *c = simsimd_cap_neon_f16_k; return;
+            case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f16_neon, *c = simsimd_cap_neon_f16_k; return;
+            case simsimd_metric_mahalanobis_k:
+                *m = (m_t)&simsimd_mahalanobis_f16_neon, *c = simsimd_cap_neon_f16_k;
+                return;
             default: break;
             }
 #endif
@@ -580,6 +685,12 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_sapphire, *c = simsimd_cap_sapphire_k; return;
             case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f16_sapphire, *c = simsimd_cap_sapphire_k; return;
             case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f16_sapphire, *c = simsimd_cap_sapphire_k; return;
+            case simsimd_metric_bilinear_k:
+                *m = (m_t)&simsimd_bilinear_f16_sapphire, *c = simsimd_cap_sapphire_k;
+                return;
+            case simsimd_metric_mahalanobis_k:
+                *m = (m_t)&simsimd_mahalanobis_f16_sapphire, *c = simsimd_cap_sapphire_k;
+                return;
             default: break;
             }
 #endif
@@ -591,6 +702,10 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_haswell, *c = simsimd_cap_haswell_k; return;
             case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f16_haswell, *c = simsimd_cap_haswell_k; return;
             case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f16_haswell, *c = simsimd_cap_haswell_k; return;
+            case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f16_haswell, *c = simsimd_cap_haswell_k; return;
+            case simsimd_metric_mahalanobis_k:
+                *m = (m_t)&simsimd_mahalanobis_f16_haswell, *c = simsimd_cap_haswell_k;
+                return;
             default: break;
             }
 #endif
@@ -602,13 +717,17 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_serial, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f16_serial, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f16_serial, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f16_serial, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_mahalanobis_k:
+                *m = (m_t)&simsimd_mahalanobis_f16_serial, *c = simsimd_cap_serial_k;
+                return;
             default: break;
             }
 
         break;
-
+    }
     // Brain floating-point vectors
-    case simsimd_datatype_bf16_k:
+    case simsimd_datatype_bf16_k: {
 #if SIMSIMD_TARGET_NEON_BF16
         if (viable & simsimd_cap_neon_bf16_k)
             switch (kind) {
@@ -618,21 +737,31 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             default: break;
             }
 #endif
-#if SIMSIMD_TARGET_HASWELL
-        if (viable & simsimd_cap_haswell_k)
-            switch (kind) {
-            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16_haswell, *c = simsimd_cap_haswell_k; return;
-            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_bf16_haswell, *c = simsimd_cap_haswell_k; return;
-            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_bf16_haswell, *c = simsimd_cap_haswell_k; return;
-            default: break;
-            }
-#endif
 #if SIMSIMD_TARGET_GENOA
         if (viable & simsimd_cap_genoa_k)
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16_genoa, *c = simsimd_cap_genoa_k; return;
             case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_bf16_genoa, *c = simsimd_cap_genoa_k; return;
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_bf16_genoa, *c = simsimd_cap_genoa_k; return;
+            case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_bf16_genoa, *c = simsimd_cap_genoa_k; return;
+            case simsimd_metric_mahalanobis_k:
+                *m = (m_t)&simsimd_mahalanobis_bf16_genoa, *c = simsimd_cap_genoa_k;
+                return;
+            default: break;
+            }
+#endif
+#if SIMSIMD_TARGET_HASWELL
+        if (viable & simsimd_cap_haswell_k)
+            switch (kind) {
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16_haswell, *c = simsimd_cap_haswell_k; return;
+            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_bf16_haswell, *c = simsimd_cap_haswell_k; return;
+            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_bf16_haswell, *c = simsimd_cap_haswell_k; return;
+            case simsimd_metric_bilinear_k:
+                *m = (m_t)&simsimd_bilinear_bf16_haswell, *c = simsimd_cap_haswell_k;
+                return;
+            case simsimd_metric_mahalanobis_k:
+                *m = (m_t)&simsimd_mahalanobis_bf16_haswell, *c = simsimd_cap_haswell_k;
+                return;
             default: break;
             }
 #endif
@@ -643,14 +772,18 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_bf16_serial, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_js_k: *m = (m_t)&simsimd_js_bf16_serial, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_bf16_serial, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_bf16_serial, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_mahalanobis_k:
+                *m = (m_t)&simsimd_mahalanobis_bf16_serial, *c = simsimd_cap_serial_k;
+                return;
             default: break;
             }
 
         break;
-
+    }
     // Single-byte integer vectors
-    case simsimd_datatype_i8_k:
-#if SIMSIMD_TARGET_NEON
+    case simsimd_datatype_i8_k: {
+#if SIMSIMD_TARGET_NEON_I8
         if (viable & simsimd_cap_neon_i8_k)
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_i8_neon, *c = simsimd_cap_neon_i8_k; return;
@@ -687,9 +820,9 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 
         break;
-
+    }
     // Binary vectors
-    case simsimd_datatype_b8_k:
+    case simsimd_datatype_b8_k: {
 
 #if SIMSIMD_TARGET_SVE
         if (viable & simsimd_cap_sve_k)
@@ -732,8 +865,9 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 
         break;
-
-    case simsimd_datatype_f32c_k:
+    }
+    // Complex floating-point vectors
+    case simsimd_datatype_f32c_k: {
 
 #if SIMSIMD_TARGET_SVE
         if (viable & simsimd_cap_sve_k)
@@ -776,8 +910,9 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 
         break;
-
-    case simsimd_datatype_f64c_k:
+    }
+    // Complex double-precision floating-point vectors
+    case simsimd_datatype_f64c_k: {
 
 #if SIMSIMD_TARGET_SVE
         if (viable & simsimd_cap_sve_k)
@@ -804,18 +939,19 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 
         break;
+    }
+    // Complex half-precision floating-point vectors
+    case simsimd_datatype_f16c_k: {
 
-    case simsimd_datatype_f16c_k:
-
-#if SIMSIMD_TARGET_SVE
+#if SIMSIMD_TARGET_SVE_F16
         if (viable & simsimd_cap_sve_k)
             switch (kind) {
-            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16c_sve, *c = simsimd_cap_sve_k; return;
-            case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f16c_sve, *c = simsimd_cap_sve_k; return;
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16c_sve, *c = simsimd_cap_sve_f16_k; return;
+            case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f16c_sve, *c = simsimd_cap_sve_f16_k; return;
             default: break;
             }
 #endif
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON_F16
         if (viable & simsimd_cap_neon_f16_k)
             switch (kind) {
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16c_neon, *c = simsimd_cap_neon_f16_k; return;
@@ -848,7 +984,9 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             }
 
         break;
-    case simsimd_datatype_bf16c_k:
+    }
+    // Complex Brain floating-point vectors
+    case simsimd_datatype_bf16c_k: {
 
 #if SIMSIMD_TARGET_NEON_BF16
         if (viable & simsimd_cap_neon_bf16_k)
@@ -876,6 +1014,67 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 
         break;
     }
+
+    // Unsigned 16-bit integer vectors
+    case simsimd_datatype_u16_k: {
+
+#if SIMSIMD_TARGET_SVE
+        if (viable & simsimd_cap_sve_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_sve, *c = simsimd_cap_sve_k; return;
+            default: break;
+            }
+#endif
+#if SIMSIMD_TARGET_ICE
+        if (viable & simsimd_cap_ice_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_ice, *c = simsimd_cap_skylake_k; return;
+            default: break;
+            }
+#endif
+        if (viable & simsimd_cap_serial_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_serial, *c = simsimd_cap_serial_k; return;
+            default: break;
+            }
+
+        break;
+    }
+    // Unsigned 32-bit integer vectors
+    case simsimd_datatype_u32_k: {
+
+#if SIMSIMD_TARGET_SVE
+        if (viable & simsimd_cap_sve_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_sve, *c = simsimd_cap_sve_k; return;
+            default: break;
+            }
+#endif
+#if SIMSIMD_TARGET_ICE
+        if (viable & simsimd_cap_ice_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_ice, *c = simsimd_cap_skylake_k; return;
+            default: break;
+            }
+#endif
+        if (viable & simsimd_cap_serial_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_serial, *c = simsimd_cap_serial_k; return;
+            default: break;
+            }
+
+        break;
+    }
+    }
+
+    // Modern compilers abso-freaking-lutely love optimizing-out my logic!
+    // Just marking the variables as `volatile` is not enough, so we have
+    // to add inline assembly to further discourage them!
+#if defined(_MSC_VER)
+    _ReadWriteBarrier();
+#else
+    __asm__ __volatile__("" ::: "memory");
+#endif
 }
 
 #pragma GCC diagnostic pop
@@ -1024,9 +1223,9 @@ SIMSIMD_DYNAMIC void simsimd_jaccard_b8(simsimd_b8_t const* a, simsimd_b8_t cons
  *  - Jensen-Shannon divergence: a measure of similarity between two probability distributions.
  *  - Kullback-Leibler divergence: a measure of how one probability distribution diverges from a second.
  *
- *  @param a The first descrete probability distribution.
- *  @param b The second descrete probability distribution.
- *  @param n The number of elements in the descrete distributions.
+ *  @param a The first discrete probability distribution.
+ *  @param b The second discrete probability distribution.
+ *  @param n The number of elements in the discrete distributions.
  *  @param d The output divergence value.
  *
  *  @note The distributions are assumed to be normalized.
@@ -1415,9 +1614,9 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8(simsimd_b8_t const* a, simsimd_b8_t const
  *  - Jensen-Shannon divergence: a measure of similarity between two probability distributions.
  *  - Kullback-Leibler divergence: a measure of how one probability distribution diverges from a second.
  *
- *  @param a The first descrete probability distribution.
- *  @param b The second descrete probability distribution.
- *  @param n The number of elements in the descrete distributions.
+ *  @param a The first discrete probability distribution.
+ *  @param b The second discrete probability distribution.
+ *  @param n The number of elements in the discrete distributions.
  *  @param d The output divergence value.
  *
  *  @note The distributions are assumed to be normalized.
@@ -1480,6 +1679,122 @@ SIMSIMD_PUBLIC void simsimd_js_f32(simsimd_f32_t const* a, simsimd_f32_t const* 
 SIMSIMD_PUBLIC void simsimd_js_f64(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
                                    simsimd_distance_t* d) {
     simsimd_js_f64_serial(a, b, n, d);
+}
+
+/*  Set operations
+ *
+ *  @param a The first sorted array of integers.
+ *  @param b The second sorted array of integers.
+ *  @param a_length The number of elements in the first array.
+ *  @param b_length The number of elements in the second array.
+ *  @param d The output for the number of elements in the intersection.
+ */
+SIMSIMD_PUBLIC void simsimd_intersect_u16(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length,
+                                          simsimd_size_t b_length, simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_SVE
+    simsimd_intersect_u16_sve(a, b, a_length, b_length, d);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_intersect_u16_ice(a, b, a_length, b_length, d);
+#else
+    simsimd_intersect_u16_serial(a, b, a_length, b_length, d);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_intersect_u32(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length,
+                                          simsimd_size_t b_length, simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_SVE
+    simsimd_intersect_u32_sve(a, b, a_length, b_length, d);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_intersect_u32_ice(a, b, a_length, b_length, d);
+#else
+    simsimd_intersect_u32_serial(a, b, a_length, b_length, d);
+#endif
+}
+
+/*  Curved space distances
+ *
+ *  @param a The first vector of floating point values.
+ *  @param b The second vector of floating point values.
+ *  @param c The metric tensor or covariance matrix.
+ *  @param n The number of dimensions in the vectors.
+ *  @param d The output for the number of elements in the intersection.
+ */
+SIMSIMD_PUBLIC void simsimd_bilinear_f64(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_f64_t const* c,
+                                         simsimd_size_t n, simsimd_distance_t* d) {
+
+    simsimd_bilinear_f64_serial(a, b, c, n, d);
+}
+SIMSIMD_PUBLIC void simsimd_mahalanobis_f64(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_f64_t const* c,
+                                            simsimd_size_t n, simsimd_distance_t* d) {
+    simsimd_mahalanobis_f64_serial(a, b, c, n, d);
+}
+SIMSIMD_PUBLIC void simsimd_bilinear_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c,
+                                         simsimd_size_t n, simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_bilinear_f32_skylake(a, b, c, n, d);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_bilinear_f32_neon(a, b, c, n, d);
+#else
+    simsimd_bilinear_f32_serial(a, b, c, n, d);
+#endif
+}
+SIMSIMD_PUBLIC void simsimd_mahalanobis_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c,
+                                            simsimd_size_t n, simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_mahalanobis_f32_skylake(a, b, c, n, d);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_mahalanobis_f32_neon(a, b, c, n, d);
+#else
+    simsimd_mahalanobis_f32_serial(a, b, c, n, d);
+#endif
+}
+SIMSIMD_PUBLIC void simsimd_bilinear_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c,
+                                         simsimd_size_t n, simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_bilinear_f16_sapphire(a, b, c, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_bilinear_f16_haswell(a, b, c, n, d);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_bilinear_f16_neon(a, b, c, n, d);
+#else
+    simsimd_bilinear_f16_serial(a, b, c, n, d);
+#endif
+}
+SIMSIMD_PUBLIC void simsimd_mahalanobis_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c,
+                                            simsimd_size_t n, simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_mahalanobis_f16_sapphire(a, b, c, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_mahalanobis_f16_haswell(a, b, c, n, d);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_mahalanobis_f16_neon(a, b, c, n, d);
+#else
+    simsimd_mahalanobis_f16_serial(a, b, c, n, d);
+#endif
+}
+SIMSIMD_PUBLIC void simsimd_bilinear_bf16(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c,
+                                          simsimd_size_t n, simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_GENOA
+    simsimd_bilinear_bf16_genoa(a, b, c, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_bilinear_bf16_haswell(a, b, c, n, d);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_bilinear_bf16_neon(a, b, c, n, d);
+#else
+    simsimd_bilinear_bf16_serial(a, b, c, n, d);
+#endif
+}
+SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c,
+                                             simsimd_size_t n, simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_GENOA
+    simsimd_mahalanobis_bf16_genoa(a, b, c, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_mahalanobis_bf16_haswell(a, b, c, n, d);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_mahalanobis_bf16_neon(a, b, c, n, d);
+#else
+    simsimd_mahalanobis_bf16_serial(a, b, c, n, d);
+#endif
 }
 
 #endif

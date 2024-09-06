@@ -1,7 +1,9 @@
 import os
 import sys
 from os.path import dirname
-from setuptools import setup, Extension, find_packages
+from setuptools import setup, Extension
+from pathlib import Path
+
 
 __lib_name__ = "simsimd"
 __version__ = "5.0.1"
@@ -13,6 +15,35 @@ macros_args = [
     ("SIMSIMD_NATIVE_BF16", "0"),
     ("SIMSIMD_DYNAMIC_DISPATCH", "1"),
 ]
+
+
+def is_editable_install():
+    """Check if the package is installed in editable mode."""
+    if "develop" in sys.argv or "install" in sys.argv and "-e" in sys.argv:
+        return True
+
+    # Get the path to the site-packages or dist-packages
+    for path in sys.path:
+        egg_link = Path(path) / f"{__lib_name__}.egg-link"
+        if egg_link.exists():
+            return True
+    return False
+
+
+# Check if the installation is in editable mode:
+# In that case, we can't include type annotations, as it will lead to name resolution issues.
+setup_kwargs = (
+    {
+        "packages": ["simsimd"],
+        "package_dir": {"simsimd": "python/annotations"},
+        "package_data": {"simsimd": ["__init__.pyi", "py.typed"]},
+    }
+    if not is_editable_install()
+    else {}
+)
+
+if is_editable_install():
+    print("You are installing in editable mode. Skipping type annotations installation.")
 
 
 def get_bool_env(name: str, preference: bool) -> bool:
@@ -148,8 +179,6 @@ setup(
     ],
     ext_modules=ext_modules,
     zip_safe=False,
-    packages=["simsimd"],
-    package_dir={"simsimd": "python/simsimd"},
-    package_data={"simsimd": ["__init__.pyi", "py.typed"]},
     include_package_data=True,
+    **setup_kwargs,
 )

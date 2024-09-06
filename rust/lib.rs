@@ -54,24 +54,29 @@ type ComplexProduct = (f64, f64);
 extern "C" {
 
     fn simsimd_dot_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_dot_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_dot_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
     fn simsimd_dot_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
     fn simsimd_dot_f16c(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_dot_bf16c(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_dot_f32c(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
     fn simsimd_dot_f64c(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
     fn simsimd_vdot_f16c(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_vdot_bf16c(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_vdot_f32c(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
     fn simsimd_vdot_f64c(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
     fn simsimd_cos_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
     fn simsimd_cos_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_cos_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_cos_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
     fn simsimd_cos_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
     fn simsimd_l2sq_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
     fn simsimd_l2sq_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_l2sq_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_l2sq_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
     fn simsimd_l2sq_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
@@ -79,10 +84,12 @@ extern "C" {
     fn simsimd_jaccard_b8(a: *const u8, b: *const u8, c: usize, d: *mut Distance);
 
     fn simsimd_js_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_js_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_js_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
     fn simsimd_js_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
     fn simsimd_kl_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_kl_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_kl_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
     fn simsimd_kl_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
@@ -106,6 +113,12 @@ extern "C" {
 pub struct f16(u16);
 
 impl f16 {}
+
+/// A half-precision floating point number, called brain float.
+#[repr(transparent)]
+pub struct bf16(u16);
+
+impl bf16 {}
 
 /// The `capabilities` module provides functions for detecting the hardware features
 /// available on the current system.
@@ -370,6 +383,50 @@ impl SpatialSimilarity for f16 {
     }
 }
 
+impl SpatialSimilarity for bf16 {
+    fn cos(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+
+        // Explicitly cast `*const bf16` to `*const u16`
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_cos_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        Some(distance_value)
+    }
+
+    fn dot(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+
+        // Explicitly cast `*const bf16` to `*const u16`
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_dot_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        Some(distance_value)
+    }
+
+    fn l2sq(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+
+        // Explicitly cast `*const bf16` to `*const u16`
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_l2sq_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        Some(distance_value)
+    }
+}
+
 impl SpatialSimilarity for f32 {
     fn cos(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
@@ -464,6 +521,36 @@ impl ProbabilitySimilarity for f16 {
     }
 }
 
+impl ProbabilitySimilarity for bf16 {
+    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+
+        // Explicitly cast `*const bf16` to `*const u16`
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_js_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        Some(distance_value)
+    }
+
+    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+
+        // Explicitly cast `*const bf16` to `*const u16`
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_kl_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        Some(distance_value)
+    }
+}
+
 impl ProbabilitySimilarity for f32 {
     fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
@@ -536,6 +623,36 @@ impl ComplexProducts for f16 {
     }
 }
 
+impl ComplexProducts for bf16 {
+    fn dot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
+        if a.len() != b.len() {
+            return None;
+        }
+        // Prepare the output array where the real and imaginary parts will be stored
+        let mut product: [Distance; 2] = [0.0, 0.0];
+        let product_ptr: *mut Distance = &mut product[0] as *mut _;
+        // Explicitly cast `*const bf16` to `*const u16`
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        unsafe { simsimd_dot_bf16c(a_ptr, b_ptr, a.len(), product_ptr) };
+        Some((product[0], product[1]))
+    }
+
+    fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
+        if a.len() != b.len() {
+            return None;
+        }
+        // Prepare the output array where the real and imaginary parts will be stored
+        let mut product: [Distance; 2] = [0.0, 0.0];
+        let product_ptr: *mut Distance = &mut product[0] as *mut _;
+        // Explicitly cast `*const bf16` to `*const u16`
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        unsafe { simsimd_vdot_bf16c(a_ptr, b_ptr, a.len(), product_ptr) };
+        Some((product[0], product[1]))
+    }
+}
+
 impl ComplexProducts for f32 {
     fn dot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
         if a.len() != b.len() {
@@ -583,6 +700,7 @@ impl ComplexProducts for f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use half::bf16 as HalfBF16;
     use half::f16 as HalfF16;
 
     #[test]
@@ -787,6 +905,26 @@ mod tests {
     }
 
     #[test]
+    fn test_cos_bf16_same() {
+        // Assuming these u16 values represent bf16 bit patterns, and they are identical
+        let a_u16: &[u16] = &[15360, 16384, 17408]; // Corresponding to some bf16 values
+        let b_u16: &[u16] = &[15360, 16384, 17408]; // Same as above for simplicity
+
+        // Reinterpret cast from &[u16] to &[bf16]
+        // SAFETY: This is safe as long as the representations are guaranteed to be identical,
+        // which they are for transparent structs wrapping the same type.
+        let a_bf16: &[bf16] =
+            unsafe { std::slice::from_raw_parts(a_u16.as_ptr() as *const bf16, a_u16.len()) };
+        let b_bf16: &[bf16] =
+            unsafe { std::slice::from_raw_parts(b_u16.as_ptr() as *const bf16, b_u16.len()) };
+
+        if let Some(result) = SpatialSimilarity::cosine(a_bf16, b_bf16) {
+            println!("The result of cos_bf16 is {:.8}", result);
+            assert_almost_equal(0.0, result, 0.01); // Example value, adjust according to actual expected value
+        }
+    }
+
+    #[test]
     fn test_cos_f16_interop() {
         let a_half: Vec<HalfF16> = vec![1.0, 2.0, 3.0]
             .iter()
@@ -809,6 +947,33 @@ mod tests {
             // Expected value might need adjustment depending on actual cosine functionality
             // Assuming identical vectors yield cosine similarity of 1.0
             println!("The result of cos_f16 (interop) is {:.8}", result);
+            assert_almost_equal(0.025, result, 0.01);
+        }
+    }
+
+    #[test]
+    fn test_cos_bf16_interop() {
+        let a_half: Vec<HalfBF16> = vec![1.0, 2.0, 3.0]
+            .iter()
+            .map(|&x| HalfBF16::from_f32(x))
+            .collect();
+        let b_half: Vec<HalfBF16> = vec![4.0, 5.0, 6.0]
+            .iter()
+            .map(|&x| HalfBF16::from_f32(x))
+            .collect();
+
+        // SAFETY: This is safe as long as the memory representations are guaranteed to be identical,
+        // which they are due to both being #[repr(transparent)] wrappers around u16.
+        let a_simsimd: &[bf16] =
+            unsafe { std::slice::from_raw_parts(a_half.as_ptr() as *const bf16, a_half.len()) };
+        let b_simsimd: &[bf16] =
+            unsafe { std::slice::from_raw_parts(b_half.as_ptr() as *const bf16, b_half.len()) };
+
+        // Use the reinterpret-casted slices with your SpatialSimilarity implementation
+        if let Some(result) = SpatialSimilarity::cosine(a_simsimd, b_simsimd) {
+            // Expected value might need adjustment depending on actual cosine functionality
+            // Assuming identical vectors yield cosine similarity of 1.0
+            println!("The result of cos_bf16 (interop) is {:.8}", result);
             assert_almost_equal(0.025, result, 0.01);
         }
     }
