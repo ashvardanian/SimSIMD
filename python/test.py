@@ -1,4 +1,6 @@
 import os
+import platform
+
 import pytest
 import simsimd as simd
 
@@ -479,16 +481,22 @@ def test_dot_complex_explicit(ndim):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(300)
+@pytest.mark.repeat(100)
 @pytest.mark.parametrize("dtype", ["uint16", "uint32"])
-@pytest.mark.parametrize("length_bound", [10, 25, 1000])
-def test_intersect(dtype, length_bound):
+@pytest.mark.parametrize("first_length_bound", [10, 100, 1000])
+@pytest.mark.parametrize("second_length_bound", [10, 100, 1000])
+def test_intersect(dtype, first_length_bound, second_length_bound):
     """Compares the simd.intersect() function with numpy.intersect1d."""
+
+    if is_running_under_qemu() and (platform.machine() == "aarch64" or platform.machine() == "arm64"):
+        pytest.skip("In QEMU `aarch64` emulation on `x86_64` the `intersect` function is not reliable")
+
     np.random.seed()
-    a_length = np.random.randint(1, length_bound)
-    b_length = np.random.randint(1, length_bound)
-    a = np.random.randint(length_bound * 2, size=a_length, dtype=dtype)
-    b = np.random.randint(length_bound * 2, size=b_length, dtype=dtype)
+
+    a_length = np.random.randint(1, first_length_bound)
+    b_length = np.random.randint(1, second_length_bound)
+    a = np.random.randint(first_length_bound * 2, size=a_length, dtype=dtype)
+    b = np.random.randint(second_length_bound * 2, size=b_length, dtype=dtype)
 
     # Remove duplicates, converting into sorted arrays
     a = np.unique(a)
