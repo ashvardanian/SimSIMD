@@ -149,171 +149,237 @@ SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u32, size) // simsimd_intersect_u32_ser
 #if SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_ICE
 #pragma GCC push_options
-#pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw")
-#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw"))), apply_to = function)
+#pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vbmi2")
+#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512vbmi2"))), apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(simsimd_u16_t const* shorter, simsimd_u16_t const* longer,
-                                              simsimd_size_t shorter_length, simsimd_size_t longer_length,
-                                              simsimd_distance_t* results) {
-    simsimd_size_t intersection_count = 0;
-    simsimd_size_t shorter_idx = 0, longer_idx = 0;
-    simsimd_size_t shorter_load_size, longer_load_size;
-    __mmask32 shorter_mask, longer_mask;
+/*
+ *  We will be walking through batches of elements from the shorter array,
+ *  and comparing them with the longer array. The first element of the shorter
+ *  array will be broadcasted to a vector. As there is no cheap `_mm512_permutexvar_epi16`-like
+ *  instruction in AVX512, we couldn't try using `vpshufb` via `_mm512_shuffle_epi8`,
+ *  to load the 1st and 2nd byte of the first element into each 16-bit word,
+ *  but it only works within 128-bit lanes.
+ *  For comparison:
+ *
+ *   - `_mm512_permutex_epi64` - needs F - 3 cycles latency
+ *   - `_mm512_shuffle_epi8` - needs BW - 1 cycle latency
+ *   - `_mm512_permutexvar_epi16` - needs BW - 4-6 cycles latency
+ *   - `_mm512_permutexvar_epi8` - needs VBMI - 3 cycles latency
+ */
 
+SIMSIMD_INTERNAL simsimd_u32_t _mm512_2intersect_epi16_mask(__m512i a, __m512i b) {
+    __m512i a1 = _mm512_alignr_epi32(a, a, 4);
+    __m512i a2 = _mm512_alignr_epi32(a, a, 8);
+    __m512i a3 = _mm512_alignr_epi32(a, a, 12);
+
+    __m512i b1 = _mm512_shuffle_epi32(b, _MM_PERM_ADCB);
+    __m512i b2 = _mm512_shuffle_epi32(b, _MM_PERM_BADC);
+    __m512i b3 = _mm512_shuffle_epi32(b, _MM_PERM_CBAD);
+
+    __m512i b01 = _mm512_shrdi_epi32(b, b, 16);
+    __m512i b11 = _mm512_shrdi_epi32(b1, b1, 16);
+    __m512i b21 = _mm512_shrdi_epi32(b2, b2, 16);
+    __m512i b31 = _mm512_shrdi_epi32(b3, b3, 16);
+
+    __mmask32 nm00 = _mm512_cmpneq_epi16_mask(a, b);
+    __mmask32 nm01 = _mm512_cmpneq_epi16_mask(a1, b);
+    __mmask32 nm02 = _mm512_cmpneq_epi16_mask(a2, b);
+    __mmask32 nm03 = _mm512_cmpneq_epi16_mask(a3, b);
+
+    __mmask32 nm10 = _mm512_mask_cmpneq_epi16_mask(nm00, a, b01);
+    __mmask32 nm11 = _mm512_mask_cmpneq_epi16_mask(nm01, a1, b01);
+    __mmask32 nm12 = _mm512_mask_cmpneq_epi16_mask(nm02, a2, b01);
+    __mmask32 nm13 = _mm512_mask_cmpneq_epi16_mask(nm03, a3, b01);
+
+    __mmask32 nm20 = _mm512_mask_cmpneq_epi16_mask(nm10, a, b1);
+    __mmask32 nm21 = _mm512_mask_cmpneq_epi16_mask(nm11, a1, b1);
+    __mmask32 nm22 = _mm512_mask_cmpneq_epi16_mask(nm12, a2, b1);
+    __mmask32 nm23 = _mm512_mask_cmpneq_epi16_mask(nm13, a3, b1);
+
+    __mmask32 nm30 = _mm512_mask_cmpneq_epi16_mask(nm20, a, b11);
+    __mmask32 nm31 = _mm512_mask_cmpneq_epi16_mask(nm21, a1, b11);
+    __mmask32 nm32 = _mm512_mask_cmpneq_epi16_mask(nm22, a2, b11);
+    __mmask32 nm33 = _mm512_mask_cmpneq_epi16_mask(nm23, a3, b11);
+
+    __mmask32 nm40 = _mm512_mask_cmpneq_epi16_mask(nm30, a, b2);
+    __mmask32 nm41 = _mm512_mask_cmpneq_epi16_mask(nm31, a1, b2);
+    __mmask32 nm42 = _mm512_mask_cmpneq_epi16_mask(nm32, a2, b2);
+    __mmask32 nm43 = _mm512_mask_cmpneq_epi16_mask(nm33, a3, b2);
+
+    __mmask32 nm50 = _mm512_mask_cmpneq_epi16_mask(nm40, a, b21);
+    __mmask32 nm51 = _mm512_mask_cmpneq_epi16_mask(nm41, a1, b21);
+    __mmask32 nm52 = _mm512_mask_cmpneq_epi16_mask(nm42, a2, b21);
+    __mmask32 nm53 = _mm512_mask_cmpneq_epi16_mask(nm43, a3, b21);
+
+    __mmask32 nm60 = _mm512_mask_cmpneq_epi16_mask(nm50, a, b3);
+    __mmask32 nm61 = _mm512_mask_cmpneq_epi16_mask(nm51, a1, b3);
+    __mmask32 nm62 = _mm512_mask_cmpneq_epi16_mask(nm52, a2, b3);
+    __mmask32 nm63 = _mm512_mask_cmpneq_epi16_mask(nm53, a3, b3);
+
+    __mmask32 nm70 = _mm512_mask_cmpneq_epi16_mask(nm60, a, b31);
+    __mmask32 nm71 = _mm512_mask_cmpneq_epi16_mask(nm61, a1, b31);
+    __mmask32 nm72 = _mm512_mask_cmpneq_epi16_mask(nm62, a2, b31);
+    __mmask32 nm73 = _mm512_mask_cmpneq_epi16_mask(nm63, a3, b31);
+
+    return ~(simsimd_u32_t)(nm70 & simsimd_u32_rol(nm71, 8) & simsimd_u32_rol(nm72, 16) & simsimd_u32_ror(nm73, 8));
+}
+
+SIMSIMD_INTERNAL simsimd_u16_t _mm512_2intersect_epi32_mask(__m512i a, __m512i b) {
+    __m512i a1 = _mm512_alignr_epi32(a, a, 4);
+    __m512i b1 = _mm512_shuffle_epi32(b, _MM_PERM_ADCB);
+    __mmask16 nm00 = _mm512_cmpneq_epi32_mask(a, b);
+
+    __m512i a2 = _mm512_alignr_epi32(a, a, 8);
+    __m512i a3 = _mm512_alignr_epi32(a, a, 12);
+    __mmask16 nm01 = _mm512_cmpneq_epi32_mask(a1, b);
+    __mmask16 nm02 = _mm512_cmpneq_epi32_mask(a2, b);
+
+    __mmask16 nm03 = _mm512_cmpneq_epi32_mask(a3, b);
+    __mmask16 nm10 = _mm512_mask_cmpneq_epi32_mask(nm00, a, b1);
+    __mmask16 nm11 = _mm512_mask_cmpneq_epi32_mask(nm01, a1, b1);
+
+    __m512i b2 = _mm512_shuffle_epi32(b, _MM_PERM_BADC);
+    __mmask16 nm12 = _mm512_mask_cmpneq_epi32_mask(nm02, a2, b1);
+    __mmask16 nm13 = _mm512_mask_cmpneq_epi32_mask(nm03, a3, b1);
+    __mmask16 nm20 = _mm512_mask_cmpneq_epi32_mask(nm10, a, b2);
+
+    __m512i b3 = _mm512_shuffle_epi32(b, _MM_PERM_CBAD);
+    __mmask16 nm21 = _mm512_mask_cmpneq_epi32_mask(nm11, a1, b2);
+    __mmask16 nm22 = _mm512_mask_cmpneq_epi32_mask(nm12, a2, b2);
+    __mmask16 nm23 = _mm512_mask_cmpneq_epi32_mask(nm13, a3, b2);
+
+    __mmask16 nm0 = _mm512_mask_cmpneq_epi32_mask(nm20, a, b3);
+    __mmask16 nm1 = _mm512_mask_cmpneq_epi32_mask(nm21, a1, b3);
+    __mmask16 nm2 = _mm512_mask_cmpneq_epi32_mask(nm22, a2, b3);
+    __mmask16 nm3 = _mm512_mask_cmpneq_epi32_mask(nm23, a3, b3);
+
+    return ~(simsimd_u16_t)(nm0 & simsimd_u16_rol(nm1, 4) & simsimd_u16_rol(nm2, 8) & simsimd_u16_ror(nm3, 4));
+}
+
+SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length,
+                                              simsimd_size_t b_length, simsimd_distance_t* results) {
+
+    // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
+    if (a_length < 64 && b_length < 64) {
+        simsimd_intersect_u16_serial(a, b, a_length, b_length, results);
+        return;
+    }
+
+    simsimd_u16_t const* a_end = a + a_length;
+    simsimd_u16_t const* b_end = b + b_length;
+    simsimd_size_t c = 0;
     union vec_t {
         __m512i zmm;
         simsimd_u16_t u16[32];
         simsimd_u8_t u8[64];
-    } shorter_members, shorter_member, longer_members, broadcast_first, rotate_first;
+    } a_vec, b_vec;
 
-    // We will be walking through batches of elements from the shorter array,
-    // and comparing them with the longer array. The first element of the shorter
-    // array will be broadcasted to a vector. As there is no cheap "permutevar"-like
-    // instruction in AVX512, we will have to use `vpshufb` via `_mm512_shuffle_epi8`,
-    // to load the 1st and 2nd byte of the first element into each 16-bit word.
-    broadcast_first.zmm = _mm512_set1_epi16(0x0100);
-    // Within an iteration, we want to cycle through the elements of the `shorter_members`.
-    // Using "compress"-like instructions is, again, expensive, so let's create another
-    // mask for rotation of 16-bit words.
-    for (int i = 0; i < 32; i++)
-        rotate_first.u8[i] = (i + 1) * 2, rotate_first.u8[i + 1] = (i + 1) * 2 + 1;
-    rotate_first.u8[62] = 0;
-    rotate_first.u8[63] = 1;
+    while (a + 32 < a_end && b + 32 < b_end) {
+        a_vec.zmm = _mm512_loadu_epi16((__m512i const*)a);
+        b_vec.zmm = _mm512_loadu_epi16((__m512i const*)b);
 
-simsimd_intersect_u16_ice_cycle:
-    // At any given cycle, make sure we use the shorter array as the first array.
-    if ((shorter_length - shorter_idx) > (longer_length - longer_idx)) {
-        simsimd_u16_t const* temp_array = shorter;
-        shorter = longer, longer = temp_array;
-        simsimd_size_t temp_length = shorter_length;
-        shorter_length = longer_length, longer_length = temp_length;
-        simsimd_size_t temp_idx = shorter_idx;
-        shorter_idx = longer_idx, longer_idx = temp_idx;
-    }
+        // Intersecting registers with `_mm512_2intersect_epi32_mask` involves a lot of shuffling
+        // and comparisons, so we want to avoid it if the slices don't overlap at all..
+        simsimd_u16_t a_min = a_vec.u16[0];
+        simsimd_u16_t a_max = a_vec.u16[31];
+        simsimd_u16_t b_min = b_vec.u16[0];
+        simsimd_u16_t b_max = b_vec.u16[31];
 
-    // Estimate if we need to load the whole array or just a part of it.
-    simsimd_size_t shorter_remaining = shorter_length - shorter_idx;
-    if (shorter_remaining < 32) {
-        shorter_load_size = shorter_remaining;
-        shorter_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, shorter_remaining);
-    } else {
-        shorter_load_size = 32;
-        shorter_mask = 0xFFFFFFFF;
-    }
-    shorter_members.zmm = _mm512_maskz_loadu_epi16(shorter_mask, (__m512i const*)(shorter + shorter_idx));
-
-simsimd_intersect_u16_ice_cycle_longer:
-    //
-    simsimd_size_t longer_remaining = longer_length - longer_idx;
-    if (longer_remaining < 32) {
-        longer_load_size = longer_remaining;
-        longer_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, longer_remaining);
-    } else {
-        longer_load_size = 32;
-        longer_mask = 0xFFFFFFFF;
-    }
-    longer_members.zmm = _mm512_maskz_loadu_epi16(longer_mask, (__m512i const*)(longer + longer_idx));
-    shorter_member.zmm = _mm512_shuffle_epi8(shorter_members.zmm, broadcast_first.zmm);
-
-    // Compare `shorter_member` with each element in `longer_members.zmm`,
-    // and jump to the position of the match. There can be only one match at most!
-    __mmask32 equal_mask = _mm512_mask_cmpeq_epu16_mask(longer_mask, shorter_member.zmm, longer_members.zmm);
-    simsimd_size_t equal_count = equal_mask != 0;
-    intersection_count += equal_count;
-
-    // When comparing a scalar against a sorted array, we can find three types of elements:
-    // - entries that scalar is greater than,
-    // - entries that scalar is equal to,
-    // - entries that scalar is less than,
-    // ... in that order! Any of them can be an empty set.
-    __mmask32 greater_mask = _mm512_mask_cmplt_epu16_mask(longer_mask, longer_members.zmm, shorter_member.zmm);
-    int greater_count = _mm_popcnt_u32(greater_mask);
-    int smaller_exists = longer_load_size > greater_count - equal_count;
-    int shorter_will_advance = equal_count | smaller_exists;
-
-    // Advance the first array:
-    // - to the next element, if a match was found,
-    // - to the next element, if the current element is smaller than any elements in the second array.
-    shorter_idx += shorter_will_advance;
-    // Advance the second array:
-    // - to the next element after match, if a match was found,
-    // - to the first element that is greater than the current element in the first array, if no match was found.
-    longer_idx += greater_count + equal_count;
-
-    if (shorter_will_advance) {
-        if (shorter_remaining) {
-            --shorter_remaining;
-            shorter_members.zmm = _mm512_shuffle_epi8(shorter_members.zmm, rotate_first.zmm);
-            goto simsimd_intersect_u16_ice_cycle_longer;
+        // If the slices don't overlap, advance the appropriate pointer
+        while (a_max < b_min && a + 64 < a_end) {
+            a += 32;
+            a_vec.zmm = _mm512_loadu_epi16((__m512i const*)a);
+            a_min = a_vec.u16[0];
+            a_max = a_vec.u16[31];
         }
-    } else
-        goto simsimd_intersect_u16_ice_cycle_longer;
+        while (b_max < a_min && b + 64 < b_end) {
+            b += 32;
+            b_vec.zmm = _mm512_loadu_epi16((__m512i const*)b);
+            b_min = b_vec.u16[0];
+            b_max = b_vec.u16[31];
+        }
 
-    if (shorter_idx < shorter_length && longer_idx < longer_length)
-        goto simsimd_intersect_u16_ice_cycle;
+        // Now we are likely to have some overlap, so we can intersect the registers
+        __mmask32 a_matches = _mm512_2intersect_epi16_mask(a_vec.zmm, b_vec.zmm);
 
-    *results = intersection_count;
+        // The paper als contained a very nice procedure for exporting the matches,
+        // but we don't need it here:
+        //      _mm512_mask_compressstoreu_epi16(c, a_matches, a_vec);
+        c += _popcnt32(a_matches);
+
+        __m512i a_last_broadcasted = _mm512_set1_epi16(a_max);
+        __m512i b_last_broadcasted = _mm512_set1_epi16(b_max);
+        __mmask32 a_advancement = _mm512_cmple_epu16_mask(a_vec.zmm, b_last_broadcasted);
+        __mmask32 b_advancement = _mm512_cmple_epu16_mask(b_vec.zmm, a_last_broadcasted);
+        a += 32 - _lzcnt_u32((simsimd_u32_t)a_advancement);
+        b += 32 - _lzcnt_u32((simsimd_u32_t)b_advancement);
+    }
+
+    simsimd_intersect_u16_serial(a, b, a_end - a, b_end - b, results);
+    *results += c;
 }
 
-SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* shorter, simsimd_u32_t const* longer,
-                                              simsimd_size_t shorter_length, simsimd_size_t longer_length,
-                                              simsimd_distance_t* results) {
-    simsimd_size_t intersection_count = 0;
-    simsimd_size_t shorter_idx = 0, longer_idx = 0;
-    simsimd_size_t longer_load_size;
-    __mmask16 longer_mask;
+SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length,
+                                              simsimd_size_t b_length, simsimd_distance_t* results) {
 
-    while (shorter_idx < shorter_length && longer_idx < longer_length) {
-        // Load `shorter_member` and broadcast it to shorter vector, load `longer_members_vec` from memory.
-        simsimd_size_t longer_remaining = longer_length - longer_idx;
-        simsimd_u32_t shorter_member = shorter[shorter_idx];
-        __m512i shorter_member_vec = _mm512_set1_epi32(*(int*)&shorter_member);
-        __m512i longer_members_vec;
-        if (longer_remaining < 16) {
-            longer_load_size = longer_remaining;
-            longer_mask = (__mmask16)_bzhi_u32(0xFFFF, longer_remaining);
-        } else {
-            longer_load_size = 16;
-            longer_mask = 0xFFFF;
-        }
-        longer_members_vec = _mm512_maskz_loadu_epi32(longer_mask, (__m512i const*)(longer + longer_idx));
-
-        // Compare `shorter_member` with each element in `longer_members_vec`,
-        // and jump to the position of the match. There can be only one match at most!
-        __mmask16 equal_mask = _mm512_mask_cmpeq_epu32_mask(longer_mask, shorter_member_vec, longer_members_vec);
-        simsimd_size_t equal_count = equal_mask != 0;
-        intersection_count += equal_count;
-
-        // When comparing a scalar against a sorted array, we can find three types of elements:
-        // - entries that scalar is greater than,
-        // - entries that scalar is equal to,
-        // - entries that scalar is less than,
-        // ... in that order! Any of them can be an empty set.
-        __mmask16 greater_mask = _mm512_mask_cmplt_epu32_mask(longer_mask, longer_members_vec, shorter_member_vec);
-        simsimd_size_t greater_count = _mm_popcnt_u32(greater_mask);
-        simsimd_size_t smaller_exists = longer_load_size > greater_count - equal_count;
-
-        // Advance the first array:
-        // - to the next element, if a match was found,
-        // - to the next element, if the current element is smaller than any elements in the second array.
-        shorter_idx += equal_count | smaller_exists;
-        // Advance the second array:
-        // - to the next element after match, if a match was found,
-        // - to the first element that is greater than the current element in the first array, if no match was found.
-        longer_idx += greater_count + equal_count;
-
-        // At any given cycle, take one entry from shorter array and compare it with multiple from the longer array.
-        // For that, we need to swap the arrays if necessary.
-        if ((shorter_length - shorter_idx) > (longer_length - longer_idx)) {
-            simsimd_u32_t const* temp_array = shorter;
-            shorter = longer, longer = temp_array;
-            simsimd_size_t temp_length = shorter_length;
-            shorter_length = longer_length, longer_length = temp_length;
-            simsimd_size_t temp_idx = shorter_idx;
-            shorter_idx = longer_idx, longer_idx = temp_idx;
-        }
+    // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
+    if (a_length < 32 && b_length < 32) {
+        simsimd_intersect_u32_serial(a, b, a_length, b_length, results);
+        return;
     }
-    *results = intersection_count;
+
+    union vec_t {
+        __m512i zmm;
+        simsimd_u32_t u32[16];
+        simsimd_u8_t u8[64];
+    } a_vec, b_vec;
+    simsimd_u32_t const* a_end = a + a_length;
+    simsimd_u32_t const* b_end = b + b_length;
+    simsimd_size_t c = 0;
+
+    while (a + 16 < a_end && b + 16 < b_end) {
+        a_vec.zmm = _mm512_loadu_epi32((__m512i const*)a);
+        b_vec.zmm = _mm512_loadu_epi32((__m512i const*)b);
+
+        // Intersecting registers with `_mm512_2intersect_epi32_mask` involves a lot of shuffling
+        // and comparisons, so we want to avoid it if the slices don't overlap at all..
+        simsimd_u32_t a_min = a_vec.u32[0];
+        simsimd_u32_t a_max = a_vec.u32[15];
+        simsimd_u32_t b_min = b_vec.u32[0];
+        simsimd_u32_t b_max = b_vec.u32[15];
+
+        // If the slices don't overlap, advance the appropriate pointer
+        while (a_max < b_min && a + 32 < a_end) {
+            a += 16;
+            a_vec.zmm = _mm512_loadu_epi32((__m512i const*)a);
+            a_min = a_vec.u32[0];
+            a_max = a_vec.u32[15];
+        }
+        while (b_max < a_min && b + 32 < b_end) {
+            b += 16;
+            b_vec.zmm = _mm512_loadu_epi32((__m512i const*)b);
+            b_min = b_vec.u32[0];
+            b_max = b_vec.u32[15];
+        }
+
+        // Now we are likely to have some overlap, so we can intersect the registers
+        __mmask16 a_matches = _mm512_2intersect_epi32_mask(a_vec.zmm, b_vec.zmm);
+
+        // The paper als contained a very nice procedure for exporting the matches,
+        // but we don't need it here:
+        //      _mm512_mask_compressstoreu_epi32(c, a_matches, a_vec);
+        c += _popcnt32(a_matches);
+
+        __m512i a_last_broadcasted = _mm512_set1_epi32(a_max);
+        __m512i b_last_broadcasted = _mm512_set1_epi32(b_max);
+        __mmask16 a_advancement = _mm512_cmple_epu32_mask(a_vec.zmm, b_last_broadcasted);
+        __mmask16 b_advancement = _mm512_cmple_epu32_mask(b_vec.zmm, a_last_broadcasted);
+        a += 32 - _lzcnt_u32((simsimd_u32_t)a_advancement);
+        b += 32 - _lzcnt_u32((simsimd_u32_t)b_advancement);
+    }
+
+    simsimd_intersect_u32_serial(a, b, a_end - a, b_end - b, results);
+    *results += c;
 }
 
 #pragma clang attribute pop
