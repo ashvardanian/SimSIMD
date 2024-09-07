@@ -305,6 +305,24 @@ typedef unsigned short simsimd_bf16_t;
 #endif
 #endif
 
+/*
+ *  Let's make sure the sizes of the types are as expected.
+ *  In C the `_Static_assert` is only available with C 11 and later.
+ */
+#define SIMSIMD_STATIC_ASSERT(cond, msg) typedef char static_assertion_##msg[(cond) ? 1 : -1]
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i8_t) == 1, simsimd_i8_t_must_be_1_byte);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u8_t) == 1, simsimd_u8_t_must_be_1_byte);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i16_t) == 2, simsimd_i16_t_must_be_2_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u16_t) == 2, simsimd_u16_t_must_be_2_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i32_t) == 4, simsimd_i32_t_must_be_4_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u32_t) == 4, simsimd_u32_t_must_be_4_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i64_t) == 8, simsimd_i64_t_must_be_8_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u64_t) == 8, simsimd_u64_t_must_be_8_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_f32_t) == 4, simsimd_f32_t_must_be_4_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_f64_t) == 8, simsimd_f64_t_must_be_8_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_f16_t) == 2, simsimd_f16_t_must_be_2_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_bf16_t) == 2, simsimd_bf16_t_must_be_2_bytes);
+
 #define SIMSIMD_DEREFERENCE(x) (*(x))
 
 /**
