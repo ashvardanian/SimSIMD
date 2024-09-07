@@ -420,7 +420,7 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_f16(simsimd_f16_t const* x_ptr) 
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-SIMSIMD_PUBLIC void simsimd_compress_f16(simsimd_f32_t x, unsigned short* result_ptr) {
+SIMSIMD_PUBLIC void simsimd_compress_f16(simsimd_f32_t x, simsimd_f16_t* result_ptr) {
     simsimd_f32i32_t conv;
     conv.f = x;
     unsigned int b = conv.i + 0x00001000;
@@ -429,7 +429,7 @@ SIMSIMD_PUBLIC void simsimd_compress_f16(simsimd_f32_t x, unsigned short* result
     unsigned short result = ((b & 0x80000000) >> 16) | (e > 112) * ((((e - 112) << 10) & 0x7C00) | (m >> 13)) |
                             ((e < 113) & (e > 101)) * ((((0x007FF000 + m) >> (125 - e)) + 1) >> 1) |
                             ((e > 143) * 0x7FFF);
-    *result_ptr = result;
+    *(unsigned short*)result_ptr = result;
 }
 
 /**
@@ -452,14 +452,14 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_bf16(simsimd_bf16_t const* x_ptr
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
-SIMSIMD_PUBLIC void simsimd_compress_bf16(simsimd_f32_t x, unsigned short* result_ptr) {
+SIMSIMD_PUBLIC void simsimd_compress_bf16(simsimd_f32_t x, simsimd_bf16_t* result_ptr) {
     simsimd_f32i32_t conv;
     conv.f = x;
     conv.i += 0x8000; // Rounding is optional
     conv.i >>= 16;
     // The top 16 bits will be zeroed out anyways
     // conv.i &= 0xFFFF;
-    *result_ptr = (unsigned short)conv.i;
+    *(unsigned short*)result_ptr = (unsigned short)conv.i;
 }
 
 #ifdef __cplusplus
