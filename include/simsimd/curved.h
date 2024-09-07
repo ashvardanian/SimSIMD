@@ -734,7 +734,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16_sapphire(simsimd_f16_t const* a, simsim
     __mmask32 tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, tail_length);
 
     for (simsimd_size_t i = 0; i != n; ++i) {
-        __m512h a_vec = _mm512_set1_ph(*(_Float16 const*)(a + i));
+        __m512h a_vec = _mm512_castsi512_ph(_mm512_set1_epi16(*(short const*)(a + i)));
         __m512h partial_sum_vec = _mm512_setzero_ph();
         __m512i b_vec, c_vec;
         simsimd_size_t j = 0;
@@ -766,8 +766,8 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_sapphire(simsimd_f16_t const* a, sim
     __mmask32 tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, tail_length);
 
     for (simsimd_size_t i = 0; i != n; ++i) {
-        __m512h a_i_vec = _mm512_set1_ph(*(_Float16 const*)(a + i));
-        __m512h b_i_vec = _mm512_set1_ph(*(_Float16 const*)(b + i));
+        __m512h a_i_vec = _mm512_castsi512_ph(_mm512_set1_epi16(*(short const*)(a + i)));
+        __m512h b_i_vec = _mm512_castsi512_ph(_mm512_set1_epi16(*(short const*)(b + i)));
         __m512h diff_i_vec = _mm512_sub_ph(a_i_vec, b_i_vec);
         __m512h partial_sum_vec = _mm512_setzero_ph();
         __m512h diff_j_vec;
