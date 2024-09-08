@@ -110,7 +110,7 @@ __Broader Benchmarking Results__:
 The package is intended to replace the usage of `numpy.inner`, `numpy.dot`, and `scipy.spatial.distance`.
 Aside from drastic performance improvements, SimSIMD significantly improves accuracy in mixed precision setups.
 NumPy and SciPy, processing `i8` or `f16` vectors, will use the same types for accumulators, while SimSIMD can combine `i8` enumeration, `i16` multiplication, and `i32` accumulation to avoid overflows entirely.
-The same applies to processing `f16` values with `f32` precision.
+The same applies to processing `f16` and `bf16` values with `f32` precision.
 
 ### Installation
 
@@ -120,6 +120,9 @@ Use the following snippet to install SimSIMD and list available hardware acceler
 pip install simsimd
 python -c "import simsimd; print(simsimd.get_capabilities())"
 ```
+
+With precompiled binaries, SimSIMD ships `.pyi` interface files for type hinting and static analysis.
+You can check all the available functions in [`python/annotations/__init__.pyi`](https://github.com/ashvardanian/SimSIMD/blob/main/python/annotations/__init__.pyi).
 
 ### One-to-One Distance
 
@@ -694,7 +697,10 @@ Interestingly, there are multiple ways to shoot yourself in the foot when comput
 The cosine similarity is the inverse of the cosine distance, which is the cosine of the angle between two vectors.
 
 ```math
-\text{CosineSimilarity}(a, b) = \frac{a \cdot b}{\|a\| \cdot \|b\|} \\
+\text{CosineSimilarity}(a, b) = \frac{a \cdot b}{\|a\| \cdot \|b\|}
+```
+
+```math
 \text{CosineDistance}(a, b) = 1 - \frac{a \cdot b}{\|a\| \cdot \|b\|}
 ```
 
@@ -735,7 +741,10 @@ The Mahalanobis distance is a generalization of the Euclidean distance, which ta
 It's very similar in its form to the bilinear form, which is a generalization of the dot product.
 
 ```math
-\text{BilinearForm}(a, b, M) = a^T M b \\
+\text{BilinearForm}(a, b, M) = a^T M b
+```
+
+```math
 \text{Mahalanobis}(a, b, M) = \sqrt{(a - b)^T M^{-1} (a - b)}
 ```
 
@@ -791,7 +800,10 @@ They are supported by most BLAS packages, but almost never in mixed precision.
 SimSIMD defines `dot` and `vdot` kernels as:
 
 ```math
-\text{dot}(a, b) = \sum_{i=0}^{n-1} a_i \cdot b_i \\
+\text{dot}(a, b) = \sum_{i=0}^{n-1} a_i \cdot b_i
+```
+
+```math
 \text{vdot}(a, b) = \sum_{i=0}^{n-1} a_i \cdot \bar{b_i}
 ```
 
@@ -824,7 +836,10 @@ The Kullback-Leibler divergence is a measure of how one probability distribution
 Jensen-Shannon divergence is a symmetrized and smoothed version of the Kullback-Leibler divergence, which can be used as a distance metric between probability distributions.
 
 ```math
-\text{KL}(P || Q) = \sum_{i} P(i) \log \frac{P(i)}{Q(i)} \\
+\text{KL}(P || Q) = \sum_{i} P(i) \log \frac{P(i)}{Q(i)}
+```
+
+```math
 \text{JS}(P, Q) = \frac{1}{2} \text{KL}(P || M) + \frac{1}{2} \text{KL}(Q || M), M = \frac{P + Q}{2}
 ```
 
