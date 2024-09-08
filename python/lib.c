@@ -488,7 +488,7 @@ static PyObject* implement_dense_metric(simsimd_metric_kind_t metric_kind, PyObj
     // Check data types
     if (parsed_a.datatype != parsed_b.datatype && parsed_a.datatype != simsimd_datatype_unknown_k &&
         parsed_b.datatype != simsimd_datatype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError,
+        PyErr_SetString(PyExc_TypeError,
                         "Input tensors must have matching datatypes, check with `X.__array_interface__`");
         goto cleanup;
     }
@@ -515,7 +515,7 @@ static PyObject* implement_dense_metric(simsimd_metric_kind_t metric_kind, PyObj
     simsimd_find_metric_punned(metric_kind, input_datatype, static_capabilities, simsimd_cap_any_k, &metric,
                                &capability);
     if (!metric) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported metric and datatype combination");
+        PyErr_SetString(PyExc_LookupError, "Unsupported metric and datatype combination");
         goto cleanup;
     }
 
@@ -571,7 +571,7 @@ static PyObject* implement_dense_metric(simsimd_metric_kind_t metric_kind, PyObj
                 parsed_a.start + i * parsed_a.stride, //
                 parsed_b.start + i * parsed_b.stride, //
                 parsed_a.dimensions,                  //
-                &result);
+                (simsimd_distance_t*)&result);
 
             // Export out:
             if (!cast_distance(result[0], return_datatype, distances, i * components_per_pair)) {
@@ -631,7 +631,7 @@ static PyObject* implement_curved_metric(simsimd_metric_kind_t metric_kind, PyOb
     // Check data types
     if (parsed_a.datatype != parsed_b.datatype && parsed_a.datatype != simsimd_datatype_unknown_k &&
         parsed_b.datatype != simsimd_datatype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError,
+        PyErr_SetString(PyExc_TypeError,
                         "Input tensors must have matching datatypes, check with `X.__array_interface__`");
         goto cleanup;
     }
@@ -641,7 +641,7 @@ static PyObject* implement_curved_metric(simsimd_metric_kind_t metric_kind, PyOb
     if (value_type_desc != NULL) {
         // Ensure it is a string (or convert it to one if possible)
         if (!PyUnicode_Check(value_type_desc)) {
-            PyErr_SetString(PyExc_TypeError, "third argument must be a string describing the value type");
+            PyErr_SetString(PyExc_TypeError, "Third argument must be a string describing the value type");
             goto cleanup;
         }
         // Convert Python string to C string
@@ -658,7 +658,7 @@ static PyObject* implement_curved_metric(simsimd_metric_kind_t metric_kind, PyOb
     simsimd_find_metric_punned(metric_kind, input_datatype, static_capabilities, simsimd_cap_any_k,
                                (simsimd_metric_punned_t*)&metric, &capability);
     if (!metric) {
-        PyErr_Format(PyExc_ValueError,
+        PyErr_Format(PyExc_LookupError,
                      "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s' and '%s'/'%s') and "
                      "tensor ('%s'/'%s')",
                      metric_kind,                                                   //
@@ -678,6 +678,7 @@ cleanup:
     PyBuffer_Release(&buffer_c);
     return output;
 }
+
 static PyObject* implement_sparse_metric(simsimd_metric_kind_t metric_kind, PyObject* const* args, Py_ssize_t nargs) {
     if (nargs != 2) {
         PyErr_SetString(PyExc_TypeError, "Function expects only 2 arguments");
@@ -704,7 +705,7 @@ static PyObject* implement_sparse_metric(simsimd_metric_kind_t metric_kind, PyOb
     // Check data types
     if (parsed_a.datatype != parsed_b.datatype && parsed_a.datatype != simsimd_datatype_unknown_k &&
         parsed_b.datatype != simsimd_datatype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError,
+        PyErr_SetString(PyExc_TypeError,
                         "Input tensors must have matching datatypes, check with `X.__array_interface__`");
         goto cleanup;
     }
@@ -715,7 +716,7 @@ static PyObject* implement_sparse_metric(simsimd_metric_kind_t metric_kind, PyOb
     simsimd_find_metric_punned(metric_kind, input_datatype, static_capabilities, simsimd_cap_any_k,
                                (simsimd_metric_punned_t*)&metric, &capability);
     if (!metric) {
-        PyErr_Format(PyExc_ValueError, "Unsupported metric '%c' and datatype combination ('%s'/'%s' and '%s'/'%s')",
+        PyErr_Format(PyExc_LookupError, "Unsupported metric '%c' and datatype combination ('%s'/'%s' and '%s'/'%s')",
                      metric_kind,                                                   //
                      buffer_a.format, datatype_to_python_string(parsed_a.datatype), //
                      buffer_b.format, datatype_to_python_string(parsed_b.datatype));
@@ -758,7 +759,7 @@ static PyObject* impl_cdist(                            //
     // Check data types
     if (parsed_a.datatype != parsed_b.datatype && parsed_a.datatype != simsimd_datatype_unknown_k &&
         parsed_b.datatype != simsimd_datatype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError,
+        PyErr_SetString(PyExc_TypeError,
                         "Input tensors must have matching datatypes, check with `X.__array_interface__`");
         goto cleanup;
     }
@@ -769,7 +770,7 @@ static PyObject* impl_cdist(                            //
     simsimd_find_metric_punned(metric_kind, input_datatype, static_capabilities, simsimd_cap_any_k, &metric,
                                &capability);
     if (!metric) {
-        PyErr_Format(PyExc_ValueError, "Unsupported metric '%c' and datatype combination ('%s'/'%s' and '%s'/'%s')",
+        PyErr_Format(PyExc_LookupError, "Unsupported metric '%c' and datatype combination ('%s'/'%s' and '%s'/'%s')",
                      metric_kind,                                                   //
                      buffer_a.format, datatype_to_python_string(parsed_a.datatype), //
                      buffer_b.format, datatype_to_python_string(parsed_b.datatype));
@@ -851,7 +852,7 @@ static PyObject* impl_cdist(                            //
                     parsed_a.start + i * parsed_a.stride, //
                     parsed_b.start + j * parsed_b.stride, //
                     parsed_a.dimensions,                  //
-                    &result                               //
+                    (simsimd_distance_t*)&result          //
                 );
                 // Export out:
                 cast_distance(result[0], return_datatype, distances,
@@ -871,13 +872,13 @@ cleanup:
 static PyObject* implement_pointer_access(simsimd_metric_kind_t metric_kind, PyObject* args) {
     char const* type_name = PyUnicode_AsUTF8(PyTuple_GetItem(args, 0));
     if (!type_name) {
-        PyErr_SetString(PyExc_ValueError, "Invalid type name");
+        PyErr_SetString(PyExc_TypeError, "Invalid type name");
         return NULL;
     }
 
     simsimd_datatype_t datatype = python_string_to_datatype(type_name);
-    if (!type_name) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported type");
+    if (!datatype) { // Check the actual variable here instead of type_name
+        PyErr_SetString(PyExc_TypeError, "Unsupported type");
         return NULL;
     }
 
@@ -885,7 +886,7 @@ static PyObject* implement_pointer_access(simsimd_metric_kind_t metric_kind, PyO
     simsimd_capability_t capability = simsimd_cap_serial_k;
     simsimd_find_metric_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
     if (metric == NULL) {
-        PyErr_SetString(PyExc_ValueError, "No such metric");
+        PyErr_SetString(PyExc_LookupError, "No such metric");
         return NULL;
     }
 
@@ -946,7 +947,7 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
         }
         metric_kind = python_string_to_metric_kind(metric_str);
         if (metric_kind == simsimd_metric_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported metric");
+            PyErr_SetString(PyExc_LookupError, "Unsupported metric");
             return NULL;
         }
     }
@@ -968,7 +969,7 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
         }
         dtype = python_string_to_datatype(dtype_str);
         if (dtype == simsimd_datatype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
+            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
     }
