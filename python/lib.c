@@ -226,8 +226,15 @@ size_t bytes_per_datatype(simsimd_datatype_t dtype) {
     case simsimd_datatype_f32c_k: return sizeof(simsimd_f32_t) * 2;
     case simsimd_datatype_f16c_k: return sizeof(simsimd_f16_t) * 2;
     case simsimd_datatype_bf16c_k: return sizeof(simsimd_bf16_t) * 2;
-    case simsimd_datatype_i8_k: return sizeof(simsimd_i8_t);
     case simsimd_datatype_b8_k: return sizeof(simsimd_b8_t);
+    case simsimd_datatype_i8_k: return sizeof(simsimd_i8_t);
+    case simsimd_datatype_u8_k: return sizeof(simsimd_u8_t);
+    case simsimd_datatype_i16_k: return sizeof(simsimd_i16_t);
+    case simsimd_datatype_u16_k: return sizeof(simsimd_u16_t);
+    case simsimd_datatype_i32_k: return sizeof(simsimd_i32_t);
+    case simsimd_datatype_u32_k: return sizeof(simsimd_u32_t);
+    case simsimd_datatype_i64_k: return sizeof(simsimd_i64_t);
+    case simsimd_datatype_u64_k: return sizeof(simsimd_u64_t);
     default: return 0;
     }
 }
@@ -241,6 +248,13 @@ int cast_distance(simsimd_distance_t distance, simsimd_datatype_t target_dtype, 
     case simsimd_datatype_f16_k: simsimd_compress_f16(distance, (unsigned short*)target_ptr + offset); return 1;
     case simsimd_datatype_bf16_k: simsimd_compress_bf16(distance, (unsigned short*)target_ptr + offset); return 1;
     case simsimd_datatype_i8_k: ((simsimd_i8_t*)target_ptr)[offset] = (simsimd_i8_t)distance; return 1;
+    case simsimd_datatype_u8_k: ((simsimd_u8_t*)target_ptr)[offset] = (simsimd_u8_t)distance; return 1;
+    case simsimd_datatype_i16_k: ((simsimd_i16_t*)target_ptr)[offset] = (simsimd_i16_t)distance; return 1;
+    case simsimd_datatype_u16_k: ((simsimd_u16_t*)target_ptr)[offset] = (simsimd_u16_t)distance; return 1;
+    case simsimd_datatype_i32_k: ((simsimd_i32_t*)target_ptr)[offset] = (simsimd_i32_t)distance; return 1;
+    case simsimd_datatype_u32_k: ((simsimd_u32_t*)target_ptr)[offset] = (simsimd_u32_t)distance; return 1;
+    case simsimd_datatype_i64_k: ((simsimd_i64_t*)target_ptr)[offset] = (simsimd_i64_t)distance; return 1;
+    case simsimd_datatype_u64_k: ((simsimd_u64_t*)target_ptr)[offset] = (simsimd_u64_t)distance; return 1;
     default: return 0;
     }
 }
@@ -735,7 +749,8 @@ cleanup:
 
 static PyObject* impl_cdist(                            //
     PyObject* input_tensor_a, PyObject* input_tensor_b, //
-    simsimd_metric_kind_t metric_kind, size_t threads, simsimd_datatype_t return_datatype) {
+    simsimd_metric_kind_t metric_kind, size_t threads, simsimd_datatype_t input_datatype,
+    simsimd_datatype_t return_datatype) {
 
     PyObject* output = NULL;
     Py_buffer buffer_a, buffer_b;
@@ -763,10 +778,11 @@ static PyObject* impl_cdist(                            //
                         "Input tensors must have matching datatypes, check with `X.__array_interface__`");
         goto cleanup;
     }
+    if (input_datatype == simsimd_datatype_unknown_k)
+        input_datatype = parsed_a.datatype;
 
     simsimd_metric_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_datatype_t input_datatype = parsed_a.datatype;
     simsimd_find_metric_punned(metric_kind, input_datatype, static_capabilities, simsimd_cap_any_k, &metric,
                                &capability);
     if (!metric) {
@@ -894,13 +910,16 @@ static PyObject* implement_pointer_access(simsimd_metric_kind_t metric_kind, PyO
 }
 
 static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
-    PyObject *input_tensor_a, *input_tensor_b;
-    PyObject* metric_obj = NULL;
-    PyObject* threads_obj = NULL;
-    PyObject* dtype_obj = NULL;
+    // This function accepts up to 6 arguments:
+    PyObject* input_tensor_a = NULL; // Required object, positional-only
+    PyObject* input_tensor_b = NULL; // Required object, positional-only
+    PyObject* metric_obj = NULL;     // Optional string, positional or keyword
+    PyObject* threads_obj = NULL;    // Optional integer, keyword-only
+    PyObject* dtype_obj = NULL;      // Optional string, keyword-only
+    PyObject* out_dtype_obj = NULL;  // Optional string, keyword-only
 
-    if (!PyTuple_Check(args) || PyTuple_Size(args) < 2) {
-        PyErr_SetString(PyExc_TypeError, "Function expects at least 2 positional arguments");
+    if (!PyTuple_Check(args) || PyTuple_Size(args) < 2 || PyTuple_Size(args) > 3) {
+        PyErr_SetString(PyExc_TypeError, "Function expects 2-3 positional arguments");
         return NULL;
     }
 
@@ -908,31 +927,26 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
     input_tensor_b = PyTuple_GetItem(args, 1);
     if (PyTuple_Size(args) > 2)
         metric_obj = PyTuple_GetItem(args, 2);
-    if (PyTuple_Size(args) > 3)
-        threads_obj = PyTuple_GetItem(args, 3);
-    if (PyTuple_Size(args) > 4)
-        dtype_obj = PyTuple_GetItem(args, 4);
 
     // Checking for named arguments in kwargs
     if (kwargs) {
+        threads_obj = PyDict_GetItemString(kwargs, "threads");
+        dtype_obj = PyDict_GetItemString(kwargs, "dtype");
+        out_dtype_obj = PyDict_GetItemString(kwargs, "out_dtype");
+        int count_extracted = (threads_obj != NULL) + (dtype_obj != NULL) + (out_dtype_obj != NULL);
+
         if (!metric_obj) {
             metric_obj = PyDict_GetItemString(kwargs, "metric");
+            count_extracted += metric_obj != NULL;
         } else if (PyDict_GetItemString(kwargs, "metric")) {
-            PyErr_SetString(PyExc_TypeError, "Duplicate argument for 'metric'");
+            PyErr_SetString(PyExc_ValueError, "Duplicate argument for 'metric'");
             return NULL;
         }
 
-        if (!threads_obj) {
-            threads_obj = PyDict_GetItemString(kwargs, "threads");
-        } else if (PyDict_GetItemString(kwargs, "threads")) {
-            PyErr_SetString(PyExc_TypeError, "Duplicate argument for 'threads'");
-            return NULL;
-        }
-
-        if (!dtype_obj) {
-            dtype_obj = PyDict_GetItemString(kwargs, "dtype");
-        } else if (PyDict_GetItemString(kwargs, "dtype")) {
-            PyErr_SetString(PyExc_TypeError, "Duplicate argument for 'dtype'");
+        // Check for unknown arguments
+        int count_received = PyDict_Size(kwargs);
+        if (count_received > count_extracted) {
+            PyErr_SetString(PyExc_ValueError, "Received unknown keyword argument");
             return NULL;
         }
     }
@@ -974,7 +988,21 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
         }
     }
 
-    return impl_cdist(input_tensor_a, input_tensor_b, metric_kind, threads, dtype);
+    simsimd_datatype_t out_dtype = simsimd_datatype_f64_k;
+    if (out_dtype_obj) {
+        char const* out_dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
+        if (!out_dtype_str && PyErr_Occurred()) {
+            PyErr_SetString(PyExc_TypeError, "Expected 'out_dtype' to be a string");
+            return NULL;
+        }
+        out_dtype = python_string_to_datatype(out_dtype_str);
+        if (out_dtype == simsimd_datatype_unknown_k) {
+            PyErr_SetString(PyExc_ValueError, "Unsupported 'out_dtype'");
+            return NULL;
+        }
+    }
+
+    return impl_cdist(input_tensor_a, input_tensor_b, metric_kind, threads, dtype, out_dtype);
 }
 
 static PyObject* api_l2sq_pointer(PyObject* self, PyObject* args) {
