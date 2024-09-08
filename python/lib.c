@@ -918,6 +918,18 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
     PyObject* dtype_obj = NULL;      // Optional string, keyword-only
     PyObject* out_dtype_obj = NULL;  // Optional string, keyword-only
 
+    // Once parsed, the arguments will be stored in these variables:
+    char const* metric_str = NULL;
+    unsigned long long threads = 1;
+    char const* dtype_str = NULL;
+    char const* out_dtype_str = NULL;
+
+    // The lazy implementation would be to use `PyArg_ParseTupleAndKeywords`:
+    // static char* kwlist[] = {"input_tensor_a", "input_tensor_b", "metric", "threads", "dtype", "out_dtype", NULL};
+    // if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO|s$Kss", kwlist, &input_tensor_a, &input_tensor_b, &metric_str,
+    //                                  &threads, &dtype_str, &out_dtype_str))
+    //     return NULL;
+
     if (!PyTuple_Check(args) || PyTuple_Size(args) < 2 || PyTuple_Size(args) > 3) {
         PyErr_SetString(PyExc_TypeError, "Function expects 2-3 positional arguments");
         return NULL;
@@ -930,30 +942,45 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
 
     // Checking for named arguments in kwargs
     if (kwargs) {
-        threads_obj = PyDict_GetItemString(kwargs, "threads");
-        dtype_obj = PyDict_GetItemString(kwargs, "dtype");
-        out_dtype_obj = PyDict_GetItemString(kwargs, "out_dtype");
-        int count_extracted = (threads_obj != NULL) + (dtype_obj != NULL) + (out_dtype_obj != NULL);
+        Py_ssize_t pos = 0;
+        PyObject* key;
+        PyObject* value;
 
-        if (!metric_obj) {
-            metric_obj = PyDict_GetItemString(kwargs, "metric");
-            count_extracted += metric_obj != NULL;
-        } else if (PyDict_GetItemString(kwargs, "metric")) {
-            PyErr_SetString(PyExc_ValueError, "Duplicate argument for 'metric'");
-            return NULL;
-        }
-
-        // Check for unknown arguments
-        int count_received = PyDict_Size(kwargs);
-        if (count_received > count_extracted) {
-            PyErr_SetString(PyExc_ValueError, "Received unknown keyword argument");
-            return NULL;
+        while (PyDict_Next(kwargs, &pos, &key, &value)) {
+            if (PyUnicode_CompareWithASCIIString(key, "threads") == 0) {
+                if (threads_obj != NULL) {
+                    PyErr_SetString(PyExc_ValueError, "Duplicate argument for 'threads'");
+                    return NULL;
+                }
+                threads_obj = value;
+            } else if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0) {
+                if (dtype_obj != NULL) {
+                    PyErr_SetString(PyExc_ValueError, "Duplicate argument for 'dtype'");
+                    return NULL;
+                }
+                dtype_obj = value;
+            } else if (PyUnicode_CompareWithASCIIString(key, "out_dtype") == 0) {
+                if (out_dtype_obj != NULL) {
+                    PyErr_SetString(PyExc_ValueError, "Duplicate argument for 'out_dtype'");
+                    return NULL;
+                }
+                out_dtype_obj = value;
+            } else if (PyUnicode_CompareWithASCIIString(key, "metric") == 0) {
+                if (metric_obj != NULL) {
+                    PyErr_SetString(PyExc_ValueError, "Duplicate argument for 'metric'");
+                    return NULL;
+                }
+                metric_obj = value;
+            } else {
+                PyErr_Format(PyExc_ValueError, "Received unknown keyword argument: %O", key);
+                return NULL;
+            }
         }
     }
 
     // Process the PyObject values
     simsimd_metric_kind_t metric_kind = simsimd_metric_l2sq_k;
-    if (metric_obj) {
+    if (metric_str) {
         char const* metric_str = PyUnicode_AsUTF8(metric_obj);
         if (!metric_str && PyErr_Occurred()) {
             PyErr_SetString(PyExc_TypeError, "Expected 'metric' to be a string");
@@ -966,7 +993,7 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
         }
     }
 
-    size_t threads = 1;
+    threads = 1;
     if (threads_obj)
         threads = PyLong_AsSize_t(threads_obj);
     if (PyErr_Occurred()) {
@@ -975,7 +1002,7 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
     }
 
     simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
-    if (dtype_obj) {
+    if (dtype_str) {
         char const* dtype_str = PyUnicode_AsUTF8(dtype_obj);
         if (!dtype_str && PyErr_Occurred()) {
             PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
@@ -989,7 +1016,7 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
     }
 
     simsimd_datatype_t out_dtype = simsimd_datatype_f64_k;
-    if (out_dtype_obj) {
+    if (out_dtype_str) {
         char const* out_dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
         if (!out_dtype_str && PyErr_Occurred()) {
             PyErr_SetString(PyExc_TypeError, "Expected 'out_dtype' to be a string");
