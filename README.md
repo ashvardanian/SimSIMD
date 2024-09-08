@@ -4,9 +4,12 @@ Computing dot-products, similarity measures, and distances between low- and high
 These algorithms generally have linear complexity in time, constant or linear complexity in space, and are data-parallel.
 In other words, it is easily parallelizable and vectorizable and often available in packages like BLAS (level 1) and LAPACK, as well as higher-level `numpy` and `scipy` Python libraries.
 Ironically, even with decades of evolution in compilers and numerical computing, [most libraries can be 3-200x slower than hardware potential][benchmarks] even on the most popular hardware, like 64-bit x86 and Arm CPUs.
-SimSIMD attempts to fill that gap.
+Moreover, most lack mixed-precision support, which is crucial for modern AI!
+The rare few that support minimal mixed precision, run only on one platform, and are vendor-locked, by companies like Intel and Nvidia.
+SimSIMD provides an alternative.
 1️⃣ SimSIMD functions are practically as fast as `memcpy`.
-2️⃣ SimSIMD [compiles to more platforms than NumPy (105 vs 35)][compatibility] and has more backends than most BLAS implementations.
+2️⃣ Unlike BLAS, most kernels are designed for mixed-precision and bit-level operations.
+3️⃣ SimSIMD [compiles to more platforms than NumPy (105 vs 35)][compatibility] and has more backends than most BLAS implementations, and more high-level interfaces than most libraries.
 
 [benchmarks]: https://ashvardanian.com/posts/simsimd-faster-scipy
 [compatibility]: https://pypi.org/project/simsimd/#files

@@ -1034,50 +1034,263 @@ static PyObject* api_intersect(PyObject* self, PyObject* const* args, Py_ssize_t
     return implement_sparse_metric(simsimd_metric_intersect_k, args, nargs);
 }
 
-// clang-format off
 static PyMethodDef simsimd_methods[] = {
     // Introspecting library and hardware capabilities
-    {"get_capabilities", (PyCFunction)api_get_capabilities, METH_NOARGS, "Get hardware capabilities"},
-    {"enable_capability", (PyCFunction)api_enable_capability, METH_VARARGS, "Enable a specific family of Assembly kernels"},
-    {"disable_capability", (PyCFunction)api_disable_capability, METH_VARARGS, "Disable a specific family of Assembly kernels"},
+    {
+        "get_capabilities",
+        (PyCFunction)api_get_capabilities,
+        METH_NOARGS,
+        "Get the current hardware SIMD capabilities as a dictionary of feature flags.\n"
+        "On x86 includes: 'serial', 'haswell', 'skylake', 'ice', 'genoa', 'sapphire'.\n"
+        "On Arm includes: 'serial', 'neon', 'sve', 'sve2', and their extensions.\n",
+    },
+    {
+        "enable_capability",
+        (PyCFunction)api_enable_capability,
+        METH_VARARGS,
+        "Enable a specific SIMD kernel family.\n\n"
+        "Args:\n"
+        "    capability (str): The name of the SIMD feature to enable (e.g., 'haswell').",
+    },
+    {
+        "disable_capability",
+        (PyCFunction)api_disable_capability,
+        METH_VARARGS,
+        "Disable a specific SIMD kernel family.\n\n"
+        "Args:\n"
+        "    capability (str): The name of the SIMD feature to disable (e.g., 'haswell').",
+    },
 
-    // NumPy and SciPy compatible interfaces (two matrix or vector arguments) for dense vector representations
-    // All of those can be computed:
-    //  - for a pair of vectors, 
-    //  - for a batch of vector pairs, represented as two matrices of identical shape,
-    //  - for a batch of vectors against a single vector, represented as a matrix and a vector.
-    {"sqeuclidean", (PyCFunction)api_l2sq, METH_FASTCALL, "L2sq (Sq. Euclidean) distances between a pair of matrices"},
-    {"cosine", (PyCFunction)api_cos, METH_FASTCALL, "Cosine (Angular) distances between a pair of matrices"},
-    {"inner", (PyCFunction)api_dot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of real or complex matrices"},
-    {"dot", (PyCFunction)api_dot, METH_FASTCALL, "Inner (Dot) Product distances between a pair of real or complex matrices"},
-    {"vdot", (PyCFunction)api_vdot, METH_FASTCALL, "Conjugate Inner (Dot) Product distances between a pair of complex matrices"},
-    {"hamming", (PyCFunction)api_hamming, METH_FASTCALL, "Hamming distances between a pair of matrices"},
-    {"jaccard", (PyCFunction)api_jaccard, METH_FASTCALL, "Jaccard (Bitwise Tanimoto) distances between a pair of matrices"},
-    {"kullbackleibler", (PyCFunction)api_kl, METH_FASTCALL, "Kullback-Leibler divergence between probability distributions"},
-    {"jensenshannon", (PyCFunction)api_js, METH_FASTCALL, "Jensen-Shannon divergence between probability distributions"},
+    // NumPy and SciPy compatible interfaces for dense vector representations
+    // Each function can compute distances between:
+    //  - A pair of vectors
+    //  - A batch of vector pairs (two matrices of identical shape)
+    //  - A matrix of vectors and a single vector
+    {
+        "sqeuclidean",
+        (PyCFunction)api_l2sq,
+        METH_FASTCALL,
+        "Compute squared Euclidean (L2) distances between two matrices.\n\n"
+        "Args:\n"
+        "    a (NDArray): First matrix or vector.\n"
+        "    b (NDArray): Second matrix or vector.\n"
+        "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type.\n"
+        "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n\n"
+        "Returns:\n"
+        "    DistancesTensor: The squared Euclidean distances.\n\n"
+        "Equivalent to: `scipy.spatial.distance.sqeuclidean`.\n"
+        "Notes:\n"
+        "    * `a` and `b` are positional-only arguments, while `dtype` and `out_dtype` are keyword-only arguments.",
+    },
+    {
+        "cosine",
+        (PyCFunction)api_cos,
+        METH_FASTCALL,
+        "Compute cosine (angular) distances between two matrices.\n\n"
+        "Args:\n"
+        "    a (NDArray): First matrix or vector.\n"
+        "    b (NDArray): Second matrix or vector.\n"
+        "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type.\n"
+        "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n\n"
+        "Returns:\n"
+        "    DistancesTensor: The cosine distances.\n\n"
+        "Equivalent to: `scipy.spatial.distance.cosine`.\n"
+        "Notes:\n"
+        "    * `a` and `b` are positional-only arguments, while `dtype` and `out_dtype` are keyword-only arguments.",
+    },
+    {
+        "inner",
+        (PyCFunction)api_dot,
+        METH_FASTCALL,
+        "Compute the inner (dot) product between two matrices (real or complex).\n\n"
+        "Args:\n"
+        "    a (NDArray): First matrix or vector.\n"
+        "    b (NDArray): Second matrix or vector.\n"
+        "    dtype (Union[FloatType, ComplexType], optional): Override the presumed input type.\n\n"
+        "Returns:\n"
+        "    DistancesTensor: The inner product.\n\n"
+        "Equivalent to: `numpy.inner`.\n"
+        "Notes:\n"
+        "    * `a` and `b` are positional-only arguments, while `dtype` is a keyword-only argument.",
+    },
+    {
+        "dot",
+        (PyCFunction)api_dot,
+        METH_FASTCALL,
+        "Compute the dot product between two matrices (real or complex).\n\n"
+        "Args:\n"
+        "    a (NDArray): First matrix or vector.\n"
+        "    b (NDArray): Second matrix or vector.\n"
+        "    dtype (Union[FloatType, ComplexType], optional): Override the presumed input type.\n\n"
+        "Returns:\n"
+        "    DistancesTensor: The dot product.\n\n"
+        "Equivalent to: `numpy.dot`.\n"
+        "Notes:\n"
+        "    * `a` and `b` are positional-only arguments, while `dtype` is a keyword-only argument.",
+    },
+    {
+        "vdot",
+        (PyCFunction)api_vdot,
+        METH_FASTCALL,
+        "Compute the conjugate dot product between two complex matrices.\n\n"
+        "Args:\n"
+        "    a (NDArray): First complex matrix or vector.\n"
+        "    b (NDArray): Second complex matrix or vector.\n"
+        "    dtype (Union[ComplexType], optional): Override the presumed input type.\n\n"
+        "Returns:\n"
+        "    DistancesTensor: The conjugate dot product.\n\n"
+        "Equivalent to: `numpy.vdot`.\n"
+        "Notes:\n"
+        "    * `a` and `b` are positional-only arguments, while `dtype` is a keyword-only argument.",
+    },
+    {
+        "hamming",
+        (PyCFunction)api_hamming,
+        METH_FASTCALL,
+        "Compute Hamming distances between two matrices.\n\n"
+        "Args:\n"
+        "    a (NDArray): First binary matrix or vector.\n"
+        "    b (NDArray): Second binary matrix or vector.\n"
+        "    dtype (IntegralType, optional): Override the presumed input type.\n\n"
+        "Returns:\n"
+        "    DistancesTensor: The Hamming distances.\n\n"
+        "Equivalent to: `scipy.spatial.distance.hamming`.\n"
+        "Notes:\n"
+        "    * `a` and `b` are positional-only arguments, while `dtype` is a keyword-only argument.",
+    },
+    {
+        "jaccard",
+        (PyCFunction)api_jaccard,
+        METH_FASTCALL,
+        "Compute Jaccard distances (bitwise Tanimoto) between two matrices.\n\n"
+        "Args:\n"
+        "    a (NDArray): First binary matrix or vector.\n"
+        "    b (NDArray): Second binary matrix or vector.\n"
+        "    dtype (IntegralType, optional): Override the presumed input type.\n\n"
+        "Returns:\n"
+        "    DistancesTensor: The Jaccard distances.\n\n"
+        "Equivalent to: `scipy.spatial.distance.jaccard`.\n"
+        "Notes:\n"
+        "    * `a` and `b` are positional-only arguments, while `dtype` is a keyword-only argument.",
+    },
 
-    // Conventional `cdist` and `pdist` interfaces with third string argument, and optional `threads` arg
-    {"cdist", (PyCFunction)api_cdist, METH_VARARGS | METH_KEYWORDS, "Compute distance between each pair of the two collections of inputs"},
+    // Conventional `cdist` interface for pairwise distances
+    {
+        "cdist",
+        (PyCFunction)api_cdist,
+        METH_VARARGS | METH_KEYWORDS,
+        "Compute pairwise distances between two sets of input matrices.\n\n"
+        "Args:\n"
+        "    a (NDArray): First matrix.\n"
+        "    b (NDArray): Second matrix.\n"
+        "    metric (str, optional): Distance metric to use (e.g., 'sqeuclidean', 'cosine').\n"
+        "    threads (int, optional): Number of threads to use (default is 1).\n"
+        "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type.\n"
+        "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n\n"
+        "Returns:\n"
+        "    DistancesTensor: Pairwise distances between all inputs.\n\n"
+        "Equivalent to: `scipy.spatial.distance.cdist`.\n"
+        "Notes:\n"
+        "    * `a` and `b` are positional-only arguments.\n"
+        "    * `metric` can be positional or keyword.\n"
+        "    * `threads`, `dtype`, and `out_dtype` are keyword-only arguments.",
+    },
 
     // Exposing underlying API for USearch
-    {"pointer_to_sqeuclidean", (PyCFunction)api_l2sq_pointer, METH_VARARGS, "L2sq (Sq. Euclidean) function pointer as `int`"},
-    {"pointer_to_cosine", (PyCFunction)api_cos_pointer, METH_VARARGS, "Cosine (Angular) function pointer as `int`"},
-    {"pointer_to_inner", (PyCFunction)api_dot_pointer, METH_VARARGS, "Inner (Dot) Product function pointer as `int`"},
-    {"pointer_to_dot", (PyCFunction)api_dot_pointer, METH_VARARGS, "Inner (Dot) Product function pointer as `int`"},
-    {"pointer_to_vdot", (PyCFunction)api_vdot_pointer, METH_VARARGS, "Conjugate Inner (Dot) Product function pointer as `int`"},
-    {"pointer_to_kullbackleibler", (PyCFunction)api_dot_pointer, METH_VARARGS, "Kullback-Leibler function pointer as `int`"},
-    {"pointer_to_jensenshannon", (PyCFunction)api_dot_pointer, METH_VARARGS, "Jensen-Shannon function pointer as `int`"},
+    {
+        "pointer_to_sqeuclidean",
+        (PyCFunction)api_l2sq_pointer,
+        METH_VARARGS,
+        "Retrieve the function pointer for the squared Euclidean distance function as an integer.",
+    },
+    {
+        "pointer_to_cosine",
+        (PyCFunction)api_cos_pointer,
+        METH_VARARGS,
+        "Retrieve the function pointer for the cosine distance function as an integer.",
+    },
+    {
+        "pointer_to_inner",
+        (PyCFunction)api_dot_pointer,
+        METH_VARARGS,
+        "Retrieve the function pointer for the inner (dot) product function as an integer.",
+    },
+    {
+        "pointer_to_dot",
+        (PyCFunction)api_dot_pointer,
+        METH_VARARGS,
+        "Retrieve the function pointer for the dot product function as an integer.",
+    },
+    {
+        "pointer_to_vdot",
+        (PyCFunction)api_vdot_pointer,
+        METH_VARARGS,
+        "Retrieve the function pointer for the conjugate dot product function as an integer.",
+    },
+    {
+        "pointer_to_kullbackleibler",
+        (PyCFunction)api_kl_pointer,
+        METH_VARARGS,
+        "Retrieve the function pointer for the Kullback-Leibler divergence function as an integer.",
+    },
+    {
+        "pointer_to_jensenshannon",
+        (PyCFunction)api_js_pointer,
+        METH_VARARGS,
+        "Retrieve the function pointer for the Jensen-Shannon divergence function as an integer.",
+    },
 
     // Set operations
-    {"intersect", (PyCFunction)api_intersect, METH_FASTCALL, "Set intersection for arrays of sorted integers"},
+    {
+        "intersect",
+        (PyCFunction)api_intersect,
+        METH_FASTCALL,
+        "Compute the intersection of two sorted integer arrays.\n\n"
+        "Args:\n"
+        "    a (NDArray): First sorted integer array.\n"
+        "    b (NDArray): Second sorted integer array.\n\n"
+        "Returns:\n"
+        "    float: The number of intersecting elements.\n\n"
+        "Similar to: `numpy.intersect1d`.",
+    },
 
     // Curved spaces
-    {"bilinear", (PyCFunction)api_bilinear, METH_FASTCALL, "Bilinear form between two vectors, given a metric tensor"},
-    {"mahalanobis", (PyCFunction)api_mahalanobis, METH_FASTCALL, "Mahalanobis distance between two vectors, given a covariance matrix"},
+    {
+        "bilinear",
+        (PyCFunction)api_bilinear,
+        METH_FASTCALL,
+        "Compute the bilinear form between two vectors given a metric tensor.\n\n"
+        "Args:\n"
+        "    a (NDArray): First vector.\n"
+        "    b (NDArray): Second vector.\n"
+        "    metric_tensor (NDArray): The metric tensor defining the bilinear form.\n"
+        "    dtype (FloatType, optional): Override the presumed input type.\n\n"
+        "Returns:\n"
+        "    float: The bilinear form.\n\n"
+        "Equivalent to: `numpy.dot` with a metric tensor.\n"
+        "Notes:\n"
+        "    * `a`, `b`, and `metric_tensor` are positional-only arguments, while `dtype` is keyword-only.",
+    },
+
+    {
+        "mahalanobis",
+        (PyCFunction)api_mahalanobis,
+        METH_FASTCALL,
+        "Compute the Mahalanobis distance between two vectors given an inverse covariance matrix.\n\n"
+        "Args:\n"
+        "    a (NDArray): First vector.\n"
+        "    b (NDArray): Second vector.\n"
+        "    inverse_covariance (NDArray): The inverse of the covariance matrix.\n"
+        "    dtype (FloatType, optional): Override the presumed input type.\n\n"
+        "Returns:\n"
+        "    float: The Mahalanobis distance.\n\n"
+        "Equivalent to: `scipy.spatial.distance.mahalanobis`.\n"
+        "Notes:\n"
+        "    * `a`, `b`, and `inverse_covariance` are positional-only arguments, while `dtype` is keyword-only.",
+    },
 
     // Sentinel
     {NULL, NULL, 0, NULL}};
-// clang-format on
 
 static PyModuleDef simsimd_module = {
     PyModuleDef_HEAD_INIT,
