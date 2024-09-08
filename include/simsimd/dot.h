@@ -82,7 +82,11 @@ SIMSIMD_PUBLIC void simsimd_dot_f16_neon(simsimd_f16_t const* a, simsimd_f16_t c
 SIMSIMD_PUBLIC void simsimd_dot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 
-SIMSIMD_PUBLIC void simsimd_dot_i8_serial(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_i8_neon(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
+SIMSIMD_PUBLIC void simsimd_dot_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_vdot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 
 /*  SIMD-powered backends for Arm SVE, mostly using 32-bit arithmetic over variable-length platform-defined word sizes.
  *  Designed for Arm Graviton 3, Microsoft Cobalt, as well as Nvidia Grace and newer Ampere Altra CPUs.
@@ -501,29 +505,29 @@ SIMSIMD_INTERNAL bfloat16x8_t simsimd_partial_load_bf16x8_neon(simsimd_bf16_t co
 
 SIMSIMD_PUBLIC void simsimd_dot_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                           simsimd_distance_t* result) {
+    float32x4_t ab_vec = vdupq_n_f32(0);
 
-    float32x4_t ab_high_vec = vdupq_n_f32(0), ab_low_vec = vdupq_n_f32(0);
-    bfloat16x8_t a_vec, b_vec;
+    while (n >= 8) {
+        bfloat16x8_t a_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)a);
+        bfloat16x8_t b_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)b);
 
-simsimd_dot_bf16_neon_cycle:
-    if (n < 8) {
-        a_vec = simsimd_partial_load_bf16x8_neon(a, n);
-        b_vec = simsimd_partial_load_bf16x8_neon(b, n);
-        n = 0;
-    } else {
-        a_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)a);
-        b_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)b);
-        a += 8, b += 8, n -= 8;
+        ab_vec = vbfdotq_f32(ab_vec, a_vec, b_vec);
+
+        n -= 8;
+        a += 8;
+        b += 8;
     }
-    ab_high_vec = vbfmlaltq_f32(ab_high_vec, a_vec, b_vec);
-    ab_low_vec = vbfmlalbq_f32(ab_low_vec, a_vec, b_vec);
-    if (n)
-        goto simsimd_dot_bf16_neon_cycle;
+    if (n > 0) {
+        bfloat16x8_t a_vec = simsimd_partial_load_bf16x8_neon(a, n);
+        bfloat16x8_t b_vec = simsimd_partial_load_bf16x8_neon(b, n);
 
-    *result = vaddvq_f32(ab_high_vec) + vaddvq_f32(ab_low_vec);
+        ab_vec = vbfdotq_f32(ab_vec, a_vec, b_vec);
+    }
+
+    *result = vaddvq_f32(ab_vec);
 }
 
-SIMSIMD_PUBLIC void simsimd_dot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, //
+SIMSIMD_PUBLIC void simsimd_dot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                            simsimd_distance_t* results) {
 
     // A nicer approach is to use `bf16` arithmetic for the dot product, but that requires
