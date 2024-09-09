@@ -506,6 +506,7 @@ SIMSIMD_INTERNAL bfloat16x8_t simsimd_partial_load_bf16x8_neon(simsimd_bf16_t co
 SIMSIMD_PUBLIC void simsimd_dot_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                           simsimd_distance_t* result) {
     float32x4_t ab_vec = vdupq_n_f32(0);
+    bfloat16x8_t a_vec, b_vec;
     
 simsimd_dot_bf16_neon_cycle:
     if (n < 8) {
