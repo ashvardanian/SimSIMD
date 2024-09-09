@@ -4,9 +4,12 @@ Computing dot-products, similarity measures, and distances between low- and high
 These algorithms generally have linear complexity in time, constant or linear complexity in space, and are data-parallel.
 In other words, it is easily parallelizable and vectorizable and often available in packages like BLAS (level 1) and LAPACK, as well as higher-level `numpy` and `scipy` Python libraries.
 Ironically, even with decades of evolution in compilers and numerical computing, [most libraries can be 3-200x slower than hardware potential][benchmarks] even on the most popular hardware, like 64-bit x86 and Arm CPUs.
-SimSIMD attempts to fill that gap.
+Moreover, most lack mixed-precision support, which is crucial for modern AI!
+The rare few that support minimal mixed precision, run only on one platform, and are vendor-locked, by companies like Intel and Nvidia.
+SimSIMD provides an alternative.
 1️⃣ SimSIMD functions are practically as fast as `memcpy`.
-2️⃣ SimSIMD [compiles to more platforms than NumPy (105 vs 35)][compatibility] and has more backends than most BLAS implementations.
+2️⃣ Unlike BLAS, most kernels are designed for mixed-precision and bit-level operations.
+3️⃣ SimSIMD [compiles to more platforms than NumPy (105 vs 35)][compatibility] and has more backends than most BLAS implementations, and more high-level interfaces than most libraries.
 
 [benchmarks]: https://ashvardanian.com/posts/simsimd-faster-scipy
 [compatibility]: https://pypi.org/project/simsimd/#files
@@ -110,7 +113,7 @@ __Broader Benchmarking Results__:
 The package is intended to replace the usage of `numpy.inner`, `numpy.dot`, and `scipy.spatial.distance`.
 Aside from drastic performance improvements, SimSIMD significantly improves accuracy in mixed precision setups.
 NumPy and SciPy, processing `i8` or `f16` vectors, will use the same types for accumulators, while SimSIMD can combine `i8` enumeration, `i16` multiplication, and `i32` accumulation to avoid overflows entirely.
-The same applies to processing `f16` values with `f32` precision.
+The same applies to processing `f16` and `bf16` values with `f32` precision.
 
 ### Installation
 
@@ -120,6 +123,9 @@ Use the following snippet to install SimSIMD and list available hardware acceler
 pip install simsimd
 python -c "import simsimd; print(simsimd.get_capabilities())"
 ```
+
+With precompiled binaries, SimSIMD ships `.pyi` interface files for type hinting and static analysis.
+You can check all the available functions in [`python/annotations/__init__.pyi`](https://github.com/ashvardanian/SimSIMD/blob/main/python/annotations/__init__.pyi).
 
 ### One-to-One Distance
 
@@ -214,9 +220,19 @@ distances_array: np.ndarray = np.array(distances, copy=True)                    
 By default, computations use a single CPU core.
 To override this behavior, use the `threads` argument.
 Set it to `0` to use all available CPU cores.
+Here is an example of dealing with large sets of binary vectors:
 
 ```py
-distances = simsimd.cdist(matrix1, matrix2, metric="hamming", threads=0, dtype="u8")
+ndim = 1536 # OpenAI Ada embeddings
+matrix1 = np.packbits(np.random.randint(2, size=(10_000, ndim)).astype(np.uint8))
+matrix2 = np.packbits(np.random.randint(2, size=(1_000, ndim)).astype(np.uint8))
+
+distances = simsimd.cdist(matrix1, matrix2, 
+    metric="hamming", # Unlike SciPy, SimSIMD doesn't divide by the number of dimensions
+    out_dtype="u8",   # so we can use `u8` instead of `f64` to save memory.
+    threads=0,        # Use all CPU cores with OpenMP.
+    dtype="b8",       # Override input argument type to `b8` eight-bit words.
+)
 ```
 
 By default, the output distances will be stored in double-precision `f64` floating-point numbers.
@@ -694,7 +710,10 @@ Interestingly, there are multiple ways to shoot yourself in the foot when comput
 The cosine similarity is the inverse of the cosine distance, which is the cosine of the angle between two vectors.
 
 ```math
-\text{CosineSimilarity}(a, b) = \frac{a \cdot b}{\|a\| \cdot \|b\|} \\
+\text{CosineSimilarity}(a, b) = \frac{a \cdot b}{\|a\| \cdot \|b\|}
+```
+
+```math
 \text{CosineDistance}(a, b) = 1 - \frac{a \cdot b}{\|a\| \cdot \|b\|}
 ```
 
@@ -735,7 +754,10 @@ The Mahalanobis distance is a generalization of the Euclidean distance, which ta
 It's very similar in its form to the bilinear form, which is a generalization of the dot product.
 
 ```math
-\text{BilinearForm}(a, b, M) = a^T M b \\
+\text{BilinearForm}(a, b, M) = a^T M b
+```
+
+```math
 \text{Mahalanobis}(a, b, M) = \sqrt{(a - b)^T M^{-1} (a - b)}
 ```
 
@@ -791,7 +813,10 @@ They are supported by most BLAS packages, but almost never in mixed precision.
 SimSIMD defines `dot` and `vdot` kernels as:
 
 ```math
-\text{dot}(a, b) = \sum_{i=0}^{n-1} a_i \cdot b_i \\
+\text{dot}(a, b) = \sum_{i=0}^{n-1} a_i \cdot b_i
+```
+
+```math
 \text{vdot}(a, b) = \sum_{i=0}^{n-1} a_i \cdot \bar{b_i}
 ```
 
@@ -824,7 +849,10 @@ The Kullback-Leibler divergence is a measure of how one probability distribution
 Jensen-Shannon divergence is a symmetrized and smoothed version of the Kullback-Leibler divergence, which can be used as a distance metric between probability distributions.
 
 ```math
-\text{KL}(P || Q) = \sum_{i} P(i) \log \frac{P(i)}{Q(i)} \\
+\text{KL}(P || Q) = \sum_{i} P(i) \log \frac{P(i)}{Q(i)}
+```
+
+```math
 \text{JS}(P, Q) = \frac{1}{2} \text{KL}(P || M) + \frac{1}{2} \text{KL}(Q || M), M = \frac{P + Q}{2}
 ```
 
