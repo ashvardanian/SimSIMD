@@ -290,6 +290,10 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_sve(simsimd_u16_t const* shorter, sims
                                               simsimd_size_t shorter_length, simsimd_size_t longer_length,
                                               simsimd_distance_t* results) {
 
+    // Temporarily disable SVE: https://github.com/ashvardanian/SimSIMD/issues/168
+    simsimd_intersect_u16_serial(shorter, longer, shorter_length, longer_length, results);
+    return;
+
     // SVE implementations with 128-bit registers can only fit 8x 16-bit words,
     // making this kernel quite inefficient. Let's aim for registers of 256 bits and larger.
     simsimd_size_t longer_load_size = svcnth();
@@ -338,6 +342,10 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_sve(simsimd_u16_t const* shorter, sims
 SIMSIMD_PUBLIC void simsimd_intersect_u32_sve(simsimd_u32_t const* shorter, simsimd_u32_t const* longer,
                                               simsimd_size_t shorter_length, simsimd_size_t longer_length,
                                               simsimd_distance_t* results) {
+
+    // Temporarily disable SVE: https://github.com/ashvardanian/SimSIMD/issues/168
+    simsimd_intersect_u32_serial(shorter, longer, shorter_length, longer_length, results);
+    return;
 
     // SVE implementations with 128-bit registers can only fit 4x 32-bit words,
     // making this kernel quite inefficient. Let's aim for registers of 256 bits and larger.
