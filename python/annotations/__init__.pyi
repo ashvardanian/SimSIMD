@@ -6,14 +6,10 @@ from typing import Any, Union, Literal, Optional, TypeAlias
 # - `typing.Literal` Literal types are supported from Python 3.8
 #
 # We can't and shouldn't use a different `.pyi` file for every single Python version.
-# So let's assume we are targeting Python 3.11
-_BufferType: TypeAlias = memoryview
-try:
-    from numpy.typing import NDArray
+# So let's assume we are targeting Python 3.11 and we have NumPy available.
+from numpy.typing import NDArray
 
-    _BufferType: TypeAlias = Union[NDArray[Any], memoryview]
-except:  # Let's not limit this to `ImportError`
-    pass
+_BufferType: TypeAlias = Union[NDArray[Any], memoryview]
 
 _MetricType = Literal[
     "sqeuclidean",
