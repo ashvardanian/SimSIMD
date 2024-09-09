@@ -1,6 +1,6 @@
 {
   "name": "simsimd",
-  "version": "5.1.0",
+  "version": "5.1.1",
   "description": "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm",
   "homepage": "https://github.com/ashvardanian/simsimd",
   "author": "Ash Vardanian",

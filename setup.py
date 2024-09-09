@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 __lib_name__ = "simsimd"
-__version__ = "5.1.0"
+__version__ = "5.1.1"
 
 compile_args = []
 link_args = []
