@@ -506,23 +506,20 @@ SIMSIMD_INTERNAL bfloat16x8_t simsimd_partial_load_bf16x8_neon(simsimd_bf16_t co
 SIMSIMD_PUBLIC void simsimd_dot_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                           simsimd_distance_t* result) {
     float32x4_t ab_vec = vdupq_n_f32(0);
-
-    while (n >= 8) {
-        bfloat16x8_t a_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)a);
-        bfloat16x8_t b_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)b);
-
-        ab_vec = vbfdotq_f32(ab_vec, a_vec, b_vec);
-
-        n -= 8;
-        a += 8;
-        b += 8;
+    
+simsimd_dot_bf16_neon_cycle:
+    if (n < 8) {
+        a_vec = simsimd_partial_load_bf16x8_neon(a, n);
+        b_vec = simsimd_partial_load_bf16x8_neon(b, n);
+        n = 0;
+    } else {
+        a_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)a);
+        b_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)b);
+        a += 8, b += 8, n -= 8;
     }
-    if (n > 0) {
-        bfloat16x8_t a_vec = simsimd_partial_load_bf16x8_neon(a, n);
-        bfloat16x8_t b_vec = simsimd_partial_load_bf16x8_neon(b, n);
-
-        ab_vec = vbfdotq_f32(ab_vec, a_vec, b_vec);
-    }
+    ab_vec = vbfdotq_f32(ab_vec, a_vec, b_vec);
+    if (n)
+        goto simsimd_dot_bf16_neon_cycle;
 
     *result = vaddvq_f32(ab_vec);
 }
