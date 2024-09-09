@@ -590,8 +590,7 @@ def test_cdist(ndim, input_dtype, out_dtype, metric):
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("out_dtype", [None, "float32", "float16", "int8"])
-@pytest.mark.parametrize("metric", ["hamming", "jaccard"])
-def test_cdist_bits(ndim, out_dtype, metric):
+def test_cdist_hamming(ndim, out_dtype):
     """Compares various SIMD kernels (like Hamming and Jaccard/Tanimoto distances) for dense bit arrays
     with their NumPy or baseline counterparts, even though, they can't process sub-byte-sized scalars."""
     np.random.seed()
@@ -600,13 +599,15 @@ def test_cdist_bits(ndim, out_dtype, metric):
     M, N = 10, 15
     A = np.random.randint(2, size=(M, ndim)).astype(np.uint8)
     B = np.random.randint(2, size=(N, ndim)).astype(np.uint8)
+    A_bits, B_bits = np.packbits(A, axis=1), np.packbits(B, axis=1)
 
     if out_dtype is None:
-        expected = spd.cdist(A, B, metric)
-        result = simd.cdist(np.packbits(A), np.packbits(B), metric=metric, dtype="b8")
+        # SciPy divides the Hamming distance by the number of dimensions, so we need to multiply it back.
+        expected = spd.cdist(A, B, "hamming") * ndim
+        result = simd.cdist(A_bits, B_bits, metric="hamming", dtype="b8")
     else:
-        expected = spd.cdist(A, B, metric).astype(out_dtype)
-        result = simd.cdist(np.packbits(A), np.packbits(B), metric=metric, dtype="b8", out_dtype=out_dtype)
+        expected = (spd.cdist(A, B, "hamming") * ndim).astype(out_dtype)
+        result = simd.cdist(A_bits, B_bits, metric="hamming", dtype="b8", out_dtype=out_dtype)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 

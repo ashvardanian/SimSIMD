@@ -220,9 +220,19 @@ distances_array: np.ndarray = np.array(distances, copy=True)                    
 By default, computations use a single CPU core.
 To override this behavior, use the `threads` argument.
 Set it to `0` to use all available CPU cores.
+Here is an example of dealing with large sets of binary vectors:
 
 ```py
-distances = simsimd.cdist(matrix1, matrix2, metric="hamming", threads=0, dtype="u8")
+ndim = 1536 # OpenAI Ada embeddings
+matrix1 = np.packbits(np.random.randint(2, size=(10_000, ndim)).astype(np.uint8))
+matrix2 = np.packbits(np.random.randint(2, size=(1_000, ndim)).astype(np.uint8))
+
+distances = simsimd.cdist(matrix1, matrix2, 
+    metric="hamming", # Unlike SciPy, SimSIMD doesn't divide by the number of dimensions
+    out_dtype="u8",   # so we can use `u8` instead of `f64` to save memory.
+    threads=0,        # Use all CPU cores with OpenMP.
+    dtype="b8",       # Override input argument type to `b8` eight-bit words.
+)
 ```
 
 By default, the output distances will be stored in double-precision `f64` floating-point numbers.
