@@ -8,7 +8,9 @@
 #include <math.h>
 
 #if defined(__linux__)
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 #endif
 
 #define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
