@@ -909,7 +909,7 @@ static PyObject* implement_pointer_access(simsimd_metric_kind_t metric_kind, PyO
     return PyLong_FromUnsignedLongLong((unsigned long long)metric);
 }
 
-static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
+static PyObject* api_cdist(PyObject* self, PyObject* const* args, Py_ssize_t args_count, PyObject* kwnames) {
     // This function accepts up to 6 arguments:
     PyObject* input_tensor_a = NULL; // Required object, positional-only
     PyObject* input_tensor_b = NULL; // Required object, positional-only
@@ -924,64 +924,69 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
     char const* dtype_str = NULL;
     char const* out_dtype_str = NULL;
 
-    // The lazy implementation would be to use `PyArg_ParseTupleAndKeywords`:
+    // The lazy implementation would be to use `PyArg_ParseTupleAndKeywords` for a `kwnames` dictionary:
     // static char* kwlist[] = {"input_tensor_a", "input_tensor_b", "metric", "threads", "dtype", "out_dtype", NULL};
     // if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO|s$Kss", kwlist, &input_tensor_a, &input_tensor_b, &metric_str,
     //                                  &threads, &dtype_str, &out_dtype_str))
     //     return NULL;
-
-    if (!PyTuple_Check(args) || PyTuple_Size(args) < 2 || PyTuple_Size(args) > 3) {
-        PyErr_SetString(PyExc_TypeError, "Function expects 2-3 positional arguments");
+    if (args_count < 2 || args_count > 6) {
+        PyErr_Format(PyExc_TypeError, "Function expects 2-6 arguments, got %d", args_count);
         return NULL;
     }
 
-    input_tensor_a = PyTuple_GetItem(args, 0);
-    input_tensor_b = PyTuple_GetItem(args, 1);
-    if (PyTuple_Size(args) > 2)
-        metric_obj = PyTuple_GetItem(args, 2);
+    // Positional-only arguments
+    input_tensor_a = args[0];
+    input_tensor_b = args[1];
 
-    // Checking for named arguments in kwargs
-    if (kwargs) {
-        Py_ssize_t pos = 0;
-        PyObject* key;
-        PyObject* value;
-
-        while (PyDict_Next(kwargs, &pos, &key, &value)) {
-            if (PyUnicode_CompareWithASCIIString(key, "threads") == 0) {
-                if (threads_obj != NULL) {
-                    PyErr_SetString(PyExc_ValueError, "Duplicate argument for 'threads'");
-                    return NULL;
-                }
-                threads_obj = value;
-            } else if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0) {
-                if (dtype_obj != NULL) {
-                    PyErr_SetString(PyExc_ValueError, "Duplicate argument for 'dtype'");
-                    return NULL;
-                }
-                dtype_obj = value;
-            } else if (PyUnicode_CompareWithASCIIString(key, "out_dtype") == 0) {
-                if (out_dtype_obj != NULL) {
-                    PyErr_SetString(PyExc_ValueError, "Duplicate argument for 'out_dtype'");
-                    return NULL;
-                }
-                out_dtype_obj = value;
-            } else if (PyUnicode_CompareWithASCIIString(key, "metric") == 0) {
-                if (metric_obj != NULL) {
-                    PyErr_SetString(PyExc_ValueError, "Duplicate argument for 'metric'");
-                    return NULL;
-                }
-                metric_obj = value;
-            } else {
-                PyErr_Format(PyExc_ValueError, "Received unknown keyword argument: %O", key);
+    // Positional or keyword arguments
+    Py_ssize_t args_progress = 2;
+    Py_ssize_t kwnames_progress = 0;
+    Py_ssize_t kwnames_count = PyTuple_Size(kwnames);
+    if (args_count > 2 || kwnames_count > 0) {
+        metric_obj = args[2];
+        if (kwnames) {
+            PyObject* key = PyTuple_GetItem(kwnames, 0);
+            if (key != NULL && PyUnicode_CompareWithASCIIString(key, "metric") != 0) {
+                PyErr_SetString(PyExc_ValueError, "Third argument must be 'metric'");
                 return NULL;
             }
+            args_progress = 3;
+            kwnames_progress = 1;
+        }
+    }
+
+    // The rest of the arguments must be checked in the keyword dictionary
+    for (; kwnames_progress < kwnames_count; ++args_progress, ++kwnames_progress) {
+        PyObject* key = PyTuple_GetItem(kwnames, kwnames_progress);
+        PyObject* value = args[args_progress];
+        if (PyUnicode_CompareWithASCIIString(key, "threads") == 0) {
+            if (threads_obj != NULL) {
+                PyErr_SetString(PyExc_ValueError, "Duplicate argument for 'threads'");
+                return NULL;
+            }
+            threads_obj = value;
+        } else if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0) {
+            if (dtype_obj != NULL) {
+                PyErr_SetString(PyExc_ValueError, "Duplicate argument for 'dtype'");
+                return NULL;
+            }
+            dtype_obj = value;
+        } else if (PyUnicode_CompareWithASCIIString(key, "out_dtype") == 0) {
+            if (out_dtype_obj != NULL) {
+                PyErr_SetString(PyExc_ValueError, "Duplicate argument for 'out_dtype'");
+                return NULL;
+            }
+            out_dtype_obj = value;
+        } else {
+            PyErr_Format(PyExc_ValueError, "Received unknown keyword argument: %S", key);
+            return NULL;
         }
     }
 
     // Process the PyObject values
     simsimd_metric_kind_t metric_kind = simsimd_metric_l2sq_k;
-    if (metric_str) {
-        char const* metric_str = PyUnicode_AsUTF8(metric_obj);
+    if (metric_obj) {
+        metric_str = PyUnicode_AsUTF8(metric_obj);
         if (!metric_str && PyErr_Occurred()) {
             PyErr_SetString(PyExc_TypeError, "Expected 'metric' to be a string");
             return NULL;
@@ -1002,8 +1007,8 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
     }
 
     simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
-    if (dtype_str) {
-        char const* dtype_str = PyUnicode_AsUTF8(dtype_obj);
+    if (dtype_obj) {
+        dtype_str = PyUnicode_AsUTF8(dtype_obj);
         if (!dtype_str && PyErr_Occurred()) {
             PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
             return NULL;
@@ -1016,8 +1021,8 @@ static PyObject* api_cdist(PyObject* self, PyObject* args, PyObject* kwargs) {
     }
 
     simsimd_datatype_t out_dtype = simsimd_datatype_f64_k;
-    if (out_dtype_str) {
-        char const* out_dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
+    if (out_dtype_obj) {
+        out_dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
         if (!out_dtype_str && PyErr_Occurred()) {
             PyErr_SetString(PyExc_TypeError, "Expected 'out_dtype' to be a string");
             return NULL;
@@ -1234,7 +1239,7 @@ static PyMethodDef simsimd_methods[] = {
     {
         "cdist",
         (PyCFunction)api_cdist,
-        METH_VARARGS | METH_KEYWORDS,
+        METH_FASTCALL | METH_KEYWORDS,
         "Compute pairwise distances between two sets of input matrices.\n\n"
         "Args:\n"
         "    a (NDArray): First matrix.\n"
