@@ -149,17 +149,17 @@ SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u32, size) // simsimd_intersect_u32_ser
 #if SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_ICE
 #pragma GCC push_options
-#pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vbmi2")
-#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512vbmi2"))), apply_to = function)
+#pragma GCC target("avx512f", "avx512vl", "bmi2", "lzcnt", "avx512bw", "avx512vbmi2")
+#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,lzcnt,avx512bw,avx512vbmi2"))),              \
+                             apply_to = function)
 
-/*
- *  We will be walking through batches of elements from the shorter array,
- *  and comparing them with the longer array. The first element of the shorter
- *  array will be broadcasted to a vector. As there is no cheap `_mm512_permutexvar_epi16`-like
- *  instruction in AVX512, we couldn't try using `vpshufb` via `_mm512_shuffle_epi8`,
- *  to load the 1st and 2nd byte of the first element into each 16-bit word,
- *  but it only works within 128-bit lanes.
- *  For comparison:
+/*  The AVX-512 implementations are inspired by the "Faster-Than-Native Alternatives
+ *  for x86 VP2INTERSECT Instructions" paper by Guille Diez-Canas, 2022.
+ *
+ *      https://github.com/mozonaut/vp2intersect
+ *      https://arxiv.org/pdf/2112.06342.pdf
+ *
+ *  For R&D purposes, it's important to keep the following latencies in mind:
  *
  *   - `_mm512_permutex_epi64` - needs F - 3 cycles latency
  *   - `_mm512_shuffle_epi8` - needs BW - 1 cycle latency
@@ -265,8 +265,8 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(simsimd_u16_t const* a, simsimd_u1
         return;
     }
 
-    simsimd_u16_t const* a_end = a + a_length;
-    simsimd_u16_t const* b_end = b + b_length;
+    simsimd_u16_t const* const a_end = a + a_length;
+    simsimd_u16_t const* const b_end = b + b_length;
     simsimd_size_t c = 0;
     union vec_t {
         __m512i zmm;
@@ -302,7 +302,7 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(simsimd_u16_t const* a, simsimd_u1
         // Now we are likely to have some overlap, so we can intersect the registers
         __mmask32 a_matches = _mm512_2intersect_epi16_mask(a_vec.zmm, b_vec.zmm);
 
-        // The paper als contained a very nice procedure for exporting the matches,
+        // The paper also contained a very nice procedure for exporting the matches,
         // but we don't need it here:
         //      _mm512_mask_compressstoreu_epi16(c, a_matches, a_vec);
         c += _popcnt32(a_matches);
@@ -328,14 +328,14 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* a, simsimd_u3
         return;
     }
 
+    simsimd_u32_t const* const a_end = a + a_length;
+    simsimd_u32_t const* const b_end = b + b_length;
+    simsimd_size_t c = 0;
     union vec_t {
         __m512i zmm;
         simsimd_u32_t u32[16];
         simsimd_u8_t u8[64];
     } a_vec, b_vec;
-    simsimd_u32_t const* a_end = a + a_length;
-    simsimd_u32_t const* b_end = b + b_length;
-    simsimd_size_t c = 0;
 
     while (a + 16 < a_end && b + 16 < b_end) {
         a_vec.zmm = _mm512_loadu_si512((__m512i const*)a);
@@ -365,7 +365,7 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* a, simsimd_u3
         // Now we are likely to have some overlap, so we can intersect the registers
         __mmask16 a_matches = _mm512_2intersect_epi32_mask(a_vec.zmm, b_vec.zmm);
 
-        // The paper als contained a very nice procedure for exporting the matches,
+        // The paper also contained a very nice procedure for exporting the matches,
         // but we don't need it here:
         //      _mm512_mask_compressstoreu_epi32(c, a_matches, a_vec);
         c += _popcnt32(a_matches);
