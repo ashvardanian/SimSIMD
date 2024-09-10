@@ -504,6 +504,8 @@ void sparse_(std::string name, metric_at* distance_func, metric_at* baseline_fun
                 std::string bench_name = name + "<|A|=" + std::to_string(first_len) +
                                          ",|B|=" + std::to_string(second_len) +
                                          ",|A∩B|=" + std::to_string(intersection_size) + ">";
+                if (second_len > 8192)
+                    continue;
                 bm::RegisterBenchmark(bench_name.c_str(), measure_sparse<pair_t, metric_at*>, distance_func,
                                       baseline_func, first_len, second_len, intersection_size)
                     ->MinTime(default_seconds)
