@@ -275,10 +275,10 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(simsimd_u16_t const* a, simsimd_u1
     } a_vec, b_vec;
 
     while (a + 32 < a_end && b + 32 < b_end) {
-        a_vec.zmm = _mm512_loadu_epi16((__m512i const*)a);
-        b_vec.zmm = _mm512_loadu_epi16((__m512i const*)b);
+        a_vec.zmm = _mm512_loadu_si512((__m512i const*)a);
+        b_vec.zmm = _mm512_loadu_si512((__m512i const*)b);
 
-        // Intersecting registers with `_mm512_2intersect_epi32_mask` involves a lot of shuffling
+        // Intersecting registers with `_mm512_2intersect_epi16_mask` involves a lot of shuffling
         // and comparisons, so we want to avoid it if the slices don't overlap at all..
         simsimd_u16_t a_min = a_vec.u16[0];
         simsimd_u16_t a_max = a_vec.u16[31];
@@ -288,13 +288,13 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(simsimd_u16_t const* a, simsimd_u1
         // If the slices don't overlap, advance the appropriate pointer
         while (a_max < b_min && a + 64 < a_end) {
             a += 32;
-            a_vec.zmm = _mm512_loadu_epi16((__m512i const*)a);
+            a_vec.zmm = _mm512_loadu_si512((__m512i const*)a);
             a_min = a_vec.u16[0];
             a_max = a_vec.u16[31];
         }
         while (b_max < a_min && b + 64 < b_end) {
             b += 32;
-            b_vec.zmm = _mm512_loadu_epi16((__m512i const*)b);
+            b_vec.zmm = _mm512_loadu_si512((__m512i const*)b);
             b_min = b_vec.u16[0];
             b_max = b_vec.u16[31];
         }
@@ -307,8 +307,8 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(simsimd_u16_t const* a, simsimd_u1
         //      _mm512_mask_compressstoreu_epi16(c, a_matches, a_vec);
         c += _popcnt32(a_matches);
 
-        __m512i a_last_broadcasted = _mm512_set1_epi16(a_max);
-        __m512i b_last_broadcasted = _mm512_set1_epi16(b_max);
+        __m512i a_last_broadcasted = _mm512_set1_epi16(*(short const*)a_max);
+        __m512i b_last_broadcasted = _mm512_set1_epi16(*(short const*)b_max);
         __mmask32 a_advancement = _mm512_cmple_epu16_mask(a_vec.zmm, b_last_broadcasted);
         __mmask32 b_advancement = _mm512_cmple_epu16_mask(b_vec.zmm, a_last_broadcasted);
         a += 32 - _lzcnt_u32((simsimd_u32_t)a_advancement);
@@ -338,8 +338,8 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* a, simsimd_u3
     simsimd_size_t c = 0;
 
     while (a + 16 < a_end && b + 16 < b_end) {
-        a_vec.zmm = _mm512_loadu_epi32((__m512i const*)a);
-        b_vec.zmm = _mm512_loadu_epi32((__m512i const*)b);
+        a_vec.zmm = _mm512_loadu_si512((__m512i const*)a);
+        b_vec.zmm = _mm512_loadu_si512((__m512i const*)b);
 
         // Intersecting registers with `_mm512_2intersect_epi32_mask` involves a lot of shuffling
         // and comparisons, so we want to avoid it if the slices don't overlap at all..
@@ -351,13 +351,13 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* a, simsimd_u3
         // If the slices don't overlap, advance the appropriate pointer
         while (a_max < b_min && a + 32 < a_end) {
             a += 16;
-            a_vec.zmm = _mm512_loadu_epi32((__m512i const*)a);
+            a_vec.zmm = _mm512_loadu_si512((__m512i const*)a);
             a_min = a_vec.u32[0];
             a_max = a_vec.u32[15];
         }
         while (b_max < a_min && b + 32 < b_end) {
             b += 16;
-            b_vec.zmm = _mm512_loadu_epi32((__m512i const*)b);
+            b_vec.zmm = _mm512_loadu_si512((__m512i const*)b);
             b_min = b_vec.u32[0];
             b_max = b_vec.u32[15];
         }
@@ -370,8 +370,8 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* a, simsimd_u3
         //      _mm512_mask_compressstoreu_epi32(c, a_matches, a_vec);
         c += _popcnt32(a_matches);
 
-        __m512i a_last_broadcasted = _mm512_set1_epi32(a_max);
-        __m512i b_last_broadcasted = _mm512_set1_epi32(b_max);
+        __m512i a_last_broadcasted = _mm512_set1_epi32(*(int const*)a_max);
+        __m512i b_last_broadcasted = _mm512_set1_epi32(*(int const*)b_max);
         __mmask16 a_advancement = _mm512_cmple_epu32_mask(a_vec.zmm, b_last_broadcasted);
         __mmask16 b_advancement = _mm512_cmple_epu32_mask(b_vec.zmm, a_last_broadcasted);
         a += 32 - _lzcnt_u32((simsimd_u32_t)a_advancement);
