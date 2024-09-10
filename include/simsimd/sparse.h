@@ -305,7 +305,7 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(simsimd_u16_t const* a, simsimd_u1
         // The paper also contained a very nice procedure for exporting the matches,
         // but we don't need it here:
         //      _mm512_mask_compressstoreu_epi16(c, a_matches, a_vec);
-        c += _popcnt32(a_matches);
+        c += _mm_popcnt_u32(a_matches); // The `_popcnt32` symbol isn't recognized by MSVC
 
         __m512i a_last_broadcasted = _mm512_set1_epi16(*(short const*)&a_max);
         __m512i b_last_broadcasted = _mm512_set1_epi16(*(short const*)&b_max);
@@ -368,7 +368,7 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* a, simsimd_u3
         // The paper also contained a very nice procedure for exporting the matches,
         // but we don't need it here:
         //      _mm512_mask_compressstoreu_epi32(c, a_matches, a_vec);
-        c += _popcnt32(a_matches);
+        c += _mm_popcnt_u32(a_matches); // The `_popcnt32` symbol isn't recognized by MSVC
 
         __m512i a_last_broadcasted = _mm512_set1_epi32(*(int const*)&a_max);
         __m512i b_last_broadcasted = _mm512_set1_epi32(*(int const*)&b_max);
