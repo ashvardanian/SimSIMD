@@ -280,7 +280,7 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(simsimd_u16_t const* a, simsimd_u1
 
         // Intersecting registers with `_mm512_2intersect_epi16_mask` involves a lot of shuffling
         // and comparisons, so we want to avoid it if the slices don't overlap at all..
-        simsimd_u16_t a_min = a_vec.u16[0];
+        simsimd_u16_t a_min;
         simsimd_u16_t a_max = a_vec.u16[31];
         simsimd_u16_t b_min = b_vec.u16[0];
         simsimd_u16_t b_max = b_vec.u16[31];
@@ -289,15 +289,15 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(simsimd_u16_t const* a, simsimd_u1
         while (a_max < b_min && a + 64 < a_end) {
             a += 32;
             a_vec.zmm = _mm512_loadu_si512((__m512i const*)a);
-            a_min = a_vec.u16[0];
             a_max = a_vec.u16[31];
         }
+        a_min = a_vec.u16[0];
         while (b_max < a_min && b + 64 < b_end) {
             b += 32;
             b_vec.zmm = _mm512_loadu_si512((__m512i const*)b);
-            b_min = b_vec.u16[0];
             b_max = b_vec.u16[31];
         }
+        b_min = b_vec.u16[0];
 
         // Now we are likely to have some overlap, so we can intersect the registers
         __mmask32 a_matches = _mm512_2intersect_epi16_mask(a_vec.zmm, b_vec.zmm);
@@ -309,10 +309,10 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(simsimd_u16_t const* a, simsimd_u1
 
         __m512i a_last_broadcasted = _mm512_set1_epi16(*(short const*)&a_max);
         __m512i b_last_broadcasted = _mm512_set1_epi16(*(short const*)&b_max);
-        __mmask32 a_advancement = _mm512_cmple_epu16_mask(a_vec.zmm, b_last_broadcasted);
-        __mmask32 b_advancement = _mm512_cmple_epu16_mask(b_vec.zmm, a_last_broadcasted);
-        a += 32 - _lzcnt_u32((simsimd_u32_t)a_advancement);
-        b += 32 - _lzcnt_u32((simsimd_u32_t)b_advancement);
+        __mmask32 a_step_mask = _mm512_cmple_epu16_mask(a_vec.zmm, b_last_broadcasted);
+        __mmask32 b_step_mask = _mm512_cmple_epu16_mask(b_vec.zmm, a_last_broadcasted);
+        a += 32 - _lzcnt_u32((simsimd_u32_t)a_step_mask);
+        b += 32 - _lzcnt_u32((simsimd_u32_t)b_step_mask);
     }
 
     simsimd_intersect_u16_serial(a, b, a_end - a, b_end - b, results);
@@ -343,7 +343,7 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* a, simsimd_u3
 
         // Intersecting registers with `_mm512_2intersect_epi32_mask` involves a lot of shuffling
         // and comparisons, so we want to avoid it if the slices don't overlap at all..
-        simsimd_u32_t a_min = a_vec.u32[0];
+        simsimd_u32_t a_min;
         simsimd_u32_t a_max = a_vec.u32[15];
         simsimd_u32_t b_min = b_vec.u32[0];
         simsimd_u32_t b_max = b_vec.u32[15];
@@ -352,15 +352,15 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* a, simsimd_u3
         while (a_max < b_min && a + 32 < a_end) {
             a += 16;
             a_vec.zmm = _mm512_loadu_si512((__m512i const*)a);
-            a_min = a_vec.u32[0];
             a_max = a_vec.u32[15];
         }
+        a_min = a_vec.u32[0];
         while (b_max < a_min && b + 32 < b_end) {
             b += 16;
             b_vec.zmm = _mm512_loadu_si512((__m512i const*)b);
-            b_min = b_vec.u32[0];
             b_max = b_vec.u32[15];
         }
+        b_min = b_vec.u32[0];
 
         // Now we are likely to have some overlap, so we can intersect the registers
         __mmask16 a_matches = _mm512_2intersect_epi32_mask(a_vec.zmm, b_vec.zmm);
@@ -372,10 +372,10 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* a, simsimd_u3
 
         __m512i a_last_broadcasted = _mm512_set1_epi32(*(int const*)&a_max);
         __m512i b_last_broadcasted = _mm512_set1_epi32(*(int const*)&b_max);
-        __mmask16 a_advancement = _mm512_cmple_epu32_mask(a_vec.zmm, b_last_broadcasted);
-        __mmask16 b_advancement = _mm512_cmple_epu32_mask(b_vec.zmm, a_last_broadcasted);
-        a += 32 - _lzcnt_u32((simsimd_u32_t)a_advancement);
-        b += 32 - _lzcnt_u32((simsimd_u32_t)b_advancement);
+        __mmask16 a_step_mask = _mm512_cmple_epu32_mask(a_vec.zmm, b_last_broadcasted);
+        __mmask16 b_step_mask = _mm512_cmple_epu32_mask(b_vec.zmm, a_last_broadcasted);
+        a += 32 - _lzcnt_u32((simsimd_u32_t)a_step_mask);
+        b += 32 - _lzcnt_u32((simsimd_u32_t)b_step_mask);
     }
 
     simsimd_intersect_u32_serial(a, b, a_end - a, b_end - b, results);
@@ -384,7 +384,7 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* a, simsimd_u3
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_SKYLAKE
+#endif // SIMSIMD_TARGET_ICE
 #endif // SIMSIMD_TARGET_X86
 
 #if SIMSIMD_TARGET_ARM
