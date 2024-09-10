@@ -559,9 +559,9 @@ def test_batch(ndim, dtype):
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("input_dtype", ["float32", "float16"])
-@pytest.mark.parametrize("result_dtype", [None, "float32", "float16", "int8"])
-@pytest.mark.parametrize("metric", ["cosine"])
-def test_cdist(ndim, input_dtype, result_dtype, metric):
+@pytest.mark.parametrize("out_dtype", [None, "float32", "int32"])
+@pytest.mark.parametrize("metric", ["cosine", "sqeuclidean"])
+def test_cdist(ndim, input_dtype, out_dtype, metric):
     """Compares the simd.cdist() function with scipy.spatial.distance.cdist(), measuring the accuracy error for f16, and f32 types using sqeuclidean and cosine metrics."""
 
     if input_dtype == "float16" and is_running_under_qemu():
@@ -570,24 +570,45 @@ def test_cdist(ndim, input_dtype, result_dtype, metric):
     np.random.seed()
 
     # Create random matrices A (M x D) and B (N x D).
-    M, N = 10, 15  # or any other sizes you deem appropriate
+    M, N = 10, 15
     A = np.random.randn(M, ndim).astype(input_dtype)
     B = np.random.randn(N, ndim).astype(input_dtype)
 
-    if result_dtype is None:
-        # Compute cdist using scipy.
+    if out_dtype is None:
         expected = spd.cdist(A, B, metric)
-
-        # Compute cdist using simd.
         result = simd.cdist(A, B, metric=metric)
     else:
-        # Compute cdist using scipy.
-        expected = spd.cdist(A, B, metric).astype(result_dtype)
-
-        # Compute cdist using simd.
-        result = simd.cdist(A, B, metric=metric, dtype=result_dtype)
+        expected = spd.cdist(A, B, metric).astype(out_dtype)
+        result = simd.cdist(A, B, metric=metric, out_dtype=out_dtype)
 
     # Assert they're close.
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("out_dtype", [None, "float32", "float16", "int8"])
+def test_cdist_hamming(ndim, out_dtype):
+    """Compares various SIMD kernels (like Hamming and Jaccard/Tanimoto distances) for dense bit arrays
+    with their NumPy or baseline counterparts, even though, they can't process sub-byte-sized scalars."""
+    np.random.seed()
+
+    # Create random matrices A (M x D) and B (N x D).
+    M, N = 10, 15
+    A = np.random.randint(2, size=(M, ndim)).astype(np.uint8)
+    B = np.random.randint(2, size=(N, ndim)).astype(np.uint8)
+    A_bits, B_bits = np.packbits(A, axis=1), np.packbits(B, axis=1)
+
+    if out_dtype is None:
+        # SciPy divides the Hamming distance by the number of dimensions, so we need to multiply it back.
+        expected = spd.cdist(A, B, "hamming") * ndim
+        result = simd.cdist(A_bits, B_bits, metric="hamming", dtype="b8")
+    else:
+        expected = (spd.cdist(A, B, "hamming") * ndim).astype(out_dtype)
+        result = simd.cdist(A_bits, B_bits, metric="hamming", dtype="b8", out_dtype=out_dtype)
+
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 

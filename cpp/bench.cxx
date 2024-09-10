@@ -53,6 +53,8 @@ template <> struct datatype_enum_to_type_gt<simsimd_datatype_i16_k> { using valu
 template <> struct datatype_enum_to_type_gt<simsimd_datatype_u16_k> { using value_t = simsimd_u16_t; };
 template <> struct datatype_enum_to_type_gt<simsimd_datatype_i32_k> { using value_t = simsimd_i32_t; };
 template <> struct datatype_enum_to_type_gt<simsimd_datatype_u32_k> { using value_t = simsimd_u32_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_datatype_i64_k> { using value_t = simsimd_i64_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_datatype_u64_k> { using value_t = simsimd_u64_t; };
 // clang-format on
 
 template <std::size_t multiple> std::size_t divide_round_up(std::size_t n) {
@@ -66,7 +68,12 @@ template <std::size_t multiple> std::size_t divide_round_up(std::size_t n) {
 template <simsimd_datatype_t datatype_ak> struct vector_gt {
     using scalar_t = typename datatype_enum_to_type_gt<datatype_ak>::value_t;
     using compressed16_t = unsigned short;
-    static constexpr bool is_integral = datatype_ak == simsimd_datatype_i8_k || datatype_ak == simsimd_datatype_b8_k;
+    static constexpr bool is_integral =
+        datatype_ak == datatype_ak == simsimd_datatype_b8_k ||                            //
+        datatype_ak == simsimd_datatype_i8_k || datatype_ak == simsimd_datatype_u8_k ||   //
+        datatype_ak == simsimd_datatype_i16_k || datatype_ak == simsimd_datatype_u16_k || //
+        datatype_ak == simsimd_datatype_i32_k || datatype_ak == simsimd_datatype_u32_k ||
+        datatype_ak == simsimd_datatype_i64_k || datatype_ak == simsimd_datatype_u64_k;
     static constexpr std::size_t cacheline_length = 64;
 
     scalar_t* buffer_ = nullptr;
@@ -213,7 +220,7 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
 template <simsimd_datatype_t datatype_ak> struct vectors_pair_gt {
     using vector_t = vector_gt<datatype_ak>;
     using scalar_t = typename vector_t::scalar_t;
-    static constexpr bool is_integral = datatype_ak == simsimd_datatype_i8_k || datatype_ak == simsimd_datatype_b8_k;
+    static constexpr bool is_integral = vector_t::is_integral;
 
     vector_t a;
     vector_t b;
@@ -475,8 +482,8 @@ void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std:
 template <simsimd_datatype_t datatype_ak, typename metric_at = void>
 void dense_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
     using pair_t = vectors_pair_gt<datatype_ak>;
-    std::string name_dims = name + "_" + std::to_string(dense_dimensions) + "d";
-    bm::RegisterBenchmark(name_dims.c_str(), measure_dense<pair_t, metric_at*>, distance_func, baseline_func,
+    std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_dense<pair_t, metric_at*>, distance_func, baseline_func,
                           dense_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
@@ -488,15 +495,16 @@ void sparse_(std::string name, metric_at* distance_func, metric_at* baseline_fun
     using pair_t = vectors_pair_gt<datatype_ak>;
 
     // Register different lengths, intersection sizes, and distributions
-    // 2 first lengths * 3 second lengths * 3 intersection sizes = 18 benchmarks for each metric.
-    for (std::size_t first_len : {128, 1024}) {                //< 2 lengths
-        for (std::size_t second_len_multiplier : {1, 8, 64}) { //< 3 lengths
-            for (std::size_t intersection_size : {1, 8, 64}) { //< 3 sizes
-
+    // 2 first lengths * 3 second length multipliers * 4 intersection grades = 24 benchmarks for each metric.
+    for (std::size_t first_len : {128, 1024}) {                         //< 2 lengths
+        for (std::size_t second_len_multiplier : {1, 8, 64}) {          //< 3 length multipliers
+            for (double intersection_share : {0.01, 0.05, 0.5, 0.95}) { //< 4 intersection grades
+                std::size_t intersection_size = static_cast<std::size_t>(first_len * intersection_share);
                 std::size_t second_len = first_len * second_len_multiplier;
-                std::string test_name = name + "_" + std::to_string(first_len) + "d^" + std::to_string(second_len) +
-                                        "d_w" + std::to_string(intersection_size) + "matches";
-                bm::RegisterBenchmark(test_name.c_str(), measure_sparse<pair_t, metric_at*>, distance_func,
+                std::string bench_name = name + "<|A|=" + std::to_string(first_len) +
+                                         ",|B|=" + std::to_string(second_len) +
+                                         ",|A∩B|=" + std::to_string(intersection_size) + ">";
+                bm::RegisterBenchmark(bench_name.c_str(), measure_sparse<pair_t, metric_at*>, distance_func,
                                       baseline_func, first_len, second_len, intersection_size)
                     ->MinTime(default_seconds)
                     ->Threads(default_threads);
@@ -509,8 +517,8 @@ template <simsimd_datatype_t datatype_ak, typename metric_at = void>
 void curved_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
 
     using pair_t = vectors_pair_gt<datatype_ak>;
-    std::string name_dims = name + "_" + std::to_string(curved_dimensions) + "d";
-    bm::RegisterBenchmark(name_dims.c_str(), measure_curved<pair_t, metric_at*>, distance_func, baseline_func,
+    std::string bench_name = name + "<" + std::to_string(curved_dimensions) + "d>";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_curved<pair_t, metric_at*>, distance_func, baseline_func,
                           curved_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);

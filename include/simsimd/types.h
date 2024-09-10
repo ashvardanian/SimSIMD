@@ -114,7 +114,7 @@
 #endif // defined(__AVX2__)
 #endif // !defined(SIMSIMD_TARGET_HASWELL)
 
-// Compiling for x86: SIMSIMD_TARGET_SKYLAKE, SIMSIMD_TARGET_ICE, SIMSIMD_TARGET_SAPPHIRE
+// Compiling for x86: SIMSIMD_TARGET_SKYLAKE, SIMSIMD_TARGET_ICE, SIMSIMD_TARGET_GENOA, SIMSIMD_TARGET_SAPPHIRE
 //
 // To list all available macros for x86, take a recent compiler, like GCC 12 and run:
 //      gcc-12 -march=sapphirerapids -dM -E - < /dev/null | egrep "SSE|AVX" | sort
@@ -229,8 +229,10 @@ typedef __fp16 simsimd_f16_t;
 typedef _Float16 simsimd_f16_t;
 #undef SIMSIMD_NATIVE_F16
 #define SIMSIMD_NATIVE_F16 1
-#else // Unknown compiler or architecture
+#else                                       // Unknown compiler or architecture
+#if defined(__GNUC__) || defined(__clang__) // Some compilers don't support warning pragmas
 #warning "Unknown compiler or architecture for float16."
+#endif
 #undef SIMSIMD_NATIVE_F16
 #define SIMSIMD_NATIVE_F16 0
 #endif // Unknown compiler or architecture
@@ -275,8 +277,10 @@ typedef __bf16 simsimd_bf16_t;
 typedef __bfloat16 simsimd_bf16_t;
 #undef SIMSIMD_NATIVE_BF16
 #define SIMSIMD_NATIVE_BF16 1
-#else // Unknown compiler or architecture
+#else                                       // Unknown compiler or architecture
+#if defined(__GNUC__) || defined(__clang__) // Some compilers don't support warning pragmas
 #warning "Unknown compiler or architecture for bfloat16."
+#endif
 #undef SIMSIMD_NATIVE_BF16
 #define SIMSIMD_NATIVE_BF16 0
 #endif // Unknown compiler or architecture
@@ -304,6 +308,24 @@ typedef unsigned short simsimd_bf16_t;
 #define simsimd_bf16_for_arm_simd_t bfloat16_t
 #endif
 #endif
+
+/*
+ *  Let's make sure the sizes of the types are as expected.
+ *  In C the `_Static_assert` is only available with C 11 and later.
+ */
+#define SIMSIMD_STATIC_ASSERT(cond, msg) typedef char static_assertion_##msg[(cond) ? 1 : -1]
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i8_t) == 1, simsimd_i8_t_must_be_1_byte);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u8_t) == 1, simsimd_u8_t_must_be_1_byte);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i16_t) == 2, simsimd_i16_t_must_be_2_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u16_t) == 2, simsimd_u16_t_must_be_2_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i32_t) == 4, simsimd_i32_t_must_be_4_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u32_t) == 4, simsimd_u32_t_must_be_4_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i64_t) == 8, simsimd_i64_t_must_be_8_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u64_t) == 8, simsimd_u64_t_must_be_8_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_f32_t) == 4, simsimd_f32_t_must_be_4_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_f64_t) == 8, simsimd_f64_t_must_be_8_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_f16_t) == 2, simsimd_f16_t_must_be_2_bytes);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_bf16_t) == 2, simsimd_bf16_t_must_be_2_bytes);
 
 #define SIMSIMD_DEREFERENCE(x) (*(x))
 
@@ -402,7 +424,7 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_f16(simsimd_f16_t const* x_ptr) 
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-SIMSIMD_PUBLIC void simsimd_compress_f16(simsimd_f32_t x, unsigned short* result_ptr) {
+SIMSIMD_PUBLIC void simsimd_compress_f16(simsimd_f32_t x, simsimd_f16_t* result_ptr) {
     simsimd_f32i32_t conv;
     conv.f = x;
     unsigned int b = conv.i + 0x00001000;
@@ -411,7 +433,7 @@ SIMSIMD_PUBLIC void simsimd_compress_f16(simsimd_f32_t x, unsigned short* result
     unsigned short result = ((b & 0x80000000) >> 16) | (e > 112) * ((((e - 112) << 10) & 0x7C00) | (m >> 13)) |
                             ((e < 113) & (e > 101)) * ((((0x007FF000 + m) >> (125 - e)) + 1) >> 1) |
                             ((e > 143) * 0x7FFF);
-    *result_ptr = result;
+    *(unsigned short*)result_ptr = result;
 }
 
 /**
@@ -434,14 +456,14 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_uncompress_bf16(simsimd_bf16_t const* x_ptr
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
-SIMSIMD_PUBLIC void simsimd_compress_bf16(simsimd_f32_t x, unsigned short* result_ptr) {
+SIMSIMD_PUBLIC void simsimd_compress_bf16(simsimd_f32_t x, simsimd_bf16_t* result_ptr) {
     simsimd_f32i32_t conv;
     conv.f = x;
     conv.i += 0x8000; // Rounding is optional
     conv.i >>= 16;
     // The top 16 bits will be zeroed out anyways
     // conv.i &= 0xFFFF;
-    *result_ptr = (unsigned short)conv.i;
+    *(unsigned short*)result_ptr = (unsigned short)conv.i;
 }
 
 SIMSIMD_INTERNAL simsimd_u32_t simsimd_u32_rol(simsimd_u32_t x, int n) { return (x << n) | (x >> (32 - n)); }
