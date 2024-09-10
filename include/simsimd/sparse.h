@@ -61,6 +61,8 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_accurate(simsimd_u32_t const* a, simsi
 /*  SIMD-powered backends for Arm SVE, mostly using 32-bit arithmetic over variable-length platform-defined word sizes.
  *  Designed for Arm Graviton 3, Microsoft Cobalt, as well as Nvidia Grace and newer Ampere Altra CPUs.
  */
+SIMSIMD_PUBLIC void simsimd_intersect_u32_neon(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_intersect_u16_neon(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_intersect_u32_sve(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_intersect_u16_sve(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
 
@@ -388,6 +390,97 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* a, simsimd_u3
 #endif // SIMSIMD_TARGET_X86
 
 #if SIMSIMD_TARGET_ARM
+#if SIMSIMD_TARGET_NEON
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.2-a")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a"))), apply_to = function)
+
+/**
+ *  @brief  Uses `vshrn` to produce a bitmask, similar to `movemask` in SSE.
+ *  https://community.arm.com/arm-community-blogs/b/infrastructure-solutions-blog/posts/porting-x86-vector-bitmask-optimizations-to-arm-neon
+ */
+SIMSIMD_INTERNAL simsimd_u64_t _simsimd_u8_to_u4_neon(uint8x16_t vec) {
+    return vget_lane_u64(vreinterpret_u64_u8(vshrn_n_u16(vreinterpretq_u16_u8(vec), 4)), 0);
+}
+
+SIMSIMD_INTERNAL simsimd_u64_t _simsimd_intersect_u32x4_neon(uint32x4_t a, uint32x4_t b) {
+    uint32x4_t b1 = vextq_u32(b, b, 1);
+    uint32x4_t b2 = vextq_u32(b, b, 2);
+    uint32x4_t b3 = vextq_u32(b, b, 3);
+    uint32x4_t nm00 = vceqq_u32(a, b);
+    uint32x4_t nm01 = vceqq_u32(a, b1);
+    uint32x4_t nm02 = vceqq_u32(a, b2);
+    uint32x4_t nm03 = vceqq_u32(a, b3);
+    uint32x4_t nm = vorrq_u32(vorrq_u32(nm00, nm01), vorrq_u32(nm02, nm03));
+    simsimd_u64_t result = _simsimd_u8_to_u4_neon(vreinterpretq_u8_u32(nm));
+    return result;
+}
+
+SIMSIMD_PUBLIC void simsimd_intersect_u32_neon(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length,
+                                               simsimd_size_t b_length, simsimd_distance_t* results) {
+
+    // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
+    if (a_length < 32 && b_length < 32) {
+        simsimd_intersect_u32_serial(a, b, a_length, b_length, results);
+        return;
+    }
+
+    simsimd_u32_t const* const a_end = a + a_length;
+    simsimd_u32_t const* const b_end = b + b_length;
+    simsimd_size_t c = 0;
+    union vec_t {
+        uint32x4_t u32x4;
+        simsimd_u32_t u32[4];
+        simsimd_u8_t u8[16];
+    } a_vec, b_vec;
+
+    while (a + 4 < a_end && b + 4 < b_end) {
+        a_vec.u32x4 = vld1q_u32(a);
+        b_vec.u32x4 = vld1q_u32(b);
+
+        // Intersecting registers with `_simsimd_intersect_u32x4_neon` involves a lot of shuffling
+        // and comparisons, so we want to avoid it if the slices don't overlap at all..
+        simsimd_u32_t a_min;
+        simsimd_u32_t a_max = a_vec.u32[3];
+        simsimd_u32_t b_min = b_vec.u32[0];
+        simsimd_u32_t b_max = b_vec.u32[3];
+
+        // If the slices don't overlap, advance the appropriate pointer
+        while (a_max < b_min && a + 8 < a_end) {
+            a += 4;
+            a_vec.u32x4 = vld1q_u32(a);
+            a_max = a_vec.u32[3];
+        }
+        a_min = a_vec.u32[0];
+        while (b_max < a_min && b + 8 < b_end) {
+            b += 4;
+            b_vec.u32x4 = vld1q_u32(b);
+            b_max = b_vec.u32[3];
+        }
+        b_min = b_vec.u32[0];
+
+        // Now we are likely to have some overlap, so we can intersect the registers
+        simsimd_u64_t a_matches = __builtin_popcountll(_simsimd_intersect_u32x4_neon(a_vec.u32x4, b_vec.u32x4));
+        c += a_matches / 16;
+
+        uint32x4_t a_last_broadcasted = vdupq_n_u32(a_max);
+        uint32x4_t b_last_broadcasted = vdupq_n_u32(b_max);
+        simsimd_u64_t a_step =
+            __builtin_clzll(_simsimd_u8_to_u4_neon(vreinterpretq_u8_u32(vcleq_u32(a_vec.u32x4, b_last_broadcasted))));
+        simsimd_u64_t b_step =
+            __builtin_clzll(_simsimd_u8_to_u4_neon(vreinterpretq_u8_u32(vcleq_u32(b_vec.u32x4, a_last_broadcasted))));
+        a += (64 - a_step) / 16;
+        b += (64 - b_step) / 16;
+    }
+
+    simsimd_intersect_u32_serial(a, b, a_end - a, b_end - b, results);
+    *results += c;
+}
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_NEON
+
 #if SIMSIMD_TARGET_SVE
 
 #pragma GCC push_options
