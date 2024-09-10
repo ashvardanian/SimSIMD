@@ -149,8 +149,8 @@ SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u32, size) // simsimd_intersect_u32_ser
 #if SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_ICE
 #pragma GCC push_options
-#pragma GCC target("avx512f", "avx512vl", "bmi2", "lzcnt", "avx512bw", "avx512vbmi2")
-#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,lzcnt,avx512bw,avx512vbmi2"))),              \
+#pragma GCC target("avx512f", "avx512vl", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2")
+#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2"))),       \
                              apply_to = function)
 
 /*  The AVX-512 implementations are inspired by the "Faster-Than-Native Alternatives
@@ -307,8 +307,8 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(simsimd_u16_t const* a, simsimd_u1
         //      _mm512_mask_compressstoreu_epi16(c, a_matches, a_vec);
         c += _popcnt32(a_matches);
 
-        __m512i a_last_broadcasted = _mm512_set1_epi16(*(short const*)a_max);
-        __m512i b_last_broadcasted = _mm512_set1_epi16(*(short const*)b_max);
+        __m512i a_last_broadcasted = _mm512_set1_epi16(*(short const*)&a_max);
+        __m512i b_last_broadcasted = _mm512_set1_epi16(*(short const*)&b_max);
         __mmask32 a_advancement = _mm512_cmple_epu16_mask(a_vec.zmm, b_last_broadcasted);
         __mmask32 b_advancement = _mm512_cmple_epu16_mask(b_vec.zmm, a_last_broadcasted);
         a += 32 - _lzcnt_u32((simsimd_u32_t)a_advancement);
@@ -370,8 +370,8 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* a, simsimd_u3
         //      _mm512_mask_compressstoreu_epi32(c, a_matches, a_vec);
         c += _popcnt32(a_matches);
 
-        __m512i a_last_broadcasted = _mm512_set1_epi32(*(int const*)a_max);
-        __m512i b_last_broadcasted = _mm512_set1_epi32(*(int const*)b_max);
+        __m512i a_last_broadcasted = _mm512_set1_epi32(*(int const*)&a_max);
+        __m512i b_last_broadcasted = _mm512_set1_epi32(*(int const*)&b_max);
         __mmask16 a_advancement = _mm512_cmple_epu32_mask(a_vec.zmm, b_last_broadcasted);
         __mmask16 b_advancement = _mm512_cmple_epu32_mask(b_vec.zmm, a_last_broadcasted);
         a += 32 - _lzcnt_u32((simsimd_u32_t)a_advancement);
