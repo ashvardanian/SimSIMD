@@ -416,6 +416,89 @@ SIMSIMD_INTERNAL simsimd_u64_t _simsimd_intersect_u32x4_neon(uint32x4_t a, uint3
     return result;
 }
 
+SIMSIMD_INTERNAL simsimd_u64_t _simsimd_intersect_u16x8_neon(uint16x8_t a, uint16x8_t b) {
+    uint16x8_t b1 = vextq_u16(b, b, 1);
+    uint16x8_t b2 = vextq_u16(b, b, 2);
+    uint16x8_t b3 = vextq_u16(b, b, 3);
+    uint16x8_t b4 = vextq_u16(b, b, 4);
+    uint16x8_t b5 = vextq_u16(b, b, 5);
+    uint16x8_t b6 = vextq_u16(b, b, 6);
+    uint16x8_t b7 = vextq_u16(b, b, 7);
+    uint16x8_t nm00 = vceqq_u16(a, b);
+    uint16x8_t nm01 = vceqq_u16(a, b1);
+    uint16x8_t nm02 = vceqq_u16(a, b2);
+    uint16x8_t nm03 = vceqq_u16(a, b3);
+    uint16x8_t nm04 = vceqq_u16(a, b4);
+    uint16x8_t nm05 = vceqq_u16(a, b5);
+    uint16x8_t nm06 = vceqq_u16(a, b6);
+    uint16x8_t nm07 = vceqq_u16(a, b7);
+    uint16x8_t nm = vorrq_u16(vorrq_u16(vorrq_u16(nm00, nm01), vorrq_u16(nm02, nm03)),
+                              vorrq_u16(vorrq_u16(nm04, nm05), vorrq_u16(nm06, nm07)));
+    simsimd_u64_t result = _simsimd_u8_to_u4_neon(vreinterpretq_u8_u16(nm));
+    return result;
+}
+
+SIMSIMD_PUBLIC void simsimd_intersect_u16_neon(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length,
+                                               simsimd_size_t b_length, simsimd_distance_t* results) {
+
+    // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
+    if (a_length < 32 && b_length < 32) {
+        simsimd_intersect_u16_serial(a, b, a_length, b_length, results);
+        return;
+    }
+
+    simsimd_u16_t const* const a_end = a + a_length;
+    simsimd_u16_t const* const b_end = b + b_length;
+    simsimd_size_t c = 0;
+    union vec_t {
+        uint16x8_t u16x8;
+        simsimd_u16_t u16[8];
+        simsimd_u8_t u8[16];
+    } a_vec, b_vec;
+
+    while (a + 8 < a_end && b + 8 < b_end) {
+        a_vec.u16x8 = vld1q_u16(a);
+        b_vec.u16x8 = vld1q_u16(b);
+
+        // Intersecting registers with `_simsimd_intersect_u16x8_neon` involves a lot of shuffling
+        // and comparisons, so we want to avoid it if the slices don't overlap at all..
+        simsimd_u16_t a_min;
+        simsimd_u16_t a_max = a_vec.u16[7];
+        simsimd_u16_t b_min = b_vec.u16[0];
+        simsimd_u16_t b_max = b_vec.u16[7];
+
+        // If the slices don't overlap, advance the appropriate pointer
+        while (a_max < b_min && a + 16 < a_end) {
+            a += 8;
+            a_vec.u16x8 = vld1q_u16(a);
+            a_max = a_vec.u16[7];
+        }
+        a_min = a_vec.u16[0];
+        while (b_max < a_min && b + 16 < b_end) {
+            b += 8;
+            b_vec.u16x8 = vld1q_u16(b);
+            b_max = b_vec.u16[7];
+        }
+        b_min = b_vec.u16[0];
+
+        // Now we are likely to have some overlap, so we can intersect the registers
+        simsimd_u64_t a_matches = __builtin_popcountll(_simsimd_intersect_u16x8_neon(a_vec.u16x8, b_vec.u16x8));
+        c += a_matches / 8;
+
+        uint16x8_t a_last_broadcasted = vdupq_n_u16(a_max);
+        uint16x8_t b_last_broadcasted = vdupq_n_u16(b_max);
+        simsimd_u64_t a_step =
+            __builtin_clzll(_simsimd_u8_to_u4_neon(vreinterpretq_u8_u16(vcleq_u16(a_vec.u16x8, b_last_broadcasted))));
+        simsimd_u64_t b_step =
+            __builtin_clzll(_simsimd_u8_to_u4_neon(vreinterpretq_u8_u16(vcleq_u16(b_vec.u16x8, a_last_broadcasted))));
+        a += (64 - a_step) / 8;
+        b += (64 - b_step) / 8;
+    }
+
+    simsimd_intersect_u16_serial(a, b, a_end - a, b_end - b, results);
+    *results += c;
+}
+
 SIMSIMD_PUBLIC void simsimd_intersect_u32_neon(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length,
                                                simsimd_size_t b_length, simsimd_distance_t* results) {
 

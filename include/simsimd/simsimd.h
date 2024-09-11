@@ -1025,6 +1025,13 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             default: break;
             }
 #endif
+#if SIMSIMD_TARGET_NEON
+        if (viable & simsimd_cap_neon_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_neon, *c = simsimd_cap_neon_k; return;
+            default: break;
+            }
+#endif
 #if SIMSIMD_TARGET_ICE
         if (viable & simsimd_cap_ice_k)
             switch (kind) {
@@ -1047,6 +1054,13 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
         if (viable & simsimd_cap_sve_k)
             switch (kind) {
             case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_sve, *c = simsimd_cap_sve_k; return;
+            default: break;
+            }
+#endif
+#if SIMSIMD_TARGET_NEON
+        if (viable & simsimd_cap_neon_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_neon, *c = simsimd_cap_neon_k; return;
             default: break;
             }
 #endif
@@ -1693,6 +1707,8 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16(simsimd_u16_t const* a, simsimd_u16_t 
                                           simsimd_size_t b_length, simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE
     simsimd_intersect_u16_sve(a, b, a_length, b_length, d);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_intersect_u16_neon(a, b, a_length, b_length, d);
 #elif SIMSIMD_TARGET_SKYLAKE
     simsimd_intersect_u16_ice(a, b, a_length, b_length, d);
 #else
@@ -1704,6 +1720,8 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32(simsimd_u32_t const* a, simsimd_u32_t 
                                           simsimd_size_t b_length, simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE
     simsimd_intersect_u32_sve(a, b, a_length, b_length, d);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_intersect_u32_neon(a, b, a_length, b_length, d);
 #elif SIMSIMD_TARGET_SKYLAKE
     simsimd_intersect_u32_ice(a, b, a_length, b_length, d);
 #else
