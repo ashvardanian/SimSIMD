@@ -42,10 +42,6 @@
 extern "C" {
 #endif
 
-int simsimd_uses_dynamic_dispatch(void) {
-    return 1;
-};
-
 // Every time a function is called, it checks if the metric is already loaded. If not, it fetches it.
 // If no metric is found, it returns NaN. We can obtain NaN by dividing 0.0 by 0.0, but that annoys
 // the MSVC compiler. Instead we can directly write-in the signaling NaN (0x7FF0000000000001)
@@ -169,6 +165,7 @@ SIMSIMD_DYNAMIC int simsimd_uses_skylake(void) { return (simsimd_capabilities() 
 SIMSIMD_DYNAMIC int simsimd_uses_ice(void) { return (simsimd_capabilities() & simsimd_cap_ice_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_genoa(void) { return (simsimd_capabilities() & simsimd_cap_genoa_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void) { return (simsimd_capabilities() & simsimd_cap_sapphire_k) != 0; }
+SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void) { return 1; }
 
 simsimd_capability_t simsimd_capabilities(void) {
     static simsimd_capability_t static_capabilities = simsimd_cap_any_k;
