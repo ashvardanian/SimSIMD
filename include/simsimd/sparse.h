@@ -403,10 +403,16 @@ SIMSIMD_INTERNAL simsimd_u64_t _simsimd_u8_to_u4_neon(uint8x16_t vec) {
     return vget_lane_u64(vreinterpret_u64_u8(vshrn_n_u16(vreinterpretq_u16_u8(vec), 4)), 0);
 }
 
-SIMSIMD_INTERNAL int _simsimd_clz_u64(simsimd_u64_t value) {
-    simsimd_u64_t result;
-    __asm__("clz %x0, %x1" : "=r"(result) : "r"(value));
-    return (int)result;
+SIMSIMD_INTERNAL int _simsimd_clz_u64(simsimd_u64_t x) {
+// On GCC and Clang use the builtin, otherwise use the generic implementation
+#if defined(__GNUC__) || defined(__clang__)
+    return __builtin_clzll(x);
+#else
+    int n = 0;
+    while ((x & 0x8000000000000000ull) == 0)
+        n++, x <<= 1;
+    return n;
+#endif
 }
 
 SIMSIMD_INTERNAL uint32x4_t _simsimd_intersect_u32x4_neon(uint32x4_t a, uint32x4_t b) {
@@ -498,6 +504,17 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_neon(simsimd_u16_t const* a, simsimd_u
         uint16x8_t a_matches = _simsimd_intersect_u16x8_neon(a_vec.u16x8, b_vec.u16x8);
         c_counts_vec.u16x8 = vaddq_u16(c_counts_vec.u16x8, vandq_u16(a_matches, vdupq_n_u16(1)));
 
+        // Counting leading zeros is tricky. On Arm we can use inline Assembly to get the result,
+        // but MSVC doesn't support that:
+        //
+        //      SIMSIMD_INTERNAL int _simsimd_clz_u64(simsimd_u64_t value) {
+        //          simsimd_u64_t result;
+        //          __asm__("clz %x0, %x1" : "=r"(result) : "r"(value));
+        //          return (int)result;
+        //      }
+        //
+        // Alternatively, we can use the `vclz_u32` NEON intrinsic.
+        // It will compute the leading zeros number for both `a_step` and `b_step` in parallel.
         uint16x8_t a_last_broadcasted = vdupq_n_u16(a_max);
         uint16x8_t b_last_broadcasted = vdupq_n_u16(b_max);
         simsimd_u64_t a_step = _simsimd_clz_u64(_simsimd_u8_to_u4_neon( //
