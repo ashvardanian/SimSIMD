@@ -114,7 +114,7 @@
 #endif // defined(__AVX2__)
 #endif // !defined(SIMSIMD_TARGET_HASWELL)
 
-// Compiling for x86: SIMSIMD_TARGET_SKYLAKE, SIMSIMD_TARGET_ICE, SIMSIMD_TARGET_SAPPHIRE
+// Compiling for x86: SIMSIMD_TARGET_SKYLAKE, SIMSIMD_TARGET_ICE, SIMSIMD_TARGET_GENOA, SIMSIMD_TARGET_SAPPHIRE
 //
 // To list all available macros for x86, take a recent compiler, like GCC 12 and run:
 //      gcc-12 -march=sapphirerapids -dM -E - < /dev/null | egrep "SSE|AVX" | sort
@@ -229,8 +229,10 @@ typedef __fp16 simsimd_f16_t;
 typedef _Float16 simsimd_f16_t;
 #undef SIMSIMD_NATIVE_F16
 #define SIMSIMD_NATIVE_F16 1
-#else // Unknown compiler or architecture
+#else                                       // Unknown compiler or architecture
+#if defined(__GNUC__) || defined(__clang__) // Some compilers don't support warning pragmas
 #warning "Unknown compiler or architecture for float16."
+#endif
 #undef SIMSIMD_NATIVE_F16
 #define SIMSIMD_NATIVE_F16 0
 #endif // Unknown compiler or architecture
@@ -275,8 +277,10 @@ typedef __bf16 simsimd_bf16_t;
 typedef __bfloat16 simsimd_bf16_t;
 #undef SIMSIMD_NATIVE_BF16
 #define SIMSIMD_NATIVE_BF16 1
-#else // Unknown compiler or architecture
+#else                                       // Unknown compiler or architecture
+#if defined(__GNUC__) || defined(__clang__) // Some compilers don't support warning pragmas
 #warning "Unknown compiler or architecture for bfloat16."
+#endif
 #undef SIMSIMD_NATIVE_BF16
 #define SIMSIMD_NATIVE_BF16 0
 #endif // Unknown compiler or architecture
