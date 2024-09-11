@@ -1105,7 +1105,7 @@ SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void);
 SIMSIMD_DYNAMIC int simsimd_uses_genoa(void);
 SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void);
 
-SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void) { return 1; };
+SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void);
 
 /*  Inner products
  *  - Dot product: the sum of the products of the corresponding elements of two vectors.

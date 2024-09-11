@@ -42,6 +42,17 @@
 extern "C" {
 #endif
 
+simsimd_capability_t simsimd_capabilities(void) {
+    static simsimd_capability_t static_capabilities = simsimd_cap_any_k;
+    if (static_capabilities == simsimd_cap_any_k)
+        static_capabilities = simsimd_capabilities_implementation();
+    return static_capabilities;
+}
+
+int simsimd_uses_dynamic_dispatch(void) {
+    return 1;
+};
+
 // Every time a function is called, it checks if the metric is already loaded. If not, it fetches it.
 // If no metric is found, it returns NaN. We can obtain NaN by dividing 0.0 by 0.0, but that annoys
 // the MSVC compiler. Instead we can directly write-in the signaling NaN (0x7FF0000000000001)
