@@ -64,6 +64,7 @@ Moreover, SimSIMD...
 - has bindings for [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust) and [JS](#using-simsimd-in-javascript).
 - has Arm backends for NEON and Scalable Vector Extensions (SVE).
 - has x86 backends for Haswell, Skylake, Ice Lake, Genoa, and Sapphire Rapids.
+- with both compile-time and runtime CPU feature detection easily integrates anywhere!
 
 Due to the high-level of fragmentation of SIMD support in different x86 CPUs, SimSIMD generally uses the names of select Intel CPU generations for its backends.
 They, however, also work on AMD CPUs.
@@ -429,9 +430,9 @@ expected = np.inner(a_f32rounded, b_f32rounded)
 result = simd.inner(a_bf16, b_bf16, "bf16")
 ```
 
-### Dynamic Dispatch
+### Dynamic Dispatch in Rust
 
-SimSIMD provides a dynamic dispatch mechanism to select the most advanced micro-kernel for the current CPU.
+SimSIMD provides a [dynamic dispatch](#dynamic-dispatch) mechanism to select the most advanced micro-kernel for the current CPU.
 You can query supported backends and use the `SimSIMD::capabilities` function to select the best one.
 
 ```rust
@@ -529,10 +530,10 @@ int main() {
 }
 ```
 
-### Dynamic Dispatch
+### Dynamic Dispatch in C
 
 To avoid hard-coding the backend, you can rely on `c/lib.c` to prepackage all possible backends in one binary, and select the most recent CPU features at runtime.
-That feature of the C library is called dynamic dispatch and is extensively used in the Python, JavaScript, and Rust bindings.
+That feature of the C library is called [dynamic dispatch](#dynamic-dispatch) and is extensively used in the Python, JavaScript, and Rust bindings.
 To test which CPU features are available on the machine at runtime, use the following APIs:
 
 ```c
@@ -858,9 +859,20 @@ Jensen-Shannon divergence is a symmetrized and smoothed version of the Kullback-
 
 Both functions are defined for non-negative numbers, and the logarithm is a key part of their computation.
 
+### Dynamic Dispatch
+
+Most popular software is precompiled and distributed with fairly conservative CPU optimizations, to ensure compatibility with older hardware.
+Database Management platforms, like ClickHouse, and Web Browsers, like Google Chrome,need to run on billions of devices, and they can't afford to be picky about the CPU features.
+For such users SimSIMD provides a dynamic dispatch mechanism, which selects the most advanced micro-kernel for the current CPU at runtime.
+
+You can compile SimSIMD on an old CPU, like Intel Haswell, and run it on a new one, like AMD Genoa, and it will automatically use the most advanced instructions available.
+Reverse is also true, you can compile on a new CPU and run on an old one, and it will automatically fall back to the most basic instructions.
+Moreover, the very first time you prove for CPU capabilities with `simsimd_capabilities()`, it initializes the dynamic dispatch mechanism, and all subsequent calls will be faster and won't face race conditions in multi-threaded environments.
+
 ## Target Specific Backends
 
 SimSIMD exposes all kernels for all backends, and you can select the most advanced one for the current CPU without relying on built-in dispatch mechanisms.
+That's handy for testing and benchmarking, but also in case you want to dispatch a very specific kernel for a very specific CPU, bypassing SimSIMD assignment logic.
 All of the function names follow the same pattern: `simsimd_{function}_{type}_{backend}`.
 
 - The backend can be `serial`, `haswell`, `skylake`, `ice`, `genoa`, `sapphire`, `neon`, or `sve`.
