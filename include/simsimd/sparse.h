@@ -63,8 +63,8 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_accurate(simsimd_u32_t const* a, simsi
  */
 SIMSIMD_PUBLIC void simsimd_intersect_u32_neon(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_intersect_u16_neon(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
-SIMSIMD_PUBLIC void simsimd_intersect_u32_sve(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
-SIMSIMD_PUBLIC void simsimd_intersect_u16_sve(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_intersect_u32_sve2(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_intersect_u16_sve2(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results);
 
 /*  SIMD-powered backends for various generations of AVX512 CPUs.
  *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
@@ -565,115 +565,169 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_neon(simsimd_u32_t const* a, simsimd_u
 #endif // SIMSIMD_TARGET_NEON
 
 #if SIMSIMD_TARGET_SVE
-
 #pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a+sve")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve"))), apply_to = function)
+#pragma GCC target("arch=armv8.2-a+sve+sve2")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+sve2"))), apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_intersect_u16_sve(simsimd_u16_t const* shorter, simsimd_u16_t const* longer,
-                                              simsimd_size_t shorter_length, simsimd_size_t longer_length,
-                                              simsimd_distance_t* results) {
+/*  SVE2 introduces many new integer-oriented instructions, extending some of the NEON functionality to
+ *  variable-length SVE registers. Those include "compare multiple" intrinsics:
+ *
+ *  - `svmatch[_u16]` that matches each scalar in first vector against all members of a 128-bit lane in the second.
+ *  - `svhistcnt[_s32]_z` does something similar, performing an inclusive prefix scan.
+ *  - `svtbx[_u16]` does extended table lookup
+ *
+ *  Other notable instructions:
+ *
+ *  - `DUP`: Broadcast indexed predicate element
+ *    https://developer.arm.com/documentation/ddi0602/2021-06/SVE-Instructions/DUP--predicate---Broadcast-indexed-predicate-element-?lang=en
+ *  - `SCLAMP` and `UCLAMP`: clamp values, i.e. combined min+max
+ *    https://developer.arm.com/documentation/ddi0602/2021-06/SVE-Instructions/SCLAMP--Signed-clamp-to-minimum-maximum-vector-?lang=en
+ *    https://developer.arm.com/documentation/ddi0602/2021-06/SVE-Instructions/UCLAMP--Unsigned-clamp-to-minimum-maximum-vector-?lang=en
+ *  - `TBLQ`: Table lookup quadword
+ *    https://developer.arm.com/documentation/ddi0602/2022-12/SVE-Instructions/TBLQ--Programmable-table-lookup-within-each-quadword-vector-segment--zeroing--?lang=en
+ *  -
+ *    https://developer.arm.com/documentation/ddi0602/2021-06/SVE-Instructions/INCB--INCD--INCH--INCW--scalar---Increment-scalar-by-multiple-of-predicate-constraint-element-count-
+ *
+ *  Great resources for SVE2 intrinsics:
+ *
+ *  > ARM’s Scalable Vector Extensions: A Critical Look at SVE2 For Integer Workloads
+ *    https://gist.github.com/zingaburga/805669eb891c820bd220418ee3f0d6bd
+ */
 
-    // Temporarily disable SVE: https://github.com/ashvardanian/SimSIMD/issues/168
-    simsimd_intersect_u16_serial(shorter, longer, shorter_length, longer_length, results);
-    return;
+SIMSIMD_PUBLIC void simsimd_intersect_u16_sve2(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length,
+                                               simsimd_size_t b_length, simsimd_distance_t* results) {
 
-    // SVE implementations with 128-bit registers can only fit 8x 16-bit words,
-    // making this kernel quite inefficient. Let's aim for registers of 256 bits and larger.
-    simsimd_size_t longer_load_size = svcnth();
-    if (longer_load_size < 16) {
-        simsimd_intersect_u16_serial(shorter, longer, shorter_length, longer_length, results);
-        return;
-    }
+    // A single SVE lane is 128 bits wide, so one lane fits 8 values.
+    simsimd_size_t const register_size = svcnth();
+    simsimd_size_t const lanes_count = register_size / 8;
+    simsimd_size_t a_idx = 0, b_idx = 0;
+    simsimd_size_t c = 0;
 
-    simsimd_size_t intersection_count = 0;
-    simsimd_size_t shorter_idx = 0, longer_idx = 0;
-    while (shorter_idx < shorter_length && longer_idx < longer_length) {
-        // Load `shorter_member` and broadcast it, load `longer_members_vec` from memory
-        simsimd_size_t longer_remaining = longer_length - longer_idx;
-        simsimd_u16_t shorter_member = shorter[shorter_idx];
-        svbool_t pg = svwhilelt_b16_u64(longer_idx, longer_length);
-        svuint16_t shorter_member_vec = svdup_n_u16(shorter_member);
-        svuint16_t longer_members_vec = svld1_u16(pg, longer + longer_idx);
+    while (a_idx < a_length && b_idx < b_length) {
+        // Load `a_member` and broadcast it, load `b_members_vec` from memory
+        svbool_t a_progress = svwhilelt_b16_u64(a_idx, a_length);
+        svbool_t b_progress = svwhilelt_b16_u64(b_idx, b_length);
+        svuint16_t a_vec = svld1_u16(a_progress, a + a_idx);
+        svuint16_t b_vec = svld1_u16(b_progress, b + b_idx);
 
-        // Compare `shorter_member` with each element in `longer_members_vec`
-        svbool_t equal_mask = svcmpeq_u16(pg, shorter_member_vec, longer_members_vec);
-        simsimd_size_t equal_count = svcntp_b16(svptrue_b16(), equal_mask);
-        intersection_count += equal_count;
+        // Intersecting registers with `svmatch_u16` involves a lot of shuffling
+        // and comparisons, so we want to avoid it if the slices don't overlap at all..
+        simsimd_u16_t a_min;
+        simsimd_u16_t a_max = svlastb(a_progress, a_vec);
+        simsimd_u16_t b_min = svlasta(svpfalse_b(), b_vec);
+        simsimd_u16_t b_max = svlastb(b_progress, b_vec);
 
-        // Count the number of elements in `longer_members_vec` that are less than `shorter_member`
-        svbool_t smaller_mask = svcmplt_u16(pg, longer_members_vec, shorter_member_vec);
-        simsimd_size_t smaller_count = svcntp_b16(svptrue_b16(), smaller_mask);
-
-        // Advance pointers
-        longer_load_size = longer_remaining < longer_load_size ? longer_remaining : longer_load_size;
-        shorter_idx += (longer_load_size - smaller_count - equal_count) != 0;
-        longer_idx += smaller_count + equal_count;
-
-        // Swap arrays if necessary
-        if ((shorter_length - shorter_idx) > (longer_length - longer_idx)) {
-            simsimd_u16_t const* temp_array = shorter;
-            shorter = longer, longer = temp_array;
-            simsimd_size_t temp_length = shorter_length;
-            shorter_length = longer_length, longer_length = temp_length;
-            simsimd_size_t temp_idx = shorter_idx;
-            shorter_idx = longer_idx, longer_idx = temp_idx;
+        // If the slices don't overlap, advance the appropriate pointer
+        while (a_max < b_min && a_idx < a_length) {
+            a_idx += register_size;
+            a_progress = svwhilelt_b16_u64(a_idx, a_length);
+            a_vec = svld1_u16(a_progress, a + a_idx);
+            a_max = svlastb(a_progress, a_vec);
         }
+        a_min = svlasta(svpfalse_b(), a_vec);
+        while (b_max < a_min && b_idx < b_length) {
+            b_idx += register_size;
+            b_progress = svwhilelt_b16_u64(b_idx, b_length);
+            b_vec = svld1_u16(b_progress, b + b_idx);
+            b_max = svlastb(b_progress, b_vec);
+        }
+        b_min = svlasta(svpfalse_b(), b_vec);
+
+        // Before we evaluate the intersection size, obfurscating the order in `b_vec`,
+        // let's estimate how much we will need to advance the pointers afterwards.
+        // For that, we don't even need to broadcast the values in SVE, as the whole
+        // register can be compared against a scalar:
+        //
+        //      svuint16_t a_last_broadcasted =  svdup_n_u16(a_max);
+        //      svuint16_t b_last_broadcasted =  svdup_n_u16(b_max);
+        svbool_t a_mask = svcmple_n_u16(a_progress, a_vec, b_max);
+        svbool_t b_mask = svcmple_n_u16(b_progress, b_vec, a_max);
+        simsimd_u64_t a_step = svcntp_b16(a_progress, a_mask);
+        simsimd_u64_t b_step = svcntp_b16(b_progress, b_mask);
+
+        // Compare `a_vec` with each lane of `b_vec`
+        svbool_t equal_mask = svmatch_u16(a_progress, a_vec, b_vec);
+        for (simsimd_size_t i = 1; i < lanes_count; i++) {
+            b_vec = svext_u16(b_vec, b_vec, 8);
+            equal_mask = svand_z(svptrue_b16(), equal_mask, svmatch_u16(a_progress, a_vec, b_vec));
+        }
+        simsimd_size_t equal_count = svcntp_b16(svptrue_b16(), equal_mask);
+
+        // Advance
+        a_idx += a_step;
+        b_idx += b_step;
+        c += equal_count;
     }
-    *results = intersection_count;
+    *results = c;
 }
 
-SIMSIMD_PUBLIC void simsimd_intersect_u32_sve(simsimd_u32_t const* shorter, simsimd_u32_t const* longer,
-                                              simsimd_size_t shorter_length, simsimd_size_t longer_length,
-                                              simsimd_distance_t* results) {
+SIMSIMD_PUBLIC void simsimd_intersect_u32_sve2(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length,
+                                               simsimd_size_t b_length, simsimd_distance_t* results) {
 
-    // Temporarily disable SVE: https://github.com/ashvardanian/SimSIMD/issues/168
-    simsimd_intersect_u32_serial(shorter, longer, shorter_length, longer_length, results);
-    return;
+    // A single SVE lane is 128 bits wide, so one lane fits 4 values.
+    simsimd_size_t const register_size = svcntw();
+    simsimd_size_t const lanes_count = register_size / 4;
+    simsimd_size_t a_idx = 0, b_idx = 0;
+    simsimd_size_t c = 0;
 
-    // SVE implementations with 128-bit registers can only fit 4x 32-bit words,
-    // making this kernel quite inefficient. Let's aim for registers of 256 bits and larger.
-    simsimd_size_t longer_load_size = svcntw();
-    if (longer_load_size < 8) {
-        simsimd_intersect_u32_serial(shorter, longer, shorter_length, longer_length, results);
-        return;
-    }
+    while (a_idx < a_length && b_idx < b_length) {
+        // Load `a_member` and broadcast it, load `b_members_vec` from memory
+        svbool_t a_progress = svwhilelt_b16_u64(a_idx, a_length);
+        svbool_t b_progress = svwhilelt_b16_u64(b_idx, b_length);
+        svuint32_t a_vec = svld1_u32(a_progress, a + a_idx);
+        svuint32_t b_vec = svld1_u32(b_progress, b + b_idx);
 
-    simsimd_size_t intersection_count = 0;
-    simsimd_size_t shorter_idx = 0, longer_idx = 0;
-    while (shorter_idx < shorter_length && longer_idx < longer_length) {
-        // Load `shorter_member` and broadcast it, load `longer_members_vec` from memory
-        simsimd_size_t longer_remaining = longer_length - longer_idx;
-        simsimd_u32_t shorter_member = shorter[shorter_idx];
-        svbool_t pg = svwhilelt_b32_u64(longer_idx, longer_length);
-        svuint32_t shorter_member_vec = svdup_n_u32(shorter_member);
-        svuint32_t longer_members_vec = svld1_u32(pg, longer + longer_idx);
+        // Intersecting registers with `svmatch_u16` involves a lot of shuffling
+        // and comparisons, so we want to avoid it if the slices don't overlap at all..
+        simsimd_u32_t a_min;
+        simsimd_u32_t a_max = svlastb(a_progress, a_vec);
+        simsimd_u32_t b_min = svlasta(svpfalse_b(), b_vec);
+        simsimd_u32_t b_max = svlastb(b_progress, b_vec);
 
-        // Compare `shorter_member` with each element in `longer_members_vec`
-        svbool_t equal_mask = svcmpeq_u32(pg, shorter_member_vec, longer_members_vec);
-        simsimd_size_t equal_count = svcntp_b32(svptrue_b32(), equal_mask);
-        intersection_count += equal_count;
-
-        // Count the number of elements in `longer_members_vec` that are less than `shorter_member`
-        svbool_t smaller_mask = svcmplt_u32(pg, longer_members_vec, shorter_member_vec);
-        simsimd_size_t smaller_count = svcntp_b32(svptrue_b32(), smaller_mask);
-
-        // Advance pointers
-        longer_load_size = longer_remaining < longer_load_size ? longer_remaining : longer_load_size;
-        shorter_idx += (longer_load_size - smaller_count - equal_count) != 0;
-        longer_idx += smaller_count + equal_count;
-
-        // Swap arrays if necessary
-        if ((shorter_length - shorter_idx) > (longer_length - longer_idx)) {
-            simsimd_u32_t const* temp_array = shorter;
-            shorter = longer, longer = temp_array;
-            simsimd_size_t temp_length = shorter_length;
-            shorter_length = longer_length, longer_length = temp_length;
-            simsimd_size_t temp_idx = shorter_idx;
-            shorter_idx = longer_idx, longer_idx = temp_idx;
+        // If the slices don't overlap, advance the appropriate pointer
+        while (a_max < b_min && a_idx < a_length) {
+            a_idx += register_size;
+            a_progress = svwhilelt_b32_u64(a_idx, a_length);
+            a_vec = svld1_u32(a_progress, a + a_idx);
+            a_max = svlastb(a_progress, a_vec);
         }
+        a_min = svlasta(svpfalse_b(), a_vec);
+        while (b_max < a_min && b_idx < b_length) {
+            b_idx += register_size;
+            b_progress = svwhilelt_b32_u64(b_idx, b_length);
+            b_vec = svld1_u32(b_progress, b + b_idx);
+            b_max = svlastb(b_progress, b_vec);
+        }
+        b_min = svlasta(svpfalse_b(), b_vec);
+
+        // Before we evaluate the intersection size, obfurscating the order in `b_vec`,
+        // let's estimate how much we will need to advance the pointers afterwards.
+        // For that, we don't even need to broadcast the values in SVE, as the whole
+        // register can be compared against a scalar:
+        //
+        //      svuint32_t a_last_broadcasted =  svdup_n_u32(a_max);
+        //      svuint32_t b_last_broadcasted =  svdup_n_u32(b_max);
+        svbool_t a_mask = svcmple_n_u32(a_progress, a_vec, b_max);
+        svbool_t b_mask = svcmple_n_u32(b_progress, b_vec, a_max);
+        simsimd_u64_t a_step = svcntp_b32(a_progress, a_mask);
+        simsimd_u64_t b_step = svcntp_b32(b_progress, b_mask);
+
+        // Comparing `a_vec` with each lane of `b_vec` can't be done with `svmatch`,
+        // the same way as in `simsimd_intersect_u16_sve2`, as that instruction is only
+        // available for 8-bit and 16-bit integers.
+        svbool_t equal_mask; // TODO: svmatch(a_progress, a_vec, b_vec);
+        // for (simsimd_size_t i = 1; i < lanes_count; i++) {
+        //     b_vec = svext_u32(b_vec, b_vec, 4);
+        //     equal_mask = svand_z(svptrue_b32(), equal_mask, svmatch_u32(a_progress, a_vec, b_vec));
+        // }
+        simsimd_size_t equal_count = svcntp_b16(svptrue_b32(), equal_mask);
+
+        // Advance
+        a_idx += a_step;
+        b_idx += b_step;
+        c += equal_count;
     }
-    *results = intersection_count;
+    *results = c;
 }
 
 #pragma clang attribute pop

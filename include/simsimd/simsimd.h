@@ -1021,7 +1021,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 #if SIMSIMD_TARGET_SVE
         if (viable & simsimd_cap_sve_k)
             switch (kind) {
-            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_sve, *c = simsimd_cap_sve_k; return;
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_sve2, *c = simsimd_cap_sve_k; return;
             default: break;
             }
 #endif
@@ -1053,7 +1053,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 #if SIMSIMD_TARGET_SVE
         if (viable & simsimd_cap_sve_k)
             switch (kind) {
-            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_sve, *c = simsimd_cap_sve_k; return;
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_sve2, *c = simsimd_cap_sve_k; return;
             default: break;
             }
 #endif
@@ -1706,7 +1706,7 @@ SIMSIMD_PUBLIC void simsimd_js_f64(simsimd_f64_t const* a, simsimd_f64_t const* 
 SIMSIMD_PUBLIC void simsimd_intersect_u16(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length,
                                           simsimd_size_t b_length, simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE
-    simsimd_intersect_u16_sve(a, b, a_length, b_length, d);
+    simsimd_intersect_u16_sve2(a, b, a_length, b_length, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_intersect_u16_neon(a, b, a_length, b_length, d);
 #elif SIMSIMD_TARGET_SKYLAKE
@@ -1719,7 +1719,7 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16(simsimd_u16_t const* a, simsimd_u16_t 
 SIMSIMD_PUBLIC void simsimd_intersect_u32(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length,
                                           simsimd_size_t b_length, simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE
-    simsimd_intersect_u32_sve(a, b, a_length, b_length, d);
+    simsimd_intersect_u32_sve2(a, b, a_length, b_length, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_intersect_u32_neon(a, b, a_length, b_length, d);
 #elif SIMSIMD_TARGET_SKYLAKE
