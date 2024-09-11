@@ -573,6 +573,7 @@ int main(int argc, char** argv) {
     std::printf("Compile-time settings:\n");
     std::printf("- Arm NEON support enabled: %s\n", flags[SIMSIMD_TARGET_NEON]);
     std::printf("- Arm SVE support enabled: %s\n", flags[SIMSIMD_TARGET_SVE]);
+    std::printf("- Arm SVE2 support enabled: %s\n", flags[SIMSIMD_TARGET_SVE2]);
     std::printf("- x86 Haswell support enabled: %s\n", flags[SIMSIMD_TARGET_HASWELL]);
     std::printf("- x86 Skylake support enabled: %s\n", flags[SIMSIMD_TARGET_SKYLAKE]);
     std::printf("- x86 Ice Lake support enabled: %s\n", flags[SIMSIMD_TARGET_ICE]);
@@ -693,10 +694,11 @@ int main(int argc, char** argv) {
     dense_<f32c_k>("vdot_f32c_sve", simsimd_vdot_f32c_sve, simsimd_vdot_f32c_accurate);
     dense_<f64c_k>("dot_f64c_sve", simsimd_dot_f64c_sve, simsimd_dot_f64c_serial);
     dense_<f64c_k>("vdot_f64c_sve", simsimd_vdot_f64c_sve, simsimd_vdot_f64c_serial);
+#endif
 
+#if SIMSIMD_TARGET_SVE2
     sparse_<u16_k>("intersect_u16_sve2", simsimd_intersect_u16_sve2, simsimd_intersect_u16_accurate);
     sparse_<u32_k>("intersect_u32_sve2", simsimd_intersect_u32_sve2, simsimd_intersect_u32_accurate);
-
 #endif
 
 #if SIMSIMD_TARGET_HASWELL

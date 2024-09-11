@@ -675,7 +675,7 @@ To explicitly disable half-precision support, define the following macro before 
 > But if you are running on different generations of devices, it makes sense to pre-compile the library for all supported generations at once, and dispatch at runtime.
 > This flag does just that and is used to produce the `simsimd.so` shared library, as well as the Python and other bindings.
 
-`SIMSIMD_TARGET_ARM` (`SIMSIMD_TARGET_NEON`, `SIMSIMD_TARGET_SVE`, `SIMSIMD_TARGET_NEON_F16`, `SIMSIMD_TARGET_SVE_F16`, `SIMSIMD_TARGET_NEON_BF16`, `SIMSIMD_TARGET_SVE_BF16`), `SIMSIMD_TARGET_X86` (`SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`): 
+`SIMSIMD_TARGET_ARM` (`SIMSIMD_TARGET_NEON`, `SIMSIMD_TARGET_SVE`, `SIMSIMD_TARGET_SVE2`, `SIMSIMD_TARGET_NEON_F16`, `SIMSIMD_TARGET_SVE_F16`, `SIMSIMD_TARGET_NEON_BF16`, `SIMSIMD_TARGET_SVE_BF16`), `SIMSIMD_TARGET_X86` (`SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`): 
 
 > By default, SimSIMD automatically infers the target architecture and pre-compiles as many kernels as possible.
 > In some cases, you may want to explicitly disable some of the kernels.

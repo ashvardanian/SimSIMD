@@ -603,7 +603,7 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_neon(simsimd_u32_t const* a, simsimd_u
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON
 
-#if SIMSIMD_TARGET_SVE
+#if SIMSIMD_TARGET_SVE2
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve+sve2")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+sve2"))), apply_to = function)
@@ -657,14 +657,14 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_sve2(simsimd_u16_t const* a, simsimd_u
         simsimd_u16_t b_max = svlastb(b_progress, b_vec);
 
         // If the slices don't overlap, advance the appropriate pointer
-        while (a_max < b_min && a_idx < a_length) {
+        while (a_max < b_min && (a_idx + register_size) < a_length) {
             a_idx += register_size;
             a_progress = svwhilelt_b16_u64(a_idx, a_length);
             a_vec = svld1_u16(a_progress, a + a_idx);
             a_max = svlastb(a_progress, a_vec);
         }
         a_min = svlasta(svpfalse_b(), a_vec);
-        while (b_max < a_min && b_idx < b_length) {
+        while (b_max < a_min && (b_idx + register_size) < b_length) {
             b_idx += register_size;
             b_progress = svwhilelt_b16_u64(b_idx, b_length);
             b_vec = svld1_u16(b_progress, b + b_idx);
@@ -688,7 +688,7 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_sve2(simsimd_u16_t const* a, simsimd_u
         svbool_t equal_mask = svmatch_u16(a_progress, a_vec, b_vec);
         for (simsimd_size_t i = 1; i < lanes_count; i++) {
             b_vec = svext_u16(b_vec, b_vec, 8);
-            equal_mask = svand_z(svptrue_b16(), equal_mask, svmatch_u16(a_progress, a_vec, b_vec));
+            equal_mask = svorr_z(svptrue_b16(), equal_mask, svmatch_u16(a_progress, a_vec, b_vec));
         }
         simsimd_size_t equal_count = svcntp_b16(svptrue_b16(), equal_mask);
 
@@ -711,8 +711,8 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_sve2(simsimd_u32_t const* a, simsimd_u
 
     while (a_idx < a_length && b_idx < b_length) {
         // Load `a_member` and broadcast it, load `b_members_vec` from memory
-        svbool_t a_progress = svwhilelt_b16_u64(a_idx, a_length);
-        svbool_t b_progress = svwhilelt_b16_u64(b_idx, b_length);
+        svbool_t a_progress = svwhilelt_b32_u64(a_idx, a_length);
+        svbool_t b_progress = svwhilelt_b32_u64(b_idx, b_length);
         svuint32_t a_vec = svld1_u32(a_progress, a + a_idx);
         svuint32_t b_vec = svld1_u32(b_progress, b + b_idx);
 
@@ -724,14 +724,14 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_sve2(simsimd_u32_t const* a, simsimd_u
         simsimd_u32_t b_max = svlastb(b_progress, b_vec);
 
         // If the slices don't overlap, advance the appropriate pointer
-        while (a_max < b_min && a_idx < a_length) {
+        while (a_max < b_min && (a_idx + register_size) < a_length) {
             a_idx += register_size;
             a_progress = svwhilelt_b32_u64(a_idx, a_length);
             a_vec = svld1_u32(a_progress, a + a_idx);
             a_max = svlastb(a_progress, a_vec);
         }
         a_min = svlasta(svpfalse_b(), a_vec);
-        while (b_max < a_min && b_idx < b_length) {
+        while (b_max < a_min && (b_idx + register_size) < b_length) {
             b_idx += register_size;
             b_progress = svwhilelt_b32_u64(b_idx, b_length);
             b_vec = svld1_u32(b_progress, b + b_idx);
@@ -754,12 +754,19 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_sve2(simsimd_u32_t const* a, simsimd_u
         // Comparing `a_vec` with each lane of `b_vec` can't be done with `svmatch`,
         // the same way as in `simsimd_intersect_u16_sve2`, as that instruction is only
         // available for 8-bit and 16-bit integers.
-        svbool_t equal_mask; // TODO: svmatch(a_progress, a_vec, b_vec);
-        // for (simsimd_size_t i = 1; i < lanes_count; i++) {
-        //     b_vec = svext_u32(b_vec, b_vec, 4);
-        //     equal_mask = svand_z(svptrue_b32(), equal_mask, svmatch_u32(a_progress, a_vec, b_vec));
-        // }
-        simsimd_size_t equal_count = svcntp_b16(svptrue_b32(), equal_mask);
+        //
+        // TODO:
+        // Alternatively, one can use histogram instructions, like `svhistcnt_u32_z`.
+        // They practically compute the prefix-matching count, which is equivalent to
+        // the upper triangle of the intersection matrix.
+        // To compute the lower triangle, we can reverse (with `svrev_b32`) the order of elements
+        // in one vector and repeat the operation, accumulating the results for top and bottom.
+        svbool_t equal_mask = svpfalse_b();
+        for (simsimd_size_t i = 0; i < register_size; i++) {
+            equal_mask = svorr_z(svptrue_b32(), equal_mask, svcmpeq_u32(a_progress, a_vec, b_vec));
+            b_vec = svext_u32(b_vec, b_vec, 1);
+        }
+        simsimd_size_t equal_count = svcntp_b32(a_progress, equal_mask);
 
         // Advance
         a_idx += a_step;
@@ -771,7 +778,7 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_sve2(simsimd_u32_t const* a, simsimd_u
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_SVE
+#endif // SIMSIMD_TARGET_SVE2
 #endif // SIMSIMD_TARGET_ARM
 
 #ifdef __cplusplus

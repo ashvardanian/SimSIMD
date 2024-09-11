@@ -20,6 +20,9 @@
 #if !defined(SIMSIMD_TARGET_SVE) && (defined(__linux__))
 #define SIMSIMD_TARGET_SVE 1
 #endif
+#if !defined(SIMSIMD_TARGET_SVE2) && (defined(__linux__))
+#define SIMSIMD_TARGET_SVE2 1
+#endif
 #if !defined(SIMSIMD_TARGET_HASWELL) && (defined(_MSC_VER) || defined(__APPLE__) || defined(__linux__))
 #define SIMSIMD_TARGET_HASWELL 1
 #endif

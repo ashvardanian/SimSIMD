@@ -28,6 +28,7 @@ void print_capabilities(void) {
     printf("Compile-time settings:\n");
     printf("- Arm NEON support enabled: %s\n", flags[SIMSIMD_TARGET_NEON]);
     printf("- Arm SVE support enabled: %s\n", flags[SIMSIMD_TARGET_SVE]);
+    printf("- Arm SVE2 support enabled: %s\n", flags[SIMSIMD_TARGET_SVE2]);
     printf("- x86 Haswell support enabled: %s\n", flags[SIMSIMD_TARGET_HASWELL]);
     printf("- x86 Skylake support enabled: %s\n", flags[SIMSIMD_TARGET_SKYLAKE]);
     printf("- x86 Ice Lake support enabled: %s\n", flags[SIMSIMD_TARGET_ICE]);

@@ -194,6 +194,8 @@ typedef enum {
     simsimd_cap_sve_f16_k = 1 << 25,   ///< ARM SVE `f16` capability
     simsimd_cap_sve_bf16_k = 1 << 26,  ///< ARM SVE `bf16` capability
     simsimd_cap_sve_i8_k = 1 << 27,    ///< ARM SVE `i8` capability
+    simsimd_cap_sve2_k = 1 << 28,      ///< ARM SVE2 capability
+    simsimd_cap_sve2p1_k = 1 << 29,    ///< ARM SVE2p1 capability
 
 } simsimd_capability_t;
 
@@ -455,8 +457,8 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_arm(void) {
     //  - 0b0001: SVE2 is implemented
     //  - 0b0010: SVE2.1 is implemented
     // This value must match the existing indicator obtained from ID_AA64PFR0_EL1:
-    //    unsigned supports_sve = ((id_aa64zfr0_el1) & 0xF) >= 1;
-    //    unsigned supports_sve2 = ((id_aa64zfr0_el1) & 0xF) >= 2;
+    unsigned supports_sve2 = ((id_aa64zfr0_el1) & 0xF) >= 1;
+    unsigned supports_sve2p1 = ((id_aa64zfr0_el1) & 0xF) >= 2;
     unsigned supports_neon = 1; // NEON is always supported
 
     return (simsimd_capability_t)(                                                                    //
@@ -468,6 +470,8 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_arm(void) {
         (simsimd_cap_sve_f16_k * (supports_sve && supports_fp16)) |                                   //
         (simsimd_cap_sve_bf16_k * (supports_sve && supports_sve_bf16)) |                              //
         (simsimd_cap_sve_i8_k * (supports_sve && supports_sve_i8mm)) |                                //
+        (simsimd_cap_sve2_k * (supports_sve2)) |                                                      //
+        (simsimd_cap_sve2p1_k * (supports_sve2p1)) |                                                  //
         (simsimd_cap_serial_k));
 #else // SIMSIMD_DEFINED_LINUX
     return simsimd_cap_serial_k;
@@ -1018,7 +1022,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
     // Unsigned 16-bit integer vectors
     case simsimd_datatype_u16_k: {
 
-#if SIMSIMD_TARGET_SVE
+#if SIMSIMD_TARGET_SVE2
         if (viable & simsimd_cap_sve_k)
             switch (kind) {
             case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_sve2, *c = simsimd_cap_sve_k; return;
@@ -1050,7 +1054,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
     // Unsigned 32-bit integer vectors
     case simsimd_datatype_u32_k: {
 
-#if SIMSIMD_TARGET_SVE
+#if SIMSIMD_TARGET_SVE2
         if (viable & simsimd_cap_sve_k)
             switch (kind) {
             case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_sve2, *c = simsimd_cap_sve_k; return;
@@ -1135,6 +1139,7 @@ SIMSIMD_DYNAMIC int simsimd_uses_sve(void);
 SIMSIMD_DYNAMIC int simsimd_uses_sve_f16(void);
 SIMSIMD_DYNAMIC int simsimd_uses_sve_bf16(void);
 SIMSIMD_DYNAMIC int simsimd_uses_sve_i8(void);
+SIMSIMD_DYNAMIC int simsimd_uses_sve2(void);
 SIMSIMD_DYNAMIC int simsimd_uses_haswell(void);
 SIMSIMD_DYNAMIC int simsimd_uses_skylake(void);
 SIMSIMD_DYNAMIC int simsimd_uses_ice(void);
@@ -1287,6 +1292,7 @@ SIMSIMD_PUBLIC int simsimd_uses_sve(void) { return SIMSIMD_TARGET_ARM && SIMSIMD
 SIMSIMD_PUBLIC int simsimd_uses_sve_f16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE && SIMSIMD_NATIVE_F16; }
 SIMSIMD_PUBLIC int simsimd_uses_sve_bf16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE && SIMSIMD_NATIVE_BF16; }
 SIMSIMD_PUBLIC int simsimd_uses_sve_i8(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE; }
+SIMSIMD_PUBLIC int simsimd_uses_sve2(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE2; }
 SIMSIMD_PUBLIC int simsimd_uses_haswell(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_HASWELL; }
 SIMSIMD_PUBLIC int simsimd_uses_skylake(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SKYLAKE; }
 SIMSIMD_PUBLIC int simsimd_uses_ice(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_ICE; }
@@ -1705,7 +1711,7 @@ SIMSIMD_PUBLIC void simsimd_js_f64(simsimd_f64_t const* a, simsimd_f64_t const* 
  */
 SIMSIMD_PUBLIC void simsimd_intersect_u16(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length,
                                           simsimd_size_t b_length, simsimd_distance_t* d) {
-#if SIMSIMD_TARGET_SVE
+#if SIMSIMD_TARGET_SVE2
     simsimd_intersect_u16_sve2(a, b, a_length, b_length, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_intersect_u16_neon(a, b, a_length, b_length, d);
@@ -1718,7 +1724,7 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16(simsimd_u16_t const* a, simsimd_u16_t 
 
 SIMSIMD_PUBLIC void simsimd_intersect_u32(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length,
                                           simsimd_size_t b_length, simsimd_distance_t* d) {
-#if SIMSIMD_TARGET_SVE
+#if SIMSIMD_TARGET_SVE2
     simsimd_intersect_u32_sve2(a, b, a_length, b_length, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_intersect_u32_neon(a, b, a_length, b_length, d);

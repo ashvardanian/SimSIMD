@@ -98,6 +98,16 @@
 #define SIMSIMD_TARGET_SVE_BF16 SIMSIMD_TARGET_SVE
 #endif // !defined(SIMSIMD_TARGET_SVE_BF16)
 
+// Compiling for Arm: SIMSIMD_TARGET_SVE2
+#if !defined(SIMSIMD_TARGET_SVE2) || (SIMSIMD_TARGET_SVE2 && !SIMSIMD_TARGET_ARM)
+#if defined(__ARM_FEATURE_SVE)
+#define SIMSIMD_TARGET_SVE2 SIMSIMD_TARGET_ARM
+#else
+#undef SIMSIMD_TARGET_SVE2
+#define SIMSIMD_TARGET_SVE2 0
+#endif // defined(__ARM_FEATURE_SVE)
+#endif // !defined(SIMSIMD_TARGET_SVE2)
+
 // Compiling for x86: SIMSIMD_TARGET_HASWELL
 //
 // Starting with Ivy Bridge, Intel supports the `F16C` extensions for fast half-precision
@@ -163,11 +173,12 @@
 #include <arm_neon.h>
 #endif
 
-#if SIMSIMD_TARGET_SVE
+#if SIMSIMD_TARGET_SVE || SIMSIMD_TARGET_SVE2
 #include <arm_sve.h>
 #endif
 
-#if SIMSIMD_TARGET_HASWELL || SIMSIMD_TARGET_SKYLAKE
+#if SIMSIMD_TARGET_HASWELL || SIMSIMD_TARGET_SKYLAKE || SIMSIMD_TARGET_ICE || SIMSIMD_TARGET_GENOA ||                  \
+    SIMSIMD_TARGET_SAPPHIRE
 #include <immintrin.h>
 #endif
 
