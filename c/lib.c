@@ -42,13 +42,6 @@
 extern "C" {
 #endif
 
-simsimd_capability_t simsimd_capabilities(void) {
-    static simsimd_capability_t static_capabilities = simsimd_cap_any_k;
-    if (static_capabilities == simsimd_cap_any_k)
-        static_capabilities = simsimd_capabilities_implementation();
-    return static_capabilities;
-}
-
 int simsimd_uses_dynamic_dispatch(void) {
     return 1;
 };
