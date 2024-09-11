@@ -403,7 +403,13 @@ SIMSIMD_INTERNAL simsimd_u64_t _simsimd_u8_to_u4_neon(uint8x16_t vec) {
     return vget_lane_u64(vreinterpret_u64_u8(vshrn_n_u16(vreinterpretq_u16_u8(vec), 4)), 0);
 }
 
-SIMSIMD_INTERNAL simsimd_u64_t _simsimd_intersect_u32x4_neon(uint32x4_t a, uint32x4_t b) {
+SIMSIMD_INTERNAL int _simsimd_clz_u64(simsimd_u64_t value) {
+    simsimd_u64_t result;
+    __asm__("clz %x0, %x1" : "=r"(result) : "r"(value));
+    return (int)result;
+}
+
+SIMSIMD_INTERNAL uint32x4_t _simsimd_intersect_u32x4_neon(uint32x4_t a, uint32x4_t b) {
     uint32x4_t b1 = vextq_u32(b, b, 1);
     uint32x4_t b2 = vextq_u32(b, b, 2);
     uint32x4_t b3 = vextq_u32(b, b, 3);
@@ -412,11 +418,10 @@ SIMSIMD_INTERNAL simsimd_u64_t _simsimd_intersect_u32x4_neon(uint32x4_t a, uint3
     uint32x4_t nm02 = vceqq_u32(a, b2);
     uint32x4_t nm03 = vceqq_u32(a, b3);
     uint32x4_t nm = vorrq_u32(vorrq_u32(nm00, nm01), vorrq_u32(nm02, nm03));
-    simsimd_u64_t result = _simsimd_u8_to_u4_neon(vreinterpretq_u8_u32(nm));
-    return result;
+    return nm;
 }
 
-SIMSIMD_INTERNAL simsimd_u64_t _simsimd_intersect_u16x8_neon(uint16x8_t a, uint16x8_t b) {
+SIMSIMD_INTERNAL uint16x8_t _simsimd_intersect_u16x8_neon(uint16x8_t a, uint16x8_t b) {
     uint16x8_t b1 = vextq_u16(b, b, 1);
     uint16x8_t b2 = vextq_u16(b, b, 2);
     uint16x8_t b3 = vextq_u16(b, b, 3);
@@ -434,8 +439,7 @@ SIMSIMD_INTERNAL simsimd_u64_t _simsimd_intersect_u16x8_neon(uint16x8_t a, uint1
     uint16x8_t nm07 = vceqq_u16(a, b7);
     uint16x8_t nm = vorrq_u16(vorrq_u16(vorrq_u16(nm00, nm01), vorrq_u16(nm02, nm03)),
                               vorrq_u16(vorrq_u16(nm04, nm05), vorrq_u16(nm06, nm07)));
-    simsimd_u64_t result = _simsimd_u8_to_u4_neon(vreinterpretq_u8_u16(nm));
-    return result;
+    return nm;
 }
 
 SIMSIMD_PUBLIC void simsimd_intersect_u16_neon(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t a_length,
@@ -449,12 +453,12 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_neon(simsimd_u16_t const* a, simsimd_u
 
     simsimd_u16_t const* const a_end = a + a_length;
     simsimd_u16_t const* const b_end = b + b_length;
-    simsimd_size_t c = 0;
     union vec_t {
         uint16x8_t u16x8;
         simsimd_u16_t u16[8];
         simsimd_u8_t u8[16];
-    } a_vec, b_vec;
+    } a_vec, b_vec, c_counts_vec;
+    c_counts_vec.u16x8 = vdupq_n_u16(0);
 
     while (a + 8 < a_end && b + 8 < b_end) {
         a_vec.u16x8 = vld1q_u16(a);
@@ -481,22 +485,31 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_neon(simsimd_u16_t const* a, simsimd_u
         }
         b_min = b_vec.u16[0];
 
-        // Now we are likely to have some overlap, so we can intersect the registers
-        simsimd_u64_t a_matches = __builtin_popcountll(_simsimd_intersect_u16x8_neon(a_vec.u16x8, b_vec.u16x8));
-        c += a_matches / 8;
+        // Now we are likely to have some overlap, so we can intersect the registers.
+        // We can do it by performing a population count at every cycle, but it's not the cheapest in terms of cycles.
+        //
+        //      simsimd_u64_t a_matches = __builtin_popcountll(
+        //          _simsimd_u8_to_u4_neon(vreinterpretq_u8_u16(
+        //              _simsimd_intersect_u16x8_neon(a_vec.u16x8, b_vec.u16x8))));
+        //      c += a_matches / 8;
+        //
+        // Alternatively, we can we can transform match-masks into "ones", accumulate them between the cycles,
+        // and merge all together in the end.
+        uint16x8_t a_matches = _simsimd_intersect_u16x8_neon(a_vec.u16x8, b_vec.u16x8);
+        c_counts_vec.u16x8 = vaddq_u16(c_counts_vec.u16x8, vandq_u16(a_matches, vdupq_n_u16(1)));
 
         uint16x8_t a_last_broadcasted = vdupq_n_u16(a_max);
         uint16x8_t b_last_broadcasted = vdupq_n_u16(b_max);
-        simsimd_u64_t a_step =
-            __builtin_clzll(_simsimd_u8_to_u4_neon(vreinterpretq_u8_u16(vcleq_u16(a_vec.u16x8, b_last_broadcasted))));
-        simsimd_u64_t b_step =
-            __builtin_clzll(_simsimd_u8_to_u4_neon(vreinterpretq_u8_u16(vcleq_u16(b_vec.u16x8, a_last_broadcasted))));
+        simsimd_u64_t a_step = _simsimd_clz_u64(_simsimd_u8_to_u4_neon( //
+            vreinterpretq_u8_u16(vcleq_u16(a_vec.u16x8, b_last_broadcasted))));
+        simsimd_u64_t b_step = _simsimd_clz_u64(_simsimd_u8_to_u4_neon( //
+            vreinterpretq_u8_u16(vcleq_u16(b_vec.u16x8, a_last_broadcasted))));
         a += (64 - a_step) / 8;
         b += (64 - b_step) / 8;
     }
 
     simsimd_intersect_u16_serial(a, b, a_end - a, b_end - b, results);
-    *results += c;
+    *results += vaddvq_u16(c_counts_vec.u16x8);
 }
 
 SIMSIMD_PUBLIC void simsimd_intersect_u32_neon(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t a_length,
@@ -510,12 +523,12 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_neon(simsimd_u32_t const* a, simsimd_u
 
     simsimd_u32_t const* const a_end = a + a_length;
     simsimd_u32_t const* const b_end = b + b_length;
-    simsimd_size_t c = 0;
     union vec_t {
         uint32x4_t u32x4;
         simsimd_u32_t u32[4];
         simsimd_u8_t u8[16];
-    } a_vec, b_vec;
+    } a_vec, b_vec, c_counts_vec;
+    c_counts_vec.u32x4 = vdupq_n_u32(0);
 
     while (a + 4 < a_end && b + 4 < b_end) {
         a_vec.u32x4 = vld1q_u32(a);
@@ -543,21 +556,30 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_neon(simsimd_u32_t const* a, simsimd_u
         b_min = b_vec.u32[0];
 
         // Now we are likely to have some overlap, so we can intersect the registers
-        simsimd_u64_t a_matches = __builtin_popcountll(_simsimd_intersect_u32x4_neon(a_vec.u32x4, b_vec.u32x4));
-        c += a_matches / 16;
+        // We can do it by performing a population count at every cycle, but it's not the cheapest in terms of cycles.
+        //
+        //     simsimd_u64_t a_matches = __builtin_popcountll(
+        //         _simsimd_u8_to_u4_neon(vreinterpretq_u8_u32(
+        //             _simsimd_intersect_u32x4_neon(a_vec.u32x4, b_vec.u32x4))));
+        //     c += a_matches / 16;
+        //
+        // Alternatively, we can we can transform match-masks into "ones", accumulate them between the cycles,
+        // and merge all together in the end.
+        uint32x4_t a_matches = _simsimd_intersect_u32x4_neon(a_vec.u32x4, b_vec.u32x4);
+        c_counts_vec.u32x4 = vaddq_u32(c_counts_vec.u32x4, vandq_u32(a_matches, vdupq_n_u32(1)));
 
         uint32x4_t a_last_broadcasted = vdupq_n_u32(a_max);
         uint32x4_t b_last_broadcasted = vdupq_n_u32(b_max);
-        simsimd_u64_t a_step =
-            __builtin_clzll(_simsimd_u8_to_u4_neon(vreinterpretq_u8_u32(vcleq_u32(a_vec.u32x4, b_last_broadcasted))));
-        simsimd_u64_t b_step =
-            __builtin_clzll(_simsimd_u8_to_u4_neon(vreinterpretq_u8_u32(vcleq_u32(b_vec.u32x4, a_last_broadcasted))));
+        simsimd_u64_t a_step = _simsimd_clz_u64(_simsimd_u8_to_u4_neon( //
+            vreinterpretq_u8_u32(vcleq_u32(a_vec.u32x4, b_last_broadcasted))));
+        simsimd_u64_t b_step = _simsimd_clz_u64(_simsimd_u8_to_u4_neon( //
+            vreinterpretq_u8_u32(vcleq_u32(b_vec.u32x4, a_last_broadcasted))));
         a += (64 - a_step) / 16;
         b += (64 - b_step) / 16;
     }
 
     simsimd_intersect_u32_serial(a, b, a_end - a, b_end - b, results);
-    *results += c;
+    *results += vaddvq_u32(c_counts_vec.u32x4);
 }
 
 #pragma clang attribute pop
