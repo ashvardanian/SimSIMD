@@ -473,7 +473,7 @@ void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std:
     mean_error /= pairs.size();
     state.counters["error"] = mean_error;
     state.counters["bytes"] =
-        bm::Counter(iterations * pairs[0].a.size_bytes() * pairs[0].b.size_bytes(), bm::Counter::kIsRate);
+        bm::Counter(iterations * (pairs[0].a.size_bytes() + pairs[0].b.size_bytes()), bm::Counter::kIsRate);
     state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
     state.counters["matches"] =
         std::accumulate(results_contender.begin(), results_contender.end(), 0.0) / results_contender.size();
