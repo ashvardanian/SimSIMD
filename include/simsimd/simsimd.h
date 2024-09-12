@@ -87,8 +87,8 @@
 #define SIMSIMD_H
 
 #define SIMSIMD_VERSION_MAJOR 5
-#define SIMSIMD_VERSION_MINOR 1
-#define SIMSIMD_VERSION_PATCH 3
+#define SIMSIMD_VERSION_MINOR 2
+#define SIMSIMD_VERSION_PATCH 0
 
 /**
  *  @brief  Removes compile-time dispatching, and replaces it with runtime dispatching.
@@ -1105,6 +1105,8 @@ SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void);
 SIMSIMD_DYNAMIC int simsimd_uses_genoa(void);
 SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void);
 
+SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void);
+
 /*  Inner products
  *  - Dot product: the sum of the products of the corresponding elements of two vectors.
  *  - Complex Dot product: dot product with a conjugate first argument.
@@ -1255,6 +1257,7 @@ SIMSIMD_PUBLIC int simsimd_uses_skylake(void) { return SIMSIMD_TARGET_X86 && SIM
 SIMSIMD_PUBLIC int simsimd_uses_ice(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_ICE; }
 SIMSIMD_PUBLIC int simsimd_uses_sapphire(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SAPPHIRE; }
 SIMSIMD_PUBLIC int simsimd_uses_genoa(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_GENOA; }
+SIMSIMD_PUBLIC int simsimd_uses_dynamic_dispatch(void) { return 0; }
 SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) { return simsimd_capabilities_implementation(); }
 // clang-format on
 

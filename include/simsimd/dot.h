@@ -876,7 +876,7 @@ SIMSIMD_PUBLIC void simsimd_dot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32
     // To multiply a floating-point value by -1, we can use the `XOR` instruction to flip the sign bit.
     // This way we can avoid the shuffling and the need for separate real and imaginary parts.
     // For the imaginary part of the product, we would need to swap the real and imaginary parts of
-    // one of the vectors.
+    // one of the vectors. Moreover, `XOR` can be placed after the primary loop.
     // Both operations are quite cheap, and the throughput doubles from 2.5 GB/s to 5 GB/s.
     __m256 ab_real_vec = _mm256_setzero_ps();
     __m256 ab_imag_vec = _mm256_setzero_ps();
@@ -895,11 +895,13 @@ SIMSIMD_PUBLIC void simsimd_dot_f32c_haswell(simsimd_f32_t const* a, simsimd_f32
     for (; i + 8 <= n; i += 8) {
         __m256 a_vec = _mm256_loadu_ps(a + i);
         __m256 b_vec = _mm256_loadu_ps(b + i);
-        __m256 b_flipped_vec = _mm256_castsi256_ps(_mm256_xor_si256(_mm256_castps_si256(b_vec), sign_flip_vec));
         __m256 b_swapped_vec = _mm256_castsi256_ps(_mm256_shuffle_epi8(_mm256_castps_si256(b_vec), swap_adjacent_vec));
-        ab_real_vec = _mm256_fmadd_ps(a_vec, b_flipped_vec, ab_real_vec);
+        ab_real_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_real_vec);
         ab_imag_vec = _mm256_fmadd_ps(a_vec, b_swapped_vec, ab_imag_vec);
     }
+
+    // Flip the sign bit in every second scalar before accumulation:
+    ab_real_vec = _mm256_castsi256_ps(_mm256_xor_si256(_mm256_castps_si256(ab_real_vec), sign_flip_vec));
 
     // Reduce horizontal sums:
     simsimd_distance_t ab_real = _mm256_reduce_add_ps_dbl(ab_real_vec);
@@ -936,10 +938,12 @@ SIMSIMD_PUBLIC void simsimd_vdot_f32c_haswell(simsimd_f32_t const* a, simsimd_f3
         __m256 a_vec = _mm256_loadu_ps(a + i);
         __m256 b_vec = _mm256_loadu_ps(b + i);
         ab_real_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_real_vec);
-        a_vec = _mm256_castsi256_ps(_mm256_xor_si256(_mm256_castps_si256(a_vec), sign_flip_vec));
         b_vec = _mm256_castsi256_ps(_mm256_shuffle_epi8(_mm256_castps_si256(b_vec), swap_adjacent_vec));
         ab_imag_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_imag_vec);
     }
+
+    // Flip the sign bit in every second scalar before accumulation:
+    ab_imag_vec = _mm256_castsi256_ps(_mm256_xor_si256(_mm256_castps_si256(ab_imag_vec), sign_flip_vec));
 
     // Reduce horizontal sums:
     simsimd_distance_t ab_real = _mm256_reduce_add_ps_dbl(ab_real_vec);
@@ -1019,13 +1023,15 @@ SIMSIMD_PUBLIC void simsimd_dot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16
     while (n >= 8) {
         __m256 a_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)a));
         __m256 b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)b));
-        __m256 b_flipped_vec = _mm256_castsi256_ps(_mm256_xor_si256(_mm256_castps_si256(b_vec), sign_flip_vec));
         __m256 b_swapped_vec = _mm256_castsi256_ps(_mm256_shuffle_epi8(_mm256_castps_si256(b_vec), swap_adjacent_vec));
-        ab_real_vec = _mm256_fmadd_ps(a_vec, b_flipped_vec, ab_real_vec);
+        ab_real_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_real_vec);
         ab_imag_vec = _mm256_fmadd_ps(a_vec, b_swapped_vec, ab_imag_vec);
 
         n -= 8, a += 8, b += 8;
     }
+
+    // Flip the sign bit in every second scalar before accumulation:
+    ab_real_vec = _mm256_castsi256_ps(_mm256_xor_si256(_mm256_castps_si256(ab_real_vec), sign_flip_vec));
 
     // Reduce horizontal sums and aggregate with the tail:
     simsimd_dot_f16c_serial(a, b, n, results);
@@ -1054,12 +1060,14 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_haswell(simsimd_f16_t const* a, simsimd_f1
         __m256 a_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)a));
         __m256 b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)b));
         ab_real_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_real_vec);
-        a_vec = _mm256_castsi256_ps(_mm256_xor_si256(_mm256_castps_si256(a_vec), sign_flip_vec));
         b_vec = _mm256_castsi256_ps(_mm256_shuffle_epi8(_mm256_castps_si256(b_vec), swap_adjacent_vec));
         ab_imag_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_imag_vec);
 
         n -= 8, a += 8, b += 8;
     }
+
+    // Flip the sign bit in every second scalar before accumulation:
+    ab_imag_vec = _mm256_castsi256_ps(_mm256_xor_si256(_mm256_castps_si256(ab_imag_vec), sign_flip_vec));
 
     // Reduce horizontal sums and aggregate with the tail:
     simsimd_dot_f16c_serial(a, b, n, results);
@@ -1206,7 +1214,7 @@ SIMSIMD_PUBLIC void simsimd_dot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32
     __m512 ab_real_vec = _mm512_setzero();
     __m512 ab_imag_vec = _mm512_setzero();
     __m512 a_vec;
-    __m512i b_vec;
+    __m512 b_vec;
 
     // We take into account, that FMS is the same as FMA with a negative multiplier.
     // To multiply a floating-point value by -1, we can use the `XOR` instruction to flip the sign bit.
@@ -1224,18 +1232,21 @@ simsimd_dot_f32c_skylake_cycle:
     if (n < 16) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_ps(mask, a);
-        b_vec = _mm512_castps_si512(_mm512_maskz_loadu_ps(mask, b));
+        b_vec = _mm512_maskz_loadu_ps(mask, b);
         n = 0;
     } else {
         a_vec = _mm512_loadu_ps(a);
-        b_vec = _mm512_castps_si512(_mm512_loadu_ps(b));
+        b_vec = _mm512_loadu_ps(b);
         a += 16, b += 16, n -= 16;
     }
-    ab_real_vec = _mm512_fmadd_ps(_mm512_castsi512_ps(_mm512_xor_si512(b_vec, sign_flip_vec)), a_vec, ab_real_vec);
-    ab_imag_vec =
-        _mm512_fmadd_ps(_mm512_castsi512_ps(_mm512_shuffle_epi8(b_vec, swap_adjacent_vec)), a_vec, ab_imag_vec);
+    ab_real_vec = _mm512_fmadd_ps(b_vec, a_vec, ab_real_vec);
+    ab_imag_vec = _mm512_fmadd_ps(
+        _mm512_castsi512_ps(_mm512_shuffle_epi8(_mm512_castps_si512(b_vec), swap_adjacent_vec)), a_vec, ab_imag_vec);
     if (n)
         goto simsimd_dot_f32c_skylake_cycle;
+
+    // Flip the sign bit in every second scalar before accumulation:
+    ab_real_vec = _mm512_castsi512_ps(_mm512_xor_si512(_mm512_castps_si512(ab_real_vec), sign_flip_vec));
 
     // Reduce horizontal sums:
     results[0] = _mm512_reduce_add_ps(ab_real_vec);
@@ -1274,11 +1285,13 @@ simsimd_vdot_f32c_skylake_cycle:
         a += 16, b += 16, n -= 16;
     }
     ab_real_vec = _mm512_fmadd_ps(a_vec, b_vec, ab_real_vec);
-    a_vec = _mm512_castsi512_ps(_mm512_xor_si512(_mm512_castps_si512(a_vec), sign_flip_vec));
     b_vec = _mm512_castsi512_ps(_mm512_shuffle_epi8(_mm512_castps_si512(b_vec), swap_adjacent_vec));
     ab_imag_vec = _mm512_fmadd_ps(a_vec, b_vec, ab_imag_vec);
     if (n)
         goto simsimd_vdot_f32c_skylake_cycle;
+
+    // Flip the sign bit in every second scalar before accumulation:
+    ab_imag_vec = _mm512_castsi512_ps(_mm512_xor_si512(_mm512_castps_si512(ab_imag_vec), sign_flip_vec));
 
     // Reduce horizontal sums:
     results[0] = _mm512_reduce_add_ps(ab_real_vec);
@@ -1291,7 +1304,7 @@ SIMSIMD_PUBLIC void simsimd_dot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64
     __m512d ab_real_vec = _mm512_setzero_pd();
     __m512d ab_imag_vec = _mm512_setzero_pd();
     __m512d a_vec;
-    __m512i b_vec;
+    __m512d b_vec;
 
     // We take into account, that FMS is the same as FMA with a negative multiplier.
     // To multiply a floating-point value by -1, we can use the `XOR` instruction to flip the sign bit.
@@ -1312,18 +1325,21 @@ simsimd_dot_f64c_skylake_cycle:
     if (n < 8) {
         __mmask8 mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_pd(mask, a);
-        b_vec = _mm512_castpd_si512(_mm512_maskz_loadu_pd(mask, b));
+        b_vec = _mm512_maskz_loadu_pd(mask, b);
         n = 0;
     } else {
         a_vec = _mm512_loadu_pd(a);
-        b_vec = _mm512_castpd_si512(_mm512_loadu_pd(b));
+        b_vec = _mm512_loadu_pd(b);
         a += 8, b += 8, n -= 8;
     }
-    ab_real_vec = _mm512_fmadd_pd(_mm512_castsi512_pd(_mm512_xor_si512(b_vec, sign_flip_vec)), a_vec, ab_real_vec);
-    ab_imag_vec =
-        _mm512_fmadd_pd(_mm512_castsi512_pd(_mm512_shuffle_epi8(b_vec, swap_adjacent_vec)), a_vec, ab_imag_vec);
+    ab_real_vec = _mm512_fmadd_pd(b_vec, a_vec, ab_real_vec);
+    ab_imag_vec = _mm512_fmadd_pd(
+        _mm512_castsi512_pd(_mm512_shuffle_epi8(_mm512_castpd_si512(b_vec), swap_adjacent_vec)), a_vec, ab_imag_vec);
     if (n)
         goto simsimd_dot_f64c_skylake_cycle;
+
+    // Flip the sign bit in every second scalar before accumulation:
+    ab_real_vec = _mm512_castsi512_pd(_mm512_xor_si512(_mm512_castpd_si512(ab_real_vec), sign_flip_vec));
 
     // Reduce horizontal sums:
     results[0] = _mm512_reduce_add_pd(ab_real_vec);
@@ -1365,11 +1381,13 @@ simsimd_vdot_f64c_skylake_cycle:
         a += 8, b += 8, n -= 8;
     }
     ab_real_vec = _mm512_fmadd_pd(a_vec, b_vec, ab_real_vec);
-    a_vec = _mm512_castsi512_pd(_mm512_xor_si512(_mm512_castpd_si512(a_vec), sign_flip_vec));
     b_vec = _mm512_castsi512_pd(_mm512_shuffle_epi8(_mm512_castpd_si512(b_vec), swap_adjacent_vec));
     ab_imag_vec = _mm512_fmadd_pd(a_vec, b_vec, ab_imag_vec);
     if (n)
         goto simsimd_vdot_f64c_skylake_cycle;
+
+    // Flip the sign bit in every second scalar before accumulation:
+    ab_imag_vec = _mm512_castsi512_pd(_mm512_xor_si512(_mm512_castpd_si512(ab_imag_vec), sign_flip_vec));
 
     // Reduce horizontal sums:
     results[0] = _mm512_reduce_add_pd(ab_real_vec);
