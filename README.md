@@ -240,6 +240,18 @@ By default, the output distances will be stored in double-precision `f64` floati
 That behavior may not be space-efficient, especially if you are computing the hamming distance between short binary vectors, that will generally fit into 8x smaller `u8` or `u16` types.
 To override this behavior, use the `dtype` argument.
 
+### Helper Functions
+
+You can turn specific backends on or off depending on the exact environment.
+A common case may be avoiding AVX-512 on older AMD CPUs and [Intel Ice Lake](https://travisdowns.github.io/blog/2020/08/19/icl-avx512-freq.html) CPUs to ensure the CPU doesn't change the frequency license and throttle performance.
+
+```py
+$ simsimd.get_capabilities()
+> {'serial': True, 'neon': False, 'sve': False, 'neon_f16': False, 'sve_f16': False, 'neon_bf16': False, 'sve_bf16': False, 'neon_i8': False, 'sve_i8': False, 'haswell': True, 'skylake': True, 'ice': True, 'genoa': True, 'sapphire': True}
+$ simsimd.disable_capability("sapphire")
+$ simsimd.enable_capability("sapphire")
+```
+
 ### Using Python API with USearch
 
 Want to use it in Python with [USearch](https://github.com/unum-cloud/usearch)?
