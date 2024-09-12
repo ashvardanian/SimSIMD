@@ -1071,8 +1071,8 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_haswell(simsimd_f16_t const* a, simsimd_f1
 
     // Reduce horizontal sums and aggregate with the tail:
     simsimd_dot_f16c_serial(a, b, n, results);
-    results[0] = _mm256_reduce_add_ps_dbl(ab_real_vec);
-    results[1] = _mm256_reduce_add_ps_dbl(ab_imag_vec);
+    results[0] += _mm256_reduce_add_ps_dbl(ab_real_vec);
+    results[1] += _mm256_reduce_add_ps_dbl(ab_imag_vec);
 }
 
 SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
