@@ -494,7 +494,7 @@ def test_dense_i8(ndim, metric, stats_aggregator):
     except ValueError:
         expected_overflow = ValueError()
     accurate = baseline_kernel(a.astype(np.float64), b.astype(np.float64))
-    expected = baseline_kernel(a.astype(np.int32), b.astype(np.int32))
+    expected = baseline_kernel(a.astype(np.int64), b.astype(np.int64))
     result = simd_kernel(a, b)
 
     assert int(result) == int(expected), f"Expected {expected}, but got {result} (overflow: {expected_overflow})"
@@ -514,7 +514,7 @@ def test_dense_bits(ndim, metric, stats_aggregator):
     b = np.random.randint(2, size=ndim).astype(np.uint8)
 
     baseline_kernel, simd_kernel = name_to_kernels(metric)
-    accurate = baseline_kernel(a.astype(np.uint32), b.astype(np.uint32))
+    accurate = baseline_kernel(a.astype(np.uint64), b.astype(np.uint64))
     expected = baseline_kernel(a, b)
     result = simd_kernel(np.packbits(a), np.packbits(b), "b8")
 
