@@ -1,6 +1,9 @@
 import os
+import math
 import platform
+import collections
 
+import tabulate
 import pytest
 import simsimd as simd
 
@@ -27,7 +30,7 @@ try:
     baseline_inner = np.inner
     baseline_sqeuclidean = spd.sqeuclidean
     baseline_cosine = spd.cosine
-    baseline_jensenshannon = spd.jensenshannon
+    baseline_jensenshannon = lambda x, y: spd.jensenshannon(x, y) ** 2
     baseline_hamming = lambda x, y: spd.hamming(x, y) * len(x)
     baseline_jaccard = spd.jaccard
     baseline_intersect = lambda x, y: len(np.intersect1d(x, y))
@@ -48,7 +51,7 @@ except:
     baseline_inner = lambda x, y: np.inner(x, y)
     baseline_cosine = lambda x, y: 1.0 - np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
     baseline_sqeuclidean = lambda x, y: np.sum((x - y) ** 2)
-    baseline_jensenshannon = lambda p, q: np.sqrt((np.sum((np.sqrt(p) - np.sqrt(q)) ** 2)) / 2)
+    baseline_jensenshannon = lambda p, q: (np.sum((np.sqrt(p) - np.sqrt(q)) ** 2)) / 2
     baseline_hamming = lambda x, y: np.logical_xor(x, y).sum()
     baseline_bilinear = lambda x, y, z: x @ z @ y
 
@@ -79,10 +82,157 @@ def is_running_under_qemu():
     return "SIMSIMD_IN_QEMU" in os.environ
 
 
+@pytest.fixture(scope="session")
+def stats_aggregator():
+    """Session-scoped fixture that collects errors during tests."""
+    results = dict()
+    results["metric"] = []
+    results["ndim"] = []
+    results["dtype"] = []
+    results["absolute_baseline_error"] = []
+    results["relative_baseline_error"] = []
+    results["absolute_simsimd_error"] = []
+    results["relative_simsimd_error"] = []
+    yield results
+
+    # Group the errors by (metric, ndim, dtype) to calculate the mean and std error.
+    grouped_errors = collections.defaultdict(
+        lambda: {
+            "absolute_baseline_error": [],
+            "relative_baseline_error": [],
+            "absolute_simsimd_error": [],
+            "relative_simsimd_error": [],
+        }
+    )
+    for (
+        metric,
+        ndim,
+        dtype,
+        absolute_baseline_error,
+        relative_baseline_error,
+        absolute_simsimd_error,
+        relative_simsimd_error,
+    ) in zip(
+        results["metric"],
+        results["ndim"],
+        results["dtype"],
+        results["absolute_baseline_error"],
+        results["relative_baseline_error"],
+        results["absolute_simsimd_error"],
+        results["relative_simsimd_error"],
+    ):
+        key = (metric, ndim, dtype)
+        grouped_errors[key]["absolute_baseline_error"].append(absolute_baseline_error)
+        grouped_errors[key]["relative_baseline_error"].append(relative_baseline_error)
+        grouped_errors[key]["absolute_simsimd_error"].append(absolute_simsimd_error)
+        grouped_errors[key]["relative_simsimd_error"].append(relative_simsimd_error)
+
+    # Compute mean and the standard deviation for each task error
+    final_results = []
+    for key, errors in grouped_errors.items():
+        # Mean and the standard deviation for baseline errors
+        baseline_errors = errors["relative_baseline_error"]
+        baseline_mean = sum(baseline_errors) / len(baseline_errors)
+        baseline_std = math.sqrt(sum((x - baseline_mean) ** 2 for x in baseline_errors) / len(baseline_errors))
+        baseline_error_formatted = f"{baseline_mean:.2e} ± {baseline_std:.2e}"
+
+        # Mean and the standard deviation for SimSIMD errors
+        simsimd_errors = errors["relative_simsimd_error"]
+        simsimd_mean = sum(simsimd_errors) / len(simsimd_errors)
+        simsimd_std = math.sqrt(sum((x - simsimd_mean) ** 2 for x in simsimd_errors) / len(simsimd_errors))
+        simsimd_error_formatted = f"{simsimd_mean:.2e} ± {simsimd_std:.2e}"
+
+        # Calculate Improvement
+        # improvement = abs(baseline_mean - simsimd_mean) / min(simsimd_mean, baseline_mean)
+        # if baseline_mean < simsimd_mean:
+        #     improvement *= -1
+        # improvement_formatted = f"{improvement:+.2}x" if improvement != float("inf") else "N/A"
+        final_results.append((*key, baseline_error_formatted, simsimd_error_formatted))
+
+    # Sort results for consistent presentation
+    final_results.sort(key=lambda x: (x[0], x[1], x[2]))
+
+    # Output the final table after all tests are completed
+    print("\n")
+    print("Numerical Error Aggregation Report:")
+    headers = [
+        "Metric",
+        "NDim",
+        "DType",
+        "Baseline Error",  # Printed as mean ± std deviation
+        "SimSIMD Error",  # Printed as mean ± std deviation
+    ]
+    print(tabulate.tabulate(final_results, headers=headers, tablefmt="pretty", showindex=True))
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_makereport(item, call):
+    """Custom hook to ensure that the error aggregator runs even for failed tests."""
+    if call.when == "call":
+        item.test_result = call.excinfo is None
+
+
+def collect_errors(
+    metric: str,
+    ndim: int,
+    dtype: str,
+    accurate_result: float,
+    baseline_result: float,
+    simsimd_result: float,
+    stats,
+):
+    """Calculates and aggregates errors for a given test.
+
+    What we want to know in the end of the day is:
+
+    -   How much SimSIMD implementation is more/less accurate than baseline,
+        when compared against the accurate result?
+    -   TODO: How much faster is SimSIMD than the baseline kernel?
+    -   TODO: How much faster is SimSIMD than the accurate kernel?
+    """
+    absolute_baseline_error = np.abs(baseline_result - accurate_result)
+    relative_baseline_error = absolute_baseline_error / np.maximum(np.abs(baseline_result), np.abs(accurate_result))
+    absolute_simsimd_error = np.abs(simsimd_result - accurate_result)
+    relative_simsimd_error = absolute_simsimd_error / np.maximum(np.abs(simsimd_result), np.abs(accurate_result))
+
+    stats["metric"].append(metric)
+    stats["ndim"].append(ndim)
+    stats["dtype"].append(dtype)
+    stats["absolute_baseline_error"].append(absolute_baseline_error)
+    stats["relative_baseline_error"].append(relative_baseline_error)
+    stats["absolute_simsimd_error"].append(absolute_simsimd_error)
+    stats["relative_simsimd_error"].append(relative_simsimd_error)
+
+
 # For normalized distances we use the absolute tolerance, because the result is close to zero.
 # For unnormalized ones (like squared Euclidean or Jaccard), we use the relative.
 SIMSIMD_RTOL = 0.1
 SIMSIMD_ATOL = 0.1
+
+
+def name_to_kernels(name: str):
+    """
+    Having a separate "helper" function to convert the kernel name is handy for PyTest decorators,
+    that can't generally print non-trivial object (like function pointers) well.
+    """
+    if name == "inner":
+        return baseline_inner, simd.inner
+    elif name == "sqeuclidean":
+        return baseline_sqeuclidean, simd.sqeuclidean
+    elif name == "cosine":
+        return baseline_cosine, simd.cosine
+    elif name == "bilinear":
+        return baseline_bilinear, simd.bilinear
+    elif name == "mahalanobis":
+        return baseline_mahalanobis, simd.mahalanobis
+    elif name == "jaccard":
+        return baseline_jaccard, simd.jaccard
+    elif name == "hamming":
+        return baseline_hamming, simd.hamming
+    elif name == "intersect":
+        return baseline_intersect, simd.intersect
+    else:
+        raise ValueError(f"Unknown kernel name: {name}")
 
 
 def f32_round_and_downcast_to_bf16(array):
@@ -160,15 +310,8 @@ def test_capabilities_list():
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
-@pytest.mark.parametrize(
-    "kernels",
-    [
-        (baseline_inner, simd.inner),
-        (baseline_sqeuclidean, simd.sqeuclidean),
-        (baseline_cosine, simd.cosine),
-    ],
-)
-def test_dense(ndim, dtype, kernels):
+@pytest.mark.parametrize("metric", ["inner", "sqeuclidean", "cosine"])
+def test_dense(ndim, dtype, metric, stats_aggregator):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
     with their NumPy or baseline counterparts, testing accuracy for IEEE standard floating-point types."""
 
@@ -179,16 +322,18 @@ def test_dense(ndim, dtype, kernels):
     a = np.random.randn(ndim).astype(dtype)
     b = np.random.randn(ndim).astype(dtype)
 
-    baseline_kernel, simd_kernel = kernels
+    baseline_kernel, simd_kernel = name_to_kernels(metric)
+    accurate = baseline_kernel(a.astype(np.float64), b.astype(np.float64))
     expected = baseline_kernel(a, b).astype(np.float64)
     result = simd_kernel(a, b)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    collect_errors(metric, ndim, dtype, accurate, expected, result, stats_aggregator)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [11, 16, 33])
+@pytest.mark.parametrize("ndim", [11, 97])
 @pytest.mark.parametrize(
     "dtypes",  # representation datatype and compute precision
     [
@@ -197,14 +342,8 @@ def test_dense(ndim, dtype, kernels):
         ("float16", "float32"),  # otherwise NumPy keeps aggregating too much error
     ],
 )
-@pytest.mark.parametrize(
-    "kernels",  # baseline kernel and the contender from SimSIMD
-    [
-        (baseline_bilinear, simd.bilinear),
-        (baseline_mahalanobis, simd.mahalanobis),
-    ],
-)
-def test_curved(ndim, dtypes, kernels):
+@pytest.mark.parametrize("metric", ["bilinear", "mahalanobis"])
+def test_curved(ndim, dtypes, metric):
     """Compares various SIMD kernels (like Bilinear Forms and Mahalanobis distances) for curved spaces
     with their NumPy or baseline counterparts, testing accuracy for IEEE standard floating-point types."""
 
@@ -226,7 +365,12 @@ def test_curved(ndim, dtypes, kernels):
     c = np.abs(np.random.randn(ndim, ndim).astype(dtype))
     c = np.dot(c, c.T)
 
-    baseline_kernel, simd_kernel = kernels
+    baseline_kernel, simd_kernel = name_to_kernels(metric)
+    accurate = baseline_kernel(
+        a.astype(np.float64),
+        b.astype(np.float64),
+        c.astype(np.float64),
+    )
     expected = baseline_kernel(
         a.astype(compute_dtype),
         b.astype(compute_dtype),
@@ -235,20 +379,14 @@ def test_curved(ndim, dtypes, kernels):
     result = simd_kernel(a, b, c)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    collect_errors(metric, ndim, dtype, accurate, expected, result, stats_aggregator)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [4, 8, 12])
-@pytest.mark.parametrize(
-    "kernels",
-    [
-        (baseline_inner, simd.inner),
-        (baseline_sqeuclidean, simd.sqeuclidean),
-        (baseline_cosine, simd.cosine),
-    ],
-)
-def test_dense_bf16(ndim, kernels):
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("metric", ["inner", "sqeuclidean", "cosine"])
+def test_dense_bf16(ndim, metric, stats_aggregator):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
     with their NumPy or baseline counterparts, testing accuracy for the Brain-float format not
     natively supported by NumPy."""
@@ -259,7 +397,8 @@ def test_dense_bf16(ndim, kernels):
     a_f32_rounded, a_bf16 = f32_round_and_downcast_to_bf16(a)
     b_f32_rounded, b_bf16 = f32_round_and_downcast_to_bf16(b)
 
-    baseline_kernel, simd_kernel = kernels
+    baseline_kernel, simd_kernel = name_to_kernels(metric)
+    accurate = baseline_kernel(a_f32_rounded.astype(np.float64), b_f32_rounded.astype(np.float64))
     expected = baseline_kernel(a_f32_rounded, b_f32_rounded).astype(np.float64)
     result = simd_kernel(a_bf16, b_bf16, "bf16")
 
@@ -275,19 +414,14 @@ def test_dense_bf16(ndim, kernels):
         Second `bf16` operand in hex:   {hex_array(b_bf16)}
         """,
     )
+    collect_errors(metric, ndim, "bfloat16", accurate, expected, result, stats_aggregator)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 16, 33])
-@pytest.mark.parametrize(
-    "kernels",  # baseline kernel and the contender from SimSIMD
-    [
-        (baseline_bilinear, simd.bilinear),
-        (baseline_mahalanobis, simd.mahalanobis),
-    ],
-)
-def test_curved_bf16(ndim, kernels):
+@pytest.mark.parametrize("metric", ["bilinear", "mahalanobis"])
+def test_curved_bf16(ndim, metric, stats_aggregator):
     """Compares various SIMD kernels (like Bilinear Forms and Mahalanobis distances) for curved spaces
     with their NumPy or baseline counterparts, testing accuracy for the Brain-float format not
     natively supported by NumPy."""
@@ -310,7 +444,12 @@ def test_curved_bf16(ndim, kernels):
     b_f32_rounded, b_bf16 = f32_round_and_downcast_to_bf16(b)
     c_f32_rounded, c_bf16 = f32_round_and_downcast_to_bf16(c)
 
-    baseline_kernel, simd_kernel = kernels
+    baseline_kernel, simd_kernel = name_to_kernels(metric)
+    accurate = baseline_kernel(
+        a_f32_rounded.astype(np.float64),
+        b_f32_rounded.astype(np.float64),
+        c_f32_rounded.astype(np.float64),
+    )
     expected = baseline_kernel(a_f32_rounded, b_f32_rounded, c_f32_rounded).astype(np.float64)
     result = simd_kernel(a_bf16, b_bf16, c_bf16, "bf16")
 
@@ -328,20 +467,14 @@ def test_curved_bf16(ndim, kernels):
         Matrix `bf16` operand in hex:   {hex_array(c_bf16)}
         """,
     )
+    collect_errors(metric, ndim, "bfloat16", accurate, expected, result, stats_aggregator)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
-@pytest.mark.parametrize(
-    "kernels",
-    [
-        (baseline_inner, simd.inner),
-        (baseline_sqeuclidean, simd.sqeuclidean),
-        (baseline_cosine, simd.cosine),
-    ],
-)
-def test_dense_i8(ndim, kernels):
+@pytest.mark.parametrize("metric", ["inner", "sqeuclidean", "cosine"])
+def test_dense_i8(ndim, metric, stats_aggregator):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
     with their NumPy or baseline counterparts, testing accuracy for small integer types, that can't
     be directly processed with other tools without overflowing."""
@@ -350,7 +483,7 @@ def test_dense_i8(ndim, kernels):
     a = np.random.randint(-128, 127, size=(ndim), dtype=np.int8)
     b = np.random.randint(-128, 127, size=(ndim), dtype=np.int8)
 
-    baseline_kernel, simd_kernel = kernels
+    baseline_kernel, simd_kernel = name_to_kernels(metric)
 
     # Fun fact: SciPy doesn't actually raise an `OverflowError` when overflow happens
     # here, instead it raises `ValueError: math domain error` during the `sqrt` operation.
@@ -360,29 +493,33 @@ def test_dense_i8(ndim, kernels):
         expected_overflow = OverflowError()
     except ValueError:
         expected_overflow = ValueError()
-    expected = baseline_kernel(a.astype(np.float64), b.astype(np.float64))
+    accurate = baseline_kernel(a.astype(np.float64), b.astype(np.float64))
+    expected = baseline_kernel(a.astype(np.int32), b.astype(np.int32))
     result = simd_kernel(a, b)
 
     assert int(result) == int(expected), f"Expected {expected}, but got {result} (overflow: {expected_overflow})"
+    collect_errors(metric, ndim, "int8", accurate, expected, result, stats_aggregator)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
-@pytest.mark.parametrize("kernels", [(baseline_hamming, simd.hamming), (baseline_jaccard, simd.jaccard)])
-def test_dense_bits(ndim, kernels):
+@pytest.mark.parametrize("metric", ["jaccard", "hamming"])
+def test_dense_bits(ndim, metric, stats_aggregator):
     """Compares various SIMD kernels (like Hamming and Jaccard/Tanimoto distances) for dense bit arrays
     with their NumPy or baseline counterparts, even though, they can't process sub-byte-sized scalars."""
     np.random.seed()
     a = np.random.randint(2, size=ndim).astype(np.uint8)
     b = np.random.randint(2, size=ndim).astype(np.uint8)
 
-    baseline_kernel, simd_kernel = kernels
+    baseline_kernel, simd_kernel = name_to_kernels(metric)
+    accurate = baseline_kernel(a.astype(np.uint32), b.astype(np.uint32))
     expected = baseline_kernel(a, b)
     result = simd_kernel(np.packbits(a), np.packbits(b), "b8")
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    collect_errors(metric, ndim, "bits", accurate, expected, result, stats_aggregator)
 
 
 @pytest.mark.skip(reason="Problems inferring the tolerance bounds for numerical errors")
@@ -397,10 +534,12 @@ def test_jensen_shannon(ndim, dtype):
     a /= np.sum(a)
     b /= np.sum(b)
 
-    expected = baseline_jensenshannon(a, b) ** 2
+    accurate = baseline_jensenshannon(a.astype(np.float64), b.astype(np.float64))
+    expected = baseline_jensenshannon(a, b)
     result = simd.jensenshannon(a, b)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    collect_errors("jensenshannon", ndim, dtype, accurate, expected, result, stats_aggregator)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -441,22 +580,26 @@ def test_cosine_tolerance(ndim, dtype):
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [22, 66, 1536])
 @pytest.mark.parametrize("dtype", ["float32", "float64"])
-def test_dot_complex(ndim, dtype):
+def test_dot_complex(ndim, dtype, stats_aggregator):
     """Compares the simd.dot() and simd.vdot() against NumPy for complex numbers."""
     np.random.seed()
     dtype_view = np.complex64 if dtype == "float32" else np.complex128
     a = np.random.randn(ndim).astype(dtype=dtype).view(dtype_view)
     b = np.random.randn(ndim).astype(dtype=dtype).view(dtype_view)
 
+    accurate = np.dot(a.astype(np.complex128), b.astype(np.complex128))
     expected = np.dot(a, b)
     result = simd.dot(a, b)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    collect_errors("dot", ndim, dtype + "c", accurate, expected, result, stats_aggregator)
 
+    accurate = np.vdot(a.astype(np.complex128), b.astype(np.complex128))
     expected = np.vdot(a, b)
     result = simd.vdot(a, b)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    collect_errors("vdot", ndim, dtype + "c", accurate, expected, result, stats_aggregator)
 
 
 @pytest.mark.skipif(is_running_under_qemu(), reason="Complex math in QEMU fails")
