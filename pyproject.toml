@@ -3,9 +3,9 @@
 #   - `manylinux` and `musllinux` wheels for Linux on x86_64, aarch64, i686, ppc64le, s390x;
 #   - `macos` wheels for x86_64, arm64, and universal2;
 #   - `windows` wheels for AMD64, x86, and ARM64.
-#   * for Python versions from 3.6 to 3.12.
+#   * for 6 Python versions from 3.7 to 3.12.
 #   * running thousands of fuzzy tests on each wheel.
-#   = meaning 16 platforms * 7 Python versions = 112 builds.
+#   = meaning 16 platforms * 7 Python versions = 96 builds.
 [build-system]
 requires = ["setuptools>=42"]
 build-backend = "setuptools.build_meta"
@@ -26,6 +26,7 @@ test-requires = ["pytest", "pytest-repeat"]
 test-command = """
     python -m pip install numpy --only-binary=:all: || echo "Failed to install NumPy... Nothing can stop me, I'm all the way up!";
     python -m pip install scipy --only-binary=:all: || echo "Failed to install SciPy... Nothing can stop me, I'm all the way up!";
+    python -c "import simsimd; print(simsimd.get_capabilities())";
     pytest {project}/python/test.py -s -x -Wd
 """
 
@@ -99,4 +100,4 @@ test-command = """
 # https://black.readthedocs.io/en/latest/usage_and_configuration/the_basics.html#where-black-looks-for-the-file
 [tool.black]
 line-length = 120                  # Set line length to the same value as in `.clang-format` for modern wide screens
-target-version = ['py36', 'py312']
+target-version = ['py37', 'py312']

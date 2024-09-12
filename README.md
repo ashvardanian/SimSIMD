@@ -4,9 +4,12 @@ Computing dot-products, similarity measures, and distances between low- and high
 These algorithms generally have linear complexity in time, constant or linear complexity in space, and are data-parallel.
 In other words, it is easily parallelizable and vectorizable and often available in packages like BLAS (level 1) and LAPACK, as well as higher-level `numpy` and `scipy` Python libraries.
 Ironically, even with decades of evolution in compilers and numerical computing, [most libraries can be 3-200x slower than hardware potential][benchmarks] even on the most popular hardware, like 64-bit x86 and Arm CPUs.
-SimSIMD attempts to fill that gap.
+Moreover, most lack mixed-precision support, which is crucial for modern AI!
+The rare few that support minimal mixed precision, run only on one platform, and are vendor-locked, by companies like Intel and Nvidia.
+SimSIMD provides an alternative.
 1️⃣ SimSIMD functions are practically as fast as `memcpy`.
-2️⃣ SimSIMD [compiles to more platforms than NumPy (105 vs 35)][compatibility] and has more backends than most BLAS implementations.
+2️⃣ Unlike BLAS, most kernels are designed for mixed-precision and bit-level operations.
+3️⃣ SimSIMD [compiles to more platforms than NumPy (105 vs 35)][compatibility] and has more backends than most BLAS implementations, and more high-level interfaces than most libraries.
 
 [benchmarks]: https://ashvardanian.com/posts/simsimd-faster-scipy
 [compatibility]: https://pypi.org/project/simsimd/#files
@@ -61,6 +64,7 @@ Moreover, SimSIMD...
 - has bindings for [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust) and [JS](#using-simsimd-in-javascript).
 - has Arm backends for NEON and Scalable Vector Extensions (SVE).
 - has x86 backends for Haswell, Skylake, Ice Lake, Genoa, and Sapphire Rapids.
+- with both compile-time and runtime CPU feature detection easily integrates anywhere!
 
 Due to the high-level of fragmentation of SIMD support in different x86 CPUs, SimSIMD generally uses the names of select Intel CPU generations for its backends.
 They, however, also work on AMD CPUs.
@@ -110,7 +114,7 @@ __Broader Benchmarking Results__:
 The package is intended to replace the usage of `numpy.inner`, `numpy.dot`, and `scipy.spatial.distance`.
 Aside from drastic performance improvements, SimSIMD significantly improves accuracy in mixed precision setups.
 NumPy and SciPy, processing `i8` or `f16` vectors, will use the same types for accumulators, while SimSIMD can combine `i8` enumeration, `i16` multiplication, and `i32` accumulation to avoid overflows entirely.
-The same applies to processing `f16` values with `f32` precision.
+The same applies to processing `f16` and `bf16` values with `f32` precision.
 
 ### Installation
 
@@ -120,6 +124,9 @@ Use the following snippet to install SimSIMD and list available hardware acceler
 pip install simsimd
 python -c "import simsimd; print(simsimd.get_capabilities())"
 ```
+
+With precompiled binaries, SimSIMD ships `.pyi` interface files for type hinting and static analysis.
+You can check all the available functions in [`python/annotations/__init__.pyi`](https://github.com/ashvardanian/SimSIMD/blob/main/python/annotations/__init__.pyi).
 
 ### One-to-One Distance
 
@@ -214,9 +221,19 @@ distances_array: np.ndarray = np.array(distances, copy=True)                    
 By default, computations use a single CPU core.
 To override this behavior, use the `threads` argument.
 Set it to `0` to use all available CPU cores.
+Here is an example of dealing with large sets of binary vectors:
 
 ```py
-distances = simsimd.cdist(matrix1, matrix2, metric="hamming", threads=0, dtype="u8")
+ndim = 1536 # OpenAI Ada embeddings
+matrix1 = np.packbits(np.random.randint(2, size=(10_000, ndim)).astype(np.uint8))
+matrix2 = np.packbits(np.random.randint(2, size=(1_000, ndim)).astype(np.uint8))
+
+distances = simsimd.cdist(matrix1, matrix2, 
+    metric="hamming", # Unlike SciPy, SimSIMD doesn't divide by the number of dimensions
+    out_dtype="u8",   # so we can use `u8` instead of `f64` to save memory.
+    threads=0,        # Use all CPU cores with OpenMP.
+    dtype="b8",       # Override input argument type to `b8` eight-bit words.
+)
 ```
 
 By default, the output distances will be stored in double-precision `f64` floating-point numbers.
@@ -413,9 +430,9 @@ expected = np.inner(a_f32rounded, b_f32rounded)
 result = simd.inner(a_bf16, b_bf16, "bf16")
 ```
 
-### Dynamic Dispatch
+### Dynamic Dispatch in Rust
 
-SimSIMD provides a dynamic dispatch mechanism to select the most advanced micro-kernel for the current CPU.
+SimSIMD provides a [dynamic dispatch](#dynamic-dispatch) mechanism to select the most advanced micro-kernel for the current CPU.
 You can query supported backends and use the `SimSIMD::capabilities` function to select the best one.
 
 ```rust
@@ -513,10 +530,10 @@ int main() {
 }
 ```
 
-### Dynamic Dispatch
+### Dynamic Dispatch in C
 
 To avoid hard-coding the backend, you can rely on `c/lib.c` to prepackage all possible backends in one binary, and select the most recent CPU features at runtime.
-That feature of the C library is called dynamic dispatch and is extensively used in the Python, JavaScript, and Rust bindings.
+That feature of the C library is called [dynamic dispatch](#dynamic-dispatch) and is extensively used in the Python, JavaScript, and Rust bindings.
 To test which CPU features are available on the machine at runtime, use the following APIs:
 
 ```c
@@ -694,7 +711,10 @@ Interestingly, there are multiple ways to shoot yourself in the foot when comput
 The cosine similarity is the inverse of the cosine distance, which is the cosine of the angle between two vectors.
 
 ```math
-\text{CosineSimilarity}(a, b) = \frac{a \cdot b}{\|a\| \cdot \|b\|} \\
+\text{CosineSimilarity}(a, b) = \frac{a \cdot b}{\|a\| \cdot \|b\|}
+```
+
+```math
 \text{CosineDistance}(a, b) = 1 - \frac{a \cdot b}{\|a\| \cdot \|b\|}
 ```
 
@@ -721,6 +741,7 @@ The `rsqrt` in-hardware implementations are faster, but have different accuracy 
 - AVX-512 `vrsqrt14pd` instruction: $`\(2^{-14}\)`$ maximal error.
 - NEON `frsqrte` instruction has no clear error bounds.
 
+🔜
 To overcome the limitations of the `rsqrt` instruction, SimSIMD uses the Newton-Raphson iteration to refine the initial estimate for high-precision floating-point numbers.
 It can be defined as:
 
@@ -734,7 +755,10 @@ The Mahalanobis distance is a generalization of the Euclidean distance, which ta
 It's very similar in its form to the bilinear form, which is a generalization of the dot product.
 
 ```math
-\text{BilinearForm}(a, b, M) = a^T M b \\
+\text{BilinearForm}(a, b, M) = a^T M b
+```
+
+```math
 \text{Mahalanobis}(a, b, M) = \sqrt{(a - b)^T M^{-1} (a - b)}
 ```
 
@@ -790,7 +814,10 @@ They are supported by most BLAS packages, but almost never in mixed precision.
 SimSIMD defines `dot` and `vdot` kernels as:
 
 ```math
-\text{dot}(a, b) = \sum_{i=0}^{n-1} a_i \cdot b_i \\
+\text{dot}(a, b) = \sum_{i=0}^{n-1} a_i \cdot b_i
+```
+
+```math
 \text{vdot}(a, b) = \sum_{i=0}^{n-1} a_i \cdot \bar{b_i}
 ```
 
@@ -823,15 +850,29 @@ The Kullback-Leibler divergence is a measure of how one probability distribution
 Jensen-Shannon divergence is a symmetrized and smoothed version of the Kullback-Leibler divergence, which can be used as a distance metric between probability distributions.
 
 ```math
-\text{KL}(P || Q) = \sum_{i} P(i) \log \frac{P(i)}{Q(i)} \\
+\text{KL}(P || Q) = \sum_{i} P(i) \log \frac{P(i)}{Q(i)}
+```
+
+```math
 \text{JS}(P, Q) = \frac{1}{2} \text{KL}(P || M) + \frac{1}{2} \text{KL}(Q || M), M = \frac{P + Q}{2}
 ```
 
 Both functions are defined for non-negative numbers, and the logarithm is a key part of their computation.
 
+### Dynamic Dispatch
+
+Most popular software is precompiled and distributed with fairly conservative CPU optimizations, to ensure compatibility with older hardware.
+Database Management platforms, like ClickHouse, and Web Browsers, like Google Chrome,need to run on billions of devices, and they can't afford to be picky about the CPU features.
+For such users SimSIMD provides a dynamic dispatch mechanism, which selects the most advanced micro-kernel for the current CPU at runtime.
+
+You can compile SimSIMD on an old CPU, like Intel Haswell, and run it on a new one, like AMD Genoa, and it will automatically use the most advanced instructions available.
+Reverse is also true, you can compile on a new CPU and run on an old one, and it will automatically fall back to the most basic instructions.
+Moreover, the very first time you prove for CPU capabilities with `simsimd_capabilities()`, it initializes the dynamic dispatch mechanism, and all subsequent calls will be faster and won't face race conditions in multi-threaded environments.
+
 ## Target Specific Backends
 
 SimSIMD exposes all kernels for all backends, and you can select the most advanced one for the current CPU without relying on built-in dispatch mechanisms.
+That's handy for testing and benchmarking, but also in case you want to dispatch a very specific kernel for a very specific CPU, bypassing SimSIMD assignment logic.
 All of the function names follow the same pattern: `simsimd_{function}_{type}_{backend}`.
 
 - The backend can be `serial`, `haswell`, `skylake`, `ice`, `genoa`, `sapphire`, `neon`, or `sve`.

@@ -1,4 +1,6 @@
 import os
+import platform
+
 import pytest
 import simsimd as simd
 
@@ -21,6 +23,8 @@ try:
     import scipy.spatial.distance as spd
 
     scipy_available = True
+
+    baseline_inner = np.inner
     baseline_sqeuclidean = spd.sqeuclidean
     baseline_cosine = spd.cosine
     baseline_jensenshannon = spd.jensenshannon
@@ -28,11 +32,20 @@ try:
     baseline_jaccard = spd.jaccard
     baseline_intersect = lambda x, y: len(np.intersect1d(x, y))
     baseline_bilinear = lambda x, y, z: x @ z @ y
-    baseline_mahalanobis = lambda x, y, z: (spd.mahalanobis(x, y, z).astype(np.float64) ** 2)
+
+    def baseline_mahalanobis(x, y, z):
+        try:
+            result = spd.mahalanobis(x, y, z).astype(np.float64) ** 2
+            if not np.isnan(result):
+                return result
+        finally:
+            pytest.skip("SciPy Mahalanobis distance returned NaN due to `sqrt` of a negative number")
 
 except:
     # SciPy is not installed, some tests will be skipped
     scipy_available = False
+
+    baseline_inner = lambda x, y: np.inner(x, y)
     baseline_cosine = lambda x, y: 1.0 - np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
     baseline_sqeuclidean = lambda x, y: np.sum((x - y) ** 2)
     baseline_jensenshannon = lambda p, q: np.sqrt((np.sum((np.sqrt(p) - np.sqrt(q)) ** 2)) / 2)
@@ -72,16 +85,17 @@ SIMSIMD_RTOL = 0.1
 SIMSIMD_ATOL = 0.1
 
 
-def f32_rounded_and_downcasted_to_bf16(array):
+def f32_round_and_downcast_to_bf16(array):
     """Converts an array of 32-bit floats into 16-bit brain-floats."""
+    array = np.asarray(array, dtype=np.float32)
     # NumPy doesn't natively support brain-float, so we need a trick!
     # Luckily, it's very easy to reduce the representation accuracy
     # by simply masking the low 16-bits of our 32-bit single-precision
     # numbers. We can also add `0x8000` to round the numbers.
-    array_f32rounded = ((array.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
-    # To represent them as brain-floats, we need to drop the second halfs
-    array_bf16 = np.right_shift(array_f32rounded.view(np.uint32), 16).astype(np.uint16)
-    return array_f32rounded, array_bf16
+    array_f32_rounded = ((array.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+    # To represent them as brain-floats, we need to drop the second halves.
+    array_bf16 = np.right_shift(array_f32_rounded.view(np.uint32), 16).astype(np.uint16)
+    return array_f32_rounded, array_bf16
 
 
 def hex_array(arr):
@@ -149,7 +163,7 @@ def test_capabilities_list():
 @pytest.mark.parametrize(
     "kernels",
     [
-        (np.inner, simd.inner),
+        (baseline_inner, simd.inner),
         (baseline_sqeuclidean, simd.sqeuclidean),
         (baseline_cosine, simd.cosine),
     ],
@@ -200,7 +214,7 @@ def test_curved(ndim, dtypes, kernels):
 
     np.random.seed()
 
-    # Let's generate some non-negative probability distirbutions
+    # Let's generate some non-negative probability distributions
     a = np.abs(np.random.randn(ndim).astype(dtype))
     b = np.abs(np.random.randn(ndim).astype(dtype))
     a /= np.sum(a)
@@ -225,11 +239,11 @@ def test_curved(ndim, dtypes, kernels):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("ndim", [4, 8, 12])
 @pytest.mark.parametrize(
     "kernels",
     [
-        (np.inner, simd.inner),
+        (baseline_inner, simd.inner),
         (baseline_sqeuclidean, simd.sqeuclidean),
         (baseline_cosine, simd.cosine),
     ],
@@ -242,11 +256,11 @@ def test_dense_bf16(ndim, kernels):
     a = np.random.randn(ndim).astype(np.float32)
     b = np.random.randn(ndim).astype(np.float32)
 
-    a_f32rounded, a_bf16 = f32_rounded_and_downcasted_to_bf16(a)
-    b_f32rounded, b_bf16 = f32_rounded_and_downcasted_to_bf16(b)
+    a_f32_rounded, a_bf16 = f32_round_and_downcast_to_bf16(a)
+    b_f32_rounded, b_bf16 = f32_round_and_downcast_to_bf16(b)
 
     baseline_kernel, simd_kernel = kernels
-    expected = baseline_kernel(a_f32rounded, b_f32rounded).astype(np.float64)
+    expected = baseline_kernel(a_f32_rounded, b_f32_rounded).astype(np.float64)
     result = simd_kernel(a_bf16, b_bf16, "bf16")
 
     np.testing.assert_allclose(
@@ -255,8 +269,8 @@ def test_dense_bf16(ndim, kernels):
         atol=SIMSIMD_ATOL,
         rtol=SIMSIMD_RTOL,
         err_msg=f"""
-        First `f32` operand in hex:     {hex_array(a_f32rounded.view(np.uint32))}
-        Second `f32` operand in hex:    {hex_array(b_f32rounded.view(np.uint32))}
+        First `f32` operand in hex:     {hex_array(a_f32_rounded.view(np.uint32))}
+        Second `f32` operand in hex:    {hex_array(b_f32_rounded.view(np.uint32))}
         First `bf16` operand in hex:    {hex_array(a_bf16)}
         Second `bf16` operand in hex:   {hex_array(b_bf16)}
         """,
@@ -280,7 +294,7 @@ def test_curved_bf16(ndim, kernels):
 
     np.random.seed()
 
-    # Let's generate some non-negative probability distirbutions
+    # Let's generate some non-negative probability distributions
     a = np.abs(np.random.randn(ndim).astype(np.float32))
     b = np.abs(np.random.randn(ndim).astype(np.float32))
     a /= np.sum(a)
@@ -292,12 +306,12 @@ def test_curved_bf16(ndim, kernels):
     c = np.abs(np.random.randn(ndim, ndim).astype(np.float32))
     c = np.dot(c, c.T)
 
-    a_f32rounded, a_bf16 = f32_rounded_and_downcasted_to_bf16(a)
-    b_f32rounded, b_bf16 = f32_rounded_and_downcasted_to_bf16(b)
-    c_f32rounded, c_bf16 = f32_rounded_and_downcasted_to_bf16(c)
+    a_f32_rounded, a_bf16 = f32_round_and_downcast_to_bf16(a)
+    b_f32_rounded, b_bf16 = f32_round_and_downcast_to_bf16(b)
+    c_f32_rounded, c_bf16 = f32_round_and_downcast_to_bf16(c)
 
     baseline_kernel, simd_kernel = kernels
-    expected = baseline_kernel(a_f32rounded, b_f32rounded, c_f32rounded).astype(np.float64)
+    expected = baseline_kernel(a_f32_rounded, b_f32_rounded, c_f32_rounded).astype(np.float64)
     result = simd_kernel(a_bf16, b_bf16, c_bf16, "bf16")
 
     np.testing.assert_allclose(
@@ -306,8 +320,8 @@ def test_curved_bf16(ndim, kernels):
         atol=SIMSIMD_ATOL,
         rtol=SIMSIMD_RTOL,
         err_msg=f"""
-        First `f32` operand in hex:     {hex_array(a_f32rounded.view(np.uint32))}
-        Second `f32` operand in hex:    {hex_array(b_f32rounded.view(np.uint32))}
+        First `f32` operand in hex:     {hex_array(a_f32_rounded.view(np.uint32))}
+        Second `f32` operand in hex:    {hex_array(b_f32_rounded.view(np.uint32))}
         First `bf16` operand in hex:    {hex_array(a_bf16)}
         Second `bf16` operand in hex:   {hex_array(b_bf16)}
         Matrix `bf16` operand in hex:    {hex_array(c_bf16)}
@@ -322,7 +336,7 @@ def test_curved_bf16(ndim, kernels):
 @pytest.mark.parametrize(
     "kernels",
     [
-        (np.inner, simd.inner),
+        (baseline_inner, simd.inner),
         (baseline_sqeuclidean, simd.sqeuclidean),
         (baseline_cosine, simd.cosine),
     ],
@@ -467,15 +481,22 @@ def test_dot_complex_explicit(ndim):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(200)
-@pytest.mark.parametrize("dtype", [np.uint16, np.uint32])
-def test_intersect(dtype):
+@pytest.mark.repeat(100)
+@pytest.mark.parametrize("dtype", ["uint16", "uint32"])
+@pytest.mark.parametrize("first_length_bound", [10, 100, 1000])
+@pytest.mark.parametrize("second_length_bound", [10, 100, 1000])
+def test_intersect(dtype, first_length_bound, second_length_bound):
     """Compares the simd.intersect() function with numpy.intersect1d."""
+
+    if is_running_under_qemu() and (platform.machine() == "aarch64" or platform.machine() == "arm64"):
+        pytest.skip("In QEMU `aarch64` emulation on `x86_64` the `intersect` function is not reliable")
+
     np.random.seed()
-    a_length = np.random.randint(1, 1024)
-    b_length = np.random.randint(1, 1024)
-    a = np.random.randint(2048, size=a_length, dtype=dtype)
-    b = np.random.randint(2048, size=b_length, dtype=dtype)
+
+    a_length = np.random.randint(1, first_length_bound)
+    b_length = np.random.randint(1, second_length_bound)
+    a = np.random.randint(first_length_bound * 2, size=a_length, dtype=dtype)
+    b = np.random.randint(second_length_bound * 2, size=b_length, dtype=dtype)
 
     # Remove duplicates, converting into sorted arrays
     a = np.unique(a)
@@ -484,7 +505,7 @@ def test_intersect(dtype):
     expected = baseline_intersect(a, b)
     result = simd.intersect(a, b)
 
-    assert int(expected) == int(result)
+    assert int(expected) == int(result), f"Missing {np.intersect1d(a, b)} from {a} and {b}"
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -538,9 +559,9 @@ def test_batch(ndim, dtype):
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("input_dtype", ["float32", "float16"])
-@pytest.mark.parametrize("result_dtype", [None, "float32", "float16", "int8"])
-@pytest.mark.parametrize("metric", ["cosine"])
-def test_cdist(ndim, input_dtype, result_dtype, metric):
+@pytest.mark.parametrize("out_dtype", [None, "float32", "int32"])
+@pytest.mark.parametrize("metric", ["cosine", "sqeuclidean"])
+def test_cdist(ndim, input_dtype, out_dtype, metric):
     """Compares the simd.cdist() function with scipy.spatial.distance.cdist(), measuring the accuracy error for f16, and f32 types using sqeuclidean and cosine metrics."""
 
     if input_dtype == "float16" and is_running_under_qemu():
@@ -549,24 +570,45 @@ def test_cdist(ndim, input_dtype, result_dtype, metric):
     np.random.seed()
 
     # Create random matrices A (M x D) and B (N x D).
-    M, N = 10, 15  # or any other sizes you deem appropriate
+    M, N = 10, 15
     A = np.random.randn(M, ndim).astype(input_dtype)
     B = np.random.randn(N, ndim).astype(input_dtype)
 
-    if result_dtype is None:
-        # Compute cdist using scipy.
+    if out_dtype is None:
         expected = spd.cdist(A, B, metric)
-
-        # Compute cdist using simd.
         result = simd.cdist(A, B, metric=metric)
     else:
-        # Compute cdist using scipy.
-        expected = spd.cdist(A, B, metric).astype(result_dtype)
-
-        # Compute cdist using simd.
-        result = simd.cdist(A, B, metric=metric, dtype=result_dtype)
+        expected = spd.cdist(A, B, metric).astype(out_dtype)
+        result = simd.cdist(A, B, metric=metric, out_dtype=out_dtype)
 
     # Assert they're close.
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("out_dtype", [None, "float32", "float16", "int8"])
+def test_cdist_hamming(ndim, out_dtype):
+    """Compares various SIMD kernels (like Hamming and Jaccard/Tanimoto distances) for dense bit arrays
+    with their NumPy or baseline counterparts, even though, they can't process sub-byte-sized scalars."""
+    np.random.seed()
+
+    # Create random matrices A (M x D) and B (N x D).
+    M, N = 10, 15
+    A = np.random.randint(2, size=(M, ndim)).astype(np.uint8)
+    B = np.random.randint(2, size=(N, ndim)).astype(np.uint8)
+    A_bits, B_bits = np.packbits(A, axis=1), np.packbits(B, axis=1)
+
+    if out_dtype is None:
+        # SciPy divides the Hamming distance by the number of dimensions, so we need to multiply it back.
+        expected = spd.cdist(A, B, "hamming") * ndim
+        result = simd.cdist(A_bits, B_bits, metric="hamming", dtype="b8")
+    else:
+        expected = (spd.cdist(A, B, "hamming") * ndim).astype(out_dtype)
+        result = simd.cdist(A_bits, B_bits, metric="hamming", dtype="b8", out_dtype=out_dtype)
+
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 

@@ -91,18 +91,18 @@ SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u16, size) // simsimd_intersect_u16_accu
 SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u32, size) // simsimd_intersect_u32_accurate
 
 #define SIMSIMD_MAKE_INTERSECT_GALLOPING(name, input_type, accumulator_type)                                           \
-    SIMSIMD_PUBLIC simsimd_size_t simsimd_galloping_search_##input_type(simsimd_##input_type##_t const* b,             \
-                                                                        simsimd_size_t start, simsimd_size_t b_length, \
+    SIMSIMD_PUBLIC simsimd_size_t simsimd_galloping_search_##input_type(simsimd_##input_type##_t const* array,         \
+                                                                        simsimd_size_t start, simsimd_size_t length,   \
                                                                         simsimd_##input_type##_t val) {                \
         simsimd_size_t low = start;                                                                                    \
         simsimd_size_t high = start + 1;                                                                               \
-        while (high < b_length && b[high] < val) {                                                                     \
+        while (high < length && array[high] < val) {                                                                   \
             low = high;                                                                                                \
-            high = (2 * high < b_length) ? 2 * high : b_length;                                                        \
+            high = (2 * high < length) ? 2 * high : length;                                                            \
         }                                                                                                              \
         while (low < high) {                                                                                           \
             simsimd_size_t mid = low + (high - low) / 2;                                                               \
-            if (b[mid] < val) {                                                                                        \
+            if (array[mid] < val) {                                                                                    \
                 low = mid + 1;                                                                                         \
             } else {                                                                                                   \
                 high = mid;                                                                                            \
@@ -112,31 +112,31 @@ SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u32, size) // simsimd_intersect_u32_accu
     }                                                                                                                  \
                                                                                                                        \
     SIMSIMD_PUBLIC void simsimd_intersect_##input_type##_##name(                                                       \
-        simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b, simsimd_size_t a_length,                 \
-        simsimd_size_t b_length, simsimd_distance_t* result) {                                                         \
-        /* Swap arrays if necessary, as we want "b" to be larger than "a" */                                           \
-        if (a_length > b_length) {                                                                                     \
-            simsimd_##input_type##_t const* temp = a;                                                                  \
-            a = b;                                                                                                     \
-            b = temp;                                                                                                  \
-            simsimd_size_t temp_length = a_length;                                                                     \
-            a_length = b_length;                                                                                       \
-            b_length = temp_length;                                                                                    \
+        simsimd_##input_type##_t const* shorter, simsimd_##input_type##_t const* longer,                               \
+        simsimd_size_t shorter_length, simsimd_size_t longer_length, simsimd_distance_t* result) {                     \
+        /* Swap arrays if necessary, as we want "longer" to be larger than "shorter" */                                \
+        if (longer_length < shorter_length) {                                                                          \
+            simsimd_##input_type##_t const* temp = shorter;                                                            \
+            shorter = longer;                                                                                          \
+            longer = temp;                                                                                             \
+            simsimd_size_t temp_length = shorter_length;                                                               \
+            shorter_length = longer_length;                                                                            \
+            longer_length = temp_length;                                                                               \
         }                                                                                                              \
                                                                                                                        \
-        /* Use accurate implementation if galloping is not beneficial */                                               \
-        if (b_length < 64 * a_length) {                                                                                \
-            simsimd_intersect_##input_type##_accurate(a, b, a_length, b_length, result);                               \
+        /* Use the accurate implementation if galloping is not beneficial */                                           \
+        if (longer_length < 64 * shorter_length) {                                                                     \
+            simsimd_intersect_##input_type##_accurate(shorter, longer, shorter_length, longer_length, result);         \
             return;                                                                                                    \
         }                                                                                                              \
                                                                                                                        \
         /* Perform galloping, shrinking the target range */                                                            \
         simsimd_##accumulator_type##_t intersection = 0;                                                               \
         simsimd_size_t j = 0;                                                                                          \
-        for (simsimd_size_t i = 0; i < a_length; ++i) {                                                                \
-            simsimd_##input_type##_t ai = a[i];                                                                        \
-            j = simsimd_galloping_search_##input_type(b, j, b_length, ai);                                             \
-            if (j < b_length && b[j] == ai) {                                                                          \
+        for (simsimd_size_t i = 0; i < shorter_length; ++i) {                                                          \
+            simsimd_##input_type##_t shorter_i = shorter[i];                                                           \
+            j = simsimd_galloping_search_##input_type(longer, j, longer_length, shorter_i);                            \
+            if (j < longer_length && longer[j] == shorter_i) {                                                         \
                 intersection++;                                                                                        \
             }                                                                                                          \
         }                                                                                                              \
@@ -290,6 +290,10 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_sve(simsimd_u16_t const* shorter, sims
                                               simsimd_size_t shorter_length, simsimd_size_t longer_length,
                                               simsimd_distance_t* results) {
 
+    // Temporarily disable SVE: https://github.com/ashvardanian/SimSIMD/issues/168
+    simsimd_intersect_u16_serial(shorter, longer, shorter_length, longer_length, results);
+    return;
+
     // SVE implementations with 128-bit registers can only fit 8x 16-bit words,
     // making this kernel quite inefficient. Let's aim for registers of 256 bits and larger.
     simsimd_size_t longer_load_size = svcnth();
@@ -338,6 +342,10 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_sve(simsimd_u16_t const* shorter, sims
 SIMSIMD_PUBLIC void simsimd_intersect_u32_sve(simsimd_u32_t const* shorter, simsimd_u32_t const* longer,
                                               simsimd_size_t shorter_length, simsimd_size_t longer_length,
                                               simsimd_distance_t* results) {
+
+    // Temporarily disable SVE: https://github.com/ashvardanian/SimSIMD/issues/168
+    simsimd_intersect_u32_serial(shorter, longer, shorter_length, longer_length, results);
+    return;
 
     // SVE implementations with 128-bit registers can only fit 4x 32-bit words,
     // making this kernel quite inefficient. Let's aim for registers of 256 bits and larger.

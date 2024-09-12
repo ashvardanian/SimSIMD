@@ -3,19 +3,31 @@
     "tasks": [
         {
             "label": "Build Benchmark: Debug",
-            "command": "cmake -DCMAKE_BUILD_TYPE=Debug -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build_debug && make -j 2 -C ./build_debug",
+            "command": "cmake -D CMAKE_BUILD_TYPE=Debug -D SIMSIMD_BUILD_BENCHMARKS=1 -B build_debug && make -j 2 -C build_debug",
             "args": [],
-            "type": "shell"
+            "type": "shell",
+            "osx": {
+                "environment": [
+                    {
+                        "name": "CXX",
+                        "value": "$(brew --prefix llvm)/bin/clang++"
+                    },
+                    {
+                        "name": "CC",
+                        "value": "$(brew --prefix llvm)/bin/clang"
+                    }
+                ]
+            }
         },
         {
             "label": "Build Test: Debug",
-            "command": "cmake -DCMAKE_BUILD_TYPE=Debug -B ./build && make test py_simsimd -C ./build",
+            "command": "cmake -D CMAKE_BUILD_TYPE=Debug -B build && make test py_simsimd -C build",
             "args": [],
             "type": "shell"
         },
         {
             "label": "Build Benchmark: Release",
-            "command": "cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSIMSIMD_BUILD_BENCHMARKS=1 -B ./build_release && make -j 2 -C ./build_release",
+            "command": "cmake -D CMAKE_BUILD_TYPE=RelWithDebInfo -D SIMSIMD_BUILD_BENCHMARKS=1 -B build_release && make -j 2 -C build_release",
             "args": [],
             "type": "shell"
         }

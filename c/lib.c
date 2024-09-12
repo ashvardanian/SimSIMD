@@ -42,13 +42,6 @@
 extern "C" {
 #endif
 
-simsimd_capability_t simsimd_capabilities(void) {
-    static simsimd_capability_t static_capabilities = simsimd_cap_any_k;
-    if (static_capabilities == simsimd_cap_any_k)
-        static_capabilities = simsimd_capabilities_implementation();
-    return static_capabilities;
-}
-
 // Every time a function is called, it checks if the metric is already loaded. If not, it fetches it.
 // If no metric is found, it returns NaN. We can obtain NaN by dividing 0.0 by 0.0, but that annoys
 // the MSVC compiler. Instead we can directly write-in the signaling NaN (0x7FF0000000000001)
@@ -172,6 +165,72 @@ SIMSIMD_DYNAMIC int simsimd_uses_skylake(void) { return (simsimd_capabilities() 
 SIMSIMD_DYNAMIC int simsimd_uses_ice(void) { return (simsimd_capabilities() & simsimd_cap_ice_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_genoa(void) { return (simsimd_capabilities() & simsimd_cap_genoa_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void) { return (simsimd_capabilities() & simsimd_cap_sapphire_k) != 0; }
+SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void) { return 1; }
+
+simsimd_capability_t simsimd_capabilities(void) {
+    static simsimd_capability_t static_capabilities = simsimd_cap_any_k;
+    if (static_capabilities != simsimd_cap_any_k)
+        return static_capabilities;
+
+    static_capabilities = simsimd_capabilities_implementation();
+
+    // In multithreaded applications we need to ensure that the function pointers are pre-initialized,
+    // so the first time we are probing for capabilities, we should also probe all of our metrics
+    // with dummy inputs:
+    simsimd_distance_t dummy_results_buffer[2];
+    simsimd_distance_t* dummy_results = &dummy_results_buffer[0];
+    void* dummy = 0;
+
+    // Dense:
+    simsimd_dot_f16(dummy, dummy, 0, dummy_results);
+    simsimd_dot_bf16(dummy, dummy, 0, dummy_results);
+    simsimd_dot_f32(dummy, dummy, 0, dummy_results);
+    simsimd_dot_f64(dummy, dummy, 0, dummy_results);
+    simsimd_dot_f16c(dummy, dummy, 0, dummy_results);
+    simsimd_dot_bf16c(dummy, dummy, 0, dummy_results);
+    simsimd_dot_f32c(dummy, dummy, 0, dummy_results);
+    simsimd_dot_f64c(dummy, dummy, 0, dummy_results);
+    simsimd_vdot_f16c(dummy, dummy, 0, dummy_results);
+    simsimd_vdot_bf16c(dummy, dummy, 0, dummy_results);
+    simsimd_vdot_f32c(dummy, dummy, 0, dummy_results);
+    simsimd_vdot_f64c(dummy, dummy, 0, dummy_results);
+    simsimd_cos_i8(dummy, dummy, 0, dummy_results);
+    simsimd_cos_f16(dummy, dummy, 0, dummy_results);
+    simsimd_cos_bf16(dummy, dummy, 0, dummy_results);
+    simsimd_cos_f32(dummy, dummy, 0, dummy_results);
+    simsimd_cos_f64(dummy, dummy, 0, dummy_results);
+    simsimd_l2sq_i8(dummy, dummy, 0, dummy_results);
+    simsimd_l2sq_f16(dummy, dummy, 0, dummy_results);
+    simsimd_l2sq_bf16(dummy, dummy, 0, dummy_results);
+    simsimd_l2sq_f32(dummy, dummy, 0, dummy_results);
+    simsimd_l2sq_f64(dummy, dummy, 0, dummy_results);
+    simsimd_hamming_b8(dummy, dummy, 0, dummy_results);
+    simsimd_jaccard_b8(dummy, dummy, 0, dummy_results);
+    simsimd_kl_f16(dummy, dummy, 0, dummy_results);
+    simsimd_kl_bf16(dummy, dummy, 0, dummy_results);
+    simsimd_kl_f32(dummy, dummy, 0, dummy_results);
+    simsimd_kl_f64(dummy, dummy, 0, dummy_results);
+    simsimd_js_f16(dummy, dummy, 0, dummy_results);
+    simsimd_js_bf16(dummy, dummy, 0, dummy_results);
+    simsimd_js_f32(dummy, dummy, 0, dummy_results);
+    simsimd_js_f64(dummy, dummy, 0, dummy_results);
+
+    // Sparse
+    simsimd_intersect_u16(dummy, dummy, 0, 0, dummy_results);
+    simsimd_intersect_u32(dummy, dummy, 0, 0, dummy_results);
+
+    // Curved:
+    simsimd_bilinear_f64(dummy, dummy, dummy, 0, dummy_results);
+    simsimd_mahalanobis_f64(dummy, dummy, dummy, 0, dummy_results);
+    simsimd_bilinear_f32(dummy, dummy, dummy, 0, dummy_results);
+    simsimd_mahalanobis_f32(dummy, dummy, dummy, 0, dummy_results);
+    simsimd_bilinear_f16(dummy, dummy, dummy, 0, dummy_results);
+    simsimd_mahalanobis_f16(dummy, dummy, dummy, 0, dummy_results);
+    simsimd_bilinear_bf16(dummy, dummy, dummy, 0, dummy_results);
+    simsimd_mahalanobis_bf16(dummy, dummy, dummy, 0, dummy_results);
+
+    return static_capabilities;
+}
 
 #ifdef __cplusplus
 }

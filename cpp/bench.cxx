@@ -53,6 +53,8 @@ template <> struct datatype_enum_to_type_gt<simsimd_datatype_i16_k> { using valu
 template <> struct datatype_enum_to_type_gt<simsimd_datatype_u16_k> { using value_t = simsimd_u16_t; };
 template <> struct datatype_enum_to_type_gt<simsimd_datatype_i32_k> { using value_t = simsimd_i32_t; };
 template <> struct datatype_enum_to_type_gt<simsimd_datatype_u32_k> { using value_t = simsimd_u32_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_datatype_i64_k> { using value_t = simsimd_i64_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_datatype_u64_k> { using value_t = simsimd_u64_t; };
 // clang-format on
 
 template <std::size_t multiple> std::size_t divide_round_up(std::size_t n) {
@@ -66,7 +68,12 @@ template <std::size_t multiple> std::size_t divide_round_up(std::size_t n) {
 template <simsimd_datatype_t datatype_ak> struct vector_gt {
     using scalar_t = typename datatype_enum_to_type_gt<datatype_ak>::value_t;
     using compressed16_t = unsigned short;
-    static constexpr bool is_integral = datatype_ak == simsimd_datatype_i8_k || datatype_ak == simsimd_datatype_b8_k;
+    static constexpr bool is_integral =
+        datatype_ak == datatype_ak == simsimd_datatype_b8_k ||                            //
+        datatype_ak == simsimd_datatype_i8_k || datatype_ak == simsimd_datatype_u8_k ||   //
+        datatype_ak == simsimd_datatype_i16_k || datatype_ak == simsimd_datatype_u16_k || //
+        datatype_ak == simsimd_datatype_i32_k || datatype_ak == simsimd_datatype_u32_k ||
+        datatype_ak == simsimd_datatype_i64_k || datatype_ak == simsimd_datatype_u64_k;
     static constexpr std::size_t cacheline_length = 64;
 
     scalar_t* buffer_ = nullptr;
@@ -213,7 +220,7 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
 template <simsimd_datatype_t datatype_ak> struct vectors_pair_gt {
     using vector_t = vector_gt<datatype_ak>;
     using scalar_t = typename vector_t::scalar_t;
-    static constexpr bool is_integral = datatype_ak == simsimd_datatype_i8_k || datatype_ak == simsimd_datatype_b8_k;
+    static constexpr bool is_integral = vector_t::is_integral;
 
     vector_t a;
     vector_t b;
@@ -720,6 +727,9 @@ int main(int argc, char** argv) {
     dense_<bf16_k>("dot_bf16_genoa", simsimd_dot_bf16_genoa, simsimd_dot_bf16_accurate);
     dense_<bf16_k>("cos_bf16_genoa", simsimd_cos_bf16_genoa, simsimd_cos_bf16_accurate);
     dense_<bf16_k>("l2sq_bf16_genoa", simsimd_l2sq_bf16_genoa, simsimd_l2sq_bf16_accurate);
+
+    dense_<bf16_k>("dot_bf16c_genoa", simsimd_dot_bf16c_genoa, simsimd_dot_bf16c_accurate);
+    dense_<bf16_k>("vdot_bf16c_genoa", simsimd_vdot_bf16c_genoa, simsimd_vdot_bf16c_accurate);
 
     curved_<bf16_k>("bilinear_bf16_genoa", simsimd_bilinear_bf16_genoa, simsimd_bilinear_bf16_accurate);
     curved_<bf16_k>("mahalanobis_bf16_genoa", simsimd_mahalanobis_bf16_genoa, simsimd_mahalanobis_bf16_accurate);

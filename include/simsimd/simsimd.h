@@ -87,8 +87,8 @@
 #define SIMSIMD_H
 
 #define SIMSIMD_VERSION_MAJOR 5
-#define SIMSIMD_VERSION_MINOR 0
-#define SIMSIMD_VERSION_PATCH 1
+#define SIMSIMD_VERSION_MINOR 1
+#define SIMSIMD_VERSION_PATCH 4
 
 /**
  *  @brief  Removes compile-time dispatching, and replaces it with runtime dispatching.
@@ -100,14 +100,6 @@
 #define SIMSIMD_DYNAMIC_DISPATCH (0) // true or false
 #endif
 
-/*  When building on Arm, we need to undefine the `__ARM_ARCH` macro, as every push-options
- *  section will be trying to redefine those, resulting in compilation warnings.
- */
-#if defined(__ARM_ARCH)
-#define SIMSIMD_DEFAULT_TARGET_ARM __ARM_ARCH
-#undef __ARM_ARCH
-#endif
-
 #include "binary.h"      // Hamming, Jaccard
 #include "curved.h"      // Mahalanobis, Bilinear Forms
 #include "dot.h"         // Inner (dot) product, and its conjugate
@@ -115,11 +107,6 @@
 #include "probability.h" // Kullback-Leibler, Jensen–Shannon
 #include "sparse.h"      // Intersect
 #include "spatial.h"     // L2, Cosine
-
-#if defined(SIMSIMD_DEFAULT_TARGET_ARM)
-#define __ARM_ARCH SIMSIMD_DEFAULT_TARGET_ARM
-#undef SIMSIMD_DEFAULT_TARGET_ARM
-#endif
 
 // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
 #if defined(SIMSIMD_DEFINED_APPLE)
@@ -360,11 +347,6 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_x86(void) {
 
 #if SIMSIMD_TARGET_ARM
 
-#if defined(__ARM_ARCH)
-#define SIMSIMD_DEFAULT_TARGET_ARM __ARM_ARCH
-#undef __ARM_ARCH
-#endif
-
 /*  Compiling the next section one may get: selected processor does not support system register name 'id_aa64zfr0_el1'.
  *  Suppressing assembler errors is very complicated, so when dealing with older ARM CPUs it's simpler to compile this
  *  function targeting newer ones.
@@ -476,11 +458,6 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_arm(void) {
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-
-#if defined(SIMSIMD_DEFAULT_TARGET_ARM)
-#define __ARM_ARCH SIMSIMD_DEFAULT_TARGET_ARM
-#undef SIMSIMD_DEFAULT_TARGET_ARM
-#endif
 
 #endif
 
@@ -656,9 +633,9 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 #if SIMSIMD_TARGET_SVE_F16
         if (viable & simsimd_cap_sve_k)
             switch (kind) {
-            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16_sve, *c = simsimd_cap_sve_k; return;
-            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f16_sve, *c = simsimd_cap_sve_k; return;
-            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_sve, *c = simsimd_cap_sve_k; return;
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16_sve, *c = simsimd_cap_sve_f16_k; return;
+            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f16_sve, *c = simsimd_cap_sve_f16_k; return;
+            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_sve, *c = simsimd_cap_sve_f16_k; return;
             default: break;
             }
 #endif
@@ -670,8 +647,10 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_neon, *c = simsimd_cap_neon_f16_k; return;
             case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f16_neon, *c = simsimd_cap_neon_f16_k; return;
             case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f16_neon, *c = simsimd_cap_neon_f16_k; return;
-            case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f16_neon, *c = simsimd_cap_neon_k; return;
-            case simsimd_metric_mahalanobis_k: *m = (m_t)&simsimd_mahalanobis_f16_neon, *c = simsimd_cap_neon_k; return;
+            case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f16_neon, *c = simsimd_cap_neon_f16_k; return;
+            case simsimd_metric_mahalanobis_k:
+                *m = (m_t)&simsimd_mahalanobis_f16_neon, *c = simsimd_cap_neon_f16_k;
+                return;
             default: break;
             }
 #endif
@@ -944,8 +923,8 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 #if SIMSIMD_TARGET_SVE_F16
         if (viable & simsimd_cap_sve_k)
             switch (kind) {
-            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16c_sve, *c = simsimd_cap_sve_k; return;
-            case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f16c_sve, *c = simsimd_cap_sve_k; return;
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16c_sve, *c = simsimd_cap_sve_f16_k; return;
+            case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f16c_sve, *c = simsimd_cap_sve_f16_k; return;
             default: break;
             }
 #endif
@@ -1126,6 +1105,8 @@ SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void);
 SIMSIMD_DYNAMIC int simsimd_uses_genoa(void);
 SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void);
 
+SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void);
+
 /*  Inner products
  *  - Dot product: the sum of the products of the corresponding elements of two vectors.
  *  - Complex Dot product: dot product with a conjugate first argument.
@@ -1277,6 +1258,8 @@ SIMSIMD_PUBLIC int simsimd_uses_ice(void) { return SIMSIMD_TARGET_X86 && SIMSIMD
 SIMSIMD_PUBLIC int simsimd_uses_sapphire(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SAPPHIRE; }
 SIMSIMD_PUBLIC int simsimd_uses_genoa(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_GENOA; }
 SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) { return simsimd_capabilities_implementation(); }
+
+SIMSIMD_PUBLIC int simsimd_uses_dynamic_dispatch(void) { return 0; };
 // clang-format on
 
 /*  Inner products

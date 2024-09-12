@@ -249,8 +249,8 @@ simsimd_kl_f16_neon_cycle:
         b_vec = vcvt_f32_f16(simsimd_partial_load_f16x4_neon(b, n));
         n = 0;
     } else {
-        a_vec = vcvt_f32_f16(vld1_f16(a));
-        b_vec = vcvt_f32_f16(vld1_f16(b));
+        a_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)a));
+        b_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)b));
         n -= 4, a += 4, b += 4;
     }
 
@@ -279,8 +279,8 @@ simsimd_js_f16_neon_cycle:
         b_vec = vcvt_f32_f16(simsimd_partial_load_f16x4_neon(b, n));
         n = 0;
     } else {
-        a_vec = vcvt_f32_f16(vld1_f16(a));
-        b_vec = vcvt_f32_f16(vld1_f16(b));
+        a_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)a));
+        b_vec = vcvt_f32_f16(vld1_f16((simsimd_f16_for_arm_simd_t const*)b));
         n -= 4, a += 4, b += 4;
     }
 
