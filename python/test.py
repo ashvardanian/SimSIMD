@@ -343,7 +343,7 @@ def test_dense(ndim, dtype, metric, stats_aggregator):
     ],
 )
 @pytest.mark.parametrize("metric", ["bilinear", "mahalanobis"])
-def test_curved(ndim, dtypes, metric):
+def test_curved(ndim, dtypes, metric, stats_aggregator):
     """Compares various SIMD kernels (like Bilinear Forms and Mahalanobis distances) for curved spaces
     with their NumPy or baseline counterparts, testing accuracy for IEEE standard floating-point types."""
 
