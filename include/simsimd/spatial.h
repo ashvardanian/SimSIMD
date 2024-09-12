@@ -1121,15 +1121,14 @@ SIMSIMD_INTERNAL __m512i simsimd_substract_bf16x32_genoa(__m512i a_i16, __m512i 
     union {
         __m512 fvec;
         __m512i ivec;
+        simsimd_f32_t f32[16];
         simsimd_u16_t u16[32];
         simsimd_bf16_t bf16[32];
-    } d_top, d_bot, d, a_f32_bot, b_f32_bot, d_f32_bot, a_f32_top, b_f32_top, d_f32_top, a, b;
+    } d_odd, d_even, d, a_f32_even, b_f32_even, d_f32_even, a_f32_odd, b_f32_odd, d_f32_odd, a, b;
     a.ivec = a_i16;
     b.ivec = b_i16;
 
-    // Let's perform the subtraction with single-precision, while the dot-product with half-precision.
-    //
-    // There are several approaches to achieve this this. The first one is:
+    // There are several approaches to perform subtraction in `bf16`. The first one is:
     //
     //      Perform a couple of casts - each is a bitshift. To convert `bf16` to `f32`,
     //      expand it to 32-bit integers, then shift the bits by 16 to the left.
@@ -1154,6 +1153,17 @@ SIMSIMD_INTERNAL __m512i simsimd_substract_bf16x32_genoa(__m512i a_i16, __m512i 
     //
     // Instead of using multple shifts and an insertion, we can achieve similar result with fewer expensive
     // calls to `_mm512_permutex2var_epi16`, or a cheap `_mm512_mask_shuffle_epi8` and blend:
+    //
+    a_f32_odd.ivec = _mm512_and_si512(a_i16, _mm512_set1_epi32(0xFFFF0000));
+    a_f32_even.ivec = _mm512_slli_epi32(a_i16, 16);
+    b_f32_odd.ivec = _mm512_and_si512(b_i16, _mm512_set1_epi32(0xFFFF0000));
+    b_f32_even.ivec = _mm512_slli_epi32(b_i16, 16);
+
+    d_f32_odd.fvec = _mm512_sub_ps(a_f32_odd.fvec, b_f32_odd.fvec);
+    d_f32_even.fvec = _mm512_sub_ps(a_f32_even.fvec, b_f32_even.fvec);
+
+    d_f32_even.ivec = _mm512_srli_epi32(d_f32_even.ivec, 16);
+    d.ivec = _mm512_mask_blend_epi16(0x55555555, d_f32_odd.ivec, d_f32_even.ivec);
 
     return d.ivec;
 }
