@@ -998,7 +998,7 @@ simsimd_l2sq_f32_skylake_cycle:
     if (n)
         goto simsimd_l2sq_f32_skylake_cycle;
 
-    *result = _mm512_reduce_add_ps(d2_vec);
+    *result = _simsimd_reduce_f32x16_skylake(d2_vec);
 }
 
 SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f64_skylake(simsimd_f64_t ab, simsimd_f64_t a2,
@@ -1047,9 +1047,9 @@ simsimd_cos_f32_skylake_cycle:
     if (n)
         goto simsimd_cos_f32_skylake_cycle;
 
-    simsimd_f64_t ab = _mm512_reduce_add_ps(ab_vec);
-    simsimd_f64_t a2 = _mm512_reduce_add_ps(a2_vec);
-    simsimd_f64_t b2 = _mm512_reduce_add_ps(b2_vec);
+    simsimd_f64_t ab = _simsimd_reduce_f32x16_skylake(ab_vec);
+    simsimd_f64_t a2 = _simsimd_reduce_f32x16_skylake(a2_vec);
+    simsimd_f64_t b2 = _simsimd_reduce_f32x16_skylake(b2_vec);
     *result = _simsimd_cos_normalize_f64_skylake(ab, a2, b2);
 }
 
@@ -1189,7 +1189,7 @@ simsimd_l2sq_bf16_genoa_cycle:
     if (n)
         goto simsimd_l2sq_bf16_genoa_cycle;
 
-    *result = _mm512_reduce_add_ps(d2_vec);
+    *result = _simsimd_reduce_f32x16_skylake(d2_vec);
 }
 
 SIMSIMD_PUBLIC void simsimd_cos_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
@@ -1216,9 +1216,9 @@ simsimd_cos_bf16_genoa_cycle:
     if (n)
         goto simsimd_cos_bf16_genoa_cycle;
 
-    simsimd_f64_t ab = _mm512_reduce_add_ps(ab_vec);
-    simsimd_f64_t a2 = _mm512_reduce_add_ps(a2_vec);
-    simsimd_f64_t b2 = _mm512_reduce_add_ps(b2_vec);
+    simsimd_f64_t ab = _simsimd_reduce_f32x16_skylake(ab_vec);
+    simsimd_f64_t a2 = _simsimd_reduce_f32x16_skylake(a2_vec);
+    simsimd_f64_t b2 = _simsimd_reduce_f32x16_skylake(b2_vec);
     *result = _simsimd_cos_normalize_f64_skylake(ab, a2, b2);
 }
 

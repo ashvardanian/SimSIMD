@@ -1162,6 +1162,13 @@ simsimd_dot_bf16_haswell_cycle:
 #pragma GCC target("avx512f", "avx512vl", "avx512bw", "bmi2")
 #pragma clang attribute push(__attribute__((target("avx512f,avx512vl,avx512bw,bmi2"))), apply_to = function)
 
+SIMSIMD_INTERNAL simsimd_f64_t _simsimd_reduce_f32x16_skylake(__m512 a) {
+    __m512 x = _mm512_add_ps(a, _mm512_shuffle_f32x4(a, a, _MM_SHUFFLE(0, 0, 3, 2)));
+    __m128 r = _mm512_castps512_ps128(_mm512_add_ps(x, _mm512_shuffle_f32x4(x, x, _MM_SHUFFLE(0, 0, 0, 1))));
+    r = _mm_hadd_ps(r, r);
+    return _mm_cvtss_f32(_mm_hadd_ps(r, r));
+}
+
 SIMSIMD_PUBLIC void simsimd_dot_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                             simsimd_distance_t* result) {
     __m512 ab_vec = _mm512_setzero();
@@ -1182,7 +1189,7 @@ simsimd_dot_f32_skylake_cycle:
     if (n)
         goto simsimd_dot_f32_skylake_cycle;
 
-    *result = _mm512_reduce_add_ps(ab_vec);
+    *result = _simsimd_reduce_f32x16_skylake(ab_vec);
 }
 
 SIMSIMD_PUBLIC void simsimd_dot_f64_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
@@ -1210,7 +1217,6 @@ simsimd_dot_f64_skylake_cycle:
 
 SIMSIMD_PUBLIC void simsimd_dot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                              simsimd_distance_t* results) {
-
     __m512 ab_real_vec = _mm512_setzero();
     __m512 ab_imag_vec = _mm512_setzero();
     __m512 a_vec;
@@ -1249,13 +1255,12 @@ simsimd_dot_f32c_skylake_cycle:
     ab_real_vec = _mm512_castsi512_ps(_mm512_xor_si512(_mm512_castps_si512(ab_real_vec), sign_flip_vec));
 
     // Reduce horizontal sums:
-    results[0] = _mm512_reduce_add_ps(ab_real_vec);
-    results[1] = _mm512_reduce_add_ps(ab_imag_vec);
+    results[0] = _simsimd_reduce_f32x16_skylake(ab_real_vec);
+    results[1] = _simsimd_reduce_f32x16_skylake(ab_imag_vec);
 }
 
 SIMSIMD_PUBLIC void simsimd_vdot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                               simsimd_distance_t* results) {
-
     __m512 ab_real_vec = _mm512_setzero();
     __m512 ab_imag_vec = _mm512_setzero();
     __m512 a_vec;
@@ -1294,13 +1299,12 @@ simsimd_vdot_f32c_skylake_cycle:
     ab_imag_vec = _mm512_castsi512_ps(_mm512_xor_si512(_mm512_castps_si512(ab_imag_vec), sign_flip_vec));
 
     // Reduce horizontal sums:
-    results[0] = _mm512_reduce_add_ps(ab_real_vec);
-    results[1] = _mm512_reduce_add_ps(ab_imag_vec);
+    results[0] = _simsimd_reduce_f32x16_skylake(ab_real_vec);
+    results[1] = _simsimd_reduce_f32x16_skylake(ab_imag_vec);
 }
 
 SIMSIMD_PUBLIC void simsimd_dot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
                                              simsimd_distance_t* results) {
-
     __m512d ab_real_vec = _mm512_setzero_pd();
     __m512d ab_imag_vec = _mm512_setzero_pd();
     __m512d a_vec;
@@ -1348,7 +1352,6 @@ simsimd_dot_f64c_skylake_cycle:
 
 SIMSIMD_PUBLIC void simsimd_vdot_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
                                               simsimd_distance_t* results) {
-
     __m512d ab_real_vec = _mm512_setzero_pd();
     __m512d ab_imag_vec = _mm512_setzero_pd();
     __m512d a_vec;
@@ -1423,12 +1426,11 @@ simsimd_dot_bf16_genoa_cycle:
     if (n)
         goto simsimd_dot_bf16_genoa_cycle;
 
-    *result = _mm512_reduce_add_ps(ab_vec);
+    *result = _simsimd_reduce_f32x16_skylake(ab_vec);
 }
 
 SIMSIMD_PUBLIC void simsimd_dot_bf16c_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                             simsimd_distance_t* results) {
-
     __m512 ab_real_vec = _mm512_setzero_ps();
     __m512 ab_imag_vec = _mm512_setzero_ps();
     __m512i a_vec;
@@ -1465,13 +1467,12 @@ simsimd_dot_bf16c_genoa_cycle:
         goto simsimd_dot_bf16c_genoa_cycle;
 
     // Reduce horizontal sums:
-    results[0] = _mm512_reduce_add_ps(ab_real_vec);
-    results[1] = _mm512_reduce_add_ps(ab_imag_vec);
+    results[0] = _simsimd_reduce_f32x16_skylake(ab_real_vec);
+    results[1] = _simsimd_reduce_f32x16_skylake(ab_imag_vec);
 }
 
 SIMSIMD_PUBLIC void simsimd_vdot_bf16c_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                              simsimd_distance_t* results) {
-
     __m512 ab_real_vec = _mm512_setzero_ps();
     __m512 ab_imag_vec = _mm512_setzero_ps();
     __m512i a_vec;
@@ -1509,8 +1510,8 @@ simsimd_dot_bf16c_genoa_cycle:
         goto simsimd_dot_bf16c_genoa_cycle;
 
     // Reduce horizontal sums:
-    results[0] = _mm512_reduce_add_ps(ab_real_vec);
-    results[1] = _mm512_reduce_add_ps(ab_imag_vec);
+    results[0] = _simsimd_reduce_f32x16_skylake(ab_real_vec);
+    results[1] = _simsimd_reduce_f32x16_skylake(ab_imag_vec);
 }
 
 #pragma clang attribute pop
@@ -1547,7 +1548,6 @@ simsimd_dot_f16_sapphire_cycle:
 
 SIMSIMD_PUBLIC void simsimd_dot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                               simsimd_distance_t* results) {
-
     __m512h ab_real_vec = _mm512_setzero_ph();
     __m512h ab_imag_vec = _mm512_setzero_ph();
     __m512i a_vec;
@@ -1593,7 +1593,6 @@ simsimd_dot_f16c_sapphire_cycle:
 
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                                simsimd_distance_t* results) {
-
     __m512h ab_real_vec = _mm512_setzero_ph();
     __m512h ab_imag_vec = _mm512_setzero_ph();
     __m512i a_vec;
