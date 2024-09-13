@@ -1017,7 +1017,25 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f64_skylake(simsimd_f
     // for single-precision floats in the `_simsimd_cos_normalize_f64_haswell` implementation.
     // Mysteriously, MSVC has no `_mm_rsqrt14_pd` intrinsic, but has it's masked variants,
     // so let's use `_mm_maskz_rsqrt14_pd(0xFF, ...)` instead.
-    __m128d rsqrts = _mm_maskz_rsqrt14_pd(0xFF, _mm_set_pd(a2, b2));
+    __m128d squares = _mm_set_pd(a2, b2);
+    __m128d rsqrts = _mm_maskz_rsqrt14_pd(0xFF, squares);
+
+    // Let's implement a single Newton-Raphson iteration to refine the result.
+    // This is how it affects downstream applications:
+    //
+    // +--------+------+----------+---------------------+---------------------+---------------------+
+    // | Metric | NDim |  DType   |   Baseline Error    |  Old SimSIMD Error  |  New SimSIMD Error  |
+    // +--------+------+----------+---------------------+---------------------+---------------------+
+    // | cosine | 1536 | bfloat16 | 1.89e-08 ± 1.59e-08 | 3.07e-07 ± 3.09e-07 | 3.53e-09 ± 2.70e-09 |
+    // | cosine | 1536 | float16  | 1.67e-02 ± 1.44e-02 | 2.68e-05 ± 1.95e-05 | 2.02e-05 ± 1.39e-05 |
+    // | cosine | 1536 | float32  | 2.21e-08 ± 1.65e-08 | 3.47e-07 ± 3.49e-07 | 3.77e-09 ± 2.84e-09 |
+    // | cosine | 1536 | float64  | 0.00e+00 ± 0.00e+00 | 3.80e-07 ± 4.50e-07 | 1.35e-11 ± 1.85e-11 |
+    // | cosine | 1536 |   int8   | 0.00e+00 ± 0.00e+00 | 4.60e-04 ± 3.36e-04 | 4.20e-04 ± 4.88e-04 |
+    // +--------+------+----------+---------------------+---------------------+---------------------+
+    rsqrts = _mm_add_pd( //
+        _mm_mul_pd(_mm_set1_pd(1.5), rsqrts),
+        _mm_mul_pd(_mm_mul_pd(_mm_mul_pd(squares, _mm_set1_pd(-0.5)), rsqrts), _mm_mul_pd(rsqrts, rsqrts)));
+
     simsimd_f64_t a2_reciprocal = _mm_cvtsd_f64(_mm_unpackhi_pd(rsqrts, rsqrts));
     simsimd_f64_t b2_reciprocal = _mm_cvtsd_f64(rsqrts);
     return 1 - ab * a2_reciprocal * b2_reciprocal;
