@@ -755,17 +755,36 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_sve2(simsimd_u32_t const* a, simsimd_u
         // the same way as in `simsimd_intersect_u16_sve2`, as that instruction is only
         // available for 8-bit and 16-bit integers.
         //
-        // TODO:
+        //      svbool_t equal_mask = svpfalse_b();
+        //      for (simsimd_size_t i = 0; i < register_size; i++) {
+        //          equal_mask = svorr_z(svptrue_b32(), equal_mask, svcmpeq_u32(a_progress, a_vec, b_vec));
+        //          b_vec = svext_u32(b_vec, b_vec, 1);
+        //      }
+        //      simsimd_size_t equal_count = svcntp_b32(a_progress, equal_mask);
+        //
         // Alternatively, one can use histogram instructions, like `svhistcnt_u32_z`.
         // They practically compute the prefix-matching count, which is equivalent to
-        // the upper triangle of the intersection matrix.
-        // To compute the lower triangle, we can reverse (with `svrev_b32`) the order of elements
-        // in one vector and repeat the operation, accumulating the results for top and bottom.
-        svbool_t equal_mask = svpfalse_b();
-        for (simsimd_size_t i = 0; i < register_size; i++) {
-            equal_mask = svorr_z(svptrue_b32(), equal_mask, svcmpeq_u32(a_progress, a_vec, b_vec));
-            b_vec = svext_u32(b_vec, b_vec, 1);
-        }
+        // the lower triangle of the row-major intersection matrix.
+        // To compute the upper triangle, we can reverse (with `svrev_b32`) the order of
+        // elements and repeat the operation, accumulating the results for top and bottom.
+        // Let's look at 4x element registers as an example:
+        //
+        //      ⊐ α = {A, B, C, D}, β = {X, Y, Z, W}:
+        //
+        //      hist(α, β):           hist(α_rev, β_rev):
+        //
+        //        X Y Z W               W Z Y X
+        //      A 1 0 0 0             D 1 0 0 0
+        //      B 1 1 0 0             C 1 1 0 0
+        //      C 1 1 1 0             B 1 1 1 0
+        //      D 1 1 1 1             A 1 1 1 1
+        //
+        svuint32_t hist_lower = svhistcnt_u32_z(a_progress, a_vec, b_vec);
+        svuint32_t a_rev_vec = svrev_u32(a_vec);
+        svuint32_t b_rev_vec = svrev_u32(b_vec);
+        svuint32_t hist_upper = svrev_u32(svhistcnt_u32_z(svptrue_b32(), a_rev_vec, b_rev_vec));
+        svuint32_t hist = svorr_u32_x(a_progress, hist_lower, hist_upper);
+        svbool_t equal_mask = svcmpne_n_u32(a_progress, hist, 0);
         simsimd_size_t equal_count = svcntp_b32(a_progress, equal_mask);
 
         // Advance
