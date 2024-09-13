@@ -191,9 +191,9 @@ def collect_errors(
     -   TODO: How much faster is SimSIMD than the accurate kernel?
     """
     absolute_baseline_error = np.abs(baseline_result - accurate_result)
-    relative_baseline_error = absolute_baseline_error / np.maximum(np.abs(baseline_result), np.abs(accurate_result))
+    relative_baseline_error = absolute_baseline_error / np.abs(accurate_result)
     absolute_simsimd_error = np.abs(simsimd_result - accurate_result)
-    relative_simsimd_error = absolute_simsimd_error / np.maximum(np.abs(simsimd_result), np.abs(accurate_result))
+    relative_simsimd_error = absolute_simsimd_error / np.abs(accurate_result)
 
     stats["metric"].append(metric)
     stats["ndim"].append(ndim)
