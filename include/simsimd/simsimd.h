@@ -87,8 +87,8 @@
 #define SIMSIMD_H
 
 #define SIMSIMD_VERSION_MAJOR 5
-#define SIMSIMD_VERSION_MINOR 1
-#define SIMSIMD_VERSION_PATCH 2
+#define SIMSIMD_VERSION_MINOR 2
+#define SIMSIMD_VERSION_PATCH 1
 
 /**
  *  @brief  Removes compile-time dispatching, and replaces it with runtime dispatching.
@@ -100,14 +100,6 @@
 #define SIMSIMD_DYNAMIC_DISPATCH (0) // true or false
 #endif
 
-/*  When building on Arm, we need to undefine the `__ARM_ARCH` macro, as every push-options
- *  section will be trying to redefine those, resulting in compilation warnings.
- */
-#if defined(__ARM_ARCH)
-#define SIMSIMD_DEFAULT_TARGET_ARM __ARM_ARCH
-#undef __ARM_ARCH
-#endif
-
 #include "binary.h"      // Hamming, Jaccard
 #include "curved.h"      // Mahalanobis, Bilinear Forms
 #include "dot.h"         // Inner (dot) product, and its conjugate
@@ -115,11 +107,6 @@
 #include "probability.h" // Kullback-Leibler, Jensen–Shannon
 #include "sparse.h"      // Intersect
 #include "spatial.h"     // L2, Cosine
-
-#if defined(SIMSIMD_DEFAULT_TARGET_ARM)
-#define __ARM_ARCH SIMSIMD_DEFAULT_TARGET_ARM
-#undef SIMSIMD_DEFAULT_TARGET_ARM
-#endif
 
 // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
 #if defined(SIMSIMD_DEFINED_APPLE)
@@ -362,11 +349,6 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_x86(void) {
 
 #if SIMSIMD_TARGET_ARM
 
-#if defined(__ARM_ARCH)
-#define SIMSIMD_DEFAULT_TARGET_ARM __ARM_ARCH
-#undef __ARM_ARCH
-#endif
-
 /*  Compiling the next section one may get: selected processor does not support system register name 'id_aa64zfr0_el1'.
  *  Suppressing assembler errors is very complicated, so when dealing with older ARM CPUs it's simpler to compile this
  *  function targeting newer ones.
@@ -480,11 +462,6 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_arm(void) {
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-
-#if defined(SIMSIMD_DEFAULT_TARGET_ARM)
-#define __ARM_ARCH SIMSIMD_DEFAULT_TARGET_ARM
-#undef SIMSIMD_DEFAULT_TARGET_ARM
-#endif
 
 #endif
 
@@ -1147,6 +1124,8 @@ SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void);
 SIMSIMD_DYNAMIC int simsimd_uses_genoa(void);
 SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void);
 
+SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void);
+
 /*  Inner products
  *  - Dot product: the sum of the products of the corresponding elements of two vectors.
  *  - Complex Dot product: dot product with a conjugate first argument.
@@ -1298,6 +1277,7 @@ SIMSIMD_PUBLIC int simsimd_uses_skylake(void) { return SIMSIMD_TARGET_X86 && SIM
 SIMSIMD_PUBLIC int simsimd_uses_ice(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_ICE; }
 SIMSIMD_PUBLIC int simsimd_uses_sapphire(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SAPPHIRE; }
 SIMSIMD_PUBLIC int simsimd_uses_genoa(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_GENOA; }
+SIMSIMD_PUBLIC int simsimd_uses_dynamic_dispatch(void) { return 0; }
 SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) { return simsimd_capabilities_implementation(); }
 // clang-format on
 
