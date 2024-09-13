@@ -974,8 +974,8 @@ SIMSIMD_PUBLIC void simsimd_cos_f32_haswell(simsimd_f32_t const* a, simsimd_f32_
 
 #if SIMSIMD_TARGET_SKYLAKE
 #pragma GCC push_options
-#pragma GCC target("avx512f", "avx512vl", "bmi2")
-#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2"))), apply_to = function)
+#pragma GCC target("avx512f", "avx512bw", "avx512vl", "bmi2")
+#pragma clang attribute push(__attribute__((target("avx512f,avx512bw,avx512vl,bmi2"))), apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_l2sq_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                              simsimd_distance_t* result) {
