@@ -195,16 +195,21 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f64_neon(simsimd_f64_
         return 0;
     if (ab == 0)
         return 1;
-    simsimd_f64_t a2_b2_arr[2] = {a2, b2};
-    float64x2_t a2_b2 = vld1q_f64(a2_b2_arr);
+    simsimd_f64_t squares_arr[2] = {a2, b2};
+    float64x2_t squares = vld1q_f64(squares_arr);
+
     // Unlike x86, Arm NEON manuals don't explicitly mention the accuracy of their `rsqrt` approximation.
     // Third party research suggests, that it's less accurate than SSE instructions, having an error of 1.5*2^-12.
     // One or two rounds of Newton-Raphson refinement are recommended to improve the accuracy.
     // https://github.com/lighttransport/embree-aarch64/issues/24
     // https://github.com/lighttransport/embree-aarch64/blob/3f75f8cb4e553d13dced941b5fefd4c826835a6b/common/math/math.h#L137-L145
-    a2_b2 = vrsqrteq_f64(a2_b2);
-    vst1q_f64(a2_b2_arr, a2_b2);
-    return 1 - ab * a2_b2_arr[0] * a2_b2_arr[1];
+    float64x2_t rsqrts = vrsqrteq_f64(squares);
+    // Perform two rounds of Newton-Raphson refinement:
+    // https://en.wikipedia.org/wiki/Newton%27s_method
+    rsqrts = vmulq_f64(rsqrts, vrsqrtsq_f64(vmulq_f64(squares, rsqrts), rsqrts));
+    rsqrts = vmulq_f64(rsqrts, vrsqrtsq_f64(vmulq_f64(squares, rsqrts), rsqrts));
+    vst1q_f64(squares_arr, squares);
+    return 1 - ab * squares_arr[0] * squares_arr[1];
 }
 
 SIMSIMD_PUBLIC void simsimd_l2sq_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
@@ -733,12 +738,17 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f64_haswell(simsimd_f
     // The latency of the native instruction is 4 cycles and it's broadly supported.
     // For single-precision floats it has a maximum relative error of 1.5*2^-12.
     // Higher precision isn't implemented on older CPUs. See `_simsimd_cos_normalize_f64_skylake` for that.
-    __m128d rsqrts = _mm_cvtps_pd(_mm_rsqrt_ps(_mm_cvtpd_ps(_mm_set_pd(a2, b2))));
+    __m128d squares = _mm_set_pd(a2, b2);
+    __m128d rsqrts = _mm_cvtps_pd(_mm_rsqrt_ps(_mm_cvtpd_ps(squares)));
+    // Newton-Raphson iteration for reciprocal square root:
+    // https://en.wikipedia.org/wiki/Newton%27s_method
+    rsqrts = _mm_add_pd( //
+        _mm_mul_pd(_mm_set1_pd(1.5), rsqrts),
+        _mm_mul_pd(_mm_mul_pd(_mm_mul_pd(squares, _mm_set1_pd(-0.5)), rsqrts), _mm_mul_pd(rsqrts, rsqrts)));
+
     simsimd_f64_t a2_reciprocal = _mm_cvtsd_f64(_mm_unpackhi_pd(rsqrts, rsqrts));
     simsimd_f64_t b2_reciprocal = _mm_cvtsd_f64(rsqrts);
     return 1 - ab * a2_reciprocal * b2_reciprocal;
-    // If we want higher accuracy, we can use Newton's method to refine the result:
-    // https://en.wikipedia.org/wiki/Newton%27s_method
 }
 
 SIMSIMD_PUBLIC void simsimd_cos_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
@@ -1011,6 +1021,7 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f64_skylake(simsimd_f
     // the division is illformed, and the result is 1.
     else if (ab == 0)
         return 1;
+
     // We want to avoid the `simsimd_approximate_inverse_square_root` due to high latency:
     // https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
     // The maximum relative error for this approximation is less than 2^-14, which is 6x lower than
@@ -1032,6 +1043,8 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f64_skylake(simsimd_f
     // | cosine | 1536 | float64  | 0.00e+00 ± 0.00e+00 | 3.80e-07 ± 4.50e-07 | 1.35e-11 ± 1.85e-11 |
     // | cosine | 1536 |   int8   | 0.00e+00 ± 0.00e+00 | 4.60e-04 ± 3.36e-04 | 4.20e-04 ± 4.88e-04 |
     // +--------+------+----------+---------------------+---------------------+---------------------+
+    //
+    // https://en.wikipedia.org/wiki/Newton%27s_method
     rsqrts = _mm_add_pd( //
         _mm_mul_pd(_mm_set1_pd(1.5), rsqrts),
         _mm_mul_pd(_mm_mul_pd(_mm_mul_pd(squares, _mm_set1_pd(-0.5)), rsqrts), _mm_mul_pd(rsqrts, rsqrts)));
