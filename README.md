@@ -42,7 +42,8 @@ SimSIMD provides an alternative.
 
 ## Features
 
-__SimSIMD__ provides __over 200 SIMD-optimized kernels__ for various distance and similarity measures, accelerating search in [USearch](https://github.com/unum-cloud/usearch) and several DBMS products.
+__SimSIMD__ (Arabic: "سيمسيم دي") is a library of __over 200 SIMD-optimized kernels__ for distance and similarity measures, boosting search performance in [USearch](https://github.com/unum-cloud/usearch) and several database systems.
+Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command from _Ali Baba and the Forty Thieves_, it opens the doors to a modern treasure: maximizing the potential of today's hardware for high resource utilization.
 Implemented distance functions include:
 
 - Euclidean (L2) and Cosine (Angular) spatial distances for Vector Search.
@@ -239,6 +240,18 @@ distances = simsimd.cdist(matrix1, matrix2,
 By default, the output distances will be stored in double-precision `f64` floating-point numbers.
 That behavior may not be space-efficient, especially if you are computing the hamming distance between short binary vectors, that will generally fit into 8x smaller `u8` or `u16` types.
 To override this behavior, use the `dtype` argument.
+
+### Helper Functions
+
+You can turn specific backends on or off depending on the exact environment.
+A common case may be avoiding AVX-512 on older AMD CPUs and [Intel Ice Lake](https://travisdowns.github.io/blog/2020/08/19/icl-avx512-freq.html) CPUs to ensure the CPU doesn't change the frequency license and throttle performance.
+
+```py
+$ simsimd.get_capabilities()
+> {'serial': True, 'neon': False, 'sve': False, 'neon_f16': False, 'sve_f16': False, 'neon_bf16': False, 'sve_bf16': False, 'neon_i8': False, 'sve_i8': False, 'haswell': True, 'skylake': True, 'ice': True, 'genoa': True, 'sapphire': True}
+$ simsimd.disable_capability("sapphire")
+$ simsimd.enable_capability("sapphire")
+```
 
 ### Using Python API with USearch
 
