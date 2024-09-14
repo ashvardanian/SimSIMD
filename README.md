@@ -550,6 +550,9 @@ That feature of the C library is called [dynamic dispatch](#dynamic-dispatch) an
 To test which CPU features are available on the machine at runtime, use the following APIs:
 
 ```c
+int uses_dynamic_dispatch = simsimd_uses_dynamic_dispatch(); // Check if dynamic dispatch was enabled
+simsimd_capability_t capabilities = simsimd_capabilities();  // Returns a bitmask
+
 int uses_neon = simsimd_uses_neon();
 int uses_sve = simsimd_uses_sve();
 int uses_haswell = simsimd_uses_haswell();
@@ -557,11 +560,9 @@ int uses_skylake = simsimd_uses_skylake();
 int uses_ice = simsimd_uses_ice();
 int uses_genoa = simsimd_uses_genoa();
 int uses_sapphire = simsimd_uses_sapphire();
-
-simsimd_capability_t capabilities = simsimd_capabilities();
 ```
 
-To differentiate between runtime and compile-time dispatch, define the following macro:
+To override compilation settings and switch between runtime and compile-time dispatch, define the following macro:
 
 ```c
 #define SIMSIMD_DYNAMIC_DISPATCH 1 // or 0
@@ -754,13 +755,23 @@ The `rsqrt` in-hardware implementations are faster, but have different accuracy 
 - AVX-512 `vrsqrt14pd` instruction: $`\(2^{-14}\)`$ maximal error.
 - NEON `frsqrte` instruction has no clear error bounds.
 
-🔜
 To overcome the limitations of the `rsqrt` instruction, SimSIMD uses the Newton-Raphson iteration to refine the initial estimate for high-precision floating-point numbers.
 It can be defined as:
 
 ```math
 x_{n+1} = x_n \cdot (3 - x_n \cdot x_n) / 2
 ```
+
+On 1536-dimensional inputs on Intel Sapphire Rapids CPU a single such iteration can result in a 2-3 orders of magnitude relative error reduction:
+
+
+| Datatype   |         NumPy Error | SimSIMD w/out Iteration |             SimSIMD |
+| :--------- | ------------------: | ----------------------: | ------------------: |
+| `bfloat16` | 1.89e-08 ± 1.59e-08 |     3.07e-07 ± 3.09e-07 | 3.53e-09 ± 2.70e-09 |
+| `float16`  | 1.67e-02 ± 1.44e-02 |     2.68e-05 ± 1.95e-05 | 2.02e-05 ± 1.39e-05 |
+| `float32`  | 2.21e-08 ± 1.65e-08 |     3.47e-07 ± 3.49e-07 | 3.77e-09 ± 2.84e-09 |
+| `float64`  | 0.00e+00 ± 0.00e+00 |     3.80e-07 ± 4.50e-07 | 1.35e-11 ± 1.85e-11 |
+
 
 ### Curved Spaces, Mahalanobis Distance, and Bilinear Quadratic Forms
 
@@ -877,6 +888,107 @@ Both functions are defined for non-negative numbers, and the logarithm is a key 
 Most popular software is precompiled and distributed with fairly conservative CPU optimizations, to ensure compatibility with older hardware.
 Database Management platforms, like ClickHouse, and Web Browsers, like Google Chrome,need to run on billions of devices, and they can't afford to be picky about the CPU features.
 For such users SimSIMD provides a dynamic dispatch mechanism, which selects the most advanced micro-kernel for the current CPU at runtime.
+
+<table>
+  <tr>
+    <th>Subset</th>
+    <th>F</th>
+    <th>CD</th>
+    <th>ER</th>
+    <th>PF</th>
+    <th>4FMAPS</th>
+    <th>4VNNIW</th>
+    <th>VPOPCNTDQ</th>
+    <th>VL</th>
+    <th>DQ</th>
+    <th>BW</th>
+    <th>IFMA</th>
+    <th>VBMI</th>
+    <th>VNNI</th>
+    <th>BF16</th>
+    <th>VBMI2</th>
+    <th>BITALG</th>
+    <th>VPCLMULQDQ</th>
+    <th>GFNI</th>
+    <th>VAES</th>
+    <th>VP2INTERSECT</th>
+    <th>FP16</th>
+  </tr>
+  <tr>
+    <td><a href="https://en.wikipedia.org/wiki/Xeon_Phi#Knights_Landing">Knights Landing</a> (Xeon Phi x200, 2016)</td>
+    <td colspan="2" rowspan="9" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
+    <td colspan="2" rowspan="2" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
+    <td colspan="17" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
+  </tr>
+  <tr>
+    <td><a href="https://en.wikipedia.org/wiki/Xeon_Phi#Knights_Mill">Knights Mill</a> (Xeon Phi x205, 2017)</td>
+    <td colspan="3" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
+    <td colspan="14" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
+  </tr>
+  <tr>
+    <td>
+      <a href="https://en.wikipedia.org/wiki/Skylake_(microarchitecture)#Skylake-SP_(14_nm)_Scalable_Performance">Skylake-SP</a>, 
+      <a href="https://en.wikipedia.org/wiki/Skylake_(microarchitecture)#Mainstream_desktop_processors">Skylake-X</a> (2017)
+    </td>
+    <td colspan="4" rowspan="11" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
+    <td rowspan="4" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
+    <td colspan="3" rowspan="4" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
+    <td colspan="11" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
+  </tr>
+  <tr>
+    <td><a href="https://en.wikipedia.org/wiki/Cannon_Lake_(microarchitecture)">Cannon Lake</a> (2018)</td>
+    <td colspan="2" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
+    <td colspan="9" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
+  </tr>
+  <tr>
+    <td><a href="https://en.wikipedia.org/wiki/Cascade_Lake_(microarchitecture)">Cascade Lake</a> (2019)</td>
+    <td colspan="2" rowspan="2" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
+    <td rowspan="2" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
+    <td colspan="8" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
+  </tr>
+  <tr>
+    <td><a href="https://en.wikipedia.org/wiki/Cooper_Lake_(microarchitecture)">Cooper Lake</a> (2020)</td>
+    <td style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
+    <td colspan="7" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
+  </tr>
+  <tr>
+    <td><a href="https://en.wikipedia.org/wiki/Ice_Lake_(microarchitecture)">Ice Lake</a> (2019)</td>
+    <td colspan="7" rowspan="3" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
+    <td rowspan="3" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
+    <td colspan="5" rowspan="3" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
+    <td colspan="2" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
+  </tr>
+  <tr>
+    <td><a href="https://en.wikipedia.org/wiki/Tiger_Lake_(microarchitecture)">Tiger Lake</a> (2020)</td>
+    <td style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
+    <td style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
+  </tr>
+  <tr>
+    <td><a href="https://en.wikipedia.org/wiki/Rocket_Lake">Rocket Lake</a> (2021)</td>
+    <td colspan="2" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
+  </tr>
+  <tr>
+    <td><a href="https://en.wikipedia.org/wiki/Alder_Lake">Alder Lake</a> (2021)</td>
+    <td colspan="2" style="background:#FFB;color:black;vertical-align:middle;text-align:center;">Partial</td>
+    <td colspan="15" style="background:#FFB;color:black;vertical-align:middle;text-align:center;">Partial</td>
+  </tr>
+  <tr>
+    <td><a href="https://en.wikipedia.org/wiki/Zen_4">Zen 4</a> (2022)</td>
+    <td colspan="2" rowspan="3" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
+    <td colspan="13" rowspan="3" style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
+    <td colspan="2" style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
+  </tr>
+  <tr>
+    <td><a href="https://en.wikipedia.org/wiki/Sapphire_Rapids_(microprocessor)">Sapphire Rapids</a> (2023)</td>
+    <td style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
+    <td style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
+  </tr>
+  <tr>
+    <td><a href="https://en.wikipedia.org/wiki/Zen_5">Zen 5</a> (2024)</td>
+    <td style="background:#9EFF9E;color:black;vertical-align:middle;text-align:center;">Yes</td>
+    <td style="background:#FFC7C7;color:black;vertical-align:middle;text-align:center;">No</td>
+  </tr>
+</table>
 
 You can compile SimSIMD on an old CPU, like Intel Haswell, and run it on a new one, like AMD Genoa, and it will automatically use the most advanced instructions available.
 Reverse is also true, you can compile on a new CPU and run on an old one, and it will automatically fall back to the most basic instructions.
