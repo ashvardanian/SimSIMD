@@ -82,6 +82,8 @@ SIMSIMD_PUBLIC void simsimd_l2sq_f32_sve(simsimd_f32_t const* a, simsimd_f32_t c
 SIMSIMD_PUBLIC void simsimd_cos_f32_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t*);
 SIMSIMD_PUBLIC void simsimd_l2sq_f16_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t*);
 SIMSIMD_PUBLIC void simsimd_cos_f16_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t*);
+SIMSIMD_PUBLIC void simsimd_l2sq_bf16_sve(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t*);
+SIMSIMD_PUBLIC void simsimd_cos_bf16_sve(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t*);
 SIMSIMD_PUBLIC void simsimd_l2sq_f64_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t*);
 SIMSIMD_PUBLIC void simsimd_cos_f64_sve(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t*);
 
@@ -341,10 +343,21 @@ SIMSIMD_PUBLIC void simsimd_cos_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_
     //   }
     //   float32x4_t products_vec = vaddq_f32(products_high_vec, products_low_vec);
     //   simsimd_f32_t a2 = products_vec[0], ab = products_vec[1], b2 = products_vec[3];
+    //
+    // Another way of accomplishing the same thing is to process the odd and even elements separately,
+    // using special `vbfmlaltq_f32` and `vbfmlalbq_f32` intrinsics:
+    //
+    //      ab_high_vec = vbfmlaltq_f32(ab_high_vec, a_vec, b_vec);
+    //      ab_low_vec = vbfmlalbq_f32(ab_low_vec, a_vec, b_vec);
+    //      a2_high_vec = vbfmlaltq_f32(a2_high_vec, a_vec, a_vec);
+    //      a2_low_vec = vbfmlalbq_f32(a2_low_vec, a_vec, a_vec);
+    //      b2_high_vec = vbfmlaltq_f32(b2_high_vec, b_vec, b_vec);
+    //      b2_low_vec = vbfmlalbq_f32(b2_low_vec, b_vec, b_vec);
+    //
 
-    float32x4_t ab_high_vec = vdupq_n_f32(0), ab_low_vec = vdupq_n_f32(0);
-    float32x4_t a2_high_vec = vdupq_n_f32(0), a2_low_vec = vdupq_n_f32(0);
-    float32x4_t b2_high_vec = vdupq_n_f32(0), b2_low_vec = vdupq_n_f32(0);
+    float32x4_t ab_vec = vdupq_n_f32(0);
+    float32x4_t a2_vec = vdupq_n_f32(0);
+    float32x4_t b2_vec = vdupq_n_f32(0);
     bfloat16x8_t a_vec, b_vec;
 
 simsimd_cos_bf16_neon_cycle:
@@ -357,19 +370,14 @@ simsimd_cos_bf16_neon_cycle:
         b_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const*)b);
         n -= 8, a += 8, b += 8;
     }
-    ab_high_vec = vbfmlaltq_f32(ab_high_vec, a_vec, b_vec);
-    ab_low_vec = vbfmlalbq_f32(ab_low_vec, a_vec, b_vec);
-    a2_high_vec = vbfmlaltq_f32(a2_high_vec, a_vec, a_vec);
-    a2_low_vec = vbfmlalbq_f32(a2_low_vec, a_vec, a_vec);
-    b2_high_vec = vbfmlaltq_f32(b2_high_vec, b_vec, b_vec);
-    b2_low_vec = vbfmlalbq_f32(b2_low_vec, b_vec, b_vec);
+    ab_vec = vbfdotq_f32(ab_vec, a_vec, b_vec);
+    a2_vec = vbfdotq_f32(a2_vec, a_vec, a_vec);
+    b2_vec = vbfdotq_f32(b2_vec, b_vec, b_vec);
     if (n)
         goto simsimd_cos_bf16_neon_cycle;
 
     // Avoid `simsimd_approximate_inverse_square_root` on Arm NEON
-    simsimd_f32_t ab = vaddvq_f32(vaddq_f32(ab_high_vec, ab_low_vec)),
-                  a2 = vaddvq_f32(vaddq_f32(a2_high_vec, a2_low_vec)),
-                  b2 = vaddvq_f32(vaddq_f32(b2_high_vec, b2_low_vec));
+    simsimd_f32_t ab = vaddvq_f32(ab_vec), a2 = vaddvq_f32(a2_vec), b2 = vaddvq_f32(b2_vec);
     *result = _simsimd_cos_normalize_f64_neon(ab, a2, b2);
 }
 
@@ -637,7 +645,9 @@ SIMSIMD_PUBLIC void simsimd_cos_f64_sve(simsimd_f64_t const* a, simsimd_f64_t co
 
 #pragma clang attribute pop
 #pragma GCC pop_options
+#endif // SIMSIMD_TARGET_SVE
 
+#if SIMSIMD_TARGET_SVE_F16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve+fp16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+fp16"))), apply_to = function)
@@ -686,7 +696,70 @@ SIMSIMD_PUBLIC void simsimd_cos_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_SVE
+#endif // SIMSIMD_TARGET_SVE_F16
+
+#if SIMSIMD_TARGET_SVE_BF16
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.2-a+sve+bf16")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+bf16"))), apply_to = function)
+
+SIMSIMD_PUBLIC void simsimd_l2sq_bf16_sve(simsimd_bf16_t const* a_enum, simsimd_bf16_t const* b_enum, simsimd_size_t n,
+                                          simsimd_distance_t* result) {
+    simsimd_size_t i = 0;
+    svfloat32_t d2_low_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
+    svfloat32_t d2_high_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
+    simsimd_u16_t const* a = (simsimd_u16_t const*)(a_enum);
+    simsimd_u16_t const* b = (simsimd_u16_t const*)(b_enum);
+    do {
+        svbool_t pg_vec = svwhilelt_b16((unsigned int)i, (unsigned int)n);
+        svuint16_t a_vec = svld1_u16(pg_vec, a + i);
+        svuint16_t b_vec = svld1_u16(pg_vec, b + i);
+
+        // There is no `bf16` subtraction in SVE, so we need to convert to `u32` and shift.
+        svbool_t pg_low_vec = svwhilelt_b32((unsigned int)(i), (unsigned int)n);
+        svbool_t pg_high_vec = svwhilelt_b32((unsigned int)(i + svcnth() / 2), (unsigned int)n);
+        svfloat32_t a_low_vec = svreinterpret_f32_u32(svlsl_n_u32_x(pg_low_vec, svunpklo_u32(a_vec), 16));
+        svfloat32_t a_high_vec = svreinterpret_f32_u32(svlsl_n_u32_x(pg_high_vec, svunpkhi_u32(a_vec), 16));
+        svfloat32_t b_low_vec = svreinterpret_f32_u32(svlsl_n_u32_x(pg_low_vec, svunpklo_u32(b_vec), 16));
+        svfloat32_t b_high_vec = svreinterpret_f32_u32(svlsl_n_u32_x(pg_high_vec, svunpkhi_u32(b_vec), 16));
+
+        svfloat32_t a_minus_b_low_vec = svsub_f32_x(pg_low_vec, a_low_vec, b_low_vec);
+        svfloat32_t a_minus_b_high_vec = svsub_f32_x(pg_high_vec, a_high_vec, b_high_vec);
+        d2_low_vec = svmla_f32_x(pg_vec, d2_low_vec, a_minus_b_low_vec, a_minus_b_low_vec);
+        d2_high_vec = svmla_f32_x(pg_vec, d2_high_vec, a_minus_b_low_vec, a_minus_b_low_vec);
+        i += svcnth();
+    } while (i < n);
+    simsimd_f32_t d2 = svaddv_f32(svptrue_b32(), d2_low_vec) + svaddv_f32(svptrue_b32(), d2_high_vec);
+    *result = d2;
+}
+
+SIMSIMD_PUBLIC void simsimd_cos_bf16_sve(simsimd_bf16_t const* a_enum, simsimd_bf16_t const* b_enum, simsimd_size_t n,
+                                         simsimd_distance_t* result) {
+    simsimd_size_t i = 0;
+    svfloat32_t ab_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
+    svfloat32_t a2_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
+    svfloat32_t b2_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
+    simsimd_bf16_for_arm_simd_t const* a = (simsimd_bf16_for_arm_simd_t const*)(a_enum);
+    simsimd_bf16_for_arm_simd_t const* b = (simsimd_bf16_for_arm_simd_t const*)(b_enum);
+    do {
+        svbool_t pg_vec = svwhilelt_b16((unsigned int)i, (unsigned int)n);
+        svbfloat16_t a_vec = svld1_bf16(pg_vec, a + i);
+        svbfloat16_t b_vec = svld1_bf16(pg_vec, b + i);
+        ab_vec = svbfdot_f32(ab_vec, a_vec, b_vec);
+        a2_vec = svbfdot_f32(a2_vec, a_vec, a_vec);
+        b2_vec = svbfdot_f32(b2_vec, b_vec, b_vec);
+        i += svcnth();
+    } while (i < n);
+
+    simsimd_f32_t ab = svaddv_f32(svptrue_b32(), ab_vec);
+    simsimd_f32_t a2 = svaddv_f32(svptrue_b32(), a2_vec);
+    simsimd_f32_t b2 = svaddv_f32(svptrue_b32(), b2_vec);
+    *result = _simsimd_cos_normalize_f64_neon(ab, a2, b2);
+}
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_SVE_BF16
 #endif // SIMSIMD_TARGET_ARM
 
 #if SIMSIMD_TARGET_X86

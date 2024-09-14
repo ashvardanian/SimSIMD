@@ -705,6 +705,14 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
     }
     // Brain floating-point vectors
     case simsimd_datatype_bf16_k: {
+#if SIMSIMD_TARGET_SVE_BF16
+        if (viable & simsimd_cap_sve_bf16_k)
+            switch (kind) {
+            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_bf16_sve, *c = simsimd_cap_sve_bf16_k; return;
+            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_bf16_sve, *c = simsimd_cap_sve_bf16_k; return;
+            default: break;
+            }
+#endif
 #if SIMSIMD_TARGET_NEON_BF16
         if (viable & simsimd_cap_neon_bf16_k)
             switch (kind) {
@@ -1277,9 +1285,9 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) { return simsimd_
  */
 SIMSIMD_PUBLIC void simsimd_dot_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                     simsimd_distance_t* d) {
-#if SIMSIMD_TARGET_SVE
+#if SIMSIMD_TARGET_SVE_F16
     simsimd_dot_f16_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif SIMSIMD_TARGET_NEON_F16
     simsimd_dot_f16_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_SAPPHIRE
     simsimd_dot_f16_sapphire(a, b, n, d);
@@ -1296,6 +1304,8 @@ SIMSIMD_PUBLIC void simsimd_dot_bf16(simsimd_bf16_t const* a, simsimd_bf16_t con
     simsimd_dot_bf16_genoa(a, b, n, d);
 #elif SIMSIMD_TARGET_HASWELL
     simsimd_dot_bf16_haswell(a, b, n, d);
+#elif SIMSIMD_TARGET_NEON_BF16
+    simsimd_dot_bf16_neon(a, b, n, d);
 #else
     simsimd_dot_bf16_serial(a, b, n, d);
 #endif
@@ -1327,9 +1337,9 @@ SIMSIMD_PUBLIC void simsimd_dot_f64(simsimd_f64_t const* a, simsimd_f64_t const*
 }
 SIMSIMD_PUBLIC void simsimd_dot_f16c(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                      simsimd_distance_t* d) {
-#if SIMSIMD_TARGET_SVE
+#if SIMSIMD_TARGET_SVE_F16
     simsimd_dot_f16c_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif SIMSIMD_TARGET_NEON_F16
     simsimd_dot_f16c_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_SAPPHIRE
     simsimd_dot_f16c_sapphire(a, b, n, d);
@@ -1343,6 +1353,8 @@ SIMSIMD_PUBLIC void simsimd_dot_bf16c(simsimd_bf16_t const* a, simsimd_bf16_t co
                                       simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_GENOA
     simsimd_dot_bf16c_genoa(a, b, n, d);
+#elif SIMSIMD_TARGET_NEON_BF16
+    simsimd_dot_bf16c_neon(a, b, n, d);
 #else
     simsimd_dot_bf16c_serial(a, b, n, d);
 #endif
@@ -1387,7 +1399,13 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c(simsimd_f16_t const* a, simsimd_f16_t cons
 }
 SIMSIMD_PUBLIC void simsimd_vdot_bf16c(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                        simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_GENOA
+    simsimd_vdot_bf16c_genoa(a, b, n, d);
+#elif SIMSIMD_TARGET_NEON_BF16
+    simsimd_dot_bf16c_neon(a, b, n, d);
+#else
     simsimd_vdot_bf16c_serial(a, b, n, d);
+#endif
 }
 SIMSIMD_PUBLIC void simsimd_vdot_f32c(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                       simsimd_distance_t* d) {
@@ -1453,9 +1471,9 @@ SIMSIMD_PUBLIC void simsimd_l2sq_i8(simsimd_i8_t const* a, simsimd_i8_t const* b
 }
 SIMSIMD_PUBLIC void simsimd_cos_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                     simsimd_distance_t* d) {
-#if SIMSIMD_TARGET_SVE
+#if SIMSIMD_TARGET_SVE_F16
     simsimd_cos_f16_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif SIMSIMD_TARGET_NEON_F16
     simsimd_cos_f16_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_SAPPHIRE
     simsimd_cos_f16_sapphire(a, b, n, d);
@@ -1471,6 +1489,10 @@ SIMSIMD_PUBLIC void simsimd_cos_bf16(simsimd_bf16_t const* a, simsimd_bf16_t con
     simsimd_cos_bf16_genoa(a, b, n, d);
 #elif SIMSIMD_TARGET_HASWELL
     simsimd_cos_bf16_haswell(a, b, n, d);
+#elif SIMSIMD_TARGET_SVE_BF16
+    simsimd_cos_bf16_sve(a, b, n, d);
+#elif SIMSIMD_TARGET_NEON_BF16
+    simsimd_cos_bf16_neon(a, b, n, d);
 #else
     simsimd_cos_bf16_serial(a, b, n, d);
 #endif
@@ -1501,9 +1523,9 @@ SIMSIMD_PUBLIC void simsimd_cos_f64(simsimd_f64_t const* a, simsimd_f64_t const*
 }
 SIMSIMD_PUBLIC void simsimd_l2sq_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                      simsimd_distance_t* d) {
-#if SIMSIMD_TARGET_SVE
+#if SIMSIMD_TARGET_SVE_F16
     simsimd_l2sq_f16_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif SIMSIMD_TARGET_NEON_F16
     simsimd_l2sq_f16_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_SAPPHIRE
     simsimd_l2sq_f16_sapphire(a, b, n, d);
@@ -1519,6 +1541,10 @@ SIMSIMD_PUBLIC void simsimd_l2sq_bf16(simsimd_bf16_t const* a, simsimd_bf16_t co
     simsimd_l2sq_bf16_genoa(a, b, n, d);
 #elif SIMSIMD_TARGET_HASWELL
     simsimd_l2sq_bf16_haswell(a, b, n, d);
+#elif SIMSIMD_TARGET_SVE_BF16
+    simsimd_l2sq_bf16_sve(a, b, n, d);
+#elif SIMSIMD_TARGET_NEON_BF16
+    simsimd_l2sq_bf16_neon(a, b, n, d);
 #else
     simsimd_l2sq_bf16_serial(a, b, n, d);
 #endif
