@@ -247,8 +247,8 @@ int cast_distance(simsimd_distance_t distance, simsimd_datatype_t target_dtype, 
     switch (target_dtype) {
     case simsimd_datatype_f64_k: ((simsimd_f64_t*)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
     case simsimd_datatype_f32_k: ((simsimd_f32_t*)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
-    case simsimd_datatype_f16_k: simsimd_compress_f16(distance, (unsigned short*)target_ptr + offset); return 1;
-    case simsimd_datatype_bf16_k: simsimd_compress_bf16(distance, (unsigned short*)target_ptr + offset); return 1;
+    case simsimd_datatype_f16_k: simsimd_f32_to_f16(distance, (simsimd_f16_t*)target_ptr + offset); return 1;
+    case simsimd_datatype_bf16_k: simsimd_f32_to_bf16(distance, (simsimd_bf16_t*)target_ptr + offset); return 1;
     case simsimd_datatype_i8_k: ((simsimd_i8_t*)target_ptr)[offset] = (simsimd_i8_t)distance; return 1;
     case simsimd_datatype_u8_k: ((simsimd_u8_t*)target_ptr)[offset] = (simsimd_u8_t)distance; return 1;
     case simsimd_datatype_i16_k: ((simsimd_i16_t*)target_ptr)[offset] = (simsimd_i16_t)distance; return 1;

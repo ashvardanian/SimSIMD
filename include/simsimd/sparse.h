@@ -8,12 +8,12 @@
  *  - Set Intersection ~ Jaccard Distance
  *
  *  For datatypes:
- *  - u16: for vocabularies under 64 K tokens
- *  - u32: for vocabularies under 4 B tokens
+ *  - u16: for vocabularies under 64 thousand tokens
+ *  - u32: for vocabularies under 4 billion tokens
  *
  *  For hardware architectures:
  *  - x86 (AVX512)
- *  - Arm (SVE)
+ *  - Arm (SVE2)
  *
  *  Interestingly, to implement sparse distances and products, the most important function
  *  is analogous to `std::set_intersection`, that outputs the intersection of two sorted
@@ -276,11 +276,11 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* shorter, sims
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_SKYLAKE
+#endif // SIMSIMD_TARGET_ICE
 #endif // SIMSIMD_TARGET_X86
 
 #if SIMSIMD_TARGET_ARM
-#if SIMSIMD_TARGET_SVE
+#if SIMSIMD_TARGET_SVE2
 
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve")
@@ -394,7 +394,7 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_sve(simsimd_u32_t const* shorter, sims
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_SVE
+#endif // SIMSIMD_TARGET_SVE2
 #endif // SIMSIMD_TARGET_ARM
 
 #ifdef __cplusplus

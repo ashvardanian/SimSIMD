@@ -164,11 +164,11 @@ SIMSIMD_MAKE_COS(serial, f64, f64, SIMSIMD_DEREFERENCE)  // simsimd_cos_f64_seri
 SIMSIMD_MAKE_L2SQ(serial, f32, f32, SIMSIMD_DEREFERENCE) // simsimd_l2sq_f32_serial
 SIMSIMD_MAKE_COS(serial, f32, f32, SIMSIMD_DEREFERENCE)  // simsimd_cos_f32_serial
 
-SIMSIMD_MAKE_L2SQ(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16) // simsimd_l2sq_f16_serial
-SIMSIMD_MAKE_COS(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16)  // simsimd_cos_f16_serial
+SIMSIMD_MAKE_L2SQ(serial, f16, f32, SIMSIMD_F16_TO_F32) // simsimd_l2sq_f16_serial
+SIMSIMD_MAKE_COS(serial, f16, f32, SIMSIMD_F16_TO_F32)  // simsimd_cos_f16_serial
 
-SIMSIMD_MAKE_L2SQ(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16) // simsimd_l2sq_bf16_serial
-SIMSIMD_MAKE_COS(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16)  // simsimd_cos_bf16_serial
+SIMSIMD_MAKE_L2SQ(serial, bf16, f32, SIMSIMD_BF16_TO_F32) // simsimd_l2sq_bf16_serial
+SIMSIMD_MAKE_COS(serial, bf16, f32, SIMSIMD_BF16_TO_F32)  // simsimd_cos_bf16_serial
 
 SIMSIMD_MAKE_L2SQ(serial, i8, i32, SIMSIMD_DEREFERENCE) // simsimd_l2sq_i8_serial
 SIMSIMD_MAKE_COS(serial, i8, i32, SIMSIMD_DEREFERENCE)  // simsimd_cos_i8_serial
@@ -176,11 +176,11 @@ SIMSIMD_MAKE_COS(serial, i8, i32, SIMSIMD_DEREFERENCE)  // simsimd_cos_i8_serial
 SIMSIMD_MAKE_L2SQ(accurate, f32, f64, SIMSIMD_DEREFERENCE) // simsimd_l2sq_f32_accurate
 SIMSIMD_MAKE_COS(accurate, f32, f64, SIMSIMD_DEREFERENCE)  // simsimd_cos_f32_accurate
 
-SIMSIMD_MAKE_L2SQ(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16) // simsimd_l2sq_f16_accurate
-SIMSIMD_MAKE_COS(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16)  // simsimd_cos_f16_accurate
+SIMSIMD_MAKE_L2SQ(accurate, f16, f64, SIMSIMD_F16_TO_F32) // simsimd_l2sq_f16_accurate
+SIMSIMD_MAKE_COS(accurate, f16, f64, SIMSIMD_F16_TO_F32)  // simsimd_cos_f16_accurate
 
-SIMSIMD_MAKE_L2SQ(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16) // simsimd_l2sq_bf16_accurate
-SIMSIMD_MAKE_COS(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16)  // simsimd_cos_bf16_accurate
+SIMSIMD_MAKE_L2SQ(accurate, bf16, f64, SIMSIMD_BF16_TO_F32) // simsimd_l2sq_bf16_accurate
+SIMSIMD_MAKE_COS(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)  // simsimd_cos_bf16_accurate
 
 SIMSIMD_MAKE_L2SQ(accurate, i8, i32, SIMSIMD_DEREFERENCE) // simsimd_l2sq_i8_accurate
 SIMSIMD_MAKE_COS(accurate, i8, i32, SIMSIMD_DEREFERENCE)  // simsimd_cos_i8_accurate
