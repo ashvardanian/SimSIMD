@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 __lib_name__ = "simsimd"
-__version__ = "5.2.1"
+__version__ = "5.3.0"
 
 compile_args = []
 link_args = []
@@ -75,6 +75,7 @@ if sys.platform == "linux":
         [
             get_bool_env_w_name("SIMSIMD_TARGET_NEON", True),
             get_bool_env_w_name("SIMSIMD_TARGET_SVE", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_SVE2", True),
             get_bool_env_w_name("SIMSIMD_TARGET_HASWELL", True),
             get_bool_env_w_name("SIMSIMD_TARGET_SKYLAKE", True),
             get_bool_env_w_name("SIMSIMD_TARGET_ICE", True),
@@ -96,6 +97,7 @@ if sys.platform == "darwin":
         [
             get_bool_env_w_name("SIMSIMD_TARGET_NEON", True),
             get_bool_env_w_name("SIMSIMD_TARGET_SVE", False),
+            get_bool_env_w_name("SIMSIMD_TARGET_SVE2", False),
             get_bool_env_w_name("SIMSIMD_TARGET_HASWELL", True),
             get_bool_env_w_name("SIMSIMD_TARGET_SKYLAKE", False),
             get_bool_env_w_name("SIMSIMD_TARGET_ICE", False),
@@ -119,6 +121,7 @@ if sys.platform == "win32":
             get_bool_env_w_name("SIMSIMD_TARGET_NEON", True),
             get_bool_env_w_name("SIMSIMD_TARGET_NEON_BF16", False),
             get_bool_env_w_name("SIMSIMD_TARGET_SVE", False),
+            get_bool_env_w_name("SIMSIMD_TARGET_SVE2", False),
             get_bool_env_w_name("SIMSIMD_TARGET_HASWELL", True),
             get_bool_env_w_name("SIMSIMD_TARGET_SKYLAKE", True),
             get_bool_env_w_name("SIMSIMD_TARGET_ICE", True),

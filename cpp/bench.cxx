@@ -473,7 +473,7 @@ void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std:
     mean_error /= pairs.size();
     state.counters["error"] = mean_error;
     state.counters["bytes"] =
-        bm::Counter(iterations * pairs[0].a.size_bytes() * pairs[0].b.size_bytes(), bm::Counter::kIsRate);
+        bm::Counter(iterations * (pairs[0].a.size_bytes() + pairs[0].b.size_bytes()), bm::Counter::kIsRate);
     state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
     state.counters["matches"] =
         std::accumulate(results_contender.begin(), results_contender.end(), 0.0) / results_contender.size();
@@ -482,8 +482,8 @@ void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std:
 template <simsimd_datatype_t datatype_ak, typename metric_at = void>
 void dense_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
     using pair_t = vectors_pair_gt<datatype_ak>;
-    std::string name_dims = name + "_" + std::to_string(dense_dimensions) + "d";
-    bm::RegisterBenchmark(name_dims.c_str(), measure_dense<pair_t, metric_at*>, distance_func, baseline_func,
+    std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_dense<pair_t, metric_at*>, distance_func, baseline_func,
                           dense_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
@@ -495,15 +495,18 @@ void sparse_(std::string name, metric_at* distance_func, metric_at* baseline_fun
     using pair_t = vectors_pair_gt<datatype_ak>;
 
     // Register different lengths, intersection sizes, and distributions
-    // 2 first lengths * 3 second lengths * 3 intersection sizes = 18 benchmarks for each metric.
-    for (std::size_t first_len : {128, 1024}) {                //< 2 lengths
-        for (std::size_t second_len_multiplier : {1, 8, 64}) { //< 3 lengths
-            for (std::size_t intersection_size : {1, 8, 64}) { //< 3 sizes
-
+    // 2 first lengths * 3 second length multipliers * 4 intersection grades = 24 benchmarks for each metric.
+    for (std::size_t first_len : {128, 1024}) {                         //< 2 lengths
+        for (std::size_t second_len_multiplier : {1, 8, 64}) {          //< 3 length multipliers
+            for (double intersection_share : {0.01, 0.05, 0.5, 0.95}) { //< 4 intersection grades
+                std::size_t intersection_size = static_cast<std::size_t>(first_len * intersection_share);
                 std::size_t second_len = first_len * second_len_multiplier;
-                std::string test_name = name + "_" + std::to_string(first_len) + "d^" + std::to_string(second_len) +
-                                        "d_w" + std::to_string(intersection_size) + "matches";
-                bm::RegisterBenchmark(test_name.c_str(), measure_sparse<pair_t, metric_at*>, distance_func,
+                std::string bench_name = name + "<|A|=" + std::to_string(first_len) +
+                                         ",|B|=" + std::to_string(second_len) +
+                                         ",|A∩B|=" + std::to_string(intersection_size) + ">";
+                if (second_len > 8192)
+                    continue;
+                bm::RegisterBenchmark(bench_name.c_str(), measure_sparse<pair_t, metric_at*>, distance_func,
                                       baseline_func, first_len, second_len, intersection_size)
                     ->MinTime(default_seconds)
                     ->Threads(default_threads);
@@ -516,8 +519,8 @@ template <simsimd_datatype_t datatype_ak, typename metric_at = void>
 void curved_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
 
     using pair_t = vectors_pair_gt<datatype_ak>;
-    std::string name_dims = name + "_" + std::to_string(curved_dimensions) + "d";
-    bm::RegisterBenchmark(name_dims.c_str(), measure_curved<pair_t, metric_at*>, distance_func, baseline_func,
+    std::string bench_name = name + "<" + std::to_string(curved_dimensions) + "d>";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_curved<pair_t, metric_at*>, distance_func, baseline_func,
                           curved_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
@@ -570,6 +573,7 @@ int main(int argc, char** argv) {
     std::printf("Compile-time settings:\n");
     std::printf("- Arm NEON support enabled: %s\n", flags[SIMSIMD_TARGET_NEON]);
     std::printf("- Arm SVE support enabled: %s\n", flags[SIMSIMD_TARGET_SVE]);
+    std::printf("- Arm SVE2 support enabled: %s\n", flags[SIMSIMD_TARGET_SVE2]);
     std::printf("- x86 Haswell support enabled: %s\n", flags[SIMSIMD_TARGET_HASWELL]);
     std::printf("- x86 Skylake support enabled: %s\n", flags[SIMSIMD_TARGET_SKYLAKE]);
     std::printf("- x86 Ice Lake support enabled: %s\n", flags[SIMSIMD_TARGET_ICE]);
@@ -585,6 +589,7 @@ int main(int argc, char** argv) {
     std::printf("- Arm SVE F16 support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sve_f16_k) != 0]);
     std::printf("- Arm SVE BF16 support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sve_bf16_k) != 0]);
     std::printf("- Arm SVE I8 support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sve_i8_k) != 0]);
+    std::printf("- Arm SVE2 support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sve2_k) != 0]);
     std::printf("- x86 Haswell support enabled: %s\n", flags[(runtime_caps & simsimd_cap_haswell_k) != 0]);
     std::printf("- x86 Skylake support enabled: %s\n", flags[(runtime_caps & simsimd_cap_skylake_k) != 0]);
     std::printf("- x86 Ice Lake support enabled: %s\n", flags[(runtime_caps & simsimd_cap_ice_k) != 0]);
@@ -663,6 +668,9 @@ int main(int argc, char** argv) {
     curved_<f16_k>("mahalanobis_f16_neon", simsimd_mahalanobis_f16_neon, simsimd_mahalanobis_f16_accurate);
     curved_<bf16_k>("bilinear_bf16_neon", simsimd_bilinear_bf16_neon, simsimd_bilinear_bf16_accurate);
     curved_<bf16_k>("mahalanobis_bf16_neon", simsimd_mahalanobis_bf16_neon, simsimd_mahalanobis_bf16_accurate);
+
+    sparse_<u16_k>("intersect_u16_neon", simsimd_intersect_u16_neon, simsimd_intersect_u16_accurate);
+    sparse_<u32_k>("intersect_u32_neon", simsimd_intersect_u32_neon, simsimd_intersect_u32_accurate);
 #endif
 
 #if SIMSIMD_TARGET_SVE
@@ -690,10 +698,11 @@ int main(int argc, char** argv) {
     dense_<f32c_k>("vdot_f32c_sve", simsimd_vdot_f32c_sve, simsimd_vdot_f32c_accurate);
     dense_<f64c_k>("dot_f64c_sve", simsimd_dot_f64c_sve, simsimd_dot_f64c_serial);
     dense_<f64c_k>("vdot_f64c_sve", simsimd_vdot_f64c_sve, simsimd_vdot_f64c_serial);
+#endif
 
-    sparse_<u16_k>("intersect_u16_sve", simsimd_intersect_u16_sve, simsimd_intersect_u16_accurate);
-    sparse_<u32_k>("intersect_u32_sve", simsimd_intersect_u32_sve, simsimd_intersect_u32_accurate);
-
+#if SIMSIMD_TARGET_SVE2
+    sparse_<u16_k>("intersect_u16_sve2", simsimd_intersect_u16_sve2, simsimd_intersect_u16_accurate);
+    sparse_<u32_k>("intersect_u32_sve2", simsimd_intersect_u32_sve2, simsimd_intersect_u32_accurate);
 #endif
 
 #if SIMSIMD_TARGET_HASWELL
