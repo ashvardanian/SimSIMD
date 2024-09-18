@@ -135,7 +135,7 @@ SIMSIMD_PUBLIC void simsimd_dot_f32_skylake(simsimd_f32_t const* a, simsimd_f32_
 SIMSIMD_PUBLIC void simsimd_dot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_vdot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
-SIMSIMD_PUBLIC void simsimd_dot_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t*);
+SIMSIMD_PUBLIC void simsimd_dot_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 SIMSIMD_PUBLIC void simsimd_dot_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_bf16c_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
@@ -201,13 +201,13 @@ SIMSIMD_MAKE_DOT(serial, f32, f32, SIMSIMD_DEREFERENCE)          // simsimd_dot_
 SIMSIMD_MAKE_COMPLEX_DOT(serial, f32, f32, SIMSIMD_DEREFERENCE)  // simsimd_dot_f32c_serial
 SIMSIMD_MAKE_COMPLEX_VDOT(serial, f32, f32, SIMSIMD_DEREFERENCE) // simsimd_vdot_f32c_serial
 
-SIMSIMD_MAKE_DOT(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16)          // simsimd_dot_f16_serial
-SIMSIMD_MAKE_COMPLEX_DOT(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16)  // simsimd_dot_f16c_serial
-SIMSIMD_MAKE_COMPLEX_VDOT(serial, f16, f32, SIMSIMD_UNCOMPRESS_F16) // simsimd_vdot_f16c_serial
+SIMSIMD_MAKE_DOT(serial, f16, f32, SIMSIMD_F16_TO_F32)          // simsimd_dot_f16_serial
+SIMSIMD_MAKE_COMPLEX_DOT(serial, f16, f32, SIMSIMD_F16_TO_F32)  // simsimd_dot_f16c_serial
+SIMSIMD_MAKE_COMPLEX_VDOT(serial, f16, f32, SIMSIMD_F16_TO_F32) // simsimd_vdot_f16c_serial
 
-SIMSIMD_MAKE_DOT(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16)          // simsimd_dot_bf16_serial
-SIMSIMD_MAKE_COMPLEX_DOT(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16)  // simsimd_dot_bf16c_serial
-SIMSIMD_MAKE_COMPLEX_VDOT(serial, bf16, f32, SIMSIMD_UNCOMPRESS_BF16) // simsimd_vdot_bf16c_serial
+SIMSIMD_MAKE_DOT(serial, bf16, f32, SIMSIMD_BF16_TO_F32)          // simsimd_dot_bf16_serial
+SIMSIMD_MAKE_COMPLEX_DOT(serial, bf16, f32, SIMSIMD_BF16_TO_F32)  // simsimd_dot_bf16c_serial
+SIMSIMD_MAKE_COMPLEX_VDOT(serial, bf16, f32, SIMSIMD_BF16_TO_F32) // simsimd_vdot_bf16c_serial
 
 SIMSIMD_MAKE_DOT(serial, i8, i64, SIMSIMD_DEREFERENCE) // simsimd_dot_i8_serial
 
@@ -215,13 +215,13 @@ SIMSIMD_MAKE_DOT(accurate, f32, f64, SIMSIMD_DEREFERENCE)          // simsimd_do
 SIMSIMD_MAKE_COMPLEX_DOT(accurate, f32, f64, SIMSIMD_DEREFERENCE)  // simsimd_dot_f32c_accurate
 SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f32, f64, SIMSIMD_DEREFERENCE) // simsimd_vdot_f32c_accurate
 
-SIMSIMD_MAKE_DOT(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16)          // simsimd_dot_f16_accurate
-SIMSIMD_MAKE_COMPLEX_DOT(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16)  // simsimd_dot_f16c_accurate
-SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f16, f64, SIMSIMD_UNCOMPRESS_F16) // simsimd_vdot_f16c_accurate
+SIMSIMD_MAKE_DOT(accurate, f16, f64, SIMSIMD_F16_TO_F32)          // simsimd_dot_f16_accurate
+SIMSIMD_MAKE_COMPLEX_DOT(accurate, f16, f64, SIMSIMD_F16_TO_F32)  // simsimd_dot_f16c_accurate
+SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f16, f64, SIMSIMD_F16_TO_F32) // simsimd_vdot_f16c_accurate
 
-SIMSIMD_MAKE_DOT(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16)          // simsimd_dot_bf16_accurate
-SIMSIMD_MAKE_COMPLEX_DOT(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16)  // simsimd_dot_bf16c_accurate
-SIMSIMD_MAKE_COMPLEX_VDOT(accurate, bf16, f64, SIMSIMD_UNCOMPRESS_BF16) // simsimd_vdot_bf16c_accurate
+SIMSIMD_MAKE_DOT(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)          // simsimd_dot_bf16_accurate
+SIMSIMD_MAKE_COMPLEX_DOT(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)  // simsimd_dot_bf16c_accurate
+SIMSIMD_MAKE_COMPLEX_VDOT(accurate, bf16, f64, SIMSIMD_BF16_TO_F32) // simsimd_vdot_bf16c_accurate
 
 #if SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
@@ -374,7 +374,7 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_neon(simsimd_i8_t const* a, simsimd_i8_t cons
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 
 SIMSIMD_INTERNAL float16x4_t _simsimd_partial_load_f16x4_neon(simsimd_f16_t const* a, simsimd_size_t n) {
-    // In case the software emulation for `f16` scalars is enabled, the `simsimd_uncompress_f16`
+    // In case the software emulation for `f16` scalars is enabled, the `simsimd_f16_to_f32`
     // function will run. It is extremely slow, so even for the tail, let's combine serial
     // loads and stores with vectorized math.
     union {
@@ -960,7 +960,7 @@ SIMSIMD_PUBLIC void simsimd_vdot_f32c_haswell(simsimd_f32_t const* a, simsimd_f3
 }
 
 SIMSIMD_INTERNAL __m256 _simsimd_partial_load_f16x8_haswell(simsimd_f16_t const* a, simsimd_size_t n) {
-    // In case the software emulation for `f16` scalars is enabled, the `simsimd_uncompress_f16`
+    // In case the software emulation for `f16` scalars is enabled, the `simsimd_f16_to_f32`
     // function will run. It is extremely slow, so even for the tail, let's combine serial
     // loads and stores with vectorized math.
     union {
@@ -1116,7 +1116,7 @@ SIMSIMD_INTERNAL __m256 _simsimd_bf16x8_to_f32x8_haswell(__m128i a) {
 }
 
 SIMSIMD_INTERNAL __m128i _simsimd_partial_load_bf16x8_haswell(simsimd_bf16_t const* a, simsimd_size_t n) {
-    // In case the software emulation for `bf16` scalars is enabled, the `simsimd_uncompress_bf16`
+    // In case the software emulation for `bf16` scalars is enabled, the `simsimd_bf16_to_f32`
     // function will run. It is extremely slow, so even for the tail, let's combine serial
     // loads and stores with vectorized math.
     union {

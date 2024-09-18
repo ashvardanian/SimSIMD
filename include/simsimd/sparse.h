@@ -8,12 +8,12 @@
  *  - Set Intersection ~ Jaccard Distance
  *
  *  For datatypes:
- *  - u16: for vocabularies under 64 K tokens
- *  - u32: for vocabularies under 4 B tokens
+ *  - u16: for vocabularies under 64 thousand tokens
+ *  - u32: for vocabularies under 4 billion tokens
  *
  *  For hardware architectures:
  *  - x86 (AVX512)
- *  - Arm (SVE)
+ *  - Arm (SVE2)
  *
  *  Interestingly, to implement sparse distances and products, the most important function
  *  is analogous to `std::set_intersection`, that outputs the intersection of two sorted
