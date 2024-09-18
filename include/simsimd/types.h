@@ -369,7 +369,7 @@ SIMSIMD_STATIC_ASSERT(sizeof(simsimd_bf16_t) == 2, simsimd_bf16_t_must_be_2_byte
 #endif
 #endif
 
-/** @brief  Convinience type for half-precision floating-point type conversions. */
+/** @brief  Convenience type for half-precision floating-point type conversions. */
 typedef union {
     unsigned i;
     float f;
@@ -382,7 +382,7 @@ typedef union {
  *  Subsequent additions by hardware manufacturers have made this algorithm redundant for the most part.
  *  For example, on x86, Intel introduced the SSE instruction `rsqrtss` in 1999. In a 2009 benchmark on
  *  the Intel Core 2, this instruction took 0.85ns per float compared to 3.54ns for the fast inverse
- *  square root algorithm, and had less error. Carmack’s Magic Number `rsqrt` had an average error
+ *  square root algorithm, and had less error. Carmack's Magic Number `rsqrt` had an average error
  *  of 0.0990%, while SSE `rsqrtss` had 0.0094%, a 10x improvement.
  *
  *  https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
