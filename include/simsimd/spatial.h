@@ -209,7 +209,7 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f32_neon(simsimd_f32_
     // https://en.wikipedia.org/wiki/Newton%27s_method
     rsqrts = vmul_f32(rsqrts, vrsqrts_f32(vmul_f32(squares, rsqrts), rsqrts));
     rsqrts = vmul_f32(rsqrts, vrsqrts_f32(vmul_f32(squares, rsqrts), rsqrts));
-    vst1_f32(squares_arr, squares);
+    vst1_f32(squares_arr, rsqrts);
     return 1 - ab * squares_arr[0] * squares_arr[1];
 }
 
@@ -232,7 +232,7 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f64_neon(simsimd_f64_
     // https://en.wikipedia.org/wiki/Newton%27s_method
     rsqrts = vmulq_f64(rsqrts, vrsqrtsq_f64(vmulq_f64(squares, rsqrts), rsqrts));
     rsqrts = vmulq_f64(rsqrts, vrsqrtsq_f64(vmulq_f64(squares, rsqrts), rsqrts));
-    vst1q_f64(squares_arr, squares);
+    vst1q_f64(squares_arr, rsqrts);
     return 1 - ab * squares_arr[0] * squares_arr[1];
 }
 
@@ -781,7 +781,7 @@ SIMSIMD_PUBLIC void simsimd_cos_bf16_sve(simsimd_bf16_t const* a_enum, simsimd_b
     simsimd_f32_t ab = svaddv_f32(svptrue_b32(), ab_vec);
     simsimd_f32_t a2 = svaddv_f32(svptrue_b32(), a2_vec);
     simsimd_f32_t b2 = svaddv_f32(svptrue_b32(), b2_vec);
-    *result = _simsimd_cos_normalize_f64_neon(ab, a2, b2);
+    *result = _simsimd_cos_normalize_f32_neon(ab, a2, b2);
 }
 
 #pragma clang attribute pop
