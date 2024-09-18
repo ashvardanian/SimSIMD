@@ -846,6 +846,38 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f64_haswell(simsimd_f
     return 1 - ab * a2_reciprocal * b2_reciprocal;
 }
 
+SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f32_haswell(simsimd_f32_t ab, simsimd_f32_t a2,
+                                                                       simsimd_f32_t b2) {
+
+    // If both vectors have magnitude 0, the distance is 0.
+    if (a2 == 0.0f && b2 == 0.0f)
+        return 0.0f;
+    // If any one of the vectors is 0, the square root of the product is 0,
+    // the division is illformed, and the result is 1.
+    else if (ab == 0.0f)
+        return 1.0f;
+
+    // Load the squares into an __m128 register for single-precision floating-point operations
+    __m128 squares = _mm_set_ps(a2, b2, a2, b2); // We replicate to make use of full register
+
+    // Compute the reciprocal square root of the squares using _mm_rsqrt_ps (single-precision)
+    __m128 rsqrts = _mm_rsqrt_ps(squares);
+
+    // Perform one iteration of Newton-Raphson refinement to improve the precision of rsqrt:
+    // Formula: y' = y * (1.5 - 0.5 * x * y * y)
+    __m128 half = _mm_set1_ps(0.5f);
+    __m128 three_halves = _mm_set1_ps(1.5f);
+    rsqrts =
+        _mm_mul_ps(rsqrts, _mm_sub_ps(three_halves, _mm_mul_ps(half, _mm_mul_ps(squares, _mm_mul_ps(rsqrts, rsqrts)))));
+
+    // Extract the reciprocal square roots of a2 and b2 from the __m128 register
+    simsimd_f32_t a2_reciprocal = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
+    simsimd_f32_t b2_reciprocal = _mm_cvtss_f32(rsqrts);
+
+    // Calculate the cosine distance: 1 - ab * a2_reciprocal * b2_reciprocal
+    return 1.0f - ab * a2_reciprocal * b2_reciprocal;
+}
+
 SIMSIMD_PUBLIC void simsimd_cos_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                             simsimd_distance_t* result) {
     __m256 a_vec, b_vec;
@@ -867,10 +899,10 @@ simsimd_cos_f16_haswell_cycle:
     if (n)
         goto simsimd_cos_f16_haswell_cycle;
 
-    simsimd_f64_t ab = _simsimd_reduce_f32x8_haswell(ab_vec);
-    simsimd_f64_t a2 = _simsimd_reduce_f32x8_haswell(a2_vec);
-    simsimd_f64_t b2 = _simsimd_reduce_f32x8_haswell(b2_vec);
-    *result = _simsimd_cos_normalize_f64_haswell(ab, a2, b2);
+    simsimd_f32_t ab = _simsimd_reduce_f32x8_haswell(ab_vec);
+    simsimd_f32_t a2 = _simsimd_reduce_f32x8_haswell(a2_vec);
+    simsimd_f32_t b2 = _simsimd_reduce_f32x8_haswell(b2_vec);
+    *result = _simsimd_cos_normalize_f32_haswell(ab, a2, b2);
 }
 
 SIMSIMD_PUBLIC void simsimd_l2sq_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
@@ -917,10 +949,10 @@ simsimd_cos_bf16_haswell_cycle:
     if (n)
         goto simsimd_cos_bf16_haswell_cycle;
 
-    simsimd_f64_t ab = _simsimd_reduce_f32x8_haswell(ab_vec);
-    simsimd_f64_t a2 = _simsimd_reduce_f32x8_haswell(a2_vec);
-    simsimd_f64_t b2 = _simsimd_reduce_f32x8_haswell(b2_vec);
-    *result = _simsimd_cos_normalize_f64_haswell(ab, a2, b2);
+    simsimd_f32_t ab = _simsimd_reduce_f32x8_haswell(ab_vec);
+    simsimd_f32_t a2 = _simsimd_reduce_f32x8_haswell(a2_vec);
+    simsimd_f32_t b2 = _simsimd_reduce_f32x8_haswell(b2_vec);
+    *result = _simsimd_cos_normalize_f32_haswell(ab, a2, b2);
 }
 
 SIMSIMD_PUBLIC void simsimd_l2sq_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
@@ -1024,7 +1056,7 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t c
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
 
-    *result = _simsimd_cos_normalize_f64_haswell(ab, a2, b2);
+    *result = _simsimd_cos_normalize_f32_haswell(ab, a2, b2);
 }
 
 SIMSIMD_PUBLIC void simsimd_l2sq_f32_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
@@ -1342,10 +1374,10 @@ simsimd_cos_bf16_genoa_cycle:
     if (n)
         goto simsimd_cos_bf16_genoa_cycle;
 
-    simsimd_f64_t ab = _simsimd_reduce_f32x16_skylake(ab_vec);
-    simsimd_f64_t a2 = _simsimd_reduce_f32x16_skylake(a2_vec);
-    simsimd_f64_t b2 = _simsimd_reduce_f32x16_skylake(b2_vec);
-    *result = _simsimd_cos_normalize_f64_skylake(ab, a2, b2);
+    simsimd_f32_t ab = _simsimd_reduce_f32x16_skylake(ab_vec);
+    simsimd_f32_t a2 = _simsimd_reduce_f32x16_skylake(a2_vec);
+    simsimd_f32_t b2 = _simsimd_reduce_f32x16_skylake(b2_vec);
+    *result = _simsimd_cos_normalize_f32_haswell(ab, a2, b2);
 }
 
 #pragma clang attribute pop
@@ -1405,10 +1437,10 @@ simsimd_cos_f16_sapphire_cycle:
     if (n)
         goto simsimd_cos_f16_sapphire_cycle;
 
-    simsimd_f64_t ab = _mm512_reduce_add_ph(ab_vec);
-    simsimd_f64_t a2 = _mm512_reduce_add_ph(a2_vec);
-    simsimd_f64_t b2 = _mm512_reduce_add_ph(b2_vec);
-    *result = _simsimd_cos_normalize_f64_skylake(ab, a2, b2);
+    simsimd_f32_t ab = _mm512_reduce_add_ph(ab_vec);
+    simsimd_f32_t a2 = _mm512_reduce_add_ph(a2_vec);
+    simsimd_f32_t b2 = _mm512_reduce_add_ph(b2_vec);
+    *result = _simsimd_cos_normalize_f32_haswell(ab, a2, b2);
 }
 
 #pragma clang attribute pop
@@ -1491,7 +1523,7 @@ simsimd_cos_i8_ice_cycle:
     int ab = _mm512_reduce_add_epi32(_mm512_add_epi32(ab_low_i32s_vec, ab_high_i32s_vec));
     int a2 = _mm512_reduce_add_epi32(a2_i32s_vec);
     int b2 = _mm512_reduce_add_epi32(b2_i32s_vec);
-    *result = _simsimd_cos_normalize_f64_skylake(ab, a2, b2);
+    *result = _simsimd_cos_normalize_f32_haswell(ab, a2, b2);
 }
 
 #pragma clang attribute pop
