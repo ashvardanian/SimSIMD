@@ -236,7 +236,7 @@ typedef simsimd_f64_t simsimd_distance_t;
 #define SIMSIMD_NATIVE_F16 1
 typedef __fp16 simsimd_f16_t;
 #elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) &&                      \
-       (defined(__SSE2__) || defined(__AVX512FP16__)))
+       (defined(__AVX512FP16__)))
 typedef _Float16 simsimd_f16_t;
 #undef SIMSIMD_NATIVE_F16
 #define SIMSIMD_NATIVE_F16 1
@@ -284,7 +284,7 @@ typedef unsigned short simsimd_f16_t;
 #define SIMSIMD_NATIVE_BF16 1
 typedef __bf16 simsimd_bf16_t;
 #elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) &&                      \
-       (defined(__SSE2__) || defined(__AVX512BF16__)))
+       (defined(__AVX512BF16__)))
 typedef __bfloat16 simsimd_bf16_t;
 #undef SIMSIMD_NATIVE_BF16
 #define SIMSIMD_NATIVE_BF16 1
