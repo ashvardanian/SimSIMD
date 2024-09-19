@@ -46,13 +46,19 @@ __SimSIMD__ (Arabic: "سيمسيم دي") is a library of __over 200 SIMD-optimi
 Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command from _Ali Baba and the Forty Thieves_, it opens the doors to a modern treasure: maximizing the potential of today's hardware for high resource utilization.
 Implemented distance functions include:
 
-- Euclidean (L2) and Cosine (Angular) spatial distances for Vector Search.
-- Dot-Products for real & complex vectors for DSP & Quantum computing.
-- Hamming (~ Manhattan) and Jaccard (~ Tanimoto) bit-level distances.
-- Kullback-Leibler and Jensen–Shannon divergences for probability distributions.
-- Haversine and Vincenty's formulae for Geospatial Analysis.
-- For Levenshtein, Needleman–Wunsch and other text metrics, check [StringZilla][stringzilla].
+- Euclidean (L2) and Cosine (Angular) spatial distances for Vector Search. _[docs][docs-spatial]_
+- Dot-Products for real & complex vectors for DSP & Quantum computing. _[docs][docs-dot]_
+- Hamming (~ Manhattan) and Jaccard (~ Tanimoto) bit-level distances. _[docs][docs-binary]_
+- Set Intersections for Sparse Vectors and Text Analysis. _[docs][docs-sparse]_
+- Mahalanobis distance and Quadratic forms for Scientific Computing. _[docs][docs-curved]_
+- Kullback-Leibler and Jensen–Shannon divergences for probability distributions. _[docs][docs-probability]_
+- For Levenshtein, Needleman–Wunsch, and Smith-Waterman, check [StringZilla][stringzilla].
+- 🔜 Haversine and Vincenty's formulae for Geospatial Analysis.
 
+[docs-spatial]: #cosine-similarity-reciprocal-square-root-and-newton-raphson-iteration
+[docs-curved]: #curved-spaces-mahalanobis-distance-and-bilinear-quadratic-forms
+[docs-sparse]: #set-intersection-galloping-and-binary-search
+[docs-binary]: #binary-similarity-hamming-and-jaccard-distances
 [scipy]: https://docs.scipy.org/doc/scipy/reference/spatial.distance.html#module-scipy.spatial.distance
 [numpy]: https://numpy.org/doc/stable/reference/generated/numpy.inner.html
 [stringzilla]: https://github.com/ashvardanian/stringzilla
@@ -63,7 +69,7 @@ Moreover, SimSIMD...
 - handles `i8` integral and `b8` bit vectors.
 - is a zero-dependency [header-only C 99](#using-simsimd-in-c) library.
 - has bindings for [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust) and [JS](#using-simsimd-in-javascript).
-- has Arm backends for NEON and Scalable Vector Extensions (SVE).
+- has Arm backends for NEON, Scalable Vector Extensions (SVE), and SVE2.
 - has x86 backends for Haswell, Skylake, Ice Lake, Genoa, and Sapphire Rapids.
 - with both compile-time and runtime CPU feature detection easily integrates anywhere!
 
@@ -140,7 +146,7 @@ vec2 = np.random.randn(1536).astype(np.float32)
 dist = simsimd.cosine(vec1, vec2)
 ```
 
-Supported functions include `cosine`, `inner`, `sqeuclidean`, `hamming`, and `jaccard`.
+Supported functions include `cosine`, `inner`, `sqeuclidean`, `hamming`, `jaccard`, `kulbackleibler`, `jensenshannon`, and `intersect`.
 Dot products are supported for both real and complex numbers:
 
 ```py
@@ -171,6 +177,22 @@ vec1 = np.random.randn(1536).astype(np.float16)
 vec2 = np.random.randn(1536).astype(np.float16)
 simd.dot(vec1, vec2, "complex32")
 simd.vdot(vec1, vec2, "complex32")
+```
+
+When dealing with sparse representations and integer sets, you can apply the `intersect` function to two 1-dimensional arrays of `uint16` or `uint32` integers:
+
+```py
+from random import randint
+import numpy as np
+import simsimd as simd
+
+length1, length2 = randint(1, 100), randint(1, 100)
+vec1 = np.random.randint(0, 1000, length1).astype(np.uint16)
+vec2 = np.random.randint(0, 1000, length2).astype(np.uint16)
+
+slow_result = np.intersect1d(vec1, vec2)
+fast_result = simd.intersect(vec1, vec2)
+assert slow_result == fast_result
 ```
 
 ### One-to-Many Distances
@@ -751,8 +773,8 @@ It's not only less efficient, but also less accurate, given how the reciprocal s
 The C standard library provides the `sqrt` function, which is generally very accurate, but slow.
 The `rsqrt` in-hardware implementations are faster, but have different accuracy characteristics.
 
-- SSE `rsqrtps` and AVX `vrsqrtps`: $`\(1.5 \times 2^{-12}\)`$ maximal error.
-- AVX-512 `vrsqrt14pd` instruction: $`\(2^{-14}\)`$ maximal error.
+- SSE `rsqrtps` and AVX `vrsqrtps`: $1.5 \times 2^{-12}$ maximal error.
+- AVX-512 `vrsqrt14pd` instruction: $2^{-14}$ maximal error.
 - NEON `frsqrte` instruction has no clear error bounds.
 
 To overcome the limitations of the `rsqrt` instruction, SimSIMD uses the Newton-Raphson iteration to refine the initial estimate for high-precision floating-point numbers.
@@ -764,14 +786,12 @@ x_{n+1} = x_n \cdot (3 - x_n \cdot x_n) / 2
 
 On 1536-dimensional inputs on Intel Sapphire Rapids CPU a single such iteration can result in a 2-3 orders of magnitude relative error reduction:
 
-
 | Datatype   |         NumPy Error | SimSIMD w/out Iteration |             SimSIMD |
 | :--------- | ------------------: | ----------------------: | ------------------: |
 | `bfloat16` | 1.89e-08 ± 1.59e-08 |     3.07e-07 ± 3.09e-07 | 3.53e-09 ± 2.70e-09 |
 | `float16`  | 1.67e-02 ± 1.44e-02 |     2.68e-05 ± 1.95e-05 | 2.02e-05 ± 1.39e-05 |
 | `float32`  | 2.21e-08 ± 1.65e-08 |     3.47e-07 ± 3.49e-07 | 3.77e-09 ± 2.84e-09 |
 | `float64`  | 0.00e+00 ± 0.00e+00 |     3.80e-07 ± 4.50e-07 | 1.35e-11 ± 1.85e-11 |
-
 
 ### Curved Spaces, Mahalanobis Distance, and Bilinear Quadratic Forms
 
