@@ -1271,8 +1271,9 @@ simsimd_cos_f64_skylake_cycle:
 
 #if SIMSIMD_TARGET_GENOA
 #pragma GCC push_options
-#pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
-#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512bf16"))), apply_to = function)
+#pragma GCC target("avx2", "f16c", "fma", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,avx512f,avx512vl,bmi2,avx512bw,avx512bf16"))),       \
+                             apply_to = function)
 
 SIMSIMD_INTERNAL __m512i _simsimd_substract_bf16x32_genoa(__m512i a_i16, __m512i b_i16) {
 
@@ -1386,8 +1387,9 @@ simsimd_cos_bf16_genoa_cycle:
 
 #if SIMSIMD_TARGET_SAPPHIRE
 #pragma GCC push_options
-#pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512fp16")
-#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512fp16"))), apply_to = function)
+#pragma GCC target("avx2", "f16c", "fma", "avx512f", "avx512vl", "bmi2", "avx512fp16")
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,avx512f,avx512vl,bmi2,avx512fp16"))),                \
+                             apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_l2sq_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                               simsimd_distance_t* result) {
@@ -1449,8 +1451,9 @@ simsimd_cos_f16_sapphire_cycle:
 
 #if SIMSIMD_TARGET_ICE
 #pragma GCC push_options
-#pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vnni")
-#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512vnni"))), apply_to = function)
+#pragma GCC target("avx2", "f16c", "fma", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vnni")
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,avx512f,avx512vl,bmi2,avx512bw,avx512vnni"))),       \
+                             apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_l2sq_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                         simsimd_distance_t* result) {
