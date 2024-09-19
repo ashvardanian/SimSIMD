@@ -411,8 +411,8 @@ simsimd_js_f16_haswell_cycle:
 
 #if SIMSIMD_TARGET_SKYLAKE
 #pragma GCC push_options
-#pragma GCC target("avx512f", "avx512vl", "bmi2")
-#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2"))), apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2")
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2"))), apply_to = function)
 
 SIMSIMD_INTERNAL __m512 _simsimd_log2_f32_skylake(__m512 x) {
     // Extract the exponent and mantissa
@@ -503,8 +503,8 @@ simsimd_js_f32_skylake_cycle:
 
 #if SIMSIMD_TARGET_SAPPHIRE
 #pragma GCC push_options
-#pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512fp16")
-#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512fp16"))), apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512fp16")
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512fp16"))), apply_to = function)
 
 SIMSIMD_INTERNAL __m512h _simsimd_log2_f16_sapphire(__m512h x) {
     // Extract the exponent and mantissa

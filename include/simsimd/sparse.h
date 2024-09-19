@@ -151,8 +151,8 @@ SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u32, size) // simsimd_intersect_u32_ser
 #if SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_ICE
 #pragma GCC push_options
-#pragma GCC target("avx512f", "avx512vl", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2")
-#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2"))),       \
+#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2")
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2"))),  \
                              apply_to = function)
 
 /*  The AVX-512 implementations are inspired by the "Faster-Than-Native Alternatives
