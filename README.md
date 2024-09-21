@@ -58,7 +58,9 @@ Implemented distance functions include:
 [docs-spatial]: #cosine-similarity-reciprocal-square-root-and-newton-raphson-iteration
 [docs-curved]: #curved-spaces-mahalanobis-distance-and-bilinear-quadratic-forms
 [docs-sparse]: #set-intersection-galloping-and-binary-search
-[docs-binary]: #binary-similarity-hamming-and-jaccard-distances
+[docs-binary]: https://github.com/ashvardanian/SimSIMD/pull/138
+[docs-dot]: #complex-dot-products-conjugate-dot-products-and-complex-numbers
+[docs-probability]: #logarithms-in-kullback-leibler--jensenshannon-divergences
 [scipy]: https://docs.scipy.org/doc/scipy/reference/spatial.distance.html#module-scipy.spatial.distance
 [numpy]: https://numpy.org/doc/stable/reference/generated/numpy.inner.html
 [stringzilla]: https://github.com/ashvardanian/stringzilla
@@ -80,10 +82,10 @@ You can learn more about the technical implementation details in the following b
 
 - [Uses Horner's method for polynomial approximations, beating GCC 12 by 119x](https://ashvardanian.com/posts/gcc-12-vs-avx512fp16/).
 - [Uses Arm SVE and x86 AVX-512's masked loads to eliminate tail `for`-loops](https://ashvardanian.com/posts/simsimd-faster-scipy/#tails-of-the-past-the-significance-of-masked-loads).
-- [Uses AVX-512 FP16 for half-precision operations, that few compilers vectorize](https://ashvardanian.com/posts/simsimd-faster-scipy/#the-challenge-of-f16).
-- [Substitutes LibC's `sqrt` calls with bit-hacks using Jan Kadlec's constant](https://ashvardanian.com/posts/simsimd-faster-scipy/#bonus-section-bypassing-sqrt-and-libc-dependencies).
-- [For Python avoids slow PyBind11, SWIG, and even `PyArg_ParseTuple` for speed](https://ashvardanian.com/posts/pybind11-cpython-tutorial/).
-- [For JavaScript uses typed arrays and NAPI for zero-copy calls](https://ashvardanian.com/posts/javascript-ai-vector-search/).
+- [Substitutes LibC's `sqrt` with Newton Raphson iterations](https://github.com/ashvardanian/SimSIMD/releases/tag/v5.4.0).
+- [Uses Galloping and SVE2 histograms to intersect sparse vectors](https://ashvardanian.com/posts/simd-set-intersections-sve2-avx512/).
+- For Python: [avoids slow PyBind11, SWIG, & `PyArg_ParseTuple`](https://ashvardanian.com/posts/pybind11-cpython-tutorial/) [using faster calling convention](https://ashvardanian.com/posts/discount-on-keyword-arguments-in-python/).
+- For JavaScript: [uses typed arrays and NAPI for zero-copy calls](https://ashvardanian.com/posts/javascript-ai-vector-search/).
 
 ## Benchmarks
 
