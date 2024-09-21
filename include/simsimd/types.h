@@ -261,7 +261,7 @@ typedef unsigned short simsimd_f16_t;
  *  - GCC or Clang on 64-bit x86: `_BFloat16`.
  *  - Default: `unsigned short`.
  *
- *  The compilers have added __bf16 support in compliance with the x86-64 psABI spec.
+ *  The compilers have added `__bf16` support in compliance with the x86-64 psABI spec.
  *  The motivation for this new special type is summed up as:
  *
  *      Currently `__bfloat16` is a typedef of short, which creates a problem where the
