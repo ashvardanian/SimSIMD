@@ -153,7 +153,10 @@ SIMSIMD_MAKE_MAHALANOBIS(accurate, bf16, f64, SIMSIMD_BF16_TO_F32) // simsimd_ma
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_bilinear_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c,
                                               simsimd_size_t n, simsimd_distance_t* result) {
@@ -220,14 +223,19 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_neon(simsimd_f32_t const* a, simsimd
     *result = sum;
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON
 
 #if SIMSIMD_TARGET_NEON_F16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_bilinear_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c,
                                               simsimd_size_t n, simsimd_distance_t* result) {
@@ -301,14 +309,19 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_neon(simsimd_f16_t const* a, simsimd
     *result = sum;
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON_F16
 
 #if SIMSIMD_TARGET_NEON_BF16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b,
                                                simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result) {
@@ -401,7 +414,9 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_neon(simsimd_bf16_t const* a, simsi
     *result = sum;
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON_BF16
 
@@ -411,7 +426,10 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_neon(simsimd_bf16_t const* a, simsi
 #if SIMSIMD_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_bilinear_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c,
                                                  simsimd_size_t n, simsimd_distance_t* result) {
@@ -558,14 +576,19 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_haswell(simsimd_bf16_t const* a, si
     *result = sum;
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_HASWELL
 
 #if SIMSIMD_TARGET_SKYLAKE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2"))), apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_bilinear_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c,
                                                  simsimd_size_t n, simsimd_distance_t* result) {
@@ -634,15 +657,20 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_skylake(simsimd_f32_t const* a, sims
     *result = _mm512_reduce_add_ps(sum_vec);
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SKYLAKE
 
 #if SIMSIMD_TARGET_GENOA
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512bf16"))),                \
                              apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b,
                                                 simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result) {
@@ -711,15 +739,20 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_genoa(simsimd_bf16_t const* a, sims
     *result = _mm512_reduce_add_ps(sum_vec);
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_GENOA
 
 #if SIMSIMD_TARGET_SAPPHIRE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512fp16")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512fp16"))),                \
                              apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_bilinear_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b,
                                                   simsimd_f16_t const* c, simsimd_size_t n,
@@ -800,7 +833,9 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_sapphire(simsimd_bf16_t const* a, s
                                                       simsimd_bf16_t const* c, simsimd_size_t n,
                                                       simsimd_distance_t* result) {}
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SAPPHIRE
 #endif // SIMSIMD_TARGET_X86

@@ -152,8 +152,11 @@ SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u32, size) // simsimd_intersect_u32_ser
 #if SIMSIMD_TARGET_ICE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2"))),  \
                              apply_to = function)
+
+#endif
 
 /*  The AVX-512 implementations are inspired by the "Faster-Than-Native Alternatives
  *  for x86 VP2INTERSECT Instructions" paper by Guille Diez-Canas, 2022.
@@ -384,7 +387,9 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* a, simsimd_u3
     *results += c;
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_ICE
 #endif // SIMSIMD_TARGET_X86
@@ -393,7 +398,10 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* a, simsimd_u3
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a"))), apply_to = function)
+
+#endif
 
 /**
  *  @brief  Uses `vshrn` to produce a bitmask, similar to `movemask` in SSE.
@@ -599,14 +607,19 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_neon(simsimd_u32_t const* a, simsimd_u
     *results += vaddvq_u32(c_counts_vec.u32x4);
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON
 
 #if SIMSIMD_TARGET_SVE2
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve+sve2")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+sve2"))), apply_to = function)
+
+#endif
 
 /*  SVE2 introduces many new integer-oriented instructions, extending some of the NEON functionality to
  *  variable-length SVE registers. Those include "compare multiple" intrinsics:
@@ -795,7 +808,9 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_sve2(simsimd_u32_t const* a, simsimd_u
     *results = c;
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SVE2
 #endif // SIMSIMD_TARGET_ARM
