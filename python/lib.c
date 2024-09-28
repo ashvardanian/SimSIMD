@@ -1236,6 +1236,36 @@ static PyMethodDef simsimd_methods[] = {
         "Notes:\n"
         "    * `a` and `b` are positional-only arguments, while `dtype` is a keyword-only argument.",
     },
+    {
+        "kullbackleibler",
+        (PyCFunction)api_kl,
+        METH_FASTCALL,
+        "Compute Kullback-Leibler divergences between two matrices.\n\n"
+        "Args:\n"
+        "    a (NDArray): First floating-point matrix or vector.\n"
+        "    b (NDArray): Second floating-point matrix or vector.\n"
+        "    dtype (IntegralType, optional): Override the presumed input type.\n\n"
+        "Returns:\n"
+        "    DistancesTensor: The Kullback-Leibler divergences distances.\n\n"
+        "Equivalent to: `scipy.special.kl_div`.\n"
+        "Notes:\n"
+        "    * `a` and `b` are positional-only arguments, while `dtype` is a keyword-only argument.",
+    },
+    {
+        "jensenshannon",
+        (PyCFunction)api_js,
+        METH_FASTCALL,
+        "Compute Jensen-Shannon divergences between two matrices.\n\n"
+        "Args:\n"
+        "    a (NDArray): First floating-point matrix or vector.\n"
+        "    b (NDArray): Second floating-point matrix or vector.\n"
+        "    dtype (IntegralType, optional): Override the presumed input type.\n\n"
+        "Returns:\n"
+        "    DistancesTensor: The Jensen-Shannon divergences distances.\n\n"
+        "Equivalent to: `scipy.spatial.distance.jensenshannon`.\n"
+        "Notes:\n"
+        "    * `a` and `b` are positional-only arguments, while `dtype` is a keyword-only argument.",
+    },
 
     // Conventional `cdist` interface for pairwise distances
     {
