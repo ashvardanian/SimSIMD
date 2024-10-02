@@ -141,6 +141,8 @@ ext_modules = [
     ),
 ]
 
+include_dirs = ["include/simsimd"]
+
 this_directory = os.path.abspath(dirname(__file__))
 with open(os.path.join(this_directory, "README.md"), "r", encoding="utf8") as f:
     long_description = f.read()
@@ -179,6 +181,7 @@ setup(
         "Topic :: Scientific/Engineering :: Chemistry",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
+    include_dirs=include_dirs,
     ext_modules=ext_modules,
     zip_safe=False,
     include_package_data=True,
