@@ -66,6 +66,8 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_accurate(simsimd_i8_t const* a, simsimd_i8_t 
  *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
  *  server CPUs produced before 2023.
  */
+SIMSIMD_PUBLIC void simsimd_l2sq_f64_neon(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* d);
+SIMSIMD_PUBLIC void simsimd_cos_f64_neon(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 SIMSIMD_PUBLIC void simsimd_l2sq_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 SIMSIMD_PUBLIC void simsimd_cos_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 SIMSIMD_PUBLIC void simsimd_l2sq_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* d);
@@ -270,6 +272,44 @@ SIMSIMD_PUBLIC void simsimd_cos_f32_neon(simsimd_f32_t const* a, simsimd_f32_t c
     simsimd_f32_t ab = vaddvq_f32(ab_vec), a2 = vaddvq_f32(a2_vec), b2 = vaddvq_f32(b2_vec);
     for (; i < n; ++i) {
         simsimd_f32_t ai = a[i], bi = b[i];
+        ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
+    }
+
+    *result = _simsimd_cos_normalize_f64_neon(ab, a2, b2);
+}
+
+SIMSIMD_PUBLIC void simsimd_l2sq_f64_neon(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
+                                          simsimd_distance_t* result) {
+    float64x2_t sum_vec = vdupq_n_f64(0);
+    simsimd_size_t i = 0;
+    for (; i + 2 <= n; i += 2) {
+        float64x2_t a_vec = vld1q_f64(a + i);
+        float64x2_t b_vec = vld1q_f64(b + i);
+        float64x2_t diff_vec = vsubq_f64(a_vec, b_vec);
+        sum_vec = vfmaq_f64(sum_vec, diff_vec, diff_vec);
+    }
+    simsimd_f64_t sum = vaddvq_f64(sum_vec);
+    for (; i < n; ++i) {
+        simsimd_f64_t diff = a[i] - b[i];
+        sum += diff * diff;
+    }
+    *result = sum;
+}
+
+SIMSIMD_PUBLIC void simsimd_cos_f64_neon(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
+                                         simsimd_distance_t* result) {
+    float64x2_t ab_vec = vdupq_n_f64(0), a2_vec = vdupq_n_f64(0), b2_vec = vdupq_n_f64(0);
+    simsimd_size_t i = 0;
+    for (; i + 2 <= n; i += 2) {
+        float64x2_t a_vec = vld1q_f64(a + i);
+        float64x2_t b_vec = vld1q_f64(b + i);
+        ab_vec = vfmaq_f64(ab_vec, a_vec, b_vec);
+        a2_vec = vfmaq_f64(a2_vec, a_vec, a_vec);
+        b2_vec = vfmaq_f64(b2_vec, b_vec, b_vec);
+    }
+    simsimd_f64_t ab = vaddvq_f64(ab_vec), a2 = vaddvq_f64(a2_vec), b2 = vaddvq_f64(b2_vec);
+    for (; i < n; ++i) {
+        simsimd_f64_t ai = a[i], bi = b[i];
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
 
