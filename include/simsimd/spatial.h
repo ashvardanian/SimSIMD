@@ -210,7 +210,8 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f32_neon(simsimd_f32_
     rsqrts = vmul_f32(rsqrts, vrsqrts_f32(vmul_f32(squares, rsqrts), rsqrts));
     rsqrts = vmul_f32(rsqrts, vrsqrts_f32(vmul_f32(squares, rsqrts), rsqrts));
     vst1_f32(squares_arr, rsqrts);
-    return 1 - ab * squares_arr[0] * squares_arr[1];
+    simsimd_distance_t result = 1 - ab * squares_arr[0] * squares_arr[1];
+    return result > 0 ? result : 0;
 }
 
 SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f64_neon(simsimd_f64_t ab, simsimd_f64_t a2,
@@ -233,7 +234,8 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f64_neon(simsimd_f64_
     rsqrts = vmulq_f64(rsqrts, vrsqrtsq_f64(vmulq_f64(squares, rsqrts), rsqrts));
     rsqrts = vmulq_f64(rsqrts, vrsqrtsq_f64(vmulq_f64(squares, rsqrts), rsqrts));
     vst1q_f64(squares_arr, rsqrts);
-    return 1 - ab * squares_arr[0] * squares_arr[1];
+    simsimd_distance_t result = 1 - ab * squares_arr[0] * squares_arr[1];
+    return result > 0 ? result : 0;
 }
 
 SIMSIMD_PUBLIC void simsimd_l2sq_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
@@ -820,7 +822,8 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f64_haswell(simsimd_f
 
     simsimd_f64_t a2_reciprocal = _mm_cvtsd_f64(_mm_unpackhi_pd(rsqrts, rsqrts));
     simsimd_f64_t b2_reciprocal = _mm_cvtsd_f64(rsqrts);
-    return 1 - ab * a2_reciprocal * b2_reciprocal;
+    simsimd_distance_t result = 1 - ab * a2_reciprocal * b2_reciprocal;
+    return result > 0 ? result : 0;
 }
 
 SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f32_haswell(simsimd_f32_t ab, simsimd_f32_t a2,
@@ -852,7 +855,8 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f32_haswell(simsimd_f
     simsimd_f32_t b2_reciprocal = _mm_cvtss_f32(rsqrts);
 
     // Calculate the cosine distance: 1 - ab * a2_reciprocal * b2_reciprocal
-    return 1.0f - ab * a2_reciprocal * b2_reciprocal;
+    simsimd_distance_t result = 1.0f - ab * a2_reciprocal * b2_reciprocal;
+    return result > 0 ? result : 0;
 }
 
 #pragma clang attribute pop
@@ -1189,7 +1193,8 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f64_skylake(simsimd_f
 
     simsimd_f64_t a2_reciprocal = _mm_cvtsd_f64(_mm_unpackhi_pd(rsqrts, rsqrts));
     simsimd_f64_t b2_reciprocal = _mm_cvtsd_f64(rsqrts);
-    return 1 - ab * a2_reciprocal * b2_reciprocal;
+    simsimd_distance_t result = 1 - ab * a2_reciprocal * b2_reciprocal;
+    return result > 0 ? result : 0;
 }
 
 SIMSIMD_PUBLIC void simsimd_cos_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,

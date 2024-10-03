@@ -675,6 +675,9 @@ def test_cosine_zero_vector(ndim, dtype):
     result = simd.cosine(b, b)
     assert abs(result) < SIMSIMD_ATOL, f"Expected 0 distance from itself, but got {result}"
 
+    # For the cosine, the output must not be negative!
+    assert np.all(result >= 0), f"Negative result for cosine distance"
+
 
 @pytest.mark.skipif(is_running_under_qemu(), reason="Complex math in QEMU fails")
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
