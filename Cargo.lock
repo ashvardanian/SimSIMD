@@ -496,7 +496,7 @@ dependencies = [
 
 [[package]]
 name = "simsimd"
-version = "5.4.3"
+version = "5.4.4"
 dependencies = [
  "cc",
  "criterion",
