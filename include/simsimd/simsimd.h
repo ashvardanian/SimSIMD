@@ -541,6 +541,14 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             default: break;
             }
 #endif
+#if SIMSIMD_TARGET_NEON
+        if (viable & simsimd_cap_neon_k)
+            switch (kind) {
+            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f64_neon, *c = simsimd_cap_neon_k; return;
+            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f64_neon, *c = simsimd_cap_neon_k; return;
+            default: break;
+            }
+#endif
 #if SIMSIMD_TARGET_SKYLAKE
         if (viable & simsimd_cap_skylake_k)
             switch (kind) {
@@ -1535,6 +1543,8 @@ SIMSIMD_PUBLIC void simsimd_cos_f64(simsimd_f64_t const* a, simsimd_f64_t const*
                                     simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE
     simsimd_cos_f64_sve(a, b, n, d);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_cos_f64_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_SKYLAKE
     simsimd_cos_f64_skylake(a, b, n, d);
 #else
@@ -1587,6 +1597,8 @@ SIMSIMD_PUBLIC void simsimd_l2sq_f64(simsimd_f64_t const* a, simsimd_f64_t const
                                      simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE
     simsimd_l2sq_f64_sve(a, b, n, d);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_l2sq_f64_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_SKYLAKE
     simsimd_l2sq_f64_skylake(a, b, n, d);
 #else
