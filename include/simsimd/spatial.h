@@ -156,7 +156,8 @@ SIMSIMD_PUBLIC void simsimd_cos_f16_sapphire(simsimd_f16_t const* a, simsimd_f16
         } else if (ab == 0) {                                                                                          \
             *result = 1;                                                                                               \
         } else {                                                                                                       \
-            *result = 1 - ab * SIMSIMD_RSQRT(a2) * SIMSIMD_RSQRT(b2);                                                  \
+            simsimd_distance_t unclipped_result = 1 - ab * SIMSIMD_RSQRT(a2) * SIMSIMD_RSQRT(b2);                      \
+            *result = unclipped_result > 0 ? unclipped_result : 0;                                                     \
         }                                                                                                              \
     }
 
