@@ -83,8 +83,8 @@ try:
             result = spd.mahalanobis(x, y, z).astype(np.float64) ** 2
             if not np.isnan(result):
                 return result
-        finally:
-            pytest.skip("SciPy Mahalanobis distance returned NaN due to `sqrt` of a negative number")
+        except ValueError:
+            pytest.skip(f"SciPy Mahalanobis distance returned {result} due to `sqrt` of a negative number")
 
 except:
     # SciPy is not installed, some tests will be skipped
