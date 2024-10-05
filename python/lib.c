@@ -13,8 +13,6 @@
 #endif
 #endif
 
-#define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
-#define SIMSIMD_LOG(x) (logf(x))
 #include <simsimd/simsimd.h>
 
 #define PY_SSIZE_T_CLEAN
