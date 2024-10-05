@@ -184,9 +184,14 @@
 
 #endif
 
+#if !defined(SIMSIMD_SQRT)
+#include <math.h>
+#define SIMSIMD_SQRT(x) (sqrt(x))
+#endif
+
 #if !defined(SIMSIMD_RSQRT)
 #include <math.h>
-#define SIMSIMD_RSQRT(x) (1 / sqrt(x))
+#define SIMSIMD_RSQRT(x) (1 / SIMSIMD_SQRT(x))
 #endif
 
 #if !defined(SIMSIMD_LOG)

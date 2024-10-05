@@ -194,6 +194,12 @@ SIMSIMD_MAKE_COS(accurate, i8, i32, SIMSIMD_DEREFERENCE)  // simsimd_cos_i8_accu
 #pragma GCC target("arch=armv8.2-a+simd")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
 
+SIMSIMD_INTERNAL simsimd_f32_t _simsimd_sqrt_f32_neon(simsimd_f32_t x) {
+    return vget_lane_f32(vsqrt_f32(vdup_n_f32(x)), 0);
+}
+SIMSIMD_INTERNAL simsimd_f64_t _simsimd_sqrt_f64_neon(simsimd_f64_t x) {
+    return vget_lane_f64(vsqrt_f64(vdup_n_f64(x)), 0);
+}
 SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f32_neon(simsimd_f32_t ab, simsimd_f32_t a2,
                                                                     simsimd_f32_t b2) {
     if (a2 == 0 && b2 == 0)
@@ -837,6 +843,13 @@ SIMSIMD_PUBLIC void simsimd_cos_bf16_sve(simsimd_bf16_t const* a_enum, simsimd_b
 #pragma GCC push_options
 #pragma GCC target("avx2")
 #pragma clang attribute push(__attribute__((target("avx2"))), apply_to = function)
+
+SIMSIMD_INTERNAL simsimd_f32_t _simsimd_sqrt_f32_haswell(simsimd_f32_t x) {
+    return _mm_cvtss_f32(_mm_sqrt_ps(_mm_set_ss(x)));
+}
+SIMSIMD_INTERNAL simsimd_f64_t _simsimd_sqrt_f64_haswell(simsimd_f64_t x) {
+    return _mm_cvtsd_f64(_mm_sqrt_pd(_mm_set_sd(x)));
+}
 
 SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f64_haswell(simsimd_f64_t ab, simsimd_f64_t a2,
                                                                        simsimd_f64_t b2) {

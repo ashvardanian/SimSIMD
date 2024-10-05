@@ -80,7 +80,7 @@ try:
 
     def baseline_mahalanobis(x, y, z):
         try:
-            result = spd.mahalanobis(x, y, z).astype(np.float64) ** 2
+            result = spd.mahalanobis(x, y, z).astype(np.float64)
             if not np.isnan(result):
                 return result
         except ValueError:
@@ -99,7 +99,7 @@ except:
 
     def baseline_mahalanobis(x, y, z):
         diff = x - y
-        return diff @ z @ diff
+        return np.sqrt(diff @ z @ diff)
 
     def baseline_jaccard(x, y):
         intersection = np.logical_and(x, y).sum()
