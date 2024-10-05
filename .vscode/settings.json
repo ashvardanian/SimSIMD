@@ -91,7 +91,8 @@
         "filesystem": "cpp",
         "simsimd.h": "c",
         "format": "c",
-        "execution": "cpp"
+        "execution": "cpp",
+        "math.h": "c"
     },
     "cSpell.words": [
         "allclose",
