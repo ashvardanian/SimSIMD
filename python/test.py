@@ -852,6 +852,25 @@ def test_batch(ndim, dtype):
     result_simd = np.array(simd.sqeuclidean(B, A)).astype(np.float64)
     assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
+    # Distance between matrixes A (N x D scalars) and B (N x D scalars) in slices of bigger matrices.
+    A_exteded = np.random.randn(10, ndim + 11).astype(dtype)
+    B_extended = np.random.randn(10, ndim + 11).astype(dtype)
+    A = A_exteded[:, 1 : 1 + ndim]
+    B = B_extended[:, 3 : 3 + ndim]
+    assert A.base is A_exteded and B.base is B_extended
+    assert A.__array_interface__["strides"] is not None and B.__array_interface__["strides"] is not None
+    result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
+    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
+    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Distance between matrixes A (N x D scalars) and B (N x D scalars) in a transposed matrix.
+    #! This requires calling `np.ascontiguousarray()` to ensure the matrix is in the right format.
+    A = np.random.randn(10, ndim).astype(dtype)
+    B = np.ascontiguousarray(np.random.randn(ndim, 10).astype(dtype).T)
+    result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
+    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
+    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
@@ -867,10 +886,13 @@ def test_cdist(ndim, input_dtype, out_dtype, metric):
 
     np.random.seed()
 
-    # Create random matrices A (M x D) and B (N x D).
+    # We will work with random matrices A (M x D) and B (N x D).
+    # To test their ability to handle strided inputs, we are going to add one extra dimension.
     M, N = 10, 15
-    A = np.random.randn(M, ndim).astype(input_dtype)
-    B = np.random.randn(N, ndim).astype(input_dtype)
+    A_extended = np.random.randn(M, ndim + 1).astype(input_dtype)
+    B_extended = np.random.randn(N, ndim + 1).astype(input_dtype)
+    A = A_extended[:, :ndim]
+    B = B_extended[:, :ndim]
 
     if out_dtype is None:
         expected = spd.cdist(A, B, metric)
