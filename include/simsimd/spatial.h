@@ -808,7 +808,7 @@ SIMSIMD_PUBLIC void simsimd_cos_f64_sve(simsimd_f64_t const* a, simsimd_f64_t co
 #pragma GCC target("arch=armv8.2-a+sve+fp16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+fp16"))), apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_l2_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, simsimd_size_t n,
+SIMSIMD_PUBLIC void simsimd_l2_f16_sve(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                        simsimd_distance_t* result) {
     simsimd_l2sq_f16_sve(a, b, n, result);
     *result = _simsimd_sqrt_f32_neon(*result);
