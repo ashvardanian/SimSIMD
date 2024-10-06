@@ -260,7 +260,9 @@ int cast_distance(simsimd_distance_t distance, simsimd_datatype_t target_dtype, 
 }
 
 simsimd_metric_kind_t python_string_to_metric_kind(char const* name) {
-    if (same_string(name, "sqeuclidean"))
+    if (same_string(name, "euclidean") || same_string(name, "l2"))
+        return simsimd_metric_euclidean_k;
+    else if (same_string(name, "sqeuclidean") || same_string(name, "l2sq"))
         return simsimd_metric_sqeuclidean_k;
     else if (same_string(name, "inner") || same_string(name, "dot"))
         return simsimd_metric_inner_k;
@@ -1013,7 +1015,9 @@ static PyObject* api_cdist(PyObject* self, PyObject* const* args, Py_ssize_t pos
     }
 
     // Process the PyObject values
-    simsimd_metric_kind_t metric_kind = simsimd_metric_l2sq_k;
+    /// Same default as in SciPy:
+    /// https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.cdist.html
+    simsimd_metric_kind_t metric_kind = simsimd_metric_euclidean_k;
     if (metric_obj) {
         metric_str = PyUnicode_AsUTF8(metric_obj);
         if (!metric_str && PyErr_Occurred()) {
@@ -1066,6 +1070,9 @@ static PyObject* api_cdist(PyObject* self, PyObject* const* args, Py_ssize_t pos
     return impl_cdist(input_tensor_a, input_tensor_b, metric_kind, threads, dtype, out_dtype);
 }
 
+static PyObject* api_l2_pointer(PyObject* self, PyObject* args) {
+    return implement_pointer_access(simsimd_metric_l2_k, args);
+}
 static PyObject* api_l2sq_pointer(PyObject* self, PyObject* args) {
     return implement_pointer_access(simsimd_metric_l2sq_k, args);
 }
@@ -1089,6 +1096,9 @@ static PyObject* api_hamming_pointer(PyObject* self, PyObject* args) {
 }
 static PyObject* api_jaccard_pointer(PyObject* self, PyObject* args) {
     return implement_pointer_access(simsimd_metric_jaccard_k, args);
+}
+static PyObject* api_l2(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
+    return implement_dense_metric(simsimd_metric_l2_k, args, nargs);
 }
 static PyObject* api_l2sq(PyObject* self, PyObject* const* args, Py_ssize_t nargs) {
     return implement_dense_metric(simsimd_metric_l2sq_k, args, nargs);
@@ -1156,6 +1166,22 @@ static PyMethodDef simsimd_methods[] = {
     //  - A pair of vectors
     //  - A batch of vector pairs (two matrices of identical shape)
     //  - A matrix of vectors and a single vector
+    {
+        "euclidean",
+        (PyCFunction)api_l2,
+        METH_FASTCALL,
+        "Compute Euclidean (L2) distances between two matrices.\n\n"
+        "Args:\n"
+        "    a (NDArray): First matrix or vector.\n"
+        "    b (NDArray): Second matrix or vector.\n"
+        "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type.\n"
+        "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n\n"
+        "Returns:\n"
+        "    DistancesTensor: The squared Euclidean distances.\n\n"
+        "Equivalent to: `scipy.spatial.distance.euclidean`.\n"
+        "Notes:\n"
+        "    * `a` and `b` are positional-only arguments, while `dtype` and `out_dtype` are keyword-only arguments.",
+    },
     {
         "sqeuclidean",
         (PyCFunction)api_l2sq,
@@ -1317,6 +1343,12 @@ static PyMethodDef simsimd_methods[] = {
     },
 
     // Exposing underlying API for USearch
+    {
+        "pointer_to_euclidean",
+        (PyCFunction)api_l2_pointer,
+        METH_VARARGS,
+        "Retrieve the function pointer for the Euclidean distance function as an integer.",
+    },
     {
         "pointer_to_sqeuclidean",
         (PyCFunction)api_l2sq_pointer,

@@ -12,6 +12,7 @@ from numpy.typing import NDArray
 _BufferType: TypeAlias = Union[NDArray[Any], memoryview]
 
 _MetricType = Literal[
+    "euclidean",
     "sqeuclidean",
     "inner",
     "dot",
@@ -109,7 +110,7 @@ def cdist(
     a: _BufferType,
     b: _BufferType,
     /,
-    metric: _MetricType = "sqeuclidean",
+    metric: _MetricType = "euclidean",
     *,
     threads: int = 1,
     dtype: Optional[Union[_IntegralType, _FloatType, _ComplexType]] = None,

@@ -70,6 +70,7 @@ try:
     scipy_available = True
 
     baseline_inner = np.inner
+    baseline_euclidean = lambda x, y: np.array(spd.euclidean(x, y))  #! SciPy returns a scalar
     baseline_sqeuclidean = spd.sqeuclidean
     baseline_cosine = spd.cosine
     baseline_jensenshannon = lambda x, y: spd.jensenshannon(x, y) ** 2
@@ -94,6 +95,7 @@ except:
 
     baseline_inner = lambda x, y: np.inner(x, y)
     baseline_cosine = lambda x, y: 1.0 - np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
+    baseline_euclidean = lambda x, y: np.array([np.sqrt(np.sum((x - y) ** 2))])
     baseline_sqeuclidean = lambda x, y: np.sum((x - y) ** 2)
     baseline_jensenshannon = lambda p, q: (np.sum((np.sqrt(p) - np.sqrt(q)) ** 2)) / 2
     baseline_hamming = lambda x, y: np.logical_xor(x, y).sum()
@@ -201,8 +203,8 @@ def stats_fixture():
         # Mean and the standard deviation for errors
         baseline_errors = errors["relative_baseline_error"]
         simsimd_errors = errors["relative_simsimd_error"]
-        baseline_mean = sum(baseline_errors) / n
-        simsimd_mean = sum(simsimd_errors) / n
+        baseline_mean = float(sum(baseline_errors)) / n
+        simsimd_mean = float(sum(simsimd_errors)) / n
         baseline_std = math.sqrt(sum((x - baseline_mean) ** 2 for x in baseline_errors) / n)
         simsimd_std = math.sqrt(sum((x - simsimd_mean) ** 2 for x in simsimd_errors) / n)
         baseline_error_formatted = f"{baseline_mean:.2e} ± {baseline_std:.2e}"
@@ -324,6 +326,8 @@ def name_to_kernels(name: str):
     """
     if name == "inner":
         return baseline_inner, simd.inner
+    elif name == "euclidean":
+        return baseline_euclidean, simd.euclidean
     elif name == "sqeuclidean":
         return baseline_sqeuclidean, simd.sqeuclidean
     elif name == "cosine":
@@ -458,7 +462,7 @@ def test_invalid_argument_handling(function, expected_error, args, kwargs):
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
-@pytest.mark.parametrize("metric", ["inner", "sqeuclidean", "cosine"])
+@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
 def test_dense(ndim, dtype, metric, stats_fixture):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
     with their NumPy or baseline counterparts, testing accuracy for IEEE standard floating-point types."""
@@ -536,7 +540,7 @@ def test_curved(ndim, dtypes, metric, stats_fixture):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
-@pytest.mark.parametrize("metric", ["inner", "sqeuclidean", "cosine"])
+@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
 def test_dense_bf16(ndim, metric, stats_fixture):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
     with their NumPy or baseline counterparts, testing accuracy for the Brain-float format not
@@ -629,7 +633,7 @@ def test_curved_bf16(ndim, metric, stats_fixture):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
-@pytest.mark.parametrize("metric", ["inner", "sqeuclidean", "cosine"])
+@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
 def test_dense_i8(ndim, metric, stats_fixture):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
     with their NumPy or baseline counterparts, testing accuracy for small integer types, that can't
@@ -848,6 +852,25 @@ def test_batch(ndim, dtype):
     result_simd = np.array(simd.sqeuclidean(B, A)).astype(np.float64)
     assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
+    # Distance between matrixes A (N x D scalars) and B (N x D scalars) in slices of bigger matrices.
+    A_exteded = np.random.randn(10, ndim + 11).astype(dtype)
+    B_extended = np.random.randn(10, ndim + 11).astype(dtype)
+    A = A_exteded[:, 1 : 1 + ndim]
+    B = B_extended[:, 3 : 3 + ndim]
+    assert A.base is A_exteded and B.base is B_extended
+    assert A.__array_interface__["strides"] is not None and B.__array_interface__["strides"] is not None
+    result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
+    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
+    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Distance between matrixes A (N x D scalars) and B (N x D scalars) in a transposed matrix.
+    #! This requires calling `np.ascontiguousarray()` to ensure the matrix is in the right format.
+    A = np.random.randn(10, ndim).astype(dtype)
+    B = np.ascontiguousarray(np.random.randn(ndim, 10).astype(dtype).T)
+    result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
+    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
+    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
@@ -863,10 +886,13 @@ def test_cdist(ndim, input_dtype, out_dtype, metric):
 
     np.random.seed()
 
-    # Create random matrices A (M x D) and B (N x D).
+    # We will work with random matrices A (M x D) and B (N x D).
+    # To test their ability to handle strided inputs, we are going to add one extra dimension.
     M, N = 10, 15
-    A = np.random.randn(M, ndim).astype(input_dtype)
-    B = np.random.randn(N, ndim).astype(input_dtype)
+    A_extended = np.random.randn(M, ndim + 1).astype(input_dtype)
+    B_extended = np.random.randn(N, ndim + 1).astype(input_dtype)
+    A = A_extended[:, :ndim]
+    B = B_extended[:, :ndim]
 
     if out_dtype is None:
         expected = spd.cdist(A, B, metric)
