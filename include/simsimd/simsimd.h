@@ -481,8 +481,10 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-function-type"
+#pragma GCC diagnostic ignored "-Wvolatile"
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wcast-function-type"
+#pragma clang diagnostic ignored "-Wvolatile"
 
 /**
  *  @brief  Determines the best suited metric implementation based on the given datatype,
