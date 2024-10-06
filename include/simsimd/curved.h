@@ -90,6 +90,10 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16_genoa(simsimd_bf16_t const* a, simsimd
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_bilinear_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+
+
+SIMSIMD_PUBLIC void simsimd_bilinear_bf16_sapphire(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_sapphire(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 // clang-format on
 
 #define SIMSIMD_MAKE_BILINEAR(name, input_type, accumulator_type, load_and_convert)                                    \
@@ -792,7 +796,91 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_sapphire(simsimd_f16_t const* a, sim
 
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16_sapphire(simsimd_bf16_t const* a, simsimd_bf16_t const* b,
                                                    simsimd_bf16_t const* c, simsimd_size_t n,
-                                                   simsimd_distance_t* result) {}
+                                                   simsimd_distance_t* result) {
+
+    __m512 sum_vec = _mm512_setzero_ps();
+    // Using Intel AMX instructions we can perform 16x32x16 brain-float multiplication using specialed
+    // matrix-multiplication hardware, accumulating the results in a 16x16 single-precsion matrix.
+    SIMSIMD_ALIGN64 simsimd_u8_t tiles_config[64];
+
+    // Memset in one cycle, like a boss :)
+    // std::memset(tiles_config, 0, sizeof(tiles_config));
+    _mm512_storeu_si512((__m512i*)tiles_config, _mm512_setzero_si512());
+
+    // Only one pallete is currently supported:
+    simsimd_u8_t* palette_id_ptr = &tiles_config[0];
+    *palette_id_ptr = 1;
+
+    // The geniuses behind AMX decided to use different precisions for the rows and columns.
+    // Wasted 2 hours of my life not noticing this!
+    simsimd_u16_t* tiles_colsb_ptr = (simsimd_u16_t*)(&tiles_config[16]);
+    simsimd_u8_t* tiles_rows_ptr = &tiles_config[48];
+
+    // Important to note, AMX doesn't care about the real shape of our matrix,
+    // it only cares about it's own tile shape. Keep it simple, otherwise
+    // the next person reading this will be painting the walls with their brains :)
+    tiles_rows_ptr[0] = 16;
+    tiles_rows_ptr[1] = 16;
+    tiles_rows_ptr[2] = 16;
+    tiles_colsb_ptr[0] = 64;
+    tiles_colsb_ptr[1] = 64;
+    tiles_colsb_ptr[2] = 64;
+
+    // Intialize the tiles configuration and zero-out the accumulators:
+    _tile_loadconfig(&tiles_config);
+    _tile_zero(2);
+
+    // In every iteration we can load 16x32 = 512 values from the first vector.
+    _tile_loadd(0, a, 64);
+
+    // When multiplying matrix chains, like $X * Y * Z$, the order doesn't matter.
+    // We can perform $(X * Y) * Z$ or $X * (Y * Z)$, the result will be the same.
+    // The last variant is better in our case, as X and Z are much smaller than Y.
+    //
+    // The output of $YZ = Y * Z$ will be a single row in our case.
+    simsimd_size_t const vertical_tiles = n / 16;
+    simsimd_size_t const horizontal_tiles = n / 32;
+    for (simsimd_size_t matrix_start_row = 0; matrix_start_row + 16 <= n; matrix_start_row += 16) {
+
+        // The column vector `b` contains twice as many rows as the curvature matrix.
+        simsimd_size_t vector_progress = matrix_start_row * 2;
+        simsimd_bf16_t b_reshaped[16][16][2];
+        for (simsimd_size_t i = 0; i < 32; ++i)
+            for (simsimd_size_t j = 0; j < 16; ++j)
+                // We are shrinking the number of rows in the second matrix by 2x for `bf16` and by 4x for `i8` and
+                // `u8`. We are also practically making the rows longer by 2x for `bf16` and by 4x for `i8` and `u8`.
+                b_reshaped[i / 2][j][i % 2] = b[vector_progress + i * 16 + j];
+        _tile_loadd(1, &b_reshaped, 64);
+
+        // Within a horizontal band of 16 rows in a curvature matrix,
+        // we can compute 16 items of the YZ row in parallel, progressing
+        // aggregating 32 pairs into each of the 16 items.
+        for (simsimd_size_t matrix_start_col = 0; matrix_start_col + 32 <= n; matrix_start_col += 32) {
+            // Load a 16x32 block from the curvature matrix.
+            _tile_loadd(0, c + matrix_start_row * n + matrix_start_col, 64);
+            // Perform the matrix multiplication.
+            _tile_dpbf16ps(2, 0, 1);
+        }
+
+        simsimd_f32_t bc_expanded[16][16];
+        _tile_stored(2, &bc_expanded, 64);
+
+        // Now we need to accumulate the results in every column into the top row.
+        // Each row is exactly 64 bytes or 512 bits, making it perfect for AVX-512.
+        __m512 bc_collapsed_vec = _mm512_setzero_ps();
+        for (simsimd_size_t i = 0; i < 16; ++i) {
+            __m512 bc_row_vec = _mm512_loadu_ps(bc_expanded[i]);
+            bc_collapsed_vec = _mm512_add_ps(bc_collapsed_vec, bc_row_vec);
+        }
+
+        // At this point the `bc_collapsed_vec` contains the product of a band of Y multiplied by the column Z.
+        // To compute the overall bilinear form, we need to combine it with the respective slice of row X.
+        __m512 a_vec = _simsimd_bf16x16_to_f32x16_skylake(_mm256_loadu_epi16(a + vector_progress));
+        sum_vec = _mm512_fmadd_ps(a_vec, bc_collapsed_vec, sum_vec);
+    }
+
+    *result = _mm512_reduce_add_ps(sum_vec);
+}
 
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_sapphire(simsimd_bf16_t const* a, simsimd_bf16_t const* b,
                                                       simsimd_bf16_t const* c, simsimd_size_t n,

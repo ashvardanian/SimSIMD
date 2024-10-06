@@ -26,7 +26,8 @@
 #define SIMSIMD_NATIVE_BF16 1
 #include <simsimd/simsimd.h>
 
-#include <simsimd/matmul.h>
+// #include <simsimd/matmul.h>
+// #include <simsimd/matmul.hpp>
 
 constexpr std::size_t default_seconds = 10;
 constexpr std::size_t default_threads = 1;
@@ -502,11 +503,11 @@ void measure_matmul(bm::State& state, metric_at metric, metric_at baseline, std:
 
     auto call_baseline = [&](pair_t const& inputs, vector_t& c) -> double {
         baseline(inputs.a.data(), side, inputs.b.data(), side, side, side, side, c.data(), side);
-        return std::accumulate(c.data(), c.data() + side * side, 0.0);
+        return std::accumulate(c.data(), c.data() + side * side, 0.0) / (side * side);
     };
     auto call_contender = [&](pair_t const& inputs, vector_t& c) -> double {
         metric(inputs.a.data(), side, inputs.b.data(), side, side, side, side, c.data(), side);
-        return std::accumulate(c.data(), c.data() + side * side, 0.0);
+        return std::accumulate(c.data(), c.data() + side * side, 0.0) / (side * side);
     };
 
     // Let's average the distance results over many pairs.
@@ -602,8 +603,7 @@ void matmul_(std::string name, metric_at* distance_func, metric_at* baseline_fun
     for (std::size_t size : matmul_sizes) {
         std::string name_dims = name + "_" + std::to_string(size) + "✕" + std::to_string(size);
         bm::RegisterBenchmark(name_dims.c_str(), measure_matmul<pair_t, metric_at*>, distance_func, baseline_func, size)
-            ->MinTime(default_seconds)
-            ->Threads(default_threads);
+            ->MinTime(default_seconds);
     }
 }
 
@@ -642,14 +642,312 @@ void vdot_f64c_blas(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size
 void matmul_f32_blas(simsimd_f32_t const* a, simsimd_size_t lda, simsimd_f32_t const* b, simsimd_size_t ldb,
                      simsimd_size_t a_rows, simsimd_size_t a_cols, simsimd_size_t b_cols, simsimd_f32_t* c,
                      simsimd_size_t ldc) {
-    cblas_sgemm(                                   //
-        CblasRowMajor, CblasNoTrans, CblasNoTrans, //
+    cblas_sgemm(                                 //
+        CblasRowMajor, CblasNoTrans, CblasTrans, //
         (int)a_rows, (int)b_cols, (int)a_cols, 1.0f, a, (int)lda, b, (int)ldb, 0.0f, c, (int)ldc);
 }
 
 #endif
 
+#include <stdint.h>
+#include <stdio.h>
+
+template <typename scalar_type, int rows, int cols> //
+void initialize_matrix(scalar_type (&matrix)[rows][cols]) {
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            matrix[i][j] = (i * cols + j) % 256; // Sample initialization
+        }
+    }
+}
+
+template <typename scalar_type, int rows, int cols> //
+void print_matrix(scalar_type (&matrix)[rows][cols]) {
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            printf("%8.2f ", (float)matrix[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+#if 0
+// Inline assembly kernel for multiplying two 16x16 BF16 matrices
+void tile_bf16_multiplication(uint16_t matrix_a[TILE_M][TILE_M], uint16_t matrix_b[TILE_M][TILE_M],
+                              float result_matrix[TILE_M][TILE_M]) {
+
+    // Set up the tile configuration structure
+    // There are 8 tile registers from TMM0 to TMM7.
+    // Each is 16 rows by 64 bytes, fitting up to 1 KB of data.
+    // The actual dimensions can be different and are controlled
+    // by `rows` and `colsb` - the width in bytes.
+    alignas(64) uint8_t tilecfg[64];
+    std::memset(tilecfg, 0, sizeof(tilecfg));
+    uint8_t* palette_id_ptr = &tilecfg[0];
+    uint16_t* tiles_colsb_ptr = (uint16_t*)(&tilecfg[16]);
+    uint8_t* tiles_rows_ptr = &tilecfg[48];
+
+    *palette_id_ptr = 1; // BF16 palette
+    tiles_rows_ptr[0] = tiles_rows_ptr[1] = tiles_rows_ptr[2] = 16;
+    tiles_colsb_ptr[0] = tiles_colsb_ptr[1] = TILE_M * sizeof(uint16_t);
+    tiles_colsb_ptr[2] = TILE_M * sizeof(float);
+
+    __asm__ __volatile__(
+        // Align the stack to 64 bytes
+        "push %%rbp\n\t"
+        "mov %%rsp, %%rbp\n\t"
+        "and $-64, %%rsp\n\t"
+        "sub $128, %%rsp\n\t"
+
+        // Zero out the memory space for tile configuration (similar to Clang)
+        "vxorps %%xmm0, %%xmm0, %%xmm0\n\t"
+        "vmovaps %%xmm0, (%%rsp)\n\t"
+        "vmovaps %%xmm0, 32(%%rsp)\n\t"
+
+        // Manually set the tile configuration values in memory
+        "movb $1, (%%rsp)\n\t"         // Palette ID
+        "movb $16, 50(%%rsp)\n\t"      // Rows for tmm0, tmm1, tmm2
+        "movw $4112, 48(%%rsp)\n\t"    // Rows (for BF16 tiles)
+        "movl $2097184, 16(%%rsp)\n\t" // Colsb for tmm0 and tmm1
+        "movw $64, 20(%%rsp)\n\t"      // Colsb for tmm2 (result matrix)
+
+        // Load the tile configuration
+        "ldtilecfg (%%rsp)\n\t"
+
+        // Load matrix A into tile 0 (aligned at 32 bytes)
+        "mov $32, %%eax\n\t"
+        "tileloadd tmm0, %[matrix_a], %%eax\n\t"
+
+        // Load matrix B into tile 1 (aligned at 32 bytes)
+        "tileloadd tmm1, %[matrix_b], %%eax\n\t"
+
+        // Zero out tile 2 (destination)
+        "tilezero tmm2\n\t"
+
+        // Perform the dot product: tmm2 += tmm0 * tmm1 (BF16 multiplication)
+        "tdpbf16ps tmm2, tmm0, tmm1\n\t"
+
+        // Store the result back to memory (aligned at 64 bytes)
+        "mov $64, %%eax\n\t"
+        "tilestored %[result_matrix], tmm2, %%eax\n\t"
+
+        // Release the tile configuration
+        "tilerelease\n\t"
+
+        // Restore the stack
+        "mov %%rbp, %%rsp\n\t"
+        "pop %%rbp\n\t"
+        "vzeroupper\n\t"
+
+        :
+        : [matrix_a] "m"(matrix_a), [matrix_b] "m"(matrix_b), [result_matrix] "m"(result_matrix)
+        : "eax", "memory", "tmm0", "tmm1", "tmm2", "xmm0");
+}
+#elif 1
+
+#include <sys/syscall.h>
+#include <unistd.h>
+
+// Thanks to the good people of the Rust community: https://github.com/rust-lang/rust/issues/107795
+//
+#define XFEATURE_XTILECFG 17
+#define XFEATURE_XTILEDATA 18
+#define XFEATURE_MASK_XTILECFG (1 << XFEATURE_XTILECFG)
+#define XFEATURE_MASK_XTILEDATA (1 << XFEATURE_XTILEDATA)
+#define XFEATURE_MASK_XTILE (XFEATURE_MASK_XTILECFG | XFEATURE_MASK_XTILEDATA)
+#define ARCH_GET_XCOMP_PERM 0x1022
+#define ARCH_REQ_XCOMP_PERM 0x1023
+
+bool init() {
+    unsigned long bitmask = 0;
+    long status = syscall(SYS_arch_prctl, ARCH_GET_XCOMP_PERM, &bitmask);
+    if (0 != status)
+        return false;
+    if (bitmask & XFEATURE_MASK_XTILEDATA)
+        return true;
+
+    status = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, XFEATURE_XTILEDATA);
+    if (0 != status)
+        return false; // XFEATURE_XTILEDATA setup is failed, TMUL usage is not allowed
+    status = syscall(SYS_arch_prctl, ARCH_GET_XCOMP_PERM, &bitmask);
+
+    // XFEATURE_XTILEDATA setup is failed, can't use TMUL
+    if (0 != status || !(bitmask & XFEATURE_MASK_XTILEDATA))
+        return false;
+
+    // XFEATURE_XTILEDATA set successfully, TMUL usage is allowed
+    return true;
+}
+
+// The Intel AMX instruction set operates on tiles:
+// large two-dimensional registers with configurable dimensions.
+// The configuration is dependent on the type of tile.
+// • A-tiles can have between 1-16 rows and 1-MAX_TILE_K columns.
+// • B-tiles can have between 1-MAX_TILE_K rows and 1–16 columns.
+// • C-tiles can have between 1-16 rows and 1–16 columns.
+// MAX_TILE_K=64/sizeof(type_t), and type_t is the type of the data being operated on. Therefore,
+// MAX_TILE_K=64 for (u)int8 data, and MAX_TILE_K=32 for bfloat16 data.
+#define TILE_M 16 /// Number of rows in the first matrix
+#define TILE_K 32 /// Number of columns in the first matrix
+#define TILE_N 16 /// Number of columns in the second matrix
+
+// Matrix multiplication using AMX-BF16 intrinsics
+void tile_bf16_multiplication(            //
+    uint16_t (&matrix_a)[TILE_M][TILE_K], //
+    uint16_t (&matrix_b)[TILE_K][TILE_N], //
+    float (&result_matrix)[TILE_M][TILE_N]) {
+
+    // Set up the tile configuration structure
+    // There are 8 tile registers from TMM0 to TMM7.
+    // Each is 16 rows by 64 bytes, fitting up to 1 KB of data.
+    // The actual dimensions can be different and are controlled
+    // by `rows` and `colsb` - the width in bytes.
+    alignas(64) uint8_t tilecfg[64];
+    std::memset(tilecfg, 0, sizeof(tilecfg));
+    uint8_t* palette_id_ptr = &tilecfg[0];
+    uint16_t* tiles_colsb_ptr = (uint16_t*)(&tilecfg[16]);
+    uint8_t* tiles_rows_ptr = &tilecfg[48];
+
+    *palette_id_ptr = 1; // BF16 palette
+    tiles_rows_ptr[0] = TILE_M;
+    tiles_rows_ptr[1] = TILE_K;
+    tiles_rows_ptr[2] = TILE_M;
+    tiles_colsb_ptr[0] = TILE_K * sizeof(uint16_t);
+    tiles_colsb_ptr[1] = TILE_N * sizeof(uint16_t);
+    tiles_colsb_ptr[2] = TILE_N * sizeof(float);
+    std::printf("Preparing tile configuration for 16x16 BF16 matrices\n");
+    // Load the tile configuration register
+    _tile_loadconfig(&tilecfg);
+    std::printf("Prepared tile configuration for 16x16 BF16 matrices\n");
+
+    // Initialize the destination tile (tmm2) to zero
+    _tile_zero(2);
+
+    // Load the two input matrices into tiles
+    _tile_loadd(0, &matrix_a[0][0], TILE_K * sizeof(uint16_t)); // Load matrix A into tmm0
+    std::printf("Loaded matrix A into tmm0\n");
+    _tile_loadd(1, &matrix_b[0][0], TILE_N * sizeof(uint16_t)); // Load matrix B into tmm1
+    std::printf("Loaded matrix B into tmm1\n");
+
+    // Perform the BF16 dot-product accumulation.
+    // The logic of the instruction is as follows:
+    //
+    //      # C = m x n (tsrcdest), A = m x k (tsrc1), B = k x n (tsrc2)
+    //      # src1 and src2 elements are pairs of bfloat16
+    //      elements_src1 := tsrc1.colsb / 4
+    //      elements_src2 := tsrc2.colsb / 4
+    //      elements_dest := tsrcdest.colsb / 4
+    //      elements_temp := tsrcdest.colsb / 2
+    //      for m in 0 ... tsrcdest.rows-1:
+    //          temp1[ 0 ... elements_temp-1 ] := 0
+    //          for k in 0 ... elements_src1-1:
+    //              for n in 0 ... elements_dest-1:
+    //                  # FP32 FMA with DAZ=FTZ=1, RNE rounding.
+    //                  # MXCSR is neither consulted nor updated.
+    //                  # No exceptions raised or denoted.
+    //                  temp1.fp32[2*n+0] +=
+    //                      make_fp32(tsrc1.row[m].bfloat16[2*k+0]) *
+    //                      make_fp32(tsrc2.row[k].bfloat16[2*n+0])
+    //                  temp1.fp32[2*n+1] +=
+    //                      make_fp32(tsrc1.row[m].bfloat16[2*k+1]) *
+    //                      make_fp32(tsrc2.row[k].bfloat16[2*n+1])
+    //          for n in 0 ... elements_dest-1:
+    //              # DAZ=FTZ=1, RNE rounding.
+    //              # MXCSR is neither consulted nor updated.
+    //              # No exceptions raised or denoted.
+    //              tmpf32 := temp1.fp32[2*n] + temp1.fp32[2*n+1]
+    //              tsrcdest.row[m].fp32[n] := tsrcdest.row[m].fp32[n] + tmpf32
+    //          write_row_and_zero(tsrcdest, m, tmp, tsrcdest.colsb)
+    //      zero_upper_rows(tsrcdest, tsrcdest.rows)
+    //      zero_tilecfg_start()
+    //
+    // Here are the shape constraints:
+    //
+    //      • #UD if srcdest.colbytes mod 4 ≠ 0.
+    //      • #UD if src1.colbytes mod 4 ≠ 0.
+    //      • #UD if src2.colbytes mod 4 ≠ 0.
+    //      • #UD if srcdest.colbytes ≠ src2.colbytes -
+    //              why the hell the row width of `f32` destination should
+    //              be equal to the row width of `bfloat16` source?!
+    //      • #UD if src1.colbytes / 4 ≠ src2.rows.
+    //              so this practically means that the second matrix must have 2x
+    //              fewer rows than the first one, meaning the number of columns in the
+    //              first matrix must be 2x smaller than the number of rows in it!
+    //      • #UD if srcdest.rows ≠ src1.rows.
+    //
+    // We can't do 16x16x16, becuase we don't have enough rows!
+    // We can't do 8x8x8, because it breaks the relation between row width and number of rows!
+    // We can't try 8x4x4
+    _tile_dpbf16ps(2, 0, 1);
+
+    // Store the result back into the result matrix
+    _tile_stored(2, result_matrix, TILE_M * sizeof(float));
+
+    // Zero out the tile registers
+    _tile_release();
+}
+
+#else
+
+extern "C" void amx_tile_bf16_multiplication(uint16_t* matrix_a, uint16_t* matrix_b, float* result_matrix,
+                                             uint8_t* config, size_t stride_a, size_t stride_b, size_t stride_c);
+
+void tile_bf16_multiplication(uint16_t matrix_a[TILE_M][TILE_M], uint16_t matrix_b[TILE_M][TILE_M],
+                              float result_matrix[TILE_M][TILE_M]) {
+
+    // Set up the tile configuration structure
+    alignas(64) uint8_t tilecfg[64];
+    std::memset(tilecfg, 0, sizeof(tilecfg));
+    uint8_t* palette_id_ptr = &tilecfg[0];
+    uint16_t* tiles_colsb_ptr = (uint16_t*)(&tilecfg[16]);
+    uint8_t* tiles_rows_ptr = &tilecfg[48];
+
+    *palette_id_ptr = 1; // BF16 palette
+    tiles_rows_ptr[0] = tiles_rows_ptr[1] = tiles_rows_ptr[2] = 16;
+    tiles_colsb_ptr[0] = tiles_colsb_ptr[1] = TILE_M * sizeof(uint16_t);
+    tiles_colsb_ptr[2] = TILE_M * sizeof(float);
+
+    // Call the external assembly function
+    amx_tile_bf16_multiplication(&matrix_a[0][0], &matrix_b[0][0], &result_matrix[0][0], tilecfg,
+                                 TILE_M * sizeof(uint16_t), TILE_M * sizeof(uint16_t), TILE_M * sizeof(float));
+}
+
+#endif
+
+int try_amx() {
+    uint16_t matrix_a[TILE_M][TILE_K];
+    uint16_t matrix_b[TILE_K][TILE_N];
+    float result_matrix[TILE_M][TILE_N] = {0};
+
+    // Initialize the matrices with values
+    initialize_matrix(matrix_a);
+    initialize_matrix(matrix_b);
+
+    // Perform matrix multiplication using AMX-BF16 inline assembly
+    tile_bf16_multiplication(matrix_a, matrix_b, result_matrix);
+
+    // Print the resulting matrix
+    printf("Resulting 16x16 matrix after BF16 multiplication:\n");
+    print_matrix(result_matrix);
+
+    return 0;
+}
+
 int main(int argc, char** argv) {
+
+    puts("Using system call to enable AMX...");
+    if (!init()) {
+        printf("Error: AMX is not available\n");
+        return 1;
+    }
+    puts("...AMX is now enabled!\n");
+
+    unsigned long xtilecfg_supported = 1 << 17;
+    unsigned long xtiledata_supported = 1 << 18;
+    unsigned long long xcr0 = _xgetbv(0);
+    printf("XCR0: 0x%llx\n", xcr0);
+    try_amx();
+
     simsimd_capability_t runtime_caps = simsimd_capabilities();
 
     // Log supported functionality
@@ -716,7 +1014,7 @@ int main(int argc, char** argv) {
     dense_<f32c_k>("vdot_f32c_blas", vdot_f32c_blas, simsimd_vdot_f32c_accurate);
     dense_<f64c_k>("vdot_f64c_blas", vdot_f64c_blas, simsimd_vdot_f64c_serial);
 
-    matmul_<f32_k>("matmul_f32_blas", matmul_f32_blas, simsimd_matmul_f32_accurate);
+    // matmul_<f32_k>("matmul_f32_blas", matmul_f32_blas, simsimd_matmul_f32_accurate);
 
 #endif
 
@@ -927,9 +1225,12 @@ int main(int argc, char** argv) {
     dense_<b8_k>("hamming_b8_serial", simsimd_hamming_b8_serial, simsimd_hamming_b8_serial);
     dense_<b8_k>("jaccard_b8_serial", simsimd_jaccard_b8_serial, simsimd_jaccard_b8_serial);
 
-    matmul_<f32_k>("matmul_f32_serial", simsimd_matmul_f32_serial, simsimd_matmul_f32_serial);
-    matmul_<f16_k>("matmul_f16_serial", simsimd_matmul_f16_serial, simsimd_matmul_f16_serial);
-    matmul_<bf16_k>("matmul_bf16_serial", simsimd_matmul_bf16_serial, simsimd_matmul_bf16_serial);
+    // matmul_<f32_k>("matmul_f32_cpp", ashvardanian::simsimd::matmul_f32_cpp, simsimd_matmul_f32_serial);
+    // matmul_<f16_k>("matmul_f16_cpp", ashvardanian::simsimd::matmul_f16_cpp, simsimd_matmul_f16_serial);
+    // matmul_<bf16_k>("matmul_bf16_cpp", ashvardanian::simsimd::matmul_bf16_cpp, simsimd_matmul_bf16_serial);
+    // matmul_<f32_k>("matmul_f32_serial", simsimd_matmul_f32_serial, simsimd_matmul_f32_serial);
+    // matmul_<f16_k>("matmul_f16_serial", simsimd_matmul_f16_serial, simsimd_matmul_f16_serial);
+    // matmul_<bf16_k>("matmul_bf16_serial", simsimd_matmul_bf16_serial, simsimd_matmul_bf16_serial);
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();
