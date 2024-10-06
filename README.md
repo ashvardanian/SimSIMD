@@ -721,7 +721,7 @@ To explicitly disable half-precision support, define the following macro before 
 > Most often it's due to compiler support issues, like the lack of some recent intrinsics or low-precision numeric types.
 > In other cases, you may want to disable some kernels to speed up the compilation process and trim the binary size.
 
-`SIMSIMD_RSQRT`, `SIMSIMD_LOG`:
+`SIMSIMD_SQRT`, `SIMSIMD_RSQRT`, `SIMSIMD_LOG`:
 
 > By default, for __non__-SIMD backends, SimSIMD may use `libc` functions like `sqrt` and `log`.
 > Those are generally very accurate, but slow, and introduce a dependency on the C standard library.

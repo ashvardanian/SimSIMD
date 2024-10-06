@@ -13,8 +13,6 @@
 #endif
 #endif
 
-#define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
-#define SIMSIMD_LOG(x) (logf(x))
 #include <simsimd/simsimd.h>
 
 #define PY_SSIZE_T_CLEAN
@@ -412,7 +410,7 @@ int parse_tensor(PyObject* tensor, Py_buffer* buffer, TensorArgument* parsed) {
     parsed->rank = buffer->ndim;
     if (buffer->ndim == 1) {
         if (buffer->strides[0] > buffer->itemsize) {
-            PyErr_SetString(PyExc_ValueError, "Input vectors must be contiguous");
+            PyErr_SetString(PyExc_ValueError, "Input vectors must be contiguous, check with `X.__array_interface__`");
             PyBuffer_Release(buffer);
             return -1;
         }
@@ -421,7 +419,7 @@ int parse_tensor(PyObject* tensor, Py_buffer* buffer, TensorArgument* parsed) {
         parsed->stride = 0;
     } else if (buffer->ndim == 2) {
         if (buffer->strides[1] > buffer->itemsize) {
-            PyErr_SetString(PyExc_ValueError, "Input vectors must be contiguous");
+            PyErr_SetString(PyExc_ValueError, "Input vectors must be contiguous, check with `X.__array_interface__`");
             PyBuffer_Release(buffer);
             return -1;
         }
@@ -478,7 +476,7 @@ static PyObject* implement_dense_metric(simsimd_metric_kind_t metric_kind, PyObj
     PyObject* output = NULL;
     PyObject* input_tensor_a = args[0];
     PyObject* input_tensor_b = args[1];
-    PyObject* value_type_desc = nargs == 3 ? args[2] : NULL;
+    PyObject* input_datatype_desc = nargs == 3 ? args[2] : NULL;
 
     Py_buffer buffer_a, buffer_b;
     TensorArgument parsed_a, parsed_b;
@@ -509,21 +507,26 @@ static PyObject* implement_dense_metric(simsimd_metric_kind_t metric_kind, PyObj
         goto cleanup;
     }
 
-    // Process the third argument, `value_type_desc`, if provided
+    // Process the third argument, `input_datatype_desc`, if provided
     simsimd_datatype_t input_datatype = parsed_a.datatype;
-    if (value_type_desc != NULL) {
+    char const* input_datatype_str = "";
+    if (input_datatype_desc != NULL) {
         // Ensure it is a string (or convert it to one if possible)
-        if (!PyUnicode_Check(value_type_desc)) {
+        if (!PyUnicode_Check(input_datatype_desc)) {
             PyErr_SetString(PyExc_TypeError, "third argument must be a string describing the value type");
             goto cleanup;
         }
         // Convert Python string to C string
-        char const* value_type_str = PyUnicode_AsUTF8(value_type_desc);
-        if (!value_type_str) {
+        input_datatype_str = PyUnicode_AsUTF8(input_datatype_desc);
+        if (!input_datatype_str) {
             PyErr_SetString(PyExc_ValueError, "Could not convert value type description to string");
             goto cleanup;
         }
-        input_datatype = python_string_to_datatype(value_type_str);
+        input_datatype = python_string_to_datatype(input_datatype_str);
+        if (input_datatype == simsimd_datatype_unknown_k) {
+            PyErr_Format(PyExc_ValueError, "Unsupported datatype '%s'", input_datatype_str);
+            goto cleanup;
+        }
     }
 
     simsimd_metric_punned_t metric = NULL;
@@ -531,7 +534,13 @@ static PyObject* implement_dense_metric(simsimd_metric_kind_t metric_kind, PyObj
     simsimd_find_metric_punned(metric_kind, input_datatype, static_capabilities, simsimd_cap_any_k, &metric,
                                &capability);
     if (!metric) {
-        PyErr_SetString(PyExc_LookupError, "Unsupported metric and datatype combination");
+        PyErr_Format(PyExc_LookupError,
+                     "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s' and '%s'/'%s') and "
+                     "`dtype` override ('%s'/'%s')",
+                     metric_kind,                                                   //
+                     buffer_a.format, datatype_to_python_string(parsed_a.datatype), //
+                     buffer_b.format, datatype_to_python_string(parsed_b.datatype), //
+                     input_datatype_str, datatype_to_python_string(input_datatype));
         goto cleanup;
     }
 
@@ -616,7 +625,7 @@ static PyObject* implement_curved_metric(simsimd_metric_kind_t metric_kind, PyOb
     PyObject* input_tensor_a = args[0];
     PyObject* input_tensor_b = args[1];
     PyObject* input_tensor_c = args[2];
-    PyObject* value_type_desc = nargs == 4 ? args[3] : NULL;
+    PyObject* input_datatype_desc = nargs == 4 ? args[3] : NULL;
 
     Py_buffer buffer_a, buffer_b, buffer_c;
     TensorArgument parsed_a, parsed_b, parsed_c;
@@ -652,21 +661,26 @@ static PyObject* implement_curved_metric(simsimd_metric_kind_t metric_kind, PyOb
         goto cleanup;
     }
 
-    // Process the third argument, `value_type_desc`, if provided
+    // Process the third argument, `input_datatype_desc`, if provided
     simsimd_datatype_t input_datatype = parsed_a.datatype;
-    if (value_type_desc != NULL) {
+    char const* input_datatype_str = "";
+    if (input_datatype_desc != NULL) {
         // Ensure it is a string (or convert it to one if possible)
-        if (!PyUnicode_Check(value_type_desc)) {
+        if (!PyUnicode_Check(input_datatype_desc)) {
             PyErr_SetString(PyExc_TypeError, "Third argument must be a string describing the value type");
             goto cleanup;
         }
         // Convert Python string to C string
-        char const* value_type_str = PyUnicode_AsUTF8(value_type_desc);
-        if (!value_type_str) {
+        input_datatype_str = PyUnicode_AsUTF8(input_datatype_desc);
+        if (!input_datatype_str) {
             PyErr_SetString(PyExc_ValueError, "Could not convert value type description to string");
             goto cleanup;
         }
-        input_datatype = python_string_to_datatype(value_type_str);
+        input_datatype = python_string_to_datatype(input_datatype_str);
+        if (input_datatype == simsimd_datatype_unknown_k) {
+            PyErr_Format(PyExc_ValueError, "Unsupported datatype '%s'", input_datatype_str);
+            goto cleanup;
+        }
     }
 
     simsimd_metric_curved_punned_t metric = NULL;
@@ -675,12 +689,13 @@ static PyObject* implement_curved_metric(simsimd_metric_kind_t metric_kind, PyOb
                                (simsimd_metric_punned_t*)&metric, &capability);
     if (!metric) {
         PyErr_Format(PyExc_LookupError,
-                     "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s' and '%s'/'%s') and "
-                     "tensor ('%s'/'%s')",
+                     "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s' and '%s'/'%s'), "
+                     "tensor ('%s'/'%s'), and `dtype` override ('%s'/'%s')",
                      metric_kind,                                                   //
                      buffer_a.format, datatype_to_python_string(parsed_a.datatype), //
                      buffer_b.format, datatype_to_python_string(parsed_b.datatype), //
-                     buffer_c.format, datatype_to_python_string(parsed_c.datatype));
+                     buffer_c.format, datatype_to_python_string(parsed_c.datatype), //
+                     input_datatype_str, datatype_to_python_string(input_datatype));
         goto cleanup;
     }
 
@@ -911,7 +926,8 @@ static PyObject* implement_pointer_access(simsimd_metric_kind_t metric_kind, PyO
     return PyLong_FromUnsignedLongLong((unsigned long long)metric);
 }
 
-static PyObject* api_cdist(PyObject* self, PyObject* const* args, Py_ssize_t args_count, PyObject* kwnames) {
+static PyObject* api_cdist(PyObject* self, PyObject* const* args, Py_ssize_t positonal_args_count, PyObject* kwnames) {
+
     // This function accepts up to 6 arguments:
     PyObject* input_tensor_a = NULL; // Required object, positional-only
     PyObject* input_tensor_b = NULL; // Required object, positional-only
@@ -931,56 +947,67 @@ static PyObject* api_cdist(PyObject* self, PyObject* const* args, Py_ssize_t arg
     // if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OO|s$Kss", kwlist, &input_tensor_a, &input_tensor_b, &metric_str,
     //                                  &threads, &dtype_str, &out_dtype_str))
     //     return NULL;
+    Py_ssize_t kwnames_count = kwnames ? PyTuple_Size(kwnames) : 0;
+    Py_ssize_t args_count = positonal_args_count + kwnames_count;
     if (args_count < 2 || args_count > 6) {
         PyErr_Format(PyExc_TypeError, "Function expects 2-6 arguments, got %d", args_count);
         return NULL;
     }
 
-    // Positional-only arguments
+    // Positional-only arguments (first and second matrix)
     input_tensor_a = args[0];
     input_tensor_b = args[1];
 
-    // Positional or keyword arguments
+    // Positional or keyword arguments (metric)
     Py_ssize_t args_progress = 2;
-    Py_ssize_t kwnames_progress = 0;
-    Py_ssize_t kwnames_count = PyTuple_Size(kwnames);
-    if (args_count > 2 || kwnames_count > 0) {
+    Py_ssize_t remaining_positional_args_count = args_count - args_progress - kwnames_count;
+    if (remaining_positional_args_count == 1) {
         metric_obj = args[2];
-        if (kwnames) {
-            PyObject* key = PyTuple_GetItem(kwnames, 0);
-            if (key != NULL && PyUnicode_CompareWithASCIIString(key, "metric") != 0) {
-                PyErr_SetString(PyExc_ValueError, "Third argument must be 'metric'");
-                return NULL;
-            }
-            args_progress = 3;
-            kwnames_progress = 1;
-        }
+        args_progress = 3;
+    } else if (remaining_positional_args_count > 1) {
+        PyErr_Format(PyExc_TypeError, "Only first 3 arguments can be positional, received %zd",
+                     remaining_positional_args_count);
+        return NULL;
     }
 
-    // The rest of the arguments must be checked in the keyword dictionary
-    for (; kwnames_progress < kwnames_count; ++args_progress, ++kwnames_progress) {
+    // The rest of the arguments must be checked in the keyword dictionary.
+    // There may be a case, when the call is illformed and more positional arguments are provided than needed.
+    // For a call like:
+    //
+    //      cdist(a, b, "cos", "dos"): positonal_args_count == 4, kwnames_count == 0
+    //      cdist(a, b, "cos", metric="dos"): positonal_args_count == 3, kwnames_count == 1
+    //      cdist(a, b, metric="cos", metric="dos"): positonal_args_count == 2, kwnames_count == 2
+    //
+    // https://ashvardanian.com/posts/discount-on-keyword-arguments-in-python/
+    for (Py_ssize_t kwnames_progress = 0; kwnames_progress < kwnames_count; ++args_progress, ++kwnames_progress) {
         PyObject* key = PyTuple_GetItem(kwnames, kwnames_progress);
         PyObject* value = args[args_progress];
         if (PyUnicode_CompareWithASCIIString(key, "threads") == 0) {
             if (threads_obj != NULL) {
-                PyErr_SetString(PyExc_ValueError, "Duplicate argument for 'threads'");
+                PyErr_SetString(PyExc_TypeError, "Got multiple values for argument 'threads'");
                 return NULL;
             }
             threads_obj = value;
         } else if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0) {
             if (dtype_obj != NULL) {
-                PyErr_SetString(PyExc_ValueError, "Duplicate argument for 'dtype'");
+                PyErr_SetString(PyExc_TypeError, "Got multiple values for argument 'dtype'");
                 return NULL;
             }
             dtype_obj = value;
         } else if (PyUnicode_CompareWithASCIIString(key, "out_dtype") == 0) {
             if (out_dtype_obj != NULL) {
-                PyErr_SetString(PyExc_ValueError, "Duplicate argument for 'out_dtype'");
+                PyErr_SetString(PyExc_TypeError, "Got multiple values for argument 'out_dtype'");
                 return NULL;
             }
             out_dtype_obj = value;
+        } else if (PyUnicode_CompareWithASCIIString(key, "metric") == 0) {
+            if (metric_obj != NULL) {
+                PyErr_SetString(PyExc_TypeError, "Got multiple values for argument 'metric'");
+                return NULL;
+            }
+            metric_obj = value;
         } else {
-            PyErr_Format(PyExc_ValueError, "Received unknown keyword argument: %S", key);
+            PyErr_Format(PyExc_TypeError, "Got unexpected keyword argument: %S", key);
             return NULL;
         }
     }
@@ -1233,6 +1260,36 @@ static PyMethodDef simsimd_methods[] = {
         "Returns:\n"
         "    DistancesTensor: The Jaccard distances.\n\n"
         "Equivalent to: `scipy.spatial.distance.jaccard`.\n"
+        "Notes:\n"
+        "    * `a` and `b` are positional-only arguments, while `dtype` is a keyword-only argument.",
+    },
+    {
+        "kullbackleibler",
+        (PyCFunction)api_kl,
+        METH_FASTCALL,
+        "Compute Kullback-Leibler divergences between two matrices.\n\n"
+        "Args:\n"
+        "    a (NDArray): First floating-point matrix or vector.\n"
+        "    b (NDArray): Second floating-point matrix or vector.\n"
+        "    dtype (IntegralType, optional): Override the presumed input type.\n\n"
+        "Returns:\n"
+        "    DistancesTensor: The Kullback-Leibler divergences distances.\n\n"
+        "Equivalent to: `scipy.special.kl_div`.\n"
+        "Notes:\n"
+        "    * `a` and `b` are positional-only arguments, while `dtype` is a keyword-only argument.",
+    },
+    {
+        "jensenshannon",
+        (PyCFunction)api_js,
+        METH_FASTCALL,
+        "Compute Jensen-Shannon divergences between two matrices.\n\n"
+        "Args:\n"
+        "    a (NDArray): First floating-point matrix or vector.\n"
+        "    b (NDArray): Second floating-point matrix or vector.\n"
+        "    dtype (IntegralType, optional): Override the presumed input type.\n\n"
+        "Returns:\n"
+        "    DistancesTensor: The Jensen-Shannon divergences distances.\n\n"
+        "Equivalent to: `scipy.spatial.distance.jensenshannon`.\n"
         "Notes:\n"
         "    * `a` and `b` are positional-only arguments, while `dtype` is a keyword-only argument.",
     },

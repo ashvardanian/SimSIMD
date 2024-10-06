@@ -125,7 +125,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_sapphire(simsimd_f16_t const* a, sim
             }                                                                                                          \
             sum += diff_i * partial;                                                                                   \
         }                                                                                                              \
-        *result = (simsimd_distance_t)sum;                                                                             \
+        *result = (simsimd_distance_t)SIMSIMD_SQRT(sum);                                                               \
     }
 
 SIMSIMD_MAKE_BILINEAR(serial, f64, f64, SIMSIMD_DEREFERENCE)    // simsimd_bilinear_f64_serial
@@ -220,7 +220,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_neon(simsimd_f32_t const* a, simsimd
         }
     }
 
-    *result = sum;
+    *result = _simsimd_sqrt_f64_neon(sum);
 }
 
 #ifdef __clang__
@@ -289,7 +289,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_neon(simsimd_f16_t const* a, simsimd
     }
 
     // Handle the tail of every row
-    simsimd_f64_t sum = vaddvq_f32(sum_vec);
+    simsimd_f32_t sum = vaddvq_f32(sum_vec);
     simsimd_size_t tail_length = n % 4;
     simsimd_size_t tail_start = n - tail_length;
     if (tail_length) {
@@ -306,7 +306,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_neon(simsimd_f16_t const* a, simsimd
         }
     }
 
-    *result = sum;
+    *result = _simsimd_sqrt_f32_neon(sum);
 }
 
 #ifdef __clang__
@@ -385,7 +385,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_neon(simsimd_bf16_t const* a, simsi
     }
 
     // Handle the tail of every row
-    simsimd_f64_t sum = vaddvq_f32(sum_vec);
+    simsimd_f32_t sum = vaddvq_f32(sum_vec);
     simsimd_size_t tail_length = n % 8;
     simsimd_size_t tail_start = n - tail_length;
     if (tail_length) {
@@ -411,7 +411,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_neon(simsimd_bf16_t const* a, simsi
         }
     }
 
-    *result = sum;
+    *result = _simsimd_sqrt_f32_neon(sum);
 }
 
 #ifdef __clang__
@@ -446,7 +446,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16_haswell(simsimd_f16_t const* a, simsimd
     }
 
     // Handle the tail of every row
-    simsimd_f64_t sum = _simsimd_reduce_f32x8_haswell(sum_vec);
+    simsimd_f32_t sum = _simsimd_reduce_f32x8_haswell(sum_vec);
     simsimd_size_t tail_length = n % 8;
     simsimd_size_t tail_start = n - tail_length;
     if (tail_length) {
@@ -482,7 +482,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_haswell(simsimd_f16_t const* a, sims
     }
 
     // Handle the tail of every row
-    simsimd_f64_t sum = _simsimd_reduce_f32x8_haswell(sum_vec);
+    simsimd_f32_t sum = _simsimd_reduce_f32x8_haswell(sum_vec);
     simsimd_size_t tail_length = n % 8;
     simsimd_size_t tail_start = n - tail_length;
     if (tail_length) {
@@ -499,7 +499,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_haswell(simsimd_f16_t const* a, sims
         }
     }
 
-    *result = sum;
+    *result = _simsimd_sqrt_f32_haswell(sum);
 }
 
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b,
@@ -519,7 +519,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16_haswell(simsimd_bf16_t const* a, simsi
     }
 
     // Handle the tail of every row
-    simsimd_f64_t sum = _simsimd_reduce_f32x8_haswell(sum_vec);
+    simsimd_f32_t sum = _simsimd_reduce_f32x8_haswell(sum_vec);
     simsimd_size_t tail_length = n % 8;
     simsimd_size_t tail_start = n - tail_length;
     if (tail_length) {
@@ -557,7 +557,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_haswell(simsimd_bf16_t const* a, si
     }
 
     // Handle the tail of every row
-    simsimd_f64_t sum = _simsimd_reduce_f32x8_haswell(sum_vec);
+    simsimd_f32_t sum = _simsimd_reduce_f32x8_haswell(sum_vec);
     simsimd_size_t tail_length = n % 8;
     simsimd_size_t tail_start = n - tail_length;
     if (tail_length) {
@@ -573,7 +573,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_haswell(simsimd_bf16_t const* a, si
         }
     }
 
-    *result = sum;
+    *result = _simsimd_sqrt_f32_haswell(sum);
 }
 
 #ifdef __clang__
@@ -654,7 +654,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_skylake(simsimd_f32_t const* a, sims
         sum_vec = _mm512_fmadd_ps(diff_i_vec, partial_sum_vec, sum_vec);
     }
 
-    *result = _mm512_reduce_add_ps(sum_vec);
+    *result = _simsimd_sqrt_f64_haswell(_mm512_reduce_add_ps(sum_vec));
 }
 
 #ifdef __clang__
@@ -736,7 +736,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_genoa(simsimd_bf16_t const* a, sims
         sum_vec = _mm512_fmadd_ps(diff_i_vec, partial_sum_vec, sum_vec);
     }
 
-    *result = _mm512_reduce_add_ps(sum_vec);
+    *result = _simsimd_sqrt_f32_haswell(_mm512_reduce_add_ps(sum_vec));
 }
 
 #ifdef __clang__
@@ -822,18 +822,10 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_sapphire(simsimd_f16_t const* a, sim
         sum_vec = _mm512_fmadd_ph(diff_i_vec, partial_sum_vec, sum_vec);
     }
 
-    *result = _mm512_reduce_add_ph(sum_vec);
+    *result = _simsimd_sqrt_f32_haswell(_mm512_reduce_add_ph(sum_vec));
 }
 
-SIMSIMD_PUBLIC void simsimd_bilinear_bf16_sapphire(simsimd_bf16_t const* a, simsimd_bf16_t const* b,
-                                                   simsimd_bf16_t const* c, simsimd_size_t n,
-                                                   simsimd_distance_t* result) {}
 
-SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_sapphire(simsimd_bf16_t const* a, simsimd_bf16_t const* b,
-                                                      simsimd_bf16_t const* c, simsimd_size_t n,
-                                                      simsimd_distance_t* result) {}
-
-#ifdef __clang__
 #pragma clang attribute pop
 #endif
 #pragma GCC pop_options

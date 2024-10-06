@@ -212,8 +212,8 @@ if args.scipy:
                 [np.float64, np.float32, np.float16],
                 np.array,
             ),
-            ("scipy.hamming", spd.hamming, simd.hamming, [np.uint8], np.array),
-            ("scipy.jaccard", spd.jaccard, simd.jaccard, [np.uint8], np.array),
+            ("scipy.hamming", spd.hamming, lambda a, b: simd.hamming(a, b, "b8"), [np.uint8], np.array),
+            ("scipy.jaccard", spd.jaccard, lambda a, b: simd.jaccard(a, b, "b8"), [np.uint8], np.array),
         ]
     )
 
@@ -348,8 +348,8 @@ if args.scipy:
                 simd.kullbackleibler,
                 [np.float64, np.float32, np.float16],
             ),
-            ("scipy.hamming", wrap_rowwise(spd.hamming), simd.hamming, [np.uint8]),
-            ("scipy.jaccard", wrap_rowwise(spd.jaccard), simd.jaccard, [np.uint8]),
+            ("scipy.hamming", wrap_rowwise(spd.hamming), lambda a, b: simd.hamming(a, b, "b8"), [np.uint8]),
+            ("scipy.jaccard", wrap_rowwise(spd.jaccard), lambda a, b: simd.jaccard(a, b, "b8"), [np.uint8]),
         ]
     )
 

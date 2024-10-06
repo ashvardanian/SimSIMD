@@ -87,8 +87,8 @@
 #define SIMSIMD_H
 
 #define SIMSIMD_VERSION_MAJOR 5
-#define SIMSIMD_VERSION_MINOR 4
-#define SIMSIMD_VERSION_PATCH 2
+#define SIMSIMD_VERSION_MINOR 5
+#define SIMSIMD_VERSION_PATCH 0
 
 /**
  *  @brief  Removes compile-time dispatching, and replaces it with runtime dispatching.
@@ -486,10 +486,11 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-function-type"
+#pragma GCC diagnostic ignored "-Wvolatile"
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wcast-function-type"
-
+#pragma clang diagnostic ignored "-Wvolatile"
 #endif
 
 /**
@@ -546,6 +547,14 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
             case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f64_sve, *c = simsimd_cap_sve_k; return;
             case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f64_sve, *c = simsimd_cap_sve_k; return;
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f64_sve, *c = simsimd_cap_sve_k; return;
+            default: break;
+            }
+#endif
+#if SIMSIMD_TARGET_NEON
+        if (viable & simsimd_cap_neon_k)
+            switch (kind) {
+            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f64_neon, *c = simsimd_cap_neon_k; return;
+            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f64_neon, *c = simsimd_cap_neon_k; return;
             default: break;
             }
 #endif
@@ -1546,6 +1555,8 @@ SIMSIMD_PUBLIC void simsimd_cos_f64(simsimd_f64_t const* a, simsimd_f64_t const*
                                     simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE
     simsimd_cos_f64_sve(a, b, n, d);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_cos_f64_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_SKYLAKE
     simsimd_cos_f64_skylake(a, b, n, d);
 #else
@@ -1598,6 +1609,8 @@ SIMSIMD_PUBLIC void simsimd_l2sq_f64(simsimd_f64_t const* a, simsimd_f64_t const
                                      simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE
     simsimd_l2sq_f64_sve(a, b, n, d);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_l2sq_f64_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_SKYLAKE
     simsimd_l2sq_f64_skylake(a, b, n, d);
 #else

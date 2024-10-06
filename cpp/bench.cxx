@@ -19,8 +19,6 @@
 // are quite inaccurate. They are not meant to be used in production code.
 // So when benchmarking, if possible, please use the native types, if those
 // are implemented.
-#define SIMSIMD_RSQRT(x) (1 / sqrt(x))
-#define SIMSIMD_LOG(x) (log(x))
 #define SIMSIMD_NATIVE_F16 1
 #define SIMSIMD_NATIVE_BF16 1
 #include <simsimd/simsimd.h>
@@ -647,6 +645,9 @@ int main(int argc, char** argv) {
     dense_<f32_k>("l2sq_f32_neon", simsimd_l2sq_f32_neon, simsimd_l2sq_f32_accurate);
     dense_<f32_k>("kl_f32_neon", simsimd_kl_f32_neon, simsimd_kl_f32_accurate);
     dense_<f32_k>("js_f32_neon", simsimd_js_f32_neon, simsimd_js_f32_accurate);
+
+    dense_<f64_k>("cos_f64_neon", simsimd_cos_f64_neon, simsimd_cos_f64_serial);
+    dense_<f64_k>("l2sq_f64_neon", simsimd_l2sq_f64_neon, simsimd_l2sq_f64_serial);
 
     dense_<i8_k>("cos_i8_neon", simsimd_cos_i8_neon, simsimd_cos_i8_accurate);
     dense_<i8_k>("dot_i8_neon", simsimd_dot_i8_neon, simsimd_dot_i8_serial);
