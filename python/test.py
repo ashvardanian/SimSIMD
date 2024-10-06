@@ -203,8 +203,8 @@ def stats_fixture():
         # Mean and the standard deviation for errors
         baseline_errors = errors["relative_baseline_error"]
         simsimd_errors = errors["relative_simsimd_error"]
-        baseline_mean = sum(baseline_errors) / n
-        simsimd_mean = sum(simsimd_errors) / n
+        baseline_mean = float(sum(baseline_errors)) / n
+        simsimd_mean = float(sum(simsimd_errors)) / n
         baseline_std = math.sqrt(sum((x - baseline_mean) ** 2 for x in baseline_errors) / n)
         simsimd_std = math.sqrt(sum((x - simsimd_mean) ** 2 for x in simsimd_errors) / n)
         baseline_error_formatted = f"{baseline_mean:.2e} ± {baseline_std:.2e}"
