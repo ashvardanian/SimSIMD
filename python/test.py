@@ -419,8 +419,8 @@ def test_capabilities_list():
         # Test missing positional arguments
         (simd.sqeuclidean, TypeError, (), {}),  # No arguments provided
         (simd.sqeuclidean, TypeError, (np.array([1.0]),), {}),  # Only one positional argument
-        # Test too many arguments
-        (simd.sqeuclidean, TypeError, (np.array([1.0]), np.array([1.0]), "extra"), {}),
+        # Try missing type name
+        (simd.sqeuclidean, ValueError, (np.array([1.0]), np.array([1.0]), "missing_dtype"), {}),
         # Test incorrect argument type
         (simd.sqeuclidean, TypeError, (np.array([1.0]), "invalid"), {}),  # Wrong type for second argument
         # Test invalid keyword argument name
@@ -438,6 +438,8 @@ def test_capabilities_list():
         (simd.cdist, TypeError, (np.array([[1.0]]), np.array([[1.0]]), "cos", "dos"), {}),  # Too many arguments
         # Same argument as both positional and keyword
         (simd.cdist, TypeError, (np.array([[1.0]]), np.array([[1.0]]), "cos"), {"metric": "cos"}),
+        # Applying real metric to complex numbers - missing kernel
+        (simd.cosine, LookupError, (np.array([1 + 2j]), np.array([1 + 2j])), {}),
     ],
 )
 def test_invalid_argument_handling(function, expected_error, args, kwargs):
