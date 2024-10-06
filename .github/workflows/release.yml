@@ -35,7 +35,6 @@ jobs:
             Cargo.lock:name = "simsimd"\nversion = "(\d+\.\d+\.\d+)"
             package.json:"version": "(\d+\.\d+\.\d+)"
             CMakeLists.txt:VERSION (\d+\.\d+\.\d+)
-            setup.py:__version__ = "(\d+\.\d+\.\d+)"
           update-major-version-in: |
             include/simsimd/simsimd.h:^#define SIMSIMD_VERSION_MAJOR (\d+)
           update-minor-version-in: |
