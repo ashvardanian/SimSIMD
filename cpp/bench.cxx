@@ -19,8 +19,6 @@
 // are quite inaccurate. They are not meant to be used in production code.
 // So when benchmarking, if possible, please use the native types, if those
 // are implemented.
-#define SIMSIMD_RSQRT(x) (1 / sqrt(x))
-#define SIMSIMD_LOG(x) (log(x))
 #define SIMSIMD_NATIVE_F16 1
 #define SIMSIMD_NATIVE_BF16 1
 #include <simsimd/simsimd.h>

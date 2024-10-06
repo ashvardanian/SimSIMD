@@ -79,12 +79,14 @@ try:
     baseline_bilinear = lambda x, y, z: x @ z @ y
 
     def baseline_mahalanobis(x, y, z):
+        # If there was an error, or the value is NaN, we skip the test.
         try:
-            result = spd.mahalanobis(x, y, z).astype(np.float64) ** 2
+            result = spd.mahalanobis(x, y, z).astype(np.float64)
             if not np.isnan(result):
                 return result
-        finally:
-            pytest.skip("SciPy Mahalanobis distance returned NaN due to `sqrt` of a negative number")
+        except:
+            pass
+        pytest.skip(f"SciPy Mahalanobis distance returned {result} due to `sqrt` of a negative number")
 
 except:
     # SciPy is not installed, some tests will be skipped
@@ -99,7 +101,7 @@ except:
 
     def baseline_mahalanobis(x, y, z):
         diff = x - y
-        return diff @ z @ diff
+        return np.sqrt(diff @ z @ diff)
 
     def baseline_jaccard(x, y):
         intersection = np.logical_and(x, y).sum()
@@ -409,6 +411,47 @@ def test_capabilities_list():
     assert simd.get_capabilities().get("neon") == 1
     if not previous_value:
         simd.disable_capability("neon")
+
+
+def to_array(x):
+    if numpy_available:
+        return np.array(x)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "function, expected_error, args, kwargs",
+    [
+        # Test missing positional arguments
+        (simd.sqeuclidean, TypeError, (), {}),  # No arguments provided
+        (simd.sqeuclidean, TypeError, (to_array([1.0]),), {}),  # Only one positional argument
+        # Try missing type name
+        (simd.sqeuclidean, ValueError, (to_array([1.0]), to_array([1.0]), "missing_dtype"), {}),
+        # Test incorrect argument type
+        (simd.sqeuclidean, TypeError, (to_array([1.0]), "invalid"), {}),  # Wrong type for second argument
+        # Test invalid keyword argument name
+        (simd.sqeuclidean, TypeError, (to_array([1.0]), to_array([1.0])), {"invalid_kwarg": "value"}),
+        # Test wrong argument type for SIMD capability toggle
+        (simd.enable_capability, TypeError, (123,), {}),  # Should expect a string
+        (simd.disable_capability, TypeError, ([],), {}),  # Should expect a string
+        # Test missing required argument for Mahalanobis
+        (simd.mahalanobis, TypeError, (to_array([1.0]), to_array([1.0])), {}),  # Missing covariance matrix
+        # Test missing required arguments for bilinear
+        (simd.bilinear, TypeError, (to_array([1.0]),), {}),  # Missing second vector and metric tensor
+        # Test passing too many arguments to a method
+        (simd.cosine, TypeError, (to_array([1.0]), to_array([1.0]), to_array([1.0])), {}),  # Too many arguments
+        # Too many arguments
+        (simd.cdist, TypeError, (to_array([[1.0]]), to_array([[1.0]]), "cos", "dos"), {}),  # Too many arguments
+        # Same argument as both positional and keyword
+        (simd.cdist, TypeError, (to_array([[1.0]]), to_array([[1.0]]), "cos"), {"metric": "cos"}),
+        # Applying real metric to complex numbers - missing kernel
+        (simd.cosine, LookupError, (to_array([1 + 2j]), to_array([1 + 2j])), {}),
+    ],
+)
+def test_invalid_argument_handling(function, expected_error, args, kwargs):
+    """Test that functions raise TypeError when called with invalid arguments."""
+    with pytest.raises(expected_error):
+        function(*args, **kwargs)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")

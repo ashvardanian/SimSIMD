@@ -37,7 +37,7 @@
             "name": "Debug Test",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/test",
+            "program": "${workspaceFolder}/build_debug/simsimd_test_run_time",
             "cwd": "${workspaceFolder}",
             "environment": [
                 {

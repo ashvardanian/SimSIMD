@@ -9,8 +9,6 @@
 
 #define SIMSIMD_NATIVE_F16 0
 #define SIMSIMD_NATIVE_BF16 0
-#define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
-#define SIMSIMD_LOG(x) (logf(x))
 #include <simsimd/simsimd.h>
 
 /**
