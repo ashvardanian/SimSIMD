@@ -413,33 +413,39 @@ def test_capabilities_list():
         simd.disable_capability("neon")
 
 
+def to_array(x):
+    if numpy_available:
+        return np.array(x)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize(
     "function, expected_error, args, kwargs",
     [
         # Test missing positional arguments
         (simd.sqeuclidean, TypeError, (), {}),  # No arguments provided
-        (simd.sqeuclidean, TypeError, (np.array([1.0]),), {}),  # Only one positional argument
+        (simd.sqeuclidean, TypeError, (to_array([1.0]),), {}),  # Only one positional argument
         # Try missing type name
-        (simd.sqeuclidean, ValueError, (np.array([1.0]), np.array([1.0]), "missing_dtype"), {}),
+        (simd.sqeuclidean, ValueError, (to_array([1.0]), to_array([1.0]), "missing_dtype"), {}),
         # Test incorrect argument type
-        (simd.sqeuclidean, TypeError, (np.array([1.0]), "invalid"), {}),  # Wrong type for second argument
+        (simd.sqeuclidean, TypeError, (to_array([1.0]), "invalid"), {}),  # Wrong type for second argument
         # Test invalid keyword argument name
-        (simd.sqeuclidean, TypeError, (np.array([1.0]), np.array([1.0])), {"invalid_kwarg": "value"}),
+        (simd.sqeuclidean, TypeError, (to_array([1.0]), to_array([1.0])), {"invalid_kwarg": "value"}),
         # Test wrong argument type for SIMD capability toggle
         (simd.enable_capability, TypeError, (123,), {}),  # Should expect a string
         (simd.disable_capability, TypeError, ([],), {}),  # Should expect a string
         # Test missing required argument for Mahalanobis
-        (simd.mahalanobis, TypeError, (np.array([1.0]), np.array([1.0])), {}),  # Missing covariance matrix
+        (simd.mahalanobis, TypeError, (to_array([1.0]), to_array([1.0])), {}),  # Missing covariance matrix
         # Test missing required arguments for bilinear
-        (simd.bilinear, TypeError, (np.array([1.0]),), {}),  # Missing second vector and metric tensor
+        (simd.bilinear, TypeError, (to_array([1.0]),), {}),  # Missing second vector and metric tensor
         # Test passing too many arguments to a method
-        (simd.cosine, TypeError, (np.array([1.0]), np.array([1.0]), np.array([1.0])), {}),  # Too many arguments
+        (simd.cosine, TypeError, (to_array([1.0]), to_array([1.0]), to_array([1.0])), {}),  # Too many arguments
         # Too many arguments
-        (simd.cdist, TypeError, (np.array([[1.0]]), np.array([[1.0]]), "cos", "dos"), {}),  # Too many arguments
+        (simd.cdist, TypeError, (to_array([[1.0]]), to_array([[1.0]]), "cos", "dos"), {}),  # Too many arguments
         # Same argument as both positional and keyword
-        (simd.cdist, TypeError, (np.array([[1.0]]), np.array([[1.0]]), "cos"), {"metric": "cos"}),
+        (simd.cdist, TypeError, (to_array([[1.0]]), to_array([[1.0]]), "cos"), {"metric": "cos"}),
         # Applying real metric to complex numbers - missing kernel
-        (simd.cosine, LookupError, (np.array([1 + 2j]), np.array([1 + 2j])), {}),
+        (simd.cosine, LookupError, (to_array([1 + 2j]), to_array([1 + 2j])), {}),
     ],
 )
 def test_invalid_argument_handling(function, expected_error, args, kwargs):
