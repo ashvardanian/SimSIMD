@@ -410,7 +410,7 @@ int parse_tensor(PyObject* tensor, Py_buffer* buffer, TensorArgument* parsed) {
     parsed->rank = buffer->ndim;
     if (buffer->ndim == 1) {
         if (buffer->strides[0] > buffer->itemsize) {
-            PyErr_SetString(PyExc_ValueError, "Input vectors must be contiguous");
+            PyErr_SetString(PyExc_ValueError, "Input vectors must be contiguous, check with `X.__array_interface__`");
             PyBuffer_Release(buffer);
             return -1;
         }
@@ -419,7 +419,7 @@ int parse_tensor(PyObject* tensor, Py_buffer* buffer, TensorArgument* parsed) {
         parsed->stride = 0;
     } else if (buffer->ndim == 2) {
         if (buffer->strides[1] > buffer->itemsize) {
-            PyErr_SetString(PyExc_ValueError, "Input vectors must be contiguous");
+            PyErr_SetString(PyExc_ValueError, "Input vectors must be contiguous, check with `X.__array_interface__`");
             PyBuffer_Release(buffer);
             return -1;
         }
