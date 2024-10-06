@@ -355,7 +355,10 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_x86(void) {
  */
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.5-a+sve")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("arch=armv8.5-a+sve"))), apply_to = function)
+
+#endif
 
 /**
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit Arm machine at @b runtime.
@@ -460,7 +463,9 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_arm(void) {
 #endif
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 
 #endif
@@ -482,9 +487,11 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-function-type"
 #pragma GCC diagnostic ignored "-Wvolatile"
+#ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wcast-function-type"
 #pragma clang diagnostic ignored "-Wvolatile"
+#endif
 
 /**
  *  @brief  Determines the best suited metric implementation based on the given datatype,
@@ -1091,7 +1098,10 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
 }
 
 #pragma GCC diagnostic pop
+#ifdef __clang__
 #pragma clang diagnostic pop
+
+#endif
 
 /**
  *  @brief  Selects the most suitable metric implementation based on the given metric kind, datatype,

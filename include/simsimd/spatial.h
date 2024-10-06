@@ -192,7 +192,9 @@ SIMSIMD_MAKE_COS(accurate, i8, i32, SIMSIMD_DEREFERENCE)  // simsimd_cos_i8_accu
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
+#endif
 
 SIMSIMD_INTERNAL simsimd_f32_t _simsimd_sqrt_f32_neon(simsimd_f32_t x) {
     return vget_lane_f32(vsqrt_f32(vdup_n_f32(x)), 0);
@@ -323,14 +325,19 @@ SIMSIMD_PUBLIC void simsimd_cos_f64_neon(simsimd_f64_t const* a, simsimd_f64_t c
     *result = _simsimd_cos_normalize_f64_neon(ab, a2, b2);
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON
 
 #if SIMSIMD_TARGET_NEON_F16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_l2sq_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                           simsimd_distance_t* result) {
@@ -380,14 +387,19 @@ simsimd_cos_f16_neon_cycle:
     *result = _simsimd_cos_normalize_f32_neon(ab, a2, b2);
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON_F16
 
 #if SIMSIMD_TARGET_NEON_BF16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_cos_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                           simsimd_distance_t* result) {
@@ -484,14 +496,19 @@ simsimd_l2sq_bf16_neon_cycle:
     *result = vaddvq_f32(vaddq_f32(sum_high_vec, sum_low_vec));
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON_BF16
 
 #if SIMSIMD_TARGET_NEON_I8
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+dotprod+i8mm")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod+i8mm"))), apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_l2sq_i8_neon(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                          simsimd_distance_t* result) {
@@ -634,14 +651,19 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_neon(simsimd_i8_t const* a, simsimd_i8_t cons
     *result = _simsimd_cos_normalize_f32_neon(ab, a2, b2);
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON_I8
 
 #if SIMSIMD_TARGET_SVE
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve"))), apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_l2sq_f32_sve(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                          simsimd_distance_t* result) {
@@ -719,14 +741,19 @@ SIMSIMD_PUBLIC void simsimd_cos_f64_sve(simsimd_f64_t const* a, simsimd_f64_t co
     *result = _simsimd_cos_normalize_f64_neon(ab, a2, b2);
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SVE
 
 #if SIMSIMD_TARGET_SVE_F16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve+fp16")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+fp16"))), apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_l2sq_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16_t const* b_enum, simsimd_size_t n,
                                          simsimd_distance_t* result) {
@@ -770,14 +797,19 @@ SIMSIMD_PUBLIC void simsimd_cos_f16_sve(simsimd_f16_t const* a_enum, simsimd_f16
     *result = _simsimd_cos_normalize_f32_neon(ab, a2, b2);
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SVE_F16
 
 #if SIMSIMD_TARGET_SVE_BF16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve+bf16")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+bf16"))), apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_l2sq_bf16_sve(simsimd_bf16_t const* a_enum, simsimd_bf16_t const* b_enum, simsimd_size_t n,
                                           simsimd_distance_t* result) {
@@ -833,7 +865,9 @@ SIMSIMD_PUBLIC void simsimd_cos_bf16_sve(simsimd_bf16_t const* a_enum, simsimd_b
     *result = _simsimd_cos_normalize_f32_neon(ab, a2, b2);
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SVE_BF16
 #endif // SIMSIMD_TARGET_ARM
@@ -842,7 +876,9 @@ SIMSIMD_PUBLIC void simsimd_cos_bf16_sve(simsimd_bf16_t const* a_enum, simsimd_b
 #if SIMSIMD_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("avx2")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("avx2"))), apply_to = function)
+#endif
 
 SIMSIMD_INTERNAL simsimd_f32_t _simsimd_sqrt_f32_haswell(simsimd_f32_t x) {
     return _mm_cvtss_f32(_mm_sqrt_ps(_mm_set_ss(x)));
@@ -850,7 +886,6 @@ SIMSIMD_INTERNAL simsimd_f32_t _simsimd_sqrt_f32_haswell(simsimd_f32_t x) {
 SIMSIMD_INTERNAL simsimd_f64_t _simsimd_sqrt_f64_haswell(simsimd_f64_t x) {
     return _mm_cvtsd_f64(_mm_sqrt_pd(_mm_set_sd(x)));
 }
-
 SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f64_haswell(simsimd_f64_t ab, simsimd_f64_t a2,
                                                                        simsimd_f64_t b2) {
 
@@ -913,7 +948,9 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f32_haswell(simsimd_f
     return result > 0 ? result : 0;
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_HASWELL
 #endif // SIMSIMD_TARGET_X86
@@ -922,7 +959,10 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f32_haswell(simsimd_f
 #if SIMSIMD_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_l2sq_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                              simsimd_distance_t* result) {
@@ -1174,14 +1214,19 @@ SIMSIMD_PUBLIC void simsimd_cos_f32_haswell(simsimd_f32_t const* a, simsimd_f32_
     *result = _simsimd_cos_normalize_f64_haswell(ab, a2, b2);
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_HASWELL
 
 #if SIMSIMD_TARGET_SKYLAKE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512bw", "avx512vl", "bmi2")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512bw,avx512vl,bmi2"))), apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_l2sq_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                              simsimd_distance_t* result) {
@@ -1335,15 +1380,20 @@ simsimd_cos_f64_skylake_cycle:
     *result = _simsimd_cos_normalize_f64_skylake(ab, a2, b2);
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SKYLAKE
 
 #if SIMSIMD_TARGET_GENOA
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512bf16"))),                \
                              apply_to = function)
+
+#endif
 
 SIMSIMD_INTERNAL __m512i _simsimd_substract_bf16x32_genoa(__m512i a_i16, __m512i b_i16) {
 
@@ -1451,14 +1501,19 @@ simsimd_cos_bf16_genoa_cycle:
     *result = _simsimd_cos_normalize_f32_haswell(ab, a2, b2);
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_GENOA
 
 #if SIMSIMD_TARGET_SAPPHIRE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512fp16")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512fp16"))), apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_l2sq_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                               simsimd_distance_t* result) {
@@ -1514,15 +1569,20 @@ simsimd_cos_f16_sapphire_cycle:
     *result = _simsimd_cos_normalize_f32_haswell(ab, a2, b2);
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SAPPHIRE
 
 #if SIMSIMD_TARGET_ICE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vnni")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512vnni"))),                \
                              apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_l2sq_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                         simsimd_distance_t* result) {
@@ -1598,7 +1658,9 @@ simsimd_cos_i8_ice_cycle:
     *result = _simsimd_cos_normalize_f32_haswell(ab, a2, b2);
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_ICE
 #endif // SIMSIMD_TARGET_X86

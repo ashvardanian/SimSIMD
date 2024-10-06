@@ -136,7 +136,10 @@ SIMSIMD_MAKE_JS(accurate, bf16, f64, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_DIVISION_E
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC float32x4_t _simsimd_log2_f32_neon(float32x4_t x) {
     // Extracting the exponent
@@ -227,14 +230,19 @@ simsimd_js_f32_neon_cycle:
     *result = sum / 2;
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON
 
 #if SIMSIMD_TARGET_NEON_F16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
+
+#endif
 
 SIMSIMD_PUBLIC void simsimd_kl_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                         simsimd_distance_t* result) {
@@ -300,7 +308,9 @@ simsimd_js_f16_neon_cycle:
     *result = sum / 2;
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON_F16
 #endif // SIMSIMD_TARGET_ARM
@@ -309,7 +319,10 @@ simsimd_js_f16_neon_cycle:
 #if SIMSIMD_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
+
+#endif
 
 SIMSIMD_INTERNAL __m256 _simsimd_log2_f32_haswell(__m256 x) {
     // Extracting the exponent
@@ -405,14 +418,19 @@ simsimd_js_f16_haswell_cycle:
     *result = sum / 2;
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_HASWELL
 
 #if SIMSIMD_TARGET_SKYLAKE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2"))), apply_to = function)
+
+#endif
 
 SIMSIMD_INTERNAL __m512 _simsimd_log2_f32_skylake(__m512 x) {
     // Extract the exponent and mantissa
@@ -497,14 +515,19 @@ simsimd_js_f32_skylake_cycle:
     *result = _mm512_reduce_add_ps(_mm512_add_ps(sum_a_vec, sum_b_vec)) * log2_normalizer / 2;
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_HASWELL
 
 #if SIMSIMD_TARGET_SAPPHIRE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512fp16")
+#ifdef __clang__
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512fp16"))), apply_to = function)
+
+#endif
 
 SIMSIMD_INTERNAL __m512h _simsimd_log2_f16_sapphire(__m512h x) {
     // Extract the exponent and mantissa
@@ -587,7 +610,9 @@ simsimd_js_f16_sapphire_cycle:
     *result = _mm512_reduce_add_ph(_mm512_add_ph(sum_a_vec, sum_b_vec)) * log2_normalizer / 2;
 }
 
+#ifdef __clang__
 #pragma clang attribute pop
+#endif
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SAPPHIRE
 #endif // SIMSIMD_TARGET_X86
