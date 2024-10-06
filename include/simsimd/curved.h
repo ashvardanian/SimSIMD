@@ -3,6 +3,7 @@
  *  @brief      SIMD-accelerated Similarity Measures for curved spaces.
  *  @author     Ash Vardanian
  *  @date       August 27, 2024
+ *  @see        https://github.com/ashvardanian/simsimd?tab=readme-ov-file#curved-spaces
  *
  *  Contains:
  *  - Bilinear form multiplication

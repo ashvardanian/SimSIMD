@@ -3,6 +3,7 @@
  *  @brief      SIMD-accelerated Spatial Similarity Measures.
  *  @author     Ash Vardanian
  *  @date       March 14, 2023
+ *  @see        https://github.com/ashvardanian/simsimd?tab=readme-ov-file#spatial-affinity
  *
  *  Contains:
  *  - L2 (Euclidean) squared distance

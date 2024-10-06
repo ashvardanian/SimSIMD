@@ -718,7 +718,9 @@ In general there are a few principles that SimSIMD follows:
 Last, but not the least - don't build unless there is a demand for it.
 So if you have a specific use-case, please open an issue or a pull request, and ideally, bring in more users with similar needs.
 
-### Cosine Similarity, Reciprocal Square Root, and Newton-Raphson Iteration
+### Spatial Affinity
+
+> On cosine similarity, reciprocal square root approximations, and the Newton-Raphson iteration.
 
 The cosine similarity is the most common and straightforward metric used in machine learning and information retrieval.
 Interestingly, there are multiple ways to shoot yourself in the foot when computing it.
@@ -773,7 +775,9 @@ On 1536-dimensional inputs on Intel Sapphire Rapids CPU a single such iteration 
 | `float64`  | 0.00e+00 ± 0.00e+00 |     3.80e-07 ± 4.50e-07 | 1.35e-11 ± 1.85e-11 |
 
 
-### Curved Spaces, Mahalanobis Distance, and Bilinear Quadratic Forms
+### Curved Spaces
+
+> On non-Euclidean geometry, Mahalanobis distance, and Bilinear Quadratic Forms.
 
 The Mahalanobis distance is a generalization of the Euclidean distance, which takes into account the covariance of the data.
 It's very similar in its form to the bilinear form, which is a generalization of the dot product.
@@ -803,7 +807,9 @@ A $vector * matrix * vector$ product is a scalar, whereas its constituent parts 
 
 SimSIMD doesn't produce intermediate vector results, like `a @ M @ b`, but computes the bilinear form directly.
 
-### Set Intersection, Galloping, and Binary Search
+### Sparse Vectors
+
+> On sorted set intersections, "Galloping", and Binary Search.
 
 The set intersection operation is generally defined as the number of elements that are common between two sets, represented as sorted arrays of integers.
 The most common way to compute it is a linear scan:
@@ -831,7 +837,9 @@ Third approach is to use the SIMD instructions to compare multiple elements at o
 
 After benchmarking, the last approach was chosen, as it's the most flexible and often the fastest.
 
-### Complex Dot Products, Conjugate Dot Products, and Complex Numbers
+### Dot Products
+
+> On complex numbers, complex conjugates.
 
 Complex dot products are a generalization of the dot product to complex numbers.
 They are supported by most BLAS packages, but almost never in mixed precision.
@@ -868,7 +876,12 @@ def vdot(a: List[number], b: List[number]) -> number:
     return ab_real, ab_imaginary
 ```
 
-### Logarithms in Kullback-Leibler & Jensen–Shannon Divergences
+### Binary Represntations
+
+
+### Probability Distributions
+
+> On fast logarithm approximations in Kullback-Leibler & Jensen–Shannon divergences.
 
 The Kullback-Leibler divergence is a measure of how one probability distribution diverges from a second, expected probability distribution.
 Jensen-Shannon divergence is a symmetrized and smoothed version of the Kullback-Leibler divergence, which can be used as a distance metric between probability distributions.
@@ -882,6 +895,49 @@ Jensen-Shannon divergence is a symmetrized and smoothed version of the Kullback-
 ```
 
 Both functions are defined for non-negative numbers, and the logarithm is a key part of their computation.
+
+### Dense Matrix Multiplications
+
+> On dense matrix multiplication, and Normalized Cross-Correlation.
+
+Unlike most dense matrix multiplication libraries, SimSIMD:
+
+- Focuses on mixed-precision computation.
+- Focuses on row-by-row multiplication, where the second matrix is transposed.
+- Outputs into the same precision as the input matrices, normalizing the output, like in cosine similarity calculations.
+- Doesn't implement parallelism, making it compatible with arbitrary concurrency models, third-party thread pools and task schedulers, like OpenMP, TBB, or Rayon.
+
+These decisions makes the algorithm much easier to tile, and makes it more robust to noise and precision loss.
+It also makes the multiplication more suitable to integration into multi-step Machine Learning and AI inference pipelines, where the output of one step is the input of the next, and uniform representation is required.
+
+```math
+C_{ij} = \frac{A_i \cdot B_j}{\|A_i\| \|B_j\|} = \frac{\sum_k A_{ik} B_{jk}}{\sqrt{\sum_k A_{ik}^2} \sqrt{\sum_k B_{jk}^2}}
+```
+
+The conventional matrmix multiplication lacks the denominator and indexes the second matrix differently:
+
+```math
+C_{ij} = A_i \cdot B_j = \frac{\sum_k A_{ik} B_{kj}}{\sqrt{\sum_k A_{ik}^2} \sqrt{\sum_k B_{kj}^2}}
+```
+
+Important to note, if you are going to use the Normalized Cross Correlation in training pipelines, the difference in the product definition will affect the gradient flow, and is defined differently:
+
+Gradient with Respect to $A_i$:
+
+```math
+\frac{\partial C_{ij}}{\partial A_i} = \frac{1}{\|A_i\| \|B_j\|} \left( B_j - \frac{A_i \cdot B_j}{\|A_i\|^2} A_i \right)
+```
+
+Similarly, the gradient with respect to $B_j$ is:
+
+```math
+\frac{\partial C_{ij}}{\partial B_j} = \frac{1}{\|A_i\| \|B_j\|} \left( A_i - \frac{A_i \cdot B_j}{\|B_j\|^2} B_j \right)
+```
+
+#### Optimizing for Intel AMX
+
+Intel Advanced Matrix Extensions (AMX) is a new instruction available in Sapphire Rapids CPUs and newer.
+It provides 8x special registers, each __1 kilobyte__ in size, enough to store 16 by 16 matrix tile of 4-byte words.
 
 ### Dynamic Dispatch
 

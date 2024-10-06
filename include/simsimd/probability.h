@@ -3,6 +3,7 @@
  *  @brief      SIMD-accelerated Similarity Measures for Probability Distributions.
  *  @author     Ash Vardanian
  *  @date       October 20, 2023
+ *  @see        https://github.com/ashvardanian/simsimd?tab=readme-ov-file#probability-distributions
  *
  *  Contains:
  *  - Kullback-Leibler divergence

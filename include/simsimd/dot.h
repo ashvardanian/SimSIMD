@@ -3,6 +3,7 @@
  *  @brief      SIMD-accelerated Dot Products for Real and Complex numbers.
  *  @author     Ash Vardanian
  *  @date       February 24, 2024
+ *  @see        https://github.com/ashvardanian/simsimd?tab=readme-ov-file#dot-products
  *
  *  Contains:
  *  - Dot Product for Real and Complex vectors
@@ -1161,6 +1162,15 @@ simsimd_dot_bf16_haswell_cycle:
 #pragma GCC push_options
 #pragma GCC target("avx512f", "avx512vl", "avx512bw", "bmi2")
 #pragma clang attribute push(__attribute__((target("avx512f,avx512vl,avx512bw,bmi2"))), apply_to = function)
+
+SIMSIMD_INTERNAL __m512 _simsimd_bf16x16_to_f32x16_skylake(__m256i a) {
+    // AVX-512 contains `_mm512_cvtpbh_ps`, but that's a sequential instruction
+    return _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(a), 16));
+}
+
+SIMSIMD_INTERNAL __m256i _simsimd_f32x16_to_bf16x16_skylake(__m512 a) {
+    return _mm512_cvtepi32_epi16(_mm512_srli_epi32(_mm512_castps_si512(a), 16));
+}
 
 SIMSIMD_INTERNAL simsimd_f64_t _simsimd_reduce_f32x16_skylake(__m512 a) {
     __m512 x = _mm512_add_ps(a, _mm512_shuffle_f32x4(a, a, _MM_SHUFFLE(0, 0, 3, 2)));
