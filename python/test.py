@@ -70,6 +70,7 @@ try:
     scipy_available = True
 
     baseline_inner = np.inner
+    baseline_euclidean = lambda x, y: np.array(spd.euclidean(x, y))  #! SciPy returns a scalar
     baseline_sqeuclidean = spd.sqeuclidean
     baseline_cosine = spd.cosine
     baseline_jensenshannon = lambda x, y: spd.jensenshannon(x, y) ** 2
@@ -94,6 +95,7 @@ except:
 
     baseline_inner = lambda x, y: np.inner(x, y)
     baseline_cosine = lambda x, y: 1.0 - np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
+    baseline_euclidean = lambda x, y: np.array([np.sqrt(np.sum((x - y) ** 2))])
     baseline_sqeuclidean = lambda x, y: np.sum((x - y) ** 2)
     baseline_jensenshannon = lambda p, q: (np.sum((np.sqrt(p) - np.sqrt(q)) ** 2)) / 2
     baseline_hamming = lambda x, y: np.logical_xor(x, y).sum()
@@ -324,6 +326,8 @@ def name_to_kernels(name: str):
     """
     if name == "inner":
         return baseline_inner, simd.inner
+    elif name == "euclidean":
+        return baseline_euclidean, simd.euclidean
     elif name == "sqeuclidean":
         return baseline_sqeuclidean, simd.sqeuclidean
     elif name == "cosine":
@@ -458,7 +462,7 @@ def test_invalid_argument_handling(function, expected_error, args, kwargs):
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
-@pytest.mark.parametrize("metric", ["inner", "sqeuclidean", "cosine"])
+@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
 def test_dense(ndim, dtype, metric, stats_fixture):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
     with their NumPy or baseline counterparts, testing accuracy for IEEE standard floating-point types."""
@@ -536,7 +540,7 @@ def test_curved(ndim, dtypes, metric, stats_fixture):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
-@pytest.mark.parametrize("metric", ["inner", "sqeuclidean", "cosine"])
+@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
 def test_dense_bf16(ndim, metric, stats_fixture):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
     with their NumPy or baseline counterparts, testing accuracy for the Brain-float format not
@@ -629,7 +633,7 @@ def test_curved_bf16(ndim, metric, stats_fixture):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
-@pytest.mark.parametrize("metric", ["inner", "sqeuclidean", "cosine"])
+@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
 def test_dense_i8(ndim, metric, stats_fixture):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
     with their NumPy or baseline counterparts, testing accuracy for small integer types, that can't

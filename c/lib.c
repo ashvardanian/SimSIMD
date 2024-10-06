@@ -126,6 +126,11 @@ SIMSIMD_DECLARATION_DENSE(l2sq, f16, f16)
 SIMSIMD_DECLARATION_DENSE(l2sq, bf16, bf16)
 SIMSIMD_DECLARATION_DENSE(l2sq, f32, f32)
 SIMSIMD_DECLARATION_DENSE(l2sq, f64, f64)
+SIMSIMD_DECLARATION_DENSE(l2, i8, i8)
+SIMSIMD_DECLARATION_DENSE(l2, f16, f16)
+SIMSIMD_DECLARATION_DENSE(l2, bf16, bf16)
+SIMSIMD_DECLARATION_DENSE(l2, f32, f32)
+SIMSIMD_DECLARATION_DENSE(l2, f64, f64)
 
 // Binary distances
 SIMSIMD_DECLARATION_DENSE(hamming, b8, b8)
@@ -207,6 +212,11 @@ simsimd_capability_t simsimd_capabilities(void) {
     simsimd_l2sq_bf16((simsimd_bf16_t*)dummy, (simsimd_bf16_t*)dummy, 0, dummy_results);
     simsimd_l2sq_f32((simsimd_f32_t*)dummy, (simsimd_f32_t*)dummy, 0, dummy_results);
     simsimd_l2sq_f64((simsimd_f64_t*)dummy, (simsimd_f64_t*)dummy, 0, dummy_results);
+    simsimd_l2_i8((simsimd_i8_t*)dummy, (simsimd_i8_t*)dummy, 0, dummy_results);
+    simsimd_l2_f16((simsimd_f16_t*)dummy, (simsimd_f16_t*)dummy, 0, dummy_results);
+    simsimd_l2_bf16((simsimd_bf16_t*)dummy, (simsimd_bf16_t*)dummy, 0, dummy_results);
+    simsimd_l2_f32((simsimd_f32_t*)dummy, (simsimd_f32_t*)dummy, 0, dummy_results);
+    simsimd_l2_f64((simsimd_f64_t*)dummy, (simsimd_f64_t*)dummy, 0, dummy_results);
     simsimd_hamming_b8((simsimd_b8_t*)dummy, (simsimd_b8_t*)dummy, 0, dummy_results);
     simsimd_jaccard_b8((simsimd_b8_t*)dummy, (simsimd_b8_t*)dummy, 0, dummy_results);
     simsimd_kl_f16((simsimd_f16_t*)dummy, (simsimd_f16_t*)dummy, 0, dummy_results);
