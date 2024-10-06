@@ -6,7 +6,10 @@ To rerun experiments utilize the following command:
 
 ```sh
 sudo apt install libopenblas-dev # BLAS installation is optional, but recommended for benchmarks
-cmake -D CMAKE_BUILD_TYPE=Release -D SIMSIMD_BUILD_TESTS=1 -D SIMSIMD_BUILD_BENCHMARKS=1 -D SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 -B build_release
+cmake -D CMAKE_BUILD_TYPE=Release \
+    -D SIMSIMD_BUILD_TESTS=1 -D SIMSIMD_BUILD_BENCHMARKS=1 \
+    -D SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 -D SIMSIMD_BUILD_WITH_OPENMP=1 \
+    -B build_release
 cmake --build build_release --config Release
 build_release/simsimd_bench
 build_release/simsimd_bench --benchmark_filter=js
@@ -34,6 +37,24 @@ cmake -D CMAKE_BUILD_TYPE=Release -D SIMSIMD_BUILD_TESTS=1 \
     -B build_release
 cmake --build build_release --config Release
 ```
+
+Similarly, using Clang on Linux:
+
+```sh
+sudo apt install clang
+cmake -D CMAKE_BUILD_TYPE=Release \
+    -D SIMSIMD_BUILD_TESTS=1 -D SIMSIMD_BUILD_BENCHMARKS=1 \
+    -D SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 -D SIMSIMD_BUILD_WITH_OPENMP=0 \
+    -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++ \
+    -B build_release
+cmake --build build_release --config Release
+```
+
+I'd recommend putting the following breakpoints:
+
+- `__asan::ReportGenericError` - to detect illegal memory accesses.
+- `__GI_exit` - to stop at exit points - the end of running any executable.
+- `__builtin_unreachable` - to catch all the places where the code is expected to be unreachable.
 
 ## Python
 
