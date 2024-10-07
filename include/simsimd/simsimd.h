@@ -149,7 +149,9 @@ typedef enum {
     simsimd_metric_tanimoto_k = 'j', ///< Tanimoto coefficient is same as Jaccard
 
     // Sets:
-    simsimd_metric_intersect_k = 'x', ///< Equivalent to unnormalized Jaccard
+    simsimd_metric_intersect_k = 'x',     ///< Equivalent to unnormalized Jaccard
+    simsimd_metric_spdot_counts_k = 'y',  ///< Sparse sets with integer weights
+    simsimd_metric_spdot_weights_k = 'z', ///< Sparse sets with brain floating-point weights
 
     // Curved Spaces:
     simsimd_metric_bilinear_k = 'b',    ///< Bilinear form
@@ -1042,6 +1044,10 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
         if (viable & simsimd_cap_sve2_k)
             switch (kind) {
             case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_sve2, *c = simsimd_cap_sve2_k; return;
+            case simsimd_spdot_counts_u16_k: *m = (m_t)&simsimd_spdot_counts_u16_sve2, *c = simsimd_cap_sve2_k; return;
+            case simsimd_spdot_weights_u16_k:
+                *m = (m_t)&simsimd_spdot_weights_u16_sve2, *c = simsimd_cap_sve2_k;
+                return;
             default: break;
             }
 #endif
@@ -1049,6 +1055,19 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
         if (viable & simsimd_cap_neon_k)
             switch (kind) {
             case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_neon, *c = simsimd_cap_neon_k; return;
+            default: break;
+            }
+#endif
+#if SIMSIMD_TARGET_TURIN
+        if (viable & simsimd_cap_turin_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_turin, *c = simsimd_cap_turin_k; return;
+            case simsimd_spdot_counts_u16_k:
+                *m = (m_t)&simsimd_spdot_counts_u16_turin, *c = simsimd_cap_turin_k;
+                return;
+            case simsimd_spdot_weights_u16_k:
+                *m = (m_t)&simsimd_spdot_weights_u16_turin, *c = simsimd_cap_turin_k;
+                return;
             default: break;
             }
 #endif
@@ -1081,6 +1100,13 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
         if (viable & simsimd_cap_neon_k)
             switch (kind) {
             case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_neon, *c = simsimd_cap_neon_k; return;
+            default: break;
+            }
+#endif
+#if SIMSIMD_TARGET_TURIN
+        if (viable & simsimd_cap_turin_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_turin, *c = simsimd_cap_skylake_k; return;
             default: break;
             }
 #endif
@@ -1841,6 +1867,40 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32(simsimd_u32_t const* a, simsimd_u32_t 
     simsimd_intersect_u32_ice(a, b, a_length, b_length, d);
 #else
     simsimd_intersect_u32_serial(a, b, a_length, b_length, d);
+#endif
+}
+
+/*  Weighted set operations
+ *
+ *  @param a The first sorted array of integers.
+ *  @param b The second sorted array of integers.
+ *  @param a_weights The weights for the first array.
+ *  @param b_weights The weights for the second array.
+ *  @param a_length The number of elements in the first array.
+ *  @param b_length The number of elements in the second array.
+ *  @param d The output for the number of elements in the intersection.
+ */
+SIMSIMD_PUBLIC void simsimd_spdot_counts_u16(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                             simsimd_i16_t const* a_weights, simsimd_i16_t const* b_weights,
+                                             simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_SVE2
+    simsimd_spdot_counts_u16_sve2(a, b, a_weights, b_weights, a_length, b_length, d);
+#elif SIMSIMD_TARGET_TURIN
+    simsimd_spdot_counts_u16_turin(a, b, a_weights, b_weights, a_length, b_length, d);
+#else
+    simsimd_spdot_counts_u16_serial(a, b, a_weights, b_weights, a_length, b_length, d);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_spdot_weights_u16(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                              simsimd_bf16_t const* a_weights, simsimd_bf16_t const* b_weights,
+                                              simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_SVE2
+    simsimd_spdot_weights_u16_sve2(a, b, a_weights, b_weights, a_length, b_length, d);
+#elif SIMSIMD_TARGET_TURIN
+    simsimd_spdot_weights_u16_turin(a, b, a_weights, b_weights, a_length, b_length, d);
+#else
+    simsimd_spdot_weights_u16_serial(a, b, a_weights, b_weights, a_length, b_length, d);
 #endif
 }
 
