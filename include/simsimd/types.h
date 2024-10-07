@@ -164,6 +164,14 @@
 #define SIMSIMD_TARGET_SAPPHIRE 0
 #endif
 #endif // !defined(SIMSIMD_TARGET_SAPPHIRE)
+#if !defined(SIMSIMD_TARGET_TURIN) || (SIMSIMD_TARGET_TURIN && !SIMSIMD_TARGET_X86)
+#if defined(__AVX512VP2INTERSECT__)
+#define SIMSIMD_TARGET_TURIN 1
+#else
+#undef SIMSIMD_TARGET_TURIN
+#define SIMSIMD_TARGET_TURIN 0
+#endif
+#endif // !defined(SIMSIMD_TARGET_TURIN)
 
 #ifdef _MSC_VER
 #include <intrin.h>
@@ -178,7 +186,7 @@
 #endif
 
 #if SIMSIMD_TARGET_HASWELL || SIMSIMD_TARGET_SKYLAKE || SIMSIMD_TARGET_ICE || SIMSIMD_TARGET_GENOA ||                  \
-    SIMSIMD_TARGET_SAPPHIRE
+    SIMSIMD_TARGET_SAPPHIRE || SIMSIMD_TARGET_TURIN
 #include <immintrin.h>
 #endif
 

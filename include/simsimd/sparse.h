@@ -15,8 +15,8 @@
  *  - u16 + bf16: for sparse matrices
  *
  *  For hardware architectures:
- *  - x86 (AVX512)
- *  - Arm (SVE2)
+ *  - x86: Ice Lake, Turin
+ *  - Arm: SVE2
  *
  *  Interestingly, to implement sparse distances and products, the most important function
  *  is analogous to `std::set_intersection`, that outputs the intersection of two sorted

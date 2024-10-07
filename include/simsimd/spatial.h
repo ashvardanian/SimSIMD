@@ -17,8 +17,8 @@
  *  - 4-bit signed integral numbers
  *
  *  For hardware architectures:
- *  - Arm (NEON, SVE)
- *  - x86 (AVX2, AVX512)
+ *  - Arm: NEON, SVE
+ *  - x86: Haswell, Skylake, Ice Lake, Genoa, Sapphire
  *
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/

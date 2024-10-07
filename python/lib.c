@@ -314,6 +314,8 @@ static PyObject* api_enable_capability(PyObject* self, PyObject* args) {
         static_capabilities |= simsimd_cap_genoa_k;
     } else if (same_string(cap_name, "sapphire")) {
         static_capabilities |= simsimd_cap_sapphire_k;
+    } else if (same_string(cap_name, "turin")) {
+        static_capabilities |= simsimd_cap_turin_k;
     } else if (same_string(cap_name, "serial")) {
         PyErr_SetString(PyExc_ValueError, "Can't change the serial functionality");
         return NULL;
@@ -357,6 +359,8 @@ static PyObject* api_disable_capability(PyObject* self, PyObject* args) {
         static_capabilities &= ~simsimd_cap_genoa_k;
     } else if (same_string(cap_name, "sapphire")) {
         static_capabilities &= ~simsimd_cap_sapphire_k;
+    } else if (same_string(cap_name, "turin")) {
+        static_capabilities &= ~simsimd_cap_turin_k;
     } else if (same_string(cap_name, "serial")) {
         PyErr_SetString(PyExc_ValueError, "Can't change the serial functionality");
         return NULL;
@@ -390,6 +394,7 @@ static PyObject* api_get_capabilities(PyObject* self) {
     ADD_CAP(ice);
     ADD_CAP(genoa);
     ADD_CAP(sapphire);
+    ADD_CAP(turin);
 
 #undef ADD_CAP
 
@@ -1141,7 +1146,7 @@ static PyMethodDef simsimd_methods[] = {
         (PyCFunction)api_get_capabilities,
         METH_NOARGS,
         "Get the current hardware SIMD capabilities as a dictionary of feature flags.\n"
-        "On x86 includes: 'serial', 'haswell', 'skylake', 'ice', 'genoa', 'sapphire'.\n"
+        "On x86 includes: 'serial', 'haswell', 'skylake', 'ice', 'genoa', 'sapphire', 'turin'.\n"
         "On Arm includes: 'serial', 'neon', 'sve', 'sve2', and their extensions.\n",
     },
     {

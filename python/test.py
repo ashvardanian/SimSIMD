@@ -407,6 +407,7 @@ def test_capabilities_list():
     assert "skylake" in simd.get_capabilities()
     assert "genoa" in simd.get_capabilities()
     assert "sapphire" in simd.get_capabilities()
+    assert "turin" in simd.get_capabilities()
     assert simd.get_capabilities().get("serial") == 1
 
     # Check the toggle:

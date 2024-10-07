@@ -32,6 +32,7 @@ void print_capabilities(void) {
     printf("- x86 Ice Lake support enabled: %s\n", flags[SIMSIMD_TARGET_ICE]);
     printf("- x86 Genoa support enabled: %s\n", flags[SIMSIMD_TARGET_GENOA]);
     printf("- x86 Sapphire Rapids support enabled: %s\n", flags[SIMSIMD_TARGET_SAPPHIRE]);
+    printf("- x86 Turin support enabled: %s\n", flags[SIMSIMD_TARGET_TURIN]);
     printf("\n");
     printf("Run-time settings:\n");
     printf("- Arm NEON support enabled: %s\n", flags[(runtime_caps & simsimd_cap_neon_k) != 0]);
@@ -48,6 +49,7 @@ void print_capabilities(void) {
     printf("- x86 Ice Lake support enabled: %s\n", flags[(runtime_caps & simsimd_cap_ice_k) != 0]);
     printf("- x86 Genoa support enabled: %s\n", flags[(runtime_caps & simsimd_cap_genoa_k) != 0]);
     printf("- x86 Sapphire Rapids support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sapphire_k) != 0]);
+    printf("- x86 Turin support enabled: %s\n", flags[(runtime_caps & simsimd_cap_turin_k) != 0]);
     printf("\n");
 }
 
@@ -62,16 +64,18 @@ void test_utilities(void) {
     int uses_haswell = simsimd_uses_haswell();
     int uses_skylake = simsimd_uses_skylake();
     int uses_ice = simsimd_uses_ice();
-    int uses_sapphire = simsimd_uses_sapphire();
     int uses_genoa = simsimd_uses_genoa();
+    int uses_sapphire = simsimd_uses_sapphire();
+    int uses_turin = simsimd_uses_turin();
 
     assert(uses_neon == ((capabilities & simsimd_cap_neon_k) != 0));
     assert(uses_sve == ((capabilities & simsimd_cap_sve_k) != 0));
     assert(uses_haswell == ((capabilities & simsimd_cap_haswell_k) != 0));
     assert(uses_skylake == ((capabilities & simsimd_cap_skylake_k) != 0));
     assert(uses_ice == ((capabilities & simsimd_cap_ice_k) != 0));
-    assert(uses_sapphire == ((capabilities & simsimd_cap_sapphire_k) != 0));
     assert(uses_genoa == ((capabilities & simsimd_cap_genoa_k) != 0));
+    assert(uses_sapphire == ((capabilities & simsimd_cap_sapphire_k) != 0));
+    assert(uses_turin == ((capabilities & simsimd_cap_turin_k) != 0));
 }
 
 /**

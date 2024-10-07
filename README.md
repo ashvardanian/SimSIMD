@@ -272,7 +272,7 @@ A common case may be avoiding AVX-512 on older AMD CPUs and [Intel Ice Lake](htt
 
 ```py
 $ simsimd.get_capabilities()
-> {'serial': True, 'neon': False, 'sve': False, 'neon_f16': False, 'sve_f16': False, 'neon_bf16': False, 'sve_bf16': False, 'neon_i8': False, 'sve_i8': False, 'haswell': True, 'skylake': True, 'ice': True, 'genoa': True, 'sapphire': True}
+> {'serial': True, 'neon': False, 'sve': False, 'neon_f16': False, 'sve_f16': False, 'neon_bf16': False, 'sve_bf16': False, 'neon_i8': False, 'sve_i8': False, 'haswell': True, 'skylake': True, 'ice': True, 'genoa': True, 'sapphire': True, 'turin': True}
 $ simsimd.disable_capability("sapphire")
 $ simsimd.enable_capability("sapphire")
 ```
@@ -480,6 +480,7 @@ println!("uses skylake: {}", capabilities::uses_skylake());
 println!("uses ice: {}", capabilities::uses_ice());
 println!("uses genoa: {}", capabilities::uses_genoa());
 println!("uses sapphire: {}", capabilities::uses_sapphire());
+println!("uses turin: {}", capabilities::uses_turin());
 ```
 
 ## Using SimSIMD in JavaScript
@@ -1024,7 +1025,7 @@ SimSIMD exposes all kernels for all backends, and you can select the most advanc
 That's handy for testing and benchmarking, but also in case you want to dispatch a very specific kernel for a very specific CPU, bypassing SimSIMD assignment logic.
 All of the function names follow the same pattern: `simsimd_{function}_{type}_{backend}`.
 
-- The backend can be `serial`, `haswell`, `skylake`, `ice`, `genoa`, `sapphire`, `neon`, or `sve`.
+- The backend can be `serial`, `haswell`, `skylake`, `ice`, `genoa`, `sapphire`, `turin`, `neon`, or `sve`.
 - The type can be `f64`, `f32`, `f16`, `bf16`, `f64c`, `f32c`, `f16c`, `bf16c`, `i8`, or `b8`.
 - The function can be `dot`, `vdot`, `cos`, `l2sq`, `hamming`, `jaccard`, `kl`, `js`, or `intersect`.
 
