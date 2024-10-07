@@ -1044,8 +1044,10 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
         if (viable & simsimd_cap_sve2_k)
             switch (kind) {
             case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_sve2, *c = simsimd_cap_sve2_k; return;
-            case simsimd_spdot_counts_u16_k: *m = (m_t)&simsimd_spdot_counts_u16_sve2, *c = simsimd_cap_sve2_k; return;
-            case simsimd_spdot_weights_u16_k:
+            case simsimd_metric_spdot_counts_k:
+                *m = (m_t)&simsimd_spdot_counts_u16_sve2, *c = simsimd_cap_sve2_k;
+                return;
+            case simsimd_metric_spdot_weights_k:
                 *m = (m_t)&simsimd_spdot_weights_u16_sve2, *c = simsimd_cap_sve2_k;
                 return;
             default: break;
@@ -1062,10 +1064,10 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
         if (viable & simsimd_cap_turin_k)
             switch (kind) {
             case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_turin, *c = simsimd_cap_turin_k; return;
-            case simsimd_spdot_counts_u16_k:
+            case simsimd_metric_spdot_counts_k:
                 *m = (m_t)&simsimd_spdot_counts_u16_turin, *c = simsimd_cap_turin_k;
                 return;
-            case simsimd_spdot_weights_u16_k:
+            case simsimd_metric_spdot_weights_k:
                 *m = (m_t)&simsimd_spdot_weights_u16_turin, *c = simsimd_cap_turin_k;
                 return;
             default: break;
