@@ -1,5 +1,11 @@
 # Contributing
 
+To keep the quality of the code high, we have a set of [guidelines](https://github.com/unum-cloud).
+
+- [What's the procedure?](https://github.com/unum-cloud/awesome/blob/main/Workflow.md#organizing-software-development)
+- [How to organize branches?](https://github.com/unum-cloud/awesome/blob/main/Workflow.md#branches)
+- [How to style commits?](https://github.com/unum-cloud/awesome/blob/main/Workflow.md#commits)
+
 ## C and C++
 
 To rerun experiments utilize the following command:
