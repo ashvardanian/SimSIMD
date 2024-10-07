@@ -775,9 +775,11 @@ It's not only less efficient, but also less accurate, given how the reciprocal s
 The C standard library provides the `sqrt` function, which is generally very accurate, but slow.
 The `rsqrt` in-hardware implementations are faster, but have different accuracy characteristics.
 
-- SSE `rsqrtps` and AVX `vrsqrtps`: $1.5 \times 2^{-12}$ maximal error.
-- AVX-512 `vrsqrt14pd` instruction: $2^{-14}$ maximal error.
-- NEON `frsqrte` instruction has no clear error bounds.
+- SSE `rsqrtps` and AVX `vrsqrtps`: $1.5 \times 2^{-12}$ maximal relative error.
+- AVX-512 `vrsqrt14pd` instruction: $2^{-14}$ maximal relative error.
+- NEON `frsqrte` instruction has no documented error bounds, but [can be][arm-rsqrt] $2^{-3}$.
+
+[arm-rsqrt]: https://gist.github.com/ashvardanian/5e5cf585d63f8ab6d240932313c75411
 
 To overcome the limitations of the `rsqrt` instruction, SimSIMD uses the Newton-Raphson iteration to refine the initial estimate for high-precision floating-point numbers.
 It can be defined as:
