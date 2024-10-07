@@ -1039,9 +1039,9 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
     case simsimd_datatype_u16_k: {
 
 #if SIMSIMD_TARGET_SVE2
-        if (viable & simsimd_cap_sve_k)
+        if (viable & simsimd_cap_sve2_k)
             switch (kind) {
-            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_sve2, *c = simsimd_cap_sve_k; return;
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_sve2, *c = simsimd_cap_sve2_k; return;
             default: break;
             }
 #endif
@@ -1071,9 +1071,9 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
     case simsimd_datatype_u32_k: {
 
 #if SIMSIMD_TARGET_SVE2
-        if (viable & simsimd_cap_sve_k)
+        if (viable & simsimd_cap_sve2_k)
             switch (kind) {
-            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_sve2, *c = simsimd_cap_sve_k; return;
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_sve2, *c = simsimd_cap_sve2_k; return;
             default: break;
             }
 #endif
