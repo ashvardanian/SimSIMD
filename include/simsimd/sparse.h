@@ -1391,10 +1391,10 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_sve2(                   //
         for (simsimd_size_t i = 0; i < lanes_count; i++) {
             svbool_t equal_mask = svmatch_u16(a_progress, a_vec, b_vec);
             //! The `svsel_bf16` intrinsic is broken in many compilers, not returning the correct type.
-            //! So we reinterprete floats as integers and apply `svsel_s16`.
-            svint16_t b_equal_weights_vec =
-                svsel_s16(equal_mask, svreinterpret_s16_bs16(b_weights_vec), svdup_n_s16(0));
-            product_vec = svbfdot_f32(product_vec, a_weights_vec, svreinterpret_bf16_s16(b_equal_weights_vec));
+            //! So we reinterprete floats as integers and apply `svsel_s16`, but the `svreinterpret_s16_bs16`
+            //! and `svreinterpret_bf16_s16` are not always properly defined!
+            svint16_t b_equal_weights_vec = svsel_s16(equal_mask, (svint16_t)(b_weights_vec), svdup_n_s16(0));
+            product_vec = svbfdot_f32(product_vec, a_weights_vec, (svbfloat16_t)(b_equal_weights_vec));
             b_vec = svext_u16(b_vec, b_vec, 8);
             intersection_size += svcntp_b16(svptrue_b16(), equal_mask);
         }
