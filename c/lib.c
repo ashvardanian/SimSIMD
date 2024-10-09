@@ -175,7 +175,7 @@ SIMSIMD_DYNAMIC int simsimd_uses_genoa(void) { return (simsimd_capabilities() & 
 SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void) { return (simsimd_capabilities() & simsimd_cap_sapphire_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void) { return 1; }
 
-simsimd_capability_t simsimd_capabilities(void) {
+SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
     static simsimd_capability_t static_capabilities = simsimd_cap_any_k;
     if (static_capabilities != simsimd_cap_any_k)
         return static_capabilities;

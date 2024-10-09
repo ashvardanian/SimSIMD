@@ -1168,8 +1168,6 @@ SIMSIMD_DYNAMIC int simsimd_uses_skylake(void);
 SIMSIMD_DYNAMIC int simsimd_uses_ice(void);
 SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void);
 SIMSIMD_DYNAMIC int simsimd_uses_genoa(void);
-SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void);
-
 SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void);
 
 /*  Inner products
@@ -1309,6 +1307,8 @@ SIMSIMD_DYNAMIC void simsimd_js_f64(simsimd_f64_t const* a, simsimd_f64_t const*
  */
 
 // clang-format off
+SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) { return simsimd_capabilities_implementation(); }
+SIMSIMD_PUBLIC int simsimd_uses_dynamic_dispatch(void) { return 0; }
 SIMSIMD_PUBLIC int simsimd_uses_neon(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON; }
 SIMSIMD_PUBLIC int simsimd_uses_neon_f16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON && SIMSIMD_NATIVE_F16; }
 SIMSIMD_PUBLIC int simsimd_uses_neon_bf16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON && SIMSIMD_NATIVE_BF16; }
@@ -1323,8 +1323,6 @@ SIMSIMD_PUBLIC int simsimd_uses_skylake(void) { return SIMSIMD_TARGET_X86 && SIM
 SIMSIMD_PUBLIC int simsimd_uses_ice(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_ICE; }
 SIMSIMD_PUBLIC int simsimd_uses_sapphire(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SAPPHIRE; }
 SIMSIMD_PUBLIC int simsimd_uses_genoa(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_GENOA; }
-SIMSIMD_PUBLIC int simsimd_uses_dynamic_dispatch(void) { return 0; }
-SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) { return simsimd_capabilities_implementation(); }
 // clang-format on
 
 /*  Inner products
