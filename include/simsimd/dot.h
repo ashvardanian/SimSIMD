@@ -1088,7 +1088,7 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t c
                                            simsimd_distance_t* result) {
 
     __m256i ab_i32_vec = _mm256_setzero_si256();
-    __m256i const zeros_vec = _mm256_setzero_si256();
+    __m256i const zero_vec = _mm256_setzero_si256();
 
     simsimd_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
@@ -1104,10 +1104,11 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t c
         __m256i ab_i16_vec = _mm256_maddubs_epi16(a_i8_abs_vec, b_i8_flipped_vec);
 
         // Will almost imediatelly overflow, in accumulation, unless we upcast further to 32-bit integers.
-        ab_i32_vec = _mm256_add_epi32( //
-            ab_i32_vec,                //
-            _mm256_add_epi32(_mm256_unpacklo_epi16(ab_i16_vec, zeros_vec),
-                             _mm256_unpackhi_epi16(ab_i16_vec, zeros_vec)));
+        ab_i32_vec = _mm256_add_epi32(                       //
+            ab_i32_vec,                                      //
+            _mm256_add_epi32(                                //
+                _mm256_unpacklo_epi16(ab_i16_vec, zero_vec), //
+                _mm256_unpackhi_epi16(ab_i16_vec, zero_vec)));
     }
 
     // Horizontal sum across the 256-bit register
@@ -1658,25 +1659,42 @@ simsimd_dot_f16c_sapphire_cycle:
 SIMSIMD_PUBLIC void simsimd_dot_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                        simsimd_distance_t* result) {
     __m512i ab_i32s_vec = _mm512_setzero_si512();
-    __m512i a_vec, b_vec;
+    __m512i a_i8_vec, b_i8_vec;
 
-simsimd_dot_i8_ice_cycle:
-    if (n < 32) {
-        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
-        a_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, a));
-        b_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, b));
-        n = 0;
-    } else {
-        a_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(a));
-        b_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(b));
-        a += 32, b += 32, n -= 32;
-    }
     // Unfortunately we can't use the `_mm512_dpbusd_epi32` intrinsics here either,
     // as it's asymmetric with respect to the sign of the input arguments:
     //      Signed(ZeroExtend16(a.byte[4*j]) * SignExtend16(b.byte[4*j]))
-    // So we have to use the `_mm512_dpwssd_epi32` intrinsics instead, upcasting
-    // to 16-bit beforehand.
-    ab_i32s_vec = _mm512_dpwssd_epi32(ab_i32s_vec, a_vec, b_vec);
+    //
+    // One alternative is to use the `_mm512_dpwssd_epi32` intrinsics instead,
+    // upcasting 32x 8-bit signed integers to 16-bit beforehand:
+    //
+    //      ab_i32s_vec = _mm512_dpwssd_epi32(ab_i32s_vec,
+    //          _mm512_cvtepi8_epi16(a_i8_vec),
+    //          _mm512_cvtepi8_epi16(b_i8_vec));
+    //
+    // Each conversion there is expensive and can't be handled in parallel.
+    // Instead we perform some more bit-testing and flipping to handle the sign bit.
+    __m512i a_i8_abs_vec, b_i8_negated_vec, b_i8_flipped_vec;
+    __m512i const zero_vec = _mm512_setzero_si512();
+    __m512i const sign_bit_vec = _mm512_set1_epi8((char)0x80);
+    __mmask64 a_is_negative_mask;
+
+simsimd_dot_i8_ice_cycle:
+    if (n < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
+        a_i8_vec = _mm512_maskz_loadu_epi8(mask, a);
+        b_i8_vec = _mm512_maskz_loadu_epi8(mask, b);
+        n = 0;
+    } else {
+        a_i8_vec = _mm512_loadu_epi8(a);
+        b_i8_vec = _mm512_loadu_epi8(b);
+        a += 64, b += 64, n -= 64;
+    }
+    a_i8_abs_vec = _mm512_abs_epi8(a_i8_vec);
+    a_is_negative_mask = _mm512_test_epi8_mask(a_i8_vec, sign_bit_vec);
+    b_i8_negated_vec = _mm512_sub_epi8(zero_vec, b_i8_vec);
+    b_i8_flipped_vec = _mm512_mask_blend_epi8(a_is_negative_mask, b_i8_vec, b_i8_negated_vec);
+    ab_i32s_vec = _mm512_dpbusds_epi32(ab_i32s_vec, a_i8_abs_vec, b_i8_flipped_vec);
     if (n)
         goto simsimd_dot_i8_ice_cycle;
 
