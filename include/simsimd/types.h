@@ -35,7 +35,7 @@
 #define SIMSIMD_PUBLIC __attribute__((unused)) inline static
 #define SIMSIMD_INTERNAL __attribute__((always_inline)) inline static
 #else
-#define SIMSIMD_DYNAMIC inline static
+#define SIMSIMD_DYNAMIC
 #define SIMSIMD_PUBLIC inline static
 #define SIMSIMD_INTERNAL inline static
 #endif

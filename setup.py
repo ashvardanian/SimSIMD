@@ -59,6 +59,9 @@ if sys.platform == "linux":
     compile_args.append("-O3")
     compile_args.append("-ffast-math")
     compile_args.append("-fdiagnostics-color=always")
+    compile_args.append("-fvisibility=default")
+    compile_args.append("-fPIC")
+    link_args.append("-shared")
 
     # Disable warnings
     compile_args.append("-w")
@@ -110,6 +113,7 @@ if sys.platform == "win32":
     compile_args.append("/std:c11")
     compile_args.append("/O2")
     compile_args.append("/fp:fast")
+    compile_args.append("/EXPORT:*")
 
     # Dealing with MinGW linking errors
     # https://cibuildwheel.readthedocs.io/en/stable/faq/#windows-importerror-dll-load-failed-the-specific-module-could-not-be-found
