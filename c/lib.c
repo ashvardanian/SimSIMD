@@ -180,7 +180,7 @@ SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
     if (static_capabilities != simsimd_cap_any_k)
         return static_capabilities;
 
-    static_capabilities = simsimd_capabilities_implementation();
+    static_capabilities = _simsimd_capabilities_implementation();
 
     // In multithreaded applications we need to ensure that the function pointers are pre-initialized,
     // so the first time we are probing for capabilities, we should also probe all of our metrics
@@ -243,6 +243,16 @@ SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
     simsimd_mahalanobis_bf16((simsimd_bf16_t*)dummy, (simsimd_bf16_t*)dummy, (simsimd_bf16_t*)dummy, 0, dummy_results);
 
     return static_capabilities;
+}
+
+SIMSIMD_DYNAMIC void simsimd_find_metric_punned( //
+    simsimd_metric_kind_t kind,                  //
+    simsimd_datatype_t datatype,                 //
+    simsimd_capability_t supported,              //
+    simsimd_capability_t allowed,                //
+    simsimd_metric_punned_t* metric_output,      //
+    simsimd_capability_t* capability_output) {
+    _simsimd_find_metric_punned_implementation(kind, datatype, supported, allowed, metric_output, capability_output);
 }
 
 #ifdef __cplusplus

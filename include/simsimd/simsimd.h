@@ -266,8 +266,22 @@ typedef simsimd_metric_dense_punned_t simsimd_metric_punned_t;
 
 #if SIMSIMD_DYNAMIC_DISPATCH
 SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void);
+SIMSIMD_DYNAMIC void simsimd_find_metric_punned( //
+    simsimd_metric_kind_t kind,                  //
+    simsimd_datatype_t datatype,                 //
+    simsimd_capability_t supported,              //
+    simsimd_capability_t allowed,                //
+    simsimd_metric_punned_t* metric_output,      //
+    simsimd_capability_t* capability_output);
 #else
 SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void);
+SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
+    simsimd_metric_kind_t kind,                 //
+    simsimd_datatype_t datatype,                //
+    simsimd_capability_t supported,             //
+    simsimd_capability_t allowed,               //
+    simsimd_metric_punned_t* metric_output,     //
+    simsimd_capability_t* capability_output);
 #endif
 
 #if SIMSIMD_TARGET_X86
@@ -276,7 +290,7 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void);
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
  */
-SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_x86(void) {
+SIMSIMD_INTERNAL simsimd_capability_t _simsimd_capabilities_x86(void) {
 
     /// The states of 4 registers populated for a specific "cpuid" assembly call
     union four_registers_t {
@@ -363,7 +377,7 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_x86(void) {
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit Arm machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
  */
-SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_arm(void) {
+SIMSIMD_INTERNAL simsimd_capability_t _simsimd_capabilities_arm(void) {
 #if defined(SIMSIMD_DEFINED_APPLE)
     // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
     uint32_t supports_neon = 0, supports_fp16 = 0, supports_bf16 = 0, supports_i8mm = 0;
@@ -471,12 +485,12 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_arm(void) {
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
  */
-SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
+SIMSIMD_INTERNAL simsimd_capability_t _simsimd_capabilities_implementation(void) {
 #if SIMSIMD_TARGET_X86
-    return simsimd_capabilities_x86();
+    return _simsimd_capabilities_x86();
 #endif // SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_ARM
-    return simsimd_capabilities_arm();
+    return _simsimd_capabilities_arm();
 #endif // SIMSIMD_TARGET_ARM
     return simsimd_cap_serial_k;
 }
@@ -502,12 +516,12 @@ SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities_implementation(void) {
  *  @param metric_output Output variable for the selected similarity function.
  *  @param capability_output Output variable for the utilized hardware capabilities.
  */
-SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
-    simsimd_metric_kind_t kind,                 //
-    simsimd_datatype_t datatype,                //
-    simsimd_capability_t supported,             //
-    simsimd_capability_t allowed,               //
-    simsimd_metric_punned_t* metric_output,     //
+SIMSIMD_INTERNAL void _simsimd_find_metric_punned_implementation( //
+    simsimd_metric_kind_t kind,                                   //
+    simsimd_datatype_t datatype,                                  //
+    simsimd_capability_t supported,                               //
+    simsimd_capability_t allowed,                                 //
+    simsimd_metric_punned_t* metric_output,                       //
     simsimd_capability_t* capability_output) {
 
     // Modern compilers abso-freaking-lutely love optimizing-out my logic!
@@ -1307,22 +1321,31 @@ SIMSIMD_DYNAMIC void simsimd_js_f64(simsimd_f64_t const* a, simsimd_f64_t const*
  */
 
 // clang-format off
-SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) { return simsimd_capabilities_implementation(); }
+SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) { return _simsimd_capabilities_implementation(); }
 SIMSIMD_PUBLIC int simsimd_uses_dynamic_dispatch(void) { return 0; }
 SIMSIMD_PUBLIC int simsimd_uses_neon(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON; }
-SIMSIMD_PUBLIC int simsimd_uses_neon_f16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON && SIMSIMD_NATIVE_F16; }
-SIMSIMD_PUBLIC int simsimd_uses_neon_bf16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON && SIMSIMD_NATIVE_BF16; }
-SIMSIMD_PUBLIC int simsimd_uses_neon_i8(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON; }
+SIMSIMD_PUBLIC int simsimd_uses_neon_f16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON_F16 ; }
+SIMSIMD_PUBLIC int simsimd_uses_neon_bf16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON_BF16; }
+SIMSIMD_PUBLIC int simsimd_uses_neon_i8(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON_I8; }
 SIMSIMD_PUBLIC int simsimd_uses_sve(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE; }
-SIMSIMD_PUBLIC int simsimd_uses_sve_f16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE && SIMSIMD_NATIVE_F16; }
-SIMSIMD_PUBLIC int simsimd_uses_sve_bf16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE && SIMSIMD_NATIVE_BF16; }
-SIMSIMD_PUBLIC int simsimd_uses_sve_i8(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE; }
+SIMSIMD_PUBLIC int simsimd_uses_sve_f16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE_F16; }
+SIMSIMD_PUBLIC int simsimd_uses_sve_bf16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE_BF16; }
+SIMSIMD_PUBLIC int simsimd_uses_sve_i8(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE_I8; }
 SIMSIMD_PUBLIC int simsimd_uses_sve2(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE2; }
 SIMSIMD_PUBLIC int simsimd_uses_haswell(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_HASWELL; }
 SIMSIMD_PUBLIC int simsimd_uses_skylake(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SKYLAKE; }
 SIMSIMD_PUBLIC int simsimd_uses_ice(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_ICE; }
 SIMSIMD_PUBLIC int simsimd_uses_sapphire(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SAPPHIRE; }
 SIMSIMD_PUBLIC int simsimd_uses_genoa(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_GENOA; }
+SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
+    simsimd_metric_kind_t kind,                 //
+    simsimd_datatype_t datatype,                //
+    simsimd_capability_t supported,             //
+    simsimd_capability_t allowed,               //
+    simsimd_metric_punned_t* metric_output,     //
+    simsimd_capability_t* capability_output) {
+    _simsimd_find_metric_punned_implementation(kind, datatype, supported, allowed, metric_output, capability_output);
+}
 // clang-format on
 
 /*  Inner products
