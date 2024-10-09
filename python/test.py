@@ -378,7 +378,7 @@ def name_to_kernels(name: str):
         raise ValueError(f"Unknown kernel name: {name}")
 
 
-def f32_round_and_downcast_to_bf16(array):
+def f32_downcast_to_bf16(array):
     """Converts an array of 32-bit floats into 16-bit brain-floats."""
     array = np.asarray(array, dtype=np.float32)
     # NumPy doesn't natively support brain-float, so we need a trick!
@@ -582,8 +582,8 @@ def test_dense_bf16(ndim, metric, stats_fixture):
     a = np.random.randn(ndim).astype(np.float32)
     b = np.random.randn(ndim).astype(np.float32)
 
-    a_f32_rounded, a_bf16 = f32_round_and_downcast_to_bf16(a)
-    b_f32_rounded, b_bf16 = f32_round_and_downcast_to_bf16(b)
+    a_f32_rounded, a_bf16 = f32_downcast_to_bf16(a)
+    b_f32_rounded, b_bf16 = f32_downcast_to_bf16(b)
 
     baseline_kernel, simd_kernel = name_to_kernels(metric)
     accurate_dt, accurate = profile(baseline_kernel, a_f32_rounded.astype(np.float64), b_f32_rounded.astype(np.float64))
@@ -630,9 +630,9 @@ def test_curved_bf16(ndim, metric, stats_fixture):
     c = np.abs(np.random.randn(ndim, ndim).astype(np.float32))
     c = np.dot(c, c.T)
 
-    a_f32_rounded, a_bf16 = f32_round_and_downcast_to_bf16(a)
-    b_f32_rounded, b_bf16 = f32_round_and_downcast_to_bf16(b)
-    c_f32_rounded, c_bf16 = f32_round_and_downcast_to_bf16(c)
+    a_f32_rounded, a_bf16 = f32_downcast_to_bf16(a)
+    b_f32_rounded, b_bf16 = f32_downcast_to_bf16(b)
+    c_f32_rounded, c_bf16 = f32_downcast_to_bf16(c)
 
     baseline_kernel, simd_kernel = name_to_kernels(metric)
     accurate_dt, accurate = profile(
@@ -682,7 +682,7 @@ def test_dense_i8(ndim, metric, stats_fixture):
     expected_dt, expected = profile(baseline_kernel, a.astype(np.int64), b.astype(np.int64))
     result_dt, result = profile(simd_kernel, a, b)
 
-    assert int(result) == int(expected), f"Expected {expected}, but got {result} (overflow: {expected_overflow})"
+    assert int(result) == int(expected), f"Expected {expected}, but got {result}"
     collect_errors(metric, ndim, "int8", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
     #! Fun fact: SciPy doesn't actually raise an `OverflowError` when overflow happens
