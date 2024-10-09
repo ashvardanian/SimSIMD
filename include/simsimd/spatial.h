@@ -1137,8 +1137,8 @@ SIMSIMD_PUBLIC void simsimd_l2sq_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t 
 
     simsimd_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
-        __m256i a_vec = _mm256_loadu_si256((__m256i const*)(a + i));
-        __m256i b_vec = _mm256_loadu_si256((__m256i const*)(b + i));
+        __m256i a_vec = _mm256_lddqu_si256((__m256i const*)(a + i));
+        __m256i b_vec = _mm256_lddqu_si256((__m256i const*)(b + i));
 
         // Sign extend int8 to int16
         __m256i a_low = _mm256_cvtepi8_epi16(_mm256_castsi256_si128(a_vec));
@@ -1176,53 +1176,43 @@ SIMSIMD_PUBLIC void simsimd_l2sq_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t 
 SIMSIMD_PUBLIC void simsimd_cos_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                            simsimd_distance_t* result) {
 
-    __m256i ab_low_vec = _mm256_setzero_si256();
-    __m256i ab_high_vec = _mm256_setzero_si256();
-    __m256i a2_low_vec = _mm256_setzero_si256();
-    __m256i a2_high_vec = _mm256_setzero_si256();
-    __m256i b2_low_vec = _mm256_setzero_si256();
-    __m256i b2_high_vec = _mm256_setzero_si256();
+    __m256i ab_i32_vec = _mm256_setzero_si256();
+    __m256i a2_i32_vec = _mm256_setzero_si256();
+    __m256i b2_i32_vec = _mm256_setzero_si256();
+    __m256i const zeros_vec = _mm256_setzero_si256();
 
     simsimd_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
-        __m256i a_vec = _mm256_loadu_si256((__m256i const*)(a + i));
-        __m256i b_vec = _mm256_loadu_si256((__m256i const*)(b + i));
+        __m256i a_i8_vec = _mm256_lddqu_si256((__m256i const*)(a + i));
+        __m256i b_i8_vec = _mm256_lddqu_si256((__m256i const*)(b + i));
 
-        // Unpack `int8` to `int16`
-        __m256i a_low_16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_vec, 0));
-        __m256i a_high_16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_vec, 1));
-        __m256i b_low_16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_vec, 0));
-        __m256i b_high_16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_vec, 1));
+        // AVX2 has no instructions for 8-bit signed integer dot-products,
+        // but it has a weird instruction for mixed signed-unsigned 8-bit dot-product.
+        // So we need to normalize the first vector to its absolute value,
+        // and shift the product sign into the second vector.
+        __m256i a_i8_abs_vec = _mm256_abs_epi8(a_i8_vec);
+        __m256i b_i8_abs_vec = _mm256_abs_epi8(b_i8_vec);
+        __m256i b_i8_flipped_vec = _mm256_sign_epi8(b_i8_vec, a_i8_vec);
+        __m256i ab_i16_vec = _mm256_maddubs_epi16(a_i8_abs_vec, b_i8_flipped_vec);
 
-        // Multiply and accumulate as `int16`, accumulate products as `int32`
-        ab_low_vec = _mm256_add_epi32(ab_low_vec, _mm256_madd_epi16(a_low_16, b_low_16));
-        ab_high_vec = _mm256_add_epi32(ab_high_vec, _mm256_madd_epi16(a_high_16, b_high_16));
-        a2_low_vec = _mm256_add_epi32(a2_low_vec, _mm256_madd_epi16(a_low_16, a_low_16));
-        a2_high_vec = _mm256_add_epi32(a2_high_vec, _mm256_madd_epi16(a_high_16, a_high_16));
-        b2_low_vec = _mm256_add_epi32(b2_low_vec, _mm256_madd_epi16(b_low_16, b_low_16));
-        b2_high_vec = _mm256_add_epi32(b2_high_vec, _mm256_madd_epi16(b_high_16, b_high_16));
+        // As for the squared values, the sign will disapper anyways.
+        __m256i a2_i16_vec = _mm256_maddubs_epi16(a_i8_abs_vec, a_i8_abs_vec);
+        __m256i b2_i16_vec = _mm256_maddubs_epi16(b_i8_abs_vec, b_i8_abs_vec);
+
+        // Will almost imediatelly overflow, in accumulation, unless we upcast
+        // further to 32-bit integers.
+        ab_i32_vec = _mm256_add_epi32(ab_i32_vec, _mm256_unpacklo_epi16(ab_i16_vec, zeros_vec));
+        a2_i32_vec = _mm256_add_epi32(a2_i32_vec, _mm256_unpacklo_epi16(a2_i16_vec, zeros_vec));
+        b2_i32_vec = _mm256_add_epi32(b2_i32_vec, _mm256_unpacklo_epi16(b2_i16_vec, zeros_vec));
+        ab_i32_vec = _mm256_add_epi32(ab_i32_vec, _mm256_unpackhi_epi16(ab_i16_vec, zeros_vec));
+        a2_i32_vec = _mm256_add_epi32(a2_i32_vec, _mm256_unpackhi_epi16(a2_i16_vec, zeros_vec));
+        b2_i32_vec = _mm256_add_epi32(b2_i32_vec, _mm256_unpackhi_epi16(b2_i16_vec, zeros_vec));
     }
 
-    // Horizontal sum across the 256-bit register
-    __m256i ab_vec = _mm256_add_epi32(ab_low_vec, ab_high_vec);
-    __m128i ab_sum = _mm_add_epi32(_mm256_extracti128_si256(ab_vec, 0), _mm256_extracti128_si256(ab_vec, 1));
-    ab_sum = _mm_hadd_epi32(ab_sum, ab_sum);
-    ab_sum = _mm_hadd_epi32(ab_sum, ab_sum);
-
-    __m256i a2_vec = _mm256_add_epi32(a2_low_vec, a2_high_vec);
-    __m128i a2_sum = _mm_add_epi32(_mm256_extracti128_si256(a2_vec, 0), _mm256_extracti128_si256(a2_vec, 1));
-    a2_sum = _mm_hadd_epi32(a2_sum, a2_sum);
-    a2_sum = _mm_hadd_epi32(a2_sum, a2_sum);
-
-    __m256i b2_vec = _mm256_add_epi32(b2_low_vec, b2_high_vec);
-    __m128i b2_sum = _mm_add_epi32(_mm256_extracti128_si256(b2_vec, 0), _mm256_extracti128_si256(b2_vec, 1));
-    b2_sum = _mm_hadd_epi32(b2_sum, b2_sum);
-    b2_sum = _mm_hadd_epi32(b2_sum, b2_sum);
-
     // Further reduce to a single sum for each vector
-    int ab = _mm_extract_epi32(ab_sum, 0);
-    int a2 = _mm_extract_epi32(a2_sum, 0);
-    int b2 = _mm_extract_epi32(b2_sum, 0);
+    int ab = _simsimd_reduce_i32x8_haswell(ab_i32_vec);
+    int a2 = _simsimd_reduce_i32x8_haswell(a2_i32_vec);
+    int b2 = _simsimd_reduce_i32x8_haswell(b2_i32_vec);
 
     // Take care of the tail:
     for (; i < n; ++i) {
