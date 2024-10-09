@@ -1132,8 +1132,8 @@ SIMSIMD_PUBLIC void simsimd_l2_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t co
 SIMSIMD_PUBLIC void simsimd_l2sq_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                             simsimd_distance_t* result) {
 
-    __m256i d2_i32_high_vec = _mm256_setzero_si256();
     __m256i d2_i32_low_vec = _mm256_setzero_si256();
+    __m256i d2_i32_high_vec = _mm256_setzero_si256();
     __m256i const zero_vec = _mm256_setzero_si256();
 
     simsimd_size_t i = 0;
@@ -1152,8 +1152,8 @@ SIMSIMD_PUBLIC void simsimd_l2sq_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t 
         __m256i d_i16_high_vec = _mm256_sub_epi16(a_i16_high_vec, b_i16_high_vec);
 
         // Accumulate into `i32` vectors
-        d2_i32_low_vec = _mm256_dpwssds_epi32(d2_i32_low_vec, d_i16_low_vec, d_i16_low_vec);
-        d2_i32_high_vec = _mm256_dpwssds_epi32(d2_i32_high_vec, d_i16_high_vec, d_i16_high_vec);
+        d2_i32_low_vec = _mm256_add_epi32(d2_i32_low_vec, _mm256_madd_epi16(d_i16_low_vec, d_i16_low_vec));
+        d2_i32_high_vec = _mm256_add_epi32(d2_i32_high_vec, _mm256_madd_epi16(d_i16_high_vec, d_i16_high_vec));
     }
 
     // Accumulate the 32-bit integers from `d2_i32_high_vec` and `d2_i32_low_vec`
