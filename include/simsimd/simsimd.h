@@ -290,7 +290,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
  */
-SIMSIMD_INTERNAL simsimd_capability_t _simsimd_capabilities_x86(void) {
+SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
 
     /// The states of 4 registers populated for a specific "cpuid" assembly call
     union four_registers_t {
@@ -377,7 +377,7 @@ SIMSIMD_INTERNAL simsimd_capability_t _simsimd_capabilities_x86(void) {
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit Arm machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
  */
-SIMSIMD_INTERNAL simsimd_capability_t _simsimd_capabilities_arm(void) {
+SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
 #if defined(SIMSIMD_DEFINED_APPLE)
     // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
     uint32_t supports_neon = 0, supports_fp16 = 0, supports_bf16 = 0, supports_i8mm = 0;
@@ -485,7 +485,7 @@ SIMSIMD_INTERNAL simsimd_capability_t _simsimd_capabilities_arm(void) {
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
  */
-SIMSIMD_INTERNAL simsimd_capability_t _simsimd_capabilities_implementation(void) {
+SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_implementation(void) {
 #if SIMSIMD_TARGET_X86
     return _simsimd_capabilities_x86();
 #endif // SIMSIMD_TARGET_X86
