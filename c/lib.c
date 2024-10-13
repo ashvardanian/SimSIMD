@@ -177,6 +177,7 @@ SIMSIMD_DYNAMIC int simsimd_uses_turin(void) { return (simsimd_capabilities() & 
 SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void) { return 1; }
 
 SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
+    //! The latency of the CPUID instruction can be over 100 cycles, so we cache the result.
     static simsimd_capability_t static_capabilities = simsimd_cap_any_k;
     if (static_capabilities != simsimd_cap_any_k)
         return static_capabilities;
