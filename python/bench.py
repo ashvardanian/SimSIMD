@@ -403,7 +403,7 @@ cdist_funcs = [
     (
         "numpy.dot",
         lambda A, B: np.dot(A, B.T),
-        lambda A, B: simd.cdist(A, B, "dot"),
+        lambda A, B: simd.cdist(A, B, metric="dot"),
         [np.float32, np.float16, np.int8, np.complex64, np.complex128],
     ),
 ]
@@ -414,31 +414,31 @@ if args.scipy:
             (
                 "scipy.cosine",
                 lambda A, B: spd.cdist(A, B, "cosine"),
-                lambda A, B: simd.cdist(A, B, "cosine"),
+                lambda A, B: simd.cdist(A, B, metric="cosine"),
                 [np.float32, np.float16, np.int8],
             ),
             (
                 "scipy.sqeuclidean",
                 lambda A, B: spd.cdist(A, B, "sqeuclidean"),
-                lambda A, B: simd.cdist(A, B, "sqeuclidean"),
+                lambda A, B: simd.cdist(A, B, metric="sqeuclidean"),
                 [np.float32, np.float16, np.int8],
             ),
             (
                 "scipy.jensenshannon",
                 lambda A, B: spd.cdist(A, B, "jensenshannon"),
-                lambda A, B: simd.cdist(A, B, "jensenshannon"),
+                lambda A, B: simd.cdist(A, B, metric="jensenshannon"),
                 [np.float32, np.float16],
             ),
             (
                 "scipy.hamming",
                 lambda A, B: spd.cdist(A, B, "hamming"),
-                lambda A, B: simd.cdist(A, B, "hamming"),
+                lambda A, B: simd.cdist(A, B, metric="hamming"),
                 [np.uint8],
             ),
             (
                 "scipy.jaccard",
                 lambda A, B: spd.cdist(A, B, "jaccard"),
-                lambda A, B: simd.cdist(A, B, "jaccard"),
+                lambda A, B: simd.cdist(A, B, metric="jaccard"),
                 [np.uint8],
             ),
         ]
