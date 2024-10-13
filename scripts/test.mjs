@@ -23,9 +23,9 @@
 import test from "node:test";
 import assert from "node:assert";
 
-import * as simsimd from "./dist/esm/simsimd.js";
+import * as simsimd from "../javascript/dist/esm/simsimd.js";
 
-import * as fallback from "./dist/esm/fallback.js";
+import * as fallback from "../javascript/dist/esm/fallback.js";
 
 function assertAlmostEqual(actual, expected, tolerance = 1e-6) {
   const lowerBound = expected - tolerance;

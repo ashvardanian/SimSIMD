@@ -168,7 +168,7 @@
         "Zilla"
     ],
     "python.testing.pytestArgs": [
-        "python/test.py"
+        "scripts/test.py"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true

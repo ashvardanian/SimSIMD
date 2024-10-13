@@ -83,7 +83,7 @@ jobs:
       - name: Test with PyTest
         run: |
           python -c "import simsimd; print(simsimd.get_capabilities())"
-          pytest python/test.py -s -x -Wd -v
+          pytest scripts/test.py -s -x -Wd -v
 
   test_nodejs:
     name: Test Node.js

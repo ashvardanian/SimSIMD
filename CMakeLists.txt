@@ -85,7 +85,7 @@ if (SIMSIMD_BUILD_BENCHMARKS)
     endif ()
 
     find_package(Threads REQUIRED)
-    add_executable(simsimd_bench cpp/bench.cxx)
+    add_executable(simsimd_bench scripts/bench.cxx)
     target_link_libraries(simsimd_bench simsimd Threads::Threads benchmark)
 
     find_package(BLAS)
@@ -97,10 +97,10 @@ if (SIMSIMD_BUILD_BENCHMARKS)
 endif ()
 
 if (SIMSIMD_BUILD_TESTS)
-    add_executable(simsimd_test_compile_time cpp/test.c)
+    add_executable(simsimd_test_compile_time scripts/test.c)
     target_link_libraries(simsimd_test_compile_time simsimd m)
 
-    add_executable(simsimd_test_run_time cpp/test.c c/lib.c)
+    add_executable(simsimd_test_run_time scripts/test.c c/lib.c)
     target_compile_definitions(simsimd_test_run_time PRIVATE SIMSIMD_DYNAMIC_DISPATCH=1)
     target_link_libraries(simsimd_test_run_time simsimd m)
 endif ()

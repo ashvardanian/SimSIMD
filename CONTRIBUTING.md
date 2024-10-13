@@ -48,7 +48,7 @@ Testing:
 ```sh
 pip install -e .                             # to install the package in editable mode
 pip install pytest pytest-repeat tabulate    # testing dependencies
-pytest python/test.py -s -x -Wd              # to run tests
+pytest scripts/test.py -s -x -Wd             # to run tests
 
 # to check supported SIMD instructions:
 python -c "import simsimd; print(simsimd.get_capabilities())" 
@@ -68,15 +68,15 @@ CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ pip ins
 Benchmarking:
 
 ```sh
-pip install numpy scipy scikit-learn        # for comparison baselines
-python python/bench.py                      # to run default benchmarks
-python python/bench.py --n 1000 --ndim 1536 # batch size and dimensions
+pip install numpy scipy scikit-learn                 # for comparison baselines
+python scripts/bench_vectors.py                      # to run default benchmarks
+python scripts/bench_vectors.py --n 1000 --ndim 1536 # batch size and dimensions
 ```
 
 You can also benchmark against other libraries, filter the numeric types, and distance metrics:
 
 ```sh
-$ python python/bench.py --help
+$ python scripts/bench_vectors.py --help
 > usage: bench.py [-h] [--ndim NDIM] [-n COUNT]
 >                 [--metric {all,dot,spatial,binary,probability,sparse}]
 >                 [--dtype {all,bits,int8,uint16,uint32,float16,float32,float64,bfloat16,complex32,complex64,complex128}] 
