@@ -71,13 +71,13 @@ _FloatType = Literal[
     "d",
     "f64",
     "float64",
-    "bh",  # Not supported by NumPy
-    "bf16",  # Not supported by NumPy
-    "bfloat16",  # Not supported by NumPy
+    "bh",  #! Not supported by NumPy
+    "bf16",  #! Not supported by NumPy
+    "bfloat16",  #! Not supported by NumPy
 ]
 _ComplexType = Literal[
-    "complex32",  # Not supported by NumPy
-    "bcomplex32",  # Not supported by NumPy
+    "complex32",  #! Not supported by NumPy
+    "bcomplex32",  #! Not supported by NumPy
     "complex64",
     "complex128",
 ]
@@ -92,6 +92,7 @@ def enable_capability(capability: str, /) -> None: ...
 def disable_capability(capability: str, /) -> None: ...
 
 # Accessing function pointers
+def pointer_to_euclidean(dtype: Union[_IntegralType, _FloatType], /) -> int: ...
 def pointer_to_sqeuclidean(dtype: Union[_IntegralType, _FloatType], /) -> int: ...
 def pointer_to_cosine(dtype: Union[_IntegralType, _FloatType], /) -> int: ...
 def pointer_to_inner(dtype: Union[_FloatType, _ComplexType], /) -> int: ...

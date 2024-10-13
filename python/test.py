@@ -1000,6 +1000,35 @@ def test_cdist(ndim, input_dtype, out_dtype, metric):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("input_dtype", ["complex128", "complex64"])
+@pytest.mark.parametrize("out_dtype", [None, "complex128", "complex64"])
+@pytest.mark.parametrize("metric", ["dot", "vdot"])
+def test_cdist_complex(ndim, input_dtype, out_dtype, metric):
+    """Compares the simd.cdist() for complex numbers to pure NumPy complex dot-products, as SciPy has no such functionality."""
+
+    np.random.seed()
+
+    # We will work with random matrices A (M x D) and B (N x D).
+    # To test their ability to handle strided inputs, we are going to add one extra dimension.
+    A = np.random.randn(ndim).astype(input_dtype)
+    B = np.random.randn(ndim).astype(input_dtype)
+
+    expected = np.dot(A, B) if metric == "dot" else np.vdot(A, B)
+    if out_dtype is None:
+        result1d = simd.cdist(A, B, metric=metric)
+        result2d = simd.cdist(A.reshape(1, ndim), B.reshape(1, ndim), metric=metric)
+    else:
+        expected = expected.astype(out_dtype)
+        result1d = simd.cdist(A, B, metric=metric, out_dtype=out_dtype)
+        result2d = simd.cdist(A.reshape(1, ndim), B.reshape(1, ndim), metric=metric, out_dtype=out_dtype)
+
+    # Assert they're close.
+    np.testing.assert_allclose(result1d, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result2d, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])

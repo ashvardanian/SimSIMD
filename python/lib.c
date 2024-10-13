@@ -243,9 +243,13 @@ size_t bytes_per_datatype(simsimd_datatype_t dtype) {
 /// @return 1 if the cast was successful, 0 if the target datatype is not supported.
 int cast_distance(simsimd_distance_t distance, simsimd_datatype_t target_dtype, void* target_ptr, size_t offset) {
     switch (target_dtype) {
+    case simsimd_datatype_f64c_k: ((simsimd_f64_t*)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
     case simsimd_datatype_f64_k: ((simsimd_f64_t*)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
+    case simsimd_datatype_f32c_k: ((simsimd_f32_t*)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
     case simsimd_datatype_f32_k: ((simsimd_f32_t*)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
+    case simsimd_datatype_f16c_k: simsimd_f32_to_f16(distance, (simsimd_f16_t*)target_ptr + offset); return 1;
     case simsimd_datatype_f16_k: simsimd_f32_to_f16(distance, (simsimd_f16_t*)target_ptr + offset); return 1;
+    case simsimd_datatype_bf16c_k: simsimd_f32_to_bf16(distance, (simsimd_bf16_t*)target_ptr + offset); return 1;
     case simsimd_datatype_bf16_k: simsimd_f32_to_bf16(distance, (simsimd_bf16_t*)target_ptr + offset); return 1;
     case simsimd_datatype_i8_k: ((simsimd_i8_t*)target_ptr)[offset] = (simsimd_i8_t)distance; return 1;
     case simsimd_datatype_u8_k: ((simsimd_u8_t*)target_ptr)[offset] = (simsimd_u8_t)distance; return 1;
@@ -264,8 +268,10 @@ simsimd_metric_kind_t python_string_to_metric_kind(char const* name) {
         return simsimd_metric_euclidean_k;
     else if (same_string(name, "sqeuclidean") || same_string(name, "l2sq"))
         return simsimd_metric_sqeuclidean_k;
-    else if (same_string(name, "inner") || same_string(name, "dot"))
-        return simsimd_metric_inner_k;
+    else if (same_string(name, "dot") || same_string(name, "inner"))
+        return simsimd_metric_dot_k;
+    else if (same_string(name, "vdot"))
+        return simsimd_metric_vdot_k;
     else if (same_string(name, "cosine") || same_string(name, "cos"))
         return simsimd_metric_cosine_k;
     else if (same_string(name, "jaccard"))
@@ -607,6 +613,8 @@ static PyObject* implement_dense_metric(simsimd_metric_kind_t metric_kind, PyObj
 
             // Export out:
             if (!cast_distance(result[0], return_datatype, distances, i * components_per_pair)) {
+                PyObject_Del(distances_obj);
+                output = NULL;
                 PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
                 goto cleanup;
             }
@@ -933,7 +941,7 @@ static PyObject* implement_pointer_access(simsimd_metric_kind_t metric_kind, PyO
     return PyLong_FromUnsignedLongLong((unsigned long long)metric);
 }
 
-static PyObject* api_cdist(PyObject* self, PyObject* const* args, Py_ssize_t positonal_args_count, PyObject* kwnames) {
+static PyObject* api_cdist(PyObject* self, PyObject* const* args, Py_ssize_t positional_args_count, PyObject* kwnames) {
 
     // This function accepts up to 6 arguments:
     PyObject* input_tensor_a = NULL; // Required object, positional-only
@@ -955,7 +963,7 @@ static PyObject* api_cdist(PyObject* self, PyObject* const* args, Py_ssize_t pos
     //                                  &threads, &dtype_str, &out_dtype_str))
     //     return NULL;
     Py_ssize_t kwnames_count = kwnames ? PyTuple_Size(kwnames) : 0;
-    Py_ssize_t args_count = positonal_args_count + kwnames_count;
+    Py_ssize_t args_count = positional_args_count + kwnames_count;
     if (args_count < 2 || args_count > 6) {
         PyErr_Format(PyExc_TypeError, "Function expects 2-6 arguments, got %d", args_count);
         return NULL;
@@ -978,12 +986,12 @@ static PyObject* api_cdist(PyObject* self, PyObject* const* args, Py_ssize_t pos
     }
 
     // The rest of the arguments must be checked in the keyword dictionary.
-    // There may be a case, when the call is illformed and more positional arguments are provided than needed.
+    // There may be a case, when the call is ill-formed and more positional arguments are provided than needed.
     // For a call like:
     //
-    //      cdist(a, b, "cos", "dos"): positonal_args_count == 4, kwnames_count == 0
-    //      cdist(a, b, "cos", metric="dos"): positonal_args_count == 3, kwnames_count == 1
-    //      cdist(a, b, metric="cos", metric="dos"): positonal_args_count == 2, kwnames_count == 2
+    //      cdist(a, b, "cos", "dos"): positional_args_count == 4, kwnames_count == 0
+    //      cdist(a, b, "cos", metric="dos"): positional_args_count == 3, kwnames_count == 1
+    //      cdist(a, b, metric="cos", metric="dos"): positional_args_count == 2, kwnames_count == 2
     //
     // https://ashvardanian.com/posts/discount-on-keyword-arguments-in-python/
     for (Py_ssize_t kwnames_progress = 0; kwnames_progress < kwnames_count; ++args_progress, ++kwnames_progress) {
@@ -1058,7 +1066,7 @@ static PyObject* api_cdist(PyObject* self, PyObject* const* args, Py_ssize_t pos
         }
     }
 
-    simsimd_datatype_t out_dtype = simsimd_datatype_f64_k;
+    simsimd_datatype_t out_dtype = simsimd_datatype_unknown_k;
     if (out_dtype_obj) {
         out_dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
         if (!out_dtype_str && PyErr_Occurred()) {
