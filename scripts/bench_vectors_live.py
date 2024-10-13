@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Module: bench_perfplot.py
+Module: bench_vectors_live.py
 
 This script visualizes the performance difference between SimSIMD and default
 numerics libraries like NumPy and SimSIMD for the most common kernels.
@@ -14,16 +14,13 @@ of every kernel against the baseline.
 """
 import os
 import argparse
-from functools import partial
 from typing import List
 
 import numpy as np
-import simsimd as simd
 
 import perfplot
-import tabulate
 
-from bench import (
+from bench_vectors import (
     metric_families,
     dtype_names,
     Kernel,
@@ -54,15 +51,15 @@ def main():
     parser.add_argument(
         "--ndim-max",
         type=int,
-        default=8192,
+        default=1024 * 1024,
         help="",
     )
     parser.add_argument(
         "-o",
         "--output-path",
         type=str,
-        default="simsimd_speedup.png",
-        help="File to save the plot to, default: 'simsimd_speedup.png'",
+        default=None,
+        help="File to save the plot to (default: None, plot is shown live)",
     )
     parser.add_argument(
         "-n",
@@ -95,14 +92,14 @@ def main():
     parser.add_argument(
         "--metric",
         choices=metric_families,
-        default=metric_families[0],
-        help=f"Distance metric to use, profiles {metric_families[0]} by default",
+        default="dot",
+        help=f"Distance metric to use, profiles `dot` by default",
     )
     parser.add_argument(
         "--dtype",
         choices=dtype_names,
-        default=dtype_names[0],
-        help=f"Defines numeric types to latency, profiles {dtype_names[0]} by default",
+        default="float64",
+        help=f"Defines numeric types to latency, profiles `float64` by default",
     )
     parser.add_argument("--scipy", action="store_true", help="Profile SciPy, must be installed")
     parser.add_argument("--scikit", action="store_true", help="Profile scikit-learn, must be installed")
@@ -122,7 +119,7 @@ def main():
     kernels: List[Kernel] = list(
         yield_kernels(
             [args.metric],
-            [args.dtype],
+            dtype_names,
             include_scipy=args.scipy,
             include_scikit=args.scikit,
             include_torch=args.torch,
@@ -130,6 +127,8 @@ def main():
             include_jax=args.jax,
         )
     )
+    if len(kernels) == 0:
+        raise RuntimeError("No kernels found!")
 
     def precomputed_flops(ndim: int) -> int:
         if args.mode == "all-pairs":
@@ -137,44 +136,77 @@ def main():
         else:
             return ndim * (args.count)
 
+    def generate_matrix(ndim: int) -> np.ndarray:
+        if args.count == 1:
+            return random_matrix(1, ndim, dtype=args.dtype).flatten()
+        else:
+            return random_matrix(args.count, ndim, dtype=args.dtype)
+
+    def wrap_binary_function(function):
+        def wrapped(A):
+            return function(A, A)
+
+        return wrapped
+
     kernel_labels: List[str] = []
     kernel_callables: List[callable] = []
 
     # Add SimSIMD kernels
     for kernel in kernels:
-        if kernel.name.startswith("numpy.") or kernel.name.startswith("scipy."):
+        if not kernel.name.startswith("numpy.") and not kernel.name.startswith("scipy."):
             continue
-        _, function_name = kernel.name.partition(".")
+        _, _, function_name = kernel.name.partition(".")
         kernel_labels.append(f"simsimd.{function_name}<{kernel.dtype}>")
         if args.mode == "all-pairs":
-            kernel_callables.append(kernel.simsimd_all_pairs_func)
+            kernel_callables.append(wrap_binary_function(kernel.simsimd_all_pairs_func))
         else:
-            kernel_callables.append(kernel.simsimd_func)
+            kernel_callables.append(wrap_binary_function(kernel.simsimd_func))
 
     # Add other kernels
     for kernel in kernels:
         kernel_labels.append(f"{kernel.name}<{kernel.dtype}>")
         if args.mode == "all-pairs":
-            kernel_callables.append(kernel.baseline_all_pairs_func)
+            kernel_callables.append(wrap_binary_function(kernel.baseline_all_pairs_func))
         elif args.count == 1:
-            kernel_callables.append(kernel.baseline_one_to_one_func)
+            kernel_callables.append(wrap_binary_function(kernel.baseline_one_to_one_func))
         else:
-            kernel_callables.append(kernel.baseline_many_to_many_func)
+            kernel_callables.append(wrap_binary_function(kernel.baseline_many_to_many_func))
 
+    # Filter-out kernels that raise any exceptions
+    safe_callables = []
+    safe_labels = []
+    for kernel_label, kernel_callable in zip(kernel_labels, kernel_callables):
+        try:
+            kernel_callable(generate_matrix(ndim_range[0]))
+            safe_callables.append(kernel_callable)
+            safe_labels.append(kernel_label)
+        except:
+            print(f"Skipping {kernel_label}")
+
+    print(safe_callables)
+    print(safe_labels)
+
+    # Settings are mostly the same for live charts and exported ones
     profiler_settings = dict(
-        setup=lambda n: random_matrix(args.count, n, dtype=args.dtype),
-        kernels=kernel_callables,
-        labels=kernel_labels,
+        setup=generate_matrix,
+        kernels=safe_callables,
+        labels=safe_labels,
         n_range=ndim_range,
         flops=precomputed_flops,
         xlabel="ndim",
         equality_check=None,  # bypass correctness check, we have tests for that
     )
-    profiler_settings.pop("flops")
-    perfplot.live(**profiler_settings)
 
     # Plot the results
-    # perfplot_results.save(plot_fp, transparent=False, bbox_inches="tight", relative_to=0, logy="auto")
+    if args.output_path is not None:
+        plot_fp = os.path.abspath(args.output_path)
+        profiler_settings["filename"] = plot_fp
+        profiler_settings["show_progress"] = False
+        results = perfplot.bench(**profiler_settings)
+        results.save(plot_fp, transparent=False, bbox_inches="tight", relative_to=0, logy="auto")
+    else:
+        profiler_settings.pop("flops")
+        perfplot.live(**profiler_settings)
 
 
 if __name__ == "__main__":
