@@ -263,6 +263,20 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t c
         intersection = _mm512_reduce_add_epi64(_mm512_add_epi64(and2_count_vec, and1_count_vec));
         union_ = _mm512_reduce_add_epi64(_mm512_add_epi64(or2_count_vec, or1_count_vec));
     } else if (n_words <= 196) { // Up to 1568 bits.
+        // TODO: On such vectors we can clearly see that the CPU struggles to perform this many parallel
+        // population counts, because the throughput of Jaccard and Hamming in this case starts to differ.
+        // One optimization, aside from Harley-Seal transforms can be using "shuffles" for nibble-popcount
+        // lookups, to utilize other ports on the CPU.
+        // https://github.com/ashvardanian/SimSIMD/pull/138
+        //
+        // On Ice Lake:
+        //  - `VPOPCNTQ (ZMM, K, ZMM)` can only execute on port 5, which is a bottleneck.
+        //  - `VPSHUFB (ZMM, ZMM, ZMM)` can only run on the same port 5 as well!
+        // On Zen4:
+        //  - `VPOPCNTQ (ZMM, K, ZMM)` can run on ports: 0, 1.
+        //  - `VPSHUFB (ZMM, ZMM, ZMM)` can run on ports: 1, 2.
+        // https://uops.info/table.html?search=VPOPCNTQ%20(ZMM%2C%20K%2C%20ZMM)&cb_lat=on&cb_tp=on&cb_uops=on&cb_ports=on&cb_SKX=on&cb_ICL=on&cb_TGL=on&cb_measurements=on&cb_doc=on&cb_avx512=on
+        // https://uops.info/table.html?search=VPSHUFB%20(ZMM%2C%20ZMM%2C%20ZMM)&cb_lat=on&cb_tp=on&cb_uops=on&cb_ports=on&cb_SKX=on&cb_ICL=on&cb_TGL=on&cb_measurements=on&cb_doc=on&cb_avx512=on
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 128);
         __m512i a1_vec = _mm512_loadu_epi8(a);
         __m512i b1_vec = _mm512_loadu_epi8(b);
@@ -276,10 +290,10 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t c
         __m512i or2_count_vec = _mm512_popcnt_epi64(_mm512_or_si512(a2_vec, b2_vec));
         __m512i and3_count_vec = _mm512_popcnt_epi64(_mm512_and_si512(a3_vec, b3_vec));
         __m512i or3_count_vec = _mm512_popcnt_epi64(_mm512_or_si512(a3_vec, b3_vec));
-        intersection =
-            _mm512_reduce_add_epi64(_mm512_add_epi64(and3_count_vec, _mm512_add_epi64(and2_count_vec, and1_count_vec)));
-        union_ =
-            _mm512_reduce_add_epi64(_mm512_add_epi64(or3_count_vec, _mm512_add_epi64(or2_count_vec, or1_count_vec)));
+        intersection = _mm512_reduce_add_epi64( //
+            _mm512_add_epi64(and3_count_vec, _mm512_add_epi64(and2_count_vec, and1_count_vec)));
+        union_ = _mm512_reduce_add_epi64( //
+            _mm512_add_epi64(or3_count_vec, _mm512_add_epi64(or2_count_vec, or1_count_vec)));
     } else if (n_words <= 256) { // Up to 2048 bits.
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 192);
         __m512i a1_vec = _mm512_loadu_epi8(a);

@@ -1707,6 +1707,17 @@ simsimd_cos_i8_ice_cycle:
     // as it's asymmetric with respect to the sign of the input arguments:
     //      Signed(ZeroExtend16(a.byte[4*j]) * SignExtend16(b.byte[4*j]))
     // Luckily to compute the squares, we just drop the sign bit of the second argument.
+    //
+    // On Ice Lake:
+    //  - `VPDPBUSDS (ZMM, ZMM, ZMM)` can only execute on port 0, with 5 cycle latency.
+    //  - `VPDPWSSDS (ZMM, ZMM, ZMM)` can also only execute on port 0, with 5 cycle latency.
+    //
+    // On Zen4 Genoa:
+    //  - `VPDPBUSDS (ZMM, ZMM, ZMM)` can execute on ports 0 and 1, with 4 cycle latency.
+    //  - `VPDPWSSDS (ZMM, ZMM, ZMM)` can also execute on ports 0 and 1, with 4 cycle latency.
+    //
+    // https://uops.info/table.html?search=VPDPBUSDS%20(ZMM%2C%20ZMM%2C%20ZMM)&cb_lat=on&cb_tp=on&cb_uops=on&cb_ports=on&cb_SKX=on&cb_ICL=on&cb_ZEN4=on&cb_measurements=on&cb_doc=on&cb_avx512=on
+    // https://uops.info/table.html?search=vpdpwssds%20(ZMM&cb_lat=on&cb_tp=on&cb_uops=on&cb_ports=on&cb_SKX=on&cb_ICL=on&cb_ZEN4=on&cb_measurements=on&cb_doc=on&cb_avx512=on
     a_i8_abs_vec = _mm512_abs_epi8(a_i8_vec);
     b_i8_abs_vec = _mm512_abs_epi8(b_i8_vec);
     a2_i32_vec = _mm512_dpbusds_epi32(a2_i32_vec, a_i8_abs_vec, a_i8_abs_vec);
