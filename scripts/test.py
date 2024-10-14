@@ -688,7 +688,7 @@ def test_dense_i8(ndim, metric, stats_fixture):
     expected_dt, expected = profile(baseline_kernel, a.astype(np.int64), b.astype(np.int64))
     result_dt, result = profile(simd_kernel, a, b)
 
-    assert int(result) == int(expected), f"Expected {expected}, but got {result}"
+    assert round(float(result)) == round(float(expected)), f"Expected {expected}, but got {result}"
     collect_errors(metric, ndim, "int8", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
     #! Fun fact: SciPy doesn't actually raise an `OverflowError` when overflow happens
@@ -903,7 +903,7 @@ def test_intersect(dtype, first_length_bound, second_length_bound):
     expected = baseline_intersect(a, b)
     result = simd.intersect(a, b)
 
-    assert int(expected) == int(result), f"Missing {np.intersect1d(a, b)} from {a} and {b}"
+    assert round(float(expected)) == round(float(result)), f"Missing {np.intersect1d(a, b)} from {a} and {b}"
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
