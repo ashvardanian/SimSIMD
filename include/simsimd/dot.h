@@ -1087,32 +1087,39 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_haswell(simsimd_f16_t const* a, simsimd_f1
 SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                            simsimd_distance_t* result) {
 
-    __m256i ab_i32_vec = _mm256_setzero_si256();
-    __m256i const zero_vec = _mm256_setzero_si256();
+    __m256i ab_i32_low_vec = _mm256_setzero_si256();
+    __m256i ab_i32_high_vec = _mm256_setzero_si256();
 
+    // AVX2 has no instructions for 8-bit signed integer dot-products,
+    // but it has a weird instruction for mixed signed-unsigned 8-bit dot-product.
+    // So we need to normalize the first vector to its absolute value,
+    // and shift the product sign into the second vector.
+    //
+    //      __m256i a_i8_abs_vec = _mm256_abs_epi8(a_i8_vec);
+    //      __m256i b_i8_flipped_vec = _mm256_sign_epi8(b_i8_vec, a_i8_vec);
+    //      __m256i ab_i16_vec = _mm256_maddubs_epi16(a_i8_abs_vec, b_i8_flipped_vec);
+    //
+    // The problem with this approach, however, is the `-128` value in the second vector.
+    // Flipping it's sign will do nothing, and the result will be incorrect.
+    // This can easily lead to noticeable numerical errors in the final result.
     simsimd_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
-        __m256i a_i8_vec = _mm256_lddqu_si256((__m256i const*)(a + i));
-        __m256i b_i8_vec = _mm256_lddqu_si256((__m256i const*)(b + i));
+        __m256i a_i8_vec = _mm256_loadu_si256((__m256i const*)(a + i));
+        __m256i b_i8_vec = _mm256_loadu_si256((__m256i const*)(b + i));
 
-        // AVX2 has no instructions for 8-bit signed integer dot-products,
-        // but it has a weird instruction for mixed signed-unsigned 8-bit dot-product.
-        // So we need to normalize the first vector to its absolute value,
-        // and shift the product sign into the second vector.
-        __m256i a_i8_abs_vec = _mm256_abs_epi8(a_i8_vec);
-        __m256i b_i8_flipped_vec = _mm256_sign_epi8(b_i8_vec, a_i8_vec);
-        __m256i ab_i16_vec = _mm256_maddubs_epi16(a_i8_abs_vec, b_i8_flipped_vec);
+        // Unpack int8 to int16
+        __m256i a_i16_low_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_i8_vec, 0));
+        __m256i a_i16_high_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_i8_vec, 1));
+        __m256i b_i16_low_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_i8_vec, 0));
+        __m256i b_i16_high_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_i8_vec, 1));
 
-        // Will almost imediatelly overflow, in accumulation, unless we upcast further to 32-bit integers.
-        ab_i32_vec = _mm256_add_epi32(                       //
-            ab_i32_vec,                                      //
-            _mm256_add_epi32(                                //
-                _mm256_unpacklo_epi16(ab_i16_vec, zero_vec), //
-                _mm256_unpackhi_epi16(ab_i16_vec, zero_vec)));
+        // Multiply and accumulate at int16 level, accumulate at int32 level
+        ab_i32_low_vec = _mm256_add_epi32(ab_i32_low_vec, _mm256_madd_epi16(a_i16_low_vec, b_i16_low_vec));
+        ab_i32_high_vec = _mm256_add_epi32(ab_i32_high_vec, _mm256_madd_epi16(a_i16_high_vec, b_i16_high_vec));
     }
 
     // Horizontal sum across the 256-bit register
-    int ab = _simsimd_reduce_i32x8_haswell(ab_i32_vec);
+    int ab = _simsimd_reduce_i32x8_haswell(_mm256_add_epi32(ab_i32_low_vec, ab_i32_high_vec));
 
     // Take care of the tail:
     for (; i < n; ++i)
@@ -1658,47 +1665,30 @@ simsimd_dot_f16c_sapphire_cycle:
 
 SIMSIMD_PUBLIC void simsimd_dot_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                        simsimd_distance_t* result) {
-    __m512i ab_i32s_vec = _mm512_setzero_si512();
-    __m512i a_i8_vec, b_i8_vec;
+    __m512i ab_i32_vec = _mm512_setzero_si512();
+    __m512i a_i16_vec, b_i16_vec;
 
+simsimd_dot_i8_ice_cycle:
+    if (n < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_i16_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, a));
+        b_i16_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, b));
+        n = 0;
+    } else {
+        a_i16_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(a));
+        b_i16_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(b));
+        a += 32, b += 32, n -= 32;
+    }
     // Unfortunately we can't use the `_mm512_dpbusd_epi32` intrinsics here either,
     // as it's asymmetric with respect to the sign of the input arguments:
     //      Signed(ZeroExtend16(a.byte[4*j]) * SignExtend16(b.byte[4*j]))
-    //
-    // One alternative is to use the `_mm512_dpwssd_epi32` intrinsics instead,
-    // upcasting 32x 8-bit signed integers to 16-bit beforehand:
-    //
-    //      ab_i32s_vec = _mm512_dpwssd_epi32(ab_i32s_vec,
-    //          _mm512_cvtepi8_epi16(a_i8_vec),
-    //          _mm512_cvtepi8_epi16(b_i8_vec));
-    //
-    // Each conversion there is expensive and can't be handled in parallel.
-    // Instead we perform some more bit-testing and flipping to handle the sign bit.
-    __m512i a_i8_abs_vec, b_i8_negated_vec, b_i8_flipped_vec;
-    __m512i const zero_vec = _mm512_setzero_si512();
-    __m512i const sign_bit_vec = _mm512_set1_epi8((char)0x80);
-    __mmask64 a_is_negative_mask;
-
-simsimd_dot_i8_ice_cycle:
-    if (n < 64) {
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
-        a_i8_vec = _mm512_maskz_loadu_epi8(mask, a);
-        b_i8_vec = _mm512_maskz_loadu_epi8(mask, b);
-        n = 0;
-    } else {
-        a_i8_vec = _mm512_loadu_epi8(a);
-        b_i8_vec = _mm512_loadu_epi8(b);
-        a += 64, b += 64, n -= 64;
-    }
-    a_i8_abs_vec = _mm512_abs_epi8(a_i8_vec);
-    a_is_negative_mask = _mm512_test_epi8_mask(a_i8_vec, sign_bit_vec);
-    b_i8_negated_vec = _mm512_sub_epi8(zero_vec, b_i8_vec);
-    b_i8_flipped_vec = _mm512_mask_blend_epi8(a_is_negative_mask, b_i8_vec, b_i8_negated_vec);
-    ab_i32s_vec = _mm512_dpbusds_epi32(ab_i32s_vec, a_i8_abs_vec, b_i8_flipped_vec);
+    // So we have to use the `_mm512_dpwssd_epi32` intrinsics instead, upcasting
+    // to 16-bit beforehand.
+    ab_i32_vec = _mm512_dpwssd_epi32(ab_i32_vec, a_i16_vec, b_i16_vec);
     if (n)
         goto simsimd_dot_i8_ice_cycle;
 
-    *result = _mm512_reduce_add_epi32(ab_i32s_vec);
+    *result = _mm512_reduce_add_epi32(ab_i32_vec);
 }
 
 #pragma clang attribute pop
