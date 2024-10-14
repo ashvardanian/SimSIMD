@@ -355,8 +355,9 @@ simsimd_kl_f16_haswell_cycle:
         b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)b));
         n -= 8, a += 8, b += 8;
     }
-
-    __m256 ratio_vec = _mm256_div_ps(_mm256_add_ps(a_vec, epsilon_vec), _mm256_add_ps(b_vec, epsilon_vec));
+    a_vec = _mm256_add_ps(a_vec, epsilon_vec);
+    b_vec = _mm256_add_ps(b_vec, epsilon_vec);
+    __m256 ratio_vec = _mm256_div_ps(a_vec, b_vec);
     __m256 log_ratio_vec = _simsimd_log2_f32_haswell(ratio_vec);
     __m256 prod_vec = _mm256_mul_ps(a_vec, log_ratio_vec);
     sum_vec = _mm256_add_ps(sum_vec, prod_vec);
@@ -386,7 +387,8 @@ simsimd_js_f16_haswell_cycle:
         b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)b));
         n -= 8, a += 8, b += 8;
     }
-
+    a_vec = _mm256_add_ps(a_vec, epsilon_vec);
+    b_vec = _mm256_add_ps(b_vec, epsilon_vec);
     __m256 m_vec = _mm256_mul_ps(_mm256_add_ps(a_vec, b_vec), _mm256_set1_ps(0.5f)); // M = (P + Q) / 2
     __m256 ratio_a_vec = _mm256_div_ps(a_vec, m_vec);
     __m256 ratio_b_vec = _mm256_div_ps(b_vec, m_vec);

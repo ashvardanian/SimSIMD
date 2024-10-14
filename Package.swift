@@ -9,8 +9,8 @@ let package = Package(
         .library(name: "SimSIMD", targets: ["SimSIMD"]),
     ],
     targets: [
-        .testTarget(name: "SimSIMDTests", dependencies: ["SimSIMD"], path: "swift/tests"),
-        .target(name: "SimSIMD", dependencies: ["CSimSIMD"], path: "swift/source"),
+        .testTarget(name: "Test", dependencies: ["SimSIMD"], path: "scripts"),
+        .target(name: "SimSIMD", dependencies: ["CSimSIMD"], path: "swift"),
         .systemLibrary(name: "CSimSIMD", path: "include")
     ]
 )

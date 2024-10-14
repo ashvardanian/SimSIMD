@@ -1,6 +1,6 @@
 {
   "name": "simsimd",
-  "version": "5.6.0",
+  "version": "5.6.3",
   "description": "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm",
   "homepage": "https://github.com/ashvardanian/simsimd",
   "author": "Ash Vardanian",
@@ -27,8 +27,8 @@
     "prebuild-arm64": "prebuildify --arch arm64 --napi --strip --target=10.4.0",
     "prebuild-darwin-x64+arm64": "prebuildify --arch arm64+x64 --napi --strip --target=10.4.0",
     "build-js": "rm -fr javascript/dist/* && tsc -p javascript/tsconfig-esm.json && tsc -p javascript/tsconfig-cjs.json && cp javascript/dist-package-esm.json javascript/dist/esm/package.json && cp javascript/dist-package-cjs.json javascript/dist/cjs/package.json",
-    "test": "node --test ./javascript/test.mjs",
-    "bench": "node ./javascript/bench.js"
+    "test": "node --test ./scripts/test.mjs",
+    "bench": "node ./scripts/bench.js"
   },
   "main": "javascript/dist/cjs/simsimd.js",
   "module": "javascript/dist/esm/simsimd.js",
