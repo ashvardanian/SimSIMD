@@ -28,7 +28,8 @@ constexpr std::size_t default_threads = 1;
 constexpr simsimd_distance_t signaling_distance = std::numeric_limits<simsimd_distance_t>::signaling_NaN();
 
 /// Matches OpenAI embedding size
-constexpr std::size_t dense_dimensions = 128;
+/// For sub-byte data types
+constexpr std::size_t dense_dimensions = 1536;
 /// Has quadratic impact on the number of operations
 constexpr std::size_t curved_dimensions = 128;
 

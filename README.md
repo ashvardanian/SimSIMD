@@ -42,8 +42,8 @@ SimSIMD provides an alternative.
 
 ## Features
 
-__SimSIMD__ (Arabic: "سيمسيم دي") is a library of __over 200 SIMD-optimized kernels__ for distance and similarity measures, boosting search performance in [USearch](https://github.com/unum-cloud/usearch) and several database systems.
-Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command from _Ali Baba and the Forty Thieves_, it opens the doors to a modern treasure: maximizing the potential of today's hardware for high resource utilization.
+__SimSIMD__ (Arabic: "سيمسيم دي") is a mixed-precision math library of __over 200 SIMD-optimized kernels__ extensively used in AI, Search, and DBMS workloads.
+Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command that opened doors to treasure in _Ali Baba and the Forty Thieves_, SimSimd can help you 10x the cost-efficiency of your computational pipelines.
 Implemented distance functions include:
 
 - Euclidean (L2) and Cosine (Angular) spatial distances for Vector Search. _[docs][docs-spatial]_
@@ -69,8 +69,9 @@ Moreover, SimSIMD...
 
 - handles `f64`, `f32`, `f16`, and `bf16` real & complex vectors.
 - handles `i8` integral, `i4` sub-byte, and `b8` binary vectors.
+- handles sparse `u32` and `u16` sets, and weighted sparse vectors.
 - is a zero-dependency [header-only C 99](#using-simsimd-in-c) library.
-- has bindings for [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust) and [JS](#using-simsimd-in-javascript).
+- has [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust), [JS](#using-simsimd-in-javascript), and [Swift](#using-simsimd-in-swift) bindings.
 - has Arm backends for NEON, Scalable Vector Extensions (SVE), and SVE2.
 - has x86 backends for Haswell, Skylake, Ice Lake, Genoa, and Sapphire Rapids.
 - with both compile-time and runtime CPU feature detection easily integrates anywhere!
@@ -89,33 +90,22 @@ You can learn more about the technical implementation details in the following b
 
 ## Benchmarks
 
-### Cosine Distances in SimSIMD vs SciPy and NumPy
+For reference, we use 1536-dimensional vectors, like the embeddings produced by the OpenAI Ada API.
+Comparing the serial code throughput produced by GCC 12 to hand-optimized kernels in SimSIMD, we see the following single-core improvements:
 
-Let's start with 1000 embeddings from OpenAI Ada API with 1536 dimensions.
-SciPy under the hood uses NumPy, which uses BLAS, which uses SIMD.
-SimSIMD also uses SIMD, but does it more efficiently.
+| Type   |                       Apple M2 Pro |              Intel Sapphire Rapids |                     AWS Graviton 4 |
+| :----- | ---------------------------------: | ---------------------------------: | ---------------------------------: |
+| `f64`  | 18.5 → 28.8 GB/s <br/>      + 56 % | 21.9 → 41.4 GB/s <br/>      + 89 % | 20.7 → 41.3 GB/s <br/>      + 99 % |
+| `f32`  |  9.2 → 29.6 GB/s <br/>     + 221 % | 10.9 → 95.8 GB/s <br/>     + 779 % |  4.9 → 41.9 GB/s <br/>     + 755 % |
+| `f16`  |  4.6 → 14.6 GB/s <br/>     + 217 % | 3.1 → 108.4 GB/s <br/>   + 3,397 % |  5.4 → 39.3 GB/s <br/>     + 627 % |
+| `bf16` |  4.6 → 26.3 GB/s <br/>     + 472 % | 0.8 → 59.5 GB/s <br/>     +7,437 % |  2.5 → 29.9 GB/s <br/>   + 1,096 % |
+| `i8`   | 25.8 → 47.1 GB/s <br/>      + 83 % | 33.1 → 65.3 GB/s <br/>      + 97 % | 35.2 → 43.5 GB/s <br/>      + 24 % |
 
-Comparing `scipy.spatial.distance.cosine` to `simsimd.cosine` for:
-
-In each cell show the throughput (pairs/s for SciPy and SimSIMD), 
-the speedup factor of SimSIMD on the second row, 
-and the error reduction on the third row.
-
-| Type   | Apple M2 | Intel Sapphire Rapids | AWS Graviton 4 |
-| :----- | -------: | --------------------: | -------------: |
-| `f64`  |          |                       |                |
-| `f32`  |          |                       |                |
-| `f16`  |          |                       |                |
-| `bf16` |          |                       |                |
-| `i8`   |          |                       |                |
-| `i4`   |          |                       |                |
-
-
-
-__Broader Benchmarking Results__:
+Similar speedups are often observed even when compared to BLAS and LAPACK libraries underlying most numerical computing libraries, including NumPy and SciPy in Python.
+Broader benchmarking results:
 
 - [Apple M2 Pro](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-1-performance-on-apple-m2-pro).
-- [4th Gen Intel Xeon Platinum](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-2-performance-on-4th-gen-intel-xeon-platinum-8480).
+- [Intel Sapphire Rapids](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-2-performance-on-4th-gen-intel-xeon-platinum-8480).
 - [AWS Graviton 3](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-3-performance-on-aws-graviton-3).
 
 ## Using SimSIMD in Python
@@ -534,6 +524,29 @@ const { toBinary, hamming } = require('simsimd');
 const binaryVectorA = toBinary(vectorA);
 const binaryVectorB = toBinary(vectorB);
 const distance = hamming(binaryVectorA, binaryVectorB);
+```
+
+## Using SimSIMD in Sift
+
+To install, simply add the following dependency to you `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/ashvardanian/simsimd")
+]
+```
+
+The package provides the most common spatial metrics for `Int8`, `Float16`, `Float32`, and `Float64` vectors.
+
+```swift
+import SimSIMD
+
+let vectorA: [Int8] = [1, 2, 3]
+let vectorB: [Int8] = [4, 5, 6]
+
+let cosineSimilarity = vectorA.cosine(vectorB)  // Computes the cosine similarity
+let dotProduct = vectorA.dot(vectorB)           // Computes the dot product
+let sqEuclidean = vectorA.sqeuclidean(vectorB)  // Computes the squared Euclidean distance
 ```
 
 ## Using SimSIMD in C
