@@ -44,10 +44,13 @@ import math
 import time
 import platform
 import collections
+from typing import Dict, List
 
 import tabulate
 import pytest
 import simsimd as simd
+
+
 
 # NumPy is available on most platforms and is required for most tests.
 # When using PyPy on some platforms NumPy has internal issues, that will
@@ -350,6 +353,21 @@ def collect_warnings(message: str, stats: dict):
 SIMSIMD_RTOL = 0.1
 SIMSIMD_ATOL = 0.1
 
+# We will run all the tests many times using different instruction sets under the hood.
+available_capabilities: Dict[str, str] = simd.get_capabilities()
+possible_x86_capabilities: List[str] = ["haswell", "ice", "skylake", "sapphire", "turin", "genoa", "sierra"]
+possible_arm_capabilities: List[str] = ["neon", "neon_f16", "neon_bf16", "neon_i8", "sve", "sve_f16", "sve_bf16", "sve_i8"]
+possible_x86_capabilities: List[str] = [c for c in possible_x86_capabilities if available_capabilities[c]]
+possible_arm_capabilities: List[str] = [c for c in possible_arm_capabilities if available_capabilities[c]]
+possible_capabilities: List[str] = possible_x86_capabilities if platform.machine() == "x86_64" else possible_arm_capabilities
+
+def keep_one_capability(cap: str):
+    assert cap in possible_capabilities
+    for c in possible_capabilities:
+        if c != cap:
+            simd.disable_capability(c)
+    simd.enable_capability(c)
+
 
 def name_to_kernels(name: str):
     """
@@ -502,7 +520,8 @@ def test_invalid_argument_handling(function, expected_error, args, kwargs):
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
-def test_dense(ndim, dtype, metric, stats_fixture):
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_dense(ndim, dtype, metric, capability, stats_fixture):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
     with their NumPy or baseline counterparts, testing accuracy for IEEE standard floating-point types."""
 
@@ -513,6 +532,7 @@ def test_dense(ndim, dtype, metric, stats_fixture):
     a = np.random.randn(ndim).astype(dtype)
     b = np.random.randn(ndim).astype(dtype)
 
+    keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(metric)
 
     accurate_dt, accurate = profile(baseline_kernel, a.astype(np.float64), b.astype(np.float64))
@@ -535,7 +555,8 @@ def test_dense(ndim, dtype, metric, stats_fixture):
     ],
 )
 @pytest.mark.parametrize("metric", ["bilinear", "mahalanobis"])
-def test_curved(ndim, dtypes, metric, stats_fixture):
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_curved(ndim, dtypes, metric, capability, stats_fixture):
     """Compares various SIMD kernels (like Bilinear Forms and Mahalanobis distances) for curved spaces
     with their NumPy or baseline counterparts, testing accuracy for IEEE standard floating-point types."""
 
@@ -557,6 +578,7 @@ def test_curved(ndim, dtypes, metric, stats_fixture):
     c = np.abs(np.random.randn(ndim, ndim).astype(dtype))
     c = np.dot(c, c.T)
 
+    keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(metric)
     accurate_dt, accurate = profile(
         baseline_kernel,
@@ -580,7 +602,8 @@ def test_curved(ndim, dtypes, metric, stats_fixture):
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
-def test_dense_bf16(ndim, metric, stats_fixture):
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_dense_bf16(ndim, metric, capability, stats_fixture):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
     with their NumPy or baseline counterparts, testing accuracy for the Brain-float format not
     natively supported by NumPy."""
@@ -591,6 +614,7 @@ def test_dense_bf16(ndim, metric, stats_fixture):
     a_f32_rounded, a_bf16 = f32_downcast_to_bf16(a)
     b_f32_rounded, b_bf16 = f32_downcast_to_bf16(b)
 
+    keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(metric)
     accurate_dt, accurate = profile(baseline_kernel, a_f32_rounded.astype(np.float64), b_f32_rounded.astype(np.float64))
     expected_dt, expected = profile(baseline_kernel, a_f32_rounded, b_f32_rounded)
@@ -617,7 +641,8 @@ def test_dense_bf16(ndim, metric, stats_fixture):
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 16, 33])
 @pytest.mark.parametrize("metric", ["bilinear", "mahalanobis"])
-def test_curved_bf16(ndim, metric, stats_fixture):
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_curved_bf16(ndim, metric, capability, stats_fixture):
     """Compares various SIMD kernels (like Bilinear Forms and Mahalanobis distances) for curved spaces
     with their NumPy or baseline counterparts, testing accuracy for the Brain-float format not
     natively supported by NumPy."""
@@ -640,6 +665,7 @@ def test_curved_bf16(ndim, metric, stats_fixture):
     b_f32_rounded, b_bf16 = f32_downcast_to_bf16(b)
     c_f32_rounded, c_bf16 = f32_downcast_to_bf16(c)
 
+    keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(metric)
     accurate_dt, accurate = profile(
         baseline_kernel,
@@ -673,7 +699,8 @@ def test_curved_bf16(ndim, metric, stats_fixture):
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
-def test_dense_i8(ndim, metric, stats_fixture):
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_dense_i8(ndim, metric, capability, stats_fixture):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
     with their NumPy or baseline counterparts, testing accuracy for small integer types, that can't
     be directly processed with other tools without overflowing."""
@@ -682,13 +709,17 @@ def test_dense_i8(ndim, metric, stats_fixture):
     a = np.random.randint(-128, 127, size=(ndim), dtype=np.int8)
     b = np.random.randint(-128, 127, size=(ndim), dtype=np.int8)
 
+    keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(metric)
 
     accurate_dt, accurate = profile(baseline_kernel, a.astype(np.float64), b.astype(np.float64))
     expected_dt, expected = profile(baseline_kernel, a.astype(np.int64), b.astype(np.int64))
     result_dt, result = profile(simd_kernel, a, b)
 
-    assert round(float(result)) == round(float(expected)), f"Expected {expected}, but got {result}"
+    if metric == "inner":
+        assert round(float(result)) == round(float(expected)), f"Expected {expected}, but got {result}"
+    else:
+        np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL), f"Expected {expected}, but got {result}"
     collect_errors(metric, ndim, "int8", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
     #! Fun fact: SciPy doesn't actually raise an `OverflowError` when overflow happens
@@ -706,13 +737,15 @@ def test_dense_i8(ndim, metric, stats_fixture):
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("metric", ["jaccard", "hamming"])
-def test_dense_bits(ndim, metric, stats_fixture):
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_dense_bits(ndim, metric, capability, stats_fixture):
     """Compares various SIMD kernels (like Hamming and Jaccard/Tanimoto distances) for dense bit arrays
     with their NumPy or baseline counterparts, even though, they can't process sub-byte-sized scalars."""
     np.random.seed()
     a = np.random.randint(2, size=ndim).astype(np.uint8)
     b = np.random.randint(2, size=ndim).astype(np.uint8)
 
+    keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(metric)
     accurate_dt, accurate = profile(baseline_kernel, a.astype(np.uint64), b.astype(np.uint64))
     expected_dt, expected = profile(baseline_kernel, a, b)
@@ -726,7 +759,8 @@ def test_dense_bits(ndim, metric, stats_fixture):
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float32", "float16"])
-def test_jensen_shannon(ndim, dtype):
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_jensen_shannon(ndim, dtype, capability):
     """Compares the simd.jensenshannon() function with scipy.spatial.distance.jensenshannon(), measuring the accuracy error for f16, and f32 types."""
     np.random.seed()
     a = np.abs(np.random.randn(ndim)).astype(dtype)
@@ -734,6 +768,7 @@ def test_jensen_shannon(ndim, dtype):
     a /= np.sum(a)
     b /= np.sum(b)
 
+    keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels("jensenshannon")
     accurate_dt, accurate = profile(baseline_kernel, a.astype(np.float64), b.astype(np.float64))
     expected_dt, expected = profile(baseline_kernel, a, b)
@@ -748,10 +783,12 @@ def test_jensen_shannon(ndim, dtype):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float32", "float16"])
-def test_cosine_zero_vector(ndim, dtype):
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_cosine_zero_vector(ndim, dtype, capability):
     """Tests the simd.cosine() function with zero vectors, to catch division by zero errors."""
     a = np.zeros(ndim, dtype=dtype)
     b = (np.random.randn(ndim) + 1).astype(dtype)
+    keep_one_capability(capability)
 
     result = simd.cosine(a, b)
     assert result == 1, f"Expected 1, but got {result}"
@@ -772,7 +809,8 @@ def test_cosine_zero_vector(ndim, dtype):
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
-def test_overflow(ndim, dtype, metric):
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_overflow(ndim, dtype, metric, capability):
     """Tests if the floating-point kernels are capable of detecting overflow yield the same ±inf result."""
 
     np.random.seed()
@@ -784,6 +822,7 @@ def test_overflow(ndim, dtype, metric):
     a = a.astype(dtype)
     b = b.astype(dtype)
 
+    keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(metric)
     result = simd_kernel(a, b)
     assert np.isinf(result), f"Expected ±inf, but got {result}"
@@ -803,7 +842,8 @@ def test_overflow(ndim, dtype, metric):
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [131072, 262144])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
-def test_overflow_i8(ndim, metric):
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_overflow_i8(ndim, metric, capability):
     """Tests if the integral kernels are capable of detecting overflow yield the same ±inf result,
     as with 2^16 elements accumulating "u32(u16(u8)*u16(u8))+u32" products should overflow and the
     same is true for 2^17 elements with "i32(i15(i8))*i32(i15(i8))" products.
@@ -813,6 +853,7 @@ def test_overflow_i8(ndim, metric):
     a = np.full(ndim, fill_value=-128, dtype=np.int8)
     b = np.full(ndim, fill_value=-128, dtype=np.int8)
 
+    keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(metric)
     expected = baseline_kernel(a, b)
     result = simd_kernel(a, b)
@@ -831,13 +872,15 @@ def test_overflow_i8(ndim, metric):
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [22, 66, 1536])
 @pytest.mark.parametrize("dtype", ["float32", "float64"])
-def test_dot_complex(ndim, dtype, stats_fixture):
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_dot_complex(ndim, dtype, capability, stats_fixture):
     """Compares the simd.dot() and simd.vdot() against NumPy for complex numbers."""
     np.random.seed()
     dtype_view = np.complex64 if dtype == "float32" else np.complex128
     a = np.random.randn(ndim).astype(dtype=dtype).view(dtype_view)
     b = np.random.randn(ndim).astype(dtype=dtype).view(dtype_view)
 
+    keep_one_capability(capability)
     accurate_dt, accurate = profile(np.dot, a.astype(np.complex128), b.astype(np.complex128))
     expected_dt, expected = profile(np.dot, a, b)
     result_dt, result = profile(simd.dot, a, b)
@@ -861,12 +904,14 @@ def test_dot_complex(ndim, dtype, stats_fixture):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [22, 66, 1536])
-def test_dot_complex_explicit(ndim):
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_dot_complex_explicit(ndim, capability):
     """Compares the simd.dot() and simd.vdot() against NumPy for complex numbers."""
     np.random.seed()
     a = np.random.randn(ndim).astype(dtype=np.float32)
     b = np.random.randn(ndim).astype(dtype=np.float32)
 
+    keep_one_capability(capability)
     expected = np.dot(a.view(np.complex64), b.view(np.complex64))
     result = simd.dot(a, b, "complex64")
 
@@ -883,7 +928,8 @@ def test_dot_complex_explicit(ndim):
 @pytest.mark.parametrize("dtype", ["uint16", "uint32"])
 @pytest.mark.parametrize("first_length_bound", [10, 100, 1000])
 @pytest.mark.parametrize("second_length_bound", [10, 100, 1000])
-def test_intersect(dtype, first_length_bound, second_length_bound):
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_intersect(dtype, first_length_bound, second_length_bound, capability):
     """Compares the simd.intersect() function with numpy.intersect1d."""
 
     if is_running_under_qemu() and (platform.machine() == "aarch64" or platform.machine() == "arm64"):
@@ -900,6 +946,7 @@ def test_intersect(dtype, first_length_bound, second_length_bound):
     a = np.unique(a)
     b = np.unique(b)
 
+    keep_one_capability(capability)
     expected = baseline_intersect(a, b)
     result = simd.intersect(a, b)
 
@@ -910,13 +957,15 @@ def test_intersect(dtype, first_length_bound, second_length_bound):
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
-def test_batch(ndim, dtype):
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_batch(ndim, dtype, capability):
     """Compares the simd.simd.sqeuclidean() function with scipy.spatial.distance.sqeuclidean() for a batch of vectors, measuring the accuracy error for f16, and f32 types."""
 
     if dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
     np.random.seed()
+    keep_one_capability(capability)
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) is an array with N floats.
     A = np.random.randn(10, ndim).astype(dtype)
@@ -978,13 +1027,15 @@ def test_batch(ndim, dtype):
 @pytest.mark.parametrize("input_dtype", ["float32", "float16"])
 @pytest.mark.parametrize("out_dtype", [None, "float32", "int32"])
 @pytest.mark.parametrize("metric", ["cosine", "sqeuclidean"])
-def test_cdist(ndim, input_dtype, out_dtype, metric):
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
     """Compares the simd.cdist() function with scipy.spatial.distance.cdist(), measuring the accuracy error for f16, and f32 types using sqeuclidean and cosine metrics."""
 
     if input_dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
     np.random.seed()
+    keep_one_capability(capability)
 
     # We will work with random matrices A (M x D) and B (N x D).
     # To test their ability to handle strided inputs, we are going to add one extra dimension.
@@ -1010,10 +1061,12 @@ def test_cdist(ndim, input_dtype, out_dtype, metric):
 @pytest.mark.parametrize("input_dtype", ["complex128", "complex64"])
 @pytest.mark.parametrize("out_dtype", [None, "complex128", "complex64"])
 @pytest.mark.parametrize("metric", ["dot", "vdot"])
-def test_cdist_complex(ndim, input_dtype, out_dtype, metric):
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
     """Compares the simd.cdist() for complex numbers to pure NumPy complex dot-products, as SciPy has no such functionality."""
 
     np.random.seed()
+    keep_one_capability(capability)
 
     # We will work with random matrices A (M x D) and B (N x D).
     # To test their ability to handle strided inputs, we are going to add one extra dimension.
@@ -1039,10 +1092,12 @@ def test_cdist_complex(ndim, input_dtype, out_dtype, metric):
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("out_dtype", [None, "float32", "float16", "int8"])
-def test_cdist_hamming(ndim, out_dtype):
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_cdist_hamming(ndim, out_dtype, capability):
     """Compares various SIMD kernels (like Hamming and Jaccard/Tanimoto distances) for dense bit arrays
     with their NumPy or baseline counterparts, even though, they can't process sub-byte-sized scalars."""
     np.random.seed()
+    keep_one_capability(capability)
 
     # Create random matrices A (M x D) and B (N x D).
     M, N = 10, 15
