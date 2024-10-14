@@ -3,9 +3,13 @@
     "targets": [
         {
             "target_name": "simsimd",
-            "sources": ["javascript/lib.c"],
+            "sources": ["javascript/lib.c", "c/lib.c"],
             "include_dirs": ["include"],
-            "defines": ["SIMSIMD_NATIVE_F16=0", "SIMSIMD_NATIVE_BF16=0"],
+            "defines": [
+                "SIMSIMD_NATIVE_F16=0",
+                "SIMSIMD_NATIVE_BF16=0",
+                "SIMSIMD_DYNAMIC_DISPATCH=1",
+            ],
             "cflags": [
                 "-std=c11",
                 "-ffast-math",
