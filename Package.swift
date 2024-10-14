@@ -17,6 +17,9 @@ let package = Package(
             sources: ["../../c/lib.c"], // Include the source file here
             publicHeadersPath: ".",
             cSettings: [
+                .define("SIMSIMD_DYNAMIC_DISPATCH", to: "1"), // Define a C macro
+                .define("SIMSIMD_NATIVE_F16", to: "0"), // Define a C macro
+                .define("SIMSIMD_NATIVE_BF16", to: "0"), // Define a C macro
                 .headerSearchPath("include/"), // Specify header search paths
                 .unsafeFlags(["-Wall"]) // Use with caution: specify custom compiler flags
             ]
