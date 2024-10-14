@@ -38,7 +38,7 @@ class SimSIMDTests: XCTestCase {
         let a: [Int8] = [1, 2, 3]
         let b: [Int8] = [4, 5, 6]
         let result = try XCTUnwrap(a.dot(b))
-        XCTAssertEqual(result, 0.029403687, accuracy: 0.01)
+        XCTAssertEqual(result, 32.0, accuracy: 0.01)
     }
 
     func testDotFloat16() throws {
