@@ -124,7 +124,8 @@
 #endif // defined(__AVX2__)
 #endif // !defined(SIMSIMD_TARGET_HASWELL)
 
-// Compiling for x86: SIMSIMD_TARGET_SKYLAKE, SIMSIMD_TARGET_ICE, SIMSIMD_TARGET_GENOA, SIMSIMD_TARGET_SAPPHIRE
+// Compiling for x86: SIMSIMD_TARGET_SKYLAKE, SIMSIMD_TARGET_ICE, SIMSIMD_TARGET_GENOA,
+// SIMSIMD_TARGET_SAPPHIRE, SIMSIMD_TARGET_TURIN, SIMSIMD_TARGET_SIERRA
 //
 // To list all available macros for x86, take a recent compiler, like GCC 12 and run:
 //      gcc-12 -march=sapphirerapids -dM -E - < /dev/null | egrep "SSE|AVX" | sort
@@ -164,6 +165,22 @@
 #define SIMSIMD_TARGET_SAPPHIRE 0
 #endif
 #endif // !defined(SIMSIMD_TARGET_SAPPHIRE)
+#if !defined(SIMSIMD_TARGET_TURIN) || (SIMSIMD_TARGET_TURIN && !SIMSIMD_TARGET_X86)
+#if defined(__AVX512VP2INTERSECT__)
+#define SIMSIMD_TARGET_TURIN 1
+#else
+#undef SIMSIMD_TARGET_TURIN
+#define SIMSIMD_TARGET_TURIN 0
+#endif
+#endif // !defined(SIMSIMD_TARGET_TURIN)
+#if !defined(SIMSIMD_TARGET_SIERRA) || (SIMSIMD_TARGET_SIERRA && !SIMSIMD_TARGET_X86)
+#if defined(__AVX2_VNNI__)
+#define SIMSIMD_TARGET_SIERRA 1
+#else
+#undef SIMSIMD_TARGET_SIERRA
+#define SIMSIMD_TARGET_SIERRA 0
+#endif
+#endif // !defined(SIMSIMD_TARGET_SIERRA)
 
 #ifdef _MSC_VER
 #include <intrin.h>
@@ -178,7 +195,7 @@
 #endif
 
 #if SIMSIMD_TARGET_HASWELL || SIMSIMD_TARGET_SKYLAKE || SIMSIMD_TARGET_ICE || SIMSIMD_TARGET_GENOA ||                  \
-    SIMSIMD_TARGET_SAPPHIRE
+    SIMSIMD_TARGET_SAPPHIRE || SIMSIMD_TARGET_TURIN
 #include <immintrin.h>
 #endif
 
@@ -212,6 +229,7 @@ extern "C" {
 #endif
 
 typedef unsigned char simsimd_b8_t;
+typedef unsigned char simsimd_i4x2_t;
 
 typedef signed char simsimd_i8_t;
 typedef unsigned char simsimd_u8_t;
@@ -330,6 +348,8 @@ typedef unsigned short simsimd_bf16_t;
  *  In C the `_Static_assert` is only available with C 11 and later.
  */
 #define SIMSIMD_STATIC_ASSERT(cond, msg) typedef char static_assertion_##msg[(cond) ? 1 : -1]
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_b8_t) == 1, simsimd_b8_t_must_be_1_byte);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i4x2_t) == 1, simsimd_i4x2_t_must_be_1_byte);
 SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i8_t) == 1, simsimd_i8_t_must_be_1_byte);
 SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u8_t) == 1, simsimd_u8_t_must_be_1_byte);
 SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i16_t) == 2, simsimd_i16_t_must_be_2_bytes);

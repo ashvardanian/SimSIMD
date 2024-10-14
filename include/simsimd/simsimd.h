@@ -23,6 +23,7 @@
  *         F, CD, VL, DQ, BW, VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ, BF16
  *       > In other words, it extends Sunny Cove with BF16 support
  *  - Intel Golden Cove (Sapphire Rapids): extends Zen4 and Sunny Cove with FP16 support
+ *  - AMD Zen5 (Turin): makes VP2INTERSECT cool again
  *
  *  Intel Palm Cove was an irrelevant intermediate release extending Skylake with IFMA and VBMI.
  *  Intel Willow Cove was an irrelevant intermediate release extending Sunny Cove with VP2INTERSECT,
@@ -35,6 +36,7 @@
  *  2. Intel Ice Lake (2019-2021): advanced integer algorithms.
  *  3. AMD Genoa (2023+): brain-floating point support.
  *  4. Intel Sapphire Rapids (2023+): advanced mixed-precision float processing.
+ *  5. AMD Turin (2024+): advanced sparse algorithms.
  *
  *  To list all available macros for x86, take a recent compiler, like GCC 12 and run:
  *       gcc-12 -march=sapphirerapids -dM -E - < /dev/null | egrep "SSE|AVX" | sort
@@ -147,7 +149,9 @@ typedef enum {
     simsimd_metric_tanimoto_k = 'j', ///< Tanimoto coefficient is same as Jaccard
 
     // Sets:
-    simsimd_metric_intersect_k = 'x', ///< Equivalent to unnormalized Jaccard
+    simsimd_metric_intersect_k = 'x',     ///< Equivalent to unnormalized Jaccard
+    simsimd_metric_spdot_counts_k = 'y',  ///< Sparse sets with integer weights
+    simsimd_metric_spdot_weights_k = 'z', ///< Sparse sets with brain floating-point weights
 
     // Curved Spaces:
     simsimd_metric_bilinear_k = 'b',    ///< Bilinear form
@@ -174,6 +178,8 @@ typedef enum {
     simsimd_cap_ice_k = 1 << 12,      ///< x86 AVX512 capability with advanced integer algos
     simsimd_cap_genoa_k = 1 << 13,    ///< x86 AVX512 capability with `bf16` support
     simsimd_cap_sapphire_k = 1 << 14, ///< x86 AVX512 capability with `f16` support
+    simsimd_cap_turin_k = 1 << 15,    ///< x86 AVX512 capability with conflict detection
+    simsimd_cap_sierra_k = 1 << 16,   ///< x86 AVX2+VNNI capability with `i8` dot-products
 
     simsimd_cap_neon_k = 1 << 20,      ///< ARM NEON baseline capability
     simsimd_cap_neon_f16_k = 1 << 21,  ///< ARM NEON `f16` capability
@@ -196,8 +202,10 @@ typedef enum {
  *  interfaces.
  */
 typedef enum {
-    simsimd_datatype_unknown_k = 0, ///< Unknown data type
-    simsimd_datatype_b8_k = 1 << 1, ///< Single-bit values packed into 8-bit words
+    simsimd_datatype_unknown_k = 0,                  ///< Unknown data type
+    simsimd_datatype_b8_k = 1 << 1,                  ///< Single-bit values packed into 8-bit words
+    simsimd_datatype_b1x8_k = simsimd_datatype_b8_k, ///< Single-bit values packed into 8-bit words
+    simsimd_datatype_i4x2_k = 1 << 19,               ///< 4-bit signed integers packed into 8-bit words
 
     simsimd_datatype_i8_k = 1 << 2,  ///< 8-bit signed integer
     simsimd_datatype_i16_k = 1 << 3, ///< 16-bit signed integer
@@ -226,7 +234,8 @@ typedef enum {
  *  @param[in] a    Pointer to the first data array.
  *  @param[in] b    Pointer to the second data array.
  *  @param[in] n    Number of scalar words in the input arrays.
- *                  When dealing with sub-byte data types, the number of scalar words is the number of bytes.
+ *                  When dealing with sub-byte types, the number of scalar words is the number of bytes.
+ *                  When dealing with complex types, the number of scalar words is the sum of real and imaginary parts.
  *  @param[out] d   Output value as a double-precision float.
  *                  In complex dot-products @b two scalars are exported for the real and imaginary parts.
  */
@@ -343,6 +352,9 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
     // Check for AVX512BF16 (Function ID 7, Sub-leaf 1, EAX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L205
     unsigned supports_avx512bf16 = (info7sub1.named.eax & 0x00000020) != 0;
+    // Clang doesn't show the VP2INTERSECT flag, but we can get it from QEMU
+    // https://stackoverflow.com/a/68289220/2766161
+    unsigned supports_avx512vp2intersect = (info7.named.edx & 0x00000100) != 0;
 
     // Convert specific features into CPU generations
     unsigned supports_haswell = supports_avx2 && supports_f16c && supports_fma;
@@ -351,6 +363,9 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
                             supports_avx512vbmi2 && supports_avx512vpopcntdq;
     unsigned supports_genoa = supports_avx512bf16;
     unsigned supports_sapphire = supports_avx512fp16;
+    // We don't want to accidently enable AVX512VP2INTERSECT on Intel Tiger Lake CPUs
+    unsigned supports_turin = supports_avx512vp2intersect && supports_avx512bf16;
+    unsigned supports_sierra = 0;
 
     return (simsimd_capability_t)(                     //
         (simsimd_cap_haswell_k * supports_haswell) |   //
@@ -358,6 +373,8 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
         (simsimd_cap_ice_k * supports_ice) |           //
         (simsimd_cap_genoa_k * supports_genoa) |       //
         (simsimd_cap_sapphire_k * supports_sapphire) | //
+        (simsimd_cap_turin_k * supports_turin) |       //
+        (simsimd_cap_sierra_k * supports_sierra) |     //
         (simsimd_cap_serial_k));
 }
 
@@ -399,22 +416,6 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
         (simsimd_cap_serial_k));
 
 #elif defined(SIMSIMD_DEFINED_LINUX)
-    // This is how the `arm-cpusysregs` library does it:
-    //
-    //    int ID_AA64ISAR1_EL1_BF16() const { return (int)(_aa64isar1 >> 44) & 0x0F; }
-    //    int ID_AA64ZFR0_EL1_BF16() const { return (int)(_aa64zfr0 >> 20) & 0x0F; }
-    //    int ID_AA64PFR0_EL1_FP() const { return (int)(_aa64pfr0 >> 16) & 0x0F; }
-    //    int ID_AA64ISAR0_EL1_DP() const { return (int)(_aa64isar0 >> 44) & 0x0F; }
-    //    int ID_AA64PFR0_EL1_SVE() const { return (int)(_aa64pfr0 >> 32) & 0x0F; }
-    //    int ID_AA64ZFR0_EL1_SVEver() const { return (int)(_aa64zfr0) & 0x0F; }
-    //    bool FEAT_BF16() const { return ID_AA64ISAR1_EL1_BF16() >= 1 || ID_AA64ZFR0_EL1_BF16() >= 1; }
-    //    bool FEAT_FP16() const { return ID_AA64PFR0_EL1_FP() >= 1 && ID_AA64PFR0_EL1_FP() < 15; }
-    //    bool FEAT_DotProd() const { return ID_AA64ISAR0_EL1_DP() >= 1; }
-    //    bool FEAT_SVE() const { return ID_AA64PFR0_EL1_SVE() >= 1; }
-    //    bool FEAT_SVE2() const { return ID_AA64ZFR0_EL1_SVEver() >= 1; }
-    //    bool FEAT_I8MM() const { return ID_AA64ZFR0_EL1_I8MM() >= 1; }
-    //
-    // https://github.com/lelegard/arm-cpusysregs/tree/4837c62e619a5e5f12bf41b16a1ee1e71d62c76d
 
     // Read CPUID registers directly
     unsigned long id_aa64isar0_el1 = 0, id_aa64isar1_el1 = 0, id_aa64pfr0_el1 = 0, id_aa64zfr0_el1 = 0;
@@ -1060,9 +1061,15 @@ SIMSIMD_INTERNAL void _simsimd_find_metric_punned_implementation( //
     case simsimd_datatype_u16_k: {
 
 #if SIMSIMD_TARGET_SVE2
-        if (viable & simsimd_cap_sve_k)
+        if (viable & simsimd_cap_sve2_k)
             switch (kind) {
-            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_sve2, *c = simsimd_cap_sve_k; return;
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_sve2, *c = simsimd_cap_sve2_k; return;
+            case simsimd_metric_spdot_counts_k:
+                *m = (m_t)&simsimd_spdot_counts_u16_sve2, *c = simsimd_cap_sve2_k;
+                return;
+            case simsimd_metric_spdot_weights_k:
+                *m = (m_t)&simsimd_spdot_weights_u16_sve2, *c = simsimd_cap_sve2_k;
+                return;
             default: break;
             }
 #endif
@@ -1070,6 +1077,19 @@ SIMSIMD_INTERNAL void _simsimd_find_metric_punned_implementation( //
         if (viable & simsimd_cap_neon_k)
             switch (kind) {
             case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_neon, *c = simsimd_cap_neon_k; return;
+            default: break;
+            }
+#endif
+#if SIMSIMD_TARGET_TURIN
+        if (viable & simsimd_cap_turin_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_turin, *c = simsimd_cap_turin_k; return;
+            case simsimd_metric_spdot_counts_k:
+                *m = (m_t)&simsimd_spdot_counts_u16_turin, *c = simsimd_cap_turin_k;
+                return;
+            case simsimd_metric_spdot_weights_k:
+                *m = (m_t)&simsimd_spdot_weights_u16_turin, *c = simsimd_cap_turin_k;
+                return;
             default: break;
             }
 #endif
@@ -1092,9 +1112,9 @@ SIMSIMD_INTERNAL void _simsimd_find_metric_punned_implementation( //
     case simsimd_datatype_u32_k: {
 
 #if SIMSIMD_TARGET_SVE2
-        if (viable & simsimd_cap_sve_k)
+        if (viable & simsimd_cap_sve2_k)
             switch (kind) {
-            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_sve2, *c = simsimd_cap_sve_k; return;
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_sve2, *c = simsimd_cap_sve2_k; return;
             default: break;
             }
 #endif
@@ -1102,6 +1122,13 @@ SIMSIMD_INTERNAL void _simsimd_find_metric_punned_implementation( //
         if (viable & simsimd_cap_neon_k)
             switch (kind) {
             case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_neon, *c = simsimd_cap_neon_k; return;
+            default: break;
+            }
+#endif
+#if SIMSIMD_TARGET_TURIN
+        if (viable & simsimd_cap_turin_k)
+            switch (kind) {
+            case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_turin, *c = simsimd_cap_skylake_k; return;
             default: break;
             }
 #endif
@@ -1164,10 +1191,14 @@ SIMSIMD_PUBLIC simsimd_metric_punned_t simsimd_metric_punned( //
  *  - Check if the CPU supports AVX512F and AVX512BW extensions on Skylake x86 CPUs and newer
  *  - Check if the CPU supports AVX512VNNI, AVX512IFMA, AVX512BITALG, AVX512VBMI2, and AVX512VPOPCNTDQ
  *    extensions on Ice Lake x86 CPUs and newer
+ *  - Check if the CPU supports AVX512BF16 extensions on Genoa x86 CPUs and newer
  *  - Check if the CPU supports AVX512FP16 extensions on Sapphire Rapids x86 CPUs and newer
+ *  - Check if the CPU supports AVX2VP2INTERSECT extensions on Turin x86 CPUs and newer
  *
  *  @return 1 if the CPU supports the SIMD instruction set, 0 otherwise.
  */
+SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void);
+SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void);
 SIMSIMD_DYNAMIC int simsimd_uses_neon(void);
 SIMSIMD_DYNAMIC int simsimd_uses_neon_f16(void);
 SIMSIMD_DYNAMIC int simsimd_uses_neon_bf16(void);
@@ -1180,9 +1211,10 @@ SIMSIMD_DYNAMIC int simsimd_uses_sve2(void);
 SIMSIMD_DYNAMIC int simsimd_uses_haswell(void);
 SIMSIMD_DYNAMIC int simsimd_uses_skylake(void);
 SIMSIMD_DYNAMIC int simsimd_uses_ice(void);
-SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void);
 SIMSIMD_DYNAMIC int simsimd_uses_genoa(void);
-SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void);
+SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void);
+SIMSIMD_DYNAMIC int simsimd_uses_turin(void);
+SIMSIMD_DYNAMIC int simsimd_uses_sierra(void);
 
 /*  Inner products
  *  - Dot product: the sum of the products of the corresponding elements of two vectors.
@@ -1321,8 +1353,6 @@ SIMSIMD_DYNAMIC void simsimd_js_f64(simsimd_f64_t const* a, simsimd_f64_t const*
  */
 
 // clang-format off
-SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) { return _simsimd_capabilities_implementation(); }
-SIMSIMD_PUBLIC int simsimd_uses_dynamic_dispatch(void) { return 0; }
 SIMSIMD_PUBLIC int simsimd_uses_neon(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON; }
 SIMSIMD_PUBLIC int simsimd_uses_neon_f16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON_F16 ; }
 SIMSIMD_PUBLIC int simsimd_uses_neon_bf16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON_BF16; }
@@ -1335,8 +1365,12 @@ SIMSIMD_PUBLIC int simsimd_uses_sve2(void) { return SIMSIMD_TARGET_ARM && SIMSIM
 SIMSIMD_PUBLIC int simsimd_uses_haswell(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_HASWELL; }
 SIMSIMD_PUBLIC int simsimd_uses_skylake(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SKYLAKE; }
 SIMSIMD_PUBLIC int simsimd_uses_ice(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_ICE; }
-SIMSIMD_PUBLIC int simsimd_uses_sapphire(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SAPPHIRE; }
 SIMSIMD_PUBLIC int simsimd_uses_genoa(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_GENOA; }
+SIMSIMD_PUBLIC int simsimd_uses_sapphire(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SAPPHIRE; }
+SIMSIMD_PUBLIC int simsimd_uses_turin(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_TURIN; }
+SIMSIMD_PUBLIC int simsimd_uses_sierra(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SIERRA; }
+SIMSIMD_PUBLIC int simsimd_uses_dynamic_dispatch(void) { return 0; }
+SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) { return _simsimd_capabilities_implementation(); }
 SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
     simsimd_metric_kind_t kind,                 //
     simsimd_datatype_t datatype,                //
@@ -1850,7 +1884,7 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16(simsimd_u16_t const* a, simsimd_u16_t 
     simsimd_intersect_u16_sve2(a, b, a_length, b_length, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_intersect_u16_neon(a, b, a_length, b_length, d);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif SIMSIMD_TARGET_ICE
     simsimd_intersect_u16_ice(a, b, a_length, b_length, d);
 #else
     simsimd_intersect_u16_serial(a, b, a_length, b_length, d);
@@ -1863,10 +1897,44 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32(simsimd_u32_t const* a, simsimd_u32_t 
     simsimd_intersect_u32_sve2(a, b, a_length, b_length, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_intersect_u32_neon(a, b, a_length, b_length, d);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif SIMSIMD_TARGET_ICE
     simsimd_intersect_u32_ice(a, b, a_length, b_length, d);
 #else
     simsimd_intersect_u32_serial(a, b, a_length, b_length, d);
+#endif
+}
+
+/*  Weighted set operations
+ *
+ *  @param a The first sorted array of integers.
+ *  @param b The second sorted array of integers.
+ *  @param a_weights The weights for the first array.
+ *  @param b_weights The weights for the second array.
+ *  @param a_length The number of elements in the first array.
+ *  @param b_length The number of elements in the second array.
+ *  @param d The output for the number of elements in the intersection.
+ */
+SIMSIMD_PUBLIC void simsimd_spdot_counts_u16(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                             simsimd_i16_t const* a_weights, simsimd_i16_t const* b_weights,
+                                             simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_SVE2
+    simsimd_spdot_counts_u16_sve2(a, b, a_weights, b_weights, a_length, b_length, d);
+#elif SIMSIMD_TARGET_TURIN
+    simsimd_spdot_counts_u16_turin(a, b, a_weights, b_weights, a_length, b_length, d);
+#else
+    simsimd_spdot_counts_u16_serial(a, b, a_weights, b_weights, a_length, b_length, d);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_spdot_weights_u16(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                              simsimd_bf16_t const* a_weights, simsimd_bf16_t const* b_weights,
+                                              simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_SVE2
+    simsimd_spdot_weights_u16_sve2(a, b, a_weights, b_weights, a_length, b_length, d);
+#elif SIMSIMD_TARGET_TURIN
+    simsimd_spdot_weights_u16_turin(a, b, a_weights, b_weights, a_length, b_length, d);
+#else
+    simsimd_spdot_weights_u16_serial(a, b, a_weights, b_weights, a_length, b_length, d);
 #endif
 }
 

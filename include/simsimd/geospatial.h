@@ -13,8 +13,8 @@
  *  - 64-bit IEEE-754 floating point
  *
  *  For hardware architectures:
- *  - Arm (NEON)
- *  - x86 (AVX2)
+ *  - Arm: NEON
+ *  - x86: Haswell
  *
  *  In most cases, for distance computations, we don't need the exact Haversine formula.
  *  The very last part of the computation applies `asin(sqrt(x))` non-linear transformation.

@@ -42,8 +42,8 @@ SimSIMD provides an alternative.
 
 ## Features
 
-__SimSIMD__ (Arabic: "سيمسيم دي") is a library of __over 200 SIMD-optimized kernels__ for distance and similarity measures, boosting search performance in [USearch](https://github.com/unum-cloud/usearch) and several database systems.
-Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command from _Ali Baba and the Forty Thieves_, it opens the doors to a modern treasure: maximizing the potential of today's hardware for high resource utilization.
+__SimSIMD__ (Arabic: "سيمسيم دي") is a mixed-precision math library of __over 200 SIMD-optimized kernels__ extensively used in AI, Search, and DBMS workloads.
+Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command that opened doors to treasure in _Ali Baba and the Forty Thieves_, SimSimd can help you 10x the cost-efficiency of your computational pipelines.
 Implemented distance functions include:
 
 - Euclidean (L2) and Cosine (Angular) spatial distances for Vector Search. _[docs][docs-spatial]_
@@ -68,9 +68,10 @@ Implemented distance functions include:
 Moreover, SimSIMD...
 
 - handles `f64`, `f32`, `f16`, and `bf16` real & complex vectors.
-- handles `i8` integral and `b8` bit vectors.
+- handles `i8` integral, `i4` sub-byte, and `b8` binary vectors.
+- handles sparse `u32` and `u16` sets, and weighted sparse vectors.
 - is a zero-dependency [header-only C 99](#using-simsimd-in-c) library.
-- has bindings for [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust) and [JS](#using-simsimd-in-javascript).
+- has [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust), [JS](#using-simsimd-in-javascript), and [Swift](#using-simsimd-in-swift) bindings.
 - has Arm backends for NEON, Scalable Vector Extensions (SVE), and SVE2.
 - has x86 backends for Haswell, Skylake, Ice Lake, Genoa, and Sapphire Rapids.
 - with both compile-time and runtime CPU feature detection easily integrates anywhere!
@@ -89,33 +90,22 @@ You can learn more about the technical implementation details in the following b
 
 ## Benchmarks
 
-### Against NumPy and SciPy
+For reference, we use 1536-dimensional vectors, like the embeddings produced by the OpenAI Ada API.
+Comparing the serial code throughput produced by GCC 12 to hand-optimized kernels in SimSIMD, we see the following single-core improvements:
 
-Given 1000 embeddings from OpenAI Ada API with 1536 dimensions, running on the Apple M2 Pro Arm CPU with NEON support, here's how SimSIMD performs against conventional methods:
+| Type   |                       Apple M2 Pro |              Intel Sapphire Rapids |                     AWS Graviton 4 |
+| :----- | ---------------------------------: | ---------------------------------: | ---------------------------------: |
+| `f64`  | 18.5 → 28.8 GB/s <br/>      + 56 % | 21.9 → 41.4 GB/s <br/>      + 89 % | 20.7 → 41.3 GB/s <br/>      + 99 % |
+| `f32`  |  9.2 → 29.6 GB/s <br/>     + 221 % | 10.9 → 95.8 GB/s <br/>     + 779 % |  4.9 → 41.9 GB/s <br/>     + 755 % |
+| `f16`  |  4.6 → 14.6 GB/s <br/>     + 217 % | 3.1 → 108.4 GB/s <br/>   + 3,397 % |  5.4 → 39.3 GB/s <br/>     + 627 % |
+| `bf16` |  4.6 → 26.3 GB/s <br/>     + 472 % | 0.8 → 59.5 GB/s <br/>     +7,437 % |  2.5 → 29.9 GB/s <br/>   + 1,096 % |
+| `i8`   | 25.8 → 47.1 GB/s <br/>      + 83 % | 33.1 → 65.3 GB/s <br/>      + 97 % | 35.2 → 43.5 GB/s <br/>      + 24 % |
 
-| Kind                      | `f32` improvement | `f16` improvement | `i8` improvement | Conventional method       | SimSIMD         |
-| :------------------------ | ----------------: | ----------------: | ---------------: | :------------------------ | :-------------- |
-| Inner (Dot) Product       |           __2 x__ |           __9 x__ |         __18 x__ | `numpy.inner`             | `inner`         |
-| Cosine Distance           |          __32 x__ |          __79 x__ |        __133 x__ | `scipy.*.*.cosine`        | `cosine`        |
-| Euclidean Distance ²      |           __5 x__ |          __26 x__ |         __17 x__ | `scipy.*.*.sqeuclidean`   | `sqeuclidean`   |
-| Jensen-Shannon Divergence |          __31 x__ |          __53 x__ |                  | `scipy.*.*.jensenshannon` | `jensenshannon` |
-
-### Against GCC Auto-Vectorization
-
-On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against auto-vectorized code using GCC 12.
-GCC handles single-precision `float` but might not be the best choice for `int8` and `_Float16` arrays, which have been part of the C language since 2011.
-
-| Kind                      | GCC 12 `f32` | GCC 12 `f16` | SimSIMD `f16` | `f16` improvement |
-| :------------------------ | -----------: | -----------: | ------------: | ----------------: |
-| Inner Product             |    3,810 K/s |      192 K/s |     5,990 K/s |          __31 x__ |
-| Cosine Distance           |    3,280 K/s |      336 K/s |     6,880 K/s |          __20 x__ |
-| Euclidean Distance ²      |    4,620 K/s |      147 K/s |     5,320 K/s |          __36 x__ |
-| Jensen-Shannon Divergence |    1,180 K/s |       18 K/s |     2,140 K/s |         __118 x__ |
-
-__Broader Benchmarking Results__:
+Similar speedups are often observed even when compared to BLAS and LAPACK libraries underlying most numerical computing libraries, including NumPy and SciPy in Python.
+Broader benchmarking results:
 
 - [Apple M2 Pro](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-1-performance-on-apple-m2-pro).
-- [4th Gen Intel Xeon Platinum](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-2-performance-on-4th-gen-intel-xeon-platinum-8480).
+- [Intel Sapphire Rapids](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-2-performance-on-4th-gen-intel-xeon-platinum-8480).
 - [AWS Graviton 3](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-3-performance-on-aws-graviton-3).
 
 ## Using SimSIMD in Python
@@ -272,7 +262,7 @@ A common case may be avoiding AVX-512 on older AMD CPUs and [Intel Ice Lake](htt
 
 ```py
 $ simsimd.get_capabilities()
-> {'serial': True, 'neon': False, 'sve': False, 'neon_f16': False, 'sve_f16': False, 'neon_bf16': False, 'sve_bf16': False, 'neon_i8': False, 'sve_i8': False, 'haswell': True, 'skylake': True, 'ice': True, 'genoa': True, 'sapphire': True}
+> {'serial': True, 'neon': False, 'sve': False, 'neon_f16': False, 'sve_f16': False, 'neon_bf16': False, 'sve_bf16': False, 'neon_i8': False, 'sve_i8': False, 'haswell': True, 'skylake': True, 'ice': True, 'genoa': True, 'sapphire': True, 'turin': True}
 $ simsimd.disable_capability("sapphire")
 $ simsimd.enable_capability("sapphire")
 ```
@@ -480,6 +470,7 @@ println!("uses skylake: {}", capabilities::uses_skylake());
 println!("uses ice: {}", capabilities::uses_ice());
 println!("uses genoa: {}", capabilities::uses_genoa());
 println!("uses sapphire: {}", capabilities::uses_sapphire());
+println!("uses turin: {}", capabilities::uses_turin());
 ```
 
 ## Using SimSIMD in JavaScript
@@ -533,6 +524,29 @@ const { toBinary, hamming } = require('simsimd');
 const binaryVectorA = toBinary(vectorA);
 const binaryVectorB = toBinary(vectorB);
 const distance = hamming(binaryVectorA, binaryVectorB);
+```
+
+## Using SimSIMD in Sift
+
+To install, simply add the following dependency to you `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/ashvardanian/simsimd")
+]
+```
+
+The package provides the most common spatial metrics for `Int8`, `Float16`, `Float32`, and `Float64` vectors.
+
+```swift
+import SimSIMD
+
+let vectorA: [Int8] = [1, 2, 3]
+let vectorB: [Int8] = [4, 5, 6]
+
+let cosineSimilarity = vectorA.cosine(vectorB)  // Computes the cosine similarity
+let dotProduct = vectorA.dot(vectorB)           // Computes the dot product
+let sqEuclidean = vectorA.sqeuclidean(vectorB)  // Computes the squared Euclidean distance
 ```
 
 ## Using SimSIMD in C
@@ -714,7 +728,7 @@ To explicitly disable half-precision support, define the following macro before 
 > But if you are running on different generations of devices, it makes sense to pre-compile the library for all supported generations at once, and dispatch at runtime.
 > This flag does just that and is used to produce the `simsimd.so` shared library, as well as the Python and other bindings.
 
-`SIMSIMD_TARGET_ARM` (`SIMSIMD_TARGET_NEON`, `SIMSIMD_TARGET_SVE`, `SIMSIMD_TARGET_SVE2`, `SIMSIMD_TARGET_NEON_F16`, `SIMSIMD_TARGET_SVE_F16`, `SIMSIMD_TARGET_NEON_BF16`, `SIMSIMD_TARGET_SVE_BF16`), `SIMSIMD_TARGET_X86` (`SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`): 
+`SIMSIMD_TARGET_ARM` (`SIMSIMD_TARGET_NEON`, `SIMSIMD_TARGET_SVE`, `SIMSIMD_TARGET_SVE2`, `SIMSIMD_TARGET_NEON_F16`, `SIMSIMD_TARGET_SVE_F16`, `SIMSIMD_TARGET_NEON_BF16`, `SIMSIMD_TARGET_SVE_BF16`), `SIMSIMD_TARGET_X86` (`SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`, `SIMSIMD_TARGET_TURIN`, `SIMSIMD_TARGET_SIERRA`): 
 
 > By default, SimSIMD automatically infers the target architecture and pre-compiles as many kernels as possible.
 > In some cases, you may want to explicitly disable some of the kernels.
@@ -734,6 +748,7 @@ In general there are a few principles that SimSIMD follows:
 - Avoid loop unrolling.
 - Never allocate memory.
 - Never throw exceptions or set `errno`.
+- Detect overflows and report the distance with a "signaling" `NaN`.
 - Keep all function arguments the size of the pointer.
 - Avoid returning from public interfaces, use out-arguments instead.
 - Don't over-optimize for old CPUs and single- and double-precision floating-point numbers.
@@ -775,9 +790,11 @@ It's not only less efficient, but also less accurate, given how the reciprocal s
 The C standard library provides the `sqrt` function, which is generally very accurate, but slow.
 The `rsqrt` in-hardware implementations are faster, but have different accuracy characteristics.
 
-- SSE `rsqrtps` and AVX `vrsqrtps`: $1.5 \times 2^{-12}$ maximal error.
-- AVX-512 `vrsqrt14pd` instruction: $2^{-14}$ maximal error.
-- NEON `frsqrte` instruction has no clear error bounds.
+- SSE `rsqrtps` and AVX `vrsqrtps`: $1.5 \times 2^{-12}$ maximal relative error.
+- AVX-512 `vrsqrt14pd` instruction: $2^{-14}$ maximal relative error.
+- NEON `frsqrte` instruction has no documented error bounds, but [can be][arm-rsqrt] $2^{-3}$.
+
+[arm-rsqrt]: https://gist.github.com/ashvardanian/5e5cf585d63f8ab6d240932313c75411
 
 To overcome the limitations of the `rsqrt` instruction, SimSIMD uses the Newton-Raphson iteration to refine the initial estimate for high-precision floating-point numbers.
 It can be defined as:
@@ -905,6 +922,18 @@ Jensen-Shannon divergence is a symmetrized and smoothed version of the Kullback-
 
 Both functions are defined for non-negative numbers, and the logarithm is a key part of their computation.
 
+### Auto-Vectorization & Loop Unrolling
+
+On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against auto-vectorized code using GCC 12.
+GCC handles single-precision `float` but might not be the best choice for `int8` and `_Float16` arrays, which have been part of the C language since 2011.
+
+| Kind                      | GCC 12 `f32` | GCC 12 `f16` | SimSIMD `f16` | `f16` improvement |
+| :------------------------ | -----------: | -----------: | ------------: | ----------------: |
+| Inner Product             |    3,810 K/s |      192 K/s |     5,990 K/s |          __31 x__ |
+| Cosine Distance           |    3,280 K/s |      336 K/s |     6,880 K/s |          __20 x__ |
+| Euclidean Distance ²      |    4,620 K/s |      147 K/s |     5,320 K/s |          __36 x__ |
+| Jensen-Shannon Divergence |    1,180 K/s |       18 K/s |     2,140 K/s |         __118 x__ |
+
 ### Dynamic Dispatch
 
 Most popular software is precompiled and distributed with fairly conservative CPU optimizations, to ensure compatibility with older hardware.
@@ -1022,7 +1051,7 @@ SimSIMD exposes all kernels for all backends, and you can select the most advanc
 That's handy for testing and benchmarking, but also in case you want to dispatch a very specific kernel for a very specific CPU, bypassing SimSIMD assignment logic.
 All of the function names follow the same pattern: `simsimd_{function}_{type}_{backend}`.
 
-- The backend can be `serial`, `haswell`, `skylake`, `ice`, `genoa`, `sapphire`, `neon`, or `sve`.
+- The backend can be `serial`, `haswell`, `skylake`, `ice`, `genoa`, `sapphire`, `turin`, `neon`, or `sve`.
 - The type can be `f64`, `f32`, `f16`, `bf16`, `f64c`, `f32c`, `f16c`, `bf16c`, `i8`, or `b8`.
 - The function can be `dot`, `vdot`, `cos`, `l2sq`, `hamming`, `jaccard`, `kl`, `js`, or `intersect`.
 

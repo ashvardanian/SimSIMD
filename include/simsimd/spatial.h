@@ -17,8 +17,8 @@
  *  - 4-bit signed integral numbers
  *
  *  For hardware architectures:
- *  - Arm (NEON, SVE)
- *  - x86 (AVX2, AVX512)
+ *  - Arm: NEON, SVE
+ *  - x86: Haswell, Skylake, Ice Lake, Genoa, Sapphire
  *
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
@@ -142,6 +142,9 @@ SIMSIMD_PUBLIC void simsimd_cos_f64_skylake(simsimd_f64_t const* a, simsimd_f64_
  *  Ice Lake added VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ, and other extensions for integral operations.
  *  Sapphire Rapids added tiled matrix operations, but we are most interested in the new mixed-precision FMA instructions.
  */
+SIMSIMD_PUBLIC void simsimd_l2_i4x2_ice(simsimd_i4x2_t const* a, simsimd_i4x2_t const* b, simsimd_size_t n, simsimd_distance_t* d);
+SIMSIMD_PUBLIC void simsimd_l2sq_i4x2_ice(simsimd_i4x2_t const* a, simsimd_i4x2_t const* b, simsimd_size_t n, simsimd_distance_t* d);
+SIMSIMD_PUBLIC void simsimd_cos_i4x2_ice(simsimd_i4x2_t const* a, simsimd_i4x2_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 SIMSIMD_PUBLIC void simsimd_l2_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 SIMSIMD_PUBLIC void simsimd_l2sq_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 SIMSIMD_PUBLIC void simsimd_cos_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* d);
@@ -152,6 +155,10 @@ SIMSIMD_PUBLIC void simsimd_l2_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_
 SIMSIMD_PUBLIC void simsimd_l2sq_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 SIMSIMD_PUBLIC void simsimd_cos_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 
+/*  SIMD-powered backends for AVX-INT8-VNNI extensions on Xeon 6 CPUs, including Sierra Forest and Granite Rapids.
+ *  The packs many "efficiency" cores into a single socket, avoiding heavy 512-bit operations, and focusing on 256-bit ones.
+ */
+SIMSIMD_PUBLIC void simsimd_cos_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 // clang-format on
 
 #define SIMSIMD_MAKE_L2SQ(name, input_type, accumulator_type, load_and_convert)                                        \
@@ -1132,41 +1139,37 @@ SIMSIMD_PUBLIC void simsimd_l2_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t co
 SIMSIMD_PUBLIC void simsimd_l2sq_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                             simsimd_distance_t* result) {
 
-    __m256i d2_high_vec = _mm256_setzero_si256();
-    __m256i d2_low_vec = _mm256_setzero_si256();
+    __m256i d2_i32_low_vec = _mm256_setzero_si256();
+    __m256i d2_i32_high_vec = _mm256_setzero_si256();
 
     simsimd_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
-        __m256i a_vec = _mm256_loadu_si256((__m256i const*)(a + i));
-        __m256i b_vec = _mm256_loadu_si256((__m256i const*)(b + i));
+        __m256i a_i8_vec = _mm256_lddqu_si256((__m256i const*)(a + i));
+        __m256i b_i8_vec = _mm256_lddqu_si256((__m256i const*)(b + i));
 
-        // Sign extend int8 to int16
-        __m256i a_low = _mm256_cvtepi8_epi16(_mm256_castsi256_si128(a_vec));
-        __m256i a_high = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_vec, 1));
-        __m256i b_low = _mm256_cvtepi8_epi16(_mm256_castsi256_si128(b_vec));
-        __m256i b_high = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_vec, 1));
+        // Sign extend `i8` to `i16`
+        __m256i a_i16_low_vec = _mm256_cvtepi8_epi16(_mm256_castsi256_si128(a_i8_vec));
+        __m256i a_i16_high_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_i8_vec, 1));
+        __m256i b_i16_low_vec = _mm256_cvtepi8_epi16(_mm256_castsi256_si128(b_i8_vec));
+        __m256i b_i16_high_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_i8_vec, 1));
 
-        // Subtract and multiply
-        __m256i d_low = _mm256_sub_epi16(a_low, b_low);
-        __m256i d_high = _mm256_sub_epi16(a_high, b_high);
-        __m256i d2_low_part = _mm256_madd_epi16(d_low, d_low);
-        __m256i d2_high_part = _mm256_madd_epi16(d_high, d_high);
+        // Subtract
+        // After this we will be squaring the values. The sign will be dropped
+        // and each difference will be in the range [0, 255].
+        __m256i d_i16_low_vec = _mm256_sub_epi16(a_i16_low_vec, b_i16_low_vec);
+        __m256i d_i16_high_vec = _mm256_sub_epi16(a_i16_high_vec, b_i16_high_vec);
 
-        // Accumulate into int32 vectors
-        d2_low_vec = _mm256_add_epi32(d2_low_vec, d2_low_part);
-        d2_high_vec = _mm256_add_epi32(d2_high_vec, d2_high_part);
+        // Accumulate into `i32` vectors
+        d2_i32_low_vec = _mm256_add_epi32(d2_i32_low_vec, _mm256_madd_epi16(d_i16_low_vec, d_i16_low_vec));
+        d2_i32_high_vec = _mm256_add_epi32(d2_i32_high_vec, _mm256_madd_epi16(d_i16_high_vec, d_i16_high_vec));
     }
 
-    // Accumulate the 32-bit integers from `d2_high_vec` and `d2_low_vec`
-    __m256i d2_vec = _mm256_add_epi32(d2_low_vec, d2_high_vec);
-    __m128i d2_sum = _mm_add_epi32(_mm256_extracti128_si256(d2_vec, 0), _mm256_extracti128_si256(d2_vec, 1));
-    d2_sum = _mm_hadd_epi32(d2_sum, d2_sum);
-    d2_sum = _mm_hadd_epi32(d2_sum, d2_sum);
-    int d2 = _mm_extract_epi32(d2_sum, 0);
+    // Accumulate the 32-bit integers from `d2_i32_high_vec` and `d2_i32_low_vec`
+    int d2 = _simsimd_reduce_i32x8_haswell(_mm256_add_epi32(d2_i32_low_vec, d2_i32_high_vec));
 
     // Take care of the tail:
     for (; i < n; ++i) {
-        int n = a[i] - b[i];
+        int n = (int)(a[i]) - b[i];
         d2 += n * n;
     }
 
@@ -1176,53 +1179,49 @@ SIMSIMD_PUBLIC void simsimd_l2sq_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t 
 SIMSIMD_PUBLIC void simsimd_cos_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                            simsimd_distance_t* result) {
 
-    __m256i ab_low_vec = _mm256_setzero_si256();
-    __m256i ab_high_vec = _mm256_setzero_si256();
-    __m256i a2_low_vec = _mm256_setzero_si256();
-    __m256i a2_high_vec = _mm256_setzero_si256();
-    __m256i b2_low_vec = _mm256_setzero_si256();
-    __m256i b2_high_vec = _mm256_setzero_si256();
+    __m256i ab_i32_low_vec = _mm256_setzero_si256();
+    __m256i ab_i32_high_vec = _mm256_setzero_si256();
+    __m256i a2_i32_low_vec = _mm256_setzero_si256();
+    __m256i a2_i32_high_vec = _mm256_setzero_si256();
+    __m256i b2_i32_low_vec = _mm256_setzero_si256();
+    __m256i b2_i32_high_vec = _mm256_setzero_si256();
 
+    // AVX2 has no instructions for 8-bit signed integer dot-products,
+    // but it has a weird instruction for mixed signed-unsigned 8-bit dot-product.
+    // So we need to normalize the first vector to its absolute value,
+    // and shift the product sign into the second vector.
+    //
+    //      __m256i a_i8_abs_vec = _mm256_abs_epi8(a_i8_vec);
+    //      __m256i b_i8_flipped_vec = _mm256_sign_epi8(b_i8_vec, a_i8_vec);
+    //      __m256i ab_i16_vec = _mm256_maddubs_epi16(a_i8_abs_vec, b_i8_flipped_vec);
+    //
+    // The problem with this approach, however, is the `-128` value in the second vector.
+    // Flipping it's sign will do nothing, and the result will be incorrect.
+    // This can easily lead to noticeable numerical errors in the final result.
     simsimd_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
-        __m256i a_vec = _mm256_loadu_si256((__m256i const*)(a + i));
-        __m256i b_vec = _mm256_loadu_si256((__m256i const*)(b + i));
+        __m256i a_i8_vec = _mm256_loadu_si256((__m256i const*)(a + i));
+        __m256i b_i8_vec = _mm256_loadu_si256((__m256i const*)(b + i));
 
         // Unpack `int8` to `int16`
-        __m256i a_low_16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_vec, 0));
-        __m256i a_high_16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_vec, 1));
-        __m256i b_low_16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_vec, 0));
-        __m256i b_high_16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_vec, 1));
+        __m256i a_i16_low_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_i8_vec, 0));
+        __m256i a_i16_high_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_i8_vec, 1));
+        __m256i b_i16_low_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_i8_vec, 0));
+        __m256i b_i16_high_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_i8_vec, 1));
 
         // Multiply and accumulate as `int16`, accumulate products as `int32`
-        ab_low_vec = _mm256_add_epi32(ab_low_vec, _mm256_madd_epi16(a_low_16, b_low_16));
-        ab_high_vec = _mm256_add_epi32(ab_high_vec, _mm256_madd_epi16(a_high_16, b_high_16));
-        a2_low_vec = _mm256_add_epi32(a2_low_vec, _mm256_madd_epi16(a_low_16, a_low_16));
-        a2_high_vec = _mm256_add_epi32(a2_high_vec, _mm256_madd_epi16(a_high_16, a_high_16));
-        b2_low_vec = _mm256_add_epi32(b2_low_vec, _mm256_madd_epi16(b_low_16, b_low_16));
-        b2_high_vec = _mm256_add_epi32(b2_high_vec, _mm256_madd_epi16(b_high_16, b_high_16));
+        ab_i32_low_vec = _mm256_add_epi32(ab_i32_low_vec, _mm256_madd_epi16(a_i16_low_vec, b_i16_low_vec));
+        ab_i32_high_vec = _mm256_add_epi32(ab_i32_high_vec, _mm256_madd_epi16(a_i16_high_vec, b_i16_high_vec));
+        a2_i32_low_vec = _mm256_add_epi32(a2_i32_low_vec, _mm256_madd_epi16(a_i16_low_vec, a_i16_low_vec));
+        a2_i32_high_vec = _mm256_add_epi32(a2_i32_high_vec, _mm256_madd_epi16(a_i16_high_vec, a_i16_high_vec));
+        b2_i32_low_vec = _mm256_add_epi32(b2_i32_low_vec, _mm256_madd_epi16(b_i16_low_vec, b_i16_low_vec));
+        b2_i32_high_vec = _mm256_add_epi32(b2_i32_high_vec, _mm256_madd_epi16(b_i16_high_vec, b_i16_high_vec));
     }
 
-    // Horizontal sum across the 256-bit register
-    __m256i ab_vec = _mm256_add_epi32(ab_low_vec, ab_high_vec);
-    __m128i ab_sum = _mm_add_epi32(_mm256_extracti128_si256(ab_vec, 0), _mm256_extracti128_si256(ab_vec, 1));
-    ab_sum = _mm_hadd_epi32(ab_sum, ab_sum);
-    ab_sum = _mm_hadd_epi32(ab_sum, ab_sum);
-
-    __m256i a2_vec = _mm256_add_epi32(a2_low_vec, a2_high_vec);
-    __m128i a2_sum = _mm_add_epi32(_mm256_extracti128_si256(a2_vec, 0), _mm256_extracti128_si256(a2_vec, 1));
-    a2_sum = _mm_hadd_epi32(a2_sum, a2_sum);
-    a2_sum = _mm_hadd_epi32(a2_sum, a2_sum);
-
-    __m256i b2_vec = _mm256_add_epi32(b2_low_vec, b2_high_vec);
-    __m128i b2_sum = _mm_add_epi32(_mm256_extracti128_si256(b2_vec, 0), _mm256_extracti128_si256(b2_vec, 1));
-    b2_sum = _mm_hadd_epi32(b2_sum, b2_sum);
-    b2_sum = _mm_hadd_epi32(b2_sum, b2_sum);
-
     // Further reduce to a single sum for each vector
-    int ab = _mm_extract_epi32(ab_sum, 0);
-    int a2 = _mm_extract_epi32(a2_sum, 0);
-    int b2 = _mm_extract_epi32(b2_sum, 0);
+    int ab = _simsimd_reduce_i32x8_haswell(_mm256_add_epi32(ab_i32_low_vec, ab_i32_high_vec));
+    int a2 = _simsimd_reduce_i32x8_haswell(_mm256_add_epi32(a2_i32_low_vec, a2_i32_high_vec));
+    int b2 = _simsimd_reduce_i32x8_haswell(_mm256_add_epi32(b2_i32_low_vec, b2_i32_high_vec));
 
     // Take care of the tail:
     for (; i < n; ++i) {
@@ -1661,46 +1660,46 @@ SIMSIMD_PUBLIC void simsimd_l2_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const*
 }
 SIMSIMD_PUBLIC void simsimd_l2sq_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                         simsimd_distance_t* result) {
-    __m512i d2_i32s_vec = _mm512_setzero_si512();
-    __m512i a_vec, b_vec, d_i16s_vec;
+    __m512i d2_i32_vec = _mm512_setzero_si512();
+    __m512i a_i16_vec, b_i16_vec, d_i16s_vec;
 
 simsimd_l2sq_i8_ice_cycle:
-    if (n < 32) { // TODO: Avoid easrly i16 upcast to step through 64 values at a time
+    if (n < 32) { // TODO: Avoid eaarly i16 upcast to step through 64 values at a time
         __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
-        a_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, a));
-        b_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, b));
+        a_i16_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, a));
+        b_i16_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, b));
         n = 0;
     } else {
-        a_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(a));
-        b_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(b));
+        a_i16_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(a));
+        b_i16_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(b));
         a += 32, b += 32, n -= 32;
     }
-    d_i16s_vec = _mm512_sub_epi16(a_vec, b_vec);
-    d2_i32s_vec = _mm512_dpwssd_epi32(d2_i32s_vec, d_i16s_vec, d_i16s_vec);
+    d_i16s_vec = _mm512_sub_epi16(a_i16_vec, b_i16_vec);
+    d2_i32_vec = _mm512_dpwssd_epi32(d2_i32_vec, d_i16s_vec, d_i16s_vec);
     if (n)
         goto simsimd_l2sq_i8_ice_cycle;
 
-    *result = _mm512_reduce_add_epi32(d2_i32s_vec);
+    *result = _mm512_reduce_add_epi32(d2_i32_vec);
 }
 
 SIMSIMD_PUBLIC void simsimd_cos_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                        simsimd_distance_t* result) {
-    __m512i ab_low_i32s_vec = _mm512_setzero_si512();
-    __m512i ab_high_i32s_vec = _mm512_setzero_si512();
-    __m512i a2_i32s_vec = _mm512_setzero_si512();
-    __m512i b2_i32s_vec = _mm512_setzero_si512();
-    __m512i a_vec, b_vec;
-    __m512i a_abs_vec, b_abs_vec;
+    __m512i ab_i32_low_vec = _mm512_setzero_si512();
+    __m512i ab_i32_high_vec = _mm512_setzero_si512();
+    __m512i a2_i32_vec = _mm512_setzero_si512();
+    __m512i b2_i32_vec = _mm512_setzero_si512();
+    __m512i a_i8_vec, b_i8_vec;
+    __m512i a_i8_abs_vec, b_i8_abs_vec;
 
 simsimd_cos_i8_ice_cycle:
     if (n < 64) {
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
-        a_vec = _mm512_maskz_loadu_epi8(mask, a);
-        b_vec = _mm512_maskz_loadu_epi8(mask, b);
+        a_i8_vec = _mm512_maskz_loadu_epi8(mask, a);
+        b_i8_vec = _mm512_maskz_loadu_epi8(mask, b);
         n = 0;
     } else {
-        a_vec = _mm512_loadu_epi8(a);
-        b_vec = _mm512_loadu_epi8(b);
+        a_i8_vec = _mm512_loadu_epi8(a);
+        b_i8_vec = _mm512_loadu_epi8(b);
         a += 64, b += 64, n -= 64;
     }
 
@@ -1708,34 +1707,300 @@ simsimd_cos_i8_ice_cycle:
     // as it's asymmetric with respect to the sign of the input arguments:
     //      Signed(ZeroExtend16(a.byte[4*j]) * SignExtend16(b.byte[4*j]))
     // Luckily to compute the squares, we just drop the sign bit of the second argument.
-    a_abs_vec = _mm512_abs_epi8(a_vec);
-    b_abs_vec = _mm512_abs_epi8(b_vec);
-    a2_i32s_vec = _mm512_dpbusds_epi32(a2_i32s_vec, a_abs_vec, a_abs_vec);
-    b2_i32s_vec = _mm512_dpbusds_epi32(b2_i32s_vec, b_abs_vec, b_abs_vec);
+    a_i8_abs_vec = _mm512_abs_epi8(a_i8_vec);
+    b_i8_abs_vec = _mm512_abs_epi8(b_i8_vec);
+    a2_i32_vec = _mm512_dpbusds_epi32(a2_i32_vec, a_i8_abs_vec, a_i8_abs_vec);
+    b2_i32_vec = _mm512_dpbusds_epi32(b2_i32_vec, b_i8_abs_vec, b_i8_abs_vec);
 
     // The same trick won't work for the primary dot-product, as the signs vector
     // components may differ significantly. So we have to use two `_mm512_dpwssd_epi32`
     // intrinsics instead, upcasting four chunks to 16-bit integers beforehand!
-    ab_low_i32s_vec = _mm512_dpwssds_epi32(                  //
-        ab_low_i32s_vec,                                     //
-        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(a_vec)), //
-        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(b_vec)));
-    ab_high_i32s_vec = _mm512_dpwssds_epi32(                       //
-        ab_high_i32s_vec,                                          //
-        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(a_vec, 1)), //
-        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(b_vec, 1)));
+    ab_i32_low_vec = _mm512_dpwssds_epi32(                      //
+        ab_i32_low_vec,                                         //
+        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(a_i8_vec)), //
+        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(b_i8_vec)));
+    ab_i32_high_vec = _mm512_dpwssds_epi32(                           //
+        ab_i32_high_vec,                                              //
+        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(a_i8_vec, 1)), //
+        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(b_i8_vec, 1)));
     if (n)
         goto simsimd_cos_i8_ice_cycle;
 
-    int ab = _mm512_reduce_add_epi32(_mm512_add_epi32(ab_low_i32s_vec, ab_high_i32s_vec));
-    int a2 = _mm512_reduce_add_epi32(a2_i32s_vec);
-    int b2 = _mm512_reduce_add_epi32(b2_i32s_vec);
+    int ab = _mm512_reduce_add_epi32(_mm512_add_epi32(ab_i32_low_vec, ab_i32_high_vec));
+    int a2 = _mm512_reduce_add_epi32(a2_i32_vec);
+    int b2 = _mm512_reduce_add_epi32(b2_i32_vec);
+    *result = _simsimd_cos_normalize_f32_haswell(ab, a2, b2);
+}
+
+SIMSIMD_PUBLIC void simsimd_l2_i4x2_ice(simsimd_i4x2_t const* a, simsimd_i4x2_t const* b, simsimd_size_t n_words,
+                                        simsimd_distance_t* result) {
+    simsimd_l2sq_i4x2_ice(a, b, n_words, result);
+    *result = _simsimd_sqrt_f32_haswell(*result);
+}
+SIMSIMD_PUBLIC void simsimd_l2sq_i4x2_ice(simsimd_i4x2_t const* a, simsimd_i4x2_t const* b, simsimd_size_t n_words,
+                                          simsimd_distance_t* result) {
+
+    // While `int8_t` covers the range [-128, 127], `int4_t` covers only [-8, 7].
+    // The absolute difference between two 4-bit integers is at most 15 and it is always a `uint4_t` value!
+    // Moreover, it's square is at most 225, which fits into `uint8_t` and can be computed with a single
+    // lookup table. Accumulating those values is similar to checksumming, a piece of cake for SIMD!
+    __m512i const i4_to_i8_lookup_vec = _mm512_set_epi8(        //
+        -1, -2, -3, -4, -5, -6, -7, -8, 7, 6, 5, 4, 3, 2, 1, 0, //
+        -1, -2, -3, -4, -5, -6, -7, -8, 7, 6, 5, 4, 3, 2, 1, 0, //
+        -1, -2, -3, -4, -5, -6, -7, -8, 7, 6, 5, 4, 3, 2, 1, 0, //
+        -1, -2, -3, -4, -5, -6, -7, -8, 7, 6, 5, 4, 3, 2, 1, 0);
+    __m512i const u4_squares_lookup_vec = _mm512_set_epi8(                                        //
+        (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
+        (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
+        (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
+        (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0);
+
+    /// The mask used to take the low nibble of each byte.
+    __m512i const i4_nibble_vec = _mm512_set1_epi8(0x0F);
+
+    // Temporaries:
+    __m512i a_i4x2_vec, b_i4x2_vec;
+    __m512i a_i8_low_vec, a_i8_high_vec, b_i8_low_vec, b_i8_high_vec;
+    __m512i d_u8_low_vec, d_u8_high_vec; //! Only the low 4 bits are actually used
+    __m512i d2_u8_low_vec, d2_u8_high_vec;
+    __m512i d2_u16_low_vec, d2_u16_high_vec;
+
+    // Accumulators:
+    __m512i d2_u32_vec = _mm512_setzero_si512();
+
+simsimd_l2sq_i4x2_ice_cycle:
+    if (n_words < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+        a_i4x2_vec = _mm512_maskz_loadu_epi8(mask, a);
+        b_i4x2_vec = _mm512_maskz_loadu_epi8(mask, b);
+        n_words = 0;
+    } else {
+        a_i4x2_vec = _mm512_loadu_epi8(a);
+        b_i4x2_vec = _mm512_loadu_epi8(b);
+        a += 64, b += 64, n_words -= 64;
+    }
+
+    // Unpack the 4-bit values into 8-bit values with an empty top nibble.
+    a_i8_low_vec = _mm512_and_si512(a_i4x2_vec, i4_nibble_vec);
+    a_i8_high_vec = _mm512_and_si512(_mm512_srli_epi64(a_i4x2_vec, 4), i4_nibble_vec);
+    b_i8_low_vec = _mm512_and_si512(b_i4x2_vec, i4_nibble_vec);
+    b_i8_high_vec = _mm512_and_si512(_mm512_srli_epi64(b_i4x2_vec, 4), i4_nibble_vec);
+    a_i8_low_vec = _mm512_shuffle_epi8(i4_to_i8_lookup_vec, a_i8_low_vec);
+    a_i8_high_vec = _mm512_shuffle_epi8(i4_to_i8_lookup_vec, a_i8_high_vec);
+    b_i8_low_vec = _mm512_shuffle_epi8(i4_to_i8_lookup_vec, b_i8_low_vec);
+    b_i8_high_vec = _mm512_shuffle_epi8(i4_to_i8_lookup_vec, b_i8_high_vec);
+
+    // We can implement subtraction with a lookup table, or using `_mm512_sub_epi8`.
+    d_u8_low_vec = _mm512_abs_epi8(_mm512_sub_epi8(a_i8_low_vec, b_i8_low_vec));
+    d_u8_high_vec = _mm512_abs_epi8(_mm512_sub_epi8(a_i8_high_vec, b_i8_high_vec));
+
+    // Now we can use the lookup table to compute the squares of the 4-bit unsigned integers
+    // in the low nibbles of the `d_u8_low_vec` and `d_u8_high_vec` vectors.
+    d2_u8_low_vec = _mm512_shuffle_epi8(u4_squares_lookup_vec, d_u8_low_vec);
+    d2_u8_high_vec = _mm512_shuffle_epi8(u4_squares_lookup_vec, d_u8_high_vec);
+
+    // Aggregating into 16-bit integers, we need to first upcast our 8-bit values to 16 bits.
+    // After that, we will perform one more operation, upcasting further into 32-bit integers.
+    d2_u16_low_vec =      //
+        _mm512_add_epi16( //
+            _mm512_unpacklo_epi8(d2_u8_low_vec, _mm512_setzero_si512()),
+            _mm512_unpackhi_epi8(d2_u8_low_vec, _mm512_setzero_si512()));
+    d2_u16_high_vec =     //
+        _mm512_add_epi16( //
+            _mm512_unpacklo_epi8(d2_u8_high_vec, _mm512_setzero_si512()),
+            _mm512_unpackhi_epi8(d2_u8_high_vec, _mm512_setzero_si512()));
+    d2_u32_vec = _mm512_add_epi32(d2_u32_vec, _mm512_unpacklo_epi16(d2_u16_low_vec, _mm512_setzero_si512()));
+    d2_u32_vec = _mm512_add_epi32(d2_u32_vec, _mm512_unpacklo_epi16(d2_u16_high_vec, _mm512_setzero_si512()));
+    if (n_words)
+        goto simsimd_l2sq_i4x2_ice_cycle;
+
+    // Finally, we can reduce the 16-bit integers to 32-bit integers and sum them up.
+    int d2 = _mm512_reduce_add_epi32(d2_u32_vec);
+    *result = d2;
+}
+SIMSIMD_PUBLIC void simsimd_cos_i4x2_ice(simsimd_i4x2_t const* a, simsimd_i4x2_t const* b, simsimd_size_t n_words,
+                                         simsimd_distance_t* result) {
+
+    // We need to compose a lookup table for all the scalar products of 4-bit integers.
+    // While `int8_t` covers the range [-128, 127], `int4_t` covers only [-8, 7].
+    // Practically speaking, the product of two 4-bit signed integers is a 7-bit integer,
+    // as the maximum absolute value of the product is `abs(-8 * -8) == 64`.
+    //
+    // To store 128 possible values of 2^7 bits we only need 128 single-byte scalars,
+    // or just 2x ZMM registers. In that case our lookup will only take `vpermi2b` instruction,
+    // easily inokable with `_mm512_permutex2var_epi8` intrinsic with latency of 6 on Sapphire Rapids.
+    // The problem is converting 2d indices of our symmetric matrix into 1d offsets in the dense array.
+    //
+    // Alternatively, we can take the entire symmetric (16 x 16) matrix of products,
+    // put into 4x ZMM registers, and use it with `_mm512_shuffle_epi8`, remembering
+    // that it can only lookup with 128-bit lanes (16x 8-bit values).
+    // That intrinsic has latency 1, but will need to be repeated and combined with
+    // multiple iterations of `_mm512_shuffle_i64x2` that has latency 3.
+    //
+    // Altenatively, we can get down to 3 cycles per lookup with `vpermb` and `_mm512_permutexvar_epi8` intrinsics.
+    // For that we can split our (16 x 16) matrix into 4x (8 x 8) submatrices, and use 4x ZMM registers.
+    //
+    // Still, all of those solutions are quite heavy compared to two parallel calls to `_mm512_dpbusds_epi32`
+    // for the dot product. But we can still use the `_mm512_permutexvar_epi8` to compute the squares of the
+    // 16 possible `int4_t` values faster.
+    //
+    // Here is how our `int4_t` range looks:
+    //
+    //      dec:     0   1   2   3   4   5   6   7  -8  -7  -6  -5  -4  -3  -2  -1
+    //      hex:     0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
+    //
+    // Squared:
+    //
+    //      dec2:    0   1   4   9  16  25  36  49  64  49  36  25  16   9   4   1
+    //      hex2:    0   1   4   9  10  19  24  31  40  31  24  19  10   9   4   1
+    //
+    // Broadcast it to every lane, so that: `square(x) == _mm512_shuffle_epi8(i4_squares_lookup_vec, x)`.
+    __m512i const i4_to_i8_lookup_vec = _mm512_set_epi8(        //
+        -1, -2, -3, -4, -5, -6, -7, -8, 7, 6, 5, 4, 3, 2, 1, 0, //
+        -1, -2, -3, -4, -5, -6, -7, -8, 7, 6, 5, 4, 3, 2, 1, 0, //
+        -1, -2, -3, -4, -5, -6, -7, -8, 7, 6, 5, 4, 3, 2, 1, 0, //
+        -1, -2, -3, -4, -5, -6, -7, -8, 7, 6, 5, 4, 3, 2, 1, 0);
+    __m512i const i4_squares_lookup_vec = _mm512_set_epi8(       //
+        1, 4, 9, 16, 25, 36, 49, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
+        1, 4, 9, 16, 25, 36, 49, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
+        1, 4, 9, 16, 25, 36, 49, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
+        1, 4, 9, 16, 25, 36, 49, 64, 49, 36, 25, 16, 9, 4, 1, 0);
+
+    /// The mask used to take the low nibble of each byte.
+    __m512i const i4_nibble_vec = _mm512_set1_epi8(0x0F);
+
+    // Temporaries:
+    __m512i a_i4x2_vec, b_i4x2_vec;
+    __m512i a_i8_low_vec, a_i8_high_vec, b_i8_low_vec, b_i8_high_vec;
+    __m512i a2_u8_vec, b2_u8_vec;
+
+    // Accumulators:
+    __m512i a2_u16_low_vec = _mm512_setzero_si512();
+    __m512i a2_u16_high_vec = _mm512_setzero_si512();
+    __m512i b2_u16_low_vec = _mm512_setzero_si512();
+    __m512i b2_u16_high_vec = _mm512_setzero_si512();
+    __m512i ab_i32_low_vec = _mm512_setzero_si512();
+    __m512i ab_i32_high_vec = _mm512_setzero_si512();
+
+simsimd_cos_i4x2_ice_cycle:
+    if (n_words < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+        a_i4x2_vec = _mm512_maskz_loadu_epi8(mask, a);
+        b_i4x2_vec = _mm512_maskz_loadu_epi8(mask, b);
+        n_words = 0;
+    } else {
+        a_i4x2_vec = _mm512_loadu_epi8(a);
+        b_i4x2_vec = _mm512_loadu_epi8(b);
+        a += 64, b += 64, n_words -= 64;
+    }
+
+    // Unpack the 4-bit values into 8-bit values with an empty top nibble.
+    // For now, they are not really 8-bit integers, as they are not sign-extended.
+    // That part will come later, using the `i4_to_i8_lookup_vec` lookup.
+    a_i8_low_vec = _mm512_and_si512(a_i4x2_vec, i4_nibble_vec);
+    a_i8_high_vec = _mm512_and_si512(_mm512_srli_epi64(a_i4x2_vec, 4), i4_nibble_vec);
+    b_i8_low_vec = _mm512_and_si512(b_i4x2_vec, i4_nibble_vec);
+    b_i8_high_vec = _mm512_and_si512(_mm512_srli_epi64(b_i4x2_vec, 4), i4_nibble_vec);
+
+    // Compute the squares of the 4-bit integers.
+    // For symmetry we could have used 4 registers, aka "a2_i8_low_vec", "a2_i8_high_vec", "b2_i8_low_vec",
+    // "b2_i8_high_vec". But the largest square value is just 64, so we can safely aggregate into 8-bit unsigned values.
+    a2_u8_vec = _mm512_add_epi8(_mm512_shuffle_epi8(i4_squares_lookup_vec, a_i8_low_vec),
+                                _mm512_shuffle_epi8(i4_squares_lookup_vec, a_i8_high_vec));
+    b2_u8_vec = _mm512_add_epi8(_mm512_shuffle_epi8(i4_squares_lookup_vec, b_i8_low_vec),
+                                _mm512_shuffle_epi8(i4_squares_lookup_vec, b_i8_high_vec));
+
+    // We can safely aggregate into just 16-bit sums without overflow, if the vectors have less than:
+    //      (2 scalars / byte) * (64 bytes / register) * (256 non-overflowing 8-bit additions in 16-bit intesgers)
+    //      = 32'768 dimensions.
+    //
+    // We use saturated addition here to clearly inform in case of overflow.
+    a2_u16_low_vec = _mm512_adds_epu16(a2_u16_low_vec, _mm512_cvtepu8_epi16(_mm512_castsi512_si256(a2_u8_vec)));
+    a2_u16_high_vec = _mm512_adds_epu16(a2_u16_high_vec, _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64(a2_u8_vec, 1)));
+    b2_u16_low_vec = _mm512_adds_epu16(b2_u16_low_vec, _mm512_cvtepu8_epi16(_mm512_castsi512_si256(a2_u8_vec)));
+    b2_u16_high_vec = _mm512_adds_epu16(b2_u16_high_vec, _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64(a2_u8_vec, 1)));
+
+    // Time to perform the proper sign extension of the 4-bit integers to 8-bit integers.
+    a_i8_low_vec = _mm512_shuffle_epi8(i4_to_i8_lookup_vec, a_i8_low_vec);
+    a_i8_high_vec = _mm512_shuffle_epi8(i4_to_i8_lookup_vec, a_i8_high_vec);
+    b_i8_low_vec = _mm512_shuffle_epi8(i4_to_i8_lookup_vec, b_i8_low_vec);
+    b_i8_high_vec = _mm512_shuffle_epi8(i4_to_i8_lookup_vec, b_i8_high_vec);
+
+    // The same trick won't work for the primary dot-product, as the signs vector
+    // components may differ significantly. So we have to use two `_mm512_dpwssds_epi32`
+    // intrinsics instead, upcasting four chunks to 16-bit integers beforehand!
+    // Alternatively, we can flip the signs of the second argument and use `_mm512_dpbusds_epi32`,
+    // but it ends up taking more instructions.
+    ab_i32_low_vec = _mm512_dpwssds_epi32(                          //
+        ab_i32_low_vec,                                             //
+        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(a_i8_low_vec)), //
+        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(b_i8_low_vec)));
+    ab_i32_low_vec = _mm512_dpwssds_epi32(                                //
+        ab_i32_low_vec,                                                   //
+        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(a_i8_low_vec, 1)), //
+        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(b_i8_low_vec, 1)));
+    ab_i32_high_vec = _mm512_dpwssds_epi32(                          //
+        ab_i32_high_vec,                                             //
+        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(a_i8_high_vec)), //
+        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(b_i8_high_vec)));
+    ab_i32_high_vec = _mm512_dpwssds_epi32(                                //
+        ab_i32_high_vec,                                                   //
+        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(a_i8_high_vec, 1)), //
+        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(b_i8_high_vec, 1)));
+    if (n_words)
+        goto simsimd_cos_i4x2_ice_cycle;
+
+    int ab = _mm512_reduce_add_epi32(_mm512_add_epi32(ab_i32_low_vec, ab_i32_high_vec));
+    unsigned short a2_u16[32], b2_u16[32];
+    _mm512_storeu_si512(a2_u16, _mm512_add_epi16(a2_u16_low_vec, a2_u16_high_vec));
+    unsigned int a2 = 0, b2 = 0;
+    for (int i = 0; i < 32; ++i)
+        a2 += a2_u16[i], b2 += b2_u16[i];
     *result = _simsimd_cos_normalize_f32_haswell(ab, a2, b2);
 }
 
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_ICE
+
+#if SIMSIMD_TARGET_SIERRA
+#pragma GCC push_options
+#pragma GCC target("avx2", "bmi2", "avx2vnni")
+#pragma clang attribute push(__attribute__((target("avx2,bmi2,avx2vnni"))), apply_to = function)
+
+SIMSIMD_PUBLIC void simsimd_cos_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
+                                          simsimd_distance_t* result) {
+
+    __m256i ab_i32_vec = _mm256_setzero_si256();
+    __m256i a2_i32_vec = _mm256_setzero_si256();
+    __m256i b2_i32_vec = _mm256_setzero_si256();
+
+    simsimd_size_t i = 0;
+    for (; i + 32 <= n; i += 32) {
+        __m256i a_i8_vec = _mm256_lddqu_si256((__m256i const*)(a + i));
+        __m256i b_i8_vec = _mm256_lddqu_si256((__m256i const*)(b + i));
+        ab_i32_vec = _mm256_dpbssds_epi32(ab_i32_vec, a_i8_vec, b_i8_vec);
+        a2_i32_vec = _mm256_dpbssds_epi32(a2_i32_vec, a_i8_vec, a_i8_vec);
+        b2_i32_vec = _mm256_dpbssds_epi32(b2_i32_vec, b_i8_vec, b_i8_vec);
+    }
+
+    // Further reduce to a single sum for each vector
+    int ab = _simsimd_reduce_i32x8_haswell(ab_i32_vec);
+    int a2 = _simsimd_reduce_i32x8_haswell(a2_i32_vec);
+    int b2 = _simsimd_reduce_i32x8_haswell(b2_i32_vec);
+
+    // Take care of the tail:
+    for (; i < n; ++i) {
+        int ai = a[i], bi = b[i];
+        ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
+    }
+
+    *result = _simsimd_cos_normalize_f32_haswell(ab, a2, b2);
+}
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_SIERRA
 #endif // SIMSIMD_TARGET_X86
 
 #ifdef __cplusplus

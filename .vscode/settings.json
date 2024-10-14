@@ -92,7 +92,8 @@
         "simsimd.h": "c",
         "format": "c",
         "execution": "cpp",
-        "math.h": "c"
+        "math.h": "c",
+        "float.h": "c"
     },
     "cSpell.words": [
         "allclose",
@@ -168,7 +169,7 @@
         "Zilla"
     ],
     "python.testing.pytestArgs": [
-        "python/test.py"
+        "scripts/test.py"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true

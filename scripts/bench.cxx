@@ -28,7 +28,8 @@ constexpr std::size_t default_threads = 1;
 constexpr simsimd_distance_t signaling_distance = std::numeric_limits<simsimd_distance_t>::signaling_NaN();
 
 /// Matches OpenAI embedding size
-constexpr std::size_t dense_dimensions = 128;
+/// For sub-byte data types
+constexpr std::size_t dense_dimensions = 1536;
 /// Has quadratic impact on the number of operations
 constexpr std::size_t curved_dimensions = 128;
 
@@ -183,13 +184,14 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
      *  so that the sum of the squares of its elements equals 1. For integral types, the values are generated
      *  within the range of the scalar type.
      */
-    void randomize() noexcept {
+    void randomize(std::uint32_t seed) noexcept {
 
-        std::random_device random_device;
-        std::mt19937 generator(random_device());
+        static std::mt19937 generator;
+        generator.seed(seed);
 
         if constexpr (std::is_integral_v<scalar_t>) {
-            std::uniform_int_distribution<scalar_t> distribution(0, std::numeric_limits<scalar_t>::max());
+            std::uniform_int_distribution<scalar_t> distribution(std::numeric_limits<scalar_t>::min(),
+                                                                 std::numeric_limits<scalar_t>::max());
             for (std::size_t i = 0; i != dimensions_; ++i) {
                 buffer_[i] = distribution(generator);
             }
@@ -267,9 +269,10 @@ void measure_dense(bm::State& state, metric_at metric, metric_at baseline, std::
     // Let's average the distance results over many pairs.
     constexpr std::size_t pairs_count = 128;
     std::vector<pair_t> pairs(pairs_count);
-    for (auto& pair : pairs) {
+    for (std::size_t i = 0; i != pairs.size(); ++i) {
+        auto& pair = pairs[i];
         pair.a = pair.b = vector_t(dimensions);
-        pair.a.randomize(), pair.b.randomize();
+        pair.a.randomize(static_cast<std::uint32_t>(i)), pair.b.randomize(static_cast<std::uint32_t>(i) + 54321u);
     }
 
     // Initialize the output buffers for distance calculations.
@@ -290,7 +293,7 @@ void measure_dense(bm::State& state, metric_at metric, metric_at baseline, std::
     for (std::size_t i = 0; i != pairs.size(); ++i) {
         auto abs_delta = std::abs(results_contender[i] - results_baseline[i]);
         mean_delta += abs_delta;
-        double error = abs_delta != 0 && results_baseline[i] != 0 ? abs_delta / results_baseline[i] : 0;
+        double error = abs_delta != 0 && results_baseline[i] != 0 ? abs_delta / std::abs(results_baseline[i]) : 0;
         mean_relative_error += error;
     }
     mean_delta /= pairs.size();
@@ -334,10 +337,10 @@ void measure_curved(bm::State& state, metric_at metric, metric_at baseline, std:
     for (std::size_t i = 0; i != pairs.size(); ++i) {
         pair_t& pair = pairs[i];
         pair.a = pair.b = vector_t(dimensions);
-        pair.a.randomize(), pair.b.randomize();
+        pair.a.randomize(static_cast<std::uint32_t>(i)), pair.b.randomize(static_cast<std::uint32_t>(i) + 54321u);
         vector_t& tensor = tensors[i];
         tensor = vector_t(dimensions * dimensions);
-        tensor.randomize();
+        tensor.randomize(static_cast<std::uint32_t>(i) + 123456u);
     }
 
     // Initialize the output buffers for distance calculations.
@@ -359,7 +362,7 @@ void measure_curved(bm::State& state, metric_at metric, metric_at baseline, std:
     for (std::size_t i = 0; i != pairs.size(); ++i) {
         auto abs_delta = std::abs(results_contender[i] - results_baseline[i]);
         mean_delta += abs_delta;
-        double error = abs_delta != 0 && results_baseline[i] != 0 ? abs_delta / results_baseline[i] : 0;
+        double error = abs_delta != 0 && results_baseline[i] != 0 ? abs_delta / std::abs(results_baseline[i]) : 0;
         mean_relative_error += error;
     }
     mean_delta /= pairs.size();
@@ -577,6 +580,7 @@ int main(int argc, char** argv) {
     std::printf("- x86 Ice Lake support enabled: %s\n", flags[SIMSIMD_TARGET_ICE]);
     std::printf("- x86 Genoa support enabled: %s\n", flags[SIMSIMD_TARGET_GENOA]);
     std::printf("- x86 Sapphire Rapids support enabled: %s\n", flags[SIMSIMD_TARGET_SAPPHIRE]);
+    std::printf("- x86 Turin support enabled: %s\n", flags[SIMSIMD_TARGET_TURIN]);
     std::printf("\n");
     std::printf("Run-time settings:\n");
     std::printf("- Arm NEON support enabled: %s\n", flags[(runtime_caps & simsimd_cap_neon_k) != 0]);
@@ -593,6 +597,8 @@ int main(int argc, char** argv) {
     std::printf("- x86 Ice Lake support enabled: %s\n", flags[(runtime_caps & simsimd_cap_ice_k) != 0]);
     std::printf("- x86 Genoa support enabled: %s\n", flags[(runtime_caps & simsimd_cap_genoa_k) != 0]);
     std::printf("- x86 Sapphire Rapids support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sapphire_k) != 0]);
+    std::printf("- x86 Turin support enabled: %s\n", flags[(runtime_caps & simsimd_cap_turin_k) != 0]);
+    std::printf("- x86 Sierra Forest support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sierra_k) != 0]);
     std::printf("\n");
 
     // Run the benchmarks
@@ -601,6 +607,7 @@ int main(int argc, char** argv) {
         return 1;
 
     constexpr simsimd_datatype_t b8_k = simsimd_datatype_b8_k;
+    constexpr simsimd_datatype_t i4x2_k = simsimd_datatype_i4x2_k;
     constexpr simsimd_datatype_t i8_k = simsimd_datatype_i8_k;
     constexpr simsimd_datatype_t i16_k = simsimd_datatype_i16_k;
     constexpr simsimd_datatype_t i32_k = simsimd_datatype_i32_k;
