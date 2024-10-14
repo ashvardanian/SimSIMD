@@ -1684,60 +1684,69 @@ simsimd_l2sq_i8_ice_cycle:
 
 SIMSIMD_PUBLIC void simsimd_cos_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                        simsimd_distance_t* result) {
-    __m512i ab_i32_low_vec = _mm512_setzero_si512();
-    __m512i ab_i32_high_vec = _mm512_setzero_si512();
+
+    __m512i ab_i32_vec = _mm512_setzero_si512();
     __m512i a2_i32_vec = _mm512_setzero_si512();
     __m512i b2_i32_vec = _mm512_setzero_si512();
-    __m512i a_i8_vec, b_i8_vec;
-    __m512i a_i8_abs_vec, b_i8_abs_vec;
-
+    __m512i a_i16_vec, b_i16_vec;
 simsimd_cos_i8_ice_cycle:
-    if (n < 64) {
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
-        a_i8_vec = _mm512_maskz_loadu_epi8(mask, a);
-        b_i8_vec = _mm512_maskz_loadu_epi8(mask, b);
+    if (n < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_i16_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, a));
+        b_i16_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, b));
         n = 0;
     } else {
-        a_i8_vec = _mm512_loadu_epi8(a);
-        b_i8_vec = _mm512_loadu_epi8(b);
-        a += 64, b += 64, n -= 64;
+        a_i16_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(a));
+        b_i16_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(b));
+        a += 32, b += 32, n -= 32;
     }
 
     // We can't directly use the `_mm512_dpbusd_epi32` intrinsic everywhere,
     // as it's asymmetric with respect to the sign of the input arguments:
+    //
     //      Signed(ZeroExtend16(a.byte[4*j]) * SignExtend16(b.byte[4*j]))
-    // Luckily to compute the squares, we just drop the sign bit of the second argument.
+    //
+    // To compute the squares, we could just drop the sign bit of the second argument.
+    // But this would lead to big-big problems on values like `-128`!
+    // For dot-products we don't have the luxury of optimizing the sign bit away.
+    // Assuming this is an approximate kernel (with reciprocal square root approximations)
+    // in the end, we can allow clamping the value to [-127, 127] range.
     //
     // On Ice Lake:
-    //  - `VPDPBUSDS (ZMM, ZMM, ZMM)` can only execute on port 0, with 5 cycle latency.
-    //  - `VPDPWSSDS (ZMM, ZMM, ZMM)` can also only execute on port 0, with 5 cycle latency.
+    //
+    //  1. `VPDPBUSDS (ZMM, ZMM, ZMM)` can only execute on port 0, with 5 cycle latency.
+    //  2. `VPDPWSSDS (ZMM, ZMM, ZMM)` can also only execute on port 0, with 5 cycle latency.
+    //  3. `VPMADDWD (ZMM, ZMM, ZMM)` can execute on ports 0 and 5, with 5 cycle latency.
     //
     // On Zen4 Genoa:
-    //  - `VPDPBUSDS (ZMM, ZMM, ZMM)` can execute on ports 0 and 1, with 4 cycle latency.
-    //  - `VPDPWSSDS (ZMM, ZMM, ZMM)` can also execute on ports 0 and 1, with 4 cycle latency.
     //
-    // https://uops.info/table.html?search=VPDPBUSDS%20(ZMM%2C%20ZMM%2C%20ZMM)&cb_lat=on&cb_tp=on&cb_uops=on&cb_ports=on&cb_SKX=on&cb_ICL=on&cb_ZEN4=on&cb_measurements=on&cb_doc=on&cb_avx512=on
-    // https://uops.info/table.html?search=vpdpwssds%20(ZMM&cb_lat=on&cb_tp=on&cb_uops=on&cb_ports=on&cb_SKX=on&cb_ICL=on&cb_ZEN4=on&cb_measurements=on&cb_doc=on&cb_avx512=on
-    a_i8_abs_vec = _mm512_abs_epi8(a_i8_vec);
-    b_i8_abs_vec = _mm512_abs_epi8(b_i8_vec);
-    a2_i32_vec = _mm512_dpbusds_epi32(a2_i32_vec, a_i8_abs_vec, a_i8_abs_vec);
-    b2_i32_vec = _mm512_dpbusds_epi32(b2_i32_vec, b_i8_abs_vec, b_i8_abs_vec);
-
-    // The same trick won't work for the primary dot-product, as the signs vector
-    // components may differ significantly. So we have to use two `_mm512_dpwssd_epi32`
-    // intrinsics instead, upcasting four chunks to 16-bit integers beforehand!
-    ab_i32_low_vec = _mm512_dpwssds_epi32(                      //
-        ab_i32_low_vec,                                         //
-        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(a_i8_vec)), //
-        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(b_i8_vec)));
-    ab_i32_high_vec = _mm512_dpwssds_epi32(                           //
-        ab_i32_high_vec,                                              //
-        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(a_i8_vec, 1)), //
-        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(b_i8_vec, 1)));
+    //  1. `VPDPBUSDS (ZMM, ZMM, ZMM)` can execute on ports 0 and 1, with 4 cycle latency.
+    //  2. `VPDPWSSDS (ZMM, ZMM, ZMM)` can also execute on ports 0 and 1, with 4 cycle latency.
+    //  3. `VPMADDWD (ZMM, ZMM, ZMM)` can execute on ports 0 and 1, with 3 cycle latency.
+    //
+    // The old solution was complex replied on 1. and 2.:
+    //
+    //    a_i8_abs_vec = _mm512_abs_epi8(a_i8_vec);
+    //    b_i8_abs_vec = _mm512_abs_epi8(b_i8_vec);
+    //    a2_i32_vec = _mm512_dpbusds_epi32(a2_i32_vec, a_i8_abs_vec, a_i8_abs_vec);
+    //    b2_i32_vec = _mm512_dpbusds_epi32(b2_i32_vec, b_i8_abs_vec, b_i8_abs_vec);
+    //    ab_i32_low_vec = _mm512_dpwssds_epi32(                      //
+    //        ab_i32_low_vec,                                         //
+    //        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(a_i8_vec)), //
+    //        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(b_i8_vec)));
+    //    ab_i32_high_vec = _mm512_dpwssds_epi32(                           //
+    //        ab_i32_high_vec,                                              //
+    //        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(a_i8_vec, 1)), //
+    //        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(b_i8_vec, 1)));
+    //
+    // The new solution is simpler and relies on 3.:
+    ab_i32_vec = _mm512_add_epi32(ab_i32_vec, _mm512_madd_epi16(a_i16_vec, b_i16_vec));
+    a2_i32_vec = _mm512_add_epi32(a2_i32_vec, _mm512_madd_epi16(a_i16_vec, a_i16_vec));
+    b2_i32_vec = _mm512_add_epi32(b2_i32_vec, _mm512_madd_epi16(b_i16_vec, b_i16_vec));
     if (n)
         goto simsimd_cos_i8_ice_cycle;
 
-    int ab = _mm512_reduce_add_epi32(_mm512_add_epi32(ab_i32_low_vec, ab_i32_high_vec));
+    int ab = _mm512_reduce_add_epi32(ab_i32_vec);
     int a2 = _mm512_reduce_add_epi32(a2_i32_vec);
     int b2 = _mm512_reduce_add_epi32(b2_i32_vec);
     *result = _simsimd_cos_normalize_f32_haswell(ab, a2, b2);
