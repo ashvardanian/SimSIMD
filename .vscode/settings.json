@@ -92,7 +92,8 @@
         "simsimd.h": "c",
         "format": "c",
         "execution": "cpp",
-        "math.h": "c"
+        "math.h": "c",
+        "float.h": "c"
     },
     "cSpell.words": [
         "allclose",

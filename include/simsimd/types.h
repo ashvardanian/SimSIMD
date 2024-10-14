@@ -229,6 +229,7 @@ extern "C" {
 #endif
 
 typedef unsigned char simsimd_b8_t;
+typedef unsigned char simsimd_i4x2_t;
 
 typedef signed char simsimd_i8_t;
 typedef unsigned char simsimd_u8_t;
@@ -347,6 +348,8 @@ typedef unsigned short simsimd_bf16_t;
  *  In C the `_Static_assert` is only available with C 11 and later.
  */
 #define SIMSIMD_STATIC_ASSERT(cond, msg) typedef char static_assertion_##msg[(cond) ? 1 : -1]
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_b8_t) == 1, simsimd_b8_t_must_be_1_byte);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i4x2_t) == 1, simsimd_i4x2_t_must_be_1_byte);
 SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i8_t) == 1, simsimd_i8_t_must_be_1_byte);
 SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u8_t) == 1, simsimd_u8_t_must_be_1_byte);
 SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i16_t) == 2, simsimd_i16_t_must_be_2_bytes);

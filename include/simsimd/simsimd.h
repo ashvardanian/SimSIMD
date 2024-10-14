@@ -202,8 +202,10 @@ typedef enum {
  *  interfaces.
  */
 typedef enum {
-    simsimd_datatype_unknown_k = 0, ///< Unknown data type
-    simsimd_datatype_b8_k = 1 << 1, ///< Single-bit values packed into 8-bit words
+    simsimd_datatype_unknown_k = 0,                  ///< Unknown data type
+    simsimd_datatype_b8_k = 1 << 1,                  ///< Single-bit values packed into 8-bit words
+    simsimd_datatype_b1x8_k = simsimd_datatype_b8_k, ///< Single-bit values packed into 8-bit words
+    simsimd_datatype_i4x2_k = 1 << 19,               ///< 4-bit signed integers packed into 8-bit words
 
     simsimd_datatype_i8_k = 1 << 2,  ///< 8-bit signed integer
     simsimd_datatype_i16_k = 1 << 3, ///< 16-bit signed integer
@@ -232,7 +234,8 @@ typedef enum {
  *  @param[in] a    Pointer to the first data array.
  *  @param[in] b    Pointer to the second data array.
  *  @param[in] n    Number of scalar words in the input arrays.
- *                  When dealing with sub-byte data types, the number of scalar words is the number of bytes.
+ *                  When dealing with sub-byte types, the number of scalar words is the number of bytes.
+ *                  When dealing with complex types, the number of scalar words is the sum of real and imaginary parts.
  *  @param[out] d   Output value as a double-precision float.
  *                  In complex dot-products @b two scalars are exported for the real and imaginary parts.
  */

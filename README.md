@@ -68,7 +68,7 @@ Implemented distance functions include:
 Moreover, SimSIMD...
 
 - handles `f64`, `f32`, `f16`, and `bf16` real & complex vectors.
-- handles `i8` integral and `b8` bit vectors.
+- handles `i8` integral, `i4` sub-byte, and `b8` binary vectors.
 - is a zero-dependency [header-only C 99](#using-simsimd-in-c) library.
 - has bindings for [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust) and [JS](#using-simsimd-in-javascript).
 - has Arm backends for NEON, Scalable Vector Extensions (SVE), and SVE2.
@@ -89,28 +89,28 @@ You can learn more about the technical implementation details in the following b
 
 ## Benchmarks
 
-### Against NumPy and SciPy
+### Cosine Distances in SimSIMD vs SciPy and NumPy
 
-Given 1000 embeddings from OpenAI Ada API with 1536 dimensions, running on the Apple M2 Pro Arm CPU with NEON support, here's how SimSIMD performs against conventional methods:
+Let's start with 1000 embeddings from OpenAI Ada API with 1536 dimensions.
+SciPy under the hood uses NumPy, which uses BLAS, which uses SIMD.
+SimSIMD also uses SIMD, but does it more efficiently.
 
-| Kind                      | `f32` improvement | `f16` improvement | `i8` improvement | Conventional method       | SimSIMD         |
-| :------------------------ | ----------------: | ----------------: | ---------------: | :------------------------ | :-------------- |
-| Inner (Dot) Product       |           __2 x__ |           __9 x__ |         __18 x__ | `numpy.inner`             | `inner`         |
-| Cosine Distance           |          __32 x__ |          __79 x__ |        __133 x__ | `scipy.*.*.cosine`        | `cosine`        |
-| Euclidean Distance ²      |           __5 x__ |          __26 x__ |         __17 x__ | `scipy.*.*.sqeuclidean`   | `sqeuclidean`   |
-| Jensen-Shannon Divergence |          __31 x__ |          __53 x__ |                  | `scipy.*.*.jensenshannon` | `jensenshannon` |
+Comparing `scipy.spatial.distance.cosine` to `simsimd.cosine` for:
 
-### Against GCC Auto-Vectorization
+In each cell show the throughput (pairs/s for SciPy and SimSIMD), 
+the speedup factor of SimSIMD on the second row, 
+and the error reduction on the third row.
 
-On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against auto-vectorized code using GCC 12.
-GCC handles single-precision `float` but might not be the best choice for `int8` and `_Float16` arrays, which have been part of the C language since 2011.
+| Type   | Apple M2 | Intel Sapphire Rapids | AWS Graviton 4 |
+| :----- | -------: | --------------------: | -------------: |
+| `f64`  |          |                       |                |
+| `f32`  |          |                       |                |
+| `f16`  |          |                       |                |
+| `bf16` |          |                       |                |
+| `i8`   |          |                       |                |
+| `i4`   |          |                       |                |
 
-| Kind                      | GCC 12 `f32` | GCC 12 `f16` | SimSIMD `f16` | `f16` improvement |
-| :------------------------ | -----------: | -----------: | ------------: | ----------------: |
-| Inner Product             |    3,810 K/s |      192 K/s |     5,990 K/s |          __31 x__ |
-| Cosine Distance           |    3,280 K/s |      336 K/s |     6,880 K/s |          __20 x__ |
-| Euclidean Distance ²      |    4,620 K/s |      147 K/s |     5,320 K/s |          __36 x__ |
-| Jensen-Shannon Divergence |    1,180 K/s |       18 K/s |     2,140 K/s |         __118 x__ |
+
 
 __Broader Benchmarking Results__:
 
@@ -715,7 +715,7 @@ To explicitly disable half-precision support, define the following macro before 
 > But if you are running on different generations of devices, it makes sense to pre-compile the library for all supported generations at once, and dispatch at runtime.
 > This flag does just that and is used to produce the `simsimd.so` shared library, as well as the Python and other bindings.
 
-`SIMSIMD_TARGET_ARM` (`SIMSIMD_TARGET_NEON`, `SIMSIMD_TARGET_SVE`, `SIMSIMD_TARGET_SVE2`, `SIMSIMD_TARGET_NEON_F16`, `SIMSIMD_TARGET_SVE_F16`, `SIMSIMD_TARGET_NEON_BF16`, `SIMSIMD_TARGET_SVE_BF16`), `SIMSIMD_TARGET_X86` (`SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`): 
+`SIMSIMD_TARGET_ARM` (`SIMSIMD_TARGET_NEON`, `SIMSIMD_TARGET_SVE`, `SIMSIMD_TARGET_SVE2`, `SIMSIMD_TARGET_NEON_F16`, `SIMSIMD_TARGET_SVE_F16`, `SIMSIMD_TARGET_NEON_BF16`, `SIMSIMD_TARGET_SVE_BF16`), `SIMSIMD_TARGET_X86` (`SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`, `SIMSIMD_TARGET_TURIN`, `SIMSIMD_TARGET_SIERRA`): 
 
 > By default, SimSIMD automatically infers the target architecture and pre-compiles as many kernels as possible.
 > In some cases, you may want to explicitly disable some of the kernels.
@@ -735,6 +735,7 @@ In general there are a few principles that SimSIMD follows:
 - Avoid loop unrolling.
 - Never allocate memory.
 - Never throw exceptions or set `errno`.
+- Detect overflows and report the distance with a "signaling" `NaN`.
 - Keep all function arguments the size of the pointer.
 - Avoid returning from public interfaces, use out-arguments instead.
 - Don't over-optimize for old CPUs and single- and double-precision floating-point numbers.
@@ -907,6 +908,18 @@ Jensen-Shannon divergence is a symmetrized and smoothed version of the Kullback-
 ```
 
 Both functions are defined for non-negative numbers, and the logarithm is a key part of their computation.
+
+### Auto-Vectorization & Loop Unrolling
+
+On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against auto-vectorized code using GCC 12.
+GCC handles single-precision `float` but might not be the best choice for `int8` and `_Float16` arrays, which have been part of the C language since 2011.
+
+| Kind                      | GCC 12 `f32` | GCC 12 `f16` | SimSIMD `f16` | `f16` improvement |
+| :------------------------ | -----------: | -----------: | ------------: | ----------------: |
+| Inner Product             |    3,810 K/s |      192 K/s |     5,990 K/s |          __31 x__ |
+| Cosine Distance           |    3,280 K/s |      336 K/s |     6,880 K/s |          __20 x__ |
+| Euclidean Distance ²      |    4,620 K/s |      147 K/s |     5,320 K/s |          __36 x__ |
+| Jensen-Shannon Divergence |    1,180 K/s |       18 K/s |     2,140 K/s |         __118 x__ |
 
 ### Dynamic Dispatch
 

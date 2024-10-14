@@ -606,6 +606,7 @@ int main(int argc, char** argv) {
         return 1;
 
     constexpr simsimd_datatype_t b8_k = simsimd_datatype_b8_k;
+    constexpr simsimd_datatype_t i4x2_k = simsimd_datatype_i4x2_k;
     constexpr simsimd_datatype_t i8_k = simsimd_datatype_i8_k;
     constexpr simsimd_datatype_t i16_k = simsimd_datatype_i16_k;
     constexpr simsimd_datatype_t i32_k = simsimd_datatype_i32_k;
