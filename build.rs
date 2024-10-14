@@ -29,6 +29,8 @@ fn main() {
                 "SIMSIMD_TARGET_NEON",
             ],
             _ => vec![
+                "SIMSIMD_TARGET_SIERRA",
+                "SIMSIMD_TARGET_TURIN",
                 "SIMSIMD_TARGET_SAPPHIRE",
                 "SIMSIMD_TARGET_GENOA",
                 "SIMSIMD_TARGET_ICE",

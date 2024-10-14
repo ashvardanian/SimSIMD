@@ -316,6 +316,8 @@ static PyObject* api_enable_capability(PyObject* self, PyObject* args) {
         static_capabilities |= simsimd_cap_sapphire_k;
     } else if (same_string(cap_name, "turin")) {
         static_capabilities |= simsimd_cap_turin_k;
+    } else if (same_string(cap_name, "sierra")) {
+        static_capabilities |= simsimd_cap_sierra_k;
     } else if (same_string(cap_name, "serial")) {
         PyErr_SetString(PyExc_ValueError, "Can't change the serial functionality");
         return NULL;
@@ -361,6 +363,8 @@ static PyObject* api_disable_capability(PyObject* self, PyObject* args) {
         static_capabilities &= ~simsimd_cap_sapphire_k;
     } else if (same_string(cap_name, "turin")) {
         static_capabilities &= ~simsimd_cap_turin_k;
+    } else if (same_string(cap_name, "sierra")) {
+        static_capabilities &= ~simsimd_cap_sierra_k;
     } else if (same_string(cap_name, "serial")) {
         PyErr_SetString(PyExc_ValueError, "Can't change the serial functionality");
         return NULL;

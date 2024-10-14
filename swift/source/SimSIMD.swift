@@ -98,6 +98,7 @@ extension simsimd_capability_t: OptionSet, CustomStringConvertible {
         if contains(.genoa) { components.append(".genoa") }
         if contains(.sapphire) { components.append(".sapphire") }
         if contains(.turin) { components.append(".turin") }
+        if contains(.sierra) { components.append(".sierra") }
         return "[\(components.joined(separator: ", "))]"
     }
 
@@ -113,6 +114,7 @@ extension simsimd_capability_t: OptionSet, CustomStringConvertible {
     public static let genoa = simsimd_cap_genoa_k
     public static let sapphire = simsimd_cap_sapphire_k
     public static let turin = simsimd_cap_turin_k
+    public static let sierra = simsimd_cap_sierra_k
 }
 
 @inline(__always)

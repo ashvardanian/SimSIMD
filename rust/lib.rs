@@ -107,6 +107,7 @@ extern "C" {
     fn simsimd_uses_genoa() -> i32;
     fn simsimd_uses_sapphire() -> i32;
     fn simsimd_uses_turin() -> i32;
+    fn simsimd_uses_sierra() -> i32;
 }
 
 /// A half-precision floating point number.
@@ -179,6 +180,10 @@ pub mod capabilities {
 
     pub fn uses_turin() -> bool {
         unsafe { crate::simsimd_uses_turin() != 0 }
+    }
+
+    pub fn uses_sierra() -> bool {
+        unsafe { crate::simsimd_uses_sierra() != 0 }
     }
 }
 
@@ -734,6 +739,7 @@ mod tests {
         println!("- uses_genoa: {}", capabilities::uses_genoa());
         println!("- uses_sapphire: {}", capabilities::uses_sapphire());
         println!("- uses_turin: {}", capabilities::uses_turin());
+        println!("- uses_sierra: {}", capabilities::uses_sierra());
     }
 
     //

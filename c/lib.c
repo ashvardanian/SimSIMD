@@ -38,6 +38,12 @@
 #if !defined(SIMSIMD_TARGET_SAPPHIRE) && (defined(__linux__))
 #define SIMSIMD_TARGET_SAPPHIRE 1
 #endif
+#if !defined(SIMSIMD_TARGET_TURIN) && (defined(__linux__))
+#define SIMSIMD_TARGET_TURIN 1
+#endif
+#if !defined(SIMSIMD_TARGET_SIERRA) && (defined(__linux__)) && 0 // TODO: Add target spec to GCC & Clang
+#define SIMSIMD_TARGET_SIERRA 1
+#endif
 
 #include <simsimd/simsimd.h>
 
@@ -174,6 +180,7 @@ SIMSIMD_DYNAMIC int simsimd_uses_ice(void) { return (simsimd_capabilities() & si
 SIMSIMD_DYNAMIC int simsimd_uses_genoa(void) { return (simsimd_capabilities() & simsimd_cap_genoa_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void) { return (simsimd_capabilities() & simsimd_cap_sapphire_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_turin(void) { return (simsimd_capabilities() & simsimd_cap_turin_k) != 0; }
+SIMSIMD_DYNAMIC int simsimd_uses_sierra(void) { return (simsimd_capabilities() & simsimd_cap_sierra_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void) { return 1; }
 
 simsimd_capability_t simsimd_capabilities(void) {

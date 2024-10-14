@@ -81,6 +81,8 @@ if sys.platform == "linux":
             get_bool_env_w_name("SIMSIMD_TARGET_ICE", True),
             get_bool_env_w_name("SIMSIMD_TARGET_GENOA", True),
             get_bool_env_w_name("SIMSIMD_TARGET_SAPPHIRE", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_TURIN", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_SIERRA", True),
         ]
     )
 
@@ -103,6 +105,8 @@ if sys.platform == "darwin":
             get_bool_env_w_name("SIMSIMD_TARGET_ICE", False),
             get_bool_env_w_name("SIMSIMD_TARGET_GENOA", False),
             get_bool_env_w_name("SIMSIMD_TARGET_SAPPHIRE", False),
+            get_bool_env_w_name("SIMSIMD_TARGET_TURIN", False),
+            get_bool_env_w_name("SIMSIMD_TARGET_SIERRA", False),
         ]
     )
 
@@ -127,6 +131,8 @@ if sys.platform == "win32":
             get_bool_env_w_name("SIMSIMD_TARGET_ICE", True),
             get_bool_env_w_name("SIMSIMD_TARGET_GENOA", False),
             get_bool_env_w_name("SIMSIMD_TARGET_SAPPHIRE", False),
+            get_bool_env_w_name("SIMSIMD_TARGET_TURIN", False),
+            get_bool_env_w_name("SIMSIMD_TARGET_SIERRA", False),
         ]
     )
 

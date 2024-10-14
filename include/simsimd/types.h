@@ -124,7 +124,8 @@
 #endif // defined(__AVX2__)
 #endif // !defined(SIMSIMD_TARGET_HASWELL)
 
-// Compiling for x86: SIMSIMD_TARGET_SKYLAKE, SIMSIMD_TARGET_ICE, SIMSIMD_TARGET_GENOA, SIMSIMD_TARGET_SAPPHIRE
+// Compiling for x86: SIMSIMD_TARGET_SKYLAKE, SIMSIMD_TARGET_ICE, SIMSIMD_TARGET_GENOA,
+// SIMSIMD_TARGET_SAPPHIRE, SIMSIMD_TARGET_TURIN, SIMSIMD_TARGET_SIERRA
 //
 // To list all available macros for x86, take a recent compiler, like GCC 12 and run:
 //      gcc-12 -march=sapphirerapids -dM -E - < /dev/null | egrep "SSE|AVX" | sort
@@ -172,6 +173,14 @@
 #define SIMSIMD_TARGET_TURIN 0
 #endif
 #endif // !defined(SIMSIMD_TARGET_TURIN)
+#if !defined(SIMSIMD_TARGET_SIERRA) || (SIMSIMD_TARGET_SIERRA && !SIMSIMD_TARGET_X86)
+#if defined(__AVX2_VNNI__)
+#define SIMSIMD_TARGET_SIERRA 1
+#else
+#undef SIMSIMD_TARGET_SIERRA
+#define SIMSIMD_TARGET_SIERRA 0
+#endif
+#endif // !defined(SIMSIMD_TARGET_SIERRA)
 
 #ifdef _MSC_VER
 #include <intrin.h>

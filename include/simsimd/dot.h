@@ -144,6 +144,8 @@ SIMSIMD_PUBLIC void simsimd_vdot_bf16c_genoa(simsimd_bf16_t const* a, simsimd_bf
 SIMSIMD_PUBLIC void simsimd_dot_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
+SIMSIMD_PUBLIC void simsimd_dot_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 // clang-format on
 
 #define SIMSIMD_MAKE_DOT(name, input_type, accumulator_type, load_and_convert)                                         \
@@ -1694,6 +1696,37 @@ simsimd_dot_i8_ice_cycle:
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_ICE
+
+#if SIMSIMD_TARGET_SIERRA
+#pragma GCC push_options
+#pragma GCC target("avx2", "bmi2", "avx2vnni")
+#pragma clang attribute push(__attribute__((target("avx2,bmi2,avx2vnni"))), apply_to = function)
+
+SIMSIMD_PUBLIC void simsimd_dot_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
+                                          simsimd_distance_t* result) {
+
+    __m256i ab_i32_vec = _mm256_setzero_si256();
+
+    simsimd_size_t i = 0;
+    for (; i + 32 <= n; i += 32) {
+        __m256i a_i8_vec = _mm256_lddqu_si256((__m256i const*)(a + i));
+        __m256i b_i8_vec = _mm256_lddqu_si256((__m256i const*)(b + i));
+        ab_i32_vec = _mm256_dpbssds_epi32(ab_i32_vec, a_i8_vec, b_i8_vec);
+    }
+
+    // Further reduce to a single sum for each vector
+    int ab = _simsimd_reduce_i32x8_haswell(ab_i32_vec);
+
+    // Take care of the tail:
+    for (; i < n; ++i)
+        ab += (int)(a[i]) * b[i];
+
+    *result = ab;
+}
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_SIERRA
 #endif // SIMSIMD_TARGET_X86
 
 #ifdef __cplusplus

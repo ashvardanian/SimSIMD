@@ -152,6 +152,10 @@ SIMSIMD_PUBLIC void simsimd_l2_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_
 SIMSIMD_PUBLIC void simsimd_l2sq_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 SIMSIMD_PUBLIC void simsimd_cos_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 
+/*  SIMD-powered backends for AVX-INT8-VNNI extensions on Xeon 6 CPUs, including Sierra Forest and Granite Rapids.
+ *  The packs many "efficiency" cores into a single socket, avoiding heavy 512-bit operations, and focusing on 256-bit ones.
+ */
+SIMSIMD_PUBLIC void simsimd_cos_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 // clang-format on
 
 #define SIMSIMD_MAKE_L2SQ(name, input_type, accumulator_type, load_and_convert)                                        \
@@ -1728,6 +1732,45 @@ simsimd_cos_i8_ice_cycle:
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_ICE
+
+#if SIMSIMD_TARGET_SIERRA
+#pragma GCC push_options
+#pragma GCC target("avx2", "bmi2", "avx2vnni")
+#pragma clang attribute push(__attribute__((target("avx2,bmi2,avx2vnni"))), apply_to = function)
+
+SIMSIMD_PUBLIC void simsimd_cos_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
+                                          simsimd_distance_t* result) {
+
+    __m256i ab_i32_vec = _mm256_setzero_si256();
+    __m256i a2_i32_vec = _mm256_setzero_si256();
+    __m256i b2_i32_vec = _mm256_setzero_si256();
+
+    simsimd_size_t i = 0;
+    for (; i + 32 <= n; i += 32) {
+        __m256i a_i8_vec = _mm256_lddqu_si256((__m256i const*)(a + i));
+        __m256i b_i8_vec = _mm256_lddqu_si256((__m256i const*)(b + i));
+        ab_i32_vec = _mm256_dpbssds_epi32(ab_i32_vec, a_i8_vec, b_i8_vec);
+        a2_i32_vec = _mm256_dpbssds_epi32(a2_i32_vec, a_i8_vec, a_i8_vec);
+        b2_i32_vec = _mm256_dpbssds_epi32(b2_i32_vec, b_i8_vec, b_i8_vec);
+    }
+
+    // Further reduce to a single sum for each vector
+    int ab = _simsimd_reduce_i32x8_haswell(ab_i32_vec);
+    int a2 = _simsimd_reduce_i32x8_haswell(a2_i32_vec);
+    int b2 = _simsimd_reduce_i32x8_haswell(b2_i32_vec);
+
+    // Take care of the tail:
+    for (; i < n; ++i) {
+        int ai = a[i], bi = b[i];
+        ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
+    }
+
+    *result = _simsimd_cos_normalize_f32_haswell(ab, a2, b2);
+}
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_SIERRA
 #endif // SIMSIMD_TARGET_X86
 
 #ifdef __cplusplus
