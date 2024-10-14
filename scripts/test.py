@@ -391,6 +391,12 @@ def f32_downcast_to_bf16(array):
     return array_f32_rounded, array_bf16
 
 
+def i8_downcast_to_i4(array):
+    """Converts an array of 8-bit integers into 4-bit integers, packing 2 per byte."""
+    array = np.asarray(array, dtype=np.int8)
+    assert np.all(array >= -8) and np.all(array <= 7), "Input array must be in the range [-8, 7]"
+
+
 def hex_array(arr):
     """Converts numerical array into a string of comma-separated hexadecimal values for debugging.
     Supports 1D and 2D arrays.

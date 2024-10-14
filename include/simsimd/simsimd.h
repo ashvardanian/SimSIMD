@@ -179,6 +179,7 @@ typedef enum {
     simsimd_cap_genoa_k = 1 << 13,    ///< x86 AVX512 capability with `bf16` support
     simsimd_cap_sapphire_k = 1 << 14, ///< x86 AVX512 capability with `f16` support
     simsimd_cap_turin_k = 1 << 15,    ///< x86 AVX512 capability with conflict detection
+    simsimd_cap_sierra_k = 1 << 16,   ///< x86 AVX2+VNNI capability with `i8` dot-products
 
     simsimd_cap_neon_k = 1 << 20,      ///< ARM NEON baseline capability
     simsimd_cap_neon_f16_k = 1 << 21,  ///< ARM NEON `f16` capability
@@ -201,8 +202,10 @@ typedef enum {
  *  interfaces.
  */
 typedef enum {
-    simsimd_datatype_unknown_k = 0, ///< Unknown data type
-    simsimd_datatype_b8_k = 1 << 1, ///< Single-bit values packed into 8-bit words
+    simsimd_datatype_unknown_k = 0,                  ///< Unknown data type
+    simsimd_datatype_b8_k = 1 << 1,                  ///< Single-bit values packed into 8-bit words
+    simsimd_datatype_b1x8_k = simsimd_datatype_b8_k, ///< Single-bit values packed into 8-bit words
+    simsimd_datatype_i4x2_k = 1 << 19,               ///< 4-bit signed integers packed into 8-bit words
 
     simsimd_datatype_i8_k = 1 << 2,  ///< 8-bit signed integer
     simsimd_datatype_i16_k = 1 << 3, ///< 16-bit signed integer
@@ -231,7 +234,8 @@ typedef enum {
  *  @param[in] a    Pointer to the first data array.
  *  @param[in] b    Pointer to the second data array.
  *  @param[in] n    Number of scalar words in the input arrays.
- *                  When dealing with sub-byte data types, the number of scalar words is the number of bytes.
+ *                  When dealing with sub-byte types, the number of scalar words is the number of bytes.
+ *                  When dealing with complex types, the number of scalar words is the sum of real and imaginary parts.
  *  @param[out] d   Output value as a double-precision float.
  *                  In complex dot-products @b two scalars are exported for the real and imaginary parts.
  */
@@ -361,6 +365,7 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
     unsigned supports_sapphire = supports_avx512fp16;
     // We don't want to accidently enable AVX512VP2INTERSECT on Intel Tiger Lake CPUs
     unsigned supports_turin = supports_avx512vp2intersect && supports_avx512bf16;
+    unsigned supports_sierra = 0;
 
     return (simsimd_capability_t)(                     //
         (simsimd_cap_haswell_k * supports_haswell) |   //
@@ -369,6 +374,7 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
         (simsimd_cap_genoa_k * supports_genoa) |       //
         (simsimd_cap_sapphire_k * supports_sapphire) | //
         (simsimd_cap_turin_k * supports_turin) |       //
+        (simsimd_cap_sierra_k * supports_sierra) |     //
         (simsimd_cap_serial_k));
 }
 
@@ -1208,6 +1214,7 @@ SIMSIMD_DYNAMIC int simsimd_uses_ice(void);
 SIMSIMD_DYNAMIC int simsimd_uses_genoa(void);
 SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void);
 SIMSIMD_DYNAMIC int simsimd_uses_turin(void);
+SIMSIMD_DYNAMIC int simsimd_uses_sierra(void);
 
 /*  Inner products
  *  - Dot product: the sum of the products of the corresponding elements of two vectors.
@@ -1361,6 +1368,7 @@ SIMSIMD_PUBLIC int simsimd_uses_ice(void) { return SIMSIMD_TARGET_X86 && SIMSIMD
 SIMSIMD_PUBLIC int simsimd_uses_genoa(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_GENOA; }
 SIMSIMD_PUBLIC int simsimd_uses_sapphire(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SAPPHIRE; }
 SIMSIMD_PUBLIC int simsimd_uses_turin(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_TURIN; }
+SIMSIMD_PUBLIC int simsimd_uses_sierra(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SIERRA; }
 SIMSIMD_PUBLIC int simsimd_uses_dynamic_dispatch(void) { return 0; }
 SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) { return _simsimd_capabilities_implementation(); }
 SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
