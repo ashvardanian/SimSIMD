@@ -1193,6 +1193,7 @@ SIMSIMD_DYNAMIC int simsimd_uses_ice(void);
 SIMSIMD_DYNAMIC int simsimd_uses_genoa(void);
 SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void);
 SIMSIMD_DYNAMIC int simsimd_uses_turin(void);
+SIMSIMD_DYNAMIC int simsimd_uses_sierra(void);
 SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void);
 
 SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void);
