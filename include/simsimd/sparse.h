@@ -574,7 +574,7 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_turin(      //
         __m512i a_i32_vec = _mm512_cvtepu16_epi32(a_vec.ymm);
         __m512i b_i32_vec = _mm512_cvtepu16_epi32(b_vec.ymm);
         __mmask16 a_matches_any_in_b, b_matches_any_in_a;
-        _mm512_2intersect_epi32(a_vec.zmm, b_vec.zmm, &a_matches_any_in_b, &b_matches_any_in_a);
+        _mm512_2intersect_epi32(a_i32_vec, b_i32_vec, &a_matches_any_in_b, &b_matches_any_in_a);
 
         // The paper also contained a very nice procedure for exporting the matches,
         // but we don't need it here:
@@ -714,7 +714,7 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_turin(                  //
         __m512i a_i32_vec = _mm512_cvtepu16_epi32(a_vec.ymm);
         __m512i b_i32_vec = _mm512_cvtepu16_epi32(b_vec.ymm);
         __mmask16 a_matches_any_in_b, b_matches_any_in_a;
-        _mm512_2intersect_epi32(a_vec.zmm, b_vec.zmm, &a_matches_any_in_b, &b_matches_any_in_a);
+        _mm512_2intersect_epi32(a_i32_vec, b_i32_vec, &a_matches_any_in_b, &b_matches_any_in_a);
 
         // The paper also contained a very nice procedure for exporting the matches,
         // but we don't need it here:
@@ -799,7 +799,7 @@ SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(                 //
         __m512i a_i32_vec = _mm512_cvtepu16_epi32(a_vec.ymm);
         __m512i b_i32_vec = _mm512_cvtepu16_epi32(b_vec.ymm);
         __mmask16 a_matches_any_in_b, b_matches_any_in_a;
-        _mm512_2intersect_epi32(a_vec.zmm, b_vec.zmm, &a_matches_any_in_b, &b_matches_any_in_a);
+        _mm512_2intersect_epi32(a_i32_vec, b_i32_vec, &a_matches_any_in_b, &b_matches_any_in_a);
 
         // The paper also contained a very nice procedure for exporting the matches,
         // but we don't need it here:
@@ -813,7 +813,7 @@ SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(                 //
             a_weights_vec = _mm256_maskz_compress_epi16(a_matches_any_in_b, a_weights_vec);
             __m256i b_weights_vec = _mm256_lddqu_si256((__m256i const*)b_weights);
             b_weights_vec = _mm256_maskz_compress_epi16(b_matches_any_in_a, b_weights_vec);
-            product_vec.ymm = _mm512_dpwssds_epi32(product_vec.ymm, a_weights_vec, b_weights_vec);
+            product_vec.ymm = _mm256_dpwssds_epi32(product_vec.ymm, a_weights_vec, b_weights_vec);
         }
 
         __m256i a_last_broadcasted = _mm256_set1_epi16(*(short const*)&a_max);
