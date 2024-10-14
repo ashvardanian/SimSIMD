@@ -1037,8 +1037,8 @@ simsimd_l2sq_f16_haswell_cycle:
         b_vec = _simsimd_partial_load_f16x8_haswell(b, n);
         n = 0;
     } else {
-        a_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)a));
-        b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)b));
+        a_vec = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const*)a));
+        b_vec = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const*)b));
         n -= 8, a += 8, b += 8;
     }
     __m256 d_vec = _mm256_sub_ps(a_vec, b_vec);
@@ -1060,8 +1060,8 @@ simsimd_cos_f16_haswell_cycle:
         b_vec = _simsimd_partial_load_f16x8_haswell(b, n);
         n = 0;
     } else {
-        a_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)a));
-        b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)b));
+        a_vec = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const*)a));
+        b_vec = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const*)b));
         n -= 8, a += 8, b += 8;
     }
     ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
@@ -1092,8 +1092,8 @@ simsimd_l2sq_bf16_haswell_cycle:
         b_vec = _simsimd_bf16x8_to_f32x8_haswell(_simsimd_partial_load_bf16x8_haswell(b, n));
         n = 0;
     } else {
-        a_vec = _simsimd_bf16x8_to_f32x8_haswell(_mm_loadu_si128((__m128i const*)a));
-        b_vec = _simsimd_bf16x8_to_f32x8_haswell(_mm_loadu_si128((__m128i const*)b));
+        a_vec = _simsimd_bf16x8_to_f32x8_haswell(_mm_lddqu_si128((__m128i const*)a));
+        b_vec = _simsimd_bf16x8_to_f32x8_haswell(_mm_lddqu_si128((__m128i const*)b));
         n -= 8, a += 8, b += 8;
     }
     __m256 d_vec = _mm256_sub_ps(a_vec, b_vec);
@@ -1115,8 +1115,8 @@ simsimd_cos_bf16_haswell_cycle:
         b_vec = _simsimd_bf16x8_to_f32x8_haswell(_simsimd_partial_load_bf16x8_haswell(b, n));
         n = 0;
     } else {
-        a_vec = _simsimd_bf16x8_to_f32x8_haswell(_mm_loadu_si128((__m128i const*)a));
-        b_vec = _simsimd_bf16x8_to_f32x8_haswell(_mm_loadu_si128((__m128i const*)b));
+        a_vec = _simsimd_bf16x8_to_f32x8_haswell(_mm_lddqu_si128((__m128i const*)a));
+        b_vec = _simsimd_bf16x8_to_f32x8_haswell(_mm_lddqu_si128((__m128i const*)b));
         n -= 8, a += 8, b += 8;
     }
     ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
