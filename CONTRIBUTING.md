@@ -175,6 +175,12 @@ npm install -g bun
 bun test
 ```
 
+## Swift
+
+```sh
+swift build && swift test -v
+```
+
 ## GoLang
 
 ```sh

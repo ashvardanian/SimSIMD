@@ -9,8 +9,17 @@ let package = Package(
         .library(name: "SimSIMD", targets: ["SimSIMD"]),
     ],
     targets: [
-        .testTarget(name: "Test", dependencies: ["SimSIMD"], path: "scripts"),
-        .target(name: "SimSIMD", dependencies: ["CSimSIMD"], path: "swift"),
-        .systemLibrary(name: "CSimSIMD", path: "include")
+        .testTarget(name: "Test", dependencies: ["SimSIMD"], path: "swift", exclude:["SimSIMD.swift"]),
+        .target(name: "SimSIMD", dependencies: ["CSimSIMD"], path: "swift", exclude:["Test.swift"]),
+        .target(
+            name: "CSimSIMD",
+            path: "include/simsimd/", // Adjust the path to include your C source files
+            sources: ["../../c/lib.c"], // Include the source file here
+            publicHeadersPath: ".",
+            cSettings: [
+                .headerSearchPath("include/"), // Specify header search paths
+                .unsafeFlags(["-Wall"]) // Use with caution: specify custom compiler flags
+            ]
+        ),
     ]
 )
