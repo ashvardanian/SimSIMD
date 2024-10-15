@@ -347,6 +347,21 @@ SIMSIMD_INTERNAL simsimd_u32_t _simsimd_intersect_u16x32_ice(__m512i a, __m512i 
 /**
  *  @brief  Analogous to `_mm512_2intersect_epi32`, but compatible with Ice Lake CPUs,
  *          slightly faster than the native Tiger Lake implementation, but returns only one mask.
+ *
+ *  Some latencies to keep in mind:
+ *
+ *  - `_mm512_shuffle_epi32` - "VPSHUFD (ZMM, ZMM, I8)":
+ *      - 1 cycle latency on Ice Lake: 1*p5
+ *      - 1 cycle latency on Genoa: 1*FP123
+ *  - `_mm512_mask_cmpneq_epi32_mask` - "VPCMPD (K, ZMM, ZMM, I8)":
+ *      - 3 cycle latency on Ice Lake: 1*p5
+ *      - 1 cycle latency on Genoa: 1*FP01
+ *  - `_mm512_alignr_epi32` - "VPALIGNR (ZMM, ZMM, ZMM, I8)":
+ *      - 1 cycle latency on Ice Lake: 1*p5
+ *      - 2 cycle latency on Genoa: 1*FP12
+ *  - `_mm512_conflict_epi32` - "VPCONFLICTD (ZMM, ZMM)":
+ *      - up to 26 cycles latency on Ice Lake: 11*p0+9*p05+17*p5
+ *      - up to 7 cycle latency on Genoa: 1*FP01+1*FP12
  */
 SIMSIMD_INTERNAL simsimd_u16_t _simsimd_intersect_u32x16_ice(__m512i a, __m512i b) {
     __m512i a1 = _mm512_alignr_epi32(a, a, 4);
