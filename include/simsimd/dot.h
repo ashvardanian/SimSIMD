@@ -997,10 +997,16 @@ simsimd_dot_f16_haswell_cycle:
         b_vec = _simsimd_partial_load_f16x8_haswell(b, n);
         n = 0;
     } else {
-        a_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)a));
-        b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)b));
+        a_vec = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const*)a));
+        b_vec = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const*)b));
         n -= 8, a += 8, b += 8;
     }
+    // We can silence the NaNs using blends:
+    //
+    //     __m256 a_is_nan = _mm256_cmp_ps(a_vec, a_vec, _CMP_UNORD_Q);
+    //     __m256 b_is_nan = _mm256_cmp_ps(b_vec, b_vec, _CMP_UNORD_Q);
+    //     ab_vec = _mm256_blendv_ps(_mm256_fmadd_ps(a_vec, b_vec, ab_vec), ab_vec, _mm256_or_ps(a_is_nan, b_is_nan));
+    //
     ab_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_vec);
     if (n)
         goto simsimd_dot_f16_haswell_cycle;
@@ -1032,8 +1038,8 @@ SIMSIMD_PUBLIC void simsimd_dot_f16c_haswell(simsimd_f16_t const* a, simsimd_f16
     );
 
     while (n >= 8) {
-        __m256 a_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)a));
-        __m256 b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)b));
+        __m256 a_vec = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const*)a));
+        __m256 b_vec = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const*)b));
         __m256 b_swapped_vec = _mm256_castsi256_ps(_mm256_shuffle_epi8(_mm256_castps_si256(b_vec), swap_adjacent_vec));
         ab_real_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_real_vec);
         ab_imag_vec = _mm256_fmadd_ps(a_vec, b_swapped_vec, ab_imag_vec);
@@ -1068,8 +1074,8 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_haswell(simsimd_f16_t const* a, simsimd_f1
     );
 
     while (n >= 8) {
-        __m256 a_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)a));
-        __m256 b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)b));
+        __m256 a_vec = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const*)a));
+        __m256 b_vec = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const*)b));
         ab_real_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_real_vec);
         b_vec = _mm256_castsi256_ps(_mm256_shuffle_epi8(_mm256_castps_si256(b_vec), swap_adjacent_vec));
         ab_imag_vec = _mm256_fmadd_ps(a_vec, b_vec, ab_imag_vec);
@@ -1161,8 +1167,8 @@ simsimd_dot_bf16_haswell_cycle:
         b_vec = _simsimd_partial_load_bf16x8_haswell(b, n);
         n = 0;
     } else {
-        a_vec = _mm_loadu_si128((__m128i const*)a);
-        b_vec = _mm_loadu_si128((__m128i const*)b);
+        a_vec = _mm_lddqu_si128((__m128i const*)a);
+        b_vec = _mm_lddqu_si128((__m128i const*)b);
         a += 8, b += 8, n -= 8;
     }
     ab_vec = _mm256_fmadd_ps(_simsimd_bf16x8_to_f32x8_haswell(a_vec), _simsimd_bf16x8_to_f32x8_haswell(b_vec), ab_vec);

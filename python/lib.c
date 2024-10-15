@@ -405,6 +405,7 @@ static PyObject* api_get_capabilities(PyObject* self) {
     ADD_CAP(genoa);
     ADD_CAP(sapphire);
     ADD_CAP(turin);
+    ADD_CAP(sierra);
 
 #undef ADD_CAP
 
