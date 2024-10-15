@@ -189,7 +189,7 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
         static std::mt19937 generator;
         generator.seed(seed);
 
-        if constexpr (std::is_integral_v<scalar_t>) {
+        if constexpr (is_integral) {
             std::uniform_int_distribution<scalar_t> distribution(std::numeric_limits<scalar_t>::min(),
                                                                  std::numeric_limits<scalar_t>::max());
             for (std::size_t i = 0; i != dimensions_; ++i) {

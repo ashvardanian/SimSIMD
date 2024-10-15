@@ -93,7 +93,7 @@ You can learn more about the technical implementation details in the following b
 For reference, we use 1536-dimensional vectors, like the embeddings produced by the OpenAI Ada API.
 Comparing the serial code throughput produced by GCC 12 to hand-optimized kernels in SimSIMD, we see the following single-core improvements:
 
-| Type   |                       Apple M2 Pro |              Intel Sapphire Rapids |                     AWS Graviton 4 |
+| Type   |                       Apple M2 Pro |                          AMD Genoa |                     AWS Graviton 4 |
 | :----- | ---------------------------------: | ---------------------------------: | ---------------------------------: |
 | `f64`  | 18.5 → 28.8 GB/s <br/>      + 56 % | 21.9 → 41.4 GB/s <br/>      + 89 % | 20.7 → 41.3 GB/s <br/>      + 99 % |
 | `f32`  |  9.2 → 29.6 GB/s <br/>     + 221 % | 10.9 → 95.8 GB/s <br/>     + 779 % |  4.9 → 41.9 GB/s <br/>     + 755 % |
@@ -748,11 +748,15 @@ In general there are a few principles that SimSIMD follows:
 - Avoid loop unrolling.
 - Never allocate memory.
 - Never throw exceptions or set `errno`.
-- Detect overflows and report the distance with a "signaling" `NaN`.
 - Keep all function arguments the size of the pointer.
 - Avoid returning from public interfaces, use out-arguments instead.
 - Don't over-optimize for old CPUs and single- and double-precision floating-point numbers.
 - Prioritize mixed-precision and integer operations, and new ISA extensions.
+
+Possibly, in the future:
+
+- Best effort computation silencing `NaN` components in low-precision inputs. 
+- Detect overflows and report the distance with a "signaling" `NaN`.
 
 Last, but not the least - don't build unless there is a demand for it.
 So if you have a specific use-case, please open an issue or a pull request, and ideally, bring in more users with similar needs.

@@ -420,8 +420,8 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16_haswell(simsimd_f16_t const* a, simsimd
         __m256 a_vec = _mm256_cvtph_ps(_mm_set1_epi16(*(short const*)(a + i)));
         __m256 partial_sum_vec = _mm256_setzero_ps();
         for (simsimd_size_t j = 0; j + 8 <= n; j += 8) {
-            __m256 b_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)(b + j)));
-            __m256 c_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)(c + i * n + j)));
+            __m256 b_vec = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const*)(b + j)));
+            __m256 c_vec = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const*)(c + i * n + j)));
             partial_sum_vec = _mm256_fmadd_ps(b_vec, c_vec, partial_sum_vec);
         }
         sum_vec = _mm256_fmadd_ps(a_vec, partial_sum_vec, sum_vec);
@@ -455,9 +455,9 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_haswell(simsimd_f16_t const* a, sims
         __m256 partial_sum_vec = _mm256_setzero_ps();
         for (simsimd_size_t j = 0; j + 8 <= n; j += 8) {
             __m256 diff_j_vec = _mm256_sub_ps( //
-                _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)(a + j))),
-                _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)(b + j))));
-            __m256 c_vec = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const*)(c + i * n + j)));
+                _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const*)(a + j))),
+                _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const*)(b + j))));
+            __m256 c_vec = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const*)(c + i * n + j)));
             partial_sum_vec = _mm256_fmadd_ps(diff_j_vec, c_vec, partial_sum_vec);
         }
         sum_vec = _mm256_fmadd_ps(diff_i_vec, partial_sum_vec, sum_vec);
@@ -493,8 +493,8 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16_haswell(simsimd_bf16_t const* a, simsi
         __m256 a_vec = _mm256_set1_ps(simsimd_bf16_to_f32(a + i));
         __m256 partial_sum_vec = _mm256_setzero_ps();
         for (simsimd_size_t j = 0; j + 8 <= n; j += 8) {
-            __m256 b_vec = _simsimd_bf16x8_to_f32x8_haswell(_mm_loadu_si128((__m128i const*)(b + j)));
-            __m256 c_vec = _simsimd_bf16x8_to_f32x8_haswell(_mm_loadu_si128((__m128i const*)(c + i * n + j)));
+            __m256 b_vec = _simsimd_bf16x8_to_f32x8_haswell(_mm_lddqu_si128((__m128i const*)(b + j)));
+            __m256 c_vec = _simsimd_bf16x8_to_f32x8_haswell(_mm_lddqu_si128((__m128i const*)(c + i * n + j)));
             partial_sum_vec = _mm256_fmadd_ps(b_vec, c_vec, partial_sum_vec);
         }
         sum_vec = _mm256_fmadd_ps(a_vec, partial_sum_vec, sum_vec);
@@ -530,9 +530,9 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_haswell(simsimd_bf16_t const* a, si
         __m256 partial_sum_vec = _mm256_setzero_ps();
         for (simsimd_size_t j = 0; j + 8 <= n; j += 8) {
             __m256 diff_j_vec = _mm256_sub_ps(                                              //
-                _simsimd_bf16x8_to_f32x8_haswell(_mm_loadu_si128((__m128i const*)(a + j))), //
-                _simsimd_bf16x8_to_f32x8_haswell(_mm_loadu_si128((__m128i const*)(b + j))));
-            __m256 c_vec = _simsimd_bf16x8_to_f32x8_haswell(_mm_loadu_si128((__m128i const*)(c + i * n + j)));
+                _simsimd_bf16x8_to_f32x8_haswell(_mm_lddqu_si128((__m128i const*)(a + j))), //
+                _simsimd_bf16x8_to_f32x8_haswell(_mm_lddqu_si128((__m128i const*)(b + j))));
+            __m256 c_vec = _simsimd_bf16x8_to_f32x8_haswell(_mm_lddqu_si128((__m128i const*)(c + i * n + j)));
             partial_sum_vec = _mm256_fmadd_ps(diff_j_vec, c_vec, partial_sum_vec);
         }
         sum_vec = _mm256_fmadd_ps(diff_i_vec, partial_sum_vec, sum_vec);
