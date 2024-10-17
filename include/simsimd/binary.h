@@ -319,7 +319,20 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t c
                                            simsimd_distance_t* result) {
 
     simsimd_size_t intersection = 0, union_ = 0;
-    // It's harder to squeeze out performance from tiny representations, so we unroll the loops for binary metrics.
+    //? On such vectors we can clearly see that the CPU struggles to perform this many parallel
+    //? population counts, because the throughput of Jaccard and Hamming in this case starts to differ.
+    //? One optimization, aside from Harley-Seal transforms can be using "shuffles" for nibble-popcount
+    //? lookups, to utilize other ports on the CPU.
+    //? https://github.com/ashvardanian/SimSIMD/pull/138
+    //
+    //  - `_mm512_popcnt_epi64` maps to `VPOPCNTQ (ZMM, K, ZMM)`:
+    //      - On Ice Lake: 3 cycles latency, ports: 1*p5
+    //      - On Genoa: 2 cycles latency, ports: 1*FP01
+    //  - `_mm512_shuffle_epi8` maps to `VPSHUFB (ZMM, ZMM, ZMM)`:
+    //      - On Ice Lake: 1 cycles latency, ports: 1*p5
+    //      - On Genoa: 2 cycles latency, ports: 1*FP12
+    //
+    //  It's harder to squeeze out performance from tiny representations, so we unroll the loops for binary metrics.
     if (n_words <= 64) { // Up to 512 bits.
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
         __m512i a_vec = _mm512_maskz_loadu_epi8(mask, a);
@@ -341,20 +354,6 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t c
         intersection = _mm512_reduce_add_epi64(_mm512_add_epi64(and2_count_vec, and1_count_vec));
         union_ = _mm512_reduce_add_epi64(_mm512_add_epi64(or2_count_vec, or1_count_vec));
     } else if (n_words <= 196) { // Up to 1568 bits.
-        // TODO: On such vectors we can clearly see that the CPU struggles to perform this many parallel
-        // population counts, because the throughput of Jaccard and Hamming in this case starts to differ.
-        // One optimization, aside from Harley-Seal transforms can be using "shuffles" for nibble-popcount
-        // lookups, to utilize other ports on the CPU.
-        // https://github.com/ashvardanian/SimSIMD/pull/138
-        //
-        // On Ice Lake:
-        //  - `VPOPCNTQ (ZMM, K, ZMM)` can only execute on port 5, which is a bottleneck.
-        //  - `VPSHUFB (ZMM, ZMM, ZMM)` can only run on the same port 5 as well!
-        // On Zen4:
-        //  - `VPOPCNTQ (ZMM, K, ZMM)` can run on ports: 0, 1.
-        //  - `VPSHUFB (ZMM, ZMM, ZMM)` can run on ports: 1, 2.
-        // https://uops.info/table.html?search=VPOPCNTQ%20(ZMM%2C%20K%2C%20ZMM)&cb_lat=on&cb_tp=on&cb_uops=on&cb_ports=on&cb_SKX=on&cb_ICL=on&cb_TGL=on&cb_measurements=on&cb_doc=on&cb_avx512=on
-        // https://uops.info/table.html?search=VPSHUFB%20(ZMM%2C%20ZMM%2C%20ZMM)&cb_lat=on&cb_tp=on&cb_uops=on&cb_ports=on&cb_SKX=on&cb_ICL=on&cb_TGL=on&cb_measurements=on&cb_doc=on&cb_avx512=on
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 128);
         __m512i a1_vec = _mm512_loadu_epi8(a);
         __m512i b1_vec = _mm512_loadu_epi8(b);

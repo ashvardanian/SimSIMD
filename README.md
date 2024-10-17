@@ -91,15 +91,16 @@ You can learn more about the technical implementation details in the following b
 ## Benchmarks
 
 For reference, we use 1536-dimensional vectors, like the embeddings produced by the OpenAI Ada API.
-Comparing the serial code throughput produced by GCC 12 to hand-optimized kernels in SimSIMD, we see the following single-core improvements:
+Comparing the serial code throughput produced by GCC 12 to hand-optimized kernels in SimSIMD, we see the following single-core improvements for the two most common vector-vector similarity metrics - the Cosine similarity and the Euclidean distance:
 
-| Type   |                       Apple M2 Pro |                          AMD Genoa |                     AWS Graviton 4 |
-| :----- | ---------------------------------: | ---------------------------------: | ---------------------------------: |
-| `f64`  | 18.5 → 28.8 GB/s <br/>      + 56 % | 21.9 → 41.4 GB/s <br/>      + 89 % | 20.7 → 41.3 GB/s <br/>      + 99 % |
-| `f32`  |  9.2 → 29.6 GB/s <br/>     + 221 % | 10.9 → 95.8 GB/s <br/>     + 779 % |  4.9 → 41.9 GB/s <br/>     + 755 % |
-| `f16`  |  4.6 → 14.6 GB/s <br/>     + 217 % | 3.1 → 108.4 GB/s <br/>   + 3,397 % |  5.4 → 39.3 GB/s <br/>     + 627 % |
-| `bf16` |  4.6 → 26.3 GB/s <br/>     + 472 % | 0.8 → 59.5 GB/s <br/>     +7,437 % |  2.5 → 29.9 GB/s <br/>   + 1,096 % |
-| `i8`   | 25.8 → 47.1 GB/s <br/>      + 83 % | 33.1 → 65.3 GB/s <br/>      + 97 % | 35.2 → 43.5 GB/s <br/>      + 24 % |
+| Type   |                  Apple M2 Pro |            Intel Sapphire Rapids |                  AWS Graviton 4 |
+| :----- | ----------------------------: | -------------------------------: | ------------------------------: |
+| `f64`  | 18.5 → 28.8 GB/s <br/> + 56 % |    21.9 → 41.4 GB/s <br/> + 89 % |   20.7 → 41.3 GB/s <br/> + 99 % |
+| `f32`  | 9.2 → 29.6 GB/s <br/> + 221 % |   10.9 → 95.8 GB/s <br/> + 779 % |   4.9 → 41.9 GB/s <br/> + 755 % |
+| `f16`  | 4.6 → 14.6 GB/s <br/> + 217 % | 3.1 → 108.4 GB/s <br/> + 3,397 % |   5.4 → 39.3 GB/s <br/> + 627 % |
+| `bf16` | 4.6 → 26.3 GB/s <br/> + 472 % |   0.8 → 59.5 GB/s <br/> +7,437 % | 2.5 → 29.9 GB/s <br/> + 1,096 % |
+| `i8`   | 25.8 → 47.1 GB/s <br/> + 83 % |    33.1 → 65.3 GB/s <br/> + 97 % |   35.2 → 43.5 GB/s <br/> + 24 % |
+| `u8`   |                               |   32.5 → 66.5 GB/s <br/> + 105 % |                                 |
 
 Similar speedups are often observed even when compared to BLAS and LAPACK libraries underlying most numerical computing libraries, including NumPy and SciPy in Python.
 Broader benchmarking results:
@@ -112,7 +113,7 @@ Broader benchmarking results:
 
 The package is intended to replace the usage of `numpy.inner`, `numpy.dot`, and `scipy.spatial.distance`.
 Aside from drastic performance improvements, SimSIMD significantly improves accuracy in mixed precision setups.
-NumPy and SciPy, processing `i8` or `f16` vectors, will use the same types for accumulators, while SimSIMD can combine `i8` enumeration, `i16` multiplication, and `i32` accumulation to avoid overflows entirely.
+NumPy and SciPy, processing `i8`, `u8` or `f16` vectors, will use the same types for accumulators, while SimSIMD can combine `i8` enumeration, `i16` multiplication, and `i32` accumulation to avoid overflows entirely.
 The same applies to processing `f16` and `bf16` values with `f32` precision.
 
 ### Installation

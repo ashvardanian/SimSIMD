@@ -51,7 +51,6 @@ import pytest
 import simsimd as simd
 
 
-
 # NumPy is available on most platforms and is required for most tests.
 # When using PyPy on some platforms NumPy has internal issues, that will
 # raise a weird error, not an `ImportError`. That's why we intentionally
@@ -356,10 +355,22 @@ SIMSIMD_ATOL = 0.1
 # We will run all the tests many times using different instruction sets under the hood.
 available_capabilities: Dict[str, str] = simd.get_capabilities()
 possible_x86_capabilities: List[str] = ["haswell", "ice", "skylake", "sapphire", "turin", "genoa", "sierra"]
-possible_arm_capabilities: List[str] = ["neon", "neon_f16", "neon_bf16", "neon_i8", "sve", "sve_f16", "sve_bf16", "sve_i8"]
+possible_arm_capabilities: List[str] = [
+    "neon",
+    "neon_f16",
+    "neon_bf16",
+    "neon_i8",
+    "sve",
+    "sve_f16",
+    "sve_bf16",
+    "sve_i8",
+]
 possible_x86_capabilities: List[str] = [c for c in possible_x86_capabilities if available_capabilities[c]]
 possible_arm_capabilities: List[str] = [c for c in possible_arm_capabilities if available_capabilities[c]]
-possible_capabilities: List[str] = possible_x86_capabilities if platform.machine() == "x86_64" else possible_arm_capabilities
+possible_capabilities: List[str] = (
+    possible_x86_capabilities if platform.machine() == "x86_64" else possible_arm_capabilities
+)
+
 
 def keep_one_capability(cap: str):
     assert cap in possible_capabilities
@@ -445,6 +456,10 @@ def test_pointers_availability():
     assert simd.pointer_to_sqeuclidean("i8") != 0
     assert simd.pointer_to_cosine("i8") != 0
     assert simd.pointer_to_inner("i8") != 0
+
+    assert simd.pointer_to_sqeuclidean("u8") != 0
+    assert simd.pointer_to_cosine("u8") != 0
+    assert simd.pointer_to_inner("u8") != 0
 
 
 def test_capabilities_list():
@@ -698,16 +713,21 @@ def test_curved_bf16(ndim, metric, capability, stats_fixture):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("dtype", ["int8", "uint8"])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_dense_i8(ndim, metric, capability, stats_fixture):
+def test_dense_i8(ndim, dtype, metric, capability, stats_fixture):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
     with their NumPy or baseline counterparts, testing accuracy for small integer types, that can't
     be directly processed with other tools without overflowing."""
 
     np.random.seed()
-    a = np.random.randint(-128, 127, size=(ndim), dtype=np.int8)
-    b = np.random.randint(-128, 127, size=(ndim), dtype=np.int8)
+    if dtype == "int8":
+        a = np.random.randint(-128, 127, size=(ndim), dtype=np.int8)
+        b = np.random.randint(-128, 127, size=(ndim), dtype=np.int8)
+    else:
+        a = np.random.randint(0, 255, size=(ndim), dtype=np.uint8)
+        b = np.random.randint(0, 255, size=(ndim), dtype=np.uint8)
 
     keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(metric)
@@ -719,8 +739,10 @@ def test_dense_i8(ndim, metric, capability, stats_fixture):
     if metric == "inner":
         assert round(float(result)) == round(float(expected)), f"Expected {expected}, but got {result}"
     else:
-        np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL), f"Expected {expected}, but got {result}"
-    collect_errors(metric, ndim, "int8", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
+        np.testing.assert_allclose(
+            result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL
+        ), f"Expected {expected}, but got {result}"
+    collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
     #! Fun fact: SciPy doesn't actually raise an `OverflowError` when overflow happens
     #! here, instead it raises `ValueError: math domain error` during the `sqrt` operation.
