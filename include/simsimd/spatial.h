@@ -1205,8 +1205,8 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t c
     // This can easily lead to noticeable numerical errors in the final result.
     simsimd_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
-        __m256i a_i8_vec = _mm256_loadu_si256((__m256i const*)(a + i));
-        __m256i b_i8_vec = _mm256_loadu_si256((__m256i const*)(b + i));
+        __m256i a_i8_vec = _mm256_lddqu_si256((__m256i const*)(a + i));
+        __m256i b_i8_vec = _mm256_lddqu_si256((__m256i const*)(b + i));
 
         // Unpack `int8` to `int16`
         __m256i a_i16_low_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_i8_vec, 0));
@@ -1675,8 +1675,8 @@ simsimd_l2sq_i8_ice_cycle:
         b_i16_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, b));
         n = 0;
     } else {
-        a_i16_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(a));
-        b_i16_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(b));
+        a_i16_vec = _mm512_cvtepi8_epi16(_mm256_lddqu_si256(a));
+        b_i16_vec = _mm512_cvtepi8_epi16(_mm256_lddqu_si256(b));
         a += 32, b += 32, n -= 32;
     }
     d_i16s_vec = _mm512_sub_epi16(a_i16_vec, b_i16_vec);
@@ -1701,8 +1701,8 @@ simsimd_cos_i8_ice_cycle:
         b_i16_vec = _mm512_cvtepi8_epi16(_mm256_maskz_loadu_epi8(mask, b));
         n = 0;
     } else {
-        a_i16_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(a));
-        b_i16_vec = _mm512_cvtepi8_epi16(_mm256_loadu_epi8(b));
+        a_i16_vec = _mm512_cvtepi8_epi16(_mm256_lddqu_si256(a));
+        b_i16_vec = _mm512_cvtepi8_epi16(_mm256_lddqu_si256(b));
         a += 32, b += 32, n -= 32;
     }
 
