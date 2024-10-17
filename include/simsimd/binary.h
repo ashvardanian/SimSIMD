@@ -82,14 +82,38 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_serial(simsimd_b8_t const* a, simsimd_b8_
 #pragma GCC target("arch=armv8.2-a+simd")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
 
+SIMSIMD_INTERNAL simsimd_u32_t _simsimd_reduce_u8x16_neon(uint8x16_t vec) {
+    // Split the vector into two halves and widen to `uint16x8_t`
+    uint16x8_t low_half = vmovl_u8(vget_low_u8(vec));   // widen lower 8 elements
+    uint16x8_t high_half = vmovl_u8(vget_high_u8(vec)); // widen upper 8 elements
+
+    // Sum the widened halves
+    uint16x8_t sum16 = vaddq_u16(low_half, high_half);
+
+    // Now reduce the `uint16x8_t` to a single `uint32_t`
+    uint32x4_t sum32 = vpaddlq_u16(sum16);  // pairwise add into 32-bit integers
+    uint64x2_t sum64 = vpaddlq_u32(sum32);  // pairwise add into 64-bit integers
+    uint32_t final_sum = vaddvq_u64(sum64); // final horizontal add to 32-bit result
+    return final_sum;
+}
+
 SIMSIMD_PUBLIC void simsimd_hamming_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
                                             simsimd_distance_t* result) {
     simsimd_i32_t differences = 0;
     simsimd_size_t i = 0;
-    for (; i + 16 <= n_words; i += 16) {
-        uint8x16_t a_first = vld1q_u8(a + i);
-        uint8x16_t b_first = vld1q_u8(b + i);
-        differences += vaddvq_u8(vcntq_u8(veorq_u8(a_first, b_first)));
+    // In each 8-bit word we may have up to 8 differences.
+    // So for up-to 31 cycles (31 * 16 = 496 word-dimensions = 3968 bits)
+    // we can aggregate the differences into a `uint8x16_t` vector,
+    // where each component will be up-to 255.
+    while (i + 16 <= n_words) {
+        uint8x16_t differences_cycle_vec = vdupq_n_u8(0);
+        for (simsimd_size_t cycle = 0; cycle < 31 && i + 16 <= n_words; ++cycle, i += 16) {
+            uint8x16_t a_vec = vld1q_u8(a + i);
+            uint8x16_t b_vec = vld1q_u8(b + i);
+            uint8x16_t xor_count_vec = vcntq_u8(veorq_u8(a_vec, b_vec));
+            differences_cycle_vec = vaddq_u8(differences_cycle_vec, xor_count_vec);
+        }
+        differences += _simsimd_reduce_u8x16_neon(differences_cycle_vec);
     }
     // Handle the tail
     for (; i != n_words; ++i)
@@ -101,11 +125,23 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_neon(simsimd_b8_t const* a, simsimd_b8_t 
                                             simsimd_distance_t* result) {
     simsimd_i32_t intersection = 0, union_ = 0;
     simsimd_size_t i = 0;
-    for (; i + 16 <= n_words; i += 16) {
-        uint8x16_t a_first = vld1q_u8(a + i);
-        uint8x16_t b_first = vld1q_u8(b + i);
-        intersection += vaddvq_u8(vcntq_u8(vandq_u8(a_first, b_first)));
-        union_ += vaddvq_u8(vcntq_u8(vorrq_u8(a_first, b_first)));
+    // In each 8-bit word we may have up to 8 intersections/unions.
+    // So for up-to 31 cycles (31 * 16 = 496 word-dimensions = 3968 bits)
+    // we can aggregate the intersections/unions into a `uint8x16_t` vector,
+    // where each component will be up-to 255.
+    while (i + 16 <= n_words) {
+        uint8x16_t intersections_cycle_vec = vdupq_n_u8(0);
+        uint8x16_t unions_cycle_vec = vdupq_n_u8(0);
+        for (simsimd_size_t cycle = 0; cycle < 31 && i + 16 <= n_words; ++cycle, i += 16) {
+            uint8x16_t a_vec = vld1q_u8(a + i);
+            uint8x16_t b_vec = vld1q_u8(b + i);
+            uint8x16_t and_count_vec = vcntq_u8(vandq_u8(a_vec, b_vec));
+            uint8x16_t or_count_vec = vcntq_u8(vorrq_u8(a_vec, b_vec));
+            intersections_cycle_vec = vaddq_u8(intersections_cycle_vec, and_count_vec);
+            unions_cycle_vec = vaddq_u8(unions_cycle_vec, or_count_vec);
+        }
+        intersection += _simsimd_reduce_u8x16_neon(intersections_cycle_vec);
+        union_ += _simsimd_reduce_u8x16_neon(intersections_cycle_vec);
     }
     // Handle the tail
     for (; i != n_words; ++i)
