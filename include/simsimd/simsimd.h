@@ -1288,6 +1288,18 @@ SIMSIMD_DYNAMIC void simsimd_l2sq_f32(simsimd_f32_t const* a, simsimd_f32_t cons
                                       simsimd_distance_t* d);
 SIMSIMD_DYNAMIC void simsimd_l2sq_f64(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
                                       simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_l2_i8(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
+                                   simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_l2_u8(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n,
+                                   simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_l2_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
+                                    simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_l2_bf16(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
+                                     simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_l2_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
+                                    simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_l2_f64(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
+                                    simsimd_distance_t* d);
 
 /*  Binary distances
  *  - Hamming distance: the number of positions at which the corresponding bits are different.
