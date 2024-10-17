@@ -549,7 +549,6 @@ SIMSIMD_INTERNAL void _simsimd_find_metric_punned_implementation( //
     case simsimd_datatype_i16_k: break;
     case simsimd_datatype_i32_k: break;
     case simsimd_datatype_i64_k: break;
-    case simsimd_datatype_u8_k: break;
     case simsimd_datatype_u64_k: break;
 
     // Double-precision floating-point vectors
@@ -819,7 +818,7 @@ SIMSIMD_INTERNAL void _simsimd_find_metric_punned_implementation( //
 
         break;
     }
-    // Single-byte integer vectors
+    // Single-byte signed integer vectors
     case simsimd_datatype_i8_k: {
 #if SIMSIMD_TARGET_NEON_I8
         if (viable & simsimd_cap_neon_i8_k)
@@ -858,6 +857,50 @@ SIMSIMD_INTERNAL void _simsimd_find_metric_punned_implementation( //
             case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_i8_serial, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_i8_serial, *c = simsimd_cap_serial_k; return;
             case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_i8_serial, *c = simsimd_cap_serial_k; return;
+            default: break;
+            }
+
+        break;
+    }
+    // Single-byte unsigned integer vectors
+    case simsimd_datatype_u8_k: {
+#if SIMSIMD_TARGET_NEON_I8
+        if (viable & simsimd_cap_neon_i8_k)
+            switch (kind) {
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_u8_neon, *c = simsimd_cap_neon_i8_k; return;
+            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_u8_neon, *c = simsimd_cap_neon_i8_k; return;
+            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_u8_neon, *c = simsimd_cap_neon_i8_k; return;
+            case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_u8_neon, *c = simsimd_cap_neon_i8_k; return;
+            default: break;
+            }
+#endif
+#if SIMSIMD_TARGET_ICE
+        if (viable & simsimd_cap_ice_k)
+            switch (kind) {
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_u8_ice, *c = simsimd_cap_ice_k; return;
+            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_u8_ice, *c = simsimd_cap_ice_k; return;
+            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_u8_ice, *c = simsimd_cap_ice_k; return;
+            case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_u8_ice, *c = simsimd_cap_ice_k; return;
+            default: break;
+            }
+#endif
+#if SIMSIMD_TARGET_HASWELL
+        if (viable & simsimd_cap_haswell_k)
+            switch (kind) {
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_u8_haswell, *c = simsimd_cap_haswell_k; return;
+            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_u8_haswell, *c = simsimd_cap_haswell_k; return;
+            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_u8_haswell, *c = simsimd_cap_haswell_k; return;
+            case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_u8_haswell, *c = simsimd_cap_haswell_k; return;
+            default: break;
+            }
+#endif
+
+        if (viable & simsimd_cap_serial_k)
+            switch (kind) {
+            case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_u8_serial, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_u8_serial, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_u8_serial, *c = simsimd_cap_serial_k; return;
+            case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_u8_serial, *c = simsimd_cap_serial_k; return;
             default: break;
             }
 
@@ -1270,6 +1313,8 @@ SIMSIMD_DYNAMIC void simsimd_vdot_f64c(simsimd_f64_t const* a, simsimd_f64_t con
  */
 SIMSIMD_DYNAMIC void simsimd_cos_i8(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                     simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_cos_u8(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n,
+                                    simsimd_distance_t* d);
 SIMSIMD_DYNAMIC void simsimd_cos_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                      simsimd_distance_t* d);
 SIMSIMD_DYNAMIC void simsimd_cos_bf16(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
@@ -1279,6 +1324,8 @@ SIMSIMD_DYNAMIC void simsimd_cos_f32(simsimd_f32_t const* a, simsimd_f32_t const
 SIMSIMD_DYNAMIC void simsimd_cos_f64(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
                                      simsimd_distance_t* d);
 SIMSIMD_DYNAMIC void simsimd_l2sq_i8(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
+                                     simsimd_distance_t* d);
+SIMSIMD_DYNAMIC void simsimd_l2sq_u8(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n,
                                      simsimd_distance_t* d);
 SIMSIMD_DYNAMIC void simsimd_l2sq_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                       simsimd_distance_t* d);
@@ -1408,6 +1455,30 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
  *  @note The dot product is zero if and only if the two vectors are orthogonal.
  *  @note Defined only for floating-point and integer data types.
  */
+SIMSIMD_PUBLIC void simsimd_dot_i8(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
+                                   simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_NEON_F16
+    simsimd_dot_i8_neon(a, b, n, d);
+#elif SIMSIMD_TARGET_ICE
+    simsimd_dot_i8_ice(a, b, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_dot_i8_haswell(a, b, n, d);
+#else
+    simsimd_dot_i8_serial(a, b, n, d);
+#endif
+}
+SIMSIMD_PUBLIC void simsimd_dot_u8(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n,
+                                   simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_NEON_F16
+    simsimd_dot_u8_neon(a, b, n, d);
+#elif SIMSIMD_TARGET_ICE
+    simsimd_dot_u8_ice(a, b, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_dot_u8_haswell(a, b, n, d);
+#else
+    simsimd_dot_u8_serial(a, b, n, d);
+#endif
+}
 SIMSIMD_PUBLIC void simsimd_dot_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                     simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE_F16
@@ -1422,7 +1493,6 @@ SIMSIMD_PUBLIC void simsimd_dot_f16(simsimd_f16_t const* a, simsimd_f16_t const*
     simsimd_dot_f16_serial(a, b, n, d);
 #endif
 }
-
 SIMSIMD_PUBLIC void simsimd_dot_bf16(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n,
                                      simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_GENOA
@@ -1435,7 +1505,6 @@ SIMSIMD_PUBLIC void simsimd_dot_bf16(simsimd_bf16_t const* a, simsimd_bf16_t con
     simsimd_dot_bf16_serial(a, b, n, d);
 #endif
 }
-
 SIMSIMD_PUBLIC void simsimd_dot_f32(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n,
                                     simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE
@@ -1582,6 +1651,18 @@ SIMSIMD_PUBLIC void simsimd_cos_i8(simsimd_i8_t const* a, simsimd_i8_t const* b,
     simsimd_cos_i8_serial(a, b, n, d);
 #endif
 }
+SIMSIMD_PUBLIC void simsimd_cos_u8(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n,
+                                   simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_NEON
+    simsimd_cos_u8_neon(a, b, n, d);
+#elif SIMSIMD_TARGET_ICE
+    simsimd_cos_u8_ice(a, b, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_cos_u8_haswell(a, b, n, d);
+#else
+    simsimd_cos_u8_serial(a, b, n, d);
+#endif
+}
 SIMSIMD_PUBLIC void simsimd_cos_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                     simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE_F16
@@ -1648,6 +1729,18 @@ SIMSIMD_PUBLIC void simsimd_l2sq_i8(simsimd_i8_t const* a, simsimd_i8_t const* b
     simsimd_l2sq_i8_serial(a, b, n, d);
 #endif
 }
+SIMSIMD_PUBLIC void simsimd_l2sq_u8(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n,
+                                    simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_NEON
+    simsimd_l2sq_u8_neon(a, b, n, d);
+#elif SIMSIMD_TARGET_ICE
+    simsimd_l2sq_u8_ice(a, b, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_l2sq_u8_haswell(a, b, n, d);
+#else
+    simsimd_l2sq_u8_serial(a, b, n, d);
+#endif
+}
 SIMSIMD_PUBLIC void simsimd_l2sq_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
                                      simsimd_distance_t* d) {
 #if SIMSIMD_TARGET_SVE_F16
@@ -1712,6 +1805,18 @@ SIMSIMD_PUBLIC void simsimd_l2_i8(simsimd_i8_t const* a, simsimd_i8_t const* b, 
     simsimd_l2_i8_haswell(a, b, n, d);
 #else
     simsimd_l2_i8_serial(a, b, n, d);
+#endif
+}
+SIMSIMD_PUBLIC void simsimd_l2_u8(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n,
+                                  simsimd_distance_t* d) {
+#if SIMSIMD_TARGET_NEON
+    simsimd_l2_u8_neon(a, b, n, d);
+#elif SIMSIMD_TARGET_ICE
+    simsimd_l2_u8_ice(a, b, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_l2_u8_haswell(a, b, n, d);
+#else
+    simsimd_l2_u8_serial(a, b, n, d);
 #endif
 }
 SIMSIMD_PUBLIC void simsimd_l2_f16(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n,
