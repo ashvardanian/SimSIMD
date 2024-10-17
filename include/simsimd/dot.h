@@ -13,6 +13,7 @@
  *  - 32-bit IEEE floating point numbers
  *  - 16-bit IEEE floating point numbers
  *  - 16-bit brain floating point numbers
+ *  - 8-bit unsigned integers
  *  - 8-bit signed integers
  *
  *  For hardware architectures:
@@ -54,6 +55,7 @@ SIMSIMD_PUBLIC void simsimd_dot_bf16c_serial(simsimd_bf16_t const* a, simsimd_bf
 SIMSIMD_PUBLIC void simsimd_vdot_bf16c_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 SIMSIMD_PUBLIC void simsimd_dot_i8_serial(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_u8_serial(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 /*  Double-precision serial backends for all numeric types.
  *  For single-precision computation check out the "*_serial" counterparts of those "*_accurate" functions.
@@ -83,6 +85,7 @@ SIMSIMD_PUBLIC void simsimd_dot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t 
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 
 SIMSIMD_PUBLIC void simsimd_dot_i8_neon(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_u8_neon(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 SIMSIMD_PUBLIC void simsimd_dot_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* results);
@@ -120,6 +123,7 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_haswell(simsimd_f16_t const* a, simsimd_f1
 SIMSIMD_PUBLIC void simsimd_dot_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_u8_haswell(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 /*  SIMD-powered backends for various generations of AVX512 CPUs.
  *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
@@ -136,6 +140,7 @@ SIMSIMD_PUBLIC void simsimd_dot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32
 SIMSIMD_PUBLIC void simsimd_vdot_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 SIMSIMD_PUBLIC void simsimd_dot_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_u8_ice(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 SIMSIMD_PUBLIC void simsimd_dot_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_bf16c_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
@@ -212,6 +217,7 @@ SIMSIMD_MAKE_COMPLEX_DOT(serial, bf16, f32, SIMSIMD_BF16_TO_F32)  // simsimd_dot
 SIMSIMD_MAKE_COMPLEX_VDOT(serial, bf16, f32, SIMSIMD_BF16_TO_F32) // simsimd_vdot_bf16c_serial
 
 SIMSIMD_MAKE_DOT(serial, i8, i64, SIMSIMD_DEREFERENCE) // simsimd_dot_i8_serial
+SIMSIMD_MAKE_DOT(serial, u8, i64, SIMSIMD_DEREFERENCE) // simsimd_dot_u8_serial
 
 SIMSIMD_MAKE_DOT(accurate, f32, f64, SIMSIMD_DEREFERENCE)          // simsimd_dot_f32_accurate
 SIMSIMD_MAKE_COMPLEX_DOT(accurate, f32, f64, SIMSIMD_DEREFERENCE)  // simsimd_dot_f32c_accurate
@@ -360,6 +366,27 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_neon(simsimd_i8_t const* a, simsimd_i8_t cons
     int32_t ab = vaddvq_s32(ab_vec);
     for (; i < n; ++i) {
         int32_t ai = a[i], bi = b[i];
+        ab += ai * bi;
+    }
+
+    *result = ab;
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_u8_neon(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n,
+                                        simsimd_distance_t* result) {
+
+    uint32x4_t ab_vec = vdupq_n_u32(0);
+    simsimd_size_t i = 0;
+    for (; i + 16 <= n; i += 16) {
+        uint8x16_t a_vec = vld1q_u8(a + i);
+        uint8x16_t b_vec = vld1q_u8(b + i);
+        ab_vec = vdotq_u32(ab_vec, a_vec, b_vec);
+    }
+
+    // Take care of the tail:
+    uint32_t ab = vaddvq_u32(ab_vec);
+    for (; i < n; ++i) {
+        uint32_t ai = a[i], bi = b[i];
         ab += ai * bi;
     }
 
@@ -1115,11 +1142,46 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t c
         __m256i a_i8_vec = _mm256_lddqu_si256((__m256i const*)(a + i));
         __m256i b_i8_vec = _mm256_lddqu_si256((__m256i const*)(b + i));
 
-        // Unpack int8 to int16
+        // Upcast `int8` to `int16`
         __m256i a_i16_low_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_i8_vec, 0));
         __m256i a_i16_high_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_i8_vec, 1));
         __m256i b_i16_low_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_i8_vec, 0));
         __m256i b_i16_high_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_i8_vec, 1));
+
+        // Multiply and accumulate at int16 level, accumulate at `int32` level
+        ab_i32_low_vec = _mm256_add_epi32(ab_i32_low_vec, _mm256_madd_epi16(a_i16_low_vec, b_i16_low_vec));
+        ab_i32_high_vec = _mm256_add_epi32(ab_i32_high_vec, _mm256_madd_epi16(a_i16_high_vec, b_i16_high_vec));
+    }
+
+    // Horizontal sum across the 256-bit register
+    int ab = _simsimd_reduce_i32x8_haswell(_mm256_add_epi32(ab_i32_low_vec, ab_i32_high_vec));
+
+    // Take care of the tail:
+    for (; i < n; ++i)
+        ab += (int)(a[i]) * b[i];
+    *result = ab;
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_u8_haswell(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n,
+                                           simsimd_distance_t* result) {
+
+    __m256i ab_i32_low_vec = _mm256_setzero_si256();
+    __m256i ab_i32_high_vec = _mm256_setzero_si256();
+    __m256i const zeros_vec = _mm256_setzero_si256();
+
+    // AVX2 has no instructions for unsigned 8-bit integer dot-products,
+    // but it has a weird instruction for mixed signed-unsigned 8-bit dot-product.
+    simsimd_size_t i = 0;
+    for (; i + 32 <= n; i += 32) {
+        __m256i a_u8_vec = _mm256_lddqu_si256((__m256i const*)(a + i));
+        __m256i b_u8_vec = _mm256_lddqu_si256((__m256i const*)(b + i));
+
+        // Upcast `uint8` to `int16`. Unlike the signed version, we can use the unpacking
+        // instructions instead of extracts, as they are much faster and more efficient.
+        __m256i a_i16_low_vec = _mm256_unpacklo_epi8(a_u8_vec, zeros_vec);
+        __m256i a_i16_high_vec = _mm256_unpackhi_epi8(a_u8_vec, zeros_vec);
+        __m256i b_i16_low_vec = _mm256_unpacklo_epi8(b_u8_vec, zeros_vec);
+        __m256i b_i16_high_vec = _mm256_unpackhi_epi8(b_u8_vec, zeros_vec);
 
         // Multiply and accumulate at int16 level, accumulate at int32 level
         ab_i32_low_vec = _mm256_add_epi32(ab_i32_low_vec, _mm256_madd_epi16(a_i16_low_vec, b_i16_low_vec));
@@ -1697,6 +1759,45 @@ simsimd_dot_i8_ice_cycle:
         goto simsimd_dot_i8_ice_cycle;
 
     *result = _mm512_reduce_add_epi32(ab_i32_vec);
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_u8_ice(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n,
+                                       simsimd_distance_t* result) {
+    __m512i ab_i32_low_vec = _mm512_setzero_si512();
+    __m512i ab_i32_high_vec = _mm512_setzero_si512();
+    __m512i const zeros_vec = _mm512_setzero_si512();
+    __m512i a_i16_low_vec, a_i16_high_vec, b_i16_low_vec, b_i16_high_vec;
+    __m512i a_u8_vec, b_u8_vec;
+
+simsimd_dot_u8_ice_cycle:
+    if (n < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
+        a_u8_vec = _mm512_maskz_loadu_epi8(mask, a);
+        b_u8_vec = _mm512_maskz_loadu_epi8(mask, b);
+        n = 0;
+    } else {
+        a_u8_vec = _mm512_loadu_si512(a);
+        b_u8_vec = _mm512_loadu_si512(b);
+        a += 64, b += 64, n -= 64;
+    }
+
+    // Upcast `uint8` to `int16`. Unlike the signed version, we can use the unpacking
+    // instructions instead of extracts, as they are much faster and more efficient.
+    a_i16_low_vec = _mm512_unpacklo_epi8(a_u8_vec, zeros_vec);
+    a_i16_high_vec = _mm512_unpackhi_epi8(a_u8_vec, zeros_vec);
+    b_i16_low_vec = _mm512_unpacklo_epi8(b_u8_vec, zeros_vec);
+    b_i16_high_vec = _mm512_unpackhi_epi8(b_u8_vec, zeros_vec);
+    // Unfortunately we can't use the `_mm512_dpbusd_epi32` intrinsics here either,
+    // as it's asymmetric with respect to the sign of the input arguments:
+    //      Signed(ZeroExtend16(a.byte[4*j]) * SignExtend16(b.byte[4*j]))
+    // So we have to use the `_mm512_dpwssd_epi32` intrinsics instead, upcasting
+    // to 16-bit beforehand.
+    ab_i32_low_vec = _mm512_dpwssd_epi32(ab_i32_low_vec, a_i16_low_vec, b_i16_low_vec);
+    ab_i32_high_vec = _mm512_dpwssd_epi32(ab_i32_high_vec, a_i16_high_vec, b_i16_high_vec);
+    if (n)
+        goto simsimd_dot_u8_ice_cycle;
+
+    *result = _mm512_reduce_add_epi32(_mm512_add_epi32(ab_i32_low_vec, ab_i32_high_vec));
 }
 
 #pragma clang attribute pop
