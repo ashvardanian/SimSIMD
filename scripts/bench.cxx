@@ -3,6 +3,8 @@
 #include <cstring>       // `std::memcpy`
 #include <random>        // `std::uniform_int_distribution`
 #include <thread>        // `std::thread`
+#include <tuple>         // `std::tuple` for callable introspection
+#include <type_traits>   // ``
 #include <unordered_set> // `std::unordered_set`
 #include <vector>        // `std::vector`
 
@@ -21,6 +23,7 @@
 // are implemented.
 #define SIMSIMD_NATIVE_F16 1
 #define SIMSIMD_NATIVE_BF16 1
+#define SIMSIMD_TARGET_NEON_BF16 0
 #include <simsimd/simsimd.h>
 
 constexpr std::size_t default_seconds = 10;
@@ -55,6 +58,24 @@ template <> struct datatype_enum_to_type_gt<simsimd_datatype_u32_k> { using valu
 template <> struct datatype_enum_to_type_gt<simsimd_datatype_i64_k> { using value_t = simsimd_i64_t; };
 template <> struct datatype_enum_to_type_gt<simsimd_datatype_u64_k> { using value_t = simsimd_u64_t; };
 // clang-format on
+
+template <typename callable_at> struct function_traits;
+
+// Specialization for functions
+template <typename returned_at, typename... args_at> struct function_traits<returned_at(args_at...)> {
+    using arg_tuple = std::tuple<args_at...>;
+};
+
+// Specialization for function pointers
+template <typename returned_at, typename... args_at>
+struct function_traits<returned_at (*)(args_at...)> : function_traits<returned_at(args_at...)> {};
+
+// Specialization for member function pointers
+template <typename returned_at, typename class_at, typename... args_at>
+struct function_traits<returned_at (class_at::*)(args_at...)> : function_traits<returned_at(args_at...)> {};
+
+// Specialization for callable objects like lambdas and functors
+template <typename callable_at> struct function_traits : function_traits<decltype(&callable_at::operator())> {};
 
 template <std::size_t multiple> std::size_t divide_round_up(std::size_t n) {
     return ((n + multiple - 1) / multiple) * multiple;
@@ -111,6 +132,7 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
     std::size_t size_bytes() const noexcept {
         return divide_round_up<cacheline_length>(dimensions_ * sizeof(scalar_t));
     }
+    scalar_t* data() noexcept { return buffer_; }
     scalar_t const* data() const noexcept { return buffer_; }
 
     /**
@@ -480,12 +502,105 @@ void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std:
         std::accumulate(results_contender.begin(), results_contender.end(), 0.0) / results_contender.size();
 }
 
+/**
+ *  @brief Measures the performance of a vector-vector @b FMA function against a baseline using Google Benchmark.
+ *  @tparam pair_at The type representing the vector pair used in the measurement.
+ *  @tparam kernel_at The type of the kernel function (default is void).
+ *  @param state The benchmark state object provided by Google Benchmark.
+ *  @param kernel The kernel function to benchmark.
+ *  @param baseline The baseline function to compare against.
+ *  @param dimensions The number of dimensions in the vectors.
+ */
+template <typename pair_at, typename kernel_at = void, typename l2_metric_at = void>
+void measure_fma(bm::State& state, kernel_at kernel, kernel_at baseline, l2_metric_at l2_metric,
+                 std::size_t dimensions) {
+
+    using pair_t = pair_at;
+    using vector_t = typename pair_at::vector_t;
+
+    constexpr simsimd_distance_t alpha = 0.2;
+    constexpr simsimd_distance_t beta = 0.3;
+    constexpr bool takes_three_vectors_k = std::tuple_size<typename function_traits<kernel_at>::arg_tuple>::value == 6;
+    auto call_baseline = [&](vector_t const& a, vector_t const& b, vector_t const& c, vector_t& d) {
+        if constexpr (takes_three_vectors_k) {
+            baseline(a.data(), b.data(), a.dimensions(), alpha, beta, d.data());
+        } else {
+            baseline(a.data(), b.data(), c.data(), a.dimensions(), alpha, beta, d.data());
+        }
+    };
+    auto call_contender = [&](vector_t const& a, vector_t const& b, vector_t const& c, vector_t& d) {
+        if constexpr (takes_three_vectors_k) {
+            kernel(a.data(), b.data(), a.dimensions(), alpha, beta, d.data());
+        } else {
+            kernel(a.data(), b.data(), c.data(), a.dimensions(), alpha, beta, d.data());
+        }
+    };
+
+    // Let's average the distance results over many quads.
+    struct quad_t {
+        vector_t a, b, c, d;
+    };
+    constexpr std::size_t quads_count = 128;
+    std::vector<quad_t> quads(quads_count);
+    for (std::size_t i = 0; i != quads.size(); ++i) {
+        auto& quad = quads[i];
+        quad.a = quad.b = quad.c = quad.d = vector_t(dimensions);
+        quad.a.randomize(static_cast<std::uint32_t>(i));
+        quad.b.randomize(static_cast<std::uint32_t>(i) + 54321u);
+        quad.c.randomize(static_cast<std::uint32_t>(i) + 6789u);
+    }
+
+    // Initialize the output buffers for distance calculations.
+    vector_t baseline_d(dimensions), contender_d(dimensions), zeros(dimensions);
+    std::vector<simsimd_distance_t> l2_metric_from_baseline(quads.size());
+    std::vector<simsimd_distance_t> l2_baseline_result_norm(quads.size());
+    std::vector<simsimd_distance_t> l2_contender_result_norm(quads.size());
+    zeros.set(0);
+    double mean_delta = 0, mean_relative_error = 0;
+    for (std::size_t i = 0; i != quads.size(); ++i) {
+        quad_t& quad = quads[i];
+        call_baseline(quad.a, quad.b, quad.c, baseline_d);
+        call_contender(quad.a, quad.b, quad.c, contender_d);
+        l2_metric(baseline_d.data(), contender_d.data(), dimensions, &l2_metric_from_baseline[i]);
+        l2_metric(baseline_d.data(), zeros.data(), dimensions, &l2_baseline_result_norm[i]);
+        l2_metric(contender_d.data(), zeros.data(), dimensions, &l2_contender_result_norm[i]);
+        mean_delta += l2_metric_from_baseline[i];
+        mean_relative_error += std::abs(l2_baseline_result_norm[i] - l2_contender_result_norm[i]) /
+                               std::max(l2_baseline_result_norm[i], l2_contender_result_norm[i]);
+    }
+
+    // The actual benchmarking loop.
+    std::size_t iterations = 0;
+    for (auto _ : state) {
+        quad_t& quad = quads[iterations & (quads_count - 1)];
+        call_contender(quad.a, quad.b, quad.c, quad.d);
+        iterations++;
+    }
+
+    // Measure the mean absolute delta and relative error.
+    state.counters["abs_delta"] = mean_delta;
+    state.counters["relative_error"] = mean_relative_error;
+    state.counters["bytes"] =
+        bm::Counter(iterations * quads[0].a.size_bytes() * (takes_three_vectors_k ? 3 : 2), bm::Counter::kIsRate);
+    state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
+}
+
 template <simsimd_datatype_t datatype_ak, typename metric_at = void>
 void dense_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
     using pair_t = vectors_pair_gt<datatype_ak>;
     std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_dense<pair_t, metric_at*>, distance_func, baseline_func,
                           dense_dimensions)
+        ->MinTime(default_seconds)
+        ->Threads(default_threads);
+}
+
+template <simsimd_datatype_t datatype_ak, typename kernel_at = void, typename l2_metric_at = void>
+void fma_(std::string name, kernel_at* distance_func, kernel_at* baseline_func, l2_metric_at* l2_metric_func) {
+    using pair_t = vectors_pair_gt<datatype_ak>;
+    std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_fma<pair_t, kernel_at*, l2_metric_at*>, distance_func,
+                          baseline_func, l2_metric_func, dense_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
@@ -624,6 +739,21 @@ int main(int argc, char** argv) {
     constexpr simsimd_datatype_t f32c_k = simsimd_datatype_f32c_k;
     constexpr simsimd_datatype_t f16c_k = simsimd_datatype_f16c_k;
     constexpr simsimd_datatype_t bf16c_k = simsimd_datatype_bf16c_k;
+
+    fma_<f32_k>("fma_f32_neon", simsimd_fma_f32_neon, simsimd_fma_f32_accurate, simsimd_l2_f32_accurate);
+    fma_<f32_k>("wsum_f32_neon", simsimd_wsum_f32_neon, simsimd_wsum_f32_accurate, simsimd_l2_f32_accurate);
+    fma_<f32_k>("fma_f32_serial", simsimd_fma_f32_serial, simsimd_fma_f32_accurate, simsimd_l2_f32_accurate);
+    fma_<f32_k>("wsum_f32_serial", simsimd_wsum_f32_serial, simsimd_wsum_f32_accurate, simsimd_l2_f32_accurate);
+
+    fma_<f16_k>("fma_f16_neon", simsimd_fma_f16_neon, simsimd_fma_f16_accurate, simsimd_l2_f16_accurate);
+    fma_<f16_k>("wsum_f16_neon", simsimd_wsum_f16_neon, simsimd_wsum_f16_accurate, simsimd_l2_f16_accurate);
+    fma_<f16_k>("fma_f16_serial", simsimd_fma_f16_serial, simsimd_fma_f16_accurate, simsimd_l2_f16_accurate);
+    fma_<f16_k>("wsum_f16_serial", simsimd_wsum_f16_serial, simsimd_wsum_f16_accurate, simsimd_l2_f16_accurate);
+
+    fma_<u8_k>("fma_u8_neon", simsimd_fma_u8_neon, simsimd_fma_u8_serial, simsimd_l2_u8_serial);
+    fma_<u8_k>("wsum_u8_neon", simsimd_wsum_u8_neon, simsimd_wsum_u8_serial, simsimd_l2_u8_serial);
+    fma_<u8_k>("fma_u8_serial", simsimd_fma_u8_serial, simsimd_fma_u8_serial, simsimd_l2_u8_serial);
+    fma_<u8_k>("wsum_u8_serial", simsimd_wsum_u8_serial, simsimd_wsum_u8_serial, simsimd_l2_u8_serial);
 
 #if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
 
