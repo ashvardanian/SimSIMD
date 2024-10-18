@@ -16,7 +16,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
-# Determine if StringZilla is built as a subproject (using `add_subdirectory`) or if it is the main project
+# Determine if SimSIMD is built as a subproject (using `add_subdirectory`) or if it is the main project
 set(SIMSIMD_IS_MAIN_PROJECT OFF)
 
 if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
@@ -79,7 +79,7 @@ if (SIMSIMD_BUILD_BENCHMARKS)
     )
     FetchContent_MakeAvailable(benchmark)
 
-    # Remove the google benchmark built in debug warning
+    # Remove the Google Benchmark's "built in debug warning"
     if (CMAKE_BUILD_TYPE STREQUAL "Release")
         target_compile_definitions(benchmark PRIVATE NDEBUG)
     endif ()
@@ -88,12 +88,19 @@ if (SIMSIMD_BUILD_BENCHMARKS)
     add_executable(simsimd_bench scripts/bench.cxx)
     target_link_libraries(simsimd_bench simsimd Threads::Threads benchmark)
 
-    find_package(BLAS)
-
-    if (BLAS_FOUND AND SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
-        target_compile_definitions(simsimd_bench PRIVATE SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1)
-        target_link_libraries(simsimd_bench ${BLAS_LIBRARIES})
+    if (SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
+        find_package(BLAS REQUIRED)
+        if (BLAS_FOUND)
+            message(STATUS "BLAS found: ${BLAS_LIBRARIES}")
+            include_directories(${BLAS_INCLUDE_DIRS})
+            target_include_directories(simsimd_bench PRIVATE ${BLAS_INCLUDE_DIRS})
+            target_link_libraries(simsimd_bench ${BLAS_LIBRARIES})
+            target_compile_definitions(simsimd_bench PRIVATE SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1)
+        else ()
+            message(FATAL_ERROR "BLAS not found")
+        endif ()
     endif ()
+
 endif ()
 
 if (SIMSIMD_BUILD_TESTS)

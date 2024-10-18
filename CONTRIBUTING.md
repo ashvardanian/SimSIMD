@@ -29,15 +29,37 @@ sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100
 sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100
 ```
 
-On MacOS it's recommended to use Homebrew and install Clang, as opposed to "Apple Clang".
-Replacing the default compiler is not recommended, as it may break the system, but you can pass it as an environment variable:
+To compile with the default Apple Clang on MacOS, use:
 
 ```sh
-brew install llvm
-cmake -D CMAKE_BUILD_TYPE=Release -D SIMSIMD_BUILD_TESTS=1 \
-    -D CMAKE_C_COMPILER="$(brew --prefix llvm)/bin/clang" \
-    -D CMAKE_CXX_COMPILER="$(brew --prefix llvm)/bin/clang++" \
-    -B build_release
+brew install openblas
+cmake -D CMAKE_BUILD_TYPE=Release \
+      -D SIMSIMD_BUILD_TESTS=1 \
+      -D SIMSIMD_BUILD_BENCHMARKS=1 \
+      -D SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 \
+      -D CMAKE_PREFIX_PATH="$(brew --prefix openblas)" \
+      -D CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES="$(brew --prefix openblas)/include" \
+      -B build_release
+cmake --build build_release --config Release
+```
+
+On MacOS it's recommended to use Homebrew and install Clang, as opposed to "Apple Clang".
+Replacing the default compiler across the entire system is not recommended on MacOS, as it may break the system, but you can pass it as an environment variable:
+
+```sh
+brew install llvm openblas
+cmake -D CMAKE_BUILD_TYPE=Release \
+      -D SIMSIMD_BUILD_TESTS=1 \
+      -D SIMSIMD_BUILD_BENCHMARKS=1 \
+      -D SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 \
+      -D CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES="$(brew --prefix openblas)/include" \
+      -D CMAKE_C_LINK_FLAGS="-L$(xcrun --sdk macosx --show-sdk-path)/usr/lib" \
+      -D CMAKE_EXE_LINKER_FLAGS="-L$(xcrun --sdk macosx --show-sdk-path)/usr/lib" \
+      -D CMAKE_C_COMPILER="$(brew --prefix llvm)/bin/clang" \
+      -D CMAKE_CXX_COMPILER="$(brew --prefix llvm)/bin/clang++" \
+      -D CMAKE_OSX_SYSROOT="$(xcrun --sdk macosx --show-sdk-path)" \
+      -D CMAKE_OSX_DEPLOYMENT_TARGET=$(sw_vers -productVersion) \
+      -B build_release
 cmake --build build_release --config Release
 ```
 
