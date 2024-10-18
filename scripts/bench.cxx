@@ -656,9 +656,13 @@ int main(int argc, char** argv) {
     dense_<f64_k>("cos_f64_neon", simsimd_cos_f64_neon, simsimd_cos_f64_serial);
     dense_<f64_k>("l2sq_f64_neon", simsimd_l2sq_f64_neon, simsimd_l2sq_f64_serial);
 
-    dense_<i8_k>("cos_i8_neon", simsimd_cos_i8_neon, simsimd_cos_i8_accurate);
+    dense_<i8_k>("cos_i8_neon", simsimd_cos_i8_neon, simsimd_cos_i8_serial);
+    dense_<i8_k>("l2sq_i8_neon", simsimd_l2sq_i8_neon, simsimd_l2sq_i8_serial);
     dense_<i8_k>("dot_i8_neon", simsimd_dot_i8_neon, simsimd_dot_i8_serial);
-    dense_<i8_k>("l2sq_i8_neon", simsimd_l2sq_i8_neon, simsimd_l2sq_i8_accurate);
+
+    dense_<u8_k>("cos_u8_neon", simsimd_cos_u8_neon, simsimd_cos_u8_serial);
+    dense_<u8_k>("l2sq_u8_neon", simsimd_l2sq_u8_neon, simsimd_l2sq_u8_serial);
+    dense_<u8_k>("dot_u8_neon", simsimd_dot_u8_neon, simsimd_dot_u8_serial);
 
     dense_<b8_k>("hamming_b8_neon", simsimd_hamming_b8_neon, simsimd_hamming_b8_serial);
     dense_<b8_k>("jaccard_b8_neon", simsimd_jaccard_b8_neon, simsimd_jaccard_b8_serial);
@@ -724,9 +728,13 @@ int main(int argc, char** argv) {
     dense_<bf16_k>("cos_bf16_haswell", simsimd_cos_bf16_haswell, simsimd_cos_bf16_accurate);
     dense_<bf16_k>("l2sq_bf16_haswell", simsimd_l2sq_bf16_haswell, simsimd_l2sq_bf16_accurate);
 
-    dense_<i8_k>("cos_i8_haswell", simsimd_cos_i8_haswell, simsimd_cos_i8_accurate);
+    dense_<i8_k>("cos_i8_haswell", simsimd_cos_i8_haswell, simsimd_cos_i8_serial);
+    dense_<i8_k>("l2sq_i8_haswell", simsimd_l2sq_i8_haswell, simsimd_l2sq_i8_serial);
     dense_<i8_k>("dot_i8_haswell", simsimd_dot_i8_haswell, simsimd_dot_i8_serial);
-    dense_<i8_k>("l2sq_i8_haswell", simsimd_l2sq_i8_haswell, simsimd_l2sq_i8_accurate);
+
+    dense_<u8_k>("cos_u8_haswell", simsimd_cos_u8_haswell, simsimd_cos_u8_serial);
+    dense_<u8_k>("l2sq_u8_haswell", simsimd_l2sq_u8_haswell, simsimd_l2sq_u8_serial);
+    dense_<u8_k>("dot_u8_haswell", simsimd_dot_u8_haswell, simsimd_dot_u8_serial);
 
     dense_<b8_k>("hamming_b8_haswell", simsimd_hamming_b8_haswell, simsimd_hamming_b8_serial);
     dense_<b8_k>("jaccard_b8_haswell", simsimd_jaccard_b8_haswell, simsimd_jaccard_b8_serial);
@@ -767,9 +775,13 @@ int main(int argc, char** argv) {
 #endif
 
 #if SIMSIMD_TARGET_ICE
-    dense_<i8_k>("cos_i8_ice", simsimd_cos_i8_ice, simsimd_cos_i8_accurate);
+    dense_<i8_k>("cos_i8_ice", simsimd_cos_i8_ice, simsimd_cos_i8_serial);
+    dense_<i8_k>("l2sq_i8_ice", simsimd_l2sq_i8_ice, simsimd_l2sq_i8_serial);
     dense_<i8_k>("dot_i8_ice", simsimd_dot_i8_ice, simsimd_dot_i8_serial);
-    dense_<i8_k>("l2sq_i8_ice", simsimd_l2sq_i8_ice, simsimd_l2sq_i8_accurate);
+
+    dense_<u8_k>("cos_u8_ice", simsimd_cos_u8_ice, simsimd_cos_u8_serial);
+    dense_<u8_k>("l2sq_u8_ice", simsimd_l2sq_u8_ice, simsimd_l2sq_u8_serial);
+    dense_<u8_k>("dot_u8_ice", simsimd_dot_u8_ice, simsimd_dot_u8_serial);
 
     dense_<f64_k>("dot_f64_skylake", simsimd_dot_f64_skylake, simsimd_dot_f64_serial);
     dense_<f64_k>("cos_f64_skylake", simsimd_cos_f64_skylake, simsimd_cos_f64_serial);
@@ -831,9 +843,13 @@ int main(int argc, char** argv) {
     dense_<f64_k>("cos_f64_serial", simsimd_cos_f64_serial, simsimd_cos_f64_serial);
     dense_<f64_k>("l2sq_f64_serial", simsimd_l2sq_f64_serial, simsimd_l2sq_f64_serial);
 
-    dense_<i8_k>("cos_i8_serial", simsimd_cos_i8_serial, simsimd_cos_i8_accurate);
+    dense_<i8_k>("cos_i8_serial", simsimd_cos_i8_serial, simsimd_cos_i8_serial);
+    dense_<i8_k>("l2sq_i8_serial", simsimd_l2sq_i8_serial, simsimd_l2sq_i8_serial);
     dense_<i8_k>("dot_i8_serial", simsimd_dot_i8_serial, simsimd_dot_i8_serial);
-    dense_<i8_k>("l2sq_i8_serial", simsimd_l2sq_i8_serial, simsimd_l2sq_i8_accurate);
+
+    dense_<u8_k>("cos_u8_serial", simsimd_cos_u8_serial, simsimd_cos_u8_serial);
+    dense_<u8_k>("l2sq_u8_serial", simsimd_l2sq_u8_serial, simsimd_l2sq_u8_serial);
+    dense_<u8_k>("dot_u8_serial", simsimd_dot_u8_serial, simsimd_dot_u8_serial);
 
     dense_<f64c_k>("dot_f64c_serial", simsimd_dot_f64c_serial, simsimd_dot_f64c_serial);
     dense_<f32c_k>("dot_f32c_serial", simsimd_dot_f32c_serial, simsimd_dot_f32c_accurate);

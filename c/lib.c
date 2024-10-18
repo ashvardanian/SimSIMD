@@ -108,6 +108,8 @@ extern "C" {
     }
 
 // Dot products
+SIMSIMD_DECLARATION_DENSE(dot, i8, i8)
+SIMSIMD_DECLARATION_DENSE(dot, u8, u8)
 SIMSIMD_DECLARATION_DENSE(dot, f16, f16)
 SIMSIMD_DECLARATION_DENSE(dot, bf16, bf16)
 SIMSIMD_DECLARATION_DENSE(dot, f32, f32)
@@ -123,16 +125,19 @@ SIMSIMD_DECLARATION_DENSE(vdot, f64c, f64)
 
 // Spatial distances
 SIMSIMD_DECLARATION_DENSE(cos, i8, i8)
+SIMSIMD_DECLARATION_DENSE(cos, u8, u8)
 SIMSIMD_DECLARATION_DENSE(cos, f16, f16)
 SIMSIMD_DECLARATION_DENSE(cos, bf16, bf16)
 SIMSIMD_DECLARATION_DENSE(cos, f32, f32)
 SIMSIMD_DECLARATION_DENSE(cos, f64, f64)
 SIMSIMD_DECLARATION_DENSE(l2sq, i8, i8)
+SIMSIMD_DECLARATION_DENSE(l2sq, u8, u8)
 SIMSIMD_DECLARATION_DENSE(l2sq, f16, f16)
 SIMSIMD_DECLARATION_DENSE(l2sq, bf16, bf16)
 SIMSIMD_DECLARATION_DENSE(l2sq, f32, f32)
 SIMSIMD_DECLARATION_DENSE(l2sq, f64, f64)
 SIMSIMD_DECLARATION_DENSE(l2, i8, i8)
+SIMSIMD_DECLARATION_DENSE(l2, u8, u8)
 SIMSIMD_DECLARATION_DENSE(l2, f16, f16)
 SIMSIMD_DECLARATION_DENSE(l2, bf16, bf16)
 SIMSIMD_DECLARATION_DENSE(l2, f32, f32)
@@ -199,10 +204,13 @@ SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
     void* dummy = 0;
 
     // Dense:
+    simsimd_dot_i8((simsimd_i8_t*)dummy, (simsimd_i8_t*)dummy, 0, dummy_results);
+    simsimd_dot_u8((simsimd_u8_t*)dummy, (simsimd_u8_t*)dummy, 0, dummy_results);
     simsimd_dot_f16((simsimd_f16_t*)dummy, (simsimd_f16_t*)dummy, 0, dummy_results);
     simsimd_dot_bf16((simsimd_bf16_t*)dummy, (simsimd_bf16_t*)dummy, 0, dummy_results);
     simsimd_dot_f32((simsimd_f32_t*)dummy, (simsimd_f32_t*)dummy, 0, dummy_results);
     simsimd_dot_f64((simsimd_f64_t*)dummy, (simsimd_f64_t*)dummy, 0, dummy_results);
+
     simsimd_dot_f16c((simsimd_f16_t*)dummy, (simsimd_f16_t*)dummy, 0, dummy_results);
     simsimd_dot_bf16c((simsimd_bf16_t*)dummy, (simsimd_bf16_t*)dummy, 0, dummy_results);
     simsimd_dot_f32c((simsimd_f32_t*)dummy, (simsimd_f32_t*)dummy, 0, dummy_results);
@@ -211,23 +219,32 @@ SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
     simsimd_vdot_bf16c((simsimd_bf16_t*)dummy, (simsimd_bf16_t*)dummy, 0, dummy_results);
     simsimd_vdot_f32c((simsimd_f32_t*)dummy, (simsimd_f32_t*)dummy, 0, dummy_results);
     simsimd_vdot_f64c((simsimd_f64_t*)dummy, (simsimd_f64_t*)dummy, 0, dummy_results);
+
     simsimd_cos_i8((simsimd_i8_t*)dummy, (simsimd_i8_t*)dummy, 0, dummy_results);
+    simsimd_cos_u8((simsimd_u8_t*)dummy, (simsimd_u8_t*)dummy, 0, dummy_results);
     simsimd_cos_f16((simsimd_f16_t*)dummy, (simsimd_f16_t*)dummy, 0, dummy_results);
     simsimd_cos_bf16((simsimd_bf16_t*)dummy, (simsimd_bf16_t*)dummy, 0, dummy_results);
     simsimd_cos_f32((simsimd_f32_t*)dummy, (simsimd_f32_t*)dummy, 0, dummy_results);
     simsimd_cos_f64((simsimd_f64_t*)dummy, (simsimd_f64_t*)dummy, 0, dummy_results);
+
     simsimd_l2sq_i8((simsimd_i8_t*)dummy, (simsimd_i8_t*)dummy, 0, dummy_results);
+    simsimd_l2sq_u8((simsimd_u8_t*)dummy, (simsimd_u8_t*)dummy, 0, dummy_results);
     simsimd_l2sq_f16((simsimd_f16_t*)dummy, (simsimd_f16_t*)dummy, 0, dummy_results);
     simsimd_l2sq_bf16((simsimd_bf16_t*)dummy, (simsimd_bf16_t*)dummy, 0, dummy_results);
     simsimd_l2sq_f32((simsimd_f32_t*)dummy, (simsimd_f32_t*)dummy, 0, dummy_results);
     simsimd_l2sq_f64((simsimd_f64_t*)dummy, (simsimd_f64_t*)dummy, 0, dummy_results);
+
     simsimd_l2_i8((simsimd_i8_t*)dummy, (simsimd_i8_t*)dummy, 0, dummy_results);
+    simsimd_l2_i8((simsimd_i8_t*)dummy, (simsimd_i8_t*)dummy, 0, dummy_results);
+    simsimd_l2_u8((simsimd_u8_t*)dummy, (simsimd_u8_t*)dummy, 0, dummy_results);
     simsimd_l2_f16((simsimd_f16_t*)dummy, (simsimd_f16_t*)dummy, 0, dummy_results);
     simsimd_l2_bf16((simsimd_bf16_t*)dummy, (simsimd_bf16_t*)dummy, 0, dummy_results);
     simsimd_l2_f32((simsimd_f32_t*)dummy, (simsimd_f32_t*)dummy, 0, dummy_results);
     simsimd_l2_f64((simsimd_f64_t*)dummy, (simsimd_f64_t*)dummy, 0, dummy_results);
+
     simsimd_hamming_b8((simsimd_b8_t*)dummy, (simsimd_b8_t*)dummy, 0, dummy_results);
     simsimd_jaccard_b8((simsimd_b8_t*)dummy, (simsimd_b8_t*)dummy, 0, dummy_results);
+
     simsimd_kl_f16((simsimd_f16_t*)dummy, (simsimd_f16_t*)dummy, 0, dummy_results);
     simsimd_kl_bf16((simsimd_bf16_t*)dummy, (simsimd_bf16_t*)dummy, 0, dummy_results);
     simsimd_kl_f32((simsimd_f32_t*)dummy, (simsimd_f32_t*)dummy, 0, dummy_results);
