@@ -4,7 +4,7 @@ project(
     simsimd
     VERSION 5.7.3
     LANGUAGES C CXX
-    DESCRIPTION "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm"
+    DESCRIPTION "Portable mixed-precision BLAS-like vector math library for x86 and ARM"
     HOMEPAGE_URL "https://github.com/ashvardanian/simsimd"
 )
 

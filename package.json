@@ -1,7 +1,7 @@
 {
   "name": "simsimd",
   "version": "5.7.3",
-  "description": "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm",
+  "description": "Portable mixed-precision BLAS-like vector math library for x86 and ARM",
   "homepage": "https://github.com/ashvardanian/simsimd",
   "author": "Ash Vardanian",
   "license": "Apache 2.0",

@@ -161,7 +161,7 @@ setup(
     author="Ash Vardanian",
     author_email="1983160+ashvardanian@users.noreply.github.com",
     url="https://github.com/ashvardanian/simsimd",
-    description="Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm",
+    description="Portable mixed-precision BLAS-like vector math library for x86 and ARM",
     long_description=long_description,
     long_description_content_type="text/markdown",
     license="Apache-2.0",

@@ -1465,7 +1465,7 @@ static PyMethodDef simsimd_methods[] = {
 static PyModuleDef simsimd_module = {
     PyModuleDef_HEAD_INIT,
     .m_name = "SimSIMD",
-    .m_doc = "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm",
+    .m_doc = "Portable mixed-precision BLAS-like vector math library for x86 and ARM",
     .m_size = -1,
     .m_methods = simsimd_methods,
 };
