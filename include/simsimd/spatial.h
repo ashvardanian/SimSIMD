@@ -752,9 +752,9 @@ SIMSIMD_PUBLIC void simsimd_cos_u8_neon(simsimd_u8_t const* a, simsimd_u8_t cons
                                         simsimd_distance_t* result) {
 
     simsimd_size_t i = 0;
-    int32x4_t ab_vec = vdupq_n_u32(0);
-    int32x4_t a2_vec = vdupq_n_u32(0);
-    int32x4_t b2_vec = vdupq_n_u32(0);
+    uint32x4_t ab_vec = vdupq_n_u32(0);
+    uint32x4_t a2_vec = vdupq_n_u32(0);
+    uint32x4_t b2_vec = vdupq_n_u32(0);
     for (; i + 16 <= n; i += 16) {
         uint8x16_t a_vec = vld1q_u8(a + i);
         uint8x16_t b_vec = vld1q_u8(b + i);

@@ -546,6 +546,7 @@ SIMSIMD_INTERNAL void _simsimd_find_metric_punned_implementation( //
     case simsimd_datatype_unknown_k: break;
 
     // These data-types are not supported yet
+    case simsimd_datatype_i4x2_k: break;
     case simsimd_datatype_i16_k: break;
     case simsimd_datatype_i32_k: break;
     case simsimd_datatype_i64_k: break;
