@@ -109,23 +109,27 @@ SIMSIMD_MAKE_WSUM(serial, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       /
 SIMSIMD_MAKE_WSUM(serial, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_wsum_f32_serial
 SIMSIMD_MAKE_WSUM(serial, f16, f32, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    // simsimd_wsum_f16_serial
 SIMSIMD_MAKE_WSUM(serial, bf16, f32, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_wsum_bf16_serial
-SIMSIMD_MAKE_WSUM(serial, i8, i64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)        // simsimd_wsum_i8_serial
-SIMSIMD_MAKE_WSUM(serial, u8, i64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)        // simsimd_wsum_u8_serial
+SIMSIMD_MAKE_WSUM(serial, i8, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_TO_I8)     // simsimd_wsum_i8_serial
+SIMSIMD_MAKE_WSUM(serial, u8, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_TO_U8)     // simsimd_wsum_u8_serial
+
+SIMSIMD_MAKE_WSUM(accurate, f32, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_wsum_f32_accurate
+SIMSIMD_MAKE_WSUM(accurate, f16, f64, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    // simsimd_wsum_f16_accurate
+SIMSIMD_MAKE_WSUM(accurate, bf16, f64, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_wsum_bf16_accurate
+SIMSIMD_MAKE_WSUM(accurate, i8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_I8)     // simsimd_wsum_i8_accurate
+SIMSIMD_MAKE_WSUM(accurate, u8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_U8)     // simsimd_wsum_u8_accurate
 
 SIMSIMD_MAKE_FMA(serial, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_fma_f64_serial
 SIMSIMD_MAKE_FMA(serial, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_fma_f32_serial
 SIMSIMD_MAKE_FMA(serial, f16, f32, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    // simsimd_fma_f16_serial
 SIMSIMD_MAKE_FMA(serial, bf16, f32, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_fma_bf16_serial
-SIMSIMD_MAKE_FMA(serial, i8, i64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)        // simsimd_fma_i8_serial
-SIMSIMD_MAKE_FMA(serial, u8, i64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)        // simsimd_fma_u8_serial
-
-SIMSIMD_MAKE_WSUM(accurate, f32, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_wsum_f32_accurate
-SIMSIMD_MAKE_WSUM(accurate, f16, f64, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    // simsimd_wsum_f16_accurate
-SIMSIMD_MAKE_WSUM(accurate, bf16, f64, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_wsum_bf16_accurate
+SIMSIMD_MAKE_FMA(serial, i8, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_TO_I8)     // simsimd_fma_i8_serial
+SIMSIMD_MAKE_FMA(serial, u8, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_TO_U8)     // simsimd_fma_u8_serial
 
 SIMSIMD_MAKE_FMA(accurate, f32, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_fma_f32_accurate
 SIMSIMD_MAKE_FMA(accurate, f16, f64, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    // simsimd_fma_f16_accurate
 SIMSIMD_MAKE_FMA(accurate, bf16, f64, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_fma_bf16_accurate
+SIMSIMD_MAKE_FMA(accurate, i8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_I8)     // simsimd_fma_i8_accurate
+SIMSIMD_MAKE_FMA(accurate, u8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_U8)     // simsimd_fma_u8_accurate
 
 SIMSIMD_PUBLIC void simsimd_wsum_f64_haswell(                         //
     simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, //
@@ -513,8 +517,8 @@ SIMSIMD_PUBLIC void simsimd_fma_f32_neon(                                   //
 
 #if SIMSIMD_TARGET_NEON_F16
 #pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a+simd")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
+#pragma GCC target("arch=armv8.2-a+simd+fp16")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_wsum_f16_neon(                            //
     simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, //
@@ -578,13 +582,14 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_neon(                           //
         float16x8_t a_scaled_vec = vmulq_n_f16(a_vec, alpha_f16);
         float16x8_t b_scaled_vec = vmulq_n_f16(b_vec, beta_f16);
         float16x8_t sum_vec = vaddq_f16(a_scaled_vec, b_scaled_vec);
-        uint8x8_t sum_u8_vec = vmovn_u16(vcvtq_u16_f16(sum_vec));
+        uint8x8_t sum_u8_vec = vmovn_u16(vcvtaq_u16_f16(sum_vec));
         vst1_u8(result + i, sum_u8_vec);
     }
 
     // The tail:
-    for (; i < n; ++i)
-        result[i] = (simsimd_u8_t)(alpha_f16 * a[i] + beta_f16 * b[i]);
+    for (; i < n; ++i) {
+        SIMSIMD_F32_TO_U8(alpha_f16 * a[i] + beta_f16 * b[i], result + i);
+    }
 }
 
 SIMSIMD_PUBLIC void simsimd_fma_u8_neon(                                 //
@@ -605,13 +610,68 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_neon(                                 //
         float16x8_t ab_vec = vmulq_f16(a_vec, b_vec);
         float16x8_t ab_scaled_vec = vmulq_n_f16(ab_vec, alpha_f16);
         float16x8_t sum_vec = vfmaq_n_f16(ab_scaled_vec, c_vec, beta_f16);
-        uint8x8_t sum_u8_vec = vmovn_u16(vcvtq_u16_f16(sum_vec));
+        uint8x8_t sum_u8_vec = vmovn_u16(vcvtaq_u16_f16(sum_vec));
         vst1_u8(result + i, sum_u8_vec);
     }
 
     // The tail:
-    for (; i < n; ++i)
-        result[i] = (simsimd_u8_t)(alpha_f16 * a[i] * b[i] + beta_f16 * c[i]);
+    for (; i < n; ++i) {
+        SIMSIMD_F32_TO_U8(alpha_f16 * a[i] * b[i] + beta_f16 * c[i], result + i);
+    }
+}
+
+SIMSIMD_PUBLIC void simsimd_wsum_i8_neon(                           //
+    simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result) {
+    float16_t alpha_f16 = (float16_t)alpha;
+    float16_t beta_f16 = (float16_t)beta;
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        int8x8_t a_i8_vec = vld1_s8(a + i);
+        int8x8_t b_i8_vec = vld1_s8(b + i);
+        float16x8_t a_vec = vcvtq_f16_s16(vmovl_s8(a_i8_vec));
+        float16x8_t b_vec = vcvtq_f16_s16(vmovl_s8(b_i8_vec));
+        float16x8_t a_scaled_vec = vmulq_n_f16(a_vec, alpha_f16);
+        float16x8_t b_scaled_vec = vmulq_n_f16(b_vec, beta_f16);
+        float16x8_t sum_vec = vaddq_f16(a_scaled_vec, b_scaled_vec);
+        int8x8_t sum_i8_vec = vmovn_s16(vcvtaq_s16_f16(sum_vec));
+        vst1_s8(result + i, sum_i8_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) {
+        SIMSIMD_F32_TO_I8(alpha_f16 * a[i] + beta_f16 * b[i], result + i);
+    }
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_i8_neon(                                 //
+    simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_i8_t const* c, //
+    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result) {
+    float16_t alpha_f16 = (float16_t)alpha;
+    float16_t beta_f16 = (float16_t)beta;
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        int8x8_t a_i8_vec = vld1_s8(a + i);
+        int8x8_t b_i8_vec = vld1_s8(b + i);
+        int8x8_t c_i8_vec = vld1_s8(c + i);
+        float16x8_t a_vec = vcvtq_f16_s16(vmovl_s8(a_i8_vec));
+        float16x8_t b_vec = vcvtq_f16_s16(vmovl_s8(b_i8_vec));
+        float16x8_t c_vec = vcvtq_f16_s16(vmovl_s8(c_i8_vec));
+        float16x8_t ab_vec = vmulq_f16(a_vec, b_vec);
+        float16x8_t ab_scaled_vec = vmulq_n_f16(ab_vec, alpha_f16);
+        float16x8_t sum_vec = vfmaq_n_f16(ab_scaled_vec, c_vec, beta_f16);
+        int8x8_t sum_i8_vec = vmovn_s16(vcvtaq_s16_f16(sum_vec));
+        vst1_s8(result + i, sum_i8_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) {
+        SIMSIMD_F32_TO_I8(alpha_f16 * a[i] * b[i] + beta_f16 * c[i], result + i);
+    }
 }
 
 #pragma clang attribute pop

@@ -394,6 +394,19 @@ SIMSIMD_STATIC_ASSERT(sizeof(simsimd_bf16_t) == 2, simsimd_bf16_t_must_be_2_byte
 #endif
 #endif
 
+#if !defined(SIMSIMD_F32_TO_I8)
+#define SIMSIMD_F32_TO_I8(x, y) *(y) = (simsimd_i8_t)roundf(x)
+#endif
+#if !defined(SIMSIMD_F32_TO_U8)
+#define SIMSIMD_F32_TO_U8(x, y) *(y) = (simsimd_u8_t)roundf(x)
+#endif
+#if !defined(SIMSIMD_F64_TO_I8)
+#define SIMSIMD_F64_TO_I8(x, y) *(y) = (simsimd_i8_t)round(x)
+#endif
+#if !defined(SIMSIMD_F64_TO_U8)
+#define SIMSIMD_F64_TO_U8(x, y) *(y) = (simsimd_u8_t)round(x)
+#endif
+
 /** @brief  Convenience type for half-precision floating-point type conversions. */
 typedef union {
     unsigned i;

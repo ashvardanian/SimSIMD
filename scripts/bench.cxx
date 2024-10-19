@@ -522,14 +522,14 @@ void measure_fma(bm::State& state, kernel_at kernel, kernel_at baseline, l2_metr
     constexpr bool takes_three_vectors_k = std::tuple_size<typename function_traits<kernel_at>::arg_tuple>::value == 6;
     auto call_baseline = [&](vector_t const& a, vector_t const& b, vector_t const& c, vector_t& d) {
         if constexpr (takes_three_vectors_k) {
-            baseline(a.data(), b.data(), a.dimensions(), alpha, beta, d.data());
+            baseline(a.data(), c.data(), a.dimensions(), alpha, beta, d.data());
         } else {
             baseline(a.data(), b.data(), c.data(), a.dimensions(), alpha, beta, d.data());
         }
     };
     auto call_contender = [&](vector_t const& a, vector_t const& b, vector_t const& c, vector_t& d) {
         if constexpr (takes_three_vectors_k) {
-            kernel(a.data(), b.data(), a.dimensions(), alpha, beta, d.data());
+            kernel(a.data(), c.data(), a.dimensions(), alpha, beta, d.data());
         } else {
             kernel(a.data(), b.data(), c.data(), a.dimensions(), alpha, beta, d.data());
         }
@@ -545,8 +545,8 @@ void measure_fma(bm::State& state, kernel_at kernel, kernel_at baseline, l2_metr
         auto& quad = quads[i];
         quad.a = quad.b = quad.c = quad.d = vector_t(dimensions);
         quad.a.randomize(static_cast<std::uint32_t>(i));
-        quad.b.randomize(static_cast<std::uint32_t>(i) + 54321u);
-        quad.c.randomize(static_cast<std::uint32_t>(i) + 6789u);
+        quad.b.set(2); // Having a small constant here will help avoid overflows
+        quad.c.randomize(static_cast<std::uint32_t>(i) + 54321u);
     }
 
     // Initialize the output buffers for distance calculations.
@@ -563,10 +563,13 @@ void measure_fma(bm::State& state, kernel_at kernel, kernel_at baseline, l2_metr
         l2_metric(baseline_d.data(), contender_d.data(), dimensions, &l2_metric_from_baseline[i]);
         l2_metric(baseline_d.data(), zeros.data(), dimensions, &l2_baseline_result_norm[i]);
         l2_metric(contender_d.data(), zeros.data(), dimensions, &l2_contender_result_norm[i]);
-        mean_delta += l2_metric_from_baseline[i];
-        mean_relative_error += std::abs(l2_baseline_result_norm[i] - l2_contender_result_norm[i]) /
-                               std::max(l2_baseline_result_norm[i], l2_contender_result_norm[i]);
+
+        mean_delta += std::abs(l2_metric_from_baseline[i]);
+        mean_relative_error +=
+            std::abs(l2_metric_from_baseline[i]) / (std::max)(l2_baseline_result_norm[i], l2_contender_result_norm[i]);
     }
+    mean_delta /= quads_count;
+    mean_relative_error /= quads_count;
 
     // The actual benchmarking loop.
     std::size_t iterations = 0;
@@ -751,18 +754,6 @@ int main(int argc, char** argv) {
 #endif
 
 #if SIMSIMD_TARGET_NEON
-    dense_<f16_k>("dot_f16_neon", simsimd_dot_f16_neon, simsimd_dot_f16_accurate);
-    dense_<f16_k>("cos_f16_neon", simsimd_cos_f16_neon, simsimd_cos_f16_accurate);
-    dense_<f16_k>("l2sq_f16_neon", simsimd_l2sq_f16_neon, simsimd_l2sq_f16_accurate);
-    dense_<f16_k>("l2_f16_neon", simsimd_l2_f16_neon, simsimd_l2_f16_accurate);
-    dense_<f16_k>("kl_f16_neon", simsimd_kl_f16_neon, simsimd_kl_f16_accurate);
-    dense_<f16_k>("js_f16_neon", simsimd_js_f16_neon, simsimd_js_f16_accurate);
-
-    dense_<bf16_k>("dot_bf16_neon", simsimd_dot_bf16_neon, simsimd_dot_bf16_accurate);
-    dense_<bf16_k>("cos_bf16_neon", simsimd_cos_bf16_neon, simsimd_cos_bf16_accurate);
-    dense_<bf16_k>("l2sq_bf16_neon", simsimd_l2sq_bf16_neon, simsimd_l2sq_bf16_accurate);
-    dense_<bf16_k>("l2_bf16_neon", simsimd_l2_bf16_neon, simsimd_l2_bf16_accurate);
-
     dense_<f32_k>("dot_f32_neon", simsimd_dot_f32_neon, simsimd_dot_f32_accurate);
     dense_<f32_k>("cos_f32_neon", simsimd_cos_f32_neon, simsimd_cos_f32_accurate);
     dense_<f32_k>("l2sq_f32_neon", simsimd_l2sq_f32_neon, simsimd_l2sq_f32_accurate);
@@ -821,8 +812,10 @@ int main(int argc, char** argv) {
     fma_<f16_k>("wsum_f16_neon", simsimd_wsum_f16_neon, simsimd_wsum_f16_accurate, simsimd_l2_f16_accurate);
 
     // FMA kernels for `u8` on NEON use `f16` arithmetic
-    fma_<u8_k>("fma_u8_neon", simsimd_fma_u8_neon, simsimd_fma_u8_serial, simsimd_l2_u8_serial);
-    fma_<u8_k>("wsum_u8_neon", simsimd_wsum_u8_neon, simsimd_wsum_u8_serial, simsimd_l2_u8_serial);
+    fma_<u8_k>("fma_u8_neon", simsimd_fma_u8_neon, simsimd_fma_u8_accurate, simsimd_l2_u8_serial);
+    fma_<u8_k>("wsum_u8_neon", simsimd_wsum_u8_neon, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
+    fma_<i8_k>("fma_i8_neon", simsimd_fma_i8_neon, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
+    fma_<i8_k>("wsum_i8_neon", simsimd_wsum_i8_neon, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
 #endif
 
 #if SIMSIMD_TARGET_NEON_BF16
@@ -1054,8 +1047,10 @@ int main(int argc, char** argv) {
 
     fma_<f16_k>("fma_f16_serial", simsimd_fma_f16_serial, simsimd_fma_f16_accurate, simsimd_l2_f16_accurate);
     fma_<f16_k>("wsum_f16_serial", simsimd_wsum_f16_serial, simsimd_wsum_f16_accurate, simsimd_l2_f16_accurate);
-    fma_<u8_k>("fma_u8_serial", simsimd_fma_u8_serial, simsimd_fma_u8_serial, simsimd_l2_u8_serial);
-    fma_<u8_k>("wsum_u8_serial", simsimd_wsum_u8_serial, simsimd_wsum_u8_serial, simsimd_l2_u8_serial);
+    fma_<u8_k>("fma_u8_serial", simsimd_fma_u8_serial, simsimd_fma_u8_accurate, simsimd_l2_u8_serial);
+    fma_<u8_k>("wsum_u8_serial", simsimd_wsum_u8_serial, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
+    fma_<i8_k>("fma_i8_serial", simsimd_fma_i8_serial, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
+    fma_<i8_k>("wsum_i8_serial", simsimd_wsum_i8_serial, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();
