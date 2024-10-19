@@ -174,9 +174,9 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_turin(                  //
 SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u16, size) // simsimd_intersect_u16_accurate
 SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u32, size) // simsimd_intersect_u32_accurate
 
-#define SIMSIMD_MAKE_INTERSECT_WEIGHTED(name, input_type, counter_type, weight_type, accumulator_type,                 \
+#define SIMSIMD_MAKE_INTERSECT_WEIGHTED(name, variation, input_type, counter_type, weight_type, accumulator_type,      \
                                         load_and_convert)                                                              \
-    SIMSIMD_PUBLIC void simsimd_intersect_##input_type##weight_type##_##name(                                          \
+    SIMSIMD_PUBLIC void simsimd_##variation##_##input_type##_##name(                                                   \
         simsimd_##input_type##_t const* a, simsimd_##input_type##_t const* b,                                          \
         simsimd_##weight_type##_t const* a_weights, simsimd_##weight_type##_t const* b_weights,                        \
         simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t* results) {                               \
@@ -198,9 +198,9 @@ SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u32, size) // simsimd_intersect_u32_accu
         results[1] = weights_product;                                                                                  \
     }
 
-SIMSIMD_MAKE_INTERSECT_WEIGHTED(accurate, u16, size, i16, i64,
+SIMSIMD_MAKE_INTERSECT_WEIGHTED(accurate, spdot_counts, u16, size, i16, i64,
                                 SIMSIMD_DEREFERENCE) // simsimd_spdot_counts_u16_accurate
-SIMSIMD_MAKE_INTERSECT_WEIGHTED(accurate, u16, size, bf16, f64,
+SIMSIMD_MAKE_INTERSECT_WEIGHTED(accurate, spdot_weights, u16, size, bf16, f64,
                                 SIMSIMD_BF16_TO_F32) // simsimd_spdot_weights_u16_accurate
 
 #define SIMSIMD_MAKE_INTERSECT_GALLOPING(name, input_type, counter_type)                                               \
@@ -258,9 +258,9 @@ SIMSIMD_MAKE_INTERSECT_WEIGHTED(accurate, u16, size, bf16, f64,
 
 SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u16, size) // simsimd_intersect_u16_serial
 SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u32, size) // simsimd_intersect_u32_serial
-SIMSIMD_MAKE_INTERSECT_WEIGHTED(serial, u16, size, i16, i32,
+SIMSIMD_MAKE_INTERSECT_WEIGHTED(serial, spdot_counts, u16, size, i16, i32,
                                 SIMSIMD_DEREFERENCE) // simsimd_spdot_counts_u16_serial
-SIMSIMD_MAKE_INTERSECT_WEIGHTED(serial, u16, size, bf16, f32,
+SIMSIMD_MAKE_INTERSECT_WEIGHTED(serial, spdot_weights, u16, size, bf16, f32,
                                 SIMSIMD_BF16_TO_F32) // simsimd_spdot_weights_u16_serial
 
 /*  The AVX-512 implementations are inspired by the "Faster-Than-Native Alternatives
