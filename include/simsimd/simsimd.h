@@ -112,7 +112,7 @@
 #include "spatial.h"     // L2, Cosine
 
 // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
-#if defined(SIMSIMD_DEFINED_APPLE)
+#if defined(_SIMSIMD_DEFINED_APPLE)
 #include <sys/sysctl.h>
 #endif
 
@@ -294,7 +294,7 @@ SIMSIMD_PUBLIC void simsimd_find_metric_punned( //
     simsimd_capability_t* capability_output);
 #endif
 
-#if SIMSIMD_TARGET_X86
+#if _SIMSIMD_TARGET_X86
 
 /**
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
@@ -379,9 +379,9 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
         (simsimd_cap_serial_k));
 }
 
-#endif // SIMSIMD_TARGET_X86
+#endif // _SIMSIMD_TARGET_X86
 
-#if SIMSIMD_TARGET_ARM
+#if _SIMSIMD_TARGET_ARM
 
 /*  Compiling the next section one may get: selected processor does not support system register name 'id_aa64zfr0_el1'.
  *  Suppressing assembler errors is very complicated, so when dealing with older ARM CPUs it's simpler to compile this
@@ -396,7 +396,7 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
  *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
  */
 SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
-#if defined(SIMSIMD_DEFINED_APPLE)
+#if defined(_SIMSIMD_DEFINED_APPLE)
     // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
     uint32_t supports_neon = 0, supports_fp16 = 0, supports_bf16 = 0, supports_i8mm = 0;
     size_t size = sizeof(supports_neon);
@@ -416,7 +416,7 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
         (simsimd_cap_neon_i8_k * (supports_neon && supports_i8mm)) |   //
         (simsimd_cap_serial_k));
 
-#elif defined(SIMSIMD_DEFINED_LINUX)
+#elif defined(_SIMSIMD_DEFINED_LINUX)
 
     // Read CPUID registers directly
     unsigned long id_aa64isar0_el1 = 0, id_aa64isar1_el1 = 0, id_aa64pfr0_el1 = 0, id_aa64zfr0_el1 = 0;
@@ -473,7 +473,7 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
         (simsimd_cap_sve2_k * (supports_sve2)) |                                                      //
         (simsimd_cap_sve2p1_k * (supports_sve2p1)) |                                                  //
         (simsimd_cap_serial_k));
-#else // SIMSIMD_DEFINED_LINUX
+#else // if !_SIMSIMD_DEFINED_LINUX
     return simsimd_cap_serial_k;
 #endif
 }
@@ -488,12 +488,12 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
  *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
  */
 SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_implementation(void) {
-#if SIMSIMD_TARGET_X86
+#if _SIMSIMD_TARGET_X86
     return _simsimd_capabilities_x86();
-#endif // SIMSIMD_TARGET_X86
-#if SIMSIMD_TARGET_ARM
+#endif // _SIMSIMD_TARGET_X86
+#if _SIMSIMD_TARGET_ARM
     return _simsimd_capabilities_arm();
-#endif // SIMSIMD_TARGET_ARM
+#endif // _SIMSIMD_TARGET_ARM
     return simsimd_cap_serial_k;
 }
 
@@ -1414,22 +1414,22 @@ SIMSIMD_DYNAMIC void simsimd_js_f64(simsimd_f64_t const* a, simsimd_f64_t const*
  */
 
 // clang-format off
-SIMSIMD_PUBLIC int simsimd_uses_neon(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON; }
-SIMSIMD_PUBLIC int simsimd_uses_neon_f16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON_F16 ; }
-SIMSIMD_PUBLIC int simsimd_uses_neon_bf16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON_BF16; }
-SIMSIMD_PUBLIC int simsimd_uses_neon_i8(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON_I8; }
-SIMSIMD_PUBLIC int simsimd_uses_sve(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE; }
-SIMSIMD_PUBLIC int simsimd_uses_sve_f16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE_F16; }
-SIMSIMD_PUBLIC int simsimd_uses_sve_bf16(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE_BF16; }
-SIMSIMD_PUBLIC int simsimd_uses_sve_i8(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE_I8; }
-SIMSIMD_PUBLIC int simsimd_uses_sve2(void) { return SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE2; }
-SIMSIMD_PUBLIC int simsimd_uses_haswell(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_HASWELL; }
-SIMSIMD_PUBLIC int simsimd_uses_skylake(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SKYLAKE; }
-SIMSIMD_PUBLIC int simsimd_uses_ice(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_ICE; }
-SIMSIMD_PUBLIC int simsimd_uses_genoa(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_GENOA; }
-SIMSIMD_PUBLIC int simsimd_uses_sapphire(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SAPPHIRE; }
-SIMSIMD_PUBLIC int simsimd_uses_turin(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_TURIN; }
-SIMSIMD_PUBLIC int simsimd_uses_sierra(void) { return SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SIERRA; }
+SIMSIMD_PUBLIC int simsimd_uses_neon(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON; }
+SIMSIMD_PUBLIC int simsimd_uses_neon_f16(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON_F16 ; }
+SIMSIMD_PUBLIC int simsimd_uses_neon_bf16(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON_BF16; }
+SIMSIMD_PUBLIC int simsimd_uses_neon_i8(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON_I8; }
+SIMSIMD_PUBLIC int simsimd_uses_sve(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE; }
+SIMSIMD_PUBLIC int simsimd_uses_sve_f16(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE_F16; }
+SIMSIMD_PUBLIC int simsimd_uses_sve_bf16(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE_BF16; }
+SIMSIMD_PUBLIC int simsimd_uses_sve_i8(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE_I8; }
+SIMSIMD_PUBLIC int simsimd_uses_sve2(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE2; }
+SIMSIMD_PUBLIC int simsimd_uses_haswell(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_HASWELL; }
+SIMSIMD_PUBLIC int simsimd_uses_skylake(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SKYLAKE; }
+SIMSIMD_PUBLIC int simsimd_uses_ice(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_ICE; }
+SIMSIMD_PUBLIC int simsimd_uses_genoa(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_GENOA; }
+SIMSIMD_PUBLIC int simsimd_uses_sapphire(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SAPPHIRE; }
+SIMSIMD_PUBLIC int simsimd_uses_turin(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_TURIN; }
+SIMSIMD_PUBLIC int simsimd_uses_sierra(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SIERRA; }
 SIMSIMD_PUBLIC int simsimd_uses_dynamic_dispatch(void) { return 0; }
 SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) { return _simsimd_capabilities_implementation(); }
 SIMSIMD_PUBLIC void simsimd_find_metric_punned( //

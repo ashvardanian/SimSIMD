@@ -218,7 +218,7 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_sapphire(                                    
     simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_u8_t const* c, simsimd_size_t n, //
     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
 
-#if SIMSIMD_TARGET_X86
+#if _SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma")
@@ -901,9 +901,9 @@ simsimd_fma_u8_sapphire_cycle:
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SAPPHIRE
-#endif // SIMSIMD_TARGET_X86
+#endif // _SIMSIMD_TARGET_X86
 
-#if SIMSIMD_TARGET_ARM
+#if _SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd")
@@ -1120,7 +1120,7 @@ SIMSIMD_PUBLIC void simsimd_fma_i8_neon(                                 //
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON_F16
-#endif // SIMSIMD_TARGET_ARM
+#endif // _SIMSIMD_TARGET_ARM
 
 #ifdef __cplusplus
 }

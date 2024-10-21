@@ -276,7 +276,7 @@ SIMSIMD_MAKE_INTERSECT_WEIGHTED(serial, spdot_weights, u16, size, bf16, f32,
  *   - `_mm512_permutexvar_epi16` - needs BW - 4-6 cycles latency
  *   - `_mm512_permutexvar_epi8` - needs VBMI - 3 cycles latency
  */
-#if SIMSIMD_TARGET_X86
+#if _SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_ICE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2")
@@ -849,9 +849,9 @@ SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(                 //
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_TURIN
-#endif // SIMSIMD_TARGET_X86
+#endif // _SIMSIMD_TARGET_X86
 
-#if SIMSIMD_TARGET_ARM
+#if _SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a")
@@ -1427,7 +1427,7 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_sve2(                   //
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SVE2 && SIMSIMD_TARGET_SVE_BF16
-#endif // SIMSIMD_TARGET_ARM
+#endif // _SIMSIMD_TARGET_ARM
 
 #ifdef __cplusplus
 }

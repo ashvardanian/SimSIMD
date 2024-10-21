@@ -249,7 +249,7 @@ SIMSIMD_MAKE_COS(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)  // simsimd_cos_bf16_
 SIMSIMD_MAKE_L2SQ(accurate, bf16, f64, SIMSIMD_BF16_TO_F32) // simsimd_l2sq_bf16_accurate
 SIMSIMD_MAKE_L2(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)   // simsimd_l2_bf16_accurate
 
-#if SIMSIMD_TARGET_ARM
+#if _SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd")
@@ -997,9 +997,9 @@ SIMSIMD_PUBLIC void simsimd_cos_bf16_sve(simsimd_bf16_t const* a_enum, simsimd_b
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SVE_BF16
-#endif // SIMSIMD_TARGET_ARM
+#endif // _SIMSIMD_TARGET_ARM
 
-#if SIMSIMD_TARGET_X86
+#if _SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("avx2")
@@ -1077,9 +1077,9 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f32_haswell(simsimd_f
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_HASWELL
-#endif // SIMSIMD_TARGET_X86
+#endif // _SIMSIMD_TARGET_X86
 
-#if SIMSIMD_TARGET_X86
+#if _SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma")
@@ -2271,7 +2271,7 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t co
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SIERRA
-#endif // SIMSIMD_TARGET_X86
+#endif // _SIMSIMD_TARGET_X86
 
 #ifdef __cplusplus
 }

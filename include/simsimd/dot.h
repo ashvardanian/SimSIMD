@@ -231,7 +231,7 @@ SIMSIMD_MAKE_DOT(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)          // simsimd_d
 SIMSIMD_MAKE_COMPLEX_DOT(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)  // simsimd_dot_bf16c_accurate
 SIMSIMD_MAKE_COMPLEX_VDOT(accurate, bf16, f64, SIMSIMD_BF16_TO_F32) // simsimd_vdot_bf16c_accurate
 
-#if SIMSIMD_TARGET_ARM
+#if _SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd")
@@ -337,7 +337,9 @@ SIMSIMD_PUBLIC void simsimd_vdot_f32c_neon(simsimd_f32_t const* a, simsimd_f32_t
 
 #pragma clang attribute pop
 #pragma GCC pop_options
+#endif // SIMSIMD_TARGET_NEON
 
+#if SIMSIMD_TARGET_NEON_I8
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+dotprod")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod"))), apply_to = function)
@@ -395,7 +397,7 @@ SIMSIMD_PUBLIC void simsimd_dot_u8_neon(simsimd_u8_t const* a, simsimd_u8_t cons
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif
+#endif // SIMSIMD_TARGET_NEON_I8
 
 #if SIMSIMD_TARGET_NEON_F16
 #pragma GCC push_options
@@ -827,9 +829,9 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_sve(simsimd_f16_t const* a, simsimd_f16_t 
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SVE
-#endif // SIMSIMD_TARGET_ARM
+#endif // _SIMSIMD_TARGET_ARM
 
-#if SIMSIMD_TARGET_X86
+#if _SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma")
@@ -1861,7 +1863,7 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t co
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SIERRA
-#endif // SIMSIMD_TARGET_X86
+#endif // _SIMSIMD_TARGET_X86
 
 #ifdef __cplusplus
 }

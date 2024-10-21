@@ -6,18 +6,19 @@
  *
  *  Defines:
  *  - Sized aliases for numeric types, like: `simsimd_i32_t` and `simsimd_f64_t`.
- *  - Macros for compiler/hardware checks, like: `SIMSIMD_TARGET_NEON`
+ *  - Macros for internal compiler/hardware checks, like: `_SIMSIMD_TARGET_ARM`.
+ *  - Macros for feature controls, like: `SIMSIMD_TARGET_NEON`
  */
 #ifndef SIMSIMD_TYPES_H
 #define SIMSIMD_TYPES_H
 
 // Inferring target OS: Windows, MacOS, or Linux
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-#define SIMSIMD_DEFINED_WINDOWS
+#define _SIMSIMD_DEFINED_WINDOWS 1
 #elif defined(__APPLE__) && defined(__MACH__)
-#define SIMSIMD_DEFINED_APPLE
+#define _SIMSIMD_DEFINED_APPLE 1
 #elif defined(__linux__)
-#define SIMSIMD_DEFINED_LINUX
+#define _SIMSIMD_DEFINED_LINUX 1
 #endif
 
 // Annotation for the public API symbols:
@@ -40,73 +41,113 @@
 #define SIMSIMD_INTERNAL inline static
 #endif
 
-// Compiling for Arm: SIMSIMD_TARGET_ARM
-#if !defined(SIMSIMD_TARGET_ARM)
+// Compiling for Arm: _SIMSIMD_TARGET_ARM
+#if !defined(_SIMSIMD_TARGET_ARM)
 #if defined(__aarch64__) || defined(_M_ARM64)
-#define SIMSIMD_TARGET_ARM 1
+#define _SIMSIMD_TARGET_ARM 1
 #else
-#define SIMSIMD_TARGET_ARM 0
+#define _SIMSIMD_TARGET_ARM 0
 #endif // defined(__aarch64__) || defined(_M_ARM64)
-#endif // !defined(SIMSIMD_TARGET_ARM)
+#endif // !defined(_SIMSIMD_TARGET_ARM)
 
-// Compiling for x86: SIMSIMD_TARGET_X86
-#if !defined(SIMSIMD_TARGET_X86)
+// Compiling for x86: _SIMSIMD_TARGET_X86
+#if !defined(_SIMSIMD_TARGET_X86)
 #if defined(__x86_64__) || defined(_M_X64)
-#define SIMSIMD_TARGET_X86 1
+#define _SIMSIMD_TARGET_X86 1
 #else
-#define SIMSIMD_TARGET_X86 0
+#define _SIMSIMD_TARGET_X86 0
 #endif // defined(__x86_64__) || defined(_M_X64)
-#endif // !defined(SIMSIMD_TARGET_X86)
+#endif // !defined(_SIMSIMD_TARGET_X86)
 
 // Compiling for Arm: SIMSIMD_TARGET_NEON
-#if !defined(SIMSIMD_TARGET_NEON) || (SIMSIMD_TARGET_NEON && !SIMSIMD_TARGET_ARM)
+#if !defined(SIMSIMD_TARGET_NEON) || (SIMSIMD_TARGET_NEON && !_SIMSIMD_TARGET_ARM)
 #if defined(__ARM_NEON)
-#define SIMSIMD_TARGET_NEON SIMSIMD_TARGET_ARM
+#define SIMSIMD_TARGET_NEON _SIMSIMD_TARGET_ARM
 #else
 #undef SIMSIMD_TARGET_NEON
 #define SIMSIMD_TARGET_NEON 0
 #endif // defined(__ARM_NEON)
-#endif // !defined(SIMSIMD_TARGET_NEON)
+#endif // !defined(SIMSIMD_TARGET_NEON) || ...
 
-#if !defined(SIMSIMD_TARGET_NEON_I8)
-#define SIMSIMD_TARGET_NEON_I8 SIMSIMD_TARGET_NEON
-#endif // !defined(SIMSIMD_TARGET_NEON_I8)
-#if !defined(SIMSIMD_TARGET_NEON_F16)
-#define SIMSIMD_TARGET_NEON_F16 SIMSIMD_TARGET_NEON
-#endif // !defined(SIMSIMD_TARGET_NEON_F16)
-#if !defined(SIMSIMD_TARGET_NEON_BF16)
-#define SIMSIMD_TARGET_NEON_BF16 SIMSIMD_TARGET_NEON
-#endif // !defined(SIMSIMD_TARGET_NEON_BF16)
+// Compiling for Arm: SIMSIMD_TARGET_NEON_I8
+#if !defined(SIMSIMD_TARGET_NEON_I8) || (SIMSIMD_TARGET_NEON_I8 && !_SIMSIMD_TARGET_ARM)
+#if defined(__ARM_NEON)
+#define SIMSIMD_TARGET_NEON_I8 _SIMSIMD_TARGET_ARM
+#else
+#undef SIMSIMD_TARGET_NEON_I8
+#define SIMSIMD_TARGET_NEON_I8 0
+#endif // defined(__ARM_NEON)
+#endif // !defined(SIMSIMD_TARGET_NEON_I8) || ...
+
+// Compiling for Arm: SIMSIMD_TARGET_NEON_F16
+#if !defined(SIMSIMD_TARGET_NEON_F16) || (SIMSIMD_TARGET_NEON_F16 && !_SIMSIMD_TARGET_ARM)
+#if defined(__ARM_NEON)
+#define SIMSIMD_TARGET_NEON_F16 _SIMSIMD_TARGET_ARM
+#else
+#undef SIMSIMD_TARGET_NEON_F16
+#define SIMSIMD_TARGET_NEON_F16 0
+#endif // defined(__ARM_NEON)
+#endif // !defined(SIMSIMD_TARGET_NEON_F16) || ...
+
+// Compiling for Arm: SIMSIMD_TARGET_NEON_BF16
+#if !defined(SIMSIMD_TARGET_NEON_BF16) || (SIMSIMD_TARGET_NEON_BF16 && !_SIMSIMD_TARGET_ARM)
+#if defined(__ARM_NEON)
+#define SIMSIMD_TARGET_NEON_BF16 _SIMSIMD_TARGET_ARM
+#else
+#undef SIMSIMD_TARGET_NEON_BF16
+#define SIMSIMD_TARGET_NEON_BF16 0
+#endif // defined(__ARM_NEON)
+#endif // !defined(SIMSIMD_TARGET_NEON_BF16) || ...
 
 // Compiling for Arm: SIMSIMD_TARGET_SVE
-#if !defined(SIMSIMD_TARGET_SVE) || (SIMSIMD_TARGET_SVE && !SIMSIMD_TARGET_ARM)
+#if !defined(SIMSIMD_TARGET_SVE) || (SIMSIMD_TARGET_SVE && !_SIMSIMD_TARGET_ARM)
 #if defined(__ARM_FEATURE_SVE)
-#define SIMSIMD_TARGET_SVE SIMSIMD_TARGET_ARM
+#define SIMSIMD_TARGET_SVE _SIMSIMD_TARGET_ARM
 #else
 #undef SIMSIMD_TARGET_SVE
 #define SIMSIMD_TARGET_SVE 0
 #endif // defined(__ARM_FEATURE_SVE)
-#endif // !defined(SIMSIMD_TARGET_SVE)
+#endif // !defined(SIMSIMD_TARGET_SVE) || ...
 
-#if !defined(SIMSIMD_TARGET_SVE_I8)
-#define SIMSIMD_TARGET_SVE_I8 SIMSIMD_TARGET_SVE
-#endif // !defined(SIMSIMD_TARGET_SVE_I8)
-#if !defined(SIMSIMD_TARGET_SVE_F16)
-#define SIMSIMD_TARGET_SVE_F16 SIMSIMD_TARGET_SVE
-#endif // !defined(SIMSIMD_TARGET_SVE_F16)
-#if !defined(SIMSIMD_TARGET_SVE_BF16)
-#define SIMSIMD_TARGET_SVE_BF16 SIMSIMD_TARGET_SVE
-#endif // !defined(SIMSIMD_TARGET_SVE_BF16)
+// Compiling for Arm: SIMSIMD_TARGET_SVE_I8
+#if !defined(SIMSIMD_TARGET_SVE_I8) || (SIMSIMD_TARGET_SVE_I8 && !_SIMSIMD_TARGET_ARM)
+#if defined(__ARM_FEATURE_SVE)
+#define SIMSIMD_TARGET_SVE_I8 _SIMSIMD_TARGET_ARM
+#else
+#undef SIMSIMD_TARGET_SVE_I8
+#define SIMSIMD_TARGET_SVE_I8 0
+#endif // defined(__ARM_FEATURE_SVE)
+#endif // !defined(SIMSIMD_TARGET_SVE_I8) || ...
+
+// Compiling for Arm: SIMSIMD_TARGET_SVE_F16
+#if !defined(SIMSIMD_TARGET_SVE_F16) || (SIMSIMD_TARGET_SVE_F16 && !_SIMSIMD_TARGET_ARM)
+#if defined(__ARM_FEATURE_SVE)
+#define SIMSIMD_TARGET_SVE_F16 _SIMSIMD_TARGET_ARM
+#else
+#undef SIMSIMD_TARGET_SVE_F16
+#define SIMSIMD_TARGET_SVE_F16 0
+#endif // defined(__ARM_FEATURE_SVE)
+#endif // !defined(SIMSIMD_TARGET_SVE_F16) || ...
+
+// Compiling for Arm: SIMSIMD_TARGET_SVE_BF16
+#if !defined(SIMSIMD_TARGET_SVE_BF16) || (SIMSIMD_TARGET_SVE_BF16 && !_SIMSIMD_TARGET_ARM)
+#if defined(__ARM_FEATURE_SVE)
+#define SIMSIMD_TARGET_SVE_BF16 _SIMSIMD_TARGET_ARM
+#else
+#undef SIMSIMD_TARGET_SVE_BF16
+#define SIMSIMD_TARGET_SVE_BF16 0
+#endif // defined(__ARM_FEATURE_SVE)
+#endif // !defined(SIMSIMD_TARGET_SVE_BF16) || ...
 
 // Compiling for Arm: SIMSIMD_TARGET_SVE2
-#if !defined(SIMSIMD_TARGET_SVE2) || (SIMSIMD_TARGET_SVE2 && !SIMSIMD_TARGET_ARM)
+#if !defined(SIMSIMD_TARGET_SVE2) || (SIMSIMD_TARGET_SVE2 && !_SIMSIMD_TARGET_ARM)
 #if defined(__ARM_FEATURE_SVE)
-#define SIMSIMD_TARGET_SVE2 SIMSIMD_TARGET_ARM
+#define SIMSIMD_TARGET_SVE2 _SIMSIMD_TARGET_ARM
 #else
 #undef SIMSIMD_TARGET_SVE2
 #define SIMSIMD_TARGET_SVE2 0
 #endif // defined(__ARM_FEATURE_SVE)
-#endif // !defined(SIMSIMD_TARGET_SVE2)
+#endif // !defined(SIMSIMD_TARGET_SVE2) || ...
 
 // Compiling for x86: SIMSIMD_TARGET_HASWELL
 //
@@ -115,14 +156,14 @@
 // are supported on all CPUs starting with Jaguar 2009.
 // Starting with Sandy Bridge, Intel adds basic AVX support in their CPUs and in 2013
 // extends it with AVX2 in the Haswell generation. Moreover, Haswell adds FMA support.
-#if !defined(SIMSIMD_TARGET_HASWELL) || (SIMSIMD_TARGET_HASWELL && !SIMSIMD_TARGET_X86)
+#if !defined(SIMSIMD_TARGET_HASWELL) || (SIMSIMD_TARGET_HASWELL && !_SIMSIMD_TARGET_X86)
 #if defined(__AVX2__) && defined(__FMA__) && defined(__F16C__)
 #define SIMSIMD_TARGET_HASWELL 1
 #else
 #undef SIMSIMD_TARGET_HASWELL
 #define SIMSIMD_TARGET_HASWELL 0
 #endif // defined(__AVX2__)
-#endif // !defined(SIMSIMD_TARGET_HASWELL)
+#endif // !defined(SIMSIMD_TARGET_HASWELL) || ...
 
 // Compiling for x86: SIMSIMD_TARGET_SKYLAKE, SIMSIMD_TARGET_ICE, SIMSIMD_TARGET_GENOA,
 // SIMSIMD_TARGET_SAPPHIRE, SIMSIMD_TARGET_TURIN, SIMSIMD_TARGET_SIERRA
@@ -131,7 +172,7 @@
 //      gcc-12 -march=sapphirerapids -dM -E - < /dev/null | egrep "SSE|AVX" | sort
 // On Arm machines you may want to check for other flags:
 //      gcc-12 -march=native -dM -E - < /dev/null | egrep "NEON|SVE|FP16|FMA" | sort
-#if !defined(SIMSIMD_TARGET_SKYLAKE) || (SIMSIMD_TARGET_SKYLAKE && !SIMSIMD_TARGET_X86)
+#if !defined(SIMSIMD_TARGET_SKYLAKE) || (SIMSIMD_TARGET_SKYLAKE && !_SIMSIMD_TARGET_X86)
 #if defined(__AVX512F__) && defined(__AVX512CD__) && defined(__AVX512VL__) && defined(__AVX512DQ__) &&                 \
     defined(__AVX512BW__)
 #define SIMSIMD_TARGET_SKYLAKE 1
@@ -139,8 +180,8 @@
 #undef SIMSIMD_TARGET_SKYLAKE
 #define SIMSIMD_TARGET_SKYLAKE 0
 #endif
-#endif // !defined(SIMSIMD_TARGET_SKYLAKE)
-#if !defined(SIMSIMD_TARGET_ICE) || (SIMSIMD_TARGET_ICE && !SIMSIMD_TARGET_X86)
+#endif // !defined(SIMSIMD_TARGET_SKYLAKE) || ...
+#if !defined(SIMSIMD_TARGET_ICE) || (SIMSIMD_TARGET_ICE && !_SIMSIMD_TARGET_X86)
 #if defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITALG__) && defined(__AVX512VBMI2__) &&     \
     defined(__AVX512VPOPCNTDQ__)
 #define SIMSIMD_TARGET_ICE 1
@@ -148,39 +189,39 @@
 #undef SIMSIMD_TARGET_ICE
 #define SIMSIMD_TARGET_ICE 0
 #endif
-#endif // !defined(SIMSIMD_TARGET_ICE)
-#if !defined(SIMSIMD_TARGET_GENOA) || (SIMSIMD_TARGET_GENOA && !SIMSIMD_TARGET_X86)
+#endif // !defined(SIMSIMD_TARGET_ICE) || ...
+#if !defined(SIMSIMD_TARGET_GENOA) || (SIMSIMD_TARGET_GENOA && !_SIMSIMD_TARGET_X86)
 #if defined(__AVX512BF16__)
 #define SIMSIMD_TARGET_GENOA 1
 #else
 #undef SIMSIMD_TARGET_GENOA
 #define SIMSIMD_TARGET_GENOA 0
 #endif
-#endif // !defined(SIMSIMD_TARGET_GENOA)
-#if !defined(SIMSIMD_TARGET_SAPPHIRE) || (SIMSIMD_TARGET_SAPPHIRE && !SIMSIMD_TARGET_X86)
+#endif // !defined(SIMSIMD_TARGET_GENOA) || ...
+#if !defined(SIMSIMD_TARGET_SAPPHIRE) || (SIMSIMD_TARGET_SAPPHIRE && !_SIMSIMD_TARGET_X86)
 #if defined(__AVX512FP16__)
 #define SIMSIMD_TARGET_SAPPHIRE 1
 #else
 #undef SIMSIMD_TARGET_SAPPHIRE
 #define SIMSIMD_TARGET_SAPPHIRE 0
 #endif
-#endif // !defined(SIMSIMD_TARGET_SAPPHIRE)
-#if !defined(SIMSIMD_TARGET_TURIN) || (SIMSIMD_TARGET_TURIN && !SIMSIMD_TARGET_X86)
+#endif // !defined(SIMSIMD_TARGET_SAPPHIRE) || ...
+#if !defined(SIMSIMD_TARGET_TURIN) || (SIMSIMD_TARGET_TURIN && !_SIMSIMD_TARGET_X86)
 #if defined(__AVX512VP2INTERSECT__)
 #define SIMSIMD_TARGET_TURIN 1
 #else
 #undef SIMSIMD_TARGET_TURIN
 #define SIMSIMD_TARGET_TURIN 0
 #endif
-#endif // !defined(SIMSIMD_TARGET_TURIN)
-#if !defined(SIMSIMD_TARGET_SIERRA) || (SIMSIMD_TARGET_SIERRA && !SIMSIMD_TARGET_X86)
+#endif // !defined(SIMSIMD_TARGET_TURIN) || ...
+#if !defined(SIMSIMD_TARGET_SIERRA) || (SIMSIMD_TARGET_SIERRA && !_SIMSIMD_TARGET_X86)
 #if defined(__AVX2_VNNI__)
 #define SIMSIMD_TARGET_SIERRA 1
 #else
 #undef SIMSIMD_TARGET_SIERRA
 #define SIMSIMD_TARGET_SIERRA 0
 #endif
-#endif // !defined(SIMSIMD_TARGET_SIERRA)
+#endif // !defined(SIMSIMD_TARGET_SIERRA) || ...
 
 #ifdef _MSC_VER
 #include <intrin.h>
@@ -333,7 +374,7 @@ typedef unsigned short simsimd_bf16_t;
  *  Some of those are defined as aliases, so we use `#define` preprocessor
  *  directives instead of `typedef` to avoid errors.
  */
-#if SIMSIMD_TARGET_ARM
+#if _SIMSIMD_TARGET_ARM
 #if defined(_MSC_VER)
 #define simsimd_f16_for_arm_simd_t simsimd_f16_t
 #define simsimd_bf16_for_arm_simd_t simsimd_bf16_t
