@@ -77,7 +77,11 @@ if sys.platform == "linux":
     macros_args.extend(
         [
             get_bool_env_w_name("SIMSIMD_TARGET_NEON", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_NEON_F16", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_NEON_BF16", True),
             get_bool_env_w_name("SIMSIMD_TARGET_SVE", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_SVE_F16", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_SVE_BF16", True),
             get_bool_env_w_name("SIMSIMD_TARGET_SVE2", True),
             get_bool_env_w_name("SIMSIMD_TARGET_HASWELL", True),
             get_bool_env_w_name("SIMSIMD_TARGET_SKYLAKE", True),
@@ -101,6 +105,8 @@ if sys.platform == "darwin":
     macros_args.extend(
         [
             get_bool_env_w_name("SIMSIMD_TARGET_NEON", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_NEON_F16", True),  # Supported on Apple M1 and newer
+            get_bool_env_w_name("SIMSIMD_TARGET_NEON_BF16", True),  # Supported on Apple M2 and newer
             get_bool_env_w_name("SIMSIMD_TARGET_SVE", False),
             get_bool_env_w_name("SIMSIMD_TARGET_SVE2", False),
             get_bool_env_w_name("SIMSIMD_TARGET_HASWELL", True),
@@ -124,9 +130,11 @@ if sys.platform == "win32":
     compile_args.append("/d2FH4-")
 
     # We can't SIMD all the way on Windows :(
+    # Even NEON `f16` fails: https://github.com/ashvardanian/SimSIMD/actions/runs/11419164624/job/31773473319?pr=214
     macros_args.extend(
         [
             get_bool_env_w_name("SIMSIMD_TARGET_NEON", True),
+            get_bool_env_w_name("SIMSIMD_TARGET_NEON_F16", False),
             get_bool_env_w_name("SIMSIMD_TARGET_NEON_BF16", False),
             get_bool_env_w_name("SIMSIMD_TARGET_SVE", False),
             get_bool_env_w_name("SIMSIMD_TARGET_SVE2", False),
