@@ -59,9 +59,59 @@ try:
     import numpy as np
 
     numpy_available = True
+
+    baseline_inner = np.inner
+    baseline_intersect = lambda x, y: len(np.intersect1d(x, y))
+    baseline_bilinear = lambda x, y, z: x @ z @ y
+
+    def baseline_fma(x, y, z, alpha, beta):
+        xy_scaled = np.multiply((alpha * x), y)
+        z_scaled = beta * z
+        r = xy_scaled + z_scaled
+        if np.issubdtype(x.dtype, np.integer):
+            r = np.round(r)
+        #! We need non-overflowing saturating addition for small integers, that NumPy lacks:
+        #! https://stackoverflow.com/questions/29611185/avoid-overflow-when-adding-numpy-arrays
+        if x.dtype == np.uint8:
+            r = np.clip(r, 0, 255, out=r)
+        elif x.dtype == np.int8:
+            r = np.clip(r, -128, 127, out=r)
+        return r.astype(x.dtype)
+
+    def baseline_wsum(x, y, alpha, beta):
+        x_scaled = alpha * x
+        y_scaled = beta * y
+        r = x_scaled + y_scaled
+        if np.issubdtype(x.dtype, np.integer):
+            r = np.round(r)
+        #! We need non-overflowing saturating addition for small integers, that NumPy lacks:
+        #! https://stackoverflow.com/questions/29611185/avoid-overflow-when-adding-numpy-arrays
+        if x.dtype == np.uint8:
+            r = np.clip(r, 0, 255, out=r)
+        elif x.dtype == np.int8:
+            r = np.clip(r, -128, 127, out=r)
+        return r.astype(x.dtype)
+
 except:
     # NumPy is not installed, most tests will be skipped
     numpy_available = False
+
+    baseline_inner = lambda x, y: sum(x[i] * y[i] for i in range(len(x)))
+    baseline_intersect = lambda x, y: len(set(x).intersection(y))
+
+    def baseline_bilinear(x, y, z):
+        result = 0
+        for i in range(len(x)):
+            for j in range(len(y)):
+                result += x[i] * z[i][j] * y[j]
+        return result
+
+    def baseline_fma(x, y, z, alpha, beta):
+        return [(alpha * xi) * yi + beta * zi for xi, yi, zi in zip(x, y, z)]
+
+    def baseline_wsum(x, y, alpha, beta):
+        return [(alpha * xi) + beta * yi for xi, yi in zip(x, y)]
+
 
 # At the time of Python 3.12, SciPy doesn't support 32-bit Windows on any CPU,
 # or 64-bit Windows on Arm. It also doesn't support `musllinux` distributions,
@@ -71,15 +121,12 @@ try:
 
     scipy_available = True
 
-    baseline_inner = np.inner
     baseline_euclidean = lambda x, y: np.array(spd.euclidean(x, y))  #! SciPy returns a scalar
     baseline_sqeuclidean = spd.sqeuclidean
     baseline_cosine = spd.cosine
     baseline_jensenshannon = lambda x, y: spd.jensenshannon(x, y) ** 2
     baseline_hamming = lambda x, y: spd.hamming(x, y) * len(x)
     baseline_jaccard = spd.jaccard
-    baseline_intersect = lambda x, y: len(np.intersect1d(x, y))
-    baseline_bilinear = lambda x, y, z: x @ z @ y
 
     def baseline_mahalanobis(x, y, z):
         # If there was an error, or the value is NaN, we skip the test.
@@ -95,13 +142,11 @@ except:
     # SciPy is not installed, some tests will be skipped
     scipy_available = False
 
-    baseline_inner = lambda x, y: np.inner(x, y)
     baseline_cosine = lambda x, y: 1.0 - np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
     baseline_euclidean = lambda x, y: np.array([np.sqrt(np.sum((x - y) ** 2))])
     baseline_sqeuclidean = lambda x, y: np.sum((x - y) ** 2)
     baseline_jensenshannon = lambda p, q: (np.sum((np.sqrt(p) - np.sqrt(q)) ** 2)) / 2
     baseline_hamming = lambda x, y: np.logical_xor(x, y).sum()
-    baseline_bilinear = lambda x, y, z: x @ z @ y
 
     def baseline_mahalanobis(x, y, z):
         diff = x - y
@@ -312,10 +357,11 @@ def collect_errors(
     -   TODO: How much faster is SimSIMD than the baseline kernel?
     -   TODO: How much faster is SimSIMD than the accurate kernel?
     """
-    absolute_baseline_error = np.abs(baseline_result - accurate_result)
-    relative_baseline_error = absolute_baseline_error / np.abs(accurate_result)
-    absolute_simsimd_error = np.abs(simsimd_result - accurate_result)
-    relative_simsimd_error = absolute_simsimd_error / np.abs(accurate_result)
+    eps = np.finfo(accurate_result.dtype).resolution
+    absolute_baseline_error = np.max(np.abs(baseline_result - accurate_result))
+    relative_baseline_error = np.max(np.abs(baseline_result - accurate_result) / (np.abs(accurate_result) + eps))
+    absolute_simsimd_error = np.max(np.abs(simsimd_result - accurate_result))
+    relative_simsimd_error = np.max(np.abs(simsimd_result - accurate_result) / (np.abs(accurate_result) + eps))
 
     stats["metric"].append(metric)
     stats["ndim"].append(ndim)
@@ -403,6 +449,10 @@ def name_to_kernels(name: str):
         return baseline_hamming, simd.hamming
     elif name == "intersect":
         return baseline_intersect, simd.intersect
+    elif name == "fma":
+        return baseline_fma, simd.fma
+    elif name == "wsum":
+        return baseline_wsum, simd.wsum
     else:
         raise ValueError(f"Unknown kernel name: {name}")
 
@@ -976,6 +1026,123 @@ def test_intersect(dtype, first_length_bound, second_length_bound, capability):
     result = simd.intersect(a, b)
 
     assert round(float(expected)) == round(float(result)), f"Missing {np.intersect1d(a, b)} from {a} and {b}"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
+@pytest.mark.parametrize("kernel", ["fma"])
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_fma(ndim, dtype, kernel, capability, stats_fixture):
+    """"""
+
+    if dtype == "float16" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
+    np.random.seed()
+    if np.issubdtype(np.dtype(dtype), np.integer):
+        dtype_info = np.iinfo(np.dtype(dtype))
+        a = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
+        b = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
+        c = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
+        alpha = abs(np.random.randn(1).astype(np.float64).item()) / 512
+        beta = abs(np.random.randn(1).astype(np.float64).item()) / 3
+        atol = 1  # ? Allow at most one rounding error per vector
+        rtol = 0
+    else:
+        a = np.random.randn(ndim).astype(dtype)
+        b = np.random.randn(ndim).astype(dtype)
+        c = np.random.randn(ndim).astype(dtype)
+        alpha = np.random.randn(1).astype(np.float64).item()
+        beta = np.random.randn(1).astype(np.float64).item()
+        atol = SIMSIMD_ATOL
+        rtol = SIMSIMD_RTOL
+
+    keep_one_capability(capability)
+    baseline_kernel, simd_kernel = name_to_kernels(kernel)
+
+    accurate_dt, accurate = profile(
+        baseline_kernel,
+        a.astype(np.float64),
+        b.astype(np.float64),
+        c.astype(np.float64),
+        alpha=alpha,
+        beta=beta,
+    )
+    expected_dt, expected = profile(baseline_kernel, a, b, c, alpha=alpha, beta=beta)
+    result_dt, result = profile(simd_kernel, a, b, c, alpha=alpha, beta=beta)
+
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
+    collect_errors(
+        kernel,
+        ndim,
+        dtype,
+        accurate,
+        accurate_dt,
+        expected,
+        expected_dt,
+        result,
+        result_dt,
+        stats_fixture,
+    )
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
+@pytest.mark.parametrize("kernel", ["wsum"])
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_wsum(ndim, dtype, kernel, capability, stats_fixture):
+    """"""
+
+    if dtype == "float16" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
+    np.random.seed()
+    if np.issubdtype(np.dtype(dtype), np.integer):
+        dtype_info = np.iinfo(np.dtype(dtype))
+        a = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
+        b = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
+        alpha = abs(np.random.randn(1).astype(np.float64).item()) / 2
+        beta = abs(np.random.randn(1).astype(np.float64).item()) / 2
+        atol = 1  # ? Allow at most one rounding error per vector
+        rtol = 0
+    else:
+        a = np.random.randn(ndim).astype(dtype)
+        b = np.random.randn(ndim).astype(dtype)
+        alpha = np.random.randn(1).astype(np.float64).item()
+        beta = np.random.randn(1).astype(np.float64).item()
+        atol = SIMSIMD_ATOL
+        rtol = SIMSIMD_RTOL
+
+    keep_one_capability(capability)
+    baseline_kernel, simd_kernel = name_to_kernels(kernel)
+
+    accurate_dt, accurate = profile(
+        baseline_kernel,
+        a.astype(np.float64),
+        b.astype(np.float64),
+        alpha=alpha,
+        beta=beta,
+    )
+    expected_dt, expected = profile(baseline_kernel, a, b, alpha=alpha, beta=beta)
+    result_dt, result = profile(simd_kernel, a, b, alpha=alpha, beta=beta)
+
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
+    collect_errors(
+        kernel,
+        ndim,
+        dtype,
+        accurate,
+        accurate_dt,
+        expected,
+        expected_dt,
+        result,
+        result_dt,
+        stats_fixture,
+    )
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
