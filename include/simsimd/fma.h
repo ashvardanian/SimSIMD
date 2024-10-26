@@ -785,8 +785,8 @@ simsimd_wsum_i8_sapphire_cycle:
     // Downcast:
     sum_i16_low_vec = _mm512_cvtph_epi16(sum_f16_low_vec);
     sum_i16_high_vec = _mm512_cvtph_epi16(sum_f16_high_vec);
-    sum_i8_vec = _mm512_inserti64x4(_mm512_castsi256_si512(_mm512_cvtepi16_epi8(sum_i16_low_vec)),
-                                    _mm512_cvtepi16_epi8(sum_i16_high_vec), 1);
+    sum_i8_vec = _mm512_inserti64x4(_mm512_castsi256_si512(_mm512_cvtsepi16_epi8(sum_i16_low_vec)),
+                                    _mm512_cvtsepi16_epi8(sum_i16_high_vec), 1);
     _mm512_mask_storeu_epi8(result, mask, sum_i8_vec);
     result += 64;
     if (n)
@@ -838,8 +838,8 @@ simsimd_fma_i8_sapphire_cycle:
     // Downcast:
     sum_i16_low_vec = _mm512_cvtph_epi16(sum_f16_low_vec);
     sum_i16_high_vec = _mm512_cvtph_epi16(sum_f16_high_vec);
-    sum_i8_vec = _mm512_inserti64x4(_mm512_castsi256_si512(_mm512_cvtepi16_epi8(sum_i16_low_vec)),
-                                    _mm512_cvtepi16_epi8(sum_i16_high_vec), 1);
+    sum_i8_vec = _mm512_inserti64x4(_mm512_castsi256_si512(_mm512_cvtsepi16_epi8(sum_i16_low_vec)),
+                                    _mm512_cvtsepi16_epi8(sum_i16_high_vec), 1);
     _mm512_mask_storeu_epi8(result, mask, sum_i8_vec);
     result += 64;
     if (n)
