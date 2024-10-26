@@ -332,59 +332,6 @@ SIMSIMD_PUBLIC void simsimd_wsum_bf16_haswell(                          //
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_i8_haswell(                        //
-    simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result) {
-
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
-    simsimd_size_t i = 0;
-#if 0
-    __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
-    __m256 beta_vec = _mm256_set1_ps(beta_f32);
-    // Assuming the "alpha" and "beta" are floating-point values, we will need
-    // to convert the 8-bit integers to 32-bit integers first, and then use
-    // the `_mm256_cvtepi32_ps`, which maps to "VCVTDQ2PS_EVEX (YMM, YMM)":
-    //
-    // - On Ice Lake: 4 cycles latency, ports: 1*p01
-    // - On Genoa: 3 cycles latency, ports: 1*FP23
-    for (; i + 8 <= n; i += 8) {
-        __m128i a_i8_vec = _mm_loadu_si128((__m128i const*)(a + i));
-        __m128i b_i8_vec = _mm_loadu_si128((__m128i const*)(b + i));
-        __m256i a_i32_low_vec = _mm256_cvtepi8_epi32(a_i8_vec);
-        __m256i a_i32_high_vec = _mm256_cvtepi8_epi32(_mm256_permute4x64_epi64(a_i8_vec, _MM_MASK_SHUFFLE(1, 0, 3, 2)));
-        __m256i b_i32_low_vec = _mm256_cvtepi8_epi32(b_i8_vec);
-        __m256i b_i32_high_vec = _mm256_cvtepi8_epi32(_mm256_permute4x64_epi64(b_i8_vec, _MM_MASK_SHUFFLE(1, 0, 3, 2)));
-        __m256 a_f32_low_vec = _mm256_cvtepi32_ps(a_i32_low_vec);
-        __m256 a_f32_high_vec = _mm256_cvtepi32_ps(a_i32_high_vec);
-        __m256 b_f32_low_vec = _mm256_cvtepi32_ps(b_i32_low_vec);
-        __m256 b_f32_high_vec = _mm256_cvtepi32_ps(b_i32_high_vec);
-        __m256 a_low_scaled = _mm256_mul_ps(a_low_vec, alpha_vec);
-        __m256 a_high_scaled = _mm256_mul_ps(a_high_vec, alpha_vec);
-        __m256 b_low_scaled = _mm256_mul_ps(b_low_vec, beta_vec);
-        __m256 b_high_scaled = _mm256_mul_ps(b_high_vec, beta_vec);
-        __m256 sum_low_vec = _mm256_add_ps(a_low_scaled, b_low_scaled);
-        __m256 sum_high_vec = _mm256_add_ps(a_high_scaled, b_hight_scaled);
-        // Now we need to convert the floats back to 8-bit integers:
-        __m256i sum_low_i32_vec = _mm256_cvtps_epi32(sum_low_vec);
-        __m256i sum_high_i32_vec = _mm256_cvtps_epi32(sum_high_vec);
-        // TODO: Finish later
-        // The packing instruction orders data within lanes
-        __m256i sum_i16_vec = _mm256_packs_epi32( //
-            _mm256_permute2x128_si256(sum_low_i32_vec, sum_high_i32_vec, _MM_MASK_SHUFFLE()),
-            _mm256_permute2x128_si256(sum_low_i32_vec, sum_high_i32_vec, _MM_MASK_SHUFFLE()));
-
-        _mm_storeu_si128((__m128i*)(result + i), );
-    }
-#endif
-
-    // The tail:
-    for (; i < n; ++i) {
-        simsimd_f32_t ai = a[i], bi = b[i];
-        result[i] = (simsimd_i8_t)(alpha_f32 * ai + beta_f32 * bi);
-    }
-}
-
 SIMSIMD_PUBLIC void simsimd_fma_f32_haswell(                                //
     simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, //
     simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t* result) {
@@ -503,6 +450,27 @@ SIMSIMD_PUBLIC void simsimd_fma_bf16_haswell(                                  /
         simsimd_f32_t sum = alpha * ai * bi + beta * ci;
         SIMSIMD_F32_TO_BF16(sum, result + i);
     }
+}
+
+SIMSIMD_PUBLIC void simsimd_wsum_i8_haswell(                        //
+    simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result) {
+    simsimd_wsum_i8_serial(a, b, n, alpha, beta, result); // TODO
+}
+SIMSIMD_PUBLIC void simsimd_wsum_u8_haswell(                        //
+    simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result) {
+    simsimd_wsum_u8_serial(a, b, n, alpha, beta, result); // TODO
+}
+SIMSIMD_PUBLIC void simsimd_fma_i8_haswell(                                                //
+    simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_i8_t const* c, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result) {
+    simsimd_fma_i8_serial(a, b, c, n, alpha, beta, result); // TODO
+}
+SIMSIMD_PUBLIC void simsimd_fma_u8_haswell(                                                //
+    simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_u8_t const* c, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result) {
+    simsimd_fma_u8_serial(a, b, c, n, alpha, beta, result); // TODO
 }
 
 #pragma clang attribute pop
@@ -703,6 +671,67 @@ simsimd_fma_bf16_skylake_cycle:
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512fp16")
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512fp16"))),                \
                              apply_to = function)
+
+SIMSIMD_PUBLIC void simsimd_wsum_f16_sapphire(                        //
+    simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result) {
+
+    __mmask32 mask = 0xFFFFFFFF;
+    __m512h alpha_vec = _mm512_set1_ph((_Float16)alpha);
+    __m512h beta_vec = _mm512_set1_ph((_Float16)beta);
+    __m512h a_f16_vec, b_f16_vec, c_f16_vec;
+    __m512h a_scaled_f16_vec, sum_f16_vec;
+
+simsimd_wsum_f16_sapphire_cycle:
+    if (n < 32) {
+        mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_f16_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a));
+        b_f16_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, b));
+        n = 0;
+    } else {
+        a_f16_vec = _mm512_loadu_ph(a);
+        b_f16_vec = _mm512_loadu_ph(b);
+        a += 32, b += 32, n -= 32;
+    }
+    a_scaled_f16_vec = _mm512_mul_ph(a_f16_vec, alpha_vec);
+    sum_f16_vec = _mm512_fmadd_ph(b_f16_vec, beta_vec, a_scaled_f16_vec);
+    _mm512_mask_storeu_epi16(result, mask, _mm512_castph_si512(sum_f16_vec));
+    result += 32;
+    if (n)
+        goto simsimd_wsum_f16_sapphire_cycle;
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_f16_sapphire(                                                 //
+    simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result) {
+
+    __mmask32 mask = 0xFFFFFFFF;
+    __m512h alpha_vec = _mm512_set1_ph((_Float16)alpha);
+    __m512h beta_vec = _mm512_set1_ph((_Float16)beta);
+    __m512h a_f16_vec, b_f16_vec, c_f16_vec;
+    __m512h ab_f16_vec, ab_scaled_f16_vec, sum_f16_vec;
+
+simsimd_fma_f16_sapphire_cycle:
+    if (n < 32) {
+        mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_f16_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a));
+        b_f16_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, b));
+        c_f16_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, c));
+        n = 0;
+    } else {
+        a_f16_vec = _mm512_loadu_ph(a);
+        b_f16_vec = _mm512_loadu_ph(b);
+        c_f16_vec = _mm512_loadu_ph(c);
+        a += 32, b += 32, c += 32, n -= 32;
+    }
+    ab_f16_vec = _mm512_mul_ph(a_f16_vec, b_f16_vec);
+    ab_scaled_f16_vec = _mm512_mul_ph(ab_f16_vec, alpha_vec);
+    sum_f16_vec = _mm512_fmadd_ph(c_f16_vec, beta_vec, ab_scaled_f16_vec);
+    _mm512_mask_storeu_epi16(result, mask, _mm512_castph_si512(sum_f16_vec));
+    result += 32;
+    if (n)
+        goto simsimd_fma_f16_sapphire_cycle;
+}
 
 SIMSIMD_PUBLIC void simsimd_wsum_u8_sapphire(                       //
     simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, //
