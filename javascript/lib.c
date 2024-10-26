@@ -67,8 +67,7 @@ napi_value runAPI(napi_env env, napi_callback_info info, simsimd_metric_kind_t m
     // Convert the result to a JavaScript number
     napi_value js_result;
     status = napi_create_double(env, result, &js_result);
-    if (status != napi_ok)
-        return NULL;
+    if (status != napi_ok) return NULL;
 
     return js_result;
 }

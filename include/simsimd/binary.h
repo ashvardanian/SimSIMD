@@ -60,16 +60,15 @@ SIMSIMD_PUBLIC unsigned char simsimd_popcount_b8(simsimd_b8_t x) {
     return lookup_table[x];
 }
 
-SIMSIMD_PUBLIC void simsimd_hamming_b8_serial(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                                              simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_hamming_b8_serial(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n_words,
+                                              simsimd_distance_t *result) {
     simsimd_i32_t differences = 0;
-    for (simsimd_size_t i = 0; i != n_words; ++i)
-        differences += simsimd_popcount_b8(a[i] ^ b[i]);
+    for (simsimd_size_t i = 0; i != n_words; ++i) differences += simsimd_popcount_b8(a[i] ^ b[i]);
     *result = differences;
 }
 
-SIMSIMD_PUBLIC void simsimd_jaccard_b8_serial(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                                              simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_jaccard_b8_serial(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n_words,
+                                              simsimd_distance_t *result) {
     simsimd_i32_t intersection = 0, union_ = 0;
     for (simsimd_size_t i = 0; i != n_words; ++i)
         intersection += simsimd_popcount_b8(a[i] & b[i]), union_ += simsimd_popcount_b8(a[i] | b[i]);
@@ -97,8 +96,8 @@ SIMSIMD_INTERNAL simsimd_u32_t _simsimd_reduce_u8x16_neon(uint8x16_t vec) {
     return final_sum;
 }
 
-SIMSIMD_PUBLIC void simsimd_hamming_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                                            simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_hamming_b8_neon(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n_words,
+                                            simsimd_distance_t *result) {
     simsimd_i32_t differences = 0;
     simsimd_size_t i = 0;
     // In each 8-bit word we may have up to 8 differences.
@@ -116,13 +115,12 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_neon(simsimd_b8_t const* a, simsimd_b8_t 
         differences += _simsimd_reduce_u8x16_neon(differences_cycle_vec);
     }
     // Handle the tail
-    for (; i != n_words; ++i)
-        differences += simsimd_popcount_b8(a[i] ^ b[i]);
+    for (; i != n_words; ++i) differences += simsimd_popcount_b8(a[i] ^ b[i]);
     *result = differences;
 }
 
-SIMSIMD_PUBLIC void simsimd_jaccard_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                                            simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_jaccard_b8_neon(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n_words,
+                                            simsimd_distance_t *result) {
     simsimd_i32_t intersection = 0, union_ = 0;
     simsimd_size_t i = 0;
     // In each 8-bit word we may have up to 8 intersections/unions.
@@ -158,8 +156,8 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_neon(simsimd_b8_t const* a, simsimd_b8_t 
 #pragma GCC target("arch=armv8.2-a+sve")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve"))), apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_hamming_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                                           simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_hamming_b8_sve(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n_words,
+                                           simsimd_distance_t *result) {
 
     // On very small register sizes, NEON is at least as fast as SVE.
     simsimd_size_t const words_per_register = svcntb();
@@ -191,8 +189,8 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_sve(simsimd_b8_t const* a, simsimd_b8_t c
     *result = differences;
 }
 
-SIMSIMD_PUBLIC void simsimd_jaccard_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                                           simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_jaccard_b8_sve(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n_words,
+                                           simsimd_distance_t *result) {
 
     // On very small register sizes, NEON is at least as fast as SVE.
     simsimd_size_t const words_per_register = svcntb();
@@ -238,11 +236,11 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_sve(simsimd_b8_t const* a, simsimd_b8_t c
 #if SIMSIMD_TARGET_ICE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vpopcntdq")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512vpopcntdq"))),           \
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512vpopcntdq"))), \
                              apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                                           simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n_words,
+                                           simsimd_distance_t *result) {
 
     simsimd_size_t xor_count;
     // It's harder to squeeze out performance from tiny representations, so we unroll the loops for binary metrics.
@@ -252,7 +250,8 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const* a, simsimd_b8_t c
         __m512i b_vec = _mm512_maskz_loadu_epi8(mask, b);
         __m512i xor_count_vec = _mm512_popcnt_epi64(_mm512_xor_si512(a_vec, b_vec));
         xor_count = _mm512_reduce_add_epi64(xor_count_vec);
-    } else if (n_words <= 128) { // Up to 1024 bits.
+    }
+    else if (n_words <= 128) { // Up to 1024 bits.
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 64);
         __m512i a1_vec = _mm512_loadu_epi8(a);
         __m512i b1_vec = _mm512_loadu_epi8(b);
@@ -261,7 +260,8 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const* a, simsimd_b8_t c
         __m512i xor1_count_vec = _mm512_popcnt_epi64(_mm512_xor_si512(a1_vec, b1_vec));
         __m512i xor2_count_vec = _mm512_popcnt_epi64(_mm512_xor_si512(a2_vec, b2_vec));
         xor_count = _mm512_reduce_add_epi64(_mm512_add_epi64(xor2_count_vec, xor1_count_vec));
-    } else if (n_words <= 196) { // Up to 1568 bits.
+    }
+    else if (n_words <= 196) { // Up to 1568 bits.
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 128);
         __m512i a1_vec = _mm512_loadu_epi8(a);
         __m512i b1_vec = _mm512_loadu_epi8(b);
@@ -274,7 +274,8 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const* a, simsimd_b8_t c
         __m512i xor3_count_vec = _mm512_popcnt_epi64(_mm512_xor_si512(a3_vec, b3_vec));
         xor_count =
             _mm512_reduce_add_epi64(_mm512_add_epi64(xor3_count_vec, _mm512_add_epi64(xor2_count_vec, xor1_count_vec)));
-    } else if (n_words <= 256) { // Up to 2048 bits.
+    }
+    else if (n_words <= 256) { // Up to 2048 bits.
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 192);
         __m512i a1_vec = _mm512_loadu_epi8(a);
         __m512i b1_vec = _mm512_loadu_epi8(b);
@@ -290,7 +291,8 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const* a, simsimd_b8_t c
         __m512i xor4_count_vec = _mm512_popcnt_epi64(_mm512_xor_si512(a4_vec, b4_vec));
         xor_count = _mm512_reduce_add_epi64(_mm512_add_epi64(_mm512_add_epi64(xor4_count_vec, xor3_count_vec),
                                                              _mm512_add_epi64(xor2_count_vec, xor1_count_vec)));
-    } else {
+    }
+    else {
         __m512i xor_count_vec = _mm512_setzero_si512();
         __m512i a_vec, b_vec;
 
@@ -300,23 +302,23 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const* a, simsimd_b8_t c
             a_vec = _mm512_maskz_loadu_epi8(mask, a);
             b_vec = _mm512_maskz_loadu_epi8(mask, b);
             n_words = 0;
-        } else {
+        }
+        else {
             a_vec = _mm512_loadu_epi8(a);
             b_vec = _mm512_loadu_epi8(b);
             a += 64, b += 64, n_words -= 64;
         }
         __m512i xor_vec = _mm512_xor_si512(a_vec, b_vec);
         xor_count_vec = _mm512_add_epi64(xor_count_vec, _mm512_popcnt_epi64(xor_vec));
-        if (n_words)
-            goto simsimd_hamming_b8_ice_cycle;
+        if (n_words) goto simsimd_hamming_b8_ice_cycle;
 
         xor_count = _mm512_reduce_add_epi64(xor_count_vec);
     }
     *result = xor_count;
 }
 
-SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                                           simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n_words,
+                                           simsimd_distance_t *result) {
 
     simsimd_size_t intersection = 0, union_ = 0;
     //? On such vectors we can clearly see that the CPU struggles to perform this many parallel
@@ -341,7 +343,8 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t c
         __m512i or_count_vec = _mm512_popcnt_epi64(_mm512_or_si512(a_vec, b_vec));
         intersection = _mm512_reduce_add_epi64(and_count_vec);
         union_ = _mm512_reduce_add_epi64(or_count_vec);
-    } else if (n_words <= 128) { // Up to 1024 bits.
+    }
+    else if (n_words <= 128) { // Up to 1024 bits.
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 64);
         __m512i a1_vec = _mm512_loadu_epi8(a);
         __m512i b1_vec = _mm512_loadu_epi8(b);
@@ -353,7 +356,8 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t c
         __m512i or2_count_vec = _mm512_popcnt_epi64(_mm512_or_si512(a2_vec, b2_vec));
         intersection = _mm512_reduce_add_epi64(_mm512_add_epi64(and2_count_vec, and1_count_vec));
         union_ = _mm512_reduce_add_epi64(_mm512_add_epi64(or2_count_vec, or1_count_vec));
-    } else if (n_words <= 196) { // Up to 1568 bits.
+    }
+    else if (n_words <= 196) { // Up to 1568 bits.
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 128);
         __m512i a1_vec = _mm512_loadu_epi8(a);
         __m512i b1_vec = _mm512_loadu_epi8(b);
@@ -371,7 +375,8 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t c
             _mm512_add_epi64(and3_count_vec, _mm512_add_epi64(and2_count_vec, and1_count_vec)));
         union_ = _mm512_reduce_add_epi64( //
             _mm512_add_epi64(or3_count_vec, _mm512_add_epi64(or2_count_vec, or1_count_vec)));
-    } else if (n_words <= 256) { // Up to 2048 bits.
+    }
+    else if (n_words <= 256) { // Up to 2048 bits.
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 192);
         __m512i a1_vec = _mm512_loadu_epi8(a);
         __m512i b1_vec = _mm512_loadu_epi8(b);
@@ -393,7 +398,8 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t c
                                                                 _mm512_add_epi64(and2_count_vec, and1_count_vec)));
         union_ = _mm512_reduce_add_epi64(_mm512_add_epi64(_mm512_add_epi64(or4_count_vec, or3_count_vec),
                                                           _mm512_add_epi64(or2_count_vec, or1_count_vec)));
-    } else {
+    }
+    else {
         __m512i and_count_vec = _mm512_setzero_si512(), or_count_vec = _mm512_setzero_si512();
         __m512i a_vec, b_vec;
 
@@ -403,7 +409,8 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t c
             a_vec = _mm512_maskz_loadu_epi8(mask, a);
             b_vec = _mm512_maskz_loadu_epi8(mask, b);
             n_words = 0;
-        } else {
+        }
+        else {
             a_vec = _mm512_loadu_epi8(a);
             b_vec = _mm512_loadu_epi8(b);
             a += 64, b += 64, n_words -= 64;
@@ -412,8 +419,7 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t c
         __m512i or_vec = _mm512_or_si512(a_vec, b_vec);
         and_count_vec = _mm512_add_epi64(and_count_vec, _mm512_popcnt_epi64(and_vec));
         or_count_vec = _mm512_add_epi64(or_count_vec, _mm512_popcnt_epi64(or_vec));
-        if (n_words)
-            goto simsimd_jaccard_b8_ice_cycle;
+        if (n_words) goto simsimd_jaccard_b8_ice_cycle;
 
         intersection = _mm512_reduce_add_epi64(and_count_vec);
         union_ = _mm512_reduce_add_epi64(or_count_vec);
@@ -430,26 +436,24 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t c
 #pragma GCC target("popcnt")
 #pragma clang attribute push(__attribute__((target("popcnt"))), apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_hamming_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                                               simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_hamming_b8_haswell(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n_words,
+                                               simsimd_distance_t *result) {
     // x86 supports unaligned loads and works just fine with the scalar version for small vectors.
     simsimd_size_t differences = 0;
     for (; n_words >= 8; n_words -= 8, a += 8, b += 8)
-        differences += _mm_popcnt_u64(*(simsimd_u64_t const*)a ^ *(simsimd_u64_t const*)b);
-    for (; n_words; --n_words, ++a, ++b)
-        differences += _mm_popcnt_u32(*a ^ *b);
+        differences += _mm_popcnt_u64(*(simsimd_u64_t const *)a ^ *(simsimd_u64_t const *)b);
+    for (; n_words; --n_words, ++a, ++b) differences += _mm_popcnt_u32(*a ^ *b);
     *result = differences;
 }
 
-SIMSIMD_PUBLIC void simsimd_jaccard_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words,
-                                               simsimd_distance_t* result) {
+SIMSIMD_PUBLIC void simsimd_jaccard_b8_haswell(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n_words,
+                                               simsimd_distance_t *result) {
     // x86 supports unaligned loads and works just fine with the scalar version for small vectors.
     simsimd_size_t intersection = 0, union_ = 0;
     for (; n_words >= 8; n_words -= 8, a += 8, b += 8)
-        intersection += _mm_popcnt_u64(*(simsimd_u64_t const*)a & *(simsimd_u64_t const*)b),
-            union_ += _mm_popcnt_u64(*(simsimd_u64_t const*)a | *(simsimd_u64_t const*)b);
-    for (; n_words; --n_words, ++a, ++b)
-        intersection += _mm_popcnt_u32(*a & *b), union_ += _mm_popcnt_u32(*a | *b);
+        intersection += _mm_popcnt_u64(*(simsimd_u64_t const *)a & *(simsimd_u64_t const *)b),
+            union_ += _mm_popcnt_u64(*(simsimd_u64_t const *)a | *(simsimd_u64_t const *)b);
+    for (; n_words; --n_words, ++a, ++b) intersection += _mm_popcnt_u32(*a & *b), union_ += _mm_popcnt_u32(*a | *b);
     *result = (union_ != 0) ? 1 - (simsimd_f64_t)intersection / (simsimd_f64_t)union_ : 1;
 }
 
