@@ -436,16 +436,16 @@ SIMSIMD_STATIC_ASSERT(sizeof(simsimd_bf16_t) == 2, simsimd_bf16_t_must_be_2_byte
 #endif
 
 #if !defined(SIMSIMD_F32_TO_I8)
-#define SIMSIMD_F32_TO_I8(x, y) *(y) = (simsimd_i8_t)roundf(x)
+#define SIMSIMD_F32_TO_I8(x, y) *(y) = (simsimd_i8_t)fminf(fmaxf(roundf(x), -128), 127)
 #endif
 #if !defined(SIMSIMD_F32_TO_U8)
-#define SIMSIMD_F32_TO_U8(x, y) *(y) = (simsimd_u8_t)roundf(x)
+#define SIMSIMD_F32_TO_U8(x, y) *(y) = (simsimd_u8_t)fminf(fmaxf(roundf(x), 0), 255)
 #endif
 #if !defined(SIMSIMD_F64_TO_I8)
-#define SIMSIMD_F64_TO_I8(x, y) *(y) = (simsimd_i8_t)round(x)
+#define SIMSIMD_F64_TO_I8(x, y) *(y) = (simsimd_i8_t)fmin(fmax(round(x), -128), 127)
 #endif
 #if !defined(SIMSIMD_F64_TO_U8)
-#define SIMSIMD_F64_TO_U8(x, y) *(y) = (simsimd_u8_t)round(x)
+#define SIMSIMD_F64_TO_U8(x, y) *(y) = (simsimd_u8_t)fmin(fmax(round(x), 0), 255)
 #endif
 
 /** @brief  Convenience type for half-precision floating-point type conversions. */
