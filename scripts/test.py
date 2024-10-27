@@ -609,6 +609,7 @@ def test_dense(ndim, dtype, metric, capability, stats_fixture):
     accurate_dt, accurate = profile(baseline_kernel, a.astype(np.float64), b.astype(np.float64))
     expected_dt, expected = profile(baseline_kernel, a, b)
     result_dt, result = profile(simd_kernel, a, b)
+    result = np.array(result)
 
     np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
     collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
@@ -664,6 +665,7 @@ def test_curved(ndim, dtypes, metric, capability, stats_fixture):
         c.astype(compute_dtype),
     )
     result_dt, result = profile(simd_kernel, a, b, c)
+    result = np.array(result)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
     collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
@@ -690,6 +692,7 @@ def test_dense_bf16(ndim, metric, capability, stats_fixture):
     accurate_dt, accurate = profile(baseline_kernel, a_f32_rounded.astype(np.float64), b_f32_rounded.astype(np.float64))
     expected_dt, expected = profile(baseline_kernel, a_f32_rounded, b_f32_rounded)
     result_dt, result = profile(simd_kernel, a_bf16, b_bf16, "bf16")
+    result = np.array(result)
 
     np.testing.assert_allclose(
         result,
@@ -746,6 +749,7 @@ def test_curved_bf16(ndim, metric, capability, stats_fixture):
     )
     expected_dt, expected = profile(baseline_kernel, a_f32_rounded, b_f32_rounded, c_f32_rounded)
     result_dt, result = profile(simd_kernel, a_bf16, b_bf16, c_bf16, "bf16")
+    result = np.array(result)
 
     np.testing.assert_allclose(
         result,
@@ -791,6 +795,7 @@ def test_dense_i8(ndim, dtype, metric, capability, stats_fixture):
     accurate_dt, accurate = profile(baseline_kernel, a.astype(np.float64), b.astype(np.float64))
     expected_dt, expected = profile(baseline_kernel, a.astype(np.int64), b.astype(np.int64))
     result_dt, result = profile(simd_kernel, a, b)
+    result = np.array(result)
 
     if metric == "inner":
         assert round(float(result)) == round(float(expected)), f"Expected {expected}, but got {result}"
@@ -828,6 +833,7 @@ def test_dense_bits(ndim, metric, capability, stats_fixture):
     accurate_dt, accurate = profile(baseline_kernel, a.astype(np.uint64), b.astype(np.uint64))
     expected_dt, expected = profile(baseline_kernel, a, b)
     result_dt, result = profile(simd_kernel, np.packbits(a), np.packbits(b), "b8")
+    result = np.array(result)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
     collect_errors(metric, ndim, "bits", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
@@ -851,6 +857,7 @@ def test_jensen_shannon(ndim, dtype, capability):
     accurate_dt, accurate = profile(baseline_kernel, a.astype(np.float64), b.astype(np.float64))
     expected_dt, expected = profile(baseline_kernel, a, b)
     result_dt, result = profile(simd_kernel, a, b)
+    result = np.array(result)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
     collect_errors(
@@ -962,6 +969,7 @@ def test_dot_complex(ndim, dtype, capability, stats_fixture):
     accurate_dt, accurate = profile(np.dot, a.astype(np.complex128), b.astype(np.complex128))
     expected_dt, expected = profile(np.dot, a, b)
     result_dt, result = profile(simd.dot, a, b)
+    result = np.array(result)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
     collect_errors(
@@ -971,6 +979,7 @@ def test_dot_complex(ndim, dtype, capability, stats_fixture):
     accurate_dt, accurate = profile(np.vdot, a.astype(np.complex128), b.astype(np.complex128))
     expected_dt, expected = profile(np.vdot, a, b)
     result_dt, result = profile(simd.vdot, a, b)
+    result = np.array(result)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
     collect_errors(
@@ -1075,6 +1084,7 @@ def test_fma(ndim, dtype, kernel, capability, stats_fixture):
     )
     expected_dt, expected = profile(baseline_kernel, a, b, c, alpha=alpha, beta=beta)
     result_dt, result = profile(simd_kernel, a, b, c, alpha=alpha, beta=beta)
+    result = np.array(result)
 
     np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
     collect_errors(
@@ -1132,6 +1142,7 @@ def test_wsum(ndim, dtype, kernel, capability, stats_fixture):
     )
     expected_dt, expected = profile(baseline_kernel, a, b, alpha=alpha, beta=beta)
     result_dt, result = profile(simd_kernel, a, b, alpha=alpha, beta=beta)
+    result = np.array(result)
 
     np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
     collect_errors(
