@@ -1,6 +1,6 @@
 /**
- *  @file       fma.h
- *  @brief      SIMD-accelerated mixed-precision Fused-Multiply-Add operations.
+ *  @file       elementwise.h
+ *  @brief      SIMD-accelerated mixed-precision element-wise operations.
  *  @author     Ash Vardanian
  *  @date       October 16, 2024
  *
@@ -43,6 +43,10 @@
 extern "C" {
 #endif
 
+/*  Serial backends for all numeric types.
+ *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
+ *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
+ */
 SIMSIMD_PUBLIC void simsimd_wsum_f64_serial(                          //
     simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, //
     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
@@ -136,6 +140,48 @@ SIMSIMD_MAKE_FMA(accurate, bf16, f64, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) 
 SIMSIMD_MAKE_FMA(accurate, i8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_I8)     // simsimd_fma_i8_accurate
 SIMSIMD_MAKE_FMA(accurate, u8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_U8)     // simsimd_fma_u8_accurate
 
+/*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
+ *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
+ *  server CPUs produced before 2023.
+ */
+SIMSIMD_PUBLIC void simsimd_wsum_f32_neon(                            //
+    simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_f16_neon(                            //
+    simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_bf16_neon(                             //
+    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_u8_neon(                           //
+    simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_i8_neon(                           //
+    simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+
+SIMSIMD_PUBLIC void simsimd_fma_f32_neon(                                   //
+    simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, //
+    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_f16_neon(                                   //
+    simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, //
+    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_bf16_neon(                                     //
+    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, //
+    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_u8_neon(                                 //
+    simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, //
+    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_i8_neon(                                 //
+    simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, //
+    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+
+/*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
+ *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
+ *  Practically all modern x86 CPUs support AVX2, FMA, and F16C, making it a perfect baseline for SIMD algorithms.
+ *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
+ *  properly vectorized by recent compilers.
+ */
 SIMSIMD_PUBLIC void simsimd_wsum_f64_haswell(                         //
     simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, //
     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
@@ -981,6 +1027,62 @@ SIMSIMD_PUBLIC void simsimd_fma_f32_neon(                                   //
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON
 
+#if SIMSIMD_TARGET_NEON_BF16
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.6-a+simd+bf16")
+#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+
+SIMSIMD_PUBLIC void simsimd_wsum_bf16_neon(                             //
+    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result) {
+    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
+    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_vec = vcvt_f32_bf16(vld1_bf16((bfloat16_t const *)a + i));
+        float32x4_t b_vec = vcvt_f32_bf16(vld1_bf16((bfloat16_t const *)b + i));
+        float32x4_t a_scaled_vec = vmulq_n_f32(a_vec, alpha_f32);
+        float32x4_t b_scaled_vec = vmulq_n_f32(b_vec, beta_f32);
+        float32x4_t sum_vec = vaddq_f32(a_scaled_vec, b_scaled_vec);
+        vst1_bf16((bfloat16_t *)result + i, vcvt_bf16_f32(sum_vec));
+    }
+
+    // The tail:
+    for (; i < n; ++i)
+        simsimd_f32_to_bf16(alpha_f32 * simsimd_bf16_to_f32(a + i) + beta_f32 * simsimd_bf16_to_f32(b + i), result + i);
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_bf16_neon(                                     //
+    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, //
+    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result) {
+    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
+    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_vec = vcvt_f32_bf16(vld1_bf16((bfloat16_t const *)a + i));
+        float32x4_t b_vec = vcvt_f32_bf16(vld1_bf16((bfloat16_t const *)b + i));
+        float32x4_t c_vec = vcvt_f32_bf16(vld1_bf16((bfloat16_t const *)c + i));
+        float32x4_t ab_vec = vmulq_f32(a_vec, b_vec);
+        float32x4_t ab_scaled_vec = vmulq_n_f32(ab_vec, alpha_f32);
+        float32x4_t sum_vec = vfmaq_n_f32(ab_scaled_vec, c_vec, beta_f32);
+        vst1_bf16((bfloat16_t *)result + i, vcvt_bf16_f32(sum_vec));
+    }
+
+    // The tail:
+    for (; i < n; ++i)
+        simsimd_f32_to_bf16(
+            alpha_f32 * simsimd_bf16_to_f32(a + i) * simsimd_bf16_to_f32(b + i) + beta_f32 * simsimd_bf16_to_f32(c + i),
+            result + i);
+}
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_NEON_BF16
+
 #if SIMSIMD_TARGET_NEON_F16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
@@ -995,12 +1097,12 @@ SIMSIMD_PUBLIC void simsimd_wsum_f16_neon(                            //
     // The main loop:
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        float16x8_t a_vec = vld1q_f16(a + i);
-        float16x8_t b_vec = vld1q_f16(b + i);
+        float16x8_t a_vec = vld1q_f16((float16_t const *)a + i);
+        float16x8_t b_vec = vld1q_f16((float16_t const *)b + i);
         float16x8_t a_scaled_vec = vmulq_n_f16(a_vec, alpha_f16);
         float16x8_t b_scaled_vec = vmulq_n_f16(b_vec, beta_f16);
         float16x8_t sum_vec = vaddq_f16(a_scaled_vec, b_scaled_vec);
-        vst1q_f16(result + i, sum_vec);
+        vst1q_f16((float16_t *)result + i, sum_vec);
     }
 
     // The tail:
@@ -1017,13 +1119,13 @@ SIMSIMD_PUBLIC void simsimd_fma_f16_neon(                                   //
     // The main loop:
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        float16x8_t a_vec = vld1q_f16(a + i);
-        float16x8_t b_vec = vld1q_f16(b + i);
-        float16x8_t c_vec = vld1q_f16(c + i);
+        float16x8_t a_vec = vld1q_f16((float16_t const *)a + i);
+        float16x8_t b_vec = vld1q_f16((float16_t const *)b + i);
+        float16x8_t c_vec = vld1q_f16((float16_t const *)c + i);
         float16x8_t ab_vec = vmulq_f16(a_vec, b_vec);
         float16x8_t ab_scaled_vec = vmulq_n_f16(ab_vec, alpha_f16);
         float16x8_t sum_vec = vfmaq_n_f16(ab_scaled_vec, c_vec, beta_f16);
-        vst1q_f16(result + i, sum_vec);
+        vst1q_f16((float16_t *)result + i, sum_vec);
     }
 
     // The tail:
