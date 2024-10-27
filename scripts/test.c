@@ -18,7 +18,7 @@ void print_capabilities(void) {
     simsimd_capability_t runtime_caps = simsimd_capabilities();
 
     // Log supported functionality
-    char const* flags[2] = {"false", "true"};
+    char const *flags[2] = {"false", "true"};
     printf("Benchmarking Similarity Measures\n");
     printf("- Compiler used native F16: %s\n", flags[SIMSIMD_NATIVE_F16]);
     printf("- Compiler used native BF16: %s\n", flags[SIMSIMD_NATIVE_BF16]);
@@ -146,7 +146,7 @@ void test_distance_from_itself(void) {
     simsimd_kl_f64(f64s, f64s, 1536, &distance);
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 
     print_capabilities();
     test_utilities();
