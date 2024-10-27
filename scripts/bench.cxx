@@ -905,6 +905,10 @@ int main(int argc, char **argv) {
     fma_<f16_k>("wsum_f16_haswell", simsimd_wsum_f16_haswell, simsimd_wsum_f16_accurate, simsimd_l2_f16_accurate);
     fma_<bf16_k>("fma_bf16_haswell", simsimd_fma_bf16_haswell, simsimd_fma_bf16_accurate, simsimd_l2_bf16_accurate);
     fma_<bf16_k>("wsum_bf16_haswell", simsimd_wsum_bf16_haswell, simsimd_wsum_bf16_accurate, simsimd_l2_bf16_accurate);
+    fma_<i8_k>("fma_i8_haswell", simsimd_fma_i8_haswell, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
+    fma_<i8_k>("wsum_i8_haswell", simsimd_wsum_i8_haswell, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
+    fma_<u8_k>("fma_u8_haswell", simsimd_fma_u8_haswell, simsimd_fma_u8_accurate, simsimd_l2_u8_serial);
+    fma_<u8_k>("wsum_u8_haswell", simsimd_wsum_u8_haswell, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
 
 #endif
 
