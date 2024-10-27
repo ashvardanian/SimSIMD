@@ -58,7 +58,8 @@ template <> struct datatype_enum_to_type_gt<simsimd_datatype_i64_k> { using valu
 template <> struct datatype_enum_to_type_gt<simsimd_datatype_u64_k> { using value_t = simsimd_u64_t; };
 // clang-format on
 
-template <std::size_t multiple> std::size_t divide_round_up(std::size_t n) {
+template <std::size_t multiple>
+std::size_t divide_round_up(std::size_t n) {
     return ((n + multiple - 1) / multiple) * multiple;
 }
 
@@ -66,7 +67,8 @@ template <std::size_t multiple> std::size_t divide_round_up(std::size_t n) {
  *  @brief Vector-like fixed capacity buffer, ensuring cache-line alignment.
  *  @tparam datatype_ak The data type of the vector elements, represented as a `simsimd_datatype_t`.
  */
-template <simsimd_datatype_t datatype_ak> struct vector_gt {
+template <simsimd_datatype_t datatype_ak>
+struct vector_gt {
     using scalar_t = typename datatype_enum_to_type_gt<datatype_ak>::value_t;
     using compressed16_t = unsigned short;
     static constexpr bool is_integral =
@@ -77,32 +79,30 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
         datatype_ak == simsimd_datatype_i64_k || datatype_ak == simsimd_datatype_u64_k;
     static constexpr std::size_t cacheline_length = 64;
 
-    scalar_t* buffer_ = nullptr;
+    scalar_t *buffer_ = nullptr;
     std::size_t dimensions_ = 0;
 
     vector_gt() = default;
     vector_gt(std::size_t dimensions) noexcept(false)
         : dimensions_(dimensions),
-          buffer_(static_cast<scalar_t*>(
+          buffer_(static_cast<scalar_t *>(
               std::aligned_alloc(cacheline_length, divide_round_up<cacheline_length>(dimensions * sizeof(scalar_t))))) {
-        if (!buffer_)
-            throw std::bad_alloc();
+        if (!buffer_) throw std::bad_alloc();
     }
 
     ~vector_gt() noexcept { std::free(buffer_); }
 
-    vector_gt(vector_gt const& other) : vector_gt(other.dimensions()) {
+    vector_gt(vector_gt const &other) : vector_gt(other.dimensions()) {
         std::memcpy(buffer_, other.buffer_, divide_round_up<cacheline_length>(dimensions_ * sizeof(scalar_t)));
     }
-    vector_gt& operator=(vector_gt const& other) {
+    vector_gt &operator=(vector_gt const &other) {
         if (this != &other) {
             if (dimensions_ != other.dimensions()) {
                 std::free(buffer_);
                 dimensions_ = other.dimensions();
-                buffer_ = static_cast<scalar_t*>(std::aligned_alloc(
+                buffer_ = static_cast<scalar_t *>(std::aligned_alloc(
                     cacheline_length, divide_round_up<cacheline_length>(dimensions_ * sizeof(scalar_t))));
-                if (!buffer_)
-                    throw std::bad_alloc();
+                if (!buffer_) throw std::bad_alloc();
             }
             std::memcpy(buffer_, other.buffer_, divide_round_up<cacheline_length>(dimensions_ * sizeof(scalar_t)));
         }
@@ -113,16 +113,15 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
     std::size_t size_bytes() const noexcept {
         return divide_round_up<cacheline_length>(dimensions_ * sizeof(scalar_t));
     }
-    scalar_t* data() noexcept { return buffer_; }
-    scalar_t const* data() const noexcept { return buffer_; }
+    scalar_t *data() noexcept { return buffer_; }
+    scalar_t const *data() const noexcept { return buffer_; }
 
     /**
      *  @brief Broadcast a scalar value to all elements of the vector.
      *  @param v The scalar value to broadcast.
      */
     void set(scalar_t v) noexcept {
-        for (std::size_t i = 0; i != dimensions_; ++i)
-            buffer_[i] = v;
+        for (std::size_t i = 0; i != dimensions_; ++i) buffer_[i] = v;
     }
 
     /**
@@ -130,7 +129,7 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
      *  @param from The double value to compress.
      *  @param to The scalar type where the compressed value will be stored.
      */
-    static void compress(double const& from, scalar_t& to) noexcept {
+    static void compress(double const &from, scalar_t &to) noexcept {
         // In a NaN, the sign bit is irrelevant, mantissa describes the kind of NaN,
         // and the exponent is all ones - we can only check the the exponent bits.
         // Brain float is similar: https://en.wikipedia.org/wiki/Bfloat16_floating-point_format
@@ -143,8 +142,7 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
 #if !SIMSIMD_NATIVE_BF16
         if constexpr (datatype_ak == simsimd_datatype_bf16_k || datatype_ak == simsimd_datatype_bf16c_k) {
             simsimd_f32_to_bf16(from, &to);
-            if ((to & exponent_mask_bf16) == exponent_mask_bf16)
-                to = 0;
+            if ((to & exponent_mask_bf16) == exponent_mask_bf16) to = 0;
             static_assert(sizeof(scalar_t) == sizeof(simsimd_bf16_t));
             return;
         }
@@ -152,8 +150,7 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
 #if !SIMSIMD_NATIVE_F16
         if constexpr (datatype_ak == simsimd_datatype_f16_k || datatype_ak == simsimd_datatype_f16c_k) {
             simsimd_f32_to_f16(from, &to);
-            if ((to & exponent_mask_f16) == exponent_mask_f16)
-                to = 0;
+            if ((to & exponent_mask_f16) == exponent_mask_f16) to = 0;
             static_assert(sizeof(scalar_t) == sizeof(simsimd_f16_t));
             return;
         }
@@ -166,15 +163,15 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
      *  @param from The compressed scalar value to decompress.
      *  @return The decompressed double value.
      */
-    static double uncompress(scalar_t const& from) noexcept {
+    static double uncompress(scalar_t const &from) noexcept {
 #if !SIMSIMD_NATIVE_BF16
         if constexpr (datatype_ak == simsimd_datatype_bf16_k || datatype_ak == simsimd_datatype_bf16c_k) {
-            return simsimd_bf16_to_f32((simsimd_bf16_t const*)&from);
+            return simsimd_bf16_to_f32((simsimd_bf16_t const *)&from);
         }
 #endif
 #if !SIMSIMD_NATIVE_F16
         if constexpr (datatype_ak == simsimd_datatype_f16_k || datatype_ak == simsimd_datatype_f16c_k) {
-            return simsimd_f16_to_f32((simsimd_f16_t const*)&from);
+            return simsimd_f16_to_f32((simsimd_f16_t const *)&from);
         }
 #endif
         return from;
@@ -195,10 +192,9 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
         if constexpr (is_integral) {
             std::uniform_int_distribution<scalar_t> distribution(std::numeric_limits<scalar_t>::min(),
                                                                  std::numeric_limits<scalar_t>::max());
-            for (std::size_t i = 0; i != dimensions_; ++i) {
-                buffer_[i] = distribution(generator);
-            }
-        } else {
+            for (std::size_t i = 0; i != dimensions_; ++i) { buffer_[i] = distribution(generator); }
+        }
+        else {
             // Using non-uniform distribution helps detect tail errors
             std::normal_distribution<double> distribution(0.1, 1.0);
             double squared_sum = 0.0;
@@ -213,14 +209,14 @@ template <simsimd_datatype_t datatype_ak> struct vector_gt {
             for (std::size_t i = 0; i != dimensions_; ++i) {
                 compress(uncompress(buffer_[i]) / squared_sum, buffer_[i]);
                 // Zero out NaNs
-                if (std::isnan(uncompress(buffer_[i])))
-                    buffer_[i] = 0;
+                if (std::isnan(uncompress(buffer_[i]))) buffer_[i] = 0;
             }
         }
     }
 };
 
-template <simsimd_datatype_t datatype_ak> struct vectors_pair_gt {
+template <simsimd_datatype_t datatype_ak>
+struct vectors_pair_gt {
     using vector_t = vector_gt<datatype_ak>;
     using scalar_t = typename vector_t::scalar_t;
     static constexpr bool is_integral = vector_t::is_integral;
@@ -231,10 +227,9 @@ template <simsimd_datatype_t datatype_ak> struct vectors_pair_gt {
     vectors_pair_gt() noexcept = default;
     vectors_pair_gt(std::size_t dimensions) noexcept : a(dimensions), b(dimensions) {}
     vectors_pair_gt(std::size_t dimensions_a, std::size_t dimensions_b) noexcept : a(dimensions_a), b(dimensions_b) {}
-    vectors_pair_gt(vectors_pair_gt const& other) noexcept(false) : a(other.a), b(other.b) {}
-    vectors_pair_gt& operator=(vectors_pair_gt const& other) noexcept(false) {
-        if (this != &other)
-            a = other.a, b = other.b;
+    vectors_pair_gt(vectors_pair_gt const &other) noexcept(false) : a(other.a), b(other.b) {}
+    vectors_pair_gt &operator=(vectors_pair_gt const &other) noexcept(false) {
+        if (this != &other) a = other.a, b = other.b;
         return *this;
     }
 };
@@ -249,19 +244,19 @@ template <simsimd_datatype_t datatype_ak> struct vectors_pair_gt {
  *  @param dimensions The number of dimensions in the vectors.
  */
 template <typename pair_at, typename metric_at = void>
-void measure_dense(bm::State& state, metric_at metric, metric_at baseline, std::size_t dimensions) {
+void measure_dense(bm::State &state, metric_at metric, metric_at baseline, std::size_t dimensions) {
 
     using pair_t = pair_at;
     using vector_t = typename pair_at::vector_t;
 
-    auto call_baseline = [&](pair_t& pair) -> double {
+    auto call_baseline = [&](pair_t &pair) -> double {
         // Output for real vectors have a single dimensions.
         // Output for complex vectors have two dimensions.
         simsimd_distance_t results[2] = {signaling_distance, signaling_distance};
         baseline(pair.a.data(), pair.b.data(), pair.a.dimensions(), &results[0]);
         return results[0];
     };
-    auto call_contender = [&](pair_t& pair) -> double {
+    auto call_contender = [&](pair_t &pair) -> double {
         // Output for real vectors have a single dimensions.
         // Output for complex vectors have two dimensions.
         simsimd_distance_t results[2] = {signaling_distance, signaling_distance};
@@ -273,7 +268,7 @@ void measure_dense(bm::State& state, metric_at metric, metric_at baseline, std::
     constexpr std::size_t pairs_count = 128;
     std::vector<pair_t> pairs(pairs_count);
     for (std::size_t i = 0; i != pairs.size(); ++i) {
-        auto& pair = pairs[i];
+        auto &pair = pairs[i];
         pair.a = pair.b = vector_t(dimensions);
         pair.a.randomize(static_cast<std::uint32_t>(i)), pair.b.randomize(static_cast<std::uint32_t>(i) + 54321u);
     }
@@ -317,17 +312,17 @@ void measure_dense(bm::State& state, metric_at metric, metric_at baseline, std::
  *  @param dimensions The number of dimensions in the vectors.
  */
 template <typename pair_at, typename metric_at = void>
-void measure_curved(bm::State& state, metric_at metric, metric_at baseline, std::size_t dimensions) {
+void measure_curved(bm::State &state, metric_at metric, metric_at baseline, std::size_t dimensions) {
 
     using pair_t = pair_at;
     using vector_t = typename pair_at::vector_t;
 
-    auto call_baseline = [&](pair_t const& pair, vector_t const& tensor) -> double {
+    auto call_baseline = [&](pair_t const &pair, vector_t const &tensor) -> double {
         simsimd_distance_t result = signaling_distance;
         baseline(pair.a.data(), pair.b.data(), tensor.data(), pair.a.dimensions(), &result);
         return result;
     };
-    auto call_contender = [&](pair_t const& pair, vector_t const& tensor) -> double {
+    auto call_contender = [&](pair_t const &pair, vector_t const &tensor) -> double {
         simsimd_distance_t result = signaling_distance;
         metric(pair.a.data(), pair.b.data(), tensor.data(), pair.a.dimensions(), &result);
         return result;
@@ -338,10 +333,10 @@ void measure_curved(bm::State& state, metric_at metric, metric_at baseline, std:
     std::vector<pair_t> pairs(pairs_count);
     std::vector<vector_t> tensors(pairs_count);
     for (std::size_t i = 0; i != pairs.size(); ++i) {
-        pair_t& pair = pairs[i];
+        pair_t &pair = pairs[i];
         pair.a = pair.b = vector_t(dimensions);
         pair.a.randomize(static_cast<std::uint32_t>(i)), pair.b.randomize(static_cast<std::uint32_t>(i) + 54321u);
-        vector_t& tensor = tensors[i];
+        vector_t &tensor = tensors[i];
         tensor = vector_t(dimensions * dimensions);
         tensor.randomize(static_cast<std::uint32_t>(i) + 123456u);
     }
@@ -388,19 +383,19 @@ void measure_curved(bm::State& state, metric_at metric, metric_at baseline, std:
  *  @param intersection_size The expected number of common scalars between the vectors.
  */
 template <typename pair_at, typename metric_at = void>
-void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std::size_t dimensions_a,
+void measure_sparse(bm::State &state, metric_at metric, metric_at baseline, std::size_t dimensions_a,
                     std::size_t dimensions_b, std::size_t intersection_size) {
 
     using pair_t = pair_at;
     using vector_t = typename pair_at::vector_t;
     using scalar_t = typename vector_t::scalar_t;
 
-    auto call_baseline = [&](pair_t& pair) -> double {
+    auto call_baseline = [&](pair_t &pair) -> double {
         simsimd_distance_t result = std::numeric_limits<simsimd_distance_t>::signaling_NaN();
         baseline(pair.a.data(), pair.b.data(), pair.a.dimensions(), pair.b.dimensions(), &result);
         return result;
     };
-    auto call_contender = [&](pair_t& pair) -> double {
+    auto call_contender = [&](pair_t &pair) -> double {
         simsimd_distance_t result = std::numeric_limits<simsimd_distance_t>::signaling_NaN();
         metric(pair.a.data(), pair.b.data(), pair.a.dimensions(), pair.b.dimensions(), &result);
         return result;
@@ -423,20 +418,18 @@ void measure_sparse(bm::State& state, metric_at metric, metric_at baseline, std:
     unique_a.reserve(dimensions_a - intersection_size);
     unique_b.reserve(dimensions_b - intersection_size);
 
-    for (auto& pair : pairs) {
+    for (auto &pair : pairs) {
         pair.a = vector_t(dimensions_a);
         pair.b = vector_t(dimensions_b);
 
         // Step 1: Generate intersection set
         intersection_set.clear();
-        while (intersection_set.size() < intersection_size)
-            intersection_set.insert(distribution(generator));
+        while (intersection_set.size() < intersection_size) intersection_set.insert(distribution(generator));
 
         unique_a.clear();
         while (unique_a.size() < dimensions_a - intersection_size) {
             scalar_t element = distribution(generator);
-            if (intersection_set.find(element) == intersection_set.end())
-                unique_a.insert(element);
+            if (intersection_set.find(element) == intersection_set.end()) unique_a.insert(element);
         }
 
         unique_b.clear();
@@ -498,7 +491,7 @@ constexpr std::size_t function_args_count(void (*function)(function_args_at...))
  *  @param dimensions The number of dimensions in the vectors.
  */
 template <typename pair_at, typename kernel_at = void, typename l2_metric_at = void>
-void measure_fma(bm::State& state, kernel_at kernel, kernel_at baseline, l2_metric_at l2_metric,
+void measure_fma(bm::State &state, kernel_at kernel, kernel_at baseline, l2_metric_at l2_metric,
                  std::size_t dimensions) {
 
     using pair_t = pair_at;
@@ -506,22 +499,20 @@ void measure_fma(bm::State& state, kernel_at kernel, kernel_at baseline, l2_metr
 
     constexpr simsimd_distance_t alpha = 0.2;
     constexpr simsimd_distance_t beta = 0.3;
-    static_assert(function_args_count(kernel_at{}) >= 6 && function_args_count(kernel_at{}) <= 7,
+    static_assert(function_args_count(kernel_at {}) >= 6 && function_args_count(kernel_at {}) <= 7,
                   "Kernel must take two or three vectors.");
 
-    auto call_baseline = [&](vector_t const& a, vector_t const& b, vector_t const& c, vector_t& d) {
-        if constexpr (function_args_count(kernel_at{}) == 6) {
+    auto call_baseline = [&](vector_t const &a, vector_t const &b, vector_t const &c, vector_t &d) {
+        if constexpr (function_args_count(kernel_at {}) == 6) {
             baseline(a.data(), c.data(), a.dimensions(), alpha, beta, d.data());
-        } else {
-            baseline(a.data(), b.data(), c.data(), a.dimensions(), alpha, beta, d.data());
         }
+        else { baseline(a.data(), b.data(), c.data(), a.dimensions(), alpha, beta, d.data()); }
     };
-    auto call_contender = [&](vector_t const& a, vector_t const& b, vector_t const& c, vector_t& d) {
-        if constexpr (function_args_count(kernel_at{}) == 6) {
+    auto call_contender = [&](vector_t const &a, vector_t const &b, vector_t const &c, vector_t &d) {
+        if constexpr (function_args_count(kernel_at {}) == 6) {
             kernel(a.data(), c.data(), a.dimensions(), alpha, beta, d.data());
-        } else {
-            kernel(a.data(), b.data(), c.data(), a.dimensions(), alpha, beta, d.data());
         }
+        else { kernel(a.data(), b.data(), c.data(), a.dimensions(), alpha, beta, d.data()); }
     };
 
     // Let's average the distance results over many quads.
@@ -531,7 +522,7 @@ void measure_fma(bm::State& state, kernel_at kernel, kernel_at baseline, l2_metr
     constexpr std::size_t quads_count = 128;
     std::vector<quad_t> quads(quads_count);
     for (std::size_t i = 0; i != quads.size(); ++i) {
-        auto& quad = quads[i];
+        auto &quad = quads[i];
         quad.a = quad.b = quad.c = quad.d = vector_t(dimensions);
         quad.a.randomize(static_cast<std::uint32_t>(i));
         quad.b.set(2); // Having a small constant here will help avoid overflows
@@ -546,7 +537,7 @@ void measure_fma(bm::State& state, kernel_at kernel, kernel_at baseline, l2_metr
     zeros.set(0);
     double mean_delta = 0, mean_relative_error = 0;
     for (std::size_t i = 0; i != quads.size(); ++i) {
-        quad_t& quad = quads[i];
+        quad_t &quad = quads[i];
         call_baseline(quad.a, quad.b, quad.c, baseline_d);
         call_contender(quad.a, quad.b, quad.c, contender_d);
         l2_metric(baseline_d.data(), contender_d.data(), dimensions, &l2_metric_from_baseline[i]);
@@ -563,7 +554,7 @@ void measure_fma(bm::State& state, kernel_at kernel, kernel_at baseline, l2_metr
     // The actual benchmarking loop.
     std::size_t iterations = 0;
     for (auto _ : state) {
-        quad_t& quad = quads[iterations & (quads_count - 1)];
+        quad_t &quad = quads[iterations & (quads_count - 1)];
         call_contender(quad.a, quad.b, quad.c, quad.d);
         iterations++;
     }
@@ -572,32 +563,32 @@ void measure_fma(bm::State& state, kernel_at kernel, kernel_at baseline, l2_metr
     state.counters["abs_delta"] = mean_delta;
     state.counters["relative_error"] = mean_relative_error;
     state.counters["bytes"] = bm::Counter(
-        iterations * quads[0].a.size_bytes() * (function_args_count(kernel_at{}) > 6 ? 3 : 2), bm::Counter::kIsRate);
+        iterations * quads[0].a.size_bytes() * (function_args_count(kernel_at {}) > 6 ? 3 : 2), bm::Counter::kIsRate);
     state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
 template <simsimd_datatype_t datatype_ak, typename metric_at = void>
-void dense_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
+void dense_(std::string name, metric_at *distance_func, metric_at *baseline_func) {
     using pair_t = vectors_pair_gt<datatype_ak>;
     std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
-    bm::RegisterBenchmark(bench_name.c_str(), measure_dense<pair_t, metric_at*>, distance_func, baseline_func,
+    bm::RegisterBenchmark(bench_name.c_str(), measure_dense<pair_t, metric_at *>, distance_func, baseline_func,
                           dense_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
 
 template <simsimd_datatype_t datatype_ak, typename kernel_at = void, typename l2_metric_at = void>
-void fma_(std::string name, kernel_at* kernel_func, kernel_at* baseline_func, l2_metric_at* l2_metric_func) {
+void fma_(std::string name, kernel_at *kernel_func, kernel_at *baseline_func, l2_metric_at *l2_metric_func) {
     using pair_t = vectors_pair_gt<datatype_ak>;
     std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
-    bm::RegisterBenchmark(bench_name.c_str(), measure_fma<pair_t, kernel_at*, l2_metric_at*>, kernel_func,
+    bm::RegisterBenchmark(bench_name.c_str(), measure_fma<pair_t, kernel_at *, l2_metric_at *>, kernel_func,
                           baseline_func, l2_metric_func, dense_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
 
 template <simsimd_datatype_t datatype_ak, typename metric_at = void>
-void sparse_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
+void sparse_(std::string name, metric_at *distance_func, metric_at *baseline_func) {
 
     using pair_t = vectors_pair_gt<datatype_ak>;
 
@@ -611,9 +602,8 @@ void sparse_(std::string name, metric_at* distance_func, metric_at* baseline_fun
                 std::string bench_name = name + "<|A|=" + std::to_string(first_len) +
                                          ",|B|=" + std::to_string(second_len) +
                                          ",|A∩B|=" + std::to_string(intersection_size) + ">";
-                if (second_len > 8192)
-                    continue;
-                bm::RegisterBenchmark(bench_name.c_str(), measure_sparse<pair_t, metric_at*>, distance_func,
+                if (second_len > 8192) continue;
+                bm::RegisterBenchmark(bench_name.c_str(), measure_sparse<pair_t, metric_at *>, distance_func,
                                       baseline_func, first_len, second_len, intersection_size)
                     ->MinTime(default_seconds)
                     ->Threads(default_threads);
@@ -623,11 +613,11 @@ void sparse_(std::string name, metric_at* distance_func, metric_at* baseline_fun
 }
 
 template <simsimd_datatype_t datatype_ak, typename metric_at = void>
-void curved_(std::string name, metric_at* distance_func, metric_at* baseline_func) {
+void curved_(std::string name, metric_at *distance_func, metric_at *baseline_func) {
 
     using pair_t = vectors_pair_gt<datatype_ak>;
     std::string bench_name = name + "<" + std::to_string(curved_dimensions) + "d>";
-    bm::RegisterBenchmark(bench_name.c_str(), measure_curved<pair_t, metric_at*>, distance_func, baseline_func,
+    bm::RegisterBenchmark(bench_name.c_str(), measure_curved<pair_t, metric_at *>, distance_func, baseline_func,
                           curved_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
@@ -635,43 +625,43 @@ void curved_(std::string name, metric_at* distance_func, metric_at* baseline_fun
 
 #if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
 
-void dot_f32_blas(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+void dot_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
     *result = cblas_sdot((int)n, a, 1, b, 1);
 }
 
-void dot_f64_blas(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+void dot_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
     *result = cblas_ddot((int)n, a, 1, b, 1);
 }
 
-void dot_f32c_blas(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+void dot_f32c_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
     simsimd_f32_t f32_result[2] = {0, 0};
     cblas_cdotu_sub((int)n / 2, a, 1, b, 1, f32_result);
     result[0] = f32_result[0];
     result[1] = f32_result[1];
 }
 
-void dot_f64c_blas(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+void dot_f64c_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
     cblas_zdotu_sub((int)n / 2, a, 1, b, 1, result);
 }
 
-void vdot_f32c_blas(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+void vdot_f32c_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
     simsimd_f32_t f32_result[2] = {0, 0};
     cblas_cdotc_sub((int)n / 2, a, 1, b, 1, f32_result);
     result[0] = f32_result[0];
     result[1] = f32_result[1];
 }
 
-void vdot_f64c_blas(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result) {
+void vdot_f64c_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
     cblas_zdotc_sub((int)n / 2, a, 1, b, 1, result);
 }
 
 #endif
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     simsimd_capability_t runtime_caps = simsimd_capabilities();
 
     // Log supported functionality
-    char const* flags[2] = {"false", "true"};
+    char const *flags[2] = {"false", "true"};
     std::printf("Benchmarking Similarity Measures\n");
     std::printf("- Compiler used native F16: %s\n", flags[SIMSIMD_NATIVE_F16]);
     std::printf("- Compiler used native BF16: %s\n", flags[SIMSIMD_NATIVE_BF16]);
@@ -709,8 +699,7 @@ int main(int argc, char** argv) {
 
     // Run the benchmarks
     bm::Initialize(&argc, argv);
-    if (bm::ReportUnrecognizedArguments(argc, argv))
-        return 1;
+    if (bm::ReportUnrecognizedArguments(argc, argv)) return 1;
 
     constexpr simsimd_datatype_t b8_k = simsimd_datatype_b8_k;
     constexpr simsimd_datatype_t i4x2_k = simsimd_datatype_i4x2_k;
@@ -818,6 +807,9 @@ int main(int argc, char** argv) {
 
     curved_<bf16_k>("bilinear_bf16_neon", simsimd_bilinear_bf16_neon, simsimd_bilinear_bf16_accurate);
     curved_<bf16_k>("mahalanobis_bf16_neon", simsimd_mahalanobis_bf16_neon, simsimd_mahalanobis_bf16_accurate);
+
+    fma_<bf16_k>("fma_bf16_neon", simsimd_fma_bf16_neon, simsimd_fma_bf16_accurate, simsimd_l2_bf16_accurate);
+    fma_<bf16_k>("wsum_bf16_neon", simsimd_wsum_bf16_neon, simsimd_wsum_bf16_accurate, simsimd_l2_bf16_accurate);
 #endif
 
 #if SIMSIMD_TARGET_SVE

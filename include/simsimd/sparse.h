@@ -1079,8 +1079,6 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_neon(       //
  *    https://developer.arm.com/documentation/ddi0602/2021-06/SVE-Instructions/UCLAMP--Unsigned-clamp-to-minimum-maximum-vector-?lang=en
  *  - `TBLQ`: Table lookup quadword
  *    https://developer.arm.com/documentation/ddi0602/2022-12/SVE-Instructions/TBLQ--Programmable-table-lookup-within-each-quadword-vector-segment--zeroing--?lang=en
- *  -
- *    https://developer.arm.com/documentation/ddi0602/2021-06/SVE-Instructions/INCB--INCD--INCH--INCW--scalar---Increment-scalar-by-multiple-of-predicate-constraint-element-count-
  *
  *  Great resources for SVE2 intrinsics:
  *
