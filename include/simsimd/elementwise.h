@@ -502,17 +502,21 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_haswell(                        //
     simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
+    int sum_i32s[8], a_i32s[8], b_i32s[8];
 
     // The main loop:
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         //? Handling loads and stores with SIMD is tricky. Not because of upcasting, but the
         //? downcasting at the end of the loop. In AVX2 it's a drag! Keep it for another day.
-        __m256 a_vec, b_vec, c_vec;
-        a_vec[0] = a[i + 0], a_vec[1] = a[i + 1], a_vec[2] = a[i + 2], a_vec[3] = a[i + 3], //
-            a_vec[4] = a[i + 4], a_vec[5] = a[i + 5], a_vec[6] = a[i + 6], a_vec[7] = a[i + 7];
-        b_vec[0] = b[i + 0], b_vec[1] = b[i + 1], b_vec[2] = b[i + 2], b_vec[3] = b[i + 3], //
-            b_vec[4] = b[i + 4], b_vec[5] = b[i + 5], b_vec[6] = b[i + 6], b_vec[7] = b[i + 7];
+        a_i32s[0] = a[i + 0], a_i32s[1] = a[i + 1], a_i32s[2] = a[i + 2], a_i32s[3] = a[i + 3], //
+            a_i32s[4] = a[i + 4], a_i32s[5] = a[i + 5], a_i32s[6] = a[i + 6], a_i32s[7] = a[i + 7];
+        b_i32s[0] = b[i + 0], b_i32s[1] = b[i + 1], b_i32s[2] = b[i + 2], b_i32s[3] = b[i + 3], //
+            b_i32s[4] = b[i + 4], b_i32s[5] = b[i + 5], b_i32s[6] = b[i + 6], b_i32s[7] = b[i + 7];
+        //! This can be done at least 50% faster if we convert 8-bit integers to floats instead
+        //! of relying on the slow `_mm256_cvtepi32_ps` instruction.
+        __m256 a_vec = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)a_i32s));
+        __m256 b_vec = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)b_i32s));
         // The normal part.
         __m256 a_scaled = _mm256_mul_ps(a_vec, alpha_vec);
         __m256 b_scaled = _mm256_mul_ps(b_vec, beta_vec);
@@ -522,7 +526,6 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_haswell(                        //
         sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(-128));
         sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(127));
         // Export into a serial buffer.
-        int sum_i32s[8];
         _mm256_storeu_si256((__m256i *)sum_i32s, sum_i32_vec);
         result[i + 0] = (simsimd_i8_t)sum_i32s[0];
         result[i + 1] = (simsimd_i8_t)sum_i32s[1];
@@ -550,17 +553,21 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_haswell(                        //
     simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
+    int sum_i32s[8], a_i32s[8], b_i32s[8];
 
     // The main loop:
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         //? Handling loads and stores with SIMD is tricky. Not because of upcasting, but the
         //? downcasting at the end of the loop. In AVX2 it's a drag! Keep it for another day.
-        __m256 a_vec, b_vec, c_vec;
-        a_vec[0] = a[i + 0], a_vec[1] = a[i + 1], a_vec[2] = a[i + 2], a_vec[3] = a[i + 3], //
-            a_vec[4] = a[i + 4], a_vec[5] = a[i + 5], a_vec[6] = a[i + 6], a_vec[7] = a[i + 7];
-        b_vec[0] = b[i + 0], b_vec[1] = b[i + 1], b_vec[2] = b[i + 2], b_vec[3] = b[i + 3], //
-            b_vec[4] = b[i + 4], b_vec[5] = b[i + 5], b_vec[6] = b[i + 6], b_vec[7] = b[i + 7];
+        a_i32s[0] = a[i + 0], a_i32s[1] = a[i + 1], a_i32s[2] = a[i + 2], a_i32s[3] = a[i + 3], //
+            a_i32s[4] = a[i + 4], a_i32s[5] = a[i + 5], a_i32s[6] = a[i + 6], a_i32s[7] = a[i + 7];
+        b_i32s[0] = b[i + 0], b_i32s[1] = b[i + 1], b_i32s[2] = b[i + 2], b_i32s[3] = b[i + 3], //
+            b_i32s[4] = b[i + 4], b_i32s[5] = b[i + 5], b_i32s[6] = b[i + 6], b_i32s[7] = b[i + 7];
+        //! This can be done at least 50% faster if we convert 8-bit integers to floats instead
+        //! of relying on the slow `_mm256_cvtepi32_ps` instruction.
+        __m256 a_vec = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)a_i32s));
+        __m256 b_vec = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)b_i32s));
         // The normal part.
         __m256 a_scaled = _mm256_mul_ps(a_vec, alpha_vec);
         __m256 b_scaled = _mm256_mul_ps(b_vec, beta_vec);
@@ -570,7 +577,6 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_haswell(                        //
         sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(0));
         sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(255));
         // Export into a serial buffer.
-        int sum_i32s[8];
         _mm256_storeu_si256((__m256i *)sum_i32s, sum_i32_vec);
         result[i + 0] = (simsimd_u8_t)sum_i32s[0];
         result[i + 1] = (simsimd_u8_t)sum_i32s[1];
@@ -598,19 +604,24 @@ SIMSIMD_PUBLIC void simsimd_fma_i8_haswell(                                     
     simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
+    int sum_i32s[8], a_i32s[8], b_i32s[8], c_i32s[8];
 
     // The main loop:
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         //? Handling loads and stores with SIMD is tricky. Not because of upcasting, but the
         //? downcasting at the end of the loop. In AVX2 it's a drag! Keep it for another day.
-        __m256 a_vec, b_vec, c_vec;
-        a_vec[0] = a[i + 0], a_vec[1] = a[i + 1], a_vec[2] = a[i + 2], a_vec[3] = a[i + 3], //
-            a_vec[4] = a[i + 4], a_vec[5] = a[i + 5], a_vec[6] = a[i + 6], a_vec[7] = a[i + 7];
-        b_vec[0] = b[i + 0], b_vec[1] = b[i + 1], b_vec[2] = b[i + 2], b_vec[3] = b[i + 3], //
-            b_vec[4] = b[i + 4], b_vec[5] = b[i + 5], b_vec[6] = b[i + 6], b_vec[7] = b[i + 7];
-        c_vec[0] = c[i + 0], c_vec[1] = c[i + 1], c_vec[2] = c[i + 2], c_vec[3] = c[i + 3], //
-            c_vec[4] = c[i + 4], c_vec[5] = c[i + 5], c_vec[6] = c[i + 6], c_vec[7] = c[i + 7];
+        a_i32s[0] = a[i + 0], a_i32s[1] = a[i + 1], a_i32s[2] = a[i + 2], a_i32s[3] = a[i + 3], //
+            a_i32s[4] = a[i + 4], a_i32s[5] = a[i + 5], a_i32s[6] = a[i + 6], a_i32s[7] = a[i + 7];
+        b_i32s[0] = b[i + 0], b_i32s[1] = b[i + 1], b_i32s[2] = b[i + 2], b_i32s[3] = b[i + 3], //
+            b_i32s[4] = b[i + 4], b_i32s[5] = b[i + 5], b_i32s[6] = b[i + 6], b_i32s[7] = b[i + 7];
+        c_i32s[0] = c[i + 0], c_i32s[1] = c[i + 1], c_i32s[2] = c[i + 2], c_i32s[3] = c[i + 3], //
+            c_i32s[4] = c[i + 4], c_i32s[5] = c[i + 5], c_i32s[6] = c[i + 6], c_i32s[7] = c[i + 7];
+        //! This can be done at least 50% faster if we convert 8-bit integers to floats instead
+        //! of relying on the slow `_mm256_cvtepi32_ps` instruction.
+        __m256 a_vec = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)a_i32s));
+        __m256 b_vec = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)b_i32s));
+        __m256 c_vec = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)c_i32s));
         // The normal part.
         __m256 ab_vec = _mm256_mul_ps(a_vec, b_vec);
         __m256 ab_scaled_vec = _mm256_mul_ps(ab_vec, alpha_vec);
@@ -621,7 +632,6 @@ SIMSIMD_PUBLIC void simsimd_fma_i8_haswell(                                     
         sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(-128));
         sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(127));
         // Export into a serial buffer.
-        int sum_i32s[8];
         _mm256_storeu_si256((__m256i *)sum_i32s, sum_i32_vec);
         result[i + 0] = (simsimd_i8_t)sum_i32s[0];
         result[i + 1] = (simsimd_i8_t)sum_i32s[1];
@@ -649,19 +659,24 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_haswell(                                     
     simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
+    int sum_i32s[8], a_i32s[8], b_i32s[8], c_i32s[8];
 
     // The main loop:
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         //? Handling loads and stores with SIMD is tricky. Not because of upcasting, but the
         //? downcasting at the end of the loop. In AVX2 it's a drag! Keep it for another day.
-        __m256 a_vec, b_vec, c_vec;
-        a_vec[0] = a[i + 0], a_vec[1] = a[i + 1], a_vec[2] = a[i + 2], a_vec[3] = a[i + 3], //
-            a_vec[4] = a[i + 4], a_vec[5] = a[i + 5], a_vec[6] = a[i + 6], a_vec[7] = a[i + 7];
-        b_vec[0] = b[i + 0], b_vec[1] = b[i + 1], b_vec[2] = b[i + 2], b_vec[3] = b[i + 3], //
-            b_vec[4] = b[i + 4], b_vec[5] = b[i + 5], b_vec[6] = b[i + 6], b_vec[7] = b[i + 7];
-        c_vec[0] = c[i + 0], c_vec[1] = c[i + 1], c_vec[2] = c[i + 2], c_vec[3] = c[i + 3], //
-            c_vec[4] = c[i + 4], c_vec[5] = c[i + 5], c_vec[6] = c[i + 6], c_vec[7] = c[i + 7];
+        a_i32s[0] = a[i + 0], a_i32s[1] = a[i + 1], a_i32s[2] = a[i + 2], a_i32s[3] = a[i + 3], //
+            a_i32s[4] = a[i + 4], a_i32s[5] = a[i + 5], a_i32s[6] = a[i + 6], a_i32s[7] = a[i + 7];
+        b_i32s[0] = b[i + 0], b_i32s[1] = b[i + 1], b_i32s[2] = b[i + 2], b_i32s[3] = b[i + 3], //
+            b_i32s[4] = b[i + 4], b_i32s[5] = b[i + 5], b_i32s[6] = b[i + 6], b_i32s[7] = b[i + 7];
+        c_i32s[0] = c[i + 0], c_i32s[1] = c[i + 1], c_i32s[2] = c[i + 2], c_i32s[3] = c[i + 3], //
+            c_i32s[4] = c[i + 4], c_i32s[5] = c[i + 5], c_i32s[6] = c[i + 6], c_i32s[7] = c[i + 7];
+        //! This can be done at least 50% faster if we convert 8-bit integers to floats instead
+        //! of relying on the slow `_mm256_cvtepi32_ps` instruction.
+        __m256 a_vec = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)a_i32s));
+        __m256 b_vec = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)b_i32s));
+        __m256 c_vec = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)c_i32s));
         // The normal part.
         __m256 ab_vec = _mm256_mul_ps(a_vec, b_vec);
         __m256 ab_scaled_vec = _mm256_mul_ps(ab_vec, alpha_vec);
@@ -672,7 +687,6 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_haswell(                                     
         sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(0));
         sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(255));
         // Export into a serial buffer.
-        int sum_i32s[8];
         _mm256_storeu_si256((__m256i *)sum_i32s, sum_i32_vec);
         result[i + 0] = (simsimd_u8_t)sum_i32s[0];
         result[i + 1] = (simsimd_u8_t)sum_i32s[1];
