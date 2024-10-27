@@ -754,6 +754,8 @@ SIMSIMD_INTERNAL void _simsimd_find_metric_punned_bf16(simsimd_capability_t v, s
         case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
+        case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
         default: break;
         }
 #endif
