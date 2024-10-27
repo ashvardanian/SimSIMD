@@ -1,6 +1,6 @@
 /**
- *  @file       fma.h
- *  @brief      SIMD-accelerated mixed-precision Fused-Multiply-Add operations.
+ *  @file       elementwise.h
+ *  @brief      SIMD-accelerated mixed-precision element-wise operations.
  *  @author     Ash Vardanian
  *  @date       October 16, 2024
  *
@@ -43,6 +43,10 @@
 extern "C" {
 #endif
 
+/*  Serial backends for all numeric types.
+ *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
+ *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
+ */
 SIMSIMD_PUBLIC void simsimd_wsum_f64_serial(                          //
     simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, //
     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);

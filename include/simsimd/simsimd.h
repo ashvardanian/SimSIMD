@@ -105,7 +105,7 @@
 #include "binary.h"      // Hamming, Jaccard
 #include "curved.h"      // Mahalanobis, Bilinear Forms
 #include "dot.h"         // Inner (dot) product, and its conjugate
-#include "fma.h"         // Weighted Sum, Fused Multiply-Add
+#include "elementwise.h" // Weighted Sum, Fused-Multiply-Add
 #include "geospatial.h"  // Haversine and Vincenty
 #include "probability.h" // Kullback-Leibler, Jensen–Shannon
 #include "sparse.h"      // Intersect
