@@ -1150,7 +1150,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_neon(                           //
         float16x8_t a_scaled_vec = vmulq_n_f16(a_vec, alpha_f16);
         float16x8_t b_scaled_vec = vmulq_n_f16(b_vec, beta_f16);
         float16x8_t sum_vec = vaddq_f16(a_scaled_vec, b_scaled_vec);
-        uint8x8_t sum_u8_vec = vmovn_u16(vcvtaq_u16_f16(sum_vec));
+        uint8x8_t sum_u8_vec = vqmovn_u16(vcvtaq_u16_f16(sum_vec));
         vst1_u8(result + i, sum_u8_vec);
     }
 
@@ -1176,7 +1176,7 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_neon(                                 //
         float16x8_t ab_vec = vmulq_f16(a_vec, b_vec);
         float16x8_t ab_scaled_vec = vmulq_n_f16(ab_vec, alpha_f16);
         float16x8_t sum_vec = vfmaq_n_f16(ab_scaled_vec, c_vec, beta_f16);
-        uint8x8_t sum_u8_vec = vmovn_u16(vcvtaq_u16_f16(sum_vec));
+        uint8x8_t sum_u8_vec = vqmovn_u16(vcvtaq_u16_f16(sum_vec));
         vst1_u8(result + i, sum_u8_vec);
     }
 
@@ -1200,7 +1200,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_neon(                           //
         float16x8_t a_scaled_vec = vmulq_n_f16(a_vec, alpha_f16);
         float16x8_t b_scaled_vec = vmulq_n_f16(b_vec, beta_f16);
         float16x8_t sum_vec = vaddq_f16(a_scaled_vec, b_scaled_vec);
-        int8x8_t sum_i8_vec = vmovn_s16(vcvtaq_s16_f16(sum_vec));
+        int8x8_t sum_i8_vec = vqmovn_s16(vcvtaq_s16_f16(sum_vec));
         vst1_s8(result + i, sum_i8_vec);
     }
 
@@ -1226,7 +1226,7 @@ SIMSIMD_PUBLIC void simsimd_fma_i8_neon(                                 //
         float16x8_t ab_vec = vmulq_f16(a_vec, b_vec);
         float16x8_t ab_scaled_vec = vmulq_n_f16(ab_vec, alpha_f16);
         float16x8_t sum_vec = vfmaq_n_f16(ab_scaled_vec, c_vec, beta_f16);
-        int8x8_t sum_i8_vec = vmovn_s16(vcvtaq_s16_f16(sum_vec));
+        int8x8_t sum_i8_vec = vqmovn_s16(vcvtaq_s16_f16(sum_vec));
         vst1_s8(result + i, sum_i8_vec);
     }
 
