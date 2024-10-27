@@ -1,6 +1,6 @@
 [package]
 name = "simsimd"
-description = "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm"
+description = "Portable mixed-precision BLAS-like vector math library for x86 and ARM"
 version = "5.8.0"
 edition = "2021"
 license = "Apache-2.0"
