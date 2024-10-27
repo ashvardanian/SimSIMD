@@ -52,6 +52,7 @@ Implemented distance functions include:
 - Set Intersections for Sparse Vectors and Text Analysis. _[docs][docs-sparse]_
 - Mahalanobis distance and Quadratic forms for Scientific Computing. _[docs][docs-curved]_
 - Kullback-Leibler and Jensen–Shannon divergences for probability distributions. _[docs][docs-probability]_
+- Fused-Multiply-Add (FMA) and Weighted Sums to replace BLAS level 1 functions. _[docs][docs-fma]_
 - For Levenshtein, Needleman–Wunsch, and Smith-Waterman, check [StringZilla][stringzilla].
 - 🔜 Haversine and Vincenty's formulae for Geospatial Analysis.
 
@@ -61,6 +62,7 @@ Implemented distance functions include:
 [docs-binary]: https://github.com/ashvardanian/SimSIMD/pull/138
 [docs-dot]: #complex-dot-products-conjugate-dot-products-and-complex-numbers
 [docs-probability]: #logarithms-in-kullback-leibler--jensenshannon-divergences
+[docs-fma]: #mixed-precision-in-fused-multiply-add-and-weighted-sums
 [scipy]: https://docs.scipy.org/doc/scipy/reference/spatial.distance.html#module-scipy.spatial.distance
 [numpy]: https://numpy.org/doc/stable/reference/generated/numpy.inner.html
 [stringzilla]: https://github.com/ashvardanian/stringzilla
@@ -122,7 +124,8 @@ Use the following snippet to install SimSIMD and list available hardware acceler
 
 ```sh
 pip install simsimd
-python -c "import simsimd; print(simsimd.get_capabilities())"
+python -c "import simsimd; print(simsimd.get_capabilities())"   # for hardware introspection
+python -c "import simsimd; help(simsimd)"                       # for documentation
 ```
 
 With precompiled binaries, SimSIMD ships `.pyi` interface files for type hinting and static analysis.
@@ -928,6 +931,36 @@ Jensen-Shannon divergence is a symmetrized and smoothed version of the Kullback-
 ```
 
 Both functions are defined for non-negative numbers, and the logarithm is a key part of their computation.
+
+### Mixed Precision in Fused-Multiply-Add and Weighted Sums
+
+The Fused-Multiply-Add (FMA) operation is a single operation that combines element-wise multiplication and addition with different scaling factors.
+The Weighted Sum is it's simplified variant without element-wise multiplication.
+
+```math
+\text{FMA}_i(A, B, C, \alpha, \beta) = \alpha \cdot A_i \cdot B_i + \beta \cdot C_i
+```
+
+```math
+\text{WSum}_i(A, B, \alpha, \beta) = \alpha \cdot A_i + \beta \cdot B_i
+```
+
+In NumPy terms, the implementation may look like:
+
+```py
+import numpy as np
+def wsum(A: np.ndarray, B: np.ndarray, Alpha: float, Beta: float) -> np.ndarray:
+    assert A.dtype == B.dtype, "Input types must match and affect the output style"
+    return (Alpha * A + Beta * B).astype(A.dtype)
+def fma(A: np.ndarray, B: np.ndarray, C: np.ndarray, Alpha: float, Beta: float) -> np.ndarray:
+    assert A.dtype == B.dtype and A.dtype == C.dtype, "Input types must match and affect the output style"
+    return (Alpha * A * B + Beta * C).astype(A.dtype)
+```
+
+The tricky part is implementing those operations in mixed precision, where the scaling factors are of different precision than the input and output vectors.
+SimSIMD uses double-precision floating-point scaling factors for any input and output precision, including `i8` and `u8` integers and `f16` and `bf16` floats.
+Depending on the generation of the CPU, given native support for `f16` addition and multiplication, the `f16` temporaries are used for `i8` and `u8` multiplication, scaling, and addition.
+For `bf16`, native support is generally limited to dot-products with subsequent partial accumulation, which is not enough for the FMA and WSum operations, so `f32` is used as a temporary.
 
 ### Auto-Vectorization & Loop Unrolling
 

@@ -27,6 +27,8 @@ _MetricType = Literal[
     "intersection",
     "bilinear",
     "mahalanobis",
+    "fma",
+    "wsum",
 ]
 _IntegralType = Literal[
     # Booleans
@@ -115,8 +117,9 @@ def cdist(
     *,
     threads: int = 1,
     dtype: Optional[Union[_IntegralType, _FloatType, _ComplexType]] = None,
+    out: Optional[_BufferType] = None,
     out_dtype: Union[_FloatType, _ComplexType] = "d",
-) -> Union[float, complex, DistancesTensor]: ...
+) -> Optional[Union[float, complex, DistancesTensor]]: ...
 
 # ---------------------------------------------------------------------
 # Vector-vector dot products for real and complex numbers
@@ -129,7 +132,10 @@ def inner(
     b: _BufferType,
     /,
     dtype: Optional[Union[_FloatType, _ComplexType]] = None,
-) -> Union[float, complex, DistancesTensor]: ...
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType, _ComplexType] = "d",
+) -> Optional[Union[float, complex, DistancesTensor]]: ...
 
 # Dot product, similar to: `numpy.dot`.
 # https://numpy.org/doc/stable/reference/generated/numpy.dot.html
@@ -138,7 +144,10 @@ def dot(
     b: _BufferType,
     /,
     dtype: Optional[Union[_FloatType, _ComplexType]] = None,
-) -> Union[float, complex, DistancesTensor]: ...
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType, _ComplexType] = None,
+) -> Optional[Union[float, complex, DistancesTensor]]: ...
 
 # Vector-vector dot product for complex conjugates, similar to: `numpy.vdot`.
 # https://numpy.org/doc/stable/reference/generated/numpy.vdot.html
@@ -147,7 +156,10 @@ def vdot(
     b: _BufferType,
     /,
     dtype: Optional[_ComplexType] = None,
-) -> Union[complex, DistancesTensor]: ...
+    *,
+    out: Optional[Union[float, complex, DistancesTensor]] = None,
+    out_dtype: Optional[_ComplexType] = None,
+) -> Optional[Union[complex, DistancesTensor]]: ...
 
 # ---------------------------------------------------------------------
 # Vector-vector spatial distance metrics for real and integer numbers
@@ -161,7 +173,10 @@ def sqeuclidean(
     b: _BufferType,
     /,
     dtype: Optional[Union[_IntegralType, _FloatType]] = None,
-) -> Union[float, DistancesTensor]: ...
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType] = None,
+) -> Optional[Union[float, DistancesTensor]]: ...
 
 # Vector-vector cosine distance, similar to: `scipy.spatial.distance.cosine`.
 # https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.cosine.html
@@ -170,7 +185,10 @@ def cosine(
     b: _BufferType,
     /,
     dtype: Optional[Union[_IntegralType, _FloatType]] = None,
-) -> Union[float, DistancesTensor]: ...
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType] = None,
+) -> Optional[Union[float, DistancesTensor]]: ...
 
 # ---------------------------------------------------------------------
 # Vector-vector similarity functions for binary vectors
@@ -183,7 +201,10 @@ def hamming(
     b: _BufferType,
     /,
     dtype: Optional[_IntegralType] = None,
-) -> Union[float, DistancesTensor]: ...
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType] = None,
+) -> Optional[Union[float, DistancesTensor]]: ...
 
 # Vector-vector Jaccard distance, similar to: `scipy.spatial.distance.jaccard`.
 # https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.jaccard.html
@@ -192,7 +213,10 @@ def jaccard(
     b: _BufferType,
     /,
     dtype: Optional[_IntegralType] = None,
-) -> Union[float, DistancesTensor]: ...
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType] = None,
+) -> Optional[Union[float, DistancesTensor]]: ...
 
 # ---------------------------------------------------------------------
 # Vector-vector similarity between probability distributions
@@ -205,7 +229,10 @@ def jensenshannon(
     b: _BufferType,
     /,
     dtype: Optional[_FloatType] = None,
-) -> Union[float, DistancesTensor]: ...
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType] = None,
+) -> Optional[Union[float, DistancesTensor]]: ...
 
 # Vector-vector Kullback-Leibler divergence, similar to: `scipy.spatial.distance.kullback_leibler`.
 # https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.kullback_leibler.html
@@ -214,7 +241,10 @@ def kullbackleibler(
     b: _BufferType,
     /,
     dtype: Optional[_FloatType] = None,
-) -> Union[float, DistancesTensor]: ...
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType] = None,
+) -> Optional[Union[float, DistancesTensor]]: ...
 
 # ---------------------------------------------------------------------
 # Vector-vector similarity between vectors in curved spaces
@@ -247,3 +277,32 @@ def mahalanobis(
 # Vector-vector intersection similarity, similar to: `numpy.intersect1d`.
 # https://numpy.org/doc/stable/reference/generated/numpy.intersect1d.html
 def intersection(array1: _BufferType, array2: _BufferType, /) -> float: ...
+
+# ---------------------------------------------------------------------
+# Vector-vector math: FMA, WSum
+# ---------------------------------------------------------------------
+
+# Vector-vector element-wise fused-multiply add.
+def fma(
+    a: _BufferType,
+    b: _BufferType,
+    c: _BufferType,
+    /,
+    dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+    *,
+    alpha: float = 1,
+    beta: float = 1,
+    out: Optional[_BufferType] = None,
+) -> Optional[DistancesTensor]: ...
+
+# Vector-vector element-wise weighted sum.
+def wum(
+    a: _BufferType,
+    b: _BufferType,
+    /,
+    dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+    *,
+    alpha: float = 1,
+    beta: float = 1,
+    out: Optional[_BufferType] = None,
+) -> Optional[DistancesTensor]: ...
