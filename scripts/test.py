@@ -539,9 +539,12 @@ def test_capabilities_list():
         simd.disable_capability("neon")
 
 
-def to_array(x):
+def to_array(x, dtype=None):
     if numpy_available:
-        return np.array(x)
+        y = np.array(x)
+        if dtype is not None:
+            y = y.astype(dtype)
+        return y
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -573,8 +576,8 @@ def to_array(x):
         (simd.cosine, LookupError, (to_array([1 + 2j]), to_array([1 + 2j])), {}),
         # Test incompatible vectors for cosine
         (simd.cosine, ValueError, (to_array([1.0]), to_array([1.0, 2.0])), {}),  # Different number of dimensions
-        (simd.cosine, TypeError, (to_array([1.0]), to_array([1]).astype("uint32")), {}),  # Floats and integers
-        (simd.cosine, TypeError, (to_array([1]), to_array([1]).astype("float16")), {}),  # Different floats
+        (simd.cosine, TypeError, (to_array([1.0]), to_array([1], "uint32")), {}),  # Floats and integers
+        (simd.cosine, TypeError, (to_array([1]), to_array([1], "float16")), {}),  # Different floats
     ],
 )
 def test_invalid_argument_handling(function, expected_error, args, kwargs):
