@@ -843,6 +843,8 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16_sapphire(simsimd_bf16_t const* a, sims
     simsimd_size_t const horizontal_tiles = n / 32;
     for (simsimd_size_t matrix_start_row = 0; matrix_start_row + 16 <= n; matrix_start_row += 16) {
 
+        // We need one more loop over here?!
+
         // The column vector `b` contains twice as many rows as the curvature matrix.
         simsimd_size_t vector_progress = matrix_start_row * 2;
         simsimd_bf16_t b_reshaped[16][16][2];
@@ -863,21 +865,21 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16_sapphire(simsimd_bf16_t const* a, sims
             _tile_dpbf16ps(2, 0, 1);
         }
 
-        simsimd_f32_t bc_expanded[16][16];
-        _tile_stored(2, &bc_expanded, 64);
+        simsimd_f32_t cb_expanded[16][16];
+        _tile_stored(2, &cb_expanded, 64);
 
         // Now we need to accumulate the results in every column into the top row.
         // Each row is exactly 64 bytes or 512 bits, making it perfect for AVX-512.
-        __m512 bc_collapsed_vec = _mm512_setzero_ps();
+        __m512 cb_collapsed_vec = _mm512_setzero_ps();
         for (simsimd_size_t i = 0; i < 16; ++i) {
-            __m512 bc_row_vec = _mm512_loadu_ps(bc_expanded[i]);
-            bc_collapsed_vec = _mm512_add_ps(bc_collapsed_vec, bc_row_vec);
+            __m512 cb_row_vec = _mm512_loadu_ps(cb_expanded[i]);
+            cb_collapsed_vec = _mm512_add_ps(cb_collapsed_vec, cb_row_vec);
         }
 
-        // At this point the `bc_collapsed_vec` contains the product of a band of Y multiplied by the column Z.
+        // At this point the `cb_collapsed_vec` contains the product of a band of Y multiplied by the column Z.
         // To compute the overall bilinear form, we need to combine it with the respective slice of row X.
         __m512 a_vec = _simsimd_bf16x16_to_f32x16_skylake(_mm256_loadu_epi16(a + vector_progress));
-        sum_vec = _mm512_fmadd_ps(a_vec, bc_collapsed_vec, sum_vec);
+        sum_vec = _mm512_fmadd_ps(a_vec, cb_collapsed_vec, sum_vec);
     }
 
     *result = _mm512_reduce_add_ps(sum_vec);
