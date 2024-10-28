@@ -101,7 +101,7 @@ You can also benchmark against other libraries, filter the numeric types, and di
 $ python scripts/bench_vectors.py --help
 > usage: bench.py [-h] [--ndim NDIM] [-n COUNT]
 >                 [--metric {all,dot,spatial,binary,probability,sparse}]
->                 [--dtype {all,bits,int8,uint16,uint32,float16,float32,float64,bfloat16,complex32,complex64,complex128}] 
+>                 [--dtype {all,bin8,int8,uint16,uint32,float16,float32,float64,bfloat16,complex32,complex64,complex128}] 
 >                 [--scipy] [--scikit] [--torch] [--tf] [--jax]
 > 
 > Benchmark SimSIMD vs. other libraries
@@ -119,7 +119,7 @@ $ python scripts/bench_vectors.py --help
 >                         `cdist`.
 >   --metric {all,dot,spatial,binary,probability,sparse}
 >                         Distance metric to use, profiles everything by default
->   --dtype {all,bits,int8,uint16,uint32,float16,float32,float64,bfloat16,complex32,complex64,complex128}
+>   --dtype {all,bin8,int8,uint16,uint32,float16,float32,float64,bfloat16,complex32,complex64,complex128}
 >                         Defines numeric types to benchmark, profiles everything by default
 >   --scipy               Profile SciPy, must be installed
 >   --scikit              Profile scikit-learn, must be installed

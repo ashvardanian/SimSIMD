@@ -491,25 +491,25 @@ def hex_array(arr):
 
 def test_pointers_availability():
     """Tests the availability of pre-compiled functions for compatibility with USearch."""
-    assert simd.pointer_to_sqeuclidean("f64") != 0
-    assert simd.pointer_to_cosine("f64") != 0
-    assert simd.pointer_to_inner("f64") != 0
+    assert simd.pointer_to_sqeuclidean("float64") != 0
+    assert simd.pointer_to_cosine("float64") != 0
+    assert simd.pointer_to_inner("float64") != 0
 
-    assert simd.pointer_to_sqeuclidean("f32") != 0
-    assert simd.pointer_to_cosine("f32") != 0
-    assert simd.pointer_to_inner("f32") != 0
+    assert simd.pointer_to_sqeuclidean("float32") != 0
+    assert simd.pointer_to_cosine("float32") != 0
+    assert simd.pointer_to_inner("float32") != 0
 
-    assert simd.pointer_to_sqeuclidean("f16") != 0
-    assert simd.pointer_to_cosine("f16") != 0
-    assert simd.pointer_to_inner("f16") != 0
+    assert simd.pointer_to_sqeuclidean("float16") != 0
+    assert simd.pointer_to_cosine("float16") != 0
+    assert simd.pointer_to_inner("float16") != 0
 
-    assert simd.pointer_to_sqeuclidean("i8") != 0
-    assert simd.pointer_to_cosine("i8") != 0
-    assert simd.pointer_to_inner("i8") != 0
+    assert simd.pointer_to_sqeuclidean("int8") != 0
+    assert simd.pointer_to_cosine("int8") != 0
+    assert simd.pointer_to_inner("int8") != 0
 
-    assert simd.pointer_to_sqeuclidean("u8") != 0
-    assert simd.pointer_to_cosine("u8") != 0
-    assert simd.pointer_to_inner("u8") != 0
+    assert simd.pointer_to_sqeuclidean("uint8") != 0
+    assert simd.pointer_to_cosine("uint8") != 0
+    assert simd.pointer_to_inner("uint8") != 0
 
 
 def test_capabilities_list():
@@ -836,7 +836,7 @@ def test_dense_bits(ndim, metric, capability, stats_fixture):
     result = np.array(result)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-    collect_errors(metric, ndim, "bits", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
+    collect_errors(metric, ndim, "bin8", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
 
 @pytest.mark.skip(reason="Problems inferring the tolerance bounds for numerical errors")

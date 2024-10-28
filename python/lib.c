@@ -83,6 +83,7 @@
  *  https://numpy.org/doc/stable/reference/arrays.interface.html
  *  https://pearu.github.io/array_interface_pytorch.html
  *  https://github.com/pytorch/pytorch/issues/54138
+ *  https://github.com/pybind/pybind11/issues/1908
  */
 #include <math.h>
 
@@ -147,116 +148,114 @@ int is_complex(simsimd_datatype_t datatype) {
            datatype == simsimd_datatype_f16c_k || datatype == simsimd_datatype_bf16c_k;
 }
 
-/// @brief Converts a numpy datatype string to a logical datatype, normalizing the format.
+/// @brief Converts a Python-ic datatype string to a logical datatype, normalizing the format.
 /// @return `simsimd_datatype_unknown_k` if the datatype is not supported, otherwise the logical datatype.
 /// @see https://docs.python.org/3/library/struct.html#format-characters
 /// @see https://numpy.org/doc/stable/reference/arrays.interface.html
-simsimd_datatype_t numpy_string_to_datatype(char const *name) {
-    // Floating-point numbers:
-    if (same_string(name, "f") || same_string(name, "<f") || same_string(name, "f4") || same_string(name, "<f4") ||
-        same_string(name, "float32"))
-        return simsimd_datatype_f32_k;
-    else if (same_string(name, "e") || same_string(name, "<e") || same_string(name, "f2") || same_string(name, "<f2") ||
-             same_string(name, "float16"))
-        return simsimd_datatype_f16_k;
-    else if (same_string(name, "d") || same_string(name, "<d") || same_string(name, "f8") || same_string(name, "<f8") ||
-             same_string(name, "float64"))
-        return simsimd_datatype_f64_k;
-    else if (same_string(name, "bfloat16")) //? The exact format is not defined, but TensorFlow uses 'E' for `bf16`?!
-        return simsimd_datatype_bf16_k;
-
-    // Complex numbers:
-    else if (same_string(name, "Zf") || same_string(name, "F") || same_string(name, "<F") || same_string(name, "F4") ||
-             same_string(name, "<F4") || same_string(name, "complex64"))
-        return simsimd_datatype_f32c_k;
-    else if (same_string(name, "Zd") || same_string(name, "D") || same_string(name, "<D") || same_string(name, "F8") ||
-             same_string(name, "<F8") || same_string(name, "complex128"))
-        return simsimd_datatype_f64c_k;
-    else if (same_string(name, "Ze") || same_string(name, "E") || same_string(name, "<E") || same_string(name, "F2") ||
-             same_string(name, "<F2") || same_string(name, "complex32"))
-        return simsimd_datatype_f16c_k;
-    else if (same_string(name, "bcomplex32")) //? The exact format is not defined, but TensorFlow uses 'E' for `bf16`?!
-        return simsimd_datatype_bf16c_k;
-
-    // Boolean values:
-    else if (same_string(name, "c") || same_string(name, "b8") || same_string(name, "bits"))
-        return simsimd_datatype_b8_k;
-
-    // Signed integers:
-    else if (same_string(name, "b") || same_string(name, "<b") || same_string(name, "i1") || same_string(name, "|i1") ||
-             same_string(name, "<i1") || same_string(name, "int8"))
-        return simsimd_datatype_i8_k;
-    else if (same_string(name, "h") || same_string(name, "<h") || same_string(name, "i2") || same_string(name, "|i2") ||
-             same_string(name, "<i2") || same_string(name, "int16"))
-        return simsimd_datatype_i16_k;
-    else if (same_string(name, "i") || same_string(name, "<i") || same_string(name, "i4") || same_string(name, "|i4") ||
-             same_string(name, "<i4") || same_string(name, "l") || same_string(name, "<l") ||
-             same_string(name, "int32"))
-        return simsimd_datatype_i32_k;
-
-    // Unsigned integers:
-    else if (same_string(name, "B") || same_string(name, "<B") || same_string(name, "u1") || same_string(name, "|u1") ||
-             same_string(name, "<u1") || same_string(name, "uint8"))
-        return simsimd_datatype_u8_k;
-    else if (same_string(name, "H") || same_string(name, "<H") || same_string(name, "u2") || same_string(name, "|u2") ||
-             same_string(name, "<u2") || same_string(name, "uint16"))
-        return simsimd_datatype_u16_k;
-    else if (same_string(name, "I") || same_string(name, "<I") || same_string(name, "L") || same_string(name, "<L") ||
-             same_string(name, "u4") || same_string(name, "|u4") || same_string(name, "<u4") ||
-             same_string(name, "uint32"))
-        return simsimd_datatype_u32_k;
-
-    else
-        return simsimd_datatype_unknown_k;
-}
-
-/// @brief Converts a Python string to a logical datatype, normalizing the format.
-/// @see https://docs.python.org/3/library/struct.html#format-characters
+/// @see https://github.com/pybind/pybind11/issues/1908
 simsimd_datatype_t python_string_to_datatype(char const *name) {
     // Floating-point numbers:
-    if (same_string(name, "f") || same_string(name, "f32") || same_string(name, "float32"))
+    if (same_string(name, "float32") || same_string(name, "f32") || // SimSIMD-specific
+        same_string(name, "f4") || same_string(name, "<f4") ||      // Sized float
+        same_string(name, "f") || same_string(name, "<f"))          // Named type
         return simsimd_datatype_f32_k;
-    else if (same_string(name, "e") || same_string(name, "f16") || same_string(name, "float16"))
+    else if (same_string(name, "float16") || same_string(name, "f16") || // SimSIMD-specific
+             same_string(name, "f2") || same_string(name, "<f2") ||      // Sized float
+             same_string(name, "e") || same_string(name, "<e"))          // Named type
         return simsimd_datatype_f16_k;
-    else if (same_string(name, "d") || same_string(name, "f64") || same_string(name, "float64"))
+    else if (same_string(name, "float64") || same_string(name, "f64") || // SimSIMD-specific
+             same_string(name, "f8") || same_string(name, "<f8") ||      // Sized float
+             same_string(name, "d") || same_string(name, "<d"))          // Named type
         return simsimd_datatype_f64_k;
-    else if (same_string(name, "bh") || same_string(name, "bf16") || same_string(name, "bfloat16"))
+    //? The exact format is not defined, but TensorFlow uses 'E' for `bf16`?!
+    else if (same_string(name, "bfloat16") || same_string(name, "bf16")) // SimSIMD-specific
         return simsimd_datatype_bf16_k;
 
     // Complex numbers:
-    else if (same_string(name, "complex64"))
+    else if (same_string(name, "complex64") ||                                             // SimSIMD-specific
+             same_string(name, "F4") || same_string(name, "<F4") ||                        // Sized complex
+             same_string(name, "Zf") || same_string(name, "F") || same_string(name, "<F")) // Named type
         return simsimd_datatype_f32c_k;
-    else if (same_string(name, "complex128"))
+    else if (same_string(name, "complex128") ||                                            // SimSIMD-specific
+             same_string(name, "F8") || same_string(name, "<F8") ||                        // Sized complex
+             same_string(name, "Zd") || same_string(name, "D") || same_string(name, "<D")) // Named type
         return simsimd_datatype_f64c_k;
-    else if (same_string(name, "complex32"))
+    else if (same_string(name, "complex32") ||                                             // SimSIMD-specific
+             same_string(name, "F2") || same_string(name, "<F2") ||                        // Sized complex
+             same_string(name, "Ze") || same_string(name, "E") || same_string(name, "<E")) // Named type
         return simsimd_datatype_f16c_k;
-    else if (same_string(name, "bcomplex32"))
+    //? The exact format is not defined, but TensorFlow uses 'E' for `bf16`?!
+    else if (same_string(name, "bcomplex32")) // SimSIMD-specific
         return simsimd_datatype_bf16c_k;
 
-    // Boolean values:
-    else if (same_string(name, "c") || same_string(name, "b8") || same_string(name, "bits"))
+    //! Boolean values:
+    else if (same_string(name, "bin8") || // SimSIMD-specific
+             same_string(name, "c"))      // Named type
         return simsimd_datatype_b8_k;
 
     // Signed integers:
-    else if (same_string(name, "b") || same_string(name, "i8") || same_string(name, "int8"))
+    else if (same_string(name, "int8") ||                                                       // SimSIMD-specific
+             same_string(name, "i1") || same_string(name, "|i1") || same_string(name, "<i1") || // Sized integer
+             same_string(name, "b") || same_string(name, "<b"))                                 // Named type
         return simsimd_datatype_i8_k;
-    else if (same_string(name, "h") || same_string(name, "i16") || same_string(name, "int16"))
+    else if (same_string(name, "int16") ||                                                      // SimSIMD-specific
+             same_string(name, "i2") || same_string(name, "|i2") || same_string(name, "<i2") || // Sized integer
+             same_string(name, "h") || same_string(name, "<h"))                                 // Named type
         return simsimd_datatype_i16_k;
-    else if (same_string(name, "i") || same_string(name, "i32") || same_string(name, "int32") || same_string(name, "l"))
+
+        //! On Windows the 32-bit and 64-bit signed integers will have different specifiers:
+        //! https://github.com/pybind/pybind11/issues/1908
+#if defined(_MSC_VER) || defined(__i386__)
+    else if (same_string(name, "int32") ||                                                      // SimSIMD-specific
+             same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
+             same_string(name, "l") || same_string(name, "<l"))                                 // Named type
         return simsimd_datatype_i32_k;
-    else if (same_string(name, "q") || same_string(name, "i64") || same_string(name, "int64"))
+    else if (same_string(name, "int64") ||                                                      // SimSIMD-specific
+             same_string(name, "i8") || same_string(name, "|i8") || same_string(name, "<i8") || // Sized integer
+             same_string(name, "q") || same_string(name, "<q"))                                 // Named type
         return simsimd_datatype_i64_k;
+#else // On Linux and macOS:
+    else if (same_string(name, "int32") ||                                                      // SimSIMD-specific
+             same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
+             same_string(name, "i") || same_string(name, "<i"))                                 // Named type
+        return simsimd_datatype_i32_k;
+    else if (same_string(name, "int64") ||                                                      // SimSIMD-specific
+             same_string(name, "i8") || same_string(name, "|i8") || same_string(name, "<i8") || // Sized integer
+             same_string(name, "l") || same_string(name, "<l"))                                 // Named type
+        return simsimd_datatype_i64_k;
+#endif
 
     // Unsigned integers:
-    else if (same_string(name, "B") || same_string(name, "u8") || same_string(name, "uint8"))
+    else if (same_string(name, "uint8") ||                                                      // SimSIMD-specific
+             same_string(name, "u1") || same_string(name, "|u1") || same_string(name, "<u1") || // Sized integer
+             same_string(name, "B") || same_string(name, "<B"))                                 // Named type
         return simsimd_datatype_u8_k;
-    else if (same_string(name, "H") || same_string(name, "u16") || same_string(name, "uint16"))
+    else if (same_string(name, "uint16") ||                                                     // SimSIMD-specific
+             same_string(name, "u2") || same_string(name, "|u2") || same_string(name, "<u2") || // Sized integer
+             same_string(name, "H") || same_string(name, "<H"))                                 // Named type
         return simsimd_datatype_u16_k;
-    else if (same_string(name, "I") || same_string(name, "u32") || same_string(name, "uint32") ||
-             same_string(name, "L"))
+
+        //! On Windows the 32-bit and 64-bit unsigned integers will have different specifiers:
+        //! https://github.com/pybind/pybind11/issues/1908
+#if defined(_MSC_VER) || defined(__i386__)
+    else if (same_string(name, "uint32") ||                                                     // SimSIMD-specific
+             same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
+             same_string(name, "L") || same_string(name, "<L"))                                 // Named type
         return simsimd_datatype_u32_k;
-    else if (same_string(name, "Q") || same_string(name, "u64") || same_string(name, "uint64"))
+    else if (same_string(name, "uint64") ||                                                     // SimSIMD-specific
+             same_string(name, "i8") || same_string(name, "|i8") || same_string(name, "<i8") || // Sized integer
+             same_string(name, "Q") || same_string(name, "<Q"))                                 // Named type
         return simsimd_datatype_u64_k;
+#else // On Linux and macOS:
+    else if (same_string(name, "uint32") ||                                                     // SimSIMD-specific
+             same_string(name, "u4") || same_string(name, "|u4") || same_string(name, "<u4") || // Sized integer
+             same_string(name, "I") || same_string(name, "<I"))                                 // Named type
+        return simsimd_datatype_u32_k;
+    else if (same_string(name, "uint64") ||                                                     // SimSIMD-specific
+             same_string(name, "u8") || same_string(name, "|u8") || same_string(name, "<u8") || // Sized integer
+             same_string(name, "L") || same_string(name, "<L"))                                 // Named type
+        return simsimd_datatype_u64_k;
+#endif
 
     else
         return simsimd_datatype_unknown_k;
@@ -507,7 +506,7 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, TensorArgument *parsed) {
     // printf("buffer shape is %d\n", buffer->shape[1]);
     // printf("buffer itemsize is %d\n", buffer->itemsize);
     parsed->start = buffer->buf;
-    parsed->datatype = numpy_string_to_datatype(buffer->format);
+    parsed->datatype = python_string_to_datatype(buffer->format);
     if (parsed->datatype == simsimd_datatype_unknown_k) {
         PyErr_Format(PyExc_ValueError, "Unsupported '%s' datatype specifier", buffer->format);
         PyBuffer_Release(buffer);
@@ -1220,16 +1219,14 @@ static char const doc_cdist[] = //
     "    b (NDArray): Second matrix.\n"
     "    metric (str, optional): Distance metric to use (e.g., 'sqeuclidean', 'cosine').\n"
     "    out (NDArray, optional): Output matrix to store the result.\n"
-    "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type.\n"
+    "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type name.\n"
     "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n\n"
     "    threads (int, optional): Number of threads to use (default is 1).\n"
     "Returns:\n"
     "    DistancesTensor: Pairwise distances between all inputs.\n\n"
     "Equivalent to: `scipy.spatial.distance.cdist`.\n"
-    "Notes:\n"
-    "    * `a` and `b` are positional-only arguments.\n"
-    "    * `metric` can be positional or keyword.\n"
-    "    * `out`, `threads`, `dtype`, and `out_dtype` are keyword-only arguments.";
+    "Signature:\n"
+    "    >>> def cdist(a, b, /, metric, *, dtype, out, out_dtype, threads) -> Optional[DistancesTensor]: ...";
 
 static PyObject *api_cdist( //
     PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
@@ -1383,7 +1380,7 @@ static char const doc_l2[] = //
     "Args:\n"
     "    a (NDArray): First matrix or vector.\n"
     "    b (NDArray): Second matrix or vector.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type.\n"
+    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
@@ -1403,7 +1400,7 @@ static char const doc_l2sq[] = //
     "Args:\n"
     "    a (NDArray): First matrix or vector.\n"
     "    b (NDArray): Second matrix or vector.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type.\n"
+    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
@@ -1423,7 +1420,7 @@ static char const doc_cos[] = //
     "Args:\n"
     "    a (NDArray): First matrix or vector.\n"
     "    b (NDArray): Second matrix or vector.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type.\n"
+    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
@@ -1443,7 +1440,7 @@ static char const doc_dot[] = //
     "Args:\n"
     "    a (NDArray): First matrix or vector.\n"
     "    b (NDArray): Second matrix or vector.\n"
-    "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type.\n"
+    "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type name.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
@@ -1463,7 +1460,7 @@ static char const doc_vdot[] = //
     "Args:\n"
     "    a (NDArray): First complex matrix or vector.\n"
     "    b (NDArray): Second complex matrix or vector.\n"
-    "    dtype (ComplexType, optional): Override the presumed input type.\n"
+    "    dtype (ComplexType, optional): Override the presumed input type name.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (Union[ComplexType], optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
@@ -1483,7 +1480,7 @@ static char const doc_kl[] = //
     "Args:\n"
     "    a (NDArray): First floating-point matrix or vector.\n"
     "    b (NDArray): Second floating-point matrix or vector.\n"
-    "    dtype (FloatType, optional): Override the presumed input type.\n"
+    "    dtype (FloatType, optional): Override the presumed input type name.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
@@ -1503,7 +1500,7 @@ static char const doc_js[] = //
     "Args:\n"
     "    a (NDArray): First floating-point matrix or vector.\n"
     "    b (NDArray): Second floating-point matrix or vector.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type.\n"
+    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
@@ -1523,7 +1520,7 @@ static char const doc_hamming[] = //
     "Args:\n"
     "    a (NDArray): First binary matrix or vector.\n"
     "    b (NDArray): Second binary matrix or vector.\n"
-    "    dtype (IntegralType, optional): Override the presumed input type.\n"
+    "    dtype (IntegralType, optional): Override the presumed input type name.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
@@ -1543,7 +1540,7 @@ static char const doc_jaccard[] = //
     "Args:\n"
     "    a (NDArray): First binary matrix or vector.\n"
     "    b (NDArray): Second binary matrix or vector.\n"
-    "    dtype (IntegralType, optional): Override the presumed input type.\n"
+    "    dtype (IntegralType, optional): Override the presumed input type name.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
@@ -1564,7 +1561,7 @@ static char const doc_bilinear[] = //
     "    a (NDArray): First vector.\n"
     "    b (NDArray): Second vector.\n"
     "    metric_tensor (NDArray): The metric tensor defining the bilinear form.\n"
-    "    dtype (FloatType, optional): Override the presumed input type.\n\n"
+    "    dtype (FloatType, optional): Override the presumed input type name.\n\n"
     "Returns:\n"
     "    float: The bilinear form.\n\n"
     "Equivalent to: `numpy.dot` with a metric tensor.\n"
@@ -1582,7 +1579,7 @@ static char const doc_mahalanobis[] = //
     "    a (NDArray): First vector.\n"
     "    b (NDArray): Second vector.\n"
     "    inverse_covariance (NDArray): The inverse of the covariance matrix.\n"
-    "    dtype (FloatType, optional): Override the presumed input type.\n\n"
+    "    dtype (FloatType, optional): Override the presumed input type name.\n\n"
     "Returns:\n"
     "    float: The Mahalanobis distance.\n\n"
     "Equivalent to: `scipy.spatial.distance.mahalanobis`.\n"
@@ -1615,7 +1612,7 @@ static char const doc_fma[] = //
     "    a (NDArray): First vector.\n"
     "    b (NDArray): Second vector.\n"
     "    c (NDArray): Third vector.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
+    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n"
     "    alpha (float, optional): First scale, 1.0 by default.\n"
     "    beta (float, optional): Second scale, 1.0 by default.\n"
     "    out (NDArray, optional): Vector for resulting distances.\n\n"
@@ -1797,7 +1794,7 @@ static char const doc_wsum[] = //
     "Args:\n"
     "    a (NDArray): First vector.\n"
     "    b (NDArray): Second vector.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
+    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n"
     "    alpha (float, optional): First scale, 1.0 by default.\n"
     "    beta (float, optional): Second scale, 1.0 by default.\n"
     "    out (NDArray, optional): Vector for resulting distances.\n\n"
