@@ -191,6 +191,17 @@
 #define SIMSIMD_F16_DIVISION_EPSILON (1e-3)
 #endif
 
+#ifdef _MSC_VER
+#define SIMSIMD_ALIGN64 __declspec(align(64))
+#elif defined(__GNUC__) || defined(__clang__)
+#define SIMSIMD_ALIGN64 __attribute__((aligned(64)))
+#endif
+
+/**
+ *  @brief  Similat to `static_assert`, but compatible with C 99.
+ */
+#define SIMSIMD_STATIC_ASSERT(expr, msg) typedef char static_assert_##msg[(expr) ? 1 : -1]
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -469,6 +480,13 @@ SIMSIMD_PUBLIC void simsimd_f32_to_bf16(simsimd_f32_t x, simsimd_bf16_t* result_
     // The top 16 bits will be zeroed out anyways
     // conv.i &= 0xFFFF;
     *(unsigned short*)result_ptr = (unsigned short)conv.i;
+}
+
+/**
+ *  @brief  Helper structure for implementing strided matrix row lookups, with @b single-byte-level pointer math.
+ */
+SIMSIMD_INTERNAL void* _simsimd_advance_by_bytes(void* ptr, simsimd_size_t bytes) {
+    return (void*)((simsimd_u8_t*)ptr + bytes);
 }
 
 #ifdef __cplusplus
