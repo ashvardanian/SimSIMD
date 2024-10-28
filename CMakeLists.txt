@@ -16,22 +16,23 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
-# Determine if StringZilla is built as a subproject (using `add_subdirectory`) or if it is the main project
+# Determine if SimSIMD is built as a subproject or if it is the main project
 set(SIMSIMD_IS_MAIN_PROJECT OFF)
 
-if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     set(SIMSIMD_IS_MAIN_PROJECT ON)
-endif ()
+endif()
 
 option(SIMSIMD_BUILD_SHARED "Compile a dynamic library" ${SIMSIMD_IS_MAIN_PROJECT})
 option(SIMSIMD_BUILD_TESTS "Small compilation tests compile-time and run-time dispatch" OFF)
 option(SIMSIMD_BUILD_BENCHMARKS "Compile micro-benchmarks for current ISA" OFF)
 option(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS "Include BLAS in micro-kernel benchmarks" OFF)
+option(SIMSIMD_BUILD_WITH_OPENMP "Enable OpenMP support" OFF)
 
 # Default to Release build type if not set
-if (NOT CMAKE_BUILD_TYPE)
+if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
-endif ()
+endif()
 
 # Global compiler flags for debug and release
 set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address")
@@ -40,17 +41,18 @@ set(CMAKE_C_FLAGS_DEBUG "-g -fsanitize=address")
 set(CMAKE_C_FLAGS_RELEASE "-O3")
 
 # Compiler-specific flags
-if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-    if (NOT APPLE)
+if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
+    if(NOT APPLE)
         add_compile_options(-march=native)
-    endif ()
+    endif()
 
     add_compile_options(-pedantic -ferror-limit=1)
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_options(-march=native -pedantic -fmax-errors=1 -Wno-tautological-constant-compare)
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+    add_compile_options(-mavx512fp16 -mavx512bf16 -mamx-int8 -mamx-bf16)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     add_compile_options(-w -ferror-limit=1)
-endif ()
+endif()
 
 # Define the header-only library
 file(GLOB SIMSIMD_SOURCES include/simsimd/*.h)
@@ -59,11 +61,9 @@ target_sources(simsimd INTERFACE ${SIMSIMD_SOURCES})
 target_include_directories(simsimd INTERFACE "${PROJECT_SOURCE_DIR}/include")
 
 # Build benchmarks if required
-if (SIMSIMD_BUILD_BENCHMARKS)
-    # Fetch external dependencies
+if(SIMSIMD_BUILD_BENCHMARKS)
     include(FetchContent)
 
-    # Suppress building tests of Google Benchmark
     set(BENCHMARK_ENABLE_TESTING OFF)
     set(BENCHMARK_ENABLE_INSTALL OFF)
     set(BENCHMARK_ENABLE_DOXYGEN OFF)
@@ -79,10 +79,10 @@ if (SIMSIMD_BUILD_BENCHMARKS)
     )
     FetchContent_MakeAvailable(benchmark)
 
-    # Remove the google benchmark built in debug warning
-    if (CMAKE_BUILD_TYPE STREQUAL "Release")
+    # Remove the "google benchmark built in debug" warning
+    if(CMAKE_BUILD_TYPE STREQUAL "Release")
         target_compile_definitions(benchmark PRIVATE NDEBUG)
-    endif ()
+    endif()
 
     find_package(Threads REQUIRED)
     add_executable(simsimd_bench cpp/bench.cxx)
@@ -90,24 +90,35 @@ if (SIMSIMD_BUILD_BENCHMARKS)
 
     find_package(BLAS)
 
-    if (BLAS_FOUND AND SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
+    if(BLAS_FOUND AND SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
         target_compile_definitions(simsimd_bench PRIVATE SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1)
         target_link_libraries(simsimd_bench ${BLAS_LIBRARIES})
-    endif ()
-endif ()
+    endif()
 
-if (SIMSIMD_BUILD_TESTS)
+    # OpenMP support
+    if(SIMSIMD_BUILD_WITH_OPENMP)
+        find_package(OpenMP REQUIRED)
+
+        if(OpenMP_CXX_FOUND)
+            target_compile_definitions(simsimd INTERFACE SIMSIMD_BUILD_WITH_OPENMP)
+            target_compile_options(simsimd INTERFACE ${OpenMP_CXX_FLAGS})
+            target_link_libraries(simsimd INTERFACE OpenMP::OpenMP_CXX)
+        endif()
+    endif()
+endif()
+
+if(SIMSIMD_BUILD_TESTS)
     add_executable(simsimd_test_compile_time cpp/test.c)
     target_link_libraries(simsimd_test_compile_time simsimd m)
 
     add_executable(simsimd_test_run_time cpp/test.c c/lib.c)
     target_compile_definitions(simsimd_test_run_time PRIVATE SIMSIMD_DYNAMIC_DISPATCH=1)
     target_link_libraries(simsimd_test_run_time simsimd m)
-endif ()
+endif()
 
-if (SIMSIMD_BUILD_SHARED)
+if(SIMSIMD_BUILD_SHARED)
     set(SIMSIMD_SOURCES ${SIMSIMD_SOURCES} c/lib.c)
     add_library(simsimd_shared SHARED ${SIMSIMD_SOURCES})
     target_include_directories(simsimd_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")
     set_target_properties(simsimd_shared PROPERTIES OUTPUT_NAME simsimd)
-endif ()
+endif()
