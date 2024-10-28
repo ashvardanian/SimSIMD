@@ -939,6 +939,15 @@ Similarly, the gradient with respect to $B_j$ is:
 Intel Advanced Matrix Extensions (AMX) is a new instruction available in Sapphire Rapids CPUs and newer.
 It provides 8x special registers, each __1 kilobyte__ in size, enough to store 16 by 16 matrix tile of 4-byte words.
 
+### Sparse-Sparse Matrix Multiplications
+
+> On sparse matrix multiplication, and the Compressed Sparse Row format, and the Compressed Sparse Column format.
+
+Sparse-Sparse matrix multiplication is just "matrix multiplication" when both matrices have sparse.
+Hence their values are stored in non-regularly addressable arrays, and their indices are often stored in separate arrays.
+Those representations are very effective when $>99%$ of the values are close to zero, and the matrices are large.
+With a good algorithm, a 100x improvement in performance can be achieved.
+
 ### Dynamic Dispatch
 
 Most popular software is precompiled and distributed with fairly conservative CPU optimizations, to ensure compatibility with older hardware.
