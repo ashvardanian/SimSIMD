@@ -309,15 +309,15 @@ matrix1 = np.packbits(np.random.randint(2, size=(10_000, ndim)).astype(np.uint8)
 matrix2 = np.packbits(np.random.randint(2, size=(1_000, ndim)).astype(np.uint8))
 
 distances = simsimd.cdist(matrix1, matrix2, 
-    metric="hamming", # Unlike SciPy, SimSIMD doesn't divide by the number of dimensions
-    out_dtype="u8",   # so we can use `u8` instead of `f64` to save memory.
-    threads=0,        # Use all CPU cores with OpenMP.
-    dtype="b8",       # Override input argument type to `b8` eight-bit words.
+    metric="hamming",   # Unlike SciPy, SimSIMD doesn't divide by the number of dimensions
+    out_dtype="uint8",  # so we can use `uint8` instead of `float64` to save memory.
+    threads=0,          # Use all CPU cores with OpenMP.
+    dtype="bin8",       # Override input argument type to `bin8` eight-bit words.
 )
 ```
 
-By default, the output distances will be stored in double-precision `f64` floating-point numbers.
-That behavior may not be space-efficient, especially if you are computing the hamming distance between short binary vectors, that will generally fit into 8x smaller `u8` or `u16` types.
+By default, the output distances will be stored in double-precision `float64` floating-point numbers.
+That behavior may not be space-efficient, especially if you are computing the hamming distance between short binary vectors, that will generally fit into 8x smaller `uint8` or `uint16` types.
 To override this behavior, use the `dtype` argument.
 
 ### Helper Functions
@@ -636,7 +636,7 @@ Simplest of all, you can include the headers, and the compiler will automaticall
 int main() {
     simsimd_f32_t vector_a[1536];
     simsimd_f32_t vector_b[1536];
-    simsimd_metric_punned_t distance_function = simsimd_metric_punned(
+    simsimd_kernel_punned_t distance_function = simsimd_metric_punned(
         simsimd_metric_cos_k,   // Metric kind, like the angular cosine distance
         simsimd_datatype_f32_k, // Data type, like: f16, f32, f64, i8, b8, and complex variants
         simsimd_cap_any_k);     // Which CPU capabilities are we allowed to use
@@ -1149,7 +1149,7 @@ All of the function names follow the same pattern: `simsimd_{function}_{type}_{b
 - The type can be `f64`, `f32`, `f16`, `bf16`, `f64c`, `f32c`, `f16c`, `bf16c`, `i8`, or `b8`.
 - The function can be `dot`, `vdot`, `cos`, `l2sq`, `hamming`, `jaccard`, `kl`, `js`, or `intersect`.
 
-To avoid hard-coding the backend, you can use the `simsimd_metric_punned_t` to pun the function pointer and the `simsimd_capabilities` function to get the available backends at runtime.
+To avoid hard-coding the backend, you can use the `simsimd_kernel_punned_t` to pun the function pointer and the `simsimd_capabilities` function to get the available backends at runtime.
 To match all the function names, consider a RegEx:
 
 ```regex

@@ -710,9 +710,10 @@ static PyObject *implement_dense_metric( //
     }
 
     // Look up the metric and the capability
-    simsimd_metric_punned_t metric = NULL;
+    simsimd_metric_dense_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_metric_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
+    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&metric, &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError,
@@ -915,8 +916,8 @@ static PyObject *implement_curved_metric( //
     // Look up the metric and the capability
     simsimd_metric_curved_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_metric_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_metric_punned_t *)&metric, &capability);
+    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&metric, &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError,
@@ -974,8 +975,8 @@ static PyObject *implement_sparse_metric( //
     simsimd_datatype_t dtype = a_parsed.datatype;
     simsimd_metric_sparse_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_metric_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_metric_punned_t *)&metric, &capability);
+    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&metric, &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError, "Unsupported metric '%c' and datatype combination ('%s'/'%s' and '%s'/'%s')",
@@ -1066,9 +1067,10 @@ static PyObject *implement_cdist(                        //
     }
 
     // Look up the metric and the capability
-    simsimd_metric_punned_t metric = NULL;
+    simsimd_metric_dense_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_metric_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
+    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&metric, &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError, "Unsupported metric '%c' and datatype combination ('%s'/'%s' and '%s'/'%s')",
@@ -1201,9 +1203,9 @@ static PyObject *implement_pointer_access(simsimd_metric_kind_t metric_kind, PyO
         return NULL;
     }
 
-    simsimd_metric_punned_t metric = NULL;
+    simsimd_kernel_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_metric_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
+    simsimd_find_kernel_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
     if (metric == NULL) {
         PyErr_SetString(PyExc_LookupError, "No such metric");
         return NULL;
@@ -1736,8 +1738,8 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
     simsimd_kernel_fma_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
     simsimd_metric_kind_t const metric_kind = simsimd_metric_fma_k;
-    simsimd_find_metric_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_metric_punned_t *)&metric, &capability);
+    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&metric, &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError,
@@ -1912,8 +1914,8 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
     simsimd_kernel_wsum_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
     simsimd_metric_kind_t const metric_kind = simsimd_metric_wsum_k;
-    simsimd_find_metric_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_metric_punned_t *)&metric, &capability);
+    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&metric, &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError,

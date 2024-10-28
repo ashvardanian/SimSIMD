@@ -832,7 +832,7 @@ def test_dense_bits(ndim, metric, capability, stats_fixture):
     baseline_kernel, simd_kernel = name_to_kernels(metric)
     accurate_dt, accurate = profile(baseline_kernel, a.astype(np.uint64), b.astype(np.uint64))
     expected_dt, expected = profile(baseline_kernel, a, b)
-    result_dt, result = profile(simd_kernel, np.packbits(a), np.packbits(b), "b8")
+    result_dt, result = profile(simd_kernel, np.packbits(a), np.packbits(b), "bin8")
     result = np.array(result)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
@@ -1391,10 +1391,10 @@ def test_cdist_hamming(ndim, out_dtype, capability):
     if out_dtype is None:
         # SciPy divides the Hamming distance by the number of dimensions, so we need to multiply it back.
         expected = spd.cdist(A, B, "hamming") * ndim
-        result = simd.cdist(A_bits, B_bits, metric="hamming", dtype="b8")
+        result = simd.cdist(A_bits, B_bits, metric="hamming", dtype="bin8")
     else:
         expected = (spd.cdist(A, B, "hamming") * ndim).astype(out_dtype)
-        result = simd.cdist(A_bits, B_bits, metric="hamming", dtype="b8", out_dtype=out_dtype)
+        result = simd.cdist(A_bits, B_bits, metric="hamming", dtype="bin8", out_dtype=out_dtype)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 

@@ -34,8 +34,8 @@
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
-#ifndef SIMSIMD_FMA_H
-#define SIMSIMD_FMA_H
+#ifndef SIMSIMD_ELEMENTWISE_H
+#define SIMSIMD_ELEMENTWISE_H
 
 #include "types.h"
 
