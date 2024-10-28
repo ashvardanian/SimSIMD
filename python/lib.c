@@ -62,6 +62,27 @@
  *  If the argument is not found, a @b `KeyError` is raised.
  *
  *  https://ashvardanian.com/posts/discount-on-keyword-arguments-in-python/
+ *
+ *  @section    Buffer Protocol and NumPy Compatibility
+ *
+ *  Most modern Machine Learning frameworks struggle with the buffer protocol compatibility.
+ *  At best, they provide zero-copy NumPy views of the underlying data, introducing unnecessary
+ *  dependency on NumPy, a memory allocation for the wrapper, and a constraint on the supported
+ *  numeric types. The last is a noticeable limitation, as both PyTorch and TensorFlow have
+ *  richer type systems than NumPy.
+ *
+ *  You can't convert a PyTorch `Tensor` to a `memoryview` object.
+ *  If you try to convert a `bf16` TensorFlow `Tensor` to a `memoryview` object, you will get an error:
+ *
+ *      ! ValueError: cannot include dtype 'E' in a buffer
+ *
+ *  Moreover, the CPython documentation and the NumPy documentation diverge on the format specificers
+ *  for the `typestr` and `format` data-type descriptor strings, making the development error-prone.
+ *  At this point, SimSIMD seems to be @b the_only_package that at least attempts to provide interoperability.
+ *
+ *  https://numpy.org/doc/stable/reference/arrays.interface.html
+ *  https://pearu.github.io/array_interface_pytorch.html
+ *  https://github.com/pytorch/pytorch/issues/54138
  */
 #include <math.h>
 
@@ -129,6 +150,7 @@ int is_complex(simsimd_datatype_t datatype) {
 /// @brief Converts a numpy datatype string to a logical datatype, normalizing the format.
 /// @return `simsimd_datatype_unknown_k` if the datatype is not supported, otherwise the logical datatype.
 /// @see https://docs.python.org/3/library/struct.html#format-characters
+/// @see https://numpy.org/doc/stable/reference/arrays.interface.html
 simsimd_datatype_t numpy_string_to_datatype(char const *name) {
     // Floating-point numbers:
     if (same_string(name, "f") || same_string(name, "<f") || same_string(name, "f4") || same_string(name, "<f4") ||
@@ -140,7 +162,7 @@ simsimd_datatype_t numpy_string_to_datatype(char const *name) {
     else if (same_string(name, "d") || same_string(name, "<d") || same_string(name, "f8") || same_string(name, "<f8") ||
              same_string(name, "float64"))
         return simsimd_datatype_f64_k;
-    else if (same_string(name, "bfloat16")) //? Is it what it's gonna look like?
+    else if (same_string(name, "bfloat16")) //? The exact format is not defined, but TensorFlow uses 'E' for `bf16`?!
         return simsimd_datatype_bf16_k;
 
     // Complex numbers:
@@ -153,7 +175,7 @@ simsimd_datatype_t numpy_string_to_datatype(char const *name) {
     else if (same_string(name, "Ze") || same_string(name, "E") || same_string(name, "<E") || same_string(name, "F2") ||
              same_string(name, "<F2") || same_string(name, "complex32"))
         return simsimd_datatype_f16c_k;
-    else if (same_string(name, "bcomplex32")) //? Is it what it's gonna look like?
+    else if (same_string(name, "bcomplex32")) //? The exact format is not defined, but TensorFlow uses 'E' for `bf16`?!
         return simsimd_datatype_bf16c_k;
 
     // Boolean values:
@@ -486,6 +508,12 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, TensorArgument *parsed) {
     // printf("buffer itemsize is %d\n", buffer->itemsize);
     parsed->start = buffer->buf;
     parsed->datatype = numpy_string_to_datatype(buffer->format);
+    if (parsed->datatype == simsimd_datatype_unknown_k) {
+        PyErr_Format(PyExc_ValueError, "Unsupported '%s' datatype specifier", buffer->format);
+        PyBuffer_Release(buffer);
+        return 0;
+    }
+
     parsed->rank = buffer->ndim;
     if (buffer->ndim == 1) {
         if (buffer->strides[0] > buffer->itemsize) {
@@ -514,8 +542,7 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, TensorArgument *parsed) {
     }
 
     // We handle complex numbers differently
-    if (is_complex(parsed->datatype)) { parsed->dimensions *= 2; }
-
+    if (is_complex(parsed->datatype)) parsed->dimensions *= 2;
     return 1;
 }
 
