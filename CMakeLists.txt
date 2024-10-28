@@ -2,9 +2,9 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 project(
     simsimd
-    VERSION 5.2.1
+    VERSION 5.9.2
     LANGUAGES C CXX
-    DESCRIPTION "Fastest SIMD-Accelerated Vector Similarity Functions for x86 and Arm"
+    DESCRIPTION "Portable mixed-precision BLAS-like vector math library for x86 and ARM"
     HOMEPAGE_URL "https://github.com/ashvardanian/simsimd"
 )
 
@@ -16,7 +16,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
-# Determine if SimSIMD is built as a subproject or if it is the main project
+# Determine if SimSIMD is built as a subproject (using `add_subdirectory`) or if it is the main project
 set(SIMSIMD_IS_MAIN_PROJECT OFF)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
@@ -85,15 +85,22 @@ if(SIMSIMD_BUILD_BENCHMARKS)
     endif()
 
     find_package(Threads REQUIRED)
-    add_executable(simsimd_bench cpp/bench.cxx)
+    add_executable(simsimd_bench scripts/bench.cxx)
     target_link_libraries(simsimd_bench simsimd Threads::Threads benchmark)
 
-    find_package(BLAS)
-
-    if(BLAS_FOUND AND SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
-        target_compile_definitions(simsimd_bench PRIVATE SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1)
-        target_link_libraries(simsimd_bench ${BLAS_LIBRARIES})
-    endif()
+    # BLAS support
+    if (SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
+        find_package(BLAS REQUIRED)
+        if (BLAS_FOUND)
+            message(STATUS "BLAS found: ${BLAS_LIBRARIES}")
+            include_directories(${BLAS_INCLUDE_DIRS})
+            target_include_directories(simsimd_bench PRIVATE ${BLAS_INCLUDE_DIRS})
+            target_link_libraries(simsimd_bench ${BLAS_LIBRARIES})
+            target_compile_definitions(simsimd_bench PRIVATE SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1)
+        else ()
+            message(FATAL_ERROR "BLAS not found")
+        endif ()
+    endif ()
 
     # OpenMP support
     if(SIMSIMD_BUILD_WITH_OPENMP)
@@ -107,11 +114,11 @@ if(SIMSIMD_BUILD_BENCHMARKS)
     endif()
 endif()
 
-if(SIMSIMD_BUILD_TESTS)
-    add_executable(simsimd_test_compile_time cpp/test.c)
+if (SIMSIMD_BUILD_TESTS)
+    add_executable(simsimd_test_compile_time scripts/test.c)
     target_link_libraries(simsimd_test_compile_time simsimd m)
 
-    add_executable(simsimd_test_run_time cpp/test.c c/lib.c)
+    add_executable(simsimd_test_run_time scripts/test.c c/lib.c)
     target_compile_definitions(simsimd_test_run_time PRIVATE SIMSIMD_DYNAMIC_DISPATCH=1)
     target_link_libraries(simsimd_test_run_time simsimd m)
 endif()

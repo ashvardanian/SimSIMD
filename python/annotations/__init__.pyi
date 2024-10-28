@@ -12,6 +12,7 @@ from numpy.typing import NDArray
 _BufferType: TypeAlias = Union[NDArray[Any], memoryview]
 
 _MetricType = Literal[
+    "euclidean",
     "sqeuclidean",
     "inner",
     "dot",
@@ -26,57 +27,35 @@ _MetricType = Literal[
     "intersection",
     "bilinear",
     "mahalanobis",
+    "fma",
+    "wsum",
 ]
 _IntegralType = Literal[
-    # Booleans
-    "c",
-    "b8",
+    "bin8",
     # Signed integers
-    "b",
-    "i8",
     "int8",
-    "h",
-    "i16",
     "int16",
-    "i",
-    "l",
-    "i32",
     "int32",
-    "q",
-    "i64",
     "int64",
     # Unsigned integers
-    "B",
-    "u8",
     "uint8",
-    "H",
-    "u16",
     "uint16",
-    "I",
-    "L",
-    "u32",
     "uint32",
-    "Q",
-    "u64",
     "uint64",
 ]
 _FloatType = Literal[
-    "f",
     "f32",
     "float32",
-    "e",
     "f16",
     "float16",
-    "d",
     "f64",
     "float64",
-    "bh",  # Not supported by NumPy
-    "bf16",  # Not supported by NumPy
-    "bfloat16",  # Not supported by NumPy
+    "bf16",  #! Not supported by NumPy
+    "bfloat16",  #! Not supported by NumPy
 ]
 _ComplexType = Literal[
-    "complex32",  # Not supported by NumPy
-    "bcomplex32",  # Not supported by NumPy
+    "complex32",  #! Not supported by NumPy
+    "bcomplex32",  #! Not supported by NumPy
     "complex64",
     "complex128",
 ]
@@ -91,6 +70,7 @@ def enable_capability(capability: str, /) -> None: ...
 def disable_capability(capability: str, /) -> None: ...
 
 # Accessing function pointers
+def pointer_to_euclidean(dtype: Union[_IntegralType, _FloatType], /) -> int: ...
 def pointer_to_sqeuclidean(dtype: Union[_IntegralType, _FloatType], /) -> int: ...
 def pointer_to_cosine(dtype: Union[_IntegralType, _FloatType], /) -> int: ...
 def pointer_to_inner(dtype: Union[_FloatType, _ComplexType], /) -> int: ...
@@ -109,12 +89,13 @@ def cdist(
     a: _BufferType,
     b: _BufferType,
     /,
-    metric: _MetricType = "sqeuclidean",
+    metric: _MetricType = "euclidean",
     *,
     threads: int = 1,
     dtype: Optional[Union[_IntegralType, _FloatType, _ComplexType]] = None,
+    out: Optional[_BufferType] = None,
     out_dtype: Union[_FloatType, _ComplexType] = "d",
-) -> Union[float, complex, DistancesTensor]: ...
+) -> Optional[Union[float, complex, DistancesTensor]]: ...
 
 # ---------------------------------------------------------------------
 # Vector-vector dot products for real and complex numbers
@@ -127,7 +108,10 @@ def inner(
     b: _BufferType,
     /,
     dtype: Optional[Union[_FloatType, _ComplexType]] = None,
-) -> Union[float, complex, DistancesTensor]: ...
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType, _ComplexType] = "d",
+) -> Optional[Union[float, complex, DistancesTensor]]: ...
 
 # Dot product, similar to: `numpy.dot`.
 # https://numpy.org/doc/stable/reference/generated/numpy.dot.html
@@ -136,7 +120,10 @@ def dot(
     b: _BufferType,
     /,
     dtype: Optional[Union[_FloatType, _ComplexType]] = None,
-) -> Union[float, complex, DistancesTensor]: ...
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType, _ComplexType] = None,
+) -> Optional[Union[float, complex, DistancesTensor]]: ...
 
 # Vector-vector dot product for complex conjugates, similar to: `numpy.vdot`.
 # https://numpy.org/doc/stable/reference/generated/numpy.vdot.html
@@ -145,7 +132,10 @@ def vdot(
     b: _BufferType,
     /,
     dtype: Optional[_ComplexType] = None,
-) -> Union[complex, DistancesTensor]: ...
+    *,
+    out: Optional[Union[float, complex, DistancesTensor]] = None,
+    out_dtype: Optional[_ComplexType] = None,
+) -> Optional[Union[complex, DistancesTensor]]: ...
 
 # ---------------------------------------------------------------------
 # Vector-vector spatial distance metrics for real and integer numbers
@@ -159,7 +149,10 @@ def sqeuclidean(
     b: _BufferType,
     /,
     dtype: Optional[Union[_IntegralType, _FloatType]] = None,
-) -> Union[float, DistancesTensor]: ...
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType] = None,
+) -> Optional[Union[float, DistancesTensor]]: ...
 
 # Vector-vector cosine distance, similar to: `scipy.spatial.distance.cosine`.
 # https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.cosine.html
@@ -168,7 +161,10 @@ def cosine(
     b: _BufferType,
     /,
     dtype: Optional[Union[_IntegralType, _FloatType]] = None,
-) -> Union[float, DistancesTensor]: ...
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType] = None,
+) -> Optional[Union[float, DistancesTensor]]: ...
 
 # ---------------------------------------------------------------------
 # Vector-vector similarity functions for binary vectors
@@ -181,7 +177,10 @@ def hamming(
     b: _BufferType,
     /,
     dtype: Optional[_IntegralType] = None,
-) -> Union[float, DistancesTensor]: ...
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType] = None,
+) -> Optional[Union[float, DistancesTensor]]: ...
 
 # Vector-vector Jaccard distance, similar to: `scipy.spatial.distance.jaccard`.
 # https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.jaccard.html
@@ -190,7 +189,10 @@ def jaccard(
     b: _BufferType,
     /,
     dtype: Optional[_IntegralType] = None,
-) -> Union[float, DistancesTensor]: ...
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType] = None,
+) -> Optional[Union[float, DistancesTensor]]: ...
 
 # ---------------------------------------------------------------------
 # Vector-vector similarity between probability distributions
@@ -203,7 +205,10 @@ def jensenshannon(
     b: _BufferType,
     /,
     dtype: Optional[_FloatType] = None,
-) -> Union[float, DistancesTensor]: ...
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType] = None,
+) -> Optional[Union[float, DistancesTensor]]: ...
 
 # Vector-vector Kullback-Leibler divergence, similar to: `scipy.spatial.distance.kullback_leibler`.
 # https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.kullback_leibler.html
@@ -212,7 +217,10 @@ def kullbackleibler(
     b: _BufferType,
     /,
     dtype: Optional[_FloatType] = None,
-) -> Union[float, DistancesTensor]: ...
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType] = None,
+) -> Optional[Union[float, DistancesTensor]]: ...
 
 # ---------------------------------------------------------------------
 # Vector-vector similarity between vectors in curved spaces
@@ -245,3 +253,32 @@ def mahalanobis(
 # Vector-vector intersection similarity, similar to: `numpy.intersect1d`.
 # https://numpy.org/doc/stable/reference/generated/numpy.intersect1d.html
 def intersection(array1: _BufferType, array2: _BufferType, /) -> float: ...
+
+# ---------------------------------------------------------------------
+# Vector-vector math: FMA, WSum
+# ---------------------------------------------------------------------
+
+# Vector-vector element-wise fused-multiply add.
+def fma(
+    a: _BufferType,
+    b: _BufferType,
+    c: _BufferType,
+    /,
+    dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+    *,
+    alpha: float = 1,
+    beta: float = 1,
+    out: Optional[_BufferType] = None,
+) -> Optional[DistancesTensor]: ...
+
+# Vector-vector element-wise weighted sum.
+def wum(
+    a: _BufferType,
+    b: _BufferType,
+    /,
+    dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+    *,
+    alpha: float = 1,
+    beta: float = 1,
+    out: Optional[_BufferType] = None,
+) -> Optional[DistancesTensor]: ...

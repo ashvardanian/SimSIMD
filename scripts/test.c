@@ -9,8 +9,6 @@
 
 #define SIMSIMD_NATIVE_F16 0
 #define SIMSIMD_NATIVE_BF16 0
-#define SIMSIMD_RSQRT(x) (1 / sqrtf(x))
-#define SIMSIMD_LOG(x) (logf(x))
 #include <simsimd/simsimd.h>
 
 /**
@@ -20,7 +18,7 @@ void print_capabilities(void) {
     simsimd_capability_t runtime_caps = simsimd_capabilities();
 
     // Log supported functionality
-    char const* flags[2] = {"false", "true"};
+    char const *flags[2] = {"false", "true"};
     printf("Benchmarking Similarity Measures\n");
     printf("- Compiler used native F16: %s\n", flags[SIMSIMD_NATIVE_F16]);
     printf("- Compiler used native BF16: %s\n", flags[SIMSIMD_NATIVE_BF16]);
@@ -28,11 +26,14 @@ void print_capabilities(void) {
     printf("Compile-time settings:\n");
     printf("- Arm NEON support enabled: %s\n", flags[SIMSIMD_TARGET_NEON]);
     printf("- Arm SVE support enabled: %s\n", flags[SIMSIMD_TARGET_SVE]);
+    printf("- Arm SVE2 support enabled: %s\n", flags[SIMSIMD_TARGET_SVE2]);
     printf("- x86 Haswell support enabled: %s\n", flags[SIMSIMD_TARGET_HASWELL]);
     printf("- x86 Skylake support enabled: %s\n", flags[SIMSIMD_TARGET_SKYLAKE]);
     printf("- x86 Ice Lake support enabled: %s\n", flags[SIMSIMD_TARGET_ICE]);
     printf("- x86 Genoa support enabled: %s\n", flags[SIMSIMD_TARGET_GENOA]);
     printf("- x86 Sapphire Rapids support enabled: %s\n", flags[SIMSIMD_TARGET_SAPPHIRE]);
+    printf("- x86 Turin support enabled: %s\n", flags[SIMSIMD_TARGET_TURIN]);
+    printf("- x86 Sierra Forest support enabled: %s\n", flags[SIMSIMD_TARGET_SIERRA]);
     printf("\n");
     printf("Run-time settings:\n");
     printf("- Arm NEON support enabled: %s\n", flags[(runtime_caps & simsimd_cap_neon_k) != 0]);
@@ -43,11 +44,13 @@ void print_capabilities(void) {
     printf("- Arm SVE F16 support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sve_f16_k) != 0]);
     printf("- Arm SVE BF16 support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sve_bf16_k) != 0]);
     printf("- Arm SVE I8 support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sve_i8_k) != 0]);
+    printf("- Arm SVE2 support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sve2_k) != 0]);
     printf("- x86 Haswell support enabled: %s\n", flags[(runtime_caps & simsimd_cap_haswell_k) != 0]);
     printf("- x86 Skylake support enabled: %s\n", flags[(runtime_caps & simsimd_cap_skylake_k) != 0]);
     printf("- x86 Ice Lake support enabled: %s\n", flags[(runtime_caps & simsimd_cap_ice_k) != 0]);
     printf("- x86 Genoa support enabled: %s\n", flags[(runtime_caps & simsimd_cap_genoa_k) != 0]);
     printf("- x86 Sapphire Rapids support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sapphire_k) != 0]);
+    printf("- x86 Turin support enabled: %s\n", flags[(runtime_caps & simsimd_cap_turin_k) != 0]);
     printf("\n");
 }
 
@@ -62,16 +65,20 @@ void test_utilities(void) {
     int uses_haswell = simsimd_uses_haswell();
     int uses_skylake = simsimd_uses_skylake();
     int uses_ice = simsimd_uses_ice();
-    int uses_sapphire = simsimd_uses_sapphire();
     int uses_genoa = simsimd_uses_genoa();
+    int uses_sapphire = simsimd_uses_sapphire();
+    int uses_turin = simsimd_uses_turin();
+    int uses_sierra = simsimd_uses_sierra();
 
     assert(uses_neon == ((capabilities & simsimd_cap_neon_k) != 0));
     assert(uses_sve == ((capabilities & simsimd_cap_sve_k) != 0));
     assert(uses_haswell == ((capabilities & simsimd_cap_haswell_k) != 0));
     assert(uses_skylake == ((capabilities & simsimd_cap_skylake_k) != 0));
     assert(uses_ice == ((capabilities & simsimd_cap_ice_k) != 0));
-    assert(uses_sapphire == ((capabilities & simsimd_cap_sapphire_k) != 0));
     assert(uses_genoa == ((capabilities & simsimd_cap_genoa_k) != 0));
+    assert(uses_sapphire == ((capabilities & simsimd_cap_sapphire_k) != 0));
+    assert(uses_turin == ((capabilities & simsimd_cap_turin_k) != 0));
+    assert(uses_sierra == ((capabilities & simsimd_cap_sierra_k) != 0));
 }
 
 /**
@@ -139,7 +146,7 @@ void test_distance_from_itself(void) {
     simsimd_kl_f64(f64s, f64s, 1536, &distance);
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 
     print_capabilities();
     test_utilities();

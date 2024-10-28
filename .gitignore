@@ -60,3 +60,12 @@ target/
 
 # Swift Package Manager
 .swiftpm/
+
+# Mac OS
+.DS_Store
+
+# VS Code
+.devcontainer/
+
+# perfplot charts
+*.png

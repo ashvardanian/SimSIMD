@@ -42,28 +42,39 @@ SimSIMD provides an alternative.
 
 ## Features
 
-__SimSIMD__ (Arabic: "سيمسيم دي") is a library of __over 200 SIMD-optimized kernels__ for distance and similarity measures, boosting search performance in [USearch](https://github.com/unum-cloud/usearch) and several database systems.
-Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command from _Ali Baba and the Forty Thieves_, it opens the doors to a modern treasure: maximizing the potential of today's hardware for high resource utilization.
+__SimSIMD__ (Arabic: "سيمسيم دي") is a mixed-precision math library of __over 200 SIMD-optimized kernels__ extensively used in AI, Search, and DBMS workloads.
+Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command that opened doors to treasure in _Ali Baba and the Forty Thieves_, SimSimd can help you 10x the cost-efficiency of your computational pipelines.
 Implemented distance functions include:
 
-- Euclidean (L2) and Cosine (Angular) spatial distances for Vector Search.
-- Dot-Products for real & complex vectors for DSP & Quantum computing.
-- Hamming (~ Manhattan) and Jaccard (~ Tanimoto) bit-level distances.
-- Kullback-Leibler and Jensen–Shannon divergences for probability distributions.
-- Haversine and Vincenty's formulae for Geospatial Analysis.
-- For Levenshtein, Needleman–Wunsch and other text metrics, check [StringZilla][stringzilla].
+- Euclidean (L2) and Cosine (Angular) spatial distances for Vector Search. _[docs][docs-spatial]_
+- Dot-Products for real & complex vectors for DSP & Quantum computing. _[docs][docs-dot]_
+- Hamming (~ Manhattan) and Jaccard (~ Tanimoto) bit-level distances. _[docs][docs-binary]_
+- Set Intersections for Sparse Vectors and Text Analysis. _[docs][docs-sparse]_
+- Mahalanobis distance and Quadratic forms for Scientific Computing. _[docs][docs-curved]_
+- Kullback-Leibler and Jensen–Shannon divergences for probability distributions. _[docs][docs-probability]_
+- Fused-Multiply-Add (FMA) and Weighted Sums to replace BLAS level 1 functions. _[docs][docs-fma]_
+- For Levenshtein, Needleman–Wunsch, and Smith-Waterman, check [StringZilla][stringzilla].
+- 🔜 Haversine and Vincenty's formulae for Geospatial Analysis.
 
+[docs-spatial]: #cosine-similarity-reciprocal-square-root-and-newton-raphson-iteration
+[docs-curved]: #curved-spaces-mahalanobis-distance-and-bilinear-quadratic-forms
+[docs-sparse]: #set-intersection-galloping-and-binary-search
+[docs-binary]: https://github.com/ashvardanian/SimSIMD/pull/138
+[docs-dot]: #complex-dot-products-conjugate-dot-products-and-complex-numbers
+[docs-probability]: #logarithms-in-kullback-leibler--jensenshannon-divergences
+[docs-fma]: #mixed-precision-in-fused-multiply-add-and-weighted-sums
 [scipy]: https://docs.scipy.org/doc/scipy/reference/spatial.distance.html#module-scipy.spatial.distance
 [numpy]: https://numpy.org/doc/stable/reference/generated/numpy.inner.html
 [stringzilla]: https://github.com/ashvardanian/stringzilla
 
 Moreover, SimSIMD...
 
-- handles `f64`, `f32`, `f16`, and `bf16` real & complex vectors.
-- handles `i8` integral and `b8` bit vectors.
+- handles `float64`, `float32`, `float16`, and `bfloat16` real & complex vectors.
+- handles `int8` integral, `int4` sub-byte, and `b8` binary vectors.
+- handles sparse `uint32` and `uint16` sets, and weighted sparse vectors.
 - is a zero-dependency [header-only C 99](#using-simsimd-in-c) library.
-- has bindings for [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust) and [JS](#using-simsimd-in-javascript).
-- has Arm backends for NEON and Scalable Vector Extensions (SVE).
+- has [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust), [JS](#using-simsimd-in-javascript), and [Swift](#using-simsimd-in-swift) bindings.
+- has Arm backends for NEON, Scalable Vector Extensions (SVE), and SVE2.
 - has x86 backends for Haswell, Skylake, Ice Lake, Genoa, and Sapphire Rapids.
 - with both compile-time and runtime CPU feature detection easily integrates anywhere!
 
@@ -74,48 +85,38 @@ You can learn more about the technical implementation details in the following b
 
 - [Uses Horner's method for polynomial approximations, beating GCC 12 by 119x](https://ashvardanian.com/posts/gcc-12-vs-avx512fp16/).
 - [Uses Arm SVE and x86 AVX-512's masked loads to eliminate tail `for`-loops](https://ashvardanian.com/posts/simsimd-faster-scipy/#tails-of-the-past-the-significance-of-masked-loads).
-- [Uses AVX-512 FP16 for half-precision operations, that few compilers vectorize](https://ashvardanian.com/posts/simsimd-faster-scipy/#the-challenge-of-f16).
-- [Substitutes LibC's `sqrt` calls with bit-hacks using Jan Kadlec's constant](https://ashvardanian.com/posts/simsimd-faster-scipy/#bonus-section-bypassing-sqrt-and-libc-dependencies).
-- [For Python avoids slow PyBind11, SWIG, and even `PyArg_ParseTuple` for speed](https://ashvardanian.com/posts/pybind11-cpython-tutorial/).
-- [For JavaScript uses typed arrays and NAPI for zero-copy calls](https://ashvardanian.com/posts/javascript-ai-vector-search/).
+- [Substitutes LibC's `sqrt` with Newton Raphson iterations](https://github.com/ashvardanian/SimSIMD/releases/tag/v5.4.0).
+- [Uses Galloping and SVE2 histograms to intersect sparse vectors](https://ashvardanian.com/posts/simd-set-intersections-sve2-avx512/).
+- For Python: [avoids slow PyBind11, SWIG, & `PyArg_ParseTuple`](https://ashvardanian.com/posts/pybind11-cpython-tutorial/) [using faster calling convention](https://ashvardanian.com/posts/discount-on-keyword-arguments-in-python/).
+- For JavaScript: [uses typed arrays and NAPI for zero-copy calls](https://ashvardanian.com/posts/javascript-ai-vector-search/).
 
 ## Benchmarks
 
-### Against NumPy and SciPy
+For reference, we use 1536-dimensional vectors, like the embeddings produced by the OpenAI Ada API.
+Comparing the serial code throughput produced by GCC 12 to hand-optimized kernels in SimSIMD, we see the following single-core improvements for the two most common vector-vector similarity metrics - the Cosine similarity and the Euclidean distance:
 
-Given 1000 embeddings from OpenAI Ada API with 1536 dimensions, running on the Apple M2 Pro Arm CPU with NEON support, here's how SimSIMD performs against conventional methods:
+| Type       |                  Apple M2 Pro |            Intel Sapphire Rapids |                  AWS Graviton 4 |
+| :--------- | ----------------------------: | -------------------------------: | ------------------------------: |
+| `float64`  | 18.5 → 28.8 GB/s <br/> + 56 % |    21.9 → 41.4 GB/s <br/> + 89 % |   20.7 → 41.3 GB/s <br/> + 99 % |
+| `float32`  | 9.2 → 29.6 GB/s <br/> + 221 % |   10.9 → 95.8 GB/s <br/> + 779 % |   4.9 → 41.9 GB/s <br/> + 755 % |
+| `float16`  | 4.6 → 14.6 GB/s <br/> + 217 % | 3.1 → 108.4 GB/s <br/> + 3,397 % |   5.4 → 39.3 GB/s <br/> + 627 % |
+| `bfloat16` | 4.6 → 26.3 GB/s <br/> + 472 % |   0.8 → 59.5 GB/s <br/> +7,437 % | 2.5 → 29.9 GB/s <br/> + 1,096 % |
+| `int8`     | 25.8 → 47.1 GB/s <br/> + 83 % |    33.1 → 65.3 GB/s <br/> + 97 % |   35.2 → 43.5 GB/s <br/> + 24 % |
+| `uint8`    |                               |   32.5 → 66.5 GB/s <br/> + 105 % |                                 |
 
-| Kind                      | `f32` improvement | `f16` improvement | `i8` improvement | Conventional method       | SimSIMD         |
-| :------------------------ | ----------------: | ----------------: | ---------------: | :------------------------ | :-------------- |
-| Inner (Dot) Product       |           __2 x__ |           __9 x__ |         __18 x__ | `numpy.inner`             | `inner`         |
-| Cosine Distance           |          __32 x__ |          __79 x__ |        __133 x__ | `scipy.*.*.cosine`        | `cosine`        |
-| Euclidean Distance ²      |           __5 x__ |          __26 x__ |         __17 x__ | `scipy.*.*.sqeuclidean`   | `sqeuclidean`   |
-| Jensen-Shannon Divergence |          __31 x__ |          __53 x__ |                  | `scipy.*.*.jensenshannon` | `jensenshannon` |
-
-### Against GCC Auto-Vectorization
-
-On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against auto-vectorized code using GCC 12.
-GCC handles single-precision `float` but might not be the best choice for `int8` and `_Float16` arrays, which have been part of the C language since 2011.
-
-| Kind                      | GCC 12 `f32` | GCC 12 `f16` | SimSIMD `f16` | `f16` improvement |
-| :------------------------ | -----------: | -----------: | ------------: | ----------------: |
-| Inner Product             |    3,810 K/s |      192 K/s |     5,990 K/s |          __31 x__ |
-| Cosine Distance           |    3,280 K/s |      336 K/s |     6,880 K/s |          __20 x__ |
-| Euclidean Distance ²      |    4,620 K/s |      147 K/s |     5,320 K/s |          __36 x__ |
-| Jensen-Shannon Divergence |    1,180 K/s |       18 K/s |     2,140 K/s |         __118 x__ |
-
-__Broader Benchmarking Results__:
+Similar speedups are often observed even when compared to BLAS and LAPACK libraries underlying most numerical computing libraries, including NumPy and SciPy in Python.
+Broader benchmarking results:
 
 - [Apple M2 Pro](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-1-performance-on-apple-m2-pro).
-- [4th Gen Intel Xeon Platinum](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-2-performance-on-4th-gen-intel-xeon-platinum-8480).
+- [Intel Sapphire Rapids](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-2-performance-on-4th-gen-intel-xeon-platinum-8480).
 - [AWS Graviton 3](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-3-performance-on-aws-graviton-3).
 
 ## Using SimSIMD in Python
 
 The package is intended to replace the usage of `numpy.inner`, `numpy.dot`, and `scipy.spatial.distance`.
 Aside from drastic performance improvements, SimSIMD significantly improves accuracy in mixed precision setups.
-NumPy and SciPy, processing `i8` or `f16` vectors, will use the same types for accumulators, while SimSIMD can combine `i8` enumeration, `i16` multiplication, and `i32` accumulation to avoid overflows entirely.
-The same applies to processing `f16` and `bf16` values with `f32` precision.
+NumPy and SciPy, processing `int8`, `uint8` or `float16` vectors, will use the same types for accumulators, while SimSIMD can combine `int8` enumeration, `int16` multiplication, and `int32` accumulation to avoid overflows entirely.
+The same applies to processing `float16` and `bfloat16` values with `float32` precision.
 
 ### Installation
 
@@ -123,7 +124,8 @@ Use the following snippet to install SimSIMD and list available hardware acceler
 
 ```sh
 pip install simsimd
-python -c "import simsimd; print(simsimd.get_capabilities())"
+python -c "import simsimd; print(simsimd.get_capabilities())"   # for hardware introspection
+python -c "import simsimd; help(simsimd)"                       # for documentation
 ```
 
 With precompiled binaries, SimSIMD ships `.pyi` interface files for type hinting and static analysis.
@@ -140,7 +142,7 @@ vec2 = np.random.randn(1536).astype(np.float32)
 dist = simsimd.cosine(vec1, vec2)
 ```
 
-Supported functions include `cosine`, `inner`, `sqeuclidean`, `hamming`, and `jaccard`.
+Supported functions include `cosine`, `inner`, `sqeuclidean`, `hamming`, `jaccard`, `kulbackleibler`, `jensenshannon`, and `intersect`.
 Dot products are supported for both real and complex numbers:
 
 ```py
@@ -153,14 +155,33 @@ dist = simsimd.vdot(vec1.astype(np.complex64), vec2.astype(np.complex64)) # conj
 ```
 
 Unlike SciPy, SimSIMD allows explicitly stating the precision of the input vectors, which is especially useful for mixed-precision setups.
+The `dtype` argument can be passed both by name and as a positional argument:
 
 ```py
-dist = simsimd.cosine(vec1, vec2, "i8")
-dist = simsimd.cosine(vec1, vec2, "f16")
-dist = simsimd.cosine(vec1, vec2, "f32")
-dist = simsimd.cosine(vec1, vec2, "f64")
-dist = simsimd.hamming(vec1, vec2, "bits")
-dist = simsimd.jaccard(vec1, vec2, "bits")
+dist = simsimd.cosine(vec1, vec2, "int8")
+dist = simsimd.cosine(vec1, vec2, "float16")
+dist = simsimd.cosine(vec1, vec2, "float32")
+dist = simsimd.cosine(vec1, vec2, "float64")
+dist = simsimd.hamming(vec1, vec2, "bit8")
+```
+
+With other frameworks, like PyTorch, one can get a richer type-system than NumPy, but the lack of good CPython interoperability makes it hard to pass data without copies.
+
+```py
+import numpy as np
+buf1 = np.empty(8, dtype=np.uint16)
+buf2 = np.empty(8, dtype=np.uint16)
+
+# View the same memory region with PyTorch and randomize it
+import torch
+vec1 = torch.asarray(memoryview(buf1), copy=False).view(torch.bfloat16)
+vec2 = torch.asarray(memoryview(buf2), copy=False).view(torch.bfloat16)
+torch.randn(8, out=vec1)
+torch.randn(8, out=vec2)
+
+# Both libs will look into the same memory buffers and report the same results
+dist_slow = 1 - torch.nn.functional.cosine_similarity(vec1, vec2, dim=0)
+dist_fast = simsimd.cosine(buf1, buf2, "bf16")
 ```
 
 It also allows using SimSIMD for half-precision complex numbers, which NumPy does not support.
@@ -171,6 +192,22 @@ vec1 = np.random.randn(1536).astype(np.float16)
 vec2 = np.random.randn(1536).astype(np.float16)
 simd.dot(vec1, vec2, "complex32")
 simd.vdot(vec1, vec2, "complex32")
+```
+
+When dealing with sparse representations and integer sets, you can apply the `intersect` function to two 1-dimensional arrays of `uint16` or `uint32` integers:
+
+```py
+from random import randint
+import numpy as np
+import simsimd as simd
+
+length1, length2 = randint(1, 100), randint(1, 100)
+vec1 = np.random.randint(0, 1000, length1).astype(np.uint16)
+vec2 = np.random.randint(0, 1000, length2).astype(np.uint16)
+
+slow_result = np.intersect1d(vec1, vec2)
+fast_result = simd.intersect(vec1, vec2)
+assert slow_result == fast_result
 ```
 
 ### One-to-Many Distances
@@ -217,6 +254,48 @@ distances: DistancesTensor = simsimd.cdist(matrix1, matrix2, metric="cosine")   
 distances_array: np.ndarray = np.array(distances, copy=True)                    # now managed by NumPy
 ```
 
+### Elementwise Kernels
+
+SimSIMD also provides mixed-precision elementwise kernels, where the input vectors and the output have the same numeric type, but the intermediate accumulators are of a higher precision.
+
+```py
+import numpy as np
+from simsimd import fma, wsum
+
+# Let's take two FullHD video frames
+first_frame = np.random.randn(1920 * 1024).astype(np.uint8)  
+second_frame = np.random.randn(1920 * 1024).astype(np.uint8)
+average_frame = np.empty_like(first_frame)
+wsum(first_frame, second_frame, alpha=0.5, beta=0.5, out=average_frame)
+
+# Slow analog with NumPy:
+slow_average_frame = (0.5 * first_frame + 0.5 * second_frame).astype(np.uint8)
+```
+
+Similarly, the `fma` takes three arguments and computes the fused multiply-add operation.
+In applications like Machine Learning you may also benefit from using the "brain-float" format not natively supported by NumPy.
+In 3D Graphics, for example, we can use FMA to compute the [Phong shading model](https://en.wikipedia.org/wiki/Phong_shading):
+
+```py
+# Assume a FullHD frame with random values for simplicity
+light_intensity = np.random.rand(1920 * 1080).astype(np.float16)  # Intensity of light on each pixel
+diffuse_component = np.random.rand(1920 * 1080).astype(np.float16)  # Diffuse reflectance on the surface
+specular_component = np.random.rand(1920 * 1080).astype(np.float16)  # Specular reflectance for highlights
+output_color = np.empty_like(light_intensity)  # Array to store the resulting color intensity
+
+# Define the scaling factors for diffuse and specular contributions
+alpha = 0.7  # Weight for the diffuse component
+beta = 0.3   # Weight for the specular component
+
+# Formula: color = alpha * light_intensity * diffuse_component + beta * specular_component
+fma(light_intensity, diffuse_component, specular_component, 
+    dtype="float16", # Optional, unless it can't be inferred from the input
+    alpha=alpha, beta=beta, out=output_color)
+
+# Slow analog with NumPy for comparison
+slow_output_color = (alpha * light_intensity * diffuse_component + beta * specular_component).astype(np.float16)
+```
+
 ### Multithreading and Memory Usage
 
 By default, computations use a single CPU core.
@@ -230,15 +309,15 @@ matrix1 = np.packbits(np.random.randint(2, size=(10_000, ndim)).astype(np.uint8)
 matrix2 = np.packbits(np.random.randint(2, size=(1_000, ndim)).astype(np.uint8))
 
 distances = simsimd.cdist(matrix1, matrix2, 
-    metric="hamming", # Unlike SciPy, SimSIMD doesn't divide by the number of dimensions
-    out_dtype="u8",   # so we can use `u8` instead of `f64` to save memory.
-    threads=0,        # Use all CPU cores with OpenMP.
-    dtype="b8",       # Override input argument type to `b8` eight-bit words.
+    metric="hamming",   # Unlike SciPy, SimSIMD doesn't divide by the number of dimensions
+    out_dtype="uint8",  # so we can use `uint8` instead of `float64` to save memory.
+    threads=0,          # Use all CPU cores with OpenMP.
+    dtype="bin8",       # Override input argument type to `bin8` eight-bit words.
 )
 ```
 
-By default, the output distances will be stored in double-precision `f64` floating-point numbers.
-That behavior may not be space-efficient, especially if you are computing the hamming distance between short binary vectors, that will generally fit into 8x smaller `u8` or `u16` types.
+By default, the output distances will be stored in double-precision `float64` floating-point numbers.
+That behavior may not be space-efficient, especially if you are computing the hamming distance between short binary vectors, that will generally fit into 8x smaller `uint8` or `uint16` types.
 To override this behavior, use the `dtype` argument.
 
 ### Helper Functions
@@ -248,7 +327,7 @@ A common case may be avoiding AVX-512 on older AMD CPUs and [Intel Ice Lake](htt
 
 ```py
 $ simsimd.get_capabilities()
-> {'serial': True, 'neon': False, 'sve': False, 'neon_f16': False, 'sve_f16': False, 'neon_bf16': False, 'sve_bf16': False, 'neon_i8': False, 'sve_i8': False, 'haswell': True, 'skylake': True, 'ice': True, 'genoa': True, 'sapphire': True}
+> {'serial': True, 'neon': False, 'sve': False, 'neon_f16': False, 'sve_f16': False, 'neon_bf16': False, 'sve_bf16': False, 'neon_i8': False, 'sve_i8': False, 'haswell': True, 'skylake': True, 'ice': True, 'genoa': True, 'sapphire': True, 'turin': True}
 $ simsimd.disable_capability("sapphire")
 $ simsimd.enable_capability("sapphire")
 ```
@@ -456,6 +535,7 @@ println!("uses skylake: {}", capabilities::uses_skylake());
 println!("uses ice: {}", capabilities::uses_ice());
 println!("uses genoa: {}", capabilities::uses_genoa());
 println!("uses sapphire: {}", capabilities::uses_sapphire());
+println!("uses turin: {}", capabilities::uses_turin());
 ```
 
 ## Using SimSIMD in JavaScript
@@ -511,6 +591,29 @@ const binaryVectorB = toBinary(vectorB);
 const distance = hamming(binaryVectorA, binaryVectorB);
 ```
 
+## Using SimSIMD in Sift
+
+To install, simply add the following dependency to you `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/ashvardanian/simsimd")
+]
+```
+
+The package provides the most common spatial metrics for `Int8`, `Float16`, `Float32`, and `Float64` vectors.
+
+```swift
+import SimSIMD
+
+let vectorA: [Int8] = [1, 2, 3]
+let vectorB: [Int8] = [4, 5, 6]
+
+let cosineSimilarity = vectorA.cosine(vectorB)  // Computes the cosine similarity
+let dotProduct = vectorA.dot(vectorB)           // Computes the dot product
+let sqEuclidean = vectorA.sqeuclidean(vectorB)  // Computes the squared Euclidean distance
+```
+
 ## Using SimSIMD in C
 
 For integration within a CMake-based project, add the following segment to your `CMakeLists.txt`:
@@ -533,7 +636,7 @@ Simplest of all, you can include the headers, and the compiler will automaticall
 int main() {
     simsimd_f32_t vector_a[1536];
     simsimd_f32_t vector_b[1536];
-    simsimd_metric_punned_t distance_function = simsimd_metric_punned(
+    simsimd_kernel_punned_t distance_function = simsimd_metric_punned(
         simsimd_metric_cos_k,   // Metric kind, like the angular cosine distance
         simsimd_datatype_f32_k, // Data type, like: f16, f32, f64, i8, b8, and complex variants
         simsimd_cap_any_k);     // Which CPU capabilities are we allowed to use
@@ -621,7 +724,6 @@ int main() {
     simsimd_vdot_f16c(f16s, f16s, 1536, &distance);
     simsimd_vdot_f32c(f32s, f32s, 1536, &distance);
     simsimd_vdot_f64c(f64s, f64s, 1536, &distance);
-
     return 0;
 }
 ```
@@ -634,13 +736,8 @@ int main() {
 int main() {
     simsimd_b8_t b8s[1536 / 8]; // 8 bits per word
     simsimd_distance_t distance;
-
-    // Hamming distance between two vectors
     simsimd_hamming_b8(b8s, b8s, 1536 / 8, &distance);
-
-    // Jaccard distance between two vectors
     simsimd_jaccard_b8(b8s, b8s, 1536 / 8, &distance);
-
     return 0;
 }
 ```
@@ -665,7 +762,6 @@ int main() {
     simsimd_kl_f16(f16s, f16s, 1536, &distance);
     simsimd_kl_f32(f32s, f32s, 1536, &distance);
     simsimd_kl_f64(f64s, f64s, 1536, &distance);
-
     return 0;
 }
 ```
@@ -690,14 +786,15 @@ To explicitly disable half-precision support, define the following macro before 
 > But if you are running on different generations of devices, it makes sense to pre-compile the library for all supported generations at once, and dispatch at runtime.
 > This flag does just that and is used to produce the `simsimd.so` shared library, as well as the Python and other bindings.
 
-`SIMSIMD_TARGET_ARM` (`SIMSIMD_TARGET_NEON`, `SIMSIMD_TARGET_SVE`, `SIMSIMD_TARGET_NEON_F16`, `SIMSIMD_TARGET_SVE_F16`, `SIMSIMD_TARGET_NEON_BF16`, `SIMSIMD_TARGET_SVE_BF16`), `SIMSIMD_TARGET_X86` (`SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`): 
+For Arm: `SIMSIMD_TARGET_NEON`, `SIMSIMD_TARGET_SVE`, `SIMSIMD_TARGET_SVE2`, `SIMSIMD_TARGET_NEON_F16`, `SIMSIMD_TARGET_SVE_F16`, `SIMSIMD_TARGET_NEON_BF16`, `SIMSIMD_TARGET_SVE_BF16`.
+For x86: (`SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`, `SIMSIMD_TARGET_TURIN`, `SIMSIMD_TARGET_SIERRA`. 
 
 > By default, SimSIMD automatically infers the target architecture and pre-compiles as many kernels as possible.
 > In some cases, you may want to explicitly disable some of the kernels.
 > Most often it's due to compiler support issues, like the lack of some recent intrinsics or low-precision numeric types.
 > In other cases, you may want to disable some kernels to speed up the compilation process and trim the binary size.
 
-`SIMSIMD_RSQRT`, `SIMSIMD_LOG`:
+`SIMSIMD_SQRT`, `SIMSIMD_RSQRT`, `SIMSIMD_LOG`:
 
 > By default, for __non__-SIMD backends, SimSIMD may use `libc` functions like `sqrt` and `log`.
 > Those are generally very accurate, but slow, and introduce a dependency on the C standard library.
@@ -714,6 +811,12 @@ In general there are a few principles that SimSIMD follows:
 - Avoid returning from public interfaces, use out-arguments instead.
 - Don't over-optimize for old CPUs and single- and double-precision floating-point numbers.
 - Prioritize mixed-precision and integer operations, and new ISA extensions.
+- Prefer saturated arithmetic and avoid overflows.
+
+Possibly, in the future:
+
+- Best effort computation silencing `NaN` components in low-precision inputs. 
+- Detect overflows and report the distance with a "signaling" `NaN`.
 
 Last, but not the least - don't build unless there is a demand for it.
 So if you have a specific use-case, please open an issue or a pull request, and ideally, bring in more users with similar needs.
@@ -753,9 +856,11 @@ It's not only less efficient, but also less accurate, given how the reciprocal s
 The C standard library provides the `sqrt` function, which is generally very accurate, but slow.
 The `rsqrt` in-hardware implementations are faster, but have different accuracy characteristics.
 
-- SSE `rsqrtps` and AVX `vrsqrtps`: $`\(1.5 \times 2^{-12}\)`$ maximal error.
-- AVX-512 `vrsqrt14pd` instruction: $`\(2^{-14}\)`$ maximal error.
-- NEON `frsqrte` instruction has no clear error bounds.
+- SSE `rsqrtps` and AVX `vrsqrtps`: $1.5 \times 2^{-12}$ maximal relative error.
+- AVX-512 `vrsqrt14pd` instruction: $2^{-14}$ maximal relative error.
+- NEON `frsqrte` instruction has no documented error bounds, but [can be][arm-rsqrt] $2^{-3}$.
+
+[arm-rsqrt]: https://gist.github.com/ashvardanian/5e5cf585d63f8ab6d240932313c75411
 
 To overcome the limitations of the `rsqrt` instruction, SimSIMD uses the Newton-Raphson iteration to refine the initial estimate for high-precision floating-point numbers.
 It can be defined as:
@@ -765,7 +870,6 @@ x_{n+1} = x_n \cdot (3 - x_n \cdot x_n) / 2
 ```
 
 On 1536-dimensional inputs on Intel Sapphire Rapids CPU a single such iteration can result in a 2-3 orders of magnitude relative error reduction:
-
 
 | Datatype   |         NumPy Error | SimSIMD w/out Iteration |             SimSIMD |
 | :--------- | ------------------: | ----------------------: | ------------------: |
@@ -947,6 +1051,49 @@ Sparse-Sparse matrix multiplication is just "matrix multiplication" when both ma
 Hence their values are stored in non-regularly addressable arrays, and their indices are often stored in separate arrays.
 Those representations are very effective when $>99%$ of the values are close to zero, and the matrices are large.
 With a good algorithm, a 100x improvement in performance can be achieved.
+### Elementwise Operations
+
+> On mixed precision in Fused-Multiply-Add and Weighted Sums.
+
+The Fused-Multiply-Add (FMA) operation is a single operation that combines element-wise multiplication and addition with different scaling factors.
+The Weighted Sum is it's simplified variant without element-wise multiplication.
+
+```math
+\text{FMA}_i(A, B, C, \alpha, \beta) = \alpha \cdot A_i \cdot B_i + \beta \cdot C_i
+```
+
+```math
+\text{WSum}_i(A, B, \alpha, \beta) = \alpha \cdot A_i + \beta \cdot B_i
+```
+
+In NumPy terms, the implementation may look like:
+
+```py
+import numpy as np
+def wsum(A: np.ndarray, B: np.ndarray, /, Alpha: float, Beta: float) -> np.ndarray:
+    assert A.dtype == B.dtype, "Input types must match and affect the output style"
+    return (Alpha * A + Beta * B).astype(A.dtype)
+def fma(A: np.ndarray, B: np.ndarray, C: np.ndarray, /, Alpha: float, Beta: float) -> np.ndarray:
+    assert A.dtype == B.dtype and A.dtype == C.dtype, "Input types must match and affect the output style"
+    return (Alpha * A * B + Beta * C).astype(A.dtype)
+```
+
+The tricky part is implementing those operations in mixed precision, where the scaling factors are of different precision than the input and output vectors.
+SimSIMD uses double-precision floating-point scaling factors for any input and output precision, including `i8` and `u8` integers and `f16` and `bf16` floats.
+Depending on the generation of the CPU, given native support for `f16` addition and multiplication, the `f16` temporaries are used for `i8` and `u8` multiplication, scaling, and addition.
+For `bf16`, native support is generally limited to dot-products with subsequent partial accumulation, which is not enough for the FMA and WSum operations, so `f32` is used as a temporary.
+
+### Auto-Vectorization & Loop Unrolling
+
+On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against auto-vectorized code using GCC 12.
+GCC handles single-precision `float` but might not be the best choice for `int8` and `_Float16` arrays, which have been part of the C language since 2011.
+
+| Kind                      | GCC 12 `f32` | GCC 12 `f16` | SimSIMD `f16` | `f16` improvement |
+| :------------------------ | -----------: | -----------: | ------------: | ----------------: |
+| Inner Product             |    3,810 K/s |      192 K/s |     5,990 K/s |          __31 x__ |
+| Cosine Distance           |    3,280 K/s |      336 K/s |     6,880 K/s |          __20 x__ |
+| Euclidean Distance ²      |    4,620 K/s |      147 K/s |     5,320 K/s |          __36 x__ |
+| Jensen-Shannon Divergence |    1,180 K/s |       18 K/s |     2,140 K/s |         __118 x__ |
 
 ### Dynamic Dispatch
 
@@ -1065,11 +1212,11 @@ SimSIMD exposes all kernels for all backends, and you can select the most advanc
 That's handy for testing and benchmarking, but also in case you want to dispatch a very specific kernel for a very specific CPU, bypassing SimSIMD assignment logic.
 All of the function names follow the same pattern: `simsimd_{function}_{type}_{backend}`.
 
-- The backend can be `serial`, `haswell`, `skylake`, `ice`, `genoa`, `sapphire`, `neon`, or `sve`.
+- The backend can be `serial`, `haswell`, `skylake`, `ice`, `genoa`, `sapphire`, `turin`, `neon`, or `sve`.
 - The type can be `f64`, `f32`, `f16`, `bf16`, `f64c`, `f32c`, `f16c`, `bf16c`, `i8`, or `b8`.
 - The function can be `dot`, `vdot`, `cos`, `l2sq`, `hamming`, `jaccard`, `kl`, `js`, or `intersect`.
 
-To avoid hard-coding the backend, you can use the `simsimd_metric_punned_t` to pun the function pointer and the `simsimd_capabilities` function to get the available backends at runtime.
+To avoid hard-coding the backend, you can use the `simsimd_kernel_punned_t` to pun the function pointer and the `simsimd_capabilities` function to get the available backends at runtime.
 To match all the function names, consider a RegEx:
 
 ```regex

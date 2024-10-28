@@ -6,18 +6,19 @@
  *
  *  Defines:
  *  - Sized aliases for numeric types, like: `simsimd_i32_t` and `simsimd_f64_t`.
- *  - Macros for compiler/hardware checks, like: `SIMSIMD_TARGET_NEON`
+ *  - Macros for internal compiler/hardware checks, like: `_SIMSIMD_TARGET_ARM`.
+ *  - Macros for feature controls, like: `SIMSIMD_TARGET_NEON`
  */
 #ifndef SIMSIMD_TYPES_H
 #define SIMSIMD_TYPES_H
 
 // Inferring target OS: Windows, MacOS, or Linux
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-#define SIMSIMD_DEFINED_WINDOWS
+#define _SIMSIMD_DEFINED_WINDOWS 1
 #elif defined(__APPLE__) && defined(__MACH__)
-#define SIMSIMD_DEFINED_APPLE
+#define _SIMSIMD_DEFINED_APPLE 1
 #elif defined(__linux__)
-#define SIMSIMD_DEFINED_LINUX
+#define _SIMSIMD_DEFINED_LINUX 1
 #endif
 
 // Annotation for the public API symbols:
@@ -35,68 +36,118 @@
 #define SIMSIMD_PUBLIC __attribute__((unused)) inline static
 #define SIMSIMD_INTERNAL __attribute__((always_inline)) inline static
 #else
-#define SIMSIMD_DYNAMIC inline static
+#define SIMSIMD_DYNAMIC
 #define SIMSIMD_PUBLIC inline static
 #define SIMSIMD_INTERNAL inline static
 #endif
 
-// Compiling for Arm: SIMSIMD_TARGET_ARM
-#if !defined(SIMSIMD_TARGET_ARM)
+// Compiling for Arm: _SIMSIMD_TARGET_ARM
+#if !defined(_SIMSIMD_TARGET_ARM)
 #if defined(__aarch64__) || defined(_M_ARM64)
-#define SIMSIMD_TARGET_ARM 1
+#define _SIMSIMD_TARGET_ARM 1
 #else
-#define SIMSIMD_TARGET_ARM 0
+#define _SIMSIMD_TARGET_ARM 0
 #endif // defined(__aarch64__) || defined(_M_ARM64)
-#endif // !defined(SIMSIMD_TARGET_ARM)
+#endif // !defined(_SIMSIMD_TARGET_ARM)
 
-// Compiling for x86: SIMSIMD_TARGET_X86
-#if !defined(SIMSIMD_TARGET_X86)
+// Compiling for x86: _SIMSIMD_TARGET_X86
+#if !defined(_SIMSIMD_TARGET_X86)
 #if defined(__x86_64__) || defined(_M_X64)
-#define SIMSIMD_TARGET_X86 1
+#define _SIMSIMD_TARGET_X86 1
 #else
-#define SIMSIMD_TARGET_X86 0
+#define _SIMSIMD_TARGET_X86 0
 #endif // defined(__x86_64__) || defined(_M_X64)
-#endif // !defined(SIMSIMD_TARGET_X86)
+#endif // !defined(_SIMSIMD_TARGET_X86)
 
 // Compiling for Arm: SIMSIMD_TARGET_NEON
-#if !defined(SIMSIMD_TARGET_NEON) || (SIMSIMD_TARGET_NEON && !SIMSIMD_TARGET_ARM)
+#if !defined(SIMSIMD_TARGET_NEON) || (SIMSIMD_TARGET_NEON && !_SIMSIMD_TARGET_ARM)
 #if defined(__ARM_NEON)
-#define SIMSIMD_TARGET_NEON SIMSIMD_TARGET_ARM
+#define SIMSIMD_TARGET_NEON _SIMSIMD_TARGET_ARM
 #else
 #undef SIMSIMD_TARGET_NEON
 #define SIMSIMD_TARGET_NEON 0
 #endif // defined(__ARM_NEON)
-#endif // !defined(SIMSIMD_TARGET_NEON)
+#endif // !defined(SIMSIMD_TARGET_NEON) || ...
 
-#if !defined(SIMSIMD_TARGET_NEON_I8)
-#define SIMSIMD_TARGET_NEON_I8 SIMSIMD_TARGET_NEON
-#endif // !defined(SIMSIMD_TARGET_NEON_I8)
-#if !defined(SIMSIMD_TARGET_NEON_F16)
-#define SIMSIMD_TARGET_NEON_F16 SIMSIMD_TARGET_NEON
-#endif // !defined(SIMSIMD_TARGET_NEON_F16)
-#if !defined(SIMSIMD_TARGET_NEON_BF16)
-#define SIMSIMD_TARGET_NEON_BF16 SIMSIMD_TARGET_NEON
-#endif // !defined(SIMSIMD_TARGET_NEON_BF16)
+// Compiling for Arm: SIMSIMD_TARGET_NEON_I8
+#if !defined(SIMSIMD_TARGET_NEON_I8) || (SIMSIMD_TARGET_NEON_I8 && !_SIMSIMD_TARGET_ARM)
+#if defined(__ARM_NEON)
+#define SIMSIMD_TARGET_NEON_I8 _SIMSIMD_TARGET_ARM
+#else
+#undef SIMSIMD_TARGET_NEON_I8
+#define SIMSIMD_TARGET_NEON_I8 0
+#endif // defined(__ARM_NEON)
+#endif // !defined(SIMSIMD_TARGET_NEON_I8) || ...
+
+// Compiling for Arm: SIMSIMD_TARGET_NEON_F16
+#if !defined(SIMSIMD_TARGET_NEON_F16) || (SIMSIMD_TARGET_NEON_F16 && !_SIMSIMD_TARGET_ARM)
+#if defined(__ARM_NEON)
+#define SIMSIMD_TARGET_NEON_F16 _SIMSIMD_TARGET_ARM
+#else
+#undef SIMSIMD_TARGET_NEON_F16
+#define SIMSIMD_TARGET_NEON_F16 0
+#endif // defined(__ARM_NEON)
+#endif // !defined(SIMSIMD_TARGET_NEON_F16) || ...
+
+// Compiling for Arm: SIMSIMD_TARGET_NEON_BF16
+#if !defined(SIMSIMD_TARGET_NEON_BF16) || (SIMSIMD_TARGET_NEON_BF16 && !_SIMSIMD_TARGET_ARM)
+#if defined(__ARM_NEON)
+#define SIMSIMD_TARGET_NEON_BF16 _SIMSIMD_TARGET_ARM
+#else
+#undef SIMSIMD_TARGET_NEON_BF16
+#define SIMSIMD_TARGET_NEON_BF16 0
+#endif // defined(__ARM_NEON)
+#endif // !defined(SIMSIMD_TARGET_NEON_BF16) || ...
 
 // Compiling for Arm: SIMSIMD_TARGET_SVE
-#if !defined(SIMSIMD_TARGET_SVE) || (SIMSIMD_TARGET_SVE && !SIMSIMD_TARGET_ARM)
+#if !defined(SIMSIMD_TARGET_SVE) || (SIMSIMD_TARGET_SVE && !_SIMSIMD_TARGET_ARM)
 #if defined(__ARM_FEATURE_SVE)
-#define SIMSIMD_TARGET_SVE SIMSIMD_TARGET_ARM
+#define SIMSIMD_TARGET_SVE _SIMSIMD_TARGET_ARM
 #else
 #undef SIMSIMD_TARGET_SVE
 #define SIMSIMD_TARGET_SVE 0
 #endif // defined(__ARM_FEATURE_SVE)
-#endif // !defined(SIMSIMD_TARGET_SVE)
+#endif // !defined(SIMSIMD_TARGET_SVE) || ...
 
-#if !defined(SIMSIMD_TARGET_SVE_I8)
-#define SIMSIMD_TARGET_SVE_I8 SIMSIMD_TARGET_SVE
-#endif // !defined(SIMSIMD_TARGET_SVE_I8)
-#if !defined(SIMSIMD_TARGET_SVE_F16)
-#define SIMSIMD_TARGET_SVE_F16 SIMSIMD_TARGET_SVE
-#endif // !defined(SIMSIMD_TARGET_SVE_F16)
-#if !defined(SIMSIMD_TARGET_SVE_BF16)
-#define SIMSIMD_TARGET_SVE_BF16 SIMSIMD_TARGET_SVE
-#endif // !defined(SIMSIMD_TARGET_SVE_BF16)
+// Compiling for Arm: SIMSIMD_TARGET_SVE_I8
+#if !defined(SIMSIMD_TARGET_SVE_I8) || (SIMSIMD_TARGET_SVE_I8 && !_SIMSIMD_TARGET_ARM)
+#if defined(__ARM_FEATURE_SVE)
+#define SIMSIMD_TARGET_SVE_I8 _SIMSIMD_TARGET_ARM
+#else
+#undef SIMSIMD_TARGET_SVE_I8
+#define SIMSIMD_TARGET_SVE_I8 0
+#endif // defined(__ARM_FEATURE_SVE)
+#endif // !defined(SIMSIMD_TARGET_SVE_I8) || ...
+
+// Compiling for Arm: SIMSIMD_TARGET_SVE_F16
+#if !defined(SIMSIMD_TARGET_SVE_F16) || (SIMSIMD_TARGET_SVE_F16 && !_SIMSIMD_TARGET_ARM)
+#if defined(__ARM_FEATURE_SVE)
+#define SIMSIMD_TARGET_SVE_F16 _SIMSIMD_TARGET_ARM
+#else
+#undef SIMSIMD_TARGET_SVE_F16
+#define SIMSIMD_TARGET_SVE_F16 0
+#endif // defined(__ARM_FEATURE_SVE)
+#endif // !defined(SIMSIMD_TARGET_SVE_F16) || ...
+
+// Compiling for Arm: SIMSIMD_TARGET_SVE_BF16
+#if !defined(SIMSIMD_TARGET_SVE_BF16) || (SIMSIMD_TARGET_SVE_BF16 && !_SIMSIMD_TARGET_ARM)
+#if defined(__ARM_FEATURE_SVE)
+#define SIMSIMD_TARGET_SVE_BF16 _SIMSIMD_TARGET_ARM
+#else
+#undef SIMSIMD_TARGET_SVE_BF16
+#define SIMSIMD_TARGET_SVE_BF16 0
+#endif // defined(__ARM_FEATURE_SVE)
+#endif // !defined(SIMSIMD_TARGET_SVE_BF16) || ...
+
+// Compiling for Arm: SIMSIMD_TARGET_SVE2
+#if !defined(SIMSIMD_TARGET_SVE2) || (SIMSIMD_TARGET_SVE2 && !_SIMSIMD_TARGET_ARM)
+#if defined(__ARM_FEATURE_SVE)
+#define SIMSIMD_TARGET_SVE2 _SIMSIMD_TARGET_ARM
+#else
+#undef SIMSIMD_TARGET_SVE2
+#define SIMSIMD_TARGET_SVE2 0
+#endif // defined(__ARM_FEATURE_SVE)
+#endif // !defined(SIMSIMD_TARGET_SVE2) || ...
 
 // Compiling for x86: SIMSIMD_TARGET_HASWELL
 //
@@ -105,55 +156,72 @@
 // are supported on all CPUs starting with Jaguar 2009.
 // Starting with Sandy Bridge, Intel adds basic AVX support in their CPUs and in 2013
 // extends it with AVX2 in the Haswell generation. Moreover, Haswell adds FMA support.
-#if !defined(SIMSIMD_TARGET_HASWELL) || (SIMSIMD_TARGET_HASWELL && !SIMSIMD_TARGET_X86)
+#if !defined(SIMSIMD_TARGET_HASWELL) || (SIMSIMD_TARGET_HASWELL && !_SIMSIMD_TARGET_X86)
 #if defined(__AVX2__) && defined(__FMA__) && defined(__F16C__)
 #define SIMSIMD_TARGET_HASWELL 1
 #else
 #undef SIMSIMD_TARGET_HASWELL
 #define SIMSIMD_TARGET_HASWELL 0
 #endif // defined(__AVX2__)
-#endif // !defined(SIMSIMD_TARGET_HASWELL)
+#endif // !defined(SIMSIMD_TARGET_HASWELL) || ...
 
-// Compiling for x86: SIMSIMD_TARGET_SKYLAKE, SIMSIMD_TARGET_ICE, SIMSIMD_TARGET_GENOA, SIMSIMD_TARGET_SAPPHIRE
+// Compiling for x86: SIMSIMD_TARGET_SKYLAKE, SIMSIMD_TARGET_ICE, SIMSIMD_TARGET_GENOA,
+// SIMSIMD_TARGET_SAPPHIRE, SIMSIMD_TARGET_TURIN, SIMSIMD_TARGET_SIERRA
 //
 // To list all available macros for x86, take a recent compiler, like GCC 12 and run:
 //      gcc-12 -march=sapphirerapids -dM -E - < /dev/null | egrep "SSE|AVX" | sort
 // On Arm machines you may want to check for other flags:
 //      gcc-12 -march=native -dM -E - < /dev/null | egrep "NEON|SVE|FP16|FMA" | sort
-#if !defined(SIMSIMD_TARGET_SKYLAKE) || (SIMSIMD_TARGET_SKYLAKE && !SIMSIMD_TARGET_X86)
-#if defined(__AVX512F__) && defined(__AVX512CD__) && defined(__AVX512VL__) && defined(__AVX512DQ__) &&                 \
+#if !defined(SIMSIMD_TARGET_SKYLAKE) || (SIMSIMD_TARGET_SKYLAKE && !_SIMSIMD_TARGET_X86)
+#if defined(__AVX512F__) && defined(__AVX512CD__) && defined(__AVX512VL__) && defined(__AVX512DQ__) && \
     defined(__AVX512BW__)
 #define SIMSIMD_TARGET_SKYLAKE 1
 #else
 #undef SIMSIMD_TARGET_SKYLAKE
 #define SIMSIMD_TARGET_SKYLAKE 0
 #endif
-#endif // !defined(SIMSIMD_TARGET_SKYLAKE)
-#if !defined(SIMSIMD_TARGET_ICE) || (SIMSIMD_TARGET_ICE && !SIMSIMD_TARGET_X86)
-#if defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITALG__) && defined(__AVX512VBMI2__) &&     \
+#endif // !defined(SIMSIMD_TARGET_SKYLAKE) || ...
+#if !defined(SIMSIMD_TARGET_ICE) || (SIMSIMD_TARGET_ICE && !_SIMSIMD_TARGET_X86)
+#if defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITALG__) && defined(__AVX512VBMI2__) && \
     defined(__AVX512VPOPCNTDQ__)
 #define SIMSIMD_TARGET_ICE 1
 #else
 #undef SIMSIMD_TARGET_ICE
 #define SIMSIMD_TARGET_ICE 0
 #endif
-#endif // !defined(SIMSIMD_TARGET_ICE)
-#if !defined(SIMSIMD_TARGET_GENOA) || (SIMSIMD_TARGET_GENOA && !SIMSIMD_TARGET_X86)
+#endif // !defined(SIMSIMD_TARGET_ICE) || ...
+#if !defined(SIMSIMD_TARGET_GENOA) || (SIMSIMD_TARGET_GENOA && !_SIMSIMD_TARGET_X86)
 #if defined(__AVX512BF16__)
 #define SIMSIMD_TARGET_GENOA 1
 #else
 #undef SIMSIMD_TARGET_GENOA
 #define SIMSIMD_TARGET_GENOA 0
 #endif
-#endif // !defined(SIMSIMD_TARGET_GENOA)
-#if !defined(SIMSIMD_TARGET_SAPPHIRE) || (SIMSIMD_TARGET_SAPPHIRE && !SIMSIMD_TARGET_X86)
+#endif // !defined(SIMSIMD_TARGET_GENOA) || ...
+#if !defined(SIMSIMD_TARGET_SAPPHIRE) || (SIMSIMD_TARGET_SAPPHIRE && !_SIMSIMD_TARGET_X86)
 #if defined(__AVX512FP16__)
 #define SIMSIMD_TARGET_SAPPHIRE 1
 #else
 #undef SIMSIMD_TARGET_SAPPHIRE
 #define SIMSIMD_TARGET_SAPPHIRE 0
 #endif
-#endif // !defined(SIMSIMD_TARGET_SAPPHIRE)
+#endif // !defined(SIMSIMD_TARGET_SAPPHIRE) || ...
+#if !defined(SIMSIMD_TARGET_TURIN) || (SIMSIMD_TARGET_TURIN && !_SIMSIMD_TARGET_X86)
+#if defined(__AVX512VP2INTERSECT__)
+#define SIMSIMD_TARGET_TURIN 1
+#else
+#undef SIMSIMD_TARGET_TURIN
+#define SIMSIMD_TARGET_TURIN 0
+#endif
+#endif // !defined(SIMSIMD_TARGET_TURIN) || ...
+#if !defined(SIMSIMD_TARGET_SIERRA) || (SIMSIMD_TARGET_SIERRA && !_SIMSIMD_TARGET_X86)
+#if defined(__AVX2_VNNI__)
+#define SIMSIMD_TARGET_SIERRA 1
+#else
+#undef SIMSIMD_TARGET_SIERRA
+#define SIMSIMD_TARGET_SIERRA 0
+#endif
+#endif // !defined(SIMSIMD_TARGET_SIERRA) || ...
 
 #ifdef _MSC_VER
 #include <intrin.h>
@@ -163,19 +231,25 @@
 #include <arm_neon.h>
 #endif
 
-#if SIMSIMD_TARGET_SVE
+#if SIMSIMD_TARGET_SVE || SIMSIMD_TARGET_SVE2
 #include <arm_sve.h>
 #endif
 
-#if SIMSIMD_TARGET_HASWELL || SIMSIMD_TARGET_SKYLAKE
+#if SIMSIMD_TARGET_HASWELL || SIMSIMD_TARGET_SKYLAKE || SIMSIMD_TARGET_ICE || SIMSIMD_TARGET_GENOA || \
+    SIMSIMD_TARGET_SAPPHIRE || SIMSIMD_TARGET_TURIN
 #include <immintrin.h>
 #endif
 
 #endif
 
+#if !defined(SIMSIMD_SQRT)
+#include <math.h>
+#define SIMSIMD_SQRT(x) (sqrt(x))
+#endif
+
 #if !defined(SIMSIMD_RSQRT)
 #include <math.h>
-#define SIMSIMD_RSQRT(x) (1 / sqrt(x))
+#define SIMSIMD_RSQRT(x) (1 / SIMSIMD_SQRT(x))
 #endif
 
 #if !defined(SIMSIMD_LOG)
@@ -207,6 +281,7 @@ extern "C" {
 #endif
 
 typedef unsigned char simsimd_b8_t;
+typedef unsigned char simsimd_i4x2_t;
 
 typedef signed char simsimd_i8_t;
 typedef unsigned char simsimd_u8_t;
@@ -230,13 +305,13 @@ typedef simsimd_f64_t simsimd_distance_t;
  *  - Default: `unsigned short`.
  */
 #if !defined(SIMSIMD_NATIVE_F16) || SIMSIMD_NATIVE_F16
-#if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) &&                      \
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) && \
     (defined(__ARM_FP16_FORMAT_IEEE))
 #undef SIMSIMD_NATIVE_F16
 #define SIMSIMD_NATIVE_F16 1
 typedef __fp16 simsimd_f16_t;
-#elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) &&                      \
-       (defined(__SSE2__) || defined(__AVX512FP16__)))
+#elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) && \
+       (defined(__AVX512FP16__)))
 typedef _Float16 simsimd_f16_t;
 #undef SIMSIMD_NATIVE_F16
 #define SIMSIMD_NATIVE_F16 1
@@ -261,7 +336,7 @@ typedef unsigned short simsimd_f16_t;
  *  - GCC or Clang on 64-bit x86: `_BFloat16`.
  *  - Default: `unsigned short`.
  *
- *  The compilers have added __bf16 support in compliance with the x86-64 psABI spec.
+ *  The compilers have added `__bf16` support in compliance with the x86-64 psABI spec.
  *  The motivation for this new special type is summed up as:
  *
  *      Currently `__bfloat16` is a typedef of short, which creates a problem where the
@@ -278,13 +353,13 @@ typedef unsigned short simsimd_f16_t;
  *  https://forums.developer.apple.com/forums/thread/726201
  *  https://www.phoronix.com/news/GCC-LLVM-bf16-BFloat16-Type
  */
-#if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) &&                      \
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) && \
     (defined(__ARM_BF16_FORMAT_ALTERNATIVE))
 #undef SIMSIMD_NATIVE_BF16
 #define SIMSIMD_NATIVE_BF16 1
 typedef __bf16 simsimd_bf16_t;
-#elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) &&                      \
-       (defined(__SSE2__) || defined(__AVX512BF16__)))
+#elif ((defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__)) && \
+       (defined(__AVX512BF16__)))
 typedef __bfloat16 simsimd_bf16_t;
 #undef SIMSIMD_NATIVE_BF16
 #define SIMSIMD_NATIVE_BF16 1
@@ -310,7 +385,7 @@ typedef unsigned short simsimd_bf16_t;
  *  Some of those are defined as aliases, so we use `#define` preprocessor
  *  directives instead of `typedef` to avoid errors.
  */
-#if SIMSIMD_TARGET_ARM
+#if _SIMSIMD_TARGET_ARM
 #if defined(_MSC_VER)
 #define simsimd_f16_for_arm_simd_t simsimd_f16_t
 #define simsimd_bf16_for_arm_simd_t simsimd_bf16_t
@@ -325,6 +400,8 @@ typedef unsigned short simsimd_bf16_t;
  *  In C the `_Static_assert` is only available with C 11 and later.
  */
 #define SIMSIMD_STATIC_ASSERT(cond, msg) typedef char static_assertion_##msg[(cond) ? 1 : -1]
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_b8_t) == 1, simsimd_b8_t_must_be_1_byte);
+SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i4x2_t) == 1, simsimd_i4x2_t_must_be_1_byte);
 SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i8_t) == 1, simsimd_i8_t_must_be_1_byte);
 SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u8_t) == 1, simsimd_u8_t_must_be_1_byte);
 SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i16_t) == 2, simsimd_i16_t_must_be_2_bytes);
@@ -369,7 +446,20 @@ SIMSIMD_STATIC_ASSERT(sizeof(simsimd_bf16_t) == 2, simsimd_bf16_t_must_be_2_byte
 #endif
 #endif
 
-/** @brief  Convinience type for half-precision floating-point type conversions. */
+#if !defined(SIMSIMD_F32_TO_I8)
+#define SIMSIMD_F32_TO_I8(x, y) *(y) = (simsimd_i8_t)fminf(fmaxf(roundf(x), -128), 127)
+#endif
+#if !defined(SIMSIMD_F32_TO_U8)
+#define SIMSIMD_F32_TO_U8(x, y) *(y) = (simsimd_u8_t)fminf(fmaxf(roundf(x), 0), 255)
+#endif
+#if !defined(SIMSIMD_F64_TO_I8)
+#define SIMSIMD_F64_TO_I8(x, y) *(y) = (simsimd_i8_t)fmin(fmax(round(x), -128), 127)
+#endif
+#if !defined(SIMSIMD_F64_TO_U8)
+#define SIMSIMD_F64_TO_U8(x, y) *(y) = (simsimd_u8_t)fmin(fmax(round(x), 0), 255)
+#endif
+
+/** @brief  Convenience type for half-precision floating-point type conversions. */
 typedef union {
     unsigned i;
     float f;
@@ -382,7 +472,7 @@ typedef union {
  *  Subsequent additions by hardware manufacturers have made this algorithm redundant for the most part.
  *  For example, on x86, Intel introduced the SSE instruction `rsqrtss` in 1999. In a 2009 benchmark on
  *  the Intel Core 2, this instruction took 0.85ns per float compared to 3.54ns for the fast inverse
- *  square root algorithm, and had less error. Carmack’s Magic Number `rsqrt` had an average error
+ *  square root algorithm, and had less error. Carmack's Magic Number `rsqrt` had an average error
  *  of 0.0990%, while SSE `rsqrtss` had 0.0094%, a 10x improvement.
  *
  *  https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
@@ -418,8 +508,8 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_f16_to_f32(simsimd_f16_t const* x_ptr) {
-    unsigned short x = *(unsigned short const*)x_ptr;
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_f16_to_f32(simsimd_f16_t const *x_ptr) {
+    unsigned short x = *(unsigned short const *)x_ptr;
     unsigned int exponent = (x & 0x7C00) >> 10;
     unsigned int mantissa = (x & 0x03FF) << 13;
     simsimd_f32i32_t mantissa_conv;
@@ -440,7 +530,7 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f16_to_f32(simsimd_f16_t const* x_ptr) {
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-SIMSIMD_PUBLIC void simsimd_f32_to_f16(simsimd_f32_t x, simsimd_f16_t* result_ptr) {
+SIMSIMD_PUBLIC void simsimd_f32_to_f16(simsimd_f32_t x, simsimd_f16_t *result_ptr) {
     simsimd_f32i32_t conv;
     conv.f = x;
     unsigned int b = conv.i + 0x00001000;
@@ -449,7 +539,7 @@ SIMSIMD_PUBLIC void simsimd_f32_to_f16(simsimd_f32_t x, simsimd_f16_t* result_pt
     unsigned short result = ((b & 0x80000000) >> 16) | (e > 112) * ((((e - 112) << 10) & 0x7C00) | (m >> 13)) |
                             ((e < 113) & (e > 101)) * ((((0x007FF000 + m) >> (125 - e)) + 1) >> 1) |
                             ((e > 143) * 0x7FFF);
-    *(unsigned short*)result_ptr = result;
+    *(unsigned short *)result_ptr = result;
 }
 
 /**
@@ -459,8 +549,8 @@ SIMSIMD_PUBLIC void simsimd_f32_to_f16(simsimd_f32_t x, simsimd_f16_t* result_pt
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_bf16_to_f32(simsimd_bf16_t const* x_ptr) {
-    unsigned short x = *(unsigned short const*)x_ptr;
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_bf16_to_f32(simsimd_bf16_t const *x_ptr) {
+    unsigned short x = *(unsigned short const *)x_ptr;
     simsimd_f32i32_t conv;
     conv.i = x << 16; // Zero extends the mantissa
     return conv.f;
@@ -472,22 +562,29 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_bf16_to_f32(simsimd_bf16_t const* x_ptr) {
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
-SIMSIMD_PUBLIC void simsimd_f32_to_bf16(simsimd_f32_t x, simsimd_bf16_t* result_ptr) {
+SIMSIMD_PUBLIC void simsimd_f32_to_bf16(simsimd_f32_t x, simsimd_bf16_t *result_ptr) {
     simsimd_f32i32_t conv;
     conv.f = x;
     conv.i += 0x8000; // Rounding is optional
     conv.i >>= 16;
     // The top 16 bits will be zeroed out anyways
     // conv.i &= 0xFFFF;
-    *(unsigned short*)result_ptr = (unsigned short)conv.i;
+    *(unsigned short *)result_ptr = (unsigned short)conv.i;
 }
 
 /**
  *  @brief  Helper structure for implementing strided matrix row lookups, with @b single-byte-level pointer math.
  */
-SIMSIMD_INTERNAL void* _simsimd_advance_by_bytes(void* ptr, simsimd_size_t bytes) {
-    return (void*)((simsimd_u8_t*)ptr + bytes);
+SIMSIMD_INTERNAL void *_simsimd_advance_by_bytes(void *ptr, simsimd_size_t bytes) {
+    return (void *)((simsimd_u8_t *)ptr + bytes);
 }
+
+SIMSIMD_PUBLIC simsimd_u32_t simsimd_u32_rol(simsimd_u32_t x, int n) { return (x << n) | (x >> (32 - n)); }
+SIMSIMD_PUBLIC simsimd_u16_t simsimd_u16_rol(simsimd_u16_t x, int n) { return (x << n) | (x >> (16 - n)); }
+SIMSIMD_PUBLIC simsimd_u8_t simsimd_u8_rol(simsimd_u8_t x, int n) { return (x << n) | (x >> (8 - n)); }
+SIMSIMD_PUBLIC simsimd_u32_t simsimd_u32_ror(simsimd_u32_t x, int n) { return (x >> n) | (x << (32 - n)); }
+SIMSIMD_PUBLIC simsimd_u16_t simsimd_u16_ror(simsimd_u16_t x, int n) { return (x >> n) | (x << (16 - n)); }
+SIMSIMD_PUBLIC simsimd_u8_t simsimd_u8_ror(simsimd_u8_t x, int n) { return (x >> n) | (x << (8 - n)); }
 
 #ifdef __cplusplus
 } // extern "C"

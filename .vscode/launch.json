@@ -23,7 +23,14 @@
             "stopAtEntry": false,
             "preLaunchTask": "Build Benchmark: Debug",
             "linux": {
-                "MIMode": "gdb"
+                "MIMode": "gdb",
+                "setupCommands": [
+                    {
+                        "description": "Enable pretty-printing for gdb",
+                        "text": "-enable-pretty-printing",
+                        "ignoreFailures": true
+                    }
+                ]
             },
             "osx": {
                 "MIMode": "lldb"
@@ -31,13 +38,13 @@
             "windows": {
                 "type": "cppvsdbg",
                 "program": "${workspaceFolder}/build_debug/simsimd_bench.exe"
-            }
+            },
         },
         {
             "name": "Debug Test",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/test",
+            "program": "${workspaceFolder}/build_debug/simsimd_test_run_time",
             "cwd": "${workspaceFolder}",
             "environment": [
                 {

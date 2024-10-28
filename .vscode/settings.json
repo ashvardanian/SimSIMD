@@ -91,7 +91,11 @@
         "filesystem": "cpp",
         "simsimd.h": "c",
         "format": "c",
-        "execution": "cpp"
+        "execution": "cpp",
+        "math.h": "c",
+        "float.h": "c",
+        "text_encoding": "cpp",
+        "stdio.h": "c"
     },
     "cSpell.words": [
         "allclose",
@@ -151,6 +155,7 @@
         "tanimoto",
         "tparam",
         "typedarray",
+        "unclipped",
         "unnormalized",
         "unsw",
         "Vardanian",
@@ -166,7 +171,7 @@
         "Zilla"
     ],
     "python.testing.pytestArgs": [
-        "python/test.py"
+        "scripts/test.py"
     ],
     "python.testing.unittestEnabled": false,
     "python.testing.pytestEnabled": true
