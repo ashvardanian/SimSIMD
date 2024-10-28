@@ -139,7 +139,7 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_neon(simsimd_b8_t const *a, simsimd_b8_t 
             unions_cycle_vec = vaddq_u8(unions_cycle_vec, or_count_vec);
         }
         intersection += _simsimd_reduce_u8x16_neon(intersections_cycle_vec);
-        union_ += _simsimd_reduce_u8x16_neon(intersections_cycle_vec);
+        union_ += _simsimd_reduce_u8x16_neon(unions_cycle_vec);
     }
     // Handle the tail
     for (; i != n_words; ++i)
