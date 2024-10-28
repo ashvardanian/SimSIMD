@@ -155,13 +155,33 @@ dist = simsimd.vdot(vec1.astype(np.complex64), vec2.astype(np.complex64)) # conj
 ```
 
 Unlike SciPy, SimSIMD allows explicitly stating the precision of the input vectors, which is especially useful for mixed-precision setups.
+The `dtype` argument can be passed both by name and as a positional argument:
 
 ```py
-dist = simsimd.cosine(vec1, vec2, "i8")
-dist = simsimd.cosine(vec1, vec2, "f16")
-dist = simsimd.cosine(vec1, vec2, "f32")
-dist = simsimd.cosine(vec1, vec2, "f64")
+dist = simsimd.cosine(vec1, vec2, "int8")
+dist = simsimd.cosine(vec1, vec2, "float16")
+dist = simsimd.cosine(vec1, vec2, "float32")
+dist = simsimd.cosine(vec1, vec2, "float64")
 dist = simsimd.jaccard(vec1, vec2, "bin8") # Binary vectors with 8-bit words
+```
+
+With other frameworks, like PyTorch, one can get a richer type-system than NumPy, but the lack of good CPython interoperability makes it hard to pass data without copies.
+
+```py
+import numpy as np
+buf1 = np.empty(8, dtype=np.uint16)
+buf2 = np.empty(8, dtype=np.uint16)
+
+# View the same memory region with PyTorch and randomize it
+import torch
+vec1 = torch.asarray(memoryview(buf1), copy=False).view(torch.bfloat16)
+vec2 = torch.asarray(memoryview(buf2), copy=False).view(torch.bfloat16)
+torch.randn(8, out=vec1)
+torch.randn(8, out=vec2)
+
+# Both libs will look into the same memory buffers and report the same results
+dist_slow = 1 - torch.nn.functional.cosine_similarity(vec1, vec2, dim=0)
+dist_fast = simsimd.cosine(buf1, buf2, "bf16")
 ```
 
 It also allows using SimSIMD for half-precision complex numbers, which NumPy does not support.
@@ -232,6 +252,48 @@ matrix1 = np.random.randn(1000, 1536).astype(np.float32)
 matrix2 = np.random.randn(10, 1536).astype(np.float32)
 distances: DistancesTensor = simsimd.cdist(matrix1, matrix2, metric="cosine")   # zero-copy, managed by SimSIMD
 distances_array: np.ndarray = np.array(distances, copy=True)                    # now managed by NumPy
+```
+
+### Elementwise Kernels
+
+SimSIMD also provides mixed-precision elementwise kernels, where the input vectors and the output have the same numeric type, but the intermediate accumulators are of a higher precision.
+
+```py
+import numpy as np
+from simsimd import fma, wsum
+
+# Let's take two FullHD video frames
+first_frame = np.random.randn(1920 * 1024).astype(np.uint8)  
+second_frame = np.random.randn(1920 * 1024).astype(np.uint8)
+average_frame = np.empty_like(first_frame)
+wsum(first_frame, second_frame, alpha=0.5, beta=0.5, out=average_frame)
+
+# Slow analog with NumPy:
+slow_average_frame = (0.5 * first_frame + 0.5 * second_frame).astype(np.uint8)
+```
+
+Similarly, the `fma` takes three arguments and computes the fused multiply-add operation.
+In applications like Machine Learning you may also benefit from using the "brain-float" format not natively supported by NumPy.
+In 3D Graphics, for example, we can use FMA to compute the [Phong shading model](https://en.wikipedia.org/wiki/Phong_shading):
+
+```py
+# Assume a FullHD frame with random values for simplicity
+light_intensity = np.random.rand(1920 * 1080).astype(np.float16)  # Intensity of light on each pixel
+diffuse_component = np.random.rand(1920 * 1080).astype(np.float16)  # Diffuse reflectance on the surface
+specular_component = np.random.rand(1920 * 1080).astype(np.float16)  # Specular reflectance for highlights
+output_color = np.empty_like(light_intensity)  # Array to store the resulting color intensity
+
+# Define the scaling factors for diffuse and specular contributions
+alpha = 0.7  # Weight for the diffuse component
+beta = 0.3   # Weight for the specular component
+
+# Formula: color = alpha * light_intensity * diffuse_component + beta * specular_component
+fma(light_intensity, diffuse_component, specular_component, 
+    dtype="float16", # Optional, unless it can't be inferred from the input
+    alpha=alpha, beta=beta, out=output_color)
+
+# Slow analog with NumPy for comparison
+slow_output_color = (alpha * light_intensity * diffuse_component + beta * specular_component).astype(np.float16)
 ```
 
 ### Multithreading and Memory Usage
@@ -662,7 +724,6 @@ int main() {
     simsimd_vdot_f16c(f16s, f16s, 1536, &distance);
     simsimd_vdot_f32c(f32s, f32s, 1536, &distance);
     simsimd_vdot_f64c(f64s, f64s, 1536, &distance);
-
     return 0;
 }
 ```
@@ -675,13 +736,8 @@ int main() {
 int main() {
     simsimd_b8_t b8s[1536 / 8]; // 8 bits per word
     simsimd_distance_t distance;
-
-    // Hamming distance between two vectors
     simsimd_hamming_b8(b8s, b8s, 1536 / 8, &distance);
-
-    // Jaccard distance between two vectors
     simsimd_jaccard_b8(b8s, b8s, 1536 / 8, &distance);
-
     return 0;
 }
 ```
@@ -706,7 +762,6 @@ int main() {
     simsimd_kl_f16(f16s, f16s, 1536, &distance);
     simsimd_kl_f32(f32s, f32s, 1536, &distance);
     simsimd_kl_f64(f64s, f64s, 1536, &distance);
-
     return 0;
 }
 ```
@@ -948,10 +1003,10 @@ In NumPy terms, the implementation may look like:
 
 ```py
 import numpy as np
-def wsum(A: np.ndarray, B: np.ndarray, Alpha: float, Beta: float) -> np.ndarray:
+def wsum(A: np.ndarray, B: np.ndarray, /, Alpha: float, Beta: float) -> np.ndarray:
     assert A.dtype == B.dtype, "Input types must match and affect the output style"
     return (Alpha * A + Beta * B).astype(A.dtype)
-def fma(A: np.ndarray, B: np.ndarray, C: np.ndarray, Alpha: float, Beta: float) -> np.ndarray:
+def fma(A: np.ndarray, B: np.ndarray, C: np.ndarray, /, Alpha: float, Beta: float) -> np.ndarray:
     assert A.dtype == B.dtype and A.dtype == C.dtype, "Input types must match and affect the output style"
     return (Alpha * A * B + Beta * C).astype(A.dtype)
 ```
