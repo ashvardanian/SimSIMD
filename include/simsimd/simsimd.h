@@ -1091,7 +1091,9 @@ SIMSIMD_INTERNAL void _simsimd_find_metric_punned_u16(simsimd_capability_t v, si
     if (v & simsimd_cap_sve2_k) switch (k) {
         case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_sve2, *c = simsimd_cap_sve2_k; return;
         case simsimd_metric_spdot_counts_k: *m = (m_t)&simsimd_spdot_counts_u16_sve2, *c = simsimd_cap_sve2_k; return;
+#if SIMSIMD_TARGET_SVE_BF16 //! We also need `bf16` support for weights
         case simsimd_metric_spdot_weights_k: *m = (m_t)&simsimd_spdot_weights_u16_sve2, *c = simsimd_cap_sve2_k; return;
+#endif
         default: break;
         }
 #endif

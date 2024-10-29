@@ -148,6 +148,7 @@
         "simd",
         "simsimd",
         "Skylake",
+        "spdot",
         "sqeuclidean",
         "SVMs",
         "tanimoto",
