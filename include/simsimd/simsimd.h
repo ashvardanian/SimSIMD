@@ -2027,6 +2027,8 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16(simsimd_u16_t const *a, simsimd_u16_t 
     simsimd_intersect_u16_sve2(a, b, a_length, b_length, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_intersect_u16_neon(a, b, a_length, b_length, d);
+#elif SIMSIMD_TARGET_TURIN
+    simsimd_intersect_u16_turin(a, b, a_length, b_length, d);
 #elif SIMSIMD_TARGET_ICE
     simsimd_intersect_u16_ice(a, b, a_length, b_length, d);
 #else
@@ -2040,6 +2042,8 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32(simsimd_u32_t const *a, simsimd_u32_t 
     simsimd_intersect_u32_sve2(a, b, a_length, b_length, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_intersect_u32_neon(a, b, a_length, b_length, d);
+#elif SIMSIMD_TARGET_TURIN
+    simsimd_intersect_u32_turin(a, b, a_length, b_length, d);
 #elif SIMSIMD_TARGET_ICE
     simsimd_intersect_u32_ice(a, b, a_length, b_length, d);
 #else
