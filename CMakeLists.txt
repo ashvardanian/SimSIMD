@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 project(
     simsimd
-    VERSION 5.9.4
+    VERSION 5.9.5
     LANGUAGES C CXX
     DESCRIPTION "Portable mixed-precision BLAS-like vector math library for x86 and ARM"
     HOMEPAGE_URL "https://github.com/ashvardanian/simsimd"
