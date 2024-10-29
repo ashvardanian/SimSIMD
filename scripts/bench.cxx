@@ -1,10 +1,11 @@
 #include <cmath>         // `std::sqrt`
 #include <cstdlib>       // `std::aligned_alloc`
 #include <cstring>       // `std::memcpy`
+#include <numeric>       // `std::accumulate`
 #include <random>        // `std::uniform_int_distribution`
 #include <thread>        // `std::thread`
 #include <tuple>         // `std::tuple` for callable introspection
-#include <type_traits>   // ``
+#include <type_traits>   // `std::numeric_limits`
 #include <unordered_set> // `std::unordered_set`
 #include <vector>        // `std::vector`
 
