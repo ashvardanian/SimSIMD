@@ -183,10 +183,10 @@ import numpy as np
 import simsimd as simd
 
 length1, length2 = randint(1, 100), randint(1, 100)
-vec1 = np.random.randint(0, 1000, length1).astype(np.uint16)
-vec2 = np.random.randint(0, 1000, length2).astype(np.uint16)
+vec1 = np.sort(np.random.randint(0, 1000, length1).astype(np.uint16))
+vec2 = np.sort(np.random.randint(0, 1000, length2).astype(np.uint16))
 
-slow_result = np.intersect1d(vec1, vec2)
+slow_result = len(np.intersect1d(vec1, vec2))
 fast_result = simd.intersect(vec1, vec2)
 assert slow_result == fast_result
 ```
