@@ -5,6 +5,8 @@
  *  @date       October 16, 2024
  *
  *  Contains following element-wise operations:
+ *  - Sum (Add): R[i] = A[i] + B[i]
+ *  - Scale (Multiply): R[i] = Alpha * A[i]
  *  - WSum or Weighted-Sum: R[i] = Alpha * A[i] + Beta * B[i]
  *  - FMA or Fused-Multiply-Add: R[i] = Alpha * A[i] * B[i] + Beta * C[i]
  *
@@ -23,8 +25,8 @@
  *  - 8-bit signed integers
  *
  *  For hardware architectures:
- *  - Arm: NEON, SVE
- *  - x86: Haswell, Ice Lake, Skylake, Genoa, Sapphire
+ *  - Arm: NEON
+ *  - x86: Haswell, Skylake, Sapphire
  *
  *  We use `f16` for `i8` and `u8` arithmetic. This is because Arm received `f16` support earlier than `bf16`.
  *  For example, Apple M1 has `f16` support and `bf16` was only added in M2. On the other hand, on paper,
@@ -270,7 +272,7 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_sapphire(                                    
 #pragma GCC target("avx2", "f16c", "fma")
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_add_f32_haswell(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
+SIMSIMD_PUBLIC void simsimd_sum_f32_haswell(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
                                             simsimd_f32_t *result) {
     // The main loop:
     simsimd_size_t i = 0;
@@ -312,7 +314,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_f32_haswell(                         //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_add_f32_haswell(a, b, n, result);
+        simsimd_sum_f32_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
@@ -342,7 +344,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_f32_haswell(                         //
     for (; i < n; ++i) result[i] = alpha_f32 * a[i] + beta_f32 * b[i];
 }
 
-SIMSIMD_PUBLIC void simsimd_add_f64_haswell(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
+SIMSIMD_PUBLIC void simsimd_sum_f64_haswell(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
                                             simsimd_f64_t *result) {
     // The main loop:
     simsimd_size_t i = 0;
@@ -381,7 +383,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_f64_haswell(                         //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_add_f64_haswell(a, b, n, result);
+        simsimd_sum_f64_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
@@ -411,7 +413,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_f64_haswell(                         //
     for (; i < n; ++i) result[i] = alpha * a[i] + beta * b[i];
 }
 
-SIMSIMD_PUBLIC void simsimd_add_f16_haswell(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
+SIMSIMD_PUBLIC void simsimd_sum_f16_haswell(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
                                             simsimd_f16_t *result) {
 
     // The main loop:
@@ -466,7 +468,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_f16_haswell(                         //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_add_f16_haswell(a, b, n, result);
+        simsimd_sum_f16_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
@@ -506,7 +508,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_f16_haswell(                         //
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_add_bf16_haswell(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
+SIMSIMD_PUBLIC void simsimd_sum_bf16_haswell(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
                                              simsimd_bf16_t *result) {
     // The main loop:
     simsimd_size_t i = 0;
@@ -560,7 +562,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_bf16_haswell(                          //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_add_bf16_haswell(a, b, n, result);
+        simsimd_sum_bf16_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
@@ -718,7 +720,7 @@ SIMSIMD_PUBLIC void simsimd_fma_bf16_haswell(                                  /
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_add_i8_haswell(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
+SIMSIMD_PUBLIC void simsimd_sum_i8_haswell(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
                                            simsimd_i8_t *result) {
     // The main loop:
     simsimd_size_t i = 0;
@@ -788,7 +790,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_haswell(                        //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_add_i8_haswell(a, b, n, result);
+        simsimd_sum_i8_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
@@ -847,7 +849,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_haswell(                        //
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_add_u8_haswell(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
+SIMSIMD_PUBLIC void simsimd_sum_u8_haswell(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
                                            simsimd_u8_t *result) {
     // The main loop:
     simsimd_size_t i = 0;
@@ -917,7 +919,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_haswell(                        //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_add_u8_haswell(a, b, n, result);
+        simsimd_sum_u8_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
@@ -1095,11 +1097,11 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_haswell(                                     
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "bmi2")
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,bmi2"))), apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_add_f64_skylake(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
+SIMSIMD_PUBLIC void simsimd_sum_f64_skylake(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
                                             simsimd_f64_t *result) {
     __m512d a_vec, b_vec, sum_vec;
     __mmask8 mask = 0xFF;
-simsimd_add_f64_skylake_cycle:
+simsimd_sum_f64_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_pd(mask, a);
@@ -1114,7 +1116,7 @@ simsimd_add_f64_skylake_cycle:
     sum_vec = _mm512_add_pd(a_vec, b_vec);
     _mm512_mask_storeu_pd(result, mask, sum_vec);
     result += 8;
-    if (n) goto simsimd_add_f64_skylake_cycle;
+    if (n) goto simsimd_sum_f64_skylake_cycle;
 }
 
 SIMSIMD_PUBLIC void simsimd_scale_f64_skylake(simsimd_f64_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
@@ -1146,7 +1148,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_f64_skylake(                         //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_add_f64_skylake(a, b, n, result);
+        simsimd_sum_f64_skylake(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
@@ -1181,12 +1183,12 @@ simsimd_wsum_f64_skylake_cycle:
     if (n) goto simsimd_wsum_f64_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_add_f32_skylake(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
+SIMSIMD_PUBLIC void simsimd_sum_f32_skylake(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
                                             simsimd_f32_t *result) {
     __m512 a_vec, b_vec, sum_vec;
     __mmask16 mask = 0xFFFF;
 
-simsimd_add_f32_skylake_cycle:
+simsimd_sum_f32_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_ps(mask, a);
@@ -1201,7 +1203,7 @@ simsimd_add_f32_skylake_cycle:
     sum_vec = _mm512_add_ps(a_vec, b_vec);
     _mm512_mask_storeu_ps(result, mask, sum_vec);
     result += 16;
-    if (n) goto simsimd_add_f32_skylake_cycle;
+    if (n) goto simsimd_sum_f32_skylake_cycle;
 }
 
 SIMSIMD_PUBLIC void simsimd_scale_f32_skylake(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
@@ -1234,7 +1236,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_f32_skylake(                         //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_add_f32_skylake(a, b, n, result);
+        simsimd_sum_f32_skylake(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
@@ -1269,12 +1271,12 @@ simsimd_wsum_f32_skylake_cycle:
     if (n) goto simsimd_wsum_f32_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_add_bf16_skylake(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
+SIMSIMD_PUBLIC void simsimd_sum_bf16_skylake(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
                                              simsimd_bf16_t *result) {
     __m256i a_bf16_vec, b_bf16_vec, sum_bf16_vec;
     __m512 a_vec, b_vec, sum_vec;
     __mmask16 mask = 0xFFFF;
-simsimd_add_bf16_skylake_cycle:
+simsimd_sum_bf16_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_bf16_vec = _mm256_maskz_loadu_epi16(mask, a);
@@ -1292,7 +1294,7 @@ simsimd_add_bf16_skylake_cycle:
     sum_bf16_vec = _simsimd_f32x16_to_bf16x16_skylake(sum_vec);
     _mm256_mask_storeu_epi16(result, mask, sum_bf16_vec);
     result += 16;
-    if (n) goto simsimd_add_bf16_skylake_cycle;
+    if (n) goto simsimd_sum_bf16_skylake_cycle;
 }
 
 SIMSIMD_PUBLIC void simsimd_scale_bf16_skylake(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
@@ -1327,7 +1329,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_bf16_skylake(                          //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_add_bf16_skylake(a, b, n, result);
+        simsimd_sum_bf16_skylake(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
@@ -1471,12 +1473,12 @@ simsimd_fma_bf16_skylake_cycle:
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512fp16"))), \
                              apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_add_f16_sapphire(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
+SIMSIMD_PUBLIC void simsimd_sum_f16_sapphire(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
                                              simsimd_f16_t *result) {
     __mmask32 mask = 0xFFFFFFFF;
     __m512h a_f16_vec, b_f16_vec;
     __m512h sum_f16_vec;
-simsimd_add_f16_sapphire_cycle:
+simsimd_sum_f16_sapphire_cycle:
     if (n < 32) {
         mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_f16_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a));
@@ -1491,7 +1493,7 @@ simsimd_add_f16_sapphire_cycle:
     sum_f16_vec = _mm512_add_ph(a_f16_vec, b_f16_vec);
     _mm512_mask_storeu_epi16(result, mask, _mm512_castph_si512(sum_f16_vec));
     result += 32;
-    if (n) goto simsimd_add_f16_sapphire_cycle;
+    if (n) goto simsimd_sum_f16_sapphire_cycle;
 }
 
 SIMSIMD_PUBLIC void simsimd_scale_f16_sapphire(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
@@ -1525,7 +1527,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_f16_sapphire(                        //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_add_f16_sapphire(a, b, n, result);
+        simsimd_sum_f16_sapphire(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
@@ -1592,11 +1594,11 @@ simsimd_fma_f16_sapphire_cycle:
     if (n) goto simsimd_fma_f16_sapphire_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_add_u8_sapphire(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
+SIMSIMD_PUBLIC void simsimd_sum_u8_sapphire(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
                                             simsimd_u8_t *result) {
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
     __m512i a_u8_vec, b_u8_vec, sum_u8_vec;
-simsimd_add_u8_sapphire_cycle:
+simsimd_sum_u8_sapphire_cycle:
     if (n < 64) {
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_u8_vec = _mm512_maskz_loadu_epi8(mask, a);
@@ -1611,7 +1613,7 @@ simsimd_add_u8_sapphire_cycle:
     sum_u8_vec = _mm512_adds_epu8(a_u8_vec, b_u8_vec);
     _mm512_mask_storeu_epi8(result, mask, sum_u8_vec);
     result += 64;
-    if (n) goto simsimd_add_u8_sapphire_cycle;
+    if (n) goto simsimd_sum_u8_sapphire_cycle;
 }
 
 SIMSIMD_PUBLIC void simsimd_scale_u8_sapphire(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
@@ -1655,7 +1657,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_sapphire(                       //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_add_u8_sapphire(a, b, n, result);
+        simsimd_sum_u8_sapphire(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
@@ -1706,7 +1708,7 @@ simsimd_wsum_u8_sapphire_cycle:
     if (n) goto simsimd_wsum_u8_sapphire_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_add_i8_sapphire(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
+SIMSIMD_PUBLIC void simsimd_sum_i8_sapphire(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
                                             simsimd_i8_t *result) {
 
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
@@ -1715,7 +1717,7 @@ SIMSIMD_PUBLIC void simsimd_add_i8_sapphire(simsimd_i8_t const *a, simsimd_i8_t 
     __m512h a_scaled_f16_low_vec, a_scaled_f16_high_vec, sum_f16_low_vec, sum_f16_high_vec;
     __m512i sum_i16_low_vec, sum_i16_high_vec;
 
-simsimd_add_i8_sapphire_cycle:
+simsimd_sum_i8_sapphire_cycle:
     if (n < 64) {
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_i8_vec = _mm512_maskz_loadu_epi8(mask, a);
@@ -1730,7 +1732,7 @@ simsimd_add_i8_sapphire_cycle:
     sum_i8_vec = _mm512_adds_epi8(a_i8_vec, b_i8_vec);
     _mm512_mask_storeu_epi8(result, mask, sum_i8_vec);
     result += 64;
-    if (n) goto simsimd_add_i8_sapphire_cycle;
+    if (n) goto simsimd_sum_i8_sapphire_cycle;
 }
 
 SIMSIMD_PUBLIC void simsimd_scale_i8_sapphire(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
@@ -1776,7 +1778,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_sapphire(                       //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_add_i8_sapphire(a, b, n, result);
+        simsimd_sum_i8_sapphire(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
@@ -1945,9 +1947,57 @@ simsimd_fma_u8_sapphire_cycle:
 #pragma GCC target("arch=armv8.2-a+simd")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
 
+SIMSIMD_PUBLIC void simsimd_sum_f32_neon(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
+                                         simsimd_f32_t *result) {
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_vec = vld1q_f32(a + i);
+        float32x4_t b_vec = vld1q_f32(b + i);
+        float32x4_t sum_vec = vaddq_f32(a_vec, b_vec);
+        vst1q_f32(result + i, sum_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) result[i] = a[i] + b[i];
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_f32_neon(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                           simsimd_f32_t *result) {
+    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_vec = vld1q_f32(a + i);
+        float32x4_t sum_vec = vmulq_n_f32(a_vec, alpha_f32);
+        vst1q_f32(result + i, sum_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) result[i] = alpha_f32 * a[i];
+}
+
 SIMSIMD_PUBLIC void simsimd_wsum_f32_neon(                            //
     simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, //
     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result) {
+
+    // There are are several special cases we may want to implement:
+    // 1. Simple addition, when both weights are equal to 1.0.
+    if (alpha == 1 && beta == 1) {
+        // In this case we can avoid expensive multiplications.
+        simsimd_sum_f32_neon(a, b, n, result);
+        return;
+    }
+    // 2. Just scaling, when one of the weights is equal to zero.
+    else if (alpha == 0 || beta == 0) {
+        // In this case we can avoid half of the load instructions.
+        if (beta == 0) { simsimd_scale_f32_neon(a, n, alpha, result); }
+        else { simsimd_scale_f32_neon(b, n, beta, result); }
+        return;
+    }
+
+    // The general case.
     simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
     simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
 
@@ -1997,9 +2047,57 @@ SIMSIMD_PUBLIC void simsimd_fma_f32_neon(                                   //
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
 
+SIMSIMD_PUBLIC void simsimd_sum_bf16_neon(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
+                                          simsimd_bf16_t *result) {
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_vec = vcvt_f32_bf16(vld1_bf16((bfloat16_t const *)a + i));
+        float32x4_t b_vec = vcvt_f32_bf16(vld1_bf16((bfloat16_t const *)b + i));
+        float32x4_t sum_vec = vaddq_f32(a_vec, b_vec);
+        vst1_bf16((bfloat16_t *)result + i, vcvt_bf16_f32(sum_vec));
+    }
+
+    // The tail:
+    for (; i < n; ++i) simsimd_f32_to_bf16(simsimd_bf16_to_f32(a + i) + simsimd_bf16_to_f32(b + i), result + i);
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_bf16_neon(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                            simsimd_bf16_t *result) {
+    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_vec = vcvt_f32_bf16(vld1_bf16((bfloat16_t const *)a + i));
+        float32x4_t sum_vec = vmulq_n_f32(a_vec, alpha_f32);
+        vst1_bf16((bfloat16_t *)result + i, vcvt_bf16_f32(sum_vec));
+    }
+
+    // The tail:
+    for (; i < n; ++i) simsimd_f32_to_bf16(alpha_f32 * simsimd_bf16_to_f32(a + i), result + i);
+}
+
 SIMSIMD_PUBLIC void simsimd_wsum_bf16_neon(                             //
     simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, //
     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result) {
+
+    // There are are several special cases we may want to implement:
+    // 1. Simple addition, when both weights are equal to 1.0.
+    if (alpha == 1 && beta == 1) {
+        // In this case we can avoid expensive multiplications.
+        simsimd_sum_bf16_neon(a, b, n, result);
+        return;
+    }
+    // 2. Just scaling, when one of the weights is equal to zero.
+    else if (alpha == 0 || beta == 0) {
+        // In this case we can avoid half of the load instructions.
+        if (beta == 0) { simsimd_scale_bf16_neon(a, n, alpha, result); }
+        else { simsimd_scale_bf16_neon(b, n, beta, result); }
+        return;
+    }
+
+    // The general case.
     simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
     simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
 
@@ -2053,9 +2151,56 @@ SIMSIMD_PUBLIC void simsimd_fma_bf16_neon(                                     /
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 
+SIMSIMD_PUBLIC void simsimd_sum_f16_neon(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
+                                         simsimd_f16_t *result) {
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        float16x8_t a_vec = vld1q_f16((float16_t const *)a + i);
+        float16x8_t b_vec = vld1q_f16((float16_t const *)b + i);
+        float16x8_t sum_vec = vaddq_f16(a_vec, b_vec);
+        vst1q_f16((float16_t *)result + i, sum_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) ((float16_t *)result)[i] = ((float16_t const *)a)[i] + ((float16_t const *)b)[i];
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_f16_neon(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                           simsimd_f16_t *result) {
+    float16_t alpha_f16 = (float16_t)alpha;
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        float16x8_t a_vec = vld1q_f16((float16_t const *)a + i);
+        float16x8_t sum_vec = vmulq_n_f16(a_vec, alpha_f16);
+        vst1q_f16((float16_t *)result + i, sum_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) ((float16_t *)result)[i] = alpha_f16 * ((float16_t const *)a)[i];
+}
+
 SIMSIMD_PUBLIC void simsimd_wsum_f16_neon(                            //
     simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, //
     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result) {
+    // There are are several special cases we may want to implement:
+    // 1. Simple addition, when both weights are equal to 1.0.
+    if (alpha == 1 && beta == 1) {
+        // In this case we can avoid expensive multiplications.
+        simsimd_sum_f16_neon(a, b, n, result);
+        return;
+    }
+    // 2. Just scaling, when one of the weights is equal to zero.
+    else if (alpha == 0 || beta == 0) {
+        // In this case we can avoid half of the load instructions.
+        if (beta == 0) { simsimd_scale_f16_neon(a, n, alpha, result); }
+        else { simsimd_scale_f16_neon(b, n, beta, result); }
+        return;
+    }
+
+    // The general case.
     float16_t alpha_f16 = (float16_t)alpha;
     float16_t beta_f16 = (float16_t)beta;
 
@@ -2099,9 +2244,59 @@ SIMSIMD_PUBLIC void simsimd_fma_f16_neon(                                   //
             alpha_f16 * ((float16_t const *)a)[i] * ((float16_t const *)b)[i] + beta_f16 * ((float16_t const *)c)[i];
 }
 
+SIMSIMD_PUBLIC void simsimd_sum_u8_neon(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
+                                        simsimd_u8_t *result) {
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 16 <= n; i += 16) {
+        uint8x16_t a_vec = vld1q_u8(a + i);
+        uint8x16_t b_vec = vld1q_u8(b + i);
+        uint8x16_t sum_vec = vqaddq_u8(a_vec, b_vec);
+        vst1q_u8(result + i, sum_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) { SIMSIMD_F32_TO_U8(a[i] + b[i], result + i); }
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_u8_neon(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                          simsimd_u8_t *result) {
+    float16_t alpha_f16 = (float16_t)alpha;
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        uint8x8_t a_u8_vec = vld1_u8(a + i);
+        float16x8_t a_vec = vcvtq_f16_u16(vmovl_u8(a_u8_vec));
+        float16x8_t sum_vec = vmulq_n_f16(a_vec, alpha_f16);
+        uint8x8_t sum_u8_vec = vqmovn_u16(vcvtaq_u16_f16(sum_vec));
+        vst1_u8(result + i, sum_u8_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) { SIMSIMD_F32_TO_U8(alpha_f16 * a[i], result + i); }
+}
+
 SIMSIMD_PUBLIC void simsimd_wsum_u8_neon(                           //
     simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, //
     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result) {
+
+    // There are are several special cases we may want to implement:
+    // 1. Simple addition, when both weights are equal to 1.0.
+    if (alpha == 1 && beta == 1) {
+        // In this case we can avoid expensive multiplications.
+        simsimd_sum_u8_neon(a, b, n, result);
+        return;
+    }
+    // 2. Just scaling, when one of the weights is equal to zero.
+    else if (alpha == 0 || beta == 0) {
+        // In this case we can avoid half of the load instructions.
+        if (beta == 0) { simsimd_scale_u8_neon(a, n, alpha, result); }
+        else { simsimd_scale_u8_neon(b, n, beta, result); }
+        return;
+    }
+
+    // The general case.
     float16_t alpha_f16 = (float16_t)alpha;
     float16_t beta_f16 = (float16_t)beta;
 
@@ -2149,9 +2344,59 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_neon(                                 //
     for (; i < n; ++i) { SIMSIMD_F32_TO_U8(alpha_f16 * a[i] * b[i] + beta_f16 * c[i], result + i); }
 }
 
+SIMSIMD_PUBLIC void simsimd_sum_i8_neon(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
+                                        simsimd_i8_t *result) {
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 16 <= n; i += 16) {
+        int8x16_t a_vec = vld1q_s8(a + i);
+        int8x16_t b_vec = vld1q_s8(b + i);
+        int8x16_t sum_vec = vqaddq_s8(a_vec, b_vec);
+        vst1q_s8(result + i, sum_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) { SIMSIMD_F32_TO_I8(a[i] + b[i], result + i); }
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_i8_neon(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                          simsimd_i8_t *result) {
+    float16_t alpha_f16 = (float16_t)alpha;
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        int8x8_t a_i8_vec = vld1_s8(a + i);
+        float16x8_t a_vec = vcvtq_f16_s16(vmovl_s8(a_i8_vec));
+        float16x8_t sum_vec = vmulq_n_f16(a_vec, alpha_f16);
+        int8x8_t sum_i8_vec = vqmovn_s16(vcvtaq_s16_f16(sum_vec));
+        vst1_s8(result + i, sum_i8_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) { SIMSIMD_F32_TO_I8(alpha_f16 * a[i], result + i); }
+}
+
 SIMSIMD_PUBLIC void simsimd_wsum_i8_neon(                           //
     simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, //
     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result) {
+
+    // There are are several special cases we may want to implement:
+    // 1. Simple addition, when both weights are equal to 1.0.
+    if (alpha == 1 && beta == 1) {
+        // In this case we can avoid expensive multiplications.
+        simsimd_sum_i8_neon(a, b, n, result);
+        return;
+    }
+    // 2. Just scaling, when one of the weights is equal to zero.
+    else if (alpha == 0 || beta == 0) {
+        // In this case we can avoid half of the load instructions.
+        if (beta == 0) { simsimd_scale_i8_neon(a, n, alpha, result); }
+        else { simsimd_scale_i8_neon(b, n, beta, result); }
+        return;
+    }
+
+    // The general case.
     float16_t alpha_f16 = (float16_t)alpha;
     float16_t beta_f16 = (float16_t)beta;
 
