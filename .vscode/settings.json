@@ -131,6 +131,7 @@
         "Logarithmotechnia",
         "maccs",
         "maskz",
+        "musllinux",
         "napi",
         "ndarray",
         "Needleman",
@@ -166,6 +167,7 @@
         "VNNI",
         "vpopcntdq",
         "Wojciech",
+        "wsum",
         "Wunsch",
         "Zilla"
     ],

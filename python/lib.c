@@ -1582,6 +1582,510 @@ static PyObject *api_intersect(PyObject *self, PyObject *const *args, Py_ssize_t
     return implement_sparse_metric(simsimd_metric_intersect_k, args, nargs);
 }
 
+static char const doc_scale[] = //
+    "Scale and Shift an input vectors.\n\n"
+    "Args:\n"
+    "    a (NDArray): Vector.\n"
+    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
+    "    alpha (float, optional): First scale, 1.0 by default.\n"
+    "    beta (float, optional): Shift, 0.0 by default.\n"
+    "    out (NDArray, optional): Vector for resulting distances.\n\n"
+    "Returns:\n"
+    "    DistancesTensor: The distances if `out` is not provided.\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
+    "Equivalent to: `alpha * a + beta`.\n"
+    "Signature:\n"
+    "    >>> def scale(a, /, dtype, *, alpha, beta, out) -> Optional[DistancesTensor]: ...";
+
+static PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                           PyObject *args_names_tuple) {
+
+    PyObject *return_obj = NULL;
+
+    // This function accepts up to 5 arguments:
+    PyObject *a_obj = NULL;     // Required object, positional-only
+    PyObject *dtype_obj = NULL; // Optional object, "dtype" keyword or positional
+    PyObject *out_obj = NULL;   // Optional object, "out" keyword-only
+    PyObject *alpha_obj = NULL; // Optional object, "alpha" keyword-only
+    PyObject *beta_obj = NULL;  // Optional object, "beta" keyword-only
+
+    // Once parsed, the arguments will be stored in these variables:
+    char const *dtype_str = NULL;
+    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
+    simsimd_distance_t alpha = 1, beta = 0;
+
+    Py_buffer a_buffer, out_buffer;
+    TensorArgument a_parsed, out_parsed;
+    memset(&a_buffer, 0, sizeof(Py_buffer));
+    memset(&out_buffer, 0, sizeof(Py_buffer));
+
+    Py_ssize_t const args_names_count = args_names_tuple ? PyTuple_Size(args_names_tuple) : 0;
+    Py_ssize_t const args_count = positional_args_count + args_names_count;
+    if (args_count < 2 || args_count > 5) {
+        PyErr_Format(PyExc_TypeError, "Function expects 2-5 arguments, got %zd", args_count);
+        return NULL;
+    }
+    if (positional_args_count > 2) {
+        PyErr_Format(PyExc_TypeError, "Only first 2 arguments can be positional, received %zd", positional_args_count);
+        return NULL;
+    }
+
+    // Positional-only arguments (first matrix)
+    a_obj = args[0];
+
+    // Positional or keyword arguments (dtype)
+    if (positional_args_count == 2) dtype_obj = args[1];
+
+    // The rest of the arguments must be checked in the keyword dictionary:
+    for (Py_ssize_t args_names_tuple_progress = 0, args_progress = positional_args_count;
+         args_names_tuple_progress < args_names_count; ++args_progress, ++args_names_tuple_progress) {
+        PyObject *const key = PyTuple_GetItem(args_names_tuple, args_names_tuple_progress);
+        PyObject *const value = args[args_progress];
+        if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0 && !dtype_obj) { dtype_obj = value; }
+        else if (PyUnicode_CompareWithASCIIString(key, "out") == 0 && !out_obj) { out_obj = value; }
+        else if (PyUnicode_CompareWithASCIIString(key, "alpha") == 0 && !alpha_obj) { alpha_obj = value; }
+        else if (PyUnicode_CompareWithASCIIString(key, "beta") == 0 && !beta_obj) { beta_obj = value; }
+        else {
+            PyErr_Format(PyExc_TypeError, "Got unexpected keyword argument: %S", key);
+            return NULL;
+        }
+    }
+
+    // Convert `dtype_obj` to `dtype_str` and to `dtype`
+    if (dtype_obj) {
+        dtype_str = PyUnicode_AsUTF8(dtype_obj);
+        if (!dtype_str && PyErr_Occurred()) {
+            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
+            return NULL;
+        }
+        dtype = python_string_to_datatype(dtype_str);
+        if (dtype == simsimd_datatype_unknown_k) {
+            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
+            return NULL;
+        }
+    }
+
+    // Convert `alpha_obj` to `alpha` and `beta_obj` to `beta`
+    if (alpha_obj) alpha = PyFloat_AsDouble(alpha_obj);
+    if (beta_obj) beta = PyFloat_AsDouble(beta_obj);
+    if (PyErr_Occurred()) {
+        PyErr_SetString(PyExc_TypeError, "Expected 'alpha' and 'beta' to be a float");
+        return NULL;
+    }
+
+    // Convert `a_obj` to `a_buffer` and to `a_parsed`.
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed)) return NULL;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) return NULL;
+
+    // Check dimensions
+    if (a_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
+        PyErr_SetString(PyExc_ValueError, "All tensors must be vectors");
+        goto cleanup;
+    }
+    if (out_obj && a_parsed.dimensions != out_parsed.dimensions) {
+        PyErr_SetString(PyExc_ValueError, "Vector dimensions don't match");
+        goto cleanup;
+    }
+
+    // Check data types
+    if (a_parsed.datatype == simsimd_datatype_unknown_k ||
+        (out_obj && out_parsed.datatype == simsimd_datatype_unknown_k)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
+        goto cleanup;
+    }
+    if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
+
+    // Look up the metric and the capability
+    simsimd_kernel_scale_punned_t metric = NULL;
+    simsimd_capability_t capability = simsimd_cap_serial_k;
+    simsimd_metric_kind_t const metric_kind = simsimd_metric_scale_k;
+    simsimd_find_metric_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_metric_punned_t *)&metric, &capability);
+    if (!metric) {
+        PyErr_Format( //
+            PyExc_LookupError,
+            "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s') and "
+            "`dtype` override ('%s'/'%s')",
+            metric_kind,                                                                             //
+            a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
+            dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
+        goto cleanup;
+    }
+
+    char *distances_start = NULL;
+    size_t distances_stride_bytes = 0;
+
+    // Allocate the output matrix if it wasn't provided
+    if (!out_obj) {
+        DistancesTensor *distances_obj =
+            PyObject_NewVar(DistancesTensor, &DistancesTensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
+        if (!distances_obj) {
+            PyErr_NoMemory();
+            goto cleanup;
+        }
+
+        // Initialize the object
+        distances_obj->datatype = dtype;
+        distances_obj->dimensions = 1;
+        distances_obj->shape[0] = a_parsed.dimensions;
+        distances_obj->shape[1] = 1;
+        distances_obj->strides[0] = bytes_per_datatype(dtype);
+        distances_obj->strides[1] = 0;
+        return_obj = (PyObject *)distances_obj;
+        distances_start = (char *)&distances_obj->start[0];
+        distances_stride_bytes = distances_obj->strides[0];
+    }
+    else {
+        distances_start = (char *)&out_parsed.start[0];
+        distances_stride_bytes = out_buffer.strides[0];
+        //? Logic suggests to return `None` in in-place mode...
+        //? SciPy decided differently.
+        return_obj = Py_None;
+    }
+
+    metric(a_parsed.start, a_parsed.dimensions, alpha, beta, distances_start);
+cleanup:
+    PyBuffer_Release(&a_buffer);
+    PyBuffer_Release(&out_buffer);
+    return return_obj;
+}
+
+static char const doc_sum[] = //
+    "Element-wise Sum of 2 input vectors.\n\n"
+    "Args:\n"
+    "    a (NDArray): First vector.\n"
+    "    b (NDArray): Second vector.\n"
+    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
+    "    out (NDArray, optional): Vector for resulting distances.\n\n"
+    "Returns:\n"
+    "    DistancesTensor: The distances if `out` is not provided.\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
+    "Equivalent to: `a + b`.\n"
+    "Signature:\n"
+    "    >>> def sum(a, b, /, dtype, *, out) -> Optional[DistancesTensor]: ...";
+
+static PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                         PyObject *args_names_tuple) {
+
+    PyObject *return_obj = NULL;
+
+    // This function accepts up to 4 arguments:
+    PyObject *a_obj = NULL;     // Required object, positional-only
+    PyObject *b_obj = NULL;     // Required object, positional-only
+    PyObject *dtype_obj = NULL; // Optional object, "dtype" keyword or positional
+    PyObject *out_obj = NULL;   // Optional object, "out" keyword-only
+
+    // Once parsed, the arguments will be stored in these variables:
+    char const *dtype_str = NULL;
+    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
+
+    Py_buffer a_buffer, b_buffer, out_buffer;
+    TensorArgument a_parsed, b_parsed, out_parsed;
+    memset(&a_buffer, 0, sizeof(Py_buffer));
+    memset(&b_buffer, 0, sizeof(Py_buffer));
+    memset(&out_buffer, 0, sizeof(Py_buffer));
+
+    Py_ssize_t const args_names_count = args_names_tuple ? PyTuple_Size(args_names_tuple) : 0;
+    Py_ssize_t const args_count = positional_args_count + args_names_count;
+    if (args_count < 2 || args_count > 4) {
+        PyErr_Format(PyExc_TypeError, "Function expects 2-4 arguments, got %zd", args_count);
+        return NULL;
+    }
+    if (positional_args_count > 3) {
+        PyErr_Format(PyExc_TypeError, "Only first 3 arguments can be positional, received %zd", positional_args_count);
+        return NULL;
+    }
+
+    // Positional-only arguments (first and second matrix)
+    a_obj = args[0];
+    b_obj = args[1];
+
+    // Positional or keyword arguments (dtype)
+    if (positional_args_count == 3) dtype_obj = args[2];
+
+    // The rest of the arguments must be checked in the keyword dictionary:
+    for (Py_ssize_t args_names_tuple_progress = 0, args_progress = positional_args_count;
+         args_names_tuple_progress < args_names_count; ++args_progress, ++args_names_tuple_progress) {
+        PyObject *const key = PyTuple_GetItem(args_names_tuple, args_names_tuple_progress);
+        PyObject *const value = args[args_progress];
+        if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0 && !dtype_obj) { dtype_obj = value; }
+        else if (PyUnicode_CompareWithASCIIString(key, "out") == 0 && !out_obj) { out_obj = value; }
+        else {
+            PyErr_Format(PyExc_TypeError, "Got unexpected keyword argument: %S", key);
+            return NULL;
+        }
+    }
+
+    // Convert `dtype_obj` to `dtype_str` and to `dtype`
+    if (dtype_obj) {
+        dtype_str = PyUnicode_AsUTF8(dtype_obj);
+        if (!dtype_str && PyErr_Occurred()) {
+            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
+            return NULL;
+        }
+        dtype = python_string_to_datatype(dtype_str);
+        if (dtype == simsimd_datatype_unknown_k) {
+            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
+            return NULL;
+        }
+    }
+
+    // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) return NULL;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) return NULL;
+
+    // Check dimensions
+    if (a_parsed.rank != 1 || b_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
+        PyErr_SetString(PyExc_ValueError, "All tensors must be vectors");
+        goto cleanup;
+    }
+    if (a_parsed.dimensions != b_parsed.dimensions || (out_obj && a_parsed.dimensions != out_parsed.dimensions)) {
+        PyErr_SetString(PyExc_ValueError, "Vector dimensions don't match");
+        goto cleanup;
+    }
+
+    // Check data types
+    if (a_parsed.datatype != b_parsed.datatype || a_parsed.datatype == simsimd_datatype_unknown_k ||
+        b_parsed.datatype == simsimd_datatype_unknown_k ||
+        (out_obj && out_parsed.datatype == simsimd_datatype_unknown_k)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
+        goto cleanup;
+    }
+    if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
+
+    // Look up the metric and the capability
+    simsimd_kernel_sum_punned_t metric = NULL;
+    simsimd_capability_t capability = simsimd_cap_serial_k;
+    simsimd_metric_kind_t const metric_kind = simsimd_metric_sum_k;
+    simsimd_find_metric_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_metric_punned_t *)&metric, &capability);
+    if (!metric) {
+        PyErr_Format( //
+            PyExc_LookupError,
+            "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s') and "
+            "`dtype` override ('%s'/'%s')",
+            metric_kind,                                                                             //
+            a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
+            dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
+        goto cleanup;
+    }
+
+    char *distances_start = NULL;
+    size_t distances_stride_bytes = 0;
+
+    // Allocate the output matrix if it wasn't provided
+    if (!out_obj) {
+        DistancesTensor *distances_obj =
+            PyObject_NewVar(DistancesTensor, &DistancesTensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
+        if (!distances_obj) {
+            PyErr_NoMemory();
+            goto cleanup;
+        }
+
+        // Initialize the object
+        distances_obj->datatype = dtype;
+        distances_obj->dimensions = 1;
+        distances_obj->shape[0] = a_parsed.dimensions;
+        distances_obj->shape[1] = 1;
+        distances_obj->strides[0] = bytes_per_datatype(dtype);
+        distances_obj->strides[1] = 0;
+        return_obj = (PyObject *)distances_obj;
+        distances_start = (char *)&distances_obj->start[0];
+        distances_stride_bytes = distances_obj->strides[0];
+    }
+    else {
+        distances_start = (char *)&out_parsed.start[0];
+        distances_stride_bytes = out_buffer.strides[0];
+        //? Logic suggests to return `None` in in-place mode...
+        //? SciPy decided differently.
+        return_obj = Py_None;
+    }
+
+    metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, distances_start);
+cleanup:
+    PyBuffer_Release(&a_buffer);
+    PyBuffer_Release(&b_buffer);
+    PyBuffer_Release(&out_buffer);
+    return return_obj;
+}
+
+static char const doc_wsum[] = //
+    "Weighted Sum of 2 input vectors.\n\n"
+    "Args:\n"
+    "    a (NDArray): First vector.\n"
+    "    b (NDArray): Second vector.\n"
+    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
+    "    alpha (float, optional): First scale, 1.0 by default.\n"
+    "    beta (float, optional): Second scale, 1.0 by default.\n"
+    "    out (NDArray, optional): Vector for resulting distances.\n\n"
+    "Returns:\n"
+    "    DistancesTensor: The distances if `out` is not provided.\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
+    "Equivalent to: `alpha * a + beta * b`.\n"
+    "Signature:\n"
+    "    >>> def wsum(a, b, /, dtype, *, alpha, beta, out) -> Optional[DistancesTensor]: ...";
+
+static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                          PyObject *args_names_tuple) {
+
+    PyObject *return_obj = NULL;
+
+    // This function accepts up to 6 arguments:
+    PyObject *a_obj = NULL;     // Required object, positional-only
+    PyObject *b_obj = NULL;     // Required object, positional-only
+    PyObject *dtype_obj = NULL; // Optional object, "dtype" keyword or positional
+    PyObject *out_obj = NULL;   // Optional object, "out" keyword-only
+    PyObject *alpha_obj = NULL; // Optional object, "alpha" keyword-only
+    PyObject *beta_obj = NULL;  // Optional object, "beta" keyword-only
+
+    // Once parsed, the arguments will be stored in these variables:
+    char const *dtype_str = NULL;
+    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
+    simsimd_distance_t alpha = 1, beta = 1;
+
+    Py_buffer a_buffer, b_buffer, out_buffer;
+    TensorArgument a_parsed, b_parsed, out_parsed;
+    memset(&a_buffer, 0, sizeof(Py_buffer));
+    memset(&b_buffer, 0, sizeof(Py_buffer));
+    memset(&out_buffer, 0, sizeof(Py_buffer));
+
+    Py_ssize_t const args_names_count = args_names_tuple ? PyTuple_Size(args_names_tuple) : 0;
+    Py_ssize_t const args_count = positional_args_count + args_names_count;
+    if (args_count < 2 || args_count > 6) {
+        PyErr_Format(PyExc_TypeError, "Function expects 2-6 arguments, got %zd", args_count);
+        return NULL;
+    }
+    if (positional_args_count > 3) {
+        PyErr_Format(PyExc_TypeError, "Only first 3 arguments can be positional, received %zd", positional_args_count);
+        return NULL;
+    }
+
+    // Positional-only arguments (first and second matrix)
+    a_obj = args[0];
+    b_obj = args[1];
+
+    // Positional or keyword arguments (dtype)
+    if (positional_args_count == 3) dtype_obj = args[2];
+
+    // The rest of the arguments must be checked in the keyword dictionary:
+    for (Py_ssize_t args_names_tuple_progress = 0, args_progress = positional_args_count;
+         args_names_tuple_progress < args_names_count; ++args_progress, ++args_names_tuple_progress) {
+        PyObject *const key = PyTuple_GetItem(args_names_tuple, args_names_tuple_progress);
+        PyObject *const value = args[args_progress];
+        if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0 && !dtype_obj) { dtype_obj = value; }
+        else if (PyUnicode_CompareWithASCIIString(key, "out") == 0 && !out_obj) { out_obj = value; }
+        else if (PyUnicode_CompareWithASCIIString(key, "alpha") == 0 && !alpha_obj) { alpha_obj = value; }
+        else if (PyUnicode_CompareWithASCIIString(key, "beta") == 0 && !beta_obj) { beta_obj = value; }
+        else {
+            PyErr_Format(PyExc_TypeError, "Got unexpected keyword argument: %S", key);
+            return NULL;
+        }
+    }
+
+    // Convert `dtype_obj` to `dtype_str` and to `dtype`
+    if (dtype_obj) {
+        dtype_str = PyUnicode_AsUTF8(dtype_obj);
+        if (!dtype_str && PyErr_Occurred()) {
+            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
+            return NULL;
+        }
+        dtype = python_string_to_datatype(dtype_str);
+        if (dtype == simsimd_datatype_unknown_k) {
+            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
+            return NULL;
+        }
+    }
+
+    // Convert `alpha_obj` to `alpha` and `beta_obj` to `beta`
+    if (alpha_obj) alpha = PyFloat_AsDouble(alpha_obj);
+    if (beta_obj) beta = PyFloat_AsDouble(beta_obj);
+    if (PyErr_Occurred()) {
+        PyErr_SetString(PyExc_TypeError, "Expected 'alpha' and 'beta' to be a float");
+        return NULL;
+    }
+
+    // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) return NULL;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) return NULL;
+
+    // Check dimensions
+    if (a_parsed.rank != 1 || b_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
+        PyErr_SetString(PyExc_ValueError, "All tensors must be vectors");
+        goto cleanup;
+    }
+    if (a_parsed.dimensions != b_parsed.dimensions || (out_obj && a_parsed.dimensions != out_parsed.dimensions)) {
+        PyErr_SetString(PyExc_ValueError, "Vector dimensions don't match");
+        goto cleanup;
+    }
+
+    // Check data types
+    if (a_parsed.datatype != b_parsed.datatype || a_parsed.datatype == simsimd_datatype_unknown_k ||
+        b_parsed.datatype == simsimd_datatype_unknown_k ||
+        (out_obj && out_parsed.datatype == simsimd_datatype_unknown_k)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
+        goto cleanup;
+    }
+    if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
+
+    // Look up the metric and the capability
+    simsimd_kernel_wsum_punned_t metric = NULL;
+    simsimd_capability_t capability = simsimd_cap_serial_k;
+    simsimd_metric_kind_t const metric_kind = simsimd_metric_wsum_k;
+    simsimd_find_metric_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_metric_punned_t *)&metric, &capability);
+    if (!metric) {
+        PyErr_Format( //
+            PyExc_LookupError,
+            "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s') and "
+            "`dtype` override ('%s'/'%s')",
+            metric_kind,                                                                             //
+            a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
+            dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
+        goto cleanup;
+    }
+
+    char *distances_start = NULL;
+    size_t distances_stride_bytes = 0;
+
+    // Allocate the output matrix if it wasn't provided
+    if (!out_obj) {
+        DistancesTensor *distances_obj =
+            PyObject_NewVar(DistancesTensor, &DistancesTensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
+        if (!distances_obj) {
+            PyErr_NoMemory();
+            goto cleanup;
+        }
+
+        // Initialize the object
+        distances_obj->datatype = dtype;
+        distances_obj->dimensions = 1;
+        distances_obj->shape[0] = a_parsed.dimensions;
+        distances_obj->shape[1] = 1;
+        distances_obj->strides[0] = bytes_per_datatype(dtype);
+        distances_obj->strides[1] = 0;
+        return_obj = (PyObject *)distances_obj;
+        distances_start = (char *)&distances_obj->start[0];
+        distances_stride_bytes = distances_obj->strides[0];
+    }
+    else {
+        distances_start = (char *)&out_parsed.start[0];
+        distances_stride_bytes = out_buffer.strides[0];
+        //? Logic suggests to return `None` in in-place mode...
+        //? SciPy decided differently.
+        return_obj = Py_None;
+    }
+
+    metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, alpha, beta, distances_start);
+cleanup:
+    PyBuffer_Release(&a_buffer);
+    PyBuffer_Release(&b_buffer);
+    PyBuffer_Release(&out_buffer);
+    return return_obj;
+}
+
 static char const doc_fma[] = //
     "Fused-Multiply-Add between 3 input vectors.\n\n"
     "Args:\n"
@@ -1765,181 +2269,6 @@ cleanup:
     return return_obj;
 }
 
-static char const doc_wsum[] = //
-    "Weighted Sum of 2 input vectors.\n\n"
-    "Args:\n"
-    "    a (NDArray): First vector.\n"
-    "    b (NDArray): Second vector.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
-    "    alpha (float, optional): First scale, 1.0 by default.\n"
-    "    beta (float, optional): Second scale, 1.0 by default.\n"
-    "    out (NDArray, optional): Vector for resulting distances.\n\n"
-    "Returns:\n"
-    "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
-    "Equivalent to: `alpha * a + beta * b`.\n"
-    "Signature:\n"
-    "    >>> def wsum(a, b, /, dtype, *, alpha, beta, out) -> Optional[DistancesTensor]: ...";
-
-static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
-                          PyObject *args_names_tuple) {
-
-    PyObject *return_obj = NULL;
-
-    // This function accepts up to 5 arguments:
-    PyObject *a_obj = NULL;     // Required object, positional-only
-    PyObject *b_obj = NULL;     // Required object, positional-only
-    PyObject *dtype_obj = NULL; // Optional object, "dtype" keyword or positional
-    PyObject *out_obj = NULL;   // Optional object, "out" keyword-only
-    PyObject *alpha_obj = NULL; // Optional object, "alpha" keyword-only
-    PyObject *beta_obj = NULL;  // Optional object, "beta" keyword-only
-
-    // Once parsed, the arguments will be stored in these variables:
-    char const *dtype_str = NULL;
-    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
-    simsimd_distance_t alpha = 1, beta = 1;
-
-    Py_buffer a_buffer, b_buffer, out_buffer;
-    TensorArgument a_parsed, b_parsed, out_parsed;
-    memset(&a_buffer, 0, sizeof(Py_buffer));
-    memset(&b_buffer, 0, sizeof(Py_buffer));
-    memset(&out_buffer, 0, sizeof(Py_buffer));
-
-    Py_ssize_t const args_names_count = args_names_tuple ? PyTuple_Size(args_names_tuple) : 0;
-    Py_ssize_t const args_count = positional_args_count + args_names_count;
-    if (args_count < 2 || args_count > 6) {
-        PyErr_Format(PyExc_TypeError, "Function expects 2-6 arguments, got %zd", args_count);
-        return NULL;
-    }
-    if (positional_args_count > 3) {
-        PyErr_Format(PyExc_TypeError, "Only first 3 arguments can be positional, received %zd", positional_args_count);
-        return NULL;
-    }
-
-    // Positional-only arguments (first and second matrix)
-    a_obj = args[0];
-    b_obj = args[1];
-
-    // Positional or keyword arguments (dtype)
-    if (positional_args_count == 3) dtype_obj = args[2];
-
-    // The rest of the arguments must be checked in the keyword dictionary:
-    for (Py_ssize_t args_names_tuple_progress = 0, args_progress = positional_args_count;
-         args_names_tuple_progress < args_names_count; ++args_progress, ++args_names_tuple_progress) {
-        PyObject *const key = PyTuple_GetItem(args_names_tuple, args_names_tuple_progress);
-        PyObject *const value = args[args_progress];
-        if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0 && !dtype_obj) { dtype_obj = value; }
-        else if (PyUnicode_CompareWithASCIIString(key, "out") == 0 && !out_obj) { out_obj = value; }
-        else if (PyUnicode_CompareWithASCIIString(key, "alpha") == 0 && !alpha_obj) { alpha_obj = value; }
-        else if (PyUnicode_CompareWithASCIIString(key, "beta") == 0 && !beta_obj) { beta_obj = value; }
-        else {
-            PyErr_Format(PyExc_TypeError, "Got unexpected keyword argument: %S", key);
-            return NULL;
-        }
-    }
-
-    // Convert `dtype_obj` to `dtype_str` and to `dtype`
-    if (dtype_obj) {
-        dtype_str = PyUnicode_AsUTF8(dtype_obj);
-        if (!dtype_str && PyErr_Occurred()) {
-            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
-            return NULL;
-        }
-        dtype = python_string_to_datatype(dtype_str);
-        if (dtype == simsimd_datatype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
-            return NULL;
-        }
-    }
-
-    // Convert `alpha_obj` to `alpha` and `beta_obj` to `beta`
-    if (alpha_obj) alpha = PyFloat_AsDouble(alpha_obj);
-    if (beta_obj) beta = PyFloat_AsDouble(beta_obj);
-    if (PyErr_Occurred()) {
-        PyErr_SetString(PyExc_TypeError, "Expected 'alpha' and 'beta' to be a float");
-        return NULL;
-    }
-
-    // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) return NULL;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) return NULL;
-
-    // Check dimensions
-    if (a_parsed.rank != 1 || b_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
-        PyErr_SetString(PyExc_ValueError, "All tensors must be vectors");
-        goto cleanup;
-    }
-    if (a_parsed.dimensions != b_parsed.dimensions || (out_obj && a_parsed.dimensions != out_parsed.dimensions)) {
-        PyErr_SetString(PyExc_ValueError, "Vector dimensions don't match");
-        goto cleanup;
-    }
-
-    // Check data types
-    if (a_parsed.datatype != b_parsed.datatype || a_parsed.datatype == simsimd_datatype_unknown_k ||
-        b_parsed.datatype == simsimd_datatype_unknown_k ||
-        (out_obj && out_parsed.datatype == simsimd_datatype_unknown_k)) {
-        PyErr_SetString(PyExc_TypeError,
-                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
-        goto cleanup;
-    }
-    if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
-
-    // Look up the metric and the capability
-    simsimd_kernel_wsum_punned_t metric = NULL;
-    simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_metric_kind_t const metric_kind = simsimd_metric_wsum_k;
-    simsimd_find_metric_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_metric_punned_t *)&metric, &capability);
-    if (!metric) {
-        PyErr_Format( //
-            PyExc_LookupError,
-            "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s') and "
-            "`dtype` override ('%s'/'%s')",
-            metric_kind,                                                                             //
-            a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
-            dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
-        goto cleanup;
-    }
-
-    char *distances_start = NULL;
-    size_t distances_stride_bytes = 0;
-
-    // Allocate the output matrix if it wasn't provided
-    if (!out_obj) {
-        DistancesTensor *distances_obj =
-            PyObject_NewVar(DistancesTensor, &DistancesTensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
-        if (!distances_obj) {
-            PyErr_NoMemory();
-            goto cleanup;
-        }
-
-        // Initialize the object
-        distances_obj->datatype = dtype;
-        distances_obj->dimensions = 1;
-        distances_obj->shape[0] = a_parsed.dimensions;
-        distances_obj->shape[1] = 1;
-        distances_obj->strides[0] = bytes_per_datatype(dtype);
-        distances_obj->strides[1] = 0;
-        return_obj = (PyObject *)distances_obj;
-        distances_start = (char *)&distances_obj->start[0];
-        distances_stride_bytes = distances_obj->strides[0];
-    }
-    else {
-        distances_start = (char *)&out_parsed.start[0];
-        distances_stride_bytes = out_buffer.strides[0];
-        //? Logic suggests to return `None` in in-place mode...
-        //? SciPy decided differently.
-        return_obj = Py_None;
-    }
-
-    metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, alpha, beta, distances_start);
-cleanup:
-    PyBuffer_Release(&a_buffer);
-    PyBuffer_Release(&b_buffer);
-    PyBuffer_Release(&out_buffer);
-    return return_obj;
-}
-
 // There are several flags we can use to define the functions:
 // - `METH_O`: Single object argument
 // - `METH_VARARGS`: Variable number of arguments
@@ -1997,8 +2326,15 @@ static PyMethodDef simsimd_methods[] = {
     {"mahalanobis", (PyCFunction)api_mahalanobis, METH_FASTCALL | METH_KEYWORDS, doc_mahalanobis},
 
     // Vectorized operations
-    {"fma", (PyCFunction)api_fma, METH_FASTCALL | METH_KEYWORDS, doc_fma},
+    {"scale", (PyCFunction)api_scale, METH_FASTCALL | METH_KEYWORDS, doc_scale},
+    {"sum", (PyCFunction)api_sum, METH_FASTCALL | METH_KEYWORDS, doc_sum},
     {"wsum", (PyCFunction)api_wsum, METH_FASTCALL | METH_KEYWORDS, doc_wsum},
+    {"fma", (PyCFunction)api_fma, METH_FASTCALL | METH_KEYWORDS, doc_fma},
+
+    // NumPy and OpenCV compatible APIs for element-wise binary operations,
+    // that support both vector and scalar arguments
+    // {"add", (PyCFunction)api_add, METH_FASTCALL | METH_KEYWORDS, doc_add},
+    // {"multiply", (PyCFunction)api_multiply, METH_FASTCALL | METH_KEYWORDS, doc_multiply},
 
     // Sentinel
     {NULL, NULL, 0, NULL}};

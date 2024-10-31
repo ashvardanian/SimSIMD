@@ -5,8 +5,8 @@
  *  @date       October 16, 2024
  *
  *  Contains following element-wise operations:
+ *  - Scale (Multiply) with Shift: R[i] = Alpha * A[i] + Beta
  *  - Sum (Add): R[i] = A[i] + B[i]
- *  - Scale (Multiply): R[i] = Alpha * A[i]
  *  - WSum or Weighted-Sum: R[i] = Alpha * A[i] + Beta * B[i]
  *  - FMA or Fused-Multiply-Add: R[i] = Alpha * A[i] * B[i] + Beta * C[i]
  *
@@ -36,8 +36,8 @@
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
-#ifndef SIMSIMD_FMA_H
-#define SIMSIMD_FMA_H
+#ifndef SIMSIMD_ELEMENTWISE_H
+#define SIMSIMD_ELEMENTWISE_H
 
 #include "types.h"
 
@@ -45,76 +45,223 @@
 extern "C" {
 #endif
 
+// clang-format off
+
 /*  Serial backends for all numeric types.
  *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
  *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
  */
-SIMSIMD_PUBLIC void simsimd_wsum_f64_serial(                          //
-    simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f32_serial(                          //
-    simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f16_serial(                          //
-    simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_bf16_serial(                           //
-    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i8_serial(                         //
-    simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u8_serial(                         //
-    simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_f64_serial(simsimd_f64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_f32_serial(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_f16_serial(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_bf16_serial(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_i8_serial(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_u8_serial(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
 
-SIMSIMD_PUBLIC void simsimd_fma_f64_serial(                                                   //
-    simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f32_serial(                                                   //
-    simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f16_serial(                                                   //
-    simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_bf16_serial(                                                     //
-    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i8_serial(                                                 //
-    simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u8_serial(                                                 //
-    simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_f64_serial(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_f64_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_f32_serial(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_f16_serial(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_bf16_serial(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_bf16_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_i8_serial(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_i8_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_u8_serial(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_u8_t *result);
 
-#define SIMSIMD_MAKE_WSUM(name, input_type, accumulator_type, load_and_convert, convert_and_store)   \
-    SIMSIMD_PUBLIC void simsimd_wsum_##input_type##_##name(                                          \
-        simsimd_##input_type##_t const *a, simsimd_##input_type##_t const *b, simsimd_size_t n,      \
-        simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_##input_type##_t *result) {       \
-        for (simsimd_size_t i = 0; i != n; ++i) {                                                    \
-            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                             \
-            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                             \
-            simsimd_##accumulator_type##_t ai_scaled = (simsimd_##accumulator_type##_t)(ai * alpha); \
-            simsimd_##accumulator_type##_t bi_scaled = (simsimd_##accumulator_type##_t)(bi * beta);  \
-            simsimd_##accumulator_type##_t sum = ai_scaled + bi_scaled;                              \
-            convert_and_store(sum, result + i);                                                      \
-        }                                                                                            \
+SIMSIMD_PUBLIC void simsimd_wsum_f64_serial(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_f32_serial(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_f16_serial(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_bf16_serial(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_i8_serial(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_u8_serial(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+
+SIMSIMD_PUBLIC void simsimd_fma_f64_serial(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_f32_serial(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_f16_serial(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_bf16_serial(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_i8_serial(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_u8_serial(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+
+/*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
+ *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
+ *  server CPUs produced before 2023.
+ */
+SIMSIMD_PUBLIC void simsimd_scale_f32_neon(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_f16_neon(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_bf16_neon(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_u8_neon(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_i8_neon(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+
+SIMSIMD_PUBLIC void simsimd_sum_f32_neon(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_f16_neon(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_bf16_neon(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_bf16_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_u8_neon(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_u8_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_i8_neon(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_i8_t *result);
+
+SIMSIMD_PUBLIC void simsimd_wsum_f32_neon(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_f16_neon(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_bf16_neon(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_u8_neon(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_i8_neon(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+
+SIMSIMD_PUBLIC void simsimd_fma_f32_neon(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_f16_neon(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_bf16_neon(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_u8_neon(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_i8_neon(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+
+/*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
+ *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
+ *  Practically all modern x86 CPUs support AVX2, FMA, and F16C, making it a perfect baseline for SIMD algorithms.
+ *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
+ *  properly vectorized by recent compilers.
+ */
+SIMSIMD_PUBLIC void simsimd_scale_f64_haswell(simsimd_f64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_f32_haswell(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_f16_haswell(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_bf16_haswell(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_i8_haswell(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_u8_haswell(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+
+SIMSIMD_PUBLIC void simsimd_sum_f64_haswell(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_f64_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_f32_haswell(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_f16_haswell(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_bf16_haswell(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_bf16_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_i8_haswell(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_i8_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_u8_haswell(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_u8_t *result);
+
+SIMSIMD_PUBLIC void simsimd_wsum_f64_haswell(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_f32_haswell(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_f16_haswell(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_bf16_haswell(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_i8_haswell(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_u8_haswell(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+
+SIMSIMD_PUBLIC void simsimd_fma_f64_haswell(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_f32_haswell(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_f16_haswell(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_bf16_haswell(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_i8_haswell(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_u8_haswell(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+
+/*  SIMD-powered backends for various generations of AVX512 CPUs.
+ *  Unlike the distance metrics, the SIMD implementation of FMA and WSum benefits from aligned stores.
+ *  Assuming the size of ZMM register matches the width of the cache line, we skip the unaligned head
+ *  and tail of the output buffer, and only use aligned stores in the main loop.
+ */
+SIMSIMD_PUBLIC void simsimd_scale_f16_sapphire(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_i8_sapphire(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_u8_sapphire(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+
+SIMSIMD_PUBLIC void simsimd_sum_f64_skylake(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_f64_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_f32_skylake(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_bf16_skylake(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_bf16_t *result);
+
+SIMSIMD_PUBLIC void simsimd_wsum_f64_skylake(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_f32_skylake(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_bf16_skylake(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
+
+SIMSIMD_PUBLIC void simsimd_fma_f64_skylake(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_f32_skylake(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_bf16_skylake(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
+
+SIMSIMD_PUBLIC void simsimd_scale_f16_sapphire(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_i8_sapphire(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+SIMSIMD_PUBLIC void simsimd_scale_u8_sapphire(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+
+SIMSIMD_PUBLIC void simsimd_sum_f16_sapphire(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_i8_sapphire(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_i8_t *result);
+SIMSIMD_PUBLIC void simsimd_sum_u8_sapphire(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_u8_t *result);
+
+SIMSIMD_PUBLIC void simsimd_wsum_f16_sapphire(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_i8_sapphire(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+SIMSIMD_PUBLIC void simsimd_wsum_u8_sapphire(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+
+SIMSIMD_PUBLIC void simsimd_fma_f16_sapphire(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_i8_sapphire(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+SIMSIMD_PUBLIC void simsimd_fma_u8_sapphire(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+
+// clang-format on
+
+#define SIMSIMD_MAKE_SCALE(name, input_type, accumulator_type, load_and_convert, convert_and_store)              \
+    SIMSIMD_PUBLIC void simsimd_scale_##input_type##_##name(simsimd_##input_type##_t const *a, simsimd_size_t n, \
+                                                            simsimd_distance_t alpha, simsimd_distance_t beta,   \
+                                                            simsimd_##input_type##_t *result) {                  \
+        simsimd_##accumulator_type##_t alpha_cast = (simsimd_##accumulator_type##_t)alpha;                       \
+        simsimd_##accumulator_type##_t beta_cast = (simsimd_##accumulator_type##_t)beta;                         \
+        for (simsimd_size_t i = 0; i != n; ++i) {                                                                \
+            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                         \
+            simsimd_##accumulator_type##_t sum = (simsimd_##accumulator_type##_t)(alpha_cast * ai + beta_cast);  \
+            convert_and_store(sum, result + i);                                                                  \
+        }                                                                                                        \
+    }
+#define SIMSIMD_MAKE_SUM(name, input_type, accumulator_type, load_and_convert, convert_and_store)              \
+    SIMSIMD_PUBLIC void simsimd_sum_##input_type##_##name(simsimd_##input_type##_t const *a,                   \
+                                                          simsimd_##input_type##_t const *b, simsimd_size_t n, \
+                                                          simsimd_##input_type##_t *result) {                  \
+        for (simsimd_size_t i = 0; i != n; ++i) {                                                              \
+            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                       \
+            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                       \
+            simsimd_##accumulator_type##_t sum = ai + bi;                                                      \
+            convert_and_store(sum, result + i);                                                                \
+        }                                                                                                      \
+    }
+
+#define SIMSIMD_MAKE_WSUM(name, input_type, accumulator_type, load_and_convert, convert_and_store)        \
+    SIMSIMD_PUBLIC void simsimd_wsum_##input_type##_##name(                                               \
+        simsimd_##input_type##_t const *a, simsimd_##input_type##_t const *b, simsimd_size_t n,           \
+        simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_##input_type##_t *result) {            \
+        simsimd_##accumulator_type##_t alpha_cast = (simsimd_##accumulator_type##_t)alpha;                \
+        simsimd_##accumulator_type##_t beta_cast = (simsimd_##accumulator_type##_t)beta;                  \
+        for (simsimd_size_t i = 0; i != n; ++i) {                                                         \
+            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                  \
+            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                  \
+            simsimd_##accumulator_type##_t ai_scaled = (simsimd_##accumulator_type##_t)(ai * alpha_cast); \
+            simsimd_##accumulator_type##_t bi_scaled = (simsimd_##accumulator_type##_t)(bi * beta_cast);  \
+            simsimd_##accumulator_type##_t sum = ai_scaled + bi_scaled;                                   \
+            convert_and_store(sum, result + i);                                                           \
+        }                                                                                                 \
     }
 
 #define SIMSIMD_MAKE_FMA(name, input_type, accumulator_type, load_and_convert, convert_and_store)                \
     SIMSIMD_PUBLIC void simsimd_fma_##input_type##_##name(                                                       \
         simsimd_##input_type##_t const *a, simsimd_##input_type##_t const *b, simsimd_##input_type##_t const *c, \
         simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_##input_type##_t *result) { \
+        simsimd_##accumulator_type##_t alpha_cast = (simsimd_##accumulator_type##_t)alpha;                       \
+        simsimd_##accumulator_type##_t beta_cast = (simsimd_##accumulator_type##_t)beta;                         \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                                \
             simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                         \
             simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                         \
             simsimd_##accumulator_type##_t ci = load_and_convert(c + i);                                         \
-            simsimd_##accumulator_type##_t abi_scaled = (simsimd_##accumulator_type##_t)(ai * bi * alpha);       \
-            simsimd_##accumulator_type##_t ci_scaled = (simsimd_##accumulator_type##_t)(ci * beta);              \
+            simsimd_##accumulator_type##_t abi_scaled = (simsimd_##accumulator_type##_t)(ai * bi * alpha_cast);  \
+            simsimd_##accumulator_type##_t ci_scaled = (simsimd_##accumulator_type##_t)(ci * beta_cast);         \
             simsimd_##accumulator_type##_t sum = abi_scaled + ci_scaled;                                         \
             convert_and_store(sum, result + i);                                                                  \
         }                                                                                                        \
     }
+
+SIMSIMD_MAKE_SCALE(serial, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_scale_f64_serial
+SIMSIMD_MAKE_SCALE(serial, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_scale_f32_serial
+SIMSIMD_MAKE_SCALE(serial, f16, f32, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    // simsimd_scale_f16_serial
+SIMSIMD_MAKE_SCALE(serial, bf16, f32, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_scale_bf16_serial
+SIMSIMD_MAKE_SCALE(serial, i8, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_TO_I8)     // simsimd_scale_i8_serial
+SIMSIMD_MAKE_SCALE(serial, u8, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_TO_U8)     // simsimd_scale_u8_serial
+
+SIMSIMD_MAKE_SCALE(accurate, f32, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_scale_f32_accurate
+SIMSIMD_MAKE_SCALE(accurate, f16, f64, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    // simsimd_scale_f16_accurate
+SIMSIMD_MAKE_SCALE(accurate, bf16, f64, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_scale_bf16_accurate
+SIMSIMD_MAKE_SCALE(accurate, i8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_I8)     // simsimd_scale_i8_accurate
+SIMSIMD_MAKE_SCALE(accurate, u8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_U8)     // simsimd_scale_u8_accurate
+
+SIMSIMD_MAKE_SUM(serial, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_sum_f64_serial
+SIMSIMD_MAKE_SUM(serial, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_sum_f32_serial
+SIMSIMD_MAKE_SUM(serial, f16, f32, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    // simsimd_sum_f16_serial
+SIMSIMD_MAKE_SUM(serial, bf16, f32, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_sum_bf16_serial
+SIMSIMD_MAKE_SUM(serial, i8, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_TO_I8)     // simsimd_sum_i8_serial
+SIMSIMD_MAKE_SUM(serial, u8, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_TO_U8)     // simsimd_sum_u8_serial
+
+SIMSIMD_MAKE_SUM(accurate, f32, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_sum_f32_accurate
+SIMSIMD_MAKE_SUM(accurate, f16, f64, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    // simsimd_sum_f16_accurate
+SIMSIMD_MAKE_SUM(accurate, bf16, f64, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_sum_bf16_accurate
+SIMSIMD_MAKE_SUM(accurate, i8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_I8)     // simsimd_sum_i8_accurate
+SIMSIMD_MAKE_SUM(accurate, u8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_U8)     // simsimd_sum_u8_accurate
 
 SIMSIMD_MAKE_WSUM(serial, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_wsum_f64_serial
 SIMSIMD_MAKE_WSUM(serial, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_wsum_f32_serial
@@ -141,130 +288,6 @@ SIMSIMD_MAKE_FMA(accurate, f16, f64, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    
 SIMSIMD_MAKE_FMA(accurate, bf16, f64, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_fma_bf16_accurate
 SIMSIMD_MAKE_FMA(accurate, i8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_I8)     // simsimd_fma_i8_accurate
 SIMSIMD_MAKE_FMA(accurate, u8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_U8)     // simsimd_fma_u8_accurate
-
-/*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
- *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
- *  server CPUs produced before 2023.
- */
-SIMSIMD_PUBLIC void simsimd_wsum_f32_neon(                            //
-    simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f16_neon(                            //
-    simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_bf16_neon(                             //
-    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u8_neon(                           //
-    simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i8_neon(                           //
-    simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-
-SIMSIMD_PUBLIC void simsimd_fma_f32_neon(                                   //
-    simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f16_neon(                                   //
-    simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_bf16_neon(                                     //
-    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u8_neon(                                 //
-    simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i8_neon(                                 //
-    simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-
-/*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
- *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
- *  Practically all modern x86 CPUs support AVX2, FMA, and F16C, making it a perfect baseline for SIMD algorithms.
- *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
- *  properly vectorized by recent compilers.
- */
-SIMSIMD_PUBLIC void simsimd_wsum_f64_haswell(                         //
-    simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f32_haswell(                         //
-    simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f16_haswell(                         //
-    simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_bf16_haswell(                          //
-    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i8_haswell(                        //
-    simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u8_haswell(                        //
-    simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f64_haswell(                                                  //
-    simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f32_haswell(                                                  //
-    simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f16_haswell(                                                  //
-    simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_bf16_haswell(                                                    //
-    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i8_haswell(                                                //
-    simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u8_haswell(                                                //
-    simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-
-/*  SIMD-powered backends for various generations of AVX512 CPUs.
- *  Unlike the distance metrics, the SIMD implementation of FMA and WSum benefits from aligned stores.
- *  Assuming the size of ZMM register matches the width of the cache line, we skip the unaligned head
- *  and tail of the output buffer, and only use aligned stores in the main loop.
- */
-SIMSIMD_PUBLIC void simsimd_wsum_f64_skylake(                         //
-    simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f32_skylake(                         //
-    simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_bf16_skylake(                          //
-    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-
-SIMSIMD_PUBLIC void simsimd_fma_f64_skylake(                                                  //
-    simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f32_skylake(                                                  //
-    simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_bf16_skylake(                                                    //
-    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-
-SIMSIMD_PUBLIC void simsimd_wsum_f16_sapphire(                        //
-    simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i8_sapphire(                       //
-    simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u8_sapphire(                       //
-    simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-
-SIMSIMD_PUBLIC void simsimd_fma_f16_sapphire(                                                 //
-    simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i8_sapphire(                                               //
-    simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u8_sapphire(                                               //
-    simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
 
 #if _SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_HASWELL
@@ -320,8 +343,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_f32_haswell(                         //
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_f32_haswell(a, n, alpha, result); }
-        else { simsimd_scale_f32_haswell(b, n, beta, result); }
+        if (beta == 0) { simsimd_scale_f32_haswell(a, n, alpha, 0, result); }
+        else { simsimd_scale_f32_haswell(b, n, beta, 0, result); }
         return;
     }
 
@@ -389,8 +412,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_f64_haswell(                         //
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_f64_haswell(a, n, alpha, result); }
-        else { simsimd_scale_f64_haswell(b, n, beta, result); }
+        if (beta == 0) { simsimd_scale_f64_haswell(a, n, alpha, 0, result); }
+        else { simsimd_scale_f64_haswell(b, n, beta, 0, result); }
         return;
     }
 
@@ -474,8 +497,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_f16_haswell(                         //
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_f16_haswell(a, n, alpha, result); }
-        else { simsimd_scale_f16_haswell(b, n, beta, result); }
+        if (beta == 0) { simsimd_scale_f16_haswell(a, n, alpha, 0, result); }
+        else { simsimd_scale_f16_haswell(b, n, beta, 0, result); }
         return;
     }
 
@@ -568,8 +591,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_bf16_haswell(                          //
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_bf16_haswell(a, n, alpha, result); }
-        else { simsimd_scale_bf16_haswell(b, n, beta, result); }
+        if (beta == 0) { simsimd_scale_bf16_haswell(a, n, alpha, 0, result); }
+        else { simsimd_scale_bf16_haswell(b, n, beta, 0, result); }
         return;
     }
 
@@ -796,8 +819,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_haswell(                        //
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_i8_haswell(a, n, alpha, result); }
-        else { simsimd_scale_i8_haswell(b, n, beta, result); }
+        if (beta == 0) { simsimd_scale_i8_haswell(a, n, alpha, 0, result); }
+        else { simsimd_scale_i8_haswell(b, n, beta, 0, result); }
         return;
     }
 
@@ -925,8 +948,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_haswell(                        //
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_u8_haswell(a, n, alpha, result); }
-        else { simsimd_scale_u8_haswell(b, n, beta, result); }
+        if (beta == 0) { simsimd_scale_u8_haswell(a, n, alpha, 0, result); }
+        else { simsimd_scale_u8_haswell(b, n, beta, 0, result); }
         return;
     }
 
@@ -1154,8 +1177,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_f64_skylake(                         //
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_f64_skylake(a, n, alpha, result); }
-        else { simsimd_scale_f64_skylake(b, n, beta, result); }
+        if (beta == 0) { simsimd_scale_f64_skylake(a, n, alpha, 0, result); }
+        else { simsimd_scale_f64_skylake(b, n, beta, 0, result); }
         return;
     }
 
@@ -1242,8 +1265,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_f32_skylake(                         //
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_f32_skylake(a, n, alpha, result); }
-        else { simsimd_scale_f32_skylake(b, n, beta, result); }
+        if (beta == 0) { simsimd_scale_f32_skylake(a, n, alpha, 0, result); }
+        else { simsimd_scale_f32_skylake(b, n, beta, 0, result); }
         return;
     }
 
@@ -1335,8 +1358,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_bf16_skylake(                          //
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_bf16_skylake(a, n, alpha, result); }
-        else { simsimd_scale_bf16_skylake(b, n, beta, result); }
+        if (beta == 0) { simsimd_scale_bf16_skylake(a, n, alpha, 0, result); }
+        else { simsimd_scale_bf16_skylake(b, n, beta, 0, result); }
         return;
     }
 
@@ -1533,8 +1556,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_f16_sapphire(                        //
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_f16_sapphire(a, n, alpha, result); }
-        else { simsimd_scale_f16_sapphire(b, n, beta, result); }
+        if (beta == 0) { simsimd_scale_f16_sapphire(a, n, alpha, 0, result); }
+        else { simsimd_scale_f16_sapphire(b, n, beta, 0, result); }
         return;
     }
 
@@ -1663,8 +1686,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_sapphire(                       //
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_u8_sapphire(a, n, alpha, result); }
-        else { simsimd_scale_u8_sapphire(b, n, beta, result); }
+        if (beta == 0) { simsimd_scale_u8_sapphire(a, n, alpha, 0, result); }
+        else { simsimd_scale_u8_sapphire(b, n, beta, 0, result); }
         return;
     }
 
@@ -1784,8 +1807,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_sapphire(                       //
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_i8_sapphire(a, n, alpha, result); }
-        else { simsimd_scale_i8_sapphire(b, n, beta, result); }
+        if (beta == 0) { simsimd_scale_i8_sapphire(a, n, alpha, 0, result); }
+        else { simsimd_scale_i8_sapphire(b, n, beta, 0, result); }
         return;
     }
 
@@ -1963,19 +1986,22 @@ SIMSIMD_PUBLIC void simsimd_sum_f32_neon(simsimd_f32_t const *a, simsimd_f32_t c
 }
 
 SIMSIMD_PUBLIC void simsimd_scale_f32_neon(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                           simsimd_f32_t *result) {
+                                           simsimd_distance_t beta, simsimd_f32_t *result) {
     simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
+    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+    float32x4_t alpha_vec = vdupq_n_f32(alpha_f32);
+    float32x4_t beta_vec = vdupq_n_f32(beta_f32);
 
     // The main loop:
     simsimd_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         float32x4_t a_vec = vld1q_f32(a + i);
-        float32x4_t sum_vec = vmulq_n_f32(a_vec, alpha_f32);
+        float32x4_t sum_vec = vfmaq_n_f32(beta_vec, a_vec, alpha_f32);
         vst1q_f32(result + i, sum_vec);
     }
 
     // The tail:
-    for (; i < n; ++i) result[i] = alpha_f32 * a[i];
+    for (; i < n; ++i) result[i] = alpha_f32 * a[i] + beta_f32;
 }
 
 SIMSIMD_PUBLIC void simsimd_wsum_f32_neon(                            //
@@ -1992,8 +2018,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_f32_neon(                            //
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_f32_neon(a, n, alpha, result); }
-        else { simsimd_scale_f32_neon(b, n, beta, result); }
+        if (beta == 0) { simsimd_scale_f32_neon(a, n, alpha, 0, result); }
+        else { simsimd_scale_f32_neon(b, n, beta, 0, result); }
         return;
     }
 
@@ -2063,19 +2089,22 @@ SIMSIMD_PUBLIC void simsimd_sum_bf16_neon(simsimd_bf16_t const *a, simsimd_bf16_
 }
 
 SIMSIMD_PUBLIC void simsimd_scale_bf16_neon(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                            simsimd_bf16_t *result) {
+                                            simsimd_distance_t beta, simsimd_bf16_t *result) {
     simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
+    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+    float32x4_t alpha_vec = vdupq_n_f32(alpha_f32);
+    float32x4_t beta_vec = vdupq_n_f32(beta_f32);
 
     // The main loop:
     simsimd_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         float32x4_t a_vec = vcvt_f32_bf16(vld1_bf16((bfloat16_t const *)a + i));
-        float32x4_t sum_vec = vmulq_n_f32(a_vec, alpha_f32);
+        float32x4_t sum_vec = vfmaq_f32(beta_vec, a_vec, alpha_vec);
         vst1_bf16((bfloat16_t *)result + i, vcvt_bf16_f32(sum_vec));
     }
 
     // The tail:
-    for (; i < n; ++i) simsimd_f32_to_bf16(alpha_f32 * simsimd_bf16_to_f32(a + i), result + i);
+    for (; i < n; ++i) simsimd_f32_to_bf16(alpha_f32 * simsimd_bf16_to_f32(a + i) + beta_f32, result + i);
 }
 
 SIMSIMD_PUBLIC void simsimd_wsum_bf16_neon(                             //
@@ -2092,8 +2121,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_bf16_neon(                             //
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_bf16_neon(a, n, alpha, result); }
-        else { simsimd_scale_bf16_neon(b, n, beta, result); }
+        if (beta == 0) { simsimd_scale_bf16_neon(a, n, alpha, 0, result); }
+        else { simsimd_scale_bf16_neon(b, n, beta, 0, result); }
         return;
     }
 
@@ -2167,19 +2196,22 @@ SIMSIMD_PUBLIC void simsimd_sum_f16_neon(simsimd_f16_t const *a, simsimd_f16_t c
 }
 
 SIMSIMD_PUBLIC void simsimd_scale_f16_neon(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                           simsimd_f16_t *result) {
+                                           simsimd_distance_t beta, simsimd_f16_t *result) {
     float16_t alpha_f16 = (float16_t)alpha;
+    float16_t beta_f16 = (float16_t)beta;
+    float16x8_t alpha_vec = vdupq_n_f16(alpha_f16);
+    float16x8_t beta_vec = vdupq_n_f16(beta_f16);
 
     // The main loop:
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         float16x8_t a_vec = vld1q_f16((float16_t const *)a + i);
-        float16x8_t sum_vec = vmulq_n_f16(a_vec, alpha_f16);
+        float16x8_t sum_vec = vfmaq_f16(beta_vec, a_vec, alpha_vec);
         vst1q_f16((float16_t *)result + i, sum_vec);
     }
 
     // The tail:
-    for (; i < n; ++i) ((float16_t *)result)[i] = alpha_f16 * ((float16_t const *)a)[i];
+    for (; i < n; ++i) ((float16_t *)result)[i] = alpha_f16 * ((float16_t const *)a)[i] + beta_f16;
 }
 
 SIMSIMD_PUBLIC void simsimd_wsum_f16_neon(                            //
@@ -2195,8 +2227,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_f16_neon(                            //
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_f16_neon(a, n, alpha, result); }
-        else { simsimd_scale_f16_neon(b, n, beta, result); }
+        if (beta == 0) { simsimd_scale_f16_neon(a, n, alpha, 0, result); }
+        else { simsimd_scale_f16_neon(b, n, beta, 0, result); }
         return;
     }
 
@@ -2260,21 +2292,24 @@ SIMSIMD_PUBLIC void simsimd_sum_u8_neon(simsimd_u8_t const *a, simsimd_u8_t cons
 }
 
 SIMSIMD_PUBLIC void simsimd_scale_u8_neon(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                          simsimd_u8_t *result) {
+                                          simsimd_distance_t beta, simsimd_u8_t *result) {
     float16_t alpha_f16 = (float16_t)alpha;
+    float16_t beta_f16 = (float16_t)beta;
+    float16x8_t alpha_vec = vdupq_n_f16(alpha_f16);
+    float16x8_t beta_vec = vdupq_n_f16(beta_f16);
 
     // The main loop:
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         uint8x8_t a_u8_vec = vld1_u8(a + i);
         float16x8_t a_vec = vcvtq_f16_u16(vmovl_u8(a_u8_vec));
-        float16x8_t sum_vec = vmulq_n_f16(a_vec, alpha_f16);
+        float16x8_t sum_vec = vfmaq_f16(beta_vec, a_vec, alpha_vec);
         uint8x8_t sum_u8_vec = vqmovn_u16(vcvtaq_u16_f16(sum_vec));
         vst1_u8(result + i, sum_u8_vec);
     }
 
     // The tail:
-    for (; i < n; ++i) { SIMSIMD_F32_TO_U8(alpha_f16 * a[i], result + i); }
+    for (; i < n; ++i) { SIMSIMD_F32_TO_U8(alpha_f16 * a[i] + beta_f16, result + i); }
 }
 
 SIMSIMD_PUBLIC void simsimd_wsum_u8_neon(                           //
@@ -2291,8 +2326,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_neon(                           //
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_u8_neon(a, n, alpha, result); }
-        else { simsimd_scale_u8_neon(b, n, beta, result); }
+        if (beta == 0) { simsimd_scale_u8_neon(a, n, alpha, 0, result); }
+        else { simsimd_scale_u8_neon(b, n, beta, 0, result); }
         return;
     }
 
@@ -2360,21 +2395,24 @@ SIMSIMD_PUBLIC void simsimd_sum_i8_neon(simsimd_i8_t const *a, simsimd_i8_t cons
 }
 
 SIMSIMD_PUBLIC void simsimd_scale_i8_neon(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                          simsimd_i8_t *result) {
+                                          simsimd_distance_t beta, simsimd_i8_t *result) {
     float16_t alpha_f16 = (float16_t)alpha;
+    float16_t beta_f16 = (float16_t)beta;
+    float16x8_t alpha_vec = vdupq_n_f16(alpha_f16);
+    float16x8_t beta_vec = vdupq_n_f16(beta_f16);
 
     // The main loop:
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         int8x8_t a_i8_vec = vld1_s8(a + i);
         float16x8_t a_vec = vcvtq_f16_s16(vmovl_s8(a_i8_vec));
-        float16x8_t sum_vec = vmulq_n_f16(a_vec, alpha_f16);
+        float16x8_t sum_vec = vfmaq_f16(beta_vec, a_vec, alpha_vec);
         int8x8_t sum_i8_vec = vqmovn_s16(vcvtaq_s16_f16(sum_vec));
         vst1_s8(result + i, sum_i8_vec);
     }
 
     // The tail:
-    for (; i < n; ++i) { SIMSIMD_F32_TO_I8(alpha_f16 * a[i], result + i); }
+    for (; i < n; ++i) { SIMSIMD_F32_TO_I8(alpha_f16 * a[i] + beta_f16, result + i); }
 }
 
 SIMSIMD_PUBLIC void simsimd_wsum_i8_neon(                           //
@@ -2391,8 +2429,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_neon(                           //
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_i8_neon(a, n, alpha, result); }
-        else { simsimd_scale_i8_neon(b, n, beta, result); }
+        if (beta == 0) { simsimd_scale_i8_neon(a, n, alpha, 0, result); }
+        else { simsimd_scale_i8_neon(b, n, beta, 0, result); }
         return;
     }
 

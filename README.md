@@ -42,7 +42,7 @@ SimSIMD provides an alternative.
 
 ## Features
 
-__SimSIMD__ (Arabic: "سيمسيم دي") is a mixed-precision math library of __over 200 SIMD-optimized kernels__ extensively used in AI, Search, and DBMS workloads.
+__SimSIMD__ (Arabic: "سيمسيم دي") is a mixed-precision math library of __over 350 SIMD-optimized kernels__ extensively used in AI, Search, and DBMS workloads.
 Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command that opened doors to treasure in _Ali Baba and the Forty Thieves_, SimSimd can help you 10x the cost-efficiency of your computational pipelines.
 Implemented distance functions include:
 
@@ -161,8 +161,7 @@ dist = simsimd.cosine(vec1, vec2, "i8")
 dist = simsimd.cosine(vec1, vec2, "f16")
 dist = simsimd.cosine(vec1, vec2, "f32")
 dist = simsimd.cosine(vec1, vec2, "f64")
-dist = simsimd.hamming(vec1, vec2, "bits")
-dist = simsimd.jaccard(vec1, vec2, "bits")
+dist = simsimd.jaccard(vec1, vec2, "bin8") # Binary vectors with 8-bit words
 ```
 
 It also allows using SimSIMD for half-precision complex numbers, which NumPy does not support.

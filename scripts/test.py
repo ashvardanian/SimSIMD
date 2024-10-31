@@ -64,33 +64,33 @@ try:
     baseline_intersect = lambda x, y: len(np.intersect1d(x, y))
     baseline_bilinear = lambda x, y, z: x @ z @ y
 
-    def baseline_fma(x, y, z, alpha, beta):
-        xy_scaled = np.multiply((alpha * x), y)
-        z_scaled = beta * z
-        r = xy_scaled + z_scaled
-        if np.issubdtype(x.dtype, np.integer):
+    def _normalize_element_wise(r, dtype):
+        if np.issubdtype(dtype, np.integer):
             r = np.round(r)
         #! We need non-overflowing saturating addition for small integers, that NumPy lacks:
         #! https://stackoverflow.com/questions/29611185/avoid-overflow-when-adding-numpy-arrays
-        if x.dtype == np.uint8:
+        if dtype == np.uint8:
             r = np.clip(r, 0, 255, out=r)
-        elif x.dtype == np.int8:
+        elif dtype == np.int8:
             r = np.clip(r, -128, 127, out=r)
-        return r.astype(x.dtype)
+        return r.astype(dtype)
+
+    def baseline_scale(x, alpha, beta):
+        return _normalize_element_wise(alpha * x + beta, x.dtype)
+
+    def baseline_sum(x, y):
+        if x.dtype == np.uint8:
+            return _normalize_element_wise(x.astype(np.uint16) + y, x.dtype)
+        elif x.dtype == np.int8:
+            return _normalize_element_wise(x.astype(np.int16) + y, x.dtype)
+        else:
+            return _normalize_element_wise(x + y, x.dtype)
 
     def baseline_wsum(x, y, alpha, beta):
-        x_scaled = alpha * x
-        y_scaled = beta * y
-        r = x_scaled + y_scaled
-        if np.issubdtype(x.dtype, np.integer):
-            r = np.round(r)
-        #! We need non-overflowing saturating addition for small integers, that NumPy lacks:
-        #! https://stackoverflow.com/questions/29611185/avoid-overflow-when-adding-numpy-arrays
-        if x.dtype == np.uint8:
-            r = np.clip(r, 0, 255, out=r)
-        elif x.dtype == np.int8:
-            r = np.clip(r, -128, 127, out=r)
-        return r.astype(x.dtype)
+        return _normalize_element_wise(alpha * x + beta * y, x.dtype)
+
+    def baseline_fma(x, y, z, alpha, beta):
+        return _normalize_element_wise(np.multiply((alpha * x), y) + beta * z, x.dtype)
 
 except:
     # NumPy is not installed, most tests will be skipped
@@ -105,6 +105,12 @@ except:
             for j in range(len(y)):
                 result += x[i] * z[i][j] * y[j]
         return result
+
+    def baseline_scale(x, alpha, beta):
+        return [alpha * xi + beta for xi in x]
+
+    def baseline_sum(x, y):
+        return [xi + yi for xi, yi in zip(x, y)]
 
     def baseline_fma(x, y, z, alpha, beta):
         return [(alpha * xi) * yi + beta * zi for xi, yi, zi in zip(x, y, z)]
@@ -449,10 +455,14 @@ def name_to_kernels(name: str):
         return baseline_hamming, simd.hamming
     elif name == "intersect":
         return baseline_intersect, simd.intersect
-    elif name == "fma":
-        return baseline_fma, simd.fma
+    elif name == "scale":
+        return baseline_scale, simd.scale
+    elif name == "sum":
+        return baseline_sum, simd.sum
     elif name == "wsum":
         return baseline_wsum, simd.wsum
+    elif name == "fma":
+        return baseline_fma, simd.fma
     else:
         raise ValueError(f"Unknown kernel name: {name}")
 
@@ -1044,9 +1054,9 @@ def test_intersect(dtype, first_length_bound, second_length_bound, capability):
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
-@pytest.mark.parametrize("kernel", ["fma"])
+@pytest.mark.parametrize("kernel", ["scale"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_fma(ndim, dtype, kernel, capability, stats_fixture):
+def test_scale(ndim, dtype, kernel, capability, stats_fixture):
     """"""
 
     if dtype == "float16" and is_running_under_qemu():
@@ -1056,16 +1066,12 @@ def test_fma(ndim, dtype, kernel, capability, stats_fixture):
     if np.issubdtype(np.dtype(dtype), np.integer):
         dtype_info = np.iinfo(np.dtype(dtype))
         a = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
-        b = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
-        c = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
-        alpha = abs(np.random.randn(1).astype(np.float64).item()) / 512
-        beta = abs(np.random.randn(1).astype(np.float64).item()) / 3
+        alpha = abs(np.random.randn(1).astype(np.float64).item()) / 2
+        beta = abs(np.random.randn(1).astype(np.float64).item()) / 2
         atol = 1  # ? Allow at most one rounding error per vector
         rtol = 0
     else:
         a = np.random.randn(ndim).astype(dtype)
-        b = np.random.randn(ndim).astype(dtype)
-        c = np.random.randn(ndim).astype(dtype)
         alpha = np.random.randn(1).astype(np.float64).item()
         beta = np.random.randn(1).astype(np.float64).item()
         atol = SIMSIMD_ATOL
@@ -1077,13 +1083,63 @@ def test_fma(ndim, dtype, kernel, capability, stats_fixture):
     accurate_dt, accurate = profile(
         baseline_kernel,
         a.astype(np.float64),
-        b.astype(np.float64),
-        c.astype(np.float64),
         alpha=alpha,
         beta=beta,
     )
-    expected_dt, expected = profile(baseline_kernel, a, b, c, alpha=alpha, beta=beta)
-    result_dt, result = profile(simd_kernel, a, b, c, alpha=alpha, beta=beta)
+    expected_dt, expected = profile(baseline_kernel, a, alpha=alpha, beta=beta)
+    result_dt, result = profile(simd_kernel, a, alpha=alpha, beta=beta)
+    result = np.array(result)
+
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
+    collect_errors(
+        kernel,
+        ndim,
+        dtype,
+        accurate,
+        accurate_dt,
+        expected,
+        expected_dt,
+        result,
+        result_dt,
+        stats_fixture,
+    )
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
+@pytest.mark.parametrize("kernel", ["sum"])
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_sum(ndim, dtype, kernel, capability, stats_fixture):
+    """"""
+
+    if dtype == "float16" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
+    np.random.seed()
+    if np.issubdtype(np.dtype(dtype), np.integer):
+        dtype_info = np.iinfo(np.dtype(dtype))
+        a = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
+        b = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
+        atol = 1  # ? Allow at most one rounding error per vector
+        rtol = 0
+    else:
+        a = np.random.randn(ndim).astype(dtype)
+        b = np.random.randn(ndim).astype(dtype)
+        atol = SIMSIMD_ATOL
+        rtol = SIMSIMD_RTOL
+
+    keep_one_capability(capability)
+    baseline_kernel, simd_kernel = name_to_kernels(kernel)
+
+    accurate_dt, accurate = profile(
+        baseline_kernel,
+        a.astype(np.float64),
+        b.astype(np.float64),
+    )
+    expected_dt, expected = profile(baseline_kernel, a, b)
+    result_dt, result = profile(simd_kernel, a, b)
     result = np.array(result)
 
     np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
@@ -1142,6 +1198,67 @@ def test_wsum(ndim, dtype, kernel, capability, stats_fixture):
     )
     expected_dt, expected = profile(baseline_kernel, a, b, alpha=alpha, beta=beta)
     result_dt, result = profile(simd_kernel, a, b, alpha=alpha, beta=beta)
+    result = np.array(result)
+
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
+    collect_errors(
+        kernel,
+        ndim,
+        dtype,
+        accurate,
+        accurate_dt,
+        expected,
+        expected_dt,
+        result,
+        result_dt,
+        stats_fixture,
+    )
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
+@pytest.mark.parametrize("kernel", ["fma"])
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_fma(ndim, dtype, kernel, capability, stats_fixture):
+    """"""
+
+    if dtype == "float16" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
+    np.random.seed()
+    if np.issubdtype(np.dtype(dtype), np.integer):
+        dtype_info = np.iinfo(np.dtype(dtype))
+        a = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
+        b = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
+        c = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
+        alpha = abs(np.random.randn(1).astype(np.float64).item()) / 512
+        beta = abs(np.random.randn(1).astype(np.float64).item()) / 3
+        atol = 1  # ? Allow at most one rounding error per vector
+        rtol = 0
+    else:
+        a = np.random.randn(ndim).astype(dtype)
+        b = np.random.randn(ndim).astype(dtype)
+        c = np.random.randn(ndim).astype(dtype)
+        alpha = np.random.randn(1).astype(np.float64).item()
+        beta = np.random.randn(1).astype(np.float64).item()
+        atol = SIMSIMD_ATOL
+        rtol = SIMSIMD_RTOL
+
+    keep_one_capability(capability)
+    baseline_kernel, simd_kernel = name_to_kernels(kernel)
+
+    accurate_dt, accurate = profile(
+        baseline_kernel,
+        a.astype(np.float64),
+        b.astype(np.float64),
+        c.astype(np.float64),
+        alpha=alpha,
+        beta=beta,
+    )
+    expected_dt, expected = profile(baseline_kernel, a, b, c, alpha=alpha, beta=beta)
+    result_dt, result = profile(simd_kernel, a, b, c, alpha=alpha, beta=beta)
     result = np.array(result)
 
     np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
