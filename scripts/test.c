@@ -92,62 +92,62 @@ void test_distance_from_itself(void) {
     simsimd_bf16_t bf16s[1536];
     simsimd_i8_t i8s[1536];
     simsimd_u8_t u8s[1536];
-    simsimd_b8_t b8s[1536 / 8]; // 8 bits per word
-    simsimd_distance_t distance;
+    simsimd_b8_t b8s[1536 / 8];     // 8 bits per word
+    simsimd_distance_t distance[2]; // For complex dot-products we need two values
 
     // Cosine distance between two vectors
-    simsimd_cos_i8(i8s, i8s, 1536, &distance);
-    simsimd_cos_u8(u8s, u8s, 1536, &distance);
-    simsimd_cos_f16(f16s, f16s, 1536, &distance);
-    simsimd_cos_bf16(bf16s, bf16s, 1536, &distance);
-    simsimd_cos_f32(f32s, f32s, 1536, &distance);
-    simsimd_cos_f64(f64s, f64s, 1536, &distance);
+    simsimd_cos_i8(i8s, i8s, 1536, &distance[0]);
+    simsimd_cos_u8(u8s, u8s, 1536, &distance[0]);
+    simsimd_cos_f16(f16s, f16s, 1536, &distance[0]);
+    simsimd_cos_bf16(bf16s, bf16s, 1536, &distance[0]);
+    simsimd_cos_f32(f32s, f32s, 1536, &distance[0]);
+    simsimd_cos_f64(f64s, f64s, 1536, &distance[0]);
 
     // Euclidean distance between two vectors
-    simsimd_l2sq_i8(i8s, i8s, 1536, &distance);
-    simsimd_l2sq_u8(u8s, u8s, 1536, &distance);
-    simsimd_l2sq_f16(f16s, f16s, 1536, &distance);
-    simsimd_l2sq_bf16(bf16s, bf16s, 1536, &distance);
-    simsimd_l2sq_f32(f32s, f32s, 1536, &distance);
-    simsimd_l2sq_f64(f64s, f64s, 1536, &distance);
+    simsimd_l2sq_i8(i8s, i8s, 1536, &distance[0]);
+    simsimd_l2sq_u8(u8s, u8s, 1536, &distance[0]);
+    simsimd_l2sq_f16(f16s, f16s, 1536, &distance[0]);
+    simsimd_l2sq_bf16(bf16s, bf16s, 1536, &distance[0]);
+    simsimd_l2sq_f32(f32s, f32s, 1536, &distance[0]);
+    simsimd_l2sq_f64(f64s, f64s, 1536, &distance[0]);
 
     // Inner product between two vectors
-    simsimd_dot_i8(i8s, i8s, 1536, &distance);
-    simsimd_dot_u8(u8s, u8s, 1536, &distance);
-    simsimd_dot_f16(f16s, f16s, 1536, &distance);
-    simsimd_dot_bf16(bf16s, bf16s, 1536, &distance);
-    simsimd_dot_f32(f32s, f32s, 1536, &distance);
-    simsimd_dot_f64(f64s, f64s, 1536, &distance);
+    simsimd_dot_i8(i8s, i8s, 1536, &distance[0]);
+    simsimd_dot_u8(u8s, u8s, 1536, &distance[0]);
+    simsimd_dot_f16(f16s, f16s, 1536, &distance[0]);
+    simsimd_dot_bf16(bf16s, bf16s, 1536, &distance[0]);
+    simsimd_dot_f32(f32s, f32s, 1536, &distance[0]);
+    simsimd_dot_f64(f64s, f64s, 1536, &distance[0]);
 
     // Complex inner product between two vectors
-    simsimd_dot_f16c(f16s, f16s, 1536, &distance);
-    simsimd_dot_bf16c(bf16s, bf16s, 1536, &distance);
-    simsimd_dot_f32c(f32s, f32s, 1536, &distance);
-    simsimd_dot_f64c(f64s, f64s, 1536, &distance);
+    simsimd_dot_f16c(f16s, f16s, 1536, &distance[0]);
+    simsimd_dot_bf16c(bf16s, bf16s, 1536, &distance[0]);
+    simsimd_dot_f32c(f32s, f32s, 1536, &distance[0]);
+    simsimd_dot_f64c(f64s, f64s, 1536, &distance[0]);
 
     // Complex conjugate inner product between two vectors
-    simsimd_vdot_f16c(f16s, f16s, 1536, &distance);
-    simsimd_vdot_bf16c(bf16s, bf16s, 1536, &distance);
-    simsimd_vdot_f32c(f32s, f32s, 1536, &distance);
-    simsimd_vdot_f64c(f64s, f64s, 1536, &distance);
+    simsimd_vdot_f16c(f16s, f16s, 1536, &distance[0]);
+    simsimd_vdot_bf16c(bf16s, bf16s, 1536, &distance[0]);
+    simsimd_vdot_f32c(f32s, f32s, 1536, &distance[0]);
+    simsimd_vdot_f64c(f64s, f64s, 1536, &distance[0]);
 
     // Hamming distance between two vectors
-    simsimd_hamming_b8(b8s, b8s, 1536 / 8, &distance);
+    simsimd_hamming_b8(b8s, b8s, 1536 / 8, &distance[0]);
 
     // Jaccard distance between two vectors
-    simsimd_jaccard_b8(b8s, b8s, 1536 / 8, &distance);
+    simsimd_jaccard_b8(b8s, b8s, 1536 / 8, &distance[0]);
 
     // Jensen-Shannon divergence between two vectors
-    simsimd_js_f16(f16s, f16s, 1536, &distance);
-    simsimd_js_bf16(bf16s, bf16s, 1536, &distance);
-    simsimd_js_f32(f32s, f32s, 1536, &distance);
-    simsimd_js_f64(f64s, f64s, 1536, &distance);
+    simsimd_js_f16(f16s, f16s, 1536, &distance[0]);
+    simsimd_js_bf16(bf16s, bf16s, 1536, &distance[0]);
+    simsimd_js_f32(f32s, f32s, 1536, &distance[0]);
+    simsimd_js_f64(f64s, f64s, 1536, &distance[0]);
 
     // Kullback-Leibler divergence between two vectors
-    simsimd_kl_f16(f16s, f16s, 1536, &distance);
-    simsimd_kl_bf16(bf16s, bf16s, 1536, &distance);
-    simsimd_kl_f32(f32s, f32s, 1536, &distance);
-    simsimd_kl_f64(f64s, f64s, 1536, &distance);
+    simsimd_kl_f16(f16s, f16s, 1536, &distance[0]);
+    simsimd_kl_bf16(bf16s, bf16s, 1536, &distance[0]);
+    simsimd_kl_f32(f32s, f32s, 1536, &distance[0]);
+    simsimd_kl_f64(f64s, f64s, 1536, &distance[0]);
 }
 
 int main(int argc, char **argv) {

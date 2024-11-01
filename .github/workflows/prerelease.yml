@@ -43,6 +43,26 @@ jobs:
             include/simsimd/simsimd.h:^#define SIMSIMD_VERSION_PATCH (\d+)
           dry-run: "true"
 
+  test_c:
+    name: Test C
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: git submodule update --init --recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev libopenblas-dev
+
+      - name: Build locally
+        run: |
+          cmake -D CMAKE_BUILD_TYPE=Release -D SIMSIMD_BUILD_TESTS=1 -D SIMSIMD_BUILD_BENCHMARKS=1 -D SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 -B build_release
+          cmake --build build_release --config Release
+
+      - name: Test
+        run: build_release/simsimd_test_run_time
+
   test_python:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.architecture }} ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
