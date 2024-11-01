@@ -1301,6 +1301,10 @@ SIMSIMD_DYNAMIC int simsimd_uses_sierra(void);
  *  @note The dot product is zero if and only if the two vectors are orthogonal.
  *  @note Defined only for floating-point and integer data types.
  */
+SIMSIMD_DYNAMIC void simsimd_dot_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
+                                    simsimd_distance_t *d);
+SIMSIMD_DYNAMIC void simsimd_dot_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
+                                    simsimd_distance_t *d);
 SIMSIMD_DYNAMIC void simsimd_dot_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
                                      simsimd_distance_t *d);
 SIMSIMD_DYNAMIC void simsimd_dot_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,

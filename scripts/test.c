@@ -91,11 +91,13 @@ void test_distance_from_itself(void) {
     simsimd_f16_t f16s[1536];
     simsimd_bf16_t bf16s[1536];
     simsimd_i8_t i8s[1536];
+    simsimd_u8_t u8s[1536];
     simsimd_b8_t b8s[1536 / 8]; // 8 bits per word
     simsimd_distance_t distance;
 
     // Cosine distance between two vectors
     simsimd_cos_i8(i8s, i8s, 1536, &distance);
+    simsimd_cos_u8(u8s, u8s, 1536, &distance);
     simsimd_cos_f16(f16s, f16s, 1536, &distance);
     simsimd_cos_bf16(bf16s, bf16s, 1536, &distance);
     simsimd_cos_f32(f32s, f32s, 1536, &distance);
@@ -103,12 +105,15 @@ void test_distance_from_itself(void) {
 
     // Euclidean distance between two vectors
     simsimd_l2sq_i8(i8s, i8s, 1536, &distance);
+    simsimd_l2sq_u8(u8s, u8s, 1536, &distance);
     simsimd_l2sq_f16(f16s, f16s, 1536, &distance);
     simsimd_l2sq_bf16(bf16s, bf16s, 1536, &distance);
     simsimd_l2sq_f32(f32s, f32s, 1536, &distance);
     simsimd_l2sq_f64(f64s, f64s, 1536, &distance);
 
     // Inner product between two vectors
+    simsimd_dot_i8(i8s, i8s, 1536, &distance);
+    simsimd_dot_u8(u8s, u8s, 1536, &distance);
     simsimd_dot_f16(f16s, f16s, 1536, &distance);
     simsimd_dot_bf16(bf16s, bf16s, 1536, &distance);
     simsimd_dot_f32(f32s, f32s, 1536, &distance);
@@ -117,7 +122,6 @@ void test_distance_from_itself(void) {
     // Complex inner product between two vectors
     simsimd_dot_f16c(f16s, f16s, 1536, &distance);
     simsimd_dot_bf16c(bf16s, bf16s, 1536, &distance);
-    // simsimd_dot_bf16c(bf16s, bf16s, 1536, &distance);
     simsimd_dot_f32c(f32s, f32s, 1536, &distance);
     simsimd_dot_f64c(f64s, f64s, 1536, &distance);
 
