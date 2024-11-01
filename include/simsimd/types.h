@@ -265,6 +265,10 @@
 #define SIMSIMD_F16_DIVISION_EPSILON (1e-3)
 #endif
 
+#if !defined(SIMSIMD_NDARRAY_MAX_RANK)
+#define SIMSIMD_NDARRAY_MAX_RANK (64) // Matches `PyBUF_MAX_NDIM` by default
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -567,6 +571,40 @@ SIMSIMD_PUBLIC simsimd_u8_t simsimd_u8_rol(simsimd_u8_t x, int n) { return (x <<
 SIMSIMD_PUBLIC simsimd_u32_t simsimd_u32_ror(simsimd_u32_t x, int n) { return (x >> n) | (x << (32 - n)); }
 SIMSIMD_PUBLIC simsimd_u16_t simsimd_u16_ror(simsimd_u16_t x, int n) { return (x >> n) | (x << (16 - n)); }
 SIMSIMD_PUBLIC simsimd_u8_t simsimd_u8_ror(simsimd_u8_t x, int n) { return (x >> n) | (x << (8 - n)); }
+
+typedef struct simsimd_ndindex_t {
+    simsimd_size_t coordinate[SIMSIMD_NDARRAY_MAX_RANK]; // Coordinate offsets along each dimension
+    simsimd_size_t global_offset;                        // The number of elements already processed
+    simsimd_size_t byte_offset;                          // Byte offset
+} simsimd_ndindex_t;
+
+SIMSIMD_PUBLIC void simsimd_ndindex_init(simsimd_ndindex_t *ndindex) {
+    for (simsimd_size_t i = 0; i < SIMSIMD_NDARRAY_MAX_RANK; i++) ndindex->coordinate[i] = 0;
+    ndindex->global_offset = 0, ndindex->byte_offset = 0;
+}
+
+/**
+ *  @brief  Advances the N-Dimensional iterator to the next index.
+ *  @return 1 if the iterator was successfully advanced, 0 if the end of iteration was reached.
+ */
+SIMSIMD_PUBLIC int simsimd_ndindex_next(simsimd_ndindex_t *ndindex, simsimd_size_t rank, simsimd_size_t *shape,
+                                        simsimd_size_t *strides) {
+    // Start from last dimension and move backward
+    for (simsimd_size_t i = rank; i-- > 0;) {
+        ndindex->coordinate[i]++;
+        ndindex->byte_offset += strides[i];
+        if (ndindex->coordinate[i] < shape[i]) {
+            ndindex->global_offset++;
+            return 1; // Successfully moved to the next index
+        }
+        // Reset this dimension counter
+        ndindex->coordinate[i] = 0;
+        // Discard the running progress along this dimension
+        ndindex->byte_offset -= strides[i] * shape[i];
+    }
+    // If we reach here, we've iterated over all elements
+    return 0; // End of iteration
+}
 
 #ifdef __cplusplus
 } // extern "C"

@@ -82,6 +82,74 @@ void test_utilities(void) {
 }
 
 /**
+ *  @brief  Validating N-Dimensional indexing utilities.
+ */
+void test_ndindex(void) {
+    simsimd_size_t shape[SIMSIMD_NDARRAY_MAX_RANK];
+    simsimd_size_t strides[SIMSIMD_NDARRAY_MAX_RANK];
+    simsimd_ndindex_t ndindex;
+
+    // 1D array
+    shape[0] = 10;
+    strides[0] = 1 * sizeof(simsimd_u8_t);
+    simsimd_ndindex_init(&ndindex);
+    for (simsimd_size_t i = 0; i < 10; i++) {
+        assert(ndindex.global_offset == i);
+        assert(ndindex.byte_offset == i * sizeof(simsimd_u8_t));
+        assert(ndindex.coordinate[0] == i);
+        assert(simsimd_ndindex_next(&ndindex, 1, shape, strides) == (i < 9));
+    }
+
+    // 2D array
+    shape[0] = 10, shape[1] = 5;
+    strides[0] = 5 * sizeof(simsimd_u8_t), strides[1] = 1 * sizeof(simsimd_u8_t);
+    simsimd_ndindex_init(&ndindex);
+    for (simsimd_size_t i = 0; i < 10; i++) {
+        for (simsimd_size_t j = 0; j < 5; j++) {
+            assert(ndindex.global_offset == i * 5 + j);
+            assert(ndindex.byte_offset == (i * 5 + j) * sizeof(simsimd_u8_t));
+            assert(ndindex.coordinate[0] == i);
+            assert(ndindex.coordinate[1] == j);
+            assert(simsimd_ndindex_next(&ndindex, 2, shape, strides) == (i != 9 || j != 4));
+        }
+    }
+
+    // 2D array of complex numbers, taking only the real part
+    shape[0] = 10, shape[1] = 5;
+    strides[0] = 10 * sizeof(simsimd_u8_t), strides[1] = 2 * sizeof(simsimd_u8_t);
+    simsimd_ndindex_init(&ndindex);
+    for (simsimd_size_t i = 0; i < 10; i++) {
+        for (simsimd_size_t j = 0; j < 5; j++) {
+            assert(ndindex.global_offset == i * 5 + j);
+            assert(ndindex.byte_offset == (i * 5 + j) * 2 * sizeof(simsimd_u8_t));
+            assert(ndindex.coordinate[0] == i);
+            assert(ndindex.coordinate[1] == j);
+            assert(simsimd_ndindex_next(&ndindex, 2, shape, strides) == (i != 9 || j != 4));
+        }
+    }
+
+    // 3D array with different strides at every level
+    // At each level it should be at least as big as the smaller level stride
+    // multiplied by its size, otherwise we interleave the data.
+    shape[0] = 10, shape[1] = 5, shape[2] = 3;
+    strides[0] = 41 * sizeof(simsimd_u8_t), strides[1] = 7 * sizeof(simsimd_u8_t),
+    strides[2] = 2 * sizeof(simsimd_u8_t);
+    simsimd_ndindex_init(&ndindex);
+    for (simsimd_size_t i = 0; i < 10; i++) {
+        for (simsimd_size_t j = 0; j < 5; j++) {
+            for (simsimd_size_t k = 0; k < 3; k++) {
+                assert(ndindex.global_offset == i * 15 + j * 3 + k);
+                assert(ndindex.byte_offset == (i * strides[0] + j * strides[1] + k * strides[2]));
+                assert(ndindex.coordinate[0] == i);
+                assert(ndindex.coordinate[1] == j);
+                assert(ndindex.coordinate[2] == k);
+                assert(simsimd_ndindex_next(&ndindex, 3, shape, strides) == (i != 9 || j != 4 || k != 2));
+            }
+        }
+    }
+}
+
+/**
  *  @brief  A trivial test that calls every implemented distance function and their dispatch versions
  *          on vectors A and B, where A and B are equal.
  */
@@ -150,6 +218,7 @@ int main(int argc, char **argv) {
 
     print_capabilities();
     test_utilities();
+    test_ndindex();
     test_distance_from_itself();
     return 0;
 }
