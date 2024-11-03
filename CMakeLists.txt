@@ -118,3 +118,5 @@ if (SIMSIMD_BUILD_SHARED)
     target_include_directories(simsimd_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")
     set_target_properties(simsimd_shared PROPERTIES OUTPUT_NAME simsimd)
 endif ()
+
+install(DIRECTORY ./c/ DESTINATION /usr/src/${PROJECT_NAME}/)
