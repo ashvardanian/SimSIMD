@@ -8,7 +8,7 @@ project(
     HOMEPAGE_URL "https://github.com/ashvardanian/simsimd"
 )
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED YES)
 set(CMAKE_C_EXTENSIONS NO)
 
