@@ -1,7 +1,7 @@
 [package]
 name = "simsimd"
 description = "Portable mixed-precision BLAS-like vector math library for x86 and ARM"
-version = "5.9.10"
+version = "5.9.11"
 edition = "2021"
 license = "Apache-2.0"
 authors = ["Ash Vardanian <1983160+ashvardanian@users.noreply.github.com>"]
