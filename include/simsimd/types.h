@@ -725,6 +725,7 @@ SIMSIMD_PUBLIC int simsimd_ndindex_next(simsimd_ndindex_t *ndindex, simsimd_size
         ndindex->byte_offset -= strides[i] * shape[i]; // Discard the running progress along this dimension
     }
     // If we reach here, we've iterated over all elements
+    ndindex->global_offset++;
     return 0; // End of iteration
 }
 
