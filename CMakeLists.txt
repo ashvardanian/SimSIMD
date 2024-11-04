@@ -121,7 +121,7 @@ if (SIMSIMD_BUILD_SHARED)
     install(
         TARGETS simsimd_shared
         ARCHIVE
-        BUNDLE CXX_MODULES_BMI
+        BUNDLE
         FRAMEWORK
         LIBRARY
         OBJECTS
