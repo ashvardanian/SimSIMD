@@ -44,7 +44,7 @@ metric_families = [
     "sparse",  # Intersection of two sparse integer sets, with float/int weights
 ]
 dtype_names = [
-    "bits",  #! Not supported by SciPy
+    "bin8",  #! Not supported by SciPy
     "int8",  #! Presented as supported, but overflows most of the time
     "uint16",
     "uint32",
@@ -248,21 +248,21 @@ def yield_kernels(
     if "binary" in metric_families and include_scipy:
         yield from for_dtypes(
             "scipy.hamming",
-            ["bits"],
+            ["bin8"],
             spd.hamming,
             wrap_rows_batch_calls(spd.hamming),
             lambda A, B: spd.cdist(A, B, "hamming"),
-            lambda A, B: simd.hamming(A, B, "bits"),
-            lambda A, B: simd.cdist(A, B, "bits", metric="hamming"),
+            lambda A, B: simd.hamming(A, B, "bin8"),
+            lambda A, B: simd.cdist(A, B, "bin8", metric="hamming"),
         )
         yield from for_dtypes(
             "scipy.jaccard",
-            ["bits"],
+            ["bin8"],
             spd.jaccard,
             wrap_rows_batch_calls(spd.jaccard),
             lambda A, B: spd.cdist(A, B, "jaccard"),
-            lambda A, B: simd.jaccard(A, B, "bits"),
-            lambda A, B: simd.cdist(A, B, "bits", metric="jaccard"),
+            lambda A, B: simd.jaccard(A, B, "bin8"),
+            lambda A, B: simd.cdist(A, B, "bin8", metric="jaccard"),
         )
     if "spatial" in metric_families and include_scikit:
         yield from for_dtypes(
@@ -351,7 +351,7 @@ def random_matrix(count: int, ndim: int, dtype: str) -> np.ndarray:
         return np.random.randint(0, high=256, size=(count, ndim), dtype=np.int16)
     if dtype == "int8":
         return np.random.randint(-100, high=100, size=(count, ndim), dtype=np.int8)
-    if dtype == "bits":
+    if dtype == "bin8":
         return np.packbits(np.random.randint(0, high=2, size=(count, ndim), dtype=np.uint8), axis=0)
 
 

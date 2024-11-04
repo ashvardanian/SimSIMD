@@ -93,7 +93,9 @@
         "format": "c",
         "execution": "cpp",
         "math.h": "c",
-        "float.h": "c"
+        "float.h": "c",
+        "text_encoding": "cpp",
+        "stdio.h": "c"
     },
     "cSpell.words": [
         "allclose",

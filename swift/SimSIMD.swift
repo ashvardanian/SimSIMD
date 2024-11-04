@@ -2,9 +2,9 @@ import CSimSIMD
 
 public protocol SimSIMD {
     static var dataType: simsimd_datatype_t { get }
-    static var cosine: simsimd_metric_punned_t { get }
-    static var dotProduct: simsimd_metric_punned_t { get }
-    static var squaredEuclidean: simsimd_metric_punned_t { get }
+    static var cosine: simsimd_metric_dense_punned_t { get }
+    static var dotProduct: simsimd_metric_dense_punned_t { get }
+    static var squaredEuclidean: simsimd_metric_dense_punned_t { get }
 }
 
 extension Int8: SimSIMD {
@@ -71,7 +71,7 @@ extension RandomAccessCollection where Element: SimSIMD {
 }
 
 @inlinable @inline(__always)
-func perform<A, B>(_ metric: simsimd_metric_punned_t, a: A, b: B) -> Double? where A: Sequence, B: Sequence, A.Element == B.Element {
+func perform<A, B>(_ metric: simsimd_metric_dense_punned_t, a: A, b: B) -> Double? where A: Sequence, B: Sequence, A.Element == B.Element {
     var distance: simsimd_distance_t = 0
     let result = a.withContiguousStorageIfAvailable { a in
         b.withContiguousStorageIfAvailable { b in
@@ -118,10 +118,15 @@ extension simsimd_capability_t: OptionSet, CustomStringConvertible {
 }
 
 @inline(__always)
-private func find(kind: simsimd_metric_kind_t, dataType: simsimd_datatype_t) -> simsimd_metric_punned_t {
-    var output: simsimd_metric_punned_t?
+private func find(kind: simsimd_metric_kind_t, dataType: simsimd_datatype_t) -> simsimd_metric_dense_punned_t {
+    var output: simsimd_metric_dense_punned_t?
     var used = simsimd_capability_t.any
-    simsimd_find_metric_punned(kind, dataType, .available, .any, &output, &used)
+    // Use `withUnsafeMutablePointer` to safely cast `output` to the required pointer type.
+    withUnsafeMutablePointer(to: &output) { outputPtr in
+        // Cast the pointer to `UnsafeMutablePointer<simsimd_kernel_punned_t?>`
+        let castedPtr = outputPtr.withMemoryRebound(to: Optional<simsimd_kernel_punned_t>.self, capacity: 1) { $0 }
+        simsimd_find_kernel_punned(kind, dataType, .available, .any, castedPtr, &used)
+    }
     guard let output else { fatalError("Could not find function \(kind) for \(dataType)") }
     return output
 }

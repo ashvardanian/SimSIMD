@@ -53,9 +53,10 @@ napi_value dense(napi_env env, napi_callback_info info, simsimd_metric_kind_t me
         default: break;
         }
 
-    simsimd_metric_punned_t metric = NULL;
+    simsimd_metric_dense_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_metric_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
+    simsimd_find_kernel_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&metric, &capability);
     if (metric == NULL) {
         napi_throw_error(env, NULL, "Unsupported datatype for given metric");
         return NULL;

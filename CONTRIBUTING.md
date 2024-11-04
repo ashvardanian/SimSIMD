@@ -101,7 +101,7 @@ You can also benchmark against other libraries, filter the numeric types, and di
 $ python scripts/bench_vectors.py --help
 > usage: bench.py [-h] [--ndim NDIM] [-n COUNT]
 >                 [--metric {all,dot,spatial,binary,probability,sparse}]
->                 [--dtype {all,bits,int8,uint16,uint32,float16,float32,float64,bfloat16,complex32,complex64,complex128}] 
+>                 [--dtype {all,bin8,int8,uint16,uint32,float16,float32,float64,bfloat16,complex32,complex64,complex128}] 
 >                 [--scipy] [--scikit] [--torch] [--tf] [--jax]
 > 
 > Benchmark SimSIMD vs. other libraries
@@ -119,7 +119,7 @@ $ python scripts/bench_vectors.py --help
 >                         `cdist`.
 >   --metric {all,dot,spatial,binary,probability,sparse}
 >                         Distance metric to use, profiles everything by default
->   --dtype {all,bits,int8,uint16,uint32,float16,float32,float64,bfloat16,complex32,complex64,complex128}
+>   --dtype {all,bin8,int8,uint16,uint32,float16,float32,float64,bfloat16,complex32,complex64,complex128}
 >                         Defines numeric types to benchmark, profiles everything by default
 >   --scipy               Profile SciPy, must be installed
 >   --scikit              Profile scikit-learn, must be installed
@@ -201,6 +201,35 @@ bun test
 
 ```sh
 swift build && swift test -v
+```
+
+Running Swift on Linux requires a couple of extra steps, as the Swift compiler is not available in the default repositories.
+Please get the most recent Swift tarball from the [official website](https://www.swift.org/install/).
+At the time of writing, for 64-bit Arm CPU running Ubuntu 22.04, the following commands would work:
+
+```bash
+wget https://download.swift.org/swift-5.9.2-release/ubuntu2204-aarch64/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04-aarch64.tar.gz
+tar xzf swift-5.9.2-RELEASE-ubuntu22.04-aarch64.tar.gz
+sudo mv swift-5.9.2-RELEASE-ubuntu22.04-aarch64 /usr/share/swift
+echo "export PATH=/usr/share/swift/usr/bin:$PATH" >> ~/.bashrc
+source ~/.bashrc
+```
+
+You can check the available images on [`swift.org/download` page](https://www.swift.org/download/#releases).
+For x86 CPUs, the following commands would work:
+
+```bash
+wget https://download.swift.org/swift-5.9.2-release/ubuntu2204/swift-5.9.2-RELEASE/swift-5.9.2-RELEASE-ubuntu22.04.tar.gz
+tar xzf swift-5.9.2-RELEASE-ubuntu22.04.tar.gz
+sudo mv swift-5.9.2-RELEASE-ubuntu22.04 /usr/share/swift
+echo "export PATH=/usr/share/swift/usr/bin:$PATH" >> ~/.bashrc
+source ~/.bashrc
+```
+
+Alternatively, on Linux, the official Swift Docker image can be used for builds and tests:
+
+```bash
+sudo docker run --rm -v "$PWD:/workspace" -w /workspace swift:5.9 /bin/bash -cl "swift build -c release --static-swift-stdlib && swift test -c release --enable-test-discovery"
 ```
 
 ## GoLang

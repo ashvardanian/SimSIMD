@@ -31,49 +31,25 @@ _MetricType = Literal[
     "wsum",
 ]
 _IntegralType = Literal[
-    # Booleans
-    "c",
-    "b8",
+    "bin8",
     # Signed integers
-    "b",
-    "i8",
     "int8",
-    "h",
-    "i16",
     "int16",
-    "i",
-    "l",
-    "i32",
     "int32",
-    "q",
-    "i64",
     "int64",
     # Unsigned integers
-    "B",
-    "u8",
     "uint8",
-    "H",
-    "u16",
     "uint16",
-    "I",
-    "L",
-    "u32",
     "uint32",
-    "Q",
-    "u64",
     "uint64",
 ]
 _FloatType = Literal[
-    "f",
     "f32",
     "float32",
-    "e",
     "f16",
     "float16",
-    "d",
     "f64",
     "float64",
-    "bh",  #! Not supported by NumPy
     "bf16",  #! Not supported by NumPy
     "bfloat16",  #! Not supported by NumPy
 ]
