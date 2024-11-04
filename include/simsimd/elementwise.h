@@ -773,7 +773,7 @@ SIMSIMD_PUBLIC void simsimd_sum_i8_haswell(simsimd_i8_t const *a, simsimd_i8_t c
     for (; i < n; ++i) {
         simsimd_f32_t ai = a[i], bi = b[i];
         simsimd_f32_t sum = ai + bi;
-        SIMSIMD_F32_TO_U8(sum, result + i);
+        SIMSIMD_F32_TO_I8(sum, result + i);
     }
 }
 
