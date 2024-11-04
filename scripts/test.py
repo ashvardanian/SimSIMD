@@ -614,8 +614,8 @@ def to_array(x, dtype=None):
         (simd.cosine, LookupError, (to_array([1 + 2j]), to_array([1 + 2j])), {}),
         # Test incompatible vectors for cosine
         (simd.cosine, ValueError, (to_array([1.0]), to_array([1.0, 2.0])), {}),  # Different number of dimensions
-        (simd.cosine, TypeError, (to_array([1.0]), to_array([1], "uint32")), {}),  # Floats and integers
-        (simd.cosine, TypeError, (to_array([1]), to_array([1], "float16")), {}),  # Different floats
+        (simd.cosine, TypeError, (to_array([1.0]), to_array([1], "int8")), {}),  # Floats and integers
+        (simd.cosine, TypeError, (to_array([1], "float32"), to_array([1], "float16")), {}),  # Different floats
     ],
 )
 def test_invalid_argument_handling(function, expected_error, args, kwargs):
