@@ -127,6 +127,7 @@ void test_ndindex(void) {
             assert(simsimd_ndindex_next(&ndindex, 2, shape, strides) == (i != 9 || j != 4));
         }
     }
+    assert(ndindex.global_offset == 10 * 5);
 
     // 3D array with different strides at every level
     // At each level it should be at least as big as the smaller level stride
@@ -144,6 +145,61 @@ void test_ndindex(void) {
                 assert(ndindex.coordinate[1] == j);
                 assert(ndindex.coordinate[2] == k);
                 assert(simsimd_ndindex_next(&ndindex, 3, shape, strides) == (i != 9 || j != 4 || k != 2));
+            }
+        }
+    }
+    assert(ndindex.global_offset == 10 * 5 * 3);
+
+    // Populated 3D array with different strides at every level
+    {
+        simsimd_f32_t tensor[11][43][7];
+        // Fill tensor with values
+        for (simsimd_size_t i = 0; i < 11; i++) {
+            for (simsimd_size_t j = 0; j < 43; j++)
+                for (simsimd_size_t k = 0; k < 7; k++) tensor[i][j][k] = i * 10000 + j * 100 + k * 1;
+        }
+        // Accumulate a slice: tensor[1:9:2, 2:42:4, 1:5:3] ~ 4 channels, 10 rows, 2 columns
+        simsimd_ndindex_init(&ndindex);
+        shape[0] = _simsimd_divide_ceil(9 - 1, 2);
+        shape[1] = _simsimd_divide_ceil(42 - 2, 4);
+        shape[2] = _simsimd_divide_ceil(5 - 1, 3);
+        strides[0] = 43 * 7 * sizeof(simsimd_f32_t) * 2; // Physical size of 2 channels
+        strides[1] = 7 * sizeof(simsimd_f32_t) * 4;      // Physical size of 4 rows
+        strides[2] = 3 * sizeof(simsimd_f32_t);          // Physical size of 3 columns
+        // Accumulate using native indexing
+        simsimd_f32_t sum_native = 0;
+        for (simsimd_size_t i = 1; i < 9; i += 2) {
+            for (simsimd_size_t j = 2; j < 42; j += 4) {
+                for (simsimd_size_t k = 1; k < 5; k += 3) { //
+                    sum_native += tensor[i][j][k];
+                }
+            }
+        }
+        // Accumulate using our `simsimd_ndindex_t` iterator
+        simsimd_f32_t sum_with_ndindex = 0;
+        simsimd_f32_t sum_native_running = 0;
+        for (simsimd_size_t i = 1; i < 9; i += 2) {
+            for (simsimd_size_t j = 2; j < 42; j += 4) {
+                for (simsimd_size_t k = 1; k < 5; k += 3) {
+                    simsimd_size_t const expected_global_offset = //
+                        ((i - 1) / 2) * shape[1] * shape[2] +     //
+                        ((j - 2) / 4) * shape[2] +                //
+                        ((k - 1) / 3);                            //
+                    assert(ndindex.global_offset == expected_global_offset);
+                    simsimd_f32_t const entry_native = tensor[i][j][k];
+                    simsimd_f32_t const entry_from_byte_offset =
+                        *(simsimd_f32_t *)_simsimd_advance_by_bytes(&tensor[1][2][1], ndindex.byte_offset);
+                    simsimd_f32_t const entry_from_coordinate = tensor //
+                        [ndindex.coordinate[0] * 2 + 1]                //
+                        [ndindex.coordinate[1] * 4 + 2]                //
+                        [ndindex.coordinate[2] * 3 + 1];
+                    assert(entry_native == entry_from_byte_offset);
+                    assert(entry_native == entry_from_coordinate);
+                    sum_with_ndindex += entry_from_byte_offset;
+                    sum_native_running += entry_native;
+                    assert(sum_native_running == sum_with_ndindex);
+                    simsimd_ndindex_next(&ndindex, 3, shape, strides);
+                }
             }
         }
     }
@@ -219,10 +275,11 @@ void test_distance_from_itself(void) {
 }
 
 int main(int argc, char **argv) {
-
+    printf("Running tests...\n");
     print_capabilities();
     test_utilities();
     test_ndindex();
     test_distance_from_itself();
+    printf("All tests passed.\n");
     return 0;
 }

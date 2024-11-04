@@ -92,28 +92,76 @@
 #endif
 #endif
 
-#include <simsimd/simsimd.h>
-
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-typedef struct TensorArgument {
+#define SIMSIMD_NDARRAY_MAX_RANK (PyBUF_MAX_NDIM)
+#include <simsimd/simsimd.h>
+
+/// @brief  Convenience wrapper for BLAS Level 1 interfaces to infer the layout of rank-1 and rank-2 tensors.
+typedef struct VectorOrRowsArgument {
     char *start;
     size_t dimensions;
     size_t count;
     size_t stride;
     int rank;
     simsimd_datatype_t datatype;
-} TensorArgument;
+} VectorOrRowsArgument;
 
+typedef struct BufferOrScalarArgument {
+    enum {
+        UndefinedKind = 0,
+        /// Just a `float` or an `int`
+        ScalarKind,
+        /// A single `float` or `int` buffer of any rank, but with a single element
+        ScalarBufferKind,
+        /// Any rank tensor with more than 1 element along any dimension
+        BufferKind,
+    } kind;
+    /// Populated only for `ScalarKind` and `ScalarBufferKind` kinds.
+    simsimd_u8_t as_scalar[8];
+    /// The address of the buffer start, if the kind is `BufferKind` or `ScalarBufferKind`.
+    /// Alternatively, points to the `&as_scalar` field for `ScalarKind` kind.
+    char *as_buffer_start;
+    Py_ssize_t as_buffer_dimensions;
+    //? The "shape" and "strides" fields may seem redundant, as they are already part of the `Py_buffer`
+    //? object, but we use them to normalize the representation in binary and ternary functions with
+    //? non-trivial broadcasting rules.
+    Py_ssize_t as_buffer_shape[PyBUF_MAX_NDIM];
+    Py_ssize_t as_buffer_strides[PyBUF_MAX_NDIM];
+    /// Defines the type of representation stored in the `as_scalar`
+    /// and in the `as_buffer_start` contents.
+    simsimd_datatype_t datatype;
+
+} BufferOrScalarArgument;
+
+/// @brief  Minimalistics and space-efficient representation of a rank-1 or rank-2 output tensor.
 typedef struct DistancesTensor {
     PyObject_HEAD                    //
-        simsimd_datatype_t datatype; // Double precision real or complex numbers
-    size_t dimensions;               // Can be only 1 or 2 dimensions
+        simsimd_datatype_t datatype; // Any SimSIMD numeric type
+    Py_ssize_t dimensions;           // Can be only 1 or 2 dimensions
     Py_ssize_t shape[2];             // Dimensions of the tensor
     Py_ssize_t strides[2];           // Strides for each dimension
     simsimd_distance_t start[];      // Variable length data aligned to 64-bit scalars
 } DistancesTensor;
+
+/// @brief  Generalized high-rank tensor alternative to NumPy, supporting up to 64 dimensions,
+///         zero-copy views/slices, the Buffer Protocol, and faster iteration.
+typedef struct NDArray {
+    PyObject_HEAD                    //
+        simsimd_datatype_t datatype; // Any SimSIMD numeric type
+    Py_ssize_t ndim; //! Can be up to `PyBUF_MAX_NDIM` (often 64), but NumPy only supports 32 on most platforms!
+    Py_ssize_t shape[PyBUF_MAX_NDIM];   // Dimensions of the tensor
+    Py_ssize_t strides[PyBUF_MAX_NDIM]; // Strides for each dimension
+    simsimd_distance_t start[];         // Variable length data aligned to 64-bit scalars
+} NDArray;
+
+/// @brief  Faster alternative to NumPy's `ndindex` object, supporting just as amny dimensions,
+///         as the `NDArray` object.
+typedef struct NDIndex {
+    PyObject_HEAD //
+        simsimd_ndindex_t ndindex;
+} NDIndex;
 
 static int DistancesTensor_getbuffer(PyObject *export_from, Py_buffer *view, int flags);
 static void DistancesTensor_releasebuffer(PyObject *export_from, Py_buffer *view);
@@ -125,12 +173,39 @@ static PyBufferProcs DistancesTensor_as_buffer = {
 
 static PyTypeObject DistancesTensorType = {
     PyVarObject_HEAD_INIT(NULL, 0).tp_name = "simsimd.DistancesTensor",
-    .tp_doc = "Zero-copy view of an internal tensor, compatible with NumPy",
+    .tp_doc = "Zero-copy view of a rank-1 or rank-2 tensor, compatible with NumPy",
     .tp_basicsize = sizeof(DistancesTensor),
     // Instead of using `simsimd_distance_t` for all the elements,
     // we use `char` to allow user to specify the datatype on `cdist`-like functions.
     .tp_itemsize = sizeof(char),
     .tp_as_buffer = &DistancesTensor_as_buffer,
+};
+
+static int NDArray_getbuffer(PyObject *export_from, Py_buffer *view, int flags);
+static void NDArray_releasebuffer(PyObject *export_from, Py_buffer *view);
+static PyObject *NDArray_get_shape(NDArray *self, void *closure);
+static PyObject *NDArray_get_size(NDArray *self, void *closure);
+
+static PyBufferProcs NDArray_as_buffer = {
+    .bf_getbuffer = NDArray_getbuffer,
+    .bf_releasebuffer = NDArray_releasebuffer,
+};
+
+static PyGetSetDef NDArray_getset[] = {
+    {"shape", (getter)NDArray_get_shape, NULL, "Shape of the NDArray", NULL},
+    {"size", (getter)NDArray_get_size, NULL, "Total number of elements in the NDArray", NULL},
+    {NULL} // Sentinel
+};
+
+static PyTypeObject NDArrayType = {
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "simsimd.NDArray",
+    .tp_doc = "Zero-copy view of a high-rank tensor, compatible with NumPy", //
+    .tp_basicsize = sizeof(NDArray),
+    // Instead of using `simsimd_distance_t` for all the elements,
+    // we use `char` to allow user to specify the datatype on `cdist`-like functions.
+    .tp_itemsize = sizeof(char), //
+    .tp_as_buffer = &NDArray_as_buffer,
+    .tp_getset = NDArray_getset, // Add the getset array here
 };
 
 /// @brief  Global variable that caches the CPU capabilities, and is computed just onc, when the module is loaded.
@@ -319,6 +394,40 @@ size_t bytes_per_datatype(simsimd_datatype_t dtype) {
     }
 }
 
+typedef enum DatatypeKind {
+    FloatKind = 0,
+    ComplexKind = 1,
+    IntegerKind = 2,
+    UnsignedKind = 3,
+    BooleanKind = 4,
+} DatatypeKind;
+
+/// @brief Check if the datatype has a sign.
+/// @param dtype Logical datatype, can be complex.
+/// @return Zero if the datatype is an unsigned ingteger, positive for signed integers and floats
+DatatypeKind datatype_kind(simsimd_datatype_t dtype) {
+    switch (dtype) {
+    case simsimd_datatype_f64_k: return FloatKind;
+    case simsimd_datatype_f32_k: return FloatKind;
+    case simsimd_datatype_f16_k: return FloatKind;
+    case simsimd_datatype_bf16_k: return FloatKind;
+    case simsimd_datatype_f64c_k: return ComplexKind;
+    case simsimd_datatype_f32c_k: return ComplexKind;
+    case simsimd_datatype_f16c_k: return ComplexKind;
+    case simsimd_datatype_bf16c_k: return ComplexKind;
+    case simsimd_datatype_b8_k: return BooleanKind;
+    case simsimd_datatype_u8_k: return UnsignedKind;
+    case simsimd_datatype_u16_k: return UnsignedKind;
+    case simsimd_datatype_u32_k: return UnsignedKind;
+    case simsimd_datatype_u64_k: return UnsignedKind;
+    case simsimd_datatype_i8_k: return IntegerKind;
+    case simsimd_datatype_i16_k: return IntegerKind;
+    case simsimd_datatype_i32_k: return IntegerKind;
+    case simsimd_datatype_i64_k: return IntegerKind;
+    default: return 0;
+    }
+}
+
 /// @brief Copy a distance to a target datatype, downcasting if necessary.
 /// @return 1 if the cast was successful, 0 if the target datatype is not supported.
 int cast_distance(simsimd_distance_t distance, simsimd_datatype_t target_dtype, void *target_ptr, size_t offset) {
@@ -382,7 +491,8 @@ int kernel_is_commutative(simsimd_metric_kind_t kind) {
 }
 
 static char const doc_enable_capability[] = //
-    "Enable a specific SIMD kernel family.\n\n"
+    "Enable a specific SIMD kernel family.\n"
+    "\n"
     "Args:\n"
     "    capability (str): The name of the SIMD feature to enable (e.g., 'haswell').";
 
@@ -421,7 +531,8 @@ static PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj) {
 }
 
 static char const doc_disable_capability[] = //
-    "Disable a specific SIMD kernel family.\n\n"
+    "Disable a specific SIMD kernel family.\n"
+    "\n"
     "Args:\n"
     "    capability (str): The name of the SIMD feature to disable (e.g., 'haswell').";
 
@@ -461,8 +572,8 @@ static PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj) 
 
 static char const doc_get_capabilities[] = //
     "Get the current hardware SIMD capabilities as a dictionary of feature flags.\n"
-    "On x86 includes: 'serial', 'haswell', 'skylake', 'ice', 'genoa', 'sapphire', 'turin'.\n"
-    "On Arm includes: 'serial', 'neon', 'sve', 'sve2', and their extensions.\n";
+    "On x86 includes: 'serial', 'haswell', 'skylake', 'ice', 'genoa', 'sapphire', 'turin', 'sierra'.\n"
+    "On Arm includes: 'serial', 'neon', 'sve', 'sve2', and their specialized extensions.\n";
 
 static PyObject *api_get_capabilities(PyObject *self) {
     simsimd_capability_t caps = static_capabilities;
@@ -495,17 +606,11 @@ static PyObject *api_get_capabilities(PyObject *self) {
 
 /// @brief Unpacks a Python tensor object into a C structure.
 /// @return 1 on success, 0 otherwise.
-int parse_tensor(PyObject *tensor, Py_buffer *buffer, TensorArgument *parsed) {
+int parse_rows(PyObject *tensor, Py_buffer *buffer, VectorOrRowsArgument *parsed) {
     if (PyObject_GetBuffer(tensor, buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
-        PyErr_SetString(PyExc_TypeError, "arguments must support buffer protocol");
+        PyErr_SetString(PyExc_TypeError, "Tensors must support buffer protocol");
         return 0;
     }
-    // In case you are debugging some new obscure format string :)
-    // printf("buffer format is %s\n", buffer->format);
-    // printf("buffer ndim is %d\n", buffer->ndim);
-    // printf("buffer shape is %d\n", buffer->shape[0]);
-    // printf("buffer shape is %d\n", buffer->shape[1]);
-    // printf("buffer itemsize is %d\n", buffer->itemsize);
     parsed->start = buffer->buf;
     parsed->datatype = numpy_string_to_datatype(buffer->format);
     if (parsed->datatype == simsimd_datatype_unknown_k) {
@@ -527,7 +632,7 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, TensorArgument *parsed) {
     }
     else if (buffer->ndim == 2) {
         if (buffer->strides[1] > buffer->itemsize) {
-            PyErr_SetString(PyExc_ValueError, "Input vectors must be contiguous, check with `X.__array_interface__`");
+            PyErr_SetString(PyExc_ValueError, "Input rows must be contiguous, check with `X.__array_interface__`");
             PyBuffer_Release(buffer);
             return 0;
         }
@@ -544,6 +649,82 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, TensorArgument *parsed) {
     // We handle complex numbers differently
     if (is_complex(parsed->datatype)) parsed->dimensions *= 2;
     return 1;
+}
+
+/// @brief Unpacks a Python tensor object into a C structure.
+/// @return 1 on success, 0 otherwise.
+int parse_tensor(PyObject *tensor, Py_buffer *buffer, simsimd_datatype_t *dtype) {
+    if (PyObject_GetBuffer(tensor, buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
+        PyErr_SetString(PyExc_TypeError, "Tensors must support buffer protocol");
+        return 0;
+    }
+
+    *dtype = numpy_string_to_datatype(buffer->format);
+    if (*dtype == simsimd_datatype_unknown_k) {
+        PyErr_Format(PyExc_ValueError, "Unsupported '%s' datatype specifier", buffer->format);
+        PyBuffer_Release(buffer);
+        return 0;
+    }
+
+    return 1;
+}
+
+int parse_buffer_or_scalar_argument(PyObject *obj, Py_buffer *buffer, BufferOrScalarArgument *parsed) {
+
+    if (PyFloat_Check(obj)) {
+        // Return a C `double` representation of the contents of `obj`.
+        // If `obj` is not a Python floating-point object but has a `__float__()` method,
+        // this method will first be called to convert `obj` into a float.
+        simsimd_f64_t as_float = PyFloat_AsDouble(obj);
+        memcpy(&parsed->as_scalar, &as_float, sizeof(simsimd_f64_t));
+        parsed->kind = ScalarKind;
+        parsed->datatype = simsimd_datatype_f64_k;
+        parsed->as_buffer_start = (char *)&parsed->as_scalar;
+        parsed->as_buffer_dimensions = 1;
+        parsed->as_buffer_shape[0] = 1;
+        parsed->as_buffer_strides[0] = 0;
+        return 1;
+    }
+    else if (PyLong_Check(obj)) {
+        int did_overflow = 0;
+        simsimd_i64_t as_int = PyLong_AsLongLongAndOverflow(obj, &did_overflow);
+        if (did_overflow) {
+            PyErr_SetString(PyExc_ValueError, "Integer overflow");
+            return 0;
+        }
+        memcpy(&parsed->as_scalar, &as_int, sizeof(simsimd_i64_t));
+        parsed->kind = ScalarKind;
+        parsed->datatype = simsimd_datatype_i64_k;
+        parsed->as_buffer_start = (char *)&parsed->as_scalar;
+        parsed->as_buffer_dimensions = 1;
+        parsed->as_buffer_shape[0] = 1;
+        parsed->as_buffer_strides[0] = 0;
+        return 1;
+    }
+    else if (PyObject_CheckBuffer(obj)) {
+        if (!parse_tensor(obj, buffer, &parsed->datatype)) return 0;
+        // If the tensor contains just one element, regardless of the shape,
+        // we must treat it as a scalar, similar to NumPy.
+        if (buffer->len == buffer->itemsize) {
+            memcpy(&parsed->as_scalar, buffer->buf, buffer->itemsize);
+            parsed->kind = ScalarBufferKind;
+            parsed->as_buffer_start = (char *)&parsed->as_scalar;
+        }
+        else {
+            parsed->kind = BufferKind;
+            parsed->as_buffer_start = buffer->buf;
+        }
+        parsed->as_buffer_dimensions = buffer->ndim;
+        for (Py_ssize_t i = 0; i < buffer->ndim; i++) {
+            parsed->as_buffer_shape[i] = buffer->shape[i];
+            parsed->as_buffer_strides[i] = buffer->strides[i];
+        }
+        return 1;
+    }
+    else {
+        PyErr_SetString(PyExc_TypeError, "Argument must be a scalar, a buffer, or a buffer-like object");
+        return 0;
+    }
 }
 
 static int DistancesTensor_getbuffer(PyObject *export_from, Py_buffer *view, int flags) {
@@ -568,8 +749,48 @@ static int DistancesTensor_getbuffer(PyObject *export_from, Py_buffer *view, int
 }
 
 static void DistancesTensor_releasebuffer(PyObject *export_from, Py_buffer *view) {
-    // This function MUST NOT decrement view->obj, since that is done automatically in PyBuffer_Release().
-    // https://docs.python.org/3/c-api/typeobj.html#c.PyBufferProcs.bf_releasebuffer
+    //! This function MUST NOT decrement view->obj, since that is done automatically in PyBuffer_Release().
+    //! https://docs.python.org/3/c-api/typeobj.html#c.PyBufferProcs.bf_releasebuffer
+}
+
+static int NDArray_getbuffer(PyObject *export_from, Py_buffer *view, int flags) {
+    NDArray *tensor = (NDArray *)export_from;
+    Py_ssize_t const item_size = (Py_ssize_t)bytes_per_datatype(tensor->datatype);
+    Py_ssize_t total_items = 1;
+    for (Py_ssize_t i = 0; i < tensor->ndim; ++i) total_items *= tensor->shape[i];
+
+    view->buf = &tensor->start[0];
+    view->obj = (PyObject *)tensor;
+    view->len = item_size * total_items;
+    view->readonly = 0;
+    view->itemsize = item_size;
+    view->format = datatype_to_python_string(tensor->datatype);
+    view->ndim = tensor->ndim;
+    view->shape = &tensor->shape[0];
+    view->strides = &tensor->strides[0];
+    view->suboffsets = NULL;
+    view->internal = NULL;
+
+    Py_INCREF(tensor);
+    return 0;
+}
+
+static void NDArray_releasebuffer(PyObject *export_from, Py_buffer *view) {
+    //! This function MUST NOT decrement view->obj, since that is done automatically in PyBuffer_Release().
+    //! https://docs.python.org/3/c-api/typeobj.html#c.PyBufferProcs.bf_releasebuffer
+}
+
+static PyObject *NDArray_get_shape(NDArray *self, void *closure) {
+    PyObject *shape_tuple = PyTuple_New(self->ndim);
+    if (!shape_tuple) return NULL;
+    for (Py_ssize_t i = 0; i < self->ndim; i++) PyTuple_SET_ITEM(shape_tuple, i, PyLong_FromSsize_t(self->shape[i]));
+    return shape_tuple;
+}
+
+static PyObject *NDArray_get_size(NDArray *self, void *closure) {
+    Py_ssize_t total_items = 1;
+    for (Py_ssize_t i = 0; i < self->ndim; i++) total_items *= self->shape[i];
+    return PyLong_FromSsize_t(total_items);
 }
 
 static PyObject *implement_dense_metric( //
@@ -589,7 +810,7 @@ static PyObject *implement_dense_metric( //
     char const *dtype_str = NULL, *out_dtype_str = NULL;
     simsimd_datatype_t dtype = simsimd_datatype_unknown_k, out_dtype = simsimd_datatype_unknown_k;
     Py_buffer a_buffer, b_buffer, out_buffer;
-    TensorArgument a_parsed, b_parsed, out_parsed;
+    VectorOrRowsArgument a_parsed, b_parsed, out_parsed;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
     memset(&out_buffer, 0, sizeof(Py_buffer));
@@ -656,8 +877,8 @@ static PyObject *implement_dense_metric( //
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) return NULL;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) return NULL;
+    if (!parse_rows(a_obj, &a_buffer, &a_parsed) || !parse_rows(b_obj, &b_buffer, &b_parsed)) return NULL;
+    if (out_obj && !parse_rows(out_obj, &out_buffer, &out_parsed)) return NULL;
 
     // Check dimensions
     if (a_parsed.dimensions != b_parsed.dimensions) {
@@ -753,28 +974,28 @@ static PyObject *implement_dense_metric( //
     size_t const count_pairs = a_parsed.count > b_parsed.count ? a_parsed.count : b_parsed.count;
     size_t const components_per_pair = dtype_is_complex ? 2 : 1;
     size_t const count_components = count_pairs * components_per_pair;
-    char *distances_start = NULL;
-    size_t distances_stride_bytes = 0;
+    char *out_buffer_start = NULL;
+    size_t out_buffer_stride_bytes = 0;
 
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
-        DistancesTensor *distances_obj =
+        DistancesTensor *out_buffer_obj =
             PyObject_NewVar(DistancesTensor, &DistancesTensorType, count_components * bytes_per_datatype(out_dtype));
-        if (!distances_obj) {
+        if (!out_buffer_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
         // Initialize the object
-        distances_obj->datatype = out_dtype;
-        distances_obj->dimensions = 1;
-        distances_obj->shape[0] = count_pairs;
-        distances_obj->shape[1] = 1;
-        distances_obj->strides[0] = bytes_per_datatype(out_dtype);
-        distances_obj->strides[1] = 0;
-        return_obj = (PyObject *)distances_obj;
-        distances_start = (char *)&distances_obj->start[0];
-        distances_stride_bytes = distances_obj->strides[0];
+        out_buffer_obj->datatype = out_dtype;
+        out_buffer_obj->dimensions = 1;
+        out_buffer_obj->shape[0] = count_pairs;
+        out_buffer_obj->shape[1] = 1;
+        out_buffer_obj->strides[0] = bytes_per_datatype(out_dtype);
+        out_buffer_obj->strides[1] = 0;
+        return_obj = (PyObject *)out_buffer_obj;
+        out_buffer_start = (char *)&out_buffer_obj->start[0];
+        out_buffer_stride_bytes = out_buffer_obj->strides[0];
     }
     else {
         if (bytes_per_datatype(out_parsed.datatype) != bytes_per_datatype(out_dtype)) {
@@ -785,8 +1006,8 @@ static PyObject *implement_dense_metric( //
                 datatype_to_python_string(out_parsed.datatype));
             goto cleanup;
         }
-        distances_start = (char *)&out_parsed.start[0];
-        distances_stride_bytes = out_buffer.strides[0];
+        out_buffer_start = (char *)&out_parsed.start[0];
+        out_buffer_stride_bytes = out_buffer.strides[0];
         //? Logic suggests to return `None` in in-place mode...
         //? SciPy decided differently.
         return_obj = Py_None;
@@ -802,8 +1023,8 @@ static PyObject *implement_dense_metric( //
             (simsimd_distance_t *)&result);
 
         // Export out:
-        cast_distance(result[0], out_dtype, distances_start + i * distances_stride_bytes, 0);
-        if (dtype_is_complex) cast_distance(result[1], out_dtype, distances_start + i * distances_stride_bytes, 1);
+        cast_distance(result[0], out_dtype, out_buffer_start + i * out_buffer_stride_bytes, 0);
+        if (dtype_is_complex) cast_distance(result[1], out_dtype, out_buffer_start + i * out_buffer_stride_bytes, 1);
     }
 
 cleanup:
@@ -829,7 +1050,7 @@ static PyObject *implement_curved_metric( //
     char const *dtype_str = NULL;
     simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
     Py_buffer a_buffer, b_buffer, c_buffer;
-    TensorArgument a_parsed, b_parsed, c_parsed;
+    VectorOrRowsArgument a_parsed, b_parsed, c_parsed;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
     memset(&c_buffer, 0, sizeof(Py_buffer));
@@ -881,8 +1102,8 @@ static PyObject *implement_curved_metric( //
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed) ||
-        !parse_tensor(c_obj, &c_buffer, &c_parsed))
+    if (!parse_rows(a_obj, &a_buffer, &a_parsed) || !parse_rows(b_obj, &b_buffer, &b_parsed) ||
+        !parse_rows(c_obj, &c_buffer, &c_parsed))
         return NULL;
 
     // Check dimensions
@@ -955,8 +1176,8 @@ static PyObject *implement_sparse_metric( //
     PyObject *b_obj = args[1];
 
     Py_buffer a_buffer, b_buffer;
-    TensorArgument a_parsed, b_parsed;
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) return NULL;
+    VectorOrRowsArgument a_parsed, b_parsed;
+    if (!parse_rows(a_obj, &a_buffer, &a_parsed) || !parse_rows(b_obj, &b_buffer, &b_parsed)) return NULL;
 
     // Check dimensions
     if (a_parsed.rank != 1 || b_parsed.rank != 1) {
@@ -1004,14 +1225,14 @@ static PyObject *implement_cdist(                        //
     PyObject *return_obj = NULL;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
-    TensorArgument a_parsed, b_parsed, out_parsed;
+    VectorOrRowsArgument a_parsed, b_parsed, out_parsed;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
     memset(&out_buffer, 0, sizeof(Py_buffer));
 
-    // Error will be set by `parse_tensor` if the input is invalid
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) return NULL;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) return NULL;
+    // Error will be set by `parse_rows` if the input is invalid
+    if (!parse_rows(a_obj, &a_buffer, &a_parsed) || !parse_rows(b_obj, &b_buffer, &b_parsed)) return NULL;
+    if (out_obj && !parse_rows(out_obj, &out_buffer, &out_parsed)) return NULL;
 
     // Check dimensions
     if (a_parsed.dimensions != b_parsed.dimensions) {
@@ -1106,31 +1327,31 @@ static PyObject *implement_cdist(                        //
     size_t const count_pairs = a_parsed.count * b_parsed.count;
     size_t const components_per_pair = dtype_is_complex ? 2 : 1;
     size_t const count_components = count_pairs * components_per_pair;
-    char *distances_start = NULL;
-    size_t distances_rows_stride_bytes = 0;
-    size_t distances_cols_stride_bytes = 0;
+    char *out_buffer_start = NULL;
+    size_t out_buffer_rows_stride_bytes = 0;
+    size_t out_buffer_cols_stride_bytes = 0;
 
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
 
-        DistancesTensor *distances_obj =
+        DistancesTensor *out_buffer_obj =
             PyObject_NewVar(DistancesTensor, &DistancesTensorType, count_components * bytes_per_datatype(out_dtype));
-        if (!distances_obj) {
+        if (!out_buffer_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
         // Initialize the object
-        distances_obj->datatype = out_dtype;
-        distances_obj->dimensions = 2;
-        distances_obj->shape[0] = a_parsed.count;
-        distances_obj->shape[1] = b_parsed.count;
-        distances_obj->strides[0] = b_parsed.count * bytes_per_datatype(distances_obj->datatype);
-        distances_obj->strides[1] = bytes_per_datatype(distances_obj->datatype);
-        return_obj = (PyObject *)distances_obj;
-        distances_start = (char *)&distances_obj->start[0];
-        distances_rows_stride_bytes = distances_obj->strides[0];
-        distances_cols_stride_bytes = distances_obj->strides[1];
+        out_buffer_obj->datatype = out_dtype;
+        out_buffer_obj->dimensions = 2;
+        out_buffer_obj->shape[0] = a_parsed.count;
+        out_buffer_obj->shape[1] = b_parsed.count;
+        out_buffer_obj->strides[0] = b_parsed.count * bytes_per_datatype(out_buffer_obj->datatype);
+        out_buffer_obj->strides[1] = bytes_per_datatype(out_buffer_obj->datatype);
+        return_obj = (PyObject *)out_buffer_obj;
+        out_buffer_start = (char *)&out_buffer_obj->start[0];
+        out_buffer_rows_stride_bytes = out_buffer_obj->strides[0];
+        out_buffer_cols_stride_bytes = out_buffer_obj->strides[1];
     }
     else {
         if (bytes_per_datatype(out_parsed.datatype) != bytes_per_datatype(out_dtype)) {
@@ -1141,9 +1362,9 @@ static PyObject *implement_cdist(                        //
                 datatype_to_python_string(out_parsed.datatype));
             goto cleanup;
         }
-        distances_start = (char *)&out_parsed.start[0];
-        distances_rows_stride_bytes = out_buffer.strides[0];
-        distances_cols_stride_bytes = out_buffer.strides[1];
+        out_buffer_start = (char *)&out_parsed.start[0];
+        out_buffer_rows_stride_bytes = out_buffer.strides[0];
+        out_buffer_cols_stride_bytes = out_buffer.strides[1];
         //? Logic suggests to return `None` in in-place mode...
         //? SciPy decided differently.
         return_obj = Py_None;
@@ -1170,16 +1391,20 @@ static PyObject *implement_cdist(                        //
             // Export into both the lower and upper triangle
             if (1)
                 cast_distance(result[0], out_dtype,
-                              distances_start + i * distances_rows_stride_bytes + j * distances_cols_stride_bytes, 0);
+                              out_buffer_start + i * out_buffer_rows_stride_bytes + j * out_buffer_cols_stride_bytes,
+                              0);
             if (dtype_is_complex)
                 cast_distance(result[1], out_dtype,
-                              distances_start + i * distances_rows_stride_bytes + j * distances_cols_stride_bytes, 1);
+                              out_buffer_start + i * out_buffer_rows_stride_bytes + j * out_buffer_cols_stride_bytes,
+                              1);
             if (is_symmetric)
                 cast_distance(result[0], out_dtype,
-                              distances_start + j * distances_rows_stride_bytes + i * distances_cols_stride_bytes, 0);
+                              out_buffer_start + j * out_buffer_rows_stride_bytes + i * out_buffer_cols_stride_bytes,
+                              0);
             if (is_symmetric && dtype_is_complex)
                 cast_distance(result[1], out_dtype,
-                              distances_start + j * distances_rows_stride_bytes + i * distances_cols_stride_bytes, 1);
+                              out_buffer_start + j * out_buffer_rows_stride_bytes + i * out_buffer_cols_stride_bytes,
+                              1);
         }
 
 cleanup:
@@ -1214,17 +1439,20 @@ static PyObject *implement_pointer_access(simsimd_metric_kind_t metric_kind, PyO
 }
 
 static char const doc_cdist[] = //
-    "Compute pairwise distances between two sets of input matrices.\n\n"
+    "Compute pairwise distances between two sets of input matrices.\n"
+    "\n"
     "Args:\n"
     "    a (NDArray): First matrix.\n"
     "    b (NDArray): Second matrix.\n"
     "    metric (str, optional): Distance metric to use (e.g., 'sqeuclidean', 'cosine').\n"
     "    out (NDArray, optional): Output matrix to store the result.\n"
     "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type.\n"
-    "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n\n"
+    "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n"
+    "\n"
     "    threads (int, optional): Number of threads to use (default is 1).\n"
     "Returns:\n"
-    "    DistancesTensor: Pairwise distances between all inputs.\n\n"
+    "    DistancesTensor: Pairwise distances between all inputs.\n"
+    "\n"
     "Equivalent to: `scipy.spatial.distance.cdist`.\n"
     "Notes:\n"
     "    * `a` and `b` are positional-only arguments.\n"
@@ -1379,16 +1607,18 @@ static PyObject *api_jaccard_pointer(PyObject *self, PyObject *dtype_obj) {
 }
 
 static char const doc_l2[] = //
-    "Compute Euclidean (L2) distances between two matrices.\n\n"
+    "Compute Euclidean (L2) distances between two matrices.\n"
+    "\n"
     "Args:\n"
     "    a (NDArray): First matrix or vector.\n"
     "    b (NDArray): Second matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
+    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n"
+    "\n"
     "Equivalent to: `scipy.spatial.distance.euclidean`.\n"
     "Signature:\n"
     "    >>> def euclidean(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
@@ -1399,16 +1629,18 @@ static PyObject *api_l2(PyObject *self, PyObject *const *args, Py_ssize_t const 
 }
 
 static char const doc_l2sq[] = //
-    "Compute squared Euclidean (L2) distances between two matrices.\n\n"
+    "Compute squared Euclidean (L2) distances between two matrices.\n"
+    "\n"
     "Args:\n"
     "    a (NDArray): First matrix or vector.\n"
     "    b (NDArray): Second matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
+    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n"
+    "\n"
     "Equivalent to: `scipy.spatial.distance.sqeuclidean`.\n"
     "Signature:\n"
     "    >>> def sqeuclidean(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
@@ -1419,16 +1651,18 @@ static PyObject *api_l2sq(PyObject *self, PyObject *const *args, Py_ssize_t cons
 }
 
 static char const doc_cos[] = //
-    "Compute cosine (angular) distances between two matrices.\n\n"
+    "Compute cosine (angular) distances between two matrices.\n"
+    "\n"
     "Args:\n"
     "    a (NDArray): First matrix or vector.\n"
     "    b (NDArray): Second matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
+    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n"
+    "\n"
     "Equivalent to: `scipy.spatial.distance.cosine`.\n"
     "Signature:\n"
     "    >>> def cosine(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
@@ -1439,16 +1673,18 @@ static PyObject *api_cos(PyObject *self, PyObject *const *args, Py_ssize_t const
 }
 
 static char const doc_dot[] = //
-    "Compute the inner (dot) product between two matrices (real or complex).\n\n"
+    "Compute the inner (dot) product between two matrices (real or complex).\n"
+    "\n"
     "Args:\n"
     "    a (NDArray): First matrix or vector.\n"
     "    b (NDArray): Second matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n\n"
+    "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n"
+    "\n"
     "Equivalent to: `numpy.inner`.\n"
     "Signature:\n"
     "    >>> def dot(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
@@ -1459,16 +1695,18 @@ static PyObject *api_dot(PyObject *self, PyObject *const *args, Py_ssize_t const
 }
 
 static char const doc_vdot[] = //
-    "Compute the conjugate dot product between two complex matrices.\n\n"
+    "Compute the conjugate dot product between two complex matrices.\n"
+    "\n"
     "Args:\n"
     "    a (NDArray): First complex matrix or vector.\n"
     "    b (NDArray): Second complex matrix or vector.\n"
     "    dtype (ComplexType, optional): Override the presumed input type.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (Union[ComplexType], optional): Result type, default is 'float64'.\n\n"
+    "    out_dtype (Union[ComplexType], optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n"
+    "\n"
     "Equivalent to: `numpy.vdot`.\n"
     "Signature:\n"
     "    >>> def vdot(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
@@ -1479,16 +1717,18 @@ static PyObject *api_vdot(PyObject *self, PyObject *const *args, Py_ssize_t cons
 }
 
 static char const doc_kl[] = //
-    "Compute Kullback-Leibler divergences between two matrices.\n\n"
+    "Compute Kullback-Leibler divergences between two matrices.\n"
+    "\n"
     "Args:\n"
     "    a (NDArray): First floating-point matrix or vector.\n"
     "    b (NDArray): Second floating-point matrix or vector.\n"
     "    dtype (FloatType, optional): Override the presumed input type.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
+    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n"
+    "\n"
     "Equivalent to: `scipy.special.kl_div`.\n"
     "Signature:\n"
     "    >>> def kl(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
@@ -1499,16 +1739,18 @@ static PyObject *api_kl(PyObject *self, PyObject *const *args, Py_ssize_t const 
 }
 
 static char const doc_js[] = //
-    "Compute Jensen-Shannon divergences between two matrices.\n\n"
+    "Compute Jensen-Shannon divergences between two matrices.\n"
+    "\n"
     "Args:\n"
     "    a (NDArray): First floating-point matrix or vector.\n"
     "    b (NDArray): Second floating-point matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
+    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n"
+    "\n"
     "Equivalent to: `scipy.spatial.distance.jensenshannon`.\n"
     "Signature:\n"
     "    >>> def kl(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
@@ -1519,16 +1761,18 @@ static PyObject *api_js(PyObject *self, PyObject *const *args, Py_ssize_t const 
 }
 
 static char const doc_hamming[] = //
-    "Compute Hamming distances between two matrices.\n\n"
+    "Compute Hamming distances between two matrices.\n"
+    "\n"
     "Args:\n"
     "    a (NDArray): First binary matrix or vector.\n"
     "    b (NDArray): Second binary matrix or vector.\n"
     "    dtype (IntegralType, optional): Override the presumed input type.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
+    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n"
+    "\n"
     "Similar to: `scipy.spatial.distance.hamming`.\n"
     "Signature:\n"
     "    >>> def hamming(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
@@ -1539,16 +1783,18 @@ static PyObject *api_hamming(PyObject *self, PyObject *const *args, Py_ssize_t c
 }
 
 static char const doc_jaccard[] = //
-    "Compute Jaccard distances (bitwise Tanimoto) between two matrices.\n\n"
+    "Compute Jaccard distances (bitwise Tanimoto) between two matrices.\n"
+    "\n"
     "Args:\n"
     "    a (NDArray): First binary matrix or vector.\n"
     "    b (NDArray): Second binary matrix or vector.\n"
     "    dtype (IntegralType, optional): Override the presumed input type.\n"
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
+    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n"
+    "\n"
     "Similar to: `scipy.spatial.distance.jaccard`.\n"
     "Signature:\n"
     "    >>> def jaccard(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
@@ -1559,14 +1805,16 @@ static PyObject *api_jaccard(PyObject *self, PyObject *const *args, Py_ssize_t c
 }
 
 static char const doc_bilinear[] = //
-    "Compute the bilinear form between two vectors given a metric tensor.\n\n"
+    "Compute the bilinear form between two vectors given a metric tensor.\n"
+    "\n"
     "Args:\n"
     "    a (NDArray): First vector.\n"
     "    b (NDArray): Second vector.\n"
     "    metric_tensor (NDArray): The metric tensor defining the bilinear form.\n"
-    "    dtype (FloatType, optional): Override the presumed input type.\n\n"
+    "    dtype (FloatType, optional): Override the presumed input type.\n"
     "Returns:\n"
-    "    float: The bilinear form.\n\n"
+    "    float: The bilinear form.\n"
+    "\n"
     "Equivalent to: `numpy.dot` with a metric tensor.\n"
     "Signature:\n"
     "    >>> def bilinear(a, b, metric_tensor, /, dtype) -> float: ...";
@@ -1577,14 +1825,16 @@ static PyObject *api_bilinear(PyObject *self, PyObject *const *args, Py_ssize_t 
 }
 
 static char const doc_mahalanobis[] = //
-    "Compute the Mahalanobis distance between two vectors given an inverse covariance matrix.\n\n"
+    "Compute the Mahalanobis distance between two vectors given an inverse covariance matrix.\n"
+    "\n"
     "Args:\n"
     "    a (NDArray): First vector.\n"
     "    b (NDArray): Second vector.\n"
     "    inverse_covariance (NDArray): The inverse of the covariance matrix.\n"
-    "    dtype (FloatType, optional): Override the presumed input type.\n\n"
+    "    dtype (FloatType, optional): Override the presumed input type.\n"
     "Returns:\n"
-    "    float: The Mahalanobis distance.\n\n"
+    "    float: The Mahalanobis distance.\n"
+    "\n"
     "Equivalent to: `scipy.spatial.distance.mahalanobis`.\n"
     "Signature:\n"
     "    >>> def mahalanobis(a, b, inverse_covariance, /, dtype) -> float: ...";
@@ -1595,12 +1845,14 @@ static PyObject *api_mahalanobis(PyObject *self, PyObject *const *args, Py_ssize
 }
 
 static char const doc_intersect[] = //
-    "Compute the intersection of two sorted integer arrays.\n\n"
+    "Compute the intersection of two sorted integer arrays.\n"
+    "\n"
     "Args:\n"
     "    a (NDArray): First sorted integer array.\n"
-    "    b (NDArray): Second sorted integer array.\n\n"
+    "    b (NDArray): Second sorted integer array.\n"
     "Returns:\n"
-    "    float: The number of intersecting elements.\n\n"
+    "    float: The number of intersecting elements.\n"
+    "\n"
     "Similar to: `numpy.intersect1d`."
     "Signature:\n"
     "    >>> def intersect(a, b, /) -> float: ...";
@@ -1610,16 +1862,18 @@ static PyObject *api_intersect(PyObject *self, PyObject *const *args, Py_ssize_t
 }
 
 static char const doc_scale[] = //
-    "Scale and Shift an input vectors.\n\n"
+    "Scale and Shift an input vectors.\n"
+    "\n"
     "Args:\n"
     "    a (NDArray): Vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
     "    alpha (float, optional): First scale, 1.0 by default.\n"
     "    beta (float, optional): Shift, 0.0 by default.\n"
-    "    out (NDArray, optional): Vector for resulting distances.\n\n"
+    "    out (NDArray, optional): Vector for resulting distances.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n"
+    "\n"
     "Equivalent to: `alpha * a + beta`.\n"
     "Signature:\n"
     "    >>> def scale(a, /, dtype, *, alpha, beta, out) -> Optional[DistancesTensor]: ...";
@@ -1642,7 +1896,7 @@ static PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t con
     simsimd_distance_t alpha = 1, beta = 0;
 
     Py_buffer a_buffer, out_buffer;
-    TensorArgument a_parsed, out_parsed;
+    VectorOrRowsArgument a_parsed, out_parsed;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&out_buffer, 0, sizeof(Py_buffer));
 
@@ -1701,8 +1955,8 @@ static PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t con
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`.
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed)) return NULL;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) return NULL;
+    if (!parse_rows(a_obj, &a_buffer, &a_parsed)) return NULL;
+    if (out_obj && !parse_rows(out_obj, &out_buffer, &out_parsed)) return NULL;
 
     // Check dimensions
     if (a_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
@@ -1740,38 +1994,38 @@ static PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t con
         goto cleanup;
     }
 
-    char *distances_start = NULL;
-    size_t distances_stride_bytes = 0;
+    char *out_buffer_start = NULL;
+    size_t out_buffer_stride_bytes = 0;
 
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
-        DistancesTensor *distances_obj =
+        DistancesTensor *out_buffer_obj =
             PyObject_NewVar(DistancesTensor, &DistancesTensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
-        if (!distances_obj) {
+        if (!out_buffer_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
         // Initialize the object
-        distances_obj->datatype = dtype;
-        distances_obj->dimensions = 1;
-        distances_obj->shape[0] = a_parsed.dimensions;
-        distances_obj->shape[1] = 1;
-        distances_obj->strides[0] = bytes_per_datatype(dtype);
-        distances_obj->strides[1] = 0;
-        return_obj = (PyObject *)distances_obj;
-        distances_start = (char *)&distances_obj->start[0];
-        distances_stride_bytes = distances_obj->strides[0];
+        out_buffer_obj->datatype = dtype;
+        out_buffer_obj->dimensions = 1;
+        out_buffer_obj->shape[0] = a_parsed.dimensions;
+        out_buffer_obj->shape[1] = 1;
+        out_buffer_obj->strides[0] = bytes_per_datatype(dtype);
+        out_buffer_obj->strides[1] = 0;
+        return_obj = (PyObject *)out_buffer_obj;
+        out_buffer_start = (char *)&out_buffer_obj->start[0];
+        out_buffer_stride_bytes = out_buffer_obj->strides[0];
     }
     else {
-        distances_start = (char *)&out_parsed.start[0];
-        distances_stride_bytes = out_buffer.strides[0];
+        out_buffer_start = (char *)&out_parsed.start[0];
+        out_buffer_stride_bytes = out_buffer.strides[0];
         //? Logic suggests to return `None` in in-place mode...
         //? SciPy decided differently.
         return_obj = Py_None;
     }
 
-    metric(a_parsed.start, a_parsed.dimensions, alpha, beta, distances_start);
+    metric(a_parsed.start, a_parsed.dimensions, alpha, beta, out_buffer_start);
 cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&out_buffer);
@@ -1779,15 +2033,17 @@ cleanup:
 }
 
 static char const doc_sum[] = //
-    "Element-wise Sum of 2 input vectors.\n\n"
+    "Element-wise Sum of 2 input vectors.\n"
+    "\n"
     "Args:\n"
     "    a (NDArray): First vector.\n"
     "    b (NDArray): Second vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
-    "    out (NDArray, optional): Vector for resulting distances.\n\n"
+    "    out (NDArray, optional): Vector for resulting distances.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n"
+    "\n"
     "Equivalent to: `a + b`.\n"
     "Signature:\n"
     "    >>> def sum(a, b, /, dtype, *, out) -> Optional[DistancesTensor]: ...";
@@ -1808,7 +2064,7 @@ static PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t const
     simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
-    TensorArgument a_parsed, b_parsed, out_parsed;
+    VectorOrRowsArgument a_parsed, b_parsed, out_parsed;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
     memset(&out_buffer, 0, sizeof(Py_buffer));
@@ -1859,8 +2115,8 @@ static PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t const
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) return NULL;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) return NULL;
+    if (!parse_rows(a_obj, &a_buffer, &a_parsed) || !parse_rows(b_obj, &b_buffer, &b_parsed)) return NULL;
+    if (out_obj && !parse_rows(out_obj, &out_buffer, &out_parsed)) return NULL;
 
     // Check dimensions
     if (a_parsed.rank != 1 || b_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
@@ -1899,38 +2155,38 @@ static PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t const
         goto cleanup;
     }
 
-    char *distances_start = NULL;
-    size_t distances_stride_bytes = 0;
+    char *out_buffer_start = NULL;
+    size_t out_buffer_stride_bytes = 0;
 
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
-        DistancesTensor *distances_obj =
+        DistancesTensor *out_buffer_obj =
             PyObject_NewVar(DistancesTensor, &DistancesTensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
-        if (!distances_obj) {
+        if (!out_buffer_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
         // Initialize the object
-        distances_obj->datatype = dtype;
-        distances_obj->dimensions = 1;
-        distances_obj->shape[0] = a_parsed.dimensions;
-        distances_obj->shape[1] = 1;
-        distances_obj->strides[0] = bytes_per_datatype(dtype);
-        distances_obj->strides[1] = 0;
-        return_obj = (PyObject *)distances_obj;
-        distances_start = (char *)&distances_obj->start[0];
-        distances_stride_bytes = distances_obj->strides[0];
+        out_buffer_obj->datatype = dtype;
+        out_buffer_obj->dimensions = 1;
+        out_buffer_obj->shape[0] = a_parsed.dimensions;
+        out_buffer_obj->shape[1] = 1;
+        out_buffer_obj->strides[0] = bytes_per_datatype(dtype);
+        out_buffer_obj->strides[1] = 0;
+        return_obj = (PyObject *)out_buffer_obj;
+        out_buffer_start = (char *)&out_buffer_obj->start[0];
+        out_buffer_stride_bytes = out_buffer_obj->strides[0];
     }
     else {
-        distances_start = (char *)&out_parsed.start[0];
-        distances_stride_bytes = out_buffer.strides[0];
+        out_buffer_start = (char *)&out_parsed.start[0];
+        out_buffer_stride_bytes = out_buffer.strides[0];
         //? Logic suggests to return `None` in in-place mode...
         //? SciPy decided differently.
         return_obj = Py_None;
     }
 
-    metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, distances_start);
+    metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, out_buffer_start);
 cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&b_buffer);
@@ -1939,17 +2195,19 @@ cleanup:
 }
 
 static char const doc_wsum[] = //
-    "Weighted Sum of 2 input vectors.\n\n"
+    "Weighted Sum of 2 input vectors.\n"
+    "\n"
     "Args:\n"
     "    a (NDArray): First vector.\n"
     "    b (NDArray): Second vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
     "    alpha (float, optional): First scale, 1.0 by default.\n"
     "    beta (float, optional): Second scale, 1.0 by default.\n"
-    "    out (NDArray, optional): Vector for resulting distances.\n\n"
+    "    out (NDArray, optional): Vector for resulting distances.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n"
+    "\n"
     "Equivalent to: `alpha * a + beta * b`.\n"
     "Signature:\n"
     "    >>> def wsum(a, b, /, dtype, *, alpha, beta, out) -> Optional[DistancesTensor]: ...";
@@ -1973,7 +2231,7 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
     simsimd_distance_t alpha = 1, beta = 1;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
-    TensorArgument a_parsed, b_parsed, out_parsed;
+    VectorOrRowsArgument a_parsed, b_parsed, out_parsed;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
     memset(&out_buffer, 0, sizeof(Py_buffer));
@@ -2034,8 +2292,8 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) return NULL;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) return NULL;
+    if (!parse_rows(a_obj, &a_buffer, &a_parsed) || !parse_rows(b_obj, &b_buffer, &b_parsed)) return NULL;
+    if (out_obj && !parse_rows(out_obj, &out_buffer, &out_parsed)) return NULL;
 
     // Check dimensions
     if (a_parsed.rank != 1 || b_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
@@ -2074,38 +2332,38 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
         goto cleanup;
     }
 
-    char *distances_start = NULL;
-    size_t distances_stride_bytes = 0;
+    char *out_buffer_start = NULL;
+    size_t out_buffer_stride_bytes = 0;
 
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
-        DistancesTensor *distances_obj =
+        DistancesTensor *out_buffer_obj =
             PyObject_NewVar(DistancesTensor, &DistancesTensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
-        if (!distances_obj) {
+        if (!out_buffer_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
         // Initialize the object
-        distances_obj->datatype = dtype;
-        distances_obj->dimensions = 1;
-        distances_obj->shape[0] = a_parsed.dimensions;
-        distances_obj->shape[1] = 1;
-        distances_obj->strides[0] = bytes_per_datatype(dtype);
-        distances_obj->strides[1] = 0;
-        return_obj = (PyObject *)distances_obj;
-        distances_start = (char *)&distances_obj->start[0];
-        distances_stride_bytes = distances_obj->strides[0];
+        out_buffer_obj->datatype = dtype;
+        out_buffer_obj->dimensions = 1;
+        out_buffer_obj->shape[0] = a_parsed.dimensions;
+        out_buffer_obj->shape[1] = 1;
+        out_buffer_obj->strides[0] = bytes_per_datatype(dtype);
+        out_buffer_obj->strides[1] = 0;
+        return_obj = (PyObject *)out_buffer_obj;
+        out_buffer_start = (char *)&out_buffer_obj->start[0];
+        out_buffer_stride_bytes = out_buffer_obj->strides[0];
     }
     else {
-        distances_start = (char *)&out_parsed.start[0];
-        distances_stride_bytes = out_buffer.strides[0];
+        out_buffer_start = (char *)&out_parsed.start[0];
+        out_buffer_stride_bytes = out_buffer.strides[0];
         //? Logic suggests to return `None` in in-place mode...
         //? SciPy decided differently.
         return_obj = Py_None;
     }
 
-    metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, alpha, beta, distances_start);
+    metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, alpha, beta, out_buffer_start);
 cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&b_buffer);
@@ -2114,7 +2372,8 @@ cleanup:
 }
 
 static char const doc_fma[] = //
-    "Fused-Multiply-Add between 3 input vectors.\n\n"
+    "Fused-Multiply-Add between 3 input vectors.\n"
+    "\n"
     "Args:\n"
     "    a (NDArray): First vector.\n"
     "    b (NDArray): Second vector.\n"
@@ -2122,10 +2381,11 @@ static char const doc_fma[] = //
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
     "    alpha (float, optional): First scale, 1.0 by default.\n"
     "    beta (float, optional): Second scale, 1.0 by default.\n"
-    "    out (NDArray, optional): Vector for resulting distances.\n\n"
+    "    out (NDArray, optional): Vector for resulting distances.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n"
+    "\n"
     "Equivalent to: `alpha * a * b + beta * c`.\n"
     "Signature:\n"
     "    >>> def fma(a, b, c, /, dtype, *, alpha, beta, out) -> Optional[DistancesTensor]: ...";
@@ -2150,7 +2410,7 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
     simsimd_distance_t alpha = 1, beta = 1;
 
     Py_buffer a_buffer, b_buffer, c_buffer, out_buffer;
-    TensorArgument a_parsed, b_parsed, c_parsed, out_parsed;
+    VectorOrRowsArgument a_parsed, b_parsed, c_parsed, out_parsed;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
     memset(&c_buffer, 0, sizeof(Py_buffer));
@@ -2213,10 +2473,10 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed) ||
-        !parse_tensor(c_obj, &c_buffer, &c_parsed))
+    if (!parse_rows(a_obj, &a_buffer, &a_parsed) || !parse_rows(b_obj, &b_buffer, &b_parsed) ||
+        !parse_rows(c_obj, &c_buffer, &c_parsed))
         return NULL;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) return NULL;
+    if (out_obj && !parse_rows(out_obj, &out_buffer, &out_parsed)) return NULL;
 
     // Check dimensions
     if (a_parsed.rank != 1 || b_parsed.rank != 1 || c_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
@@ -2256,42 +2516,619 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
         goto cleanup;
     }
 
-    char *distances_start = NULL;
-    size_t distances_stride_bytes = 0;
+    char *out_buffer_start = NULL;
+    size_t out_buffer_stride_bytes = 0;
 
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
-        DistancesTensor *distances_obj =
+        DistancesTensor *out_buffer_obj =
             PyObject_NewVar(DistancesTensor, &DistancesTensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
-        if (!distances_obj) {
+        if (!out_buffer_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
         // Initialize the object
-        distances_obj->datatype = dtype;
-        distances_obj->dimensions = 1;
-        distances_obj->shape[0] = a_parsed.dimensions;
-        distances_obj->shape[1] = 1;
-        distances_obj->strides[0] = bytes_per_datatype(dtype);
-        distances_obj->strides[1] = 0;
-        return_obj = (PyObject *)distances_obj;
-        distances_start = (char *)&distances_obj->start[0];
-        distances_stride_bytes = distances_obj->strides[0];
+        out_buffer_obj->datatype = dtype;
+        out_buffer_obj->dimensions = 1;
+        out_buffer_obj->shape[0] = a_parsed.dimensions;
+        out_buffer_obj->shape[1] = 1;
+        out_buffer_obj->strides[0] = bytes_per_datatype(dtype);
+        out_buffer_obj->strides[1] = 0;
+        return_obj = (PyObject *)out_buffer_obj;
+        out_buffer_start = (char *)&out_buffer_obj->start[0];
+        out_buffer_stride_bytes = out_buffer_obj->strides[0];
     }
     else {
-        distances_start = (char *)&out_parsed.start[0];
-        distances_stride_bytes = out_buffer.strides[0];
+        out_buffer_start = (char *)&out_parsed.start[0];
+        out_buffer_stride_bytes = out_buffer.strides[0];
         //? Logic suggests to return `None` in in-place mode...
         //? SciPy decided differently.
         return_obj = Py_None;
     }
 
-    metric(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, alpha, beta, distances_start);
+    metric(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, alpha, beta, out_buffer_start);
 cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&b_buffer);
     PyBuffer_Release(&c_buffer);
+    PyBuffer_Release(&out_buffer);
+    return return_obj;
+}
+
+void _plus_u64(void const *a, void const *b, void *o) {
+    *(simsimd_u64_t *)o = *(simsimd_u64_t const *)a + *(simsimd_u64_t const *)b;
+}
+void _plus_u32(void const *a, void const *b, void *o) {
+    *(simsimd_u32_t *)o = *(simsimd_u32_t const *)a + *(simsimd_u32_t const *)b;
+}
+void _plus_u16(void const *a, void const *b, void *o) {
+    *(simsimd_u16_t *)o = *(simsimd_u16_t const *)a + *(simsimd_u16_t const *)b;
+}
+void _plus_u8(void const *a, void const *b, void *o) {
+    *(simsimd_u8_t *)o = *(simsimd_u8_t const *)a + *(simsimd_u8_t const *)b;
+}
+void _plus_i64(void const *a, void const *b, void *o) {
+    *(simsimd_i64_t *)o = *(simsimd_i64_t const *)a + *(simsimd_i64_t const *)b;
+}
+void _plus_i32(void const *a, void const *b, void *o) {
+    *(simsimd_i32_t *)o = *(simsimd_i32_t const *)a + *(simsimd_i32_t const *)b;
+}
+void _plus_i16(void const *a, void const *b, void *o) {
+    *(simsimd_i16_t *)o = *(simsimd_i16_t const *)a + *(simsimd_i16_t const *)b;
+}
+void _plus_i8(void const *a, void const *b, void *o) {
+    *(simsimd_i8_t *)o = *(simsimd_i8_t const *)a + *(simsimd_i8_t const *)b;
+}
+void _plus_f64(void const *a, void const *b, void *o) {
+    *(simsimd_f64_t *)o = *(simsimd_f64_t const *)a + *(simsimd_f64_t const *)b;
+}
+void _plus_f32(void const *a, void const *b, void *o) {
+    *(simsimd_f32_t *)o = *(simsimd_f32_t const *)a + *(simsimd_f32_t const *)b;
+}
+void _plus_f16(void const *a, void const *b, void *o) {
+    simsimd_f32_to_f16(simsimd_f16_to_f32(a) + simsimd_f16_to_f32(b), (simsimd_f16_t *)o);
+}
+void _plus_bf16(void const *a, void const *b, void *o) {
+    simsimd_f32_to_bf16(simsimd_bf16_to_f32(a) + simsimd_bf16_to_f32(b), (simsimd_bf16_t *)o);
+}
+
+void implementation_elementwise_binary_tensor_operation( //
+    BufferOrScalarArgument const *a_parsed, BufferOrScalarArgument const *b_parsed,
+    BufferOrScalarArgument const *out_parsed, //
+    void (*binary_kernel)(void const *, void const *, void *)) {
+
+    // The hardest part of this operations is addressing the elements in a non-continuous tensor of arbitrary rank.
+    // While iteratively deepening into the lower layers of the tensor, we need to keep track of the byte offsets
+    // for each dimension to avoid recomputing them in the inner loops.
+    simsimd_ndindex_t a_ndindex, b_ndindex, out_ndindex;
+    memset(&a_ndindex, 0, sizeof(simsimd_ndindex_t));
+    memset(&b_ndindex, 0, sizeof(simsimd_ndindex_t));
+    memset(&out_ndindex, 0, sizeof(simsimd_ndindex_t));
+
+    // Start from last dimension and move backward, replicating the logic
+    // of `simsimd_ndindex_next`, broadcasting the same update logic across the
+    // indexes in all three tensors, and avoiding additional branches inside the loops.
+    while (1) {
+        // Invoke the provided kernel at the current byte offsets
+        binary_kernel(a_parsed->as_buffer_start + a_ndindex.byte_offset,
+                      b_parsed->as_buffer_start + b_ndindex.byte_offset,
+                      out_parsed->as_buffer_start + out_ndindex.byte_offset);
+
+        // Advance to the next index
+        Py_ssize_t dim;
+        for (dim = out_parsed->as_buffer_dimensions - 1; dim >= 0; --dim) {
+            out_ndindex.coordinate[dim]++;
+            out_ndindex.byte_offset += out_parsed->as_buffer_strides[dim];
+            a_ndindex.byte_offset += a_parsed->as_buffer_strides[dim];
+            b_ndindex.byte_offset += b_parsed->as_buffer_strides[dim];
+
+            // Successfully moved to the next index in this dimension
+            if (out_ndindex.coordinate[dim] < out_parsed->as_buffer_shape[dim]) break;
+            else {
+                // Reset coordinate and byte offset for this dimension
+                out_ndindex.coordinate[dim] = 0;
+                out_ndindex.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                a_ndindex.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                b_ndindex.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+            }
+        }
+
+        // If we've processed all dimensions, we're done
+        if (dim < 0) break;
+    }
+}
+
+void implementation_vectorized_binary_tensor_operation( //
+    BufferOrScalarArgument const *a_parsed, BufferOrScalarArgument const *b_parsed,
+    BufferOrScalarArgument const *out_parsed, //
+    Py_ssize_t const non_continuous_ranks,    //
+    Py_ssize_t const continuous_elements,     //
+    void (*binary_kernel)(void const *, void const *, simsimd_size_t, void *)) {
+
+    // The hardest part of this operations is addressing the elements in a non-continuous tensor of arbitrary rank.
+    // While iteratively deepening into the lower layers of the tensor, we need to keep track of the byte offsets
+    // for each dimension to avoid recomputing them in the inner loops.
+    simsimd_ndindex_t a_ndindex, b_ndindex, out_ndindex;
+    memset(&a_ndindex, 0, sizeof(simsimd_ndindex_t));
+    memset(&b_ndindex, 0, sizeof(simsimd_ndindex_t));
+    memset(&out_ndindex, 0, sizeof(simsimd_ndindex_t));
+
+    // Start from last dimension and move backward, replicating the logic
+    // of `simsimd_ndindex_next`, broadcasting the same update logic across the
+    // indexes in all three tensors, and avoiding additional branches inside the loops.
+    while (1) {
+        // Invoke the provided kernel at the current byte offsets
+        binary_kernel(a_parsed->as_buffer_start + a_ndindex.byte_offset,
+                      b_parsed->as_buffer_start + b_ndindex.byte_offset, continuous_elements,
+                      out_parsed->as_buffer_start + out_ndindex.byte_offset);
+
+        // Advance to the next index
+        Py_ssize_t dim;
+        for (dim = non_continuous_ranks - 1; dim >= 0; --dim) {
+            out_ndindex.coordinate[dim]++;
+            out_ndindex.byte_offset += out_parsed->as_buffer_strides[dim];
+            a_ndindex.byte_offset += a_parsed->as_buffer_strides[dim];
+            b_ndindex.byte_offset += b_parsed->as_buffer_strides[dim];
+
+            // Successfully moved to the next index in this dimension
+            if (out_ndindex.coordinate[dim] < out_parsed->as_buffer_shape[dim]) break;
+            else {
+                // Reset coordinate and byte offset for this dimension
+                out_ndindex.coordinate[dim] = 0;
+                out_ndindex.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                a_ndindex.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                b_ndindex.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+            }
+        }
+
+        // If we've processed all dimensions, we're done
+        if (dim < 0) break;
+    }
+}
+
+static char const doc_add[] = //
+    "Tensor-Tensor or Tensor-Scalar element-wise addition.\n"
+    "\n"
+    "Args:\n"
+    "    a (Union[NDArray, float, int]): First Tensor or scalar.\n"
+    "    b (Union[NDArray, float, int]): Second Tensor or scalar.\n"
+    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of all tensors.\n"
+    "    out (NDArray, optional): Tensor for resulting distances.\n"
+    "    a_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `a`.\n"
+    "    b_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `b`.\n"
+    "    out_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `out`.\n"
+    "Returns:\n"
+    "    DistancesTensor: The distances if `out` is not provided.\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n"
+    "\n"
+    "Equivalent to: `a + b`, but unlike the `sum` API supports scalar arguments.\n"
+    "Signature:\n"
+    "    >>> def add(a, b, /, dtype, *, out, a_dtype, b_dtype, out_dtype) -> Optional[DistancesTensor]: ...\n"
+    "\n"
+    "Performance recommendations:\n"
+    "    - Provide an output tensor to avoid memory allocations.\n"
+    "    - Use the same datatype for both inputs and outputs, if supplied.\n"
+    "    - Ideally keep operands in continuous memory. Otherwise, maximize the number of last continuous dimensions.\n"
+    "    - On tiny inputs you may want to avoid passing arguments by name.\n"
+    "In most cases, conforming to these recommendations is easy and will result in the best performance.\n"
+    "\n"
+    "Broadcasting rules:\n"
+    "    - If both inputs are scalars, the output will be a scalar.\n"
+    "    - If one input is a scalar, the output will be a tensor of the same shape as the other input.\n"
+    "    - If both inputs are tensors, in every dimension, the dimension sizes must match or one of them must be 1.\n"
+    "Broadcasting examples for different shapes:\n"
+    "    - (3) + (1) -> (3)\n"
+    "    - (3, 1) + (1) -> (3, 1)\n"
+    "    - (3, 1) + (1, 1) -> (3, 1)\n"
+    "    - (4, 7, 5, 3) + (1) -> (4, 7, 5, 3)\n"
+    "    - (4, 7, 5, 3) + (1, 1, 1) -> (4, 7, 5, 3)\n"
+    "    - (4, 7, 5, 3) + (4, 1, 5, 1) -> (4, 7, 5, 3).\n"
+    "    - (4, 7, 5, 3) + (1, 1, 1, 1, 1) -> (1, 4, 7, 5, 3)\n"
+    "    - (4, 7, 5, 3) + (2, 1, 1, 1, 1) -> (2, 4, 7, 5, 3)\n"
+    "\n"
+    "Typecasting rules:\n"
+    "    - If one of tensors contains integrals and the other - floats, `float64` addition will be used.\n"
+    "    - If input tensors contain different sign integrals, `int64` saturating addition will be used.\n"
+    "    - If input tensors contain different size unsiged integrals, `uint64` saturating addition will be used.\n" //
+    ;
+
+static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                         PyObject *args_names_tuple) {
+
+    PyObject *return_obj = NULL;
+
+    // This function accepts up to 5 arguments:
+    PyObject *a_obj = NULL;     // Required object, positional-only
+    PyObject *b_obj = NULL;     // Required object, positional-only
+    PyObject *dtype_obj = NULL; // Optional object, "dtype" keyword or positional
+    PyObject *out_obj = NULL;   // Optional object, "out" keyword-only
+
+    Py_ssize_t const args_names_count = args_names_tuple ? PyTuple_Size(args_names_tuple) : 0;
+    Py_ssize_t const args_count = positional_args_count + args_names_count;
+    if (args_count < 2 || args_count > 4) {
+        PyErr_Format(PyExc_TypeError, "Function expects 2-4 arguments, got %zd", args_count);
+        return NULL;
+    }
+    if (positional_args_count > 3) {
+        PyErr_Format(PyExc_TypeError, "Only first 3 arguments can be positional, received %zd", positional_args_count);
+        return NULL;
+    }
+
+    // Positional-only arguments (first and second matrix)
+    a_obj = args[0];
+    b_obj = args[1];
+
+    // Positional or keyword arguments (dtype)
+    if (positional_args_count == 3) dtype_obj = args[2];
+
+    // The rest of the arguments must be checked in the keyword dictionary:
+    for (Py_ssize_t args_names_tuple_progress = 0, args_progress = positional_args_count;
+         args_names_tuple_progress < args_names_count; ++args_progress, ++args_names_tuple_progress) {
+        PyObject *const key = PyTuple_GetItem(args_names_tuple, args_names_tuple_progress);
+        PyObject *const value = args[args_progress];
+        if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0 && !dtype_obj) { dtype_obj = value; }
+        else if (PyUnicode_CompareWithASCIIString(key, "out") == 0 && !out_obj) { out_obj = value; }
+        else {
+            PyErr_Format(PyExc_TypeError, "Got unexpected keyword argument: %S", key);
+            return NULL;
+        }
+    }
+
+    // Convert `dtype_obj` to `dtype_str` and to `dtype`
+    char const *dtype_str = NULL;
+    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
+    if (dtype_obj) {
+        dtype_str = PyUnicode_AsUTF8(dtype_obj);
+        if (!dtype_str && PyErr_Occurred()) {
+            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
+            return NULL;
+        }
+        dtype = python_string_to_datatype(dtype_str);
+        if (dtype == simsimd_datatype_unknown_k) {
+            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
+            return NULL;
+        }
+    }
+
+    // Unlike `sum` and `fma` the first and second argument can be either scalars or tensors.
+    // Resolving the the shape of the output tensor and the traversal order is going to be nightmare, behold!
+    // To understand the logic, look into the the broadcasting rules in the docstring above.
+    BufferOrScalarArgument a_parsed, b_parsed, out_parsed;
+    memset(&a_parsed, 0, sizeof(BufferOrScalarArgument));
+    memset(&b_parsed, 0, sizeof(BufferOrScalarArgument));
+    memset(&out_parsed, 0, sizeof(BufferOrScalarArgument));
+    Py_buffer a_buffer, b_buffer, out_buffer;
+    memset(&a_buffer, 0, sizeof(Py_buffer));
+    memset(&b_buffer, 0, sizeof(Py_buffer));
+    memset(&out_buffer, 0, sizeof(Py_buffer));
+
+    // Convert `alpha_obj` to `alpha` and `beta_obj` to `beta`
+    if (!parse_buffer_or_scalar_argument(a_obj, &a_buffer, &a_parsed)) goto cleanup;
+    if (!parse_buffer_or_scalar_argument(b_obj, &b_buffer, &b_parsed)) goto cleanup;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed.datatype)) goto cleanup;
+    if (dtype == simsimd_datatype_unknown_k)
+        dtype = a_parsed.kind != ScalarKind ? a_parsed.datatype : b_parsed.datatype;
+
+    // If we are only provided with scalars, avoid all future shenanigans:
+    if (a_parsed.kind == ScalarKind && b_parsed.kind == ScalarKind) {
+        simsimd_f64_t a_as_double = *(simsimd_f64_t *)&a_parsed.as_scalar[0];
+        simsimd_f64_t b_as_double = *(simsimd_f64_t *)&b_parsed.as_scalar[0];
+        if (!out_obj) {
+            int result_is_int = PyLong_Check(a_obj) && PyLong_Check(b_obj);
+            if (result_is_int) { return PyLong_FromLong(a_as_double + b_as_double); }
+            else { return PyFloat_FromDouble(a_as_double + b_as_double); }
+        }
+        else {
+            // Make sure the output tensor is a scalar, i.e. contains a single element
+            if (out_buffer.len != out_buffer.itemsize) {
+                PyErr_SetString(PyExc_ValueError, "Output tensor must be a scalar");
+                goto cleanup;
+            }
+            if (!cast_distance(a_as_double + b_as_double, out_parsed.datatype, out_buffer.buf, 0)) {
+                PyErr_SetString(PyExc_ValueError, "Unsupported output datatype");
+                goto cleanup;
+            }
+            else {
+                return_obj = Py_None;
+                goto cleanup;
+            }
+        }
+    }
+
+    // Check dimensions, but unlike the `sum`, `scale`, `wsum`, and `fma` APIs
+    // we want to provide maximal compatibility with NumPy and OpenCV. In many
+    // such cases, the input is not a rank-1 tensor and may not be continuous.
+    Py_ssize_t ins_continuous_dimensions = 0;
+    Py_ssize_t ins_continuous_elements = 1;
+    if (a_parsed.kind == BufferKind && b_parsed.kind == BufferKind) {
+        //! The ranks of tensors may not match!
+        // We need to compare them in reverse order, right to left, assuming all the missing dimensions are 1.
+        // To match those, we are going to populate the `a_parsed.as_buffer_shape` and `b_parsed.as_buffer_shape`,
+        // simultanesouly filling the strides of broadcasted dimensions with zeros.
+        Py_ssize_t const max_rank = a_buffer.ndim > b_buffer.ndim ? a_buffer.ndim : b_buffer.ndim;
+        Py_ssize_t const min_rank = a_buffer.ndim < b_buffer.ndim ? a_buffer.ndim : b_buffer.ndim;
+        a_parsed.as_buffer_dimensions = max_rank;
+        b_parsed.as_buffer_dimensions = max_rank;
+        out_parsed.as_buffer_dimensions = max_rank;
+
+        // Go through the shared dimensions: back to front
+        for (Py_ssize_t i = 0; i < min_rank; ++i) {
+            Py_ssize_t const a_dim = a_buffer.shape[a_buffer.ndim - 1 - i];
+            Py_ssize_t const b_dim = b_buffer.shape[b_buffer.ndim - 1 - i];
+            Py_ssize_t const a_stride = a_buffer.strides[a_buffer.ndim - 1 - i];
+            Py_ssize_t const b_stride = b_buffer.strides[b_buffer.ndim - 1 - i];
+            // Simplest case! Both dimensions match.
+            if (a_dim == b_dim) {
+                a_parsed.as_buffer_shape[max_rank - 1 - i] = a_dim;
+                b_parsed.as_buffer_shape[max_rank - 1 - i] = b_dim;
+                a_parsed.as_buffer_strides[max_rank - 1 - i] = a_stride;
+                b_parsed.as_buffer_strides[max_rank - 1 - i] = b_stride;
+                out_parsed.as_buffer_shape[max_rank - 1 - i] = a_dim;
+                int a_is_continuous =
+                    a_stride == a_dim * ins_continuous_elements * bytes_per_datatype(a_parsed.datatype);
+                int b_is_continuous =
+                    b_stride == b_dim * ins_continuous_elements * bytes_per_datatype(b_parsed.datatype);
+                if (a_is_continuous && b_is_continuous) {
+                    ins_continuous_dimensions++;
+                    ins_continuous_elements *= a_dim;
+                }
+            }
+            // Broadcast this value from A
+            else if (a_dim == 1) {
+                a_parsed.as_buffer_shape[max_rank - 1 - i] = 1;
+                b_parsed.as_buffer_shape[max_rank - 1 - i] = b_dim;
+                a_parsed.as_buffer_strides[max_rank - 1 - i] = 0;
+                b_parsed.as_buffer_strides[max_rank - 1 - i] = b_stride;
+                out_parsed.as_buffer_shape[max_rank - 1 - i] = b_dim;
+            }
+            // Broadcast this value from B
+            else if (b_dim == 1) {
+                a_parsed.as_buffer_shape[max_rank - 1 - i] = a_dim;
+                b_parsed.as_buffer_shape[max_rank - 1 - i] = 1;
+                a_parsed.as_buffer_strides[max_rank - 1 - i] = a_stride;
+                b_parsed.as_buffer_strides[max_rank - 1 - i] = 0;
+                out_parsed.as_buffer_shape[max_rank - 1 - i] = a_dim;
+            }
+            // Report the issue
+            else {
+                PyErr_Format( //
+                    PyExc_ValueError,
+                    "The number of entries %zd (along dimension %zd in the first tensor) doesn't "
+                    "match the number of entries %zd (along dimension %zd in the second tensor)",
+                    a_dim, a_buffer.ndim - 1 - i, b_dim, b_buffer.ndim - 1 - i);
+                goto cleanup;
+            }
+        }
+        // Populate the remaining dimensions: in any order, front to back for simplicity
+        if (a_buffer.ndim > b_buffer.ndim)
+            for (Py_ssize_t i = 0; i < a_buffer.ndim - b_buffer.ndim; ++i) {
+                Py_ssize_t const longer_dim = a_buffer.shape[i];
+                Py_ssize_t const longer_stride = a_buffer.strides[i];
+                a_parsed.as_buffer_shape[i] = longer_dim;
+                b_parsed.as_buffer_shape[i] = 1;
+                a_parsed.as_buffer_strides[i] = longer_stride;
+                b_parsed.as_buffer_strides[i] = 0;
+                out_parsed.as_buffer_shape[i] = longer_dim;
+            }
+        else if (b_buffer.ndim - a_buffer.ndim)
+            for (Py_ssize_t i = 0; i < b_buffer.ndim - a_buffer.ndim; ++i) {
+                Py_ssize_t const longer_dim = b_buffer.shape[i];
+                Py_ssize_t const longer_stride = b_buffer.strides[i];
+                a_parsed.as_buffer_shape[i] = 1;
+                b_parsed.as_buffer_shape[i] = longer_dim;
+                a_parsed.as_buffer_strides[i] = 0;
+                b_parsed.as_buffer_strides[i] = longer_stride;
+                out_parsed.as_buffer_shape[i] = longer_dim;
+            }
+    }
+    // If at least one of the entries is actually is of `ScalarKind` or `ScalarBufferKind`,
+    // our logic becomes much easier:
+    else if (a_parsed.kind == BufferKind) {
+        a_parsed.as_buffer_dimensions = a_buffer.ndim;
+        memcpy(a_parsed.as_buffer_shape, a_buffer.shape, a_buffer.ndim * sizeof(Py_ssize_t));
+        memcpy(a_parsed.as_buffer_strides, a_buffer.strides, a_buffer.ndim * sizeof(Py_ssize_t));
+        b_parsed.as_buffer_dimensions = a_buffer.ndim;
+        memcpy(b_parsed.as_buffer_shape, a_buffer.shape, a_buffer.ndim * sizeof(Py_ssize_t));
+        memset(b_parsed.as_buffer_strides, 0, a_buffer.ndim * sizeof(Py_ssize_t));
+        out_parsed.as_buffer_dimensions = a_buffer.ndim;
+        memcpy(out_parsed.as_buffer_shape, a_buffer.shape, a_buffer.ndim * sizeof(Py_ssize_t));
+    }
+    else {
+        a_parsed.as_buffer_dimensions = b_buffer.ndim;
+        memcpy(a_parsed.as_buffer_shape, b_buffer.shape, b_buffer.ndim * sizeof(Py_ssize_t));
+        memset(a_parsed.as_buffer_strides, 0, b_buffer.ndim * sizeof(Py_ssize_t));
+        b_parsed.as_buffer_dimensions = b_buffer.ndim;
+        memcpy(b_parsed.as_buffer_shape, b_buffer.shape, b_buffer.ndim * sizeof(Py_ssize_t));
+        memcpy(b_parsed.as_buffer_strides, b_buffer.strides, b_buffer.ndim * sizeof(Py_ssize_t));
+        out_parsed.as_buffer_dimensions = b_buffer.ndim;
+        memcpy(out_parsed.as_buffer_shape, b_buffer.shape, b_buffer.ndim * sizeof(Py_ssize_t));
+    }
+
+    // At this point the parsed "logical shapes" of both inputs are identical.
+    // Now we can use the inferred logical shape to check the output tensor.
+    if (out_obj) {
+        if (out_buffer.ndim != out_parsed.as_buffer_dimensions) {
+            PyErr_Format(PyExc_ValueError, "Output tensor has rank-%zd, but rank-%zd is expected", out_buffer.ndim,
+                         out_parsed.as_buffer_dimensions);
+            goto cleanup;
+        }
+        for (Py_ssize_t i = 0; i < out_parsed.as_buffer_dimensions; ++i) {
+            if (out_buffer.shape[i] != out_parsed.as_buffer_shape[i]) {
+                PyErr_Format(PyExc_ValueError,
+                             "Output tensor doesn't match the input tensor in shape at dimension %zd: %zd != %zd", i,
+                             out_buffer.shape[i], out_parsed.as_buffer_shape[i]);
+                goto cleanup;
+            }
+        }
+    }
+    // Infer the output tensor shape if it wasn't provided
+    else {
+        // For addition and multiplication, treat complex numbers as floats
+        DatatypeKind a_kind = a_parsed.kind;
+        DatatypeKind b_kind = b_parsed.kind;
+        if (a_kind == ComplexKind) a_kind = FloatKind;
+        if (b_kind == ComplexKind) b_kind = FloatKind;
+        if (a_kind == BooleanKind || b_kind == BooleanKind) {
+            PyErr_SetString(PyExc_ValueError, "Boolean tensors are not supported in element-wise operations");
+            goto cleanup;
+        }
+
+        size_t a_itemsize = bytes_per_datatype(a_parsed.datatype);
+        size_t b_itemsize = bytes_per_datatype(b_parsed.datatype);
+        size_t max_itemsize = a_itemsize > b_itemsize ? a_itemsize : b_itemsize;
+        if (a_parsed.datatype == b_parsed.datatype) { out_parsed.datatype = a_parsed.datatype; }
+        // Simply take the bigger datatype if they are both floats or both are unsigned integers, etc.
+        else if (a_kind == b_kind) {
+            out_parsed.datatype = a_itemsize > b_itemsize ? a_parsed.datatype : b_parsed.datatype;
+        }
+        // If only one of the operands is a float, the output should be a float, of the next size...
+        // Sum of `float16` and `int32` is a `float64`. Sum of `float16` and `int16` is a `float32`.
+        else if (a_kind == FloatKind || b_kind == FloatKind) {
+            //? No 128-bit float on most platforms
+            if (max_itemsize == 8) { out_parsed.datatype = simsimd_datatype_f64_k; }
+            else if (max_itemsize == 4) { out_parsed.datatype = simsimd_datatype_f64_k; }
+            else if (max_itemsize == 2) { out_parsed.datatype = simsimd_datatype_f32_k; }
+            else if (max_itemsize == 1) { out_parsed.datatype = simsimd_datatype_f16_k; }
+        }
+        // If only one of the operands is a signed integer, the output should be a signed integer, of the next size...
+        // Sum of `int16` and `uint32` is a `int64`. Sum of `int16` and `uint16` is a `int32`.
+        else if (a_kind == IntegerKind || b_kind == IntegerKind) {
+            //? No 128-bit integer on most platforms
+            if (max_itemsize == 8) { out_parsed.datatype = simsimd_datatype_i64_k; }
+            else if (max_itemsize == 4) { out_parsed.datatype = simsimd_datatype_i64_k; }
+            else if (max_itemsize == 2) { out_parsed.datatype = simsimd_datatype_i32_k; }
+            else if (max_itemsize == 1) { out_parsed.datatype = simsimd_datatype_i16_k; }
+        }
+        // For boolean and complex types, we don't yet have a clear policy.
+        else {
+            PyErr_SetString(PyExc_ValueError, "Unsupported combination of datatypes");
+            goto cleanup;
+        }
+        dtype = out_parsed.datatype;
+    }
+
+    // Estimate the total number of output elements:
+    Py_ssize_t out_total_elements = 1;
+    for (Py_ssize_t i = 0; i < out_parsed.as_buffer_dimensions; ++i)
+        out_total_elements *= out_parsed.as_buffer_shape[i];
+
+    // Allocate the output matrix if it wasn't provided. Unlike other kernels,
+    // it's shape will exactly match the shape of the input tensors, but the strides
+    // may be different, assuming the output tensor is continuous by default.
+    Py_ssize_t out_continuous_dimensions = 0;
+    Py_ssize_t out_continuous_elements = 1;
+    if (!out_obj) {
+        Py_ssize_t const expected_size_bytes = out_total_elements * bytes_per_datatype(dtype);
+        NDArray *out_buffer_obj = PyObject_NewVar(NDArray, &NDArrayType, expected_size_bytes);
+        if (!out_buffer_obj) {
+            PyErr_NoMemory();
+            goto cleanup;
+        }
+
+        // Initialize the object
+        memset(out_buffer_obj->shape, 0, sizeof(out_buffer_obj->shape));
+        memset(out_buffer_obj->strides, 0, sizeof(out_buffer_obj->strides));
+        out_buffer_obj->datatype = out_parsed.datatype;
+        out_buffer_obj->ndim = out_parsed.as_buffer_dimensions;
+        memcpy(out_buffer_obj->shape, out_parsed.as_buffer_shape, out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
+        out_buffer_obj->strides[out_parsed.as_buffer_dimensions - 1] = bytes_per_datatype(out_parsed.datatype);
+        for (Py_ssize_t i = out_parsed.as_buffer_dimensions - 2; i >= 0; --i)
+            out_buffer_obj->strides[i] = out_buffer_obj->strides[i + 1] * out_buffer_obj->shape[i + 1];
+
+        return_obj = (PyObject *)out_buffer_obj;
+        out_continuous_dimensions = out_parsed.as_buffer_dimensions;
+        out_continuous_elements = out_total_elements;
+
+        // Re-export into the `out_parsed` for future use
+        out_parsed.as_buffer_start = (char *)&out_buffer_obj->start[0];
+        memcpy(out_parsed.as_buffer_strides, out_buffer_obj->strides,
+               out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
+    }
+    else {
+        //? Logic suggests to return `None` in in-place mode...
+        //? SciPy decided differently.
+        return_obj = Py_None;
+        // We need to infer the number of (last) continuous dimensions in the output tensor
+        // to be able to apply the element-wise operation.
+        out_continuous_dimensions = 0;
+        Py_ssize_t expected_last_stride_bytes = out_buffer.itemsize;
+        for (Py_ssize_t i = out_buffer.ndim - 1; i >= 0; --i) {
+            if (out_buffer.strides[i] != expected_last_stride_bytes) break;
+            ++out_continuous_dimensions;
+            expected_last_stride_bytes *= out_buffer.shape[i];
+            out_continuous_elements *= out_buffer.shape[i];
+        }
+    }
+
+    // First of all, check for our optimal case, when:
+    // - there is at least one continuous dimension.
+    // - the types match between:
+    //      - both input tensors and output: uses `sum` kernel.
+    //      - the input tensor and output tensor, with any scalar: uses `scale` kernel.
+    // ... where we will use the vectorized kernel!
+    if (a_parsed.datatype == b_parsed.datatype && a_parsed.datatype == out_parsed.datatype &&
+        out_continuous_dimensions && ins_continuous_dimensions) {
+
+        // Look up the kernel and the capability
+        simsimd_kernel_sum_punned_t metric = NULL;
+        simsimd_capability_t capability = simsimd_cap_serial_k;
+        simsimd_metric_kind_t const metric_kind = simsimd_metric_sum_k;
+        simsimd_find_metric_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                                   (simsimd_metric_punned_t *)&metric, &capability);
+        if (!metric) {
+            PyErr_Format( //
+                PyExc_LookupError,
+                "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s') and "
+                "`dtype` override ('%s'/'%s')",
+                metric_kind,                                                                             //
+                a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
+                dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
+            goto cleanup;
+        }
+
+        Py_ssize_t const continuous_ranks = out_continuous_dimensions < ins_continuous_dimensions
+                                                ? out_continuous_dimensions
+                                                : ins_continuous_dimensions;
+        Py_ssize_t const non_continuous_ranks = out_parsed.as_buffer_dimensions - continuous_ranks;
+        Py_ssize_t const continuous_elements =
+            out_continuous_elements < ins_continuous_elements ? out_continuous_elements : ins_continuous_elements;
+        implementation_vectorized_binary_tensor_operation( //
+            &a_parsed, &b_parsed, &out_parsed,             //
+            non_continuous_ranks, continuous_elements, metric);
+        goto cleanup;
+    }
+
+    // If the output has no continuous dimensions at all, our situation sucks!
+    // If the type of outputs and inputs doesn't match, it also sucks!
+    // We can't use SIMD effectively and need to fall back to the scalar operation.
+    void (*scalar_kernel)(void const *, void const *, void *) = NULL;
+    // clang-format off
+    switch (dtype) {
+    case simsimd_datatype_u64_k: scalar_kernel = _plus_u64; break;
+    case simsimd_datatype_u32_k: scalar_kernel = _plus_u32; break;
+    case simsimd_datatype_u16_k: scalar_kernel = _plus_u16; break;
+    case simsimd_datatype_u8_k: scalar_kernel = _plus_u8; break;
+    case simsimd_datatype_i64_k: scalar_kernel = _plus_i64; break;
+    case simsimd_datatype_i32_k: scalar_kernel = _plus_i32; break;
+    case simsimd_datatype_i16_k: scalar_kernel = _plus_i16; break;
+    case simsimd_datatype_i8_k: scalar_kernel = _plus_i8; break;
+    case simsimd_datatype_f64_k: scalar_kernel = _plus_f64; break;
+    case simsimd_datatype_f32_k: scalar_kernel = _plus_f32; break;
+    case simsimd_datatype_f16_k: scalar_kernel = _plus_f16; break;
+    case simsimd_datatype_bf16_k: scalar_kernel = _plus_bf16; break;
+    // clang-format on
+    default:
+        PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
+        return_obj = NULL;
+        goto cleanup;
+    }
+    // Finally call the serial kernels
+    implementation_elementwise_binary_tensor_operation(&a_parsed, &b_parsed, &out_parsed, scalar_kernel);
+
+cleanup:
+    PyBuffer_Release(&a_buffer);
+    PyBuffer_Release(&b_buffer);
     PyBuffer_Release(&out_buffer);
     return return_obj;
 }
@@ -2360,7 +3197,7 @@ static PyMethodDef simsimd_methods[] = {
 
     // NumPy and OpenCV compatible APIs for element-wise binary operations,
     // that support both vector and scalar arguments
-    // {"add", (PyCFunction)api_add, METH_FASTCALL | METH_KEYWORDS, doc_add},
+    {"add", (PyCFunction)api_add, METH_FASTCALL | METH_KEYWORDS, doc_add},
     // {"multiply", (PyCFunction)api_multiply, METH_FASTCALL | METH_KEYWORDS, doc_multiply},
 
     // Sentinel
@@ -2406,6 +3243,7 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
     PyObject *m;
 
     if (PyType_Ready(&DistancesTensorType) < 0) return NULL;
+    if (PyType_Ready(&NDArrayType) < 0) return NULL;
 
     m = PyModule_Create(&simsimd_module);
     if (m == NULL) return NULL;
@@ -2420,6 +3258,14 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
 
     Py_INCREF(&DistancesTensorType);
     if (PyModule_AddObject(m, "DistancesTensor", (PyObject *)&DistancesTensorType) < 0) {
+        Py_XDECREF(&DistancesTensorType);
+        Py_XDECREF(m);
+        return NULL;
+    }
+
+    Py_INCREF(&NDArrayType);
+    if (PyModule_AddObject(m, "NDArray", (PyObject *)&NDArrayType) < 0) {
+        Py_XDECREF(&NDArrayType);
         Py_XDECREF(&DistancesTensorType);
         Py_XDECREF(m);
         return NULL;

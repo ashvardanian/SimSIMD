@@ -92,6 +92,24 @@ try:
     def baseline_fma(x, y, z, alpha, beta):
         return _normalize_element_wise(np.multiply((alpha * x), y) + beta * z, x.dtype)
 
+    def baseline_add(x, y):
+        dtype = x.dtype if isinstance(x, np.ndarray) else y.dtype
+        if dtype == np.uint8:
+            return _normalize_element_wise(x.astype(np.uint16) + y, dtype)
+        elif dtype == np.int8:
+            return _normalize_element_wise(x.astype(np.int16) + y, dtype)
+        else:
+            return _normalize_element_wise(x + y, dtype)
+
+    def baseline_multiply(x, y):
+        dtype = x.dtype if isinstance(x, np.ndarray) else y.dtype
+        if dtype == np.uint8:
+            return _normalize_element_wise(x.astype(np.uint16) * y, dtype)
+        elif dtype == np.int8:
+            return _normalize_element_wise(x.astype(np.int16) * y, dtype)
+        else:
+            return _normalize_element_wise(x * y, dtype)
+
 except:
     # NumPy is not installed, most tests will be skipped
     numpy_available = False
@@ -117,6 +135,12 @@ except:
 
     def baseline_wsum(x, y, alpha, beta):
         return [(alpha * xi) + beta * yi for xi, yi in zip(x, y)]
+
+    def baseline_add(x, y):
+        return [xi + yi for xi, yi in zip(x, y)]
+
+    def baseline_multiply(x, y):
+        return [xi * yi for xi, yi in zip(x, y)]
 
 
 # At the time of Python 3.12, SciPy doesn't support 32-bit Windows on any CPU,
@@ -463,6 +487,10 @@ def name_to_kernels(name: str):
         return baseline_wsum, simd.wsum
     elif name == "fma":
         return baseline_fma, simd.fma
+    elif name == "add":
+        return baseline_add, simd.add
+    # elif name == "multiply":
+    #     return baseline_multiply, simd.multiply
     else:
         raise ValueError(f"Unknown kernel name: {name}")
 
@@ -1514,6 +1542,128 @@ def test_cdist_hamming(ndim, out_dtype, capability):
         result = simd.cdist(A_bits, B_bits, metric="hamming", dtype="b8", out_dtype=out_dtype)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(50)
+@pytest.mark.parametrize("dtype", ["float64", "float32"])
+@pytest.mark.parametrize("kernel", ["add"])  # , "multiply"])
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_add(dtype, kernel, capability, stats_fixture):
+    """Tests NumPy-like compatibility interfaces on all kinds of non-contiguous arrays."""
+
+    if dtype == "float16" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
+    np.random.seed()
+    keep_one_capability(capability)
+    baseline_kernel, simd_kernel = name_to_kernels(kernel)
+
+    def get_shape(a) -> tuple:
+        return a.__array_interface__["shape"]
+
+    def validate(a, b, o):
+        c = baseline_kernel(a, b)
+        return c
+        d = np.array(simd_kernel(a, b))
+        simd_kernel(a, b, out=o)
+        assert d.size == c.size
+        assert d.shape == c.shape
+        np.testing.assert_allclose(d, c, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+        np.testing.assert_allclose(d, o, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+        return d
+
+    # Vector-Vector addition
+    a = np.random.randn(47).astype(dtype)
+    b = np.random.randn(47).astype(dtype)
+    o = np.zeros(47).astype(dtype)
+    validate(a, b, o)
+
+    # Vector-Scalar addition
+    validate(a, 11, o)
+
+    # Scalar-Vector addition
+    validate(11, b, o)
+
+    # Matrix-Matrix addition
+    a = np.random.randn(10, 47).astype(dtype)
+    b = np.random.randn(10, 47).astype(dtype)
+    o = np.zeros((10, 47)).astype(dtype)
+    validate(a, b, o)
+
+    # Strided Matrix-Matrix addition
+    a_extended = np.random.randn(10, 47).astype(dtype)
+    b_extended = np.random.randn(10, 47).astype(dtype)
+    a = a_extended[::2, 1:]  # Every second (even) row, all columns but the first
+    b = b_extended[1::2, :-1]  # Every second (odd) row, all columns but the last
+    o = np.zeros((5, 46)).astype(dtype)
+    validate(a, b, o)
+
+    # Strided Matrix-Matrix addition in with reverse order of different dimensions
+    a_extended = np.random.randn(10, 47).astype(dtype)
+    b_extended = np.random.randn(10, 47).astype(dtype)
+    a = a_extended[::-2, 1:]  # Every second (even) row (reverse), all columns but the first
+    b = b_extended[1::2, -2::-1]  # Every second (odd) row, all columns (reversed) but the last
+    o = np.zeros((5, 46)).astype(dtype)
+    validate(a, b, o)
+
+    # Raise an error if shapes are different
+    a = np.random.randn(10, 47).astype(dtype)
+    b = np.random.randn(10, 46).astype(dtype)
+    with pytest.raises(ValueError):
+        baseline_kernel(a, b)
+    with pytest.raises(ValueError):
+        simd_kernel(a, b)
+
+    # Raise an error if shapes are different
+    a = np.random.randn(6, 2, 3).astype(dtype)
+    b = np.random.randn(6, 6).astype(dtype)
+    with pytest.raises(ValueError):
+        baseline_kernel(a, b)
+    with pytest.raises(ValueError):
+        simd_kernel(a, b)
+
+    # Make sure broadcasting works as expected for a single scalar
+    a = np.random.randn(4, 7, 5, 3).astype(dtype)
+    b = np.random.randn(1).astype(dtype)
+    o = np.zeros((4, 7, 5, 3)).astype(dtype)
+    assert validate(a, b, o).shape == (4, 7, 5, 3)
+
+    # Make sure broadcasting works as expected for a unit tensor
+    a = np.random.randn(4, 7, 5, 3).astype(dtype)
+    b = np.random.randn(1, 1, 1, 1).astype(dtype)
+    o = np.zeros((4, 7, 5, 3)).astype(dtype)
+    assert validate(a, b, o).shape == (4, 7, 5, 3)
+
+    # Make sure broadcasting works as expected for unit tensors of different rank
+    a = np.random.randn(1, 1, 1, 1).astype(dtype)
+    b = np.random.randn(1, 1, 1).astype(dtype)
+    o = np.zeros((1, 1, 1, 1)).astype(dtype)
+    assert validate(a, b, o).shape == (1, 1, 1, 1)
+
+    # Make sure broadcasting works as expected for a single scalar
+    a = np.random.randn(4, 7, 5, 3).astype(dtype)
+    b = np.random.randn(1, 1, 1).astype(dtype)
+    o = np.zeros((4, 7, 5, 3)).astype(dtype)
+    assert validate(a, b, o).shape == (4, 7, 5, 3)
+
+    # Make sure broadcasting works as expected for a single scalar
+    a = np.random.randn(4, 7, 5, 3).astype(dtype)
+    b = np.random.randn(1, 1, 1, 1, 1).astype(dtype)
+    o = np.zeros((4, 7, 5, 3)).astype(dtype)
+    assert validate(a, b, o).shape == (1, 4, 7, 5, 3)
+
+    # Make sure broadcasting works as expected for mixed origin broadcasting
+    a = np.random.randn(4, 7, 5, 3).astype(dtype)
+    b = np.random.randn(2, 1, 1, 1, 1).astype(dtype)
+    o = np.zeros((4, 7, 5, 3)).astype(dtype)
+    assert validate(a, b, o).shape == (2, 4, 7, 5, 3)
+
+    # Make sure broadcasting works as expected
+    a = np.random.randn(4, 7, 5, 3).astype(dtype)
+    b = np.random.randn(4, 1, 5, 1).astype(dtype)
+    o = np.zeros((4, 7, 5, 3)).astype(dtype)
+    assert validate(a, b, o).shape == (4, 7, 5, 3)
 
 
 if __name__ == "__main__":

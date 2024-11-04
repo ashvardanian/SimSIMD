@@ -63,6 +63,13 @@ cmake -D CMAKE_BUILD_TYPE=Release \
 cmake --build build_release --config Release
 ```
 
+I'd recommend putting the following breakpoints:
+
+- `__asan::ReportGenericError` - to detect illegal memory accesses.
+- `__GI_exit` - to stop at exit points - the end of running any executable.
+- `__builtin_unreachable` - to catch unexpected code paths.
+- `_sz_assert_failure` - to catch StringZilla logic assertions.
+
 ## Python
 
 Testing:

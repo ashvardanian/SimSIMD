@@ -265,9 +265,29 @@
 #define SIMSIMD_F16_DIVISION_EPSILON (1e-3)
 #endif
 
+/**
+ *  @brief  The compile-time constant defining the capacity of `simsimd_ndindex_t`.
+ *          Matches `PyBUF_MAX_NDIM` by default.
+ */
 #if !defined(SIMSIMD_NDARRAY_MAX_RANK)
-#define SIMSIMD_NDARRAY_MAX_RANK (64) // Matches `PyBUF_MAX_NDIM` by default
+#define SIMSIMD_NDARRAY_MAX_RANK (64)
 #endif
+
+/**
+ *  @brief  Aligns a variable to a 64-byte boundary using compiler extensions for
+ *          comptibility with C 99, as `alignas(64)` is only available in C 11 or C++.
+ *
+ */
+#ifdef _MSC_VER
+#define SIMSIMD_ALIGN64 __declspec(align(64))
+#elif defined(__GNUC__) || defined(__clang__)
+#define SIMSIMD_ALIGN64 __attribute__((aligned(64)))
+#endif
+
+/**
+ *  @brief  Similat to `static_assert`, but compatible with C 99.
+ */
+#define SIMSIMD_STATIC_ASSERT(expr, msg) typedef char static_assert_##msg[(expr) ? 1 : -1]
 
 #ifdef __cplusplus
 extern "C" {
@@ -289,6 +309,7 @@ typedef float simsimd_f32_t;
 typedef double simsimd_f64_t;
 
 typedef simsimd_u64_t simsimd_size_t;
+typedef simsimd_i64_t simsimd_ssize_t;
 typedef simsimd_f64_t simsimd_distance_t;
 
 /*  @brief  Half-precision floating-point type.
@@ -452,6 +473,84 @@ SIMSIMD_STATIC_ASSERT(sizeof(simsimd_bf16_t) == 2, simsimd_bf16_t_must_be_2_byte
 #define SIMSIMD_F64_TO_U8(x, y) *(y) = (simsimd_u8_t)fmin(fmax(round(x), 0), 255)
 #endif
 
+/**
+ *  @brief  Converts floating pointer numbers to integers, clamping them to the range of signed
+ *          and unsigned low-resolution integers, and rounding them to the nearest integer.
+ *
+ *  In C++ the analogous solution with STL could be: `std::clamp(std::round(x), -128, 127)`.
+ *  In C, using the standard library: `fminf(fmaxf(roundf(x), -128), 127)`.
+ */
+#if !defined(SIMSIMD_F32_TO_I8)
+#define SIMSIMD_F32_TO_I8(x, y) \
+    *(y) = (simsimd_i8_t)((x) > 127 ? 127 : ((x) < -128 ? -128 : (int)((x) + ((x) < 0 ? -0.5f : 0.5f))))
+#endif
+#if !defined(SIMSIMD_F32_TO_U8)
+#define SIMSIMD_F32_TO_U8(x, y) \
+    *(y) = (simsimd_u8_t)((x) > 255 ? 255 : ((x) < 0 ? 0 : (int)((x) + ((x) < 0 ? -0.5f : 0.5f))))
+#endif
+#if !defined(SIMSIMD_F64_TO_I8)
+#define SIMSIMD_F64_TO_I8(x, y) \
+    *(y) = (simsimd_i8_t)((x) > 127 ? 127 : ((x) < -128 ? -128 : (int)((x) + ((x) < 0 ? -0.5 : 0.5))))
+#endif
+#if !defined(SIMSIMD_F64_TO_U8)
+#define SIMSIMD_F64_TO_U8(x, y) \
+    *(y) = (simsimd_u8_t)((x) > 255 ? 255 : ((x) < 0 ? 0 : (int)((x) + ((x) < 0 ? -0.5 : 0.5))))
+#endif
+#if !defined(SIMSIMD_F64_TO_I16)
+#define SIMSIMD_F64_TO_I16(x, y) \
+    *(y) = (simsimd_i16_t)((x) > 32767 ? 32767 : ((x) < -32768 ? -32768 : (int)((x) + ((x) < 0 ? -0.5 : 0.5))))
+#endif
+#if !defined(SIMSIMD_F64_TO_U16)
+#define SIMSIMD_F64_TO_U16(x, y) \
+    *(y) = (simsimd_u16_t)((x) > 65535 ? 65535 : ((x) < 0 ? 0 : (int)((x) + ((x) < 0 ? -0.5 : 0.5))))
+#endif
+#if !defined(SIMSIMD_F64_TO_I32)
+#define SIMSIMD_F64_TO_I32(x, y)                         \
+    *(y) = (simsimd_i32_t)((x) > 2147483647 ? 2147483647 \
+                                            : ((x) < -2147483648 ? -2147483648 : (int)((x) + ((x) < 0 ? -0.5 : 0.5))))
+#endif
+#if !defined(SIMSIMD_F64_TO_U32)
+#define SIMSIMD_F64_TO_U32(x, y) \
+    *(y) = (simsimd_u32_t)((x) > 4294967295 ? 4294967295 : ((x) < 0 ? 0 : (unsigned int)((x) + ((x) < 0 ? -0.5 : 0.5))))
+#endif
+#if !defined(SIMSIMD_F64_TO_I64)
+#define SIMSIMD_F64_TO_I64(x, y)                                                      \
+    *(y) = (simsimd_i64_t)((x) > 9223372036854775807.0                                \
+                               ? 9223372036854775807                                  \
+                               : ((x) < -9223372036854775808.0 ? -9223372036854775808 \
+                                                               : (long long)((x) + ((x) < 0 ? -0.5 : 0.5))))
+#endif
+#if !defined(SIMSIMD_F64_TO_U64)
+#define SIMSIMD_F64_TO_U64(x, y)                         \
+    *(y) = (simsimd_u64_t)((x) > 18446744073709551615.0  \
+                               ? 18446744073709551615ULL \
+                               : ((x) < 0 ? 0 : (unsigned long long)((x) + ((x) < 0 ? -0.5 : 0.5))))
+#endif
+
+/**
+ *  @brief  Converts high-resolution signed integers to low-resolution signed and unsigned integers,
+ *          clamping them to indicate saturation.
+ */
+#if !defined(SIMSIMD_I64_TO_I8)
+#define SIMSIMD_I64_TO_I8(x, y) *(y) = (simsimd_i8_t)((x) > 127 ? 127 : ((x) < -128 ? -128 : (x)))
+#endif
+#if !defined(SIMSIMD_I64_TO_U8)
+#define SIMSIMD_I64_TO_U8(x, y) *(y) = (simsimd_u8_t)((x) > 255 ? 255 : ((x) < 0 ? 0 : (x)))
+#endif
+#if !defined(SIMSIMD_I64_TO_I16)
+#define SIMSIMD_I64_TO_I16(x, y) *(y) = (simsimd_i16_t)((x) > 32767 ? 32767 : ((x) < -32768 ? -32768 : (x)))
+#endif
+#if !defined(SIMSIMD_I64_TO_U16)
+#define SIMSIMD_I64_TO_U16(x, y) *(y) = (simsimd_u16_t)((x) > 65535 ? 65535 : ((x) < 0 ? 0 : (x)))
+#endif
+#if !defined(SIMSIMD_I64_TO_I32)
+#define SIMSIMD_I64_TO_I32(x, y) \
+    *(y) = (simsimd_i32_t)((x) > 2147483647 ? 2147483647 : ((x) < -2147483648 ? -2147483648 : (x)))
+#endif
+#if !defined(SIMSIMD_I64_TO_U32)
+#define SIMSIMD_I64_TO_U32(x, y) *(y) = (simsimd_u32_t)((x) > 4294967295 ? 4294967295 : ((x) < 0 ? 0 : (x)))
+#endif
+
 /** @brief  Convenience type for half-precision floating-point type conversions. */
 typedef union {
     unsigned i;
@@ -565,6 +664,20 @@ SIMSIMD_PUBLIC void simsimd_f32_to_bf16(simsimd_f32_t x, simsimd_bf16_t *result_
     *(unsigned short *)result_ptr = (unsigned short)conv.i;
 }
 
+/**
+ *  @brief  Helper structure for implementing strided matrix row lookups, with @b single-byte-level pointer math.
+ */
+SIMSIMD_INTERNAL void *_simsimd_advance_by_bytes(void *ptr, simsimd_size_t bytes) {
+    return (void *)((simsimd_u8_t *)ptr + bytes);
+}
+
+/**
+ *  @brief  Divide and round up to the nearest integer.
+ */
+SIMSIMD_INTERNAL simsimd_size_t _simsimd_divide_ceil(simsimd_size_t dividend, simsimd_size_t divisor) {
+    return (dividend + divisor - 1) / divisor;
+}
+
 SIMSIMD_PUBLIC simsimd_u32_t simsimd_u32_rol(simsimd_u32_t x, int n) { return (x << n) | (x >> (32 - n)); }
 SIMSIMD_PUBLIC simsimd_u16_t simsimd_u16_rol(simsimd_u16_t x, int n) { return (x << n) | (x >> (16 - n)); }
 SIMSIMD_PUBLIC simsimd_u8_t simsimd_u8_rol(simsimd_u8_t x, int n) { return (x << n) | (x >> (8 - n)); }
@@ -572,6 +685,13 @@ SIMSIMD_PUBLIC simsimd_u32_t simsimd_u32_ror(simsimd_u32_t x, int n) { return (x
 SIMSIMD_PUBLIC simsimd_u16_t simsimd_u16_ror(simsimd_u16_t x, int n) { return (x >> n) | (x << (16 - n)); }
 SIMSIMD_PUBLIC simsimd_u8_t simsimd_u8_ror(simsimd_u8_t x, int n) { return (x >> n) | (x << (8 - n)); }
 
+/**
+ *  @brief  A @b beefy structure to keep track of the N-Dimensional array index.
+ *          Occupies 512 + 16 = 528 bytes on a 64-bit machine, or 9 cache-lines, by default.
+ *
+ *  When advancing through a structure, its overall size and strides should be stored somewhere else.
+ *  The `global_offset` and `byte_offset` both start at zero and grow monotically during iteration.
+ */
 typedef struct simsimd_ndindex_t {
     simsimd_size_t coordinate[SIMSIMD_NDARRAY_MAX_RANK]; // Coordinate offsets along each dimension
     simsimd_size_t global_offset;                        // The number of elements already processed
@@ -584,11 +704,15 @@ SIMSIMD_PUBLIC void simsimd_ndindex_init(simsimd_ndindex_t *ndindex) {
 }
 
 /**
- *  @brief  Advances the N-Dimensional iterator to the next index.
+ *  @brief Advances the N-Dimensional iterator to the next index.
+ *  @param[inout] ndindex The iterator to advance.
+ *  @param[in] rank The number of dimensions in the tensor.
+ *  @param[in] shape The shape of the tensor, defined by an array with at least `rank` scalars.
+ *  @param[in] strides The (signed) strides of the tensor in bytes, defined by an array with at least `rank` scalars.
  *  @return 1 if the iterator was successfully advanced, 0 if the end of iteration was reached.
  */
-SIMSIMD_PUBLIC int simsimd_ndindex_next(simsimd_ndindex_t *ndindex, simsimd_size_t rank, simsimd_size_t *shape,
-                                        simsimd_size_t *strides) {
+SIMSIMD_PUBLIC int simsimd_ndindex_next(simsimd_ndindex_t *ndindex, simsimd_size_t rank, simsimd_size_t const *shape,
+                                        simsimd_ssize_t const *strides) {
     // Start from last dimension and move backward
     for (simsimd_size_t i = rank; i-- > 0;) {
         ndindex->coordinate[i]++;
@@ -597,12 +721,25 @@ SIMSIMD_PUBLIC int simsimd_ndindex_next(simsimd_ndindex_t *ndindex, simsimd_size
             ndindex->global_offset++;
             return 1; // Successfully moved to the next index
         }
-        // Reset this dimension counter
-        ndindex->coordinate[i] = 0;
-        // Discard the running progress along this dimension
-        ndindex->byte_offset -= strides[i] * shape[i];
+        ndindex->coordinate[i] = 0;                    // Reset this dimension counter
+        ndindex->byte_offset -= strides[i] * shape[i]; // Discard the running progress along this dimension
     }
     // If we reach here, we've iterated over all elements
+    return 0; // End of iteration
+}
+
+/**
+ *  @brief Advances the N-Dimensional iterator to the provided coordinate, updating the byte offset and global index.
+ *  @param[inout] ndindex The iterator to advance.
+ *  @param[in] rank The number of dimensions in the tensor.
+ *  @param[in] shape The shape of the tensor, defined by an array with at least `rank` scalars.
+ *  @param[in] strides The (signed) strides of the tensor in bytes, defined by an array with at least `rank` scalars.
+ *  @param[in] coordinate The new coordinate to advance to. @b Must be within the `shape` bounds.
+ *  @return 1 if the iterator was successfully advanced, 0 if the end of iteration was reached.
+ */
+SIMSIMD_PUBLIC int simsimd_ndindex_advance_to(simsimd_ndindex_t *ndindex, simsimd_size_t rank,
+                                              simsimd_size_t const *shape, simsimd_ssize_t const *strides,
+                                              simsimd_size_t const *coordinate) {
     return 0; // End of iteration
 }
 

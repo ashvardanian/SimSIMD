@@ -2322,6 +2322,48 @@ SIMSIMD_PUBLIC void simsimd_sum_i8(simsimd_i8_t const *a, simsimd_i8_t const *b,
 #endif
 }
 
+SIMSIMD_PUBLIC void simsimd_sum_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_u8_t *r) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_sum_u8_sapphire(a, b, n, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_sum_u8_haswell(a, b, n, r);
+#elif SIMSIMD_TARGET_NEON_F16
+    simsimd_sum_u8_neon(a, b, n, r);
+#else
+    simsimd_sum_u8_serial(a, b, n, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_i16(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n,
+                                    simsimd_i16_t *r) {
+    simsimd_sum_i16_serial(a, b, n, r);
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_u16(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n,
+                                    simsimd_u16_t *r) {
+    simsimd_sum_u16_serial(a, b, n, r);
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_i32(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_size_t n,
+                                    simsimd_i32_t *r) {
+    simsimd_sum_i32_serial(a, b, n, r);
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_u32(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n,
+                                    simsimd_u32_t *r) {
+    simsimd_sum_u32_serial(a, b, n, r);
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_i64(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_size_t n,
+                                    simsimd_i64_t *r) {
+    simsimd_sum_i64_serial(a, b, n, r);
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_u64(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_size_t n,
+                                    simsimd_u64_t *r) {
+    simsimd_sum_u64_serial(a, b, n, r);
+}
+
 SIMSIMD_PUBLIC void simsimd_scale_f64(simsimd_f64_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
                                       simsimd_distance_t beta, simsimd_f64_t *r) {
 #if SIMSIMD_TARGET_SKYLAKE
