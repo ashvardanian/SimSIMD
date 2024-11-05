@@ -1,3 +1,4 @@
+#include <array>         // `std::array`
 #include <cmath>         // `std::sqrt`
 #include <cstdlib>       // `std::aligned_alloc`
 #include <cstring>       // `std::memcpy`
@@ -26,6 +27,8 @@
 #define SIMSIMD_NATIVE_BF16 1
 #include <simsimd/simsimd.h>
 
+#include "matrix.hpp" // `matrix_gt`
+
 constexpr std::size_t default_seconds = 10;
 constexpr std::size_t default_threads = 1;
 constexpr simsimd_distance_t signaling_distance = std::numeric_limits<simsimd_distance_t>::signaling_NaN();
@@ -34,9 +37,12 @@ constexpr simsimd_distance_t signaling_distance = std::numeric_limits<simsimd_di
 /// For sub-byte data types
 constexpr std::size_t dense_dimensions = 1536;
 /// Has quadratic impact on the number of operations
-constexpr std::size_t curved_dimensions = 128;
+constexpr std::size_t curved_dimensions = 512;
+/// Has cubic impact on the number of operations
+constexpr std::array<std::size_t, 3> matmul_sizes = {256, 1024, 4096};
 
 namespace bm = benchmark;
+namespace av = ashvardanian::simsimd;
 
 // clang-format off
 template <simsimd_datatype_t> struct datatype_enum_to_type_gt { using value_t = void; };
@@ -497,7 +503,6 @@ void measure_fma(bm::State &state, kernel_at kernel, kernel_at baseline, l2_metr
 
     using pair_t = pair_at;
     using vector_t = typename pair_at::vector_t;
-
     constexpr simsimd_distance_t alpha = 0.2;
     constexpr simsimd_distance_t beta = 0.3;
     static_assert(function_args_count(kernel_at {}) >= 6 && function_args_count(kernel_at {}) <= 7,
@@ -568,6 +573,69 @@ void measure_fma(bm::State &state, kernel_at kernel, kernel_at baseline, l2_metr
     state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
+/**
+ *  @brief Measures the performance of a @b matrix-multiplication function against a baseline using Google Benchmark.
+ *  @tparam pair_at The type representing the vector pair used in the measurement.
+ *  @tparam metric_at The type of the metric function (default is void).
+ *  @param state The benchmark state object provided by Google Benchmark.
+ *  @param kernel The kernel function to benchmark.
+ *  @param baseline The baseline function to compare against.
+ *  @param side The side length of the matrix.
+ */
+template <typename pair_at, typename metric_at = void>
+void measure_matmul(bm::State &state, metric_at metric, metric_at baseline, std::size_t side) {
+    //! TODO: Compare the values of matrices against each other!
+    auto call_baseline = [&](pair_t const &inputs, vector_t &c) -> double {
+        baseline(inputs.a.data(), side, inputs.b.data(), side, side, side, side, c.data(), side);
+        return std::accumulate(c.data(), c.data() + side * side, 0.0) / (side * side);
+    };
+    auto call_contender = [&](pair_t const &inputs, vector_t &c) -> double {
+        metric(inputs.a.data(), side, inputs.b.data(), side, side, side, side, c.data(), side);
+        return std::accumulate(c.data(), c.data() + side * side, 0.0) / (side * side);
+    };
+
+    // Let's average the distance results over many pairs.
+    constexpr std::size_t inputs_count = 8;
+    std::vector<pair_t> inputs(inputs_count);
+    std::vector<vector_t> outputs(inputs_count);
+    for (std::size_t i = 0; i != inputs.size(); ++i) {
+        pair_t &input = inputs[i];
+        vector_t &output = outputs[i];
+        input.a = input.b = output = vector_t(side * side);
+        input.a.randomize(), input.b.randomize(), output.randomize();
+    }
+
+    // Initialize the output buffers for distance calculations.
+    std::vector<double> results_baseline(inputs.size());
+    std::vector<double> results_contender(inputs.size());
+    for (std::size_t i = 0; i != inputs.size(); ++i)
+        results_baseline[i] = call_baseline(inputs[i], outputs[i]),
+        results_contender[i] = call_contender(inputs[i], outputs[i]);
+
+    // The actual benchmarking loop.
+    std::size_t iterations = 0;
+    for (auto _ : state)
+        bm::DoNotOptimize((results_contender[iterations & (inputs_count - 1)] = call_contender(
+                               inputs[iterations & (inputs_count - 1)], outputs[iterations & (inputs_count - 1)]))),
+            iterations++;
+
+    // Measure the mean absolute delta and relative error.
+    double mean_delta = 0, mean_relative_error = 0;
+    for (std::size_t i = 0; i != inputs.size(); ++i) {
+        auto abs_delta = std::abs(results_contender[i] - results_baseline[i]);
+        mean_delta += abs_delta;
+        double error = abs_delta != 0 && results_baseline[i] != 0 ? abs_delta / results_baseline[i] : 0;
+        mean_relative_error += error;
+    }
+    mean_delta /= inputs.size();
+    mean_relative_error /= inputs.size();
+    state.counters["abs_delta"] = mean_delta;
+    state.counters["relative_error"] = mean_relative_error;
+    state.counters["ops/s"] = bm::Counter(iterations * side * side * side * 2, bm::Counter::kIsRate);
+    state.counters["bytes"] = bm::Counter(iterations * side * side * 2, bm::Counter::kIsRate);
+    state.counters["inputs"] = bm::Counter(iterations, bm::Counter::kIsRate);
+}
+
 template <simsimd_datatype_t datatype_ak, typename metric_at = void>
 void dense_(std::string name, metric_at *distance_func, metric_at *baseline_func) {
     using pair_t = vectors_pair_gt<datatype_ak>;
@@ -624,12 +692,23 @@ void curved_(std::string name, metric_at *distance_func, metric_at *baseline_fun
         ->Threads(default_threads);
 }
 
+template <simsimd_datatype_t datatype_ak, typename metric_at = void>
+void matmul_(std::string name, metric_at *distance_func, metric_at *baseline_func) {
+
+    using pair_t = vectors_pair_gt<datatype_ak>;
+    for (std::size_t size : matmul_sizes) {
+        std::string name_dims = name + "_" + std::to_string(size) + "✕" + std::to_string(size);
+        bm::RegisterBenchmark(name_dims.c_str(), measure_matmul<pair_t, metric_at *>, distance_func, baseline_func,
+                              size)
+            ->MinTime(default_seconds);
+    }
+}
+
 #if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
 
 void dot_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
     *result = cblas_sdot((int)n, a, 1, b, 1);
 }
-
 void dot_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
     *result = cblas_ddot((int)n, a, 1, b, 1);
 }
@@ -656,9 +735,21 @@ void vdot_f64c_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size
     cblas_zdotc_sub((int)n / 2, a, 1, b, 1, result);
 }
 
+void nxcor_f32_blas(simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, simsimd_f32_t const *a,
+                    simsimd_size_t a_stride, simsimd_f32_t const *b, simsimd_size_t ldb, simsimd_f32_t *c,
+                    simsimd_size_t ldc) {
+    cblas_sgemm(                                        //
+        CblasRowMajor, CblasNoTrans, CblasTrans,        //
+        (int)a_rows, (int)b_rows, (int)cols, 1.0f,      //
+        a, (int)a_stride / sizeof(simsimd_f32_t),       //
+        b, (int)b_stride / sizeof(simsimd_f32_t), 0.0f, //
+        c, (int)c_stride / sizeof(simsimd_f32_t));
+}
+
 #endif
 
 int main(int argc, char **argv) {
+
     simsimd_capability_t runtime_caps = simsimd_capabilities();
 
     // Log supported functionality
@@ -698,6 +789,15 @@ int main(int argc, char **argv) {
     std::printf("- x86 Sierra Forest support enabled: %s\n", flags[(runtime_caps & simsimd_cap_sierra_k) != 0]);
     std::printf("\n");
 
+#if defined(SIMSIMD_DEFINED_LINUX)
+    if ((runtime_caps & simsimd_cap_sapphire_k) != 0) {
+        if (!_simsimd_capabilities_x86_enable_amx()) {
+            std::printf("Error: AMX can't be enabled\n");
+            return 1;
+        }
+    }
+#endif
+
     // Run the benchmarks
     bm::Initialize(&argc, argv);
     if (bm::ReportUnrecognizedArguments(argc, argv)) return 1;
@@ -721,6 +821,8 @@ int main(int argc, char **argv) {
     constexpr simsimd_datatype_t f16c_k = simsimd_datatype_f16c_k;
     constexpr simsimd_datatype_t bf16c_k = simsimd_datatype_bf16c_k;
 
+    // curved_<bf16_k>("bilinear_bf16_sapphire", simsimd_bilinear_bf16_sapphire, simsimd_bilinear_bf16_accurate);
+
 #if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
 
     dense_<f32_k>("dot_f32_blas", dot_f32_blas, simsimd_dot_f32_accurate);
@@ -729,6 +831,8 @@ int main(int argc, char **argv) {
     dense_<f64c_k>("dot_f64c_blas", dot_f64c_blas, simsimd_dot_f64c_serial);
     dense_<f32c_k>("vdot_f32c_blas", vdot_f32c_blas, simsimd_vdot_f32c_accurate);
     dense_<f64c_k>("vdot_f64c_blas", vdot_f64c_blas, simsimd_vdot_f64c_serial);
+
+    matmul_<f32_k>("nxcor_f32_blas", nxcor_f32_blas, simsimd_nxcor_f32_accurate);
 
 #endif
 
@@ -1064,6 +1168,13 @@ int main(int argc, char **argv) {
     fma_<u8_k>("wsum_u8_serial", simsimd_wsum_u8_serial, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
     fma_<i8_k>("fma_i8_serial", simsimd_fma_i8_serial, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
     fma_<i8_k>("wsum_i8_serial", simsimd_wsum_i8_serial, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
+
+    // matmul_<f32_k>("matmul_f32_cpp", ashvardanian::simsimd::matmul_f32_cpp, simsimd_nxcor_f32_serial);
+    // matmul_<f16_k>("matmul_f16_cpp", ashvardanian::simsimd::matmul_f16_cpp, simsimd_nxcor_f16_serial);
+    // matmul_<bf16_k>("matmul_bf16_cpp", ashvardanian::simsimd::matmul_bf16_cpp, simsimd_nxcor_bf16_serial);
+    // matmul_<f32_k>("matmul_f32_serial", simsimd_nxcor_f32_serial, simsimd_nxcor_f32_serial);
+    // matmul_<f16_k>("matmul_f16_serial", simsimd_nxcor_f16_serial, simsimd_nxcor_f16_serial);
+    // matmul_<bf16_k>("matmul_bf16_serial", simsimd_nxcor_bf16_serial, simsimd_nxcor_bf16_serial);
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();

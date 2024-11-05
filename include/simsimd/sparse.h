@@ -3,6 +3,7 @@
  *  @brief      SIMD-accelerated functions for Sparse Vectors.
  *  @author     Ash Vardanian
  *  @date       March 21, 2024
+ *  @see        https://github.com/ashvardanian/simsimd?tab=readme-ov-file#sparse-vectors
  *
  *  Contains:
  *  - Set Intersection ~ Jaccard Distance

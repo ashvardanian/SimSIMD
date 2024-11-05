@@ -107,6 +107,7 @@
 #include "dot.h"         // Inner (dot) product, and its conjugate
 #include "elementwise.h" // Weighted Sum, Fused-Multiply-Add
 #include "geospatial.h"  // Haversine and Vincenty
+#include "matmul.h"      // Normalized Cross Correlation or Matrix Multiplication
 #include "probability.h" // Kullback-Leibler, Jensen–Shannon
 #include "sparse.h"      // Intersect
 #include "spatial.h"     // L2, Cosine
@@ -333,6 +334,40 @@ SIMSIMD_PUBLIC void simsimd_find_kernel_punned( //
 #if _SIMSIMD_TARGET_X86
 
 /**
+ *  @brief Helper function that performs the system call on Linux to enable AMX instructions.
+ *  ! This function must be called before invoking any AMX kernels on Linux.
+ */
+SIMSIMD_INTERNAL int _simsimd_capabilities_x86_enable_amx(void) {
+#if defined(SIMSIMD_DEFINED_LINUX)
+    // Thanks to the good people of the Rust community:
+    // https://github.com/rust-lang/rust/issues/107795
+    int XFEATURE_MASK_XTILECFG = (1 << 17);
+    int XFEATURE_MASK_XTILEDATA = (1 << 18);
+    int ARCH_GET_XCOMP_PERM = 0x1022;
+    int ARCH_REQ_XCOMP_PERM = 0x1023;
+    int SYS_arch_prctl = 158;
+
+    unsigned long bitmask = 0;
+    long status = syscall(SYS_arch_prctl, ARCH_GET_XCOMP_PERM, &bitmask);
+    if (0 != status) return 0;
+    if (bitmask & XFEATURE_MASK_XTILEDATA) return 1;
+
+    status = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, 18);
+    if (0 != status) return 0; // XFEATURE_XTILEDATA setup is failed, TMUL usage is not allowed
+    status = syscall(SYS_arch_prctl, ARCH_GET_XCOMP_PERM, &bitmask);
+
+    // XFEATURE_XTILEDATA setup is failed, can't use TMUL
+    if (0 != status || !(bitmask & XFEATURE_MASK_XTILEDATA)) return 0;
+
+    // XFEATURE_XTILEDATA set successfully, TMUL usage is allowed
+    (void)XFEATURE_MASK_XTILECFG;
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+/**
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
  */
@@ -373,9 +408,6 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
     // Check for AVX512F (Function ID 7, EBX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L155
     unsigned supports_avx512f = (info7.named.ebx & 0x00010000) != 0;
-    // Check for AVX512FP16 (Function ID 7, EDX register)
-    // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L198C9-L198C23
-    unsigned supports_avx512fp16 = (info7.named.edx & 0x00800000) != 0;
     // Check for AVX512VNNI (Function ID 7, ECX register)
     unsigned supports_avx512vnni = (info7.named.ecx & 0x00000800) != 0;
     // Check for AVX512IFMA (Function ID 7, EBX register)
@@ -389,6 +421,11 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
     // Check for AVX512BF16 (Function ID 7, Sub-leaf 1, EAX register)
     // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L205
     unsigned supports_avx512bf16 = (info7sub1.named.eax & 0x00000020) != 0;
+    // Check for AVX512FP16 (Function ID 7, EDX register)
+    // https://github.com/llvm/llvm-project/blob/50598f0ff44f3a4e75706f8c53f3380fe7faa896/clang/lib/Headers/cpuid.h#L198C9-L198C23
+    unsigned supports_avx512fp16 = (info7.named.edx & 0x00800000) != 0;
+    unsigned supports_amxbf16 = (info7.named.edx & 0x00400000) != 0;
+    unsigned supports_amxint8 = (info7.named.edx & 0x02000000) != 0;
     // Clang doesn't show the VP2INTERSECT flag, but we can get it from QEMU
     // https://stackoverflow.com/a/68289220/2766161
     unsigned supports_avx512vp2intersect = (info7.named.edx & 0x00000100) != 0;
@@ -399,7 +436,7 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
     unsigned supports_ice = supports_avx512vnni && supports_avx512ifma && supports_avx512bitalg &&
                             supports_avx512vbmi2 && supports_avx512vpopcntdq;
     unsigned supports_genoa = supports_avx512bf16;
-    unsigned supports_sapphire = supports_avx512fp16;
+    unsigned supports_sapphire = supports_avx512fp16 && supports_amxbf16 && supports_amxint8;
     // We don't want to accidently enable AVX512VP2INTERSECT on Intel Tiger Lake CPUs
     unsigned supports_turin = supports_avx512vp2intersect && supports_avx512bf16;
     unsigned supports_sierra = 0;
