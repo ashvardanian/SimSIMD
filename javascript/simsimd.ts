@@ -18,47 +18,53 @@ try {
 
 /**
  * @brief Computes the squared Euclidean distance between two vectors.
- * @param {Float64Array|Float32Array|Int8Array} a - The first vector.
- * @param {Float64Array|Float32Array|Int8Array} b - The second vector.
+ * @param {Float64Array|Float32Array|Int8Array|Uint8Array} a - The first vector.
+ * @param {Float64Array|Float32Array|Int8Array|Uint8Array} b - The second vector.
  * @returns {number} The squared Euclidean distance between vectors a and b.
  */
 export const sqeuclidean = (
-  a: Float64Array | Float32Array | Int8Array,
-  b: Float64Array | Float32Array | Int8Array
+  a: Float64Array | Float32Array | Int8Array | Uint8Array,
+  b: Float64Array | Float32Array | Int8Array | Uint8Array
 ): number => {
   return compiled.sqeuclidean(a, b);
 };
 
 /**
  * @brief Computes the cosine distance between two vectors.
- * @param {Float64Array|Float32Array|Int8Array} a - The first vector.
- * @param {Float64Array|Float32Array|Int8Array} b - The second vector.
+ * @param {Float64Array|Float32Array|Int8Array|Uint8Array} a - The first vector.
+ * @param {Float64Array|Float32Array|Int8Array|Uint8Array} b - The second vector.
  * @returns {number} The cosine distance between vectors a and b.
  */
 export const cosine = (
-  a: Float64Array | Float32Array | Int8Array,
-  b: Float64Array | Float32Array | Int8Array
+  a: Float64Array | Float32Array | Int8Array | Uint8Array,
+  b: Float64Array | Float32Array | Int8Array | Uint8Array
 ): number => {
   return compiled.cosine(a, b);
 };
 
 /**
  * @brief Computes the inner product of two vectors (same as dot product).
- * @param {Float64Array|Float32Array} a - The first vector.
- * @param {Float64Array|Float32Array} b - The second vector.
+ * @param {Float64Array|Float32Array|Int8Array|Uint8Array} a - The first vector.
+ * @param {Float64Array|Float32Array|Int8Array|Uint8Array} b - The second vector.
  * @returns {number} The inner product of vectors a and b.
  */
-export const inner = (a: Float64Array | Float32Array, b: Float64Array | Float32Array): number => {
+export const inner = (
+  a: Float64Array | Float32Array | Int8Array | Uint8Array,
+  b: Float64Array | Float32Array | Int8Array | Uint8Array
+): number => {
   return compiled.inner(a, b);
 };
 
 /**
  * @brief Computes the dot product of two vectors (same as inner product).
- * @param {Float64Array|Float32Array} a - The first vector.
- * @param {Float64Array|Float32Array} b - The second vector.
+ * @param {Float64Array|Float32Array|Int8Array|Uint8Array} a - The first vector.
+ * @param {Float64Array|Float32Array|Int8Array|Uint8Array} b - The second vector.
  * @returns {number} The dot product of vectors a and b.
  */
-export const dot = (a: Float64Array | Float32Array, b: Float64Array | Float32Array): number => {
+export const dot = (
+  a: Float64Array | Float32Array | Int8Array | Uint8Array,
+  b: Float64Array | Float32Array | Int8Array | Uint8Array
+): number => {
   return compiled.dot(a, b);
 };
 

@@ -2,13 +2,13 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 project(
     simsimd
-    VERSION 5.9.10
+    VERSION 6.0.1
     LANGUAGES C CXX
     DESCRIPTION "Portable mixed-precision BLAS-like vector math library for x86 and ARM"
     HOMEPAGE_URL "https://github.com/ashvardanian/simsimd"
 )
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED YES)
 set(CMAKE_C_EXTENSIONS NO)
 
@@ -121,4 +121,19 @@ if (SIMSIMD_BUILD_SHARED)
     add_library(simsimd_shared SHARED ${SIMSIMD_SOURCES})
     target_include_directories(simsimd_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")
     set_target_properties(simsimd_shared PROPERTIES OUTPUT_NAME simsimd)
+
+    install(
+        TARGETS simsimd_shared
+        ARCHIVE
+        BUNDLE
+        FRAMEWORK
+        LIBRARY
+        OBJECTS
+        PRIVATE_HEADER
+        PUBLIC_HEADER
+        RESOURCE
+        RUNTIME)
 endif ()
+
+install(DIRECTORY ./include/ DESTINATION /usr/include/)
+install(DIRECTORY ./c/ DESTINATION /usr/src/${PROJECT_NAME}/)

@@ -69,9 +69,9 @@ Implemented distance functions include:
 
 Moreover, SimSIMD...
 
-- handles `f64`, `f32`, `f16`, and `bf16` real & complex vectors.
-- handles `i8` integral, `i4` sub-byte, and `b8` binary vectors.
-- handles sparse `u32` and `u16` sets, and weighted sparse vectors.
+- handles `float64`, `float32`, `float16`, and `bfloat16` real & complex vectors.
+- handles `int8` integral, `int4` sub-byte, and `b8` binary vectors.
+- handles sparse `uint32` and `uint16` sets, and weighted sparse vectors.
 - is a zero-dependency [header-only C 99](#using-simsimd-in-c) library.
 - has [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust), [JS](#using-simsimd-in-javascript), and [Swift](#using-simsimd-in-swift) bindings.
 - has Arm backends for NEON, Scalable Vector Extensions (SVE), and SVE2.
@@ -95,14 +95,14 @@ You can learn more about the technical implementation details in the following b
 For reference, we use 1536-dimensional vectors, like the embeddings produced by the OpenAI Ada API.
 Comparing the serial code throughput produced by GCC 12 to hand-optimized kernels in SimSIMD, we see the following single-core improvements for the two most common vector-vector similarity metrics - the Cosine similarity and the Euclidean distance:
 
-| Type   |                  Apple M2 Pro |            Intel Sapphire Rapids |                  AWS Graviton 4 |
-| :----- | ----------------------------: | -------------------------------: | ------------------------------: |
-| `f64`  | 18.5 → 28.8 GB/s <br/> + 56 % |    21.9 → 41.4 GB/s <br/> + 89 % |   20.7 → 41.3 GB/s <br/> + 99 % |
-| `f32`  | 9.2 → 29.6 GB/s <br/> + 221 % |   10.9 → 95.8 GB/s <br/> + 779 % |   4.9 → 41.9 GB/s <br/> + 755 % |
-| `f16`  | 4.6 → 14.6 GB/s <br/> + 217 % | 3.1 → 108.4 GB/s <br/> + 3,397 % |   5.4 → 39.3 GB/s <br/> + 627 % |
-| `bf16` | 4.6 → 26.3 GB/s <br/> + 472 % |   0.8 → 59.5 GB/s <br/> +7,437 % | 2.5 → 29.9 GB/s <br/> + 1,096 % |
-| `i8`   | 25.8 → 47.1 GB/s <br/> + 83 % |    33.1 → 65.3 GB/s <br/> + 97 % |   35.2 → 43.5 GB/s <br/> + 24 % |
-| `u8`   |                               |   32.5 → 66.5 GB/s <br/> + 105 % |                                 |
+| Type       |                  Apple M2 Pro |            Intel Sapphire Rapids |                  AWS Graviton 4 |
+| :--------- | ----------------------------: | -------------------------------: | ------------------------------: |
+| `float64`  | 18.5 → 28.8 GB/s <br/> + 56 % |    21.9 → 41.4 GB/s <br/> + 89 % |   20.7 → 41.3 GB/s <br/> + 99 % |
+| `float32`  | 9.2 → 29.6 GB/s <br/> + 221 % |   10.9 → 95.8 GB/s <br/> + 779 % |   4.9 → 41.9 GB/s <br/> + 755 % |
+| `float16`  | 4.6 → 14.6 GB/s <br/> + 217 % | 3.1 → 108.4 GB/s <br/> + 3,397 % |   5.4 → 39.3 GB/s <br/> + 627 % |
+| `bfloat16` | 4.6 → 26.3 GB/s <br/> + 472 % |   0.8 → 59.5 GB/s <br/> +7,437 % | 2.5 → 29.9 GB/s <br/> + 1,096 % |
+| `int8`     | 25.8 → 47.1 GB/s <br/> + 83 % |    33.1 → 65.3 GB/s <br/> + 97 % |   35.2 → 43.5 GB/s <br/> + 24 % |
+| `uint8`    |                               |   32.5 → 66.5 GB/s <br/> + 105 % |                                 |
 
 Similar speedups are often observed even when compared to BLAS and LAPACK libraries underlying most numerical computing libraries, including NumPy and SciPy in Python.
 Broader benchmarking results:
@@ -115,8 +115,8 @@ Broader benchmarking results:
 
 The package is intended to replace the usage of `numpy.inner`, `numpy.dot`, and `scipy.spatial.distance`.
 Aside from drastic performance improvements, SimSIMD significantly improves accuracy in mixed precision setups.
-NumPy and SciPy, processing `i8`, `u8` or `f16` vectors, will use the same types for accumulators, while SimSIMD can combine `i8` enumeration, `i16` multiplication, and `i32` accumulation to avoid overflows entirely.
-The same applies to processing `f16` and `bf16` values with `f32` precision.
+NumPy and SciPy, processing `int8`, `uint8` or `float16` vectors, will use the same types for accumulators, while SimSIMD can combine `int8` enumeration, `int16` multiplication, and `int32` accumulation to avoid overflows entirely.
+The same applies to processing `float16` and `bfloat16` values with `float32` precision.
 
 ### Installation
 
@@ -309,15 +309,15 @@ matrix1 = np.packbits(np.random.randint(2, size=(10_000, ndim)).astype(np.uint8)
 matrix2 = np.packbits(np.random.randint(2, size=(1_000, ndim)).astype(np.uint8))
 
 distances = simsimd.cdist(matrix1, matrix2, 
-    metric="hamming", # Unlike SciPy, SimSIMD doesn't divide by the number of dimensions
-    out_dtype="u8",   # so we can use `u8` instead of `f64` to save memory.
-    threads=0,        # Use all CPU cores with OpenMP.
-    dtype="b8",       # Override input argument type to `b8` eight-bit words.
+    metric="hamming",   # Unlike SciPy, SimSIMD doesn't divide by the number of dimensions
+    out_dtype="uint8",  # so we can use `uint8` instead of `float64` to save memory.
+    threads=0,          # Use all CPU cores with OpenMP.
+    dtype="bin8",       # Override input argument type to `bin8` eight-bit words.
 )
 ```
 
-By default, the output distances will be stored in double-precision `f64` floating-point numbers.
-That behavior may not be space-efficient, especially if you are computing the hamming distance between short binary vectors, that will generally fit into 8x smaller `u8` or `u16` types.
+By default, the output distances will be stored in double-precision `float64` floating-point numbers.
+That behavior may not be space-efficient, especially if you are computing the hamming distance between short binary vectors, that will generally fit into 8x smaller `uint8` or `uint16` types.
 To override this behavior, use the `dtype` argument.
 
 ### Helper Functions
@@ -636,7 +636,7 @@ Simplest of all, you can include the headers, and the compiler will automaticall
 int main() {
     simsimd_f32_t vector_a[1536];
     simsimd_f32_t vector_b[1536];
-    simsimd_metric_punned_t distance_function = simsimd_metric_punned(
+    simsimd_kernel_punned_t distance_function = simsimd_metric_punned(
         simsimd_metric_cos_k,   // Metric kind, like the angular cosine distance
         simsimd_datatype_f32_k, // Data type, like: f16, f32, f64, i8, b8, and complex variants
         simsimd_cap_any_k);     // Which CPU capabilities are we allowed to use
@@ -1149,7 +1149,7 @@ All of the function names follow the same pattern: `simsimd_{function}_{type}_{b
 - The type can be `f64`, `f32`, `f16`, `bf16`, `f64c`, `f32c`, `f16c`, `bf16c`, `i8`, or `b8`.
 - The function can be `dot`, `vdot`, `cos`, `l2sq`, `hamming`, `jaccard`, `kl`, `js`, or `intersect`.
 
-To avoid hard-coding the backend, you can use the `simsimd_metric_punned_t` to pun the function pointer and the `simsimd_capabilities` function to get the available backends at runtime.
+To avoid hard-coding the backend, you can use the `simsimd_kernel_punned_t` to pun the function pointer and the `simsimd_capabilities` function to get the available backends at runtime.
 To match all the function names, consider a RegEx:
 
 ```regex
