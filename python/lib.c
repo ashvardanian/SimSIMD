@@ -393,40 +393,6 @@ size_t bytes_per_datatype(simsimd_datatype_t dtype) {
     }
 }
 
-typedef enum DatatypeKind {
-    FloatKind = 0,
-    ComplexKind = 1,
-    IntegerKind = 2,
-    UnsignedKind = 3,
-    BooleanKind = 4,
-} DatatypeKind;
-
-/// @brief Check if the datatype has a sign.
-/// @param dtype Logical datatype, can be complex.
-/// @return Zero if the datatype is an unsigned ingteger, positive for signed integers and floats
-DatatypeKind datatype_kind(simsimd_datatype_t dtype) {
-    switch (dtype) {
-    case simsimd_datatype_f64_k: return FloatKind;
-    case simsimd_datatype_f32_k: return FloatKind;
-    case simsimd_datatype_f16_k: return FloatKind;
-    case simsimd_datatype_bf16_k: return FloatKind;
-    case simsimd_datatype_f64c_k: return ComplexKind;
-    case simsimd_datatype_f32c_k: return ComplexKind;
-    case simsimd_datatype_f16c_k: return ComplexKind;
-    case simsimd_datatype_bf16c_k: return ComplexKind;
-    case simsimd_datatype_b8_k: return BooleanKind;
-    case simsimd_datatype_u8_k: return UnsignedKind;
-    case simsimd_datatype_u16_k: return UnsignedKind;
-    case simsimd_datatype_u32_k: return UnsignedKind;
-    case simsimd_datatype_u64_k: return UnsignedKind;
-    case simsimd_datatype_i8_k: return IntegerKind;
-    case simsimd_datatype_i16_k: return IntegerKind;
-    case simsimd_datatype_i32_k: return IntegerKind;
-    case simsimd_datatype_i64_k: return IntegerKind;
-    default: return 0;
-    }
-}
-
 /// @brief Copy a distance to a target datatype, downcasting if necessary.
 /// @return 1 if the cast was successful, 0 if the target datatype is not supported.
 int cast_distance(simsimd_distance_t distance, simsimd_datatype_t target_dtype, void *target_ptr, size_t offset) {
@@ -2554,43 +2520,6 @@ cleanup:
     return return_obj;
 }
 
-void _plus_u64(void const *a, void const *b, void *o) {
-    *(simsimd_u64_t *)o = *(simsimd_u64_t const *)a + *(simsimd_u64_t const *)b;
-}
-void _plus_u32(void const *a, void const *b, void *o) {
-    *(simsimd_u32_t *)o = *(simsimd_u32_t const *)a + *(simsimd_u32_t const *)b;
-}
-void _plus_u16(void const *a, void const *b, void *o) {
-    *(simsimd_u16_t *)o = *(simsimd_u16_t const *)a + *(simsimd_u16_t const *)b;
-}
-void _plus_u8(void const *a, void const *b, void *o) {
-    *(simsimd_u8_t *)o = *(simsimd_u8_t const *)a + *(simsimd_u8_t const *)b;
-}
-void _plus_i64(void const *a, void const *b, void *o) {
-    *(simsimd_i64_t *)o = *(simsimd_i64_t const *)a + *(simsimd_i64_t const *)b;
-}
-void _plus_i32(void const *a, void const *b, void *o) {
-    *(simsimd_i32_t *)o = *(simsimd_i32_t const *)a + *(simsimd_i32_t const *)b;
-}
-void _plus_i16(void const *a, void const *b, void *o) {
-    *(simsimd_i16_t *)o = *(simsimd_i16_t const *)a + *(simsimd_i16_t const *)b;
-}
-void _plus_i8(void const *a, void const *b, void *o) {
-    *(simsimd_i8_t *)o = *(simsimd_i8_t const *)a + *(simsimd_i8_t const *)b;
-}
-void _plus_f64(void const *a, void const *b, void *o) {
-    *(simsimd_f64_t *)o = *(simsimd_f64_t const *)a + *(simsimd_f64_t const *)b;
-}
-void _plus_f32(void const *a, void const *b, void *o) {
-    *(simsimd_f32_t *)o = *(simsimd_f32_t const *)a + *(simsimd_f32_t const *)b;
-}
-void _plus_f16(void const *a, void const *b, void *o) {
-    simsimd_f32_to_f16(simsimd_f16_to_f32(a) + simsimd_f16_to_f32(b), (simsimd_f16_t *)o);
-}
-void _plus_bf16(void const *a, void const *b, void *o) {
-    simsimd_f32_to_bf16(simsimd_bf16_to_f32(a) + simsimd_bf16_to_f32(b), (simsimd_bf16_t *)o);
-}
-
 void implementation_elementwise_binary_tensor_operation( //
     BufferOrScalarArgument const *a_parsed, BufferOrScalarArgument const *b_parsed,
     BufferOrScalarArgument const *out_parsed, //
@@ -2685,6 +2614,27 @@ void implementation_vectorized_binary_tensor_operation( //
     }
 }
 
+typedef void (*elementwise_scalar_kernel_t)(void const *, void const *, void *);
+
+static elementwise_scalar_kernel_t elementwise_sadd(simsimd_datatype_t dtype) {
+    void (*scalar_kernel)(void const *, void const *, void *) = NULL;
+    switch (dtype) {
+    case simsimd_datatype_u64_k: return (elementwise_scalar_kernel_t)&_simsimd_u64_sadd;
+    case simsimd_datatype_u32_k: return (elementwise_scalar_kernel_t)&_simsimd_u32_sadd;
+    case simsimd_datatype_u16_k: return (elementwise_scalar_kernel_t)&_simsimd_u16_sadd;
+    case simsimd_datatype_u8_k: return (elementwise_scalar_kernel_t)&_simsimd_u8_sadd;
+    case simsimd_datatype_i64_k: return (elementwise_scalar_kernel_t)&_simsimd_i64_sadd;
+    case simsimd_datatype_i32_k: return (elementwise_scalar_kernel_t)&_simsimd_i32_sadd;
+    case simsimd_datatype_i16_k: return (elementwise_scalar_kernel_t)&_simsimd_i16_sadd;
+    case simsimd_datatype_i8_k: return (elementwise_scalar_kernel_t)&_simsimd_i8_sadd;
+    case simsimd_datatype_f64_k: return (elementwise_scalar_kernel_t)&_simsimd_f64_sadd;
+    case simsimd_datatype_f32_k: return (elementwise_scalar_kernel_t)&_simsimd_f32_sadd;
+    case simsimd_datatype_f16_k: return (elementwise_scalar_kernel_t)&_simsimd_f16_sadd;
+    case simsimd_datatype_bf16_k: return (elementwise_scalar_kernel_t)&_simsimd_bf16_sadd;
+    default: return NULL;
+    }
+}
+
 static char const doc_add[] = //
     "Tensor-Tensor or Tensor-Scalar element-wise addition.\n"
     "\n"
@@ -2707,14 +2657,16 @@ static char const doc_add[] = //
     "Performance recommendations:\n"
     "    - Provide an output tensor to avoid memory allocations.\n"
     "    - Use the same datatype for both inputs and outputs, if supplied.\n"
-    "    - Ideally keep operands in continuous memory. Otherwise, maximize the number of last continuous dimensions.\n"
+    "    - Ideally keep operands in continuous memory. Otherwise, maximize the number of last continuous "
+    "dimensions.\n"
     "    - On tiny inputs you may want to avoid passing arguments by name.\n"
     "In most cases, conforming to these recommendations is easy and will result in the best performance.\n"
     "\n"
     "Broadcasting rules:\n"
     "    - If both inputs are scalars, the output will be a scalar.\n"
     "    - If one input is a scalar, the output will be a tensor of the same shape as the other input.\n"
-    "    - If both inputs are tensors, in every dimension, the dimension sizes must match or one of them must be 1.\n"
+    "    - If both inputs are tensors, in every dimension, the dimension sizes must match or one of them must be "
+    "1.\n"
     "Broadcasting examples for different shapes:\n"
     "    - (3) + (1) -> (3)\n"
     "    - (3, 1) + (1) -> (3, 1)\n"
@@ -2963,11 +2915,11 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     // Infer the output tensor shape if it wasn't provided
     else {
         // For addition and multiplication, treat complex numbers as floats
-        DatatypeKind a_kind = a_parsed.kind;
-        DatatypeKind b_kind = b_parsed.kind;
-        if (a_kind == ComplexKind) a_kind = FloatKind;
-        if (b_kind == ComplexKind) b_kind = FloatKind;
-        if (a_kind == BooleanKind || b_kind == BooleanKind) {
+        simsimd_datatype_family_k a_kind = simsimd_datatype_family(a_parsed.datatype);
+        simsimd_datatype_family_k b_kind = simsimd_datatype_family(b_parsed.datatype);
+        if (a_kind == simsimd_datatype_complex_float_family_k) a_kind = simsimd_datatype_float_family_k;
+        if (b_kind == simsimd_datatype_complex_float_family_k) b_kind = simsimd_datatype_float_family_k;
+        if (a_kind == simsimd_datatype_binary_famiily_k || b_kind == simsimd_datatype_binary_famiily_k) {
             PyErr_SetString(PyExc_ValueError, "Boolean tensors are not supported in element-wise operations");
             goto cleanup;
         }
@@ -2982,16 +2934,16 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         }
         // If only one of the operands is a float, the output should be a float, of the next size...
         // Sum of `float16` and `int32` is a `float64`. Sum of `float16` and `int16` is a `float32`.
-        else if (a_kind == FloatKind || b_kind == FloatKind) {
+        else if (a_kind == simsimd_datatype_float_family_k || b_kind == simsimd_datatype_float_family_k) {
             //? No 128-bit float on most platforms
             if (max_itemsize == 8) { out_parsed.datatype = simsimd_datatype_f64_k; }
             else if (max_itemsize == 4) { out_parsed.datatype = simsimd_datatype_f64_k; }
             else if (max_itemsize == 2) { out_parsed.datatype = simsimd_datatype_f32_k; }
             else if (max_itemsize == 1) { out_parsed.datatype = simsimd_datatype_f16_k; }
         }
-        // If only one of the operands is a signed integer, the output should be a signed integer, of the next size...
-        // Sum of `int16` and `uint32` is a `int64`. Sum of `int16` and `uint16` is a `int32`.
-        else if (a_kind == IntegerKind || b_kind == IntegerKind) {
+        // If only one of the operands is a signed integer, the output should be a signed integer, of the next
+        // size... Sum of `int16` and `uint32` is a `int64`. Sum of `int16` and `uint16` is a `int32`.
+        else if (a_kind == simsimd_datatype_int_family_k || b_kind == simsimd_datatype_int_family_k) {
             //? No 128-bit integer on most platforms
             if (max_itemsize == 8) { out_parsed.datatype = simsimd_datatype_i64_k; }
             else if (max_itemsize == 4) { out_parsed.datatype = simsimd_datatype_i64_k; }
@@ -3098,10 +3050,9 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     }
 
     // If the output has no continuous dimensions at all, our situation sucks!
-    // If the type of outputs and inputs doesn't match, it also sucks!
-    // We can't use SIMD effectively and need to fall back to the scalar operation.
+    // We can't use SIMD effectively and need to fall back to the scalar operation,
+    // but if the input/output types match, at least we don't need to cast the data back and forth.
     void (*scalar_kernel)(void const *, void const *, void *) = NULL;
-    // clang-format off
     switch (dtype) {
     case simsimd_datatype_u64_k: scalar_kernel = _plus_u64; break;
     case simsimd_datatype_u32_k: scalar_kernel = _plus_u32; break;
@@ -3115,7 +3066,6 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     case simsimd_datatype_f32_k: scalar_kernel = _plus_f32; break;
     case simsimd_datatype_f16_k: scalar_kernel = _plus_f16; break;
     case simsimd_datatype_bf16_k: scalar_kernel = _plus_bf16; break;
-    // clang-format on
     default:
         PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
         return_obj = NULL;
@@ -3123,6 +3073,10 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     }
     // Finally call the serial kernels
     implementation_elementwise_binary_tensor_operation(&a_parsed, &b_parsed, &out_parsed, scalar_kernel);
+
+    // If the output has no continuous dimensions at all, our situation sucks!
+    // If the type of outputs and inputs doesn't match, it also sucks!
+    // We can't use SIMD effectively and need to fall back to the scalar operation.
 
 cleanup:
     PyBuffer_Release(&a_buffer);

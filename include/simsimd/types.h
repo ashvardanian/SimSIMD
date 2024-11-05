@@ -34,7 +34,7 @@
 #elif defined(__GNUC__) || defined(__clang__)
 #define SIMSIMD_DYNAMIC __attribute__((visibility("default")))
 #define SIMSIMD_PUBLIC __attribute__((unused)) inline static
-#define SIMSIMD_INTERNAL __attribute__((always_inline)) inline static
+#define SIMSIMD_INTERNAL inline static // Avoid `__attribute__((always_inline))`
 #else
 #define SIMSIMD_DYNAMIC
 #define SIMSIMD_PUBLIC inline static
@@ -286,8 +286,9 @@
 
 /**
  *  @brief  Similat to `static_assert`, but compatible with C 99.
+ *          In C the `_Static_assert` is only available with C 11 and later.
  */
-#define SIMSIMD_STATIC_ASSERT(expr, msg) typedef char static_assert_##msg[(expr) ? 1 : -1]
+#define _SIMSIMD_STATIC_ASSERT(expr, msg) typedef char static_assert_##msg[(expr) ? 1 : -1]
 
 #ifdef __cplusplus
 extern "C" {
@@ -411,145 +412,21 @@ typedef unsigned short simsimd_bf16_t;
 
 /*
  *  Let's make sure the sizes of the types are as expected.
- *  In C the `_Static_assert` is only available with C 11 and later.
  */
-#define SIMSIMD_STATIC_ASSERT(cond, msg) typedef char static_assertion_##msg[(cond) ? 1 : -1]
-SIMSIMD_STATIC_ASSERT(sizeof(simsimd_b8_t) == 1, simsimd_b8_t_must_be_1_byte);
-SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i4x2_t) == 1, simsimd_i4x2_t_must_be_1_byte);
-SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i8_t) == 1, simsimd_i8_t_must_be_1_byte);
-SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u8_t) == 1, simsimd_u8_t_must_be_1_byte);
-SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i16_t) == 2, simsimd_i16_t_must_be_2_bytes);
-SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u16_t) == 2, simsimd_u16_t_must_be_2_bytes);
-SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i32_t) == 4, simsimd_i32_t_must_be_4_bytes);
-SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u32_t) == 4, simsimd_u32_t_must_be_4_bytes);
-SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i64_t) == 8, simsimd_i64_t_must_be_8_bytes);
-SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u64_t) == 8, simsimd_u64_t_must_be_8_bytes);
-SIMSIMD_STATIC_ASSERT(sizeof(simsimd_f32_t) == 4, simsimd_f32_t_must_be_4_bytes);
-SIMSIMD_STATIC_ASSERT(sizeof(simsimd_f64_t) == 8, simsimd_f64_t_must_be_8_bytes);
-SIMSIMD_STATIC_ASSERT(sizeof(simsimd_f16_t) == 2, simsimd_f16_t_must_be_2_bytes);
-SIMSIMD_STATIC_ASSERT(sizeof(simsimd_bf16_t) == 2, simsimd_bf16_t_must_be_2_bytes);
-
-#define SIMSIMD_DEREFERENCE(x) (*(x))
-#define SIMSIMD_EXPORT(x, y) *(y) = x
-
-/**
- *  @brief  Returns the value of the half-precision floating-point number,
- *          potentially decompressed into single-precision.
- */
-#if !defined(SIMSIMD_F16_TO_F32)
-#if SIMSIMD_NATIVE_F16
-#define SIMSIMD_F16_TO_F32(x) (SIMSIMD_DEREFERENCE(x))
-#define SIMSIMD_F32_TO_F16(x, y) (SIMSIMD_EXPORT(x, y))
-#else
-#define SIMSIMD_F16_TO_F32(x) (simsimd_f16_to_f32(x))
-#define SIMSIMD_F32_TO_F16(x, y) (simsimd_f32_to_f16(x, y))
-#endif
-#endif
-
-/**
- *  @brief  Returns the value of the half-precision brain floating-point number,
- *          potentially decompressed into single-precision.
- */
-#if !defined(SIMSIMD_BF16_TO_F32)
-#if SIMSIMD_NATIVE_BF16
-#define SIMSIMD_BF16_TO_F32(x) (SIMSIMD_DEREFERENCE(x))
-#define SIMSIMD_F32_TO_BF16(x, y) (SIMSIMD_EXPORT(x, y))
-#else
-#define SIMSIMD_BF16_TO_F32(x) (simsimd_bf16_to_f32(x))
-#define SIMSIMD_F32_TO_BF16(x, y) (simsimd_f32_to_bf16(x, y))
-#endif
-#endif
-
-#if !defined(SIMSIMD_F32_TO_I8)
-#define SIMSIMD_F32_TO_I8(x, y) *(y) = (simsimd_i8_t)fminf(fmaxf(roundf(x), -128), 127)
-#endif
-#if !defined(SIMSIMD_F32_TO_U8)
-#define SIMSIMD_F32_TO_U8(x, y) *(y) = (simsimd_u8_t)fminf(fmaxf(roundf(x), 0), 255)
-#endif
-#if !defined(SIMSIMD_F64_TO_I8)
-#define SIMSIMD_F64_TO_I8(x, y) *(y) = (simsimd_i8_t)fmin(fmax(round(x), -128), 127)
-#endif
-#if !defined(SIMSIMD_F64_TO_U8)
-#define SIMSIMD_F64_TO_U8(x, y) *(y) = (simsimd_u8_t)fmin(fmax(round(x), 0), 255)
-#endif
-
-/**
- *  @brief  Converts floating pointer numbers to integers, clamping them to the range of signed
- *          and unsigned low-resolution integers, and rounding them to the nearest integer.
- *
- *  In C++ the analogous solution with STL could be: `std::clamp(std::round(x), -128, 127)`.
- *  In C, using the standard library: `fminf(fmaxf(roundf(x), -128), 127)`.
- */
-#if !defined(SIMSIMD_F32_TO_I8)
-#define SIMSIMD_F32_TO_I8(x, y) \
-    *(y) = (simsimd_i8_t)((x) > 127 ? 127 : ((x) < -128 ? -128 : (int)((x) + ((x) < 0 ? -0.5f : 0.5f))))
-#endif
-#if !defined(SIMSIMD_F32_TO_U8)
-#define SIMSIMD_F32_TO_U8(x, y) \
-    *(y) = (simsimd_u8_t)((x) > 255 ? 255 : ((x) < 0 ? 0 : (int)((x) + ((x) < 0 ? -0.5f : 0.5f))))
-#endif
-#if !defined(SIMSIMD_F64_TO_I8)
-#define SIMSIMD_F64_TO_I8(x, y) \
-    *(y) = (simsimd_i8_t)((x) > 127 ? 127 : ((x) < -128 ? -128 : (int)((x) + ((x) < 0 ? -0.5 : 0.5))))
-#endif
-#if !defined(SIMSIMD_F64_TO_U8)
-#define SIMSIMD_F64_TO_U8(x, y) \
-    *(y) = (simsimd_u8_t)((x) > 255 ? 255 : ((x) < 0 ? 0 : (int)((x) + ((x) < 0 ? -0.5 : 0.5))))
-#endif
-#if !defined(SIMSIMD_F64_TO_I16)
-#define SIMSIMD_F64_TO_I16(x, y) \
-    *(y) = (simsimd_i16_t)((x) > 32767 ? 32767 : ((x) < -32768 ? -32768 : (int)((x) + ((x) < 0 ? -0.5 : 0.5))))
-#endif
-#if !defined(SIMSIMD_F64_TO_U16)
-#define SIMSIMD_F64_TO_U16(x, y) \
-    *(y) = (simsimd_u16_t)((x) > 65535 ? 65535 : ((x) < 0 ? 0 : (int)((x) + ((x) < 0 ? -0.5 : 0.5))))
-#endif
-#if !defined(SIMSIMD_F64_TO_I32)
-#define SIMSIMD_F64_TO_I32(x, y)                         \
-    *(y) = (simsimd_i32_t)((x) > 2147483647 ? 2147483647 \
-                                            : ((x) < -2147483648 ? -2147483648 : (int)((x) + ((x) < 0 ? -0.5 : 0.5))))
-#endif
-#if !defined(SIMSIMD_F64_TO_U32)
-#define SIMSIMD_F64_TO_U32(x, y) \
-    *(y) = (simsimd_u32_t)((x) > 4294967295 ? 4294967295 : ((x) < 0 ? 0 : (unsigned int)((x) + ((x) < 0 ? -0.5 : 0.5))))
-#endif
-#if !defined(SIMSIMD_F64_TO_I64)
-#define SIMSIMD_F64_TO_I64(x, y)                                                      \
-    *(y) = (simsimd_i64_t)((x) > 9223372036854775807.0                                \
-                               ? 9223372036854775807                                  \
-                               : ((x) < -9223372036854775808.0 ? -9223372036854775808 \
-                                                               : (long long)((x) + ((x) < 0 ? -0.5 : 0.5))))
-#endif
-#if !defined(SIMSIMD_F64_TO_U64)
-#define SIMSIMD_F64_TO_U64(x, y)                         \
-    *(y) = (simsimd_u64_t)((x) > 18446744073709551615.0  \
-                               ? 18446744073709551615ULL \
-                               : ((x) < 0 ? 0 : (unsigned long long)((x) + ((x) < 0 ? -0.5 : 0.5))))
-#endif
-
-/**
- *  @brief  Converts high-resolution signed integers to low-resolution signed and unsigned integers,
- *          clamping them to indicate saturation.
- */
-#if !defined(SIMSIMD_I64_TO_I8)
-#define SIMSIMD_I64_TO_I8(x, y) *(y) = (simsimd_i8_t)((x) > 127 ? 127 : ((x) < -128 ? -128 : (x)))
-#endif
-#if !defined(SIMSIMD_I64_TO_U8)
-#define SIMSIMD_I64_TO_U8(x, y) *(y) = (simsimd_u8_t)((x) > 255 ? 255 : ((x) < 0 ? 0 : (x)))
-#endif
-#if !defined(SIMSIMD_I64_TO_I16)
-#define SIMSIMD_I64_TO_I16(x, y) *(y) = (simsimd_i16_t)((x) > 32767 ? 32767 : ((x) < -32768 ? -32768 : (x)))
-#endif
-#if !defined(SIMSIMD_I64_TO_U16)
-#define SIMSIMD_I64_TO_U16(x, y) *(y) = (simsimd_u16_t)((x) > 65535 ? 65535 : ((x) < 0 ? 0 : (x)))
-#endif
-#if !defined(SIMSIMD_I64_TO_I32)
-#define SIMSIMD_I64_TO_I32(x, y) \
-    *(y) = (simsimd_i32_t)((x) > 2147483647 ? 2147483647 : ((x) < -2147483648 ? -2147483648 : (x)))
-#endif
-#if !defined(SIMSIMD_I64_TO_U32)
-#define SIMSIMD_I64_TO_U32(x, y) *(y) = (simsimd_u32_t)((x) > 4294967295 ? 4294967295 : ((x) < 0 ? 0 : (x)))
-#endif
+_SIMSIMD_STATIC_ASSERT(sizeof(simsimd_b8_t) == 1, simsimd_b8_t_must_be_1_byte);
+_SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i4x2_t) == 1, simsimd_i4x2_t_must_be_1_byte);
+_SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i8_t) == 1, simsimd_i8_t_must_be_1_byte);
+_SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u8_t) == 1, simsimd_u8_t_must_be_1_byte);
+_SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i16_t) == 2, simsimd_i16_t_must_be_2_bytes);
+_SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u16_t) == 2, simsimd_u16_t_must_be_2_bytes);
+_SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i32_t) == 4, simsimd_i32_t_must_be_4_bytes);
+_SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u32_t) == 4, simsimd_u32_t_must_be_4_bytes);
+_SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i64_t) == 8, simsimd_i64_t_must_be_8_bytes);
+_SIMSIMD_STATIC_ASSERT(sizeof(simsimd_u64_t) == 8, simsimd_u64_t_must_be_8_bytes);
+_SIMSIMD_STATIC_ASSERT(sizeof(simsimd_f32_t) == 4, simsimd_f32_t_must_be_4_bytes);
+_SIMSIMD_STATIC_ASSERT(sizeof(simsimd_f64_t) == 8, simsimd_f64_t_must_be_8_bytes);
+_SIMSIMD_STATIC_ASSERT(sizeof(simsimd_f16_t) == 2, simsimd_f16_t_must_be_2_bytes);
+_SIMSIMD_STATIC_ASSERT(sizeof(simsimd_bf16_t) == 2, simsimd_bf16_t_must_be_2_bytes);
 
 /** @brief  Convenience type for half-precision floating-point type conversions. */
 typedef union {
@@ -590,6 +467,8 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
     return x - x2 / 2 + x3 / 3;
 }
 
+#define _SIMSIMD_ASSIGN_1_TO_2(x, y) *(y) = *(x)
+
 /**
  *  @brief  For compilers that don't natively support the `_Float16` type,
  *          upcasts contents into a more conventional `float`.
@@ -600,17 +479,21 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_f16_to_f32(simsimd_f16_t const *x_ptr) {
-    unsigned short x = *(unsigned short const *)x_ptr;
-    unsigned int exponent = (x & 0x7C00) >> 10;
-    unsigned int mantissa = (x & 0x03FF) << 13;
+SIMSIMD_PUBLIC void simsimd_f16_to_f32(simsimd_f16_t const *x, simsimd_f32_t *y) {
+#if SIMSIMD_NATIVE_F16
+    *y = *x;
+#else
+    unsigned short x_short = *(unsigned short const *)x;
+    unsigned int exponent = (x_short & 0x7C00) >> 10;
+    unsigned int mantissa = (x_short & 0x03FF) << 13;
     simsimd_f32i32_t mantissa_conv;
     mantissa_conv.f = (float)mantissa;
     unsigned int v = (mantissa_conv.i) >> 23;
     simsimd_f32i32_t conv;
-    conv.i = (x & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
+    conv.i = (x_short & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
              ((exponent == 0) & (mantissa != 0)) * ((v - 37) << 23 | ((mantissa << (150 - v)) & 0x007FE000));
-    return conv.f;
+    *y = conv.f;
+#endif
 }
 
 /**
@@ -622,16 +505,20 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f16_to_f32(simsimd_f16_t const *x_ptr) {
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-SIMSIMD_PUBLIC void simsimd_f32_to_f16(simsimd_f32_t x, simsimd_f16_t *result_ptr) {
+SIMSIMD_PUBLIC void simsimd_f32_to_f16(simsimd_f32_t const *x, simsimd_f16_t *y) {
+#if SIMSIMD_NATIVE_F16
+    *y = (simsimd_f16_t)*x;
+#else
     simsimd_f32i32_t conv;
-    conv.f = x;
+    conv.f = *x;
     unsigned int b = conv.i + 0x00001000;
     unsigned int e = (b & 0x7F800000) >> 23;
     unsigned int m = b & 0x007FFFFF;
     unsigned short result = ((b & 0x80000000) >> 16) | (e > 112) * ((((e - 112) << 10) & 0x7C00) | (m >> 13)) |
                             ((e < 113) & (e > 101)) * ((((0x007FF000 + m) >> (125 - e)) + 1) >> 1) |
                             ((e > 143) * 0x7FFF);
-    *(unsigned short *)result_ptr = result;
+    *(unsigned short *)y = result;
+#endif
 }
 
 /**
@@ -641,11 +528,15 @@ SIMSIMD_PUBLIC void simsimd_f32_to_f16(simsimd_f32_t x, simsimd_f16_t *result_pt
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_bf16_to_f32(simsimd_bf16_t const *x_ptr) {
-    unsigned short x = *(unsigned short const *)x_ptr;
+SIMSIMD_PUBLIC void simsimd_bf16_to_f32(simsimd_bf16_t const *x, simsimd_f32_t *y) {
+#if SIMSIMD_NATIVE_BF16
+    *y = *x;
+#else
+    unsigned short x_short = *(unsigned short const *)x;
     simsimd_f32i32_t conv;
-    conv.i = x << 16; // Zero extends the mantissa
-    return conv.f;
+    conv.i = x_short << 16; // Zero extends the mantissa
+    *y = conv.f;
+#endif
 }
 
 /**
@@ -654,14 +545,112 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_bf16_to_f32(simsimd_bf16_t const *x_ptr) {
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
-SIMSIMD_PUBLIC void simsimd_f32_to_bf16(simsimd_f32_t x, simsimd_bf16_t *result_ptr) {
+SIMSIMD_PUBLIC void simsimd_f32_to_bf16(simsimd_f32_t const *x, simsimd_bf16_t *y) {
+#if SIMSIMD_NATIVE_BF16
+    *y = (simsimd_bf16_t)*x;
+#else
     simsimd_f32i32_t conv;
-    conv.f = x;
+    conv.f = *x;
     conv.i += 0x8000; // Rounding is optional
     conv.i >>= 16;
     // The top 16 bits will be zeroed out anyways
     // conv.i &= 0xFFFF;
-    *(unsigned short *)result_ptr = (unsigned short)conv.i;
+    *(unsigned short *)y = (unsigned short)conv.i;
+#endif
+}
+
+SIMSIMD_INTERNAL void _simsimd_f16_to_f64(simsimd_f16_t const *x, simsimd_f64_t *y) {
+    simsimd_f32_t f32;
+    simsimd_f16_to_f32(x, &f32);
+    *y = (simsimd_f64_t)f32;
+}
+SIMSIMD_INTERNAL void _simsimd_f64_to_f16(simsimd_f64_t const *x, simsimd_f16_t *y) {
+    simsimd_f32_t f32 = (simsimd_f32_t)*x;
+    simsimd_f32_to_f16(&f32, y);
+}
+SIMSIMD_INTERNAL void _simsimd_bf16_to_f64(simsimd_bf16_t const *x, simsimd_f64_t *y) {
+    simsimd_f32_t f32;
+    simsimd_bf16_to_f32(x, &f32);
+    *y = (simsimd_f64_t)f32;
+}
+SIMSIMD_INTERNAL void _simsimd_f64_to_bf16(simsimd_f64_t const *x, simsimd_bf16_t *y) {
+    simsimd_f32_t f32 = (simsimd_f32_t)*x;
+    simsimd_f32_to_bf16(&f32, y);
+}
+
+/*  Convert floating pointer numbers to integers, clamping them to the range of signed
+ *  and unsigned low-resolution integers, and rounding them to the nearest integer.
+ *
+ *  In C++ the analogous solution with STL could be: `*y = std::clamp(std::round(*x), -128, 127)`.
+ *  In C, using the standard library: `*x = fminf(fmaxf(roundf(*x), -128), 127)`.
+ */
+SIMSIMD_INTERNAL void _simsimd_f32_to_i8(simsimd_f32_t const *x, simsimd_i8_t *y) {
+    *y = (simsimd_i8_t)(*x > 127 ? 127 : (*x < -128 ? -128 : (int)(*x + (*x < 0 ? -0.5f : 0.5f))));
+}
+
+SIMSIMD_INTERNAL void _simsimd_f32_to_u8(simsimd_f32_t const *x, simsimd_u8_t *y) {
+    *y = (simsimd_u8_t)(*x > 255 ? 255 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5f : 0.5f))));
+}
+
+SIMSIMD_INTERNAL void _simsimd_f64_to_i8(simsimd_f64_t const *x, simsimd_i8_t *y) {
+    *y = (simsimd_i8_t)(*x > 127 ? 127 : (*x < -128 ? -128 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+}
+
+SIMSIMD_INTERNAL void _simsimd_f64_to_u8(simsimd_f64_t const *x, simsimd_u8_t *y) {
+    *y = (simsimd_u8_t)(*x > 255 ? 255 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+}
+
+SIMSIMD_INTERNAL void _simsimd_f64_to_i16(simsimd_f64_t const *x, simsimd_i16_t *y) {
+    *y = (simsimd_i16_t)(*x > 32767 ? 32767 : (*x < -32768 ? -32768 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+}
+
+SIMSIMD_INTERNAL void _simsimd_f64_to_u16(simsimd_f64_t const *x, simsimd_u16_t *y) {
+    *y = (simsimd_u16_t)(*x > 65535 ? 65535 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+}
+
+SIMSIMD_INTERNAL void _simsimd_f64_to_i32(simsimd_f64_t const *x, simsimd_i32_t *y) {
+    *y = (simsimd_i32_t)(*x > 2147483647 ? 2147483647
+                                         : (*x < -2147483648 ? -2147483648 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+}
+
+SIMSIMD_INTERNAL void _simsimd_f64_to_u32(simsimd_f64_t const *x, simsimd_u32_t *y) {
+    *y = (simsimd_u32_t)(*x > 4294967295 ? 4294967295 : (*x < 0 ? 0 : (unsigned int)(*x + (*x < 0 ? -0.5 : 0.5))));
+}
+
+SIMSIMD_INTERNAL void _simsimd_f64_to_i64(simsimd_f64_t const *x, simsimd_i64_t *y) {
+    *y = (simsimd_i64_t)(*x > 9223372036854775807.0
+                             ? 9223372036854775807ll
+                             : (*x < -9223372036854775808.0 ? (-9223372036854775807ll - 1ll)
+                                                            : (long long)(*x + (*x < 0 ? -0.5 : 0.5))));
+}
+
+SIMSIMD_INTERNAL void _simsimd_f64_to_u64(simsimd_f64_t const *x, simsimd_u64_t *y) {
+    *y = (simsimd_u64_t)(*x > 18446744073709551615.0 ? 18446744073709551615ull
+                                                     : (*x < 0 ? 0 : (unsigned long long)(*x + (*x < 0 ? -0.5 : 0.5))));
+}
+
+SIMSIMD_INTERNAL void _simsimd_i64_to_i8(simsimd_i64_t const *x, simsimd_i8_t *y) {
+    *y = (simsimd_i8_t)(*x > 127 ? 127 : (*x < -128 ? -128 : *x));
+}
+
+SIMSIMD_INTERNAL void _simsimd_i64_to_u8(simsimd_i64_t const *x, simsimd_u8_t *y) {
+    *y = (simsimd_u8_t)(*x > 255 ? 255 : (*x < 0 ? 0 : *x));
+}
+
+SIMSIMD_INTERNAL void _simsimd_i64_to_i16(simsimd_i64_t const *x, simsimd_i16_t *y) {
+    *y = (simsimd_i16_t)(*x > 32767 ? 32767 : (*x < -32768 ? -32768 : *x));
+}
+
+SIMSIMD_INTERNAL void _simsimd_i64_to_u16(simsimd_i64_t const *x, simsimd_u16_t *y) {
+    *y = (simsimd_u16_t)(*x > 65535 ? 65535 : (*x < 0 ? 0 : *x));
+}
+
+SIMSIMD_INTERNAL void _simsimd_i64_to_i32(simsimd_i64_t const *x, simsimd_i32_t *y) {
+    *y = (simsimd_i32_t)(*x > 2147483647 ? 2147483647 : (*x < -2147483648 ? -2147483648 : *x));
+}
+
+SIMSIMD_INTERNAL void _simsimd_i64_to_u32(simsimd_i64_t const *x, simsimd_u32_t *y) {
+    *y = (simsimd_u32_t)(*x > 4294967295 ? 4294967295 : (*x < 0 ? 0 : *x));
 }
 
 /**
@@ -678,19 +667,12 @@ SIMSIMD_INTERNAL simsimd_size_t _simsimd_divide_ceil(simsimd_size_t dividend, si
     return (dividend + divisor - 1) / divisor;
 }
 
-SIMSIMD_PUBLIC simsimd_u32_t simsimd_u32_rol(simsimd_u32_t x, int n) { return (x << n) | (x >> (32 - n)); }
-SIMSIMD_PUBLIC simsimd_u16_t simsimd_u16_rol(simsimd_u16_t x, int n) { return (x << n) | (x >> (16 - n)); }
-SIMSIMD_PUBLIC simsimd_u8_t simsimd_u8_rol(simsimd_u8_t x, int n) { return (x << n) | (x >> (8 - n)); }
-SIMSIMD_PUBLIC simsimd_u32_t simsimd_u32_ror(simsimd_u32_t x, int n) { return (x >> n) | (x << (32 - n)); }
-SIMSIMD_PUBLIC simsimd_u16_t simsimd_u16_ror(simsimd_u16_t x, int n) { return (x >> n) | (x << (16 - n)); }
-SIMSIMD_PUBLIC simsimd_u8_t simsimd_u8_ror(simsimd_u8_t x, int n) { return (x >> n) | (x << (8 - n)); }
-
 /**
  *  @brief  A @b beefy structure to keep track of the N-Dimensional array index.
  *          Occupies 512 + 16 = 528 bytes on a 64-bit machine, or 9 cache-lines, by default.
  *
  *  When advancing through a structure, its overall size and strides should be stored somewhere else.
- *  The `global_offset` and `byte_offset` both start at zero and grow monotically during iteration.
+ *  The `global_offset` and `byte_offset` both start at zero and grow monotonically during iteration.
  */
 typedef struct simsimd_ndindex_t {
     simsimd_size_t coordinate[SIMSIMD_NDARRAY_MAX_RANK]; // Coordinate offsets along each dimension
@@ -742,6 +724,63 @@ SIMSIMD_PUBLIC int simsimd_ndindex_advance_to(simsimd_ndindex_t *ndindex, simsim
                                               simsimd_size_t const *shape, simsimd_ssize_t const *strides,
                                               simsimd_size_t const *coordinate) {
     return 0; // End of iteration
+}
+
+SIMSIMD_INTERNAL simsimd_u32_t _simsimd_u32_rol(simsimd_u32_t *x, int n) { return (*x << n) | (*x >> (32 - n)); }
+SIMSIMD_INTERNAL simsimd_u16_t _simsimd_u16_rol(simsimd_u16_t *x, int n) { return (*x << n) | (*x >> (16 - n)); }
+SIMSIMD_INTERNAL simsimd_u8_t _simsimd_u8_rol(simsimd_u8_t *x, int n) { return (*x << n) | (*x >> (8 - n)); }
+SIMSIMD_INTERNAL simsimd_u32_t _simsimd_u32_ror(simsimd_u32_t *x, int n) { return (*x >> n) | (*x << (32 - n)); }
+SIMSIMD_INTERNAL simsimd_u16_t _simsimd_u16_ror(simsimd_u16_t *x, int n) { return (*x >> n) | (*x << (16 - n)); }
+SIMSIMD_INTERNAL simsimd_u8_t _simsimd_u8_ror(simsimd_u8_t *x, int n) { return (*x >> n) | (*x << (8 - n)); }
+
+SIMSIMD_INTERNAL void _simsimd_u8_sadd(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t *r) {
+    *r = (*a + *b < *a) ? 255 : (*a + *b);
+}
+SIMSIMD_INTERNAL void _simsimd_u16_sadd(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t *r) {
+    *r = (*a + *b < *a) ? 65535 : (*a + *b);
+}
+SIMSIMD_INTERNAL void _simsimd_u32_sadd(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_u32_t *r) {
+    *r = (*a + *b < *a) ? 4294967295u : (*a + *b);
+}
+SIMSIMD_INTERNAL void _simsimd_u64_sadd(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_u64_t *r) {
+    *r = (*a + *b < *a) ? 18446744073709551615ull : (*a + *b);
+}
+SIMSIMD_INTERNAL void _simsimd_i8_sadd(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t *r) {
+    simsimd_i16_t result = (simsimd_i16_t)*a + (simsimd_i16_t)*b;
+    *r = (result > 127) ? 127 : (result < -128 ? -128 : result);
+}
+SIMSIMD_INTERNAL void _simsimd_i16_sadd(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t *r) {
+    simsimd_i32_t result = (simsimd_i32_t)*a + (simsimd_i32_t)*b;
+    *r = (result > 32767) ? 32767 : (result < -32768 ? -32768 : result);
+}
+SIMSIMD_INTERNAL void _simsimd_i32_sadd(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t *r) {
+    simsimd_i64_t result = (simsimd_i64_t)*a + (simsimd_i64_t)*b;
+    *r = (result > 2147483647) ? 2147483647 : (result < -2147483648 ? -2147483648 : (simsimd_i32_t)result);
+}
+SIMSIMD_INTERNAL void _simsimd_i64_sadd(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_i64_t *r) {
+    if ((*b > 0) && (*a > (9223372036854775807ll) - *b)) { *r = 9223372036854775807ll; }                    // Overflow
+    else if ((*b < 0) && (*a < (-9223372036854775807ll - 1ll) - *b)) { *r = -9223372036854775807ll - 1ll; } // Underflow
+    else { *r = *a + *b; }
+}
+SIMSIMD_INTERNAL void _simsimd_f32_sadd(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t *r) {
+    *r = *a + *b;
+}
+SIMSIMD_INTERNAL void _simsimd_f64_sadd(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t *r) {
+    *r = *a + *b;
+}
+SIMSIMD_INTERNAL void _simsimd_f16_sadd(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t *r) {
+    simsimd_f32_t a_f32, b_f32, r_f32;
+    simsimd_f16_to_f32(a, &a_f32);
+    simsimd_f16_to_f32(b, &b_f32);
+    r_f32 = a_f32 + b_f32;
+    simsimd_f32_to_f16(&r_f32, r);
+}
+SIMSIMD_INTERNAL void _simsimd_bf16_sadd(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t *r) {
+    simsimd_f32_t a_f32, b_f32, r_f32;
+    simsimd_bf16_to_f32(a, &a_f32);
+    simsimd_bf16_to_f32(b, &b_f32);
+    r_f32 = a_f32 + b_f32;
+    simsimd_f32_to_bf16(&r_f32, r);
 }
 
 #ifdef __cplusplus

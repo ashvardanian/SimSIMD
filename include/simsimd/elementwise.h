@@ -192,38 +192,41 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_sapphire(simsimd_u8_t const *a, simsimd_u8_t 
                                                             simsimd_##input_type##_t *result) {                  \
         simsimd_##accumulator_type##_t alpha_cast = (simsimd_##accumulator_type##_t)alpha;                       \
         simsimd_##accumulator_type##_t beta_cast = (simsimd_##accumulator_type##_t)beta;                         \
+        simsimd_##accumulator_type##_t ai, sum;                                                                  \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                                \
-            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                         \
-            simsimd_##accumulator_type##_t sum = (simsimd_##accumulator_type##_t)(alpha_cast * ai + beta_cast);  \
-            convert_and_store(sum, result + i);                                                                  \
+            load_and_convert(a + i, &ai);                                                                        \
+            sum = (simsimd_##accumulator_type##_t)(alpha_cast * ai + beta_cast);                                 \
+            convert_and_store(&sum, result + i);                                                                 \
         }                                                                                                        \
     }
 #define SIMSIMD_MAKE_SUM(name, input_type, accumulator_type, load_and_convert, convert_and_store)              \
     SIMSIMD_PUBLIC void simsimd_sum_##input_type##_##name(simsimd_##input_type##_t const *a,                   \
                                                           simsimd_##input_type##_t const *b, simsimd_size_t n, \
                                                           simsimd_##input_type##_t *result) {                  \
+        simsimd_##accumulator_type##_t ai, bi, sum;                                                            \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                              \
-            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                       \
-            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                       \
-            simsimd_##accumulator_type##_t sum = ai + bi;                                                      \
-            convert_and_store(sum, result + i);                                                                \
+            load_and_convert(a + i, &ai);                                                                      \
+            load_and_convert(b + i, &bi);                                                                      \
+            sum = ai + bi;                                                                                     \
+            convert_and_store(&sum, result + i);                                                               \
         }                                                                                                      \
     }
 
-#define SIMSIMD_MAKE_WSUM(name, input_type, accumulator_type, load_and_convert, convert_and_store)        \
-    SIMSIMD_PUBLIC void simsimd_wsum_##input_type##_##name(                                               \
-        simsimd_##input_type##_t const *a, simsimd_##input_type##_t const *b, simsimd_size_t n,           \
-        simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_##input_type##_t *result) {            \
-        simsimd_##accumulator_type##_t alpha_cast = (simsimd_##accumulator_type##_t)alpha;                \
-        simsimd_##accumulator_type##_t beta_cast = (simsimd_##accumulator_type##_t)beta;                  \
-        for (simsimd_size_t i = 0; i != n; ++i) {                                                         \
-            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                  \
-            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                  \
-            simsimd_##accumulator_type##_t ai_scaled = (simsimd_##accumulator_type##_t)(ai * alpha_cast); \
-            simsimd_##accumulator_type##_t bi_scaled = (simsimd_##accumulator_type##_t)(bi * beta_cast);  \
-            simsimd_##accumulator_type##_t sum = ai_scaled + bi_scaled;                                   \
-            convert_and_store(sum, result + i);                                                           \
-        }                                                                                                 \
+#define SIMSIMD_MAKE_WSUM(name, input_type, accumulator_type, load_and_convert, convert_and_store) \
+    SIMSIMD_PUBLIC void simsimd_wsum_##input_type##_##name(                                        \
+        simsimd_##input_type##_t const *a, simsimd_##input_type##_t const *b, simsimd_size_t n,    \
+        simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_##input_type##_t *result) {     \
+        simsimd_##accumulator_type##_t alpha_cast = (simsimd_##accumulator_type##_t)alpha;         \
+        simsimd_##accumulator_type##_t beta_cast = (simsimd_##accumulator_type##_t)beta;           \
+        simsimd_##accumulator_type##_t ai, bi, ai_scaled, bi_scaled, sum;                          \
+        for (simsimd_size_t i = 0; i != n; ++i) {                                                  \
+            load_and_convert(a + i, &ai);                                                          \
+            load_and_convert(b + i, &bi);                                                          \
+            ai_scaled = ai * alpha_cast;                                                           \
+            bi_scaled = bi * beta_cast;                                                            \
+            sum = ai_scaled + bi_scaled;                                                           \
+            convert_and_store(&sum, result + i);                                                   \
+        }                                                                                          \
     }
 
 #define SIMSIMD_MAKE_FMA(name, input_type, accumulator_type, load_and_convert, convert_and_store)                \
@@ -232,78 +235,79 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_sapphire(simsimd_u8_t const *a, simsimd_u8_t 
         simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_##input_type##_t *result) { \
         simsimd_##accumulator_type##_t alpha_cast = (simsimd_##accumulator_type##_t)alpha;                       \
         simsimd_##accumulator_type##_t beta_cast = (simsimd_##accumulator_type##_t)beta;                         \
+        simsimd_##accumulator_type##_t ai, bi, ci, abi_scaled, ci_scaled, sum;                                   \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                                \
-            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                         \
-            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                         \
-            simsimd_##accumulator_type##_t ci = load_and_convert(c + i);                                         \
-            simsimd_##accumulator_type##_t abi_scaled = (simsimd_##accumulator_type##_t)(ai * bi * alpha_cast);  \
-            simsimd_##accumulator_type##_t ci_scaled = (simsimd_##accumulator_type##_t)(ci * beta_cast);         \
-            simsimd_##accumulator_type##_t sum = abi_scaled + ci_scaled;                                         \
-            convert_and_store(sum, result + i);                                                                  \
+            load_and_convert(a + i, &ai);                                                                        \
+            load_and_convert(b + i, &bi);                                                                        \
+            load_and_convert(c + i, &ci);                                                                        \
+            abi_scaled = ai * bi * alpha_cast;                                                                   \
+            ci_scaled = ci * beta_cast;                                                                          \
+            sum = abi_scaled + ci_scaled;                                                                        \
+            convert_and_store(&sum, result + i);                                                                 \
         }                                                                                                        \
     }
 
-SIMSIMD_MAKE_SUM(serial, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_sum_f64_serial
-SIMSIMD_MAKE_SUM(serial, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_sum_f32_serial
-SIMSIMD_MAKE_SUM(serial, f16, f32, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    // simsimd_sum_f16_serial
-SIMSIMD_MAKE_SUM(serial, bf16, f32, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_sum_bf16_serial
-SIMSIMD_MAKE_SUM(serial, i8, i64, SIMSIMD_DEREFERENCE, SIMSIMD_I64_TO_I8)     // simsimd_sum_i8_serial
-SIMSIMD_MAKE_SUM(serial, u8, i64, SIMSIMD_DEREFERENCE, SIMSIMD_I64_TO_U8)     // simsimd_sum_u8_serial
-SIMSIMD_MAKE_SUM(serial, i16, i64, SIMSIMD_DEREFERENCE, SIMSIMD_I64_TO_I16)   // simsimd_sum_i16_serial
-SIMSIMD_MAKE_SUM(serial, u16, i64, SIMSIMD_DEREFERENCE, SIMSIMD_I64_TO_U16)   // simsimd_sum_u16_serial
-SIMSIMD_MAKE_SUM(serial, i32, i64, SIMSIMD_DEREFERENCE, SIMSIMD_I64_TO_I32)   // simsimd_sum_i32_serial
-SIMSIMD_MAKE_SUM(serial, u32, i64, SIMSIMD_DEREFERENCE, SIMSIMD_I64_TO_U32)   // simsimd_sum_u32_serial
-SIMSIMD_MAKE_SUM(serial, i64, i64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_sum_i64_serial
-SIMSIMD_MAKE_SUM(serial, u64, u64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_sum_u64_serial
+SIMSIMD_MAKE_SUM(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_sum_f64_serial
+SIMSIMD_MAKE_SUM(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_sum_f32_serial
+SIMSIMD_MAKE_SUM(serial, f16, f32, simsimd_f16_to_f32, simsimd_f32_to_f16)         // simsimd_sum_f16_serial
+SIMSIMD_MAKE_SUM(serial, bf16, f32, simsimd_bf16_to_f32, simsimd_f32_to_bf16)      // simsimd_sum_bf16_serial
+SIMSIMD_MAKE_SUM(serial, i8, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_i8)      // simsimd_sum_i8_serial
+SIMSIMD_MAKE_SUM(serial, u8, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_u8)      // simsimd_sum_u8_serial
+SIMSIMD_MAKE_SUM(serial, i16, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_i16)    // simsimd_sum_i16_serial
+SIMSIMD_MAKE_SUM(serial, u16, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_u16)    // simsimd_sum_u16_serial
+SIMSIMD_MAKE_SUM(serial, i32, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_i32)    // simsimd_sum_i32_serial
+SIMSIMD_MAKE_SUM(serial, u32, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_u32)    // simsimd_sum_u32_serial
+SIMSIMD_MAKE_SUM(serial, i64, i64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_sum_i64_serial
+SIMSIMD_MAKE_SUM(serial, u64, u64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_sum_u64_serial
 
-SIMSIMD_MAKE_SUM(accurate, f32, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_sum_f32_accurate
-SIMSIMD_MAKE_SUM(accurate, f16, f64, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    // simsimd_sum_f16_accurate
-SIMSIMD_MAKE_SUM(accurate, bf16, f64, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_sum_bf16_accurate
+SIMSIMD_MAKE_SUM(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_sum_f32_accurate
+SIMSIMD_MAKE_SUM(accurate, f16, f64, _simsimd_f16_to_f64, _simsimd_f64_to_f16)       // simsimd_sum_f16_accurate
+SIMSIMD_MAKE_SUM(accurate, bf16, f64, _simsimd_bf16_to_f64, _simsimd_f64_to_bf16)    // simsimd_sum_bf16_accurate
 
-SIMSIMD_MAKE_SCALE(serial, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_scale_f64_serial
-SIMSIMD_MAKE_SCALE(serial, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_scale_f32_serial
-SIMSIMD_MAKE_SCALE(serial, f16, f32, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    // simsimd_scale_f16_serial
-SIMSIMD_MAKE_SCALE(serial, bf16, f32, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_scale_bf16_serial
-SIMSIMD_MAKE_SCALE(serial, i8, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_TO_I8)     // simsimd_scale_i8_serial
-SIMSIMD_MAKE_SCALE(serial, u8, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_TO_U8)     // simsimd_scale_u8_serial
+SIMSIMD_MAKE_SCALE(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_scale_f64_serial
+SIMSIMD_MAKE_SCALE(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_scale_f32_serial
+SIMSIMD_MAKE_SCALE(serial, f16, f32, simsimd_f16_to_f32, simsimd_f32_to_f16)         // simsimd_scale_f16_serial
+SIMSIMD_MAKE_SCALE(serial, bf16, f32, simsimd_bf16_to_f32, simsimd_f32_to_bf16)      // simsimd_scale_bf16_serial
+SIMSIMD_MAKE_SCALE(serial, i8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_i8)      // simsimd_scale_i8_serial
+SIMSIMD_MAKE_SCALE(serial, u8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_u8)      // simsimd_scale_u8_serial
 
-SIMSIMD_MAKE_SCALE(accurate, f32, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_scale_f32_accurate
-SIMSIMD_MAKE_SCALE(accurate, f16, f64, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    // simsimd_scale_f16_accurate
-SIMSIMD_MAKE_SCALE(accurate, bf16, f64, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_scale_bf16_accurate
-SIMSIMD_MAKE_SCALE(accurate, i8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_I8)     // simsimd_scale_i8_accurate
-SIMSIMD_MAKE_SCALE(accurate, u8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_U8)     // simsimd_scale_u8_accurate
+SIMSIMD_MAKE_SCALE(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_scale_f32_accurate
+SIMSIMD_MAKE_SCALE(accurate, f16, f64, _simsimd_f16_to_f64, _simsimd_f64_to_f16)       // simsimd_scale_f16_accurate
+SIMSIMD_MAKE_SCALE(accurate, bf16, f64, _simsimd_bf16_to_f64, _simsimd_f64_to_bf16)    // simsimd_scale_bf16_accurate
+SIMSIMD_MAKE_SCALE(accurate, i8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i8)      // simsimd_scale_i8_accurate
+SIMSIMD_MAKE_SCALE(accurate, u8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u8)      // simsimd_scale_u8_accurate
 
-SIMSIMD_MAKE_WSUM(serial, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_wsum_f64_serial
-SIMSIMD_MAKE_WSUM(serial, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_wsum_f32_serial
-SIMSIMD_MAKE_WSUM(serial, f16, f32, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    // simsimd_wsum_f16_serial
-SIMSIMD_MAKE_WSUM(serial, bf16, f32, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_wsum_bf16_serial
-SIMSIMD_MAKE_WSUM(serial, i8, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_TO_I8)     // simsimd_wsum_i8_serial
-SIMSIMD_MAKE_WSUM(serial, u8, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_TO_U8)     // simsimd_wsum_u8_serial
+SIMSIMD_MAKE_WSUM(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_wsum_f64_serial
+SIMSIMD_MAKE_WSUM(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_wsum_f32_serial
+SIMSIMD_MAKE_WSUM(serial, f16, f32, simsimd_f16_to_f32, simsimd_f32_to_f16)         // simsimd_wsum_f16_serial
+SIMSIMD_MAKE_WSUM(serial, bf16, f32, simsimd_bf16_to_f32, simsimd_f32_to_bf16)      // simsimd_wsum_bf16_serial
+SIMSIMD_MAKE_WSUM(serial, i8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_i8)      // simsimd_wsum_i8_serial
+SIMSIMD_MAKE_WSUM(serial, u8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_u8)      // simsimd_wsum_u8_serial
 
-SIMSIMD_MAKE_WSUM(accurate, f32, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_wsum_f32_accurate
-SIMSIMD_MAKE_WSUM(accurate, f16, f64, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    // simsimd_wsum_f16_accurate
-SIMSIMD_MAKE_WSUM(accurate, bf16, f64, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_wsum_bf16_accurate
-SIMSIMD_MAKE_WSUM(accurate, i8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_I8)     // simsimd_wsum_i8_accurate
-SIMSIMD_MAKE_WSUM(accurate, u8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_U8)     // simsimd_wsum_u8_accurate
+SIMSIMD_MAKE_WSUM(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_wsum_f32_accurate
+SIMSIMD_MAKE_WSUM(accurate, f16, f64, _simsimd_f16_to_f64, _simsimd_f64_to_f16)       // simsimd_wsum_f16_accurate
+SIMSIMD_MAKE_WSUM(accurate, bf16, f64, _simsimd_bf16_to_f64, _simsimd_f64_to_bf16)    // simsimd_wsum_bf16_accurate
+SIMSIMD_MAKE_WSUM(accurate, i8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i8)      // simsimd_wsum_i8_accurate
+SIMSIMD_MAKE_WSUM(accurate, u8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u8)      // simsimd_wsum_u8_accurate
 
-SIMSIMD_MAKE_FMA(serial, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_fma_f64_serial
-SIMSIMD_MAKE_FMA(serial, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_fma_f32_serial
-SIMSIMD_MAKE_FMA(serial, f16, f32, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    // simsimd_fma_f16_serial
-SIMSIMD_MAKE_FMA(serial, bf16, f32, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_fma_bf16_serial
-SIMSIMD_MAKE_FMA(serial, i8, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_TO_I8)     // simsimd_fma_i8_serial
-SIMSIMD_MAKE_FMA(serial, u8, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_TO_U8)     // simsimd_fma_u8_serial
-SIMSIMD_MAKE_FMA(serial, i16, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_I16)   // simsimd_fma_i16_serial
-SIMSIMD_MAKE_FMA(serial, u16, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_U16)   // simsimd_fma_u16_serial
-SIMSIMD_MAKE_FMA(serial, i32, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_I32)   // simsimd_fma_i32_serial
-SIMSIMD_MAKE_FMA(serial, u32, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_U32)   // simsimd_fma_u32_serial
-SIMSIMD_MAKE_FMA(serial, i64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_I64)   // simsimd_fma_i64_serial
-SIMSIMD_MAKE_FMA(serial, u64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_U64)   // simsimd_fma_u64_serial
+SIMSIMD_MAKE_FMA(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_fma_f64_serial
+SIMSIMD_MAKE_FMA(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_fma_f32_serial
+SIMSIMD_MAKE_FMA(serial, f16, f32, simsimd_f16_to_f32, simsimd_f32_to_f16)         // simsimd_fma_f16_serial
+SIMSIMD_MAKE_FMA(serial, bf16, f32, simsimd_bf16_to_f32, simsimd_f32_to_bf16)      // simsimd_fma_bf16_serial
+SIMSIMD_MAKE_FMA(serial, i8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_i8)      // simsimd_fma_i8_serial
+SIMSIMD_MAKE_FMA(serial, u8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_u8)      // simsimd_fma_u8_serial
+SIMSIMD_MAKE_FMA(serial, i16, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i16)    // simsimd_fma_i16_serial
+SIMSIMD_MAKE_FMA(serial, u16, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u16)    // simsimd_fma_u16_serial
+SIMSIMD_MAKE_FMA(serial, i32, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i32)    // simsimd_fma_i32_serial
+SIMSIMD_MAKE_FMA(serial, u32, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u32)    // simsimd_fma_u32_serial
+SIMSIMD_MAKE_FMA(serial, i64, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i64)    // simsimd_fma_i64_serial
+SIMSIMD_MAKE_FMA(serial, u64, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u64)    // simsimd_fma_u64_serial
 
-SIMSIMD_MAKE_FMA(accurate, f32, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT)       // simsimd_fma_f32_accurate
-SIMSIMD_MAKE_FMA(accurate, f16, f64, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16)    // simsimd_fma_f16_accurate
-SIMSIMD_MAKE_FMA(accurate, bf16, f64, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16) // simsimd_fma_bf16_accurate
-SIMSIMD_MAKE_FMA(accurate, i8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_I8)     // simsimd_fma_i8_accurate
-SIMSIMD_MAKE_FMA(accurate, u8, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F64_TO_U8)     // simsimd_fma_u8_accurate
+SIMSIMD_MAKE_FMA(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_fma_f32_accurate
+SIMSIMD_MAKE_FMA(accurate, f16, f64, _simsimd_f16_to_f64, _simsimd_f64_to_f16)       // simsimd_fma_f16_accurate
+SIMSIMD_MAKE_FMA(accurate, bf16, f64, _simsimd_bf16_to_f64, _simsimd_f64_to_bf16)    // simsimd_fma_bf16_accurate
+SIMSIMD_MAKE_FMA(accurate, i8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i8)      // simsimd_fma_i8_accurate
+SIMSIMD_MAKE_FMA(accurate, u8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u8)      // simsimd_fma_u8_accurate
 
 #if _SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_HASWELL
@@ -470,10 +474,11 @@ SIMSIMD_PUBLIC void simsimd_sum_f16_haswell(simsimd_f16_t const *a, simsimd_f16_
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = SIMSIMD_F16_TO_F32(a + i);
-        simsimd_f32_t bi = SIMSIMD_F16_TO_F32(b + i);
+        simsimd_f32_t ai, bi;
+        simsimd_f16_to_f32(a + i, &ai);
+        simsimd_f16_to_f32(b + i, &bi);
         simsimd_f32_t sum = ai + bi;
-        SIMSIMD_F32_TO_F16(sum, result + i);
+        simsimd_f32_to_f16(&sum, result + i);
     }
 }
 
@@ -496,9 +501,10 @@ SIMSIMD_PUBLIC void simsimd_scale_f16_haswell(simsimd_f16_t const *a, simsimd_si
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = SIMSIMD_F16_TO_F32(a + i);
+        simsimd_f32_t ai;
+        simsimd_f16_to_f32(a + i, &ai);
         simsimd_f32_t sum = alpha_f32 * ai + beta_f32;
-        SIMSIMD_F32_TO_F16(sum, result + i);
+        simsimd_f32_to_f16(&sum, result + i);
     }
 }
 
@@ -542,10 +548,11 @@ SIMSIMD_PUBLIC void simsimd_wsum_f16_haswell(                         //
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = SIMSIMD_F16_TO_F32(a + i);
-        simsimd_f32_t bi = SIMSIMD_F16_TO_F32(b + i);
+        simsimd_f32_t ai, bi;
+        simsimd_f16_to_f32(a + i, &ai);
+        simsimd_f16_to_f32(b + i, &bi);
         simsimd_f32_t sum = alpha_f32 * ai + beta_f32 * bi;
-        SIMSIMD_F32_TO_F16(sum, result + i);
+        simsimd_f32_to_f16(&sum, result + i);
     }
 }
 
@@ -565,10 +572,11 @@ SIMSIMD_PUBLIC void simsimd_sum_bf16_haswell(simsimd_bf16_t const *a, simsimd_bf
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = SIMSIMD_BF16_TO_F32(a + i);
-        simsimd_f32_t bi = SIMSIMD_BF16_TO_F32(b + i);
+        simsimd_f32_t ai, bi;
+        simsimd_bf16_to_f32(a + i, &ai);
+        simsimd_bf16_to_f32(b + i, &bi);
         simsimd_f32_t sum = ai + bi;
-        SIMSIMD_F32_TO_BF16(sum, result + i);
+        simsimd_f32_to_bf16(&sum, result + i);
     }
 }
 
@@ -591,9 +599,10 @@ SIMSIMD_PUBLIC void simsimd_scale_bf16_haswell(simsimd_bf16_t const *a, simsimd_
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = SIMSIMD_BF16_TO_F32(a + i);
+        simsimd_f32_t ai;
+        simsimd_bf16_to_f32(a + i, &ai);
         simsimd_f32_t sum = alpha_f32 * ai + beta_f32;
-        SIMSIMD_F32_TO_BF16(sum, result + i);
+        simsimd_f32_to_bf16(&sum, result + i);
     }
 }
 
@@ -637,10 +646,11 @@ SIMSIMD_PUBLIC void simsimd_wsum_bf16_haswell(                          //
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = SIMSIMD_BF16_TO_F32(a + i);
-        simsimd_f32_t bi = SIMSIMD_BF16_TO_F32(b + i);
+        simsimd_f32_t ai, bi;
+        simsimd_bf16_to_f32(a + i, &ai);
+        simsimd_bf16_to_f32(b + i, &bi);
         simsimd_f32_t sum = alpha_f32 * ai + beta_f32 * bi;
-        SIMSIMD_F32_TO_BF16(sum, result + i);
+        simsimd_f32_to_bf16(&sum, result + i);
     }
 }
 
@@ -716,11 +726,12 @@ SIMSIMD_PUBLIC void simsimd_fma_f16_haswell(                                //
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = SIMSIMD_F16_TO_F32(a + i);
-        simsimd_f32_t bi = SIMSIMD_F16_TO_F32(b + i);
-        simsimd_f32_t ci = SIMSIMD_F16_TO_F32(c + i);
+        simsimd_f32_t ai, bi, ci;
+        simsimd_f16_to_f32(a + i, &ai);
+        simsimd_f16_to_f32(b + i, &bi);
+        simsimd_f16_to_f32(c + i, &ci);
         simsimd_f32_t sum = alpha * ai * bi + beta * ci;
-        SIMSIMD_F32_TO_F16(sum, result + i);
+        simsimd_f32_to_f16(&sum, result + i);
     }
 }
 
@@ -750,11 +761,12 @@ SIMSIMD_PUBLIC void simsimd_fma_bf16_haswell(                                  /
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = SIMSIMD_BF16_TO_F32(a + i);
-        simsimd_f32_t bi = SIMSIMD_BF16_TO_F32(b + i);
-        simsimd_f32_t ci = SIMSIMD_BF16_TO_F32(c + i);
+        simsimd_f32_t ai, bi, ci;
+        simsimd_bf16_to_f32(a + i, &ai);
+        simsimd_bf16_to_f32(b + i, &bi);
+        simsimd_bf16_to_f32(c + i, &ci);
         simsimd_f32_t sum = alpha * ai * bi + beta * ci;
-        SIMSIMD_F32_TO_BF16(sum, result + i);
+        simsimd_f32_to_bf16(&sum, result + i);
     }
 }
 
@@ -773,7 +785,7 @@ SIMSIMD_PUBLIC void simsimd_sum_i8_haswell(simsimd_i8_t const *a, simsimd_i8_t c
     for (; i < n; ++i) {
         simsimd_f32_t ai = a[i], bi = b[i];
         simsimd_f32_t sum = ai + bi;
-        SIMSIMD_F32_TO_I8(sum, result + i);
+        _simsimd_f32_to_i8(&sum, result + i);
     }
 }
 
@@ -798,7 +810,7 @@ SIMSIMD_PUBLIC void simsimd_scale_i8_haswell(simsimd_i8_t const *a, simsimd_size
         __m256 a_vec = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)a_i32s));
         // The normal part.
         __m256 sum_vec = _mm256_fmadd_ps(a_vec, alpha_vec, beta_vec);
-        // Instead of serial calls to expensive `SIMSIMD_F32_TO_U8`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `_simsimd_f32_to_u8`, convert and clip with SIMD.
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
         sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(-128));
         sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(127));
@@ -818,7 +830,7 @@ SIMSIMD_PUBLIC void simsimd_scale_i8_haswell(simsimd_i8_t const *a, simsimd_size
     for (; i < n; ++i) {
         simsimd_f32_t ai = a[i];
         simsimd_f32_t sum = alpha_f32 * ai + beta_f32;
-        SIMSIMD_F32_TO_I8(sum, result + i);
+        _simsimd_f32_to_i8(&sum, result + i);
     }
 }
 
@@ -864,7 +876,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_haswell(                        //
         // The normal part.
         __m256 a_scaled_vec = _mm256_mul_ps(a_vec, alpha_vec);
         __m256 sum_vec = _mm256_fmadd_ps(b_vec, beta_vec, a_scaled_vec);
-        // Instead of serial calls to expensive `SIMSIMD_F32_TO_U8`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `_simsimd_f32_to_u8`, convert and clip with SIMD.
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
         sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(-128));
         sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(127));
@@ -884,7 +896,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_haswell(                        //
     for (; i < n; ++i) {
         simsimd_f32_t ai = a[i], bi = b[i];
         simsimd_f32_t sum = alpha_f32 * ai + beta_f32 * bi;
-        SIMSIMD_F32_TO_I8(sum, result + i);
+        _simsimd_f32_to_i8(&sum, result + i);
     }
 }
 
@@ -903,7 +915,7 @@ SIMSIMD_PUBLIC void simsimd_sum_u8_haswell(simsimd_u8_t const *a, simsimd_u8_t c
     for (; i < n; ++i) {
         simsimd_f32_t ai = a[i], bi = b[i];
         simsimd_f32_t sum = ai + bi;
-        SIMSIMD_F32_TO_U8(sum, result + i);
+        _simsimd_f32_to_u8(&sum, result + i);
     }
 }
 
@@ -928,7 +940,7 @@ SIMSIMD_PUBLIC void simsimd_scale_u8_haswell(simsimd_u8_t const *a, simsimd_size
         __m256 a_vec = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)a_i32s));
         // The normal part.
         __m256 sum_vec = _mm256_fmadd_ps(a_vec, alpha_vec, beta_vec);
-        // Instead of serial calls to expensive `SIMSIMD_F32_TO_U8`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `_simsimd_f32_to_u8`, convert and clip with SIMD.
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
         sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(0));
         sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(255));
@@ -948,7 +960,7 @@ SIMSIMD_PUBLIC void simsimd_scale_u8_haswell(simsimd_u8_t const *a, simsimd_size
     for (; i < n; ++i) {
         simsimd_f32_t ai = a[i];
         simsimd_f32_t sum = alpha_f32 * ai + beta_f32;
-        SIMSIMD_F32_TO_U8(sum, result + i);
+        _simsimd_f32_to_u8(&sum, result + i);
     }
 }
 
@@ -994,7 +1006,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_haswell(                        //
         // The normal part.
         __m256 a_scaled_vec = _mm256_mul_ps(a_vec, alpha_vec);
         __m256 sum_vec = _mm256_fmadd_ps(b_vec, beta_vec, a_scaled_vec);
-        // Instead of serial calls to expensive `SIMSIMD_F32_TO_U8`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `_simsimd_f32_to_u8`, convert and clip with SIMD.
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
         sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(0));
         sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(255));
@@ -1014,7 +1026,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_haswell(                        //
     for (; i < n; ++i) {
         simsimd_f32_t ai = a[i], bi = b[i];
         simsimd_f32_t sum = alpha_f32 * ai + beta_f32 * bi;
-        SIMSIMD_F32_TO_U8(sum, result + i);
+        _simsimd_f32_to_u8(&sum, result + i);
     }
 }
 
@@ -1048,7 +1060,7 @@ SIMSIMD_PUBLIC void simsimd_fma_i8_haswell(                                     
         __m256 ab_vec = _mm256_mul_ps(a_vec, b_vec);
         __m256 ab_scaled_vec = _mm256_mul_ps(ab_vec, alpha_vec);
         __m256 sum_vec = _mm256_fmadd_ps(c_vec, beta_vec, ab_scaled_vec);
-        // Instead of serial calls to expensive `SIMSIMD_F32_TO_U8`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `_simsimd_f32_to_u8`, convert and clip with SIMD.
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
         sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(-128));
         sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(127));
@@ -1068,7 +1080,7 @@ SIMSIMD_PUBLIC void simsimd_fma_i8_haswell(                                     
     for (; i < n; ++i) {
         simsimd_f32_t ai = a[i], bi = b[i], ci = c[i];
         simsimd_f32_t sum = alpha_f32 * ai * bi + beta_f32 * ci;
-        SIMSIMD_F32_TO_I8(sum, result + i);
+        _simsimd_f32_to_i8(&sum, result + i);
     }
 }
 
@@ -1102,7 +1114,7 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_haswell(                                     
         __m256 ab_vec = _mm256_mul_ps(a_vec, b_vec);
         __m256 ab_scaled_vec = _mm256_mul_ps(ab_vec, alpha_vec);
         __m256 sum_vec = _mm256_fmadd_ps(c_vec, beta_vec, ab_scaled_vec);
-        // Instead of serial calls to expensive `SIMSIMD_F32_TO_U8`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `_simsimd_f32_to_u8`, convert and clip with SIMD.
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
         sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(0));
         sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(255));
@@ -1122,7 +1134,7 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_haswell(                                     
     for (; i < n; ++i) {
         simsimd_f32_t ai = a[i], bi = b[i], ci = c[i];
         simsimd_f32_t sum = alpha_f32 * ai * bi + beta_f32 * ci;
-        SIMSIMD_F32_TO_U8(sum, result + i);
+        _simsimd_f32_to_u8(&sum, result + i);
     }
 }
 
@@ -2099,7 +2111,13 @@ SIMSIMD_PUBLIC void simsimd_sum_bf16_neon(simsimd_bf16_t const *a, simsimd_bf16_
     }
 
     // The tail:
-    for (; i < n; ++i) simsimd_f32_to_bf16(simsimd_bf16_to_f32(a + i) + simsimd_bf16_to_f32(b + i), result + i);
+    for (; i < n; ++i) {
+        simsimd_f32_t ai, bi;
+        simsimd_bf16_to_f32(a + i, &ai);
+        simsimd_bf16_to_f32(b + i, &bi);
+        simsimd_f32_t sum = ai + bi;
+        simsimd_f32_to_bf16(&sum, result + i);
+    }
 }
 
 SIMSIMD_PUBLIC void simsimd_scale_bf16_neon(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
@@ -2118,7 +2136,12 @@ SIMSIMD_PUBLIC void simsimd_scale_bf16_neon(simsimd_bf16_t const *a, simsimd_siz
     }
 
     // The tail:
-    for (; i < n; ++i) simsimd_f32_to_bf16(alpha_f32 * simsimd_bf16_to_f32(a + i) + beta_f32, result + i);
+    for (; i < n; ++i) {
+        simsimd_f32_t ai;
+        simsimd_bf16_to_f32(a + i, &ai);
+        simsimd_f32_t sum = alpha_f32 * ai + beta_f32;
+        simsimd_f32_to_bf16(&sum, result + i);
+    }
 }
 
 SIMSIMD_PUBLIC void simsimd_wsum_bf16_neon(                             //
@@ -2156,8 +2179,13 @@ SIMSIMD_PUBLIC void simsimd_wsum_bf16_neon(                             //
     }
 
     // The tail:
-    for (; i < n; ++i)
-        simsimd_f32_to_bf16(alpha_f32 * simsimd_bf16_to_f32(a + i) + beta_f32 * simsimd_bf16_to_f32(b + i), result + i);
+    for (; i < n; ++i) {
+        simsimd_f32_t ai, bi;
+        simsimd_bf16_to_f32(a + i, &ai);
+        simsimd_bf16_to_f32(b + i, &bi);
+        simsimd_f32_t sum = alpha_f32 * ai + beta_f32 * bi;
+        simsimd_f32_to_bf16(&sum, result + i);
+    }
 }
 
 SIMSIMD_PUBLIC void simsimd_fma_bf16_neon(                                     //
@@ -2179,10 +2207,14 @@ SIMSIMD_PUBLIC void simsimd_fma_bf16_neon(                                     /
     }
 
     // The tail:
-    for (; i < n; ++i)
-        simsimd_f32_to_bf16(
-            alpha_f32 * simsimd_bf16_to_f32(a + i) * simsimd_bf16_to_f32(b + i) + beta_f32 * simsimd_bf16_to_f32(c + i),
-            result + i);
+    for (; i < n; ++i) {
+        simsimd_f32_t ai, bi, ci;
+        simsimd_bf16_to_f32(a + i, &ai);
+        simsimd_bf16_to_f32(b + i, &bi);
+        simsimd_bf16_to_f32(c + i, &ci);
+        simsimd_f32_t sum = alpha * ai * bi + beta * ci;
+        simsimd_f32_to_bf16(&sum, result + i);
+    }
 }
 
 #pragma clang attribute pop
@@ -2302,7 +2334,10 @@ SIMSIMD_PUBLIC void simsimd_sum_u8_neon(simsimd_u8_t const *a, simsimd_u8_t cons
     }
 
     // The tail:
-    for (; i < n; ++i) { SIMSIMD_F32_TO_U8(a[i] + b[i], result + i); }
+    for (; i < n; ++i) {
+        simsimd_f32_t sum = (simsimd_f32_t)a[i] + b[i];
+        _simsimd_f32_to_u8(&sum, result + i);
+    }
 }
 
 SIMSIMD_PUBLIC void simsimd_scale_u8_neon(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
@@ -2323,7 +2358,10 @@ SIMSIMD_PUBLIC void simsimd_scale_u8_neon(simsimd_u8_t const *a, simsimd_size_t 
     }
 
     // The tail:
-    for (; i < n; ++i) { SIMSIMD_F32_TO_U8(alpha_f16 * a[i] + beta_f16, result + i); }
+    for (; i < n; ++i) {
+        simsimd_f32_t sum = alpha_f16 * a[i] + beta_f16;
+        _simsimd_f32_to_u8(&sum, result + i);
+    }
 }
 
 SIMSIMD_PUBLIC void simsimd_wsum_u8_neon(                           //
@@ -2364,7 +2402,10 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_neon(                           //
     }
 
     // The tail:
-    for (; i < n; ++i) { SIMSIMD_F32_TO_U8(alpha_f16 * a[i] + beta_f16 * b[i], result + i); }
+    for (; i < n; ++i) {
+        simsimd_f32_t sum = alpha_f16 * a[i] + beta_f16 * b[i];
+        _simsimd_f32_to_u8(&sum, result + i);
+    }
 }
 
 SIMSIMD_PUBLIC void simsimd_fma_u8_neon(                                 //
@@ -2390,7 +2431,10 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_neon(                                 //
     }
 
     // The tail:
-    for (; i < n; ++i) { SIMSIMD_F32_TO_U8(alpha_f16 * a[i] * b[i] + beta_f16 * c[i], result + i); }
+    for (; i < n; ++i) {
+        simsimd_f32_t sum = alpha_f16 * a[i] * b[i] + beta_f16 * c[i];
+        _simsimd_f32_to_u8(&sum, result + i);
+    }
 }
 
 SIMSIMD_PUBLIC void simsimd_sum_i8_neon(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
@@ -2405,7 +2449,10 @@ SIMSIMD_PUBLIC void simsimd_sum_i8_neon(simsimd_i8_t const *a, simsimd_i8_t cons
     }
 
     // The tail:
-    for (; i < n; ++i) { SIMSIMD_F32_TO_I8(a[i] + b[i], result + i); }
+    for (; i < n; ++i) {
+        simsimd_f32_t sum = (simsimd_f32_t)a[i] + b[i];
+        _simsimd_f32_to_i8(&sum, result + i);
+    }
 }
 
 SIMSIMD_PUBLIC void simsimd_scale_i8_neon(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
@@ -2426,7 +2473,10 @@ SIMSIMD_PUBLIC void simsimd_scale_i8_neon(simsimd_i8_t const *a, simsimd_size_t 
     }
 
     // The tail:
-    for (; i < n; ++i) { SIMSIMD_F32_TO_I8(alpha_f16 * a[i] + beta_f16, result + i); }
+    for (; i < n; ++i) {
+        simsimd_f32_t sum = alpha_f16 * a[i] + beta_f16;
+        _simsimd_f32_to_i8(&sum, result + i);
+    }
 }
 
 SIMSIMD_PUBLIC void simsimd_wsum_i8_neon(                           //
@@ -2467,7 +2517,10 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_neon(                           //
     }
 
     // The tail:
-    for (; i < n; ++i) { SIMSIMD_F32_TO_I8(alpha_f16 * a[i] + beta_f16 * b[i], result + i); }
+    for (; i < n; ++i) {
+        simsimd_f32_t sum = alpha_f16 * a[i] + beta_f16 * b[i];
+        _simsimd_f32_to_i8(&sum, result + i);
+    }
 }
 
 SIMSIMD_PUBLIC void simsimd_fma_i8_neon(                                 //
@@ -2493,7 +2546,10 @@ SIMSIMD_PUBLIC void simsimd_fma_i8_neon(                                 //
     }
 
     // The tail:
-    for (; i < n; ++i) { SIMSIMD_F32_TO_I8(alpha_f16 * a[i] * b[i] + beta_f16 * c[i], result + i); }
+    for (; i < n; ++i) {
+        simsimd_f32_t sum = alpha_f16 * a[i] * b[i] + beta_f16 * c[i];
+        _simsimd_f32_to_i8(&sum, result + i);
+    }
 }
 
 #pragma clang attribute pop

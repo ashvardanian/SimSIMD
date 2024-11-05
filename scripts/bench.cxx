@@ -142,7 +142,8 @@ struct vector_gt {
 
 #if !SIMSIMD_NATIVE_BF16
         if constexpr (datatype_ak == simsimd_datatype_bf16_k || datatype_ak == simsimd_datatype_bf16c_k) {
-            simsimd_f32_to_bf16(from, &to);
+            simsimd_f32_t f32 = static_cast<simsimd_f32_t>(from);
+            simsimd_f32_to_bf16(&f32, &to);
             if ((to & exponent_mask_bf16) == exponent_mask_bf16) to = 0;
             static_assert(sizeof(scalar_t) == sizeof(simsimd_bf16_t));
             return;
@@ -150,7 +151,8 @@ struct vector_gt {
 #endif
 #if !SIMSIMD_NATIVE_F16
         if constexpr (datatype_ak == simsimd_datatype_f16_k || datatype_ak == simsimd_datatype_f16c_k) {
-            simsimd_f32_to_f16(from, &to);
+            simsimd_f32_t f32 = static_cast<simsimd_f32_t>(from);
+            simsimd_f32_to_f16(&f32, &to);
             if ((to & exponent_mask_f16) == exponent_mask_f16) to = 0;
             static_assert(sizeof(scalar_t) == sizeof(simsimd_f16_t));
             return;
@@ -167,12 +169,16 @@ struct vector_gt {
     static double uncompress(scalar_t const &from) noexcept {
 #if !SIMSIMD_NATIVE_BF16
         if constexpr (datatype_ak == simsimd_datatype_bf16_k || datatype_ak == simsimd_datatype_bf16c_k) {
-            return simsimd_bf16_to_f32((simsimd_bf16_t const *)&from);
+            simsimd_f32_t f32;
+            simsimd_bf16_to_f32((simsimd_bf16_t const *)&from, &f32);
+            return f32;
         }
 #endif
 #if !SIMSIMD_NATIVE_F16
         if constexpr (datatype_ak == simsimd_datatype_f16_k || datatype_ak == simsimd_datatype_f16c_k) {
-            return simsimd_f16_to_f32((simsimd_f16_t const *)&from);
+            simsimd_f32_t f32;
+            simsimd_f16_to_f32((simsimd_f16_t const *)&from, &f32);
+            return f32;
         }
 #endif
         return from;

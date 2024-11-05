@@ -86,7 +86,7 @@ void test_utilities(void) {
  */
 void test_ndindex(void) {
     simsimd_size_t shape[SIMSIMD_NDARRAY_MAX_RANK];
-    simsimd_size_t strides[SIMSIMD_NDARRAY_MAX_RANK];
+    simsimd_ssize_t strides[SIMSIMD_NDARRAY_MAX_RANK];
     simsimd_ndindex_t ndindex;
 
     // 1D array

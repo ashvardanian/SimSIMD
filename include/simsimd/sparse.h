@@ -42,6 +42,9 @@
  *          j += ai >= bj;
  *      }
  *
+ *  ! When dealing with weighted intersections, the kernel exports two results: the count and weights dot product.
+ *  ? When dealing with low-precision weights, the dot product is still computed with higher precision.
+ *
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
@@ -181,15 +184,15 @@ SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u32, size) // simsimd_intersect_u32_accu
         simsimd_##weight_type##_t const *a_weights, simsimd_##weight_type##_t const *b_weights,                   \
         simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t *results) {                          \
         simsimd_##counter_type##_t intersection_size = 0;                                                         \
-        simsimd_##accumulator_type##_t weights_product = 0;                                                       \
+        simsimd_##accumulator_type##_t weights_product = 0, awi, bwj;                                             \
         simsimd_size_t i = 0, j = 0;                                                                              \
         while (i != a_length && j != b_length) {                                                                  \
             simsimd_##input_type##_t ai = a[i];                                                                   \
             simsimd_##input_type##_t bj = b[j];                                                                   \
             int matches = ai == bj;                                                                               \
-            simsimd_##counter_type##_t awi = load_and_convert(a_weights + i);                                     \
-            simsimd_##counter_type##_t bwi = load_and_convert(b_weights + i);                                     \
-            weights_product += matches * awi * bwi;                                                               \
+            load_and_convert(a_weights + i, &awi);                                                                \
+            load_and_convert(b_weights + j, &bwj);                                                                \
+            weights_product += matches * awi * bwj;                                                               \
             intersection_size += matches;                                                                         \
             i += ai < bj;                                                                                         \
             j += ai >= bj;                                                                                        \
@@ -199,9 +202,9 @@ SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u32, size) // simsimd_intersect_u32_accu
     }
 
 SIMSIMD_MAKE_INTERSECT_WEIGHTED(accurate, spdot_counts, u16, size, i16, i64,
-                                SIMSIMD_DEREFERENCE) // simsimd_spdot_counts_u16_accurate
+                                _SIMSIMD_ASSIGN_1_TO_2) // simsimd_spdot_counts_u16_accurate
 SIMSIMD_MAKE_INTERSECT_WEIGHTED(accurate, spdot_weights, u16, size, bf16, f64,
-                                SIMSIMD_BF16_TO_F32) // simsimd_spdot_weights_u16_accurate
+                                _simsimd_bf16_to_f64) // simsimd_spdot_weights_u16_accurate
 
 #define SIMSIMD_MAKE_INTERSECT_GALLOPING(name, input_type, counter_type)                                             \
     SIMSIMD_PUBLIC simsimd_size_t simsimd_galloping_search_##input_type(simsimd_##input_type##_t const *array,       \
@@ -254,9 +257,9 @@ SIMSIMD_MAKE_INTERSECT_WEIGHTED(accurate, spdot_weights, u16, size, bf16, f64,
 SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u16, size) // simsimd_intersect_u16_serial
 SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u32, size) // simsimd_intersect_u32_serial
 SIMSIMD_MAKE_INTERSECT_WEIGHTED(serial, spdot_counts, u16, size, i16, i32,
-                                SIMSIMD_DEREFERENCE) // simsimd_spdot_counts_u16_serial
+                                _SIMSIMD_ASSIGN_1_TO_2) // simsimd_spdot_counts_u16_serial
 SIMSIMD_MAKE_INTERSECT_WEIGHTED(serial, spdot_weights, u16, size, bf16, f32,
-                                SIMSIMD_BF16_TO_F32) // simsimd_spdot_weights_u16_serial
+                                simsimd_bf16_to_f32) // simsimd_spdot_weights_u16_serial
 
 /*  The AVX-512 implementations are inspired by the "Faster-Than-Native Alternatives
  *  for x86 VP2INTERSECT Instructions" paper by Guille Diez-Canas, 2022.
@@ -336,7 +339,8 @@ SIMSIMD_INTERNAL simsimd_u32_t _simsimd_intersect_u16x32_ice(__m512i a, __m512i 
     __mmask32 nm72 = _mm512_mask_cmpneq_epi16_mask(nm62, a2, b31);
     __mmask32 nm73 = _mm512_mask_cmpneq_epi16_mask(nm63, a3, b31);
 
-    return ~(simsimd_u32_t)(nm70 & simsimd_u32_rol(nm71, 8) & simsimd_u32_rol(nm72, 16) & simsimd_u32_ror(nm73, 8));
+    return ~(simsimd_u32_t)(nm70 & _simsimd_u32_rol(&nm71, 8) & _simsimd_u32_rol(&nm72, 16) &
+                            _simsimd_u32_ror(&nm73, 8));
 }
 
 /**
@@ -387,7 +391,7 @@ SIMSIMD_INTERNAL simsimd_u16_t _simsimd_intersect_u32x16_ice(__m512i a, __m512i 
     __mmask16 nm2 = _mm512_mask_cmpneq_epi32_mask(nm22, a2, b3);
     __mmask16 nm3 = _mm512_mask_cmpneq_epi32_mask(nm23, a3, b3);
 
-    return ~(simsimd_u16_t)(nm0 & simsimd_u16_rol(nm1, 4) & simsimd_u16_rol(nm2, 8) & simsimd_u16_ror(nm3, 4));
+    return ~(simsimd_u16_t)(nm0 & _simsimd_u16_rol(&nm1, 4) & _simsimd_u16_rol(&nm2, 8) & _simsimd_u16_ror(&nm3, 4));
 }
 
 SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(        //

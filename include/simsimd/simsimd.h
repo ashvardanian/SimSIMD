@@ -235,6 +235,43 @@ typedef enum {
     simsimd_datatype_bf16c_k = 1 << 23, ///< Complex brain floating point
 } simsimd_datatype_t;
 
+typedef enum {
+    simsimd_datatype_unknown_family_k = 0,
+    simsimd_datatype_binary_famiily_k,
+    simsimd_datatype_float_family_k,
+    simsimd_datatype_complex_float_family_k,
+    simsimd_datatype_int_family_k,
+    simsimd_datatype_uint_family_k,
+} simsimd_datatype_family_k;
+
+/**
+ *  @brief  Classifies the family of the datatype.
+ *  @return The family of the datatype.
+ */
+SIMSIMD_PUBLIC simsimd_datatype_family_k simsimd_datatype_family(simsimd_datatype_t dtype) {
+    switch (dtype) {
+    case simsimd_datatype_f64_k: return simsimd_datatype_float_family_k;
+    case simsimd_datatype_f32_k: return simsimd_datatype_float_family_k;
+    case simsimd_datatype_f16_k: return simsimd_datatype_float_family_k;
+    case simsimd_datatype_bf16_k: return simsimd_datatype_float_family_k;
+    case simsimd_datatype_f64c_k: return simsimd_datatype_complex_float_family_k;
+    case simsimd_datatype_f32c_k: return simsimd_datatype_complex_float_family_k;
+    case simsimd_datatype_f16c_k: return simsimd_datatype_complex_float_family_k;
+    case simsimd_datatype_bf16c_k: return simsimd_datatype_complex_float_family_k;
+    case simsimd_datatype_b8_k: return simsimd_datatype_binary_famiily_k;
+    case simsimd_datatype_u8_k: return simsimd_datatype_uint_family_k;
+    case simsimd_datatype_u16_k: return simsimd_datatype_uint_family_k;
+    case simsimd_datatype_u32_k: return simsimd_datatype_uint_family_k;
+    case simsimd_datatype_u64_k: return simsimd_datatype_uint_family_k;
+    case simsimd_datatype_i8_k: return simsimd_datatype_int_family_k;
+    case simsimd_datatype_i16_k: return simsimd_datatype_int_family_k;
+    case simsimd_datatype_i32_k: return simsimd_datatype_int_family_k;
+    case simsimd_datatype_i64_k: return simsimd_datatype_int_family_k;
+    case simsimd_datatype_i4x2_k: return simsimd_datatype_int_family_k;
+    default: return simsimd_datatype_unknown_family_k;
+    }
+}
+
 /**
  *  @brief  Type-punned function pointer for dense vector representations and simplest similarity measures.
  *

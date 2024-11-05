@@ -20,6 +20,9 @@
  *  - Arm: NEON, SVE
  *  - x86: Haswell, Ice Lake, Skylake, Genoa, Sapphire
  *
+ *  ! When dealing with complex numbers, the dot product exports two results: the real and imaginary parts.
+ *  ? When dealing with low-precision input numbers, the dot product is still computed with higher precision.
+ *
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
@@ -157,10 +160,10 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t co
     SIMSIMD_PUBLIC void simsimd_dot_##input_type##_##name(simsimd_##input_type##_t const *a,                   \
                                                           simsimd_##input_type##_t const *b, simsimd_size_t n, \
                                                           simsimd_distance_t *result) {                        \
-        simsimd_##accumulator_type##_t ab = 0;                                                                 \
+        simsimd_##accumulator_type##_t ab = 0, ai, bi;                                                         \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                              \
-            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                       \
-            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                       \
+            load_and_convert(a + i, &ai);                                                                      \
+            load_and_convert(b + i, &bi);                                                                      \
             ab += ai * bi;                                                                                     \
         }                                                                                                      \
         *result = ab;                                                                                          \
@@ -170,12 +173,12 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t co
     SIMSIMD_PUBLIC void simsimd_dot_##input_type##c_##name(simsimd_##input_type##_t const *a,                   \
                                                            simsimd_##input_type##_t const *b, simsimd_size_t n, \
                                                            simsimd_distance_t *results) {                       \
-        simsimd_##accumulator_type##_t ab_real = 0, ab_imag = 0;                                                \
+        simsimd_##accumulator_type##_t ab_real = 0, ab_imag = 0, ar, br, ai, bi;                                \
         for (simsimd_size_t i = 0; i + 2 <= n; i += 2) {                                                        \
-            simsimd_##accumulator_type##_t ar = load_and_convert(a + i);                                        \
-            simsimd_##accumulator_type##_t br = load_and_convert(b + i);                                        \
-            simsimd_##accumulator_type##_t ai = load_and_convert(a + i + 1);                                    \
-            simsimd_##accumulator_type##_t bi = load_and_convert(b + i + 1);                                    \
+            load_and_convert(a + i, &ar);                                                                       \
+            load_and_convert(b + i, &br);                                                                       \
+            load_and_convert(a + i + 1, &ai);                                                                   \
+            load_and_convert(b + i + 1, &bi);                                                                   \
             ab_real += ar * br - ai * bi;                                                                       \
             ab_imag += ar * bi + ai * br;                                                                       \
         }                                                                                                       \
@@ -187,12 +190,12 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t co
     SIMSIMD_PUBLIC void simsimd_vdot_##input_type##c_##name(simsimd_##input_type##_t const *a,                   \
                                                             simsimd_##input_type##_t const *b, simsimd_size_t n, \
                                                             simsimd_distance_t *results) {                       \
-        simsimd_##accumulator_type##_t ab_real = 0, ab_imag = 0;                                                 \
+        simsimd_##accumulator_type##_t ab_real = 0, ab_imag = 0, ar, br, ai, bi;                                 \
         for (simsimd_size_t i = 0; i + 2 <= n; i += 2) {                                                         \
-            simsimd_##accumulator_type##_t ar = load_and_convert(a + i);                                         \
-            simsimd_##accumulator_type##_t br = load_and_convert(b + i);                                         \
-            simsimd_##accumulator_type##_t ai = load_and_convert(a + i + 1);                                     \
-            simsimd_##accumulator_type##_t bi = load_and_convert(b + i + 1);                                     \
+            load_and_convert(a + i, &ar);                                                                        \
+            load_and_convert(b + i, &br);                                                                        \
+            load_and_convert(a + i + 1, &ai);                                                                    \
+            load_and_convert(b + i + 1, &bi);                                                                    \
             ab_real += ar * br + ai * bi;                                                                        \
             ab_imag += ar * bi - ai * br;                                                                        \
         }                                                                                                        \
@@ -200,36 +203,36 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t co
         results[1] = ab_imag;                                                                                    \
     }
 
-SIMSIMD_MAKE_DOT(serial, f64, f64, SIMSIMD_DEREFERENCE)          // simsimd_dot_f64_serial
-SIMSIMD_MAKE_COMPLEX_DOT(serial, f64, f64, SIMSIMD_DEREFERENCE)  // simsimd_dot_f64c_serial
-SIMSIMD_MAKE_COMPLEX_VDOT(serial, f64, f64, SIMSIMD_DEREFERENCE) // simsimd_vdot_f64c_serial
+SIMSIMD_MAKE_DOT(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2)          // simsimd_dot_f64_serial
+SIMSIMD_MAKE_COMPLEX_DOT(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2)  // simsimd_dot_f64c_serial
+SIMSIMD_MAKE_COMPLEX_VDOT(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_vdot_f64c_serial
 
-SIMSIMD_MAKE_DOT(serial, f32, f32, SIMSIMD_DEREFERENCE)          // simsimd_dot_f32_serial
-SIMSIMD_MAKE_COMPLEX_DOT(serial, f32, f32, SIMSIMD_DEREFERENCE)  // simsimd_dot_f32c_serial
-SIMSIMD_MAKE_COMPLEX_VDOT(serial, f32, f32, SIMSIMD_DEREFERENCE) // simsimd_vdot_f32c_serial
+SIMSIMD_MAKE_DOT(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2)          // simsimd_dot_f32_serial
+SIMSIMD_MAKE_COMPLEX_DOT(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2)  // simsimd_dot_f32c_serial
+SIMSIMD_MAKE_COMPLEX_VDOT(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_vdot_f32c_serial
 
-SIMSIMD_MAKE_DOT(serial, f16, f32, SIMSIMD_F16_TO_F32)          // simsimd_dot_f16_serial
-SIMSIMD_MAKE_COMPLEX_DOT(serial, f16, f32, SIMSIMD_F16_TO_F32)  // simsimd_dot_f16c_serial
-SIMSIMD_MAKE_COMPLEX_VDOT(serial, f16, f32, SIMSIMD_F16_TO_F32) // simsimd_vdot_f16c_serial
+SIMSIMD_MAKE_DOT(serial, f16, f32, simsimd_f16_to_f32)          // simsimd_dot_f16_serial
+SIMSIMD_MAKE_COMPLEX_DOT(serial, f16, f32, simsimd_f16_to_f32)  // simsimd_dot_f16c_serial
+SIMSIMD_MAKE_COMPLEX_VDOT(serial, f16, f32, simsimd_f16_to_f32) // simsimd_vdot_f16c_serial
 
-SIMSIMD_MAKE_DOT(serial, bf16, f32, SIMSIMD_BF16_TO_F32)          // simsimd_dot_bf16_serial
-SIMSIMD_MAKE_COMPLEX_DOT(serial, bf16, f32, SIMSIMD_BF16_TO_F32)  // simsimd_dot_bf16c_serial
-SIMSIMD_MAKE_COMPLEX_VDOT(serial, bf16, f32, SIMSIMD_BF16_TO_F32) // simsimd_vdot_bf16c_serial
+SIMSIMD_MAKE_DOT(serial, bf16, f32, simsimd_bf16_to_f32)          // simsimd_dot_bf16_serial
+SIMSIMD_MAKE_COMPLEX_DOT(serial, bf16, f32, simsimd_bf16_to_f32)  // simsimd_dot_bf16c_serial
+SIMSIMD_MAKE_COMPLEX_VDOT(serial, bf16, f32, simsimd_bf16_to_f32) // simsimd_vdot_bf16c_serial
 
-SIMSIMD_MAKE_DOT(serial, i8, i64, SIMSIMD_DEREFERENCE) // simsimd_dot_i8_serial
-SIMSIMD_MAKE_DOT(serial, u8, i64, SIMSIMD_DEREFERENCE) // simsimd_dot_u8_serial
+SIMSIMD_MAKE_DOT(serial, i8, i64, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_dot_i8_serial
+SIMSIMD_MAKE_DOT(serial, u8, i64, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_dot_u8_serial
 
-SIMSIMD_MAKE_DOT(accurate, f32, f64, SIMSIMD_DEREFERENCE)          // simsimd_dot_f32_accurate
-SIMSIMD_MAKE_COMPLEX_DOT(accurate, f32, f64, SIMSIMD_DEREFERENCE)  // simsimd_dot_f32c_accurate
-SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f32, f64, SIMSIMD_DEREFERENCE) // simsimd_vdot_f32c_accurate
+SIMSIMD_MAKE_DOT(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2)          // simsimd_dot_f32_accurate
+SIMSIMD_MAKE_COMPLEX_DOT(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2)  // simsimd_dot_f32c_accurate
+SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_vdot_f32c_accurate
 
-SIMSIMD_MAKE_DOT(accurate, f16, f64, SIMSIMD_F16_TO_F32)          // simsimd_dot_f16_accurate
-SIMSIMD_MAKE_COMPLEX_DOT(accurate, f16, f64, SIMSIMD_F16_TO_F32)  // simsimd_dot_f16c_accurate
-SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f16, f64, SIMSIMD_F16_TO_F32) // simsimd_vdot_f16c_accurate
+SIMSIMD_MAKE_DOT(accurate, f16, f64, _simsimd_f16_to_f64)          // simsimd_dot_f16_accurate
+SIMSIMD_MAKE_COMPLEX_DOT(accurate, f16, f64, _simsimd_f16_to_f64)  // simsimd_dot_f16c_accurate
+SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f16, f64, _simsimd_f16_to_f64) // simsimd_vdot_f16c_accurate
 
-SIMSIMD_MAKE_DOT(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)          // simsimd_dot_bf16_accurate
-SIMSIMD_MAKE_COMPLEX_DOT(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)  // simsimd_dot_bf16c_accurate
-SIMSIMD_MAKE_COMPLEX_VDOT(accurate, bf16, f64, SIMSIMD_BF16_TO_F32) // simsimd_vdot_bf16c_accurate
+SIMSIMD_MAKE_DOT(accurate, bf16, f64, _simsimd_bf16_to_f64)          // simsimd_dot_bf16_accurate
+SIMSIMD_MAKE_COMPLEX_DOT(accurate, bf16, f64, _simsimd_bf16_to_f64)  // simsimd_dot_bf16c_accurate
+SIMSIMD_MAKE_COMPLEX_VDOT(accurate, bf16, f64, _simsimd_bf16_to_f64) // simsimd_vdot_bf16c_accurate
 
 #if _SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
