@@ -9,31 +9,31 @@ public protocol SimSIMD {
 
 extension Int8: SimSIMD {
     public static let dataType = simsimd_datatype_i8_k
-    public static let cosine = find(kind: simsimd_metric_cosine_k, dataType: dataType)
-    public static let dotProduct = find(kind: simsimd_metric_dot_k, dataType: dataType)
-    public static let squaredEuclidean = find(kind: simsimd_metric_sqeuclidean_k, dataType: dataType)
+    public static let cosine = find(kind: simsimd_cosine_k, dataType: dataType)
+    public static let dotProduct = find(kind: simsimd_dot_k, dataType: dataType)
+    public static let squaredEuclidean = find(kind: simsimd_sqeuclidean_k, dataType: dataType)
 }
 
 @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
 extension Float16: SimSIMD {
     public static let dataType = simsimd_datatype_f16_k
-    public static let cosine = find(kind: simsimd_metric_cosine_k, dataType: dataType)
-    public static let dotProduct = find(kind: simsimd_metric_dot_k, dataType: dataType)
-    public static let squaredEuclidean = find(kind: simsimd_metric_sqeuclidean_k, dataType: dataType)
+    public static let cosine = find(kind: simsimd_cosine_k, dataType: dataType)
+    public static let dotProduct = find(kind: simsimd_dot_k, dataType: dataType)
+    public static let squaredEuclidean = find(kind: simsimd_sqeuclidean_k, dataType: dataType)
 }
 
 extension Float32: SimSIMD {
     public static let dataType = simsimd_datatype_f32_k
-    public static let cosine = find(kind: simsimd_metric_cosine_k, dataType: dataType)
-    public static let dotProduct = find(kind: simsimd_metric_inner_k, dataType: dataType)
-    public static let squaredEuclidean = find(kind: simsimd_metric_sqeuclidean_k, dataType: dataType)
+    public static let cosine = find(kind: simsimd_cosine_k, dataType: dataType)
+    public static let dotProduct = find(kind: simsimd_inner_k, dataType: dataType)
+    public static let squaredEuclidean = find(kind: simsimd_sqeuclidean_k, dataType: dataType)
 }
 
 extension Float64: SimSIMD {
     public static let dataType = simsimd_datatype_f64_k
-    public static let cosine = find(kind: simsimd_metric_cosine_k, dataType: dataType)
-    public static let dotProduct = find(kind: simsimd_metric_dot_k, dataType: dataType)
-    public static let squaredEuclidean = find(kind: simsimd_metric_sqeuclidean_k, dataType: dataType)
+    public static let cosine = find(kind: simsimd_cosine_k, dataType: dataType)
+    public static let dotProduct = find(kind: simsimd_dot_k, dataType: dataType)
+    public static let squaredEuclidean = find(kind: simsimd_sqeuclidean_k, dataType: dataType)
 }
 
 extension SimSIMD {

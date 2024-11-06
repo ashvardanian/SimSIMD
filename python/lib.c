@@ -419,39 +419,39 @@ int cast_distance(simsimd_distance_t distance, simsimd_datatype_t target_dtype, 
 }
 
 simsimd_metric_kind_t python_string_to_metric_kind(char const *name) {
-    if (same_string(name, "euclidean") || same_string(name, "l2")) return simsimd_metric_euclidean_k;
+    if (same_string(name, "euclidean") || same_string(name, "l2")) return simsimd_euclidean_k;
     else if (same_string(name, "sqeuclidean") || same_string(name, "l2sq"))
-        return simsimd_metric_sqeuclidean_k;
+        return simsimd_sqeuclidean_k;
     else if (same_string(name, "dot") || same_string(name, "inner"))
-        return simsimd_metric_dot_k;
+        return simsimd_dot_k;
     else if (same_string(name, "vdot"))
-        return simsimd_metric_vdot_k;
+        return simsimd_vdot_k;
     else if (same_string(name, "cosine") || same_string(name, "cos"))
-        return simsimd_metric_cosine_k;
+        return simsimd_cosine_k;
     else if (same_string(name, "jaccard"))
-        return simsimd_metric_jaccard_k;
+        return simsimd_jaccard_k;
     else if (same_string(name, "kullbackleibler") || same_string(name, "kl"))
-        return simsimd_metric_kl_k;
+        return simsimd_kl_k;
     else if (same_string(name, "jensenshannon") || same_string(name, "js"))
-        return simsimd_metric_js_k;
+        return simsimd_js_k;
     else if (same_string(name, "hamming"))
-        return simsimd_metric_hamming_k;
+        return simsimd_hamming_k;
     else if (same_string(name, "jaccard"))
-        return simsimd_metric_jaccard_k;
+        return simsimd_jaccard_k;
     else if (same_string(name, "bilinear"))
-        return simsimd_metric_bilinear_k;
+        return simsimd_bilinear_k;
     else if (same_string(name, "mahalanobis"))
-        return simsimd_metric_mahalanobis_k;
+        return simsimd_mahalanobis_k;
     else
-        return simsimd_metric_unknown_k;
+        return simsimd_unknown_k;
 }
 
 /// @brief Check if a metric is commutative, i.e., if `metric(a, b) == metric(b, a)`.
 /// @return 1 if the metric is commutative, 0 otherwise.
 int kernel_is_commutative(simsimd_metric_kind_t kind) {
     switch (kind) {
-    case simsimd_metric_kl_k: return 0;
-    case simsimd_metric_bilinear_k: return 0; //? The kernel is commutative if only the matrix is symmetric
+    case simsimd_kl_k: return 0;
+    case simsimd_bilinear_k: return 0; //? The kernel is commutative if only the matrix is symmetric
     default: return 1;
     }
 }
@@ -1444,7 +1444,7 @@ static PyObject *api_cdist( //
 
     /// Same default as in SciPy:
     /// https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.cdist.html
-    simsimd_metric_kind_t metric_kind = simsimd_metric_euclidean_k;
+    simsimd_metric_kind_t metric_kind = simsimd_euclidean_k;
     char const *metric_str = NULL;
 
     // Parse the arguments
@@ -1490,7 +1490,7 @@ static PyObject *api_cdist( //
             return NULL;
         }
         metric_kind = python_string_to_metric_kind(metric_str);
-        if (metric_kind == simsimd_metric_unknown_k) {
+        if (metric_kind == simsimd_unknown_k) {
             PyErr_SetString(PyExc_LookupError, "Unsupported metric");
             return NULL;
         }
@@ -1536,39 +1536,39 @@ static PyObject *api_cdist( //
 
 static char const doc_l2_pointer[] = "Get (int) pointer to the `simsimd.l2` kernel.";
 static PyObject *api_l2_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_l2_k, dtype_obj);
+    return implement_pointer_access(simsimd_l2_k, dtype_obj);
 }
 static char const doc_l2sq_pointer[] = "Get (int) pointer to the `simsimd.l2sq` kernel.";
 static PyObject *api_l2sq_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_l2sq_k, dtype_obj);
+    return implement_pointer_access(simsimd_l2sq_k, dtype_obj);
 }
 static char const doc_cos_pointer[] = "Get (int) pointer to the `simsimd.cos` kernel.";
 static PyObject *api_cos_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_cos_k, dtype_obj);
+    return implement_pointer_access(simsimd_cos_k, dtype_obj);
 }
 static char const doc_dot_pointer[] = "Get (int) pointer to the `simsimd.dot` kernel.";
 static PyObject *api_dot_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_dot_k, dtype_obj);
+    return implement_pointer_access(simsimd_dot_k, dtype_obj);
 }
 static char const doc_vdot_pointer[] = "Get (int) pointer to the `simsimd.vdot` kernel.";
 static PyObject *api_vdot_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_vdot_k, dtype_obj);
+    return implement_pointer_access(simsimd_vdot_k, dtype_obj);
 }
 static char const doc_kl_pointer[] = "Get (int) pointer to the `simsimd.kl` kernel.";
 static PyObject *api_kl_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_kl_k, dtype_obj);
+    return implement_pointer_access(simsimd_kl_k, dtype_obj);
 }
 static char const doc_js_pointer[] = "Get (int) pointer to the `simsimd.js` kernel.";
 static PyObject *api_js_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_js_k, dtype_obj);
+    return implement_pointer_access(simsimd_js_k, dtype_obj);
 }
 static char const doc_hamming_pointer[] = "Get (int) pointer to the `simsimd.hamming` kernel.";
 static PyObject *api_hamming_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_hamming_k, dtype_obj);
+    return implement_pointer_access(simsimd_hamming_k, dtype_obj);
 }
 static char const doc_jaccard_pointer[] = "Get (int) pointer to the `simsimd.jaccard` kernel.";
 static PyObject *api_jaccard_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_jaccard_k, dtype_obj);
+    return implement_pointer_access(simsimd_jaccard_k, dtype_obj);
 }
 
 static char const doc_l2[] = //
@@ -1590,7 +1590,7 @@ static char const doc_l2[] = //
 
 static PyObject *api_l2(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                         PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_l2_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(simsimd_l2_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_l2sq[] = //
@@ -1612,7 +1612,7 @@ static char const doc_l2sq[] = //
 
 static PyObject *api_l2sq(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                           PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_l2sq_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(simsimd_l2sq_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_cos[] = //
@@ -1634,7 +1634,7 @@ static char const doc_cos[] = //
 
 static PyObject *api_cos(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_cos_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(simsimd_cos_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_dot[] = //
@@ -1656,7 +1656,7 @@ static char const doc_dot[] = //
 
 static PyObject *api_dot(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_dot_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(simsimd_dot_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_vdot[] = //
@@ -1678,7 +1678,7 @@ static char const doc_vdot[] = //
 
 static PyObject *api_vdot(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                           PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_vdot_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(simsimd_vdot_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_kl[] = //
@@ -1700,7 +1700,7 @@ static char const doc_kl[] = //
 
 static PyObject *api_kl(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                         PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_kl_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(simsimd_kl_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_js[] = //
@@ -1722,7 +1722,7 @@ static char const doc_js[] = //
 
 static PyObject *api_js(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                         PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_js_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(simsimd_js_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_hamming[] = //
@@ -1744,7 +1744,7 @@ static char const doc_hamming[] = //
 
 static PyObject *api_hamming(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                              PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_hamming_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(simsimd_hamming_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_jaccard[] = //
@@ -1766,7 +1766,7 @@ static char const doc_jaccard[] = //
 
 static PyObject *api_jaccard(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                              PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_jaccard_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(simsimd_jaccard_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_bilinear[] = //
@@ -1786,7 +1786,7 @@ static char const doc_bilinear[] = //
 
 static PyObject *api_bilinear(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                               PyObject *args_names_tuple) {
-    return implement_curved_metric(simsimd_metric_bilinear_k, args, positional_args_count, args_names_tuple);
+    return implement_curved_metric(simsimd_bilinear_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_mahalanobis[] = //
@@ -1806,7 +1806,7 @@ static char const doc_mahalanobis[] = //
 
 static PyObject *api_mahalanobis(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                                  PyObject *args_names_tuple) {
-    return implement_curved_metric(simsimd_metric_mahalanobis_k, args, positional_args_count, args_names_tuple);
+    return implement_curved_metric(simsimd_mahalanobis_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_intersect[] = //
@@ -1823,7 +1823,7 @@ static char const doc_intersect[] = //
     "    >>> def intersect(a, b, /) -> float: ...";
 
 static PyObject *api_intersect(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
-    return implement_sparse_metric(simsimd_metric_intersect_k, args, nargs);
+    return implement_sparse_metric(simsimd_intersect_k, args, nargs);
 }
 
 static char const doc_scale[] = //
@@ -1945,7 +1945,7 @@ static PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t con
     // Look up the kernel and the capability
     simsimd_kernel_scale_punned_t kernel = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_kernel_kind_t const kernel_kind = simsimd_kernel_scale_k;
+    simsimd_kernel_kind_t const kernel_kind = simsimd_scale_k;
     simsimd_find_kernel_punned(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k,
                                (simsimd_kernel_punned_t *)&kernel, &capability);
     if (!kernel) {
@@ -2106,7 +2106,7 @@ static PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t const
     // Look up the kernel and the capability
     simsimd_kernel_sum_punned_t kernel = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_kernel_kind_t const kernel_kind = simsimd_kernel_sum_k;
+    simsimd_kernel_kind_t const kernel_kind = simsimd_sum_k;
     simsimd_find_kernel_punned(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k,
                                (simsimd_kernel_punned_t *)&kernel, &capability);
     if (!kernel) {
@@ -2283,7 +2283,7 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
     // Look up the kernel and the capability
     simsimd_kernel_wsum_punned_t kernel = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_kernel_kind_t const kernel_kind = simsimd_kernel_wsum_k;
+    simsimd_kernel_kind_t const kernel_kind = simsimd_wsum_k;
     simsimd_find_kernel_punned(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k,
                                (simsimd_kernel_punned_t *)&kernel, &capability);
     if (!kernel) {
@@ -2467,7 +2467,7 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
     // Look up the kernel and the capability
     simsimd_kernel_fma_punned_t kernel = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_kernel_kind_t const kernel_kind = simsimd_kernel_fma_k;
+    simsimd_kernel_kind_t const kernel_kind = simsimd_fma_k;
     simsimd_find_kernel_punned(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k,
                                (simsimd_kernel_punned_t *)&kernel, &capability);
     if (!kernel) {
@@ -3181,7 +3181,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         // Look up the kernel and the capability
         simsimd_kernel_sum_punned_t kernel = NULL;
         simsimd_capability_t capability = simsimd_cap_serial_k;
-        simsimd_kernel_kind_t const kernel_kind = simsimd_kernel_sum_k;
+        simsimd_kernel_kind_t const kernel_kind = simsimd_sum_k;
         simsimd_find_kernel_punned(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k,
                                    (simsimd_kernel_punned_t *)&kernel, &capability);
         if (!kernel) {

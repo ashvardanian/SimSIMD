@@ -104,6 +104,7 @@
         "Axion",
         "bfloat",
         "bitalg",
+        "bitmask",
         "BLAS",
         "castsi",
         "CBLAS",

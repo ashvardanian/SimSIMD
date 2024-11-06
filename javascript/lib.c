@@ -74,25 +74,25 @@ napi_value dense(napi_env env, napi_callback_info info, simsimd_metric_kind_t me
 }
 
 napi_value api_ip(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_metric_dot_k, simsimd_datatype_unknown_k);
+    return dense(env, info, simsimd_dot_k, simsimd_datatype_unknown_k);
 }
 napi_value api_cos(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_metric_cosine_k, simsimd_datatype_unknown_k);
+    return dense(env, info, simsimd_cosine_k, simsimd_datatype_unknown_k);
 }
 napi_value api_l2sq(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_metric_sqeuclidean_k, simsimd_datatype_unknown_k);
+    return dense(env, info, simsimd_sqeuclidean_k, simsimd_datatype_unknown_k);
 }
 napi_value api_kl(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_metric_kl_k, simsimd_datatype_unknown_k);
+    return dense(env, info, simsimd_kl_k, simsimd_datatype_unknown_k);
 }
 napi_value api_js(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_metric_js_k, simsimd_datatype_unknown_k);
+    return dense(env, info, simsimd_js_k, simsimd_datatype_unknown_k);
 }
 napi_value api_hamming(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_metric_hamming_k, simsimd_datatype_b8_k);
+    return dense(env, info, simsimd_hamming_k, simsimd_datatype_b8_k);
 }
 napi_value api_jaccard(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_metric_jaccard_k, simsimd_datatype_b8_k);
+    return dense(env, info, simsimd_jaccard_k, simsimd_datatype_b8_k);
 }
 
 napi_value Init(napi_env env, napi_value exports) {
