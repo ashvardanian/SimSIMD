@@ -2545,16 +2545,16 @@ void implementation_elementwise_binary_tensor_operation( //
         // Advance to the next index
         Py_ssize_t dim;
         for (dim = out_parsed->as_buffer_dimensions - 1; dim >= 0; --dim) {
-            out_mdindices.coordinate[dim]++;
+            out_mdindices.coordinates[dim]++;
             out_mdindices.byte_offset += out_parsed->as_buffer_strides[dim];
             a_mdindices.byte_offset += a_parsed->as_buffer_strides[dim];
             b_mdindices.byte_offset += b_parsed->as_buffer_strides[dim];
 
             // Successfully moved to the next index in this dimension
-            if (out_mdindices.coordinate[dim] < out_parsed->as_buffer_shape[dim]) break;
+            if (out_mdindices.coordinates[dim] < out_parsed->as_buffer_shape[dim]) break;
             else {
-                // Reset coordinate and byte offset for this dimension
-                out_mdindices.coordinate[dim] = 0;
+                // Reset coordinates and byte offset for this dimension
+                out_mdindices.coordinates[dim] = 0;
                 out_mdindices.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
                 a_mdindices.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
                 b_mdindices.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
@@ -2593,16 +2593,16 @@ void implementation_vectorized_binary_tensor_operation( //
         // Advance to the next index
         Py_ssize_t dim;
         for (dim = non_continuous_ranks - 1; dim >= 0; --dim) {
-            out_mdindices.coordinate[dim]++;
+            out_mdindices.coordinates[dim]++;
             out_mdindices.byte_offset += out_parsed->as_buffer_strides[dim];
             a_mdindices.byte_offset += a_parsed->as_buffer_strides[dim];
             b_mdindices.byte_offset += b_parsed->as_buffer_strides[dim];
 
             // Successfully moved to the next index in this dimension
-            if (out_mdindices.coordinate[dim] < out_parsed->as_buffer_shape[dim]) break;
+            if (out_mdindices.coordinates[dim] < out_parsed->as_buffer_shape[dim]) break;
             else {
-                // Reset coordinate and byte offset for this dimension
-                out_mdindices.coordinate[dim] = 0;
+                // Reset coordinates and byte offset for this dimension
+                out_mdindices.coordinates[dim] = 0;
                 out_mdindices.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
                 a_mdindices.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
                 b_mdindices.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];

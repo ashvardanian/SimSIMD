@@ -673,56 +673,48 @@ SIMSIMD_INTERNAL simsimd_size_t _simsimd_divide_ceil(simsimd_size_t dividend, si
  *  @param[in] strides The @b signed strides of the tensor in bytes, defined by an array with at least `rank` scalars.
  *  @param[in] rank The number of dimensions in the tensor (its rank).
  *  @param[inout] coordinates The array of offsets along each of `rank` dimensions, which will be updated.
- *  @param[inout] global_offset The global index of the current element, which will be incremented.
  *  @param[inout] byte_offset The @b signed byte offset of the current element, which will be advanced.
  *  @return 1 if the iterator was successfully advanced, 0 if the end of iteration was reached.
  *
- *  For flexibility, the API is decoupled from from the `simsimd_mdindices_t` structure, and can be used
- *  on any-rank tensors, independent of the `SIMSIMD_NDARRAY_MAX_RANK` constant.
+ *  For flexibility, the API is decoupled from from the `simsimd_mdindices_t` structure, and
+ *  can be used on any-rank tensors, independent of the `SIMSIMD_NDARRAY_MAX_RANK` constant.
  */
 SIMSIMD_PUBLIC int simsimd_mdindices_next(                                            //
     simsimd_size_t const *shape, simsimd_ssize_t const *strides, simsimd_size_t rank, //
-    simsimd_size_t *coordinates, simsimd_size_t *global_offset, simsimd_ssize_t *byte_offset) {
+    simsimd_size_t *coordinates, simsimd_ssize_t *byte_offset) {
     // Start from last dimension and move backward
     for (simsimd_size_t i = rank; i-- > 0;) {
         coordinates[i]++;
         *byte_offset += strides[i];
-        if (coordinates[i] < shape[i]) {
-            (*global_offset)++;
-            return 1; // Successfully moved to the next index
-        }
-        coordinates[i] = 0;                    // Reset this dimension counter
-        *byte_offset -= strides[i] * shape[i]; // Discard the running progress along this dimension
+        if (coordinates[i] < shape[i]) return 1; // Successfully moved to the next index
+        coordinates[i] = 0;                      // Reset this dimension counter
+        *byte_offset -= strides[i] * shape[i];   // Discard the running progress along this dimension
     }
     // If we reach here, we've iterated over all elements
-    (*global_offset)++;
     return 0; // End of iteration
 }
 
 /**
- *  @brief Advances the Multi-Dimensional iterator to the provided coordinate, updating the byte offset.
+ *  @brief Advances the Multi-Dimensional iterator to the provided coordinates, updating the byte offset.
  *  @param[in] shape The shape of the tensor, defined by an array with at least `rank` scalars.
  *  @param[in] strides The @b signed strides of the tensor in bytes, defined by an array with at least `rank` scalars.
  *  @param[in] rank The number of dimensions in the tensor (its rank).
  *  @param[in] coordinates The array of offsets along each of `rank` dimensions, which will be updated.
- *  @param[inout] global_offset The global index of the current element, which will be incremented.
- *  @param[inout] byte_offset The byte offset of the current element, which will be advanced.
+ *  @param[out] byte_offset The byte offset of the current element, which will be advanced.
  *  @return 1 if the offset was successfully advanced, 0 if the end of iteration was reached.
  */
 SIMSIMD_PUBLIC int simsimd_mdindices_linearize(                                       //
     simsimd_size_t const *shape, simsimd_ssize_t const *strides, simsimd_size_t rank, //
-    simsimd_size_t const *coordinates, simsimd_size_t *global_offset, simsimd_ssize_t *byte_offset) {
+    simsimd_size_t const *coordinates, simsimd_ssize_t *byte_offset) {
 
-    *global_offset = 0, *byte_offset = 0;
+    simsimd_ssize_t result = 0;
     for (simsimd_size_t i = 0; i < rank; i++) {
-        // Ensure the coordinate is within bounds for the given dimension
+        // Ensure the coordinates is within bounds for the given dimension
         if (coordinates[i] >= shape[i]) return 0; // Invalid coordinates, out of bounds
-        // Update the global index by adding the current coordinate (linearized)
-        *global_offset = *global_offset * shape[i] + coordinates[i];
-        // Update the byte offset by multiplying the coordinate by the stride
-        *byte_offset += coordinates[i] * strides[i];
+        // Update the byte offset by multiplying the coordinates by the stride
+        result += coordinates[i] * strides[i];
     }
-
+    *byte_offset = result;
     return 1; // Successfully calculated global and byte offsets
 }
 
@@ -734,14 +726,13 @@ SIMSIMD_PUBLIC int simsimd_mdindices_linearize(                                 
  *  The `global_offset` and `byte_offset` both start at zero and grow monotonically during iteration.
  */
 typedef struct simsimd_mdindices_t {
-    simsimd_size_t coordinate[SIMSIMD_NDARRAY_MAX_RANK]; // Coordinate offsets along each dimension
-    simsimd_size_t global_offset;                        // The number of elements already processed
-    simsimd_ssize_t byte_offset;                         // Byte offset
+    simsimd_size_t coordinates[SIMSIMD_NDARRAY_MAX_RANK]; // Coordinate offsets along each dimension
+    simsimd_ssize_t byte_offset;                          // Byte offset of the current element
 } simsimd_mdindices_t;
 
 SIMSIMD_PUBLIC void simsimd_mdindices_init(simsimd_mdindices_t *mdindices) {
-    for (simsimd_size_t i = 0; i < SIMSIMD_NDARRAY_MAX_RANK; i++) mdindices->coordinate[i] = 0;
-    mdindices->global_offset = 0, mdindices->byte_offset = 0;
+    for (simsimd_size_t i = 0; i < SIMSIMD_NDARRAY_MAX_RANK; i++) mdindices->coordinates[i] = 0;
+    mdindices->byte_offset = 0;
 }
 
 SIMSIMD_INTERNAL simsimd_u32_t _simsimd_u32_rol(simsimd_u32_t *x, int n) { return (*x << n) | (*x >> (32 - n)); }
