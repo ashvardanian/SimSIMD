@@ -84,50 +84,67 @@ void test_utilities(void) {
 /**
  *  @brief  Validating N-Dimensional indexing utilities.
  */
-void test_ndindex(void) {
+void test_mdindices(void) {
     simsimd_size_t shape[SIMSIMD_NDARRAY_MAX_RANK];
     simsimd_ssize_t strides[SIMSIMD_NDARRAY_MAX_RANK];
-    simsimd_ndindex_t ndindex;
+    simsimd_mdindices_t mdindices;
+    simsimd_size_t linear_global_offset;
+    simsimd_ssize_t linear_byte_offset;
 
     // 1D array
     shape[0] = 10;
     strides[0] = 1 * sizeof(simsimd_u8_t);
-    simsimd_ndindex_init(&ndindex);
+    simsimd_mdindices_init(&mdindices);
     for (simsimd_size_t i = 0; i < 10; i++) {
-        assert(ndindex.global_offset == i);
-        assert(ndindex.byte_offset == i * sizeof(simsimd_u8_t));
-        assert(ndindex.coordinate[0] == i);
-        assert(simsimd_ndindex_next(&ndindex, 1, shape, strides) == (i < 9));
+        assert(mdindices.global_offset == i);
+        assert(mdindices.byte_offset == i * sizeof(simsimd_u8_t));
+        assert(mdindices.coordinate[0] == i);
+        assert(simsimd_mdindices_linearize(shape, strides, 1, &mdindices.coordinate[0], &linear_global_offset,
+                                           &linear_byte_offset));
+        assert(linear_global_offset == i);
+        assert(linear_byte_offset == i * sizeof(simsimd_u8_t));
+        assert(simsimd_mdindices_next(shape, strides, 1, &mdindices.coordinate[0], &mdindices.global_offset,
+                                      &mdindices.byte_offset) == (i < 9));
     }
 
     // 2D array
     shape[0] = 10, shape[1] = 5;
     strides[0] = 5 * sizeof(simsimd_u8_t), strides[1] = 1 * sizeof(simsimd_u8_t);
-    simsimd_ndindex_init(&ndindex);
+    simsimd_mdindices_init(&mdindices);
     for (simsimd_size_t i = 0; i < 10; i++) {
         for (simsimd_size_t j = 0; j < 5; j++) {
-            assert(ndindex.global_offset == i * 5 + j);
-            assert(ndindex.byte_offset == (i * 5 + j) * sizeof(simsimd_u8_t));
-            assert(ndindex.coordinate[0] == i);
-            assert(ndindex.coordinate[1] == j);
-            assert(simsimd_ndindex_next(&ndindex, 2, shape, strides) == (i != 9 || j != 4));
+            assert(mdindices.global_offset == i * 5 + j);
+            assert(mdindices.byte_offset == (i * 5 + j) * sizeof(simsimd_u8_t));
+            assert(mdindices.coordinate[0] == i);
+            assert(mdindices.coordinate[1] == j);
+            assert(simsimd_mdindices_linearize(shape, strides, 2, &mdindices.coordinate[0], &linear_global_offset,
+                                               &linear_byte_offset));
+            assert(linear_global_offset == i * 5 + j);
+            assert(linear_byte_offset == (i * 5 + j) * sizeof(simsimd_u8_t));
+            assert(simsimd_mdindices_next(shape, strides, 2, &mdindices.coordinate[0], &mdindices.global_offset,
+                                          &mdindices.byte_offset) == (i != 9 || j != 4));
         }
     }
 
     // 2D array of complex numbers, taking only the real part
     shape[0] = 10, shape[1] = 5;
     strides[0] = 10 * sizeof(simsimd_u8_t), strides[1] = 2 * sizeof(simsimd_u8_t);
-    simsimd_ndindex_init(&ndindex);
+    simsimd_mdindices_init(&mdindices);
     for (simsimd_size_t i = 0; i < 10; i++) {
         for (simsimd_size_t j = 0; j < 5; j++) {
-            assert(ndindex.global_offset == i * 5 + j);
-            assert(ndindex.byte_offset == (i * 5 + j) * 2 * sizeof(simsimd_u8_t));
-            assert(ndindex.coordinate[0] == i);
-            assert(ndindex.coordinate[1] == j);
-            assert(simsimd_ndindex_next(&ndindex, 2, shape, strides) == (i != 9 || j != 4));
+            assert(mdindices.global_offset == i * 5 + j);
+            assert(mdindices.byte_offset == (i * 5 + j) * 2 * sizeof(simsimd_u8_t));
+            assert(mdindices.coordinate[0] == i);
+            assert(mdindices.coordinate[1] == j);
+            assert(simsimd_mdindices_linearize(shape, strides, 2, &mdindices.coordinate[0], &linear_global_offset,
+                                               &linear_byte_offset));
+            assert(linear_global_offset == i * 5 + j);
+            assert(linear_byte_offset == (i * 5 + j) * 2 * sizeof(simsimd_u8_t));
+            assert(simsimd_mdindices_next(shape, strides, 2, &mdindices.coordinate[0], &mdindices.global_offset,
+                                          &mdindices.byte_offset) == (i != 9 || j != 4));
         }
     }
-    assert(ndindex.global_offset == 10 * 5);
+    assert(mdindices.global_offset == 10 * 5);
 
     // 3D array with different strides at every level
     // At each level it should be at least as big as the smaller level stride
@@ -135,20 +152,25 @@ void test_ndindex(void) {
     shape[0] = 10, shape[1] = 5, shape[2] = 3;
     strides[0] = 41 * sizeof(simsimd_u8_t), strides[1] = 7 * sizeof(simsimd_u8_t),
     strides[2] = 2 * sizeof(simsimd_u8_t);
-    simsimd_ndindex_init(&ndindex);
+    simsimd_mdindices_init(&mdindices);
     for (simsimd_size_t i = 0; i < 10; i++) {
         for (simsimd_size_t j = 0; j < 5; j++) {
             for (simsimd_size_t k = 0; k < 3; k++) {
-                assert(ndindex.global_offset == i * 15 + j * 3 + k);
-                assert(ndindex.byte_offset == (i * strides[0] + j * strides[1] + k * strides[2]));
-                assert(ndindex.coordinate[0] == i);
-                assert(ndindex.coordinate[1] == j);
-                assert(ndindex.coordinate[2] == k);
-                assert(simsimd_ndindex_next(&ndindex, 3, shape, strides) == (i != 9 || j != 4 || k != 2));
+                assert(mdindices.global_offset == i * 15 + j * 3 + k);
+                assert(mdindices.byte_offset == (i * strides[0] + j * strides[1] + k * strides[2]));
+                assert(mdindices.coordinate[0] == i);
+                assert(mdindices.coordinate[1] == j);
+                assert(mdindices.coordinate[2] == k);
+                assert(simsimd_mdindices_linearize(shape, strides, 3, &mdindices.coordinate[0], &linear_global_offset,
+                                                   &linear_byte_offset));
+                assert(linear_global_offset == i * 15 + j * 3 + k);
+                assert(linear_byte_offset == (i * strides[0] + j * strides[1] + k * strides[2]));
+                assert(simsimd_mdindices_next(shape, strides, 3, &mdindices.coordinate[0], &mdindices.global_offset,
+                                              &mdindices.byte_offset) == (i != 9 || j != 4 || k != 2));
             }
         }
     }
-    assert(ndindex.global_offset == 10 * 5 * 3);
+    assert(mdindices.global_offset == 10 * 5 * 3);
 
     // Populated 3D array with different strides at every level
     {
@@ -159,7 +181,7 @@ void test_ndindex(void) {
                 for (simsimd_size_t k = 0; k < 7; k++) tensor[i][j][k] = i * 10000 + j * 100 + k * 1;
         }
         // Accumulate a slice: tensor[1:9:2, 2:42:4, 1:5:3] ~ 4 channels, 10 rows, 2 columns
-        simsimd_ndindex_init(&ndindex);
+        simsimd_mdindices_init(&mdindices);
         shape[0] = _simsimd_divide_ceil(9 - 1, 2);
         shape[1] = _simsimd_divide_ceil(42 - 2, 4);
         shape[2] = _simsimd_divide_ceil(5 - 1, 3);
@@ -175,8 +197,8 @@ void test_ndindex(void) {
                 }
             }
         }
-        // Accumulate using our `simsimd_ndindex_t` iterator
-        simsimd_f32_t sum_with_ndindex = 0;
+        // Accumulate using our `simsimd_mdindices_t` iterator
+        simsimd_f32_t sum_with_mdindices = 0;
         simsimd_f32_t sum_native_running = 0;
         for (simsimd_size_t i = 1; i < 9; i += 2) {
             for (simsimd_size_t j = 2; j < 42; j += 4) {
@@ -185,20 +207,21 @@ void test_ndindex(void) {
                         ((i - 1) / 2) * shape[1] * shape[2] +     //
                         ((j - 2) / 4) * shape[2] +                //
                         ((k - 1) / 3);                            //
-                    assert(ndindex.global_offset == expected_global_offset);
+                    assert(mdindices.global_offset == expected_global_offset);
                     simsimd_f32_t const entry_native = tensor[i][j][k];
                     simsimd_f32_t const entry_from_byte_offset =
-                        *(simsimd_f32_t *)_simsimd_advance_by_bytes(&tensor[1][2][1], ndindex.byte_offset);
+                        *(simsimd_f32_t *)_simsimd_advance_by_bytes(&tensor[1][2][1], mdindices.byte_offset);
                     simsimd_f32_t const entry_from_coordinate = tensor //
-                        [ndindex.coordinate[0] * 2 + 1]                //
-                        [ndindex.coordinate[1] * 4 + 2]                //
-                        [ndindex.coordinate[2] * 3 + 1];
+                        [mdindices.coordinate[0] * 2 + 1]              //
+                        [mdindices.coordinate[1] * 4 + 2]              //
+                        [mdindices.coordinate[2] * 3 + 1];
                     assert(entry_native == entry_from_byte_offset);
                     assert(entry_native == entry_from_coordinate);
-                    sum_with_ndindex += entry_from_byte_offset;
+                    sum_with_mdindices += entry_from_byte_offset;
                     sum_native_running += entry_native;
-                    assert(sum_native_running == sum_with_ndindex);
-                    simsimd_ndindex_next(&ndindex, 3, shape, strides);
+                    assert(sum_native_running == sum_with_mdindices);
+                    simsimd_mdindices_next(shape, strides, 3, &mdindices.coordinate[0], &mdindices.global_offset,
+                                           &mdindices.byte_offset);
                 }
             }
         }
@@ -278,7 +301,7 @@ int main(int argc, char **argv) {
     printf("Running tests...\n");
     print_capabilities();
     test_utilities();
-    test_ndindex();
+    test_mdindices();
     test_distance_from_itself();
     printf("All tests passed.\n");
     return 0;

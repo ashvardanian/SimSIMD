@@ -161,7 +161,7 @@ typedef struct NDArray {
 ///         as the `NDArray` object.
 typedef struct NDIndex {
     PyObject_HEAD //
-        simsimd_ndindex_t ndindex;
+        simsimd_mdindices_t mdindices;
 } NDIndex;
 
 static int DistancesTensor_getbuffer(PyObject *export_from, Py_buffer *view, int flags);
@@ -2528,36 +2528,36 @@ void implementation_elementwise_binary_tensor_operation( //
     // The hardest part of this operations is addressing the elements in a non-continuous tensor of arbitrary rank.
     // While iteratively deepening into the lower layers of the tensor, we need to keep track of the byte offsets
     // for each dimension to avoid recomputing them in the inner loops.
-    simsimd_ndindex_t a_ndindex, b_ndindex, out_ndindex;
-    memset(&a_ndindex, 0, sizeof(simsimd_ndindex_t));
-    memset(&b_ndindex, 0, sizeof(simsimd_ndindex_t));
-    memset(&out_ndindex, 0, sizeof(simsimd_ndindex_t));
+    simsimd_mdindices_t a_mdindices, b_mdindices, out_mdindices;
+    memset(&a_mdindices, 0, sizeof(simsimd_mdindices_t));
+    memset(&b_mdindices, 0, sizeof(simsimd_mdindices_t));
+    memset(&out_mdindices, 0, sizeof(simsimd_mdindices_t));
 
     // Start from last dimension and move backward, replicating the logic
-    // of `simsimd_ndindex_next`, broadcasting the same update logic across the
+    // of `simsimd_mdindices_next`, broadcasting the same update logic across the
     // indexes in all three tensors, and avoiding additional branches inside the loops.
     while (1) {
         // Invoke the provided kernel at the current byte offsets
-        binary_kernel(a_parsed->as_buffer_start + a_ndindex.byte_offset,
-                      b_parsed->as_buffer_start + b_ndindex.byte_offset,
-                      out_parsed->as_buffer_start + out_ndindex.byte_offset);
+        binary_kernel(a_parsed->as_buffer_start + a_mdindices.byte_offset,
+                      b_parsed->as_buffer_start + b_mdindices.byte_offset,
+                      out_parsed->as_buffer_start + out_mdindices.byte_offset);
 
         // Advance to the next index
         Py_ssize_t dim;
         for (dim = out_parsed->as_buffer_dimensions - 1; dim >= 0; --dim) {
-            out_ndindex.coordinate[dim]++;
-            out_ndindex.byte_offset += out_parsed->as_buffer_strides[dim];
-            a_ndindex.byte_offset += a_parsed->as_buffer_strides[dim];
-            b_ndindex.byte_offset += b_parsed->as_buffer_strides[dim];
+            out_mdindices.coordinate[dim]++;
+            out_mdindices.byte_offset += out_parsed->as_buffer_strides[dim];
+            a_mdindices.byte_offset += a_parsed->as_buffer_strides[dim];
+            b_mdindices.byte_offset += b_parsed->as_buffer_strides[dim];
 
             // Successfully moved to the next index in this dimension
-            if (out_ndindex.coordinate[dim] < out_parsed->as_buffer_shape[dim]) break;
+            if (out_mdindices.coordinate[dim] < out_parsed->as_buffer_shape[dim]) break;
             else {
                 // Reset coordinate and byte offset for this dimension
-                out_ndindex.coordinate[dim] = 0;
-                out_ndindex.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                a_ndindex.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                b_ndindex.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                out_mdindices.coordinate[dim] = 0;
+                out_mdindices.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                a_mdindices.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                b_mdindices.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
             }
         }
 
@@ -2576,36 +2576,36 @@ void implementation_vectorized_binary_tensor_operation( //
     // The hardest part of this operations is addressing the elements in a non-continuous tensor of arbitrary rank.
     // While iteratively deepening into the lower layers of the tensor, we need to keep track of the byte offsets
     // for each dimension to avoid recomputing them in the inner loops.
-    simsimd_ndindex_t a_ndindex, b_ndindex, out_ndindex;
-    memset(&a_ndindex, 0, sizeof(simsimd_ndindex_t));
-    memset(&b_ndindex, 0, sizeof(simsimd_ndindex_t));
-    memset(&out_ndindex, 0, sizeof(simsimd_ndindex_t));
+    simsimd_mdindices_t a_mdindices, b_mdindices, out_mdindices;
+    memset(&a_mdindices, 0, sizeof(simsimd_mdindices_t));
+    memset(&b_mdindices, 0, sizeof(simsimd_mdindices_t));
+    memset(&out_mdindices, 0, sizeof(simsimd_mdindices_t));
 
     // Start from last dimension and move backward, replicating the logic
-    // of `simsimd_ndindex_next`, broadcasting the same update logic across the
+    // of `simsimd_mdindices_next`, broadcasting the same update logic across the
     // indexes in all three tensors, and avoiding additional branches inside the loops.
     while (1) {
         // Invoke the provided kernel at the current byte offsets
-        binary_kernel(a_parsed->as_buffer_start + a_ndindex.byte_offset,
-                      b_parsed->as_buffer_start + b_ndindex.byte_offset, continuous_elements,
-                      out_parsed->as_buffer_start + out_ndindex.byte_offset);
+        binary_kernel(a_parsed->as_buffer_start + a_mdindices.byte_offset,
+                      b_parsed->as_buffer_start + b_mdindices.byte_offset, continuous_elements,
+                      out_parsed->as_buffer_start + out_mdindices.byte_offset);
 
         // Advance to the next index
         Py_ssize_t dim;
         for (dim = non_continuous_ranks - 1; dim >= 0; --dim) {
-            out_ndindex.coordinate[dim]++;
-            out_ndindex.byte_offset += out_parsed->as_buffer_strides[dim];
-            a_ndindex.byte_offset += a_parsed->as_buffer_strides[dim];
-            b_ndindex.byte_offset += b_parsed->as_buffer_strides[dim];
+            out_mdindices.coordinate[dim]++;
+            out_mdindices.byte_offset += out_parsed->as_buffer_strides[dim];
+            a_mdindices.byte_offset += a_parsed->as_buffer_strides[dim];
+            b_mdindices.byte_offset += b_parsed->as_buffer_strides[dim];
 
             // Successfully moved to the next index in this dimension
-            if (out_ndindex.coordinate[dim] < out_parsed->as_buffer_shape[dim]) break;
+            if (out_mdindices.coordinate[dim] < out_parsed->as_buffer_shape[dim]) break;
             else {
                 // Reset coordinate and byte offset for this dimension
-                out_ndindex.coordinate[dim] = 0;
-                out_ndindex.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                a_ndindex.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                b_ndindex.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                out_mdindices.coordinate[dim] = 0;
+                out_mdindices.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                a_mdindices.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                b_mdindices.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
             }
         }
 
