@@ -719,11 +719,11 @@ SIMSIMD_PUBLIC int simsimd_mdindices_linearize(                                 
 }
 
 /**
- *  @brief  A @b beefy structure to keep track of the Multi-Dimensional array index.
- *          Occupies 512 + 16 = 528 bytes on a 64-bit machine, or 9 cache-lines, by default.
+ *  @brief  A @b beefy structure to iterate through Multi-Dimensional arrays.
+ *          Occupies 512 + 8 = 520 bytes on a 64-bit machine, or @b 9 cache-lines, by default.
  *
  *  When advancing through a structure, its overall size and strides should be stored somewhere else.
- *  The `global_offset` and `byte_offset` both start at zero and grow monotonically during iteration.
+ *  The `byte_offset` starts at zero and grow monotonically during iteration, if the strides are positive.
  */
 typedef struct simsimd_mdindices_t {
     simsimd_size_t coordinates[SIMSIMD_NDARRAY_MAX_RANK]; // Coordinate offsets along each dimension
@@ -733,6 +733,21 @@ typedef struct simsimd_mdindices_t {
 SIMSIMD_PUBLIC void simsimd_mdindices_init(simsimd_mdindices_t *mdindices) {
     for (simsimd_size_t i = 0; i < SIMSIMD_NDARRAY_MAX_RANK; i++) mdindices->coordinates[i] = 0;
     mdindices->byte_offset = 0;
+}
+
+/**
+ *  @brief  A @b beefy structure describing the memory layouts of Multi-Dimensional arrays.
+ *          Occupies 512 + 512 + 8 = 2052 bytes on a 64-bit machine, or @b 17 cache-lines, by default.
+ */
+typedef struct simsimd_mdspan_t {
+    simsimd_size_t shape[SIMSIMD_NDARRAY_MAX_RANK];    // Number of elements along each dimension
+    simsimd_ssize_t strides[SIMSIMD_NDARRAY_MAX_RANK]; // Strides of the tensor in bytes
+    simsimd_size_t rank;                               // Number of dimensions in the tensor
+} simsimd_mdspan_t;
+
+SIMSIMD_PUBLIC void simsimd_mdspan_init(simsimd_mdspan_t *mdspan) {
+    for (simsimd_size_t i = 0; i < SIMSIMD_NDARRAY_MAX_RANK; i++) mdspan->shape[i] = 0, mdspan->strides[i] = 0;
+    mdspan->rank = 0;
 }
 
 SIMSIMD_INTERNAL simsimd_u32_t _simsimd_u32_rol(simsimd_u32_t *x, int n) { return (*x << n) | (*x >> (32 - n)); }
@@ -767,6 +782,9 @@ SIMSIMD_INTERNAL void _simsimd_i32_sadd(simsimd_i32_t const *a, simsimd_i32_t co
     *r = (result > 2147483647) ? 2147483647 : (result < -2147483648 ? -2147483648 : (simsimd_i32_t)result);
 }
 SIMSIMD_INTERNAL void _simsimd_i64_sadd(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_i64_t *r) {
+    //? We can't just write `-9223372036854775808ll`, even though it's the smallest signed 64-bit value.
+    //? The compiler will complain about the number being too large for the type, as it will process the
+    //? constant and the sign separately. So we use the same hint that compilers use to define the `INT64_MIN`.
     if ((*b > 0) && (*a > (9223372036854775807ll) - *b)) { *r = 9223372036854775807ll; }                    // Overflow
     else if ((*b < 0) && (*a < (-9223372036854775807ll - 1ll) - *b)) { *r = -9223372036854775807ll - 1ll; } // Underflow
     else { *r = *a + *b; }
