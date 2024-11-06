@@ -653,6 +653,92 @@ SIMSIMD_INTERNAL void _simsimd_i64_to_u32(simsimd_i64_t const *x, simsimd_u32_t 
     *y = (simsimd_u32_t)(*x > 4294967295 ? 4294967295 : (*x < 0 ? 0 : *x));
 }
 
+SIMSIMD_INTERNAL void _simsimd_u64_to_i8(simsimd_u64_t const *x, simsimd_i8_t *y) {
+    *y = (simsimd_i8_t)(*x > 127 ? 127 : *x);
+}
+
+SIMSIMD_INTERNAL void _simsimd_u64_to_u8(simsimd_u64_t const *x, simsimd_u8_t *y) {
+    *y = (simsimd_u8_t)(*x > 255 ? 255 : *x);
+}
+
+SIMSIMD_INTERNAL void _simsimd_u64_to_i16(simsimd_u64_t const *x, simsimd_i16_t *y) {
+    *y = (simsimd_i16_t)(*x > 32767 ? 32767 : *x);
+}
+
+SIMSIMD_INTERNAL void _simsimd_u64_to_u16(simsimd_u64_t const *x, simsimd_u16_t *y) {
+    *y = (simsimd_u16_t)(*x > 65535 ? 65535 : *x);
+}
+
+SIMSIMD_INTERNAL void _simsimd_u64_to_i32(simsimd_u64_t const *x, simsimd_i32_t *y) {
+    *y = (simsimd_i32_t)(*x > 2147483647 ? 2147483647 : *x);
+}
+
+SIMSIMD_INTERNAL void _simsimd_u64_to_u32(simsimd_u64_t const *x, simsimd_u32_t *y) {
+    *y = (simsimd_u32_t)(*x > 4294967295 ? 4294967295 : *x);
+}
+
+SIMSIMD_INTERNAL void _simsimd_f64_to_f32(simsimd_f64_t const *x, simsimd_f32_t *y) { *y = (simsimd_f32_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_u64_to_f32(simsimd_u64_t const *x, simsimd_f32_t *y) { *y = (simsimd_f32_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_i64_to_f32(simsimd_i64_t const *x, simsimd_f32_t *y) { *y = (simsimd_f32_t)*x; }
+
+SIMSIMD_INTERNAL void _simsimd_f32_to_f64(simsimd_f32_t const *x, simsimd_f64_t *y) { *y = (simsimd_f64_t)*x; }
+
+SIMSIMD_INTERNAL void _simsimd_f64_to_f64(simsimd_f64_t const *x, simsimd_f64_t *y) { *y = *x; }
+
+SIMSIMD_INTERNAL void _simsimd_i8_to_f64(simsimd_i8_t const *x, simsimd_f64_t *y) { *y = (simsimd_f64_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_i16_to_f64(simsimd_i16_t const *x, simsimd_f64_t *y) { *y = (simsimd_f64_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_i32_to_f64(simsimd_i32_t const *x, simsimd_f64_t *y) { *y = (simsimd_f64_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_i64_to_f64(simsimd_i64_t const *x, simsimd_f64_t *y) { *y = (simsimd_f64_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_u8_to_f64(simsimd_u8_t const *x, simsimd_f64_t *y) { *y = (simsimd_f64_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_u16_to_f64(simsimd_u16_t const *x, simsimd_f64_t *y) { *y = (simsimd_f64_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_u32_to_f64(simsimd_u32_t const *x, simsimd_f64_t *y) { *y = (simsimd_f64_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_u64_to_f64(simsimd_u64_t const *x, simsimd_f64_t *y) { *y = (simsimd_f64_t)*x; }
+
+SIMSIMD_INTERNAL void _simsimd_i8_to_i64(simsimd_i8_t const *x, simsimd_i64_t *y) { *y = (simsimd_i64_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_i16_to_i64(simsimd_i16_t const *x, simsimd_i64_t *y) { *y = (simsimd_i64_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_i32_to_i64(simsimd_i32_t const *x, simsimd_i64_t *y) { *y = (simsimd_i64_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_i64_to_i64(simsimd_i64_t const *x, simsimd_i64_t *y) { *y = *x; }
+SIMSIMD_INTERNAL void _simsimd_u8_to_i64(simsimd_u8_t const *x, simsimd_i64_t *y) { *y = (simsimd_i64_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_u16_to_i64(simsimd_u16_t const *x, simsimd_i64_t *y) { *y = (simsimd_i64_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_u32_to_i64(simsimd_u32_t const *x, simsimd_i64_t *y) { *y = (simsimd_i64_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_u64_to_i64(simsimd_u64_t const *x, simsimd_i64_t *y) {
+    *y = (simsimd_i64_t)(*x >= 9223372036854775807ull ? 9223372036854775807ll : *x);
+}
+
+SIMSIMD_INTERNAL void _simsimd_i8_to_u64(simsimd_i8_t const *x, simsimd_u64_t *y) {
+    *y = (simsimd_u64_t)(*x < 0 ? 0 : *x);
+}
+SIMSIMD_INTERNAL void _simsimd_i16_to_u64(simsimd_i16_t const *x, simsimd_u64_t *y) {
+    *y = (simsimd_u64_t)(*x < 0 ? 0 : *x);
+}
+SIMSIMD_INTERNAL void _simsimd_i32_to_u64(simsimd_i32_t const *x, simsimd_u64_t *y) {
+    *y = (simsimd_u64_t)(*x < 0 ? 0 : *x);
+}
+SIMSIMD_INTERNAL void _simsimd_i64_to_u64(simsimd_i64_t const *x, simsimd_u64_t *y) {
+    *y = (simsimd_u64_t)(*x < 0 ? 0 : *x);
+}
+SIMSIMD_INTERNAL void _simsimd_u8_to_u64(simsimd_u8_t const *x, simsimd_u64_t *y) { *y = (simsimd_u64_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_u16_to_u64(simsimd_u16_t const *x, simsimd_u64_t *y) { *y = (simsimd_u64_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_u32_to_u64(simsimd_u32_t const *x, simsimd_u64_t *y) { *y = (simsimd_u64_t)*x; }
+SIMSIMD_INTERNAL void _simsimd_u64_to_u64(simsimd_u64_t const *x, simsimd_u64_t *y) { *y = *x; }
+
+SIMSIMD_INTERNAL void _simsimd_i64_to_f16(simsimd_i64_t const *x, simsimd_f16_t *y) {
+    simsimd_f32_t f32 = (simsimd_f32_t)*x;
+    simsimd_f32_to_f16(&f32, y);
+}
+SIMSIMD_INTERNAL void _simsimd_i64_to_bf16(simsimd_i64_t const *x, simsimd_bf16_t *y) {
+    simsimd_f32_t f32 = (simsimd_f32_t)*x;
+    simsimd_f32_to_bf16(&f32, y);
+}
+SIMSIMD_INTERNAL void _simsimd_u64_to_f16(simsimd_u64_t const *x, simsimd_f16_t *y) {
+    simsimd_f32_t f32 = (simsimd_f32_t)*x;
+    simsimd_f32_to_f16(&f32, y);
+}
+SIMSIMD_INTERNAL void _simsimd_u64_to_bf16(simsimd_u64_t const *x, simsimd_bf16_t *y) {
+    simsimd_f32_t f32 = (simsimd_f32_t)*x;
+    simsimd_f32_to_bf16(&f32, y);
+}
+
 /**
  *  @brief  Helper structure for implementing strided matrix row lookups, with @b single-byte-level pointer math.
  */
