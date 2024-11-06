@@ -396,15 +396,16 @@ size_t bytes_per_datatype(simsimd_datatype_t dtype) {
 /// @brief Copy a distance to a target datatype, downcasting if necessary.
 /// @return 1 if the cast was successful, 0 if the target datatype is not supported.
 int cast_distance(simsimd_distance_t distance, simsimd_datatype_t target_dtype, void *target_ptr, size_t offset) {
+    _SIMSIMD_STATIC_ASSERT(sizeof(simsimd_distance_t) == sizeof(simsimd_f64_t), distance_size_mismatch);
     switch (target_dtype) {
     case simsimd_datatype_f64c_k: ((simsimd_f64_t *)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
     case simsimd_datatype_f64_k: ((simsimd_f64_t *)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
     case simsimd_datatype_f32c_k: ((simsimd_f32_t *)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
     case simsimd_datatype_f32_k: ((simsimd_f32_t *)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
-    case simsimd_datatype_f16c_k: simsimd_f32_to_f16(distance, (simsimd_f16_t *)target_ptr + offset); return 1;
-    case simsimd_datatype_f16_k: simsimd_f32_to_f16(distance, (simsimd_f16_t *)target_ptr + offset); return 1;
-    case simsimd_datatype_bf16c_k: simsimd_f32_to_bf16(distance, (simsimd_bf16_t *)target_ptr + offset); return 1;
-    case simsimd_datatype_bf16_k: simsimd_f32_to_bf16(distance, (simsimd_bf16_t *)target_ptr + offset); return 1;
+    case simsimd_datatype_f16c_k: _simsimd_f64_to_f16(&distance, (simsimd_f16_t *)target_ptr + offset); return 1;
+    case simsimd_datatype_f16_k: _simsimd_f64_to_f16(&distance, (simsimd_f16_t *)target_ptr + offset); return 1;
+    case simsimd_datatype_bf16c_k: _simsimd_f64_to_bf16(&distance, (simsimd_bf16_t *)target_ptr + offset); return 1;
+    case simsimd_datatype_bf16_k: _simsimd_f64_to_bf16(&distance, (simsimd_bf16_t *)target_ptr + offset); return 1;
     case simsimd_datatype_i8_k: ((simsimd_i8_t *)target_ptr)[offset] = (simsimd_i8_t)distance; return 1;
     case simsimd_datatype_u8_k: ((simsimd_u8_t *)target_ptr)[offset] = (simsimd_u8_t)distance; return 1;
     case simsimd_datatype_i16_k: ((simsimd_i16_t *)target_ptr)[offset] = (simsimd_i16_t)distance; return 1;
@@ -1941,18 +1942,18 @@ static PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t con
     }
     if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
 
-    // Look up the metric and the capability
-    simsimd_kernel_scale_punned_t metric = NULL;
+    // Look up the kernel and the capability
+    simsimd_kernel_scale_punned_t kernel = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_metric_kind_t const metric_kind = simsimd_metric_scale_k;
-    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&metric, &capability);
-    if (!metric) {
+    simsimd_kernel_kind_t const kernel_kind = simsimd_kernel_scale_k;
+    simsimd_find_kernel_punned(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&kernel, &capability);
+    if (!kernel) {
         PyErr_Format( //
             PyExc_LookupError,
-            "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s') and "
+            "Unsupported kernel '%c' and datatype combination across vectors ('%s'/'%s') and "
             "`dtype` override ('%s'/'%s')",
-            metric_kind,                                                                             //
+            kernel_kind,                                                                             //
             a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
             dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
         goto cleanup;
@@ -1989,7 +1990,7 @@ static PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t con
         return_obj = Py_None;
     }
 
-    metric(a_parsed.start, a_parsed.dimensions, alpha, beta, out_buffer_start);
+    kernel(a_parsed.start, a_parsed.dimensions, alpha, beta, out_buffer_start);
 cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&out_buffer);
@@ -2102,18 +2103,18 @@ static PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t const
     }
     if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
 
-    // Look up the metric and the capability
-    simsimd_kernel_sum_punned_t metric = NULL;
+    // Look up the kernel and the capability
+    simsimd_kernel_sum_punned_t kernel = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_metric_kind_t const metric_kind = simsimd_metric_sum_k;
-    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&metric, &capability);
-    if (!metric) {
+    simsimd_kernel_kind_t const kernel_kind = simsimd_kernel_sum_k;
+    simsimd_find_kernel_punned(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&kernel, &capability);
+    if (!kernel) {
         PyErr_Format( //
             PyExc_LookupError,
-            "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s') and "
+            "Unsupported kernel '%c' and datatype combination across vectors ('%s'/'%s') and "
             "`dtype` override ('%s'/'%s')",
-            metric_kind,                                                                             //
+            kernel_kind,                                                                             //
             a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
             dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
         goto cleanup;
@@ -2150,7 +2151,7 @@ static PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t const
         return_obj = Py_None;
     }
 
-    metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, out_buffer_start);
+    kernel(a_parsed.start, b_parsed.start, a_parsed.dimensions, out_buffer_start);
 cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&b_buffer);
@@ -2279,18 +2280,18 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
     }
     if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
 
-    // Look up the metric and the capability
-    simsimd_kernel_wsum_punned_t metric = NULL;
+    // Look up the kernel and the capability
+    simsimd_kernel_wsum_punned_t kernel = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_metric_kind_t const metric_kind = simsimd_metric_wsum_k;
-    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&metric, &capability);
-    if (!metric) {
+    simsimd_kernel_kind_t const kernel_kind = simsimd_kernel_wsum_k;
+    simsimd_find_kernel_punned(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&kernel, &capability);
+    if (!kernel) {
         PyErr_Format( //
             PyExc_LookupError,
-            "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s') and "
+            "Unsupported kernel '%c' and datatype combination across vectors ('%s'/'%s') and "
             "`dtype` override ('%s'/'%s')",
-            metric_kind,                                                                             //
+            kernel_kind,                                                                             //
             a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
             dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
         goto cleanup;
@@ -2327,7 +2328,7 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
         return_obj = Py_None;
     }
 
-    metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, alpha, beta, out_buffer_start);
+    kernel(a_parsed.start, b_parsed.start, a_parsed.dimensions, alpha, beta, out_buffer_start);
 cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&b_buffer);
@@ -2463,18 +2464,18 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
     }
     if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
 
-    // Look up the metric and the capability
-    simsimd_kernel_fma_punned_t metric = NULL;
+    // Look up the kernel and the capability
+    simsimd_kernel_fma_punned_t kernel = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_metric_kind_t const metric_kind = simsimd_metric_fma_k;
-    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&metric, &capability);
-    if (!metric) {
+    simsimd_kernel_kind_t const kernel_kind = simsimd_kernel_fma_k;
+    simsimd_find_kernel_punned(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&kernel, &capability);
+    if (!kernel) {
         PyErr_Format( //
             PyExc_LookupError,
-            "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s') and "
+            "Unsupported kernel '%c' and datatype combination across vectors ('%s'/'%s') and "
             "`dtype` override ('%s'/'%s')",
-            metric_kind,                                                                             //
+            kernel_kind,                                                                             //
             a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
             dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
         goto cleanup;
@@ -2511,7 +2512,7 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
         return_obj = Py_None;
     }
 
-    metric(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, alpha, beta, out_buffer_start);
+    kernel(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, alpha, beta, out_buffer_start);
 cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&b_buffer);
@@ -2520,10 +2521,13 @@ cleanup:
     return return_obj;
 }
 
+typedef void (*binary_kernel_t)(void const *, void const *, void *);
+typedef void (*unary_kernel_t)(void const *, void *);
+
 void implementation_elementwise_binary_tensor_operation( //
     BufferOrScalarArgument const *a_parsed, BufferOrScalarArgument const *b_parsed,
     BufferOrScalarArgument const *out_parsed, //
-    void (*binary_kernel)(void const *, void const *, void *)) {
+    binary_kernel_t elementwise_kernel) {
 
     // The hardest part of this operations is addressing the elements in a non-continuous tensor of arbitrary rank.
     // While iteratively deepening into the lower layers of the tensor, we need to keep track of the byte offsets
@@ -2538,9 +2542,60 @@ void implementation_elementwise_binary_tensor_operation( //
     // indexes in all three tensors, and avoiding additional branches inside the loops.
     while (1) {
         // Invoke the provided kernel at the current byte offsets
-        binary_kernel(a_parsed->as_buffer_start + a_mdindices.byte_offset,
-                      b_parsed->as_buffer_start + b_mdindices.byte_offset,
-                      out_parsed->as_buffer_start + out_mdindices.byte_offset);
+        elementwise_kernel(a_parsed->as_buffer_start + a_mdindices.byte_offset,
+                           b_parsed->as_buffer_start + b_mdindices.byte_offset,
+                           out_parsed->as_buffer_start + out_mdindices.byte_offset);
+
+        // Advance to the next index
+        Py_ssize_t dim;
+        for (dim = out_parsed->as_buffer_dimensions - 1; dim >= 0; --dim) {
+            out_mdindices.coordinates[dim]++;
+            out_mdindices.byte_offset += out_parsed->as_buffer_strides[dim];
+            a_mdindices.byte_offset += a_parsed->as_buffer_strides[dim];
+            b_mdindices.byte_offset += b_parsed->as_buffer_strides[dim];
+
+            // Successfully moved to the next index in this dimension
+            if (out_mdindices.coordinates[dim] < out_parsed->as_buffer_shape[dim]) break;
+            else {
+                // Reset coordinates and byte offset for this dimension
+                out_mdindices.coordinates[dim] = 0;
+                out_mdindices.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                a_mdindices.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                b_mdindices.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+            }
+        }
+
+        // If we've processed all dimensions, we're done
+        if (dim < 0) break;
+    }
+}
+
+void implementation_elementwise_binary_mixed_tensor_operation( //
+    BufferOrScalarArgument const *a_parsed, BufferOrScalarArgument const *b_parsed,
+    BufferOrScalarArgument const *out_parsed,                       //
+    unary_kernel_t a_upcast_kernel, unary_kernel_t b_upcast_kernel, //
+    unary_kernel_t out_downcast_kernel,                             //
+    binary_kernel_t elementwise_kernel) {
+
+    // The hardest part of this operations is addressing the elements in a non-continuous tensor of arbitrary rank.
+    // While iteratively deepening into the lower layers of the tensor, we need to keep track of the byte offsets
+    // for each dimension to avoid recomputing them in the inner loops.
+    simsimd_mdindices_t a_mdindices, b_mdindices, out_mdindices;
+    memset(&a_mdindices, 0, sizeof(simsimd_mdindices_t));
+    memset(&b_mdindices, 0, sizeof(simsimd_mdindices_t));
+    memset(&out_mdindices, 0, sizeof(simsimd_mdindices_t));
+
+    char a_upcast_buffer[8], b_upcast_buffer[8], out_downcast_buffer[8];
+
+    // Start from last dimension and move backward, replicating the logic
+    // of `simsimd_mdindices_next`, broadcasting the same update logic across the
+    // indexes in all three tensors, and avoiding additional branches inside the loops.
+    while (1) {
+        // Invoke the provided kernel at the current byte offsets
+        a_upcast_kernel(a_parsed->as_buffer_start + a_mdindices.byte_offset, a_upcast_buffer);
+        b_upcast_kernel(b_parsed->as_buffer_start + b_mdindices.byte_offset, b_upcast_buffer);
+        elementwise_kernel(a_upcast_buffer, b_upcast_buffer, out_downcast_buffer);
+        out_downcast_kernel(out_downcast_buffer, out_parsed->as_buffer_start + out_mdindices.byte_offset);
 
         // Advance to the next index
         Py_ssize_t dim;
@@ -2614,23 +2669,128 @@ void implementation_vectorized_binary_tensor_operation( //
     }
 }
 
-typedef void (*elementwise_scalar_kernel_t)(void const *, void const *, void *);
-
-static elementwise_scalar_kernel_t elementwise_sadd(simsimd_datatype_t dtype) {
-    void (*scalar_kernel)(void const *, void const *, void *) = NULL;
+static binary_kernel_t elementwise_sadd(simsimd_datatype_t dtype) {
     switch (dtype) {
-    case simsimd_datatype_u64_k: return (elementwise_scalar_kernel_t)&_simsimd_u64_sadd;
-    case simsimd_datatype_u32_k: return (elementwise_scalar_kernel_t)&_simsimd_u32_sadd;
-    case simsimd_datatype_u16_k: return (elementwise_scalar_kernel_t)&_simsimd_u16_sadd;
-    case simsimd_datatype_u8_k: return (elementwise_scalar_kernel_t)&_simsimd_u8_sadd;
-    case simsimd_datatype_i64_k: return (elementwise_scalar_kernel_t)&_simsimd_i64_sadd;
-    case simsimd_datatype_i32_k: return (elementwise_scalar_kernel_t)&_simsimd_i32_sadd;
-    case simsimd_datatype_i16_k: return (elementwise_scalar_kernel_t)&_simsimd_i16_sadd;
-    case simsimd_datatype_i8_k: return (elementwise_scalar_kernel_t)&_simsimd_i8_sadd;
-    case simsimd_datatype_f64_k: return (elementwise_scalar_kernel_t)&_simsimd_f64_sadd;
-    case simsimd_datatype_f32_k: return (elementwise_scalar_kernel_t)&_simsimd_f32_sadd;
-    case simsimd_datatype_f16_k: return (elementwise_scalar_kernel_t)&_simsimd_f16_sadd;
-    case simsimd_datatype_bf16_k: return (elementwise_scalar_kernel_t)&_simsimd_bf16_sadd;
+    case simsimd_datatype_u64_k: return (binary_kernel_t)&_simsimd_u64_sadd;
+    case simsimd_datatype_u32_k: return (binary_kernel_t)&_simsimd_u32_sadd;
+    case simsimd_datatype_u16_k: return (binary_kernel_t)&_simsimd_u16_sadd;
+    case simsimd_datatype_u8_k: return (binary_kernel_t)&_simsimd_u8_sadd;
+    case simsimd_datatype_i64_k: return (binary_kernel_t)&_simsimd_i64_sadd;
+    case simsimd_datatype_i32_k: return (binary_kernel_t)&_simsimd_i32_sadd;
+    case simsimd_datatype_i16_k: return (binary_kernel_t)&_simsimd_i16_sadd;
+    case simsimd_datatype_i8_k: return (binary_kernel_t)&_simsimd_i8_sadd;
+    case simsimd_datatype_f64_k: return (binary_kernel_t)&_simsimd_f64_sadd;
+    case simsimd_datatype_f32_k: return (binary_kernel_t)&_simsimd_f32_sadd;
+    case simsimd_datatype_f16_k: return (binary_kernel_t)&_simsimd_f16_sadd;
+    case simsimd_datatype_bf16_k: return (binary_kernel_t)&_simsimd_bf16_sadd;
+    default: return NULL;
+    }
+}
+
+static unary_kernel_t elementwise_upcast_to_f64(simsimd_datatype_t dtype) {
+    switch (dtype) {
+    case simsimd_datatype_u64_k: return (unary_kernel_t)&_simsimd_u64_to_f64;
+    case simsimd_datatype_u32_k: return (unary_kernel_t)&_simsimd_u32_to_f64;
+    case simsimd_datatype_u16_k: return (unary_kernel_t)&_simsimd_u16_to_f64;
+    case simsimd_datatype_u8_k: return (unary_kernel_t)&_simsimd_u8_to_f64;
+    case simsimd_datatype_i64_k: return (unary_kernel_t)&_simsimd_i64_to_f64;
+    case simsimd_datatype_i32_k: return (unary_kernel_t)&_simsimd_i32_to_f64;
+    case simsimd_datatype_i16_k: return (unary_kernel_t)&_simsimd_i16_to_f64;
+    case simsimd_datatype_i8_k: return (unary_kernel_t)&_simsimd_i8_to_f64;
+    case simsimd_datatype_f64_k: return (unary_kernel_t)&_simsimd_f64_to_f64;
+    case simsimd_datatype_f32_k: return (unary_kernel_t)&_simsimd_f32_to_f64;
+    case simsimd_datatype_f16_k: return (unary_kernel_t)&_simsimd_f16_to_f64;
+    case simsimd_datatype_bf16_k: return (unary_kernel_t)&_simsimd_bf16_to_f64;
+    default: return NULL;
+    }
+}
+
+static unary_kernel_t elementwise_upcast_to_i64(simsimd_datatype_t dtype) {
+    switch (dtype) {
+    case simsimd_datatype_u64_k: return (unary_kernel_t)&_simsimd_u64_to_i64;
+    case simsimd_datatype_u32_k: return (unary_kernel_t)&_simsimd_u32_to_i64;
+    case simsimd_datatype_u16_k: return (unary_kernel_t)&_simsimd_u16_to_i64;
+    case simsimd_datatype_u8_k: return (unary_kernel_t)&_simsimd_u8_to_i64;
+    case simsimd_datatype_i64_k: return (unary_kernel_t)&_simsimd_i64_to_i64;
+    case simsimd_datatype_i32_k: return (unary_kernel_t)&_simsimd_i32_to_i64;
+    case simsimd_datatype_i16_k: return (unary_kernel_t)&_simsimd_i16_to_i64;
+    case simsimd_datatype_i8_k: return (unary_kernel_t)&_simsimd_i8_to_i64;
+    case simsimd_datatype_f64_k: return NULL;
+    case simsimd_datatype_f32_k: return NULL;
+    case simsimd_datatype_f16_k: return NULL;
+    case simsimd_datatype_bf16_k: return NULL;
+    default: return NULL;
+    }
+}
+
+static unary_kernel_t elementwise_upcast_to_u64(simsimd_datatype_t dtype) {
+    switch (dtype) {
+    case simsimd_datatype_u64_k: return (unary_kernel_t)&_simsimd_u64_to_u64;
+    case simsimd_datatype_u32_k: return (unary_kernel_t)&_simsimd_u32_to_u64;
+    case simsimd_datatype_u16_k: return (unary_kernel_t)&_simsimd_u16_to_u64;
+    case simsimd_datatype_u8_k: return (unary_kernel_t)&_simsimd_u8_to_u64;
+    case simsimd_datatype_i64_k: return (unary_kernel_t)&_simsimd_i64_to_u64;
+    case simsimd_datatype_i32_k: return (unary_kernel_t)&_simsimd_i32_to_u64;
+    case simsimd_datatype_i16_k: return (unary_kernel_t)&_simsimd_i16_to_u64;
+    case simsimd_datatype_i8_k: return (unary_kernel_t)&_simsimd_i8_to_u64;
+    case simsimd_datatype_f64_k: return NULL;
+    case simsimd_datatype_f32_k: return NULL;
+    case simsimd_datatype_f16_k: return NULL;
+    case simsimd_datatype_bf16_k: return NULL;
+    default: return NULL;
+    }
+}
+
+static unary_kernel_t elementwise_downcast_from_f64(simsimd_datatype_t dtype) {
+    switch (dtype) {
+    case simsimd_datatype_u64_k: return (unary_kernel_t)&_simsimd_f64_to_u64;
+    case simsimd_datatype_u32_k: return (unary_kernel_t)&_simsimd_f64_to_u32;
+    case simsimd_datatype_u16_k: return (unary_kernel_t)&_simsimd_f64_to_u16;
+    case simsimd_datatype_u8_k: return (unary_kernel_t)&_simsimd_f64_to_u8;
+    case simsimd_datatype_i64_k: return (unary_kernel_t)&_simsimd_f64_to_i64;
+    case simsimd_datatype_i32_k: return (unary_kernel_t)&_simsimd_f64_to_i32;
+    case simsimd_datatype_i16_k: return (unary_kernel_t)&_simsimd_f64_to_i16;
+    case simsimd_datatype_i8_k: return (unary_kernel_t)&_simsimd_f64_to_i8;
+    case simsimd_datatype_f64_k: return (unary_kernel_t)&_simsimd_f64_to_f64;
+    case simsimd_datatype_f32_k: return (unary_kernel_t)&_simsimd_f64_to_f32;
+    case simsimd_datatype_f16_k: return (unary_kernel_t)&_simsimd_f64_to_f16;
+    case simsimd_datatype_bf16_k: return (unary_kernel_t)&_simsimd_f64_to_bf16;
+    default: return NULL;
+    }
+}
+
+static unary_kernel_t elementwise_downcast_from_i64(simsimd_datatype_t dtype) {
+    switch (dtype) {
+    case simsimd_datatype_u64_k: return (unary_kernel_t)&_simsimd_i64_to_u64;
+    case simsimd_datatype_u32_k: return (unary_kernel_t)&_simsimd_i64_to_u32;
+    case simsimd_datatype_u16_k: return (unary_kernel_t)&_simsimd_i64_to_u16;
+    case simsimd_datatype_u8_k: return (unary_kernel_t)&_simsimd_i64_to_u8;
+    case simsimd_datatype_i64_k: return (unary_kernel_t)&_simsimd_i64_to_i64;
+    case simsimd_datatype_i32_k: return (unary_kernel_t)&_simsimd_i64_to_i32;
+    case simsimd_datatype_i16_k: return (unary_kernel_t)&_simsimd_i64_to_i16;
+    case simsimd_datatype_i8_k: return (unary_kernel_t)&_simsimd_i64_to_i8;
+    case simsimd_datatype_f64_k: return (unary_kernel_t)&_simsimd_i64_to_f64;
+    case simsimd_datatype_f32_k: return (unary_kernel_t)&_simsimd_i64_to_f32;
+    case simsimd_datatype_f16_k: return (unary_kernel_t)&_simsimd_i64_to_f16;
+    case simsimd_datatype_bf16_k: return (unary_kernel_t)&_simsimd_i64_to_bf16;
+    default: return NULL;
+    }
+}
+
+static unary_kernel_t elementwise_downcast_from_u64(simsimd_datatype_t dtype) {
+    switch (dtype) {
+    case simsimd_datatype_u64_k: return (unary_kernel_t)&_simsimd_u64_to_u64;
+    case simsimd_datatype_u32_k: return (unary_kernel_t)&_simsimd_u64_to_u32;
+    case simsimd_datatype_u16_k: return (unary_kernel_t)&_simsimd_u64_to_u16;
+    case simsimd_datatype_u8_k: return (unary_kernel_t)&_simsimd_u64_to_u8;
+    case simsimd_datatype_i64_k: return (unary_kernel_t)&_simsimd_u64_to_i64;
+    case simsimd_datatype_i32_k: return (unary_kernel_t)&_simsimd_u64_to_i32;
+    case simsimd_datatype_i16_k: return (unary_kernel_t)&_simsimd_u64_to_i16;
+    case simsimd_datatype_i8_k: return (unary_kernel_t)&_simsimd_u64_to_i8;
+    case simsimd_datatype_f64_k: return (unary_kernel_t)&_simsimd_u64_to_f64;
+    case simsimd_datatype_f32_k: return (unary_kernel_t)&_simsimd_u64_to_f32;
+    case simsimd_datatype_f16_k: return (unary_kernel_t)&_simsimd_u64_to_f16;
+    case simsimd_datatype_bf16_k: return (unary_kernel_t)&_simsimd_u64_to_bf16;
     default: return NULL;
     }
 }
@@ -2680,8 +2840,7 @@ static char const doc_add[] = //
     "Typecasting rules:\n"
     "    - If one of tensors contains integrals and the other - floats, `float64` addition will be used.\n"
     "    - If input tensors contain different sign integrals, `int64` saturating addition will be used.\n"
-    "    - If input tensors contain different size unsiged integrals, `uint64` saturating addition will be used.\n" //
-    ;
+    "    - If input tensors contain different size unsigned integrals, `uint64` saturating addition will be used.";
 
 static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
@@ -2785,7 +2944,6 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
             }
         }
     }
-
     // Check dimensions, but unlike the `sum`, `scale`, `wsum`, and `fma` APIs
     // we want to provide maximal compatibility with NumPy and OpenCV. In many
     // such cases, the input is not a rank-1 tensor and may not be continuous.
@@ -2795,7 +2953,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         //! The ranks of tensors may not match!
         // We need to compare them in reverse order, right to left, assuming all the missing dimensions are 1.
         // To match those, we are going to populate the `a_parsed.as_buffer_shape` and `b_parsed.as_buffer_shape`,
-        // simultanesouly filling the strides of broadcasted dimensions with zeros.
+        // simultaneously filling the strides of broadcasted dimensions with zeros.
         Py_ssize_t const max_rank = a_buffer.ndim > b_buffer.ndim ? a_buffer.ndim : b_buffer.ndim;
         Py_ssize_t const min_rank = a_buffer.ndim < b_buffer.ndim ? a_buffer.ndim : b_buffer.ndim;
         a_parsed.as_buffer_dimensions = max_rank;
@@ -2815,10 +2973,8 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
                 a_parsed.as_buffer_strides[max_rank - 1 - i] = a_stride;
                 b_parsed.as_buffer_strides[max_rank - 1 - i] = b_stride;
                 out_parsed.as_buffer_shape[max_rank - 1 - i] = a_dim;
-                int a_is_continuous =
-                    a_stride == a_dim * ins_continuous_elements * bytes_per_datatype(a_parsed.datatype);
-                int b_is_continuous =
-                    b_stride == b_dim * ins_continuous_elements * bytes_per_datatype(b_parsed.datatype);
+                int a_is_continuous = a_stride == (ins_continuous_elements * bytes_per_datatype(a_parsed.datatype));
+                int b_is_continuous = b_stride == (ins_continuous_elements * bytes_per_datatype(b_parsed.datatype));
                 if (a_is_continuous && b_is_continuous) {
                     ins_continuous_dimensions++;
                     ins_continuous_elements *= a_dim;
@@ -2851,7 +3007,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
             }
         }
         // Populate the remaining dimensions: in any order, front to back for simplicity
-        if (a_buffer.ndim > b_buffer.ndim)
+        if (a_buffer.ndim > b_buffer.ndim) {
             for (Py_ssize_t i = 0; i < a_buffer.ndim - b_buffer.ndim; ++i) {
                 Py_ssize_t const longer_dim = a_buffer.shape[i];
                 Py_ssize_t const longer_stride = a_buffer.strides[i];
@@ -2861,7 +3017,8 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
                 b_parsed.as_buffer_strides[i] = 0;
                 out_parsed.as_buffer_shape[i] = longer_dim;
             }
-        else if (b_buffer.ndim - a_buffer.ndim)
+        }
+        else if (b_buffer.ndim - a_buffer.ndim) {
             for (Py_ssize_t i = 0; i < b_buffer.ndim - a_buffer.ndim; ++i) {
                 Py_ssize_t const longer_dim = b_buffer.shape[i];
                 Py_ssize_t const longer_stride = b_buffer.strides[i];
@@ -2871,6 +3028,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
                 b_parsed.as_buffer_strides[i] = longer_stride;
                 out_parsed.as_buffer_shape[i] = longer_dim;
             }
+        }
     }
     // If at least one of the entries is actually is of `ScalarKind` or `ScalarBufferKind`,
     // our logic becomes much easier:
@@ -2919,7 +3077,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         simsimd_datatype_family_k b_kind = simsimd_datatype_family(b_parsed.datatype);
         if (a_kind == simsimd_datatype_complex_float_family_k) a_kind = simsimd_datatype_float_family_k;
         if (b_kind == simsimd_datatype_complex_float_family_k) b_kind = simsimd_datatype_float_family_k;
-        if (a_kind == simsimd_datatype_binary_famiily_k || b_kind == simsimd_datatype_binary_famiily_k) {
+        if (a_kind == simsimd_datatype_binary_family_k || b_kind == simsimd_datatype_binary_family_k) {
             PyErr_SetString(PyExc_ValueError, "Boolean tensors are not supported in element-wise operations");
             goto cleanup;
         }
@@ -3021,17 +3179,17 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         out_continuous_dimensions && ins_continuous_dimensions) {
 
         // Look up the kernel and the capability
-        simsimd_kernel_sum_punned_t metric = NULL;
+        simsimd_kernel_sum_punned_t kernel = NULL;
         simsimd_capability_t capability = simsimd_cap_serial_k;
-        simsimd_metric_kind_t const metric_kind = simsimd_metric_sum_k;
-        simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                                   (simsimd_kernel_punned_t *)&metric, &capability);
-        if (!metric) {
+        simsimd_kernel_kind_t const kernel_kind = simsimd_kernel_sum_k;
+        simsimd_find_kernel_punned(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                                   (simsimd_kernel_punned_t *)&kernel, &capability);
+        if (!kernel) {
             PyErr_Format( //
                 PyExc_LookupError,
-                "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s') and "
+                "Unsupported kernel '%c' and datatype combination across vectors ('%s'/'%s') and "
                 "`dtype` override ('%s'/'%s')",
-                metric_kind,                                                                             //
+                kernel_kind,                                                                             //
                 a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
                 dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
             goto cleanup;
@@ -3045,38 +3203,61 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
             out_continuous_elements < ins_continuous_elements ? out_continuous_elements : ins_continuous_elements;
         implementation_vectorized_binary_tensor_operation( //
             &a_parsed, &b_parsed, &out_parsed,             //
-            non_continuous_ranks, continuous_elements, metric);
+            non_continuous_ranks, continuous_elements, kernel);
+
         goto cleanup;
     }
 
+    // Finally call the serial kernels!
     // If the output has no continuous dimensions at all, our situation sucks!
     // We can't use SIMD effectively and need to fall back to the scalar operation,
     // but if the input/output types match, at least we don't need to cast the data back and forth.
-    void (*scalar_kernel)(void const *, void const *, void *) = NULL;
-    switch (dtype) {
-    case simsimd_datatype_u64_k: scalar_kernel = _plus_u64; break;
-    case simsimd_datatype_u32_k: scalar_kernel = _plus_u32; break;
-    case simsimd_datatype_u16_k: scalar_kernel = _plus_u16; break;
-    case simsimd_datatype_u8_k: scalar_kernel = _plus_u8; break;
-    case simsimd_datatype_i64_k: scalar_kernel = _plus_i64; break;
-    case simsimd_datatype_i32_k: scalar_kernel = _plus_i32; break;
-    case simsimd_datatype_i16_k: scalar_kernel = _plus_i16; break;
-    case simsimd_datatype_i8_k: scalar_kernel = _plus_i8; break;
-    case simsimd_datatype_f64_k: scalar_kernel = _plus_f64; break;
-    case simsimd_datatype_f32_k: scalar_kernel = _plus_f32; break;
-    case simsimd_datatype_f16_k: scalar_kernel = _plus_f16; break;
-    case simsimd_datatype_bf16_k: scalar_kernel = _plus_bf16; break;
-    default:
-        PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
-        return_obj = NULL;
+    {
+        binary_kernel_t elementwise_sadd_ptr = elementwise_sadd(a_parsed.datatype);
+        implementation_elementwise_binary_tensor_operation(&a_parsed, &b_parsed, &out_parsed, elementwise_sadd_ptr);
         goto cleanup;
     }
-    // Finally call the serial kernels
-    implementation_elementwise_binary_tensor_operation(&a_parsed, &b_parsed, &out_parsed, scalar_kernel);
 
     // If the output has no continuous dimensions at all, our situation sucks!
     // If the type of outputs and inputs doesn't match, it also sucks!
     // We can't use SIMD effectively and need to fall back to the scalar operation.
+    if (simsimd_datatype_family(a_parsed.datatype) == simsimd_datatype_float_family_k &&
+        simsimd_datatype_family(b_parsed.datatype) == simsimd_datatype_float_family_k) {
+        unary_kernel_t a_upcast_ptr = elementwise_upcast_to_f64(a_parsed.datatype);
+        unary_kernel_t b_upcast_ptr = elementwise_upcast_to_f64(b_parsed.datatype);
+        binary_kernel_t elementwise_sadd_ptr = elementwise_sadd(simsimd_datatype_f64_k);
+        unary_kernel_t out_downcast_ptr = elementwise_downcast_from_f64(out_parsed.datatype);
+        implementation_elementwise_binary_mixed_tensor_operation( //
+            &a_parsed, &b_parsed, &out_parsed,                    //
+            a_upcast_ptr, b_upcast_ptr, out_downcast_ptr, elementwise_sadd_ptr);
+        goto cleanup;
+    }
+    else if (simsimd_datatype_family(a_parsed.datatype) == simsimd_datatype_int_family_k &&
+             simsimd_datatype_family(b_parsed.datatype) == simsimd_datatype_int_family_k) {
+        unary_kernel_t a_upcast_ptr = elementwise_upcast_to_i64(a_parsed.datatype);
+        unary_kernel_t b_upcast_ptr = elementwise_upcast_to_i64(b_parsed.datatype);
+        binary_kernel_t elementwise_sadd_ptr = elementwise_sadd(simsimd_datatype_i64_k);
+        unary_kernel_t out_downcast_ptr = elementwise_downcast_from_i64(out_parsed.datatype);
+        implementation_elementwise_binary_mixed_tensor_operation( //
+            &a_parsed, &b_parsed, &out_parsed,                    //
+            a_upcast_ptr, b_upcast_ptr, out_downcast_ptr, elementwise_sadd_ptr);
+        goto cleanup;
+    }
+    else if (simsimd_datatype_family(a_parsed.datatype) == simsimd_datatype_uint_family_k &&
+             simsimd_datatype_family(b_parsed.datatype) == simsimd_datatype_uint_family_k) {
+        unary_kernel_t a_upcast_ptr = elementwise_upcast_to_u64(a_parsed.datatype);
+        unary_kernel_t b_upcast_ptr = elementwise_upcast_to_u64(b_parsed.datatype);
+        binary_kernel_t elementwise_sadd_ptr = elementwise_sadd(simsimd_datatype_u64_k);
+        unary_kernel_t out_downcast_ptr = elementwise_downcast_from_u64(out_parsed.datatype);
+        implementation_elementwise_binary_mixed_tensor_operation( //
+            &a_parsed, &b_parsed, &out_parsed,                    //
+            a_upcast_ptr, b_upcast_ptr, out_downcast_ptr, elementwise_sadd_ptr);
+        goto cleanup;
+    }
+    else {
+        PyErr_Format(PyExc_ValueError, "Unsupported combination of datatypes");
+        goto cleanup;
+    }
 
 cleanup:
     PyBuffer_Release(&a_buffer);

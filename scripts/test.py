@@ -1564,7 +1564,6 @@ def test_add(dtype, kernel, capability, stats_fixture):
 
     def validate(a, b, o):
         c = baseline_kernel(a, b)
-        return c
         d = np.array(simd_kernel(a, b))
         simd_kernel(a, b, out=o)
         assert d.size == c.size

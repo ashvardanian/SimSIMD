@@ -115,7 +115,7 @@ extern "C" {
         static simsimd_kernel_scale_punned_t metric = 0;                                                 \
         if (metric == 0) {                                                                               \
             simsimd_capability_t used_capability;                                                        \
-            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_datatype_##extension##_k,      \
+            simsimd_find_kernel_punned(simsimd_kernel_##name##_k, simsimd_datatype_##extension##_k,      \
                                        simsimd_capabilities(), simsimd_cap_any_k,                        \
                                        (simsimd_kernel_punned_t *)(&metric), &used_capability);          \
         }                                                                                                \
@@ -128,7 +128,7 @@ extern "C" {
         static simsimd_kernel_sum_punned_t metric = 0;                                                          \
         if (metric == 0) {                                                                                      \
             simsimd_capability_t used_capability;                                                               \
-            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_datatype_##extension##_k,             \
+            simsimd_find_kernel_punned(simsimd_kernel_##name##_k, simsimd_datatype_##extension##_k,             \
                                        simsimd_capabilities(), simsimd_cap_any_k,                               \
                                        (simsimd_kernel_punned_t *)(&metric), &used_capability);                 \
         }                                                                                                       \
@@ -142,7 +142,7 @@ extern "C" {
         static simsimd_kernel_wsum_punned_t metric = 0;                                                         \
         if (metric == 0) {                                                                                      \
             simsimd_capability_t used_capability;                                                               \
-            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_datatype_##extension##_k,             \
+            simsimd_find_kernel_punned(simsimd_kernel_##name##_k, simsimd_datatype_##extension##_k,             \
                                        simsimd_capabilities(), simsimd_cap_any_k,                               \
                                        (simsimd_kernel_punned_t *)(&metric), &used_capability);                 \
         }                                                                                                       \
@@ -156,7 +156,7 @@ extern "C" {
         static simsimd_kernel_fma_punned_t metric = 0;                                                           \
         if (metric == 0) {                                                                                       \
             simsimd_capability_t used_capability;                                                                \
-            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_datatype_##extension##_k,              \
+            simsimd_find_kernel_punned(simsimd_kernel_##name##_k, simsimd_datatype_##extension##_k,              \
                                        simsimd_capabilities(), simsimd_cap_any_k,                                \
                                        (simsimd_kernel_punned_t *)(&metric), &used_capability);                  \
         }                                                                                                        \
