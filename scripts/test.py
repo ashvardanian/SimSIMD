@@ -45,11 +45,13 @@ import time
 import platform
 import collections
 from typing import Dict, List
+import faulthandler
 
 import tabulate
 import pytest
 import simsimd as simd
 
+faulthandler.enable()
 
 # NumPy is available on most platforms and is required for most tests.
 # When using PyPy on some platforms NumPy has internal issues, that will
@@ -99,7 +101,7 @@ try:
         elif dtype == np.int8:
             return _normalize_element_wise(x.astype(np.int16) + y, dtype)
         else:
-            return _normalize_element_wise(x + y, dtype)
+            return x + y
 
     def baseline_multiply(x, y):
         dtype = x.dtype if isinstance(x, np.ndarray) else y.dtype
@@ -108,7 +110,7 @@ try:
         elif dtype == np.int8:
             return _normalize_element_wise(x.astype(np.int16) * y, dtype)
         else:
-            return _normalize_element_wise(x * y, dtype)
+            return x * y
 
 except:
     # NumPy is not installed, most tests will be skipped
@@ -583,6 +585,22 @@ def to_array(x, dtype=None):
         if dtype is not None:
             y = y.astype(dtype)
         return y
+
+
+def random_of_dtype(dtype, shape):
+    if dtype == "float64" or dtype == "float32" or dtype == "float16":
+        return np.random.randn(*shape).astype(dtype)
+    elif (
+        dtype == "int8"
+        or dtype == "uint8"
+        or dtype == "int16"
+        or dtype == "uint16"
+        or dtype == "int32"
+        or dtype == "uint32"
+        or dtype == "int64"
+        or dtype == "uint64"
+    ):
+        return np.random.randint(np.iinfo(dtype).min, np.iinfo(dtype).max, shape, dtype=dtype)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1546,122 +1564,123 @@ def test_cdist_hamming(ndim, out_dtype, capability):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(50)
-@pytest.mark.parametrize("dtype", ["float64", "float32"])
+@pytest.mark.parametrize("first_dtype", ["float64", "float32", "int32", "uint32"])
+@pytest.mark.parametrize("second_dtype", ["float64", "float32", "int32", "uint32"])
+@pytest.mark.parametrize("output_dtype", ["float64", "float32", "int32", "uint32"])
 @pytest.mark.parametrize("kernel", ["add"])  # , "multiply"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_add(dtype, kernel, capability, stats_fixture):
+def test_add(first_dtype, second_dtype, output_dtype, kernel, capability, stats_fixture):
     """Tests NumPy-like compatibility interfaces on all kinds of non-contiguous arrays."""
-
-    if dtype == "float16" and is_running_under_qemu():
-        pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
     np.random.seed()
     keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(kernel)
 
-    def get_shape(a) -> tuple:
-        return a.__array_interface__["shape"]
-
-    def validate(a, b, o):
-        c = baseline_kernel(a, b)
-        d = np.array(simd_kernel(a, b))
-        simd_kernel(a, b, out=o)
-        assert d.size == c.size
-        assert d.shape == c.shape
-        np.testing.assert_allclose(d, c, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-        np.testing.assert_allclose(d, o, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-        return d
+    def validate(a, b, inplace_simsimd):
+        result_numpy = baseline_kernel(a, b)
+        result_simsimd = np.array(simd_kernel(a, b))
+        simd_kernel(a, b, out=inplace_simsimd)
+        assert result_simsimd.size == result_numpy.size
+        assert result_simsimd.shape == result_numpy.shape
+        assert result_simsimd.dtype == result_numpy.dtype
+        np.testing.assert_allclose(result_simsimd, result_numpy, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+        np.testing.assert_allclose(result_simsimd, inplace_simsimd, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+        return result_simsimd
 
     # Vector-Vector addition
-    a = np.random.randn(47).astype(dtype)
-    b = np.random.randn(47).astype(dtype)
-    o = np.zeros(47).astype(dtype)
+    a = random_of_dtype(first_dtype, (47,))
+    b = random_of_dtype(second_dtype, (47,))
+    o = np.zeros(47).astype(output_dtype)
     validate(a, b, o)
 
     # Vector-Scalar addition
+    validate(a, -11, o)
     validate(a, 11, o)
+    validate(a, 11.0, o)
 
     # Scalar-Vector addition
-    validate(11, b, o)
+    validate(-13, b, o)
+    validate(13, b, o)
+    validate(13.0, b, o)
 
     # Matrix-Matrix addition
-    a = np.random.randn(10, 47).astype(dtype)
-    b = np.random.randn(10, 47).astype(dtype)
-    o = np.zeros((10, 47)).astype(dtype)
+    a = random_of_dtype(first_dtype, (10, 47))
+    b = random_of_dtype(second_dtype, (10, 47))
+    o = np.zeros((10, 47)).astype(output_dtype)
     validate(a, b, o)
 
     # Strided Matrix-Matrix addition
-    a_extended = np.random.randn(10, 47).astype(dtype)
-    b_extended = np.random.randn(10, 47).astype(dtype)
+    a_extended = random_of_dtype(first_dtype, (10, 47))
+    b_extended = random_of_dtype(second_dtype, (10, 47))
     a = a_extended[::2, 1:]  # Every second (even) row, all columns but the first
     b = b_extended[1::2, :-1]  # Every second (odd) row, all columns but the last
-    o = np.zeros((5, 46)).astype(dtype)
+    o = np.zeros((5, 46)).astype(output_dtype)
     validate(a, b, o)
 
     # Strided Matrix-Matrix addition in with reverse order of different dimensions
-    a_extended = np.random.randn(10, 47).astype(dtype)
-    b_extended = np.random.randn(10, 47).astype(dtype)
+    a_extended = random_of_dtype(first_dtype, (10, 47))
+    b_extended = random_of_dtype(second_dtype, (10, 47))
     a = a_extended[::-2, 1:]  # Every second (even) row (reverse), all columns but the first
     b = b_extended[1::2, -2::-1]  # Every second (odd) row, all columns (reversed) but the last
-    o = np.zeros((5, 46)).astype(dtype)
+    o = np.zeros((5, 46)).astype(output_dtype)
     validate(a, b, o)
 
     # Raise an error if shapes are different
-    a = np.random.randn(10, 47).astype(dtype)
-    b = np.random.randn(10, 46).astype(dtype)
+    a = random_of_dtype(first_dtype, (10, 47))
+    b = random_of_dtype(second_dtype, (10, 46))
     with pytest.raises(ValueError):
         baseline_kernel(a, b)
     with pytest.raises(ValueError):
         simd_kernel(a, b)
 
     # Raise an error if shapes are different
-    a = np.random.randn(6, 2, 3).astype(dtype)
-    b = np.random.randn(6, 6).astype(dtype)
+    a = random_of_dtype(first_dtype, (6, 2, 3))
+    b = random_of_dtype(second_dtype, (6, 6))
     with pytest.raises(ValueError):
         baseline_kernel(a, b)
     with pytest.raises(ValueError):
         simd_kernel(a, b)
 
     # Make sure broadcasting works as expected for a single scalar
-    a = np.random.randn(4, 7, 5, 3).astype(dtype)
-    b = np.random.randn(1).astype(dtype)
-    o = np.zeros((4, 7, 5, 3)).astype(dtype)
+    a = random_of_dtype(first_dtype, (4, 7, 5, 3))
+    b = random_of_dtype(second_dtype, (1,))
+    o = np.zeros((4, 7, 5, 3)).astype(output_dtype)
     assert validate(a, b, o).shape == (4, 7, 5, 3)
 
     # Make sure broadcasting works as expected for a unit tensor
-    a = np.random.randn(4, 7, 5, 3).astype(dtype)
-    b = np.random.randn(1, 1, 1, 1).astype(dtype)
-    o = np.zeros((4, 7, 5, 3)).astype(dtype)
+    a = random_of_dtype(first_dtype, (4, 7, 5, 3))
+    b = random_of_dtype(second_dtype, (1, 1, 1, 1))
+    o = np.zeros((4, 7, 5, 3)).astype(output_dtype)
     assert validate(a, b, o).shape == (4, 7, 5, 3)
 
-    # Make sure broadcasting works as expected for unit tensors of different rank
-    a = np.random.randn(1, 1, 1, 1).astype(dtype)
-    b = np.random.randn(1, 1, 1).astype(dtype)
-    o = np.zeros((1, 1, 1, 1)).astype(dtype)
+    # Make sure broadcasting works as expected for 2 unit tensors of different rank
+    a = random_of_dtype(first_dtype, (1, 1, 1, 1))
+    b = random_of_dtype(second_dtype, (1, 1, 1))
+    o = np.zeros((1, 1, 1, 1)).astype(output_dtype)
     assert validate(a, b, o).shape == (1, 1, 1, 1)
 
-    # Make sure broadcasting works as expected for a single scalar
-    a = np.random.randn(4, 7, 5, 3).astype(dtype)
-    b = np.random.randn(1, 1, 1).astype(dtype)
-    o = np.zeros((4, 7, 5, 3)).astype(dtype)
+    # Make sure broadcasting works as expected for a unit tensor of different rank
+    a = random_of_dtype(first_dtype, (4, 7, 5, 3))
+    b = random_of_dtype(second_dtype, (1, 1, 1))
+    o = np.zeros((4, 7, 5, 3)).astype(output_dtype)
     assert validate(a, b, o).shape == (4, 7, 5, 3)
 
-    # Make sure broadcasting works as expected for a single scalar
-    a = np.random.randn(4, 7, 5, 3).astype(dtype)
-    b = np.random.randn(1, 1, 1, 1, 1).astype(dtype)
-    o = np.zeros((4, 7, 5, 3)).astype(dtype)
+    # Make sure broadcasting works as expected for an added dimension
+    a = random_of_dtype(first_dtype, (4, 7, 5, 3))
+    b = random_of_dtype(second_dtype, (1, 1, 1, 1, 1))
+    o = np.zeros((1, 4, 7, 5, 3)).astype(output_dtype)
     assert validate(a, b, o).shape == (1, 4, 7, 5, 3)
 
     # Make sure broadcasting works as expected for mixed origin broadcasting
-    a = np.random.randn(4, 7, 5, 3).astype(dtype)
-    b = np.random.randn(2, 1, 1, 1, 1).astype(dtype)
-    o = np.zeros((4, 7, 5, 3)).astype(dtype)
+    a = random_of_dtype(first_dtype, (4, 7, 5, 3))
+    b = random_of_dtype(second_dtype, (2, 1, 1, 1, 1))
+    o = np.zeros((2, 4, 7, 5, 3)).astype(output_dtype)
     assert validate(a, b, o).shape == (2, 4, 7, 5, 3)
 
     # Make sure broadcasting works as expected
-    a = np.random.randn(4, 7, 5, 3).astype(dtype)
-    b = np.random.randn(4, 1, 5, 1).astype(dtype)
-    o = np.zeros((4, 7, 5, 3)).astype(dtype)
+    a = random_of_dtype(first_dtype, (4, 7, 5, 1))
+    b = random_of_dtype(second_dtype, (4, 1, 5, 3))
+    o = np.zeros((4, 7, 5, 3)).astype(output_dtype)
     assert validate(a, b, o).shape == (4, 7, 5, 3)
 
 
