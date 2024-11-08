@@ -220,8 +220,8 @@ int same_string(char const *a, char const *b) { return strcmp(a, b) == 0; }
 /// @brief Helper method to check if a logical datatype is complex and should be represented as two scalars.
 /// @return 1 if the datatype is complex, 0 otherwise.
 int is_complex(simsimd_datatype_t datatype) {
-    return datatype == simsimd_datatype_f32c_k || datatype == simsimd_datatype_f64c_k ||
-           datatype == simsimd_datatype_f16c_k || datatype == simsimd_datatype_bf16c_k;
+    return datatype == simsimd_f32c_k || datatype == simsimd_f64c_k || datatype == simsimd_f16c_k ||
+           datatype == simsimd_bf16c_k;
 }
 
 /// @brief Converts a Python-ic datatype string to a logical datatype, normalizing the format.
@@ -234,50 +234,50 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
     if (same_string(name, "float32") || same_string(name, "f32") || // SimSIMD-specific
         same_string(name, "f4") || same_string(name, "<f4") ||      // Sized float
         same_string(name, "f") || same_string(name, "<f"))          // Named type
-        return simsimd_datatype_f32_k;
+        return simsimd_f32_k;
     else if (same_string(name, "float16") || same_string(name, "f16") || // SimSIMD-specific
              same_string(name, "f2") || same_string(name, "<f2") ||      // Sized float
              same_string(name, "e") || same_string(name, "<e"))          // Named type
-        return simsimd_datatype_f16_k;
+        return simsimd_f16_k;
     else if (same_string(name, "float64") || same_string(name, "f64") || // SimSIMD-specific
              same_string(name, "f8") || same_string(name, "<f8") ||      // Sized float
              same_string(name, "d") || same_string(name, "<d"))          // Named type
-        return simsimd_datatype_f64_k;
+        return simsimd_f64_k;
     //? The exact format is not defined, but TensorFlow uses 'E' for `bf16`?!
     else if (same_string(name, "bfloat16") || same_string(name, "bf16")) // SimSIMD-specific
-        return simsimd_datatype_bf16_k;
+        return simsimd_bf16_k;
 
     // Complex numbers:
     else if (same_string(name, "complex64") ||                                             // SimSIMD-specific
              same_string(name, "F4") || same_string(name, "<F4") ||                        // Sized complex
              same_string(name, "Zf") || same_string(name, "F") || same_string(name, "<F")) // Named type
-        return simsimd_datatype_f32c_k;
+        return simsimd_f32c_k;
     else if (same_string(name, "complex128") ||                                            // SimSIMD-specific
              same_string(name, "F8") || same_string(name, "<F8") ||                        // Sized complex
              same_string(name, "Zd") || same_string(name, "D") || same_string(name, "<D")) // Named type
-        return simsimd_datatype_f64c_k;
+        return simsimd_f64c_k;
     else if (same_string(name, "complex32") ||                                             // SimSIMD-specific
              same_string(name, "F2") || same_string(name, "<F2") ||                        // Sized complex
              same_string(name, "Ze") || same_string(name, "E") || same_string(name, "<E")) // Named type
-        return simsimd_datatype_f16c_k;
+        return simsimd_f16c_k;
     //? The exact format is not defined, but TensorFlow uses 'E' for `bf16`?!
     else if (same_string(name, "bcomplex32")) // SimSIMD-specific
-        return simsimd_datatype_bf16c_k;
+        return simsimd_bf16c_k;
 
     //! Boolean values:
     else if (same_string(name, "bin8") || same_string(name, "bit8") || // SimSIMD-specific
              same_string(name, "c"))                                   // Named type
-        return simsimd_datatype_b8_k;
+        return simsimd_b8_k;
 
     // Signed integers:
     else if (same_string(name, "int8") ||                                                       // SimSIMD-specific
              same_string(name, "i1") || same_string(name, "|i1") || same_string(name, "<i1") || // Sized integer
              same_string(name, "b") || same_string(name, "<b"))                                 // Named type
-        return simsimd_datatype_i8_k;
+        return simsimd_i8_k;
     else if (same_string(name, "int16") ||                                                      // SimSIMD-specific
              same_string(name, "i2") || same_string(name, "|i2") || same_string(name, "<i2") || // Sized integer
              same_string(name, "h") || same_string(name, "<h"))                                 // Named type
-        return simsimd_datatype_i16_k;
+        return simsimd_i16_k;
 
         //! On Windows the 32-bit and 64-bit signed integers will have different specifiers:
         //! https://github.com/pybind/pybind11/issues/1908
@@ -285,31 +285,31 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
     else if (same_string(name, "int32") ||                                                      // SimSIMD-specific
              same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
              same_string(name, "l") || same_string(name, "<l"))                                 // Named type
-        return simsimd_datatype_i32_k;
+        return simsimd_i32_k;
     else if (same_string(name, "int64") ||                                                      // SimSIMD-specific
              same_string(name, "i8") || same_string(name, "|i8") || same_string(name, "<i8") || // Sized integer
              same_string(name, "q") || same_string(name, "<q"))                                 // Named type
-        return simsimd_datatype_i64_k;
+        return simsimd_i64_k;
 #else // On Linux and macOS:
     else if (same_string(name, "int32") ||                                                      // SimSIMD-specific
              same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
              same_string(name, "i") || same_string(name, "<i"))                                 // Named type
-        return simsimd_datatype_i32_k;
+        return simsimd_i32_k;
     else if (same_string(name, "int64") ||                                                      // SimSIMD-specific
              same_string(name, "i8") || same_string(name, "|i8") || same_string(name, "<i8") || // Sized integer
              same_string(name, "l") || same_string(name, "<l"))                                 // Named type
-        return simsimd_datatype_i64_k;
+        return simsimd_i64_k;
 #endif
 
     // Unsigned integers:
     else if (same_string(name, "uint8") ||                                                      // SimSIMD-specific
              same_string(name, "u1") || same_string(name, "|u1") || same_string(name, "<u1") || // Sized integer
              same_string(name, "B") || same_string(name, "<B"))                                 // Named type
-        return simsimd_datatype_u8_k;
+        return simsimd_u8_k;
     else if (same_string(name, "uint16") ||                                                     // SimSIMD-specific
              same_string(name, "u2") || same_string(name, "|u2") || same_string(name, "<u2") || // Sized integer
              same_string(name, "H") || same_string(name, "<H"))                                 // Named type
-        return simsimd_datatype_u16_k;
+        return simsimd_u16_k;
 
         //! On Windows the 32-bit and 64-bit unsigned integers will have different specifiers:
         //! https://github.com/pybind/pybind11/issues/1908
@@ -317,20 +317,20 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
     else if (same_string(name, "uint32") ||                                                     // SimSIMD-specific
              same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
              same_string(name, "L") || same_string(name, "<L"))                                 // Named type
-        return simsimd_datatype_u32_k;
+        return simsimd_u32_k;
     else if (same_string(name, "uint64") ||                                                     // SimSIMD-specific
              same_string(name, "i8") || same_string(name, "|i8") || same_string(name, "<i8") || // Sized integer
              same_string(name, "Q") || same_string(name, "<Q"))                                 // Named type
-        return simsimd_datatype_u64_k;
+        return simsimd_u64_k;
 #else // On Linux and macOS:
     else if (same_string(name, "uint32") ||                                                     // SimSIMD-specific
              same_string(name, "u4") || same_string(name, "|u4") || same_string(name, "<u4") || // Sized integer
              same_string(name, "I") || same_string(name, "<I"))                                 // Named type
-        return simsimd_datatype_u32_k;
+        return simsimd_u32_k;
     else if (same_string(name, "uint64") ||                                                     // SimSIMD-specific
              same_string(name, "u8") || same_string(name, "|u8") || same_string(name, "<u8") || // Sized integer
              same_string(name, "L") || same_string(name, "<L"))                                 // Named type
-        return simsimd_datatype_u64_k;
+        return simsimd_u64_k;
 #endif
 
     else
@@ -344,25 +344,25 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
 char const *datatype_to_python_string(simsimd_datatype_t dtype) {
     switch (dtype) {
         // Floating-point numbers:
-    case simsimd_datatype_f64_k: return "d";
-    case simsimd_datatype_f32_k: return "f";
-    case simsimd_datatype_f16_k: return "e";
+    case simsimd_f64_k: return "d";
+    case simsimd_f32_k: return "f";
+    case simsimd_f16_k: return "e";
     // Complex numbers:
-    case simsimd_datatype_f64c_k: return "Zd";
-    case simsimd_datatype_f32c_k: return "Zf";
-    case simsimd_datatype_f16c_k: return "Ze";
+    case simsimd_f64c_k: return "Zd";
+    case simsimd_f32c_k: return "Zf";
+    case simsimd_f16c_k: return "Ze";
     // Boolean values:
-    case simsimd_datatype_b8_k: return "c";
+    case simsimd_b8_k: return "c";
     // Signed integers:
-    case simsimd_datatype_i8_k: return "b";
-    case simsimd_datatype_i16_k: return "h";
-    case simsimd_datatype_i32_k: return "i";
-    case simsimd_datatype_i64_k: return "q";
+    case simsimd_i8_k: return "b";
+    case simsimd_i16_k: return "h";
+    case simsimd_i32_k: return "i";
+    case simsimd_i64_k: return "q";
     // Unsigned integers:
-    case simsimd_datatype_u8_k: return "B";
-    case simsimd_datatype_u16_k: return "H";
-    case simsimd_datatype_u32_k: return "I";
-    case simsimd_datatype_u64_k: return "Q";
+    case simsimd_u8_k: return "B";
+    case simsimd_u16_k: return "H";
+    case simsimd_u32_k: return "I";
+    case simsimd_u64_k: return "Q";
     // Other:
     default: return "unknown";
     }
@@ -373,23 +373,23 @@ char const *datatype_to_python_string(simsimd_datatype_t dtype) {
 /// @return Zero if the datatype is not supported, positive integer otherwise.
 size_t bytes_per_datatype(simsimd_datatype_t dtype) {
     switch (dtype) {
-    case simsimd_datatype_f64_k: return sizeof(simsimd_f64_t);
-    case simsimd_datatype_f32_k: return sizeof(simsimd_f32_t);
-    case simsimd_datatype_f16_k: return sizeof(simsimd_f16_t);
-    case simsimd_datatype_bf16_k: return sizeof(simsimd_bf16_t);
-    case simsimd_datatype_f64c_k: return sizeof(simsimd_f64_t) * 2;
-    case simsimd_datatype_f32c_k: return sizeof(simsimd_f32_t) * 2;
-    case simsimd_datatype_f16c_k: return sizeof(simsimd_f16_t) * 2;
-    case simsimd_datatype_bf16c_k: return sizeof(simsimd_bf16_t) * 2;
-    case simsimd_datatype_b8_k: return sizeof(simsimd_b8_t);
-    case simsimd_datatype_i8_k: return sizeof(simsimd_i8_t);
-    case simsimd_datatype_u8_k: return sizeof(simsimd_u8_t);
-    case simsimd_datatype_i16_k: return sizeof(simsimd_i16_t);
-    case simsimd_datatype_u16_k: return sizeof(simsimd_u16_t);
-    case simsimd_datatype_i32_k: return sizeof(simsimd_i32_t);
-    case simsimd_datatype_u32_k: return sizeof(simsimd_u32_t);
-    case simsimd_datatype_i64_k: return sizeof(simsimd_i64_t);
-    case simsimd_datatype_u64_k: return sizeof(simsimd_u64_t);
+    case simsimd_f64_k: return sizeof(simsimd_f64_t);
+    case simsimd_f32_k: return sizeof(simsimd_f32_t);
+    case simsimd_f16_k: return sizeof(simsimd_f16_t);
+    case simsimd_bf16_k: return sizeof(simsimd_bf16_t);
+    case simsimd_f64c_k: return sizeof(simsimd_f64_t) * 2;
+    case simsimd_f32c_k: return sizeof(simsimd_f32_t) * 2;
+    case simsimd_f16c_k: return sizeof(simsimd_f16_t) * 2;
+    case simsimd_bf16c_k: return sizeof(simsimd_bf16_t) * 2;
+    case simsimd_b8_k: return sizeof(simsimd_b8_t);
+    case simsimd_i8_k: return sizeof(simsimd_i8_t);
+    case simsimd_u8_k: return sizeof(simsimd_u8_t);
+    case simsimd_i16_k: return sizeof(simsimd_i16_t);
+    case simsimd_u16_k: return sizeof(simsimd_u16_t);
+    case simsimd_i32_k: return sizeof(simsimd_i32_t);
+    case simsimd_u32_k: return sizeof(simsimd_u32_t);
+    case simsimd_i64_k: return sizeof(simsimd_i64_t);
+    case simsimd_u64_k: return sizeof(simsimd_u64_t);
     default: return 0;
     }
 }
@@ -399,27 +399,27 @@ size_t bytes_per_datatype(simsimd_datatype_t dtype) {
 int cast_distance(simsimd_distance_t distance, simsimd_datatype_t target_dtype, void *target_ptr, size_t offset) {
     _SIMSIMD_STATIC_ASSERT(sizeof(simsimd_distance_t) == sizeof(simsimd_f64_t), distance_size_mismatch);
     switch (target_dtype) {
-    case simsimd_datatype_f64c_k: ((simsimd_f64_t *)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
-    case simsimd_datatype_f64_k: ((simsimd_f64_t *)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
-    case simsimd_datatype_f32c_k: ((simsimd_f32_t *)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
-    case simsimd_datatype_f32_k: ((simsimd_f32_t *)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
-    case simsimd_datatype_f16c_k: _simsimd_f64_to_f16(&distance, (simsimd_f16_t *)target_ptr + offset); return 1;
-    case simsimd_datatype_f16_k: _simsimd_f64_to_f16(&distance, (simsimd_f16_t *)target_ptr + offset); return 1;
-    case simsimd_datatype_bf16c_k: _simsimd_f64_to_bf16(&distance, (simsimd_bf16_t *)target_ptr + offset); return 1;
-    case simsimd_datatype_bf16_k: _simsimd_f64_to_bf16(&distance, (simsimd_bf16_t *)target_ptr + offset); return 1;
-    case simsimd_datatype_i8_k: ((simsimd_i8_t *)target_ptr)[offset] = (simsimd_i8_t)distance; return 1;
-    case simsimd_datatype_u8_k: ((simsimd_u8_t *)target_ptr)[offset] = (simsimd_u8_t)distance; return 1;
-    case simsimd_datatype_i16_k: ((simsimd_i16_t *)target_ptr)[offset] = (simsimd_i16_t)distance; return 1;
-    case simsimd_datatype_u16_k: ((simsimd_u16_t *)target_ptr)[offset] = (simsimd_u16_t)distance; return 1;
-    case simsimd_datatype_i32_k: ((simsimd_i32_t *)target_ptr)[offset] = (simsimd_i32_t)distance; return 1;
-    case simsimd_datatype_u32_k: ((simsimd_u32_t *)target_ptr)[offset] = (simsimd_u32_t)distance; return 1;
-    case simsimd_datatype_i64_k: ((simsimd_i64_t *)target_ptr)[offset] = (simsimd_i64_t)distance; return 1;
-    case simsimd_datatype_u64_k: ((simsimd_u64_t *)target_ptr)[offset] = (simsimd_u64_t)distance; return 1;
+    case simsimd_f64c_k: ((simsimd_f64_t *)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
+    case simsimd_f64_k: ((simsimd_f64_t *)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
+    case simsimd_f32c_k: ((simsimd_f32_t *)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
+    case simsimd_f32_k: ((simsimd_f32_t *)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
+    case simsimd_f16c_k: _simsimd_f64_to_f16(&distance, (simsimd_f16_t *)target_ptr + offset); return 1;
+    case simsimd_f16_k: _simsimd_f64_to_f16(&distance, (simsimd_f16_t *)target_ptr + offset); return 1;
+    case simsimd_bf16c_k: _simsimd_f64_to_bf16(&distance, (simsimd_bf16_t *)target_ptr + offset); return 1;
+    case simsimd_bf16_k: _simsimd_f64_to_bf16(&distance, (simsimd_bf16_t *)target_ptr + offset); return 1;
+    case simsimd_i8_k: ((simsimd_i8_t *)target_ptr)[offset] = (simsimd_i8_t)distance; return 1;
+    case simsimd_u8_k: ((simsimd_u8_t *)target_ptr)[offset] = (simsimd_u8_t)distance; return 1;
+    case simsimd_i16_k: ((simsimd_i16_t *)target_ptr)[offset] = (simsimd_i16_t)distance; return 1;
+    case simsimd_u16_k: ((simsimd_u16_t *)target_ptr)[offset] = (simsimd_u16_t)distance; return 1;
+    case simsimd_i32_k: ((simsimd_i32_t *)target_ptr)[offset] = (simsimd_i32_t)distance; return 1;
+    case simsimd_u32_k: ((simsimd_u32_t *)target_ptr)[offset] = (simsimd_u32_t)distance; return 1;
+    case simsimd_i64_k: ((simsimd_i64_t *)target_ptr)[offset] = (simsimd_i64_t)distance; return 1;
+    case simsimd_u64_k: ((simsimd_u64_t *)target_ptr)[offset] = (simsimd_u64_t)distance; return 1;
     default: return 0;
     }
 }
 
-simsimd_metric_kind_t python_string_to_metric_kind(char const *name) {
+simsimd_kernel_kind_t python_string_to_kernel_kind(char const *name) {
     if (same_string(name, "euclidean") || same_string(name, "l2")) return simsimd_euclidean_k;
     else if (same_string(name, "sqeuclidean") || same_string(name, "l2sq"))
         return simsimd_sqeuclidean_k;
@@ -449,7 +449,7 @@ simsimd_metric_kind_t python_string_to_metric_kind(char const *name) {
 
 /// @brief Check if a metric is commutative, i.e., if `metric(a, b) == metric(b, a)`.
 /// @return 1 if the metric is commutative, 0 otherwise.
-int kernel_is_commutative(simsimd_metric_kind_t kind) {
+int kernel_is_commutative(simsimd_kernel_kind_t kind) {
     switch (kind) {
     case simsimd_kl_k: return 0;
     case simsimd_bilinear_k: return 0; //? The kernel is commutative if only the matrix is symmetric
@@ -653,16 +653,16 @@ int parse_buffer_or_scalar_argument(PyObject *obj, Py_buffer *buffer, BufferOrSc
         if (SIMSIMD_NATIVE_F16 && as_float == (simsimd_f64_t)(simsimd_f16_t)as_float) {
             simsimd_f16_t as_f16 = (simsimd_f16_t)as_float;
             memcpy(parsed->as_scalar, &as_f16, sizeof(simsimd_f16_t));
-            parsed->datatype = simsimd_datatype_f16_k;
+            parsed->datatype = simsimd_f16_k;
         }
         else if (as_float == (simsimd_f64_t)(simsimd_f32_t)as_float) {
             simsimd_f32_t as_f32 = (simsimd_f32_t)as_float;
             memcpy(parsed->as_scalar, &as_f32, sizeof(simsimd_f32_t));
-            parsed->datatype = simsimd_datatype_f32_k;
+            parsed->datatype = simsimd_f32_k;
         }
         else {
             memcpy(parsed->as_scalar, &as_float, sizeof(simsimd_f64_t));
-            parsed->datatype = simsimd_datatype_f64_k;
+            parsed->datatype = simsimd_f64_k;
         }
         return 1;
     }
@@ -683,36 +683,36 @@ int parse_buffer_or_scalar_argument(PyObject *obj, Py_buffer *buffer, BufferOrSc
         if (as_integral == (simsimd_u64_t)(simsimd_u8_t)as_integral) {
             simsimd_u8_t as_u8 = (simsimd_u8_t)as_integral;
             memcpy(parsed->as_scalar, &as_u8, sizeof(simsimd_u8_t));
-            parsed->datatype = simsimd_datatype_u8_k;
+            parsed->datatype = simsimd_u8_k;
         }
         else if (as_integral == (simsimd_u64_t)(simsimd_u16_t)as_integral) {
             simsimd_u16_t as_u16 = (simsimd_u16_t)as_integral;
             memcpy(parsed->as_scalar, &as_u16, sizeof(simsimd_u16_t));
-            parsed->datatype = simsimd_datatype_u16_k;
+            parsed->datatype = simsimd_u16_k;
         }
         else if (as_integral == (simsimd_u64_t)(simsimd_u32_t)as_integral) {
             simsimd_u32_t as_u32 = (simsimd_u32_t)as_integral;
             memcpy(parsed->as_scalar, &as_u32, sizeof(simsimd_u32_t));
-            parsed->datatype = simsimd_datatype_u32_k;
+            parsed->datatype = simsimd_u32_k;
         }
         else if (as_integral == (simsimd_i64_t)(simsimd_i8_t)as_integral) {
             simsimd_i8_t as_i8 = (simsimd_i8_t)as_integral;
             memcpy(parsed->as_scalar, &as_i8, sizeof(simsimd_i8_t));
-            parsed->datatype = simsimd_datatype_i8_k;
+            parsed->datatype = simsimd_i8_k;
         }
         else if (as_integral == (simsimd_i64_t)(simsimd_i16_t)as_integral) {
             simsimd_i16_t as_i16 = (simsimd_i16_t)as_integral;
             memcpy(parsed->as_scalar, &as_i16, sizeof(simsimd_i16_t));
-            parsed->datatype = simsimd_datatype_i16_k;
+            parsed->datatype = simsimd_i16_k;
         }
         else if (as_integral == (simsimd_i64_t)(simsimd_i32_t)as_integral) {
             simsimd_i32_t as_i32 = (simsimd_i32_t)as_integral;
             memcpy(parsed->as_scalar, &as_i32, sizeof(simsimd_i32_t));
-            parsed->datatype = simsimd_datatype_i32_k;
+            parsed->datatype = simsimd_i32_k;
         }
         else {
             memcpy(parsed->as_scalar, &as_integral, sizeof(simsimd_i64_t));
-            parsed->datatype = simsimd_datatype_i64_k;
+            parsed->datatype = simsimd_i64_k;
         }
         return 1;
     }
@@ -809,7 +809,7 @@ static PyObject *NDArray_get_size(NDArray *self, void *closure) {
 }
 
 static PyObject *implement_dense_metric( //
-    simsimd_metric_kind_t metric_kind,   //
+    simsimd_kernel_kind_t kernel_kind,   //
     PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
 
     PyObject *return_obj = NULL;
@@ -924,7 +924,7 @@ static PyObject *implement_dense_metric( //
     // 3. double precision float (or its complex variant)
     if (out_dtype == simsimd_datatype_unknown_k) {
         if (out_obj) { out_dtype = out_parsed.datatype; }
-        else { out_dtype = is_complex(dtype) ? simsimd_datatype_f64c_k : simsimd_datatype_f64_k; }
+        else { out_dtype = is_complex(dtype) ? simsimd_f64c_k : simsimd_f64_k; }
     }
 
     // Make sure the return datatype is complex if the input datatype is complex, and the same for real numbers
@@ -947,16 +947,16 @@ static PyObject *implement_dense_metric( //
     }
 
     // Look up the metric and the capability
-    simsimd_metric_dense_punned_t metric = NULL;
+    simsimd_dense_metric_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&metric, &capability);
+    simsimd_find_kernel(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k, (simsimd_kernel_punned_t *)&metric,
+                        &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError,
             "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s' and '%s'/'%s') and "
             "`dtype` override ('%s'/'%s')",
-            metric_kind,                                                                             //
+            kernel_kind,                                                                             //
             a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
             b_buffer.format ? b_buffer.format : "nil", datatype_to_python_string(b_parsed.datatype), //
             dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
@@ -1052,7 +1052,7 @@ cleanup:
 }
 
 static PyObject *implement_curved_metric( //
-    simsimd_metric_kind_t metric_kind,    //
+    simsimd_kernel_kind_t kernel_kind,    //
     PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
 
     PyObject *return_obj = NULL;
@@ -1152,16 +1152,16 @@ static PyObject *implement_curved_metric( //
     if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
 
     // Look up the metric and the capability
-    simsimd_metric_curved_punned_t metric = NULL;
+    simsimd_curved_metric_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&metric, &capability);
+    simsimd_find_kernel(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k, (simsimd_kernel_punned_t *)&metric,
+                        &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError,
             "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s' and '%s'/'%s'), "
             "tensor ('%s'/'%s'), and `dtype` override ('%s'/'%s')",
-            metric_kind,                                                                             //
+            kernel_kind,                                                                             //
             a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
             b_buffer.format ? b_buffer.format : "nil", datatype_to_python_string(b_parsed.datatype), //
             c_buffer.format ? c_buffer.format : "nil", datatype_to_python_string(c_parsed.datatype), //
@@ -1182,7 +1182,7 @@ cleanup:
 }
 
 static PyObject *implement_sparse_metric( //
-    simsimd_metric_kind_t metric_kind,    //
+    simsimd_kernel_kind_t kernel_kind,    //
     PyObject *const *args, Py_ssize_t nargs) {
     if (nargs != 2) {
         PyErr_SetString(PyExc_TypeError, "Function expects only 2 arguments");
@@ -1212,14 +1212,14 @@ static PyObject *implement_sparse_metric( //
     }
 
     simsimd_datatype_t dtype = a_parsed.datatype;
-    simsimd_metric_sparse_punned_t metric = NULL;
+    simsimd_sparse_metric_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&metric, &capability);
+    simsimd_find_kernel(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k, (simsimd_kernel_punned_t *)&metric,
+                        &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError, "Unsupported metric '%c' and datatype combination ('%s'/'%s' and '%s'/'%s')",
-            metric_kind,                                                                             //
+            kernel_kind,                                                                             //
             a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
             b_buffer.format ? b_buffer.format : "nil", datatype_to_python_string(b_parsed.datatype));
         goto cleanup;
@@ -1238,7 +1238,7 @@ cleanup:
 
 static PyObject *implement_cdist(                        //
     PyObject *a_obj, PyObject *b_obj, PyObject *out_obj, //
-    simsimd_metric_kind_t metric_kind, size_t threads,   //
+    simsimd_kernel_kind_t kernel_kind, size_t threads,   //
     simsimd_datatype_t dtype, simsimd_datatype_t out_dtype) {
 
     PyObject *return_obj = NULL;
@@ -1284,7 +1284,7 @@ static PyObject *implement_cdist(                        //
     // 3. double precision float (or its complex variant)
     if (out_dtype == simsimd_datatype_unknown_k) {
         if (out_obj) { out_dtype = out_parsed.datatype; }
-        else { out_dtype = is_complex(dtype) ? simsimd_datatype_f64c_k : simsimd_datatype_f64_k; }
+        else { out_dtype = is_complex(dtype) ? simsimd_f64c_k : simsimd_f64_k; }
     }
 
     // Make sure the return datatype is complex if the input datatype is complex, and the same for real numbers
@@ -1307,14 +1307,14 @@ static PyObject *implement_cdist(                        //
     }
 
     // Look up the metric and the capability
-    simsimd_metric_dense_punned_t metric = NULL;
+    simsimd_dense_metric_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&metric, &capability);
+    simsimd_find_kernel(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k, (simsimd_kernel_punned_t *)&metric,
+                        &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError, "Unsupported metric '%c' and datatype combination ('%s'/'%s' and '%s'/'%s')",
-            metric_kind,                                                                             //
+            kernel_kind,                                                                             //
             a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
             b_buffer.format ? b_buffer.format : "nil", datatype_to_python_string(b_parsed.datatype));
         goto cleanup;
@@ -1392,7 +1392,7 @@ static PyObject *implement_cdist(                        //
 
     // Assuming most of our kernels are symmetric, we only need to compute the upper triangle
     // if we are computing all pairwise distances within the same set.
-    int const is_symmetric = kernel_is_commutative(metric_kind) && a_parsed.start == b_parsed.start &&
+    int const is_symmetric = kernel_is_commutative(kernel_kind) && a_parsed.start == b_parsed.start &&
                              a_parsed.stride == b_parsed.stride && a_parsed.count == b_parsed.count;
 #pragma omp parallel for collapse(2)
     for (size_t i = 0; i < a_parsed.count; ++i)
@@ -1435,7 +1435,7 @@ cleanup:
     return return_obj;
 }
 
-static PyObject *implement_pointer_access(simsimd_metric_kind_t metric_kind, PyObject *dtype_obj) {
+static PyObject *implement_pointer_access(simsimd_kernel_kind_t kernel_kind, PyObject *dtype_obj) {
     char const *dtype_name = PyUnicode_AsUTF8(dtype_obj);
     if (!dtype_name) {
         PyErr_SetString(PyExc_TypeError, "Data-type name must be a string");
@@ -1450,7 +1450,7 @@ static PyObject *implement_pointer_access(simsimd_metric_kind_t metric_kind, PyO
 
     simsimd_kernel_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
+    simsimd_find_kernel(kernel_kind, datatype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
     if (metric == NULL) {
         PyErr_SetString(PyExc_LookupError, "No such metric");
         return NULL;
@@ -1497,7 +1497,7 @@ static PyObject *api_cdist( //
 
     /// Same default as in SciPy:
     /// https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.cdist.html
-    simsimd_metric_kind_t metric_kind = simsimd_euclidean_k;
+    simsimd_kernel_kind_t kernel_kind = simsimd_euclidean_k;
     char const *metric_str = NULL;
 
     // Parse the arguments
@@ -1535,15 +1535,15 @@ static PyObject *api_cdist( //
         }
     }
 
-    // Convert `metric_obj` to `metric_str` and to `metric_kind`
+    // Convert `metric_obj` to `metric_str` and to `kernel_kind`
     if (metric_obj) {
         metric_str = PyUnicode_AsUTF8(metric_obj);
         if (!metric_str && PyErr_Occurred()) {
             PyErr_SetString(PyExc_TypeError, "Expected 'metric' to be a string");
             return NULL;
         }
-        metric_kind = python_string_to_metric_kind(metric_str);
-        if (metric_kind == simsimd_unknown_k) {
+        kernel_kind = python_string_to_kernel_kind(metric_str);
+        if (kernel_kind == simsimd_unknown_k) {
             PyErr_SetString(PyExc_LookupError, "Unsupported metric");
             return NULL;
         }
@@ -1584,7 +1584,7 @@ static PyObject *api_cdist( //
         }
     }
 
-    return implement_cdist(a_obj, b_obj, out_obj, metric_kind, threads, dtype, out_dtype);
+    return implement_cdist(a_obj, b_obj, out_obj, kernel_kind, threads, dtype, out_dtype);
 }
 
 static char const doc_l2_pointer[] = "Get (int) pointer to the `simsimd.l2` kernel.";
@@ -1996,11 +1996,11 @@ static PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t con
     if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
 
     // Look up the kernel and the capability
-    simsimd_kernel_scale_punned_t kernel = NULL;
+    simsimd_elementwise_scale_t kernel = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
     simsimd_kernel_kind_t const kernel_kind = simsimd_scale_k;
-    simsimd_find_kernel_punned(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&kernel, &capability);
+    simsimd_find_kernel(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k, (simsimd_kernel_punned_t *)&kernel,
+                        &capability);
     if (!kernel) {
         PyErr_Format( //
             PyExc_LookupError,
@@ -2158,11 +2158,11 @@ static PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t const
     if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
 
     // Look up the kernel and the capability
-    simsimd_kernel_sum_punned_t kernel = NULL;
+    simsimd_elementwise_sum_t kernel = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
     simsimd_kernel_kind_t const kernel_kind = simsimd_sum_k;
-    simsimd_find_kernel_punned(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&kernel, &capability);
+    simsimd_find_kernel(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k, (simsimd_kernel_punned_t *)&kernel,
+                        &capability);
     if (!kernel) {
         PyErr_Format( //
             PyExc_LookupError,
@@ -2336,11 +2336,11 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
     if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
 
     // Look up the kernel and the capability
-    simsimd_kernel_wsum_punned_t kernel = NULL;
+    simsimd_elementwise_wsum_t kernel = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
     simsimd_kernel_kind_t const kernel_kind = simsimd_wsum_k;
-    simsimd_find_kernel_punned(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&kernel, &capability);
+    simsimd_find_kernel(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k, (simsimd_kernel_punned_t *)&kernel,
+                        &capability);
     if (!kernel) {
         PyErr_Format( //
             PyExc_LookupError,
@@ -2521,11 +2521,11 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
     if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
 
     // Look up the kernel and the capability
-    simsimd_kernel_fma_punned_t kernel = NULL;
+    simsimd_elementwise_fma_t kernel = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
     simsimd_kernel_kind_t const kernel_kind = simsimd_fma_k;
-    simsimd_find_kernel_punned(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&kernel, &capability);
+    simsimd_find_kernel(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k, (simsimd_kernel_punned_t *)&kernel,
+                        &capability);
     if (!kernel) {
         PyErr_Format( //
             PyExc_LookupError,
@@ -2772,126 +2772,126 @@ void apply_scale_to_each_continuous_slice(                                      
 
 static binary_kernel_t elementwise_sadd(simsimd_datatype_t dtype) {
     switch (dtype) {
-    case simsimd_datatype_u64_k: return (binary_kernel_t)&_simsimd_u64_sadd;
-    case simsimd_datatype_u32_k: return (binary_kernel_t)&_simsimd_u32_sadd;
-    case simsimd_datatype_u16_k: return (binary_kernel_t)&_simsimd_u16_sadd;
-    case simsimd_datatype_u8_k: return (binary_kernel_t)&_simsimd_u8_sadd;
-    case simsimd_datatype_i64_k: return (binary_kernel_t)&_simsimd_i64_sadd;
-    case simsimd_datatype_i32_k: return (binary_kernel_t)&_simsimd_i32_sadd;
-    case simsimd_datatype_i16_k: return (binary_kernel_t)&_simsimd_i16_sadd;
-    case simsimd_datatype_i8_k: return (binary_kernel_t)&_simsimd_i8_sadd;
-    case simsimd_datatype_f64_k: return (binary_kernel_t)&_simsimd_f64_sadd;
-    case simsimd_datatype_f32_k: return (binary_kernel_t)&_simsimd_f32_sadd;
-    case simsimd_datatype_f16_k: return (binary_kernel_t)&_simsimd_f16_sadd;
-    case simsimd_datatype_bf16_k: return (binary_kernel_t)&_simsimd_bf16_sadd;
+    case simsimd_u64_k: return (binary_kernel_t)&_simsimd_u64_sadd;
+    case simsimd_u32_k: return (binary_kernel_t)&_simsimd_u32_sadd;
+    case simsimd_u16_k: return (binary_kernel_t)&_simsimd_u16_sadd;
+    case simsimd_u8_k: return (binary_kernel_t)&_simsimd_u8_sadd;
+    case simsimd_i64_k: return (binary_kernel_t)&_simsimd_i64_sadd;
+    case simsimd_i32_k: return (binary_kernel_t)&_simsimd_i32_sadd;
+    case simsimd_i16_k: return (binary_kernel_t)&_simsimd_i16_sadd;
+    case simsimd_i8_k: return (binary_kernel_t)&_simsimd_i8_sadd;
+    case simsimd_f64_k: return (binary_kernel_t)&_simsimd_f64_sadd;
+    case simsimd_f32_k: return (binary_kernel_t)&_simsimd_f32_sadd;
+    case simsimd_f16_k: return (binary_kernel_t)&_simsimd_f16_sadd;
+    case simsimd_bf16_k: return (binary_kernel_t)&_simsimd_bf16_sadd;
     default: return NULL;
     }
 }
 
 static unary_kernel_t elementwise_upcast_to_f64(simsimd_datatype_t dtype) {
     switch (dtype) {
-    case simsimd_datatype_u64_k: return (unary_kernel_t)&_simsimd_u64_to_f64;
-    case simsimd_datatype_u32_k: return (unary_kernel_t)&_simsimd_u32_to_f64;
-    case simsimd_datatype_u16_k: return (unary_kernel_t)&_simsimd_u16_to_f64;
-    case simsimd_datatype_u8_k: return (unary_kernel_t)&_simsimd_u8_to_f64;
-    case simsimd_datatype_i64_k: return (unary_kernel_t)&_simsimd_i64_to_f64;
-    case simsimd_datatype_i32_k: return (unary_kernel_t)&_simsimd_i32_to_f64;
-    case simsimd_datatype_i16_k: return (unary_kernel_t)&_simsimd_i16_to_f64;
-    case simsimd_datatype_i8_k: return (unary_kernel_t)&_simsimd_i8_to_f64;
-    case simsimd_datatype_f64_k: return (unary_kernel_t)&_simsimd_f64_to_f64;
-    case simsimd_datatype_f32_k: return (unary_kernel_t)&_simsimd_f32_to_f64;
-    case simsimd_datatype_f16_k: return (unary_kernel_t)&_simsimd_f16_to_f64;
-    case simsimd_datatype_bf16_k: return (unary_kernel_t)&_simsimd_bf16_to_f64;
+    case simsimd_u64_k: return (unary_kernel_t)&_simsimd_u64_to_f64;
+    case simsimd_u32_k: return (unary_kernel_t)&_simsimd_u32_to_f64;
+    case simsimd_u16_k: return (unary_kernel_t)&_simsimd_u16_to_f64;
+    case simsimd_u8_k: return (unary_kernel_t)&_simsimd_u8_to_f64;
+    case simsimd_i64_k: return (unary_kernel_t)&_simsimd_i64_to_f64;
+    case simsimd_i32_k: return (unary_kernel_t)&_simsimd_i32_to_f64;
+    case simsimd_i16_k: return (unary_kernel_t)&_simsimd_i16_to_f64;
+    case simsimd_i8_k: return (unary_kernel_t)&_simsimd_i8_to_f64;
+    case simsimd_f64_k: return (unary_kernel_t)&_simsimd_f64_to_f64;
+    case simsimd_f32_k: return (unary_kernel_t)&_simsimd_f32_to_f64;
+    case simsimd_f16_k: return (unary_kernel_t)&_simsimd_f16_to_f64;
+    case simsimd_bf16_k: return (unary_kernel_t)&_simsimd_bf16_to_f64;
     default: return NULL;
     }
 }
 
 static unary_kernel_t elementwise_upcast_to_i64(simsimd_datatype_t dtype) {
     switch (dtype) {
-    case simsimd_datatype_u64_k: return (unary_kernel_t)&_simsimd_u64_to_i64;
-    case simsimd_datatype_u32_k: return (unary_kernel_t)&_simsimd_u32_to_i64;
-    case simsimd_datatype_u16_k: return (unary_kernel_t)&_simsimd_u16_to_i64;
-    case simsimd_datatype_u8_k: return (unary_kernel_t)&_simsimd_u8_to_i64;
-    case simsimd_datatype_i64_k: return (unary_kernel_t)&_simsimd_i64_to_i64;
-    case simsimd_datatype_i32_k: return (unary_kernel_t)&_simsimd_i32_to_i64;
-    case simsimd_datatype_i16_k: return (unary_kernel_t)&_simsimd_i16_to_i64;
-    case simsimd_datatype_i8_k: return (unary_kernel_t)&_simsimd_i8_to_i64;
-    case simsimd_datatype_f64_k: return NULL;
-    case simsimd_datatype_f32_k: return NULL;
-    case simsimd_datatype_f16_k: return NULL;
-    case simsimd_datatype_bf16_k: return NULL;
+    case simsimd_u64_k: return (unary_kernel_t)&_simsimd_u64_to_i64;
+    case simsimd_u32_k: return (unary_kernel_t)&_simsimd_u32_to_i64;
+    case simsimd_u16_k: return (unary_kernel_t)&_simsimd_u16_to_i64;
+    case simsimd_u8_k: return (unary_kernel_t)&_simsimd_u8_to_i64;
+    case simsimd_i64_k: return (unary_kernel_t)&_simsimd_i64_to_i64;
+    case simsimd_i32_k: return (unary_kernel_t)&_simsimd_i32_to_i64;
+    case simsimd_i16_k: return (unary_kernel_t)&_simsimd_i16_to_i64;
+    case simsimd_i8_k: return (unary_kernel_t)&_simsimd_i8_to_i64;
+    case simsimd_f64_k: return NULL;
+    case simsimd_f32_k: return NULL;
+    case simsimd_f16_k: return NULL;
+    case simsimd_bf16_k: return NULL;
     default: return NULL;
     }
 }
 
 static unary_kernel_t elementwise_upcast_to_u64(simsimd_datatype_t dtype) {
     switch (dtype) {
-    case simsimd_datatype_u64_k: return (unary_kernel_t)&_simsimd_u64_to_u64;
-    case simsimd_datatype_u32_k: return (unary_kernel_t)&_simsimd_u32_to_u64;
-    case simsimd_datatype_u16_k: return (unary_kernel_t)&_simsimd_u16_to_u64;
-    case simsimd_datatype_u8_k: return (unary_kernel_t)&_simsimd_u8_to_u64;
-    case simsimd_datatype_i64_k: return (unary_kernel_t)&_simsimd_i64_to_u64;
-    case simsimd_datatype_i32_k: return (unary_kernel_t)&_simsimd_i32_to_u64;
-    case simsimd_datatype_i16_k: return (unary_kernel_t)&_simsimd_i16_to_u64;
-    case simsimd_datatype_i8_k: return (unary_kernel_t)&_simsimd_i8_to_u64;
-    case simsimd_datatype_f64_k: return NULL;
-    case simsimd_datatype_f32_k: return NULL;
-    case simsimd_datatype_f16_k: return NULL;
-    case simsimd_datatype_bf16_k: return NULL;
+    case simsimd_u64_k: return (unary_kernel_t)&_simsimd_u64_to_u64;
+    case simsimd_u32_k: return (unary_kernel_t)&_simsimd_u32_to_u64;
+    case simsimd_u16_k: return (unary_kernel_t)&_simsimd_u16_to_u64;
+    case simsimd_u8_k: return (unary_kernel_t)&_simsimd_u8_to_u64;
+    case simsimd_i64_k: return (unary_kernel_t)&_simsimd_i64_to_u64;
+    case simsimd_i32_k: return (unary_kernel_t)&_simsimd_i32_to_u64;
+    case simsimd_i16_k: return (unary_kernel_t)&_simsimd_i16_to_u64;
+    case simsimd_i8_k: return (unary_kernel_t)&_simsimd_i8_to_u64;
+    case simsimd_f64_k: return NULL;
+    case simsimd_f32_k: return NULL;
+    case simsimd_f16_k: return NULL;
+    case simsimd_bf16_k: return NULL;
     default: return NULL;
     }
 }
 
 static unary_kernel_t elementwise_downcast_from_f64(simsimd_datatype_t dtype) {
     switch (dtype) {
-    case simsimd_datatype_u64_k: return (unary_kernel_t)&_simsimd_f64_to_u64;
-    case simsimd_datatype_u32_k: return (unary_kernel_t)&_simsimd_f64_to_u32;
-    case simsimd_datatype_u16_k: return (unary_kernel_t)&_simsimd_f64_to_u16;
-    case simsimd_datatype_u8_k: return (unary_kernel_t)&_simsimd_f64_to_u8;
-    case simsimd_datatype_i64_k: return (unary_kernel_t)&_simsimd_f64_to_i64;
-    case simsimd_datatype_i32_k: return (unary_kernel_t)&_simsimd_f64_to_i32;
-    case simsimd_datatype_i16_k: return (unary_kernel_t)&_simsimd_f64_to_i16;
-    case simsimd_datatype_i8_k: return (unary_kernel_t)&_simsimd_f64_to_i8;
-    case simsimd_datatype_f64_k: return (unary_kernel_t)&_simsimd_f64_to_f64;
-    case simsimd_datatype_f32_k: return (unary_kernel_t)&_simsimd_f64_to_f32;
-    case simsimd_datatype_f16_k: return (unary_kernel_t)&_simsimd_f64_to_f16;
-    case simsimd_datatype_bf16_k: return (unary_kernel_t)&_simsimd_f64_to_bf16;
+    case simsimd_u64_k: return (unary_kernel_t)&_simsimd_f64_to_u64;
+    case simsimd_u32_k: return (unary_kernel_t)&_simsimd_f64_to_u32;
+    case simsimd_u16_k: return (unary_kernel_t)&_simsimd_f64_to_u16;
+    case simsimd_u8_k: return (unary_kernel_t)&_simsimd_f64_to_u8;
+    case simsimd_i64_k: return (unary_kernel_t)&_simsimd_f64_to_i64;
+    case simsimd_i32_k: return (unary_kernel_t)&_simsimd_f64_to_i32;
+    case simsimd_i16_k: return (unary_kernel_t)&_simsimd_f64_to_i16;
+    case simsimd_i8_k: return (unary_kernel_t)&_simsimd_f64_to_i8;
+    case simsimd_f64_k: return (unary_kernel_t)&_simsimd_f64_to_f64;
+    case simsimd_f32_k: return (unary_kernel_t)&_simsimd_f64_to_f32;
+    case simsimd_f16_k: return (unary_kernel_t)&_simsimd_f64_to_f16;
+    case simsimd_bf16_k: return (unary_kernel_t)&_simsimd_f64_to_bf16;
     default: return NULL;
     }
 }
 
 static unary_kernel_t elementwise_downcast_from_i64(simsimd_datatype_t dtype) {
     switch (dtype) {
-    case simsimd_datatype_u64_k: return (unary_kernel_t)&_simsimd_i64_to_u64;
-    case simsimd_datatype_u32_k: return (unary_kernel_t)&_simsimd_i64_to_u32;
-    case simsimd_datatype_u16_k: return (unary_kernel_t)&_simsimd_i64_to_u16;
-    case simsimd_datatype_u8_k: return (unary_kernel_t)&_simsimd_i64_to_u8;
-    case simsimd_datatype_i64_k: return (unary_kernel_t)&_simsimd_i64_to_i64;
-    case simsimd_datatype_i32_k: return (unary_kernel_t)&_simsimd_i64_to_i32;
-    case simsimd_datatype_i16_k: return (unary_kernel_t)&_simsimd_i64_to_i16;
-    case simsimd_datatype_i8_k: return (unary_kernel_t)&_simsimd_i64_to_i8;
-    case simsimd_datatype_f64_k: return (unary_kernel_t)&_simsimd_i64_to_f64;
-    case simsimd_datatype_f32_k: return (unary_kernel_t)&_simsimd_i64_to_f32;
-    case simsimd_datatype_f16_k: return (unary_kernel_t)&_simsimd_i64_to_f16;
-    case simsimd_datatype_bf16_k: return (unary_kernel_t)&_simsimd_i64_to_bf16;
+    case simsimd_u64_k: return (unary_kernel_t)&_simsimd_i64_to_u64;
+    case simsimd_u32_k: return (unary_kernel_t)&_simsimd_i64_to_u32;
+    case simsimd_u16_k: return (unary_kernel_t)&_simsimd_i64_to_u16;
+    case simsimd_u8_k: return (unary_kernel_t)&_simsimd_i64_to_u8;
+    case simsimd_i64_k: return (unary_kernel_t)&_simsimd_i64_to_i64;
+    case simsimd_i32_k: return (unary_kernel_t)&_simsimd_i64_to_i32;
+    case simsimd_i16_k: return (unary_kernel_t)&_simsimd_i64_to_i16;
+    case simsimd_i8_k: return (unary_kernel_t)&_simsimd_i64_to_i8;
+    case simsimd_f64_k: return (unary_kernel_t)&_simsimd_i64_to_f64;
+    case simsimd_f32_k: return (unary_kernel_t)&_simsimd_i64_to_f32;
+    case simsimd_f16_k: return (unary_kernel_t)&_simsimd_i64_to_f16;
+    case simsimd_bf16_k: return (unary_kernel_t)&_simsimd_i64_to_bf16;
     default: return NULL;
     }
 }
 
 static unary_kernel_t elementwise_downcast_from_u64(simsimd_datatype_t dtype) {
     switch (dtype) {
-    case simsimd_datatype_u64_k: return (unary_kernel_t)&_simsimd_u64_to_u64;
-    case simsimd_datatype_u32_k: return (unary_kernel_t)&_simsimd_u64_to_u32;
-    case simsimd_datatype_u16_k: return (unary_kernel_t)&_simsimd_u64_to_u16;
-    case simsimd_datatype_u8_k: return (unary_kernel_t)&_simsimd_u64_to_u8;
-    case simsimd_datatype_i64_k: return (unary_kernel_t)&_simsimd_u64_to_i64;
-    case simsimd_datatype_i32_k: return (unary_kernel_t)&_simsimd_u64_to_i32;
-    case simsimd_datatype_i16_k: return (unary_kernel_t)&_simsimd_u64_to_i16;
-    case simsimd_datatype_i8_k: return (unary_kernel_t)&_simsimd_u64_to_i8;
-    case simsimd_datatype_f64_k: return (unary_kernel_t)&_simsimd_u64_to_f64;
-    case simsimd_datatype_f32_k: return (unary_kernel_t)&_simsimd_u64_to_f32;
-    case simsimd_datatype_f16_k: return (unary_kernel_t)&_simsimd_u64_to_f16;
-    case simsimd_datatype_bf16_k: return (unary_kernel_t)&_simsimd_u64_to_bf16;
+    case simsimd_u64_k: return (unary_kernel_t)&_simsimd_u64_to_u64;
+    case simsimd_u32_k: return (unary_kernel_t)&_simsimd_u64_to_u32;
+    case simsimd_u16_k: return (unary_kernel_t)&_simsimd_u64_to_u16;
+    case simsimd_u8_k: return (unary_kernel_t)&_simsimd_u64_to_u8;
+    case simsimd_i64_k: return (unary_kernel_t)&_simsimd_u64_to_i64;
+    case simsimd_i32_k: return (unary_kernel_t)&_simsimd_u64_to_i32;
+    case simsimd_i16_k: return (unary_kernel_t)&_simsimd_u64_to_i16;
+    case simsimd_i8_k: return (unary_kernel_t)&_simsimd_u64_to_i8;
+    case simsimd_f64_k: return (unary_kernel_t)&_simsimd_u64_to_f64;
+    case simsimd_f32_k: return (unary_kernel_t)&_simsimd_u64_to_f32;
+    case simsimd_f16_k: return (unary_kernel_t)&_simsimd_u64_to_f16;
+    case simsimd_bf16_k: return (unary_kernel_t)&_simsimd_u64_to_bf16;
     default: return NULL;
     }
 }
@@ -3178,16 +3178,16 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
             size_t integral_size = a_family == simsimd_datatype_float_family_k ? b_itemsize : a_itemsize;
             if (float_size <= integral_size) {
                 //? No 128-bit float on most platforms
-                if (max_itemsize == 8) { ab_dtype = simsimd_datatype_f64_k; }
-                else if (max_itemsize == 4) { ab_dtype = simsimd_datatype_f64_k; }
-                else if (max_itemsize == 2) { ab_dtype = simsimd_datatype_f32_k; }
-                else if (max_itemsize == 1) { ab_dtype = simsimd_datatype_f16_k; }
+                if (max_itemsize == 8) { ab_dtype = simsimd_f64_k; }
+                else if (max_itemsize == 4) { ab_dtype = simsimd_f64_k; }
+                else if (max_itemsize == 2) { ab_dtype = simsimd_f32_k; }
+                else if (max_itemsize == 1) { ab_dtype = simsimd_f16_k; }
             }
             else {
-                if (max_itemsize == 8) { ab_dtype = simsimd_datatype_f64_k; }
-                else if (max_itemsize == 4) { ab_dtype = simsimd_datatype_f32_k; }
-                else if (max_itemsize == 2) { ab_dtype = simsimd_datatype_f16_k; }
-                else if (max_itemsize == 1) { ab_dtype = simsimd_datatype_f16_k; }
+                if (max_itemsize == 8) { ab_dtype = simsimd_f64_k; }
+                else if (max_itemsize == 4) { ab_dtype = simsimd_f32_k; }
+                else if (max_itemsize == 2) { ab_dtype = simsimd_f16_k; }
+                else if (max_itemsize == 1) { ab_dtype = simsimd_f16_k; }
             }
         }
         // If only one of the operands is a unsigned, and the second is a signed integral of same size,
@@ -3200,16 +3200,16 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
             size_t signed_size = a_family == simsimd_datatype_int_family_k ? a_itemsize : b_itemsize;
             if (signed_size <= unsigned_size) {
                 //? No 128-bit integer on most platforms
-                if (max_itemsize == 8) { ab_dtype = simsimd_datatype_i64_k; }
-                else if (max_itemsize == 4) { ab_dtype = simsimd_datatype_i64_k; }
-                else if (max_itemsize == 2) { ab_dtype = simsimd_datatype_i32_k; }
-                else if (max_itemsize == 1) { ab_dtype = simsimd_datatype_i16_k; }
+                if (max_itemsize == 8) { ab_dtype = simsimd_i64_k; }
+                else if (max_itemsize == 4) { ab_dtype = simsimd_i64_k; }
+                else if (max_itemsize == 2) { ab_dtype = simsimd_i32_k; }
+                else if (max_itemsize == 1) { ab_dtype = simsimd_i16_k; }
             }
             else {
-                if (max_itemsize == 8) { ab_dtype = simsimd_datatype_i64_k; }
-                else if (max_itemsize == 4) { ab_dtype = simsimd_datatype_i32_k; }
-                else if (max_itemsize == 2) { ab_dtype = simsimd_datatype_i16_k; }
-                else if (max_itemsize == 1) { ab_dtype = simsimd_datatype_i16_k; }
+                if (max_itemsize == 8) { ab_dtype = simsimd_i64_k; }
+                else if (max_itemsize == 4) { ab_dtype = simsimd_i32_k; }
+                else if (max_itemsize == 2) { ab_dtype = simsimd_i16_k; }
+                else if (max_itemsize == 1) { ab_dtype = simsimd_i16_k; }
             }
         }
         // For boolean and complex types, we don't yet have a clear policy.
@@ -3335,11 +3335,11 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         out_continuous_dimensions && ins_continuous_dimensions) {
 
         // Look up the kernel and the capability
-        simsimd_kernel_sum_punned_t kernel = NULL;
+        simsimd_elementwise_sum_t kernel = NULL;
         simsimd_capability_t capability = simsimd_cap_serial_k;
         simsimd_kernel_kind_t const kernel_kind = simsimd_sum_k;
-        simsimd_find_kernel_punned(kernel_kind, ab_dtype, static_capabilities, simsimd_cap_any_k,
-                                   (simsimd_kernel_punned_t *)&kernel, &capability);
+        simsimd_find_kernel(kernel_kind, ab_dtype, static_capabilities, simsimd_cap_any_k,
+                            (simsimd_kernel_punned_t *)&kernel, &capability);
         if (!kernel) {
             PyErr_Format( //
                 PyExc_LookupError, "Unsupported kernel '%c' and datatype combination across inputs ('%s' and '%s')",
@@ -3374,11 +3374,11 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     if ((is_tensor_a_with_scalar_b || is_tensor_b_with_scalar_b) &&
         (out_continuous_dimensions && ins_continuous_dimensions)) {
         // Look up the kernel and the capability
-        simsimd_kernel_scale_punned_t kernel = NULL;
+        simsimd_elementwise_scale_t kernel = NULL;
         simsimd_capability_t capability = simsimd_cap_serial_k;
         simsimd_kernel_kind_t const kernel_kind = simsimd_scale_k;
-        simsimd_find_kernel_punned(kernel_kind, ab_dtype, static_capabilities, simsimd_cap_any_k,
-                                   (simsimd_kernel_punned_t *)&kernel, &capability);
+        simsimd_find_kernel(kernel_kind, ab_dtype, static_capabilities, simsimd_cap_any_k,
+                            (simsimd_kernel_punned_t *)&kernel, &capability);
         if (!kernel) {
             PyErr_Format( //
                 PyExc_LookupError, "Unsupported kernel '%c' and datatype combination across inputs ('%s' and '%s')",
@@ -3425,7 +3425,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         simsimd_datatype_family(b_parsed.datatype) == simsimd_datatype_float_family_k) {
         unary_kernel_t a_upcast_ptr = elementwise_upcast_to_f64(a_parsed.datatype);
         unary_kernel_t b_upcast_ptr = elementwise_upcast_to_f64(b_parsed.datatype);
-        binary_kernel_t elementwise_sadd_ptr = elementwise_sadd(simsimd_datatype_f64_k);
+        binary_kernel_t elementwise_sadd_ptr = elementwise_sadd(simsimd_f64_k);
         unary_kernel_t out_downcast_ptr = elementwise_downcast_from_f64(out_parsed.datatype);
         apply_elementwise_casting_binary_operation_to_each_scalar( //
             &a_parsed, &b_parsed, &out_parsed,                     //
@@ -3436,7 +3436,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
              simsimd_datatype_family(b_parsed.datatype) == simsimd_datatype_uint_family_k) {
         unary_kernel_t a_upcast_ptr = elementwise_upcast_to_u64(a_parsed.datatype);
         unary_kernel_t b_upcast_ptr = elementwise_upcast_to_u64(b_parsed.datatype);
-        binary_kernel_t elementwise_sadd_ptr = elementwise_sadd(simsimd_datatype_u64_k);
+        binary_kernel_t elementwise_sadd_ptr = elementwise_sadd(simsimd_u64_k);
         unary_kernel_t out_downcast_ptr = elementwise_downcast_from_u64(out_parsed.datatype);
         apply_elementwise_casting_binary_operation_to_each_scalar( //
             &a_parsed, &b_parsed, &out_parsed,                     //
@@ -3446,7 +3446,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     else {
         unary_kernel_t a_upcast_ptr = elementwise_upcast_to_i64(a_parsed.datatype);
         unary_kernel_t b_upcast_ptr = elementwise_upcast_to_i64(b_parsed.datatype);
-        binary_kernel_t elementwise_sadd_ptr = elementwise_sadd(simsimd_datatype_i64_k);
+        binary_kernel_t elementwise_sadd_ptr = elementwise_sadd(simsimd_i64_k);
         unary_kernel_t out_downcast_ptr = elementwise_downcast_from_i64(out_parsed.datatype);
         apply_elementwise_casting_binary_operation_to_each_scalar( //
             &a_parsed, &b_parsed, &out_parsed,                     //

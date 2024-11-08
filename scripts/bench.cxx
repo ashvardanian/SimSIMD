@@ -40,23 +40,23 @@ namespace bm = benchmark;
 
 // clang-format off
 template <simsimd_datatype_t> struct datatype_enum_to_type_gt { using value_t = void; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_f64_k> { using value_t = simsimd_f64_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_f32_k> { using value_t = simsimd_f32_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_f16_k> { using value_t = simsimd_f16_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_bf16_k> { using value_t = simsimd_bf16_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_f64c_k> { using value_t = simsimd_f64_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_f32c_k> { using value_t = simsimd_f32_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_f16c_k> { using value_t = simsimd_f16_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_bf16c_k> { using value_t = simsimd_bf16_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_b8_k> { using value_t = simsimd_b8_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_i8_k> { using value_t = simsimd_i8_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_u8_k> { using value_t = simsimd_u8_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_i16_k> { using value_t = simsimd_i16_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_u16_k> { using value_t = simsimd_u16_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_i32_k> { using value_t = simsimd_i32_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_u32_k> { using value_t = simsimd_u32_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_i64_k> { using value_t = simsimd_i64_t; };
-template <> struct datatype_enum_to_type_gt<simsimd_datatype_u64_k> { using value_t = simsimd_u64_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_f64_k> { using value_t = simsimd_f64_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_f32_k> { using value_t = simsimd_f32_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_f16_k> { using value_t = simsimd_f16_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_bf16_k> { using value_t = simsimd_bf16_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_f64c_k> { using value_t = simsimd_f64_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_f32c_k> { using value_t = simsimd_f32_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_f16c_k> { using value_t = simsimd_f16_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_bf16c_k> { using value_t = simsimd_bf16_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_b8_k> { using value_t = simsimd_b8_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_i8_k> { using value_t = simsimd_i8_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_u8_k> { using value_t = simsimd_u8_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_i16_k> { using value_t = simsimd_i16_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_u16_k> { using value_t = simsimd_u16_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_i32_k> { using value_t = simsimd_i32_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_u32_k> { using value_t = simsimd_u32_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_i64_k> { using value_t = simsimd_i64_t; };
+template <> struct datatype_enum_to_type_gt<simsimd_u64_k> { using value_t = simsimd_u64_t; };
 // clang-format on
 
 template <std::size_t multiple>
@@ -72,12 +72,11 @@ template <simsimd_datatype_t datatype_ak>
 struct vector_gt {
     using scalar_t = typename datatype_enum_to_type_gt<datatype_ak>::value_t;
     using compressed16_t = unsigned short;
-    static constexpr bool is_integral =
-        datatype_ak == datatype_ak == simsimd_datatype_b8_k ||                            //
-        datatype_ak == simsimd_datatype_i8_k || datatype_ak == simsimd_datatype_u8_k ||   //
-        datatype_ak == simsimd_datatype_i16_k || datatype_ak == simsimd_datatype_u16_k || //
-        datatype_ak == simsimd_datatype_i32_k || datatype_ak == simsimd_datatype_u32_k ||
-        datatype_ak == simsimd_datatype_i64_k || datatype_ak == simsimd_datatype_u64_k;
+    static constexpr bool is_integral = datatype_ak == datatype_ak == simsimd_b8_k ||                   //
+                                        datatype_ak == simsimd_i8_k || datatype_ak == simsimd_u8_k ||   //
+                                        datatype_ak == simsimd_i16_k || datatype_ak == simsimd_u16_k || //
+                                        datatype_ak == simsimd_i32_k || datatype_ak == simsimd_u32_k ||
+                                        datatype_ak == simsimd_i64_k || datatype_ak == simsimd_u64_k;
     static constexpr std::size_t cacheline_length = 64;
 
     scalar_t *buffer_ = nullptr;
@@ -141,7 +140,7 @@ struct vector_gt {
             0b011111111110000000000000000000000000000000000000000000000000000;
 
 #if !SIMSIMD_NATIVE_BF16
-        if constexpr (datatype_ak == simsimd_datatype_bf16_k || datatype_ak == simsimd_datatype_bf16c_k) {
+        if constexpr (datatype_ak == simsimd_bf16_k || datatype_ak == simsimd_bf16c_k) {
             simsimd_f32_t f32 = static_cast<simsimd_f32_t>(from);
             simsimd_f32_to_bf16(&f32, &to);
             if ((to & exponent_mask_bf16) == exponent_mask_bf16) to = 0;
@@ -150,7 +149,7 @@ struct vector_gt {
         }
 #endif
 #if !SIMSIMD_NATIVE_F16
-        if constexpr (datatype_ak == simsimd_datatype_f16_k || datatype_ak == simsimd_datatype_f16c_k) {
+        if constexpr (datatype_ak == simsimd_f16_k || datatype_ak == simsimd_f16c_k) {
             simsimd_f32_t f32 = static_cast<simsimd_f32_t>(from);
             simsimd_f32_to_f16(&f32, &to);
             if ((to & exponent_mask_f16) == exponent_mask_f16) to = 0;
@@ -168,14 +167,14 @@ struct vector_gt {
      */
     static double uncompress(scalar_t const &from) noexcept {
 #if !SIMSIMD_NATIVE_BF16
-        if constexpr (datatype_ak == simsimd_datatype_bf16_k || datatype_ak == simsimd_datatype_bf16c_k) {
+        if constexpr (datatype_ak == simsimd_bf16_k || datatype_ak == simsimd_bf16c_k) {
             simsimd_f32_t f32;
             simsimd_bf16_to_f32((simsimd_bf16_t const *)&from, &f32);
             return f32;
         }
 #endif
 #if !SIMSIMD_NATIVE_F16
-        if constexpr (datatype_ak == simsimd_datatype_f16_k || datatype_ak == simsimd_datatype_f16c_k) {
+        if constexpr (datatype_ak == simsimd_f16_k || datatype_ak == simsimd_f16c_k) {
             simsimd_f32_t f32;
             simsimd_f16_to_f32((simsimd_f16_t const *)&from, &f32);
             return f32;
@@ -498,8 +497,8 @@ constexpr std::size_t function_args_count(void (*function)(function_args_at...))
  *  @param dimensions The number of dimensions in the vectors.
  */
 template <typename pair_at, typename kernel_at = void, typename l2_metric_at = void>
-void measure_fma(bm::State &state, kernel_at kernel, kernel_at baseline, l2_metric_at l2_metric,
-                 std::size_t dimensions) {
+void measure_elementwise(bm::State &state, kernel_at kernel, kernel_at baseline, l2_metric_at l2_metric,
+                         std::size_t dimensions) {
 
     using pair_t = pair_at;
     using vector_t = typename pair_at::vector_t;
@@ -584,11 +583,11 @@ void dense_(std::string name, metric_at *distance_func, metric_at *baseline_func
         ->Threads(default_threads);
 }
 
-template <simsimd_datatype_t datatype_ak, typename kernel_at = void, typename l2_metric_at = void>
-void fma_(std::string name, kernel_at *kernel_func, kernel_at *baseline_func, l2_metric_at *l2_metric_func) {
+template <simsimd_datatype_t datatype_ak, simsimd_kernel_t, typename kernel_at = void, typename l2_metric_at = void>
+void elementwise_(std::string name, kernel_at *kernel_func, kernel_at *baseline_func, l2_metric_at *l2_metric_func) {
     using pair_t = vectors_pair_gt<datatype_ak>;
     std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
-    bm::RegisterBenchmark(bench_name.c_str(), measure_fma<pair_t, kernel_at *, l2_metric_at *>, kernel_func,
+    bm::RegisterBenchmark(bench_name.c_str(), measure_elementwise<pair_t, kernel_at *, l2_metric_at *>, kernel_func,
                           baseline_func, l2_metric_func, dense_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
@@ -708,24 +707,24 @@ int main(int argc, char **argv) {
     bm::Initialize(&argc, argv);
     if (bm::ReportUnrecognizedArguments(argc, argv)) return 1;
 
-    constexpr simsimd_datatype_t b8_k = simsimd_datatype_b8_k;
-    constexpr simsimd_datatype_t i4x2_k = simsimd_datatype_i4x2_k;
-    constexpr simsimd_datatype_t i8_k = simsimd_datatype_i8_k;
-    constexpr simsimd_datatype_t i16_k = simsimd_datatype_i16_k;
-    constexpr simsimd_datatype_t i32_k = simsimd_datatype_i32_k;
-    constexpr simsimd_datatype_t i64_k = simsimd_datatype_i64_k;
-    constexpr simsimd_datatype_t u8_k = simsimd_datatype_u8_k;
-    constexpr simsimd_datatype_t u16_k = simsimd_datatype_u16_k;
-    constexpr simsimd_datatype_t u32_k = simsimd_datatype_u32_k;
-    constexpr simsimd_datatype_t u64_k = simsimd_datatype_u64_k;
-    constexpr simsimd_datatype_t f64_k = simsimd_datatype_f64_k;
-    constexpr simsimd_datatype_t f32_k = simsimd_datatype_f32_k;
-    constexpr simsimd_datatype_t f16_k = simsimd_datatype_f16_k;
-    constexpr simsimd_datatype_t bf16_k = simsimd_datatype_bf16_k;
-    constexpr simsimd_datatype_t f64c_k = simsimd_datatype_f64c_k;
-    constexpr simsimd_datatype_t f32c_k = simsimd_datatype_f32c_k;
-    constexpr simsimd_datatype_t f16c_k = simsimd_datatype_f16c_k;
-    constexpr simsimd_datatype_t bf16c_k = simsimd_datatype_bf16c_k;
+    constexpr simsimd_datatype_t b8_k = simsimd_b8_k;
+    constexpr simsimd_datatype_t i4x2_k = simsimd_i4x2_k;
+    constexpr simsimd_datatype_t i8_k = simsimd_i8_k;
+    constexpr simsimd_datatype_t i16_k = simsimd_i16_k;
+    constexpr simsimd_datatype_t i32_k = simsimd_i32_k;
+    constexpr simsimd_datatype_t i64_k = simsimd_i64_k;
+    constexpr simsimd_datatype_t u8_k = simsimd_u8_k;
+    constexpr simsimd_datatype_t u16_k = simsimd_u16_k;
+    constexpr simsimd_datatype_t u32_k = simsimd_u32_k;
+    constexpr simsimd_datatype_t u64_k = simsimd_u64_k;
+    constexpr simsimd_datatype_t f64_k = simsimd_f64_k;
+    constexpr simsimd_datatype_t f32_k = simsimd_f32_k;
+    constexpr simsimd_datatype_t f16_k = simsimd_f16_k;
+    constexpr simsimd_datatype_t bf16_k = simsimd_bf16_k;
+    constexpr simsimd_datatype_t f64c_k = simsimd_f64c_k;
+    constexpr simsimd_datatype_t f32c_k = simsimd_f32c_k;
+    constexpr simsimd_datatype_t f16c_k = simsimd_f16c_k;
+    constexpr simsimd_datatype_t bf16c_k = simsimd_bf16c_k;
 
 #if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
 
@@ -772,10 +771,10 @@ int main(int argc, char **argv) {
     sparse_<u16_k>("intersect_u16_neon", simsimd_intersect_u16_neon, simsimd_intersect_u16_accurate);
     sparse_<u32_k>("intersect_u32_neon", simsimd_intersect_u32_neon, simsimd_intersect_u32_accurate);
 
-    fma_<f32_k>("fma_f32_neon", simsimd_fma_f32_neon, simsimd_fma_f32_accurate, simsimd_l2_f32_accurate);
-    fma_<f32_k>("wsum_f32_neon", simsimd_wsum_f32_neon, simsimd_wsum_f32_accurate, simsimd_l2_f32_accurate);
-    fma_<f32_k>("fma_f32_serial", simsimd_fma_f32_serial, simsimd_fma_f32_accurate, simsimd_l2_f32_accurate);
-    fma_<f32_k>("wsum_f32_serial", simsimd_wsum_f32_serial, simsimd_wsum_f32_accurate, simsimd_l2_f32_accurate);
+    elementwise_<f32_k>("fma_f32_neon", simsimd_fma_f32_neon, simsimd_fma_f32_accurate, simsimd_l2_f32_accurate);
+    elementwise_<f32_k>("wsum_f32_neon", simsimd_wsum_f32_neon, simsimd_wsum_f32_accurate, simsimd_l2_f32_accurate);
+    elementwise_<f32_k>("fma_f32_serial", simsimd_fma_f32_serial, simsimd_fma_f32_accurate, simsimd_l2_f32_accurate);
+    elementwise_<f32_k>("wsum_f32_serial", simsimd_wsum_f32_serial, simsimd_wsum_f32_accurate, simsimd_l2_f32_accurate);
 
 #endif
 
@@ -793,14 +792,14 @@ int main(int argc, char **argv) {
     curved_<f16_k>("bilinear_f16_neon", simsimd_bilinear_f16_neon, simsimd_bilinear_f16_accurate);
     curved_<f16_k>("mahalanobis_f16_neon", simsimd_mahalanobis_f16_neon, simsimd_mahalanobis_f16_accurate);
 
-    fma_<f16_k>("fma_f16_neon", simsimd_fma_f16_neon, simsimd_fma_f16_accurate, simsimd_l2_f16_accurate);
-    fma_<f16_k>("wsum_f16_neon", simsimd_wsum_f16_neon, simsimd_wsum_f16_accurate, simsimd_l2_f16_accurate);
+    elementwise_<f16_k>("fma_f16_neon", simsimd_fma_f16_neon, simsimd_fma_f16_accurate, simsimd_l2_f16_accurate);
+    elementwise_<f16_k>("wsum_f16_neon", simsimd_wsum_f16_neon, simsimd_wsum_f16_accurate, simsimd_l2_f16_accurate);
 
     // FMA kernels for `u8` on NEON use `f16` arithmetic
-    fma_<u8_k>("fma_u8_neon", simsimd_fma_u8_neon, simsimd_fma_u8_accurate, simsimd_l2_u8_serial);
-    fma_<u8_k>("wsum_u8_neon", simsimd_wsum_u8_neon, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
-    fma_<i8_k>("fma_i8_neon", simsimd_fma_i8_neon, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
-    fma_<i8_k>("wsum_i8_neon", simsimd_wsum_i8_neon, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
+    elementwise_<u8_k>("fma_u8_neon", simsimd_fma_u8_neon, simsimd_fma_u8_accurate, simsimd_l2_u8_serial);
+    elementwise_<u8_k>("wsum_u8_neon", simsimd_wsum_u8_neon, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
+    elementwise_<i8_k>("fma_i8_neon", simsimd_fma_i8_neon, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
+    elementwise_<i8_k>("wsum_i8_neon", simsimd_wsum_i8_neon, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
 #endif
 
 #if SIMSIMD_TARGET_NEON_BF16
@@ -815,8 +814,9 @@ int main(int argc, char **argv) {
     curved_<bf16_k>("bilinear_bf16_neon", simsimd_bilinear_bf16_neon, simsimd_bilinear_bf16_accurate);
     curved_<bf16_k>("mahalanobis_bf16_neon", simsimd_mahalanobis_bf16_neon, simsimd_mahalanobis_bf16_accurate);
 
-    fma_<bf16_k>("fma_bf16_neon", simsimd_fma_bf16_neon, simsimd_fma_bf16_accurate, simsimd_l2_bf16_accurate);
-    fma_<bf16_k>("wsum_bf16_neon", simsimd_wsum_bf16_neon, simsimd_wsum_bf16_accurate, simsimd_l2_bf16_accurate);
+    elementwise_<bf16_k>("fma_bf16_neon", simsimd_fma_bf16_neon, simsimd_fma_bf16_accurate, simsimd_l2_bf16_accurate);
+    elementwise_<bf16_k>("wsum_bf16_neon", simsimd_wsum_bf16_neon, simsimd_wsum_bf16_accurate,
+                         simsimd_l2_bf16_accurate);
 #endif
 
 #if SIMSIMD_TARGET_SVE
@@ -904,18 +904,22 @@ int main(int argc, char **argv) {
     curved_<bf16_k>("bilinear_bf16_haswell", simsimd_bilinear_bf16_haswell, simsimd_bilinear_bf16_accurate);
     curved_<bf16_k>("mahalanobis_bf16_haswell", simsimd_mahalanobis_bf16_haswell, simsimd_mahalanobis_bf16_accurate);
 
-    fma_<f64_k>("fma_f64_haswell", simsimd_fma_f64_haswell, simsimd_fma_f64_serial, simsimd_l2_f64_serial);
-    fma_<f64_k>("wsum_f64_haswell", simsimd_wsum_f64_haswell, simsimd_wsum_f64_serial, simsimd_l2_f64_serial);
-    fma_<f32_k>("fma_f32_haswell", simsimd_fma_f32_haswell, simsimd_fma_f32_accurate, simsimd_l2_f32_accurate);
-    fma_<f32_k>("wsum_f32_haswell", simsimd_wsum_f32_haswell, simsimd_wsum_f32_accurate, simsimd_l2_f32_accurate);
-    fma_<f16_k>("fma_f16_haswell", simsimd_fma_f16_haswell, simsimd_fma_f16_accurate, simsimd_l2_f16_accurate);
-    fma_<f16_k>("wsum_f16_haswell", simsimd_wsum_f16_haswell, simsimd_wsum_f16_accurate, simsimd_l2_f16_accurate);
-    fma_<bf16_k>("fma_bf16_haswell", simsimd_fma_bf16_haswell, simsimd_fma_bf16_accurate, simsimd_l2_bf16_accurate);
-    fma_<bf16_k>("wsum_bf16_haswell", simsimd_wsum_bf16_haswell, simsimd_wsum_bf16_accurate, simsimd_l2_bf16_accurate);
-    fma_<i8_k>("fma_i8_haswell", simsimd_fma_i8_haswell, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
-    fma_<i8_k>("wsum_i8_haswell", simsimd_wsum_i8_haswell, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
-    fma_<u8_k>("fma_u8_haswell", simsimd_fma_u8_haswell, simsimd_fma_u8_accurate, simsimd_l2_u8_serial);
-    fma_<u8_k>("wsum_u8_haswell", simsimd_wsum_u8_haswell, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
+    elementwise_<f64_k>("fma_f64_haswell", simsimd_fma_f64_haswell, simsimd_fma_f64_serial, simsimd_l2_f64_serial);
+    elementwise_<f64_k>("wsum_f64_haswell", simsimd_wsum_f64_haswell, simsimd_wsum_f64_serial, simsimd_l2_f64_serial);
+    elementwise_<f32_k>("fma_f32_haswell", simsimd_fma_f32_haswell, simsimd_fma_f32_accurate, simsimd_l2_f32_accurate);
+    elementwise_<f32_k>("wsum_f32_haswell", simsimd_wsum_f32_haswell, simsimd_wsum_f32_accurate,
+                        simsimd_l2_f32_accurate);
+    elementwise_<f16_k>("fma_f16_haswell", simsimd_fma_f16_haswell, simsimd_fma_f16_accurate, simsimd_l2_f16_accurate);
+    elementwise_<f16_k>("wsum_f16_haswell", simsimd_wsum_f16_haswell, simsimd_wsum_f16_accurate,
+                        simsimd_l2_f16_accurate);
+    elementwise_<bf16_k>("fma_bf16_haswell", simsimd_fma_bf16_haswell, simsimd_fma_bf16_accurate,
+                         simsimd_l2_bf16_accurate);
+    elementwise_<bf16_k>("wsum_bf16_haswell", simsimd_wsum_bf16_haswell, simsimd_wsum_bf16_accurate,
+                         simsimd_l2_bf16_accurate);
+    elementwise_<i8_k>("fma_i8_haswell", simsimd_fma_i8_haswell, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
+    elementwise_<i8_k>("wsum_i8_haswell", simsimd_wsum_i8_haswell, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
+    elementwise_<u8_k>("fma_u8_haswell", simsimd_fma_u8_haswell, simsimd_fma_u8_accurate, simsimd_l2_u8_serial);
+    elementwise_<u8_k>("wsum_u8_haswell", simsimd_wsum_u8_haswell, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
 
 #endif
 
@@ -943,10 +947,10 @@ int main(int argc, char **argv) {
     dense_<f16c_k>("dot_f16c_sapphire", simsimd_dot_f16c_sapphire, simsimd_dot_f16c_accurate);
     dense_<f16c_k>("vdot_f16c_sapphire", simsimd_vdot_f16c_sapphire, simsimd_vdot_f16c_accurate);
 
-    fma_<u8_k>("fma_u8_sapphire", simsimd_fma_u8_sapphire, simsimd_fma_u8_accurate, simsimd_l2_u8_serial);
-    fma_<u8_k>("wsum_u8_sapphire", simsimd_wsum_u8_sapphire, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
-    fma_<i8_k>("fma_i8_sapphire", simsimd_fma_i8_sapphire, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
-    fma_<i8_k>("wsum_i8_sapphire", simsimd_wsum_i8_sapphire, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
+    elementwise_<u8_k>("fma_u8_sapphire", simsimd_fma_u8_sapphire, simsimd_fma_u8_accurate, simsimd_l2_u8_serial);
+    elementwise_<u8_k>("wsum_u8_sapphire", simsimd_wsum_u8_sapphire, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
+    elementwise_<i8_k>("fma_i8_sapphire", simsimd_fma_i8_sapphire, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
+    elementwise_<i8_k>("wsum_i8_sapphire", simsimd_wsum_i8_sapphire, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
 #endif
 
 #if SIMSIMD_TARGET_ICE
@@ -990,12 +994,15 @@ int main(int argc, char **argv) {
     dense_<f64c_k>("dot_f64c_skylake", simsimd_dot_f64c_skylake, simsimd_dot_f64c_serial);
     dense_<f64c_k>("vdot_f64c_skylake", simsimd_vdot_f64c_skylake, simsimd_vdot_f64c_serial);
 
-    fma_<f64_k>("fma_f64_skylake", simsimd_fma_f64_skylake, simsimd_fma_f64_serial, simsimd_l2_f64_serial);
-    fma_<f64_k>("wsum_f64_skylake", simsimd_wsum_f64_skylake, simsimd_wsum_f64_serial, simsimd_l2_f64_serial);
-    fma_<f32_k>("fma_f32_skylake", simsimd_fma_f32_skylake, simsimd_fma_f32_accurate, simsimd_l2_f32_accurate);
-    fma_<f32_k>("wsum_f32_skylake", simsimd_wsum_f32_skylake, simsimd_wsum_f32_accurate, simsimd_l2_f32_accurate);
-    fma_<bf16_k>("fma_bf16_skylake", simsimd_fma_bf16_skylake, simsimd_fma_bf16_accurate, simsimd_l2_bf16_accurate);
-    fma_<bf16_k>("wsum_bf16_skylake", simsimd_wsum_bf16_skylake, simsimd_wsum_bf16_accurate, simsimd_l2_bf16_accurate);
+    elementwise_<f64_k>("fma_f64_skylake", simsimd_fma_f64_skylake, simsimd_fma_f64_serial, simsimd_l2_f64_serial);
+    elementwise_<f64_k>("wsum_f64_skylake", simsimd_wsum_f64_skylake, simsimd_wsum_f64_serial, simsimd_l2_f64_serial);
+    elementwise_<f32_k>("fma_f32_skylake", simsimd_fma_f32_skylake, simsimd_fma_f32_accurate, simsimd_l2_f32_accurate);
+    elementwise_<f32_k>("wsum_f32_skylake", simsimd_wsum_f32_skylake, simsimd_wsum_f32_accurate,
+                        simsimd_l2_f32_accurate);
+    elementwise_<bf16_k>("fma_bf16_skylake", simsimd_fma_bf16_skylake, simsimd_fma_bf16_accurate,
+                         simsimd_l2_bf16_accurate);
+    elementwise_<bf16_k>("wsum_bf16_skylake", simsimd_wsum_bf16_skylake, simsimd_wsum_bf16_accurate,
+                         simsimd_l2_bf16_accurate);
 
 #endif
 
@@ -1064,12 +1071,12 @@ int main(int argc, char **argv) {
     dense_<b8_k>("hamming_b8_serial", simsimd_hamming_b8_serial, simsimd_hamming_b8_serial);
     dense_<b8_k>("jaccard_b8_serial", simsimd_jaccard_b8_serial, simsimd_jaccard_b8_serial);
 
-    fma_<f16_k>("fma_f16_serial", simsimd_fma_f16_serial, simsimd_fma_f16_accurate, simsimd_l2_f16_accurate);
-    fma_<f16_k>("wsum_f16_serial", simsimd_wsum_f16_serial, simsimd_wsum_f16_accurate, simsimd_l2_f16_accurate);
-    fma_<u8_k>("fma_u8_serial", simsimd_fma_u8_serial, simsimd_fma_u8_accurate, simsimd_l2_u8_serial);
-    fma_<u8_k>("wsum_u8_serial", simsimd_wsum_u8_serial, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
-    fma_<i8_k>("fma_i8_serial", simsimd_fma_i8_serial, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
-    fma_<i8_k>("wsum_i8_serial", simsimd_wsum_i8_serial, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
+    elementwise_<f16_k>("fma_f16_serial", simsimd_fma_f16_serial, simsimd_fma_f16_accurate, simsimd_l2_f16_accurate);
+    elementwise_<f16_k>("wsum_f16_serial", simsimd_wsum_f16_serial, simsimd_wsum_f16_accurate, simsimd_l2_f16_accurate);
+    elementwise_<u8_k>("fma_u8_serial", simsimd_fma_u8_serial, simsimd_fma_u8_accurate, simsimd_l2_u8_serial);
+    elementwise_<u8_k>("wsum_u8_serial", simsimd_wsum_u8_serial, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
+    elementwise_<i8_k>("fma_i8_serial", simsimd_fma_i8_serial, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
+    elementwise_<i8_k>("wsum_i8_serial", simsimd_wsum_i8_serial, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();

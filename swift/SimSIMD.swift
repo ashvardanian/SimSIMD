@@ -2,13 +2,13 @@ import CSimSIMD
 
 public protocol SimSIMD {
     static var dataType: simsimd_datatype_t { get }
-    static var cosine: simsimd_metric_dense_punned_t { get }
-    static var dotProduct: simsimd_metric_dense_punned_t { get }
-    static var squaredEuclidean: simsimd_metric_dense_punned_t { get }
+    static var cosine: simsimd_dense_metric_t { get }
+    static var dotProduct: simsimd_dense_metric_t { get }
+    static var squaredEuclidean: simsimd_dense_metric_t { get }
 }
 
 extension Int8: SimSIMD {
-    public static let dataType = simsimd_datatype_i8_k
+    public static let dataType = simsimd_i8_k
     public static let cosine = find(kind: simsimd_cosine_k, dataType: dataType)
     public static let dotProduct = find(kind: simsimd_dot_k, dataType: dataType)
     public static let squaredEuclidean = find(kind: simsimd_sqeuclidean_k, dataType: dataType)
@@ -16,21 +16,21 @@ extension Int8: SimSIMD {
 
 @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
 extension Float16: SimSIMD {
-    public static let dataType = simsimd_datatype_f16_k
+    public static let dataType = simsimd_f16_k
     public static let cosine = find(kind: simsimd_cosine_k, dataType: dataType)
     public static let dotProduct = find(kind: simsimd_dot_k, dataType: dataType)
     public static let squaredEuclidean = find(kind: simsimd_sqeuclidean_k, dataType: dataType)
 }
 
 extension Float32: SimSIMD {
-    public static let dataType = simsimd_datatype_f32_k
+    public static let dataType = simsimd_f32_k
     public static let cosine = find(kind: simsimd_cosine_k, dataType: dataType)
     public static let dotProduct = find(kind: simsimd_inner_k, dataType: dataType)
     public static let squaredEuclidean = find(kind: simsimd_sqeuclidean_k, dataType: dataType)
 }
 
 extension Float64: SimSIMD {
-    public static let dataType = simsimd_datatype_f64_k
+    public static let dataType = simsimd_f64_k
     public static let cosine = find(kind: simsimd_cosine_k, dataType: dataType)
     public static let dotProduct = find(kind: simsimd_dot_k, dataType: dataType)
     public static let squaredEuclidean = find(kind: simsimd_sqeuclidean_k, dataType: dataType)
@@ -71,7 +71,7 @@ extension RandomAccessCollection where Element: SimSIMD {
 }
 
 @inlinable @inline(__always)
-func perform<A, B>(_ metric: simsimd_metric_dense_punned_t, a: A, b: B) -> Double? where A: Sequence, B: Sequence, A.Element == B.Element {
+func perform<A, B>(_ metric: simsimd_dense_metric_t, a: A, b: B) -> Double? where A: Sequence, B: Sequence, A.Element == B.Element {
     var distance: simsimd_distance_t = 0
     let result = a.withContiguousStorageIfAvailable { a in
         b.withContiguousStorageIfAvailable { b in
@@ -118,14 +118,14 @@ extension simsimd_capability_t: OptionSet, CustomStringConvertible {
 }
 
 @inline(__always)
-private func find(kind: simsimd_metric_kind_t, dataType: simsimd_datatype_t) -> simsimd_metric_dense_punned_t {
-    var output: simsimd_metric_dense_punned_t?
+private func find(kind: simsimd_kernel_kind_t, dataType: simsimd_datatype_t) -> simsimd_dense_metric_t {
+    var output: simsimd_dense_metric_t?
     var used = simsimd_capability_t.any
     // Use `withUnsafeMutablePointer` to safely cast `output` to the required pointer type.
     withUnsafeMutablePointer(to: &output) { outputPtr in
         // Cast the pointer to `UnsafeMutablePointer<simsimd_kernel_punned_t?>`
         let castedPtr = outputPtr.withMemoryRebound(to: Optional<simsimd_kernel_punned_t>.self, capacity: 1) { $0 }
-        simsimd_find_kernel_punned(kind, dataType, .available, .any, castedPtr, &used)
+        simsimd_find_kernel(kind, dataType, .available, .any, castedPtr, &used)
     }
     guard let output else { fatalError("Could not find function \(kind) for \(dataType)") }
     return output

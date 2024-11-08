@@ -14,7 +14,7 @@
 /// @brief  Global variable that caches the CPU capabilities, and is computed just onc, when the module is loaded.
 simsimd_capability_t static_capabilities = simsimd_cap_serial_k;
 
-napi_value dense(napi_env env, napi_callback_info info, simsimd_metric_kind_t metric_kind,
+napi_value dense(napi_env env, napi_callback_info info, simsimd_kernel_kind_t metric_kind,
                  simsimd_datatype_t datatype) {
     size_t argc = 2;
     napi_value args[2];
@@ -46,17 +46,17 @@ napi_value dense(napi_env env, napi_callback_info info, simsimd_metric_kind_t me
     }
 
     if (datatype == simsimd_datatype_unknown_k) switch (type_a) {
-        case napi_float64_array: datatype = simsimd_datatype_f64_k; break;
-        case napi_float32_array: datatype = simsimd_datatype_f32_k; break;
-        case napi_int8_array: datatype = simsimd_datatype_i8_k; break;
-        case napi_uint8_array: datatype = simsimd_datatype_u8_k; break;
+        case napi_float64_array: datatype = simsimd_f64_k; break;
+        case napi_float32_array: datatype = simsimd_f32_k; break;
+        case napi_int8_array: datatype = simsimd_i8_k; break;
+        case napi_uint8_array: datatype = simsimd_u8_k; break;
         default: break;
         }
 
-    simsimd_metric_dense_punned_t metric = NULL;
+    simsimd_dense_metric_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&metric, &capability);
+    simsimd_find_kernel(metric_kind, datatype, static_capabilities, simsimd_cap_any_k,
+                        (simsimd_kernel_punned_t *)&metric, &capability);
     if (metric == NULL) {
         napi_throw_error(env, NULL, "Unsupported datatype for given metric");
         return NULL;
@@ -89,10 +89,10 @@ napi_value api_js(napi_env env, napi_callback_info info) {
     return dense(env, info, simsimd_js_k, simsimd_datatype_unknown_k);
 }
 napi_value api_hamming(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_hamming_k, simsimd_datatype_b8_k);
+    return dense(env, info, simsimd_hamming_k, simsimd_b8_k);
 }
 napi_value api_jaccard(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_jaccard_k, simsimd_datatype_b8_k);
+    return dense(env, info, simsimd_jaccard_k, simsimd_b8_k);
 }
 
 napi_value Init(napi_env env, napi_value exports) {
