@@ -592,6 +592,14 @@ SIMSIMD_INTERNAL void _simsimd_f32_to_u8(simsimd_f32_t const *x, simsimd_u8_t *y
     *y = (simsimd_u8_t)(*x > 255 ? 255 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5f : 0.5f))));
 }
 
+SIMSIMD_INTERNAL void _simsimd_f32_to_i16(simsimd_f32_t const *x, simsimd_i16_t *y) {
+    *y = (simsimd_i16_t)(*x > 32767 ? 32767 : (*x < -32768 ? -32768 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+}
+
+SIMSIMD_INTERNAL void _simsimd_f32_to_u16(simsimd_f32_t const *x, simsimd_u16_t *y) {
+    *y = (simsimd_u16_t)(*x > 65535 ? 65535 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
+}
+
 SIMSIMD_INTERNAL void _simsimd_f64_to_i8(simsimd_f64_t const *x, simsimd_i8_t *y) {
     *y = (simsimd_i8_t)(*x > 127 ? 127 : (*x < -128 ? -128 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
 }

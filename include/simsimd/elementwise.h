@@ -2090,6 +2090,142 @@ SIMSIMD_PUBLIC void simsimd_fma_f32_neon(                                   //
     for (; i < n; ++i) result[i] = alpha_f32 * a[i] * b[i] + beta_f32 * c[i];
 }
 
+SIMSIMD_PUBLIC void simsimd_sum_i16_neon(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n,
+                                         simsimd_i16_t *result) {
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        int16x8_t a_vec = vld1q_s16(a + i);
+        int16x8_t b_vec = vld1q_s16(b + i);
+        int16x8_t sum_vec = vqaddq_s16(a_vec, b_vec);
+        vst1q_s16(result + i, sum_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) _simsimd_i16_sadd(a + i, b + i, result + i);
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_i16_neon(simsimd_i16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                           simsimd_distance_t beta, simsimd_i16_t *result) {
+    float32_t alpha_f32 = (float32_t)alpha;
+    float32_t beta_f32 = (float32_t)beta;
+    float32x4_t alpha_vec = vdupq_n_f32(alpha_f32);
+    float32x4_t beta_vec = vdupq_n_f32(beta_f32);
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        int16x4_t a_i16_vec = vld1_s16(a + i);
+        float32x4_t a_vec = vcvtq_f32_s32(vmovl_s16(a_i16_vec));
+        float32x4_t sum_vec = vfmaq_f32(beta_vec, a_vec, alpha_vec);
+        int16x4_t sum_i16_vec = vqmovn_s32(vcvtaq_s32_f32(sum_vec));
+        vst1_s16(result + i, sum_i16_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) {
+        simsimd_f32_t sum = alpha_f32 * a[i] + beta_f32;
+        _simsimd_f32_to_i16(&sum, result + i);
+    }
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_i16_neon(                                   //
+    simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t const *c, //
+    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result) {
+    float32_t alpha_f32 = (float32_t)alpha;
+    float32_t beta_f32 = (float32_t)beta;
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        int16x4_t a_i16_vec = vld1_s16(a + i);
+        int16x4_t b_i16_vec = vld1_s16(b + i);
+        int16x4_t c_i16_vec = vld1_s16(c + i);
+        float32x4_t a_vec = vcvtq_f32_s32(vmovl_s16(a_i16_vec));
+        float32x4_t b_vec = vcvtq_f32_s32(vmovl_s16(b_i16_vec));
+        float32x4_t c_vec = vcvtq_f32_s32(vmovl_s16(c_i16_vec));
+        float32x4_t ab_vec = vmulq_f32(a_vec, b_vec);
+        float32x4_t ab_scaled_vec = vmulq_n_f32(ab_vec, alpha_f32);
+        float32x4_t sum_vec = vfmaq_n_f32(ab_scaled_vec, c_vec, beta_f32);
+        int16x4_t sum_i16_vec = vqmovn_s32(vcvtaq_s32_f32(sum_vec));
+        vst1_s16(result + i, sum_i16_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) {
+        simsimd_f32_t sum = alpha_f32 * a[i] * b[i] + beta_f32 * c[i];
+        _simsimd_f32_to_i16(&sum, result + i);
+    }
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_u16_neon(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n,
+                                         simsimd_u16_t *result) {
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        uint16x8_t a_vec = vld1q_u16(a + i);
+        uint16x8_t b_vec = vld1q_u16(b + i);
+        uint16x8_t sum_vec = vqaddq_u16(a_vec, b_vec);
+        vst1q_u16(result + i, sum_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) _simsimd_u16_sadd(a + i, b + i, result + i);
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_u16_neon(simsimd_u16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                           simsimd_distance_t beta, simsimd_u16_t *result) {
+    float32_t alpha_f32 = (float32_t)alpha;
+    float32_t beta_f32 = (float32_t)beta;
+    float32x4_t alpha_vec = vdupq_n_f32(alpha_f32);
+    float32x4_t beta_vec = vdupq_n_f32(beta_f32);
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        uint16x4_t a_u16_vec = vld1_u16(a + i);
+        float32x4_t a_vec = vcvtq_f32_u32(vmovl_u16(a_u16_vec));
+        float32x4_t sum_vec = vfmaq_f32(beta_vec, a_vec, alpha_vec);
+        uint16x4_t sum_u16_vec = vqmovn_u32(vcvtaq_u32_f32(sum_vec));
+        vst1_u16(result + i, sum_u16_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) {
+        simsimd_f32_t sum = alpha_f32 * a[i] + beta_f32;
+        _simsimd_f32_to_u16(&sum, result + i);
+    }
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_u16_neon(                                   //
+    simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t const *c, //
+    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result) {
+    float32_t alpha_f32 = (float32_t)alpha;
+    float32_t beta_f32 = (float32_t)beta;
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        uint16x4_t a_u16_vec = vld1_u16(a + i);
+        uint16x4_t b_u16_vec = vld1_u16(b + i);
+        uint16x4_t c_u16_vec = vld1_u16(c + i);
+        float32x4_t a_vec = vcvtq_f32_u32(vmovl_u16(a_u16_vec));
+        float32x4_t b_vec = vcvtq_f32_u32(vmovl_u16(b_u16_vec));
+        float32x4_t c_vec = vcvtq_f32_u32(vmovl_u16(c_u16_vec));
+        float32x4_t ab_vec = vmulq_f32(a_vec, b_vec);
+        float32x4_t ab_scaled_vec = vmulq_n_f32(ab_vec, alpha_f32);
+        float32x4_t sum_vec = vfmaq_n_f32(ab_scaled_vec, c_vec, beta_f32);
+        uint16x4_t sum_u16_vec = vqmovn_u32(vcvtaq_u32_f32(sum_vec));
+        vst1_u16(result + i, sum_u16_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) {
+        simsimd_f32_t sum = alpha_f32 * a[i] * b[i] + beta_f32 * c[i];
+        _simsimd_f32_to_u16(&sum, result + i);
+    }
+}
+
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON
