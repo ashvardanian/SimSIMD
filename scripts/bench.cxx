@@ -482,11 +482,6 @@ void measure_sparse(bm::State &state, metric_at metric, metric_at baseline, std:
         std::accumulate(results_contender.begin(), results_contender.end(), 0.0) / results_contender.size();
 }
 
-template <typename... function_args_at>
-constexpr std::size_t function_args_count(void (*function)(function_args_at...)) {
-    return sizeof...(function_args_at);
-}
-
 /**
  *  @brief Measures the performance of a vector-vector @b FMA function against a baseline using Google Benchmark.
  *  @tparam pair_at The type representing the vector pair used in the measurement.
@@ -496,7 +491,7 @@ constexpr std::size_t function_args_count(void (*function)(function_args_at...))
  *  @param baseline The baseline function to compare against.
  *  @param dimensions The number of dimensions in the vectors.
  */
-template <typename pair_at, typename kernel_at = void, typename l2_metric_at = void>
+template <typename pair_at, simsimd_kernel_kind_t kernel_ak, typename kernel_at = void, typename l2_metric_at = void>
 void measure_elementwise(bm::State &state, kernel_at kernel, kernel_at baseline, l2_metric_at l2_metric,
                          std::size_t dimensions) {
 
@@ -505,20 +500,25 @@ void measure_elementwise(bm::State &state, kernel_at kernel, kernel_at baseline,
 
     constexpr simsimd_distance_t alpha = 0.2;
     constexpr simsimd_distance_t beta = 0.3;
-    static_assert(function_args_count(kernel_at {}) >= 6 && function_args_count(kernel_at {}) <= 7,
-                  "Kernel must take two or three vectors.");
-
     auto call_baseline = [&](vector_t const &a, vector_t const &b, vector_t const &c, vector_t &d) {
-        if constexpr (function_args_count(kernel_at {}) == 6) {
+        if constexpr (kernel_ak == simsimd_wsum_k) {
             baseline(a.data(), c.data(), a.dimensions(), alpha, beta, d.data());
         }
-        else { baseline(a.data(), b.data(), c.data(), a.dimensions(), alpha, beta, d.data()); }
+        else if constexpr (kernel_ak == simsimd_fma_k) {
+            baseline(a.data(), b.data(), c.data(), a.dimensions(), alpha, beta, d.data());
+        }
+        else if constexpr (kernel_ak == simsimd_sum_k) { baseline(a.data(), c.data(), a.dimensions(), d.data()); }
+        else if constexpr (kernel_ak == simsimd_scale_k) { baseline(a.data(), a.dimensions(), alpha, beta, d.data()); }
     };
     auto call_contender = [&](vector_t const &a, vector_t const &b, vector_t const &c, vector_t &d) {
-        if constexpr (function_args_count(kernel_at {}) == 6) {
+        if constexpr (kernel_ak == simsimd_wsum_k) {
             kernel(a.data(), c.data(), a.dimensions(), alpha, beta, d.data());
         }
-        else { kernel(a.data(), b.data(), c.data(), a.dimensions(), alpha, beta, d.data()); }
+        else if constexpr (kernel_ak == simsimd_fma_k) {
+            kernel(a.data(), b.data(), c.data(), a.dimensions(), alpha, beta, d.data());
+        }
+        else if constexpr (kernel_ak == simsimd_sum_k) { kernel(a.data(), c.data(), a.dimensions(), d.data()); }
+        else if constexpr (kernel_ak == simsimd_scale_k) { kernel(a.data(), a.dimensions(), alpha, beta, d.data()); }
     };
 
     // Let's average the distance results over many quads.
@@ -565,11 +565,16 @@ void measure_elementwise(bm::State &state, kernel_at kernel, kernel_at baseline,
         iterations++;
     }
 
+    std::size_t bytes_per_call = quads[0].a.size_bytes();
+    if constexpr (kernel_ak == simsimd_wsum_k) { bytes_per_call *= 2; }
+    else if constexpr (kernel_ak == simsimd_fma_k) { bytes_per_call *= 3; }
+    else if constexpr (kernel_ak == simsimd_sum_k) { bytes_per_call *= 2; }
+    else if constexpr (kernel_ak == simsimd_scale_k) { bytes_per_call *= 1; }
+
     // Measure the mean absolute delta and relative error.
     state.counters["abs_delta"] = mean_delta;
     state.counters["relative_error"] = mean_relative_error;
-    state.counters["bytes"] = bm::Counter(
-        iterations * quads[0].a.size_bytes() * (function_args_count(kernel_at {}) > 6 ? 3 : 2), bm::Counter::kIsRate);
+    state.counters["bytes"] = bm::Counter(iterations * bytes_per_call, bm::Counter::kIsRate);
     state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
@@ -583,12 +588,13 @@ void dense_(std::string name, metric_at *distance_func, metric_at *baseline_func
         ->Threads(default_threads);
 }
 
-template <simsimd_datatype_t datatype_ak, simsimd_kernel_t, typename kernel_at = void, typename l2_metric_at = void>
+template <simsimd_datatype_t datatype_ak, simsimd_kernel_kind_t kernel_ak, typename kernel_at = void,
+          typename l2_metric_at = void>
 void elementwise_(std::string name, kernel_at *kernel_func, kernel_at *baseline_func, l2_metric_at *l2_metric_func) {
     using pair_t = vectors_pair_gt<datatype_ak>;
     std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
-    bm::RegisterBenchmark(bench_name.c_str(), measure_elementwise<pair_t, kernel_at *, l2_metric_at *>, kernel_func,
-                          baseline_func, l2_metric_func, dense_dimensions)
+    bm::RegisterBenchmark(bench_name.c_str(), measure_elementwise<pair_t, kernel_ak, kernel_at *, l2_metric_at *>,
+                          kernel_func, baseline_func, l2_metric_func, dense_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
@@ -627,6 +633,16 @@ void curved_(std::string name, metric_at *distance_func, metric_at *baseline_fun
                           curved_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
+}
+
+template <typename scalar_at>
+void l2(scalar_at const *a, scalar_at const *b, std::size_t n, simsimd_distance_t *result) {
+    simsimd_distance_t sum = 0;
+    for (std::size_t i = 0; i != n; ++i) {
+        simsimd_distance_t delta = a[i] - b[i];
+        sum += delta * delta;
+    }
+    *result = std::sqrt(sum);
 }
 
 #if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
@@ -771,10 +787,14 @@ int main(int argc, char **argv) {
     sparse_<u16_k>("intersect_u16_neon", simsimd_intersect_u16_neon, simsimd_intersect_u16_accurate);
     sparse_<u32_k>("intersect_u32_neon", simsimd_intersect_u32_neon, simsimd_intersect_u32_accurate);
 
-    elementwise_<f32_k>("fma_f32_neon", simsimd_fma_f32_neon, simsimd_fma_f32_accurate, simsimd_l2_f32_accurate);
-    elementwise_<f32_k>("wsum_f32_neon", simsimd_wsum_f32_neon, simsimd_wsum_f32_accurate, simsimd_l2_f32_accurate);
-    elementwise_<f32_k>("fma_f32_serial", simsimd_fma_f32_serial, simsimd_fma_f32_accurate, simsimd_l2_f32_accurate);
-    elementwise_<f32_k>("wsum_f32_serial", simsimd_wsum_f32_serial, simsimd_wsum_f32_accurate, simsimd_l2_f32_accurate);
+    elementwise_<f32_k, simsimd_fma_k>("fma_f32_neon", simsimd_fma_f32_neon, simsimd_fma_f32_accurate,
+                                       simsimd_l2_f32_accurate);
+    elementwise_<f32_k, simsimd_wsum_k>("wsum_f32_neon", simsimd_wsum_f32_neon, simsimd_wsum_f32_accurate,
+                                        simsimd_l2_f32_accurate);
+    elementwise_<f32_k, simsimd_fma_k>("fma_f32_serial", simsimd_fma_f32_serial, simsimd_fma_f32_accurate,
+                                       simsimd_l2_f32_accurate);
+    elementwise_<f32_k, simsimd_wsum_k>("wsum_f32_serial", simsimd_wsum_f32_serial, simsimd_wsum_f32_accurate,
+                                        simsimd_l2_f32_accurate);
 
 #endif
 
@@ -792,14 +812,20 @@ int main(int argc, char **argv) {
     curved_<f16_k>("bilinear_f16_neon", simsimd_bilinear_f16_neon, simsimd_bilinear_f16_accurate);
     curved_<f16_k>("mahalanobis_f16_neon", simsimd_mahalanobis_f16_neon, simsimd_mahalanobis_f16_accurate);
 
-    elementwise_<f16_k>("fma_f16_neon", simsimd_fma_f16_neon, simsimd_fma_f16_accurate, simsimd_l2_f16_accurate);
-    elementwise_<f16_k>("wsum_f16_neon", simsimd_wsum_f16_neon, simsimd_wsum_f16_accurate, simsimd_l2_f16_accurate);
+    elementwise_<f16_k, simsimd_fma_k>("fma_f16_neon", simsimd_fma_f16_neon, simsimd_fma_f16_accurate,
+                                       simsimd_l2_f16_accurate);
+    elementwise_<f16_k, simsimd_wsum_k>("wsum_f16_neon", simsimd_wsum_f16_neon, simsimd_wsum_f16_accurate,
+                                        simsimd_l2_f16_accurate);
 
     // FMA kernels for `u8` on NEON use `f16` arithmetic
-    elementwise_<u8_k>("fma_u8_neon", simsimd_fma_u8_neon, simsimd_fma_u8_accurate, simsimd_l2_u8_serial);
-    elementwise_<u8_k>("wsum_u8_neon", simsimd_wsum_u8_neon, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
-    elementwise_<i8_k>("fma_i8_neon", simsimd_fma_i8_neon, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
-    elementwise_<i8_k>("wsum_i8_neon", simsimd_wsum_i8_neon, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
+    elementwise_<u8_k, simsimd_fma_k>("fma_u8_neon", simsimd_fma_u8_neon, simsimd_fma_u8_accurate,
+                                      simsimd_l2_u8_serial);
+    elementwise_<u8_k, simsimd_wsum_k>("wsum_u8_neon", simsimd_wsum_u8_neon, simsimd_wsum_u8_accurate,
+                                       simsimd_l2_u8_serial);
+    elementwise_<i8_k, simsimd_fma_k>("fma_i8_neon", simsimd_fma_i8_neon, simsimd_fma_i8_accurate,
+                                      simsimd_l2_i8_serial);
+    elementwise_<i8_k, simsimd_wsum_k>("wsum_i8_neon", simsimd_wsum_i8_neon, simsimd_wsum_i8_accurate,
+                                       simsimd_l2_i8_serial);
 #endif
 
 #if SIMSIMD_TARGET_NEON_BF16
@@ -814,9 +840,10 @@ int main(int argc, char **argv) {
     curved_<bf16_k>("bilinear_bf16_neon", simsimd_bilinear_bf16_neon, simsimd_bilinear_bf16_accurate);
     curved_<bf16_k>("mahalanobis_bf16_neon", simsimd_mahalanobis_bf16_neon, simsimd_mahalanobis_bf16_accurate);
 
-    elementwise_<bf16_k>("fma_bf16_neon", simsimd_fma_bf16_neon, simsimd_fma_bf16_accurate, simsimd_l2_bf16_accurate);
-    elementwise_<bf16_k>("wsum_bf16_neon", simsimd_wsum_bf16_neon, simsimd_wsum_bf16_accurate,
-                         simsimd_l2_bf16_accurate);
+    elementwise_<bf16_k, simsimd_fma_k>("fma_bf16_neon", simsimd_fma_bf16_neon, simsimd_fma_bf16_accurate,
+                                        simsimd_l2_bf16_accurate);
+    elementwise_<bf16_k, simsimd_wsum_k>("wsum_bf16_neon", simsimd_wsum_bf16_neon, simsimd_wsum_bf16_accurate,
+                                         simsimd_l2_bf16_accurate);
 #endif
 
 #if SIMSIMD_TARGET_SVE
@@ -904,22 +931,50 @@ int main(int argc, char **argv) {
     curved_<bf16_k>("bilinear_bf16_haswell", simsimd_bilinear_bf16_haswell, simsimd_bilinear_bf16_accurate);
     curved_<bf16_k>("mahalanobis_bf16_haswell", simsimd_mahalanobis_bf16_haswell, simsimd_mahalanobis_bf16_accurate);
 
-    elementwise_<f64_k>("fma_f64_haswell", simsimd_fma_f64_haswell, simsimd_fma_f64_serial, simsimd_l2_f64_serial);
-    elementwise_<f64_k>("wsum_f64_haswell", simsimd_wsum_f64_haswell, simsimd_wsum_f64_serial, simsimd_l2_f64_serial);
-    elementwise_<f32_k>("fma_f32_haswell", simsimd_fma_f32_haswell, simsimd_fma_f32_accurate, simsimd_l2_f32_accurate);
-    elementwise_<f32_k>("wsum_f32_haswell", simsimd_wsum_f32_haswell, simsimd_wsum_f32_accurate,
-                        simsimd_l2_f32_accurate);
-    elementwise_<f16_k>("fma_f16_haswell", simsimd_fma_f16_haswell, simsimd_fma_f16_accurate, simsimd_l2_f16_accurate);
-    elementwise_<f16_k>("wsum_f16_haswell", simsimd_wsum_f16_haswell, simsimd_wsum_f16_accurate,
-                        simsimd_l2_f16_accurate);
-    elementwise_<bf16_k>("fma_bf16_haswell", simsimd_fma_bf16_haswell, simsimd_fma_bf16_accurate,
-                         simsimd_l2_bf16_accurate);
-    elementwise_<bf16_k>("wsum_bf16_haswell", simsimd_wsum_bf16_haswell, simsimd_wsum_bf16_accurate,
-                         simsimd_l2_bf16_accurate);
-    elementwise_<i8_k>("fma_i8_haswell", simsimd_fma_i8_haswell, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
-    elementwise_<i8_k>("wsum_i8_haswell", simsimd_wsum_i8_haswell, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
-    elementwise_<u8_k>("fma_u8_haswell", simsimd_fma_u8_haswell, simsimd_fma_u8_accurate, simsimd_l2_u8_serial);
-    elementwise_<u8_k>("wsum_u8_haswell", simsimd_wsum_u8_haswell, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
+    elementwise_<f64_k, simsimd_scale_k>("scale_f64_haswell", simsimd_scale_f64_haswell, simsimd_scale_f64_serial,
+                                         simsimd_l2_f64_serial);
+    elementwise_<f64_k, simsimd_fma_k>("fma_f64_haswell", simsimd_fma_f64_haswell, simsimd_fma_f64_serial,
+                                       simsimd_l2_f64_serial);
+    elementwise_<f64_k, simsimd_wsum_k>("wsum_f64_haswell", simsimd_wsum_f64_haswell, simsimd_wsum_f64_serial,
+                                        simsimd_l2_f64_serial);
+    elementwise_<f32_k, simsimd_scale_k>("scale_f32_haswell", simsimd_scale_f32_haswell, simsimd_scale_f32_serial,
+                                         simsimd_l2_f32_accurate);
+    elementwise_<f32_k, simsimd_fma_k>("fma_f32_haswell", simsimd_fma_f32_haswell, simsimd_fma_f32_serial,
+                                       simsimd_l2_f32_accurate);
+    elementwise_<f32_k, simsimd_wsum_k>("wsum_f32_haswell", simsimd_wsum_f32_haswell, simsimd_wsum_f32_serial,
+                                        simsimd_l2_f32_accurate);
+    elementwise_<f16_k, simsimd_scale_k>("scale_f16_haswell", simsimd_scale_f16_haswell, simsimd_scale_f16_serial,
+                                         simsimd_l2_f16_accurate);
+    elementwise_<f16_k, simsimd_fma_k>("fma_f16_haswell", simsimd_fma_f16_haswell, simsimd_fma_f16_serial,
+                                       simsimd_l2_f16_accurate);
+    elementwise_<f16_k, simsimd_wsum_k>("wsum_f16_haswell", simsimd_wsum_f16_haswell, simsimd_wsum_f16_serial,
+                                        simsimd_l2_f16_accurate);
+    elementwise_<bf16_k, simsimd_scale_k>("scale_bf16_haswell", simsimd_scale_bf16_haswell, simsimd_scale_bf16_serial,
+                                          simsimd_l2_bf16_accurate);
+    elementwise_<bf16_k, simsimd_fma_k>("fma_bf16_haswell", simsimd_fma_bf16_haswell, simsimd_fma_bf16_serial,
+                                        simsimd_l2_bf16_accurate);
+    elementwise_<bf16_k, simsimd_wsum_k>("wsum_bf16_haswell", simsimd_wsum_bf16_haswell, simsimd_wsum_bf16_serial,
+                                         simsimd_l2_bf16_accurate);
+    elementwise_<i8_k, simsimd_scale_k>("scale_i8_haswell", simsimd_scale_i8_haswell, simsimd_scale_i8_serial,
+                                        simsimd_l2_i8_serial);
+    elementwise_<i8_k, simsimd_fma_k>("fma_i8_haswell", simsimd_fma_i8_haswell, simsimd_fma_i8_serial,
+                                      simsimd_l2_i8_serial);
+    elementwise_<i8_k, simsimd_wsum_k>("wsum_i8_haswell", simsimd_wsum_i8_haswell, simsimd_wsum_i8_serial,
+                                       simsimd_l2_i8_serial);
+    elementwise_<u8_k, simsimd_scale_k>("scale_u8_haswell", simsimd_scale_u8_haswell, simsimd_scale_u8_serial,
+                                        simsimd_l2_u8_serial);
+    elementwise_<u8_k, simsimd_fma_k>("fma_u8_haswell", simsimd_fma_u8_haswell, simsimd_fma_u8_serial,
+                                      simsimd_l2_u8_serial);
+    elementwise_<u8_k, simsimd_wsum_k>("wsum_u8_haswell", simsimd_wsum_u8_haswell, simsimd_wsum_u8_serial,
+                                       simsimd_l2_u8_serial);
+    elementwise_<i16_k, simsimd_scale_k>("scale_i16_haswell", simsimd_scale_i16_haswell, simsimd_scale_i16_serial,
+                                         l2<simsimd_i16_t>);
+    elementwise_<i16_k, simsimd_fma_k>("fma_i16_haswell", simsimd_fma_i16_haswell, simsimd_fma_i16_serial,
+                                       l2<simsimd_i16_t>);
+    elementwise_<u16_k, simsimd_scale_k>("scale_u16_haswell", simsimd_scale_u16_haswell, simsimd_scale_u16_serial,
+                                         l2<simsimd_u16_t>);
+    elementwise_<u16_k, simsimd_fma_k>("fma_u16_haswell", simsimd_fma_u16_haswell, simsimd_fma_u16_serial,
+                                       l2<simsimd_u16_t>);
 
 #endif
 
@@ -947,10 +1002,14 @@ int main(int argc, char **argv) {
     dense_<f16c_k>("dot_f16c_sapphire", simsimd_dot_f16c_sapphire, simsimd_dot_f16c_accurate);
     dense_<f16c_k>("vdot_f16c_sapphire", simsimd_vdot_f16c_sapphire, simsimd_vdot_f16c_accurate);
 
-    elementwise_<u8_k>("fma_u8_sapphire", simsimd_fma_u8_sapphire, simsimd_fma_u8_accurate, simsimd_l2_u8_serial);
-    elementwise_<u8_k>("wsum_u8_sapphire", simsimd_wsum_u8_sapphire, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
-    elementwise_<i8_k>("fma_i8_sapphire", simsimd_fma_i8_sapphire, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
-    elementwise_<i8_k>("wsum_i8_sapphire", simsimd_wsum_i8_sapphire, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
+    elementwise_<u8_k, simsimd_fma_k>("fma_u8_sapphire", simsimd_fma_u8_sapphire, simsimd_fma_u8_serial,
+                                      simsimd_l2_u8_serial);
+    elementwise_<u8_k, simsimd_wsum_k>("wsum_u8_sapphire", simsimd_wsum_u8_sapphire, simsimd_wsum_u8_serial,
+                                       simsimd_l2_u8_serial);
+    elementwise_<i8_k, simsimd_fma_k>("fma_i8_sapphire", simsimd_fma_i8_sapphire, simsimd_fma_i8_serial,
+                                      simsimd_l2_i8_serial);
+    elementwise_<i8_k, simsimd_wsum_k>("wsum_i8_sapphire", simsimd_wsum_i8_sapphire, simsimd_wsum_i8_serial,
+                                       simsimd_l2_i8_serial);
 #endif
 
 #if SIMSIMD_TARGET_ICE
@@ -994,15 +1053,18 @@ int main(int argc, char **argv) {
     dense_<f64c_k>("dot_f64c_skylake", simsimd_dot_f64c_skylake, simsimd_dot_f64c_serial);
     dense_<f64c_k>("vdot_f64c_skylake", simsimd_vdot_f64c_skylake, simsimd_vdot_f64c_serial);
 
-    elementwise_<f64_k>("fma_f64_skylake", simsimd_fma_f64_skylake, simsimd_fma_f64_serial, simsimd_l2_f64_serial);
-    elementwise_<f64_k>("wsum_f64_skylake", simsimd_wsum_f64_skylake, simsimd_wsum_f64_serial, simsimd_l2_f64_serial);
-    elementwise_<f32_k>("fma_f32_skylake", simsimd_fma_f32_skylake, simsimd_fma_f32_accurate, simsimd_l2_f32_accurate);
-    elementwise_<f32_k>("wsum_f32_skylake", simsimd_wsum_f32_skylake, simsimd_wsum_f32_accurate,
-                        simsimd_l2_f32_accurate);
-    elementwise_<bf16_k>("fma_bf16_skylake", simsimd_fma_bf16_skylake, simsimd_fma_bf16_accurate,
-                         simsimd_l2_bf16_accurate);
-    elementwise_<bf16_k>("wsum_bf16_skylake", simsimd_wsum_bf16_skylake, simsimd_wsum_bf16_accurate,
-                         simsimd_l2_bf16_accurate);
+    elementwise_<f64_k, simsimd_fma_k>("fma_f64_skylake", simsimd_fma_f64_skylake, simsimd_fma_f64_serial,
+                                       simsimd_l2_f64_serial);
+    elementwise_<f64_k, simsimd_wsum_k>("wsum_f64_skylake", simsimd_wsum_f64_skylake, simsimd_wsum_f64_serial,
+                                        simsimd_l2_f64_serial);
+    elementwise_<f32_k, simsimd_fma_k>("fma_f32_skylake", simsimd_fma_f32_skylake, simsimd_fma_f32_serial,
+                                       simsimd_l2_f32_accurate);
+    elementwise_<f32_k, simsimd_wsum_k>("wsum_f32_skylake", simsimd_wsum_f32_skylake, simsimd_wsum_f32_serial,
+                                        simsimd_l2_f32_accurate);
+    elementwise_<bf16_k, simsimd_fma_k>("fma_bf16_skylake", simsimd_fma_bf16_skylake, simsimd_fma_bf16_serial,
+                                        simsimd_l2_bf16_accurate);
+    elementwise_<bf16_k, simsimd_wsum_k>("wsum_bf16_skylake", simsimd_wsum_bf16_skylake, simsimd_wsum_bf16_serial,
+                                         simsimd_l2_bf16_accurate);
 
 #endif
 
@@ -1071,12 +1133,18 @@ int main(int argc, char **argv) {
     dense_<b8_k>("hamming_b8_serial", simsimd_hamming_b8_serial, simsimd_hamming_b8_serial);
     dense_<b8_k>("jaccard_b8_serial", simsimd_jaccard_b8_serial, simsimd_jaccard_b8_serial);
 
-    elementwise_<f16_k>("fma_f16_serial", simsimd_fma_f16_serial, simsimd_fma_f16_accurate, simsimd_l2_f16_accurate);
-    elementwise_<f16_k>("wsum_f16_serial", simsimd_wsum_f16_serial, simsimd_wsum_f16_accurate, simsimd_l2_f16_accurate);
-    elementwise_<u8_k>("fma_u8_serial", simsimd_fma_u8_serial, simsimd_fma_u8_accurate, simsimd_l2_u8_serial);
-    elementwise_<u8_k>("wsum_u8_serial", simsimd_wsum_u8_serial, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
-    elementwise_<i8_k>("fma_i8_serial", simsimd_fma_i8_serial, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
-    elementwise_<i8_k>("wsum_i8_serial", simsimd_wsum_i8_serial, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
+    elementwise_<f16_k, simsimd_fma_k>("fma_f16_serial", simsimd_fma_f16_serial, simsimd_fma_f16_accurate,
+                                       simsimd_l2_f16_accurate);
+    elementwise_<f16_k, simsimd_wsum_k>("wsum_f16_serial", simsimd_wsum_f16_serial, simsimd_wsum_f16_accurate,
+                                        simsimd_l2_f16_accurate);
+    elementwise_<u8_k, simsimd_fma_k>("fma_u8_serial", simsimd_fma_u8_serial, simsimd_fma_u8_accurate,
+                                      simsimd_l2_u8_serial);
+    elementwise_<u8_k, simsimd_wsum_k>("wsum_u8_serial", simsimd_wsum_u8_serial, simsimd_wsum_u8_accurate,
+                                       simsimd_l2_u8_serial);
+    elementwise_<i8_k, simsimd_fma_k>("fma_i8_serial", simsimd_fma_i8_serial, simsimd_fma_i8_accurate,
+                                      simsimd_l2_i8_serial);
+    elementwise_<i8_k, simsimd_wsum_k>("wsum_i8_serial", simsimd_wsum_i8_serial, simsimd_wsum_i8_accurate,
+                                       simsimd_l2_i8_serial);
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();

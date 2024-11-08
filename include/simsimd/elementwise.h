@@ -1242,11 +1242,11 @@ SIMSIMD_PUBLIC void simsimd_scale_i16_haswell(simsimd_i16_t const *a, simsimd_si
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m256 a_vec = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm_lddqu_si128((__m128i *)(a + i))));
-        __m256 b_vec = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm_lddqu_si128((__m128i *)(a + i))));
         __m256 sum_vec = _mm256_fmadd_ps(a_vec, alpha_vec, beta_vec);
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
         sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(-32768));
         sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(32767));
+        // Casting down to 16-bit integers is tricky!
         __m128i sum_i16_vec =
             _mm_packs_epi32(_mm256_castsi256_si128(sum_i32_vec), _mm256_extracti128_si256(sum_i32_vec, 1));
         _mm_storeu_si128((__m128i *)(result + i), sum_i16_vec);
@@ -1263,47 +1263,27 @@ SIMSIMD_PUBLIC void simsimd_scale_i16_haswell(simsimd_i16_t const *a, simsimd_si
 SIMSIMD_PUBLIC void simsimd_fma_i16_haswell(                                                  //
     simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t const *c, simsimd_size_t n, //
     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result) {
-#if 0
     simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
     simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
-    int sum_i32s[8], a_i32s[8], b_i32s[8], c_i32s[8];
 
     // The main loop:
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        //? Handling loads and stores with SIMD is tricky. Not because of upcasting, but the
-        //? downcasting at the end of the loop. In AVX2 it's a drag! Keep it for another day.
-        a_i32s[0] = a[i + 0], a_i32s[1] = a[i + 1], a_i32s[2] = a[i + 2], a_i32s[3] = a[i + 3], //
-            a_i32s[4] = a[i + 4], a_i32s[5] = a[i + 5], a_i32s[6] = a[i + 6], a_i32s[7] = a[i + 7];
-        b_i32s[0] = b[i + 0], b_i32s[1] = b[i + 1], b_i32s[2] = b[i + 2], b_i32s[3] = b[i + 3], //
-            b_i32s[4] = b[i + 4], b_i32s[5] = b[i + 5], b_i32s[6] = b[i + 6], b_i32s[7] = b[i + 7];
-        c_i32s[0] = c[i + 0], c_i32s[1] = c[i + 1], c_i32s[2] = c[i + 2], c_i32s[3] = c[i + 3], //
-            c_i32s[4] = c[i + 4], c_i32s[5] = c[i + 5], c_i32s[6] = c[i + 6], c_i32s[7] = c[i + 7];
-        //! This can be done at least 50% faster if we convert 8-bit integers to floats instead
-        //! of relying on the slow `_mm256_cvtepi32_ps` instruction.
-        __m256 a_vec = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)a_i32s));
-        __m256 b_vec = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)b_i32s));
-        __m256 c_vec = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)c_i32s));
-        // The normal part.
+        __m256 a_vec = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm_lddqu_si128((__m128i *)(a + i))));
+        __m256 b_vec = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm_lddqu_si128((__m128i *)(b + i))));
+        __m256 c_vec = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm_lddqu_si128((__m128i *)(c + i))));
         __m256 ab_vec = _mm256_mul_ps(a_vec, b_vec);
         __m256 ab_scaled_vec = _mm256_mul_ps(ab_vec, alpha_vec);
         __m256 sum_vec = _mm256_fmadd_ps(c_vec, beta_vec, ab_scaled_vec);
-        // Instead of serial calls to expensive `_simsimd_f32_to_u8`, convert and clip with SIMD.
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
-        sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(-128));
-        sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(127));
-        // Export into a serial buffer.
-        _mm256_storeu_si256((__m256i *)sum_i32s, sum_i32_vec);
-        result[i + 0] = (simsimd_i16_t)sum_i32s[0];
-        result[i + 1] = (simsimd_i16_t)sum_i32s[1];
-        result[i + 2] = (simsimd_i16_t)sum_i32s[2];
-        result[i + 3] = (simsimd_i16_t)sum_i32s[3];
-        result[i + 4] = (simsimd_i16_t)sum_i32s[4];
-        result[i + 5] = (simsimd_i16_t)sum_i32s[5];
-        result[i + 6] = (simsimd_i16_t)sum_i32s[6];
-        result[i + 7] = (simsimd_i16_t)sum_i32s[7];
+        sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(-32768));
+        sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(32767));
+        // Casting down to 16-bit integers is tricky!
+        __m128i sum_i16_vec =
+            _mm_packs_epi32(_mm256_castsi256_si128(sum_i32_vec), _mm256_extracti128_si256(sum_i32_vec, 1));
+        _mm_storeu_si128((__m128i *)(result + i), sum_i16_vec);
     }
 
     // The tail:
@@ -1312,7 +1292,89 @@ SIMSIMD_PUBLIC void simsimd_fma_i16_haswell(                                    
         simsimd_f32_t sum = alpha_f32 * ai * bi + beta_f32 * ci;
         _simsimd_f32_to_i16(&sum, result + i);
     }
-#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_u16_haswell(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n,
+                                            simsimd_u16_t *result) {
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 16 <= n; i += 16) {
+        __m256i a_vec = _mm256_lddqu_si256((__m256i *)(a + i));
+        __m256i b_vec = _mm256_lddqu_si256((__m256i *)(b + i));
+        __m256i sum_vec = _mm256_adds_epu16(a_vec, b_vec);
+        _mm256_storeu_si256((__m256i *)(result + i), sum_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) {
+        simsimd_u64_t ai = a[i], bi = b[i];
+        simsimd_u64_t sum = ai + bi;
+        _simsimd_u64_to_u16(&sum, result + i);
+    }
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_u16_haswell(simsimd_u16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                              simsimd_distance_t beta, simsimd_u16_t *result) {
+
+    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
+    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+    __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
+    __m256 beta_vec = _mm256_set1_ps(beta_f32);
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m256 a_vec = _mm256_cvtepi32_ps(_mm256_cvtepu16_epi32(_mm_lddqu_si128((__m128i *)(a + i))));
+        __m256 sum_vec = _mm256_fmadd_ps(a_vec, alpha_vec, beta_vec);
+        __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
+        sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_setzero_si256());
+        sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(65535));
+        // Casting down to 16-bit integers is tricky!
+        __m128i sum_u16_vec =
+            _mm_packs_epi32(_mm256_castsi256_si128(sum_i32_vec), _mm256_extracti128_si256(sum_i32_vec, 1));
+        _mm_storeu_si128((__m128i *)(result + i), sum_u16_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) {
+        simsimd_f32_t ai = a[i];
+        simsimd_f32_t sum = alpha_f32 * ai + beta_f32;
+        _simsimd_f32_to_u16(&sum, result + i);
+    }
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_u16_haswell(                                                  //
+    simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t const *c, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result) {
+    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
+    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+    __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
+    __m256 beta_vec = _mm256_set1_ps(beta_f32);
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m256 a_vec = _mm256_cvtepi32_ps(_mm256_cvtepu16_epi32(_mm_lddqu_si128((__m128i *)(a + i))));
+        __m256 b_vec = _mm256_cvtepi32_ps(_mm256_cvtepu16_epi32(_mm_lddqu_si128((__m128i *)(b + i))));
+        __m256 c_vec = _mm256_cvtepi32_ps(_mm256_cvtepu16_epi32(_mm_lddqu_si128((__m128i *)(c + i))));
+        __m256 ab_vec = _mm256_mul_ps(a_vec, b_vec);
+        __m256 ab_scaled_vec = _mm256_mul_ps(ab_vec, alpha_vec);
+        __m256 sum_vec = _mm256_fmadd_ps(c_vec, beta_vec, ab_scaled_vec);
+        __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
+        sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_setzero_si256());
+        sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(65535));
+        // Casting down to 16-bit integers is tricky!
+        __m128i sum_u16_vec =
+            _mm_packs_epi32(_mm256_castsi256_si128(sum_i32_vec), _mm256_extracti128_si256(sum_i32_vec, 1));
+        _mm_storeu_si128((__m128i *)(result + i), sum_u16_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) {
+        simsimd_f32_t ai = a[i], bi = b[i], ci = c[i];
+        simsimd_f32_t sum = alpha_f32 * ai * bi + beta_f32 * ci;
+        _simsimd_f32_to_u16(&sum, result + i);
+    }
 }
 
 #pragma clang attribute pop
