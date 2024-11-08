@@ -2435,6 +2435,142 @@ SIMSIMD_PUBLIC void simsimd_fma_u32_neon(                                   //
     }
 }
 
+SIMSIMD_PUBLIC void simsimd_sum_i64_neon(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_size_t n,
+                                         simsimd_i64_t *result) {
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 2 <= n; i += 2) {
+        int64x2_t a_vec = vld1q_s64(a + i);
+        int64x2_t b_vec = vld1q_s64(b + i);
+        int64x2_t sum_vec = vqaddq_s64(a_vec, b_vec);
+        vst1q_s64(result + i, sum_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) _simsimd_i64_sadd(a + i, b + i, result + i);
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_i64_neon(simsimd_i64_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                           simsimd_distance_t beta, simsimd_i64_t *result) {
+    float64_t alpha_f64 = (float64_t)alpha;
+    float64_t beta_f64 = (float64_t)beta;
+    float64x2_t alpha_vec = vdupq_n_f64(alpha_f64);
+    float64x2_t beta_vec = vdupq_n_f64(beta_f64);
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 2 <= n; i += 2) {
+        int64x2_t a_i64_vec = vld1q_s64(a + i);
+        float64x2_t a_vec = vcvtq_f64_s64(a_i64_vec);
+        float64x2_t sum_vec = vfmaq_f64(beta_vec, a_vec, alpha_vec);
+        int64x2_t sum_i64_vec = vcvtaq_s64_f64(sum_vec);
+        vst1q_s64(result + i, sum_i64_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) {
+        simsimd_f64_t sum = alpha_f64 * a[i] + beta_f64;
+        _simsimd_f64_to_i64(&sum, result + i);
+    }
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_i64_neon(                                   //
+    simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_i64_t const *c, //
+    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t *result) {
+    float64_t alpha_f64 = (float64_t)alpha;
+    float64_t beta_f64 = (float64_t)beta;
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 2 <= n; i += 2) {
+        int64x2_t a_i64_vec = vld1q_s64(a + i);
+        int64x2_t b_i64_vec = vld1q_s64(b + i);
+        int64x2_t c_i64_vec = vld1q_s64(c + i);
+        float64x2_t a_vec = vcvtq_f64_s64(a_i64_vec);
+        float64x2_t b_vec = vcvtq_f64_s64(b_i64_vec);
+        float64x2_t c_vec = vcvtq_f64_s64(c_i64_vec);
+        float64x2_t ab_vec = vmulq_f64(a_vec, b_vec);
+        float64x2_t ab_scaled_vec = vmulq_n_f64(ab_vec, alpha_f64);
+        float64x2_t sum_vec = vfmaq_n_f64(ab_scaled_vec, c_vec, beta_f64);
+        int64x2_t sum_i64_vec = vcvtaq_s64_f64(sum_vec);
+        vst1q_s64(result + i, sum_i64_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) {
+        simsimd_f64_t sum = alpha_f64 * a[i] * b[i] + beta_f64 * c[i];
+        _simsimd_f64_to_i64(&sum, result + i);
+    }
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_u64_neon(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_size_t n,
+                                         simsimd_u64_t *result) {
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 2 <= n; i += 2) {
+        uint64x2_t a_vec = vld1q_u64(a + i);
+        uint64x2_t b_vec = vld1q_u64(b + i);
+        uint64x2_t sum_vec = vqaddq_u64(a_vec, b_vec);
+        vst1q_u64(result + i, sum_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) _simsimd_u64_sadd(a + i, b + i, result + i);
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_u64_neon(simsimd_u64_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                           simsimd_distance_t beta, simsimd_u64_t *result) {
+    float64_t alpha_f64 = (float64_t)alpha;
+    float64_t beta_f64 = (float64_t)beta;
+    float64x2_t alpha_vec = vdupq_n_f64(alpha_f64);
+    float64x2_t beta_vec = vdupq_n_f64(beta_f64);
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 2 <= n; i += 2) {
+        uint64x2_t a_u64_vec = vld1q_u64(a + i);
+        float64x2_t a_vec = vcvtq_f64_u64(a_u64_vec);
+        float64x2_t sum_vec = vfmaq_f64(beta_vec, a_vec, alpha_vec);
+        uint64x2_t sum_u64_vec = vcvtaq_u64_f64(sum_vec);
+        vst1q_u64(result + i, sum_u64_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) {
+        simsimd_f64_t sum = alpha_f64 * a[i] + beta_f64;
+        _simsimd_f64_to_u64(&sum, result + i);
+    }
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_u64_neon(                                   //
+    simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_u64_t const *c, //
+    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t *result) {
+    float64_t alpha_f64 = (float64_t)alpha;
+    float64_t beta_f64 = (float64_t)beta;
+
+    // The main loop:
+    simsimd_size_t i = 0;
+    for (; i + 2 <= n; i += 2) {
+        uint64x2_t a_u64_vec = vld1q_u64(a + i);
+        uint64x2_t b_u64_vec = vld1q_u64(b + i);
+        uint64x2_t c_u64_vec = vld1q_u64(c + i);
+        float64x2_t a_vec = vcvtq_f64_u64(a_u64_vec);
+        float64x2_t b_vec = vcvtq_f64_u64(b_u64_vec);
+        float64x2_t c_vec = vcvtq_f64_u64(c_u64_vec);
+        float64x2_t ab_vec = vmulq_f64(a_vec, b_vec);
+        float64x2_t ab_scaled_vec = vmulq_n_f64(ab_vec, alpha_f64);
+        float64x2_t sum_vec = vfmaq_n_f64(ab_scaled_vec, c_vec, beta_f64);
+        uint64x2_t sum_u64_vec = vcvtaq_u64_f64(sum_vec);
+        vst1q_u64(result + i, sum_u64_vec);
+    }
+
+    // The tail:
+    for (; i < n; ++i) {
+        simsimd_f64_t sum = alpha_f64 * a[i] * b[i] + beta_f64 * c[i];
+        _simsimd_f64_to_u64(&sum, result + i);
+    }
+}
+
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON
