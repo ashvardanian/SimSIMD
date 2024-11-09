@@ -2080,6 +2080,126 @@ simsimd_fma_u8_skylake_cycle:
     if (n) goto simsimd_fma_u8_skylake_cycle;
 }
 
+SIMSIMD_PUBLIC void simsimd_scale_i16_skylake(simsimd_i16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                              simsimd_distance_t beta, simsimd_i16_t *result) {
+    __m512 alpha_vec = _mm512_set1_ps(alpha);
+    __m512 beta_vec = _mm512_set1_ps(beta);
+    __m256i a_i16_vec, sum_i16_vec;
+    __m512 a_vec, sum_vec;
+    __mmask16 mask = 0xFFFF;
+
+simsimd_scale_i16_skylake_cycle:
+    if (n < 16) {
+        mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
+        a_i16_vec = _mm256_maskz_loadu_epi16(mask, a);
+        n = 0;
+    }
+    else {
+        a_i16_vec = _mm256_lddqu_si256((__m256i *)a);
+        a += 16, n -= 16;
+    }
+    a_vec = _mm512_cvtepi32_ps(_mm512_cvtepi16_epi32(a_i16_vec));
+    sum_vec = _mm512_fmadd_ps(a_vec, alpha_vec, beta_vec);
+    sum_i16_vec = _mm512_cvtepi32_epi16(_mm512_cvtps_epi32(sum_vec));
+    _mm256_mask_storeu_epi16(result, mask, sum_i16_vec);
+    result += 16;
+    if (n) goto simsimd_scale_i16_skylake_cycle;
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_i16_skylake(                                                  //
+    simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t const *c, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result) {
+    __m512 alpha_vec = _mm512_set1_ps(alpha);
+    __m512 beta_vec = _mm512_set1_ps(beta);
+    __m256i a_i16_vec, b_i16_vec, c_i16_vec, sum_i16_vec;
+    __m512 a_vec, b_vec, c_vec, ab_vec, ab_scaled_vec, sum_vec;
+    __mmask16 mask = 0xFFFF;
+simsimd_fma_i16_skylake_cycle:
+    if (n < 16) {
+        mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
+        a_i16_vec = _mm256_maskz_loadu_epi16(mask, a);
+        b_i16_vec = _mm256_maskz_loadu_epi16(mask, b);
+        c_i16_vec = _mm256_maskz_loadu_epi16(mask, c);
+        n = 0;
+    }
+    else {
+        a_i16_vec = _mm256_lddqu_si256((__m256i *)a);
+        b_i16_vec = _mm256_lddqu_si256((__m256i *)b);
+        c_i16_vec = _mm256_lddqu_si256((__m256i *)c);
+        a += 16, b += 16, c += 16, n -= 16;
+    }
+    a_vec = _mm512_cvtepi32_ps(_mm512_cvtepi16_epi32(a_i16_vec));
+    b_vec = _mm512_cvtepi32_ps(_mm512_cvtepi16_epi32(b_i16_vec));
+    c_vec = _mm512_cvtepi32_ps(_mm512_cvtepi16_epi32(c_i16_vec));
+    ab_vec = _mm512_mul_ps(a_vec, b_vec);
+    ab_scaled_vec = _mm512_mul_ps(ab_vec, alpha_vec);
+    sum_vec = _mm512_fmadd_ps(c_vec, beta_vec, ab_scaled_vec);
+    sum_i16_vec = _mm512_cvtepi32_epi16(_mm512_cvtps_epi32(sum_vec));
+    _mm256_mask_storeu_epi16(result, mask, sum_i16_vec);
+    result += 16;
+    if (n) goto simsimd_fma_i16_skylake_cycle;
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_u16_skylake(simsimd_u16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                              simsimd_distance_t beta, simsimd_u16_t *result) {
+    __m512 alpha_vec = _mm512_set1_ps(alpha);
+    __m512 beta_vec = _mm512_set1_ps(beta);
+    __m256i a_u16_vec, sum_u16_vec;
+    __m512 a_vec, sum_vec;
+    __mmask16 mask = 0xFFFF;
+
+simsimd_scale_u16_skylake_cycle:
+    if (n < 16) {
+        mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
+        a_u16_vec = _mm256_maskz_loadu_epi16(mask, a);
+        n = 0;
+    }
+    else {
+        a_u16_vec = _mm256_lddqu_si256((__m256i *)a);
+        a += 16, n -= 16;
+    }
+    a_vec = _mm512_cvtepi32_ps(_mm512_cvtepu16_epi32(a_u16_vec));
+    sum_vec = _mm512_fmadd_ps(a_vec, alpha_vec, beta_vec);
+    sum_u16_vec = _mm512_cvtepi32_epi16(_mm512_cvtps_epu32(sum_vec));
+    _mm256_mask_storeu_epi16(result, mask, sum_u16_vec);
+    result += 16;
+    if (n) goto simsimd_scale_u16_skylake_cycle;
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_u16_skylake(                                                  //
+    simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t const *c, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result) {
+    __m512 alpha_vec = _mm512_set1_ps(alpha);
+    __m512 beta_vec = _mm512_set1_ps(beta);
+    __m256i a_u16_vec, b_u16_vec, c_u16_vec, sum_u16_vec;
+    __m512 a_vec, b_vec, c_vec, ab_vec, ab_scaled_vec, sum_vec;
+    __mmask16 mask = 0xFFFF;
+simsimd_fma_u16_skylake_cycle:
+    if (n < 16) {
+        mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
+        a_u16_vec = _mm256_maskz_loadu_epi16(mask, a);
+        b_u16_vec = _mm256_maskz_loadu_epi16(mask, b);
+        c_u16_vec = _mm256_maskz_loadu_epi16(mask, c);
+        n = 0;
+    }
+    else {
+        a_u16_vec = _mm256_lddqu_si256((__m256i *)a);
+        b_u16_vec = _mm256_lddqu_si256((__m256i *)b);
+        c_u16_vec = _mm256_lddqu_si256((__m256i *)c);
+        a += 16, b += 16, c += 16, n -= 16;
+    }
+    a_vec = _mm512_cvtepi32_ps(_mm512_cvtepu16_epi32(a_u16_vec));
+    b_vec = _mm512_cvtepi32_ps(_mm512_cvtepu16_epi32(b_u16_vec));
+    c_vec = _mm512_cvtepi32_ps(_mm512_cvtepu16_epi32(c_u16_vec));
+    ab_vec = _mm512_mul_ps(a_vec, b_vec);
+    ab_scaled_vec = _mm512_mul_ps(ab_vec, alpha_vec);
+    sum_vec = _mm512_fmadd_ps(c_vec, beta_vec, ab_scaled_vec);
+    sum_u16_vec = _mm512_cvtepi32_epi16(_mm512_cvtps_epu32(sum_vec));
+    _mm256_mask_storeu_epi16(result, mask, sum_u16_vec);
+    result += 16;
+    if (n) goto simsimd_fma_u16_skylake_cycle;
+}
+
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SKYLAKE
