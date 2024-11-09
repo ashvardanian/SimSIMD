@@ -2444,6 +2444,244 @@ simsimd_fma_u64_skylake_cycle:
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SKYLAKE
 
+#if SIMSIMD_TARGET_ICE
+#pragma GCC push_options
+#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vnni")
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512vnni"))), \
+                             apply_to = function)
+
+SIMSIMD_PUBLIC void simsimd_sum_i8_ice(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
+                                       simsimd_i8_t *result) {
+    __mmask64 mask = 0xFFFFFFFFFFFFFFFF;
+    __m512i a_i8_vec, b_i8_vec;
+    __m512i sum_i8_vec;
+simsimd_sum_i8_ice_cycle:
+    if (n < 64) {
+        mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
+        a_i8_vec = _mm512_maskz_loadu_epi8(mask, a);
+        b_i8_vec = _mm512_maskz_loadu_epi8(mask, b);
+        n = 0;
+    }
+    else {
+        a_i8_vec = _mm512_loadu_epi8(a);
+        b_i8_vec = _mm512_loadu_epi8(b);
+        a += 64, b += 64, n -= 64;
+    }
+    sum_i8_vec = _mm512_adds_epi8(a_i8_vec, b_i8_vec);
+    _mm512_mask_storeu_epi8(result, mask, sum_i8_vec);
+    result += 64;
+    if (n) goto simsimd_sum_i8_ice_cycle;
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_u8_ice(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
+                                       simsimd_u8_t *result) {
+    __mmask64 mask = 0xFFFFFFFFFFFFFFFF;
+    __m512i a_u8_vec, b_u8_vec;
+    __m512i sum_u8_vec;
+simsimd_sum_u8_ice_cycle:
+    if (n < 64) {
+        mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
+        a_u8_vec = _mm512_maskz_loadu_epi8(mask, a);
+        b_u8_vec = _mm512_maskz_loadu_epi8(mask, b);
+        n = 0;
+    }
+    else {
+        a_u8_vec = _mm512_loadu_epi8(a);
+        b_u8_vec = _mm512_loadu_epi8(b);
+        a += 64, b += 64, n -= 64;
+    }
+    sum_u8_vec = _mm512_adds_epu8(a_u8_vec, b_u8_vec);
+    _mm512_mask_storeu_epi8(result, mask, sum_u8_vec);
+    result += 64;
+    if (n) goto simsimd_sum_u8_ice_cycle;
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_i16_ice(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n,
+                                        simsimd_i16_t *result) {
+    __mmask32 mask = 0xFFFFFFFF;
+    __m512i a_i16_vec, b_i16_vec;
+    __m512i sum_i16_vec;
+simsimd_sum_i16_ice_cycle:
+    if (n < 32) {
+        mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_i16_vec = _mm512_maskz_loadu_epi16(mask, a);
+        b_i16_vec = _mm512_maskz_loadu_epi16(mask, b);
+        n = 0;
+    }
+    else {
+        a_i16_vec = _mm512_loadu_epi16(a);
+        b_i16_vec = _mm512_loadu_epi16(b);
+        a += 32, b += 32, n -= 32;
+    }
+    sum_i16_vec = _mm512_adds_epi16(a_i16_vec, b_i16_vec);
+    _mm512_mask_storeu_epi16(result, mask, sum_i16_vec);
+    result += 32;
+    if (n) goto simsimd_sum_i16_ice_cycle;
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_u16_ice(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n,
+                                        simsimd_u16_t *result) {
+    __mmask32 mask = 0xFFFFFFFF;
+    __m512i a_u16_vec, b_u16_vec;
+    __m512i sum_u16_vec;
+simsimd_sum_u16_ice_cycle:
+    if (n < 32) {
+        mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_u16_vec = _mm512_maskz_loadu_epi16(mask, a);
+        b_u16_vec = _mm512_maskz_loadu_epi16(mask, b);
+        n = 0;
+    }
+    else {
+        a_u16_vec = _mm512_loadu_epi16(a);
+        b_u16_vec = _mm512_loadu_epi16(b);
+        a += 32, b += 32, n -= 32;
+    }
+    sum_u16_vec = _mm512_adds_epu16(a_u16_vec, b_u16_vec);
+    _mm512_mask_storeu_epi16(result, mask, sum_u16_vec);
+    result += 32;
+    if (n) goto simsimd_sum_u16_ice_cycle;
+}
+
+SIMSIMD_INTERNAL __m512i _mm512_adds_epi32_ice(__m512i a, __m512i b) {
+    __m512i sum = _mm512_add_epi32(a, b);
+    __m512i sign_mask = _mm512_set1_epi32(0x80000000);
+
+    __m512i overflow = _mm512_and_si512(_mm512_xor_si512(a, b), sign_mask);  // Same sign inputs
+    __m512i overflows = _mm512_or_si512(overflow, _mm512_xor_si512(sum, a)); // Overflow condition
+
+    __m512i max_val = _mm512_set1_epi32(2147483647);
+    __m512i min_val = _mm512_set1_epi32(-2147483647 - 1);
+    __m512i overflow_result =
+        _mm512_mask_blend_epi32(_mm512_cmp_epi32_mask(sum, min_val, _MM_CMPINT_LT), max_val, min_val);
+
+    return _mm512_mask_blend_epi32(_mm512_test_epi32_mask(overflows, overflows), sum, overflow_result);
+}
+
+SIMSIMD_INTERNAL __m512i _mm512_adds_epu32_ice(__m512i a, __m512i b) {
+    __m512i sum = _mm512_add_epi32(a, b);
+    __mmask16 overflow_mask = _mm512_cmp_epu32_mask(sum, a, _MM_CMPINT_LT); // sum < a means overflow
+    __m512i max_val = _mm512_set1_epi32(4294967295u);
+    return _mm512_mask_blend_epi32(overflow_mask, sum, max_val);
+}
+
+SIMSIMD_INTERNAL __m512i _mm512_adds_epi64_ice(__m512i a, __m512i b) {
+    __m512i sum = _mm512_add_epi64(a, b);
+    __m512i sign_mask = _mm512_set1_epi64(0x8000000000000000);
+
+    __m512i overflow = _mm512_and_si512(_mm512_xor_si512(a, b), sign_mask);  // Same sign inputs
+    __m512i overflows = _mm512_or_si512(overflow, _mm512_xor_si512(sum, a)); // Overflow condition
+
+    __m512i max_val = _mm512_set1_epi64(9223372036854775807ll);
+    __m512i min_val = _mm512_set1_epi64(-9223372036854775807ll - 1);
+    __m512i overflow_result =
+        _mm512_mask_blend_epi64(_mm512_cmp_epi64_mask(sum, min_val, _MM_CMPINT_LT), max_val, min_val);
+
+    return _mm512_mask_blend_epi64(_mm512_test_epi64_mask(overflows, overflows), sum, overflow_result);
+}
+
+SIMSIMD_INTERNAL __m512i _mm512_adds_epu64_ice(__m512i a, __m512i b) {
+    __m512i sum = _mm512_add_epi64(a, b);
+    __mmask8 overflow_mask = _mm512_cmp_epu64_mask(sum, a, _MM_CMPINT_LT); // sum < a means overflow
+    __m512i max_val = _mm512_set1_epi64(18446744073709551615ull);
+    return _mm512_mask_blend_epi64(overflow_mask, sum, max_val);
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_i32_ice(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_size_t n,
+                                        simsimd_i32_t *result) {
+    __mmask16 mask = 0xFFFF;
+    __m512i a_i32_vec, b_i32_vec;
+    __m512i sum_i32_vec;
+simsimd_sum_i32_ice_cycle:
+    if (n < 16) {
+        mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
+        a_i32_vec = _mm512_maskz_loadu_epi32(mask, a);
+        b_i32_vec = _mm512_maskz_loadu_epi32(mask, b);
+        n = 0;
+    }
+    else {
+        a_i32_vec = _mm512_loadu_epi32(a);
+        b_i32_vec = _mm512_loadu_epi32(b);
+        a += 16, b += 16, n -= 16;
+    }
+    sum_i32_vec = _mm512_adds_epi32_ice(a_i32_vec, b_i32_vec);
+    _mm512_mask_storeu_epi32(result, mask, sum_i32_vec);
+    result += 16;
+    if (n) goto simsimd_sum_i32_ice_cycle;
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_u32_ice(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n,
+                                        simsimd_u32_t *result) {
+    __mmask16 mask = 0xFFFF;
+    __m512i a_u32_vec, b_u32_vec;
+    __m512i sum_u32_vec;
+simsimd_sum_u32_ice_cycle:
+    if (n < 16) {
+        mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
+        a_u32_vec = _mm512_maskz_loadu_epi32(mask, a);
+        b_u32_vec = _mm512_maskz_loadu_epi32(mask, b);
+        n = 0;
+    }
+    else {
+        a_u32_vec = _mm512_loadu_epi32(a);
+        b_u32_vec = _mm512_loadu_epi32(b);
+        a += 16, b += 16, n -= 16;
+    }
+    sum_u32_vec = _mm512_adds_epu32_ice(a_u32_vec, b_u32_vec);
+    _mm512_mask_storeu_epi32(result, mask, sum_u32_vec);
+    result += 16;
+    if (n) goto simsimd_sum_u32_ice_cycle;
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_i64_ice(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_size_t n,
+                                        simsimd_i64_t *result) {
+    __mmask8 mask = 0xFF;
+    __m512i a_i64_vec, b_i64_vec;
+    __m512i sum_i64_vec;
+simsimd_sum_i64_ice_cycle:
+    if (n < 8) {
+        mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
+        a_i64_vec = _mm512_maskz_loadu_epi64(mask, a);
+        b_i64_vec = _mm512_maskz_loadu_epi64(mask, b);
+        n = 0;
+    }
+    else {
+        a_i64_vec = _mm512_loadu_epi64(a);
+        b_i64_vec = _mm512_loadu_epi64(b);
+        a += 8, b += 8, n -= 8;
+    }
+    sum_i64_vec = _mm512_adds_epi64_ice(a_i64_vec, b_i64_vec);
+    _mm512_mask_storeu_epi64(result, mask, sum_i64_vec);
+    result += 8;
+    if (n) goto simsimd_sum_i64_ice_cycle;
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_u64_ice(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_size_t n,
+                                        simsimd_u64_t *result) {
+    __mmask8 mask = 0xFF;
+    __m512i a_u64_vec, b_u64_vec;
+    __m512i sum_u64_vec;
+simsimd_sum_u64_ice_cycle:
+    if (n < 8) {
+        mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
+        a_u64_vec = _mm512_maskz_loadu_epi64(mask, a);
+        b_u64_vec = _mm512_maskz_loadu_epi64(mask, b);
+        n = 0;
+    }
+    else {
+        a_u64_vec = _mm512_loadu_epi64(a);
+        b_u64_vec = _mm512_loadu_epi64(b);
+        a += 8, b += 8, n -= 8;
+    }
+    sum_u64_vec = _mm512_adds_epu64_ice(a_u64_vec, b_u64_vec);
+    _mm512_mask_storeu_epi64(result, mask, sum_u64_vec);
+    result += 8;
+    if (n) goto simsimd_sum_u64_ice_cycle;
+}
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_ICE
+
 #if SIMSIMD_TARGET_SAPPHIRE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512fp16")
