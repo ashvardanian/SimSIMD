@@ -904,6 +904,108 @@ SIMSIMD_INTERNAL void _simsimd_bf16_sadd(simsimd_bf16_t const *a, simsimd_bf16_t
     simsimd_f32_to_bf16(&r_f32, r);
 }
 
+SIMSIMD_INTERNAL void _simsimd_u8_smul(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t *r) {
+    simsimd_u16_t result = (simsimd_u16_t)(*a) * (simsimd_u16_t)(*b);
+    *r = (result > 255) ? 255 : (simsimd_u8_t)result;
+}
+
+SIMSIMD_INTERNAL void _simsimd_u16_smul(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t *r) {
+    simsimd_u32_t result = (simsimd_u32_t)(*a) * (simsimd_u32_t)(*b);
+    *r = (result > 65535) ? 65535 : (simsimd_u16_t)result;
+}
+
+SIMSIMD_INTERNAL void _simsimd_u32_smul(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_u32_t *r) {
+    simsimd_u64_t result = (simsimd_u64_t)(*a) * (simsimd_u64_t)(*b);
+    *r = (result > 4294967295u) ? 4294967295u : (simsimd_u32_t)result;
+}
+
+SIMSIMD_INTERNAL void _simsimd_u64_smul(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_u64_t *r) {
+    // Split the inputs into high and low 32-bit parts
+    simsimd_u64_t a_hi = *a >> 32;
+    simsimd_u64_t a_lo = *a & 0xFFFFFFFF;
+    simsimd_u64_t b_hi = *b >> 32;
+    simsimd_u64_t b_lo = *b & 0xFFFFFFFF;
+
+    // Compute partial products
+    simsimd_u64_t hi_hi = a_hi * b_hi;
+    simsimd_u64_t hi_lo = a_hi * b_lo;
+    simsimd_u64_t lo_hi = a_lo * b_hi;
+    simsimd_u64_t lo_lo = a_lo * b_lo;
+
+    // Check if the high part of the result overflows
+    if (hi_hi || (hi_lo >> 32) || (lo_hi >> 32) || ((hi_lo + lo_hi) >> 32)) { *r = 18446744073709551615ull; }
+    else { *r = (hi_lo << 32) + (lo_hi << 32) + lo_lo; } // Combine parts if no overflow
+}
+
+SIMSIMD_INTERNAL void _simsimd_i8_smul(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t *r) {
+    simsimd_i16_t result = (simsimd_i16_t)(*a) * (simsimd_i16_t)(*b);
+    *r = (result > 127) ? 127 : (result < -128 ? -128 : (simsimd_i8_t)result);
+}
+
+SIMSIMD_INTERNAL void _simsimd_i16_smul(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t *r) {
+    simsimd_i32_t result = (simsimd_i32_t)(*a) * (simsimd_i32_t)(*b);
+    *r = (result > 32767) ? 32767 : (result < -32768 ? -32768 : (simsimd_i16_t)result);
+}
+
+SIMSIMD_INTERNAL void _simsimd_i32_smul(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t *r) {
+    simsimd_i64_t result = (simsimd_i64_t)(*a) * (simsimd_i64_t)(*b);
+    *r = (result > 2147483647) ? 2147483647 : (result < -2147483648 ? -2147483648 : (simsimd_i32_t)result);
+}
+
+SIMSIMD_INTERNAL void _simsimd_i64_smul(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_i64_t *r) {
+    int sign = ((*a < 0) ^ (*b < 0)) ? -1 : 1; // Track the sign of the result
+
+    // Take absolute values for easy multiplication and overflow detection
+    simsimd_u64_t abs_a = (*a < 0) ? -*a : *a;
+    simsimd_u64_t abs_b = (*b < 0) ? -*b : *b;
+
+    // Split the absolute values into high and low 32-bit parts
+    simsimd_u64_t a_hi = abs_a >> 32;
+    simsimd_u64_t a_lo = abs_a & 0xFFFFFFFF;
+    simsimd_u64_t b_hi = abs_b >> 32;
+    simsimd_u64_t b_lo = abs_b & 0xFFFFFFFF;
+
+    // Compute partial products
+    simsimd_u64_t hi_hi = a_hi * b_hi;
+    simsimd_u64_t hi_lo = a_hi * b_lo;
+    simsimd_u64_t lo_hi = a_lo * b_hi;
+    simsimd_u64_t lo_lo = a_lo * b_lo;
+
+    // Check for overflow and saturate based on sign
+    if (hi_hi || (hi_lo >> 32) || (lo_hi >> 32) || ((hi_lo + lo_hi) >> 32)) {
+        *r = (sign > 0) ? 9223372036854775807ll : -9223372036854775808ll;
+    }
+    // Combine parts if no overflow, then apply the sign
+    else {
+        simsimd_u64_t result = (hi_lo << 32) + (lo_hi << 32) + lo_lo;
+        *r = (sign < 0) ? -((simsimd_i64_t)result) : (simsimd_i64_t)result;
+    }
+}
+
+SIMSIMD_INTERNAL void _simsimd_f32_smul(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t *r) {
+    *r = *a * *b;
+}
+
+SIMSIMD_INTERNAL void _simsimd_f64_smul(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t *r) {
+    *r = *a * *b;
+}
+
+SIMSIMD_INTERNAL void _simsimd_f16_smul(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t *r) {
+    simsimd_f32_t a_f32, b_f32, r_f32;
+    simsimd_f16_to_f32(a, &a_f32);
+    simsimd_f16_to_f32(b, &b_f32);
+    r_f32 = a_f32 * b_f32;
+    simsimd_f32_to_f16(&r_f32, r);
+}
+
+SIMSIMD_INTERNAL void _simsimd_bf16_smul(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t *r) {
+    simsimd_f32_t a_f32, b_f32, r_f32;
+    simsimd_bf16_to_f32(a, &a_f32);
+    simsimd_bf16_to_f32(b, &b_f32);
+    r_f32 = a_f32 * b_f32;
+    simsimd_f32_to_bf16(&r_f32, r);
+}
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
