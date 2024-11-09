@@ -227,24 +227,48 @@ SIMSIMD_DECLARATION_SUM(sum, f16, f16)
 SIMSIMD_DECLARATION_SUM(sum, bf16, bf16)
 SIMSIMD_DECLARATION_SUM(sum, i8, i8)
 SIMSIMD_DECLARATION_SUM(sum, u8, u8)
+SIMSIMD_DECLARATION_SUM(sum, i16, i16)
+SIMSIMD_DECLARATION_SUM(sum, u16, u16)
+SIMSIMD_DECLARATION_SUM(sum, i32, i32)
+SIMSIMD_DECLARATION_SUM(sum, u32, u32)
+SIMSIMD_DECLARATION_SUM(sum, i64, i64)
+SIMSIMD_DECLARATION_SUM(sum, u64, u64)
 SIMSIMD_DECLARATION_SCALE(scale, f64, f64)
 SIMSIMD_DECLARATION_SCALE(scale, f32, f32)
 SIMSIMD_DECLARATION_SCALE(scale, f16, f16)
 SIMSIMD_DECLARATION_SCALE(scale, bf16, bf16)
 SIMSIMD_DECLARATION_SCALE(scale, i8, i8)
 SIMSIMD_DECLARATION_SCALE(scale, u8, u8)
+SIMSIMD_DECLARATION_SCALE(scale, i16, i16)
+SIMSIMD_DECLARATION_SCALE(scale, u16, u16)
+SIMSIMD_DECLARATION_SCALE(scale, i32, i32)
+SIMSIMD_DECLARATION_SCALE(scale, u32, u32)
+SIMSIMD_DECLARATION_SCALE(scale, i64, i64)
+SIMSIMD_DECLARATION_SCALE(scale, u64, u64)
 SIMSIMD_DECLARATION_WSUM(wsum, f64, f64)
 SIMSIMD_DECLARATION_WSUM(wsum, f32, f32)
 SIMSIMD_DECLARATION_WSUM(wsum, f16, f16)
 SIMSIMD_DECLARATION_WSUM(wsum, bf16, bf16)
 SIMSIMD_DECLARATION_WSUM(wsum, i8, i8)
 SIMSIMD_DECLARATION_WSUM(wsum, u8, u8)
+SIMSIMD_DECLARATION_WSUM(wsum, i16, i16)
+SIMSIMD_DECLARATION_WSUM(wsum, u16, u16)
+SIMSIMD_DECLARATION_WSUM(wsum, i32, i32)
+SIMSIMD_DECLARATION_WSUM(wsum, u32, u32)
+SIMSIMD_DECLARATION_WSUM(wsum, i64, i64)
+SIMSIMD_DECLARATION_WSUM(wsum, u64, u64)
 SIMSIMD_DECLARATION_FMA(fma, f64, f64)
 SIMSIMD_DECLARATION_FMA(fma, f32, f32)
 SIMSIMD_DECLARATION_FMA(fma, f16, f16)
 SIMSIMD_DECLARATION_FMA(fma, bf16, bf16)
 SIMSIMD_DECLARATION_FMA(fma, i8, i8)
 SIMSIMD_DECLARATION_FMA(fma, u8, u8)
+SIMSIMD_DECLARATION_FMA(fma, i16, i16)
+SIMSIMD_DECLARATION_FMA(fma, u16, u16)
+SIMSIMD_DECLARATION_FMA(fma, i32, i32)
+SIMSIMD_DECLARATION_FMA(fma, u32, u32)
+SIMSIMD_DECLARATION_FMA(fma, i64, i64)
+SIMSIMD_DECLARATION_FMA(fma, u64, u64)
 
 SIMSIMD_DYNAMIC int simsimd_uses_neon(void) { return (simsimd_capabilities() & simsimd_cap_neon_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_neon_f16(void) { return (simsimd_capabilities() & simsimd_cap_neon_f16_k) != 0; }
@@ -349,23 +373,48 @@ SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
     simsimd_sum_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, (simsimd_bf16_t *)x);
     simsimd_sum_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, (simsimd_i8_t *)x);
     simsimd_sum_u8((simsimd_u8_t *)x, (simsimd_u8_t *)x, 0, (simsimd_u8_t *)x);
+    simsimd_sum_i16((simsimd_i16_t *)x, (simsimd_i16_t *)x, 0, (simsimd_i16_t *)x);
+    simsimd_sum_u16((simsimd_u16_t *)x, (simsimd_u16_t *)x, 0, (simsimd_u16_t *)x);
+    simsimd_sum_i32((simsimd_i32_t *)x, (simsimd_i32_t *)x, 0, (simsimd_i32_t *)x);
+    simsimd_sum_u32((simsimd_u32_t *)x, (simsimd_u32_t *)x, 0, (simsimd_u32_t *)x);
+    simsimd_sum_i64((simsimd_i64_t *)x, (simsimd_i64_t *)x, 0, (simsimd_i64_t *)x);
+    simsimd_sum_u64((simsimd_u64_t *)x, (simsimd_u64_t *)x, 0, (simsimd_u64_t *)x);
     simsimd_scale_f64((simsimd_f64_t *)x, 0, 0, 0, (simsimd_f64_t *)x);
     simsimd_scale_f32((simsimd_f32_t *)x, 0, 0, 0, (simsimd_f32_t *)x);
     simsimd_scale_f16((simsimd_f16_t *)x, 0, 0, 0, (simsimd_f16_t *)x);
     simsimd_scale_bf16((simsimd_bf16_t *)x, 0, 0, 0, (simsimd_bf16_t *)x);
     simsimd_scale_i8((simsimd_i8_t *)x, 0, 0, 0, (simsimd_i8_t *)x);
+    simsimd_scale_u8((simsimd_u8_t *)x, 0, 0, 0, (simsimd_u8_t *)x);
+    simsimd_scale_i16((simsimd_i16_t *)x, 0, 0, 0, (simsimd_i16_t *)x);
+    simsimd_scale_u16((simsimd_u16_t *)x, 0, 0, 0, (simsimd_u16_t *)x);
+    simsimd_scale_i32((simsimd_i32_t *)x, 0, 0, 0, (simsimd_i32_t *)x);
+    simsimd_scale_u32((simsimd_u32_t *)x, 0, 0, 0, (simsimd_u32_t *)x);
+    simsimd_scale_i64((simsimd_i64_t *)x, 0, 0, 0, (simsimd_i64_t *)x);
+    simsimd_scale_u64((simsimd_u64_t *)x, 0, 0, 0, (simsimd_u64_t *)x);
     simsimd_wsum_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, 0, 0, (simsimd_f64_t *)x);
     simsimd_wsum_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, 0, 0, (simsimd_f32_t *)x);
     simsimd_wsum_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, 0, 0, (simsimd_f16_t *)x);
     simsimd_wsum_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, 0, 0, (simsimd_bf16_t *)x);
     simsimd_wsum_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, 0, 0, (simsimd_i8_t *)x);
     simsimd_wsum_u8((simsimd_u8_t *)x, (simsimd_u8_t *)x, 0, 0, 0, (simsimd_u8_t *)x);
+    simsimd_wsum_i16((simsimd_i16_t *)x, (simsimd_i16_t *)x, 0, 0, 0, (simsimd_i16_t *)x);
+    simsimd_wsum_u16((simsimd_u16_t *)x, (simsimd_u16_t *)x, 0, 0, 0, (simsimd_u16_t *)x);
+    simsimd_wsum_i32((simsimd_i32_t *)x, (simsimd_i32_t *)x, 0, 0, 0, (simsimd_i32_t *)x);
+    simsimd_wsum_u32((simsimd_u32_t *)x, (simsimd_u32_t *)x, 0, 0, 0, (simsimd_u32_t *)x);
+    simsimd_wsum_i64((simsimd_i64_t *)x, (simsimd_i64_t *)x, 0, 0, 0, (simsimd_i64_t *)x);
+    simsimd_wsum_u64((simsimd_u64_t *)x, (simsimd_u64_t *)x, 0, 0, 0, (simsimd_u64_t *)x);
     simsimd_fma_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, 0, 0, (simsimd_f64_t *)x);
     simsimd_fma_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, 0, 0, (simsimd_f32_t *)x);
     simsimd_fma_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, 0, 0, (simsimd_f16_t *)x);
     simsimd_fma_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, 0, 0, (simsimd_bf16_t *)x);
     simsimd_fma_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, 0, 0, (simsimd_i8_t *)x);
     simsimd_fma_u8((simsimd_u8_t *)x, (simsimd_u8_t *)x, (simsimd_u8_t *)x, 0, 0, 0, (simsimd_u8_t *)x);
+    simsimd_fma_i16((simsimd_i16_t *)x, (simsimd_i16_t *)x, (simsimd_i16_t *)x, 0, 0, 0, (simsimd_i16_t *)x);
+    simsimd_fma_u16((simsimd_u16_t *)x, (simsimd_u16_t *)x, (simsimd_u16_t *)x, 0, 0, 0, (simsimd_u16_t *)x);
+    simsimd_fma_i32((simsimd_i32_t *)x, (simsimd_i32_t *)x, (simsimd_i32_t *)x, 0, 0, 0, (simsimd_i32_t *)x);
+    simsimd_fma_u32((simsimd_u32_t *)x, (simsimd_u32_t *)x, (simsimd_u32_t *)x, 0, 0, 0, (simsimd_u32_t *)x);
+    simsimd_fma_i64((simsimd_i64_t *)x, (simsimd_i64_t *)x, (simsimd_i64_t *)x, 0, 0, 0, (simsimd_i64_t *)x);
+    simsimd_fma_u64((simsimd_u64_t *)x, (simsimd_u64_t *)x, (simsimd_u64_t *)x, 0, 0, 0, (simsimd_u64_t *)x);
 
     return static_capabilities;
 }

@@ -1496,15 +1496,23 @@ SIMSIMD_INTERNAL __m256i _mm256_adds_epu32_haswell(__m256i a, __m256i b) {
 }
 
 SIMSIMD_INTERNAL __m256d _mm256_cvtepu32_pd_haswell(__m128i a) {
-    // Converting unsigned 32-bit integers to double-precision floats isn't trivial in AVX2.
+    // TODO: Converting unsigned 32-bit integers to double-precision floats isn't trivial in AVX2.
     // Let's convert the lower 31 bits to a double-precision float.
     // And then conditionally add 2^31 to the result if the MSB is set.
-    __m256d result = _mm256_cvtepi32_pd(_mm_and_si128(a, _mm_set1_epi32(0x7FFFFFFF)));
-    int should_increment = (_mm_movemask_epi8(a) & 0x8888);
-    should_increment = should_increment / 0x8888; // Transform something like 0b1000100010001000 to 0b1111
-    __m256d incremented = _mm256_add_pd(result, _mm256_set1_pd(2147483648.0));
-    result = _mm256_blend_pd(result, incremented, should_increment);
-    return result;
+    //
+    //  __m256d result = _mm256_cvtepi32_pd(_mm_and_si128(a, _mm_set1_epi32(0x7FFFFFFF)));
+    //  int should_increment = (_mm_movemask_epi8(a) & 0x8888);
+    //  should_increment = should_increment / 0x8888; // Transform something like 0b1000100010001000 to 0b1111
+    //  __m256d incremented = _mm256_add_pd(result, _mm256_set1_pd(2147483648.0));
+    //  result = _mm256_blend_pd(result, incremented, should_increment);
+    simsimd_u32_t from[4];
+    simsimd_f64_t to[4];
+    _mm_storeu_si128((__m128i *)from, a);
+    to[0] = (simsimd_f64_t)from[0];
+    to[1] = (simsimd_f64_t)from[1];
+    to[2] = (simsimd_f64_t)from[2];
+    to[3] = (simsimd_f64_t)from[3];
+    return _mm256_loadu_pd(to);
 }
 
 SIMSIMD_INTERNAL __m128i _mm256_cvtpd_epu32_haswell(__m256d a) {
@@ -1591,8 +1599,9 @@ SIMSIMD_PUBLIC void simsimd_fma_u32_haswell(                                    
 
 #if SIMSIMD_TARGET_SKYLAKE
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "bmi2")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,bmi2"))), apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "bmi2")
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,bmi2"))), \
+                             apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_sum_f64_skylake(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
                                             simsimd_f64_t *result) {
@@ -2809,28 +2818,6 @@ simsimd_fma_f16_sapphire_cycle:
     if (n) goto simsimd_fma_f16_sapphire_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_u8_sapphire(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
-                                            simsimd_u8_t *result) {
-    __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
-    __m512i a_u8_vec, b_u8_vec, sum_u8_vec;
-simsimd_sum_u8_sapphire_cycle:
-    if (n < 64) {
-        mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
-        a_u8_vec = _mm512_maskz_loadu_epi8(mask, a);
-        b_u8_vec = _mm512_maskz_loadu_epi8(mask, b);
-        n = 0;
-    }
-    else {
-        a_u8_vec = _mm512_loadu_epi8(a);
-        b_u8_vec = _mm512_loadu_epi8(b);
-        a += 64, b += 64, n -= 64;
-    }
-    sum_u8_vec = _mm512_adds_epu8(a_u8_vec, b_u8_vec);
-    _mm512_mask_storeu_epi8(result, mask, sum_u8_vec);
-    result += 64;
-    if (n) goto simsimd_sum_u8_sapphire_cycle;
-}
-
 SIMSIMD_PUBLIC void simsimd_scale_u8_sapphire(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
                                               simsimd_distance_t beta, simsimd_u8_t *result) {
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
@@ -2873,7 +2860,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_sapphire(                       //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_u8_sapphire(a, b, n, result);
+        simsimd_sum_u8_ice(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
@@ -2924,33 +2911,6 @@ simsimd_wsum_u8_sapphire_cycle:
     if (n) goto simsimd_wsum_u8_sapphire_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_i8_sapphire(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
-                                            simsimd_i8_t *result) {
-
-    __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
-    __m512i a_i8_vec, b_i8_vec, sum_i8_vec;
-    __m512h a_f16_low_vec, a_f16_high_vec, b_f16_low_vec, b_f16_high_vec;
-    __m512h a_scaled_f16_low_vec, a_scaled_f16_high_vec, sum_f16_low_vec, sum_f16_high_vec;
-    __m512i sum_i16_low_vec, sum_i16_high_vec;
-
-simsimd_sum_i8_sapphire_cycle:
-    if (n < 64) {
-        mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
-        a_i8_vec = _mm512_maskz_loadu_epi8(mask, a);
-        b_i8_vec = _mm512_maskz_loadu_epi8(mask, b);
-        n = 0;
-    }
-    else {
-        a_i8_vec = _mm512_loadu_epi8(a);
-        b_i8_vec = _mm512_loadu_epi8(b);
-        a += 64, b += 64, n -= 64;
-    }
-    sum_i8_vec = _mm512_adds_epi8(a_i8_vec, b_i8_vec);
-    _mm512_mask_storeu_epi8(result, mask, sum_i8_vec);
-    result += 64;
-    if (n) goto simsimd_sum_i8_sapphire_cycle;
-}
-
 SIMSIMD_PUBLIC void simsimd_scale_i8_sapphire(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
                                               simsimd_distance_t beta, simsimd_i8_t *result) {
 
@@ -2995,7 +2955,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_sapphire(                       //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_i8_sapphire(a, b, n, result);
+        simsimd_sum_i8_ice(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.

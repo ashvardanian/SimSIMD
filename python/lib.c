@@ -444,7 +444,7 @@ simsimd_kernel_kind_t python_string_to_kernel_kind(char const *name) {
     else if (same_string(name, "mahalanobis"))
         return simsimd_mahalanobis_k;
     else
-        return simsimd_unknown_k;
+        return simsimd_kernel_unknown_k;
 }
 
 /// @brief Check if a metric is commutative, i.e., if `metric(a, b) == metric(b, a)`.
@@ -1543,7 +1543,7 @@ static PyObject *api_cdist( //
             return NULL;
         }
         kernel_kind = python_string_to_kernel_kind(metric_str);
-        if (kernel_kind == simsimd_unknown_k) {
+        if (kernel_kind == simsimd_kernel_unknown_k) {
             PyErr_SetString(PyExc_LookupError, "Unsupported metric");
             return NULL;
         }
