@@ -1975,7 +1975,7 @@ SIMSIMD_PUBLIC void simsimd_l2sq_u8_ice(simsimd_u8_t const *a, simsimd_u8_t cons
 
 simsimd_l2sq_u8_ice_cycle:
     if (n < 64) {
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_u8_vec = _mm512_maskz_loadu_epi8(mask, a);
         b_u8_vec = _mm512_maskz_loadu_epi8(mask, b);
         n = 0;
@@ -2014,7 +2014,7 @@ SIMSIMD_PUBLIC void simsimd_cos_u8_ice(simsimd_u8_t const *a, simsimd_u8_t const
 
 simsimd_cos_u8_ice_cycle:
     if (n < 64) {
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_u8_vec = _mm512_maskz_loadu_epi8(mask, a);
         b_u8_vec = _mm512_maskz_loadu_epi8(mask, b);
         n = 0;
@@ -2085,7 +2085,7 @@ SIMSIMD_PUBLIC void simsimd_l2sq_i4x2_ice(simsimd_i4x2_t const *a, simsimd_i4x2_
 
 simsimd_l2sq_i4x2_ice_cycle:
     if (n_words < 64) {
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n_words);
         a_i4x2_vec = _mm512_maskz_loadu_epi8(mask, a);
         b_i4x2_vec = _mm512_maskz_loadu_epi8(mask, b);
         n_words = 0;
@@ -2199,7 +2199,7 @@ SIMSIMD_PUBLIC void simsimd_cos_i4x2_ice(simsimd_i4x2_t const *a, simsimd_i4x2_t
 
 simsimd_cos_i4x2_ice_cycle:
     if (n_words < 64) {
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n_words);
         a_i4x2_vec = _mm512_maskz_loadu_epi8(mask, a);
         b_i4x2_vec = _mm512_maskz_loadu_epi8(mask, b);
         n_words = 0;

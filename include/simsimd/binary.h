@@ -245,14 +245,14 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const *a, simsimd_b8_t c
     simsimd_size_t xor_count;
     // It's harder to squeeze out performance from tiny representations, so we unroll the loops for binary metrics.
     if (n_words <= 64) { // Up to 512 bits.
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n_words);
         __m512i a_vec = _mm512_maskz_loadu_epi8(mask, a);
         __m512i b_vec = _mm512_maskz_loadu_epi8(mask, b);
         __m512i xor_count_vec = _mm512_popcnt_epi64(_mm512_xor_si512(a_vec, b_vec));
         xor_count = _mm512_reduce_add_epi64(xor_count_vec);
     }
     else if (n_words <= 128) { // Up to 1024 bits.
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 64);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n_words - 64);
         __m512i a1_vec = _mm512_loadu_epi8(a);
         __m512i b1_vec = _mm512_loadu_epi8(b);
         __m512i a2_vec = _mm512_maskz_loadu_epi8(mask, a + 64);
@@ -262,7 +262,7 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const *a, simsimd_b8_t c
         xor_count = _mm512_reduce_add_epi64(_mm512_add_epi64(xor2_count_vec, xor1_count_vec));
     }
     else if (n_words <= 196) { // Up to 1568 bits.
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 128);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n_words - 128);
         __m512i a1_vec = _mm512_loadu_epi8(a);
         __m512i b1_vec = _mm512_loadu_epi8(b);
         __m512i a2_vec = _mm512_loadu_epi8(a + 64);
@@ -276,7 +276,7 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const *a, simsimd_b8_t c
             _mm512_reduce_add_epi64(_mm512_add_epi64(xor3_count_vec, _mm512_add_epi64(xor2_count_vec, xor1_count_vec)));
     }
     else if (n_words <= 256) { // Up to 2048 bits.
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 192);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n_words - 192);
         __m512i a1_vec = _mm512_loadu_epi8(a);
         __m512i b1_vec = _mm512_loadu_epi8(b);
         __m512i a2_vec = _mm512_loadu_epi8(a + 64);
@@ -298,7 +298,7 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const *a, simsimd_b8_t c
 
     simsimd_hamming_b8_ice_cycle:
         if (n_words < 64) {
-            __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+            __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n_words);
             a_vec = _mm512_maskz_loadu_epi8(mask, a);
             b_vec = _mm512_maskz_loadu_epi8(mask, b);
             n_words = 0;
@@ -336,7 +336,7 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const *a, simsimd_b8_t c
     //
     //  It's harder to squeeze out performance from tiny representations, so we unroll the loops for binary metrics.
     if (n_words <= 64) { // Up to 512 bits.
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n_words);
         __m512i a_vec = _mm512_maskz_loadu_epi8(mask, a);
         __m512i b_vec = _mm512_maskz_loadu_epi8(mask, b);
         __m512i and_count_vec = _mm512_popcnt_epi64(_mm512_and_si512(a_vec, b_vec));
@@ -345,7 +345,7 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const *a, simsimd_b8_t c
         union_ = _mm512_reduce_add_epi64(or_count_vec);
     }
     else if (n_words <= 128) { // Up to 1024 bits.
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 64);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n_words - 64);
         __m512i a1_vec = _mm512_loadu_epi8(a);
         __m512i b1_vec = _mm512_loadu_epi8(b);
         __m512i a2_vec = _mm512_maskz_loadu_epi8(mask, a + 64);
@@ -358,7 +358,7 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const *a, simsimd_b8_t c
         union_ = _mm512_reduce_add_epi64(_mm512_add_epi64(or2_count_vec, or1_count_vec));
     }
     else if (n_words <= 196) { // Up to 1568 bits.
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 128);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n_words - 128);
         __m512i a1_vec = _mm512_loadu_epi8(a);
         __m512i b1_vec = _mm512_loadu_epi8(b);
         __m512i a2_vec = _mm512_loadu_epi8(a + 64);
@@ -377,7 +377,7 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const *a, simsimd_b8_t c
             _mm512_add_epi64(or3_count_vec, _mm512_add_epi64(or2_count_vec, or1_count_vec)));
     }
     else if (n_words <= 256) { // Up to 2048 bits.
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 192);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n_words - 192);
         __m512i a1_vec = _mm512_loadu_epi8(a);
         __m512i b1_vec = _mm512_loadu_epi8(b);
         __m512i a2_vec = _mm512_loadu_epi8(a + 64);
@@ -405,7 +405,7 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const *a, simsimd_b8_t c
 
     simsimd_jaccard_b8_ice_cycle:
         if (n_words < 64) {
-            __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+            __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n_words);
             a_vec = _mm512_maskz_loadu_epi8(mask, a);
             b_vec = _mm512_maskz_loadu_epi8(mask, b);
             n_words = 0;

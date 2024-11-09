@@ -1792,7 +1792,7 @@ SIMSIMD_PUBLIC void simsimd_dot_u8_ice(simsimd_u8_t const *a, simsimd_u8_t const
 
 simsimd_dot_u8_ice_cycle:
     if (n < 64) {
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_u8_vec = _mm512_maskz_loadu_epi8(mask, a);
         b_u8_vec = _mm512_maskz_loadu_epi8(mask, b);
         n = 0;
