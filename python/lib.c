@@ -3263,9 +3263,6 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         }
     }
 
-    printf("Effective datatypes are: a - %s, b - %s, out - %s\n", datatype_to_python_string(a_parsed.datatype),
-           datatype_to_python_string(b_parsed.datatype), datatype_to_python_string(ab_dtype));
-
     // Estimate the total number of output elements:
     Py_ssize_t out_total_elements = 1;
     for (Py_ssize_t i = 0; i < out_parsed.as_buffer_dimensions; ++i)

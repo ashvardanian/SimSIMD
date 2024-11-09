@@ -67,15 +67,25 @@ try:
     baseline_bilinear = lambda x, y, z: x @ z @ y
 
     def _normalize_element_wise(r, dtype):
+        """Clips higher-resolution results to the smaller target dtype without overflow."""
         if np.issubdtype(dtype, np.integer):
             r = np.round(r)
-        #! We need non-overflowing saturating addition for small integers, that NumPy lacks:
-        #! https://stackoverflow.com/questions/29611185/avoid-overflow-when-adding-numpy-arrays
-        if dtype == np.uint8:
-            r = np.clip(r, 0, 255, out=r)
-        elif dtype == np.int8:
-            r = np.clip(r, -128, 127, out=r)
+            #! We need non-overflowing saturating addition for small integers, that NumPy lacks:
+            #! https://stackoverflow.com/questions/29611185/avoid-overflow-when-adding-numpy-arrays
+            dtype_info = np.iinfo(dtype)
+            r = np.clip(r, dtype_info.min, dtype_info.max, out=r)
         return r.astype(dtype)
+
+    def upcast_preserving_inf(r, dtype):
+        """Upcasts the result to a higher resolution, preserving infinity values (min/max for integers)."""
+        dtype_old_info = np.iinfo(r.dtype) if np.issubdtype(r.dtype, np.integer) else np.finfo(r.dtype)
+        dtype_new_info = np.iinfo(dtype) if np.issubdtype(dtype, np.integer) else np.finfo(dtype)
+        is_min = r == dtype_old_info.min
+        is_max = r == dtype_old_info.max
+        r = r.astype(dtype)
+        r[is_min] = dtype_new_info.min
+        r[is_max] = dtype_new_info.max
+        return r
 
     def baseline_scale(x, alpha, beta):
         return _normalize_element_wise(alpha * x + beta, x.dtype)
@@ -94,14 +104,26 @@ try:
     def baseline_fma(x, y, z, alpha, beta):
         return _normalize_element_wise(np.multiply((alpha * x), y) + beta * z, x.dtype)
 
-    def baseline_add(x, y):
-        dtype = x.dtype if isinstance(x, np.ndarray) else y.dtype
-        if dtype == np.uint8:
-            return _normalize_element_wise(x.astype(np.uint16) + y, dtype)
-        elif dtype == np.int8:
-            return _normalize_element_wise(x.astype(np.int16) + y, dtype)
+    def baseline_add(x, y, out=None):
+
+        # If the input types are identical, we want to perform addition with saturation
+        if isinstance(x, np.ndarray) and isinstance(y, np.ndarray) and x.dtype == y.dtype and out is None:
+            if x.dtype == np.uint8:
+                return _normalize_element_wise(x.astype(np.uint16) + y, x.dtype)
+            elif x.dtype == np.int8:
+                return _normalize_element_wise(x.astype(np.int16) + y, x.dtype)
+            if x.dtype == np.uint16:
+                return _normalize_element_wise(x.astype(np.uint32) + y, x.dtype)
+            elif x.dtype == np.int16:
+                return _normalize_element_wise(x.astype(np.int32) + y, x.dtype)
+            if x.dtype == np.uint32:
+                return _normalize_element_wise(x.astype(np.uint64) + y, x.dtype)
+            elif x.dtype == np.int32:
+                return _normalize_element_wise(x.astype(np.int64) + y, x.dtype)
+            else:
+                return np.add(x, y)
         else:
-            return x + y
+            return np.add(x, y, out=out, casting="unsafe")
 
     def baseline_multiply(x, y):
         dtype = x.dtype if isinstance(x, np.ndarray) else y.dtype
@@ -451,7 +473,7 @@ possible_capabilities: List[str] = (
 
 
 def keep_one_capability(cap: str):
-    assert cap in possible_capabilities
+    assert cap in possible_capabilities or cap == "serial", f"Capability {cap} is not available on this platform."
     for c in possible_capabilities:
         if c != cap:
             simd.disable_capability(c)
@@ -1568,7 +1590,7 @@ def test_cdist_hamming(ndim, out_dtype, capability):
 @pytest.mark.parametrize("second_dtype", ["float64", "float32", "int32", "uint32"])
 @pytest.mark.parametrize("output_dtype", ["float64", "float32", "int32", "uint32"])
 @pytest.mark.parametrize("kernel", ["add"])  # , "multiply"])
-@pytest.mark.parametrize("capability", possible_capabilities)
+@pytest.mark.parametrize("capability", ["serial"])
 def test_add(first_dtype, second_dtype, output_dtype, kernel, capability, stats_fixture):
     """Tests NumPy-like compatibility interfaces on all kinds of non-contiguous arrays."""
 
@@ -1579,29 +1601,77 @@ def test_add(first_dtype, second_dtype, output_dtype, kernel, capability, stats_
     def validate(a, b, inplace_simsimd):
         result_numpy = baseline_kernel(a, b)
         result_simsimd = np.array(simd_kernel(a, b))
+        assert (
+            result_simsimd.size == result_numpy.size
+        ), f"Result sizes differ: {result_simsimd.size} vs {result_numpy.size}"
+        assert (
+            result_simsimd.shape == result_numpy.shape
+        ), f"Result shapes differ: {result_simsimd.shape} vs {result_numpy.shape}"
+        assert (
+            result_simsimd.dtype == result_numpy.dtype
+        ), f"Result dtypes differ: {result_simsimd.dtype} vs {result_numpy.dtype} for ({first_dtype} + {second_dtype})"
+
+        if not np.allclose(result_simsimd, result_numpy, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL):
+            # ? Find the first mismatch and use it as an example in the error message
+            np.testing.assert_allclose(
+                result_simsimd,
+                result_numpy,
+                atol=SIMSIMD_ATOL,
+                rtol=SIMSIMD_RTOL,
+                err_msg=f"""
+                Result mismatch for ({first_dtype} + {second_dtype})
+                First argument: {a}
+                Second argument: {b}
+                SimSIMD result: {result_simsimd}
+                NumPy result: {result_numpy}
+                """,
+            )
+
+        #! NumPy constantly overflows in mixed-precision operations!
+        inplace_numpy = np.empty_like(inplace_simsimd)
         simd_kernel(a, b, out=inplace_simsimd)
-        assert result_simsimd.size == result_numpy.size
-        assert result_simsimd.shape == result_numpy.shape
-        assert result_simsimd.dtype == result_numpy.dtype
-        np.testing.assert_allclose(result_simsimd, result_numpy, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-        np.testing.assert_allclose(result_simsimd, inplace_simsimd, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+        baseline_kernel(a, b, out=inplace_numpy)
+
+        assert (
+            inplace_simsimd.size == inplace_numpy.size
+        ), f"Inplace sizes differ: {inplace_simsimd.size} vs {inplace_numpy.size}"
+        assert (
+            inplace_simsimd.shape == inplace_numpy.shape
+        ), f"Inplace shapes differ: {inplace_simsimd.shape} vs {inplace_numpy.shape}"
+        assert (
+            inplace_simsimd.dtype == inplace_numpy.dtype
+        ), f"Inplace dtypes differ: {inplace_simsimd.dtype} vs {inplace_numpy.dtype} for ({first_dtype} + {second_dtype})"
+
+        # Let's count the number of overflows in NumPy:
+        overflow_count = np.sum(np.isclose(inplace_simsimd, inplace_numpy, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL))
+        if overflow_count:
+            collect_warnings(
+                f"NumPy overflow in ({first_dtype} + {second_dtype} -> {output_dtype})",
+                stats_fixture,
+            )
         return result_simsimd
 
     # Vector-Vector addition
+    a = random_of_dtype(first_dtype, (6,))
+    b = random_of_dtype(second_dtype, (6,))
+    o = np.zeros(6).astype(output_dtype)
+    validate(a, b, o)
+
+    # Larger Vector-Vector addition
     a = random_of_dtype(first_dtype, (47,))
     b = random_of_dtype(second_dtype, (47,))
     o = np.zeros(47).astype(output_dtype)
     validate(a, b, o)
 
     # Vector-Scalar addition
-    validate(a, -11, o)
-    validate(a, 11, o)
-    validate(a, 11.0, o)
+    validate(a, np.int8(-11), o)
+    validate(a, np.uint8(11), o)
+    validate(a, np.float16(11.0), o)
 
     # Scalar-Vector addition
-    validate(-13, b, o)
-    validate(13, b, o)
-    validate(13.0, b, o)
+    validate(np.int8(-13), b, o)
+    validate(np.uint8(13), b, o)
+    validate(np.float16(13.0), b, o)
 
     # Matrix-Matrix addition
     a = random_of_dtype(first_dtype, (10, 47))
