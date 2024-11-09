@@ -2200,6 +2200,126 @@ simsimd_fma_u16_skylake_cycle:
     if (n) goto simsimd_fma_u16_skylake_cycle;
 }
 
+SIMSIMD_PUBLIC void simsimd_scale_i32_skylake(simsimd_i32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                              simsimd_distance_t beta, simsimd_i32_t *result) {
+    __m512d alpha_vec = _mm512_set1_pd(alpha);
+    __m512d beta_vec = _mm512_set1_pd(beta);
+    __m256i a_i32_vec, sum_i32_vec;
+    __m512d a_vec, sum_vec;
+    __mmask8 mask = 0xFF;
+
+simsimd_scale_i32_skylake_cycle:
+    if (n < 8) {
+        mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
+        a_i32_vec = _mm256_maskz_loadu_epi32(mask, a);
+        n = 0;
+    }
+    else {
+        a_i32_vec = _mm256_lddqu_si256((__m256i *)a);
+        a += 8, n -= 8;
+    }
+    a_vec = _mm512_cvtepi32_pd(a_i32_vec);
+    sum_vec = _mm512_fmadd_pd(a_vec, alpha_vec, beta_vec);
+    sum_i32_vec = _mm512_cvtpd_epi32(sum_vec);
+    _mm256_mask_storeu_epi32(result, mask, sum_i32_vec);
+    result += 8;
+    if (n) goto simsimd_scale_i32_skylake_cycle;
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_i32_skylake(                                                  //
+    simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t const *c, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result) {
+    __m512d alpha_vec = _mm512_set1_pd(alpha);
+    __m512d beta_vec = _mm512_set1_pd(beta);
+    __m256i a_i32_vec, b_i32_vec, c_i32_vec, sum_i32_vec;
+    __m512d a_vec, b_vec, c_vec, ab_vec, ab_scaled_vec, sum_vec;
+    __mmask8 mask = 0xFF;
+simsimd_fma_i32_skylake_cycle:
+    if (n < 8) {
+        mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
+        a_i32_vec = _mm256_maskz_loadu_epi32(mask, a);
+        b_i32_vec = _mm256_maskz_loadu_epi32(mask, b);
+        c_i32_vec = _mm256_maskz_loadu_epi32(mask, c);
+        n = 0;
+    }
+    else {
+        a_i32_vec = _mm256_lddqu_si256((__m256i *)a);
+        b_i32_vec = _mm256_lddqu_si256((__m256i *)b);
+        c_i32_vec = _mm256_lddqu_si256((__m256i *)c);
+        a += 8, b += 8, c += 8, n -= 8;
+    }
+    a_vec = _mm512_cvtepi32_pd(a_i32_vec);
+    b_vec = _mm512_cvtepi32_pd(b_i32_vec);
+    c_vec = _mm512_cvtepi32_pd(c_i32_vec);
+    ab_vec = _mm512_mul_pd(a_vec, b_vec);
+    ab_scaled_vec = _mm512_mul_pd(ab_vec, alpha_vec);
+    sum_vec = _mm512_fmadd_pd(c_vec, beta_vec, ab_scaled_vec);
+    sum_i32_vec = _mm512_cvtpd_epi32(sum_vec);
+    _mm256_mask_storeu_epi32(result, mask, sum_i32_vec);
+    result += 8;
+    if (n) goto simsimd_fma_i32_skylake_cycle;
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_u32_skylake(simsimd_u32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                              simsimd_distance_t beta, simsimd_u32_t *result) {
+    __m512d alpha_vec = _mm512_set1_pd(alpha);
+    __m512d beta_vec = _mm512_set1_pd(beta);
+    __m256i a_u32_vec, sum_u32_vec;
+    __m512d a_vec, sum_vec;
+    __mmask8 mask = 0xFF;
+
+simsimd_scale_u32_skylake_cycle:
+    if (n < 8) {
+        mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
+        a_u32_vec = _mm256_maskz_loadu_epi32(mask, a);
+        n = 0;
+    }
+    else {
+        a_u32_vec = _mm256_lddqu_si256((__m256i *)a);
+        a += 8, n -= 8;
+    }
+    a_vec = _mm512_cvtepu32_pd(a_u32_vec);
+    sum_vec = _mm512_fmadd_pd(a_vec, alpha_vec, beta_vec);
+    sum_u32_vec = _mm512_cvtpd_epu32(sum_vec);
+    _mm256_mask_storeu_epi32(result, mask, sum_u32_vec);
+    result += 8;
+    if (n) goto simsimd_scale_u32_skylake_cycle;
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_u32_skylake(                                                  //
+    simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_u32_t const *c, simsimd_size_t n, //
+    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result) {
+    __m512d alpha_vec = _mm512_set1_pd(alpha);
+    __m512d beta_vec = _mm512_set1_pd(beta);
+    __m256i a_u32_vec, b_u32_vec, c_u32_vec, sum_u32_vec;
+    __m512d a_vec, b_vec, c_vec, ab_vec, ab_scaled_vec, sum_vec;
+    __mmask8 mask = 0xFF;
+simsimd_fma_u32_skylake_cycle:
+    if (n < 8) {
+        mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
+        a_u32_vec = _mm256_maskz_loadu_epi32(mask, a);
+        b_u32_vec = _mm256_maskz_loadu_epi32(mask, b);
+        c_u32_vec = _mm256_maskz_loadu_epi32(mask, c);
+        n = 0;
+    }
+    else {
+        a_u32_vec = _mm256_lddqu_si256((__m256i *)a);
+        b_u32_vec = _mm256_lddqu_si256((__m256i *)b);
+        c_u32_vec = _mm256_lddqu_si256((__m256i *)c);
+        a += 8, b += 8, c += 8, n -= 8;
+    }
+    a_vec = _mm512_cvtepu32_pd(a_u32_vec);
+    b_vec = _mm512_cvtepu32_pd(b_u32_vec);
+    c_vec = _mm512_cvtepu32_pd(c_u32_vec);
+    ab_vec = _mm512_mul_pd(a_vec, b_vec);
+    ab_scaled_vec = _mm512_mul_pd(ab_vec, alpha_vec);
+    sum_vec = _mm512_fmadd_pd(c_vec, beta_vec, ab_scaled_vec);
+    sum_u32_vec = _mm512_cvtpd_epu32(sum_vec);
+    _mm256_mask_storeu_epi32(result, mask, sum_u32_vec);
+    result += 8;
+    if (n) goto simsimd_fma_u32_skylake_cycle;
+}
+
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SKYLAKE
