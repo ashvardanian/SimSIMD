@@ -852,13 +852,16 @@ SIMSIMD_INTERNAL simsimd_u16_t _simsimd_u16_ror(simsimd_u16_t *x, int n) { retur
 SIMSIMD_INTERNAL simsimd_u8_t _simsimd_u8_ror(simsimd_u8_t *x, int n) { return (*x >> n) | (*x << (8 - n)); }
 
 SIMSIMD_INTERNAL void _simsimd_u8_sadd(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t *r) {
-    *r = (*a + *b < *a) ? 255 : (*a + *b);
+    simsimd_u16_t result = (simsimd_u16_t)*a + (simsimd_u16_t)*b;
+    *r = (result > 255u) ? (simsimd_u8_t)255u : (simsimd_u8_t)result;
 }
 SIMSIMD_INTERNAL void _simsimd_u16_sadd(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t *r) {
-    *r = (*a + *b < *a) ? 65535 : (*a + *b);
+    simsimd_u32_t result = (simsimd_u32_t)*a + (simsimd_u32_t)*b;
+    *r = (result > 65535u) ? (simsimd_u16_t)65535u : (simsimd_u16_t)result;
 }
 SIMSIMD_INTERNAL void _simsimd_u32_sadd(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_u32_t *r) {
-    *r = (*a + *b < *a) ? 4294967295u : (*a + *b);
+    simsimd_u64_t result = (simsimd_u64_t)*a + (simsimd_u64_t)*b;
+    *r = (result > 4294967295u) ? (simsimd_u32_t)4294967295u : (simsimd_u32_t)result;
 }
 SIMSIMD_INTERNAL void _simsimd_u64_sadd(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_u64_t *r) {
     *r = (*a + *b < *a) ? 18446744073709551615ull : (*a + *b);
