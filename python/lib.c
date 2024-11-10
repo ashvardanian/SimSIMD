@@ -162,10 +162,10 @@ typedef struct MDArray {
 
 /// @brief  Faster alternative to NumPy's `ndindex` object, supporting just as many dimensions,
 ///         as the `MDArray` object.
-typedef struct NDIndex {
+typedef struct MDIndex {
     PyObject_HEAD //
         simsimd_mdindices_t mdindices;
-} NDIndex;
+} MDIndex;
 
 static int DistancesTensor_getbuffer(PyObject *export_from, Py_buffer *view, int flags);
 static void DistancesTensor_releasebuffer(PyObject *export_from, Py_buffer *view);

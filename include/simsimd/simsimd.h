@@ -2756,8 +2756,6 @@ SIMSIMD_PUBLIC void simsimd_sum_i64(simsimd_i64_t const *a, simsimd_i64_t const 
                                     simsimd_i64_t *r) {
 #if SIMSIMD_TARGET_ICE
     simsimd_sum_i64_ice(a, b, n, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_sum_i64_haswell(a, b, n, r);
 #elif SIMSIMD_TARGET_NEON
     simsimd_sum_i64_neon(a, b, n, r);
 #else
@@ -2769,8 +2767,6 @@ SIMSIMD_PUBLIC void simsimd_sum_u64(simsimd_u64_t const *a, simsimd_u64_t const 
                                     simsimd_u64_t *r) {
 #if SIMSIMD_TARGET_ICE
     simsimd_sum_u64_ice(a, b, n, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_sum_u64_haswell(a, b, n, r);
 #elif SIMSIMD_TARGET_NEON
     simsimd_sum_u64_neon(a, b, n, r);
 #else
@@ -2914,8 +2910,6 @@ SIMSIMD_PUBLIC void simsimd_scale_i64(simsimd_i64_t const *a, simsimd_size_t n, 
                                       simsimd_distance_t beta, simsimd_i64_t *r) {
 #if SIMSIMD_TARGET_SKYLAKE
     simsimd_scale_i64_skylake(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_scale_i64_haswell(a, n, alpha, beta, r);
 #elif SIMSIMD_TARGET_NEON
     simsimd_scale_i64_neon(a, n, alpha, beta, r);
 #else
@@ -2927,8 +2921,6 @@ SIMSIMD_PUBLIC void simsimd_scale_u64(simsimd_u64_t const *a, simsimd_size_t n, 
                                       simsimd_distance_t beta, simsimd_u64_t *r) {
 #if SIMSIMD_TARGET_SKYLAKE
     simsimd_scale_u64_skylake(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_scale_u64_haswell(a, n, alpha, beta, r);
 #elif SIMSIMD_TARGET_NEON
     simsimd_scale_u64_neon(a, n, alpha, beta, r);
 #else
@@ -3159,8 +3151,6 @@ SIMSIMD_PUBLIC void simsimd_fma_i64(simsimd_i64_t const *a, simsimd_i64_t const 
                                     simsimd_i64_t *r) {
 #if SIMSIMD_TARGET_SKYLAKE
     simsimd_fma_i64_skylake(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_fma_i64_haswell(a, b, c, n, alpha, beta, r);
 #elif SIMSIMD_TARGET_NEON
     simsimd_fma_i64_neon(a, b, c, n, alpha, beta, r);
 #else
@@ -3173,8 +3163,6 @@ SIMSIMD_PUBLIC void simsimd_fma_u64(simsimd_u64_t const *a, simsimd_u64_t const 
                                     simsimd_u64_t *r) {
 #if SIMSIMD_TARGET_SKYLAKE
     simsimd_fma_u64_skylake(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_fma_u64_haswell(a, b, c, n, alpha, beta, r);
 #elif SIMSIMD_TARGET_NEON
     simsimd_fma_u64_neon(a, b, c, n, alpha, beta, r);
 #else

@@ -976,7 +976,7 @@ SIMSIMD_INTERNAL void _simsimd_i64_smul(simsimd_i64_t const *a, simsimd_i64_t co
 
     // Check for overflow and saturate based on sign
     if (hi_hi || (hi_lo >> 32) || (lo_hi >> 32) || ((hi_lo + lo_hi) >> 32)) {
-        *r = (sign > 0) ? 9223372036854775807ll : -9223372036854775808ll;
+        *r = (sign > 0) ? 9223372036854775807ll : (-9223372036854775807ll - 1ll);
     }
     // Combine parts if no overflow, then apply the sign
     else {
