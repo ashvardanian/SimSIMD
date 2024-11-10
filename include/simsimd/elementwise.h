@@ -1407,26 +1407,23 @@ SIMSIMD_PUBLIC void simsimd_fma_u16_haswell(                                    
 }
 
 SIMSIMD_INTERNAL __m256i _mm256_adds_epi32_haswell(__m256i a, __m256i b) {
-    // There are many flavors of addition with saturation in AVX2: i8, u8, i16, and u16.
-    // But not for larger numeric types. We have to do it manually.
+    // ! There are many flavors of addition with saturation in AVX2: i8, u8, i16, and u16.
+    // ! But not for larger numeric types. We have to do it manually.
+    // ! https://stackoverflow.com/a/56531252/2766161
     __m256i result = _mm256_add_epi32(a, b);
-    // Detect positive overflow
-    __m256i overflow_mask = _mm256_and_si256(          //
-        _mm256_cmpgt_epi32(a, _mm256_setzero_si256()), // a > 0
-        _mm256_cmpgt_epi32(b, _mm256_setzero_si256())  // b > 0
-    );
-    overflow_mask = _mm256_and_si256(overflow_mask, _mm256_cmpgt_epi32(result, a));
+    // Detect positive overflow: (a > 0) && (b > 0) && (result < a)
+    __m256i positive_mask =
+        _mm256_and_si256(_mm256_cmpgt_epi32(a, _mm256_setzero_si256()), _mm256_cmpgt_epi32(b, _mm256_setzero_si256()));
+    __m256i overflow_mask = _mm256_and_si256(positive_mask, _mm256_cmpgt_epi32(a, result));
 
-    // Detect negative overflow
-    __m256i underflow_mask = _mm256_and_si256(         //
-        _mm256_cmpgt_epi32(_mm256_setzero_si256(), a), // a < 0
-        _mm256_cmpgt_epi32(_mm256_setzero_si256(), b)  // b < 0
-    );
-    underflow_mask = _mm256_and_si256(underflow_mask, _mm256_cmpgt_epi32(a, result));
-    // Set overflowed results to INT32_MAX
+    // Detect negative overflow: (a < 0) && (b < 0) && (result > a)
+    __m256i negative_mask =
+        _mm256_and_si256(_mm256_cmpgt_epi32(_mm256_setzero_si256(), a), _mm256_cmpgt_epi32(_mm256_setzero_si256(), b));
+    __m256i underflow_mask = _mm256_and_si256(negative_mask, _mm256_cmpgt_epi32(result, a));
+
+    // Apply saturation: Set 2147483647 for positive overflow, -2147483648 for negative overflow
     result = _mm256_blendv_epi8(result, _mm256_set1_epi32(2147483647), overflow_mask);
-    // Set underflowed results to INT32_MIN
-    result = _mm256_blendv_epi8(result, _mm256_set1_epi32(-2147483647 - 1), underflow_mask);
+    result = _mm256_blendv_epi8(result, _mm256_set1_epi32(-2147483648), underflow_mask);
     return result;
 }
 
