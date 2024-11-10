@@ -1496,12 +1496,36 @@ SIMSIMD_PUBLIC void simsimd_fma_i32_haswell(                                    
 }
 
 SIMSIMD_INTERNAL __m256i _mm256_adds_epu32_haswell(__m256i a, __m256i b) {
-    __m256i result = _mm256_add_epi32(a, b);
-    // Detect overflow: if result < a, then an overflow occurred (for unsigned addition).
-    __m256i overflow_mask = _mm256_cmpgt_epi32(a, result);
-    // Set overflowed results to UINT32_MAX (0xFFFFFFFF)
-    result = _mm256_blendv_epi8(result, _mm256_set1_epi32(4294967295u), overflow_mask);
-    return result;
+    // TODO: Saturated addition of unsigned 32-bit integers in AVX2 isn't trivial.
+    // We don't have a `_mm256_adds_epu32` or `_mm256_add_epu32` instruction.
+    // We don't have a `_mm256_packus_epi64` to implement addition in 64-bit integers,
+    // which we need for subsequent downcasting opertaion.
+    simsimd_u32_t a_vals[8], b_vals[8], result_vals[8];
+    _mm256_storeu_si256((__m256i *)a_vals, a);
+    _mm256_storeu_si256((__m256i *)b_vals, b);
+
+    // Perform saturating addition for each element with separate sum variables
+    simsimd_u64_t sum0 = (simsimd_u64_t)a_vals[0] + (simsimd_u64_t)b_vals[0];
+    simsimd_u64_t sum1 = (simsimd_u64_t)a_vals[1] + (simsimd_u64_t)b_vals[1];
+    simsimd_u64_t sum2 = (simsimd_u64_t)a_vals[2] + (simsimd_u64_t)b_vals[2];
+    simsimd_u64_t sum3 = (simsimd_u64_t)a_vals[3] + (simsimd_u64_t)b_vals[3];
+    simsimd_u64_t sum4 = (simsimd_u64_t)a_vals[4] + (simsimd_u64_t)b_vals[4];
+    simsimd_u64_t sum5 = (simsimd_u64_t)a_vals[5] + (simsimd_u64_t)b_vals[5];
+    simsimd_u64_t sum6 = (simsimd_u64_t)a_vals[6] + (simsimd_u64_t)b_vals[6];
+    simsimd_u64_t sum7 = (simsimd_u64_t)a_vals[7] + (simsimd_u64_t)b_vals[7];
+
+    // Apply saturation
+    result_vals[0] = (sum0 > 0xFFFFFFFF) ? 0xFFFFFFFF : (simsimd_u32_t)sum0;
+    result_vals[1] = (sum1 > 0xFFFFFFFF) ? 0xFFFFFFFF : (simsimd_u32_t)sum1;
+    result_vals[2] = (sum2 > 0xFFFFFFFF) ? 0xFFFFFFFF : (simsimd_u32_t)sum2;
+    result_vals[3] = (sum3 > 0xFFFFFFFF) ? 0xFFFFFFFF : (simsimd_u32_t)sum3;
+    result_vals[4] = (sum4 > 0xFFFFFFFF) ? 0xFFFFFFFF : (simsimd_u32_t)sum4;
+    result_vals[5] = (sum5 > 0xFFFFFFFF) ? 0xFFFFFFFF : (simsimd_u32_t)sum5;
+    result_vals[6] = (sum6 > 0xFFFFFFFF) ? 0xFFFFFFFF : (simsimd_u32_t)sum6;
+    result_vals[7] = (sum7 > 0xFFFFFFFF) ? 0xFFFFFFFF : (simsimd_u32_t)sum7;
+
+    // Load results back into an AVX2 vector
+    return _mm256_loadu_si256((__m256i *)result_vals);
 }
 
 SIMSIMD_INTERNAL __m256d _mm256_cvtepu32_pd_haswell(__m128i a) {
