@@ -109,21 +109,23 @@ typedef struct VectorOrRowsArgument {
     simsimd_datatype_t datatype;
 } VectorOrRowsArgument;
 
+typedef enum MDArrayShapeKind {
+    MDArrayShapeUnknown = 0,
+    /// Just a `float` or an `int`
+    MDArrayShapeScalar,
+    /// A single `float` or `int` buffer of any rank, but with a single element
+    MDArrayShapeUnit,
+    /// Any rank tensor with more than 1 element along any dimension
+    MDArrayShapeNonUnit,
+} MDArrayShapeKind;
+
 typedef struct BufferOrScalarArgument {
-    enum {
-        UndefinedKind = 0,
-        /// Just a `float` or an `int`
-        ScalarKind,
-        /// A single `float` or `int` buffer of any rank, but with a single element
-        ScalarBufferKind,
-        /// Any rank tensor with more than 1 element along any dimension
-        BufferKind,
-    } kind;
-    /// Populated only for `ScalarKind` and `ScalarBufferKind` kinds.
+    MDArrayShapeKind shape_kind;
+    /// Populated only for `MDArrayShapeScalar` and `MDArrayShapeUnit` kinds.
     simsimd_f64_t as_f64;
     simsimd_u8_t as_scalar[8];
-    /// The address of the buffer start, if the kind is `BufferKind` or `ScalarBufferKind`.
-    /// Alternatively, points to the `&as_scalar` field for `ScalarKind` kind.
+    /// The address of the buffer start, if the kind is `MDArrayShapeNonUnit` or `MDArrayShapeUnit`.
+    /// Alternatively, points to the `&as_scalar` field for `MDArrayShapeScalar` kind.
     char *as_buffer_start;
     Py_ssize_t as_buffer_dimensions;
     //? The "shape" and "strides" fields may seem redundant, as they are already part of the `Py_buffer`
@@ -149,17 +151,17 @@ typedef struct DistancesTensor {
 
 /// @brief  Generalized high-rank tensor alternative to NumPy, supporting up to 64 dimensions,
 ///         zero-copy views/slices, the Buffer Protocol, and faster iteration.
-typedef struct NDArray {
+typedef struct MDArray {
     PyObject_HEAD                    //
         simsimd_datatype_t datatype; // Any SimSIMD numeric type
     Py_ssize_t ndim; //! Can be up to `PyBUF_MAX_NDIM` (often 64), but NumPy only supports 32 on most platforms!
     Py_ssize_t shape[PyBUF_MAX_NDIM];   // Dimensions of the tensor
     Py_ssize_t strides[PyBUF_MAX_NDIM]; // Strides for each dimension
     simsimd_distance_t start[];         // Variable length data aligned to 64-bit scalars
-} NDArray;
+} MDArray;
 
 /// @brief  Faster alternative to NumPy's `ndindex` object, supporting just as many dimensions,
-///         as the `NDArray` object.
+///         as the `MDArray` object.
 typedef struct NDIndex {
     PyObject_HEAD //
         simsimd_mdindices_t mdindices;
@@ -183,31 +185,31 @@ static PyTypeObject DistancesTensorType = {
     .tp_as_buffer = &DistancesTensor_as_buffer,
 };
 
-static int NDArray_getbuffer(PyObject *export_from, Py_buffer *view, int flags);
-static void NDArray_releasebuffer(PyObject *export_from, Py_buffer *view);
-static PyObject *NDArray_get_shape(NDArray *self, void *closure);
-static PyObject *NDArray_get_size(NDArray *self, void *closure);
+static int MDArray_getbuffer(PyObject *export_from, Py_buffer *view, int flags);
+static void MDArray_releasebuffer(PyObject *export_from, Py_buffer *view);
+static PyObject *MDArray_get_shape(MDArray *self, void *closure);
+static PyObject *MDArray_get_size(MDArray *self, void *closure);
 
-static PyBufferProcs NDArray_as_buffer = {
-    .bf_getbuffer = NDArray_getbuffer,
-    .bf_releasebuffer = NDArray_releasebuffer,
+static PyBufferProcs MDArray_as_buffer = {
+    .bf_getbuffer = MDArray_getbuffer,
+    .bf_releasebuffer = MDArray_releasebuffer,
 };
 
-static PyGetSetDef NDArray_getset[] = {
-    {"shape", (getter)NDArray_get_shape, NULL, "Shape of the NDArray", NULL},
-    {"size", (getter)NDArray_get_size, NULL, "Total number of elements in the NDArray", NULL},
+static PyGetSetDef MDArray_getset[] = {
+    {"shape", (getter)MDArray_get_shape, NULL, "Shape of the MDArray", NULL},
+    {"size", (getter)MDArray_get_size, NULL, "Total number of elements in the MDArray", NULL},
     {NULL} // Sentinel
 };
 
-static PyTypeObject NDArrayType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "simsimd.NDArray",
+static PyTypeObject MDArrayType = {
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "simsimd.MDArray",
     .tp_doc = "Zero-copy view of a high-rank tensor, compatible with NumPy", //
-    .tp_basicsize = sizeof(NDArray),
+    .tp_basicsize = sizeof(MDArray),
     // Instead of using `simsimd_distance_t` for all the elements,
     // we use `char` to allow user to specify the datatype on `cdist`-like functions.
     .tp_itemsize = sizeof(char), //
-    .tp_as_buffer = &NDArray_as_buffer,
-    .tp_getset = NDArray_getset, // Add the getset array here
+    .tp_as_buffer = &MDArray_as_buffer,
+    .tp_getset = MDArray_getset, // Add the getset array here
 };
 
 /// @brief  Global variable that caches the CPU capabilities, and is computed just onc, when the module is loaded.
@@ -639,7 +641,7 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, simsimd_datatype_t *dtype)
 int parse_buffer_or_scalar_argument(PyObject *obj, Py_buffer *buffer, BufferOrScalarArgument *parsed) {
 
     if (PyFloat_Check(obj)) {
-        parsed->kind = ScalarKind;
+        parsed->shape_kind = MDArrayShapeScalar;
         parsed->as_buffer_start = (char *)&parsed->as_scalar;
         parsed->as_buffer_dimensions = 1;
         parsed->as_buffer_shape[0] = 1;
@@ -673,7 +675,7 @@ int parse_buffer_or_scalar_argument(PyObject *obj, Py_buffer *buffer, BufferOrSc
             PyErr_SetString(PyExc_ValueError, "Integer overflow");
             return 0;
         }
-        parsed->kind = ScalarKind;
+        parsed->shape_kind = MDArrayShapeScalar;
         parsed->as_buffer_start = (char *)&parsed->as_scalar;
         parsed->as_buffer_dimensions = 1;
         parsed->as_buffer_shape[0] = 1;
@@ -722,11 +724,11 @@ int parse_buffer_or_scalar_argument(PyObject *obj, Py_buffer *buffer, BufferOrSc
         // we must treat it as a scalar, similar to NumPy.
         if (buffer->len == buffer->itemsize) {
             memcpy(&parsed->as_scalar, buffer->buf, buffer->itemsize);
-            parsed->kind = ScalarBufferKind;
+            parsed->shape_kind = MDArrayShapeUnit;
             parsed->as_buffer_start = (char *)&parsed->as_scalar;
         }
         else {
-            parsed->kind = BufferKind;
+            parsed->shape_kind = MDArrayShapeNonUnit;
             parsed->as_buffer_start = buffer->buf;
         }
         parsed->as_buffer_dimensions = buffer->ndim;
@@ -768,8 +770,8 @@ static void DistancesTensor_releasebuffer(PyObject *export_from, Py_buffer *view
     //! https://docs.python.org/3/c-api/typeobj.html#c.PyBufferProcs.bf_releasebuffer
 }
 
-static int NDArray_getbuffer(PyObject *export_from, Py_buffer *view, int flags) {
-    NDArray *tensor = (NDArray *)export_from;
+static int MDArray_getbuffer(PyObject *export_from, Py_buffer *view, int flags) {
+    MDArray *tensor = (MDArray *)export_from;
     Py_ssize_t const item_size = (Py_ssize_t)bytes_per_datatype(tensor->datatype);
     Py_ssize_t total_items = 1;
     for (Py_ssize_t i = 0; i < tensor->ndim; ++i) total_items *= tensor->shape[i];
@@ -790,19 +792,19 @@ static int NDArray_getbuffer(PyObject *export_from, Py_buffer *view, int flags) 
     return 0;
 }
 
-static void NDArray_releasebuffer(PyObject *export_from, Py_buffer *view) {
+static void MDArray_releasebuffer(PyObject *export_from, Py_buffer *view) {
     //! This function MUST NOT decrement view->obj, since that is done automatically in PyBuffer_Release().
     //! https://docs.python.org/3/c-api/typeobj.html#c.PyBufferProcs.bf_releasebuffer
 }
 
-static PyObject *NDArray_get_shape(NDArray *self, void *closure) {
+static PyObject *MDArray_get_shape(MDArray *self, void *closure) {
     PyObject *shape_tuple = PyTuple_New(self->ndim);
     if (!shape_tuple) return NULL;
     for (Py_ssize_t i = 0; i < self->ndim; i++) PyTuple_SET_ITEM(shape_tuple, i, PyLong_FromSsize_t(self->shape[i]));
     return shape_tuple;
 }
 
-static PyObject *NDArray_get_size(NDArray *self, void *closure) {
+static PyObject *MDArray_get_size(MDArray *self, void *closure) {
     Py_ssize_t total_items = 1;
     for (Py_ssize_t i = 0; i < self->ndim; i++) total_items *= self->shape[i];
     return PyLong_FromSsize_t(total_items);
@@ -1463,10 +1465,10 @@ static char const doc_cdist[] = //
     "Compute pairwise distances between two sets of input matrices.\n"
     "\n"
     "Args:\n"
-    "    a (NDArray): First matrix.\n"
-    "    b (NDArray): Second matrix.\n"
+    "    a (MDArray): First matrix.\n"
+    "    b (MDArray): Second matrix.\n"
     "    metric (str, optional): Distance metric to use (e.g., 'sqeuclidean', 'cosine').\n"
-    "    out (NDArray, optional): Output matrix to store the result.\n"
+    "    out (MDArray, optional): Output matrix to store the result.\n"
     "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type name.\n"
     "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n"
     "    threads (int, optional): Number of threads to use (default is 1).\n"
@@ -1628,10 +1630,10 @@ static char const doc_l2[] = //
     "Compute Euclidean (L2) distances between two matrices.\n"
     "\n"
     "Args:\n"
-    "    a (NDArray): First matrix or vector.\n"
-    "    b (NDArray): Second matrix or vector.\n"
+    "    a (MDArray): First matrix or vector.\n"
+    "    b (MDArray): Second matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
-    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1650,10 +1652,10 @@ static char const doc_l2sq[] = //
     "Compute squared Euclidean (L2) distances between two matrices.\n"
     "\n"
     "Args:\n"
-    "    a (NDArray): First matrix or vector.\n"
-    "    b (NDArray): Second matrix or vector.\n"
+    "    a (MDArray): First matrix or vector.\n"
+    "    b (MDArray): Second matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
-    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1672,10 +1674,10 @@ static char const doc_cos[] = //
     "Compute cosine (angular) distances between two matrices.\n"
     "\n"
     "Args:\n"
-    "    a (NDArray): First matrix or vector.\n"
-    "    b (NDArray): Second matrix or vector.\n"
+    "    a (MDArray): First matrix or vector.\n"
+    "    b (MDArray): Second matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
-    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1694,10 +1696,10 @@ static char const doc_dot[] = //
     "Compute the inner (dot) product between two matrices (real or complex).\n"
     "\n"
     "Args:\n"
-    "    a (NDArray): First matrix or vector.\n"
-    "    b (NDArray): Second matrix or vector.\n"
+    "    a (MDArray): First matrix or vector.\n"
+    "    b (MDArray): Second matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type name.\n"
-    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1716,10 +1718,10 @@ static char const doc_vdot[] = //
     "Compute the conjugate dot product between two complex matrices.\n"
     "\n"
     "Args:\n"
-    "    a (NDArray): First complex matrix or vector.\n"
-    "    b (NDArray): Second complex matrix or vector.\n"
+    "    a (MDArray): First complex matrix or vector.\n"
+    "    b (MDArray): Second complex matrix or vector.\n"
     "    dtype (ComplexType, optional): Override the presumed input type name.\n"
-    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (Union[ComplexType], optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1738,10 +1740,10 @@ static char const doc_kl[] = //
     "Compute Kullback-Leibler divergences between two matrices.\n"
     "\n"
     "Args:\n"
-    "    a (NDArray): First floating-point matrix or vector.\n"
-    "    b (NDArray): Second floating-point matrix or vector.\n"
+    "    a (MDArray): First floating-point matrix or vector.\n"
+    "    b (MDArray): Second floating-point matrix or vector.\n"
     "    dtype (FloatType, optional): Override the presumed input type name.\n"
-    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1760,10 +1762,10 @@ static char const doc_js[] = //
     "Compute Jensen-Shannon divergences between two matrices.\n"
     "\n"
     "Args:\n"
-    "    a (NDArray): First floating-point matrix or vector.\n"
-    "    b (NDArray): Second floating-point matrix or vector.\n"
+    "    a (MDArray): First floating-point matrix or vector.\n"
+    "    b (MDArray): Second floating-point matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
-    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1782,10 +1784,10 @@ static char const doc_hamming[] = //
     "Compute Hamming distances between two matrices.\n"
     "\n"
     "Args:\n"
-    "    a (NDArray): First binary matrix or vector.\n"
-    "    b (NDArray): Second binary matrix or vector.\n"
+    "    a (MDArray): First binary matrix or vector.\n"
+    "    b (MDArray): Second binary matrix or vector.\n"
     "    dtype (IntegralType, optional): Override the presumed input type name.\n"
-    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1804,10 +1806,10 @@ static char const doc_jaccard[] = //
     "Compute Jaccard distances (bitwise Tanimoto) between two matrices.\n"
     "\n"
     "Args:\n"
-    "    a (NDArray): First binary matrix or vector.\n"
-    "    b (NDArray): Second binary matrix or vector.\n"
+    "    a (MDArray): First binary matrix or vector.\n"
+    "    b (MDArray): Second binary matrix or vector.\n"
     "    dtype (IntegralType, optional): Override the presumed input type name.\n"
-    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1826,9 +1828,9 @@ static char const doc_bilinear[] = //
     "Compute the bilinear form between two vectors given a metric tensor.\n"
     "\n"
     "Args:\n"
-    "    a (NDArray): First vector.\n"
-    "    b (NDArray): Second vector.\n"
-    "    metric_tensor (NDArray): The metric tensor defining the bilinear form.\n"
+    "    a (MDArray): First vector.\n"
+    "    b (MDArray): Second vector.\n"
+    "    metric_tensor (MDArray): The metric tensor defining the bilinear form.\n"
     "    dtype (FloatType, optional): Override the presumed input type name.\n"
     "Returns:\n"
     "    float: The bilinear form.\n"
@@ -1846,9 +1848,9 @@ static char const doc_mahalanobis[] = //
     "Compute the Mahalanobis distance between two vectors given an inverse covariance matrix.\n"
     "\n"
     "Args:\n"
-    "    a (NDArray): First vector.\n"
-    "    b (NDArray): Second vector.\n"
-    "    inverse_covariance (NDArray): The inverse of the covariance matrix.\n"
+    "    a (MDArray): First vector.\n"
+    "    b (MDArray): Second vector.\n"
+    "    inverse_covariance (MDArray): The inverse of the covariance matrix.\n"
     "    dtype (FloatType, optional): Override the presumed input type name.\n"
     "Returns:\n"
     "    float: The Mahalanobis distance.\n"
@@ -1866,8 +1868,8 @@ static char const doc_intersect[] = //
     "Compute the intersection of two sorted integer arrays.\n"
     "\n"
     "Args:\n"
-    "    a (NDArray): First sorted integer array.\n"
-    "    b (NDArray): Second sorted integer array.\n"
+    "    a (MDArray): First sorted integer array.\n"
+    "    b (MDArray): Second sorted integer array.\n"
     "Returns:\n"
     "    float: The number of intersecting elements.\n"
     "\n"
@@ -1883,11 +1885,11 @@ static char const doc_scale[] = //
     "Scale and Shift an input vectors.\n"
     "\n"
     "Args:\n"
-    "    a (NDArray): Vector.\n"
+    "    a (MDArray): Vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
     "    alpha (float, optional): First scale, 1.0 by default.\n"
     "    beta (float, optional): Shift, 0.0 by default.\n"
-    "    out (NDArray, optional): Vector for resulting distances.\n"
+    "    out (MDArray, optional): Vector for resulting distances.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will per performed in-place.\n"
@@ -2055,10 +2057,10 @@ static char const doc_sum[] = //
     "Element-wise Sum of 2 input vectors.\n"
     "\n"
     "Args:\n"
-    "    a (NDArray): First vector.\n"
-    "    b (NDArray): Second vector.\n"
+    "    a (MDArray): First vector.\n"
+    "    b (MDArray): Second vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
-    "    out (NDArray, optional): Vector for resulting distances.\n"
+    "    out (MDArray, optional): Vector for resulting distances.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will per performed in-place.\n"
@@ -2218,12 +2220,12 @@ static char const doc_wsum[] = //
     "Weighted Sum of 2 input vectors.\n"
     "\n"
     "Args:\n"
-    "    a (NDArray): First vector.\n"
-    "    b (NDArray): Second vector.\n"
+    "    a (MDArray): First vector.\n"
+    "    b (MDArray): Second vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
     "    alpha (float, optional): First scale, 1.0 by default.\n"
     "    beta (float, optional): Second scale, 1.0 by default.\n"
-    "    out (NDArray, optional): Vector for resulting distances.\n"
+    "    out (MDArray, optional): Vector for resulting distances.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will per performed in-place.\n"
@@ -2396,13 +2398,13 @@ static char const doc_fma[] = //
     "Fused-Multiply-Add between 3 input vectors.\n"
     "\n"
     "Args:\n"
-    "    a (NDArray): First vector.\n"
-    "    b (NDArray): Second vector.\n"
-    "    c (NDArray): Third vector.\n"
+    "    a (MDArray): First vector.\n"
+    "    b (MDArray): Second vector.\n"
+    "    c (MDArray): Third vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n"
     "    alpha (float, optional): First scale, 1.0 by default.\n"
     "    beta (float, optional): Second scale, 1.0 by default.\n"
-    "    out (NDArray, optional): Vector for resulting distances.\n"
+    "    out (MDArray, optional): Vector for resulting distances.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will per performed in-place.\n"
@@ -2678,12 +2680,23 @@ void apply_elementwise_casting_binary_operation_to_each_scalar( //
     }
 }
 
+void invoke_elementwise_sum_kernel_for_addition_on_continuous_slice( //
+    void const *a, void const *b, simsimd_size_t n, void *out, void *kernel) {
+    ((simsimd_elementwise_sum_t)kernel)(a, b, n, out);
+}
+
+void invoke_elementwise_fma_kernel_for_multiplication_on_continuous_slice( //
+    void const *a, void const *b, simsimd_size_t n, void *out, void *kernel) {
+    ((simsimd_elementwise_fma_t)kernel)(a, b, b, n, 1, 0, out);
+}
+
 void apply_elementwise_binary_operation_to_each_continuous_slice( //
     BufferOrScalarArgument const *a_parsed, BufferOrScalarArgument const *b_parsed,
     BufferOrScalarArgument const *out_parsed, //
     Py_ssize_t const non_continuous_ranks,    //
     Py_ssize_t const continuous_elements,     //
-    void (*binary_kernel)(void const *, void const *, simsimd_size_t, void *)) {
+    void (*statefull_binary_kernel)(void const *a, void const *b, simsimd_size_t n, void *out, void *state),
+    void *state) {
 
     // The hardest part of this operations is addressing the elements in a non-continuous tensor of arbitrary rank.
     // While iteratively deepening into the lower layers of the tensor, we need to keep track of the byte offsets
@@ -2698,9 +2711,11 @@ void apply_elementwise_binary_operation_to_each_continuous_slice( //
     // indexes in all three tensors, and avoiding additional branches inside the loops.
     while (1) {
         // Invoke the provided kernel at the current byte offsets
-        binary_kernel(a_parsed->as_buffer_start + a_mdindices.byte_offset,
-                      b_parsed->as_buffer_start + b_mdindices.byte_offset, continuous_elements,
-                      out_parsed->as_buffer_start + out_mdindices.byte_offset);
+        statefull_binary_kernel(                                 //
+            a_parsed->as_buffer_start + a_mdindices.byte_offset, //
+            b_parsed->as_buffer_start + b_mdindices.byte_offset, continuous_elements,
+            out_parsed->as_buffer_start + out_mdindices.byte_offset, //
+            state);
 
         // Advance to the next index
         Py_ssize_t dim;
@@ -2914,13 +2929,347 @@ static unary_kernel_t elementwise_downcast_from_u64(simsimd_datatype_t dtype) {
     }
 }
 
+/**
+ *  @brief  Determines the output shape of an element-wise tensor operation, where a broadcast is possible
+ *          along any one of the dimensionsm and where any argument can be just a scalar.
+ *  @return 1 on success, 0 on failure - @b with the error set.
+ */
+int numpy_promote_shape(                                  //
+    Py_buffer const *a_buffer, Py_buffer const *b_buffer, //
+    BufferOrScalarArgument *a_parsed, BufferOrScalarArgument *b_parsed, BufferOrScalarArgument *out_parsed) {
+
+    if (a_parsed->shape_kind != MDArrayShapeScalar && b_parsed->shape_kind != MDArrayShapeScalar) {
+        //! The ranks of tensors may not match!
+        // We need to compare them in reverse order, right to left, assuming all the missing dimensions are 1.
+        // To match those, we are going to populate the `a_parsed.as_buffer_shape` and `b_parsed.as_buffer_shape`,
+        // simultaneously filling the strides of broadcasted dimensions with zeros.
+        Py_ssize_t const max_rank = a_buffer->ndim > b_buffer->ndim ? a_buffer->ndim : b_buffer->ndim;
+        Py_ssize_t const min_rank = a_buffer->ndim < b_buffer->ndim ? a_buffer->ndim : b_buffer->ndim;
+        a_parsed->as_buffer_dimensions = max_rank;
+        b_parsed->as_buffer_dimensions = max_rank;
+        out_parsed->as_buffer_dimensions = max_rank;
+
+        // Go through the shared dimensions: back to front
+        for (Py_ssize_t i = 0; i < min_rank; ++i) {
+            Py_ssize_t const a_dim = a_buffer->shape[a_buffer->ndim - 1 - i];
+            Py_ssize_t const b_dim = b_buffer->shape[b_buffer->ndim - 1 - i];
+            Py_ssize_t const a_stride = a_buffer->strides[a_buffer->ndim - 1 - i];
+            Py_ssize_t const b_stride = b_buffer->strides[b_buffer->ndim - 1 - i];
+            // Simplest case! Both dimensions match.
+            if (a_dim == b_dim) {
+                a_parsed->as_buffer_shape[max_rank - 1 - i] = a_dim;
+                b_parsed->as_buffer_shape[max_rank - 1 - i] = b_dim;
+                a_parsed->as_buffer_strides[max_rank - 1 - i] = a_stride;
+                b_parsed->as_buffer_strides[max_rank - 1 - i] = b_stride;
+                out_parsed->as_buffer_shape[max_rank - 1 - i] = a_dim;
+            }
+            // Broadcast this value from A
+            else if (a_dim == 1) {
+                a_parsed->as_buffer_shape[max_rank - 1 - i] = 1;
+                b_parsed->as_buffer_shape[max_rank - 1 - i] = b_dim;
+                a_parsed->as_buffer_strides[max_rank - 1 - i] = 0;
+                b_parsed->as_buffer_strides[max_rank - 1 - i] = b_stride;
+                out_parsed->as_buffer_shape[max_rank - 1 - i] = b_dim;
+            }
+            // Broadcast this value from B
+            else if (b_dim == 1) {
+                a_parsed->as_buffer_shape[max_rank - 1 - i] = a_dim;
+                b_parsed->as_buffer_shape[max_rank - 1 - i] = 1;
+                a_parsed->as_buffer_strides[max_rank - 1 - i] = a_stride;
+                b_parsed->as_buffer_strides[max_rank - 1 - i] = 0;
+                out_parsed->as_buffer_shape[max_rank - 1 - i] = a_dim;
+            }
+            // Report the issue
+            else {
+                PyErr_Format( //
+                    PyExc_ValueError,
+                    "The number of entries %zd (along dimension %zd in the first tensor) doesn't "
+                    "match the number of entries %zd (along dimension %zd in the second tensor)",
+                    a_dim, a_buffer->ndim - 1 - i, b_dim, b_buffer->ndim - 1 - i);
+                return 0;
+            }
+        }
+        // Populate the remaining dimensions: in any order, front to back for simplicity
+        if (a_buffer->ndim > b_buffer->ndim) {
+            for (Py_ssize_t i = 0; i < a_buffer->ndim - b_buffer->ndim; ++i) {
+                Py_ssize_t const longer_dim = a_buffer->shape[i];
+                Py_ssize_t const longer_stride = a_buffer->strides[i];
+                a_parsed->as_buffer_shape[i] = longer_dim;
+                b_parsed->as_buffer_shape[i] = 1;
+                a_parsed->as_buffer_strides[i] = longer_stride;
+                b_parsed->as_buffer_strides[i] = 0;
+                out_parsed->as_buffer_shape[i] = longer_dim;
+            }
+        }
+        else if (b_buffer->ndim - a_buffer->ndim) {
+            for (Py_ssize_t i = 0; i < b_buffer->ndim - a_buffer->ndim; ++i) {
+                Py_ssize_t const longer_dim = b_buffer->shape[i];
+                Py_ssize_t const longer_stride = b_buffer->strides[i];
+                a_parsed->as_buffer_shape[i] = 1;
+                b_parsed->as_buffer_shape[i] = longer_dim;
+                a_parsed->as_buffer_strides[i] = 0;
+                b_parsed->as_buffer_strides[i] = longer_stride;
+                out_parsed->as_buffer_shape[i] = longer_dim;
+            }
+        }
+        return 1;
+    }
+    // If at least one of the entries is actually is a `MDArrayShapeScalar` our logic becomes much easier:
+    else if (a_parsed->shape_kind != MDArrayShapeScalar) {
+        a_parsed->as_buffer_dimensions = a_buffer->ndim;
+        memcpy(a_parsed->as_buffer_shape, a_buffer->shape, a_buffer->ndim * sizeof(Py_ssize_t));
+        memcpy(a_parsed->as_buffer_strides, a_buffer->strides, a_buffer->ndim * sizeof(Py_ssize_t));
+        b_parsed->as_buffer_dimensions = a_buffer->ndim;
+        memcpy(b_parsed->as_buffer_shape, a_buffer->shape, a_buffer->ndim * sizeof(Py_ssize_t));
+        memset(b_parsed->as_buffer_strides, 0, a_buffer->ndim * sizeof(Py_ssize_t));
+        out_parsed->as_buffer_dimensions = a_buffer->ndim;
+        memcpy(out_parsed->as_buffer_shape, a_buffer->shape, a_buffer->ndim * sizeof(Py_ssize_t));
+        return 1;
+    }
+    else if (b_parsed->shape_kind != MDArrayShapeScalar) {
+        a_parsed->as_buffer_dimensions = b_buffer->ndim;
+        memcpy(a_parsed->as_buffer_shape, b_buffer->shape, b_buffer->ndim * sizeof(Py_ssize_t));
+        memset(a_parsed->as_buffer_strides, 0, b_buffer->ndim * sizeof(Py_ssize_t));
+        b_parsed->as_buffer_dimensions = b_buffer->ndim;
+        memcpy(b_parsed->as_buffer_shape, b_buffer->shape, b_buffer->ndim * sizeof(Py_ssize_t));
+        memcpy(b_parsed->as_buffer_strides, b_buffer->strides, b_buffer->ndim * sizeof(Py_ssize_t));
+        out_parsed->as_buffer_dimensions = b_buffer->ndim;
+        memcpy(out_parsed->as_buffer_shape, b_buffer->shape, b_buffer->ndim * sizeof(Py_ssize_t));
+        return 1;
+    }
+    else { return 0; }
+}
+
+/**
+ *  @brief  Given two datatypes, infer the datatype of the output tensor.
+ *  @see    https://numpy.org/doc/stable/reference/arrays.scalars.html#upcasting
+ *  @see    https://numpy.org/doc/stable/reference/arrays.promotion.html
+ *  @see    https://numpy.org/doc/stable/reference/generated/numpy.promote_types.html
+ *  @return `simsimd_datatype_unknown_k` if the promotion has failed.
+ */
+simsimd_datatype_t numpy_promote_types(simsimd_datatype_t a_dtype, simsimd_datatype_t b_dtype) {
+    simsimd_datatype_family_k a_family = simsimd_datatype_family(a_dtype);
+    simsimd_datatype_family_k b_family = simsimd_datatype_family(b_dtype);
+    // For addition and multiplication, treat complex numbers as floats
+    if (a_family == simsimd_datatype_complex_float_family_k) a_family = simsimd_datatype_float_family_k;
+    if (b_family == simsimd_datatype_complex_float_family_k) b_family = simsimd_datatype_float_family_k;
+    // Infer the type-casting rules for the output tensor, if the type was not provided.
+    size_t a_itemsize = bytes_per_datatype(a_dtype);
+    size_t b_itemsize = bytes_per_datatype(b_dtype);
+    size_t max_itemsize = a_itemsize > b_itemsize ? a_itemsize : b_itemsize;
+    if (a_dtype == b_dtype) { return a_dtype; }
+    // Simply take the bigger datatype if they are both floats or both are unsigned integers, etc.
+    else if (a_family == b_family) { return a_itemsize > b_itemsize ? a_dtype : b_dtype; }
+    // If only one of the operands is a float, and the second is integral of same size, the output should be a
+    // float, of the next size... If the floating type is bigger, don't upcast.
+    // Sum of `float16` and `int32` is a `float64`.
+    // Sum of `float16` and `int16` is a `float32`.
+    // Sum of `float32` and `int8` is a `float32`.
+    else if (a_family == simsimd_datatype_float_family_k || b_family == simsimd_datatype_float_family_k) {
+        size_t float_size = a_family == simsimd_datatype_float_family_k ? a_itemsize : b_itemsize;
+        size_t integral_size = a_family == simsimd_datatype_float_family_k ? b_itemsize : a_itemsize;
+        if (float_size <= integral_size) {
+            //? No 128-bit float on most platforms
+            if (max_itemsize == 8) { return simsimd_f64_k; }
+            else if (max_itemsize == 4) { return simsimd_f64_k; }
+            else if (max_itemsize == 2) { return simsimd_f32_k; }
+            else if (max_itemsize == 1) { return simsimd_f16_k; }
+            else { return simsimd_datatype_unknown_k; }
+        }
+        else {
+            if (max_itemsize == 8) { return simsimd_f64_k; }
+            else if (max_itemsize == 4) { return simsimd_f32_k; }
+            else if (max_itemsize == 2) { return simsimd_f16_k; }
+            else if (max_itemsize == 1) { return simsimd_f16_k; }
+            else { return simsimd_datatype_unknown_k; }
+        }
+    }
+    // If only one of the operands is a unsigned, and the second is a signed integral of same size,
+    // the output should be a signed integer, of the next size... If the signed type is bigger, don't upcast.
+    // Sum of `int16` and `uint32` is a `int64`.
+    // Sum of `int16` and `uint16` is a `int32`.
+    // Sum of `int32` and `uint8` is a `int32`.
+    else if (a_family == simsimd_datatype_int_family_k || b_family == simsimd_datatype_int_family_k) {
+        size_t unsigned_size = a_family == simsimd_datatype_int_family_k ? b_itemsize : a_itemsize;
+        size_t signed_size = a_family == simsimd_datatype_int_family_k ? a_itemsize : b_itemsize;
+        if (signed_size <= unsigned_size) {
+            //? No 128-bit integer on most platforms
+            if (max_itemsize == 8) { return simsimd_i64_k; }
+            else if (max_itemsize == 4) { return simsimd_i64_k; }
+            else if (max_itemsize == 2) { return simsimd_i32_k; }
+            else if (max_itemsize == 1) { return simsimd_i16_k; }
+            else { return simsimd_datatype_unknown_k; }
+        }
+        else {
+            if (max_itemsize == 8) { return simsimd_i64_k; }
+            else if (max_itemsize == 4) { return simsimd_i32_k; }
+            else if (max_itemsize == 2) { return simsimd_i16_k; }
+            else if (max_itemsize == 1) { return simsimd_i16_k; }
+            else { return simsimd_datatype_unknown_k; }
+        }
+    }
+    // For boolean and complex types, we don't yet have a clear policy.
+    else { return simsimd_datatype_unknown_k; }
+}
+
+/**
+ *  @brief  When dealing with binary operations, where at least one argument is a single sclar (not
+ *          an entire tensor), use this function to upcast the scalar to the same datatype as the tensor.
+ *  @return 1 if the operation was successful, 0 if the operation failed.
+ */
+int bring_scalar_operand_to_promoted_type(                              //
+    BufferOrScalarArgument *a_parsed, BufferOrScalarArgument *b_parsed, //
+    simsimd_datatype_t promoted_dtype) {
+
+    if (a_parsed->datatype == b_parsed->datatype) return 1;
+    if (a_parsed->shape_kind == MDArrayShapeNonUnit && b_parsed->shape_kind == MDArrayShapeNonUnit) return 1;
+
+    simsimd_datatype_family_k const promoted_family = simsimd_datatype_family(promoted_dtype);
+    if (promoted_family == simsimd_datatype_float_family_k) {
+        if (a_parsed->datatype != promoted_dtype && a_parsed->shape_kind != MDArrayShapeNonUnit) {
+            elementwise_upcast_to_f64(a_parsed->datatype)(a_parsed->as_scalar, a_parsed->as_scalar);
+            elementwise_downcast_from_f64(promoted_dtype)(a_parsed->as_scalar, a_parsed->as_scalar);
+            a_parsed->datatype = promoted_dtype;
+        }
+        if (b_parsed->datatype != promoted_dtype && b_parsed->shape_kind != MDArrayShapeNonUnit) {
+            elementwise_upcast_to_f64(b_parsed->datatype)(b_parsed->as_scalar, b_parsed->as_scalar);
+            elementwise_downcast_from_f64(promoted_dtype)(b_parsed->as_scalar, b_parsed->as_scalar);
+            b_parsed->datatype = promoted_dtype;
+        }
+        return 1;
+    }
+    else if (promoted_family == simsimd_datatype_uint_family_k) {
+        if (a_parsed->datatype != promoted_dtype && a_parsed->shape_kind != MDArrayShapeNonUnit) {
+            elementwise_upcast_to_u64(a_parsed->datatype)(a_parsed->as_scalar, a_parsed->as_scalar);
+            elementwise_downcast_from_u64(promoted_dtype)(a_parsed->as_scalar, a_parsed->as_scalar);
+            a_parsed->datatype = promoted_dtype;
+        }
+        if (b_parsed->datatype != promoted_dtype && b_parsed->shape_kind != MDArrayShapeNonUnit) {
+            elementwise_upcast_to_u64(b_parsed->datatype)(b_parsed->as_scalar, b_parsed->as_scalar);
+            elementwise_downcast_from_u64(promoted_dtype)(b_parsed->as_scalar, b_parsed->as_scalar);
+            b_parsed->datatype = promoted_dtype;
+        }
+        return 1;
+    }
+    else if (promoted_family == simsimd_datatype_int_family_k) {
+        if (a_parsed->datatype != promoted_dtype && a_parsed->shape_kind != MDArrayShapeNonUnit) {
+            elementwise_upcast_to_i64(a_parsed->datatype)(a_parsed->as_scalar, a_parsed->as_scalar);
+            elementwise_downcast_from_i64(promoted_dtype)(a_parsed->as_scalar, a_parsed->as_scalar);
+            a_parsed->datatype = promoted_dtype;
+        }
+        if (b_parsed->datatype != promoted_dtype && b_parsed->shape_kind != MDArrayShapeNonUnit) {
+            elementwise_upcast_to_i64(b_parsed->datatype)(b_parsed->as_scalar, b_parsed->as_scalar);
+            elementwise_downcast_from_i64(promoted_dtype)(b_parsed->as_scalar, b_parsed->as_scalar);
+            b_parsed->datatype = promoted_dtype;
+        }
+        return 1;
+    }
+    else { return 0; }
+}
+
+/**
+ *  @brief  When performing binary tensor operations, where no vectorized kernels are available,
+ *          this last-resort solution is used to apply a serial kernel to each scalar in the tensors.
+ *  @return 1 if the operation was successful, 0 if the operation failed.
+ */
+int fallback_binary_scalar_operation( //
+    BufferOrScalarArgument const *a_parsed, BufferOrScalarArgument const *b_parsed, BufferOrScalarArgument *out_parsed,
+    simsimd_datatype_t promoted_dtype, binary_kernel_t (*elementwise_kernel_provider)(simsimd_datatype_t)) {
+
+    // If the output has no continuous dimensions at all, our situation sucks!
+    // We can't use SIMD effectively and need to fall back to the scalar operation,
+    // but if the input/output types match, at least we don't need to cast the data back and forth.
+    if (a_parsed->datatype == b_parsed->datatype && a_parsed->datatype == out_parsed->datatype) {
+        binary_kernel_t binary_kernel_ptr = elementwise_kernel_provider(a_parsed->datatype);
+        apply_elementwise_binary_operation_to_each_scalar(a_parsed, b_parsed, out_parsed, binary_kernel_ptr);
+        return 1;
+    }
+
+    // If the output has no continuous dimensions at all, our situation sucks!
+    // If the type of outputs and inputs doesn't match, it also sucks!
+    // We can't use SIMD effectively and need to fall back to the scalar operation.
+    else if (simsimd_datatype_family(promoted_dtype) == simsimd_datatype_float_family_k) {
+        unary_kernel_t a_upcast_ptr = elementwise_upcast_to_f64(a_parsed->datatype);
+        unary_kernel_t b_upcast_ptr = elementwise_upcast_to_f64(b_parsed->datatype);
+        binary_kernel_t binary_kernel_ptr = elementwise_kernel_provider(simsimd_f64_k);
+        unary_kernel_t out_downcast_ptr = elementwise_downcast_from_f64(out_parsed->datatype);
+        apply_elementwise_casting_binary_operation_to_each_scalar( //
+            a_parsed, b_parsed, out_parsed,                        //
+            a_upcast_ptr, b_upcast_ptr, out_downcast_ptr, binary_kernel_ptr);
+        return 1;
+    }
+    else if (simsimd_datatype_family(promoted_dtype) == simsimd_datatype_uint_family_k) {
+        unary_kernel_t a_upcast_ptr = elementwise_upcast_to_u64(a_parsed->datatype);
+        unary_kernel_t b_upcast_ptr = elementwise_upcast_to_u64(b_parsed->datatype);
+        binary_kernel_t binary_kernel_ptr = elementwise_kernel_provider(simsimd_u64_k);
+        unary_kernel_t out_downcast_ptr = elementwise_downcast_from_u64(out_parsed->datatype);
+        apply_elementwise_casting_binary_operation_to_each_scalar( //
+            a_parsed, b_parsed, out_parsed,                        //
+            a_upcast_ptr, b_upcast_ptr, out_downcast_ptr, binary_kernel_ptr);
+        return 1;
+    }
+    else if (simsimd_datatype_family(promoted_dtype) == simsimd_datatype_int_family_k) {
+        unary_kernel_t a_upcast_ptr = elementwise_upcast_to_i64(a_parsed->datatype);
+        unary_kernel_t b_upcast_ptr = elementwise_upcast_to_i64(b_parsed->datatype);
+        binary_kernel_t binary_kernel_ptr = elementwise_kernel_provider(simsimd_i64_k);
+        unary_kernel_t out_downcast_ptr = elementwise_downcast_from_i64(out_parsed->datatype);
+        apply_elementwise_casting_binary_operation_to_each_scalar( //
+            a_parsed, b_parsed, out_parsed,                        //
+            a_upcast_ptr, b_upcast_ptr, out_downcast_ptr, binary_kernel_ptr);
+        return 1;
+    }
+    else { return 0; }
+}
+
+/**
+ *  @brief  Infers the number of last continuous dimensions of a buffer/tensor, that form
+ *          continuous memory blocks, allowing vectorized elementwise operations.
+ *  @return 1 if continuous dimensions are found, 0 otherwise.
+ */
+int buffer_has_continuos_dimensions( //
+    BufferOrScalarArgument const *parsed, Py_ssize_t *continuous_dimensions_ptr, Py_ssize_t *continuous_elements_ptr) {
+    Py_ssize_t continuous_dimensions = 0;
+    Py_ssize_t continuous_elements = 1;
+    Py_ssize_t expected_last_stride_bytes = bytes_per_datatype(parsed->datatype);
+    for (Py_ssize_t i = parsed->as_buffer_dimensions - 1; i >= 0; --i) {
+        if (parsed->as_buffer_strides[i] != expected_last_stride_bytes) break;
+        ++continuous_dimensions;
+        expected_last_stride_bytes *= parsed->as_buffer_shape[i];
+        continuous_elements *= parsed->as_buffer_shape[i];
+    }
+    *continuous_dimensions_ptr = continuous_dimensions;
+    *continuous_elements_ptr = continuous_elements;
+    return continuous_dimensions > 0;
+}
+
+/**
+ *  @brief  Make sure the output tensor has the same shape as we expect.
+ *  @return 1 if the output tensor has the expected shape, 0 otherwise, @b with the error set.
+ */
+int validate_output_buffer_shape(Py_buffer const *received, BufferOrScalarArgument const *expected) {
+    if (received->ndim != expected->as_buffer_dimensions) {
+        PyErr_Format(PyExc_ValueError, "Output tensor has rank-%zd, but rank-%zd is expected", received->ndim,
+                     expected->as_buffer_dimensions);
+        return 0;
+    }
+    for (Py_ssize_t i = 0; i < expected->as_buffer_dimensions; ++i) {
+        if (received->shape[i] != expected->as_buffer_shape[i]) {
+            PyErr_Format(PyExc_ValueError,
+                         "Output tensor doesn't match the input tensor in shape at dimension %zd: %zd != %zd", i,
+                         received->shape[i], expected->as_buffer_shape[i]);
+            return 0;
+        }
+    }
+    return 1;
+}
+
 static char const doc_add[] = //
     "Tensor-Tensor or Tensor-Scalar element-wise addition.\n"
     "\n"
     "Args:\n"
-    "    a (Union[NDArray, float, int]): First Tensor or scalar.\n"
-    "    b (Union[NDArray, float, int]): Second Tensor or scalar.\n"
-    "    out (NDArray, optional): Tensor for resulting distances.\n"
+    "    a (Union[MDArray, float, int]): First Tensor or scalar.\n"
+    "    b (Union[MDArray, float, int]): Second Tensor or scalar.\n"
+    "    out (MDArray, optional): Tensor for resulting distances.\n"
     "    a_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `a`.\n"
     "    b_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `b`.\n"
     "    out_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `out`.\n"
@@ -3013,7 +3362,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         if (PyErr_Occurred()) return NULL;
         if (a_dtype == simsimd_datatype_unknown_k && b_dtype == simsimd_datatype_unknown_k &&
             out_dtype == simsimd_datatype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported 'a_dtype'");
+            PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
             return NULL;
         }
     }
@@ -3038,315 +3387,103 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     // Check dimensions, but unlike the `sum`, `scale`, `wsum`, and `fma` APIs
     // we want to provide maximal compatibility with NumPy and OpenCV. In many
     // such cases, the input is not a rank-1 tensor and may not be continuous.
-    Py_ssize_t ins_continuous_dimensions = 0;
-    Py_ssize_t ins_continuous_elements = 1;
-    if (a_parsed.kind != ScalarKind && b_parsed.kind != ScalarKind) {
-        //! The ranks of tensors may not match!
-        // We need to compare them in reverse order, right to left, assuming all the missing dimensions are 1.
-        // To match those, we are going to populate the `a_parsed.as_buffer_shape` and `b_parsed.as_buffer_shape`,
-        // simultaneously filling the strides of broadcasted dimensions with zeros.
-        Py_ssize_t const max_rank = a_buffer.ndim > b_buffer.ndim ? a_buffer.ndim : b_buffer.ndim;
-        Py_ssize_t const min_rank = a_buffer.ndim < b_buffer.ndim ? a_buffer.ndim : b_buffer.ndim;
-        a_parsed.as_buffer_dimensions = max_rank;
-        b_parsed.as_buffer_dimensions = max_rank;
-        out_parsed.as_buffer_dimensions = max_rank;
-
-        // Go through the shared dimensions: back to front
-        for (Py_ssize_t i = 0; i < min_rank; ++i) {
-            Py_ssize_t const a_dim = a_buffer.shape[a_buffer.ndim - 1 - i];
-            Py_ssize_t const b_dim = b_buffer.shape[b_buffer.ndim - 1 - i];
-            Py_ssize_t const a_stride = a_buffer.strides[a_buffer.ndim - 1 - i];
-            Py_ssize_t const b_stride = b_buffer.strides[b_buffer.ndim - 1 - i];
-            // Simplest case! Both dimensions match.
-            if (a_dim == b_dim) {
-                a_parsed.as_buffer_shape[max_rank - 1 - i] = a_dim;
-                b_parsed.as_buffer_shape[max_rank - 1 - i] = b_dim;
-                a_parsed.as_buffer_strides[max_rank - 1 - i] = a_stride;
-                b_parsed.as_buffer_strides[max_rank - 1 - i] = b_stride;
-                out_parsed.as_buffer_shape[max_rank - 1 - i] = a_dim;
-                int a_is_continuous = a_stride == (ins_continuous_elements * bytes_per_datatype(a_parsed.datatype));
-                int b_is_continuous = b_stride == (ins_continuous_elements * bytes_per_datatype(b_parsed.datatype));
-                if (a_is_continuous && b_is_continuous) {
-                    ins_continuous_dimensions++;
-                    ins_continuous_elements *= a_dim;
-                }
-            }
-            // Broadcast this value from A
-            else if (a_dim == 1) {
-                a_parsed.as_buffer_shape[max_rank - 1 - i] = 1;
-                b_parsed.as_buffer_shape[max_rank - 1 - i] = b_dim;
-                a_parsed.as_buffer_strides[max_rank - 1 - i] = 0;
-                b_parsed.as_buffer_strides[max_rank - 1 - i] = b_stride;
-                out_parsed.as_buffer_shape[max_rank - 1 - i] = b_dim;
-            }
-            // Broadcast this value from B
-            else if (b_dim == 1) {
-                a_parsed.as_buffer_shape[max_rank - 1 - i] = a_dim;
-                b_parsed.as_buffer_shape[max_rank - 1 - i] = 1;
-                a_parsed.as_buffer_strides[max_rank - 1 - i] = a_stride;
-                b_parsed.as_buffer_strides[max_rank - 1 - i] = 0;
-                out_parsed.as_buffer_shape[max_rank - 1 - i] = a_dim;
-            }
-            // Report the issue
-            else {
-                PyErr_Format( //
-                    PyExc_ValueError,
-                    "The number of entries %zd (along dimension %zd in the first tensor) doesn't "
-                    "match the number of entries %zd (along dimension %zd in the second tensor)",
-                    a_dim, a_buffer.ndim - 1 - i, b_dim, b_buffer.ndim - 1 - i);
-                return_obj = NULL;
-                goto cleanup;
-            }
-        }
-        // Populate the remaining dimensions: in any order, front to back for simplicity
-        if (a_buffer.ndim > b_buffer.ndim) {
-            for (Py_ssize_t i = 0; i < a_buffer.ndim - b_buffer.ndim; ++i) {
-                Py_ssize_t const longer_dim = a_buffer.shape[i];
-                Py_ssize_t const longer_stride = a_buffer.strides[i];
-                a_parsed.as_buffer_shape[i] = longer_dim;
-                b_parsed.as_buffer_shape[i] = 1;
-                a_parsed.as_buffer_strides[i] = longer_stride;
-                b_parsed.as_buffer_strides[i] = 0;
-                out_parsed.as_buffer_shape[i] = longer_dim;
-            }
-        }
-        else if (b_buffer.ndim - a_buffer.ndim) {
-            for (Py_ssize_t i = 0; i < b_buffer.ndim - a_buffer.ndim; ++i) {
-                Py_ssize_t const longer_dim = b_buffer.shape[i];
-                Py_ssize_t const longer_stride = b_buffer.strides[i];
-                a_parsed.as_buffer_shape[i] = 1;
-                b_parsed.as_buffer_shape[i] = longer_dim;
-                a_parsed.as_buffer_strides[i] = 0;
-                b_parsed.as_buffer_strides[i] = longer_stride;
-                out_parsed.as_buffer_shape[i] = longer_dim;
-            }
-        }
-    }
-    // If at least one of the entries is actually is a `ScalarKind` our logic becomes much easier:
-    else if (a_parsed.kind != ScalarKind) {
-        a_parsed.as_buffer_dimensions = a_buffer.ndim;
-        memcpy(a_parsed.as_buffer_shape, a_buffer.shape, a_buffer.ndim * sizeof(Py_ssize_t));
-        memcpy(a_parsed.as_buffer_strides, a_buffer.strides, a_buffer.ndim * sizeof(Py_ssize_t));
-        b_parsed.as_buffer_dimensions = a_buffer.ndim;
-        memcpy(b_parsed.as_buffer_shape, a_buffer.shape, a_buffer.ndim * sizeof(Py_ssize_t));
-        memset(b_parsed.as_buffer_strides, 0, a_buffer.ndim * sizeof(Py_ssize_t));
-        out_parsed.as_buffer_dimensions = a_buffer.ndim;
-        memcpy(out_parsed.as_buffer_shape, a_buffer.shape, a_buffer.ndim * sizeof(Py_ssize_t));
-    }
-    else {
-        a_parsed.as_buffer_dimensions = b_buffer.ndim;
-        memcpy(a_parsed.as_buffer_shape, b_buffer.shape, b_buffer.ndim * sizeof(Py_ssize_t));
-        memset(a_parsed.as_buffer_strides, 0, b_buffer.ndim * sizeof(Py_ssize_t));
-        b_parsed.as_buffer_dimensions = b_buffer.ndim;
-        memcpy(b_parsed.as_buffer_shape, b_buffer.shape, b_buffer.ndim * sizeof(Py_ssize_t));
-        memcpy(b_parsed.as_buffer_strides, b_buffer.strides, b_buffer.ndim * sizeof(Py_ssize_t));
-        out_parsed.as_buffer_dimensions = b_buffer.ndim;
-        memcpy(out_parsed.as_buffer_shape, b_buffer.shape, b_buffer.ndim * sizeof(Py_ssize_t));
-    }
+    if (!numpy_promote_shape(&a_buffer, &b_buffer, &a_parsed, &b_parsed, &out_parsed)) goto cleanup;
 
     // At this point the parsed "logical shapes" of both inputs are identical.
     // Now we can use the inferred logical shape to check the output tensor.
-    if (out_obj) {
-        if (out_buffer.ndim != out_parsed.as_buffer_dimensions) {
-            PyErr_Format(PyExc_ValueError, "Output tensor has rank-%zd, but rank-%zd is expected", out_buffer.ndim,
-                         out_parsed.as_buffer_dimensions);
-            return_obj = NULL;
-            goto cleanup;
-        }
-        for (Py_ssize_t i = 0; i < out_parsed.as_buffer_dimensions; ++i) {
-            if (out_buffer.shape[i] != out_parsed.as_buffer_shape[i]) {
-                PyErr_Format(PyExc_ValueError,
-                             "Output tensor doesn't match the input tensor in shape at dimension %zd: %zd != %zd", i,
-                             out_buffer.shape[i], out_parsed.as_buffer_shape[i]);
-                return_obj = NULL;
-                goto cleanup;
-            }
-        }
-    }
+    if (out_obj && !validate_output_buffer_shape(&out_buffer, &out_parsed)) goto cleanup;
 
     // First we need to understand the smallest numeric type we may need for this computation.
-    simsimd_datatype_t ab_dtype;
-    simsimd_datatype_family_k a_family = simsimd_datatype_family(a_parsed.datatype);
-    simsimd_datatype_family_k b_family = simsimd_datatype_family(b_parsed.datatype);
-    // For addition and multiplication, treat complex numbers as floats
-    if (a_family == simsimd_datatype_complex_float_family_k) a_family = simsimd_datatype_float_family_k;
-    if (b_family == simsimd_datatype_complex_float_family_k) b_family = simsimd_datatype_float_family_k;
-    if (a_family == simsimd_datatype_binary_family_k || b_family == simsimd_datatype_binary_family_k) {
+    simsimd_datatype_family_k const a_family = simsimd_datatype_family(a_parsed.datatype);
+    simsimd_datatype_family_k const b_family = simsimd_datatype_family(b_parsed.datatype);
+    if (a_family == simsimd_datatype_binary_family_k || b_family == simsimd_datatype_binary_family_k ||
+        a_family == simsimd_datatype_unknown_family_k || b_family == simsimd_datatype_unknown_family_k) {
         PyErr_SetString(PyExc_ValueError, "Boolean tensors are not supported in element-wise operations");
-        return_obj = NULL;
         goto cleanup;
     }
     // Infer the type-casting rules for the output tensor, if the type was not provided.
-    {
-        size_t a_itemsize = bytes_per_datatype(a_parsed.datatype);
-        size_t b_itemsize = bytes_per_datatype(b_parsed.datatype);
-        size_t max_itemsize = a_itemsize > b_itemsize ? a_itemsize : b_itemsize;
-        if (a_parsed.datatype == b_parsed.datatype) { ab_dtype = a_parsed.datatype; }
-        // Simply take the bigger datatype if they are both floats or both are unsigned integers, etc.
-        else if (a_family == b_family) { ab_dtype = a_itemsize > b_itemsize ? a_parsed.datatype : b_parsed.datatype; }
-        // If only one of the operands is a float, and the second is integral of same size, the output should be a
-        // float, of the next size... If the floating type is bigger, don't upcast.
-        // Sum of `float16` and `int32` is a `float64`.
-        // Sum of `float16` and `int16` is a `float32`.
-        // Sum of `float32` and `int8` is a `float32`.
-        else if (a_family == simsimd_datatype_float_family_k || b_family == simsimd_datatype_float_family_k) {
-            size_t float_size = a_family == simsimd_datatype_float_family_k ? a_itemsize : b_itemsize;
-            size_t integral_size = a_family == simsimd_datatype_float_family_k ? b_itemsize : a_itemsize;
-            if (float_size <= integral_size) {
-                //? No 128-bit float on most platforms
-                if (max_itemsize == 8) { ab_dtype = simsimd_f64_k; }
-                else if (max_itemsize == 4) { ab_dtype = simsimd_f64_k; }
-                else if (max_itemsize == 2) { ab_dtype = simsimd_f32_k; }
-                else if (max_itemsize == 1) { ab_dtype = simsimd_f16_k; }
-            }
-            else {
-                if (max_itemsize == 8) { ab_dtype = simsimd_f64_k; }
-                else if (max_itemsize == 4) { ab_dtype = simsimd_f32_k; }
-                else if (max_itemsize == 2) { ab_dtype = simsimd_f16_k; }
-                else if (max_itemsize == 1) { ab_dtype = simsimd_f16_k; }
-            }
-        }
-        // If only one of the operands is a unsigned, and the second is a signed integral of same size,
-        // the output should be a signed integer, of the next size... If the signed type is bigger, don't upcast.
-        // Sum of `int16` and `uint32` is a `int64`.
-        // Sum of `int16` and `uint16` is a `int32`.
-        // Sum of `int32` and `uint8` is a `int32`.
-        else if (a_family == simsimd_datatype_int_family_k || b_family == simsimd_datatype_int_family_k) {
-            size_t unsigned_size = a_family == simsimd_datatype_int_family_k ? b_itemsize : a_itemsize;
-            size_t signed_size = a_family == simsimd_datatype_int_family_k ? a_itemsize : b_itemsize;
-            if (signed_size <= unsigned_size) {
-                //? No 128-bit integer on most platforms
-                if (max_itemsize == 8) { ab_dtype = simsimd_i64_k; }
-                else if (max_itemsize == 4) { ab_dtype = simsimd_i64_k; }
-                else if (max_itemsize == 2) { ab_dtype = simsimd_i32_k; }
-                else if (max_itemsize == 1) { ab_dtype = simsimd_i16_k; }
-            }
-            else {
-                if (max_itemsize == 8) { ab_dtype = simsimd_i64_k; }
-                else if (max_itemsize == 4) { ab_dtype = simsimd_i32_k; }
-                else if (max_itemsize == 2) { ab_dtype = simsimd_i16_k; }
-                else if (max_itemsize == 1) { ab_dtype = simsimd_i16_k; }
-            }
-        }
-        // For boolean and complex types, we don't yet have a clear policy.
-        else {
-            PyErr_SetString(PyExc_ValueError, "Unsupported combination of datatypes");
-            return_obj = NULL;
-            goto cleanup;
-        }
+    simsimd_datatype_t const ab_dtype = numpy_promote_types(a_parsed.datatype, b_parsed.datatype);
+    if (ab_dtype == simsimd_datatype_unknown_k) {
+        PyErr_Format(PyExc_ValueError, "Can't infer type promotion rules for %s and %s",
+                     datatype_to_python_string(a_parsed.datatype), datatype_to_python_string(b_parsed.datatype));
+        goto cleanup;
     }
-
     // If dealing with scalars, consider up-casting them to the same `ab_dtype` datatype.
     // That way we will be use the `apply_elementwise_binary_operation_to_each_scalar` function
     // instead of the `apply_elementwise_casting_binary_operation_to_each_scalar` function.
-    simsimd_datatype_family_k ab_family = simsimd_datatype_family(ab_dtype);
-    if (a_parsed.kind != BufferKind && b_parsed.kind != BufferKind && a_parsed.datatype != b_parsed.datatype) {
-        if (ab_family == simsimd_datatype_float_family_k) {
-            if (a_parsed.datatype != ab_dtype) {
-                elementwise_upcast_to_f64(a_parsed.datatype)(a_parsed.as_scalar, a_parsed.as_scalar);
-                elementwise_downcast_from_f64(ab_dtype)(a_parsed.as_scalar, a_parsed.as_scalar);
-                a_parsed.datatype = ab_dtype;
-            }
-            if (b_parsed.datatype != ab_dtype) {
-                elementwise_upcast_to_f64(b_parsed.datatype)(b_parsed.as_scalar, b_parsed.as_scalar);
-                elementwise_downcast_from_f64(ab_dtype)(b_parsed.as_scalar, b_parsed.as_scalar);
-                b_parsed.datatype = ab_dtype;
-            }
-        }
-        else if (ab_family == simsimd_datatype_uint_family_k) {
-            if (a_parsed.datatype != ab_dtype) {
-                elementwise_upcast_to_u64(a_parsed.datatype)(a_parsed.as_scalar, a_parsed.as_scalar);
-                elementwise_downcast_from_u64(ab_dtype)(a_parsed.as_scalar, a_parsed.as_scalar);
-                a_parsed.datatype = ab_dtype;
-            }
-            if (b_parsed.datatype != ab_dtype) {
-                elementwise_upcast_to_u64(b_parsed.datatype)(b_parsed.as_scalar, b_parsed.as_scalar);
-                elementwise_downcast_from_u64(ab_dtype)(b_parsed.as_scalar, b_parsed.as_scalar);
-                b_parsed.datatype = ab_dtype;
-            }
-        }
-        else if (ab_family == simsimd_datatype_int_family_k) {
-            if (a_parsed.datatype != ab_dtype) {
-                elementwise_upcast_to_i64(a_parsed.datatype)(a_parsed.as_scalar, a_parsed.as_scalar);
-                elementwise_downcast_from_i64(ab_dtype)(a_parsed.as_scalar, a_parsed.as_scalar);
-                a_parsed.datatype = ab_dtype;
-            }
-            if (b_parsed.datatype != ab_dtype) {
-                elementwise_upcast_to_i64(b_parsed.datatype)(b_parsed.as_scalar, b_parsed.as_scalar);
-                elementwise_downcast_from_i64(ab_dtype)(b_parsed.as_scalar, b_parsed.as_scalar);
-                b_parsed.datatype = ab_dtype;
-            }
-        }
-    }
-
-    // Estimate the total number of output elements:
-    Py_ssize_t out_total_elements = 1;
-    for (Py_ssize_t i = 0; i < out_parsed.as_buffer_dimensions; ++i)
-        out_total_elements *= out_parsed.as_buffer_shape[i];
+    bring_scalar_operand_to_promoted_type(&a_parsed, &b_parsed, ab_dtype);
 
     // Allocate the output matrix if it wasn't provided. Unlike other kernels,
     // it's shape will exactly match the shape of the input tensors, but the strides
     // may be different, assuming the output tensor is continuous by default.
-    Py_ssize_t out_continuous_dimensions = 0;
-    Py_ssize_t out_continuous_elements = 1;
     if (!out_obj) {
+        // Estimate the total number of output elements:
+        Py_ssize_t out_total_elements = 1;
+        for (Py_ssize_t i = 0; i < out_parsed.as_buffer_dimensions; ++i)
+            out_total_elements *= out_parsed.as_buffer_shape[i];
+
+        // Allocate the output tensor
         Py_ssize_t const expected_size_bytes = out_total_elements * bytes_per_datatype(ab_dtype);
-        NDArray *out_buffer_obj = PyObject_NewVar(NDArray, &NDArrayType, expected_size_bytes);
-        if (!out_buffer_obj) {
+        MDArray *mdarray_obj = PyObject_NewVar(MDArray, &MDArrayType, expected_size_bytes);
+        if (!mdarray_obj) {
             PyErr_NoMemory();
-            return_obj = NULL;
             goto cleanup;
         }
 
-        // Initialize the object
-        memset(out_buffer_obj->shape, 0, sizeof(out_buffer_obj->shape));
-        memset(out_buffer_obj->strides, 0, sizeof(out_buffer_obj->strides));
-        out_buffer_obj->datatype = ab_dtype;
-        out_buffer_obj->ndim = out_parsed.as_buffer_dimensions;
-        memcpy(out_buffer_obj->shape, out_parsed.as_buffer_shape, out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
-        out_buffer_obj->strides[out_parsed.as_buffer_dimensions - 1] = bytes_per_datatype(ab_dtype);
-        for (Py_ssize_t i = out_parsed.as_buffer_dimensions - 2; i >= 0; --i)
-            out_buffer_obj->strides[i] = out_buffer_obj->strides[i + 1] * out_buffer_obj->shape[i + 1];
+        // Initialize the object to zero state
+        memset(mdarray_obj->shape, 0, sizeof(mdarray_obj->shape));
+        memset(mdarray_obj->strides, 0, sizeof(mdarray_obj->strides));
 
-        return_obj = (PyObject *)out_buffer_obj;
-        out_continuous_dimensions = out_parsed.as_buffer_dimensions;
-        out_continuous_elements = out_total_elements;
+        // Define the new `MDArray` shape
+        mdarray_obj->datatype = ab_dtype;
+        mdarray_obj->ndim = out_parsed.as_buffer_dimensions;
+        memcpy(mdarray_obj->shape, out_parsed.as_buffer_shape, out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
+        mdarray_obj->strides[out_parsed.as_buffer_dimensions - 1] = bytes_per_datatype(ab_dtype);
+        for (Py_ssize_t i = out_parsed.as_buffer_dimensions - 2; i >= 0; --i)
+            mdarray_obj->strides[i] = mdarray_obj->strides[i + 1] * mdarray_obj->shape[i + 1];
 
         // Re-export into the `out_parsed` for future use
         out_parsed.datatype = ab_dtype;
-        out_parsed.as_buffer_start = (char *)&out_buffer_obj->start[0];
-        memcpy(out_parsed.as_buffer_strides, out_buffer_obj->strides,
+        out_parsed.as_buffer_start = (char *)&mdarray_obj->start[0];
+        memcpy(out_parsed.as_buffer_strides, mdarray_obj->strides,
                out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
+
+        // Return the new `MDArray` object
+        return_obj = (PyObject *)mdarray_obj;
     }
     else {
-        //? Logic suggests to return `None` in in-place mode...
-        //? SciPy decided differently.
-        return_obj = Py_None;
-        // We need to infer the number of (last) continuous dimensions in the output tensor
-        // to be able to apply the element-wise operation.
-        out_continuous_dimensions = 0;
-        Py_ssize_t expected_last_stride_bytes = out_buffer.itemsize;
-        for (Py_ssize_t i = out_buffer.ndim - 1; i >= 0; --i) {
-            if (out_buffer.strides[i] != expected_last_stride_bytes) break;
-            ++out_continuous_dimensions;
-            expected_last_stride_bytes *= out_buffer.shape[i];
-            out_continuous_elements *= out_buffer.shape[i];
-        }
-
         out_parsed.as_buffer_dimensions = out_buffer.ndim;
         out_parsed.as_buffer_start = (char *)out_buffer.buf;
         memcpy(out_parsed.as_buffer_shape, out_buffer.shape, out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
         memcpy(out_parsed.as_buffer_strides, out_buffer.strides, out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
+        //? Logic suggests to return `None` in in-place mode...
+        //? SciPy decided differently.
+        return_obj = Py_None;
     }
+    // We need to infer the number of (last) continuous dimensions in the output tensor
+    // to be able to apply the element-wise operation.
+    Py_ssize_t out_continuous_dimensions, a_continuous_dimensions, b_continuous_dimensions;
+    Py_ssize_t out_continuous_elements, a_continuous_elements, b_continuous_elements;
+    buffer_has_continuos_dimensions(&out_parsed, &out_continuous_dimensions, &out_continuous_elements);
+    buffer_has_continuos_dimensions(&a_parsed, &a_continuous_dimensions, &a_continuous_elements);
+    buffer_has_continuos_dimensions(&b_parsed, &b_continuous_dimensions, &b_continuous_elements);
+    Py_ssize_t const ins_continuous_dimensions =
+        a_continuous_dimensions < b_continuous_dimensions ? a_continuous_dimensions : b_continuous_dimensions;
+    Py_ssize_t const ins_continuous_elements =
+        a_continuous_elements < b_continuous_elements ? a_continuous_elements : b_continuous_elements;
+    Py_ssize_t const continuous_ranks =
+        out_continuous_dimensions < ins_continuous_dimensions ? out_continuous_dimensions : ins_continuous_dimensions;
+    Py_ssize_t const non_continuous_ranks = out_parsed.as_buffer_dimensions - continuous_ranks;
+    Py_ssize_t const continuous_elements =
+        out_continuous_elements < ins_continuous_elements ? out_continuous_elements : ins_continuous_elements;
 
     // First of all, check for our optimal case, when:
     // - both input operands are not scalars.
     // - there is at least one continuous dimension.
     // - the types match between both input tensors and output: uses `sum` kernel.
     // ... where we will use the vectorized kernel!
-    if (a_parsed.datatype == b_parsed.datatype && a_parsed.datatype == out_parsed.datatype &&
-        out_continuous_dimensions && ins_continuous_dimensions) {
-
+    if ((continuous_elements > 1) &&
+        (a_parsed.datatype == b_parsed.datatype && a_parsed.datatype == out_parsed.datatype)) {
         // Look up the kernel and the capability
         simsimd_elementwise_sum_t kernel = NULL;
         simsimd_capability_t capability = simsimd_cap_serial_k;
@@ -3359,20 +3496,15 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
                 kernel_kind,                                  //
                 datatype_to_python_string(a_parsed.datatype), //
                 datatype_to_python_string(b_parsed.datatype));
+            if (return_obj && return_obj != Py_None) Py_DECREF(return_obj);
             return_obj = NULL;
             goto cleanup;
         }
 
-        Py_ssize_t const continuous_ranks = out_continuous_dimensions < ins_continuous_dimensions
-                                                ? out_continuous_dimensions
-                                                : ins_continuous_dimensions;
-        Py_ssize_t const non_continuous_ranks = out_parsed.as_buffer_dimensions - continuous_ranks;
-        Py_ssize_t const continuous_elements =
-            out_continuous_elements < ins_continuous_elements ? out_continuous_elements : ins_continuous_elements;
         apply_elementwise_binary_operation_to_each_continuous_slice( //
             &a_parsed, &b_parsed, &out_parsed,                       //
-            non_continuous_ranks, continuous_elements, kernel);
-
+            non_continuous_ranks, continuous_elements, invoke_elementwise_sum_kernel_for_addition_on_continuous_slice,
+            kernel);
         goto cleanup;
     }
 
@@ -3380,12 +3512,13 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     // - there is only one input tensor and the second operand is a scalar,
     // - there is at least one continuous dimension in the input and output tensor,
     // - the types match between the input tensor and output tensor.
-    int const is_tensor_a_with_scalar_b =
-        a_parsed.kind == BufferKind && a_parsed.datatype == out_parsed.datatype && b_parsed.kind != BufferKind;
-    int const is_tensor_b_with_scalar_b =
-        b_parsed.kind == BufferKind && b_parsed.datatype == out_parsed.datatype && a_parsed.kind != BufferKind;
-    if ((is_tensor_a_with_scalar_b || is_tensor_b_with_scalar_b) &&
-        (out_continuous_dimensions && ins_continuous_dimensions)) {
+    int const is_tensor_a_with_scalar_b = //
+        a_parsed.shape_kind == MDArrayShapeNonUnit && a_parsed.datatype == out_parsed.datatype &&
+        b_parsed.shape_kind != MDArrayShapeNonUnit;
+    int const is_tensor_b_with_scalar_b = //
+        b_parsed.shape_kind == MDArrayShapeNonUnit && b_parsed.datatype == out_parsed.datatype &&
+        a_parsed.shape_kind != MDArrayShapeNonUnit;
+    if ((continuous_elements > 1) && (is_tensor_a_with_scalar_b || is_tensor_b_with_scalar_b)) {
         // Look up the kernel and the capability
         simsimd_elementwise_scale_t kernel = NULL;
         simsimd_capability_t capability = simsimd_cap_serial_k;
@@ -3398,16 +3531,10 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
                 kernel_kind,                                  //
                 datatype_to_python_string(a_parsed.datatype), //
                 datatype_to_python_string(b_parsed.datatype));
+            if (return_obj && return_obj != Py_None) Py_DECREF(return_obj);
             return_obj = NULL;
             goto cleanup;
         }
-
-        Py_ssize_t const continuous_ranks = out_continuous_dimensions < ins_continuous_dimensions
-                                                ? out_continuous_dimensions
-                                                : ins_continuous_dimensions;
-        Py_ssize_t const non_continuous_ranks = out_parsed.as_buffer_dimensions - continuous_ranks;
-        Py_ssize_t const continuous_elements =
-            out_continuous_elements < ins_continuous_elements ? out_continuous_elements : ins_continuous_elements;
 
         if (is_tensor_a_with_scalar_b)
             apply_scale_to_each_continuous_slice(           //
@@ -3422,55 +3549,12 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     }
 
     // Finally call the serial kernels!
-    // If the output has no continuous dimensions at all, our situation sucks!
-    // We can't use SIMD effectively and need to fall back to the scalar operation,
-    // but if the input/output types match, at least we don't need to cast the data back and forth.
-    if (a_parsed.datatype == b_parsed.datatype && a_parsed.datatype == out_parsed.datatype) {
-        binary_kernel_t elementwise_sadd_ptr = elementwise_sadd(a_parsed.datatype);
-        apply_elementwise_binary_operation_to_each_scalar(&a_parsed, &b_parsed, &out_parsed, elementwise_sadd_ptr);
-        goto cleanup;
-    }
-
-    // If the output has no continuous dimensions at all, our situation sucks!
-    // If the type of outputs and inputs doesn't match, it also sucks!
-    // We can't use SIMD effectively and need to fall back to the scalar operation.
-    if (simsimd_datatype_family(a_parsed.datatype) == simsimd_datatype_float_family_k ||
-        simsimd_datatype_family(b_parsed.datatype) == simsimd_datatype_float_family_k) {
-        unary_kernel_t a_upcast_ptr = elementwise_upcast_to_f64(a_parsed.datatype);
-        unary_kernel_t b_upcast_ptr = elementwise_upcast_to_f64(b_parsed.datatype);
-        binary_kernel_t elementwise_sadd_ptr = elementwise_sadd(simsimd_f64_k);
-        unary_kernel_t out_downcast_ptr = elementwise_downcast_from_f64(out_parsed.datatype);
-        apply_elementwise_casting_binary_operation_to_each_scalar( //
-            &a_parsed, &b_parsed, &out_parsed,                     //
-            a_upcast_ptr, b_upcast_ptr, out_downcast_ptr, elementwise_sadd_ptr);
-        goto cleanup;
-    }
-    else if (simsimd_datatype_family(a_parsed.datatype) == simsimd_datatype_uint_family_k &&
-             simsimd_datatype_family(b_parsed.datatype) == simsimd_datatype_uint_family_k) {
-        unary_kernel_t a_upcast_ptr = elementwise_upcast_to_u64(a_parsed.datatype);
-        unary_kernel_t b_upcast_ptr = elementwise_upcast_to_u64(b_parsed.datatype);
-        binary_kernel_t elementwise_sadd_ptr = elementwise_sadd(simsimd_u64_k);
-        unary_kernel_t out_downcast_ptr = elementwise_downcast_from_u64(out_parsed.datatype);
-        apply_elementwise_casting_binary_operation_to_each_scalar( //
-            &a_parsed, &b_parsed, &out_parsed,                     //
-            a_upcast_ptr, b_upcast_ptr, out_downcast_ptr, elementwise_sadd_ptr);
-        goto cleanup;
-    }
-    else {
-        unary_kernel_t a_upcast_ptr = elementwise_upcast_to_i64(a_parsed.datatype);
-        unary_kernel_t b_upcast_ptr = elementwise_upcast_to_i64(b_parsed.datatype);
-        binary_kernel_t elementwise_sadd_ptr = elementwise_sadd(simsimd_i64_k);
-        unary_kernel_t out_downcast_ptr = elementwise_downcast_from_i64(out_parsed.datatype);
-        apply_elementwise_casting_binary_operation_to_each_scalar( //
-            &a_parsed, &b_parsed, &out_parsed,                     //
-            a_upcast_ptr, b_upcast_ptr, out_downcast_ptr, elementwise_sadd_ptr);
-        goto cleanup;
-    }
+    fallback_binary_scalar_operation(&a_parsed, &b_parsed, &out_parsed, ab_dtype, &elementwise_sadd);
 
 cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&b_buffer);
-    PyBuffer_Release(&out_buffer);
+    if (out_obj) PyBuffer_Release(&out_buffer);
     if (return_obj == Py_None) Py_INCREF(return_obj);
     return return_obj;
 }
@@ -3479,9 +3563,9 @@ static char const doc_multiply[] = //
     "Tensor-Tensor or Tensor-Scalar element-wise multiplication.\n"
     "\n"
     "Args:\n"
-    "    a (Union[NDArray, float, int]): First Tensor or scalar.\n"
-    "    b (Union[NDArray, float, int]): Second Tensor or scalar.\n"
-    "    out (NDArray, optional): Tensor for resulting distances.\n"
+    "    a (Union[MDArray, float, int]): First Tensor or scalar.\n"
+    "    b (Union[MDArray, float, int]): Second Tensor or scalar.\n"
+    "    out (MDArray, optional): Tensor for resulting distances.\n"
     "    a_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `a`.\n"
     "    b_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `b`.\n"
     "    out_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `out`.\n"
@@ -3575,7 +3659,7 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
         if (PyErr_Occurred()) return NULL;
         if (a_dtype == simsimd_datatype_unknown_k && b_dtype == simsimd_datatype_unknown_k &&
             out_dtype == simsimd_datatype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported 'a_dtype'");
+            PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
             return NULL;
         }
     }
@@ -3600,314 +3684,105 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
     // Check dimensions, but unlike the `sum`, `scale`, `wsum`, and `fma` APIs
     // we want to provide maximal compatibility with NumPy and OpenCV. In many
     // such cases, the input is not a rank-1 tensor and may not be continuous.
-    Py_ssize_t ins_continuous_dimensions = 0;
-    Py_ssize_t ins_continuous_elements = 1;
-    if (a_parsed.kind != ScalarKind && b_parsed.kind != ScalarKind) {
-        //! The ranks of tensors may not match!
-        // We need to compare them in reverse order, right to left, assuming all the missing dimensions are 1.
-        // To match those, we are going to populate the `a_parsed.as_buffer_shape` and `b_parsed.as_buffer_shape`,
-        // simultaneously filling the strides of broadcasted dimensions with zeros.
-        Py_ssize_t const max_rank = a_buffer.ndim > b_buffer.ndim ? a_buffer.ndim : b_buffer.ndim;
-        Py_ssize_t const min_rank = a_buffer.ndim < b_buffer.ndim ? a_buffer.ndim : b_buffer.ndim;
-        a_parsed.as_buffer_dimensions = max_rank;
-        b_parsed.as_buffer_dimensions = max_rank;
-        out_parsed.as_buffer_dimensions = max_rank;
-
-        // Go through the shared dimensions: back to front
-        for (Py_ssize_t i = 0; i < min_rank; ++i) {
-            Py_ssize_t const a_dim = a_buffer.shape[a_buffer.ndim - 1 - i];
-            Py_ssize_t const b_dim = b_buffer.shape[b_buffer.ndim - 1 - i];
-            Py_ssize_t const a_stride = a_buffer.strides[a_buffer.ndim - 1 - i];
-            Py_ssize_t const b_stride = b_buffer.strides[b_buffer.ndim - 1 - i];
-            // Simplest case! Both dimensions match.
-            if (a_dim == b_dim) {
-                a_parsed.as_buffer_shape[max_rank - 1 - i] = a_dim;
-                b_parsed.as_buffer_shape[max_rank - 1 - i] = b_dim;
-                a_parsed.as_buffer_strides[max_rank - 1 - i] = a_stride;
-                b_parsed.as_buffer_strides[max_rank - 1 - i] = b_stride;
-                out_parsed.as_buffer_shape[max_rank - 1 - i] = a_dim;
-                int a_is_continuous = a_stride == (ins_continuous_elements * bytes_per_datatype(a_parsed.datatype));
-                int b_is_continuous = b_stride == (ins_continuous_elements * bytes_per_datatype(b_parsed.datatype));
-                if (a_is_continuous && b_is_continuous) {
-                    ins_continuous_dimensions++;
-                    ins_continuous_elements *= a_dim;
-                }
-            }
-            // Broadcast this value from A
-            else if (a_dim == 1) {
-                a_parsed.as_buffer_shape[max_rank - 1 - i] = 1;
-                b_parsed.as_buffer_shape[max_rank - 1 - i] = b_dim;
-                a_parsed.as_buffer_strides[max_rank - 1 - i] = 0;
-                b_parsed.as_buffer_strides[max_rank - 1 - i] = b_stride;
-                out_parsed.as_buffer_shape[max_rank - 1 - i] = b_dim;
-            }
-            // Broadcast this value from B
-            else if (b_dim == 1) {
-                a_parsed.as_buffer_shape[max_rank - 1 - i] = a_dim;
-                b_parsed.as_buffer_shape[max_rank - 1 - i] = 1;
-                a_parsed.as_buffer_strides[max_rank - 1 - i] = a_stride;
-                b_parsed.as_buffer_strides[max_rank - 1 - i] = 0;
-                out_parsed.as_buffer_shape[max_rank - 1 - i] = a_dim;
-            }
-            // Report the issue
-            else {
-                PyErr_Format( //
-                    PyExc_ValueError,
-                    "The number of entries %zd (along dimension %zd in the first tensor) doesn't "
-                    "match the number of entries %zd (along dimension %zd in the second tensor)",
-                    a_dim, a_buffer.ndim - 1 - i, b_dim, b_buffer.ndim - 1 - i);
-                return_obj = NULL;
-                goto cleanup;
-            }
-        }
-        // Populate the remaining dimensions: in any order, front to back for simplicity
-        if (a_buffer.ndim > b_buffer.ndim) {
-            for (Py_ssize_t i = 0; i < a_buffer.ndim - b_buffer.ndim; ++i) {
-                Py_ssize_t const longer_dim = a_buffer.shape[i];
-                Py_ssize_t const longer_stride = a_buffer.strides[i];
-                a_parsed.as_buffer_shape[i] = longer_dim;
-                b_parsed.as_buffer_shape[i] = 1;
-                a_parsed.as_buffer_strides[i] = longer_stride;
-                b_parsed.as_buffer_strides[i] = 0;
-                out_parsed.as_buffer_shape[i] = longer_dim;
-            }
-        }
-        else if (b_buffer.ndim - a_buffer.ndim) {
-            for (Py_ssize_t i = 0; i < b_buffer.ndim - a_buffer.ndim; ++i) {
-                Py_ssize_t const longer_dim = b_buffer.shape[i];
-                Py_ssize_t const longer_stride = b_buffer.strides[i];
-                a_parsed.as_buffer_shape[i] = 1;
-                b_parsed.as_buffer_shape[i] = longer_dim;
-                a_parsed.as_buffer_strides[i] = 0;
-                b_parsed.as_buffer_strides[i] = longer_stride;
-                out_parsed.as_buffer_shape[i] = longer_dim;
-            }
-        }
-    }
-    // If at least one of the entries is actually is a `ScalarKind` our logic becomes much easier:
-    else if (a_parsed.kind != ScalarKind) {
-        a_parsed.as_buffer_dimensions = a_buffer.ndim;
-        memcpy(a_parsed.as_buffer_shape, a_buffer.shape, a_buffer.ndim * sizeof(Py_ssize_t));
-        memcpy(a_parsed.as_buffer_strides, a_buffer.strides, a_buffer.ndim * sizeof(Py_ssize_t));
-        b_parsed.as_buffer_dimensions = a_buffer.ndim;
-        memcpy(b_parsed.as_buffer_shape, a_buffer.shape, a_buffer.ndim * sizeof(Py_ssize_t));
-        memset(b_parsed.as_buffer_strides, 0, a_buffer.ndim * sizeof(Py_ssize_t));
-        out_parsed.as_buffer_dimensions = a_buffer.ndim;
-        memcpy(out_parsed.as_buffer_shape, a_buffer.shape, a_buffer.ndim * sizeof(Py_ssize_t));
-    }
-    else {
-        a_parsed.as_buffer_dimensions = b_buffer.ndim;
-        memcpy(a_parsed.as_buffer_shape, b_buffer.shape, b_buffer.ndim * sizeof(Py_ssize_t));
-        memset(a_parsed.as_buffer_strides, 0, b_buffer.ndim * sizeof(Py_ssize_t));
-        b_parsed.as_buffer_dimensions = b_buffer.ndim;
-        memcpy(b_parsed.as_buffer_shape, b_buffer.shape, b_buffer.ndim * sizeof(Py_ssize_t));
-        memcpy(b_parsed.as_buffer_strides, b_buffer.strides, b_buffer.ndim * sizeof(Py_ssize_t));
-        out_parsed.as_buffer_dimensions = b_buffer.ndim;
-        memcpy(out_parsed.as_buffer_shape, b_buffer.shape, b_buffer.ndim * sizeof(Py_ssize_t));
-    }
+    if (!numpy_promote_shape(&a_buffer, &b_buffer, &a_parsed, &b_parsed, &out_parsed)) goto cleanup;
 
     // At this point the parsed "logical shapes" of both inputs are identical.
     // Now we can use the inferred logical shape to check the output tensor.
-    if (out_obj) {
-        if (out_buffer.ndim != out_parsed.as_buffer_dimensions) {
-            PyErr_Format(PyExc_ValueError, "Output tensor has rank-%zd, but rank-%zd is expected", out_buffer.ndim,
-                         out_parsed.as_buffer_dimensions);
-            return_obj = NULL;
-            goto cleanup;
-        }
-        for (Py_ssize_t i = 0; i < out_parsed.as_buffer_dimensions; ++i) {
-            if (out_buffer.shape[i] != out_parsed.as_buffer_shape[i]) {
-                PyErr_Format(PyExc_ValueError,
-                             "Output tensor doesn't match the input tensor in shape at dimension %zd: %zd != %zd", i,
-                             out_buffer.shape[i], out_parsed.as_buffer_shape[i]);
-                return_obj = NULL;
-                goto cleanup;
-            }
-        }
-    }
+    if (out_obj && !validate_output_buffer_shape(&out_buffer, &out_parsed)) goto cleanup;
 
     // First we need to understand the smallest numeric type we may need for this computation.
-    simsimd_datatype_t ab_dtype;
-    simsimd_datatype_family_k a_family = simsimd_datatype_family(a_parsed.datatype);
-    simsimd_datatype_family_k b_family = simsimd_datatype_family(b_parsed.datatype);
-    // For addition and multiplication, treat complex numbers as floats
-    if (a_family == simsimd_datatype_complex_float_family_k) a_family = simsimd_datatype_float_family_k;
-    if (b_family == simsimd_datatype_complex_float_family_k) b_family = simsimd_datatype_float_family_k;
-    if (a_family == simsimd_datatype_binary_family_k || b_family == simsimd_datatype_binary_family_k) {
+    simsimd_datatype_family_k const a_family = simsimd_datatype_family(a_parsed.datatype);
+    simsimd_datatype_family_k const b_family = simsimd_datatype_family(b_parsed.datatype);
+    if (a_family == simsimd_datatype_binary_family_k || b_family == simsimd_datatype_binary_family_k ||
+        a_family == simsimd_datatype_unknown_family_k || b_family == simsimd_datatype_unknown_family_k) {
         PyErr_SetString(PyExc_ValueError, "Boolean tensors are not supported in element-wise operations");
-        return_obj = NULL;
         goto cleanup;
     }
     // Infer the type-casting rules for the output tensor, if the type was not provided.
-    {
-        size_t a_itemsize = bytes_per_datatype(a_parsed.datatype);
-        size_t b_itemsize = bytes_per_datatype(b_parsed.datatype);
-        size_t max_itemsize = a_itemsize > b_itemsize ? a_itemsize : b_itemsize;
-        if (a_parsed.datatype == b_parsed.datatype) { ab_dtype = a_parsed.datatype; }
-        // Simply take the bigger datatype if they are both floats or both are unsigned integers, etc.
-        else if (a_family == b_family) { ab_dtype = a_itemsize > b_itemsize ? a_parsed.datatype : b_parsed.datatype; }
-        // If only one of the operands is a float, and the second is integral of same size, the output should be a
-        // float, of the next size... If the floating type is bigger, don't upcast.
-        // Sum of `float16` and `int32` is a `float64`.
-        // Sum of `float16` and `int16` is a `float32`.
-        // Sum of `float32` and `int8` is a `float32`.
-        else if (a_family == simsimd_datatype_float_family_k || b_family == simsimd_datatype_float_family_k) {
-            size_t float_size = a_family == simsimd_datatype_float_family_k ? a_itemsize : b_itemsize;
-            size_t integral_size = a_family == simsimd_datatype_float_family_k ? b_itemsize : a_itemsize;
-            if (float_size <= integral_size) {
-                //? No 128-bit float on most platforms
-                if (max_itemsize == 8) { ab_dtype = simsimd_f64_k; }
-                else if (max_itemsize == 4) { ab_dtype = simsimd_f64_k; }
-                else if (max_itemsize == 2) { ab_dtype = simsimd_f32_k; }
-                else if (max_itemsize == 1) { ab_dtype = simsimd_f16_k; }
-            }
-            else {
-                if (max_itemsize == 8) { ab_dtype = simsimd_f64_k; }
-                else if (max_itemsize == 4) { ab_dtype = simsimd_f32_k; }
-                else if (max_itemsize == 2) { ab_dtype = simsimd_f16_k; }
-                else if (max_itemsize == 1) { ab_dtype = simsimd_f16_k; }
-            }
-        }
-        // If only one of the operands is a unsigned, and the second is a signed integral of same size,
-        // the output should be a signed integer, of the next size... If the signed type is bigger, don't upcast.
-        // Sum of `int16` and `uint32` is a `int64`.
-        // Sum of `int16` and `uint16` is a `int32`.
-        // Sum of `int32` and `uint8` is a `int32`.
-        else if (a_family == simsimd_datatype_int_family_k || b_family == simsimd_datatype_int_family_k) {
-            size_t unsigned_size = a_family == simsimd_datatype_int_family_k ? b_itemsize : a_itemsize;
-            size_t signed_size = a_family == simsimd_datatype_int_family_k ? a_itemsize : b_itemsize;
-            if (signed_size <= unsigned_size) {
-                //? No 128-bit integer on most platforms
-                if (max_itemsize == 8) { ab_dtype = simsimd_i64_k; }
-                else if (max_itemsize == 4) { ab_dtype = simsimd_i64_k; }
-                else if (max_itemsize == 2) { ab_dtype = simsimd_i32_k; }
-                else if (max_itemsize == 1) { ab_dtype = simsimd_i16_k; }
-            }
-            else {
-                if (max_itemsize == 8) { ab_dtype = simsimd_i64_k; }
-                else if (max_itemsize == 4) { ab_dtype = simsimd_i32_k; }
-                else if (max_itemsize == 2) { ab_dtype = simsimd_i16_k; }
-                else if (max_itemsize == 1) { ab_dtype = simsimd_i16_k; }
-            }
-        }
-        // For boolean and complex types, we don't yet have a clear policy.
-        else {
-            PyErr_SetString(PyExc_ValueError, "Unsupported combination of datatypes");
-            return_obj = NULL;
-            goto cleanup;
-        }
+    simsimd_datatype_t const ab_dtype = numpy_promote_types(a_parsed.datatype, b_parsed.datatype);
+    if (ab_dtype == simsimd_datatype_unknown_k) {
+        PyErr_Format(PyExc_ValueError, "Can't infer type promotion rules for %s and %s",
+                     datatype_to_python_string(a_parsed.datatype), datatype_to_python_string(b_parsed.datatype));
+        goto cleanup;
     }
 
     // If dealing with scalars, consider up-casting them to the same `ab_dtype` datatype.
     // That way we will be use the `apply_elementwise_binary_operation_to_each_scalar` function
     // instead of the `apply_elementwise_casting_binary_operation_to_each_scalar` function.
-    simsimd_datatype_family_k ab_family = simsimd_datatype_family(ab_dtype);
-    if (a_parsed.kind != BufferKind && b_parsed.kind != BufferKind && a_parsed.datatype != b_parsed.datatype) {
-        if (ab_family == simsimd_datatype_float_family_k) {
-            if (a_parsed.datatype != ab_dtype) {
-                elementwise_upcast_to_f64(a_parsed.datatype)(a_parsed.as_scalar, a_parsed.as_scalar);
-                elementwise_downcast_from_f64(ab_dtype)(a_parsed.as_scalar, a_parsed.as_scalar);
-                a_parsed.datatype = ab_dtype;
-            }
-            if (b_parsed.datatype != ab_dtype) {
-                elementwise_upcast_to_f64(b_parsed.datatype)(b_parsed.as_scalar, b_parsed.as_scalar);
-                elementwise_downcast_from_f64(ab_dtype)(b_parsed.as_scalar, b_parsed.as_scalar);
-                b_parsed.datatype = ab_dtype;
-            }
-        }
-        else if (ab_family == simsimd_datatype_uint_family_k) {
-            if (a_parsed.datatype != ab_dtype) {
-                elementwise_upcast_to_u64(a_parsed.datatype)(a_parsed.as_scalar, a_parsed.as_scalar);
-                elementwise_downcast_from_u64(ab_dtype)(a_parsed.as_scalar, a_parsed.as_scalar);
-                a_parsed.datatype = ab_dtype;
-            }
-            if (b_parsed.datatype != ab_dtype) {
-                elementwise_upcast_to_u64(b_parsed.datatype)(b_parsed.as_scalar, b_parsed.as_scalar);
-                elementwise_downcast_from_u64(ab_dtype)(b_parsed.as_scalar, b_parsed.as_scalar);
-                b_parsed.datatype = ab_dtype;
-            }
-        }
-        else if (ab_family == simsimd_datatype_int_family_k) {
-            if (a_parsed.datatype != ab_dtype) {
-                elementwise_upcast_to_i64(a_parsed.datatype)(a_parsed.as_scalar, a_parsed.as_scalar);
-                elementwise_downcast_from_i64(ab_dtype)(a_parsed.as_scalar, a_parsed.as_scalar);
-                a_parsed.datatype = ab_dtype;
-            }
-            if (b_parsed.datatype != ab_dtype) {
-                elementwise_upcast_to_i64(b_parsed.datatype)(b_parsed.as_scalar, b_parsed.as_scalar);
-                elementwise_downcast_from_i64(ab_dtype)(b_parsed.as_scalar, b_parsed.as_scalar);
-                b_parsed.datatype = ab_dtype;
-            }
-        }
-    }
-
-    // Estimate the total number of output elements:
-    Py_ssize_t out_total_elements = 1;
-    for (Py_ssize_t i = 0; i < out_parsed.as_buffer_dimensions; ++i)
-        out_total_elements *= out_parsed.as_buffer_shape[i];
+    bring_scalar_operand_to_promoted_type(&a_parsed, &b_parsed, ab_dtype);
 
     // Allocate the output matrix if it wasn't provided. Unlike other kernels,
     // it's shape will exactly match the shape of the input tensors, but the strides
     // may be different, assuming the output tensor is continuous by default.
-    Py_ssize_t out_continuous_dimensions = 0;
-    Py_ssize_t out_continuous_elements = 1;
     if (!out_obj) {
+        // Estimate the total number of output elements:
+        Py_ssize_t out_total_elements = 1;
+        for (Py_ssize_t i = 0; i < out_parsed.as_buffer_dimensions; ++i)
+            out_total_elements *= out_parsed.as_buffer_shape[i];
+
+        // Allocate the output tensor
         Py_ssize_t const expected_size_bytes = out_total_elements * bytes_per_datatype(ab_dtype);
-        NDArray *out_buffer_obj = PyObject_NewVar(NDArray, &NDArrayType, expected_size_bytes);
-        if (!out_buffer_obj) {
+        MDArray *mdarray_obj = PyObject_NewVar(MDArray, &MDArrayType, expected_size_bytes);
+        if (!mdarray_obj) {
             PyErr_NoMemory();
-            return_obj = NULL;
             goto cleanup;
         }
 
-        // Initialize the object
-        memset(out_buffer_obj->shape, 0, sizeof(out_buffer_obj->shape));
-        memset(out_buffer_obj->strides, 0, sizeof(out_buffer_obj->strides));
-        out_buffer_obj->datatype = ab_dtype;
-        out_buffer_obj->ndim = out_parsed.as_buffer_dimensions;
-        memcpy(out_buffer_obj->shape, out_parsed.as_buffer_shape, out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
-        out_buffer_obj->strides[out_parsed.as_buffer_dimensions - 1] = bytes_per_datatype(ab_dtype);
-        for (Py_ssize_t i = out_parsed.as_buffer_dimensions - 2; i >= 0; --i)
-            out_buffer_obj->strides[i] = out_buffer_obj->strides[i + 1] * out_buffer_obj->shape[i + 1];
+        // Initialize the object to zero state
+        memset(mdarray_obj->shape, 0, sizeof(mdarray_obj->shape));
+        memset(mdarray_obj->strides, 0, sizeof(mdarray_obj->strides));
 
-        return_obj = (PyObject *)out_buffer_obj;
-        out_continuous_dimensions = out_parsed.as_buffer_dimensions;
-        out_continuous_elements = out_total_elements;
+        // Define the new `MDArray` shape
+        mdarray_obj->datatype = ab_dtype;
+        mdarray_obj->ndim = out_parsed.as_buffer_dimensions;
+        memcpy(mdarray_obj->shape, out_parsed.as_buffer_shape, out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
+        mdarray_obj->strides[out_parsed.as_buffer_dimensions - 1] = bytes_per_datatype(ab_dtype);
+        for (Py_ssize_t i = out_parsed.as_buffer_dimensions - 2; i >= 0; --i)
+            mdarray_obj->strides[i] = mdarray_obj->strides[i + 1] * mdarray_obj->shape[i + 1];
 
         // Re-export into the `out_parsed` for future use
         out_parsed.datatype = ab_dtype;
-        out_parsed.as_buffer_start = (char *)&out_buffer_obj->start[0];
-        memcpy(out_parsed.as_buffer_strides, out_buffer_obj->strides,
+        out_parsed.as_buffer_start = (char *)&mdarray_obj->start[0];
+        memcpy(out_parsed.as_buffer_strides, mdarray_obj->strides,
                out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
+
+        // Return the new `MDArray` object
+        return_obj = (PyObject *)mdarray_obj;
     }
     else {
-        //? Logic suggests to return `None` in in-place mode...
-        //? SciPy decided differently.
-        return_obj = Py_None;
-        // We need to infer the number of (last) continuous dimensions in the output tensor
-        // to be able to apply the element-wise operation.
-        out_continuous_dimensions = 0;
-        Py_ssize_t expected_last_stride_bytes = out_buffer.itemsize;
-        for (Py_ssize_t i = out_buffer.ndim - 1; i >= 0; --i) {
-            if (out_buffer.strides[i] != expected_last_stride_bytes) break;
-            ++out_continuous_dimensions;
-            expected_last_stride_bytes *= out_buffer.shape[i];
-            out_continuous_elements *= out_buffer.shape[i];
-        }
-
         out_parsed.as_buffer_dimensions = out_buffer.ndim;
         out_parsed.as_buffer_start = (char *)out_buffer.buf;
         memcpy(out_parsed.as_buffer_shape, out_buffer.shape, out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
         memcpy(out_parsed.as_buffer_strides, out_buffer.strides, out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
+        //? Logic suggests to return `None` in in-place mode...
+        //? SciPy decided differently.
+        return_obj = Py_None;
     }
+
+    // We need to infer the number of (last) continuous dimensions in the output tensor
+    // to be able to apply the element-wise operation.
+    Py_ssize_t out_continuous_dimensions, a_continuous_dimensions, b_continuous_dimensions;
+    Py_ssize_t out_continuous_elements, a_continuous_elements, b_continuous_elements;
+    buffer_has_continuos_dimensions(&out_parsed, &out_continuous_dimensions, &out_continuous_elements);
+    buffer_has_continuos_dimensions(&a_parsed, &a_continuous_dimensions, &a_continuous_elements);
+    buffer_has_continuos_dimensions(&b_parsed, &b_continuous_dimensions, &b_continuous_elements);
+    Py_ssize_t const ins_continuous_dimensions =
+        a_continuous_dimensions < b_continuous_dimensions ? a_continuous_dimensions : b_continuous_dimensions;
+    Py_ssize_t const ins_continuous_elements =
+        a_continuous_elements < b_continuous_elements ? a_continuous_elements : b_continuous_elements;
+    Py_ssize_t const continuous_ranks =
+        out_continuous_dimensions < ins_continuous_dimensions ? out_continuous_dimensions : ins_continuous_dimensions;
+    Py_ssize_t const non_continuous_ranks = out_parsed.as_buffer_dimensions - continuous_ranks;
+    Py_ssize_t const continuous_elements =
+        out_continuous_elements < ins_continuous_elements ? out_continuous_elements : ins_continuous_elements;
 
     // First of all, check for our optimal case, when:
     // - both input operands are not scalars.
     // - there is at least one continuous dimension.
     // - the types match between both input tensors and output: uses `fma` kernel.
     // ... where we will use the vectorized kernel!
-    if (a_parsed.datatype == b_parsed.datatype && a_parsed.datatype == out_parsed.datatype &&
-        out_continuous_dimensions && ins_continuous_dimensions) {
+    if ((continuous_elements > 1) &&
+        (a_parsed.datatype == b_parsed.datatype && a_parsed.datatype == out_parsed.datatype)) {
 
         // Look up the kernel and the capability
         simsimd_elementwise_fma_t kernel = NULL;
@@ -3921,20 +3796,15 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
                 kernel_kind,                                  //
                 datatype_to_python_string(a_parsed.datatype), //
                 datatype_to_python_string(b_parsed.datatype));
+            if (return_obj && return_obj != Py_None) Py_DECREF(return_obj);
             return_obj = NULL;
             goto cleanup;
         }
 
-        Py_ssize_t const continuous_ranks = out_continuous_dimensions < ins_continuous_dimensions
-                                                ? out_continuous_dimensions
-                                                : ins_continuous_dimensions;
-        Py_ssize_t const non_continuous_ranks = out_parsed.as_buffer_dimensions - continuous_ranks;
-        Py_ssize_t const continuous_elements =
-            out_continuous_elements < ins_continuous_elements ? out_continuous_elements : ins_continuous_elements;
         apply_elementwise_binary_operation_to_each_continuous_slice( //
             &a_parsed, &b_parsed, &out_parsed,                       //
-            non_continuous_ranks, continuous_elements, kernel);
-
+            non_continuous_ranks, continuous_elements,
+            invoke_elementwise_fma_kernel_for_multiplication_on_continuous_slice, kernel);
         goto cleanup;
     }
 
@@ -3942,12 +3812,13 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
     // - there is only one input tensor and the second operand is a scalar,
     // - there is at least one continuous dimension in the input and output tensor,
     // - the types match between the input tensor and output tensor.
-    int const is_tensor_a_with_scalar_b =
-        a_parsed.kind == BufferKind && a_parsed.datatype == out_parsed.datatype && b_parsed.kind != BufferKind;
-    int const is_tensor_b_with_scalar_b =
-        b_parsed.kind == BufferKind && b_parsed.datatype == out_parsed.datatype && a_parsed.kind != BufferKind;
-    if ((is_tensor_a_with_scalar_b || is_tensor_b_with_scalar_b) &&
-        (out_continuous_dimensions && ins_continuous_dimensions)) {
+    int const is_tensor_a_with_scalar_b = //
+        a_parsed.shape_kind == MDArrayShapeNonUnit && a_parsed.datatype == out_parsed.datatype &&
+        b_parsed.shape_kind != MDArrayShapeNonUnit;
+    int const is_tensor_b_with_scalar_b = //
+        b_parsed.shape_kind == MDArrayShapeNonUnit && b_parsed.datatype == out_parsed.datatype &&
+        a_parsed.shape_kind != MDArrayShapeNonUnit;
+    if ((continuous_elements > 1) && (is_tensor_a_with_scalar_b || is_tensor_b_with_scalar_b)) {
         // Look up the kernel and the capability
         simsimd_elementwise_scale_t kernel = NULL;
         simsimd_capability_t capability = simsimd_cap_serial_k;
@@ -3960,16 +3831,10 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
                 kernel_kind,                                  //
                 datatype_to_python_string(a_parsed.datatype), //
                 datatype_to_python_string(b_parsed.datatype));
+            if (return_obj && return_obj != Py_None) Py_DECREF(return_obj);
             return_obj = NULL;
             goto cleanup;
         }
-
-        Py_ssize_t const continuous_ranks = out_continuous_dimensions < ins_continuous_dimensions
-                                                ? out_continuous_dimensions
-                                                : ins_continuous_dimensions;
-        Py_ssize_t const non_continuous_ranks = out_parsed.as_buffer_dimensions - continuous_ranks;
-        Py_ssize_t const continuous_elements =
-            out_continuous_elements < ins_continuous_elements ? out_continuous_elements : ins_continuous_elements;
 
         if (is_tensor_a_with_scalar_b)
             apply_scale_to_each_continuous_slice(           //
@@ -3984,55 +3849,12 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
     }
 
     // Finally call the serial kernels!
-    // If the output has no continuous dimensions at all, our situation sucks!
-    // We can't use SIMD effectively and need to fall back to the scalar operation,
-    // but if the input/output types match, at least we don't need to cast the data back and forth.
-    if (a_parsed.datatype == b_parsed.datatype && a_parsed.datatype == out_parsed.datatype) {
-        binary_kernel_t elementwise_smul_ptr = elementwise_smul(a_parsed.datatype);
-        apply_elementwise_binary_operation_to_each_scalar(&a_parsed, &b_parsed, &out_parsed, elementwise_smul_ptr);
-        goto cleanup;
-    }
-
-    // If the output has no continuous dimensions at all, our situation sucks!
-    // If the type of outputs and inputs doesn't match, it also sucks!
-    // We can't use SIMD effectively and need to fall back to the scalar operation.
-    if (simsimd_datatype_family(a_parsed.datatype) == simsimd_datatype_float_family_k ||
-        simsimd_datatype_family(b_parsed.datatype) == simsimd_datatype_float_family_k) {
-        unary_kernel_t a_upcast_ptr = elementwise_upcast_to_f64(a_parsed.datatype);
-        unary_kernel_t b_upcast_ptr = elementwise_upcast_to_f64(b_parsed.datatype);
-        binary_kernel_t elementwise_smul_ptr = elementwise_smul(simsimd_f64_k);
-        unary_kernel_t out_downcast_ptr = elementwise_downcast_from_f64(out_parsed.datatype);
-        apply_elementwise_casting_binary_operation_to_each_scalar( //
-            &a_parsed, &b_parsed, &out_parsed,                     //
-            a_upcast_ptr, b_upcast_ptr, out_downcast_ptr, elementwise_smul_ptr);
-        goto cleanup;
-    }
-    else if (simsimd_datatype_family(a_parsed.datatype) == simsimd_datatype_uint_family_k &&
-             simsimd_datatype_family(b_parsed.datatype) == simsimd_datatype_uint_family_k) {
-        unary_kernel_t a_upcast_ptr = elementwise_upcast_to_u64(a_parsed.datatype);
-        unary_kernel_t b_upcast_ptr = elementwise_upcast_to_u64(b_parsed.datatype);
-        binary_kernel_t elementwise_smul_ptr = elementwise_smul(simsimd_u64_k);
-        unary_kernel_t out_downcast_ptr = elementwise_downcast_from_u64(out_parsed.datatype);
-        apply_elementwise_casting_binary_operation_to_each_scalar( //
-            &a_parsed, &b_parsed, &out_parsed,                     //
-            a_upcast_ptr, b_upcast_ptr, out_downcast_ptr, elementwise_smul_ptr);
-        goto cleanup;
-    }
-    else {
-        unary_kernel_t a_upcast_ptr = elementwise_upcast_to_i64(a_parsed.datatype);
-        unary_kernel_t b_upcast_ptr = elementwise_upcast_to_i64(b_parsed.datatype);
-        binary_kernel_t elementwise_smul_ptr = elementwise_smul(simsimd_i64_k);
-        unary_kernel_t out_downcast_ptr = elementwise_downcast_from_i64(out_parsed.datatype);
-        apply_elementwise_casting_binary_operation_to_each_scalar( //
-            &a_parsed, &b_parsed, &out_parsed,                     //
-            a_upcast_ptr, b_upcast_ptr, out_downcast_ptr, elementwise_smul_ptr);
-        goto cleanup;
-    }
+    fallback_binary_scalar_operation(&a_parsed, &b_parsed, &out_parsed, ab_dtype, &elementwise_smul);
 
 cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&b_buffer);
-    PyBuffer_Release(&out_buffer);
+    if (out_obj) PyBuffer_Release(&out_buffer);
     if (return_obj == Py_None) Py_INCREF(return_obj);
     return return_obj;
 }
@@ -4147,7 +3969,7 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
     PyObject *m;
 
     if (PyType_Ready(&DistancesTensorType) < 0) return NULL;
-    if (PyType_Ready(&NDArrayType) < 0) return NULL;
+    if (PyType_Ready(&MDArrayType) < 0) return NULL;
 
     m = PyModule_Create(&simsimd_module);
     if (m == NULL) return NULL;
@@ -4167,9 +3989,9 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
         return NULL;
     }
 
-    Py_INCREF(&NDArrayType);
-    if (PyModule_AddObject(m, "NDArray", (PyObject *)&NDArrayType) < 0) {
-        Py_XDECREF(&NDArrayType);
+    Py_INCREF(&MDArrayType);
+    if (PyModule_AddObject(m, "MDArray", (PyObject *)&MDArrayType) < 0) {
+        Py_XDECREF(&MDArrayType);
         Py_XDECREF(&DistancesTensorType);
         Py_XDECREF(m);
         return NULL;
