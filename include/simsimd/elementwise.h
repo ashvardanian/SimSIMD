@@ -1450,12 +1450,17 @@ SIMSIMD_PUBLIC void simsimd_scale_i32_haswell(simsimd_i32_t const *a, simsimd_si
                                               simsimd_distance_t beta, simsimd_i32_t *result) {
     __m256d alpha_vec = _mm256_set1_pd(alpha);
     __m256d beta_vec = _mm256_set1_pd(beta);
+    __m256d min_vec = _mm256_set1_pd(-2147483648.0);
+    __m256d max_vec = _mm256_set1_pd(2147483647.0);
 
     // The main loop:
     simsimd_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         __m256d a_vec = _mm256_cvtepi32_pd(_mm_lddqu_si128((__m128i *)(a + i)));
         __m256d sum_vec = _mm256_fmadd_pd(a_vec, alpha_vec, beta_vec);
+        // Clip to the largest values representable by 32-bit integers.
+        sum_vec = _mm256_max_pd(sum_vec, min_vec);
+        sum_vec = _mm256_min_pd(sum_vec, max_vec);
         __m128i sum_i32_vec = _mm256_cvtpd_epi32(sum_vec);
         _mm_storeu_si128((__m128i *)(result + i), sum_i32_vec);
     }
@@ -1473,6 +1478,8 @@ SIMSIMD_PUBLIC void simsimd_fma_i32_haswell(                                    
     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result) {
     __m256d alpha_vec = _mm256_set1_pd(alpha);
     __m256d beta_vec = _mm256_set1_pd(beta);
+    __m256d min_vec = _mm256_set1_pd(-2147483648.0);
+    __m256d max_vec = _mm256_set1_pd(2147483647.0);
 
     // The main loop:
     simsimd_size_t i = 0;
@@ -1483,6 +1490,9 @@ SIMSIMD_PUBLIC void simsimd_fma_i32_haswell(                                    
         __m256d ab_vec = _mm256_mul_pd(a_vec, b_vec);
         __m256d ab_scaled_vec = _mm256_mul_pd(ab_vec, alpha_vec);
         __m256d sum_vec = _mm256_fmadd_pd(c_vec, beta_vec, ab_scaled_vec);
+        // Clip to the largest values representable by 32-bit integers.
+        sum_vec = _mm256_max_pd(sum_vec, min_vec);
+        sum_vec = _mm256_min_pd(sum_vec, max_vec);
         __m128i sum_i32_vec = _mm256_cvtpd_epi32(sum_vec);
         _mm_storeu_si128((__m128i *)(result + i), sum_i32_vec);
     }
@@ -1581,12 +1591,17 @@ SIMSIMD_PUBLIC void simsimd_scale_u32_haswell(simsimd_u32_t const *a, simsimd_si
                                               simsimd_distance_t beta, simsimd_u32_t *result) {
     __m256d alpha_vec = _mm256_set1_pd(alpha);
     __m256d beta_vec = _mm256_set1_pd(beta);
+    __m256d min_vec = _mm256_set1_pd(0);
+    __m256d max_vec = _mm256_set1_pd(4294967295.0);
 
     // The main loop:
     simsimd_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         __m256d a_vec = _mm256_cvtepu32_pd_haswell(_mm_lddqu_si128((__m128i *)(a + i)));
         __m256d sum_vec = _mm256_fmadd_pd(a_vec, alpha_vec, beta_vec);
+        // Clip to the largest values representable by 32-bit integers.
+        sum_vec = _mm256_max_pd(sum_vec, min_vec);
+        sum_vec = _mm256_min_pd(sum_vec, max_vec);
         __m128i sum_u32_vec = _mm256_cvtpd_epu32_haswell(sum_vec);
         _mm_storeu_si128((__m128i *)(result + i), sum_u32_vec);
     }
@@ -1604,6 +1619,8 @@ SIMSIMD_PUBLIC void simsimd_fma_u32_haswell(                                    
     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result) {
     __m256d alpha_vec = _mm256_set1_pd(alpha);
     __m256d beta_vec = _mm256_set1_pd(beta);
+    __m256d min_vec = _mm256_set1_pd(0);
+    __m256d max_vec = _mm256_set1_pd(4294967295.0);
 
     // The main loop:
     simsimd_size_t i = 0;
@@ -1614,6 +1631,9 @@ SIMSIMD_PUBLIC void simsimd_fma_u32_haswell(                                    
         __m256d ab_vec = _mm256_mul_pd(a_vec, b_vec);
         __m256d ab_scaled_vec = _mm256_mul_pd(ab_vec, alpha_vec);
         __m256d sum_vec = _mm256_fmadd_pd(c_vec, beta_vec, ab_scaled_vec);
+        // Clip to the largest values representable by 32-bit integers.
+        sum_vec = _mm256_max_pd(sum_vec, min_vec);
+        sum_vec = _mm256_min_pd(sum_vec, max_vec);
         __m128i sum_u32_vec = _mm256_cvtpd_epu32_haswell(sum_vec);
         _mm_storeu_si128((__m128i *)(result + i), sum_u32_vec);
     }
