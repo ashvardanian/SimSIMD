@@ -40,6 +40,7 @@ Or run the script directly:
 """
 
 import os
+import sys
 import math
 import time
 import platform
@@ -480,9 +481,23 @@ possible_arm_capabilities: List[str] = [
 ]
 possible_x86_capabilities: List[str] = [c for c in possible_x86_capabilities if available_capabilities[c]]
 possible_arm_capabilities: List[str] = [c for c in possible_arm_capabilities if available_capabilities[c]]
-possible_capabilities: List[str] = (
-    possible_x86_capabilities if platform.machine() == "x86_64" else possible_arm_capabilities
-)
+possible_capabilities: List[str] = []
+
+if sys.platform == "linux":
+    if platform.machine() == "x86_64":
+        possible_capabilities = possible_x86_capabilities
+    elif platform.machine() == "aarch64":
+        possible_capabilities = possible_arm_capabilities
+elif sys.platform == "darwin":
+    if platform.machine() == "x86_64":
+        possible_capabilities = possible_x86_capabilities
+    elif platform.machine() == "arm64":
+        possible_capabilities = possible_arm_capabilities
+elif sys.platform == "win32":
+    if platform.machine() == "AMD64":
+        possible_capabilities = possible_x86_capabilities
+    elif platform.machine() == "ARM64":
+        possible_capabilities = possible_arm_capabilities
 
 
 def keep_one_capability(cap: str):
