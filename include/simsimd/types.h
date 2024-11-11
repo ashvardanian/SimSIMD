@@ -447,12 +447,25 @@ typedef union {
  *  https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
  *  https://stackoverflow.com/a/41460625/2766161
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_t number) {
+SIMSIMD_INTERNAL simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_t number) {
     simsimd_f32i32_t conv;
     conv.f = number;
     conv.i = 0x5F1FFFF9 - (conv.i >> 1);
+    // Refine using a Newton-Raphson step for better accuracy
     conv.f *= 0.703952253f * (2.38924456f - number * conv.f * conv.f);
     return conv.f;
+}
+
+/**
+ *  @brief  Approximates `sqrt(x)` using the fast inverse square root trick
+ *          with adjustments for direct square root approximation.
+ *
+ *  Similar to `rsqrt` approximation but multiplies by `number` to get `sqrt`.
+ *  This technique is useful where `sqrt` approximation is needed in performance-critical code,
+ *  though modern hardware provides optimized alternatives.
+ */
+SIMSIMD_INTERNAL simsimd_f32_t simsimd_approximate_square_root(simsimd_f32_t number) {
+    return number * simsimd_approximate_inverse_square_root(number);
 }
 
 /**
@@ -460,7 +473,7 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32
  *          The series converges to the natural logarithm for args between -1 and 1.
  *          Published in 1668 in "Logarithmotechnia".
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
+SIMSIMD_INTERNAL simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
     simsimd_f32_t x = number - 1;
     simsimd_f32_t x2 = x * x;
     simsimd_f32_t x3 = x * x * x;
