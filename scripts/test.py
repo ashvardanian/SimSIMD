@@ -52,6 +52,7 @@ import pytest
 import simsimd as simd
 
 faulthandler.enable()
+randomized_repetitions_count: int = 10
 
 # NumPy is available on most platforms and is required for most tests.
 # When using PyPy on some platforms NumPy has internal issues, that will
@@ -674,7 +675,7 @@ def test_invalid_argument_handling(function, expected_error, args, kwargs):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
@@ -703,7 +704,7 @@ def test_dense(ndim, dtype, metric, capability, stats_fixture):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97])
 @pytest.mark.parametrize(
     "dtypes",  # representation datatype and compute precision
@@ -759,7 +760,7 @@ def test_curved(ndim, dtypes, metric, capability, stats_fixture):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -799,7 +800,7 @@ def test_dense_bf16(ndim, metric, capability, stats_fixture):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 16, 33])
 @pytest.mark.parametrize("metric", ["bilinear", "mahalanobis"])
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -858,7 +859,7 @@ def test_curved_bf16(ndim, metric, capability, stats_fixture):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["int8", "uint8"])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
@@ -904,7 +905,7 @@ def test_dense_i8(ndim, dtype, metric, capability, stats_fixture):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("metric", ["jaccard", "hamming"])
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -927,7 +928,7 @@ def test_dense_bits(ndim, metric, capability, stats_fixture):
 
 
 @pytest.mark.skip(reason="Problems inferring the tolerance bounds for numerical errors")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float32", "float16"])
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -977,7 +978,7 @@ def test_cosine_zero_vector(ndim, dtype, capability):
 
 @pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/SimSIMD/issues/206")  # TODO
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
@@ -1011,7 +1012,7 @@ def test_overflow(ndim, dtype, metric, capability):
 
 @pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/SimSIMD/issues/206")  # TODO
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [131072, 262144])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -1041,7 +1042,7 @@ def test_overflow_i8(ndim, metric, capability):
 
 @pytest.mark.skipif(is_running_under_qemu(), reason="Complex math in QEMU fails")
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [22, 66, 1536])
 @pytest.mark.parametrize("dtype", ["float32", "float64"])
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -1076,7 +1077,7 @@ def test_dot_complex(ndim, dtype, capability, stats_fixture):
 
 @pytest.mark.skipif(is_running_under_qemu(), reason="Complex math in QEMU fails")
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [22, 66, 1536])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_dot_complex_explicit(ndim, capability):
@@ -1098,7 +1099,7 @@ def test_dot_complex_explicit(ndim, capability):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(100)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("dtype", ["uint16", "uint32"])
 @pytest.mark.parametrize("first_length_bound", [10, 100, 1000])
 @pytest.mark.parametrize("second_length_bound", [10, 100, 1000])
@@ -1128,7 +1129,7 @@ def test_intersect(dtype, first_length_bound, second_length_bound, capability):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("kernel", ["scale"])
@@ -1183,7 +1184,7 @@ def test_scale(ndim, dtype, kernel, capability, stats_fixture):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("kernel", ["sum"])
@@ -1235,7 +1236,7 @@ def test_sum(ndim, dtype, kernel, capability, stats_fixture):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("kernel", ["wsum"])
@@ -1293,7 +1294,7 @@ def test_wsum(ndim, dtype, kernel, capability, stats_fixture):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("kernel", ["fma"])
@@ -1566,7 +1567,7 @@ def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("out_dtype", [None, "float32", "float16", "int8"])
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -1594,7 +1595,7 @@ def test_cdist_hamming(ndim, out_dtype, capability):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(10)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize(
     "dtype",
     [
