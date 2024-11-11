@@ -1675,8 +1675,10 @@ def test_elementwise(dtype, kernel, capability, stats_fixture):
                 rtol=SIMSIMD_RTOL,
                 err_msg=f"""
                 Result mismatch for ({a.dtype} {operator} {b.dtype})
-                First argument: {a}
-                Second argument: {b}
+                First descriptor: {a.__array_interface__}
+                Second descriptor: {b.__array_interface__}
+                First operand: {a}
+                Second operand: {b}
                 SimSIMD result: {result_simsimd}
                 NumPy result: {result_numpy}
                 """,

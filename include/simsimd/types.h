@@ -654,35 +654,35 @@ SIMSIMD_INTERNAL void _simsimd_i64_to_u16(simsimd_i64_t const *x, simsimd_u16_t 
 }
 
 SIMSIMD_INTERNAL void _simsimd_i64_to_i32(simsimd_i64_t const *x, simsimd_i32_t *y) {
-    *y = (simsimd_i32_t)(*x > 2147483647 ? 2147483647 : (*x < -2147483648 ? -2147483648 : *x));
+    *y = (simsimd_i32_t)(*x > 2147483647ll ? 2147483647ll : (*x < -2147483648ll ? -2147483648ll : *x));
 }
 
 SIMSIMD_INTERNAL void _simsimd_i64_to_u32(simsimd_i64_t const *x, simsimd_u32_t *y) {
-    *y = (simsimd_u32_t)(*x > 4294967295 ? 4294967295 : (*x < 0 ? 0 : *x));
+    *y = (simsimd_u32_t)(*x > 4294967295ll ? 4294967295ll : (*x < 0ll ? 0ll : *x));
 }
 
 SIMSIMD_INTERNAL void _simsimd_u64_to_i8(simsimd_u64_t const *x, simsimd_i8_t *y) {
-    *y = (simsimd_i8_t)(*x > 127 ? 127 : *x);
+    *y = (simsimd_i8_t)(*x > 127ull ? 127ull : *x);
 }
 
 SIMSIMD_INTERNAL void _simsimd_u64_to_u8(simsimd_u64_t const *x, simsimd_u8_t *y) {
-    *y = (simsimd_u8_t)(*x > 255 ? 255 : *x);
+    *y = (simsimd_u8_t)(*x > 255ull ? 255ull : *x);
 }
 
 SIMSIMD_INTERNAL void _simsimd_u64_to_i16(simsimd_u64_t const *x, simsimd_i16_t *y) {
-    *y = (simsimd_i16_t)(*x > 32767 ? 32767 : *x);
+    *y = (simsimd_i16_t)(*x > 32767ull ? 32767ull : *x);
 }
 
 SIMSIMD_INTERNAL void _simsimd_u64_to_u16(simsimd_u64_t const *x, simsimd_u16_t *y) {
-    *y = (simsimd_u16_t)(*x > 65535 ? 65535 : *x);
+    *y = (simsimd_u16_t)(*x > 65535ull ? 65535ull : *x);
 }
 
 SIMSIMD_INTERNAL void _simsimd_u64_to_i32(simsimd_u64_t const *x, simsimd_i32_t *y) {
-    *y = (simsimd_i32_t)(*x > 2147483647 ? 2147483647 : *x);
+    *y = (simsimd_i32_t)(*x > 2147483647ull ? 2147483647ull : *x);
 }
 
 SIMSIMD_INTERNAL void _simsimd_u64_to_u32(simsimd_u64_t const *x, simsimd_u32_t *y) {
-    *y = (simsimd_u32_t)(*x > 4294967295 ? 4294967295 : *x);
+    *y = (simsimd_u32_t)(*x > 4294967295ull ? 4294967295ull : *x);
 }
 
 SIMSIMD_INTERNAL void _simsimd_f64_to_f32(simsimd_f64_t const *x, simsimd_f32_t *y) { *y = (simsimd_f32_t)*x; }
@@ -876,7 +876,7 @@ SIMSIMD_INTERNAL void _simsimd_i16_sadd(simsimd_i16_t const *a, simsimd_i16_t co
 }
 SIMSIMD_INTERNAL void _simsimd_i32_sadd(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t *r) {
     simsimd_i64_t result = (simsimd_i64_t)*a + (simsimd_i64_t)*b;
-    *r = (result > 2147483647) ? 2147483647 : (result < -2147483648 ? -2147483648 : (simsimd_i32_t)result);
+    *r = (result > 2147483647ll) ? 2147483647ll : (result < -2147483648ll ? -2147483648ll : (simsimd_i32_t)result);
 }
 SIMSIMD_INTERNAL void _simsimd_i64_sadd(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_i64_t *r) {
     //? We can't just write `-9223372036854775808ll`, even though it's the smallest signed 64-bit value.
