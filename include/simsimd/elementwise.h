@@ -1266,15 +1266,17 @@ SIMSIMD_PUBLIC void simsimd_scale_i16_haswell(simsimd_i16_t const *a, simsimd_si
     simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
+    __m256 min_vec = _mm256_set1_ps(-32768.0f);
+    __m256 max_vec = _mm256_set1_ps(32767.0f);
 
     // The main loop:
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m256 a_vec = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm_lddqu_si128((__m128i *)(a + i))));
         __m256 sum_vec = _mm256_fmadd_ps(a_vec, alpha_vec, beta_vec);
+        sum_vec = _mm256_max_ps(sum_vec, min_vec);
+        sum_vec = _mm256_min_ps(sum_vec, max_vec);
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
-        sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(-32768));
-        sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(32767));
         // Casting down to 16-bit integers is tricky!
         __m128i sum_i16_vec =
             _mm_packs_epi32(_mm256_castsi256_si128(sum_i32_vec), _mm256_extracti128_si256(sum_i32_vec, 1));
@@ -1296,6 +1298,8 @@ SIMSIMD_PUBLIC void simsimd_fma_i16_haswell(                                    
     simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
+    __m256 min_vec = _mm256_set1_ps(-32768.0f);
+    __m256 max_vec = _mm256_set1_ps(32767.0f);
 
     // The main loop:
     simsimd_size_t i = 0;
@@ -1306,9 +1310,9 @@ SIMSIMD_PUBLIC void simsimd_fma_i16_haswell(                                    
         __m256 ab_vec = _mm256_mul_ps(a_vec, b_vec);
         __m256 ab_scaled_vec = _mm256_mul_ps(ab_vec, alpha_vec);
         __m256 sum_vec = _mm256_fmadd_ps(c_vec, beta_vec, ab_scaled_vec);
+        sum_vec = _mm256_max_ps(sum_vec, min_vec);
+        sum_vec = _mm256_min_ps(sum_vec, max_vec);
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
-        sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(-32768));
-        sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(32767));
         // Casting down to 16-bit integers is tricky!
         __m128i sum_i16_vec =
             _mm_packs_epi32(_mm256_castsi256_si128(sum_i32_vec), _mm256_extracti128_si256(sum_i32_vec, 1));
@@ -1344,23 +1348,24 @@ SIMSIMD_PUBLIC void simsimd_sum_u16_haswell(simsimd_u16_t const *a, simsimd_u16_
 
 SIMSIMD_PUBLIC void simsimd_scale_u16_haswell(simsimd_u16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
                                               simsimd_distance_t beta, simsimd_u16_t *result) {
-
     simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
     simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
+    __m256 min_vec = _mm256_setzero_ps();
+    __m256 max_vec = _mm256_set1_ps(65535.0f);
 
     // The main loop:
     simsimd_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m256 a_vec = _mm256_cvtepi32_ps(_mm256_cvtepu16_epi32(_mm_lddqu_si128((__m128i *)(a + i))));
         __m256 sum_vec = _mm256_fmadd_ps(a_vec, alpha_vec, beta_vec);
+        sum_vec = _mm256_max_ps(sum_vec, min_vec);
+        sum_vec = _mm256_min_ps(sum_vec, max_vec);
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
-        sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_setzero_si256());
-        sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(65535));
         // Casting down to 16-bit integers is tricky!
         __m128i sum_u16_vec =
-            _mm_packs_epi32(_mm256_castsi256_si128(sum_i32_vec), _mm256_extracti128_si256(sum_i32_vec, 1));
+            _mm_packus_epi32(_mm256_castsi256_si128(sum_i32_vec), _mm256_extracti128_si256(sum_i32_vec, 1));
         _mm_storeu_si128((__m128i *)(result + i), sum_u16_vec);
     }
 
@@ -1379,6 +1384,8 @@ SIMSIMD_PUBLIC void simsimd_fma_u16_haswell(                                    
     simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
+    __m256 min_vec = _mm256_setzero_ps();
+    __m256 max_vec = _mm256_set1_ps(65535.0f);
 
     // The main loop:
     simsimd_size_t i = 0;
@@ -1389,12 +1396,12 @@ SIMSIMD_PUBLIC void simsimd_fma_u16_haswell(                                    
         __m256 ab_vec = _mm256_mul_ps(a_vec, b_vec);
         __m256 ab_scaled_vec = _mm256_mul_ps(ab_vec, alpha_vec);
         __m256 sum_vec = _mm256_fmadd_ps(c_vec, beta_vec, ab_scaled_vec);
+        sum_vec = _mm256_max_ps(sum_vec, min_vec);
+        sum_vec = _mm256_min_ps(sum_vec, max_vec);
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
-        sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_setzero_si256());
-        sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(65535));
         // Casting down to 16-bit integers is tricky!
         __m128i sum_u16_vec =
-            _mm_packs_epi32(_mm256_castsi256_si128(sum_i32_vec), _mm256_extracti128_si256(sum_i32_vec, 1));
+            _mm_packus_epi32(_mm256_castsi256_si128(sum_i32_vec), _mm256_extracti128_si256(sum_i32_vec, 1));
         _mm_storeu_si128((__m128i *)(result + i), sum_u16_vec);
     }
 
@@ -2677,18 +2684,34 @@ simsimd_sum_u16_ice_cycle:
 }
 
 SIMSIMD_INTERNAL __m512i _mm512_adds_epi32_ice(__m512i a, __m512i b) {
+    // ! There are many flavors of addition with saturation in AVX-512: i8, u8, i16, and u16.
+    // ! But not for larger numeric types. We have to do it manually.
+    // ! https://stackoverflow.com/a/56531252/2766161
     __m512i sum = _mm512_add_epi32(a, b);
-    __m512i sign_mask = _mm512_set1_epi32(0x80000000);
 
-    __m512i overflow = _mm512_and_si512(_mm512_xor_si512(a, b), sign_mask);  // Same sign inputs
-    __m512i overflows = _mm512_or_si512(overflow, _mm512_xor_si512(sum, a)); // Overflow condition
-
+    // Set constants for overflow and underflow limits
     __m512i max_val = _mm512_set1_epi32(2147483647);
-    __m512i min_val = _mm512_set1_epi32(-2147483647 - 1);
-    __m512i overflow_result =
-        _mm512_mask_blend_epi32(_mm512_cmp_epi32_mask(sum, min_val, _MM_CMPINT_LT), max_val, min_val);
+    __m512i min_val = _mm512_set1_epi32(-2147483648);
 
-    return _mm512_mask_blend_epi32(_mm512_test_epi32_mask(overflows, overflows), sum, overflow_result);
+    // TODO: Consider using ternary operator for performance.
+    // Detect positive overflow: (a > 0) && (b > 0) && (sum < 0)
+    __mmask16 a_is_positive = _mm512_cmpgt_epi32_mask(a, _mm512_setzero_si512());
+    __mmask16 b_is_positive = _mm512_cmpgt_epi32_mask(b, _mm512_setzero_si512());
+    __mmask16 sum_is_negative = _mm512_cmplt_epi32_mask(sum, _mm512_setzero_si512());
+    __mmask16 pos_overflow_mask = _kand_mask16(_kand_mask16(a_is_positive, b_is_positive), sum_is_negative);
+
+    // TODO: Consider using ternary operator for performance.
+    // Detect negative overflow: (a < 0) && (b < 0) && (sum >= 0)
+    __mmask16 a_is_negative = _mm512_cmplt_epi32_mask(a, _mm512_setzero_si512());
+    __mmask16 b_is_negative = _mm512_cmplt_epi32_mask(b, _mm512_setzero_si512());
+    __mmask16 sum_is_non_negative = _mm512_cmpge_epi32_mask(sum, _mm512_setzero_si512());
+    __mmask16 neg_overflow_mask = _kand_mask16(_kand_mask16(a_is_negative, b_is_negative), sum_is_non_negative);
+
+    // Apply saturation for positive overflow
+    sum = _mm512_mask_blend_epi32(pos_overflow_mask, sum, max_val);
+    // Apply saturation for negative overflow
+    sum = _mm512_mask_blend_epi32(neg_overflow_mask, sum, min_val);
+    return sum;
 }
 
 SIMSIMD_INTERNAL __m512i _mm512_adds_epu32_ice(__m512i a, __m512i b) {
@@ -3144,6 +3167,9 @@ SIMSIMD_PUBLIC void simsimd_fma_i8_sapphire(                                    
     __m512h c_f16_low_vec, c_f16_high_vec, ab_f16_low_vec, ab_f16_high_vec;
     __m512h ab_scaled_f16_low_vec, ab_scaled_f16_high_vec, sum_f16_low_vec, sum_f16_high_vec;
     __m512i sum_i16_low_vec, sum_i16_high_vec;
+    __m512h min_f16_vec = _mm512_cvtepi16_ph(_mm512_set1_epi16(-128));
+    __m512h max_f16_vec = _mm512_cvtepi16_ph(_mm512_set1_epi16(127));
+
 simsimd_fma_i8_sapphire_cycle:
     if (n < 64) {
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
@@ -3174,9 +3200,13 @@ simsimd_fma_i8_sapphire_cycle:
     // Add:
     sum_f16_low_vec = _mm512_fmadd_ph(c_f16_low_vec, beta_vec, ab_scaled_f16_low_vec);
     sum_f16_high_vec = _mm512_fmadd_ph(c_f16_high_vec, beta_vec, ab_scaled_f16_high_vec);
+    // Clip the 16-bit result to 8-bit:
+    sum_f16_low_vec = _mm512_max_ph(_mm512_min_ph(sum_f16_low_vec, max_f16_vec), min_f16_vec);
+    sum_f16_high_vec = _mm512_max_ph(_mm512_min_ph(sum_f16_high_vec, max_f16_vec), min_f16_vec);
     // Downcast:
     sum_i16_low_vec = _mm512_cvtph_epi16(sum_f16_low_vec);
     sum_i16_high_vec = _mm512_cvtph_epi16(sum_f16_high_vec);
+    // Merge back:
     sum_i8_vec = _mm512_inserti64x4(_mm512_castsi256_si512(_mm512_cvtsepi16_epi8(sum_i16_low_vec)),
                                     _mm512_cvtsepi16_epi8(sum_i16_high_vec), 1);
     _mm512_mask_storeu_epi8(result, mask, sum_i8_vec);
@@ -3196,6 +3226,9 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_sapphire(                                    
     __m512h c_f16_low_vec, c_f16_high_vec, ab_f16_low_vec, ab_f16_high_vec;
     __m512h ab_scaled_f16_low_vec, ab_scaled_f16_high_vec, sum_f16_low_vec, sum_f16_high_vec;
     __m512i sum_i16_low_vec, sum_i16_high_vec;
+    __m512h min_f16_vec = _mm512_cvtepi16_ph(_mm512_set1_epi16(0));
+    __m512h max_f16_vec = _mm512_cvtepi16_ph(_mm512_set1_epi16(255));
+
 simsimd_fma_u8_sapphire_cycle:
     if (n < 64) {
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
@@ -3226,9 +3259,13 @@ simsimd_fma_u8_sapphire_cycle:
     // Add:
     sum_f16_low_vec = _mm512_fmadd_ph(c_f16_low_vec, beta_vec, ab_scaled_f16_low_vec);
     sum_f16_high_vec = _mm512_fmadd_ph(c_f16_high_vec, beta_vec, ab_scaled_f16_high_vec);
+    // Clip the 16-bit result to 8-bit:
+    sum_f16_low_vec = _mm512_max_ph(_mm512_min_ph(sum_f16_low_vec, max_f16_vec), min_f16_vec);
+    sum_f16_high_vec = _mm512_max_ph(_mm512_min_ph(sum_f16_high_vec, max_f16_vec), min_f16_vec);
     // Downcast:
     sum_i16_low_vec = _mm512_cvtph_epi16(sum_f16_low_vec);
     sum_i16_high_vec = _mm512_cvtph_epi16(sum_f16_high_vec);
+    // Merge back:
     sum_u8_vec = _mm512_packus_epi16(sum_i16_low_vec, sum_i16_high_vec);
     _mm512_mask_storeu_epi8(result, mask, sum_u8_vec);
     result += 64;

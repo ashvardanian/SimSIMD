@@ -67,20 +67,20 @@ try:
     baseline_intersect = lambda x, y: len(np.intersect1d(x, y))
     baseline_bilinear = lambda x, y, z: x @ z @ y
 
-    def _normalize_element_wise(r, dtype):
+    def _normalize_element_wise(r, dtype_new):
         """Clips higher-resolution results to the smaller target dtype without overflow."""
-        if np.issubdtype(dtype, np.integer):
+        if np.issubdtype(dtype_new, np.integer):
             r = np.round(r)
         #! We need non-overflowing saturating addition for small integers, that NumPy lacks:
         #! https://stackoverflow.com/questions/29611185/avoid-overflow-when-adding-numpy-arrays
-        if np.issubdtype(dtype, np.integer):
+        if np.issubdtype(dtype_new, np.integer):
             dtype_old_info = np.iinfo(r.dtype) if np.issubdtype(r.dtype, np.integer) else np.finfo(r.dtype)
-            dtype_new_info = np.iinfo(dtype)
+            dtype_new_info = np.iinfo(dtype_new)
             new_min = dtype_new_info.min if dtype_new_info.min > dtype_old_info.min else None
             new_max = dtype_new_info.max if dtype_new_info.max < dtype_old_info.max else None
             if new_min is not None or new_max is not None:
                 r = np.clip(r, new_min, new_max, out=r)
-        return r.astype(dtype)
+        return r.astype(dtype_new)
 
     def _computation_dtype(x, y):
         x = np.asarray(x)
@@ -102,35 +102,38 @@ try:
             return larger_dtype, larger_dtype
 
     def baseline_scale(x, alpha, beta):
-        return _normalize_element_wise(alpha * x + beta, x.dtype)
+        compute_dtype, _ = _computation_dtype(x, alpha)
+        result = alpha * x.astype(compute_dtype) + beta
+        return _normalize_element_wise(result, x.dtype)
 
     def baseline_sum(x, y):
-        if x.dtype == np.uint8:
-            return _normalize_element_wise(x.astype(np.uint16) + y, x.dtype)
-        elif x.dtype == np.int8:
-            return _normalize_element_wise(x.astype(np.int16) + y, x.dtype)
-        else:
-            return _normalize_element_wise(x + y, x.dtype)
+        compute_dtype, _ = _computation_dtype(x, y)
+        result = x.astype(compute_dtype) + y.astype(compute_dtype)
+        return _normalize_element_wise(result, x.dtype)
 
     def baseline_wsum(x, y, alpha, beta):
-        return _normalize_element_wise(alpha * x + beta * y, x.dtype)
+        compute_dtype, _ = _computation_dtype(x, y)
+        result = x.astype(compute_dtype) * alpha + y.astype(compute_dtype) * beta
+        return _normalize_element_wise(result, x.dtype)
 
     def baseline_fma(x, y, z, alpha, beta):
-        return _normalize_element_wise(np.multiply((alpha * x), y) + beta * z, x.dtype)
+        compute_dtype, _ = _computation_dtype(x, y)
+        result = x.astype(compute_dtype) * y.astype(compute_dtype) * alpha + z.astype(compute_dtype) * beta
+        return _normalize_element_wise(result, x.dtype)
 
     def baseline_add(x, y, out=None):
-        comput_dtype, final_dtype = _computation_dtype(x, y)
-        a = x.astype(comput_dtype) if isinstance(x, np.ndarray) else x
-        b = y.astype(comput_dtype) if isinstance(y, np.ndarray) else y
+        compute_dtype, final_dtype = _computation_dtype(x, y)
+        a = x.astype(compute_dtype) if isinstance(x, np.ndarray) else x
+        b = y.astype(compute_dtype) if isinstance(y, np.ndarray) else y
         # If the input types are identical, we want to perform addition with saturation
         result = np.add(a, b, out=out, casting="unsafe")
         result = _normalize_element_wise(result, final_dtype)
         return result
 
     def baseline_multiply(x, y, out=None):
-        comput_dtype, final_dtype = _computation_dtype(x, y)
-        a = x.astype(comput_dtype) if isinstance(x, np.ndarray) else x
-        b = y.astype(comput_dtype) if isinstance(y, np.ndarray) else y
+        compute_dtype, final_dtype = _computation_dtype(x, y)
+        a = x.astype(compute_dtype) if isinstance(x, np.ndarray) else x
+        b = y.astype(compute_dtype) if isinstance(y, np.ndarray) else y
         # If the input types are identical, we want to perform addition with saturation
         result = np.multiply(a, b, out=out, casting="unsafe")
         result = _normalize_element_wise(result, final_dtype)
@@ -1103,7 +1106,7 @@ def test_dot_complex_explicit(ndim, capability):
 @pytest.mark.parametrize("dtype", ["uint16", "uint32"])
 @pytest.mark.parametrize("first_length_bound", [10, 100, 1000])
 @pytest.mark.parametrize("second_length_bound", [10, 100, 1000])
-@pytest.mark.parametrize("capability", possible_capabilities)
+@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
 def test_intersect(dtype, first_length_bound, second_length_bound, capability):
     """Compares the simd.intersect() function with numpy.intersect1d."""
 
@@ -1133,7 +1136,7 @@ def test_intersect(dtype, first_length_bound, second_length_bound, capability):
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("kernel", ["scale"])
-@pytest.mark.parametrize("capability", possible_capabilities)
+@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
 def test_scale(ndim, dtype, kernel, capability, stats_fixture):
     """"""
 
@@ -1188,7 +1191,7 @@ def test_scale(ndim, dtype, kernel, capability, stats_fixture):
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("kernel", ["sum"])
-@pytest.mark.parametrize("capability", possible_capabilities)
+@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
 def test_sum(ndim, dtype, kernel, capability, stats_fixture):
     """"""
 
@@ -1240,7 +1243,7 @@ def test_sum(ndim, dtype, kernel, capability, stats_fixture):
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("kernel", ["wsum"])
-@pytest.mark.parametrize("capability", possible_capabilities)
+@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
 def test_wsum(ndim, dtype, kernel, capability, stats_fixture):
     """"""
 
@@ -1298,7 +1301,7 @@ def test_wsum(ndim, dtype, kernel, capability, stats_fixture):
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("kernel", ["fma"])
-@pytest.mark.parametrize("capability", possible_capabilities)
+@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
 def test_fma(ndim, dtype, kernel, capability, stats_fixture):
     """"""
 
