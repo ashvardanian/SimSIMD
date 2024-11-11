@@ -638,19 +638,19 @@ SIMSIMD_INTERNAL void _simsimd_f64_to_u64(simsimd_f64_t const *x, simsimd_u64_t 
 }
 
 SIMSIMD_INTERNAL void _simsimd_i64_to_i8(simsimd_i64_t const *x, simsimd_i8_t *y) {
-    *y = (simsimd_i8_t)(*x > 127 ? 127 : (*x < -128 ? -128 : *x));
+    *y = (simsimd_i8_t)(*x > 127ll ? 127ll : (*x < -128ll ? -128ll : *x));
 }
 
 SIMSIMD_INTERNAL void _simsimd_i64_to_u8(simsimd_i64_t const *x, simsimd_u8_t *y) {
-    *y = (simsimd_u8_t)(*x > 255 ? 255 : (*x < 0 ? 0 : *x));
+    *y = (simsimd_u8_t)(*x > 255ll ? 255ll : (*x < 0ll ? 0ll : *x));
 }
 
 SIMSIMD_INTERNAL void _simsimd_i64_to_i16(simsimd_i64_t const *x, simsimd_i16_t *y) {
-    *y = (simsimd_i16_t)(*x > 32767 ? 32767 : (*x < -32768 ? -32768 : *x));
+    *y = (simsimd_i16_t)(*x > 32767ll ? 32767ll : (*x < -32768ll ? -32768ll : *x));
 }
 
 SIMSIMD_INTERNAL void _simsimd_i64_to_u16(simsimd_i64_t const *x, simsimd_u16_t *y) {
-    *y = (simsimd_u16_t)(*x > 65535 ? 65535 : (*x < 0 ? 0 : *x));
+    *y = (simsimd_u16_t)(*x > 65535ll ? 65535ll : (*x < 0ll ? 0ll : *x));
 }
 
 SIMSIMD_INTERNAL void _simsimd_i64_to_i32(simsimd_i64_t const *x, simsimd_i32_t *y) {
@@ -952,7 +952,7 @@ SIMSIMD_INTERNAL void _simsimd_i16_smul(simsimd_i16_t const *a, simsimd_i16_t co
 
 SIMSIMD_INTERNAL void _simsimd_i32_smul(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t *r) {
     simsimd_i64_t result = (simsimd_i64_t)(*a) * (simsimd_i64_t)(*b);
-    *r = (result > 2147483647) ? 2147483647 : (result < -2147483648 ? -2147483648 : (simsimd_i32_t)result);
+    *r = (result > 2147483647ll) ? 2147483647ll : (result < -2147483648ll ? -2147483648ll : (simsimd_i32_t)result);
 }
 
 SIMSIMD_INTERNAL void _simsimd_i64_smul(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_i64_t *r) {

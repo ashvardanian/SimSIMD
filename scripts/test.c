@@ -82,6 +82,79 @@ void test_utilities(void) {
 }
 
 /**
+ *  @brief  A trivial test for internal saturated arithmic function.
+ */
+void test_saturating_arithmetic(void) {
+    // Test cases for addition functions
+    simsimd_u8_t u8_a = 200, u8_b = 100, u8_r;
+    _simsimd_u8_sadd(&u8_a, &u8_b, &u8_r);
+    assert(u8_r == 255); // Overflow case for u8
+
+    simsimd_i8_t i8_a = 100, i8_b = 40, i8_r;
+    _simsimd_i8_sadd(&i8_a, &i8_b, &i8_r);
+    assert(i8_r == 127); // Overflow case for i8
+
+    simsimd_i8_t i8_under_a = -100, i8_under_b = -40;
+    _simsimd_i8_sadd(&i8_under_a, &i8_under_b, &i8_r);
+    assert(i8_r == -128); // Underflow case for i8
+
+    simsimd_u16_t u16_a = 50000, u16_b = 20000, u16_r;
+    _simsimd_u16_sadd(&u16_a, &u16_b, &u16_r);
+    assert(u16_r == 65535); // Overflow case for u16
+
+    simsimd_i16_t i16_a = 30000, i16_b = 10000, i16_r;
+    _simsimd_i16_sadd(&i16_a, &i16_b, &i16_r);
+    assert(i16_r == 32767); // Overflow case for i16
+
+    simsimd_i16_t i16_under_a = -20000, i16_under_b = -15000;
+    _simsimd_i16_sadd(&i16_under_a, &i16_under_b, &i16_r);
+    assert(i16_r == -32768); // Underflow case for i16
+
+    // Test cases for multiplication functions
+    simsimd_u8_t u8_m_a = 20, u8_m_b = 20, u8_m_r;
+    _simsimd_u8_smul(&u8_m_a, &u8_m_b, &u8_m_r);
+    assert(u8_m_r == 255); // Overflow case for u8 multiplication
+
+    simsimd_i8_t i8_m_a = 10, i8_m_b = -13, i8_m_r;
+    _simsimd_i8_smul(&i8_m_a, &i8_m_b, &i8_m_r);
+    assert(i8_m_r == -128); // Underflow case for i8 multiplication
+
+    simsimd_i8_t i8_m_under_a = -100, i8_m_under_b = 2;
+    _simsimd_i8_smul(&i8_m_under_a, &i8_m_under_b, &i8_m_r);
+    assert(i8_m_r == -128); // Underflow case for i8 multiplication
+
+    simsimd_u16_t u16_m_a = 300, u16_m_b = 300, u16_m_r;
+    _simsimd_u16_smul(&u16_m_a, &u16_m_b, &u16_m_r);
+    assert(u16_m_r == 65535); // Overflow case for u16 multiplication
+
+    simsimd_i16_t i16_m_a = 200, i16_m_b = 300, i16_m_r;
+    _simsimd_i16_smul(&i16_m_a, &i16_m_b, &i16_m_r);
+    assert(i16_m_r == 32767); // Overflow case for i16 multiplication
+
+    simsimd_i16_t i16_m_under_a = -200, i16_m_under_b = 300;
+    _simsimd_i16_smul(&i16_m_under_a, &i16_m_under_b, &i16_m_r);
+    assert(i16_m_r == -32768); // Underflow case for i16 multiplication
+
+    // Normal cases without overflow
+    simsimd_u8_t u8_n_a = 20, u8_n_b = 15, u8_n_r;
+    _simsimd_u8_sadd(&u8_n_a, &u8_n_b, &u8_n_r);
+    assert(u8_n_r == 35);
+
+    simsimd_i8_t i8_n_a = -10, i8_n_b = 20, i8_n_r;
+    _simsimd_i8_sadd(&i8_n_a, &i8_n_b, &i8_n_r);
+    assert(i8_n_r == 10);
+
+    // Floating-point cases
+    simsimd_f32_t f32_a = 1.5f, f32_b = 2.5f, f32_r;
+    _simsimd_f32_sadd(&f32_a, &f32_b, &f32_r);
+    assert(f32_r == 4.0f); // Normal addition for f32
+
+    simsimd_f32_t f32_m_a = 1.5f, f32_m_b = 2.0f;
+    _simsimd_f32_smul(&f32_m_a, &f32_m_b, &f32_r);
+    assert(f32_r == 3.0f); // Normal multiplication for f32
+}
+
+/**
  *  @brief  Validating N-Dimensional indexing utilities.
  */
 void test_mdindices(void) {
@@ -210,6 +283,8 @@ void test_mdindices(void) {
     }
 }
 
+void test_saturating_arithmeic(void) {}
+
 /**
  *  @brief  A trivial test that calls every implemented distance function and their dispatch versions
  *          on vectors A and B, where A and B are equal.
@@ -283,6 +358,7 @@ int main(int argc, char **argv) {
     printf("Running tests...\n");
     print_capabilities();
     test_utilities();
+    test_saturating_arithmetic();
     test_mdindices();
     test_distance_from_itself();
     printf("All tests passed.\n");
