@@ -1560,12 +1560,14 @@ SIMSIMD_INTERNAL __m256d _mm256_cvtepu32_pd_haswell(__m128i a) {
 
 SIMSIMD_INTERNAL __m128i _mm256_cvtpd_epu32_haswell(__m256d a) {
     //? For now let's avoid SIMD and just use serial conversion.
-    simsimd_u32_t result[4];
-    result[0] = (simsimd_u32_t)a[0];
-    result[1] = (simsimd_u32_t)a[1];
-    result[2] = (simsimd_u32_t)a[2];
-    result[3] = (simsimd_u32_t)a[3];
-    return _mm_lddqu_si128((__m128i *)result);
+    simsimd_f64_t from[4];
+    simsimd_u32_t to[4];
+    _mm256_storeu_pd(from, a);
+    to[0] = (simsimd_u32_t)from[0];
+    to[1] = (simsimd_u32_t)from[1];
+    to[2] = (simsimd_u32_t)from[2];
+    to[3] = (simsimd_u32_t)from[3];
+    return _mm_lddqu_si128((__m128i *)to);
 }
 
 SIMSIMD_PUBLIC void simsimd_sum_u32_haswell(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n,
