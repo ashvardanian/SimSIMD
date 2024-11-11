@@ -487,10 +487,7 @@ static PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj) {
     else if (same_string(cap_name, "sapphire")) { static_capabilities |= simsimd_cap_sapphire_k; }
     else if (same_string(cap_name, "turin")) { static_capabilities |= simsimd_cap_turin_k; }
     else if (same_string(cap_name, "sierra")) { static_capabilities |= simsimd_cap_sierra_k; }
-    else if (same_string(cap_name, "serial")) {
-        PyErr_SetString(PyExc_ValueError, "Can't change the serial functionality");
-        return NULL;
-    }
+    else if (same_string(cap_name, "serial")) {} //? This is a no-op, as the serial functionality is always enabled.
     else {
         PyErr_SetString(PyExc_ValueError, "Unknown capability");
         return NULL;
