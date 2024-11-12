@@ -24,7 +24,7 @@ name = "simsimd"
 path = "rust/lib.rs"
 
 [build-dependencies]
-cc = "1.0.83"
+cc = "1.2.0"
 
 [[bench]]
 name = "bench_similarity"
@@ -40,4 +40,4 @@ rpath = false     # On some systems, setting this to false can help with optimiz
 [dev-dependencies]
 criterion = { version = "0.5.1" }
 rand = { version = "0.8.5" }
-half = { version = "2.4.0" }
+half = { version = "2.4.1" }
