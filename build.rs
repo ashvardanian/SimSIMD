@@ -8,7 +8,7 @@ fn main() {
         .define("SIMSIMD_NATIVE_BF16", "0")
         .define("SIMSIMD_DYNAMIC_DISPATCH", "1")
         .flag("-O3")
-        .flag("-std=c99") // Enforce C99 standard
+        .flag("-std=c23") // We could enforce the C99 standard, but it's nicer to use `_Float16` in C23
         .flag("-pedantic") // Ensure strict compliance with the C standard
         .warnings(false);
 

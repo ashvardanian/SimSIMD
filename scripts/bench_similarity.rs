@@ -3,11 +3,22 @@ use rand::Rng;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use simsimd::SpatialSimilarity as SimSIMD;
 
-pub(crate) fn generate_random_vector(dim: usize) -> Vec<f32> {
+const DIMENSIONS: usize = 1536;
+
+pub(crate) fn generate_random_vector_f32(dim: usize) -> Vec<f32> {
     (0..dim).map(|_| rand::thread_rng().gen()).collect()
 }
 
-pub(crate) fn baseline_cos_functional(a: &[f32], b: &[f32]) -> Option<f32> {
+pub(crate) fn generate_random_vector_i8(dim: usize) -> Vec<i8> {
+    (0..dim).map(|_| rand::thread_rng().gen_range(-128..=127)).collect()
+}
+
+pub(crate) fn generate_random_vector_u8(dim: usize) -> Vec<u8> {
+    (0..dim).map(|_| rand::thread_rng().gen()).collect()
+}
+
+// Baseline functions for f32
+pub(crate) fn baseline_cos_functional_f32(a: &[f32], b: &[f32]) -> Option<f32> {
     if a.len() != b.len() {
         return None;
     }
@@ -23,303 +34,139 @@ pub(crate) fn baseline_cos_functional(a: &[f32], b: &[f32]) -> Option<f32> {
     Some(1.0 - (dot_product / (norm_a.sqrt() * norm_b.sqrt())))
 }
 
-pub(crate) fn baseline_l2sq_functional(a: &[f32], b: &[f32]) -> Option<f32> {
-    if a.len() != b.len() {
-        return None;
-    }
-
-    Some(a.iter().zip(b).map(|(x, y)| (x - y).powi(2)).sum())
-}
-
-pub(crate) fn baseline_cos_procedural(a: &[f32], b: &[f32]) -> Option<f32> {
-    if a.len() != b.len() {
-        return None;
-    }
-
-    let mut dot_product = 0.0;
-    let mut norm_a = 0.0;
-    let mut norm_b = 0.0;
-
-    for i in 0..a.len() {
-        dot_product += a[i] * b[i];
-        norm_a += a[i] * a[i];
-        norm_b += b[i] * b[i];
-    }
-
-    Some(1.0 - (dot_product / (norm_a.sqrt() * norm_b.sqrt())))
-}
-
-pub(crate) fn baseline_l2sq_procedural(a: &[f32], b: &[f32]) -> Option<f32> {
-    if a.len() != b.len() {
-        return None;
-    }
-
-    let mut sum = 0.0;
-    for i in 0..a.len() {
-        let diff = a[i] - b[i];
-        sum += diff * diff;
-    }
-
-    Some(sum)
-}
-
-pub(crate) fn baseline_cos_unrolled(a: &[f32], b: &[f32]) -> Option<f32> {
+pub(crate) fn baseline_cos_unrolled_i8(a: &[i8], b: &[i8]) -> Option<f32> {
     if a.len() != b.len() {
         return None;
     }
 
     let mut i = 0;
-    let mut remainder = a.len() % 8;
+    let remainder = a.len() % 8;
+    let mut acc1 = 0i32;
+    let mut acc2 = 0i32;
+    let mut acc3 = 0i32;
+    let mut acc4 = 0i32;
+    let mut acc5 = 0i32;
+    let mut acc6 = 0i32;
+    let mut acc7 = 0i32;
+    let mut acc8 = 0i32;
 
-    // We do this manual unrolling to allow the compiler to vectorize
-    // the loop and avoid some branching even if we're not doing it explicitly.
-    // This made a significant difference in benchmarking ~4x
-    let mut acc1 = 0.0;
-    let mut acc2 = 0.0;
-    let mut acc3 = 0.0;
-    let mut acc4 = 0.0;
-    let mut acc5 = 0.0;
-    let mut acc6 = 0.0;
-    let mut acc7 = 0.0;
-    let mut acc8 = 0.0;
-
-    let mut norm_a_acc1 = 0.0;
-    let mut norm_a_acc2 = 0.0;
-    let mut norm_a_acc3 = 0.0;
-    let mut norm_a_acc4 = 0.0;
-    let mut norm_a_acc5 = 0.0;
-    let mut norm_a_acc6 = 0.0;
-    let mut norm_a_acc7 = 0.0;
-    let mut norm_a_acc8 = 0.0;
-
-    let mut norm_b_acc1 = 0.0;
-    let mut norm_b_acc2 = 0.0;
-    let mut norm_b_acc3 = 0.0;
-    let mut norm_b_acc4 = 0.0;
-    let mut norm_b_acc5 = 0.0;
-    let mut norm_b_acc6 = 0.0;
-    let mut norm_b_acc7 = 0.0;
-    let mut norm_b_acc8 = 0.0;
+    let mut norm_a1 = 0i32;
+    let mut norm_a2 = 0i32;
+    let mut norm_b1 = 0i32;
+    let mut norm_b2 = 0i32;
 
     while i < (a.len() - remainder) {
-        let a1 = unsafe { *a.get_unchecked(i) };
-        let a2 = unsafe { *a.get_unchecked(i + 1) };
-        let a3 = unsafe { *a.get_unchecked(i + 2) };
-        let a4 = unsafe { *a.get_unchecked(i + 3) };
-        let a5 = unsafe { *a.get_unchecked(i + 4) };
-        let a6 = unsafe { *a.get_unchecked(i + 5) };
-        let a7 = unsafe { *a.get_unchecked(i + 6) };
-        let a8 = unsafe { *a.get_unchecked(i + 7) };
+        unsafe {
+            let a1 = *a.get_unchecked(i) as i32;
+            let a2 = *a.get_unchecked(i + 1) as i32;
+            let a3 = *a.get_unchecked(i + 2) as i32;
+            let a4 = *a.get_unchecked(i + 3) as i32;
+            let a5 = *a.get_unchecked(i + 4) as i32;
+            let a6 = *a.get_unchecked(i + 5) as i32;
+            let a7 = *a.get_unchecked(i + 6) as i32;
+            let a8 = *a.get_unchecked(i + 7) as i32;
 
-        let b1 = unsafe { *b.get_unchecked(i) };
-        let b2 = unsafe { *b.get_unchecked(i + 1) };
-        let b3 = unsafe { *b.get_unchecked(i + 2) };
-        let b4 = unsafe { *b.get_unchecked(i + 3) };
-        let b5 = unsafe { *b.get_unchecked(i + 4) };
-        let b6 = unsafe { *b.get_unchecked(i + 5) };
-        let b7 = unsafe { *b.get_unchecked(i + 6) };
-        let b8 = unsafe { *b.get_unchecked(i + 7) };
+            let b1 = *b.get_unchecked(i) as i32;
+            let b2 = *b.get_unchecked(i + 1) as i32;
+            let b3 = *b.get_unchecked(i + 2) as i32;
+            let b4 = *b.get_unchecked(i + 3) as i32;
+            let b5 = *b.get_unchecked(i + 4) as i32;
+            let b6 = *b.get_unchecked(i + 5) as i32;
+            let b7 = *b.get_unchecked(i + 6) as i32;
+            let b8 = *b.get_unchecked(i + 7) as i32;
 
-        acc1 += (a1 * b1);
-        acc2 += (a2 * b2);
-        acc3 += (a3 * b3);
-        acc4 += (a4 * b4);
-        acc5 += (a5 * b5);
-        acc6 += (a6 * b6);
-        acc7 += (a7 * b7);
-        acc8 += (a8 * b8);
+            acc1 += a1 * b1;
+            acc2 += a2 * b2;
+            acc3 += a3 * b3;
+            acc4 += a4 * b4;
+            acc5 += a5 * b5;
+            acc6 += a6 * b6;
+            acc7 += a7 * b7;
+            acc8 += a8 * b8;
 
-        norm_a_acc1 += (a1 * a1);
-        norm_a_acc2 += (a2 * a2);
-        norm_a_acc3 += (a3 * a3);
-        norm_a_acc4 += (a4 * a4);
-        norm_a_acc5 += (a5 * a5);
-        norm_a_acc6 += (a6 * a6);
-        norm_a_acc7 += (a7 * a7);
-        norm_a_acc8 += (a8 * a8);
+            norm_a1 += a1 * a1 + a2 * a2 + a3 * a3 + a4 * a4;
+            norm_b1 += b1 * b1 + b2 * b2 + b3 * b3 + b4 * b4;
 
-        norm_b_acc1 += (b1 * b1);
-        norm_b_acc2 += (b2 * b2);
-        norm_b_acc3 += (b3 * b3);
-        norm_b_acc4 += (b4 * b4);
-        norm_b_acc5 += (b5 * b5);
-        norm_b_acc6 += (b6 * b6);
-        norm_b_acc7 += (b7 * b7);
-        norm_b_acc8 += (b8 * b8);
+            norm_a2 += a5 * a5 + a6 * a6 + a7 * a7 + a8 * a8;
+            norm_b2 += b5 * b5 + b6 * b6 + b7 * b7 + b8 * b8;
+        }
 
         i += 8;
     }
 
-    acc1 += acc2;
-    acc3 += acc4;
-    acc5 += acc6;
-    acc7 += acc8;
+    let dot_product = acc1 + acc2 + acc3 + acc4 + acc5 + acc6 + acc7 + acc8;
+    let norm_a = (norm_a1 + norm_a2) as f32;
+    let norm_b = (norm_b1 + norm_b2) as f32;
 
-    norm_a_acc1 += norm_a_acc2;
-    norm_a_acc3 += norm_a_acc4;
-    norm_a_acc5 += norm_a_acc6;
-    norm_a_acc7 += norm_a_acc8;
-
-    norm_b_acc1 += norm_b_acc2;
-    norm_b_acc3 += norm_b_acc4;
-    norm_b_acc5 += norm_b_acc6;
-    norm_b_acc7 += norm_b_acc8;
-
-    acc1 += acc3;
-    acc5 += acc7;
-
-    norm_a_acc1 += norm_a_acc3;
-    norm_a_acc5 += norm_a_acc7;
-
-    norm_b_acc1 += norm_b_acc3;
-    norm_b_acc5 += norm_b_acc7;
-
-    acc1 += acc5;
-    norm_a_acc1 += norm_a_acc5;
-    norm_b_acc1 += norm_b_acc5;
-
-    while i < a.len() {
-        let a = unsafe { *a.get_unchecked(i) };
-        let b = unsafe { *b.get_unchecked(i) };
-
-        acc1 += (a * b);
-        norm_a_acc1 += (a * a);
-        norm_b_acc1 += (b * b);
-    }
-
-    Some(1.0 - (acc1 / (norm_a_acc1 * norm_b_acc1).sqrt()))
+    Some(1.0 - (dot_product as f32 / (norm_a.sqrt() * norm_b.sqrt())))
 }
 
-pub(crate) fn baseline_l2sq_unrolled(a: &[f32], b: &[f32]) -> Option<f32> {
-    if a.len() != b.len() {
-        return None;
-    }
-    let mut i = 0;
-    let mut remainder = a.len() % 8;
-
-    // We do this manual unrolling to allow the compiler to vectorize
-    // the loop and avoid some branching even if we're not doing it explicitly.
-    // This made a significant difference in benchmarking ~4x
-    let mut acc1 = 0.0;
-    let mut acc2 = 0.0;
-    let mut acc3 = 0.0;
-    let mut acc4 = 0.0;
-    let mut acc5 = 0.0;
-    let mut acc6 = 0.0;
-    let mut acc7 = 0.0;
-    let mut acc8 = 0.0;
-
-    while i < (a.len() - remainder) {
-        let a1 = unsafe { *a.get_unchecked(i) };
-        let a2 = unsafe { *a.get_unchecked(i + 1) };
-        let a3 = unsafe { *a.get_unchecked(i + 2) };
-        let a4 = unsafe { *a.get_unchecked(i + 3) };
-        let a5 = unsafe { *a.get_unchecked(i + 4) };
-        let a6 = unsafe { *a.get_unchecked(i + 5) };
-        let a7 = unsafe { *a.get_unchecked(i + 6) };
-        let a8 = unsafe { *a.get_unchecked(i + 7) };
-
-        let b1 = unsafe { *b.get_unchecked(i) };
-        let b2 = unsafe { *b.get_unchecked(i + 1) };
-        let b3 = unsafe { *b.get_unchecked(i + 2) };
-        let b4 = unsafe { *b.get_unchecked(i + 3) };
-        let b5 = unsafe { *b.get_unchecked(i + 4) };
-        let b6 = unsafe { *b.get_unchecked(i + 5) };
-        let b7 = unsafe { *b.get_unchecked(i + 6) };
-        let b8 = unsafe { *b.get_unchecked(i + 7) };
-
-        let diff1 = a1 - b1;
-        let diff2 = a2 - b2;
-        let diff3 = a3 - b3;
-        let diff4 = a4 - b4;
-        let diff5 = a5 - b5;
-        let diff6 = a6 - b6;
-        let diff7 = a7 - b7;
-        let diff8 = a8 - b8;
-
-        acc1 += (diff1 * diff1);
-        acc2 += (diff2 * diff2);
-        acc3 += (diff3 * diff3);
-        acc4 += (diff4 * diff4);
-        acc5 += (diff5 * diff5);
-        acc6 += (diff6 * diff6);
-        acc7 += (diff7 * diff7);
-        acc8 += (diff8 * diff8);
-
-        i += 8;
-    }
-
-    acc1 += acc2;
-    acc3 += acc4;
-    acc5 += acc6;
-    acc7 += acc8;
-
-    acc1 += acc3;
-    acc5 += acc7;
-
-    acc1 += acc5;
-
-    while i < a.len() {
-        let a = unsafe { *a.get_unchecked(i) };
-        let b = unsafe { *b.get_unchecked(i) };
-        let diff = a - b;
-        acc1 += (diff * diff);
-    }
-
-    Some(acc1)
-}
-
-const DIMENSIONS: usize = 1536;
-
+// Benchmarks
 pub fn l2sq_benchmark(c: &mut Criterion) {
-    let inputs: (Vec<f32>, Vec<f32>) = (
-        generate_random_vector(DIMENSIONS),
-        generate_random_vector(DIMENSIONS),
+    let inputs_f32 = (
+        generate_random_vector_f32(DIMENSIONS),
+        generate_random_vector_f32(DIMENSIONS),
+    );
+    let inputs_i8 = (
+        generate_random_vector_i8(DIMENSIONS),
+        generate_random_vector_i8(DIMENSIONS),
+    );
+    let inputs_u8 = (
+        generate_random_vector_u8(DIMENSIONS),
+        generate_random_vector_u8(DIMENSIONS),
     );
 
     let mut group = c.benchmark_group("Squared Euclidean Distance");
 
     for i in 0..=5 {
-        group.bench_with_input(BenchmarkId::new("SimSIMD", i), &i, |b, _| {
-            b.iter(|| SimSIMD::sqeuclidean(&inputs.0, &inputs.1))
+        group.bench_with_input(BenchmarkId::new("SimSIMD_f32", i), &i, |b, _| {
+            b.iter(|| SimSIMD::sqeuclidean(&inputs_f32.0, &inputs_f32.1))
         });
-        group.bench_with_input(BenchmarkId::new("Rust Procedural", i), &i, |b, _| {
-            b.iter(|| baseline_l2sq_procedural(&inputs.0, &inputs.1))
+        group.bench_with_input(BenchmarkId::new("SimSIMD_i8", i), &i, |b, _| {
+            b.iter(|| SimSIMD::sqeuclidean(&inputs_i8.0, &inputs_i8.1))
         });
-        group.bench_with_input(BenchmarkId::new("Rust Functional", i), &i, |b, _| {
-            b.iter(|| baseline_l2sq_functional(&inputs.0, &inputs.1))
+        group.bench_with_input(BenchmarkId::new("SimSIMD_u8", i), &i, |b, _| {
+            b.iter(|| SimSIMD::sqeuclidean(&inputs_u8.0, &inputs_u8.1))
         });
-        group.bench_with_input(BenchmarkId::new("Rust Unrolled", i), &i, |b, _| {
-            b.iter(|| baseline_l2sq_unrolled(&inputs.0, &inputs.1))
+        group.bench_with_input(BenchmarkId::new("Rust Procedural i8", i), &i, |b, _| {
+            b.iter(|| baseline_cos_unrolled_i8(&inputs_i8.0, &inputs_i8.1))
         });
     }
 }
 
 pub fn cos_benchmark(c: &mut Criterion) {
-    let inputs: (Vec<f32>, Vec<f32>) = (
-        generate_random_vector(DIMENSIONS),
-        generate_random_vector(DIMENSIONS),
+    let inputs_f32 = (
+        generate_random_vector_f32(DIMENSIONS),
+        generate_random_vector_f32(DIMENSIONS),
+    );
+    let inputs_i8 = (
+        generate_random_vector_i8(DIMENSIONS),
+        generate_random_vector_i8(DIMENSIONS),
+    );
+    let inputs_u8 = (
+        generate_random_vector_u8(DIMENSIONS),
+        generate_random_vector_u8(DIMENSIONS),
     );
 
-    let mut group = c.benchmark_group("Cosine Similarity");
+    let mut group = c.benchmark_group("SIMD Cosine");
 
     for i in 0..=5 {
-        group.bench_with_input(BenchmarkId::new("SimSIMD", i), &i, |b, _| {
-            b.iter(|| SimSIMD::cosine(&inputs.0, &inputs.1))
+        group.bench_with_input(BenchmarkId::new("SimSIMD_f32", i), &i, |b, _| {
+            b.iter(|| SimSIMD::cosine(&inputs_f32.0, &inputs_f32.1))
         });
-        group.bench_with_input(BenchmarkId::new("Rust Procedural", i), &i, |b, _| {
-            b.iter(|| baseline_cos_procedural(&inputs.0, &inputs.1))
+        group.bench_with_input(BenchmarkId::new("SimSIMD_i8", i), &i, |b, _| {
+            b.iter(|| SimSIMD::cosine(&inputs_i8.0, &inputs_i8.1))
         });
-        group.bench_with_input(BenchmarkId::new("Rust Functional", i), &i, |b, _| {
-            b.iter(|| baseline_cos_functional(&inputs.0, &inputs.1))
+        group.bench_with_input(BenchmarkId::new("SimSIMD_u8", i), &i, |b, _| {
+            b.iter(|| SimSIMD::cosine(&inputs_u8.0, &inputs_u8.1))
         });
-        group.bench_with_input(BenchmarkId::new("Rust Unrolled", i), &i, |b, _| {
-            b.iter(|| baseline_cos_unrolled(&inputs.0, &inputs.1))
+        group.bench_with_input(BenchmarkId::new("Rust Procedural i8", i), &i, |b, _| {
+            b.iter(|| baseline_cos_unrolled_i8(&inputs_i8.0, &inputs_i8.1))
         });
     }
 }
 
-// Give each benchmark group a unique name
+// Criterion group definitions
 criterion_group!(cos_benches, cos_benchmark);
 criterion_group!(l2sq_benches, l2sq_benchmark);
 criterion_main!(cos_benches, l2sq_benches);

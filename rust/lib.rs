@@ -53,6 +53,8 @@ type ComplexProduct = (f64, f64);
 
 extern "C" {
 
+    fn simsimd_dot_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
+    fn simsimd_dot_u8(a: *const u8, b: *const u8, c: usize, d: *mut Distance);
     fn simsimd_dot_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_dot_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_dot_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
@@ -69,12 +71,14 @@ extern "C" {
     fn simsimd_vdot_f64c(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
     fn simsimd_cos_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
+    fn simsimd_cos_u8(a: *const u8, b: *const u8, c: usize, d: *mut Distance);
     fn simsimd_cos_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_cos_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_cos_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
     fn simsimd_cos_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
     fn simsimd_l2sq_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
+    fn simsimd_l2sq_u8(a: *const u8, b: *const u8, c: usize, d: *mut Distance);
     fn simsimd_l2sq_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_l2sq_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_l2sq_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
@@ -334,7 +338,7 @@ impl SpatialSimilarity for i8 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_cos_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_dot_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
         Some(distance_value)
     }
 
@@ -345,6 +349,38 @@ impl SpatialSimilarity for i8 {
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
         unsafe { simsimd_l2sq_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
+    }
+}
+
+impl SpatialSimilarity for u8 {
+    fn cos(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_cos_u8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
+    }
+
+    fn dot(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_dot_u8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
+    }
+
+    fn l2sq(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_l2sq_u8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
         Some(distance_value)
     }
 }
@@ -752,8 +788,8 @@ mod tests {
 
     #[test]
     fn test_cos_i8() {
-        let a = &[3, 97, 127];
-        let b = &[3, 97, 127];
+        let a: &[i8; 3] = &[3, 97, 127];
+        let b: &[i8; 3] = &[3, 97, 127];
 
         if let Some(result) = SpatialSimilarity::cosine(a, b) {
             println!("The result of cos_i8 is {:.8}", result);
@@ -774,8 +810,8 @@ mod tests {
 
     #[test]
     fn test_dot_i8() {
-        let a = &[1, 2, 3];
-        let b = &[4, 5, 6];
+        let a: &[i8; 3] = &[1, 2, 3];
+        let b: &[i8; 3] = &[4, 5, 6];
 
         if let Some(result) = SpatialSimilarity::dot(a, b) {
             println!("The result of dot_i8 is {:.8}", result);
@@ -830,8 +866,8 @@ mod tests {
 
     #[test]
     fn test_l2sq_i8() {
-        let a = &[1, 2, 3];
-        let b = &[4, 5, 6];
+        let a: &[i8; 3] = &[1, 2, 3];
+        let b: &[i8; 3] = &[4, 5, 6];
 
         if let Some(result) = SpatialSimilarity::sqeuclidean(a, b) {
             println!("The result of l2sq_i8 is {:.8}", result);
