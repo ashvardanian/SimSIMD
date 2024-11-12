@@ -3,7 +3,7 @@
 #   - `manylinux` and `musllinux` wheels for Linux on x86_64, aarch64, i686, ppc64le, s390x;
 #   - `macos` wheels for x86_64, arm64, and universal2;
 #   - `windows` wheels for AMD64, x86, and ARM64.
-#   * for 6 Python versions from 3.7 to 3.12.
+#   * for 7 Python versions from 3.7 to 3.13.
 #   * running thousands of fuzzy tests on each wheel.
 #   = meaning 16 platforms * 7 Python versions = 96 builds.
 [build-system]
