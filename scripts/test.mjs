@@ -102,9 +102,20 @@ test("Distance from itself JS fallback", () => {
 const f32Array1 = new Float32Array([1.0, 2.0, 3.0]);
 const f32Array2 = new Float32Array([4.0, 5.0, 6.0]);
 
+const uint8Array1 = new Uint8Array([1, 2, 3]);
+const uint8Array2 = new Uint8Array([4, 5, 6]);
+
 test("Squared Euclidean Distance", () => {
   const result = simsimd.sqeuclidean(f32Array1, f32Array2);
   assertAlmostEqual(result, 27.0, 0.01);
+
+  const uint8Result = simsimd.sqeuclidean(uint8Array1, uint8Array2);
+  assertAlmostEqual(uint8Result, 27.0, 0.01);
+});
+
+test("Euclidean Distance", () => {
+  const result = simsimd.euclidean(f32Array1, f32Array2);
+  assertAlmostEqual(result, 5.2, 0.01);
 });
 
 test("Inner Distance", () => {
@@ -120,6 +131,9 @@ test("Cosine Similarity", () => {
 test("Squared Euclidean Distance JS", () => {
   const result = fallback.sqeuclidean(f32Array1, f32Array2);
   assertAlmostEqual(result, 27.0, 0.01);
+
+  const uint8Result = fallback.sqeuclidean(uint8Array1, uint8Array2);
+  assertAlmostEqual(uint8Result, 27.0, 0.01);
 });
 
 test("Inner Distance JS", () => {
@@ -136,6 +150,20 @@ test("Squared Euclidean Distance C vs JS", () => {
   const result = simsimd.sqeuclidean(f32Array1, f32Array2);
   const resultjs = fallback.sqeuclidean(f32Array1, f32Array2);
   assertAlmostEqual(resultjs, result, 0.01);
+
+  const uint8result = simsimd.sqeuclidean(uint8Array1, uint8Array2);
+  const uint8resultjs = fallback.sqeuclidean(uint8Array1, uint8Array2);
+  assertAlmostEqual(uint8resultjs, uint8result, 0.01);
+});
+
+test("Euclidean Distance C vs JS", () => {
+  const result = simsimd.euclidean(f32Array1, f32Array2);
+  const resultjs = fallback.euclidean(f32Array1, f32Array2);
+  assertAlmostEqual(resultjs, result, 0.01);
+
+  const uint8result = simsimd.euclidean(uint8Array1, uint8Array2);
+  const uint8resultjs = fallback.euclidean(uint8Array1, uint8Array2);
+  assertAlmostEqual(uint8resultjs, uint8result, 0.01);
 });
 
 test("Inner Distance C vs JS", () => {
