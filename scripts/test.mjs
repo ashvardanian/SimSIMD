@@ -107,6 +107,11 @@ test("Squared Euclidean Distance", () => {
   assertAlmostEqual(result, 27.0, 0.01);
 });
 
+test("Euclidean Distance", () => {
+  const result = simsimd.euclidean(f32Array1, f32Array2);
+  assertAlmostEqual(result, 5.2, 0.01);
+});
+
 test("Inner Distance", () => {
   const result = simsimd.inner(f32Array1, f32Array2);
   assertAlmostEqual(result, 32.0, 0.01);
@@ -135,6 +140,12 @@ test("Cosine Similarity JS", () => {
 test("Squared Euclidean Distance C vs JS", () => {
   const result = simsimd.sqeuclidean(f32Array1, f32Array2);
   const resultjs = fallback.sqeuclidean(f32Array1, f32Array2);
+  assertAlmostEqual(resultjs, result, 0.01);
+});
+
+test("Euclidean Distance C vs JS", () => {
+  const result = simsimd.euclidean(f32Array1, f32Array2);
+  const resultjs = fallback.euclidean(f32Array1, f32Array2);
   assertAlmostEqual(resultjs, result, 0.01);
 });
 

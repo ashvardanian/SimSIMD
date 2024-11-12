@@ -82,6 +82,9 @@ napi_value api_cos(napi_env env, napi_callback_info info) {
 napi_value api_l2sq(napi_env env, napi_callback_info info) {
     return dense(env, info, simsimd_metric_sqeuclidean_k, simsimd_datatype_unknown_k);
 }
+napi_value api_l2eu(napi_env env, napi_callback_info info) {
+    return dense(env, info, simsimd_metric_l2_k, simsimd_datatype_unknown_k);
+}
 napi_value api_kl(napi_env env, napi_callback_info info) {
     return dense(env, info, simsimd_metric_kl_k, simsimd_datatype_unknown_k);
 }
@@ -101,13 +104,14 @@ napi_value Init(napi_env env, napi_value exports) {
     napi_property_descriptor dot_descriptor = {"dot", 0, api_ip, 0, 0, 0, napi_default, 0};
     napi_property_descriptor inner_descriptor = {"inner", 0, api_ip, 0, 0, 0, napi_default, 0};
     napi_property_descriptor sqeuclidean_descriptor = {"sqeuclidean", 0, api_l2sq, 0, 0, 0, napi_default, 0};
+    napi_property_descriptor l2euclidean_descriptor = {"euclidean", 0, api_l2eu, 0, 0, 0, napi_default, 0};
     napi_property_descriptor cosine_descriptor = {"cosine", 0, api_cos, 0, 0, 0, napi_default, 0};
     napi_property_descriptor hamming_descriptor = {"hamming", 0, api_hamming, 0, 0, 0, napi_default, 0};
     napi_property_descriptor jaccard_descriptor = {"jaccard", 0, api_jaccard, 0, 0, 0, napi_default, 0};
     napi_property_descriptor kl_descriptor = {"kullbackleibler", 0, api_kl, 0, 0, 0, napi_default, 0};
     napi_property_descriptor js_descriptor = {"jensenshannon", 0, api_js, 0, 0, 0, napi_default, 0};
     napi_property_descriptor properties[] = {
-        dot_descriptor,     inner_descriptor,   sqeuclidean_descriptor, cosine_descriptor,
+        dot_descriptor,     inner_descriptor,   sqeuclidean_descriptor, l2euclidean_descriptor, cosine_descriptor,
         hamming_descriptor, jaccard_descriptor, kl_descriptor,          js_descriptor,
     };
 

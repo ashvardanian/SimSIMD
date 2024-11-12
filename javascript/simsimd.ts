@@ -30,6 +30,19 @@ export const sqeuclidean = (
 };
 
 /**
+ * @brief Computes the Euclidean distance between two vectors.
+ * @param {Float64Array|Float32Array|Int8Array|Uint8Array} a - The first vector.
+ * @param {Float64Array|Float32Array|Int8Array|Uint8Array} b - The second vector.
+ * @returns {number} The squared Euclidean distance between vectors a and b.
+ */
+export const euclidean = (
+  a: Float64Array | Float32Array | Int8Array | Uint8Array,
+  b: Float64Array | Float32Array | Int8Array | Uint8Array
+): number => {
+  return compiled.euclidean(a, b);
+};
+
+/**
  * @brief Computes the cosine distance between two vectors.
  * @param {Float64Array|Float32Array|Int8Array|Uint8Array} a - The first vector.
  * @param {Float64Array|Float32Array|Int8Array|Uint8Array} b - The second vector.
@@ -133,6 +146,7 @@ export default {
   dot,
   inner,
   sqeuclidean,
+  euclidean,
   cosine,
   hamming,
   jaccard,
