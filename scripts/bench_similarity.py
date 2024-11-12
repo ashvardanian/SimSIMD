@@ -11,7 +11,7 @@ It can operate in 2 modes:
     2. All-Pairs mode.
 
 It also provides necessary primitives for performance visualizations and
-other benchmarking scripts, like `bench_vectors_live.py`.
+other benchmarking scripts, like `bench_similarity_live.py`.
 """
 import os
 import time

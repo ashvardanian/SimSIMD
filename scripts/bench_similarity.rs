@@ -1,5 +1,7 @@
 #![allow(unused)]
 use rand::Rng;
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use simsimd::SpatialSimilarity as SimSIMD;
 
 pub(crate) fn generate_random_vector(dim: usize) -> Vec<f32> {
     (0..dim).map(|_| rand::thread_rng().gen()).collect()
@@ -266,3 +268,58 @@ pub(crate) fn baseline_l2sq_unrolled(a: &[f32], b: &[f32]) -> Option<f32> {
 
     Some(acc1)
 }
+
+const DIMENSIONS: usize = 1536;
+
+pub fn l2sq_benchmark(c: &mut Criterion) {
+    let inputs: (Vec<f32>, Vec<f32>) = (
+        generate_random_vector(DIMENSIONS),
+        generate_random_vector(DIMENSIONS),
+    );
+
+    let mut group = c.benchmark_group("Squared Euclidean Distance");
+
+    for i in 0..=5 {
+        group.bench_with_input(BenchmarkId::new("SimSIMD", i), &i, |b, _| {
+            b.iter(|| SimSIMD::sqeuclidean(&inputs.0, &inputs.1))
+        });
+        group.bench_with_input(BenchmarkId::new("Rust Procedural", i), &i, |b, _| {
+            b.iter(|| baseline_l2sq_procedural(&inputs.0, &inputs.1))
+        });
+        group.bench_with_input(BenchmarkId::new("Rust Functional", i), &i, |b, _| {
+            b.iter(|| baseline_l2sq_functional(&inputs.0, &inputs.1))
+        });
+        group.bench_with_input(BenchmarkId::new("Rust Unrolled", i), &i, |b, _| {
+            b.iter(|| baseline_l2sq_unrolled(&inputs.0, &inputs.1))
+        });
+    }
+}
+
+pub fn cos_benchmark(c: &mut Criterion) {
+    let inputs: (Vec<f32>, Vec<f32>) = (
+        generate_random_vector(DIMENSIONS),
+        generate_random_vector(DIMENSIONS),
+    );
+
+    let mut group = c.benchmark_group("Cosine Similarity");
+
+    for i in 0..=5 {
+        group.bench_with_input(BenchmarkId::new("SimSIMD", i), &i, |b, _| {
+            b.iter(|| SimSIMD::cosine(&inputs.0, &inputs.1))
+        });
+        group.bench_with_input(BenchmarkId::new("Rust Procedural", i), &i, |b, _| {
+            b.iter(|| baseline_cos_procedural(&inputs.0, &inputs.1))
+        });
+        group.bench_with_input(BenchmarkId::new("Rust Functional", i), &i, |b, _| {
+            b.iter(|| baseline_cos_functional(&inputs.0, &inputs.1))
+        });
+        group.bench_with_input(BenchmarkId::new("Rust Unrolled", i), &i, |b, _| {
+            b.iter(|| baseline_cos_unrolled(&inputs.0, &inputs.1))
+        });
+    }
+}
+
+// Give each benchmark group a unique name
+criterion_group!(cos_benches, cos_benchmark);
+criterion_group!(l2sq_benches, l2sq_benchmark);
+criterion_main!(cos_benches, l2sq_benches);
