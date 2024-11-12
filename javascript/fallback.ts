@@ -28,13 +28,13 @@ export function dot(a: Float64Array | Float32Array, b: Float64Array | Float32Arr
 
 /**
  * @brief Computes the squared Euclidean distance between two vectors.
- * @param {Float64Array|Float32Array|Int8Array} a - The first vector.
- * @param {Float64Array|Float32Array|Int8Array} b - The second vector.
+ * @param {Float64Array|Float32Array|Int8Array|Uint8Array} a - The first vector.
+ * @param {Float64Array|Float32Array|Int8Array|Uint8Array} b - The second vector.
  * @returns {number} The squared Euclidean distance between vectors a and b.
  */
 export function sqeuclidean(
-  a: Float64Array | Float32Array | Int8Array,
-  b: Float64Array | Float32Array | Int8Array
+  a: Float64Array | Float32Array | Int8Array | Uint8Array,
+  b: Float64Array | Float32Array | Int8Array | Uint8Array
 ): number {
   if (a.length !== b.length) {
     throw new Error("Vectors must have the same length");
@@ -49,13 +49,13 @@ export function sqeuclidean(
 
 /**
  * @brief Computes the L2 Euclidean distance between two vectors.
- * @param {Float64Array|Float32Array|Int8Array} a - The first vector.
- * @param {Float64Array|Float32Array|Int8Array} b - The second vector.
+ * @param {Float64Array|Float32Array|Int8Array | Uint8Array} a - The first vector.
+ * @param {Float64Array|Float32Array|Int8Array | Uint8Array} b - The second vector.
  * @returns {number} The L2 euclidean distance between vectors a and b.
  */
 export function euclidean(
-  a: Float64Array | Float32Array | Int8Array,
-  b: Float64Array | Float32Array | Int8Array
+  a: Float64Array | Float32Array | Int8Array | Uint8Array,
+  b: Float64Array | Float32Array | Int8Array | Uint8Array
 ): number {
   if (a.length !== b.length) {
     throw new Error("Vectors must have the same length");
