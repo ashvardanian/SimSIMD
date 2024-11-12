@@ -677,6 +677,68 @@ void vdot_f64c_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size
     cblas_zdotc_sub((int)n / 2, a, 1, b, 1, result);
 }
 
+void simsimd_sum_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t *result) {
+    cblas_scopy((int)n, a, 1, result, 1);      // result = a
+    cblas_saxpy((int)n, 1.0, b, 1, result, 1); // result += b
+}
+
+void simsimd_sum_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_f64_t *result) {
+    cblas_dcopy((int)n, a, 1, result, 1);      // result = a
+    cblas_daxpy((int)n, 1.0, b, 1, result, 1); // result += b
+}
+
+void simsimd_wsum_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t alpha,
+                           simsimd_distance_t beta, simsimd_f32_t *result) {
+    cblas_scopy((int)n, a, 1, result, 1);       // result = a
+    cblas_sscal((int)n, alpha, result, 1);      // result = alpha * a
+    cblas_saxpy((int)n, beta, b, 1, result, 1); // result += beta * b
+}
+
+void simsimd_wsum_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_distance_t alpha,
+                           simsimd_distance_t beta, simsimd_f64_t *result) {
+    cblas_dcopy((int)n, a, 1, result, 1);       // result = a
+    cblas_dscal((int)n, alpha, result, 1);      // result = alpha * a
+    cblas_daxpy((int)n, beta, b, 1, result, 1); // result += beta * b
+}
+
+void simsimd_fma_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n,
+                          simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result) {
+    if (alpha == 0) {
+        if (beta == 0) memset(result, 0, n * sizeof(simsimd_f32_t)); // Fill with zeros
+        else {
+            // result = beta * c
+            cblas_scopy((int)n, c, 1, result, 1);
+            cblas_sscal((int)n, beta, result, 1);
+        }
+    }
+    else {
+        // result = alpha * a * b
+        cblas_scopy((int)n, a, 1, result, 1);                      // result = a
+        cblas_sscal((int)n, alpha, result, 1);                     // result = alpha * a
+        cblas_saxpy((int)n, 1.0, b, 1, result, 1);                 // result *= b
+        if (beta != 0) cblas_saxpy((int)n, beta, c, 1, result, 1); // result += beta * c
+    }
+}
+
+void simsimd_fma_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, simsimd_size_t n,
+                          simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result) {
+    if (alpha == 0) {
+        if (beta == 0) memset(result, 0, n * sizeof(simsimd_f64_t)); // Fill with zeros
+        else {
+            // result = beta * c
+            cblas_dcopy((int)n, c, 1, result, 1);
+            cblas_dscal((int)n, beta, result, 1);
+        }
+    }
+    else {
+        // result = alpha * a * b
+        cblas_dcopy((int)n, a, 1, result, 1);                      // result = a
+        cblas_dscal((int)n, alpha, result, 1);                     // result = alpha * a
+        cblas_daxpy((int)n, 1.0, b, 1, result, 1);                 // result *= b
+        if (beta != 0) cblas_daxpy((int)n, beta, c, 1, result, 1); // result += beta * c
+    }
+}
+
 #endif
 
 int main(int argc, char **argv) {
@@ -751,6 +813,18 @@ int main(int argc, char **argv) {
     dense_<f32c_k>("vdot_f32c_blas", vdot_f32c_blas, simsimd_vdot_f32c_accurate);
     dense_<f64c_k>("vdot_f64c_blas", vdot_f64c_blas, simsimd_vdot_f64c_serial);
 
+    elementwise_<f32_k, simsimd_fma_k>("fma_f32_blas", simsimd_fma_f32_blas, simsimd_fma_f32_accurate,
+                                       simsimd_l2_f32_accurate);
+    elementwise_<f32_k, simsimd_sum_k>("sum_f32_blas", simsimd_sum_f32_blas, simsimd_sum_f32_accurate,
+                                       simsimd_l2_f32_accurate);
+    elementwise_<f32_k, simsimd_wsum_k>("wsum_f32_blas", simsimd_wsum_f32_blas, simsimd_wsum_f32_accurate,
+                                        simsimd_l2_f32_accurate);
+    elementwise_<f64_k, simsimd_fma_k>("fma_f64_blas", simsimd_fma_f64_blas, simsimd_fma_f64_serial,
+                                       simsimd_l2_f64_serial);
+    elementwise_<f64_k, simsimd_sum_k>("sum_f64_blas", simsimd_sum_f64_blas, simsimd_sum_f64_serial,
+                                       simsimd_l2_f64_serial);
+    elementwise_<f64_k, simsimd_wsum_k>("wsum_f64_blas", simsimd_wsum_f64_blas, simsimd_wsum_f64_serial,
+                                        simsimd_l2_f64_serial);
 #endif
 
 #if SIMSIMD_TARGET_NEON
