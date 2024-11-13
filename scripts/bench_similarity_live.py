@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Module: bench_vectors_live.py
+Module: bench_similarity_live.py
 
 This script visualizes the performance difference between SimSIMD and default
 numerics libraries like NumPy and SimSIMD for the most common kernels.
@@ -20,7 +20,7 @@ import numpy as np
 
 import perfplot
 
-from bench_vectors import (
+from scripts.bench_similarity import (
     metric_families,
     dtype_names,
     Kernel,

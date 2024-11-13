@@ -2,8 +2,8 @@
 
 Computing dot-products, similarity measures, and distances between low- and high-dimensional vectors is ubiquitous in Machine Learning, Scientific Computing, Geo-Spatial Analysis, and Information Retrieval.
 These algorithms generally have linear complexity in time, constant or linear complexity in space, and are data-parallel.
-In other words, it is easily parallelizable and vectorizable and often available in packages like BLAS (level 1) and LAPACK, as well as higher-level `numpy` and `scipy` Python libraries.
-Ironically, even with decades of evolution in compilers and numerical computing, [most libraries can be 3-200x slower than hardware potential][benchmarks] even on the most popular hardware, like 64-bit x86 and Arm CPUs.
+In other words, they are easily parallelizable and vectorizable and often available in packages like BLAS (level 1) and LAPACK, as well as higher-level `numpy` and `scipy` Python libraries.
+Ironically, even with decades of evolution in compilers and numerical computing, [most libraries can be 3x - 1'000x slower than hardware potential][benchmarks] even on the most popular hardware, like 64-bit x86 and Arm CPUs.
 Moreover, most lack mixed-precision support, which is crucial for modern AI!
 The rare few that support minimal mixed precision, run only on one platform, and are vendor-locked, by companies like Intel and Nvidia.
 SimSIMD provides an alternative.
@@ -42,7 +42,7 @@ SimSIMD provides an alternative.
 
 ## Features
 
-__SimSIMD__ (Arabic: "سيمسيم دي") is a mixed-precision math library of __over 200 SIMD-optimized kernels__ extensively used in AI, Search, and DBMS workloads.
+__SimSIMD__ (Arabic: "سيمسيم دي") is a mixed-precision math library of __over 450 SIMD-optimized kernels__ extensively used in AI, Search, and DBMS workloads.
 Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command that opened doors to treasure in _Ali Baba and the Forty Thieves_, SimSimd can help you 10x the cost-efficiency of your computational pipelines.
 Implemented distance functions include:
 
@@ -52,7 +52,7 @@ Implemented distance functions include:
 - Set Intersections for Sparse Vectors and Text Analysis. _[docs][docs-sparse]_
 - Mahalanobis distance and Quadratic forms for Scientific Computing. _[docs][docs-curved]_
 - Kullback-Leibler and Jensen–Shannon divergences for probability distributions. _[docs][docs-probability]_
-- Fused-Multiply-Add (FMA) and Weighted Sums to replace BLAS level 1 functions. _[docs][docs-fma]_
+- Fused-Multiply-Add (FMA) and Weighted Sums to replace BLAS level 1 functions. _[docs][docs-elementwise]_
 - For Levenshtein, Needleman–Wunsch, and Smith-Waterman, check [StringZilla][stringzilla].
 - 🔜 Haversine and Vincenty's formulae for Geospatial Analysis.
 
@@ -62,7 +62,7 @@ Implemented distance functions include:
 [docs-binary]: https://github.com/ashvardanian/SimSIMD/pull/138
 [docs-dot]: #complex-dot-products-conjugate-dot-products-and-complex-numbers
 [docs-probability]: #logarithms-in-kullback-leibler--jensenshannon-divergences
-[docs-fma]: #mixed-precision-in-fused-multiply-add-and-weighted-sums
+[docs-elementwise]: #mixed-precision-in-fused-multiply-add-and-weighted-sums
 [scipy]: https://docs.scipy.org/doc/scipy/reference/spatial.distance.html#module-scipy.spatial.distance
 [numpy]: https://numpy.org/doc/stable/reference/generated/numpy.inner.html
 [stringzilla]: https://github.com/ashvardanian/stringzilla
@@ -162,7 +162,7 @@ dist = simsimd.cosine(vec1, vec2, "int8")
 dist = simsimd.cosine(vec1, vec2, "float16")
 dist = simsimd.cosine(vec1, vec2, "float32")
 dist = simsimd.cosine(vec1, vec2, "float64")
-dist = simsimd.hamming(vec1, vec2, "bit8")
+dist = simsimd.jaccard(vec1, vec2, "bin8") # Binary vectors with 8-bit words
 ```
 
 With other frameworks, like PyTorch, one can get a richer type-system than NumPy, but the lack of good CPython interoperability makes it hard to pass data without copies.
@@ -637,9 +637,9 @@ int main() {
     simsimd_f32_t vector_a[1536];
     simsimd_f32_t vector_b[1536];
     simsimd_kernel_punned_t distance_function = simsimd_metric_punned(
-        simsimd_metric_cos_k,   // Metric kind, like the angular cosine distance
-        simsimd_datatype_f32_k, // Data type, like: f16, f32, f64, i8, b8, and complex variants
-        simsimd_cap_any_k);     // Which CPU capabilities are we allowed to use
+        simsimd_cos_k,      // Metric kind, like the angular cosine distance
+        simsimd_f32_k,      // Data type, like: f16, f32, f64, i8, b8, complex variants, etc.
+        simsimd_cap_any_k); // Which CPU capabilities are we allowed to use
     simsimd_distance_t distance;
     distance_function(vector_a, vector_b, 1536, &distance);
     return 0;
@@ -988,24 +988,42 @@ Both functions are defined for non-negative numbers, and the logarithm is a key 
 
 ### Mixed Precision in Fused-Multiply-Add and Weighted Sums
 
-The Fused-Multiply-Add (FMA) operation is a single operation that combines element-wise multiplication and addition with different scaling factors.
-The Weighted Sum is it's simplified variant without element-wise multiplication.
+The "Fused-Multiply-Add" (FMA) operation is a single operation that combines element-wise multiplication and addition with different scaling factors.
+The "Weighted Sum" is it's simplified variant without element-wise multiplication.
+The "Sum" operation is a further simplified variant without scaling factors, and "Scale" is the unary equivalent of FMA:
 
 ```math
-\text{FMA}_i(A, B, C, \alpha, \beta) = \alpha \cdot A_i \cdot B_i + \beta \cdot C_i
+\text{Scale}_i(A, \alpha, \beta) = \alpha \cdot A_i + \beta
+```
+
+```math
+\text{Sum}_i(A, B) = A_i + B_i
 ```
 
 ```math
 \text{WSum}_i(A, B, \alpha, \beta) = \alpha \cdot A_i + \beta \cdot B_i
 ```
 
-In NumPy terms, the implementation may look like:
+```math
+\text{FMA}_i(A, B, C, \alpha, \beta) = \alpha \cdot A_i \cdot B_i + \beta \cdot C_i
+```
+
+In NumPy terms, the implementation __may__ look like:
 
 ```py
 import numpy as np
+
+def scale(A: np.ndarray, /, Alpha: float, Beta: float) -> np.ndarray:
+    return (Alpha * A + Beta).astype(A.dtype)
+
+def sum(A: np.ndarray, B: np.ndarray) -> np.ndarray:
+    assert A.dtype == B.dtype, "Input types must match and affect the output style"
+    return (A + B).astype(A.dtype)
+
 def wsum(A: np.ndarray, B: np.ndarray, /, Alpha: float, Beta: float) -> np.ndarray:
     assert A.dtype == B.dtype, "Input types must match and affect the output style"
     return (Alpha * A + Beta * B).astype(A.dtype)
+
 def fma(A: np.ndarray, B: np.ndarray, C: np.ndarray, /, Alpha: float, Beta: float) -> np.ndarray:
     assert A.dtype == B.dtype and A.dtype == C.dtype, "Input types must match and affect the output style"
     return (Alpha * A * B + Beta * C).astype(A.dtype)

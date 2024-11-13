@@ -177,10 +177,10 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t co
     SIMSIMD_PUBLIC void simsimd_l2sq_##input_type##_##name(simsimd_##input_type##_t const *a,                   \
                                                            simsimd_##input_type##_t const *b, simsimd_size_t n, \
                                                            simsimd_distance_t *result) {                        \
-        simsimd_##accumulator_type##_t d2 = 0;                                                                  \
+        simsimd_##accumulator_type##_t d2 = 0, ai, bi;                                                          \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                               \
-            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                        \
-            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                        \
+            load_and_convert(a + i, &ai);                                                                       \
+            load_and_convert(b + i, &bi);                                                                       \
             d2 += (ai - bi) * (ai - bi);                                                                        \
         }                                                                                                       \
         *result = d2;                                                                                           \
@@ -198,10 +198,10 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t co
     SIMSIMD_PUBLIC void simsimd_cos_##input_type##_##name(simsimd_##input_type##_t const *a,                   \
                                                           simsimd_##input_type##_t const *b, simsimd_size_t n, \
                                                           simsimd_distance_t *result) {                        \
-        simsimd_##accumulator_type##_t ab = 0, a2 = 0, b2 = 0;                                                 \
+        simsimd_##accumulator_type##_t ab = 0, a2 = 0, b2 = 0, ai, bi;                                         \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                              \
-            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                       \
-            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                       \
+            load_and_convert(a + i, &ai);                                                                      \
+            load_and_convert(b + i, &bi);                                                                      \
             ab += ai * bi;                                                                                     \
             a2 += ai * ai;                                                                                     \
             b2 += bi * bi;                                                                                     \
@@ -214,41 +214,41 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t co
         }                                                                                                      \
     }
 
-SIMSIMD_MAKE_COS(serial, f64, f64, SIMSIMD_DEREFERENCE)  // simsimd_cos_f64_serial
-SIMSIMD_MAKE_L2SQ(serial, f64, f64, SIMSIMD_DEREFERENCE) // simsimd_l2sq_f64_serial
-SIMSIMD_MAKE_L2(serial, f64, f64, SIMSIMD_DEREFERENCE)   // simsimd_l2_f64_serial
+SIMSIMD_MAKE_COS(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2)  // simsimd_cos_f64_serial
+SIMSIMD_MAKE_L2SQ(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_l2sq_f64_serial
+SIMSIMD_MAKE_L2(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2)   // simsimd_l2_f64_serial
 
-SIMSIMD_MAKE_COS(serial, f32, f32, SIMSIMD_DEREFERENCE)  // simsimd_cos_f32_serial
-SIMSIMD_MAKE_L2SQ(serial, f32, f32, SIMSIMD_DEREFERENCE) // simsimd_l2sq_f32_serial
-SIMSIMD_MAKE_L2(serial, f32, f32, SIMSIMD_DEREFERENCE)   // simsimd_l2_f32_serial
+SIMSIMD_MAKE_COS(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2)  // simsimd_cos_f32_serial
+SIMSIMD_MAKE_L2SQ(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_l2sq_f32_serial
+SIMSIMD_MAKE_L2(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2)   // simsimd_l2_f32_serial
 
-SIMSIMD_MAKE_COS(serial, f16, f32, SIMSIMD_F16_TO_F32)  // simsimd_cos_f16_serial
-SIMSIMD_MAKE_L2SQ(serial, f16, f32, SIMSIMD_F16_TO_F32) // simsimd_l2sq_f16_serial
-SIMSIMD_MAKE_L2(serial, f16, f32, SIMSIMD_F16_TO_F32)   // simsimd_l2_f16_serial
+SIMSIMD_MAKE_COS(serial, f16, f32, simsimd_f16_to_f32)  // simsimd_cos_f16_serial
+SIMSIMD_MAKE_L2SQ(serial, f16, f32, simsimd_f16_to_f32) // simsimd_l2sq_f16_serial
+SIMSIMD_MAKE_L2(serial, f16, f32, simsimd_f16_to_f32)   // simsimd_l2_f16_serial
 
-SIMSIMD_MAKE_COS(serial, bf16, f32, SIMSIMD_BF16_TO_F32)  // simsimd_cos_bf16_serial
-SIMSIMD_MAKE_L2SQ(serial, bf16, f32, SIMSIMD_BF16_TO_F32) // simsimd_l2sq_bf16_serial
-SIMSIMD_MAKE_L2(serial, bf16, f32, SIMSIMD_BF16_TO_F32)   // simsimd_l2_bf16_serial
+SIMSIMD_MAKE_COS(serial, bf16, f32, simsimd_bf16_to_f32)  // simsimd_cos_bf16_serial
+SIMSIMD_MAKE_L2SQ(serial, bf16, f32, simsimd_bf16_to_f32) // simsimd_l2sq_bf16_serial
+SIMSIMD_MAKE_L2(serial, bf16, f32, simsimd_bf16_to_f32)   // simsimd_l2_bf16_serial
 
-SIMSIMD_MAKE_COS(serial, i8, i32, SIMSIMD_DEREFERENCE)  // simsimd_cos_i8_serial
-SIMSIMD_MAKE_L2SQ(serial, i8, i32, SIMSIMD_DEREFERENCE) // simsimd_l2sq_i8_serial
-SIMSIMD_MAKE_L2(serial, i8, i32, SIMSIMD_DEREFERENCE)   // simsimd_l2_i8_serial
+SIMSIMD_MAKE_COS(serial, i8, i32, _SIMSIMD_ASSIGN_1_TO_2)  // simsimd_cos_i8_serial
+SIMSIMD_MAKE_L2SQ(serial, i8, i32, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_l2sq_i8_serial
+SIMSIMD_MAKE_L2(serial, i8, i32, _SIMSIMD_ASSIGN_1_TO_2)   // simsimd_l2_i8_serial
 
-SIMSIMD_MAKE_COS(serial, u8, i32, SIMSIMD_DEREFERENCE)  // simsimd_cos_u8_serial
-SIMSIMD_MAKE_L2SQ(serial, u8, i32, SIMSIMD_DEREFERENCE) // simsimd_l2sq_u8_serial
-SIMSIMD_MAKE_L2(serial, u8, i32, SIMSIMD_DEREFERENCE)   // simsimd_l2_u8_serial
+SIMSIMD_MAKE_COS(serial, u8, i32, _SIMSIMD_ASSIGN_1_TO_2)  // simsimd_cos_u8_serial
+SIMSIMD_MAKE_L2SQ(serial, u8, i32, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_l2sq_u8_serial
+SIMSIMD_MAKE_L2(serial, u8, i32, _SIMSIMD_ASSIGN_1_TO_2)   // simsimd_l2_u8_serial
 
-SIMSIMD_MAKE_COS(accurate, f32, f64, SIMSIMD_DEREFERENCE)  // simsimd_cos_f32_accurate
-SIMSIMD_MAKE_L2SQ(accurate, f32, f64, SIMSIMD_DEREFERENCE) // simsimd_l2sq_f32_accurate
-SIMSIMD_MAKE_L2(accurate, f32, f64, SIMSIMD_DEREFERENCE)   // simsimd_l2_f32_accurate
+SIMSIMD_MAKE_COS(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2)  // simsimd_cos_f32_accurate
+SIMSIMD_MAKE_L2SQ(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_l2sq_f32_accurate
+SIMSIMD_MAKE_L2(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2)   // simsimd_l2_f32_accurate
 
-SIMSIMD_MAKE_COS(accurate, f16, f64, SIMSIMD_F16_TO_F32)  // simsimd_cos_f16_accurate
-SIMSIMD_MAKE_L2SQ(accurate, f16, f64, SIMSIMD_F16_TO_F32) // simsimd_l2sq_f16_accurate
-SIMSIMD_MAKE_L2(accurate, f16, f64, SIMSIMD_F16_TO_F32)   // simsimd_l2_f16_accurate
+SIMSIMD_MAKE_COS(accurate, f16, f64, _simsimd_f16_to_f64)  // simsimd_cos_f16_accurate
+SIMSIMD_MAKE_L2SQ(accurate, f16, f64, _simsimd_f16_to_f64) // simsimd_l2sq_f16_accurate
+SIMSIMD_MAKE_L2(accurate, f16, f64, _simsimd_f16_to_f64)   // simsimd_l2_f16_accurate
 
-SIMSIMD_MAKE_COS(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)  // simsimd_cos_bf16_accurate
-SIMSIMD_MAKE_L2SQ(accurate, bf16, f64, SIMSIMD_BF16_TO_F32) // simsimd_l2sq_bf16_accurate
-SIMSIMD_MAKE_L2(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)   // simsimd_l2_bf16_accurate
+SIMSIMD_MAKE_COS(accurate, bf16, f64, _simsimd_bf16_to_f64)  // simsimd_cos_bf16_accurate
+SIMSIMD_MAKE_L2SQ(accurate, bf16, f64, _simsimd_bf16_to_f64) // simsimd_l2sq_bf16_accurate
+SIMSIMD_MAKE_L2(accurate, bf16, f64, _simsimd_bf16_to_f64)   // simsimd_l2_bf16_accurate
 
 #if _SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
@@ -1975,7 +1975,7 @@ SIMSIMD_PUBLIC void simsimd_l2sq_u8_ice(simsimd_u8_t const *a, simsimd_u8_t cons
 
 simsimd_l2sq_u8_ice_cycle:
     if (n < 64) {
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_u8_vec = _mm512_maskz_loadu_epi8(mask, a);
         b_u8_vec = _mm512_maskz_loadu_epi8(mask, b);
         n = 0;
@@ -2014,7 +2014,7 @@ SIMSIMD_PUBLIC void simsimd_cos_u8_ice(simsimd_u8_t const *a, simsimd_u8_t const
 
 simsimd_cos_u8_ice_cycle:
     if (n < 64) {
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_u8_vec = _mm512_maskz_loadu_epi8(mask, a);
         b_u8_vec = _mm512_maskz_loadu_epi8(mask, b);
         n = 0;
@@ -2085,7 +2085,7 @@ SIMSIMD_PUBLIC void simsimd_l2sq_i4x2_ice(simsimd_i4x2_t const *a, simsimd_i4x2_
 
 simsimd_l2sq_i4x2_ice_cycle:
     if (n_words < 64) {
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n_words);
         a_i4x2_vec = _mm512_maskz_loadu_epi8(mask, a);
         b_i4x2_vec = _mm512_maskz_loadu_epi8(mask, b);
         n_words = 0;
@@ -2199,7 +2199,7 @@ SIMSIMD_PUBLIC void simsimd_cos_i4x2_ice(simsimd_i4x2_t const *a, simsimd_i4x2_t
 
 simsimd_cos_i4x2_ice_cycle:
     if (n_words < 64) {
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n_words);
         a_i4x2_vec = _mm512_maskz_loadu_epi8(mask, a);
         b_i4x2_vec = _mm512_maskz_loadu_epi8(mask, b);
         n_words = 0;

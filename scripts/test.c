@@ -82,6 +82,210 @@ void test_utilities(void) {
 }
 
 /**
+ *  @brief  A trivial test for internal saturated arithmic function.
+ */
+void test_saturating_arithmetic(void) {
+    // Test cases for addition functions
+    simsimd_u8_t u8_a = 200, u8_b = 100, u8_r;
+    _simsimd_u8_sadd(&u8_a, &u8_b, &u8_r);
+    assert(u8_r == 255); // Overflow case for u8
+
+    simsimd_i8_t i8_a = 100, i8_b = 40, i8_r;
+    _simsimd_i8_sadd(&i8_a, &i8_b, &i8_r);
+    assert(i8_r == 127); // Overflow case for i8
+
+    simsimd_i8_t i8_under_a = -100, i8_under_b = -40;
+    _simsimd_i8_sadd(&i8_under_a, &i8_under_b, &i8_r);
+    assert(i8_r == -128); // Underflow case for i8
+
+    simsimd_u16_t u16_a = 50000, u16_b = 20000, u16_r;
+    _simsimd_u16_sadd(&u16_a, &u16_b, &u16_r);
+    assert(u16_r == 65535); // Overflow case for u16
+
+    simsimd_i16_t i16_a = 30000, i16_b = 10000, i16_r;
+    _simsimd_i16_sadd(&i16_a, &i16_b, &i16_r);
+    assert(i16_r == 32767); // Overflow case for i16
+
+    simsimd_i16_t i16_under_a = -20000, i16_under_b = -15000;
+    _simsimd_i16_sadd(&i16_under_a, &i16_under_b, &i16_r);
+    assert(i16_r == -32768); // Underflow case for i16
+
+    // Test cases for multiplication functions
+    simsimd_u8_t u8_m_a = 20, u8_m_b = 20, u8_m_r;
+    _simsimd_u8_smul(&u8_m_a, &u8_m_b, &u8_m_r);
+    assert(u8_m_r == 255); // Overflow case for u8 multiplication
+
+    simsimd_i8_t i8_m_a = 10, i8_m_b = -13, i8_m_r;
+    _simsimd_i8_smul(&i8_m_a, &i8_m_b, &i8_m_r);
+    assert(i8_m_r == -128); // Underflow case for i8 multiplication
+
+    simsimd_i8_t i8_m_under_a = -100, i8_m_under_b = 2;
+    _simsimd_i8_smul(&i8_m_under_a, &i8_m_under_b, &i8_m_r);
+    assert(i8_m_r == -128); // Underflow case for i8 multiplication
+
+    simsimd_u16_t u16_m_a = 300, u16_m_b = 300, u16_m_r;
+    _simsimd_u16_smul(&u16_m_a, &u16_m_b, &u16_m_r);
+    assert(u16_m_r == 65535); // Overflow case for u16 multiplication
+
+    simsimd_i16_t i16_m_a = 200, i16_m_b = 300, i16_m_r;
+    _simsimd_i16_smul(&i16_m_a, &i16_m_b, &i16_m_r);
+    assert(i16_m_r == 32767); // Overflow case for i16 multiplication
+
+    simsimd_i16_t i16_m_under_a = -200, i16_m_under_b = 300;
+    _simsimd_i16_smul(&i16_m_under_a, &i16_m_under_b, &i16_m_r);
+    assert(i16_m_r == -32768); // Underflow case for i16 multiplication
+
+    // Normal cases without overflow
+    simsimd_u8_t u8_n_a = 20, u8_n_b = 15, u8_n_r;
+    _simsimd_u8_sadd(&u8_n_a, &u8_n_b, &u8_n_r);
+    assert(u8_n_r == 35);
+
+    simsimd_i8_t i8_n_a = -10, i8_n_b = 20, i8_n_r;
+    _simsimd_i8_sadd(&i8_n_a, &i8_n_b, &i8_n_r);
+    assert(i8_n_r == 10);
+
+    // Floating-point cases
+    simsimd_f32_t f32_a = 1.5f, f32_b = 2.5f, f32_r;
+    _simsimd_f32_sadd(&f32_a, &f32_b, &f32_r);
+    assert(f32_r == 4.0f); // Normal addition for f32
+
+    simsimd_f32_t f32_m_a = 1.5f, f32_m_b = 2.0f;
+    _simsimd_f32_smul(&f32_m_a, &f32_m_b, &f32_r);
+    assert(f32_r == 3.0f); // Normal multiplication for f32
+}
+
+/**
+ *  @brief  Validating N-Dimensional indexing utilities.
+ */
+void test_mdindices(void) {
+    simsimd_size_t shape[SIMSIMD_NDARRAY_MAX_RANK];
+    simsimd_ssize_t strides[SIMSIMD_NDARRAY_MAX_RANK];
+    simsimd_mdindices_t mdindices;
+    simsimd_ssize_t linear_byte_offset;
+
+    // 1D array
+    shape[0] = 10;
+    strides[0] = 1 * sizeof(simsimd_u8_t);
+    simsimd_mdindices_init(&mdindices);
+    for (simsimd_size_t i = 0; i < 10; i++) {
+        assert(mdindices.byte_offset == i * sizeof(simsimd_u8_t));
+        assert(mdindices.coordinates[0] == i);
+        assert(simsimd_mdindices_linearize(shape, strides, 1, &mdindices.coordinates[0], &linear_byte_offset));
+        assert(linear_byte_offset == i * sizeof(simsimd_u8_t));
+        assert(simsimd_mdindices_next(shape, strides, 1, &mdindices.coordinates[0], &mdindices.byte_offset) == (i < 9));
+    }
+
+    // 2D array
+    shape[0] = 10, shape[1] = 5;
+    strides[0] = 5 * sizeof(simsimd_u8_t), strides[1] = 1 * sizeof(simsimd_u8_t);
+    simsimd_mdindices_init(&mdindices);
+    for (simsimd_size_t i = 0; i < 10; i++) {
+        for (simsimd_size_t j = 0; j < 5; j++) {
+            assert(mdindices.byte_offset == (i * 5 + j) * sizeof(simsimd_u8_t));
+            assert(mdindices.coordinates[0] == i);
+            assert(mdindices.coordinates[1] == j);
+            assert(simsimd_mdindices_linearize(shape, strides, 2, &mdindices.coordinates[0], &linear_byte_offset));
+            assert(linear_byte_offset == (i * 5 + j) * sizeof(simsimd_u8_t));
+            assert(simsimd_mdindices_next(shape, strides, 2, &mdindices.coordinates[0], &mdindices.byte_offset) ==
+                   (i != 9 || j != 4));
+        }
+    }
+
+    // 2D array of complex numbers, taking only the real part
+    shape[0] = 10, shape[1] = 5;
+    strides[0] = 10 * sizeof(simsimd_u8_t), strides[1] = 2 * sizeof(simsimd_u8_t);
+    simsimd_mdindices_init(&mdindices);
+    for (simsimd_size_t i = 0; i < 10; i++) {
+        for (simsimd_size_t j = 0; j < 5; j++) {
+            assert(mdindices.byte_offset == (i * 5 + j) * 2 * sizeof(simsimd_u8_t));
+            assert(mdindices.coordinates[0] == i);
+            assert(mdindices.coordinates[1] == j);
+            assert(simsimd_mdindices_linearize(shape, strides, 2, &mdindices.coordinates[0], &linear_byte_offset));
+            assert(linear_byte_offset == (i * 5 + j) * 2 * sizeof(simsimd_u8_t));
+            assert(simsimd_mdindices_next(shape, strides, 2, &mdindices.coordinates[0], &mdindices.byte_offset) ==
+                   (i != 9 || j != 4));
+        }
+    }
+
+    // 3D array with different strides at every level
+    // At each level it should be at least as big as the smaller level stride
+    // multiplied by its size, otherwise we interleave the data.
+    shape[0] = 10, shape[1] = 5, shape[2] = 3;
+    strides[0] = 41 * sizeof(simsimd_u8_t), strides[1] = 7 * sizeof(simsimd_u8_t),
+    strides[2] = 2 * sizeof(simsimd_u8_t);
+    simsimd_mdindices_init(&mdindices);
+    for (simsimd_size_t i = 0; i < 10; i++) {
+        for (simsimd_size_t j = 0; j < 5; j++) {
+            for (simsimd_size_t k = 0; k < 3; k++) {
+                assert(mdindices.byte_offset == (i * strides[0] + j * strides[1] + k * strides[2]));
+                assert(mdindices.coordinates[0] == i);
+                assert(mdindices.coordinates[1] == j);
+                assert(mdindices.coordinates[2] == k);
+                assert(simsimd_mdindices_linearize(shape, strides, 3, &mdindices.coordinates[0], &linear_byte_offset));
+                assert(linear_byte_offset == (i * strides[0] + j * strides[1] + k * strides[2]));
+                assert(simsimd_mdindices_next(shape, strides, 3, &mdindices.coordinates[0], &mdindices.byte_offset) ==
+                       (i != 9 || j != 4 || k != 2));
+            }
+        }
+    }
+
+    // Populated 3D array with different strides at every level
+    {
+        simsimd_f32_t tensor[11][43][7];
+        // Fill tensor with values
+        for (simsimd_size_t i = 0; i < 11; i++) {
+            for (simsimd_size_t j = 0; j < 43; j++)
+                for (simsimd_size_t k = 0; k < 7; k++) tensor[i][j][k] = i * 10000 + j * 100 + k * 1;
+        }
+        // Accumulate a slice: tensor[1:9:2, 2:42:4, 1:5:3] ~ 4 channels, 10 rows, 2 columns
+        simsimd_mdindices_init(&mdindices);
+        shape[0] = _simsimd_divide_ceil(9 - 1, 2);
+        shape[1] = _simsimd_divide_ceil(42 - 2, 4);
+        shape[2] = _simsimd_divide_ceil(5 - 1, 3);
+        strides[0] = 43 * 7 * sizeof(simsimd_f32_t) * 2; // Physical size of 2 channels
+        strides[1] = 7 * sizeof(simsimd_f32_t) * 4;      // Physical size of 4 rows
+        strides[2] = 3 * sizeof(simsimd_f32_t);          // Physical size of 3 columns
+        // Accumulate using native indexing
+        simsimd_f32_t sum_native = 0;
+        for (simsimd_size_t i = 1; i < 9; i += 2) {
+            for (simsimd_size_t j = 2; j < 42; j += 4) {
+                for (simsimd_size_t k = 1; k < 5; k += 3) { //
+                    sum_native += tensor[i][j][k];
+                }
+            }
+        }
+        // Accumulate using our `simsimd_mdindices_t` iterator
+        simsimd_f32_t sum_with_mdindices = 0;
+        simsimd_f32_t sum_native_running = 0;
+        for (simsimd_size_t i = 1; i < 9; i += 2) {
+            for (simsimd_size_t j = 2; j < 42; j += 4) {
+                for (simsimd_size_t k = 1; k < 5; k += 3) {
+                    simsimd_size_t const expected_global_offset = //
+                        ((i - 1) / 2) * shape[1] * shape[2] +     //
+                        ((j - 2) / 4) * shape[2] +                //
+                        ((k - 1) / 3);                            //
+                    simsimd_f32_t const entry_native = tensor[i][j][k];
+                    simsimd_f32_t const entry_from_byte_offset =
+                        *(simsimd_f32_t *)_simsimd_advance_by_bytes(&tensor[1][2][1], mdindices.byte_offset);
+                    simsimd_f32_t const entry_from_coordinate = tensor //
+                        [mdindices.coordinates[0] * 2 + 1]             //
+                        [mdindices.coordinates[1] * 4 + 2]             //
+                        [mdindices.coordinates[2] * 3 + 1];
+                    assert(entry_native == entry_from_byte_offset);
+                    assert(entry_native == entry_from_coordinate);
+                    sum_with_mdindices += entry_from_byte_offset;
+                    sum_native_running += entry_native;
+                    assert(sum_native_running == sum_with_mdindices);
+                    simsimd_mdindices_next(shape, strides, 3, &mdindices.coordinates[0], &mdindices.byte_offset);
+                }
+            }
+        }
+    }
+}
+
+void test_saturating_arithmeic(void) {}
+
+/**
  *  @brief  A trivial test that calls every implemented distance function and their dispatch versions
  *          on vectors A and B, where A and B are equal.
  */
@@ -151,9 +355,12 @@ void test_distance_from_itself(void) {
 }
 
 int main(int argc, char **argv) {
-
+    printf("Running tests...\n");
     print_capabilities();
     test_utilities();
+    test_saturating_arithmetic();
+    test_mdindices();
     test_distance_from_itself();
+    printf("All tests passed.\n");
     return 0;
 }

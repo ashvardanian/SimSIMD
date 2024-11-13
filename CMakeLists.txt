@@ -106,10 +106,14 @@ endif ()
 if (SIMSIMD_BUILD_TESTS)
     add_executable(simsimd_test_compile_time scripts/test.c)
     target_link_libraries(simsimd_test_compile_time simsimd m)
+    add_test(NAME simsimd_test_compile_time COMMAND simsimd_test_compile_time)
 
     add_executable(simsimd_test_run_time scripts/test.c c/lib.c)
     target_compile_definitions(simsimd_test_run_time PRIVATE SIMSIMD_DYNAMIC_DISPATCH=1)
     target_link_libraries(simsimd_test_run_time simsimd m)
+    add_test(NAME simsimd_test_run_time COMMAND simsimd_test_run_time)
+
+    enable_testing()
 endif ()
 
 if (SIMSIMD_BUILD_SHARED)

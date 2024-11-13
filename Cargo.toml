@@ -24,18 +24,12 @@ name = "simsimd"
 path = "rust/lib.rs"
 
 [build-dependencies]
-cc = "1.0.83"
-
-
-[[bench]]
-name = "cosine"
-harness = false
-path = "scripts/bench_cosine.rs"
+cc = "1.2.0"
 
 [[bench]]
-name = "sqeuclidean"
+name = "bench_similarity"
 harness = false
-path = "scripts/bench_sqeuclidean.rs"
+path = "scripts/bench_similarity.rs"
 
 [profile.bench]
 opt-level = 3     # Corresponds to -O3
@@ -46,4 +40,5 @@ rpath = false     # On some systems, setting this to false can help with optimiz
 [dev-dependencies]
 criterion = { version = "0.5.1" }
 rand = { version = "0.8.5" }
-half = { version = "2.4.0" }
+half = { version = "2.4.1" }
+num-traits = "0.2.19"
