@@ -37,28 +37,39 @@ operation_names = [
     "multiply",  # A * B
 ]
 dtype_names = [
-    "int8",  #! Presented as supported, but overflows most of the time
-    "int16",
-    "int32",
-    "int64",
-    "uint8",  #! Presented as supported, but overflows most of the time
-    "uint16",
-    "uint32",
-    "uint64",
-    "bfloat16",  #! Not supported by NumPy
-    "float16",
-    "float32",
-    "float64",
+    ("int8", "int8"),  #! Presented as supported, but overflows most of the time
+    ("int16", "int16"),
+    ("int32", "int32"),
+    ("int64", "int64"),
+    ("uint8", "uint8"),  #! Presented as supported, but overflows most of the time
+    ("uint16", "uint16"),
+    ("uint32", "uint32"),
+    ("uint64", "uint64"),
+    ("bfloat16", "bfloat16"),  #! Not supported by NumPy
+    ("float16", "float16"),
+    ("float32", "float32"),
+    ("float64", "float64"),
+    # Common mixed precision variants:
+    ("float32", "float64"),  # f32f64
+    ("float16", "float32"),  # f16f32
+    ("float16", "float64"),  # f16f64
+    ("bfloat16", "float32"),  # bf16f32
+    ("bfloat16", "float64"),  # bf16f64
+    ("uint8", "int16"),  # u8i16
+    ("uint16", "int32"),  # u16i32
+    ("int8", "uint16"),  # i8u16
+    ("int16", "uint32"),  # i16u32
 ]
 
-dtype_names_supported = [x for x in dtype_names if x != "bfloat16"]
+dtype_names_supported = [(x, y) for x, y in dtype_names if x != "bfloat16" and y != "bfloat16"]
 
 shapes = [
     ((1,), (1,)),
-    ((1024,), (1024,)),
-    ((256, 256), (256, 256)),
-    ((32, 32, 32), (32, 32, 32)),
-    ((16, 16, 16, 16), (16, 16, 16, 16)),
+    ((100000,), (100000,)),
+    ((512, 512), (512, 512)),
+    ((77, 77, 77), (77, 77, 77)),
+    ((31, 31, 31, 31), (31, 31, 31, 31)),
+    ((7, 7, 7, 7, 7), (7, 7, 7, 7, 7)),
     ((8, 8, 8, 8, 8), (8, 8, 8, 8, 8)),
     ((4, 4, 4, 4, 4, 4), (4, 4, 4, 4, 4, 4)),
     ((2, 2, 2, 2, 2, 2, 2), (2, 2, 2, 2, 2, 2, 2)),
@@ -66,6 +77,8 @@ shapes = [
     ((2, 2, 2, 2, 2, 2, 2, 2, 2), (2, 2, 2, 2, 2, 2, 2, 2, 2)),
     ((2, 2, 2, 2, 2, 2, 2, 2, 2, 2), (2, 2, 2, 2, 2, 2, 2, 2, 2, 2)),
     ((2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2), (2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2)),
+    ((2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2), (2, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2)),
+    ((4, 1, 4, 1, 4, 1, 4, 1, 4, 1, 4), (1, 4, 1, 4, 1, 4, 1, 4, 1, 4, 1)),
 ]
 
 
@@ -74,7 +87,8 @@ class Kernel:
     """Data class to store information about a numeric kernel."""
 
     name: str
-    dtype: str
+    first_dtype: str
+    second_dtype: str
     baseline_func: callable
     simsimd_func: callable
     tensor_type: callable = np.array
@@ -173,7 +187,8 @@ def serial_multiply(a: np.ndarray, b: np.ndarray) -> np.ndarray:
 
 def yield_kernels(
     operation_names: List[str],
-    dtype_names: List[str],
+    dtype_names: List[Tuple[str]],
+    include_serial: bool = False,
     include_torch: bool = False,
     include_tf: bool = False,
     include_jax: bool = False,
@@ -202,7 +217,7 @@ def yield_kernels(
 
     def for_dtypes(
         name: str,
-        dtypes: List[str],
+        dtypes: List[Tuple[str]],
         baseline_func: callable,
         simsimd_func: callable,
         tensor_type: callable = np.array,
@@ -214,10 +229,10 @@ def yield_kernels(
                 baseline_func=baseline_func,
                 simsimd_func=simsimd_func,
                 tensor_type=tensor_type,
-                dtype=dtype,
+                first_dtype=first_dtype,
+                second_dtype=second_dtype,
             )
-            for dtype in dtypes
-            if dtype in dtype_names
+            for first_dtype, second_dtype in dtypes
         ]
 
     if "add" in operation_names:
@@ -229,10 +244,11 @@ def yield_kernels(
         )
         yield from for_dtypes(
             "numpy.add",
-            ["bfloat16"],
+            [("bfloat16", "bfloat16")],
             lambda A, B: raise_(NotImplementedError("Not implemented for bfloat16")),
             lambda A, B: simd.add(A, B, a_dtype="bfloat16", b_dtype="bfloat16", out_dtype="bfloat16"),
         )
+    if "add" in operation_names and include_serial:
         yield from for_dtypes(
             "serial.add",
             dtype_names_supported,
@@ -241,22 +257,24 @@ def yield_kernels(
         )
     if "multiply" in operation_names:
         yield from for_dtypes(
-            "serial.multiply",
-            dtype_names_supported,
-            serial_multiply,
-            simd.multiply,
-        )
-        yield from for_dtypes(
             "numpy.multiply",
             dtype_names_supported,
             np.multiply,
+            simd.multiply,
+        )
+    if "multiply" in operation_names and include_serial:
+        yield from for_dtypes(
+            "serial.multiply",
+            dtype_names_supported,
+            serial_multiply,
             simd.multiply,
         )
 
 
 @dataclass
 class Result:
-    dtype: str
+    first_dtype: str
+    second_dtype: str
     name: str
     shape_first: tuple
     shape_second: tuple
@@ -289,9 +307,11 @@ def latency(func, A, B, iterations: int = 1, warmup: int = 0) -> float:
 
 
 def yield_results(
-    shapes: List[Tuple[tuple, tuple]],
+    first_shape: tuple,
+    second_shape: tuple,
     kernels: List[Kernel],
     warmup: int = 0,
+    time_limit: float = 1.0,
 ) -> Generator[Result, None, None]:
     # For each of the present data types, we may want to pre-generate several random matrices
     count_matrices_per_dtype = 8
@@ -299,30 +319,29 @@ def yield_results(
 
     # Let's cache the matrices for each data type and shape
     matrices_per_dtype_and_shape: Dict[Tuple[str, tuple]] = {}
-    first_shapes, second_shapes = zip(*shapes)
-    for kernel, shape in chain(product(kernels, first_shapes), product(kernels, second_shapes)):
-        matrix_key = (kernel.dtype, shape)
-        if kernel.dtype in matrices_per_dtype_and_shape:
+    all_dtypes = set(kernel.first_dtype for kernel in kernels) | set(kernel.second_dtype for kernel in kernels)
+    for dtype, shape in product(all_dtypes, (first_shape, second_shape)):
+        matrix_key = (dtype, shape)
+        if dtype in matrices_per_dtype_and_shape:
             continue
-        matrices = [random_matrix(shape, kernel.dtype) for _ in range(count_matrices_per_dtype)]
-        matrices_per_dtype_and_shape[matrix_key] = matrices
+        matrices = [random_matrix(shape, dtype) for _ in range(count_matrices_per_dtype)]
+        matrices_per_dtype_and_shape[matrix_key] = matrices[]
 
     # For each kernel, repeat benchmarks for each data type
-    for first_and_second_shape, kernel in product(shapes, kernels):
-        first_shape, second_shape = first_and_second_shape
-
-        first_matrix_key = (kernel.dtype, first_shape)
+    for kernel in kernels:
+        first_matrix_key = (kernel.first_dtype, first_shape)
         first_matrices_numpy = matrices_per_dtype_and_shape[first_matrix_key]
         first_matrices_converted = [kernel.tensor_type(m) for m in first_matrices_numpy]
 
-        second_matrix_key = (kernel.dtype, second_shape)
+        second_matrix_key = (kernel.second_dtype, second_shape)
         second_matrices_numpy = matrices_per_dtype_and_shape[second_matrix_key]
         second_matrices_converted = [kernel.tensor_type(m) for m in second_matrices_numpy]
 
         baseline_func = kernel.baseline_func
         simsimd_func = kernel.simsimd_func
         result = Result(
-            kernel.dtype,
+            kernel.first_dtype,
+            kernel.second_dtype,
             kernel.name,
             baseline_seconds=0,
             simsimd_seconds=0,
@@ -334,15 +353,16 @@ def yield_results(
 
         # Try obtaining the baseline measurements
         try:
-            for i in range(count_matrices_per_dtype):
-                for j in range(count_matrices_per_dtype):
-                    result.baseline_seconds += latency(
-                        baseline_func,
-                        first_matrices_converted[i],
-                        second_matrices_converted[j],
-                        count_repetitions_per_matrix,
-                        warmup,
-                    )
+            for i, j in product(range(count_matrices_per_dtype), range(count_matrices_per_dtype)):
+                result.baseline_seconds += latency(
+                    baseline_func,
+                    first_matrices_converted[i],
+                    second_matrices_converted[j],
+                    count_repetitions_per_matrix,
+                    warmup,
+                )
+                if result.baseline_seconds > time_limit:
+                    break
         except NotImplementedError as e:
             result.baseline_seconds = e
         except ValueError as e:
@@ -355,15 +375,16 @@ def yield_results(
 
         # Try obtaining the SimSIMD measurements
         try:
-            for i in range(count_matrices_per_dtype):
-                for j in range(count_matrices_per_dtype):
-                    result.simsimd_seconds += latency(
-                        simsimd_func,
-                        first_matrices_numpy[i],
-                        second_matrices_numpy[j],
-                        count_repetitions_per_matrix,
-                        warmup,
-                    )
+            for i, j in product(range(count_matrices_per_dtype), range(count_matrices_per_dtype)):
+                result.simsimd_seconds += latency(
+                    simsimd_func,
+                    first_matrices_numpy[i],
+                    second_matrices_numpy[j],
+                    count_repetitions_per_matrix,
+                    warmup,
+                )
+                if result.simsimd_seconds > time_limit:
+                    break
         except NotImplementedError as e:
             result.simsimd_seconds = e
         except Exception as e:
@@ -374,7 +395,7 @@ def yield_results(
 
 
 def result_to_row(result: Result) -> List[str]:
-    dtype_cell = f"`{result.dtype}`"
+    dtype_cell = f"`{result.first_dtype}` & `{result.second_dtype}`"
     name_cell = f"`{result.name}`"
     baseline_cell = "💥"
     simsimd_cell = "💥"
@@ -430,12 +451,20 @@ def main():
         """,
     )
     args = parser.parse_args()
-    dtypes_profiled = set([args.dtype] if args.dtype != "all" else dtype_names)
+    dtypes_profiled = []
+    if args.dtype != "all":
+        dtypes_profiled = [
+            (first_dtype, second_dtype)
+            for first_dtype, second_dtype in dtype_names
+            if first_dtype == args.dtype or second_dtype == args.dtype
+        ]
+    else:
+        dtypes_profiled = dtype_names
     operation_names_profiled = set([args.operation] if args.operation != "all" else operation_names)
 
     print("# Benchmarking SimSIMD")
     print("- Operations:", ", ".join(operation_names_profiled))
-    print("- Datatypes:", ", ".join(dtypes_profiled))
+    print("- Datatypes:", ", ".join([f"{a} & {b}" for a, b in dtypes_profiled]))
     try:
         caps = [cap for cap, enabled in simd.get_capabilities().items() if enabled]
         print("- Hardware capabilities:", ", ".join(caps))
@@ -473,14 +502,25 @@ def main():
         )
     )
 
-    results = yield_results(shapes, kernels)
-    columns_headers = ["Data Type", "Method", "Baseline", "SimSIMD", "Improvement"]
-    results_rows = []
-    for result in results:
-        result_row = result_to_row(result)
-        results_rows.append(result_row)
+    for shape in shapes:
+        first_shape, second_shape = shape
+        print(f"## Shapes: {first_shape} and {second_shape}")
 
-    print(tabulate.tabulate(results_rows, headers=columns_headers))
+        results = yield_results(first_shape, second_shape, kernels, warmup=args.warmup, time_limit=args.time_limit)
+        columns_headers = ["Data Type", "Method", "Baseline", "SimSIMD", "Improvement"]
+        results_rows = []
+        for result in results:
+            result_row = result_to_row(result)
+            results_rows.append(result_row)
+
+        print(tabulate.tabulate(results_rows, headers=columns_headers))
+
+        # TODO:Benchmark with non-continuous inputs
+        # For that we will patch the shapes incrementing the extents of the first one by 3,
+        # and the extents of the second one by 5, to make sure they are not multiples of
+        # the scalar width.
+        # first_shape = tuple(x + 3 for x in first_shape)
+        # second_shape = tuple(x + 5 for x in second_shape)
 
 
 if __name__ == "__main__":
