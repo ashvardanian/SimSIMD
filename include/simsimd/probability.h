@@ -108,7 +108,7 @@ SIMSIMD_PUBLIC void simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_
             d += ai * SIMSIMD_LOG((ai + epsilon) / (mi + epsilon));                                           \
             d += bi * SIMSIMD_LOG((bi + epsilon) / (mi + epsilon));                                           \
         }                                                                                                     \
-        *result = (simsimd_distance_t)d / 2;                                                                  \
+        *result = SIMSIMD_SQRT(((simsimd_distance_t)d / 2));                                                  \  
     }
 
 SIMSIMD_MAKE_KL(serial, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f64_serial
@@ -198,6 +198,8 @@ SIMSIMD_PUBLIC void simsimd_js_f32_neon(simsimd_f32_t const *a, simsimd_f32_t co
     simsimd_f32_t epsilon = SIMSIMD_F32_DIVISION_EPSILON;
     float32x4_t epsilon_vec = vdupq_n_f32(epsilon);
     float32x4_t sum_vec = vdupq_n_f32(0);
+    float32x4_t half_vec = vdupq_n_f32(0.5f);
+
     float32x4_t a_vec, b_vec;
 
 simsimd_js_f32_neon_cycle:
@@ -219,12 +221,14 @@ simsimd_js_f32_neon_cycle:
     float32x4_t log_ratio_b_vec = _simsimd_log2_f32_neon(ratio_b_vec);
     float32x4_t prod_a_vec = vmulq_f32(a_vec, log_ratio_a_vec);
     float32x4_t prod_b_vec = vmulq_f32(b_vec, log_ratio_b_vec);
+    
     sum_vec = vaddq_f32(sum_vec, vaddq_f32(prod_a_vec, prod_b_vec));
     if (n != 0) goto simsimd_js_f32_neon_cycle;
 
     simsimd_f32_t log2_normalizer = 0.693147181f;
+    sum_vec = vmulq_f32(sum_vec, half_vec);
     simsimd_f32_t sum = vaddvq_f32(sum_vec) * log2_normalizer;
-    *result = sum / 2;
+    *result = SIMSIMD_SQRT(sum);
 }
 
 #pragma clang attribute pop
@@ -271,6 +275,8 @@ SIMSIMD_PUBLIC void simsimd_js_f16_neon(simsimd_f16_t const *a, simsimd_f16_t co
     float32x4_t sum_vec = vdupq_n_f32(0);
     simsimd_f32_t epsilon = SIMSIMD_F32_DIVISION_EPSILON;
     float32x4_t epsilon_vec = vdupq_n_f32(epsilon);
+    float32x4_t half_vec = vdupq_n_f32(0.5f);
+
     float32x4_t a_vec, b_vec;
 
 simsimd_js_f16_neon_cycle:
@@ -290,14 +296,15 @@ simsimd_js_f16_neon_cycle:
     float32x4_t ratio_b_vec = vdivq_f32(vaddq_f32(b_vec, epsilon_vec), vaddq_f32(m_vec, epsilon_vec));
     float32x4_t log_ratio_a_vec = _simsimd_log2_f32_neon(ratio_a_vec);
     float32x4_t log_ratio_b_vec = _simsimd_log2_f32_neon(ratio_b_vec);
-    float32x4_t prod_a_vec = vmulq_f32(a_vec, log_ratio_a_vec);
-    float32x4_t prod_b_vec = vmulq_f32(b_vec, log_ratio_b_vec);
+    float32x4_t prod_a_vec = vmulq_f32(vmulq_f32(a_vec, log_ratio_a_vec), half_vec);
+    float32x4_t prod_b_vec = vmulq_f32(vmulq_f32(b_vec, log_ratio_b_vec), half_vec);
     sum_vec = vaddq_f32(sum_vec, vaddq_f32(prod_a_vec, prod_b_vec));
     if (n) goto simsimd_js_f16_neon_cycle;
 
     simsimd_f32_t log2_normalizer = 0.693147181f;
+    sum_vec = vmulq_f32(sum_vec, half_vec);
     simsimd_f32_t sum = vaddvq_f32(sum_vec) * log2_normalizer;
-    *result = sum / 2;
+    *result = SIMSIMD_SQRT(sum);
 }
 
 #pragma clang attribute pop
