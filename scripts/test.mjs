@@ -177,4 +177,10 @@ test("Jensen-Shannon C vs JS", () => {
   const result = simsimd.jensenshannon(f32sDistribution, f32sDistribution2);
   const resultjs = fallback.jensenshannon(f32sDistribution, f32sDistribution2);
   assertAlmostEqual(result, resultjs, 0.01);
+
+  const orthogonalVec1 = new Float32Array([1.0, 0.0, 0.0]);
+  const orthogonalVec2 = new Float32Array([0.0, 1.0, 0.0]);
+  const orthoResult = simsimd.jensenshannon(orthogonalVec1, orthogonalVec2);
+  const orthoResultJs = fallback.jensenshannon(orthogonalVec1, orthogonalVec2);
+  assertAlmostEqual(orthoResult, orthoResultJs, 0.01);
 });
