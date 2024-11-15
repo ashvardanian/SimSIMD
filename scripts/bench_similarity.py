@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Module: bench.py
+Module: bench_similarity.py
 
 This script benchmarks the performance of SimSIMD against other libraries,
 such as NumPy, SciPy, scikit-learn, PyTorch, TensorFlow, and JAX.

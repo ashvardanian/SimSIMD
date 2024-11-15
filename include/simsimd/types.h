@@ -266,7 +266,7 @@
 #endif
 
 /**
- *  @brief  The compile-time constant defining the capacity of `simsimd_mdindices_t`.
+ *  @brief  The compile-time constant defining the capacity of `simsimd_xd_index_t`.
  *          Matches `PyBUF_MAX_NDIM` by default.
  */
 #if !defined(SIMSIMD_NDARRAY_MAX_RANK)
@@ -776,26 +776,26 @@ SIMSIMD_INTERNAL simsimd_size_t _simsimd_divide_ceil(simsimd_size_t dividend, si
 
 /**
  *  @brief Advances the Multi-Dimensional iterator to the next set of indicies.
- *  @param[in] shape The shape of the tensor, defined by an array with at least `rank` scalars.
+ *  @param[in] extents The extents of the tensor, defined by an array with at least `rank` scalars.
  *  @param[in] strides The @b signed strides of the tensor in bytes, defined by an array with at least `rank` scalars.
  *  @param[in] rank The number of dimensions in the tensor (its rank).
  *  @param[inout] coordinates The array of offsets along each of `rank` dimensions, which will be updated.
  *  @param[inout] byte_offset The @b signed byte offset of the current element, which will be advanced.
  *  @return 1 if the iterator was successfully advanced, 0 if the end of iteration was reached.
  *
- *  For flexibility, the API is decoupled from from the `simsimd_mdindices_t` structure, and
+ *  For flexibility, the API is decoupled from from the `simsimd_xd_index_t` structure, and
  *  can be used on any-rank tensors, independent of the `SIMSIMD_NDARRAY_MAX_RANK` constant.
  */
-SIMSIMD_PUBLIC int simsimd_mdindices_next(                                            //
-    simsimd_size_t const *shape, simsimd_ssize_t const *strides, simsimd_size_t rank, //
+SIMSIMD_PUBLIC int simsimd_xd_index_next(                                               //
+    simsimd_size_t const *extents, simsimd_ssize_t const *strides, simsimd_size_t rank, //
     simsimd_size_t *coordinates, simsimd_ssize_t *byte_offset) {
     // Start from last dimension and move backward
     for (simsimd_size_t i = rank; i-- > 0;) {
         coordinates[i]++;
         *byte_offset += strides[i];
-        if (coordinates[i] < shape[i]) return 1; // Successfully moved to the next index
-        coordinates[i] = 0;                      // Reset this dimension counter
-        *byte_offset -= strides[i] * shape[i];   // Discard the running progress along this dimension
+        if (coordinates[i] < extents[i]) return 1; // Successfully moved to the next index
+        coordinates[i] = 0;                        // Reset this dimension counter
+        *byte_offset -= strides[i] * extents[i];   // Discard the running progress along this dimension
     }
     // If we reach here, we've iterated over all elements
     return 0; // End of iteration
@@ -803,21 +803,21 @@ SIMSIMD_PUBLIC int simsimd_mdindices_next(                                      
 
 /**
  *  @brief Advances the Multi-Dimensional iterator to the provided coordinates, updating the byte offset.
- *  @param[in] shape The shape of the tensor, defined by an array with at least `rank` scalars.
+ *  @param[in] extents The extents of the tensor, defined by an array with at least `rank` scalars.
  *  @param[in] strides The @b signed strides of the tensor in bytes, defined by an array with at least `rank` scalars.
  *  @param[in] rank The number of dimensions in the tensor (its rank).
  *  @param[in] coordinates The array of offsets along each of `rank` dimensions, which will be updated.
  *  @param[out] byte_offset The byte offset of the current element, which will be advanced.
  *  @return 1 if the offset was successfully advanced, 0 if the end of iteration was reached.
  */
-SIMSIMD_PUBLIC int simsimd_mdindices_linearize(                                       //
-    simsimd_size_t const *shape, simsimd_ssize_t const *strides, simsimd_size_t rank, //
+SIMSIMD_PUBLIC int simsimd_xd_index_linearize(                                          //
+    simsimd_size_t const *extents, simsimd_ssize_t const *strides, simsimd_size_t rank, //
     simsimd_size_t const *coordinates, simsimd_ssize_t *byte_offset) {
 
     simsimd_ssize_t result = 0;
     for (simsimd_size_t i = 0; i < rank; i++) {
         // Ensure the coordinates is within bounds for the given dimension
-        if (coordinates[i] >= shape[i]) return 0; // Invalid coordinates, out of bounds
+        if (coordinates[i] >= extents[i]) return 0; // Invalid coordinates, out of bounds
         // Update the byte offset by multiplying the coordinates by the stride
         result += coordinates[i] * strides[i];
     }
@@ -832,29 +832,38 @@ SIMSIMD_PUBLIC int simsimd_mdindices_linearize(                                 
  *  When advancing through a structure, its overall size and strides should be stored somewhere else.
  *  The `byte_offset` starts at zero and grow monotonically during iteration, if the strides are positive.
  */
-typedef struct simsimd_mdindices_t {
+typedef struct simsimd_xd_index_t {
     simsimd_size_t coordinates[SIMSIMD_NDARRAY_MAX_RANK]; // Coordinate offsets along each dimension
     simsimd_ssize_t byte_offset;                          // Byte offset of the current element
-} simsimd_mdindices_t;
+} simsimd_xd_index_t;
 
-SIMSIMD_PUBLIC void simsimd_mdindices_init(simsimd_mdindices_t *mdindices) {
-    for (simsimd_size_t i = 0; i < SIMSIMD_NDARRAY_MAX_RANK; i++) mdindices->coordinates[i] = 0;
-    mdindices->byte_offset = 0;
+SIMSIMD_PUBLIC void simsimd_xd_index_init(simsimd_xd_index_t *xd_index) {
+    for (simsimd_size_t i = 0; i < SIMSIMD_NDARRAY_MAX_RANK; i++) xd_index->coordinates[i] = 0;
+    xd_index->byte_offset = 0;
 }
 
 /**
- *  @brief  A @b beefy structure describing the memory layouts of Multi-Dimensional arrays.
+ *  @brief  A @b beefy structure describing the shape and memory layout of a Multi-Dimensional array.
+ *          Similar to `md::span` in C++20 and `numpy.ndarray` in Python, but with a focus on compatibility.
  *          Occupies 512 + 512 + 8 = 2052 bytes on a 64-bit machine, or @b 17 cache-lines, by default.
+ *
+ *  Unlike NumPy and the CPython "Buffer Protocol", we don't use `suboffsets` for pointer indirection.
+ *  The logic is that such layouts aren't friendly to conventional SIMD operations and dense matrix algorithms.
+ *  If the tensor is sparse, consider using a different data structure or a different memory layout.
+ *
+ *  Most SimSIMD algorithms don't work with the entire structure, but expect the fields to be passed separately.
+ *  It would also require storing the @b start-pointer and the @b datatype/item-size separately, as it's not
+ *  stored inside the structure.
  */
-typedef struct simsimd_mdspan_t {
-    simsimd_size_t shape[SIMSIMD_NDARRAY_MAX_RANK];    // Number of elements along each dimension
-    simsimd_ssize_t strides[SIMSIMD_NDARRAY_MAX_RANK]; // Strides of the tensor in bytes
-    simsimd_size_t rank;                               // Number of dimensions in the tensor
-} simsimd_mdspan_t;
+typedef struct simsimd_xd_span_t {
+    simsimd_size_t extents[SIMSIMD_NDARRAY_MAX_RANK];  /// Number of elements along each dimension
+    simsimd_ssize_t strides[SIMSIMD_NDARRAY_MAX_RANK]; /// Strides of the tensor in bytes
+    simsimd_size_t rank;                               /// Number of dimensions in the tensor
+} simsimd_xd_span_t;
 
-SIMSIMD_PUBLIC void simsimd_mdspan_init(simsimd_mdspan_t *mdspan) {
-    for (simsimd_size_t i = 0; i < SIMSIMD_NDARRAY_MAX_RANK; i++) mdspan->shape[i] = 0, mdspan->strides[i] = 0;
-    mdspan->rank = 0;
+SIMSIMD_PUBLIC void simsimd_xd_span_init(simsimd_xd_span_t *xd_span) {
+    for (simsimd_size_t i = 0; i < SIMSIMD_NDARRAY_MAX_RANK; i++) xd_span->extents[i] = 0, xd_span->strides[i] = 0;
+    xd_span->rank = 0;
 }
 
 SIMSIMD_INTERNAL simsimd_u32_t _simsimd_u32_rol(simsimd_u32_t *x, int n) { return (*x << n) | (*x >> (32 - n)); }

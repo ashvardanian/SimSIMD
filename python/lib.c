@@ -109,23 +109,23 @@ typedef struct VectorOrRowsArgument {
     simsimd_datatype_t datatype;
 } VectorOrRowsArgument;
 
-typedef enum MDArrayShapeKind {
-    MDArrayShapeUnknown = 0,
+typedef enum XDArrayShapeKind {
+    XDArrayShapeUnknown = 0,
     /// Just a `float` or an `int`
-    MDArrayShapeScalar,
+    XDArrayShapeScalar,
     /// A single `float` or `int` buffer of any rank, but with a single element
-    MDArrayShapeUnit,
+    XDArrayShapeUnit,
     /// Any rank tensor with more than 1 element along any dimension
-    MDArrayShapeNonUnit,
-} MDArrayShapeKind;
+    XDArrayShapeNonUnit,
+} XDArrayShapeKind;
 
 typedef struct BufferOrScalarArgument {
-    MDArrayShapeKind shape_kind;
-    /// Populated only for `MDArrayShapeScalar` and `MDArrayShapeUnit` kinds.
+    XDArrayShapeKind shape_kind;
+    /// Populated only for `XDArrayShapeScalar` and `XDArrayShapeUnit` kinds.
     simsimd_f64_t as_f64;
     simsimd_u8_t as_scalar[8];
-    /// The address of the buffer start, if the kind is `MDArrayShapeNonUnit` or `MDArrayShapeUnit`.
-    /// Alternatively, points to the `&as_scalar` field for `MDArrayShapeScalar` kind.
+    /// The address of the buffer start, if the kind is `XDArrayShapeNonUnit` or `XDArrayShapeUnit`.
+    /// Alternatively, points to the `&as_scalar` field for `XDArrayShapeScalar` kind.
     char *as_buffer_start;
     Py_ssize_t as_buffer_dimensions;
     //? The "shape" and "strides" fields may seem redundant, as they are already part of the `Py_buffer`
@@ -151,21 +151,21 @@ typedef struct DistancesTensor {
 
 /// @brief  Generalized high-rank tensor alternative to NumPy, supporting up to 64 dimensions,
 ///         zero-copy views/slices, the Buffer Protocol, and faster iteration.
-typedef struct MDArray {
+typedef struct XDArray {
     PyObject_HEAD                    //
         simsimd_datatype_t datatype; // Any SimSIMD numeric type
     Py_ssize_t ndim; //! Can be up to `PyBUF_MAX_NDIM` (often 64), but NumPy only supports 32 on most platforms!
     Py_ssize_t shape[PyBUF_MAX_NDIM];   // Dimensions of the tensor
     Py_ssize_t strides[PyBUF_MAX_NDIM]; // Strides for each dimension
     simsimd_distance_t start[];         // Variable length data aligned to 64-bit scalars
-} MDArray;
+} XDArray;
 
 /// @brief  Faster alternative to NumPy's `ndindex` object, supporting just as many dimensions,
-///         as the `MDArray` object.
-typedef struct MDIndex {
+///         as the `XDArray` object.
+typedef struct XDIndex {
     PyObject_HEAD //
-        simsimd_mdindices_t mdindices;
-} MDIndex;
+        simsimd_xd_index_t xd_index;
+} XDIndex;
 
 static int DistancesTensor_getbuffer(PyObject *export_from, Py_buffer *view, int flags);
 static void DistancesTensor_releasebuffer(PyObject *export_from, Py_buffer *view);
@@ -185,31 +185,52 @@ static PyTypeObject DistancesTensorType = {
     .tp_as_buffer = &DistancesTensor_as_buffer,
 };
 
-static int MDArray_getbuffer(PyObject *export_from, Py_buffer *view, int flags);
-static void MDArray_releasebuffer(PyObject *export_from, Py_buffer *view);
-static PyObject *MDArray_get_shape(MDArray *self, void *closure);
-static PyObject *MDArray_get_size(MDArray *self, void *closure);
+static int XDArray_getbuffer(PyObject *export_from, Py_buffer *view, int flags);
+static void XDArray_releasebuffer(PyObject *export_from, Py_buffer *view);
+static PyObject *XDArray_get_shape(XDArray *self, void *closure);
+static PyObject *XDArray_get_size(XDArray *self, void *closure);
 
-static PyBufferProcs MDArray_as_buffer = {
-    .bf_getbuffer = MDArray_getbuffer,
-    .bf_releasebuffer = MDArray_releasebuffer,
+static PyBufferProcs XDArray_as_buffer = {
+    .bf_getbuffer = XDArray_getbuffer,
+    .bf_releasebuffer = XDArray_releasebuffer,
 };
 
-static PyGetSetDef MDArray_getset[] = {
-    {"shape", (getter)MDArray_get_shape, NULL, "Shape of the MDArray", NULL},
-    {"size", (getter)MDArray_get_size, NULL, "Total number of elements in the MDArray", NULL},
+static PyGetSetDef XDArray_getset[] = {
+    {"shape", (getter)XDArray_get_shape, NULL, "Shape of the XDArray", NULL},
+    {"size", (getter)XDArray_get_size, NULL, "Total number of elements in the XDArray", NULL},
     {NULL} // Sentinel
 };
 
-static PyTypeObject MDArrayType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "simsimd.MDArray",
+static PyNumberMethods XDArray_as_number = {
+    .nb_add = (binaryfunc)XDArray_add,           // Implements __add__
+    .nb_subtract = (binaryfunc)XDArray_subtract, // Implements __sub__
+    .nb_multiply = (binaryfunc)XDArray_multiply, // Implements __mul__
+    // Add other number methods as needed
+};
+
+static PySequenceMethods XDArray_as_sequence = {
+    .sq_length = (lenfunc)XDArray_length,            // Implements __len__
+    .sq_item = (ssizeargfunc)XDArray_getitem,        // Implements __getitem__
+    .sq_ass_item = (ssizeobjargproc)XDArray_setitem, // Implements __setitem__
+};
+
+static PyTypeObject XDArrayType = {
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "simsimd.XDArray",
     .tp_doc = "Zero-copy view of a high-rank tensor, compatible with NumPy", //
-    .tp_basicsize = sizeof(MDArray),
+    .tp_basicsize = sizeof(XDArray),
     // Instead of using `simsimd_distance_t` for all the elements,
     // we use `char` to allow user to specify the datatype on `cdist`-like functions.
-    .tp_itemsize = sizeof(char), //
-    .tp_as_buffer = &MDArray_as_buffer,
-    .tp_getset = MDArray_getset, // Add the getset array here
+    .tp_new = XDArray_new,                     // Constructor
+    .tp_init = (initproc)XDArray_init,         // Optional initializer
+    .tp_dealloc = (destructor)XDArray_dealloc, // Deallocate memory
+    .tp_repr = (reprfunc)XDArray_repr,         // __repr__
+    .tp_str = (reprfunc)XDArray_str,           // __str__
+
+    .tp_as_number = &XDArray_as_number,     // Numeric operations
+    .tp_as_sequence = &XDArray_as_sequence, // Sequence methods
+    .tp_as_buffer = &XDArray_as_buffer,     // Buffer protocol
+    .tp_getset = XDArray_getset,            // Property access
+
 };
 
 /// @brief  Global variable that caches the CPU capabilities, and is computed just onc, when the module is loaded.
@@ -638,7 +659,7 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, simsimd_datatype_t *dtype)
 int parse_buffer_or_scalar_argument(PyObject *obj, Py_buffer *buffer, BufferOrScalarArgument *parsed) {
 
     if (PyFloat_Check(obj)) {
-        parsed->shape_kind = MDArrayShapeScalar;
+        parsed->shape_kind = XDArrayShapeScalar;
         parsed->as_buffer_start = (char *)&parsed->as_scalar;
         parsed->as_buffer_dimensions = 1;
         parsed->as_buffer_shape[0] = 1;
@@ -672,7 +693,7 @@ int parse_buffer_or_scalar_argument(PyObject *obj, Py_buffer *buffer, BufferOrSc
             PyErr_SetString(PyExc_ValueError, "Integer overflow");
             return 0;
         }
-        parsed->shape_kind = MDArrayShapeScalar;
+        parsed->shape_kind = XDArrayShapeScalar;
         parsed->as_buffer_start = (char *)&parsed->as_scalar;
         parsed->as_buffer_dimensions = 1;
         parsed->as_buffer_shape[0] = 1;
@@ -715,17 +736,31 @@ int parse_buffer_or_scalar_argument(PyObject *obj, Py_buffer *buffer, BufferOrSc
         }
         return 1;
     }
+    // We might be lucky and the `obj` is one of out own `XDArray` objects
+    else if (PyType_IsSubtype(Py_TYPE(obj), &XDArrayType)) {
+        XDArray *xdarray = (XDArray *)obj;
+        parsed->shape_kind = XDArrayShapeNonUnit;
+        parsed->as_buffer_start = &xdarray->start[0];
+        parsed->as_buffer_dimensions = xdarray->ndim;
+        for (Py_ssize_t i = 0; i < xdarray->ndim; i++) {
+            parsed->as_buffer_shape[i] = xdarray->shape[i];
+            parsed->as_buffer_strides[i] = xdarray->strides[i];
+        }
+        parsed->datatype = xdarray->datatype;
+        return 1;
+    }
+    // Otherwise, this may be a NumPy array or a buffer-like object
     else if (PyObject_CheckBuffer(obj)) {
         if (!parse_tensor(obj, buffer, &parsed->datatype)) return 0;
         // If the tensor contains just one element, regardless of the shape,
         // we must treat it as a scalar, similar to NumPy.
         if (buffer->len == buffer->itemsize) {
             memcpy(&parsed->as_scalar, buffer->buf, buffer->itemsize);
-            parsed->shape_kind = MDArrayShapeUnit;
+            parsed->shape_kind = XDArrayShapeUnit;
             parsed->as_buffer_start = (char *)&parsed->as_scalar;
         }
         else {
-            parsed->shape_kind = MDArrayShapeNonUnit;
+            parsed->shape_kind = XDArrayShapeNonUnit;
             parsed->as_buffer_start = buffer->buf;
         }
         parsed->as_buffer_dimensions = buffer->ndim;
@@ -767,8 +802,22 @@ static void DistancesTensor_releasebuffer(PyObject *export_from, Py_buffer *view
     //! https://docs.python.org/3/c-api/typeobj.html#c.PyBufferProcs.bf_releasebuffer
 }
 
-static int MDArray_getbuffer(PyObject *export_from, Py_buffer *view, int flags) {
-    MDArray *tensor = (MDArray *)export_from;
+static PyObject *XDArray_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+    XDArray *self;
+    self = (XDArray *)type->tp_alloc(type, 0);
+    if (!self) return NULL;
+
+    self->ndim = 0;
+    self->datatype = SIMSIMD_UNDEFINED; // Default type until specified
+    // Initialization of shape and strides can be added if needed
+
+    return (PyObject *)self;
+}
+
+static void XDArray_dealloc(XDArray *self) { Py_TYPE(self)->tp_free((PyObject *)self); }
+
+static int XDArray_getbuffer(PyObject *export_from, Py_buffer *view, int flags) {
+    XDArray *tensor = (XDArray *)export_from;
     Py_ssize_t const item_size = (Py_ssize_t)bytes_per_datatype(tensor->datatype);
     Py_ssize_t total_items = 1;
     for (Py_ssize_t i = 0; i < tensor->ndim; ++i) total_items *= tensor->shape[i];
@@ -789,19 +838,19 @@ static int MDArray_getbuffer(PyObject *export_from, Py_buffer *view, int flags) 
     return 0;
 }
 
-static void MDArray_releasebuffer(PyObject *export_from, Py_buffer *view) {
+static void XDArray_releasebuffer(PyObject *export_from, Py_buffer *view) {
     //! This function MUST NOT decrement view->obj, since that is done automatically in PyBuffer_Release().
     //! https://docs.python.org/3/c-api/typeobj.html#c.PyBufferProcs.bf_releasebuffer
 }
 
-static PyObject *MDArray_get_shape(MDArray *self, void *closure) {
+static PyObject *XDArray_get_shape(XDArray *self, void *closure) {
     PyObject *shape_tuple = PyTuple_New(self->ndim);
     if (!shape_tuple) return NULL;
     for (Py_ssize_t i = 0; i < self->ndim; i++) PyTuple_SET_ITEM(shape_tuple, i, PyLong_FromSsize_t(self->shape[i]));
     return shape_tuple;
 }
 
-static PyObject *MDArray_get_size(MDArray *self, void *closure) {
+static PyObject *XDArray_get_size(XDArray *self, void *closure) {
     Py_ssize_t total_items = 1;
     for (Py_ssize_t i = 0; i < self->ndim; i++) total_items *= self->shape[i];
     return PyLong_FromSsize_t(total_items);
@@ -1462,10 +1511,10 @@ static char const doc_cdist[] = //
     "Compute pairwise distances between two sets of input matrices.\n"
     "\n"
     "Args:\n"
-    "    a (MDArray): First matrix.\n"
-    "    b (MDArray): Second matrix.\n"
+    "    a (XDArray): First matrix.\n"
+    "    b (XDArray): Second matrix.\n"
     "    metric (str, optional): Distance metric to use (e.g., 'sqeuclidean', 'cosine').\n"
-    "    out (MDArray, optional): Output matrix to store the result.\n"
+    "    out (XDArray, optional): Output matrix to store the result.\n"
     "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type name.\n"
     "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n"
     "    threads (int, optional): Number of threads to use (default is 1).\n"
@@ -1627,10 +1676,10 @@ static char const doc_l2[] = //
     "Compute Euclidean (L2) distances between two matrices.\n"
     "\n"
     "Args:\n"
-    "    a (MDArray): First matrix or vector.\n"
-    "    b (MDArray): Second matrix or vector.\n"
+    "    a (XDArray): First matrix or vector.\n"
+    "    b (XDArray): Second matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
-    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1649,10 +1698,10 @@ static char const doc_l2sq[] = //
     "Compute squared Euclidean (L2) distances between two matrices.\n"
     "\n"
     "Args:\n"
-    "    a (MDArray): First matrix or vector.\n"
-    "    b (MDArray): Second matrix or vector.\n"
+    "    a (XDArray): First matrix or vector.\n"
+    "    b (XDArray): Second matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
-    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1671,10 +1720,10 @@ static char const doc_cos[] = //
     "Compute cosine (angular) distances between two matrices.\n"
     "\n"
     "Args:\n"
-    "    a (MDArray): First matrix or vector.\n"
-    "    b (MDArray): Second matrix or vector.\n"
+    "    a (XDArray): First matrix or vector.\n"
+    "    b (XDArray): Second matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
-    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1693,10 +1742,10 @@ static char const doc_dot[] = //
     "Compute the inner (dot) product between two matrices (real or complex).\n"
     "\n"
     "Args:\n"
-    "    a (MDArray): First matrix or vector.\n"
-    "    b (MDArray): Second matrix or vector.\n"
+    "    a (XDArray): First matrix or vector.\n"
+    "    b (XDArray): Second matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type name.\n"
-    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1715,10 +1764,10 @@ static char const doc_vdot[] = //
     "Compute the conjugate dot product between two complex matrices.\n"
     "\n"
     "Args:\n"
-    "    a (MDArray): First complex matrix or vector.\n"
-    "    b (MDArray): Second complex matrix or vector.\n"
+    "    a (XDArray): First complex matrix or vector.\n"
+    "    b (XDArray): Second complex matrix or vector.\n"
     "    dtype (ComplexType, optional): Override the presumed input type name.\n"
-    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (Union[ComplexType], optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1737,10 +1786,10 @@ static char const doc_kl[] = //
     "Compute Kullback-Leibler divergences between two matrices.\n"
     "\n"
     "Args:\n"
-    "    a (MDArray): First floating-point matrix or vector.\n"
-    "    b (MDArray): Second floating-point matrix or vector.\n"
+    "    a (XDArray): First floating-point matrix or vector.\n"
+    "    b (XDArray): Second floating-point matrix or vector.\n"
     "    dtype (FloatType, optional): Override the presumed input type name.\n"
-    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1759,10 +1808,10 @@ static char const doc_js[] = //
     "Compute Jensen-Shannon divergences between two matrices.\n"
     "\n"
     "Args:\n"
-    "    a (MDArray): First floating-point matrix or vector.\n"
-    "    b (MDArray): Second floating-point matrix or vector.\n"
+    "    a (XDArray): First floating-point matrix or vector.\n"
+    "    b (XDArray): Second floating-point matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
-    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1781,10 +1830,10 @@ static char const doc_hamming[] = //
     "Compute Hamming distances between two matrices.\n"
     "\n"
     "Args:\n"
-    "    a (MDArray): First binary matrix or vector.\n"
-    "    b (MDArray): Second binary matrix or vector.\n"
+    "    a (XDArray): First binary matrix or vector.\n"
+    "    b (XDArray): Second binary matrix or vector.\n"
     "    dtype (IntegralType, optional): Override the presumed input type name.\n"
-    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1803,10 +1852,10 @@ static char const doc_jaccard[] = //
     "Compute Jaccard distances (bitwise Tanimoto) between two matrices.\n"
     "\n"
     "Args:\n"
-    "    a (MDArray): First binary matrix or vector.\n"
-    "    b (MDArray): Second binary matrix or vector.\n"
+    "    a (XDArray): First binary matrix or vector.\n"
+    "    b (XDArray): Second binary matrix or vector.\n"
     "    dtype (IntegralType, optional): Override the presumed input type name.\n"
-    "    out (MDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
@@ -1825,9 +1874,9 @@ static char const doc_bilinear[] = //
     "Compute the bilinear form between two vectors given a metric tensor.\n"
     "\n"
     "Args:\n"
-    "    a (MDArray): First vector.\n"
-    "    b (MDArray): Second vector.\n"
-    "    metric_tensor (MDArray): The metric tensor defining the bilinear form.\n"
+    "    a (XDArray): First vector.\n"
+    "    b (XDArray): Second vector.\n"
+    "    metric_tensor (XDArray): The metric tensor defining the bilinear form.\n"
     "    dtype (FloatType, optional): Override the presumed input type name.\n"
     "Returns:\n"
     "    float: The bilinear form.\n"
@@ -1845,9 +1894,9 @@ static char const doc_mahalanobis[] = //
     "Compute the Mahalanobis distance between two vectors given an inverse covariance matrix.\n"
     "\n"
     "Args:\n"
-    "    a (MDArray): First vector.\n"
-    "    b (MDArray): Second vector.\n"
-    "    inverse_covariance (MDArray): The inverse of the covariance matrix.\n"
+    "    a (XDArray): First vector.\n"
+    "    b (XDArray): Second vector.\n"
+    "    inverse_covariance (XDArray): The inverse of the covariance matrix.\n"
     "    dtype (FloatType, optional): Override the presumed input type name.\n"
     "Returns:\n"
     "    float: The Mahalanobis distance.\n"
@@ -1865,8 +1914,8 @@ static char const doc_intersect[] = //
     "Compute the intersection of two sorted integer arrays.\n"
     "\n"
     "Args:\n"
-    "    a (MDArray): First sorted integer array.\n"
-    "    b (MDArray): Second sorted integer array.\n"
+    "    a (XDArray): First sorted integer array.\n"
+    "    b (XDArray): Second sorted integer array.\n"
     "Returns:\n"
     "    float: The number of intersecting elements.\n"
     "\n"
@@ -1882,11 +1931,11 @@ static char const doc_scale[] = //
     "Scale and Shift an input vectors.\n"
     "\n"
     "Args:\n"
-    "    a (MDArray): Vector.\n"
+    "    a (XDArray): Vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
     "    alpha (float, optional): First scale, 1.0 by default.\n"
     "    beta (float, optional): Shift, 0.0 by default.\n"
-    "    out (MDArray, optional): Vector for resulting distances.\n"
+    "    out (XDArray, optional): Vector for resulting distances.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will per performed in-place.\n"
@@ -2054,10 +2103,10 @@ static char const doc_sum[] = //
     "Element-wise Sum of 2 input vectors.\n"
     "\n"
     "Args:\n"
-    "    a (MDArray): First vector.\n"
-    "    b (MDArray): Second vector.\n"
+    "    a (XDArray): First vector.\n"
+    "    b (XDArray): Second vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
-    "    out (MDArray, optional): Vector for resulting distances.\n"
+    "    out (XDArray, optional): Vector for resulting distances.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will per performed in-place.\n"
@@ -2217,12 +2266,12 @@ static char const doc_wsum[] = //
     "Weighted Sum of 2 input vectors.\n"
     "\n"
     "Args:\n"
-    "    a (MDArray): First vector.\n"
-    "    b (MDArray): Second vector.\n"
+    "    a (XDArray): First vector.\n"
+    "    b (XDArray): Second vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
     "    alpha (float, optional): First scale, 1.0 by default.\n"
     "    beta (float, optional): Second scale, 1.0 by default.\n"
-    "    out (MDArray, optional): Vector for resulting distances.\n"
+    "    out (XDArray, optional): Vector for resulting distances.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will per performed in-place.\n"
@@ -2395,13 +2444,13 @@ static char const doc_fma[] = //
     "Fused-Multiply-Add between 3 input vectors.\n"
     "\n"
     "Args:\n"
-    "    a (MDArray): First vector.\n"
-    "    b (MDArray): Second vector.\n"
-    "    c (MDArray): Third vector.\n"
+    "    a (XDArray): First vector.\n"
+    "    b (XDArray): Second vector.\n"
+    "    c (XDArray): Third vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n"
     "    alpha (float, optional): First scale, 1.0 by default.\n"
     "    beta (float, optional): Second scale, 1.0 by default.\n"
-    "    out (MDArray, optional): Vector for resulting distances.\n"
+    "    out (XDArray, optional): Vector for resulting distances.\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will per performed in-place.\n"
@@ -2588,36 +2637,36 @@ void apply_elementwise_binary_operation_to_each_scalar( //
     // The hardest part of this operations is addressing the elements in a non-continuous tensor of arbitrary rank.
     // While iteratively deepening into the lower layers of the tensor, we need to keep track of the byte offsets
     // for each dimension to avoid recomputing them in the inner loops.
-    simsimd_mdindices_t a_mdindices, b_mdindices, out_mdindices;
-    memset(&a_mdindices, 0, sizeof(simsimd_mdindices_t));
-    memset(&b_mdindices, 0, sizeof(simsimd_mdindices_t));
-    memset(&out_mdindices, 0, sizeof(simsimd_mdindices_t));
+    simsimd_xd_index_t a_xd_index, b_xd_index, out_xd_index;
+    memset(&a_xd_index, 0, sizeof(simsimd_xd_index_t));
+    memset(&b_xd_index, 0, sizeof(simsimd_xd_index_t));
+    memset(&out_xd_index, 0, sizeof(simsimd_xd_index_t));
 
     // Start from last dimension and move backward, replicating the logic
-    // of `simsimd_mdindices_next`, broadcasting the same update logic across the
+    // of `simsimd_xd_index_next`, broadcasting the same update logic across the
     // indexes in all three tensors, and avoiding additional branches inside the loops.
     while (1) {
         // Invoke the provided kernel at the current byte offsets
-        elementwise_kernel(a_parsed->as_buffer_start + a_mdindices.byte_offset,
-                           b_parsed->as_buffer_start + b_mdindices.byte_offset,
-                           out_parsed->as_buffer_start + out_mdindices.byte_offset);
+        elementwise_kernel(a_parsed->as_buffer_start + a_xd_index.byte_offset,
+                           b_parsed->as_buffer_start + b_xd_index.byte_offset,
+                           out_parsed->as_buffer_start + out_xd_index.byte_offset);
 
         // Advance to the next index
         Py_ssize_t dim;
         for (dim = out_parsed->as_buffer_dimensions - 1; dim >= 0; --dim) {
-            out_mdindices.coordinates[dim]++;
-            out_mdindices.byte_offset += out_parsed->as_buffer_strides[dim];
-            a_mdindices.byte_offset += a_parsed->as_buffer_strides[dim];
-            b_mdindices.byte_offset += b_parsed->as_buffer_strides[dim];
+            out_xd_index.coordinates[dim]++;
+            out_xd_index.byte_offset += out_parsed->as_buffer_strides[dim];
+            a_xd_index.byte_offset += a_parsed->as_buffer_strides[dim];
+            b_xd_index.byte_offset += b_parsed->as_buffer_strides[dim];
 
             // Successfully moved to the next index in this dimension
-            if (out_mdindices.coordinates[dim] < out_parsed->as_buffer_shape[dim]) break;
+            if (out_xd_index.coordinates[dim] < out_parsed->as_buffer_shape[dim]) break;
             else {
                 // Reset coordinates and byte offset for this dimension
-                out_mdindices.coordinates[dim] = 0;
-                out_mdindices.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                a_mdindices.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                b_mdindices.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                out_xd_index.coordinates[dim] = 0;
+                out_xd_index.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                a_xd_index.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                b_xd_index.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
             }
         }
 
@@ -2636,39 +2685,39 @@ void apply_elementwise_casting_binary_operation_to_each_scalar( //
     // The hardest part of this operations is addressing the elements in a non-continuous tensor of arbitrary rank.
     // While iteratively deepening into the lower layers of the tensor, we need to keep track of the byte offsets
     // for each dimension to avoid recomputing them in the inner loops.
-    simsimd_mdindices_t a_mdindices, b_mdindices, out_mdindices;
-    memset(&a_mdindices, 0, sizeof(simsimd_mdindices_t));
-    memset(&b_mdindices, 0, sizeof(simsimd_mdindices_t));
-    memset(&out_mdindices, 0, sizeof(simsimd_mdindices_t));
+    simsimd_xd_index_t a_xd_index, b_xd_index, out_xd_index;
+    memset(&a_xd_index, 0, sizeof(simsimd_xd_index_t));
+    memset(&b_xd_index, 0, sizeof(simsimd_xd_index_t));
+    memset(&out_xd_index, 0, sizeof(simsimd_xd_index_t));
 
     char a_upcast_buffer[8], b_upcast_buffer[8], out_downcast_buffer[8];
 
     // Start from last dimension and move backward, replicating the logic
-    // of `simsimd_mdindices_next`, broadcasting the same update logic across the
+    // of `simsimd_xd_index_next`, broadcasting the same update logic across the
     // indexes in all three tensors, and avoiding additional branches inside the loops.
     while (1) {
         // Invoke the provided kernel at the current byte offsets
-        a_upcast_kernel(a_parsed->as_buffer_start + a_mdindices.byte_offset, a_upcast_buffer);
-        b_upcast_kernel(b_parsed->as_buffer_start + b_mdindices.byte_offset, b_upcast_buffer);
+        a_upcast_kernel(a_parsed->as_buffer_start + a_xd_index.byte_offset, a_upcast_buffer);
+        b_upcast_kernel(b_parsed->as_buffer_start + b_xd_index.byte_offset, b_upcast_buffer);
         elementwise_kernel(a_upcast_buffer, b_upcast_buffer, out_downcast_buffer);
-        out_downcast_kernel(out_downcast_buffer, out_parsed->as_buffer_start + out_mdindices.byte_offset);
+        out_downcast_kernel(out_downcast_buffer, out_parsed->as_buffer_start + out_xd_index.byte_offset);
 
         // Advance to the next index
         Py_ssize_t dim;
         for (dim = out_parsed->as_buffer_dimensions - 1; dim >= 0; --dim) {
-            out_mdindices.coordinates[dim]++;
-            out_mdindices.byte_offset += out_parsed->as_buffer_strides[dim];
-            a_mdindices.byte_offset += a_parsed->as_buffer_strides[dim];
-            b_mdindices.byte_offset += b_parsed->as_buffer_strides[dim];
+            out_xd_index.coordinates[dim]++;
+            out_xd_index.byte_offset += out_parsed->as_buffer_strides[dim];
+            a_xd_index.byte_offset += a_parsed->as_buffer_strides[dim];
+            b_xd_index.byte_offset += b_parsed->as_buffer_strides[dim];
 
             // Successfully moved to the next index in this dimension
-            if (out_mdindices.coordinates[dim] < out_parsed->as_buffer_shape[dim]) break;
+            if (out_xd_index.coordinates[dim] < out_parsed->as_buffer_shape[dim]) break;
             else {
                 // Reset coordinates and byte offset for this dimension
-                out_mdindices.coordinates[dim] = 0;
-                out_mdindices.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                a_mdindices.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                b_mdindices.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                out_xd_index.coordinates[dim] = 0;
+                out_xd_index.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                a_xd_index.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                b_xd_index.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
             }
         }
 
@@ -2698,38 +2747,38 @@ void apply_elementwise_binary_operation_to_each_continuous_slice( //
     // The hardest part of this operations is addressing the elements in a non-continuous tensor of arbitrary rank.
     // While iteratively deepening into the lower layers of the tensor, we need to keep track of the byte offsets
     // for each dimension to avoid recomputing them in the inner loops.
-    simsimd_mdindices_t a_mdindices, b_mdindices, out_mdindices;
-    memset(&a_mdindices, 0, sizeof(simsimd_mdindices_t));
-    memset(&b_mdindices, 0, sizeof(simsimd_mdindices_t));
-    memset(&out_mdindices, 0, sizeof(simsimd_mdindices_t));
+    simsimd_xd_index_t a_xd_index, b_xd_index, out_xd_index;
+    memset(&a_xd_index, 0, sizeof(simsimd_xd_index_t));
+    memset(&b_xd_index, 0, sizeof(simsimd_xd_index_t));
+    memset(&out_xd_index, 0, sizeof(simsimd_xd_index_t));
 
     // Start from last dimension and move backward, replicating the logic
-    // of `simsimd_mdindices_next`, broadcasting the same update logic across the
+    // of `simsimd_xd_index_next`, broadcasting the same update logic across the
     // indexes in all three tensors, and avoiding additional branches inside the loops.
     while (1) {
         // Invoke the provided kernel at the current byte offsets
-        statefull_binary_kernel(                                 //
-            a_parsed->as_buffer_start + a_mdindices.byte_offset, //
-            b_parsed->as_buffer_start + b_mdindices.byte_offset, continuous_elements,
-            out_parsed->as_buffer_start + out_mdindices.byte_offset, //
+        statefull_binary_kernel(                                //
+            a_parsed->as_buffer_start + a_xd_index.byte_offset, //
+            b_parsed->as_buffer_start + b_xd_index.byte_offset, continuous_elements,
+            out_parsed->as_buffer_start + out_xd_index.byte_offset, //
             state);
 
         // Advance to the next index
         Py_ssize_t dim;
         for (dim = non_continuous_ranks - 1; dim >= 0; --dim) {
-            out_mdindices.coordinates[dim]++;
-            out_mdindices.byte_offset += out_parsed->as_buffer_strides[dim];
-            a_mdindices.byte_offset += a_parsed->as_buffer_strides[dim];
-            b_mdindices.byte_offset += b_parsed->as_buffer_strides[dim];
+            out_xd_index.coordinates[dim]++;
+            out_xd_index.byte_offset += out_parsed->as_buffer_strides[dim];
+            a_xd_index.byte_offset += a_parsed->as_buffer_strides[dim];
+            b_xd_index.byte_offset += b_parsed->as_buffer_strides[dim];
 
             // Successfully moved to the next index in this dimension
-            if (out_mdindices.coordinates[dim] < out_parsed->as_buffer_shape[dim]) break;
+            if (out_xd_index.coordinates[dim] < out_parsed->as_buffer_shape[dim]) break;
             else {
                 // Reset coordinates and byte offset for this dimension
-                out_mdindices.coordinates[dim] = 0;
-                out_mdindices.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                a_mdindices.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                b_mdindices.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                out_xd_index.coordinates[dim] = 0;
+                out_xd_index.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                a_xd_index.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                b_xd_index.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
             }
         }
 
@@ -2748,32 +2797,32 @@ void apply_scale_to_each_continuous_slice(                                      
     // The hardest part of this operations is addressing the elements in a non-continuous tensor of arbitrary rank.
     // While iteratively deepening into the lower layers of the tensor, we need to keep track of the byte offsets
     // for each dimension to avoid recomputing them in the inner loops.
-    simsimd_mdindices_t input_mdindices, out_mdindices;
-    memset(&input_mdindices, 0, sizeof(simsimd_mdindices_t));
-    memset(&out_mdindices, 0, sizeof(simsimd_mdindices_t));
+    simsimd_xd_index_t input_xd_index, out_xd_index;
+    memset(&input_xd_index, 0, sizeof(simsimd_xd_index_t));
+    memset(&out_xd_index, 0, sizeof(simsimd_xd_index_t));
 
     // Start from last dimension and move backward, replicating the logic
-    // of `simsimd_mdindices_next`, broadcasting the same update logic across the
+    // of `simsimd_xd_index_next`, broadcasting the same update logic across the
     // indexes in all three tensors, and avoiding additional branches inside the loops.
     while (1) {
         // Invoke the provided kernel at the current byte offsets
-        binary_kernel(input_parsed->as_buffer_start + input_mdindices.byte_offset, continuous_elements, alpha, beta,
-                      out_parsed->as_buffer_start + out_mdindices.byte_offset);
+        binary_kernel(input_parsed->as_buffer_start + input_xd_index.byte_offset, continuous_elements, alpha, beta,
+                      out_parsed->as_buffer_start + out_xd_index.byte_offset);
 
         // Advance to the next index
         Py_ssize_t dim;
         for (dim = non_continuous_ranks - 1; dim >= 0; --dim) {
-            out_mdindices.coordinates[dim]++;
-            out_mdindices.byte_offset += out_parsed->as_buffer_strides[dim];
-            input_mdindices.byte_offset += input_parsed->as_buffer_strides[dim];
+            out_xd_index.coordinates[dim]++;
+            out_xd_index.byte_offset += out_parsed->as_buffer_strides[dim];
+            input_xd_index.byte_offset += input_parsed->as_buffer_strides[dim];
 
             // Successfully moved to the next index in this dimension
-            if (out_mdindices.coordinates[dim] < out_parsed->as_buffer_shape[dim]) break;
+            if (out_xd_index.coordinates[dim] < out_parsed->as_buffer_shape[dim]) break;
             else {
                 // Reset coordinates and byte offset for this dimension
-                out_mdindices.coordinates[dim] = 0;
-                out_mdindices.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                input_mdindices.byte_offset -= input_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                out_xd_index.coordinates[dim] = 0;
+                out_xd_index.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
+                input_xd_index.byte_offset -= input_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
             }
         }
 
@@ -2935,7 +2984,7 @@ int numpy_promote_shape(                                  //
     Py_buffer const *a_buffer, Py_buffer const *b_buffer, //
     BufferOrScalarArgument *a_parsed, BufferOrScalarArgument *b_parsed, BufferOrScalarArgument *out_parsed) {
 
-    if (a_parsed->shape_kind != MDArrayShapeScalar && b_parsed->shape_kind != MDArrayShapeScalar) {
+    if (a_parsed->shape_kind != XDArrayShapeScalar && b_parsed->shape_kind != XDArrayShapeScalar) {
         //! The ranks of tensors may not match!
         // We need to compare them in reverse order, right to left, assuming all the missing dimensions are 1.
         // To match those, we are going to populate the `a_parsed.as_buffer_shape` and `b_parsed.as_buffer_shape`,
@@ -3011,8 +3060,8 @@ int numpy_promote_shape(                                  //
         }
         return 1;
     }
-    // If at least one of the entries is actually is a `MDArrayShapeScalar` our logic becomes much easier:
-    else if (a_parsed->shape_kind != MDArrayShapeScalar) {
+    // If at least one of the entries is actually is a `XDArrayShapeScalar` our logic becomes much easier:
+    else if (a_parsed->shape_kind != XDArrayShapeScalar) {
         a_parsed->as_buffer_dimensions = a_buffer->ndim;
         memcpy(a_parsed->as_buffer_shape, a_buffer->shape, a_buffer->ndim * sizeof(Py_ssize_t));
         memcpy(a_parsed->as_buffer_strides, a_buffer->strides, a_buffer->ndim * sizeof(Py_ssize_t));
@@ -3023,7 +3072,7 @@ int numpy_promote_shape(                                  //
         memcpy(out_parsed->as_buffer_shape, a_buffer->shape, a_buffer->ndim * sizeof(Py_ssize_t));
         return 1;
     }
-    else if (b_parsed->shape_kind != MDArrayShapeScalar) {
+    else if (b_parsed->shape_kind != XDArrayShapeScalar) {
         a_parsed->as_buffer_dimensions = b_buffer->ndim;
         memcpy(a_parsed->as_buffer_shape, b_buffer->shape, b_buffer->ndim * sizeof(Py_ssize_t));
         memset(a_parsed->as_buffer_strides, 0, b_buffer->ndim * sizeof(Py_ssize_t));
@@ -3119,16 +3168,16 @@ int bring_scalar_operand_to_promoted_type(                              //
     simsimd_datatype_t promoted_dtype) {
 
     if (a_parsed->datatype == b_parsed->datatype) return 1;
-    if (a_parsed->shape_kind == MDArrayShapeNonUnit && b_parsed->shape_kind == MDArrayShapeNonUnit) return 1;
+    if (a_parsed->shape_kind == XDArrayShapeNonUnit && b_parsed->shape_kind == XDArrayShapeNonUnit) return 1;
 
     simsimd_datatype_family_k const promoted_family = simsimd_datatype_family(promoted_dtype);
     if (promoted_family == simsimd_datatype_float_family_k) {
-        if (a_parsed->datatype != promoted_dtype && a_parsed->shape_kind != MDArrayShapeNonUnit) {
+        if (a_parsed->datatype != promoted_dtype && a_parsed->shape_kind != XDArrayShapeNonUnit) {
             elementwise_upcast_to_f64(a_parsed->datatype)(a_parsed->as_scalar, a_parsed->as_scalar);
             elementwise_downcast_from_f64(promoted_dtype)(a_parsed->as_scalar, a_parsed->as_scalar);
             a_parsed->datatype = promoted_dtype;
         }
-        if (b_parsed->datatype != promoted_dtype && b_parsed->shape_kind != MDArrayShapeNonUnit) {
+        if (b_parsed->datatype != promoted_dtype && b_parsed->shape_kind != XDArrayShapeNonUnit) {
             elementwise_upcast_to_f64(b_parsed->datatype)(b_parsed->as_scalar, b_parsed->as_scalar);
             elementwise_downcast_from_f64(promoted_dtype)(b_parsed->as_scalar, b_parsed->as_scalar);
             b_parsed->datatype = promoted_dtype;
@@ -3136,12 +3185,12 @@ int bring_scalar_operand_to_promoted_type(                              //
         return 1;
     }
     else if (promoted_family == simsimd_datatype_uint_family_k) {
-        if (a_parsed->datatype != promoted_dtype && a_parsed->shape_kind != MDArrayShapeNonUnit) {
+        if (a_parsed->datatype != promoted_dtype && a_parsed->shape_kind != XDArrayShapeNonUnit) {
             elementwise_upcast_to_u64(a_parsed->datatype)(a_parsed->as_scalar, a_parsed->as_scalar);
             elementwise_downcast_from_u64(promoted_dtype)(a_parsed->as_scalar, a_parsed->as_scalar);
             a_parsed->datatype = promoted_dtype;
         }
-        if (b_parsed->datatype != promoted_dtype && b_parsed->shape_kind != MDArrayShapeNonUnit) {
+        if (b_parsed->datatype != promoted_dtype && b_parsed->shape_kind != XDArrayShapeNonUnit) {
             elementwise_upcast_to_u64(b_parsed->datatype)(b_parsed->as_scalar, b_parsed->as_scalar);
             elementwise_downcast_from_u64(promoted_dtype)(b_parsed->as_scalar, b_parsed->as_scalar);
             b_parsed->datatype = promoted_dtype;
@@ -3149,12 +3198,12 @@ int bring_scalar_operand_to_promoted_type(                              //
         return 1;
     }
     else if (promoted_family == simsimd_datatype_int_family_k) {
-        if (a_parsed->datatype != promoted_dtype && a_parsed->shape_kind != MDArrayShapeNonUnit) {
+        if (a_parsed->datatype != promoted_dtype && a_parsed->shape_kind != XDArrayShapeNonUnit) {
             elementwise_upcast_to_i64(a_parsed->datatype)(a_parsed->as_scalar, a_parsed->as_scalar);
             elementwise_downcast_from_i64(promoted_dtype)(a_parsed->as_scalar, a_parsed->as_scalar);
             a_parsed->datatype = promoted_dtype;
         }
-        if (b_parsed->datatype != promoted_dtype && b_parsed->shape_kind != MDArrayShapeNonUnit) {
+        if (b_parsed->datatype != promoted_dtype && b_parsed->shape_kind != XDArrayShapeNonUnit) {
             elementwise_upcast_to_i64(b_parsed->datatype)(b_parsed->as_scalar, b_parsed->as_scalar);
             elementwise_downcast_from_i64(promoted_dtype)(b_parsed->as_scalar, b_parsed->as_scalar);
             b_parsed->datatype = promoted_dtype;
@@ -3264,9 +3313,9 @@ static char const doc_add[] = //
     "Tensor-Tensor or Tensor-Scalar element-wise addition.\n"
     "\n"
     "Args:\n"
-    "    a (Union[MDArray, float, int]): First Tensor or scalar.\n"
-    "    b (Union[MDArray, float, int]): Second Tensor or scalar.\n"
-    "    out (MDArray, optional): Tensor for resulting distances.\n"
+    "    a (Union[XDArray, float, int]): First Tensor or scalar.\n"
+    "    b (Union[XDArray, float, int]): Second Tensor or scalar.\n"
+    "    out (XDArray, optional): Tensor for resulting distances.\n"
     "    a_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `a`.\n"
     "    b_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `b`.\n"
     "    out_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `out`.\n"
@@ -3421,7 +3470,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
 
         // Allocate the output tensor
         Py_ssize_t const expected_size_bytes = out_total_elements * bytes_per_datatype(ab_dtype);
-        MDArray *mdarray_obj = PyObject_NewVar(MDArray, &MDArrayType, expected_size_bytes);
+        XDArray *mdarray_obj = PyObject_NewVar(XDArray, &XDArrayType, expected_size_bytes);
         if (!mdarray_obj) {
             PyErr_NoMemory();
             goto cleanup;
@@ -3431,7 +3480,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         memset(mdarray_obj->shape, 0, sizeof(mdarray_obj->shape));
         memset(mdarray_obj->strides, 0, sizeof(mdarray_obj->strides));
 
-        // Define the new `MDArray` shape
+        // Define the new `XDArray` shape
         mdarray_obj->datatype = ab_dtype;
         mdarray_obj->ndim = out_parsed.as_buffer_dimensions;
         memcpy(mdarray_obj->shape, out_parsed.as_buffer_shape, out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
@@ -3445,7 +3494,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         memcpy(out_parsed.as_buffer_strides, mdarray_obj->strides,
                out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
 
-        // Return the new `MDArray` object
+        // Return the new `XDArray` object
         return_obj = (PyObject *)mdarray_obj;
     }
     else {
@@ -3510,11 +3559,11 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     // - there is at least one continuous dimension in the input and output tensor,
     // - the types match between the input tensor and output tensor.
     int const is_tensor_a_with_scalar_b = //
-        a_parsed.shape_kind == MDArrayShapeNonUnit && a_parsed.datatype == out_parsed.datatype &&
-        b_parsed.shape_kind != MDArrayShapeNonUnit;
+        a_parsed.shape_kind == XDArrayShapeNonUnit && a_parsed.datatype == out_parsed.datatype &&
+        b_parsed.shape_kind != XDArrayShapeNonUnit;
     int const is_tensor_b_with_scalar_b = //
-        b_parsed.shape_kind == MDArrayShapeNonUnit && b_parsed.datatype == out_parsed.datatype &&
-        a_parsed.shape_kind != MDArrayShapeNonUnit;
+        b_parsed.shape_kind == XDArrayShapeNonUnit && b_parsed.datatype == out_parsed.datatype &&
+        a_parsed.shape_kind != XDArrayShapeNonUnit;
     if ((continuous_elements > 1) && (is_tensor_a_with_scalar_b || is_tensor_b_with_scalar_b)) {
         // Look up the kernel and the capability
         simsimd_elementwise_scale_t kernel = NULL;
@@ -3560,9 +3609,9 @@ static char const doc_multiply[] = //
     "Tensor-Tensor or Tensor-Scalar element-wise multiplication.\n"
     "\n"
     "Args:\n"
-    "    a (Union[MDArray, float, int]): First Tensor or scalar.\n"
-    "    b (Union[MDArray, float, int]): Second Tensor or scalar.\n"
-    "    out (MDArray, optional): Tensor for resulting distances.\n"
+    "    a (Union[XDArray, float, int]): First Tensor or scalar.\n"
+    "    b (Union[XDArray, float, int]): Second Tensor or scalar.\n"
+    "    out (XDArray, optional): Tensor for resulting distances.\n"
     "    a_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `a`.\n"
     "    b_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `b`.\n"
     "    out_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `out`.\n"
@@ -3719,7 +3768,7 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
 
         // Allocate the output tensor
         Py_ssize_t const expected_size_bytes = out_total_elements * bytes_per_datatype(ab_dtype);
-        MDArray *mdarray_obj = PyObject_NewVar(MDArray, &MDArrayType, expected_size_bytes);
+        XDArray *mdarray_obj = PyObject_NewVar(XDArray, &XDArrayType, expected_size_bytes);
         if (!mdarray_obj) {
             PyErr_NoMemory();
             goto cleanup;
@@ -3729,7 +3778,7 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
         memset(mdarray_obj->shape, 0, sizeof(mdarray_obj->shape));
         memset(mdarray_obj->strides, 0, sizeof(mdarray_obj->strides));
 
-        // Define the new `MDArray` shape
+        // Define the new `XDArray` shape
         mdarray_obj->datatype = ab_dtype;
         mdarray_obj->ndim = out_parsed.as_buffer_dimensions;
         memcpy(mdarray_obj->shape, out_parsed.as_buffer_shape, out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
@@ -3743,7 +3792,7 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
         memcpy(out_parsed.as_buffer_strides, mdarray_obj->strides,
                out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
 
-        // Return the new `MDArray` object
+        // Return the new `XDArray` object
         return_obj = (PyObject *)mdarray_obj;
     }
     else {
@@ -3810,11 +3859,11 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
     // - there is at least one continuous dimension in the input and output tensor,
     // - the types match between the input tensor and output tensor.
     int const is_tensor_a_with_scalar_b = //
-        a_parsed.shape_kind == MDArrayShapeNonUnit && a_parsed.datatype == out_parsed.datatype &&
-        b_parsed.shape_kind != MDArrayShapeNonUnit;
+        a_parsed.shape_kind == XDArrayShapeNonUnit && a_parsed.datatype == out_parsed.datatype &&
+        b_parsed.shape_kind != XDArrayShapeNonUnit;
     int const is_tensor_b_with_scalar_b = //
-        b_parsed.shape_kind == MDArrayShapeNonUnit && b_parsed.datatype == out_parsed.datatype &&
-        a_parsed.shape_kind != MDArrayShapeNonUnit;
+        b_parsed.shape_kind == XDArrayShapeNonUnit && b_parsed.datatype == out_parsed.datatype &&
+        a_parsed.shape_kind != XDArrayShapeNonUnit;
     if ((continuous_elements > 1) && (is_tensor_a_with_scalar_b || is_tensor_b_with_scalar_b)) {
         // Look up the kernel and the capability
         simsimd_elementwise_scale_t kernel = NULL;
@@ -3966,7 +4015,7 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
     PyObject *m;
 
     if (PyType_Ready(&DistancesTensorType) < 0) return NULL;
-    if (PyType_Ready(&MDArrayType) < 0) return NULL;
+    if (PyType_Ready(&XDArrayType) < 0) return NULL;
 
     m = PyModule_Create(&simsimd_module);
     if (m == NULL) return NULL;
@@ -3986,9 +4035,9 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
         return NULL;
     }
 
-    Py_INCREF(&MDArrayType);
-    if (PyModule_AddObject(m, "MDArray", (PyObject *)&MDArrayType) < 0) {
-        Py_XDECREF(&MDArrayType);
+    Py_INCREF(&XDArrayType);
+    if (PyModule_AddObject(m, "XDArray", (PyObject *)&XDArrayType) < 0) {
+        Py_XDECREF(&XDArrayType);
         Py_XDECREF(&DistancesTensorType);
         Py_XDECREF(m);
         return NULL;

@@ -72,11 +72,12 @@ template <simsimd_datatype_t datatype_ak>
 struct vector_gt {
     using scalar_t = typename datatype_enum_to_type_gt<datatype_ak>::value_t;
     using compressed16_t = unsigned short;
-    static constexpr bool is_integral = datatype_ak == datatype_ak == simsimd_b8_k ||                   //
-                                        datatype_ak == simsimd_i8_k || datatype_ak == simsimd_u8_k ||   //
-                                        datatype_ak == simsimd_i16_k || datatype_ak == simsimd_u16_k || //
-                                        datatype_ak == simsimd_i32_k || datatype_ak == simsimd_u32_k ||
-                                        datatype_ak == simsimd_i64_k || datatype_ak == simsimd_u64_k;
+    static constexpr bool is_integral =                                 //
+        datatype_ak == simsimd_b8_k ||                                  //
+        datatype_ak == simsimd_i8_k || datatype_ak == simsimd_u8_k ||   //
+        datatype_ak == simsimd_i16_k || datatype_ak == simsimd_u16_k || //
+        datatype_ak == simsimd_i32_k || datatype_ak == simsimd_u32_k || //
+        datatype_ak == simsimd_i64_k || datatype_ak == simsimd_u64_k;
     static constexpr std::size_t cacheline_length = 64;
 
     scalar_t *buffer_ = nullptr;
@@ -196,8 +197,8 @@ struct vector_gt {
         generator.seed(seed);
 
         if constexpr (is_integral) {
-            std::uniform_int_distribution<scalar_t> distribution(std::numeric_limits<scalar_t>::min(),
-                                                                 std::numeric_limits<scalar_t>::max());
+            std::uniform_int_distribution<scalar_t> distribution( //
+                std::numeric_limits<scalar_t>::min(), std::numeric_limits<scalar_t>::max());
             for (std::size_t i = 0; i != dimensions_; ++i) { buffer_[i] = distribution(generator); }
         }
         else {
@@ -489,6 +490,7 @@ void measure_sparse(bm::State &state, metric_at metric, metric_at baseline, std:
  *  @param state The benchmark state object provided by Google Benchmark.
  *  @param kernel The kernel function to benchmark.
  *  @param baseline The baseline function to compare against.
+ *  @param l2_metric The L2 metric function to compute the error
  *  @param dimensions The number of dimensions in the vectors.
  */
 template <typename pair_at, simsimd_kernel_kind_t kernel_ak, typename kernel_at = void, typename l2_metric_at = void>
@@ -636,10 +638,10 @@ void curved_(std::string name, metric_at *distance_func, metric_at *baseline_fun
 }
 
 template <typename scalar_at>
-void l2(scalar_at const *a, scalar_at const *b, std::size_t n, simsimd_distance_t *result) {
+void l2_with_stl(scalar_at const *a, scalar_at const *b, simsimd_size_t n, simsimd_distance_t *result) {
     simsimd_distance_t sum = 0;
-    for (std::size_t i = 0; i != n; ++i) {
-        simsimd_distance_t delta = a[i] - b[i];
+    for (simsimd_size_t i = 0; i != n; ++i) {
+        simsimd_distance_t delta = (simsimd_distance_t)a[i] - (simsimd_distance_t)b[i];
         sum += delta * delta;
     }
     *result = std::sqrt(sum);
