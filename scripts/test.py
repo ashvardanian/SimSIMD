@@ -38,7 +38,6 @@ Or run the script directly:
     python test.py
 
 """
-
 import os
 import math
 import time
@@ -124,7 +123,7 @@ try:
     baseline_euclidean = lambda x, y: np.array(spd.euclidean(x, y))  #! SciPy returns a scalar
     baseline_sqeuclidean = spd.sqeuclidean
     baseline_cosine = spd.cosine
-    baseline_jensenshannon = lambda x, y: spd.jensenshannon(x, y) ** 2
+    baseline_jensenshannon = lambda x, y: spd.jensenshannon(x, y)
     baseline_hamming = lambda x, y: spd.hamming(x, y) * len(x)
     baseline_jaccard = spd.jaccard
 
@@ -453,6 +452,8 @@ def name_to_kernels(name: str):
         return baseline_fma, simd.fma
     elif name == "wsum":
         return baseline_wsum, simd.wsum
+    elif name == "jensenshannon":
+        return baseline_jensenshannon, simd.jensenshannon
     else:
         raise ValueError(f"Unknown kernel name: {name}")
 
