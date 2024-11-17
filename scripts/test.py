@@ -840,12 +840,13 @@ def test_dense_bits(ndim, metric, capability, stats_fixture):
     collect_errors(metric, ndim, "bin8", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
 
-@pytest.mark.skip(reason="Problems inferring the tolerance bounds for numerical errors")
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float32", "float16"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_jensen_shannon(ndim, dtype, capability):
+def test_jensen_shannon(ndim, dtype, capability, stats_fixture):
     """Compares the simd.jensenshannon() function with scipy.spatial.distance.jensenshannon(), measuring the accuracy error for f16, and f32 types."""
     np.random.seed()
     a = np.abs(np.random.randn(ndim)).astype(dtype)
