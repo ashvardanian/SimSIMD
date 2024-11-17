@@ -209,8 +209,7 @@ export const jensenshannon = (a: Float64Array | Float32Array, b: Float64Array | 
   }
 
   const m = a.map((value, index) => (value + b[index]) / 2);
-
-  const divergence = 0.5 * kullbackleibler(a, m) + 0.5 * kullbackleibler(b, m);
+  const divergence = (kullbackleibler(a, m) + kullbackleibler(b, m)) / 2;
   return Math.sqrt(divergence);
 };
 

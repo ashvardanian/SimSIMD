@@ -200,8 +200,8 @@ test("Kullback-Leibler C vs JS", () => {
 });
 
 test("Jensen-Shannon C vs JS", () => {
-  const f32sDistribution = new Float32Array([1.0, 0.0]);
-  const f32sDistribution2 = new Float32Array([0.5, 0.5]);
+  const f32sDistribution = new Float32Array([0.5, 0.0, 0.2, 0.3]);
+  const f32sDistribution2 = new Float32Array([0.5, 0.3, 0.0, 0.2]);
   const result = simsimd.jensenshannon(f32sDistribution, f32sDistribution2);
   const resultjs = fallback.jensenshannon(f32sDistribution, f32sDistribution2);
   assertAlmostEqual(result, resultjs, 0.01);
