@@ -171,7 +171,7 @@ export const jaccard = (a: Uint8Array, b: Uint8Array): number => {
 };
 
 /**
- * @brief Computes the kullbackleibler similarity coefficient between two vectors.
+ * @brief Computes the Kullback-Leibler divergence between two probability distributions.
  * @param {Float64Array|Float32Array} a - The first vector.
  * @param {Float64Array|Float32Array} b - The second vector.
  * @returns {number} The Jaccard similarity coefficient between vectors a and b.
@@ -198,20 +198,30 @@ export const kullbackleibler = (a: Float64Array | Float32Array, b: Float64Array 
 };
 
 /**
- * @brief Computes the jensenshannon similarity coefficient between two vectors.
- * @param {Float64Array|Float32Array} a - The first vector.
- * @param {Float64Array|Float32Array} b - The second vector.
- * @returns {number} The Jaccard similarity coefficient between vectors a and b.
+ * @brief Computes the Jensen-Shannon distance between two probability distributions.
+ * @param {Float64Array|Float32Array} a - The first probability distribution.
+ * @param {Float64Array|Float32Array} b - The second probability distribution.
+ * @returns {number} The Jensen-Shannon distance between distributions a and b.
  */
 export const jensenshannon = (a: Float64Array | Float32Array, b: Float64Array | Float32Array): number => {
   if (a.length !== b.length) {
     throw new Error("Arrays must be of the same length");
   }
 
-  const m = a.map((value, index) => (value + b[index]) / 2);
-  const divergence = (kullbackleibler(a, m) + kullbackleibler(b, m)) / 2;
+  let divergence = 0;
+  for (let i = 0; i < a.length; i++) {
+    const m = (a[i] + b[i]) / 2;
+    if (m > 0) {
+      if (a[i] > 0) divergence += a[i] * Math.log(a[i] / m);
+      if (b[i] > 0) divergence += b[i] * Math.log(b[i] / m);
+    }
+  }
+
+  divergence /= 2;
+
   return Math.sqrt(divergence);
 };
+
 
 export default {
   sqeuclidean,
