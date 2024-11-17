@@ -217,17 +217,15 @@ simsimd_js_f32_neon_cycle:
     float32x4_t ratio_b_vec = vdivq_f32(vaddq_f32(b_vec, epsilon_vec), vaddq_f32(m_vec, epsilon_vec));
     float32x4_t log_ratio_a_vec = _simsimd_log2_f32_neon(ratio_a_vec);
     float32x4_t log_ratio_b_vec = _simsimd_log2_f32_neon(ratio_b_vec);
-    float32x4_t prod_a_vec = vmulq_n_f32(vmulq_f32(a_vec, log_ratio_a_vec), 0.5f);
-    float32x4_t prod_b_vec = vmulq_n_f32(vmulq_f32(b_vec, log_ratio_b_vec), 0.5f);
-    
+    float32x4_t prod_a_vec = vmulq_f32(a_vec, log_ratio_a_vec);
+    float32x4_t prod_b_vec = vmulq_f32(b_vec, log_ratio_b_vec);
+
     sum_vec = vaddq_f32(sum_vec, vaddq_f32(prod_a_vec, prod_b_vec));
     if (n != 0) goto simsimd_js_f32_neon_cycle;
 
     simsimd_f32_t log2_normalizer = 0.693147181f;
-    simsimd_f32_t sum = vaddvq_f32(sum_vec) * log2_normalizer;
+    simsimd_f32_t sum = vaddvq_f32(sum_vec) * log2_normalizer / 2;
     *result = SIMSIMD_SQRT(sum);
-
-
 }
 
 #pragma clang attribute pop
@@ -293,13 +291,13 @@ simsimd_js_f16_neon_cycle:
     float32x4_t ratio_b_vec = vdivq_f32(vaddq_f32(b_vec, epsilon_vec), vaddq_f32(m_vec, epsilon_vec));
     float32x4_t log_ratio_a_vec = _simsimd_log2_f32_neon(ratio_a_vec);
     float32x4_t log_ratio_b_vec = _simsimd_log2_f32_neon(ratio_b_vec);
-    float32x4_t prod_a_vec = vmulq_n_f32(vmulq_f32(a_vec, log_ratio_a_vec), 0.5f);
-    float32x4_t prod_b_vec = vmulq_n_f32(vmulq_f32(b_vec, log_ratio_b_vec), 0.5f);
+    float32x4_t prod_a_vec = vmulq_f32(a_vec, log_ratio_a_vec);
+    float32x4_t prod_b_vec = vmulq_f32(b_vec, log_ratio_b_vec);
     sum_vec = vaddq_f32(sum_vec, vaddq_f32(prod_a_vec, prod_b_vec));
     if (n) goto simsimd_js_f16_neon_cycle;
 
     simsimd_f32_t log2_normalizer = 0.693147181f;
-    simsimd_f32_t sum = vaddvq_f32(sum_vec) * log2_normalizer;
+    simsimd_f32_t sum = vaddvq_f32(sum_vec) * log2_normalizer / 2;
     *result = SIMSIMD_SQRT(sum);
 }
 
