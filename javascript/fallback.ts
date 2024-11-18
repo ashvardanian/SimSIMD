@@ -182,16 +182,16 @@ export const kullbackleibler = (a: Float64Array | Float32Array, b: Float64Array 
   }
 
   let divergence = 0.0;
-
   for (let i = 0; i < a.length; i++) {
-    if (a[i] > 0) {
-      if (b[i] === 0) {
-        throw new Error(
-          "Division by zero encountered in KL divergence calculation"
-        );
-      }
-      divergence += a[i] * Math.log(a[i] / b[i]);
+    if (a[i] < 0 || b[i] < 0) {
+      throw new Error("Negative values are not allowed in probability distributions");
     }
+    if (b[i] === 0) {
+      throw new Error(
+        "Division by zero encountered in KL divergence calculation"
+      );
+    }
+    divergence += a[i] * Math.log(a[i] / b[i]);
   }
 
   return divergence;
@@ -210,6 +210,9 @@ export const jensenshannon = (a: Float64Array | Float32Array, b: Float64Array | 
 
   let divergence = 0;
   for (let i = 0; i < a.length; i++) {
+    if (a[i] < 0 || b[i] < 0) {
+      throw new Error("Negative values are not allowed in probability distributions");
+    }
     const m = (a[i] + b[i]) / 2;
     if (m > 0) {
       if (a[i] > 0) divergence += a[i] * Math.log(a[i] / m);
@@ -218,7 +221,6 @@ export const jensenshannon = (a: Float64Array | Float32Array, b: Float64Array | 
   }
 
   divergence /= 2;
-
   return Math.sqrt(divergence);
 };
 
