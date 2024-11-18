@@ -168,34 +168,64 @@ open target/criterion/report/index.html
 
 ## JavaScript
 
-If you don't have NPM installed:
+### NodeJS
+
+If you don't have the environment configured, here are the [installation options](https://github.com/nvm-sh/nvm?tab=readme-ov-file#install--update-script) with different tools:
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash # Linux
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash  # MacOS
+```
+
+Install dependencies:
+
+```sh
 nvm install 20
+npm install -g typescript           # Install the TypeScript compiler globally
+npm install --save-dev @types/node  # Install the Node.js type definitions as a dev dependency
 ```
 
 Testing and benchmarking:
 
 ```sh
-npm install -g typescript
-npm run build-js
-npm test
-npm run bench
+npm run build-js                    # Build the JavaScript code using TypeScript configurations
+npm test                            # Run the test suite
+npm run bench                       # Run the benchmark script
 ```
 
-Running with Deno:
+### Deno
+
+If you don't have the environment configured, here are [installation options](https://docs.deno.com/runtime/getting_started/installation/) with different tools:
+
+```sh
+wget -qO- https://deno.land/x/install/install.sh | sh # Linux
+curl -fsSL https://deno.land/install.sh | sh          # MacOS
+irm https://deno.land/install.ps1 | iex               # Windows
+```
+
+Testing:
 
 ```sh
 deno test --allow-read
 ```
 
-Running with Bun:
+### Bun
+
+If you don't have the environment configured, here are the [installation options](https://bun.sh/docs/installation) with different tools:
 
 ```sh
-npm install -g bun
-bun test
+wget -qO- https://bun.sh/install | bash   # for Linux
+curl -fsSL https://bun.sh/install | bash  # for macOS and WSL
 ```
+
+Testing:
+
+```sh
+bun install
+bun test ./scripts/test.mjs
+```
+
+... wouldn't work for now.
 
 ## Swift
 
