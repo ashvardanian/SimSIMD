@@ -108,7 +108,7 @@ SIMSIMD_PUBLIC void simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_
             d += ai * SIMSIMD_LOG((ai + epsilon) / (mi + epsilon));                                           \
             d += bi * SIMSIMD_LOG((bi + epsilon) / (mi + epsilon));                                           \
         }                                                                                                     \
-        *result = (simsimd_distance_t)d / 2;                                                                  \
+        *result = SIMSIMD_SQRT(((simsimd_distance_t)d / 2));                                                  \
     }
 
 SIMSIMD_MAKE_KL(serial, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f64_serial
@@ -219,12 +219,13 @@ simsimd_js_f32_neon_cycle:
     float32x4_t log_ratio_b_vec = _simsimd_log2_f32_neon(ratio_b_vec);
     float32x4_t prod_a_vec = vmulq_f32(a_vec, log_ratio_a_vec);
     float32x4_t prod_b_vec = vmulq_f32(b_vec, log_ratio_b_vec);
+
     sum_vec = vaddq_f32(sum_vec, vaddq_f32(prod_a_vec, prod_b_vec));
     if (n != 0) goto simsimd_js_f32_neon_cycle;
 
     simsimd_f32_t log2_normalizer = 0.693147181f;
-    simsimd_f32_t sum = vaddvq_f32(sum_vec) * log2_normalizer;
-    *result = sum / 2;
+    simsimd_f32_t sum = vaddvq_f32(sum_vec) * log2_normalizer / 2;
+    *result = _simsimd_sqrt_f32_neon(sum);
 }
 
 #pragma clang attribute pop
@@ -296,8 +297,8 @@ simsimd_js_f16_neon_cycle:
     if (n) goto simsimd_js_f16_neon_cycle;
 
     simsimd_f32_t log2_normalizer = 0.693147181f;
-    simsimd_f32_t sum = vaddvq_f32(sum_vec) * log2_normalizer;
-    *result = sum / 2;
+    simsimd_f32_t sum = vaddvq_f32(sum_vec) * log2_normalizer / 2;
+    *result = _simsimd_sqrt_f32_neon(sum);
 }
 
 #pragma clang attribute pop
@@ -403,8 +404,8 @@ simsimd_js_f16_haswell_cycle:
 
     simsimd_f32_t log2_normalizer = 0.693147181f;
     simsimd_f32_t sum = _simsimd_reduce_f32x8_haswell(sum_vec);
-    sum *= log2_normalizer;
-    *result = sum / 2;
+    sum *= log2_normalizer / 2;
+    *result = _simsimd_sqrt_f32_haswell(sum);
 }
 
 #pragma clang attribute pop
@@ -496,7 +497,9 @@ simsimd_js_f32_skylake_cycle:
     if (n) goto simsimd_js_f32_skylake_cycle;
 
     simsimd_f32_t log2_normalizer = 0.693147181f;
-    *result = _mm512_reduce_add_ps(_mm512_add_ps(sum_a_vec, sum_b_vec)) * log2_normalizer / 2;
+    simsimd_f32_t sum = _mm512_reduce_add_ps(_mm512_add_ps(sum_a_vec, sum_b_vec));
+    sum *= log2_normalizer / 2;
+    *result = _simsimd_sqrt_f32_haswell(sum);
 }
 
 #pragma clang attribute pop
@@ -586,7 +589,9 @@ simsimd_js_f16_sapphire_cycle:
     if (n) goto simsimd_js_f16_sapphire_cycle;
 
     simsimd_f32_t log2_normalizer = 0.693147181f;
-    *result = _mm512_reduce_add_ph(_mm512_add_ph(sum_a_vec, sum_b_vec)) * log2_normalizer / 2;
+    simsimd_f32_t sum = _mm512_reduce_add_ph(_mm512_add_ph(sum_a_vec, sum_b_vec));
+    sum *= log2_normalizer / 2;
+    *result = _simsimd_sqrt_f32_haswell(sum);
 }
 
 #pragma clang attribute pop

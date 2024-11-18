@@ -171,7 +171,7 @@ export const jaccard = (a: Uint8Array, b: Uint8Array): number => {
 };
 
 /**
- * @brief Computes the kullbackleibler similarity coefficient between two vectors.
+ * @brief Computes the Kullback-Leibler divergence between two probability distributions.
  * @param {Float64Array|Float32Array} a - The first vector.
  * @param {Float64Array|Float32Array} b - The second vector.
  * @returns {number} The Jaccard similarity coefficient between vectors a and b.
@@ -182,37 +182,48 @@ export const kullbackleibler = (a: Float64Array | Float32Array, b: Float64Array 
   }
 
   let divergence = 0.0;
-
   for (let i = 0; i < a.length; i++) {
-    if (a[i] > 0) {
-      if (b[i] === 0) {
-        throw new Error(
-          "Division by zero encountered in KL divergence calculation"
-        );
-      }
-      divergence += a[i] * Math.log(a[i] / b[i]);
+    if (a[i] < 0 || b[i] < 0) {
+      throw new Error("Negative values are not allowed in probability distributions");
     }
+    if (b[i] === 0) {
+      throw new Error(
+        "Division by zero encountered in KL divergence calculation"
+      );
+    }
+    divergence += a[i] * Math.log(a[i] / b[i]);
   }
 
   return divergence;
 };
 
 /**
- * @brief Computes the jensenshannon similarity coefficient between two vectors.
- * @param {Float64Array|Float32Array} a - The first vector.
- * @param {Float64Array|Float32Array} b - The second vector.
- * @returns {number} The Jaccard similarity coefficient between vectors a and b.
+ * @brief Computes the Jensen-Shannon distance between two probability distributions.
+ * @param {Float64Array|Float32Array} a - The first probability distribution.
+ * @param {Float64Array|Float32Array} b - The second probability distribution.
+ * @returns {number} The Jensen-Shannon distance between distributions a and b.
  */
 export const jensenshannon = (a: Float64Array | Float32Array, b: Float64Array | Float32Array): number => {
   if (a.length !== b.length) {
     throw new Error("Arrays must be of the same length");
   }
 
-  const m = a.map((value, index) => (value + b[index]) / 2);
+  let divergence = 0;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] < 0 || b[i] < 0) {
+      throw new Error("Negative values are not allowed in probability distributions");
+    }
+    const m = (a[i] + b[i]) / 2;
+    if (m > 0) {
+      if (a[i] > 0) divergence += a[i] * Math.log(a[i] / m);
+      if (b[i] > 0) divergence += b[i] * Math.log(b[i] / m);
+    }
+  }
 
-  const divergence = 0.5 * kullbackleibler(a, m) + 0.5 * kullbackleibler(b, m);
+  divergence /= 2;
   return Math.sqrt(divergence);
 };
+
 
 export default {
   sqeuclidean,

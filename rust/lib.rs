@@ -877,19 +877,19 @@ mod tests {
     // Adding new tests for probability similarities
     #[test]
     fn test_js_f32() {
-        let a = &[0.1, 0.9, 0.0];
-        let b = &[0.2, 0.8, 0.0];
+        let a: &[f32; 3] = &[0.1, 0.9, 0.0];
+        let b: &[f32; 3] = &[0.2, 0.8, 0.0];
 
         if let Some(result) = ProbabilitySimilarity::jensenshannon(a, b) {
             println!("The result of js_f32 is {:.8}", result);
-            assert_almost_equal(0.01, result, 0.01); // Example value
+            assert_almost_equal(0.099, result, 0.01); // Example value
         }
     }
 
     #[test]
     fn test_kl_f32() {
-        let a = &[0.1, 0.9, 0.0];
-        let b = &[0.2, 0.8, 0.0];
+        let a: &[f32; 3] = &[0.1, 0.9, 0.0];
+        let b: &[f32; 3] = &[0.2, 0.8, 0.0];
 
         if let Some(result) = ProbabilitySimilarity::kullbackleibler(a, b) {
             println!("The result of kl_f32 is {:.8}", result);

@@ -38,7 +38,6 @@ Or run the script directly:
     python test.py
 
 """
-
 import os
 import math
 import time
@@ -124,7 +123,7 @@ try:
     baseline_euclidean = lambda x, y: np.array(spd.euclidean(x, y))  #! SciPy returns a scalar
     baseline_sqeuclidean = spd.sqeuclidean
     baseline_cosine = spd.cosine
-    baseline_jensenshannon = lambda x, y: spd.jensenshannon(x, y) ** 2
+    baseline_jensenshannon = lambda x, y: spd.jensenshannon(x, y)
     baseline_hamming = lambda x, y: spd.hamming(x, y) * len(x)
     baseline_jaccard = spd.jaccard
 
@@ -453,6 +452,8 @@ def name_to_kernels(name: str):
         return baseline_fma, simd.fma
     elif name == "wsum":
         return baseline_wsum, simd.wsum
+    elif name == "jensenshannon":
+        return baseline_jensenshannon, simd.jensenshannon
     else:
         raise ValueError(f"Unknown kernel name: {name}")
 
@@ -839,14 +840,19 @@ def test_dense_bits(ndim, metric, capability, stats_fixture):
     collect_errors(metric, ndim, "bin8", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
 
-@pytest.mark.skip(reason="Problems inferring the tolerance bounds for numerical errors")
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
 @pytest.mark.repeat(50)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float32", "float16"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_jensen_shannon(ndim, dtype, capability):
+def test_jensen_shannon(ndim, dtype, capability, stats_fixture):
     """Compares the simd.jensenshannon() function with scipy.spatial.distance.jensenshannon(), measuring the accuracy error for f16, and f32 types."""
+
     np.random.seed()
+    if dtype == "float16" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
     a = np.abs(np.random.randn(ndim)).astype(dtype)
     b = np.abs(np.random.randn(ndim)).astype(dtype)
     a /= np.sum(a)
