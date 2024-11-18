@@ -848,6 +848,9 @@ def test_dense_bits(ndim, metric, capability, stats_fixture):
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_jensen_shannon(ndim, dtype, capability, stats_fixture):
     """Compares the simd.jensenshannon() function with scipy.spatial.distance.jensenshannon(), measuring the accuracy error for f16, and f32 types."""
+    if dtype == "float16" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
     np.random.seed()
     a = np.abs(np.random.randn(ndim)).astype(dtype)
     b = np.abs(np.random.randn(ndim)).astype(dtype)
