@@ -362,9 +362,9 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_neon(simsimd_i8_t const *a, simsimd_i8_t cons
     }
 
     // Take care of the tail:
-    int32_t ab = vaddvq_s32(ab_vec);
+    simsimd_i32_t ab = vaddvq_s32(ab_vec);
     for (; i < n; ++i) {
-        int32_t ai = a[i], bi = b[i];
+        simsimd_i32_t ai = a[i], bi = b[i];
         ab += ai * bi;
     }
 
@@ -383,9 +383,9 @@ SIMSIMD_PUBLIC void simsimd_dot_u8_neon(simsimd_u8_t const *a, simsimd_u8_t cons
     }
 
     // Take care of the tail:
-    uint32_t ab = vaddvq_u32(ab_vec);
+    simsimd_u32_t ab = vaddvq_u32(ab_vec);
     for (; i < n; ++i) {
-        uint32_t ai = a[i], bi = b[i];
+        simsimd_u32_t ai = a[i], bi = b[i];
         ab += ai * bi;
     }
 

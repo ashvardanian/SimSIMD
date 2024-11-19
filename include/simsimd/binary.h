@@ -89,10 +89,10 @@ SIMSIMD_INTERNAL simsimd_u32_t _simsimd_reduce_u8x16_neon(uint8x16_t vec) {
     // Sum the widened halves
     uint16x8_t sum16 = vaddq_u16(low_half, high_half);
 
-    // Now reduce the `uint16x8_t` to a single `uint32_t`
-    uint32x4_t sum32 = vpaddlq_u16(sum16);  // pairwise add into 32-bit integers
-    uint64x2_t sum64 = vpaddlq_u32(sum32);  // pairwise add into 64-bit integers
-    uint32_t final_sum = vaddvq_u64(sum64); // final horizontal add to 32-bit result
+    // Now reduce the `uint16x8_t` to a single `simsimd_u32_t`
+    uint32x4_t sum32 = vpaddlq_u16(sum16);       // pairwise add into 32-bit integers
+    uint64x2_t sum64 = vpaddlq_u32(sum32);       // pairwise add into 64-bit integers
+    simsimd_u32_t final_sum = vaddvq_u64(sum64); // final horizontal add to 32-bit result
     return final_sum;
 }
 
