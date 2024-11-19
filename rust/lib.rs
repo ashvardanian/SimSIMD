@@ -298,7 +298,7 @@ where
     fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct>;
 }
 
-/// `Sparse` provides trait methods for spare vectors.
+/// `Sparse` provides trait methods for sparse vectors.
 pub trait Sparse
 where
     Self: Sized,
