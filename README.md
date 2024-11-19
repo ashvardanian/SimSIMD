@@ -162,10 +162,22 @@ dist = simsimd.cosine(vec1, vec2, "int8")
 dist = simsimd.cosine(vec1, vec2, "float16")
 dist = simsimd.cosine(vec1, vec2, "float32")
 dist = simsimd.cosine(vec1, vec2, "float64")
-dist = simsimd.hamming(vec1, vec2, "bit8")
+dist = simsimd.hamming(vec1, vec2, "bin8")
+```
+
+Binary distance functions are computed at a bit-level.
+Meaning a vector of 10x 8-bit integers will be treated as a sequence of 80 individual bits or dimensions.
+This differs from NumPy, that can't handle smaller-than-byte types, but you can still avoid the `bin8` argument by reinterpreting the vector as booleans:
+
+```py
+vec1 = np.random.randint(2, size=80).astype(np.uint8).packbits().view(np.bool_)
+vec2 = np.random.randint(2, size=80).astype(np.uint8).packbits().view(np.bool_)
+hamming_distance = simsimd.hamming(vec1, vec2)
+jaccard_distance = simsimd.jaccard(vec1, vec2)
 ```
 
 With other frameworks, like PyTorch, one can get a richer type-system than NumPy, but the lack of good CPython interoperability makes it hard to pass data without copies.
+Here is an example of using SimSIMD with PyTorch to compute the cosine similarity between two `bfloat16` vectors:
 
 ```py
 import numpy as np
@@ -181,7 +193,7 @@ torch.randn(8, out=vec2)
 
 # Both libs will look into the same memory buffers and report the same results
 dist_slow = 1 - torch.nn.functional.cosine_similarity(vec1, vec2, dim=0)
-dist_fast = simsimd.cosine(buf1, buf2, "bf16")
+dist_fast = simsimd.cosine(buf1, buf2, "bfloat16")
 ```
 
 It also allows using SimSIMD for half-precision complex numbers, which NumPy does not support.
@@ -254,9 +266,9 @@ distances: DistancesTensor = simsimd.cdist(matrix1, matrix2, metric="cosine")   
 distances_array: np.ndarray = np.array(distances, copy=True)                    # now managed by NumPy
 ```
 
-### Elementwise Kernels
+### Element-wise Kernels
 
-SimSIMD also provides mixed-precision elementwise kernels, where the input vectors and the output have the same numeric type, but the intermediate accumulators are of a higher precision.
+SimSIMD also provides mixed-precision element-wise kernels, where the input vectors and the output have the same numeric type, but the intermediate accumulators are of a higher precision.
 
 ```py
 import numpy as np

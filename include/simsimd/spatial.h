@@ -1050,7 +1050,7 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f32_haswell(simsimd_f
     // Load the squares into an __m128 register for single-precision floating-point operations
     __m128 squares = _mm_set_ps(a2, b2, a2, b2); // We replicate to make use of full register
 
-    // Compute the reciprocal square root of the squares using _mm_rsqrt_ps (single-precision)
+    // Compute the reciprocal square root of the squares using `_mm_rsqrt_ps` (single-precision)
     __m128 rsqrts = _mm_rsqrt_ps(squares);
 
     // Perform one iteration of Newton-Raphson refinement to improve the precision of rsqrt:
