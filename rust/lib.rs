@@ -93,6 +93,9 @@ extern "C" {
     fn simsimd_kl_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
     fn simsimd_kl_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
+    fn simsimd_intersect_u16(a: *const u16, b: *const u16, a_length: usize, b_length: usize, d: *mut Distance);
+    fn simsimd_intersect_u32(a: *const u32, b: *const u32, a_length: usize, b_length: usize, d: *mut Distance);
+
     fn simsimd_uses_neon() -> i32;
     fn simsimd_uses_neon_f16() -> i32;
     fn simsimd_uses_neon_bf16() -> i32;
@@ -295,6 +298,16 @@ where
     fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct>;
 }
 
+/// `Sparse` provides trait methods for spare vectors.
+pub trait Sparse
+where
+    Self: Sized,
+{
+    /// Computes the number of common elements between two sparse vectors.
+    /// both vectors must be sorted in ascending order.
+    fn intersect(a: &[Self], b: &[Self]) -> Option<Distance>;
+}
+
 impl BinarySimilarity for u8 {
     fn hamming(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
@@ -347,6 +360,28 @@ impl SpatialSimilarity for i8 {
         unsafe { simsimd_l2sq_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
         Some(distance_value)
     }
+}
+
+impl Sparse for u16 {
+      
+    fn intersect(a: &[Self], b: &[Self]) -> Option<Distance> {
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_intersect_u16(a.as_ptr(), b.as_ptr(), a.len(), b.len(), distance_ptr) };
+        Some(distance_value)
+    }
+
+}
+
+impl Sparse for u32 {
+      
+    fn intersect(a: &[Self], b: &[Self]) -> Option<Distance> {
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_intersect_u32(a.as_ptr(), b.as_ptr(), a.len(), b.len(), distance_ptr) };
+        Some(distance_value)
+    }
+
 }
 
 impl SpatialSimilarity for f16 {
@@ -989,5 +1024,52 @@ mod tests {
             println!("The result of cos_bf16 (interop) is {:.8}", result);
             assert_almost_equal(0.025, result, 0.01);
         }
+    }
+
+    #[test]
+    fn test_intersect_u16() {
+        {
+            let a_u16: &[u16] = &[153, 16384, 17408]; 
+            let b_u16: &[u16] = &[15360, 16384, 7408]; 
+
+            if let Some(result) = Sparse::intersect(a_u16, b_u16) {
+                println!("The result of intersect_u16 is {:.8}", result);
+                assert_almost_equal(1.0, result, 0.0001);
+            }
+        }
+
+        {
+            let a_u16: &[u16] = &[153, 11638, 08]; 
+            let b_u16: &[u16] = &[15360, 16384, 7408]; 
+
+            if let Some(result) = Sparse::intersect(a_u16, b_u16) {
+                println!("The result of intersect_u16 is {:.8}", result);
+                assert_almost_equal(0.0, result, 0.0001);
+            }   
+        }
+    }
+
+    #[test]
+    fn test_intersect_u32() {
+        {
+            let a_u32: &[u32] = &[11, 153]; 
+            let b_u32: &[u32] = &[11, 153, 7408, 16384]; 
+
+            if let Some(result) = Sparse::intersect(a_u32, b_u32) {
+                println!("The result of intersect_u32 is {:.8}", result);
+                assert_almost_equal(2.0, result, 0.0001);
+            }
+        }
+        
+        {
+            let a_u32: &[u32] = &[153, 7408, 11638]; 
+            let b_u32: &[u32] = &[153, 7408, 11638]; 
+
+            if let Some(result) = Sparse::intersect(a_u32, b_u32) {
+                println!("The result of intersect_u32 is {:.8}", result);
+                assert_almost_equal(3.0, result, 0.0001);
+            }   
+        }
+        
     }
 }
