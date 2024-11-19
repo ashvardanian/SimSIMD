@@ -595,10 +595,10 @@ SIMSIMD_PUBLIC void simsimd_l2sq_i8_neon(simsimd_i8_t const *a, simsimd_i8_t con
         uint8x16_t d_vec = vreinterpretq_u8_s8(vabdq_s8(a_vec, b_vec));
         d2_vec = vdotq_u32(d2_vec, d_vec, d_vec);
     }
-    uint32_t d2 = vaddvq_u32(d2_vec);
+    simsimd_u32_t d2 = vaddvq_u32(d2_vec);
     for (; i < n; ++i) {
-        int32_t n = (int32_t)a[i] - b[i];
-        d2 += (uint32_t)(n * n);
+        simsimd_i32_t n = (simsimd_i32_t)a[i] - b[i];
+        d2 += (simsimd_u32_t)(n * n);
     }
     *result = d2;
 }
@@ -693,9 +693,9 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_neon(simsimd_i8_t const *a, simsimd_i8_t cons
     //          products_high_vec = vmmlaq_s32(products_high_vec, v_vec, y_w_vecs.val[1]);
     //      }
     //      int32x4_t products_vec = vaddq_s32(products_high_vec, products_low_vec);
-    //      int32_t a2 = products_vec[0];
-    //      int32_t ab = products_vec[1];
-    //      int32_t b2 = products_vec[3];
+    //      simsimd_i32_t a2 = products_vec[0];
+    //      simsimd_i32_t ab = products_vec[1];
+    //      simsimd_i32_t b2 = products_vec[3];
     //
     // That solution is elegant, but it requires the additional `+i8mm` extension and is currently slower,
     // at least on AWS Graviton 3.
@@ -709,13 +709,13 @@ SIMSIMD_PUBLIC void simsimd_cos_i8_neon(simsimd_i8_t const *a, simsimd_i8_t cons
         a2_vec = vdotq_s32(a2_vec, a_vec, a_vec);
         b2_vec = vdotq_s32(b2_vec, b_vec, b_vec);
     }
-    int32_t ab = vaddvq_s32(ab_vec);
-    int32_t a2 = vaddvq_s32(a2_vec);
-    int32_t b2 = vaddvq_s32(b2_vec);
+    simsimd_i32_t ab = vaddvq_s32(ab_vec);
+    simsimd_i32_t a2 = vaddvq_s32(a2_vec);
+    simsimd_i32_t b2 = vaddvq_s32(b2_vec);
 
     // Take care of the tail:
     for (; i < n; ++i) {
-        int32_t ai = a[i], bi = b[i];
+        simsimd_i32_t ai = a[i], bi = b[i];
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
 
@@ -737,10 +737,10 @@ SIMSIMD_PUBLIC void simsimd_l2sq_u8_neon(simsimd_u8_t const *a, simsimd_u8_t con
         uint8x16_t d_vec = vabdq_u8(a_vec, b_vec);
         d2_vec = vdotq_u32(d2_vec, d_vec, d_vec);
     }
-    uint32_t d2 = vaddvq_u32(d2_vec);
+    simsimd_u32_t d2 = vaddvq_u32(d2_vec);
     for (; i < n; ++i) {
-        int32_t n = (int32_t)a[i] - b[i];
-        d2 += (uint32_t)(n * n);
+        simsimd_i32_t n = (simsimd_i32_t)a[i] - b[i];
+        d2 += (simsimd_u32_t)(n * n);
     }
     *result = d2;
 }
@@ -759,13 +759,13 @@ SIMSIMD_PUBLIC void simsimd_cos_u8_neon(simsimd_u8_t const *a, simsimd_u8_t cons
         a2_vec = vdotq_u32(a2_vec, a_vec, a_vec);
         b2_vec = vdotq_u32(b2_vec, b_vec, b_vec);
     }
-    uint32_t ab = vaddvq_u32(ab_vec);
-    uint32_t a2 = vaddvq_u32(a2_vec);
-    uint32_t b2 = vaddvq_u32(b2_vec);
+    simsimd_u32_t ab = vaddvq_u32(ab_vec);
+    simsimd_u32_t a2 = vaddvq_u32(a2_vec);
+    simsimd_u32_t b2 = vaddvq_u32(b2_vec);
 
     // Take care of the tail:
     for (; i < n; ++i) {
-        uint32_t ai = a[i], bi = b[i];
+        simsimd_u32_t ai = a[i], bi = b[i];
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
 
@@ -1050,7 +1050,7 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_cos_normalize_f32_haswell(simsimd_f
     // Load the squares into an __m128 register for single-precision floating-point operations
     __m128 squares = _mm_set_ps(a2, b2, a2, b2); // We replicate to make use of full register
 
-    // Compute the reciprocal square root of the squares using _mm_rsqrt_ps (single-precision)
+    // Compute the reciprocal square root of the squares using `_mm_rsqrt_ps` (single-precision)
     __m128 rsqrts = _mm_rsqrt_ps(squares);
 
     // Perform one iteration of Newton-Raphson refinement to improve the precision of rsqrt:

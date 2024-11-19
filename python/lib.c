@@ -190,7 +190,7 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
 
     //! Boolean values:
     else if (same_string(name, "bin8") || // SimSIMD-specific
-             same_string(name, "c"))      // Named type
+             same_string(name, "?"))      // Named type
         return simsimd_datatype_b8_k;
 
     // Signed integers:
@@ -276,7 +276,7 @@ char const *datatype_to_python_string(simsimd_datatype_t dtype) {
     case simsimd_datatype_f32c_k: return "Zf";
     case simsimd_datatype_f16c_k: return "Ze";
     // Boolean values:
-    case simsimd_datatype_b8_k: return "c";
+    case simsimd_datatype_b8_k: return "?";
     // Signed integers:
     case simsimd_datatype_i8_k: return "b";
     case simsimd_datatype_i16_k: return "h";
