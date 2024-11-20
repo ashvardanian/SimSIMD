@@ -80,6 +80,12 @@ extern "C" {
     fn simsimd_l2sq_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
     fn simsimd_l2sq_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
+    fn simsimd_l2_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
+    fn simsimd_l2_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_l2_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_l2_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
+    fn simsimd_l2_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
+
     fn simsimd_hamming_b8(a: *const u8, b: *const u8, c: usize, d: *mut Distance);
     fn simsimd_jaccard_b8(a: *const u8, b: *const u8, c: usize, d: *mut Distance);
 
@@ -215,11 +221,25 @@ where
     /// between corresponding elements of the two slices.
     fn l2sq(a: &[Self], b: &[Self]) -> Option<Distance>;
 
+    /// Computes the Euclidean distance between two slices.
+    /// The Euclidean distance is the square root of 
+    //  sum of the squared differences between corresponding 
+    /// elements of the two slices.
+    fn l2(a: &[Self], b: &[Self]) -> Option<Distance>;
+
     /// Computes the squared Euclidean distance between two slices.
     /// The squared Euclidean distance is the sum of the squared differences
     /// between corresponding elements of the two slices.
     fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Distance> {
         SpatialSimilarity::l2sq(a, b)
+    }
+
+    /// Computes the Euclidean distance between two slices.
+    /// The Euclidean distance is the square root of the 
+    /// sum of the squared differences between corresponding 
+    /// elements of the two slices.
+    fn euclidean(a: &[Self], b: &[Self]) -> Option<Distance> {
+        SpatialSimilarity::l2(a, b)
     }
 
     /// Computes the squared Euclidean distance between two slices.
@@ -347,6 +367,16 @@ impl SpatialSimilarity for i8 {
         unsafe { simsimd_l2sq_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
         Some(distance_value)
     }
+
+    fn l2(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_l2_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
+    }
 }
 
 impl SpatialSimilarity for f16 {
@@ -389,6 +419,20 @@ impl SpatialSimilarity for f16 {
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
         unsafe { simsimd_l2sq_f16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        Some(distance_value)
+    }
+
+    fn l2(a: &[Self], b: &[Self]) -> Option<Distance> {
+        
+        if a.len() != b.len() {
+            return None;
+        }
+        // Explicitly cast `*const f16` to `*const u16`
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_l2_f16(a_ptr, b_ptr, a.len(), distance_ptr) };
         Some(distance_value)
     }
 }
@@ -435,6 +479,19 @@ impl SpatialSimilarity for bf16 {
         unsafe { simsimd_l2sq_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
         Some(distance_value)
     }
+
+    fn l2(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+        // Explicitly cast `*const bf16` to `*const u16`
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_l2sq_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        Some(distance_value)
+    }
 }
 
 impl SpatialSimilarity for f32 {
@@ -467,6 +524,16 @@ impl SpatialSimilarity for f32 {
         unsafe { simsimd_l2sq_f32(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
         Some(distance_value)
     }
+
+    fn l2(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_l2_f32(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
+    }
 }
 
 impl SpatialSimilarity for f64 {
@@ -497,6 +564,16 @@ impl SpatialSimilarity for f64 {
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
         unsafe { simsimd_l2sq_f64(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
+    }
+
+    fn l2(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_l2_f64(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
         Some(distance_value)
     }
 }
@@ -850,6 +927,60 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_l2_f32() {
+        let a: &[f32; 3] = &[1.0, 2.0, 3.0];
+        let b: &[f32; 3] = &[4.0, 5.0, 6.0];
+        if let Some(result) = SpatialSimilarity::euclidean(a, b) {
+            println!("The result of l2_f32 is {:.8}", result);
+            assert_almost_equal(5.2, result, 0.01);
+        }
+    }
+
+    #[test]
+    fn test_l2_f64() {
+        let a: &[f64; 3] = &[1.0, 2.0, 3.0];
+        let b: &[f64; 3] = &[4.0, 5.0, 6.0];
+        if let Some(result) = SpatialSimilarity::euclidean(a, b) {
+            println!("The result of l2_f64 is {:.8}", result);
+            assert_almost_equal(5.2, result, 0.01);
+        }
+    }
+
+    #[test]
+    fn test_l2_f16() {
+        let a_half: Vec<HalfF16> = vec![1.0, 2.0, 3.0]
+            .iter()
+            .map(|&x| HalfF16::from_f32(x))
+            .collect();
+        let b_half: Vec<HalfF16> = vec![4.0, 5.0, 6.0]
+            .iter()
+            .map(|&x| HalfF16::from_f32(x))
+            .collect();
+
+        
+        let a_simsimd: &[f16] =
+            unsafe { std::slice::from_raw_parts(a_half.as_ptr() as *const f16, a_half.len()) };
+        let b_simsimd: &[f16] =
+            unsafe { std::slice::from_raw_parts(b_half.as_ptr() as *const f16, b_half.len()) };
+
+        if let Some(result) = SpatialSimilarity::euclidean(&a_simsimd, &b_simsimd) {
+            println!("The result of l2_f16 is {:.8}", result);
+            assert_almost_equal(5.2, result, 0.01);
+        }
+        
+    }
+
+    #[test]
+    fn test_l2_i8() {
+        let a = &[1, 2, 3];
+        let b = &[4, 5, 6];
+
+        if let Some(result) = SpatialSimilarity::euclidean(a, b) {
+            println!("The result of l2_i8 is {:.8}", result);
+            assert_almost_equal(5.2, result, 0.01);
+        }
+    }
     // Adding new tests for bit-level distances
     #[test]
     fn test_hamming_u8() {

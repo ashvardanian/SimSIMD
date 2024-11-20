@@ -33,7 +33,7 @@ export const sqeuclidean = (
  * @brief Computes the Euclidean distance between two vectors.
  * @param {Float64Array|Float32Array|Int8Array|Uint8Array} a - The first vector.
  * @param {Float64Array|Float32Array|Int8Array|Uint8Array} b - The second vector.
- * @returns {number} The squared Euclidean distance between vectors a and b.
+ * @returns {number} The Euclidean distance between vectors a and b.
  */
 export const euclidean = (
   a: Float64Array | Float32Array | Int8Array | Uint8Array,
