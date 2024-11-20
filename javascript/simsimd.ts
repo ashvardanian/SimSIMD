@@ -30,16 +30,16 @@ export const sqeuclidean = (
 };
 
 /**
- * @brief Computes the cosine distance between two vectors.
+ * @brief Computes the angular distance between two vectors.
  * @param {Float64Array|Float32Array|Int8Array|Uint8Array} a - The first vector.
  * @param {Float64Array|Float32Array|Int8Array|Uint8Array} b - The second vector.
- * @returns {number} The cosine distance between vectors a and b.
+ * @returns {number} The angular distance between vectors a and b.
  */
-export const cosine = (
+export const angular = (
   a: Float64Array | Float32Array | Int8Array | Uint8Array,
   b: Float64Array | Float32Array | Int8Array | Uint8Array
 ): number => {
-  return compiled.cosine(a, b);
+  return compiled.angular(a, b);
 };
 
 /**
@@ -133,7 +133,7 @@ export default {
   dot,
   inner,
   sqeuclidean,
-  cosine,
+  angular,
   hamming,
   jaccard,
   kullbackleibler,

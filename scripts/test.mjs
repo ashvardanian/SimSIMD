@@ -24,7 +24,6 @@ import test from "node:test";
 import assert from "node:assert";
 
 import * as simsimd from "../javascript/dist/esm/simsimd.js";
-
 import * as fallback from "../javascript/dist/esm/fallback.js";
 
 function assertAlmostEqual(actual, expected, tolerance = 1e-6) {
@@ -39,11 +38,11 @@ function assertAlmostEqual(actual, expected, tolerance = 1e-6) {
 test("Distance from itself", () => {
   const f32s = new Float32Array([1.0, 2.0, 3.0]);
   assertAlmostEqual(simsimd.sqeuclidean(f32s, f32s), 0.0, 0.01);
-  assertAlmostEqual(simsimd.cosine(f32s, f32s), 0.0, 0.01);
+  assertAlmostEqual(simsimd.angular(f32s, f32s), 0.0, 0.01);
 
   const f64s = new Float64Array([1.0, 2.0, 3.0]);
   assertAlmostEqual(simsimd.sqeuclidean(f64s, f64s), 0.0, 0.01);
-  assertAlmostEqual(simsimd.cosine(f64s, f64s), 0.0, 0.01);
+  assertAlmostEqual(simsimd.angular(f64s, f64s), 0.0, 0.01);
 
   const f32sNormalized = new Float32Array([
     1.0 / Math.sqrt(14),
@@ -73,7 +72,7 @@ test("Distance from itself JS fallback", () => {
   const f32s = new Float32Array([1.0, 2.0, 3.0]);
 
   assertAlmostEqual(fallback.sqeuclidean(f32s, f32s), 0.0, 0.01);
-  assertAlmostEqual(fallback.cosine(f32s, f32s), 0.0, 0.01);
+  assertAlmostEqual(fallback.angular(f32s, f32s), 0.0, 0.01);
 
   const arrNormalized = new Float32Array([
     1.0 / Math.sqrt(14),
@@ -113,7 +112,7 @@ test("Inner Distance", () => {
 });
 
 test("Cosine Similarity", () => {
-  const result = simsimd.cosine(f32Array1, f32Array2);
+  const result = simsimd.angular(f32Array1, f32Array2);
   assertAlmostEqual(result, 0.029, 0.01);
 });
 
@@ -128,7 +127,7 @@ test("Inner Distance JS", () => {
 });
 
 test("Cosine Similarity JS", () => {
-  const result = fallback.cosine(f32Array1, f32Array2);
+  const result = fallback.angular(f32Array1, f32Array2);
   assertAlmostEqual(result, 0.029, 0.01);
 });
 
@@ -145,8 +144,8 @@ test("Inner Distance C vs JS", () => {
 });
 
 test("Cosine Similarity C vs JS", () => {
-  const result = simsimd.cosine(f32Array1, f32Array2);
-  const resultjs = fallback.cosine(f32Array1, f32Array2);
+  const result = simsimd.angular(f32Array1, f32Array2);
+  const resultjs = fallback.angular(f32Array1, f32Array2);
   assertAlmostEqual(resultjs, result, 0.01);
 });
 

@@ -214,12 +214,12 @@ def yield_kernels(
         )
     if "spatial" in metric_families:
         yield from for_dtypes(
-            "serial.cosine",
+            "serial.angular",
             ["float64", "float32", "float16", "int8"],
             serial_cosine,
             wrap_rows_batch_calls(serial_cosine),
             lambda A, B: spd.cdist(A, B, "cosine"),
-            simd.cosine,
+            simd.angular,
             lambda A, B: simd.cdist(A, B, metric="cosine"),
         )
         yield from for_dtypes(
@@ -238,7 +238,7 @@ def yield_kernels(
             spd.cosine,
             wrap_rows_batch_calls(spd.cosine),
             lambda A, B: spd.cdist(A, B, "cosine"),
-            simd.cosine,
+            simd.angular,
             lambda A, B: simd.cdist(A, B, metric="cosine"),
         )
         yield from for_dtypes(
@@ -247,7 +247,7 @@ def yield_kernels(
             lambda A, B: raise_(NotImplementedError(f"Not implemented for bfloat16")),
             lambda A, B: raise_(NotImplementedError(f"Not implemented for bfloat16")),
             lambda A, B: raise_(NotImplementedError(f"Not implemented for bfloat16")),
-            lambda A, B: simd.cosine(A, B, "bfloat16"),
+            lambda A, B: simd.angular(A, B, "bfloat16"),
             lambda A, B: simd.cdist(A, B, "bfloat16", metric="cosine"),
         )
         yield from for_dtypes(
@@ -305,7 +305,7 @@ def yield_kernels(
             lambda A, B: skp.cosine_similarity(A.reshape(1, len(A)), B.reshape(1, len(B))),
             lambda A, B: raise_(NotImplementedError("Not implemented for many-to-many")),
             skp.paired_cosine_distances,
-            simd.cosine,
+            simd.angular,
             lambda A, B: simd.cdist(A, B, metric="cosine"),
         )
         yield from for_dtypes(

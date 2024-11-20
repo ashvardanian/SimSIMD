@@ -435,7 +435,7 @@ typedef union {
 } simsimd_f32i32_t;
 
 /**
- *  @brief  Computes `1/sqrt(x)` using the trick from Quake 3,
+ *  @brief  Computes `1/sqrt(x)` @b Square-Root-Reciprocal using the trick from Quake 3,
  *          replacing the magic numbers with the ones suggested by Jan Kadlec.
  *
  *  Subsequent additions by hardware manufacturers have made this algorithm redundant for the most part.
@@ -447,7 +447,7 @@ typedef union {
  *  https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
  *  https://stackoverflow.com/a/41460625/2766161
  */
-SIMSIMD_INTERNAL simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_t number) {
+SIMSIMD_INTERNAL simsimd_f32_t simsimd_f32_rsqrt(simsimd_f32_t number) {
     simsimd_f32i32_t conv;
     conv.f = number;
     conv.i = 0x5F1FFFF9 - (conv.i >> 1);
@@ -461,19 +461,17 @@ SIMSIMD_INTERNAL simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f
  *          with adjustments for direct square root approximation.
  *
  *  Similar to `rsqrt` approximation but multiplies by `number` to get `sqrt`.
- *  This technique is useful where `sqrt` approximation is needed in performance-critical code,
- *  though modern hardware provides optimized alternatives.
+ *  This technique is useful where `sqrt` approximation is needed in performance-critical
+ *  code, though modern hardware provides optimized alternatives.
  */
-SIMSIMD_INTERNAL simsimd_f32_t simsimd_approximate_square_root(simsimd_f32_t number) {
-    return number * simsimd_approximate_inverse_square_root(number);
-}
+SIMSIMD_INTERNAL simsimd_f32_t simsimd_f32_sqrt(simsimd_f32_t number) { return number * simsimd_f32_rsqrt(number); }
 
 /**
  *  @brief  Computes `log(x)` using the Mercator series.
  *          The series converges to the natural logarithm for args between -1 and 1.
  *          Published in 1668 in "Logarithmotechnia".
  */
-SIMSIMD_INTERNAL simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
+SIMSIMD_INTERNAL simsimd_f32_t simsimd_f32_log(simsimd_f32_t number) {
     simsimd_f32_t x = number - 1;
     simsimd_f32_t x2 = x * x;
     simsimd_f32_t x3 = x * x * x;

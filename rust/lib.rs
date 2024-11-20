@@ -6,7 +6,7 @@
 //!
 //! ## Implemented distance functions include:
 //!
-//! * Euclidean (L2), Inner Distance, and Cosine (Angular) spatial distances.
+//! * Euclidean (L2 & L2 squared), Inner Distance, and Angular (Cosine) spatial distances.
 //! * Hamming (~ Manhattan) and Jaccard (~ Tanimoto) binary distances.
 //! * Kullback-Leibler and Jensen-Shannon divergences for probability distributions.
 //!
@@ -18,11 +18,11 @@
 //! let a = &[1, 2, 3];
 //! let b = &[4, 5, 6];
 //!
-//! // Compute cosine similarity
-//! let cos_sim = i8::cos(a, b);
-//!
 //! // Compute dot product distance
 //! let dot_product = i8::dot(a, b);
+//!
+//! // Compute angular distance
+//! let angular_dist = i8::angular(a, b);
 //!
 //! // Compute squared Euclidean distance
 //! let l2sq_dist = i8::l2sq(a, b);
@@ -32,8 +32,9 @@
 //!
 //! The `SpatialSimilarity` trait covers following methods:
 //!
-//! - `cosine(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes cosine similarity between two slices.
-//! - `dot(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes dot product distance between two slices.
+//! - `angular(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes angular distance between two slices.
+//! - `dot(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes dot product between two slices.
+//! - `euclidean(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Euclidean distance between two slices.
 //! - `sqeuclidean(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes squared Euclidean distance between two slices.
 //!
 //! The `BinarySimilarity` trait covers following methods:
@@ -70,12 +71,12 @@ extern "C" {
     fn simsimd_vdot_f32c(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
     fn simsimd_vdot_f64c(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
-    fn simsimd_cos_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
-    fn simsimd_cos_u8(a: *const u8, b: *const u8, c: usize, d: *mut Distance);
-    fn simsimd_cos_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_cos_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_cos_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
-    fn simsimd_cos_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
+    fn simsimd_angular_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
+    fn simsimd_angular_u8(a: *const u8, b: *const u8, c: usize, d: *mut Distance);
+    fn simsimd_angular_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_angular_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_angular_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
+    fn simsimd_angular_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
     fn simsimd_l2sq_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
     fn simsimd_l2sq_u8(a: *const u8, b: *const u8, c: usize, d: *mut Distance);
@@ -193,7 +194,7 @@ pub mod capabilities {
 
 /// `SpatialSimilarity` provides a set of trait methods for computing similarity
 /// or distance between spatial data vectors in SIMD (Single Instruction, Multiple Data) context.
-/// These methods can be used to calculate metrics like cosine similarity, dot product,
+/// These methods can be used to calculate metrics like angular distance, dot product,
 /// and squared Euclidean distance between two slices of data.
 ///
 /// Each method takes two slices of data (a and b) and returns an Option<Distance>.
@@ -204,10 +205,10 @@ pub trait SpatialSimilarity
 where
     Self: Sized,
 {
-    /// Computes the cosine similarity between two slices.
-    /// The cosine similarity is a measure of similarity between two non-zero vectors
+    /// Computes the angular distance between two slices.
+    /// The angular distance is a measure of similarity between two non-zero vectors
     /// of an dot product space that measures the cosine of the angle between them.
-    fn cos(a: &[Self], b: &[Self]) -> Option<Distance>;
+    fn angular(a: &[Self], b: &[Self]) -> Option<Distance>;
 
     /// Computes the inner product (also known as dot product) between two slices.
     /// The dot product is the sum of the products of the corresponding entries
@@ -231,13 +232,6 @@ where
     /// between corresponding elements of the two slices.
     fn inner(a: &[Self], b: &[Self]) -> Option<Distance> {
         SpatialSimilarity::dot(a, b)
-    }
-
-    /// Computes the cosine similarity between two slices.
-    /// The cosine similarity is a measure of similarity between two non-zero vectors
-    /// of an dot product space that measures the cosine of the angle between them.
-    fn cosine(a: &[Self], b: &[Self]) -> Option<Distance> {
-        SpatialSimilarity::cos(a, b)
     }
 }
 
@@ -322,13 +316,13 @@ impl BinarySimilarity for u8 {
 }
 
 impl SpatialSimilarity for i8 {
-    fn cos(a: &[Self], b: &[Self]) -> Option<Distance> {
+    fn angular(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_cos_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_angular_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
         Some(distance_value)
     }
 
@@ -354,13 +348,13 @@ impl SpatialSimilarity for i8 {
 }
 
 impl SpatialSimilarity for u8 {
-    fn cos(a: &[Self], b: &[Self]) -> Option<Distance> {
+    fn angular(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_cos_u8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_angular_u8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
         Some(distance_value)
     }
 
@@ -386,7 +380,7 @@ impl SpatialSimilarity for u8 {
 }
 
 impl SpatialSimilarity for f16 {
-    fn cos(a: &[Self], b: &[Self]) -> Option<Distance> {
+    fn angular(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
@@ -396,7 +390,7 @@ impl SpatialSimilarity for f16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_cos_f16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        unsafe { simsimd_angular_f16(a_ptr, b_ptr, a.len(), distance_ptr) };
         Some(distance_value)
     }
 
@@ -430,7 +424,7 @@ impl SpatialSimilarity for f16 {
 }
 
 impl SpatialSimilarity for bf16 {
-    fn cos(a: &[Self], b: &[Self]) -> Option<Distance> {
+    fn angular(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
@@ -440,7 +434,7 @@ impl SpatialSimilarity for bf16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_cos_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        unsafe { simsimd_angular_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
         Some(distance_value)
     }
 
@@ -474,13 +468,13 @@ impl SpatialSimilarity for bf16 {
 }
 
 impl SpatialSimilarity for f32 {
-    fn cos(a: &[Self], b: &[Self]) -> Option<Distance> {
+    fn angular(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_cos_f32(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_angular_f32(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
         Some(distance_value)
     }
 
@@ -506,13 +500,13 @@ impl SpatialSimilarity for f32 {
 }
 
 impl SpatialSimilarity for f64 {
-    fn cos(a: &[Self], b: &[Self]) -> Option<Distance> {
+    fn angular(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
             return None;
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_cos_f64(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_angular_f64(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
         Some(distance_value)
     }
 
@@ -787,22 +781,22 @@ mod tests {
     }
 
     #[test]
-    fn test_cos_i8() {
+    fn test_angular_i8() {
         let a: &[i8; 3] = &[3, 97, 127];
         let b: &[i8; 3] = &[3, 97, 127];
 
-        if let Some(result) = SpatialSimilarity::cosine(a, b) {
+        if let Some(result) = SpatialSimilarity::angular(a, b) {
             println!("The result of cos_i8 is {:.8}", result);
             assert_almost_equal(0.00012027938, result, 0.01);
         }
     }
 
     #[test]
-    fn test_cos_f32() {
+    fn test_angular_f32() {
         let a = &[1.0, 2.0, 3.0];
         let b = &[4.0, 5.0, 6.0];
 
-        if let Some(result) = SpatialSimilarity::cosine(a, b) {
+        if let Some(result) = SpatialSimilarity::angular(a, b) {
             println!("The result of cos_f32 is {:.8}", result);
             assert_almost_equal(0.025, result, 0.01);
         }
@@ -934,7 +928,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cos_f16_same() {
+    fn test_angular_f16_same() {
         // Assuming these u16 values represent f16 bit patterns, and they are identical
         let a_u16: &[u16] = &[15360, 16384, 17408]; // Corresponding to some f16 values
         let b_u16: &[u16] = &[15360, 16384, 17408]; // Same as above for simplicity
@@ -947,14 +941,14 @@ mod tests {
         let b_f16: &[f16] =
             unsafe { std::slice::from_raw_parts(b_u16.as_ptr() as *const f16, b_u16.len()) };
 
-        if let Some(result) = SpatialSimilarity::cosine(a_f16, b_f16) {
+        if let Some(result) = SpatialSimilarity::angular(a_f16, b_f16) {
             println!("The result of cos_f16 is {:.8}", result);
             assert_almost_equal(0.0, result, 0.01); // Example value, adjust according to actual expected value
         }
     }
 
     #[test]
-    fn test_cos_bf16_same() {
+    fn test_angular_bf16_same() {
         // Assuming these u16 values represent bf16 bit patterns, and they are identical
         let a_u16: &[u16] = &[15360, 16384, 17408]; // Corresponding to some bf16 values
         let b_u16: &[u16] = &[15360, 16384, 17408]; // Same as above for simplicity
@@ -967,14 +961,14 @@ mod tests {
         let b_bf16: &[bf16] =
             unsafe { std::slice::from_raw_parts(b_u16.as_ptr() as *const bf16, b_u16.len()) };
 
-        if let Some(result) = SpatialSimilarity::cosine(a_bf16, b_bf16) {
+        if let Some(result) = SpatialSimilarity::angular(a_bf16, b_bf16) {
             println!("The result of cos_bf16 is {:.8}", result);
             assert_almost_equal(0.0, result, 0.01); // Example value, adjust according to actual expected value
         }
     }
 
     #[test]
-    fn test_cos_f16_interop() {
+    fn test_angular_f16_interop() {
         let a_half: Vec<HalfF16> = vec![1.0, 2.0, 3.0]
             .iter()
             .map(|&x| HalfF16::from_f32(x))
@@ -992,16 +986,16 @@ mod tests {
             unsafe { std::slice::from_raw_parts(b_half.as_ptr() as *const f16, b_half.len()) };
 
         // Use the reinterpret-casted slices with your SpatialSimilarity implementation
-        if let Some(result) = SpatialSimilarity::cosine(a_simsimd, b_simsimd) {
+        if let Some(result) = SpatialSimilarity::angular(a_simsimd, b_simsimd) {
             // Expected value might need adjustment depending on actual cosine functionality
-            // Assuming identical vectors yield cosine similarity of 1.0
+            // Assuming identical vectors yield angular distance of 1.0
             println!("The result of cos_f16 (interop) is {:.8}", result);
             assert_almost_equal(0.025, result, 0.01);
         }
     }
 
     #[test]
-    fn test_cos_bf16_interop() {
+    fn test_angular_bf16_interop() {
         let a_half: Vec<HalfBF16> = vec![1.0, 2.0, 3.0]
             .iter()
             .map(|&x| HalfBF16::from_f32(x))
@@ -1019,9 +1013,9 @@ mod tests {
             unsafe { std::slice::from_raw_parts(b_half.as_ptr() as *const bf16, b_half.len()) };
 
         // Use the reinterpret-casted slices with your SpatialSimilarity implementation
-        if let Some(result) = SpatialSimilarity::cosine(a_simsimd, b_simsimd) {
+        if let Some(result) = SpatialSimilarity::angular(a_simsimd, b_simsimd) {
             // Expected value might need adjustment depending on actual cosine functionality
-            // Assuming identical vectors yield cosine similarity of 1.0
+            // Assuming identical vectors yield angular distance of 1.0
             println!("The result of cos_bf16 (interop) is {:.8}", result);
             assert_almost_equal(0.025, result, 0.01);
         }

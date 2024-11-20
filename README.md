@@ -139,7 +139,7 @@ import numpy as np
 
 vec1 = np.random.randn(1536).astype(np.float32)
 vec2 = np.random.randn(1536).astype(np.float32)
-dist = simsimd.cosine(vec1, vec2)
+dist = simsimd.angular(vec1, vec2)
 ```
 
 Supported functions include `cosine`, `inner`, `sqeuclidean`, `hamming`, `jaccard`, `kulbackleibler`, `jensenshannon`, and `intersect`.
@@ -158,10 +158,10 @@ Unlike SciPy, SimSIMD allows explicitly stating the precision of the input vecto
 The `dtype` argument can be passed both by name and as a positional argument:
 
 ```py
-dist = simsimd.cosine(vec1, vec2, "int8")
-dist = simsimd.cosine(vec1, vec2, "float16")
-dist = simsimd.cosine(vec1, vec2, "float32")
-dist = simsimd.cosine(vec1, vec2, "float64")
+dist = simsimd.angular(vec1, vec2, "int8")
+dist = simsimd.angular(vec1, vec2, "float16")
+dist = simsimd.angular(vec1, vec2, "float32")
+dist = simsimd.angular(vec1, vec2, "float64")
 dist = simsimd.jaccard(vec1, vec2, "bin8") # Binary vectors with 8-bit words
 ```
 
@@ -181,7 +181,7 @@ torch.randn(8, out=vec2)
 
 # Both libs will look into the same memory buffers and report the same results
 dist_slow = 1 - torch.nn.functional.cosine_similarity(vec1, vec2, dim=0)
-dist_fast = simsimd.cosine(buf1, buf2, "bf16")
+dist_fast = simsimd.angular(buf1, buf2, "bf16")
 ```
 
 It also allows using SimSIMD for half-precision complex numbers, which NumPy does not support.
@@ -220,8 +220,8 @@ vec1 = np.random.randn(1536).astype(np.float32) # rank 1 tensor
 batch1 = np.random.randn(1, 1536).astype(np.float32) # rank 2 tensor
 batch2 = np.random.randn(100, 1536).astype(np.float32)
 
-dist_rank1 = simsimd.cosine(vec1, batch2)
-dist_rank2 = simsimd.cosine(batch1, batch2)
+dist_rank1 = simsimd.angular(vec1, batch2)
+dist_rank2 = simsimd.angular(batch1, batch2)
 ```
 
 ### Many-to-Many Distances
@@ -232,7 +232,7 @@ For two batches of 100 vectors to compute 100 distances, one would call it like 
 ```py
 batch1 = np.random.randn(100, 1536).astype(np.float32)
 batch2 = np.random.randn(100, 1536).astype(np.float32)
-dist = simsimd.cosine(batch1, batch2)
+dist = simsimd.angular(batch1, batch2)
 ```
 
 Input matrices must have identical shapes.
@@ -609,7 +609,7 @@ import SimSIMD
 let vectorA: [Int8] = [1, 2, 3]
 let vectorB: [Int8] = [4, 5, 6]
 
-let cosineSimilarity = vectorA.cosine(vectorB)  // Computes the cosine similarity
+let cosineSimilarity = vectorA.angular(vectorB)  // Computes the cosine similarity
 let dotProduct = vectorA.dot(vectorB)           // Computes the dot product
 let sqEuclidean = vectorA.sqeuclidean(vectorB)  // Computes the squared Euclidean distance
 ```
@@ -637,7 +637,7 @@ int main() {
     simsimd_f32_t vector_a[1536];
     simsimd_f32_t vector_b[1536];
     simsimd_kernel_punned_t distance_function = simsimd_metric_punned(
-        simsimd_cos_k,      // Metric kind, like the angular cosine distance
+        simsimd_angular_k,  // Metric kind, like the angular cosine distance
         simsimd_f32_k,      // Data type, like: f16, f32, f64, i8, b8, complex variants, etc.
         simsimd_cap_any_k); // Which CPU capabilities are we allowed to use
     simsimd_distance_t distance;
@@ -684,10 +684,10 @@ int main() {
     simsimd_distance_t distance;
 
     // Cosine distance between two vectors
-    simsimd_cos_i8(i8s, i8s, 1536, &distance);
-    simsimd_cos_f16(f16s, f16s, 1536, &distance);
-    simsimd_cos_f32(f32s, f32s, 1536, &distance);
-    simsimd_cos_f64(f64s, f64s, 1536, &distance);
+    simsimd_angular_i8(i8s, i8s, 1536, &distance);
+    simsimd_angular_f16(f16s, f16s, 1536, &distance);
+    simsimd_angular_f32(f32s, f32s, 1536, &distance);
+    simsimd_angular_f64(f64s, f64s, 1536, &distance);
     
     // Euclidean distance between two vectors
     simsimd_l2sq_i8(i8s, i8s, 1536, &distance);

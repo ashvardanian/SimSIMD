@@ -53,9 +53,9 @@
  *  There may be a case, when the call is ill-formed and more positional arguments are provided than needed.
  *
  *  @code {.py}
- *          cdist(a, b, "cos", "dos"):               //! positional_args_count == 4, args_names_count == 0
- *          cdist(a, b, "cos", metric="dos"):        //! positional_args_count == 3, args_names_count == 1
- *          cdist(a, b, metric="cos", metric="dos"): //! positional_args_count == 2, args_names_count == 2
+ *          cdist(a, b, "l2", "dos"):               //! positional_args_count == 4, args_names_count == 0
+ *          cdist(a, b, "l2", metric="dos"):        //! positional_args_count == 3, args_names_count == 1
+ *          cdist(a, b, metric="l2", metric="dos"): //! positional_args_count == 2, args_names_count == 2
  *  @endcode
  *
  *  If the same argument is provided twice, a @b `TypeError` is raised.
@@ -450,8 +450,8 @@ simsimd_kernel_kind_t python_string_to_kernel_kind(char const *name) {
         return simsimd_dot_k;
     else if (same_string(name, "vdot"))
         return simsimd_vdot_k;
-    else if (same_string(name, "cosine") || same_string(name, "cos"))
-        return simsimd_cosine_k;
+    else if (same_string(name, "angular"))
+        return simsimd_angular_k;
     else if (same_string(name, "jaccard"))
         return simsimd_jaccard_k;
     else if (same_string(name, "kullbackleibler") || same_string(name, "kl"))
@@ -1643,9 +1643,9 @@ static char const doc_l2sq_pointer[] = "Get (int) pointer to the `simsimd.l2sq` 
 static PyObject *api_l2sq_pointer(PyObject *self, PyObject *dtype_obj) {
     return implement_pointer_access(simsimd_l2sq_k, dtype_obj);
 }
-static char const doc_cos_pointer[] = "Get (int) pointer to the `simsimd.cos` kernel.";
-static PyObject *api_cos_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_cos_k, dtype_obj);
+static char const doc_angular_pointer[] = "Get (int) pointer to the `simsimd.angular` kernel.";
+static PyObject *api_angular_pointer(PyObject *self, PyObject *dtype_obj) {
+    return implement_pointer_access(simsimd_angular_k, dtype_obj);
 }
 static char const doc_dot_pointer[] = "Get (int) pointer to the `simsimd.dot` kernel.";
 static PyObject *api_dot_pointer(PyObject *self, PyObject *dtype_obj) {
@@ -1716,8 +1716,8 @@ static PyObject *api_l2sq(PyObject *self, PyObject *const *args, Py_ssize_t cons
     return implement_dense_metric(simsimd_l2sq_k, args, positional_args_count, args_names_tuple);
 }
 
-static char const doc_cos[] = //
-    "Compute cosine (angular) distances between two matrices.\n"
+static char const doc_angular[] = //
+    "Compute angular (cosine) distances between two matrices.\n"
     "\n"
     "Args:\n"
     "    a (XDArray): First matrix or vector.\n"
@@ -1731,11 +1731,11 @@ static char const doc_cos[] = //
     "\n"
     "Equivalent to: `scipy.spatial.distance.cosine`.\n"
     "Signature:\n"
-    "    >>> def cosine(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
+    "    >>> def angular(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
 
-static PyObject *api_cos(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
-                         PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_cos_k, args, positional_args_count, args_names_tuple);
+static PyObject *api_angular(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                             PyObject *args_names_tuple) {
+    return implement_dense_metric(simsimd_angular_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_dot[] = //
@@ -3927,7 +3927,7 @@ static PyMethodDef simsimd_methods[] = {
     {"l2sq", (PyCFunction)api_l2sq, METH_FASTCALL | METH_KEYWORDS, doc_l2sq},
     {"kl", (PyCFunction)api_kl, METH_FASTCALL | METH_KEYWORDS, doc_kl},
     {"js", (PyCFunction)api_js, METH_FASTCALL | METH_KEYWORDS, doc_js},
-    {"cos", (PyCFunction)api_cos, METH_FASTCALL | METH_KEYWORDS, doc_cos},
+    {"angular", (PyCFunction)api_angular, METH_FASTCALL | METH_KEYWORDS, doc_cos},
     {"dot", (PyCFunction)api_dot, METH_FASTCALL | METH_KEYWORDS, doc_dot},
     {"vdot", (PyCFunction)api_vdot, METH_FASTCALL | METH_KEYWORDS, doc_vdot},
     {"hamming", (PyCFunction)api_hamming, METH_FASTCALL | METH_KEYWORDS, doc_hamming},
@@ -3936,7 +3936,6 @@ static PyMethodDef simsimd_methods[] = {
     // Aliases
     {"euclidean", (PyCFunction)api_l2, METH_FASTCALL | METH_KEYWORDS, doc_l2},
     {"sqeuclidean", (PyCFunction)api_l2sq, METH_FASTCALL | METH_KEYWORDS, doc_l2sq},
-    {"cosine", (PyCFunction)api_cos, METH_FASTCALL | METH_KEYWORDS, doc_cos},
     {"inner", (PyCFunction)api_dot, METH_FASTCALL | METH_KEYWORDS, doc_dot},
     {"kullbackleibler", (PyCFunction)api_kl, METH_FASTCALL | METH_KEYWORDS, doc_kl},
     {"jensenshannon", (PyCFunction)api_js, METH_FASTCALL | METH_KEYWORDS, doc_js},
@@ -3947,7 +3946,7 @@ static PyMethodDef simsimd_methods[] = {
     // Exposing underlying API for USearch `CompiledMetric`
     {"pointer_to_euclidean", (PyCFunction)api_l2_pointer, METH_O, doc_l2_pointer},
     {"pointer_to_sqeuclidean", (PyCFunction)api_l2sq_pointer, METH_O, doc_l2sq_pointer},
-    {"pointer_to_cosine", (PyCFunction)api_cos_pointer, METH_O, doc_cos_pointer},
+    {"pointer_to_angular", (PyCFunction)api_angular_pointer, METH_O, doc_cos_pointer},
     {"pointer_to_inner", (PyCFunction)api_dot_pointer, METH_O, doc_dot_pointer},
     {"pointer_to_dot", (PyCFunction)api_dot_pointer, METH_O, doc_dot_pointer},
     {"pointer_to_vdot", (PyCFunction)api_vdot_pointer, METH_O, doc_vdot_pointer},

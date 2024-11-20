@@ -300,12 +300,12 @@ void test_distance_from_itself(void) {
     simsimd_distance_t distance[2]; // For complex dot-products we need two values
 
     // Cosine distance between two vectors
-    simsimd_cos_i8(i8s, i8s, 1536, &distance[0]);
-    simsimd_cos_u8(u8s, u8s, 1536, &distance[0]);
-    simsimd_cos_f16(f16s, f16s, 1536, &distance[0]);
-    simsimd_cos_bf16(bf16s, bf16s, 1536, &distance[0]);
-    simsimd_cos_f32(f32s, f32s, 1536, &distance[0]);
-    simsimd_cos_f64(f64s, f64s, 1536, &distance[0]);
+    simsimd_angular_i8(i8s, i8s, 1536, &distance[0]);
+    simsimd_angular_u8(u8s, u8s, 1536, &distance[0]);
+    simsimd_angular_f16(f16s, f16s, 1536, &distance[0]);
+    simsimd_angular_bf16(bf16s, bf16s, 1536, &distance[0]);
+    simsimd_angular_f32(f32s, f32s, 1536, &distance[0]);
+    simsimd_angular_f64(f64s, f64s, 1536, &distance[0]);
 
     // Euclidean distance between two vectors
     simsimd_l2sq_i8(i8s, i8s, 1536, &distance[0]);

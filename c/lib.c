@@ -9,9 +9,9 @@
 
 /*  Override the primary serial operations to avoid the LibC dependency.
  */
-#define SIMSIMD_SQRT(x) simsimd_approximate_square_root(x)
-#define SIMSIMD_RSQRT(x) simsimd_approximate_inverse_square_root(x)
-#define SIMSIMD_LOG(x) simsimd_approximate_log(x)
+#define SIMSIMD_SQRT(x) simsimd_f32_sqrt(x)
+#define SIMSIMD_RSQRT(x) simsimd_f32_rsqrt(x)
+#define SIMSIMD_LOG(x) simsimd_f32_log(x)
 
 /*  Depending on the Operating System, the following intrinsics are available
  *  on recent compiler toolchains:
@@ -179,12 +179,12 @@ SIMSIMD_DECLARATION_DENSE(vdot, f32c, f32)
 SIMSIMD_DECLARATION_DENSE(vdot, f64c, f64)
 
 // Spatial distances
-SIMSIMD_DECLARATION_DENSE(cos, i8, i8)
-SIMSIMD_DECLARATION_DENSE(cos, u8, u8)
-SIMSIMD_DECLARATION_DENSE(cos, f16, f16)
-SIMSIMD_DECLARATION_DENSE(cos, bf16, bf16)
-SIMSIMD_DECLARATION_DENSE(cos, f32, f32)
-SIMSIMD_DECLARATION_DENSE(cos, f64, f64)
+SIMSIMD_DECLARATION_DENSE(angular, i8, i8)
+SIMSIMD_DECLARATION_DENSE(angular, u8, u8)
+SIMSIMD_DECLARATION_DENSE(angular, f16, f16)
+SIMSIMD_DECLARATION_DENSE(angular, bf16, bf16)
+SIMSIMD_DECLARATION_DENSE(angular, f32, f32)
+SIMSIMD_DECLARATION_DENSE(angular, f64, f64)
 SIMSIMD_DECLARATION_DENSE(l2sq, i8, i8)
 SIMSIMD_DECLARATION_DENSE(l2sq, u8, u8)
 SIMSIMD_DECLARATION_DENSE(l2sq, f16, f16)
@@ -324,12 +324,12 @@ SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
     simsimd_vdot_f32c((simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, dummy_results);
     simsimd_vdot_f64c((simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, dummy_results);
 
-    simsimd_cos_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, dummy_results);
-    simsimd_cos_u8((simsimd_u8_t *)x, (simsimd_u8_t *)x, 0, dummy_results);
-    simsimd_cos_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, dummy_results);
-    simsimd_cos_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, dummy_results);
-    simsimd_cos_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, dummy_results);
-    simsimd_cos_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, dummy_results);
+    simsimd_angular_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, dummy_results);
+    simsimd_angular_u8((simsimd_u8_t *)x, (simsimd_u8_t *)x, 0, dummy_results);
+    simsimd_angular_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, dummy_results);
+    simsimd_angular_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, dummy_results);
+    simsimd_angular_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, dummy_results);
+    simsimd_angular_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, dummy_results);
 
     simsimd_l2sq_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, dummy_results);
     simsimd_l2sq_u8((simsimd_u8_t *)x, (simsimd_u8_t *)x, 0, dummy_results);

@@ -191,7 +191,7 @@ try:
 
     baseline_euclidean = lambda x, y: np.array(spd.euclidean(x, y))  #! SciPy returns a scalar
     baseline_sqeuclidean = spd.sqeuclidean
-    baseline_cosine = spd.cosine
+    baseline_angular = spd.cosine
     baseline_jensenshannon = lambda x, y: spd.jensenshannon(x, y) ** 2
     baseline_hamming = lambda x, y: spd.hamming(x, y) * len(x)
     baseline_jaccard = spd.jaccard
@@ -210,7 +210,7 @@ except:
     # SciPy is not installed, some tests will be skipped
     scipy_available = False
 
-    baseline_cosine = lambda x, y: 1.0 - np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
+    baseline_angular = lambda x, y: 1.0 - np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
     baseline_euclidean = lambda x, y: np.array([np.sqrt(np.sum((x - y) ** 2))])
     baseline_sqeuclidean = lambda x, y: np.sum((x - y) ** 2)
     baseline_jensenshannon = lambda p, q: (np.sum((np.sqrt(p) - np.sqrt(q)) ** 2)) / 2
@@ -519,8 +519,8 @@ def name_to_kernels(name: str):
         return baseline_euclidean, simd.euclidean
     elif name == "sqeuclidean":
         return baseline_sqeuclidean, simd.sqeuclidean
-    elif name == "cosine":
-        return baseline_cosine, simd.cosine
+    elif name == "angular":
+        return baseline_angular, simd.angular
     elif name == "bilinear":
         return baseline_bilinear, simd.bilinear
     elif name == "mahalanobis":
@@ -674,16 +674,16 @@ def random_of_dtype(dtype, shape):
         # Test missing required arguments for bilinear
         (simd.bilinear, TypeError, (to_array([1.0]),), {}),  # Missing second vector and metric tensor
         # Test passing too many arguments to a method
-        (simd.cosine, TypeError, (to_array([1.0]), to_array([1.0]), to_array([1.0])), {}),  # Too many arguments
-        (simd.cdist, TypeError, (to_array([[1.0]]), to_array([[1.0]]), "cos", "dos"), {}),  # Too many arguments
+        (simd.angular, TypeError, (to_array([1.0]), to_array([1.0]), to_array([1.0])), {}),  # Too many arguments
+        (simd.cdist, TypeError, (to_array([[1.0]]), to_array([[1.0]]), "l2", "dos"), {}),  # Too many arguments
         # Same argument as both positional and keyword
-        (simd.cdist, TypeError, (to_array([[1.0]]), to_array([[1.0]]), "cos"), {"metric": "cos"}),
+        (simd.cdist, TypeError, (to_array([[1.0]]), to_array([[1.0]]), "l2"), {"metric": "l2"}),
         # Applying real metric to complex numbers - missing kernel
-        (simd.cosine, LookupError, (to_array([1 + 2j]), to_array([1 + 2j])), {}),
+        (simd.angular, LookupError, (to_array([1 + 2j]), to_array([1 + 2j])), {}),
         # Test incompatible vectors for cosine
-        (simd.cosine, ValueError, (to_array([1.0]), to_array([1.0, 2.0])), {}),  # Different number of dimensions
-        (simd.cosine, TypeError, (to_array([1.0]), to_array([1], "int8")), {}),  # Floats and integers
-        (simd.cosine, TypeError, (to_array([1], "float32"), to_array([1], "float16")), {}),  # Different floats
+        (simd.angular, ValueError, (to_array([1.0]), to_array([1.0, 2.0])), {}),  # Different number of dimensions
+        (simd.angular, TypeError, (to_array([1.0]), to_array([1], "int8")), {}),  # Floats and integers
+        (simd.angular, TypeError, (to_array([1], "float32"), to_array([1], "float16")), {}),  # Different floats
     ],
 )
 def test_invalid_argument_handling(function, expected_error, args, kwargs):
@@ -696,7 +696,7 @@ def test_invalid_argument_handling(function, expected_error, args, kwargs):
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
-@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
+@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "angular"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_dense(ndim, dtype, metric, capability, stats_fixture):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
@@ -780,7 +780,7 @@ def test_curved(ndim, dtypes, metric, capability, stats_fixture):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
-@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
+@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "angular"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_dense_bf16(ndim, metric, capability, stats_fixture):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
@@ -880,7 +880,7 @@ def test_curved_bf16(ndim, metric, capability, stats_fixture):
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["int8", "uint8"])
-@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
+@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "angular"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_dense_i8(ndim, dtype, metric, capability, stats_fixture):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
@@ -976,18 +976,18 @@ def test_jensen_shannon(ndim, dtype, capability):
 @pytest.mark.parametrize("dtype", ["float32", "float16"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_cosine_zero_vector(ndim, dtype, capability):
-    """Tests the simd.cosine() function with zero vectors, to catch division by zero errors."""
+    """Tests the simd.angular() function with zero vectors, to catch division by zero errors."""
     a = np.zeros(ndim, dtype=dtype)
     b = (np.random.randn(ndim) + 1).astype(dtype)
     keep_one_capability(capability)
 
-    result = simd.cosine(a, b)
+    result = simd.angular(a, b)
     assert result == 1, f"Expected 1, but got {result}"
 
-    result = simd.cosine(a, a)
+    result = simd.angular(a, a)
     assert result == 0, f"Expected 0 distance from itself, but got {result}"
 
-    result = simd.cosine(b, b)
+    result = simd.angular(b, b)
     assert abs(result) < SIMSIMD_ATOL, f"Expected 0 distance from itself, but got {result}"
 
     # For the cosine, the output must not be negative!
@@ -999,7 +999,7 @@ def test_cosine_zero_vector(ndim, dtype, capability):
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
-@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
+@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "angular"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_overflow(ndim, dtype, metric, capability):
     """Tests if the floating-point kernels are capable of detecting overflow yield the same ±inf result."""
@@ -1032,7 +1032,7 @@ def test_overflow(ndim, dtype, metric, capability):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [131072, 262144])
-@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
+@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "angular"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_overflow_i8(ndim, metric, capability):
     """Tests if the integral kernels are capable of detecting overflow yield the same ±inf result,

@@ -2,14 +2,14 @@ import CSimSIMD
 
 public protocol SimSIMD {
     static var dataType: simsimd_datatype_t { get }
-    static var cosine: simsimd_dense_metric_t { get }
+    static var angular: simsimd_dense_metric_t { get }
     static var dotProduct: simsimd_dense_metric_t { get }
     static var squaredEuclidean: simsimd_dense_metric_t { get }
 }
 
 extension Int8: SimSIMD {
     public static let dataType = simsimd_i8_k
-    public static let cosine = find(kind: simsimd_cosine_k, dataType: dataType)
+    public static let angular = find(kind: simsimd_angular_k, dataType: dataType)
     public static let dotProduct = find(kind: simsimd_dot_k, dataType: dataType)
     public static let squaredEuclidean = find(kind: simsimd_sqeuclidean_k, dataType: dataType)
 }
@@ -17,29 +17,29 @@ extension Int8: SimSIMD {
 @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
 extension Float16: SimSIMD {
     public static let dataType = simsimd_f16_k
-    public static let cosine = find(kind: simsimd_cosine_k, dataType: dataType)
+    public static let angular = find(kind: simsimd_angular_k, dataType: dataType)
     public static let dotProduct = find(kind: simsimd_dot_k, dataType: dataType)
     public static let squaredEuclidean = find(kind: simsimd_sqeuclidean_k, dataType: dataType)
 }
 
 extension Float32: SimSIMD {
     public static let dataType = simsimd_f32_k
-    public static let cosine = find(kind: simsimd_cosine_k, dataType: dataType)
+    public static let angular = find(kind: simsimd_angular_k, dataType: dataType)
     public static let dotProduct = find(kind: simsimd_inner_k, dataType: dataType)
     public static let squaredEuclidean = find(kind: simsimd_sqeuclidean_k, dataType: dataType)
 }
 
 extension Float64: SimSIMD {
     public static let dataType = simsimd_f64_k
-    public static let cosine = find(kind: simsimd_cosine_k, dataType: dataType)
+    public static let angular = find(kind: simsimd_angular_k, dataType: dataType)
     public static let dotProduct = find(kind: simsimd_dot_k, dataType: dataType)
     public static let squaredEuclidean = find(kind: simsimd_sqeuclidean_k, dataType: dataType)
 }
 
 extension SimSIMD {
     @inlinable @inline(__always)
-    public static func cosine<A, B>(_ a: A, _ b: B) -> Double? where A: Sequence, B: Sequence, A.Element == Self, B.Element == Self {
-        perform(cosine, a: a, b: b)
+    public static func angular<A, B>(_ a: A, _ b: B) -> Double? where A: Sequence, B: Sequence, A.Element == Self, B.Element == Self {
+        perform(angular, a: a, b: b)
     }
 
     @inlinable @inline(__always)
@@ -55,8 +55,8 @@ extension SimSIMD {
 
 extension RandomAccessCollection where Element: SimSIMD {
     @inlinable @inline(__always)
-    public func cosine<B>(_ b: B) -> Double? where B: Sequence, B.Element == Element {
-        Element.cosine(self, b)
+    public func angular<B>(_ b: B) -> Double? where B: Sequence, B.Element == Element {
+        Element.angular(self, b)
     }
 
     @inlinable @inline(__always)
