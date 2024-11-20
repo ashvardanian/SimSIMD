@@ -102,14 +102,15 @@
 #define SIMSIMD_DYNAMIC_DISPATCH (0) // true or false
 #endif
 
-#include "binary.h"      // Hamming, Jaccard
-#include "curved.h"      // Mahalanobis, Bilinear Forms
-#include "dot.h"         // Inner (dot) product, and its conjugate
-#include "elementwise.h" // Weighted Sum, Fused-Multiply-Add
-#include "geospatial.h"  // Haversine and Vincenty
-#include "probability.h" // Kullback-Leibler, Jensen–Shannon
-#include "sparse.h"      // Intersect
-#include "spatial.h"     // L2, Angular distances
+#include "binary.h"       // Hamming, Jaccard
+#include "curved.h"       // Mahalanobis, Bilinear Forms
+#include "dot.h"          // Inner (dot) product, and its conjugate
+#include "elementwise.h"  // Weighted Sum, Fused-Multiply-Add
+#include "geospatial.h"   // Haversine and Vincenty
+#include "probability.h"  // Kullback-Leibler, Jensen–Shannon
+#include "sparse.h"       // Intersect
+#include "spatial.h"      // L2, Angular distances
+#include "trigonometry.h" // Sine, Cosine
 
 // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
 #if defined(_SIMSIMD_DEFINED_APPLE)
@@ -128,11 +129,11 @@ typedef enum {
     simsimd_kernel_unknown_k = 0, ///< Unknown kernel
 
     // Classics:
-    simsimd_dot_k = 'i',  ///< Inner product
-    simsimd_vdot_k = 'v', ///< Complex inner product
-    simsimd_cos_k = 'c',  ///< Cosine similarity
-    simsimd_l2_k = '2',   ///< Euclidean distance alias
-    simsimd_l2sq_k = 'e', ///< Squared Euclidean distance
+    simsimd_dot_k = 'i',     ///< Inner product
+    simsimd_vdot_k = 'v',    ///< Complex inner product
+    simsimd_angular_k = 'a', ///< Angular (cosine) similarity
+    simsimd_l2_k = 'e',      ///< Euclidean distance alias
+    simsimd_l2sq_k = '2',    ///< Squared Euclidean distance
 
     // Binary:
     simsimd_hamming_k = 'h', ///< Hamming distance
@@ -159,11 +160,9 @@ typedef enum {
     simsimd_fma_k = 'f',   ///< Fused Multiply-Add
 
     // Aliases:
-    simsimd_cosine_k = 'c',           ///< Cosine similarity alias
-    simsimd_angular_k = 'c',          ///< Cosine similarity alias
     simsimd_inner_k = 'i',            ///< Inner product alias
-    simsimd_euclidean_k = '2',        ///< Euclidean distance alias
-    simsimd_sqeuclidean_k = 'e',      ///< Squared Euclidean distance alias
+    simsimd_euclidean_k = 'e',        ///< Euclidean distance alias
+    simsimd_sqeuclidean_k = '2',      ///< Squared Euclidean distance alias
     simsimd_manhattan_k = 'h',        ///< Manhattan distance is same as Hamming
     simsimd_tanimoto_k = 'j',         ///< Tanimoto coefficient is same as Jaccard
     simsimd_kullback_leibler_k = 'k', ///< Kullback-Leibler divergence alias

@@ -511,6 +511,7 @@ void measure_elementwise(bm::State &state, kernel_at kernel, kernel_at baseline,
         }
         else if constexpr (kernel_ak == simsimd_sum_k) { baseline(a.data(), c.data(), a.dimensions(), d.data()); }
         else if constexpr (kernel_ak == simsimd_scale_k) { baseline(a.data(), a.dimensions(), alpha, beta, d.data()); }
+        else { baseline(a.data(), a.dimensions(), d.data()); }
     };
     auto call_contender = [&](vector_t const &a, vector_t const &b, vector_t const &c, vector_t &d) {
         if constexpr (kernel_ak == simsimd_wsum_k) {
@@ -521,6 +522,7 @@ void measure_elementwise(bm::State &state, kernel_at kernel, kernel_at baseline,
         }
         else if constexpr (kernel_ak == simsimd_sum_k) { kernel(a.data(), c.data(), a.dimensions(), d.data()); }
         else if constexpr (kernel_ak == simsimd_scale_k) { kernel(a.data(), a.dimensions(), alpha, beta, d.data()); }
+        else { kernel(a.data(), a.dimensions(), d.data()); }
     };
 
     // Let's average the distance results over many quads.
@@ -580,6 +582,96 @@ void measure_elementwise(bm::State &state, kernel_at kernel, kernel_at baseline,
     state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
+/**
+ *  @brief Measures the performance of a geospatial operations between 4 arrays: 2 latitudes, 2 longitudes.
+ *  @tparam pair_at The type representing the vector pair used in the measurement.
+ *  @tparam kernel_at The type of the kernel function (default is void).
+ *  @param state The benchmark state object provided by Google Benchmark.
+ *  @param kernel The kernel function to benchmark.
+ *  @param baseline The baseline function to compare against.
+ *  @param l2_metric The L2 metric function to compute the error
+ *  @param dimensions The number of dimensions in the vectors.
+ */
+template <typename pair_at, typename kernel_at = void, typename l2_metric_at = void>
+void measure_geospatial(bm::State &state, kernel_at kernel, kernel_at baseline, l2_metric_at l2_metric,
+                        std::size_t dimensions) {
+
+    using pair_t = pair_at;
+    using vector_t = typename pair_at::vector_t;
+    using scalar_t = typename vector_t::scalar_t;
+    struct quad_t {
+        vector_t lat1, lon1, lat2, lon2;
+    };
+
+    using distances_t = vector_gt<simsimd_f64_k>;
+    auto call_baseline = [&](quad_t const &quad, distances_t &d) {
+        baseline(quad.lat1.data(), quad.lon1.data(), quad.lat2.data(), quad.lon2.data(), quad.lat1.dimensions(),
+                 d.data());
+    };
+    auto call_contender = [&](quad_t const &quad, distances_t &d) {
+        kernel(quad.lat1.data(), quad.lon1.data(), quad.lat2.data(), quad.lon2.data(), quad.lat1.dimensions(),
+               d.data());
+    };
+
+    // Let's average the distance results over many quads.
+    constexpr std::size_t quads_count = 128;
+    std::vector<quad_t> quads(quads_count);
+
+    std::random_device random_device;
+    std::mt19937 random_generator(random_device());
+    /// Latitude range (-90 to 90 degrees) in radians
+    std::uniform_real_distribution<scalar_t> lat_dist(-M_PI_2, M_PI_2);
+    /// Longitude range (-180 to 180 degrees) in radians
+    std::uniform_real_distribution<scalar_t> lon_dist(-M_PI, M_PI);
+    for (std::size_t i = 0; i != quads.size(); ++i) {
+        auto &quad = quads[i];
+        quad.lat1 = quad.lat2 = quad.lon1 = quad.lon2 = vector_t(dimensions);
+        std::generate(quad.lat1.data(), quad.lat1.data() + dimensions, [&]() { return lat_dist(random_generator); });
+        std::generate(quad.lat2.data(), quad.lat2.data() + dimensions, [&]() { return lat_dist(random_generator); });
+        std::generate(quad.lon1.data(), quad.lon1.data() + dimensions, [&]() { return lon_dist(random_generator); });
+        std::generate(quad.lon2.data(), quad.lon2.data() + dimensions, [&]() { return lon_dist(random_generator); });
+    }
+
+    // Initialize the output buffers for distance calculations.
+    distances_t baseline_d(dimensions), contender_d(dimensions), zeros(dimensions);
+    std::vector<simsimd_distance_t> l2_metric_from_baseline(quads.size());
+    std::vector<simsimd_distance_t> l2_baseline_result_norm(quads.size());
+    std::vector<simsimd_distance_t> l2_contender_result_norm(quads.size());
+    zeros.set(0);
+    double mean_delta = 0, mean_relative_error = 0;
+    for (std::size_t i = 0; i != quads.size(); ++i) {
+        quad_t &quad = quads[i];
+        call_baseline(quad, baseline_d);
+        call_contender(quad, contender_d);
+        l2_metric(baseline_d.data(), contender_d.data(), dimensions, &l2_metric_from_baseline[i]);
+        l2_metric(baseline_d.data(), zeros.data(), dimensions, &l2_baseline_result_norm[i]);
+        l2_metric(contender_d.data(), zeros.data(), dimensions, &l2_contender_result_norm[i]);
+
+        mean_delta += std::abs(l2_metric_from_baseline[i]);
+        mean_relative_error +=
+            std::abs(l2_metric_from_baseline[i]) / (std::max)(l2_baseline_result_norm[i], l2_contender_result_norm[i]);
+    }
+    mean_delta /= quads_count;
+    mean_relative_error /= quads_count;
+
+    // The actual benchmarking loop.
+    std::size_t iterations = 0;
+    for (auto _ : state) {
+        quad_t &quad = quads[iterations & (quads_count - 1)];
+        call_contender(quad, contender_d);
+        iterations++;
+    }
+
+    std::size_t const bytes_per_call =                            //
+        quads[0].lat1.size_bytes() + quads[0].lat2.size_bytes() + //
+        quads[0].lon1.size_bytes() + quads[0].lon2.size_bytes();
+    // Measure the mean absolute delta and relative error.
+    state.counters["abs_delta"] = mean_delta;
+    state.counters["relative_error"] = mean_relative_error;
+    state.counters["bytes"] = bm::Counter(iterations * bytes_per_call, bm::Counter::kIsRate);
+    state.counters["pairs"] = bm::Counter(iterations * dimensions, bm::Counter::kIsRate);
+}
+
 template <simsimd_datatype_t datatype_ak, typename metric_at = void>
 void dense_(std::string name, metric_at *distance_func, metric_at *baseline_func) {
     using pair_t = vectors_pair_gt<datatype_ak>;
@@ -590,13 +682,23 @@ void dense_(std::string name, metric_at *distance_func, metric_at *baseline_func
         ->Threads(default_threads);
 }
 
-template <simsimd_datatype_t datatype_ak, simsimd_kernel_kind_t kernel_ak, typename kernel_at = void,
-          typename l2_metric_at = void>
+template <simsimd_datatype_t datatype_ak, simsimd_kernel_kind_t kernel_ak = simsimd_kernel_unknown_k,
+          typename kernel_at = void, typename l2_metric_at = void>
 void elementwise_(std::string name, kernel_at *kernel_func, kernel_at *baseline_func, l2_metric_at *l2_metric_func) {
     using pair_t = vectors_pair_gt<datatype_ak>;
     std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_elementwise<pair_t, kernel_ak, kernel_at *, l2_metric_at *>,
                           kernel_func, baseline_func, l2_metric_func, dense_dimensions)
+        ->MinTime(default_seconds)
+        ->Threads(default_threads);
+}
+
+template <simsimd_datatype_t datatype_ak, typename kernel_at = void, typename l2_metric_at = void>
+void geospatial_(std::string name, kernel_at *kernel_func, kernel_at *baseline_func, l2_metric_at *l2_metric_func) {
+    using pair_t = vectors_pair_gt<datatype_ak>;
+    std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_geospatial<pair_t, kernel_at *, l2_metric_at *>, kernel_func,
+                          baseline_func, l2_metric_func, dense_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
@@ -645,6 +747,57 @@ void l2_with_stl(scalar_at const *a, scalar_at const *b, simsimd_size_t n, simsi
         sum += delta * delta;
     }
     *result = std::sqrt(sum);
+}
+
+template <typename scalar_at, typename accumulator_at = scalar_at>
+simsimd_distance_t haversine_one_with_stl(scalar_at lat1, scalar_at lon1, scalar_at lat2, scalar_at lon2) {
+    // Convert angle to radians:
+    // lat1 *= M_PI / 180, lon1 *= M_PI / 180;
+    // lat2 *= M_PI / 180, lon2 *= M_PI / 180;
+    accumulator_at dlat = lat2 - lat1;
+    accumulator_at dlon = lon2 - lon1;
+    accumulator_at a = //
+        std::sin(dlat / 2) * std::sin(dlat / 2) +
+        std::cos(lat1) * std::cos(lat2) * std::sin(dlon / 2) * std::sin(dlon / 2);
+    accumulator_at c = 2 * std::atan2(std::sqrt(a), std::sqrt(1 - a));
+    return c;
+}
+
+template <typename scalar_at, typename accumulator_at = scalar_at>
+void haversine_with_stl(                              //
+    scalar_at const *a_lats, scalar_at const *a_lons, //
+    scalar_at const *b_lats, scalar_at const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results) {
+    for (simsimd_size_t i = 0; i != n; ++i) {
+        scalar_at lat1 = a_lats[i], lon1 = a_lons[i];
+        scalar_at lat2 = b_lats[i], lon2 = b_lons[i];
+        results[i] = haversine_one_with_stl<scalar_at, accumulator_at>(lat1, lon1, lat2, lon2);
+    }
+}
+
+template <typename scalar_at>
+struct sin_with_stl {
+    scalar_at operator()(scalar_at const &a) const { return std::sin(a); }
+};
+template <typename scalar_at>
+struct cos_with_stl {
+    scalar_at operator()(scalar_at const &a) const { return std::cos(a); }
+};
+
+namespace av::simsimd {
+struct sin {
+    simsimd_f32_t operator()(simsimd_f32_t const &a) const { return simsimd_f32_sin(a); }
+    simsimd_f64_t operator()(simsimd_f64_t const &a) const { return simsimd_f64_sin(a); }
+};
+struct cos {
+    simsimd_f32_t operator()(simsimd_f32_t const &a) const { return simsimd_f32_cos(a); }
+    simsimd_f64_t operator()(simsimd_f64_t const &a) const { return simsimd_f64_cos(a); }
+};
+} // namespace av::simsimd
+
+template <typename scalar_at, typename kernel_at>
+void elementwise_with_stl(scalar_at const *ins, simsimd_size_t n, scalar_at *outs) {
+    for (simsimd_size_t i = 0; i != n; ++i) outs[i] = kernel_at {}(ins[i]);
 }
 
 #if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
@@ -767,6 +920,24 @@ int main(int argc, char **argv) {
     constexpr simsimd_datatype_t f32c_k = simsimd_f32c_k;
     constexpr simsimd_datatype_t f16c_k = simsimd_f16c_k;
     constexpr simsimd_datatype_t bf16c_k = simsimd_bf16c_k;
+
+    elementwise_<f32_k>("f32_sin_stl", elementwise_with_stl<simsimd_f32_t, sin_with_stl<simsimd_f32_t>>,
+                        elementwise_with_stl<simsimd_f32_t, sin_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f32_t>);
+    elementwise_<f32_k>("f32_cos_stl", elementwise_with_stl<simsimd_f32_t, cos_with_stl<simsimd_f32_t>>,
+                        elementwise_with_stl<simsimd_f32_t, cos_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f32_t>);
+    elementwise_<f32_k>("f32_sin", elementwise_with_stl<simsimd_f32_t, av::simsimd::sin>,
+                        elementwise_with_stl<simsimd_f32_t, sin_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f32_t>);
+    elementwise_<f32_k>("f32_cos", elementwise_with_stl<simsimd_f32_t, av::simsimd::cos>,
+                        elementwise_with_stl<simsimd_f32_t, cos_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f32_t>);
+
+    elementwise_<f64_k>("f64_sin_stl", elementwise_with_stl<simsimd_f64_t, sin_with_stl<simsimd_f64_t>>,
+                        elementwise_with_stl<simsimd_f64_t, sin_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f64_t>);
+    elementwise_<f64_k>("f64_cos_stl", elementwise_with_stl<simsimd_f64_t, cos_with_stl<simsimd_f64_t>>,
+                        elementwise_with_stl<simsimd_f64_t, cos_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f64_t>);
+    elementwise_<f64_k>("f64_sin", elementwise_with_stl<simsimd_f64_t, av::simsimd::sin>,
+                        elementwise_with_stl<simsimd_f64_t, sin_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f64_t>);
+    elementwise_<f64_k>("f64_cos", elementwise_with_stl<simsimd_f64_t, av::simsimd::cos>,
+                        elementwise_with_stl<simsimd_f64_t, cos_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f64_t>);
 
 #if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
 
@@ -1178,6 +1349,11 @@ int main(int argc, char **argv) {
                                       simsimd_l2_i8_serial);
     elementwise_<i8_k, simsimd_wsum_k>("wsum_i8_serial", simsimd_wsum_i8_serial, simsimd_wsum_i8_accurate,
                                        simsimd_l2_i8_serial);
+
+    geospatial_<f32_k>("haversine_f32_serial", haversine_with_stl<simsimd_f32_t>,
+                       haversine_with_stl<simsimd_f32_t, simsimd_f64_t>, l2_with_stl<simsimd_f64_t>);
+    geospatial_<f64_k>("haversine_f64_serial", haversine_with_stl<simsimd_f64_t>, haversine_with_stl<simsimd_f64_t>,
+                       l2_with_stl<simsimd_f64_t>);
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();

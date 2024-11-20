@@ -283,7 +283,80 @@ void test_xd_index(void) {
     }
 }
 
-void test_saturating_arithmeic(void) {}
+/**
+ *  @brief  Goes through all possible `f32` values in a relevant range, computing
+ */
+void test_approximate_math(void) {
+    union {
+        simsimd_f32_t f32;
+        simsimd_u32_t u32;
+    } x;
+
+    struct error_aggregator {
+        simsimd_f64_t absolute_error;
+        simsimd_f64_t relative_error;
+        simsimd_f64_t max_error;
+    } f32_cos_errors = {0, 0, 0}, f32_sin_errors = {0, 0, 0}, f64_cos_errors = {0, 0, 0}, f64_sin_errors = {0, 0, 0};
+
+    // Test all possible values of f32 within ranges: [-π, -1], [-1, -0], [0, 1], [1, π].
+    simsimd_size_t count_tests = 0;
+    for (x.u32 = 0; x.u32 < 0xFFFFFFFF; ++x.u32) {
+        if (x.f32 >= -3.14159265358979323846f && x.f32 <= 3.14159265358979323846f) {
+
+            simsimd_f64_t f64_sin_baseline = sin(x.f32);
+            simsimd_f64_t f64_sin_approx = simsimd_f64_sin(x.f32);
+            simsimd_f64_t f64_sin_diff = fabs(f64_sin_baseline - f64_sin_approx);
+            simsimd_f64_t f64_sin_max = fmax(fabs(f64_sin_baseline), fabs(f64_sin_approx));
+            f64_sin_errors.absolute_error += f64_sin_diff;
+            f64_sin_errors.relative_error += f64_sin_max != 0 ? f64_sin_diff / f64_sin_max : 0;
+            f64_sin_errors.max_error = fmax(f64_sin_errors.max_error, f64_sin_diff);
+
+            simsimd_f32_t f32_sin_baseline = sinf(x.f32);
+            simsimd_f32_t f32_sin_approx = simsimd_f32_sin(x.f32);
+            simsimd_f32_t f32_sin_diff = fabsf(f32_sin_baseline - f32_sin_approx);
+            simsimd_f32_t f32_sin_max = fmaxf(fabsf(f32_sin_baseline), fabsf(f32_sin_approx));
+            f32_sin_errors.absolute_error += f32_sin_diff;
+            f32_sin_errors.relative_error += f32_sin_max != 0 ? f32_sin_diff / f32_sin_max : 0;
+            f32_sin_errors.max_error = fmax(f32_sin_errors.max_error, f32_sin_diff);
+
+            simsimd_f64_t f64_cos_baseline = cos(x.f32);
+            simsimd_f64_t f64_cos_approx = simsimd_f64_cos(x.f32);
+            simsimd_f64_t f64_cos_diff = fabs(f64_cos_baseline - f64_cos_approx);
+            simsimd_f64_t f64_cos_max = fmax(fabs(f64_cos_baseline), fabs(f64_cos_approx));
+            f64_cos_errors.absolute_error += f64_cos_diff;
+            f64_cos_errors.relative_error += f64_cos_max != 0 ? f64_cos_diff / f64_cos_max : 0;
+            f64_cos_errors.max_error = fmax(f64_cos_errors.max_error, f64_cos_diff);
+
+            simsimd_f32_t f32_cos_baseline = cosf(x.f32);
+            simsimd_f32_t f32_cos_approx = simsimd_f32_cos(x.f32);
+            simsimd_f32_t f32_cos_diff = fabsf(f32_cos_baseline - f32_cos_approx);
+            simsimd_f32_t f32_cos_max = fmaxf(fabsf(f32_cos_baseline), fabsf(f32_cos_approx));
+            f32_cos_errors.absolute_error += f32_cos_diff;
+            f32_cos_errors.relative_error += f32_cos_max != 0 ? f32_cos_diff / f32_cos_max : 0;
+            f32_cos_errors.max_error = fmax(f32_cos_errors.max_error, f32_cos_diff);
+
+            ++count_tests;
+        }
+    }
+
+    f32_sin_errors.absolute_error /= count_tests;
+    f32_sin_errors.relative_error *= 100 / count_tests;
+    f32_cos_errors.absolute_error /= count_tests;
+    f32_cos_errors.relative_error *= 100 / count_tests;
+    f64_sin_errors.absolute_error /= count_tests;
+    f64_sin_errors.relative_error *= 100 / count_tests;
+    f64_cos_errors.absolute_error /= count_tests;
+    f64_cos_errors.relative_error *= 100 / count_tests;
+
+    printf("f32 sin errors: %f or %.6f%%, peaking at %f\n", f32_sin_errors.absolute_error,
+           f32_sin_errors.relative_error, f32_sin_errors.max_error);
+    printf("f32 cos errors: %f or %.6f%%, peaking at %f\n", f32_cos_errors.absolute_error,
+           f32_cos_errors.relative_error, f32_cos_errors.max_error);
+    printf("f64 sin errors: %f or %.6f%%, peaking at %f\n", f64_sin_errors.absolute_error,
+           f64_sin_errors.relative_error, f64_sin_errors.max_error);
+    printf("f64 cos errors: %f or %.6f%%, peaking at %f\n", f64_cos_errors.absolute_error,
+           f64_cos_errors.relative_error, f64_cos_errors.max_error);
+}
 
 /**
  *  @brief  A trivial test that calls every implemented distance function and their dispatch versions
@@ -359,6 +432,7 @@ int main(int argc, char **argv) {
     print_capabilities();
     test_utilities();
     test_saturating_arithmetic();
+    test_approximate_math();
     test_xd_index();
     test_distance_from_itself();
     printf("All tests passed.\n");
