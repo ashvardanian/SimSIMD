@@ -101,48 +101,41 @@ SIMSIMD_PUBLIC void simsimd_sin_f32_skylake(simsimd_f32_t const *ins, simsimd_si
 SIMSIMD_PUBLIC void simsimd_cos_f32_skylake(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t const *outs);
 
 /**
- *  @brief  Computes an approximate sine of the given angle in radians with 3 ULP error bound.
- *  @see    xfastsinf_u3500 in SLEEF library
+ *  @brief  Computes an approximate sine of the given angle in radians with @b 3-ULP error bound for [-π, π].
+ *  @see    Based on @b `xfastsinf_u3500` in SLEEF library.
  *  @param  angle The input angle in radians.
  *  @return The approximate sine of the input angle.
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_sin(simsimd_f32_t angle) {
-    // Variables
-    int multiple_of_pi;          // The integer multiple of π in the input angle
-    simsimd_f32_t result;        // The final result of the sine computation
-    simsimd_f32_t angle_squared; // Square of the reduced angle
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_sin(simsimd_f32_t const angle) {
 
     // Constants for argument reduction
-    simsimd_f32_t const pi_reciprocal = 0.31830988618379067154f; // 1/π
-    simsimd_f32_t const pi = 3.14159265358979323846f;            // π
+    simsimd_f32_t const pi_reciprocal = 0.31830988618379067154f; /// 1/π
+    simsimd_f32_t const pi = 3.14159265358979323846f;            /// π
+
+    // Polynomial coefficients for sine approximation (minimax polynomial)
+    simsimd_f32_t const coeff_5 = -0.0001881748176f; /// Coefficient for x^5 term
+    simsimd_f32_t const coeff_3 = 0.008323502727f;   /// Coefficient for x^3 term
+    simsimd_f32_t const coeff_1 = -0.1666651368f;    /// Coefficient for x term
 
     // Compute multiple_of_pi = round(angle / π)
     simsimd_f32_t quotient = angle * pi_reciprocal;
+    int multiple_of_pi; // The integer multiple of π in the input angle
     if (quotient >= 0.0f) { multiple_of_pi = (int)(quotient + 0.5f); }
     else { multiple_of_pi = (int)(quotient - 0.5f); }
 
-    // Reduce the angle: angle = angle - (multiple_of_pi * π)
-    angle = angle - multiple_of_pi * pi;
-
-    // Compute the square of the reduced angle
-    angle_squared = angle * angle;
-
-    // Polynomial coefficients for sine approximation (minimax polynomial)
-    simsimd_f32_t const coeff_5 = -0.0001881748176f; // Coefficient for x^5 term
-    simsimd_f32_t const coeff_3 = 0.008323502727f;   // Coefficient for x^3 term
-    simsimd_f32_t const coeff_1 = -0.1666651368f;    // Coefficient for x term
+    // Reduce the angle to (angle - (multiple_of_pi * π))
+    simsimd_f32_t const reduced_angle = angle - multiple_of_pi * pi;
+    simsimd_f32_t const reduced_angle_squared = reduced_angle * reduced_angle;
+    simsimd_f32_t const reduced_angle_cubed = reduced_angle * reduced_angle_squared;
 
     // Compute the polynomial approximation
     simsimd_f32_t polynomial = coeff_5;
-    polynomial = polynomial * angle_squared + coeff_3; // polynomial = (coeff_5 * x^2) + coeff_3
-    polynomial = polynomial * angle_squared + coeff_1; // polynomial = polynomial * x^2 + coeff_1
-
-    // Compute the final result: sine approximation
-    result = ((angle_squared * angle) * polynomial) + angle; // result = (x^3 * polynomial) + x
+    polynomial = polynomial * reduced_angle_squared + coeff_3; // polynomial = (coeff_5 * x^2) + coeff_3
+    polynomial = polynomial * reduced_angle_squared + coeff_1; // polynomial = polynomial * x^2 + coeff_1
+    simsimd_f32_t result = (reduced_angle_cubed * polynomial) + reduced_angle; // result = (x^3 * polynomial) + x
 
     // If multiple_of_pi is odd, flip the sign of the result
     if ((multiple_of_pi & 1) != 0) { result = -result; }
-
     return result;
 }
 
