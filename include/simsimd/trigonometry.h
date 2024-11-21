@@ -101,240 +101,194 @@ SIMSIMD_PUBLIC void simsimd_sin_f32_skylake(simsimd_f32_t const *ins, simsimd_si
 SIMSIMD_PUBLIC void simsimd_cos_f32_skylake(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t const *outs);
 
 /**
- *  @brief  Computes an approximate sine of the given angle in radians with @b 3-ULP error bound for [-π, π].
+ *  @brief  Computes an approximate sine of the given angle in radians with @b 3-ULP error bound for [-2π, 2π].
  *  @see    Based on @b `xfastsinf_u3500` in SLEEF library.
  *  @param  angle The input angle in radians.
  *  @return The approximate sine of the input angle.
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_sin(simsimd_f32_t const angle) {
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_sin(simsimd_f32_t const angle_radians) {
 
     // Constants for argument reduction
-    simsimd_f32_t const pi_reciprocal = 0.31830988618379067154f; /// 1/π
     simsimd_f32_t const pi = 3.14159265358979323846f;            /// π
+    simsimd_f32_t const pi_reciprocal = 0.31830988618379067154f; /// 1/π
 
-    // Polynomial coefficients for sine approximation (minimax polynomial)
+    // Polynomial coefficients for sine/cosine approximation (minimax polynomial)
     simsimd_f32_t const coeff_5 = -0.0001881748176f; /// Coefficient for x^5 term
-    simsimd_f32_t const coeff_3 = 0.008323502727f;   /// Coefficient for x^3 term
+    simsimd_f32_t const coeff_3 = +0.008323502727f;  /// Coefficient for x^3 term
     simsimd_f32_t const coeff_1 = -0.1666651368f;    /// Coefficient for x term
 
-    // Compute multiple_of_pi = round(angle / π)
-    simsimd_f32_t quotient = angle * pi_reciprocal;
-    int multiple_of_pi; // The integer multiple of π in the input angle
-    if (quotient >= 0.0f) { multiple_of_pi = (int)(quotient + 0.5f); }
-    else { multiple_of_pi = (int)(quotient - 0.5f); }
+    // Compute (multiple_of_pi) = round(angle / π)
+    simsimd_f32_t const quotient = angle_radians * pi_reciprocal;
+    int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5f : quotient + 0.5f);
 
-    // Reduce the angle to (angle - (multiple_of_pi * π))
-    simsimd_f32_t const reduced_angle = angle - multiple_of_pi * pi;
-    simsimd_f32_t const reduced_angle_squared = reduced_angle * reduced_angle;
-    simsimd_f32_t const reduced_angle_cubed = reduced_angle * reduced_angle_squared;
+    // Reduce the angle to (angle - (multiple_of_pi * π)) in [0, π]
+    simsimd_f32_t const angle = angle_radians - multiple_of_pi * pi;
+    simsimd_f32_t const angle_squared = angle * angle;
+    simsimd_f32_t const angle_cubed = angle * angle_squared;
 
     // Compute the polynomial approximation
     simsimd_f32_t polynomial = coeff_5;
-    polynomial = polynomial * reduced_angle_squared + coeff_3; // polynomial = (coeff_5 * x^2) + coeff_3
-    polynomial = polynomial * reduced_angle_squared + coeff_1; // polynomial = polynomial * x^2 + coeff_1
-    simsimd_f32_t result = (reduced_angle_cubed * polynomial) + reduced_angle; // result = (x^3 * polynomial) + x
+    polynomial = polynomial * angle_squared + coeff_3;         // polynomial = (coeff_5 * x^2) + coeff_3
+    polynomial = polynomial * angle_squared + coeff_1;         // polynomial = polynomial * x^2 + coeff_1
+    simsimd_f32_t result = (angle_cubed * polynomial) + angle; // result = (x^3 * polynomial) + x
 
     // If multiple_of_pi is odd, flip the sign of the result
-    if ((multiple_of_pi & 1) != 0) { result = -result; }
+    if ((multiple_of_pi & 1) != 0) result = -result;
     return result;
 }
 
 /**
- *  @brief  Computes an approximate cosine of the given angle in radians with 3 ULP error bound.
- *  @see    xfastcosf_u3500 in SLEEF library
+ *  @brief  Computes an approximate cosine of the given angle in radians with @b 3-ULP error bound for [-2π, 2π].
+ *  @see    Based on @b `xfastcosf_u3500` in SLEEF library.
  *  @param  angle The input angle in radians.
  *  @return The approximate cosine of the input angle.
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_cos(simsimd_f32_t angle) {
-    // Variables
-    int multiple_of_pi;          // The integer multiple of π in the input angle
-    simsimd_f32_t result;        // The final result of the cosine computation
-    simsimd_f32_t angle_squared; // Square of the reduced angle
-    simsimd_f32_t reduced_angle; // The angle reduced to the primary interval
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_cos(simsimd_f32_t const angle_radians) {
 
     // Constants for argument reduction
-    simsimd_f32_t const pi_reciprocal = 0.31830988618379067154f; // 1/π
-    simsimd_f32_t const pi = 3.14159265358979323846f;            // π
+    simsimd_f32_t const pi = 3.14159265358979323846f;            /// π
+    simsimd_f32_t const pi_half = 1.57079632679489661923f;       /// π/2
+    simsimd_f32_t const pi_reciprocal = 0.31830988618379067154f; /// 1/π
 
-    // Compute multiple_of_pi = round(angle * (1/π) - 0.5)
-    simsimd_f32_t quotient = angle * pi_reciprocal - 0.5f;
-    if (quotient >= 0.0f) { multiple_of_pi = (int)(quotient + 0.5f); }
-    else { multiple_of_pi = (int)(quotient - 0.5f); }
+    // Polynomial coefficients for sine/cosine approximation (minimax polynomial)
+    simsimd_f32_t const coeff_5 = -0.0001881748176f; /// Coefficient for x^5 term
+    simsimd_f32_t const coeff_3 = +0.008323502727f;  /// Coefficient for x^3 term
+    simsimd_f32_t const coeff_1 = -0.1666651368f;    /// Coefficient for x term
 
-    // Reduce the angle: angle = angle - (multiple_of_pi + 0.5) * π
-    reduced_angle = angle - (multiple_of_pi + 0.5f) * pi;
+    // Compute (multiple_of_pi) = round(angle / π - 0.5)
+    simsimd_f32_t const quotient = angle_radians * pi_reciprocal - 0.5f;
+    int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5f : quotient + 0.5f);
 
-    // Compute the square of the reduced angle
-    angle_squared = reduced_angle * reduced_angle;
-
-    // Polynomial coefficients for cosine approximation (minimax polynomial)
-    simsimd_f32_t const coeff_5 = -0.0001881748176f; // Coefficient for x^5 term
-    simsimd_f32_t const coeff_3 = 0.008323502727f;   // Coefficient for x^3 term
-    simsimd_f32_t const coeff_1 = -0.1666651368f;    // Coefficient for x^1 term
+    // Reduce the angle to (angle - (multiple_of_pi * π)) in [-π/2, π/2]
+    simsimd_f32_t const angle = angle_radians - pi_half - multiple_of_pi * pi;
+    simsimd_f32_t const angle_squared = angle * angle;
+    simsimd_f32_t const angle_cubed = angle * angle_squared;
 
     // Compute the polynomial approximation
     simsimd_f32_t polynomial = coeff_5;
-    polynomial = polynomial * angle_squared + coeff_3; // polynomial = (coeff_5 * x^2) + coeff_3
-    polynomial = polynomial * angle_squared + coeff_1; // polynomial = polynomial * x^2 + coeff_1
-
-    // Compute the final result: cosine approximation
-    result = ((angle_squared * reduced_angle) * polynomial) + reduced_angle; // result = (x^3 * polynomial) + x
+    polynomial = polynomial * angle_squared + coeff_3;         // polynomial = (coeff_5 * x^2) + coeff_3
+    polynomial = polynomial * angle_squared + coeff_1;         // polynomial = polynomial * x^2 + coeff_1
+    simsimd_f32_t result = (angle_cubed * polynomial) + angle; // result = (x^3 * polynomial) + x
 
     // If multiple_of_pi is even, flip the sign of the result
-    if ((multiple_of_pi & 1) == 0) { result = -result; }
-
+    if ((multiple_of_pi & 1) == 0) result = -result;
     return result;
 }
 
 /**
- *  @brief  Computes an approximate cosine of the given angle in radians with 0 ULP error bound.
- *  @see    `xsin` in SLEEF library
+ *  @brief  Computes an approximate cosine of the given angle in radians with @b 0-ULP error bound in [-2π, 2π].
+ *  @see    Based on @b `xsin` in SLEEF library.
  *  @param  angle The input angle in radians.
  *  @return The approximate cosine of the input angle.
  */
-SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_sin(simsimd_f64_t angle) {
-    // Constants for bit manipulation
-    simsimd_i64_t const negative_zero = 0x8000000000000000LL; // Hexadecimal value of -0.0 in IEEE 754
-
-    // Union for bit manipulation between simsimd_f64_t and simsimd_i64_t
-    union {
-        simsimd_f64_t f64;
-        simsimd_i64_t i64;
-    } converter;
-
-    // Preserve the original angle for special case handling (negative zero)
-    simsimd_f64_t original_angle = angle;
+SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_sin(simsimd_f64_t const angle_radians) {
 
     // Constants for argument reduction
+    simsimd_f64_t const pi_high = 3.141592653589793116;                         // High-digits part of π
+    simsimd_f64_t const pi_low = 1.2246467991473532072e-16;                     // Low-digits part of π
     simsimd_f64_t const pi_reciprocal = 0.318309886183790671537767526745028724; // 1/π
-    simsimd_f64_t const pi_high = 3.141592653589793116;                         // High-precision part of π
-    simsimd_f64_t const pi_low = 1.2246467991473532072e-16;                     // Low-precision part of π
+    simsimd_i64_t const negative_zero = 0x8000000000000000LL;                   // Hexadecimal value of -0.0 in IEEE 754
 
-    // Compute multiple_of_pi = round(angle / π)
-    simsimd_f64_t quotient = angle * pi_reciprocal;
-    int multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5 : quotient + 0.5);
-
-    // Reduce the angle: angle = angle - (multiple_of_pi * π)
-    angle = (multiple_of_pi * -pi_high) + angle;
-    angle = (multiple_of_pi * -pi_low) + angle;
-
-    // Compute the square of the reduced argument
-    simsimd_f64_t argument_square = angle * angle;
-
-    // Adjust the sign of the angle if multiple_of_pi is odd
-    if ((multiple_of_pi & 1) != 0) { angle = -angle; }
-
-    // Compute higher powers of the argument
-    simsimd_f64_t argument_power_4 = argument_square * argument_square;   // angle^4
-    simsimd_f64_t argument_power_8 = argument_power_4 * argument_power_4; // angle^8
-
-    // Polynomial coefficients for sine approximation (minimax polynomial)
-    simsimd_f64_t const coeff_0 = 0.00833333333333332974823815;
+    // Polynomial coefficients for sine/cosine approximation (minimax polynomial)
+    simsimd_f64_t const coeff_0 = +0.00833333333333332974823815;
     simsimd_f64_t const coeff_1 = -0.000198412698412696162806809;
-    simsimd_f64_t const coeff_2 = 2.75573192239198747630416e-06;
+    simsimd_f64_t const coeff_2 = +2.75573192239198747630416e-06;
     simsimd_f64_t const coeff_3 = -2.50521083763502045810755e-08;
-    simsimd_f64_t const coeff_4 = 1.60590430605664501629054e-10;
+    simsimd_f64_t const coeff_4 = +1.60590430605664501629054e-10;
     simsimd_f64_t const coeff_5 = -7.64712219118158833288484e-13;
-    simsimd_f64_t const coeff_6 = 2.81009972710863200091251e-15;
+    simsimd_f64_t const coeff_6 = +2.81009972710863200091251e-15;
     simsimd_f64_t const coeff_7 = -7.97255955009037868891952e-18;
     simsimd_f64_t const coeff_8 = -0.166666666666666657414808;
 
+    // Compute (multiple_of_pi) = round(angle / π)
+    simsimd_f64_t const quotient = angle_radians * pi_reciprocal;
+    int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5 : quotient + 0.5);
+
+    // Reduce the angle to (angle - (multiple_of_pi * π)) in [0, π]
+    simsimd_f64_t angle = angle_radians;
+    angle = angle - (multiple_of_pi * pi_high);
+    angle = angle - (multiple_of_pi * pi_low);
+    if ((multiple_of_pi & 1) != 0) angle = -angle;
+    simsimd_f64_t const angle_squared = angle * angle;
+    simsimd_f64_t const angle_quartic = angle_squared * angle_squared;
+    simsimd_f64_t const angle_octic = angle_quartic * angle_quartic;
+
     // Compute higher-degree polynomial terms
-    simsimd_f64_t temp1 = (argument_square * coeff_7) + coeff_6;  // temp1 = s * c7 + c6
-    simsimd_f64_t temp2 = (argument_square * coeff_5) + coeff_4;  // temp2 = s * c5 + c4
-    simsimd_f64_t poly_high = (argument_power_4 * temp1) + temp2; // poly_high = s^4 * temp1 + temp2
+    simsimd_f64_t poly_67 = (angle_squared * coeff_7) + coeff_6;   // poly_67 = s * c7 + c6
+    simsimd_f64_t poly_45 = (angle_squared * coeff_5) + coeff_4;   // poly_45 = s * c5 + c4
+    simsimd_f64_t poly_4567 = (angle_quartic * poly_67) + poly_45; // poly_4567 = s^4 * poly_67 + poly_45
 
     // Compute lower-degree polynomial terms
-    simsimd_f64_t temp3 = (argument_square * coeff_3) + coeff_2; // temp3 = s * c3 + c2
-    simsimd_f64_t temp4 = (argument_square * coeff_1) + coeff_0; // temp4 = s * c1 + c0
-    simsimd_f64_t poly_low = (argument_power_4 * temp3) + temp4; // poly_low = s^4 * temp3 + temp4
+    simsimd_f64_t poly_23 = (angle_squared * coeff_3) + coeff_2;   // poly_23 = s * c3 + c2
+    simsimd_f64_t poly_01 = (angle_squared * coeff_1) + coeff_0;   // poly_01 = s * c1 + c0
+    simsimd_f64_t poly_0123 = (angle_quartic * poly_23) + poly_01; // poly_0123 = s^4 * poly_23 + poly_01
 
     // Combine polynomial terms
-    simsimd_f64_t result = (argument_power_8 * poly_high) + poly_low; // result = s^8 * poly_high + poly_low
-    result = (result * argument_square) + coeff_8;                    // result = result * s + c8
-    result = (argument_square * (result * angle)) + angle;            // result = s * (result * angle) + angle
+    simsimd_f64_t result = (angle_octic * poly_4567) + poly_0123; // result = s^8 * poly_4567 + poly_0123
+    result = (result * angle_squared) + coeff_8;                  // result = result * s + c8
+    result = (angle_squared * (result * angle)) + angle;          // result = s * (result * angle) + angle
 
     // Handle the special case of negative zero input
-    converter.f64 = original_angle;
-    if (converter.i64 == negative_zero) { result = original_angle; }
-
-    return result;
-}
-
-/**
- *  @brief  Computes an approximate cosine of the given angle in radians with 0 ULP error bound.
- *  @see    `xcos` in SLEEF library
- *  @param  angle The input angle in radians.
- *  @return The approximate cosine of the input angle.
- */
-SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_cos(simsimd_f64_t angle) {
-    // Constants for bit manipulation
-    simsimd_i64_t const negative_zero = 0x8000000000000000LL; // Hexadecimal value of -0.0 in IEEE 754
-
-    // Union for bit manipulation between simsimd_f64_t and simsimd_i64_t
     union {
         simsimd_f64_t f64;
         simsimd_i64_t i64;
     } converter;
+    converter.f64 = angle;
+    if (converter.i64 == negative_zero) result = angle;
+    return result;
+}
 
-    // Variables
-    simsimd_f64_t result;                 // The final result of the cosine computation
-    simsimd_f64_t angle_squared;          // Square of the reduced angle
-    simsimd_f64_t original_angle = angle; // Preserve the original angle for special case handling
-    int multiple_of_pi;                   // The integer multiple of π in the input angle
+/**
+ *  @brief  Computes an approximate cosine of the given angle in radians with @b 0-ULP error bound in [-2π, 2π].
+ *  @see    Based on @b `xcos` in SLEEF library.
+ *  @param  angle The input angle in radians.
+ *  @return The approximate cosine of the input angle.
+ */
+SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_cos(simsimd_f64_t const angle_radians) {
 
     // Constants for argument reduction
+    simsimd_f64_t const pi_high = 3.141592653589793116;                         // High-digits part of π
+    simsimd_f64_t const pi_low = 1.2246467991473532072e-16;                     // Low-digits part of π
     simsimd_f64_t const pi_reciprocal = 0.318309886183790671537767526745028724; // 1/π
-    simsimd_f64_t const pi_high = 3.141592653589793116;                         // High-precision part of π
-    simsimd_f64_t const pi_low = 1.2246467991473532072e-16;                     // Low-precision part of π
 
-    // Compute multiple_of_pi = 2 * round(angle * (1/π) - 0.5) + 1
-    simsimd_f64_t quotient = angle * pi_reciprocal - 0.5;
-    int temp = (int)(quotient < 0 ? quotient - 0.5 : quotient + 0.5);
-    multiple_of_pi = 2 * temp + 1;
-
-    // Reduce the angle: angle = angle - multiple_of_pi * (π / 2)
-    angle = angle - multiple_of_pi * (pi_high * 0.5);
-    angle = angle - multiple_of_pi * (pi_low * 0.5);
-
-    // Compute the square of the reduced angle
-    angle_squared = angle * angle;
-
-    // Adjust the sign of the angle if necessary
-    if ((multiple_of_pi & 2) == 0) { angle = -angle; }
-
-    // Compute higher powers of the argument
-    simsimd_f64_t angle_power_2 = angle_squared;
-    simsimd_f64_t angle_power_4 = angle_power_2 * angle_power_2; // angle^4
-    simsimd_f64_t angle_power_8 = angle_power_4 * angle_power_4; // angle^8
-
-    // Polynomial coefficients for cosine approximation (minimax polynomial)
-    simsimd_f64_t const coeff_0 = 0.00833333333333332974823815;
+    // Polynomial coefficients for sine/cosine approximation (minimax polynomial)
+    simsimd_f64_t const coeff_0 = +0.00833333333333332974823815;
     simsimd_f64_t const coeff_1 = -0.000198412698412696162806809;
-    simsimd_f64_t const coeff_2 = 2.75573192239198747630416e-06;
+    simsimd_f64_t const coeff_2 = +2.75573192239198747630416e-06;
     simsimd_f64_t const coeff_3 = -2.50521083763502045810755e-08;
-    simsimd_f64_t const coeff_4 = 1.60590430605664501629054e-10;
+    simsimd_f64_t const coeff_4 = +1.60590430605664501629054e-10;
     simsimd_f64_t const coeff_5 = -7.64712219118158833288484e-13;
-    simsimd_f64_t const coeff_6 = 2.81009972710863200091251e-15;
+    simsimd_f64_t const coeff_6 = +2.81009972710863200091251e-15;
     simsimd_f64_t const coeff_7 = -7.97255955009037868891952e-18;
     simsimd_f64_t const coeff_8 = -0.166666666666666657414808;
 
+    // Compute (multiple_of_pi) = 2 * round(angle / π - 0.5) + 1
+    simsimd_f64_t const quotient = angle_radians * pi_reciprocal - 0.5;
+    int const multiple_of_pi = 2 * (int)(quotient < 0 ? quotient - 0.5 : quotient + 0.5) + 1;
+
+    // Reduce the angle to (angle - (multiple_of_pi * π)) in [-π/2, π/2]
+    simsimd_f64_t angle = angle_radians;
+    angle = angle - (multiple_of_pi * pi_high * 0.5);
+    angle = angle - (multiple_of_pi * pi_low * 0.5);
+    if ((multiple_of_pi & 2) == 0) angle = -angle;
+    simsimd_f64_t const angle_squared = angle * angle;
+    simsimd_f64_t const angle_quartic = angle_squared * angle_squared;
+    simsimd_f64_t const angle_octic = angle_quartic * angle_quartic;
+
     // Compute higher-degree polynomial terms
-    simsimd_f64_t temp1 = (angle_squared * coeff_7) + coeff_6; // temp1 = s * c7 + c6
-    simsimd_f64_t temp2 = (angle_squared * coeff_5) + coeff_4; // temp2 = s * c5 + c4
-    simsimd_f64_t poly_high = (angle_power_4 * temp1) + temp2; // poly_high = s^4 * temp1 + temp2
+    simsimd_f64_t poly_67 = (angle_squared * coeff_7) + coeff_6;   // poly_67 = s * c7 + c6
+    simsimd_f64_t poly_45 = (angle_squared * coeff_5) + coeff_4;   // poly_45 = s * c5 + c4
+    simsimd_f64_t poly_4567 = (angle_quartic * poly_67) + poly_45; // poly_4567 = s^4 * poly_67 + poly_45
 
     // Compute lower-degree polynomial terms
-    simsimd_f64_t temp3 = (angle_squared * coeff_3) + coeff_2; // temp3 = s * c3 + c2
-    simsimd_f64_t temp4 = (angle_squared * coeff_1) + coeff_0; // temp4 = s * c1 + c0
-    simsimd_f64_t poly_low = (angle_power_4 * temp3) + temp4;  // poly_low = s^4 * temp3 + temp4
+    simsimd_f64_t poly_23 = (angle_squared * coeff_3) + coeff_2;   // poly_23 = s * c3 + c2
+    simsimd_f64_t poly_01 = (angle_squared * coeff_1) + coeff_0;   // poly_01 = s * c1 + c0
+    simsimd_f64_t poly_0123 = (angle_quartic * poly_23) + poly_01; // poly_0123 = s^4 * poly_23 + poly_01
 
     // Combine polynomial terms
-    result = (angle_power_8 * poly_high) + poly_low;     // result = s^8 * poly_high + poly_low
-    result = (result * angle_squared) + coeff_8;         // result = result * s + c8
-    result = (angle_squared * (result * angle)) + angle; // result = s * (result * angle) + angle
-
-    // Return the final result
+    simsimd_f64_t result = (angle_octic * poly_4567) + poly_0123; // result = s^8 * poly_4567 + poly_0123
+    result = (result * angle_squared) + coeff_8;                  // result = result * s + c8
+    result = (angle_squared * (result * angle)) + angle;          // result = s * (result * angle) + angle
     return result;
 }
 
