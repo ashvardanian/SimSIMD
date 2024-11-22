@@ -130,7 +130,7 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_sin(simsimd_f32_t const angle_radians) 
     simsimd_f32_t const quotient = angle_radians * pi_reciprocal;
     int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5f : quotient + 0.5f);
 
-    // Reduce the angle to (angle - (multiple_of_pi * π)) in [0, π]
+    // Reduce the angle to: (angle - (multiple_of_pi * π)) in [0, π]
     simsimd_f32_t const angle = angle_radians - multiple_of_pi * pi;
     simsimd_f32_t const angle_squared = angle * angle;
     simsimd_f32_t const angle_cubed = angle * angle_squared;
@@ -168,7 +168,7 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_cos(simsimd_f32_t const angle_radians) 
     simsimd_f32_t const quotient = angle_radians * pi_reciprocal - 0.5f;
     int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5f : quotient + 0.5f);
 
-    // Reduce the angle to (angle - (multiple_of_pi * π)) in [-π/2, π/2]
+    // Reduce the angle to: (angle - (multiple_of_pi * π)) in [-π/2, π/2]
     simsimd_f32_t const angle = angle_radians - pi_half - multiple_of_pi * pi;
     simsimd_f32_t const angle_squared = angle * angle;
     simsimd_f32_t const angle_cubed = angle * angle_squared;
@@ -208,20 +208,20 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_atan(simsimd_f32_t const input) {
     if (value > 1.0f) value = 1.0f / value, quadrant |= 1;
 
     // Argument reduction
-    simsimd_f32_t const value_to_2nd = value * value;
+    simsimd_f32_t const value_squared = value * value;
 
     // Polynomial evaluation
-    simsimd_f32_t polynomial_result = coeff_1;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_2;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_3;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_4;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_5;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_6;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_7;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_8;
+    simsimd_f32_t polynomial = coeff_1;
+    polynomial = polynomial * value_squared + coeff_2;
+    polynomial = polynomial * value_squared + coeff_3;
+    polynomial = polynomial * value_squared + coeff_4;
+    polynomial = polynomial * value_squared + coeff_5;
+    polynomial = polynomial * value_squared + coeff_6;
+    polynomial = polynomial * value_squared + coeff_7;
+    polynomial = polynomial * value_squared + coeff_8;
 
     // Adjust for quadrant
-    simsimd_f32_t result = value + value * value_to_2nd * polynomial_result;
+    simsimd_f32_t result = value + value * value_squared * polynomial;
     simsimd_f32_t const pi_half = 1.5707963267948966f; // π/2
     if ((quadrant & 1) != 0) result = pi_half - result;
     if ((quadrant & 2) != 0) result = -result;
@@ -265,20 +265,20 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_atan2(simsimd_f32_t const y, simsimd_f3
 
     // Argument reduction
     simsimd_f32_t const ratio = y_abs.f / x_abs.f;
-    simsimd_f32_t const ratio_to_2nd = ratio * ratio;
+    simsimd_f32_t const ratio_squared = ratio * ratio;
 
     // Polynomial evaluation (fully unrolled)
-    simsimd_f32_t polynomial_result = coeff_1;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_2;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_3;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_4;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_5;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_6;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_7;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_8;
+    simsimd_f32_t polynomial = coeff_1;
+    polynomial = polynomial * ratio_squared + coeff_2;
+    polynomial = polynomial * ratio_squared + coeff_3;
+    polynomial = polynomial * ratio_squared + coeff_4;
+    polynomial = polynomial * ratio_squared + coeff_5;
+    polynomial = polynomial * ratio_squared + coeff_6;
+    polynomial = polynomial * ratio_squared + coeff_7;
+    polynomial = polynomial * ratio_squared + coeff_8;
 
     // Compute the result
-    simsimd_f32_t result = ratio + ratio * ratio_to_2nd * polynomial_result;
+    simsimd_f32_t result = ratio + ratio * ratio_squared * polynomial;
     result += quadrant * (3.14159265358979323846f / 2.0f); // quadrant * (π/2)
 
     // Constants for special cases
@@ -341,36 +341,37 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_sin(simsimd_f64_t const angle_radians) 
     simsimd_f64_t const quotient = angle_radians * pi_reciprocal;
     int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5 : quotient + 0.5);
 
-    // Reduce the angle to (angle - (multiple_of_pi * π)) in [0, π]
+    // Reduce the angle to: (angle - (multiple_of_pi * π)) in [0, π]
     simsimd_f64_t angle = angle_radians;
     angle = angle - (multiple_of_pi * pi_high);
     angle = angle - (multiple_of_pi * pi_low);
     if ((multiple_of_pi & 1) != 0) angle = -angle;
     simsimd_f64_t const angle_squared = angle * angle;
+    simsimd_f64_t const angle_cubed = angle * angle_squared;
     simsimd_f64_t const angle_quartic = angle_squared * angle_squared;
     simsimd_f64_t const angle_octic = angle_quartic * angle_quartic;
 
     // Compute higher-degree polynomial terms
-    simsimd_f64_t poly_67 = (angle_squared * coeff_7) + coeff_6;   // poly_67 = s * c7 + c6
-    simsimd_f64_t poly_45 = (angle_squared * coeff_5) + coeff_4;   // poly_45 = s * c5 + c4
-    simsimd_f64_t poly_4567 = (angle_quartic * poly_67) + poly_45; // poly_4567 = s^4 * poly_67 + poly_45
+    simsimd_f64_t const poly_67 = (angle_squared * coeff_7) + coeff_6;
+    simsimd_f64_t const poly_45 = (angle_squared * coeff_5) + coeff_4;
+    simsimd_f64_t const poly_4567 = (angle_quartic * poly_67) + poly_45;
 
     // Compute lower-degree polynomial terms
-    simsimd_f64_t poly_23 = (angle_squared * coeff_3) + coeff_2;   // poly_23 = s * c3 + c2
-    simsimd_f64_t poly_01 = (angle_squared * coeff_1) + coeff_0;   // poly_01 = s * c1 + c0
-    simsimd_f64_t poly_0123 = (angle_quartic * poly_23) + poly_01; // poly_0123 = s^4 * poly_23 + poly_01
+    simsimd_f64_t const poly_23 = (angle_squared * coeff_3) + coeff_2;
+    simsimd_f64_t const poly_01 = (angle_squared * coeff_1) + coeff_0;
+    simsimd_f64_t const poly_0123 = (angle_quartic * poly_23) + poly_01;
 
     // Combine polynomial terms
-    simsimd_f64_t result = (angle_octic * poly_4567) + poly_0123; // result = s^8 * poly_4567 + poly_0123
-    result = (result * angle_squared) + coeff_8;                  // result = result * s + c8
-    result = (angle_squared * (result * angle)) + angle;          // result = s * (result * angle) + angle
+    simsimd_f64_t result = (angle_octic * poly_4567) + poly_0123;
+    result = (result * angle_squared) + coeff_8;
+    result = (result * angle_cubed) + angle;
 
     // Handle the special case of negative zero input
     union {
         simsimd_f64_t f64;
         simsimd_i64_t i64;
     } converter;
-    converter.f64 = angle;
+    converter.f64 = angle_radians;
     if (converter.i64 == negative_zero) result = angle;
     return result;
 }
@@ -384,8 +385,8 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_sin(simsimd_f64_t const angle_radians) 
 SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_cos(simsimd_f64_t const angle_radians) {
 
     // Constants for argument reduction
-    simsimd_f64_t const pi_high = 3.141592653589793116;                         // High-digits part of π
-    simsimd_f64_t const pi_low = 1.2246467991473532072e-16;                     // Low-digits part of π
+    simsimd_f64_t const pi_high_half = 3.141592653589793116 * 0.5;              // High-digits part of π
+    simsimd_f64_t const pi_low_half = 1.2246467991473532072e-16 * 0.5;          // Low-digits part of π
     simsimd_f64_t const pi_reciprocal = 0.318309886183790671537767526745028724; // 1/π
 
     // Polynomial coefficients for sine/cosine approximation (minimax polynomial)
@@ -403,29 +404,30 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_cos(simsimd_f64_t const angle_radians) 
     simsimd_f64_t const quotient = angle_radians * pi_reciprocal - 0.5;
     int const multiple_of_pi = 2 * (int)(quotient < 0 ? quotient - 0.5 : quotient + 0.5) + 1;
 
-    // Reduce the angle to (angle - (multiple_of_pi * π)) in [-π/2, π/2]
+    // Reduce the angle to: (angle - (multiple_of_pi * π)) in [-π/2, π/2]
     simsimd_f64_t angle = angle_radians;
-    angle = angle - (multiple_of_pi * pi_high * 0.5);
-    angle = angle - (multiple_of_pi * pi_low * 0.5);
+    angle = angle - (multiple_of_pi * pi_high_half);
+    angle = angle - (multiple_of_pi * pi_low_half);
     if ((multiple_of_pi & 2) == 0) angle = -angle;
     simsimd_f64_t const angle_squared = angle * angle;
+    simsimd_f64_t const angle_cubed = angle * angle_squared;
     simsimd_f64_t const angle_quartic = angle_squared * angle_squared;
     simsimd_f64_t const angle_octic = angle_quartic * angle_quartic;
 
     // Compute higher-degree polynomial terms
-    simsimd_f64_t poly_67 = (angle_squared * coeff_7) + coeff_6;   // poly_67 = s * c7 + c6
-    simsimd_f64_t poly_45 = (angle_squared * coeff_5) + coeff_4;   // poly_45 = s * c5 + c4
-    simsimd_f64_t poly_4567 = (angle_quartic * poly_67) + poly_45; // poly_4567 = s^4 * poly_67 + poly_45
+    simsimd_f64_t const poly_67 = (angle_squared * coeff_7) + coeff_6;
+    simsimd_f64_t const poly_45 = (angle_squared * coeff_5) + coeff_4;
+    simsimd_f64_t const poly_4567 = (angle_quartic * poly_67) + poly_45;
 
     // Compute lower-degree polynomial terms
-    simsimd_f64_t poly_23 = (angle_squared * coeff_3) + coeff_2;   // poly_23 = s * c3 + c2
-    simsimd_f64_t poly_01 = (angle_squared * coeff_1) + coeff_0;   // poly_01 = s * c1 + c0
-    simsimd_f64_t poly_0123 = (angle_quartic * poly_23) + poly_01; // poly_0123 = s^4 * poly_23 + poly_01
+    simsimd_f64_t const poly_23 = (angle_squared * coeff_3) + coeff_2;
+    simsimd_f64_t const poly_01 = (angle_squared * coeff_1) + coeff_0;
+    simsimd_f64_t const poly_0123 = (angle_quartic * poly_23) + poly_01;
 
     // Combine polynomial terms
-    simsimd_f64_t result = (angle_octic * poly_4567) + poly_0123; // result = s^8 * poly_4567 + poly_0123
-    result = (result * angle_squared) + coeff_8;                  // result = result * s + c8
-    result = (angle_squared * (result * angle)) + angle;          // result = s * (result * angle) + angle
+    simsimd_f64_t result = (angle_octic * poly_4567) + poly_0123;
+    result = (result * angle_squared) + coeff_8;
+    result = (result * angle_cubed) + angle;
     return result;
 }
 
@@ -462,36 +464,33 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan(simsimd_f64_t const input) {
     simsimd_f64_t value = input;
     if (value < 0) value = -value, quadrant |= 2;
     if (value > 1) value = 1.0 / value, quadrant |= 1;
-
-    // Argument reduction
-    simsimd_f64_t const value_to_2nd = value * value;
-    simsimd_f64_t const value_to_4th = value_to_2nd * value_to_2nd;
-    simsimd_f64_t const value_to_8th = value_to_4th * value_to_4th;
-    simsimd_f64_t const value_to_16th = value_to_8th * value_to_8th;
+    simsimd_f64_t const value_squared = value * value;
+    simsimd_f64_t const value_cubed = value * value_squared;
 
     // Polynomial evaluation (fully unrolled)
-    simsimd_f64_t polynomial_result = coeff_19 * value_to_2nd + coeff_18;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_17;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_16;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_15;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_14;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_13;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_12;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_11;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_10;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_9;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_8;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_7;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_6;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_5;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_4;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_3;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_2;
-    polynomial_result = polynomial_result * value_to_2nd + coeff_1;
+    simsimd_f64_t polynomial = coeff_19;
+    polynomial = polynomial * value_squared + coeff_18;
+    polynomial = polynomial * value_squared + coeff_17;
+    polynomial = polynomial * value_squared + coeff_16;
+    polynomial = polynomial * value_squared + coeff_15;
+    polynomial = polynomial * value_squared + coeff_14;
+    polynomial = polynomial * value_squared + coeff_13;
+    polynomial = polynomial * value_squared + coeff_12;
+    polynomial = polynomial * value_squared + coeff_11;
+    polynomial = polynomial * value_squared + coeff_10;
+    polynomial = polynomial * value_squared + coeff_9;
+    polynomial = polynomial * value_squared + coeff_8;
+    polynomial = polynomial * value_squared + coeff_7;
+    polynomial = polynomial * value_squared + coeff_6;
+    polynomial = polynomial * value_squared + coeff_5;
+    polynomial = polynomial * value_squared + coeff_4;
+    polynomial = polynomial * value_squared + coeff_3;
+    polynomial = polynomial * value_squared + coeff_2;
+    polynomial = polynomial * value_squared + coeff_1;
 
     // Adjust for quadrant
     simsimd_f64_t const pi_half = 1.5707963267948966; // π/2
-    simsimd_f64_t result = value + value * value_to_2nd * polynomial_result;
+    simsimd_f64_t result = value_cubed * polynomial + value;
     if (quadrant & 1) result = pi_half - result;
     if (quadrant & 2) result = -result;
 
@@ -548,30 +547,27 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan2(simsimd_f64_t const y, simsimd_f6
 
     // Argument reduction
     simsimd_f64_t const ratio = y_abs.f / x_abs.f;
-    simsimd_f64_t const ratio_to_2nd = ratio * ratio;
-    simsimd_f64_t const ratio_to_4th = ratio_to_2nd * ratio_to_2nd;
-    simsimd_f64_t const ratio_to_8th = ratio_to_4th * ratio_to_4th;
-    simsimd_f64_t const ratio_to_16th = ratio_to_8th * ratio_to_8th;
+    simsimd_f64_t const ratio_squared = ratio * ratio;
 
     // Polynomial evaluation (fully unrolled)
-    simsimd_f64_t polynomial_result = coeff_19 * ratio_to_2nd + coeff_18;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_17;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_16;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_15;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_14;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_13;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_12;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_11;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_10;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_9;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_8;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_7;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_6;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_5;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_4;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_3;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_2;
-    polynomial_result = polynomial_result * ratio_to_2nd + coeff_1;
+    simsimd_f64_t polynomial = coeff_19 * ratio_squared + coeff_18;
+    polynomial = polynomial * ratio_squared + coeff_17;
+    polynomial = polynomial * ratio_squared + coeff_16;
+    polynomial = polynomial * ratio_squared + coeff_15;
+    polynomial = polynomial * ratio_squared + coeff_14;
+    polynomial = polynomial * ratio_squared + coeff_13;
+    polynomial = polynomial * ratio_squared + coeff_12;
+    polynomial = polynomial * ratio_squared + coeff_11;
+    polynomial = polynomial * ratio_squared + coeff_10;
+    polynomial = polynomial * ratio_squared + coeff_9;
+    polynomial = polynomial * ratio_squared + coeff_8;
+    polynomial = polynomial * ratio_squared + coeff_7;
+    polynomial = polynomial * ratio_squared + coeff_6;
+    polynomial = polynomial * ratio_squared + coeff_5;
+    polynomial = polynomial * ratio_squared + coeff_4;
+    polynomial = polynomial * ratio_squared + coeff_3;
+    polynomial = polynomial * ratio_squared + coeff_2;
+    polynomial = polynomial * ratio_squared + coeff_1;
 
     // Adjust for quadrant
     simsimd_f64_t const epsilon = 1e-300;                // Near-zero threshold
@@ -581,7 +577,7 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan2(simsimd_f64_t const y, simsimd_f6
     simsimd_u64_t const negative_zero = 0x8000000000000000ull;
     simsimd_u64_t const positive_infinity = 0x7FF0000000000000ull;
     simsimd_u64_t const negative_infinity = 0xFFF0000000000000ull;
-    simsimd_f64_t result = polynomial_result * ratio_to_2nd * ratio + ratio;
+    simsimd_f64_t result = polynomial * ratio_squared * ratio + ratio;
     result += quadrant * pi_half;
 
     // Special cases handling using bit reinterpretation
@@ -650,19 +646,19 @@ SIMSIMD_INTERNAL __m512 _simsimd_f32x16_sin_skylake(__m512 const angles_radians)
     __m512 rounded_quotients = _mm512_roundscale_ps(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
     __m512i multiples_of_pi = _mm512_cvtps_epi32(rounded_quotients);
 
-    // Reduce the angle to (angle - (rounded_quotients * π)) in [0, π]
-    __m512 angles = _mm512_fnmadd_ps(rounded_quotients, pi, angles_radians);
-    __m512 angles_squared = _mm512_mul_ps(angles, angles);
-    __m512 angles_cubed = _mm512_mul_ps(angles, angles_squared);
+    // Reduce the angle to: (angle - (rounded_quotients * π)) in [0, π]
+    __m512 const angles = _mm512_fnmadd_ps(rounded_quotients, pi, angles_radians);
+    __m512 const angles_squared = _mm512_mul_ps(angles, angles);
+    __m512 const angles_cubed = _mm512_mul_ps(angles, angles_squared);
 
     // Compute the polynomial approximation
     __m512 polynomials = coeff_5;
     polynomials = _mm512_fmadd_ps(polynomials, angles_squared, coeff_3);
     polynomials = _mm512_fmadd_ps(polynomials, angles_squared, coeff_1);
-    __m512 results = _mm512_fmadd_ps(angles_cubed, polynomials, angles);
 
     // If multiples_of_pi is odd, flip the sign of the results
     __mmask16 odd_mask = _mm512_test_epi32_mask(multiples_of_pi, _mm512_set1_epi32(1));
+    __m512 results = _mm512_fmadd_ps(angles_cubed, polynomials, angles);
     results = _mm512_mask_sub_ps(results, odd_mask, _mm512_setzero_ps(), results);
     return results;
 }
@@ -681,10 +677,10 @@ SIMSIMD_INTERNAL __m512 _simsimd_f32x16_cos_skylake(__m512 const angles_radians)
     __m512 rounded_quotients = _mm512_roundscale_ps(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
     __m512i multiples_of_pi = _mm512_cvtps_epi32(rounded_quotients);
 
-    // Reduce the angle to (angle - (multiples_of_pi * π)) in [-π/2, π/2]
-    __m512 angles = _mm512_fnmadd_ps(rounded_quotients, pi, _mm512_sub_ps(angles_radians, pi_half));
-    __m512 angles_squared = _mm512_mul_ps(angles, angles);
-    __m512 angles_cubed = _mm512_mul_ps(angles, angles_squared);
+    // Reduce the angle to: (angle - (multiples_of_pi * π)) in [-π/2, π/2]
+    __m512 const angles = _mm512_fnmadd_ps(rounded_quotients, pi, _mm512_sub_ps(angles_radians, pi_half));
+    __m512 const angles_squared = _mm512_mul_ps(angles, angles);
+    __m512 const angles_cubed = _mm512_mul_ps(angles, angles_squared);
 
     // Compute the polynomials approximation
     __m512 polynomials = coeff_5;
@@ -708,7 +704,6 @@ SIMSIMD_INTERNAL __m512 _simsimd_f32x16_atan_skylake(__m512 const inputs) {
     __m512 const coeff_3 = _mm512_set1_ps(+0.0425049886107444763183594f);
     __m512 const coeff_2 = _mm512_set1_ps(-0.0159569028764963150024414f);
     __m512 const coeff_1 = _mm512_set1_ps(+0.00282363896258175373077393f);
-    __m512 const pi_half = _mm512_set1_ps(1.5707963267948966f); // π/2
 
     // Adjust for quadrant
     __m512 values = inputs;
@@ -722,18 +717,18 @@ SIMSIMD_INTERNAL __m512 _simsimd_f32x16_atan_skylake(__m512 const inputs) {
     __m512 const values_cubed = _mm512_mul_ps(values, values_squared);
 
     // Polynomial evaluation
-    __m512 polynomial_result = coeff_1;
-    polynomial_result = _mm512_fmadd_ps(polynomial_result, values_squared, coeff_2);
-    polynomial_result = _mm512_fmadd_ps(polynomial_result, values_squared, coeff_3);
-    polynomial_result = _mm512_fmadd_ps(polynomial_result, values_squared, coeff_4);
-    polynomial_result = _mm512_fmadd_ps(polynomial_result, values_squared, coeff_5);
-    polynomial_result = _mm512_fmadd_ps(polynomial_result, values_squared, coeff_6);
-    polynomial_result = _mm512_fmadd_ps(polynomial_result, values_squared, coeff_7);
-    polynomial_result = _mm512_fmadd_ps(polynomial_result, values_squared, coeff_8);
+    __m512 polynomials = coeff_1;
+    polynomials = _mm512_fmadd_ps(polynomials, values_squared, coeff_2);
+    polynomials = _mm512_fmadd_ps(polynomials, values_squared, coeff_3);
+    polynomials = _mm512_fmadd_ps(polynomials, values_squared, coeff_4);
+    polynomials = _mm512_fmadd_ps(polynomials, values_squared, coeff_5);
+    polynomials = _mm512_fmadd_ps(polynomials, values_squared, coeff_6);
+    polynomials = _mm512_fmadd_ps(polynomials, values_squared, coeff_7);
+    polynomials = _mm512_fmadd_ps(polynomials, values_squared, coeff_8);
 
     // Adjust result for quadrants
-    __m512 result = _mm512_fmadd_ps(values_cubed, polynomial_result, values);
-    result = _mm512_mask_sub_ps(result, reciprocal_mask, pi_half, result);
+    __m512 result = _mm512_fmadd_ps(values_cubed, polynomials, values);
+    result = _mm512_mask_sub_ps(result, reciprocal_mask, _mm512_set1_ps(1.5707963267948966f), result);
     result = _mm512_mask_sub_ps(result, negative_mask, _mm512_setzero_ps(), result);
     return result;
 }
@@ -783,111 +778,163 @@ SIMSIMD_PUBLIC void simsimd_atan_f32_skylake(simsimd_f32_t const *ins, simsimd_s
 
 SIMSIMD_INTERNAL __m512d _simsimd_f64x8_sin_skylake(__m512d const angles_radians) {
     // Constants for argument reduction
-    __m512d const pi_high = _mm512_set1_pd(3.141592653589793116);           // High-digits part of π
-    __m512d const pi_low = _mm512_set1_pd(1.2246467991473532072e-16);       // Low-digits part of π
-    __m512d const pi_reciprocal = _mm512_set1_pd(0.31830988618379067154);   // 1/π
-    __m512d const coeff_8 = _mm512_set1_pd(-0.166666666666666657414808);    // Coefficient for x
-    __m512d const coeff_0 = _mm512_set1_pd(0.00833333333333332974823815);   // Coefficient for x^3
-    __m512d const coeff_1 = _mm512_set1_pd(-0.000198412698412696162806809); // Coefficient for x^5
-    __m512d const coeff_2 = _mm512_set1_pd(2.75573192239198747630416e-06);  // Coefficient for x^7
-    __m512d const coeff_3 = _mm512_set1_pd(-2.50521083763502045810755e-08); // Coefficient for x^9
+    __m512d const pi_high = _mm512_set1_pd(3.141592653589793116);         // High-digits part of π
+    __m512d const pi_low = _mm512_set1_pd(1.2246467991473532072e-16);     // Low-digits part of π
+    __m512d const pi_reciprocal = _mm512_set1_pd(0.31830988618379067154); // 1/π
 
-    // Compute (multiple_of_pi) = round(angle / π)
-    __m512d quotients = _mm512_mul_pd(angles_radians, pi_reciprocal);
-    __m512d rounded_quotients = _mm512_roundscale_pd(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-    __m256i multiples_of_pi = _mm512_cvtpd_epi32(rounded_quotients);
+    // Polynomial coefficients for sine/cosine approximation (minimax polynomial)
+    __m512d const coeff_0 = _mm512_set1_pd(+0.00833333333333332974823815);
+    __m512d const coeff_1 = _mm512_set1_pd(-0.000198412698412696162806809);
+    __m512d const coeff_2 = _mm512_set1_pd(+2.75573192239198747630416e-06);
+    __m512d const coeff_3 = _mm512_set1_pd(-2.50521083763502045810755e-08);
+    __m512d const coeff_4 = _mm512_set1_pd(+1.60590430605664501629054e-10);
+    __m512d const coeff_5 = _mm512_set1_pd(-7.64712219118158833288484e-13);
+    __m512d const coeff_6 = _mm512_set1_pd(+2.81009972710863200091251e-15);
+    __m512d const coeff_7 = _mm512_set1_pd(-7.97255955009037868891952e-18);
+    __m512d const coeff_8 = _mm512_set1_pd(-0.166666666666666657414808);
 
-    // Reduce the angle: angle = angle - (multiple_of_pi * π_high + multiple_of_pi * π_low)
-    __m512d reduced_angle = _mm512_fnmadd_pd(rounded_quotients, pi_high, angles_radians);
-    reduced_angle = _mm512_fnmadd_pd(rounded_quotients, pi_low, reduced_angle);
+    // Compute (rounded_quotients) = round(angle / π)
+    __m512d const quotients = _mm512_mul_pd(angles_radians, pi_reciprocal);
+    __m512d const rounded_quotients = _mm512_roundscale_pd(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
 
-    // Compute polynomial approximation
-    __m512d angle_squared = _mm512_mul_pd(reduced_angle, reduced_angle);
-    __m512d polynomial = coeff_3;
-    polynomial = _mm512_fmadd_pd(polynomial, angle_squared, coeff_2);
-    polynomial = _mm512_fmadd_pd(polynomial, angle_squared, coeff_1);
-    polynomial = _mm512_fmadd_pd(polynomial, angle_squared, coeff_0);
-    polynomial = _mm512_fmadd_pd(polynomial, angle_squared, coeff_8);
-    __m512d results = _mm512_fmadd_pd(angle_squared, polynomial, reduced_angle);
+    // Reduce the angle to: angle - (rounded_quotients * π_high + rounded_quotients * π_low)
+    __m512d angles = angles_radians;
+    angles = _mm512_fnmadd_pd(rounded_quotients, pi_high, angles);
+    angles = _mm512_fnmadd_pd(rounded_quotients, pi_low, angles);
+    __m512d const angles_squared = _mm512_mul_pd(angles, angles);
+    __m512d const angles_cubed = _mm512_mul_pd(angles, angles_squared);
+    __m512d const angles_quadratic = _mm512_mul_pd(angles_squared, angles_squared);
+    __m512d const angles_octic = _mm512_mul_pd(angles_quadratic, angles_quadratic);
 
-    // Adjust for odd multiples of π
-    __mmask8 odd_mask = _mm256_test_epi32_mask(multiples_of_pi, _mm256_set1_epi32(1));
-    results = _mm512_mask_sub_pd(results, odd_mask, _mm512_setzero_pd(), results);
+    // Compute higher-degree polynomial terms
+    __m512d const poly_67 = _mm512_fmadd_pd(angles_squared, coeff_7, coeff_6);
+    __m512d const poly_45 = _mm512_fmadd_pd(angles_squared, coeff_5, coeff_4);
+    __m512d const poly_4567 = _mm512_fmadd_pd(angles_quadratic, poly_67, poly_45);
+
+    // Compute lower-degree polynomial terms
+    __m512d const poly_23 = _mm512_fmadd_pd(angles_squared, coeff_3, coeff_2);
+    __m512d const poly_01 = _mm512_fmadd_pd(angles_squared, coeff_1, coeff_0);
+    __m512d const poly_0123 = _mm512_fmadd_pd(angles_quadratic, poly_23, poly_01);
+
+    // Combine polynomial terms
+    __m512d results = _mm512_fmadd_pd(angles_octic, poly_4567, poly_0123);
+    results = _mm512_fmadd_pd(results, angles_squared, coeff_8);
+    results = _mm512_fmadd_pd(results, angles_cubed, angles);
+
+    // Handle the special case of negative zero input
+    __mmask8 const non_zero_mask = _mm512_cmpneq_pd_mask(angles_radians, _mm512_setzero_pd());
+    results = _mm512_maskz_mov_pd(non_zero_mask, results);
     return results;
 }
 
 SIMSIMD_INTERNAL __m512d _simsimd_f64x8_cos_skylake(__m512d const angles_radians) {
     // Constants for argument reduction
-    __m512d const pi_high = _mm512_set1_pd(3.141592653589793116);           // High-digits part of π
-    __m512d const pi_low = _mm512_set1_pd(1.2246467991473532072e-16);       // Low-digits part of π
-    __m512d const pi_reciprocal = _mm512_set1_pd(0.31830988618379067154);   // 1/π
-    __m512d const pi_half = _mm512_set1_pd(1.5707963267948966);             // π/2
-    __m512d const coeff_8 = _mm512_set1_pd(-0.166666666666666657414808);    // Coefficient for x
-    __m512d const coeff_0 = _mm512_set1_pd(0.00833333333333332974823815);   // Coefficient for x^3
-    __m512d const coeff_1 = _mm512_set1_pd(-0.000198412698412696162806809); // Coefficient for x^5
-    __m512d const coeff_2 = _mm512_set1_pd(2.75573192239198747630416e-06);  // Coefficient for x^7
-    __m512d const coeff_3 = _mm512_set1_pd(-2.50521083763502045810755e-08); // Coefficient for x^9
+    __m512d const pi_high_half = _mm512_set1_pd(3.141592653589793116 * 0.5);     // High-digits part of π
+    __m512d const pi_low_half = _mm512_set1_pd(1.2246467991473532072e-16 * 0.5); // Low-digits part of π
+    __m512d const pi_reciprocal = _mm512_set1_pd(0.31830988618379067154);        // 1/π
 
-    // Compute (multiple_of_pi) = round((angle / π) - 0.5)
-    __m512d quotients = _mm512_fmsub_pd(angles_radians, pi_reciprocal, _mm512_set1_pd(0.5));
-    __m512d rounded_quotients = _mm512_roundscale_pd(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-    __m256i multiples_of_pi = _mm512_cvtpd_epi32(rounded_quotients);
+    // Polynomial coefficients for sine/cosine approximation (minimax polynomial)
+    __m512d const coeff_0 = _mm512_set1_pd(+0.00833333333333332974823815);
+    __m512d const coeff_1 = _mm512_set1_pd(-0.000198412698412696162806809);
+    __m512d const coeff_2 = _mm512_set1_pd(+2.75573192239198747630416e-06);
+    __m512d const coeff_3 = _mm512_set1_pd(-2.50521083763502045810755e-08);
+    __m512d const coeff_4 = _mm512_set1_pd(+1.60590430605664501629054e-10);
+    __m512d const coeff_5 = _mm512_set1_pd(-7.64712219118158833288484e-13);
+    __m512d const coeff_6 = _mm512_set1_pd(+2.81009972710863200091251e-15);
+    __m512d const coeff_7 = _mm512_set1_pd(-7.97255955009037868891952e-18);
+    __m512d const coeff_8 = _mm512_set1_pd(-0.166666666666666657414808);
 
-    // Reduce the angle: angle = angle - (multiple_of_pi * π_high + multiple_of_pi * π_low)
-    __m512d reduced_angle = _mm512_fnmadd_pd(rounded_quotients, pi_high, angles_radians);
-    reduced_angle = _mm512_fnmadd_pd(rounded_quotients, pi_low, reduced_angle);
+    // Compute (rounded_quotients) = 2 * round(angle / π - 0.5) + 1
+    __m512d const quotients = _mm512_fnmadd_pd(angles_radians, pi_reciprocal, _mm512_set1_pd(0.5));
+    __m512d const rounded_quotients = _mm512_fmadd_pd(                                  //
+        _mm512_set1_pd(2),                                                              //
+        _mm512_roundscale_pd(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC), //
+        _mm512_set1_pd(1));
 
-    // Compute polynomial approximation
-    __m512d angle_squared = _mm512_mul_pd(reduced_angle, reduced_angle);
-    __m512d polynomial = coeff_3;
-    polynomial = _mm512_fmadd_pd(polynomial, angle_squared, coeff_2);
-    polynomial = _mm512_fmadd_pd(polynomial, angle_squared, coeff_1);
-    polynomial = _mm512_fmadd_pd(polynomial, angle_squared, coeff_0);
-    polynomial = _mm512_fmadd_pd(polynomial, angle_squared, coeff_8);
-    __m512d results = _mm512_fmadd_pd(angle_squared, polynomial, reduced_angle);
+    // Reduce the angle to: angle - (rounded_quotients * π_high + rounded_quotients * π_low)
+    __m512d angles = angles_radians;
+    angles = _mm512_fnmadd_pd(rounded_quotients, pi_high_half, angles);
+    angles = _mm512_fnmadd_pd(rounded_quotients, pi_low_half, angles);
+    __mmask8 const sign_flip_mask =
+        _mm256_testn_epi32_mask(_mm512_cvtpd_epi32(rounded_quotients), _mm256_set1_epi32(2));
+    angles = _mm512_mask_sub_pd(angles, sign_flip_mask, _mm512_setzero_pd(), angles);
+    __m512d const angles_squared = _mm512_mul_pd(angles, angles);
+    __m512d const angles_cubed = _mm512_mul_pd(angles, angles_squared);
+    __m512d const angles_quadratic = _mm512_mul_pd(angles_squared, angles_squared);
+    __m512d const angles_octic = _mm512_mul_pd(angles_quadratic, angles_quadratic);
 
-    // Adjust for even multiples of π
-    __mmask8 even_mask = _mm256_testn_epi32_mask(multiples_of_pi, _mm256_set1_epi32(1));
-    results = _mm512_mask_sub_pd(results, even_mask, results, _mm512_setzero_pd());
+    // Compute higher-degree polynomial terms
+    __m512d const poly_67 = _mm512_fmadd_pd(angles_squared, coeff_7, coeff_6);
+    __m512d const poly_45 = _mm512_fmadd_pd(angles_squared, coeff_5, coeff_4);
+    __m512d const poly_4567 = _mm512_fmadd_pd(angles_quadratic, poly_67, poly_45);
+
+    // Compute lower-degree polynomial terms
+    __m512d const poly_23 = _mm512_fmadd_pd(angles_squared, coeff_3, coeff_2);
+    __m512d const poly_01 = _mm512_fmadd_pd(angles_squared, coeff_1, coeff_0);
+    __m512d const poly_0123 = _mm512_fmadd_pd(angles_quadratic, poly_23, poly_01);
+
+    // Combine polynomial terms
+    __m512d results = _mm512_fmadd_pd(angles_octic, poly_4567, poly_0123);
+    results = _mm512_fmadd_pd(results, angles_squared, coeff_8);
+    results = _mm512_fmadd_pd(results, angles_cubed, angles);
     return results;
 }
 
-SIMSIMD_INTERNAL __m512d _simsimd_f64x8_atan_skylake(__m512d const values) {
+SIMSIMD_INTERNAL __m512d _simsimd_f64x8_atan_skylake(__m512d const inputs) {
     // Polynomial coefficients for atan approximation
-    __m512d const coeff_1 = _mm512_set1_pd(-0.333333333333311110369124);
-    __m512d const coeff_2 = _mm512_set1_pd(0.199999999996591265594148);
-    __m512d const coeff_3 = _mm512_set1_pd(-0.14285714266771329383765);
-    __m512d const coeff_4 = _mm512_set1_pd(0.111111105648261418443745);
-    __m512d const coeff_5 = _mm512_set1_pd(-0.090908995008245008229153);
-    __m512d const coeff_6 = _mm512_set1_pd(0.0769219538311769618355029);
-    __m512d const coeff_7 = _mm512_set1_pd(-0.0666573579361080525984562);
-    __m512d const coeff_8 = _mm512_set1_pd(0.0587666392926673580854313);
+    __m512d const coeff_19 = _mm512_set1_pd(-1.88796008463073496563746e-05);
+    __m512d const coeff_18 = _mm512_set1_pd(+0.000209850076645816976906797);
+    __m512d const coeff_17 = _mm512_set1_pd(-0.00110611831486672482563471);
+    __m512d const coeff_16 = _mm512_set1_pd(+0.00370026744188713119232403);
+    __m512d const coeff_15 = _mm512_set1_pd(-0.00889896195887655491740809);
+    __m512d const coeff_14 = _mm512_set1_pd(+0.016599329773529201970117);
+    __m512d const coeff_13 = _mm512_set1_pd(-0.0254517624932312641616861);
+    __m512d const coeff_12 = _mm512_set1_pd(+0.0337852580001353069993897);
+    __m512d const coeff_11 = _mm512_set1_pd(-0.0407629191276836500001934);
+    __m512d const coeff_10 = _mm512_set1_pd(+0.0466667150077840625632675);
     __m512d const coeff_9 = _mm512_set1_pd(-0.0523674852303482457616113);
-    __m512d const coeff_10 = _mm512_set1_pd(0.0466667150077840625632675);
-    __m512d const pi_half = _mm512_set1_pd(1.5707963267948966); // π/2
+    __m512d const coeff_8 = _mm512_set1_pd(+0.0587666392926673580854313);
+    __m512d const coeff_7 = _mm512_set1_pd(-0.0666573579361080525984562);
+    __m512d const coeff_6 = _mm512_set1_pd(+0.0769219538311769618355029);
+    __m512d const coeff_5 = _mm512_set1_pd(-0.090908995008245008229153);
+    __m512d const coeff_4 = _mm512_set1_pd(+0.111111105648261418443745);
+    __m512d const coeff_3 = _mm512_set1_pd(-0.14285714266771329383765);
+    __m512d const coeff_2 = _mm512_set1_pd(+0.199999999996591265594148);
+    __m512d const coeff_1 = _mm512_set1_pd(-0.333333333333311110369124);
 
     // Quadrant adjustments
-    __mmask8 negative_mask = _mm512_cmp_pd_mask(values, _mm512_setzero_pd(), _CMP_LT_OS);
-    __m512d abs_values = _mm512_abs_pd(values);
-    __mmask8 reciprocal_mask = _mm512_cmp_pd_mask(abs_values, _mm512_set1_pd(1.0), _CMP_GT_OS);
-    abs_values = _mm512_mask_div_pd(abs_values, reciprocal_mask, _mm512_set1_pd(1.0), abs_values);
+    __mmask8 negative_mask = _mm512_cmp_pd_mask(inputs, _mm512_setzero_pd(), _CMP_LT_OS);
+    __m512d values = _mm512_abs_pd(inputs);
+    __mmask8 reciprocal_mask = _mm512_cmp_pd_mask(values, _mm512_set1_pd(1.0), _CMP_GT_OS);
+    values = _mm512_mask_div_pd(values, reciprocal_mask, _mm512_set1_pd(1.0), values);
+    __m512d const values_squared = _mm512_mul_pd(values, values);
+    __m512d const values_cubed = _mm512_mul_pd(values, values_squared);
 
     // Polynomial evaluation (argument reduction and approximation)
-    __m512d values_squared = _mm512_mul_pd(abs_values, abs_values);
-    __m512d polynomial = coeff_10;
-    polynomial = _mm512_fmadd_pd(polynomial, values_squared, coeff_9);
-    polynomial = _mm512_fmadd_pd(polynomial, values_squared, coeff_8);
-    polynomial = _mm512_fmadd_pd(polynomial, values_squared, coeff_7);
-    polynomial = _mm512_fmadd_pd(polynomial, values_squared, coeff_6);
-    polynomial = _mm512_fmadd_pd(polynomial, values_squared, coeff_5);
-    polynomial = _mm512_fmadd_pd(polynomial, values_squared, coeff_4);
-    polynomial = _mm512_fmadd_pd(polynomial, values_squared, coeff_3);
-    polynomial = _mm512_fmadd_pd(polynomial, values_squared, coeff_2);
-    polynomial = _mm512_fmadd_pd(polynomial, values_squared, coeff_1);
+    __m512d polynomials = coeff_19;
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_18);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_18);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_17);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_16);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_15);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_14);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_13);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_12);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_11);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_10);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_9);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_8);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_7);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_6);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_5);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_4);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_3);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_2);
+    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_1);
 
     // Compute atan approximation
-    __m512d result = _mm512_fmadd_pd(values_squared, polynomial, abs_values);
-    result = _mm512_mask_sub_pd(result, reciprocal_mask, pi_half, result);
+    __m512d result = _mm512_fmadd_pd(values_cubed, polynomials, values);
+    result = _mm512_mask_sub_pd(result, reciprocal_mask, _mm512_set1_pd(1.5707963267948966), result);
     result = _mm512_mask_sub_pd(result, negative_mask, _mm512_setzero_pd(), result);
     return result;
 }
