@@ -428,11 +428,19 @@ _SIMSIMD_STATIC_ASSERT(sizeof(simsimd_f64_t) == 8, simsimd_f64_t_must_be_8_bytes
 _SIMSIMD_STATIC_ASSERT(sizeof(simsimd_f16_t) == 2, simsimd_f16_t_must_be_2_bytes);
 _SIMSIMD_STATIC_ASSERT(sizeof(simsimd_bf16_t) == 2, simsimd_bf16_t_must_be_2_bytes);
 
-/** @brief  Convenience type for half-precision floating-point type conversions. */
+/** @brief  Convenience type for single- and half-precision floating-point type conversions. */
 typedef union {
-    unsigned i;
-    float f;
-} simsimd_f32i32_t;
+    simsimd_f32_t f;
+    simsimd_u32_t u;
+    simsimd_i32_t i;
+} simsimd_fui32_t;
+
+/** @brief  Convenience type for double-precision floating-point type conversions. */
+typedef union {
+    simsimd_f64_t f;
+    simsimd_u64_t u;
+    simsimd_i64_t i;
+} simsimd_fui64_t;
 
 /**
  *  @brief  Computes `1/sqrt(x)` @b Square-Root-Reciprocal using the trick from Quake 3,
@@ -448,7 +456,7 @@ typedef union {
  *  https://stackoverflow.com/a/41460625/2766161
  */
 SIMSIMD_INTERNAL simsimd_f32_t simsimd_f32_rsqrt(simsimd_f32_t number) {
-    simsimd_f32i32_t conv;
+    simsimd_fui32_t conv;
     conv.f = number;
     conv.i = 0x5F1FFFF9 - (conv.i >> 1);
     // Refine using a Newton-Raphson step for better accuracy
@@ -497,10 +505,10 @@ SIMSIMD_PUBLIC void simsimd_f16_to_f32(simsimd_f16_t const *x, simsimd_f32_t *y)
     unsigned short x_short = *(unsigned short const *)x;
     unsigned int exponent = (x_short & 0x7C00) >> 10;
     unsigned int mantissa = (x_short & 0x03FF) << 13;
-    simsimd_f32i32_t mantissa_conv;
+    simsimd_fui32_t mantissa_conv;
     mantissa_conv.f = (float)mantissa;
     unsigned int v = (mantissa_conv.i) >> 23;
-    simsimd_f32i32_t conv;
+    simsimd_fui32_t conv;
     conv.i = (x_short & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
              ((exponent == 0) & (mantissa != 0)) * ((v - 37) << 23 | ((mantissa << (150 - v)) & 0x007FE000));
     *y = conv.f;
@@ -520,7 +528,7 @@ SIMSIMD_PUBLIC void simsimd_f32_to_f16(simsimd_f32_t const *x, simsimd_f16_t *y)
 #if SIMSIMD_NATIVE_F16
     *y = (simsimd_f16_t)*x;
 #else
-    simsimd_f32i32_t conv;
+    simsimd_fui32_t conv;
     conv.f = *x;
     unsigned int b = conv.i + 0x00001000;
     unsigned int e = (b & 0x7F800000) >> 23;
@@ -544,7 +552,7 @@ SIMSIMD_PUBLIC void simsimd_bf16_to_f32(simsimd_bf16_t const *x, simsimd_f32_t *
     *y = *x;
 #else
     unsigned short x_short = *(unsigned short const *)x;
-    simsimd_f32i32_t conv;
+    simsimd_fui32_t conv;
     conv.i = x_short << 16; // Zero extends the mantissa
     *y = conv.f;
 #endif
@@ -560,7 +568,7 @@ SIMSIMD_PUBLIC void simsimd_f32_to_bf16(simsimd_f32_t const *x, simsimd_bf16_t *
 #if SIMSIMD_NATIVE_BF16
     *y = (simsimd_bf16_t)*x;
 #else
-    simsimd_f32i32_t conv;
+    simsimd_fui32_t conv;
     conv.f = *x;
     conv.i += 0x8000; // Rounding is optional
     conv.i >>= 16;

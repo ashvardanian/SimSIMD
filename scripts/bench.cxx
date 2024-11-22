@@ -777,21 +777,29 @@ void haversine_with_stl(                              //
 
 template <typename scalar_at>
 struct sin_with_stl {
-    scalar_at operator()(scalar_at const &a) const { return std::sin(a); }
+    scalar_at operator()(scalar_at x) const { return std::sin(x); }
 };
 template <typename scalar_at>
 struct cos_with_stl {
-    scalar_at operator()(scalar_at const &a) const { return std::cos(a); }
+    scalar_at operator()(scalar_at x) const { return std::cos(x); }
+};
+template <typename scalar_at>
+struct atan_with_stl {
+    scalar_at operator()(scalar_at x) const { return std::atan(x); }
 };
 
 namespace av::simsimd {
 struct sin {
-    simsimd_f32_t operator()(simsimd_f32_t const &a) const { return simsimd_f32_sin(a); }
-    simsimd_f64_t operator()(simsimd_f64_t const &a) const { return simsimd_f64_sin(a); }
+    simsimd_f32_t operator()(simsimd_f32_t x) const { return simsimd_f32_sin(x); }
+    simsimd_f64_t operator()(simsimd_f64_t x) const { return simsimd_f64_sin(x); }
 };
 struct cos {
-    simsimd_f32_t operator()(simsimd_f32_t const &a) const { return simsimd_f32_cos(a); }
-    simsimd_f64_t operator()(simsimd_f64_t const &a) const { return simsimd_f64_cos(a); }
+    simsimd_f32_t operator()(simsimd_f32_t x) const { return simsimd_f32_cos(x); }
+    simsimd_f64_t operator()(simsimd_f64_t x) const { return simsimd_f64_cos(x); }
+};
+struct atan {
+    simsimd_f32_t operator()(simsimd_f32_t x) const { return simsimd_f32_atan(x); }
+    simsimd_f64_t operator()(simsimd_f64_t x) const { return simsimd_f64_atan(x); }
 };
 } // namespace av::simsimd
 
@@ -921,23 +929,30 @@ int main(int argc, char **argv) {
     constexpr simsimd_datatype_t f16c_k = simsimd_f16c_k;
     constexpr simsimd_datatype_t bf16c_k = simsimd_bf16c_k;
 
-    elementwise_<f32_k>("f32_sin_stl", elementwise_with_stl<simsimd_f32_t, sin_with_stl<simsimd_f32_t>>,
+    elementwise_<f32_k>("sin_f32_stl", elementwise_with_stl<simsimd_f32_t, sin_with_stl<simsimd_f32_t>>,
                         elementwise_with_stl<simsimd_f32_t, sin_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f32_t>);
-    elementwise_<f32_k>("f32_cos_stl", elementwise_with_stl<simsimd_f32_t, cos_with_stl<simsimd_f32_t>>,
+    elementwise_<f32_k>("cos_f32_stl", elementwise_with_stl<simsimd_f32_t, cos_with_stl<simsimd_f32_t>>,
                         elementwise_with_stl<simsimd_f32_t, cos_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f32_t>);
-    elementwise_<f32_k>("f32_sin", elementwise_with_stl<simsimd_f32_t, av::simsimd::sin>,
+    elementwise_<f32_k>("atan_f32_stl", elementwise_with_stl<simsimd_f32_t, atan_with_stl<simsimd_f32_t>>,
+                        elementwise_with_stl<simsimd_f32_t, atan_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f32_t>);
+    elementwise_<f32_k>("sin_f32_serial", simsimd_sin_f32_serial,
                         elementwise_with_stl<simsimd_f32_t, sin_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f32_t>);
-    elementwise_<f32_k>("f32_cos", elementwise_with_stl<simsimd_f32_t, av::simsimd::cos>,
+    elementwise_<f32_k>("cos_f32_serial", simsimd_cos_f32_serial,
                         elementwise_with_stl<simsimd_f32_t, cos_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f32_t>);
-
-    elementwise_<f64_k>("f64_sin_stl", elementwise_with_stl<simsimd_f64_t, sin_with_stl<simsimd_f64_t>>,
+    elementwise_<f32_k>("atan_f32_serial", simsimd_atan_f32_serial,
+                        elementwise_with_stl<simsimd_f32_t, atan_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f32_t>);
+    elementwise_<f64_k>("sin_f64_stl", elementwise_with_stl<simsimd_f64_t, sin_with_stl<simsimd_f64_t>>,
                         elementwise_with_stl<simsimd_f64_t, sin_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f64_t>);
-    elementwise_<f64_k>("f64_cos_stl", elementwise_with_stl<simsimd_f64_t, cos_with_stl<simsimd_f64_t>>,
+    elementwise_<f64_k>("cos_f64_stl", elementwise_with_stl<simsimd_f64_t, cos_with_stl<simsimd_f64_t>>,
                         elementwise_with_stl<simsimd_f64_t, cos_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f64_t>);
-    elementwise_<f64_k>("f64_sin", elementwise_with_stl<simsimd_f64_t, av::simsimd::sin>,
+    elementwise_<f64_k>("atan_f64_stl", elementwise_with_stl<simsimd_f64_t, atan_with_stl<simsimd_f64_t>>,
+                        elementwise_with_stl<simsimd_f64_t, atan_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f64_t>);
+    elementwise_<f64_k>("sin_f64_serial", simsimd_sin_f64_serial,
                         elementwise_with_stl<simsimd_f64_t, sin_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f64_t>);
-    elementwise_<f64_k>("f64_cos", elementwise_with_stl<simsimd_f64_t, av::simsimd::cos>,
+    elementwise_<f64_k>("cos_f64_serial", simsimd_cos_f64_serial,
                         elementwise_with_stl<simsimd_f64_t, cos_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f64_t>);
+    elementwise_<f64_k>("atan_f64_serial", simsimd_atan_f64_serial,
+                        elementwise_with_stl<simsimd_f64_t, atan_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f64_t>);
 
 #if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
 
@@ -1269,6 +1284,19 @@ int main(int argc, char **argv) {
                                         simsimd_l2_bf16_accurate);
     elementwise_<bf16_k, simsimd_wsum_k>("wsum_bf16_skylake", simsimd_wsum_bf16_skylake, simsimd_wsum_bf16_serial,
                                          simsimd_l2_bf16_accurate);
+
+    elementwise_<f32_k>("sin_f32_skylake", simsimd_sin_f32_skylake,
+                        elementwise_with_stl<simsimd_f32_t, sin_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f32_t>);
+    elementwise_<f32_k>("cos_f32_skylake", simsimd_cos_f32_skylake,
+                        elementwise_with_stl<simsimd_f32_t, cos_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f32_t>);
+    elementwise_<f32_k>("atan_f32_skylake", simsimd_atan_f32_skylake,
+                        elementwise_with_stl<simsimd_f32_t, atan_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f32_t>);
+    elementwise_<f64_k>("sin_f64_skylake", simsimd_sin_f64_skylake,
+                        elementwise_with_stl<simsimd_f64_t, sin_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f64_t>);
+    elementwise_<f64_k>("cos_f64_skylake", simsimd_cos_f64_skylake,
+                        elementwise_with_stl<simsimd_f64_t, cos_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f64_t>);
+    elementwise_<f64_k>("atan_f64_skylake", simsimd_atan_f64_skylake,
+                        elementwise_with_stl<simsimd_f64_t, atan_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f64_t>);
 
 #endif
 
