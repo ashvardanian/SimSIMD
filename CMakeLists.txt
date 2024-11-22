@@ -58,6 +58,16 @@ add_library(simsimd INTERFACE)
 target_sources(simsimd INTERFACE ${SIMSIMD_SOURCES})
 target_include_directories(simsimd INTERFACE "${PROJECT_SOURCE_DIR}/include")
 
+
+# Find OpenMP
+find_package(OpenMP)
+if (OpenMP_FOUND)
+    message(STATUS "OpenMP found: ${OpenMP_CXX_LIBRARIES}")
+else ()
+    message(WARNING "OpenMP not found. Parallel execution will be disabled.")
+endif ()
+
+
 # Build benchmarks if required
 if (SIMSIMD_BUILD_BENCHMARKS)
     # Fetch external dependencies
@@ -88,6 +98,11 @@ if (SIMSIMD_BUILD_BENCHMARKS)
     add_executable(simsimd_bench scripts/bench.cxx)
     target_link_libraries(simsimd_bench simsimd Threads::Threads benchmark)
 
+    if (OpenMP_FOUND)
+        target_compile_options(simsimd_bench PRIVATE ${OpenMP_CXX_FLAGS})
+        target_link_libraries(simsimd_bench OpenMP::OpenMP_CXX)
+    endif ()
+
     if (SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
         find_package(BLAS REQUIRED)
         if (BLAS_FOUND)
@@ -112,6 +127,11 @@ if (SIMSIMD_BUILD_TESTS)
     target_compile_definitions(simsimd_test_run_time PRIVATE SIMSIMD_DYNAMIC_DISPATCH=1)
     target_link_libraries(simsimd_test_run_time simsimd m)
     add_test(NAME simsimd_test_run_time COMMAND simsimd_test_run_time)
+
+    if (OpenMP_FOUND)
+        target_compile_options(simsimd_test_run_time PRIVATE ${OpenMP_CXX_FLAGS})
+        target_link_libraries(simsimd_test_run_time OpenMP::OpenMP_CXX)
+    endif ()
 
     enable_testing()
 endif ()
