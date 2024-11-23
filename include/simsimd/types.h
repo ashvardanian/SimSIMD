@@ -458,6 +458,30 @@ typedef union {
     float f;
 } simsimd_f32i32_t;
 
+/** @brief  Convenience type addressing the real and imaginary parts of a half-precision complex number. */
+typedef struct {
+    simsimd_f16_t real;
+    simsimd_f16_t imag;
+} simsimd_f16c_t;
+
+/** @brief  Convenience type addressing the real and imaginary parts of a half-precision brain-float complex number. */
+typedef struct {
+    simsimd_bf16_t real;
+    simsimd_bf16_t imag;
+} simsimd_bf16c_t;
+
+/** @brief  Convenience type addressing the real and imaginary parts of a single-precision complex number. */
+typedef struct {
+    simsimd_f32_t real;
+    simsimd_f32_t imag;
+} simsimd_f32c_t;
+
+/** @brief  Convenience type addressing the real and imaginary parts of a double-precision complex number. */
+typedef struct {
+    simsimd_f64_t real;
+    simsimd_f64_t imag;
+} simsimd_f64c_t;
+
 /**
  *  @brief  Computes `1/sqrt(x)` using the trick from Quake 3,
  *          replacing the magic numbers with the ones suggested by Jan Kadlec.
