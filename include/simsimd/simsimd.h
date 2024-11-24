@@ -975,6 +975,7 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f64c(simsimd_capability_t v, s
     if (v & simsimd_cap_skylake_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f64c_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f64c_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f64c_skylake, *c = simsimd_cap_skylake_k; return;
         default: break;
         }
 #endif
@@ -1000,6 +1001,7 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f32c(simsimd_capability_t v, s
     if (v & simsimd_cap_neon_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f32c_neon, *c = simsimd_cap_neon_k; return;
         case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f32c_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f32c_neon, *c = simsimd_cap_neon_f32_k; return;
         default: break;
         }
 #endif
@@ -1007,6 +1009,7 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f32c(simsimd_capability_t v, s
     if (v & simsimd_cap_skylake_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f32c_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f32c_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f32c_skylake, *c = simsimd_cap_skylake_k; return;
         default: break;
         }
 #endif
@@ -1039,6 +1042,7 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f16c(simsimd_capability_t v, s
     if (v & simsimd_cap_neon_f16_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16c_neon, *c = simsimd_cap_neon_f16_k; return;
         case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f16c_neon, *c = simsimd_cap_neon_f16_k; return;
+        case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f16c_neon, *c = simsimd_cap_neon_bf16_k; return;
         default: break;
         }
 #endif
@@ -1046,6 +1050,7 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f16c(simsimd_capability_t v, s
     if (v & simsimd_cap_sapphire_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16c_sapphire, *c = simsimd_cap_sapphire_k; return;
         case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f16c_sapphire, *c = simsimd_cap_sapphire_k; return;
+        case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f16c_sapphire, *c = simsimd_cap_sapphire_k; return;
         default: break;
         }
 #endif
@@ -1071,6 +1076,7 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_bf16c(simsimd_capability_t v, 
     if (v & simsimd_cap_neon_bf16_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16c_neon, *c = simsimd_cap_neon_bf16_k; return;
         case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_bf16c_neon, *c = simsimd_cap_neon_bf16_k; return;
+        case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_bf16c_neon, *c = simsimd_cap_neon_bf16_k; return;
         default: break;
         }
 #endif
@@ -1078,6 +1084,7 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_bf16c(simsimd_capability_t v, 
     if (v & simsimd_cap_genoa_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16c_genoa, *c = simsimd_cap_genoa_k; return;
         case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_bf16c_genoa, *c = simsimd_cap_genoa_k; return;
+        case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_bf16c_genoa, *c = simsimd_cap_genoa_k; return;
         default: break;
         }
 #endif
@@ -2106,12 +2113,11 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16(simsimd_u16_t const *a, simsimd_u1
  */
 SIMSIMD_PUBLIC void simsimd_bilinear_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c,
                                          simsimd_size_t n, simsimd_distance_t *d) {
-
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_bilinear_f64_skylake(a, b, c, n, d);
+#else
     simsimd_bilinear_f64_serial(a, b, c, n, d);
-}
-SIMSIMD_PUBLIC void simsimd_mahalanobis_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c,
-                                            simsimd_size_t n, simsimd_distance_t *d) {
-    simsimd_mahalanobis_f64_serial(a, b, c, n, d);
+#endif
 }
 SIMSIMD_PUBLIC void simsimd_bilinear_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c,
                                          simsimd_size_t n, simsimd_distance_t *d) {
@@ -2121,16 +2127,6 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f32(simsimd_f32_t const *a, simsimd_f32_t c
     simsimd_bilinear_f32_neon(a, b, c, n, d);
 #else
     simsimd_bilinear_f32_serial(a, b, c, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_mahalanobis_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c,
-                                            simsimd_size_t n, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SKYLAKE
-    simsimd_mahalanobis_f32_skylake(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_mahalanobis_f32_neon(a, b, c, n, d);
-#else
-    simsimd_mahalanobis_f32_serial(a, b, c, n, d);
 #endif
 }
 SIMSIMD_PUBLIC void simsimd_bilinear_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c,
@@ -2145,18 +2141,6 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16(simsimd_f16_t const *a, simsimd_f16_t c
     simsimd_bilinear_f16_serial(a, b, c, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void simsimd_mahalanobis_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c,
-                                            simsimd_size_t n, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SAPPHIRE
-    simsimd_mahalanobis_f16_sapphire(a, b, c, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_mahalanobis_f16_haswell(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_mahalanobis_f16_neon(a, b, c, n, d);
-#else
-    simsimd_mahalanobis_f16_serial(a, b, c, n, d);
-#endif
-}
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c,
                                           simsimd_size_t n, simsimd_distance_t *d) {
 #if SIMSIMD_TARGET_GENOA
@@ -2167,6 +2151,78 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16(simsimd_bf16_t const *a, simsimd_bf16_
     simsimd_bilinear_bf16_neon(a, b, c, n, d);
 #else
     simsimd_bilinear_bf16_serial(a, b, c, n, d);
+#endif
+}
+SIMSIMD_PUBLIC void simsimd_bilinear_f64c(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_f64c_t const *c,
+                                          simsimd_size_t n, simsimd_distance_t *d) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_bilinear_f64c_skylake(a, b, c, n, d);
+#else
+    simsimd_bilinear_f64c_serial(a, b, c, n, d);
+#endif
+}
+SIMSIMD_PUBLIC void simsimd_bilinear_f32c(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsimd_f32c_t const *c,
+                                          simsimd_size_t n, simsimd_distance_t *d) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_bilinear_f32c_skylake(a, b, c, n, d);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_bilinear_f32c_neon(a, b, c, n, d);
+#else
+    simsimd_bilinear_f32c_serial(a, b, c, n, d);
+#endif
+}
+SIMSIMD_PUBLIC void simsimd_bilinear_f16c(simsimd_f16c_t const *a, simsimd_f16c_t const *b, simsimd_f16c_t const *c,
+                                          simsimd_size_t n, simsimd_distance_t *d) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_bilinear_f16c_sapphire(a, b, c, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_bilinear_f16c_haswell(a, b, c, n, d);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_bilinear_f16c_neon(a, b, c, n, d);
+#else
+    simsimd_bilinear_f16c_serial(a, b, c, n, d);
+#endif
+}
+SIMSIMD_PUBLIC void simsimd_bilinear_bf16c(simsimd_bf16c_t const *a, simsimd_bf16c_t const *b, simsimd_bf16c_t const *c,
+                                           simsimd_size_t n, simsimd_distance_t *d) {
+#if SIMSIMD_TARGET_GENOA
+    simsimd_bilinear_bf16c_genoa(a, b, c, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_bilinear_bf16c_haswell(a, b, c, n, d);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_bilinear_bf16c_neon(a, b, c, n, d);
+#else
+    simsimd_bilinear_bf16c_serial(a, b, c, n, d);
+#endif
+}
+SIMSIMD_PUBLIC void simsimd_mahalanobis_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c,
+                                            simsimd_size_t n, simsimd_distance_t *d) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_mahalanobis_f64_skylake(a, b, c, n, d);
+#else
+    simsimd_mahalanobis_f64_serial(a, b, c, n, d);
+#endif
+}
+SIMSIMD_PUBLIC void simsimd_mahalanobis_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c,
+                                            simsimd_size_t n, simsimd_distance_t *d) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_mahalanobis_f32_skylake(a, b, c, n, d);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_mahalanobis_f32_neon(a, b, c, n, d);
+#else
+    simsimd_mahalanobis_f32_serial(a, b, c, n, d);
+#endif
+}
+SIMSIMD_PUBLIC void simsimd_mahalanobis_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c,
+                                            simsimd_size_t n, simsimd_distance_t *d) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_mahalanobis_f16_sapphire(a, b, c, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_mahalanobis_f16_haswell(a, b, c, n, d);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_mahalanobis_f16_neon(a, b, c, n, d);
+#else
+    simsimd_mahalanobis_f16_serial(a, b, c, n, d);
 #endif
 }
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c,
