@@ -1332,13 +1332,7 @@ SIMSIMD_PUBLIC void simsimd_dot_f32c_skylake(simsimd_f32_t const *a, simsimd_f32
     // This way we can avoid the shuffling and the need for separate real and imaginary parts.
     // For the imaginary part of the product, we would need to swap the real and imaginary parts of
     // one of the vectors.
-    __m512i sign_flip_vec = _mm512_set1_epi64(0x8000000000000000);
-    __m512i swap_adjacent_vec = _mm512_set_epi8(                        //
-        59, 58, 57, 56, 63, 62, 61, 60, 51, 50, 49, 48, 55, 54, 53, 52, // 4th 128-bit lane
-        43, 42, 41, 40, 47, 46, 45, 44, 35, 34, 33, 32, 39, 38, 37, 36, // 3rd 128-bit lane
-        27, 26, 25, 24, 31, 30, 29, 28, 19, 18, 17, 16, 23, 22, 21, 20, // 2nd 128-bit lane
-        11, 10, 9, 8, 15, 14, 13, 12, 3, 2, 1, 0, 7, 6, 5, 4            // 1st 128-bit lane
-    );
+    __m512i const sign_flip_vec = _mm512_set1_epi64(0x8000000000000000);
 simsimd_dot_f32c_skylake_cycle:
     if (n < 16) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
@@ -1352,8 +1346,8 @@ simsimd_dot_f32c_skylake_cycle:
         a += 16, b += 16, n -= 16;
     }
     ab_real_vec = _mm512_fmadd_ps(b_vec, a_vec, ab_real_vec);
-    ab_imag_vec = _mm512_fmadd_ps(
-        _mm512_castsi512_ps(_mm512_shuffle_epi8(_mm512_castps_si512(b_vec), swap_adjacent_vec)), a_vec, ab_imag_vec);
+    b_vec = _mm512_permute_ps(b_vec, 0xB1); //? Swap adjacent entries within each pair
+    ab_imag_vec = _mm512_fmadd_ps(b_vec, a_vec, ab_imag_vec);
     if (n) goto simsimd_dot_f32c_skylake_cycle;
 
     // Flip the sign bit in every second scalar before accumulation:
@@ -1376,8 +1370,8 @@ SIMSIMD_PUBLIC void simsimd_vdot_f32c_skylake(simsimd_f32_t const *a, simsimd_f3
     // This way we can avoid the shuffling and the need for separate real and imaginary parts.
     // For the imaginary part of the product, we would need to swap the real and imaginary parts of
     // one of the vectors.
-    __m512i sign_flip_vec = _mm512_set1_epi64(0x8000000000000000);
-    __m512i swap_adjacent_vec = _mm512_set_epi8(                        //
+    __m512i const sign_flip_vec = _mm512_set1_epi64(0x8000000000000000);
+    __m512i const swap_adjacent_vec = _mm512_set_epi8(                  //
         59, 58, 57, 56, 63, 62, 61, 60, 51, 50, 49, 48, 55, 54, 53, 52, // 4th 128-bit lane
         43, 42, 41, 40, 47, 46, 45, 44, 35, 34, 33, 32, 39, 38, 37, 36, // 3rd 128-bit lane
         27, 26, 25, 24, 31, 30, 29, 28, 19, 18, 17, 16, 23, 22, 21, 20, // 2nd 128-bit lane
@@ -1396,7 +1390,7 @@ simsimd_vdot_f32c_skylake_cycle:
         a += 16, b += 16, n -= 16;
     }
     ab_real_vec = _mm512_fmadd_ps(a_vec, b_vec, ab_real_vec);
-    b_vec = _mm512_castsi512_ps(_mm512_shuffle_epi8(_mm512_castps_si512(b_vec), swap_adjacent_vec));
+    b_vec = _mm512_permute_ps(b_vec, 0xB1); //? Swap adjacent entries within each pair
     ab_imag_vec = _mm512_fmadd_ps(a_vec, b_vec, ab_imag_vec);
     if (n) goto simsimd_vdot_f32c_skylake_cycle;
 
@@ -1420,15 +1414,9 @@ SIMSIMD_PUBLIC void simsimd_dot_f64c_skylake(simsimd_f64_t const *a, simsimd_f64
     // This way we can avoid the shuffling and the need for separate real and imaginary parts.
     // For the imaginary part of the product, we would need to swap the real and imaginary parts of
     // one of the vectors.
-    __m512i sign_flip_vec = _mm512_set_epi64(                                           //
+    __m512i const sign_flip_vec = _mm512_set_epi64(                                     //
         0x8000000000000000, 0x0000000000000000, 0x8000000000000000, 0x0000000000000000, //
         0x8000000000000000, 0x0000000000000000, 0x8000000000000000, 0x0000000000000000  //
-    );
-    __m512i swap_adjacent_vec = _mm512_set_epi8(                        //
-        55, 54, 53, 52, 51, 50, 49, 48, 63, 62, 61, 60, 59, 58, 57, 56, // 4th 128-bit lane
-        39, 38, 37, 36, 35, 34, 33, 32, 47, 46, 45, 44, 43, 42, 41, 40, // 3rd 128-bit lane
-        23, 22, 21, 20, 19, 18, 17, 16, 31, 30, 29, 28, 27, 26, 25, 24, // 2nd 128-bit lane
-        7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8            // 1st 128-bit lane
     );
 simsimd_dot_f64c_skylake_cycle:
     if (n < 8) {
@@ -1443,8 +1431,8 @@ simsimd_dot_f64c_skylake_cycle:
         a += 8, b += 8, n -= 8;
     }
     ab_real_vec = _mm512_fmadd_pd(b_vec, a_vec, ab_real_vec);
-    ab_imag_vec = _mm512_fmadd_pd(
-        _mm512_castsi512_pd(_mm512_shuffle_epi8(_mm512_castpd_si512(b_vec), swap_adjacent_vec)), a_vec, ab_imag_vec);
+    b_vec = _mm512_permute_pd(b_vec, 0xAA); //? Same as 0b10101010.
+    ab_imag_vec = _mm512_fmadd_pd(b_vec, a_vec, ab_imag_vec);
     if (n) goto simsimd_dot_f64c_skylake_cycle;
 
     // Flip the sign bit in every second scalar before accumulation:
@@ -1467,15 +1455,9 @@ SIMSIMD_PUBLIC void simsimd_vdot_f64c_skylake(simsimd_f64_t const *a, simsimd_f6
     // This way we can avoid the shuffling and the need for separate real and imaginary parts.
     // For the imaginary part of the product, we would need to swap the real and imaginary parts of
     // one of the vectors.
-    __m512i sign_flip_vec = _mm512_set_epi64(                                           //
+    __m512i const sign_flip_vec = _mm512_set_epi64(                                     //
         0x8000000000000000, 0x0000000000000000, 0x8000000000000000, 0x0000000000000000, //
         0x8000000000000000, 0x0000000000000000, 0x8000000000000000, 0x0000000000000000  //
-    );
-    __m512i swap_adjacent_vec = _mm512_set_epi8(                        //
-        55, 54, 53, 52, 51, 50, 49, 48, 63, 62, 61, 60, 59, 58, 57, 56, // 4th 128-bit lane
-        39, 38, 37, 36, 35, 34, 33, 32, 47, 46, 45, 44, 43, 42, 41, 40, // 3rd 128-bit lane
-        23, 22, 21, 20, 19, 18, 17, 16, 31, 30, 29, 28, 27, 26, 25, 24, // 2nd 128-bit lane
-        7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8            // 1st 128-bit lane
     );
 simsimd_vdot_f64c_skylake_cycle:
     if (n < 8) {
@@ -1490,7 +1472,7 @@ simsimd_vdot_f64c_skylake_cycle:
         a += 8, b += 8, n -= 8;
     }
     ab_real_vec = _mm512_fmadd_pd(a_vec, b_vec, ab_real_vec);
-    b_vec = _mm512_castsi512_pd(_mm512_shuffle_epi8(_mm512_castpd_si512(b_vec), swap_adjacent_vec));
+    b_vec = _mm512_permute_pd(b_vec, 0xAA); //? Same as 0b10101010.
     ab_imag_vec = _mm512_fmadd_pd(a_vec, b_vec, ab_imag_vec);
     if (n) goto simsimd_vdot_f64c_skylake_cycle;
 
@@ -1547,8 +1529,8 @@ SIMSIMD_PUBLIC void simsimd_dot_bf16c_genoa(simsimd_bf16_t const *a, simsimd_bf1
     // This way we can avoid the shuffling and the need for separate real and imaginary parts.
     // For the imaginary part of the product, we would need to swap the real and imaginary parts of
     // one of the vectors.
-    __m512i sign_flip_vec = _mm512_set1_epi32(0x80000000);
-    __m512i swap_adjacent_vec = _mm512_set_epi8(                        //
+    __m512i const sign_flip_vec = _mm512_set1_epi32(0x80000000);
+    __m512i const swap_adjacent_vec = _mm512_set_epi8(                  //
         61, 60, 63, 62, 57, 56, 59, 58, 53, 52, 55, 54, 49, 48, 51, 50, // 4th 128-bit lane
         45, 44, 47, 46, 41, 40, 43, 42, 37, 36, 39, 38, 33, 32, 35, 34, // 3rd 128-bit lane
         29, 28, 31, 30, 25, 24, 27, 26, 21, 20, 23, 22, 17, 16, 19, 18, // 2nd 128-bit lane
@@ -1589,8 +1571,8 @@ SIMSIMD_PUBLIC void simsimd_vdot_bf16c_genoa(simsimd_bf16_t const *a, simsimd_bf
     // This way we can avoid the shuffling and the need for separate real and imaginary parts.
     // For the imaginary part of the product, we would need to swap the real and imaginary parts of
     // one of the vectors.
-    __m512i sign_flip_vec = _mm512_set1_epi32(0x80000000);
-    __m512i swap_adjacent_vec = _mm512_set_epi8(                        //
+    __m512i const sign_flip_vec = _mm512_set1_epi32(0x80000000);
+    __m512i const swap_adjacent_vec = _mm512_set_epi8(                  //
         61, 60, 63, 62, 57, 56, 59, 58, 53, 52, 55, 54, 49, 48, 51, 50, // 4th 128-bit lane
         45, 44, 47, 46, 41, 40, 43, 42, 37, 36, 39, 38, 33, 32, 35, 34, // 3rd 128-bit lane
         29, 28, 31, 30, 25, 24, 27, 26, 21, 20, 23, 22, 17, 16, 19, 18, // 2nd 128-bit lane
@@ -1665,8 +1647,8 @@ SIMSIMD_PUBLIC void simsimd_dot_f16c_sapphire(simsimd_f16_t const *a, simsimd_f1
     // This way we can avoid the shuffling and the need for separate real and imaginary parts.
     // For the imaginary part of the product, we would need to swap the real and imaginary parts of
     // one of the vectors.
-    __m512i sign_flip_vec = _mm512_set1_epi32(0x80000000);
-    __m512i swap_adjacent_vec = _mm512_set_epi8(                        //
+    __m512i const sign_flip_vec = _mm512_set1_epi32(0x80000000);
+    __m512i const swap_adjacent_vec = _mm512_set_epi8(                  //
         61, 60, 63, 62, 57, 56, 59, 58, 53, 52, 55, 54, 49, 48, 51, 50, // 4th 128-bit lane
         45, 44, 47, 46, 41, 40, 43, 42, 37, 36, 39, 38, 33, 32, 35, 34, // 3rd 128-bit lane
         29, 28, 31, 30, 25, 24, 27, 26, 21, 20, 23, 22, 17, 16, 19, 18, // 2nd 128-bit lane
@@ -1710,8 +1692,8 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_sapphire(simsimd_f16_t const *a, simsimd_f
     // This way we can avoid the shuffling and the need for separate real and imaginary parts.
     // For the imaginary part of the product, we would need to swap the real and imaginary parts of
     // one of the vectors.
-    __m512i sign_flip_vec = _mm512_set1_epi32(0x80000000);
-    __m512i swap_adjacent_vec = _mm512_set_epi8(                        //
+    __m512i const sign_flip_vec = _mm512_set1_epi32(0x80000000);
+    __m512i const swap_adjacent_vec = _mm512_set_epi8(                  //
         61, 60, 63, 62, 57, 56, 59, 58, 53, 52, 55, 54, 49, 48, 51, 50, // 4th 128-bit lane
         45, 44, 47, 46, 41, 40, 43, 42, 37, 36, 39, 38, 33, 32, 35, 34, // 3rd 128-bit lane
         29, 28, 31, 30, 25, 24, 27, 26, 21, 20, 23, 22, 17, 16, 19, 18, // 2nd 128-bit lane
