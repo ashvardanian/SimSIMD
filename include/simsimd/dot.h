@@ -775,7 +775,7 @@ SIMSIMD_PUBLIC void simsimd_dot_f16_sve(simsimd_f16_t const *a_scalars, simsimd_
 
 SIMSIMD_PUBLIC void simsimd_dot_f16c_sve(simsimd_f16c_t const *a_pairs, simsimd_f16c_t const *b_pairs,
                                          simsimd_size_t count_pairs, simsimd_distance_t *results) {
-    simsimd_size_t idx_scalars = 0;
+    simsimd_size_t idx_pairs = 0;
     svfloat16_t ab_real_vec = svdup_f16(0);
     svfloat16_t ab_imag_vec = svdup_f16(0);
     do {
@@ -798,7 +798,7 @@ SIMSIMD_PUBLIC void simsimd_dot_f16c_sve(simsimd_f16c_t const *a_pairs, simsimd_
 
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_sve(simsimd_f16c_t const *a_pairs, simsimd_f16c_t const *b_pairs,
                                           simsimd_size_t count_pairs, simsimd_distance_t *results) {
-    simsimd_size_t idx_scalars = 0;
+    simsimd_size_t idx_pairs = 0;
     svfloat16_t ab_real_vec = svdup_f16(0);
     svfloat16_t ab_imag_vec = svdup_f16(0);
     do {
