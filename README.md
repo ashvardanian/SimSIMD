@@ -42,7 +42,7 @@ SimSIMD provides an alternative.
 
 ## Features
 
-__SimSIMD__ (Arabic: "سيمسيم دي") is a mixed-precision math library of __over 200 SIMD-optimized kernels__ extensively used in AI, Search, and DBMS workloads.
+__SimSIMD__ (Arabic: "سيمسيم دي") is a mixed-precision math library of __over 350 SIMD-optimized kernels__ extensively used in AI, Search, and DBMS workloads.
 Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command that opened doors to treasure in _Ali Baba and the Forty Thieves_, SimSimd can help you 10x the cost-efficiency of your computational pipelines.
 Implemented distance functions include:
 
@@ -689,23 +689,29 @@ To override compilation settings and switch between runtime and compile-time dis
 #include <simsimd/simsimd.h>
 
 int main() {
+    simsimd_i8_t i8[1536];
+    simsimd_i8_t u8[1536];
     simsimd_f64_t f64s[1536];
     simsimd_f32_t f32s[1536];
     simsimd_f16_t f16s[1536];
-    simsimd_i8_t i8[1536];
+    simsimd_bf16_t bf16s[1536];
     simsimd_distance_t distance;
 
     // Cosine distance between two vectors
     simsimd_cos_i8(i8s, i8s, 1536, &distance);
+    simsimd_cos_u8(u8s, u8s, 1536, &distance);
     simsimd_cos_f16(f16s, f16s, 1536, &distance);
     simsimd_cos_f32(f32s, f32s, 1536, &distance);
     simsimd_cos_f64(f64s, f64s, 1536, &distance);
+    simsimd_cos_bf16(bf16s, bf16s, 1536, &distance);
     
     // Euclidean distance between two vectors
     simsimd_l2sq_i8(i8s, i8s, 1536, &distance);
+    simsimd_l2sq_u8(u8s, u8s, 1536, &distance);
     simsimd_l2sq_f16(f16s, f16s, 1536, &distance);
     simsimd_l2sq_f32(f32s, f32s, 1536, &distance);
     simsimd_l2sq_f64(f64s, f64s, 1536, &distance);
+    simsimd_l2sq_bf16(bf16s, bf16s, 1536, &distance);
 
     return 0;
 }
@@ -717,25 +723,41 @@ int main() {
 #include <simsimd/simsimd.h>
 
 int main() {
-    simsimd_f64_t f64s[1536];
-    simsimd_f32_t f32s[1536];
+    // SimSIMD provides "sized" type-aliases without relying on `stdint.h`
+    simsimd_i8_t i8[1536];
+    simsimd_i8_t u8[1536];
     simsimd_f16_t f16s[1536];
-    simsimd_distance_t distance;
+    simsimd_f32_t f32s[1536];
+    simsimd_f64_t f64s[1536];
+    simsimd_bf16_t bf16s[1536];
+    simsimd_distance_t product;
 
-    // Inner product between two vectors
-    simsimd_dot_f16(f16s, f16s, 1536, &distance);
-    simsimd_dot_f32(f32s, f32s, 1536, &distance);
-    simsimd_dot_f64(f64s, f64s, 1536, &distance);
+    // Inner product between two real vectors
+    simsimd_dot_i8(i8s, i8s, 1536, &product);
+    simsimd_dot_u8(u8s, u8s, 1536, &product);
+    simsimd_dot_f16(f16s, f16s, 1536, &product);
+    simsimd_dot_f32(f32s, f32s, 1536, &product);
+    simsimd_dot_f64(f64s, f64s, 1536, &product);
+    simsimd_dot_bf16(bf16s, bf16s, 1536, &product);
+
+    // SimSIMD provides complex types with `real` and `imag` fields
+    simsimd_f64c_t f64s[768];
+    simsimd_f32c_t f32s[768];
+    simsimd_f16c_t f16s[768];
+    simsimd_bf16c_t bf16s[768];
+    simsimd_distance_t products[2]; // real and imaginary parts
 
     // Complex inner product between two vectors
-    simsimd_dot_f16c(f16s, f16s, 1536, &distance);
-    simsimd_dot_f32c(f32s, f32s, 1536, &distance);
-    simsimd_dot_f64c(f64s, f64s, 1536, &distance);
+    simsimd_dot_f16c(f16cs, f16cs, 768, &products[0]);
+    simsimd_dot_f32c(f32cs, f32cs, 768, &products[0]);
+    simsimd_dot_f64c(f64cs, f64cs, 768, &products[0]);
+    simsimd_dot_bf16c(bf16cs, bf16cs, 768, &products[0]);
 
     // Complex conjugate inner product between two vectors
-    simsimd_vdot_f16c(f16s, f16s, 1536, &distance);
-    simsimd_vdot_f32c(f32s, f32s, 1536, &distance);
-    simsimd_vdot_f64c(f64s, f64s, 1536, &distance);
+    simsimd_vdot_f16c(f16cs, f16cs, 768, &products[0]);
+    simsimd_vdot_f32c(f32cs, f32cs, 768, &products[0]);
+    simsimd_vdot_f64c(f64cs, f64cs, 768, &products[0]);
+    simsimd_vdot_bf16c(bf16cs, bf16cs, 768, &products[0]);
     return 0;
 }
 ```
@@ -763,17 +785,17 @@ int main() {
     simsimd_f64_t f64s[1536];
     simsimd_f32_t f32s[1536];
     simsimd_f16_t f16s[1536];
-    simsimd_distance_t distance;
+    simsimd_distance_t divergence;
 
     // Jensen-Shannon divergence between two vectors
-    simsimd_js_f16(f16s, f16s, 1536, &distance);
-    simsimd_js_f32(f32s, f32s, 1536, &distance);
-    simsimd_js_f64(f64s, f64s, 1536, &distance);
+    simsimd_js_f16(f16s, f16s, 1536, &divergence);
+    simsimd_js_f32(f32s, f32s, 1536, &divergence);
+    simsimd_js_f64(f64s, f64s, 1536, &divergence);
 
     // Kullback-Leibler divergence between two vectors
-    simsimd_kl_f16(f16s, f16s, 1536, &distance);
-    simsimd_kl_f32(f32s, f32s, 1536, &distance);
-    simsimd_kl_f64(f64s, f64s, 1536, &distance);
+    simsimd_kl_f16(f16s, f16s, 1536, &divergence);
+    simsimd_kl_f32(f32s, f32s, 1536, &divergence);
+    simsimd_kl_f64(f64s, f64s, 1536, &divergence);
     return 0;
 }
 ```
