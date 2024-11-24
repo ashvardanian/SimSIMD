@@ -51,29 +51,29 @@ extern "C" {
  *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
  */
 SIMSIMD_PUBLIC void simsimd_bilinear_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_f64_t const* c, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_bilinear_f64c_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_f64_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_bilinear_f64c_serial(simsimd_f64c_t const* a, simsimd_f64c_t const* b, simsimd_f64c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_f64_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_bilinear_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_bilinear_f32c_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_bilinear_f32c_serial(simsimd_f32c_t const* a, simsimd_f32c_t const* b, simsimd_f32c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_bilinear_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_bilinear_f16c_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_bilinear_f16c_serial(simsimd_f16c_t const* a, simsimd_f16c_t const* b, simsimd_f16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_serial(simsimd_bf16c_t const* a, simsimd_bf16c_t const* b, simsimd_bf16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 
 /*  Double-precision serial backends for all numeric types.
  *  For single-precision computation check out the "*_serial" counterparts of those "*_accurate" functions.
  */
 SIMSIMD_PUBLIC void simsimd_bilinear_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_bilinear_f32c_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_bilinear_f32c_accurate(simsimd_f32c_t const* a, simsimd_f32c_t const* b, simsimd_f32c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_bilinear_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_bilinear_f16c_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_bilinear_f16c_accurate(simsimd_f16c_t const* a, simsimd_f16c_t const* b, simsimd_f16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_accurate(simsimd_bf16c_t const* a, simsimd_bf16c_t const* b, simsimd_bf16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 
 /*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
@@ -81,13 +81,13 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_accurate(simsimd_bf16_t const* a, s
  *  server CPUs produced before 2023.
  */
 SIMSIMD_PUBLIC void simsimd_bilinear_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_bilinear_f32c_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_bilinear_f32c_neon(simsimd_f32c_t const* a, simsimd_f32c_t const* b, simsimd_f32c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_bilinear_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_bilinear_f16c_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_bilinear_f16c_neon(simsimd_f16c_t const* a, simsimd_f16c_t const* b, simsimd_f16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_neon(simsimd_bf16c_t const* a, simsimd_bf16c_t const* b, simsimd_bf16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 
 /*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
@@ -97,10 +97,10 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_neon(simsimd_bf16_t const* a, simsi
  *  properly vectorized by recent compilers.
  */
 SIMSIMD_PUBLIC void simsimd_bilinear_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_bilinear_f16c_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_bilinear_f16c_haswell(simsimd_f16c_t const* a, simsimd_f16c_t const* b, simsimd_f16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_haswell(simsimd_bf16c_t const* a, simsimd_bf16c_t const* b, simsimd_bf16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 
 /*  SIMD-powered backends for various generations of AVX512 CPUs.
@@ -109,16 +109,16 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_haswell(simsimd_bf16_t const* a, si
  *  Sapphire Rapids added tiled matrix operations, but we are most interested in the new mixed-precision FMA instructions.
  */
 SIMSIMD_PUBLIC void simsimd_bilinear_f64_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_f64_t const* c, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_bilinear_f64c_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_f64_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_bilinear_f64c_skylake(simsimd_f64c_t const* a, simsimd_f64c_t const* b, simsimd_f64c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f64_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_f64_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_bilinear_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_bilinear_f32c_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_bilinear_f32c_skylake(simsimd_f32c_t const* a, simsimd_f32c_t const* b, simsimd_f32c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_genoa(simsimd_bf16c_t const* a, simsimd_bf16c_t const* b, simsimd_bf16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_bilinear_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_bilinear_f16c_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_bilinear_f16c_sapphire(simsimd_f16c_t const* a, simsimd_f16c_t const* b, simsimd_f16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 // clang-format on
 
@@ -140,36 +140,36 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_sapphire(simsimd_f16_t const* a, sim
         *result = (simsimd_distance_t)sum;                                                                       \
     }
 
-#define SIMSIMD_MAKE_COMPLEX_BILINEAR(name, input_type, accumulator_type, load_and_convert)                      \
-    SIMSIMD_PUBLIC void simsimd_bilinear_##input_type##c_##name(                                                 \
-        simsimd_##input_type##_t const *a, simsimd_##input_type##_t const *b, simsimd_##input_type##_t const *c, \
-        simsimd_size_t n, simsimd_distance_t *results) {                                                         \
-        simsimd_##accumulator_type##_t sum_real = 0;                                                             \
-        simsimd_##accumulator_type##_t sum_imag = 0;                                                             \
-        for (simsimd_size_t i = 0; i != n; ++i) {                                                                \
-            simsimd_##accumulator_type##_t partial_real = 0;                                                     \
-            simsimd_##accumulator_type##_t partial_imag = 0;                                                     \
-            simsimd_##accumulator_type##_t a_i_real = load_and_convert(a + 2 * i);                               \
-            simsimd_##accumulator_type##_t a_i_imag = load_and_convert(a + 2 * i + 1);                           \
-            for (simsimd_size_t j = 0; j != n; ++j) {                                                            \
-                simsimd_##accumulator_type##_t b_j_real = load_and_convert(b + 2 * j);                           \
-                simsimd_##accumulator_type##_t b_j_imag = load_and_convert(b + 2 * j + 1);                       \
-                simsimd_##accumulator_type##_t c_ij_real = load_and_convert(c + 2 * (i * n + j));                \
-                simsimd_##accumulator_type##_t c_ij_imag = load_and_convert(c + 2 * (i * n + j) + 1);            \
-                /* Complex multiplication: (c_ij * b_j) */                                                       \
-                simsimd_##accumulator_type##_t prod_real = c_ij_real * b_j_real - c_ij_imag * b_j_imag;          \
-                simsimd_##accumulator_type##_t prod_imag = c_ij_real * b_j_imag + c_ij_imag * b_j_real;          \
-                partial_real += prod_real;                                                                       \
-                partial_imag += prod_imag;                                                                       \
-            }                                                                                                    \
-            /* Complex multiplication: (a_i * partial) */                                                        \
-            simsimd_##accumulator_type##_t final_real = a_i_real * partial_real - a_i_imag * partial_imag;       \
-            simsimd_##accumulator_type##_t final_imag = a_i_real * partial_imag + a_i_imag * partial_real;       \
-            sum_real += final_real;                                                                              \
-            sum_imag += final_imag;                                                                              \
-        }                                                                                                        \
-        results[0] = (simsimd_distance_t)sum_real;                                                               \
-        results[1] = (simsimd_distance_t)sum_imag;                                                               \
+#define SIMSIMD_MAKE_COMPLEX_BILINEAR(name, input_type, accumulator_type, load_and_convert)                \
+    SIMSIMD_PUBLIC void simsimd_bilinear_##input_type##_##name(                                            \
+        simsimd_##input_type##_t const *a_pairs, simsimd_##input_type##_t const *b_pairs,                  \
+        simsimd_##input_type##_t const *c_pairs, simsimd_size_t n, simsimd_distance_t *results) {          \
+        simsimd_##accumulator_type##_t sum_real = 0;                                                       \
+        simsimd_##accumulator_type##_t sum_imag = 0;                                                       \
+        for (simsimd_size_t i = 0; i != n; ++i) {                                                          \
+            simsimd_##accumulator_type##_t partial_real = 0;                                               \
+            simsimd_##accumulator_type##_t partial_imag = 0;                                               \
+            simsimd_##accumulator_type##_t a_i_real = load_and_convert(&(a_pairs + i)->real);              \
+            simsimd_##accumulator_type##_t a_i_imag = load_and_convert(&(a_pairs + i)->imag);              \
+            for (simsimd_size_t j = 0; j != n; ++j) {                                                      \
+                simsimd_##accumulator_type##_t b_j_real = load_and_convert(&(b_pairs + j)->real);          \
+                simsimd_##accumulator_type##_t b_j_imag = load_and_convert(&(b_pairs + j)->imag);          \
+                simsimd_##accumulator_type##_t c_ij_real = load_and_convert(&(c_pairs + i * n + j)->real); \
+                simsimd_##accumulator_type##_t c_ij_imag = load_and_convert(&(c_pairs + i * n + j)->imag); \
+                /* Complex multiplication: (c_ij * b_j) */                                                 \
+                simsimd_##accumulator_type##_t prod_real = c_ij_real * b_j_real - c_ij_imag * b_j_imag;    \
+                simsimd_##accumulator_type##_t prod_imag = c_ij_real * b_j_imag + c_ij_imag * b_j_real;    \
+                partial_real += prod_real;                                                                 \
+                partial_imag += prod_imag;                                                                 \
+            }                                                                                              \
+            /* Complex multiplication: (a_i * partial) */                                                  \
+            simsimd_##accumulator_type##_t final_real = a_i_real * partial_real - a_i_imag * partial_imag; \
+            simsimd_##accumulator_type##_t final_imag = a_i_real * partial_imag + a_i_imag * partial_real; \
+            sum_real += final_real;                                                                        \
+            sum_imag += final_imag;                                                                        \
+        }                                                                                                  \
+        results[0] = (simsimd_distance_t)sum_real;                                                         \
+        results[1] = (simsimd_distance_t)sum_imag;                                                         \
     }
 
 #define SIMSIMD_MAKE_MAHALANOBIS(name, input_type, accumulator_type, load_and_convert)                           \
@@ -190,33 +190,33 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_sapphire(simsimd_f16_t const* a, sim
         *result = (simsimd_distance_t)SIMSIMD_SQRT(sum);                                                         \
     }
 
-SIMSIMD_MAKE_BILINEAR(serial, f64, f64, SIMSIMD_DEREFERENCE)         // simsimd_bilinear_f64_serial
-SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, f64, f64, SIMSIMD_DEREFERENCE) // simsimd_bilinear_f64c_serial
-SIMSIMD_MAKE_MAHALANOBIS(serial, f64, f64, SIMSIMD_DEREFERENCE)      // simsimd_mahalanobis_f64_serial
+SIMSIMD_MAKE_BILINEAR(serial, f64, f64, SIMSIMD_DEREFERENCE)          // simsimd_bilinear_f64_serial
+SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, f64c, f64, SIMSIMD_DEREFERENCE) // simsimd_bilinear_f64c_serial
+SIMSIMD_MAKE_MAHALANOBIS(serial, f64, f64, SIMSIMD_DEREFERENCE)       // simsimd_mahalanobis_f64_serial
 
-SIMSIMD_MAKE_BILINEAR(serial, f32, f32, SIMSIMD_DEREFERENCE)         // simsimd_bilinear_f32_serial
-SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, f32, f32, SIMSIMD_DEREFERENCE) // simsimd_bilinear_f32c_serial
-SIMSIMD_MAKE_MAHALANOBIS(serial, f32, f32, SIMSIMD_DEREFERENCE)      // simsimd_mahalanobis_f32_serial
+SIMSIMD_MAKE_BILINEAR(serial, f32, f32, SIMSIMD_DEREFERENCE)          // simsimd_bilinear_f32_serial
+SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, f32c, f32, SIMSIMD_DEREFERENCE) // simsimd_bilinear_f32c_serial
+SIMSIMD_MAKE_MAHALANOBIS(serial, f32, f32, SIMSIMD_DEREFERENCE)       // simsimd_mahalanobis_f32_serial
 
-SIMSIMD_MAKE_BILINEAR(serial, f16, f32, SIMSIMD_F16_TO_F32)         // simsimd_bilinear_f16_serial
-SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, f16, f32, SIMSIMD_F16_TO_F32) // simsimd_bilinear_f16c_serial
-SIMSIMD_MAKE_MAHALANOBIS(serial, f16, f32, SIMSIMD_F16_TO_F32)      // simsimd_mahalanobis_f16_serial
+SIMSIMD_MAKE_BILINEAR(serial, f16, f32, SIMSIMD_F16_TO_F32)          // simsimd_bilinear_f16_serial
+SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, f16c, f32, SIMSIMD_F16_TO_F32) // simsimd_bilinear_f16c_serial
+SIMSIMD_MAKE_MAHALANOBIS(serial, f16, f32, SIMSIMD_F16_TO_F32)       // simsimd_mahalanobis_f16_serial
 
-SIMSIMD_MAKE_BILINEAR(serial, bf16, f32, SIMSIMD_BF16_TO_F32)         // simsimd_bilinear_bf16_serial
-SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, bf16, f32, SIMSIMD_BF16_TO_F32) // simsimd_bilinear_bf1c6_serial
-SIMSIMD_MAKE_MAHALANOBIS(serial, bf16, f32, SIMSIMD_BF16_TO_F32)      // simsimd_mahalanobis_bf16_serial
+SIMSIMD_MAKE_BILINEAR(serial, bf16, f32, SIMSIMD_BF16_TO_F32)          // simsimd_bilinear_bf16_serial
+SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, bf16c, f32, SIMSIMD_BF16_TO_F32) // simsimd_bilinear_bf16c_serial
+SIMSIMD_MAKE_MAHALANOBIS(serial, bf16, f32, SIMSIMD_BF16_TO_F32)       // simsimd_mahalanobis_bf16_serial
 
-SIMSIMD_MAKE_BILINEAR(accurate, f32, f64, SIMSIMD_DEREFERENCE)         // simsimd_bilinear_f32_accurate
-SIMSIMD_MAKE_COMPLEX_BILINEAR(accurate, f32, f64, SIMSIMD_DEREFERENCE) // simsimd_bilinear_f32c_accurate
-SIMSIMD_MAKE_MAHALANOBIS(accurate, f32, f64, SIMSIMD_DEREFERENCE)      // simsimd_mahalanobis_f32_accurate
+SIMSIMD_MAKE_BILINEAR(accurate, f32, f64, SIMSIMD_DEREFERENCE)          // simsimd_bilinear_f32_accurate
+SIMSIMD_MAKE_COMPLEX_BILINEAR(accurate, f32c, f64, SIMSIMD_DEREFERENCE) // simsimd_bilinear_f32c_accurate
+SIMSIMD_MAKE_MAHALANOBIS(accurate, f32, f64, SIMSIMD_DEREFERENCE)       // simsimd_mahalanobis_f32_accurate
 
-SIMSIMD_MAKE_BILINEAR(accurate, f16, f64, SIMSIMD_F16_TO_F32)         // simsimd_bilinear_f16_accurate
-SIMSIMD_MAKE_COMPLEX_BILINEAR(accurate, f16, f64, SIMSIMD_F16_TO_F32) // simsimd_bilinear_f16c_accurate
-SIMSIMD_MAKE_MAHALANOBIS(accurate, f16, f64, SIMSIMD_F16_TO_F32)      // simsimd_mahalanobis_f16_accurate
+SIMSIMD_MAKE_BILINEAR(accurate, f16, f64, SIMSIMD_F16_TO_F32)          // simsimd_bilinear_f16_accurate
+SIMSIMD_MAKE_COMPLEX_BILINEAR(accurate, f16c, f64, SIMSIMD_F16_TO_F32) // simsimd_bilinear_f16c_accurate
+SIMSIMD_MAKE_MAHALANOBIS(accurate, f16, f64, SIMSIMD_F16_TO_F32)       // simsimd_mahalanobis_f16_accurate
 
-SIMSIMD_MAKE_BILINEAR(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)         // simsimd_bilinear_bf16_accurate
-SIMSIMD_MAKE_COMPLEX_BILINEAR(accurate, bf16, f64, SIMSIMD_BF16_TO_F32) // simsimd_bilinear_bf16c_accurate
-SIMSIMD_MAKE_MAHALANOBIS(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)      // simsimd_mahalanobis_bf16_accurate
+SIMSIMD_MAKE_BILINEAR(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)          // simsimd_bilinear_bf16_accurate
+SIMSIMD_MAKE_COMPLEX_BILINEAR(accurate, bf16c, f64, SIMSIMD_BF16_TO_F32) // simsimd_bilinear_bf16c_accurate
+SIMSIMD_MAKE_MAHALANOBIS(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)       // simsimd_mahalanobis_bf16_accurate
 
 #if _SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
@@ -240,8 +240,8 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f32_neon(simsimd_f32_t const *a, simsimd_f3
 
     // Handle the tail of every row
     simsimd_f64_t sum = vaddvq_f32(sum_vec);
-    simsimd_size_t tail_length = n % 4;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 4;
+    simsimd_size_t const tail_start = n - tail_length;
     if (tail_length) {
         for (simsimd_size_t i = 0; i != n; ++i) {
             simsimd_f32_t a_i = a[i];
@@ -253,6 +253,9 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f32_neon(simsimd_f32_t const *a, simsimd_f3
 
     *result = sum;
 }
+
+SIMSIMD_PUBLIC void simsimd_bilinear_f32c_neon(simsimd_f32c_t const *a, simsimd_f32c_t const *b,
+                                               simsimd_f32c_t const *c, simsimd_size_t n, simsimd_distance_t *result) {}
 
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_neon(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c,
                                                  simsimd_size_t n, simsimd_distance_t *result) {
@@ -271,8 +274,8 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_neon(simsimd_f32_t const *a, simsimd
 
     // Handle the tail of every row
     simsimd_f64_t sum = vaddvq_f32(sum_vec);
-    simsimd_size_t tail_length = n % 4;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 4;
+    simsimd_size_t const tail_start = n - tail_length;
     if (tail_length) {
         for (simsimd_size_t i = 0; i != n; ++i) {
             simsimd_f32_t diff_i = a[i] - b[i];
@@ -314,8 +317,8 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16_neon(simsimd_f16_t const *a, simsimd_f1
 
     // Handle the tail of every row
     simsimd_f64_t sum = vaddvq_f32(sum_vec);
-    simsimd_size_t tail_length = n % 4;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 4;
+    simsimd_size_t const tail_start = n - tail_length;
     if (tail_length) {
         for (simsimd_size_t i = 0; i != n; ++i) {
             simsimd_f32_t a_i = vaddvq_f32(vcvt_f32_f16(_simsimd_partial_load_f16x4_neon(a + i, 1)));
@@ -327,6 +330,10 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16_neon(simsimd_f16_t const *a, simsimd_f1
     }
 
     *result = sum;
+}
+
+SIMSIMD_PUBLIC void simsimd_bilinear_f16c_neon(simsimd_f16c_t const *a, simsimd_f16c_t const *b,
+                                               simsimd_f16c_t const *c, simsimd_size_t n, simsimd_distance_t *results) {
 }
 
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_neon(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c,
@@ -350,8 +357,8 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_neon(simsimd_f16_t const *a, simsimd
 
     // Handle the tail of every row
     simsimd_f32_t sum = vaddvq_f32(sum_vec);
-    simsimd_size_t tail_length = n % 4;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 4;
+    simsimd_size_t const tail_start = n - tail_length;
     if (tail_length) {
         for (simsimd_size_t i = 0; i != n; ++i) {
             simsimd_f32_t a_i = vaddvq_f32(vcvt_f32_f16(_simsimd_partial_load_f16x4_neon(a + i, 1)));
@@ -394,8 +401,8 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16_neon(simsimd_bf16_t const *a, simsimd_
 
     // Handle the tail of every row
     simsimd_f64_t sum = vaddvq_f32(sum_vec);
-    simsimd_size_t tail_length = n % 8;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 8;
+    simsimd_size_t const tail_start = n - tail_length;
     if (tail_length) {
         for (simsimd_size_t i = 0; i != n; ++i) {
             simsimd_f32_t a_i = simsimd_bf16_to_f32(a + i);
@@ -408,6 +415,10 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16_neon(simsimd_bf16_t const *a, simsimd_
 
     *result = sum;
 }
+
+SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_neon(simsimd_bf16c_t const *a, simsimd_bf16c_t const *b,
+                                                simsimd_bf16c_t const *c, simsimd_size_t n,
+                                                simsimd_distance_t *results);
 
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_neon(simsimd_bf16_t const *a, simsimd_bf16_t const *b,
                                                   simsimd_bf16_t const *c, simsimd_size_t n,
@@ -441,8 +452,8 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_neon(simsimd_bf16_t const *a, simsi
 
     // Handle the tail of every row
     simsimd_f32_t sum = vaddvq_f32(sum_vec);
-    simsimd_size_t tail_length = n % 8;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 8;
+    simsimd_size_t const tail_start = n - tail_length;
     if (tail_length) {
         for (simsimd_size_t i = 0; i != n; ++i) {
             simsimd_f32_t a_i = simsimd_bf16_to_f32(a + i);
@@ -497,8 +508,8 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16_haswell(simsimd_f16_t const *a, simsimd
 
     // Handle the tail of every row
     simsimd_f32_t sum = _simsimd_reduce_f32x8_haswell(sum_vec);
-    simsimd_size_t tail_length = n % 8;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 8;
+    simsimd_size_t const tail_start = n - tail_length;
     if (tail_length) {
         for (simsimd_size_t i = 0; i != n; ++i) {
             simsimd_f32_t a_i = _mm256_cvtss_f32(_mm256_cvtph_ps(_mm_set1_epi16(*(short const *)(a + i))));
@@ -511,6 +522,10 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16_haswell(simsimd_f16_t const *a, simsimd
 
     *result = sum;
 }
+
+SIMSIMD_PUBLIC void simsimd_bilinear_f16c_haswell(simsimd_f16c_t const *a, simsimd_f16c_t const *b,
+                                                  simsimd_f16c_t const *c, simsimd_size_t n,
+                                                  simsimd_distance_t *results);
 
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_haswell(simsimd_f16_t const *a, simsimd_f16_t const *b,
                                                     simsimd_f16_t const *c, simsimd_size_t n,
@@ -533,8 +548,8 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_haswell(simsimd_f16_t const *a, sims
 
     // Handle the tail of every row
     simsimd_f32_t sum = _simsimd_reduce_f32x8_haswell(sum_vec);
-    simsimd_size_t tail_length = n % 8;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 8;
+    simsimd_size_t const tail_start = n - tail_length;
     if (tail_length) {
         for (simsimd_size_t i = 0; i != n; ++i) {
             simsimd_f32_t diff_i = _mm256_cvtss_f32(_mm256_sub_ps(        //
@@ -570,8 +585,8 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16_haswell(simsimd_bf16_t const *a, simsi
 
     // Handle the tail of every row
     simsimd_f32_t sum = _simsimd_reduce_f32x8_haswell(sum_vec);
-    simsimd_size_t tail_length = n % 8;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 8;
+    simsimd_size_t const tail_start = n - tail_length;
     if (tail_length) {
         for (simsimd_size_t i = 0; i != n; ++i) {
             simsimd_f32_t a_i = simsimd_bf16_to_f32(a + i);
@@ -586,6 +601,10 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16_haswell(simsimd_bf16_t const *a, simsi
 
     *result = sum;
 }
+
+SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_haswell(simsimd_bf16c_t const *a, simsimd_bf16c_t const *b,
+                                                   simsimd_bf16c_t const *c, simsimd_size_t n,
+                                                   simsimd_distance_t *result) {}
 
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_haswell(simsimd_bf16_t const *a, simsimd_bf16_t const *b,
                                                      simsimd_bf16_t const *c, simsimd_size_t n,
@@ -608,8 +627,8 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_haswell(simsimd_bf16_t const *a, si
 
     // Handle the tail of every row
     simsimd_f32_t sum = _simsimd_reduce_f32x8_haswell(sum_vec);
-    simsimd_size_t tail_length = n % 8;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 8;
+    simsimd_size_t const tail_start = n - tail_length;
     if (tail_length) {
         for (simsimd_size_t i = 0; i != n; ++i) {
             simsimd_f32_t diff_i = simsimd_bf16_to_f32(a + i) - simsimd_bf16_to_f32(b + i);
@@ -683,10 +702,10 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f32_skylake(simsimd_f32_t const *a, simsimd
     }
 
     // Default case for arbitrary size `n`
-    simsimd_size_t tail_length = n % 16;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 16;
+    simsimd_size_t const tail_start = n - tail_length;
     __m512 sum_vec = _mm512_setzero_ps();
-    __mmask16 tail_mask = (__mmask16)_bzhi_u32(0xFFFF, tail_length);
+    __mmask16 const tail_mask = (__mmask16)_bzhi_u32(0xFFFF, tail_length);
 
     for (simsimd_size_t i = 0; i != n; ++i) {
         __m512 a_vec = _mm512_set1_ps(a[i]);
@@ -715,10 +734,10 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f32_skylake(simsimd_f32_t const *a, simsimd
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_skylake(simsimd_f32_t const *a, simsimd_f32_t const *b,
                                                     simsimd_f32_t const *c, simsimd_size_t n,
                                                     simsimd_distance_t *result) {
-    simsimd_size_t tail_length = n % 16;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 16;
+    simsimd_size_t const tail_start = n - tail_length;
     __m512 sum_vec = _mm512_setzero_ps();
-    __mmask16 tail_mask = (__mmask16)_bzhi_u32(0xFFFF, tail_length);
+    __mmask16 const tail_mask = (__mmask16)_bzhi_u32(0xFFFF, tail_length);
 
     for (simsimd_size_t i = 0; i != n; ++i) {
         __m512 diff_i_vec = _mm512_set1_ps(a[i] - b[i]);
@@ -747,6 +766,10 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_skylake(simsimd_f32_t const *a, sims
 
     *result = _simsimd_sqrt_f64_haswell(_mm512_reduce_add_ps(sum_vec));
 }
+
+SIMSIMD_PUBLIC void simsimd_bilinear_f32c_skylake(simsimd_f32c_t const *a, simsimd_f32c_t const *b,
+                                                  simsimd_f32c_t const *c, simsimd_size_t n,
+                                                  simsimd_distance_t *results) {}
 
 SIMSIMD_PUBLIC void simsimd_bilinear_f64_skylake(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c,
                                                  simsimd_size_t n, simsimd_distance_t *result) {
@@ -786,10 +809,10 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f64_skylake(simsimd_f64_t const *a, simsimd
     }
 
     // Default case for arbitrary size `n`
-    simsimd_size_t tail_length = n % 8;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 8;
+    simsimd_size_t const tail_start = n - tail_length;
     __m512d sum_vec = _mm512_setzero_pd();
-    __mmask8 tail_mask = (__mmask8)_bzhi_u32(0xFFFF, tail_length);
+    __mmask8 const tail_mask = (__mmask8)_bzhi_u32(0xFFFF, tail_length);
 
     for (simsimd_size_t i = 0; i != n; ++i) {
         __m512d a_vec = _mm512_set1_pd(a[i]);
@@ -815,13 +838,75 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f64_skylake(simsimd_f64_t const *a, simsimd
     *result = _mm512_reduce_add_pd(sum_vec);
 }
 
+SIMSIMD_PUBLIC void simsimd_bilinear_f64c_skylake(simsimd_f64c_t const *a, simsimd_f64c_t const *b,
+                                                  simsimd_f64c_t const *c, simsimd_size_t n,
+                                                  simsimd_distance_t *results) {
+
+    // We take into account, that FMS is the same as FMA with a negative multiplier.
+    // To multiply a floating-point value by -1, we can use the `XOR` instruction to flip the sign bit.
+    // This way we can avoid the shuffling and the need for separate real and imaginary parts.
+    // For the imaginary part of the product, we would need to swap the real and imaginary parts of
+    // one of the vectors.
+    __m512i const sign_flip_vec = _mm512_set_epi64(                                     //
+        0x8000000000000000, 0x0000000000000000, 0x8000000000000000, 0x0000000000000000, //
+        0x8000000000000000, 0x0000000000000000, 0x8000000000000000, 0x0000000000000000  //
+    );
+    __m512i const swap_adjacent_vec = _mm512_set_epi8(                  //
+        55, 54, 53, 52, 51, 50, 49, 48, 63, 62, 61, 60, 59, 58, 57, 56, // 4th 128-bit lane
+        39, 38, 37, 36, 35, 34, 33, 32, 47, 46, 45, 44, 43, 42, 41, 40, // 3rd 128-bit lane
+        23, 22, 21, 20, 19, 18, 17, 16, 31, 30, 29, 28, 27, 26, 25, 24, // 2nd 128-bit lane
+        7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8            // 1st 128-bit lane
+    );
+
+    // Default case for arbitrary size `n`
+    simsimd_size_t const tail_length = n % 4;
+    simsimd_size_t const tail_start = n - tail_length;
+    __mmask8 const tail_mask = (__mmask8)_bzhi_u32(0xFFFF, tail_length * 2);
+    __m512d sum_real_vec = _mm512_setzero_pd();
+    __m512d sum_imag_vec = _mm512_setzero_pd();
+
+    for (simsimd_size_t i = 0; i != n; ++i) {
+        __m512d a_real_vec = _mm512_set1_pd(a[i].real);
+        __m512d a_imag_vec = _mm512_set1_pd(a[i].imag);
+        __m512d partial_sum_real_vec = _mm512_setzero_pd();
+        __m512d partial_sum_imag_vec = _mm512_setzero_pd();
+        __m512d b_vec, c_vec;
+        simsimd_size_t j = 0;
+
+    simsimd_bilinear_f64_skylake_cycle:
+        if (j + 4 <= n) {
+            b_vec = _mm512_loadu_pd((simsimd_f64_t const *)(b + j));
+            c_vec = _mm512_loadu_pd((simsimd_f64_t const *)(c + i * n + j));
+        }
+        else {
+            b_vec = _mm512_maskz_loadu_pd(tail_mask, (simsimd_f64_t const *)(b + tail_start));
+            c_vec = _mm512_maskz_loadu_pd(tail_mask, (simsimd_f64_t const *)(c + i * n + tail_start));
+        }
+        partial_sum_real_vec = _mm512_fmadd_pd(c_vec, b_vec, partial_sum_real_vec);
+        partial_sum_imag_vec = _mm512_fmadd_pd( //
+            _mm512_castsi512_pd(_mm512_shuffle_epi8(_mm512_castpd_si512(c_vec), swap_adjacent_vec)), b_vec,
+            partial_sum_imag_vec);
+        j += 4;
+        if (j < n) goto simsimd_bilinear_f64_skylake_cycle;
+        // Flip the sign bit in every second scalar before accumulation:
+        partial_sum_real_vec =
+            _mm512_castsi512_pd(_mm512_xor_si512(_mm512_castpd_si512(partial_sum_real_vec), sign_flip_vec));
+
+        sum_real_vec = _mm512_fmadd_pd(a_real_vec, partial_sum_real_vec, sum_real_vec);
+        sum_imag_vec = _mm512_fmadd_pd(a_imag_vec, partial_sum_imag_vec, sum_imag_vec);
+    }
+
+    results[0] = _mm512_reduce_add_pd(sum_real_vec);
+    results[1] = _mm512_reduce_add_pd(sum_imag_vec);
+}
+
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f64_skylake(simsimd_f64_t const *a, simsimd_f64_t const *b,
                                                     simsimd_f64_t const *c, simsimd_size_t n,
                                                     simsimd_distance_t *result) {
-    simsimd_size_t tail_length = n % 8;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 8;
+    simsimd_size_t const tail_start = n - tail_length;
+    __mmask8 const tail_mask = (__mmask8)_bzhi_u32(0xFFFF, tail_length);
     __m512d sum_vec = _mm512_setzero_pd();
-    __mmask8 tail_mask = (__mmask8)_bzhi_u32(0xFFFF, tail_length);
 
     for (simsimd_size_t i = 0; i != n; ++i) {
         __m512d diff_i_vec = _mm512_set1_pd(a[i] - b[i]);
@@ -863,10 +948,10 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f64_skylake(simsimd_f64_t const *a, sims
 
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16_genoa(simsimd_bf16_t const *a, simsimd_bf16_t const *b,
                                                 simsimd_bf16_t const *c, simsimd_size_t n, simsimd_distance_t *result) {
-    simsimd_size_t tail_length = n % 32;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 32;
+    simsimd_size_t const tail_start = n - tail_length;
+    __mmask32 const tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, tail_length);
     __m512 sum_vec = _mm512_setzero_ps();
-    __mmask32 tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, tail_length);
 
     for (simsimd_size_t i = 0; i != n; ++i) {
         __m512 a_vec = _mm512_set1_ps(simsimd_bf16_to_f32(a + i));
@@ -895,10 +980,10 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16_genoa(simsimd_bf16_t const *a, simsimd
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_genoa(simsimd_bf16_t const *a, simsimd_bf16_t const *b,
                                                    simsimd_bf16_t const *c, simsimd_size_t n,
                                                    simsimd_distance_t *result) {
-    simsimd_size_t tail_length = n % 32;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 32;
+    simsimd_size_t const tail_start = n - tail_length;
+    __mmask32 const tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, tail_length);
     __m512 sum_vec = _mm512_setzero_ps();
-    __mmask32 tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, tail_length);
 
     for (simsimd_size_t i = 0; i != n; ++i) {
         __m512 diff_i_vec = _mm512_set1_ps(simsimd_bf16_to_f32(a + i) - simsimd_bf16_to_f32(b + i));
@@ -928,6 +1013,10 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_genoa(simsimd_bf16_t const *a, sims
     *result = _simsimd_sqrt_f32_haswell(_mm512_reduce_add_ps(sum_vec));
 }
 
+SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_genoa(simsimd_bf16c_t const *a, simsimd_bf16c_t const *b,
+                                                 simsimd_bf16c_t const *c, simsimd_size_t n,
+                                                 simsimd_distance_t *results) {}
+
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_GENOA
@@ -941,10 +1030,10 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_genoa(simsimd_bf16_t const *a, sims
 SIMSIMD_PUBLIC void simsimd_bilinear_f16_sapphire(simsimd_f16_t const *a, simsimd_f16_t const *b,
                                                   simsimd_f16_t const *c, simsimd_size_t n,
                                                   simsimd_distance_t *result) {
-    simsimd_size_t tail_length = n % 32;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 32;
+    simsimd_size_t const tail_start = n - tail_length;
+    __mmask32 const tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, tail_length);
     __m512h sum_vec = _mm512_setzero_ph();
-    __mmask32 tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, tail_length);
 
     for (simsimd_size_t i = 0; i != n; ++i) {
         __m512h a_vec = _mm512_castsi512_ph(_mm512_set1_epi16(*(short const *)(a + i)));
@@ -973,10 +1062,10 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16_sapphire(simsimd_f16_t const *a, simsim
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_sapphire(simsimd_f16_t const *a, simsimd_f16_t const *b,
                                                      simsimd_f16_t const *c, simsimd_size_t n,
                                                      simsimd_distance_t *result) {
-    simsimd_size_t tail_length = n % 32;
-    simsimd_size_t tail_start = n - tail_length;
+    simsimd_size_t const tail_length = n % 32;
+    simsimd_size_t const tail_start = n - tail_length;
+    __mmask32 const tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, tail_length);
     __m512h sum_vec = _mm512_setzero_ph();
-    __mmask32 tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, tail_length);
 
     for (simsimd_size_t i = 0; i != n; ++i) {
         __m512h a_i_vec = _mm512_castsi512_ph(_mm512_set1_epi16(*(short const *)(a + i)));
@@ -1008,6 +1097,10 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_sapphire(simsimd_f16_t const *a, sim
 
     *result = _simsimd_sqrt_f32_haswell(_mm512_reduce_add_ph(sum_vec));
 }
+
+SIMSIMD_PUBLIC void simsimd_bilinear_f16c_sapphire(simsimd_f16c_t const *a, simsimd_f16c_t const *b,
+                                                   simsimd_f16c_t const *c, simsimd_size_t n,
+                                                   simsimd_distance_t *results) {}
 
 #pragma clang attribute pop
 #pragma GCC pop_options
