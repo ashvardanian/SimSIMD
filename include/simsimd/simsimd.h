@@ -2175,8 +2175,6 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16c(simsimd_f16c_t const *a, simsimd_f16c_
                                           simsimd_size_t n, simsimd_distance_t *d) {
 #if SIMSIMD_TARGET_SAPPHIRE
     simsimd_bilinear_f16c_sapphire(a, b, c, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_bilinear_f16c_haswell(a, b, c, n, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_bilinear_f16c_neon(a, b, c, n, d);
 #else
@@ -2187,8 +2185,6 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16c(simsimd_bf16c_t const *a, simsimd_bf1
                                            simsimd_size_t n, simsimd_distance_t *d) {
 #if SIMSIMD_TARGET_GENOA
     simsimd_bilinear_bf16c_genoa(a, b, c, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_bilinear_bf16c_haswell(a, b, c, n, d);
 #elif SIMSIMD_TARGET_NEON
     simsimd_bilinear_bf16c_neon(a, b, c, n, d);
 #else

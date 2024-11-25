@@ -1438,7 +1438,7 @@ simsimd_dot_f64c_skylake_cycle:
         a_pairs += 4, b_pairs += 4, count_pairs -= 4;
     }
     ab_real_vec = _mm512_fmadd_pd(b_vec, a_vec, ab_real_vec);
-    b_vec = _mm512_permute_pd(b_vec, 0xAA); //? Same as 0b10101010.
+    b_vec = _mm512_permute_pd(b_vec, 0x55); //? Same as 0b01010101.
     ab_imag_vec = _mm512_fmadd_pd(b_vec, a_vec, ab_imag_vec);
     if (count_pairs) goto simsimd_dot_f64c_skylake_cycle;
 
@@ -1478,7 +1478,7 @@ simsimd_vdot_f64c_skylake_cycle:
         a_pairs += 4, b_pairs += 4, count_pairs -= 4;
     }
     ab_real_vec = _mm512_fmadd_pd(a_vec, b_vec, ab_real_vec);
-    b_vec = _mm512_permute_pd(b_vec, 0xAA); //? Same as 0b10101010.
+    b_vec = _mm512_permute_pd(b_vec, 0x55); //? Same as 0b01010101.
     ab_imag_vec = _mm512_fmadd_pd(a_vec, b_vec, ab_imag_vec);
     if (count_pairs) goto simsimd_vdot_f64c_skylake_cycle;
 
@@ -1670,7 +1670,7 @@ simsimd_dot_f16c_sapphire_cycle:
         b_vec = _mm512_loadu_epi16(b_pairs);
         a_pairs += 16, b_pairs += 16, count_pairs -= 16;
     }
-    // TODO: Consider using `_mm512_fmaddsub`
+    // TODO: Consider using `_mm512_fmaddsub` and `_mm512_fcmadd_pch`
     ab_real_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(_mm512_xor_si512(b_vec, sign_flip_vec)),
                                   _mm512_castsi512_ph(a_vec), ab_real_vec);
     ab_imag_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(_mm512_shuffle_epi8(b_vec, swap_adjacent_vec)),
@@ -1714,6 +1714,7 @@ simsimd_dot_f16c_sapphire_cycle:
         b_vec = _mm512_loadu_epi16(b_pairs);
         a_pairs += 16, b_pairs += 16, count_pairs -= 16;
     }
+    // TODO: Consider using `_mm512_fmaddsub` and `_mm512_fcmadd_pch`
     ab_real_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(a_vec), _mm512_castsi512_ph(b_vec), ab_real_vec);
     a_vec = _mm512_xor_si512(a_vec, sign_flip_vec);
     b_vec = _mm512_shuffle_epi8(b_vec, swap_adjacent_vec);

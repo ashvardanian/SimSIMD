@@ -327,14 +327,14 @@ void measure_curved(bm::State &state, metric_at metric, metric_at baseline, std:
     using vector_t = typename pair_at::vector_t;
 
     auto call_baseline = [&](pair_t const &pair, vector_t const &tensor) -> double {
-        simsimd_distance_t results[2] = {signaling_distance, signaling_distance};
+        simsimd_distance_t results[2] = {signaling_distance, 0};
         baseline(pair.a.data(), pair.b.data(), tensor.data(), pair.a.size(), &results[0]);
-        return results[1] != signaling_distance ? results[0] + results[1] : results[0];
+        return results[0] + results[1];
     };
     auto call_contender = [&](pair_t const &pair, vector_t const &tensor) -> double {
-        simsimd_distance_t results[2] = {signaling_distance, signaling_distance};
+        simsimd_distance_t results[2] = {signaling_distance, 0};
         metric(pair.a.data(), pair.b.data(), tensor.data(), pair.a.size(), &results[0]);
-        return results[1] != signaling_distance ? results[0] + results[1] : results[0];
+        return results[0] + results[1];
     };
 
     // Let's average the distance results over many pairs.
@@ -962,12 +962,12 @@ int main(int argc, char **argv) {
     dense_<bf16_k>("cos_bf16_genoa", simsimd_cos_bf16_genoa, simsimd_cos_bf16_accurate);
     dense_<bf16_k>("l2sq_bf16_genoa", simsimd_l2sq_bf16_genoa, simsimd_l2sq_bf16_accurate);
     dense_<bf16_k>("l2_bf16_genoa", simsimd_l2_bf16_genoa, simsimd_l2_bf16_accurate);
-
     dense_<bf16c_k>("dot_bf16c_genoa", simsimd_dot_bf16c_genoa, simsimd_dot_bf16c_accurate);
     dense_<bf16c_k>("vdot_bf16c_genoa", simsimd_vdot_bf16c_genoa, simsimd_vdot_bf16c_accurate);
 
     curved_<bf16_k>("bilinear_bf16_genoa", simsimd_bilinear_bf16_genoa, simsimd_bilinear_bf16_accurate);
     curved_<bf16_k>("mahalanobis_bf16_genoa", simsimd_mahalanobis_bf16_genoa, simsimd_mahalanobis_bf16_accurate);
+    curved_<bf16c_k>("bilinear_bf16c_genoa", simsimd_bilinear_bf16c_genoa, simsimd_bilinear_bf16c_accurate);
 #endif
 
 #if SIMSIMD_TARGET_SAPPHIRE
@@ -985,6 +985,10 @@ int main(int argc, char **argv) {
     fma_<u8_k>("wsum_u8_sapphire", simsimd_wsum_u8_sapphire, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
     fma_<i8_k>("fma_i8_sapphire", simsimd_fma_i8_sapphire, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
     fma_<i8_k>("wsum_i8_sapphire", simsimd_wsum_i8_sapphire, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
+
+    curved_<f16_k>("bilinear_f16_sapphire", simsimd_bilinear_f16_sapphire, simsimd_bilinear_f16_accurate);
+    curved_<f16_k>("mahalanobis_f16_sapphire", simsimd_mahalanobis_f16_sapphire, simsimd_mahalanobis_f16_accurate);
+    curved_<f16c_k>("bilinear_f16c_sapphire", simsimd_bilinear_f16c_sapphire, simsimd_bilinear_f16c_accurate);
 #endif
 
 #if SIMSIMD_TARGET_ICE
