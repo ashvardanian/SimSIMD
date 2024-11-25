@@ -327,14 +327,14 @@ void measure_curved(bm::State &state, metric_at metric, metric_at baseline, std:
     using vector_t = typename pair_at::vector_t;
 
     auto call_baseline = [&](pair_t const &pair, vector_t const &tensor) -> double {
-        simsimd_distance_t result = signaling_distance;
-        baseline(pair.a.data(), pair.b.data(), tensor.data(), pair.a.size(), &result);
-        return result;
+        simsimd_distance_t results[2] = {signaling_distance, signaling_distance};
+        baseline(pair.a.data(), pair.b.data(), tensor.data(), pair.a.size(), &results[0]);
+        return results[1] != signaling_distance ? results[0] + results[1] : results[0];
     };
     auto call_contender = [&](pair_t const &pair, vector_t const &tensor) -> double {
-        simsimd_distance_t result = signaling_distance;
-        metric(pair.a.data(), pair.b.data(), tensor.data(), pair.a.size(), &result);
-        return result;
+        simsimd_distance_t results[2] = {signaling_distance, signaling_distance};
+        metric(pair.a.data(), pair.b.data(), tensor.data(), pair.a.size(), &results[0]);
+        return results[1] != signaling_distance ? results[0] + results[1] : results[0];
     };
 
     // Let's average the distance results over many pairs.
