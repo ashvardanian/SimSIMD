@@ -810,6 +810,7 @@ int main(int argc, char **argv) {
 
     curved_<f32_k>("bilinear_f32_neon", simsimd_bilinear_f32_neon, simsimd_bilinear_f32_accurate);
     curved_<f32_k>("mahalanobis_f32_neon", simsimd_mahalanobis_f32_neon, simsimd_mahalanobis_f32_accurate);
+    curved_<f32c_k>("bilinear_f32c_neon", simsimd_bilinear_f32c_neon, simsimd_bilinear_f32c_accurate);
 
     sparse_<u16_k>("intersect_u16_neon", simsimd_intersect_u16_neon, simsimd_intersect_u16_accurate);
     sparse_<u32_k>("intersect_u32_neon", simsimd_intersect_u32_neon, simsimd_intersect_u32_accurate);
@@ -834,6 +835,7 @@ int main(int argc, char **argv) {
 
     curved_<f16_k>("bilinear_f16_neon", simsimd_bilinear_f16_neon, simsimd_bilinear_f16_accurate);
     curved_<f16_k>("mahalanobis_f16_neon", simsimd_mahalanobis_f16_neon, simsimd_mahalanobis_f16_accurate);
+    curved_<f16c_k>("bilinear_f16c_neon", simsimd_bilinear_f16c_neon, simsimd_bilinear_f16c_accurate);
 
     fma_<f16_k>("fma_f16_neon", simsimd_fma_f16_neon, simsimd_fma_f16_accurate, simsimd_l2_f16_accurate);
     fma_<f16_k>("wsum_f16_neon", simsimd_wsum_f16_neon, simsimd_wsum_f16_accurate, simsimd_l2_f16_accurate);
@@ -856,6 +858,7 @@ int main(int argc, char **argv) {
 
     curved_<bf16_k>("bilinear_bf16_neon", simsimd_bilinear_bf16_neon, simsimd_bilinear_bf16_accurate);
     curved_<bf16_k>("mahalanobis_bf16_neon", simsimd_mahalanobis_bf16_neon, simsimd_mahalanobis_bf16_accurate);
+    curved_<bf16c_k>("bilinear_bf16c_neon", simsimd_bilinear_bf16c_neon, simsimd_bilinear_bf16c_accurate);
 
     fma_<bf16_k>("fma_bf16_neon", simsimd_fma_bf16_neon, simsimd_fma_bf16_accurate, simsimd_l2_bf16_accurate);
     fma_<bf16_k>("wsum_bf16_neon", simsimd_wsum_bf16_neon, simsimd_wsum_bf16_accurate, simsimd_l2_bf16_accurate);

@@ -564,8 +564,8 @@ SIMSIMD_PUBLIC void simsimd_dot_bf16c_neon(simsimd_bf16c_t const *a_pairs, simsi
         // Unpack the input arrays into real and imaginary parts.
         // MSVC sadly doesn't recognize the `vld2_bf16`, so we load the  data as signed
         // integers of the same size and reinterpret with `vreinterpret_bf16_s16` afterwards.
-        int16x4x2_t a_vec = vld2_s16((short *)a_pairs);
-        int16x4x2_t b_vec = vld2_s16((short *)b_pairs);
+        int16x4x2_t a_vec = vld2_s16((short const *)a_pairs);
+        int16x4x2_t b_vec = vld2_s16((short const *)b_pairs);
         float32x4_t a_real_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(a_vec.val[0]));
         float32x4_t a_imag_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(a_vec.val[1]));
         float32x4_t b_real_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(b_vec.val[0]));
@@ -599,8 +599,8 @@ SIMSIMD_PUBLIC void simsimd_vdot_bf16c_neon(simsimd_bf16c_t const *a_pairs, sims
         // Unpack the input arrays into real and imaginary parts.
         // MSVC sadly doesn't recognize the `vld2_bf16`, so we load the  data as signed
         // integers of the same size and reinterpret with `vreinterpret_bf16_s16` afterwards.
-        int16x4x2_t a_vec = vld2_s16((short *)a_pairs);
-        int16x4x2_t b_vec = vld2_s16((short *)b_pairs);
+        int16x4x2_t a_vec = vld2_s16((short const *)a_pairs);
+        int16x4x2_t b_vec = vld2_s16((short const *)b_pairs);
         float32x4_t a_real_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(a_vec.val[0]));
         float32x4_t a_imag_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(a_vec.val[1]));
         float32x4_t b_real_vec = vcvt_f32_bf16(vreinterpret_bf16_s16(b_vec.val[0]));
