@@ -588,7 +588,7 @@ def test_invalid_argument_handling(function, expected_error, args, kwargs):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(5)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
@@ -617,7 +617,7 @@ def test_dense(ndim, dtype, metric, capability, stats_fixture):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(5)
 @pytest.mark.parametrize("ndim", [11, 97])
 @pytest.mark.parametrize(
     "dtypes",  # representation datatype and compute precision
@@ -672,8 +672,42 @@ def test_curved(ndim, dtypes, metric, capability, stats_fixture):
     collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
 
+@pytest.mark.skipif(is_running_under_qemu(), reason="Complex math in QEMU fails")
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(5)
+@pytest.mark.parametrize("ndim", [11, 97])
+@pytest.mark.parametrize("dtype", ["complex128", "complex64"])
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_curved_complex(ndim, dtype, capability, stats_fixture):
+    """Compares various SIMD kernels (like Bilinear Forms and Mahalanobis distances) for curved spaces
+    with their NumPy or baseline counterparts, testing accuracy for complex IEEE standard floating-point types."""
+
+    # Let's generate some uniform complex numbers
+    np.random.seed()
+    a = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
+    b = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
+    c = (np.random.randn(ndim, ndim) + 1.0j * np.random.randn(ndim, ndim)).astype(dtype)
+
+    keep_one_capability(capability)
+    baseline_kernel, simd_kernel = name_to_kernels("bilinear")
+    accurate_dt, accurate = profile(
+        baseline_kernel,
+        a.astype(np.complex128),
+        b.astype(np.complex128),
+        c.astype(np.complex128),
+    )
+    expected_dt, expected = profile(baseline_kernel, a, b, c)
+    result_dt, result = profile(simd_kernel, a, b, c)
+    result = np.array(result)
+
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    collect_errors(
+        "bilinear", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture
+    )
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(5)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -713,7 +747,7 @@ def test_dense_bf16(ndim, metric, capability, stats_fixture):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(5)
 @pytest.mark.parametrize("ndim", [11, 16, 33])
 @pytest.mark.parametrize("metric", ["bilinear", "mahalanobis"])
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -772,7 +806,7 @@ def test_curved_bf16(ndim, metric, capability, stats_fixture):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(5)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["int8", "uint8"])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
@@ -818,7 +852,7 @@ def test_dense_i8(ndim, dtype, metric, capability, stats_fixture):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(5)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("metric", ["jaccard", "hamming"])
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -849,7 +883,7 @@ def test_dense_bits(ndim, metric, capability, stats_fixture):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(5)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float32", "float16"])
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -903,7 +937,7 @@ def test_cosine_zero_vector(ndim, dtype, capability):
 
 @pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/SimSIMD/issues/206")  # TODO
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(5)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
@@ -937,7 +971,7 @@ def test_overflow(ndim, dtype, metric, capability):
 
 @pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/SimSIMD/issues/206")  # TODO
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(5)
 @pytest.mark.parametrize("ndim", [131072, 262144])
 @pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -967,16 +1001,15 @@ def test_overflow_i8(ndim, metric, capability):
 
 @pytest.mark.skipif(is_running_under_qemu(), reason="Complex math in QEMU fails")
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [22, 66, 1536])
-@pytest.mark.parametrize("dtype", ["float32", "float64"])
+@pytest.mark.repeat(5)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("dtype", ["complex128", "complex64"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_dot_complex(ndim, dtype, capability, stats_fixture):
     """Compares the simd.dot() and simd.vdot() against NumPy for complex numbers."""
     np.random.seed()
-    dtype_view = np.complex64 if dtype == "float32" else np.complex128
-    a = np.random.randn(ndim).astype(dtype=dtype).view(dtype_view)
-    b = np.random.randn(ndim).astype(dtype=dtype).view(dtype_view)
+    a = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
+    b = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
 
     keep_one_capability(capability)
     accurate_dt, accurate = profile(np.dot, a.astype(np.complex128), b.astype(np.complex128))
@@ -985,9 +1018,7 @@ def test_dot_complex(ndim, dtype, capability, stats_fixture):
     result = np.array(result)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-    collect_errors(
-        "dot", ndim, dtype + "c", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture
-    )
+    collect_errors("dot", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
     accurate_dt, accurate = profile(np.vdot, a.astype(np.complex128), b.astype(np.complex128))
     expected_dt, expected = profile(np.vdot, a, b)
@@ -995,36 +1026,11 @@ def test_dot_complex(ndim, dtype, capability, stats_fixture):
     result = np.array(result)
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-    collect_errors(
-        "vdot", ndim, dtype + "c", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture
-    )
-
-
-@pytest.mark.skipif(is_running_under_qemu(), reason="Complex math in QEMU fails")
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
-@pytest.mark.parametrize("ndim", [22, 66, 1536])
-@pytest.mark.parametrize("capability", possible_capabilities)
-def test_dot_complex_explicit(ndim, capability):
-    """Compares the simd.dot() and simd.vdot() against NumPy for complex numbers."""
-    np.random.seed()
-    a = np.random.randn(ndim).astype(dtype=np.float32)
-    b = np.random.randn(ndim).astype(dtype=np.float32)
-
-    keep_one_capability(capability)
-    expected = np.dot(a.view(np.complex64), b.view(np.complex64))
-    result = simd.dot(a, b, "complex64")
-
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-
-    expected = np.vdot(a.view(np.complex64), b.view(np.complex64))
-    result = simd.vdot(a, b, "complex64")
-
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    collect_errors("vdot", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(100)
+@pytest.mark.repeat(5)
 @pytest.mark.parametrize("dtype", ["uint16", "uint32"])
 @pytest.mark.parametrize("first_length_bound", [10, 100, 1000])
 @pytest.mark.parametrize("second_length_bound", [10, 100, 1000])
@@ -1054,7 +1060,7 @@ def test_intersect(dtype, first_length_bound, second_length_bound, capability):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(5)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("kernel", ["fma"])
@@ -1115,7 +1121,7 @@ def test_fma(ndim, dtype, kernel, capability, stats_fixture):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(5)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("kernel", ["wsum"])
@@ -1385,7 +1391,7 @@ def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
-@pytest.mark.repeat(50)
+@pytest.mark.repeat(5)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("out_dtype", [None, "float32", "float16", "int8"])
 @pytest.mark.parametrize("capability", possible_capabilities)

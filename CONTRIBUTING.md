@@ -63,6 +63,15 @@ cmake -D CMAKE_BUILD_TYPE=Release \
 cmake --build build_release --config Release
 ```
 
+When benchmarking, make sure to disable multi-threading in the BLAS library, as it may interfere with the results:
+
+```sh
+export OPENBLAS_NUM_THREADS=1 # for OpenBLAS
+export MKL_NUM_THREADS=1 # for Intel MKL
+export VECLIB_MAXIMUM_THREADS=1 # for Apple Accelerate
+export BLIS_NUM_THREADS=1 # for BLIS
+```
+
 ## Python
 
 Testing:
@@ -140,7 +149,6 @@ cibuildwheel --platform linux                   # works on any OS and builds all
 cibuildwheel --platform linux --archs x86_64    # 64-bit x86, the most common on desktop and servers
 cibuildwheel --platform linux --archs aarch64   # 64-bit Arm for mobile devices, Apple M-series, and AWS Graviton
 cibuildwheel --platform linux --archs i686      # 32-bit Linux
-cibuildwheel --platform linux --archs s390x     # emulating big-endian IBM Z
 cibuildwheel --platform macos                   # works only on MacOS
 cibuildwheel --platform windows                 # works only on Windows
 ```

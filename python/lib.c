@@ -540,8 +540,6 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, TensorArgument *parsed) {
         return 0;
     }
 
-    // We handle complex numbers differently
-    if (is_complex(parsed->datatype)) parsed->dimensions *= 2;
     return 1;
 }
 
@@ -729,17 +727,12 @@ static PyObject *implement_dense_metric( //
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     int const dtype_is_complex = is_complex(dtype);
     if (a_parsed.rank == 1 && b_parsed.rank == 1) {
-        // For complex numbers we are going to use `PyComplex_FromDoubles`.
-        if (dtype_is_complex) {
-            simsimd_distance_t distances[2];
-            metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, distances);
-            return_obj = PyComplex_FromDoubles(distances[0], distances[1]);
-        }
-        else {
-            simsimd_distance_t distance;
-            metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, &distance);
-            return_obj = PyFloat_FromDouble(distance);
-        }
+        simsimd_distance_t distances[2];
+        metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, distances);
+        return_obj =         //
+            dtype_is_complex //
+                ? PyComplex_FromDoubles(distances[0], distances[1])
+                : PyFloat_FromDouble(distances[0]);
         goto cleanup;
     }
 
@@ -931,9 +924,14 @@ static PyObject *implement_curved_metric( //
         goto cleanup;
     }
 
-    simsimd_distance_t distance;
-    metric(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, &distance);
-    return_obj = PyFloat_FromDouble(distance);
+    // If the distance is computed between two vectors, rather than matrices, return a scalar
+    int const dtype_is_complex = is_complex(dtype);
+    simsimd_distance_t distances[2];
+    metric(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, &distances[0]);
+    return_obj =         //
+        dtype_is_complex //
+            ? PyComplex_FromDoubles(distances[0], distances[1])
+            : PyFloat_FromDouble(distances[0]);
 
 cleanup:
     PyBuffer_Release(&a_buffer);
@@ -1083,17 +1081,12 @@ static PyObject *implement_cdist(                        //
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     int const dtype_is_complex = is_complex(dtype);
     if (a_parsed.rank == 1 && b_parsed.rank == 1) {
-        // For complex numbers we are going to use `PyComplex_FromDoubles`.
-        if (dtype_is_complex) {
-            simsimd_distance_t distances[2];
-            metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, distances);
-            return_obj = PyComplex_FromDoubles(distances[0], distances[1]);
-        }
-        else {
-            simsimd_distance_t distance;
-            metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, &distance);
-            return_obj = PyFloat_FromDouble(distance);
-        }
+        simsimd_distance_t distances[2];
+        metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, distances);
+        return_obj =         //
+            dtype_is_complex //
+                ? PyComplex_FromDoubles(distances[0], distances[1])
+                : PyFloat_FromDouble(distances[0]);
         goto cleanup;
     }
 
