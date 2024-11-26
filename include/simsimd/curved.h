@@ -836,9 +836,8 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f32_skylake_under16unrolled(simsimd_f32_t c
                                                                  simsimd_distance_t *result) {
     // The goal of this optimization is to avoid horizontal accumulation of the cb_j sums
     // until the very end of the computation.
-    simsimd_size_t const row_length = n % 16;
-    __mmask16 const row_mask = (__mmask16)_bzhi_u32(0xFFFF, row_length);
-    __m512 const b_vec = _mm512_maskz_loadu_ps(row_mask, b);
+    __mmask16 const mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
+    __m512 const b_vec = _mm512_maskz_loadu_ps(mask, b);
 
     __m512 cb_j1 = _mm512_setzero_ps();
     __m512 cb_j2 = _mm512_setzero_ps();
@@ -848,27 +847,27 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f32_skylake_under16unrolled(simsimd_f32_t c
     // Unroll the loop to process 4x ZMM registers at a time.
     simsimd_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
-        cb_j1 = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(row_mask, c + n * (i + 0)),
+        cb_j1 = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(mask, c + n * (i + 0)),
                                 _mm512_mul_ps(b_vec, _mm512_set1_ps(a[i + 0])), cb_j1);
-        cb_j2 = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(row_mask, c + n * (i + 1)),
+        cb_j2 = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(mask, c + n * (i + 1)),
                                 _mm512_mul_ps(b_vec, _mm512_set1_ps(a[i + 1])), cb_j2);
-        cb_j3 = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(row_mask, c + n * (i + 2)),
+        cb_j3 = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(mask, c + n * (i + 2)),
                                 _mm512_mul_ps(b_vec, _mm512_set1_ps(a[i + 2])), cb_j3);
-        cb_j4 = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(row_mask, c + n * (i + 3)),
+        cb_j4 = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(mask, c + n * (i + 3)),
                                 _mm512_mul_ps(b_vec, _mm512_set1_ps(a[i + 3])), cb_j4);
     }
 
     if (i + 0 < n)
-        cb_j1 = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(row_mask, c + n * (i + 0)),
+        cb_j1 = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(mask, c + n * (i + 0)),
                                 _mm512_mul_ps(b_vec, _mm512_set1_ps(a[i + 0])), cb_j1);
     if (i + 1 < n)
-        cb_j2 = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(row_mask, c + n * (i + 1)),
+        cb_j2 = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(mask, c + n * (i + 1)),
                                 _mm512_mul_ps(b_vec, _mm512_set1_ps(a[i + 1])), cb_j2);
     if (i + 2 < n)
-        cb_j3 = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(row_mask, c + n * (i + 2)),
+        cb_j3 = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(mask, c + n * (i + 2)),
                                 _mm512_mul_ps(b_vec, _mm512_set1_ps(a[i + 2])), cb_j3);
     if (i + 3 < n)
-        cb_j4 = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(row_mask, c + n * (i + 3)),
+        cb_j4 = _mm512_fmadd_ps(_mm512_maskz_loadu_ps(mask, c + n * (i + 3)),
                                 _mm512_mul_ps(b_vec, _mm512_set1_ps(a[i + 3])), cb_j4);
 
     // Combine cb_j sums
@@ -892,7 +891,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f32_skylake(simsimd_f32_t const *a, simsimd
     simsimd_size_t const tail_length = n % 16;
     simsimd_size_t const tail_start = n - tail_length;
     __m512 sum_vec = _mm512_setzero_ps();
-    __mmask16 const tail_mask = (__mmask16)_bzhi_u32(0xFFFF, tail_length);
+    __mmask16 const tail_mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, tail_length);
 
     for (simsimd_size_t i = 0; i != n; ++i) {
         __m512 a_vec = _mm512_set1_ps(a[i]);
@@ -924,7 +923,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_skylake(simsimd_f32_t const *a, sims
     simsimd_size_t const tail_length = n % 16;
     simsimd_size_t const tail_start = n - tail_length;
     __m512 sum_vec = _mm512_setzero_ps();
-    __mmask16 const tail_mask = (__mmask16)_bzhi_u32(0xFFFF, tail_length);
+    __mmask16 const tail_mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, tail_length);
 
     for (simsimd_size_t i = 0; i != n; ++i) {
         __m512 diff_i_vec = _mm512_set1_ps(a[i] - b[i]);
@@ -968,7 +967,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f32c_skylake(simsimd_f32c_t const *a, simsi
     // Default case for arbitrary size `n`
     simsimd_size_t const tail_length = n % 8;
     simsimd_size_t const tail_start = n - tail_length;
-    __mmask16 const tail_mask = (__mmask16)_bzhi_u32(0xFFFF, tail_length * 2);
+    __mmask16 const tail_mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, tail_length * 2);
     simsimd_f32_t sum_real = 0;
     simsimd_f32_t sum_imag = 0;
 
@@ -1018,8 +1017,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f64_skylake_under8unrolled(simsimd_f64_t co
 
     // The goal of this optimization is to avoid horizontal accumulation of the cb_j sums
     // until the very end of the computation.
-    simsimd_size_t const row_length = n % 8;
-    __mmask8 const row_mask = (__mmask8)_bzhi_u32(0xFFFF, row_length);
+    __mmask8 const row_mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
     __m512d const b_vec = _mm512_maskz_loadu_pd(row_mask, b);
 
     __m512d cb_j1 = _mm512_setzero_pd();
@@ -1060,7 +1058,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f64_skylake(simsimd_f64_t const *a, simsimd
     simsimd_size_t const tail_length = n % 8;
     simsimd_size_t const tail_start = n - tail_length;
     __m512d sum_vec = _mm512_setzero_pd();
-    __mmask8 const tail_mask = (__mmask8)_bzhi_u32(0xFFFF, tail_length);
+    __mmask8 const tail_mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, tail_length);
 
     for (simsimd_size_t i = 0; i != n; ++i) {
         __m512d a_vec = _mm512_set1_pd(a[i]);
@@ -1091,7 +1089,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f64_skylake(simsimd_f64_t const *a, sims
                                                     simsimd_distance_t *result) {
     simsimd_size_t const tail_length = n % 8;
     simsimd_size_t const tail_start = n - tail_length;
-    __mmask8 const tail_mask = (__mmask8)_bzhi_u32(0xFFFF, tail_length);
+    __mmask8 const tail_mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, tail_length);
     __m512d sum_vec = _mm512_setzero_pd();
 
     for (simsimd_size_t i = 0; i != n; ++i) {
@@ -1139,7 +1137,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f64c_skylake(simsimd_f64c_t const *a, simsi
     // Default case for arbitrary size `n`
     simsimd_size_t const tail_length = n % 4;
     simsimd_size_t const tail_start = n - tail_length;
-    __mmask8 const tail_mask = (__mmask8)_bzhi_u32(0xFFFF, tail_length * 2);
+    __mmask8 const tail_mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, tail_length * 2);
     simsimd_f64_t sum_real = 0;
     simsimd_f64_t sum_imag = 0;
 
@@ -1338,8 +1336,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16_sapphire_under32unrolled(simsimd_f16_t 
                                                                   simsimd_distance_t *result) {
     // The goal of this optimization is to avoid horizontal accumulation of the cb_j sums
     // until the very end of the computation.
-    simsimd_size_t const row_length = n % 32;
-    __mmask32 const mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, row_length);
+    __mmask32 const mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
     __m512h const b_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, b));
 
     // Independently accumulate the partial sums into separate variables to avoid data-dependencies.
