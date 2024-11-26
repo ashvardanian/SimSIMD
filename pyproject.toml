@@ -44,7 +44,7 @@ archs = ["all"]
 # Add "pp*" to skip PyPy builds, but they should work fine these days :)
 # https://cibuildwheel.readthedocs.io/en/stable/options/#build-skip
 # https://cibuildwheel.readthedocs.io/en/stable/#what-does-it-do
-skip = ["*s390x*", "*ppc64le*"]
+skip = [] # we don't use any SIMD on: ["*s390x*", "*ppc64le*"]
 
 # Testing half-precision math in QEMU is unreliable!
 environment-pass = ["SIMSIMD_IN_QEMU"]
