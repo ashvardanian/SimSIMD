@@ -1,11 +1,11 @@
 # This file configures wheels compilation for `cibuilwheel` for SimSIMD CPython bindings.
 # On a good day it will produce:
-#   - `manylinux` and `musllinux` wheels for Linux on x86_64, aarch64, i686, ppc64le, s390x;
+#   - `manylinux` and `musllinux` wheels for Linux on x86_64, aarch64, i686;
 #   - `macos` wheels for x86_64, arm64, and universal2;
 #   - `windows` wheels for AMD64, x86, and ARM64.
 #   * for 7 Python versions from 3.7 to 3.13.
 #   * running thousands of fuzzy tests on each wheel.
-#   = meaning 16 platforms * 7 Python versions = 96 builds.
+#   = meaning 12 platforms * 7 Python versions = 84 builds.
 [build-system]
 requires = ["setuptools>=42"]
 build-backend = "setuptools.build_meta"
@@ -31,20 +31,20 @@ test-command = """
 """
 
 # We need to build for all platforms:
-# - on Linux: x86_64, aarch64, i686, ppc64le, s390x
+# - on Linux: x86_64, aarch64, i686
 # - on MacOS: x86_64, arm64, universal2
 # - on Windows: AMD64, x86, ARM64
 # https://cibuildwheel.readthedocs.io/en/stable/options/#archs
 #
-# Important to note, not all those paltforms have recent images.
-# The `manylinux_2_28` seems to be missing for `s390x`, `i686`, and `ppc64le`.
+# Important to note, not all those platforms have recent images.
+# The `manylinux_2_28` seems to be missing for `i686`.
 # The `i686` is 32-bit x86, and `x86_64` is 64-bit x86.
 archs = ["all"]
 
 # Add "pp*" to skip PyPy builds, but they should work fine these days :)
 # https://cibuildwheel.readthedocs.io/en/stable/options/#build-skip
 # https://cibuildwheel.readthedocs.io/en/stable/#what-does-it-do
-skip = []
+skip = ["*s390x*", "*ppc64le*"]
 
 # Testing half-precision math in QEMU is unreliable!
 environment-pass = ["SIMSIMD_IN_QEMU"]
@@ -63,10 +63,8 @@ repair-wheel-command = "auditwheel repair --lib-sdir . -w {dest_dir} {wheel}"
 # - for `musllinux`: https://quay.io/search?q=musllinux
 manylinux-x86_64-image = "manylinux_2_28"
 manylinux-aarch64-image = "manylinux_2_28"
-manylinux-s390x-image = "manylinux_2_28"
 musllinux-x86_64-image = "musllinux_1_2"
 musllinux-aarch64-image = "musllinux_1_2"
-musllinux-s390x-image = "musllinux_1_2"
 
 # On CentOS we have to use `yum`.
 # The healthy version would be: `apt-get update && apt-get install -y libc6-dev wget python3-dev`.

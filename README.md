@@ -9,7 +9,7 @@ The rare few that support minimal mixed precision, run only on one platform, and
 SimSIMD provides an alternative.
 1️⃣ SimSIMD functions are practically as fast as `memcpy`.
 2️⃣ Unlike BLAS, most kernels are designed for mixed-precision and bit-level operations.
-3️⃣ SimSIMD [compiles to more platforms than NumPy (105 vs 35)][compatibility] and has more backends than most BLAS implementations, and more high-level interfaces than most libraries.
+3️⃣ SimSIMD often [ships more binaries than NumPy][compatibility] and has more backends than most BLAS implementations, and more high-level interfaces than most libraries.
 
 [benchmarks]: https://ashvardanian.com/posts/simsimd-faster-scipy
 [compatibility]: https://pypi.org/project/simsimd/#files
