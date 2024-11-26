@@ -34,7 +34,7 @@ constexpr simsimd_distance_t signaling_distance = std::numeric_limits<simsimd_di
 /// For sub-byte data types
 constexpr std::size_t dense_dimensions = 1536;
 /// Has quadratic impact on the number of operations
-constexpr std::size_t curved_dimensions = 128;
+constexpr std::size_t curved_dimensions = 8;
 
 namespace bm = benchmark;
 
@@ -1039,6 +1039,8 @@ int main(int argc, char **argv) {
     fma_<bf16_k>("fma_bf16_skylake", simsimd_fma_bf16_skylake, simsimd_fma_bf16_accurate, simsimd_l2_bf16_accurate);
     fma_<bf16_k>("wsum_bf16_skylake", simsimd_wsum_bf16_skylake, simsimd_wsum_bf16_accurate, simsimd_l2_bf16_accurate);
 
+    curved_<f32_k>("bilinear_f32_skylake", simsimd_bilinear_f32_skylake, simsimd_bilinear_f32_serial);
+    curved_<f32c_k>("bilinear_f32c_skylake", simsimd_bilinear_f32c_skylake, simsimd_bilinear_f32c_serial);
     curved_<f64_k>("bilinear_f64_skylake", simsimd_bilinear_f64_skylake, simsimd_bilinear_f64_serial);
     curved_<f64c_k>("bilinear_f64c_skylake", simsimd_bilinear_f64c_skylake, simsimd_bilinear_f64c_serial);
 #endif
