@@ -256,7 +256,9 @@ where
     /// The cosine similarity is a measure of similarity between two non-zero vectors
     /// of an dot product space that measures the cosine of the angle between them.
     fn cosine(a: &[Self], b: &[Self]) -> Option<Distance> {
+        
         SpatialSimilarity::cos(a, b)
+       
     }
 }
 
