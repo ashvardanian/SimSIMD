@@ -103,114 +103,173 @@ You can learn more about the technical implementation details in the following b
     <th align="center">C 99</th>
     <th align="center">SimSIMD</th>
   </tr>
-  <!-- Cosine distance with different precision levels -->
+  <!-- Cosine distances with different precision levels -->
+  <tr>
+    <td colspan="4" align="center">cosine distances between 1536d vectors in <code>int8</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.cosine -->
+      🚧 overflows<br/>
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>10,548,600</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>11,379,300</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>16,151,800</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>13,524,000</b> ops/s
+    </td>
+  </tr>
+  <tr>
+    <td colspan="4" align="center">cosine distances between 1536d vectors in <code>bfloat16</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.cosine -->
+      🚧 not supported<br/>
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>119,835</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>403,909</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>9,738,540</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>4,881,900</b> ops/s
+    </td>
+  </tr>
   <tr>
     <td colspan="4" align="center">cosine distances between 1536d vectors in <code>float16</code></td>
   </tr>
   <tr>
     <td align="center"> <!-- scipy.spatial.distance.cosine -->
-      <code>int8</code><br/>
-      🚧 overflows<br/>
-      <code>bfloat16</code><br/>
-      🚧 not supported<br/>
-      <code>float16</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>40,481</b> &centerdot;
+      <span style="color:#ABABAB;">x86:</span> <b>40,481</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>21,451</b> ops/s
-      <code>float32</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>253,902</b> &centerdot;
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>501,310</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>871,963</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>7,627,600</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>3,316,810</b> ops/s
+    </td>
+  </tr>
+  <tr>
+    <td colspan="4" align="center">cosine distances between 1536d vectors in <code>float32</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.cosine -->
+      <span style="color:#ABABAB;">x86:</span> <b>253,902</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>46,394</b> ops/s
-      <code>float64</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>212,421</b> &centerdot;
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>882,484</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>399,661</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>8,202,910</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>3,400,620</b> ops/s
+    </td>
+  </tr>
+  <tr>
+    <td colspan="4" align="center">cosine distances between 1536d vectors in <code>float64</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.cosine -->
+      <span style="color:#ABABAB;">x86:</span> <b>212,421</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>52,904</b> ops/s
     </td>
     <td align="center"> <!-- serial -->
-      <code>int8</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>10,548,600</b> &centerdot;
-      <span style="color:#ABABAB;">arm:</span> <b>11,379,300</b> ops/s
-      <code>bfloat16</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>119,835</b> &centerdot;
-      <span style="color:#ABABAB;">arm:</span> <b>403,909</b> ops/s
-      <code>float16</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>501,310</b> &centerdot;
-      <span style="color:#ABABAB;">arm:</span> <b>871,963</b> ops/s
-      <code>float32</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>882,484</b> &centerdot;
-      <span style="color:#ABABAB;">arm:</span> <b>399,661</b> ops/s
-      <code>float64</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>839,301</b> &centerdot;
+      <span style="color:#ABABAB;">x86:</span> <b>839,301</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>837,126</b> ops/s
     </td>
     <td align="center"> <!-- simsimd -->
-      <code>int8</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>16,151,800</b> &centerdot;
-      <span style="color:#ABABAB;">arm:</span> <b>13,524,000</b> ops/s
-      <code>bfloat16</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>9,738,540</b> &centerdot;
-      <span style="color:#ABABAB;">arm:</span> <b>4,881,900</b> ops/s
-      <code>float16</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>7,627,600</b> &centerdot;
-      <span style="color:#ABABAB;">arm:</span> <b>3,316,810</b> ops/s
-      <code>float32</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>8,202,910</b> &centerdot;
-      <span style="color:#ABABAB;">arm:</span> <b>3,400,620</b> ops/s
-      <code>float64</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>1,538,530</b> &centerdot;
+      <span style="color:#ABABAB;">x86:</span> <b>1,538,530</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>1,678,920</b> ops/s
     </td>
   </tr>
+
   <!-- Euclidean distance with different precision level -->
+  <tr>
+    <td colspan="4" align="center">eculidean distance between 1536d vectors in <code>int8</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
+      <span style="color:#ABABAB;">x86:</span> <b>252,113</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>177,443</b> ops/s
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>6,690,110</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>4,114,160</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>18,989,000</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>18,878,200</b> ops/s
+    </td>
+  </tr>
+  <tr>
+    <td colspan="4" align="center">eculidean distance between 1536d vectors in <code>bfloat16</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
+      🚧 not supported<br/>
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>119,842</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>1,049,230</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>9,727,210</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>4,233,420</b> ops/s
+    </td>
+  </tr>
   <tr>
     <td colspan="4" align="center">eculidean distance between 1536d vectors in <code>float16</code></td>
   </tr>
   <tr>
     <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
-      <code>int8</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>252,113</b> &centerdot;
-      <span style="color:#ABABAB;">arm:</span> <b>177,443</b> ops/s
-      <code>bfloat16</code><br/>
-      🚧 not supported<br/>
-      <code>float16</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>54,621</b> &centerdot;
+      <span style="color:#ABABAB;">x86:</span> <b>54,621</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>71,793</b> ops/s
-      <code>float32</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>424,944</b> &centerdot;
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>196,413</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>911,370</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>19,466,800</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>3,522,760</b> ops/s
+    </td>
+  </tr>
+  <tr>
+    <td colspan="4" align="center">eculidean distance between 1536d vectors in <code>float32</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
+      <span style="color:#ABABAB;">x86:</span> <b>424,944</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>292,629</b> ops/s
-      <code>float64</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>334,929</b> &centerdot;
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>1,295,210</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>1,055,940</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>8,924,100</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>3,602,650</b> ops/s
+    </td>
+  </tr>
+  <tr>
+    <td colspan="4" align="center">eculidean distance between 1536d vectors in <code>float64</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
+      <span style="color:#ABABAB;">x86:</span> <b>334,929</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>237,505</b> ops/s
     </td>
     <td align="center"> <!-- serial -->
-      <code>int8</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>6,690,110</b> &centerdot;
-      <span style="color:#ABABAB;">arm:</span> <b>4,114,160</b> ops/s
-      <code>bfloat16</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>119,842</b> &centerdot;
-      <span style="color:#ABABAB;">arm:</span> <b>1,049,230</b> ops/s
-      <code>float16</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>196,413</b> &centerdot;
-      <span style="color:#ABABAB;">arm:</span> <b>911,370</b> ops/s
-      <code>float32</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>1,295,210</b> &centerdot;
-      <span style="color:#ABABAB;">arm:</span> <b>1,055,940</b> ops/s
-      <code>float64</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>1,215,190</b> &centerdot;
+      <span style="color:#ABABAB;">x86:</span> <b>1,215,190</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>905,782</b> ops/s
     </td>
     <td align="center"> <!-- simsimd -->
-      <code>int8</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>18,989,000</b> &centerdot;
-      <span style="color:#ABABAB;">arm:</span> <b>18,878,200</b> ops/s
-      <code>bfloat16</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>9,727,210</b> &centerdot;
-      <span style="color:#ABABAB;">arm:</span> <b>4,233,420</b> ops/s
-      <code>float16</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>19,466,800</b> &centerdot;
-      <span style="color:#ABABAB;">arm:</span> <b>3,522,760</b> ops/s
-      <code>float32</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>8,924,100</b> &centerdot;
-      <span style="color:#ABABAB;">arm:</span> <b>3,602,650</b> ops/s
-      <code>float64</code><br/>
-      <span style="color:#ABABAB;">x86:</span> <b>1,701,740</b> &centerdot;
+      <span style="color:#ABABAB;">x86:</span> <b>1,701,740</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>1,735,840</b> ops/s
     </td>
   </tr>
@@ -218,6 +277,7 @@ You can learn more about the technical implementation details in the following b
   <!-- Sparse set intersections -->
 </table>
 
+> For benchmarks we mostly use 1536-dimensional vectors, like the embeddings produced by the OpenAI Ada API.
 > The code was compiled with GCC 12, using glibc v2.35.
 > The benchmarks performed on Arm-based Graviton3 AWS `c7g` instances and `r7iz` Intel Sapphire Rapids.
 > Most modern Arm-based 64-bit CPUs will have similar relative speedups.
