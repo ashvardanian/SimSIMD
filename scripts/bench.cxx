@@ -1,3 +1,4 @@
+#include <array>         // `std::array`
 #include <cmath>         // `std::sqrt`
 #include <cstdlib>       // `std::aligned_alloc`
 #include <cstring>       // `std::memcpy`
@@ -666,37 +667,37 @@ void vdot_f64c_blas(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_si
 
 void bilinear_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n,
                        simsimd_distance_t *result) {
-    simsimd_f32_t intermediate[n];
+    std::array<simsimd_f32_t, curved_dimensions> intermediate;
     simsimd_f32_t alpha = 1.0f, beta = 0.0f;
-    cblas_sgemv(CblasRowMajor, CblasNoTrans, (int)n, (int)n, alpha, c, (int)n, b, 1, beta, intermediate, 1);
-    *result = cblas_sdot((int)n, a, 1, intermediate, 1);
+    cblas_sgemv(CblasRowMajor, CblasNoTrans, (int)n, (int)n, alpha, c, (int)n, b, 1, beta, intermediate.data(), 1);
+    *result = cblas_sdot((int)n, a, 1, intermediate.data(), 1);
 }
 
 void bilinear_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, simsimd_size_t n,
                        simsimd_distance_t *result) {
-    simsimd_f64_t intermediate[n];
+    std::array<simsimd_f64_t, curved_dimensions> intermediate;
     simsimd_f64_t alpha = 1.0, beta = 0.0;
-    cblas_dgemv(CblasRowMajor, CblasNoTrans, (int)n, (int)n, alpha, c, n, b, 1, beta, intermediate, 1);
-    *result = cblas_ddot((int)n, a, 1, intermediate, 1);
+    cblas_dgemv(CblasRowMajor, CblasNoTrans, (int)n, (int)n, alpha, c, n, b, 1, beta, intermediate.data(), 1);
+    *result = cblas_ddot((int)n, a, 1, intermediate.data(), 1);
 }
 
 void bilinear_f32c_blas(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsimd_f32c_t const *c, simsimd_size_t n,
                         simsimd_distance_t *results) {
-    simsimd_f32c_t intermediate[n];
+    std::array<simsimd_f32c_t, curved_dimensions> intermediate;
     simsimd_f32c_t alpha = {1.0f, 0.0f}, beta = {0.0f, 0.0f};
-    cblas_cgemv(CblasRowMajor, CblasNoTrans, (int)n, (int)n, &alpha, c, n, b, 1, &beta, intermediate, 1);
+    cblas_cgemv(CblasRowMajor, CblasNoTrans, (int)n, (int)n, &alpha, c, n, b, 1, &beta, intermediate.data(), 1);
     simsimd_f32_t f32_result[2] = {0, 0};
-    cblas_cdotu_sub((int)n, (simsimd_f32_t const *)a, 1, (simsimd_f32_t const *)intermediate, 1, f32_result);
+    cblas_cdotu_sub((int)n, (simsimd_f32_t const *)a, 1, (simsimd_f32_t const *)intermediate.data(), 1, f32_result);
     results[0] = f32_result[0];
     results[1] = f32_result[1];
 }
 
 void bilinear_f64c_blas(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_f64c_t const *c, simsimd_size_t n,
                         simsimd_distance_t *results) {
-    simsimd_f64c_t intermediate[n];
+    std::array<simsimd_f64c_t, curved_dimensions> intermediate;
     simsimd_f64c_t alpha = {1.0, 0.0}, beta = {0.0, 0.0};
-    cblas_zgemv(CblasRowMajor, CblasNoTrans, (int)n, (int)n, &alpha, c, n, b, 1, &beta, intermediate, 1);
-    cblas_zdotu_sub((int)n, (simsimd_f64_t const *)a, 1, (simsimd_f64_t const *)intermediate, 1, results);
+    cblas_zgemv(CblasRowMajor, CblasNoTrans, (int)n, (int)n, &alpha, c, n, b, 1, &beta, intermediate.data(), 1);
+    cblas_zdotu_sub((int)n, (simsimd_f64_t const *)a, 1, (simsimd_f64_t const *)intermediate.data(), 1, results);
 }
 
 #endif
