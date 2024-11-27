@@ -6,7 +6,7 @@ use std::io::BufReader;
 use std::io::{self};
 use std::path::Path;
 use regex::Regex;
-
+use simsimd::SpatialSimilarity;
 const LINES_PER_DOCUMENT: usize = 1000;
 
 
@@ -24,6 +24,7 @@ fn l2_normalize(v: &mut Vec<f64>) {
 #[derive(Debug)]
 struct TfidfCalculator {
     terms: Vec<String>,
+    term_index: HashMap<String, usize>,
     row_norms: Vec<Vec<f64>>,
     documents: Vec<Vec<usize>>,  // Store original documents
     idfs: HashMap<usize, f64>,
@@ -33,6 +34,7 @@ impl TfidfCalculator {
     fn new() -> Self {
         TfidfCalculator {
             terms: Vec::new(),
+            term_index: HashMap::new(),
             row_norms: Vec::new(),
             documents: Vec::new(),
             idfs: HashMap::new(),
@@ -59,6 +61,9 @@ impl TfidfCalculator {
       }
       self.terms = unique_terms.into_iter().collect();
       self.terms.sort();
+      for (idx, term) in self.terms.iter().enumerate() {
+        self.term_index.insert(term.clone(), idx);
+      }
       for document in &documents {
         let tokens = Self::tokenize(document);
         let mut term_document_freq = HashMap::new();
@@ -91,8 +96,8 @@ impl TfidfCalculator {
     }
 
     fn calculate_tfidf(&mut self) {
-      let document = &self.documents[0];
-        let mut tfidf_vector = vec![0.0; self.terms.len()];
+        for document in self.documents.iter() {
+          let mut tfidf_vector = vec![0.0; self.terms.len()];
         for i in 0..self.terms.len() {
           let term_id = i;
           let term_frequency = document[term_id];
@@ -105,12 +110,25 @@ impl TfidfCalculator {
           }
         }
         self.row_norms.push(tfidf_vector);
+        }
     }
 
     fn normalize(&mut self) {
       for row in self.row_norms.iter_mut() {
         l2_normalize(row);
       }
+    }
+
+    fn tfidf_representation(&self, row: &str) -> Vec<f64> {
+      let mut row_vector = vec![0.0; self.terms.len()];
+      let tokens = Self::tokenize(row);
+      for token in tokens.iter() {
+        let term_id = self.term_index.get(token).unwrap();
+        let term_idf = self.idfs.get(term_id).unwrap();
+        row_vector[*term_id] += *term_idf;
+      }
+      l2_normalize(& mut row_vector);
+      return row_vector;
     }
      
 
@@ -142,8 +160,6 @@ fn main() -> io::Result<()> {
         if line_count == LINES_PER_DOCUMENT {
             documents.push(std::mem::take(&mut current_document));
             line_count = 0;
-            println!("current document size after take {}", current_document.len());
-
         }
     }
 
@@ -154,7 +170,13 @@ fn main() -> io::Result<()> {
     calculator.calculate_idf();
     calculator.calculate_tfidf();
     calculator.normalize();
-
+    
+    let query = "we went over to the whole world";
+    let query_vector = calculator.tfidf_representation(query);
+    for (idx, row_vector) in calculator.row_norms.iter().enumerate() {
+        let similarity = f64::cosine(query_vector.as_ref(), row_vector.as_ref());
+        println!("Similarity for document {}: {:?}", idx, similarity);
+    }
     
     Ok(())
   
