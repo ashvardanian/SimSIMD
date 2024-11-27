@@ -30,6 +30,38 @@ struct TfidfCalculator {
     idfs: HashMap<usize, f64>,
 }
 
+pub fn plain_cosine_similarity(vec1: &[f64], vec2: &[f64]) -> Option<f64> {
+  // Check if vectors have the same length
+  if vec1.len() != vec2.len() {
+      return None;
+  }
+
+  // Calculate dot product
+  let dot_product: f64 = vec1.iter()
+      .zip(vec2.iter())
+      .map(|(a, b)| a * b)
+      .sum();
+
+  // Calculate magnitudes
+  let magnitude1: f64 = vec1.iter()
+      .map(|x| x.powi(2))
+      .sum::<f64>()
+      .sqrt();
+
+  let magnitude2: f64 = vec2.iter()
+      .map(|x| x.powi(2))
+      .sum::<f64>()
+      .sqrt();
+
+  // Prevent division by zero
+  if magnitude1 == 0.0 || magnitude2 == 0.0 {
+      return None;
+  }
+
+  // Calculate cosine similarity
+  Some(dot_product / (magnitude1 * magnitude2))
+}
+
 impl TfidfCalculator {
     fn new() -> Self {
         TfidfCalculator {
@@ -175,7 +207,9 @@ fn main() -> io::Result<()> {
     let query_vector = calculator.tfidf_representation(query);
     for (idx, row_vector) in calculator.row_norms.iter().enumerate() {
         let similarity = f64::cosine(query_vector.as_ref(), row_vector.as_ref());
-        println!("Similarity for document {}: {:?}", idx, similarity);
+        println!("Similarity for document via simsimd {}: {:?}", idx, similarity);
+        let plain_similarity = plain_cosine_similarity(query_vector.as_ref(), row_vector.as_ref());
+        println!("Similarity for document via plain cosine similarity {}: {:?}", idx, plain_similarity);
     }
     
     Ok(())
