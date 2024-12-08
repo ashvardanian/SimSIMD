@@ -30,8 +30,6 @@ path  = "scripts/tfidf.rs"
 [build-dependencies]
 cc = "1.0.83"
 
-
-
 [[bench]]
 name = "sqeuclidean"
 harness = false
@@ -39,7 +37,7 @@ path = "scripts/bench_sqeuclidean.rs"
 
 [[bench]]
 name = "tfidf"
-harness = true
+harness = false
 path = "scripts/bench_tfidf.rs"
 
 [profile.bench]
