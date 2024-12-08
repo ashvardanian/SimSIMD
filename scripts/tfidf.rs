@@ -7,7 +7,6 @@ use std::io::{self};
 use std::path::Path;
 use regex::Regex;
 use simsimd::SpatialSimilarity;
-const LINES_PER_DOCUMENT: usize = 1000;
 
 
 fn l2_normalize(v: &mut Vec<f64>) {

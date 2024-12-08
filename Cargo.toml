@@ -31,10 +31,6 @@ path  = "scripts/tfidf.rs"
 cc = "1.0.83"
 
 
-[[bench]]
-name = "cosine"
-harness = false
-path = "scripts/bench_cosine.rs"
 
 [[bench]]
 name = "sqeuclidean"
@@ -43,7 +39,7 @@ path = "scripts/bench_sqeuclidean.rs"
 
 [[bench]]
 name = "tfidf"
-harness = false
+harness = true
 path = "scripts/bench_tfidf.rs"
 
 [profile.bench]

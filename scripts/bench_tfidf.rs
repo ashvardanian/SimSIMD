@@ -1,8 +1,15 @@
-use std::collections::{HashMap, HashSet};
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion, black_box};
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::fs::File;
+use std::io::BufRead;
+use std::io::BufReader;
+// use std::io::{self};
+use std::path::Path;
 use regex::Regex;
-use simsimd::SpatialSimilarity as SimSIMD;
+
+use simsimd::SpatialSimilarity;
 
 // mod native;
 
@@ -15,6 +22,39 @@ fn l2_normalize(v: &mut Vec<f64>) {
   for element in v.iter_mut() {
       *element = *element / sum;
   }
+}
+
+
+pub fn plain_cosine_similarity(vec1: &[f64], vec2: &[f64]) -> Option<f64> {
+  // Check if vectors have the same length
+  if vec1.len() != vec2.len() {
+      return None;
+  }
+
+  // Calculate dot product
+  let dot_product: f64 = vec1.iter()
+      .zip(vec2.iter())
+      .map(|(a, b)| a * b)
+      .sum();
+
+  // Calculate magnitudes
+  let magnitude1: f64 = vec1.iter()
+      .map(|x| x.powi(2))
+      .sum::<f64>()
+      .sqrt();
+
+  let magnitude2: f64 = vec2.iter()
+      .map(|x| x.powi(2))
+      .sum::<f64>()
+      .sqrt();
+
+  // Prevent division by zero
+  if magnitude1 == 0.0 || magnitude2 == 0.0 {
+      return None;
+  }
+
+  // Calculate cosine similarity
+  Some(dot_product / (magnitude1 * magnitude2))
 }
 
 #[derive(Debug)]
@@ -133,18 +173,66 @@ impl TfidfCalculator {
 }
 
 
-pub fn tfidf_benchmark(c: &mut Criterion) {
 
-    let mut tfidf = TfidfCalculator::new();
+fn tfidfsimilarity_benchmark(c: &mut Criterion) {
+    // Prepare your data and calculator here
     
-    c.bench_function("Tf-idf benchmark", |b| {
-      b.iter(|| {
-        
-      });
+    let path = Path::new("leipzig10000.txt");
+    let file = File::open(path).unwrap();
+    let reader = BufReader::new(file);
+
+
+    let mut calculator = TfidfCalculator::new();
+    
+    let mut documents = Vec::new();
+    for line in reader.lines() {
+        documents.push(line.unwrap());
+    }
+    
+    calculator.process_documents(documents);
+    calculator.calculate_idf();
+    calculator.calculate_tfidf();
+    calculator.normalize();
+
+    let mut group = c.benchmark_group("TF-IDF Similarity");
+    
+    let query = "we went over to the whole world";
+    let query_vector = calculator.tfidf_representation(query);
+
+    // Ensure the work cannot be optimized away
+    group.bench_function("SimSIMD Similarity", |b| {
+        b.iter(|| {
+            let total_similarity: f64 = calculator.row_norms.iter()
+                .map(|row_vector| {
+                    black_box(
+                        SpatialSimilarity::cosine(query_vector.as_ref(), row_vector.as_ref())
+                            .unwrap_or(0.0)
+                    )
+                })
+                .sum();
+            
+            // Force use of total_similarity to prevent optimization
+            black_box(total_similarity);
+        })
     });
+
+    group.bench_function("Rust Procedural Similarity", |b| {
+        b.iter(|| {
+            let total_similarity: f64 = calculator.row_norms.iter()
+                .map(|row_vector| {
+                    black_box(
+                        plain_cosine_similarity(query_vector.as_ref(), row_vector.as_ref())
+                            .unwrap_or(0.0)
+                    )
+                })
+                .sum();
+            
+            // Force use of total_similarity to prevent optimization
+            black_box(total_similarity);
+        })
+    });
+
 }
-  
 
-
-criterion_group!(benches, tfidf_benchmark);
+criterion_group!(benches, tfidfsimilarity_benchmark);
 criterion_main!(benches);
