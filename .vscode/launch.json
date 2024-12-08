@@ -74,7 +74,7 @@
                 "-k",
                 "inner_bf16"
             ],
-            "justMyCode": true
+            "justMyCode": false
         }
     ]
 }
