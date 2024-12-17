@@ -784,7 +784,7 @@ const distance = hamming(binaryVectorA, binaryVectorB);
 
 ## Using SimSIMD in Swift
 
-To install, simply add the following dependency to you `Package.swift`:
+To install, simply add the following dependency to your `Package.swift`:
 
 ```swift
 dependencies: [
