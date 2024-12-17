@@ -213,11 +213,10 @@ SIMSIMD_MAKE_COMPLEX_BILINEAR(accurate, bf16c, f64, SIMSIMD_BF16_TO_F32) // sims
 SIMSIMD_MAKE_MAHALANOBIS(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)       // simsimd_mahalanobis_bf16_accurate
 
 #if _SIMSIMD_TARGET_ARM
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON || SIMSIMD_TARGET_WASM
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
-
 SIMSIMD_PUBLIC void simsimd_bilinear_f32_neon(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c,
                                               simsimd_size_t n, simsimd_distance_t *result) {
     float32x4_t sum_vec = vdupq_n_f32(0);

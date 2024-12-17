@@ -69,6 +69,7 @@ void test_utilities(void) {
     int uses_sapphire = simsimd_uses_sapphire();
     int uses_turin = simsimd_uses_turin();
     int uses_sierra = simsimd_uses_sierra();
+    int uses_wasm = simsimd_uses_wasm_simd();
 
     assert(uses_neon == ((capabilities & simsimd_cap_neon_k) != 0));
     assert(uses_sve == ((capabilities & simsimd_cap_sve_k) != 0));
@@ -79,6 +80,7 @@ void test_utilities(void) {
     assert(uses_sapphire == ((capabilities & simsimd_cap_sapphire_k) != 0));
     assert(uses_turin == ((capabilities & simsimd_cap_turin_k) != 0));
     assert(uses_sierra == ((capabilities & simsimd_cap_sierra_k) != 0));
+    assert(uses_wasm == ((capabilities & simsimd_cap_wasm_simd_k) != 0));
 }
 
 /**

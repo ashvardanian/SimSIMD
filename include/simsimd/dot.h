@@ -232,7 +232,7 @@ SIMSIMD_MAKE_COMPLEX_DOT(accurate, bf16c, f64, SIMSIMD_BF16_TO_F32)  // simsimd_
 SIMSIMD_MAKE_COMPLEX_VDOT(accurate, bf16c, f64, SIMSIMD_BF16_TO_F32) // simsimd_vdot_bf16c_accurate
 
 #if _SIMSIMD_TARGET_ARM
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON || SIMSIMD_TARGET_WASM
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
@@ -398,7 +398,7 @@ SIMSIMD_PUBLIC void simsimd_dot_u8_neon(simsimd_u8_t const *a_scalars, simsimd_u
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON_I8
 
-#if SIMSIMD_TARGET_NEON_F16
+#if SIMSIMD_TARGET_NEON_F16 || SIMSIMD_TARGET_WASM
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)

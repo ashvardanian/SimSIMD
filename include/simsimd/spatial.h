@@ -251,7 +251,7 @@ SIMSIMD_MAKE_L2SQ(accurate, bf16, f64, SIMSIMD_BF16_TO_F32) // simsimd_l2sq_bf16
 SIMSIMD_MAKE_L2(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)   // simsimd_l2_bf16_accurate
 
 #if _SIMSIMD_TARGET_ARM
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON || SIMSIMD_TARGET_WASM
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
@@ -395,7 +395,7 @@ SIMSIMD_PUBLIC void simsimd_cos_f64_neon(simsimd_f64_t const *a, simsimd_f64_t c
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON
 
-#if SIMSIMD_TARGET_NEON_F16
+#if SIMSIMD_TARGET_NEON_F16 || SIMSIMD_TARGET_WASM
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
