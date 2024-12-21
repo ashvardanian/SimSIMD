@@ -6,6 +6,26 @@ To keep the quality of the code high, we have a set of [guidelines](https://gith
 - [How to organize branches?](https://github.com/unum-cloud/awesome/blob/main/Workflow.md#branches)
 - [How to style commits?](https://github.com/unum-cloud/awesome/blob/main/Workflow.md#commits)
 
+## Navigating the Codebase
+
+Primary kernels are implemented in header files under `include/simsimd/`:
+
+- `dot.h` - dot products for real and complex vectors.
+- `spatial.h` - spatial distances: L2, cosine distance.
+- `binary.h` - binary distances: Hamming, Jaccard, etc.
+- `probability.h` - probability metrics: KL-divergence, Jensen-Shannon, etc.
+- `sparse.h` - sparse distances: weighted and normal set intersections.
+- `curved.h` - bilinear forms for real and complex vectors, and Mahalanobis distance.
+
+Bindings to other languages are in the respective directories:
+
+- `python/lib.c` - Python bindings.
+- `javascript/lib.c` - JavaScript bindings.
+- `rust/lib.rs` - Rust bindings.
+- `swift/SimSIMD.swift` - Swift bindings.
+
+All tests, benchmarks, and examples are placed in the `scripts/` directory, if compatible with the toolchain of the implementation language.
+
 ## C and C++
 
 To rerun experiments utilize the following command:
@@ -277,4 +297,3 @@ cd golang
 go test # To test
 go test -run=^$ -bench=. -benchmem # To benchmark
 ```
-
