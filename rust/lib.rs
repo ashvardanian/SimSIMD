@@ -99,8 +99,20 @@ extern "C" {
     fn simsimd_kl_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
     fn simsimd_kl_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
-    fn simsimd_intersect_u16(a: *const u16, b: *const u16, a_length: usize, b_length: usize, d: *mut Distance);
-    fn simsimd_intersect_u32(a: *const u32, b: *const u32, a_length: usize, b_length: usize, d: *mut Distance);
+    fn simsimd_intersect_u16(
+        a: *const u16,
+        b: *const u16,
+        a_length: usize,
+        b_length: usize,
+        d: *mut Distance,
+    );
+    fn simsimd_intersect_u32(
+        a: *const u32,
+        b: *const u32,
+        a_length: usize,
+        b_length: usize,
+        d: *mut Distance,
+    );
 
     fn simsimd_uses_neon() -> i32;
     fn simsimd_uses_neon_f16() -> i32;
@@ -225,8 +237,8 @@ where
     fn l2sq(a: &[Self], b: &[Self]) -> Option<Distance>;
 
     /// Computes the Euclidean distance between two slices.
-    /// The Euclidean distance is the square root of 
-    //  sum of the squared differences between corresponding 
+    /// The Euclidean distance is the square root of
+    //  sum of the squared differences between corresponding
     /// elements of the two slices.
     fn l2(a: &[Self], b: &[Self]) -> Option<Distance>;
 
@@ -238,8 +250,8 @@ where
     }
 
     /// Computes the Euclidean distance between two slices.
-    /// The Euclidean distance is the square root of the 
-    /// sum of the squared differences between corresponding 
+    /// The Euclidean distance is the square root of the
+    /// sum of the squared differences between corresponding
     /// elements of the two slices.
     fn euclidean(a: &[Self], b: &[Self]) -> Option<Distance> {
         SpatialSimilarity::l2(a, b)
@@ -393,25 +405,21 @@ impl SpatialSimilarity for i8 {
 }
 
 impl Sparse for u16 {
-      
     fn intersect(a: &[Self], b: &[Self]) -> Option<Distance> {
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
         unsafe { simsimd_intersect_u16(a.as_ptr(), b.as_ptr(), a.len(), b.len(), distance_ptr) };
         Some(distance_value)
     }
-
 }
 
 impl Sparse for u32 {
-      
     fn intersect(a: &[Self], b: &[Self]) -> Option<Distance> {
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
         unsafe { simsimd_intersect_u32(a.as_ptr(), b.as_ptr(), a.len(), b.len(), distance_ptr) };
         Some(distance_value)
     }
-
 }
 
 impl SpatialSimilarity for f16 {
@@ -458,7 +466,6 @@ impl SpatialSimilarity for f16 {
     }
 
     fn l2(a: &[Self], b: &[Self]) -> Option<Distance> {
-        
         if a.len() != b.len() {
             return None;
         }
@@ -993,7 +1000,6 @@ mod tests {
             .map(|&x| HalfF16::from_f32(x))
             .collect();
 
-        
         let a_simsimd: &[f16] =
             unsafe { std::slice::from_raw_parts(a_half.as_ptr() as *const f16, a_half.len()) };
         let b_simsimd: &[f16] =
@@ -1003,7 +1009,6 @@ mod tests {
             println!("The result of l2_f16 is {:.8}", result);
             assert_almost_equal(5.2, result, 0.01);
         }
-        
     }
 
     #[test]
@@ -1160,8 +1165,8 @@ mod tests {
     #[test]
     fn test_intersect_u16() {
         {
-            let a_u16: &[u16] = &[153, 16384, 17408]; 
-            let b_u16: &[u16] = &[15360, 16384, 7408]; 
+            let a_u16: &[u16] = &[153, 16384, 17408];
+            let b_u16: &[u16] = &[15360, 16384, 7408];
 
             if let Some(result) = Sparse::intersect(a_u16, b_u16) {
                 println!("The result of intersect_u16 is {:.8}", result);
@@ -1170,37 +1175,36 @@ mod tests {
         }
 
         {
-            let a_u16: &[u16] = &[153, 11638, 08]; 
-            let b_u16: &[u16] = &[15360, 16384, 7408]; 
+            let a_u16: &[u16] = &[153, 11638, 08];
+            let b_u16: &[u16] = &[15360, 16384, 7408];
 
             if let Some(result) = Sparse::intersect(a_u16, b_u16) {
                 println!("The result of intersect_u16 is {:.8}", result);
                 assert_almost_equal(0.0, result, 0.0001);
-            }   
+            }
         }
     }
 
     #[test]
     fn test_intersect_u32() {
         {
-            let a_u32: &[u32] = &[11, 153]; 
-            let b_u32: &[u32] = &[11, 153, 7408, 16384]; 
+            let a_u32: &[u32] = &[11, 153];
+            let b_u32: &[u32] = &[11, 153, 7408, 16384];
 
             if let Some(result) = Sparse::intersect(a_u32, b_u32) {
                 println!("The result of intersect_u32 is {:.8}", result);
                 assert_almost_equal(2.0, result, 0.0001);
             }
         }
-        
+
         {
-            let a_u32: &[u32] = &[153, 7408, 11638]; 
-            let b_u32: &[u32] = &[153, 7408, 11638]; 
+            let a_u32: &[u32] = &[153, 7408, 11638];
+            let b_u32: &[u32] = &[153, 7408, 11638];
 
             if let Some(result) = Sparse::intersect(a_u32, b_u32) {
                 println!("The result of intersect_u32 is {:.8}", result);
                 assert_almost_equal(3.0, result, 0.0001);
-            }   
+            }
         }
-        
     }
 }
