@@ -182,27 +182,35 @@ pub fn tfidfsimilarity_benchmark(c: &mut Criterion) {
     let query_vector = calculator.tfidf_representation(query);
 
     group.sample_size(10);
-    
+
     group.bench_function("SimSIMD Cosine Similarity", |b| {
         b.iter(|| {
-            let total_similarity: f64 = calculator.row_norms.iter().map(|row_vector| {
-                black_box(
-                    SpatialSimilarity::cosine(query_vector.as_ref(), row_vector.as_ref())
-                        .unwrap_or(0.0),
-                )
-            }).sum();
+            let total_similarity: f64 = calculator
+                .row_norms
+                .iter()
+                .map(|row_vector| {
+                    black_box(
+                        SpatialSimilarity::cosine(query_vector.as_ref(), row_vector.as_ref())
+                            .unwrap_or(0.0),
+                    )
+                })
+                .sum();
             black_box(total_similarity)
         })
     });
 
     group.bench_function("Rust plain Cosine similarity", |b| {
         b.iter(|| {
-            let total_similarity: f64 = calculator.row_norms.iter().map(|row_vector| {
-                black_box(
-                    plain_cosine_similarity(query_vector.as_ref(), row_vector.as_ref())
-                        .unwrap_or(0.0),
-                )
-            }).sum();
+            let total_similarity: f64 = calculator
+                .row_norms
+                .iter()
+                .map(|row_vector| {
+                    black_box(
+                        plain_cosine_similarity(query_vector.as_ref(), row_vector.as_ref())
+                            .unwrap_or(0.0),
+                    )
+                })
+                .sum();
             black_box(total_similarity)
         })
     });

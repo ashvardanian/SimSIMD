@@ -40,6 +40,11 @@ name = "tfidf"
 harness = false
 path = "scripts/bench_tfidf.rs"
 
+[[bench]]
+name = "spdot"
+harness = false
+path = "scripts/bench_spdot.rs"
+
 [profile.bench]
 opt-level = 3     # Corresponds to -O3
 lto = true        # Enables Link Time Optimization for further optimizations

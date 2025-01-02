@@ -82,7 +82,7 @@ extern "C" {
 
     fn simsimd_l2_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
     fn simsimd_l2_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_l2_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    // fn simsimd_l2_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_l2_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
     fn simsimd_l2_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
@@ -114,6 +114,16 @@ extern "C" {
         d: *mut Distance,
     );
 
+    fn simsimd_spdot_weights_f32(   
+        a: *const u16,
+        b: *const u16,
+        a_weights: *const f32,
+        b_weights: *const f32,
+        a_length: usize,
+        b_length: usize,
+        intersection: *mut f64,
+    );
+    
     fn simsimd_uses_neon() -> i32;
     fn simsimd_uses_neon_f16() -> i32;
     fn simsimd_uses_neon_bf16() -> i32;
@@ -139,7 +149,8 @@ impl f16 {}
 
 /// A half-precision floating point number, called brain float.
 #[repr(transparent)]
-pub struct bf16(u16);
+#[derive(Debug, Clone, Copy)]
+pub struct bf16(pub u16);
 
 impl bf16 {}
 
@@ -338,6 +349,30 @@ where
     /// Computes the number of common elements between two sparse vectors.
     /// both vectors must be sorted in ascending order.
     fn intersect(a: &[Self], b: &[Self]) -> Option<Distance>;
+}
+
+pub fn sparse_dot_product(
+    a: &[u16],
+    b: &[u16],
+    a_weights: &[f32],
+    b_weights: &[f32],
+) -> (Distance, Distance) {
+    let mut intersection = [0.0; 2];
+    let af32_ptr = a_weights.as_ptr() as *const f32;
+    let bf32_ptr = b_weights.as_ptr() as *const f32;
+    unsafe {
+        crate::simsimd_spdot_weights_f32(
+            a.as_ptr(),
+            b.as_ptr(),
+            af32_ptr,
+            bf32_ptr,
+            a.len(),
+            b.len(),
+            intersection.as_mut_ptr()
+        );
+    }
+    (intersection[0], intersection[1])
+    
 }
 
 impl BinarySimilarity for u8 {

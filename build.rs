@@ -59,6 +59,7 @@ fn main() {
 
     println!("cargo:rerun-if-changed=include/simsimd/dot.h");
     println!("cargo:rerun-if-changed=include/simsimd/spatial.h");
+    println!("cargo:rerun-if-changed=include/simsimd/sparse.h");
     println!("cargo:rerun-if-changed=include/simsimd/probability.h");
     println!("cargo:rerun-if-changed=include/simsimd/binary.h");
     println!("cargo:rerun-if-changed=include/simsimd/types.h");

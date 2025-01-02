@@ -259,6 +259,12 @@ typedef void (*simsimd_metric_sparse_punned_t)(void const *a, void const *b,    
                                                simsimd_size_t a_length, simsimd_size_t b_length, //
                                                simsimd_distance_t *d);
 
+
+typedef void (*simsimd_metric_sparse_weight_punned_t)(void const *a, void const *b,                     //
+                                                  void const *a_weights, void const *b_weights,                     //
+                                               simsimd_size_t a_length, simsimd_size_t b_length, //
+                                               simsimd_distance_t *d);
+
 /**
  *  @brief  Type-punned function pointer for curved vector spaces and similarity measures.
  *
@@ -616,6 +622,8 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f32(simsimd_capability_t v, si
         case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f32_neon, *c = simsimd_cap_neon_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f32_neon, *c = simsimd_cap_neon_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f32_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_spdot_weights_k: *m = (m_t)&simsimd_spdot_weights_u16_f32_neon, *c = simsimd_cap_serial_k; return;
+
         default: break;
         }
 #endif
@@ -658,6 +666,7 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f32(simsimd_capability_t v, si
         case simsimd_metric_mahalanobis_k: *m = (m_t)&simsimd_mahalanobis_f32_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f32_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_spdot_weights_k: *m = (m_t)&simsimd_spdot_weights_u16_serial, *c = simsimd_cap_serial_k; return;
         default: break;
         }
 }
@@ -1122,6 +1131,7 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_u16(simsimd_capability_t v, si
 #endif
     if (v & simsimd_cap_serial_k) switch (k) {
         case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_spdot_weights_k: *m = (m_t)&simsimd_spdot_weights_u16_serial, *c = simsimd_cap_serial_k; return;
         default: break;
         }
 }
@@ -2087,6 +2097,8 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16(simsimd_u16_t const *a, simsimd_u1
     simsimd_spdot_weights_u16_sve2(a, b, a_weights, b_weights, a_length, b_length, d);
 #elif SIMSIMD_TARGET_TURIN
     simsimd_spdot_weights_u16_turin(a, b, a_weights, b_weights, a_length, b_length, d);
+// #elif SIMSIMD_TARGET_NEON
+//    simsimd_spdot_weights_u16_neon(a, b, a_weights, b_weights, a_length, b_length, d);
 #else
     simsimd_spdot_weights_u16_serial(a, b, a_weights, b_weights, a_length, b_length, d);
 #endif

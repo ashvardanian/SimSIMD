@@ -49,6 +49,8 @@
 #define SIMSIMD_SPARSE_H
 
 #include "types.h"
+#include <arm_neon.h>
+#include<stdio.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -72,7 +74,7 @@ SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_serial(                //
     simsimd_distance_t *results);
 SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_serial(                 //
     simsimd_u16_t const *a, simsimd_u16_t const *b,                   //
-    simsimd_bf16_t const *a_weights, simsimd_bf16_t const *b_weights, //
+    simsimd_f32_t const *a_weights, simsimd_f32_t const *b_weights, //
     simsimd_size_t a_length, simsimd_size_t b_length,                 //
     simsimd_distance_t *results);
 
@@ -182,18 +184,18 @@ SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u32, size) // simsimd_intersect_u32_accu
         simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t *results) {                          \
         simsimd_##counter_type##_t intersection_size = 0;                                                         \
         simsimd_##accumulator_type##_t weights_product = 0;                                                       \
-        simsimd_size_t i = 0, j = 0;                                                                              \
+        simsimd_size_t i = 0, j = 0;         \         
         while (i != a_length && j != b_length) {                                                                  \
             simsimd_##input_type##_t ai = a[i];                                                                   \
             simsimd_##input_type##_t bj = b[j];                                                                   \
             int matches = ai == bj;                                                                               \
             simsimd_##counter_type##_t awi = load_and_convert(a_weights + i);                                     \
-            simsimd_##counter_type##_t bwi = load_and_convert(b_weights + i);                                     \
-            weights_product += matches * awi * bwi;                                                               \
+            simsimd_##counter_type##_t bwi = load_and_convert(b_weights + j);                                     \
+            weights_product += matches * awi * bwi;                                                                                               \                                                   
             intersection_size += matches;                                                                         \
             i += ai < bj;                                                                                         \
             j += ai >= bj;                                                                                        \
-        }                                                                                                         \
+        }   \
         results[0] = intersection_size;                                                                           \
         results[1] = weights_product;                                                                             \
     }
@@ -255,8 +257,9 @@ SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u16, size) // simsimd_intersect_u16_ser
 SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u32, size) // simsimd_intersect_u32_serial
 SIMSIMD_MAKE_INTERSECT_WEIGHTED(serial, spdot_counts, u16, size, i16, i32,
                                 SIMSIMD_DEREFERENCE) // simsimd_spdot_counts_u16_serial
-SIMSIMD_MAKE_INTERSECT_WEIGHTED(serial, spdot_weights, u16, size, bf16, f32,
-                                SIMSIMD_BF16_TO_F32) // simsimd_spdot_weights_u16_serial
+SIMSIMD_MAKE_INTERSECT_WEIGHTED(serial, spdot_weights, u16, f64, f32, f32,
+                                SIMSIMD_DEREFERENCE) // simsimd_spdot_weights_u16_serial
+
 
 /*  The AVX-512 implementations are inspired by the "Faster-Than-Native Alternatives
  *  for x86 VP2INTERSECT Instructions" paper by Guille Diez-Canas, 2022.
@@ -1059,6 +1062,150 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_neon(       //
     *results += vaddvq_u32(c_counts_vec.u32x4);
 }
 
+inline uint8_t skips(uint16x8_t indexes, uint16_t max) {
+     uint16x8_t smaller_elements = vcleq_u16(indexes, vdupq_n_u16(max));
+     uint8x8_t high_bits = vshrn_n_u16(smaller_elements, 8);
+     uint64_t results = vreinterpret_u64_u8(high_bits);
+     int leading_zeroes = __builtin_clzl(results);
+     return leading_zeroes / 8;
+}
+
+void process_remaining(
+    simsimd_u16_t const *a, simsimd_u16_t const *b,
+    simsimd_f32_t const *a_weights, simsimd_f32_t const *b_weights,
+    simsimd_size_t a_length, simsimd_size_t b_length,
+    simsimd_distance_t *results) {
+
+  simsimd_u16_t const *  a_end = a + a_length;
+  simsimd_u16_t const *  b_end = b + b_length;
+  simsimd_distance_t intersection_size = results[0];
+  simsimd_distance_t total_product = results[1];
+  while(a < a_end && b < b_end) {
+     if(*a == *b) {
+        total_product += (*a_weights * *b_weights);
+        a += 1; b += 1; a_weights += 1; b_weights += 1;
+        intersection_size += 1;
+     }
+     if(*a < *b) { a += 1; a_weights += 1;}
+     if(*b < *a) { b += 1; b_weights += 1;}
+  }
+  results[0] = intersection_size;
+  results[1] = total_product;
+}
+
+#define EXTRACT_LANE_U16(vec, lane) \
+    ((lane) == 0 ? vgetq_lane_u16(vec, 0) : \
+     (lane) == 1 ? vgetq_lane_u16(vec, 1) : \
+     (lane) == 2 ? vgetq_lane_u16(vec, 2) : \
+     (lane) == 3 ? vgetq_lane_u16(vec, 3) : \
+     (lane) == 4 ? vgetq_lane_u16(vec, 4) : \
+     (lane) == 5 ? vgetq_lane_u16(vec, 5) : \
+     (lane) == 6 ? vgetq_lane_u16(vec, 6) : \
+     vgetq_lane_u16(vec, 7))
+
+
+
+#define EXTRACT_LANE_F32(vec, lane) \
+    ((lane) == 0 ? vgetq_lane_f32(vec, 0) : \
+     (lane) == 1 ? vgetq_lane_f32(vec, 1) : \
+     (lane) == 2 ? vgetq_lane_f32(vec, 2) : \
+     vgetq_lane_f32(vec, 3))
+
+#define EXT_LANE_U16(vec, lane) \
+    ((lane) == 0 ? vgetq_lane_u16(vec, 0) : \
+     (lane) == 1 ? vgetq_lane_u16(vec, 1) : \
+     (lane) == 2 ? vgetq_lane_u16(vec, 2) : \
+     (lane) == 3 ? vgetq_lane_u16(vec, 3) : \
+     (lane) == 4 ? vgetq_lane_u16(vec, 4) : \
+     (lane) == 5 ? vgetq_lane_u16(vec, 5) : \
+     (lane) == 6 ? vgetq_lane_u16(vec, 6) : \
+     vgetq_lane_u16(vec, 7))
+
+SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_f32_neon(
+    simsimd_u16_t const *a, simsimd_u16_t const *b,                   
+    simsimd_f32_t const *a_weights, simsimd_f32_t const *b_weights, 
+    simsimd_size_t a_length, simsimd_size_t b_length,                 
+    simsimd_distance_t *results) {
+
+    
+    const simsimd_size_t register_size = 8;
+    simsimd_size_t a_idx = 0, b_idx = 0;
+    simsimd_size_t intersection_size = 0;
+    float total_product = 0.0f;
+
+    #ifndef EXT_LANE
+    #define EXT_LANE(vec, lane) vget_lane_u16(vec, lane)
+    #endif
+    #ifndef EXT_F_LANE
+    #define EXT_F_LANE(vec, lane) vgetq_lane_f32(vec, lane)
+    #endif
+    simsimd_u16_t const * a_end = a + a_length;
+    simsimd_u16_t const * b_end = b + b_length;
+    // printf("conditions %d %d and ends %p %p %p \n", (a + a_idx + 8 < a_end), (b + b_idx + 8 < b_end), a_end, b, b_end);
+    while((a + a_idx + 8) < a_end && ( b + b_idx + 8)  < b_end) {
+      
+      uint16x8_t a_vec, b_vec;
+      a_vec = vld1q_u16(a + a_idx) ;
+      b_vec = vld1q_u16(b + b_idx) ;
+
+      uint16_t a_min = vgetq_lane_u16(a_vec, 0);
+      uint16_t a_max = vgetq_lane_u16(a_vec, 7);
+      uint16_t b_min = vgetq_lane_u16(b_vec, 0);
+      uint16_t b_max = vgetq_lane_u16(b_vec, 7);
+      while(a_max < b_min && a + 16 < a_end) {
+        a += 8;
+        a_vec = vld1q_u16(a);
+        a_max = vgetq_lane_u16(a_vec, 7);
+      }
+      a_min = vgetq_lane_u16(a_vec, 0);
+      while(b_max < a_min && b + 16 < a_end) {
+        b += 8;
+        b_vec = vld1q_u16(b);
+        b_max = vgetq_lane_u16(b_vec, 7);
+      }
+      a_min = vgetq_lane_u16(b_vec, 0);
+
+    float32x4_t a_weights_vec_low = vld1q_f32(a_weights + a_idx);
+    float32x4_t a_weights_vec_high = vld1q_f32(a_weights + a_idx + 4);
+
+    float32x4_t b_weights_vec_low = vld1q_f32(b_weights + b_idx);
+    float32x4_t b_weights_vec_high = vld1q_f32(b_weights + b_idx + 4);
+    float32x4_t zeroes = vdupq_n_f32(0.0);
+    for (int lane = 0; lane < register_size; lane++) {
+                uint16_t elem = EXT_LANE_U16(b_vec, lane);
+         uint16x8_t compare_vec = vceqq_u16(a_vec, vdupq_n_u16(elem));
+        uint16_t has_matches = vaddvq_u16(compare_vec);
+        if(has_matches == 0) {
+          continue;
+        }
+         uint16x4_t matches_low = vget_low_u16(compare_vec);
+         uint16x4_t matches_high = vget_high_u16(compare_vec);
+         uint32x4_t masks_low = vmovl_s16(matches_low);
+         uint32x4_t masks_high = vmovl_s16(matches_high);
+         float b_weight = lane < 4 ?
+             EXTRACT_LANE_F32(b_weights_vec_low, lane) :
+             EXTRACT_LANE_F32(b_weights_vec_high, lane - 4);
+         float32x4_t b_weights = vdupq_n_f32(b_weight);
+         float32x4_t bl = vbslq_f32(masks_low, b_weights, zeroes);
+         float32x4_t bh = vbslq_f32(masks_high, b_weights, zeroes);
+         float32x4_t weights_product_low = vmulq_f32(bl, a_weights_vec_low);
+         float32x4_t weights_product_high = vmulq_f32(bh, a_weights_vec_high);
+         total_product += vaddvq_f32(weights_product_low);
+         total_product += vaddvq_f32(weights_product_high);
+         uint16_t upper_intersections = vaddv_u16(vshr_n_u16(matches_low, 15));
+         uint16_t lower_intersections = vaddv_u16(vshr_n_u16(matches_high, 15));
+         intersection_size += upper_intersections;
+         intersection_size += lower_intersections;
+    }
+      uint8_t askips = skips(a_vec, b_max);
+      a_idx += 8 - askips;
+      uint8_t bskips = skips(b_vec, a_max);
+      b_idx += 8 - bskips;
+    }
+    
+    process_remaining(a, b,a_weights,b_weights, a_length, b_length, results);
+
+}
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON
