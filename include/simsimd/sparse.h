@@ -1073,12 +1073,10 @@ inline uint8_t skips(uint16x8_t indexes, uint16_t max) {
 void process_remaining(
     simsimd_u16_t const *a, simsimd_u16_t const *b,
     simsimd_f32_t const *a_weights, simsimd_f32_t const *b_weights,
-    simsimd_size_t a_length, simsimd_size_t b_length,
+    simsimd_u16_t const *a_end, simsimd_u16_t const *b_end,
     simsimd_distance_t *results) {
 
-  simsimd_u16_t const *  a_end = a + a_length;
-  simsimd_u16_t const *  b_end = b + b_length;
-  simsimd_distance_t intersection_size = results[0];
+ simsimd_distance_t intersection_size = results[0];
   simsimd_distance_t total_product = results[1];
   while(a < a_end && b < b_end) {
      if(*a == *b) {
@@ -1126,10 +1124,8 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_f32_neon(
     simsimd_f32_t const *a_weights, simsimd_f32_t const *b_weights, 
     simsimd_size_t a_length, simsimd_size_t b_length,                 
     simsimd_distance_t *results) {
-
     
     const simsimd_size_t register_size = 8;
-    simsimd_size_t a_idx = 0, b_idx = 0;
     simsimd_size_t intersection_size = 0;
     float total_product = 0.0f;
 
@@ -1139,14 +1135,15 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_f32_neon(
     #ifndef EXT_F_LANE
     #define EXT_F_LANE(vec, lane) vgetq_lane_f32(vec, lane)
     #endif
+    simsimd_u16_t const * a_start = a;
+    simsimd_u16_t const * b_start = b;
     simsimd_u16_t const * a_end = a + a_length;
     simsimd_u16_t const * b_end = b + b_length;
-    // printf("conditions %d %d and ends %p %p %p \n", (a + a_idx + 8 < a_end), (b + b_idx + 8 < b_end), a_end, b, b_end);
-    while((a + a_idx + 8) < a_end && ( b + b_idx + 8)  < b_end) {
+    while((a + 8) < a_end && ( b + 8)  < b_end) {
       
       uint16x8_t a_vec, b_vec;
-      a_vec = vld1q_u16(a + a_idx) ;
-      b_vec = vld1q_u16(b + b_idx) ;
+      a_vec = vld1q_u16(a) ;
+      b_vec = vld1q_u16(b) ;
 
       uint16_t a_min = vgetq_lane_u16(a_vec, 0);
       uint16_t a_max = vgetq_lane_u16(a_vec, 7);
@@ -1154,22 +1151,24 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_f32_neon(
       uint16_t b_max = vgetq_lane_u16(b_vec, 7);
       while(a_max < b_min && a + 16 < a_end) {
         a += 8;
+        a_weights += 8;
         a_vec = vld1q_u16(a);
         a_max = vgetq_lane_u16(a_vec, 7);
       }
       a_min = vgetq_lane_u16(a_vec, 0);
-      while(b_max < a_min && b + 16 < a_end) {
+      while(b_max < a_min && b + 16 < b_end) {
         b += 8;
+        b_weights += 8;
         b_vec = vld1q_u16(b);
         b_max = vgetq_lane_u16(b_vec, 7);
       }
-      a_min = vgetq_lane_u16(b_vec, 0);
+      b_min = vgetq_lane_u16(b_vec, 0);
 
-    float32x4_t a_weights_vec_low = vld1q_f32(a_weights + a_idx);
-    float32x4_t a_weights_vec_high = vld1q_f32(a_weights + a_idx + 4);
+    float32x4_t a_weights_vec_low = vld1q_f32(a_weights);
+    float32x4_t a_weights_vec_high = vld1q_f32(a_weights + 4);
 
-    float32x4_t b_weights_vec_low = vld1q_f32(b_weights + b_idx);
-    float32x4_t b_weights_vec_high = vld1q_f32(b_weights + b_idx + 4);
+    float32x4_t b_weights_vec_low = vld1q_f32(b_weights);
+    float32x4_t b_weights_vec_high = vld1q_f32(b_weights + 4);
     float32x4_t zeroes = vdupq_n_f32(0.0);
     for (int lane = 0; lane < register_size; lane++) {
                 uint16_t elem = EXT_LANE_U16(b_vec, lane);
@@ -1198,14 +1197,16 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_f32_neon(
          intersection_size += lower_intersections;
     }
       uint8_t askips = skips(a_vec, b_max);
-      a_idx += 8 - askips;
+      a += 8 - askips;
       uint8_t bskips = skips(b_vec, a_max);
-      b_idx += 8 - bskips;
+      b += 8 - bskips;
     }
-    
-    process_remaining(a, b,a_weights,b_weights, a_length, b_length, results);
+    results[0] += intersection_size;
+    results[1] += total_product;
+    process_remaining(a, b,a_weights,b_weights, a_start + a_length, b_start + b_length, results);
 
 }
+
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_NEON

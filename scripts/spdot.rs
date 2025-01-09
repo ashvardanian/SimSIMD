@@ -1,8 +1,5 @@
-use criterion::BenchmarkId;
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rand::Rng;
-use std::fmt::Display;
-use std::fmt::Formatter;
+use std::fmt::{Formatter, Display};
 use rand::seq::index::sample;
 use simsimd::sparse_dot_product;
 //use half::bf16 as hbf16;
@@ -93,70 +90,53 @@ fn generate_intersecting_vectors(first_size: usize, second_size: usize, intersec
    
 }
 
+pub fn main() {
+        for first_len in [64, 128, 512, 1024, 2048] {
+            for second_len in [8, 16, 32] {
+                for intersection_ratio in [0.1, 0.5, 0.9] {
+                        let intersection_size = (intersection_ratio * second_len as f32).ceil() as usize;
+                        let (first_vector, second_vector) = generate_intersecting_vectors(first_len, second_len, intersection_size);
+                        let mut total_ns: u128 = 0;
+                        for _j in 0..10 {
+                            let start = std::time::Instant::now();
+                            let (_similar_items, _dot_product) = first_vector.sparse_dot_product(&second_vector);                        
+                            let elapsed = start.elapsed();
+                            assert!(_similar_items == intersection_size as u16, "similar items: {}, intersection_size: {}", _similar_items, intersection_size);
+                            total_ns += elapsed.as_nanos();
+                        }
+                        println!("plain dot product:  {} against {}, avg elapsed_time ns: {}", first_len, second_len, total_ns/10);
 
-fn bench_dot_products(c: &mut Criterion) {
-    // Define test parameters
-    let first_lens = [66, 129, 513, 1025, 2049];
-    let second_lens = [9, 17, 33];
-    let intersection_ratios = [0.1, 0.5, 0.9];
-
-    // Create benchmark group for plain implementation
-    let mut plain_group = c.benchmark_group("plain_dot_product");
-    for &first_len in first_lens.iter() {
-        for &second_len in second_lens.iter() {
-            for &ratio in intersection_ratios.iter() {
-                let intersection_size = (ratio * second_len as f32).ceil() as usize;
-                let params = format!("{}x{}@{}", first_len, second_len, ratio);
-                
-                plain_group.bench_with_input(
-                    BenchmarkId::new("plain", params), 
-                    &(first_len, second_len, intersection_size),
-                    |b, &(f_len, s_len, i_size)| {
-                        b.iter_with_setup(
-                            || generate_intersecting_vectors(f_len, s_len, i_size),
-                            |(first_vector, second_vector)| {
-                                let (similar_items, _dot_product) = first_vector.sparse_dot_product(&second_vector);
-                                black_box(similar_items);
-                            }
-                        );
-                    }
-                );
+                        
+    
+                }
             }
         }
-    }
-    plain_group.finish();
 
-    // Create benchmark group for NEON implementation
-    let mut neon_group = c.benchmark_group("neon_dot_product");
-    for &first_len in first_lens.iter() {
-        for &second_len in second_lens.iter() {
-            for &ratio in intersection_ratios.iter() {
-                let intersection_size = (ratio * second_len as f32).ceil() as usize;
-                let params = format!("{}x{}@{}", first_len, second_len, ratio);
-                
-                neon_group.bench_with_input(
-                    BenchmarkId::new("neon", params),
-                    &(first_len, second_len, intersection_size),
-                    |b, &(f_len, s_len, i_size)| {
-                        b.iter_with_setup(
-                            || generate_intersecting_vectors(f_len, s_len, i_size),
-                            |(first_vector, second_vector)| {
-                                let (similar_items, _dot_product) = sparse_dot_product(
-                                    first_vector.indices.as_slice(),
-                                    second_vector.indices.as_slice(),
-                                    first_vector.values.as_slice(),
-                                    second_vector.values.as_slice(),
-                                );
-                                black_box(similar_items)
-                            }
-                        );
-                    }
-                );
+        for first_len in [64, 128, 512, 1024, 2048] {
+            for second_len in [8, 16, 32] {
+                for intersection_ratio in [0.1, 0.5, 0.9] {
+                        let intersection_size = (intersection_ratio * second_len as f32).ceil() as usize;
+                        let (first_vector, second_vector) = generate_intersecting_vectors(first_len, second_len, intersection_size);
+                        let mut total_ns: u128 = 0;
+                        for _j in 0..10 {
+                            let start = std::time::Instant::now();
+                            let (neon_similar_items, _dot_product) = sparse_dot_product(
+                                first_vector.indices.as_slice(),
+                                second_vector.indices.as_slice(),
+                                first_vector.values.as_slice(),
+                                second_vector.values.as_slice(),
+                            );
+                            let elapsed = start.elapsed();
+                            total_ns += elapsed.as_nanos();
+                            assert!(neon_similar_items == intersection_size as f64, "similar items: {}, intersection_size: {}\n {}, \n second {}", neon_similar_items, intersection_size, first_vector, second_vector);
+                        }
+                        println!("NEON: {} vs {} avg elapsed_time ns: {}",first_len, second_len, total_ns/10);
+        
+    
+                }
             }
         }
-    }
-    neon_group.finish();
+        
+        
 }
-
-criterion_group!(benches, bench_dot_products);
-criterion_main!(benches);
+     
