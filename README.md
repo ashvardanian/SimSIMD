@@ -190,7 +190,7 @@ You can learn more about the technical implementation details in the following b
 
   <!-- Euclidean distance with different precision level -->
   <tr>
-    <td colspan="4" align="center">eculidean distance between 1536d vectors in <code>int8</code></td>
+    <td colspan="4" align="center">euclidean distance between 1536d vectors in <code>int8</code></td>
   </tr>
   <tr>
     <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
@@ -207,7 +207,7 @@ You can learn more about the technical implementation details in the following b
     </td>
   </tr>
   <tr>
-    <td colspan="4" align="center">eculidean distance between 1536d vectors in <code>bfloat16</code></td>
+    <td colspan="4" align="center">euclidean distance between 1536d vectors in <code>bfloat16</code></td>
   </tr>
   <tr>
     <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
@@ -223,7 +223,7 @@ You can learn more about the technical implementation details in the following b
     </td>
   </tr>
   <tr>
-    <td colspan="4" align="center">eculidean distance between 1536d vectors in <code>float16</code></td>
+    <td colspan="4" align="center">euclidean distance between 1536d vectors in <code>float16</code></td>
   </tr>
   <tr>
     <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
@@ -240,7 +240,7 @@ You can learn more about the technical implementation details in the following b
     </td>
   </tr>
   <tr>
-    <td colspan="4" align="center">eculidean distance between 1536d vectors in <code>float32</code></td>
+    <td colspan="4" align="center">euclidean distance between 1536d vectors in <code>float32</code></td>
   </tr>
   <tr>
     <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
@@ -257,7 +257,7 @@ You can learn more about the technical implementation details in the following b
     </td>
   </tr>
   <tr>
-    <td colspan="4" align="center">eculidean distance between 1536d vectors in <code>float64</code></td>
+    <td colspan="4" align="center">euclidean distance between 1536d vectors in <code>float64</code></td>
   </tr>
   <tr>
     <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
