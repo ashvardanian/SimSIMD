@@ -113,7 +113,8 @@
 
 // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
 #if defined(_SIMSIMD_DEFINED_APPLE)
-#include <sys/sysctl.h>
+#include <fenv.h>       // `fesetenv` - part of C 99 standard
+#include <sys/sysctl.h> // `sysctlbyname`
 #endif
 
 #ifdef __cplusplus
@@ -319,6 +320,7 @@ SIMSIMD_DYNAMIC void simsimd_find_kernel_punned( //
     simsimd_capability_t allowed,                //
     simsimd_kernel_punned_t *kernel_output,      //
     simsimd_capability_t *capability_output);
+SIMSIMD_DYNAMIC int simsimd_flush_denormals(void);
 #else
 SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void);
 SIMSIMD_PUBLIC void simsimd_find_kernel_punned( //
@@ -328,9 +330,23 @@ SIMSIMD_PUBLIC void simsimd_find_kernel_punned( //
     simsimd_capability_t allowed,               //
     simsimd_kernel_punned_t *kernel_output,     //
     simsimd_capability_t *capability_output);
+SIMSIMD_PUBLIC int simsimd_flush_denormals(void);
 #endif
 
 #if _SIMSIMD_TARGET_X86
+
+/**
+ *  @brief  Function to flush denormalized numbers to zero on x86 CPUs.
+ *  @note   This should be called on each thread before any SIMD operations to avoid performance penalties.
+ *  @return 1 if the operation was successful, 0 otherwise.
+ */
+SIMSIMD_PUBLIC int _simsimd_flush_denormals_x86(void) {
+    unsigned int mxcsr = _mm_getcsr();
+    mxcsr |= (1 << 15); // bit 15 = Flush-To-Zero (FTZ)
+    mxcsr |= (1 << 6);  // bit 6  = Denormals-Are-Zero (DAZ)
+    _mm_setcsr(mxcsr);
+    return 1;
+}
 
 /**
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
@@ -428,6 +444,33 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
 #pragma clang attribute push(__attribute__((target("arch=armv8.5-a+sve"))), apply_to = function)
 
 /**
+ *  @brief  Function to flush denormalized numbers to zero on Arm CPUs.
+ *  @note   This should be called on each thread before any SIMD operations to avoid performance penalties.
+ *  @note   On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
+ *  @return 1 if the operation was successful, 0 otherwise.
+ */
+SIMSIMD_PUBLIC int _simsimd_flush_denormals_arm(void) {
+#if defined(_SIMSIMD_DEFINED_APPLE)
+    // https://stackoverflow.com/a/19904907/2766161
+    // https://stackoverflow.com/a/78252076/2766161
+    int is_success = fesetenv(FE_DFL_DISABLE_DENORMS_ENV) == 0;
+    return is_success;
+#elif defined(_SIMSIMD_DEFINED_LINUX)
+    // For Linux, we can toggle bits in the Floating-point Control Register (FPCR)
+    // https://developer.arm.com/documentation/ddi0601/2024-12/AArch64-Registers/FPCR--Floating-point-Control-Register
+    uint64_t fpcr;
+    __asm__ volatile("mrs %0, fpcr" : "=r"(fpcr));
+    fpcr |= (1 << 19); // bit 19 = FZ16 (Flush half-precision to zero)
+    fpcr |= (1 << 24); // bit 24 = FZ (Flush subnormals to zero)
+    fpcr |= (1 << 25); // bit 25 = DN (Force Default NaN instead of preserving payload)
+    __asm__ volatile("msr fpcr, %0" : : "r"(fpcr));
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+/**
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit Arm machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
  */
@@ -513,6 +556,23 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
 #pragma GCC pop_options
 
 #endif
+
+/**
+ *  @brief  Function to flush @b denormalized numbers to zero to avoid performance penalties.
+ *  @return 1 if the operation was successful, 0 otherwise.
+ *
+ *  When facing denormalized values Fused-Multiply-Add (FMA) operations can be up to 30x slower,
+ *  as measured on Intel Sapphire Rapids: https://github.com/ashvardanian/ParallelReductionsBenchmark
+ */
+SIMSIMD_PUBLIC int _simsimd_flush_denormals(void) {
+#if _SIMSIMD_TARGET_X86
+    return _simsimd_flush_denormals_x86();
+#endif // _SIMSIMD_TARGET_X86
+#if _SIMSIMD_TARGET_ARM
+    return _simsimd_flush_denormals_arm();
+#endif // _SIMSIMD_TARGET_ARM
+    return 0;
+}
 
 /**
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
@@ -1281,6 +1341,7 @@ SIMSIMD_PUBLIC simsimd_kernel_punned_t simsimd_metric_punned( //
  *  @return 1 if the CPU supports the SIMD instruction set, 0 otherwise.
  */
 SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void);
+SIMSIMD_DYNAMIC int simsimd_flush_denormals(void);
 SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void);
 SIMSIMD_DYNAMIC int simsimd_uses_neon(void);
 SIMSIMD_DYNAMIC int simsimd_uses_neon_f16(void);
@@ -1473,6 +1534,7 @@ SIMSIMD_PUBLIC int simsimd_uses_sapphire(void) { return _SIMSIMD_TARGET_X86 && S
 SIMSIMD_PUBLIC int simsimd_uses_turin(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_TURIN; }
 SIMSIMD_PUBLIC int simsimd_uses_sierra(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SIERRA; }
 SIMSIMD_PUBLIC int simsimd_uses_dynamic_dispatch(void) { return 0; }
+SIMSIMD_PUBLIC int simsimd_flush_denormals(void) { return _simsimd_flush_denormals(); }
 SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) { return _simsimd_capabilities_implementation(); }
 SIMSIMD_PUBLIC void simsimd_find_kernel_punned( //
     simsimd_metric_kind_t kind,                 //
