@@ -98,7 +98,7 @@
  *          that runs the program, rather than the most advanced backend supported by the CPU
  *          used to compile the library or the downstream application.
  */
-#ifndef SIMSIMD_DYNAMIC_DISPATCH
+#if !defined(SIMSIMD_DYNAMIC_DISPATCH)
 #define SIMSIMD_DYNAMIC_DISPATCH (0) // true or false
 #endif
 
@@ -256,9 +256,10 @@ typedef void (*simsimd_metric_dense_punned_t)(void const *a, void const *b, sims
  *  @param[in] b_length   Number of scalar words in the second input array.
  *  @param[out] d         Output value as a double-precision float, generally without decimals.
  */
-typedef void (*simsimd_metric_sparse_punned_t)(void const *a, void const *b,                     //
-                                               simsimd_size_t a_length, simsimd_size_t b_length, //
-                                               simsimd_distance_t *d);
+typedef void (*simsimd_metric_sparse_punned_t)(       //
+    void const *a, void const *b,                     //
+    simsimd_size_t a_length, simsimd_size_t b_length, //
+    simsimd_distance_t *d);
 
 /**
  *  @brief  Type-punned function pointer for curved vector spaces and similarity measures.
@@ -269,8 +270,9 @@ typedef void (*simsimd_metric_sparse_punned_t)(void const *a, void const *b,    
  *  @param[in] n    Number of scalar words in the input arrays.
  *  @param[out] d   Output value as a double-precision float.
  */
-typedef void (*simsimd_metric_curved_punned_t)(void const *a, void const *b, void const *c, //
-                                               simsimd_size_t n, simsimd_distance_t *d);
+typedef void (*simsimd_metric_curved_punned_t)(  //
+    void const *a, void const *b, void const *c, //
+    simsimd_size_t n, simsimd_distance_t *d);
 
 /**
  *  @brief  Type-punned function pointer for FMA operations on dense vector representations.
@@ -284,9 +286,9 @@ typedef void (*simsimd_metric_curved_punned_t)(void const *a, void const *b, voi
  *  @param[in] beta     Scaling factor for the third array.
  *  @param[out] y       Output value in the same precision as the input arrays.
  */
-typedef void (*simsimd_kernel_fma_punned_t)(void const *a, void const *b, void const *c, //
-                                            simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
-                                            void *y);
+typedef void (*simsimd_kernel_fma_punned_t)(     //
+    void const *a, void const *b, void const *c, //
+    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, void *y);
 
 /**
  *  @brief  Type-punned function pointer for Weighted Sum operations on dense vector representations.
@@ -299,9 +301,9 @@ typedef void (*simsimd_kernel_fma_punned_t)(void const *a, void const *b, void c
  *  @param[in] beta     Scaling factor for the second array.
  *  @param[out] y       Output value in the same precision as the input arrays.
  */
-typedef void (*simsimd_kernel_wsum_punned_t)(void const *a, void const *b, //
-                                             simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
-                                             void *y);
+typedef void (*simsimd_kernel_wsum_punned_t)( //
+    void const *a, void const *b,             //
+    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, void *y);
 
 /**
  *  @brief  Type-punned function pointer for a SimSIMD public interface.
@@ -374,17 +376,19 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
     __cpuidex(info1.array, 1, 0);
     __cpuidex(info7.array, 7, 0);
     __cpuidex(info7sub1.array, 7, 1);
-#else
-    __asm__ __volatile__("cpuid"
-                         : "=a"(info1.named.eax), "=b"(info1.named.ebx), "=c"(info1.named.ecx), "=d"(info1.named.edx)
-                         : "a"(1), "c"(0));
-    __asm__ __volatile__("cpuid"
-                         : "=a"(info7.named.eax), "=b"(info7.named.ebx), "=c"(info7.named.ecx), "=d"(info7.named.edx)
-                         : "a"(7), "c"(0));
-    __asm__ __volatile__("cpuid"
-                         : "=a"(info7sub1.named.eax), "=b"(info7sub1.named.ebx), "=c"(info7sub1.named.ecx),
-                           "=d"(info7sub1.named.edx)
-                         : "a"(7), "c"(1));
+#else // GCC, Clang, ICC
+    __asm__ __volatile__( //
+        "cpuid"
+        : "=a"(info1.named.eax), "=b"(info1.named.ebx), "=c"(info1.named.ecx), "=d"(info1.named.edx)
+        : "a"(1), "c"(0));
+    __asm__ __volatile__( //
+        "cpuid"
+        : "=a"(info7.named.eax), "=b"(info7.named.ebx), "=c"(info7.named.ecx), "=d"(info7.named.edx)
+        : "a"(7), "c"(0));
+    __asm__ __volatile__( //
+        "cpuid"
+        : "=a"(info7sub1.named.eax), "=b"(info7sub1.named.ebx), "=c"(info7sub1.named.ecx), "=d"(info7sub1.named.edx)
+        : "a"(7), "c"(1));
 #endif
 
     // Check for AVX2 (Function ID 7, EBX register)
@@ -424,7 +428,7 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
                             supports_avx512vbmi2 && supports_avx512vpopcntdq;
     unsigned supports_genoa = supports_avx512bf16;
     unsigned supports_sapphire = supports_avx512fp16;
-    // We don't want to accidently enable AVX512VP2INTERSECT on Intel Tiger Lake CPUs
+    // We don't want to accidentally enable AVX512VP2INTERSECT on Intel Tiger Lake CPUs
     unsigned supports_turin = supports_avx512vp2intersect && supports_avx512bf16;
     unsigned supports_sierra = 0;
 
@@ -601,7 +605,7 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_implementation(void) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wcast-function-type"
 
-#ifdef __cplusplus //! option ‘-Wvolatile’ is valid for C++/ObjC++ but not for C
+#ifdef __cplusplus //! option "-Wvolatile" is valid for C++/ObjC++ but not for C
 #pragma GCC diagnostic ignored "-Wvolatile"
 #pragma clang diagnostic ignored "-Wvolatile"
 #endif

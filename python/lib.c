@@ -88,7 +88,7 @@
 #include <math.h>
 
 #if defined(__linux__)
-#ifdef _OPENMP
+#if defined(_OPENMP)
 #include <omp.h>
 #endif
 #endif
@@ -1090,8 +1090,8 @@ static PyObject *implement_cdist(                        //
         goto cleanup;
     }
 
-#ifdef __linux__
-#ifdef _OPENMP
+#if defined(__linux__)
+#if defined(_OPENMP)
     if (threads == 0) threads = omp_get_num_procs();
     omp_set_num_threads(threads);
 #endif
