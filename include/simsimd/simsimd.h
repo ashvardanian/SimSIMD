@@ -341,10 +341,18 @@ SIMSIMD_PUBLIC int simsimd_flush_denormals(void);
  *  @return 1 if the operation was successful, 0 otherwise.
  */
 SIMSIMD_PUBLIC int _simsimd_flush_denormals_x86(void) {
+#if defined(_MSC_VER)
     unsigned int mxcsr = _mm_getcsr();
-    mxcsr |= (1 << 15); // bit 15 = Flush-To-Zero (FTZ)
-    mxcsr |= (1 << 6);  // bit 6  = Denormals-Are-Zero (DAZ)
+    mxcsr |= 1 << 15; // bit 15 = Flush-To-Zero (FTZ)
+    mxcsr |= 1 << 6;  // bit 6  = Denormals-Are-Zero (DAZ)
     _mm_setcsr(mxcsr);
+#else // GCC, Clang, ICC
+    unsigned int mxcsr;
+    __asm__ __volatile__("stmxcsr %0" : "=m"(mxcsr));
+    mxcsr |= 1 << 15; // bit 15 = Flush-To-Zero (FTZ)
+    mxcsr |= 1 << 6;  // bit 6  = Denormals-Are-Zero (DAZ)
+    __asm__ __volatile__("ldmxcsr %0" : : "m"(mxcsr));
+#endif
     return 1;
 }
 
