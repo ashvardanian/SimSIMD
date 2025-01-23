@@ -241,6 +241,7 @@ SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void) { return (simsimd_capabilities()
 SIMSIMD_DYNAMIC int simsimd_uses_turin(void) { return (simsimd_capabilities() & simsimd_cap_turin_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_sierra(void) { return (simsimd_capabilities() & simsimd_cap_sierra_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void) { return 1; }
+SIMSIMD_DYNAMIC int simsimd_flush_denormals(void) { return _simsimd_flush_denormals(); }
 
 SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
     //! The latency of the CPUID instruction can be over 100 cycles, so we cache the result.

@@ -12,6 +12,7 @@
         "cdist",
         "cpuid",
         "cpusysregs",
+        "denormal",
         "dtype",
         "dtypes",
         "elif",
