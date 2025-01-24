@@ -233,7 +233,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-windows
+          name: cibw-wheels-windows-${{ matrix.architecture }}
           path: wheelhouse/*.whl
           overwrite: true
 
