@@ -1,8 +1,9 @@
 # This file configures wheels compilation for `cibuilwheel` for SimSIMD CPython bindings.
 # On a good day it will produce:
-#   - `manylinux` and `musllinux` wheels for Linux on x86_64, aarch64, i686, ppc64le, s390x;
+#   - `manylinux` and `musllinux` vectorized wheels for Linux on x86_64, aarch64;
+#   - `manylinux` and `musllinux` wheels for Linux on i686, ppc64le, s390x;
 #   - `macos` wheels for x86_64, arm64;
-#   - `windows` wheels for AMD64, x86, ARM64.
+#   - `windows` wheels for AMD64, ARM64.
 #   * for 7 Python versions from 3.7 to 3.13.
 #   * running thousands of fuzzy tests on each wheel.
 #   = meaning 12 platforms * 7 Python versions = 84 builds.
@@ -34,7 +35,7 @@ test-command = """
 # We need to build for all platforms:
 # - on Linux: x86_64, aarch64, i686
 # - on MacOS: x86_64, arm64
-# - on Windows: AMD64, x86, ARM64
+# - on Windows: AMD64, ARM64
 # https://cibuildwheel.readthedocs.io/en/stable/options/#archs
 #
 # Important to note, not all those platforms have recent images.

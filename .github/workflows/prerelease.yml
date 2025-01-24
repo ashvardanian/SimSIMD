@@ -301,7 +301,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["37", "38", "39", "310", "311", "312", "313"]
-        architecture: [AMD64, x86] # List ARM64 separately
+        architecture: [AMD64] # List ARM64 separately and avoid 32-bit
         #! ARM64 isn't supported for Python 3.7 and 3.8
         include:
           - python-version: "39"
