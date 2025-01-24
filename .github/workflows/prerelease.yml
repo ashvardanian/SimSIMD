@@ -227,7 +227,7 @@ jobs:
 
   build_wheels_linux_arm:
     name: Build Python Wheels (Linux ARM)
-    runs-on: ubuntu-24.04-arm64 # These are maintained by Arm, not GitHub
+    runs-on: ubuntu-24.04-arm # These are maintained by Arm, not GitHub
     strategy:
       matrix:
         python-version: ["37", "38", "39", "310", "311", "312", "313"]
