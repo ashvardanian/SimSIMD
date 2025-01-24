@@ -277,7 +277,7 @@ jobs:
     runs-on: macos-14
     strategy:
       matrix:
-        python-version: ["37", "38", "39", "310", "311", "312", "313"]
+        python-version: ["38", "39", "310", "311", "312", "313"] #! Python 3.7 isn't supported on ARM macOS
     needs: [test_python]
     steps:
       - name: Checkout
@@ -301,7 +301,19 @@ jobs:
     strategy:
       matrix:
         python-version: ["37", "38", "39", "310", "311", "312", "313"]
-        architecture: [AMD64, ARM64, x86]
+        architecture: [AMD64, x86] # List ARM64 separately
+        #! ARM64 isn't supported for Python 3.7 and 3.8
+        include:
+          - python-version: "39"
+            architecture: ARM64
+          - python-version: "310"
+            architecture: ARM64
+          - python-version: "311"
+            architecture: ARM64
+          - python-version: "312"
+            architecture: ARM64
+          - python-version: "313"
+            architecture: ARM64
     needs: [test_python]
     steps:
       - name: Checkout
