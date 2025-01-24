@@ -358,4 +358,4 @@ jobs:
           # https://cibuildwheel.pypa.io/en/stable/options/#archs
           CIBW_BUILD: cp${{ matrix.python-version }}-*
           CIBW_PLATFORM: linux
-          CIBW_ARCHS: ppc64le s390x i686 armv7l
+          CIBW_ARCHS: ppc64le s390x i686 #! `armv7l` not worth the trouble
