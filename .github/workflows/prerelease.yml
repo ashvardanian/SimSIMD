@@ -47,8 +47,8 @@ jobs:
     name: Test C
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - run: git submodule update --init --recursive
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
@@ -74,8 +74,8 @@ jobs:
         architecture: [x64, arm64]
 
     steps:
-      - uses: actions/checkout@v4
-      - run: git submodule update --init --recursive
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -114,8 +114,8 @@ jobs:
       CXX: g++-12
 
     steps:
-      - uses: actions/checkout@v4
-      - run: git submodule update --init --recursive
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Update compilers
         run: |
@@ -142,8 +142,8 @@ jobs:
       CXX: g++-12
 
     steps:
-      - uses: actions/checkout@v4
-      - run: git submodule update --init --recursive
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Update compilers
         run: |
@@ -175,8 +175,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-      - run: git submodule update --init --recursive
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: moonrepo/setup-rust@v1
@@ -191,7 +191,8 @@ jobs:
     runs-on: ubuntu-22.04
     container: swift:5.9
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Test Swift
         run: swift test
 
