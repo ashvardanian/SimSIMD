@@ -224,8 +224,6 @@ jobs:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
           CIBW_PLATFORM: linux
           CIBW_ARCHS: x86_64
-          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2014
-          CIBW_MUSLLINUX_X86_64_IMAGE: musllinux_1_2
 
   build_wheels_linux_arm:
     name: Build Python Wheels (Linux ARM)
@@ -250,8 +248,6 @@ jobs:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
           CIBW_PLATFORM: linux
           CIBW_ARCHS: aarch64
-          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2014
-          CIBW_MUSLLINUX_AARCH64_IMAGE: musllinux_1_2
 
   build_wheels_macos_x86:
     name: Build Python Wheels (macOS x86)
@@ -351,11 +347,3 @@ jobs:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
           CIBW_PLATFORM: linux
           CIBW_ARCHS: ppc64le s390x i686 armv7l
-          CIBW_MANYLINUX_I686_IMAGE: manylinux_2014
-          CIBW_MANYLINUX_PPC64LE_IMAGE: manylinux_2014
-          CIBW_MANYLINUX_S390X_IMAGE: manylinux_2014
-          CIBW_MANYLINUX_ARMV7L_IMAGE: manylinux_2_31
-          CIBW_MUSLLINUX_I686_IMAGE: musllinux_1_2
-          CIBW_MUSLLINUX_PPC64LE_IMAGE: musllinux_1_2
-          CIBW_MUSLLINUX_S390X_IMAGE: musllinux_1_2
-          CIBW_MUSLLINUX_ARMV7L_IMAGE: musllinux_1_2
