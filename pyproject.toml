@@ -1,8 +1,9 @@
 # This file configures wheels compilation for `cibuilwheel` for SimSIMD CPython bindings.
 # On a good day it will produce:
-#   - `manylinux` and `musllinux` wheels for Linux on x86_64, aarch64, i686;
-#   - `macos` wheels for x86_64, arm64, and universal2;
-#   - `windows` wheels for AMD64, x86, and ARM64.
+#   - `manylinux` and `musllinux` vectorized wheels for Linux on x86_64, aarch64;
+#   - `manylinux` and `musllinux` wheels for Linux on i686, ppc64le, s390x;
+#   - `macos` wheels for x86_64, arm64;
+#   - `windows` wheels for AMD64, ARM64.
 #   * for 7 Python versions from 3.7 to 3.13.
 #   * running thousands of fuzzy tests on each wheel.
 #   = meaning 12 platforms * 7 Python versions = 84 builds.
@@ -23,17 +24,18 @@ test-requires = ["pytest", "pytest-repeat", "tabulate"]
 # Assuming NumPy and SciPy aren't available precompiled for some platforms,
 # we will end up compiling them from source on emulated hardware...
 # To avoid that use `--only-binary=:all:` to only fetch precompiled wheels.
+# For better compatibility, we use (&&) to chain commands instead of (;).
 test-command = """
-    python -m pip install numpy --only-binary=:all: || echo "Failed to install NumPy... Nothing can stop me, I'm all the way up!";
-    python -m pip install scipy --only-binary=:all: || echo "Failed to install SciPy... Nothing can stop me, I'm all the way up!";
-    python -c "import simsimd; print(simsimd.get_capabilities())";
+    python -m pip install numpy --only-binary=:all: || (echo "Failed to install NumPy" && exit 0) &&
+    python -m pip install scipy --only-binary=:all: || (echo "Failed to install SciPy" && exit 0) &&
+    python -c "import simsimd; print(simsimd.get_capabilities())" &&
     pytest {project}/scripts/test.py -s -x -Wd
 """
 
 # We need to build for all platforms:
 # - on Linux: x86_64, aarch64, i686
-# - on MacOS: x86_64, arm64, universal2
-# - on Windows: AMD64, x86, ARM64
+# - on MacOS: x86_64, arm64
+# - on Windows: AMD64, ARM64
 # https://cibuildwheel.readthedocs.io/en/stable/options/#archs
 #
 # Important to note, not all those platforms have recent images.
@@ -44,7 +46,8 @@ archs = ["all"]
 # Add "pp*" to skip PyPy builds, but they should work fine these days :)
 # https://cibuildwheel.readthedocs.io/en/stable/options/#build-skip
 # https://cibuildwheel.readthedocs.io/en/stable/#what-does-it-do
-skip = [] # we don't use any SIMD on: ["*s390x*", "*ppc64le*"]
+skip = [] # we also don't use any SIMD on: ["*s390x*", "*ppc64le*"]
+enable = [] # don't enable PyPy
 
 # Testing half-precision math in QEMU is unreliable!
 environment-pass = ["SIMSIMD_IN_QEMU"]

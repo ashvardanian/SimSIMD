@@ -156,10 +156,32 @@ void test_distance_from_itself(void) {
     simsimd_kl_f64(f64s, f64s, 1536, &distance[0]);
 }
 
+/**
+ *  @brief Test whether denormals are being flushed to zero or not.
+ *
+ *  We create subnormal float values, do a small computation (multiplication),
+ *  and classify the result. If flush-to-zero @b (FTZ) is enabled, the result is
+ *  likely zero. Otherwise, you may see another subnormal or normal number.
+ */
+static void test_denormals(void) {
+
+    // Create two subnormal floats:
+    // 1e-40 ~ 1.0 * 10^-40 is typically a subnormal in IEEE-754 single precision
+    float subnorm1 = 1e-40f;
+    float subnorm2 = 2e-40f;
+    float result = subnorm1 * subnorm2; // This might be subnormal, zero, or normal
+    int classification = fpclassify(result);
+    if (classification == FP_SUBNORMAL) { printf("Denormal test: result is subnormal: %.8g\n", result); }
+    else if (result == 0.0f) { printf("Denormal test: result is zero (denormals likely flushed).\n"); }
+    else if (classification == FP_NORMAL) { printf("Denormal test: result is normal: %.8g\n", result); }
+    else { printf("Denormal test: result has unexpected classification.\n"); }
+}
+
 int main(int argc, char **argv) {
 
     print_capabilities();
     test_utilities();
     test_distance_from_itself();
+    test_denormals();
     return 0;
 }

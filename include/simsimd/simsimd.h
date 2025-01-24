@@ -98,7 +98,7 @@
  *          that runs the program, rather than the most advanced backend supported by the CPU
  *          used to compile the library or the downstream application.
  */
-#ifndef SIMSIMD_DYNAMIC_DISPATCH
+#if !defined(SIMSIMD_DYNAMIC_DISPATCH)
 #define SIMSIMD_DYNAMIC_DISPATCH (0) // true or false
 #endif
 
@@ -113,7 +113,8 @@
 
 // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
 #if defined(_SIMSIMD_DEFINED_APPLE)
-#include <sys/sysctl.h>
+#include <fenv.h>       // `fesetenv` - part of C 99 standard
+#include <sys/sysctl.h> // `sysctlbyname`
 #endif
 
 #ifdef __cplusplus
@@ -255,9 +256,10 @@ typedef void (*simsimd_metric_dense_punned_t)(void const *a, void const *b, sims
  *  @param[in] b_length   Number of scalar words in the second input array.
  *  @param[out] d         Output value as a double-precision float, generally without decimals.
  */
-typedef void (*simsimd_metric_sparse_punned_t)(void const *a, void const *b,                     //
-                                               simsimd_size_t a_length, simsimd_size_t b_length, //
-                                               simsimd_distance_t *d);
+typedef void (*simsimd_metric_sparse_punned_t)(       //
+    void const *a, void const *b,                     //
+    simsimd_size_t a_length, simsimd_size_t b_length, //
+    simsimd_distance_t *d);
 
 /**
  *  @brief  Type-punned function pointer for curved vector spaces and similarity measures.
@@ -268,8 +270,9 @@ typedef void (*simsimd_metric_sparse_punned_t)(void const *a, void const *b,    
  *  @param[in] n    Number of scalar words in the input arrays.
  *  @param[out] d   Output value as a double-precision float.
  */
-typedef void (*simsimd_metric_curved_punned_t)(void const *a, void const *b, void const *c, //
-                                               simsimd_size_t n, simsimd_distance_t *d);
+typedef void (*simsimd_metric_curved_punned_t)(  //
+    void const *a, void const *b, void const *c, //
+    simsimd_size_t n, simsimd_distance_t *d);
 
 /**
  *  @brief  Type-punned function pointer for FMA operations on dense vector representations.
@@ -283,9 +286,9 @@ typedef void (*simsimd_metric_curved_punned_t)(void const *a, void const *b, voi
  *  @param[in] beta     Scaling factor for the third array.
  *  @param[out] y       Output value in the same precision as the input arrays.
  */
-typedef void (*simsimd_kernel_fma_punned_t)(void const *a, void const *b, void const *c, //
-                                            simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
-                                            void *y);
+typedef void (*simsimd_kernel_fma_punned_t)(     //
+    void const *a, void const *b, void const *c, //
+    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, void *y);
 
 /**
  *  @brief  Type-punned function pointer for Weighted Sum operations on dense vector representations.
@@ -298,9 +301,9 @@ typedef void (*simsimd_kernel_fma_punned_t)(void const *a, void const *b, void c
  *  @param[in] beta     Scaling factor for the second array.
  *  @param[out] y       Output value in the same precision as the input arrays.
  */
-typedef void (*simsimd_kernel_wsum_punned_t)(void const *a, void const *b, //
-                                             simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
-                                             void *y);
+typedef void (*simsimd_kernel_wsum_punned_t)( //
+    void const *a, void const *b,             //
+    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, void *y);
 
 /**
  *  @brief  Type-punned function pointer for a SimSIMD public interface.
@@ -319,6 +322,7 @@ SIMSIMD_DYNAMIC void simsimd_find_kernel_punned( //
     simsimd_capability_t allowed,                //
     simsimd_kernel_punned_t *kernel_output,      //
     simsimd_capability_t *capability_output);
+SIMSIMD_DYNAMIC int simsimd_flush_denormals(void);
 #else
 SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void);
 SIMSIMD_PUBLIC void simsimd_find_kernel_punned( //
@@ -328,9 +332,31 @@ SIMSIMD_PUBLIC void simsimd_find_kernel_punned( //
     simsimd_capability_t allowed,               //
     simsimd_kernel_punned_t *kernel_output,     //
     simsimd_capability_t *capability_output);
+SIMSIMD_PUBLIC int simsimd_flush_denormals(void);
 #endif
 
 #if _SIMSIMD_TARGET_X86
+
+/**
+ *  @brief  Function to flush denormalized numbers to zero on x86 CPUs.
+ *  @note   This should be called on each thread before any SIMD operations to avoid performance penalties.
+ *  @return 1 if the operation was successful, 0 otherwise.
+ */
+SIMSIMD_PUBLIC int _simsimd_flush_denormals_x86(void) {
+#if defined(_MSC_VER)
+    unsigned int mxcsr = _mm_getcsr();
+    mxcsr |= 1 << 15; // bit 15 = Flush-To-Zero (FTZ)
+    mxcsr |= 1 << 6;  // bit 6  = Denormals-Are-Zero (DAZ)
+    _mm_setcsr(mxcsr);
+#else // GCC, Clang, ICC
+    unsigned int mxcsr;
+    __asm__ __volatile__("stmxcsr %0" : "=m"(mxcsr));
+    mxcsr |= 1 << 15; // bit 15 = Flush-To-Zero (FTZ)
+    mxcsr |= 1 << 6;  // bit 6  = Denormals-Are-Zero (DAZ)
+    __asm__ __volatile__("ldmxcsr %0" : : "m"(mxcsr));
+#endif
+    return 1;
+}
 
 /**
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
@@ -350,17 +376,19 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
     __cpuidex(info1.array, 1, 0);
     __cpuidex(info7.array, 7, 0);
     __cpuidex(info7sub1.array, 7, 1);
-#else
-    __asm__ __volatile__("cpuid"
-                         : "=a"(info1.named.eax), "=b"(info1.named.ebx), "=c"(info1.named.ecx), "=d"(info1.named.edx)
-                         : "a"(1), "c"(0));
-    __asm__ __volatile__("cpuid"
-                         : "=a"(info7.named.eax), "=b"(info7.named.ebx), "=c"(info7.named.ecx), "=d"(info7.named.edx)
-                         : "a"(7), "c"(0));
-    __asm__ __volatile__("cpuid"
-                         : "=a"(info7sub1.named.eax), "=b"(info7sub1.named.ebx), "=c"(info7sub1.named.ecx),
-                           "=d"(info7sub1.named.edx)
-                         : "a"(7), "c"(1));
+#else // GCC, Clang, ICC
+    __asm__ __volatile__( //
+        "cpuid"
+        : "=a"(info1.named.eax), "=b"(info1.named.ebx), "=c"(info1.named.ecx), "=d"(info1.named.edx)
+        : "a"(1), "c"(0));
+    __asm__ __volatile__( //
+        "cpuid"
+        : "=a"(info7.named.eax), "=b"(info7.named.ebx), "=c"(info7.named.ecx), "=d"(info7.named.edx)
+        : "a"(7), "c"(0));
+    __asm__ __volatile__( //
+        "cpuid"
+        : "=a"(info7sub1.named.eax), "=b"(info7sub1.named.ebx), "=c"(info7sub1.named.ecx), "=d"(info7sub1.named.edx)
+        : "a"(7), "c"(1));
 #endif
 
     // Check for AVX2 (Function ID 7, EBX register)
@@ -400,7 +428,7 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
                             supports_avx512vbmi2 && supports_avx512vpopcntdq;
     unsigned supports_genoa = supports_avx512bf16;
     unsigned supports_sapphire = supports_avx512fp16;
-    // We don't want to accidently enable AVX512VP2INTERSECT on Intel Tiger Lake CPUs
+    // We don't want to accidentally enable AVX512VP2INTERSECT on Intel Tiger Lake CPUs
     unsigned supports_turin = supports_avx512vp2intersect && supports_avx512bf16;
     unsigned supports_sierra = 0;
 
@@ -426,6 +454,33 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.5-a+sve")
 #pragma clang attribute push(__attribute__((target("arch=armv8.5-a+sve"))), apply_to = function)
+
+/**
+ *  @brief  Function to flush denormalized numbers to zero on Arm CPUs.
+ *  @note   This should be called on each thread before any SIMD operations to avoid performance penalties.
+ *  @note   On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
+ *  @return 1 if the operation was successful, 0 otherwise.
+ */
+SIMSIMD_PUBLIC int _simsimd_flush_denormals_arm(void) {
+#if defined(_SIMSIMD_DEFINED_APPLE)
+    // https://stackoverflow.com/a/19904907/2766161
+    // https://stackoverflow.com/a/78252076/2766161
+    int is_success = fesetenv(FE_DFL_DISABLE_DENORMS_ENV) == 0;
+    return is_success;
+#elif defined(_SIMSIMD_DEFINED_LINUX)
+    // For Linux, we can toggle bits in the Floating-point Control Register (FPCR)
+    // https://developer.arm.com/documentation/ddi0601/2024-12/AArch64-Registers/FPCR--Floating-point-Control-Register
+    uint64_t fpcr;
+    __asm__ volatile("mrs %0, fpcr" : "=r"(fpcr));
+    fpcr |= (1 << 19); // bit 19 = FZ16 (Flush half-precision to zero)
+    fpcr |= (1 << 24); // bit 24 = FZ (Flush subnormals to zero)
+    fpcr |= (1 << 25); // bit 25 = DN (Force Default NaN instead of preserving payload)
+    __asm__ volatile("msr fpcr, %0" : : "r"(fpcr));
+    return 1;
+#else
+    return 0;
+#endif
+}
 
 /**
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit Arm machine at @b runtime.
@@ -515,6 +570,23 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
 #endif
 
 /**
+ *  @brief  Function to flush @b denormalized numbers to zero to avoid performance penalties.
+ *  @return 1 if the operation was successful, 0 otherwise.
+ *
+ *  When facing denormalized values Fused-Multiply-Add (FMA) operations can be up to 30x slower,
+ *  as measured on Intel Sapphire Rapids: https://github.com/ashvardanian/ParallelReductionsBenchmark
+ */
+SIMSIMD_PUBLIC int _simsimd_flush_denormals(void) {
+#if _SIMSIMD_TARGET_X86
+    return _simsimd_flush_denormals_x86();
+#endif // _SIMSIMD_TARGET_X86
+#if _SIMSIMD_TARGET_ARM
+    return _simsimd_flush_denormals_arm();
+#endif // _SIMSIMD_TARGET_ARM
+    return 0;
+}
+
+/**
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `simsimd_capability_t` enum value.
  */
@@ -533,7 +605,7 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_implementation(void) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wcast-function-type"
 
-#ifdef __cplusplus //! option ‘-Wvolatile’ is valid for C++/ObjC++ but not for C
+#ifdef __cplusplus //! option "-Wvolatile" is valid for C++/ObjC++ but not for C
 #pragma GCC diagnostic ignored "-Wvolatile"
 #pragma clang diagnostic ignored "-Wvolatile"
 #endif
@@ -1281,6 +1353,7 @@ SIMSIMD_PUBLIC simsimd_kernel_punned_t simsimd_metric_punned( //
  *  @return 1 if the CPU supports the SIMD instruction set, 0 otherwise.
  */
 SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void);
+SIMSIMD_DYNAMIC int simsimd_flush_denormals(void);
 SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void);
 SIMSIMD_DYNAMIC int simsimd_uses_neon(void);
 SIMSIMD_DYNAMIC int simsimd_uses_neon_f16(void);
@@ -1473,6 +1546,7 @@ SIMSIMD_PUBLIC int simsimd_uses_sapphire(void) { return _SIMSIMD_TARGET_X86 && S
 SIMSIMD_PUBLIC int simsimd_uses_turin(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_TURIN; }
 SIMSIMD_PUBLIC int simsimd_uses_sierra(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SIERRA; }
 SIMSIMD_PUBLIC int simsimd_uses_dynamic_dispatch(void) { return 0; }
+SIMSIMD_PUBLIC int simsimd_flush_denormals(void) { return _simsimd_flush_denormals(); }
 SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) { return _simsimd_capabilities_implementation(); }
 SIMSIMD_PUBLIC void simsimd_find_kernel_punned( //
     simsimd_metric_kind_t kind,                 //

@@ -13,7 +13,7 @@
  *  - x86: Haswell, Ice Lake
  *
  *  The hardest part of optimizing binary similarity measures is the population count operation.
- *  It's natively supported by almost every insrtuction set, but the throughput and latency can
+ *  It's natively supported by almost every instruction set, but the throughput and latency can
  *  be suboptimal. There are several ways to optimize this operation:
  *
  *  - Lookup tables, mostly using nibbles (4-bit lookups)

@@ -223,7 +223,7 @@
 #endif
 #endif // !defined(SIMSIMD_TARGET_SIERRA) || ...
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
 #include <intrin.h>
 #else
 
