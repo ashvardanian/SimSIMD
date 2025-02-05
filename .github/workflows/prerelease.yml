@@ -237,6 +237,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Remove conflicting Containerd
+        run: sudo apt-get remove -y containerd
       - name: Install Docker
         run: |
           sudo apt-get update
