@@ -970,7 +970,7 @@ SIMSIMD_PUBLIC void simsimd_l2sq_bf16_sve(simsimd_bf16_t const *a_enum, simsimd_
         svfloat32_t a_minus_b_low_vec = svsub_f32_x(pg_low_vec, a_low_vec, b_low_vec);
         svfloat32_t a_minus_b_high_vec = svsub_f32_x(pg_high_vec, a_high_vec, b_high_vec);
         d2_low_vec = svmla_f32_x(pg_vec, d2_low_vec, a_minus_b_low_vec, a_minus_b_low_vec);
-        d2_high_vec = svmla_f32_x(pg_vec, d2_high_vec, a_minus_b_low_vec, a_minus_b_low_vec);
+        d2_high_vec = svmla_f32_x(pg_vec, d2_high_vec, a_minus_b_high_vec, a_minus_b_high_vec);
         i += svcnth();
     } while (i < n);
     simsimd_f32_t d2 = svaddv_f32(svptrue_b32(), d2_low_vec) + svaddv_f32(svptrue_b32(), d2_high_vec);
