@@ -227,7 +227,7 @@
 #include <intrin.h>
 #else
 
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON || SIMSIMD_TARGET_WASM
 #include <arm_neon.h>
 #endif
 
