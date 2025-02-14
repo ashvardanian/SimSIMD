@@ -435,6 +435,13 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(        //
         }
         b_min = b_vec.u16[0];
 
+        __m512i a_last_broadcasted = _mm512_set1_epi16(*(short const *)&a_max);
+        __m512i b_last_broadcasted = _mm512_set1_epi16(*(short const *)&b_max);
+        __mmask32 a_step_mask = _mm512_cmple_epu16_mask(a_vec.zmm, b_last_broadcasted);
+        __mmask32 b_step_mask = _mm512_cmple_epu16_mask(b_vec.zmm, a_last_broadcasted);
+        a += 32 - _lzcnt_u32((simsimd_u32_t)a_step_mask);
+        b += 32 - _lzcnt_u32((simsimd_u32_t)b_step_mask);
+
         // Now we are likely to have some overlap, so we can intersect the registers
         __mmask32 a_matches = _simsimd_intersect_u16x32_ice(a_vec.zmm, b_vec.zmm);
 
@@ -442,13 +449,6 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(        //
         // but we don't need it here:
         //      _mm512_mask_compressstoreu_epi16(c, a_matches, a_vec);
         c += _mm_popcnt_u32(a_matches); // MSVC has no `_popcnt32`
-
-        __m512i a_last_broadcasted = _mm512_set1_epi16(*(short const *)&a_max);
-        __m512i b_last_broadcasted = _mm512_set1_epi16(*(short const *)&b_max);
-        __mmask32 a_step_mask = _mm512_cmple_epu16_mask(a_vec.zmm, b_last_broadcasted);
-        __mmask32 b_step_mask = _mm512_cmple_epu16_mask(b_vec.zmm, a_last_broadcasted);
-        a += 32 - _lzcnt_u32((simsimd_u32_t)a_step_mask);
-        b += 32 - _lzcnt_u32((simsimd_u32_t)b_step_mask);
     }
 
     simsimd_intersect_u16_serial(a, b, a_end - a, b_end - b, results);
@@ -500,6 +500,13 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(        //
         }
         b_min = b_vec.u32[0];
 
+        __m512i a_last_broadcasted = _mm512_set1_epi32(*(int const *)&a_max);
+        __m512i b_last_broadcasted = _mm512_set1_epi32(*(int const *)&b_max);
+        __mmask16 a_step_mask = _mm512_cmple_epu32_mask(a_vec.zmm, b_last_broadcasted);
+        __mmask16 b_step_mask = _mm512_cmple_epu32_mask(b_vec.zmm, a_last_broadcasted);
+        a += 32 - _lzcnt_u32((simsimd_u32_t)a_step_mask);
+        b += 32 - _lzcnt_u32((simsimd_u32_t)b_step_mask);
+
         // Now we are likely to have some overlap, so we can intersect the registers
         __mmask16 a_matches = _simsimd_intersect_u32x16_ice(a_vec.zmm, b_vec.zmm);
 
@@ -507,13 +514,6 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(        //
         // but we don't need it here:
         //      _mm512_mask_compressstoreu_epi32(c, a_matches, a_vec);
         c += _mm_popcnt_u32(a_matches); // MSVC has no `_popcnt32`
-
-        __m512i a_last_broadcasted = _mm512_set1_epi32(*(int const *)&a_max);
-        __m512i b_last_broadcasted = _mm512_set1_epi32(*(int const *)&b_max);
-        __mmask16 a_step_mask = _mm512_cmple_epu32_mask(a_vec.zmm, b_last_broadcasted);
-        __mmask16 b_step_mask = _mm512_cmple_epu32_mask(b_vec.zmm, a_last_broadcasted);
-        a += 32 - _lzcnt_u32((simsimd_u32_t)a_step_mask);
-        b += 32 - _lzcnt_u32((simsimd_u32_t)b_step_mask);
     }
 
     simsimd_intersect_u32_serial(a, b, a_end - a, b_end - b, results);
