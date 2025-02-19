@@ -678,7 +678,7 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_turin(                  //
 
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
     if (a_length < 64 && b_length < 64) {
-        simsimd_intersect_u16_serial(a, b, a_length, b_length, results);
+        simsimd_spdot_weights_u16_serial(a, b, a_weights, b_weights, a_length, b_length, results);
         return;
     }
 
@@ -751,9 +751,9 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_turin(                  //
         a += a_step, a_weights += a_step;
         b += b_step, b_weights += b_step;
     }
-
-    simsimd_intersect_u16_serial(a, b, a_end - a, b_end - b, results);
-    *results += intersection_size;
+    simsimd_spdot_weights_u16_serial(a, b, a_weights, b_weights, a_end - a, b_end - b, results);
+    results[0] += intersection_size;
+    results[1] += _mm512_reduce_add_ps(_mm512_insertf32x8(_mm512_setzero_ps(), product_vec.ymmps, 0));
 }
 
 SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(                 //
@@ -764,7 +764,7 @@ SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(                 //
 
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
     if (a_length < 64 && b_length < 64) {
-        simsimd_intersect_u16_serial(a, b, a_length, b_length, results);
+        simsimd_spdot_counts_u16_serial(a, b, a_weights, b_weights, a_length, b_length, results);
         return;
     }
 
@@ -837,8 +837,9 @@ SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(                 //
         b += b_step, b_weights += b_step;
     }
 
-    simsimd_intersect_u16_serial(a, b, a_end - a, b_end - b, results);
-    *results += intersection_size;
+    simsimd_spdot_counts_u16_serial(a, b, a_weights, b_weights, a_end - a, b_end - b, results);
+    results[0] += intersection_size;
+    results[1] += _mm512_reduce_add_epi32(_mm512_inserti64x4(_mm512_setzero_si512(), product_vec.ymm, 0));
 }
 
 #pragma clang attribute pop
