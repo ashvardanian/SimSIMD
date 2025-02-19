@@ -533,6 +533,37 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(        //
         "avx2,avx512f,avx512vl,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2,avx512bf16,avx512vnni,avx512vp2intersect"))), \
     apply_to = function)
 
+// Replacement for _mm512_reduce_add_epi32(_mm512_castsi256_si512(v)) because clang 17-19 miscompiles that.
+SIMSIMD_INTERNAL simsimd_u32_t _simsimd_mm256_reduce_add_epi32_turin(__m256i v) {
+    // 128
+    __m128i low_v = _mm256_castsi256_si128(v);
+    __m128i high_v = _mm256_extracti128_si256(v, 1);
+    low_v = _mm_add_epi32(low_v, high_v);
+    // 64
+    high_v = _mm_shuffle_epi32(low_v, 0b0000'1110);
+    low_v = _mm_add_epi32(low_v, high_v);
+    // 32
+    high_v = _mm_shuffle_epi32(low_v, 0b0000'0001);
+    low_v = _mm_add_epi32(low_v, high_v);
+    return _mm_cvtsi128_si32(low_v);
+}
+
+// Same issue as above, for ps.
+SIMSIMD_INTERNAL simsimd_f32_t _simsimd_mm256_reduce_add_ps_turin(__m256 v) {
+    // 128
+    __m128 low_v = _mm256_castps256_ps128(v);
+    __m128 high_v = _mm256_extractf128_ps(v, 1);
+    low_v = _mm_add_ps(low_v, high_v);
+    // 64
+    // float shuffles take 2 vecs, but we only need one
+    high_v = _mm_shuffle_ps(low_v, low_v, 0b0000'1110);
+    low_v = _mm_add_ps(low_v, high_v);
+    // 32
+    high_v = _mm_shuffle_ps(low_v, low_v, 0b0000'0001);
+    low_v = _mm_add_ps(low_v, high_v);
+    return low_v[0];
+}
+
 SIMSIMD_PUBLIC void simsimd_intersect_u16_turin(      //
     simsimd_u16_t const *a, simsimd_u16_t const *b,   //
     simsimd_size_t a_length, simsimd_size_t b_length, //
@@ -753,7 +784,7 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_turin(                  //
     }
     simsimd_spdot_weights_u16_serial(a, b, a_weights, b_weights, a_end - a, b_end - b, results);
     results[0] += intersection_size;
-    results[1] += _mm512_reduce_add_ps(_mm512_castps256_ps512(product_vec.ymmps));
+    results[1] += _simsimd_mm256_reduce_add_ps_turin(product_vec.ymmps);
 }
 
 SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(                 //
@@ -839,7 +870,7 @@ SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(                 //
 
     simsimd_spdot_counts_u16_serial(a, b, a_weights, b_weights, a_end - a, b_end - b, results);
     results[0] += intersection_size;
-    results[1] += _mm512_reduce_add_epi32(_mm512_castsi256_si512(product_vec.ymm));
+    results[1] += _simsimd_mm256_reduce_add_epi32_turin(product_vec.ymm);
 }
 
 #pragma clang attribute pop
