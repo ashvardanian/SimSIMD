@@ -561,7 +561,7 @@ SIMSIMD_INTERNAL simsimd_f32_t _simsimd_mm256_reduce_add_ps_turin(__m256 v) {
     // 32
     high_v = _mm_shuffle_ps(low_v, low_v, 0b0000'0001);
     low_v = _mm_add_ps(low_v, high_v);
-    return low_v[0];
+    return _mm_cvtss_f32(low_v);
 }
 
 SIMSIMD_PUBLIC void simsimd_intersect_u16_turin(      //
