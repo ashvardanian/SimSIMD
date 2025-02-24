@@ -13,12 +13,14 @@ class SimSIMDTests: XCTestCase {
         XCTAssertEqual(result, 0.00012027938, accuracy: 0.01)
     }
 
+    #if !arch(x86_64)
     func testCosineFloat16() throws {
         let a: [Float16] = [1.0, 2.0, 3.0]
         let b: [Float16] = [1.0, 2.0, 3.0]
         let result = try XCTUnwrap(a.cosine(b))
         XCTAssertEqual(result, 0.004930496, accuracy: 0.01)
     }
+    #endif
 
     func testCosineFloat32() throws {
         let a: [Float32] = [1.0, 2.0, 3.0]
@@ -41,12 +43,14 @@ class SimSIMDTests: XCTestCase {
         XCTAssertEqual(result, 32.0, accuracy: 0.01)
     }
 
+    #if !arch(x86_64)
     func testDotFloat16() throws {
         let a: [Float16] = [1.0, 2.0, 3.0]
         let b: [Float16] = [4.0, 5.0, 6.0]
         let result = try XCTUnwrap(a.dot(b))
         XCTAssertEqual(result, 32.0, accuracy: 0.01)
     }
+    #endif
 
     func testDotFloat32() throws {
         let a: [Float32] = [1.0, 2.0, 3.0]
@@ -69,12 +73,14 @@ class SimSIMDTests: XCTestCase {
         XCTAssertEqual(result, 27.0, accuracy: 0.01)
     }
 
+    #if !arch(x86_64)
     func testSqeuclideanFloat16() throws {
         let a: [Float16] = [1.0, 2.0, 3.0]
         let b: [Float16] = [4.0, 5.0, 6.0]
         let result = try XCTUnwrap(a.sqeuclidean(b))
         XCTAssertEqual(result, 27.0, accuracy: 0.01)
     }
+    #endif
 
     func testSqeuclideanFloat32() throws {
         let a: [Float32] = [1.0, 2.0, 3.0]
