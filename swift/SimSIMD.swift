@@ -14,6 +14,7 @@ extension Int8: SimSIMD {
     public static let squaredEuclidean = find(kind: simsimd_metric_sqeuclidean_k, dataType: dataType)
 }
 
+#if !arch(x86_64)
 @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
 extension Float16: SimSIMD {
     public static let dataType = simsimd_datatype_f16_k
@@ -21,6 +22,7 @@ extension Float16: SimSIMD {
     public static let dotProduct = find(kind: simsimd_metric_dot_k, dataType: dataType)
     public static let squaredEuclidean = find(kind: simsimd_metric_sqeuclidean_k, dataType: dataType)
 }
+#endif
 
 extension Float32: SimSIMD {
     public static let dataType = simsimd_datatype_f32_k
