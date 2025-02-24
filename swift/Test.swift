@@ -66,6 +66,36 @@ class SimSIMDTests: XCTestCase {
         XCTAssertEqual(result, 32.0, accuracy: 0.01)
     }
 
+    func testEuclideanInt8() throws {
+        let a: [Int8] = [1, 2, 3]
+        let b: [Int8] = [4, 5, 6]
+        let result = try XCTUnwrap(a.euclidean(b))
+        XCTAssertEqual(result, 5.196152422706632, accuracy: 0.01)
+    }
+
+    #if !arch(x86_64)
+    func testEuclideanFloat16() throws {
+        let a: [Float16] = [1.0, 2.0, 3.0]
+        let b: [Float16] = [4.0, 5.0, 6.0]
+        let result = try XCTUnwrap(a.euclidean(b))
+        XCTAssertEqual(result, 5.196152422706632, accuracy: 0.01)
+    }
+    #endif
+
+    func testEuclideanFloat32() throws {
+        let a: [Float32] = [1.0, 2.0, 3.0]
+        let b: [Float32] = [4.0, 5.0, 6.0]
+        let result = try XCTUnwrap(a.euclidean(b))
+        XCTAssertEqual(result, 5.196152422706632, accuracy: 0.01)
+    }
+
+    func testEuclideanFloat64() throws {
+        let a: [Float64] = [1.0, 2.0, 3.0]
+        let b: [Float64] = [4.0, 5.0, 6.0]
+        let result = try XCTUnwrap(a.euclidean(b))
+        XCTAssertEqual(result, 5.196152422706632, accuracy: 0.01)
+    }
+
     func testSqeuclideanInt8() throws {
         let a: [Int8] = [1, 2, 3]
         let b: [Int8] = [4, 5, 6]
