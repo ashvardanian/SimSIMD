@@ -1386,3 +1386,7 @@ $ grep -oP 'SIMSIMD_PUBLIC void simsimd_\w+_\w+_\w+\(' include/simsimd/*.h | sor
 > include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_jaccard_b8_serial(
 > include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_jaccard_b8_sve(
 ```
+
+## License
+
+Feel free to use the project under Apache 2.0 or the Three-clause BSD license at your preference.
