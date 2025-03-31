@@ -1,6 +1,6 @@
 {
   "name": "simsimd",
-  "version": "6.4.0",
+  "version": "6.4.1",
   "description": "Portable mixed-precision BLAS-like vector math library for x86 and ARM",
   "homepage": "https://github.com/ashvardanian/simsimd",
   "author": "Ash Vardanian",
