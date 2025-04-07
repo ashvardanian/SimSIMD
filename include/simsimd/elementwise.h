@@ -1942,7 +1942,7 @@ simsimd_fma_u8_sapphire_cycle:
 #endif // _SIMSIMD_TARGET_X86
 
 #if _SIMSIMD_TARGET_ARM
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON || SIMSIMD_TARGET_WASM
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
