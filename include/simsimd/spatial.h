@@ -2278,6 +2278,7 @@ simsimd_cos_i4x2_ice_cycle:
     int ab = _mm512_reduce_add_epi32(_mm512_add_epi32(ab_i32_low_vec, ab_i32_high_vec));
     unsigned short a2_u16[32], b2_u16[32];
     _mm512_storeu_si512(a2_u16, _mm512_add_epi16(a2_u16_low_vec, a2_u16_high_vec));
+    _mm512_storeu_si512(b2_u16, _mm512_add_epi16(b2_u16_low_vec, b2_u16_high_vec));
     unsigned int a2 = 0, b2 = 0;
     for (int i = 0; i < 32; ++i) a2 += a2_u16[i], b2 += b2_u16[i];
     *result = _simsimd_cos_normalize_f32_haswell(ab, a2, b2);
