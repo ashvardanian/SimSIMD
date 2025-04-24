@@ -187,8 +187,8 @@ SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u32, size) // simsimd_intersect_u32_accu
             simsimd_##input_type##_t ai = a[i];                                                                   \
             simsimd_##input_type##_t bj = b[j];                                                                   \
             int matches = ai == bj;                                                                               \
-            simsimd_##counter_type##_t awi = load_and_convert(a_weights + i);                                     \
-            simsimd_##counter_type##_t bwi = load_and_convert(b_weights + i);                                     \
+            simsimd_##accumulator_type##_t awi = load_and_convert(a_weights + i);                                 \
+            simsimd_##accumulator_type##_t bwi = load_and_convert(b_weights + i);                                 \
             weights_product += matches * awi * bwi;                                                               \
             intersection_size += matches;                                                                         \
             i += ai < bj;                                                                                         \
