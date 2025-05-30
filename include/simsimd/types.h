@@ -257,6 +257,13 @@
 #define SIMSIMD_LOG(x) (log(x))
 #endif
 
+#if defined(__GNUC__) || defined(__clang__)
+#define SIMSIMD_COPY16(destination_ptr, source_ptr) __builtin_memcpy((destination_ptr), (source_ptr), 2)
+#else
+#include <string.h> /* fallback for exotic compilers */
+#define SIMSIMD_COPY16(destination_ptr, source_ptr) memcpy((destination_ptr), (source_ptr), 2)
+#endif
+
 #if !defined(SIMSIMD_F32_DIVISION_EPSILON)
 #define SIMSIMD_F32_DIVISION_EPSILON (1e-7)
 #endif
@@ -539,7 +546,8 @@ SIMSIMD_INTERNAL simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
 SIMSIMD_INTERNAL simsimd_f32_t simsimd_f16_to_f32(simsimd_f16_t const *x_ptr) {
-    unsigned short x = *(unsigned short const *)x_ptr;
+    unsigned short x;
+    SIMSIMD_COPY16(&x, x_ptr);
     unsigned int exponent = (x & 0x7C00) >> 10;
     unsigned int mantissa = (x & 0x03FF) << 13;
     simsimd_f32i32_t mantissa_conv;
@@ -569,7 +577,7 @@ SIMSIMD_INTERNAL void simsimd_f32_to_f16(simsimd_f32_t x, simsimd_f16_t *result_
     unsigned short result = ((b & 0x80000000) >> 16) | (e > 112) * ((((e - 112) << 10) & 0x7C00) | (m >> 13)) |
                             ((e < 113) & (e > 101)) * ((((0x007FF000 + m) >> (125 - e)) + 1) >> 1) |
                             ((e > 143) * 0x7FFF);
-    *(unsigned short *)result_ptr = result;
+    SIMSIMD_COPY16(result_ptr, &result);
 }
 
 /**
@@ -580,7 +588,8 @@ SIMSIMD_INTERNAL void simsimd_f32_to_f16(simsimd_f32_t x, simsimd_f16_t *result_
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
 SIMSIMD_INTERNAL simsimd_f32_t simsimd_bf16_to_f32(simsimd_bf16_t const *x_ptr) {
-    unsigned short x = *(unsigned short const *)x_ptr;
+    unsigned short x;
+    SIMSIMD_COPY16(&x, x_ptr);
     simsimd_f32i32_t conv;
     conv.i = x << 16; // Zero extends the mantissa
     return conv.f;
@@ -599,7 +608,7 @@ SIMSIMD_INTERNAL void simsimd_f32_to_bf16(simsimd_f32_t x, simsimd_bf16_t *resul
     conv.i >>= 16;
     // The top 16 bits will be zeroed out anyways
     // conv.i &= 0xFFFF;
-    *(unsigned short *)result_ptr = (unsigned short)conv.i;
+    SIMSIMD_COPY16(result_ptr, &conv.i);
 }
 
 SIMSIMD_INTERNAL simsimd_u32_t simsimd_u32_rol(simsimd_u32_t x, int n) { return (x << n) | (x >> (32 - n)); }
