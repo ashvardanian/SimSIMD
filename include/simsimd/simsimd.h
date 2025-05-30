@@ -90,7 +90,7 @@
 
 #define SIMSIMD_VERSION_MAJOR 6
 #define SIMSIMD_VERSION_MINOR 4
-#define SIMSIMD_VERSION_PATCH 4
+#define SIMSIMD_VERSION_PATCH 5
 
 /**
  *  @brief  Removes compile-time dispatching, and replaces it with runtime dispatching.
