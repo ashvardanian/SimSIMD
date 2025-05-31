@@ -242,7 +242,7 @@ irm https://deno.land/install.ps1 | iex               # Windows
 Testing:
 
 ```sh
-deno test --allow-read
+deno test -A
 ```
 
 ### Bun

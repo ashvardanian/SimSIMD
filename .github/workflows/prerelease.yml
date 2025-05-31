@@ -170,16 +170,8 @@ jobs:
         with:
           deno-version: vx.x.x
 
-      # --allow-env  : `node-gyp-build` pokes at `process.env`
-      # --allow-ffi  : Deno needs this to `dlopen` the `.node` addon
-      # --unstable   : Node-API/FFI loader still gated under this flag
       - name: Test with Deno
-        run: >
-          deno test
-          --allow-read
-          --allow-env=PREBUILDS_ONLY,npm_config_runtime,npm_config_target
-          --allow-ffi
-          --unstable
+        run: deno test -A
 
   test_rust:
     name: Test Rust
