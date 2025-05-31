@@ -100,7 +100,7 @@ Still, you need a virtual environment, and it's recommended to use `uv` to creat
 ```sh
 uv venv --python 3.11           # Or your preferred Python version
 source .venv/bin/activate       # To activate the virtual environment
-pip install -e .                # To build locally from source
+uv pip install -e .             # To build locally from source
 ```
 
 Testing:
@@ -110,7 +110,7 @@ pip install pytest pytest-repeat tabulate    # testing dependencies
 pytest scripts/test.py -s -x -Wd             # to run tests
 
 # to check supported SIMD instructions:
-python -c "import simsimd; print(simsimd.get_capabilities())" 
+python -c "import simsimd; print(simsimd.get_capabilities())"
 ```
 
 Here, `-s` will output the logs.

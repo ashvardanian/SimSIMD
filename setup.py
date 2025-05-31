@@ -1,5 +1,7 @@
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import os
 import sys
 import platform
 import tempfile
@@ -12,6 +14,21 @@ from distutils.errors import CompileError
 __lib_name__ = "simsimd"
 __version__ = Path("VERSION").read_text().strip()
 
+# --------------------------------------------------------------------------- #
+#  macOS developer‑tools sanity check                                         #
+# --------------------------------------------------------------------------- #
+# Users occasionally end up with DEVELOPER_DIR="public" (or another bogus
+# path) when installing via package managers that sandbox the tool‑chain.  In
+# that state *every* call to `xcrun` fails before the compiler even starts.
+# We proactively unset that var so AppleClang falls back to xcode‑select’s
+# default path.
+# --------------------------------------------------------------------------- #
+if sys.platform == "darwin":
+    _bad_dev_dir = os.environ.get("DEVELOPER_DIR")
+    if _bad_dev_dir and (_bad_dev_dir == "public" or not Path(_bad_dev_dir).exists()):
+        print(f"[SimSIMD] Ignoring invalid DEVELOPER_DIR={_bad_dev_dir!r}")
+        os.environ.pop("DEVELOPER_DIR", None)
+        
 # --------------------------------------------------------------------------- #
 # Compiler and linker flags common across attempts                            #
 # --------------------------------------------------------------------------- #
