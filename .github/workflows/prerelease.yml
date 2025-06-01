@@ -140,6 +140,9 @@ jobs:
     env:
       CC: gcc-12
       CXX: g++-12
+      # `node-gyp-build` will look at this first; setting it prevents an
+      # unintended rebuild and lets Deno just `dlopen` the prebuilt `.node`.
+      PREBUILDS_ONLY: "1"
 
     steps:
       - name: Checkout
@@ -168,7 +171,7 @@ jobs:
           deno-version: vx.x.x
 
       - name: Test with Deno
-        run: deno test --allow-read
+        run: deno test -A
 
   test_rust:
     name: Test Rust

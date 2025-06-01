@@ -527,10 +527,10 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(        //
 #if SIMSIMD_TARGET_TURIN
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2", "avx512bf16", \
-                   "avx512vnni", "avx512vp2intersect")
-#pragma clang attribute push(                                                                                       \
-    __attribute__((target(                                                                                          \
-        "avx2,avx512f,avx512vl,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2,avx512bf16,avx512vnni,avx512vp2intersect"))), \
+                   "avx512vnni", "avx512vp2intersect", "avx512dq")
+#pragma clang attribute push(                                                                                                \
+    __attribute__((target(                                                                                                   \
+        "avx2,avx512f,avx512vl,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2,avx512bf16,avx512vnni,avx512vp2intersect,avx512dq"))), \
     apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_intersect_u16_turin(      //

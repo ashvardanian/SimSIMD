@@ -94,15 +94,23 @@ export BLIS_NUM_THREADS=1 # for BLIS
 
 ## Python
 
+Python bindings are implemented using pure CPython, so you wouldn't need to install SWIG, PyBind11, or any other third-party library.
+Still, you need a virtual environment, and it's recommended to use `uv` to create one.
+
+```sh
+uv venv --python 3.11           # Or your preferred Python version
+source .venv/bin/activate       # To activate the virtual environment
+uv pip install -e .             # To build locally from source
+```
+
 Testing:
 
 ```sh
-pip install -e .                             # to install the package in editable mode
 pip install pytest pytest-repeat tabulate    # testing dependencies
 pytest scripts/test.py -s -x -Wd             # to run tests
 
 # to check supported SIMD instructions:
-python -c "import simsimd; print(simsimd.get_capabilities())" 
+python -c "import simsimd; print(simsimd.get_capabilities())"
 ```
 
 Here, `-s` will output the logs.
@@ -234,7 +242,7 @@ irm https://deno.land/install.ps1 | iex               # Windows
 Testing:
 
 ```sh
-deno test --allow-read
+deno test -A
 ```
 
 ### Bun

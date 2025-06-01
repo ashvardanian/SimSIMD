@@ -401,6 +401,7 @@ jobs:
           name: prebuilds
           path: prebuilds
           retention-days: 1
+          overwrite: true
 
   publish_javascript:
     name: Publish JavaScript Package
