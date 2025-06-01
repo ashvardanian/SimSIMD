@@ -829,12 +829,13 @@ int main() {
 
     simsimd_f32_t vector_a[1536];
     simsimd_f32_t vector_b[1536];
-    simsimd_kernel_punned_t distance_function = simsimd_metric_punned(
+    simsimd_kernel_punned_t metric_punned = simsimd_metric_punned(
         simsimd_metric_cos_k,   // Metric kind, like the angular cosine distance
         simsimd_datatype_f32_k, // Data type, like: f16, f32, f64, i8, b8, and complex variants
         simsimd_cap_any_k);     // Which CPU capabilities are we allowed to use
     simsimd_distance_t distance;
-    distance_function(vector_a, vector_b, 1536, &distance);
+    simsimd_metric_dense_punned_t metric = (simsimd_metric_dense_punned_t)metric_punned;
+    metric(vector_a, vector_b, 1536, &distance);
     return 0;
 }
 ```
