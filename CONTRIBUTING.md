@@ -68,8 +68,7 @@ Replacing the default compiler across the entire system is not recommended on Ma
 
 ```sh
 brew install llvm openblas
-(
-unset DEVELOPER_DIR; 
+unset DEVELOPER_DIR
 cmake -D CMAKE_BUILD_TYPE=Release \
       -D SIMSIMD_BUILD_TESTS=1 \
       -D SIMSIMD_BUILD_BENCHMARKS=1 \
@@ -82,11 +81,8 @@ cmake -D CMAKE_BUILD_TYPE=Release \
       -D CMAKE_OSX_SYSROOT="$(xcrun --sdk macosx --show-sdk-path)" \
       -D CMAKE_OSX_DEPLOYMENT_TARGET=$(sw_vers -productVersion) \
       -B build_release
-)
 cmake --build build_release --config Release
 ```
-
-> `DEVELOPER_DIR` variable often affects the `xcrun` command.
 
 When benchmarking, make sure to disable multi-threading in the BLAS library, as it may interfere with the results:
 
