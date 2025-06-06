@@ -529,7 +529,11 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
     // AdvSIMD, bits [23:20] of ID_AA64PFR0_EL1 can be used to check for `fp16` support
     //  - 0b0000: integers, single, double precision arithmetic
     //  - 0b0001: includes support for half-precision floating-point arithmetic
-    unsigned supports_fp16 = ((id_aa64pfr0_el1 >> 20) & 0xF) == 1;
+    //  - 0b1111: NEON is not supported?!
+    // That's a really weird way to encode lack of NEON support, but it's important to
+    // check in case we are running on R-profile CPUs.
+    unsigned supports_fp16 = ((id_aa64pfr0_el1 >> 20) & 0xF) == 0x1;
+    unsigned supports_neon = ((id_aa64pfr0_el1 >> 20) & 0xF) != 0xF;
 
     // Now let's unpack the status flags from ID_AA64ZFR0_EL1
     // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64ZFR0-EL1--SVE-Feature-ID-Register-0?lang=en
