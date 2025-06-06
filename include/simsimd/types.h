@@ -27,14 +27,16 @@
 // - `SIMSIMD_INTERNAL` is used for internal helper functions with unstable APIs.
 // - `SIMSIMD_DYNAMIC` is used for functions that are part of the public API, but are dispatched at runtime.
 //
+// On GCC we mark the functions as `nonnull` informing that none of the arguments can be `NULL`.
+// Marking with `pure` and `const` isn't possible as outputing to a pointer is a "side effect".
 #if defined(_WIN32) || defined(__CYGWIN__)
 #define SIMSIMD_DYNAMIC __declspec(dllexport)
 #define SIMSIMD_PUBLIC inline static
 #define SIMSIMD_INTERNAL inline static
 #elif defined(__GNUC__) || defined(__clang__)
-#define SIMSIMD_DYNAMIC __attribute__((visibility("default")))
-#define SIMSIMD_PUBLIC __attribute__((unused)) inline static
-#define SIMSIMD_INTERNAL inline static
+#define SIMSIMD_DYNAMIC __attribute__((visibility("default"))) __attribute__((nonnull))
+#define SIMSIMD_PUBLIC __attribute__((unused, nonnull)) inline static
+#define SIMSIMD_INTERNAL __attribute__((always_inline)) inline static
 #else
 #define SIMSIMD_DYNAMIC
 #define SIMSIMD_PUBLIC inline static
