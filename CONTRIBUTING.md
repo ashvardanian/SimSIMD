@@ -68,6 +68,7 @@ Replacing the default compiler across the entire system is not recommended on Ma
 
 ```sh
 brew install llvm openblas
+unset DEVELOPER_DIR
 cmake -D CMAKE_BUILD_TYPE=Release \
       -D SIMSIMD_BUILD_TESTS=1 \
       -D SIMSIMD_BUILD_BENCHMARKS=1 \
@@ -86,10 +87,10 @@ cmake --build build_release --config Release
 When benchmarking, make sure to disable multi-threading in the BLAS library, as it may interfere with the results:
 
 ```sh
-export OPENBLAS_NUM_THREADS=1 # for OpenBLAS
-export MKL_NUM_THREADS=1 # for Intel MKL
-export VECLIB_MAXIMUM_THREADS=1 # for Apple Accelerate
-export BLIS_NUM_THREADS=1 # for BLIS
+export OPENBLAS_NUM_THREADS=1    # for OpenBLAS
+export MKL_NUM_THREADS=1         # for Intel MKL
+export VECLIB_MAXIMUM_THREADS=1  # for Apple Accelerate
+export BLIS_NUM_THREADS=1        # for BLIS
 ```
 
 ## Python

@@ -244,8 +244,8 @@ SIMSIMD_MAKE_COMPLEX_VDOT(accurate, bf16c, f64, SIMSIMD_BF16_TO_F32) // simsimd_
 #if _SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a+simd")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
+#pragma GCC target("arch=armv8-a+simd")
+#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 
 SIMSIMD_INTERNAL float32x4_t _simsimd_partial_load_f32x4_neon(simsimd_f32_t const *x, simsimd_size_t n) {
     union {

@@ -6,6 +6,7 @@
         "bfloat",
         "bitalg",
         "BLAS",
+        "BLIS",
         "Carmack",
         "castsi",
         "CBLAS",

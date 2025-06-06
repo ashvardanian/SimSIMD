@@ -107,8 +107,8 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_serial(simsimd_b8_t const *a, simsimd_b8_
 #if _SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a+simd")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
+#pragma GCC target("arch=armv8-a+simd")
+#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 
 SIMSIMD_INTERNAL simsimd_u32_t _simsimd_reduce_u8x16_neon(uint8x16_t vec) {
     // Split the vector into two halves and widen to `uint16x8_t`

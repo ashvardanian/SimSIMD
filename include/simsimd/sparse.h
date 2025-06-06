@@ -850,8 +850,8 @@ SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(                 //
 #if _SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a"))), apply_to = function)
+#pragma GCC target("arch=armv8-a")
+#pragma clang attribute push(__attribute__((target("arch=armv8-a"))), apply_to = function)
 
 /**
  *  @brief  Uses `vshrn` to produce a bitmask, similar to `movemask` in SSE.
