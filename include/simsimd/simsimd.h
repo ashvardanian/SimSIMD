@@ -549,7 +549,6 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
     // This value must match the existing indicator obtained from ID_AA64PFR0_EL1:
     unsigned supports_sve2 = ((id_aa64zfr0_el1) & 0xF) >= 1;
     unsigned supports_sve2p1 = ((id_aa64zfr0_el1) & 0xF) >= 2;
-    unsigned supports_neon = 1; // NEON is always supported
 
     return (simsimd_capability_t)(                                                                    //
         (simsimd_cap_neon_k * (supports_neon)) |                                                      //
@@ -1579,7 +1578,7 @@ SIMSIMD_PUBLIC void simsimd_find_kernel_punned( //
  */
 SIMSIMD_PUBLIC void simsimd_dot_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
                                    simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_F16
+#if SIMSIMD_TARGET_NEON_I8
     simsimd_dot_i8_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_ICE
     simsimd_dot_i8_ice(a, b, n, d);
@@ -1703,7 +1702,7 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c(simsimd_f16c_t const *a, simsimd_f16c_t co
                                       simsimd_distance_t *d) {
 #if SIMSIMD_TARGET_SVE
     simsimd_vdot_f16c_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif SIMSIMD_TARGET_NEON_F16
     simsimd_dot_f16c_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_SAPPHIRE
     simsimd_dot_f16c_sapphire(a, b, n, d);
@@ -1763,7 +1762,7 @@ SIMSIMD_PUBLIC void simsimd_vdot_f64c(simsimd_f64c_t const *a, simsimd_f64c_t co
  */
 SIMSIMD_PUBLIC void simsimd_cos_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
                                    simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON_I8
     simsimd_cos_i8_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_ICE
     simsimd_cos_i8_ice(a, b, n, d);
@@ -1775,7 +1774,7 @@ SIMSIMD_PUBLIC void simsimd_cos_i8(simsimd_i8_t const *a, simsimd_i8_t const *b,
 }
 SIMSIMD_PUBLIC void simsimd_cos_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
                                    simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON_I8
     simsimd_cos_u8_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_ICE
     simsimd_cos_u8_ice(a, b, n, d);
@@ -1841,7 +1840,7 @@ SIMSIMD_PUBLIC void simsimd_cos_f64(simsimd_f64_t const *a, simsimd_f64_t const 
 }
 SIMSIMD_PUBLIC void simsimd_l2sq_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
                                     simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON_I8
     simsimd_l2sq_i8_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_ICE
     simsimd_l2sq_i8_ice(a, b, n, d);
@@ -1853,7 +1852,7 @@ SIMSIMD_PUBLIC void simsimd_l2sq_i8(simsimd_i8_t const *a, simsimd_i8_t const *b
 }
 SIMSIMD_PUBLIC void simsimd_l2sq_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
                                     simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON_I8
     simsimd_l2sq_u8_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_ICE
     simsimd_l2sq_u8_ice(a, b, n, d);
@@ -1919,7 +1918,7 @@ SIMSIMD_PUBLIC void simsimd_l2sq_f64(simsimd_f64_t const *a, simsimd_f64_t const
 }
 SIMSIMD_PUBLIC void simsimd_l2_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
                                   simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON_I8
     simsimd_l2_i8_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_ICE
     simsimd_l2_i8_ice(a, b, n, d);
@@ -1931,7 +1930,7 @@ SIMSIMD_PUBLIC void simsimd_l2_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, 
 }
 SIMSIMD_PUBLIC void simsimd_l2_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
                                   simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON_I8
     simsimd_l2_u8_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_ICE
     simsimd_l2_u8_ice(a, b, n, d);
@@ -2054,7 +2053,7 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8(simsimd_b8_t const *a, simsimd_b8_t const
  */
 SIMSIMD_PUBLIC void simsimd_kl_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
                                    simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON_F16
     simsimd_kl_f16_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_HASWELL
     simsimd_kl_f16_haswell(a, b, n, d);
@@ -2082,7 +2081,7 @@ SIMSIMD_PUBLIC void simsimd_kl_f64(simsimd_f64_t const *a, simsimd_f64_t const *
 }
 SIMSIMD_PUBLIC void simsimd_js_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
                                    simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON
+#if SIMSIMD_TARGET_NEON_F16
     simsimd_js_f16_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_HASWELL
     simsimd_js_f16_haswell(a, b, n, d);
@@ -2213,7 +2212,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16(simsimd_f16_t const *a, simsimd_f16_t c
     simsimd_bilinear_f16_sapphire(a, b, c, n, d);
 #elif SIMSIMD_TARGET_HASWELL
     simsimd_bilinear_f16_haswell(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif SIMSIMD_TARGET_NEON_F16
     simsimd_bilinear_f16_neon(a, b, c, n, d);
 #else
     simsimd_bilinear_f16_serial(a, b, c, n, d);
@@ -2225,7 +2224,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16(simsimd_bf16_t const *a, simsimd_bf16_
     simsimd_bilinear_bf16_genoa(a, b, c, n, d);
 #elif SIMSIMD_TARGET_HASWELL
     simsimd_bilinear_bf16_haswell(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif SIMSIMD_TARGET_NEON_BF16
     simsimd_bilinear_bf16_neon(a, b, c, n, d);
 #else
     simsimd_bilinear_bf16_serial(a, b, c, n, d);
@@ -2253,7 +2252,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16c(simsimd_f16c_t const *a, simsimd_f16c_
                                           simsimd_size_t n, simsimd_distance_t *d) {
 #if SIMSIMD_TARGET_SAPPHIRE
     simsimd_bilinear_f16c_sapphire(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif SIMSIMD_TARGET_NEON_F16
     simsimd_bilinear_f16c_neon(a, b, c, n, d);
 #else
     simsimd_bilinear_f16c_serial(a, b, c, n, d);
@@ -2263,7 +2262,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16c(simsimd_bf16c_t const *a, simsimd_bf1
                                            simsimd_size_t n, simsimd_distance_t *d) {
 #if SIMSIMD_TARGET_GENOA
     simsimd_bilinear_bf16c_genoa(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif SIMSIMD_TARGET_NEON_BF16
     simsimd_bilinear_bf16c_neon(a, b, c, n, d);
 #else
     simsimd_bilinear_bf16c_serial(a, b, c, n, d);
@@ -2293,7 +2292,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16(simsimd_f16_t const *a, simsimd_f16_
     simsimd_mahalanobis_f16_sapphire(a, b, c, n, d);
 #elif SIMSIMD_TARGET_HASWELL
     simsimd_mahalanobis_f16_haswell(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif SIMSIMD_TARGET_NEON_F16
     simsimd_mahalanobis_f16_neon(a, b, c, n, d);
 #else
     simsimd_mahalanobis_f16_serial(a, b, c, n, d);
@@ -2305,7 +2304,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16(simsimd_bf16_t const *a, simsimd_bf
     simsimd_mahalanobis_bf16_genoa(a, b, c, n, d);
 #elif SIMSIMD_TARGET_HASWELL
     simsimd_mahalanobis_bf16_haswell(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif SIMSIMD_TARGET_NEON_BF16
     simsimd_mahalanobis_bf16_neon(a, b, c, n, d);
 #else
     simsimd_mahalanobis_bf16_serial(a, b, c, n, d);
@@ -2352,7 +2351,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_bf16(simsimd_bf16_t const *a, simsimd_bf16_t co
     simsimd_wsum_bf16_skylake(a, b, n, alpha, beta, r);
 #elif SIMSIMD_TARGET_HASWELL
     simsimd_wsum_bf16_haswell(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif SIMSIMD_TARGET_NEON_BF16
     simsimd_wsum_bf16_neon(a, b, n, alpha, beta, r);
 #else
     simsimd_wsum_bf16_serial(a, b, n, alpha, beta, r);
@@ -2431,7 +2430,7 @@ SIMSIMD_PUBLIC void simsimd_fma_bf16(simsimd_bf16_t const *a, simsimd_bf16_t con
     simsimd_fma_bf16_skylake(a, b, c, n, alpha, beta, r);
 #elif SIMSIMD_TARGET_HASWELL
     simsimd_fma_bf16_haswell(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif SIMSIMD_TARGET_NEON_BF16
     simsimd_fma_bf16_neon(a, b, c, n, alpha, beta, r);
 #else
     simsimd_fma_bf16_serial(a, b, c, n, alpha, beta, r);
