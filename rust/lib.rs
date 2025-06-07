@@ -53,6 +53,7 @@ type ComplexProduct = (f64, f64);
 
 extern "C" {
 
+    fn simsimd_dot_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
     fn simsimd_dot_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_dot_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_dot_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
@@ -367,7 +368,7 @@ impl SpatialSimilarity for i8 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_cos_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_dot_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
         Some(distance_value)
     }
 
@@ -891,7 +892,7 @@ mod tests {
 
         if let Some(result) = SpatialSimilarity::dot(a, b) {
             println!("The result of dot_i8 is {:.8}", result);
-            assert_almost_equal(0.029403687, result, 0.01);
+            assert_almost_equal(32.0, result, 0.01);
         }
     }
 
