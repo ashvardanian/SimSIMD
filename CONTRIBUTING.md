@@ -96,22 +96,28 @@ export BLIS_NUM_THREADS=1        # for BLIS
 ## Python
 
 Python bindings are implemented using pure CPython, so you wouldn't need to install SWIG, PyBind11, or any other third-party library.
-Still, you need a virtual environment, and it's recommended to use `uv` to create one.
+Still, you need a virtual environment.
+If you already have one:
 
 ```sh
-uv venv --python 3.11           # Or your preferred Python version
-source .venv/bin/activate       # To activate the virtual environment
-uv pip install -e .             # To build locally from source
-```
-
-Testing:
-
-```sh
+pip install -e .                             # build locally from source
 pip install pytest pytest-repeat tabulate    # testing dependencies
 pytest scripts/test.py -s -x -Wd             # to run tests
 
 # to check supported SIMD instructions:
 python -c "import simsimd; print(simsimd.get_capabilities())"
+```
+
+Alternatively, use `uv` to create the virtual environment.
+
+```sh
+uv venv --python 3.13t          # or your preferred version
+source .venv/bin/activate       # activate the environment
+uv pip install -e .             # build locally from source
+
+# to run GIL-related tests in a free-threaded environment:
+uv pip install pytest pytest-repeat tabulate numpy scipy
+PYTHON_GIL=0 python -m pytest scripts/test.py -s -x -Wd -k gil
 ```
 
 Here, `-s` will output the logs.
