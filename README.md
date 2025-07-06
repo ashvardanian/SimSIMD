@@ -491,7 +491,7 @@ slow_output_color = (alpha * light_intensity * diffuse_component + beta * specul
 
 By default, computations use a single CPU core.
 To override this behavior, use the `threads` argument.
-Set it to `0` to use all available CPU cores.
+Set it to `0` to use all available CPU cores and let the underlying C library manage the thread pool.
 Here is an example of dealing with large sets of binary vectors:
 
 ```py
@@ -507,9 +507,42 @@ distances = simsimd.cdist(matrix1, matrix2,
 )
 ```
 
+Alternatively, when using free-threading Python 3.13t builds, one can combine single-threaded SimSIMD operations with Python's `concurrent.futures.ThreadPoolExecutor` to parallelize the computations.
 By default, the output distances will be stored in double-precision `float64` floating-point numbers.
 That behavior may not be space-efficient, especially if you are computing the hamming distance between short binary vectors, that will generally fit into 8x smaller `uint8` or `uint16` types.
-To override this behavior, use the `dtype` argument.
+To override this behavior, use the `out_dtype` argument, or consider pre-allocating the output array and passing it to the `out` argument.
+A more complete example may look like this:
+
+```py
+from multiprocessing import cpu_count
+from concurrent.futures import ThreadPoolExecutor
+from simsimd import cosine
+import numpy as np
+
+# Generate large dataset
+vectors_a = np.random.rand(100_000, 1536).astype(np.float32)
+vectors_b = np.random.rand(100_000, 1536).astype(np.float32)
+distances = np.zeros((100_000,), dtype=np.float32)
+
+def compute_batch(start_idx, end_idx):
+    batch_a = vectors_a[start_idx:end_idx]
+    batch_b = vectors_b[start_idx:end_idx]
+    cosine(batch_a, batch_b, out=distances[start_idx:end_idx])
+
+# Use all CPU cores with true parallelism (no GIL!)
+num_threads = cpu_count()
+chunk_size = len(vectors_a) // num_threads
+
+with ThreadPoolExecutor(max_workers=num_threads) as executor:
+    futures = []
+    for i in range(num_threads):
+        start_idx = i * chunk_size
+        end_idx = (i + 1) * chunk_size if i < num_threads - 1 else len(vectors_a)
+        futures.append(executor.submit(compute_batch, start_idx, end_idx))
+
+    # Collect results from all threads
+    results = [future.result() for future in futures]            
+```                                                               
 
 ### Helper Functions
 
