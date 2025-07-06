@@ -1418,6 +1418,7 @@ def test_cdist_hamming(ndim, out_dtype, capability):
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_gil_free_threading():
     """Test SimSIMD in Python 3.13t free-threaded mode if available."""
     import sys
