@@ -225,6 +225,7 @@ jobs:
         env:
           # Matches: `cp37-manylinux_x86_64` and `cp38-musllinux_x86_64`
           CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
           CIBW_ARCHS: x86_64
 
@@ -262,6 +263,7 @@ jobs:
         env:
           # Matches: `cp37-manylinux_aarch64` and `cp38-musllinux_aarch64`
           CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
           CIBW_ARCHS: aarch64
 
@@ -285,6 +287,7 @@ jobs:
           cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: macos
           CIBW_ARCHS: x86_64
 
@@ -308,6 +311,7 @@ jobs:
           cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: macos
           CIBW_ARCHS: arm64
 
@@ -350,6 +354,7 @@ jobs:
           cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-win_${{ matrix.architecture }}
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: windows
 
   build_wheels_other:
@@ -375,5 +380,6 @@ jobs:
         env:
           # https://cibuildwheel.pypa.io/en/stable/options/#archs
           CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
           CIBW_ARCHS: ppc64le s390x i686 #! `armv7l` not worth the trouble

@@ -4,7 +4,7 @@
 #   - `manylinux` and `musllinux` wheels for Linux on i686, ppc64le, s390x;
 #   - `macos` wheels for x86_64, arm64;
 #   - `windows` wheels for AMD64, ARM64.
-#   * for 7 Python versions from 3.7 to 3.13.
+#   * for 7 Python versions from 3.8 to 3.13 (+ 3.13t).
 #   * running thousands of fuzzy tests on each wheel.
 #   = meaning 12 platforms * 7 Python versions = 84 builds.
 [build-system]
@@ -105,4 +105,4 @@ test-command = """
 # https://black.readthedocs.io/en/latest/usage_and_configuration/the_basics.html#where-black-looks-for-the-file
 [tool.black]
 line-length = 120                  # Set line length to the same value as in `.clang-format` for modern wide screens
-target-version = ['py37', 'py312']
+target-version = ['py38', 'py312']
