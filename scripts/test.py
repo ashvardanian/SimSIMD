@@ -1418,6 +1418,75 @@ def test_cdist_hamming(ndim, out_dtype, capability):
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
+def test_gil_free_threading():
+    """Test SimSIMD in Python 3.13t free-threaded mode if available."""
+    import sys
+    
+    # Check if we're in a GIL-free environment
+    version = sys.version_info
+    if version.major == 3 and version.minor >= 13:
+        if sys._is_gil_enabled():        
+            pytest.skip("GIL is enabled, skipping GIL-free threading test")
+    else:
+        pytest.skip("Python < 3.13t, skipping GIL-free threading test")
+    
+    import multiprocessing
+    import concurrent.futures
+
+    num_threads = multiprocessing.cpu_count()
+    vectors_a = np.random.rand(32 * 1024 * num_threads, 1024).astype(np.float32)
+    vectors_b = np.random.rand(32 * 1024 * num_threads, 1024).astype(np.float32)
+    distances = np.zeros(vectors_a.shape[0], dtype=np.float32)
+    
+    def compute_batch(start_idx, end_idx) -> float:
+        """Compute cosine distances for a batch."""
+        slice_a = vectors_a[start_idx:end_idx]
+        slice_b = vectors_b[start_idx:end_idx]
+        slice_distances = distances[start_idx:end_idx]
+        simd.cosine(slice_a, slice_b, out=slice_distances)        
+        return sum(slice_distances)
+    
+    def compute_with_threads(threads: int) -> float:
+        """Compute cosine distances using multiple threads."""
+        chunk_size = len(vectors_a) // threads
+        futures = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
+            for i in range(threads):
+                start_idx = i * chunk_size
+                end_idx = (i + 1) * chunk_size if i < threads - 1 else len(vectors_a)
+                futures.append(executor.submit(compute_batch, start_idx, end_idx))
+        
+        total_sum = 0.0
+        for future in concurrent.futures.as_completed(futures):
+            total_sum += future.result()
+        
+        return total_sum
+    
+    # Dual-threaded baseline is better than single-threaded,
+    # as it will include the overhead of thread management.
+    start_time = time.time()
+    baseline_sum = compute_with_threads(2)
+    end_time = time.time()
+    baseline_duration = end_time - start_time
+    
+    # Multi-threaded execution, using all available threads
+    start_time = time.time()
+    multi_sum = compute_with_threads(num_threads)
+    end_time = time.time()
+    multi_duration = end_time - start_time
+
+    # Verify results are the same length and reasonable
+    assert np.allclose(baseline_sum, multi_sum, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL), \
+        f"Results differ: baseline {baseline_sum} vs multi-threaded {multi_sum}"
+
+    # Warn if multi-threaded execution is slower than the baseline    
+    if baseline_duration < multi_duration:
+        pytest.warns(
+            UserWarning,
+            f"{num_threads}-threaded execution took longer than 2-threaded baseline: {multi_duration:.2f}s vs {baseline_duration:.2f}s",
+        )        
+
+
 if __name__ == "__main__":
     pytest.main(
         [

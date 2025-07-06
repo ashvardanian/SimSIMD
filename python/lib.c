@@ -784,6 +784,9 @@ static PyObject *implement_dense_metric( //
         return_obj = Py_None;
     }
 
+    // Now let's release the GIL for the parallel part using the underlying mechanism of `Py_BEGIN_ALLOW_THREADS`.
+    PyThreadState *save = PyEval_SaveThread();
+
     // Compute the distances
     for (size_t i = 0; i < count_pairs; ++i) {
         simsimd_distance_t result[2];
@@ -797,6 +800,8 @@ static PyObject *implement_dense_metric( //
         cast_distance(result[0], out_dtype, distances_start + i * distances_stride_bytes, 0);
         if (dtype_is_complex) cast_distance(result[1], out_dtype, distances_start + i * distances_stride_bytes, 1);
     }
+
+    PyEval_RestoreThread(save);
 
 cleanup:
     PyBuffer_Release(&a_buffer);
@@ -1142,6 +1147,9 @@ static PyObject *implement_cdist(                        //
         return_obj = Py_None;
     }
 
+    // Now let's release the GIL for the parallel part using the underlying mechanism of `Py_BEGIN_ALLOW_THREADS`.
+    PyThreadState *save = PyEval_SaveThread();
+
     // Assuming most of our kernels are symmetric, we only need to compute the upper triangle
     // if we are computing all pairwise distances within the same set.
     int const is_symmetric = kernel_is_commutative(metric_kind) && a_parsed.start == b_parsed.start &&
@@ -1174,6 +1182,8 @@ static PyObject *implement_cdist(                        //
                 cast_distance(result[1], out_dtype,
                               distances_start + j * distances_rows_stride_bytes + i * distances_cols_stride_bytes, 1);
         }
+
+    PyEval_RestoreThread(save);
 
 cleanup:
     PyBuffer_Release(&a_buffer);
@@ -2064,6 +2074,10 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
 
     m = PyModule_Create(&simsimd_module);
     if (m == NULL) return NULL;
+
+#ifdef Py_GIL_DISABLED
+    PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED);
+#endif
 
     // Add version metadata
     {
