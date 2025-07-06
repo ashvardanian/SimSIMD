@@ -203,8 +203,8 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
              same_string(name, "h") || same_string(name, "<h"))                                 // Named type
         return simsimd_datatype_i16_k;
 
-        //! On Windows the 32-bit and 64-bit signed integers will have different specifiers:
-        //! https://github.com/pybind/pybind11/issues/1908
+    //! On Windows the 32-bit and 64-bit signed integers will have different specifiers:
+    //! https://github.com/pybind/pybind11/issues/1908
 #if defined(_MSC_VER) || defined(__i386__)
     else if (same_string(name, "int32") ||                                                      // SimSIMD-specific
              same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
@@ -235,8 +235,8 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
              same_string(name, "H") || same_string(name, "<H"))                                 // Named type
         return simsimd_datatype_u16_k;
 
-        //! On Windows the 32-bit and 64-bit unsigned integers will have different specifiers:
-        //! https://github.com/pybind/pybind11/issues/1908
+    //! On Windows the 32-bit and 64-bit unsigned integers will have different specifiers:
+    //! https://github.com/pybind/pybind11/issues/1908
 #if defined(_MSC_VER) || defined(__i386__)
     else if (same_string(name, "uint32") ||                                                     // SimSIMD-specific
              same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer

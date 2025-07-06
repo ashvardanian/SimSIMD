@@ -1245,7 +1245,7 @@ def test_batch(ndim, dtype, capability):
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
     assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
-    # Distance between matrixes A (N x D scalars) and B (N x D scalars) with a differnt output type.
+    # Distance between matrixes A (N x D scalars) and B (N x D scalars) with a different output type.
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = np.array([spd.sqeuclidean(A[i], B[i]) for i in range(10)]).astype(np.float32)
@@ -1365,7 +1365,7 @@ def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
     C = C_extended[:, :N]
 
     #! Unlike the `np.dot`, the `np.vdot` flattens multi-dimensional inputs into 1D arrays.
-    #! So to compreare the results we need to manually compute all the dot-products.
+    #! So to compare the results we need to manually compute all the dot-products.
     expected = np.zeros((M, N), dtype=out_dtype if out_dtype else np.complex128)
     baseline_kernel = np.dot if metric == "dot" else np.vdot
     for i in range(M):
