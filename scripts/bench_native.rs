@@ -1,3 +1,7 @@
+//! Native Rust Baseline Implementations
+//!
+//! Provides baseline implementations of distance functions for benchmarking
+//! against SimSIMD's SIMD-optimized versions.
 #![allow(unused)]
 use rand::Rng;
 

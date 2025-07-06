@@ -3,7 +3,6 @@
  *  @file       lib.c
  *  @author     Ash Vardanian
  *  @date       January 1, 2023
- *  @copyright  Copyright (c) 2023
  *
  *  @section    Latency, Quality, and Arguments Parsing
  *
