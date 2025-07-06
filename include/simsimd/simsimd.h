@@ -3,7 +3,6 @@
  *  @brief      SIMD-accelerated Similarity Measures and Distance Functions.
  *  @author     Ash Vardanian
  *  @date       March 14, 2023
- *  @copyright  Copyright (c) 2023
  *
  *  References:
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide

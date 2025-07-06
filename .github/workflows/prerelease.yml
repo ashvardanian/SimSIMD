@@ -209,7 +209,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: ["37", "38", "39", "310", "311", "312", "313"]
+        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -225,6 +225,7 @@ jobs:
         env:
           # Matches: `cp37-manylinux_x86_64` and `cp38-musllinux_x86_64`
           CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
           CIBW_ARCHS: x86_64
 
@@ -235,7 +236,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     strategy:
       matrix:
-        python-version: ["37", "38", "39", "310", "311", "312", "313"]
+        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -262,6 +263,7 @@ jobs:
         env:
           # Matches: `cp37-manylinux_aarch64` and `cp38-musllinux_aarch64`
           CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
           CIBW_ARCHS: aarch64
 
@@ -270,7 +272,7 @@ jobs:
     runs-on: macos-13
     strategy:
       matrix:
-        python-version: ["37", "38", "39", "310", "311", "312", "313"]
+        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -285,6 +287,7 @@ jobs:
           cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: macos
           CIBW_ARCHS: x86_64
 
@@ -293,7 +296,7 @@ jobs:
     runs-on: macos-14
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313"] #! Python 3.7 isn't supported on ARM macOS
+        python-version: ["38", "39", "310", "311", "312", "313", "313t"] #! Python 3.7 isn't supported on ARM macOS
     needs: [test_python]
     steps:
       - name: Checkout
@@ -308,6 +311,7 @@ jobs:
           cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: macos
           CIBW_ARCHS: arm64
 
@@ -316,7 +320,7 @@ jobs:
     runs-on: windows-2022
     strategy:
       matrix:
-        python-version: ["37", "38", "39", "310", "311", "312", "313"]
+        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
         architecture: [AMD64] # List ARM64 separately and avoid 32-bit
         #! ARM64 isn't supported for Python 3.7 and 3.8
         include:
@@ -329,6 +333,8 @@ jobs:
           - python-version: "312"
             architecture: ARM64
           - python-version: "313"
+            architecture: ARM64
+          - python-version: "313t"
             architecture: ARM64
     needs: [test_python]
     steps:
@@ -348,6 +354,7 @@ jobs:
           cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-win_${{ matrix.architecture }}
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: windows
 
   build_wheels_other:
@@ -355,7 +362,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: ["37", "38", "39", "310", "311", "312", "313"]
+        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -373,5 +380,6 @@ jobs:
         env:
           # https://cibuildwheel.pypa.io/en/stable/options/#archs
           CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
           CIBW_ARCHS: ppc64le s390x i686 #! `armv7l` not worth the trouble

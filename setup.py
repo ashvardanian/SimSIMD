@@ -28,7 +28,7 @@ if sys.platform == "darwin":
     if _bad_dev_dir and (_bad_dev_dir == "public" or not Path(_bad_dev_dir).exists()):
         print(f"[SimSIMD] Ignoring invalid DEVELOPER_DIR={_bad_dev_dir!r}")
         os.environ.pop("DEVELOPER_DIR", None)
-        
+
 # --------------------------------------------------------------------------- #
 # Compiler and linker flags common across attempts                            #
 # --------------------------------------------------------------------------- #
@@ -210,13 +210,14 @@ setup(
         "Programming Language :: C",
         "Programming Language :: Python :: Implementation :: CPython",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
+        "Programming Language :: Python :: Free Threading :: 3 - Stable",
         "Topic :: Scientific/Engineering :: Mathematics",
         "Topic :: Scientific/Engineering :: Information Analysis",
         "Topic :: Scientific/Engineering :: Bio-Informatics",

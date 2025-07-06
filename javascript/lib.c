@@ -4,7 +4,6 @@
  *  @author     Ash Vardanian
  *  @date       October 18, 2023
  *
- *  @copyright  Copyright (c) 2023
  *  @see        NodeJS docs: https://nodejs.org/api/n-api.html
  */
 

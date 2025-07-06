@@ -75,7 +75,7 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["37", "38", "39", "310", "311", "312", "313"]
+        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -90,6 +90,7 @@ jobs:
           cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
           CIBW_ARCHS: x86_64
       - name: Upload wheels
@@ -107,7 +108,7 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["37", "38", "39", "310", "311", "312", "313"]
+        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -133,6 +134,7 @@ jobs:
           cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
           CIBW_ARCHS: aarch64
       - name: Upload wheels
@@ -148,7 +150,7 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["37", "38", "39", "310", "311", "312", "313"]
+        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -163,6 +165,7 @@ jobs:
           cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: macos
           CIBW_ARCHS: x86_64
       - name: Upload wheels
@@ -179,7 +182,7 @@ jobs:
     strategy:
       matrix:
         # 3.7 not supported on macOS ARM
-        python-version: ["38", "39", "310", "311", "312", "313"]
+        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -194,6 +197,7 @@ jobs:
           cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: macos
           CIBW_ARCHS: arm64
       - name: Upload wheels
@@ -209,7 +213,7 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["37", "38", "39", "310", "311", "312", "313"]
+        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
         architecture: [AMD64]
         include:
           - python-version: "39"
@@ -221,6 +225,8 @@ jobs:
           - python-version: "312"
             architecture: ARM64
           - python-version: "313"
+            architecture: ARM64
+          - python-version: "313t"
             architecture: ARM64
     steps:
       - uses: actions/checkout@v4
@@ -240,6 +246,7 @@ jobs:
           cibuildwheel --output-dir wheelhouse
         env:
           CIBW_BUILD: cp${{ matrix.python-version }}-win_${{ matrix.architecture }}
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: windows
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -254,7 +261,7 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["37", "38", "39", "310", "311", "312", "313"]
+        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -272,6 +279,7 @@ jobs:
         env:
           # e.g. ppc64le, s390x, i686, etc.
           CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
           CIBW_ARCHS: ppc64le s390x i686
       - name: Upload wheels

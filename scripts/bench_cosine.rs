@@ -1,3 +1,11 @@
+//! Cosine Similarity Benchmark
+//!
+//! Compares SimSIMD vs native Rust implementations using Criterion.
+//! Run with:
+//!
+//! ```bash
+//! cargo bench --bench bench_cosine
+//! ```
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use simsimd::SpatialSimilarity as SimSIMD;
 

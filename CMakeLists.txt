@@ -16,7 +16,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
-# Determine if SimSIMD is built as a subproject (using `add_subdirectory`) or if it is the main project
+# Determine if SimSIMD is built as a sub-project (using `add_subdirectory`) or if it is the main project
 set(SIMSIMD_IS_MAIN_PROJECT OFF)
 
 if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
@@ -128,7 +128,8 @@ if (SIMSIMD_BUILD_SHARED)
         PRIVATE_HEADER
         PUBLIC_HEADER
         RESOURCE
-        RUNTIME)
+        RUNTIME
+    )
 endif ()
 
 install(DIRECTORY ./include/ DESTINATION /usr/include/)

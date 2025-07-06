@@ -255,7 +255,11 @@ SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
     // with dummy inputs:
     simsimd_distance_t dummy_results_buffer[2];
     simsimd_distance_t *dummy_results = &dummy_results_buffer[0];
-    void *x = 0;
+
+    // Passing `NULL` as `x` will trigger all kinds of `nonull` warnings on GCC.
+    typedef double largest_scalar_t;
+    largest_scalar_t dummy_input[1];
+    void *x = &dummy_input[0];
 
     // Dense:
     simsimd_dot_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, dummy_results);

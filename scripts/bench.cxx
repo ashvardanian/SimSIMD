@@ -1,3 +1,16 @@
+/**
+ *  SimSIMD C++ Benchmark Suite
+ *
+ *  Comprehensive benchmarks comparing SimSIMD SIMD-optimized functions against
+ *  baseline implementations using Google Benchmark framework. Run with:
+ *
+ *  ```bash
+ *  cmake -B build_release -D SIMSIMD_BUILD_BENCHMARKS=1
+ *  cmake --build build_release
+ *  build_release/simsimd_bench
+ *  ```
+ */
+
 #include <array>         // `std::array`
 #include <cmath>         // `std::sqrt`
 #include <cstdlib>       // `std::aligned_alloc`
