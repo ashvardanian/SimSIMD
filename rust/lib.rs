@@ -525,7 +525,7 @@ impl SpatialSimilarity for bf16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_l2sq_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        unsafe { simsimd_l2_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
         Some(distance_value)
     }
 }
