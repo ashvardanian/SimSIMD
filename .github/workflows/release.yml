@@ -75,7 +75,7 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["37", "38", "39", "310", "311", "312", "313"]
+        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -107,7 +107,7 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["37", "38", "39", "310", "311", "312", "313"]
+        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -148,7 +148,7 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["37", "38", "39", "310", "311", "312", "313"]
+        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -209,7 +209,7 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["37", "38", "39", "310", "311", "312", "313"]
+        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
         architecture: [AMD64]
         include:
           - python-version: "39"
@@ -221,6 +221,8 @@ jobs:
           - python-version: "312"
             architecture: ARM64
           - python-version: "313"
+            architecture: ARM64
+          - python-version: "313t"
             architecture: ARM64
     steps:
       - uses: actions/checkout@v4
@@ -254,7 +256,7 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["37", "38", "39", "310", "311", "312", "313"]
+        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
     steps:
       - uses: actions/checkout@v4
         with:
