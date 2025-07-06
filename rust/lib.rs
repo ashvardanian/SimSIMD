@@ -26,6 +26,9 @@
 //!
 //! // Compute squared Euclidean distance
 //! let l2sq_dist = i8::l2sq(a, b);
+//! 
+//! // Optimize performance by flushing denormals
+//! simsimd::capabilities::flush_denormals();
 //! ```
 //!
 //! ## Traits
@@ -130,6 +133,9 @@ extern "C" {
     fn simsimd_uses_sapphire() -> i32;
     fn simsimd_uses_turin() -> i32;
     fn simsimd_uses_sierra() -> i32;
+
+    fn simsimd_flush_denormals() -> i32;
+    fn simsimd_uses_dynamic_dispatch() -> i32;
 }
 
 /// A half-precision floating point number.
@@ -206,6 +212,29 @@ pub mod capabilities {
 
     pub fn uses_sierra() -> bool {
         unsafe { crate::simsimd_uses_sierra() != 0 }
+    }
+
+    /// Flushes denormalized numbers to zero on the current CPU architecture.
+    /// 
+    /// This function should be called on each thread before any SIMD operations
+    /// to avoid performance penalties. When facing denormalized values, 
+    /// Fused-Multiply-Add (FMA) operations can be up to 30x slower.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns `true` if the operation was successful, `false` otherwise.
+    pub fn flush_denormals() -> bool {
+        unsafe { crate::simsimd_flush_denormals() != 0 }
+    }
+
+    /// Checks if the library is using dynamic dispatch for function selection.
+    /// 
+    /// # Returns
+    /// 
+    /// Returns `true` if dynamic dispatch is enabled, `false` otherwise.
+    /// Currently always returns `false` as dynamic dispatch is not implemented.
+    pub fn uses_dynamic_dispatch() -> bool {
+        unsafe { crate::simsimd_uses_dynamic_dispatch() != 0 }
     }
 }
 
