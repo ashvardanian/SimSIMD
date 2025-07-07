@@ -50,6 +50,7 @@
 //! - `kullbackleibler(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Kullback-Leibler divergence between two slices.
 //!
 #![allow(non_camel_case_types)]
+#![cfg_attr(not(test), no_std)]
 
 pub type Distance = f64;
 pub type ComplexProduct = (f64, f64);
