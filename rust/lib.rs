@@ -1,7 +1,8 @@
 //! # SpatialSimilarity - Hardware-Accelerated Similarity Metrics and Distance Functions
 //!
 //! * Targets ARM NEON, SVE, x86 AVX2, AVX-512 (VNNI, FP16) hardware backends.
-//! * Handles `f64` double-, `f32` single-, and `f16` half-precision, `i8` integral, and binary vectors.
+//! * Handles `f64` double- and `f32` single-precision, integral, and binary vectors.
+//! * Exposes half-precision (`f16`) and brain floating point (`bf16`) types.
 //! * Zero-dependency header-only C 99 library with bindings for Rust and other languages.
 //!
 //! ## Implemented distance functions include:
@@ -26,9 +27,30 @@
 //!
 //! // Compute squared Euclidean distance
 //! let l2sq_dist = i8::l2sq(a, b);
-//! 
+//!
 //! // Optimize performance by flushing denormals
 //! simsimd::capabilities::flush_denormals();
+//! ```
+//!
+//! ## Mixed Precision Support
+//!
+//! ```rust
+//! use simsimd::{SpatialSimilarity, f16, bf16};
+//!
+//! // Work with half-precision floats
+//! let half_a: Vec<f16> = vec![1.0, 2.0, 3.0].iter().map(|&x| f16::from_f32(x)).collect();
+//! let half_b: Vec<f16> = vec![4.0, 5.0, 6.0].iter().map(|&x| f16::from_f32(x)).collect();
+//! let half_cos = f16::cos(&half_a, &half_b);
+//!
+//! // Work with brain floats
+//! let brain_a: Vec<bf16> = vec![1.0, 2.0, 3.0].iter().map(|&x| bf16::from_f32(x)).collect();
+//! let brain_b: Vec<bf16> = vec![4.0, 5.0, 6.0].iter().map(|&x| bf16::from_f32(x)).collect();
+//! let brain_cos = bf16::cos(&brain_a, &brain_b);
+//!
+//! // Direct bit manipulation
+//! let half = f16::from_f32(3.14);
+//! let bits = half.0; // Access raw u16 representation
+//! let reconstructed = f16(bits);
 //! ```
 //!
 //! ## Traits
@@ -55,6 +77,7 @@
 pub type Distance = f64;
 pub type ComplexProduct = (f64, f64);
 
+#[link(name = "simsimd")]
 extern "C" {
 
     fn simsimd_dot_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
@@ -137,19 +160,132 @@ extern "C" {
 
     fn simsimd_flush_denormals() -> i32;
     fn simsimd_uses_dynamic_dispatch() -> i32;
+
+    fn simsimd_f32_to_f16(f32_value: f32, result_ptr: *mut u16);
+    fn simsimd_f16_to_f32(f16_ptr: *const u16) -> f32;
+    fn simsimd_f32_to_bf16(f32_value: f32, result_ptr: *mut u16);
+    fn simsimd_bf16_to_f32(bf16_ptr: *const u16) -> f32;
 }
 
-/// A half-precision floating point number.
+/// A half-precision (16-bit) floating point number.
+///
+/// This type represents IEEE 754 half-precision binary floating-point format.
+/// It provides conversion methods to and from f32, and the underlying u16
+/// representation is publicly accessible for direct bit manipulation.
+///
+/// # Examples
+///
+/// ```
+/// use simsimd::f16;
+///
+/// // Create from f32
+/// let half = f16::from_f32(3.14);
+///
+/// // Convert back to f32
+/// let float = half.to_f32();
+///
+/// // Direct access to bits
+/// let bits = half.0;
+/// ```
 #[repr(transparent)]
-pub struct f16(u16);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct f16(pub u16);
 
-impl f16 {}
+impl f16 {
+    /// Converts an f32 to f16 representation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simsimd::f16;
+    /// let half = f16::from_f32(3.14159);
+    /// ```
+    pub fn from_f32(value: f32) -> Self {
+        let mut result: u16 = 0;
+        unsafe { simsimd_f32_to_f16(value, &mut result) };
+        f16(result)
+    }
 
-/// A half-precision floating point number, called brain float.
+    /// Converts the f16 to an f32.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simsimd::f16;
+    /// let half = f16::from_f32(3.14159);
+    /// let float = half.to_f32();
+    /// ```
+    pub fn to_f32(self) -> f32 {
+        unsafe { simsimd_f16_to_f32(&self.0) }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::fmt::Display for f16 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_f32())
+    }
+}
+
+/// A brain floating point (bfloat16) number.
+///
+/// This type represents Google's bfloat16 format, which truncates IEEE 754
+/// single-precision to 16 bits by keeping the exponent bits but reducing
+/// the mantissa. This provides a wider range than f16 but lower precision.
+///
+/// # Examples
+///
+/// ```
+/// use simsimd::bf16;
+///
+/// // Create from f32
+/// let brain_half = bf16::from_f32(3.14);
+///
+/// // Convert back to f32
+/// let float = brain_half.to_f32();
+///
+/// // Direct access to bits
+/// let bits = brain_half.0;
+/// ```
 #[repr(transparent)]
-pub struct bf16(u16);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct bf16(pub u16);
 
-impl bf16 {}
+impl bf16 {
+    /// Converts an f32 to bf16 representation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simsimd::bf16;
+    /// let brain_half = bf16::from_f32(3.14159);
+    /// ```
+    pub fn from_f32(value: f32) -> Self {
+        let mut result: u16 = 0;
+        unsafe { simsimd_f32_to_bf16(value, &mut result) };
+        bf16(result)
+    }
+
+    /// Converts the bf16 to an f32.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simsimd::bf16;
+    /// let brain_half = bf16::from_f32(3.14159);
+    /// let float = brain_half.to_f32();
+    /// ```
+    pub fn to_f32(self) -> f32 {
+        unsafe { simsimd_bf16_to_f32(&self.0) }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::fmt::Display for bf16 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_f32())
+    }
+}
 
 /// The `capabilities` module provides functions for detecting the hardware features
 /// available on the current system.
@@ -216,22 +352,22 @@ pub mod capabilities {
     }
 
     /// Flushes denormalized numbers to zero on the current CPU architecture.
-    /// 
+    ///
     /// This function should be called on each thread before any SIMD operations
-    /// to avoid performance penalties. When facing denormalized values, 
+    /// to avoid performance penalties. When facing denormalized values,
     /// Fused-Multiply-Add (FMA) operations can be up to 30x slower.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Returns `true` if the operation was successful, `false` otherwise.
     pub fn flush_denormals() -> bool {
         unsafe { crate::simsimd_flush_denormals() != 0 }
     }
 
     /// Checks if the library is using dynamic dispatch for function selection.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Returns `true` if dynamic dispatch is enabled, `false` otherwise.
     /// Currently always returns `false` as dynamic dispatch is not implemented.
     pub fn uses_dynamic_dispatch() -> bool {

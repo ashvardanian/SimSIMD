@@ -243,6 +243,22 @@ SIMSIMD_DYNAMIC int simsimd_uses_sierra(void) { return (simsimd_capabilities() &
 SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void) { return 1; }
 SIMSIMD_DYNAMIC int simsimd_flush_denormals(void) { return _simsimd_flush_denormals(); }
 
+SIMSIMD_DYNAMIC simsimd_f32_t simsimd_f16_to_f32(simsimd_f16_t const *x_ptr) {
+    return simsimd_f16_to_f32_implementation(x_ptr);
+}
+
+SIMSIMD_DYNAMIC void simsimd_f32_to_f16(simsimd_f32_t x, simsimd_f16_t *result_ptr) {
+    simsimd_f32_to_f16_implementation(x, result_ptr);
+}
+
+SIMSIMD_DYNAMIC simsimd_f32_t simsimd_bf16_to_f32(simsimd_bf16_t const *x_ptr) {
+    return simsimd_bf16_to_f32_implementation(x_ptr);
+}
+
+SIMSIMD_DYNAMIC void simsimd_f32_to_bf16(simsimd_f32_t x, simsimd_bf16_t *result_ptr) {
+    simsimd_f32_to_bf16_implementation(x, result_ptr);
+}
+
 SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
     //! The latency of the CPUID instruction can be over 100 cycles, so we cache the result.
     static simsimd_capability_t static_capabilities = simsimd_cap_any_k;

@@ -454,7 +454,7 @@ import numpy as np
 from simsimd import fma, wsum
 
 # Let's take two FullHD video frames
-first_frame = np.random.randn(1920 * 1024).astype(np.uint8)  
+first_frame = np.random.randn(1920 * 1024).astype(np.uint8)
 second_frame = np.random.randn(1920 * 1024).astype(np.uint8)
 average_frame = np.empty_like(first_frame)
 wsum(first_frame, second_frame, alpha=0.5, beta=0.5, out=average_frame)
@@ -479,7 +479,7 @@ alpha = 0.7  # Weight for the diffuse component
 beta = 0.3   # Weight for the specular component
 
 # Formula: color = alpha * light_intensity * diffuse_component + beta * specular_component
-fma(light_intensity, diffuse_component, specular_component, 
+fma(light_intensity, diffuse_component, specular_component,
     dtype="float16", # Optional, unless it can't be inferred from the input
     alpha=alpha, beta=beta, out=output_color)
 
@@ -499,7 +499,7 @@ ndim = 1536 # OpenAI Ada embeddings
 matrix1 = np.packbits(np.random.randint(2, size=(10_000, ndim)).astype(np.uint8))
 matrix2 = np.packbits(np.random.randint(2, size=(1_000, ndim)).astype(np.uint8))
 
-distances = simsimd.cdist(matrix1, matrix2, 
+distances = simsimd.cdist(matrix1, matrix2,
     metric="hamming",   # Unlike SciPy, SimSIMD doesn't divide by the number of dimensions
     out_dtype="uint8",  # so we can use `uint8` instead of `float64` to save memory.
     threads=0,          # Use all CPU cores with OpenMP.
@@ -541,8 +541,38 @@ with ThreadPoolExecutor(max_workers=num_threads) as executor:
         futures.append(executor.submit(compute_batch, start_idx, end_idx))
 
     # Collect results from all threads
-    results = [future.result() for future in futures]            
-```                                                               
+    results = [future.result() for future in futures]
+```
+
+### Half-Precision Brain-Float Numbers
+
+The "brain-float-16" is a popular machine learning format.
+It's broadly supported in hardware and is very machine-friendly, but software support is still lagging behind.
+[Unlike NumPy](https://github.com/numpy/numpy/issues/19808), you can already use `bf16` datatype in SimSIMD.
+Luckily, to downcast `f32` to `bf16` you only have to drop the last 16 bits:
+
+```py
+import numpy as np
+import simsimd as simd
+
+a = np.random.randn(ndim).astype(np.float32)
+b = np.random.randn(ndim).astype(np.float32)
+
+# NumPy doesn't natively support brain-float, so we need a trick!
+# Luckily, it's very easy to reduce the representation accuracy
+# by simply masking the low 16-bits of our 32-bit single-precision
+# numbers. We can also add `0x8000` to round the numbers.
+a_f32rounded = ((a.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+b_f32rounded = ((b.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+
+# To represent them as brain-floats, we need to drop the second half
+a_bf16 = np.right_shift(a_f32rounded.view(np.uint32), 16).astype(np.uint16)
+b_bf16 = np.right_shift(b_f32rounded.view(np.uint32), 16).astype(np.uint16)
+
+# Now we can compare the results
+expected = np.inner(a_f32rounded, b_f32rounded)
+result = simd.inner(a_bf16, b_bf16, "bf16")
+```
 
 ### Helper Functions
 
@@ -693,23 +723,48 @@ Binary similarity functions are available only for `u8` types.
 
 ### Half-Precision Floating-Point Numbers
 
-Rust has no native support for half-precision floating-point numbers, but SimSIMD provides a `f16` type.
-It has no functionality - it is a `transparent` wrapper around `u16` and can be used with `half` or any other half-precision library.
+Rust has no native support for half-precision floating-point numbers, but SimSIMD provides a `f16` type with built-in conversion methods.
+The underlying `u16` representation is publicly accessible for direct bit manipulation.
 
 ```rust
-use simsimd::SpatialSimilarity;
-use simsimd::f16 as SimF16;
+use simsimd::{SpatialSimilarity, f16};
+
+fn main() {
+    // Create f16 vectors using built-in conversion methods
+    let vector_a: Vec<f16> = vec![1.0, 2.0, 3.0].iter().map(|&x| f16::from_f32(x)).collect();
+    let vector_b: Vec<f16> = vec![4.0, 5.0, 6.0].iter().map(|&x| f16::from_f32(x)).collect();
+
+    // Compute the cosine similarity
+    let cosine_similarity = f16::cosine(&vector_a, &vector_b)
+        .expect("Vectors must be of the same length");
+    
+    println!("Cosine Similarity: {}", cosine_similarity);
+
+    // Direct bit manipulation
+    let half = f16::from_f32(3.14159);
+    let bits = half.0; // Access raw u16 representation
+    let reconstructed = f16(bits);
+    
+    // Convert back to f32
+    let float_value = half.to_f32();
+}
+```
+
+For interoperability with the `half` crate:
+
+```rust
+use simsimd::{SpatialSimilarity, f16 as SimF16};
 use half::f16 as HalfF16;
 
 fn main() {
-    let vector_a: Vec<HalfF16> = ...
-    let vector_b: Vec<HalfF16> = ...
+    let vector_a: Vec<HalfF16> = vec![1.0, 2.0, 3.0].iter().map(|&x| HalfF16::from_f32(x)).collect();
+    let vector_b: Vec<HalfF16> = vec![4.0, 5.0, 6.0].iter().map(|&x| HalfF16::from_f32(x)).collect();
 
-    let buffer_a: &[SimF16] = unsafe { std::slice::from_raw_parts(a_half.as_ptr() as *const SimF16, a_half.len()) };
-    let buffer_b: &[SimF16] = unsafe { std::slice::from_raw_parts(b_half.as_ptr() as *const SimF16, b_half.len()) };
+    // Safe reinterpret cast due to identical memory layout
+    let buffer_a: &[SimF16] = unsafe { std::slice::from_raw_parts(vector_a.as_ptr() as *const SimF16, vector_a.len()) };
+    let buffer_b: &[SimF16] = unsafe { std::slice::from_raw_parts(vector_b.as_ptr() as *const SimF16, vector_b.len()) };
 
-    // Compute the cosine similarity between vector_a and vector_b
-    let cosine_similarity = SimF16::cosine(&vector_a, &vector_b)
+    let cosine_similarity = SimF16::cosine(buffer_a, buffer_b)
         .expect("Vectors must be of the same length");
 
     println!("Cosine Similarity: {}", cosine_similarity);
@@ -719,31 +774,41 @@ fn main() {
 ### Half-Precision Brain-Float Numbers
 
 The "brain-float-16" is a popular machine learning format.
-It's broadly supported in hardware and is very machine-friendly, but software support is still lagging behind. 
+It's broadly supported in hardware and is very machine-friendly, but software support is still lagging behind.
 [Unlike NumPy](https://github.com/numpy/numpy/issues/19808), you can already use `bf16` datatype in SimSIMD.
-Luckily, to downcast `f32` to `bf16` you only have to drop the last 16 bits:
+SimSIMD provides a `bf16` type with built-in conversion methods and direct bit access.
 
-```py
-import numpy as np
-import simsimd as simd
+```rust
+use simsimd::{SpatialSimilarity, bf16};
 
-a = np.random.randn(ndim).astype(np.float32)
-b = np.random.randn(ndim).astype(np.float32)
+fn main() {
+    // Create bf16 vectors using built-in conversion methods
+    let vector_a: Vec<bf16> = vec![1.0, 2.0, 3.0].iter().map(|&x| bf16::from_f32(x)).collect();
+    let vector_b: Vec<bf16> = vec![4.0, 5.0, 6.0].iter().map(|&x| bf16::from_f32(x)).collect();
 
-# NumPy doesn't natively support brain-float, so we need a trick!
-# Luckily, it's very easy to reduce the representation accuracy
-# by simply masking the low 16-bits of our 32-bit single-precision
-# numbers. We can also add `0x8000` to round the numbers.
-a_f32rounded = ((a.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
-b_f32rounded = ((b.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+    // Compute the cosine similarity
+    let cosine_similarity = bf16::cosine(&vector_a, &vector_b)
+        .expect("Vectors must be of the same length");
+    
+    println!("Cosine Similarity: {}", cosine_similarity);
 
-# To represent them as brain-floats, we need to drop the second half
-a_bf16 = np.right_shift(a_f32rounded.view(np.uint32), 16).astype(np.uint16)
-b_bf16 = np.right_shift(b_f32rounded.view(np.uint32), 16).astype(np.uint16)
+    // Direct bit manipulation
+    let brain_half = bf16::from_f32(3.14159);
+    let bits = brain_half.0; // Access raw u16 representation
+    let reconstructed = bf16(bits);
+    
+    // Convert back to f32
+    let float_value = brain_half.to_f32();
 
-# Now we can compare the results
-expected = np.inner(a_f32rounded, b_f32rounded)
-result = simd.inner(a_bf16, b_bf16, "bf16")
+    // Compare precision differences
+    let original = 3.14159_f32;
+    let f16_roundtrip = f16::from_f32(original).to_f32();
+    let bf16_roundtrip = bf16::from_f32(original).to_f32();
+    
+    println!("Original: {}", original);
+    println!("f16 roundtrip: {}", f16_roundtrip);
+    println!("bf16 roundtrip: {}", bf16_roundtrip);
+}
 ```
 
 ### Dynamic Dispatch in Rust
@@ -760,6 +825,7 @@ println!("uses ice: {}", capabilities::uses_ice());
 println!("uses genoa: {}", capabilities::uses_genoa());
 println!("uses sapphire: {}", capabilities::uses_sapphire());
 println!("uses turin: {}", capabilities::uses_turin());
+println!("uses sierra: {}", capabilities::uses_sierra());
 ```
 
 ## Using SimSIMD in JavaScript
@@ -776,13 +842,13 @@ This will automatically happen unless you install the package with the `--ignore
 After you install it, you will be able to call the SimSIMD functions on various `TypedArray` variants:
 
 ```js
-const { sqeuclidean, cosine, inner, hamming, jaccard } = require('simsimd');
+const { sqeuclidean, cosine, inner, hamming, jaccard } = require("simsimd");
 
 const vectorA = new Float32Array([1.0, 2.0, 3.0]);
 const vectorB = new Float32Array([4.0, 5.0, 6.0]);
 
 const distance = sqeuclidean(vectorA, vectorB);
-console.log('Squared Euclidean Distance:', distance);
+console.log("Squared Euclidean Distance:", distance);
 ```
 
 Other numeric types and precision levels are supported as well.
@@ -798,8 +864,8 @@ When doing machine learning and vector search with high-dimensional vectors you 
 You may want to project values from the $[-1, 1]$ range to the $[-127, 127]$ range and then cast them to `Int8Array`:
 
 ```js
-const quantizedVectorA = new Int8Array(vectorA.map(v => (v * 127)));
-const quantizedVectorB = new Int8Array(vectorB.map(v => (v * 127)));
+const quantizedVectorA = new Int8Array(vectorA.map((v) => v * 127));
+const quantizedVectorB = new Int8Array(vectorB.map((v) => v * 127));
 const distance = cosine(quantizedVectorA, quantizedVectorB);
 ```
 
@@ -808,7 +874,7 @@ You can map all positive values to `1` and all negative values and zero to `0`, 
 After that, Hamming and Jaccard distances can be computed.
 
 ```js
-const { toBinary, hamming } = require('simsimd');
+const { toBinary, hamming } = require("simsimd");
 
 const binaryVectorA = toBinary(vectorA);
 const binaryVectorB = toBinary(vectorB);
@@ -919,7 +985,7 @@ int main() {
     simsimd_cos_f32(f32s, f32s, 1536, &distance);
     simsimd_cos_f64(f64s, f64s, 1536, &distance);
     simsimd_cos_bf16(bf16s, bf16s, 1536, &distance);
-    
+
     // Euclidean distance between two vectors
     simsimd_l2sq_i8(i8s, i8s, 1536, &distance);
     simsimd_l2sq_u8(u8s, u8s, 1536, &distance);
@@ -1036,7 +1102,7 @@ To explicitly disable half-precision support, define the following macro before 
 > This flag does just that and is used to produce the `simsimd.so` shared library, as well as the Python and other bindings.
 
 For Arm: `SIMSIMD_TARGET_NEON`, `SIMSIMD_TARGET_SVE`, `SIMSIMD_TARGET_SVE2`, `SIMSIMD_TARGET_NEON_F16`, `SIMSIMD_TARGET_SVE_F16`, `SIMSIMD_TARGET_NEON_BF16`, `SIMSIMD_TARGET_SVE_BF16`.
-For x86: (`SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`, `SIMSIMD_TARGET_TURIN`, `SIMSIMD_TARGET_SIERRA`. 
+For x86: (`SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`, `SIMSIMD_TARGET_TURIN`, `SIMSIMD_TARGET_SIERRA`.
 
 > By default, SimSIMD automatically infers the target architecture and pre-compiles as many kernels as possible.
 > In some cases, you may want to explicitly disable some of the kernels.
@@ -1064,7 +1130,7 @@ In general there are a few principles that SimSIMD follows:
 
 Possibly, in the future:
 
-- Best effort computation silencing `NaN` components in low-precision inputs. 
+- Best effort computation silencing `NaN` components in low-precision inputs.
 - Detect overflows and report the distance with a "signaling" `NaN`.
 
 Last, but not the least - don't build unless there is a demand for it.
@@ -1199,7 +1265,7 @@ SimSIMD defines `dot` and `vdot` kernels as:
 
 Where $\bar{b_i}$ is the complex conjugate of $b_i$.
 Putting that into Python code for scalar arrays:
-    
+
 ```python
 def dot(a: List[number], b: List[number]) -> number:
     a_real, a_imaginary = a[0::2], a[1::2]
