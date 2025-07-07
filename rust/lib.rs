@@ -192,6 +192,15 @@ extern "C" {
 pub struct f16(pub u16);
 
 impl f16 {
+    /// Positive zero.
+    pub const ZERO: Self = f16(0);
+    
+    /// Positive one.
+    pub const ONE: Self = f16(0x3C00);
+    
+    /// Negative one.
+    pub const NEG_ONE: Self = f16(0xBC00);
+
     /// Converts an f32 to f16 representation.
     ///
     /// # Examples
@@ -200,6 +209,7 @@ impl f16 {
     /// use simsimd::f16;
     /// let half = f16::from_f32(3.14159);
     /// ```
+    #[inline(always)]
     pub fn from_f32(value: f32) -> Self {
         let mut result: u16 = 0;
         unsafe { simsimd_f32_to_f16(value, &mut result) };
@@ -215,8 +225,60 @@ impl f16 {
     /// let half = f16::from_f32(3.14159);
     /// let float = half.to_f32();
     /// ```
+    #[inline(always)]
     pub fn to_f32(self) -> f32 {
         unsafe { simsimd_f16_to_f32(&self.0) }
+    }
+
+    /// Returns true if this value is NaN.
+    #[inline(always)]
+    pub fn is_nan(self) -> bool {
+        self.to_f32().is_nan()
+    }
+
+    /// Returns true if this value is positive or negative infinity.
+    #[inline(always)]
+    pub fn is_infinite(self) -> bool {
+        self.to_f32().is_infinite()
+    }
+
+    /// Returns true if this number is neither infinite nor NaN.
+    #[inline(always)]
+    pub fn is_finite(self) -> bool {
+        self.to_f32().is_finite()
+    }
+
+    /// Returns the absolute value of self.
+    #[inline(always)]
+    pub fn abs(self) -> Self {
+        Self::from_f32(self.to_f32().abs())
+    }
+
+    /// Returns the largest integer less than or equal to a number.
+    /// 
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn floor(self) -> Self {
+        Self::from_f32(self.to_f32().floor())
+    }
+
+    /// Returns the smallest integer greater than or equal to a number.
+    /// 
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn ceil(self) -> Self {
+        Self::from_f32(self.to_f32().ceil())
+    }
+
+    /// Returns the nearest integer to a number. Round half-way cases away from 0.0.
+    /// 
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn round(self) -> Self {
+        Self::from_f32(self.to_f32().round())
     }
 }
 
@@ -224,6 +286,58 @@ impl f16 {
 impl std::fmt::Display for f16 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.to_f32())
+    }
+}
+
+impl core::ops::Add for f16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() + rhs.to_f32())
+    }
+}
+
+impl core::ops::Sub for f16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() - rhs.to_f32())
+    }
+}
+
+impl core::ops::Mul for f16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() * rhs.to_f32())
+    }
+}
+
+impl core::ops::Div for f16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn div(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() / rhs.to_f32())
+    }
+}
+
+impl core::ops::Neg for f16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn neg(self) -> Self::Output {
+        Self::from_f32(-self.to_f32())
+    }
+}
+
+impl core::cmp::PartialOrd for f16 {
+    #[inline(always)]
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        self.to_f32().partial_cmp(&other.to_f32())
     }
 }
 
@@ -252,6 +366,15 @@ impl std::fmt::Display for f16 {
 pub struct bf16(pub u16);
 
 impl bf16 {
+    /// Positive zero.
+    pub const ZERO: Self = bf16(0);
+    
+    /// Positive one.
+    pub const ONE: Self = bf16(0x3F80);
+    
+    /// Negative one.
+    pub const NEG_ONE: Self = bf16(0xBF80);
+
     /// Converts an f32 to bf16 representation.
     ///
     /// # Examples
@@ -260,6 +383,7 @@ impl bf16 {
     /// use simsimd::bf16;
     /// let brain_half = bf16::from_f32(3.14159);
     /// ```
+    #[inline(always)]
     pub fn from_f32(value: f32) -> Self {
         let mut result: u16 = 0;
         unsafe { simsimd_f32_to_bf16(value, &mut result) };
@@ -275,8 +399,60 @@ impl bf16 {
     /// let brain_half = bf16::from_f32(3.14159);
     /// let float = brain_half.to_f32();
     /// ```
+    #[inline(always)]
     pub fn to_f32(self) -> f32 {
         unsafe { simsimd_bf16_to_f32(&self.0) }
+    }
+
+    /// Returns true if this value is NaN.
+    #[inline(always)]
+    pub fn is_nan(self) -> bool {
+        self.to_f32().is_nan()
+    }
+
+    /// Returns true if this value is positive or negative infinity.
+    #[inline(always)]
+    pub fn is_infinite(self) -> bool {
+        self.to_f32().is_infinite()
+    }
+
+    /// Returns true if this number is neither infinite nor NaN.
+    #[inline(always)]
+    pub fn is_finite(self) -> bool {
+        self.to_f32().is_finite()
+    }
+
+    /// Returns the absolute value of self.
+    #[inline(always)]
+    pub fn abs(self) -> Self {
+        Self::from_f32(self.to_f32().abs())
+    }
+
+    /// Returns the largest integer less than or equal to a number.
+    /// 
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn floor(self) -> Self {
+        Self::from_f32(self.to_f32().floor())
+    }
+
+    /// Returns the smallest integer greater than or equal to a number.
+    /// 
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn ceil(self) -> Self {
+        Self::from_f32(self.to_f32().ceil())
+    }
+
+    /// Returns the nearest integer to a number. Round half-way cases away from 0.0.
+    /// 
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn round(self) -> Self {
+        Self::from_f32(self.to_f32().round())
     }
 }
 
@@ -284,6 +460,58 @@ impl bf16 {
 impl std::fmt::Display for bf16 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.to_f32())
+    }
+}
+
+impl core::ops::Add for bf16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() + rhs.to_f32())
+    }
+}
+
+impl core::ops::Sub for bf16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() - rhs.to_f32())
+    }
+}
+
+impl core::ops::Mul for bf16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() * rhs.to_f32())
+    }
+}
+
+impl core::ops::Div for bf16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn div(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() / rhs.to_f32())
+    }
+}
+
+impl core::ops::Neg for bf16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn neg(self) -> Self::Output {
+        Self::from_f32(-self.to_f32())
+    }
+}
+
+impl core::cmp::PartialOrd for bf16 {
+    #[inline(always)]
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        self.to_f32().partial_cmp(&other.to_f32())
     }
 }
 
@@ -1373,5 +1601,63 @@ mod tests {
                 assert_almost_equal(3.0, result, 0.0001);
             }
         }
+    }
+
+    #[test]
+    fn test_f16_arithmetic() {
+        let a = f16::from_f32(3.5);
+        let b = f16::from_f32(2.0);
+        
+        // Test basic arithmetic
+        assert!((a + b).to_f32() - 5.5 < 0.01);
+        assert!((a - b).to_f32() - 1.5 < 0.01);
+        assert!((a * b).to_f32() - 7.0 < 0.01);
+        assert!((a / b).to_f32() - 1.75 < 0.01);
+        assert!((-a).to_f32() + 3.5 < 0.01);
+        
+        // Test constants
+        assert!(f16::ZERO.to_f32() == 0.0);
+        assert!((f16::ONE.to_f32() - 1.0).abs() < 0.01);
+        assert!((f16::NEG_ONE.to_f32() + 1.0).abs() < 0.01);
+        
+        // Test comparisons
+        assert!(a > b);
+        assert!(!(a < b));
+        assert!(a == a);
+        
+        // Test utility methods
+        assert!((-a).abs().to_f32() - 3.5 < 0.01);
+        assert!(a.is_finite());
+        assert!(!a.is_nan());
+        assert!(!a.is_infinite());
+    }
+
+    #[test]
+    fn test_bf16_arithmetic() {
+        let a = bf16::from_f32(3.5);
+        let b = bf16::from_f32(2.0);
+        
+        // Test basic arithmetic
+        assert!((a + b).to_f32() - 5.5 < 0.1);
+        assert!((a - b).to_f32() - 1.5 < 0.1);
+        assert!((a * b).to_f32() - 7.0 < 0.1);
+        assert!((a / b).to_f32() - 1.75 < 0.1);
+        assert!((-a).to_f32() + 3.5 < 0.1);
+        
+        // Test constants
+        assert!(bf16::ZERO.to_f32() == 0.0);
+        assert!((bf16::ONE.to_f32() - 1.0).abs() < 0.01);
+        assert!((bf16::NEG_ONE.to_f32() + 1.0).abs() < 0.01);
+        
+        // Test comparisons
+        assert!(a > b);
+        assert!(!(a < b));
+        assert!(a == a);
+        
+        // Test utility methods
+        assert!((-a).abs().to_f32() - 3.5 < 0.1);
+        assert!(a.is_finite());
+        assert!(!a.is_nan());
+        assert!(!a.is_infinite());
     }
 }
