@@ -43,7 +43,11 @@ lto = true        # Enables Link Time Optimization for further optimizations
 codegen-units = 1 # May increase compilation time but optimizes further
 rpath = false     # On some systems, setting this to false can help with optimizations
 
+[features]
+default = []
+std = []
+
 [dev-dependencies]
-criterion = { version = "0.5.1" }
-rand = { version = "0.8.5" }
-half = { version = "2.4.0" }
+criterion = { version = "0.6.0" }
+rand = { version = "0.9.1" }
+half = { version = "2.6.0" }

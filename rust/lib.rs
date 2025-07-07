@@ -1,7 +1,8 @@
 //! # SpatialSimilarity - Hardware-Accelerated Similarity Metrics and Distance Functions
 //!
 //! * Targets ARM NEON, SVE, x86 AVX2, AVX-512 (VNNI, FP16) hardware backends.
-//! * Handles `f64` double-, `f32` single-, and `f16` half-precision, `i8` integral, and binary vectors.
+//! * Handles `f64` double- and `f32` single-precision, integral, and binary vectors.
+//! * Exposes half-precision (`f16`) and brain floating point (`bf16`) types.
 //! * Zero-dependency header-only C 99 library with bindings for Rust and other languages.
 //!
 //! ## Implemented distance functions include:
@@ -26,9 +27,30 @@
 //!
 //! // Compute squared Euclidean distance
 //! let l2sq_dist = i8::l2sq(a, b);
-//! 
+//!
 //! // Optimize performance by flushing denormals
 //! simsimd::capabilities::flush_denormals();
+//! ```
+//!
+//! ## Mixed Precision Support
+//!
+//! ```rust
+//! use simsimd::{SpatialSimilarity, f16, bf16};
+//!
+//! // Work with half-precision floats
+//! let half_a: Vec<f16> = vec![1.0, 2.0, 3.0].iter().map(|&x| f16::from_f32(x)).collect();
+//! let half_b: Vec<f16> = vec![4.0, 5.0, 6.0].iter().map(|&x| f16::from_f32(x)).collect();
+//! let half_cos = f16::cos(&half_a, &half_b);
+//!
+//! // Work with brain floats
+//! let brain_a: Vec<bf16> = vec![1.0, 2.0, 3.0].iter().map(|&x| bf16::from_f32(x)).collect();
+//! let brain_b: Vec<bf16> = vec![4.0, 5.0, 6.0].iter().map(|&x| bf16::from_f32(x)).collect();
+//! let brain_cos = bf16::cos(&brain_a, &brain_b);
+//!
+//! // Direct bit manipulation
+//! let half = f16::from_f32(3.14);
+//! let bits = half.0; // Access raw u16 representation
+//! let reconstructed = f16(bits);
 //! ```
 //!
 //! ## Traits
@@ -50,10 +72,12 @@
 //! - `kullbackleibler(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Kullback-Leibler divergence between two slices.
 //!
 #![allow(non_camel_case_types)]
+#![cfg_attr(not(test), no_std)]
 
-type Distance = f64;
-type ComplexProduct = (f64, f64);
+pub type Distance = f64;
+pub type ComplexProduct = (f64, f64);
 
+#[link(name = "simsimd")]
 extern "C" {
 
     fn simsimd_dot_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
@@ -136,19 +160,360 @@ extern "C" {
 
     fn simsimd_flush_denormals() -> i32;
     fn simsimd_uses_dynamic_dispatch() -> i32;
+
+    fn simsimd_f32_to_f16(f32_value: f32, result_ptr: *mut u16);
+    fn simsimd_f16_to_f32(f16_ptr: *const u16) -> f32;
+    fn simsimd_f32_to_bf16(f32_value: f32, result_ptr: *mut u16);
+    fn simsimd_bf16_to_f32(bf16_ptr: *const u16) -> f32;
 }
 
-/// A half-precision floating point number.
+/// A half-precision (16-bit) floating point number.
+///
+/// This type represents IEEE 754 half-precision binary floating-point format.
+/// It provides conversion methods to and from f32, and the underlying u16
+/// representation is publicly accessible for direct bit manipulation.
+///
+/// # Examples
+///
+/// ```
+/// use simsimd::f16;
+///
+/// // Create from f32
+/// let half = f16::from_f32(3.14);
+///
+/// // Convert back to f32
+/// let float = half.to_f32();
+///
+/// // Direct access to bits
+/// let bits = half.0;
+/// ```
 #[repr(transparent)]
-pub struct f16(u16);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct f16(pub u16);
 
-impl f16 {}
+impl f16 {
+    /// Positive zero.
+    pub const ZERO: Self = f16(0);
+    
+    /// Positive one.
+    pub const ONE: Self = f16(0x3C00);
+    
+    /// Negative one.
+    pub const NEG_ONE: Self = f16(0xBC00);
 
-/// A half-precision floating point number, called brain float.
+    /// Converts an f32 to f16 representation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simsimd::f16;
+    /// let half = f16::from_f32(3.14159);
+    /// ```
+    #[inline(always)]
+    pub fn from_f32(value: f32) -> Self {
+        let mut result: u16 = 0;
+        unsafe { simsimd_f32_to_f16(value, &mut result) };
+        f16(result)
+    }
+
+    /// Converts the f16 to an f32.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simsimd::f16;
+    /// let half = f16::from_f32(3.14159);
+    /// let float = half.to_f32();
+    /// ```
+    #[inline(always)]
+    pub fn to_f32(self) -> f32 {
+        unsafe { simsimd_f16_to_f32(&self.0) }
+    }
+
+    /// Returns true if this value is NaN.
+    #[inline(always)]
+    pub fn is_nan(self) -> bool {
+        self.to_f32().is_nan()
+    }
+
+    /// Returns true if this value is positive or negative infinity.
+    #[inline(always)]
+    pub fn is_infinite(self) -> bool {
+        self.to_f32().is_infinite()
+    }
+
+    /// Returns true if this number is neither infinite nor NaN.
+    #[inline(always)]
+    pub fn is_finite(self) -> bool {
+        self.to_f32().is_finite()
+    }
+
+    /// Returns the absolute value of self.
+    #[inline(always)]
+    pub fn abs(self) -> Self {
+        Self::from_f32(self.to_f32().abs())
+    }
+
+    /// Returns the largest integer less than or equal to a number.
+    /// 
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn floor(self) -> Self {
+        Self::from_f32(self.to_f32().floor())
+    }
+
+    /// Returns the smallest integer greater than or equal to a number.
+    /// 
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn ceil(self) -> Self {
+        Self::from_f32(self.to_f32().ceil())
+    }
+
+    /// Returns the nearest integer to a number. Round half-way cases away from 0.0.
+    /// 
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn round(self) -> Self {
+        Self::from_f32(self.to_f32().round())
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::fmt::Display for f16 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_f32())
+    }
+}
+
+impl core::ops::Add for f16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() + rhs.to_f32())
+    }
+}
+
+impl core::ops::Sub for f16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() - rhs.to_f32())
+    }
+}
+
+impl core::ops::Mul for f16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() * rhs.to_f32())
+    }
+}
+
+impl core::ops::Div for f16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn div(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() / rhs.to_f32())
+    }
+}
+
+impl core::ops::Neg for f16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn neg(self) -> Self::Output {
+        Self::from_f32(-self.to_f32())
+    }
+}
+
+impl core::cmp::PartialOrd for f16 {
+    #[inline(always)]
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        self.to_f32().partial_cmp(&other.to_f32())
+    }
+}
+
+/// A brain floating point (bfloat16) number.
+///
+/// This type represents Google's bfloat16 format, which truncates IEEE 754
+/// single-precision to 16 bits by keeping the exponent bits but reducing
+/// the mantissa. This provides a wider range than f16 but lower precision.
+///
+/// # Examples
+///
+/// ```
+/// use simsimd::bf16;
+///
+/// // Create from f32
+/// let brain_half = bf16::from_f32(3.14);
+///
+/// // Convert back to f32
+/// let float = brain_half.to_f32();
+///
+/// // Direct access to bits
+/// let bits = brain_half.0;
+/// ```
 #[repr(transparent)]
-pub struct bf16(u16);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct bf16(pub u16);
 
-impl bf16 {}
+impl bf16 {
+    /// Positive zero.
+    pub const ZERO: Self = bf16(0);
+    
+    /// Positive one.
+    pub const ONE: Self = bf16(0x3F80);
+    
+    /// Negative one.
+    pub const NEG_ONE: Self = bf16(0xBF80);
+
+    /// Converts an f32 to bf16 representation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simsimd::bf16;
+    /// let brain_half = bf16::from_f32(3.14159);
+    /// ```
+    #[inline(always)]
+    pub fn from_f32(value: f32) -> Self {
+        let mut result: u16 = 0;
+        unsafe { simsimd_f32_to_bf16(value, &mut result) };
+        bf16(result)
+    }
+
+    /// Converts the bf16 to an f32.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simsimd::bf16;
+    /// let brain_half = bf16::from_f32(3.14159);
+    /// let float = brain_half.to_f32();
+    /// ```
+    #[inline(always)]
+    pub fn to_f32(self) -> f32 {
+        unsafe { simsimd_bf16_to_f32(&self.0) }
+    }
+
+    /// Returns true if this value is NaN.
+    #[inline(always)]
+    pub fn is_nan(self) -> bool {
+        self.to_f32().is_nan()
+    }
+
+    /// Returns true if this value is positive or negative infinity.
+    #[inline(always)]
+    pub fn is_infinite(self) -> bool {
+        self.to_f32().is_infinite()
+    }
+
+    /// Returns true if this number is neither infinite nor NaN.
+    #[inline(always)]
+    pub fn is_finite(self) -> bool {
+        self.to_f32().is_finite()
+    }
+
+    /// Returns the absolute value of self.
+    #[inline(always)]
+    pub fn abs(self) -> Self {
+        Self::from_f32(self.to_f32().abs())
+    }
+
+    /// Returns the largest integer less than or equal to a number.
+    /// 
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn floor(self) -> Self {
+        Self::from_f32(self.to_f32().floor())
+    }
+
+    /// Returns the smallest integer greater than or equal to a number.
+    /// 
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn ceil(self) -> Self {
+        Self::from_f32(self.to_f32().ceil())
+    }
+
+    /// Returns the nearest integer to a number. Round half-way cases away from 0.0.
+    /// 
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn round(self) -> Self {
+        Self::from_f32(self.to_f32().round())
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::fmt::Display for bf16 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_f32())
+    }
+}
+
+impl core::ops::Add for bf16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() + rhs.to_f32())
+    }
+}
+
+impl core::ops::Sub for bf16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() - rhs.to_f32())
+    }
+}
+
+impl core::ops::Mul for bf16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() * rhs.to_f32())
+    }
+}
+
+impl core::ops::Div for bf16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn div(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() / rhs.to_f32())
+    }
+}
+
+impl core::ops::Neg for bf16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn neg(self) -> Self::Output {
+        Self::from_f32(-self.to_f32())
+    }
+}
+
+impl core::cmp::PartialOrd for bf16 {
+    #[inline(always)]
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        self.to_f32().partial_cmp(&other.to_f32())
+    }
+}
 
 /// The `capabilities` module provides functions for detecting the hardware features
 /// available on the current system.
@@ -215,22 +580,22 @@ pub mod capabilities {
     }
 
     /// Flushes denormalized numbers to zero on the current CPU architecture.
-    /// 
+    ///
     /// This function should be called on each thread before any SIMD operations
-    /// to avoid performance penalties. When facing denormalized values, 
+    /// to avoid performance penalties. When facing denormalized values,
     /// Fused-Multiply-Add (FMA) operations can be up to 30x slower.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Returns `true` if the operation was successful, `false` otherwise.
     pub fn flush_denormals() -> bool {
         unsafe { crate::simsimd_flush_denormals() != 0 }
     }
 
     /// Checks if the library is using dynamic dispatch for function selection.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// Returns `true` if dynamic dispatch is enabled, `false` otherwise.
     /// Currently always returns `false` as dynamic dispatch is not implemented.
     pub fn uses_dynamic_dispatch() -> bool {
@@ -1236,5 +1601,63 @@ mod tests {
                 assert_almost_equal(3.0, result, 0.0001);
             }
         }
+    }
+
+    #[test]
+    fn test_f16_arithmetic() {
+        let a = f16::from_f32(3.5);
+        let b = f16::from_f32(2.0);
+        
+        // Test basic arithmetic
+        assert!((a + b).to_f32() - 5.5 < 0.01);
+        assert!((a - b).to_f32() - 1.5 < 0.01);
+        assert!((a * b).to_f32() - 7.0 < 0.01);
+        assert!((a / b).to_f32() - 1.75 < 0.01);
+        assert!((-a).to_f32() + 3.5 < 0.01);
+        
+        // Test constants
+        assert!(f16::ZERO.to_f32() == 0.0);
+        assert!((f16::ONE.to_f32() - 1.0).abs() < 0.01);
+        assert!((f16::NEG_ONE.to_f32() + 1.0).abs() < 0.01);
+        
+        // Test comparisons
+        assert!(a > b);
+        assert!(!(a < b));
+        assert!(a == a);
+        
+        // Test utility methods
+        assert!((-a).abs().to_f32() - 3.5 < 0.01);
+        assert!(a.is_finite());
+        assert!(!a.is_nan());
+        assert!(!a.is_infinite());
+    }
+
+    #[test]
+    fn test_bf16_arithmetic() {
+        let a = bf16::from_f32(3.5);
+        let b = bf16::from_f32(2.0);
+        
+        // Test basic arithmetic
+        assert!((a + b).to_f32() - 5.5 < 0.1);
+        assert!((a - b).to_f32() - 1.5 < 0.1);
+        assert!((a * b).to_f32() - 7.0 < 0.1);
+        assert!((a / b).to_f32() - 1.75 < 0.1);
+        assert!((-a).to_f32() + 3.5 < 0.1);
+        
+        // Test constants
+        assert!(bf16::ZERO.to_f32() == 0.0);
+        assert!((bf16::ONE.to_f32() - 1.0).abs() < 0.01);
+        assert!((bf16::NEG_ONE.to_f32() + 1.0).abs() < 0.01);
+        
+        // Test comparisons
+        assert!(a > b);
+        assert!(!(a < b));
+        assert!(a == a);
+        
+        // Test utility methods
+        assert!((-a).abs().to_f32() - 3.5 < 0.1);
+        assert!(a.is_finite());
+        assert!(!a.is_nan());
+        assert!(!a.is_infinite());
     }
 }

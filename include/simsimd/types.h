@@ -547,7 +547,7 @@ SIMSIMD_INTERNAL simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-SIMSIMD_INTERNAL simsimd_f32_t simsimd_f16_to_f32(simsimd_f16_t const *x_ptr) {
+SIMSIMD_INTERNAL simsimd_f32_t simsimd_f16_to_f32_implementation(simsimd_f16_t const *x_ptr) {
     unsigned short x;
     SIMSIMD_COPY16(&x, x_ptr);
     unsigned int exponent = (x & 0x7C00) >> 10;
@@ -570,7 +570,7 @@ SIMSIMD_INTERNAL simsimd_f32_t simsimd_f16_to_f32(simsimd_f16_t const *x_ptr) {
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-SIMSIMD_INTERNAL void simsimd_f32_to_f16(simsimd_f32_t x, simsimd_f16_t *result_ptr) {
+SIMSIMD_INTERNAL void simsimd_f32_to_f16_implementation(simsimd_f32_t x, simsimd_f16_t *result_ptr) {
     simsimd_f32i32_t conv;
     conv.f = x;
     unsigned int b = conv.i + 0x00001000;
@@ -589,7 +589,7 @@ SIMSIMD_INTERNAL void simsimd_f32_to_f16(simsimd_f32_t x, simsimd_f16_t *result_
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
-SIMSIMD_INTERNAL simsimd_f32_t simsimd_bf16_to_f32(simsimd_bf16_t const *x_ptr) {
+SIMSIMD_INTERNAL simsimd_f32_t simsimd_bf16_to_f32_implementation(simsimd_bf16_t const *x_ptr) {
     unsigned short x;
     SIMSIMD_COPY16(&x, x_ptr);
     simsimd_f32i32_t conv;
@@ -603,7 +603,7 @@ SIMSIMD_INTERNAL simsimd_f32_t simsimd_bf16_to_f32(simsimd_bf16_t const *x_ptr) 
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
-SIMSIMD_INTERNAL void simsimd_f32_to_bf16(simsimd_f32_t x, simsimd_bf16_t *result_ptr) {
+SIMSIMD_INTERNAL void simsimd_f32_to_bf16_implementation(simsimd_f32_t x, simsimd_bf16_t *result_ptr) {
     simsimd_f32i32_t conv;
     conv.f = x;
     conv.i += 0x8000; // Rounding is optional
@@ -619,6 +619,44 @@ SIMSIMD_INTERNAL simsimd_u8_t simsimd_u8_rol(simsimd_u8_t x, int n) { return (x 
 SIMSIMD_INTERNAL simsimd_u32_t simsimd_u32_ror(simsimd_u32_t x, int n) { return (x >> n) | (x << (32 - n)); }
 SIMSIMD_INTERNAL simsimd_u16_t simsimd_u16_ror(simsimd_u16_t x, int n) { return (x >> n) | (x << (16 - n)); }
 SIMSIMD_INTERNAL simsimd_u8_t simsimd_u8_ror(simsimd_u8_t x, int n) { return (x >> n) | (x << (8 - n)); }
+
+#if SIMSIMD_DYNAMIC_DISPATCH
+
+/** @copydoc simsimd_f16_to_f32_implementation */
+SIMSIMD_DYNAMIC simsimd_f32_t simsimd_f16_to_f32(simsimd_f16_t const *x_ptr);
+
+/** @copydoc simsimd_f32_to_f16_implementation */
+SIMSIMD_DYNAMIC void simsimd_f32_to_f16(simsimd_f32_t x, simsimd_f16_t *result_ptr);
+
+/** @copydoc simsimd_bf16_to_f32_implementation */
+SIMSIMD_DYNAMIC simsimd_f32_t simsimd_bf16_to_f32(simsimd_bf16_t const *x_ptr);
+
+/** @copydoc simsimd_f32_to_bf16_implementation */
+SIMSIMD_DYNAMIC void simsimd_f32_to_bf16(simsimd_f32_t x, simsimd_bf16_t *result_ptr);
+
+#else // SIMSIMD_DYNAMIC_DISPATCH
+
+/** @copydoc simsimd_f16_to_f32_implementation */
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_f16_to_f32(simsimd_f16_t const *x_ptr) {
+    return simsimd_f16_to_f32_implementation(x_ptr);
+}
+
+/** @copydoc simsimd_f32_to_f16_implementation */
+SIMSIMD_PUBLIC void simsimd_f32_to_f16(simsimd_f32_t x, simsimd_f16_t *result_ptr) {
+    simsimd_f32_to_f16_implementation(x, result_ptr);
+}
+
+/** @copydoc simsimd_bf16_to_f32_implementation */
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_bf16_to_f32(simsimd_bf16_t const *x_ptr) {
+    return simsimd_bf16_to_f32_implementation(x_ptr);
+}
+
+/** @copydoc simsimd_f32_to_bf16_implementation */
+SIMSIMD_PUBLIC void simsimd_f32_to_bf16(simsimd_f32_t x, simsimd_bf16_t *result_ptr) {
+    simsimd_f32_to_bf16_implementation(x, result_ptr);
+}
+
+#endif // SIMSIMD_DYNAMIC_DISPATCH
 
 #ifdef __cplusplus
 } // extern "C"
