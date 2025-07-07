@@ -51,8 +51,8 @@
 //!
 #![allow(non_camel_case_types)]
 
-type Distance = f64;
-type ComplexProduct = (f64, f64);
+pub type Distance = f64;
+pub type ComplexProduct = (f64, f64);
 
 extern "C" {
 
