@@ -57,7 +57,7 @@ SIMSIMD_IN_QEMU = "1"
 
 [tool.cibuildwheel.linux]
 before-build = ["rm -rf {project}/build"]
-repair-wheel-command = "auditwheel repair --lib-sdir . -w {dest_dir} {wheel}"
+repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel}"
 
 # Use more recent images for the most popular SIMD-capable CPU architectures, to have access to newer compilers.
 # Otherwise, prepare yourself to all kinds of AVX-512 issues and other SIMD-related pain.
