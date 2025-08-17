@@ -674,21 +674,21 @@ Complex inner products are available for `f64`, `f32`, and `f16` types.
 ### Probability Distributions: Jensen-Shannon and Kullback-Leibler Divergences
 
 ```rust
-use simsimd::SpatialSimilarity;
+use simsimd::ProbabilitySimilarity;
 
 fn main() {
     let vector_a: Vec<f32> = vec![1.0, 2.0, 3.0];
     let vector_b: Vec<f32> = vec![4.0, 5.0, 6.0];
 
-    let cosine_similarity = f32::jensenshannon(&vector_a, &vector_b)
+    let jensen_shannon = f32::jensenshannon(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
-    println!("Cosine Similarity: {}", cosine_similarity);
+    println!("Jensen-Shannon Divergence: {}", jensen_shannon);
 
-    let sq_euclidean_distance = f32::kullbackleibler(&vector_a, &vector_b)
+    let kullback_leibler = f32::kullbackleibler(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
-    println!("Squared Euclidean Distance: {}", sq_euclidean_distance);
+    println!("Kullback-Leibler Divergence: {}", kullback_leibler);
 }
 ```
 
