@@ -32,7 +32,6 @@ jobs:
           version-file: "VERSION"
           update-version-in: |
             Cargo.toml:^version = "(\d+\.\d+\.\d+)"
-            Cargo.lock:name = "simsimd"\nversion = "(\d+\.\d+\.\d+)"
             package.json:"version": "(\d+\.\d+\.\d+)"
             CMakeLists.txt:VERSION (\d+\.\d+\.\d+)
           update-major-version-in: |

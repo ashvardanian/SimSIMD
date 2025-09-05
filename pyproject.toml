@@ -34,7 +34,7 @@ test-command = """
 
 # We need to build for all platforms:
 # - on Linux: x86_64, aarch64, i686
-# - on MacOS: x86_64, arm64
+# - on macOS: x86_64, arm64
 # - on Windows: AMD64, ARM64
 # https://cibuildwheel.readthedocs.io/en/stable/options/#archs
 #

@@ -12,7 +12,7 @@
 #ifndef SIMSIMD_TYPES_H
 #define SIMSIMD_TYPES_H
 
-// Inferring target OS: Windows, MacOS, or Linux
+// Inferring target OS: Windows, macOS, or Linux
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #define _SIMSIMD_DEFINED_WINDOWS 1
 #elif defined(__APPLE__) && defined(__MACH__)
@@ -28,7 +28,7 @@
 // - `SIMSIMD_DYNAMIC` is used for functions that are part of the public API, but are dispatched at runtime.
 //
 // On GCC we mark the functions as `nonnull` informing that none of the arguments can be `NULL`.
-// Marking with `pure` and `const` isn't possible as outputing to a pointer is a "side effect".
+// Marking with `pure` and `const` isn't possible as outputting to a pointer is a "side effect".
 #if defined(_WIN32) || defined(__CYGWIN__)
 #define SIMSIMD_DYNAMIC __declspec(dllexport)
 #define SIMSIMD_PUBLIC inline static
@@ -259,6 +259,7 @@
 #define SIMSIMD_LOG(x) (log(x))
 #endif
 
+// Copy 16 bits (2 bytes) from source to destination
 #if defined(__GNUC__) || defined(__clang__)
 #define SIMSIMD_COPY16(destination_ptr, source_ptr) __builtin_memcpy((destination_ptr), (source_ptr), 2)
 #else
@@ -395,7 +396,7 @@ typedef unsigned short simsimd_bf16_t;
 
 /*
  *  Let's make sure the sizes of the types are as expected.
- *  In C the `_Static_assert` is only available with C 11 and later.
+ *  In C the `_Static_assert` is only available with C11 and later.
  */
 #define SIMSIMD_STATIC_ASSERT(cond, msg) typedef char static_assertion_##msg[(cond) ? 1 : -1]
 SIMSIMD_STATIC_ASSERT(sizeof(simsimd_b8_t) == 1, simsimd_b8_t_must_be_1_byte);

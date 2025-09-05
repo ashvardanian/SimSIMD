@@ -69,3 +69,7 @@ target/
 
 # perfplot charts
 *.png
+\n
+
+# Library crate: don't commit lockfile
+Cargo.lock

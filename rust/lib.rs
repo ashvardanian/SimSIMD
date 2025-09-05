@@ -7,7 +7,7 @@
 //!
 //! ## Implemented distance functions include:
 //!
-//! * Euclidean (L2), Inner Distance, and Cosine (Angular) spatial distances.
+//! * Euclidean (L2), inner product, and cosine (angular) spatial distances.
 //! * Hamming (~ Manhattan) and Jaccard (~ Tanimoto) binary distances.
 //! * Kullback-Leibler and Jensen-Shannon divergences for probability distributions.
 //!
@@ -19,8 +19,8 @@
 //! let a = &[1, 2, 3];
 //! let b = &[4, 5, 6];
 //!
-//! // Compute cosine similarity
-//! let cos_sim = i8::cos(a, b);
+//! // Compute cosine distance
+//! let cos_dist = i8::cos(a, b);
 //!
 //! // Compute dot product distance
 //! let dot_product = i8::dot(a, b);
@@ -40,12 +40,12 @@
 //! // Work with half-precision floats
 //! let half_a: Vec<f16> = vec![1.0, 2.0, 3.0].iter().map(|&x| f16::from_f32(x)).collect();
 //! let half_b: Vec<f16> = vec![4.0, 5.0, 6.0].iter().map(|&x| f16::from_f32(x)).collect();
-//! let half_cos = f16::cos(&half_a, &half_b);
+//! let half_cos_dist = f16::cos(&half_a, &half_b);
 //!
 //! // Work with brain floats
 //! let brain_a: Vec<bf16> = vec![1.0, 2.0, 3.0].iter().map(|&x| bf16::from_f32(x)).collect();
 //! let brain_b: Vec<bf16> = vec![4.0, 5.0, 6.0].iter().map(|&x| bf16::from_f32(x)).collect();
-//! let brain_cos = bf16::cos(&brain_a, &brain_b);
+//! let brain_cos_dist = bf16::cos(&brain_a, &brain_b);
 //!
 //! // Direct bit manipulation
 //! let half = f16::from_f32(3.14);
@@ -57,14 +57,14 @@
 //!
 //! The `SpatialSimilarity` trait covers following methods:
 //!
-//! - `cosine(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes cosine similarity between two slices.
+//! - `cosine(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes cosine distance (1 - similarity) between two slices.
 //! - `dot(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes dot product distance between two slices.
 //! - `sqeuclidean(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes squared Euclidean distance between two slices.
 //!
 //! The `BinarySimilarity` trait covers following methods:
 //!
 //! - `hamming(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Hamming distance between two slices.
-//! - `jaccard(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Jaccard index between two slices.
+//! - `jaccard(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Jaccard distance between two slices.
 //!
 //! The `ProbabilitySimilarity` trait covers following methods:
 //!
@@ -76,6 +76,12 @@
 
 pub type Distance = f64;
 pub type ComplexProduct = (f64, f64);
+
+/// Compatibility function for pre 1.85 Rust versions lacking `f32::abs`.
+#[inline(always)]
+fn f32_abs_compat(x: f32) -> f32 {
+    f32::from_bits(x.to_bits() & 0x7FFF_FFFF)
+}
 
 #[link(name = "simsimd")]
 extern "C" {
@@ -194,10 +200,10 @@ pub struct f16(pub u16);
 impl f16 {
     /// Positive zero.
     pub const ZERO: Self = f16(0);
-    
+
     /// Positive one.
     pub const ONE: Self = f16(0x3C00);
-    
+
     /// Negative one.
     pub const NEG_ONE: Self = f16(0xBC00);
 
@@ -251,11 +257,11 @@ impl f16 {
     /// Returns the absolute value of self.
     #[inline(always)]
     pub fn abs(self) -> Self {
-        Self::from_f32(self.to_f32().abs())
+        Self::from_f32(f32_abs_compat(self.to_f32()))
     }
 
     /// Returns the largest integer less than or equal to a number.
-    /// 
+    ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
@@ -264,7 +270,7 @@ impl f16 {
     }
 
     /// Returns the smallest integer greater than or equal to a number.
-    /// 
+    ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
@@ -273,7 +279,7 @@ impl f16 {
     }
 
     /// Returns the nearest integer to a number. Round half-way cases away from 0.0.
-    /// 
+    ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
@@ -368,10 +374,10 @@ pub struct bf16(pub u16);
 impl bf16 {
     /// Positive zero.
     pub const ZERO: Self = bf16(0);
-    
+
     /// Positive one.
     pub const ONE: Self = bf16(0x3F80);
-    
+
     /// Negative one.
     pub const NEG_ONE: Self = bf16(0xBF80);
 
@@ -425,11 +431,11 @@ impl bf16 {
     /// Returns the absolute value of self.
     #[inline(always)]
     pub fn abs(self) -> Self {
-        Self::from_f32(self.to_f32().abs())
+        Self::from_f32(f32_abs_compat(self.to_f32()))
     }
 
     /// Returns the largest integer less than or equal to a number.
-    /// 
+    ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
@@ -438,7 +444,7 @@ impl bf16 {
     }
 
     /// Returns the smallest integer greater than or equal to a number.
-    /// 
+    ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
@@ -447,7 +453,7 @@ impl bf16 {
     }
 
     /// Returns the nearest integer to a number. Round half-way cases away from 0.0.
-    /// 
+    ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
@@ -596,8 +602,8 @@ pub mod capabilities {
     ///
     /// # Returns
     ///
-    /// Returns `true` if dynamic dispatch is enabled, `false` otherwise.
-    /// Currently always returns `false` as dynamic dispatch is not implemented.
+    /// Returns `true` when the C backend is compiled with dynamic dispatch
+    /// (default for this crate via `build.rs`), otherwise `false`.
     pub fn uses_dynamic_dispatch() -> bool {
         unsafe { crate::simsimd_uses_dynamic_dispatch() != 0 }
     }
@@ -605,19 +611,21 @@ pub mod capabilities {
 
 /// `SpatialSimilarity` provides a set of trait methods for computing similarity
 /// or distance between spatial data vectors in SIMD (Single Instruction, Multiple Data) context.
-/// These methods can be used to calculate metrics like cosine similarity, dot product,
+/// These methods can be used to calculate metrics like cosine distance, dot product,
 /// and squared Euclidean distance between two slices of data.
 ///
 /// Each method takes two slices of data (a and b) and returns an Option<Distance>.
 /// The result is `None` if the slices are not of the same length, as these operations
 /// require one-to-one correspondence between the elements of the slices.
-/// Otherwise, it returns the computed similarity or distance as `Some(f32)`.
+/// Otherwise, it returns the computed similarity or distance as `Some(f64)`.
+/// Convenience methods like `cosine`/`sqeuclidean` delegate to the core methods
+/// `cos`/`l2sq` implemented by this trait.
 pub trait SpatialSimilarity
 where
     Self: Sized,
 {
-    /// Computes the cosine similarity between two slices.
-    /// The cosine similarity is a measure of similarity between two non-zero vectors
+    /// Computes the cosine distance between two slices.
+    /// The cosine distance is 1 minus the cosine similarity between two non-zero vectors
     /// of an dot product space that measures the cosine of the angle between them.
     fn cos(a: &[Self], b: &[Self]) -> Option<Distance>;
 
@@ -659,8 +667,8 @@ where
         SpatialSimilarity::dot(a, b)
     }
 
-    /// Computes the cosine similarity between two slices.
-    /// The cosine similarity is a measure of similarity between two non-zero vectors
+    /// Computes the cosine distance between two slices.
+    /// The cosine distance is 1 minus the cosine similarity between two non-zero vectors
     /// of an dot product space that measures the cosine of the angle between them.
     fn cosine(a: &[Self], b: &[Self]) -> Option<Distance> {
         SpatialSimilarity::cos(a, b)
@@ -1228,7 +1236,7 @@ mod tests {
     use half::f16 as HalfF16;
 
     #[test]
-    fn test_hardware_features_detection() {
+    fn hardware_features_detection() {
         let uses_arm = capabilities::uses_neon() || capabilities::uses_sve();
         let uses_x86 = capabilities::uses_haswell()
             || capabilities::uses_skylake()
@@ -1265,7 +1273,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cos_i8() {
+    fn cos_i8() {
         let a = &[3, 97, 127];
         let b = &[3, 97, 127];
 
@@ -1276,7 +1284,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cos_f32() {
+    fn cos_f32() {
         let a = &[1.0, 2.0, 3.0];
         let b = &[4.0, 5.0, 6.0];
 
@@ -1287,7 +1295,7 @@ mod tests {
     }
 
     #[test]
-    fn test_dot_i8() {
+    fn dot_i8() {
         let a = &[1, 2, 3];
         let b = &[4, 5, 6];
 
@@ -1298,7 +1306,7 @@ mod tests {
     }
 
     #[test]
-    fn test_dot_f32() {
+    fn dot_f32() {
         let a = &[1.0, 2.0, 3.0];
         let b = &[4.0, 5.0, 6.0];
 
@@ -1309,7 +1317,7 @@ mod tests {
     }
 
     #[test]
-    fn test_dot_f32_complex() {
+    fn dot_f32_complex() {
         // Let's consider these as complex numbers where every pair is (real, imaginary)
         let a: &[f32; 4] = &[1.0, 2.0, 3.0, 4.0]; // Represents two complex numbers: 1+2i, 3+4i
         let b: &[f32; 4] = &[5.0, 6.0, 7.0, 8.0]; // Represents two complex numbers: 5+6i, 7+8i
@@ -1326,7 +1334,7 @@ mod tests {
     }
 
     #[test]
-    fn test_vdot_f32_complex() {
+    fn vdot_f32_complex() {
         // Here we're assuming a similar setup to the previous test, but for the Hermitian (conjugate) dot product
         let a: &[f32; 4] = &[1.0, 2.0, 3.0, 4.0]; // Represents two complex numbers: 1+2i, 3+4i
         let b: &[f32; 4] = &[5.0, 6.0, 7.0, 8.0]; // Represents two complex numbers: 5+6i, 7+8i
@@ -1343,7 +1351,7 @@ mod tests {
     }
 
     #[test]
-    fn test_l2sq_i8() {
+    fn l2sq_i8() {
         let a = &[1, 2, 3];
         let b = &[4, 5, 6];
 
@@ -1354,7 +1362,7 @@ mod tests {
     }
 
     #[test]
-    fn test_l2sq_f32() {
+    fn l2sq_f32() {
         let a = &[1.0, 2.0, 3.0];
         let b = &[4.0, 5.0, 6.0];
 
@@ -1365,7 +1373,7 @@ mod tests {
     }
 
     #[test]
-    fn test_l2_f32() {
+    fn l2_f32() {
         let a: &[f32; 3] = &[1.0, 2.0, 3.0];
         let b: &[f32; 3] = &[4.0, 5.0, 6.0];
         if let Some(result) = SpatialSimilarity::euclidean(a, b) {
@@ -1375,7 +1383,7 @@ mod tests {
     }
 
     #[test]
-    fn test_l2_f64() {
+    fn l2_f64() {
         let a: &[f64; 3] = &[1.0, 2.0, 3.0];
         let b: &[f64; 3] = &[4.0, 5.0, 6.0];
         if let Some(result) = SpatialSimilarity::euclidean(a, b) {
@@ -1385,7 +1393,7 @@ mod tests {
     }
 
     #[test]
-    fn test_l2_f16() {
+    fn l2_f16() {
         let a_half: Vec<HalfF16> = vec![1.0, 2.0, 3.0]
             .iter()
             .map(|&x| HalfF16::from_f32(x))
@@ -1407,7 +1415,7 @@ mod tests {
     }
 
     #[test]
-    fn test_l2_i8() {
+    fn l2_i8() {
         let a = &[1, 2, 3];
         let b = &[4, 5, 6];
 
@@ -1418,7 +1426,7 @@ mod tests {
     }
     // Adding new tests for bit-level distances
     #[test]
-    fn test_hamming_u8() {
+    fn hamming_u8() {
         let a = &[0b01010101, 0b11110000, 0b10101010]; // Binary representations for clarity
         let b = &[0b01010101, 0b11110000, 0b10101010];
 
@@ -1429,7 +1437,7 @@ mod tests {
     }
 
     #[test]
-    fn test_jaccard_u8() {
+    fn jaccard_u8() {
         // For binary data, treat each byte as a set of bits
         let a = &[0b11110000, 0b00001111, 0b10101010];
         let b = &[0b11110000, 0b00001111, 0b01010101];
@@ -1442,7 +1450,7 @@ mod tests {
 
     // Adding new tests for probability similarities
     #[test]
-    fn test_js_f32() {
+    fn js_f32() {
         let a: &[f32; 3] = &[0.1, 0.9, 0.0];
         let b: &[f32; 3] = &[0.2, 0.8, 0.0];
 
@@ -1453,7 +1461,7 @@ mod tests {
     }
 
     #[test]
-    fn test_kl_f32() {
+    fn kl_f32() {
         let a: &[f32; 3] = &[0.1, 0.9, 0.0];
         let b: &[f32; 3] = &[0.2, 0.8, 0.0];
 
@@ -1464,7 +1472,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cos_f16_same() {
+    fn cos_f16_same() {
         // Assuming these u16 values represent f16 bit patterns, and they are identical
         let a_u16: &[u16] = &[15360, 16384, 17408]; // Corresponding to some f16 values
         let b_u16: &[u16] = &[15360, 16384, 17408]; // Same as above for simplicity
@@ -1484,7 +1492,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cos_bf16_same() {
+    fn cos_bf16_same() {
         // Assuming these u16 values represent bf16 bit patterns, and they are identical
         let a_u16: &[u16] = &[15360, 16384, 17408]; // Corresponding to some bf16 values
         let b_u16: &[u16] = &[15360, 16384, 17408]; // Same as above for simplicity
@@ -1504,7 +1512,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cos_f16_interop() {
+    fn cos_f16_interop() {
         let a_half: Vec<HalfF16> = vec![1.0, 2.0, 3.0]
             .iter()
             .map(|&x| HalfF16::from_f32(x))
@@ -1524,14 +1532,14 @@ mod tests {
         // Use the reinterpret-casted slices with your SpatialSimilarity implementation
         if let Some(result) = SpatialSimilarity::cosine(a_simsimd, b_simsimd) {
             // Expected value might need adjustment depending on actual cosine functionality
-            // Assuming identical vectors yield cosine similarity of 1.0
+            // Assuming identical vectors yield cosine distance of 0.0
             println!("The result of cos_f16 (interop) is {:.8}", result);
             assert_almost_equal(0.025, result, 0.01);
         }
     }
 
     #[test]
-    fn test_cos_bf16_interop() {
+    fn cos_bf16_interop() {
         let a_half: Vec<HalfBF16> = vec![1.0, 2.0, 3.0]
             .iter()
             .map(|&x| HalfBF16::from_f32(x))
@@ -1551,14 +1559,14 @@ mod tests {
         // Use the reinterpret-casted slices with your SpatialSimilarity implementation
         if let Some(result) = SpatialSimilarity::cosine(a_simsimd, b_simsimd) {
             // Expected value might need adjustment depending on actual cosine functionality
-            // Assuming identical vectors yield cosine similarity of 1.0
+            // Assuming identical vectors yield cosine distance of 0.0
             println!("The result of cos_bf16 (interop) is {:.8}", result);
             assert_almost_equal(0.025, result, 0.01);
         }
     }
 
     #[test]
-    fn test_intersect_u16() {
+    fn intersect_u16() {
         {
             let a_u16: &[u16] = &[153, 16384, 17408];
             let b_u16: &[u16] = &[15360, 16384, 7408];
@@ -1581,7 +1589,7 @@ mod tests {
     }
 
     #[test]
-    fn test_intersect_u32() {
+    fn intersect_u32() {
         {
             let a_u32: &[u32] = &[11, 153];
             let b_u32: &[u32] = &[11, 153, 7408, 16384];
@@ -1604,27 +1612,27 @@ mod tests {
     }
 
     #[test]
-    fn test_f16_arithmetic() {
+    fn f16_arithmetic() {
         let a = f16::from_f32(3.5);
         let b = f16::from_f32(2.0);
-        
+
         // Test basic arithmetic
         assert!((a + b).to_f32() - 5.5 < 0.01);
         assert!((a - b).to_f32() - 1.5 < 0.01);
         assert!((a * b).to_f32() - 7.0 < 0.01);
         assert!((a / b).to_f32() - 1.75 < 0.01);
         assert!((-a).to_f32() + 3.5 < 0.01);
-        
+
         // Test constants
         assert!(f16::ZERO.to_f32() == 0.0);
         assert!((f16::ONE.to_f32() - 1.0).abs() < 0.01);
         assert!((f16::NEG_ONE.to_f32() + 1.0).abs() < 0.01);
-        
+
         // Test comparisons
         assert!(a > b);
         assert!(!(a < b));
         assert!(a == a);
-        
+
         // Test utility methods
         assert!((-a).abs().to_f32() - 3.5 < 0.01);
         assert!(a.is_finite());
@@ -1633,27 +1641,27 @@ mod tests {
     }
 
     #[test]
-    fn test_bf16_arithmetic() {
+    fn bf16_arithmetic() {
         let a = bf16::from_f32(3.5);
         let b = bf16::from_f32(2.0);
-        
+
         // Test basic arithmetic
         assert!((a + b).to_f32() - 5.5 < 0.1);
         assert!((a - b).to_f32() - 1.5 < 0.1);
         assert!((a * b).to_f32() - 7.0 < 0.1);
         assert!((a / b).to_f32() - 1.75 < 0.1);
         assert!((-a).to_f32() + 3.5 < 0.1);
-        
+
         // Test constants
         assert!(bf16::ZERO.to_f32() == 0.0);
         assert!((bf16::ONE.to_f32() - 1.0).abs() < 0.01);
         assert!((bf16::NEG_ONE.to_f32() + 1.0).abs() < 0.01);
-        
+
         // Test comparisons
         assert!(a > b);
         assert!(!(a < b));
         assert!(a == a);
-        
+
         // Test utility methods
         assert!((-a).abs().to_f32() - 3.5 < 0.1);
         assert!(a.is_finite());

@@ -6,7 +6,7 @@
  *
  *  Contains:
  *  - Hamming distance
- *  - Jaccard similarity (Tanimoto coefficient)
+ *  - Jaccard distance (Tanimoto coefficient)
  *
  *  For hardware architectures:
  *  - Arm: NEON, SVE
@@ -19,7 +19,7 @@
  *  - Lookup tables, mostly using nibbles (4-bit lookups)
  *  - Harley-Seal population counts: https://arxiv.org/pdf/1611.07612
  *
- *  On binary vectors, when computing Jaccard similarity we can clearly see how the CPU struggles
+ *  On binary vectors, when computing Jaccard distance we can clearly see how the CPU struggles
  *  to compute that many population counts. There are several instructions we should keep in mind
  *  for future optimizations:
  *

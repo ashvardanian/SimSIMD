@@ -49,7 +49,7 @@ sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100
 sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100
 ```
 
-To compile with the default Apple Clang on MacOS, use:
+To compile with the default Apple Clang on macOS, use:
 
 ```sh
 brew install openblas
@@ -63,8 +63,8 @@ cmake -D CMAKE_BUILD_TYPE=Release \
 cmake --build build_release --config Release
 ```
 
-On MacOS it's recommended to use Homebrew and install Clang, as opposed to "Apple Clang".
-Replacing the default compiler across the entire system is not recommended on MacOS, as it may break the system, but you can pass it as an environment variable:
+On macOS it's recommended to use Homebrew and install Clang, as opposed to "Apple Clang".
+Replacing the default compiler across the entire system is not recommended on macOS, as it may break the system, but you can pass it as an environment variable:
 
 ```sh
 brew install llvm openblas
@@ -124,7 +124,7 @@ Here, `-s` will output the logs.
 The `-x` will stop on the first failure.
 The `-Wd` will silence overflows and runtime warnings.
 
-When building on MacOS, same as with C/C++, use non-Apple Clang version:
+When building on macOS, same as with C/C++, use non-Apple Clang version:
 
 ```sh
 brew install llvm
@@ -174,7 +174,7 @@ $ python scripts/bench_vectors.py --help
 
 
 Before merging your changes you may want to test your changes against the entire matrix of Python versions USearch supports.
-For that you need the `cibuildwheel`, which is tricky to use on MacOS and Windows, as it would target just the local environment.
+For that you need the `cibuildwheel`, which is tricky to use on macOS and Windows, as it would target just the local environment.
 Still, if you have Docker running on any desktop OS, you can use it to build and test the Python bindings for all Python versions for Linux:
 
 ```sh
@@ -184,7 +184,7 @@ cibuildwheel --platform linux                   # works on any OS and builds all
 cibuildwheel --platform linux --archs x86_64    # 64-bit x86, the most common on desktop and servers
 cibuildwheel --platform linux --archs aarch64   # 64-bit Arm for mobile devices, Apple M-series, and AWS Graviton
 cibuildwheel --platform linux --archs i686      # 32-bit Linux
-cibuildwheel --platform macos                   # works only on MacOS
+cibuildwheel --platform macos                   # works only on macOS
 cibuildwheel --platform windows                 # works only on Windows
 ```
 
@@ -194,7 +194,7 @@ You may need root privileges for multi-architecture builds:
 sudo $(which cibuildwheel) --platform linux
 ```
 
-On Windows and MacOS, to avoid frequent path resolution issues, you may want to use:
+On Windows and macOS, to avoid frequent path resolution issues, you may want to use:
 
 ```sh
 python -m cibuildwheel --platform windows
@@ -209,6 +209,13 @@ cargo bench
 open target/criterion/report/index.html
 ```
 
+To automatically detect the Minimum Supported Rust Version (MSRV):
+
+```sh
+cargo +stable install cargo-msrv
+cargo msrv find --ignore-lockfile
+```
+
 ## JavaScript
 
 ### NodeJS
@@ -217,7 +224,7 @@ If you don't have the environment configured, here are the [installation options
 
 ```sh
 wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash # Linux
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash  # MacOS
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash  # macOS
 ```
 
 Install dependencies:
@@ -242,7 +249,7 @@ If you don't have the environment configured, here are [installation options](ht
 
 ```sh
 wget -qO- https://deno.land/x/install/install.sh | sh # Linux
-curl -fsSL https://deno.land/install.sh | sh          # MacOS
+curl -fsSL https://deno.land/install.sh | sh          # macOS
 irm https://deno.land/install.ps1 | iex               # Windows
 ```
 

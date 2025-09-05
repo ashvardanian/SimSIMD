@@ -2,14 +2,15 @@ fn main() -> Result<(), cc::Error> {
     let mut build = cc::Build::new();
 
     build
+        // Prefer portable flags to support MSVC and older toolchains
+        .std("c99") // Enforce C99 standard when supported
         .file("c/lib.c")
         .include("include")
         .define("SIMSIMD_NATIVE_F16", "0")
         .define("SIMSIMD_NATIVE_BF16", "0")
         .define("SIMSIMD_DYNAMIC_DISPATCH", "1")
-        .flag("-O3")
-        .flag("-std=c99") // Enforce C99 standard
-        .flag("-pedantic") // Ensure strict compliance with the C standard
+        .opt_level(3)
+        .flag_if_supported("-pedantic") // Strict compliance when supported
         .warnings(false);
 
     if let Err(e) = build.try_compile("simsimd") {
