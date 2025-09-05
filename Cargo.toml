@@ -16,7 +16,8 @@ categories = [
   "wasm",
   "external-ffi-bindings",
 ]
-include = ["/rust/**", "/c/**", "/include/**", "/build.rs"]
+rust-version = "1.64" # Introduced Core C FFI in stable Rust
+include = ["rust/**", "c/**", "include/**", "build.rs"]
 
 
 [lib]
@@ -24,7 +25,7 @@ name = "simsimd"
 path = "rust/lib.rs"
 
 [build-dependencies]
-cc = "1.0.83"
+cc = "1.2.36"
 
 
 [[bench]]
@@ -48,6 +49,6 @@ default = []
 std = []
 
 [dev-dependencies]
-criterion = { version = "0.6.0" }
+criterion = { version = "0.7.0" }
 rand = { version = "0.9.1" }
 half = { version = "2.6.0" }

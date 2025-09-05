@@ -209,6 +209,13 @@ cargo bench
 open target/criterion/report/index.html
 ```
 
+To automatically detect the Minimum Supported Rust Version (MSRV):
+
+```sh
+cargo +stable install cargo-msrv
+cargo msrv find --ignore-lockfile
+```
+
 ## JavaScript
 
 ### NodeJS

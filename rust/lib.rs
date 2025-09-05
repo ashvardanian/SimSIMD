@@ -77,6 +77,12 @@
 pub type Distance = f64;
 pub type ComplexProduct = (f64, f64);
 
+/// Compatibility function for pre 1.85 Rust versions lacking `f32::abs`.
+#[inline(always)]
+fn f32_abs_compat(x: f32) -> f32 {
+    f32::from_bits(x.to_bits() & 0x7FFF_FFFF)
+}
+
 #[link(name = "simsimd")]
 extern "C" {
 
@@ -251,7 +257,7 @@ impl f16 {
     /// Returns the absolute value of self.
     #[inline(always)]
     pub fn abs(self) -> Self {
-        Self::from_f32(self.to_f32().abs())
+        Self::from_f32(f32_abs_compat(self.to_f32()))
     }
 
     /// Returns the largest integer less than or equal to a number.
@@ -425,7 +431,7 @@ impl bf16 {
     /// Returns the absolute value of self.
     #[inline(always)]
     pub fn abs(self) -> Self {
-        Self::from_f32(self.to_f32().abs())
+        Self::from_f32(f32_abs_compat(self.to_f32()))
     }
 
     /// Returns the largest integer less than or equal to a number.
