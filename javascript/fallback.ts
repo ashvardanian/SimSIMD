@@ -1,8 +1,8 @@
 /**
- * @brief Computes the inner distance of two vectors (same as dot product).
+ * @brief Computes the inner product of two vectors (dot product).
  * @param {Float64Array|Float32Array} a - The first vector.
  * @param {Float64Array|Float32Array} b - The second vector.
- * @returns {number} The inner distance of vectors a and b.
+ * @returns {number} The inner product of vectors a and b.
  */
 export function inner(a: Float64Array | Float32Array, b: Float64Array | Float32Array): number {
   if (a.length !== b.length) {
@@ -17,10 +17,10 @@ export function inner(a: Float64Array | Float32Array, b: Float64Array | Float32A
 }
 
 /**
- * @brief Computes the inner distance of two vectors (same as inner product).
+ * @brief Computes the dot product of two vectors (same as inner product).
  * @param {Float64Array|Float32Array} a - The first vector.
  * @param {Float64Array|Float32Array} b - The second vector.
- * @returns {number} The inner distance of vectors a and b.
+ * @returns {number} The dot product of vectors a and b.
  */
 export function dot(a: Float64Array | Float32Array, b: Float64Array | Float32Array): number {
   return inner(a, b);
@@ -51,7 +51,7 @@ export function sqeuclidean(
  * @brief Computes the L2 Euclidean distance between two vectors.
  * @param {Float64Array|Float32Array|Int8Array | Uint8Array} a - The first vector.
  * @param {Float64Array|Float32Array|Int8Array | Uint8Array} b - The second vector.
- * @returns {number} The L2 euclidean distance between vectors a and b.
+ * @returns {number} The L2 Euclidean distance between vectors a and b.
  */
 export function euclidean(
   a: Float64Array | Float32Array | Int8Array | Uint8Array,
@@ -96,12 +96,8 @@ export function cosine(
   magnitudeA = Math.sqrt(magnitudeA);
   magnitudeB = Math.sqrt(magnitudeB);
 
-  if (magnitudeA === 0 || magnitudeB === 0) {
-    console.warn(
-      "Warning: One of the magnitudes is zero. Cosine similarity is undefined."
-    );
-    return 0;
-  }
+  if (magnitudeA === 0 && magnitudeB === 0) return 0; // distance when both zero
+  if (magnitudeA === 0 || magnitudeB === 0) return 1; // distance when one is zero
 
   return 1 - dotProduct / (magnitudeA * magnitudeB);
 }
@@ -133,10 +129,10 @@ export const hamming = (a: Uint8Array, b: Uint8Array): number => {
 };
 
 /**
- * @brief Computes the bitwise Jaccard similarity coefficient between two vectors.
+ * @brief Computes the bitwise Jaccard distance between two vectors.
  * @param {Uint8Array} a - The first vector.
  * @param {Uint8Array} b - The second vector.
- * @returns {number} The Jaccard similarity coefficient between vectors a and b.
+ * @returns {number} The Jaccard distance between vectors a and b.
  */
 export const jaccard = (a: Uint8Array, b: Uint8Array): number => {
   if (a.length !== b.length) {
@@ -174,7 +170,7 @@ export const jaccard = (a: Uint8Array, b: Uint8Array): number => {
  * @brief Computes the Kullback-Leibler divergence between two probability distributions.
  * @param {Float64Array|Float32Array} a - The first vector.
  * @param {Float64Array|Float32Array} b - The second vector.
- * @returns {number} The Jaccard similarity coefficient between vectors a and b.
+ * @returns {number} The Kullback-Leibler divergence between vectors a and b.
  */
 export const kullbackleibler = (a: Float64Array | Float32Array, b: Float64Array | Float32Array): number => {
   if (a.length !== b.length) {

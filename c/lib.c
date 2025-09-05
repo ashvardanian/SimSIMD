@@ -18,7 +18,7 @@
  *
  *  - Linux: everything is available in GCC 12+ and Clang 16+.
  *  - Windows - MSVC: everything except Sapphire Rapids and ARM SVE.
- *  - MacOS - Apple Clang: only Arm NEON and x86 AVX2 Haswell extensions are available.
+ *  - macOS - Apple Clang: only Arm NEON and x86 AVX2 Haswell extensions are available.
  */
 #if !defined(SIMSIMD_TARGET_NEON) && (defined(__APPLE__) || defined(__linux__))
 #define SIMSIMD_TARGET_NEON 1

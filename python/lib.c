@@ -133,7 +133,7 @@ static PyTypeObject DistancesTensorType = {
     .tp_as_buffer = &DistancesTensor_as_buffer,
 };
 
-/// @brief  Global variable that caches the CPU capabilities, and is computed just onc, when the module is loaded.
+/// @brief  Global variable that caches the CPU capabilities, and is computed just once, when the module is loaded.
 simsimd_capability_t static_capabilities = simsimd_cap_serial_k;
 
 /// @brief Helper method to check for string equality.

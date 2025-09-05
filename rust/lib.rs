@@ -7,7 +7,7 @@
 //!
 //! ## Implemented distance functions include:
 //!
-//! * Euclidean (L2), Inner Distance, and Cosine (Angular) spatial distances.
+//! * Euclidean (L2), inner product, and cosine (angular) spatial distances.
 //! * Hamming (~ Manhattan) and Jaccard (~ Tanimoto) binary distances.
 //! * Kullback-Leibler and Jensen-Shannon divergences for probability distributions.
 //!
@@ -19,8 +19,8 @@
 //! let a = &[1, 2, 3];
 //! let b = &[4, 5, 6];
 //!
-//! // Compute cosine similarity
-//! let cos_sim = i8::cos(a, b);
+//! // Compute cosine distance
+//! let cos_dist = i8::cos(a, b);
 //!
 //! // Compute dot product distance
 //! let dot_product = i8::dot(a, b);
@@ -40,12 +40,12 @@
 //! // Work with half-precision floats
 //! let half_a: Vec<f16> = vec![1.0, 2.0, 3.0].iter().map(|&x| f16::from_f32(x)).collect();
 //! let half_b: Vec<f16> = vec![4.0, 5.0, 6.0].iter().map(|&x| f16::from_f32(x)).collect();
-//! let half_cos = f16::cos(&half_a, &half_b);
+//! let half_cos_dist = f16::cos(&half_a, &half_b);
 //!
 //! // Work with brain floats
 //! let brain_a: Vec<bf16> = vec![1.0, 2.0, 3.0].iter().map(|&x| bf16::from_f32(x)).collect();
 //! let brain_b: Vec<bf16> = vec![4.0, 5.0, 6.0].iter().map(|&x| bf16::from_f32(x)).collect();
-//! let brain_cos = bf16::cos(&brain_a, &brain_b);
+//! let brain_cos_dist = bf16::cos(&brain_a, &brain_b);
 //!
 //! // Direct bit manipulation
 //! let half = f16::from_f32(3.14);
@@ -57,14 +57,14 @@
 //!
 //! The `SpatialSimilarity` trait covers following methods:
 //!
-//! - `cosine(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes cosine similarity between two slices.
+//! - `cosine(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes cosine distance (1 - similarity) between two slices.
 //! - `dot(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes dot product distance between two slices.
 //! - `sqeuclidean(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes squared Euclidean distance between two slices.
 //!
 //! The `BinarySimilarity` trait covers following methods:
 //!
 //! - `hamming(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Hamming distance between two slices.
-//! - `jaccard(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Jaccard index between two slices.
+//! - `jaccard(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Jaccard distance between two slices.
 //!
 //! The `ProbabilitySimilarity` trait covers following methods:
 //!
@@ -194,10 +194,10 @@ pub struct f16(pub u16);
 impl f16 {
     /// Positive zero.
     pub const ZERO: Self = f16(0);
-    
+
     /// Positive one.
     pub const ONE: Self = f16(0x3C00);
-    
+
     /// Negative one.
     pub const NEG_ONE: Self = f16(0xBC00);
 
@@ -255,7 +255,7 @@ impl f16 {
     }
 
     /// Returns the largest integer less than or equal to a number.
-    /// 
+    ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
@@ -264,7 +264,7 @@ impl f16 {
     }
 
     /// Returns the smallest integer greater than or equal to a number.
-    /// 
+    ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
@@ -273,7 +273,7 @@ impl f16 {
     }
 
     /// Returns the nearest integer to a number. Round half-way cases away from 0.0.
-    /// 
+    ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
@@ -368,10 +368,10 @@ pub struct bf16(pub u16);
 impl bf16 {
     /// Positive zero.
     pub const ZERO: Self = bf16(0);
-    
+
     /// Positive one.
     pub const ONE: Self = bf16(0x3F80);
-    
+
     /// Negative one.
     pub const NEG_ONE: Self = bf16(0xBF80);
 
@@ -429,7 +429,7 @@ impl bf16 {
     }
 
     /// Returns the largest integer less than or equal to a number.
-    /// 
+    ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
@@ -438,7 +438,7 @@ impl bf16 {
     }
 
     /// Returns the smallest integer greater than or equal to a number.
-    /// 
+    ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
@@ -447,7 +447,7 @@ impl bf16 {
     }
 
     /// Returns the nearest integer to a number. Round half-way cases away from 0.0.
-    /// 
+    ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
@@ -596,8 +596,8 @@ pub mod capabilities {
     ///
     /// # Returns
     ///
-    /// Returns `true` if dynamic dispatch is enabled, `false` otherwise.
-    /// Currently always returns `false` as dynamic dispatch is not implemented.
+    /// Returns `true` when the C backend is compiled with dynamic dispatch
+    /// (default for this crate via `build.rs`), otherwise `false`.
     pub fn uses_dynamic_dispatch() -> bool {
         unsafe { crate::simsimd_uses_dynamic_dispatch() != 0 }
     }
@@ -605,19 +605,21 @@ pub mod capabilities {
 
 /// `SpatialSimilarity` provides a set of trait methods for computing similarity
 /// or distance between spatial data vectors in SIMD (Single Instruction, Multiple Data) context.
-/// These methods can be used to calculate metrics like cosine similarity, dot product,
+/// These methods can be used to calculate metrics like cosine distance, dot product,
 /// and squared Euclidean distance between two slices of data.
 ///
 /// Each method takes two slices of data (a and b) and returns an Option<Distance>.
 /// The result is `None` if the slices are not of the same length, as these operations
 /// require one-to-one correspondence between the elements of the slices.
-/// Otherwise, it returns the computed similarity or distance as `Some(f32)`.
+/// Otherwise, it returns the computed similarity or distance as `Some(f64)`.
+/// Convenience methods like `cosine`/`sqeuclidean` delegate to the core methods
+/// `cos`/`l2sq` implemented by this trait.
 pub trait SpatialSimilarity
 where
     Self: Sized,
 {
-    /// Computes the cosine similarity between two slices.
-    /// The cosine similarity is a measure of similarity between two non-zero vectors
+    /// Computes the cosine distance between two slices.
+    /// The cosine distance is 1 minus the cosine similarity between two non-zero vectors
     /// of an dot product space that measures the cosine of the angle between them.
     fn cos(a: &[Self], b: &[Self]) -> Option<Distance>;
 
@@ -659,8 +661,8 @@ where
         SpatialSimilarity::dot(a, b)
     }
 
-    /// Computes the cosine similarity between two slices.
-    /// The cosine similarity is a measure of similarity between two non-zero vectors
+    /// Computes the cosine distance between two slices.
+    /// The cosine distance is 1 minus the cosine similarity between two non-zero vectors
     /// of an dot product space that measures the cosine of the angle between them.
     fn cosine(a: &[Self], b: &[Self]) -> Option<Distance> {
         SpatialSimilarity::cos(a, b)
@@ -1524,7 +1526,7 @@ mod tests {
         // Use the reinterpret-casted slices with your SpatialSimilarity implementation
         if let Some(result) = SpatialSimilarity::cosine(a_simsimd, b_simsimd) {
             // Expected value might need adjustment depending on actual cosine functionality
-            // Assuming identical vectors yield cosine similarity of 1.0
+            // Assuming identical vectors yield cosine distance of 0.0
             println!("The result of cos_f16 (interop) is {:.8}", result);
             assert_almost_equal(0.025, result, 0.01);
         }
@@ -1551,7 +1553,7 @@ mod tests {
         // Use the reinterpret-casted slices with your SpatialSimilarity implementation
         if let Some(result) = SpatialSimilarity::cosine(a_simsimd, b_simsimd) {
             // Expected value might need adjustment depending on actual cosine functionality
-            // Assuming identical vectors yield cosine similarity of 1.0
+            // Assuming identical vectors yield cosine distance of 0.0
             println!("The result of cos_bf16 (interop) is {:.8}", result);
             assert_almost_equal(0.025, result, 0.01);
         }
