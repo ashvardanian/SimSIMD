@@ -1228,7 +1228,7 @@ mod tests {
     use half::f16 as HalfF16;
 
     #[test]
-    fn test_hardware_features_detection() {
+    fn hardware_features_detection() {
         let uses_arm = capabilities::uses_neon() || capabilities::uses_sve();
         let uses_x86 = capabilities::uses_haswell()
             || capabilities::uses_skylake()
@@ -1265,7 +1265,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cos_i8() {
+    fn cos_i8() {
         let a = &[3, 97, 127];
         let b = &[3, 97, 127];
 
@@ -1276,7 +1276,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cos_f32() {
+    fn cos_f32() {
         let a = &[1.0, 2.0, 3.0];
         let b = &[4.0, 5.0, 6.0];
 
@@ -1287,7 +1287,7 @@ mod tests {
     }
 
     #[test]
-    fn test_dot_i8() {
+    fn dot_i8() {
         let a = &[1, 2, 3];
         let b = &[4, 5, 6];
 
@@ -1298,7 +1298,7 @@ mod tests {
     }
 
     #[test]
-    fn test_dot_f32() {
+    fn dot_f32() {
         let a = &[1.0, 2.0, 3.0];
         let b = &[4.0, 5.0, 6.0];
 
@@ -1309,7 +1309,7 @@ mod tests {
     }
 
     #[test]
-    fn test_dot_f32_complex() {
+    fn dot_f32_complex() {
         // Let's consider these as complex numbers where every pair is (real, imaginary)
         let a: &[f32; 4] = &[1.0, 2.0, 3.0, 4.0]; // Represents two complex numbers: 1+2i, 3+4i
         let b: &[f32; 4] = &[5.0, 6.0, 7.0, 8.0]; // Represents two complex numbers: 5+6i, 7+8i
@@ -1326,7 +1326,7 @@ mod tests {
     }
 
     #[test]
-    fn test_vdot_f32_complex() {
+    fn vdot_f32_complex() {
         // Here we're assuming a similar setup to the previous test, but for the Hermitian (conjugate) dot product
         let a: &[f32; 4] = &[1.0, 2.0, 3.0, 4.0]; // Represents two complex numbers: 1+2i, 3+4i
         let b: &[f32; 4] = &[5.0, 6.0, 7.0, 8.0]; // Represents two complex numbers: 5+6i, 7+8i
@@ -1343,7 +1343,7 @@ mod tests {
     }
 
     #[test]
-    fn test_l2sq_i8() {
+    fn l2sq_i8() {
         let a = &[1, 2, 3];
         let b = &[4, 5, 6];
 
@@ -1354,7 +1354,7 @@ mod tests {
     }
 
     #[test]
-    fn test_l2sq_f32() {
+    fn l2sq_f32() {
         let a = &[1.0, 2.0, 3.0];
         let b = &[4.0, 5.0, 6.0];
 
@@ -1365,7 +1365,7 @@ mod tests {
     }
 
     #[test]
-    fn test_l2_f32() {
+    fn l2_f32() {
         let a: &[f32; 3] = &[1.0, 2.0, 3.0];
         let b: &[f32; 3] = &[4.0, 5.0, 6.0];
         if let Some(result) = SpatialSimilarity::euclidean(a, b) {
@@ -1375,7 +1375,7 @@ mod tests {
     }
 
     #[test]
-    fn test_l2_f64() {
+    fn l2_f64() {
         let a: &[f64; 3] = &[1.0, 2.0, 3.0];
         let b: &[f64; 3] = &[4.0, 5.0, 6.0];
         if let Some(result) = SpatialSimilarity::euclidean(a, b) {
@@ -1385,7 +1385,7 @@ mod tests {
     }
 
     #[test]
-    fn test_l2_f16() {
+    fn l2_f16() {
         let a_half: Vec<HalfF16> = vec![1.0, 2.0, 3.0]
             .iter()
             .map(|&x| HalfF16::from_f32(x))
@@ -1407,7 +1407,7 @@ mod tests {
     }
 
     #[test]
-    fn test_l2_i8() {
+    fn l2_i8() {
         let a = &[1, 2, 3];
         let b = &[4, 5, 6];
 
@@ -1418,7 +1418,7 @@ mod tests {
     }
     // Adding new tests for bit-level distances
     #[test]
-    fn test_hamming_u8() {
+    fn hamming_u8() {
         let a = &[0b01010101, 0b11110000, 0b10101010]; // Binary representations for clarity
         let b = &[0b01010101, 0b11110000, 0b10101010];
 
@@ -1429,7 +1429,7 @@ mod tests {
     }
 
     #[test]
-    fn test_jaccard_u8() {
+    fn jaccard_u8() {
         // For binary data, treat each byte as a set of bits
         let a = &[0b11110000, 0b00001111, 0b10101010];
         let b = &[0b11110000, 0b00001111, 0b01010101];
@@ -1442,7 +1442,7 @@ mod tests {
 
     // Adding new tests for probability similarities
     #[test]
-    fn test_js_f32() {
+    fn js_f32() {
         let a: &[f32; 3] = &[0.1, 0.9, 0.0];
         let b: &[f32; 3] = &[0.2, 0.8, 0.0];
 
@@ -1453,7 +1453,7 @@ mod tests {
     }
 
     #[test]
-    fn test_kl_f32() {
+    fn kl_f32() {
         let a: &[f32; 3] = &[0.1, 0.9, 0.0];
         let b: &[f32; 3] = &[0.2, 0.8, 0.0];
 
@@ -1464,7 +1464,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cos_f16_same() {
+    fn cos_f16_same() {
         // Assuming these u16 values represent f16 bit patterns, and they are identical
         let a_u16: &[u16] = &[15360, 16384, 17408]; // Corresponding to some f16 values
         let b_u16: &[u16] = &[15360, 16384, 17408]; // Same as above for simplicity
@@ -1484,7 +1484,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cos_bf16_same() {
+    fn cos_bf16_same() {
         // Assuming these u16 values represent bf16 bit patterns, and they are identical
         let a_u16: &[u16] = &[15360, 16384, 17408]; // Corresponding to some bf16 values
         let b_u16: &[u16] = &[15360, 16384, 17408]; // Same as above for simplicity
@@ -1504,7 +1504,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cos_f16_interop() {
+    fn cos_f16_interop() {
         let a_half: Vec<HalfF16> = vec![1.0, 2.0, 3.0]
             .iter()
             .map(|&x| HalfF16::from_f32(x))
@@ -1531,7 +1531,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cos_bf16_interop() {
+    fn cos_bf16_interop() {
         let a_half: Vec<HalfBF16> = vec![1.0, 2.0, 3.0]
             .iter()
             .map(|&x| HalfBF16::from_f32(x))
@@ -1558,7 +1558,7 @@ mod tests {
     }
 
     #[test]
-    fn test_intersect_u16() {
+    fn intersect_u16() {
         {
             let a_u16: &[u16] = &[153, 16384, 17408];
             let b_u16: &[u16] = &[15360, 16384, 7408];
@@ -1581,7 +1581,7 @@ mod tests {
     }
 
     #[test]
-    fn test_intersect_u32() {
+    fn intersect_u32() {
         {
             let a_u32: &[u32] = &[11, 153];
             let b_u32: &[u32] = &[11, 153, 7408, 16384];
@@ -1604,27 +1604,27 @@ mod tests {
     }
 
     #[test]
-    fn test_f16_arithmetic() {
+    fn f16_arithmetic() {
         let a = f16::from_f32(3.5);
         let b = f16::from_f32(2.0);
-        
+
         // Test basic arithmetic
         assert!((a + b).to_f32() - 5.5 < 0.01);
         assert!((a - b).to_f32() - 1.5 < 0.01);
         assert!((a * b).to_f32() - 7.0 < 0.01);
         assert!((a / b).to_f32() - 1.75 < 0.01);
         assert!((-a).to_f32() + 3.5 < 0.01);
-        
+
         // Test constants
         assert!(f16::ZERO.to_f32() == 0.0);
         assert!((f16::ONE.to_f32() - 1.0).abs() < 0.01);
         assert!((f16::NEG_ONE.to_f32() + 1.0).abs() < 0.01);
-        
+
         // Test comparisons
         assert!(a > b);
         assert!(!(a < b));
         assert!(a == a);
-        
+
         // Test utility methods
         assert!((-a).abs().to_f32() - 3.5 < 0.01);
         assert!(a.is_finite());
@@ -1633,27 +1633,27 @@ mod tests {
     }
 
     #[test]
-    fn test_bf16_arithmetic() {
+    fn bf16_arithmetic() {
         let a = bf16::from_f32(3.5);
         let b = bf16::from_f32(2.0);
-        
+
         // Test basic arithmetic
         assert!((a + b).to_f32() - 5.5 < 0.1);
         assert!((a - b).to_f32() - 1.5 < 0.1);
         assert!((a * b).to_f32() - 7.0 < 0.1);
         assert!((a / b).to_f32() - 1.75 < 0.1);
         assert!((-a).to_f32() + 3.5 < 0.1);
-        
+
         // Test constants
         assert!(bf16::ZERO.to_f32() == 0.0);
         assert!((bf16::ONE.to_f32() - 1.0).abs() < 0.01);
         assert!((bf16::NEG_ONE.to_f32() + 1.0).abs() < 0.01);
-        
+
         // Test comparisons
         assert!(a > b);
         assert!(!(a < b));
         assert!(a == a);
-        
+
         // Test utility methods
         assert!((-a).abs().to_f32() - 3.5 < 0.1);
         assert!(a.is_finite());
