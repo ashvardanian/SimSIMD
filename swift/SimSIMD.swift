@@ -1,49 +1,49 @@
-import CSimSIMD
+import CMathKong
 
-public protocol SimSIMD {
-  static var dataType: simsimd_datatype_t { get }
-  static var angular: simsimd_dense_metric_t { get }
-  static var dotProduct: simsimd_dense_metric_t { get }
-  static var euclidean: simsimd_dense_metric_t { get }
-  static var squaredEuclidean: simsimd_dense_metric_t { get }
+public protocol MathKong {
+  static var dataType: mathkong_datatype_t { get }
+  static var angular: mathkong_dense_metric_t { get }
+  static var dotProduct: mathkong_dense_metric_t { get }
+  static var euclidean: mathkong_dense_metric_t { get }
+  static var squaredEuclidean: mathkong_dense_metric_t { get }
 }
 
-extension Int8: SimSIMD {
-  public static let dataType = simsimd_i8_k
-  public static let angular = find(kind: simsimd_angular_k, dataType: dataType)
-  public static let dotProduct = find(kind: simsimd_dot_k, dataType: dataType)
-  public static let euclidean = find(kind: simsimd_euclidean_k, dataType: dataType)
-  public static let squaredEuclidean = find(kind: simsimd_sqeuclidean_k, dataType: dataType)
+extension Int8: MathKong {
+  public static let dataType = mathkong_i8_k
+  public static let angular = find(kind: mathkong_angular_k, dataType: dataType)
+  public static let dotProduct = find(kind: mathkong_dot_k, dataType: dataType)
+  public static let euclidean = find(kind: mathkong_euclidean_k, dataType: dataType)
+  public static let squaredEuclidean = find(kind: mathkong_sqeuclidean_k, dataType: dataType)
 }
 
 #if !arch(x86_64)
   @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
-  extension Float16: SimSIMD {
-    public static let dataType = simsimd_f16_k
-    public static let angular = find(kind: simsimd_angular_k, dataType: dataType)
-    public static let dotProduct = find(kind: simsimd_dot_k, dataType: dataType)
-    public static let euclidean = find(kind: simsimd_euclidean_k, dataType: dataType)
-    public static let squaredEuclidean = find(kind: simsimd_sqeuclidean_k, dataType: dataType)
+  extension Float16: MathKong {
+    public static let dataType = mathkong_f16_k
+    public static let angular = find(kind: mathkong_angular_k, dataType: dataType)
+    public static let dotProduct = find(kind: mathkong_dot_k, dataType: dataType)
+    public static let euclidean = find(kind: mathkong_euclidean_k, dataType: dataType)
+    public static let squaredEuclidean = find(kind: mathkong_sqeuclidean_k, dataType: dataType)
   }
 #endif
 
-extension Float32: SimSIMD {
-  public static let dataType = simsimd_f32_k
-  public static let angular = find(kind: simsimd_angular_k, dataType: dataType)
-  public static let dotProduct = find(kind: simsimd_inner_k, dataType: dataType)
-  public static let euclidean = find(kind: simsimd_euclidean_k, dataType: dataType)
-  public static let squaredEuclidean = find(kind: simsimd_sqeuclidean_k, dataType: dataType)
+extension Float32: MathKong {
+  public static let dataType = mathkong_f32_k
+  public static let angular = find(kind: mathkong_angular_k, dataType: dataType)
+  public static let dotProduct = find(kind: mathkong_inner_k, dataType: dataType)
+  public static let euclidean = find(kind: mathkong_euclidean_k, dataType: dataType)
+  public static let squaredEuclidean = find(kind: mathkong_sqeuclidean_k, dataType: dataType)
 }
 
-extension Float64: SimSIMD {
-  public static let dataType = simsimd_f64_k
-  public static let angular = find(kind: simsimd_angular_k, dataType: dataType)
-  public static let dotProduct = find(kind: simsimd_dot_k, dataType: dataType)
-  public static let euclidean = find(kind: simsimd_euclidean_k, dataType: dataType)
-  public static let squaredEuclidean = find(kind: simsimd_sqeuclidean_k, dataType: dataType)
+extension Float64: MathKong {
+  public static let dataType = mathkong_f64_k
+  public static let angular = find(kind: mathkong_angular_k, dataType: dataType)
+  public static let dotProduct = find(kind: mathkong_dot_k, dataType: dataType)
+  public static let euclidean = find(kind: mathkong_euclidean_k, dataType: dataType)
+  public static let squaredEuclidean = find(kind: mathkong_sqeuclidean_k, dataType: dataType)
 }
 
-extension SimSIMD {
+extension MathKong {
   @inlinable @inline(__always)
   public static func angular<A, B>(_ a: A, _ b: B) -> Double?
   where A: Sequence, B: Sequence, A.Element == Self, B.Element == Self {
@@ -69,7 +69,7 @@ extension SimSIMD {
   }
 }
 
-extension RandomAccessCollection where Element: SimSIMD {
+extension RandomAccessCollection where Element: MathKong {
   @inlinable @inline(__always)
   public func angular<B>(_ b: B) -> Double? where B: Sequence, B.Element == Element {
     Element.angular(self, b)
@@ -92,9 +92,9 @@ extension RandomAccessCollection where Element: SimSIMD {
 }
 
 @inlinable @inline(__always)
-func perform<A, B>(_ metric: simsimd_dense_metric_t, a: A, b: B) -> Double?
+func perform<A, B>(_ metric: mathkong_dense_metric_t, a: A, b: B) -> Double?
 where A: Sequence, B: Sequence, A.Element == B.Element {
-  var distance: simsimd_distance_t = 0
+  var distance: mathkong_distance_t = 0
   let result = a.withContiguousStorageIfAvailable { a in
     b.withContiguousStorageIfAvailable { b in
       guard a.count > 0 && a.count == b.count else { return false }
@@ -106,9 +106,9 @@ where A: Sequence, B: Sequence, A.Element == B.Element {
   return distance
 }
 
-public typealias Capabilities = simsimd_capability_t
+public typealias Capabilities = mathkong_capability_t
 
-extension simsimd_capability_t: OptionSet, CustomStringConvertible {
+extension mathkong_capability_t: OptionSet, CustomStringConvertible {
   public var description: String {
     var components: [String] = []
     if contains(.neon) { components.append(".neon") }
@@ -124,34 +124,34 @@ extension simsimd_capability_t: OptionSet, CustomStringConvertible {
     return "[\(components.joined(separator: ", "))]"
   }
 
-  public static let available = simsimd_capabilities()
+  public static let available = mathkong_capabilities()
 
-  public static let any = simsimd_cap_any_k
-  public static let neon = simsimd_cap_neon_k
-  public static let sve = simsimd_cap_sve_k
-  public static let sve2 = simsimd_cap_sve2_k
-  public static let haswell = simsimd_cap_haswell_k
-  public static let skylake = simsimd_cap_skylake_k
-  public static let ice = simsimd_cap_ice_k
-  public static let genoa = simsimd_cap_genoa_k
-  public static let sapphire = simsimd_cap_sapphire_k
-  public static let turin = simsimd_cap_turin_k
-  public static let sierra = simsimd_cap_sierra_k
+  public static let any = mathkong_cap_any_k
+  public static let neon = mathkong_cap_neon_k
+  public static let sve = mathkong_cap_sve_k
+  public static let sve2 = mathkong_cap_sve2_k
+  public static let haswell = mathkong_cap_haswell_k
+  public static let skylake = mathkong_cap_skylake_k
+  public static let ice = mathkong_cap_ice_k
+  public static let genoa = mathkong_cap_genoa_k
+  public static let sapphire = mathkong_cap_sapphire_k
+  public static let turin = mathkong_cap_turin_k
+  public static let sierra = mathkong_cap_sierra_k
 }
 
 @inline(__always)
-private func find(kind: simsimd_kernel_kind_t, dataType: simsimd_datatype_t)
-  -> simsimd_dense_metric_t
+private func find(kind: mathkong_kernel_kind_t, dataType: mathkong_datatype_t)
+  -> mathkong_dense_metric_t
 {
-  var output: simsimd_dense_metric_t?
-  var used = simsimd_capability_t.any
+  var output: mathkong_dense_metric_t?
+  var used = mathkong_capability_t.any
   // Use `withUnsafeMutablePointer` to safely cast `output` to the required pointer type.
   withUnsafeMutablePointer(to: &output) { outputPtr in
-    // Cast the pointer to `UnsafeMutablePointer<simsimd_kernel_punned_t?>`
+    // Cast the pointer to `UnsafeMutablePointer<mathkong_kernel_punned_t?>`
     let castedPtr = outputPtr.withMemoryRebound(
-      to: Optional<simsimd_kernel_punned_t>.self, capacity: 1
+      to: Optional<mathkong_kernel_punned_t>.self, capacity: 1
     ) { $0 }
-    simsimd_find_kernel(kind, dataType, .available, .any, castedPtr, &used)
+    mathkong_find_kernel(kind, dataType, .available, .any, castedPtr, &used)
   }
   guard let output else { fatalError("Could not find function \(kind) for \(dataType)") }
   return output

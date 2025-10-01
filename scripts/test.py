@@ -3,7 +3,7 @@
 """
 Module: test.py
 
-This module contains a suite of tests for the `simsimd` package.
+This module contains a suite of tests for the `mathkong` package.
 It compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
 with their NumPy or baseline counterparts, testing accuracy for different data types including
 floating-point, integer, and complex numbers.
@@ -25,7 +25,7 @@ The tests cover:
 - `scipy`
 - `pytest`
 - `tabulate`
-- `simsimd` package
+- `mathkong` package
 
 **Usage**:
 
@@ -49,7 +49,7 @@ import faulthandler
 
 import tabulate
 import pytest
-import simsimd as simd
+import mathkong as simd
 
 faulthandler.enable()
 randomized_repetitions_count: int = 10
@@ -258,11 +258,11 @@ def stats_fixture():
     results["dtype"] = []
     results["absolute_baseline_error"] = []
     results["relative_baseline_error"] = []
-    results["absolute_simsimd_error"] = []
-    results["relative_simsimd_error"] = []
+    results["absolute_mathkong_error"] = []
+    results["relative_mathkong_error"] = []
     results["accurate_duration"] = []
     results["baseline_duration"] = []
-    results["simsimd_duration"] = []
+    results["mathkong_duration"] = []
     results["warnings"] = []
     yield results
 
@@ -271,11 +271,11 @@ def stats_fixture():
         lambda: {
             "absolute_baseline_error": [],
             "relative_baseline_error": [],
-            "absolute_simsimd_error": [],
-            "relative_simsimd_error": [],
+            "absolute_mathkong_error": [],
+            "relative_mathkong_error": [],
             "accurate_duration": [],
             "baseline_duration": [],
-            "simsimd_duration": [],
+            "mathkong_duration": [],
         }
     )
     for (
@@ -284,73 +284,73 @@ def stats_fixture():
         dtype,
         absolute_baseline_error,
         relative_baseline_error,
-        absolute_simsimd_error,
-        relative_simsimd_error,
+        absolute_mathkong_error,
+        relative_mathkong_error,
         accurate_duration,
         baseline_duration,
-        simsimd_duration,
+        mathkong_duration,
     ) in zip(
         results["metric"],
         results["ndim"],
         results["dtype"],
         results["absolute_baseline_error"],
         results["relative_baseline_error"],
-        results["absolute_simsimd_error"],
-        results["relative_simsimd_error"],
+        results["absolute_mathkong_error"],
+        results["relative_mathkong_error"],
         results["accurate_duration"],
         results["baseline_duration"],
-        results["simsimd_duration"],
+        results["mathkong_duration"],
     ):
         key = (metric, ndim, dtype)
         grouped_errors[key]["absolute_baseline_error"].append(absolute_baseline_error)
         grouped_errors[key]["relative_baseline_error"].append(relative_baseline_error)
-        grouped_errors[key]["absolute_simsimd_error"].append(absolute_simsimd_error)
-        grouped_errors[key]["relative_simsimd_error"].append(relative_simsimd_error)
+        grouped_errors[key]["absolute_mathkong_error"].append(absolute_mathkong_error)
+        grouped_errors[key]["relative_mathkong_error"].append(relative_mathkong_error)
         grouped_errors[key]["accurate_duration"].append(accurate_duration)
         grouped_errors[key]["baseline_duration"].append(baseline_duration)
-        grouped_errors[key]["simsimd_duration"].append(simsimd_duration)
+        grouped_errors[key]["mathkong_duration"].append(mathkong_duration)
 
     # Compute mean and the standard deviation for each task error
     final_results = []
     for key, errors in grouped_errors.items():
-        n = len(errors["simsimd_duration"])
+        n = len(errors["mathkong_duration"])
 
         # Mean and the standard deviation for errors
         baseline_errors = errors["relative_baseline_error"]
-        simsimd_errors = errors["relative_simsimd_error"]
+        mathkong_errors = errors["relative_mathkong_error"]
         #! On some platforms (like `cp312-musllinux_aarch64`) without casting via `float(x)`
         #! the subsequent `:.2e` string formatting code will fail due to:
         #! `TypeError: unsupported format string passed to numpy.ndarray.__format__`.
         baseline_mean = float(sum(baseline_errors)) / n
-        simsimd_mean = float(sum(simsimd_errors)) / n
+        mathkong_mean = float(sum(mathkong_errors)) / n
         baseline_std = math.sqrt(sum((x - baseline_mean) ** 2 for x in baseline_errors) / n)
-        simsimd_std = math.sqrt(sum((x - simsimd_mean) ** 2 for x in simsimd_errors) / n)
+        mathkong_std = math.sqrt(sum((x - mathkong_mean) ** 2 for x in mathkong_errors) / n)
         baseline_error_formatted = f"{baseline_mean:.2e} ± {baseline_std:.2e}"
-        simsimd_error_formatted = f"{simsimd_mean:.2e} ± {simsimd_std:.2e}"
+        mathkong_error_formatted = f"{mathkong_mean:.2e} ± {mathkong_std:.2e}"
 
         # Log durations
         accurate_durations = errors["accurate_duration"]
         baseline_durations = errors["baseline_duration"]
-        simsimd_durations = errors["simsimd_duration"]
+        mathkong_durations = errors["mathkong_duration"]
         accurate_mean_duration = sum(accurate_durations) / n
         baseline_mean_duration = sum(baseline_durations) / n
-        simsimd_mean_duration = sum(simsimd_durations) / n
+        mathkong_mean_duration = sum(mathkong_durations) / n
         accurate_std_duration = math.sqrt(sum((x - accurate_mean_duration) ** 2 for x in accurate_durations) / n)
         baseline_std_duration = math.sqrt(sum((x - baseline_mean_duration) ** 2 for x in baseline_durations) / n)
-        simsimd_std_duration = math.sqrt(sum((x - simsimd_mean_duration) ** 2 for x in simsimd_durations) / n)
+        mathkong_std_duration = math.sqrt(sum((x - mathkong_mean_duration) ** 2 for x in mathkong_durations) / n)
         accurate_duration = f"{accurate_mean_duration:.2e} ± {accurate_std_duration:.2e}"
         baseline_duration = f"{baseline_mean_duration:.2e} ± {baseline_std_duration:.2e}"
-        simsimd_duration = f"{simsimd_mean_duration:.2e} ± {simsimd_std_duration:.2e}"
+        mathkong_duration = f"{mathkong_mean_duration:.2e} ± {mathkong_std_duration:.2e}"
 
         # Measure time improvement
-        improvements = [baseline / simsimd for baseline, simsimd in zip(baseline_durations, simsimd_durations)]
+        improvements = [baseline / mathkong for baseline, mathkong in zip(baseline_durations, mathkong_durations)]
         improvements_mean = sum(improvements) / n
         improvements_std = math.sqrt(sum((x - improvements_mean) ** 2 for x in improvements) / n)
-        simsimd_speedup = f"{improvements_mean:.2f}x ± {improvements_std:.2f}x"
+        mathkong_speedup = f"{improvements_mean:.2f}x ± {improvements_std:.2f}x"
 
         # Calculate Improvement
-        # improvement = abs(baseline_mean - simsimd_mean) / min(simsimd_mean, baseline_mean)
-        # if baseline_mean < simsimd_mean:
+        # improvement = abs(baseline_mean - mathkong_mean) / min(mathkong_mean, baseline_mean)
+        # if baseline_mean < mathkong_mean:
         #     improvement *= -1
         # improvement_formatted = f"{improvement:+.2}x" if improvement != float("inf") else "N/A"
 
@@ -358,11 +358,11 @@ def stats_fixture():
             (
                 *key,
                 baseline_error_formatted,
-                simsimd_error_formatted,
+                mathkong_error_formatted,
                 accurate_duration,
                 baseline_duration,
-                simsimd_duration,
-                simsimd_speedup,
+                mathkong_duration,
+                mathkong_speedup,
             )
         )
 
@@ -377,11 +377,11 @@ def stats_fixture():
         "NDim",
         "DType",
         "Baseline Error",  # Printed as mean ± std deviation
-        "SimSIMD Error",  # Printed as mean ± std deviation
+        "MathKong Error",  # Printed as mean ± std deviation
         "Accurate Duration",  # Printed as mean ± std deviation
         "Baseline Duration",  # Printed as mean ± std deviation
-        "SimSIMD Duration",  # Printed as mean ± std deviation
-        "SimSIMD Speedup",
+        "MathKong Duration",  # Printed as mean ± std deviation
+        "MathKong Speedup",
     ]
     print(tabulate.tabulate(final_results, headers=headers, tablefmt="pretty", showindex=True))
 
@@ -411,35 +411,35 @@ def collect_errors(
     accurate_duration: float,
     baseline_result: float,
     baseline_duration: float,
-    simsimd_result: float,
-    simsimd_duration: float,
+    mathkong_result: float,
+    mathkong_duration: float,
     stats,
 ):
     """Calculates and aggregates errors for a given test.
 
     What we want to know in the end of the day is:
 
-    -   How much SimSIMD implementation is more/less accurate than baseline,
+    -   How much MathKong implementation is more/less accurate than baseline,
         when compared against the accurate result?
-    -   TODO: How much faster is SimSIMD than the baseline kernel?
-    -   TODO: How much faster is SimSIMD than the accurate kernel?
+    -   TODO: How much faster is MathKong than the baseline kernel?
+    -   TODO: How much faster is MathKong than the accurate kernel?
     """
     eps = np.finfo(accurate_result.dtype).resolution
     absolute_baseline_error = np.max(np.abs(baseline_result - accurate_result))
     relative_baseline_error = np.max(np.abs(baseline_result - accurate_result) / (np.abs(accurate_result) + eps))
-    absolute_simsimd_error = np.max(np.abs(simsimd_result - accurate_result))
-    relative_simsimd_error = np.max(np.abs(simsimd_result - accurate_result) / (np.abs(accurate_result) + eps))
+    absolute_mathkong_error = np.max(np.abs(mathkong_result - accurate_result))
+    relative_mathkong_error = np.max(np.abs(mathkong_result - accurate_result) / (np.abs(accurate_result) + eps))
 
     stats["metric"].append(metric)
     stats["ndim"].append(ndim)
     stats["dtype"].append(dtype)
     stats["absolute_baseline_error"].append(absolute_baseline_error)
     stats["relative_baseline_error"].append(relative_baseline_error)
-    stats["absolute_simsimd_error"].append(absolute_simsimd_error)
-    stats["relative_simsimd_error"].append(relative_simsimd_error)
+    stats["absolute_mathkong_error"].append(absolute_mathkong_error)
+    stats["relative_mathkong_error"].append(relative_mathkong_error)
     stats["accurate_duration"].append(accurate_duration)
     stats["baseline_duration"].append(baseline_duration)
-    stats["simsimd_duration"].append(simsimd_duration)
+    stats["mathkong_duration"].append(mathkong_duration)
 
 
 def get_current_test():
@@ -1040,7 +1040,7 @@ def test_cosine_zero_vector(ndim, dtype, capability):
     assert np.all(result >= 0), f"Negative result for cosine distance"
 
 
-@pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/SimSIMD/issues/206")  # TODO
+@pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/MathKong/issues/206")  # TODO
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
@@ -1074,7 +1074,7 @@ def test_overflow(ndim, dtype, metric, capability):
         collect_warnings(f"Arbitrary error raised in SciPy: {e}", stats_fixture)
 
 
-@pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/SimSIMD/issues/206")  # TODO
+@pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/MathKong/issues/206")  # TODO
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [131072, 262144])
@@ -1610,7 +1610,7 @@ def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
         for j in range(N):
             expected[i, j] = baseline_kernel(A[i], B[j])
 
-    # Compute with SimSIMD:
+    # Compute with MathKong:
     if out_dtype is None:
         result1d = simd.cdist(A[0], B[0], metric=metric)
         result2d = simd.cdist(A, B, metric=metric)
@@ -1697,23 +1697,23 @@ def test_elementwise(dtype, kernel, capability, stats_fixture):
     first_dtype, second_dtype, output_dtype = dtype
     operator = {"add": "+", "multiply": "*"}[kernel]
 
-    def validate(a, b, inplace_simsimd):
+    def validate(a, b, inplace_mathkong):
         result_numpy = baseline_kernel(a, b)
-        result_simsimd = np.array(simd_kernel(a, b))
+        result_mathkong = np.array(simd_kernel(a, b))
         assert (
-            result_simsimd.size == result_numpy.size
-        ), f"Result sizes differ: {result_simsimd.size} vs {result_numpy.size}"
+            result_mathkong.size == result_numpy.size
+        ), f"Result sizes differ: {result_mathkong.size} vs {result_numpy.size}"
         assert (
-            result_simsimd.shape == result_numpy.shape
-        ), f"Result shapes differ: {result_simsimd.shape} vs {result_numpy.shape}"
+            result_mathkong.shape == result_numpy.shape
+        ), f"Result shapes differ: {result_mathkong.shape} vs {result_numpy.shape}"
         assert (
-            result_simsimd.dtype == result_numpy.dtype
-        ), f"Result dtypes differ: {result_simsimd.dtype} vs {result_numpy.dtype} for ({a.dtype} {operator} {b.dtype})"
+            result_mathkong.dtype == result_numpy.dtype
+        ), f"Result dtypes differ: {result_mathkong.dtype} vs {result_numpy.dtype} for ({a.dtype} {operator} {b.dtype})"
 
-        if not np.allclose(result_simsimd, result_numpy, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL):
+        if not np.allclose(result_mathkong, result_numpy, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL):
             # ? Find the first mismatch and use it as an example in the error message
             np.testing.assert_allclose(
-                result_simsimd,
+                result_mathkong,
                 result_numpy,
                 atol=SIMSIMD_ATOL,
                 rtol=SIMSIMD_RTOL,
@@ -1723,34 +1723,34 @@ def test_elementwise(dtype, kernel, capability, stats_fixture):
                 Second descriptor: {b.__array_interface__}
                 First operand: {a}
                 Second operand: {b}
-                SimSIMD result: {result_simsimd}
+                MathKong result: {result_mathkong}
                 NumPy result: {result_numpy}
                 """,
             )
 
         #! NumPy constantly overflows in mixed-precision operations!
-        inplace_numpy = np.empty_like(inplace_simsimd)
-        simd_kernel(a, b, out=inplace_simsimd)
+        inplace_numpy = np.empty_like(inplace_mathkong)
+        simd_kernel(a, b, out=inplace_mathkong)
         baseline_kernel(a, b, out=inplace_numpy)
 
         assert (
-            inplace_simsimd.size == inplace_numpy.size
-        ), f"Inplace sizes differ: {inplace_simsimd.size} vs {inplace_numpy.size}"
+            inplace_mathkong.size == inplace_numpy.size
+        ), f"Inplace sizes differ: {inplace_mathkong.size} vs {inplace_numpy.size}"
         assert (
-            inplace_simsimd.shape == inplace_numpy.shape
-        ), f"Inplace shapes differ: {inplace_simsimd.shape} vs {inplace_numpy.shape}"
+            inplace_mathkong.shape == inplace_numpy.shape
+        ), f"Inplace shapes differ: {inplace_mathkong.shape} vs {inplace_numpy.shape}"
         assert (
-            inplace_simsimd.dtype == inplace_numpy.dtype
-        ), f"Inplace dtypes differ: {inplace_simsimd.dtype} vs {inplace_numpy.dtype} for ({a.dtype} {operator} {b.dtype})"
+            inplace_mathkong.dtype == inplace_numpy.dtype
+        ), f"Inplace dtypes differ: {inplace_mathkong.dtype} vs {inplace_numpy.dtype} for ({a.dtype} {operator} {b.dtype})"
 
         # Let's count the number of overflows in NumPy:
-        overflow_count = np.sum(np.isclose(inplace_simsimd, inplace_numpy, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL))
+        overflow_count = np.sum(np.isclose(inplace_mathkong, inplace_numpy, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL))
         if overflow_count:
             collect_warnings(
                 f"NumPy overflow in ({a.dtype} {operator} {b.dtype} -> {output_dtype})",
                 stats_fixture,
             )
-        return result_simsimd
+        return result_mathkong
 
     # Vector-Vector addition
     a = random_of_dtype(first_dtype, (6,))
@@ -1862,7 +1862,7 @@ def test_elementwise(dtype, kernel, capability, stats_fixture):
 
 
 def test_gil_free_threading():
-    """Test SimSIMD in Python 3.13t free-threaded mode if available."""
+    """Test MathKong in Python 3.13t free-threaded mode if available."""
     import sys
     import sysconfig
 

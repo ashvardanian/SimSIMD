@@ -2,7 +2,7 @@
     "variables": {"openssl_fips": ""},
     "targets": [
         {
-            "target_name": "simsimd",
+            "target_name": "mathkong",
             "sources": ["javascript/lib.c", "c/lib.c"],
             "include_dirs": ["include"],
             "defines": [

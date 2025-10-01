@@ -2,7 +2,7 @@ build_release
 build_debug
 build
 _deps
-simsimd.egg-info
+mathkong.egg-info
 CMakeFiles
 __pycache__
 wheelhouse/

@@ -13,7 +13,7 @@ fn main() -> Result<(), cc::Error> {
         .flag_if_supported("-pedantic") // Strict compliance when supported
         .warnings(false);
 
-    if let Err(e) = build.try_compile("simsimd") {
+    if let Err(e) = build.try_compile("mathkong") {
         print!("cargo:warning=Failed to compile with all SIMD backends...");
 
         let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
@@ -43,7 +43,7 @@ fn main() -> Result<(), cc::Error> {
         let mut result = Err(e);
         for flag in flags_to_try.iter() {
             build.define(flag, "0");
-            result = build.try_compile("simsimd");
+            result = build.try_compile("mathkong");
             if result.is_ok() {
                 break;
             }
@@ -59,12 +59,12 @@ fn main() -> Result<(), cc::Error> {
 
     println!("cargo:rerun-if-changed=c/lib.c");
     println!("cargo:rerun-if-changed=rust/lib.rs");
-    println!("cargo:rerun-if-changed=include/simsimd/simsimd.h");
+    println!("cargo:rerun-if-changed=include/mathkong/mathkong.h");
 
-    println!("cargo:rerun-if-changed=include/simsimd/dot.h");
-    println!("cargo:rerun-if-changed=include/simsimd/spatial.h");
-    println!("cargo:rerun-if-changed=include/simsimd/probability.h");
-    println!("cargo:rerun-if-changed=include/simsimd/binary.h");
-    println!("cargo:rerun-if-changed=include/simsimd/types.h");
+    println!("cargo:rerun-if-changed=include/mathkong/dot.h");
+    println!("cargo:rerun-if-changed=include/mathkong/spatial.h");
+    println!("cargo:rerun-if-changed=include/mathkong/probability.h");
+    println!("cargo:rerun-if-changed=include/mathkong/binary.h");
+    println!("cargo:rerun-if-changed=include/mathkong/types.h");
     Ok(())
 }

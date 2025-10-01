@@ -36,29 +36,29 @@ extern "C" {
  *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
  *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
  */
-SIMSIMD_PUBLIC void simsimd_rmsd_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_f64_t* a_centroid, simsimd_f64_t* b_centroid, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_kabsch_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_f64_t* a_centroid, simsimd_f64_t* b_centroid, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void mathkong_rmsd_f64_serial(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_f64_t* a_centroid, mathkong_f64_t* b_centroid, mathkong_distance_t* result);
+SIMSIMD_PUBLIC void mathkong_kabsch_f64_serial(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_f64_t* a_centroid, mathkong_f64_t* b_centroid, mathkong_distance_t* result);
 
-SIMSIMD_PUBLIC void simsimd_rmsd_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_f32_t* a_centroid, simsimd_f32_t* b_centroid, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_kabsch_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_f32_t* a_centroid, simsimd_f32_t* b_centroid, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void mathkong_rmsd_f32_serial(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_f32_t* a_centroid, mathkong_f32_t* b_centroid, mathkong_distance_t* result);
+SIMSIMD_PUBLIC void mathkong_kabsch_f32_serial(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_f32_t* a_centroid, mathkong_f32_t* b_centroid, mathkong_distance_t* result);
 
-SIMSIMD_PUBLIC void simsimd_rmsd_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_f16_t* a_centroid, simsimd_f16_t* b_centroid, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_kabsch_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_f16_t* a_centroid, simsimd_f16_t* b_centroid, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void mathkong_rmsd_f16_serial(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_f16_t* a_centroid, mathkong_f16_t* b_centroid, mathkong_distance_t* result);
+SIMSIMD_PUBLIC void mathkong_kabsch_f16_serial(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_f16_t* a_centroid, mathkong_f16_t* b_centroid, mathkong_distance_t* result);
 
-SIMSIMD_PUBLIC void simsimd_rmsd_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_bf16_t* a_centroid, simsimd_bf16_t* b_centroid, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_kabsch_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_bf16_t* a_centroid, simsimd_bf16_t* b_centroid, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void mathkong_rmsd_bf16_serial(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_bf16_t* a_centroid, mathkong_bf16_t* b_centroid, mathkong_distance_t* result);
+SIMSIMD_PUBLIC void mathkong_kabsch_bf16_serial(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_bf16_t* a_centroid, mathkong_bf16_t* b_centroid, mathkong_distance_t* result);
 
 /*  Double-precision serial backends for all numeric types.
  *  For single-precision computation check out the "*_serial" counterparts of those "*_accurate" functions.
  */
-SIMSIMD_PUBLIC void simsimd_rmsd_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_f32_t* a_centroid, simsimd_f32_t* b_centroid, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_kabsch_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_f32_t* a_centroid, simsimd_f32_t* b_centroid, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void mathkong_rmsd_f32_accurate(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_f32_t* a_centroid, mathkong_f32_t* b_centroid, mathkong_distance_t* result);
+SIMSIMD_PUBLIC void mathkong_kabsch_f32_accurate(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_f32_t* a_centroid, mathkong_f32_t* b_centroid, mathkong_distance_t* result);
 
-SIMSIMD_PUBLIC void simsimd_rmsd_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_f16_t* a_centroid, simsimd_f16_t* b_centroid, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_kabsch_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_f16_t* a_centroid, simsimd_f16_t* b_centroid, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void mathkong_rmsd_f16_accurate(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_f16_t* a_centroid, mathkong_f16_t* b_centroid, mathkong_distance_t* result);
+SIMSIMD_PUBLIC void mathkong_kabsch_f16_accurate(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_f16_t* a_centroid, mathkong_f16_t* b_centroid, mathkong_distance_t* result);
 
-SIMSIMD_PUBLIC void simsimd_rmsd_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_bf16_t* a_centroid, simsimd_bf16_t* b_centroid, simsimd_distance_t* result);
-SIMSIMD_PUBLIC void simsimd_kabsch_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_bf16_t* a_centroid, simsimd_bf16_t* b_centroid, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void mathkong_rmsd_bf16_accurate(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_bf16_t* a_centroid, mathkong_bf16_t* b_centroid, mathkong_distance_t* result);
+SIMSIMD_PUBLIC void mathkong_kabsch_bf16_accurate(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_bf16_t* a_centroid, mathkong_bf16_t* b_centroid, mathkong_distance_t* result);
 
 // clang-format on
 

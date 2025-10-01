@@ -1,4 +1,4 @@
-package simsimd
+package mathkong
 
 import (
 	"math"

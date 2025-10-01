@@ -55,103 +55,103 @@ extern "C" {
  *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
  *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
  */
-SIMSIMD_PUBLIC void simsimd_scale_f64_serial(simsimd_f64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_f32_serial(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_f16_serial(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_bf16_serial(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i8_serial(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u8_serial(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i16_serial(simsimd_i16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u16_serial(simsimd_u16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i32_serial(simsimd_i32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u32_serial(simsimd_u32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i64_serial(simsimd_i64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u64_serial(simsimd_u64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_f64_serial(mathkong_f64_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f64_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_f32_serial(mathkong_f32_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_f16_serial(mathkong_f16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_bf16_serial(mathkong_bf16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_i8_serial(mathkong_i8_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_u8_serial(mathkong_u8_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_i16_serial(mathkong_i16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_u16_serial(mathkong_u16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_i32_serial(mathkong_i32_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i32_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_u32_serial(mathkong_u32_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u32_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_i64_serial(mathkong_i64_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i64_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_u64_serial(mathkong_u64_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u64_t *result);
 
-SIMSIMD_PUBLIC void simsimd_sum_f64_serial(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_f32_serial(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_f16_serial(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_bf16_serial(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i8_serial(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u8_serial(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i16_serial(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u16_serial(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i32_serial(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_size_t n, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u32_serial(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i64_serial(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_size_t n, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u64_serial(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_size_t n, simsimd_u64_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_f64_serial(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n, mathkong_f64_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_f32_serial(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n, mathkong_f32_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_f16_serial(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_bf16_serial(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n, mathkong_bf16_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_i8_serial(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_u8_serial(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n, mathkong_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_i16_serial(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_size_t n, mathkong_i16_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_u16_serial(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_size_t n, mathkong_u16_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_i32_serial(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_size_t n, mathkong_i32_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_u32_serial(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_size_t n, mathkong_u32_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_i64_serial(mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_size_t n, mathkong_i64_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_u64_serial(mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_size_t n, mathkong_u64_t *result);
 
-SIMSIMD_PUBLIC void simsimd_wsum_f64_serial(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f32_serial(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f16_serial(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_bf16_serial(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i8_serial(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u8_serial(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i16_serial(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u16_serial(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i32_serial(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u32_serial(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i64_serial(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u64_serial(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_f64_serial(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f64_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_f32_serial(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_f16_serial(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_bf16_serial(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_i8_serial(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_u8_serial(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_i16_serial(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i16_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_u16_serial(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u16_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_i32_serial(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i32_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_u32_serial(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u32_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_i64_serial(mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i64_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_u64_serial(mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u64_t *result);
 
-SIMSIMD_PUBLIC void simsimd_fma_f64_serial(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f32_serial(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f16_serial(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_bf16_serial(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i8_serial(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u8_serial(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i16_serial(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u16_serial(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i32_serial(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u32_serial(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_u32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i64_serial(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_i64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u64_serial(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_u64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_f64_serial(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_f64_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f64_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_f32_serial(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_f16_serial(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_bf16_serial(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_bf16_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_i8_serial(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_i8_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_u8_serial(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_u8_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_i16_serial(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_i16_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i16_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_u16_serial(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_u16_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u16_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_i32_serial(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_i32_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i32_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_u32_serial(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_u32_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u32_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_i64_serial(mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_i64_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i64_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_u64_serial(mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_u64_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u64_t *result);
 
 /*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
  *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
  *  server CPUs produced before 2023.
  */
-SIMSIMD_PUBLIC void simsimd_scale_f32_neon(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_f16_neon(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_bf16_neon(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i8_neon(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u8_neon(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i16_neon(simsimd_i16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u16_neon(simsimd_u16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i32_neon(simsimd_i32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u32_neon(simsimd_u32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i64_neon(simsimd_i64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u64_neon(simsimd_u64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_f32_neon(mathkong_f32_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_f16_neon(mathkong_f16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_bf16_neon(mathkong_bf16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_i8_neon(mathkong_i8_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_u8_neon(mathkong_u8_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_i16_neon(mathkong_i16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_u16_neon(mathkong_u16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_i32_neon(mathkong_i32_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i32_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_u32_neon(mathkong_u32_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u32_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_i64_neon(mathkong_i64_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i64_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_u64_neon(mathkong_u64_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u64_t *result);
 
-SIMSIMD_PUBLIC void simsimd_sum_f32_neon(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_f16_neon(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_bf16_neon(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i8_neon(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u8_neon(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i16_neon(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u16_neon(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i32_neon(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_size_t n, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u32_neon(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i64_neon(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_size_t n, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u64_neon(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_size_t n, simsimd_u64_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_f32_neon(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n, mathkong_f32_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_f16_neon(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_bf16_neon(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n, mathkong_bf16_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_i8_neon(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_u8_neon(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n, mathkong_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_i16_neon(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_size_t n, mathkong_i16_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_u16_neon(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_size_t n, mathkong_u16_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_i32_neon(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_size_t n, mathkong_i32_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_u32_neon(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_size_t n, mathkong_u32_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_i64_neon(mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_size_t n, mathkong_i64_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_u64_neon(mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_size_t n, mathkong_u64_t *result);
 
-SIMSIMD_PUBLIC void simsimd_wsum_f32_neon(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f16_neon(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_bf16_neon(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u8_neon(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i8_neon(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_f32_neon(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_f16_neon(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_bf16_neon(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_u8_neon(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_i8_neon(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result);
 
-SIMSIMD_PUBLIC void simsimd_fma_f32_neon(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f16_neon(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_bf16_neon(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i8_neon(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u8_neon(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i16_neon(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u16_neon(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i32_neon(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u32_neon(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_u32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i64_neon(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_i64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u64_neon(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_u64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_f32_neon(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_f16_neon(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_bf16_neon(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_bf16_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_i8_neon(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_i8_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_u8_neon(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_u8_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_i16_neon(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_i16_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i16_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_u16_neon(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_u16_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u16_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_i32_neon(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_i32_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i32_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_u32_neon(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_u32_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u32_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_i64_neon(mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_i64_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i64_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_u64_neon(mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_u64_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u64_t *result);
 
 /*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
  *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
@@ -159,45 +159,45 @@ SIMSIMD_PUBLIC void simsimd_fma_u64_neon(simsimd_u64_t const *a, simsimd_u64_t c
  *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
  *  properly vectorized by recent compilers.
  */
-SIMSIMD_PUBLIC void simsimd_scale_f64_haswell(simsimd_f64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_f32_haswell(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_f16_haswell(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_bf16_haswell(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i8_haswell(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u8_haswell(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i16_haswell(simsimd_i16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u16_haswell(simsimd_u16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i32_haswell(simsimd_i32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u32_haswell(simsimd_u32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_f64_haswell(mathkong_f64_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f64_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_f32_haswell(mathkong_f32_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_f16_haswell(mathkong_f16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_bf16_haswell(mathkong_bf16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_i8_haswell(mathkong_i8_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_u8_haswell(mathkong_u8_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_i16_haswell(mathkong_i16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_u16_haswell(mathkong_u16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_i32_haswell(mathkong_i32_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i32_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_u32_haswell(mathkong_u32_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u32_t *result);
 
-SIMSIMD_PUBLIC void simsimd_sum_f64_haswell(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_f32_haswell(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_f16_haswell(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_bf16_haswell(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i8_haswell(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u8_haswell(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i16_haswell(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u16_haswell(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i32_haswell(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_size_t n, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u32_haswell(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n, simsimd_u32_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_f64_haswell(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n, mathkong_f64_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_f32_haswell(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n, mathkong_f32_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_f16_haswell(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_bf16_haswell(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n, mathkong_bf16_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_i8_haswell(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_u8_haswell(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n, mathkong_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_i16_haswell(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_size_t n, mathkong_i16_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_u16_haswell(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_size_t n, mathkong_u16_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_i32_haswell(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_size_t n, mathkong_i32_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_u32_haswell(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_size_t n, mathkong_u32_t *result);
 
-SIMSIMD_PUBLIC void simsimd_wsum_f64_haswell(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f32_haswell(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f16_haswell(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_bf16_haswell(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i8_haswell(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u8_haswell(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_f64_haswell(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f64_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_f32_haswell(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_f16_haswell(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_bf16_haswell(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_i8_haswell(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_u8_haswell(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result);
 
-SIMSIMD_PUBLIC void simsimd_fma_f64_haswell(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f32_haswell(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f16_haswell(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_bf16_haswell(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i8_haswell(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u8_haswell(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i16_haswell(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u16_haswell(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i32_haswell(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u32_haswell(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_u32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_f64_haswell(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_f64_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f64_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_f32_haswell(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_f16_haswell(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_bf16_haswell(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_bf16_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_i8_haswell(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_i8_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_u8_haswell(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_u8_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_i16_haswell(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_i16_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i16_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_u16_haswell(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_u16_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u16_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_i32_haswell(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_i32_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i32_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_u32_haswell(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_u32_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u32_t *result);
 
 /*  SIMD-powered backends for older AVX512 CPUs.
  *  Unlike the distance metrics, the SIMD implementation of FMA and WSum benefits from aligned stores.
@@ -205,111 +205,111 @@ SIMSIMD_PUBLIC void simsimd_fma_u32_haswell(simsimd_u32_t const *a, simsimd_u32_
  *  and tail of the output buffer, and only use aligned stores in the main loop.
  *  Also, unlike Haswell, Skylake-X CPUs natively support converting between more numeric types.
  */
-SIMSIMD_PUBLIC void simsimd_scale_f64_skylake(simsimd_f64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_f32_skylake(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_f16_skylake(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_bf16_skylake(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i8_skylake(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u8_skylake(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i16_skylake(simsimd_i16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u16_skylake(simsimd_u16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i32_skylake(simsimd_i32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u32_skylake(simsimd_u32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i64_skylake(simsimd_i64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u64_skylake(simsimd_u64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_f64_skylake(mathkong_f64_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f64_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_f32_skylake(mathkong_f32_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_f16_skylake(mathkong_f16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_bf16_skylake(mathkong_bf16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_i8_skylake(mathkong_i8_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_u8_skylake(mathkong_u8_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_i16_skylake(mathkong_i16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_u16_skylake(mathkong_u16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_i32_skylake(mathkong_i32_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i32_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_u32_skylake(mathkong_u32_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u32_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_i64_skylake(mathkong_i64_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i64_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_u64_skylake(mathkong_u64_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u64_t *result);
 
-SIMSIMD_PUBLIC void simsimd_sum_f64_skylake(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_f32_skylake(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_bf16_skylake(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_bf16_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_f64_skylake(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n, mathkong_f64_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_f32_skylake(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n, mathkong_f32_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_bf16_skylake(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n, mathkong_bf16_t *result);
 
-SIMSIMD_PUBLIC void simsimd_wsum_f64_skylake(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f32_skylake(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_bf16_skylake(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_f64_skylake(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f64_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_f32_skylake(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_bf16_skylake(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result);
 
-SIMSIMD_PUBLIC void simsimd_fma_f64_skylake(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f32_skylake(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f16_skylake(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_bf16_skylake(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i8_skylake(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u8_skylake(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i16_skylake(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u16_skylake(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i32_skylake(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u32_skylake(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_u32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i64_skylake(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_i64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u64_skylake(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_u64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_f64_skylake(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_f64_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f64_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_f32_skylake(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_f16_skylake(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_bf16_skylake(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_bf16_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_i8_skylake(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_i8_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_u8_skylake(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_u8_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_i16_skylake(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_i16_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i16_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_u16_skylake(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_u16_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u16_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_i32_skylake(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_i32_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i32_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_u32_skylake(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_u32_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u32_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_i64_skylake(mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_i64_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i64_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_u64_skylake(mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_u64_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u64_t *result);
 
 /*  SIMD-powered backends for AVX512 CPUs with integer math support.
  *  Interestingly, Ice Lake only has saturating arithmetic for 8-bit and 16-bit integers, but not for 32-bit and 64-bit.
  */
-SIMSIMD_PUBLIC void simsimd_sum_i8_ice(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u8_ice(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i16_ice(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u16_ice(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i32_ice(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_size_t n, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u32_ice(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i64_ice(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_size_t n, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u64_ice(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_size_t n, simsimd_u64_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_i8_ice(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_u8_ice(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n, mathkong_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_i16_ice(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_size_t n, mathkong_i16_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_u16_ice(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_size_t n, mathkong_u16_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_i32_ice(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_size_t n, mathkong_i32_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_u32_ice(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_size_t n, mathkong_u32_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_i64_ice(mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_size_t n, mathkong_i64_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_u64_ice(mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_size_t n, mathkong_u64_t *result);
 
 /*  SIMD-powered backends for newer AVX512 CPUs with native F16 support.
  *  Unlike the distance metrics, the SIMD implementation of FMA and WSum benefits from aligned stores.
  *  Assuming the size of ZMM register matches the width of the cache line, we skip the unaligned head
  *  and tail of the output buffer, and only use aligned stores in the main loop.
  */
-SIMSIMD_PUBLIC void simsimd_scale_f16_sapphire(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i8_sapphire(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u8_sapphire(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_f16_sapphire(mathkong_f16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_i8_sapphire(mathkong_i8_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_u8_sapphire(mathkong_u8_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result);
 
-SIMSIMD_PUBLIC void simsimd_scale_f16_sapphire(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i8_sapphire(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u8_sapphire(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_f16_sapphire(mathkong_f16_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_i8_sapphire(mathkong_i8_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_scale_u8_sapphire(mathkong_u8_t const *a, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result);
 
-SIMSIMD_PUBLIC void simsimd_sum_f16_sapphire(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_sum_f16_sapphire(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n, mathkong_f16_t *result);
 
-SIMSIMD_PUBLIC void simsimd_wsum_f16_sapphire(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i8_sapphire(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u8_sapphire(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_f16_sapphire(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_i8_sapphire(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_wsum_u8_sapphire(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result);
 
-SIMSIMD_PUBLIC void simsimd_fma_f16_sapphire(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i8_sapphire(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u8_sapphire(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_f16_sapphire(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_i8_sapphire(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_i8_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result);
+SIMSIMD_PUBLIC void mathkong_fma_u8_sapphire(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_u8_t const *c, mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result);
 
 // clang-format on
 
-#define SIMSIMD_MAKE_SCALE(name, input_type, accumulator_type, load_and_convert, convert_and_store)              \
-    SIMSIMD_PUBLIC void simsimd_scale_##input_type##_##name(simsimd_##input_type##_t const *a, simsimd_size_t n, \
-                                                            simsimd_distance_t alpha, simsimd_distance_t beta,   \
-                                                            simsimd_##input_type##_t *result) {                  \
-        simsimd_##accumulator_type##_t alpha_cast = (simsimd_##accumulator_type##_t)alpha;                       \
-        simsimd_##accumulator_type##_t beta_cast = (simsimd_##accumulator_type##_t)beta;                         \
-        simsimd_##accumulator_type##_t ai, sum;                                                                  \
-        for (simsimd_size_t i = 0; i != n; ++i) {                                                                \
-            load_and_convert(a + i, &ai);                                                                        \
-            sum = (simsimd_##accumulator_type##_t)(alpha_cast * ai + beta_cast);                                 \
-            convert_and_store(&sum, result + i);                                                                 \
-        }                                                                                                        \
+#define SIMSIMD_MAKE_SCALE(name, input_type, accumulator_type, load_and_convert, convert_and_store)                 \
+    SIMSIMD_PUBLIC void mathkong_scale_##input_type##_##name(mathkong_##input_type##_t const *a, mathkong_size_t n, \
+                                                             mathkong_distance_t alpha, mathkong_distance_t beta,   \
+                                                             mathkong_##input_type##_t *result) {                   \
+        mathkong_##accumulator_type##_t alpha_cast = (mathkong_##accumulator_type##_t)alpha;                        \
+        mathkong_##accumulator_type##_t beta_cast = (mathkong_##accumulator_type##_t)beta;                          \
+        mathkong_##accumulator_type##_t ai, sum;                                                                    \
+        for (mathkong_size_t i = 0; i != n; ++i) {                                                                  \
+            load_and_convert(a + i, &ai);                                                                           \
+            sum = (mathkong_##accumulator_type##_t)(alpha_cast * ai + beta_cast);                                   \
+            convert_and_store(&sum, result + i);                                                                    \
+        }                                                                                                           \
     }
-#define SIMSIMD_MAKE_SUM(name, input_type, accumulator_type, load_and_convert, convert_and_store)              \
-    SIMSIMD_PUBLIC void simsimd_sum_##input_type##_##name(simsimd_##input_type##_t const *a,                   \
-                                                          simsimd_##input_type##_t const *b, simsimd_size_t n, \
-                                                          simsimd_##input_type##_t *result) {                  \
-        simsimd_##accumulator_type##_t ai, bi, sum;                                                            \
-        for (simsimd_size_t i = 0; i != n; ++i) {                                                              \
-            load_and_convert(a + i, &ai);                                                                      \
-            load_and_convert(b + i, &bi);                                                                      \
-            sum = ai + bi;                                                                                     \
-            convert_and_store(&sum, result + i);                                                               \
-        }                                                                                                      \
+#define SIMSIMD_MAKE_SUM(name, input_type, accumulator_type, load_and_convert, convert_and_store)                 \
+    SIMSIMD_PUBLIC void mathkong_sum_##input_type##_##name(mathkong_##input_type##_t const *a,                    \
+                                                           mathkong_##input_type##_t const *b, mathkong_size_t n, \
+                                                           mathkong_##input_type##_t *result) {                   \
+        mathkong_##accumulator_type##_t ai, bi, sum;                                                              \
+        for (mathkong_size_t i = 0; i != n; ++i) {                                                                \
+            load_and_convert(a + i, &ai);                                                                         \
+            load_and_convert(b + i, &bi);                                                                         \
+            sum = ai + bi;                                                                                        \
+            convert_and_store(&sum, result + i);                                                                  \
+        }                                                                                                         \
     }
 
 #define SIMSIMD_MAKE_WSUM(name, input_type, accumulator_type, load_and_convert, convert_and_store) \
-    SIMSIMD_PUBLIC void simsimd_wsum_##input_type##_##name(                                        \
-        simsimd_##input_type##_t const *a, simsimd_##input_type##_t const *b, simsimd_size_t n,    \
-        simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_##input_type##_t *result) {     \
-        simsimd_##accumulator_type##_t alpha_cast = (simsimd_##accumulator_type##_t)alpha;         \
-        simsimd_##accumulator_type##_t beta_cast = (simsimd_##accumulator_type##_t)beta;           \
-        simsimd_##accumulator_type##_t ai, bi, ai_scaled, bi_scaled, sum;                          \
-        for (simsimd_size_t i = 0; i != n; ++i) {                                                  \
+    SIMSIMD_PUBLIC void mathkong_wsum_##input_type##_##name(                                       \
+        mathkong_##input_type##_t const *a, mathkong_##input_type##_t const *b, mathkong_size_t n, \
+        mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_##input_type##_t *result) {  \
+        mathkong_##accumulator_type##_t alpha_cast = (mathkong_##accumulator_type##_t)alpha;       \
+        mathkong_##accumulator_type##_t beta_cast = (mathkong_##accumulator_type##_t)beta;         \
+        mathkong_##accumulator_type##_t ai, bi, ai_scaled, bi_scaled, sum;                         \
+        for (mathkong_size_t i = 0; i != n; ++i) {                                                 \
             load_and_convert(a + i, &ai);                                                          \
             load_and_convert(b + i, &bi);                                                          \
             ai_scaled = ai * alpha_cast;                                                           \
@@ -319,97 +319,97 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_sapphire(simsimd_u8_t const *a, simsimd_u8_t 
         }                                                                                          \
     }
 
-#define SIMSIMD_MAKE_FMA(name, input_type, accumulator_type, load_and_convert, convert_and_store)                \
-    SIMSIMD_PUBLIC void simsimd_fma_##input_type##_##name(                                                       \
-        simsimd_##input_type##_t const *a, simsimd_##input_type##_t const *b, simsimd_##input_type##_t const *c, \
-        simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_##input_type##_t *result) { \
-        simsimd_##accumulator_type##_t alpha_cast = (simsimd_##accumulator_type##_t)alpha;                       \
-        simsimd_##accumulator_type##_t beta_cast = (simsimd_##accumulator_type##_t)beta;                         \
-        simsimd_##accumulator_type##_t ai, bi, ci, abi_scaled, ci_scaled, sum;                                   \
-        for (simsimd_size_t i = 0; i != n; ++i) {                                                                \
-            load_and_convert(a + i, &ai);                                                                        \
-            load_and_convert(b + i, &bi);                                                                        \
-            load_and_convert(c + i, &ci);                                                                        \
-            abi_scaled = ai * bi * alpha_cast;                                                                   \
-            ci_scaled = ci * beta_cast;                                                                          \
-            sum = abi_scaled + ci_scaled;                                                                        \
-            convert_and_store(&sum, result + i);                                                                 \
-        }                                                                                                        \
+#define SIMSIMD_MAKE_FMA(name, input_type, accumulator_type, load_and_convert, convert_and_store)                    \
+    SIMSIMD_PUBLIC void mathkong_fma_##input_type##_##name(                                                          \
+        mathkong_##input_type##_t const *a, mathkong_##input_type##_t const *b, mathkong_##input_type##_t const *c,  \
+        mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_##input_type##_t *result) { \
+        mathkong_##accumulator_type##_t alpha_cast = (mathkong_##accumulator_type##_t)alpha;                         \
+        mathkong_##accumulator_type##_t beta_cast = (mathkong_##accumulator_type##_t)beta;                           \
+        mathkong_##accumulator_type##_t ai, bi, ci, abi_scaled, ci_scaled, sum;                                      \
+        for (mathkong_size_t i = 0; i != n; ++i) {                                                                   \
+            load_and_convert(a + i, &ai);                                                                            \
+            load_and_convert(b + i, &bi);                                                                            \
+            load_and_convert(c + i, &ci);                                                                            \
+            abi_scaled = ai * bi * alpha_cast;                                                                       \
+            ci_scaled = ci * beta_cast;                                                                              \
+            sum = abi_scaled + ci_scaled;                                                                            \
+            convert_and_store(&sum, result + i);                                                                     \
+        }                                                                                                            \
     }
 
-SIMSIMD_MAKE_SUM(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_sum_f64_serial
-SIMSIMD_MAKE_SUM(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_sum_f32_serial
-SIMSIMD_MAKE_SUM(serial, f16, f32, simsimd_f16_to_f32, simsimd_f32_to_f16)         // simsimd_sum_f16_serial
-SIMSIMD_MAKE_SUM(serial, bf16, f32, simsimd_bf16_to_f32, simsimd_f32_to_bf16)      // simsimd_sum_bf16_serial
-SIMSIMD_MAKE_SUM(serial, i8, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_i8)      // simsimd_sum_i8_serial
-SIMSIMD_MAKE_SUM(serial, u8, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_u8)      // simsimd_sum_u8_serial
-SIMSIMD_MAKE_SUM(serial, i16, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_i16)    // simsimd_sum_i16_serial
-SIMSIMD_MAKE_SUM(serial, u16, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_u16)    // simsimd_sum_u16_serial
-SIMSIMD_MAKE_SUM(serial, i32, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_i32)    // simsimd_sum_i32_serial
-SIMSIMD_MAKE_SUM(serial, u32, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_u32)    // simsimd_sum_u32_serial
-SIMSIMD_MAKE_SUM(serial, i64, i64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_sum_i64_serial
-SIMSIMD_MAKE_SUM(serial, u64, u64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_sum_u64_serial
+SIMSIMD_MAKE_SUM(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_sum_f64_serial
+SIMSIMD_MAKE_SUM(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_sum_f32_serial
+SIMSIMD_MAKE_SUM(serial, f16, f32, mathkong_f16_to_f32, mathkong_f32_to_f16)       // mathkong_sum_f16_serial
+SIMSIMD_MAKE_SUM(serial, bf16, f32, mathkong_bf16_to_f32, mathkong_f32_to_bf16)    // mathkong_sum_bf16_serial
+SIMSIMD_MAKE_SUM(serial, i8, i64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_i64_to_i8)     // mathkong_sum_i8_serial
+SIMSIMD_MAKE_SUM(serial, u8, i64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_i64_to_u8)     // mathkong_sum_u8_serial
+SIMSIMD_MAKE_SUM(serial, i16, i64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_i64_to_i16)   // mathkong_sum_i16_serial
+SIMSIMD_MAKE_SUM(serial, u16, i64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_i64_to_u16)   // mathkong_sum_u16_serial
+SIMSIMD_MAKE_SUM(serial, i32, i64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_i64_to_i32)   // mathkong_sum_i32_serial
+SIMSIMD_MAKE_SUM(serial, u32, i64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_i64_to_u32)   // mathkong_sum_u32_serial
+SIMSIMD_MAKE_SUM(serial, i64, i64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_sum_i64_serial
+SIMSIMD_MAKE_SUM(serial, u64, u64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_sum_u64_serial
 
-SIMSIMD_MAKE_SUM(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_sum_f32_accurate
-SIMSIMD_MAKE_SUM(accurate, f16, f64, _simsimd_f16_to_f64, _simsimd_f64_to_f16)       // simsimd_sum_f16_accurate
-SIMSIMD_MAKE_SUM(accurate, bf16, f64, _simsimd_bf16_to_f64, _simsimd_f64_to_bf16)    // simsimd_sum_bf16_accurate
+SIMSIMD_MAKE_SUM(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_sum_f32_accurate
+SIMSIMD_MAKE_SUM(accurate, f16, f64, _mathkong_f16_to_f64, _mathkong_f64_to_f16)     // mathkong_sum_f16_accurate
+SIMSIMD_MAKE_SUM(accurate, bf16, f64, _mathkong_bf16_to_f64, _mathkong_f64_to_bf16)  // mathkong_sum_bf16_accurate
 
-SIMSIMD_MAKE_SCALE(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_scale_f64_serial
-SIMSIMD_MAKE_SCALE(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_scale_f32_serial
-SIMSIMD_MAKE_SCALE(serial, f16, f32, simsimd_f16_to_f32, simsimd_f32_to_f16)         // simsimd_scale_f16_serial
-SIMSIMD_MAKE_SCALE(serial, bf16, f32, simsimd_bf16_to_f32, simsimd_f32_to_bf16)      // simsimd_scale_bf16_serial
-SIMSIMD_MAKE_SCALE(serial, i8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_i8)      // simsimd_scale_i8_serial
-SIMSIMD_MAKE_SCALE(serial, u8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_u8)      // simsimd_scale_u8_serial
-SIMSIMD_MAKE_SCALE(serial, i16, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i16)    // simsimd_scale_i16_serial
-SIMSIMD_MAKE_SCALE(serial, u16, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u16)    // simsimd_scale_u16_serial
-SIMSIMD_MAKE_SCALE(serial, i32, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i32)    // simsimd_scale_i32_serial
-SIMSIMD_MAKE_SCALE(serial, u32, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u32)    // simsimd_scale_u32_serial
-SIMSIMD_MAKE_SCALE(serial, i64, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i64)    // simsimd_scale_i64_serial
-SIMSIMD_MAKE_SCALE(serial, u64, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u64)    // simsimd_scale_u64_serial
+SIMSIMD_MAKE_SCALE(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_scale_f64_serial
+SIMSIMD_MAKE_SCALE(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_scale_f32_serial
+SIMSIMD_MAKE_SCALE(serial, f16, f32, mathkong_f16_to_f32, mathkong_f32_to_f16)       // mathkong_scale_f16_serial
+SIMSIMD_MAKE_SCALE(serial, bf16, f32, mathkong_bf16_to_f32, mathkong_f32_to_bf16)    // mathkong_scale_bf16_serial
+SIMSIMD_MAKE_SCALE(serial, i8, f32, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f32_to_i8)     // mathkong_scale_i8_serial
+SIMSIMD_MAKE_SCALE(serial, u8, f32, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f32_to_u8)     // mathkong_scale_u8_serial
+SIMSIMD_MAKE_SCALE(serial, i16, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_i16)   // mathkong_scale_i16_serial
+SIMSIMD_MAKE_SCALE(serial, u16, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_u16)   // mathkong_scale_u16_serial
+SIMSIMD_MAKE_SCALE(serial, i32, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_i32)   // mathkong_scale_i32_serial
+SIMSIMD_MAKE_SCALE(serial, u32, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_u32)   // mathkong_scale_u32_serial
+SIMSIMD_MAKE_SCALE(serial, i64, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_i64)   // mathkong_scale_i64_serial
+SIMSIMD_MAKE_SCALE(serial, u64, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_u64)   // mathkong_scale_u64_serial
 
-SIMSIMD_MAKE_SCALE(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_scale_f32_accurate
-SIMSIMD_MAKE_SCALE(accurate, f16, f64, _simsimd_f16_to_f64, _simsimd_f64_to_f16)       // simsimd_scale_f16_accurate
-SIMSIMD_MAKE_SCALE(accurate, bf16, f64, _simsimd_bf16_to_f64, _simsimd_f64_to_bf16)    // simsimd_scale_bf16_accurate
-SIMSIMD_MAKE_SCALE(accurate, i8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i8)      // simsimd_scale_i8_accurate
-SIMSIMD_MAKE_SCALE(accurate, u8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u8)      // simsimd_scale_u8_accurate
+SIMSIMD_MAKE_SCALE(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_scale_f32_accurate
+SIMSIMD_MAKE_SCALE(accurate, f16, f64, _mathkong_f16_to_f64, _mathkong_f64_to_f16)     // mathkong_scale_f16_accurate
+SIMSIMD_MAKE_SCALE(accurate, bf16, f64, _mathkong_bf16_to_f64, _mathkong_f64_to_bf16)  // mathkong_scale_bf16_accurate
+SIMSIMD_MAKE_SCALE(accurate, i8, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_i8)     // mathkong_scale_i8_accurate
+SIMSIMD_MAKE_SCALE(accurate, u8, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_u8)     // mathkong_scale_u8_accurate
 
-SIMSIMD_MAKE_WSUM(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_wsum_f64_serial
-SIMSIMD_MAKE_WSUM(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_wsum_f32_serial
-SIMSIMD_MAKE_WSUM(serial, f16, f32, simsimd_f16_to_f32, simsimd_f32_to_f16)         // simsimd_wsum_f16_serial
-SIMSIMD_MAKE_WSUM(serial, bf16, f32, simsimd_bf16_to_f32, simsimd_f32_to_bf16)      // simsimd_wsum_bf16_serial
-SIMSIMD_MAKE_WSUM(serial, i8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_i8)      // simsimd_wsum_i8_serial
-SIMSIMD_MAKE_WSUM(serial, u8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_u8)      // simsimd_wsum_u8_serial
-SIMSIMD_MAKE_WSUM(serial, i16, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i16)    // simsimd_wsum_i16_serial
-SIMSIMD_MAKE_WSUM(serial, u16, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u16)    // simsimd_wsum_u16_serial
-SIMSIMD_MAKE_WSUM(serial, i32, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i32)    // simsimd_wsum_i32_serial
-SIMSIMD_MAKE_WSUM(serial, u32, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u32)    // simsimd_wsum_u32_serial
-SIMSIMD_MAKE_WSUM(serial, i64, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i64)    // simsimd_wsum_i64_serial
-SIMSIMD_MAKE_WSUM(serial, u64, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u64)    // simsimd_wsum_u64_serial
+SIMSIMD_MAKE_WSUM(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_wsum_f64_serial
+SIMSIMD_MAKE_WSUM(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_wsum_f32_serial
+SIMSIMD_MAKE_WSUM(serial, f16, f32, mathkong_f16_to_f32, mathkong_f32_to_f16)       // mathkong_wsum_f16_serial
+SIMSIMD_MAKE_WSUM(serial, bf16, f32, mathkong_bf16_to_f32, mathkong_f32_to_bf16)    // mathkong_wsum_bf16_serial
+SIMSIMD_MAKE_WSUM(serial, i8, f32, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f32_to_i8)     // mathkong_wsum_i8_serial
+SIMSIMD_MAKE_WSUM(serial, u8, f32, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f32_to_u8)     // mathkong_wsum_u8_serial
+SIMSIMD_MAKE_WSUM(serial, i16, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_i16)   // mathkong_wsum_i16_serial
+SIMSIMD_MAKE_WSUM(serial, u16, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_u16)   // mathkong_wsum_u16_serial
+SIMSIMD_MAKE_WSUM(serial, i32, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_i32)   // mathkong_wsum_i32_serial
+SIMSIMD_MAKE_WSUM(serial, u32, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_u32)   // mathkong_wsum_u32_serial
+SIMSIMD_MAKE_WSUM(serial, i64, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_i64)   // mathkong_wsum_i64_serial
+SIMSIMD_MAKE_WSUM(serial, u64, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_u64)   // mathkong_wsum_u64_serial
 
-SIMSIMD_MAKE_WSUM(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_wsum_f32_accurate
-SIMSIMD_MAKE_WSUM(accurate, f16, f64, _simsimd_f16_to_f64, _simsimd_f64_to_f16)       // simsimd_wsum_f16_accurate
-SIMSIMD_MAKE_WSUM(accurate, bf16, f64, _simsimd_bf16_to_f64, _simsimd_f64_to_bf16)    // simsimd_wsum_bf16_accurate
-SIMSIMD_MAKE_WSUM(accurate, i8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i8)      // simsimd_wsum_i8_accurate
-SIMSIMD_MAKE_WSUM(accurate, u8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u8)      // simsimd_wsum_u8_accurate
+SIMSIMD_MAKE_WSUM(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_wsum_f32_accurate
+SIMSIMD_MAKE_WSUM(accurate, f16, f64, _mathkong_f16_to_f64, _mathkong_f64_to_f16)     // mathkong_wsum_f16_accurate
+SIMSIMD_MAKE_WSUM(accurate, bf16, f64, _mathkong_bf16_to_f64, _mathkong_f64_to_bf16)  // mathkong_wsum_bf16_accurate
+SIMSIMD_MAKE_WSUM(accurate, i8, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_i8)     // mathkong_wsum_i8_accurate
+SIMSIMD_MAKE_WSUM(accurate, u8, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_u8)     // mathkong_wsum_u8_accurate
 
-SIMSIMD_MAKE_FMA(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_fma_f64_serial
-SIMSIMD_MAKE_FMA(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_fma_f32_serial
-SIMSIMD_MAKE_FMA(serial, f16, f32, simsimd_f16_to_f32, simsimd_f32_to_f16)         // simsimd_fma_f16_serial
-SIMSIMD_MAKE_FMA(serial, bf16, f32, simsimd_bf16_to_f32, simsimd_f32_to_bf16)      // simsimd_fma_bf16_serial
-SIMSIMD_MAKE_FMA(serial, i8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_i8)      // simsimd_fma_i8_serial
-SIMSIMD_MAKE_FMA(serial, u8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_u8)      // simsimd_fma_u8_serial
-SIMSIMD_MAKE_FMA(serial, i16, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i16)    // simsimd_fma_i16_serial
-SIMSIMD_MAKE_FMA(serial, u16, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u16)    // simsimd_fma_u16_serial
-SIMSIMD_MAKE_FMA(serial, i32, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i32)    // simsimd_fma_i32_serial
-SIMSIMD_MAKE_FMA(serial, u32, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u32)    // simsimd_fma_u32_serial
-SIMSIMD_MAKE_FMA(serial, i64, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i64)    // simsimd_fma_i64_serial
-SIMSIMD_MAKE_FMA(serial, u64, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u64)    // simsimd_fma_u64_serial
+SIMSIMD_MAKE_FMA(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_fma_f64_serial
+SIMSIMD_MAKE_FMA(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_fma_f32_serial
+SIMSIMD_MAKE_FMA(serial, f16, f32, mathkong_f16_to_f32, mathkong_f32_to_f16)       // mathkong_fma_f16_serial
+SIMSIMD_MAKE_FMA(serial, bf16, f32, mathkong_bf16_to_f32, mathkong_f32_to_bf16)    // mathkong_fma_bf16_serial
+SIMSIMD_MAKE_FMA(serial, i8, f32, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f32_to_i8)     // mathkong_fma_i8_serial
+SIMSIMD_MAKE_FMA(serial, u8, f32, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f32_to_u8)     // mathkong_fma_u8_serial
+SIMSIMD_MAKE_FMA(serial, i16, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_i16)   // mathkong_fma_i16_serial
+SIMSIMD_MAKE_FMA(serial, u16, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_u16)   // mathkong_fma_u16_serial
+SIMSIMD_MAKE_FMA(serial, i32, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_i32)   // mathkong_fma_i32_serial
+SIMSIMD_MAKE_FMA(serial, u32, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_u32)   // mathkong_fma_u32_serial
+SIMSIMD_MAKE_FMA(serial, i64, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_i64)   // mathkong_fma_i64_serial
+SIMSIMD_MAKE_FMA(serial, u64, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_u64)   // mathkong_fma_u64_serial
 
-SIMSIMD_MAKE_FMA(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_fma_f32_accurate
-SIMSIMD_MAKE_FMA(accurate, f16, f64, _simsimd_f16_to_f64, _simsimd_f64_to_f16)       // simsimd_fma_f16_accurate
-SIMSIMD_MAKE_FMA(accurate, bf16, f64, _simsimd_bf16_to_f64, _simsimd_f64_to_bf16)    // simsimd_fma_bf16_accurate
-SIMSIMD_MAKE_FMA(accurate, i8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i8)      // simsimd_fma_i8_accurate
-SIMSIMD_MAKE_FMA(accurate, u8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u8)      // simsimd_fma_u8_accurate
+SIMSIMD_MAKE_FMA(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_fma_f32_accurate
+SIMSIMD_MAKE_FMA(accurate, f16, f64, _mathkong_f16_to_f64, _mathkong_f64_to_f16)     // mathkong_fma_f16_accurate
+SIMSIMD_MAKE_FMA(accurate, bf16, f64, _mathkong_bf16_to_f64, _mathkong_f64_to_bf16)  // mathkong_fma_bf16_accurate
+SIMSIMD_MAKE_FMA(accurate, i8, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_i8)     // mathkong_fma_i8_accurate
+SIMSIMD_MAKE_FMA(accurate, u8, f64, _SIMSIMD_ASSIGN_1_TO_2, _mathkong_f64_to_u8)     // mathkong_fma_u8_accurate
 
 #if _SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_HASWELL
@@ -417,10 +417,10 @@ SIMSIMD_MAKE_FMA(accurate, u8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u8) 
 #pragma GCC target("avx2", "f16c", "fma")
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_sum_f32_haswell(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
-                                            simsimd_f32_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_f32_haswell(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                             mathkong_f32_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m256 a_vec = _mm256_loadu_ps(a + i);
         __m256 b_vec = _mm256_loadu_ps(b + i);
@@ -432,15 +432,15 @@ SIMSIMD_PUBLIC void simsimd_sum_f32_haswell(simsimd_f32_t const *a, simsimd_f32_
     for (; i < n; ++i) result[i] = a[i] + b[i];
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_f32_haswell(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, simsimd_f32_t *result) {
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+SIMSIMD_PUBLIC void mathkong_scale_f32_haswell(mathkong_f32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                               mathkong_distance_t beta, mathkong_f32_t *result) {
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m256 a_vec = _mm256_loadu_ps(a + i);
         __m256 sum_vec = _mm256_fmadd_ps(a_vec, alpha_vec, beta_vec);
@@ -451,24 +451,24 @@ SIMSIMD_PUBLIC void simsimd_scale_f32_haswell(simsimd_f32_t const *a, simsimd_si
     for (; i < n; ++i) result[i] = alpha_f32 * a[i] + beta_f32;
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_f32_haswell(                         //
-    simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result) {
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+SIMSIMD_PUBLIC void mathkong_wsum_f32_haswell(                           //
+    mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result) {
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
 
     // There are are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_f32_haswell(a, b, n, result);
+        mathkong_sum_f32_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_f32_haswell(a, n, alpha, 0, result); }
-        else { simsimd_scale_f32_haswell(b, n, beta, 0, result); }
+        if (beta == 0) { mathkong_scale_f32_haswell(a, n, alpha, 0, result); }
+        else { mathkong_scale_f32_haswell(b, n, beta, 0, result); }
         return;
     }
 
@@ -477,7 +477,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_f32_haswell(                         //
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m256 a_vec = _mm256_loadu_ps(a + i);
         __m256 b_vec = _mm256_loadu_ps(b + i);
@@ -490,10 +490,10 @@ SIMSIMD_PUBLIC void simsimd_wsum_f32_haswell(                         //
     for (; i < n; ++i) result[i] = alpha_f32 * a[i] + beta_f32 * b[i];
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_f64_haswell(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
-                                            simsimd_f64_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_f64_haswell(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                             mathkong_f64_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         __m256d a_vec = _mm256_loadu_pd(a + i);
         __m256d b_vec = _mm256_loadu_pd(b + i);
@@ -505,13 +505,13 @@ SIMSIMD_PUBLIC void simsimd_sum_f64_haswell(simsimd_f64_t const *a, simsimd_f64_
     for (; i < n; ++i) result[i] = a[i] + b[i];
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_f64_haswell(simsimd_f64_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, simsimd_f64_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_f64_haswell(mathkong_f64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                               mathkong_distance_t beta, mathkong_f64_t *result) {
     __m256d alpha_vec = _mm256_set1_pd(alpha);
     __m256d beta_vec = _mm256_set1_pd(beta);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         __m256d a_vec = _mm256_loadu_pd(a + i);
         __m256d sum_vec = _mm256_fmadd_pd(a_vec, alpha_vec, beta_vec);
@@ -522,22 +522,22 @@ SIMSIMD_PUBLIC void simsimd_scale_f64_haswell(simsimd_f64_t const *a, simsimd_si
     for (; i < n; ++i) result[i] = alpha * a[i] + beta;
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_f64_haswell(                         //
-    simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result) {
+SIMSIMD_PUBLIC void mathkong_wsum_f64_haswell(                           //
+    mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f64_t *result) {
 
     // There are are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_f64_haswell(a, b, n, result);
+        mathkong_sum_f64_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_f64_haswell(a, n, alpha, 0, result); }
-        else { simsimd_scale_f64_haswell(b, n, beta, 0, result); }
+        if (beta == 0) { mathkong_scale_f64_haswell(a, n, alpha, 0, result); }
+        else { mathkong_scale_f64_haswell(b, n, beta, 0, result); }
         return;
     }
 
@@ -546,7 +546,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_f64_haswell(                         //
     __m256d beta_vec = _mm256_set1_pd(beta);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         __m256d a_vec = _mm256_loadu_pd(a + i);
         __m256d b_vec = _mm256_loadu_pd(b + i);
@@ -559,11 +559,11 @@ SIMSIMD_PUBLIC void simsimd_wsum_f64_haswell(                         //
     for (; i < n; ++i) result[i] = alpha * a[i] + beta * b[i];
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_f16_haswell(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
-                                            simsimd_f16_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_f16_haswell(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                             mathkong_f16_t *result) {
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m128i a_f16 = _mm_lddqu_si128((__m128i const *)(a + i));
         __m128i b_f16 = _mm_lddqu_si128((__m128i const *)(b + i));
@@ -576,23 +576,23 @@ SIMSIMD_PUBLIC void simsimd_sum_f16_haswell(simsimd_f16_t const *a, simsimd_f16_
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai, bi;
-        simsimd_f16_to_f32(a + i, &ai);
-        simsimd_f16_to_f32(b + i, &bi);
-        simsimd_f32_t sum = ai + bi;
-        simsimd_f32_to_f16(&sum, result + i);
+        mathkong_f32_t ai, bi;
+        mathkong_f16_to_f32(a + i, &ai);
+        mathkong_f16_to_f32(b + i, &bi);
+        mathkong_f32_t sum = ai + bi;
+        mathkong_f32_to_f16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_f16_haswell(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, simsimd_f16_t *result) {
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+SIMSIMD_PUBLIC void mathkong_scale_f16_haswell(mathkong_f16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                               mathkong_distance_t beta, mathkong_f16_t *result) {
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m128i a_f16 = _mm_lddqu_si128((__m128i const *)(a + i));
         __m256 a_vec = _mm256_cvtph_ps(a_f16);
@@ -603,40 +603,40 @@ SIMSIMD_PUBLIC void simsimd_scale_f16_haswell(simsimd_f16_t const *a, simsimd_si
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai;
-        simsimd_f16_to_f32(a + i, &ai);
-        simsimd_f32_t sum = alpha_f32 * ai + beta_f32;
-        simsimd_f32_to_f16(&sum, result + i);
+        mathkong_f32_t ai;
+        mathkong_f16_to_f32(a + i, &ai);
+        mathkong_f32_t sum = alpha_f32 * ai + beta_f32;
+        mathkong_f32_to_f16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_f16_haswell(                         //
-    simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result) {
+SIMSIMD_PUBLIC void mathkong_wsum_f16_haswell(                           //
+    mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result) {
 
     // There are are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_f16_haswell(a, b, n, result);
+        mathkong_sum_f16_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_f16_haswell(a, n, alpha, 0, result); }
-        else { simsimd_scale_f16_haswell(b, n, beta, 0, result); }
+        if (beta == 0) { mathkong_scale_f16_haswell(a, n, alpha, 0, result); }
+        else { mathkong_scale_f16_haswell(b, n, beta, 0, result); }
         return;
     }
 
     // The general case.
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m128i a_f16 = _mm_lddqu_si128((__m128i const *)(a + i));
         __m128i b_f16 = _mm_lddqu_si128((__m128i const *)(b + i));
@@ -650,122 +650,122 @@ SIMSIMD_PUBLIC void simsimd_wsum_f16_haswell(                         //
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai, bi;
-        simsimd_f16_to_f32(a + i, &ai);
-        simsimd_f16_to_f32(b + i, &bi);
-        simsimd_f32_t sum = alpha_f32 * ai + beta_f32 * bi;
-        simsimd_f32_to_f16(&sum, result + i);
+        mathkong_f32_t ai, bi;
+        mathkong_f16_to_f32(a + i, &ai);
+        mathkong_f16_to_f32(b + i, &bi);
+        mathkong_f32_t sum = alpha_f32 * ai + beta_f32 * bi;
+        mathkong_f32_to_f16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_bf16_haswell(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
-                                             simsimd_bf16_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_bf16_haswell(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                              mathkong_bf16_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m128i a_bf16 = _mm_lddqu_si128((__m128i const *)(a + i));
         __m128i b_bf16 = _mm_lddqu_si128((__m128i const *)(b + i));
-        __m256 a_vec = _simsimd_bf16x8_to_f32x8_haswell(a_bf16);
-        __m256 b_vec = _simsimd_bf16x8_to_f32x8_haswell(b_bf16);
+        __m256 a_vec = _mathkong_bf16x8_to_f32x8_haswell(a_bf16);
+        __m256 b_vec = _mathkong_bf16x8_to_f32x8_haswell(b_bf16);
         __m256 sum_vec = _mm256_add_ps(a_vec, b_vec);
-        __m128i sum_bf16 = _simsimd_f32x8_to_bf16x8_haswell(sum_vec);
+        __m128i sum_bf16 = _mathkong_f32x8_to_bf16x8_haswell(sum_vec);
         _mm_storeu_si128((__m128i *)(result + i), sum_bf16);
     }
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai, bi;
-        simsimd_bf16_to_f32(a + i, &ai);
-        simsimd_bf16_to_f32(b + i, &bi);
-        simsimd_f32_t sum = ai + bi;
-        simsimd_f32_to_bf16(&sum, result + i);
+        mathkong_f32_t ai, bi;
+        mathkong_bf16_to_f32(a + i, &ai);
+        mathkong_bf16_to_f32(b + i, &bi);
+        mathkong_f32_t sum = ai + bi;
+        mathkong_f32_to_bf16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_bf16_haswell(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                               simsimd_distance_t beta, simsimd_bf16_t *result) {
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+SIMSIMD_PUBLIC void mathkong_scale_bf16_haswell(mathkong_bf16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                                mathkong_distance_t beta, mathkong_bf16_t *result) {
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m128i a_bf16 = _mm_lddqu_si128((__m128i const *)(a + i));
-        __m256 a_vec = _simsimd_bf16x8_to_f32x8_haswell(a_bf16);
+        __m256 a_vec = _mathkong_bf16x8_to_f32x8_haswell(a_bf16);
         __m256 sum_vec = _mm256_fmadd_ps(a_vec, alpha_vec, beta_vec);
-        __m128i sum_bf16 = _simsimd_f32x8_to_bf16x8_haswell(sum_vec);
+        __m128i sum_bf16 = _mathkong_f32x8_to_bf16x8_haswell(sum_vec);
         _mm_storeu_si128((__m128i *)(result + i), sum_bf16);
     }
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai;
-        simsimd_bf16_to_f32(a + i, &ai);
-        simsimd_f32_t sum = alpha_f32 * ai + beta_f32;
-        simsimd_f32_to_bf16(&sum, result + i);
+        mathkong_f32_t ai;
+        mathkong_bf16_to_f32(a + i, &ai);
+        mathkong_f32_t sum = alpha_f32 * ai + beta_f32;
+        mathkong_f32_to_bf16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_bf16_haswell(                          //
-    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result) {
+SIMSIMD_PUBLIC void mathkong_wsum_bf16_haswell(                            //
+    mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result) {
 
     // There are are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_bf16_haswell(a, b, n, result);
+        mathkong_sum_bf16_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_bf16_haswell(a, n, alpha, 0, result); }
-        else { simsimd_scale_bf16_haswell(b, n, beta, 0, result); }
+        if (beta == 0) { mathkong_scale_bf16_haswell(a, n, alpha, 0, result); }
+        else { mathkong_scale_bf16_haswell(b, n, beta, 0, result); }
         return;
     }
 
     // The general case.
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m128i a_bf16 = _mm_lddqu_si128((__m128i const *)(a + i));
         __m128i b_bf16 = _mm_lddqu_si128((__m128i const *)(b + i));
-        __m256 a_vec = _simsimd_bf16x8_to_f32x8_haswell(a_bf16);
-        __m256 b_vec = _simsimd_bf16x8_to_f32x8_haswell(b_bf16);
+        __m256 a_vec = _mathkong_bf16x8_to_f32x8_haswell(a_bf16);
+        __m256 b_vec = _mathkong_bf16x8_to_f32x8_haswell(b_bf16);
         __m256 a_scaled_vec = _mm256_mul_ps(a_vec, alpha_vec);
         __m256 sum_vec = _mm256_fmadd_ps(b_vec, beta_vec, a_scaled_vec);
-        __m128i sum_bf16 = _simsimd_f32x8_to_bf16x8_haswell(sum_vec);
+        __m128i sum_bf16 = _mathkong_f32x8_to_bf16x8_haswell(sum_vec);
         _mm_storeu_si128((__m128i *)(result + i), sum_bf16);
     }
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai, bi;
-        simsimd_bf16_to_f32(a + i, &ai);
-        simsimd_bf16_to_f32(b + i, &bi);
-        simsimd_f32_t sum = alpha_f32 * ai + beta_f32 * bi;
-        simsimd_f32_to_bf16(&sum, result + i);
+        mathkong_f32_t ai, bi;
+        mathkong_bf16_to_f32(a + i, &ai);
+        mathkong_bf16_to_f32(b + i, &bi);
+        mathkong_f32_t sum = alpha_f32 * ai + beta_f32 * bi;
+        mathkong_f32_to_bf16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_f32_haswell(                                //
-    simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result) {
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+SIMSIMD_PUBLIC void mathkong_fma_f32_haswell(                                  //
+    mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c, //
+    mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result) {
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m256 a_vec = _mm256_loadu_ps(a + i);
         __m256 b_vec = _mm256_loadu_ps(b + i);
@@ -780,14 +780,14 @@ SIMSIMD_PUBLIC void simsimd_fma_f32_haswell(                                //
     for (; i < n; ++i) result[i] = alpha_f32 * a[i] * b[i] + beta_f32 * c[i];
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_f64_haswell(                                //
-    simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_f64_haswell(                                  //
+    mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_f64_t const *c, //
+    mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f64_t *result) {
     __m256d alpha_vec = _mm256_set1_pd(alpha);
     __m256d beta_vec = _mm256_set1_pd(beta);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         __m256d a_vec = _mm256_loadu_pd(a + i);
         __m256d b_vec = _mm256_loadu_pd(b + i);
@@ -802,16 +802,16 @@ SIMSIMD_PUBLIC void simsimd_fma_f64_haswell(                                //
     for (; i < n; ++i) result[i] = alpha * a[i] * b[i] + beta * c[i];
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_f16_haswell(                                //
-    simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result) {
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+SIMSIMD_PUBLIC void mathkong_fma_f16_haswell(                                  //
+    mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c, //
+    mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result) {
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m128i a_f16 = _mm_lddqu_si128((__m128i const *)(a + i));
         __m128i b_f16 = _mm_lddqu_si128((__m128i const *)(b + i));
@@ -828,54 +828,54 @@ SIMSIMD_PUBLIC void simsimd_fma_f16_haswell(                                //
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai, bi, ci;
-        simsimd_f16_to_f32(a + i, &ai);
-        simsimd_f16_to_f32(b + i, &bi);
-        simsimd_f16_to_f32(c + i, &ci);
-        simsimd_f32_t sum = alpha * ai * bi + beta * ci;
-        simsimd_f32_to_f16(&sum, result + i);
+        mathkong_f32_t ai, bi, ci;
+        mathkong_f16_to_f32(a + i, &ai);
+        mathkong_f16_to_f32(b + i, &bi);
+        mathkong_f16_to_f32(c + i, &ci);
+        mathkong_f32_t sum = alpha * ai * bi + beta * ci;
+        mathkong_f32_to_f16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_bf16_haswell(                                  //
-    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result) {
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+SIMSIMD_PUBLIC void mathkong_fma_bf16_haswell(                                    //
+    mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_bf16_t const *c, //
+    mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result) {
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m128i a_bf16 = _mm_lddqu_si128((__m128i const *)(a + i));
         __m128i b_bf16 = _mm_lddqu_si128((__m128i const *)(b + i));
         __m128i c_bf16 = _mm_lddqu_si128((__m128i const *)(c + i));
-        __m256 a_vec = _simsimd_bf16x8_to_f32x8_haswell(a_bf16);
-        __m256 b_vec = _simsimd_bf16x8_to_f32x8_haswell(b_bf16);
-        __m256 c_vec = _simsimd_bf16x8_to_f32x8_haswell(c_bf16);
+        __m256 a_vec = _mathkong_bf16x8_to_f32x8_haswell(a_bf16);
+        __m256 b_vec = _mathkong_bf16x8_to_f32x8_haswell(b_bf16);
+        __m256 c_vec = _mathkong_bf16x8_to_f32x8_haswell(c_bf16);
         __m256 ab_vec = _mm256_mul_ps(a_vec, b_vec);
         __m256 ab_scaled_vec = _mm256_mul_ps(ab_vec, alpha_vec);
         __m256 sum_vec = _mm256_fmadd_ps(c_vec, beta_vec, ab_scaled_vec);
-        __m128i sum_bf16 = _simsimd_f32x8_to_bf16x8_haswell(sum_vec);
+        __m128i sum_bf16 = _mathkong_f32x8_to_bf16x8_haswell(sum_vec);
         _mm_storeu_si128((__m128i *)(result + i), sum_bf16);
     }
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai, bi, ci;
-        simsimd_bf16_to_f32(a + i, &ai);
-        simsimd_bf16_to_f32(b + i, &bi);
-        simsimd_bf16_to_f32(c + i, &ci);
-        simsimd_f32_t sum = alpha * ai * bi + beta * ci;
-        simsimd_f32_to_bf16(&sum, result + i);
+        mathkong_f32_t ai, bi, ci;
+        mathkong_bf16_to_f32(a + i, &ai);
+        mathkong_bf16_to_f32(b + i, &bi);
+        mathkong_bf16_to_f32(c + i, &ci);
+        mathkong_f32_t sum = alpha * ai * bi + beta * ci;
+        mathkong_f32_to_bf16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_i8_haswell(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
-                                           simsimd_i8_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_i8_haswell(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                            mathkong_i8_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
         __m256i a_vec = _mm256_lddqu_si256((__m256i *)(a + i));
         __m256i b_vec = _mm256_lddqu_si256((__m256i *)(b + i));
@@ -885,23 +885,23 @@ SIMSIMD_PUBLIC void simsimd_sum_i8_haswell(simsimd_i8_t const *a, simsimd_i8_t c
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = a[i], bi = b[i];
-        simsimd_f32_t sum = ai + bi;
-        _simsimd_f32_to_i8(&sum, result + i);
+        mathkong_f32_t ai = a[i], bi = b[i];
+        mathkong_f32_t sum = ai + bi;
+        _mathkong_f32_to_i8(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_i8_haswell(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                             simsimd_distance_t beta, simsimd_i8_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_i8_haswell(mathkong_i8_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                              mathkong_distance_t beta, mathkong_i8_t *result) {
 
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
     int sum_i32s[8], a_i32s[8];
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         //? Handling loads and stores with SIMD is tricky. Not because of upcasting, but the
         //? downcasting at the end of the loop. In AVX2 it's a drag! Keep it for another day.
@@ -912,58 +912,58 @@ SIMSIMD_PUBLIC void simsimd_scale_i8_haswell(simsimd_i8_t const *a, simsimd_size
         __m256 a_vec = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)a_i32s));
         // The normal part.
         __m256 sum_vec = _mm256_fmadd_ps(a_vec, alpha_vec, beta_vec);
-        // Instead of serial calls to expensive `_simsimd_f32_to_u8`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `_mathkong_f32_to_u8`, convert and clip with SIMD.
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
         sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(-128));
         sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(127));
         // Export into a serial buffer.
         _mm256_storeu_si256((__m256i *)sum_i32s, sum_i32_vec);
-        result[i + 0] = (simsimd_i8_t)sum_i32s[0];
-        result[i + 1] = (simsimd_i8_t)sum_i32s[1];
-        result[i + 2] = (simsimd_i8_t)sum_i32s[2];
-        result[i + 3] = (simsimd_i8_t)sum_i32s[3];
-        result[i + 4] = (simsimd_i8_t)sum_i32s[4];
-        result[i + 5] = (simsimd_i8_t)sum_i32s[5];
-        result[i + 6] = (simsimd_i8_t)sum_i32s[6];
-        result[i + 7] = (simsimd_i8_t)sum_i32s[7];
+        result[i + 0] = (mathkong_i8_t)sum_i32s[0];
+        result[i + 1] = (mathkong_i8_t)sum_i32s[1];
+        result[i + 2] = (mathkong_i8_t)sum_i32s[2];
+        result[i + 3] = (mathkong_i8_t)sum_i32s[3];
+        result[i + 4] = (mathkong_i8_t)sum_i32s[4];
+        result[i + 5] = (mathkong_i8_t)sum_i32s[5];
+        result[i + 6] = (mathkong_i8_t)sum_i32s[6];
+        result[i + 7] = (mathkong_i8_t)sum_i32s[7];
     }
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = a[i];
-        simsimd_f32_t sum = alpha_f32 * ai + beta_f32;
-        _simsimd_f32_to_i8(&sum, result + i);
+        mathkong_f32_t ai = a[i];
+        mathkong_f32_t sum = alpha_f32 * ai + beta_f32;
+        _mathkong_f32_to_i8(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_i8_haswell(                        //
-    simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result) {
+SIMSIMD_PUBLIC void mathkong_wsum_i8_haswell(                          //
+    mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result) {
 
     // There are are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_i8_haswell(a, b, n, result);
+        mathkong_sum_i8_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_i8_haswell(a, n, alpha, 0, result); }
-        else { simsimd_scale_i8_haswell(b, n, beta, 0, result); }
+        if (beta == 0) { mathkong_scale_i8_haswell(a, n, alpha, 0, result); }
+        else { mathkong_scale_i8_haswell(b, n, beta, 0, result); }
         return;
     }
 
     // The general case.
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
     int sum_i32s[8], a_i32s[8], b_i32s[8];
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         //? Handling loads and stores with SIMD is tricky. Not because of upcasting, but the
         //? downcasting at the end of the loop. In AVX2 it's a drag! Keep it for another day.
@@ -978,34 +978,34 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_haswell(                        //
         // The normal part.
         __m256 a_scaled_vec = _mm256_mul_ps(a_vec, alpha_vec);
         __m256 sum_vec = _mm256_fmadd_ps(b_vec, beta_vec, a_scaled_vec);
-        // Instead of serial calls to expensive `_simsimd_f32_to_u8`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `_mathkong_f32_to_u8`, convert and clip with SIMD.
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
         sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(-128));
         sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(127));
         // Export into a serial buffer.
         _mm256_storeu_si256((__m256i *)sum_i32s, sum_i32_vec);
-        result[i + 0] = (simsimd_i8_t)sum_i32s[0];
-        result[i + 1] = (simsimd_i8_t)sum_i32s[1];
-        result[i + 2] = (simsimd_i8_t)sum_i32s[2];
-        result[i + 3] = (simsimd_i8_t)sum_i32s[3];
-        result[i + 4] = (simsimd_i8_t)sum_i32s[4];
-        result[i + 5] = (simsimd_i8_t)sum_i32s[5];
-        result[i + 6] = (simsimd_i8_t)sum_i32s[6];
-        result[i + 7] = (simsimd_i8_t)sum_i32s[7];
+        result[i + 0] = (mathkong_i8_t)sum_i32s[0];
+        result[i + 1] = (mathkong_i8_t)sum_i32s[1];
+        result[i + 2] = (mathkong_i8_t)sum_i32s[2];
+        result[i + 3] = (mathkong_i8_t)sum_i32s[3];
+        result[i + 4] = (mathkong_i8_t)sum_i32s[4];
+        result[i + 5] = (mathkong_i8_t)sum_i32s[5];
+        result[i + 6] = (mathkong_i8_t)sum_i32s[6];
+        result[i + 7] = (mathkong_i8_t)sum_i32s[7];
     }
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = a[i], bi = b[i];
-        simsimd_f32_t sum = alpha_f32 * ai + beta_f32 * bi;
-        _simsimd_f32_to_i8(&sum, result + i);
+        mathkong_f32_t ai = a[i], bi = b[i];
+        mathkong_f32_t sum = alpha_f32 * ai + beta_f32 * bi;
+        _mathkong_f32_to_i8(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_u8_haswell(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
-                                           simsimd_u8_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_u8_haswell(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                            mathkong_u8_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
         __m256i a_vec = _mm256_lddqu_si256((__m256i *)(a + i));
         __m256i b_vec = _mm256_lddqu_si256((__m256i *)(b + i));
@@ -1015,23 +1015,23 @@ SIMSIMD_PUBLIC void simsimd_sum_u8_haswell(simsimd_u8_t const *a, simsimd_u8_t c
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = a[i], bi = b[i];
-        simsimd_f32_t sum = ai + bi;
-        _simsimd_f32_to_u8(&sum, result + i);
+        mathkong_f32_t ai = a[i], bi = b[i];
+        mathkong_f32_t sum = ai + bi;
+        _mathkong_f32_to_u8(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_u8_haswell(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                             simsimd_distance_t beta, simsimd_u8_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_u8_haswell(mathkong_u8_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                              mathkong_distance_t beta, mathkong_u8_t *result) {
 
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
     int sum_i32s[8], a_i32s[8];
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         //? Handling loads and stores with SIMD is tricky. Not because of upcasting, but the
         //? downcasting at the end of the loop. In AVX2 it's a drag! Keep it for another day.
@@ -1042,58 +1042,58 @@ SIMSIMD_PUBLIC void simsimd_scale_u8_haswell(simsimd_u8_t const *a, simsimd_size
         __m256 a_vec = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)a_i32s));
         // The normal part.
         __m256 sum_vec = _mm256_fmadd_ps(a_vec, alpha_vec, beta_vec);
-        // Instead of serial calls to expensive `_simsimd_f32_to_u8`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `_mathkong_f32_to_u8`, convert and clip with SIMD.
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
         sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(0));
         sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(255));
         // Export into a serial buffer.
         _mm256_storeu_si256((__m256i *)sum_i32s, sum_i32_vec);
-        result[i + 0] = (simsimd_u8_t)sum_i32s[0];
-        result[i + 1] = (simsimd_u8_t)sum_i32s[1];
-        result[i + 2] = (simsimd_u8_t)sum_i32s[2];
-        result[i + 3] = (simsimd_u8_t)sum_i32s[3];
-        result[i + 4] = (simsimd_u8_t)sum_i32s[4];
-        result[i + 5] = (simsimd_u8_t)sum_i32s[5];
-        result[i + 6] = (simsimd_u8_t)sum_i32s[6];
-        result[i + 7] = (simsimd_u8_t)sum_i32s[7];
+        result[i + 0] = (mathkong_u8_t)sum_i32s[0];
+        result[i + 1] = (mathkong_u8_t)sum_i32s[1];
+        result[i + 2] = (mathkong_u8_t)sum_i32s[2];
+        result[i + 3] = (mathkong_u8_t)sum_i32s[3];
+        result[i + 4] = (mathkong_u8_t)sum_i32s[4];
+        result[i + 5] = (mathkong_u8_t)sum_i32s[5];
+        result[i + 6] = (mathkong_u8_t)sum_i32s[6];
+        result[i + 7] = (mathkong_u8_t)sum_i32s[7];
     }
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = a[i];
-        simsimd_f32_t sum = alpha_f32 * ai + beta_f32;
-        _simsimd_f32_to_u8(&sum, result + i);
+        mathkong_f32_t ai = a[i];
+        mathkong_f32_t sum = alpha_f32 * ai + beta_f32;
+        _mathkong_f32_to_u8(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_u8_haswell(                        //
-    simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result) {
+SIMSIMD_PUBLIC void mathkong_wsum_u8_haswell(                          //
+    mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result) {
 
     // There are are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_u8_haswell(a, b, n, result);
+        mathkong_sum_u8_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_u8_haswell(a, n, alpha, 0, result); }
-        else { simsimd_scale_u8_haswell(b, n, beta, 0, result); }
+        if (beta == 0) { mathkong_scale_u8_haswell(a, n, alpha, 0, result); }
+        else { mathkong_scale_u8_haswell(b, n, beta, 0, result); }
         return;
     }
 
     // The general case.
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
     int sum_i32s[8], a_i32s[8], b_i32s[8];
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         //? Handling loads and stores with SIMD is tricky. Not because of upcasting, but the
         //? downcasting at the end of the loop. In AVX2 it's a drag! Keep it for another day.
@@ -1108,42 +1108,42 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_haswell(                        //
         // The normal part.
         __m256 a_scaled_vec = _mm256_mul_ps(a_vec, alpha_vec);
         __m256 sum_vec = _mm256_fmadd_ps(b_vec, beta_vec, a_scaled_vec);
-        // Instead of serial calls to expensive `_simsimd_f32_to_u8`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `_mathkong_f32_to_u8`, convert and clip with SIMD.
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
         sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(0));
         sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(255));
         // Export into a serial buffer.
         _mm256_storeu_si256((__m256i *)sum_i32s, sum_i32_vec);
-        result[i + 0] = (simsimd_u8_t)sum_i32s[0];
-        result[i + 1] = (simsimd_u8_t)sum_i32s[1];
-        result[i + 2] = (simsimd_u8_t)sum_i32s[2];
-        result[i + 3] = (simsimd_u8_t)sum_i32s[3];
-        result[i + 4] = (simsimd_u8_t)sum_i32s[4];
-        result[i + 5] = (simsimd_u8_t)sum_i32s[5];
-        result[i + 6] = (simsimd_u8_t)sum_i32s[6];
-        result[i + 7] = (simsimd_u8_t)sum_i32s[7];
+        result[i + 0] = (mathkong_u8_t)sum_i32s[0];
+        result[i + 1] = (mathkong_u8_t)sum_i32s[1];
+        result[i + 2] = (mathkong_u8_t)sum_i32s[2];
+        result[i + 3] = (mathkong_u8_t)sum_i32s[3];
+        result[i + 4] = (mathkong_u8_t)sum_i32s[4];
+        result[i + 5] = (mathkong_u8_t)sum_i32s[5];
+        result[i + 6] = (mathkong_u8_t)sum_i32s[6];
+        result[i + 7] = (mathkong_u8_t)sum_i32s[7];
     }
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = a[i], bi = b[i];
-        simsimd_f32_t sum = alpha_f32 * ai + beta_f32 * bi;
-        _simsimd_f32_to_u8(&sum, result + i);
+        mathkong_f32_t ai = a[i], bi = b[i];
+        mathkong_f32_t sum = alpha_f32 * ai + beta_f32 * bi;
+        _mathkong_f32_to_u8(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_i8_haswell(                                                //
-    simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_i8_haswell(                                                   //
+    mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_i8_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result) {
 
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
     int sum_i32s[8], a_i32s[8], b_i32s[8], c_i32s[8];
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         //? Handling loads and stores with SIMD is tricky. Not because of upcasting, but the
         //? downcasting at the end of the loop. In AVX2 it's a drag! Keep it for another day.
@@ -1162,42 +1162,42 @@ SIMSIMD_PUBLIC void simsimd_fma_i8_haswell(                                     
         __m256 ab_vec = _mm256_mul_ps(a_vec, b_vec);
         __m256 ab_scaled_vec = _mm256_mul_ps(ab_vec, alpha_vec);
         __m256 sum_vec = _mm256_fmadd_ps(c_vec, beta_vec, ab_scaled_vec);
-        // Instead of serial calls to expensive `_simsimd_f32_to_u8`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `_mathkong_f32_to_u8`, convert and clip with SIMD.
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
         sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(-128));
         sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(127));
         // Export into a serial buffer.
         _mm256_storeu_si256((__m256i *)sum_i32s, sum_i32_vec);
-        result[i + 0] = (simsimd_i8_t)sum_i32s[0];
-        result[i + 1] = (simsimd_i8_t)sum_i32s[1];
-        result[i + 2] = (simsimd_i8_t)sum_i32s[2];
-        result[i + 3] = (simsimd_i8_t)sum_i32s[3];
-        result[i + 4] = (simsimd_i8_t)sum_i32s[4];
-        result[i + 5] = (simsimd_i8_t)sum_i32s[5];
-        result[i + 6] = (simsimd_i8_t)sum_i32s[6];
-        result[i + 7] = (simsimd_i8_t)sum_i32s[7];
+        result[i + 0] = (mathkong_i8_t)sum_i32s[0];
+        result[i + 1] = (mathkong_i8_t)sum_i32s[1];
+        result[i + 2] = (mathkong_i8_t)sum_i32s[2];
+        result[i + 3] = (mathkong_i8_t)sum_i32s[3];
+        result[i + 4] = (mathkong_i8_t)sum_i32s[4];
+        result[i + 5] = (mathkong_i8_t)sum_i32s[5];
+        result[i + 6] = (mathkong_i8_t)sum_i32s[6];
+        result[i + 7] = (mathkong_i8_t)sum_i32s[7];
     }
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = a[i], bi = b[i], ci = c[i];
-        simsimd_f32_t sum = alpha_f32 * ai * bi + beta_f32 * ci;
-        _simsimd_f32_to_i8(&sum, result + i);
+        mathkong_f32_t ai = a[i], bi = b[i], ci = c[i];
+        mathkong_f32_t sum = alpha_f32 * ai * bi + beta_f32 * ci;
+        _mathkong_f32_to_i8(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_u8_haswell(                                                //
-    simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_u8_haswell(                                                   //
+    mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_u8_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result) {
 
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
     int sum_i32s[8], a_i32s[8], b_i32s[8], c_i32s[8];
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         //? Handling loads and stores with SIMD is tricky. Not because of upcasting, but the
         //? downcasting at the end of the loop. In AVX2 it's a drag! Keep it for another day.
@@ -1216,34 +1216,34 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_haswell(                                     
         __m256 ab_vec = _mm256_mul_ps(a_vec, b_vec);
         __m256 ab_scaled_vec = _mm256_mul_ps(ab_vec, alpha_vec);
         __m256 sum_vec = _mm256_fmadd_ps(c_vec, beta_vec, ab_scaled_vec);
-        // Instead of serial calls to expensive `_simsimd_f32_to_u8`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `_mathkong_f32_to_u8`, convert and clip with SIMD.
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
         sum_i32_vec = _mm256_max_epi32(sum_i32_vec, _mm256_set1_epi32(0));
         sum_i32_vec = _mm256_min_epi32(sum_i32_vec, _mm256_set1_epi32(255));
         // Export into a serial buffer.
         _mm256_storeu_si256((__m256i *)sum_i32s, sum_i32_vec);
-        result[i + 0] = (simsimd_u8_t)sum_i32s[0];
-        result[i + 1] = (simsimd_u8_t)sum_i32s[1];
-        result[i + 2] = (simsimd_u8_t)sum_i32s[2];
-        result[i + 3] = (simsimd_u8_t)sum_i32s[3];
-        result[i + 4] = (simsimd_u8_t)sum_i32s[4];
-        result[i + 5] = (simsimd_u8_t)sum_i32s[5];
-        result[i + 6] = (simsimd_u8_t)sum_i32s[6];
-        result[i + 7] = (simsimd_u8_t)sum_i32s[7];
+        result[i + 0] = (mathkong_u8_t)sum_i32s[0];
+        result[i + 1] = (mathkong_u8_t)sum_i32s[1];
+        result[i + 2] = (mathkong_u8_t)sum_i32s[2];
+        result[i + 3] = (mathkong_u8_t)sum_i32s[3];
+        result[i + 4] = (mathkong_u8_t)sum_i32s[4];
+        result[i + 5] = (mathkong_u8_t)sum_i32s[5];
+        result[i + 6] = (mathkong_u8_t)sum_i32s[6];
+        result[i + 7] = (mathkong_u8_t)sum_i32s[7];
     }
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = a[i], bi = b[i], ci = c[i];
-        simsimd_f32_t sum = alpha_f32 * ai * bi + beta_f32 * ci;
-        _simsimd_f32_to_u8(&sum, result + i);
+        mathkong_f32_t ai = a[i], bi = b[i], ci = c[i];
+        mathkong_f32_t sum = alpha_f32 * ai * bi + beta_f32 * ci;
+        _mathkong_f32_to_u8(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_i16_haswell(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n,
-                                            simsimd_i16_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_i16_haswell(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_size_t n,
+                                             mathkong_i16_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
         __m256i a_vec = _mm256_lddqu_si256((__m256i *)(a + i));
         __m256i b_vec = _mm256_lddqu_si256((__m256i *)(b + i));
@@ -1253,24 +1253,24 @@ SIMSIMD_PUBLIC void simsimd_sum_i16_haswell(simsimd_i16_t const *a, simsimd_i16_
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_i64_t ai = a[i], bi = b[i];
-        simsimd_i64_t sum = ai + bi;
-        _simsimd_i64_to_i16(&sum, result + i);
+        mathkong_i64_t ai = a[i], bi = b[i];
+        mathkong_i64_t sum = ai + bi;
+        _mathkong_i64_to_i16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_i16_haswell(simsimd_i16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, simsimd_i16_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_i16_haswell(mathkong_i16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                               mathkong_distance_t beta, mathkong_i16_t *result) {
 
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
     __m256 min_vec = _mm256_set1_ps(-32768.0f);
     __m256 max_vec = _mm256_set1_ps(32767.0f);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m256 a_vec = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm_lddqu_si128((__m128i *)(a + i))));
         __m256 sum_vec = _mm256_fmadd_ps(a_vec, alpha_vec, beta_vec);
@@ -1285,24 +1285,24 @@ SIMSIMD_PUBLIC void simsimd_scale_i16_haswell(simsimd_i16_t const *a, simsimd_si
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = a[i];
-        simsimd_f32_t sum = alpha_f32 * ai + beta_f32;
-        _simsimd_f32_to_i16(&sum, result + i);
+        mathkong_f32_t ai = a[i];
+        mathkong_f32_t sum = alpha_f32 * ai + beta_f32;
+        _mathkong_f32_to_i16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_i16_haswell(                                                  //
-    simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result) {
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+SIMSIMD_PUBLIC void mathkong_fma_i16_haswell(                                                     //
+    mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_i16_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i16_t *result) {
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
     __m256 min_vec = _mm256_set1_ps(-32768.0f);
     __m256 max_vec = _mm256_set1_ps(32767.0f);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m256 a_vec = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm_lddqu_si128((__m128i *)(a + i))));
         __m256 b_vec = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm_lddqu_si128((__m128i *)(b + i))));
@@ -1321,16 +1321,16 @@ SIMSIMD_PUBLIC void simsimd_fma_i16_haswell(                                    
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = a[i], bi = b[i], ci = c[i];
-        simsimd_f32_t sum = alpha_f32 * ai * bi + beta_f32 * ci;
-        _simsimd_f32_to_i16(&sum, result + i);
+        mathkong_f32_t ai = a[i], bi = b[i], ci = c[i];
+        mathkong_f32_t sum = alpha_f32 * ai * bi + beta_f32 * ci;
+        _mathkong_f32_to_i16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_u16_haswell(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n,
-                                            simsimd_u16_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_u16_haswell(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_size_t n,
+                                             mathkong_u16_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
         __m256i a_vec = _mm256_lddqu_si256((__m256i *)(a + i));
         __m256i b_vec = _mm256_lddqu_si256((__m256i *)(b + i));
@@ -1340,23 +1340,23 @@ SIMSIMD_PUBLIC void simsimd_sum_u16_haswell(simsimd_u16_t const *a, simsimd_u16_
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_u64_t ai = a[i], bi = b[i];
-        simsimd_u64_t sum = ai + bi;
-        _simsimd_u64_to_u16(&sum, result + i);
+        mathkong_u64_t ai = a[i], bi = b[i];
+        mathkong_u64_t sum = ai + bi;
+        _mathkong_u64_to_u16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_u16_haswell(simsimd_u16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, simsimd_u16_t *result) {
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+SIMSIMD_PUBLIC void mathkong_scale_u16_haswell(mathkong_u16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                               mathkong_distance_t beta, mathkong_u16_t *result) {
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
     __m256 min_vec = _mm256_setzero_ps();
     __m256 max_vec = _mm256_set1_ps(65535.0f);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m256 a_vec = _mm256_cvtepi32_ps(_mm256_cvtepu16_epi32(_mm_lddqu_si128((__m128i *)(a + i))));
         __m256 sum_vec = _mm256_fmadd_ps(a_vec, alpha_vec, beta_vec);
@@ -1371,24 +1371,24 @@ SIMSIMD_PUBLIC void simsimd_scale_u16_haswell(simsimd_u16_t const *a, simsimd_si
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = a[i];
-        simsimd_f32_t sum = alpha_f32 * ai + beta_f32;
-        _simsimd_f32_to_u16(&sum, result + i);
+        mathkong_f32_t ai = a[i];
+        mathkong_f32_t sum = alpha_f32 * ai + beta_f32;
+        _mathkong_f32_to_u16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_u16_haswell(                                                  //
-    simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result) {
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+SIMSIMD_PUBLIC void mathkong_fma_u16_haswell(                                                     //
+    mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_u16_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u16_t *result) {
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     __m256 alpha_vec = _mm256_set1_ps(alpha_f32);
     __m256 beta_vec = _mm256_set1_ps(beta_f32);
     __m256 min_vec = _mm256_setzero_ps();
     __m256 max_vec = _mm256_set1_ps(65535.0f);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m256 a_vec = _mm256_cvtepi32_ps(_mm256_cvtepu16_epi32(_mm_lddqu_si128((__m128i *)(a + i))));
         __m256 b_vec = _mm256_cvtepi32_ps(_mm256_cvtepu16_epi32(_mm_lddqu_si128((__m128i *)(b + i))));
@@ -1407,9 +1407,9 @@ SIMSIMD_PUBLIC void simsimd_fma_u16_haswell(                                    
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai = a[i], bi = b[i], ci = c[i];
-        simsimd_f32_t sum = alpha_f32 * ai * bi + beta_f32 * ci;
-        _simsimd_f32_to_u16(&sum, result + i);
+        mathkong_f32_t ai = a[i], bi = b[i], ci = c[i];
+        mathkong_f32_t sum = alpha_f32 * ai * bi + beta_f32 * ci;
+        _mathkong_f32_to_u16(&sum, result + i);
     }
 }
 
@@ -1434,10 +1434,10 @@ SIMSIMD_INTERNAL __m256i _mm256_adds_epi32_haswell(__m256i a, __m256i b) {
     return result;
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_i32_haswell(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_size_t n,
-                                            simsimd_i32_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_i32_haswell(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_size_t n,
+                                             mathkong_i32_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m256i a_vec = _mm256_lddqu_si256((__m256i *)(a + i));
         __m256i b_vec = _mm256_lddqu_si256((__m256i *)(b + i));
@@ -1447,21 +1447,21 @@ SIMSIMD_PUBLIC void simsimd_sum_i32_haswell(simsimd_i32_t const *a, simsimd_i32_
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_i64_t ai = a[i], bi = b[i];
-        simsimd_i64_t sum = ai + bi;
-        _simsimd_i64_to_i32(&sum, result + i);
+        mathkong_i64_t ai = a[i], bi = b[i];
+        mathkong_i64_t sum = ai + bi;
+        _mathkong_i64_to_i32(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_i32_haswell(simsimd_i32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, simsimd_i32_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_i32_haswell(mathkong_i32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                               mathkong_distance_t beta, mathkong_i32_t *result) {
     __m256d alpha_vec = _mm256_set1_pd(alpha);
     __m256d beta_vec = _mm256_set1_pd(beta);
     __m256d min_vec = _mm256_set1_pd(-2147483648.0);
     __m256d max_vec = _mm256_set1_pd(2147483647.0);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         __m256d a_vec = _mm256_cvtepi32_pd(_mm_lddqu_si128((__m128i *)(a + i)));
         __m256d sum_vec = _mm256_fmadd_pd(a_vec, alpha_vec, beta_vec);
@@ -1474,22 +1474,22 @@ SIMSIMD_PUBLIC void simsimd_scale_i32_haswell(simsimd_i32_t const *a, simsimd_si
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f64_t ai = a[i];
-        simsimd_f64_t sum = alpha * ai + beta;
-        _simsimd_f64_to_i32(&sum, result + i);
+        mathkong_f64_t ai = a[i];
+        mathkong_f64_t sum = alpha * ai + beta;
+        _mathkong_f64_to_i32(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_i32_haswell(                                                  //
-    simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_i32_haswell(                                                     //
+    mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_i32_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i32_t *result) {
     __m256d alpha_vec = _mm256_set1_pd(alpha);
     __m256d beta_vec = _mm256_set1_pd(beta);
     __m256d min_vec = _mm256_set1_pd(-2147483648.0);
     __m256d max_vec = _mm256_set1_pd(2147483647.0);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         __m256d a_vec = _mm256_cvtepi32_pd(_mm_lddqu_si128((__m128i *)(a + i)));
         __m256d b_vec = _mm256_cvtepi32_pd(_mm_lddqu_si128((__m128i *)(b + i)));
@@ -1506,9 +1506,9 @@ SIMSIMD_PUBLIC void simsimd_fma_i32_haswell(                                    
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f64_t ai = a[i], bi = b[i], ci = c[i];
-        simsimd_f64_t sum = alpha * ai * bi + beta * ci;
-        _simsimd_f64_to_i32(&sum, result + i);
+        mathkong_f64_t ai = a[i], bi = b[i], ci = c[i];
+        mathkong_f64_t sum = alpha * ai * bi + beta * ci;
+        _mathkong_f64_to_i32(&sum, result + i);
     }
 }
 
@@ -1517,29 +1517,29 @@ SIMSIMD_INTERNAL __m256i _mm256_adds_epu32_haswell(__m256i a, __m256i b) {
     // We don't have a `_mm256_adds_epu32` or `_mm256_add_epu32` instruction.
     // We don't have a `_mm256_packus_epi64` to implement addition in 64-bit integers,
     // which we need for subsequent downcasting opertaion.
-    simsimd_u32_t a_vals[8], b_vals[8], result_vals[8];
+    mathkong_u32_t a_vals[8], b_vals[8], result_vals[8];
     _mm256_storeu_si256((__m256i *)a_vals, a);
     _mm256_storeu_si256((__m256i *)b_vals, b);
 
     // Perform saturating addition for each element with separate sum variables
-    simsimd_u64_t sum0 = (simsimd_u64_t)a_vals[0] + (simsimd_u64_t)b_vals[0];
-    simsimd_u64_t sum1 = (simsimd_u64_t)a_vals[1] + (simsimd_u64_t)b_vals[1];
-    simsimd_u64_t sum2 = (simsimd_u64_t)a_vals[2] + (simsimd_u64_t)b_vals[2];
-    simsimd_u64_t sum3 = (simsimd_u64_t)a_vals[3] + (simsimd_u64_t)b_vals[3];
-    simsimd_u64_t sum4 = (simsimd_u64_t)a_vals[4] + (simsimd_u64_t)b_vals[4];
-    simsimd_u64_t sum5 = (simsimd_u64_t)a_vals[5] + (simsimd_u64_t)b_vals[5];
-    simsimd_u64_t sum6 = (simsimd_u64_t)a_vals[6] + (simsimd_u64_t)b_vals[6];
-    simsimd_u64_t sum7 = (simsimd_u64_t)a_vals[7] + (simsimd_u64_t)b_vals[7];
+    mathkong_u64_t sum0 = (mathkong_u64_t)a_vals[0] + (mathkong_u64_t)b_vals[0];
+    mathkong_u64_t sum1 = (mathkong_u64_t)a_vals[1] + (mathkong_u64_t)b_vals[1];
+    mathkong_u64_t sum2 = (mathkong_u64_t)a_vals[2] + (mathkong_u64_t)b_vals[2];
+    mathkong_u64_t sum3 = (mathkong_u64_t)a_vals[3] + (mathkong_u64_t)b_vals[3];
+    mathkong_u64_t sum4 = (mathkong_u64_t)a_vals[4] + (mathkong_u64_t)b_vals[4];
+    mathkong_u64_t sum5 = (mathkong_u64_t)a_vals[5] + (mathkong_u64_t)b_vals[5];
+    mathkong_u64_t sum6 = (mathkong_u64_t)a_vals[6] + (mathkong_u64_t)b_vals[6];
+    mathkong_u64_t sum7 = (mathkong_u64_t)a_vals[7] + (mathkong_u64_t)b_vals[7];
 
     // Apply saturation
-    result_vals[0] = (sum0 > 0xFFFFFFFF) ? 0xFFFFFFFF : (simsimd_u32_t)sum0;
-    result_vals[1] = (sum1 > 0xFFFFFFFF) ? 0xFFFFFFFF : (simsimd_u32_t)sum1;
-    result_vals[2] = (sum2 > 0xFFFFFFFF) ? 0xFFFFFFFF : (simsimd_u32_t)sum2;
-    result_vals[3] = (sum3 > 0xFFFFFFFF) ? 0xFFFFFFFF : (simsimd_u32_t)sum3;
-    result_vals[4] = (sum4 > 0xFFFFFFFF) ? 0xFFFFFFFF : (simsimd_u32_t)sum4;
-    result_vals[5] = (sum5 > 0xFFFFFFFF) ? 0xFFFFFFFF : (simsimd_u32_t)sum5;
-    result_vals[6] = (sum6 > 0xFFFFFFFF) ? 0xFFFFFFFF : (simsimd_u32_t)sum6;
-    result_vals[7] = (sum7 > 0xFFFFFFFF) ? 0xFFFFFFFF : (simsimd_u32_t)sum7;
+    result_vals[0] = (sum0 > 0xFFFFFFFF) ? 0xFFFFFFFF : (mathkong_u32_t)sum0;
+    result_vals[1] = (sum1 > 0xFFFFFFFF) ? 0xFFFFFFFF : (mathkong_u32_t)sum1;
+    result_vals[2] = (sum2 > 0xFFFFFFFF) ? 0xFFFFFFFF : (mathkong_u32_t)sum2;
+    result_vals[3] = (sum3 > 0xFFFFFFFF) ? 0xFFFFFFFF : (mathkong_u32_t)sum3;
+    result_vals[4] = (sum4 > 0xFFFFFFFF) ? 0xFFFFFFFF : (mathkong_u32_t)sum4;
+    result_vals[5] = (sum5 > 0xFFFFFFFF) ? 0xFFFFFFFF : (mathkong_u32_t)sum5;
+    result_vals[6] = (sum6 > 0xFFFFFFFF) ? 0xFFFFFFFF : (mathkong_u32_t)sum6;
+    result_vals[7] = (sum7 > 0xFFFFFFFF) ? 0xFFFFFFFF : (mathkong_u32_t)sum7;
 
     // Load results back into an AVX2 vector
     return _mm256_loadu_si256((__m256i *)result_vals);
@@ -1555,32 +1555,32 @@ SIMSIMD_INTERNAL __m256d _mm256_cvtepu32_pd_haswell(__m128i a) {
     //  should_increment = should_increment / 0x8888; // Transform something like 0b1000100010001000 to 0b1111
     //  __m256d incremented = _mm256_add_pd(result, _mm256_set1_pd(2147483648.0));
     //  result = _mm256_blend_pd(result, incremented, should_increment);
-    simsimd_u32_t from[4];
-    simsimd_f64_t to[4];
+    mathkong_u32_t from[4];
+    mathkong_f64_t to[4];
     _mm_storeu_si128((__m128i *)from, a);
-    to[0] = (simsimd_f64_t)from[0];
-    to[1] = (simsimd_f64_t)from[1];
-    to[2] = (simsimd_f64_t)from[2];
-    to[3] = (simsimd_f64_t)from[3];
+    to[0] = (mathkong_f64_t)from[0];
+    to[1] = (mathkong_f64_t)from[1];
+    to[2] = (mathkong_f64_t)from[2];
+    to[3] = (mathkong_f64_t)from[3];
     return _mm256_loadu_pd(to);
 }
 
 SIMSIMD_INTERNAL __m128i _mm256_cvtpd_epu32_haswell(__m256d a) {
     //? For now let's avoid SIMD and just use serial conversion.
-    simsimd_f64_t from[4];
-    simsimd_u32_t to[4];
+    mathkong_f64_t from[4];
+    mathkong_u32_t to[4];
     _mm256_storeu_pd(from, a);
-    to[0] = (simsimd_u32_t)from[0];
-    to[1] = (simsimd_u32_t)from[1];
-    to[2] = (simsimd_u32_t)from[2];
-    to[3] = (simsimd_u32_t)from[3];
+    to[0] = (mathkong_u32_t)from[0];
+    to[1] = (mathkong_u32_t)from[1];
+    to[2] = (mathkong_u32_t)from[2];
+    to[3] = (mathkong_u32_t)from[3];
     return _mm_lddqu_si128((__m128i *)to);
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_u32_haswell(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n,
-                                            simsimd_u32_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_u32_haswell(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_size_t n,
+                                             mathkong_u32_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m256i a_vec = _mm256_lddqu_si256((__m256i *)(a + i));
         __m256i b_vec = _mm256_lddqu_si256((__m256i *)(b + i));
@@ -1590,21 +1590,21 @@ SIMSIMD_PUBLIC void simsimd_sum_u32_haswell(simsimd_u32_t const *a, simsimd_u32_
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_i64_t ai = a[i], bi = b[i];
-        simsimd_i64_t sum = ai + bi;
-        _simsimd_i64_to_u32(&sum, result + i);
+        mathkong_i64_t ai = a[i], bi = b[i];
+        mathkong_i64_t sum = ai + bi;
+        _mathkong_i64_to_u32(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_u32_haswell(simsimd_u32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, simsimd_u32_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_u32_haswell(mathkong_u32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                               mathkong_distance_t beta, mathkong_u32_t *result) {
     __m256d alpha_vec = _mm256_set1_pd(alpha);
     __m256d beta_vec = _mm256_set1_pd(beta);
     __m256d min_vec = _mm256_set1_pd(0);
     __m256d max_vec = _mm256_set1_pd(4294967295.0);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         __m256d a_vec = _mm256_cvtepu32_pd_haswell(_mm_lddqu_si128((__m128i *)(a + i)));
         __m256d sum_vec = _mm256_fmadd_pd(a_vec, alpha_vec, beta_vec);
@@ -1617,22 +1617,22 @@ SIMSIMD_PUBLIC void simsimd_scale_u32_haswell(simsimd_u32_t const *a, simsimd_si
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f64_t ai = a[i];
-        simsimd_f64_t sum = alpha * ai + beta;
-        _simsimd_f64_to_u32(&sum, result + i);
+        mathkong_f64_t ai = a[i];
+        mathkong_f64_t sum = alpha * ai + beta;
+        _mathkong_f64_to_u32(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_u32_haswell(                                                  //
-    simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_u32_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_u32_haswell(                                                     //
+    mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_u32_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u32_t *result) {
     __m256d alpha_vec = _mm256_set1_pd(alpha);
     __m256d beta_vec = _mm256_set1_pd(beta);
     __m256d min_vec = _mm256_set1_pd(0);
     __m256d max_vec = _mm256_set1_pd(4294967295.0);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         __m256d a_vec = _mm256_cvtepu32_pd_haswell(_mm_lddqu_si128((__m128i *)(a + i)));
         __m256d b_vec = _mm256_cvtepu32_pd_haswell(_mm_lddqu_si128((__m128i *)(b + i)));
@@ -1649,9 +1649,9 @@ SIMSIMD_PUBLIC void simsimd_fma_u32_haswell(                                    
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f64_t ai = a[i], bi = b[i], ci = c[i];
-        simsimd_f64_t sum = alpha * ai * bi + beta * ci;
-        _simsimd_f64_to_u32(&sum, result + i);
+        mathkong_f64_t ai = a[i], bi = b[i], ci = c[i];
+        mathkong_f64_t sum = alpha * ai * bi + beta * ci;
+        _mathkong_f64_to_u32(&sum, result + i);
     }
 }
 
@@ -1665,11 +1665,11 @@ SIMSIMD_PUBLIC void simsimd_fma_u32_haswell(                                    
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,bmi2"))), \
                              apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_sum_f64_skylake(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
-                                            simsimd_f64_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_f64_skylake(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                             mathkong_f64_t *result) {
     __m512d a_vec, b_vec, sum_vec;
     __mmask8 mask = 0xFF;
-simsimd_sum_f64_skylake_cycle:
+mathkong_sum_f64_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_pd(mask, a);
@@ -1684,16 +1684,16 @@ simsimd_sum_f64_skylake_cycle:
     sum_vec = _mm512_add_pd(a_vec, b_vec);
     _mm512_mask_storeu_pd(result, mask, sum_vec);
     result += 8;
-    if (n) goto simsimd_sum_f64_skylake_cycle;
+    if (n) goto mathkong_sum_f64_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_f64_skylake(simsimd_f64_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, simsimd_f64_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_f64_skylake(mathkong_f64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                               mathkong_distance_t beta, mathkong_f64_t *result) {
     __m512d alpha_vec = _mm512_set1_pd(alpha);
     __m512d beta_vec = _mm512_set1_pd(beta);
     __m512d a_vec, b_vec, a_scaled_vec, sum_vec;
     __mmask8 mask = 0xFF;
-simsimd_scale_f64_skylake_cycle:
+mathkong_scale_f64_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_pd(mask, a);
@@ -1706,25 +1706,25 @@ simsimd_scale_f64_skylake_cycle:
     sum_vec = _mm512_fmadd_pd(a_vec, alpha_vec, beta_vec);
     _mm512_mask_storeu_pd(result, mask, sum_vec);
     result += 8;
-    if (n) goto simsimd_scale_f64_skylake_cycle;
+    if (n) goto mathkong_scale_f64_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_f64_skylake(                         //
-    simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result) {
+SIMSIMD_PUBLIC void mathkong_wsum_f64_skylake(                           //
+    mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f64_t *result) {
 
     // There are are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_f64_skylake(a, b, n, result);
+        mathkong_sum_f64_skylake(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_f64_skylake(a, n, alpha, 0, result); }
-        else { simsimd_scale_f64_skylake(b, n, beta, 0, result); }
+        if (beta == 0) { mathkong_scale_f64_skylake(a, n, alpha, 0, result); }
+        else { mathkong_scale_f64_skylake(b, n, beta, 0, result); }
         return;
     }
 
@@ -1733,7 +1733,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_f64_skylake(                         //
     __m512d beta_vec = _mm512_set1_pd(beta);
     __m512d a_vec, b_vec, a_scaled_vec, sum_vec;
     __mmask8 mask = 0xFF;
-simsimd_wsum_f64_skylake_cycle:
+mathkong_wsum_f64_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_pd(mask, a);
@@ -1749,15 +1749,15 @@ simsimd_wsum_f64_skylake_cycle:
     sum_vec = _mm512_fmadd_pd(b_vec, beta_vec, a_scaled_vec);
     _mm512_mask_storeu_pd(result, mask, sum_vec);
     result += 8;
-    if (n) goto simsimd_wsum_f64_skylake_cycle;
+    if (n) goto mathkong_wsum_f64_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_f32_skylake(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
-                                            simsimd_f32_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_f32_skylake(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                             mathkong_f32_t *result) {
     __m512 a_vec, b_vec, sum_vec;
     __mmask16 mask = 0xFFFF;
 
-simsimd_sum_f32_skylake_cycle:
+mathkong_sum_f32_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_ps(mask, a);
@@ -1772,17 +1772,17 @@ simsimd_sum_f32_skylake_cycle:
     sum_vec = _mm512_add_ps(a_vec, b_vec);
     _mm512_mask_storeu_ps(result, mask, sum_vec);
     result += 16;
-    if (n) goto simsimd_sum_f32_skylake_cycle;
+    if (n) goto mathkong_sum_f32_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_f32_skylake(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, simsimd_f32_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_f32_skylake(mathkong_f32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                               mathkong_distance_t beta, mathkong_f32_t *result) {
     __m512 alpha_vec = _mm512_set1_ps(alpha);
     __m512 beta_vec = _mm512_set1_ps(beta);
     __m512 a_vec, sum_vec;
     __mmask16 mask = 0xFFFF;
 
-simsimd_scale_f32_skylake_cycle:
+mathkong_scale_f32_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_ps(mask, a);
@@ -1795,25 +1795,25 @@ simsimd_scale_f32_skylake_cycle:
     sum_vec = _mm512_fmadd_ps(a_vec, alpha_vec, beta_vec);
     _mm512_mask_storeu_ps(result, mask, sum_vec);
     result += 16;
-    if (n) goto simsimd_scale_f32_skylake_cycle;
+    if (n) goto mathkong_scale_f32_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_f32_skylake(                         //
-    simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result) {
+SIMSIMD_PUBLIC void mathkong_wsum_f32_skylake(                           //
+    mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result) {
 
     // There are are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_f32_skylake(a, b, n, result);
+        mathkong_sum_f32_skylake(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_f32_skylake(a, n, alpha, 0, result); }
-        else { simsimd_scale_f32_skylake(b, n, beta, 0, result); }
+        if (beta == 0) { mathkong_scale_f32_skylake(a, n, alpha, 0, result); }
+        else { mathkong_scale_f32_skylake(b, n, beta, 0, result); }
         return;
     }
 
@@ -1822,7 +1822,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_f32_skylake(                         //
     __m512 beta_vec = _mm512_set1_ps(beta);
     __m512 a_vec, b_vec, a_scaled_vec, sum_vec;
     __mmask16 mask = 0xFFFF;
-simsimd_wsum_f32_skylake_cycle:
+mathkong_wsum_f32_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_ps(mask, a);
@@ -1838,15 +1838,15 @@ simsimd_wsum_f32_skylake_cycle:
     sum_vec = _mm512_fmadd_ps(b_vec, beta_vec, a_scaled_vec);
     _mm512_mask_storeu_ps(result, mask, sum_vec);
     result += 16;
-    if (n) goto simsimd_wsum_f32_skylake_cycle;
+    if (n) goto mathkong_wsum_f32_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_bf16_skylake(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
-                                             simsimd_bf16_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_bf16_skylake(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                              mathkong_bf16_t *result) {
     __m256i a_bf16_vec, b_bf16_vec, sum_bf16_vec;
     __m512 a_vec, b_vec, sum_vec;
     __mmask16 mask = 0xFFFF;
-simsimd_sum_bf16_skylake_cycle:
+mathkong_sum_bf16_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_bf16_vec = _mm256_maskz_loadu_epi16(mask, a);
@@ -1858,23 +1858,23 @@ simsimd_sum_bf16_skylake_cycle:
         b_bf16_vec = _mm256_loadu_epi16(b);
         a += 16, b += 16, n -= 16;
     }
-    a_vec = _simsimd_bf16x16_to_f32x16_skylake(a_bf16_vec);
-    b_vec = _simsimd_bf16x16_to_f32x16_skylake(b_bf16_vec);
+    a_vec = _mathkong_bf16x16_to_f32x16_skylake(a_bf16_vec);
+    b_vec = _mathkong_bf16x16_to_f32x16_skylake(b_bf16_vec);
     sum_vec = _mm512_add_ps(a_vec, b_vec);
-    sum_bf16_vec = _simsimd_f32x16_to_bf16x16_skylake(sum_vec);
+    sum_bf16_vec = _mathkong_f32x16_to_bf16x16_skylake(sum_vec);
     _mm256_mask_storeu_epi16(result, mask, sum_bf16_vec);
     result += 16;
-    if (n) goto simsimd_sum_bf16_skylake_cycle;
+    if (n) goto mathkong_sum_bf16_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_bf16_skylake(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                               simsimd_distance_t beta, simsimd_bf16_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_bf16_skylake(mathkong_bf16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                                mathkong_distance_t beta, mathkong_bf16_t *result) {
     __m512 alpha_vec = _mm512_set1_ps(alpha);
     __m512 beta_vec = _mm512_set1_ps(beta);
     __m256i a_bf16_vec, b_bf16_vec, sum_bf16_vec;
     __m512 a_vec, b_vec, sum_vec;
     __mmask16 mask = 0xFFFF;
-simsimd_wsum_bf16_skylake_cycle:
+mathkong_wsum_bf16_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_bf16_vec = _mm256_maskz_loadu_epi16(mask, a);
@@ -1884,30 +1884,30 @@ simsimd_wsum_bf16_skylake_cycle:
         a_bf16_vec = _mm256_loadu_epi16(a);
         a += 16, n -= 16;
     }
-    a_vec = _simsimd_bf16x16_to_f32x16_skylake(a_bf16_vec);
+    a_vec = _mathkong_bf16x16_to_f32x16_skylake(a_bf16_vec);
     sum_vec = _mm512_fmadd_ps(a_vec, alpha_vec, beta_vec);
-    sum_bf16_vec = _simsimd_f32x16_to_bf16x16_skylake(sum_vec);
+    sum_bf16_vec = _mathkong_f32x16_to_bf16x16_skylake(sum_vec);
     _mm256_mask_storeu_epi16(result, mask, sum_bf16_vec);
     result += 16;
-    if (n) goto simsimd_wsum_bf16_skylake_cycle;
+    if (n) goto mathkong_wsum_bf16_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_bf16_skylake(                          //
-    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result) {
+SIMSIMD_PUBLIC void mathkong_wsum_bf16_skylake(                            //
+    mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result) {
 
     // There are are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_bf16_skylake(a, b, n, result);
+        mathkong_sum_bf16_skylake(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_bf16_skylake(a, n, alpha, 0, result); }
-        else { simsimd_scale_bf16_skylake(b, n, beta, 0, result); }
+        if (beta == 0) { mathkong_scale_bf16_skylake(a, n, alpha, 0, result); }
+        else { mathkong_scale_bf16_skylake(b, n, beta, 0, result); }
         return;
     }
 
@@ -1917,7 +1917,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_bf16_skylake(                          //
     __m256i a_bf16_vec, b_bf16_vec, sum_bf16_vec;
     __m512 a_vec, b_vec, a_scaled_vec, sum_vec;
     __mmask16 mask = 0xFFFF;
-simsimd_wsum_bf16_skylake_cycle:
+mathkong_wsum_bf16_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_bf16_vec = _mm256_maskz_loadu_epi16(mask, a);
@@ -1929,24 +1929,24 @@ simsimd_wsum_bf16_skylake_cycle:
         b_bf16_vec = _mm256_loadu_epi16(b);
         a += 16, b += 16, n -= 16;
     }
-    a_vec = _simsimd_bf16x16_to_f32x16_skylake(a_bf16_vec);
-    b_vec = _simsimd_bf16x16_to_f32x16_skylake(b_bf16_vec);
+    a_vec = _mathkong_bf16x16_to_f32x16_skylake(a_bf16_vec);
+    b_vec = _mathkong_bf16x16_to_f32x16_skylake(b_bf16_vec);
     a_scaled_vec = _mm512_mul_ps(a_vec, alpha_vec);
     sum_vec = _mm512_fmadd_ps(b_vec, beta_vec, a_scaled_vec);
-    sum_bf16_vec = _simsimd_f32x16_to_bf16x16_skylake(sum_vec);
+    sum_bf16_vec = _mathkong_f32x16_to_bf16x16_skylake(sum_vec);
     _mm256_mask_storeu_epi16(result, mask, sum_bf16_vec);
     result += 16;
-    if (n) goto simsimd_wsum_bf16_skylake_cycle;
+    if (n) goto mathkong_wsum_bf16_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_f64_skylake(                                                  //
-    simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_f64_skylake(                                                     //
+    mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_f64_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f64_t *result) {
     __m512d alpha_vec = _mm512_set1_pd(alpha);
     __m512d beta_vec = _mm512_set1_pd(beta);
     __m512d a_vec, b_vec, c_vec, ab_vec, ab_scaled_vec, sum_vec;
     __mmask8 mask = 0xFF;
-simsimd_fma_f64_skylake_cycle:
+mathkong_fma_f64_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_pd(mask, a);
@@ -1965,17 +1965,17 @@ simsimd_fma_f64_skylake_cycle:
     sum_vec = _mm512_fmadd_pd(c_vec, beta_vec, ab_scaled_vec);
     _mm512_mask_storeu_pd(result, mask, sum_vec);
     result += 8;
-    if (n) goto simsimd_fma_f64_skylake_cycle;
+    if (n) goto mathkong_fma_f64_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_f32_skylake(                                                  //
-    simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_f32_skylake(                                                     //
+    mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result) {
     __m512 alpha_vec = _mm512_set1_ps(alpha);
     __m512 beta_vec = _mm512_set1_ps(beta);
     __m512 a_vec, b_vec, c_vec, ab_vec, ab_scaled_vec, sum_vec;
     __mmask16 mask = 0xFFFF;
-simsimd_fma_f32_skylake_cycle:
+mathkong_fma_f32_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_ps(mask, a);
@@ -1994,18 +1994,18 @@ simsimd_fma_f32_skylake_cycle:
     sum_vec = _mm512_fmadd_ps(c_vec, beta_vec, ab_scaled_vec);
     _mm512_mask_storeu_ps(result, mask, sum_vec);
     result += 16;
-    if (n) goto simsimd_fma_f32_skylake_cycle;
+    if (n) goto mathkong_fma_f32_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_bf16_skylake(                                                    //
-    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_bf16_skylake(                                                       //
+    mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_bf16_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result) {
     __m512 alpha_vec = _mm512_set1_ps(alpha);
     __m512 beta_vec = _mm512_set1_ps(beta);
     __m256i a_bf16_vec, b_bf16_vec, c_bf16_vec, sum_bf16_vec;
     __m512 a_vec, b_vec, c_vec, ab_vec, ab_scaled_vec, sum_vec;
     __mmask16 mask = 0xFFFF;
-simsimd_fma_bf16_skylake_cycle:
+mathkong_fma_bf16_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_bf16_vec = _mm256_maskz_loadu_epi16(mask, a);
@@ -2019,20 +2019,20 @@ simsimd_fma_bf16_skylake_cycle:
         c_bf16_vec = _mm256_loadu_epi16(c);
         a += 16, b += 16, c += 16, n -= 16;
     }
-    a_vec = _simsimd_bf16x16_to_f32x16_skylake(a_bf16_vec);
-    b_vec = _simsimd_bf16x16_to_f32x16_skylake(b_bf16_vec);
-    c_vec = _simsimd_bf16x16_to_f32x16_skylake(c_bf16_vec);
+    a_vec = _mathkong_bf16x16_to_f32x16_skylake(a_bf16_vec);
+    b_vec = _mathkong_bf16x16_to_f32x16_skylake(b_bf16_vec);
+    c_vec = _mathkong_bf16x16_to_f32x16_skylake(c_bf16_vec);
     ab_vec = _mm512_mul_ps(a_vec, b_vec);
     ab_scaled_vec = _mm512_mul_ps(ab_vec, alpha_vec);
     sum_vec = _mm512_fmadd_ps(c_vec, beta_vec, ab_scaled_vec);
-    sum_bf16_vec = _simsimd_f32x16_to_bf16x16_skylake(sum_vec);
+    sum_bf16_vec = _mathkong_f32x16_to_bf16x16_skylake(sum_vec);
     _mm256_mask_storeu_epi16(result, mask, sum_bf16_vec);
     result += 16;
-    if (n) goto simsimd_fma_bf16_skylake_cycle;
+    if (n) goto mathkong_fma_bf16_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_i8_skylake(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                             simsimd_distance_t beta, simsimd_i8_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_i8_skylake(mathkong_i8_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                              mathkong_distance_t beta, mathkong_i8_t *result) {
     __m512 alpha_vec = _mm512_set1_ps(alpha);
     __m512 beta_vec = _mm512_set1_ps(beta);
     __m128i a_i8_vec, sum_i8_vec;
@@ -2042,7 +2042,7 @@ SIMSIMD_PUBLIC void simsimd_scale_i8_skylake(simsimd_i8_t const *a, simsimd_size
     __m512i min_i32_vec = _mm512_set1_epi32(-128);
     __m512i max_i32_vec = _mm512_set1_epi32(127);
 
-simsimd_scale_i8_skylake_cycle:
+mathkong_scale_i8_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_i8_vec = _mm_maskz_loadu_epi8(mask, a);
@@ -2060,12 +2060,12 @@ simsimd_scale_i8_skylake_cycle:
     sum_i8_vec = _mm512_cvtepi32_epi8(sum_i32_vec);
     _mm_mask_storeu_epi8(result, mask, sum_i8_vec);
     result += 16;
-    if (n) goto simsimd_scale_i8_skylake_cycle;
+    if (n) goto mathkong_scale_i8_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_i8_skylake(                                                //
-    simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_i8_skylake(                                                   //
+    mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_i8_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result) {
     __m512 alpha_vec = _mm512_set1_ps(alpha);
     __m512 beta_vec = _mm512_set1_ps(beta);
     __m128i a_i8_vec, b_i8_vec, c_i8_vec, sum_i8_vec;
@@ -2075,7 +2075,7 @@ SIMSIMD_PUBLIC void simsimd_fma_i8_skylake(                                     
     __m512i min_i32_vec = _mm512_set1_epi32(-128);
     __m512i max_i32_vec = _mm512_set1_epi32(127);
 
-simsimd_fma_i8_skylake_cycle:
+mathkong_fma_i8_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_i8_vec = _mm_maskz_loadu_epi8(mask, a);
@@ -2101,11 +2101,11 @@ simsimd_fma_i8_skylake_cycle:
     sum_i8_vec = _mm512_cvtepi32_epi8(sum_i32_vec);
     _mm_mask_storeu_epi8(result, mask, sum_i8_vec);
     result += 16;
-    if (n) goto simsimd_fma_i8_skylake_cycle;
+    if (n) goto mathkong_fma_i8_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_u8_skylake(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                             simsimd_distance_t beta, simsimd_u8_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_u8_skylake(mathkong_u8_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                              mathkong_distance_t beta, mathkong_u8_t *result) {
     __m512 alpha_vec = _mm512_set1_ps(alpha);
     __m512 beta_vec = _mm512_set1_ps(beta);
     __m128i a_u8_vec, sum_u8_vec;
@@ -2115,7 +2115,7 @@ SIMSIMD_PUBLIC void simsimd_scale_u8_skylake(simsimd_u8_t const *a, simsimd_size
     __m512i min_u32_vec = _mm512_set1_epi32(0);
     __m512i max_u32_vec = _mm512_set1_epi32(255);
 
-simsimd_scale_u8_skylake_cycle:
+mathkong_scale_u8_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_u8_vec = _mm_maskz_loadu_epi8(mask, a);
@@ -2133,12 +2133,12 @@ simsimd_scale_u8_skylake_cycle:
     sum_u8_vec = _mm512_cvtepi32_epi8(sum_u32_vec);
     _mm_mask_storeu_epi8(result, mask, sum_u8_vec);
     result += 16;
-    if (n) goto simsimd_scale_u8_skylake_cycle;
+    if (n) goto mathkong_scale_u8_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_u8_skylake(                                                //
-    simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_u8_skylake(                                                   //
+    mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_u8_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result) {
     __m512 alpha_vec = _mm512_set1_ps(alpha);
     __m512 beta_vec = _mm512_set1_ps(beta);
     __m128i a_u8_vec, b_u8_vec, c_u8_vec, sum_u8_vec;
@@ -2148,7 +2148,7 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_skylake(                                     
     __m512i min_u32_vec = _mm512_set1_epi32(0);
     __m512i max_u32_vec = _mm512_set1_epi32(255);
 
-simsimd_fma_u8_skylake_cycle:
+mathkong_fma_u8_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_u8_vec = _mm_maskz_loadu_epi8(mask, a);
@@ -2174,11 +2174,11 @@ simsimd_fma_u8_skylake_cycle:
     sum_u8_vec = _mm512_cvtepi32_epi8(sum_u32_vec);
     _mm_mask_storeu_epi8(result, mask, sum_u8_vec);
     result += 16;
-    if (n) goto simsimd_fma_u8_skylake_cycle;
+    if (n) goto mathkong_fma_u8_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_i16_skylake(simsimd_i16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, simsimd_i16_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_i16_skylake(mathkong_i16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                               mathkong_distance_t beta, mathkong_i16_t *result) {
     __m512 alpha_vec = _mm512_set1_ps(alpha);
     __m512 beta_vec = _mm512_set1_ps(beta);
     __m256i a_i16_vec, sum_i16_vec;
@@ -2188,7 +2188,7 @@ SIMSIMD_PUBLIC void simsimd_scale_i16_skylake(simsimd_i16_t const *a, simsimd_si
     __m512i min_i32_vec = _mm512_set1_epi32(-32768);
     __m512i max_i32_vec = _mm512_set1_epi32(32767);
 
-simsimd_scale_i16_skylake_cycle:
+mathkong_scale_i16_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_i16_vec = _mm256_maskz_loadu_epi16(mask, a);
@@ -2206,12 +2206,12 @@ simsimd_scale_i16_skylake_cycle:
     sum_i16_vec = _mm512_cvtepi32_epi16(sum_i32_vec);
     _mm256_mask_storeu_epi16(result, mask, sum_i16_vec);
     result += 16;
-    if (n) goto simsimd_scale_i16_skylake_cycle;
+    if (n) goto mathkong_scale_i16_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_i16_skylake(                                                  //
-    simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_i16_skylake(                                                     //
+    mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_i16_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i16_t *result) {
     __m512 alpha_vec = _mm512_set1_ps(alpha);
     __m512 beta_vec = _mm512_set1_ps(beta);
     __m256i a_i16_vec, b_i16_vec, c_i16_vec, sum_i16_vec;
@@ -2221,7 +2221,7 @@ SIMSIMD_PUBLIC void simsimd_fma_i16_skylake(                                    
     __m512i min_i32_vec = _mm512_set1_epi32(-32768);
     __m512i max_i32_vec = _mm512_set1_epi32(32767);
 
-simsimd_fma_i16_skylake_cycle:
+mathkong_fma_i16_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_i16_vec = _mm256_maskz_loadu_epi16(mask, a);
@@ -2247,11 +2247,11 @@ simsimd_fma_i16_skylake_cycle:
     sum_i16_vec = _mm512_cvtepi32_epi16(sum_i32_vec);
     _mm256_mask_storeu_epi16(result, mask, sum_i16_vec);
     result += 16;
-    if (n) goto simsimd_fma_i16_skylake_cycle;
+    if (n) goto mathkong_fma_i16_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_u16_skylake(simsimd_u16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, simsimd_u16_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_u16_skylake(mathkong_u16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                               mathkong_distance_t beta, mathkong_u16_t *result) {
     __m512 alpha_vec = _mm512_set1_ps(alpha);
     __m512 beta_vec = _mm512_set1_ps(beta);
     __m256i a_u16_vec, sum_u16_vec;
@@ -2261,7 +2261,7 @@ SIMSIMD_PUBLIC void simsimd_scale_u16_skylake(simsimd_u16_t const *a, simsimd_si
     __m512i min_u32_vec = _mm512_set1_epi32(0);
     __m512i max_u32_vec = _mm512_set1_epi32(65535);
 
-simsimd_scale_u16_skylake_cycle:
+mathkong_scale_u16_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_u16_vec = _mm256_maskz_loadu_epi16(mask, a);
@@ -2279,12 +2279,12 @@ simsimd_scale_u16_skylake_cycle:
     sum_u16_vec = _mm512_cvtepi32_epi16(sum_u32_vec);
     _mm256_mask_storeu_epi16(result, mask, sum_u16_vec);
     result += 16;
-    if (n) goto simsimd_scale_u16_skylake_cycle;
+    if (n) goto mathkong_scale_u16_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_u16_skylake(                                                  //
-    simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_u16_skylake(                                                     //
+    mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_u16_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u16_t *result) {
     __m512 alpha_vec = _mm512_set1_ps(alpha);
     __m512 beta_vec = _mm512_set1_ps(beta);
     __m256i a_u16_vec, b_u16_vec, c_u16_vec, sum_u16_vec;
@@ -2294,7 +2294,7 @@ SIMSIMD_PUBLIC void simsimd_fma_u16_skylake(                                    
     __m512i min_u32_vec = _mm512_set1_epi32(0);
     __m512i max_u32_vec = _mm512_set1_epi32(65535);
 
-simsimd_fma_u16_skylake_cycle:
+mathkong_fma_u16_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_u16_vec = _mm256_maskz_loadu_epi16(mask, a);
@@ -2320,11 +2320,11 @@ simsimd_fma_u16_skylake_cycle:
     sum_u16_vec = _mm512_cvtepi32_epi16(sum_u32_vec);
     _mm256_mask_storeu_epi16(result, mask, sum_u16_vec);
     result += 16;
-    if (n) goto simsimd_fma_u16_skylake_cycle;
+    if (n) goto mathkong_fma_u16_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_i32_skylake(simsimd_i32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, simsimd_i32_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_i32_skylake(mathkong_i32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                               mathkong_distance_t beta, mathkong_i32_t *result) {
     __m512d alpha_vec = _mm512_set1_pd(alpha);
     __m512d beta_vec = _mm512_set1_pd(beta);
     __m256i a_i32_vec, sum_i32_vec;
@@ -2333,7 +2333,7 @@ SIMSIMD_PUBLIC void simsimd_scale_i32_skylake(simsimd_i32_t const *a, simsimd_si
     __m512d min_vec = _mm512_set1_pd(-2147483648.0);
     __m512d max_vec = _mm512_set1_pd(2147483647.0);
 
-simsimd_scale_i32_skylake_cycle:
+mathkong_scale_i32_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_i32_vec = _mm256_maskz_loadu_epi32(mask, a);
@@ -2350,12 +2350,12 @@ simsimd_scale_i32_skylake_cycle:
     sum_i32_vec = _mm512_cvttpd_epi32(sum_vec);
     _mm256_mask_storeu_epi32(result, mask, sum_i32_vec);
     result += 8;
-    if (n) goto simsimd_scale_i32_skylake_cycle;
+    if (n) goto mathkong_scale_i32_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_i32_skylake(                                                  //
-    simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_i32_skylake(                                                     //
+    mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_i32_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i32_t *result) {
     __m512d alpha_vec = _mm512_set1_pd(alpha);
     __m512d beta_vec = _mm512_set1_pd(beta);
     __m256i a_i32_vec, b_i32_vec, c_i32_vec, sum_i32_vec;
@@ -2364,7 +2364,7 @@ SIMSIMD_PUBLIC void simsimd_fma_i32_skylake(                                    
     __m512d min_vec = _mm512_set1_pd(-2147483648.0);
     __m512d max_vec = _mm512_set1_pd(2147483647.0);
 
-simsimd_fma_i32_skylake_cycle:
+mathkong_fma_i32_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_i32_vec = _mm256_maskz_loadu_epi32(mask, a);
@@ -2389,11 +2389,11 @@ simsimd_fma_i32_skylake_cycle:
     sum_i32_vec = _mm512_cvttpd_epi32(sum_vec);
     _mm256_mask_storeu_epi32(result, mask, sum_i32_vec);
     result += 8;
-    if (n) goto simsimd_fma_i32_skylake_cycle;
+    if (n) goto mathkong_fma_i32_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_u32_skylake(simsimd_u32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, simsimd_u32_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_u32_skylake(mathkong_u32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                               mathkong_distance_t beta, mathkong_u32_t *result) {
     __m512d alpha_vec = _mm512_set1_pd(alpha);
     __m512d beta_vec = _mm512_set1_pd(beta);
     __m256i a_u32_vec, sum_u32_vec;
@@ -2402,7 +2402,7 @@ SIMSIMD_PUBLIC void simsimd_scale_u32_skylake(simsimd_u32_t const *a, simsimd_si
     __m512d min_vec = _mm512_set1_pd(0.0);
     __m512d max_vec = _mm512_set1_pd(4294967295.0);
 
-simsimd_scale_u32_skylake_cycle:
+mathkong_scale_u32_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_u32_vec = _mm256_maskz_loadu_epi32(mask, a);
@@ -2419,12 +2419,12 @@ simsimd_scale_u32_skylake_cycle:
     sum_u32_vec = _mm512_cvttpd_epu32(sum_vec);
     _mm256_mask_storeu_epi32(result, mask, sum_u32_vec);
     result += 8;
-    if (n) goto simsimd_scale_u32_skylake_cycle;
+    if (n) goto mathkong_scale_u32_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_u32_skylake(                                                  //
-    simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_u32_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_u32_skylake(                                                     //
+    mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_u32_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u32_t *result) {
     __m512d alpha_vec = _mm512_set1_pd(alpha);
     __m512d beta_vec = _mm512_set1_pd(beta);
     __m256i a_u32_vec, b_u32_vec, c_u32_vec, sum_u32_vec;
@@ -2433,7 +2433,7 @@ SIMSIMD_PUBLIC void simsimd_fma_u32_skylake(                                    
     __m512d min_vec = _mm512_set1_pd(0.0);
     __m512d max_vec = _mm512_set1_pd(4294967295.0);
 
-simsimd_fma_u32_skylake_cycle:
+mathkong_fma_u32_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_u32_vec = _mm256_maskz_loadu_epi32(mask, a);
@@ -2458,18 +2458,18 @@ simsimd_fma_u32_skylake_cycle:
     sum_u32_vec = _mm512_cvttpd_epu32(sum_vec);
     _mm256_mask_storeu_epi32(result, mask, sum_u32_vec);
     result += 8;
-    if (n) goto simsimd_fma_u32_skylake_cycle;
+    if (n) goto mathkong_fma_u32_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_i64_skylake(simsimd_i64_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, simsimd_i64_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_i64_skylake(mathkong_i64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                               mathkong_distance_t beta, mathkong_i64_t *result) {
     __m512d alpha_vec = _mm512_set1_pd(alpha);
     __m512d beta_vec = _mm512_set1_pd(beta);
     __m512i a_i64_vec, sum_i64_vec;
     __m512d a_vec, sum_vec;
     __mmask8 mask = 0xFF;
 
-simsimd_scale_i64_skylake_cycle:
+mathkong_scale_i64_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_i64_vec = _mm512_maskz_loadu_epi64(mask, a);
@@ -2484,18 +2484,18 @@ simsimd_scale_i64_skylake_cycle:
     sum_i64_vec = _mm512_cvtpd_epi64(sum_vec);
     _mm512_mask_storeu_epi64(result, mask, sum_i64_vec);
     result += 8;
-    if (n) goto simsimd_scale_i64_skylake_cycle;
+    if (n) goto mathkong_scale_i64_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_i64_skylake(                                                  //
-    simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_i64_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_i64_skylake(                                                     //
+    mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_i64_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i64_t *result) {
     __m512d alpha_vec = _mm512_set1_pd(alpha);
     __m512d beta_vec = _mm512_set1_pd(beta);
     __m512i a_i64_vec, b_i64_vec, c_i64_vec, sum_i64_vec;
     __m512d a_vec, b_vec, c_vec, ab_vec, ab_scaled_vec, sum_vec;
     __mmask8 mask = 0xFF;
-simsimd_fma_i64_skylake_cycle:
+mathkong_fma_i64_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_i64_vec = _mm512_maskz_loadu_epi64(mask, a);
@@ -2518,18 +2518,18 @@ simsimd_fma_i64_skylake_cycle:
     sum_i64_vec = _mm512_cvtpd_epi64(sum_vec);
     _mm512_mask_storeu_epi64(result, mask, sum_i64_vec);
     result += 8;
-    if (n) goto simsimd_fma_i64_skylake_cycle;
+    if (n) goto mathkong_fma_i64_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_u64_skylake(simsimd_u64_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, simsimd_u64_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_u64_skylake(mathkong_u64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                               mathkong_distance_t beta, mathkong_u64_t *result) {
     __m512d alpha_vec = _mm512_set1_pd(alpha);
     __m512d beta_vec = _mm512_set1_pd(beta);
     __m512i a_u64_vec, sum_u64_vec;
     __m512d a_vec, sum_vec;
     __mmask8 mask = 0xFF;
 
-simsimd_scale_u64_skylake_cycle:
+mathkong_scale_u64_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_u64_vec = _mm512_maskz_loadu_epi64(mask, a);
@@ -2544,18 +2544,18 @@ simsimd_scale_u64_skylake_cycle:
     sum_u64_vec = _mm512_cvtpd_epu64(sum_vec);
     _mm512_mask_storeu_epi64(result, mask, sum_u64_vec);
     result += 8;
-    if (n) goto simsimd_scale_u64_skylake_cycle;
+    if (n) goto mathkong_scale_u64_skylake_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_u64_skylake(                                                  //
-    simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_u64_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_u64_skylake(                                                     //
+    mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_u64_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u64_t *result) {
     __m512d alpha_vec = _mm512_set1_pd(alpha);
     __m512d beta_vec = _mm512_set1_pd(beta);
     __m512i a_u64_vec, b_u64_vec, c_u64_vec, sum_u64_vec;
     __m512d a_vec, b_vec, c_vec, ab_vec, ab_scaled_vec, sum_vec;
     __mmask8 mask = 0xFF;
-simsimd_fma_u64_skylake_cycle:
+mathkong_fma_u64_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_u64_vec = _mm512_maskz_loadu_epi64(mask, a);
@@ -2578,7 +2578,7 @@ simsimd_fma_u64_skylake_cycle:
     sum_u64_vec = _mm512_cvtpd_epu64(sum_vec);
     _mm512_mask_storeu_epi64(result, mask, sum_u64_vec);
     result += 8;
-    if (n) goto simsimd_fma_u64_skylake_cycle;
+    if (n) goto mathkong_fma_u64_skylake_cycle;
 }
 
 #pragma clang attribute pop
@@ -2591,12 +2591,12 @@ simsimd_fma_u64_skylake_cycle:
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512vnni"))), \
                              apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_sum_i8_ice(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
-                                       simsimd_i8_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_i8_ice(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                        mathkong_i8_t *result) {
     __mmask64 mask = 0xFFFFFFFFFFFFFFFF;
     __m512i a_i8_vec, b_i8_vec;
     __m512i sum_i8_vec;
-simsimd_sum_i8_ice_cycle:
+mathkong_sum_i8_ice_cycle:
     if (n < 64) {
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_i8_vec = _mm512_maskz_loadu_epi8(mask, a);
@@ -2611,15 +2611,15 @@ simsimd_sum_i8_ice_cycle:
     sum_i8_vec = _mm512_adds_epi8(a_i8_vec, b_i8_vec);
     _mm512_mask_storeu_epi8(result, mask, sum_i8_vec);
     result += 64;
-    if (n) goto simsimd_sum_i8_ice_cycle;
+    if (n) goto mathkong_sum_i8_ice_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_u8_ice(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
-                                       simsimd_u8_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_u8_ice(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                        mathkong_u8_t *result) {
     __mmask64 mask = 0xFFFFFFFFFFFFFFFF;
     __m512i a_u8_vec, b_u8_vec;
     __m512i sum_u8_vec;
-simsimd_sum_u8_ice_cycle:
+mathkong_sum_u8_ice_cycle:
     if (n < 64) {
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_u8_vec = _mm512_maskz_loadu_epi8(mask, a);
@@ -2634,15 +2634,15 @@ simsimd_sum_u8_ice_cycle:
     sum_u8_vec = _mm512_adds_epu8(a_u8_vec, b_u8_vec);
     _mm512_mask_storeu_epi8(result, mask, sum_u8_vec);
     result += 64;
-    if (n) goto simsimd_sum_u8_ice_cycle;
+    if (n) goto mathkong_sum_u8_ice_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_i16_ice(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n,
-                                        simsimd_i16_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_i16_ice(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_size_t n,
+                                         mathkong_i16_t *result) {
     __mmask32 mask = 0xFFFFFFFF;
     __m512i a_i16_vec, b_i16_vec;
     __m512i sum_i16_vec;
-simsimd_sum_i16_ice_cycle:
+mathkong_sum_i16_ice_cycle:
     if (n < 32) {
         mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_i16_vec = _mm512_maskz_loadu_epi16(mask, a);
@@ -2657,15 +2657,15 @@ simsimd_sum_i16_ice_cycle:
     sum_i16_vec = _mm512_adds_epi16(a_i16_vec, b_i16_vec);
     _mm512_mask_storeu_epi16(result, mask, sum_i16_vec);
     result += 32;
-    if (n) goto simsimd_sum_i16_ice_cycle;
+    if (n) goto mathkong_sum_i16_ice_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_u16_ice(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n,
-                                        simsimd_u16_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_u16_ice(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_size_t n,
+                                         mathkong_u16_t *result) {
     __mmask32 mask = 0xFFFFFFFF;
     __m512i a_u16_vec, b_u16_vec;
     __m512i sum_u16_vec;
-simsimd_sum_u16_ice_cycle:
+mathkong_sum_u16_ice_cycle:
     if (n < 32) {
         mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_u16_vec = _mm512_maskz_loadu_epi16(mask, a);
@@ -2680,7 +2680,7 @@ simsimd_sum_u16_ice_cycle:
     sum_u16_vec = _mm512_adds_epu16(a_u16_vec, b_u16_vec);
     _mm512_mask_storeu_epi16(result, mask, sum_u16_vec);
     result += 32;
-    if (n) goto simsimd_sum_u16_ice_cycle;
+    if (n) goto mathkong_sum_u16_ice_cycle;
 }
 
 SIMSIMD_INTERNAL __m512i _mm512_adds_epi32_ice(__m512i a, __m512i b) {
@@ -2743,12 +2743,12 @@ SIMSIMD_INTERNAL __m512i _mm512_adds_epu64_ice(__m512i a, __m512i b) {
     return _mm512_mask_blend_epi64(overflow_mask, sum, max_val);
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_i32_ice(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_size_t n,
-                                        simsimd_i32_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_i32_ice(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_size_t n,
+                                         mathkong_i32_t *result) {
     __mmask16 mask = 0xFFFF;
     __m512i a_i32_vec, b_i32_vec;
     __m512i sum_i32_vec;
-simsimd_sum_i32_ice_cycle:
+mathkong_sum_i32_ice_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_i32_vec = _mm512_maskz_loadu_epi32(mask, a);
@@ -2763,15 +2763,15 @@ simsimd_sum_i32_ice_cycle:
     sum_i32_vec = _mm512_adds_epi32_ice(a_i32_vec, b_i32_vec);
     _mm512_mask_storeu_epi32(result, mask, sum_i32_vec);
     result += 16;
-    if (n) goto simsimd_sum_i32_ice_cycle;
+    if (n) goto mathkong_sum_i32_ice_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_u32_ice(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n,
-                                        simsimd_u32_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_u32_ice(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_size_t n,
+                                         mathkong_u32_t *result) {
     __mmask16 mask = 0xFFFF;
     __m512i a_u32_vec, b_u32_vec;
     __m512i sum_u32_vec;
-simsimd_sum_u32_ice_cycle:
+mathkong_sum_u32_ice_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_u32_vec = _mm512_maskz_loadu_epi32(mask, a);
@@ -2786,15 +2786,15 @@ simsimd_sum_u32_ice_cycle:
     sum_u32_vec = _mm512_adds_epu32_ice(a_u32_vec, b_u32_vec);
     _mm512_mask_storeu_epi32(result, mask, sum_u32_vec);
     result += 16;
-    if (n) goto simsimd_sum_u32_ice_cycle;
+    if (n) goto mathkong_sum_u32_ice_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_i64_ice(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_size_t n,
-                                        simsimd_i64_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_i64_ice(mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_size_t n,
+                                         mathkong_i64_t *result) {
     __mmask8 mask = 0xFF;
     __m512i a_i64_vec, b_i64_vec;
     __m512i sum_i64_vec;
-simsimd_sum_i64_ice_cycle:
+mathkong_sum_i64_ice_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_i64_vec = _mm512_maskz_loadu_epi64(mask, a);
@@ -2809,15 +2809,15 @@ simsimd_sum_i64_ice_cycle:
     sum_i64_vec = _mm512_adds_epi64_ice(a_i64_vec, b_i64_vec);
     _mm512_mask_storeu_epi64(result, mask, sum_i64_vec);
     result += 8;
-    if (n) goto simsimd_sum_i64_ice_cycle;
+    if (n) goto mathkong_sum_i64_ice_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_u64_ice(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_size_t n,
-                                        simsimd_u64_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_u64_ice(mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_size_t n,
+                                         mathkong_u64_t *result) {
     __mmask8 mask = 0xFF;
     __m512i a_u64_vec, b_u64_vec;
     __m512i sum_u64_vec;
-simsimd_sum_u64_ice_cycle:
+mathkong_sum_u64_ice_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_u64_vec = _mm512_maskz_loadu_epi64(mask, a);
@@ -2832,7 +2832,7 @@ simsimd_sum_u64_ice_cycle:
     sum_u64_vec = _mm512_adds_epu64_ice(a_u64_vec, b_u64_vec);
     _mm512_mask_storeu_epi64(result, mask, sum_u64_vec);
     result += 8;
-    if (n) goto simsimd_sum_u64_ice_cycle;
+    if (n) goto mathkong_sum_u64_ice_cycle;
 }
 
 #pragma clang attribute pop
@@ -2854,12 +2854,12 @@ SIMSIMD_INTERNAL __m512h _mm512_set1_ph_from_ps(float a) {
     return (__m512h)_mm512_set1_epi16(h);
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_f16_sapphire(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
-                                             simsimd_f16_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_f16_sapphire(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                              mathkong_f16_t *result) {
     __mmask32 mask = 0xFFFFFFFF;
     __m512h a_f16_vec, b_f16_vec;
     __m512h sum_f16_vec;
-simsimd_sum_f16_sapphire_cycle:
+mathkong_sum_f16_sapphire_cycle:
     if (n < 32) {
         mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_f16_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a));
@@ -2874,17 +2874,17 @@ simsimd_sum_f16_sapphire_cycle:
     sum_f16_vec = _mm512_add_ph(a_f16_vec, b_f16_vec);
     _mm512_mask_storeu_epi16(result, mask, _mm512_castph_si512(sum_f16_vec));
     result += 32;
-    if (n) goto simsimd_sum_f16_sapphire_cycle;
+    if (n) goto mathkong_sum_f16_sapphire_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_f16_sapphire(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                               simsimd_distance_t beta, simsimd_f16_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_f16_sapphire(mathkong_f16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                                mathkong_distance_t beta, mathkong_f16_t *result) {
     __mmask32 mask = 0xFFFFFFFF;
     __m512h alpha_vec = _mm512_set1_ph_from_ps(alpha);
     __m512h beta_vec = _mm512_set1_ph_from_ps(beta);
     __m512h a_f16_vec, b_f16_vec;
     __m512h sum_f16_vec;
-simsimd_scale_f16_sapphire_cycle:
+mathkong_scale_f16_sapphire_cycle:
     if (n < 32) {
         mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_f16_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a));
@@ -2897,25 +2897,25 @@ simsimd_scale_f16_sapphire_cycle:
     sum_f16_vec = _mm512_fmadd_ph(a_f16_vec, alpha_vec, beta_vec);
     _mm512_mask_storeu_epi16(result, mask, _mm512_castph_si512(sum_f16_vec));
     result += 32;
-    if (n) goto simsimd_scale_f16_sapphire_cycle;
+    if (n) goto mathkong_scale_f16_sapphire_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_f16_sapphire(                        //
-    simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result) {
+SIMSIMD_PUBLIC void mathkong_wsum_f16_sapphire(                          //
+    mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result) {
 
     // There are are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_f16_sapphire(a, b, n, result);
+        mathkong_sum_f16_sapphire(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_f16_sapphire(a, n, alpha, 0, result); }
-        else { simsimd_scale_f16_sapphire(b, n, beta, 0, result); }
+        if (beta == 0) { mathkong_scale_f16_sapphire(a, n, alpha, 0, result); }
+        else { mathkong_scale_f16_sapphire(b, n, beta, 0, result); }
         return;
     }
 
@@ -2925,7 +2925,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_f16_sapphire(                        //
     __m512h beta_vec = _mm512_set1_ph_from_ps(beta);
     __m512h a_f16_vec, b_f16_vec;
     __m512h a_scaled_f16_vec, sum_f16_vec;
-simsimd_wsum_f16_sapphire_cycle:
+mathkong_wsum_f16_sapphire_cycle:
     if (n < 32) {
         mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_f16_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a));
@@ -2941,19 +2941,19 @@ simsimd_wsum_f16_sapphire_cycle:
     sum_f16_vec = _mm512_fmadd_ph(b_f16_vec, beta_vec, a_scaled_f16_vec);
     _mm512_mask_storeu_epi16(result, mask, _mm512_castph_si512(sum_f16_vec));
     result += 32;
-    if (n) goto simsimd_wsum_f16_sapphire_cycle;
+    if (n) goto mathkong_wsum_f16_sapphire_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_f16_sapphire(                                                 //
-    simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_f16_sapphire(                                                    //
+    mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result) {
 
     __mmask32 mask = 0xFFFFFFFF;
     __m512h alpha_vec = _mm512_set1_ph_from_ps(alpha);
     __m512h beta_vec = _mm512_set1_ph_from_ps(beta);
     __m512h a_f16_vec, b_f16_vec, c_f16_vec;
     __m512h ab_f16_vec, ab_scaled_f16_vec, sum_f16_vec;
-simsimd_fma_f16_sapphire_cycle:
+mathkong_fma_f16_sapphire_cycle:
     if (n < 32) {
         mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_f16_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a));
@@ -2972,11 +2972,11 @@ simsimd_fma_f16_sapphire_cycle:
     sum_f16_vec = _mm512_fmadd_ph(c_f16_vec, beta_vec, ab_scaled_f16_vec);
     _mm512_mask_storeu_epi16(result, mask, _mm512_castph_si512(sum_f16_vec));
     result += 32;
-    if (n) goto simsimd_fma_f16_sapphire_cycle;
+    if (n) goto mathkong_fma_f16_sapphire_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_u8_sapphire(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, simsimd_u8_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_u8_sapphire(mathkong_u8_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                               mathkong_distance_t beta, mathkong_u8_t *result) {
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
     __m512h alpha_vec = _mm512_set1_ph_from_ps(alpha);
     __m512h beta_vec = _mm512_set1_ph_from_ps(beta);
@@ -2984,7 +2984,7 @@ SIMSIMD_PUBLIC void simsimd_scale_u8_sapphire(simsimd_u8_t const *a, simsimd_siz
     __m512h a_f16_low_vec, a_f16_high_vec;
     __m512h a_scaled_f16_low_vec, a_scaled_f16_high_vec, sum_f16_low_vec, sum_f16_high_vec;
     __m512i sum_i16_low_vec, sum_i16_high_vec;
-simsimd_scale_u8_sapphire_cycle:
+mathkong_scale_u8_sapphire_cycle:
     if (n < 64) {
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_u8_vec = _mm512_maskz_loadu_epi8(mask, a);
@@ -3006,25 +3006,25 @@ simsimd_scale_u8_sapphire_cycle:
     sum_u8_vec = _mm512_packus_epi16(sum_i16_low_vec, sum_i16_high_vec);
     _mm512_mask_storeu_epi8(result, mask, sum_u8_vec);
     result += 64;
-    if (n) goto simsimd_scale_u8_sapphire_cycle;
+    if (n) goto mathkong_scale_u8_sapphire_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_u8_sapphire(                       //
-    simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result) {
+SIMSIMD_PUBLIC void mathkong_wsum_u8_sapphire(                         //
+    mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result) {
 
     // There are are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_u8_ice(a, b, n, result);
+        mathkong_sum_u8_ice(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_u8_sapphire(a, n, alpha, 0, result); }
-        else { simsimd_scale_u8_sapphire(b, n, beta, 0, result); }
+        if (beta == 0) { mathkong_scale_u8_sapphire(a, n, alpha, 0, result); }
+        else { mathkong_scale_u8_sapphire(b, n, beta, 0, result); }
         return;
     }
 
@@ -3036,7 +3036,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_sapphire(                       //
     __m512h a_f16_low_vec, a_f16_high_vec, b_f16_low_vec, b_f16_high_vec;
     __m512h a_scaled_f16_low_vec, a_scaled_f16_high_vec, sum_f16_low_vec, sum_f16_high_vec;
     __m512i sum_i16_low_vec, sum_i16_high_vec;
-simsimd_wsum_u8_sapphire_cycle:
+mathkong_wsum_u8_sapphire_cycle:
     if (n < 64) {
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_u8_vec = _mm512_maskz_loadu_epi8(mask, a);
@@ -3065,11 +3065,11 @@ simsimd_wsum_u8_sapphire_cycle:
     sum_u8_vec = _mm512_packus_epi16(sum_i16_low_vec, sum_i16_high_vec);
     _mm512_mask_storeu_epi8(result, mask, sum_u8_vec);
     result += 64;
-    if (n) goto simsimd_wsum_u8_sapphire_cycle;
+    if (n) goto mathkong_wsum_u8_sapphire_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_i8_sapphire(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, simsimd_i8_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_i8_sapphire(mathkong_i8_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                               mathkong_distance_t beta, mathkong_i8_t *result) {
 
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
     __m512h alpha_vec = _mm512_set1_ph_from_ps(alpha);
@@ -3078,7 +3078,7 @@ SIMSIMD_PUBLIC void simsimd_scale_i8_sapphire(simsimd_i8_t const *a, simsimd_siz
     __m512h a_f16_low_vec, a_f16_high_vec;
     __m512h sum_f16_low_vec, sum_f16_high_vec;
     __m512i sum_i16_low_vec, sum_i16_high_vec;
-simsimd_wsum_i8_sapphire_cycle:
+mathkong_wsum_i8_sapphire_cycle:
     if (n < 64) {
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_i8_vec = _mm512_maskz_loadu_epi8(mask, a);
@@ -3101,25 +3101,25 @@ simsimd_wsum_i8_sapphire_cycle:
                                     _mm512_cvtsepi16_epi8(sum_i16_high_vec), 1);
     _mm512_mask_storeu_epi8(result, mask, sum_i8_vec);
     result += 64;
-    if (n) goto simsimd_wsum_i8_sapphire_cycle;
+    if (n) goto mathkong_wsum_i8_sapphire_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_i8_sapphire(                       //
-    simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result) {
+SIMSIMD_PUBLIC void mathkong_wsum_i8_sapphire(                         //
+    mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result) {
 
     // There are are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_i8_ice(a, b, n, result);
+        mathkong_sum_i8_ice(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_i8_sapphire(a, n, alpha, 0, result); }
-        else { simsimd_scale_i8_sapphire(b, n, beta, 0, result); }
+        if (beta == 0) { mathkong_scale_i8_sapphire(a, n, alpha, 0, result); }
+        else { mathkong_scale_i8_sapphire(b, n, beta, 0, result); }
         return;
     }
 
@@ -3131,7 +3131,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_sapphire(                       //
     __m512h a_f16_low_vec, a_f16_high_vec, b_f16_low_vec, b_f16_high_vec;
     __m512h a_scaled_f16_low_vec, a_scaled_f16_high_vec, sum_f16_low_vec, sum_f16_high_vec;
     __m512i sum_i16_low_vec, sum_i16_high_vec;
-simsimd_wsum_i8_sapphire_cycle:
+mathkong_wsum_i8_sapphire_cycle:
     if (n < 64) {
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_i8_vec = _mm512_maskz_loadu_epi8(mask, a);
@@ -3161,12 +3161,12 @@ simsimd_wsum_i8_sapphire_cycle:
                                     _mm512_cvtsepi16_epi8(sum_i16_high_vec), 1);
     _mm512_mask_storeu_epi8(result, mask, sum_i8_vec);
     result += 64;
-    if (n) goto simsimd_wsum_i8_sapphire_cycle;
+    if (n) goto mathkong_wsum_i8_sapphire_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_i8_sapphire(                                               //
-    simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_i8_sapphire(                                                  //
+    mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_i8_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result) {
 
     __mmask64 mask = 0xFFFFFFFFFFFFFFFF;
     __m512h alpha_vec = _mm512_set1_ph_from_ps(alpha);
@@ -3179,7 +3179,7 @@ SIMSIMD_PUBLIC void simsimd_fma_i8_sapphire(                                    
     __m512h min_f16_vec = _mm512_cvtepi16_ph(_mm512_set1_epi16(-128));
     __m512h max_f16_vec = _mm512_cvtepi16_ph(_mm512_set1_epi16(127));
 
-simsimd_fma_i8_sapphire_cycle:
+mathkong_fma_i8_sapphire_cycle:
     if (n < 64) {
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_i8_vec = _mm512_maskz_loadu_epi8(mask, a);
@@ -3220,12 +3220,12 @@ simsimd_fma_i8_sapphire_cycle:
                                     _mm512_cvtsepi16_epi8(sum_i16_high_vec), 1);
     _mm512_mask_storeu_epi8(result, mask, sum_i8_vec);
     result += 64;
-    if (n) goto simsimd_fma_i8_sapphire_cycle;
+    if (n) goto mathkong_fma_i8_sapphire_cycle;
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_u8_sapphire(                                               //
-    simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_u8_sapphire(                                                  //
+    mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_u8_t const *c, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result) {
 
     __mmask64 mask = 0xFFFFFFFFFFFFFFFF;
     __m512h alpha_vec = _mm512_set1_ph_from_ps(alpha);
@@ -3238,7 +3238,7 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_sapphire(                                    
     __m512h min_f16_vec = _mm512_cvtepi16_ph(_mm512_set1_epi16(0));
     __m512h max_f16_vec = _mm512_cvtepi16_ph(_mm512_set1_epi16(255));
 
-simsimd_fma_u8_sapphire_cycle:
+mathkong_fma_u8_sapphire_cycle:
     if (n < 64) {
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_u8_vec = _mm512_maskz_loadu_epi8(mask, a);
@@ -3278,7 +3278,7 @@ simsimd_fma_u8_sapphire_cycle:
     sum_u8_vec = _mm512_packus_epi16(sum_i16_low_vec, sum_i16_high_vec);
     _mm512_mask_storeu_epi8(result, mask, sum_u8_vec);
     result += 64;
-    if (n) goto simsimd_fma_u8_sapphire_cycle;
+    if (n) goto mathkong_fma_u8_sapphire_cycle;
 }
 
 #pragma clang attribute pop
@@ -3292,10 +3292,10 @@ simsimd_fma_u8_sapphire_cycle:
 #pragma GCC target("arch=armv8.2-a+simd")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_sum_f32_neon(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
-                                         simsimd_f32_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_f32_neon(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                          mathkong_f32_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         float32x4_t a_vec = vld1q_f32(a + i);
         float32x4_t b_vec = vld1q_f32(b + i);
@@ -3307,15 +3307,15 @@ SIMSIMD_PUBLIC void simsimd_sum_f32_neon(simsimd_f32_t const *a, simsimd_f32_t c
     for (; i < n; ++i) result[i] = a[i] + b[i];
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_f32_neon(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                           simsimd_distance_t beta, simsimd_f32_t *result) {
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+SIMSIMD_PUBLIC void mathkong_scale_f32_neon(mathkong_f32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                            mathkong_distance_t beta, mathkong_f32_t *result) {
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     float32x4_t alpha_vec = vdupq_n_f32(alpha_f32);
     float32x4_t beta_vec = vdupq_n_f32(beta_f32);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         float32x4_t a_vec = vld1q_f32(a + i);
         float32x4_t sum_vec = vfmaq_n_f32(beta_vec, a_vec, alpha_f32);
@@ -3326,31 +3326,31 @@ SIMSIMD_PUBLIC void simsimd_scale_f32_neon(simsimd_f32_t const *a, simsimd_size_
     for (; i < n; ++i) result[i] = alpha_f32 * a[i] + beta_f32;
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_f32_neon(                            //
-    simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result) {
+SIMSIMD_PUBLIC void mathkong_wsum_f32_neon(                              //
+    mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result) {
 
     // There are are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_f32_neon(a, b, n, result);
+        mathkong_sum_f32_neon(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_f32_neon(a, n, alpha, 0, result); }
-        else { simsimd_scale_f32_neon(b, n, beta, 0, result); }
+        if (beta == 0) { mathkong_scale_f32_neon(a, n, alpha, 0, result); }
+        else { mathkong_scale_f32_neon(b, n, beta, 0, result); }
         return;
     }
 
     // The general case.
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         float32x4_t a_vec = vld1q_f32(a + i);
         float32x4_t b_vec = vld1q_f32(b + i);
@@ -3364,14 +3364,14 @@ SIMSIMD_PUBLIC void simsimd_wsum_f32_neon(                            //
     for (; i < n; ++i) result[i] = alpha_f32 * a[i] + beta_f32 * b[i];
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_f32_neon(                                   //
-    simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result) {
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+SIMSIMD_PUBLIC void mathkong_fma_f32_neon(                                     //
+    mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c, //
+    mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *result) {
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         float32x4_t a_vec = vld1q_f32(a + i);
         float32x4_t b_vec = vld1q_f32(b + i);
@@ -3386,10 +3386,10 @@ SIMSIMD_PUBLIC void simsimd_fma_f32_neon(                                   //
     for (; i < n; ++i) result[i] = alpha_f32 * a[i] * b[i] + beta_f32 * c[i];
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_i16_neon(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n,
-                                         simsimd_i16_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_i16_neon(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_size_t n,
+                                          mathkong_i16_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         int16x8_t a_vec = vld1q_s16(a + i);
         int16x8_t b_vec = vld1q_s16(b + i);
@@ -3398,18 +3398,18 @@ SIMSIMD_PUBLIC void simsimd_sum_i16_neon(simsimd_i16_t const *a, simsimd_i16_t c
     }
 
     // The tail:
-    for (; i < n; ++i) _simsimd_i16_sadd(a + i, b + i, result + i);
+    for (; i < n; ++i) _mathkong_i16_sadd(a + i, b + i, result + i);
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_i16_neon(simsimd_i16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                           simsimd_distance_t beta, simsimd_i16_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_i16_neon(mathkong_i16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                            mathkong_distance_t beta, mathkong_i16_t *result) {
     float32_t alpha_f32 = (float32_t)alpha;
     float32_t beta_f32 = (float32_t)beta;
     float32x4_t alpha_vec = vdupq_n_f32(alpha_f32);
     float32x4_t beta_vec = vdupq_n_f32(beta_f32);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         int16x4_t a_i16_vec = vld1_s16(a + i);
         float32x4_t a_vec = vcvtq_f32_s32(vmovl_s16(a_i16_vec));
@@ -3420,19 +3420,19 @@ SIMSIMD_PUBLIC void simsimd_scale_i16_neon(simsimd_i16_t const *a, simsimd_size_
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t sum = alpha_f32 * a[i] + beta_f32;
-        _simsimd_f32_to_i16(&sum, result + i);
+        mathkong_f32_t sum = alpha_f32 * a[i] + beta_f32;
+        _mathkong_f32_to_i16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_i16_neon(                                   //
-    simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_i16_neon(                                     //
+    mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_i16_t const *c, //
+    mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i16_t *result) {
     float32_t alpha_f32 = (float32_t)alpha;
     float32_t beta_f32 = (float32_t)beta;
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         int16x4_t a_i16_vec = vld1_s16(a + i);
         int16x4_t b_i16_vec = vld1_s16(b + i);
@@ -3449,15 +3449,15 @@ SIMSIMD_PUBLIC void simsimd_fma_i16_neon(                                   //
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t sum = alpha_f32 * a[i] * b[i] + beta_f32 * c[i];
-        _simsimd_f32_to_i16(&sum, result + i);
+        mathkong_f32_t sum = alpha_f32 * a[i] * b[i] + beta_f32 * c[i];
+        _mathkong_f32_to_i16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_u16_neon(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n,
-                                         simsimd_u16_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_u16_neon(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_size_t n,
+                                          mathkong_u16_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         uint16x8_t a_vec = vld1q_u16(a + i);
         uint16x8_t b_vec = vld1q_u16(b + i);
@@ -3466,18 +3466,18 @@ SIMSIMD_PUBLIC void simsimd_sum_u16_neon(simsimd_u16_t const *a, simsimd_u16_t c
     }
 
     // The tail:
-    for (; i < n; ++i) _simsimd_u16_sadd(a + i, b + i, result + i);
+    for (; i < n; ++i) _mathkong_u16_sadd(a + i, b + i, result + i);
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_u16_neon(simsimd_u16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                           simsimd_distance_t beta, simsimd_u16_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_u16_neon(mathkong_u16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                            mathkong_distance_t beta, mathkong_u16_t *result) {
     float32_t alpha_f32 = (float32_t)alpha;
     float32_t beta_f32 = (float32_t)beta;
     float32x4_t alpha_vec = vdupq_n_f32(alpha_f32);
     float32x4_t beta_vec = vdupq_n_f32(beta_f32);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         uint16x4_t a_u16_vec = vld1_u16(a + i);
         float32x4_t a_vec = vcvtq_f32_u32(vmovl_u16(a_u16_vec));
@@ -3488,19 +3488,19 @@ SIMSIMD_PUBLIC void simsimd_scale_u16_neon(simsimd_u16_t const *a, simsimd_size_
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t sum = alpha_f32 * a[i] + beta_f32;
-        _simsimd_f32_to_u16(&sum, result + i);
+        mathkong_f32_t sum = alpha_f32 * a[i] + beta_f32;
+        _mathkong_f32_to_u16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_u16_neon(                                   //
-    simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_u16_neon(                                     //
+    mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_u16_t const *c, //
+    mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u16_t *result) {
     float32_t alpha_f32 = (float32_t)alpha;
     float32_t beta_f32 = (float32_t)beta;
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         uint16x4_t a_u16_vec = vld1_u16(a + i);
         uint16x4_t b_u16_vec = vld1_u16(b + i);
@@ -3517,15 +3517,15 @@ SIMSIMD_PUBLIC void simsimd_fma_u16_neon(                                   //
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t sum = alpha_f32 * a[i] * b[i] + beta_f32 * c[i];
-        _simsimd_f32_to_u16(&sum, result + i);
+        mathkong_f32_t sum = alpha_f32 * a[i] * b[i] + beta_f32 * c[i];
+        _mathkong_f32_to_u16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_i32_neon(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_size_t n,
-                                         simsimd_i32_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_i32_neon(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_size_t n,
+                                          mathkong_i32_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         int32x4_t a_vec = vld1q_s32(a + i);
         int32x4_t b_vec = vld1q_s32(b + i);
@@ -3534,18 +3534,18 @@ SIMSIMD_PUBLIC void simsimd_sum_i32_neon(simsimd_i32_t const *a, simsimd_i32_t c
     }
 
     // The tail:
-    for (; i < n; ++i) _simsimd_i32_sadd(a + i, b + i, result + i);
+    for (; i < n; ++i) _mathkong_i32_sadd(a + i, b + i, result + i);
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_i32_neon(simsimd_i32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                           simsimd_distance_t beta, simsimd_i32_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_i32_neon(mathkong_i32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                            mathkong_distance_t beta, mathkong_i32_t *result) {
     float64_t alpha_f64 = (float64_t)alpha;
     float64_t beta_f64 = (float64_t)beta;
     float64x2_t alpha_vec = vdupq_n_f64(alpha_f64);
     float64x2_t beta_vec = vdupq_n_f64(beta_f64);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
         int32x2_t a_i32_vec = vld1_s32(a + i);
         float64x2_t a_vec = vcvtq_f64_s64(vmovl_s32(a_i32_vec));
@@ -3556,19 +3556,19 @@ SIMSIMD_PUBLIC void simsimd_scale_i32_neon(simsimd_i32_t const *a, simsimd_size_
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f64_t sum = alpha_f64 * a[i] + beta_f64;
-        _simsimd_f64_to_i32(&sum, result + i);
+        mathkong_f64_t sum = alpha_f64 * a[i] + beta_f64;
+        _mathkong_f64_to_i32(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_i32_neon(                                   //
-    simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_i32_neon(                                     //
+    mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_i32_t const *c, //
+    mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i32_t *result) {
     float64_t alpha_f64 = (float64_t)alpha;
     float64_t beta_f64 = (float64_t)beta;
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
         int32x2_t a_i32_vec = vld1_s32(a + i);
         int32x2_t b_i32_vec = vld1_s32(b + i);
@@ -3585,15 +3585,15 @@ SIMSIMD_PUBLIC void simsimd_fma_i32_neon(                                   //
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f64_t sum = alpha_f64 * a[i] * b[i] + beta_f64 * c[i];
-        _simsimd_f64_to_i32(&sum, result + i);
+        mathkong_f64_t sum = alpha_f64 * a[i] * b[i] + beta_f64 * c[i];
+        _mathkong_f64_to_i32(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_u32_neon(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n,
-                                         simsimd_u32_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_u32_neon(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_size_t n,
+                                          mathkong_u32_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         uint32x4_t a_vec = vld1q_u32(a + i);
         uint32x4_t b_vec = vld1q_u32(b + i);
@@ -3602,18 +3602,18 @@ SIMSIMD_PUBLIC void simsimd_sum_u32_neon(simsimd_u32_t const *a, simsimd_u32_t c
     }
 
     // The tail:
-    for (; i < n; ++i) _simsimd_u32_sadd(a + i, b + i, result + i);
+    for (; i < n; ++i) _mathkong_u32_sadd(a + i, b + i, result + i);
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_u32_neon(simsimd_u32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                           simsimd_distance_t beta, simsimd_u32_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_u32_neon(mathkong_u32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                            mathkong_distance_t beta, mathkong_u32_t *result) {
     float64_t alpha_f64 = (float64_t)alpha;
     float64_t beta_f64 = (float64_t)beta;
     float64x2_t alpha_vec = vdupq_n_f64(alpha_f64);
     float64x2_t beta_vec = vdupq_n_f64(beta_f64);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
         uint32x2_t a_u32_vec = vld1_u32(a + i);
         float64x2_t a_vec = vcvtq_f64_u64(vmovl_u32(a_u32_vec));
@@ -3624,19 +3624,19 @@ SIMSIMD_PUBLIC void simsimd_scale_u32_neon(simsimd_u32_t const *a, simsimd_size_
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f64_t sum = alpha_f64 * a[i] + beta_f64;
-        _simsimd_f64_to_u32(&sum, result + i);
+        mathkong_f64_t sum = alpha_f64 * a[i] + beta_f64;
+        _mathkong_f64_to_u32(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_u32_neon(                                   //
-    simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_u32_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_u32_neon(                                     //
+    mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_u32_t const *c, //
+    mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u32_t *result) {
     float64_t alpha_f64 = (float64_t)alpha;
     float64_t beta_f64 = (float64_t)beta;
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
         uint32x2_t a_u32_vec = vld1_u32(a + i);
         uint32x2_t b_u32_vec = vld1_u32(b + i);
@@ -3653,15 +3653,15 @@ SIMSIMD_PUBLIC void simsimd_fma_u32_neon(                                   //
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f64_t sum = alpha_f64 * a[i] * b[i] + beta_f64 * c[i];
-        _simsimd_f64_to_u32(&sum, result + i);
+        mathkong_f64_t sum = alpha_f64 * a[i] * b[i] + beta_f64 * c[i];
+        _mathkong_f64_to_u32(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_i64_neon(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_size_t n,
-                                         simsimd_i64_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_i64_neon(mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_size_t n,
+                                          mathkong_i64_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
         int64x2_t a_vec = vld1q_s64(a + i);
         int64x2_t b_vec = vld1q_s64(b + i);
@@ -3670,18 +3670,18 @@ SIMSIMD_PUBLIC void simsimd_sum_i64_neon(simsimd_i64_t const *a, simsimd_i64_t c
     }
 
     // The tail:
-    for (; i < n; ++i) _simsimd_i64_sadd(a + i, b + i, result + i);
+    for (; i < n; ++i) _mathkong_i64_sadd(a + i, b + i, result + i);
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_i64_neon(simsimd_i64_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                           simsimd_distance_t beta, simsimd_i64_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_i64_neon(mathkong_i64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                            mathkong_distance_t beta, mathkong_i64_t *result) {
     float64_t alpha_f64 = (float64_t)alpha;
     float64_t beta_f64 = (float64_t)beta;
     float64x2_t alpha_vec = vdupq_n_f64(alpha_f64);
     float64x2_t beta_vec = vdupq_n_f64(beta_f64);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
         int64x2_t a_i64_vec = vld1q_s64(a + i);
         float64x2_t a_vec = vcvtq_f64_s64(a_i64_vec);
@@ -3692,19 +3692,19 @@ SIMSIMD_PUBLIC void simsimd_scale_i64_neon(simsimd_i64_t const *a, simsimd_size_
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f64_t sum = alpha_f64 * a[i] + beta_f64;
-        _simsimd_f64_to_i64(&sum, result + i);
+        mathkong_f64_t sum = alpha_f64 * a[i] + beta_f64;
+        _mathkong_f64_to_i64(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_i64_neon(                                   //
-    simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_i64_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_i64_neon(                                     //
+    mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_i64_t const *c, //
+    mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i64_t *result) {
     float64_t alpha_f64 = (float64_t)alpha;
     float64_t beta_f64 = (float64_t)beta;
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
         int64x2_t a_i64_vec = vld1q_s64(a + i);
         int64x2_t b_i64_vec = vld1q_s64(b + i);
@@ -3721,15 +3721,15 @@ SIMSIMD_PUBLIC void simsimd_fma_i64_neon(                                   //
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f64_t sum = alpha_f64 * a[i] * b[i] + beta_f64 * c[i];
-        _simsimd_f64_to_i64(&sum, result + i);
+        mathkong_f64_t sum = alpha_f64 * a[i] * b[i] + beta_f64 * c[i];
+        _mathkong_f64_to_i64(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_u64_neon(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_size_t n,
-                                         simsimd_u64_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_u64_neon(mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_size_t n,
+                                          mathkong_u64_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
         uint64x2_t a_vec = vld1q_u64(a + i);
         uint64x2_t b_vec = vld1q_u64(b + i);
@@ -3738,18 +3738,18 @@ SIMSIMD_PUBLIC void simsimd_sum_u64_neon(simsimd_u64_t const *a, simsimd_u64_t c
     }
 
     // The tail:
-    for (; i < n; ++i) _simsimd_u64_sadd(a + i, b + i, result + i);
+    for (; i < n; ++i) _mathkong_u64_sadd(a + i, b + i, result + i);
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_u64_neon(simsimd_u64_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                           simsimd_distance_t beta, simsimd_u64_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_u64_neon(mathkong_u64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                            mathkong_distance_t beta, mathkong_u64_t *result) {
     float64_t alpha_f64 = (float64_t)alpha;
     float64_t beta_f64 = (float64_t)beta;
     float64x2_t alpha_vec = vdupq_n_f64(alpha_f64);
     float64x2_t beta_vec = vdupq_n_f64(beta_f64);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
         uint64x2_t a_u64_vec = vld1q_u64(a + i);
         float64x2_t a_vec = vcvtq_f64_u64(a_u64_vec);
@@ -3760,19 +3760,19 @@ SIMSIMD_PUBLIC void simsimd_scale_u64_neon(simsimd_u64_t const *a, simsimd_size_
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f64_t sum = alpha_f64 * a[i] + beta_f64;
-        _simsimd_f64_to_u64(&sum, result + i);
+        mathkong_f64_t sum = alpha_f64 * a[i] + beta_f64;
+        _mathkong_f64_to_u64(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_u64_neon(                                   //
-    simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_u64_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_u64_neon(                                     //
+    mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_u64_t const *c, //
+    mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u64_t *result) {
     float64_t alpha_f64 = (float64_t)alpha;
     float64_t beta_f64 = (float64_t)beta;
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
         uint64x2_t a_u64_vec = vld1q_u64(a + i);
         uint64x2_t b_u64_vec = vld1q_u64(b + i);
@@ -3789,8 +3789,8 @@ SIMSIMD_PUBLIC void simsimd_fma_u64_neon(                                   //
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f64_t sum = alpha_f64 * a[i] * b[i] + beta_f64 * c[i];
-        _simsimd_f64_to_u64(&sum, result + i);
+        mathkong_f64_t sum = alpha_f64 * a[i] * b[i] + beta_f64 * c[i];
+        _mathkong_f64_to_u64(&sum, result + i);
     }
 }
 
@@ -3803,10 +3803,10 @@ SIMSIMD_PUBLIC void simsimd_fma_u64_neon(                                   //
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_sum_bf16_neon(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
-                                          simsimd_bf16_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_bf16_neon(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                           mathkong_bf16_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         float32x4_t a_vec = vcvt_f32_bf16(vld1_bf16((bfloat16_t const *)a + i));
         float32x4_t b_vec = vcvt_f32_bf16(vld1_bf16((bfloat16_t const *)b + i));
@@ -3816,23 +3816,23 @@ SIMSIMD_PUBLIC void simsimd_sum_bf16_neon(simsimd_bf16_t const *a, simsimd_bf16_
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai, bi;
-        simsimd_bf16_to_f32(a + i, &ai);
-        simsimd_bf16_to_f32(b + i, &bi);
-        simsimd_f32_t sum = ai + bi;
-        simsimd_f32_to_bf16(&sum, result + i);
+        mathkong_f32_t ai, bi;
+        mathkong_bf16_to_f32(a + i, &ai);
+        mathkong_bf16_to_f32(b + i, &bi);
+        mathkong_f32_t sum = ai + bi;
+        mathkong_f32_to_bf16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_bf16_neon(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                            simsimd_distance_t beta, simsimd_bf16_t *result) {
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+SIMSIMD_PUBLIC void mathkong_scale_bf16_neon(mathkong_bf16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                             mathkong_distance_t beta, mathkong_bf16_t *result) {
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
     float32x4_t alpha_vec = vdupq_n_f32(alpha_f32);
     float32x4_t beta_vec = vdupq_n_f32(beta_f32);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         float32x4_t a_vec = vcvt_f32_bf16(vld1_bf16((bfloat16_t const *)a + i));
         float32x4_t sum_vec = vfmaq_f32(beta_vec, a_vec, alpha_vec);
@@ -3841,38 +3841,38 @@ SIMSIMD_PUBLIC void simsimd_scale_bf16_neon(simsimd_bf16_t const *a, simsimd_siz
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai;
-        simsimd_bf16_to_f32(a + i, &ai);
-        simsimd_f32_t sum = alpha_f32 * ai + beta_f32;
-        simsimd_f32_to_bf16(&sum, result + i);
+        mathkong_f32_t ai;
+        mathkong_bf16_to_f32(a + i, &ai);
+        mathkong_f32_t sum = alpha_f32 * ai + beta_f32;
+        mathkong_f32_to_bf16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_bf16_neon(                             //
-    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result) {
+SIMSIMD_PUBLIC void mathkong_wsum_bf16_neon(                               //
+    mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result) {
 
     // There are are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_bf16_neon(a, b, n, result);
+        mathkong_sum_bf16_neon(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_bf16_neon(a, n, alpha, 0, result); }
-        else { simsimd_scale_bf16_neon(b, n, beta, 0, result); }
+        if (beta == 0) { mathkong_scale_bf16_neon(a, n, alpha, 0, result); }
+        else { mathkong_scale_bf16_neon(b, n, beta, 0, result); }
         return;
     }
 
     // The general case.
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         float32x4_t a_vec = vcvt_f32_bf16(vld1_bf16((bfloat16_t const *)a + i));
         float32x4_t b_vec = vcvt_f32_bf16(vld1_bf16((bfloat16_t const *)b + i));
@@ -3884,22 +3884,22 @@ SIMSIMD_PUBLIC void simsimd_wsum_bf16_neon(                             //
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai, bi;
-        simsimd_bf16_to_f32(a + i, &ai);
-        simsimd_bf16_to_f32(b + i, &bi);
-        simsimd_f32_t sum = alpha_f32 * ai + beta_f32 * bi;
-        simsimd_f32_to_bf16(&sum, result + i);
+        mathkong_f32_t ai, bi;
+        mathkong_bf16_to_f32(a + i, &ai);
+        mathkong_bf16_to_f32(b + i, &bi);
+        mathkong_f32_t sum = alpha_f32 * ai + beta_f32 * bi;
+        mathkong_f32_to_bf16(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_bf16_neon(                                     //
-    simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result) {
-    simsimd_f32_t alpha_f32 = (simsimd_f32_t)alpha;
-    simsimd_f32_t beta_f32 = (simsimd_f32_t)beta;
+SIMSIMD_PUBLIC void mathkong_fma_bf16_neon(                                       //
+    mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_bf16_t const *c, //
+    mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *result) {
+    mathkong_f32_t alpha_f32 = (mathkong_f32_t)alpha;
+    mathkong_f32_t beta_f32 = (mathkong_f32_t)beta;
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         float32x4_t a_vec = vcvt_f32_bf16(vld1_bf16((bfloat16_t const *)a + i));
         float32x4_t b_vec = vcvt_f32_bf16(vld1_bf16((bfloat16_t const *)b + i));
@@ -3912,12 +3912,12 @@ SIMSIMD_PUBLIC void simsimd_fma_bf16_neon(                                     /
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t ai, bi, ci;
-        simsimd_bf16_to_f32(a + i, &ai);
-        simsimd_bf16_to_f32(b + i, &bi);
-        simsimd_bf16_to_f32(c + i, &ci);
-        simsimd_f32_t sum = alpha * ai * bi + beta * ci;
-        simsimd_f32_to_bf16(&sum, result + i);
+        mathkong_f32_t ai, bi, ci;
+        mathkong_bf16_to_f32(a + i, &ai);
+        mathkong_bf16_to_f32(b + i, &bi);
+        mathkong_bf16_to_f32(c + i, &ci);
+        mathkong_f32_t sum = alpha * ai * bi + beta * ci;
+        mathkong_f32_to_bf16(&sum, result + i);
     }
 }
 
@@ -3930,10 +3930,10 @@ SIMSIMD_PUBLIC void simsimd_fma_bf16_neon(                                     /
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 
-SIMSIMD_PUBLIC void simsimd_sum_f16_neon(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
-                                         simsimd_f16_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_f16_neon(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                          mathkong_f16_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         float16x8_t a_vec = vld1q_f16((float16_t const *)a + i);
         float16x8_t b_vec = vld1q_f16((float16_t const *)b + i);
@@ -3945,15 +3945,15 @@ SIMSIMD_PUBLIC void simsimd_sum_f16_neon(simsimd_f16_t const *a, simsimd_f16_t c
     for (; i < n; ++i) ((float16_t *)result)[i] = ((float16_t const *)a)[i] + ((float16_t const *)b)[i];
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_f16_neon(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                           simsimd_distance_t beta, simsimd_f16_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_f16_neon(mathkong_f16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                            mathkong_distance_t beta, mathkong_f16_t *result) {
     float16_t alpha_f16 = (float16_t)alpha;
     float16_t beta_f16 = (float16_t)beta;
     float16x8_t alpha_vec = vdupq_n_f16(alpha_f16);
     float16x8_t beta_vec = vdupq_n_f16(beta_f16);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         float16x8_t a_vec = vld1q_f16((float16_t const *)a + i);
         float16x8_t sum_vec = vfmaq_f16(beta_vec, a_vec, alpha_vec);
@@ -3964,21 +3964,21 @@ SIMSIMD_PUBLIC void simsimd_scale_f16_neon(simsimd_f16_t const *a, simsimd_size_
     for (; i < n; ++i) ((float16_t *)result)[i] = alpha_f16 * ((float16_t const *)a)[i] + beta_f16;
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_f16_neon(                            //
-    simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result) {
+SIMSIMD_PUBLIC void mathkong_wsum_f16_neon(                              //
+    mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result) {
     // There are are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_f16_neon(a, b, n, result);
+        mathkong_sum_f16_neon(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_f16_neon(a, n, alpha, 0, result); }
-        else { simsimd_scale_f16_neon(b, n, beta, 0, result); }
+        if (beta == 0) { mathkong_scale_f16_neon(a, n, alpha, 0, result); }
+        else { mathkong_scale_f16_neon(b, n, beta, 0, result); }
         return;
     }
 
@@ -3987,7 +3987,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_f16_neon(                            //
     float16_t beta_f16 = (float16_t)beta;
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         float16x8_t a_vec = vld1q_f16((float16_t const *)a + i);
         float16x8_t b_vec = vld1q_f16((float16_t const *)b + i);
@@ -4002,14 +4002,14 @@ SIMSIMD_PUBLIC void simsimd_wsum_f16_neon(                            //
         ((float16_t *)result)[i] = alpha_f16 * ((float16_t const *)a)[i] + beta_f16 * ((float16_t const *)b)[i];
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_f16_neon(                                   //
-    simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_f16_neon(                                     //
+    mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c, //
+    mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *result) {
     float16_t alpha_f16 = (float16_t)alpha;
     float16_t beta_f16 = (float16_t)beta;
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         float16x8_t a_vec = vld1q_f16((float16_t const *)a + i);
         float16x8_t b_vec = vld1q_f16((float16_t const *)b + i);
@@ -4026,10 +4026,10 @@ SIMSIMD_PUBLIC void simsimd_fma_f16_neon(                                   //
             alpha_f16 * ((float16_t const *)a)[i] * ((float16_t const *)b)[i] + beta_f16 * ((float16_t const *)c)[i];
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_u8_neon(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
-                                        simsimd_u8_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_u8_neon(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                         mathkong_u8_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
         uint8x16_t a_vec = vld1q_u8(a + i);
         uint8x16_t b_vec = vld1q_u8(b + i);
@@ -4039,20 +4039,20 @@ SIMSIMD_PUBLIC void simsimd_sum_u8_neon(simsimd_u8_t const *a, simsimd_u8_t cons
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t sum = (simsimd_f32_t)a[i] + b[i];
-        _simsimd_f32_to_u8(&sum, result + i);
+        mathkong_f32_t sum = (mathkong_f32_t)a[i] + b[i];
+        _mathkong_f32_to_u8(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_u8_neon(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                          simsimd_distance_t beta, simsimd_u8_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_u8_neon(mathkong_u8_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                           mathkong_distance_t beta, mathkong_u8_t *result) {
     float16_t alpha_f16 = (float16_t)alpha;
     float16_t beta_f16 = (float16_t)beta;
     float16x8_t alpha_vec = vdupq_n_f16(alpha_f16);
     float16x8_t beta_vec = vdupq_n_f16(beta_f16);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         uint8x8_t a_u8_vec = vld1_u8(a + i);
         float16x8_t a_vec = vcvtq_f16_u16(vmovl_u8(a_u8_vec));
@@ -4063,27 +4063,27 @@ SIMSIMD_PUBLIC void simsimd_scale_u8_neon(simsimd_u8_t const *a, simsimd_size_t 
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t sum = alpha_f16 * a[i] + beta_f16;
-        _simsimd_f32_to_u8(&sum, result + i);
+        mathkong_f32_t sum = alpha_f16 * a[i] + beta_f16;
+        _mathkong_f32_to_u8(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_u8_neon(                           //
-    simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result) {
+SIMSIMD_PUBLIC void mathkong_wsum_u8_neon(                             //
+    mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result) {
 
     // There are are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_u8_neon(a, b, n, result);
+        mathkong_sum_u8_neon(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_u8_neon(a, n, alpha, 0, result); }
-        else { simsimd_scale_u8_neon(b, n, beta, 0, result); }
+        if (beta == 0) { mathkong_scale_u8_neon(a, n, alpha, 0, result); }
+        else { mathkong_scale_u8_neon(b, n, beta, 0, result); }
         return;
     }
 
@@ -4092,7 +4092,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_neon(                           //
     float16_t beta_f16 = (float16_t)beta;
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         uint8x8_t a_u8_vec = vld1_u8(a + i);
         uint8x8_t b_u8_vec = vld1_u8(b + i);
@@ -4107,19 +4107,19 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_neon(                           //
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t sum = alpha_f16 * a[i] + beta_f16 * b[i];
-        _simsimd_f32_to_u8(&sum, result + i);
+        mathkong_f32_t sum = alpha_f16 * a[i] + beta_f16 * b[i];
+        _mathkong_f32_to_u8(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_u8_neon(                                 //
-    simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_u8_neon(                                   //
+    mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_u8_t const *c, //
+    mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *result) {
     float16_t alpha_f16 = (float16_t)alpha;
     float16_t beta_f16 = (float16_t)beta;
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         uint8x8_t a_u8_vec = vld1_u8(a + i);
         uint8x8_t b_u8_vec = vld1_u8(b + i);
@@ -4136,15 +4136,15 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_neon(                                 //
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t sum = alpha_f16 * a[i] * b[i] + beta_f16 * c[i];
-        _simsimd_f32_to_u8(&sum, result + i);
+        mathkong_f32_t sum = alpha_f16 * a[i] * b[i] + beta_f16 * c[i];
+        _mathkong_f32_to_u8(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_sum_i8_neon(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
-                                        simsimd_i8_t *result) {
+SIMSIMD_PUBLIC void mathkong_sum_i8_neon(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                         mathkong_i8_t *result) {
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
         int8x16_t a_vec = vld1q_s8(a + i);
         int8x16_t b_vec = vld1q_s8(b + i);
@@ -4154,20 +4154,20 @@ SIMSIMD_PUBLIC void simsimd_sum_i8_neon(simsimd_i8_t const *a, simsimd_i8_t cons
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t sum = (simsimd_f32_t)a[i] + b[i];
-        _simsimd_f32_to_i8(&sum, result + i);
+        mathkong_f32_t sum = (mathkong_f32_t)a[i] + b[i];
+        _mathkong_f32_to_i8(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_scale_i8_neon(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                          simsimd_distance_t beta, simsimd_i8_t *result) {
+SIMSIMD_PUBLIC void mathkong_scale_i8_neon(mathkong_i8_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                           mathkong_distance_t beta, mathkong_i8_t *result) {
     float16_t alpha_f16 = (float16_t)alpha;
     float16_t beta_f16 = (float16_t)beta;
     float16x8_t alpha_vec = vdupq_n_f16(alpha_f16);
     float16x8_t beta_vec = vdupq_n_f16(beta_f16);
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         int8x8_t a_i8_vec = vld1_s8(a + i);
         float16x8_t a_vec = vcvtq_f16_s16(vmovl_s8(a_i8_vec));
@@ -4178,27 +4178,27 @@ SIMSIMD_PUBLIC void simsimd_scale_i8_neon(simsimd_i8_t const *a, simsimd_size_t 
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t sum = alpha_f16 * a[i] + beta_f16;
-        _simsimd_f32_to_i8(&sum, result + i);
+        mathkong_f32_t sum = alpha_f16 * a[i] + beta_f16;
+        _mathkong_f32_to_i8(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_wsum_i8_neon(                           //
-    simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, //
-    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result) {
+SIMSIMD_PUBLIC void mathkong_wsum_i8_neon(                             //
+    mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n, //
+    mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result) {
 
     // There are are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha == 1 && beta == 1) {
         // In this case we can avoid expensive multiplications.
-        simsimd_sum_i8_neon(a, b, n, result);
+        mathkong_sum_i8_neon(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha == 0 || beta == 0) {
         // In this case we can avoid half of the load instructions.
-        if (beta == 0) { simsimd_scale_i8_neon(a, n, alpha, 0, result); }
-        else { simsimd_scale_i8_neon(b, n, beta, 0, result); }
+        if (beta == 0) { mathkong_scale_i8_neon(a, n, alpha, 0, result); }
+        else { mathkong_scale_i8_neon(b, n, beta, 0, result); }
         return;
     }
 
@@ -4207,7 +4207,7 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_neon(                           //
     float16_t beta_f16 = (float16_t)beta;
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         int8x8_t a_i8_vec = vld1_s8(a + i);
         int8x8_t b_i8_vec = vld1_s8(b + i);
@@ -4222,19 +4222,19 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_neon(                           //
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t sum = alpha_f16 * a[i] + beta_f16 * b[i];
-        _simsimd_f32_to_i8(&sum, result + i);
+        mathkong_f32_t sum = alpha_f16 * a[i] + beta_f16 * b[i];
+        _mathkong_f32_to_i8(&sum, result + i);
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_fma_i8_neon(                                 //
-    simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result) {
+SIMSIMD_PUBLIC void mathkong_fma_i8_neon(                                   //
+    mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_i8_t const *c, //
+    mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *result) {
     float16_t alpha_f16 = (float16_t)alpha;
     float16_t beta_f16 = (float16_t)beta;
 
     // The main loop:
-    simsimd_size_t i = 0;
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         int8x8_t a_i8_vec = vld1_s8(a + i);
         int8x8_t b_i8_vec = vld1_s8(b + i);
@@ -4251,8 +4251,8 @@ SIMSIMD_PUBLIC void simsimd_fma_i8_neon(                                 //
 
     // The tail:
     for (; i < n; ++i) {
-        simsimd_f32_t sum = alpha_f16 * a[i] * b[i] + beta_f16 * c[i];
-        _simsimd_f32_to_i8(&sum, result + i);
+        mathkong_f32_t sum = alpha_f16 * a[i] * b[i] + beta_f16 * c[i];
+        _mathkong_f32_to_i8(&sum, result + i);
     }
 }
 

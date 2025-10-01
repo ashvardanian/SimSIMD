@@ -72,19 +72,19 @@ extern "C" {
  *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
  *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
  */
-SIMSIMD_PUBLIC void simsimd_sin_f64_serial(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
-SIMSIMD_PUBLIC void simsimd_cos_f64_serial(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
-SIMSIMD_PUBLIC void simsimd_atan_f64_serial(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
-SIMSIMD_PUBLIC void simsimd_sin_f32_serial(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
-SIMSIMD_PUBLIC void simsimd_cos_f32_serial(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
-SIMSIMD_PUBLIC void simsimd_atan_f32_serial(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+SIMSIMD_PUBLIC void mathkong_sin_f64_serial(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs);
+SIMSIMD_PUBLIC void mathkong_cos_f64_serial(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs);
+SIMSIMD_PUBLIC void mathkong_atan_f64_serial(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs);
+SIMSIMD_PUBLIC void mathkong_sin_f32_serial(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs);
+SIMSIMD_PUBLIC void mathkong_cos_f32_serial(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs);
+SIMSIMD_PUBLIC void mathkong_atan_f32_serial(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs);
 
-SIMSIMD_PUBLIC void simsimd_sin_f64_neon(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
-SIMSIMD_PUBLIC void simsimd_cos_f64_neon(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
-SIMSIMD_PUBLIC void simsimd_atan_f64_neon(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
-SIMSIMD_PUBLIC void simsimd_sin_f32_neon(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
-SIMSIMD_PUBLIC void simsimd_cos_f32_neon(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
-SIMSIMD_PUBLIC void simsimd_atan_f32_neon(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+SIMSIMD_PUBLIC void mathkong_sin_f64_neon(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs);
+SIMSIMD_PUBLIC void mathkong_cos_f64_neon(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs);
+SIMSIMD_PUBLIC void mathkong_atan_f64_neon(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs);
+SIMSIMD_PUBLIC void mathkong_sin_f32_neon(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs);
+SIMSIMD_PUBLIC void mathkong_cos_f32_neon(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs);
+SIMSIMD_PUBLIC void mathkong_atan_f32_neon(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs);
 
 /*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
  *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
@@ -92,22 +92,22 @@ SIMSIMD_PUBLIC void simsimd_atan_f32_neon(simsimd_f32_t const *ins, simsimd_size
  *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
  *  properly vectorized by recent compilers.
  */
-SIMSIMD_PUBLIC void simsimd_sin_f64_haswell(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
-SIMSIMD_PUBLIC void simsimd_cos_f64_haswell(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
-SIMSIMD_PUBLIC void simsimd_atan_f64_haswell(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
-SIMSIMD_PUBLIC void simsimd_sin_f32_haswell(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
-SIMSIMD_PUBLIC void simsimd_cos_f32_haswell(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
-SIMSIMD_PUBLIC void simsimd_atan_f32_haswell(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+SIMSIMD_PUBLIC void mathkong_sin_f64_haswell(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs);
+SIMSIMD_PUBLIC void mathkong_cos_f64_haswell(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs);
+SIMSIMD_PUBLIC void mathkong_atan_f64_haswell(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs);
+SIMSIMD_PUBLIC void mathkong_sin_f32_haswell(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs);
+SIMSIMD_PUBLIC void mathkong_cos_f32_haswell(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs);
+SIMSIMD_PUBLIC void mathkong_atan_f32_haswell(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs);
 
 /*  SIMD-powered backends for various generations of AVX512 CPUs.
  *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
  */
-SIMSIMD_PUBLIC void simsimd_sin_f64_skylake(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
-SIMSIMD_PUBLIC void simsimd_cos_f64_skylake(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
-SIMSIMD_PUBLIC void simsimd_atan_f64_skylake(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
-SIMSIMD_PUBLIC void simsimd_sin_f32_skylake(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
-SIMSIMD_PUBLIC void simsimd_cos_f32_skylake(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
-SIMSIMD_PUBLIC void simsimd_atan_f32_skylake(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+SIMSIMD_PUBLIC void mathkong_sin_f64_skylake(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs);
+SIMSIMD_PUBLIC void mathkong_cos_f64_skylake(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs);
+SIMSIMD_PUBLIC void mathkong_atan_f64_skylake(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs);
+SIMSIMD_PUBLIC void mathkong_sin_f32_skylake(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs);
+SIMSIMD_PUBLIC void mathkong_cos_f32_skylake(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs);
+SIMSIMD_PUBLIC void mathkong_atan_f32_skylake(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs);
 
 /**
  *  @brief  Computes an approximate sine of the given angle in radians with @b 3-ULP error bound for [-2π, 2π].
@@ -115,31 +115,31 @@ SIMSIMD_PUBLIC void simsimd_atan_f32_skylake(simsimd_f32_t const *ins, simsimd_s
  *  @param  angle The input angle in radians.
  *  @return The approximate sine of the input angle in [-1, 1] range.
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_sin(simsimd_f32_t const angle_radians) {
+SIMSIMD_PUBLIC mathkong_f32_t mathkong_f32_sin(mathkong_f32_t const angle_radians) {
 
     // Constants for argument reduction
-    simsimd_f32_t const pi = 3.14159265358979323846f;            /// π
-    simsimd_f32_t const pi_reciprocal = 0.31830988618379067154f; /// 1/π
+    mathkong_f32_t const pi = 3.14159265358979323846f;            /// π
+    mathkong_f32_t const pi_reciprocal = 0.31830988618379067154f; /// 1/π
 
     // Polynomial coefficients for sine/cosine approximation (minimax polynomial)
-    simsimd_f32_t const coeff_5 = -0.0001881748176f; /// Coefficient for x^5 term
-    simsimd_f32_t const coeff_3 = +0.008323502727f;  /// Coefficient for x^3 term
-    simsimd_f32_t const coeff_1 = -0.1666651368f;    /// Coefficient for x term
+    mathkong_f32_t const coeff_5 = -0.0001881748176f; /// Coefficient for x^5 term
+    mathkong_f32_t const coeff_3 = +0.008323502727f;  /// Coefficient for x^3 term
+    mathkong_f32_t const coeff_1 = -0.1666651368f;    /// Coefficient for x term
 
     // Compute (multiple_of_pi) = round(angle / π)
-    simsimd_f32_t const quotient = angle_radians * pi_reciprocal;
+    mathkong_f32_t const quotient = angle_radians * pi_reciprocal;
     int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5f : quotient + 0.5f);
 
     // Reduce the angle to: (angle - (multiple_of_pi * π)) in [0, π]
-    simsimd_f32_t const angle = angle_radians - multiple_of_pi * pi;
-    simsimd_f32_t const angle_squared = angle * angle;
-    simsimd_f32_t const angle_cubed = angle * angle_squared;
+    mathkong_f32_t const angle = angle_radians - multiple_of_pi * pi;
+    mathkong_f32_t const angle_squared = angle * angle;
+    mathkong_f32_t const angle_cubed = angle * angle_squared;
 
     // Compute the polynomial approximation
-    simsimd_f32_t polynomial = coeff_5;
-    polynomial = polynomial * angle_squared + coeff_3;         // polynomial = (coeff_5 * x^2) + coeff_3
-    polynomial = polynomial * angle_squared + coeff_1;         // polynomial = polynomial * x^2 + coeff_1
-    simsimd_f32_t result = (angle_cubed * polynomial) + angle; // result = (x^3 * polynomial) + x
+    mathkong_f32_t polynomial = coeff_5;
+    polynomial = polynomial * angle_squared + coeff_3;          // polynomial = (coeff_5 * x^2) + coeff_3
+    polynomial = polynomial * angle_squared + coeff_1;          // polynomial = polynomial * x^2 + coeff_1
+    mathkong_f32_t result = (angle_cubed * polynomial) + angle; // result = (x^3 * polynomial) + x
 
     // If multiple_of_pi is odd, flip the sign of the result
     if ((multiple_of_pi & 1) != 0) result = -result;
@@ -152,32 +152,32 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_sin(simsimd_f32_t const angle_radians) 
  *  @param  angle The input angle in radians.
  *  @return The approximate cosine of the input angle in [-1, 1] range.
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_cos(simsimd_f32_t const angle_radians) {
+SIMSIMD_PUBLIC mathkong_f32_t mathkong_f32_cos(mathkong_f32_t const angle_radians) {
 
     // Constants for argument reduction
-    simsimd_f32_t const pi = 3.14159265358979323846f;            /// π
-    simsimd_f32_t const pi_half = 1.57079632679489661923f;       /// π/2
-    simsimd_f32_t const pi_reciprocal = 0.31830988618379067154f; /// 1/π
+    mathkong_f32_t const pi = 3.14159265358979323846f;            /// π
+    mathkong_f32_t const pi_half = 1.57079632679489661923f;       /// π/2
+    mathkong_f32_t const pi_reciprocal = 0.31830988618379067154f; /// 1/π
 
     // Polynomial coefficients for sine/cosine approximation (minimax polynomial)
-    simsimd_f32_t const coeff_5 = -0.0001881748176f; /// Coefficient for x^5 term
-    simsimd_f32_t const coeff_3 = +0.008323502727f;  /// Coefficient for x^3 term
-    simsimd_f32_t const coeff_1 = -0.1666651368f;    /// Coefficient for x term
+    mathkong_f32_t const coeff_5 = -0.0001881748176f; /// Coefficient for x^5 term
+    mathkong_f32_t const coeff_3 = +0.008323502727f;  /// Coefficient for x^3 term
+    mathkong_f32_t const coeff_1 = -0.1666651368f;    /// Coefficient for x term
 
     // Compute (multiple_of_pi) = round(angle / π - 0.5)
-    simsimd_f32_t const quotient = angle_radians * pi_reciprocal - 0.5f;
+    mathkong_f32_t const quotient = angle_radians * pi_reciprocal - 0.5f;
     int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5f : quotient + 0.5f);
 
     // Reduce the angle to: (angle - (multiple_of_pi * π)) in [-π/2, π/2]
-    simsimd_f32_t const angle = angle_radians - pi_half - multiple_of_pi * pi;
-    simsimd_f32_t const angle_squared = angle * angle;
-    simsimd_f32_t const angle_cubed = angle * angle_squared;
+    mathkong_f32_t const angle = angle_radians - pi_half - multiple_of_pi * pi;
+    mathkong_f32_t const angle_squared = angle * angle;
+    mathkong_f32_t const angle_cubed = angle * angle_squared;
 
     // Compute the polynomial approximation
-    simsimd_f32_t polynomial = coeff_5;
-    polynomial = polynomial * angle_squared + coeff_3;         // polynomial = (coeff_5 * x^2) + coeff_3
-    polynomial = polynomial * angle_squared + coeff_1;         // polynomial = polynomial * x^2 + coeff_1
-    simsimd_f32_t result = (angle_cubed * polynomial) + angle; // result = (x^3 * polynomial) + x
+    mathkong_f32_t polynomial = coeff_5;
+    polynomial = polynomial * angle_squared + coeff_3;          // polynomial = (coeff_5 * x^2) + coeff_3
+    polynomial = polynomial * angle_squared + coeff_1;          // polynomial = polynomial * x^2 + coeff_1
+    mathkong_f32_t result = (angle_cubed * polynomial) + angle; // result = (x^3 * polynomial) + x
 
     // If multiple_of_pi is even, flip the sign of the result
     if ((multiple_of_pi & 1) == 0) result = -result;
@@ -190,28 +190,28 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_cos(simsimd_f32_t const angle_radians) 
  *  @param  input The input value.
  *  @return The arc-tangent of the input value in [-π/2, π/2] radians range.
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_atan(simsimd_f32_t const input) {
+SIMSIMD_PUBLIC mathkong_f32_t mathkong_f32_atan(mathkong_f32_t const input) {
     // Polynomial coefficients for atan approximation
-    simsimd_f32_t const coeff_8 = -0.333331018686294555664062f;
-    simsimd_f32_t const coeff_7 = +0.199926957488059997558594f;
-    simsimd_f32_t const coeff_6 = -0.142027363181114196777344f;
-    simsimd_f32_t const coeff_5 = +0.106347933411598205566406f;
-    simsimd_f32_t const coeff_4 = -0.0748900920152664184570312f;
-    simsimd_f32_t const coeff_3 = +0.0425049886107444763183594f;
-    simsimd_f32_t const coeff_2 = -0.0159569028764963150024414f;
-    simsimd_f32_t const coeff_1 = +0.00282363896258175373077393f;
+    mathkong_f32_t const coeff_8 = -0.333331018686294555664062f;
+    mathkong_f32_t const coeff_7 = +0.199926957488059997558594f;
+    mathkong_f32_t const coeff_6 = -0.142027363181114196777344f;
+    mathkong_f32_t const coeff_5 = +0.106347933411598205566406f;
+    mathkong_f32_t const coeff_4 = -0.0748900920152664184570312f;
+    mathkong_f32_t const coeff_3 = +0.0425049886107444763183594f;
+    mathkong_f32_t const coeff_2 = -0.0159569028764963150024414f;
+    mathkong_f32_t const coeff_1 = +0.00282363896258175373077393f;
 
     // Quadrant adjustment
     int quadrant = 0;
-    simsimd_f32_t value = input;
+    mathkong_f32_t value = input;
     if (value < 0.0f) value = -value, quadrant |= 2;
     if (value > 1.0f) value = 1.0f / value, quadrant |= 1;
 
     // Argument reduction
-    simsimd_f32_t const value_squared = value * value;
+    mathkong_f32_t const value_squared = value * value;
 
     // Polynomial evaluation
-    simsimd_f32_t polynomial = coeff_1;
+    mathkong_f32_t polynomial = coeff_1;
     polynomial = polynomial * value_squared + coeff_2;
     polynomial = polynomial * value_squared + coeff_3;
     polynomial = polynomial * value_squared + coeff_4;
@@ -221,8 +221,8 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_atan(simsimd_f32_t const input) {
     polynomial = polynomial * value_squared + coeff_8;
 
     // Adjust for quadrant
-    simsimd_f32_t result = value + value * value_squared * polynomial;
-    simsimd_f32_t const pi_half = 1.5707963267948966f; // π/2
+    mathkong_f32_t result = value + value * value_squared * polynomial;
+    mathkong_f32_t const pi_half = 1.5707963267948966f; // π/2
     if ((quadrant & 1) != 0) result = pi_half - result;
     if ((quadrant & 2) != 0) result = -result;
     return result;
@@ -235,20 +235,20 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_atan(simsimd_f32_t const input) {
  *  @param  x The input cosine value.
  *  @return The arc-tangent of (y/x) in [-π, π] radians range.
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_atan2(simsimd_f32_t const y, simsimd_f32_t const x) {
+SIMSIMD_PUBLIC mathkong_f32_t mathkong_f32_atan2(mathkong_f32_t const y, mathkong_f32_t const x) {
     // Polynomial coefficients for atan2 approximation
-    simsimd_f32_t const coeff_8 = -0.333331018686294555664062f;
-    simsimd_f32_t const coeff_7 = +0.199926957488059997558594f;
-    simsimd_f32_t const coeff_6 = -0.142027363181114196777344f;
-    simsimd_f32_t const coeff_5 = +0.106347933411598205566406f;
-    simsimd_f32_t const coeff_4 = -0.0748900920152664184570312f;
-    simsimd_f32_t const coeff_3 = +0.0425049886107444763183594f;
-    simsimd_f32_t const coeff_2 = -0.0159569028764963150024414f;
-    simsimd_f32_t const coeff_1 = +0.00282363896258175373077393f;
+    mathkong_f32_t const coeff_8 = -0.333331018686294555664062f;
+    mathkong_f32_t const coeff_7 = +0.199926957488059997558594f;
+    mathkong_f32_t const coeff_6 = -0.142027363181114196777344f;
+    mathkong_f32_t const coeff_5 = +0.106347933411598205566406f;
+    mathkong_f32_t const coeff_4 = -0.0748900920152664184570312f;
+    mathkong_f32_t const coeff_3 = +0.0425049886107444763183594f;
+    mathkong_f32_t const coeff_2 = -0.0159569028764963150024414f;
+    mathkong_f32_t const coeff_1 = +0.00282363896258175373077393f;
 
-    simsimd_fui32_t x_bits, y_bits;
+    mathkong_fui32_t x_bits, y_bits;
     x_bits.f = x, y_bits.f = y;
-    simsimd_fui32_t x_abs, y_abs;
+    mathkong_fui32_t x_abs, y_abs;
     y_abs.u = y_bits.u & 0x7FFFFFFFu;
 
     // Quadrant adjustment
@@ -257,18 +257,18 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_atan2(simsimd_f32_t const y, simsimd_f3
     else { x_abs.f = x; }
     // Ensure proper fraction where the numerator is smaller than the denominator
     if (y_abs.f > x_abs.f) {
-        simsimd_f32_t temp = x_abs.f;
+        mathkong_f32_t temp = x_abs.f;
         x_abs.f = y_abs.f;
         y_abs.f = -temp;
         quadrant += 1;
     }
 
     // Argument reduction
-    simsimd_f32_t const ratio = y_abs.f / x_abs.f;
-    simsimd_f32_t const ratio_squared = ratio * ratio;
+    mathkong_f32_t const ratio = y_abs.f / x_abs.f;
+    mathkong_f32_t const ratio_squared = ratio * ratio;
 
     // Polynomial evaluation (fully unrolled)
-    simsimd_f32_t polynomial = coeff_1;
+    mathkong_f32_t polynomial = coeff_1;
     polynomial = polynomial * ratio_squared + coeff_2;
     polynomial = polynomial * ratio_squared + coeff_3;
     polynomial = polynomial * ratio_squared + coeff_4;
@@ -278,28 +278,28 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_atan2(simsimd_f32_t const y, simsimd_f3
     polynomial = polynomial * ratio_squared + coeff_8;
 
     // Compute the result
-    simsimd_f32_t result = ratio + ratio * ratio_squared * polynomial;
+    mathkong_f32_t result = ratio + ratio * ratio_squared * polynomial;
     result += quadrant * (3.14159265358979323846f / 2.0f); // quadrant * (π/2)
 
     // Constants for special cases
-    simsimd_u32_t const negative_zero = 0x80000000u;
-    simsimd_u32_t const positive_infinity = 0x7F800000u;
-    simsimd_u32_t const negative_infinity = 0xFF800000u;
+    mathkong_u32_t const negative_zero = 0x80000000u;
+    mathkong_u32_t const positive_infinity = 0x7F800000u;
+    mathkong_u32_t const negative_infinity = 0xFF800000u;
 
     // Special cases handling using bit reinterpretation
     int const x_is_inf = (x_bits.u == positive_infinity) | (x_bits.u == negative_infinity);
     int const y_is_inf = (y_bits.u == positive_infinity) | (y_bits.u == negative_infinity);
 
-    simsimd_fui32_t result_bits;
+    mathkong_fui32_t result_bits;
     result_bits.f = result;
 
     // Adjust sign based on x
     result_bits.u ^= x_bits.u & negative_zero;
 
     // Quadrant adjustments
-    simsimd_f32_t const pi = 3.14159265358979323846f;     // π
-    simsimd_f32_t const pi_half = 1.5707963267948966f;    // π/2
-    simsimd_f32_t const pi_quarter = 0.7853981633974483f; // π/4
+    mathkong_f32_t const pi = 3.14159265358979323846f;     // π
+    mathkong_f32_t const pi_half = 1.5707963267948966f;    // π/2
+    mathkong_f32_t const pi_quarter = 0.7853981633974483f; // π/4
 
     if (x_is_inf || x_bits.f == 0.0f) {
         result_bits.f = pi_half - (x_is_inf ? ((x_bits.f < 0.0f) ? pi_half : 0.0f) : 0.0f);
@@ -318,58 +318,58 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_atan2(simsimd_f32_t const y, simsimd_f3
  *  @param  angle The input angle in radians.
  *  @return The approximate cosine of the input angle.
  */
-SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_sin(simsimd_f64_t const angle_radians) {
+SIMSIMD_PUBLIC mathkong_f64_t mathkong_f64_sin(mathkong_f64_t const angle_radians) {
 
     // Constants for argument reduction
-    simsimd_f64_t const pi_high = 3.141592653589793116;                         // High-digits part of π
-    simsimd_f64_t const pi_low = 1.2246467991473532072e-16;                     // Low-digits part of π
-    simsimd_f64_t const pi_reciprocal = 0.318309886183790671537767526745028724; // 1/π
-    simsimd_i64_t const negative_zero = 0x8000000000000000LL;                   // Hexadecimal value of -0.0 in IEEE 754
+    mathkong_f64_t const pi_high = 3.141592653589793116;                         // High-digits part of π
+    mathkong_f64_t const pi_low = 1.2246467991473532072e-16;                     // Low-digits part of π
+    mathkong_f64_t const pi_reciprocal = 0.318309886183790671537767526745028724; // 1/π
+    mathkong_i64_t const negative_zero = 0x8000000000000000LL; // Hexadecimal value of -0.0 in IEEE 754
 
     // Polynomial coefficients for sine/cosine approximation (minimax polynomial)
-    simsimd_f64_t const coeff_0 = +0.00833333333333332974823815;
-    simsimd_f64_t const coeff_1 = -0.000198412698412696162806809;
-    simsimd_f64_t const coeff_2 = +2.75573192239198747630416e-06;
-    simsimd_f64_t const coeff_3 = -2.50521083763502045810755e-08;
-    simsimd_f64_t const coeff_4 = +1.60590430605664501629054e-10;
-    simsimd_f64_t const coeff_5 = -7.64712219118158833288484e-13;
-    simsimd_f64_t const coeff_6 = +2.81009972710863200091251e-15;
-    simsimd_f64_t const coeff_7 = -7.97255955009037868891952e-18;
-    simsimd_f64_t const coeff_8 = -0.166666666666666657414808;
+    mathkong_f64_t const coeff_0 = +0.00833333333333332974823815;
+    mathkong_f64_t const coeff_1 = -0.000198412698412696162806809;
+    mathkong_f64_t const coeff_2 = +2.75573192239198747630416e-06;
+    mathkong_f64_t const coeff_3 = -2.50521083763502045810755e-08;
+    mathkong_f64_t const coeff_4 = +1.60590430605664501629054e-10;
+    mathkong_f64_t const coeff_5 = -7.64712219118158833288484e-13;
+    mathkong_f64_t const coeff_6 = +2.81009972710863200091251e-15;
+    mathkong_f64_t const coeff_7 = -7.97255955009037868891952e-18;
+    mathkong_f64_t const coeff_8 = -0.166666666666666657414808;
 
     // Compute (multiple_of_pi) = round(angle / π)
-    simsimd_f64_t const quotient = angle_radians * pi_reciprocal;
+    mathkong_f64_t const quotient = angle_radians * pi_reciprocal;
     int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5 : quotient + 0.5);
 
     // Reduce the angle to: (angle - (multiple_of_pi * π)) in [0, π]
-    simsimd_f64_t angle = angle_radians;
+    mathkong_f64_t angle = angle_radians;
     angle = angle - (multiple_of_pi * pi_high);
     angle = angle - (multiple_of_pi * pi_low);
     if ((multiple_of_pi & 1) != 0) angle = -angle;
-    simsimd_f64_t const angle_squared = angle * angle;
-    simsimd_f64_t const angle_cubed = angle * angle_squared;
-    simsimd_f64_t const angle_quartic = angle_squared * angle_squared;
-    simsimd_f64_t const angle_octic = angle_quartic * angle_quartic;
+    mathkong_f64_t const angle_squared = angle * angle;
+    mathkong_f64_t const angle_cubed = angle * angle_squared;
+    mathkong_f64_t const angle_quartic = angle_squared * angle_squared;
+    mathkong_f64_t const angle_octic = angle_quartic * angle_quartic;
 
     // Compute higher-degree polynomial terms
-    simsimd_f64_t const poly_67 = (angle_squared * coeff_7) + coeff_6;
-    simsimd_f64_t const poly_45 = (angle_squared * coeff_5) + coeff_4;
-    simsimd_f64_t const poly_4567 = (angle_quartic * poly_67) + poly_45;
+    mathkong_f64_t const poly_67 = (angle_squared * coeff_7) + coeff_6;
+    mathkong_f64_t const poly_45 = (angle_squared * coeff_5) + coeff_4;
+    mathkong_f64_t const poly_4567 = (angle_quartic * poly_67) + poly_45;
 
     // Compute lower-degree polynomial terms
-    simsimd_f64_t const poly_23 = (angle_squared * coeff_3) + coeff_2;
-    simsimd_f64_t const poly_01 = (angle_squared * coeff_1) + coeff_0;
-    simsimd_f64_t const poly_0123 = (angle_quartic * poly_23) + poly_01;
+    mathkong_f64_t const poly_23 = (angle_squared * coeff_3) + coeff_2;
+    mathkong_f64_t const poly_01 = (angle_squared * coeff_1) + coeff_0;
+    mathkong_f64_t const poly_0123 = (angle_quartic * poly_23) + poly_01;
 
     // Combine polynomial terms
-    simsimd_f64_t result = (angle_octic * poly_4567) + poly_0123;
+    mathkong_f64_t result = (angle_octic * poly_4567) + poly_0123;
     result = (result * angle_squared) + coeff_8;
     result = (result * angle_cubed) + angle;
 
     // Handle the special case of negative zero input
     union {
-        simsimd_f64_t f64;
-        simsimd_i64_t i64;
+        mathkong_f64_t f64;
+        mathkong_i64_t i64;
     } converter;
     converter.f64 = angle_radians;
     if (converter.i64 == negative_zero) result = angle;
@@ -382,50 +382,50 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_sin(simsimd_f64_t const angle_radians) 
  *  @param  angle The input angle in radians.
  *  @return The approximate cosine of the input angle in [-1, 1] range.
  */
-SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_cos(simsimd_f64_t const angle_radians) {
+SIMSIMD_PUBLIC mathkong_f64_t mathkong_f64_cos(mathkong_f64_t const angle_radians) {
 
     // Constants for argument reduction
-    simsimd_f64_t const pi_high_half = 3.141592653589793116 * 0.5;              // High-digits part of π
-    simsimd_f64_t const pi_low_half = 1.2246467991473532072e-16 * 0.5;          // Low-digits part of π
-    simsimd_f64_t const pi_reciprocal = 0.318309886183790671537767526745028724; // 1/π
+    mathkong_f64_t const pi_high_half = 3.141592653589793116 * 0.5;              // High-digits part of π
+    mathkong_f64_t const pi_low_half = 1.2246467991473532072e-16 * 0.5;          // Low-digits part of π
+    mathkong_f64_t const pi_reciprocal = 0.318309886183790671537767526745028724; // 1/π
 
     // Polynomial coefficients for sine/cosine approximation (minimax polynomial)
-    simsimd_f64_t const coeff_0 = +0.00833333333333332974823815;
-    simsimd_f64_t const coeff_1 = -0.000198412698412696162806809;
-    simsimd_f64_t const coeff_2 = +2.75573192239198747630416e-06;
-    simsimd_f64_t const coeff_3 = -2.50521083763502045810755e-08;
-    simsimd_f64_t const coeff_4 = +1.60590430605664501629054e-10;
-    simsimd_f64_t const coeff_5 = -7.64712219118158833288484e-13;
-    simsimd_f64_t const coeff_6 = +2.81009972710863200091251e-15;
-    simsimd_f64_t const coeff_7 = -7.97255955009037868891952e-18;
-    simsimd_f64_t const coeff_8 = -0.166666666666666657414808;
+    mathkong_f64_t const coeff_0 = +0.00833333333333332974823815;
+    mathkong_f64_t const coeff_1 = -0.000198412698412696162806809;
+    mathkong_f64_t const coeff_2 = +2.75573192239198747630416e-06;
+    mathkong_f64_t const coeff_3 = -2.50521083763502045810755e-08;
+    mathkong_f64_t const coeff_4 = +1.60590430605664501629054e-10;
+    mathkong_f64_t const coeff_5 = -7.64712219118158833288484e-13;
+    mathkong_f64_t const coeff_6 = +2.81009972710863200091251e-15;
+    mathkong_f64_t const coeff_7 = -7.97255955009037868891952e-18;
+    mathkong_f64_t const coeff_8 = -0.166666666666666657414808;
 
     // Compute (multiple_of_pi) = 2 * round(angle / π - 0.5) + 1
-    simsimd_f64_t const quotient = angle_radians * pi_reciprocal - 0.5;
+    mathkong_f64_t const quotient = angle_radians * pi_reciprocal - 0.5;
     int const multiple_of_pi = 2 * (int)(quotient < 0 ? quotient - 0.5 : quotient + 0.5) + 1;
 
     // Reduce the angle to: (angle - (multiple_of_pi * π)) in [-π/2, π/2]
-    simsimd_f64_t angle = angle_radians;
+    mathkong_f64_t angle = angle_radians;
     angle = angle - (multiple_of_pi * pi_high_half);
     angle = angle - (multiple_of_pi * pi_low_half);
     if ((multiple_of_pi & 2) == 0) angle = -angle;
-    simsimd_f64_t const angle_squared = angle * angle;
-    simsimd_f64_t const angle_cubed = angle * angle_squared;
-    simsimd_f64_t const angle_quartic = angle_squared * angle_squared;
-    simsimd_f64_t const angle_octic = angle_quartic * angle_quartic;
+    mathkong_f64_t const angle_squared = angle * angle;
+    mathkong_f64_t const angle_cubed = angle * angle_squared;
+    mathkong_f64_t const angle_quartic = angle_squared * angle_squared;
+    mathkong_f64_t const angle_octic = angle_quartic * angle_quartic;
 
     // Compute higher-degree polynomial terms
-    simsimd_f64_t const poly_67 = (angle_squared * coeff_7) + coeff_6;
-    simsimd_f64_t const poly_45 = (angle_squared * coeff_5) + coeff_4;
-    simsimd_f64_t const poly_4567 = (angle_quartic * poly_67) + poly_45;
+    mathkong_f64_t const poly_67 = (angle_squared * coeff_7) + coeff_6;
+    mathkong_f64_t const poly_45 = (angle_squared * coeff_5) + coeff_4;
+    mathkong_f64_t const poly_4567 = (angle_quartic * poly_67) + poly_45;
 
     // Compute lower-degree polynomial terms
-    simsimd_f64_t const poly_23 = (angle_squared * coeff_3) + coeff_2;
-    simsimd_f64_t const poly_01 = (angle_squared * coeff_1) + coeff_0;
-    simsimd_f64_t const poly_0123 = (angle_quartic * poly_23) + poly_01;
+    mathkong_f64_t const poly_23 = (angle_squared * coeff_3) + coeff_2;
+    mathkong_f64_t const poly_01 = (angle_squared * coeff_1) + coeff_0;
+    mathkong_f64_t const poly_0123 = (angle_quartic * poly_23) + poly_01;
 
     // Combine polynomial terms
-    simsimd_f64_t result = (angle_octic * poly_4567) + poly_0123;
+    mathkong_f64_t result = (angle_octic * poly_4567) + poly_0123;
     result = (result * angle_squared) + coeff_8;
     result = (result * angle_cubed) + angle;
     return result;
@@ -437,38 +437,38 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_cos(simsimd_f64_t const angle_radians) 
  *  @param  input The input value.
  *  @return The arc-tangent of the input value in [-π/2, π/2] radians range.
  */
-SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan(simsimd_f64_t const input) {
+SIMSIMD_PUBLIC mathkong_f64_t mathkong_f64_atan(mathkong_f64_t const input) {
     // Polynomial coefficients for atan approximation
-    simsimd_f64_t const coeff_19 = -1.88796008463073496563746e-05;
-    simsimd_f64_t const coeff_18 = +0.000209850076645816976906797;
-    simsimd_f64_t const coeff_17 = -0.00110611831486672482563471;
-    simsimd_f64_t const coeff_16 = +0.00370026744188713119232403;
-    simsimd_f64_t const coeff_15 = -0.00889896195887655491740809;
-    simsimd_f64_t const coeff_14 = +0.016599329773529201970117;
-    simsimd_f64_t const coeff_13 = -0.0254517624932312641616861;
-    simsimd_f64_t const coeff_12 = +0.0337852580001353069993897;
-    simsimd_f64_t const coeff_11 = -0.0407629191276836500001934;
-    simsimd_f64_t const coeff_10 = +0.0466667150077840625632675;
-    simsimd_f64_t const coeff_9 = -0.0523674852303482457616113;
-    simsimd_f64_t const coeff_8 = +0.0587666392926673580854313;
-    simsimd_f64_t const coeff_7 = -0.0666573579361080525984562;
-    simsimd_f64_t const coeff_6 = +0.0769219538311769618355029;
-    simsimd_f64_t const coeff_5 = -0.090908995008245008229153;
-    simsimd_f64_t const coeff_4 = +0.111111105648261418443745;
-    simsimd_f64_t const coeff_3 = -0.14285714266771329383765;
-    simsimd_f64_t const coeff_2 = +0.199999999996591265594148;
-    simsimd_f64_t const coeff_1 = -0.333333333333311110369124;
+    mathkong_f64_t const coeff_19 = -1.88796008463073496563746e-05;
+    mathkong_f64_t const coeff_18 = +0.000209850076645816976906797;
+    mathkong_f64_t const coeff_17 = -0.00110611831486672482563471;
+    mathkong_f64_t const coeff_16 = +0.00370026744188713119232403;
+    mathkong_f64_t const coeff_15 = -0.00889896195887655491740809;
+    mathkong_f64_t const coeff_14 = +0.016599329773529201970117;
+    mathkong_f64_t const coeff_13 = -0.0254517624932312641616861;
+    mathkong_f64_t const coeff_12 = +0.0337852580001353069993897;
+    mathkong_f64_t const coeff_11 = -0.0407629191276836500001934;
+    mathkong_f64_t const coeff_10 = +0.0466667150077840625632675;
+    mathkong_f64_t const coeff_9 = -0.0523674852303482457616113;
+    mathkong_f64_t const coeff_8 = +0.0587666392926673580854313;
+    mathkong_f64_t const coeff_7 = -0.0666573579361080525984562;
+    mathkong_f64_t const coeff_6 = +0.0769219538311769618355029;
+    mathkong_f64_t const coeff_5 = -0.090908995008245008229153;
+    mathkong_f64_t const coeff_4 = +0.111111105648261418443745;
+    mathkong_f64_t const coeff_3 = -0.14285714266771329383765;
+    mathkong_f64_t const coeff_2 = +0.199999999996591265594148;
+    mathkong_f64_t const coeff_1 = -0.333333333333311110369124;
 
     // Quadrant adjustment
     int quadrant = 0;
-    simsimd_f64_t value = input;
+    mathkong_f64_t value = input;
     if (value < 0) value = -value, quadrant |= 2;
     if (value > 1) value = 1.0 / value, quadrant |= 1;
-    simsimd_f64_t const value_squared = value * value;
-    simsimd_f64_t const value_cubed = value * value_squared;
+    mathkong_f64_t const value_squared = value * value;
+    mathkong_f64_t const value_cubed = value * value_squared;
 
     // Polynomial evaluation (fully unrolled)
-    simsimd_f64_t polynomial = coeff_19;
+    mathkong_f64_t polynomial = coeff_19;
     polynomial = polynomial * value_squared + coeff_18;
     polynomial = polynomial * value_squared + coeff_17;
     polynomial = polynomial * value_squared + coeff_16;
@@ -489,8 +489,8 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan(simsimd_f64_t const input) {
     polynomial = polynomial * value_squared + coeff_1;
 
     // Adjust for quadrant
-    simsimd_f64_t const pi_half = 1.5707963267948966; // π/2
-    simsimd_f64_t result = value_cubed * polynomial + value;
+    mathkong_f64_t const pi_half = 1.5707963267948966; // π/2
+    mathkong_f64_t result = value_cubed * polynomial + value;
     if (quadrant & 1) result = pi_half - result;
     if (quadrant & 2) result = -result;
 
@@ -504,31 +504,31 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan(simsimd_f64_t const input) {
  *  @param  x The input cosine value.
  *  @return The arc-tangent of (y/x) in [-π/2, π/2] radians range.
  */
-SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan2(simsimd_f64_t const y, simsimd_f64_t const x) {
+SIMSIMD_PUBLIC mathkong_f64_t mathkong_f64_atan2(mathkong_f64_t const y, mathkong_f64_t const x) {
     // Polynomial coefficients for atan2 approximation
-    simsimd_f64_t const coeff_19 = -1.88796008463073496563746e-05;
-    simsimd_f64_t const coeff_18 = +0.000209850076645816976906797;
-    simsimd_f64_t const coeff_17 = -0.00110611831486672482563471;
-    simsimd_f64_t const coeff_16 = +0.00370026744188713119232403;
-    simsimd_f64_t const coeff_15 = -0.00889896195887655491740809;
-    simsimd_f64_t const coeff_14 = +0.016599329773529201970117;
-    simsimd_f64_t const coeff_13 = -0.0254517624932312641616861;
-    simsimd_f64_t const coeff_12 = +0.0337852580001353069993897;
-    simsimd_f64_t const coeff_11 = -0.0407629191276836500001934;
-    simsimd_f64_t const coeff_10 = +0.0466667150077840625632675;
-    simsimd_f64_t const coeff_9 = -0.0523674852303482457616113;
-    simsimd_f64_t const coeff_8 = +0.0587666392926673580854313;
-    simsimd_f64_t const coeff_7 = -0.0666573579361080525984562;
-    simsimd_f64_t const coeff_6 = +0.0769219538311769618355029;
-    simsimd_f64_t const coeff_5 = -0.090908995008245008229153;
-    simsimd_f64_t const coeff_4 = +0.111111105648261418443745;
-    simsimd_f64_t const coeff_3 = -0.14285714266771329383765;
-    simsimd_f64_t const coeff_2 = +0.199999999996591265594148;
-    simsimd_f64_t const coeff_1 = -0.333333333333311110369124;
+    mathkong_f64_t const coeff_19 = -1.88796008463073496563746e-05;
+    mathkong_f64_t const coeff_18 = +0.000209850076645816976906797;
+    mathkong_f64_t const coeff_17 = -0.00110611831486672482563471;
+    mathkong_f64_t const coeff_16 = +0.00370026744188713119232403;
+    mathkong_f64_t const coeff_15 = -0.00889896195887655491740809;
+    mathkong_f64_t const coeff_14 = +0.016599329773529201970117;
+    mathkong_f64_t const coeff_13 = -0.0254517624932312641616861;
+    mathkong_f64_t const coeff_12 = +0.0337852580001353069993897;
+    mathkong_f64_t const coeff_11 = -0.0407629191276836500001934;
+    mathkong_f64_t const coeff_10 = +0.0466667150077840625632675;
+    mathkong_f64_t const coeff_9 = -0.0523674852303482457616113;
+    mathkong_f64_t const coeff_8 = +0.0587666392926673580854313;
+    mathkong_f64_t const coeff_7 = -0.0666573579361080525984562;
+    mathkong_f64_t const coeff_6 = +0.0769219538311769618355029;
+    mathkong_f64_t const coeff_5 = -0.090908995008245008229153;
+    mathkong_f64_t const coeff_4 = +0.111111105648261418443745;
+    mathkong_f64_t const coeff_3 = -0.14285714266771329383765;
+    mathkong_f64_t const coeff_2 = +0.199999999996591265594148;
+    mathkong_f64_t const coeff_1 = -0.333333333333311110369124;
 
-    simsimd_fui64_t x_bits, y_bits;
+    mathkong_fui64_t x_bits, y_bits;
     x_bits.f = x, y_bits.f = y;
-    simsimd_fui64_t x_abs, y_abs;
+    mathkong_fui64_t x_abs, y_abs;
     y_abs.u = y_bits.u & 0x7FFFFFFFFFFFFFFFull;
 
     // Quadrant adjustment
@@ -539,18 +539,18 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan2(simsimd_f64_t const y, simsimd_f6
     // otherwise swap the absolute values that we will use down the road, but keep the `x_bits` and `y_bits`
     // as is for final qdrant re-adjustment.
     if (y_abs.f > x_abs.f) {
-        simsimd_f64_t temp = x_abs.f;
+        mathkong_f64_t temp = x_abs.f;
         x_abs.f = y_abs.f;
         y_abs.f = -temp;
         quadrant += 1;
     }
 
     // Argument reduction
-    simsimd_f64_t const ratio = y_abs.f / x_abs.f;
-    simsimd_f64_t const ratio_squared = ratio * ratio;
+    mathkong_f64_t const ratio = y_abs.f / x_abs.f;
+    mathkong_f64_t const ratio_squared = ratio * ratio;
 
     // Polynomial evaluation (fully unrolled)
-    simsimd_f64_t polynomial = coeff_19 * ratio_squared + coeff_18;
+    mathkong_f64_t polynomial = coeff_19 * ratio_squared + coeff_18;
     polynomial = polynomial * ratio_squared + coeff_17;
     polynomial = polynomial * ratio_squared + coeff_16;
     polynomial = polynomial * ratio_squared + coeff_15;
@@ -570,14 +570,14 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan2(simsimd_f64_t const y, simsimd_f6
     polynomial = polynomial * ratio_squared + coeff_1;
 
     // Adjust for quadrant
-    simsimd_f64_t const epsilon = 1e-300;                // Near-zero threshold
-    simsimd_f64_t const pi = 3.14159265358979323846;     // π
-    simsimd_f64_t const pi_half = 1.5707963267948966;    // π/2
-    simsimd_f64_t const pi_quarter = 0.7853981633974483; // π/4
-    simsimd_u64_t const negative_zero = 0x8000000000000000ull;
-    simsimd_u64_t const positive_infinity = 0x7FF0000000000000ull;
-    simsimd_u64_t const negative_infinity = 0xFFF0000000000000ull;
-    simsimd_f64_t result = polynomial * ratio_squared * ratio + ratio;
+    mathkong_f64_t const epsilon = 1e-300;                // Near-zero threshold
+    mathkong_f64_t const pi = 3.14159265358979323846;     // π
+    mathkong_f64_t const pi_half = 1.5707963267948966;    // π/2
+    mathkong_f64_t const pi_quarter = 0.7853981633974483; // π/4
+    mathkong_u64_t const negative_zero = 0x8000000000000000ull;
+    mathkong_u64_t const positive_infinity = 0x7FF0000000000000ull;
+    mathkong_u64_t const negative_infinity = 0xFFF0000000000000ull;
+    mathkong_f64_t result = polynomial * ratio_squared * ratio + ratio;
     result += quadrant * pi_half;
 
     // Special cases handling using bit reinterpretation
@@ -585,7 +585,7 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan2(simsimd_f64_t const y, simsimd_f6
     int const y_is_inf = (y_bits.u == positive_infinity) | (y_bits.u == negative_infinity);
 
     // Perform the sign multiplication and infer the right quadrant
-    simsimd_fui64_t result_bits;
+    mathkong_fui64_t result_bits;
     result_bits.f = result;
     // Sign transfer:
     result_bits.u ^= x_bits.u & negative_zero;
@@ -599,23 +599,23 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan2(simsimd_f64_t const y, simsimd_f6
     return result_bits.f;
 }
 
-SIMSIMD_PUBLIC void simsimd_sin_f32_serial(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs) {
-    for (simsimd_size_t i = 0; i != n; ++i) outs[i] = simsimd_f32_sin(ins[i]);
+SIMSIMD_PUBLIC void mathkong_sin_f32_serial(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs) {
+    for (mathkong_size_t i = 0; i != n; ++i) outs[i] = mathkong_f32_sin(ins[i]);
 }
-SIMSIMD_PUBLIC void simsimd_cos_f32_serial(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs) {
-    for (simsimd_size_t i = 0; i != n; ++i) outs[i] = simsimd_f32_cos(ins[i]);
+SIMSIMD_PUBLIC void mathkong_cos_f32_serial(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs) {
+    for (mathkong_size_t i = 0; i != n; ++i) outs[i] = mathkong_f32_cos(ins[i]);
 }
-SIMSIMD_PUBLIC void simsimd_atan_f32_serial(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs) {
-    for (simsimd_size_t i = 0; i != n; ++i) outs[i] = simsimd_f32_atan(ins[i]);
+SIMSIMD_PUBLIC void mathkong_atan_f32_serial(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs) {
+    for (mathkong_size_t i = 0; i != n; ++i) outs[i] = mathkong_f32_atan(ins[i]);
 }
-SIMSIMD_PUBLIC void simsimd_sin_f64_serial(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs) {
-    for (simsimd_size_t i = 0; i != n; ++i) outs[i] = simsimd_f64_sin(ins[i]);
+SIMSIMD_PUBLIC void mathkong_sin_f64_serial(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs) {
+    for (mathkong_size_t i = 0; i != n; ++i) outs[i] = mathkong_f64_sin(ins[i]);
 }
-SIMSIMD_PUBLIC void simsimd_cos_f64_serial(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs) {
-    for (simsimd_size_t i = 0; i != n; ++i) outs[i] = simsimd_f64_cos(ins[i]);
+SIMSIMD_PUBLIC void mathkong_cos_f64_serial(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs) {
+    for (mathkong_size_t i = 0; i != n; ++i) outs[i] = mathkong_f64_cos(ins[i]);
 }
-SIMSIMD_PUBLIC void simsimd_atan_f64_serial(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs) {
-    for (simsimd_size_t i = 0; i != n; ++i) outs[i] = simsimd_f64_atan(ins[i]);
+SIMSIMD_PUBLIC void mathkong_atan_f64_serial(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs) {
+    for (mathkong_size_t i = 0; i != n; ++i) outs[i] = mathkong_f64_atan(ins[i]);
 }
 
 #if _SIMSIMD_TARGET_X86
@@ -633,7 +633,7 @@ SIMSIMD_PUBLIC void simsimd_atan_f64_serial(simsimd_f64_t const *ins, simsimd_si
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "bmi2")
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,bmi2"))), apply_to = function)
 
-SIMSIMD_INTERNAL __m512 _simsimd_f32x16_sin_skylake(__m512 const angles_radians) {
+SIMSIMD_INTERNAL __m512 _mathkong_f32x16_sin_skylake(__m512 const angles_radians) {
     // Constants for argument reduction
     __m512 const pi = _mm512_set1_ps(3.14159265358979323846f);            // π
     __m512 const pi_reciprocal = _mm512_set1_ps(0.31830988618379067154f); // 1/π
@@ -663,7 +663,7 @@ SIMSIMD_INTERNAL __m512 _simsimd_f32x16_sin_skylake(__m512 const angles_radians)
     return results;
 }
 
-SIMSIMD_INTERNAL __m512 _simsimd_f32x16_cos_skylake(__m512 const angles_radians) {
+SIMSIMD_INTERNAL __m512 _mathkong_f32x16_cos_skylake(__m512 const angles_radians) {
     // Constants for argument reduction
     __m512 const pi = _mm512_set1_ps(3.14159265358979323846f);            // π
     __m512 const pi_half = _mm512_set1_ps(1.57079632679489661923f);       // π/2
@@ -694,7 +694,7 @@ SIMSIMD_INTERNAL __m512 _simsimd_f32x16_cos_skylake(__m512 const angles_radians)
     return results;
 }
 
-SIMSIMD_INTERNAL __m512 _simsimd_f32x16_atan_skylake(__m512 const inputs) {
+SIMSIMD_INTERNAL __m512 _mathkong_f32x16_atan_skylake(__m512 const inputs) {
     // Polynomial coefficients
     __m512 const coeff_8 = _mm512_set1_ps(-0.333331018686294555664062f);
     __m512 const coeff_7 = _mm512_set1_ps(+0.199926957488059997558594f);
@@ -733,50 +733,50 @@ SIMSIMD_INTERNAL __m512 _simsimd_f32x16_atan_skylake(__m512 const inputs) {
     return result;
 }
 
-SIMSIMD_PUBLIC void simsimd_sin_f32_skylake(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs) {
-    simsimd_size_t i = 0;
+SIMSIMD_PUBLIC void mathkong_sin_f32_skylake(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs) {
+    mathkong_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
         __m512 angles = _mm512_loadu_ps(ins + i);
-        __m512 results = _simsimd_f32x16_sin_skylake(angles);
+        __m512 results = _mathkong_f32x16_sin_skylake(angles);
         _mm512_storeu_ps(outs + i, results);
     }
     if (i < n) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n - i);
         __m512 angles = _mm512_maskz_loadu_ps(mask, ins + i);
-        __m512 results = _simsimd_f32x16_sin_skylake(angles);
+        __m512 results = _mathkong_f32x16_sin_skylake(angles);
         _mm512_mask_storeu_ps(outs + i, mask, results);
     }
 }
-SIMSIMD_PUBLIC void simsimd_cos_f32_skylake(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs) {
-    simsimd_size_t i = 0;
+SIMSIMD_PUBLIC void mathkong_cos_f32_skylake(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs) {
+    mathkong_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
         __m512 angles = _mm512_loadu_ps(ins + i);
-        __m512 results = _simsimd_f32x16_cos_skylake(angles);
+        __m512 results = _mathkong_f32x16_cos_skylake(angles);
         _mm512_storeu_ps(outs + i, results);
     }
     if (i < n) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n - i);
         __m512 angles = _mm512_maskz_loadu_ps(mask, ins + i);
-        __m512 results = _simsimd_f32x16_cos_skylake(angles);
+        __m512 results = _mathkong_f32x16_cos_skylake(angles);
         _mm512_mask_storeu_ps(outs + i, mask, results);
     }
 }
-SIMSIMD_PUBLIC void simsimd_atan_f32_skylake(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs) {
-    simsimd_size_t i = 0;
+SIMSIMD_PUBLIC void mathkong_atan_f32_skylake(mathkong_f32_t const *ins, mathkong_size_t n, mathkong_f32_t *outs) {
+    mathkong_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
         __m512 angles = _mm512_loadu_ps(ins + i);
-        __m512 results = _simsimd_f32x16_atan_skylake(angles);
+        __m512 results = _mathkong_f32x16_atan_skylake(angles);
         _mm512_storeu_ps(outs + i, results);
     }
     if (i < n) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n - i);
         __m512 angles = _mm512_maskz_loadu_ps(mask, ins + i);
-        __m512 results = _simsimd_f32x16_atan_skylake(angles);
+        __m512 results = _mathkong_f32x16_atan_skylake(angles);
         _mm512_mask_storeu_ps(outs + i, mask, results);
     }
 }
 
-SIMSIMD_INTERNAL __m512d _simsimd_f64x8_sin_skylake(__m512d const angles_radians) {
+SIMSIMD_INTERNAL __m512d _mathkong_f64x8_sin_skylake(__m512d const angles_radians) {
     // Constants for argument reduction
     __m512d const pi_high = _mm512_set1_pd(3.141592653589793116);         // High-digits part of π
     __m512d const pi_low = _mm512_set1_pd(1.2246467991473532072e-16);     // Low-digits part of π
@@ -827,7 +827,7 @@ SIMSIMD_INTERNAL __m512d _simsimd_f64x8_sin_skylake(__m512d const angles_radians
     return results;
 }
 
-SIMSIMD_INTERNAL __m512d _simsimd_f64x8_cos_skylake(__m512d const angles_radians) {
+SIMSIMD_INTERNAL __m512d _mathkong_f64x8_cos_skylake(__m512d const angles_radians) {
     // Constants for argument reduction
     __m512d const pi_high_half = _mm512_set1_pd(3.141592653589793116 * 0.5);     // High-digits part of π
     __m512d const pi_low_half = _mm512_set1_pd(1.2246467991473532072e-16 * 0.5); // Low-digits part of π
@@ -880,7 +880,7 @@ SIMSIMD_INTERNAL __m512d _simsimd_f64x8_cos_skylake(__m512d const angles_radians
     return results;
 }
 
-SIMSIMD_INTERNAL __m512d _simsimd_f64x8_atan_skylake(__m512d const inputs) {
+SIMSIMD_INTERNAL __m512d _mathkong_f64x8_atan_skylake(__m512d const inputs) {
     // Polynomial coefficients for atan approximation
     __m512d const coeff_19 = _mm512_set1_pd(-1.88796008463073496563746e-05);
     __m512d const coeff_18 = _mm512_set1_pd(+0.000209850076645816976906797);
@@ -939,45 +939,45 @@ SIMSIMD_INTERNAL __m512d _simsimd_f64x8_atan_skylake(__m512d const inputs) {
     return result;
 }
 
-SIMSIMD_PUBLIC void simsimd_sin_f64_skylake(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs) {
-    simsimd_size_t i = 0;
+SIMSIMD_PUBLIC void mathkong_sin_f64_skylake(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs) {
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m512d angles = _mm512_loadu_pd(ins + i);
-        __m512d results = _simsimd_f64x8_sin_skylake(angles);
+        __m512d results = _mathkong_f64x8_sin_skylake(angles);
         _mm512_storeu_pd(outs + i, results);
     }
     if (i < n) {
         __mmask8 mask = (__mmask8)_bzhi_u32(0xFFFF, n - i);
         __m512d angles = _mm512_maskz_loadu_pd(mask, ins + i);
-        __m512d results = _simsimd_f64x8_sin_skylake(angles);
+        __m512d results = _mathkong_f64x8_sin_skylake(angles);
         _mm512_mask_storeu_pd(outs + i, mask, results);
     }
 }
-SIMSIMD_PUBLIC void simsimd_cos_f64_skylake(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs) {
-    simsimd_size_t i = 0;
+SIMSIMD_PUBLIC void mathkong_cos_f64_skylake(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs) {
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m512d angles = _mm512_loadu_pd(ins + i);
-        __m512d results = _simsimd_f64x8_cos_skylake(angles);
+        __m512d results = _mathkong_f64x8_cos_skylake(angles);
         _mm512_storeu_pd(outs + i, results);
     }
     if (i < n) {
         __mmask8 mask = (__mmask8)_bzhi_u32(0xFFFF, n - i);
         __m512d angles = _mm512_maskz_loadu_pd(mask, ins + i);
-        __m512d results = _simsimd_f64x8_cos_skylake(angles);
+        __m512d results = _mathkong_f64x8_cos_skylake(angles);
         _mm512_mask_storeu_pd(outs + i, mask, results);
     }
 }
-SIMSIMD_PUBLIC void simsimd_atan_f64_skylake(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs) {
-    simsimd_size_t i = 0;
+SIMSIMD_PUBLIC void mathkong_atan_f64_skylake(mathkong_f64_t const *ins, mathkong_size_t n, mathkong_f64_t *outs) {
+    mathkong_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m512d angles = _mm512_loadu_pd(ins + i);
-        __m512d results = _simsimd_f64x8_atan_skylake(angles);
+        __m512d results = _mathkong_f64x8_atan_skylake(angles);
         _mm512_storeu_pd(outs + i, results);
     }
     if (i < n) {
         __mmask8 mask = (__mmask8)_bzhi_u32(0xFFFF, n - i);
         __m512d angles = _mm512_maskz_loadu_pd(mask, ins + i);
-        __m512d results = _simsimd_f64x8_atan_skylake(angles);
+        __m512d results = _mathkong_f64x8_atan_skylake(angles);
         _mm512_mask_storeu_pd(outs + i, mask, results);
     }
 }

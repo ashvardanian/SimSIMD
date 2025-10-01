@@ -11,7 +11,7 @@ from setuptools import setup, Extension
 from distutils import ccompiler, sysconfig
 from distutils.errors import CompileError
 
-__lib_name__ = "simsimd"
+__lib_name__ = "mathkong"
 __version__ = Path("VERSION").read_text().strip()
 
 # --------------------------------------------------------------------------- #
@@ -26,7 +26,7 @@ __version__ = Path("VERSION").read_text().strip()
 if sys.platform == "darwin":
     _bad_dev_dir = os.environ.get("DEVELOPER_DIR")
     if _bad_dev_dir and (_bad_dev_dir == "public" or not Path(_bad_dev_dir).exists()):
-        print(f"[SimSIMD] Ignoring invalid DEVELOPER_DIR={_bad_dev_dir!r}")
+        print(f"[MathKong] Ignoring invalid DEVELOPER_DIR={_bad_dev_dir!r}")
         os.environ.pop("DEVELOPER_DIR", None)
 
 # --------------------------------------------------------------------------- #
@@ -135,12 +135,12 @@ while not _compiles_with(targets_statuses) and len(targets_enabled) > 0:
 # Final verification - should succeed, otherwise bail early.
 if not _compiles_with(targets_statuses):
     raise RuntimeError(
-        "SimSIMD failed to compile even after disabling all known SIMD targets.\n"
+        "MathKong failed to compile even after disabling all known SIMD targets.\n"
         "Consider filing an issue with your compiler/architecture details."
     )
 
 if len(targets_disabled) > 0:
-    print("[SimSIMD] Disabled targets: ", ", ".join(targets_disabled))
+    print("[MathKong] Disabled targets: ", ", ".join(targets_disabled))
 
 
 # --------------------------------------------------------------------------- #
@@ -159,16 +159,16 @@ def _is_editable_install() -> bool:
 
 SETUP_KWARGS = (
     {
-        "packages": ["simsimd"],
-        "package_dir": {"simsimd": "python/annotations"},
-        "package_data": {"simsimd": ["__init__.pyi", "py.typed"]},
+        "packages": ["mathkong"],
+        "package_dir": {"mathkong": "python/annotations"},
+        "package_data": {"mathkong": ["__init__.pyi", "py.typed"]},
     }
     if not _is_editable_install()
     else {}
 )
 
 if _is_editable_install():
-    print("[SimSIMD] Editable install detected - skipping bundled type stubs.")
+    print("[MathKong] Editable install detected - skipping bundled type stubs.")
 
 # --------------------------------------------------------------------------- #
 # Putting it all together                                                     #
@@ -176,7 +176,7 @@ if _is_editable_install():
 
 EXT_MODULES = [
     Extension(
-        "simsimd",
+        "mathkong",
         sources=["python/lib.c", "c/lib.c"],
         include_dirs=["include"],
         language="c",
@@ -193,7 +193,7 @@ setup(
     version=__version__,
     author="Ash Vardanian",
     author_email="1983160+ashvardanian@users.noreply.github.com",
-    url="https://github.com/ashvardanian/simsimd",
+    url="https://github.com/ashvardanian/mathkong",
     description="Portable mixed-precision BLAS-like vector math library for x86 and ARM",
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
