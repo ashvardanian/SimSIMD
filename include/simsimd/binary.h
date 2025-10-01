@@ -6,14 +6,43 @@
  *
  *  Contains:
  *  - Hamming distance
- *  - Jaccard similarity (Tanimoto coefficient)
+ *  - Jaccard distance (Tanimoto coefficient)
  *
  *  For hardware architectures:
  *  - Arm: NEON, SVE
  *  - x86: Haswell, Ice Lake
  *
+ *  The hardest part of optimizing binary similarity measures is the population count operation.
+ *  It's natively supported by almost every instruction set, but the throughput and latency can
+ *  be suboptimal. There are several ways to optimize this operation:
+ *
+ *  - Lookup tables, mostly using nibbles (4-bit lookups)
+ *  - Harley-Seal population counts: https://arxiv.org/pdf/1611.07612
+ *
+ *  On binary vectors, when computing Jaccard distance we can clearly see how the CPU struggles
+ *  to compute that many population counts. There are several instructions we should keep in mind
+ *  for future optimizations:
+ *
+ *  - `_mm512_popcnt_epi64` maps to `VPOPCNTQ (ZMM, K, ZMM)`:
+ *      - On Ice Lake: 3 cycles latency, ports: 1*p5
+ *      - On Genoa: 2 cycles latency, ports: 1*FP01
+ *  - `_mm512_shuffle_epi8` maps to `VPSHUFB (ZMM, ZMM, ZMM)`:
+ *      - On Ice Lake: 1 cycles latency, ports: 1*p5
+ *      - On Genoa: 2 cycles latency, ports: 1*FP12
+ *  - `_mm512_sad_epu8` maps to `VPSADBW (ZMM, ZMM, ZMM)`:
+ *      - On Ice Lake: 3 cycles latency, ports: 1*p5
+ *      - On Zen4: 3 cycles latency, ports: 1*FP01
+ *  - `_mm512_tertiarylogic_epi64` maps to `VPTERNLOGQ (ZMM, ZMM, ZMM, I8)`:
+ *      - On Ice Lake: 1 cycles latency, ports: 1*p05
+ *      - On Zen4: 1 cycles latency, ports: 1*FP0123
+ *  - `_mm512_gf2p8mul_epi8` maps to `VPGF2P8AFFINEQB (ZMM, ZMM, ZMM)`:
+ *      - On Ice Lake: 5 cycles latency, ports: 1*p0
+ *      - On Zen4: 3 cycles latency, ports: 1*FP01
+ *
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *  SSE POPCOUNT experiments by Wojciech Muła: https://github.com/WojciechMula/sse-popcount
+ *  R&D progress tracker: https://github.com/ashvardanian/SimSIMD/pull/138
  */
 #ifndef SIMSIMD_BINARY_H
 #define SIMSIMD_BINARY_H
@@ -78,8 +107,8 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_serial(simsimd_b8_t const *a, simsimd_b8_
 #if _SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a+simd")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
+#pragma GCC target("arch=armv8-a+simd")
+#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 
 SIMSIMD_INTERNAL simsimd_u32_t _simsimd_reduce_u8x16_neon(uint8x16_t vec) {
     // Split the vector into two halves and widen to `uint16x8_t`
@@ -89,10 +118,10 @@ SIMSIMD_INTERNAL simsimd_u32_t _simsimd_reduce_u8x16_neon(uint8x16_t vec) {
     // Sum the widened halves
     uint16x8_t sum16 = vaddq_u16(low_half, high_half);
 
-    // Now reduce the `uint16x8_t` to a single `uint32_t`
-    uint32x4_t sum32 = vpaddlq_u16(sum16);  // pairwise add into 32-bit integers
-    uint64x2_t sum64 = vpaddlq_u32(sum32);  // pairwise add into 64-bit integers
-    uint32_t final_sum = vaddvq_u64(sum64); // final horizontal add to 32-bit result
+    // Now reduce the `uint16x8_t` to a single `simsimd_u32_t`
+    uint32x4_t sum32 = vpaddlq_u16(sum16);       // pairwise add into 32-bit integers
+    uint64x2_t sum64 = vpaddlq_u32(sum32);       // pairwise add into 64-bit integers
+    simsimd_u32_t final_sum = vaddvq_u64(sum64); // final horizontal add to 32-bit result
     return final_sum;
 }
 
@@ -321,19 +350,6 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const *a, simsimd_b8_t c
                                            simsimd_distance_t *result) {
 
     simsimd_size_t intersection = 0, union_ = 0;
-    //? On such vectors we can clearly see that the CPU struggles to perform this many parallel
-    //? population counts, because the throughput of Jaccard and Hamming in this case starts to differ.
-    //? One optimization, aside from Harley-Seal transforms can be using "shuffles" for nibble-popcount
-    //? lookups, to utilize other ports on the CPU.
-    //? https://github.com/ashvardanian/SimSIMD/pull/138
-    //
-    //  - `_mm512_popcnt_epi64` maps to `VPOPCNTQ (ZMM, K, ZMM)`:
-    //      - On Ice Lake: 3 cycles latency, ports: 1*p5
-    //      - On Genoa: 2 cycles latency, ports: 1*FP01
-    //  - `_mm512_shuffle_epi8` maps to `VPSHUFB (ZMM, ZMM, ZMM)`:
-    //      - On Ice Lake: 1 cycles latency, ports: 1*p5
-    //      - On Genoa: 2 cycles latency, ports: 1*FP12
-    //
     //  It's harder to squeeze out performance from tiny representations, so we unroll the loops for binary metrics.
     if (n_words <= 64) { // Up to 512 bits.
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n_words);

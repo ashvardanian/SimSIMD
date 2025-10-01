@@ -1,6 +1,6 @@
 {
   "name": "simsimd",
-  "version": "6.0.3",
+  "version": "6.5.3",
   "description": "Portable mixed-precision BLAS-like vector math library for x86 and ARM",
   "homepage": "https://github.com/ashvardanian/simsimd",
   "author": "Ash Vardanian",
@@ -43,19 +43,19 @@
   },
   "dependencies": {
     "bindings": "^1.5.0",
-    "node-addon-api": "^3.2.1",
-    "node-gyp-build": "^4.8.0"
+    "node-addon-api": "^8.4.0",
+    "node-gyp-build": "^4.8.4"
   },
   "devDependencies": {
     "@types/bindings": "^1.5.5",
-    "@types/node": "^20.17.1",
-    "node-gyp": "^10.0.1",
-    "prebuildify": "^6.0.0",
-    "typescript": "^5.3.3"
+    "@types/node": "^24.0.10",
+    "node-gyp": "^11.2.0",
+    "prebuildify": "^6.0.1",
+    "typescript": "^5.8.3"
   },
   "optionalDependencies": {
     "benchmark": "^2.1.4",
-    "mathjs": "^11.11.2",
-    "usearch": "^2.8.15"
+    "mathjs": "^14.5.3",
+    "usearch": "^2.17.1"
   }
 }

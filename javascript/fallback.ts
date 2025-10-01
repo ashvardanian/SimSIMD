@@ -1,8 +1,8 @@
 /**
- * @brief Computes the inner distance of two vectors (same as dot product).
+ * @brief Computes the inner product of two vectors (dot product).
  * @param {Float64Array|Float32Array} a - The first vector.
  * @param {Float64Array|Float32Array} b - The second vector.
- * @returns {number} The inner distance of vectors a and b.
+ * @returns {number} The inner product of vectors a and b.
  */
 export function inner(a: Float64Array | Float32Array, b: Float64Array | Float32Array): number {
   if (a.length !== b.length) {
@@ -17,10 +17,10 @@ export function inner(a: Float64Array | Float32Array, b: Float64Array | Float32A
 }
 
 /**
- * @brief Computes the inner distance of two vectors (same as inner product).
+ * @brief Computes the dot product of two vectors (same as inner product).
  * @param {Float64Array|Float32Array} a - The first vector.
  * @param {Float64Array|Float32Array} b - The second vector.
- * @returns {number} The inner distance of vectors a and b.
+ * @returns {number} The dot product of vectors a and b.
  */
 export function dot(a: Float64Array | Float32Array, b: Float64Array | Float32Array): number {
   return inner(a, b);
@@ -28,13 +28,13 @@ export function dot(a: Float64Array | Float32Array, b: Float64Array | Float32Arr
 
 /**
  * @brief Computes the squared Euclidean distance between two vectors.
- * @param {Float64Array|Float32Array|Int8Array} a - The first vector.
- * @param {Float64Array|Float32Array|Int8Array} b - The second vector.
+ * @param {Float64Array|Float32Array|Int8Array|Uint8Array} a - The first vector.
+ * @param {Float64Array|Float32Array|Int8Array|Uint8Array} b - The second vector.
  * @returns {number} The squared Euclidean distance between vectors a and b.
  */
 export function sqeuclidean(
-  a: Float64Array | Float32Array | Int8Array,
-  b: Float64Array | Float32Array | Int8Array
+  a: Float64Array | Float32Array | Int8Array | Uint8Array,
+  b: Float64Array | Float32Array | Int8Array | Uint8Array
 ): number {
   if (a.length !== b.length) {
     throw new Error("Vectors must have the same length");
@@ -46,6 +46,28 @@ export function sqeuclidean(
   }
   return result;
 }
+
+/**
+ * @brief Computes the L2 Euclidean distance between two vectors.
+ * @param {Float64Array|Float32Array|Int8Array | Uint8Array} a - The first vector.
+ * @param {Float64Array|Float32Array|Int8Array | Uint8Array} b - The second vector.
+ * @returns {number} The L2 Euclidean distance between vectors a and b.
+ */
+export function euclidean(
+  a: Float64Array | Float32Array | Int8Array | Uint8Array,
+  b: Float64Array | Float32Array | Int8Array | Uint8Array
+): number {
+  if (a.length !== b.length) {
+    throw new Error("Vectors must have the same length");
+  }
+
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result += (a[i] - b[i]) * (a[i] - b[i]);
+  }
+  return Math.sqrt(result);
+}
+
 
 /**
  * @brief Computes the angular distance between two vectors.
@@ -74,12 +96,8 @@ export function angular(
   magnitudeA = Math.sqrt(magnitudeA);
   magnitudeB = Math.sqrt(magnitudeB);
 
-  if (magnitudeA === 0 || magnitudeB === 0) {
-    console.warn(
-      "Warning: One of the magnitudes is zero. Cosine similarity is undefined."
-    );
-    return 0;
-  }
+  if (magnitudeA === 0 && magnitudeB === 0) return 0; // distance when both zero
+  if (magnitudeA === 0 || magnitudeB === 0) return 1; // distance when one is zero
 
   return 1 - dotProduct / (magnitudeA * magnitudeB);
 }
@@ -111,10 +129,10 @@ export const hamming = (a: Uint8Array, b: Uint8Array): number => {
 };
 
 /**
- * @brief Computes the bitwise Jaccard similarity coefficient between two vectors.
+ * @brief Computes the bitwise Jaccard distance between two vectors.
  * @param {Uint8Array} a - The first vector.
  * @param {Uint8Array} b - The second vector.
- * @returns {number} The Jaccard similarity coefficient between vectors a and b.
+ * @returns {number} The Jaccard distance between vectors a and b.
  */
 export const jaccard = (a: Uint8Array, b: Uint8Array): number => {
   if (a.length !== b.length) {
@@ -149,10 +167,10 @@ export const jaccard = (a: Uint8Array, b: Uint8Array): number => {
 };
 
 /**
- * @brief Computes the kullbackleibler similarity coefficient between two vectors.
+ * @brief Computes the Kullback-Leibler divergence between two probability distributions.
  * @param {Float64Array|Float32Array} a - The first vector.
  * @param {Float64Array|Float32Array} b - The second vector.
- * @returns {number} The Jaccard similarity coefficient between vectors a and b.
+ * @returns {number} The Kullback-Leibler divergence between vectors a and b.
  */
 export const kullbackleibler = (a: Float64Array | Float32Array, b: Float64Array | Float32Array): number => {
   if (a.length !== b.length) {
@@ -160,40 +178,52 @@ export const kullbackleibler = (a: Float64Array | Float32Array, b: Float64Array 
   }
 
   let divergence = 0.0;
-
   for (let i = 0; i < a.length; i++) {
-    if (a[i] > 0) {
-      if (b[i] === 0) {
-        throw new Error(
-          "Division by zero encountered in KL divergence calculation"
-        );
-      }
-      divergence += a[i] * Math.log(a[i] / b[i]);
+    if (a[i] < 0 || b[i] < 0) {
+      throw new Error("Negative values are not allowed in probability distributions");
     }
+    if (b[i] === 0) {
+      throw new Error(
+        "Division by zero encountered in KL divergence calculation"
+      );
+    }
+    divergence += a[i] * Math.log(a[i] / b[i]);
   }
 
   return divergence;
 };
 
 /**
- * @brief Computes the jensenshannon similarity coefficient between two vectors.
- * @param {Float64Array|Float32Array} a - The first vector.
- * @param {Float64Array|Float32Array} b - The second vector.
- * @returns {number} The Jaccard similarity coefficient between vectors a and b.
+ * @brief Computes the Jensen-Shannon distance between two probability distributions.
+ * @param {Float64Array|Float32Array} a - The first probability distribution.
+ * @param {Float64Array|Float32Array} b - The second probability distribution.
+ * @returns {number} The Jensen-Shannon distance between distributions a and b.
  */
 export const jensenshannon = (a: Float64Array | Float32Array, b: Float64Array | Float32Array): number => {
   if (a.length !== b.length) {
     throw new Error("Arrays must be of the same length");
   }
 
-  const m = a.map((value, index) => (value + b[index]) / 2);
+  let divergence = 0;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] < 0 || b[i] < 0) {
+      throw new Error("Negative values are not allowed in probability distributions");
+    }
+    const m = (a[i] + b[i]) / 2;
+    if (m > 0) {
+      if (a[i] > 0) divergence += a[i] * Math.log(a[i] / m);
+      if (b[i] > 0) divergence += b[i] * Math.log(b[i] / m);
+    }
+  }
 
-  const divergence = 0.5 * kullbackleibler(a, m) + 0.5 * kullbackleibler(b, m);
+  divergence /= 2;
   return Math.sqrt(divergence);
 };
 
+
 export default {
   sqeuclidean,
+  euclidean,
   angular,
   inner,
   hamming,

@@ -3,7 +3,6 @@
  *  @file       lib.c
  *  @author     Ash Vardanian
  *  @date       January 1, 2023
- *  @copyright  Copyright (c) 2023
  *
  *  @section    Latency, Quality, and Arguments Parsing
  *
@@ -88,7 +87,7 @@
 #include <math.h>
 
 #if defined(__linux__)
-#ifdef _OPENMP
+#if defined(_OPENMP)
 #include <omp.h>
 #endif
 #endif
@@ -302,8 +301,8 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
              same_string(name, "h") || same_string(name, "<h"))                                 // Named type
         return simsimd_i16_k;
 
-        //! On Windows the 32-bit and 64-bit signed integers will have different specifiers:
-        //! https://github.com/pybind/pybind11/issues/1908
+    //! On Windows the 32-bit and 64-bit signed integers will have different specifiers:
+    //! https://github.com/pybind/pybind11/issues/1908
 #if defined(_MSC_VER) || defined(__i386__)
     else if (same_string(name, "int32") ||                                                      // SimSIMD-specific
              same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
@@ -334,8 +333,8 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
              same_string(name, "H") || same_string(name, "<H"))                                 // Named type
         return simsimd_u16_k;
 
-        //! On Windows the 32-bit and 64-bit unsigned integers will have different specifiers:
-        //! https://github.com/pybind/pybind11/issues/1908
+    //! On Windows the 32-bit and 64-bit unsigned integers will have different specifiers:
+    //! https://github.com/pybind/pybind11/issues/1908
 #if defined(_MSC_VER) || defined(__i386__)
     else if (same_string(name, "uint32") ||                                                     // SimSIMD-specific
              same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
@@ -633,8 +632,6 @@ int parse_rows(PyObject *tensor, Py_buffer *buffer, VectorOrRowsArgument *parsed
         return 0;
     }
 
-    // We handle complex numbers differently
-    if (is_complex(parsed->datatype)) parsed->dimensions *= 2;
     return 1;
 }
 
@@ -1014,17 +1011,12 @@ static PyObject *implement_dense_metric( //
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     int const dtype_is_complex = is_complex(dtype);
     if (a_parsed.rank == 1 && b_parsed.rank == 1) {
-        // For complex numbers we are going to use `PyComplex_FromDoubles`.
-        if (dtype_is_complex) {
-            simsimd_distance_t distances[2];
-            metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, distances);
-            return_obj = PyComplex_FromDoubles(distances[0], distances[1]);
-        }
-        else {
-            simsimd_distance_t distance;
-            metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, &distance);
-            return_obj = PyFloat_FromDouble(distance);
-        }
+        simsimd_distance_t distances[2];
+        metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, distances);
+        return_obj =         //
+            dtype_is_complex //
+                ? PyComplex_FromDoubles(distances[0], distances[1])
+                : PyFloat_FromDouble(distances[0]);
         goto cleanup;
     }
 
@@ -1077,6 +1069,9 @@ static PyObject *implement_dense_metric( //
         return_obj = Py_None;
     }
 
+    // Now let's release the GIL for the parallel part using the underlying mechanism of `Py_BEGIN_ALLOW_THREADS`.
+    PyThreadState *save = PyEval_SaveThread();
+
     // Compute the distances
     for (size_t i = 0; i < count_pairs; ++i) {
         simsimd_distance_t result[2];
@@ -1090,6 +1085,8 @@ static PyObject *implement_dense_metric( //
         cast_distance(result[0], out_dtype, out_buffer_start + i * out_buffer_stride_bytes, 0);
         if (dtype_is_complex) cast_distance(result[1], out_dtype, out_buffer_start + i * out_buffer_stride_bytes, 1);
     }
+
+    PyEval_RestoreThread(save);
 
 cleanup:
     PyBuffer_Release(&a_buffer);
@@ -1217,9 +1214,14 @@ static PyObject *implement_curved_metric( //
         goto cleanup;
     }
 
-    simsimd_distance_t distance;
-    metric(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, &distance);
-    return_obj = PyFloat_FromDouble(distance);
+    // If the distance is computed between two vectors, rather than matrices, return a scalar
+    int const dtype_is_complex = is_complex(dtype);
+    simsimd_distance_t distances[2];
+    metric(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, &distances[0]);
+    return_obj =         //
+        dtype_is_complex //
+            ? PyComplex_FromDoubles(distances[0], distances[1])
+            : PyFloat_FromDouble(distances[0]);
 
 cleanup:
     PyBuffer_Release(&a_buffer);
@@ -1371,22 +1373,17 @@ static PyObject *implement_cdist(                        //
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     int const dtype_is_complex = is_complex(dtype);
     if (a_parsed.rank == 1 && b_parsed.rank == 1) {
-        // For complex numbers we are going to use `PyComplex_FromDoubles`.
-        if (dtype_is_complex) {
-            simsimd_distance_t distances[2];
-            metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, distances);
-            return_obj = PyComplex_FromDoubles(distances[0], distances[1]);
-        }
-        else {
-            simsimd_distance_t distance;
-            metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, &distance);
-            return_obj = PyFloat_FromDouble(distance);
-        }
+        simsimd_distance_t distances[2];
+        metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, distances);
+        return_obj =         //
+            dtype_is_complex //
+                ? PyComplex_FromDoubles(distances[0], distances[1])
+                : PyFloat_FromDouble(distances[0]);
         goto cleanup;
     }
 
-#ifdef __linux__
-#ifdef _OPENMP
+#if defined(__linux__)
+#if defined(_OPENMP)
     if (threads == 0) threads = omp_get_num_procs();
     omp_set_num_threads(threads);
 #endif
@@ -1438,6 +1435,9 @@ static PyObject *implement_cdist(                        //
         return_obj = Py_None;
     }
 
+    // Now let's release the GIL for the parallel part using the underlying mechanism of `Py_BEGIN_ALLOW_THREADS`.
+    PyThreadState *save = PyEval_SaveThread();
+
     // Assuming most of our kernels are symmetric, we only need to compute the upper triangle
     // if we are computing all pairwise distances within the same set.
     int const is_symmetric = kernel_is_commutative(kernel_kind) && a_parsed.start == b_parsed.start &&
@@ -1474,6 +1474,8 @@ static PyObject *implement_cdist(                        //
                               out_buffer_start + j * out_buffer_rows_stride_bytes + i * out_buffer_cols_stride_bytes,
                               1);
         }
+
+    PyEval_RestoreThread(save);
 
 cleanup:
     PyBuffer_Release(&a_buffer);
@@ -4018,6 +4020,10 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
 
     m = PyModule_Create(&simsimd_module);
     if (m == NULL) return NULL;
+
+#ifdef Py_GIL_DISABLED
+    PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED);
+#endif
 
     // Add version metadata
     {

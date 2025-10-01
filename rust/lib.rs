@@ -1,8 +1,9 @@
 //! # SpatialSimilarity - Hardware-Accelerated Similarity Metrics and Distance Functions
 //!
 //! * Targets ARM NEON, SVE, x86 AVX2, AVX-512 (VNNI, FP16) hardware backends.
-//! * Handles `f64` double-, `f32` single-, and `f16` half-precision, `i8` integral, and binary vectors.
-//! * Zero-dependency header-only C 99 library with bindings for Rust and other langauges.
+//! * Handles `f64` double- and `f32` single-precision, integral, and binary vectors.
+//! * Exposes half-precision (`f16`) and brain floating point (`bf16`) types.
+//! * Zero-dependency header-only C 99 library with bindings for Rust and other languages.
 //!
 //! ## Implemented distance functions include:
 //!
@@ -26,6 +27,30 @@
 //!
 //! // Compute squared Euclidean distance
 //! let l2sq_dist = i8::l2sq(a, b);
+//!
+//! // Optimize performance by flushing denormals
+//! simsimd::capabilities::flush_denormals();
+//! ```
+//!
+//! ## Mixed Precision Support
+//!
+//! ```rust
+//! use simsimd::{SpatialSimilarity, f16, bf16};
+//!
+//! // Work with half-precision floats
+//! let half_a: Vec<f16> = vec![1.0, 2.0, 3.0].iter().map(|&x| f16::from_f32(x)).collect();
+//! let half_b: Vec<f16> = vec![4.0, 5.0, 6.0].iter().map(|&x| f16::from_f32(x)).collect();
+//! let half_cos_dist = f16::cos(&half_a, &half_b);
+//!
+//! // Work with brain floats
+//! let brain_a: Vec<bf16> = vec![1.0, 2.0, 3.0].iter().map(|&x| bf16::from_f32(x)).collect();
+//! let brain_b: Vec<bf16> = vec![4.0, 5.0, 6.0].iter().map(|&x| bf16::from_f32(x)).collect();
+//! let brain_cos_dist = bf16::cos(&brain_a, &brain_b);
+//!
+//! // Direct bit manipulation
+//! let half = f16::from_f32(3.14);
+//! let bits = half.0; // Access raw u16 representation
+//! let reconstructed = f16(bits);
 //! ```
 //!
 //! ## Traits
@@ -40,7 +65,7 @@
 //! The `BinarySimilarity` trait covers following methods:
 //!
 //! - `hamming(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Hamming distance between two slices.
-//! - `jaccard(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Jaccard index between two slices.
+//! - `jaccard(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Jaccard distance between two slices.
 //!
 //! The `ProbabilitySimilarity` trait covers following methods:
 //!
@@ -48,10 +73,18 @@
 //! - `kullbackleibler(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Kullback-Leibler divergence between two slices.
 //!
 #![allow(non_camel_case_types)]
+#![cfg_attr(not(test), no_std)]
 
-type Distance = f64;
-type ComplexProduct = (f64, f64);
+pub type Distance = f64;
+pub type ComplexProduct = (f64, f64);
 
+/// Compatibility function for pre 1.85 Rust versions lacking `f32::abs`.
+#[inline(always)]
+fn f32_abs_compat(x: f32) -> f32 {
+    f32::from_bits(x.to_bits() & 0x7FFF_FFFF)
+}
+
+#[link(name = "simsimd")]
 extern "C" {
 
     fn simsimd_dot_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
@@ -85,6 +118,12 @@ extern "C" {
     fn simsimd_l2sq_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
     fn simsimd_l2sq_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
 
+    fn simsimd_l2_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
+    fn simsimd_l2_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_l2_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
+    fn simsimd_l2_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
+    fn simsimd_l2_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
+
     fn simsimd_hamming_b8(a: *const u8, b: *const u8, c: usize, d: *mut Distance);
     fn simsimd_jaccard_b8(a: *const u8, b: *const u8, c: usize, d: *mut Distance);
 
@@ -97,6 +136,21 @@ extern "C" {
     fn simsimd_kl_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
     fn simsimd_kl_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
     fn simsimd_kl_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
+
+    fn simsimd_intersect_u16(
+        a: *const u16,
+        b: *const u16,
+        a_length: usize,
+        b_length: usize,
+        d: *mut Distance,
+    );
+    fn simsimd_intersect_u32(
+        a: *const u32,
+        b: *const u32,
+        a_length: usize,
+        b_length: usize,
+        d: *mut Distance,
+    );
 
     fn simsimd_uses_neon() -> i32;
     fn simsimd_uses_neon_f16() -> i32;
@@ -113,19 +167,363 @@ extern "C" {
     fn simsimd_uses_sapphire() -> i32;
     fn simsimd_uses_turin() -> i32;
     fn simsimd_uses_sierra() -> i32;
+
+    fn simsimd_flush_denormals() -> i32;
+    fn simsimd_uses_dynamic_dispatch() -> i32;
+
+    fn simsimd_f32_to_f16(f32_value: f32, result_ptr: *mut u16);
+    fn simsimd_f16_to_f32(f16_ptr: *const u16) -> f32;
+    fn simsimd_f32_to_bf16(f32_value: f32, result_ptr: *mut u16);
+    fn simsimd_bf16_to_f32(bf16_ptr: *const u16) -> f32;
 }
 
-/// A half-precision floating point number.
+/// A half-precision (16-bit) floating point number.
+///
+/// This type represents IEEE 754 half-precision binary floating-point format.
+/// It provides conversion methods to and from f32, and the underlying u16
+/// representation is publicly accessible for direct bit manipulation.
+///
+/// # Examples
+///
+/// ```
+/// use simsimd::f16;
+///
+/// // Create from f32
+/// let half = f16::from_f32(3.14);
+///
+/// // Convert back to f32
+/// let float = half.to_f32();
+///
+/// // Direct access to bits
+/// let bits = half.0;
+/// ```
 #[repr(transparent)]
-pub struct f16(u16);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct f16(pub u16);
 
-impl f16 {}
+impl f16 {
+    /// Positive zero.
+    pub const ZERO: Self = f16(0);
 
-/// A half-precision floating point number, called brain float.
+    /// Positive one.
+    pub const ONE: Self = f16(0x3C00);
+
+    /// Negative one.
+    pub const NEG_ONE: Self = f16(0xBC00);
+
+    /// Converts an f32 to f16 representation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simsimd::f16;
+    /// let half = f16::from_f32(3.14159);
+    /// ```
+    #[inline(always)]
+    pub fn from_f32(value: f32) -> Self {
+        let mut result: u16 = 0;
+        unsafe { simsimd_f32_to_f16(value, &mut result) };
+        f16(result)
+    }
+
+    /// Converts the f16 to an f32.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simsimd::f16;
+    /// let half = f16::from_f32(3.14159);
+    /// let float = half.to_f32();
+    /// ```
+    #[inline(always)]
+    pub fn to_f32(self) -> f32 {
+        unsafe { simsimd_f16_to_f32(&self.0) }
+    }
+
+    /// Returns true if this value is NaN.
+    #[inline(always)]
+    pub fn is_nan(self) -> bool {
+        self.to_f32().is_nan()
+    }
+
+    /// Returns true if this value is positive or negative infinity.
+    #[inline(always)]
+    pub fn is_infinite(self) -> bool {
+        self.to_f32().is_infinite()
+    }
+
+    /// Returns true if this number is neither infinite nor NaN.
+    #[inline(always)]
+    pub fn is_finite(self) -> bool {
+        self.to_f32().is_finite()
+    }
+
+    /// Returns the absolute value of self.
+    #[inline(always)]
+    pub fn abs(self) -> Self {
+        Self::from_f32(f32_abs_compat(self.to_f32()))
+    }
+
+    /// Returns the largest integer less than or equal to a number.
+    ///
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn floor(self) -> Self {
+        Self::from_f32(self.to_f32().floor())
+    }
+
+    /// Returns the smallest integer greater than or equal to a number.
+    ///
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn ceil(self) -> Self {
+        Self::from_f32(self.to_f32().ceil())
+    }
+
+    /// Returns the nearest integer to a number. Round half-way cases away from 0.0.
+    ///
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn round(self) -> Self {
+        Self::from_f32(self.to_f32().round())
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::fmt::Display for f16 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_f32())
+    }
+}
+
+impl core::ops::Add for f16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() + rhs.to_f32())
+    }
+}
+
+impl core::ops::Sub for f16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() - rhs.to_f32())
+    }
+}
+
+impl core::ops::Mul for f16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() * rhs.to_f32())
+    }
+}
+
+impl core::ops::Div for f16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn div(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() / rhs.to_f32())
+    }
+}
+
+impl core::ops::Neg for f16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn neg(self) -> Self::Output {
+        Self::from_f32(-self.to_f32())
+    }
+}
+
+impl core::cmp::PartialOrd for f16 {
+    #[inline(always)]
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        self.to_f32().partial_cmp(&other.to_f32())
+    }
+}
+
+/// A brain floating point (bfloat16) number.
+///
+/// This type represents Google's bfloat16 format, which truncates IEEE 754
+/// single-precision to 16 bits by keeping the exponent bits but reducing
+/// the mantissa. This provides a wider range than f16 but lower precision.
+///
+/// # Examples
+///
+/// ```
+/// use simsimd::bf16;
+///
+/// // Create from f32
+/// let brain_half = bf16::from_f32(3.14);
+///
+/// // Convert back to f32
+/// let float = brain_half.to_f32();
+///
+/// // Direct access to bits
+/// let bits = brain_half.0;
+/// ```
 #[repr(transparent)]
-pub struct bf16(u16);
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct bf16(pub u16);
 
-impl bf16 {}
+impl bf16 {
+    /// Positive zero.
+    pub const ZERO: Self = bf16(0);
+
+    /// Positive one.
+    pub const ONE: Self = bf16(0x3F80);
+
+    /// Negative one.
+    pub const NEG_ONE: Self = bf16(0xBF80);
+
+    /// Converts an f32 to bf16 representation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simsimd::bf16;
+    /// let brain_half = bf16::from_f32(3.14159);
+    /// ```
+    #[inline(always)]
+    pub fn from_f32(value: f32) -> Self {
+        let mut result: u16 = 0;
+        unsafe { simsimd_f32_to_bf16(value, &mut result) };
+        bf16(result)
+    }
+
+    /// Converts the bf16 to an f32.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use simsimd::bf16;
+    /// let brain_half = bf16::from_f32(3.14159);
+    /// let float = brain_half.to_f32();
+    /// ```
+    #[inline(always)]
+    pub fn to_f32(self) -> f32 {
+        unsafe { simsimd_bf16_to_f32(&self.0) }
+    }
+
+    /// Returns true if this value is NaN.
+    #[inline(always)]
+    pub fn is_nan(self) -> bool {
+        self.to_f32().is_nan()
+    }
+
+    /// Returns true if this value is positive or negative infinity.
+    #[inline(always)]
+    pub fn is_infinite(self) -> bool {
+        self.to_f32().is_infinite()
+    }
+
+    /// Returns true if this number is neither infinite nor NaN.
+    #[inline(always)]
+    pub fn is_finite(self) -> bool {
+        self.to_f32().is_finite()
+    }
+
+    /// Returns the absolute value of self.
+    #[inline(always)]
+    pub fn abs(self) -> Self {
+        Self::from_f32(f32_abs_compat(self.to_f32()))
+    }
+
+    /// Returns the largest integer less than or equal to a number.
+    ///
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn floor(self) -> Self {
+        Self::from_f32(self.to_f32().floor())
+    }
+
+    /// Returns the smallest integer greater than or equal to a number.
+    ///
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn ceil(self) -> Self {
+        Self::from_f32(self.to_f32().ceil())
+    }
+
+    /// Returns the nearest integer to a number. Round half-way cases away from 0.0.
+    ///
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn round(self) -> Self {
+        Self::from_f32(self.to_f32().round())
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::fmt::Display for bf16 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_f32())
+    }
+}
+
+impl core::ops::Add for bf16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() + rhs.to_f32())
+    }
+}
+
+impl core::ops::Sub for bf16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() - rhs.to_f32())
+    }
+}
+
+impl core::ops::Mul for bf16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() * rhs.to_f32())
+    }
+}
+
+impl core::ops::Div for bf16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn div(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() / rhs.to_f32())
+    }
+}
+
+impl core::ops::Neg for bf16 {
+    type Output = Self;
+
+    #[inline(always)]
+    fn neg(self) -> Self::Output {
+        Self::from_f32(-self.to_f32())
+    }
+}
+
+impl core::cmp::PartialOrd for bf16 {
+    #[inline(always)]
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        self.to_f32().partial_cmp(&other.to_f32())
+    }
+}
 
 /// The `capabilities` module provides functions for detecting the hardware features
 /// available on the current system.
@@ -190,6 +588,29 @@ pub mod capabilities {
     pub fn uses_sierra() -> bool {
         unsafe { crate::simsimd_uses_sierra() != 0 }
     }
+
+    /// Flushes denormalized numbers to zero on the current CPU architecture.
+    ///
+    /// This function should be called on each thread before any SIMD operations
+    /// to avoid performance penalties. When facing denormalized values,
+    /// Fused-Multiply-Add (FMA) operations can be up to 30x slower.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if the operation was successful, `false` otherwise.
+    pub fn flush_denormals() -> bool {
+        unsafe { crate::simsimd_flush_denormals() != 0 }
+    }
+
+    /// Checks if the library is using dynamic dispatch for function selection.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` when the C backend is compiled with dynamic dispatch
+    /// (default for this crate via `build.rs`), otherwise `false`.
+    pub fn uses_dynamic_dispatch() -> bool {
+        unsafe { crate::simsimd_uses_dynamic_dispatch() != 0 }
+    }
 }
 
 /// `SpatialSimilarity` provides a set of trait methods for computing similarity
@@ -200,7 +621,9 @@ pub mod capabilities {
 /// Each method takes two slices of data (a and b) and returns an Option<Distance>.
 /// The result is `None` if the slices are not of the same length, as these operations
 /// require one-to-one correspondence between the elements of the slices.
-/// Otherwise, it returns the computed similarity or distance as `Some(f32)`.
+/// Otherwise, it returns the computed similarity or distance as `Some(f64)`.
+/// Convenience methods like `cosine`/`sqeuclidean` delegate to the core methods
+/// `cos`/`l2sq` implemented by this trait.
 pub trait SpatialSimilarity
 where
     Self: Sized,
@@ -220,11 +643,25 @@ where
     /// between corresponding elements of the two slices.
     fn l2sq(a: &[Self], b: &[Self]) -> Option<Distance>;
 
+    /// Computes the Euclidean distance between two slices.
+    /// The Euclidean distance is the square root of
+    //  sum of the squared differences between corresponding
+    /// elements of the two slices.
+    fn l2(a: &[Self], b: &[Self]) -> Option<Distance>;
+
     /// Computes the squared Euclidean distance between two slices.
     /// The squared Euclidean distance is the sum of the squared differences
     /// between corresponding elements of the two slices.
     fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Distance> {
         SpatialSimilarity::l2sq(a, b)
+    }
+
+    /// Computes the Euclidean distance between two slices.
+    /// The Euclidean distance is the square root of the
+    /// sum of the squared differences between corresponding
+    /// elements of the two slices.
+    fn euclidean(a: &[Self], b: &[Self]) -> Option<Distance> {
+        SpatialSimilarity::l2(a, b)
     }
 
     /// Computes the squared Euclidean distance between two slices.
@@ -293,6 +730,16 @@ where
     fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct>;
 }
 
+/// `Sparse` provides trait methods for sparse vectors.
+pub trait Sparse
+where
+    Self: Sized,
+{
+    /// Computes the number of common elements between two sparse vectors.
+    /// both vectors must be sorted in ascending order.
+    fn intersect(a: &[Self], b: &[Self]) -> Option<Distance>;
+}
+
 impl BinarySimilarity for u8 {
     fn hamming(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
@@ -343,6 +790,34 @@ impl SpatialSimilarity for i8 {
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
         unsafe { simsimd_l2sq_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
+    }
+
+    fn l2(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_l2_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
+    }
+}
+
+impl Sparse for u16 {
+    fn intersect(a: &[Self], b: &[Self]) -> Option<Distance> {
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_intersect_u16(a.as_ptr(), b.as_ptr(), a.len(), b.len(), distance_ptr) };
+        Some(distance_value)
+    }
+}
+
+impl Sparse for u32 {
+    fn intersect(a: &[Self], b: &[Self]) -> Option<Distance> {
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_intersect_u32(a.as_ptr(), b.as_ptr(), a.len(), b.len(), distance_ptr) };
         Some(distance_value)
     }
 }
@@ -421,6 +896,19 @@ impl SpatialSimilarity for f16 {
         unsafe { simsimd_l2sq_f16(a_ptr, b_ptr, a.len(), distance_ptr) };
         Some(distance_value)
     }
+
+    fn l2(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+        // Explicitly cast `*const f16` to `*const u16`
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_l2_f16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        Some(distance_value)
+    }
 }
 
 impl SpatialSimilarity for bf16 {
@@ -465,6 +953,19 @@ impl SpatialSimilarity for bf16 {
         unsafe { simsimd_l2sq_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
         Some(distance_value)
     }
+
+    fn l2(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+        // Explicitly cast `*const bf16` to `*const u16`
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_l2_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        Some(distance_value)
+    }
 }
 
 impl SpatialSimilarity for f32 {
@@ -497,6 +998,16 @@ impl SpatialSimilarity for f32 {
         unsafe { simsimd_l2sq_f32(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
         Some(distance_value)
     }
+
+    fn l2(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_l2_f32(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
+    }
 }
 
 impl SpatialSimilarity for f64 {
@@ -527,6 +1038,16 @@ impl SpatialSimilarity for f64 {
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
         unsafe { simsimd_l2sq_f64(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        Some(distance_value)
+    }
+
+    fn l2(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_l2_f64(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
         Some(distance_value)
     }
 }
@@ -744,7 +1265,7 @@ mod tests {
     use half::f16 as HalfF16;
 
     #[test]
-    fn test_hardware_features_detection() {
+    fn hardware_features_detection() {
         let uses_arm = capabilities::uses_neon() || capabilities::uses_sve();
         let uses_x86 = capabilities::uses_haswell()
             || capabilities::uses_skylake()
@@ -781,7 +1302,7 @@ mod tests {
     }
 
     #[test]
-    fn test_angular_i8() {
+    fn angular_i8() {
         let a: &[i8; 3] = &[3, 97, 127];
         let b: &[i8; 3] = &[3, 97, 127];
 
@@ -792,7 +1313,7 @@ mod tests {
     }
 
     #[test]
-    fn test_angular_f32() {
+    fn angular_f32() {
         let a = &[1.0, 2.0, 3.0];
         let b = &[4.0, 5.0, 6.0];
 
@@ -803,18 +1324,18 @@ mod tests {
     }
 
     #[test]
-    fn test_dot_i8() {
+    fn dot_i8() {
         let a: &[i8; 3] = &[1, 2, 3];
         let b: &[i8; 3] = &[4, 5, 6];
 
         if let Some(result) = SpatialSimilarity::dot(a, b) {
             println!("The result of dot_i8 is {:.8}", result);
-            assert_almost_equal(0.029403687, result, 0.01);
+            assert_almost_equal(32.0, result, 0.01);
         }
     }
 
     #[test]
-    fn test_dot_f32() {
+    fn dot_f32() {
         let a = &[1.0, 2.0, 3.0];
         let b = &[4.0, 5.0, 6.0];
 
@@ -825,7 +1346,7 @@ mod tests {
     }
 
     #[test]
-    fn test_dot_f32_complex() {
+    fn dot_f32_complex() {
         // Let's consider these as complex numbers where every pair is (real, imaginary)
         let a: &[f32; 4] = &[1.0, 2.0, 3.0, 4.0]; // Represents two complex numbers: 1+2i, 3+4i
         let b: &[f32; 4] = &[5.0, 6.0, 7.0, 8.0]; // Represents two complex numbers: 5+6i, 7+8i
@@ -842,7 +1363,7 @@ mod tests {
     }
 
     #[test]
-    fn test_vdot_f32_complex() {
+    fn vdot_f32_complex() {
         // Here we're assuming a similar setup to the previous test, but for the Hermitian (conjugate) dot product
         let a: &[f32; 4] = &[1.0, 2.0, 3.0, 4.0]; // Represents two complex numbers: 1+2i, 3+4i
         let b: &[f32; 4] = &[5.0, 6.0, 7.0, 8.0]; // Represents two complex numbers: 5+6i, 7+8i
@@ -859,7 +1380,7 @@ mod tests {
     }
 
     #[test]
-    fn test_l2sq_i8() {
+    fn l2sq_i8() {
         let a: &[i8; 3] = &[1, 2, 3];
         let b: &[i8; 3] = &[4, 5, 6];
 
@@ -870,7 +1391,7 @@ mod tests {
     }
 
     #[test]
-    fn test_l2sq_f32() {
+    fn l2sq_f32() {
         let a = &[1.0, 2.0, 3.0];
         let b = &[4.0, 5.0, 6.0];
 
@@ -880,9 +1401,61 @@ mod tests {
         }
     }
 
+    #[test]
+    fn l2_f32() {
+        let a: &[f32; 3] = &[1.0, 2.0, 3.0];
+        let b: &[f32; 3] = &[4.0, 5.0, 6.0];
+        if let Some(result) = SpatialSimilarity::euclidean(a, b) {
+            println!("The result of l2_f32 is {:.8}", result);
+            assert_almost_equal(5.2, result, 0.01);
+        }
+    }
+
+    #[test]
+    fn l2_f64() {
+        let a: &[f64; 3] = &[1.0, 2.0, 3.0];
+        let b: &[f64; 3] = &[4.0, 5.0, 6.0];
+        if let Some(result) = SpatialSimilarity::euclidean(a, b) {
+            println!("The result of l2_f64 is {:.8}", result);
+            assert_almost_equal(5.2, result, 0.01);
+        }
+    }
+
+    #[test]
+    fn l2_f16() {
+        let a_half: Vec<HalfF16> = vec![1.0, 2.0, 3.0]
+            .iter()
+            .map(|&x| HalfF16::from_f32(x))
+            .collect();
+        let b_half: Vec<HalfF16> = vec![4.0, 5.0, 6.0]
+            .iter()
+            .map(|&x| HalfF16::from_f32(x))
+            .collect();
+
+        let a_simsimd: &[f16] =
+            unsafe { std::slice::from_raw_parts(a_half.as_ptr() as *const f16, a_half.len()) };
+        let b_simsimd: &[f16] =
+            unsafe { std::slice::from_raw_parts(b_half.as_ptr() as *const f16, b_half.len()) };
+
+        if let Some(result) = SpatialSimilarity::euclidean(&a_simsimd, &b_simsimd) {
+            println!("The result of l2_f16 is {:.8}", result);
+            assert_almost_equal(5.2, result, 0.01);
+        }
+    }
+
+    #[test]
+    fn l2_i8() {
+        let a = &[1, 2, 3];
+        let b = &[4, 5, 6];
+
+        if let Some(result) = SpatialSimilarity::euclidean(a, b) {
+            println!("The result of l2_i8 is {:.8}", result);
+            assert_almost_equal(5.2, result, 0.01);
+        }
+    }
     // Adding new tests for bit-level distances
     #[test]
-    fn test_hamming_u8() {
+    fn hamming_u8() {
         let a = &[0b01010101, 0b11110000, 0b10101010]; // Binary representations for clarity
         let b = &[0b01010101, 0b11110000, 0b10101010];
 
@@ -893,7 +1466,7 @@ mod tests {
     }
 
     #[test]
-    fn test_jaccard_u8() {
+    fn jaccard_u8() {
         // For binary data, treat each byte as a set of bits
         let a = &[0b11110000, 0b00001111, 0b10101010];
         let b = &[0b11110000, 0b00001111, 0b01010101];
@@ -906,20 +1479,20 @@ mod tests {
 
     // Adding new tests for probability similarities
     #[test]
-    fn test_js_f32() {
-        let a = &[0.1, 0.9, 0.0];
-        let b = &[0.2, 0.8, 0.0];
+    fn js_f32() {
+        let a: &[f32; 3] = &[0.1, 0.9, 0.0];
+        let b: &[f32; 3] = &[0.2, 0.8, 0.0];
 
         if let Some(result) = ProbabilitySimilarity::jensenshannon(a, b) {
             println!("The result of js_f32 is {:.8}", result);
-            assert_almost_equal(0.01, result, 0.01); // Example value
+            assert_almost_equal(0.099, result, 0.01); // Example value
         }
     }
 
     #[test]
-    fn test_kl_f32() {
-        let a = &[0.1, 0.9, 0.0];
-        let b = &[0.2, 0.8, 0.0];
+    fn kl_f32() {
+        let a: &[f32; 3] = &[0.1, 0.9, 0.0];
+        let b: &[f32; 3] = &[0.2, 0.8, 0.0];
 
         if let Some(result) = ProbabilitySimilarity::kullbackleibler(a, b) {
             println!("The result of kl_f32 is {:.8}", result);
@@ -928,7 +1501,7 @@ mod tests {
     }
 
     #[test]
-    fn test_angular_f16_same() {
+    fn angular_f16_same() {
         // Assuming these u16 values represent f16 bit patterns, and they are identical
         let a_u16: &[u16] = &[15360, 16384, 17408]; // Corresponding to some f16 values
         let b_u16: &[u16] = &[15360, 16384, 17408]; // Same as above for simplicity
@@ -948,7 +1521,7 @@ mod tests {
     }
 
     #[test]
-    fn test_angular_bf16_same() {
+    fn angular_bf16_same() {
         // Assuming these u16 values represent bf16 bit patterns, and they are identical
         let a_u16: &[u16] = &[15360, 16384, 17408]; // Corresponding to some bf16 values
         let b_u16: &[u16] = &[15360, 16384, 17408]; // Same as above for simplicity
@@ -968,7 +1541,7 @@ mod tests {
     }
 
     #[test]
-    fn test_angular_f16_interop() {
+    fn angular_f16_interop() {
         let a_half: Vec<HalfF16> = vec![1.0, 2.0, 3.0]
             .iter()
             .map(|&x| HalfF16::from_f32(x))
@@ -995,7 +1568,7 @@ mod tests {
     }
 
     #[test]
-    fn test_angular_bf16_interop() {
+    fn angular_bf16_interop() {
         let a_half: Vec<HalfBF16> = vec![1.0, 2.0, 3.0]
             .iter()
             .map(|&x| HalfBF16::from_f32(x))
@@ -1019,5 +1592,109 @@ mod tests {
             println!("The result of cos_bf16 (interop) is {:.8}", result);
             assert_almost_equal(0.025, result, 0.01);
         }
+    }
+
+    #[test]
+    fn intersect_u16() {
+        {
+            let a_u16: &[u16] = &[153, 16384, 17408];
+            let b_u16: &[u16] = &[15360, 16384, 7408];
+
+            if let Some(result) = Sparse::intersect(a_u16, b_u16) {
+                println!("The result of intersect_u16 is {:.8}", result);
+                assert_almost_equal(1.0, result, 0.0001);
+            }
+        }
+
+        {
+            let a_u16: &[u16] = &[153, 11638, 08];
+            let b_u16: &[u16] = &[15360, 16384, 7408];
+
+            if let Some(result) = Sparse::intersect(a_u16, b_u16) {
+                println!("The result of intersect_u16 is {:.8}", result);
+                assert_almost_equal(0.0, result, 0.0001);
+            }
+        }
+    }
+
+    #[test]
+    fn intersect_u32() {
+        {
+            let a_u32: &[u32] = &[11, 153];
+            let b_u32: &[u32] = &[11, 153, 7408, 16384];
+
+            if let Some(result) = Sparse::intersect(a_u32, b_u32) {
+                println!("The result of intersect_u32 is {:.8}", result);
+                assert_almost_equal(2.0, result, 0.0001);
+            }
+        }
+
+        {
+            let a_u32: &[u32] = &[153, 7408, 11638];
+            let b_u32: &[u32] = &[153, 7408, 11638];
+
+            if let Some(result) = Sparse::intersect(a_u32, b_u32) {
+                println!("The result of intersect_u32 is {:.8}", result);
+                assert_almost_equal(3.0, result, 0.0001);
+            }
+        }
+    }
+
+    #[test]
+    fn f16_arithmetic() {
+        let a = f16::from_f32(3.5);
+        let b = f16::from_f32(2.0);
+
+        // Test basic arithmetic
+        assert!((a + b).to_f32() - 5.5 < 0.01);
+        assert!((a - b).to_f32() - 1.5 < 0.01);
+        assert!((a * b).to_f32() - 7.0 < 0.01);
+        assert!((a / b).to_f32() - 1.75 < 0.01);
+        assert!((-a).to_f32() + 3.5 < 0.01);
+
+        // Test constants
+        assert!(f16::ZERO.to_f32() == 0.0);
+        assert!((f16::ONE.to_f32() - 1.0).abs() < 0.01);
+        assert!((f16::NEG_ONE.to_f32() + 1.0).abs() < 0.01);
+
+        // Test comparisons
+        assert!(a > b);
+        assert!(!(a < b));
+        assert!(a == a);
+
+        // Test utility methods
+        assert!((-a).abs().to_f32() - 3.5 < 0.01);
+        assert!(a.is_finite());
+        assert!(!a.is_nan());
+        assert!(!a.is_infinite());
+    }
+
+    #[test]
+    fn bf16_arithmetic() {
+        let a = bf16::from_f32(3.5);
+        let b = bf16::from_f32(2.0);
+
+        // Test basic arithmetic
+        assert!((a + b).to_f32() - 5.5 < 0.1);
+        assert!((a - b).to_f32() - 1.5 < 0.1);
+        assert!((a * b).to_f32() - 7.0 < 0.1);
+        assert!((a / b).to_f32() - 1.75 < 0.1);
+        assert!((-a).to_f32() + 3.5 < 0.1);
+
+        // Test constants
+        assert!(bf16::ZERO.to_f32() == 0.0);
+        assert!((bf16::ONE.to_f32() - 1.0).abs() < 0.01);
+        assert!((bf16::NEG_ONE.to_f32() + 1.0).abs() < 0.01);
+
+        // Test comparisons
+        assert!(a > b);
+        assert!(!(a < b));
+        assert!(a == a);
+
+        // Test utility methods
+        assert!((-a).abs().to_f32() - 3.5 < 0.1);
+        assert!(a.is_finite());
+        assert!(!a.is_nan());
+        assert!(!a.is_infinite());
     }
 }

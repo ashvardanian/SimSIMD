@@ -15,7 +15,7 @@
  *  - 16-bit brain-floating point
  *
  *  For hardware architectures:
- *  - Arm: Neon
+ *  - Arm: NEON
  *  - x86: Genoa, Sapphire
  *
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/

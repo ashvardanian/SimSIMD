@@ -2841,9 +2841,18 @@ simsimd_sum_u64_ice_cycle:
 
 #if SIMSIMD_TARGET_SAPPHIRE
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512fp16")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512fp16"))), \
+#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512fp16", "f16c")
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512fp16,f16c"))), \
                              apply_to = function)
+
+/**
+ *  Using `_mm512_set1_ph((_Float16)1.f)` results in compilation warnings if we are pedantic.
+ *  https://www.intel.com/content/www/us/en/docs/cpp-compiler/developer-guide-reference/2021-8/details-about-intrinsics-for-half-floats.html
+ */
+SIMSIMD_INTERNAL __m512h _mm512_set1_ph_from_ps(float a) {
+    unsigned short h = _cvtss_sh(a, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+    return (__m512h)_mm512_set1_epi16(h);
+}
 
 SIMSIMD_PUBLIC void simsimd_sum_f16_sapphire(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
                                              simsimd_f16_t *result) {
@@ -2871,8 +2880,8 @@ simsimd_sum_f16_sapphire_cycle:
 SIMSIMD_PUBLIC void simsimd_scale_f16_sapphire(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
                                                simsimd_distance_t beta, simsimd_f16_t *result) {
     __mmask32 mask = 0xFFFFFFFF;
-    __m512h alpha_vec = _mm512_set1_ph((_Float16)alpha);
-    __m512h beta_vec = _mm512_set1_ph((_Float16)beta);
+    __m512h alpha_vec = _mm512_set1_ph_from_ps(alpha);
+    __m512h beta_vec = _mm512_set1_ph_from_ps(beta);
     __m512h a_f16_vec, b_f16_vec;
     __m512h sum_f16_vec;
 simsimd_scale_f16_sapphire_cycle:
@@ -2912,8 +2921,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_f16_sapphire(                        //
 
     // The general case.
     __mmask32 mask = 0xFFFFFFFF;
-    __m512h alpha_vec = _mm512_set1_ph((_Float16)alpha);
-    __m512h beta_vec = _mm512_set1_ph((_Float16)beta);
+    __m512h alpha_vec = _mm512_set1_ph_from_ps(alpha);
+    __m512h beta_vec = _mm512_set1_ph_from_ps(beta);
     __m512h a_f16_vec, b_f16_vec;
     __m512h a_scaled_f16_vec, sum_f16_vec;
 simsimd_wsum_f16_sapphire_cycle:
@@ -2940,8 +2949,8 @@ SIMSIMD_PUBLIC void simsimd_fma_f16_sapphire(                                   
     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result) {
 
     __mmask32 mask = 0xFFFFFFFF;
-    __m512h alpha_vec = _mm512_set1_ph((_Float16)alpha);
-    __m512h beta_vec = _mm512_set1_ph((_Float16)beta);
+    __m512h alpha_vec = _mm512_set1_ph_from_ps(alpha);
+    __m512h beta_vec = _mm512_set1_ph_from_ps(beta);
     __m512h a_f16_vec, b_f16_vec, c_f16_vec;
     __m512h ab_f16_vec, ab_scaled_f16_vec, sum_f16_vec;
 simsimd_fma_f16_sapphire_cycle:
@@ -2969,8 +2978,8 @@ simsimd_fma_f16_sapphire_cycle:
 SIMSIMD_PUBLIC void simsimd_scale_u8_sapphire(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
                                               simsimd_distance_t beta, simsimd_u8_t *result) {
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
-    __m512h alpha_vec = _mm512_set1_ph((_Float16)alpha);
-    __m512h beta_vec = _mm512_set1_ph((_Float16)beta);
+    __m512h alpha_vec = _mm512_set1_ph_from_ps(alpha);
+    __m512h beta_vec = _mm512_set1_ph_from_ps(beta);
     __m512i a_u8_vec, b_u8_vec, sum_u8_vec;
     __m512h a_f16_low_vec, a_f16_high_vec;
     __m512h a_scaled_f16_low_vec, a_scaled_f16_high_vec, sum_f16_low_vec, sum_f16_high_vec;
@@ -3021,8 +3030,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_u8_sapphire(                       //
 
     // The general case.
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
-    __m512h alpha_vec = _mm512_set1_ph((_Float16)alpha);
-    __m512h beta_vec = _mm512_set1_ph((_Float16)beta);
+    __m512h alpha_vec = _mm512_set1_ph_from_ps(alpha);
+    __m512h beta_vec = _mm512_set1_ph_from_ps(beta);
     __m512i a_u8_vec, b_u8_vec, sum_u8_vec;
     __m512h a_f16_low_vec, a_f16_high_vec, b_f16_low_vec, b_f16_high_vec;
     __m512h a_scaled_f16_low_vec, a_scaled_f16_high_vec, sum_f16_low_vec, sum_f16_high_vec;
@@ -3063,8 +3072,8 @@ SIMSIMD_PUBLIC void simsimd_scale_i8_sapphire(simsimd_i8_t const *a, simsimd_siz
                                               simsimd_distance_t beta, simsimd_i8_t *result) {
 
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
-    __m512h alpha_vec = _mm512_set1_ph((_Float16)alpha);
-    __m512h beta_vec = _mm512_set1_ph((_Float16)beta);
+    __m512h alpha_vec = _mm512_set1_ph_from_ps(alpha);
+    __m512h beta_vec = _mm512_set1_ph_from_ps(beta);
     __m512i a_i8_vec, sum_i8_vec;
     __m512h a_f16_low_vec, a_f16_high_vec;
     __m512h sum_f16_low_vec, sum_f16_high_vec;
@@ -3116,8 +3125,8 @@ SIMSIMD_PUBLIC void simsimd_wsum_i8_sapphire(                       //
 
     // The general case.
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
-    __m512h alpha_vec = _mm512_set1_ph((_Float16)alpha);
-    __m512h beta_vec = _mm512_set1_ph((_Float16)beta);
+    __m512h alpha_vec = _mm512_set1_ph_from_ps(alpha);
+    __m512h beta_vec = _mm512_set1_ph_from_ps(beta);
     __m512i a_i8_vec, b_i8_vec, sum_i8_vec;
     __m512h a_f16_low_vec, a_f16_high_vec, b_f16_low_vec, b_f16_high_vec;
     __m512h a_scaled_f16_low_vec, a_scaled_f16_high_vec, sum_f16_low_vec, sum_f16_high_vec;
@@ -3160,8 +3169,8 @@ SIMSIMD_PUBLIC void simsimd_fma_i8_sapphire(                                    
     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result) {
 
     __mmask64 mask = 0xFFFFFFFFFFFFFFFF;
-    __m512h alpha_vec = _mm512_set1_ph((_Float16)alpha);
-    __m512h beta_vec = _mm512_set1_ph((_Float16)beta);
+    __m512h alpha_vec = _mm512_set1_ph_from_ps(alpha);
+    __m512h beta_vec = _mm512_set1_ph_from_ps(beta);
     __m512i a_i8_vec, b_i8_vec, c_i8_vec, sum_i8_vec;
     __m512h a_f16_low_vec, a_f16_high_vec, b_f16_low_vec, b_f16_high_vec;
     __m512h c_f16_low_vec, c_f16_high_vec, ab_f16_low_vec, ab_f16_high_vec;
@@ -3219,8 +3228,8 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_sapphire(                                    
     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result) {
 
     __mmask64 mask = 0xFFFFFFFFFFFFFFFF;
-    __m512h alpha_vec = _mm512_set1_ph((_Float16)alpha);
-    __m512h beta_vec = _mm512_set1_ph((_Float16)beta);
+    __m512h alpha_vec = _mm512_set1_ph_from_ps(alpha);
+    __m512h beta_vec = _mm512_set1_ph_from_ps(beta);
     __m512i a_u8_vec, b_u8_vec, c_u8_vec, sum_u8_vec;
     __m512h a_f16_low_vec, a_f16_high_vec, b_f16_low_vec, b_f16_high_vec;
     __m512h c_f16_low_vec, c_f16_high_vec, ab_f16_low_vec, ab_f16_high_vec;

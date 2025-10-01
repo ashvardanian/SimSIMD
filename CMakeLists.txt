@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 project(
     simsimd
-    VERSION 6.0.3
+    VERSION 6.5.3
     LANGUAGES C CXX
     DESCRIPTION "Portable mixed-precision BLAS-like vector math library for x86 and ARM"
     HOMEPAGE_URL "https://github.com/ashvardanian/simsimd"
@@ -16,7 +16,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
-# Determine if SimSIMD is built as a subproject (using `add_subdirectory`) or if it is the main project
+# Determine if SimSIMD is built as a sub-project (using `add_subdirectory`) or if it is the main project
 set(SIMSIMD_IS_MAIN_PROJECT OFF)
 
 if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
@@ -85,7 +85,7 @@ if (SIMSIMD_BUILD_BENCHMARKS)
     FetchContent_Declare(
         benchmark
         GIT_REPOSITORY https://github.com/google/benchmark.git
-        GIT_TAG v1.7.0
+        GIT_TAG v1.9.4
     )
     FetchContent_MakeAvailable(benchmark)
 
@@ -152,7 +152,8 @@ if (SIMSIMD_BUILD_SHARED)
         PRIVATE_HEADER
         PUBLIC_HEADER
         RESOURCE
-        RUNTIME)
+        RUNTIME
+    )
 endif ()
 
 install(DIRECTORY ./include/ DESTINATION /usr/include/)

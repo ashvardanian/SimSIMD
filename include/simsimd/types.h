@@ -12,7 +12,7 @@
 #ifndef SIMSIMD_TYPES_H
 #define SIMSIMD_TYPES_H
 
-// Inferring target OS: Windows, MacOS, or Linux
+// Inferring target OS: Windows, macOS, or Linux
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #define _SIMSIMD_DEFINED_WINDOWS 1
 #elif defined(__APPLE__) && defined(__MACH__)
@@ -27,14 +27,16 @@
 // - `SIMSIMD_INTERNAL` is used for internal helper functions with unstable APIs.
 // - `SIMSIMD_DYNAMIC` is used for functions that are part of the public API, but are dispatched at runtime.
 //
+// On GCC we mark the functions as `nonnull` informing that none of the arguments can be `NULL`.
+// Marking with `pure` and `const` isn't possible as outputting to a pointer is a "side effect".
 #if defined(_WIN32) || defined(__CYGWIN__)
 #define SIMSIMD_DYNAMIC __declspec(dllexport)
 #define SIMSIMD_PUBLIC inline static
 #define SIMSIMD_INTERNAL inline static
 #elif defined(__GNUC__) || defined(__clang__)
-#define SIMSIMD_DYNAMIC __attribute__((visibility("default")))
-#define SIMSIMD_PUBLIC __attribute__((unused)) inline static
-#define SIMSIMD_INTERNAL inline static // Avoid `__attribute__((always_inline))`
+#define SIMSIMD_DYNAMIC __attribute__((visibility("default"))) __attribute__((nonnull))
+#define SIMSIMD_PUBLIC __attribute__((unused, nonnull)) inline static
+#define SIMSIMD_INTERNAL __attribute__((always_inline)) inline static
 #else
 #define SIMSIMD_DYNAMIC
 #define SIMSIMD_PUBLIC inline static
@@ -223,7 +225,7 @@
 #endif
 #endif // !defined(SIMSIMD_TARGET_SIERRA) || ...
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
 #include <intrin.h>
 #else
 
@@ -255,6 +257,14 @@
 #if !defined(SIMSIMD_LOG)
 #include <math.h>
 #define SIMSIMD_LOG(x) (log(x))
+#endif
+
+// Copy 16 bits (2 bytes) from source to destination
+#if defined(__GNUC__) || defined(__clang__)
+#define SIMSIMD_COPY16(destination_ptr, source_ptr) __builtin_memcpy((destination_ptr), (source_ptr), 2)
+#else
+#include <string.h> /* fallback for exotic compilers */
+#define SIMSIMD_COPY16(destination_ptr, source_ptr) memcpy((destination_ptr), (source_ptr), 2)
 #endif
 
 #if !defined(SIMSIMD_F32_DIVISION_EPSILON)
@@ -412,6 +422,7 @@ typedef unsigned short simsimd_bf16_t;
 
 /*
  *  Let's make sure the sizes of the types are as expected.
+ *  In C the `_Static_assert` is only available with C11 and later.
  */
 _SIMSIMD_STATIC_ASSERT(sizeof(simsimd_b8_t) == 1, simsimd_b8_t_must_be_1_byte);
 _SIMSIMD_STATIC_ASSERT(sizeof(simsimd_i4x2_t) == 1, simsimd_i4x2_t_must_be_1_byte);
@@ -441,6 +452,30 @@ typedef union {
     simsimd_u64_t u;
     simsimd_i64_t i;
 } simsimd_fui64_t;
+
+/** @brief  Convenience type addressing the real and imaginary parts of a half-precision complex number. */
+typedef struct {
+    simsimd_f16_t real;
+    simsimd_f16_t imag;
+} simsimd_f16c_t;
+
+/** @brief  Convenience type addressing the real and imaginary parts of a half-precision brain-float complex number. */
+typedef struct {
+    simsimd_bf16_t real;
+    simsimd_bf16_t imag;
+} simsimd_bf16c_t;
+
+/** @brief  Convenience type addressing the real and imaginary parts of a single-precision complex number. */
+typedef struct {
+    simsimd_f32_t real;
+    simsimd_f32_t imag;
+} simsimd_f32c_t;
+
+/** @brief  Convenience type addressing the real and imaginary parts of a double-precision complex number. */
+typedef struct {
+    simsimd_f64_t real;
+    simsimd_f64_t imag;
+} simsimd_f64c_t;
 
 /**
  *  @brief  Computes `1/sqrt(x)` @b Square-Root-Reciprocal using the trick from Quake 3,
@@ -498,21 +533,18 @@ SIMSIMD_INTERNAL simsimd_f32_t simsimd_f32_log(simsimd_f32_t number) {
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-SIMSIMD_PUBLIC void simsimd_f16_to_f32(simsimd_f16_t const *x, simsimd_f32_t *y) {
-#if SIMSIMD_NATIVE_F16
-    *y = *x;
-#else
-    unsigned short x_short = *(unsigned short const *)x;
-    unsigned int exponent = (x_short & 0x7C00) >> 10;
-    unsigned int mantissa = (x_short & 0x03FF) << 13;
+SIMSIMD_INTERNAL simsimd_f32_t simsimd_f16_to_f32_implementation(simsimd_f16_t const *x_ptr) {
+    unsigned short x;
+    SIMSIMD_COPY16(&x, x_ptr);
+    unsigned int exponent = (x & 0x7C00) >> 10;
+    unsigned int mantissa = (x & 0x03FF) << 13;
     simsimd_fui32_t mantissa_conv;
     mantissa_conv.f = (float)mantissa;
     unsigned int v = (mantissa_conv.i) >> 23;
     simsimd_fui32_t conv;
-    conv.i = (x_short & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
+    conv.i = (x & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
              ((exponent == 0) & (mantissa != 0)) * ((v - 37) << 23 | ((mantissa << (150 - v)) & 0x007FE000));
-    *y = conv.f;
-#endif
+    return conv.f;
 }
 
 /**
@@ -524,20 +556,16 @@ SIMSIMD_PUBLIC void simsimd_f16_to_f32(simsimd_f16_t const *x, simsimd_f32_t *y)
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-SIMSIMD_PUBLIC void simsimd_f32_to_f16(simsimd_f32_t const *x, simsimd_f16_t *y) {
-#if SIMSIMD_NATIVE_F16
-    *y = (simsimd_f16_t)*x;
-#else
+SIMSIMD_INTERNAL void simsimd_f32_to_f16_implementation(simsimd_f32_t x, simsimd_f16_t *result_ptr) {
     simsimd_fui32_t conv;
-    conv.f = *x;
+    conv.f = x;
     unsigned int b = conv.i + 0x00001000;
     unsigned int e = (b & 0x7F800000) >> 23;
     unsigned int m = b & 0x007FFFFF;
     unsigned short result = ((b & 0x80000000) >> 16) | (e > 112) * ((((e - 112) << 10) & 0x7C00) | (m >> 13)) |
                             ((e < 113) & (e > 101)) * ((((0x007FF000 + m) >> (125 - e)) + 1) >> 1) |
                             ((e > 143) * 0x7FFF);
-    *(unsigned short *)y = result;
-#endif
+    SIMSIMD_COPY16(result_ptr, &result);
 }
 
 /**
@@ -547,15 +575,12 @@ SIMSIMD_PUBLIC void simsimd_f32_to_f16(simsimd_f32_t const *x, simsimd_f16_t *y)
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
-SIMSIMD_PUBLIC void simsimd_bf16_to_f32(simsimd_bf16_t const *x, simsimd_f32_t *y) {
-#if SIMSIMD_NATIVE_BF16
-    *y = *x;
-#else
-    unsigned short x_short = *(unsigned short const *)x;
+SIMSIMD_INTERNAL simsimd_f32_t simsimd_bf16_to_f32_implementation(simsimd_bf16_t const *x_ptr) {
+    unsigned short x;
+    SIMSIMD_COPY16(&x, x_ptr);
     simsimd_fui32_t conv;
-    conv.i = x_short << 16; // Zero extends the mantissa
-    *y = conv.f;
-#endif
+    conv.i = x << 16; // Zero extends the mantissa
+    return conv.f;
 }
 
 /**
@@ -564,18 +589,14 @@ SIMSIMD_PUBLIC void simsimd_bf16_to_f32(simsimd_bf16_t const *x, simsimd_f32_t *
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
-SIMSIMD_PUBLIC void simsimd_f32_to_bf16(simsimd_f32_t const *x, simsimd_bf16_t *y) {
-#if SIMSIMD_NATIVE_BF16
-    *y = (simsimd_bf16_t)*x;
-#else
+SIMSIMD_INTERNAL void simsimd_f32_to_bf16_implementation(simsimd_f32_t x, simsimd_bf16_t *result_ptr) {
     simsimd_fui32_t conv;
-    conv.f = *x;
+    conv.f = x;
     conv.i += 0x8000; // Rounding is optional
     conv.i >>= 16;
     // The top 16 bits will be zeroed out anyways
     // conv.i &= 0xFFFF;
-    *(unsigned short *)y = (unsigned short)conv.i;
-#endif
+    SIMSIMD_COPY16(result_ptr, &conv.i);
 }
 
 SIMSIMD_INTERNAL void _simsimd_f16_to_f64(simsimd_f16_t const *x, simsimd_f64_t *y) {
@@ -783,7 +804,8 @@ SIMSIMD_INTERNAL simsimd_size_t _simsimd_divide_ceil(simsimd_size_t dividend, si
 /**
  *  @brief Advances the Multi-Dimensional iterator to the next set of indicies.
  *  @param[in] extents The extents of the tensor, defined by an array with at least `rank` scalars.
- *  @param[in] strides The @b signed strides of the tensor in bytes, defined by an array with at least `rank` scalars.
+ *  @param[in] strides The @b signed strides of the tensor in bytes, defined by an array with at least `rank`
+ * scalars.
  *  @param[in] rank The number of dimensions in the tensor (its rank).
  *  @param[inout] coordinates The array of offsets along each of `rank` dimensions, which will be updated.
  *  @param[inout] byte_offset The @b signed byte offset of the current element, which will be advanced.
@@ -810,7 +832,8 @@ SIMSIMD_PUBLIC int simsimd_xd_index_next(                                       
 /**
  *  @brief Advances the Multi-Dimensional iterator to the provided coordinates, updating the byte offset.
  *  @param[in] extents The extents of the tensor, defined by an array with at least `rank` scalars.
- *  @param[in] strides The @b signed strides of the tensor in bytes, defined by an array with at least `rank` scalars.
+ *  @param[in] strides The @b signed strides of the tensor in bytes, defined by an array with at least `rank`
+ * scalars.
  *  @param[in] rank The number of dimensions in the tensor (its rank).
  *  @param[in] coordinates The array of offsets along each of `rank` dimensions, which will be updated.
  *  @param[out] byte_offset The byte offset of the current element, which will be advanced.
@@ -1036,6 +1059,44 @@ SIMSIMD_INTERNAL void _simsimd_bf16_smul(simsimd_bf16_t const *a, simsimd_bf16_t
     r_f32 = a_f32 * b_f32;
     simsimd_f32_to_bf16(&r_f32, r);
 }
+
+#if SIMSIMD_DYNAMIC_DISPATCH
+
+/** @copydoc simsimd_f16_to_f32_implementation */
+SIMSIMD_DYNAMIC simsimd_f32_t simsimd_f16_to_f32(simsimd_f16_t const *x_ptr);
+
+/** @copydoc simsimd_f32_to_f16_implementation */
+SIMSIMD_DYNAMIC void simsimd_f32_to_f16(simsimd_f32_t x, simsimd_f16_t *result_ptr);
+
+/** @copydoc simsimd_bf16_to_f32_implementation */
+SIMSIMD_DYNAMIC simsimd_f32_t simsimd_bf16_to_f32(simsimd_bf16_t const *x_ptr);
+
+/** @copydoc simsimd_f32_to_bf16_implementation */
+SIMSIMD_DYNAMIC void simsimd_f32_to_bf16(simsimd_f32_t x, simsimd_bf16_t *result_ptr);
+
+#else // SIMSIMD_DYNAMIC_DISPATCH
+
+/** @copydoc simsimd_f16_to_f32_implementation */
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_f16_to_f32(simsimd_f16_t const *x_ptr) {
+    return simsimd_f16_to_f32_implementation(x_ptr);
+}
+
+/** @copydoc simsimd_f32_to_f16_implementation */
+SIMSIMD_PUBLIC void simsimd_f32_to_f16(simsimd_f32_t x, simsimd_f16_t *result_ptr) {
+    simsimd_f32_to_f16_implementation(x, result_ptr);
+}
+
+/** @copydoc simsimd_bf16_to_f32_implementation */
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_bf16_to_f32(simsimd_bf16_t const *x_ptr) {
+    return simsimd_bf16_to_f32_implementation(x_ptr);
+}
+
+/** @copydoc simsimd_f32_to_bf16_implementation */
+SIMSIMD_PUBLIC void simsimd_f32_to_bf16(simsimd_f32_t x, simsimd_bf16_t *result_ptr) {
+    simsimd_f32_to_bf16_implementation(x, result_ptr);
+}
+
+#endif // SIMSIMD_DYNAMIC_DISPATCH
 
 #ifdef __cplusplus
 } // extern "C"

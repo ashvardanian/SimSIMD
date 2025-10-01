@@ -1,11 +1,12 @@
 # This file configures wheels compilation for `cibuilwheel` for SimSIMD CPython bindings.
 # On a good day it will produce:
-#   - `manylinux` and `musllinux` wheels for Linux on x86_64, aarch64, i686, ppc64le, s390x;
-#   - `macos` wheels for x86_64, arm64, and universal2;
-#   - `windows` wheels for AMD64, x86, and ARM64.
-#   * for 6 Python versions from 3.7 to 3.12.
+#   - `manylinux` and `musllinux` vectorized wheels for Linux on x86_64, aarch64;
+#   - `manylinux` and `musllinux` wheels for Linux on i686, ppc64le, s390x;
+#   - `macos` wheels for x86_64, arm64;
+#   - `windows` wheels for AMD64, ARM64.
+#   * for 7 Python versions from 3.8 to 3.13 (+ 3.13t).
 #   * running thousands of fuzzy tests on each wheel.
-#   = meaning 16 platforms * 7 Python versions = 96 builds.
+#   = meaning 12 platforms * 7 Python versions = 84 builds.
 [build-system]
 requires = ["setuptools>=42"]
 build-backend = "setuptools.build_meta"
@@ -23,28 +24,30 @@ test-requires = ["pytest", "pytest-repeat", "tabulate"]
 # Assuming NumPy and SciPy aren't available precompiled for some platforms,
 # we will end up compiling them from source on emulated hardware...
 # To avoid that use `--only-binary=:all:` to only fetch precompiled wheels.
+# For better compatibility, we use (&&) to chain commands instead of (;).
 test-command = """
-    python -m pip install numpy --only-binary=:all: || echo "Failed to install NumPy... Nothing can stop me, I'm all the way up!";
-    python -m pip install scipy --only-binary=:all: || echo "Failed to install SciPy... Nothing can stop me, I'm all the way up!";
-    python -c "import simsimd; print(simsimd.get_capabilities())";
+    python -m pip install numpy --only-binary=:all: || (echo "Failed to install NumPy" && exit 0) &&
+    python -m pip install scipy --only-binary=:all: || (echo "Failed to install SciPy" && exit 0) &&
+    python -c "import simsimd; print(simsimd.get_capabilities())" &&
     pytest {project}/scripts/test.py -s -x -Wd
 """
 
 # We need to build for all platforms:
-# - on Linux: x86_64, aarch64, i686, ppc64le, s390x
-# - on MacOS: x86_64, arm64, universal2
-# - on Windows: AMD64, x86, ARM64
+# - on Linux: x86_64, aarch64, i686
+# - on macOS: x86_64, arm64
+# - on Windows: AMD64, ARM64
 # https://cibuildwheel.readthedocs.io/en/stable/options/#archs
 #
-# Important to note, not all those paltforms have recent images.
-# The `manylinux_2_28` seems to be missing for `s390x`, `i686`, and `ppc64le`.
+# Important to note, not all those platforms have recent images.
+# The `manylinux_2_28` seems to be missing for `i686`.
 # The `i686` is 32-bit x86, and `x86_64` is 64-bit x86.
 archs = ["all"]
 
 # Add "pp*" to skip PyPy builds, but they should work fine these days :)
 # https://cibuildwheel.readthedocs.io/en/stable/options/#build-skip
 # https://cibuildwheel.readthedocs.io/en/stable/#what-does-it-do
-skip = []
+skip = [] # we also don't use any SIMD on: ["*s390x*", "*ppc64le*"]
+enable = [] # don't enable PyPy
 
 # Testing half-precision math in QEMU is unreliable!
 environment-pass = ["SIMSIMD_IN_QEMU"]
@@ -54,7 +57,7 @@ SIMSIMD_IN_QEMU = "1"
 
 [tool.cibuildwheel.linux]
 before-build = ["rm -rf {project}/build"]
-repair-wheel-command = "auditwheel repair --lib-sdir . -w {dest_dir} {wheel}"
+repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel}"
 
 # Use more recent images for the most popular SIMD-capable CPU architectures, to have access to newer compilers.
 # Otherwise, prepare yourself to all kinds of AVX-512 issues and other SIMD-related pain.
@@ -68,7 +71,9 @@ musllinux-aarch64-image = "musllinux_1_2"
 
 # On CentOS we have to use `yum`.
 # The healthy version would be: `apt-get update && apt-get install -y libc6-dev wget python3-dev`.
-before-all = ["yum update -y && yum install -y glibc-devel wget python3-devel"]
+# We can't even use direct YUM variant: `yum update -y && yum install -y glibc-devel wget python3-devel`
+# as downloading from `extras` fails on Arm instances!
+before-all = ["yum update -y --disablerepo=extras && yum install -y --disablerepo=extras glibc-devel wget python3-devel"]
 
 # With `musl` builds, we obviously don't need the `glibc` and can't use `yum`.
 # This may also be handy for using custom dependencies for different Python versions:
@@ -100,4 +105,4 @@ test-command = """
 # https://black.readthedocs.io/en/latest/usage_and_configuration/the_basics.html#where-black-looks-for-the-file
 [tool.black]
 line-length = 120                  # Set line length to the same value as in `.clang-format` for modern wide screens
-target-version = ['py37', 'py312']
+target-version = ['py38', 'py312']

@@ -6,6 +6,26 @@ To keep the quality of the code high, we have a set of [guidelines](https://gith
 - [How to organize branches?](https://github.com/unum-cloud/awesome/blob/main/Workflow.md#branches)
 - [How to style commits?](https://github.com/unum-cloud/awesome/blob/main/Workflow.md#commits)
 
+## Navigating the Codebase
+
+Primary kernels are implemented in header files under `include/simsimd/`:
+
+- `dot.h` - dot products for real and complex vectors.
+- `spatial.h` - spatial distances: L2, cosine distance.
+- `binary.h` - binary distances: Hamming, Jaccard, etc.
+- `probability.h` - probability metrics: KL-divergence, Jensen-Shannon, etc.
+- `sparse.h` - sparse distances: weighted and normal set intersections.
+- `curved.h` - bilinear forms for real and complex vectors, and Mahalanobis distance.
+
+Bindings to other languages are in the respective directories:
+
+- `python/lib.c` - Python bindings.
+- `javascript/lib.c` - JavaScript bindings.
+- `rust/lib.rs` - Rust bindings.
+- `swift/SimSIMD.swift` - Swift bindings.
+
+All tests, benchmarks, and examples are placed in the `scripts/` directory, if compatible with the toolchain of the implementation language.
+
 ## C and C++
 
 To rerun experiments utilize the following command:
@@ -29,7 +49,7 @@ sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100
 sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100
 ```
 
-To compile with the default Apple Clang on MacOS, use:
+To compile with the default Apple Clang on macOS, use:
 
 ```sh
 brew install openblas
@@ -43,11 +63,12 @@ cmake -D CMAKE_BUILD_TYPE=Release \
 cmake --build build_release --config Release
 ```
 
-On MacOS it's recommended to use Homebrew and install Clang, as opposed to "Apple Clang".
-Replacing the default compiler across the entire system is not recommended on MacOS, as it may break the system, but you can pass it as an environment variable:
+On macOS it's recommended to use Homebrew and install Clang, as opposed to "Apple Clang".
+Replacing the default compiler across the entire system is not recommended on macOS, as it may break the system, but you can pass it as an environment variable:
 
 ```sh
 brew install llvm openblas
+unset DEVELOPER_DIR
 cmake -D CMAKE_BUILD_TYPE=Release \
       -D SIMSIMD_BUILD_TESTS=1 \
       -D SIMSIMD_BUILD_BENCHMARKS=1 \
@@ -70,24 +91,47 @@ I'd recommend putting the following breakpoints:
 - `__builtin_unreachable` - to catch unexpected code paths.
 - `_sz_assert_failure` - to catch StringZilla logic assertions.
 
-## Python
-
-Testing:
+When benchmarking, make sure to disable multi-threading in the BLAS library, as it may interfere with the results:
 
 ```sh
-pip install -e .                             # to install the package in editable mode
+export OPENBLAS_NUM_THREADS=1    # for OpenBLAS
+export MKL_NUM_THREADS=1         # for Intel MKL
+export VECLIB_MAXIMUM_THREADS=1  # for Apple Accelerate
+export BLIS_NUM_THREADS=1        # for BLIS
+```
+
+## Python
+
+Python bindings are implemented using pure CPython, so you wouldn't need to install SWIG, PyBind11, or any other third-party library.
+Still, you need a virtual environment.
+If you already have one:
+
+```sh
+pip install -e .                             # build locally from source
 pip install pytest pytest-repeat tabulate    # testing dependencies
 pytest scripts/test.py -s -x -Wd             # to run tests
 
 # to check supported SIMD instructions:
-python -c "import simsimd; print(simsimd.get_capabilities())" 
+python -c "import simsimd; print(simsimd.get_capabilities())"
+```
+
+Alternatively, use `uv` to create the virtual environment.
+
+```sh
+uv venv --python 3.13t          # or your preferred version
+source .venv/bin/activate       # activate the environment
+uv pip install -e .             # build locally from source
+
+# to run GIL-related tests in a free-threaded environment:
+uv pip install pytest pytest-repeat tabulate numpy scipy
+PYTHON_GIL=0 python -m pytest scripts/test.py -s -x -Wd -k gil
 ```
 
 Here, `-s` will output the logs.
 The `-x` will stop on the first failure.
 The `-Wd` will silence overflows and runtime warnings.
 
-When building on MacOS, same as with C/C++, use non-Apple Clang version:
+When building on macOS, same as with C/C++, use non-Apple Clang version:
 
 ```sh
 brew install llvm
@@ -137,7 +181,7 @@ $ python scripts/bench_similarity.py --help
 
 
 Before merging your changes you may want to test your changes against the entire matrix of Python versions USearch supports.
-For that you need the `cibuildwheel`, which is tricky to use on MacOS and Windows, as it would target just the local environment.
+For that you need the `cibuildwheel`, which is tricky to use on macOS and Windows, as it would target just the local environment.
 Still, if you have Docker running on any desktop OS, you can use it to build and test the Python bindings for all Python versions for Linux:
 
 ```sh
@@ -147,8 +191,7 @@ cibuildwheel --platform linux                   # works on any OS and builds all
 cibuildwheel --platform linux --archs x86_64    # 64-bit x86, the most common on desktop and servers
 cibuildwheel --platform linux --archs aarch64   # 64-bit Arm for mobile devices, Apple M-series, and AWS Graviton
 cibuildwheel --platform linux --archs i686      # 32-bit Linux
-cibuildwheel --platform linux --archs s390x     # emulating big-endian IBM Z
-cibuildwheel --platform macos                   # works only on MacOS
+cibuildwheel --platform macos                   # works only on macOS
 cibuildwheel --platform windows                 # works only on Windows
 ```
 
@@ -158,7 +201,7 @@ You may need root privileges for multi-architecture builds:
 sudo $(which cibuildwheel) --platform linux
 ```
 
-On Windows and MacOS, to avoid frequent path resolution issues, you may want to use:
+On Windows and macOS, to avoid frequent path resolution issues, you may want to use:
 
 ```sh
 python -m cibuildwheel --platform windows
@@ -173,36 +216,73 @@ cargo bench
 open target/criterion/report/index.html
 ```
 
-## JavaScript
-
-If you don't have NPM installed:
+To automatically detect the Minimum Supported Rust Version (MSRV):
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+cargo +stable install cargo-msrv
+cargo msrv find --ignore-lockfile
+```
+
+## JavaScript
+
+### NodeJS
+
+If you don't have the environment configured, here are the [installation options](https://github.com/nvm-sh/nvm?tab=readme-ov-file#install--update-script) with different tools:
+
+```sh
+wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash # Linux
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash  # macOS
+```
+
+Install dependencies:
+
+```sh
 nvm install 20
+npm install -g typescript           # Install the TypeScript compiler globally
+npm install --save-dev @types/node  # Install the Node.js type definitions as a dev dependency
 ```
 
 Testing and benchmarking:
 
 ```sh
-npm install -g typescript
-npm run build-js
-npm test
-npm run bench
+npm run build-js                    # Build the JavaScript code using TypeScript configurations
+npm test                            # Run the test suite
+npm run bench                       # Run the benchmark script
 ```
 
-Running with Deno:
+### Deno
+
+If you don't have the environment configured, here are [installation options](https://docs.deno.com/runtime/getting_started/installation/) with different tools:
 
 ```sh
-deno test --allow-read
+wget -qO- https://deno.land/x/install/install.sh | sh # Linux
+curl -fsSL https://deno.land/install.sh | sh          # macOS
+irm https://deno.land/install.ps1 | iex               # Windows
 ```
 
-Running with Bun:
+Testing:
 
 ```sh
-npm install -g bun
-bun test
+deno test -A
 ```
+
+### Bun
+
+If you don't have the environment configured, here are the [installation options](https://bun.sh/docs/installation) with different tools:
+
+```sh
+wget -qO- https://bun.sh/install | bash   # for Linux
+curl -fsSL https://bun.sh/install | bash  # for macOS and WSL
+```
+
+Testing:
+
+```sh
+bun install
+bun test ./scripts/test.mjs
+```
+
+... wouldn't work for now.
 
 ## Swift
 
@@ -246,4 +326,3 @@ cd golang
 go test # To test
 go test -run=^$ -bench=. -benchmem # To benchmark
 ```
-

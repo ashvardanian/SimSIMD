@@ -1,6 +1,6 @@
 ![SimSIMD banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/SimSIMD.jpg?raw=true)
 
-Computing dot-products, similarity measures, and distances between low- and high-dimensional vectors is ubiquitous in Machine Learning, Scientific Computing, Geo-Spatial Analysis, and Information Retrieval.
+Computing dot-products, similarity measures, and distances between low- and high-dimensional vectors is ubiquitous in Machine Learning, Scientific Computing, Geospatial Analysis, and Information Retrieval.
 These algorithms generally have linear complexity in time, constant or linear complexity in space, and are data-parallel.
 In other words, they are easily parallelizable and vectorizable and often available in packages like BLAS (level 1) and LAPACK, as well as higher-level `numpy` and `scipy` Python libraries.
 Ironically, even with decades of evolution in compilers and numerical computing, [most libraries can be 3x - 1'000x slower than hardware potential][benchmarks] even on the most popular hardware, like 64-bit x86 and Arm CPUs.
@@ -9,7 +9,7 @@ The rare few that support minimal mixed precision, run only on one platform, and
 SimSIMD provides an alternative.
 1️⃣ SimSIMD functions are practically as fast as `memcpy`.
 2️⃣ Unlike BLAS, most kernels are designed for mixed-precision and bit-level operations.
-3️⃣ SimSIMD [compiles to more platforms than NumPy (105 vs 35)][compatibility] and has more backends than most BLAS implementations, and more high-level interfaces than most libraries.
+3️⃣ SimSIMD often [ships more binaries than NumPy][compatibility] and has more backends than most BLAS implementations, and more high-level interfaces than most libraries.
 
 [benchmarks]: https://ashvardanian.com/posts/simsimd-faster-scipy
 [compatibility]: https://pypi.org/project/simsimd/#files
@@ -32,7 +32,7 @@ SimSIMD provides an alternative.
     <img alt="GitHub Actions Windows" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=Windows&logo=windows&color=blue">
 </a>
 <a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
-    <img alt="GitHub Actions MacOS" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=MacOS&logo=apple&color=blue">
+    <img alt="GitHub Actions macOS" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=macOS&logo=apple&color=blue">
 </a>
 <a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
     <img alt="GitHub Actions CentOS Linux" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=CentOS&logo=centos&color=blue">
@@ -85,24 +85,203 @@ You can learn more about the technical implementation details in the following b
 
 - [Uses Horner's method for polynomial approximations, beating GCC 12 by 119x](https://ashvardanian.com/posts/gcc-12-vs-avx512fp16/).
 - [Uses Arm SVE and x86 AVX-512's masked loads to eliminate tail `for`-loops](https://ashvardanian.com/posts/simsimd-faster-scipy/#tails-of-the-past-the-significance-of-masked-loads).
-- [Substitutes LibC's `sqrt` with Newton Raphson iterations](https://github.com/ashvardanian/SimSIMD/releases/tag/v5.4.0).
+- [Substitutes libc's `sqrt` with Newton Raphson iterations](https://github.com/ashvardanian/SimSIMD/releases/tag/v5.4.0).
 - [Uses Galloping and SVE2 histograms to intersect sparse vectors](https://ashvardanian.com/posts/simd-set-intersections-sve2-avx512/).
 - For Python: [avoids slow PyBind11, SWIG, & `PyArg_ParseTuple`](https://ashvardanian.com/posts/pybind11-cpython-tutorial/) [using faster calling convention](https://ashvardanian.com/posts/discount-on-keyword-arguments-in-python/).
 - For JavaScript: [uses typed arrays and NAPI for zero-copy calls](https://ashvardanian.com/posts/javascript-ai-vector-search/).
 
 ## Benchmarks
 
-For reference, we use 1536-dimensional vectors, like the embeddings produced by the OpenAI Ada API.
-Comparing the serial code throughput produced by GCC 12 to hand-optimized kernels in SimSIMD, we see the following single-core improvements for the two most common vector-vector similarity metrics - the Cosine similarity and the Euclidean distance:
+<table style="width: 100%; text-align: center; table-layout: fixed;">
+  <colgroup>
+    <col style="width: 33%;">
+    <col style="width: 33%;">
+    <col style="width: 33%;">
+  </colgroup>
+  <tr>
+    <th align="center">NumPy</th>
+    <th align="center">C 99</th>
+    <th align="center">SimSIMD</th>
+  </tr>
+  <!-- Cosine distances with different precision levels -->
+  <tr>
+    <td colspan="4" align="center">cosine distances between 1536d vectors in <code>int8</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.cosine -->
+      🚧 overflows<br/>
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>10,548,600</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>11,379,300</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>16,151,800</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>13,524,000</b> ops/s
+    </td>
+  </tr>
+  <tr>
+    <td colspan="4" align="center">cosine distances between 1536d vectors in <code>bfloat16</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.cosine -->
+      🚧 not supported<br/>
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>119,835</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>403,909</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>9,738,540</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>4,881,900</b> ops/s
+    </td>
+  </tr>
+  <tr>
+    <td colspan="4" align="center">cosine distances between 1536d vectors in <code>float16</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.cosine -->
+      <span style="color:#ABABAB;">x86:</span> <b>40,481</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>21,451</b> ops/s
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>501,310</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>871,963</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>7,627,600</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>3,316,810</b> ops/s
+    </td>
+  </tr>
+  <tr>
+    <td colspan="4" align="center">cosine distances between 1536d vectors in <code>float32</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.cosine -->
+      <span style="color:#ABABAB;">x86:</span> <b>253,902</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>46,394</b> ops/s
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>882,484</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>399,661</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>8,202,910</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>3,400,620</b> ops/s
+    </td>
+  </tr>
+  <tr>
+    <td colspan="4" align="center">cosine distances between 1536d vectors in <code>float64</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.cosine -->
+      <span style="color:#ABABAB;">x86:</span> <b>212,421</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>52,904</b> ops/s
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>839,301</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>837,126</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>1,538,530</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>1,678,920</b> ops/s
+    </td>
+  </tr>
 
-| Type       |                  Apple M2 Pro |            Intel Sapphire Rapids |                  AWS Graviton 4 |
-| :--------- | ----------------------------: | -------------------------------: | ------------------------------: |
-| `float64`  | 18.5 → 28.8 GB/s <br/> + 56 % |    21.9 → 41.4 GB/s <br/> + 89 % |   20.7 → 41.3 GB/s <br/> + 99 % |
-| `float32`  | 9.2 → 29.6 GB/s <br/> + 221 % |   10.9 → 95.8 GB/s <br/> + 779 % |   4.9 → 41.9 GB/s <br/> + 755 % |
-| `float16`  | 4.6 → 14.6 GB/s <br/> + 217 % | 3.1 → 108.4 GB/s <br/> + 3,397 % |   5.4 → 39.3 GB/s <br/> + 627 % |
-| `bfloat16` | 4.6 → 26.3 GB/s <br/> + 472 % |   0.8 → 59.5 GB/s <br/> +7,437 % | 2.5 → 29.9 GB/s <br/> + 1,096 % |
-| `int8`     | 25.8 → 47.1 GB/s <br/> + 83 % |    33.1 → 65.3 GB/s <br/> + 97 % |   35.2 → 43.5 GB/s <br/> + 24 % |
-| `uint8`    |                               |   32.5 → 66.5 GB/s <br/> + 105 % |                                 |
+  <!-- Euclidean distance with different precision level -->
+  <tr>
+    <td colspan="4" align="center">euclidean distance between 1536d vectors in <code>int8</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
+      <span style="color:#ABABAB;">x86:</span> <b>252,113</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>177,443</b> ops/s
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>6,690,110</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>4,114,160</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>18,989,000</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>18,878,200</b> ops/s
+    </td>
+  </tr>
+  <tr>
+    <td colspan="4" align="center">euclidean distance between 1536d vectors in <code>bfloat16</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
+      🚧 not supported<br/>
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>119,842</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>1,049,230</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>9,727,210</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>4,233,420</b> ops/s
+    </td>
+  </tr>
+  <tr>
+    <td colspan="4" align="center">euclidean distance between 1536d vectors in <code>float16</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
+      <span style="color:#ABABAB;">x86:</span> <b>54,621</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>71,793</b> ops/s
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>196,413</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>911,370</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>19,466,800</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>3,522,760</b> ops/s
+    </td>
+  </tr>
+  <tr>
+    <td colspan="4" align="center">euclidean distance between 1536d vectors in <code>float32</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
+      <span style="color:#ABABAB;">x86:</span> <b>424,944</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>292,629</b> ops/s
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>1,295,210</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>1,055,940</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>8,924,100</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>3,602,650</b> ops/s
+    </td>
+  </tr>
+  <tr>
+    <td colspan="4" align="center">euclidean distance between 1536d vectors in <code>float64</code></td>
+  </tr>
+  <tr>
+    <td align="center"> <!-- scipy.spatial.distance.sqeuclidean -->
+      <span style="color:#ABABAB;">x86:</span> <b>334,929</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>237,505</b> ops/s
+    </td>
+    <td align="center"> <!-- serial -->
+      <span style="color:#ABABAB;">x86:</span> <b>1,215,190</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>905,782</b> ops/s
+    </td>
+    <td align="center"> <!-- simsimd -->
+      <span style="color:#ABABAB;">x86:</span> <b>1,701,740</b> ops/s<br/>
+      <span style="color:#ABABAB;">arm:</span> <b>1,735,840</b> ops/s
+    </td>
+  </tr>
+  <!-- Bilinear forms -->
+  <!-- Sparse set intersections -->
+</table>
+
+> For benchmarks we mostly use 1536-dimensional vectors, like the embeddings produced by the OpenAI Ada API.
+> The code was compiled with GCC 12, using glibc v2.35.
+> The benchmarks performed on Arm-based Graviton3 AWS `c7g` instances and `r7iz` Intel Sapphire Rapids.
+> Most modern Arm-based 64-bit CPUs will have similar relative speedups.
+> Variance withing x86 CPUs will be larger.
 
 Similar speedups are often observed even when compared to BLAS and LAPACK libraries underlying most numerical computing libraries, including NumPy and SciPy in Python.
 Broader benchmarking results:
@@ -162,10 +341,22 @@ dist = simsimd.angular(vec1, vec2, "int8")
 dist = simsimd.angular(vec1, vec2, "float16")
 dist = simsimd.angular(vec1, vec2, "float32")
 dist = simsimd.angular(vec1, vec2, "float64")
-dist = simsimd.jaccard(vec1, vec2, "bin8") # Binary vectors with 8-bit words
+dist = simsimd.hamming(vec1, vec2, "bin8")
+```
+
+Binary distance functions are computed at a bit-level.
+Meaning a vector of 10x 8-bit integers will be treated as a sequence of 80 individual bits or dimensions.
+This differs from NumPy, that can't handle smaller-than-byte types, but you can still avoid the `bin8` argument by reinterpreting the vector as booleans:
+
+```py
+vec1 = np.random.randint(2, size=80).astype(np.uint8).packbits().view(np.bool_)
+vec2 = np.random.randint(2, size=80).astype(np.uint8).packbits().view(np.bool_)
+hamming_distance = simsimd.hamming(vec1, vec2)
+jaccard_distance = simsimd.jaccard(vec1, vec2)
 ```
 
 With other frameworks, like PyTorch, one can get a richer type-system than NumPy, but the lack of good CPython interoperability makes it hard to pass data without copies.
+Here is an example of using SimSIMD with PyTorch to compute the cosine similarity between two `bfloat16` vectors:
 
 ```py
 import numpy as np
@@ -181,7 +372,7 @@ torch.randn(8, out=vec2)
 
 # Both libs will look into the same memory buffers and report the same results
 dist_slow = 1 - torch.nn.functional.cosine_similarity(vec1, vec2, dim=0)
-dist_fast = simsimd.angular(buf1, buf2, "bf16")
+dist_fast = simsimd.angular(buf1, buf2, "bfloat16")
 ```
 
 It also allows using SimSIMD for half-precision complex numbers, which NumPy does not support.
@@ -254,16 +445,16 @@ distances: DistancesTensor = simsimd.cdist(matrix1, matrix2, metric="cosine")   
 distances_array: np.ndarray = np.array(distances, copy=True)                    # now managed by NumPy
 ```
 
-### Elementwise Kernels
+### Element-wise Kernels
 
-SimSIMD also provides mixed-precision elementwise kernels, where the input vectors and the output have the same numeric type, but the intermediate accumulators are of a higher precision.
+SimSIMD also provides mixed-precision element-wise kernels, where the input vectors and the output have the same numeric type, but the intermediate accumulators are of a higher precision.
 
 ```py
 import numpy as np
 from simsimd import fma, wsum
 
 # Let's take two FullHD video frames
-first_frame = np.random.randn(1920 * 1024).astype(np.uint8)  
+first_frame = np.random.randn(1920 * 1024).astype(np.uint8)
 second_frame = np.random.randn(1920 * 1024).astype(np.uint8)
 average_frame = np.empty_like(first_frame)
 wsum(first_frame, second_frame, alpha=0.5, beta=0.5, out=average_frame)
@@ -288,7 +479,7 @@ alpha = 0.7  # Weight for the diffuse component
 beta = 0.3   # Weight for the specular component
 
 # Formula: color = alpha * light_intensity * diffuse_component + beta * specular_component
-fma(light_intensity, diffuse_component, specular_component, 
+fma(light_intensity, diffuse_component, specular_component,
     dtype="float16", # Optional, unless it can't be inferred from the input
     alpha=alpha, beta=beta, out=output_color)
 
@@ -300,7 +491,7 @@ slow_output_color = (alpha * light_intensity * diffuse_component + beta * specul
 
 By default, computations use a single CPU core.
 To override this behavior, use the `threads` argument.
-Set it to `0` to use all available CPU cores.
+Set it to `0` to use all available CPU cores and let the underlying C library manage the thread pool.
 Here is an example of dealing with large sets of binary vectors:
 
 ```py
@@ -308,7 +499,7 @@ ndim = 1536 # OpenAI Ada embeddings
 matrix1 = np.packbits(np.random.randint(2, size=(10_000, ndim)).astype(np.uint8))
 matrix2 = np.packbits(np.random.randint(2, size=(1_000, ndim)).astype(np.uint8))
 
-distances = simsimd.cdist(matrix1, matrix2, 
+distances = simsimd.cdist(matrix1, matrix2,
     metric="hamming",   # Unlike SciPy, SimSIMD doesn't divide by the number of dimensions
     out_dtype="uint8",  # so we can use `uint8` instead of `float64` to save memory.
     threads=0,          # Use all CPU cores with OpenMP.
@@ -316,9 +507,72 @@ distances = simsimd.cdist(matrix1, matrix2,
 )
 ```
 
+Alternatively, when using free-threading Python 3.13t builds, one can combine single-threaded SimSIMD operations with Python's `concurrent.futures.ThreadPoolExecutor` to parallelize the computations.
 By default, the output distances will be stored in double-precision `float64` floating-point numbers.
 That behavior may not be space-efficient, especially if you are computing the hamming distance between short binary vectors, that will generally fit into 8x smaller `uint8` or `uint16` types.
-To override this behavior, use the `dtype` argument.
+To override this behavior, use the `out_dtype` argument, or consider pre-allocating the output array and passing it to the `out` argument.
+A more complete example may look like this:
+
+```py
+from multiprocessing import cpu_count
+from concurrent.futures import ThreadPoolExecutor
+from simsimd import cosine
+import numpy as np
+
+# Generate large dataset
+vectors_a = np.random.rand(100_000, 1536).astype(np.float32)
+vectors_b = np.random.rand(100_000, 1536).astype(np.float32)
+distances = np.zeros((100_000,), dtype=np.float32)
+
+def compute_batch(start_idx, end_idx):
+    batch_a = vectors_a[start_idx:end_idx]
+    batch_b = vectors_b[start_idx:end_idx]
+    cosine(batch_a, batch_b, out=distances[start_idx:end_idx])
+
+# Use all CPU cores with true parallelism (no GIL!)
+num_threads = cpu_count()
+chunk_size = len(vectors_a) // num_threads
+
+with ThreadPoolExecutor(max_workers=num_threads) as executor:
+    futures = []
+    for i in range(num_threads):
+        start_idx = i * chunk_size
+        end_idx = (i + 1) * chunk_size if i < num_threads - 1 else len(vectors_a)
+        futures.append(executor.submit(compute_batch, start_idx, end_idx))
+
+    # Collect results from all threads
+    results = [future.result() for future in futures]
+```
+
+### Half-Precision Brain-Float Numbers
+
+The "brain-float-16" is a popular machine learning format.
+It's broadly supported in hardware and is very machine-friendly, but software support is still lagging behind.
+[Unlike NumPy](https://github.com/numpy/numpy/issues/19808), you can already use `bf16` datatype in SimSIMD.
+Luckily, to downcast `f32` to `bf16` you only have to drop the last 16 bits:
+
+```py
+import numpy as np
+import simsimd as simd
+
+a = np.random.randn(ndim).astype(np.float32)
+b = np.random.randn(ndim).astype(np.float32)
+
+# NumPy doesn't natively support brain-float, so we need a trick!
+# Luckily, it's very easy to reduce the representation accuracy
+# by simply masking the low 16-bits of our 32-bit single-precision
+# numbers. We can also add `0x8000` to round the numbers.
+a_f32rounded = ((a.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+b_f32rounded = ((b.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+
+# To represent them as brain-floats, we need to drop the second half
+a_bf16 = np.right_shift(a_f32rounded.view(np.uint32), 16).astype(np.uint16)
+b_bf16 = np.right_shift(b_f32rounded.view(np.uint32), 16).astype(np.uint16)
+
+# Now we can compare the results
+expected = np.inner(a_f32rounded, b_f32rounded)
+result = simd.inner(a_bf16, b_bf16, "bf16")
+```
 
 ### Helper Functions
 
@@ -371,13 +625,13 @@ fn main() {
     let vector_a: Vec<f32> = vec![1.0, 2.0, 3.0];
     let vector_b: Vec<f32> = vec![4.0, 5.0, 6.0];
 
-    // Compute the cosine similarity between vector_a and vector_b
-    let cosine_similarity = f32::cosine(&vector_a, &vector_b)
+    // Compute the cosine distance between vectors
+    let cosine_distance = f32::cosine(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
-    println!("Cosine Similarity: {}", cosine_similarity);
+    println!("Cosine Distance: {}", cosine_distance);
 
-    // Compute the squared Euclidean distance between vector_a and vector_b
+    // Compute the squared Euclidean distance between vectors
     let sq_euclidean_distance = f32::sqeuclidean(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
@@ -394,16 +648,17 @@ use simsimd::SpatialSimilarity;
 use simsimd::ComplexProducts;
 
 fn main() {
+    // Complex vectors have interleaved real & imaginary components
     let vector_a: Vec<f32> = vec![1.0, 2.0, 3.0, 4.0];
     let vector_b: Vec<f32> = vec![5.0, 6.0, 7.0, 8.0];
 
-    // Compute the inner product between vector_a and vector_b
+    // Compute the inner product between vectors
     let inner_product = SpatialSimilarity::dot(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
     println!("Inner Product: {}", inner_product);
 
-    // Compute the complex inner product between complex_vector_a and complex_vector_b
+    // Compute the complex inner product between vectors
     let complex_inner_product = ComplexProducts::dot(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
@@ -420,21 +675,21 @@ Complex inner products are available for `f64`, `f32`, and `f16` types.
 ### Probability Distributions: Jensen-Shannon and Kullback-Leibler Divergences
 
 ```rust
-use simsimd::SpatialSimilarity;
+use simsimd::ProbabilitySimilarity;
 
 fn main() {
     let vector_a: Vec<f32> = vec![1.0, 2.0, 3.0];
     let vector_b: Vec<f32> = vec![4.0, 5.0, 6.0];
 
-    let cosine_similarity = f32::jensenshannon(&vector_a, &vector_b)
+    let jensen_shannon = f32::jensenshannon(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
-    println!("Cosine Similarity: {}", cosine_similarity);
+    println!("Jensen-Shannon Divergence: {}", jensen_shannon);
 
-    let sq_euclidean_distance = f32::kullbackleibler(&vector_a, &vector_b)
+    let kullback_leibler = f32::kullbackleibler(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
-    println!("Squared Euclidean Distance: {}", sq_euclidean_distance);
+    println!("Kullback-Leibler Divergence: {}", kullback_leibler);
 }
 ```
 
@@ -451,13 +706,13 @@ fn main() {
     let vector_a = &[0b11110000, 0b00001111, 0b10101010];
     let vector_b = &[0b11110000, 0b00001111, 0b01010101];
 
-    // Compute the Hamming distance between vector_a and vector_b
+    // Compute the Hamming distance between vectors
     let hamming_distance = u8::hamming(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
     println!("Hamming Distance: {}", hamming_distance);
 
-    // Compute the Jaccard distance between vector_a and vector_b
+    // Compute the Jaccard distance between vectors
     let jaccard_distance = u8::jaccard(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
@@ -469,57 +724,92 @@ Binary similarity functions are available only for `u8` types.
 
 ### Half-Precision Floating-Point Numbers
 
-Rust has no native support for half-precision floating-point numbers, but SimSIMD provides a `f16` type.
-It has no functionality - it is a `transparent` wrapper around `u16` and can be used with `half` or any other half-precision library.
+Rust has no native support for half-precision floating-point numbers, but SimSIMD provides a `f16` type with built-in conversion methods.
+The underlying `u16` representation is publicly accessible for direct bit manipulation.
 
 ```rust
-use simsimd::SpatialSimilarity;
-use simsimd::f16 as SimF16;
+use simsimd::{SpatialSimilarity, f16};
+
+fn main() {
+    // Create f16 vectors using built-in conversion methods
+    let vector_a: Vec<f16> = vec![1.0, 2.0, 3.0].iter().map(|&x| f16::from_f32(x)).collect();
+    let vector_b: Vec<f16> = vec![4.0, 5.0, 6.0].iter().map(|&x| f16::from_f32(x)).collect();
+
+    // Compute the cosine distance
+    let cosine_distance = f16::cosine(&vector_a, &vector_b)
+        .expect("Vectors must be of the same length");
+    
+    println!("Cosine Distance: {}", cosine_distance);
+
+    // Direct bit manipulation
+    let half = f16::from_f32(3.14159);
+    let bits = half.0; // Access raw u16 representation
+    let reconstructed = f16(bits);
+    
+    // Convert back to f32
+    let float_value = half.to_f32();
+}
+```
+
+For interoperability with the `half` crate:
+
+```rust
+use simsimd::{SpatialSimilarity, f16 as SimF16};
 use half::f16 as HalfF16;
 
 fn main() {
-    let vector_a: Vec<HalfF16> = ...
-    let vector_b: Vec<HalfF16> = ...
+    let vector_a: Vec<HalfF16> = vec![1.0, 2.0, 3.0].iter().map(|&x| HalfF16::from_f32(x)).collect();
+    let vector_b: Vec<HalfF16> = vec![4.0, 5.0, 6.0].iter().map(|&x| HalfF16::from_f32(x)).collect();
 
-    let buffer_a: &[SimF16] = unsafe { std::slice::from_raw_parts(a_half.as_ptr() as *const SimF16, a_half.len()) };
-    let buffer_b: &[SimF16] = unsafe { std::slice::from_raw_parts(b_half.as_ptr() as *const SimF16, b_half.len()) };
+    // Safe reinterpret cast due to identical memory layout
+    let buffer_a: &[SimF16] = unsafe { std::slice::from_raw_parts(vector_a.as_ptr() as *const SimF16, vector_a.len()) };
+    let buffer_b: &[SimF16] = unsafe { std::slice::from_raw_parts(vector_b.as_ptr() as *const SimF16, vector_b.len()) };
 
-    // Compute the cosine similarity between vector_a and vector_b
-    let cosine_similarity = SimF16::cosine(&vector_a, &vector_b)
+    let cosine_distance = SimF16::cosine(buffer_a, buffer_b)
         .expect("Vectors must be of the same length");
 
-    println!("Cosine Similarity: {}", cosine_similarity);
+    println!("Cosine Distance: {}", cosine_distance);
 }
 ```
 
 ### Half-Precision Brain-Float Numbers
 
 The "brain-float-16" is a popular machine learning format.
-It's broadly supported in hardware and is very machine-friendly, but software support is still lagging behind. 
+It's broadly supported in hardware and is very machine-friendly, but software support is still lagging behind.
 [Unlike NumPy](https://github.com/numpy/numpy/issues/19808), you can already use `bf16` datatype in SimSIMD.
-Luckily, to downcast `f32` to `bf16` you only have to drop the last 16 bits:
+SimSIMD provides a `bf16` type with built-in conversion methods and direct bit access.
 
-```py
-import numpy as np
-import simsimd as simd
+```rust
+use simsimd::{SpatialSimilarity, bf16};
 
-a = np.random.randn(ndim).astype(np.float32)
-b = np.random.randn(ndim).astype(np.float32)
+fn main() {
+    // Create bf16 vectors using built-in conversion methods
+    let vector_a: Vec<bf16> = vec![1.0, 2.0, 3.0].iter().map(|&x| bf16::from_f32(x)).collect();
+    let vector_b: Vec<bf16> = vec![4.0, 5.0, 6.0].iter().map(|&x| bf16::from_f32(x)).collect();
 
-# NumPy doesn't natively support brain-float, so we need a trick!
-# Luckily, it's very easy to reduce the representation accuracy
-# by simply masking the low 16-bits of our 32-bit single-precision
-# numbers. We can also add `0x8000` to round the numbers.
-a_f32rounded = ((a.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
-b_f32rounded = ((b.view(np.uint32) + 0x8000) & 0xFFFF0000).view(np.float32)
+    // Compute the cosine similarity
+    let cosine_distance = bf16::cosine(&vector_a, &vector_b)
+        .expect("Vectors must be of the same length");
+    
+    println!("Cosine Distance: {}", cosine_distance);
 
-# To represent them as brain-floats, we need to drop the second half
-a_bf16 = np.right_shift(a_f32rounded.view(np.uint32), 16).astype(np.uint16)
-b_bf16 = np.right_shift(b_f32rounded.view(np.uint32), 16).astype(np.uint16)
+    // Direct bit manipulation
+    let brain_half = bf16::from_f32(3.14159);
+    let bits = brain_half.0; // Access raw u16 representation
+    let reconstructed = bf16(bits);
+    
+    // Convert back to f32
+    let float_value = brain_half.to_f32();
 
-# Now we can compare the results
-expected = np.inner(a_f32rounded, b_f32rounded)
-result = simd.inner(a_bf16, b_bf16, "bf16")
+    // Compare precision differences
+    let original = 3.14159_f32;
+    let f16_roundtrip = f16::from_f32(original).to_f32();
+    let bf16_roundtrip = bf16::from_f32(original).to_f32();
+    
+    println!("Original: {}", original);
+    println!("f16 roundtrip: {}", f16_roundtrip);
+    println!("bf16 roundtrip: {}", bf16_roundtrip);
+}
 ```
 
 ### Dynamic Dispatch in Rust
@@ -536,6 +826,7 @@ println!("uses ice: {}", capabilities::uses_ice());
 println!("uses genoa: {}", capabilities::uses_genoa());
 println!("uses sapphire: {}", capabilities::uses_sapphire());
 println!("uses turin: {}", capabilities::uses_turin());
+println!("uses sierra: {}", capabilities::uses_sierra());
 ```
 
 ## Using SimSIMD in JavaScript
@@ -552,13 +843,13 @@ This will automatically happen unless you install the package with the `--ignore
 After you install it, you will be able to call the SimSIMD functions on various `TypedArray` variants:
 
 ```js
-const { sqeuclidean, cosine, inner, hamming, jaccard } = require('simsimd');
+const { sqeuclidean, cosine, inner, hamming, jaccard } = require("simsimd");
 
 const vectorA = new Float32Array([1.0, 2.0, 3.0]);
 const vectorB = new Float32Array([4.0, 5.0, 6.0]);
 
 const distance = sqeuclidean(vectorA, vectorB);
-console.log('Squared Euclidean Distance:', distance);
+console.log("Squared Euclidean Distance:", distance);
 ```
 
 Other numeric types and precision levels are supported as well.
@@ -574,8 +865,8 @@ When doing machine learning and vector search with high-dimensional vectors you 
 You may want to project values from the $[-1, 1]$ range to the $[-127, 127]$ range and then cast them to `Int8Array`:
 
 ```js
-const quantizedVectorA = new Int8Array(vectorA.map(v => (v * 127)));
-const quantizedVectorB = new Int8Array(vectorB.map(v => (v * 127)));
+const quantizedVectorA = new Int8Array(vectorA.map((v) => v * 127));
+const quantizedVectorB = new Int8Array(vectorB.map((v) => v * 127));
 const distance = cosine(quantizedVectorA, quantizedVectorB);
 ```
 
@@ -584,16 +875,16 @@ You can map all positive values to `1` and all negative values and zero to `0`, 
 After that, Hamming and Jaccard distances can be computed.
 
 ```js
-const { toBinary, hamming } = require('simsimd');
+const { toBinary, hamming } = require("simsimd");
 
 const binaryVectorA = toBinary(vectorA);
 const binaryVectorB = toBinary(vectorB);
 const distance = hamming(binaryVectorA, binaryVectorB);
 ```
 
-## Using SimSIMD in Sift
+## Using SimSIMD in Swift
 
-To install, simply add the following dependency to you `Package.swift`:
+To install, simply add the following dependency to your `Package.swift`:
 
 ```swift
 dependencies: [
@@ -609,8 +900,8 @@ import SimSIMD
 let vectorA: [Int8] = [1, 2, 3]
 let vectorB: [Int8] = [4, 5, 6]
 
-let cosineSimilarity = vectorA.angular(vectorB)  // Computes the cosine similarity
 let dotProduct = vectorA.dot(vectorB)           // Computes the dot product
+let angularDistance = vectorA.angular(vectorB)  // Computes the angular distance
 let sqEuclidean = vectorA.sqeuclidean(vectorB)  // Computes the squared Euclidean distance
 ```
 
@@ -634,6 +925,8 @@ Simplest of all, you can include the headers, and the compiler will automaticall
 #include <simsimd/simsimd.h>
 
 int main() {
+    simsimd_flush_denormals(); // Optional, to avoid performance penalties on denormal numbers
+
     simsimd_f32_t vector_a[1536];
     simsimd_f32_t vector_b[1536];
     simsimd_kernel_punned_t distance_function = simsimd_metric_punned(
@@ -641,7 +934,8 @@ int main() {
         simsimd_f32_k,      // Data type, like: f16, f32, f64, i8, b8, complex variants, etc.
         simsimd_cap_any_k); // Which CPU capabilities are we allowed to use
     simsimd_distance_t distance;
-    distance_function(vector_a, vector_b, 1536, &distance);
+    simsimd_metric_dense_punned_t metric = (simsimd_metric_dense_punned_t)metric_punned;
+    metric(vector_a, vector_b, 1536, &distance);
     return 0;
 }
 ```
@@ -671,29 +965,35 @@ To override compilation settings and switch between runtime and compile-time dis
 #define SIMSIMD_DYNAMIC_DISPATCH 1 // or 0
 ```
 
-### Spatial Distances: Cosine and Euclidean Distances
+### Spatial Distances: Angular and Euclidean Distances
 
 ```c
 #include <simsimd/simsimd.h>
 
 int main() {
+    simsimd_i8_t i8[1536];
+    simsimd_i8_t u8[1536];
     simsimd_f64_t f64s[1536];
     simsimd_f32_t f32s[1536];
     simsimd_f16_t f16s[1536];
-    simsimd_i8_t i8[1536];
+    simsimd_bf16_t bf16s[1536];
     simsimd_distance_t distance;
 
-    // Cosine distance between two vectors
+    // Angular distance between two vectors
     simsimd_angular_i8(i8s, i8s, 1536, &distance);
+    simsimd_angular_u8(u8s, u8s, 1536, &distance);
     simsimd_angular_f16(f16s, f16s, 1536, &distance);
     simsimd_angular_f32(f32s, f32s, 1536, &distance);
     simsimd_angular_f64(f64s, f64s, 1536, &distance);
-    
+    simsimd_angular_bf16(bf16s, bf16s, 1536, &distance);
+
     // Euclidean distance between two vectors
     simsimd_l2sq_i8(i8s, i8s, 1536, &distance);
+    simsimd_l2sq_u8(u8s, u8s, 1536, &distance);
     simsimd_l2sq_f16(f16s, f16s, 1536, &distance);
     simsimd_l2sq_f32(f32s, f32s, 1536, &distance);
     simsimd_l2sq_f64(f64s, f64s, 1536, &distance);
+    simsimd_l2sq_bf16(bf16s, bf16s, 1536, &distance);
 
     return 0;
 }
@@ -705,25 +1005,41 @@ int main() {
 #include <simsimd/simsimd.h>
 
 int main() {
-    simsimd_f64_t f64s[1536];
-    simsimd_f32_t f32s[1536];
+    // SimSIMD provides "sized" type-aliases without relying on `stdint.h`
+    simsimd_i8_t i8[1536];
+    simsimd_i8_t u8[1536];
     simsimd_f16_t f16s[1536];
-    simsimd_distance_t distance;
+    simsimd_f32_t f32s[1536];
+    simsimd_f64_t f64s[1536];
+    simsimd_bf16_t bf16s[1536];
+    simsimd_distance_t product;
 
-    // Inner product between two vectors
-    simsimd_dot_f16(f16s, f16s, 1536, &distance);
-    simsimd_dot_f32(f32s, f32s, 1536, &distance);
-    simsimd_dot_f64(f64s, f64s, 1536, &distance);
+    // Inner product between two real vectors
+    simsimd_dot_i8(i8s, i8s, 1536, &product);
+    simsimd_dot_u8(u8s, u8s, 1536, &product);
+    simsimd_dot_f16(f16s, f16s, 1536, &product);
+    simsimd_dot_f32(f32s, f32s, 1536, &product);
+    simsimd_dot_f64(f64s, f64s, 1536, &product);
+    simsimd_dot_bf16(bf16s, bf16s, 1536, &product);
+
+    // SimSIMD provides complex types with `real` and `imag` fields
+    simsimd_f64c_t f64s[768];
+    simsimd_f32c_t f32s[768];
+    simsimd_f16c_t f16s[768];
+    simsimd_bf16c_t bf16s[768];
+    simsimd_distance_t products[2]; // real and imaginary parts
 
     // Complex inner product between two vectors
-    simsimd_dot_f16c(f16s, f16s, 1536, &distance);
-    simsimd_dot_f32c(f32s, f32s, 1536, &distance);
-    simsimd_dot_f64c(f64s, f64s, 1536, &distance);
+    simsimd_dot_f16c(f16cs, f16cs, 768, &products[0]);
+    simsimd_dot_f32c(f32cs, f32cs, 768, &products[0]);
+    simsimd_dot_f64c(f64cs, f64cs, 768, &products[0]);
+    simsimd_dot_bf16c(bf16cs, bf16cs, 768, &products[0]);
 
     // Complex conjugate inner product between two vectors
-    simsimd_vdot_f16c(f16s, f16s, 1536, &distance);
-    simsimd_vdot_f32c(f32s, f32s, 1536, &distance);
-    simsimd_vdot_f64c(f64s, f64s, 1536, &distance);
+    simsimd_vdot_f16c(f16cs, f16cs, 768, &products[0]);
+    simsimd_vdot_f32c(f32cs, f32cs, 768, &products[0]);
+    simsimd_vdot_f64c(f64cs, f64cs, 768, &products[0]);
+    simsimd_vdot_bf16c(bf16cs, bf16cs, 768, &products[0]);
     return 0;
 }
 ```
@@ -751,17 +1067,17 @@ int main() {
     simsimd_f64_t f64s[1536];
     simsimd_f32_t f32s[1536];
     simsimd_f16_t f16s[1536];
-    simsimd_distance_t distance;
+    simsimd_distance_t divergence;
 
     // Jensen-Shannon divergence between two vectors
-    simsimd_js_f16(f16s, f16s, 1536, &distance);
-    simsimd_js_f32(f32s, f32s, 1536, &distance);
-    simsimd_js_f64(f64s, f64s, 1536, &distance);
+    simsimd_js_f16(f16s, f16s, 1536, &divergence);
+    simsimd_js_f32(f32s, f32s, 1536, &divergence);
+    simsimd_js_f64(f64s, f64s, 1536, &divergence);
 
     // Kullback-Leibler divergence between two vectors
-    simsimd_kl_f16(f16s, f16s, 1536, &distance);
-    simsimd_kl_f32(f32s, f32s, 1536, &distance);
-    simsimd_kl_f64(f64s, f64s, 1536, &distance);
+    simsimd_kl_f16(f16s, f16s, 1536, &divergence);
+    simsimd_kl_f32(f32s, f32s, 1536, &divergence);
+    simsimd_kl_f64(f64s, f64s, 1536, &divergence);
     return 0;
 }
 ```
@@ -787,7 +1103,7 @@ To explicitly disable half-precision support, define the following macro before 
 > This flag does just that and is used to produce the `simsimd.so` shared library, as well as the Python and other bindings.
 
 For Arm: `SIMSIMD_TARGET_NEON`, `SIMSIMD_TARGET_SVE`, `SIMSIMD_TARGET_SVE2`, `SIMSIMD_TARGET_NEON_F16`, `SIMSIMD_TARGET_SVE_F16`, `SIMSIMD_TARGET_NEON_BF16`, `SIMSIMD_TARGET_SVE_BF16`.
-For x86: (`SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`, `SIMSIMD_TARGET_TURIN`, `SIMSIMD_TARGET_SIERRA`. 
+For x86: (`SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`, `SIMSIMD_TARGET_TURIN`, `SIMSIMD_TARGET_SIERRA`.
 
 > By default, SimSIMD automatically infers the target architecture and pre-compiles as many kernels as possible.
 > In some cases, you may want to explicitly disable some of the kernels.
@@ -815,7 +1131,7 @@ In general there are a few principles that SimSIMD follows:
 
 Possibly, in the future:
 
-- Best effort computation silencing `NaN` components in low-precision inputs. 
+- Best effort computation silencing `NaN` components in low-precision inputs.
 - Detect overflows and report the distance with a "signaling" `NaN`.
 
 Last, but not the least - don't build unless there is a demand for it.
@@ -950,7 +1266,7 @@ SimSIMD defines `dot` and `vdot` kernels as:
 
 Where $\bar{b_i}$ is the complex conjugate of $b_i$.
 Putting that into Python code for scalar arrays:
-    
+
 ```python
 def dot(a: List[number], b: List[number]) -> number:
     a_real, a_imaginary = a[0::2], a[1::2]
@@ -1189,3 +1505,7 @@ $ grep -oP 'SIMSIMD_PUBLIC void simsimd_\w+_\w+_\w+\(' include/simsimd/*.h | sor
 > include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_jaccard_b8_serial(
 > include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_jaccard_b8_sve(
 ```
+
+## License
+
+Feel free to use the project under Apache 2.0 or the Three-clause BSD license at your preference.

@@ -1,18 +1,19 @@
-fn main() {
+fn main() -> Result<(), cc::Error> {
     let mut build = cc::Build::new();
 
     build
+        // Prefer portable flags to support MSVC and older toolchains
+        .std("c99") // Enforce C99 standard when supported
         .file("c/lib.c")
         .include("include")
         .define("SIMSIMD_NATIVE_F16", "0")
         .define("SIMSIMD_NATIVE_BF16", "0")
         .define("SIMSIMD_DYNAMIC_DISPATCH", "1")
-        .flag("-O3")
-        .flag("-std=c23") // We could enforce the C99 standard, but it's nicer to use `_Float16` in C23
-        .flag("-pedantic") // Ensure strict compliance with the C standard
+        .opt_level(3)
+        .flag_if_supported("-pedantic") // Strict compliance when supported
         .warnings(false);
 
-    if build.try_compile("simsimd").is_err() {
+    if let Err(e) = build.try_compile("simsimd") {
         print!("cargo:warning=Failed to compile with all SIMD backends...");
 
         let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
@@ -39,9 +40,11 @@ fn main() {
             ],
         };
 
+        let mut result = Err(e);
         for flag in flags_to_try.iter() {
             build.define(flag, "0");
-            if build.try_compile("simsimd").is_ok() {
+            result = build.try_compile("simsimd");
+            if result.is_ok() {
                 break;
             }
 
@@ -51,6 +54,7 @@ fn main() {
                 flag
             );
         }
+        result?;
     }
 
     println!("cargo:rerun-if-changed=c/lib.c");
@@ -62,4 +66,5 @@ fn main() {
     println!("cargo:rerun-if-changed=include/simsimd/probability.h");
     println!("cargo:rerun-if-changed=include/simsimd/binary.h");
     println!("cargo:rerun-if-changed=include/simsimd/types.h");
+    Ok(())
 }

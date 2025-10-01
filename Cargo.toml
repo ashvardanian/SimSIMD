@@ -1,7 +1,7 @@
 [package]
 name = "simsimd"
 description = "Portable mixed-precision BLAS-like vector math library for x86 and ARM"
-version = "6.0.3"
+version = "6.5.3"
 edition = "2021"
 license = "Apache-2.0"
 authors = ["Ash Vardanian <1983160+ashvardanian@users.noreply.github.com>"]
@@ -16,7 +16,8 @@ categories = [
   "wasm",
   "external-ffi-bindings",
 ]
-include = ["/rust/**", "/c/**", "/include/**", "/build.rs"]
+rust-version = "1.64" # Introduced Core C FFI in stable Rust
+include = ["rust/**", "c/**", "include/**", "build.rs"]
 
 
 [lib]
@@ -24,7 +25,8 @@ name = "simsimd"
 path = "rust/lib.rs"
 
 [build-dependencies]
-cc = "1.2.0"
+cc = "1.2.36"
+
 
 [[bench]]
 name = "bench_similarity"
@@ -37,8 +39,12 @@ lto = true        # Enables Link Time Optimization for further optimizations
 codegen-units = 1 # May increase compilation time but optimizes further
 rpath = false     # On some systems, setting this to false can help with optimizations
 
+[features]
+default = []
+std = []
+
 [dev-dependencies]
-criterion = { version = "0.5.1" }
-rand = { version = "0.8.5" }
-half = { version = "2.4.1" }
+criterion = { version = "0.7.0" }
+rand = { version = "0.9.1" }
+half = { version = "2.6.0" }
 num-traits = "0.2.19"

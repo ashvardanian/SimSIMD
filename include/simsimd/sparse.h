@@ -190,9 +190,9 @@ SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u32, size) // simsimd_intersect_u32_accu
             simsimd_##input_type##_t ai = a[i];                                                                   \
             simsimd_##input_type##_t bj = b[j];                                                                   \
             int matches = ai == bj;                                                                               \
-            load_and_convert(a_weights + i, &awi);                                                                \
-            load_and_convert(b_weights + j, &bwj);                                                                \
-            weights_product += matches * awi * bwj;                                                               \
+            simsimd_##accumulator_type##_t awi = load_and_convert(a_weights + i);                                 \
+            simsimd_##accumulator_type##_t bwi = load_and_convert(b_weights + i);                                 \
+            weights_product += matches * awi * bwi;                                                               \
             intersection_size += matches;                                                                         \
             i += ai < bj;                                                                                         \
             j += ai >= bj;                                                                                        \
@@ -439,6 +439,13 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(        //
         }
         b_min = b_vec.u16[0];
 
+        __m512i a_last_broadcasted = _mm512_set1_epi16(*(short const *)&a_max);
+        __m512i b_last_broadcasted = _mm512_set1_epi16(*(short const *)&b_max);
+        __mmask32 a_step_mask = _mm512_cmple_epu16_mask(a_vec.zmm, b_last_broadcasted);
+        __mmask32 b_step_mask = _mm512_cmple_epu16_mask(b_vec.zmm, a_last_broadcasted);
+        a += 32 - _lzcnt_u32((simsimd_u32_t)a_step_mask);
+        b += 32 - _lzcnt_u32((simsimd_u32_t)b_step_mask);
+
         // Now we are likely to have some overlap, so we can intersect the registers
         __mmask32 a_matches = _simsimd_intersect_u16x32_ice(a_vec.zmm, b_vec.zmm);
 
@@ -446,13 +453,6 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(        //
         // but we don't need it here:
         //      _mm512_mask_compressstoreu_epi16(c, a_matches, a_vec);
         c += _mm_popcnt_u32(a_matches); // MSVC has no `_popcnt32`
-
-        __m512i a_last_broadcasted = _mm512_set1_epi16(*(short const *)&a_max);
-        __m512i b_last_broadcasted = _mm512_set1_epi16(*(short const *)&b_max);
-        __mmask32 a_step_mask = _mm512_cmple_epu16_mask(a_vec.zmm, b_last_broadcasted);
-        __mmask32 b_step_mask = _mm512_cmple_epu16_mask(b_vec.zmm, a_last_broadcasted);
-        a += 32 - _lzcnt_u32((simsimd_u32_t)a_step_mask);
-        b += 32 - _lzcnt_u32((simsimd_u32_t)b_step_mask);
     }
 
     simsimd_intersect_u16_serial(a, b, a_end - a, b_end - b, results);
@@ -504,6 +504,13 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(        //
         }
         b_min = b_vec.u32[0];
 
+        __m512i a_last_broadcasted = _mm512_set1_epi32(*(int const *)&a_max);
+        __m512i b_last_broadcasted = _mm512_set1_epi32(*(int const *)&b_max);
+        __mmask16 a_step_mask = _mm512_cmple_epu32_mask(a_vec.zmm, b_last_broadcasted);
+        __mmask16 b_step_mask = _mm512_cmple_epu32_mask(b_vec.zmm, a_last_broadcasted);
+        a += 32 - _lzcnt_u32((simsimd_u32_t)a_step_mask);
+        b += 32 - _lzcnt_u32((simsimd_u32_t)b_step_mask);
+
         // Now we are likely to have some overlap, so we can intersect the registers
         __mmask16 a_matches = _simsimd_intersect_u32x16_ice(a_vec.zmm, b_vec.zmm);
 
@@ -511,13 +518,6 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(        //
         // but we don't need it here:
         //      _mm512_mask_compressstoreu_epi32(c, a_matches, a_vec);
         c += _mm_popcnt_u32(a_matches); // MSVC has no `_popcnt32`
-
-        __m512i a_last_broadcasted = _mm512_set1_epi32(*(int const *)&a_max);
-        __m512i b_last_broadcasted = _mm512_set1_epi32(*(int const *)&b_max);
-        __mmask16 a_step_mask = _mm512_cmple_epu32_mask(a_vec.zmm, b_last_broadcasted);
-        __mmask16 b_step_mask = _mm512_cmple_epu32_mask(b_vec.zmm, a_last_broadcasted);
-        a += 32 - _lzcnt_u32((simsimd_u32_t)a_step_mask);
-        b += 32 - _lzcnt_u32((simsimd_u32_t)b_step_mask);
     }
 
     simsimd_intersect_u32_serial(a, b, a_end - a, b_end - b, results);
@@ -531,10 +531,10 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(        //
 #if SIMSIMD_TARGET_TURIN
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2", "avx512bf16", \
-                   "avx512vnni", "avx512vp2intersect")
-#pragma clang attribute push(                                                                                       \
-    __attribute__((target(                                                                                          \
-        "avx2,avx512f,avx512vl,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2,avx512bf16,avx512vnni,avx512vp2intersect"))), \
+                   "avx512vnni", "avx512vp2intersect", "avx512dq")
+#pragma clang attribute push(                                                                                                \
+    __attribute__((target(                                                                                                   \
+        "avx2,avx512f,avx512vl,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2,avx512bf16,avx512vnni,avx512vp2intersect,avx512dq"))), \
     apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_intersect_u16_turin(      //
@@ -682,7 +682,7 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_turin(                  //
 
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
     if (a_length < 64 && b_length < 64) {
-        simsimd_intersect_u16_serial(a, b, a_length, b_length, results);
+        simsimd_spdot_weights_u16_serial(a, b, a_weights, b_weights, a_length, b_length, results);
         return;
     }
 
@@ -755,9 +755,9 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_turin(                  //
         a += a_step, a_weights += a_step;
         b += b_step, b_weights += b_step;
     }
-
-    simsimd_intersect_u16_serial(a, b, a_end - a, b_end - b, results);
-    *results += intersection_size;
+    simsimd_spdot_weights_u16_serial(a, b, a_weights, b_weights, a_end - a, b_end - b, results);
+    results[0] += intersection_size;
+    results[1] += _mm512_reduce_add_ps(_mm512_insertf32x8(_mm512_setzero_ps(), product_vec.ymmps, 0));
 }
 
 SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(                 //
@@ -768,7 +768,7 @@ SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(                 //
 
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
     if (a_length < 64 && b_length < 64) {
-        simsimd_intersect_u16_serial(a, b, a_length, b_length, results);
+        simsimd_spdot_counts_u16_serial(a, b, a_weights, b_weights, a_length, b_length, results);
         return;
     }
 
@@ -841,8 +841,9 @@ SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(                 //
         b += b_step, b_weights += b_step;
     }
 
-    simsimd_intersect_u16_serial(a, b, a_end - a, b_end - b, results);
-    *results += intersection_size;
+    simsimd_spdot_counts_u16_serial(a, b, a_weights, b_weights, a_end - a, b_end - b, results);
+    results[0] += intersection_size;
+    results[1] += _mm512_reduce_add_epi32(_mm512_inserti64x4(_mm512_setzero_si512(), product_vec.ymm, 0));
 }
 
 #pragma clang attribute pop
@@ -853,8 +854,8 @@ SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(                 //
 #if _SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a"))), apply_to = function)
+#pragma GCC target("arch=armv8-a")
+#pragma clang attribute push(__attribute__((target("arch=armv8-a"))), apply_to = function)
 
 /**
  *  @brief  Uses `vshrn` to produce a bitmask, similar to `movemask` in SSE.

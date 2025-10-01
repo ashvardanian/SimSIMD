@@ -12,7 +12,7 @@ try {
 } catch (e) {
   compiled = fallback;
   console.warn(
-    "It seems like your environment does't support the native simsimd module, so we are providing a JS fallback."
+    "It seems like your environment doesn't support the native simsimd module, so we are providing a JS fallback."
   );
 }
 
@@ -27,6 +27,19 @@ export const sqeuclidean = (
   b: Float64Array | Float32Array | Int8Array | Uint8Array
 ): number => {
   return compiled.sqeuclidean(a, b);
+};
+
+/**
+ * @brief Computes the Euclidean distance between two vectors.
+ * @param {Float64Array|Float32Array|Int8Array|Uint8Array} a - The first vector.
+ * @param {Float64Array|Float32Array|Int8Array|Uint8Array} b - The second vector.
+ * @returns {number} The Euclidean distance between vectors a and b.
+ */
+export const euclidean = (
+  a: Float64Array | Float32Array | Int8Array | Uint8Array,
+  b: Float64Array | Float32Array | Int8Array | Uint8Array
+): number => {
+  return compiled.euclidean(a, b);
 };
 
 /**
@@ -79,10 +92,10 @@ export const hamming = (a: Uint8Array, b: Uint8Array): number => {
 };
 
 /**
- * @brief Computes the bitwise Jaccard similarity coefficient between two vectors.
+ * @brief Computes the bitwise Jaccard distance between two vectors.
  * @param {Uint8Array} a - The first vector.
  * @param {Uint8Array} b - The second vector.
- * @returns {number} The Jaccard similarity coefficient between vectors a and b.
+ * @returns {number} The Jaccard distance between vectors a and b.
  */
 export const jaccard = (a: Uint8Array, b: Uint8Array): number => {
   return compiled.jaccard(a, b);
@@ -110,7 +123,7 @@ export const jensenshannon = (a: Float64Array | Float32Array, b: Float64Array | 
 
 /**
  * Quantizes a floating-point vector into a binary vector (1 for positive values, 0 for non-positive values) and packs the result into a Uint8Array, where each element represents 8 binary values from the original vector.
- * This function is useful for preparing data for bitwise distance or similarity computations, such as Hamming or Jaccard indices.
+ * This function is useful for preparing data for bitwise distance computations, such as Hamming or Jaccard indices.
  * 
  * @param {Float32Array | Float64Array | Int8Array} vector The floating-point vector to be quantized and packed.
  * @returns {Uint8Array} A Uint8Array where each byte represents 8 binary quantized values from the input vector.
@@ -133,6 +146,7 @@ export default {
   dot,
   inner,
   sqeuclidean,
+  euclidean,
   angular,
   hamming,
   jaccard,

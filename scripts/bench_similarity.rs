@@ -1,3 +1,11 @@
+//! Benchmark for vector similarity functions
+//!
+//! Compares SimSIMD vs native Rust implementations using Criterion.
+//! Run with:
+//!
+//! ```bash
+//! cargo bench --bench bench_sqeuclidean
+//! ```
 #![allow(unused)]
 use rand::Rng;
 use std::ops::{AddAssign, Mul};

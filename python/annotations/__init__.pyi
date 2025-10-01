@@ -271,7 +271,7 @@ def fma(
 ) -> Optional[DistancesTensor]: ...
 
 # Vector-vector element-wise weighted sum.
-def wum(
+def wsum(
     a: _BufferType,
     b: _BufferType,
     /,

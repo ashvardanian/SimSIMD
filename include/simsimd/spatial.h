@@ -140,6 +140,16 @@ SIMSIMD_PUBLIC void simsimd_angular_f64_haswell(simsimd_f64_t const* a, simsimd_
 /*  SIMD-powered backends for AVX512 CPUs of Skylake generation and newer, using 32-bit arithmetic over 512-bit words.
  *  Skylake was launched in 2015, and discontinued in 2019. Skylake had support for F, CD, VL, DQ, and BW extensions,
  *  as well as masked operations. This is enough to supersede auto-vectorization on `f32` and `f64` types.
+ * 
+ *  Sadly, we can't effectively interleave different kinds of arithmetic instructions to utilize more ports:
+ * 
+ *  > Like Intel server architectures since Skylake-X, SPR cores feature two 512-bit FMA units, and organize them in a similar fashion. 
+ *  > One 512-bit FMA unit is created by fusing two 256-bit ones on port 0 and port 1. The other is added to port 5, as a server-specific 
+ *  > core extension. The FMA units on port 0 and 1 are configured into 2×256-bit or 1×512-bit mode depending on whether 512-bit FMA 
+ *  > instructions are present in the scheduler. That means a mix of 256-bit and 512-bit FMA instructions will not achieve higher IPC 
+ *  > than executing 512-bit instructions alone.
+ * 
+ *  Source: https://chipsandcheese.com/p/a-peek-at-sapphire-rapids
  */
 SIMSIMD_PUBLIC void simsimd_l2_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* d);
 SIMSIMD_PUBLIC void simsimd_l2sq_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* d);
@@ -254,8 +264,8 @@ SIMSIMD_MAKE_L2(accurate, bf16, f64, _simsimd_bf16_to_f64)   // simsimd_l2_bf16_
 #if _SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a+simd")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
+#pragma GCC target("arch=armv8-a+simd")
+#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 
 SIMSIMD_INTERNAL simsimd_f32_t _simsimd_sqrt_f32_neon(simsimd_f32_t x) {
     return vget_lane_f32(vsqrt_f32(vdup_n_f32(x)), 0);
@@ -596,10 +606,10 @@ SIMSIMD_PUBLIC void simsimd_l2sq_i8_neon(simsimd_i8_t const *a, simsimd_i8_t con
         uint8x16_t d_vec = vreinterpretq_u8_s8(vabdq_s8(a_vec, b_vec));
         d2_vec = vdotq_u32(d2_vec, d_vec, d_vec);
     }
-    uint32_t d2 = vaddvq_u32(d2_vec);
+    simsimd_u32_t d2 = vaddvq_u32(d2_vec);
     for (; i < n; ++i) {
-        int32_t n = (int32_t)a[i] - b[i];
-        d2 += (uint32_t)(n * n);
+        simsimd_i32_t n = (simsimd_i32_t)a[i] - b[i];
+        d2 += (simsimd_u32_t)(n * n);
     }
     *result = d2;
 }
@@ -694,9 +704,9 @@ SIMSIMD_PUBLIC void simsimd_angular_i8_neon(simsimd_i8_t const *a, simsimd_i8_t 
     //          products_high_vec = vmmlaq_s32(products_high_vec, v_vec, y_w_vecs.val[1]);
     //      }
     //      int32x4_t products_vec = vaddq_s32(products_high_vec, products_low_vec);
-    //      int32_t a2 = products_vec[0];
-    //      int32_t ab = products_vec[1];
-    //      int32_t b2 = products_vec[3];
+    //      simsimd_i32_t a2 = products_vec[0];
+    //      simsimd_i32_t ab = products_vec[1];
+    //      simsimd_i32_t b2 = products_vec[3];
     //
     // That solution is elegant, but it requires the additional `+i8mm` extension and is currently slower,
     // at least on AWS Graviton 3.
@@ -710,13 +720,13 @@ SIMSIMD_PUBLIC void simsimd_angular_i8_neon(simsimd_i8_t const *a, simsimd_i8_t 
         a2_vec = vdotq_s32(a2_vec, a_vec, a_vec);
         b2_vec = vdotq_s32(b2_vec, b_vec, b_vec);
     }
-    int32_t ab = vaddvq_s32(ab_vec);
-    int32_t a2 = vaddvq_s32(a2_vec);
-    int32_t b2 = vaddvq_s32(b2_vec);
+    simsimd_i32_t ab = vaddvq_s32(ab_vec);
+    simsimd_i32_t a2 = vaddvq_s32(a2_vec);
+    simsimd_i32_t b2 = vaddvq_s32(b2_vec);
 
     // Take care of the tail:
     for (; i < n; ++i) {
-        int32_t ai = a[i], bi = b[i];
+        simsimd_i32_t ai = a[i], bi = b[i];
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
 
@@ -738,10 +748,10 @@ SIMSIMD_PUBLIC void simsimd_l2sq_u8_neon(simsimd_u8_t const *a, simsimd_u8_t con
         uint8x16_t d_vec = vabdq_u8(a_vec, b_vec);
         d2_vec = vdotq_u32(d2_vec, d_vec, d_vec);
     }
-    uint32_t d2 = vaddvq_u32(d2_vec);
+    simsimd_u32_t d2 = vaddvq_u32(d2_vec);
     for (; i < n; ++i) {
-        int32_t n = (int32_t)a[i] - b[i];
-        d2 += (uint32_t)(n * n);
+        simsimd_i32_t n = (simsimd_i32_t)a[i] - b[i];
+        d2 += (simsimd_u32_t)(n * n);
     }
     *result = d2;
 }
@@ -760,13 +770,13 @@ SIMSIMD_PUBLIC void simsimd_angular_u8_neon(simsimd_u8_t const *a, simsimd_u8_t 
         a2_vec = vdotq_u32(a2_vec, a_vec, a_vec);
         b2_vec = vdotq_u32(b2_vec, b_vec, b_vec);
     }
-    uint32_t ab = vaddvq_u32(ab_vec);
-    uint32_t a2 = vaddvq_u32(a2_vec);
-    uint32_t b2 = vaddvq_u32(b2_vec);
+    simsimd_u32_t ab = vaddvq_u32(ab_vec);
+    simsimd_u32_t a2 = vaddvq_u32(a2_vec);
+    simsimd_u32_t b2 = vaddvq_u32(b2_vec);
 
     // Take care of the tail:
     for (; i < n; ++i) {
-        uint32_t ai = a[i], bi = b[i];
+        simsimd_u32_t ai = a[i], bi = b[i];
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
 
@@ -961,7 +971,7 @@ SIMSIMD_PUBLIC void simsimd_l2sq_bf16_sve(simsimd_bf16_t const *a_enum, simsimd_
         svfloat32_t a_minus_b_low_vec = svsub_f32_x(pg_low_vec, a_low_vec, b_low_vec);
         svfloat32_t a_minus_b_high_vec = svsub_f32_x(pg_high_vec, a_high_vec, b_high_vec);
         d2_low_vec = svmla_f32_x(pg_vec, d2_low_vec, a_minus_b_low_vec, a_minus_b_low_vec);
-        d2_high_vec = svmla_f32_x(pg_vec, d2_high_vec, a_minus_b_low_vec, a_minus_b_low_vec);
+        d2_high_vec = svmla_f32_x(pg_vec, d2_high_vec, a_minus_b_high_vec, a_minus_b_high_vec);
         i += svcnth();
     } while (i < n);
     simsimd_f32_t d2 = svaddv_f32(svptrue_b32(), d2_low_vec) + svaddv_f32(svptrue_b32(), d2_high_vec);
@@ -1051,7 +1061,7 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_angular_normalize_f32_haswell(simsi
     // Load the squares into an __m128 register for single-precision floating-point operations
     __m128 squares = _mm_set_ps(a2, b2, a2, b2); // We replicate to make use of full register
 
-    // Compute the reciprocal square root of the squares using _mm_rsqrt_ps (single-precision)
+    // Compute the reciprocal square root of the squares using `_mm_rsqrt_ps` (single-precision)
     __m128 rsqrts = _mm_rsqrt_ps(squares);
 
     // Perform one iteration of Newton-Raphson refinement to improve the precision of rsqrt:
@@ -2269,6 +2279,7 @@ simsimd_angular_i4x2_ice_cycle:
     int ab = _mm512_reduce_add_epi32(_mm512_add_epi32(ab_i32_low_vec, ab_i32_high_vec));
     unsigned short a2_u16[32], b2_u16[32];
     _mm512_storeu_si512(a2_u16, _mm512_add_epi16(a2_u16_low_vec, a2_u16_high_vec));
+    _mm512_storeu_si512(b2_u16, _mm512_add_epi16(b2_u16_low_vec, b2_u16_high_vec));
     unsigned int a2 = 0, b2 = 0;
     for (int i = 0; i < 32; ++i) a2 += a2_u16[i], b2 += b2_u16[i];
     *result = _simsimd_angular_normalize_f32_haswell(ab, a2, b2);
