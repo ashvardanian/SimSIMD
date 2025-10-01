@@ -1,4 +1,4 @@
-# This file configures wheels compilation for `cibuilwheel` for SimSIMD CPython bindings.
+# This file configures wheels compilation for `cibuilwheel` for MathKong CPython bindings.
 # On a good day it will produce:
 #   - `manylinux` and `musllinux` vectorized wheels for Linux on x86_64, aarch64;
 #   - `manylinux` and `musllinux` wheels for Linux on i686, ppc64le, s390x;
@@ -28,7 +28,7 @@ test-requires = ["pytest", "pytest-repeat", "tabulate"]
 test-command = """
     python -m pip install numpy --only-binary=:all: || (echo "Failed to install NumPy" && exit 0) &&
     python -m pip install scipy --only-binary=:all: || (echo "Failed to install SciPy" && exit 0) &&
-    python -c "import simsimd; print(simsimd.get_capabilities())" &&
+    python -c "import mathkong; print(mathkong.get_capabilities())" &&
     pytest {project}/scripts/test.py -s -x -Wd
 """
 
@@ -50,10 +50,10 @@ skip = [] # we also don't use any SIMD on: ["*s390x*", "*ppc64le*"]
 enable = [] # don't enable PyPy
 
 # Testing half-precision math in QEMU is unreliable!
-environment-pass = ["SIMSIMD_IN_QEMU"]
+environment-pass = ["MATHKONG_IN_QEMU"]
 
 [tool.cibuildwheel.environment]
-SIMSIMD_IN_QEMU = "1"
+MATHKONG_IN_QEMU = "1"
 
 [tool.cibuildwheel.linux]
 before-build = ["rm -rf {project}/build"]

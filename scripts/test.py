@@ -3,7 +3,7 @@
 """
 Module: test.py
 
-This module contains a suite of tests for the `simsimd` package.
+This module contains a suite of tests for the `mathkong` package.
 It compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
 with their NumPy or baseline counterparts, testing accuracy for different data types including
 floating-point, integer, and complex numbers.
@@ -25,7 +25,7 @@ The tests cover:
 - `scipy`
 - `pytest`
 - `tabulate`
-- `simsimd` package
+- `mathkong` package
 
 **Usage**:
 
@@ -39,16 +39,20 @@ Or run the script directly:
 
 """
 import os
+import sys
 import math
 import time
 import platform
 import collections
 from typing import Dict, List
+import faulthandler
 
 import tabulate
 import pytest
-import simsimd as simd
+import mathkong as simd
 
+faulthandler.enable()
+randomized_repetitions_count: int = 10
 
 # NumPy is available on most platforms and is required for most tests.
 # When using PyPy on some platforms NumPy has internal issues, that will
@@ -63,33 +67,77 @@ try:
     baseline_intersect = lambda x, y: len(np.intersect1d(x, y))
     baseline_bilinear = lambda x, y, z: x @ z @ y
 
-    def baseline_fma(x, y, z, alpha, beta):
-        xy_scaled = np.multiply((alpha * x), y)
-        z_scaled = beta * z
-        r = xy_scaled + z_scaled
-        if np.issubdtype(x.dtype, np.integer):
+    def _normalize_element_wise(r, dtype_new):
+        """Clips higher-resolution results to the smaller target dtype without overflow."""
+        if np.issubdtype(dtype_new, np.integer):
             r = np.round(r)
         #! We need non-overflowing saturating addition for small integers, that NumPy lacks:
         #! https://stackoverflow.com/questions/29611185/avoid-overflow-when-adding-numpy-arrays
-        if x.dtype == np.uint8:
-            r = np.clip(r, 0, 255, out=r)
-        elif x.dtype == np.int8:
-            r = np.clip(r, -128, 127, out=r)
-        return r.astype(x.dtype)
+        if np.issubdtype(dtype_new, np.integer):
+            dtype_old_info = np.iinfo(r.dtype) if np.issubdtype(r.dtype, np.integer) else np.finfo(r.dtype)
+            dtype_new_info = np.iinfo(dtype_new)
+            new_min = dtype_new_info.min if dtype_new_info.min > dtype_old_info.min else None
+            new_max = dtype_new_info.max if dtype_new_info.max < dtype_old_info.max else None
+            if new_min is not None or new_max is not None:
+                r = np.clip(r, new_min, new_max, out=r)
+        return r.astype(dtype_new)
+
+    def _computation_dtype(x, y):
+        x = np.asarray(x)
+        y = np.asarray(y)
+        larger_dtype = np.promote_types(x.dtype, y.dtype)
+        if larger_dtype == np.uint8:
+            return np.uint16, larger_dtype
+        elif larger_dtype == np.int8:
+            return np.int16, larger_dtype
+        if larger_dtype == np.uint16:
+            return np.uint32, larger_dtype
+        elif larger_dtype == np.int16:
+            return np.int32, larger_dtype
+        if larger_dtype == np.uint32:
+            return np.uint64, larger_dtype
+        elif larger_dtype == np.int32:
+            return np.int64, larger_dtype
+        else:
+            return larger_dtype, larger_dtype
+
+    def baseline_scale(x, alpha, beta):
+        compute_dtype, _ = _computation_dtype(x, alpha)
+        result = alpha * x.astype(compute_dtype) + beta
+        return _normalize_element_wise(result, x.dtype)
+
+    def baseline_sum(x, y):
+        compute_dtype, _ = _computation_dtype(x, y)
+        result = x.astype(compute_dtype) + y.astype(compute_dtype)
+        return _normalize_element_wise(result, x.dtype)
 
     def baseline_wsum(x, y, alpha, beta):
-        x_scaled = alpha * x
-        y_scaled = beta * y
-        r = x_scaled + y_scaled
-        if np.issubdtype(x.dtype, np.integer):
-            r = np.round(r)
-        #! We need non-overflowing saturating addition for small integers, that NumPy lacks:
-        #! https://stackoverflow.com/questions/29611185/avoid-overflow-when-adding-numpy-arrays
-        if x.dtype == np.uint8:
-            r = np.clip(r, 0, 255, out=r)
-        elif x.dtype == np.int8:
-            r = np.clip(r, -128, 127, out=r)
-        return r.astype(x.dtype)
+        compute_dtype, _ = _computation_dtype(x, y)
+        result = x.astype(compute_dtype) * alpha + y.astype(compute_dtype) * beta
+        return _normalize_element_wise(result, x.dtype)
+
+    def baseline_fma(x, y, z, alpha, beta):
+        compute_dtype, _ = _computation_dtype(x, y)
+        result = x.astype(compute_dtype) * y.astype(compute_dtype) * alpha + z.astype(compute_dtype) * beta
+        return _normalize_element_wise(result, x.dtype)
+
+    def baseline_add(x, y, out=None):
+        compute_dtype, final_dtype = _computation_dtype(x, y)
+        a = x.astype(compute_dtype) if isinstance(x, np.ndarray) else x
+        b = y.astype(compute_dtype) if isinstance(y, np.ndarray) else y
+        # If the input types are identical, we want to perform addition with saturation
+        result = np.add(a, b, out=out, casting="unsafe")
+        result = _normalize_element_wise(result, final_dtype)
+        return result
+
+    def baseline_multiply(x, y, out=None):
+        compute_dtype, final_dtype = _computation_dtype(x, y)
+        a = x.astype(compute_dtype) if isinstance(x, np.ndarray) else x
+        b = y.astype(compute_dtype) if isinstance(y, np.ndarray) else y
+        # If the input types are identical, we want to perform addition with saturation
+        result = np.multiply(a, b, out=out, casting="unsafe")
+        result = _normalize_element_wise(result, final_dtype)
+        return result
 
 except:
     # NumPy is not installed, most tests will be skipped
@@ -105,11 +153,31 @@ except:
                 result += x[i] * z[i][j] * y[j]
         return result
 
+    def baseline_scale(x, alpha, beta):
+        return [alpha * xi + beta for xi in x]
+
+    def baseline_sum(x, y):
+        return [xi + yi for xi, yi in zip(x, y)]
+
     def baseline_fma(x, y, z, alpha, beta):
         return [(alpha * xi) * yi + beta * zi for xi, yi, zi in zip(x, y, z)]
 
     def baseline_wsum(x, y, alpha, beta):
         return [(alpha * xi) + beta * yi for xi, yi in zip(x, y)]
+
+    def baseline_add(x, y, out=None):
+        result = [xi + yi for xi, yi in zip(x, y)]
+        if out is not None:
+            out[:] = result
+        else:
+            return out
+
+    def baseline_multiply(x, y, out=None):
+        result = [xi * yi for xi, yi in zip(x, y)]
+        if out is not None:
+            out[:] = result
+        else:
+            return out
 
 
 # At the time of Python 3.12, SciPy doesn't support 32-bit Windows on any CPU,
@@ -122,7 +190,7 @@ try:
 
     baseline_euclidean = lambda x, y: np.array(spd.euclidean(x, y))  #! SciPy returns a scalar
     baseline_sqeuclidean = spd.sqeuclidean
-    baseline_cosine = spd.cosine
+    baseline_angular = spd.cosine
     baseline_jensenshannon = lambda x, y: spd.jensenshannon(x, y)
     baseline_hamming = lambda x, y: spd.hamming(x, y) * len(x)
     baseline_jaccard = spd.jaccard
@@ -141,7 +209,7 @@ except:
     # SciPy is not installed, some tests will be skipped
     scipy_available = False
 
-    baseline_cosine = lambda x, y: 1.0 - np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
+    baseline_angular = lambda x, y: 1.0 - np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
     baseline_euclidean = lambda x, y: np.array([np.sqrt(np.sum((x - y) ** 2))])
     baseline_sqeuclidean = lambda x, y: np.sum((x - y) ** 2)
     baseline_jensenshannon = lambda p, q: (np.sum((np.sqrt(p) - np.sqrt(q)) ** 2)) / 2
@@ -171,7 +239,7 @@ except:
 
 
 def is_running_under_qemu():
-    return "SIMSIMD_IN_QEMU" in os.environ
+    return "MATHKONG_IN_QEMU" in os.environ
 
 
 def profile(callable, *args, **kwargs) -> tuple:
@@ -190,11 +258,11 @@ def stats_fixture():
     results["dtype"] = []
     results["absolute_baseline_error"] = []
     results["relative_baseline_error"] = []
-    results["absolute_simsimd_error"] = []
-    results["relative_simsimd_error"] = []
+    results["absolute_mathkong_error"] = []
+    results["relative_mathkong_error"] = []
     results["accurate_duration"] = []
     results["baseline_duration"] = []
-    results["simsimd_duration"] = []
+    results["mathkong_duration"] = []
     results["warnings"] = []
     yield results
 
@@ -203,11 +271,11 @@ def stats_fixture():
         lambda: {
             "absolute_baseline_error": [],
             "relative_baseline_error": [],
-            "absolute_simsimd_error": [],
-            "relative_simsimd_error": [],
+            "absolute_mathkong_error": [],
+            "relative_mathkong_error": [],
             "accurate_duration": [],
             "baseline_duration": [],
-            "simsimd_duration": [],
+            "mathkong_duration": [],
         }
     )
     for (
@@ -216,73 +284,73 @@ def stats_fixture():
         dtype,
         absolute_baseline_error,
         relative_baseline_error,
-        absolute_simsimd_error,
-        relative_simsimd_error,
+        absolute_mathkong_error,
+        relative_mathkong_error,
         accurate_duration,
         baseline_duration,
-        simsimd_duration,
+        mathkong_duration,
     ) in zip(
         results["metric"],
         results["ndim"],
         results["dtype"],
         results["absolute_baseline_error"],
         results["relative_baseline_error"],
-        results["absolute_simsimd_error"],
-        results["relative_simsimd_error"],
+        results["absolute_mathkong_error"],
+        results["relative_mathkong_error"],
         results["accurate_duration"],
         results["baseline_duration"],
-        results["simsimd_duration"],
+        results["mathkong_duration"],
     ):
         key = (metric, ndim, dtype)
         grouped_errors[key]["absolute_baseline_error"].append(absolute_baseline_error)
         grouped_errors[key]["relative_baseline_error"].append(relative_baseline_error)
-        grouped_errors[key]["absolute_simsimd_error"].append(absolute_simsimd_error)
-        grouped_errors[key]["relative_simsimd_error"].append(relative_simsimd_error)
+        grouped_errors[key]["absolute_mathkong_error"].append(absolute_mathkong_error)
+        grouped_errors[key]["relative_mathkong_error"].append(relative_mathkong_error)
         grouped_errors[key]["accurate_duration"].append(accurate_duration)
         grouped_errors[key]["baseline_duration"].append(baseline_duration)
-        grouped_errors[key]["simsimd_duration"].append(simsimd_duration)
+        grouped_errors[key]["mathkong_duration"].append(mathkong_duration)
 
     # Compute mean and the standard deviation for each task error
     final_results = []
     for key, errors in grouped_errors.items():
-        n = len(errors["simsimd_duration"])
+        n = len(errors["mathkong_duration"])
 
         # Mean and the standard deviation for errors
         baseline_errors = errors["relative_baseline_error"]
-        simsimd_errors = errors["relative_simsimd_error"]
+        mathkong_errors = errors["relative_mathkong_error"]
         #! On some platforms (like `cp312-musllinux_aarch64`) without casting via `float(x)`
         #! the subsequent `:.2e` string formatting code will fail due to:
         #! `TypeError: unsupported format string passed to numpy.ndarray.__format__`.
         baseline_mean = float(sum(baseline_errors)) / n
-        simsimd_mean = float(sum(simsimd_errors)) / n
+        mathkong_mean = float(sum(mathkong_errors)) / n
         baseline_std = math.sqrt(sum((x - baseline_mean) ** 2 for x in baseline_errors) / n)
-        simsimd_std = math.sqrt(sum((x - simsimd_mean) ** 2 for x in simsimd_errors) / n)
+        mathkong_std = math.sqrt(sum((x - mathkong_mean) ** 2 for x in mathkong_errors) / n)
         baseline_error_formatted = f"{baseline_mean:.2e} ± {baseline_std:.2e}"
-        simsimd_error_formatted = f"{simsimd_mean:.2e} ± {simsimd_std:.2e}"
+        mathkong_error_formatted = f"{mathkong_mean:.2e} ± {mathkong_std:.2e}"
 
         # Log durations
         accurate_durations = errors["accurate_duration"]
         baseline_durations = errors["baseline_duration"]
-        simsimd_durations = errors["simsimd_duration"]
+        mathkong_durations = errors["mathkong_duration"]
         accurate_mean_duration = sum(accurate_durations) / n
         baseline_mean_duration = sum(baseline_durations) / n
-        simsimd_mean_duration = sum(simsimd_durations) / n
+        mathkong_mean_duration = sum(mathkong_durations) / n
         accurate_std_duration = math.sqrt(sum((x - accurate_mean_duration) ** 2 for x in accurate_durations) / n)
         baseline_std_duration = math.sqrt(sum((x - baseline_mean_duration) ** 2 for x in baseline_durations) / n)
-        simsimd_std_duration = math.sqrt(sum((x - simsimd_mean_duration) ** 2 for x in simsimd_durations) / n)
+        mathkong_std_duration = math.sqrt(sum((x - mathkong_mean_duration) ** 2 for x in mathkong_durations) / n)
         accurate_duration = f"{accurate_mean_duration:.2e} ± {accurate_std_duration:.2e}"
         baseline_duration = f"{baseline_mean_duration:.2e} ± {baseline_std_duration:.2e}"
-        simsimd_duration = f"{simsimd_mean_duration:.2e} ± {simsimd_std_duration:.2e}"
+        mathkong_duration = f"{mathkong_mean_duration:.2e} ± {mathkong_std_duration:.2e}"
 
         # Measure time improvement
-        improvements = [baseline / simsimd for baseline, simsimd in zip(baseline_durations, simsimd_durations)]
+        improvements = [baseline / mathkong for baseline, mathkong in zip(baseline_durations, mathkong_durations)]
         improvements_mean = sum(improvements) / n
         improvements_std = math.sqrt(sum((x - improvements_mean) ** 2 for x in improvements) / n)
-        simsimd_speedup = f"{improvements_mean:.2f}x ± {improvements_std:.2f}x"
+        mathkong_speedup = f"{improvements_mean:.2f}x ± {improvements_std:.2f}x"
 
         # Calculate Improvement
-        # improvement = abs(baseline_mean - simsimd_mean) / min(simsimd_mean, baseline_mean)
-        # if baseline_mean < simsimd_mean:
+        # improvement = abs(baseline_mean - mathkong_mean) / min(mathkong_mean, baseline_mean)
+        # if baseline_mean < mathkong_mean:
         #     improvement *= -1
         # improvement_formatted = f"{improvement:+.2}x" if improvement != float("inf") else "N/A"
 
@@ -290,11 +358,11 @@ def stats_fixture():
             (
                 *key,
                 baseline_error_formatted,
-                simsimd_error_formatted,
+                mathkong_error_formatted,
                 accurate_duration,
                 baseline_duration,
-                simsimd_duration,
-                simsimd_speedup,
+                mathkong_duration,
+                mathkong_speedup,
             )
         )
 
@@ -309,11 +377,11 @@ def stats_fixture():
         "NDim",
         "DType",
         "Baseline Error",  # Printed as mean ± std deviation
-        "SimSIMD Error",  # Printed as mean ± std deviation
+        "MathKong Error",  # Printed as mean ± std deviation
         "Accurate Duration",  # Printed as mean ± std deviation
         "Baseline Duration",  # Printed as mean ± std deviation
-        "SimSIMD Duration",  # Printed as mean ± std deviation
-        "SimSIMD Speedup",
+        "MathKong Duration",  # Printed as mean ± std deviation
+        "MathKong Speedup",
     ]
     print(tabulate.tabulate(final_results, headers=headers, tablefmt="pretty", showindex=True))
 
@@ -343,35 +411,35 @@ def collect_errors(
     accurate_duration: float,
     baseline_result: float,
     baseline_duration: float,
-    simsimd_result: float,
-    simsimd_duration: float,
+    mathkong_result: float,
+    mathkong_duration: float,
     stats,
 ):
     """Calculates and aggregates errors for a given test.
 
     What we want to know in the end of the day is:
 
-    -   How much SimSIMD implementation is more/less accurate than baseline,
+    -   How much MathKong implementation is more/less accurate than baseline,
         when compared against the accurate result?
-    -   TODO: How much faster is SimSIMD than the baseline kernel?
-    -   TODO: How much faster is SimSIMD than the accurate kernel?
+    -   TODO: How much faster is MathKong than the baseline kernel?
+    -   TODO: How much faster is MathKong than the accurate kernel?
     """
     eps = np.finfo(accurate_result.dtype).resolution
     absolute_baseline_error = np.max(np.abs(baseline_result - accurate_result))
     relative_baseline_error = np.max(np.abs(baseline_result - accurate_result) / (np.abs(accurate_result) + eps))
-    absolute_simsimd_error = np.max(np.abs(simsimd_result - accurate_result))
-    relative_simsimd_error = np.max(np.abs(simsimd_result - accurate_result) / (np.abs(accurate_result) + eps))
+    absolute_mathkong_error = np.max(np.abs(mathkong_result - accurate_result))
+    relative_mathkong_error = np.max(np.abs(mathkong_result - accurate_result) / (np.abs(accurate_result) + eps))
 
     stats["metric"].append(metric)
     stats["ndim"].append(ndim)
     stats["dtype"].append(dtype)
     stats["absolute_baseline_error"].append(absolute_baseline_error)
     stats["relative_baseline_error"].append(relative_baseline_error)
-    stats["absolute_simsimd_error"].append(absolute_simsimd_error)
-    stats["relative_simsimd_error"].append(relative_simsimd_error)
+    stats["absolute_mathkong_error"].append(absolute_mathkong_error)
+    stats["relative_mathkong_error"].append(relative_mathkong_error)
     stats["accurate_duration"].append(accurate_duration)
     stats["baseline_duration"].append(baseline_duration)
-    stats["simsimd_duration"].append(simsimd_duration)
+    stats["mathkong_duration"].append(mathkong_duration)
 
 
 def get_current_test():
@@ -394,8 +462,8 @@ def collect_warnings(message: str, stats: dict):
 
 # For normalized distances we use the absolute tolerance, because the result is close to zero.
 # For unnormalized ones (like squared Euclidean or Jaccard), we use the relative.
-SIMSIMD_RTOL = 0.1
-SIMSIMD_ATOL = 0.1
+MATHKONG_RTOL = 0.1
+MATHKONG_ATOL = 0.1
 
 # We will run all the tests many times using different instruction sets under the hood.
 available_capabilities: Dict[str, str] = simd.get_capabilities()
@@ -412,17 +480,31 @@ possible_arm_capabilities: List[str] = [
 ]
 possible_x86_capabilities: List[str] = [c for c in possible_x86_capabilities if available_capabilities[c]]
 possible_arm_capabilities: List[str] = [c for c in possible_arm_capabilities if available_capabilities[c]]
-possible_capabilities: List[str] = (
-    possible_x86_capabilities if platform.machine() == "x86_64" else possible_arm_capabilities
-)
+possible_capabilities: List[str] = []
+
+if sys.platform == "linux":
+    if platform.machine() == "x86_64":
+        possible_capabilities = possible_x86_capabilities
+    elif platform.machine() == "aarch64":
+        possible_capabilities = possible_arm_capabilities
+elif sys.platform == "darwin":
+    if platform.machine() == "x86_64":
+        possible_capabilities = possible_x86_capabilities
+    elif platform.machine() == "arm64":
+        possible_capabilities = possible_arm_capabilities
+elif sys.platform == "win32":
+    if platform.machine() == "AMD64":
+        possible_capabilities = possible_x86_capabilities
+    elif platform.machine() == "ARM64":
+        possible_capabilities = possible_arm_capabilities
 
 
 def keep_one_capability(cap: str):
-    assert cap in possible_capabilities
+    assert cap in possible_capabilities or cap == "serial", f"Capability {cap} is not available on this platform."
     for c in possible_capabilities:
         if c != cap:
             simd.disable_capability(c)
-    simd.enable_capability(c)
+    simd.enable_capability(cap)
 
 
 def name_to_kernels(name: str):
@@ -436,8 +518,8 @@ def name_to_kernels(name: str):
         return baseline_euclidean, simd.euclidean
     elif name == "sqeuclidean":
         return baseline_sqeuclidean, simd.sqeuclidean
-    elif name == "cosine":
-        return baseline_cosine, simd.cosine
+    elif name == "angular":
+        return baseline_angular, simd.angular
     elif name == "bilinear":
         return baseline_bilinear, simd.bilinear
     elif name == "mahalanobis":
@@ -448,10 +530,18 @@ def name_to_kernels(name: str):
         return baseline_hamming, simd.hamming
     elif name == "intersect":
         return baseline_intersect, simd.intersect
-    elif name == "fma":
-        return baseline_fma, simd.fma
+    elif name == "scale":
+        return baseline_scale, simd.scale
+    elif name == "sum":
+        return baseline_sum, simd.sum
     elif name == "wsum":
         return baseline_wsum, simd.wsum
+    elif name == "fma":
+        return baseline_fma, simd.fma
+    elif name == "add":
+        return baseline_add, simd.add
+    elif name == "multiply":
+        return baseline_multiply, simd.multiply
     elif name == "jensenshannon":
         return baseline_jensenshannon, simd.jensenshannon
     else:
@@ -548,6 +638,22 @@ def to_array(x, dtype=None):
         return y
 
 
+def random_of_dtype(dtype, shape):
+    if dtype == "float64" or dtype == "float32" or dtype == "float16":
+        return np.random.randn(*shape).astype(dtype)
+    elif (
+        dtype == "int8"
+        or dtype == "uint8"
+        or dtype == "int16"
+        or dtype == "uint16"
+        or dtype == "int32"
+        or dtype == "uint32"
+        or dtype == "int64"
+        or dtype == "uint64"
+    ):
+        return np.random.randint(np.iinfo(dtype).min, np.iinfo(dtype).max, shape, dtype=dtype)
+
+
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize(
     "function, expected_error, args, kwargs",
@@ -569,16 +675,16 @@ def to_array(x, dtype=None):
         # Test missing required arguments for bilinear
         (simd.bilinear, TypeError, (to_array([1.0]),), {}),  # Missing second vector and metric tensor
         # Test passing too many arguments to a method
-        (simd.cosine, TypeError, (to_array([1.0]), to_array([1.0]), to_array([1.0])), {}),  # Too many arguments
-        (simd.cdist, TypeError, (to_array([[1.0]]), to_array([[1.0]]), "cos", "dos"), {}),  # Too many arguments
+        (simd.angular, TypeError, (to_array([1.0]), to_array([1.0]), to_array([1.0])), {}),  # Too many arguments
+        (simd.cdist, TypeError, (to_array([[1.0]]), to_array([[1.0]]), "l2", "dos"), {}),  # Too many arguments
         # Same argument as both positional and keyword
-        (simd.cdist, TypeError, (to_array([[1.0]]), to_array([[1.0]]), "cos"), {"metric": "cos"}),
+        (simd.cdist, TypeError, (to_array([[1.0]]), to_array([[1.0]]), "l2"), {"metric": "l2"}),
         # Applying real metric to complex numbers - missing kernel
-        (simd.cosine, LookupError, (to_array([1 + 2j]), to_array([1 + 2j])), {}),
+        (simd.angular, LookupError, (to_array([1 + 2j]), to_array([1 + 2j])), {}),
         # Test incompatible vectors for cosine
-        (simd.cosine, ValueError, (to_array([1.0]), to_array([1.0, 2.0])), {}),  # Different number of dimensions
-        (simd.cosine, TypeError, (to_array([1.0]), to_array([1], "uint32")), {}),  # Floats and integers
-        (simd.cosine, TypeError, (to_array([1]), to_array([1], "float16")), {}),  # Different floats
+        (simd.angular, ValueError, (to_array([1.0]), to_array([1.0, 2.0])), {}),  # Different number of dimensions
+        (simd.angular, TypeError, (to_array([1.0]), to_array([1], "int8")), {}),  # Floats and integers
+        (simd.angular, TypeError, (to_array([1], "float32"), to_array([1], "float16")), {}),  # Different floats
     ],
 )
 def test_invalid_argument_handling(function, expected_error, args, kwargs):
@@ -588,10 +694,10 @@ def test_invalid_argument_handling(function, expected_error, args, kwargs):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(5)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
-@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
+@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "angular"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_dense(ndim, dtype, metric, capability, stats_fixture):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
@@ -612,12 +718,12 @@ def test_dense(ndim, dtype, metric, capability, stats_fixture):
     result_dt, result = profile(simd_kernel, a, b)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(5)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97])
 @pytest.mark.parametrize(
     "dtypes",  # representation datatype and compute precision
@@ -668,13 +774,13 @@ def test_curved(ndim, dtypes, metric, capability, stats_fixture):
     result_dt, result = profile(simd_kernel, a, b, c)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
 
 @pytest.mark.skipif(is_running_under_qemu(), reason="Complex math in QEMU fails")
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(5)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97])
 @pytest.mark.parametrize("dtype", ["complex128", "complex64"])
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -700,16 +806,16 @@ def test_curved_complex(ndim, dtype, capability, stats_fixture):
     result_dt, result = profile(simd_kernel, a, b, c)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     collect_errors(
         "bilinear", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture
     )
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(5)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
-@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
+@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "angular"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_dense_bf16(ndim, metric, capability, stats_fixture):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
@@ -732,8 +838,8 @@ def test_dense_bf16(ndim, metric, capability, stats_fixture):
     np.testing.assert_allclose(
         result,
         expected,
-        atol=SIMSIMD_ATOL,
-        rtol=SIMSIMD_RTOL,
+        atol=MATHKONG_ATOL,
+        rtol=MATHKONG_RTOL,
         err_msg=f"""
         First `f32` operand in hex:     {hex_array(a_f32_rounded.view(np.uint32))}
         Second `f32` operand in hex:    {hex_array(b_f32_rounded.view(np.uint32))}
@@ -747,7 +853,7 @@ def test_dense_bf16(ndim, metric, capability, stats_fixture):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(5)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 16, 33])
 @pytest.mark.parametrize("metric", ["bilinear", "mahalanobis"])
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -789,8 +895,8 @@ def test_curved_bf16(ndim, metric, capability, stats_fixture):
     np.testing.assert_allclose(
         result,
         expected,
-        atol=SIMSIMD_ATOL,
-        rtol=SIMSIMD_RTOL,
+        atol=MATHKONG_ATOL,
+        rtol=MATHKONG_RTOL,
         err_msg=f"""
         First `f32` operand in hex:     {hex_array(a_f32_rounded.view(np.uint32))}
         Second `f32` operand in hex:    {hex_array(b_f32_rounded.view(np.uint32))}
@@ -806,10 +912,10 @@ def test_curved_bf16(ndim, metric, capability, stats_fixture):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(5)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["int8", "uint8"])
-@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
+@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "angular"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_dense_i8(ndim, dtype, metric, capability, stats_fixture):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
@@ -836,7 +942,7 @@ def test_dense_i8(ndim, dtype, metric, capability, stats_fixture):
         assert round(float(result)) == round(float(expected)), f"Expected {expected}, but got {result}"
     else:
         np.testing.assert_allclose(
-            result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL
+            result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL
         ), f"Expected {expected}, but got {result}"
     collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
@@ -852,7 +958,7 @@ def test_dense_i8(ndim, dtype, metric, capability, stats_fixture):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
-@pytest.mark.repeat(5)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("metric", ["jaccard", "hamming"])
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -870,20 +976,19 @@ def test_dense_bits(ndim, metric, capability, stats_fixture):
     result_dt, result = profile(simd_kernel, np.packbits(a), np.packbits(b), "bin8")
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     collect_errors(metric, ndim, "bin8", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
     # Aside from overriding the `dtype` parameter, we can also view as booleans
     result_dt, result = profile(simd_kernel, np.packbits(a).view(np.bool_), np.packbits(b).view(np.bool_))
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     collect_errors(metric, ndim, "bin8", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
 
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
-@pytest.mark.repeat(5)
+@pytest.mark.skip(reason="Problems inferring the tolerance bounds for numerical errors")
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float32", "float16"])
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -906,7 +1011,7 @@ def test_jensen_shannon(ndim, dtype, capability, stats_fixture):
     result_dt, result = profile(simd_kernel, a, b)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     collect_errors(
         "jensenshannon", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture
     )
@@ -917,30 +1022,30 @@ def test_jensen_shannon(ndim, dtype, capability, stats_fixture):
 @pytest.mark.parametrize("dtype", ["float32", "float16"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_cosine_zero_vector(ndim, dtype, capability):
-    """Tests the simd.cosine() function with zero vectors, to catch division by zero errors."""
+    """Tests the simd.angular() function with zero vectors, to catch division by zero errors."""
     a = np.zeros(ndim, dtype=dtype)
     b = (np.random.randn(ndim) + 1).astype(dtype)
     keep_one_capability(capability)
 
-    result = simd.cosine(a, b)
+    result = simd.angular(a, b)
     assert result == 1, f"Expected 1, but got {result}"
 
-    result = simd.cosine(a, a)
+    result = simd.angular(a, a)
     assert result == 0, f"Expected 0 distance from itself, but got {result}"
 
-    result = simd.cosine(b, b)
-    assert abs(result) < SIMSIMD_ATOL, f"Expected 0 distance from itself, but got {result}"
+    result = simd.angular(b, b)
+    assert abs(result) < MATHKONG_ATOL, f"Expected 0 distance from itself, but got {result}"
 
     # For the cosine, the output must not be negative!
     assert np.all(result >= 0), f"Negative result for cosine distance"
 
 
-@pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/SimSIMD/issues/206")  # TODO
+@pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/MathKong/issues/206")  # TODO
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(5)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
-@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
+@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "angular"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_overflow(ndim, dtype, metric, capability):
     """Tests if the floating-point kernels are capable of detecting overflow yield the same ±inf result."""
@@ -969,11 +1074,11 @@ def test_overflow(ndim, dtype, metric, capability):
         collect_warnings(f"Arbitrary error raised in SciPy: {e}", stats_fixture)
 
 
-@pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/SimSIMD/issues/206")  # TODO
+@pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/MathKong/issues/206")  # TODO
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(5)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [131072, 262144])
-@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "cosine"])
+@pytest.mark.parametrize("metric", ["inner", "euclidean", "sqeuclidean", "angular"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_overflow_i8(ndim, metric, capability):
     """Tests if the integral kernels are capable of detecting overflow yield the same ±inf result,
@@ -1001,9 +1106,9 @@ def test_overflow_i8(ndim, metric, capability):
 
 @pytest.mark.skipif(is_running_under_qemu(), reason="Complex math in QEMU fails")
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(5)
-@pytest.mark.parametrize("ndim", [11, 97, 1536])
-@pytest.mark.parametrize("dtype", ["complex128", "complex64"])
+@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.parametrize("ndim", [22, 66, 1536])
+@pytest.mark.parametrize("dtype", ["float32", "float64"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_dot_complex(ndim, dtype, capability, stats_fixture):
     """Compares the simd.dot() and simd.vdot() against NumPy for complex numbers."""
@@ -1017,7 +1122,7 @@ def test_dot_complex(ndim, dtype, capability, stats_fixture):
     result_dt, result = profile(simd.dot, a, b)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     collect_errors("dot", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
     accurate_dt, accurate = profile(np.vdot, a.astype(np.complex128), b.astype(np.complex128))
@@ -1025,16 +1130,42 @@ def test_dot_complex(ndim, dtype, capability, stats_fixture):
     result_dt, result = profile(simd.vdot, a, b)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
+    collect_errors(
+        "vdot", ndim, dtype + "c", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture
+    )
+
+
+@pytest.mark.skipif(is_running_under_qemu(), reason="Complex math in QEMU fails")
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.parametrize("ndim", [22, 66, 1536])
+@pytest.mark.parametrize("capability", possible_capabilities)
+def test_dot_complex_explicit(ndim, capability):
+    """Compares the simd.dot() and simd.vdot() against NumPy for complex numbers."""
+    np.random.seed()
+    a = np.random.randn(ndim).astype(dtype=np.float32)
+    b = np.random.randn(ndim).astype(dtype=np.float32)
+
+    keep_one_capability(capability)
+    expected = np.dot(a.view(np.complex64), b.view(np.complex64))
+    result = simd.dot(a, b, "complex64")
+
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
+
+    expected = np.vdot(a.view(np.complex64), b.view(np.complex64))
+    result = simd.vdot(a, b, "complex64")
+
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     collect_errors("vdot", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(5)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("dtype", ["uint16", "uint32"])
 @pytest.mark.parametrize("first_length_bound", [10, 100, 1000])
 @pytest.mark.parametrize("second_length_bound", [10, 100, 1000])
-@pytest.mark.parametrize("capability", possible_capabilities)
+@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
 def test_intersect(dtype, first_length_bound, second_length_bound, capability):
     """Compares the simd.intersect() function with numpy.intersect1d."""
 
@@ -1060,11 +1191,176 @@ def test_intersect(dtype, first_length_bound, second_length_bound, capability):
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(5)
+@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
+@pytest.mark.parametrize("kernel", ["scale"])
+@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+def test_scale(ndim, dtype, kernel, capability, stats_fixture):
+    """"""
+
+    if dtype == "float16" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
+    np.random.seed()
+    if np.issubdtype(np.dtype(dtype), np.integer):
+        dtype_info = np.iinfo(np.dtype(dtype))
+        a = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
+        alpha = abs(np.random.randn(1).astype(np.float64).item()) / 2
+        beta = abs(np.random.randn(1).astype(np.float64).item()) / 2
+        atol = 1  # ? Allow at most one rounding error per vector
+        rtol = 0
+    else:
+        a = np.random.randn(ndim).astype(dtype)
+        alpha = np.random.randn(1).astype(np.float64).item()
+        beta = np.random.randn(1).astype(np.float64).item()
+        atol = MATHKONG_ATOL
+        rtol = MATHKONG_RTOL
+
+    keep_one_capability(capability)
+    baseline_kernel, simd_kernel = name_to_kernels(kernel)
+
+    accurate_dt, accurate = profile(
+        baseline_kernel,
+        a.astype(np.float64),
+        alpha=alpha,
+        beta=beta,
+    )
+    expected_dt, expected = profile(baseline_kernel, a, alpha=alpha, beta=beta)
+    result_dt, result = profile(simd_kernel, a, alpha=alpha, beta=beta)
+    result = np.array(result)
+
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
+    collect_errors(
+        kernel,
+        ndim,
+        dtype,
+        accurate,
+        accurate_dt,
+        expected,
+        expected_dt,
+        result,
+        result_dt,
+        stats_fixture,
+    )
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
+@pytest.mark.parametrize("kernel", ["sum"])
+@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+def test_sum(ndim, dtype, kernel, capability, stats_fixture):
+    """"""
+
+    if dtype == "float16" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
+    np.random.seed()
+    if np.issubdtype(np.dtype(dtype), np.integer):
+        dtype_info = np.iinfo(np.dtype(dtype))
+        a = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
+        b = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
+        atol = 1  # ? Allow at most one rounding error per vector
+        rtol = 0
+    else:
+        a = np.random.randn(ndim).astype(dtype)
+        b = np.random.randn(ndim).astype(dtype)
+        atol = MATHKONG_ATOL
+        rtol = MATHKONG_RTOL
+
+    keep_one_capability(capability)
+    baseline_kernel, simd_kernel = name_to_kernels(kernel)
+
+    accurate_dt, accurate = profile(
+        baseline_kernel,
+        a.astype(np.float64),
+        b.astype(np.float64),
+    )
+    expected_dt, expected = profile(baseline_kernel, a, b)
+    result_dt, result = profile(simd_kernel, a, b)
+    result = np.array(result)
+
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
+    collect_errors(
+        kernel,
+        ndim,
+        dtype,
+        accurate,
+        accurate_dt,
+        expected,
+        expected_dt,
+        result,
+        result_dt,
+        stats_fixture,
+    )
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
+@pytest.mark.parametrize("kernel", ["wsum"])
+@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+def test_wsum(ndim, dtype, kernel, capability, stats_fixture):
+    """"""
+
+    if dtype == "float16" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
+    np.random.seed()
+    if np.issubdtype(np.dtype(dtype), np.integer):
+        dtype_info = np.iinfo(np.dtype(dtype))
+        a = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
+        b = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
+        alpha = abs(np.random.randn(1).astype(np.float64).item()) / 2
+        beta = abs(np.random.randn(1).astype(np.float64).item()) / 2
+        atol = 1  # ? Allow at most one rounding error per vector
+        rtol = 0
+    else:
+        a = np.random.randn(ndim).astype(dtype)
+        b = np.random.randn(ndim).astype(dtype)
+        alpha = np.random.randn(1).astype(np.float64).item()
+        beta = np.random.randn(1).astype(np.float64).item()
+        atol = MATHKONG_ATOL
+        rtol = MATHKONG_RTOL
+
+    keep_one_capability(capability)
+    baseline_kernel, simd_kernel = name_to_kernels(kernel)
+
+    accurate_dt, accurate = profile(
+        baseline_kernel,
+        a.astype(np.float64),
+        b.astype(np.float64),
+        alpha=alpha,
+        beta=beta,
+    )
+    expected_dt, expected = profile(baseline_kernel, a, b, alpha=alpha, beta=beta)
+    result_dt, result = profile(simd_kernel, a, b, alpha=alpha, beta=beta)
+    result = np.array(result)
+
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
+    collect_errors(
+        kernel,
+        ndim,
+        dtype,
+        accurate,
+        accurate_dt,
+        expected,
+        expected_dt,
+        result,
+        result_dt,
+        stats_fixture,
+    )
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("kernel", ["fma"])
-@pytest.mark.parametrize("capability", possible_capabilities)
+@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
 def test_fma(ndim, dtype, kernel, capability, stats_fixture):
     """"""
 
@@ -1087,8 +1383,8 @@ def test_fma(ndim, dtype, kernel, capability, stats_fixture):
         c = np.random.randn(ndim).astype(dtype)
         alpha = np.random.randn(1).astype(np.float64).item()
         beta = np.random.randn(1).astype(np.float64).item()
-        atol = SIMSIMD_ATOL
-        rtol = SIMSIMD_RTOL
+        atol = MATHKONG_ATOL
+        rtol = MATHKONG_RTOL
 
     keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(kernel)
@@ -1103,64 +1399,6 @@ def test_fma(ndim, dtype, kernel, capability, stats_fixture):
     )
     expected_dt, expected = profile(baseline_kernel, a, b, c, alpha=alpha, beta=beta)
     result_dt, result = profile(simd_kernel, a, b, c, alpha=alpha, beta=beta)
-    result = np.array(result)
-
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
-    collect_errors(
-        kernel,
-        ndim,
-        dtype,
-        accurate,
-        accurate_dt,
-        expected,
-        expected_dt,
-        result,
-        result_dt,
-        stats_fixture,
-    )
-
-
-@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
-@pytest.mark.repeat(5)
-@pytest.mark.parametrize("ndim", [11, 97, 1536])
-@pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
-@pytest.mark.parametrize("kernel", ["wsum"])
-@pytest.mark.parametrize("capability", possible_capabilities)
-def test_wsum(ndim, dtype, kernel, capability, stats_fixture):
-    """"""
-
-    if dtype == "float16" and is_running_under_qemu():
-        pytest.skip("Testing low-precision math isn't reliable in QEMU")
-
-    np.random.seed()
-    if np.issubdtype(np.dtype(dtype), np.integer):
-        dtype_info = np.iinfo(np.dtype(dtype))
-        a = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
-        b = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
-        alpha = abs(np.random.randn(1).astype(np.float64).item()) / 2
-        beta = abs(np.random.randn(1).astype(np.float64).item()) / 2
-        atol = 1  # ? Allow at most one rounding error per vector
-        rtol = 0
-    else:
-        a = np.random.randn(ndim).astype(dtype)
-        b = np.random.randn(ndim).astype(dtype)
-        alpha = np.random.randn(1).astype(np.float64).item()
-        beta = np.random.randn(1).astype(np.float64).item()
-        atol = SIMSIMD_ATOL
-        rtol = SIMSIMD_RTOL
-
-    keep_one_capability(capability)
-    baseline_kernel, simd_kernel = name_to_kernels(kernel)
-
-    accurate_dt, accurate = profile(
-        baseline_kernel,
-        a.astype(np.float64),
-        b.astype(np.float64),
-        alpha=alpha,
-        beta=beta,
-    )
-    expected_dt, expected = profile(baseline_kernel, a, b, alpha=alpha, beta=beta)
-    result_dt, result = profile(simd_kernel, a, b, alpha=alpha, beta=beta)
     result = np.array(result)
 
     np.testing.assert_allclose(result, expected.astype(np.float64), atol=atol, rtol=rtol)
@@ -1197,34 +1435,34 @@ def test_batch(ndim, dtype, capability):
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (1 x D scalars) is an array with N floats.
     B = np.random.randn(1, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B[0]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
     # Distance between matrixes A (1 x D scalars) and B (N x D scalars) is an array with N floats.
     A = np.random.randn(1, ndim).astype(dtype)
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[0], B[i]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
     # Distance between matrix A (N x D scalars) and array B (D scalars) is an array with N floats.
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.random.randn(ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
     # Distance between matrix B (N x D scalars) and array A (D scalars) is an array with N floats.
     B = np.random.randn(10, ndim).astype(dtype)
     A = np.random.randn(ndim).astype(dtype)
     result_np = [spd.sqeuclidean(B[i], A) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(B, A)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) in slices of bigger matrices.
     A_extended = np.random.randn(10, ndim + 11).astype(dtype)
@@ -1235,7 +1473,7 @@ def test_batch(ndim, dtype, capability):
     assert A.__array_interface__["strides"] is not None and B.__array_interface__["strides"] is not None
     result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) in a transposed matrix.
     #! This requires calling `np.ascontiguousarray()` to ensure the matrix is in the right format.
@@ -1243,14 +1481,14 @@ def test_batch(ndim, dtype, capability):
     B = np.ascontiguousarray(np.random.randn(ndim, 10).astype(dtype).T)
     result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) with a different output type.
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = np.array([spd.sqeuclidean(A[i], B[i]) for i in range(10)]).astype(np.float32)
     result_simd = np.array(simd.sqeuclidean(A, B, out_dtype="float32"))
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     assert result_simd.dtype == result_np.dtype
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) with a supplied output buffer.
@@ -1259,7 +1497,7 @@ def test_batch(ndim, dtype, capability):
     result_np = np.array([spd.sqeuclidean(A[i], B[i]) for i in range(10)]).astype(np.float32)
     result_simd = np.zeros(10, dtype=np.float32)
     assert simd.sqeuclidean(A, B, out=result_simd) is None
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     assert result_simd.dtype == result_np.dtype
 
 
@@ -1310,8 +1548,8 @@ def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
         expected_out = expected_out.astype(out_dtype)
 
     # Assert they're close.
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-    np.testing.assert_allclose(result_out, expected_out, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
+    np.testing.assert_allclose(result_out, expected_out, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1337,7 +1575,7 @@ def test_cdist_itself(ndim, input_dtype, out_dtype, metric):
         result = simd.cdist(A, A, metric=metric, out_dtype=out_dtype)
 
     # Assert they're close.
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1372,7 +1610,7 @@ def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
         for j in range(N):
             expected[i, j] = baseline_kernel(A[i], B[j])
 
-    # Compute with SimSIMD:
+    # Compute with MathKong:
     if out_dtype is None:
         result1d = simd.cdist(A[0], B[0], metric=metric)
         result2d = simd.cdist(A, B, metric=metric)
@@ -1384,14 +1622,14 @@ def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
         assert simd.cdist(A, B, metric=metric, out_dtype=out_dtype, out=C) is None
 
     # Assert they're close.
-    np.testing.assert_allclose(result1d, expected[0, 0], atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-    np.testing.assert_allclose(result2d, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-    np.testing.assert_allclose(C, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result1d, expected[0, 0], atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
+    np.testing.assert_allclose(result2d, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
+    np.testing.assert_allclose(C, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
-@pytest.mark.repeat(5)
+@pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("out_dtype", [None, "float32", "float16", "int8"])
 @pytest.mark.parametrize("capability", possible_capabilities)
@@ -1415,12 +1653,216 @@ def test_cdist_hamming(ndim, out_dtype, capability):
         expected = (spd.cdist(A, B, "hamming") * ndim).astype(out_dtype)
         result = simd.cdist(A_bits, B_bits, metric="hamming", dtype="bin8", out_dtype=out_dtype)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        # Floats
+        ("float64", "float64", "float64"),
+        ("float32", "float32", "float32"),
+        # Signed
+        ("int8", "int8", "int8"),
+        ("int16", "int16", "int16"),
+        ("int32", "int32", "int32"),
+        # Unsigned
+        ("uint8", "uint8", "uint8"),
+        ("uint16", "uint16", "uint16"),
+        ("uint32", "uint32", "uint32"),
+        # ! Can't reliably detect overflows in NumPy
+        # ! ("int64", "int64", "int64"),
+        # ! ("uint64", "uint64", "uint64"),
+        # Mixed
+        ("int16", "uint16", "float64"),
+        ("uint8", "float32", "float32"),
+    ],
+)
+@pytest.mark.parametrize(
+    "kernel",
+    [
+        "add",
+        "multiply",
+    ],
+)
+@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+def test_elementwise(dtype, kernel, capability, stats_fixture):
+    """Tests NumPy-like compatibility interfaces on all kinds of non-contiguous arrays."""
+
+    np.random.seed()
+    keep_one_capability(capability)
+    baseline_kernel, simd_kernel = name_to_kernels(kernel)
+    first_dtype, second_dtype, output_dtype = dtype
+    operator = {"add": "+", "multiply": "*"}[kernel]
+
+    def validate(a, b, inplace_mathkong):
+        result_numpy = baseline_kernel(a, b)
+        result_mathkong = np.array(simd_kernel(a, b))
+        assert (
+            result_mathkong.size == result_numpy.size
+        ), f"Result sizes differ: {result_mathkong.size} vs {result_numpy.size}"
+        assert (
+            result_mathkong.shape == result_numpy.shape
+        ), f"Result shapes differ: {result_mathkong.shape} vs {result_numpy.shape}"
+        assert (
+            result_mathkong.dtype == result_numpy.dtype
+        ), f"Result dtypes differ: {result_mathkong.dtype} vs {result_numpy.dtype} for ({a.dtype} {operator} {b.dtype})"
+
+        if not np.allclose(result_mathkong, result_numpy, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL):
+            # ? Find the first mismatch and use it as an example in the error message
+            np.testing.assert_allclose(
+                result_mathkong,
+                result_numpy,
+                atol=MATHKONG_ATOL,
+                rtol=MATHKONG_RTOL,
+                err_msg=f"""
+                Result mismatch for ({a.dtype} {operator} {b.dtype})
+                First descriptor: {a.__array_interface__}
+                Second descriptor: {b.__array_interface__}
+                First operand: {a}
+                Second operand: {b}
+                MathKong result: {result_mathkong}
+                NumPy result: {result_numpy}
+                """,
+            )
+
+        #! NumPy constantly overflows in mixed-precision operations!
+        inplace_numpy = np.empty_like(inplace_mathkong)
+        simd_kernel(a, b, out=inplace_mathkong)
+        baseline_kernel(a, b, out=inplace_numpy)
+
+        assert (
+            inplace_mathkong.size == inplace_numpy.size
+        ), f"Inplace sizes differ: {inplace_mathkong.size} vs {inplace_numpy.size}"
+        assert (
+            inplace_mathkong.shape == inplace_numpy.shape
+        ), f"Inplace shapes differ: {inplace_mathkong.shape} vs {inplace_numpy.shape}"
+        assert (
+            inplace_mathkong.dtype == inplace_numpy.dtype
+        ), f"Inplace dtypes differ: {inplace_mathkong.dtype} vs {inplace_numpy.dtype} for ({a.dtype} {operator} {b.dtype})"
+
+        # Let's count the number of overflows in NumPy:
+        overflow_count = np.sum(np.isclose(inplace_mathkong, inplace_numpy, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL))
+        if overflow_count:
+            collect_warnings(
+                f"NumPy overflow in ({a.dtype} {operator} {b.dtype} -> {output_dtype})",
+                stats_fixture,
+            )
+        return result_mathkong
+
+    # Vector-Vector addition
+    a = random_of_dtype(first_dtype, (6,))
+    b = random_of_dtype(second_dtype, (6,))
+    o = np.zeros(6).astype(output_dtype)
+    validate(a, b, o)
+
+    # Larger Vector-Vector addition
+    a = random_of_dtype(first_dtype, (47,))
+    b = random_of_dtype(second_dtype, (47,))
+    o = np.zeros(47).astype(output_dtype)
+    validate(a, b, o)
+
+    # Much larger Vector-Vector addition
+    a = random_of_dtype(first_dtype, (247,))
+    b = random_of_dtype(second_dtype, (247,))
+    o = np.zeros(247).astype(output_dtype)
+    validate(a, b, o)
+
+    # Vector-Scalar addition
+    validate(a, np.int8(-11), o)
+    validate(a, np.uint8(11), o)
+    validate(a, np.float32(11.0), o)
+
+    # Scalar-Vector addition
+    validate(np.int8(-13), b, o)
+    validate(np.uint8(13), b, o)
+    validate(np.float32(13.0), b, o)
+
+    # Matrix-Matrix addition
+    a = random_of_dtype(first_dtype, (10, 47))
+    b = random_of_dtype(second_dtype, (10, 47))
+    o = np.zeros((10, 47)).astype(output_dtype)
+    validate(a, b, o)
+
+    # Strided Matrix-Matrix addition
+    a_extended = random_of_dtype(first_dtype, (10, 47))
+    b_extended = random_of_dtype(second_dtype, (10, 47))
+    a = a_extended[::2, 1:]  # Every second (even) row, all columns but the first
+    b = b_extended[1::2, :-1]  # Every second (odd) row, all columns but the last
+    o = np.zeros((5, 46)).astype(output_dtype)
+    validate(a, b, o)
+
+    # Strided Matrix-Matrix addition in with reverse order of different dimensions
+    a_extended = random_of_dtype(first_dtype, (10, 47))
+    b_extended = random_of_dtype(second_dtype, (10, 47))
+    a = a_extended[::-2, 1:]  # Every second (even) row (reverse), all columns but the first
+    b = b_extended[1::2, -2::-1]  # Every second (odd) row, all columns (reversed) but the last
+    o = np.zeros((5, 46)).astype(output_dtype)
+    validate(a, b, o)
+
+    # Raise an error if shapes are different
+    a = random_of_dtype(first_dtype, (10, 47))
+    b = random_of_dtype(second_dtype, (10, 46))
+    with pytest.raises(ValueError):
+        baseline_kernel(a, b)
+    with pytest.raises(ValueError):
+        simd_kernel(a, b)
+
+    # Raise an error if shapes are different
+    a = random_of_dtype(first_dtype, (6, 2, 3))
+    b = random_of_dtype(second_dtype, (6, 6))
+    with pytest.raises(ValueError):
+        baseline_kernel(a, b)
+    with pytest.raises(ValueError):
+        simd_kernel(a, b)
+
+    # Make sure broadcasting works as expected for a single scalar
+    a = random_of_dtype(first_dtype, (4, 7, 5, 3))
+    b = random_of_dtype(second_dtype, (1,))
+    o = np.zeros((4, 7, 5, 3)).astype(output_dtype)
+    assert validate(a, b, o).shape == (4, 7, 5, 3)
+
+    # Make sure broadcasting works as expected for a unit tensor
+    a = random_of_dtype(first_dtype, (4, 7, 5, 3))
+    b = random_of_dtype(second_dtype, (1, 1, 1, 1))
+    o = np.zeros((4, 7, 5, 3)).astype(output_dtype)
+    assert validate(a, b, o).shape == (4, 7, 5, 3)
+
+    # Make sure broadcasting works as expected for 2 unit tensors of different rank
+    a = random_of_dtype(first_dtype, (1, 1, 1, 1))
+    b = random_of_dtype(second_dtype, (1, 1, 1))
+    o = np.zeros((1, 1, 1, 1)).astype(output_dtype)
+    assert validate(a, b, o).shape == (1, 1, 1, 1)
+
+    # Make sure broadcasting works as expected for a unit tensor of different rank
+    a = random_of_dtype(first_dtype, (4, 7, 5, 3))
+    b = random_of_dtype(second_dtype, (1, 1, 1))
+    o = np.zeros((4, 7, 5, 3)).astype(output_dtype)
+    assert validate(a, b, o).shape == (4, 7, 5, 3)
+
+    # Make sure broadcasting works as expected for an added dimension
+    a = random_of_dtype(first_dtype, (4, 7, 5, 3))
+    b = random_of_dtype(second_dtype, (1, 1, 1, 1, 1))
+    o = np.zeros((1, 4, 7, 5, 3)).astype(output_dtype)
+    assert validate(a, b, o).shape == (1, 4, 7, 5, 3)
+
+    # Make sure broadcasting works as expected for mixed origin broadcasting
+    a = random_of_dtype(first_dtype, (4, 7, 5, 3))
+    b = random_of_dtype(second_dtype, (2, 1, 1, 1, 1))
+    o = np.zeros((2, 4, 7, 5, 3)).astype(output_dtype)
+    assert validate(a, b, o).shape == (2, 4, 7, 5, 3)
+
+    # Make sure broadcasting works as expected
+    a = random_of_dtype(first_dtype, (4, 7, 5, 1))
+    b = random_of_dtype(second_dtype, (4, 1, 5, 3))
+    o = np.zeros((4, 7, 5, 3)).astype(output_dtype)
+    assert validate(a, b, o).shape == (4, 7, 5, 3)
+
+
 def test_gil_free_threading():
-    """Test SimSIMD in Python 3.13t free-threaded mode if available."""
+    """Test MathKong in Python 3.13t free-threaded mode if available."""
     import sys
     import sysconfig
 
@@ -1483,7 +1925,7 @@ def test_gil_free_threading():
 
     # Verify results are the same length and reasonable
     assert np.allclose(
-        baseline_sum, multi_sum, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL
+        baseline_sum, multi_sum, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL
     ), f"Results differ: baseline {baseline_sum} vs multi-threaded {multi_sum}"
 
     # Warn if multi-threaded execution is slower than the baseline

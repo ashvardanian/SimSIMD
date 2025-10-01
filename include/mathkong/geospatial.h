@@ -25,10 +25,10 @@
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  *  Oblate Spheroid Geodesic: https://mathworld.wolfram.com/OblateSpheroidGeodesic.html
- *  Staging experiments: https://github.com/ashvardanian/HaversineSimSIMD
+ *  Staging experiments: https://github.com/ashvardanian/HaversineMathKong
  */
-#ifndef SIMSIMD_GEOSPATIAL_H
-#define SIMSIMD_GEOSPATIAL_H
+#ifndef MATHKONG_GEOSPATIAL_H
+#define MATHKONG_GEOSPATIAL_H
 
 #include "types.h"
 
