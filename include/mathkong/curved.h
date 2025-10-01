@@ -32,8 +32,8 @@
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
-#ifndef SIMSIMD_CURVED_H
-#define SIMSIMD_CURVED_H
+#ifndef MATHKONG_CURVED_H
+#define MATHKONG_CURVED_H
 
 #include "types.h"
 
@@ -50,45 +50,45 @@ extern "C" {
  *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
  *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
  */
-SIMSIMD_PUBLIC void mathkong_bilinear_f64_serial(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_f64_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_f64c_serial(mathkong_f64c_t const* a, mathkong_f64c_t const* b, mathkong_f64c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f64_serial(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_f64_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_f32_serial(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_f32_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_f32c_serial(mathkong_f32c_t const* a, mathkong_f32c_t const* b, mathkong_f32c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f32_serial(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_f32_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_f16_serial(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_f16c_serial(mathkong_f16c_t const* a, mathkong_f16c_t const* b, mathkong_f16c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f16_serial(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_bf16_serial(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_bf16c_serial(mathkong_bf16c_t const* a, mathkong_bf16c_t const* b, mathkong_bf16c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
-SIMSIMD_PUBLIC void mathkong_mahalanobis_bf16_serial(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f64_serial(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_f64_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f64c_serial(mathkong_f64c_t const* a, mathkong_f64c_t const* b, mathkong_f64c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
+MATHKONG_PUBLIC void mathkong_mahalanobis_f64_serial(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_f64_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f32_serial(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_f32_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f32c_serial(mathkong_f32c_t const* a, mathkong_f32c_t const* b, mathkong_f32c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
+MATHKONG_PUBLIC void mathkong_mahalanobis_f32_serial(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_f32_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f16_serial(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f16c_serial(mathkong_f16c_t const* a, mathkong_f16c_t const* b, mathkong_f16c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
+MATHKONG_PUBLIC void mathkong_mahalanobis_f16_serial(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_bf16_serial(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_bf16c_serial(mathkong_bf16c_t const* a, mathkong_bf16c_t const* b, mathkong_bf16c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
+MATHKONG_PUBLIC void mathkong_mahalanobis_bf16_serial(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
 
 /*  Double-precision serial backends for all numeric types.
  *  For single-precision computation check out the "*_serial" counterparts of those "*_accurate" functions.
  */
-SIMSIMD_PUBLIC void mathkong_bilinear_f32_accurate(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_f32_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_f32c_accurate(mathkong_f32c_t const* a, mathkong_f32c_t const* b, mathkong_f32c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f32_accurate(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_f32_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_f16_accurate(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_f16c_accurate(mathkong_f16c_t const* a, mathkong_f16c_t const* b, mathkong_f16c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f16_accurate(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_bf16_accurate(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_bf16c_accurate(mathkong_bf16c_t const* a, mathkong_bf16c_t const* b, mathkong_bf16c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
-SIMSIMD_PUBLIC void mathkong_mahalanobis_bf16_accurate(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f32_accurate(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_f32_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f32c_accurate(mathkong_f32c_t const* a, mathkong_f32c_t const* b, mathkong_f32c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
+MATHKONG_PUBLIC void mathkong_mahalanobis_f32_accurate(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_f32_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f16_accurate(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f16c_accurate(mathkong_f16c_t const* a, mathkong_f16c_t const* b, mathkong_f16c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
+MATHKONG_PUBLIC void mathkong_mahalanobis_f16_accurate(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_bf16_accurate(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_bf16c_accurate(mathkong_bf16c_t const* a, mathkong_bf16c_t const* b, mathkong_bf16c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
+MATHKONG_PUBLIC void mathkong_mahalanobis_bf16_accurate(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
 
 /*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
  *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
  *  server CPUs produced before 2023.
  */
-SIMSIMD_PUBLIC void mathkong_bilinear_f32_neon(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_f32_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_f32c_neon(mathkong_f32c_t const* a, mathkong_f32c_t const* b, mathkong_f32c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f32_neon(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_f32_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_f16_neon(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_f16c_neon(mathkong_f16c_t const* a, mathkong_f16c_t const* b, mathkong_f16c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f16_neon(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_bf16_neon(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_bf16c_neon(mathkong_bf16c_t const* a, mathkong_bf16c_t const* b, mathkong_bf16c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
-SIMSIMD_PUBLIC void mathkong_mahalanobis_bf16_neon(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f32_neon(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_f32_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f32c_neon(mathkong_f32c_t const* a, mathkong_f32c_t const* b, mathkong_f32c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
+MATHKONG_PUBLIC void mathkong_mahalanobis_f32_neon(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_f32_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f16_neon(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f16c_neon(mathkong_f16c_t const* a, mathkong_f16c_t const* b, mathkong_f16c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
+MATHKONG_PUBLIC void mathkong_mahalanobis_f16_neon(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_bf16_neon(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_bf16c_neon(mathkong_bf16c_t const* a, mathkong_bf16c_t const* b, mathkong_bf16c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
+MATHKONG_PUBLIC void mathkong_mahalanobis_bf16_neon(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
 
 /*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
  *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
@@ -96,32 +96,32 @@ SIMSIMD_PUBLIC void mathkong_mahalanobis_bf16_neon(mathkong_bf16_t const* a, mat
  *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
  *  properly vectorized by recent compilers.
  */
-SIMSIMD_PUBLIC void mathkong_bilinear_f16_haswell(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f16_haswell(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_bf16_haswell(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_mahalanobis_bf16_haswell(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f16_haswell(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_mahalanobis_f16_haswell(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_bf16_haswell(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_mahalanobis_bf16_haswell(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
 
 /*  SIMD-powered backends for various generations of AVX512 CPUs.
  *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
  *  Ice Lake added VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ, and other extensions for integral operations.
  *  Sapphire Rapids added tiled matrix operations, but we are most interested in the new mixed-precision FMA instructions.
  */
-SIMSIMD_PUBLIC void mathkong_bilinear_f64_skylake(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_f64_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_f64c_skylake(mathkong_f64c_t const* a, mathkong_f64c_t const* b, mathkong_f64c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f64_skylake(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_f64_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_f32_skylake(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_f32_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_f32c_skylake(mathkong_f32c_t const* a, mathkong_f32c_t const* b, mathkong_f32c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f32_skylake(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_f32_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_bf16_genoa(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_bf16c_genoa(mathkong_bf16c_t const* a, mathkong_bf16c_t const* b, mathkong_bf16c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
-SIMSIMD_PUBLIC void mathkong_mahalanobis_bf16_genoa(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_f16_sapphire(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_bilinear_f16c_sapphire(mathkong_f16c_t const* a, mathkong_f16c_t const* b, mathkong_f16c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f16_sapphire(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f64_skylake(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_f64_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f64c_skylake(mathkong_f64c_t const* a, mathkong_f64c_t const* b, mathkong_f64c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
+MATHKONG_PUBLIC void mathkong_mahalanobis_f64_skylake(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_f64_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f32_skylake(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_f32_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f32c_skylake(mathkong_f32c_t const* a, mathkong_f32c_t const* b, mathkong_f32c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
+MATHKONG_PUBLIC void mathkong_mahalanobis_f32_skylake(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_f32_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_bf16_genoa(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_bf16c_genoa(mathkong_bf16c_t const* a, mathkong_bf16c_t const* b, mathkong_bf16c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
+MATHKONG_PUBLIC void mathkong_mahalanobis_bf16_genoa(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_bf16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f16_sapphire(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_bilinear_f16c_sapphire(mathkong_f16c_t const* a, mathkong_f16c_t const* b, mathkong_f16c_t const* c, mathkong_size_t n, mathkong_distance_t* results);
+MATHKONG_PUBLIC void mathkong_mahalanobis_f16_sapphire(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_f16_t const* c, mathkong_size_t n, mathkong_distance_t* result);
 // clang-format on
 
-#define SIMSIMD_MAKE_BILINEAR(name, input_type, accumulator_type, load_and_convert)                                 \
-    SIMSIMD_PUBLIC void mathkong_bilinear_##input_type##_##name(                                                    \
+#define MATHKONG_MAKE_BILINEAR(name, input_type, accumulator_type, load_and_convert)                                \
+    MATHKONG_PUBLIC void mathkong_bilinear_##input_type##_##name(                                                   \
         mathkong_##input_type##_t const *a, mathkong_##input_type##_t const *b, mathkong_##input_type##_t const *c, \
         mathkong_size_t n, mathkong_distance_t *result) {                                                           \
         mathkong_##accumulator_type##_t sum = 0, a_i, b_j, c_ij;                                                    \
@@ -138,8 +138,8 @@ SIMSIMD_PUBLIC void mathkong_mahalanobis_f16_sapphire(mathkong_f16_t const* a, m
         *result = (mathkong_distance_t)sum;                                                                         \
     }
 
-#define SIMSIMD_MAKE_COMPLEX_BILINEAR(name, input_type, accumulator_type, load_and_convert)                 \
-    SIMSIMD_PUBLIC void mathkong_bilinear_##input_type##_##name(                                            \
+#define MATHKONG_MAKE_COMPLEX_BILINEAR(name, input_type, accumulator_type, load_and_convert)                \
+    MATHKONG_PUBLIC void mathkong_bilinear_##input_type##_##name(                                           \
         mathkong_##input_type##_t const *a_pairs, mathkong_##input_type##_t const *b_pairs,                 \
         mathkong_##input_type##_t const *c_pairs, mathkong_size_t n, mathkong_distance_t *results) {        \
         mathkong_##accumulator_type##_t sum_real = 0;                                                       \
@@ -166,8 +166,8 @@ SIMSIMD_PUBLIC void mathkong_mahalanobis_f16_sapphire(mathkong_f16_t const* a, m
         results[1] = (mathkong_distance_t)sum_imag;                                                         \
     }
 
-#define SIMSIMD_MAKE_MAHALANOBIS(name, input_type, accumulator_type, load_and_convert)                              \
-    SIMSIMD_PUBLIC void mathkong_mahalanobis_##input_type##_##name(                                                 \
+#define MATHKONG_MAKE_MAHALANOBIS(name, input_type, accumulator_type, load_and_convert)                             \
+    MATHKONG_PUBLIC void mathkong_mahalanobis_##input_type##_##name(                                                \
         mathkong_##input_type##_t const *a, mathkong_##input_type##_t const *b, mathkong_##input_type##_t const *c, \
         mathkong_size_t n, mathkong_distance_t *result) {                                                           \
         mathkong_##accumulator_type##_t sum = 0, a_i, a_j, b_i, b_j, c_ij;                                          \
@@ -181,46 +181,46 @@ SIMSIMD_PUBLIC void mathkong_mahalanobis_f16_sapphire(mathkong_f16_t const* a, m
             }                                                                                                       \
             sum += diff_i * cdiff_j;                                                                                \
         }                                                                                                           \
-        *result = (mathkong_distance_t)SIMSIMD_SQRT(sum);                                                           \
+        *result = (mathkong_distance_t)MATHKONG_SQRT(sum);                                                          \
     }
 
-SIMSIMD_MAKE_BILINEAR(serial, f64, f64, SIMSIMD_DEREFERENCE)          // mathkong_bilinear_f64_serial
-SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, f64c, f64, SIMSIMD_DEREFERENCE) // mathkong_bilinear_f64c_serial
-SIMSIMD_MAKE_MAHALANOBIS(serial, f64, f64, SIMSIMD_DEREFERENCE)       // mathkong_mahalanobis_f64_serial
+MATHKONG_MAKE_BILINEAR(serial, f64, f64, MATHKONG_DEREFERENCE)          // mathkong_bilinear_f64_serial
+MATHKONG_MAKE_COMPLEX_BILINEAR(serial, f64c, f64, MATHKONG_DEREFERENCE) // mathkong_bilinear_f64c_serial
+MATHKONG_MAKE_MAHALANOBIS(serial, f64, f64, MATHKONG_DEREFERENCE)       // mathkong_mahalanobis_f64_serial
 
-SIMSIMD_MAKE_BILINEAR(serial, f32, f32, SIMSIMD_DEREFERENCE)          // mathkong_bilinear_f32_serial
-SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, f32c, f32, SIMSIMD_DEREFERENCE) // mathkong_bilinear_f32c_serial
-SIMSIMD_MAKE_MAHALANOBIS(serial, f32, f32, SIMSIMD_DEREFERENCE)       // mathkong_mahalanobis_f32_serial
+MATHKONG_MAKE_BILINEAR(serial, f32, f32, MATHKONG_DEREFERENCE)          // mathkong_bilinear_f32_serial
+MATHKONG_MAKE_COMPLEX_BILINEAR(serial, f32c, f32, MATHKONG_DEREFERENCE) // mathkong_bilinear_f32c_serial
+MATHKONG_MAKE_MAHALANOBIS(serial, f32, f32, MATHKONG_DEREFERENCE)       // mathkong_mahalanobis_f32_serial
 
-SIMSIMD_MAKE_BILINEAR(serial, f16, f32, SIMSIMD_F16_TO_F32)          // mathkong_bilinear_f16_serial
-SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, f16c, f32, SIMSIMD_F16_TO_F32) // mathkong_bilinear_f16c_serial
-SIMSIMD_MAKE_MAHALANOBIS(serial, f16, f32, SIMSIMD_F16_TO_F32)       // mathkong_mahalanobis_f16_serial
+MATHKONG_MAKE_BILINEAR(serial, f16, f32, MATHKONG_F16_TO_F32)          // mathkong_bilinear_f16_serial
+MATHKONG_MAKE_COMPLEX_BILINEAR(serial, f16c, f32, MATHKONG_F16_TO_F32) // mathkong_bilinear_f16c_serial
+MATHKONG_MAKE_MAHALANOBIS(serial, f16, f32, MATHKONG_F16_TO_F32)       // mathkong_mahalanobis_f16_serial
 
-SIMSIMD_MAKE_BILINEAR(serial, bf16, f32, SIMSIMD_BF16_TO_F32)          // mathkong_bilinear_bf16_serial
-SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, bf16c, f32, SIMSIMD_BF16_TO_F32) // mathkong_bilinear_bf16c_serial
-SIMSIMD_MAKE_MAHALANOBIS(serial, bf16, f32, SIMSIMD_BF16_TO_F32)       // mathkong_mahalanobis_bf16_serial
+MATHKONG_MAKE_BILINEAR(serial, bf16, f32, MATHKONG_BF16_TO_F32)          // mathkong_bilinear_bf16_serial
+MATHKONG_MAKE_COMPLEX_BILINEAR(serial, bf16c, f32, MATHKONG_BF16_TO_F32) // mathkong_bilinear_bf16c_serial
+MATHKONG_MAKE_MAHALANOBIS(serial, bf16, f32, MATHKONG_BF16_TO_F32)       // mathkong_mahalanobis_bf16_serial
 
-SIMSIMD_MAKE_BILINEAR(accurate, f32, f64, SIMSIMD_DEREFERENCE)          // mathkong_bilinear_f32_accurate
-SIMSIMD_MAKE_COMPLEX_BILINEAR(accurate, f32c, f64, SIMSIMD_DEREFERENCE) // mathkong_bilinear_f32c_accurate
-SIMSIMD_MAKE_MAHALANOBIS(accurate, f32, f64, SIMSIMD_DEREFERENCE)       // mathkong_mahalanobis_f32_accurate
+MATHKONG_MAKE_BILINEAR(accurate, f32, f64, MATHKONG_DEREFERENCE)          // mathkong_bilinear_f32_accurate
+MATHKONG_MAKE_COMPLEX_BILINEAR(accurate, f32c, f64, MATHKONG_DEREFERENCE) // mathkong_bilinear_f32c_accurate
+MATHKONG_MAKE_MAHALANOBIS(accurate, f32, f64, MATHKONG_DEREFERENCE)       // mathkong_mahalanobis_f32_accurate
 
-SIMSIMD_MAKE_BILINEAR(accurate, f16, f64, SIMSIMD_F16_TO_F32)          // mathkong_bilinear_f16_accurate
-SIMSIMD_MAKE_COMPLEX_BILINEAR(accurate, f16c, f64, SIMSIMD_F16_TO_F32) // mathkong_bilinear_f16c_accurate
-SIMSIMD_MAKE_MAHALANOBIS(accurate, f16, f64, SIMSIMD_F16_TO_F32)       // mathkong_mahalanobis_f16_accurate
+MATHKONG_MAKE_BILINEAR(accurate, f16, f64, MATHKONG_F16_TO_F32)          // mathkong_bilinear_f16_accurate
+MATHKONG_MAKE_COMPLEX_BILINEAR(accurate, f16c, f64, MATHKONG_F16_TO_F32) // mathkong_bilinear_f16c_accurate
+MATHKONG_MAKE_MAHALANOBIS(accurate, f16, f64, MATHKONG_F16_TO_F32)       // mathkong_mahalanobis_f16_accurate
 
-SIMSIMD_MAKE_BILINEAR(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)          // mathkong_bilinear_bf16_accurate
-SIMSIMD_MAKE_COMPLEX_BILINEAR(accurate, bf16c, f64, SIMSIMD_BF16_TO_F32) // mathkong_bilinear_bf16c_accurate
-SIMSIMD_MAKE_MAHALANOBIS(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)       // mathkong_mahalanobis_bf16_accurate
+MATHKONG_MAKE_BILINEAR(accurate, bf16, f64, MATHKONG_BF16_TO_F32)          // mathkong_bilinear_bf16_accurate
+MATHKONG_MAKE_COMPLEX_BILINEAR(accurate, bf16c, f64, MATHKONG_BF16_TO_F32) // mathkong_bilinear_bf16c_accurate
+MATHKONG_MAKE_MAHALANOBIS(accurate, bf16, f64, MATHKONG_BF16_TO_F32)       // mathkong_mahalanobis_bf16_accurate
 
-#if _SIMSIMD_TARGET_ARM
-#if SIMSIMD_TARGET_NEON
+#if _MATHKONG_TARGET_ARM
+#if MATHKONG_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_bilinear_f32_neon(mathkong_f32_t const *a, mathkong_f32_t const *b,
-                                               mathkong_f32_t const *c, mathkong_size_t n,
-                                               mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_bilinear_f32_neon(mathkong_f32_t const *a, mathkong_f32_t const *b,
+                                                mathkong_f32_t const *c, mathkong_size_t n,
+                                                mathkong_distance_t *result) {
     float32x4_t sum_vec = vdupq_n_f32(0);
     for (mathkong_size_t i = 0; i != n; ++i) {
         float32x4_t a_vec = vdupq_n_f32(a[i]);
@@ -249,9 +249,9 @@ SIMSIMD_PUBLIC void mathkong_bilinear_f32_neon(mathkong_f32_t const *a, mathkong
     *result = sum;
 }
 
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f32_neon(mathkong_f32_t const *a, mathkong_f32_t const *b,
-                                                  mathkong_f32_t const *c, mathkong_size_t n,
-                                                  mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_mahalanobis_f32_neon(mathkong_f32_t const *a, mathkong_f32_t const *b,
+                                                   mathkong_f32_t const *c, mathkong_size_t n,
+                                                   mathkong_distance_t *result) {
     float32x4_t sum_vec = vdupq_n_f32(0);
     for (mathkong_size_t i = 0; i != n; ++i) {
         float32x4_t diff_i_vec = vdupq_n_f32(a[i] - b[i]);
@@ -284,9 +284,9 @@ SIMSIMD_PUBLIC void mathkong_mahalanobis_f32_neon(mathkong_f32_t const *a, mathk
     *result = _mathkong_sqrt_f64_neon(sum);
 }
 
-SIMSIMD_PUBLIC void mathkong_bilinear_f32c_neon(mathkong_f32c_t const *a, mathkong_f32c_t const *b,
-                                                mathkong_f32c_t const *c, mathkong_size_t n,
-                                                mathkong_distance_t *results) {
+MATHKONG_PUBLIC void mathkong_bilinear_f32c_neon(mathkong_f32c_t const *a, mathkong_f32c_t const *b,
+                                                 mathkong_f32c_t const *c, mathkong_size_t n,
+                                                 mathkong_distance_t *results) {
     mathkong_f32_t sum_real = 0;
     mathkong_f32_t sum_imag = 0;
     for (mathkong_size_t i = 0; i != n; ++i) {
@@ -339,16 +339,16 @@ SIMSIMD_PUBLIC void mathkong_bilinear_f32c_neon(mathkong_f32c_t const *a, mathko
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_NEON
+#endif // MATHKONG_TARGET_NEON
 
-#if SIMSIMD_TARGET_NEON_F16
+#if MATHKONG_TARGET_NEON_F16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_bilinear_f16_neon(mathkong_f16_t const *a, mathkong_f16_t const *b,
-                                               mathkong_f16_t const *c, mathkong_size_t n,
-                                               mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_bilinear_f16_neon(mathkong_f16_t const *a, mathkong_f16_t const *b,
+                                                mathkong_f16_t const *c, mathkong_size_t n,
+                                                mathkong_distance_t *result) {
     float32x4_t sum_vec = vdupq_n_f32(0);
     for (mathkong_size_t i = 0; i != n; ++i) {
         // MSVC doesn't recognize `vdup_n_f16` as a valid intrinsic
@@ -379,9 +379,9 @@ SIMSIMD_PUBLIC void mathkong_bilinear_f16_neon(mathkong_f16_t const *a, mathkong
     *result = sum;
 }
 
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f16_neon(mathkong_f16_t const *a, mathkong_f16_t const *b,
-                                                  mathkong_f16_t const *c, mathkong_size_t n,
-                                                  mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_mahalanobis_f16_neon(mathkong_f16_t const *a, mathkong_f16_t const *b,
+                                                   mathkong_f16_t const *c, mathkong_size_t n,
+                                                   mathkong_distance_t *result) {
     float32x4_t sum_vec = vdupq_n_f32(0);
     for (mathkong_size_t i = 0; i != n; ++i) {
         // MSVC doesn't recognize `vdup_n_f16` as a valid intrinsic
@@ -420,7 +420,7 @@ SIMSIMD_PUBLIC void mathkong_mahalanobis_f16_neon(mathkong_f16_t const *a, mathk
     *result = _mathkong_sqrt_f32_neon(sum);
 }
 
-SIMSIMD_INTERNAL mathkong_f32_t _mathkong_reduce_f16x8_neon(float16x8_t vec) {
+MATHKONG_INTERNAL mathkong_f32_t _mathkong_reduce_f16x8_neon(float16x8_t vec) {
     // Split the 8-element vector into two 4-element vectors
     float16x4_t low = vget_low_f16(vec);   // Lower 4 elements
     float16x4_t high = vget_high_f16(vec); // Upper 4 elements
@@ -436,7 +436,7 @@ SIMSIMD_INTERNAL mathkong_f32_t _mathkong_reduce_f16x8_neon(float16x8_t vec) {
     return vgetq_lane_f32(vcvt_f32_f16(sum), 0);
 }
 
-SIMSIMD_INTERNAL float16x8x2_t _mathkong_partial_load_f16x8x2_neon(mathkong_f16c_t const *x, mathkong_size_t n) {
+MATHKONG_INTERNAL float16x8x2_t _mathkong_partial_load_f16x8x2_neon(mathkong_f16c_t const *x, mathkong_size_t n) {
     union {
         float16x8x2_t vecs;
         mathkong_f16_t scalars[2][8];
@@ -447,9 +447,9 @@ SIMSIMD_INTERNAL float16x8x2_t _mathkong_partial_load_f16x8x2_neon(mathkong_f16c
     return result.vecs;
 }
 
-SIMSIMD_PUBLIC void mathkong_bilinear_f16c_neon(mathkong_f16c_t const *a, mathkong_f16c_t const *b,
-                                                mathkong_f16c_t const *c, mathkong_size_t n,
-                                                mathkong_distance_t *results) {
+MATHKONG_PUBLIC void mathkong_bilinear_f16c_neon(mathkong_f16c_t const *a, mathkong_f16c_t const *b,
+                                                 mathkong_f16c_t const *c, mathkong_size_t n,
+                                                 mathkong_distance_t *results) {
     mathkong_f32_t sum_real = 0;
     mathkong_f32_t sum_imag = 0;
     mathkong_size_t const tail_length = n % 8;
@@ -503,16 +503,16 @@ SIMSIMD_PUBLIC void mathkong_bilinear_f16c_neon(mathkong_f16c_t const *a, mathko
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_NEON_F16
+#endif // MATHKONG_TARGET_NEON_F16
 
-#if SIMSIMD_TARGET_NEON_BF16
+#if MATHKONG_TARGET_NEON_BF16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_bilinear_bf16_neon(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
-                                                mathkong_bf16_t const *c, mathkong_size_t n,
-                                                mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_bilinear_bf16_neon(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
+                                                 mathkong_bf16_t const *c, mathkong_size_t n,
+                                                 mathkong_distance_t *result) {
     float32x4_t sum_vec = vdupq_n_f32(0);
     for (mathkong_size_t i = 0; i != n; ++i) {
         float32x4_t a_vec = vdupq_n_f32(mathkong_bf16_to_f32(a + i));
@@ -543,9 +543,9 @@ SIMSIMD_PUBLIC void mathkong_bilinear_bf16_neon(mathkong_bf16_t const *a, mathko
     *result = sum;
 }
 
-SIMSIMD_PUBLIC void mathkong_mahalanobis_bf16_neon(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
-                                                   mathkong_bf16_t const *c, mathkong_size_t n,
-                                                   mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_mahalanobis_bf16_neon(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
+                                                    mathkong_bf16_t const *c, mathkong_size_t n,
+                                                    mathkong_distance_t *result) {
     float32x4_t sum_vec = vdupq_n_f32(0);
     for (mathkong_size_t i = 0; i != n; ++i) {
         mathkong_f32_t a_i, b_i;
@@ -605,7 +605,7 @@ SIMSIMD_PUBLIC void mathkong_mahalanobis_bf16_neon(mathkong_bf16_t const *a, mat
     *result = _mathkong_sqrt_f32_neon(sum);
 }
 
-SIMSIMD_INTERNAL int16x4x2_t _mathkong_partial_load_bf16x4x2_neon(mathkong_bf16c_t const *x, mathkong_size_t n) {
+MATHKONG_INTERNAL int16x4x2_t _mathkong_partial_load_bf16x4x2_neon(mathkong_bf16c_t const *x, mathkong_size_t n) {
     union {
         int16x4x2_t vec;
         mathkong_bf16_t scalars[2][4];
@@ -616,9 +616,9 @@ SIMSIMD_INTERNAL int16x4x2_t _mathkong_partial_load_bf16x4x2_neon(mathkong_bf16c
     return result.vec;
 }
 
-SIMSIMD_PUBLIC void mathkong_bilinear_bf16c_neon(mathkong_bf16c_t const *a, mathkong_bf16c_t const *b,
-                                                 mathkong_bf16c_t const *c, mathkong_size_t n,
-                                                 mathkong_distance_t *results) {
+MATHKONG_PUBLIC void mathkong_bilinear_bf16c_neon(mathkong_bf16c_t const *a, mathkong_bf16c_t const *b,
+                                                  mathkong_bf16c_t const *c, mathkong_size_t n,
+                                                  mathkong_distance_t *results) {
     mathkong_f32_t sum_real = 0;
     mathkong_f32_t sum_imag = 0;
     mathkong_size_t const tail_length = n % 4;
@@ -677,19 +677,19 @@ SIMSIMD_PUBLIC void mathkong_bilinear_bf16c_neon(mathkong_bf16c_t const *a, math
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_NEON_BF16
+#endif // MATHKONG_TARGET_NEON_BF16
 
-#endif // _SIMSIMD_TARGET_ARM
+#endif // _MATHKONG_TARGET_ARM
 
-#if _SIMSIMD_TARGET_X86
-#if SIMSIMD_TARGET_HASWELL
+#if _MATHKONG_TARGET_X86
+#if MATHKONG_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma")
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_bilinear_f16_haswell(mathkong_f16_t const *a, mathkong_f16_t const *b,
-                                                  mathkong_f16_t const *c, mathkong_size_t n,
-                                                  mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_bilinear_f16_haswell(mathkong_f16_t const *a, mathkong_f16_t const *b,
+                                                   mathkong_f16_t const *c, mathkong_size_t n,
+                                                   mathkong_distance_t *result) {
     __m256 sum_vec = _mm256_setzero_ps();
     for (mathkong_size_t i = 0; i != n; ++i) {
         __m256 a_vec = _mm256_cvtph_ps(_mm_set1_epi16(*(short const *)(a + i)));
@@ -719,9 +719,9 @@ SIMSIMD_PUBLIC void mathkong_bilinear_f16_haswell(mathkong_f16_t const *a, mathk
     *result = sum;
 }
 
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f16_haswell(mathkong_f16_t const *a, mathkong_f16_t const *b,
-                                                     mathkong_f16_t const *c, mathkong_size_t n,
-                                                     mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_mahalanobis_f16_haswell(mathkong_f16_t const *a, mathkong_f16_t const *b,
+                                                      mathkong_f16_t const *c, mathkong_size_t n,
+                                                      mathkong_distance_t *result) {
     __m256 sum_vec = _mm256_setzero_ps();
     for (mathkong_size_t i = 0; i != n; ++i) {
         __m256 diff_i_vec = _mm256_sub_ps(                            //
@@ -759,9 +759,9 @@ SIMSIMD_PUBLIC void mathkong_mahalanobis_f16_haswell(mathkong_f16_t const *a, ma
     *result = _mathkong_sqrt_f32_haswell(sum);
 }
 
-SIMSIMD_PUBLIC void mathkong_bilinear_bf16_haswell(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
-                                                   mathkong_bf16_t const *c, mathkong_size_t n,
-                                                   mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_bilinear_bf16_haswell(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
+                                                    mathkong_bf16_t const *c, mathkong_size_t n,
+                                                    mathkong_distance_t *result) {
     __m256 sum_vec = _mm256_setzero_ps();
     for (mathkong_size_t i = 0; i != n; ++i) {
         // The `mathkong_bf16_to_f32` is cheaper than `_mathkong_bf16x8_to_f32x8_haswell`
@@ -795,9 +795,9 @@ SIMSIMD_PUBLIC void mathkong_bilinear_bf16_haswell(mathkong_bf16_t const *a, mat
     *result = sum;
 }
 
-SIMSIMD_PUBLIC void mathkong_mahalanobis_bf16_haswell(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
-                                                      mathkong_bf16_t const *c, mathkong_size_t n,
-                                                      mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_mahalanobis_bf16_haswell(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
+                                                       mathkong_bf16_t const *c, mathkong_size_t n,
+                                                       mathkong_distance_t *result) {
     __m256 sum_vec = _mm256_setzero_ps();
     for (mathkong_size_t i = 0; i != n; ++i) {
         __m256 diff_i_vec = _mm256_sub_ps(               //
@@ -839,16 +839,16 @@ SIMSIMD_PUBLIC void mathkong_mahalanobis_bf16_haswell(mathkong_bf16_t const *a, 
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_HASWELL
+#endif // MATHKONG_TARGET_HASWELL
 
-#if SIMSIMD_TARGET_SKYLAKE
+#if MATHKONG_TARGET_SKYLAKE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2")
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_bilinear_f32_skylake_under16unrolled(mathkong_f32_t const *a, mathkong_f32_t const *b,
-                                                                  mathkong_f32_t const *c, mathkong_size_t n,
-                                                                  mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_bilinear_f32_skylake_under16unrolled(mathkong_f32_t const *a, mathkong_f32_t const *b,
+                                                                   mathkong_f32_t const *c, mathkong_size_t n,
+                                                                   mathkong_distance_t *result) {
     // The goal of this optimization is to avoid horizontal accumulation of the cb_j sums
     // until the very end of the computation.
     __mmask16 const mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
@@ -892,9 +892,9 @@ SIMSIMD_PUBLIC void mathkong_bilinear_f32_skylake_under16unrolled(mathkong_f32_t
     *result = _mm512_reduce_add_ps(sum_vec);
 }
 
-SIMSIMD_PUBLIC void mathkong_bilinear_f32_skylake(mathkong_f32_t const *a, mathkong_f32_t const *b,
-                                                  mathkong_f32_t const *c, mathkong_size_t n,
-                                                  mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_bilinear_f32_skylake(mathkong_f32_t const *a, mathkong_f32_t const *b,
+                                                   mathkong_f32_t const *c, mathkong_size_t n,
+                                                   mathkong_distance_t *result) {
 
     // On modern x86 CPUs we have enough register space to load fairly large matrices with up to 16 cells
     // per row and 16 rows at a time, still keeping enough register space for temporaries.
@@ -933,9 +933,9 @@ SIMSIMD_PUBLIC void mathkong_bilinear_f32_skylake(mathkong_f32_t const *a, mathk
     *result = _mm512_reduce_add_ps(sum_vec);
 }
 
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f32_skylake(mathkong_f32_t const *a, mathkong_f32_t const *b,
-                                                     mathkong_f32_t const *c, mathkong_size_t n,
-                                                     mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_mahalanobis_f32_skylake(mathkong_f32_t const *a, mathkong_f32_t const *b,
+                                                      mathkong_f32_t const *c, mathkong_size_t n,
+                                                      mathkong_distance_t *result) {
     mathkong_size_t const tail_length = n % 16;
     mathkong_size_t const tail_start = n - tail_length;
     __m512 sum_vec = _mm512_setzero_ps();
@@ -969,9 +969,9 @@ SIMSIMD_PUBLIC void mathkong_mahalanobis_f32_skylake(mathkong_f32_t const *a, ma
     *result = _mathkong_sqrt_f64_haswell(_mm512_reduce_add_ps(sum_vec));
 }
 
-SIMSIMD_PUBLIC void mathkong_bilinear_f32c_skylake(mathkong_f32c_t const *a, mathkong_f32c_t const *b,
-                                                   mathkong_f32c_t const *c, mathkong_size_t n,
-                                                   mathkong_distance_t *results) {
+MATHKONG_PUBLIC void mathkong_bilinear_f32c_skylake(mathkong_f32c_t const *a, mathkong_f32c_t const *b,
+                                                    mathkong_f32c_t const *c, mathkong_size_t n,
+                                                    mathkong_distance_t *results) {
 
     // We take into account, that FMS is the same as FMA with a negative multiplier.
     // To multiply a floating-point value by -1, we can use the `XOR` instruction to flip the sign bit.
@@ -1027,9 +1027,9 @@ SIMSIMD_PUBLIC void mathkong_bilinear_f32c_skylake(mathkong_f32c_t const *a, mat
     results[1] = sum_imag;
 }
 
-SIMSIMD_PUBLIC void mathkong_bilinear_f64_skylake_under8unrolled(mathkong_f64_t const *a, mathkong_f64_t const *b,
-                                                                 mathkong_f64_t const *c, mathkong_size_t n,
-                                                                 mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_bilinear_f64_skylake_under8unrolled(mathkong_f64_t const *a, mathkong_f64_t const *b,
+                                                                  mathkong_f64_t const *c, mathkong_size_t n,
+                                                                  mathkong_distance_t *result) {
 
     // The goal of this optimization is to avoid horizontal accumulation of the cb_j sums
     // until the very end of the computation.
@@ -1060,9 +1060,9 @@ SIMSIMD_PUBLIC void mathkong_bilinear_f64_skylake_under8unrolled(mathkong_f64_t 
     *result = _mm512_reduce_add_pd(sum_vec);
 }
 
-SIMSIMD_PUBLIC void mathkong_bilinear_f64_skylake(mathkong_f64_t const *a, mathkong_f64_t const *b,
-                                                  mathkong_f64_t const *c, mathkong_size_t n,
-                                                  mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_bilinear_f64_skylake(mathkong_f64_t const *a, mathkong_f64_t const *b,
+                                                   mathkong_f64_t const *c, mathkong_size_t n,
+                                                   mathkong_distance_t *result) {
 
     // On modern x86 CPUs we have enough register space to load fairly large matrices with up to 16 cells
     // per row and 8 rows at a time, still keeping enough register space for temporaries.
@@ -1101,9 +1101,9 @@ SIMSIMD_PUBLIC void mathkong_bilinear_f64_skylake(mathkong_f64_t const *a, mathk
     *result = _mm512_reduce_add_pd(sum_vec);
 }
 
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f64_skylake(mathkong_f64_t const *a, mathkong_f64_t const *b,
-                                                     mathkong_f64_t const *c, mathkong_size_t n,
-                                                     mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_mahalanobis_f64_skylake(mathkong_f64_t const *a, mathkong_f64_t const *b,
+                                                      mathkong_f64_t const *c, mathkong_size_t n,
+                                                      mathkong_distance_t *result) {
     mathkong_size_t const tail_length = n % 8;
     mathkong_size_t const tail_start = n - tail_length;
     __mmask8 const tail_mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, tail_length);
@@ -1137,9 +1137,9 @@ SIMSIMD_PUBLIC void mathkong_mahalanobis_f64_skylake(mathkong_f64_t const *a, ma
     *result = _mathkong_sqrt_f64_haswell(_mm512_reduce_add_pd(sum_vec));
 }
 
-SIMSIMD_PUBLIC void mathkong_bilinear_f64c_skylake(mathkong_f64c_t const *a, mathkong_f64c_t const *b,
-                                                   mathkong_f64c_t const *c, mathkong_size_t n,
-                                                   mathkong_distance_t *results) {
+MATHKONG_PUBLIC void mathkong_bilinear_f64c_skylake(mathkong_f64c_t const *a, mathkong_f64c_t const *b,
+                                                    mathkong_f64c_t const *c, mathkong_size_t n,
+                                                    mathkong_distance_t *results) {
 
     // We take into account, that FMS is the same as FMA with a negative multiplier.
     // To multiply a floating-point value by -1, we can use the `XOR` instruction to flip the sign bit.
@@ -1200,17 +1200,17 @@ SIMSIMD_PUBLIC void mathkong_bilinear_f64c_skylake(mathkong_f64c_t const *a, mat
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_SKYLAKE
+#endif // MATHKONG_TARGET_SKYLAKE
 
-#if SIMSIMD_TARGET_GENOA
+#if MATHKONG_TARGET_GENOA
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512bf16"))), \
                              apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_bilinear_bf16_genoa(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
-                                                 mathkong_bf16_t const *c, mathkong_size_t n,
-                                                 mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_bilinear_bf16_genoa(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
+                                                  mathkong_bf16_t const *c, mathkong_size_t n,
+                                                  mathkong_distance_t *result) {
     mathkong_size_t const tail_length = n % 32;
     mathkong_size_t const tail_start = n - tail_length;
     __mmask32 const tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, tail_length);
@@ -1240,9 +1240,9 @@ SIMSIMD_PUBLIC void mathkong_bilinear_bf16_genoa(mathkong_bf16_t const *a, mathk
     *result = _mm512_reduce_add_ps(sum_vec);
 }
 
-SIMSIMD_PUBLIC void mathkong_mahalanobis_bf16_genoa(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
-                                                    mathkong_bf16_t const *c, mathkong_size_t n,
-                                                    mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_mahalanobis_bf16_genoa(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
+                                                     mathkong_bf16_t const *c, mathkong_size_t n,
+                                                     mathkong_distance_t *result) {
     mathkong_size_t const tail_length = n % 32;
     mathkong_size_t const tail_start = n - tail_length;
     __mmask32 const tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, tail_length);
@@ -1276,9 +1276,9 @@ SIMSIMD_PUBLIC void mathkong_mahalanobis_bf16_genoa(mathkong_bf16_t const *a, ma
     *result = _mathkong_sqrt_f32_haswell(_mm512_reduce_add_ps(sum_vec));
 }
 
-SIMSIMD_PUBLIC void mathkong_bilinear_bf16c_genoa(mathkong_bf16c_t const *a, mathkong_bf16c_t const *b,
-                                                  mathkong_bf16c_t const *c, mathkong_size_t n,
-                                                  mathkong_distance_t *results) {
+MATHKONG_PUBLIC void mathkong_bilinear_bf16c_genoa(mathkong_bf16c_t const *a, mathkong_bf16c_t const *b,
+                                                   mathkong_bf16c_t const *c, mathkong_size_t n,
+                                                   mathkong_distance_t *results) {
 
     // We take into account, that FMS is the same as FMA with a negative multiplier.
     // To multiply a floating-point value by -1, we can use the `XOR` instruction to flip the sign bit.
@@ -1341,17 +1341,17 @@ SIMSIMD_PUBLIC void mathkong_bilinear_bf16c_genoa(mathkong_bf16c_t const *a, mat
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_GENOA
+#endif // MATHKONG_TARGET_GENOA
 
-#if SIMSIMD_TARGET_SAPPHIRE
+#if MATHKONG_TARGET_SAPPHIRE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512fp16")
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512fp16"))), \
                              apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_bilinear_f16_sapphire_under32unrolled(mathkong_f16_t const *a, mathkong_f16_t const *b,
-                                                                   mathkong_f16_t const *c, mathkong_size_t const n,
-                                                                   mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_bilinear_f16_sapphire_under32unrolled(mathkong_f16_t const *a, mathkong_f16_t const *b,
+                                                                    mathkong_f16_t const *c, mathkong_size_t const n,
+                                                                    mathkong_distance_t *result) {
     // The goal of this optimization is to avoid horizontal accumulation of the cb_j sums
     // until the very end of the computation.
     __mmask32 const mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
@@ -1407,9 +1407,9 @@ SIMSIMD_PUBLIC void mathkong_bilinear_f16_sapphire_under32unrolled(mathkong_f16_
     *result = _mm512_reduce_add_ph(sum_vec);
 }
 
-SIMSIMD_PUBLIC void mathkong_bilinear_f16_sapphire(mathkong_f16_t const *a, mathkong_f16_t const *b,
-                                                   mathkong_f16_t const *c, mathkong_size_t n,
-                                                   mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_bilinear_f16_sapphire(mathkong_f16_t const *a, mathkong_f16_t const *b,
+                                                    mathkong_f16_t const *c, mathkong_size_t n,
+                                                    mathkong_distance_t *result) {
 
     // On modern x86 CPUs we have enough register space to load fairly large matrices with up to 32 cells
     // per row and 32 rows at a time, still keeping enough register space for temporaries.
@@ -1447,9 +1447,9 @@ SIMSIMD_PUBLIC void mathkong_bilinear_f16_sapphire(mathkong_f16_t const *a, math
     *result = _mm512_reduce_add_ph(sum_vec);
 }
 
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f16_sapphire(mathkong_f16_t const *a, mathkong_f16_t const *b,
-                                                      mathkong_f16_t const *c, mathkong_size_t n,
-                                                      mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_mahalanobis_f16_sapphire(mathkong_f16_t const *a, mathkong_f16_t const *b,
+                                                       mathkong_f16_t const *c, mathkong_size_t n,
+                                                       mathkong_distance_t *result) {
     mathkong_size_t const tail_length = n % 32;
     mathkong_size_t const tail_start = n - tail_length;
     __mmask32 const tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, tail_length);
@@ -1486,9 +1486,9 @@ SIMSIMD_PUBLIC void mathkong_mahalanobis_f16_sapphire(mathkong_f16_t const *a, m
     *result = _mathkong_sqrt_f32_haswell(_mm512_reduce_add_ph(sum_vec));
 }
 
-SIMSIMD_PUBLIC void mathkong_bilinear_f16c_sapphire(mathkong_f16c_t const *a, mathkong_f16c_t const *b,
-                                                    mathkong_f16c_t const *c, mathkong_size_t n,
-                                                    mathkong_distance_t *results) {
+MATHKONG_PUBLIC void mathkong_bilinear_f16c_sapphire(mathkong_f16c_t const *a, mathkong_f16c_t const *b,
+                                                     mathkong_f16c_t const *c, mathkong_size_t n,
+                                                     mathkong_distance_t *results) {
 
     // We take into account, that FMS is the same as FMA with a negative multiplier.
     // To multiply a floating-point value by -1, we can use the `XOR` instruction to flip the sign bit.
@@ -1549,8 +1549,8 @@ SIMSIMD_PUBLIC void mathkong_bilinear_f16c_sapphire(mathkong_f16c_t const *a, ma
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_SAPPHIRE
-#endif // _SIMSIMD_TARGET_X86
+#endif // MATHKONG_TARGET_SAPPHIRE
+#endif // _MATHKONG_TARGET_X86
 
 #ifdef __cplusplus
 }

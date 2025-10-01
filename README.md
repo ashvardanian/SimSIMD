@@ -962,7 +962,7 @@ int uses_sapphire = mathkong_uses_sapphire();
 To override compilation settings and switch between runtime and compile-time dispatch, define the following macro:
 
 ```c
-#define SIMSIMD_DYNAMIC_DISPATCH 1 // or 0
+#define MATHKONG_DYNAMIC_DISPATCH 1 // or 0
 ```
 
 ### Spatial Distances: Angular and Euclidean Distances
@@ -1089,32 +1089,32 @@ For other MathKong functionalities, C 99 compatibility will suffice.
 To explicitly disable half-precision support, define the following macro before imports:
 
 ```c
-#define SIMSIMD_NATIVE_F16 0 // or 1
-#define SIMSIMD_NATIVE_BF16 0 // or 1
+#define MATHKONG_NATIVE_F16 0 // or 1
+#define MATHKONG_NATIVE_BF16 0 // or 1
 #include <mathkong/mathkong.h>
 ```
 
 ### Compilation Settings and Debugging
 
-`SIMSIMD_DYNAMIC_DISPATCH`:
+`MATHKONG_DYNAMIC_DISPATCH`:
 
 > By default, MathKong is a header-only library.
 > But if you are running on different generations of devices, it makes sense to pre-compile the library for all supported generations at once, and dispatch at runtime.
 > This flag does just that and is used to produce the `mathkong.so` shared library, as well as the Python and other bindings.
 
-For Arm: `SIMSIMD_TARGET_NEON`, `SIMSIMD_TARGET_SVE`, `SIMSIMD_TARGET_SVE2`, `SIMSIMD_TARGET_NEON_F16`, `SIMSIMD_TARGET_SVE_F16`, `SIMSIMD_TARGET_NEON_BF16`, `SIMSIMD_TARGET_SVE_BF16`.
-For x86: (`SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`, `SIMSIMD_TARGET_TURIN`, `SIMSIMD_TARGET_SIERRA`.
+For Arm: `MATHKONG_TARGET_NEON`, `MATHKONG_TARGET_SVE`, `MATHKONG_TARGET_SVE2`, `MATHKONG_TARGET_NEON_F16`, `MATHKONG_TARGET_SVE_F16`, `MATHKONG_TARGET_NEON_BF16`, `MATHKONG_TARGET_SVE_BF16`.
+For x86: (`MATHKONG_TARGET_HASWELL`, `MATHKONG_TARGET_SKYLAKE`, `MATHKONG_TARGET_ICE`, `MATHKONG_TARGET_GENOA`, `MATHKONG_TARGET_SAPPHIRE`, `MATHKONG_TARGET_TURIN`, `MATHKONG_TARGET_SIERRA`.
 
 > By default, MathKong automatically infers the target architecture and pre-compiles as many kernels as possible.
 > In some cases, you may want to explicitly disable some of the kernels.
 > Most often it's due to compiler support issues, like the lack of some recent intrinsics or low-precision numeric types.
 > In other cases, you may want to disable some kernels to speed up the compilation process and trim the binary size.
 
-`SIMSIMD_SQRT`, `SIMSIMD_RSQRT`, `SIMSIMD_LOG`:
+`MATHKONG_SQRT`, `MATHKONG_RSQRT`, `MATHKONG_LOG`:
 
 > By default, for __non__-SIMD backends, MathKong may use `libc` functions like `sqrt` and `log`.
 > Those are generally very accurate, but slow, and introduce a dependency on the C standard library.
-> To avoid that you can override those definitions with your custom implementations, like: `#define SIMSIMD_RSQRT(x) (1 / sqrt(x))`.
+> To avoid that you can override those definitions with your custom implementations, like: `#define MATHKONG_RSQRT(x) (1 / sqrt(x))`.
 
 ## Algorithms & Design Decisions 📚
 
@@ -1487,23 +1487,23 @@ To avoid hard-coding the backend, you can use the `mathkong_kernel_punned_t` to 
 To match all the function names, consider a RegEx:
 
 ```regex
-SIMSIMD_PUBLIC void mathkong_\w+_\w+_\w+\(
+MATHKONG_PUBLIC void mathkong_\w+_\w+_\w+\(
 ```
 
 On Linux, you can use the following command to list all unique functions:
 
 ```sh
-$ grep -oP 'SIMSIMD_PUBLIC void mathkong_\w+_\w+_\w+\(' include/mathkong/*.h | sort | uniq
-> include/mathkong/binary.h:SIMSIMD_PUBLIC void mathkong_hamming_b8_haswell(
-> include/mathkong/binary.h:SIMSIMD_PUBLIC void mathkong_hamming_b8_ice(
-> include/mathkong/binary.h:SIMSIMD_PUBLIC void mathkong_hamming_b8_neon(
-> include/mathkong/binary.h:SIMSIMD_PUBLIC void mathkong_hamming_b8_serial(
-> include/mathkong/binary.h:SIMSIMD_PUBLIC void mathkong_hamming_b8_sve(
-> include/mathkong/binary.h:SIMSIMD_PUBLIC void mathkong_jaccard_b8_haswell(
-> include/mathkong/binary.h:SIMSIMD_PUBLIC void mathkong_jaccard_b8_ice(
-> include/mathkong/binary.h:SIMSIMD_PUBLIC void mathkong_jaccard_b8_neon(
-> include/mathkong/binary.h:SIMSIMD_PUBLIC void mathkong_jaccard_b8_serial(
-> include/mathkong/binary.h:SIMSIMD_PUBLIC void mathkong_jaccard_b8_sve(
+$ grep -oP 'MATHKONG_PUBLIC void mathkong_\w+_\w+_\w+\(' include/mathkong/*.h | sort | uniq
+> include/mathkong/binary.h:MATHKONG_PUBLIC void mathkong_hamming_b8_haswell(
+> include/mathkong/binary.h:MATHKONG_PUBLIC void mathkong_hamming_b8_ice(
+> include/mathkong/binary.h:MATHKONG_PUBLIC void mathkong_hamming_b8_neon(
+> include/mathkong/binary.h:MATHKONG_PUBLIC void mathkong_hamming_b8_serial(
+> include/mathkong/binary.h:MATHKONG_PUBLIC void mathkong_hamming_b8_sve(
+> include/mathkong/binary.h:MATHKONG_PUBLIC void mathkong_jaccard_b8_haswell(
+> include/mathkong/binary.h:MATHKONG_PUBLIC void mathkong_jaccard_b8_ice(
+> include/mathkong/binary.h:MATHKONG_PUBLIC void mathkong_jaccard_b8_neon(
+> include/mathkong/binary.h:MATHKONG_PUBLIC void mathkong_jaccard_b8_serial(
+> include/mathkong/binary.h:MATHKONG_PUBLIC void mathkong_jaccard_b8_sve(
 ```
 
 ## License

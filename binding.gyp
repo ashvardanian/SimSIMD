@@ -6,9 +6,9 @@
             "sources": ["javascript/lib.c", "c/lib.c"],
             "include_dirs": ["include"],
             "defines": [
-                "SIMSIMD_NATIVE_F16=0",
-                "SIMSIMD_NATIVE_BF16=0",
-                "SIMSIMD_DYNAMIC_DISPATCH=1",
+                "MATHKONG_NATIVE_F16=0",
+                "MATHKONG_NATIVE_BF16=0",
+                "MATHKONG_DYNAMIC_DISPATCH=1",
             ],
             "cflags": [
                 "-std=c11",

@@ -21,8 +21,8 @@
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
-#ifndef SIMSIMD_MESH_H
-#define SIMSIMD_MESH_H
+#ifndef MATHKONG_MESH_H
+#define MATHKONG_MESH_H
 
 #include "types.h"
 
@@ -36,29 +36,29 @@ extern "C" {
  *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
  *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
  */
-SIMSIMD_PUBLIC void mathkong_rmsd_f64_serial(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_f64_t* a_centroid, mathkong_f64_t* b_centroid, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_kabsch_f64_serial(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_f64_t* a_centroid, mathkong_f64_t* b_centroid, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_rmsd_f64_serial(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_f64_t* a_centroid, mathkong_f64_t* b_centroid, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_kabsch_f64_serial(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_f64_t* a_centroid, mathkong_f64_t* b_centroid, mathkong_distance_t* result);
 
-SIMSIMD_PUBLIC void mathkong_rmsd_f32_serial(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_f32_t* a_centroid, mathkong_f32_t* b_centroid, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_kabsch_f32_serial(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_f32_t* a_centroid, mathkong_f32_t* b_centroid, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_rmsd_f32_serial(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_f32_t* a_centroid, mathkong_f32_t* b_centroid, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_kabsch_f32_serial(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_f32_t* a_centroid, mathkong_f32_t* b_centroid, mathkong_distance_t* result);
 
-SIMSIMD_PUBLIC void mathkong_rmsd_f16_serial(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_f16_t* a_centroid, mathkong_f16_t* b_centroid, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_kabsch_f16_serial(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_f16_t* a_centroid, mathkong_f16_t* b_centroid, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_rmsd_f16_serial(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_f16_t* a_centroid, mathkong_f16_t* b_centroid, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_kabsch_f16_serial(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_f16_t* a_centroid, mathkong_f16_t* b_centroid, mathkong_distance_t* result);
 
-SIMSIMD_PUBLIC void mathkong_rmsd_bf16_serial(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_bf16_t* a_centroid, mathkong_bf16_t* b_centroid, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_kabsch_bf16_serial(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_bf16_t* a_centroid, mathkong_bf16_t* b_centroid, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_rmsd_bf16_serial(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_bf16_t* a_centroid, mathkong_bf16_t* b_centroid, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_kabsch_bf16_serial(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_bf16_t* a_centroid, mathkong_bf16_t* b_centroid, mathkong_distance_t* result);
 
 /*  Double-precision serial backends for all numeric types.
  *  For single-precision computation check out the "*_serial" counterparts of those "*_accurate" functions.
  */
-SIMSIMD_PUBLIC void mathkong_rmsd_f32_accurate(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_f32_t* a_centroid, mathkong_f32_t* b_centroid, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_kabsch_f32_accurate(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_f32_t* a_centroid, mathkong_f32_t* b_centroid, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_rmsd_f32_accurate(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_f32_t* a_centroid, mathkong_f32_t* b_centroid, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_kabsch_f32_accurate(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_f32_t* a_centroid, mathkong_f32_t* b_centroid, mathkong_distance_t* result);
 
-SIMSIMD_PUBLIC void mathkong_rmsd_f16_accurate(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_f16_t* a_centroid, mathkong_f16_t* b_centroid, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_kabsch_f16_accurate(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_f16_t* a_centroid, mathkong_f16_t* b_centroid, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_rmsd_f16_accurate(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_f16_t* a_centroid, mathkong_f16_t* b_centroid, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_kabsch_f16_accurate(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_f16_t* a_centroid, mathkong_f16_t* b_centroid, mathkong_distance_t* result);
 
-SIMSIMD_PUBLIC void mathkong_rmsd_bf16_accurate(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_bf16_t* a_centroid, mathkong_bf16_t* b_centroid, mathkong_distance_t* result);
-SIMSIMD_PUBLIC void mathkong_kabsch_bf16_accurate(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_bf16_t* a_centroid, mathkong_bf16_t* b_centroid, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_rmsd_bf16_accurate(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_bf16_t* a_centroid, mathkong_bf16_t* b_centroid, mathkong_distance_t* result);
+MATHKONG_PUBLIC void mathkong_kabsch_bf16_accurate(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_bf16_t* a_centroid, mathkong_bf16_t* b_centroid, mathkong_distance_t* result);
 
 // clang-format on
 

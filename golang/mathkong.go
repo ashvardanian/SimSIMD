@@ -3,8 +3,8 @@ package mathkong
 /*
 #cgo CFLAGS: -O3
 #cgo LDFLAGS: -O3 -L. -lm
-#define SIMSIMD_NATIVE_F16 (0)
-#define SIMSIMD_NATIVE_BF16 (0)
+#define MATHKONG_NATIVE_F16 (0)
+#define MATHKONG_NATIVE_BF16 (0)
 #include "../include/mathkong/mathkong.h"
 #include <stdlib.h>
 

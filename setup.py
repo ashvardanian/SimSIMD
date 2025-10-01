@@ -36,9 +36,9 @@ if sys.platform == "darwin":
 COMPILE_ARGS: list[str] = []
 LINK_ARGS: list[str] = []
 MACROS_COMMON: list[tuple[str, str]] = [
-    ("SIMSIMD_NATIVE_F16", "0"),
-    ("SIMSIMD_NATIVE_BF16", "0"),
-    ("SIMSIMD_DYNAMIC_DISPATCH", "1"),
+    ("MATHKONG_NATIVE_F16", "0"),
+    ("MATHKONG_NATIVE_BF16", "0"),
+    ("MATHKONG_DYNAMIC_DISPATCH", "1"),
 ]
 
 if sys.platform == "linux":
@@ -85,25 +85,25 @@ elif sys.platform == "win32":
 ARCH = platform.machine().lower()
 if ARCH in ("arm64", "aarch64", "armv8l", "armv7l", "arm"):
     TARGETS_PRIORITY: list[str] = [
-        "SIMSIMD_TARGET_SVE2",
-        "SIMSIMD_TARGET_SVE_BF16",
-        "SIMSIMD_TARGET_SVE_F16",
-        "SIMSIMD_TARGET_SVE_I8",
-        "SIMSIMD_TARGET_SVE",
-        "SIMSIMD_TARGET_NEON_BF16",
-        "SIMSIMD_TARGET_NEON_F16",
-        "SIMSIMD_TARGET_NEON_I8",
-        "SIMSIMD_TARGET_NEON",
+        "MATHKONG_TARGET_SVE2",
+        "MATHKONG_TARGET_SVE_BF16",
+        "MATHKONG_TARGET_SVE_F16",
+        "MATHKONG_TARGET_SVE_I8",
+        "MATHKONG_TARGET_SVE",
+        "MATHKONG_TARGET_NEON_BF16",
+        "MATHKONG_TARGET_NEON_F16",
+        "MATHKONG_TARGET_NEON_I8",
+        "MATHKONG_TARGET_NEON",
     ]
 else:
     TARGETS_PRIORITY = [
-        "SIMSIMD_TARGET_SIERRA",
-        "SIMSIMD_TARGET_TURIN",
-        "SIMSIMD_TARGET_SAPPHIRE",
-        "SIMSIMD_TARGET_GENOA",
-        "SIMSIMD_TARGET_ICE",
-        "SIMSIMD_TARGET_SKYLAKE",
-        "SIMSIMD_TARGET_HASWELL",
+        "MATHKONG_TARGET_SIERRA",
+        "MATHKONG_TARGET_TURIN",
+        "MATHKONG_TARGET_SAPPHIRE",
+        "MATHKONG_TARGET_GENOA",
+        "MATHKONG_TARGET_ICE",
+        "MATHKONG_TARGET_SKYLAKE",
+        "MATHKONG_TARGET_HASWELL",
     ]
 
 

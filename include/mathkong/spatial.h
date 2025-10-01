@@ -25,8 +25,8 @@
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
-#ifndef SIMSIMD_SPATIAL_H
-#define SIMSIMD_SPATIAL_H
+#ifndef MATHKONG_SPATIAL_H
+#define MATHKONG_SPATIAL_H
 
 #include "types.h"
 
@@ -42,75 +42,75 @@ extern "C" {
  *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
  *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
  */
-SIMSIMD_PUBLIC void mathkong_l2_f64_serial(mathkong_f64_t const* a, mathkong_f64_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_f64_serial(mathkong_f64_t const* a, mathkong_f64_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_f64_serial(mathkong_f64_t const* a, mathkong_f64_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_f32_serial(mathkong_f32_t const* a, mathkong_f32_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_f32_serial(mathkong_f32_t const* a, mathkong_f32_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_f32_serial(mathkong_f32_t const* a, mathkong_f32_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_f16_serial(mathkong_f16_t const* a, mathkong_f16_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_f16_serial(mathkong_f16_t const* a, mathkong_f16_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_f16_serial(mathkong_f16_t const* a, mathkong_f16_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_bf16_serial(mathkong_bf16_t const* a, mathkong_bf16_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_bf16_serial(mathkong_bf16_t const* a, mathkong_bf16_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_bf16_serial(mathkong_bf16_t const* a, mathkong_bf16_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_i8_serial(mathkong_i8_t const* a, mathkong_i8_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_i8_serial(mathkong_i8_t const* a, mathkong_i8_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_i8_serial(mathkong_i8_t const* a, mathkong_i8_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_u8_serial(mathkong_u8_t const* a, mathkong_u8_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_u8_serial(mathkong_u8_t const* a, mathkong_u8_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_u8_serial(mathkong_u8_t const* a, mathkong_u8_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_f64_serial(mathkong_f64_t const* a, mathkong_f64_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_f64_serial(mathkong_f64_t const* a, mathkong_f64_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_f64_serial(mathkong_f64_t const* a, mathkong_f64_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_f32_serial(mathkong_f32_t const* a, mathkong_f32_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_f32_serial(mathkong_f32_t const* a, mathkong_f32_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_f32_serial(mathkong_f32_t const* a, mathkong_f32_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_f16_serial(mathkong_f16_t const* a, mathkong_f16_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_f16_serial(mathkong_f16_t const* a, mathkong_f16_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_f16_serial(mathkong_f16_t const* a, mathkong_f16_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_bf16_serial(mathkong_bf16_t const* a, mathkong_bf16_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_bf16_serial(mathkong_bf16_t const* a, mathkong_bf16_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_bf16_serial(mathkong_bf16_t const* a, mathkong_bf16_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_i8_serial(mathkong_i8_t const* a, mathkong_i8_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_i8_serial(mathkong_i8_t const* a, mathkong_i8_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_i8_serial(mathkong_i8_t const* a, mathkong_i8_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_u8_serial(mathkong_u8_t const* a, mathkong_u8_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_u8_serial(mathkong_u8_t const* a, mathkong_u8_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_u8_serial(mathkong_u8_t const* a, mathkong_u8_t const*, mathkong_size_t n, mathkong_distance_t* d);
 
 /*  Double-precision serial backends for all numeric types.
  *  For single-precision computation check out the "*_serial" counterparts of those "*_accurate" functions.
  */
-SIMSIMD_PUBLIC void mathkong_l2_f32_accurate(mathkong_f32_t const* a, mathkong_f32_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_f32_accurate(mathkong_f32_t const* a, mathkong_f32_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_f32_accurate(mathkong_f32_t const* a, mathkong_f32_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_f16_accurate(mathkong_f16_t const* a, mathkong_f16_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_f16_accurate(mathkong_f16_t const* a, mathkong_f16_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_f16_accurate(mathkong_f16_t const* a, mathkong_f16_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_bf16_accurate(mathkong_bf16_t const* a, mathkong_bf16_t const*, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_bf16_accurate(mathkong_bf16_t const* a, mathkong_bf16_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_f32_accurate(mathkong_f32_t const* a, mathkong_f32_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_f32_accurate(mathkong_f32_t const* a, mathkong_f32_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_f32_accurate(mathkong_f32_t const* a, mathkong_f32_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_f16_accurate(mathkong_f16_t const* a, mathkong_f16_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_f16_accurate(mathkong_f16_t const* a, mathkong_f16_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_f16_accurate(mathkong_f16_t const* a, mathkong_f16_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_bf16_accurate(mathkong_bf16_t const* a, mathkong_bf16_t const*, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_bf16_accurate(mathkong_bf16_t const* a, mathkong_bf16_t const*, mathkong_size_t n, mathkong_distance_t* d);
 
 /*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
  *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
  *  server CPUs produced before 2023.
  */
-SIMSIMD_PUBLIC void mathkong_l2_f64_neon(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_f64_neon(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_f64_neon(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_f32_neon(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_f32_neon(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_f32_neon(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_f16_neon(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_f16_neon(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_f16_neon(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_bf16_neon(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_bf16_neon(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_bf16_neon(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_i8_neon(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_i8_neon(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_i8_neon(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_u8_neon(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_u8_neon(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_u8_neon(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_f64_neon(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_f64_neon(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_f64_neon(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_f32_neon(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_f32_neon(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_f32_neon(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_f16_neon(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_f16_neon(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_f16_neon(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_bf16_neon(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_bf16_neon(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_bf16_neon(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_i8_neon(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_i8_neon(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_i8_neon(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_u8_neon(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_u8_neon(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_u8_neon(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
 
 /*  SIMD-powered backends for Arm SVE, mostly using 32-bit arithmetic over variable-length platform-defined word sizes.
  *  Designed for Arm Graviton 3, Microsoft Cobalt, as well as Nvidia Grace and newer Ampere Altra CPUs.
  */
-SIMSIMD_PUBLIC void mathkong_l2_f32_sve(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_f32_sve(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_f32_sve(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_f16_sve(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_f16_sve(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_f16_sve(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_bf16_sve(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_bf16_sve(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_bf16_sve(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_f64_sve(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_f64_sve(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_f64_sve(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_f32_sve(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_f32_sve(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_f32_sve(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_f16_sve(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_f16_sve(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_f16_sve(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_bf16_sve(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_bf16_sve(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_bf16_sve(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_f64_sve(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_f64_sve(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_f64_sve(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
 
 /*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
  *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
@@ -118,24 +118,24 @@ SIMSIMD_PUBLIC void mathkong_angular_f64_sve(mathkong_f64_t const* a, mathkong_f
  *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
  *  properly vectorized by recent compilers.
  */
-SIMSIMD_PUBLIC void mathkong_l2_i8_haswell(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_i8_haswell(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_i8_haswell(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_u8_haswell(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_u8_haswell(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_u8_haswell(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_f16_haswell(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_f16_haswell(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_f16_haswell(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_bf16_haswell(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_bf16_haswell(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_bf16_haswell(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_f32_haswell(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_f32_haswell(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_f32_haswell(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_f64_haswell(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_f64_haswell(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_f64_haswell(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_i8_haswell(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_i8_haswell(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_i8_haswell(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_u8_haswell(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_u8_haswell(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_u8_haswell(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_f16_haswell(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_f16_haswell(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_f16_haswell(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_bf16_haswell(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_bf16_haswell(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_bf16_haswell(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_f32_haswell(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_f32_haswell(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_f32_haswell(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_f64_haswell(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_f64_haswell(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_f64_haswell(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
 
 /*  SIMD-powered backends for AVX512 CPUs of Skylake generation and newer, using 32-bit arithmetic over 512-bit words.
  *  Skylake was launched in 2015, and discontinued in 2019. Skylake had support for F, CD, VL, DQ, and BW extensions,
@@ -151,130 +151,130 @@ SIMSIMD_PUBLIC void mathkong_angular_f64_haswell(mathkong_f64_t const* a, mathko
  * 
  *  Source: https://chipsandcheese.com/p/a-peek-at-sapphire-rapids
  */
-SIMSIMD_PUBLIC void mathkong_l2_f32_skylake(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_f32_skylake(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_f32_skylake(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_f64_skylake(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_f64_skylake(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_f64_skylake(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_f32_skylake(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_f32_skylake(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_f32_skylake(mathkong_f32_t const* a, mathkong_f32_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_f64_skylake(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_f64_skylake(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_f64_skylake(mathkong_f64_t const* a, mathkong_f64_t const* b, mathkong_size_t n, mathkong_distance_t* d);
 
 /*  SIMD-powered backends for AVX512 CPUs of Ice Lake generation and newer, using mixed arithmetic over 512-bit words.
  *  Ice Lake added VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ, and other extensions for integral operations.
  *  Sapphire Rapids added tiled matrix operations, but we are most interested in the new mixed-precision FMA instructions.
  */
-SIMSIMD_PUBLIC void mathkong_l2_i4x2_ice(mathkong_i4x2_t const* a, mathkong_i4x2_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_i4x2_ice(mathkong_i4x2_t const* a, mathkong_i4x2_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_i4x2_ice(mathkong_i4x2_t const* a, mathkong_i4x2_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_i8_ice(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_i8_ice(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_i8_ice(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_u8_ice(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_u8_ice(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_u8_ice(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_bf16_genoa(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_bf16_genoa(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_bf16_genoa(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2_f16_sapphire(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_l2sq_f16_sapphire(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
-SIMSIMD_PUBLIC void mathkong_angular_f16_sapphire(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_i4x2_ice(mathkong_i4x2_t const* a, mathkong_i4x2_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_i4x2_ice(mathkong_i4x2_t const* a, mathkong_i4x2_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_i4x2_ice(mathkong_i4x2_t const* a, mathkong_i4x2_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_i8_ice(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_i8_ice(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_i8_ice(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_u8_ice(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_u8_ice(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_u8_ice(mathkong_u8_t const* a, mathkong_u8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_bf16_genoa(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_bf16_genoa(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_bf16_genoa(mathkong_bf16_t const* a, mathkong_bf16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2_f16_sapphire(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_l2sq_f16_sapphire(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_f16_sapphire(mathkong_f16_t const* a, mathkong_f16_t const* b, mathkong_size_t n, mathkong_distance_t* d);
 
 /*  SIMD-powered backends for AVX-INT8-VNNI extensions on Xeon 6 CPUs, including Sierra Forest and Granite Rapids.
  *  The packs many "efficiency" cores into a single socket, avoiding heavy 512-bit operations, and focusing on 256-bit ones.
  */
-SIMSIMD_PUBLIC void mathkong_angular_i8_sierra(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
+MATHKONG_PUBLIC void mathkong_angular_i8_sierra(mathkong_i8_t const* a, mathkong_i8_t const* b, mathkong_size_t n, mathkong_distance_t* d);
 // clang-format on
 
-#define SIMSIMD_MAKE_L2SQ(name, input_type, accumulator_type, load_and_convert)                                    \
-    SIMSIMD_PUBLIC void mathkong_l2sq_##input_type##_##name(mathkong_##input_type##_t const *a,                    \
-                                                            mathkong_##input_type##_t const *b, mathkong_size_t n, \
-                                                            mathkong_distance_t *result) {                         \
-        mathkong_##accumulator_type##_t d2 = 0, ai, bi;                                                            \
-        for (mathkong_size_t i = 0; i != n; ++i) {                                                                 \
-            load_and_convert(a + i, &ai);                                                                          \
-            load_and_convert(b + i, &bi);                                                                          \
-            d2 += (ai - bi) * (ai - bi);                                                                           \
-        }                                                                                                          \
-        *result = d2;                                                                                              \
+#define MATHKONG_MAKE_L2SQ(name, input_type, accumulator_type, load_and_convert)                                    \
+    MATHKONG_PUBLIC void mathkong_l2sq_##input_type##_##name(mathkong_##input_type##_t const *a,                    \
+                                                             mathkong_##input_type##_t const *b, mathkong_size_t n, \
+                                                             mathkong_distance_t *result) {                         \
+        mathkong_##accumulator_type##_t d2 = 0, ai, bi;                                                             \
+        for (mathkong_size_t i = 0; i != n; ++i) {                                                                  \
+            load_and_convert(a + i, &ai);                                                                           \
+            load_and_convert(b + i, &bi);                                                                           \
+            d2 += (ai - bi) * (ai - bi);                                                                            \
+        }                                                                                                           \
+        *result = d2;                                                                                               \
     }
 
-#define SIMSIMD_MAKE_L2(name, input_type, accumulator_type, load_and_convert)                                    \
-    SIMSIMD_PUBLIC void mathkong_l2_##input_type##_##name(mathkong_##input_type##_t const *a,                    \
-                                                          mathkong_##input_type##_t const *b, mathkong_size_t n, \
-                                                          mathkong_distance_t *result) {                         \
-        mathkong_l2sq_##input_type##_##name(a, b, n, result);                                                    \
-        *result = SIMSIMD_SQRT(*result);                                                                         \
+#define MATHKONG_MAKE_L2(name, input_type, accumulator_type, load_and_convert)                                    \
+    MATHKONG_PUBLIC void mathkong_l2_##input_type##_##name(mathkong_##input_type##_t const *a,                    \
+                                                           mathkong_##input_type##_t const *b, mathkong_size_t n, \
+                                                           mathkong_distance_t *result) {                         \
+        mathkong_l2sq_##input_type##_##name(a, b, n, result);                                                     \
+        *result = MATHKONG_SQRT(*result);                                                                         \
     }
 
-#define SIMSIMD_MAKE_COS(name, input_type, accumulator_type, load_and_convert)                                        \
-    SIMSIMD_PUBLIC void mathkong_angular_##input_type##_##name(mathkong_##input_type##_t const *a,                    \
-                                                               mathkong_##input_type##_t const *b, mathkong_size_t n, \
-                                                               mathkong_distance_t *result) {                         \
-        mathkong_##accumulator_type##_t ab = 0, a2 = 0, b2 = 0, ai, bi;                                               \
-        for (mathkong_size_t i = 0; i != n; ++i) {                                                                    \
-            load_and_convert(a + i, &ai);                                                                             \
-            load_and_convert(b + i, &bi);                                                                             \
-            ab += ai * bi;                                                                                            \
-            a2 += ai * ai;                                                                                            \
-            b2 += bi * bi;                                                                                            \
-        }                                                                                                             \
-        if (a2 == 0 && b2 == 0) { *result = 0; }                                                                      \
-        else if (ab == 0) { *result = 1; }                                                                            \
-        else {                                                                                                        \
-            mathkong_distance_t unclipped_result = 1 - ab * SIMSIMD_RSQRT(a2) * SIMSIMD_RSQRT(b2);                    \
-            *result = unclipped_result > 0 ? unclipped_result : 0;                                                    \
-        }                                                                                                             \
+#define MATHKONG_MAKE_COS(name, input_type, accumulator_type, load_and_convert)                                        \
+    MATHKONG_PUBLIC void mathkong_angular_##input_type##_##name(mathkong_##input_type##_t const *a,                    \
+                                                                mathkong_##input_type##_t const *b, mathkong_size_t n, \
+                                                                mathkong_distance_t *result) {                         \
+        mathkong_##accumulator_type##_t ab = 0, a2 = 0, b2 = 0, ai, bi;                                                \
+        for (mathkong_size_t i = 0; i != n; ++i) {                                                                     \
+            load_and_convert(a + i, &ai);                                                                              \
+            load_and_convert(b + i, &bi);                                                                              \
+            ab += ai * bi;                                                                                             \
+            a2 += ai * ai;                                                                                             \
+            b2 += bi * bi;                                                                                             \
+        }                                                                                                              \
+        if (a2 == 0 && b2 == 0) { *result = 0; }                                                                       \
+        else if (ab == 0) { *result = 1; }                                                                             \
+        else {                                                                                                         \
+            mathkong_distance_t unclipped_result = 1 - ab * MATHKONG_RSQRT(a2) * MATHKONG_RSQRT(b2);                   \
+            *result = unclipped_result > 0 ? unclipped_result : 0;                                                     \
+        }                                                                                                              \
     }
 
-SIMSIMD_MAKE_COS(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2)  // mathkong_angular_f64_serial
-SIMSIMD_MAKE_L2SQ(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_l2sq_f64_serial
-SIMSIMD_MAKE_L2(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2)   // mathkong_l2_f64_serial
+MATHKONG_MAKE_COS(serial, f64, f64, _MATHKONG_ASSIGN_1_TO_2)  // mathkong_angular_f64_serial
+MATHKONG_MAKE_L2SQ(serial, f64, f64, _MATHKONG_ASSIGN_1_TO_2) // mathkong_l2sq_f64_serial
+MATHKONG_MAKE_L2(serial, f64, f64, _MATHKONG_ASSIGN_1_TO_2)   // mathkong_l2_f64_serial
 
-SIMSIMD_MAKE_COS(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2)  // mathkong_angular_f32_serial
-SIMSIMD_MAKE_L2SQ(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_l2sq_f32_serial
-SIMSIMD_MAKE_L2(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2)   // mathkong_l2_f32_serial
+MATHKONG_MAKE_COS(serial, f32, f32, _MATHKONG_ASSIGN_1_TO_2)  // mathkong_angular_f32_serial
+MATHKONG_MAKE_L2SQ(serial, f32, f32, _MATHKONG_ASSIGN_1_TO_2) // mathkong_l2sq_f32_serial
+MATHKONG_MAKE_L2(serial, f32, f32, _MATHKONG_ASSIGN_1_TO_2)   // mathkong_l2_f32_serial
 
-SIMSIMD_MAKE_COS(serial, f16, f32, mathkong_f16_to_f32)  // mathkong_angular_f16_serial
-SIMSIMD_MAKE_L2SQ(serial, f16, f32, mathkong_f16_to_f32) // mathkong_l2sq_f16_serial
-SIMSIMD_MAKE_L2(serial, f16, f32, mathkong_f16_to_f32)   // mathkong_l2_f16_serial
+MATHKONG_MAKE_COS(serial, f16, f32, mathkong_f16_to_f32)  // mathkong_angular_f16_serial
+MATHKONG_MAKE_L2SQ(serial, f16, f32, mathkong_f16_to_f32) // mathkong_l2sq_f16_serial
+MATHKONG_MAKE_L2(serial, f16, f32, mathkong_f16_to_f32)   // mathkong_l2_f16_serial
 
-SIMSIMD_MAKE_COS(serial, bf16, f32, mathkong_bf16_to_f32)  // mathkong_angular_bf16_serial
-SIMSIMD_MAKE_L2SQ(serial, bf16, f32, mathkong_bf16_to_f32) // mathkong_l2sq_bf16_serial
-SIMSIMD_MAKE_L2(serial, bf16, f32, mathkong_bf16_to_f32)   // mathkong_l2_bf16_serial
+MATHKONG_MAKE_COS(serial, bf16, f32, mathkong_bf16_to_f32)  // mathkong_angular_bf16_serial
+MATHKONG_MAKE_L2SQ(serial, bf16, f32, mathkong_bf16_to_f32) // mathkong_l2sq_bf16_serial
+MATHKONG_MAKE_L2(serial, bf16, f32, mathkong_bf16_to_f32)   // mathkong_l2_bf16_serial
 
-SIMSIMD_MAKE_COS(serial, i8, i32, _SIMSIMD_ASSIGN_1_TO_2)  // mathkong_angular_i8_serial
-SIMSIMD_MAKE_L2SQ(serial, i8, i32, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_l2sq_i8_serial
-SIMSIMD_MAKE_L2(serial, i8, i32, _SIMSIMD_ASSIGN_1_TO_2)   // mathkong_l2_i8_serial
+MATHKONG_MAKE_COS(serial, i8, i32, _MATHKONG_ASSIGN_1_TO_2)  // mathkong_angular_i8_serial
+MATHKONG_MAKE_L2SQ(serial, i8, i32, _MATHKONG_ASSIGN_1_TO_2) // mathkong_l2sq_i8_serial
+MATHKONG_MAKE_L2(serial, i8, i32, _MATHKONG_ASSIGN_1_TO_2)   // mathkong_l2_i8_serial
 
-SIMSIMD_MAKE_COS(serial, u8, i32, _SIMSIMD_ASSIGN_1_TO_2)  // mathkong_angular_u8_serial
-SIMSIMD_MAKE_L2SQ(serial, u8, i32, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_l2sq_u8_serial
-SIMSIMD_MAKE_L2(serial, u8, i32, _SIMSIMD_ASSIGN_1_TO_2)   // mathkong_l2_u8_serial
+MATHKONG_MAKE_COS(serial, u8, i32, _MATHKONG_ASSIGN_1_TO_2)  // mathkong_angular_u8_serial
+MATHKONG_MAKE_L2SQ(serial, u8, i32, _MATHKONG_ASSIGN_1_TO_2) // mathkong_l2sq_u8_serial
+MATHKONG_MAKE_L2(serial, u8, i32, _MATHKONG_ASSIGN_1_TO_2)   // mathkong_l2_u8_serial
 
-SIMSIMD_MAKE_COS(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2)  // mathkong_angular_f32_accurate
-SIMSIMD_MAKE_L2SQ(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2) // mathkong_l2sq_f32_accurate
-SIMSIMD_MAKE_L2(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2)   // mathkong_l2_f32_accurate
+MATHKONG_MAKE_COS(accurate, f32, f64, _MATHKONG_ASSIGN_1_TO_2)  // mathkong_angular_f32_accurate
+MATHKONG_MAKE_L2SQ(accurate, f32, f64, _MATHKONG_ASSIGN_1_TO_2) // mathkong_l2sq_f32_accurate
+MATHKONG_MAKE_L2(accurate, f32, f64, _MATHKONG_ASSIGN_1_TO_2)   // mathkong_l2_f32_accurate
 
-SIMSIMD_MAKE_COS(accurate, f16, f64, _mathkong_f16_to_f64)  // mathkong_angular_f16_accurate
-SIMSIMD_MAKE_L2SQ(accurate, f16, f64, _mathkong_f16_to_f64) // mathkong_l2sq_f16_accurate
-SIMSIMD_MAKE_L2(accurate, f16, f64, _mathkong_f16_to_f64)   // mathkong_l2_f16_accurate
+MATHKONG_MAKE_COS(accurate, f16, f64, _mathkong_f16_to_f64)  // mathkong_angular_f16_accurate
+MATHKONG_MAKE_L2SQ(accurate, f16, f64, _mathkong_f16_to_f64) // mathkong_l2sq_f16_accurate
+MATHKONG_MAKE_L2(accurate, f16, f64, _mathkong_f16_to_f64)   // mathkong_l2_f16_accurate
 
-SIMSIMD_MAKE_COS(accurate, bf16, f64, _mathkong_bf16_to_f64)  // mathkong_angular_bf16_accurate
-SIMSIMD_MAKE_L2SQ(accurate, bf16, f64, _mathkong_bf16_to_f64) // mathkong_l2sq_bf16_accurate
-SIMSIMD_MAKE_L2(accurate, bf16, f64, _mathkong_bf16_to_f64)   // mathkong_l2_bf16_accurate
+MATHKONG_MAKE_COS(accurate, bf16, f64, _mathkong_bf16_to_f64)  // mathkong_angular_bf16_accurate
+MATHKONG_MAKE_L2SQ(accurate, bf16, f64, _mathkong_bf16_to_f64) // mathkong_l2sq_bf16_accurate
+MATHKONG_MAKE_L2(accurate, bf16, f64, _mathkong_bf16_to_f64)   // mathkong_l2_bf16_accurate
 
-#if _SIMSIMD_TARGET_ARM
-#if SIMSIMD_TARGET_NEON
+#if _MATHKONG_TARGET_ARM
+#if MATHKONG_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a+simd")
 #pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 
-SIMSIMD_INTERNAL mathkong_f32_t _mathkong_sqrt_f32_neon(mathkong_f32_t x) {
+MATHKONG_INTERNAL mathkong_f32_t _mathkong_sqrt_f32_neon(mathkong_f32_t x) {
     return vget_lane_f32(vsqrt_f32(vdup_n_f32(x)), 0);
 }
-SIMSIMD_INTERNAL mathkong_f64_t _mathkong_sqrt_f64_neon(mathkong_f64_t x) {
+MATHKONG_INTERNAL mathkong_f64_t _mathkong_sqrt_f64_neon(mathkong_f64_t x) {
     return vget_lane_f64(vsqrt_f64(vdup_n_f64(x)), 0);
 }
-SIMSIMD_INTERNAL mathkong_distance_t _mathkong_angular_normalize_f32_neon(mathkong_f32_t ab, mathkong_f32_t a2,
-                                                                          mathkong_f32_t b2) {
+MATHKONG_INTERNAL mathkong_distance_t _mathkong_angular_normalize_f32_neon(mathkong_f32_t ab, mathkong_f32_t a2,
+                                                                           mathkong_f32_t b2) {
     if (a2 == 0 && b2 == 0) return 0;
     if (ab == 0) return 1;
     mathkong_f32_t squares_arr[2] = {a2, b2};
@@ -294,8 +294,8 @@ SIMSIMD_INTERNAL mathkong_distance_t _mathkong_angular_normalize_f32_neon(mathko
     return result > 0 ? result : 0;
 }
 
-SIMSIMD_INTERNAL mathkong_distance_t _mathkong_angular_normalize_f64_neon(mathkong_f64_t ab, mathkong_f64_t a2,
-                                                                          mathkong_f64_t b2) {
+MATHKONG_INTERNAL mathkong_distance_t _mathkong_angular_normalize_f64_neon(mathkong_f64_t ab, mathkong_f64_t a2,
+                                                                           mathkong_f64_t b2) {
     if (a2 == 0 && b2 == 0) return 0;
     if (ab == 0) return 1;
     mathkong_f64_t squares_arr[2] = {a2, b2};
@@ -316,13 +316,13 @@ SIMSIMD_INTERNAL mathkong_distance_t _mathkong_angular_normalize_f64_neon(mathko
     return result > 0 ? result : 0;
 }
 
-SIMSIMD_PUBLIC void mathkong_l2_f32_neon(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                         mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_f32_neon(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                          mathkong_distance_t *result) {
     mathkong_l2sq_f32_neon(a, b, n, result);
     *result = _mathkong_sqrt_f64_neon(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_f32_neon(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                           mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_f32_neon(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                            mathkong_distance_t *result) {
     float32x4_t sum_vec = vdupq_n_f32(0);
     mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
@@ -339,8 +339,8 @@ SIMSIMD_PUBLIC void mathkong_l2sq_f32_neon(mathkong_f32_t const *a, mathkong_f32
     *result = sum;
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_f32_neon(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                              mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_f32_neon(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                               mathkong_distance_t *result) {
     float32x4_t ab_vec = vdupq_n_f32(0), a2_vec = vdupq_n_f32(0), b2_vec = vdupq_n_f32(0);
     mathkong_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
@@ -359,13 +359,13 @@ SIMSIMD_PUBLIC void mathkong_angular_f32_neon(mathkong_f32_t const *a, mathkong_
     *result = _mathkong_angular_normalize_f64_neon(ab, a2, b2);
 }
 
-SIMSIMD_PUBLIC void mathkong_l2_f64_neon(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                         mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_f64_neon(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                          mathkong_distance_t *result) {
     mathkong_l2sq_f64_neon(a, b, n, result);
     *result = _mathkong_sqrt_f64_neon(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_f64_neon(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                           mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_f64_neon(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                            mathkong_distance_t *result) {
     float64x2_t sum_vec = vdupq_n_f64(0);
     mathkong_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
@@ -382,8 +382,8 @@ SIMSIMD_PUBLIC void mathkong_l2sq_f64_neon(mathkong_f64_t const *a, mathkong_f64
     *result = sum;
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_f64_neon(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                              mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_f64_neon(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                               mathkong_distance_t *result) {
     float64x2_t ab_vec = vdupq_n_f64(0), a2_vec = vdupq_n_f64(0), b2_vec = vdupq_n_f64(0);
     mathkong_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
@@ -404,20 +404,20 @@ SIMSIMD_PUBLIC void mathkong_angular_f64_neon(mathkong_f64_t const *a, mathkong_
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_NEON
+#endif // MATHKONG_TARGET_NEON
 
-#if SIMSIMD_TARGET_NEON_F16
+#if MATHKONG_TARGET_NEON_F16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_l2_f16_neon(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                         mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_f16_neon(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                          mathkong_distance_t *result) {
     mathkong_l2sq_f16_neon(a, b, n, result);
     *result = _mathkong_sqrt_f32_neon(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_f16_neon(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                           mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_f16_neon(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                            mathkong_distance_t *result) {
     float32x4_t a_vec, b_vec;
     float32x4_t sum_vec = vdupq_n_f32(0);
 
@@ -439,8 +439,8 @@ mathkong_l2sq_f16_neon_cycle:
     *result = vaddvq_f32(sum_vec);
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_f16_neon(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                              mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_f16_neon(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                               mathkong_distance_t *result) {
     float32x4_t ab_vec = vdupq_n_f32(0), a2_vec = vdupq_n_f32(0), b2_vec = vdupq_n_f32(0);
     float32x4_t a_vec, b_vec;
 
@@ -466,15 +466,15 @@ mathkong_angular_f16_neon_cycle:
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_NEON_F16
+#endif // MATHKONG_TARGET_NEON_F16
 
-#if SIMSIMD_TARGET_NEON_BF16
+#if MATHKONG_TARGET_NEON_BF16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_angular_bf16_neon(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                               mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_bf16_neon(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                                mathkong_distance_t *result) {
 
     // Similar to `mathkong_angular_i8_neon`, we can use the `BFMMLA` instruction through
     // the `vbfmmlaq_f32` intrinsic to compute matrix products and later drop 1/4 of values.
@@ -541,13 +541,13 @@ mathkong_angular_bf16_neon_cycle:
     *result = _mathkong_angular_normalize_f32_neon(ab, a2, b2);
 }
 
-SIMSIMD_PUBLIC void mathkong_l2_bf16_neon(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                          mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_bf16_neon(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                           mathkong_distance_t *result) {
     mathkong_l2sq_bf16_neon(a, b, n, result);
     *result = _mathkong_sqrt_f64_neon(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_bf16_neon(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                            mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_bf16_neon(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                             mathkong_distance_t *result) {
     float32x4_t diff_high_vec, diff_low_vec;
     float32x4_t sum_high_vec = vdupq_n_f32(0), sum_low_vec = vdupq_n_f32(0);
 
@@ -575,20 +575,20 @@ mathkong_l2sq_bf16_neon_cycle:
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_NEON_BF16
+#endif // MATHKONG_TARGET_NEON_BF16
 
-#if SIMSIMD_TARGET_NEON_I8
+#if MATHKONG_TARGET_NEON_I8
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+dotprod+i8mm")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod+i8mm"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_l2_i8_neon(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                        mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_i8_neon(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                         mathkong_distance_t *result) {
     mathkong_l2sq_i8_neon(a, b, n, result);
     *result = _mathkong_sqrt_f32_neon(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_i8_neon(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                          mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_i8_neon(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                           mathkong_distance_t *result) {
 
     // The naive approach is to upcast 8-bit signed integers into 16-bit signed integers
     // for subtraction, then multiply within 16-bit integers and accumulate the results
@@ -614,8 +614,8 @@ SIMSIMD_PUBLIC void mathkong_l2sq_i8_neon(mathkong_i8_t const *a, mathkong_i8_t 
     *result = d2;
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_i8_neon(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                             mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_i8_neon(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                              mathkong_distance_t *result) {
 
     mathkong_size_t i = 0;
 
@@ -733,13 +733,13 @@ SIMSIMD_PUBLIC void mathkong_angular_i8_neon(mathkong_i8_t const *a, mathkong_i8
     *result = _mathkong_angular_normalize_f32_neon(ab, a2, b2);
 }
 
-SIMSIMD_PUBLIC void mathkong_l2_u8_neon(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                        mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_u8_neon(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                         mathkong_distance_t *result) {
     mathkong_l2sq_u8_neon(a, b, n, result);
     *result = _mathkong_sqrt_f32_neon(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_u8_neon(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                          mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_u8_neon(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                           mathkong_distance_t *result) {
     uint32x4_t d2_vec = vdupq_n_u32(0);
     mathkong_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
@@ -756,8 +756,8 @@ SIMSIMD_PUBLIC void mathkong_l2sq_u8_neon(mathkong_u8_t const *a, mathkong_u8_t 
     *result = d2;
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_u8_neon(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                             mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_u8_neon(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                              mathkong_distance_t *result) {
 
     mathkong_size_t i = 0;
     uint32x4_t ab_vec = vdupq_n_u32(0);
@@ -785,20 +785,20 @@ SIMSIMD_PUBLIC void mathkong_angular_u8_neon(mathkong_u8_t const *a, mathkong_u8
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_NEON_I8
+#endif // MATHKONG_TARGET_NEON_I8
 
-#if SIMSIMD_TARGET_SVE
+#if MATHKONG_TARGET_SVE
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_l2_f32_sve(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                        mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_f32_sve(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                         mathkong_distance_t *result) {
     mathkong_l2sq_f32_sve(a, b, n, result);
     *result = _mathkong_sqrt_f64_neon(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_f32_sve(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                          mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_f32_sve(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                           mathkong_distance_t *result) {
     mathkong_size_t i = 0;
     svfloat32_t d2_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
     do {
@@ -813,8 +813,8 @@ SIMSIMD_PUBLIC void mathkong_l2sq_f32_sve(mathkong_f32_t const *a, mathkong_f32_
     *result = d2;
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_f32_sve(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                             mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_f32_sve(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                              mathkong_distance_t *result) {
     mathkong_size_t i = 0;
     svfloat32_t ab_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
     svfloat32_t a2_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
@@ -835,13 +835,13 @@ SIMSIMD_PUBLIC void mathkong_angular_f32_sve(mathkong_f32_t const *a, mathkong_f
     *result = _mathkong_angular_normalize_f64_neon(ab, a2, b2);
 }
 
-SIMSIMD_PUBLIC void mathkong_l2_f64_sve(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                        mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_f64_sve(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                         mathkong_distance_t *result) {
     mathkong_l2sq_f64_sve(a, b, n, result);
     *result = _mathkong_sqrt_f64_neon(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_f64_sve(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                          mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_f64_sve(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                           mathkong_distance_t *result) {
     mathkong_size_t i = 0;
     svfloat64_t d2_vec = svdupq_n_f64(0.0, 0.0);
     do {
@@ -856,8 +856,8 @@ SIMSIMD_PUBLIC void mathkong_l2sq_f64_sve(mathkong_f64_t const *a, mathkong_f64_
     *result = d2;
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_f64_sve(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                             mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_f64_sve(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                              mathkong_distance_t *result) {
     mathkong_size_t i = 0;
     svfloat64_t ab_vec = svdupq_n_f64(0.0, 0.0);
     svfloat64_t a2_vec = svdupq_n_f64(0.0, 0.0);
@@ -880,20 +880,20 @@ SIMSIMD_PUBLIC void mathkong_angular_f64_sve(mathkong_f64_t const *a, mathkong_f
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_SVE
+#endif // MATHKONG_TARGET_SVE
 
-#if SIMSIMD_TARGET_SVE_F16
+#if MATHKONG_TARGET_SVE_F16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve+fp16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+fp16"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_l2_f16_sve(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                        mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_f16_sve(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                         mathkong_distance_t *result) {
     mathkong_l2sq_f16_sve(a, b, n, result);
     *result = _mathkong_sqrt_f32_neon(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_f16_sve(mathkong_f16_t const *a_enum, mathkong_f16_t const *b_enum, mathkong_size_t n,
-                                          mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_f16_sve(mathkong_f16_t const *a_enum, mathkong_f16_t const *b_enum,
+                                           mathkong_size_t n, mathkong_distance_t *result) {
     mathkong_size_t i = 0;
     svfloat16_t d2_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
     mathkong_f16_for_arm_simd_t const *a = (mathkong_f16_for_arm_simd_t const *)(a_enum);
@@ -910,8 +910,8 @@ SIMSIMD_PUBLIC void mathkong_l2sq_f16_sve(mathkong_f16_t const *a_enum, mathkong
     *result = d2_f16;
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_f16_sve(mathkong_f16_t const *a_enum, mathkong_f16_t const *b_enum,
-                                             mathkong_size_t n, mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_f16_sve(mathkong_f16_t const *a_enum, mathkong_f16_t const *b_enum,
+                                              mathkong_size_t n, mathkong_distance_t *result) {
     mathkong_size_t i = 0;
     svfloat16_t ab_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
     svfloat16_t a2_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
@@ -936,20 +936,20 @@ SIMSIMD_PUBLIC void mathkong_angular_f16_sve(mathkong_f16_t const *a_enum, mathk
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_SVE_F16
+#endif // MATHKONG_TARGET_SVE_F16
 
-#if SIMSIMD_TARGET_SVE_BF16
+#if MATHKONG_TARGET_SVE_BF16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve+bf16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+bf16"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_l2_bf16_sve(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                         mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_bf16_sve(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                          mathkong_distance_t *result) {
     mathkong_l2sq_bf16_sve(a, b, n, result);
     *result = _mathkong_sqrt_f32_neon(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_bf16_sve(mathkong_bf16_t const *a_enum, mathkong_bf16_t const *b_enum,
-                                           mathkong_size_t n, mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_bf16_sve(mathkong_bf16_t const *a_enum, mathkong_bf16_t const *b_enum,
+                                            mathkong_size_t n, mathkong_distance_t *result) {
     mathkong_size_t i = 0;
     svfloat32_t d2_low_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
     svfloat32_t d2_high_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
@@ -978,8 +978,8 @@ SIMSIMD_PUBLIC void mathkong_l2sq_bf16_sve(mathkong_bf16_t const *a_enum, mathko
     *result = d2;
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_bf16_sve(mathkong_bf16_t const *a_enum, mathkong_bf16_t const *b_enum,
-                                              mathkong_size_t n, mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_bf16_sve(mathkong_bf16_t const *a_enum, mathkong_bf16_t const *b_enum,
+                                               mathkong_size_t n, mathkong_distance_t *result) {
     mathkong_size_t i = 0;
     svfloat32_t ab_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
     svfloat32_t a2_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
@@ -1004,24 +1004,24 @@ SIMSIMD_PUBLIC void mathkong_angular_bf16_sve(mathkong_bf16_t const *a_enum, mat
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_SVE_BF16
-#endif // _SIMSIMD_TARGET_ARM
+#endif // MATHKONG_TARGET_SVE_BF16
+#endif // _MATHKONG_TARGET_ARM
 
-#if _SIMSIMD_TARGET_X86
-#if SIMSIMD_TARGET_HASWELL
+#if _MATHKONG_TARGET_X86
+#if MATHKONG_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("avx2")
 #pragma clang attribute push(__attribute__((target("avx2"))), apply_to = function)
 
-SIMSIMD_INTERNAL mathkong_f32_t _mathkong_sqrt_f32_haswell(mathkong_f32_t x) {
+MATHKONG_INTERNAL mathkong_f32_t _mathkong_sqrt_f32_haswell(mathkong_f32_t x) {
     return _mm_cvtss_f32(_mm_sqrt_ps(_mm_set_ss(x)));
 }
-SIMSIMD_INTERNAL mathkong_f64_t _mathkong_sqrt_f64_haswell(mathkong_f64_t x) {
+MATHKONG_INTERNAL mathkong_f64_t _mathkong_sqrt_f64_haswell(mathkong_f64_t x) {
     return _mm_cvtsd_f64(_mm_sqrt_pd(_mm_set_sd(x)));
 }
 
-SIMSIMD_INTERNAL mathkong_distance_t _mathkong_angular_normalize_f64_haswell(mathkong_f64_t ab, mathkong_f64_t a2,
-                                                                             mathkong_f64_t b2) {
+MATHKONG_INTERNAL mathkong_distance_t _mathkong_angular_normalize_f64_haswell(mathkong_f64_t ab, mathkong_f64_t a2,
+                                                                              mathkong_f64_t b2) {
 
     // If both vectors have magnitude 0, the distance is 0.
     if (a2 == 0 && b2 == 0) return 0;
@@ -1048,8 +1048,8 @@ SIMSIMD_INTERNAL mathkong_distance_t _mathkong_angular_normalize_f64_haswell(mat
     return result > 0 ? result : 0;
 }
 
-SIMSIMD_INTERNAL mathkong_distance_t _mathkong_angular_normalize_f32_haswell(mathkong_f32_t ab, mathkong_f32_t a2,
-                                                                             mathkong_f32_t b2) {
+MATHKONG_INTERNAL mathkong_distance_t _mathkong_angular_normalize_f32_haswell(mathkong_f32_t ab, mathkong_f32_t a2,
+                                                                              mathkong_f32_t b2) {
 
     // If both vectors have magnitude 0, the distance is 0.
     if (a2 == 0.0f && b2 == 0.0f) return 0.0f;
@@ -1082,22 +1082,22 @@ SIMSIMD_INTERNAL mathkong_distance_t _mathkong_angular_normalize_f32_haswell(mat
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_HASWELL
-#endif // _SIMSIMD_TARGET_X86
+#endif // MATHKONG_TARGET_HASWELL
+#endif // _MATHKONG_TARGET_X86
 
-#if _SIMSIMD_TARGET_X86
-#if SIMSIMD_TARGET_HASWELL
+#if _MATHKONG_TARGET_X86
+#if MATHKONG_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma")
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_l2_f16_haswell(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                            mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_f16_haswell(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                             mathkong_distance_t *result) {
     mathkong_l2sq_f16_haswell(a, b, n, result);
     *result = _mathkong_sqrt_f32_haswell(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_f16_haswell(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                              mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_f16_haswell(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                               mathkong_distance_t *result) {
     __m256 a_vec, b_vec;
     __m256 d2_vec = _mm256_setzero_ps();
 
@@ -1119,8 +1119,8 @@ mathkong_l2sq_f16_haswell_cycle:
     *result = _mathkong_reduce_f32x8_haswell(d2_vec);
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_f16_haswell(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                                 mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_f16_haswell(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                                  mathkong_distance_t *result) {
     __m256 a_vec, b_vec;
     __m256 ab_vec = _mm256_setzero_ps(), a2_vec = _mm256_setzero_ps(), b2_vec = _mm256_setzero_ps();
 
@@ -1146,13 +1146,13 @@ mathkong_angular_f16_haswell_cycle:
     *result = _mathkong_angular_normalize_f32_haswell(ab, a2, b2);
 }
 
-SIMSIMD_PUBLIC void mathkong_l2_bf16_haswell(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                             mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_bf16_haswell(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                              mathkong_distance_t *result) {
     mathkong_l2sq_bf16_haswell(a, b, n, result);
     *result = _mathkong_sqrt_f32_haswell(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_bf16_haswell(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                               mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_bf16_haswell(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                                mathkong_distance_t *result) {
     __m256 a_vec, b_vec;
     __m256 d2_vec = _mm256_setzero_ps();
 
@@ -1174,8 +1174,8 @@ mathkong_l2sq_bf16_haswell_cycle:
     *result = _mathkong_reduce_f32x8_haswell(d2_vec);
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_bf16_haswell(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                                  mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_bf16_haswell(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
+                                                   mathkong_size_t n, mathkong_distance_t *result) {
     __m256 a_vec, b_vec;
     __m256 ab_vec = _mm256_setzero_ps(), a2_vec = _mm256_setzero_ps(), b2_vec = _mm256_setzero_ps();
 
@@ -1201,13 +1201,13 @@ mathkong_angular_bf16_haswell_cycle:
     *result = _mathkong_angular_normalize_f32_haswell(ab, a2, b2);
 }
 
-SIMSIMD_PUBLIC void mathkong_l2_i8_haswell(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                           mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_i8_haswell(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                            mathkong_distance_t *result) {
     mathkong_l2sq_i8_haswell(a, b, n, result);
     *result = _mathkong_sqrt_f32_haswell(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_i8_haswell(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                             mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_i8_haswell(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                              mathkong_distance_t *result) {
 
     __m256i d2_i32_low_vec = _mm256_setzero_si256();
     __m256i d2_i32_high_vec = _mm256_setzero_si256();
@@ -1246,8 +1246,8 @@ SIMSIMD_PUBLIC void mathkong_l2sq_i8_haswell(mathkong_i8_t const *a, mathkong_i8
     *result = (mathkong_f64_t)d2;
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_i8_haswell(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                                mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_i8_haswell(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                                 mathkong_distance_t *result) {
 
     __m256i ab_i32_low_vec = _mm256_setzero_si256();
     __m256i ab_i32_high_vec = _mm256_setzero_si256();
@@ -1302,13 +1302,13 @@ SIMSIMD_PUBLIC void mathkong_angular_i8_haswell(mathkong_i8_t const *a, mathkong
     *result = _mathkong_angular_normalize_f32_haswell(ab, a2, b2);
 }
 
-SIMSIMD_PUBLIC void mathkong_l2_u8_haswell(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                           mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_u8_haswell(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                            mathkong_distance_t *result) {
     mathkong_l2sq_u8_haswell(a, b, n, result);
     *result = _mathkong_sqrt_f32_haswell(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_u8_haswell(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                             mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_u8_haswell(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                              mathkong_distance_t *result) {
 
     __m256i d2_i32_low_vec = _mm256_setzero_si256();
     __m256i d2_i32_high_vec = _mm256_setzero_si256();
@@ -1344,8 +1344,8 @@ SIMSIMD_PUBLIC void mathkong_l2sq_u8_haswell(mathkong_u8_t const *a, mathkong_u8
     *result = (mathkong_f64_t)d2;
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_u8_haswell(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                                mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_u8_haswell(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                                 mathkong_distance_t *result) {
 
     __m256i ab_i32_low_vec = _mm256_setzero_si256();
     __m256i ab_i32_high_vec = _mm256_setzero_si256();
@@ -1402,13 +1402,13 @@ SIMSIMD_PUBLIC void mathkong_angular_u8_haswell(mathkong_u8_t const *a, mathkong
     *result = _mathkong_angular_normalize_f32_haswell(ab, a2, b2);
 }
 
-SIMSIMD_PUBLIC void mathkong_l2_f32_haswell(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                            mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_f32_haswell(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                             mathkong_distance_t *result) {
     mathkong_l2sq_f32_haswell(a, b, n, result);
     *result = _mathkong_sqrt_f32_haswell(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_f32_haswell(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                              mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_f32_haswell(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                               mathkong_distance_t *result) {
 
     __m256 d2_vec = _mm256_setzero_ps();
     mathkong_size_t i = 0;
@@ -1428,8 +1428,8 @@ SIMSIMD_PUBLIC void mathkong_l2sq_f32_haswell(mathkong_f32_t const *a, mathkong_
     *result = d2;
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_f32_haswell(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                                 mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_f32_haswell(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                                  mathkong_distance_t *result) {
 
     __m256 ab_vec = _mm256_setzero_ps();
     __m256 a2_vec = _mm256_setzero_ps();
@@ -1453,13 +1453,13 @@ SIMSIMD_PUBLIC void mathkong_angular_f32_haswell(mathkong_f32_t const *a, mathko
     *result = _mathkong_angular_normalize_f64_haswell(ab, a2, b2);
 }
 
-SIMSIMD_PUBLIC void mathkong_l2_f64_haswell(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                            mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_f64_haswell(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                             mathkong_distance_t *result) {
     mathkong_l2sq_f64_haswell(a, b, n, result);
     *result = _mathkong_sqrt_f64_haswell(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_f64_haswell(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                              mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_f64_haswell(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                               mathkong_distance_t *result) {
 
     __m256d d2_vec = _mm256_setzero_pd();
     mathkong_size_t i = 0;
@@ -1479,8 +1479,8 @@ SIMSIMD_PUBLIC void mathkong_l2sq_f64_haswell(mathkong_f64_t const *a, mathkong_
     *result = d2;
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_f64_haswell(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                                 mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_f64_haswell(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                                  mathkong_distance_t *result) {
 
     __m256d ab_vec = _mm256_setzero_pd();
     __m256d a2_vec = _mm256_setzero_pd();
@@ -1506,20 +1506,20 @@ SIMSIMD_PUBLIC void mathkong_angular_f64_haswell(mathkong_f64_t const *a, mathko
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_HASWELL
+#endif // MATHKONG_TARGET_HASWELL
 
-#if SIMSIMD_TARGET_SKYLAKE
+#if MATHKONG_TARGET_SKYLAKE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512bw", "avx512vl", "bmi2")
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512bw,avx512vl,bmi2"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_l2_f32_skylake(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                            mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_f32_skylake(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                             mathkong_distance_t *result) {
     mathkong_l2sq_f32_skylake(a, b, n, result);
     *result = _mathkong_sqrt_f64_haswell(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_f32_skylake(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                              mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_f32_skylake(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                               mathkong_distance_t *result) {
     __m512 d2_vec = _mm512_setzero();
     __m512 a_vec, b_vec;
 
@@ -1542,8 +1542,8 @@ mathkong_l2sq_f32_skylake_cycle:
     *result = _mathkong_reduce_f32x16_skylake(d2_vec);
 }
 
-SIMSIMD_INTERNAL mathkong_distance_t _mathkong_angular_normalize_f64_skylake(mathkong_f64_t ab, mathkong_f64_t a2,
-                                                                             mathkong_f64_t b2) {
+MATHKONG_INTERNAL mathkong_distance_t _mathkong_angular_normalize_f64_skylake(mathkong_f64_t ab, mathkong_f64_t a2,
+                                                                              mathkong_f64_t b2) {
 
     // If both vectors have magnitude 0, the distance is 0.
     if (a2 == 0 && b2 == 0) return 0;
@@ -1585,8 +1585,8 @@ SIMSIMD_INTERNAL mathkong_distance_t _mathkong_angular_normalize_f64_skylake(mat
     return result > 0 ? result : 0;
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_f32_skylake(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                                 mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_f32_skylake(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                                  mathkong_distance_t *result) {
     __m512 ab_vec = _mm512_setzero();
     __m512 a2_vec = _mm512_setzero();
     __m512 b2_vec = _mm512_setzero();
@@ -1615,13 +1615,13 @@ mathkong_angular_f32_skylake_cycle:
     *result = _mathkong_angular_normalize_f64_skylake(ab, a2, b2);
 }
 
-SIMSIMD_PUBLIC void mathkong_l2_f64_skylake(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                            mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_f64_skylake(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                             mathkong_distance_t *result) {
     mathkong_l2sq_f64_skylake(a, b, n, result);
     *result = _mathkong_sqrt_f64_haswell(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_f64_skylake(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                              mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_f64_skylake(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                               mathkong_distance_t *result) {
     __m512d d2_vec = _mm512_setzero_pd();
     __m512d a_vec, b_vec;
 
@@ -1644,8 +1644,8 @@ mathkong_l2sq_f64_skylake_cycle:
     *result = _mm512_reduce_add_pd(d2_vec);
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_f64_skylake(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                                 mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_f64_skylake(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                                  mathkong_distance_t *result) {
     __m512d ab_vec = _mm512_setzero_pd();
     __m512d a2_vec = _mm512_setzero_pd();
     __m512d b2_vec = _mm512_setzero_pd();
@@ -1676,15 +1676,15 @@ mathkong_angular_f64_skylake_cycle:
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_SKYLAKE
+#endif // MATHKONG_TARGET_SKYLAKE
 
-#if SIMSIMD_TARGET_GENOA
+#if MATHKONG_TARGET_GENOA
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512bf16"))), \
                              apply_to = function)
 
-SIMSIMD_INTERNAL __m512i _mathkong_substract_bf16x32_genoa(__m512i a_i16, __m512i b_i16) {
+MATHKONG_INTERNAL __m512i _mathkong_substract_bf16x32_genoa(__m512i a_i16, __m512i b_i16) {
 
     union {
         __m512 fvec;
@@ -1736,13 +1736,13 @@ SIMSIMD_INTERNAL __m512i _mathkong_substract_bf16x32_genoa(__m512i a_i16, __m512
     return d.ivec;
 }
 
-SIMSIMD_PUBLIC void mathkong_l2_bf16_genoa(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                           mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_bf16_genoa(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                            mathkong_distance_t *result) {
     mathkong_l2sq_bf16_genoa(a, b, n, result);
     *result = _mathkong_sqrt_f32_haswell(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_bf16_genoa(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                             mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_bf16_genoa(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                              mathkong_distance_t *result) {
     __m512 d2_vec = _mm512_setzero_ps();
     __m512i a_i16_vec, b_i16_vec, d_i16_vec;
 
@@ -1765,8 +1765,8 @@ mathkong_l2sq_bf16_genoa_cycle:
     *result = _mathkong_reduce_f32x16_skylake(d2_vec);
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_bf16_genoa(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                                mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_bf16_genoa(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                                 mathkong_distance_t *result) {
     __m512 ab_vec = _mm512_setzero_ps();
     __m512 a2_vec = _mm512_setzero_ps();
     __m512 b2_vec = _mm512_setzero_ps();
@@ -1797,20 +1797,20 @@ mathkong_angular_bf16_genoa_cycle:
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_GENOA
+#endif // MATHKONG_TARGET_GENOA
 
-#if SIMSIMD_TARGET_SAPPHIRE
+#if MATHKONG_TARGET_SAPPHIRE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512fp16")
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512fp16"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_l2_f16_sapphire(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                             mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_f16_sapphire(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                              mathkong_distance_t *result) {
     mathkong_l2sq_f16_sapphire(a, b, n, result);
     *result = _mathkong_sqrt_f32_haswell(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_f16_sapphire(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                               mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_f16_sapphire(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                                mathkong_distance_t *result) {
     __m512h d2_vec = _mm512_setzero_ph();
     __m512i a_i16_vec, b_i16_vec;
 
@@ -1833,8 +1833,8 @@ mathkong_l2sq_f16_sapphire_cycle:
     *result = _mm512_reduce_add_ph(d2_vec);
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_f16_sapphire(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                                  mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_f16_sapphire(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                                   mathkong_distance_t *result) {
     __m512h ab_vec = _mm512_setzero_ph();
     __m512h a2_vec = _mm512_setzero_ph();
     __m512h b2_vec = _mm512_setzero_ph();
@@ -1865,21 +1865,21 @@ mathkong_angular_f16_sapphire_cycle:
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_SAPPHIRE
+#endif // MATHKONG_TARGET_SAPPHIRE
 
-#if SIMSIMD_TARGET_ICE
+#if MATHKONG_TARGET_ICE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vnni")
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512vnni"))), \
                              apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_l2_i8_ice(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                       mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_i8_ice(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                        mathkong_distance_t *result) {
     mathkong_l2sq_i8_ice(a, b, n, result);
     *result = _mathkong_sqrt_f32_haswell(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_i8_ice(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                         mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_i8_ice(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                          mathkong_distance_t *result) {
     __m512i d2_i32_vec = _mm512_setzero_si512();
     __m512i a_i16_vec, b_i16_vec, d_i16s_vec;
 
@@ -1902,8 +1902,8 @@ mathkong_l2sq_i8_ice_cycle:
     *result = _mm512_reduce_add_epi32(d2_i32_vec);
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_i8_ice(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                            mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_i8_ice(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                             mathkong_distance_t *result) {
 
     __m512i ab_i32_vec = _mm512_setzero_si512();
     __m512i a2_i32_vec = _mm512_setzero_si512();
@@ -1971,13 +1971,13 @@ mathkong_angular_i8_ice_cycle:
     int b2 = _mm512_reduce_add_epi32(b2_i32_vec);
     *result = _mathkong_angular_normalize_f32_haswell(ab, a2, b2);
 }
-SIMSIMD_PUBLIC void mathkong_l2_u8_ice(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                       mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_u8_ice(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                        mathkong_distance_t *result) {
     mathkong_l2sq_u8_ice(a, b, n, result);
     *result = _mathkong_sqrt_f32_haswell(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_u8_ice(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                         mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_u8_ice(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                          mathkong_distance_t *result) {
     __m512i d2_i32_low_vec = _mm512_setzero_si512();
     __m512i d2_i32_high_vec = _mm512_setzero_si512();
     __m512i const zeros_vec = _mm512_setzero_si512();
@@ -2010,8 +2010,8 @@ mathkong_l2sq_u8_ice_cycle:
     *result = _mm512_reduce_add_epi32(_mm512_add_epi32(d2_i32_low_vec, d2_i32_high_vec));
 }
 
-SIMSIMD_PUBLIC void mathkong_angular_u8_ice(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                            mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_u8_ice(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                             mathkong_distance_t *result) {
 
     __m512i ab_i32_low_vec = _mm512_setzero_si512();
     __m512i ab_i32_high_vec = _mm512_setzero_si512();
@@ -2058,13 +2058,13 @@ mathkong_angular_u8_ice_cycle:
     *result = _mathkong_angular_normalize_f32_haswell(ab, a2, b2);
 }
 
-SIMSIMD_PUBLIC void mathkong_l2_i4x2_ice(mathkong_i4x2_t const *a, mathkong_i4x2_t const *b, mathkong_size_t n_words,
-                                         mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2_i4x2_ice(mathkong_i4x2_t const *a, mathkong_i4x2_t const *b, mathkong_size_t n_words,
+                                          mathkong_distance_t *result) {
     mathkong_l2sq_i4x2_ice(a, b, n_words, result);
     *result = _mathkong_sqrt_f32_haswell(*result);
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_i4x2_ice(mathkong_i4x2_t const *a, mathkong_i4x2_t const *b, mathkong_size_t n_words,
-                                           mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_l2sq_i4x2_ice(mathkong_i4x2_t const *a, mathkong_i4x2_t const *b, mathkong_size_t n_words,
+                                            mathkong_distance_t *result) {
 
     // While `int8_t` covers the range [-128, 127], `int4_t` covers only [-8, 7].
     // The absolute difference between two 4-bit integers is at most 15 and it is always a `uint4_t` value!
@@ -2144,8 +2144,8 @@ mathkong_l2sq_i4x2_ice_cycle:
     int d2 = _mm512_reduce_add_epi32(d2_u32_vec);
     *result = d2;
 }
-SIMSIMD_PUBLIC void mathkong_angular_i4x2_ice(mathkong_i4x2_t const *a, mathkong_i4x2_t const *b,
-                                              mathkong_size_t n_words, mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_i4x2_ice(mathkong_i4x2_t const *a, mathkong_i4x2_t const *b,
+                                               mathkong_size_t n_words, mathkong_distance_t *result) {
 
     // We need to compose a lookup table for all the scalar products of 4-bit integers.
     // While `int8_t` covers the range [-128, 127], `int4_t` covers only [-8, 7].
@@ -2287,15 +2287,15 @@ mathkong_angular_i4x2_ice_cycle:
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_ICE
+#endif // MATHKONG_TARGET_ICE
 
-#if SIMSIMD_TARGET_SIERRA
+#if MATHKONG_TARGET_SIERRA
 #pragma GCC push_options
 #pragma GCC target("avx2", "bmi2", "avx2vnni")
 #pragma clang attribute push(__attribute__((target("avx2,bmi2,avx2vnni"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_angular_i8_sierra(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                               mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_angular_i8_sierra(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                                mathkong_distance_t *result) {
 
     __m256i ab_i32_vec = _mm256_setzero_si256();
     __m256i a2_i32_vec = _mm256_setzero_si256();
@@ -2326,8 +2326,8 @@ SIMSIMD_PUBLIC void mathkong_angular_i8_sierra(mathkong_i8_t const *a, mathkong_
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_SIERRA
-#endif // _SIMSIMD_TARGET_X86
+#endif // MATHKONG_TARGET_SIERRA
+#endif // _MATHKONG_TARGET_X86
 
 #ifdef __cplusplus
 }

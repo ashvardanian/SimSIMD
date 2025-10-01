@@ -27,8 +27,8 @@
  *  Oblate Spheroid Geodesic: https://mathworld.wolfram.com/OblateSpheroidGeodesic.html
  *  Staging experiments: https://github.com/ashvardanian/HaversineMathKong
  */
-#ifndef SIMSIMD_GEOSPATIAL_H
-#define SIMSIMD_GEOSPATIAL_H
+#ifndef MATHKONG_GEOSPATIAL_H
+#define MATHKONG_GEOSPATIAL_H
 
 #include "types.h"
 

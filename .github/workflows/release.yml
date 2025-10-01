@@ -35,11 +35,11 @@ jobs:
             package.json:"version": "(\d+\.\d+\.\d+)"
             CMakeLists.txt:VERSION (\d+\.\d+\.\d+)
           update-major-version-in: |
-            include/mathkong/mathkong.h:^#define SIMSIMD_VERSION_MAJOR (\d+)
+            include/mathkong/mathkong.h:^#define MATHKONG_VERSION_MAJOR (\d+)
           update-minor-version-in: |
-            include/mathkong/mathkong.h:^#define SIMSIMD_VERSION_MINOR (\d+)
+            include/mathkong/mathkong.h:^#define MATHKONG_VERSION_MINOR (\d+)
           update-patch-version-in: |
-            include/mathkong/mathkong.h:^#define SIMSIMD_VERSION_PATCH (\d+)
+            include/mathkong/mathkong.h:^#define MATHKONG_VERSION_PATCH (\d+)
           dry-run: "false"
           push: "true"
           create-release: "true"

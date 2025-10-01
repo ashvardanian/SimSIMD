@@ -44,8 +44,8 @@
  *  SSE POPCOUNT experiments by Wojciech Muła: https://github.com/WojciechMula/sse-popcount
  *  R&D progress tracker: https://github.com/ashvardanian/MathKong/pull/138
  */
-#ifndef SIMSIMD_BINARY_H
-#define SIMSIMD_BINARY_H
+#ifndef MATHKONG_BINARY_H
+#define MATHKONG_BINARY_H
 
 #include "types.h"
 
@@ -56,27 +56,27 @@ extern "C" {
 // clang-format off
 
 /*  Serial backends for bitsets. */
-SIMSIMD_PUBLIC void mathkong_hamming_b8_serial(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
-SIMSIMD_PUBLIC void mathkong_jaccard_b8_serial(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
+MATHKONG_PUBLIC void mathkong_hamming_b8_serial(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
+MATHKONG_PUBLIC void mathkong_jaccard_b8_serial(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
 
 /*  Arm NEON backend for bitsets. */
-SIMSIMD_PUBLIC void mathkong_hamming_b8_neon(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
-SIMSIMD_PUBLIC void mathkong_jaccard_b8_neon(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
+MATHKONG_PUBLIC void mathkong_hamming_b8_neon(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
+MATHKONG_PUBLIC void mathkong_jaccard_b8_neon(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
 
 /*  Arm SVE backend for bitsets. */
-SIMSIMD_PUBLIC void mathkong_hamming_b8_sve(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
-SIMSIMD_PUBLIC void mathkong_jaccard_b8_sve(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
+MATHKONG_PUBLIC void mathkong_hamming_b8_sve(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
+MATHKONG_PUBLIC void mathkong_jaccard_b8_sve(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
 
 /*  x86 AVX2 backend for bitsets for Intel Haswell CPUs and newer, needs only POPCNT extensions. */
-SIMSIMD_PUBLIC void mathkong_hamming_b8_haswell(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
-SIMSIMD_PUBLIC void mathkong_jaccard_b8_haswell(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
+MATHKONG_PUBLIC void mathkong_hamming_b8_haswell(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
+MATHKONG_PUBLIC void mathkong_jaccard_b8_haswell(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
 
 /*  x86 AVX512 backend for bitsets for Intel Ice Lake CPUs and newer, using VPOPCNTDQ extensions. */
-SIMSIMD_PUBLIC void mathkong_hamming_b8_ice(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
-SIMSIMD_PUBLIC void mathkong_jaccard_b8_ice(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
+MATHKONG_PUBLIC void mathkong_hamming_b8_ice(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
+MATHKONG_PUBLIC void mathkong_jaccard_b8_ice(mathkong_b8_t const* a, mathkong_b8_t const* b, mathkong_size_t n_words, mathkong_distance_t* distance);
 // clang-format on
 
-SIMSIMD_PUBLIC unsigned char mathkong_popcount_b8(mathkong_b8_t x) {
+MATHKONG_PUBLIC unsigned char mathkong_popcount_b8(mathkong_b8_t x) {
     static unsigned char lookup_table[] = {
         0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, //
         1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
@@ -89,28 +89,28 @@ SIMSIMD_PUBLIC unsigned char mathkong_popcount_b8(mathkong_b8_t x) {
     return lookup_table[x];
 }
 
-SIMSIMD_PUBLIC void mathkong_hamming_b8_serial(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
-                                               mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_hamming_b8_serial(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
+                                                mathkong_distance_t *result) {
     mathkong_i32_t differences = 0;
     for (mathkong_size_t i = 0; i != n_words; ++i) differences += mathkong_popcount_b8(a[i] ^ b[i]);
     *result = differences;
 }
 
-SIMSIMD_PUBLIC void mathkong_jaccard_b8_serial(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
-                                               mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_jaccard_b8_serial(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
+                                                mathkong_distance_t *result) {
     mathkong_i32_t intersection = 0, union_ = 0;
     for (mathkong_size_t i = 0; i != n_words; ++i)
         intersection += mathkong_popcount_b8(a[i] & b[i]), union_ += mathkong_popcount_b8(a[i] | b[i]);
     *result = (union_ != 0) ? 1 - (mathkong_f64_t)intersection / (mathkong_f64_t)union_ : 1;
 }
 
-#if _SIMSIMD_TARGET_ARM
-#if SIMSIMD_TARGET_NEON
+#if _MATHKONG_TARGET_ARM
+#if MATHKONG_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a+simd")
 #pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 
-SIMSIMD_INTERNAL mathkong_u32_t _mathkong_reduce_u8x16_neon(uint8x16_t vec) {
+MATHKONG_INTERNAL mathkong_u32_t _mathkong_reduce_u8x16_neon(uint8x16_t vec) {
     // Split the vector into two halves and widen to `uint16x8_t`
     uint16x8_t low_half = vmovl_u8(vget_low_u8(vec));   // widen lower 8 elements
     uint16x8_t high_half = vmovl_u8(vget_high_u8(vec)); // widen upper 8 elements
@@ -125,8 +125,8 @@ SIMSIMD_INTERNAL mathkong_u32_t _mathkong_reduce_u8x16_neon(uint8x16_t vec) {
     return final_sum;
 }
 
-SIMSIMD_PUBLIC void mathkong_hamming_b8_neon(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
-                                             mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_hamming_b8_neon(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
+                                              mathkong_distance_t *result) {
     mathkong_i32_t differences = 0;
     mathkong_size_t i = 0;
     // In each 8-bit word we may have up to 8 differences.
@@ -148,8 +148,8 @@ SIMSIMD_PUBLIC void mathkong_hamming_b8_neon(mathkong_b8_t const *a, mathkong_b8
     *result = differences;
 }
 
-SIMSIMD_PUBLIC void mathkong_jaccard_b8_neon(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
-                                             mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_jaccard_b8_neon(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
+                                              mathkong_distance_t *result) {
     mathkong_i32_t intersection = 0, union_ = 0;
     mathkong_size_t i = 0;
     // In each 8-bit word we may have up to 8 intersections/unions.
@@ -178,15 +178,15 @@ SIMSIMD_PUBLIC void mathkong_jaccard_b8_neon(mathkong_b8_t const *a, mathkong_b8
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_NEON
+#endif // MATHKONG_TARGET_NEON
 
-#if SIMSIMD_TARGET_SVE
+#if MATHKONG_TARGET_SVE
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_hamming_b8_sve(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
-                                            mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_hamming_b8_sve(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
+                                             mathkong_distance_t *result) {
 
     // On very small register sizes, NEON is at least as fast as SVE.
     mathkong_size_t const words_per_register = svcntb();
@@ -218,8 +218,8 @@ SIMSIMD_PUBLIC void mathkong_hamming_b8_sve(mathkong_b8_t const *a, mathkong_b8_
     *result = differences;
 }
 
-SIMSIMD_PUBLIC void mathkong_jaccard_b8_sve(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
-                                            mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_jaccard_b8_sve(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
+                                             mathkong_distance_t *result) {
 
     // On very small register sizes, NEON is at least as fast as SVE.
     mathkong_size_t const words_per_register = svcntb();
@@ -258,18 +258,18 @@ SIMSIMD_PUBLIC void mathkong_jaccard_b8_sve(mathkong_b8_t const *a, mathkong_b8_
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_SVE
-#endif // _SIMSIMD_TARGET_ARM
+#endif // MATHKONG_TARGET_SVE
+#endif // _MATHKONG_TARGET_ARM
 
-#if _SIMSIMD_TARGET_X86
-#if SIMSIMD_TARGET_ICE
+#if _MATHKONG_TARGET_X86
+#if MATHKONG_TARGET_ICE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vpopcntdq")
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512vpopcntdq"))), \
                              apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_hamming_b8_ice(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
-                                            mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_hamming_b8_ice(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
+                                             mathkong_distance_t *result) {
 
     mathkong_size_t xor_count;
     // It's harder to squeeze out performance from tiny representations, so we unroll the loops for binary metrics.
@@ -346,8 +346,8 @@ SIMSIMD_PUBLIC void mathkong_hamming_b8_ice(mathkong_b8_t const *a, mathkong_b8_
     *result = xor_count;
 }
 
-SIMSIMD_PUBLIC void mathkong_jaccard_b8_ice(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
-                                            mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_jaccard_b8_ice(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
+                                             mathkong_distance_t *result) {
 
     mathkong_size_t intersection = 0, union_ = 0;
     //  It's harder to squeeze out performance from tiny representations, so we unroll the loops for binary metrics.
@@ -445,15 +445,15 @@ SIMSIMD_PUBLIC void mathkong_jaccard_b8_ice(mathkong_b8_t const *a, mathkong_b8_
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_ICE
+#endif // MATHKONG_TARGET_ICE
 
-#if SIMSIMD_TARGET_HASWELL
+#if MATHKONG_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("popcnt")
 #pragma clang attribute push(__attribute__((target("popcnt"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_hamming_b8_haswell(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
-                                                mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_hamming_b8_haswell(mathkong_b8_t const *a, mathkong_b8_t const *b,
+                                                 mathkong_size_t n_words, mathkong_distance_t *result) {
     // x86 supports unaligned loads and works just fine with the scalar version for small vectors.
     mathkong_size_t differences = 0;
     for (; n_words >= 8; n_words -= 8, a += 8, b += 8)
@@ -462,8 +462,8 @@ SIMSIMD_PUBLIC void mathkong_hamming_b8_haswell(mathkong_b8_t const *a, mathkong
     *result = differences;
 }
 
-SIMSIMD_PUBLIC void mathkong_jaccard_b8_haswell(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n_words,
-                                                mathkong_distance_t *result) {
+MATHKONG_PUBLIC void mathkong_jaccard_b8_haswell(mathkong_b8_t const *a, mathkong_b8_t const *b,
+                                                 mathkong_size_t n_words, mathkong_distance_t *result) {
     // x86 supports unaligned loads and works just fine with the scalar version for small vectors.
     mathkong_size_t intersection = 0, union_ = 0;
     for (; n_words >= 8; n_words -= 8, a += 8, b += 8)
@@ -475,8 +475,8 @@ SIMSIMD_PUBLIC void mathkong_jaccard_b8_haswell(mathkong_b8_t const *a, mathkong
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_HASWELL
-#endif // _SIMSIMD_TARGET_X86
+#endif // MATHKONG_TARGET_HASWELL
+#endif // _MATHKONG_TARGET_X86
 
 #ifdef __cplusplus
 }

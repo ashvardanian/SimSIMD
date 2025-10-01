@@ -6,9 +6,9 @@ fn main() -> Result<(), cc::Error> {
         .std("c99") // Enforce C99 standard when supported
         .file("c/lib.c")
         .include("include")
-        .define("SIMSIMD_NATIVE_F16", "0")
-        .define("SIMSIMD_NATIVE_BF16", "0")
-        .define("SIMSIMD_DYNAMIC_DISPATCH", "1")
+        .define("MATHKONG_NATIVE_F16", "0")
+        .define("MATHKONG_NATIVE_BF16", "0")
+        .define("MATHKONG_DYNAMIC_DISPATCH", "1")
         .opt_level(3)
         .flag_if_supported("-pedantic") // Strict compliance when supported
         .warnings(false);
@@ -19,24 +19,24 @@ fn main() -> Result<(), cc::Error> {
         let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
         let flags_to_try = match target_arch.as_str() {
             "arm" | "aarch64" => vec![
-                "SIMSIMD_TARGET_SVE2",
-                "SIMSIMD_TARGET_SVE_BF16",
-                "SIMSIMD_TARGET_SVE_F16",
-                "SIMSIMD_TARGET_SVE_I8",
-                "SIMSIMD_TARGET_SVE",
-                "SIMSIMD_TARGET_NEON_BF16",
-                "SIMSIMD_TARGET_NEON_F16",
-                "SIMSIMD_TARGET_NEON_I8",
-                "SIMSIMD_TARGET_NEON",
+                "MATHKONG_TARGET_SVE2",
+                "MATHKONG_TARGET_SVE_BF16",
+                "MATHKONG_TARGET_SVE_F16",
+                "MATHKONG_TARGET_SVE_I8",
+                "MATHKONG_TARGET_SVE",
+                "MATHKONG_TARGET_NEON_BF16",
+                "MATHKONG_TARGET_NEON_F16",
+                "MATHKONG_TARGET_NEON_I8",
+                "MATHKONG_TARGET_NEON",
             ],
             _ => vec![
-                "SIMSIMD_TARGET_SIERRA",
-                "SIMSIMD_TARGET_TURIN",
-                "SIMSIMD_TARGET_SAPPHIRE",
-                "SIMSIMD_TARGET_GENOA",
-                "SIMSIMD_TARGET_ICE",
-                "SIMSIMD_TARGET_SKYLAKE",
-                "SIMSIMD_TARGET_HASWELL",
+                "MATHKONG_TARGET_SIERRA",
+                "MATHKONG_TARGET_TURIN",
+                "MATHKONG_TARGET_SAPPHIRE",
+                "MATHKONG_TARGET_GENOA",
+                "MATHKONG_TARGET_ICE",
+                "MATHKONG_TARGET_SKYLAKE",
+                "MATHKONG_TARGET_HASWELL",
             ],
         };
 

@@ -7,8 +7,8 @@
 #include <math.h>   // `sqrtf`
 #include <stdio.h>  // `printf`
 
-#define SIMSIMD_NATIVE_F16 0
-#define SIMSIMD_NATIVE_BF16 0
+#define MATHKONG_NATIVE_F16 0
+#define MATHKONG_NATIVE_BF16 0
 #include <mathkong/mathkong.h>
 
 /**
@@ -20,20 +20,20 @@ void print_capabilities(void) {
     // Log supported functionality
     char const *flags[2] = {"false", "true"};
     printf("Benchmarking Similarity Measures\n");
-    printf("- Compiler used native F16: %s\n", flags[SIMSIMD_NATIVE_F16]);
-    printf("- Compiler used native BF16: %s\n", flags[SIMSIMD_NATIVE_BF16]);
+    printf("- Compiler used native F16: %s\n", flags[MATHKONG_NATIVE_F16]);
+    printf("- Compiler used native BF16: %s\n", flags[MATHKONG_NATIVE_BF16]);
     printf("\n");
     printf("Compile-time settings:\n");
-    printf("- Arm NEON support enabled: %s\n", flags[SIMSIMD_TARGET_NEON]);
-    printf("- Arm SVE support enabled: %s\n", flags[SIMSIMD_TARGET_SVE]);
-    printf("- Arm SVE2 support enabled: %s\n", flags[SIMSIMD_TARGET_SVE2]);
-    printf("- x86 Haswell support enabled: %s\n", flags[SIMSIMD_TARGET_HASWELL]);
-    printf("- x86 Skylake support enabled: %s\n", flags[SIMSIMD_TARGET_SKYLAKE]);
-    printf("- x86 Ice Lake support enabled: %s\n", flags[SIMSIMD_TARGET_ICE]);
-    printf("- x86 Genoa support enabled: %s\n", flags[SIMSIMD_TARGET_GENOA]);
-    printf("- x86 Sapphire Rapids support enabled: %s\n", flags[SIMSIMD_TARGET_SAPPHIRE]);
-    printf("- x86 Turin support enabled: %s\n", flags[SIMSIMD_TARGET_TURIN]);
-    printf("- x86 Sierra Forest support enabled: %s\n", flags[SIMSIMD_TARGET_SIERRA]);
+    printf("- Arm NEON support enabled: %s\n", flags[MATHKONG_TARGET_NEON]);
+    printf("- Arm SVE support enabled: %s\n", flags[MATHKONG_TARGET_SVE]);
+    printf("- Arm SVE2 support enabled: %s\n", flags[MATHKONG_TARGET_SVE2]);
+    printf("- x86 Haswell support enabled: %s\n", flags[MATHKONG_TARGET_HASWELL]);
+    printf("- x86 Skylake support enabled: %s\n", flags[MATHKONG_TARGET_SKYLAKE]);
+    printf("- x86 Ice Lake support enabled: %s\n", flags[MATHKONG_TARGET_ICE]);
+    printf("- x86 Genoa support enabled: %s\n", flags[MATHKONG_TARGET_GENOA]);
+    printf("- x86 Sapphire Rapids support enabled: %s\n", flags[MATHKONG_TARGET_SAPPHIRE]);
+    printf("- x86 Turin support enabled: %s\n", flags[MATHKONG_TARGET_TURIN]);
+    printf("- x86 Sierra Forest support enabled: %s\n", flags[MATHKONG_TARGET_SIERRA]);
     printf("\n");
     printf("Run-time settings:\n");
     printf("- Arm NEON support enabled: %s\n", flags[(runtime_caps & mathkong_cap_neon_k) != 0]);
@@ -158,8 +158,8 @@ void test_saturating_arithmetic(void) {
  *  @brief  Validating N-Dimensional indexing utilities.
  */
 void test_xd_index(void) {
-    mathkong_size_t shape[SIMSIMD_NDARRAY_MAX_RANK];
-    mathkong_ssize_t strides[SIMSIMD_NDARRAY_MAX_RANK];
+    mathkong_size_t shape[MATHKONG_NDARRAY_MAX_RANK];
+    mathkong_ssize_t strides[MATHKONG_NDARRAY_MAX_RANK];
     mathkong_xd_index_t xd_index;
     mathkong_ssize_t linear_byte_offset;
 

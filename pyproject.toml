@@ -50,10 +50,10 @@ skip = [] # we also don't use any SIMD on: ["*s390x*", "*ppc64le*"]
 enable = [] # don't enable PyPy
 
 # Testing half-precision math in QEMU is unreliable!
-environment-pass = ["SIMSIMD_IN_QEMU"]
+environment-pass = ["MATHKONG_IN_QEMU"]
 
 [tool.cibuildwheel.environment]
-SIMSIMD_IN_QEMU = "1"
+MATHKONG_IN_QEMU = "1"
 
 [tool.cibuildwheel.linux]
 before-build = ["rm -rf {project}/build"]

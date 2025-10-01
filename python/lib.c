@@ -95,7 +95,7 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-#define SIMSIMD_NDARRAY_MAX_RANK (PyBUF_MAX_NDIM)
+#define MATHKONG_NDARRAY_MAX_RANK (PyBUF_MAX_NDIM)
 #include <mathkong/mathkong.h>
 
 /// @brief  Convenience wrapper for BLAS Level 1 interfaces to infer the layout of rank-1 and rank-2 tensors.
@@ -419,7 +419,7 @@ size_t bytes_per_datatype(mathkong_datatype_t dtype) {
 /// @brief Copy a distance to a target datatype, downcasting if necessary.
 /// @return 1 if the cast was successful, 0 if the target datatype is not supported.
 int cast_distance(mathkong_distance_t distance, mathkong_datatype_t target_dtype, void *target_ptr, size_t offset) {
-    _SIMSIMD_STATIC_ASSERT(sizeof(mathkong_distance_t) == sizeof(mathkong_f64_t), distance_size_mismatch);
+    _MATHKONG_STATIC_ASSERT(sizeof(mathkong_distance_t) == sizeof(mathkong_f64_t), distance_size_mismatch);
     switch (target_dtype) {
     case mathkong_f64c_k: ((mathkong_f64_t *)target_ptr)[offset] = (mathkong_f64_t)distance; return 1;
     case mathkong_f64_k: ((mathkong_f64_t *)target_ptr)[offset] = (mathkong_f64_t)distance; return 1;
@@ -667,7 +667,7 @@ int parse_buffer_or_scalar_argument(PyObject *obj, Py_buffer *buffer, BufferOrSc
         mathkong_f64_t as_float = PyFloat_AsDouble(obj);
         parsed->as_f64 = as_float;
         // Check if we convert to a smaller floating-point type, without the loss of precision.
-        if (SIMSIMD_NATIVE_F16 && as_float == (mathkong_f64_t)(mathkong_f16_t)as_float) {
+        if (MATHKONG_NATIVE_F16 && as_float == (mathkong_f64_t)(mathkong_f16_t)as_float) {
             mathkong_f16_t as_f16 = (mathkong_f16_t)as_float;
             memcpy(parsed->as_scalar, &as_f16, sizeof(mathkong_f16_t));
             parsed->datatype = mathkong_f16_k;
@@ -805,7 +805,7 @@ static PyObject *XDArray_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
     if (!self) return NULL;
 
     self->ndim = 0;
-    self->datatype = SIMSIMD_UNDEFINED; // Default type until specified
+    self->datatype = MATHKONG_UNDEFINED; // Default type until specified
     // Initialization of shape and strides can be added if needed
 
     return (PyObject *)self;
@@ -4028,8 +4028,8 @@ PyMODINIT_FUNC PyInit_mathkong(void) {
     // Add version metadata
     {
         char version_str[64];
-        snprintf(version_str, sizeof(version_str), "%d.%d.%d", SIMSIMD_VERSION_MAJOR, SIMSIMD_VERSION_MINOR,
-                 SIMSIMD_VERSION_PATCH);
+        snprintf(version_str, sizeof(version_str), "%d.%d.%d", MATHKONG_VERSION_MAJOR, MATHKONG_VERSION_MINOR,
+                 MATHKONG_VERSION_PATCH);
         PyModule_AddStringConstant(m, "__version__", version_str);
     }
 

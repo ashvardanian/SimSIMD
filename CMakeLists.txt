@@ -17,16 +17,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
 # Determine if MathKong is built as a sub-project (using `add_subdirectory`) or if it is the main project
-set(SIMSIMD_IS_MAIN_PROJECT OFF)
+set(MATHKONG_IS_MAIN_PROJECT OFF)
 
 if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
-    set(SIMSIMD_IS_MAIN_PROJECT ON)
+    set(MATHKONG_IS_MAIN_PROJECT ON)
 endif ()
 
-option(SIMSIMD_BUILD_SHARED "Compile a dynamic library" ${SIMSIMD_IS_MAIN_PROJECT})
-option(SIMSIMD_BUILD_TESTS "Small compilation tests compile-time and run-time dispatch" OFF)
-option(SIMSIMD_BUILD_BENCHMARKS "Compile micro-benchmarks for current ISA" OFF)
-option(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS "Include BLAS in micro-kernel benchmarks" OFF)
+option(MATHKONG_BUILD_SHARED "Compile a dynamic library" ${MATHKONG_IS_MAIN_PROJECT})
+option(MATHKONG_BUILD_TESTS "Small compilation tests compile-time and run-time dispatch" OFF)
+option(MATHKONG_BUILD_BENCHMARKS "Compile micro-benchmarks for current ISA" OFF)
+option(MATHKONG_BUILD_BENCHMARKS_WITH_CBLAS "Include BLAS in micro-kernel benchmarks" OFF)
 
 # Default to Release build type if not set
 if (NOT CMAKE_BUILD_TYPE)
@@ -53,11 +53,10 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
 endif ()
 
 # Define the header-only library
-file(GLOB SIMSIMD_SOURCES include/mathkong/*.h)
+file(GLOB MATHKONG_SOURCES include/mathkong/*.h)
 add_library(mathkong INTERFACE)
-target_sources(mathkong INTERFACE ${SIMSIMD_SOURCES})
+target_sources(mathkong INTERFACE ${MATHKONG_SOURCES})
 target_include_directories(mathkong INTERFACE "${PROJECT_SOURCE_DIR}/include")
-
 
 # Find OpenMP
 find_package(OpenMP)
@@ -67,9 +66,8 @@ else ()
     message(WARNING "OpenMP not found. Parallel execution will be disabled.")
 endif ()
 
-
 # Build benchmarks if required
-if (SIMSIMD_BUILD_BENCHMARKS)
+if (MATHKONG_BUILD_BENCHMARKS)
     # Fetch external dependencies
     include(FetchContent)
 
@@ -103,14 +101,14 @@ if (SIMSIMD_BUILD_BENCHMARKS)
         target_link_libraries(mathkong_bench OpenMP::OpenMP_CXX)
     endif ()
 
-    if (SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
+    if (MATHKONG_BUILD_BENCHMARKS_WITH_CBLAS)
         find_package(BLAS REQUIRED)
         if (BLAS_FOUND)
             message(STATUS "BLAS found: ${BLAS_LIBRARIES}")
             include_directories(${BLAS_INCLUDE_DIRS})
             target_include_directories(mathkong_bench PRIVATE ${BLAS_INCLUDE_DIRS})
             target_link_libraries(mathkong_bench ${BLAS_LIBRARIES})
-            target_compile_definitions(mathkong_bench PRIVATE SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1)
+            target_compile_definitions(mathkong_bench PRIVATE MATHKONG_BUILD_BENCHMARKS_WITH_CBLAS=1)
         else ()
             message(FATAL_ERROR "BLAS not found")
         endif ()
@@ -118,13 +116,13 @@ if (SIMSIMD_BUILD_BENCHMARKS)
 
 endif ()
 
-if (SIMSIMD_BUILD_TESTS)
+if (MATHKONG_BUILD_TESTS)
     add_executable(mathkong_test_compile_time scripts/test.c)
     target_link_libraries(mathkong_test_compile_time mathkong m)
     add_test(NAME mathkong_test_compile_time COMMAND mathkong_test_compile_time)
 
     add_executable(mathkong_test_run_time scripts/test.c c/lib.c)
-    target_compile_definitions(mathkong_test_run_time PRIVATE SIMSIMD_DYNAMIC_DISPATCH=1)
+    target_compile_definitions(mathkong_test_run_time PRIVATE MATHKONG_DYNAMIC_DISPATCH=1)
     target_link_libraries(mathkong_test_run_time mathkong m)
     add_test(NAME mathkong_test_run_time COMMAND mathkong_test_run_time)
 
@@ -136,9 +134,9 @@ if (SIMSIMD_BUILD_TESTS)
     enable_testing()
 endif ()
 
-if (SIMSIMD_BUILD_SHARED)
-    set(SIMSIMD_SOURCES ${SIMSIMD_SOURCES} c/lib.c)
-    add_library(mathkong_shared SHARED ${SIMSIMD_SOURCES})
+if (MATHKONG_BUILD_SHARED)
+    set(MATHKONG_SOURCES ${MATHKONG_SOURCES} c/lib.c)
+    add_library(mathkong_shared SHARED ${MATHKONG_SOURCES})
     target_include_directories(mathkong_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")
     set_target_properties(mathkong_shared PROPERTIES OUTPUT_NAME mathkong)
 

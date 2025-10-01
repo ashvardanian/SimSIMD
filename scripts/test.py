@@ -239,7 +239,7 @@ except:
 
 
 def is_running_under_qemu():
-    return "SIMSIMD_IN_QEMU" in os.environ
+    return "MATHKONG_IN_QEMU" in os.environ
 
 
 def profile(callable, *args, **kwargs) -> tuple:
@@ -462,8 +462,8 @@ def collect_warnings(message: str, stats: dict):
 
 # For normalized distances we use the absolute tolerance, because the result is close to zero.
 # For unnormalized ones (like squared Euclidean or Jaccard), we use the relative.
-SIMSIMD_RTOL = 0.1
-SIMSIMD_ATOL = 0.1
+MATHKONG_RTOL = 0.1
+MATHKONG_ATOL = 0.1
 
 # We will run all the tests many times using different instruction sets under the hood.
 available_capabilities: Dict[str, str] = simd.get_capabilities()
@@ -718,7 +718,7 @@ def test_dense(ndim, dtype, metric, capability, stats_fixture):
     result_dt, result = profile(simd_kernel, a, b)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
 
@@ -774,7 +774,7 @@ def test_curved(ndim, dtypes, metric, capability, stats_fixture):
     result_dt, result = profile(simd_kernel, a, b, c)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
 
@@ -806,7 +806,7 @@ def test_curved_complex(ndim, dtype, capability, stats_fixture):
     result_dt, result = profile(simd_kernel, a, b, c)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     collect_errors(
         "bilinear", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture
     )
@@ -838,8 +838,8 @@ def test_dense_bf16(ndim, metric, capability, stats_fixture):
     np.testing.assert_allclose(
         result,
         expected,
-        atol=SIMSIMD_ATOL,
-        rtol=SIMSIMD_RTOL,
+        atol=MATHKONG_ATOL,
+        rtol=MATHKONG_RTOL,
         err_msg=f"""
         First `f32` operand in hex:     {hex_array(a_f32_rounded.view(np.uint32))}
         Second `f32` operand in hex:    {hex_array(b_f32_rounded.view(np.uint32))}
@@ -895,8 +895,8 @@ def test_curved_bf16(ndim, metric, capability, stats_fixture):
     np.testing.assert_allclose(
         result,
         expected,
-        atol=SIMSIMD_ATOL,
-        rtol=SIMSIMD_RTOL,
+        atol=MATHKONG_ATOL,
+        rtol=MATHKONG_RTOL,
         err_msg=f"""
         First `f32` operand in hex:     {hex_array(a_f32_rounded.view(np.uint32))}
         Second `f32` operand in hex:    {hex_array(b_f32_rounded.view(np.uint32))}
@@ -942,7 +942,7 @@ def test_dense_i8(ndim, dtype, metric, capability, stats_fixture):
         assert round(float(result)) == round(float(expected)), f"Expected {expected}, but got {result}"
     else:
         np.testing.assert_allclose(
-            result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL
+            result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL
         ), f"Expected {expected}, but got {result}"
     collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
@@ -976,14 +976,14 @@ def test_dense_bits(ndim, metric, capability, stats_fixture):
     result_dt, result = profile(simd_kernel, np.packbits(a), np.packbits(b), "bin8")
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     collect_errors(metric, ndim, "bin8", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
     # Aside from overriding the `dtype` parameter, we can also view as booleans
     result_dt, result = profile(simd_kernel, np.packbits(a).view(np.bool_), np.packbits(b).view(np.bool_))
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     collect_errors(metric, ndim, "bin8", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
 
@@ -1011,7 +1011,7 @@ def test_jensen_shannon(ndim, dtype, capability, stats_fixture):
     result_dt, result = profile(simd_kernel, a, b)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     collect_errors(
         "jensenshannon", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture
     )
@@ -1034,7 +1034,7 @@ def test_cosine_zero_vector(ndim, dtype, capability):
     assert result == 0, f"Expected 0 distance from itself, but got {result}"
 
     result = simd.angular(b, b)
-    assert abs(result) < SIMSIMD_ATOL, f"Expected 0 distance from itself, but got {result}"
+    assert abs(result) < MATHKONG_ATOL, f"Expected 0 distance from itself, but got {result}"
 
     # For the cosine, the output must not be negative!
     assert np.all(result >= 0), f"Negative result for cosine distance"
@@ -1122,7 +1122,7 @@ def test_dot_complex(ndim, dtype, capability, stats_fixture):
     result_dt, result = profile(simd.dot, a, b)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     collect_errors("dot", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
     accurate_dt, accurate = profile(np.vdot, a.astype(np.complex128), b.astype(np.complex128))
@@ -1130,7 +1130,7 @@ def test_dot_complex(ndim, dtype, capability, stats_fixture):
     result_dt, result = profile(simd.vdot, a, b)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     collect_errors(
         "vdot", ndim, dtype + "c", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture
     )
@@ -1151,12 +1151,12 @@ def test_dot_complex_explicit(ndim, capability):
     expected = np.dot(a.view(np.complex64), b.view(np.complex64))
     result = simd.dot(a, b, "complex64")
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
     expected = np.vdot(a.view(np.complex64), b.view(np.complex64))
     result = simd.vdot(a, b, "complex64")
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     collect_errors("vdot", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
 
@@ -1214,8 +1214,8 @@ def test_scale(ndim, dtype, kernel, capability, stats_fixture):
         a = np.random.randn(ndim).astype(dtype)
         alpha = np.random.randn(1).astype(np.float64).item()
         beta = np.random.randn(1).astype(np.float64).item()
-        atol = SIMSIMD_ATOL
-        rtol = SIMSIMD_RTOL
+        atol = MATHKONG_ATOL
+        rtol = MATHKONG_RTOL
 
     keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(kernel)
@@ -1267,8 +1267,8 @@ def test_sum(ndim, dtype, kernel, capability, stats_fixture):
     else:
         a = np.random.randn(ndim).astype(dtype)
         b = np.random.randn(ndim).astype(dtype)
-        atol = SIMSIMD_ATOL
-        rtol = SIMSIMD_RTOL
+        atol = MATHKONG_ATOL
+        rtol = MATHKONG_RTOL
 
     keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(kernel)
@@ -1323,8 +1323,8 @@ def test_wsum(ndim, dtype, kernel, capability, stats_fixture):
         b = np.random.randn(ndim).astype(dtype)
         alpha = np.random.randn(1).astype(np.float64).item()
         beta = np.random.randn(1).astype(np.float64).item()
-        atol = SIMSIMD_ATOL
-        rtol = SIMSIMD_RTOL
+        atol = MATHKONG_ATOL
+        rtol = MATHKONG_RTOL
 
     keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(kernel)
@@ -1383,8 +1383,8 @@ def test_fma(ndim, dtype, kernel, capability, stats_fixture):
         c = np.random.randn(ndim).astype(dtype)
         alpha = np.random.randn(1).astype(np.float64).item()
         beta = np.random.randn(1).astype(np.float64).item()
-        atol = SIMSIMD_ATOL
-        rtol = SIMSIMD_RTOL
+        atol = MATHKONG_ATOL
+        rtol = MATHKONG_RTOL
 
     keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(kernel)
@@ -1435,34 +1435,34 @@ def test_batch(ndim, dtype, capability):
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (1 x D scalars) is an array with N floats.
     B = np.random.randn(1, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B[0]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
     # Distance between matrixes A (1 x D scalars) and B (N x D scalars) is an array with N floats.
     A = np.random.randn(1, ndim).astype(dtype)
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[0], B[i]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
     # Distance between matrix A (N x D scalars) and array B (D scalars) is an array with N floats.
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.random.randn(ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
     # Distance between matrix B (N x D scalars) and array A (D scalars) is an array with N floats.
     B = np.random.randn(10, ndim).astype(dtype)
     A = np.random.randn(ndim).astype(dtype)
     result_np = [spd.sqeuclidean(B[i], A) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(B, A)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) in slices of bigger matrices.
     A_extended = np.random.randn(10, ndim + 11).astype(dtype)
@@ -1473,7 +1473,7 @@ def test_batch(ndim, dtype, capability):
     assert A.__array_interface__["strides"] is not None and B.__array_interface__["strides"] is not None
     result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) in a transposed matrix.
     #! This requires calling `np.ascontiguousarray()` to ensure the matrix is in the right format.
@@ -1481,14 +1481,14 @@ def test_batch(ndim, dtype, capability):
     B = np.ascontiguousarray(np.random.randn(ndim, 10).astype(dtype).T)
     result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) with a different output type.
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = np.array([spd.sqeuclidean(A[i], B[i]) for i in range(10)]).astype(np.float32)
     result_simd = np.array(simd.sqeuclidean(A, B, out_dtype="float32"))
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     assert result_simd.dtype == result_np.dtype
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) with a supplied output buffer.
@@ -1497,7 +1497,7 @@ def test_batch(ndim, dtype, capability):
     result_np = np.array([spd.sqeuclidean(A[i], B[i]) for i in range(10)]).astype(np.float32)
     result_simd = np.zeros(10, dtype=np.float32)
     assert simd.sqeuclidean(A, B, out=result_simd) is None
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
     assert result_simd.dtype == result_np.dtype
 
 
@@ -1548,8 +1548,8 @@ def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
         expected_out = expected_out.astype(out_dtype)
 
     # Assert they're close.
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-    np.testing.assert_allclose(result_out, expected_out, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
+    np.testing.assert_allclose(result_out, expected_out, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1575,7 +1575,7 @@ def test_cdist_itself(ndim, input_dtype, out_dtype, metric):
         result = simd.cdist(A, A, metric=metric, out_dtype=out_dtype)
 
     # Assert they're close.
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1622,9 +1622,9 @@ def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
         assert simd.cdist(A, B, metric=metric, out_dtype=out_dtype, out=C) is None
 
     # Assert they're close.
-    np.testing.assert_allclose(result1d, expected[0, 0], atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-    np.testing.assert_allclose(result2d, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-    np.testing.assert_allclose(C, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result1d, expected[0, 0], atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
+    np.testing.assert_allclose(result2d, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
+    np.testing.assert_allclose(C, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1653,7 +1653,7 @@ def test_cdist_hamming(ndim, out_dtype, capability):
         expected = (spd.cdist(A, B, "hamming") * ndim).astype(out_dtype)
         result = simd.cdist(A_bits, B_bits, metric="hamming", dtype="bin8", out_dtype=out_dtype)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1710,13 +1710,13 @@ def test_elementwise(dtype, kernel, capability, stats_fixture):
             result_mathkong.dtype == result_numpy.dtype
         ), f"Result dtypes differ: {result_mathkong.dtype} vs {result_numpy.dtype} for ({a.dtype} {operator} {b.dtype})"
 
-        if not np.allclose(result_mathkong, result_numpy, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL):
+        if not np.allclose(result_mathkong, result_numpy, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL):
             # ? Find the first mismatch and use it as an example in the error message
             np.testing.assert_allclose(
                 result_mathkong,
                 result_numpy,
-                atol=SIMSIMD_ATOL,
-                rtol=SIMSIMD_RTOL,
+                atol=MATHKONG_ATOL,
+                rtol=MATHKONG_RTOL,
                 err_msg=f"""
                 Result mismatch for ({a.dtype} {operator} {b.dtype})
                 First descriptor: {a.__array_interface__}
@@ -1744,7 +1744,7 @@ def test_elementwise(dtype, kernel, capability, stats_fixture):
         ), f"Inplace dtypes differ: {inplace_mathkong.dtype} vs {inplace_numpy.dtype} for ({a.dtype} {operator} {b.dtype})"
 
         # Let's count the number of overflows in NumPy:
-        overflow_count = np.sum(np.isclose(inplace_mathkong, inplace_numpy, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL))
+        overflow_count = np.sum(np.isclose(inplace_mathkong, inplace_numpy, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL))
         if overflow_count:
             collect_warnings(
                 f"NumPy overflow in ({a.dtype} {operator} {b.dtype} -> {output_dtype})",
@@ -1925,7 +1925,7 @@ def test_gil_free_threading():
 
     # Verify results are the same length and reasonable
     assert np.allclose(
-        baseline_sum, multi_sum, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL
+        baseline_sum, multi_sum, atol=MATHKONG_ATOL, rtol=MATHKONG_RTOL
     ), f"Results differ: baseline {baseline_sum} vs multi-threaded {multi_sum}"
 
     # Warn if multi-threaded execution is slower than the baseline

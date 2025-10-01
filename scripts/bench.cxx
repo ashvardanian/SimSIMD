@@ -5,7 +5,7 @@
  *  baseline implementations using Google Benchmark framework. Run with:
  *
  *  ```bash
- *  cmake -B build_release -D SIMSIMD_BUILD_BENCHMARKS=1
+ *  cmake -B build_release -D MATHKONG_BUILD_BENCHMARKS=1
  *  cmake --build build_release
  *  build_release/mathkong_bench
  *  ```
@@ -25,10 +25,10 @@
 
 #include <benchmark/benchmark.h>
 
-#if !defined(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
-#define SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS 0
+#if !defined(MATHKONG_BUILD_BENCHMARKS_WITH_CBLAS)
+#define MATHKONG_BUILD_BENCHMARKS_WITH_CBLAS 0
 #endif
-#if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
+#if MATHKONG_BUILD_BENCHMARKS_WITH_CBLAS
 #include <cblas.h>
 #endif
 
@@ -36,8 +36,8 @@
 // are quite inaccurate. They are not meant to be used in production code.
 // So when benchmarking, if possible, please use the native types, if those
 // are implemented.
-#define SIMSIMD_NATIVE_F16 1
-#define SIMSIMD_NATIVE_BF16 1
+#define MATHKONG_NATIVE_F16 1
+#define MATHKONG_NATIVE_BF16 1
 #include <mathkong/mathkong.h>
 
 constexpr std::size_t default_seconds = 10;
@@ -162,7 +162,7 @@ struct vector_gt {
         constexpr unsigned long long exponent_mask_f64 =                               // 1 sign, 11 exp, 52 mantissa
             0b011111111110000000000000000000000000000000000000000000000000000;
 
-#if !SIMSIMD_NATIVE_BF16
+#if !MATHKONG_NATIVE_BF16
         if constexpr (datatype_ak == mathkong_bf16_k || datatype_ak == mathkong_bf16c_k) {
             mathkong_f32_t f32 = static_cast<mathkong_f32_t>(from);
             mathkong_f32_to_bf16(&f32, &to);
@@ -171,7 +171,7 @@ struct vector_gt {
             return;
         }
 #endif
-#if !SIMSIMD_NATIVE_F16
+#if !MATHKONG_NATIVE_F16
         if constexpr (datatype_ak == mathkong_f16_k || datatype_ak == mathkong_f16c_k) {
             mathkong_f32_t f32 = static_cast<mathkong_f32_t>(from);
             mathkong_f32_to_f16(&f32, &to);
@@ -189,14 +189,14 @@ struct vector_gt {
      *  @return The decompressed double value.
      */
     static double uncompress(scalar_t const &from) noexcept {
-#if !SIMSIMD_NATIVE_BF16
+#if !MATHKONG_NATIVE_BF16
         if constexpr (datatype_ak == mathkong_bf16_k || datatype_ak == mathkong_bf16c_k) {
             mathkong_f32_t f32;
             mathkong_bf16_to_f32((mathkong_bf16_t const *)&from, &f32);
             return f32;
         }
 #endif
-#if !SIMSIMD_NATIVE_F16
+#if !MATHKONG_NATIVE_F16
         if constexpr (datatype_ak == mathkong_f16_k || datatype_ak == mathkong_f16c_k) {
             mathkong_f32_t f32;
             mathkong_f16_to_f32((mathkong_f16_t const *)&from, &f32);
@@ -830,7 +830,7 @@ void elementwise_with_stl(scalar_at const *ins, mathkong_size_t n, scalar_at *ou
     for (mathkong_size_t i = 0; i != n; ++i) outs[i] = kernel_at {}(ins[i]);
 }
 
-#if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
+#if MATHKONG_BUILD_BENCHMARKS_WITH_CBLAS
 
 void dot_f32_blas(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n, mathkong_distance_t *result) {
     *result = cblas_sdot((int)n, a, 1, b, 1);
@@ -933,20 +933,20 @@ int main(int argc, char **argv) {
     // Log supported functionality
     char const *flags[2] = {"false", "true"};
     std::printf("Benchmarking Similarity Measures\n");
-    std::printf("- Compiler used native F16: %s\n", flags[SIMSIMD_NATIVE_F16]);
-    std::printf("- Compiler used native BF16: %s\n", flags[SIMSIMD_NATIVE_BF16]);
-    std::printf("- Benchmark against CBLAS: %s\n", flags[SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS]);
+    std::printf("- Compiler used native F16: %s\n", flags[MATHKONG_NATIVE_F16]);
+    std::printf("- Compiler used native BF16: %s\n", flags[MATHKONG_NATIVE_BF16]);
+    std::printf("- Benchmark against CBLAS: %s\n", flags[MATHKONG_BUILD_BENCHMARKS_WITH_CBLAS]);
     std::printf("\n");
     std::printf("Compile-time settings:\n");
-    std::printf("- Arm NEON support enabled: %s\n", flags[SIMSIMD_TARGET_NEON]);
-    std::printf("- Arm SVE support enabled: %s\n", flags[SIMSIMD_TARGET_SVE]);
-    std::printf("- Arm SVE2 support enabled: %s\n", flags[SIMSIMD_TARGET_SVE2]);
-    std::printf("- x86 Haswell support enabled: %s\n", flags[SIMSIMD_TARGET_HASWELL]);
-    std::printf("- x86 Skylake support enabled: %s\n", flags[SIMSIMD_TARGET_SKYLAKE]);
-    std::printf("- x86 Ice Lake support enabled: %s\n", flags[SIMSIMD_TARGET_ICE]);
-    std::printf("- x86 Genoa support enabled: %s\n", flags[SIMSIMD_TARGET_GENOA]);
-    std::printf("- x86 Sapphire Rapids support enabled: %s\n", flags[SIMSIMD_TARGET_SAPPHIRE]);
-    std::printf("- x86 Turin support enabled: %s\n", flags[SIMSIMD_TARGET_TURIN]);
+    std::printf("- Arm NEON support enabled: %s\n", flags[MATHKONG_TARGET_NEON]);
+    std::printf("- Arm SVE support enabled: %s\n", flags[MATHKONG_TARGET_SVE]);
+    std::printf("- Arm SVE2 support enabled: %s\n", flags[MATHKONG_TARGET_SVE2]);
+    std::printf("- x86 Haswell support enabled: %s\n", flags[MATHKONG_TARGET_HASWELL]);
+    std::printf("- x86 Skylake support enabled: %s\n", flags[MATHKONG_TARGET_SKYLAKE]);
+    std::printf("- x86 Ice Lake support enabled: %s\n", flags[MATHKONG_TARGET_ICE]);
+    std::printf("- x86 Genoa support enabled: %s\n", flags[MATHKONG_TARGET_GENOA]);
+    std::printf("- x86 Sapphire Rapids support enabled: %s\n", flags[MATHKONG_TARGET_SAPPHIRE]);
+    std::printf("- x86 Turin support enabled: %s\n", flags[MATHKONG_TARGET_TURIN]);
     std::printf("\n");
     std::printf("Run-time settings:\n");
     std::printf("- Arm NEON support enabled: %s\n", flags[(runtime_caps & mathkong_cap_neon_k) != 0]);
@@ -1027,7 +1027,7 @@ int main(int argc, char **argv) {
                         elementwise_with_stl<mathkong_f64_t, atan_with_stl<mathkong_f64_t>>,
                         l2_with_stl<mathkong_f64_t>);
 
-#if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
+#if MATHKONG_BUILD_BENCHMARKS_WITH_CBLAS
 
     dense_<f32_k>("dot_f32_blas", dot_f32_blas, mathkong_dot_f32_accurate);
     dense_<f64_k>("dot_f64_blas", dot_f64_blas, mathkong_dot_f64_serial);
@@ -1052,7 +1052,7 @@ int main(int argc, char **argv) {
 
 #endif
 
-#if SIMSIMD_TARGET_NEON
+#if MATHKONG_TARGET_NEON
     dense_<f32_k>("dot_f32_neon", mathkong_dot_f32_neon, mathkong_dot_f32_accurate);
     dense_<f32_k>("angular_f32_neon", mathkong_angular_f32_neon, mathkong_angular_f32_accurate);
     dense_<f32_k>("l2sq_f32_neon", mathkong_l2sq_f32_neon, mathkong_l2sq_f32_accurate);
@@ -1098,7 +1098,7 @@ int main(int argc, char **argv) {
 
 #endif
 
-#if SIMSIMD_TARGET_NEON_F16
+#if MATHKONG_TARGET_NEON_F16
     dense_<f16c_k>("dot_f16c_neon", mathkong_dot_f16c_neon, mathkong_dot_f16c_accurate);
     dense_<f16c_k>("vdot_f16c_neon", mathkong_vdot_f16c_neon, mathkong_vdot_f16c_accurate);
 
@@ -1129,7 +1129,7 @@ int main(int argc, char **argv) {
                                         mathkong_l2_i8_serial);
 #endif
 
-#if SIMSIMD_TARGET_NEON_BF16
+#if MATHKONG_TARGET_NEON_BF16
     dense_<bf16c_k>("dot_bf16c_neon", mathkong_dot_bf16c_neon, mathkong_dot_bf16c_accurate);
     dense_<bf16c_k>("vdot_bf16c_neon", mathkong_vdot_bf16c_neon, mathkong_vdot_bf16c_accurate);
 
@@ -1148,7 +1148,7 @@ int main(int argc, char **argv) {
                                           mathkong_l2_bf16_accurate);
 #endif
 
-#if SIMSIMD_TARGET_SVE
+#if MATHKONG_TARGET_SVE
     dense_<f16_k>("dot_f16_sve", mathkong_dot_f16_sve, mathkong_dot_f16_accurate);
     dense_<f16_k>("angular_f16_sve", mathkong_angular_f16_sve, mathkong_angular_f16_accurate);
     dense_<f16_k>("l2sq_f16_sve", mathkong_l2sq_f16_sve, mathkong_l2sq_f16_accurate);
@@ -1173,7 +1173,7 @@ int main(int argc, char **argv) {
     dense_<f64c_k>("vdot_f64c_sve", mathkong_vdot_f64c_sve, mathkong_vdot_f64c_serial);
 #endif
 
-#if SIMSIMD_TARGET_SVE_F16
+#if MATHKONG_TARGET_SVE_F16
     dense_<f16_k>("dot_f16_sve", mathkong_dot_f16_sve, mathkong_dot_f16_accurate);
     dense_<f16_k>("angular_f16_sve", mathkong_angular_f16_sve, mathkong_angular_f16_accurate);
     dense_<f16_k>("l2sq_f16_sve", mathkong_l2sq_f16_sve, mathkong_l2sq_f16_accurate);
@@ -1182,18 +1182,18 @@ int main(int argc, char **argv) {
     dense_<f16c_k>("vdot_f16c_sve", mathkong_vdot_f16c_sve, mathkong_vdot_f16c_accurate);
 #endif
 
-#if SIMSIMD_TARGET_SVE_BF16
+#if MATHKONG_TARGET_SVE_BF16
     dense_<bf16_k>("angular_bf16_sve", mathkong_angular_bf16_sve, mathkong_angular_bf16_accurate);
     dense_<bf16_k>("l2sq_bf16_sve", mathkong_l2sq_bf16_sve, mathkong_l2sq_bf16_accurate);
     dense_<bf16_k>("l2_bf16_sve", mathkong_l2_bf16_sve, mathkong_l2_bf16_accurate);
 #endif
 
-#if SIMSIMD_TARGET_SVE2
+#if MATHKONG_TARGET_SVE2
     sparse_<u16_k>("intersect_u16_sve2", mathkong_intersect_u16_sve2, mathkong_intersect_u16_accurate);
     sparse_<u32_k>("intersect_u32_sve2", mathkong_intersect_u32_sve2, mathkong_intersect_u32_accurate);
 #endif
 
-#if SIMSIMD_TARGET_HASWELL
+#if MATHKONG_TARGET_HASWELL
     dense_<f16_k>("dot_f16_haswell", mathkong_dot_f16_haswell, mathkong_dot_f16_accurate);
     dense_<f16_k>("angular_f16_haswell", mathkong_angular_f16_haswell, mathkong_angular_f16_accurate);
     dense_<f16_k>("l2sq_f16_haswell", mathkong_l2sq_f16_haswell, mathkong_l2sq_f16_accurate);
@@ -1279,7 +1279,7 @@ int main(int argc, char **argv) {
 
 #endif
 
-#if SIMSIMD_TARGET_GENOA
+#if MATHKONG_TARGET_GENOA
     dense_<bf16_k>("dot_bf16_genoa", mathkong_dot_bf16_genoa, mathkong_dot_bf16_accurate);
     dense_<bf16_k>("angular_bf16_genoa", mathkong_angular_bf16_genoa, mathkong_angular_bf16_accurate);
     dense_<bf16_k>("l2sq_bf16_genoa", mathkong_l2sq_bf16_genoa, mathkong_l2sq_bf16_accurate);
@@ -1292,7 +1292,7 @@ int main(int argc, char **argv) {
     curved_<bf16c_k>("bilinear_bf16c_genoa", mathkong_bilinear_bf16c_genoa, mathkong_bilinear_bf16c_accurate);
 #endif
 
-#if SIMSIMD_TARGET_SAPPHIRE
+#if MATHKONG_TARGET_SAPPHIRE
     dense_<f16_k>("dot_f16_sapphire", mathkong_dot_f16_sapphire, mathkong_dot_f16_accurate);
     dense_<f16_k>("angular_f16_sapphire", mathkong_angular_f16_sapphire, mathkong_angular_f16_accurate);
     dense_<f16_k>("l2sq_f16_sapphire", mathkong_l2sq_f16_sapphire, mathkong_l2sq_f16_accurate);
@@ -1322,7 +1322,7 @@ int main(int argc, char **argv) {
     curved_<f16c_k>("bilinear_f16c_sapphire", mathkong_bilinear_f16c_sapphire, mathkong_bilinear_f16c_accurate);
 #endif
 
-#if SIMSIMD_TARGET_ICE
+#if MATHKONG_TARGET_ICE
     dense_<i8_k>("angular_i8_ice", mathkong_angular_i8_ice, mathkong_angular_i8_serial);
     dense_<i8_k>("l2sq_i8_ice", mathkong_l2sq_i8_ice, mathkong_l2sq_i8_serial);
     dense_<i8_k>("l2_i8_ice", mathkong_l2_i8_ice, mathkong_l2_i8_serial);
@@ -1345,12 +1345,12 @@ int main(int argc, char **argv) {
     sparse_<u32_k>("intersect_u32_ice", mathkong_intersect_u32_ice, mathkong_intersect_u32_accurate);
 #endif
 
-#if SIMSIMD_TARGET_TURIN
+#if MATHKONG_TARGET_TURIN
     sparse_<u16_k>("intersect_u16_turin", mathkong_intersect_u16_turin, mathkong_intersect_u16_accurate);
     sparse_<u32_k>("intersect_u32_turin", mathkong_intersect_u32_turin, mathkong_intersect_u32_accurate);
 #endif
 
-#if SIMSIMD_TARGET_SKYLAKE
+#if MATHKONG_TARGET_SKYLAKE
     dense_<f32_k>("dot_f32_skylake", mathkong_dot_f32_skylake, mathkong_dot_f32_accurate);
     dense_<f32_k>("angular_f32_skylake", mathkong_angular_f32_skylake, mathkong_angular_f32_accurate);
     dense_<f32_k>("l2sq_f32_skylake", mathkong_l2sq_f32_skylake, mathkong_l2sq_f32_accurate);

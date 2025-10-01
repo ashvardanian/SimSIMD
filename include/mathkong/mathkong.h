@@ -84,12 +84,12 @@
  *  The M1 implements Armv8.5-A, both M2 and M3 implement Armv8.6-A, and M4 is expected to have Armv9.1-A.
  */
 
-#ifndef SIMSIMD_H
-#define SIMSIMD_H
+#ifndef MATHKONG_H
+#define MATHKONG_H
 
-#define SIMSIMD_VERSION_MAJOR 6
-#define SIMSIMD_VERSION_MINOR 5
-#define SIMSIMD_VERSION_PATCH 3
+#define MATHKONG_VERSION_MAJOR 6
+#define MATHKONG_VERSION_MINOR 5
+#define MATHKONG_VERSION_PATCH 3
 
 /**
  *  @brief  Removes compile-time dispatching, and replaces it with runtime dispatching.
@@ -97,8 +97,8 @@
  *          that runs the program, rather than the most advanced backend supported by the CPU
  *          used to compile the library or the downstream application.
  */
-#if !defined(SIMSIMD_DYNAMIC_DISPATCH)
-#define SIMSIMD_DYNAMIC_DISPATCH (0) // true or false
+#if !defined(MATHKONG_DYNAMIC_DISPATCH)
+#define MATHKONG_DYNAMIC_DISPATCH (0) // true or false
 #endif
 
 #include "binary.h"       // Hamming, Jaccard
@@ -112,7 +112,7 @@
 #include "trigonometry.h" // Sine, Cosine
 
 // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
-#if defined(_SIMSIMD_DEFINED_APPLE)
+#if defined(_MATHKONG_DEFINED_APPLE)
 #include <fenv.h>       // `fesetenv` - part of C 99 standard
 #include <sys/sysctl.h> // `sysctlbyname`
 #endif
@@ -147,7 +147,7 @@ typedef enum {
     // Curved Spaces:
     mathkong_bilinear_k = 'b',    ///< Bilinear form
     mathkong_mahalanobis_k = 'm', ///< Mahalanobis distance
-    mathkong_haversine_k = 'h',   ///< Haversine distance
+    mathkong_haversine_k = 'o',   ///< Haversine distance
 
     // Probability:
     mathkong_kl_k = 'k', ///< Kullback-Leibler divergence
@@ -245,7 +245,7 @@ typedef enum {
  *  @brief  Classifies the family of the datatype.
  *  @return The family of the datatype.
  */
-SIMSIMD_PUBLIC mathkong_datatype_family_k mathkong_datatype_family(mathkong_datatype_t dtype) {
+MATHKONG_PUBLIC mathkong_datatype_family_k mathkong_datatype_family(mathkong_datatype_t dtype) {
     switch (dtype) {
     case mathkong_f64_k: return mathkong_datatype_float_family_k;
     case mathkong_f32_k: return mathkong_datatype_float_family_k;
@@ -368,36 +368,36 @@ typedef void (*mathkong_elementwise_fma_t)(void const *a, void const *b, void co
  */
 typedef void (*mathkong_kernel_punned_t)(void *);
 
-#if SIMSIMD_DYNAMIC_DISPATCH
-SIMSIMD_DYNAMIC mathkong_capability_t mathkong_capabilities(void);
-SIMSIMD_DYNAMIC void mathkong_find_kernel(   //
+#if MATHKONG_DYNAMIC_DISPATCH
+MATHKONG_DYNAMIC mathkong_capability_t mathkong_capabilities(void);
+MATHKONG_DYNAMIC void mathkong_find_kernel(  //
     mathkong_kernel_kind_t kind,             //
     mathkong_datatype_t datatype,            //
     mathkong_capability_t supported,         //
     mathkong_capability_t allowed,           //
     mathkong_kernel_punned_t *kernel_output, //
     mathkong_capability_t *capability_output);
-SIMSIMD_DYNAMIC int mathkong_flush_denormals(void);
+MATHKONG_DYNAMIC int mathkong_flush_denormals(void);
 #else
-SIMSIMD_PUBLIC mathkong_capability_t mathkong_capabilities(void);
-SIMSIMD_PUBLIC void mathkong_find_kernel(    //
+MATHKONG_PUBLIC mathkong_capability_t mathkong_capabilities(void);
+MATHKONG_PUBLIC void mathkong_find_kernel(   //
     mathkong_kernel_kind_t kind,             //
     mathkong_datatype_t datatype,            //
     mathkong_capability_t supported,         //
     mathkong_capability_t allowed,           //
     mathkong_kernel_punned_t *kernel_output, //
     mathkong_capability_t *capability_output);
-SIMSIMD_PUBLIC int mathkong_flush_denormals(void);
+MATHKONG_PUBLIC int mathkong_flush_denormals(void);
 #endif
 
-#if _SIMSIMD_TARGET_X86
+#if _MATHKONG_TARGET_X86
 
 /**
  *  @brief  Function to flush denormalized numbers to zero on x86 CPUs.
  *  @note   This should be called on each thread before any SIMD operations to avoid performance penalties.
  *  @return 1 if the operation was successful, 0 otherwise.
  */
-SIMSIMD_PUBLIC int _mathkong_flush_denormals_x86(void) {
+MATHKONG_PUBLIC int _mathkong_flush_denormals_x86(void) {
 #if defined(_MSC_VER)
     unsigned int mxcsr = _mm_getcsr();
     mxcsr |= 1 << 15; // bit 15 = Flush-To-Zero (FTZ)
@@ -417,7 +417,7 @@ SIMSIMD_PUBLIC int _mathkong_flush_denormals_x86(void) {
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `mathkong_capability_t` enum value.
  */
-SIMSIMD_PUBLIC mathkong_capability_t _mathkong_capabilities_x86(void) {
+MATHKONG_PUBLIC mathkong_capability_t _mathkong_capabilities_x86(void) {
 
     /// The states of 4 registers populated for a specific "cpuid" assembly call
     union four_registers_t {
@@ -498,9 +498,9 @@ SIMSIMD_PUBLIC mathkong_capability_t _mathkong_capabilities_x86(void) {
         (mathkong_cap_serial_k));
 }
 
-#endif // _SIMSIMD_TARGET_X86
+#endif // _MATHKONG_TARGET_X86
 
-#if _SIMSIMD_TARGET_ARM
+#if _MATHKONG_TARGET_ARM
 
 /*  Compiling the next section one may get: selected processor does not support system register name 'id_aa64zfr0_el1'.
  *  Suppressing assembler errors is very complicated, so when dealing with older ARM CPUs it's simpler to compile this
@@ -516,13 +516,13 @@ SIMSIMD_PUBLIC mathkong_capability_t _mathkong_capabilities_x86(void) {
  *  @note   On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
  *  @return 1 if the operation was successful, 0 otherwise.
  */
-SIMSIMD_PUBLIC int _mathkong_flush_denormals_arm(void) {
-#if defined(_SIMSIMD_DEFINED_APPLE)
+MATHKONG_PUBLIC int _mathkong_flush_denormals_arm(void) {
+#if defined(_MATHKONG_DEFINED_APPLE)
     // https://stackoverflow.com/a/19904907/2766161
     // https://stackoverflow.com/a/78252076/2766161
     int is_success = fesetenv(FE_DFL_DISABLE_DENORMS_ENV) == 0;
     return is_success;
-#elif defined(_SIMSIMD_DEFINED_LINUX)
+#elif defined(_MATHKONG_DEFINED_LINUX)
     // For Linux, we can toggle bits in the Floating-point Control Register (FPCR)
     // https://developer.arm.com/documentation/ddi0601/2024-12/AArch64-Registers/FPCR--Floating-point-Control-Register
     uint64_t fpcr;
@@ -541,8 +541,8 @@ SIMSIMD_PUBLIC int _mathkong_flush_denormals_arm(void) {
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit Arm machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `mathkong_capability_t` enum value.
  */
-SIMSIMD_PUBLIC mathkong_capability_t _mathkong_capabilities_arm(void) {
-#if defined(_SIMSIMD_DEFINED_APPLE)
+MATHKONG_PUBLIC mathkong_capability_t _mathkong_capabilities_arm(void) {
+#if defined(_MATHKONG_DEFINED_APPLE)
     // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
     unsigned supports_neon = 0, supports_fp16 = 0, supports_bf16 = 0, supports_i8mm = 0;
     size_t size = sizeof(supports_neon);
@@ -558,7 +558,7 @@ SIMSIMD_PUBLIC mathkong_capability_t _mathkong_capabilities_arm(void) {
         (mathkong_cap_neon_i8_k * (supports_neon && supports_i8mm)) |   //
         (mathkong_cap_serial_k));
 
-#elif defined(_SIMSIMD_DEFINED_LINUX)
+#elif defined(_MATHKONG_DEFINED_LINUX)
 
     // Read CPUID registers directly
     unsigned long id_aa64isar0_el1 = 0, id_aa64isar1_el1 = 0, id_aa64pfr0_el1 = 0, id_aa64zfr0_el1 = 0;
@@ -617,7 +617,7 @@ SIMSIMD_PUBLIC mathkong_capability_t _mathkong_capabilities_arm(void) {
         (mathkong_cap_sve2_k * (supports_sve2)) |                                                      //
         (mathkong_cap_sve2p1_k * (supports_sve2p1)) |                                                  //
         (mathkong_cap_serial_k));
-#else // if !_SIMSIMD_DEFINED_LINUX
+#else // if !_MATHKONG_DEFINED_LINUX
     return mathkong_cap_serial_k;
 #endif
 }
@@ -634,13 +634,13 @@ SIMSIMD_PUBLIC mathkong_capability_t _mathkong_capabilities_arm(void) {
  *  When facing denormalized values Fused-Multiply-Add (FMA) operations can be up to 30x slower,
  *  as measured on Intel Sapphire Rapids: https://github.com/ashvardanian/ParallelReductionsBenchmark
  */
-SIMSIMD_PUBLIC int _mathkong_flush_denormals(void) {
-#if _SIMSIMD_TARGET_X86
+MATHKONG_PUBLIC int _mathkong_flush_denormals(void) {
+#if _MATHKONG_TARGET_X86
     return _mathkong_flush_denormals_x86();
-#endif // _SIMSIMD_TARGET_X86
-#if _SIMSIMD_TARGET_ARM
+#endif // _MATHKONG_TARGET_X86
+#if _MATHKONG_TARGET_ARM
     return _mathkong_flush_denormals_arm();
-#endif // _SIMSIMD_TARGET_ARM
+#endif // _MATHKONG_TARGET_ARM
     return 0;
 }
 
@@ -648,13 +648,13 @@ SIMSIMD_PUBLIC int _mathkong_flush_denormals(void) {
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `mathkong_capability_t` enum value.
  */
-SIMSIMD_PUBLIC mathkong_capability_t _mathkong_capabilities_implementation(void) {
-#if _SIMSIMD_TARGET_X86
+MATHKONG_PUBLIC mathkong_capability_t _mathkong_capabilities_implementation(void) {
+#if _MATHKONG_TARGET_X86
     return _mathkong_capabilities_x86();
-#endif // _SIMSIMD_TARGET_X86
-#if _SIMSIMD_TARGET_ARM
+#endif // _MATHKONG_TARGET_X86
+#if _MATHKONG_TARGET_ARM
     return _mathkong_capabilities_arm();
-#endif // _SIMSIMD_TARGET_ARM
+#endif // _MATHKONG_TARGET_ARM
     return mathkong_cap_serial_k;
 }
 
@@ -668,10 +668,10 @@ SIMSIMD_PUBLIC mathkong_capability_t _mathkong_capabilities_implementation(void)
 #pragma clang diagnostic ignored "-Wvolatile"
 #endif
 
-SIMSIMD_INTERNAL void _mathkong_find_kernel_f64(mathkong_capability_t v, mathkong_kernel_kind_t k,
-                                                mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
+MATHKONG_INTERNAL void _mathkong_find_kernel_f64(mathkong_capability_t v, mathkong_kernel_kind_t k,
+                                                 mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
     typedef mathkong_kernel_punned_t m_t;
-#if SIMSIMD_TARGET_SVE
+#if MATHKONG_TARGET_SVE
     if (v & mathkong_cap_sve_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f64_sve, *c = mathkong_cap_sve_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_f64_sve, *c = mathkong_cap_sve_k; return;
@@ -680,7 +680,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_f64(mathkong_capability_t v, mathkon
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_NEON
+#if MATHKONG_TARGET_NEON
     if (v & mathkong_cap_neon_k) switch (k) {
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_f64_neon, *c = mathkong_cap_neon_k; return;
         case mathkong_l2sq_k: *m = (m_t)&mathkong_l2sq_f64_neon, *c = mathkong_cap_neon_k; return;
@@ -688,7 +688,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_f64(mathkong_capability_t v, mathkon
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_SKYLAKE
+#if MATHKONG_TARGET_SKYLAKE
     if (v & mathkong_cap_skylake_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f64_skylake, *c = mathkong_cap_skylake_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_f64_skylake, *c = mathkong_cap_skylake_k; return;
@@ -701,7 +701,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_f64(mathkong_capability_t v, mathkon
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_HASWELL
+#if MATHKONG_TARGET_HASWELL
     if (v & mathkong_cap_haswell_k) switch (k) {
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_f64_haswell, *c = mathkong_cap_haswell_k; return;
         case mathkong_l2sq_k: *m = (m_t)&mathkong_l2sq_f64_haswell, *c = mathkong_cap_haswell_k; return;
@@ -730,10 +730,10 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_f64(mathkong_capability_t v, mathkon
         }
 }
 
-SIMSIMD_INTERNAL void _mathkong_find_kernel_f32(mathkong_capability_t v, mathkong_kernel_kind_t k,
-                                                mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
+MATHKONG_INTERNAL void _mathkong_find_kernel_f32(mathkong_capability_t v, mathkong_kernel_kind_t k,
+                                                 mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
     typedef mathkong_kernel_punned_t m_t;
-#if SIMSIMD_TARGET_SVE
+#if MATHKONG_TARGET_SVE
     if (v & mathkong_cap_sve_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f32_sve, *c = mathkong_cap_sve_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_f32_sve, *c = mathkong_cap_sve_k; return;
@@ -742,7 +742,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_f32(mathkong_capability_t v, mathkon
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_NEON
+#if MATHKONG_TARGET_NEON
     if (v & mathkong_cap_neon_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f32_neon, *c = mathkong_cap_neon_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_f32_neon, *c = mathkong_cap_neon_k; return;
@@ -757,7 +757,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_f32(mathkong_capability_t v, mathkon
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_SKYLAKE
+#if MATHKONG_TARGET_SKYLAKE
     if (v & mathkong_cap_skylake_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f32_skylake, *c = mathkong_cap_skylake_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_f32_skylake, *c = mathkong_cap_skylake_k; return;
@@ -774,7 +774,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_f32(mathkong_capability_t v, mathkon
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_HASWELL
+#if MATHKONG_TARGET_HASWELL
     if (v & mathkong_cap_haswell_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f32_haswell, *c = mathkong_cap_haswell_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_f32_haswell, *c = mathkong_cap_haswell_k; return;
@@ -804,10 +804,10 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_f32(mathkong_capability_t v, mathkon
         }
 }
 
-SIMSIMD_INTERNAL void _mathkong_find_kernel_f16(mathkong_capability_t v, mathkong_kernel_kind_t k,
-                                                mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
+MATHKONG_INTERNAL void _mathkong_find_kernel_f16(mathkong_capability_t v, mathkong_kernel_kind_t k,
+                                                 mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
     typedef mathkong_kernel_punned_t m_t;
-#if SIMSIMD_TARGET_SVE_F16
+#if MATHKONG_TARGET_SVE_F16
     if (v & mathkong_cap_sve_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f16_sve, *c = mathkong_cap_sve_f16_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_f16_sve, *c = mathkong_cap_sve_f16_k; return;
@@ -816,7 +816,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_f16(mathkong_capability_t v, mathkon
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_NEON_F16
+#if MATHKONG_TARGET_NEON_F16
     if (v & mathkong_cap_neon_f16_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f16_neon, *c = mathkong_cap_neon_f16_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_f16_neon, *c = mathkong_cap_neon_f16_k; return;
@@ -833,7 +833,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_f16(mathkong_capability_t v, mathkon
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_SAPPHIRE
+#if MATHKONG_TARGET_SAPPHIRE
     if (v & mathkong_cap_sapphire_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f16_sapphire, *c = mathkong_cap_sapphire_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_f16_sapphire, *c = mathkong_cap_sapphire_k; return;
@@ -850,7 +850,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_f16(mathkong_capability_t v, mathkon
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_HASWELL
+#if MATHKONG_TARGET_HASWELL
     if (v & mathkong_cap_haswell_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f16_haswell, *c = mathkong_cap_haswell_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_f16_haswell, *c = mathkong_cap_haswell_k; return;
@@ -884,10 +884,10 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_f16(mathkong_capability_t v, mathkon
         }
 }
 
-SIMSIMD_INTERNAL void _mathkong_find_kernel_bf16(mathkong_capability_t v, mathkong_kernel_kind_t k,
-                                                 mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
+MATHKONG_INTERNAL void _mathkong_find_kernel_bf16(mathkong_capability_t v, mathkong_kernel_kind_t k,
+                                                  mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
     typedef mathkong_kernel_punned_t m_t;
-#if SIMSIMD_TARGET_SVE_BF16
+#if MATHKONG_TARGET_SVE_BF16
     if (v & mathkong_cap_sve_bf16_k) switch (k) {
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_bf16_sve, *c = mathkong_cap_sve_bf16_k; return;
         case mathkong_l2sq_k: *m = (m_t)&mathkong_l2sq_bf16_sve, *c = mathkong_cap_sve_bf16_k; return;
@@ -895,7 +895,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_bf16(mathkong_capability_t v, mathko
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_NEON_BF16
+#if MATHKONG_TARGET_NEON_BF16
     if (v & mathkong_cap_neon_bf16_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_bf16_neon, *c = mathkong_cap_neon_bf16_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_bf16_neon, *c = mathkong_cap_neon_bf16_k; return;
@@ -908,7 +908,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_bf16(mathkong_capability_t v, mathko
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_GENOA
+#if MATHKONG_TARGET_GENOA
     if (v & mathkong_cap_genoa_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_bf16_genoa, *c = mathkong_cap_genoa_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_bf16_genoa, *c = mathkong_cap_genoa_k; return;
@@ -919,7 +919,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_bf16(mathkong_capability_t v, mathko
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_SKYLAKE
+#if MATHKONG_TARGET_SKYLAKE
     if (v & mathkong_cap_skylake_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_bf16_skylake, *c = mathkong_cap_skylake_k; return;
         case mathkong_wsum_k: *m = (m_t)&mathkong_wsum_bf16_skylake, *c = mathkong_cap_skylake_k; return;
@@ -928,7 +928,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_bf16(mathkong_capability_t v, mathko
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_HASWELL
+#if MATHKONG_TARGET_HASWELL
     if (v & mathkong_cap_haswell_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_bf16_haswell, *c = mathkong_cap_haswell_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_bf16_haswell, *c = mathkong_cap_haswell_k; return;
@@ -960,10 +960,10 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_bf16(mathkong_capability_t v, mathko
         }
 }
 
-SIMSIMD_INTERNAL void _mathkong_find_kernel_i8(mathkong_capability_t v, mathkong_kernel_kind_t k,
-                                               mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
+MATHKONG_INTERNAL void _mathkong_find_kernel_i8(mathkong_capability_t v, mathkong_kernel_kind_t k,
+                                                mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
     typedef mathkong_kernel_punned_t m_t;
-#if SIMSIMD_TARGET_NEON_I8
+#if MATHKONG_TARGET_NEON_I8
     if (v & mathkong_cap_neon_i8_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_i8_neon, *c = mathkong_cap_neon_i8_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_i8_neon, *c = mathkong_cap_neon_i8_k; return;
@@ -972,7 +972,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_i8(mathkong_capability_t v, mathkong
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_NEON_F16 //! Scaling of 8-bit integers is performed using 16-bit floats.
+#if MATHKONG_TARGET_NEON_F16 //! Scaling of 8-bit integers is performed using 16-bit floats.
     if (v & mathkong_cap_neon_f16_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_i8_neon, *c = mathkong_cap_neon_f16_k; return;
         case mathkong_wsum_k: *m = (m_t)&mathkong_wsum_i8_neon, *c = mathkong_cap_neon_f16_k; return;
@@ -981,7 +981,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_i8(mathkong_capability_t v, mathkong
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_SAPPHIRE //! Scaling of 8-bit integers is performed using 16-bit floats.
+#if MATHKONG_TARGET_SAPPHIRE //! Scaling of 8-bit integers is performed using 16-bit floats.
     if (v & mathkong_cap_sapphire_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_i8_sapphire, *c = mathkong_cap_sapphire_k; return;
         case mathkong_wsum_k: *m = (m_t)&mathkong_wsum_i8_sapphire, *c = mathkong_cap_sapphire_k; return;
@@ -989,7 +989,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_i8(mathkong_capability_t v, mathkong
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_ICE
+#if MATHKONG_TARGET_ICE
     if (v & mathkong_cap_ice_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_i8_ice, *c = mathkong_cap_ice_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_i8_ice, *c = mathkong_cap_ice_k; return;
@@ -999,14 +999,14 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_i8(mathkong_capability_t v, mathkong
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_SKYLAKE
+#if MATHKONG_TARGET_SKYLAKE
     if (v & mathkong_cap_skylake_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_i8_skylake, *c = mathkong_cap_skylake_k; return;
         case mathkong_scale_k: *m = (m_t)&mathkong_scale_i8_skylake, *c = mathkong_cap_skylake_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_HASWELL
+#if MATHKONG_TARGET_HASWELL
     if (v & mathkong_cap_haswell_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_i8_haswell, *c = mathkong_cap_haswell_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_i8_haswell, *c = mathkong_cap_haswell_k; return;
@@ -1031,10 +1031,10 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_i8(mathkong_capability_t v, mathkong
         default: break;
         }
 }
-SIMSIMD_INTERNAL void _mathkong_find_kernel_u8(mathkong_capability_t v, mathkong_kernel_kind_t k,
-                                               mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
+MATHKONG_INTERNAL void _mathkong_find_kernel_u8(mathkong_capability_t v, mathkong_kernel_kind_t k,
+                                                mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
     typedef mathkong_kernel_punned_t m_t;
-#if SIMSIMD_TARGET_NEON_I8
+#if MATHKONG_TARGET_NEON_I8
     if (v & mathkong_cap_neon_i8_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_u8_neon, *c = mathkong_cap_neon_i8_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_u8_neon, *c = mathkong_cap_neon_i8_k; return;
@@ -1043,7 +1043,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_u8(mathkong_capability_t v, mathkong
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_NEON_F16 //! Scaling of 8-bit integers is performed using 16-bit floats.
+#if MATHKONG_TARGET_NEON_F16 //! Scaling of 8-bit integers is performed using 16-bit floats.
     if (v & mathkong_cap_neon_f16_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_u8_neon, *c = mathkong_cap_neon_f16_k; return;
         case mathkong_wsum_k: *m = (m_t)&mathkong_wsum_u8_neon, *c = mathkong_cap_neon_f16_k; return;
@@ -1052,7 +1052,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_u8(mathkong_capability_t v, mathkong
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_SAPPHIRE //! Scaling of 8-bit integers is performed using 16-bit floats.
+#if MATHKONG_TARGET_SAPPHIRE //! Scaling of 8-bit integers is performed using 16-bit floats.
     if (v & mathkong_cap_sapphire_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_u8_sapphire, *c = mathkong_cap_sapphire_k; return;
         case mathkong_wsum_k: *m = (m_t)&mathkong_wsum_u8_sapphire, *c = mathkong_cap_sapphire_k; return;
@@ -1060,14 +1060,14 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_u8(mathkong_capability_t v, mathkong
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_SKYLAKE
+#if MATHKONG_TARGET_SKYLAKE
     if (v & mathkong_cap_skylake_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_u8_skylake, *c = mathkong_cap_skylake_k; return;
         case mathkong_scale_k: *m = (m_t)&mathkong_scale_u8_skylake, *c = mathkong_cap_skylake_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_ICE
+#if MATHKONG_TARGET_ICE
     if (v & mathkong_cap_ice_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_u8_ice, *c = mathkong_cap_ice_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_u8_ice, *c = mathkong_cap_ice_k; return;
@@ -1077,7 +1077,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_u8(mathkong_capability_t v, mathkong
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_HASWELL
+#if MATHKONG_TARGET_HASWELL
     if (v & mathkong_cap_haswell_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_u8_haswell, *c = mathkong_cap_haswell_k; return;
         case mathkong_angular_k: *m = (m_t)&mathkong_angular_u8_haswell, *c = mathkong_cap_haswell_k; return;
@@ -1103,31 +1103,31 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_u8(mathkong_capability_t v, mathkong
         }
 }
 
-SIMSIMD_INTERNAL void _mathkong_find_kernel_b8(mathkong_capability_t v, mathkong_kernel_kind_t k,
-                                               mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
+MATHKONG_INTERNAL void _mathkong_find_kernel_b8(mathkong_capability_t v, mathkong_kernel_kind_t k,
+                                                mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
     typedef mathkong_kernel_punned_t m_t;
-#if SIMSIMD_TARGET_SVE
+#if MATHKONG_TARGET_SVE
     if (v & mathkong_cap_sve_k) switch (k) {
         case mathkong_hamming_k: *m = (m_t)&mathkong_hamming_b8_sve, *c = mathkong_cap_sve_k; return;
         case mathkong_jaccard_k: *m = (m_t)&mathkong_jaccard_b8_sve, *c = mathkong_cap_sve_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_NEON
+#if MATHKONG_TARGET_NEON
     if (v & mathkong_cap_neon_k) switch (k) {
         case mathkong_hamming_k: *m = (m_t)&mathkong_hamming_b8_neon, *c = mathkong_cap_neon_k; return;
         case mathkong_jaccard_k: *m = (m_t)&mathkong_jaccard_b8_neon, *c = mathkong_cap_neon_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_ICE
+#if MATHKONG_TARGET_ICE
     if (v & mathkong_cap_ice_k) switch (k) {
         case mathkong_hamming_k: *m = (m_t)&mathkong_hamming_b8_ice, *c = mathkong_cap_ice_k; return;
         case mathkong_jaccard_k: *m = (m_t)&mathkong_jaccard_b8_ice, *c = mathkong_cap_ice_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_HASWELL
+#if MATHKONG_TARGET_HASWELL
     if (v & mathkong_cap_haswell_k) switch (k) {
         case mathkong_hamming_k: *m = (m_t)&mathkong_hamming_b8_haswell, *c = mathkong_cap_haswell_k; return;
         case mathkong_jaccard_k: *m = (m_t)&mathkong_jaccard_b8_haswell, *c = mathkong_cap_haswell_k; return;
@@ -1141,17 +1141,17 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_b8(mathkong_capability_t v, mathkong
         }
 }
 
-SIMSIMD_INTERNAL void _mathkong_find_kernel_f64c(mathkong_capability_t v, mathkong_kernel_kind_t k,
-                                                 mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
+MATHKONG_INTERNAL void _mathkong_find_kernel_f64c(mathkong_capability_t v, mathkong_kernel_kind_t k,
+                                                  mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
     typedef mathkong_kernel_punned_t m_t;
-#if SIMSIMD_TARGET_SVE
+#if MATHKONG_TARGET_SVE
     if (v & mathkong_cap_sve_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f64c_sve, *c = mathkong_cap_sve_k; return;
         case mathkong_vdot_k: *m = (m_t)&mathkong_vdot_f64c_sve, *c = mathkong_cap_sve_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_SKYLAKE
+#if MATHKONG_TARGET_SKYLAKE
     if (v & mathkong_cap_skylake_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f64c_skylake, *c = mathkong_cap_skylake_k; return;
         case mathkong_vdot_k: *m = (m_t)&mathkong_vdot_f64c_skylake, *c = mathkong_cap_skylake_k; return;
@@ -1165,31 +1165,31 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_f64c(mathkong_capability_t v, mathko
         }
 }
 
-SIMSIMD_INTERNAL void _mathkong_find_kernel_f32c(mathkong_capability_t v, mathkong_kernel_kind_t k,
-                                                 mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
+MATHKONG_INTERNAL void _mathkong_find_kernel_f32c(mathkong_capability_t v, mathkong_kernel_kind_t k,
+                                                  mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
     typedef mathkong_kernel_punned_t m_t;
-#if SIMSIMD_TARGET_SVE
+#if MATHKONG_TARGET_SVE
     if (v & mathkong_cap_sve_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f32c_sve, *c = mathkong_cap_sve_k; return;
         case mathkong_vdot_k: *m = (m_t)&mathkong_vdot_f32c_sve, *c = mathkong_cap_sve_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_NEON
+#if MATHKONG_TARGET_NEON
     if (v & mathkong_cap_neon_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f32c_neon, *c = mathkong_cap_neon_k; return;
         case mathkong_vdot_k: *m = (m_t)&mathkong_vdot_f32c_neon, *c = mathkong_cap_neon_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_SKYLAKE
+#if MATHKONG_TARGET_SKYLAKE
     if (v & mathkong_cap_skylake_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f32c_skylake, *c = mathkong_cap_skylake_k; return;
         case mathkong_vdot_k: *m = (m_t)&mathkong_vdot_f32c_skylake, *c = mathkong_cap_skylake_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_HASWELL
+#if MATHKONG_TARGET_HASWELL
     if (v & mathkong_cap_haswell_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f32c_haswell, *c = mathkong_cap_haswell_k; return;
         case mathkong_vdot_k: *m = (m_t)&mathkong_vdot_f32c_haswell, *c = mathkong_cap_haswell_k; return;
@@ -1203,17 +1203,17 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_f32c(mathkong_capability_t v, mathko
         }
 }
 
-SIMSIMD_INTERNAL void _mathkong_find_kernel_f16c(mathkong_capability_t v, mathkong_kernel_kind_t k,
-                                                 mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
+MATHKONG_INTERNAL void _mathkong_find_kernel_f16c(mathkong_capability_t v, mathkong_kernel_kind_t k,
+                                                  mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
     typedef mathkong_kernel_punned_t m_t;
-#if SIMSIMD_TARGET_SVE_F16
+#if MATHKONG_TARGET_SVE_F16
     if (v & mathkong_cap_sve_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f16c_sve, *c = mathkong_cap_sve_f16_k; return;
         case mathkong_vdot_k: *m = (m_t)&mathkong_vdot_f16c_sve, *c = mathkong_cap_sve_f16_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_NEON_F16
+#if MATHKONG_TARGET_NEON_F16
     if (v & mathkong_cap_neon_f16_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f16c_neon, *c = mathkong_cap_neon_f16_k; return;
         case mathkong_vdot_k: *m = (m_t)&mathkong_vdot_f16c_neon, *c = mathkong_cap_neon_f16_k; return;
@@ -1221,7 +1221,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_f16c(mathkong_capability_t v, mathko
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_SAPPHIRE
+#if MATHKONG_TARGET_SAPPHIRE
     if (v & mathkong_cap_sapphire_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f16c_sapphire, *c = mathkong_cap_sapphire_k; return;
         case mathkong_vdot_k: *m = (m_t)&mathkong_vdot_f16c_sapphire, *c = mathkong_cap_sapphire_k; return;
@@ -1229,7 +1229,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_f16c(mathkong_capability_t v, mathko
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_HASWELL
+#if MATHKONG_TARGET_HASWELL
     if (v & mathkong_cap_haswell_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_f16c_haswell, *c = mathkong_cap_haswell_k; return;
         case mathkong_vdot_k: *m = (m_t)&mathkong_vdot_f16c_haswell, *c = mathkong_cap_haswell_k; return;
@@ -1244,10 +1244,10 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_f16c(mathkong_capability_t v, mathko
         }
 }
 
-SIMSIMD_INTERNAL void _mathkong_find_kernel_bf16c(mathkong_capability_t v, mathkong_kernel_kind_t k,
-                                                  mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
+MATHKONG_INTERNAL void _mathkong_find_kernel_bf16c(mathkong_capability_t v, mathkong_kernel_kind_t k,
+                                                   mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
     typedef mathkong_kernel_punned_t m_t;
-#if SIMSIMD_TARGET_NEON_BF16
+#if MATHKONG_TARGET_NEON_BF16
     if (v & mathkong_cap_neon_bf16_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_bf16c_neon, *c = mathkong_cap_neon_bf16_k; return;
         case mathkong_vdot_k: *m = (m_t)&mathkong_vdot_bf16c_neon, *c = mathkong_cap_neon_bf16_k; return;
@@ -1255,7 +1255,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_bf16c(mathkong_capability_t v, mathk
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_GENOA
+#if MATHKONG_TARGET_GENOA
     if (v & mathkong_cap_genoa_k) switch (k) {
         case mathkong_dot_k: *m = (m_t)&mathkong_dot_bf16c_genoa, *c = mathkong_cap_genoa_k; return;
         case mathkong_vdot_k: *m = (m_t)&mathkong_vdot_bf16c_genoa, *c = mathkong_cap_genoa_k; return;
@@ -1271,20 +1271,20 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_bf16c(mathkong_capability_t v, mathk
         }
 }
 
-SIMSIMD_INTERNAL void _mathkong_find_kernel_u16(mathkong_capability_t v, mathkong_kernel_kind_t k,
-                                                mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
+MATHKONG_INTERNAL void _mathkong_find_kernel_u16(mathkong_capability_t v, mathkong_kernel_kind_t k,
+                                                 mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
     typedef mathkong_kernel_punned_t m_t;
-#if SIMSIMD_TARGET_SVE2
+#if MATHKONG_TARGET_SVE2
     if (v & mathkong_cap_sve2_k) switch (k) {
         case mathkong_intersect_k: *m = (m_t)&mathkong_intersect_u16_sve2, *c = mathkong_cap_sve2_k; return;
         case mathkong_spdot_counts_k: *m = (m_t)&mathkong_spdot_counts_u16_sve2, *c = mathkong_cap_sve2_k; return;
-#if SIMSIMD_TARGET_SVE_BF16 //! We also need `bf16` support for weights
+#if MATHKONG_TARGET_SVE_BF16 //! We also need `bf16` support for weights
         case mathkong_spdot_weights_k: *m = (m_t)&mathkong_spdot_weights_u16_sve2, *c = mathkong_cap_sve2_k; return;
 #endif
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_NEON
+#if MATHKONG_TARGET_NEON
     if (v & mathkong_cap_neon_k) switch (k) {
         case mathkong_intersect_k: *m = (m_t)&mathkong_intersect_u16_neon, *c = mathkong_cap_neon_k; return;
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_u16_neon, *c = mathkong_cap_neon_k; return;
@@ -1293,7 +1293,7 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_u16(mathkong_capability_t v, mathkon
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_TURIN
+#if MATHKONG_TARGET_TURIN
     if (v & mathkong_cap_turin_k) switch (k) {
         case mathkong_intersect_k: *m = (m_t)&mathkong_intersect_u16_turin, *c = mathkong_cap_turin_k; return;
         case mathkong_spdot_counts_k: *m = (m_t)&mathkong_spdot_counts_u16_turin, *c = mathkong_cap_turin_k; return;
@@ -1301,21 +1301,21 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_u16(mathkong_capability_t v, mathkon
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_ICE
+#if MATHKONG_TARGET_ICE
     if (v & mathkong_cap_ice_k) switch (k) {
         case mathkong_intersect_k: *m = (m_t)&mathkong_intersect_u16_ice, *c = mathkong_cap_skylake_k; return;
         case mathkong_sum_k: *m = (m_t)&mathkong_sum_u16_ice, *c = mathkong_cap_ice_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_SKYLAKE
+#if MATHKONG_TARGET_SKYLAKE
     if (v & mathkong_cap_skylake_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_u16_skylake, *c = mathkong_cap_skylake_k; return;
         case mathkong_scale_k: *m = (m_t)&mathkong_scale_u16_skylake, *c = mathkong_cap_skylake_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_HASWELL
+#if MATHKONG_TARGET_HASWELL
     if (v & mathkong_cap_haswell_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_u16_haswell, *c = mathkong_cap_haswell_k; return;
         case mathkong_scale_k: *m = (m_t)&mathkong_scale_u16_haswell, *c = mathkong_cap_haswell_k; return;
@@ -1333,10 +1333,10 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_u16(mathkong_capability_t v, mathkon
         }
 }
 
-SIMSIMD_INTERNAL void _mathkong_find_kernel_i16(mathkong_capability_t v, mathkong_kernel_kind_t k,
-                                                mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
+MATHKONG_INTERNAL void _mathkong_find_kernel_i16(mathkong_capability_t v, mathkong_kernel_kind_t k,
+                                                 mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
     typedef mathkong_kernel_punned_t m_t;
-#if SIMSIMD_TARGET_NEON
+#if MATHKONG_TARGET_NEON
     if (v & mathkong_cap_neon_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_i16_neon, *c = mathkong_cap_neon_k; return;
         case mathkong_scale_k: *m = (m_t)&mathkong_scale_i16_neon, *c = mathkong_cap_neon_k; return;
@@ -1344,20 +1344,20 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_i16(mathkong_capability_t v, mathkon
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_ICE
+#if MATHKONG_TARGET_ICE
     if (v & mathkong_cap_ice_k) switch (k) {
         case mathkong_sum_k: *m = (m_t)&mathkong_sum_i16_ice, *c = mathkong_cap_ice_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_SKYLAKE
+#if MATHKONG_TARGET_SKYLAKE
     if (v & mathkong_cap_skylake_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_i16_skylake, *c = mathkong_cap_skylake_k; return;
         case mathkong_scale_k: *m = (m_t)&mathkong_scale_i16_skylake, *c = mathkong_cap_skylake_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_HASWELL
+#if MATHKONG_TARGET_HASWELL
     if (v & mathkong_cap_haswell_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_i16_haswell, *c = mathkong_cap_haswell_k; return;
         case mathkong_scale_k: *m = (m_t)&mathkong_scale_i16_haswell, *c = mathkong_cap_haswell_k; return;
@@ -1374,16 +1374,16 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_i16(mathkong_capability_t v, mathkon
         }
 }
 
-SIMSIMD_INTERNAL void _mathkong_find_kernel_u32(mathkong_capability_t v, mathkong_kernel_kind_t k,
-                                                mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
+MATHKONG_INTERNAL void _mathkong_find_kernel_u32(mathkong_capability_t v, mathkong_kernel_kind_t k,
+                                                 mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
     typedef mathkong_kernel_punned_t m_t;
-#if SIMSIMD_TARGET_SVE2
+#if MATHKONG_TARGET_SVE2
     if (v & mathkong_cap_sve2_k) switch (k) {
         case mathkong_intersect_k: *m = (m_t)&mathkong_intersect_u32_sve2, *c = mathkong_cap_sve2_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_NEON
+#if MATHKONG_TARGET_NEON
     if (v & mathkong_cap_neon_k) switch (k) {
         case mathkong_intersect_k: *m = (m_t)&mathkong_intersect_u32_neon, *c = mathkong_cap_neon_k; return;
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_u32_neon, *c = mathkong_cap_neon_k; return;
@@ -1392,27 +1392,27 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_u32(mathkong_capability_t v, mathkon
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_TURIN
+#if MATHKONG_TARGET_TURIN
     if (v & mathkong_cap_turin_k) switch (k) {
         case mathkong_intersect_k: *m = (m_t)&mathkong_intersect_u32_turin, *c = mathkong_cap_skylake_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_ICE
+#if MATHKONG_TARGET_ICE
     if (v & mathkong_cap_ice_k) switch (k) {
         case mathkong_intersect_k: *m = (m_t)&mathkong_intersect_u32_ice, *c = mathkong_cap_skylake_k; return;
         case mathkong_sum_k: *m = (m_t)&mathkong_sum_u32_ice, *c = mathkong_cap_ice_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_SKYLAKE
+#if MATHKONG_TARGET_SKYLAKE
     if (v & mathkong_cap_skylake_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_u32_skylake, *c = mathkong_cap_skylake_k; return;
         case mathkong_scale_k: *m = (m_t)&mathkong_scale_u32_skylake, *c = mathkong_cap_skylake_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_HASWELL
+#if MATHKONG_TARGET_HASWELL
     if (v & mathkong_cap_haswell_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_u32_haswell, *c = mathkong_cap_haswell_k; return;
         case mathkong_scale_k: *m = (m_t)&mathkong_scale_u32_haswell, *c = mathkong_cap_haswell_k; return;
@@ -1430,10 +1430,10 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_u32(mathkong_capability_t v, mathkon
         }
 }
 
-SIMSIMD_INTERNAL void _mathkong_find_kernel_i32(mathkong_capability_t v, mathkong_kernel_kind_t k,
-                                                mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
+MATHKONG_INTERNAL void _mathkong_find_kernel_i32(mathkong_capability_t v, mathkong_kernel_kind_t k,
+                                                 mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
     typedef mathkong_kernel_punned_t m_t;
-#if SIMSIMD_TARGET_NEON
+#if MATHKONG_TARGET_NEON
     if (v & mathkong_cap_neon_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_i32_neon, *c = mathkong_cap_neon_k; return;
         case mathkong_scale_k: *m = (m_t)&mathkong_scale_i32_neon, *c = mathkong_cap_neon_k; return;
@@ -1441,20 +1441,20 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_i32(mathkong_capability_t v, mathkon
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_ICE
+#if MATHKONG_TARGET_ICE
     if (v & mathkong_cap_ice_k) switch (k) {
         case mathkong_sum_k: *m = (m_t)&mathkong_sum_i32_ice, *c = mathkong_cap_ice_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_SKYLAKE
+#if MATHKONG_TARGET_SKYLAKE
     if (v & mathkong_cap_skylake_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_i32_skylake, *c = mathkong_cap_skylake_k; return;
         case mathkong_scale_k: *m = (m_t)&mathkong_scale_i32_skylake, *c = mathkong_cap_skylake_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_HASWELL
+#if MATHKONG_TARGET_HASWELL
     if (v & mathkong_cap_haswell_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_i32_haswell, *c = mathkong_cap_haswell_k; return;
         case mathkong_scale_k: *m = (m_t)&mathkong_scale_i32_haswell, *c = mathkong_cap_haswell_k; return;
@@ -1471,10 +1471,10 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_i32(mathkong_capability_t v, mathkon
         }
 }
 
-SIMSIMD_INTERNAL void _mathkong_find_kernel_i64(mathkong_capability_t v, mathkong_kernel_kind_t k,
-                                                mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
+MATHKONG_INTERNAL void _mathkong_find_kernel_i64(mathkong_capability_t v, mathkong_kernel_kind_t k,
+                                                 mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
     typedef mathkong_kernel_punned_t m_t;
-#if SIMSIMD_TARGET_NEON
+#if MATHKONG_TARGET_NEON
     if (v & mathkong_cap_neon_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_i64_neon, *c = mathkong_cap_neon_k; return;
         case mathkong_scale_k: *m = (m_t)&mathkong_scale_i64_neon, *c = mathkong_cap_neon_k; return;
@@ -1482,13 +1482,13 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_i64(mathkong_capability_t v, mathkon
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_ICE
+#if MATHKONG_TARGET_ICE
     if (v & mathkong_cap_ice_k) switch (k) {
         case mathkong_sum_k: *m = (m_t)&mathkong_sum_i64_ice, *c = mathkong_cap_ice_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_SKYLAKE
+#if MATHKONG_TARGET_SKYLAKE
     if (v & mathkong_cap_skylake_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_i64_skylake, *c = mathkong_cap_skylake_k; return;
         case mathkong_scale_k: *m = (m_t)&mathkong_scale_i64_skylake, *c = mathkong_cap_skylake_k; return;
@@ -1504,10 +1504,10 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_i64(mathkong_capability_t v, mathkon
         }
 }
 
-SIMSIMD_INTERNAL void _mathkong_find_kernel_u64(mathkong_capability_t v, mathkong_kernel_kind_t k,
-                                                mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
+MATHKONG_INTERNAL void _mathkong_find_kernel_u64(mathkong_capability_t v, mathkong_kernel_kind_t k,
+                                                 mathkong_kernel_punned_t *m, mathkong_capability_t *c) {
     typedef mathkong_kernel_punned_t m_t;
-#if SIMSIMD_TARGET_NEON
+#if MATHKONG_TARGET_NEON
     if (v & mathkong_cap_neon_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_u64_neon, *c = mathkong_cap_neon_k; return;
         case mathkong_scale_k: *m = (m_t)&mathkong_scale_u64_neon, *c = mathkong_cap_neon_k; return;
@@ -1515,13 +1515,13 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_u64(mathkong_capability_t v, mathkon
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_ICE
+#if MATHKONG_TARGET_ICE
     if (v & mathkong_cap_ice_k) switch (k) {
         case mathkong_sum_k: *m = (m_t)&mathkong_sum_u64_ice, *c = mathkong_cap_ice_k; return;
         default: break;
         }
 #endif
-#if SIMSIMD_TARGET_SKYLAKE
+#if MATHKONG_TARGET_SKYLAKE
     if (v & mathkong_cap_skylake_k) switch (k) {
         case mathkong_fma_k: *m = (m_t)&mathkong_fma_u64_skylake, *c = mathkong_cap_skylake_k; return;
         case mathkong_scale_k: *m = (m_t)&mathkong_scale_u64_skylake, *c = mathkong_cap_skylake_k; return;
@@ -1548,12 +1548,12 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_u64(mathkong_capability_t v, mathkon
  *  @param kernel_output Output variable for the selected similarity function.
  *  @param capability_output Output variable for the utilized hardware capabilities.
  */
-SIMSIMD_INTERNAL void _mathkong_find_kernel_implementation( //
-    mathkong_kernel_kind_t kind,                            //
-    mathkong_datatype_t datatype,                           //
-    mathkong_capability_t supported,                        //
-    mathkong_capability_t allowed,                          //
-    mathkong_kernel_punned_t *kernel_output,                //
+MATHKONG_INTERNAL void _mathkong_find_kernel_implementation( //
+    mathkong_kernel_kind_t kind,                             //
+    mathkong_datatype_t datatype,                            //
+    mathkong_capability_t supported,                         //
+    mathkong_capability_t allowed,                           //
+    mathkong_kernel_punned_t *kernel_output,                 //
     mathkong_capability_t *capability_output) {
 
     // Modern compilers abso-freaking-lutely love optimizing-out my logic!
@@ -1625,9 +1625,9 @@ SIMSIMD_INTERNAL void _mathkong_find_kernel_implementation( //
  *  @param allowed The hardware capabilities allowed for use.
  *  @return A function pointer to the selected metric implementation.
  */
-SIMSIMD_PUBLIC mathkong_kernel_punned_t mathkong_metric_punned( //
-    mathkong_kernel_kind_t kind,                                //
-    mathkong_datatype_t datatype,                               //
+MATHKONG_PUBLIC mathkong_kernel_punned_t mathkong_metric_punned( //
+    mathkong_kernel_kind_t kind,                                 //
+    mathkong_datatype_t datatype,                                //
     mathkong_capability_t allowed) {
 
     mathkong_kernel_punned_t result = 0;
@@ -1637,7 +1637,7 @@ SIMSIMD_PUBLIC mathkong_kernel_punned_t mathkong_metric_punned( //
     return result;
 }
 
-#if SIMSIMD_DYNAMIC_DISPATCH
+#if MATHKONG_DYNAMIC_DISPATCH
 
 /*  Run-time feature-testing functions
  *  - Check if the CPU supports NEON or SVE extensions on Arm
@@ -1651,25 +1651,25 @@ SIMSIMD_PUBLIC mathkong_kernel_punned_t mathkong_metric_punned( //
  *
  *  @return 1 if the CPU supports the SIMD instruction set, 0 otherwise.
  */
-SIMSIMD_DYNAMIC mathkong_capability_t mathkong_capabilities(void);
-SIMSIMD_DYNAMIC int mathkong_flush_denormals(void);
-SIMSIMD_DYNAMIC int mathkong_uses_dynamic_dispatch(void);
-SIMSIMD_DYNAMIC int mathkong_uses_neon(void);
-SIMSIMD_DYNAMIC int mathkong_uses_neon_f16(void);
-SIMSIMD_DYNAMIC int mathkong_uses_neon_bf16(void);
-SIMSIMD_DYNAMIC int mathkong_uses_neon_i8(void);
-SIMSIMD_DYNAMIC int mathkong_uses_sve(void);
-SIMSIMD_DYNAMIC int mathkong_uses_sve_f16(void);
-SIMSIMD_DYNAMIC int mathkong_uses_sve_bf16(void);
-SIMSIMD_DYNAMIC int mathkong_uses_sve_i8(void);
-SIMSIMD_DYNAMIC int mathkong_uses_sve2(void);
-SIMSIMD_DYNAMIC int mathkong_uses_haswell(void);
-SIMSIMD_DYNAMIC int mathkong_uses_skylake(void);
-SIMSIMD_DYNAMIC int mathkong_uses_ice(void);
-SIMSIMD_DYNAMIC int mathkong_uses_genoa(void);
-SIMSIMD_DYNAMIC int mathkong_uses_sapphire(void);
-SIMSIMD_DYNAMIC int mathkong_uses_turin(void);
-SIMSIMD_DYNAMIC int mathkong_uses_sierra(void);
+MATHKONG_DYNAMIC mathkong_capability_t mathkong_capabilities(void);
+MATHKONG_DYNAMIC int mathkong_flush_denormals(void);
+MATHKONG_DYNAMIC int mathkong_uses_dynamic_dispatch(void);
+MATHKONG_DYNAMIC int mathkong_uses_neon(void);
+MATHKONG_DYNAMIC int mathkong_uses_neon_f16(void);
+MATHKONG_DYNAMIC int mathkong_uses_neon_bf16(void);
+MATHKONG_DYNAMIC int mathkong_uses_neon_i8(void);
+MATHKONG_DYNAMIC int mathkong_uses_sve(void);
+MATHKONG_DYNAMIC int mathkong_uses_sve_f16(void);
+MATHKONG_DYNAMIC int mathkong_uses_sve_bf16(void);
+MATHKONG_DYNAMIC int mathkong_uses_sve_i8(void);
+MATHKONG_DYNAMIC int mathkong_uses_sve2(void);
+MATHKONG_DYNAMIC int mathkong_uses_haswell(void);
+MATHKONG_DYNAMIC int mathkong_uses_skylake(void);
+MATHKONG_DYNAMIC int mathkong_uses_ice(void);
+MATHKONG_DYNAMIC int mathkong_uses_genoa(void);
+MATHKONG_DYNAMIC int mathkong_uses_sapphire(void);
+MATHKONG_DYNAMIC int mathkong_uses_turin(void);
+MATHKONG_DYNAMIC int mathkong_uses_sierra(void);
 
 /*  Inner products
  *  - Dot product: the sum of the products of the corresponding elements of two vectors.
@@ -1685,34 +1685,34 @@ SIMSIMD_DYNAMIC int mathkong_uses_sierra(void);
  *  @note The dot product is zero if and only if the two vectors are orthogonal.
  *  @note Defined only for floating-point and integer data types.
  */
-SIMSIMD_DYNAMIC void mathkong_dot_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_dot_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_dot_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+MATHKONG_DYNAMIC void mathkong_dot_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
                                       mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_dot_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+MATHKONG_DYNAMIC void mathkong_dot_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                      mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_dot_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
                                        mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_dot_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                      mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_dot_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                      mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_dot_f16c(mathkong_f16c_t const *a, mathkong_f16c_t const *b, mathkong_size_t n,
-                                       mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_dot_bf16c(mathkong_bf16c_t const *a, mathkong_bf16c_t const *b, mathkong_size_t n,
+MATHKONG_DYNAMIC void mathkong_dot_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
                                         mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_dot_f32c(mathkong_f32c_t const *a, mathkong_f32c_t const *b, mathkong_size_t n,
+MATHKONG_DYNAMIC void mathkong_dot_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
                                        mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_dot_f64c(mathkong_f64c_t const *a, mathkong_f64c_t const *b, mathkong_size_t n,
+MATHKONG_DYNAMIC void mathkong_dot_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
                                        mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_vdot_f16c(mathkong_f16c_t const *a, mathkong_f16c_t const *b, mathkong_size_t n,
+MATHKONG_DYNAMIC void mathkong_dot_f16c(mathkong_f16c_t const *a, mathkong_f16c_t const *b, mathkong_size_t n,
                                         mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_vdot_bf16c(mathkong_bf16c_t const *a, mathkong_bf16c_t const *b, mathkong_size_t n,
+MATHKONG_DYNAMIC void mathkong_dot_bf16c(mathkong_bf16c_t const *a, mathkong_bf16c_t const *b, mathkong_size_t n,
                                          mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_vdot_f32c(mathkong_f32c_t const *a, mathkong_f32c_t const *b, mathkong_size_t n,
+MATHKONG_DYNAMIC void mathkong_dot_f32c(mathkong_f32c_t const *a, mathkong_f32c_t const *b, mathkong_size_t n,
                                         mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_vdot_f64c(mathkong_f64c_t const *a, mathkong_f64c_t const *b, mathkong_size_t n,
+MATHKONG_DYNAMIC void mathkong_dot_f64c(mathkong_f64c_t const *a, mathkong_f64c_t const *b, mathkong_size_t n,
                                         mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_vdot_f16c(mathkong_f16c_t const *a, mathkong_f16c_t const *b, mathkong_size_t n,
+                                         mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_vdot_bf16c(mathkong_bf16c_t const *a, mathkong_bf16c_t const *b, mathkong_size_t n,
+                                          mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_vdot_f32c(mathkong_f32c_t const *a, mathkong_f32c_t const *b, mathkong_size_t n,
+                                         mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_vdot_f64c(mathkong_f64c_t const *a, mathkong_f64c_t const *b, mathkong_size_t n,
+                                         mathkong_distance_t *d);
 
 /*  Spatial distances
  *  - Cosine distance: the cosine of the angle between two vectors.
@@ -1727,42 +1727,42 @@ SIMSIMD_DYNAMIC void mathkong_vdot_f64c(mathkong_f64c_t const *a, mathkong_f64c_
  *  @note The output distance value is zero if and only if the two vectors are identical.
  *  @note Defined only for floating-point and integer data types.
  */
-SIMSIMD_DYNAMIC void mathkong_angular_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                         mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_angular_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                         mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_angular_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+MATHKONG_DYNAMIC void mathkong_angular_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
                                           mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_angular_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+MATHKONG_DYNAMIC void mathkong_angular_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                          mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_angular_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
                                            mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_angular_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                          mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_angular_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                          mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_l2sq_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                      mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_l2sq_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                      mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_l2sq_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+MATHKONG_DYNAMIC void mathkong_angular_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                            mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_angular_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                           mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_angular_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                           mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_l2sq_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
                                        mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_l2sq_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+MATHKONG_DYNAMIC void mathkong_l2sq_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                       mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_l2sq_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
                                         mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_l2sq_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                       mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_l2sq_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                       mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_l2_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                    mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_l2_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                    mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_l2_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+MATHKONG_DYNAMIC void mathkong_l2sq_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                         mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_l2sq_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                        mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_l2sq_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                        mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_l2_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
                                      mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_l2_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+MATHKONG_DYNAMIC void mathkong_l2_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                     mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_l2_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
                                       mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_l2_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_l2_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_l2_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                       mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_l2_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                      mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_l2_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                      mathkong_distance_t *d);
 
 /*  Binary distances
  *  - Hamming distance: the number of positions at which the corresponding bits are different.
@@ -1777,10 +1777,10 @@ SIMSIMD_DYNAMIC void mathkong_l2_f64(mathkong_f64_t const *a, mathkong_f64_t con
  *  @note The output distance value is zero if and only if the two vectors are identical.
  *  @note Defined only for binary data.
  */
-SIMSIMD_DYNAMIC void mathkong_hamming_b8(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n,
-                                         mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_jaccard_b8(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n,
-                                         mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_hamming_b8(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n,
+                                          mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_jaccard_b8(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n,
+                                          mathkong_distance_t *d);
 
 /*  Probability distributions
  *  - Jensen-Shannon divergence: a measure of similarity between two probability distributions.
@@ -1796,43 +1796,43 @@ SIMSIMD_DYNAMIC void mathkong_jaccard_b8(mathkong_b8_t const *a, mathkong_b8_t c
  *  @note The output divergence value is zero if and only if the two distributions are identical.
  *  @note Defined only for floating-point data types.
  */
-SIMSIMD_DYNAMIC void mathkong_kl_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_kl_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+MATHKONG_DYNAMIC void mathkong_kl_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
                                       mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_kl_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_kl_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_js_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_js_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+MATHKONG_DYNAMIC void mathkong_kl_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                       mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_kl_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
                                       mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_js_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d);
-SIMSIMD_DYNAMIC void mathkong_js_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_kl_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                      mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_js_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                      mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_js_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                       mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_js_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                      mathkong_distance_t *d);
+MATHKONG_DYNAMIC void mathkong_js_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                      mathkong_distance_t *d);
 
 /*  Curved spaces
  *  - Bilinear form: a generalization of the dot product to curved spaces.
  *  - Mahalanobis distance: a measure of the distance between a point and a distribution.
  */
-SIMSIMD_DYNAMIC void mathkong_bilinear_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_f64_t const *c,
-                                           mathkong_size_t n, mathkong_distance_t *r);
-SIMSIMD_DYNAMIC void mathkong_mahalanobis_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_f64_t const *c,
-                                              mathkong_size_t n, mathkong_distance_t *r);
-SIMSIMD_DYNAMIC void mathkong_bilinear_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c,
-                                           mathkong_size_t n, mathkong_distance_t *r);
-SIMSIMD_DYNAMIC void mathkong_mahalanobis_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c,
-                                              mathkong_size_t n, mathkong_distance_t *r);
-SIMSIMD_DYNAMIC void mathkong_bilinear_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c,
-                                           mathkong_size_t n, mathkong_distance_t *r);
-SIMSIMD_DYNAMIC void mathkong_mahalanobis_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c,
-                                              mathkong_size_t n, mathkong_distance_t *r);
-SIMSIMD_DYNAMIC void mathkong_bilinear_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
-                                            mathkong_bf16_t const *c, mathkong_size_t n, mathkong_distance_t *r);
-SIMSIMD_DYNAMIC void mathkong_mahalanobis_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
-                                               mathkong_bf16_t const *c, mathkong_size_t n, mathkong_distance_t *r);
+MATHKONG_DYNAMIC void mathkong_bilinear_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_f64_t const *c,
+                                            mathkong_size_t n, mathkong_distance_t *r);
+MATHKONG_DYNAMIC void mathkong_mahalanobis_f64(mathkong_f64_t const *a, mathkong_f64_t const *b,
+                                               mathkong_f64_t const *c, mathkong_size_t n, mathkong_distance_t *r);
+MATHKONG_DYNAMIC void mathkong_bilinear_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c,
+                                            mathkong_size_t n, mathkong_distance_t *r);
+MATHKONG_DYNAMIC void mathkong_mahalanobis_f32(mathkong_f32_t const *a, mathkong_f32_t const *b,
+                                               mathkong_f32_t const *c, mathkong_size_t n, mathkong_distance_t *r);
+MATHKONG_DYNAMIC void mathkong_bilinear_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c,
+                                            mathkong_size_t n, mathkong_distance_t *r);
+MATHKONG_DYNAMIC void mathkong_mahalanobis_f16(mathkong_f16_t const *a, mathkong_f16_t const *b,
+                                               mathkong_f16_t const *c, mathkong_size_t n, mathkong_distance_t *r);
+MATHKONG_DYNAMIC void mathkong_bilinear_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
+                                             mathkong_bf16_t const *c, mathkong_size_t n, mathkong_distance_t *r);
+MATHKONG_DYNAMIC void mathkong_mahalanobis_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
+                                                mathkong_bf16_t const *c, mathkong_size_t n, mathkong_distance_t *r);
 
 /*  Element-wise array operations
  *  - Scale + Shift: scale and shift the elements of a vector.
@@ -1848,105 +1848,105 @@ SIMSIMD_DYNAMIC void mathkong_mahalanobis_bf16(mathkong_bf16_t const *a, mathkon
  *  @param beta The second scalar factor.
  *  @param r The output array.
  */
-SIMSIMD_DYNAMIC void mathkong_scale_f64(mathkong_f64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                        mathkong_distance_t beta, mathkong_f64_t *r);
-SIMSIMD_DYNAMIC void mathkong_scale_f32(mathkong_f32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                        mathkong_distance_t beta, mathkong_f32_t *r);
-SIMSIMD_DYNAMIC void mathkong_scale_f16(mathkong_f16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                        mathkong_distance_t beta, mathkong_f16_t *r);
-SIMSIMD_DYNAMIC void mathkong_scale_bf16(mathkong_bf16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                         mathkong_distance_t beta, mathkong_bf16_t *r);
-SIMSIMD_DYNAMIC void mathkong_scale_i8(mathkong_i8_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                       mathkong_distance_t beta, mathkong_i8_t *r);
-SIMSIMD_DYNAMIC void mathkong_scale_u8(mathkong_u8_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                       mathkong_distance_t beta, mathkong_u8_t *r);
-SIMSIMD_DYNAMIC void mathkong_scale_i16(mathkong_i16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                        mathkong_distance_t beta, mathkong_i16_t *r);
-SIMSIMD_DYNAMIC void mathkong_scale_u16(mathkong_u16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                        mathkong_distance_t beta, mathkong_u16_t *r);
-SIMSIMD_DYNAMIC void mathkong_scale_i32(mathkong_i32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                        mathkong_distance_t beta, mathkong_i32_t *r);
-SIMSIMD_DYNAMIC void mathkong_scale_u32(mathkong_u32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                        mathkong_distance_t beta, mathkong_u32_t *r);
-SIMSIMD_DYNAMIC void mathkong_scale_i64(mathkong_i64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                        mathkong_distance_t beta, mathkong_i64_t *r);
-SIMSIMD_DYNAMIC void mathkong_scale_u64(mathkong_u64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                        mathkong_distance_t beta, mathkong_u64_t *r);
+MATHKONG_DYNAMIC void mathkong_scale_f64(mathkong_f64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                         mathkong_distance_t beta, mathkong_f64_t *r);
+MATHKONG_DYNAMIC void mathkong_scale_f32(mathkong_f32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                         mathkong_distance_t beta, mathkong_f32_t *r);
+MATHKONG_DYNAMIC void mathkong_scale_f16(mathkong_f16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                         mathkong_distance_t beta, mathkong_f16_t *r);
+MATHKONG_DYNAMIC void mathkong_scale_bf16(mathkong_bf16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                          mathkong_distance_t beta, mathkong_bf16_t *r);
+MATHKONG_DYNAMIC void mathkong_scale_i8(mathkong_i8_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                        mathkong_distance_t beta, mathkong_i8_t *r);
+MATHKONG_DYNAMIC void mathkong_scale_u8(mathkong_u8_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                        mathkong_distance_t beta, mathkong_u8_t *r);
+MATHKONG_DYNAMIC void mathkong_scale_i16(mathkong_i16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                         mathkong_distance_t beta, mathkong_i16_t *r);
+MATHKONG_DYNAMIC void mathkong_scale_u16(mathkong_u16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                         mathkong_distance_t beta, mathkong_u16_t *r);
+MATHKONG_DYNAMIC void mathkong_scale_i32(mathkong_i32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                         mathkong_distance_t beta, mathkong_i32_t *r);
+MATHKONG_DYNAMIC void mathkong_scale_u32(mathkong_u32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                         mathkong_distance_t beta, mathkong_u32_t *r);
+MATHKONG_DYNAMIC void mathkong_scale_i64(mathkong_i64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                         mathkong_distance_t beta, mathkong_i64_t *r);
+MATHKONG_DYNAMIC void mathkong_scale_u64(mathkong_u64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                         mathkong_distance_t beta, mathkong_u64_t *r);
 
-SIMSIMD_DYNAMIC void mathkong_sum_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                      mathkong_f64_t *r);
-SIMSIMD_DYNAMIC void mathkong_sum_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                      mathkong_f32_t *r);
-SIMSIMD_DYNAMIC void mathkong_sum_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                      mathkong_f16_t *r);
-SIMSIMD_DYNAMIC void mathkong_sum_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                       mathkong_bf16_t *r);
-SIMSIMD_DYNAMIC void mathkong_sum_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                     mathkong_i8_t *r);
-SIMSIMD_DYNAMIC void mathkong_sum_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                     mathkong_u8_t *r);
-SIMSIMD_DYNAMIC void mathkong_sum_i16(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_size_t n,
-                                      mathkong_i16_t *r);
-SIMSIMD_DYNAMIC void mathkong_sum_u16(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_size_t n,
-                                      mathkong_u16_t *r);
-SIMSIMD_DYNAMIC void mathkong_sum_i32(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_size_t n,
-                                      mathkong_i32_t *r);
-SIMSIMD_DYNAMIC void mathkong_sum_u32(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_size_t n,
-                                      mathkong_u32_t *r);
-SIMSIMD_DYNAMIC void mathkong_sum_i64(mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_size_t n,
-                                      mathkong_i64_t *r);
-SIMSIMD_DYNAMIC void mathkong_sum_u64(mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_size_t n,
-                                      mathkong_u64_t *r);
+MATHKONG_DYNAMIC void mathkong_sum_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                       mathkong_f64_t *r);
+MATHKONG_DYNAMIC void mathkong_sum_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                       mathkong_f32_t *r);
+MATHKONG_DYNAMIC void mathkong_sum_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                       mathkong_f16_t *r);
+MATHKONG_DYNAMIC void mathkong_sum_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                        mathkong_bf16_t *r);
+MATHKONG_DYNAMIC void mathkong_sum_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                      mathkong_i8_t *r);
+MATHKONG_DYNAMIC void mathkong_sum_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                      mathkong_u8_t *r);
+MATHKONG_DYNAMIC void mathkong_sum_i16(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_size_t n,
+                                       mathkong_i16_t *r);
+MATHKONG_DYNAMIC void mathkong_sum_u16(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_size_t n,
+                                       mathkong_u16_t *r);
+MATHKONG_DYNAMIC void mathkong_sum_i32(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_size_t n,
+                                       mathkong_i32_t *r);
+MATHKONG_DYNAMIC void mathkong_sum_u32(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_size_t n,
+                                       mathkong_u32_t *r);
+MATHKONG_DYNAMIC void mathkong_sum_i64(mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_size_t n,
+                                       mathkong_i64_t *r);
+MATHKONG_DYNAMIC void mathkong_sum_u64(mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_size_t n,
+                                       mathkong_u64_t *r);
 
-SIMSIMD_DYNAMIC void mathkong_wsum_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                       mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f64_t *r);
-SIMSIMD_DYNAMIC void mathkong_wsum_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                       mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *r);
-SIMSIMD_DYNAMIC void mathkong_wsum_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                       mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *r);
-SIMSIMD_DYNAMIC void mathkong_wsum_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                        mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *r);
-SIMSIMD_DYNAMIC void mathkong_wsum_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                      mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *r);
-SIMSIMD_DYNAMIC void mathkong_wsum_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                      mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *r);
+MATHKONG_DYNAMIC void mathkong_wsum_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                        mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f64_t *r);
+MATHKONG_DYNAMIC void mathkong_wsum_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                        mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *r);
+MATHKONG_DYNAMIC void mathkong_wsum_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                        mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *r);
+MATHKONG_DYNAMIC void mathkong_wsum_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                         mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *r);
+MATHKONG_DYNAMIC void mathkong_wsum_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                       mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *r);
+MATHKONG_DYNAMIC void mathkong_wsum_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                       mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *r);
 
-SIMSIMD_DYNAMIC void mathkong_fma_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_f64_t const *c,
-                                      mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                      mathkong_f64_t *r);
-SIMSIMD_DYNAMIC void mathkong_fma_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c,
-                                      mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                      mathkong_f32_t *r);
-SIMSIMD_DYNAMIC void mathkong_fma_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c,
-                                      mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                      mathkong_f16_t *r);
-SIMSIMD_DYNAMIC void mathkong_fma_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_bf16_t const *c,
+MATHKONG_DYNAMIC void mathkong_fma_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_f64_t const *c,
                                        mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                       mathkong_bf16_t *r);
-SIMSIMD_DYNAMIC void mathkong_fma_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_i8_t const *c,
-                                     mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                     mathkong_i8_t *r);
-SIMSIMD_DYNAMIC void mathkong_fma_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_u8_t const *c,
-                                     mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                     mathkong_u8_t *r);
-SIMSIMD_DYNAMIC void mathkong_fma_i16(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_i16_t const *c,
+                                       mathkong_f64_t *r);
+MATHKONG_DYNAMIC void mathkong_fma_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c,
+                                       mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                       mathkong_f32_t *r);
+MATHKONG_DYNAMIC void mathkong_fma_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c,
+                                       mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                       mathkong_f16_t *r);
+MATHKONG_DYNAMIC void mathkong_fma_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_bf16_t const *c,
+                                        mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                        mathkong_bf16_t *r);
+MATHKONG_DYNAMIC void mathkong_fma_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_i8_t const *c,
                                       mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                      mathkong_i16_t *r);
-SIMSIMD_DYNAMIC void mathkong_fma_u16(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_u16_t const *c,
+                                      mathkong_i8_t *r);
+MATHKONG_DYNAMIC void mathkong_fma_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_u8_t const *c,
                                       mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                      mathkong_u16_t *r);
-SIMSIMD_DYNAMIC void mathkong_fma_i32(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_i32_t const *c,
-                                      mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                      mathkong_i32_t *r);
-SIMSIMD_DYNAMIC void mathkong_fma_u32(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_u32_t const *c,
-                                      mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                      mathkong_u32_t *r);
-SIMSIMD_DYNAMIC void mathkong_fma_i64(mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_i64_t const *c,
-                                      mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                      mathkong_i64_t *r);
-SIMSIMD_DYNAMIC void mathkong_fma_u64(mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_u64_t const *c,
-                                      mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                      mathkong_u64_t *r);
+                                      mathkong_u8_t *r);
+MATHKONG_DYNAMIC void mathkong_fma_i16(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_i16_t const *c,
+                                       mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                       mathkong_i16_t *r);
+MATHKONG_DYNAMIC void mathkong_fma_u16(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_u16_t const *c,
+                                       mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                       mathkong_u16_t *r);
+MATHKONG_DYNAMIC void mathkong_fma_i32(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_i32_t const *c,
+                                       mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                       mathkong_i32_t *r);
+MATHKONG_DYNAMIC void mathkong_fma_u32(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_u32_t const *c,
+                                       mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                       mathkong_u32_t *r);
+MATHKONG_DYNAMIC void mathkong_fma_i64(mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_i64_t const *c,
+                                       mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                       mathkong_i64_t *r);
+MATHKONG_DYNAMIC void mathkong_fma_u64(mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_u64_t const *c,
+                                       mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                       mathkong_u64_t *r);
 
 #else
 
@@ -1963,26 +1963,26 @@ SIMSIMD_DYNAMIC void mathkong_fma_u64(mathkong_u64_t const *a, mathkong_u64_t co
  */
 
 // clang-format off
-SIMSIMD_PUBLIC int mathkong_uses_neon(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON; }
-SIMSIMD_PUBLIC int mathkong_uses_neon_f16(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON_F16 ; }
-SIMSIMD_PUBLIC int mathkong_uses_neon_bf16(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON_BF16; }
-SIMSIMD_PUBLIC int mathkong_uses_neon_i8(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_NEON_I8; }
-SIMSIMD_PUBLIC int mathkong_uses_sve(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE; }
-SIMSIMD_PUBLIC int mathkong_uses_sve_f16(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE_F16; }
-SIMSIMD_PUBLIC int mathkong_uses_sve_bf16(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE_BF16; }
-SIMSIMD_PUBLIC int mathkong_uses_sve_i8(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE_I8; }
-SIMSIMD_PUBLIC int mathkong_uses_sve2(void) { return _SIMSIMD_TARGET_ARM && SIMSIMD_TARGET_SVE2; }
-SIMSIMD_PUBLIC int mathkong_uses_haswell(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_HASWELL; }
-SIMSIMD_PUBLIC int mathkong_uses_skylake(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SKYLAKE; }
-SIMSIMD_PUBLIC int mathkong_uses_ice(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_ICE; }
-SIMSIMD_PUBLIC int mathkong_uses_genoa(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_GENOA; }
-SIMSIMD_PUBLIC int mathkong_uses_sapphire(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SAPPHIRE; }
-SIMSIMD_PUBLIC int mathkong_uses_turin(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_TURIN; }
-SIMSIMD_PUBLIC int mathkong_uses_sierra(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SIERRA; }
-SIMSIMD_PUBLIC int mathkong_uses_dynamic_dispatch(void) { return 0; }
-SIMSIMD_PUBLIC int mathkong_flush_denormals(void) { return _mathkong_flush_denormals(); }
-SIMSIMD_PUBLIC mathkong_capability_t mathkong_capabilities(void) { return _mathkong_capabilities_implementation(); }
-SIMSIMD_PUBLIC void mathkong_find_kernel( //
+MATHKONG_PUBLIC int mathkong_uses_neon(void) { return _MATHKONG_TARGET_ARM && MATHKONG_TARGET_NEON; }
+MATHKONG_PUBLIC int mathkong_uses_neon_f16(void) { return _MATHKONG_TARGET_ARM && MATHKONG_TARGET_NEON_F16 ; }
+MATHKONG_PUBLIC int mathkong_uses_neon_bf16(void) { return _MATHKONG_TARGET_ARM && MATHKONG_TARGET_NEON_BF16; }
+MATHKONG_PUBLIC int mathkong_uses_neon_i8(void) { return _MATHKONG_TARGET_ARM && MATHKONG_TARGET_NEON_I8; }
+MATHKONG_PUBLIC int mathkong_uses_sve(void) { return _MATHKONG_TARGET_ARM && MATHKONG_TARGET_SVE; }
+MATHKONG_PUBLIC int mathkong_uses_sve_f16(void) { return _MATHKONG_TARGET_ARM && MATHKONG_TARGET_SVE_F16; }
+MATHKONG_PUBLIC int mathkong_uses_sve_bf16(void) { return _MATHKONG_TARGET_ARM && MATHKONG_TARGET_SVE_BF16; }
+MATHKONG_PUBLIC int mathkong_uses_sve_i8(void) { return _MATHKONG_TARGET_ARM && MATHKONG_TARGET_SVE_I8; }
+MATHKONG_PUBLIC int mathkong_uses_sve2(void) { return _MATHKONG_TARGET_ARM && MATHKONG_TARGET_SVE2; }
+MATHKONG_PUBLIC int mathkong_uses_haswell(void) { return _MATHKONG_TARGET_X86 && MATHKONG_TARGET_HASWELL; }
+MATHKONG_PUBLIC int mathkong_uses_skylake(void) { return _MATHKONG_TARGET_X86 && MATHKONG_TARGET_SKYLAKE; }
+MATHKONG_PUBLIC int mathkong_uses_ice(void) { return _MATHKONG_TARGET_X86 && MATHKONG_TARGET_ICE; }
+MATHKONG_PUBLIC int mathkong_uses_genoa(void) { return _MATHKONG_TARGET_X86 && MATHKONG_TARGET_GENOA; }
+MATHKONG_PUBLIC int mathkong_uses_sapphire(void) { return _MATHKONG_TARGET_X86 && MATHKONG_TARGET_SAPPHIRE; }
+MATHKONG_PUBLIC int mathkong_uses_turin(void) { return _MATHKONG_TARGET_X86 && MATHKONG_TARGET_TURIN; }
+MATHKONG_PUBLIC int mathkong_uses_sierra(void) { return _MATHKONG_TARGET_X86 && MATHKONG_TARGET_SIERRA; }
+MATHKONG_PUBLIC int mathkong_uses_dynamic_dispatch(void) { return 0; }
+MATHKONG_PUBLIC int mathkong_flush_denormals(void) { return _mathkong_flush_denormals(); }
+MATHKONG_PUBLIC mathkong_capability_t mathkong_capabilities(void) { return _mathkong_capabilities_implementation(); }
+MATHKONG_PUBLIC void mathkong_find_kernel( //
     mathkong_kernel_kind_t kind,                 //
     mathkong_datatype_t datatype,                //
     mathkong_capability_t supported,             //
@@ -2007,171 +2007,171 @@ SIMSIMD_PUBLIC void mathkong_find_kernel( //
  *  @note The dot product is zero if and only if the two vectors are orthogonal.
  *  @note Defined only for floating-point and integer data types.
  */
-SIMSIMD_PUBLIC void mathkong_dot_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                    mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_I8
+MATHKONG_PUBLIC void mathkong_dot_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                     mathkong_distance_t *d) {
+#if MATHKONG_TARGET_NEON_I8
     mathkong_dot_i8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
+#elif MATHKONG_TARGET_ICE
     mathkong_dot_i8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_dot_i8_haswell(a, b, n, d);
 #else
     mathkong_dot_i8_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_dot_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                    mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_F16
+MATHKONG_PUBLIC void mathkong_dot_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                     mathkong_distance_t *d) {
+#if MATHKONG_TARGET_NEON_F16
     mathkong_dot_u8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
+#elif MATHKONG_TARGET_ICE
     mathkong_dot_u8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_dot_u8_haswell(a, b, n, d);
 #else
     mathkong_dot_u8_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_dot_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE_F16
+MATHKONG_PUBLIC void mathkong_dot_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                      mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE_F16
     mathkong_dot_f16_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_dot_f16_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SAPPHIRE
+#elif MATHKONG_TARGET_SAPPHIRE
     mathkong_dot_f16_sapphire(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_dot_f16_haswell(a, b, n, d);
 #else
     mathkong_dot_f16_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_dot_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                      mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
+MATHKONG_PUBLIC void mathkong_dot_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                       mathkong_distance_t *d) {
+#if MATHKONG_TARGET_GENOA
     mathkong_dot_bf16_genoa(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_dot_bf16_haswell(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
+#elif MATHKONG_TARGET_NEON_BF16
     mathkong_dot_bf16_neon(a, b, n, d);
 #else
     mathkong_dot_bf16_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_dot_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
+MATHKONG_PUBLIC void mathkong_dot_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                      mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE
     mathkong_dot_f32_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_dot_f32_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_dot_f32_skylake(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_dot_f32_haswell(a, b, n, d);
 #else
     mathkong_dot_f32_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_dot_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
+MATHKONG_PUBLIC void mathkong_dot_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                      mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE
     mathkong_dot_f64_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_dot_f64_skylake(a, b, n, d);
 #else
     mathkong_dot_f64_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_dot_f16c(mathkong_f16c_t const *a, mathkong_f16c_t const *b, mathkong_size_t n,
-                                      mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE_F16
+MATHKONG_PUBLIC void mathkong_dot_f16c(mathkong_f16c_t const *a, mathkong_f16c_t const *b, mathkong_size_t n,
+                                       mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE_F16
     mathkong_dot_f16c_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_dot_f16c_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SAPPHIRE
+#elif MATHKONG_TARGET_SAPPHIRE
     mathkong_dot_f16c_sapphire(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_dot_f16c_haswell(a, b, n, d);
 #else
     mathkong_dot_f16c_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_dot_bf16c(mathkong_bf16c_t const *a, mathkong_bf16c_t const *b, mathkong_size_t n,
-                                       mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
+MATHKONG_PUBLIC void mathkong_dot_bf16c(mathkong_bf16c_t const *a, mathkong_bf16c_t const *b, mathkong_size_t n,
+                                        mathkong_distance_t *d) {
+#if MATHKONG_TARGET_GENOA
     mathkong_dot_bf16c_genoa(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
+#elif MATHKONG_TARGET_NEON_BF16
     mathkong_dot_bf16c_neon(a, b, n, d);
 #else
     mathkong_dot_bf16c_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_dot_f32c(mathkong_f32c_t const *a, mathkong_f32c_t const *b, mathkong_size_t n,
-                                      mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
+MATHKONG_PUBLIC void mathkong_dot_f32c(mathkong_f32c_t const *a, mathkong_f32c_t const *b, mathkong_size_t n,
+                                       mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE
     mathkong_dot_f32c_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_dot_f32c_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_dot_f32c_skylake(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_dot_f32c_haswell(a, b, n, d);
 #else
     mathkong_dot_f32c_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_dot_f64c(mathkong_f64c_t const *a, mathkong_f64c_t const *b, mathkong_size_t n,
-                                      mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
+MATHKONG_PUBLIC void mathkong_dot_f64c(mathkong_f64c_t const *a, mathkong_f64c_t const *b, mathkong_size_t n,
+                                       mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE
     mathkong_dot_f64c_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_dot_f64c_skylake(a, b, n, d);
 #else
     mathkong_dot_f64c_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_vdot_f16c(mathkong_f16c_t const *a, mathkong_f16c_t const *b, mathkong_size_t n,
-                                       mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
+MATHKONG_PUBLIC void mathkong_vdot_f16c(mathkong_f16c_t const *a, mathkong_f16c_t const *b, mathkong_size_t n,
+                                        mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE
     mathkong_vdot_f16c_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_dot_f16c_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SAPPHIRE
+#elif MATHKONG_TARGET_SAPPHIRE
     mathkong_dot_f16c_sapphire(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_dot_f16c_haswell(a, b, n, d);
 #else
     mathkong_vdot_f16c_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_vdot_bf16c(mathkong_bf16c_t const *a, mathkong_bf16c_t const *b, mathkong_size_t n,
-                                        mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
+MATHKONG_PUBLIC void mathkong_vdot_bf16c(mathkong_bf16c_t const *a, mathkong_bf16c_t const *b, mathkong_size_t n,
+                                         mathkong_distance_t *d) {
+#if MATHKONG_TARGET_GENOA
     mathkong_vdot_bf16c_genoa(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
+#elif MATHKONG_TARGET_NEON_BF16
     mathkong_dot_bf16c_neon(a, b, n, d);
 #else
     mathkong_vdot_bf16c_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_vdot_f32c(mathkong_f32c_t const *a, mathkong_f32c_t const *b, mathkong_size_t n,
-                                       mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
+MATHKONG_PUBLIC void mathkong_vdot_f32c(mathkong_f32c_t const *a, mathkong_f32c_t const *b, mathkong_size_t n,
+                                        mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE
     mathkong_vdot_f32c_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_dot_f32c_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_dot_f32c_skylake(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_dot_f32c_haswell(a, b, n, d);
 #else
     mathkong_vdot_f32c_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_vdot_f64c(mathkong_f64c_t const *a, mathkong_f64c_t const *b, mathkong_size_t n,
-                                       mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
+MATHKONG_PUBLIC void mathkong_vdot_f64c(mathkong_f64c_t const *a, mathkong_f64c_t const *b, mathkong_size_t n,
+                                        mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE
     mathkong_vdot_f64c_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_vdot_f64c_skylake(a, b, n, d);
 #else
     mathkong_vdot_f64c_serial(a, b, n, d);
@@ -2191,235 +2191,235 @@ SIMSIMD_PUBLIC void mathkong_vdot_f64c(mathkong_f64c_t const *a, mathkong_f64c_t
  *  @note The output distance value is zero if and only if the two vectors are identical.
  *  @note Defined only for floating-point and integer data types.
  */
-SIMSIMD_PUBLIC void mathkong_angular_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                        mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_NEON
+MATHKONG_PUBLIC void mathkong_angular_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                         mathkong_distance_t *d) {
+#if MATHKONG_TARGET_NEON
     mathkong_angular_i8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
+#elif MATHKONG_TARGET_ICE
     mathkong_angular_i8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_angular_i8_haswell(a, b, n, d);
 #else
     mathkong_angular_i8_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_angular_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                        mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_NEON
+MATHKONG_PUBLIC void mathkong_angular_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                         mathkong_distance_t *d) {
+#if MATHKONG_TARGET_NEON
     mathkong_angular_u8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
+#elif MATHKONG_TARGET_ICE
     mathkong_angular_u8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_angular_u8_haswell(a, b, n, d);
 #else
     mathkong_angular_u8_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_angular_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                         mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE_F16
+MATHKONG_PUBLIC void mathkong_angular_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                          mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE_F16
     mathkong_angular_f16_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_angular_f16_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SAPPHIRE
+#elif MATHKONG_TARGET_SAPPHIRE
     mathkong_angular_f16_sapphire(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_angular_f16_haswell(a, b, n, d);
 #else
     mathkong_angular_f16_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_angular_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                          mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
+MATHKONG_PUBLIC void mathkong_angular_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                           mathkong_distance_t *d) {
+#if MATHKONG_TARGET_GENOA
     mathkong_angular_bf16_genoa(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_angular_bf16_haswell(a, b, n, d);
-#elif SIMSIMD_TARGET_SVE_BF16
+#elif MATHKONG_TARGET_SVE_BF16
     mathkong_angular_bf16_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
+#elif MATHKONG_TARGET_NEON_BF16
     mathkong_angular_bf16_neon(a, b, n, d);
 #else
     mathkong_angular_bf16_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_angular_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                         mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
+MATHKONG_PUBLIC void mathkong_angular_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                          mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE
     mathkong_angular_f32_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_angular_f32_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_angular_f32_skylake(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_angular_f32_haswell(a, b, n, d);
 #else
     mathkong_angular_f32_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_angular_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                         mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
+MATHKONG_PUBLIC void mathkong_angular_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                          mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE
     mathkong_angular_f64_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_angular_f64_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_angular_f64_skylake(a, b, n, d);
 #else
     mathkong_angular_f64_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_I8
+MATHKONG_PUBLIC void mathkong_l2sq_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                      mathkong_distance_t *d) {
+#if MATHKONG_TARGET_NEON_I8
     mathkong_l2sq_i8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
+#elif MATHKONG_TARGET_ICE
     mathkong_l2sq_i8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_l2sq_i8_haswell(a, b, n, d);
 #else
     mathkong_l2sq_i8_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_I8
+MATHKONG_PUBLIC void mathkong_l2sq_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                      mathkong_distance_t *d) {
+#if MATHKONG_TARGET_NEON_I8
     mathkong_l2sq_u8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
+#elif MATHKONG_TARGET_ICE
     mathkong_l2sq_u8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_l2sq_u8_haswell(a, b, n, d);
 #else
     mathkong_l2sq_u8_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                      mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE_F16
+MATHKONG_PUBLIC void mathkong_l2sq_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                       mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE_F16
     mathkong_l2sq_f16_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_l2sq_f16_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SAPPHIRE
+#elif MATHKONG_TARGET_SAPPHIRE
     mathkong_l2sq_f16_sapphire(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_l2sq_f16_haswell(a, b, n, d);
 #else
     mathkong_l2sq_f16_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                       mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
+MATHKONG_PUBLIC void mathkong_l2sq_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                        mathkong_distance_t *d) {
+#if MATHKONG_TARGET_GENOA
     mathkong_l2sq_bf16_genoa(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_l2sq_bf16_haswell(a, b, n, d);
-#elif SIMSIMD_TARGET_SVE_BF16
+#elif MATHKONG_TARGET_SVE_BF16
     mathkong_l2sq_bf16_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
+#elif MATHKONG_TARGET_NEON_BF16
     mathkong_l2sq_bf16_neon(a, b, n, d);
 #else
     mathkong_l2sq_bf16_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                      mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
+MATHKONG_PUBLIC void mathkong_l2sq_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                       mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE
     mathkong_l2sq_f32_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_l2sq_f32_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_l2sq_f32_skylake(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_l2sq_f32_haswell(a, b, n, d);
 #else
     mathkong_l2sq_f32_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_l2sq_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                      mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
+MATHKONG_PUBLIC void mathkong_l2sq_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                       mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE
     mathkong_l2sq_f64_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_l2sq_f64_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_l2sq_f64_skylake(a, b, n, d);
 #else
     mathkong_l2sq_f64_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_l2_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                   mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_I8
+MATHKONG_PUBLIC void mathkong_l2_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                    mathkong_distance_t *d) {
+#if MATHKONG_TARGET_NEON_I8
     mathkong_l2_i8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
+#elif MATHKONG_TARGET_ICE
     mathkong_l2_i8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_l2_i8_haswell(a, b, n, d);
 #else
     mathkong_l2_i8_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_l2_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                   mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_I8
+MATHKONG_PUBLIC void mathkong_l2_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                    mathkong_distance_t *d) {
+#if MATHKONG_TARGET_NEON_I8
     mathkong_l2_u8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
+#elif MATHKONG_TARGET_ICE
     mathkong_l2_u8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_l2_u8_haswell(a, b, n, d);
 #else
     mathkong_l2_u8_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_l2_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                    mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE_F16
+MATHKONG_PUBLIC void mathkong_l2_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                     mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE_F16
     mathkong_l2_f16_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_l2_f16_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SAPPHIRE
+#elif MATHKONG_TARGET_SAPPHIRE
     mathkong_l2_f16_sapphire(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_l2_f16_haswell(a, b, n, d);
 #else
     mathkong_l2_f16_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_l2_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
+MATHKONG_PUBLIC void mathkong_l2_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                      mathkong_distance_t *d) {
+#if MATHKONG_TARGET_GENOA
     mathkong_l2_bf16_genoa(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_l2_bf16_haswell(a, b, n, d);
-#elif SIMSIMD_TARGET_SVE_BF16
+#elif MATHKONG_TARGET_SVE_BF16
     mathkong_l2_bf16_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
+#elif MATHKONG_TARGET_NEON_BF16
     mathkong_l2_bf16_neon(a, b, n, d);
 #else
     mathkong_l2_bf16_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_l2_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                    mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
+MATHKONG_PUBLIC void mathkong_l2_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                     mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE
     mathkong_l2_f32_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_l2_f32_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_l2_f32_skylake(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_l2_f32_haswell(a, b, n, d);
 #else
     mathkong_l2_f32_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_l2_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                    mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
+MATHKONG_PUBLIC void mathkong_l2_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                     mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE
     mathkong_l2_f64_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_l2_f64_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_l2_f64_skylake(a, b, n, d);
 #else
     mathkong_l2_f64_serial(a, b, n, d);
@@ -2439,29 +2439,29 @@ SIMSIMD_PUBLIC void mathkong_l2_f64(mathkong_f64_t const *a, mathkong_f64_t cons
  *  @note The output distance value is zero if and only if the two vectors are identical.
  *  @note Defined only for binary data.
  */
-SIMSIMD_PUBLIC void mathkong_hamming_b8(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n,
-                                        mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
+MATHKONG_PUBLIC void mathkong_hamming_b8(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n,
+                                         mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE
     mathkong_hamming_b8_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_hamming_b8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
+#elif MATHKONG_TARGET_ICE
     mathkong_hamming_b8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_hamming_b8_haswell(a, b, n, d);
 #else
     mathkong_hamming_b8_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_jaccard_b8(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n,
-                                        mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
+MATHKONG_PUBLIC void mathkong_jaccard_b8(mathkong_b8_t const *a, mathkong_b8_t const *b, mathkong_size_t n,
+                                         mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE
     mathkong_jaccard_b8_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_jaccard_b8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
+#elif MATHKONG_TARGET_ICE
     mathkong_jaccard_b8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_jaccard_b8_haswell(a, b, n, d);
 #else
     mathkong_jaccard_b8_serial(a, b, n, d);
@@ -2482,60 +2482,60 @@ SIMSIMD_PUBLIC void mathkong_jaccard_b8(mathkong_b8_t const *a, mathkong_b8_t co
  *  @note The output divergence value is zero if and only if the two distributions are identical.
  *  @note Defined only for floating-point data types.
  */
-SIMSIMD_PUBLIC void mathkong_kl_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                    mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_F16
+MATHKONG_PUBLIC void mathkong_kl_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                     mathkong_distance_t *d) {
+#if MATHKONG_TARGET_NEON_F16
     mathkong_kl_f16_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_kl_f16_haswell(a, b, n, d);
 #else
     mathkong_kl_f16_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_kl_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d) {
+MATHKONG_PUBLIC void mathkong_kl_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                      mathkong_distance_t *d) {
     mathkong_kl_bf16_serial(a, b, n, d);
 }
-SIMSIMD_PUBLIC void mathkong_kl_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                    mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_NEON
+MATHKONG_PUBLIC void mathkong_kl_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                     mathkong_distance_t *d) {
+#if MATHKONG_TARGET_NEON
     mathkong_kl_f32_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_kl_f32_skylake(a, b, n, d);
 #else
     mathkong_kl_f32_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_kl_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                    mathkong_distance_t *d) {
+MATHKONG_PUBLIC void mathkong_kl_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                     mathkong_distance_t *d) {
     mathkong_kl_f64_serial(a, b, n, d);
 }
-SIMSIMD_PUBLIC void mathkong_js_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                    mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_F16
+MATHKONG_PUBLIC void mathkong_js_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                     mathkong_distance_t *d) {
+#if MATHKONG_TARGET_NEON_F16
     mathkong_js_f16_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_js_f16_haswell(a, b, n, d);
 #else
     mathkong_js_f16_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_js_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t *d) {
+MATHKONG_PUBLIC void mathkong_js_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                      mathkong_distance_t *d) {
     mathkong_js_bf16_serial(a, b, n, d);
 }
-SIMSIMD_PUBLIC void mathkong_js_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                    mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_NEON
+MATHKONG_PUBLIC void mathkong_js_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                     mathkong_distance_t *d) {
+#if MATHKONG_TARGET_NEON
     mathkong_js_f32_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_js_f32_skylake(a, b, n, d);
 #else
     mathkong_js_f32_serial(a, b, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_js_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                    mathkong_distance_t *d) {
+MATHKONG_PUBLIC void mathkong_js_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                     mathkong_distance_t *d) {
     mathkong_js_f64_serial(a, b, n, d);
 }
 
@@ -2547,30 +2547,30 @@ SIMSIMD_PUBLIC void mathkong_js_f64(mathkong_f64_t const *a, mathkong_f64_t cons
  *  @param b_length The number of elements in the second array.
  *  @param d The output for the number of elements in the intersection.
  */
-SIMSIMD_PUBLIC void mathkong_intersect_u16(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_size_t a_length,
-                                           mathkong_size_t b_length, mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE2
+MATHKONG_PUBLIC void mathkong_intersect_u16(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_size_t a_length,
+                                            mathkong_size_t b_length, mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE2
     mathkong_intersect_u16_sve2(a, b, a_length, b_length, d);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_intersect_u16_neon(a, b, a_length, b_length, d);
-#elif SIMSIMD_TARGET_TURIN
+#elif MATHKONG_TARGET_TURIN
     mathkong_intersect_u16_turin(a, b, a_length, b_length, d);
-#elif SIMSIMD_TARGET_ICE
+#elif MATHKONG_TARGET_ICE
     mathkong_intersect_u16_ice(a, b, a_length, b_length, d);
 #else
     mathkong_intersect_u16_serial(a, b, a_length, b_length, d);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_intersect_u32(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_size_t a_length,
-                                           mathkong_size_t b_length, mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE2
+MATHKONG_PUBLIC void mathkong_intersect_u32(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_size_t a_length,
+                                            mathkong_size_t b_length, mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE2
     mathkong_intersect_u32_sve2(a, b, a_length, b_length, d);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_intersect_u32_neon(a, b, a_length, b_length, d);
-#elif SIMSIMD_TARGET_TURIN
+#elif MATHKONG_TARGET_TURIN
     mathkong_intersect_u32_turin(a, b, a_length, b_length, d);
-#elif SIMSIMD_TARGET_ICE
+#elif MATHKONG_TARGET_ICE
     mathkong_intersect_u32_ice(a, b, a_length, b_length, d);
 #else
     mathkong_intersect_u32_serial(a, b, a_length, b_length, d);
@@ -2587,26 +2587,26 @@ SIMSIMD_PUBLIC void mathkong_intersect_u32(mathkong_u32_t const *a, mathkong_u32
  *  @param b_length The number of elements in the second array.
  *  @param d The output for the number of elements in the intersection.
  */
-SIMSIMD_PUBLIC void mathkong_spdot_counts_u16(mathkong_u16_t const *a, mathkong_u16_t const *b,
-                                              mathkong_i16_t const *a_weights, mathkong_i16_t const *b_weights,
-                                              mathkong_size_t a_length, mathkong_size_t b_length,
-                                              mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE2
+MATHKONG_PUBLIC void mathkong_spdot_counts_u16(mathkong_u16_t const *a, mathkong_u16_t const *b,
+                                               mathkong_i16_t const *a_weights, mathkong_i16_t const *b_weights,
+                                               mathkong_size_t a_length, mathkong_size_t b_length,
+                                               mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE2
     mathkong_spdot_counts_u16_sve2(a, b, a_weights, b_weights, a_length, b_length, d);
-#elif SIMSIMD_TARGET_TURIN
+#elif MATHKONG_TARGET_TURIN
     mathkong_spdot_counts_u16_turin(a, b, a_weights, b_weights, a_length, b_length, d);
 #else
     mathkong_spdot_counts_u16_serial(a, b, a_weights, b_weights, a_length, b_length, d);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_spdot_weights_u16(mathkong_u16_t const *a, mathkong_u16_t const *b,
-                                               mathkong_bf16_t const *a_weights, mathkong_bf16_t const *b_weights,
-                                               mathkong_size_t a_length, mathkong_size_t b_length,
-                                               mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SVE2
+MATHKONG_PUBLIC void mathkong_spdot_weights_u16(mathkong_u16_t const *a, mathkong_u16_t const *b,
+                                                mathkong_bf16_t const *a_weights, mathkong_bf16_t const *b_weights,
+                                                mathkong_size_t a_length, mathkong_size_t b_length,
+                                                mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SVE2
     mathkong_spdot_weights_u16_sve2(a, b, a_weights, b_weights, a_length, b_length, d);
-#elif SIMSIMD_TARGET_TURIN
+#elif MATHKONG_TARGET_TURIN
     mathkong_spdot_weights_u16_turin(a, b, a_weights, b_weights, a_length, b_length, d);
 #else
     mathkong_spdot_weights_u16_serial(a, b, a_weights, b_weights, a_length, b_length, d);
@@ -2621,123 +2621,123 @@ SIMSIMD_PUBLIC void mathkong_spdot_weights_u16(mathkong_u16_t const *a, mathkong
  *  @param n The number of dimensions in the vectors.
  *  @param d The output for the number of elements in the intersection.
  */
-SIMSIMD_PUBLIC void mathkong_bilinear_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_f64_t const *c,
-                                          mathkong_size_t n, mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_bilinear_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_f64_t const *c,
+                                           mathkong_size_t n, mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_bilinear_f64_skylake(a, b, c, n, d);
 #else
     mathkong_bilinear_f64_serial(a, b, c, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_bilinear_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c,
-                                          mathkong_size_t n, mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_bilinear_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c,
+                                           mathkong_size_t n, mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_bilinear_f32_skylake(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_bilinear_f32_neon(a, b, c, n, d);
 #else
     mathkong_bilinear_f32_serial(a, b, c, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_bilinear_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c,
-                                          mathkong_size_t n, mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SAPPHIRE
+MATHKONG_PUBLIC void mathkong_bilinear_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c,
+                                           mathkong_size_t n, mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SAPPHIRE
     mathkong_bilinear_f16_sapphire(a, b, c, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_bilinear_f16_haswell(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_bilinear_f16_neon(a, b, c, n, d);
 #else
     mathkong_bilinear_f16_serial(a, b, c, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_bilinear_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_bf16_t const *c,
-                                           mathkong_size_t n, mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
+MATHKONG_PUBLIC void mathkong_bilinear_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
+                                            mathkong_bf16_t const *c, mathkong_size_t n, mathkong_distance_t *d) {
+#if MATHKONG_TARGET_GENOA
     mathkong_bilinear_bf16_genoa(a, b, c, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_bilinear_bf16_haswell(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
+#elif MATHKONG_TARGET_NEON_BF16
     mathkong_bilinear_bf16_neon(a, b, c, n, d);
 #else
     mathkong_bilinear_bf16_serial(a, b, c, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_bilinear_f64c(mathkong_f64c_t const *a, mathkong_f64c_t const *b, mathkong_f64c_t const *c,
-                                           mathkong_size_t n, mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_bilinear_f64c(mathkong_f64c_t const *a, mathkong_f64c_t const *b,
+                                            mathkong_f64c_t const *c, mathkong_size_t n, mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_bilinear_f64c_skylake(a, b, c, n, d);
 #else
     mathkong_bilinear_f64c_serial(a, b, c, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_bilinear_f32c(mathkong_f32c_t const *a, mathkong_f32c_t const *b, mathkong_f32c_t const *c,
-                                           mathkong_size_t n, mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_bilinear_f32c(mathkong_f32c_t const *a, mathkong_f32c_t const *b,
+                                            mathkong_f32c_t const *c, mathkong_size_t n, mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_bilinear_f32c_skylake(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_bilinear_f32c_neon(a, b, c, n, d);
 #else
     mathkong_bilinear_f32c_serial(a, b, c, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_bilinear_f16c(mathkong_f16c_t const *a, mathkong_f16c_t const *b, mathkong_f16c_t const *c,
-                                           mathkong_size_t n, mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SAPPHIRE
+MATHKONG_PUBLIC void mathkong_bilinear_f16c(mathkong_f16c_t const *a, mathkong_f16c_t const *b,
+                                            mathkong_f16c_t const *c, mathkong_size_t n, mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SAPPHIRE
     mathkong_bilinear_f16c_sapphire(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_bilinear_f16c_neon(a, b, c, n, d);
 #else
     mathkong_bilinear_f16c_serial(a, b, c, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_bilinear_bf16c(mathkong_bf16c_t const *a, mathkong_bf16c_t const *b,
-                                            mathkong_bf16c_t const *c, mathkong_size_t n, mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
+MATHKONG_PUBLIC void mathkong_bilinear_bf16c(mathkong_bf16c_t const *a, mathkong_bf16c_t const *b,
+                                             mathkong_bf16c_t const *c, mathkong_size_t n, mathkong_distance_t *d) {
+#if MATHKONG_TARGET_GENOA
     mathkong_bilinear_bf16c_genoa(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
+#elif MATHKONG_TARGET_NEON_BF16
     mathkong_bilinear_bf16c_neon(a, b, c, n, d);
 #else
     mathkong_bilinear_bf16c_serial(a, b, c, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_f64_t const *c,
-                                             mathkong_size_t n, mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_mahalanobis_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_f64_t const *c,
+                                              mathkong_size_t n, mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_mahalanobis_f64_skylake(a, b, c, n, d);
 #else
     mathkong_mahalanobis_f64_serial(a, b, c, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c,
-                                             mathkong_size_t n, mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_mahalanobis_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c,
+                                              mathkong_size_t n, mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_mahalanobis_f32_skylake(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_mahalanobis_f32_neon(a, b, c, n, d);
 #else
     mathkong_mahalanobis_f32_serial(a, b, c, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_mahalanobis_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c,
-                                             mathkong_size_t n, mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_SAPPHIRE
+MATHKONG_PUBLIC void mathkong_mahalanobis_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c,
+                                              mathkong_size_t n, mathkong_distance_t *d) {
+#if MATHKONG_TARGET_SAPPHIRE
     mathkong_mahalanobis_f16_sapphire(a, b, c, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_mahalanobis_f16_haswell(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_mahalanobis_f16_neon(a, b, c, n, d);
 #else
     mathkong_mahalanobis_f16_serial(a, b, c, n, d);
 #endif
 }
-SIMSIMD_PUBLIC void mathkong_mahalanobis_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
-                                              mathkong_bf16_t const *c, mathkong_size_t n, mathkong_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
+MATHKONG_PUBLIC void mathkong_mahalanobis_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b,
+                                               mathkong_bf16_t const *c, mathkong_size_t n, mathkong_distance_t *d) {
+#if MATHKONG_TARGET_GENOA
     mathkong_mahalanobis_bf16_genoa(a, b, c, n, d);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_mahalanobis_bf16_haswell(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
+#elif MATHKONG_TARGET_NEON_BF16
     mathkong_mahalanobis_bf16_neon(a, b, c, n, d);
 #else
     mathkong_mahalanobis_bf16_serial(a, b, c, n, d);
@@ -2754,546 +2754,546 @@ SIMSIMD_PUBLIC void mathkong_mahalanobis_bf16(mathkong_bf16_t const *a, mathkong
  *  @param beta The first scaling factor.
  *  @param r The output vector or integral or floating point values.
  */
-SIMSIMD_PUBLIC void mathkong_sum_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                     mathkong_f64_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_sum_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                      mathkong_f64_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_sum_f64_skylake(a, b, n, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_sum_f64_haswell(a, b, n, r);
 #else
     mathkong_sum_f64_serial(a, b, n, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_sum_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                     mathkong_f32_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_sum_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                      mathkong_f32_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_sum_f32_skylake(a, b, n, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_sum_f32_haswell(a, b, n, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_sum_f32_neon(a, b, n, r);
 #else
     mathkong_sum_f32_serial(a, b, n, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_sum_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                      mathkong_bf16_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_sum_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                       mathkong_bf16_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_sum_bf16_skylake(a, b, n, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_sum_bf16_haswell(a, b, n, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_sum_bf16_neon(a, b, n, r);
 #else
     mathkong_sum_bf16_serial(a, b, n, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_sum_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                     mathkong_f16_t *r) {
-#if SIMSIMD_TARGET_SAPPHIRE
+MATHKONG_PUBLIC void mathkong_sum_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                      mathkong_f16_t *r) {
+#if MATHKONG_TARGET_SAPPHIRE
     mathkong_sum_f16_sapphire(a, b, n, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_sum_f16_haswell(a, b, n, r);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_sum_f16_neon(a, b, n, r);
 #else
     mathkong_sum_f16_serial(a, b, n, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_sum_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                    mathkong_i8_t *r) {
-#if SIMSIMD_TARGET_ICE
+MATHKONG_PUBLIC void mathkong_sum_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                     mathkong_i8_t *r) {
+#if MATHKONG_TARGET_ICE
     mathkong_sum_i8_ice(a, b, n, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_sum_i8_haswell(a, b, n, r);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_sum_i8_neon(a, b, n, r);
 #else
     mathkong_sum_i8_serial(a, b, n, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_sum_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                    mathkong_u8_t *r) {
-#if SIMSIMD_TARGET_ICE
+MATHKONG_PUBLIC void mathkong_sum_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                     mathkong_u8_t *r) {
+#if MATHKONG_TARGET_ICE
     mathkong_sum_u8_ice(a, b, n, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_sum_u8_haswell(a, b, n, r);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_sum_u8_neon(a, b, n, r);
 #else
     mathkong_sum_u8_serial(a, b, n, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_sum_i16(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_size_t n,
-                                     mathkong_i16_t *r) {
-#if SIMSIMD_TARGET_ICE
+MATHKONG_PUBLIC void mathkong_sum_i16(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_size_t n,
+                                      mathkong_i16_t *r) {
+#if MATHKONG_TARGET_ICE
     mathkong_sum_i16_ice(a, b, n, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_sum_i16_haswell(a, b, n, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_sum_i16_neon(a, b, n, r);
 #else
     mathkong_sum_i16_serial(a, b, n, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_sum_u16(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_size_t n,
-                                     mathkong_u16_t *r) {
-#if SIMSIMD_TARGET_ICE
+MATHKONG_PUBLIC void mathkong_sum_u16(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_size_t n,
+                                      mathkong_u16_t *r) {
+#if MATHKONG_TARGET_ICE
     mathkong_sum_u16_ice(a, b, n, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_sum_u16_haswell(a, b, n, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_sum_u16_neon(a, b, n, r);
 #else
     mathkong_sum_u16_serial(a, b, n, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_sum_i32(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_size_t n,
-                                     mathkong_i32_t *r) {
-#if SIMSIMD_TARGET_ICE
+MATHKONG_PUBLIC void mathkong_sum_i32(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_size_t n,
+                                      mathkong_i32_t *r) {
+#if MATHKONG_TARGET_ICE
     mathkong_sum_i32_ice(a, b, n, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_sum_i32_haswell(a, b, n, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_sum_i32_neon(a, b, n, r);
 #else
     mathkong_sum_i32_serial(a, b, n, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_sum_u32(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_size_t n,
-                                     mathkong_u32_t *r) {
-#if SIMSIMD_TARGET_ICE
+MATHKONG_PUBLIC void mathkong_sum_u32(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_size_t n,
+                                      mathkong_u32_t *r) {
+#if MATHKONG_TARGET_ICE
     mathkong_sum_u32_ice(a, b, n, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_sum_u32_haswell(a, b, n, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_sum_u32_neon(a, b, n, r);
 #else
     mathkong_sum_u32_serial(a, b, n, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_sum_i64(mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_size_t n,
-                                     mathkong_i64_t *r) {
-#if SIMSIMD_TARGET_ICE
+MATHKONG_PUBLIC void mathkong_sum_i64(mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_size_t n,
+                                      mathkong_i64_t *r) {
+#if MATHKONG_TARGET_ICE
     mathkong_sum_i64_ice(a, b, n, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_sum_i64_neon(a, b, n, r);
 #else
     mathkong_sum_i64_serial(a, b, n, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_sum_u64(mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_size_t n,
-                                     mathkong_u64_t *r) {
-#if SIMSIMD_TARGET_ICE
+MATHKONG_PUBLIC void mathkong_sum_u64(mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_size_t n,
+                                      mathkong_u64_t *r) {
+#if MATHKONG_TARGET_ICE
     mathkong_sum_u64_ice(a, b, n, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_sum_u64_neon(a, b, n, r);
 #else
     mathkong_sum_u64_serial(a, b, n, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_scale_f64(mathkong_f64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                       mathkong_distance_t beta, mathkong_f64_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_scale_f64(mathkong_f64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                        mathkong_distance_t beta, mathkong_f64_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_scale_f64_skylake(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_scale_f64_haswell(a, n, alpha, beta, r);
 #else
     mathkong_scale_f64_serial(a, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_scale_f32(mathkong_f32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                       mathkong_distance_t beta, mathkong_f32_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_scale_f32(mathkong_f32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                        mathkong_distance_t beta, mathkong_f32_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_scale_f32_skylake(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_scale_f32_haswell(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_scale_f32_neon(a, n, alpha, beta, r);
 #else
     mathkong_scale_f32_serial(a, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_scale_bf16(mathkong_bf16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                        mathkong_distance_t beta, mathkong_bf16_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_scale_bf16(mathkong_bf16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                         mathkong_distance_t beta, mathkong_bf16_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_scale_bf16_skylake(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_scale_bf16_haswell(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_scale_bf16_neon(a, n, alpha, beta, r);
 #else
     mathkong_scale_bf16_serial(a, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_scale_f16(mathkong_f16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                       mathkong_distance_t beta, mathkong_f16_t *r) {
-#if SIMSIMD_TARGET_SAPPHIRE
+MATHKONG_PUBLIC void mathkong_scale_f16(mathkong_f16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                        mathkong_distance_t beta, mathkong_f16_t *r) {
+#if MATHKONG_TARGET_SAPPHIRE
     mathkong_scale_f16_sapphire(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_scale_f16_haswell(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_scale_f16_neon(a, n, alpha, beta, r);
 #else
     mathkong_scale_f16_serial(a, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_scale_i8(mathkong_i8_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                      mathkong_distance_t beta, mathkong_i8_t *r) {
-#if SIMSIMD_TARGET_SAPPHIRE
+MATHKONG_PUBLIC void mathkong_scale_i8(mathkong_i8_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                       mathkong_distance_t beta, mathkong_i8_t *r) {
+#if MATHKONG_TARGET_SAPPHIRE
     mathkong_scale_i8_sapphire(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_scale_i8_skylake(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_scale_i8_haswell(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_scale_i8_neon(a, n, alpha, beta, r);
 #else
     mathkong_scale_i8_serial(a, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_scale_u8(mathkong_u8_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                      mathkong_distance_t beta, mathkong_u8_t *r) {
-#if SIMSIMD_TARGET_SAPPHIRE
+MATHKONG_PUBLIC void mathkong_scale_u8(mathkong_u8_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                       mathkong_distance_t beta, mathkong_u8_t *r) {
+#if MATHKONG_TARGET_SAPPHIRE
     mathkong_scale_u8_sapphire(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_scale_u8_skylake(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_scale_u8_haswell(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_scale_u8_neon(a, n, alpha, beta, r);
 #else
     mathkong_scale_u8_serial(a, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_scale_i16(mathkong_i16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                       mathkong_distance_t beta, mathkong_i16_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_scale_i16(mathkong_i16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                        mathkong_distance_t beta, mathkong_i16_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_scale_i16_skylake(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_scale_i16_haswell(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_scale_i16_neon(a, n, alpha, beta, r);
 #else
     mathkong_scale_i16_serial(a, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_scale_u16(mathkong_u16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                       mathkong_distance_t beta, mathkong_u16_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_scale_u16(mathkong_u16_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                        mathkong_distance_t beta, mathkong_u16_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_scale_u16_skylake(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_scale_u16_haswell(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_scale_u16_neon(a, n, alpha, beta, r);
 #else
     mathkong_scale_u16_serial(a, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_scale_i32(mathkong_i32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                       mathkong_distance_t beta, mathkong_i32_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_scale_i32(mathkong_i32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                        mathkong_distance_t beta, mathkong_i32_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_scale_i32_skylake(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_scale_i32_haswell(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_scale_i32_neon(a, n, alpha, beta, r);
 #else
     mathkong_scale_i32_serial(a, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_scale_u32(mathkong_u32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                       mathkong_distance_t beta, mathkong_u32_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_scale_u32(mathkong_u32_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                        mathkong_distance_t beta, mathkong_u32_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_scale_u32_skylake(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_scale_u32_haswell(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_scale_u32_neon(a, n, alpha, beta, r);
 #else
     mathkong_scale_u32_serial(a, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_scale_i64(mathkong_i64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                       mathkong_distance_t beta, mathkong_i64_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_scale_i64(mathkong_i64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                        mathkong_distance_t beta, mathkong_i64_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_scale_i64_skylake(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_scale_i64_neon(a, n, alpha, beta, r);
 #else
     mathkong_scale_i64_serial(a, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_scale_u64(mathkong_u64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
-                                       mathkong_distance_t beta, mathkong_u64_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_scale_u64(mathkong_u64_t const *a, mathkong_size_t n, mathkong_distance_t alpha,
+                                        mathkong_distance_t beta, mathkong_u64_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_scale_u64_skylake(a, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_scale_u64_neon(a, n, alpha, beta, r);
 #else
     mathkong_scale_u64_serial(a, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_wsum_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
-                                      mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f64_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_wsum_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_size_t n,
+                                       mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f64_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_wsum_f64_skylake(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_wsum_f64_haswell(a, b, n, alpha, beta, r);
 #else
     mathkong_wsum_f64_serial(a, b, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_wsum_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
-                                      mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_wsum_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_size_t n,
+                                       mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f32_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_wsum_f32_skylake(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_wsum_f32_haswell(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_wsum_f32_neon(a, b, n, alpha, beta, r);
 #else
     mathkong_wsum_f32_serial(a, b, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_wsum_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
-                                       mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_wsum_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_size_t n,
+                                        mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_bf16_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_wsum_bf16_skylake(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_wsum_bf16_haswell(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON_BF16
+#elif MATHKONG_TARGET_NEON_BF16
     mathkong_wsum_bf16_neon(a, b, n, alpha, beta, r);
 #else
     mathkong_wsum_bf16_serial(a, b, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_wsum_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
-                                      mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *r) {
-#if SIMSIMD_TARGET_SAPPHIRE
+MATHKONG_PUBLIC void mathkong_wsum_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_size_t n,
+                                       mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_f16_t *r) {
+#if MATHKONG_TARGET_SAPPHIRE
     mathkong_wsum_f16_sapphire(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_wsum_f16_haswell(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_wsum_f16_neon(a, b, n, alpha, beta, r);
 #else
     mathkong_wsum_f16_serial(a, b, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_wsum_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *r) {
-#if SIMSIMD_TARGET_SAPPHIRE
+MATHKONG_PUBLIC void mathkong_wsum_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_size_t n,
+                                      mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_i8_t *r) {
+#if MATHKONG_TARGET_SAPPHIRE
     mathkong_wsum_i8_sapphire(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_wsum_i8_haswell(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_wsum_i8_neon(a, b, n, alpha, beta, r);
 #else
     mathkong_wsum_i8_serial(a, b, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_wsum_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
-                                     mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *r) {
-#if SIMSIMD_TARGET_SAPPHIRE
+MATHKONG_PUBLIC void mathkong_wsum_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_size_t n,
+                                      mathkong_distance_t alpha, mathkong_distance_t beta, mathkong_u8_t *r) {
+#if MATHKONG_TARGET_SAPPHIRE
     mathkong_wsum_u8_sapphire(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_wsum_u8_haswell(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_wsum_u8_neon(a, b, n, alpha, beta, r);
 #else
     mathkong_wsum_u8_serial(a, b, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_fma_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_f64_t const *c,
-                                     mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                     mathkong_f64_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_fma_f64(mathkong_f64_t const *a, mathkong_f64_t const *b, mathkong_f64_t const *c,
+                                      mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                      mathkong_f64_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_fma_f64_skylake(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_fma_f64_haswell(a, b, c, n, alpha, beta, r);
 #else
     mathkong_fma_f64_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_fma_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c,
-                                     mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                     mathkong_f32_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_fma_f32(mathkong_f32_t const *a, mathkong_f32_t const *b, mathkong_f32_t const *c,
+                                      mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                      mathkong_f32_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_fma_f32_skylake(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_fma_f32_haswell(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_fma_f32_neon(a, b, c, n, alpha, beta, r);
 #else
     mathkong_fma_f32_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_fma_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_bf16_t const *c,
-                                      mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                      mathkong_bf16_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_fma_bf16(mathkong_bf16_t const *a, mathkong_bf16_t const *b, mathkong_bf16_t const *c,
+                                       mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                       mathkong_bf16_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_fma_bf16_skylake(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_fma_bf16_haswell(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON_BF16
+#elif MATHKONG_TARGET_NEON_BF16
     mathkong_fma_bf16_neon(a, b, c, n, alpha, beta, r);
 #else
     mathkong_fma_bf16_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_fma_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c,
-                                     mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                     mathkong_f16_t *r) {
-#if SIMSIMD_TARGET_SAPPHIRE
+MATHKONG_PUBLIC void mathkong_fma_f16(mathkong_f16_t const *a, mathkong_f16_t const *b, mathkong_f16_t const *c,
+                                      mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                      mathkong_f16_t *r) {
+#if MATHKONG_TARGET_SAPPHIRE
     mathkong_fma_f16_sapphire(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_fma_f16_haswell(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_fma_f16_neon(a, b, c, n, alpha, beta, r);
 #else
     mathkong_fma_f16_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_fma_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_i8_t const *c,
-                                    mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                    mathkong_i8_t *r) {
-#if SIMSIMD_TARGET_SAPPHIRE
+MATHKONG_PUBLIC void mathkong_fma_i8(mathkong_i8_t const *a, mathkong_i8_t const *b, mathkong_i8_t const *c,
+                                     mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                     mathkong_i8_t *r) {
+#if MATHKONG_TARGET_SAPPHIRE
     mathkong_fma_i8_sapphire(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_fma_i8_skylake(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_fma_i8_haswell(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_fma_i8_neon(a, b, c, n, alpha, beta, r);
 #else
     mathkong_fma_i8_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_fma_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_u8_t const *c,
-                                    mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                    mathkong_u8_t *r) {
-#if SIMSIMD_TARGET_SAPPHIRE
+MATHKONG_PUBLIC void mathkong_fma_u8(mathkong_u8_t const *a, mathkong_u8_t const *b, mathkong_u8_t const *c,
+                                     mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                     mathkong_u8_t *r) {
+#if MATHKONG_TARGET_SAPPHIRE
     mathkong_fma_u8_sapphire(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_SKYLAKE
+#elif MATHKONG_TARGET_SKYLAKE
     mathkong_fma_i8_skylake(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_fma_u8_haswell(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON_F16
+#elif MATHKONG_TARGET_NEON_F16
     mathkong_fma_u8_neon(a, b, c, n, alpha, beta, r);
 #else
     mathkong_fma_u8_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_fma_i16(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_i16_t const *c,
-                                     mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                     mathkong_i16_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_fma_i16(mathkong_i16_t const *a, mathkong_i16_t const *b, mathkong_i16_t const *c,
+                                      mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                      mathkong_i16_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_fma_i16_skylake(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_fma_i16_haswell(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_fma_i16_neon(a, b, c, n, alpha, beta, r);
 #else
     mathkong_fma_i16_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_fma_u16(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_u16_t const *c,
-                                     mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                     mathkong_u16_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_fma_u16(mathkong_u16_t const *a, mathkong_u16_t const *b, mathkong_u16_t const *c,
+                                      mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                      mathkong_u16_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_fma_u16_skylake(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_fma_u16_haswell(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_fma_u16_neon(a, b, c, n, alpha, beta, r);
 #else
     mathkong_fma_u16_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_fma_i32(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_i32_t const *c,
-                                     mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                     mathkong_i32_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_fma_i32(mathkong_i32_t const *a, mathkong_i32_t const *b, mathkong_i32_t const *c,
+                                      mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                      mathkong_i32_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_fma_i32_skylake(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_fma_i32_haswell(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_fma_i32_neon(a, b, c, n, alpha, beta, r);
 #else
     mathkong_fma_i32_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_fma_u32(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_u32_t const *c,
-                                     mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                     mathkong_u32_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_fma_u32(mathkong_u32_t const *a, mathkong_u32_t const *b, mathkong_u32_t const *c,
+                                      mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                      mathkong_u32_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_fma_u32_skylake(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
+#elif MATHKONG_TARGET_HASWELL
     mathkong_fma_u32_haswell(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_fma_u32_neon(a, b, c, n, alpha, beta, r);
 #else
     mathkong_fma_u32_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_fma_i64(mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_i64_t const *c,
-                                     mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                     mathkong_i64_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_fma_i64(mathkong_i64_t const *a, mathkong_i64_t const *b, mathkong_i64_t const *c,
+                                      mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                      mathkong_i64_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_fma_i64_skylake(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_fma_i64_neon(a, b, c, n, alpha, beta, r);
 #else
     mathkong_fma_i64_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-SIMSIMD_PUBLIC void mathkong_fma_u64(mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_u64_t const *c,
-                                     mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
-                                     mathkong_u64_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
+MATHKONG_PUBLIC void mathkong_fma_u64(mathkong_u64_t const *a, mathkong_u64_t const *b, mathkong_u64_t const *c,
+                                      mathkong_size_t n, mathkong_distance_t alpha, mathkong_distance_t beta,
+                                      mathkong_u64_t *r) {
+#if MATHKONG_TARGET_SKYLAKE
     mathkong_fma_u64_skylake(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
+#elif MATHKONG_TARGET_NEON
     mathkong_fma_u64_neon(a, b, c, n, alpha, beta, r);
 #else
     mathkong_fma_u64_serial(a, b, c, n, alpha, beta, r);
@@ -3306,4 +3306,4 @@ SIMSIMD_PUBLIC void mathkong_fma_u64(mathkong_u64_t const *a, mathkong_u64_t con
 }
 #endif
 
-#endif // SIMSIMD_H
+#endif // MATHKONG_H

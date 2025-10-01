@@ -48,8 +48,8 @@
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
-#ifndef SIMSIMD_SPARSE_H
-#define SIMSIMD_SPARSE_H
+#ifndef MATHKONG_SPARSE_H
+#define MATHKONG_SPARSE_H
 
 #include "types.h"
 
@@ -60,20 +60,20 @@ extern "C" {
 /*  Implements the serial set intersection algorithm, similar to `std::set_intersection in C++ STL`,
  *  but uses clever galloping logic, if the arrays significantly differ in size.
  */
-SIMSIMD_PUBLIC void mathkong_intersect_u16_serial(      //
+MATHKONG_PUBLIC void mathkong_intersect_u16_serial(     //
     mathkong_u16_t const *a, mathkong_u16_t const *b,   //
     mathkong_size_t a_length, mathkong_size_t b_length, //
     mathkong_distance_t *results);
-SIMSIMD_PUBLIC void mathkong_intersect_u32_serial(      //
+MATHKONG_PUBLIC void mathkong_intersect_u32_serial(     //
     mathkong_u32_t const *a, mathkong_u32_t const *b,   //
     mathkong_size_t a_length, mathkong_size_t b_length, //
     mathkong_distance_t *results);
-SIMSIMD_PUBLIC void mathkong_spdot_counts_u16_serial(                 //
+MATHKONG_PUBLIC void mathkong_spdot_counts_u16_serial(                //
     mathkong_u16_t const *a, mathkong_u16_t const *b,                 //
     mathkong_i16_t const *a_weights, mathkong_i16_t const *b_weights, //
     mathkong_size_t a_length, mathkong_size_t b_length,               //
     mathkong_distance_t *results);
-SIMSIMD_PUBLIC void mathkong_spdot_weights_u16_serial(                  //
+MATHKONG_PUBLIC void mathkong_spdot_weights_u16_serial(                 //
     mathkong_u16_t const *a, mathkong_u16_t const *b,                   //
     mathkong_bf16_t const *a_weights, mathkong_bf16_t const *b_weights, //
     mathkong_size_t a_length, mathkong_size_t b_length,                 //
@@ -82,20 +82,20 @@ SIMSIMD_PUBLIC void mathkong_spdot_weights_u16_serial(                  //
 /*  Implements the most naive set intersection algorithm, similar to `std::set_intersection in C++ STL`,
  *  naively enumerating the elements of two arrays.
  */
-SIMSIMD_PUBLIC void mathkong_intersect_u16_accurate(    //
+MATHKONG_PUBLIC void mathkong_intersect_u16_accurate(   //
     mathkong_u16_t const *a, mathkong_u16_t const *b,   //
     mathkong_size_t a_length, mathkong_size_t b_length, //
     mathkong_distance_t *results);
-SIMSIMD_PUBLIC void mathkong_intersect_u32_accurate(    //
+MATHKONG_PUBLIC void mathkong_intersect_u32_accurate(   //
     mathkong_u32_t const *a, mathkong_u32_t const *b,   //
     mathkong_size_t a_length, mathkong_size_t b_length, //
     mathkong_distance_t *results);
-SIMSIMD_PUBLIC void mathkong_spdot_counts_u16_accurate(               //
+MATHKONG_PUBLIC void mathkong_spdot_counts_u16_accurate(              //
     mathkong_u16_t const *a, mathkong_u16_t const *b,                 //
     mathkong_i16_t const *a_weights, mathkong_i16_t const *b_weights, //
     mathkong_size_t a_length, mathkong_size_t b_length,               //
     mathkong_distance_t *results);
-SIMSIMD_PUBLIC void mathkong_spdot_weights_u16_accurate(                //
+MATHKONG_PUBLIC void mathkong_spdot_weights_u16_accurate(               //
     mathkong_u16_t const *a, mathkong_u16_t const *b,                   //
     mathkong_bf16_t const *a_weights, mathkong_bf16_t const *b_weights, //
     mathkong_size_t a_length, mathkong_size_t b_length,                 //
@@ -104,20 +104,20 @@ SIMSIMD_PUBLIC void mathkong_spdot_weights_u16_accurate(                //
 /*  SIMD-powered backends for Arm SVE, mostly using 32-bit arithmetic over variable-length platform-defined word sizes.
  *  Designed for Arm Graviton 3, Microsoft Cobalt, as well as Nvidia Grace and newer Ampere Altra CPUs.
  */
-SIMSIMD_PUBLIC void mathkong_intersect_u16_sve2(        //
+MATHKONG_PUBLIC void mathkong_intersect_u16_sve2(       //
     mathkong_u16_t const *a, mathkong_u16_t const *b,   //
     mathkong_size_t a_length, mathkong_size_t b_length, //
     mathkong_distance_t *results);
-SIMSIMD_PUBLIC void mathkong_intersect_u32_sve2(        //
+MATHKONG_PUBLIC void mathkong_intersect_u32_sve2(       //
     mathkong_u32_t const *a, mathkong_u32_t const *b,   //
     mathkong_size_t a_length, mathkong_size_t b_length, //
     mathkong_distance_t *results);
-SIMSIMD_PUBLIC void mathkong_spdot_counts_u16_sve2(                   //
+MATHKONG_PUBLIC void mathkong_spdot_counts_u16_sve2(                  //
     mathkong_u16_t const *a, mathkong_u16_t const *b,                 //
     mathkong_i16_t const *a_weights, mathkong_i16_t const *b_weights, //
     mathkong_size_t a_length, mathkong_size_t b_length,               //
     mathkong_distance_t *results);
-SIMSIMD_PUBLIC void mathkong_spdot_weights_u16_sve2(                    //
+MATHKONG_PUBLIC void mathkong_spdot_weights_u16_sve2(                   //
     mathkong_u16_t const *a, mathkong_u16_t const *b,                   //
     mathkong_bf16_t const *a_weights, mathkong_bf16_t const *b_weights, //
     mathkong_size_t a_length, mathkong_size_t b_length,                 //
@@ -127,11 +127,11 @@ SIMSIMD_PUBLIC void mathkong_spdot_weights_u16_sve2(                    //
  *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
  *  Ice Lake, however, is needed even for the most basic kernels to perform integer matching.
  */
-SIMSIMD_PUBLIC void mathkong_intersect_u16_ice(         //
+MATHKONG_PUBLIC void mathkong_intersect_u16_ice(        //
     mathkong_u16_t const *a, mathkong_u16_t const *b,   //
     mathkong_size_t a_length, mathkong_size_t b_length, //
     mathkong_distance_t *results);
-SIMSIMD_PUBLIC void mathkong_intersect_u32_ice(         //
+MATHKONG_PUBLIC void mathkong_intersect_u32_ice(        //
     mathkong_u32_t const *a, mathkong_u32_t const *b,   //
     mathkong_size_t a_length, mathkong_size_t b_length, //
     mathkong_distance_t *results);
@@ -139,27 +139,27 @@ SIMSIMD_PUBLIC void mathkong_intersect_u32_ice(         //
 /*  SIMD-powered backends for AMD Turin CPUs with cheap VP2INTERSECT instructions.
  *  On the Intel side, only mobile Tiger Lake support them, but have prohibitively high latency.
  */
-SIMSIMD_PUBLIC void mathkong_intersect_u16_turin(       //
+MATHKONG_PUBLIC void mathkong_intersect_u16_turin(      //
     mathkong_u16_t const *a, mathkong_u16_t const *b,   //
     mathkong_size_t a_length, mathkong_size_t b_length, //
     mathkong_distance_t *results);
-SIMSIMD_PUBLIC void mathkong_intersect_u32_turin(       //
+MATHKONG_PUBLIC void mathkong_intersect_u32_turin(      //
     mathkong_u32_t const *a, mathkong_u32_t const *b,   //
     mathkong_size_t a_length, mathkong_size_t b_length, //
     mathkong_distance_t *results);
-SIMSIMD_PUBLIC void mathkong_spdot_counts_u16_turin(                  //
+MATHKONG_PUBLIC void mathkong_spdot_counts_u16_turin(                 //
     mathkong_u16_t const *a, mathkong_u16_t const *b,                 //
     mathkong_i16_t const *a_weights, mathkong_i16_t const *b_weights, //
     mathkong_size_t a_length, mathkong_size_t b_length,               //
     mathkong_distance_t *results);
-SIMSIMD_PUBLIC void mathkong_spdot_weights_u16_turin(                   //
+MATHKONG_PUBLIC void mathkong_spdot_weights_u16_turin(                  //
     mathkong_u16_t const *a, mathkong_u16_t const *b,                   //
     mathkong_bf16_t const *a_weights, mathkong_bf16_t const *b_weights, //
     mathkong_size_t a_length, mathkong_size_t b_length,                 //
     mathkong_distance_t *results);
 
-#define SIMSIMD_MAKE_INTERSECT_LINEAR(name, input_type, counter_type)                                     \
-    SIMSIMD_PUBLIC void mathkong_intersect_##input_type##_##name(                                         \
+#define MATHKONG_MAKE_INTERSECT_LINEAR(name, input_type, counter_type)                                    \
+    MATHKONG_PUBLIC void mathkong_intersect_##input_type##_##name(                                        \
         mathkong_##input_type##_t const *a, mathkong_##input_type##_t const *b, mathkong_size_t a_length, \
         mathkong_size_t b_length, mathkong_distance_t *result) {                                          \
         mathkong_##counter_type##_t intersection_size = 0;                                                \
@@ -174,40 +174,40 @@ SIMSIMD_PUBLIC void mathkong_spdot_weights_u16_turin(                   //
         *result = intersection_size;                                                                      \
     }
 
-SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u16, size) // mathkong_intersect_u16_accurate
-SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u32, size) // mathkong_intersect_u32_accurate
+MATHKONG_MAKE_INTERSECT_LINEAR(accurate, u16, size) // mathkong_intersect_u16_accurate
+MATHKONG_MAKE_INTERSECT_LINEAR(accurate, u32, size) // mathkong_intersect_u32_accurate
 
-#define SIMSIMD_MAKE_INTERSECT_WEIGHTED(name, variation, input_type, counter_type, weight_type, accumulator_type, \
-                                        load_and_convert)                                                         \
-    SIMSIMD_PUBLIC void mathkong_##variation##_##input_type##_##name(                                             \
-        mathkong_##input_type##_t const *a, mathkong_##input_type##_t const *b,                                   \
-        mathkong_##weight_type##_t const *a_weights, mathkong_##weight_type##_t const *b_weights,                 \
-        mathkong_size_t a_length, mathkong_size_t b_length, mathkong_distance_t *results) {                       \
-        mathkong_##counter_type##_t intersection_size = 0;                                                        \
-        mathkong_##accumulator_type##_t weights_product = 0, awi, bwj;                                            \
-        mathkong_size_t i = 0, j = 0;                                                                             \
-        while (i != a_length && j != b_length) {                                                                  \
-            mathkong_##input_type##_t ai = a[i];                                                                  \
-            mathkong_##input_type##_t bj = b[j];                                                                  \
-            int matches = ai == bj;                                                                               \
-            mathkong_##accumulator_type##_t awi = load_and_convert(a_weights + i);                                \
-            mathkong_##accumulator_type##_t bwi = load_and_convert(b_weights + i);                                \
-            weights_product += matches * awi * bwi;                                                               \
-            intersection_size += matches;                                                                         \
-            i += ai < bj;                                                                                         \
-            j += ai >= bj;                                                                                        \
-        }                                                                                                         \
-        results[0] = intersection_size;                                                                           \
-        results[1] = weights_product;                                                                             \
+#define MATHKONG_MAKE_INTERSECT_WEIGHTED(name, variation, input_type, counter_type, weight_type, accumulator_type, \
+                                         load_and_convert)                                                         \
+    MATHKONG_PUBLIC void mathkong_##variation##_##input_type##_##name(                                             \
+        mathkong_##input_type##_t const *a, mathkong_##input_type##_t const *b,                                    \
+        mathkong_##weight_type##_t const *a_weights, mathkong_##weight_type##_t const *b_weights,                  \
+        mathkong_size_t a_length, mathkong_size_t b_length, mathkong_distance_t *results) {                        \
+        mathkong_##counter_type##_t intersection_size = 0;                                                         \
+        mathkong_##accumulator_type##_t weights_product = 0, awi, bwj;                                             \
+        mathkong_size_t i = 0, j = 0;                                                                              \
+        while (i != a_length && j != b_length) {                                                                   \
+            mathkong_##input_type##_t ai = a[i];                                                                   \
+            mathkong_##input_type##_t bj = b[j];                                                                   \
+            int matches = ai == bj;                                                                                \
+            mathkong_##accumulator_type##_t awi = load_and_convert(a_weights + i);                                 \
+            mathkong_##accumulator_type##_t bwi = load_and_convert(b_weights + i);                                 \
+            weights_product += matches * awi * bwi;                                                                \
+            intersection_size += matches;                                                                          \
+            i += ai < bj;                                                                                          \
+            j += ai >= bj;                                                                                         \
+        }                                                                                                          \
+        results[0] = intersection_size;                                                                            \
+        results[1] = weights_product;                                                                              \
     }
 
-SIMSIMD_MAKE_INTERSECT_WEIGHTED(accurate, spdot_counts, u16, size, i16, i64,
-                                _SIMSIMD_ASSIGN_1_TO_2) // mathkong_spdot_counts_u16_accurate
-SIMSIMD_MAKE_INTERSECT_WEIGHTED(accurate, spdot_weights, u16, size, bf16, f64,
-                                _mathkong_bf16_to_f64) // mathkong_spdot_weights_u16_accurate
+MATHKONG_MAKE_INTERSECT_WEIGHTED(accurate, spdot_counts, u16, size, i16, i64,
+                                 _MATHKONG_ASSIGN_1_TO_2) // mathkong_spdot_counts_u16_accurate
+MATHKONG_MAKE_INTERSECT_WEIGHTED(accurate, spdot_weights, u16, size, bf16, f64,
+                                 _mathkong_bf16_to_f64) // mathkong_spdot_weights_u16_accurate
 
-#define SIMSIMD_MAKE_INTERSECT_GALLOPING(name, input_type, counter_type)                                        \
-    SIMSIMD_PUBLIC mathkong_size_t mathkong_galloping_search_##input_type(                                      \
+#define MATHKONG_MAKE_INTERSECT_GALLOPING(name, input_type, counter_type)                                       \
+    MATHKONG_PUBLIC mathkong_size_t mathkong_galloping_search_##input_type(                                     \
         mathkong_##input_type##_t const *array, mathkong_size_t start, mathkong_size_t length,                  \
         mathkong_##input_type##_t val) {                                                                        \
         mathkong_size_t low = start;                                                                            \
@@ -224,7 +224,7 @@ SIMSIMD_MAKE_INTERSECT_WEIGHTED(accurate, spdot_weights, u16, size, bf16, f64,
         return low;                                                                                             \
     }                                                                                                           \
                                                                                                                 \
-    SIMSIMD_PUBLIC void mathkong_intersect_##input_type##_##name(                                               \
+    MATHKONG_PUBLIC void mathkong_intersect_##input_type##_##name(                                              \
         mathkong_##input_type##_t const *shorter, mathkong_##input_type##_t const *longer,                      \
         mathkong_size_t shorter_length, mathkong_size_t longer_length, mathkong_distance_t *result) {           \
         /* Swap arrays if necessary, as we want "longer" to be larger than "shorter" */                         \
@@ -254,12 +254,12 @@ SIMSIMD_MAKE_INTERSECT_WEIGHTED(accurate, spdot_weights, u16, size, bf16, f64,
         *result = intersection_size;                                                                            \
     }
 
-SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u16, size) // mathkong_intersect_u16_serial
-SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u32, size) // mathkong_intersect_u32_serial
-SIMSIMD_MAKE_INTERSECT_WEIGHTED(serial, spdot_counts, u16, size, i16, i32,
-                                _SIMSIMD_ASSIGN_1_TO_2) // mathkong_spdot_counts_u16_serial
-SIMSIMD_MAKE_INTERSECT_WEIGHTED(serial, spdot_weights, u16, size, bf16, f32,
-                                mathkong_bf16_to_f32) // mathkong_spdot_weights_u16_serial
+MATHKONG_MAKE_INTERSECT_GALLOPING(serial, u16, size) // mathkong_intersect_u16_serial
+MATHKONG_MAKE_INTERSECT_GALLOPING(serial, u32, size) // mathkong_intersect_u32_serial
+MATHKONG_MAKE_INTERSECT_WEIGHTED(serial, spdot_counts, u16, size, i16, i32,
+                                 _MATHKONG_ASSIGN_1_TO_2) // mathkong_spdot_counts_u16_serial
+MATHKONG_MAKE_INTERSECT_WEIGHTED(serial, spdot_weights, u16, size, bf16, f32,
+                                 mathkong_bf16_to_f32) // mathkong_spdot_weights_u16_serial
 
 /*  The AVX-512 implementations are inspired by the "Faster-Than-Native Alternatives
  *  for x86 VP2INTERSECT Instructions" paper by Guille Diez-Canas, 2022.
@@ -274,8 +274,8 @@ SIMSIMD_MAKE_INTERSECT_WEIGHTED(serial, spdot_weights, u16, size, bf16, f32,
  *   - `_mm512_permutexvar_epi16` - needs BW - 4-6 cycles latency
  *   - `_mm512_permutexvar_epi8` - needs VBMI - 3 cycles latency
  */
-#if _SIMSIMD_TARGET_X86
-#if SIMSIMD_TARGET_ICE
+#if _MATHKONG_TARGET_X86
+#if MATHKONG_TARGET_ICE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2")
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2"))), \
@@ -285,7 +285,7 @@ SIMSIMD_MAKE_INTERSECT_WEIGHTED(serial, spdot_weights, u16, size, bf16, f32,
  *  @brief  Analogous to `_mm512_2intersect_epi16_mask`, but compatible with Ice Lake CPUs,
  *          slightly faster than the native Tiger Lake implementation, but returns only one mask.
  */
-SIMSIMD_INTERNAL mathkong_u32_t _mathkong_intersect_u16x32_ice(__m512i a, __m512i b) {
+MATHKONG_INTERNAL mathkong_u32_t _mathkong_intersect_u16x32_ice(__m512i a, __m512i b) {
     __m512i a1 = _mm512_alignr_epi32(a, a, 4);
     __m512i a2 = _mm512_alignr_epi32(a, a, 8);
     __m512i a3 = _mm512_alignr_epi32(a, a, 12);
@@ -362,7 +362,7 @@ SIMSIMD_INTERNAL mathkong_u32_t _mathkong_intersect_u16x32_ice(__m512i a, __m512
  *      - up to 26 cycles latency on Ice Lake: 11*p0+9*p05+17*p5
  *      - up to 7 cycle latency on Genoa: 1*FP01+1*FP12
  */
-SIMSIMD_INTERNAL mathkong_u16_t _mathkong_intersect_u32x16_ice(__m512i a, __m512i b) {
+MATHKONG_INTERNAL mathkong_u16_t _mathkong_intersect_u32x16_ice(__m512i a, __m512i b) {
     __m512i a1 = _mm512_alignr_epi32(a, a, 4);
     __m512i b1 = _mm512_shuffle_epi32(b, _MM_PERM_ADCB);
     __mmask16 nm00 = _mm512_cmpneq_epi32_mask(a, b);
@@ -395,7 +395,7 @@ SIMSIMD_INTERNAL mathkong_u16_t _mathkong_intersect_u32x16_ice(__m512i a, __m512
                              _mathkong_u16_ror(&nm3, 4));
 }
 
-SIMSIMD_PUBLIC void mathkong_intersect_u16_ice(         //
+MATHKONG_PUBLIC void mathkong_intersect_u16_ice(        //
     mathkong_u16_t const *a, mathkong_u16_t const *b,   //
     mathkong_size_t a_length, mathkong_size_t b_length, //
     mathkong_distance_t *results) {
@@ -460,7 +460,7 @@ SIMSIMD_PUBLIC void mathkong_intersect_u16_ice(         //
     *results += c;
 }
 
-SIMSIMD_PUBLIC void mathkong_intersect_u32_ice(         //
+MATHKONG_PUBLIC void mathkong_intersect_u32_ice(        //
     mathkong_u32_t const *a, mathkong_u32_t const *b,   //
     mathkong_size_t a_length, mathkong_size_t b_length, //
     mathkong_distance_t *results) {
@@ -527,9 +527,9 @@ SIMSIMD_PUBLIC void mathkong_intersect_u32_ice(         //
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_ICE
+#endif // MATHKONG_TARGET_ICE
 
-#if SIMSIMD_TARGET_TURIN
+#if MATHKONG_TARGET_TURIN
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2", "avx512bf16", \
                    "avx512vnni", "avx512vp2intersect", "avx512dq")
@@ -538,7 +538,7 @@ SIMSIMD_PUBLIC void mathkong_intersect_u32_ice(         //
         "avx2,avx512f,avx512vl,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2,avx512bf16,avx512vnni,avx512vp2intersect,avx512dq"))), \
     apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_intersect_u16_turin(       //
+MATHKONG_PUBLIC void mathkong_intersect_u16_turin(      //
     mathkong_u16_t const *a, mathkong_u16_t const *b,   //
     mathkong_size_t a_length, mathkong_size_t b_length, //
     mathkong_distance_t *results) {
@@ -609,7 +609,7 @@ SIMSIMD_PUBLIC void mathkong_intersect_u16_turin(       //
     *results += c;
 }
 
-SIMSIMD_PUBLIC void mathkong_intersect_u32_turin(       //
+MATHKONG_PUBLIC void mathkong_intersect_u32_turin(      //
     mathkong_u32_t const *a, mathkong_u32_t const *b,   //
     mathkong_size_t a_length, mathkong_size_t b_length, //
     mathkong_distance_t *results) {
@@ -675,7 +675,7 @@ SIMSIMD_PUBLIC void mathkong_intersect_u32_turin(       //
     *results += c;
 }
 
-SIMSIMD_PUBLIC void mathkong_spdot_weights_u16_turin(                   //
+MATHKONG_PUBLIC void mathkong_spdot_weights_u16_turin(                  //
     mathkong_u16_t const *a, mathkong_u16_t const *b,                   //
     mathkong_bf16_t const *a_weights, mathkong_bf16_t const *b_weights, //
     mathkong_size_t a_length, mathkong_size_t b_length,                 //
@@ -761,7 +761,7 @@ SIMSIMD_PUBLIC void mathkong_spdot_weights_u16_turin(                   //
     results[1] += _mm512_reduce_add_ps(_mm512_insertf32x8(_mm512_setzero_ps(), product_vec.ymmps, 0));
 }
 
-SIMSIMD_PUBLIC void mathkong_spdot_counts_u16_turin(                  //
+MATHKONG_PUBLIC void mathkong_spdot_counts_u16_turin(                 //
     mathkong_u16_t const *a, mathkong_u16_t const *b,                 //
     mathkong_i16_t const *a_weights, mathkong_i16_t const *b_weights, //
     mathkong_size_t a_length, mathkong_size_t b_length,               //
@@ -849,11 +849,11 @@ SIMSIMD_PUBLIC void mathkong_spdot_counts_u16_turin(                  //
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_TURIN
-#endif // _SIMSIMD_TARGET_X86
+#endif // MATHKONG_TARGET_TURIN
+#endif // _MATHKONG_TARGET_X86
 
-#if _SIMSIMD_TARGET_ARM
-#if SIMSIMD_TARGET_NEON
+#if _MATHKONG_TARGET_ARM
+#if MATHKONG_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a")
 #pragma clang attribute push(__attribute__((target("arch=armv8-a"))), apply_to = function)
@@ -862,11 +862,11 @@ SIMSIMD_PUBLIC void mathkong_spdot_counts_u16_turin(                  //
  *  @brief  Uses `vshrn` to produce a bitmask, similar to `movemask` in SSE.
  *  https://community.arm.com/arm-community-blogs/b/infrastructure-solutions-blog/posts/porting-x86-vector-bitmask-optimizations-to-arm-neon
  */
-SIMSIMD_INTERNAL mathkong_u64_t _mathkong_u8_to_u4_neon(uint8x16_t vec) {
+MATHKONG_INTERNAL mathkong_u64_t _mathkong_u8_to_u4_neon(uint8x16_t vec) {
     return vget_lane_u64(vreinterpret_u64_u8(vshrn_n_u16(vreinterpretq_u16_u8(vec), 4)), 0);
 }
 
-SIMSIMD_INTERNAL int _mathkong_clz_u64(mathkong_u64_t x) {
+MATHKONG_INTERNAL int _mathkong_clz_u64(mathkong_u64_t x) {
 // On GCC and Clang use the builtin, otherwise use the generic implementation
 #if defined(__GNUC__) || defined(__clang__)
     return __builtin_clzll(x);
@@ -877,7 +877,7 @@ SIMSIMD_INTERNAL int _mathkong_clz_u64(mathkong_u64_t x) {
 #endif
 }
 
-SIMSIMD_INTERNAL uint32x4_t _mathkong_intersect_u32x4_neon(uint32x4_t a, uint32x4_t b) {
+MATHKONG_INTERNAL uint32x4_t _mathkong_intersect_u32x4_neon(uint32x4_t a, uint32x4_t b) {
     uint32x4_t b1 = vextq_u32(b, b, 1);
     uint32x4_t b2 = vextq_u32(b, b, 2);
     uint32x4_t b3 = vextq_u32(b, b, 3);
@@ -889,7 +889,7 @@ SIMSIMD_INTERNAL uint32x4_t _mathkong_intersect_u32x4_neon(uint32x4_t a, uint32x
     return nm;
 }
 
-SIMSIMD_INTERNAL uint16x8_t _mathkong_intersect_u16x8_neon(uint16x8_t a, uint16x8_t b) {
+MATHKONG_INTERNAL uint16x8_t _mathkong_intersect_u16x8_neon(uint16x8_t a, uint16x8_t b) {
     uint16x8_t b1 = vextq_u16(b, b, 1);
     uint16x8_t b2 = vextq_u16(b, b, 2);
     uint16x8_t b3 = vextq_u16(b, b, 3);
@@ -910,7 +910,7 @@ SIMSIMD_INTERNAL uint16x8_t _mathkong_intersect_u16x8_neon(uint16x8_t a, uint16x
     return nm;
 }
 
-SIMSIMD_PUBLIC void mathkong_intersect_u16_neon(        //
+MATHKONG_PUBLIC void mathkong_intersect_u16_neon(       //
     mathkong_u16_t const *a, mathkong_u16_t const *b,   //
     mathkong_size_t a_length, mathkong_size_t b_length, //
     mathkong_distance_t *results) {
@@ -971,7 +971,7 @@ SIMSIMD_PUBLIC void mathkong_intersect_u16_neon(        //
         // Counting leading zeros is tricky. On Arm we can use inline Assembly to get the result,
         // but MSVC doesn't support that:
         //
-        //      SIMSIMD_INTERNAL int _mathkong_clz_u64(mathkong_u64_t value) {
+        //      MATHKONG_INTERNAL int _mathkong_clz_u64(mathkong_u64_t value) {
         //          mathkong_u64_t result;
         //          __asm__("clz %x0, %x1" : "=r"(result) : "r"(value));
         //          return (int)result;
@@ -993,7 +993,7 @@ SIMSIMD_PUBLIC void mathkong_intersect_u16_neon(        //
     *results += vaddvq_u16(c_counts_vec.u16x8);
 }
 
-SIMSIMD_PUBLIC void mathkong_intersect_u32_neon(        //
+MATHKONG_PUBLIC void mathkong_intersect_u32_neon(       //
     mathkong_u32_t const *a, mathkong_u32_t const *b,   //
     mathkong_size_t a_length, mathkong_size_t b_length, //
     mathkong_distance_t *results) {
@@ -1067,7 +1067,7 @@ SIMSIMD_PUBLIC void mathkong_intersect_u32_neon(        //
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_NEON
+#endif // MATHKONG_TARGET_NEON
 
 /*  SVE2 introduces many new integer-oriented instructions, extending some of the NEON functionality
  *  to variable-length SVE registers. Those include "compare multiple" intrinsics:
@@ -1091,12 +1091,12 @@ SIMSIMD_PUBLIC void mathkong_intersect_u32_neon(        //
  *  > ARM’s Scalable Vector Extensions: A Critical Look at SVE2 For Integer Workloads
  *    https://gist.github.com/zingaburga/805669eb891c820bd220418ee3f0d6bd
  */
-#if SIMSIMD_TARGET_SVE2
+#if MATHKONG_TARGET_SVE2
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve+sve2")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+sve2"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_intersect_u16_sve2(      //
+MATHKONG_PUBLIC void mathkong_intersect_u16_sve2(     //
     mathkong_u16_t const *a, mathkong_u16_t const *b, //
     mathkong_size_t a_length,
     mathkong_size_t b_length, //
@@ -1166,9 +1166,9 @@ SIMSIMD_PUBLIC void mathkong_intersect_u16_sve2(      //
     *results = c;
 }
 
-SIMSIMD_PUBLIC void mathkong_intersect_u32_sve2(mathkong_u32_t const *a, mathkong_u32_t const *b,
-                                                mathkong_size_t a_length, mathkong_size_t b_length,
-                                                mathkong_distance_t *results) {
+MATHKONG_PUBLIC void mathkong_intersect_u32_sve2(mathkong_u32_t const *a, mathkong_u32_t const *b,
+                                                 mathkong_size_t a_length, mathkong_size_t b_length,
+                                                 mathkong_distance_t *results) {
 
     // A single SVE lane is 128 bits wide, so one lane fits 4 values.
     mathkong_size_t const register_size = svcntw();
@@ -1262,7 +1262,7 @@ SIMSIMD_PUBLIC void mathkong_intersect_u32_sve2(mathkong_u32_t const *a, mathkon
     *results = c;
 }
 
-SIMSIMD_PUBLIC void mathkong_spdot_counts_u16_sve2(                   //
+MATHKONG_PUBLIC void mathkong_spdot_counts_u16_sve2(                  //
     mathkong_u16_t const *a, mathkong_u16_t const *b,                 //
     mathkong_i16_t const *a_weights, mathkong_i16_t const *b_weights, //
     mathkong_size_t a_length, mathkong_size_t b_length,               //
@@ -1338,14 +1338,14 @@ SIMSIMD_PUBLIC void mathkong_spdot_counts_u16_sve2(                   //
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_SVE2
+#endif // MATHKONG_TARGET_SVE2
 
-#if SIMSIMD_TARGET_SVE2 && SIMSIMD_TARGET_SVE_BF16
+#if MATHKONG_TARGET_SVE2 && MATHKONG_TARGET_SVE_BF16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+sve+sve2+bf16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+sve+sve2+bf16"))), apply_to = function)
 
-SIMSIMD_PUBLIC void mathkong_spdot_weights_u16_sve2(                    //
+MATHKONG_PUBLIC void mathkong_spdot_weights_u16_sve2(                   //
     mathkong_u16_t const *a, mathkong_u16_t const *b,                   //
     mathkong_bf16_t const *a_weights, mathkong_bf16_t const *b_weights, //
     mathkong_size_t a_length, mathkong_size_t b_length,                 //
@@ -1425,8 +1425,8 @@ SIMSIMD_PUBLIC void mathkong_spdot_weights_u16_sve2(                    //
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // SIMSIMD_TARGET_SVE2 && SIMSIMD_TARGET_SVE_BF16
-#endif // _SIMSIMD_TARGET_ARM
+#endif // MATHKONG_TARGET_SVE2 && MATHKONG_TARGET_SVE_BF16
+#endif // _MATHKONG_TARGET_ARM
 
 #ifdef __cplusplus
 }
