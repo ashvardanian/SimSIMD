@@ -129,6 +129,11 @@
 #define _SIMSIMD_HAS_POSIX_EXTENSIONS 0
 #endif
 
+// On Windows ARM, we use IsProcessorFeaturePresent API for capability detection
+#if defined(_SIMSIMD_DEFINED_WINDOWS) && _SIMSIMD_TARGET_ARM
+#include <processthreadsapi.h> // `IsProcessorFeaturePresent`
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -613,8 +618,25 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
         (simsimd_cap_sve2_k * (supports_sve2)) |                                                      //
         (simsimd_cap_sve2p1_k * (supports_sve2p1)) |                                                  //
         (simsimd_cap_serial_k));
-#else  // if !_SIMSIMD_DEFINED_LINUX
-    return simsimd_cap_serial_k;
+
+#elif defined(_SIMSIMD_DEFINED_WINDOWS)
+
+    // On Windows ARM, use the `IsProcessorFeaturePresent` API for capability detection.
+    // https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-isprocessorfeaturepresent
+    unsigned supports_neon = IsProcessorFeaturePresent(PF_ARM_V8_INSTRUCTIONS_AVAILABLE);
+    unsigned supports_dp = IsProcessorFeaturePresent(PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE);
+
+    // Windows API doesn't provide reliable detection for FP16, BF16.
+    return (simsimd_capability_t)(                                 //
+        (simsimd_cap_neon_k * (supports_neon)) |                   //
+        (simsimd_cap_neon_i8_k * (supports_neon && supports_dp)) | //
+        (simsimd_cap_serial_k));
+
+#else // Unknown platform
+
+    // Conservative fallback for unknown platforms: NEON is mandatory in ARMv8-A (ARM64)
+    return (simsimd_capability_t)(simsimd_cap_neon_k | simsimd_cap_serial_k);
+
 #endif
 }
 
