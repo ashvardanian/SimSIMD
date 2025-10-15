@@ -422,7 +422,7 @@ def keep_one_capability(cap: str):
     for c in possible_capabilities:
         if c != cap:
             simd.disable_capability(c)
-    simd.enable_capability(c)
+    simd.enable_capability(cap)
 
 
 def name_to_kernels(name: str):
