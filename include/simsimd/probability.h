@@ -389,11 +389,9 @@ simsimd_js_f16_haswell_cycle:
         b_vec = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)b));
         n -= 8, a += 8, b += 8;
     }
-    a_vec = _mm256_add_ps(a_vec, epsilon_vec);
-    b_vec = _mm256_add_ps(b_vec, epsilon_vec);
     __m256 m_vec = _mm256_mul_ps(_mm256_add_ps(a_vec, b_vec), _mm256_set1_ps(0.5f)); // M = (P + Q) / 2
-    __m256 ratio_a_vec = _mm256_div_ps(a_vec, m_vec);
-    __m256 ratio_b_vec = _mm256_div_ps(b_vec, m_vec);
+    __m256 ratio_a_vec = _mm256_div_ps(_mm256_add_ps(a_vec, epsilon_vec), _mm256_add_ps(m_vec, epsilon_vec));
+    __m256 ratio_b_vec = _mm256_div_ps(_mm256_add_ps(b_vec, epsilon_vec), _mm256_add_ps(m_vec, epsilon_vec));
     __m256 log_ratio_a_vec = _simsimd_log2_f32_haswell(ratio_a_vec);
     __m256 log_ratio_b_vec = _simsimd_log2_f32_haswell(ratio_b_vec);
     __m256 prod_a_vec = _mm256_mul_ps(a_vec, log_ratio_a_vec);
@@ -487,9 +485,10 @@ simsimd_js_f32_skylake_cycle:
     __mmask16 nonzero_mask_a = _mm512_cmp_ps_mask(a_vec, epsilon_vec, _CMP_GE_OQ);
     __mmask16 nonzero_mask_b = _mm512_cmp_ps_mask(b_vec, epsilon_vec, _CMP_GE_OQ);
     __mmask16 nonzero_mask = nonzero_mask_a & nonzero_mask_b;
-    __m512 m_recip_approx = _mm512_rcp14_ps(m_vec);
-    __m512 ratio_a_vec = _mm512_mul_ps(a_vec, m_recip_approx);
-    __m512 ratio_b_vec = _mm512_mul_ps(b_vec, m_recip_approx);
+    __m512 m_with_epsilon = _mm512_add_ps(m_vec, epsilon_vec);
+    __m512 m_recip_approx = _mm512_rcp14_ps(m_with_epsilon);
+    __m512 ratio_a_vec = _mm512_mul_ps(_mm512_add_ps(a_vec, epsilon_vec), m_recip_approx);
+    __m512 ratio_b_vec = _mm512_mul_ps(_mm512_add_ps(b_vec, epsilon_vec), m_recip_approx);
     __m512 log_ratio_a_vec = _simsimd_log2_f32_skylake(ratio_a_vec);
     __m512 log_ratio_b_vec = _simsimd_log2_f32_skylake(ratio_b_vec);
     sum_a_vec = _mm512_maskz_fmadd_ps(nonzero_mask, a_vec, log_ratio_a_vec, sum_a_vec);
@@ -579,9 +578,10 @@ simsimd_js_f16_sapphire_cycle:
     __mmask32 nonzero_mask_a = _mm512_cmp_ph_mask(a_vec, epsilon_vec, _CMP_GE_OQ);
     __mmask32 nonzero_mask_b = _mm512_cmp_ph_mask(b_vec, epsilon_vec, _CMP_GE_OQ);
     __mmask32 nonzero_mask = nonzero_mask_a & nonzero_mask_b;
-    __m512h m_recip_approx = _mm512_rcp_ph(m_vec);
-    __m512h ratio_a_vec = _mm512_mul_ph(a_vec, m_recip_approx);
-    __m512h ratio_b_vec = _mm512_mul_ph(b_vec, m_recip_approx);
+    __m512h m_with_epsilon = _mm512_add_ph(m_vec, epsilon_vec);
+    __m512h m_recip_approx = _mm512_rcp_ph(m_with_epsilon);
+    __m512h ratio_a_vec = _mm512_mul_ph(_mm512_add_ph(a_vec, epsilon_vec), m_recip_approx);
+    __m512h ratio_b_vec = _mm512_mul_ph(_mm512_add_ph(b_vec, epsilon_vec), m_recip_approx);
     __m512h log_ratio_a_vec = _simsimd_log2_f16_sapphire(ratio_a_vec);
     __m512h log_ratio_b_vec = _simsimd_log2_f16_sapphire(ratio_b_vec);
     sum_a_vec = _mm512_maskz_fmadd_ph(nonzero_mask, a_vec, log_ratio_a_vec, sum_a_vec);
