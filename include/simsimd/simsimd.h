@@ -30,12 +30,14 @@
  *  Intel Cooper Lake was the only intermediary platform, that supported BF16, but not FP16.
  *  It's mostly used in 4-socket and 8-socket high-memory configurations.
  *
- *  In practical terms, it makes sense to differentiate only 3 AVX512 generations:
+ *  For us, it makes sense to differentiate only these AVX512 generations:
  *  1. Intel Skylake (pre 2019): supports single-precision dot-products.
  *  2. Intel Ice Lake (2019-2021): advanced integer algorithms.
  *  3. AMD Genoa (2023+): brain-floating point support.
  *  4. Intel Sapphire Rapids (2023+): advanced mixed-precision float processing.
  *  5. AMD Turin (2024+): advanced sparse algorithms.
+ *
+ *  Beyond those, we support AVX2 for old Haswell generation CPUs, and AVX2+VNNI for modern Sierra generation.
  *
  *  To list all available macros for x86, take a recent compiler, like GCC 12 and run:
  *       gcc-12 -march=sapphirerapids -dM -E - < /dev/null | egrep "SSE|AVX" | sort
