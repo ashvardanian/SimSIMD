@@ -1129,7 +1129,7 @@ impl ProbabilitySimilarity for f64 {
 
 impl ComplexProducts for f16 {
     fn dot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
-        if a.len() != b.len() {
+        if a.len() != b.len() || a.len() % 2 != 0 {
             return None;
         }
         // Prepare the output array where the real and imaginary parts will be stored
@@ -1138,26 +1138,28 @@ impl ComplexProducts for f16 {
         // Explicitly cast `*const f16` to `*const u16`
         let a_ptr = a.as_ptr() as *const u16;
         let b_ptr = b.as_ptr() as *const u16;
-        unsafe { simsimd_dot_f16c(a_ptr, b_ptr, a.len(), product_ptr) };
+        // The C function expects the number of complex pairs, not the total number of f16 elements
+        unsafe { simsimd_dot_f16c(a_ptr, b_ptr, a.len() / 2, product_ptr) };
         Some((product[0], product[1]))
     }
 
     fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
-        if a.len() != b.len() {
+        if a.len() != b.len() || a.len() % 2 != 0 {
             return None;
         }
         let mut product: [Distance; 2] = [0.0, 0.0];
         let product_ptr: *mut Distance = &mut product[0] as *mut _;
         let a_ptr = a.as_ptr() as *const u16;
         let b_ptr = b.as_ptr() as *const u16;
-        unsafe { simsimd_vdot_f16c(a_ptr, b_ptr, a.len(), product_ptr) };
+        // The C function expects the number of complex pairs, not the total number of f16 elements
+        unsafe { simsimd_vdot_f16c(a_ptr, b_ptr, a.len() / 2, product_ptr) };
         Some((product[0], product[1]))
     }
 }
 
 impl ComplexProducts for bf16 {
     fn dot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
-        if a.len() != b.len() {
+        if a.len() != b.len() || a.len() % 2 != 0 {
             return None;
         }
         // Prepare the output array where the real and imaginary parts will be stored
@@ -1166,12 +1168,13 @@ impl ComplexProducts for bf16 {
         // Explicitly cast `*const bf16` to `*const u16`
         let a_ptr = a.as_ptr() as *const u16;
         let b_ptr = b.as_ptr() as *const u16;
-        unsafe { simsimd_dot_bf16c(a_ptr, b_ptr, a.len(), product_ptr) };
+        // The C function expects the number of complex pairs, not the total number of bf16 elements
+        unsafe { simsimd_dot_bf16c(a_ptr, b_ptr, a.len() / 2, product_ptr) };
         Some((product[0], product[1]))
     }
 
     fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
-        if a.len() != b.len() {
+        if a.len() != b.len() || a.len() % 2 != 0 {
             return None;
         }
         // Prepare the output array where the real and imaginary parts will be stored
@@ -1180,51 +1183,56 @@ impl ComplexProducts for bf16 {
         // Explicitly cast `*const bf16` to `*const u16`
         let a_ptr = a.as_ptr() as *const u16;
         let b_ptr = b.as_ptr() as *const u16;
-        unsafe { simsimd_vdot_bf16c(a_ptr, b_ptr, a.len(), product_ptr) };
+        // The C function expects the number of complex pairs, not the total number of bf16 elements
+        unsafe { simsimd_vdot_bf16c(a_ptr, b_ptr, a.len() / 2, product_ptr) };
         Some((product[0], product[1]))
     }
 }
 
 impl ComplexProducts for f32 {
     fn dot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
-        if a.len() != b.len() {
+        if a.len() != b.len() || a.len() % 2 != 0 {
             return None;
         }
         let mut product: [Distance; 2] = [0.0, 0.0];
         let product_ptr: *mut Distance = &mut product[0] as *mut _;
-        unsafe { simsimd_dot_f32c(a.as_ptr(), b.as_ptr(), a.len(), product_ptr) };
+        // The C function expects the number of complex pairs, not the total number of floats
+        unsafe { simsimd_dot_f32c(a.as_ptr(), b.as_ptr(), a.len() / 2, product_ptr) };
         Some((product[0], product[1]))
     }
 
     fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
-        if a.len() != b.len() {
+        if a.len() != b.len() || a.len() % 2 != 0 {
             return None;
         }
         let mut product: [Distance; 2] = [0.0, 0.0];
         let product_ptr: *mut Distance = &mut product[0] as *mut _;
-        unsafe { simsimd_vdot_f32c(a.as_ptr(), b.as_ptr(), a.len(), product_ptr) };
+        // The C function expects the number of complex pairs, not the total number of floats
+        unsafe { simsimd_vdot_f32c(a.as_ptr(), b.as_ptr(), a.len() / 2, product_ptr) };
         Some((product[0], product[1]))
     }
 }
 
 impl ComplexProducts for f64 {
     fn dot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
-        if a.len() != b.len() {
+        if a.len() != b.len() || a.len() % 2 != 0 {
             return None;
         }
         let mut product: [Distance; 2] = [0.0, 0.0];
         let product_ptr: *mut Distance = &mut product[0] as *mut _;
-        unsafe { simsimd_dot_f64c(a.as_ptr(), b.as_ptr(), a.len(), product_ptr) };
+        // The C function expects the number of complex pairs, not the total number of floats
+        unsafe { simsimd_dot_f64c(a.as_ptr(), b.as_ptr(), a.len() / 2, product_ptr) };
         Some((product[0], product[1]))
     }
 
     fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
-        if a.len() != b.len() {
+        if a.len() != b.len() || a.len() % 2 != 0 {
             return None;
         }
         let mut product: [Distance; 2] = [0.0, 0.0];
         let product_ptr: *mut Distance = &mut product[0] as *mut _;
-        unsafe { simsimd_vdot_f64c(a.as_ptr(), b.as_ptr(), a.len(), product_ptr) };
+        // The C function expects the number of complex pairs, not the total number of floats
+        unsafe { simsimd_vdot_f64c(a.as_ptr(), b.as_ptr(), a.len() / 2, product_ptr) };
         Some((product[0], product[1]))
     }
 }
@@ -1254,7 +1262,13 @@ mod tests {
         }
 
         println!("- uses_neon: {}", capabilities::uses_neon());
+        println!("- uses_neon_f16: {}", capabilities::uses_neon_f16());
+        println!("- uses_neon_bf16: {}", capabilities::uses_neon_bf16());
+        println!("- uses_neon_i8: {}", capabilities::uses_neon_i8());
         println!("- uses_sve: {}", capabilities::uses_sve());
+        println!("- uses_sve_f16: {}", capabilities::uses_sve_f16());
+        println!("- uses_sve_bf16: {}", capabilities::uses_sve_bf16());
+        println!("- uses_sve_i8: {}", capabilities::uses_sve_i8());
         println!("- uses_haswell: {}", capabilities::uses_haswell());
         println!("- uses_skylake: {}", capabilities::uses_skylake());
         println!("- uses_ice: {}", capabilities::uses_ice());
