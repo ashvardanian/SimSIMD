@@ -621,10 +621,16 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
 
 #elif defined(_SIMSIMD_DEFINED_WINDOWS)
 
+    unsigned supports_neon = 0, supports_dp = 0;
+
     // On Windows ARM, use the `IsProcessorFeaturePresent` API for capability detection.
     // https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-isprocessorfeaturepresent
-    unsigned supports_neon = IsProcessorFeaturePresent(PF_ARM_V8_INSTRUCTIONS_AVAILABLE);
-    unsigned supports_dp = IsProcessorFeaturePresent(PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE);
+#if defined(PF_ARM_V8_INSTRUCTIONS_AVAILABLE)
+    supports_neon = IsProcessorFeaturePresent(PF_ARM_V8_INSTRUCTIONS_AVAILABLE);
+#endif
+#if defined(PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE)
+    supports_dp = IsProcessorFeaturePresent(PF_ARM_V82_DP_INSTRUCTIONS_AVAILABLE);
+#endif
 
     // Windows API doesn't provide reliable detection for FP16, BF16.
     return (simsimd_capability_t)(                                 //
