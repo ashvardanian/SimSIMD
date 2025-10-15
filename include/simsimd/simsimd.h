@@ -116,6 +116,17 @@
 #include <sys/sysctl.h> // `sysctlbyname`
 #endif
 
+// Detect POSIX extensions availability for signal handling.
+// POSIX extensions provide `sigaction`, `sigjmp_buf`, and `sigsetjmp` for safe signal handling.
+// These are needed on Linux ARM for safely testing `mrs` instruction availability.
+#if defined(_SIMSIMD_DEFINED_LINUX) && defined(_POSIX_VERSION)
+#include <setjmp.h> // `sigjmp_buf`, `sigsetjmp`, `siglongjmp`
+#include <signal.h> // `sigaction`, `SIGILL`
+#define _SIMSIMD_HAS_POSIX_EXTENSIONS 1
+#else
+#define _SIMSIMD_HAS_POSIX_EXTENSIONS 0
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -454,6 +465,15 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
 #pragma GCC target("arch=armv8.5-a+sve")
 #pragma clang attribute push(__attribute__((target("arch=armv8.5-a+sve"))), apply_to = function)
 
+#if _SIMSIMD_HAS_POSIX_EXTENSIONS
+/** @brief SIGILL handler for `mrs` instruction testing on Linux ARM */
+static sigjmp_buf _simsimd_mrs_test_jump_buffer;
+static void _simsimd_mrs_test_sigill_handler(int sig) {
+    (void)sig; // Unused parameter
+    siglongjmp(_simsimd_mrs_test_jump_buffer, 1);
+}
+#endif
+
 /**
  *  @brief  Function to flush denormalized numbers to zero on Arm CPUs.
  *  @note   This should be called on each thread before any SIMD operations to avoid performance penalties.
@@ -503,6 +523,36 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
         (simsimd_cap_serial_k));
 
 #elif defined(_SIMSIMD_DEFINED_LINUX)
+
+    // Depending on the environment, reading system registers may cause SIGILL.
+    // One option to avoid the crash is to use `getauxval(AT_HWCAP)` and `getauxval(AT_HWCAP2)`,
+    // Linux APIs, but those aren't as informative as reading the registers directly.
+    // So before reading the ID registers, we set up a signal handler to catch SIGILL
+    // and probe one of the registers, reverting back to the old signal handler afterwards.
+    //
+    // This issue was originally observed in: https://github.com/ashvardanian/SimSIMD/issues/279
+#if _SIMSIMD_HAS_POSIX_EXTENSIONS
+    struct sigaction action_new, action_old;
+    action_new.sa_handler = _simsimd_mrs_test_sigill_handler;
+    sigemptyset(&action_new.sa_mask);
+    action_new.sa_flags = 0;
+
+    int mrs_works = 0;
+    if (sigaction(SIGILL, &action_new, &action_old) == 0) {
+        if (sigsetjmp(_simsimd_mrs_test_jump_buffer, 1) == 0) {
+            unsigned long midr_value;
+            __asm__ __volatile__("mrs %0, MIDR_EL1" : "=r"(midr_value));
+            mrs_works = 1;
+        }
+        sigaction(SIGILL, &action_old, NULL);
+    }
+
+    // Early exit if `mrs` doesn't work - return conservative NEON-only capabilities
+    if (!mrs_works) return (simsimd_capability_t)(simsimd_cap_neon_k | simsimd_cap_serial_k);
+#else  // _SIMSIMD_HAS_POSIX_EXTENSIONS
+    // Without POSIX signal handlers, fall back to conservative NEON capabilities.
+    return (simsimd_capability_t)(simsimd_cap_neon_k | simsimd_cap_serial_k);
+#endif // _SIMSIMD_HAS_POSIX_EXTENSIONS
 
     // Read CPUID registers directly
     unsigned long id_aa64isar0_el1 = 0, id_aa64isar1_el1 = 0, id_aa64pfr0_el1 = 0, id_aa64zfr0_el1 = 0;
@@ -561,7 +611,7 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
         (simsimd_cap_sve2_k * (supports_sve2)) |                                                      //
         (simsimd_cap_sve2p1_k * (supports_sve2p1)) |                                                  //
         (simsimd_cap_serial_k));
-#else // if !_SIMSIMD_DEFINED_LINUX
+#else  // if !_SIMSIMD_DEFINED_LINUX
     return simsimd_cap_serial_k;
 #endif
 }
