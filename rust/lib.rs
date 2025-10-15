@@ -1583,7 +1583,7 @@ mod tests {
     fn intersect_u16() {
         {
             let a_u16: &[u16] = &[153, 16384, 17408];
-            let b_u16: &[u16] = &[15360, 16384, 7408];
+            let b_u16: &[u16] = &[7408, 15360, 16384];
 
             if let Some(result) = Sparse::intersect(a_u16, b_u16) {
                 println!("The result of intersect_u16 is {:.8}", result);
@@ -1592,8 +1592,8 @@ mod tests {
         }
 
         {
-            let a_u16: &[u16] = &[153, 11638, 08];
-            let b_u16: &[u16] = &[15360, 16384, 7408];
+            let a_u16: &[u16] = &[8, 153, 11638];
+            let b_u16: &[u16] = &[7408, 15360, 16384];
 
             if let Some(result) = Sparse::intersect(a_u16, b_u16) {
                 println!("The result of intersect_u16 is {:.8}", result);
