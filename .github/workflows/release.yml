@@ -74,7 +74,8 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -107,7 +108,8 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -149,7 +151,8 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -181,7 +184,8 @@ jobs:
     strategy:
       matrix:
         # 3.7 not supported on macOS ARM
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -212,7 +216,8 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
         architecture: [AMD64]
         include:
           - python-version: "39"
@@ -226,6 +231,10 @@ jobs:
           - python-version: "313"
             architecture: ARM64
           - python-version: "313t"
+            architecture: ARM64
+          - python-version: "314"
+            architecture: ARM64
+          - python-version: "314t"
             architecture: ARM64
     steps:
       - uses: actions/checkout@v4
@@ -260,7 +269,8 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     steps:
       - uses: actions/checkout@v4
         with:
