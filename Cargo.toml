@@ -29,14 +29,9 @@ cc = "1.2.36"
 
 
 [[bench]]
-name = "cosine"
+name = "bench"
 harness = false
-path = "scripts/bench_cosine.rs"
-
-[[bench]]
-name = "sqeuclidean"
-harness = false
-path = "scripts/bench_sqeuclidean.rs"
+path = "scripts/bench.rs"
 
 [profile.bench]
 opt-level = 3     # Corresponds to -O3
