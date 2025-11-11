@@ -1,26 +1,30 @@
 //! Unified SimSIMD Benchmark Suite
 //!
 //! Compares SimSIMD vs native Rust implementations using Criterion.
+//! Reports both performance and accuracy metrics.
 //!
 //! Run with:
 //! ```bash
-//! cargo bench --bench bench
+//! cargo bench --bench bench -- --quiet --noplot
 //!
 //! # Or with custom dimensions:
-//! SIMSIMD_BENCH_DENSE_DIMENSIONS=2048 cargo bench --bench bench
-//! SIMSIMD_BENCH_CURVED_DIMENSIONS=16 cargo bench --bench bench
+//! SIMSIMD_BENCH_DENSE_DIMENSIONS=2048 cargo bench --bench bench -- --quiet --noplot
 //! ```
 
 use criterion::{criterion_group, criterion_main, Criterion};
+use rand::rngs::StdRng;
 use rand::Rng;
+use rand::SeedableRng;
 use simsimd::SpatialSimilarity as SimSIMD;
+use std::time::Duration;
 
-// Environment variable helpers
+const PAIRS_COUNT: usize = 128;
+
 fn get_dense_dimensions() -> usize {
     std::env::var("SIMSIMD_BENCH_DENSE_DIMENSIONS")
         .ok()
         .and_then(|s| s.parse().ok())
-        .unwrap_or(1536) // Default: OpenAI embedding size
+        .unwrap_or(1536)
 }
 
 #[allow(dead_code)]
@@ -28,493 +32,638 @@ fn get_curved_dimensions() -> usize {
     std::env::var("SIMSIMD_BENCH_CURVED_DIMENSIONS")
         .ok()
         .and_then(|s| s.parse().ok())
-        .unwrap_or(8) // Default: small size for curved benchmarks
+        .unwrap_or(8)
 }
 
-// Vector generation
-fn generate_random_vector(dim: usize) -> Vec<f32> {
-    (0..dim).map(|_| rand::rng().random()).collect()
+fn generate_f32_pairs(dimensions: usize) -> Vec<(Vec<f32>, Vec<f32>)> {
+    (0..PAIRS_COUNT)
+        .map(|i| {
+            let mut rng = StdRng::seed_from_u64(i as u64);
+            let a: Vec<f32> = (0..dimensions).map(|_| rng.random()).collect();
+            let b: Vec<f32> = (0..dimensions).map(|_| rng.random()).collect();
+            (a, b)
+        })
+        .collect()
 }
 
-// region: Baseline Implementations - Cosine Similarity
+fn generate_i8_pairs(dimensions: usize) -> Vec<(Vec<i8>, Vec<i8>)> {
+    (0..PAIRS_COUNT)
+        .map(|i| {
+            let mut rng = StdRng::seed_from_u64(i as u64);
+            let a: Vec<i8> = (0..dimensions).map(|_| rng.random()).collect();
+            let b: Vec<i8> = (0..dimensions).map(|_| rng.random()).collect();
+            (a, b)
+        })
+        .collect()
+}
 
-fn baseline_cos_procedural(a: &[f32], b: &[f32]) -> Option<f32> {
-    if a.len() != b.len() {
-        return None;
+fn calculate_errors(baseline: &[f64], contender: &[f64]) -> (f64, f64) {
+    let mut mean_delta = 0.0f64;
+    let mut mean_relative_error = 0.0f64;
+
+    for (&b, &c) in baseline.iter().zip(contender.iter()) {
+        let abs_delta = (b - c).abs();
+        mean_delta += abs_delta;
+        if abs_delta != 0.0 && b != 0.0 {
+            mean_relative_error += abs_delta / b.abs();
+        }
     }
 
-    let mut dot_product = 0.0;
-    let mut norm_a = 0.0;
-    let mut norm_b = 0.0;
+    mean_delta /= baseline.len() as f64;
+    mean_relative_error /= baseline.len() as f64;
+    (mean_delta, mean_relative_error)
+}
 
+fn print_error_table(name: &str, errors: &[(&str, f64, f64)]) {
+    println!("\n{} Accuracy Report:", name);
+    println!(
+        "{:<20} {:>15} {:>15}",
+        "Implementation", "Abs Error", "Rel Error"
+    );
+    println!("{:-<50}", "");
+    for (impl_name, abs_err, rel_err) in errors {
+        println!("{:<20} {:>15.6e} {:>15.6e}", impl_name, abs_err, rel_err);
+    }
+    println!();
+}
+
+// region: Baseline Implementations - Cosine Similarity (f32 -> f64)
+
+fn baseline_cos_procedural(a: &[f32], b: &[f32]) -> f64 {
+    let mut dot = 0.0f32;
+    let mut norm_a = 0.0f32;
+    let mut norm_b = 0.0f32;
     for i in 0..a.len() {
-        dot_product += a[i] * b[i];
-        norm_a += a[i] * a[i];
-        norm_b += b[i] * b[i];
+        let (av, bv) = (a[i], b[i]);
+        dot += av * bv;
+        norm_a += av * av;
+        norm_b += bv * bv;
     }
-
-    Some(1.0 - (dot_product / (norm_a.sqrt() * norm_b.sqrt())))
+    (1.0 - dot / (norm_a * norm_b).sqrt()) as f64
 }
 
-fn baseline_cos_functional(a: &[f32], b: &[f32]) -> Option<f32> {
-    if a.len() != b.len() {
-        return None;
-    }
-
-    let (dot_product, norm_a, norm_b) = a
+fn baseline_cos_functional(a: &[f32], b: &[f32]) -> f64 {
+    let (dot, norm_a, norm_b) = a
         .iter()
         .zip(b)
-        .map(|(a, b)| (a * b, a * a, b * b))
-        .fold((0.0, 0.0, 0.0), |acc, x| {
+        .map(|(a, b)| (*a * *b, *a * *a, *b * *b))
+        .fold((0.0f32, 0.0f32, 0.0f32), |acc, x| {
             (acc.0 + x.0, acc.1 + x.1, acc.2 + x.2)
         });
-
-    Some(1.0 - (dot_product / (norm_a.sqrt() * norm_b.sqrt())))
+    (1.0 - (dot / (norm_a.sqrt() * norm_b.sqrt()))) as f64
 }
 
-fn baseline_cos_unrolled(a: &[f32], b: &[f32]) -> Option<f32> {
-    if a.len() != b.len() {
-        return None;
-    }
-
+#[rustfmt::skip]
+fn baseline_cos_unrolled(a: &[f32], b: &[f32]) -> f64 {
     let mut i = 0;
     let remainder = a.len() % 8;
+    let mut acc = [0.0f32; 8];
+    let mut norm_a = [0.0f32; 8];
+    let mut norm_b = [0.0f32; 8];
 
-    // Manual unrolling to allow compiler vectorization
-    let mut acc1 = 0.0;
-    let mut acc2 = 0.0;
-    let mut acc3 = 0.0;
-    let mut acc4 = 0.0;
-    let mut acc5 = 0.0;
-    let mut acc6 = 0.0;
-    let mut acc7 = 0.0;
-    let mut acc8 = 0.0;
+    unsafe {
+        while i < a.len() - remainder {
+            let [a1,a2,a3,a4,a5,a6,a7,a8] = [*a.get_unchecked(i), *a.get_unchecked(i+1), *a.get_unchecked(i+2), *a.get_unchecked(i+3), *a.get_unchecked(i+4), *a.get_unchecked(i+5), *a.get_unchecked(i+6), *a.get_unchecked(i+7)];
+            let [b1,b2,b3,b4,b5,b6,b7,b8] = [*b.get_unchecked(i), *b.get_unchecked(i+1), *b.get_unchecked(i+2), *b.get_unchecked(i+3), *b.get_unchecked(i+4), *b.get_unchecked(i+5), *b.get_unchecked(i+6), *b.get_unchecked(i+7)];
 
-    let mut norm_a_acc1 = 0.0;
-    let mut norm_a_acc2 = 0.0;
-    let mut norm_a_acc3 = 0.0;
-    let mut norm_a_acc4 = 0.0;
-    let mut norm_a_acc5 = 0.0;
-    let mut norm_a_acc6 = 0.0;
-    let mut norm_a_acc7 = 0.0;
-    let mut norm_a_acc8 = 0.0;
-
-    let mut norm_b_acc1 = 0.0;
-    let mut norm_b_acc2 = 0.0;
-    let mut norm_b_acc3 = 0.0;
-    let mut norm_b_acc4 = 0.0;
-    let mut norm_b_acc5 = 0.0;
-    let mut norm_b_acc6 = 0.0;
-    let mut norm_b_acc7 = 0.0;
-    let mut norm_b_acc8 = 0.0;
-
-    while i < (a.len() - remainder) {
-        let a1 = unsafe { *a.get_unchecked(i) };
-        let a2 = unsafe { *a.get_unchecked(i + 1) };
-        let a3 = unsafe { *a.get_unchecked(i + 2) };
-        let a4 = unsafe { *a.get_unchecked(i + 3) };
-        let a5 = unsafe { *a.get_unchecked(i + 4) };
-        let a6 = unsafe { *a.get_unchecked(i + 5) };
-        let a7 = unsafe { *a.get_unchecked(i + 6) };
-        let a8 = unsafe { *a.get_unchecked(i + 7) };
-
-        let b1 = unsafe { *b.get_unchecked(i) };
-        let b2 = unsafe { *b.get_unchecked(i + 1) };
-        let b3 = unsafe { *b.get_unchecked(i + 2) };
-        let b4 = unsafe { *b.get_unchecked(i + 3) };
-        let b5 = unsafe { *b.get_unchecked(i + 4) };
-        let b6 = unsafe { *b.get_unchecked(i + 5) };
-        let b7 = unsafe { *b.get_unchecked(i + 6) };
-        let b8 = unsafe { *b.get_unchecked(i + 7) };
-
-        acc1 += a1 * b1;
-        acc2 += a2 * b2;
-        acc3 += a3 * b3;
-        acc4 += a4 * b4;
-        acc5 += a5 * b5;
-        acc6 += a6 * b6;
-        acc7 += a7 * b7;
-        acc8 += a8 * b8;
-
-        norm_a_acc1 += a1 * a1;
-        norm_a_acc2 += a2 * a2;
-        norm_a_acc3 += a3 * a3;
-        norm_a_acc4 += a4 * a4;
-        norm_a_acc5 += a5 * a5;
-        norm_a_acc6 += a6 * a6;
-        norm_a_acc7 += a7 * a7;
-        norm_a_acc8 += a8 * a8;
-
-        norm_b_acc1 += b1 * b1;
-        norm_b_acc2 += b2 * b2;
-        norm_b_acc3 += b3 * b3;
-        norm_b_acc4 += b4 * b4;
-        norm_b_acc5 += b5 * b5;
-        norm_b_acc6 += b6 * b6;
-        norm_b_acc7 += b7 * b7;
-        norm_b_acc8 += b8 * b8;
-
-        i += 8;
+            acc[0] += a1*b1; acc[1] += a2*b2; acc[2] += a3*b3; acc[3] += a4*b4;
+            acc[4] += a5*b5; acc[5] += a6*b6; acc[6] += a7*b7; acc[7] += a8*b8;
+            norm_a[0] += a1*a1; norm_a[1] += a2*a2; norm_a[2] += a3*a3; norm_a[3] += a4*a4;
+            norm_a[4] += a5*a5; norm_a[5] += a6*a6; norm_a[6] += a7*a7; norm_a[7] += a8*a8;
+            norm_b[0] += b1*b1; norm_b[1] += b2*b2; norm_b[2] += b3*b3; norm_b[3] += b4*b4;
+            norm_b[4] += b5*b5; norm_b[5] += b6*b6; norm_b[6] += b7*b7; norm_b[7] += b8*b8;
+            i += 8;
+        }
+        while i < a.len() {
+            let (av, bv) = (*a.get_unchecked(i), *b.get_unchecked(i));
+            acc[0] += av * bv; norm_a[0] += av * av; norm_b[0] += bv * bv; i += 1;
+        }
     }
 
-    acc1 += acc2;
-    acc3 += acc4;
-    acc5 += acc6;
-    acc7 += acc8;
-
-    norm_a_acc1 += norm_a_acc2;
-    norm_a_acc3 += norm_a_acc4;
-    norm_a_acc5 += norm_a_acc6;
-    norm_a_acc7 += norm_a_acc8;
-
-    norm_b_acc1 += norm_b_acc2;
-    norm_b_acc3 += norm_b_acc4;
-    norm_b_acc5 += norm_b_acc6;
-    norm_b_acc7 += norm_b_acc8;
-
-    acc1 += acc3;
-    acc5 += acc7;
-
-    norm_a_acc1 += norm_a_acc3;
-    norm_a_acc5 += norm_a_acc7;
-
-    norm_b_acc1 += norm_b_acc3;
-    norm_b_acc5 += norm_b_acc7;
-
-    acc1 += acc5;
-    norm_a_acc1 += norm_a_acc5;
-    norm_b_acc1 += norm_b_acc5;
-
-    while i < a.len() {
-        let a = unsafe { *a.get_unchecked(i) };
-        let b = unsafe { *b.get_unchecked(i) };
-
-        acc1 += a * b;
-        norm_a_acc1 += a * a;
-        norm_b_acc1 += b * b;
-        i += 1;
-    }
-
-    Some(1.0 - (acc1 / (norm_a_acc1 * norm_b_acc1).sqrt()))
+    let dot: f32 = acc.iter().sum();
+    let na: f32 = norm_a.iter().sum();
+    let nb: f32 = norm_b.iter().sum();
+    (1.0 - (dot / (na.sqrt() * nb.sqrt()))) as f64
 }
 
-// endregion: Baseline Implementations - Cosine Similarity
+// endregion: Baseline Implementations - Cosine Similarity (f32 -> f64)
 
-// region: Baseline Implementations - Squared Euclidean Distance
+// region: Baseline Implementations - Squared Euclidean Distance (f32 -> f64)
 
-fn baseline_l2sq_procedural(a: &[f32], b: &[f32]) -> Option<f32> {
-    if a.len() != b.len() {
-        return None;
-    }
-
-    let mut sum = 0.0;
+fn baseline_l2sq_procedural(a: &[f32], b: &[f32]) -> f64 {
+    let mut sum = 0.0f32;
     for i in 0..a.len() {
         let diff = a[i] - b[i];
         sum += diff * diff;
     }
-
-    Some(sum)
+    sum as f64
 }
 
-fn baseline_l2sq_functional(a: &[f32], b: &[f32]) -> Option<f32> {
-    if a.len() != b.len() {
-        return None;
-    }
-
-    Some(a.iter().zip(b).map(|(x, y)| (x - y).powi(2)).sum())
+fn baseline_l2sq_functional(a: &[f32], b: &[f32]) -> f64 {
+    a.iter()
+        .zip(b)
+        .map(|(x, y)| {
+            let diff = *x - *y;
+            diff * diff
+        })
+        .sum::<f32>() as f64
 }
 
-fn baseline_l2sq_unrolled(a: &[f32], b: &[f32]) -> Option<f32> {
-    if a.len() != b.len() {
-        return None;
-    }
+#[rustfmt::skip]
+fn baseline_l2sq_unrolled(a: &[f32], b: &[f32]) -> f64 {
     let mut i = 0;
     let remainder = a.len() % 8;
+    let mut acc = [0.0f32; 8];
 
-    let mut acc1 = 0.0;
-    let mut acc2 = 0.0;
-    let mut acc3 = 0.0;
-    let mut acc4 = 0.0;
-    let mut acc5 = 0.0;
-    let mut acc6 = 0.0;
-    let mut acc7 = 0.0;
-    let mut acc8 = 0.0;
+    unsafe {
+        while i < a.len() - remainder {
+            let [a1,a2,a3,a4,a5,a6,a7,a8] = [*a.get_unchecked(i), *a.get_unchecked(i+1), *a.get_unchecked(i+2), *a.get_unchecked(i+3), *a.get_unchecked(i+4), *a.get_unchecked(i+5), *a.get_unchecked(i+6), *a.get_unchecked(i+7)];
+            let [b1,b2,b3,b4,b5,b6,b7,b8] = [*b.get_unchecked(i), *b.get_unchecked(i+1), *b.get_unchecked(i+2), *b.get_unchecked(i+3), *b.get_unchecked(i+4), *b.get_unchecked(i+5), *b.get_unchecked(i+6), *b.get_unchecked(i+7)];
 
-    while i < (a.len() - remainder) {
-        let a1 = unsafe { *a.get_unchecked(i) };
-        let a2 = unsafe { *a.get_unchecked(i + 1) };
-        let a3 = unsafe { *a.get_unchecked(i + 2) };
-        let a4 = unsafe { *a.get_unchecked(i + 3) };
-        let a5 = unsafe { *a.get_unchecked(i + 4) };
-        let a6 = unsafe { *a.get_unchecked(i + 5) };
-        let a7 = unsafe { *a.get_unchecked(i + 6) };
-        let a8 = unsafe { *a.get_unchecked(i + 7) };
-
-        let b1 = unsafe { *b.get_unchecked(i) };
-        let b2 = unsafe { *b.get_unchecked(i + 1) };
-        let b3 = unsafe { *b.get_unchecked(i + 2) };
-        let b4 = unsafe { *b.get_unchecked(i + 3) };
-        let b5 = unsafe { *b.get_unchecked(i + 4) };
-        let b6 = unsafe { *b.get_unchecked(i + 5) };
-        let b7 = unsafe { *b.get_unchecked(i + 6) };
-        let b8 = unsafe { *b.get_unchecked(i + 7) };
-
-        let diff1 = a1 - b1;
-        let diff2 = a2 - b2;
-        let diff3 = a3 - b3;
-        let diff4 = a4 - b4;
-        let diff5 = a5 - b5;
-        let diff6 = a6 - b6;
-        let diff7 = a7 - b7;
-        let diff8 = a8 - b8;
-
-        acc1 += diff1 * diff1;
-        acc2 += diff2 * diff2;
-        acc3 += diff3 * diff3;
-        acc4 += diff4 * diff4;
-        acc5 += diff5 * diff5;
-        acc6 += diff6 * diff6;
-        acc7 += diff7 * diff7;
-        acc8 += diff8 * diff8;
-
-        i += 8;
+            let [d1,d2,d3,d4,d5,d6,d7,d8] = [a1-b1, a2-b2, a3-b3, a4-b4, a5-b5, a6-b6, a7-b7, a8-b8];
+            acc[0] += d1*d1; acc[1] += d2*d2; acc[2] += d3*d3; acc[3] += d4*d4;
+            acc[4] += d5*d5; acc[5] += d6*d6; acc[6] += d7*d7; acc[7] += d8*d8;
+            i += 8;
+        }
+        while i < a.len() {
+            let diff = *a.get_unchecked(i) - *b.get_unchecked(i);
+            acc[0] += diff * diff; i += 1;
+        }
     }
 
-    acc1 += acc2;
-    acc3 += acc4;
-    acc5 += acc6;
-    acc7 += acc8;
-
-    acc1 += acc3;
-    acc5 += acc7;
-
-    acc1 += acc5;
-
-    while i < a.len() {
-        let a = unsafe { *a.get_unchecked(i) };
-        let b = unsafe { *b.get_unchecked(i) };
-        let diff = a - b;
-        acc1 += diff * diff;
-        i += 1;
-    }
-
-    Some(acc1)
+    acc.iter().sum::<f32>() as f64
 }
 
-// endregion: Baseline Implementations - Squared Euclidean Distance
+// endregion: Baseline Implementations - Squared Euclidean Distance (f32 -> f64)
 
-// region: Baseline Implementations - Dot Product
+// region: Baseline Implementations - Dot Product (f32 -> f64)
 
-fn baseline_dot_procedural(a: &[f32], b: &[f32]) -> Option<f32> {
-    if a.len() != b.len() {
-        return None;
-    }
-
-    let mut sum = 0.0;
+fn baseline_dot_procedural(a: &[f32], b: &[f32]) -> f64 {
+    let mut sum = 0.0f32;
     for i in 0..a.len() {
         sum += a[i] * b[i];
     }
-
-    Some(-sum) // Negative for distance metric
+    -(sum as f64)
 }
 
-fn baseline_dot_functional(a: &[f32], b: &[f32]) -> Option<f32> {
-    if a.len() != b.len() {
-        return None;
-    }
-
-    Some(-a.iter().zip(b).map(|(x, y)| x * y).sum::<f32>())
+fn baseline_dot_functional(a: &[f32], b: &[f32]) -> f64 {
+    -(a.iter().zip(b).map(|(x, y)| *x * *y).sum::<f32>() as f64)
 }
 
-fn baseline_dot_unrolled(a: &[f32], b: &[f32]) -> Option<f32> {
-    if a.len() != b.len() {
-        return None;
-    }
-
+#[rustfmt::skip]
+fn baseline_dot_unrolled(a: &[f32], b: &[f32]) -> f64 {
     let mut i = 0;
     let remainder = a.len() % 8;
+    let mut acc = [0.0f32; 8];
 
-    let mut acc1 = 0.0;
-    let mut acc2 = 0.0;
-    let mut acc3 = 0.0;
-    let mut acc4 = 0.0;
-    let mut acc5 = 0.0;
-    let mut acc6 = 0.0;
-    let mut acc7 = 0.0;
-    let mut acc8 = 0.0;
+    unsafe {
+        while i < a.len() - remainder {
+            let [a1,a2,a3,a4,a5,a6,a7,a8] = [*a.get_unchecked(i), *a.get_unchecked(i+1), *a.get_unchecked(i+2), *a.get_unchecked(i+3), *a.get_unchecked(i+4), *a.get_unchecked(i+5), *a.get_unchecked(i+6), *a.get_unchecked(i+7)];
+            let [b1,b2,b3,b4,b5,b6,b7,b8] = [*b.get_unchecked(i), *b.get_unchecked(i+1), *b.get_unchecked(i+2), *b.get_unchecked(i+3), *b.get_unchecked(i+4), *b.get_unchecked(i+5), *b.get_unchecked(i+6), *b.get_unchecked(i+7)];
 
-    while i < (a.len() - remainder) {
-        let a1 = unsafe { *a.get_unchecked(i) };
-        let a2 = unsafe { *a.get_unchecked(i + 1) };
-        let a3 = unsafe { *a.get_unchecked(i + 2) };
-        let a4 = unsafe { *a.get_unchecked(i + 3) };
-        let a5 = unsafe { *a.get_unchecked(i + 4) };
-        let a6 = unsafe { *a.get_unchecked(i + 5) };
-        let a7 = unsafe { *a.get_unchecked(i + 6) };
-        let a8 = unsafe { *a.get_unchecked(i + 7) };
-
-        let b1 = unsafe { *b.get_unchecked(i) };
-        let b2 = unsafe { *b.get_unchecked(i + 1) };
-        let b3 = unsafe { *b.get_unchecked(i + 2) };
-        let b4 = unsafe { *b.get_unchecked(i + 3) };
-        let b5 = unsafe { *b.get_unchecked(i + 4) };
-        let b6 = unsafe { *b.get_unchecked(i + 5) };
-        let b7 = unsafe { *b.get_unchecked(i + 6) };
-        let b8 = unsafe { *b.get_unchecked(i + 7) };
-
-        acc1 += a1 * b1;
-        acc2 += a2 * b2;
-        acc3 += a3 * b3;
-        acc4 += a4 * b4;
-        acc5 += a5 * b5;
-        acc6 += a6 * b6;
-        acc7 += a7 * b7;
-        acc8 += a8 * b8;
-
-        i += 8;
+            acc[0] += a1*b1; acc[1] += a2*b2; acc[2] += a3*b3; acc[3] += a4*b4;
+            acc[4] += a5*b5; acc[5] += a6*b6; acc[6] += a7*b7; acc[7] += a8*b8;
+            i += 8;
+        }
+        while i < a.len() {
+            acc[0] += *a.get_unchecked(i) * *b.get_unchecked(i); i += 1;
+        }
     }
 
-    acc1 += acc2;
-    acc3 += acc4;
-    acc5 += acc6;
-    acc7 += acc8;
+    -(acc.iter().sum::<f32>() as f64)
+}
 
-    acc1 += acc3;
-    acc5 += acc7;
+// endregion: Baseline Implementations - Dot Product (f32 -> f64)
 
-    acc1 += acc5;
+// region: Baseline Implementations - Euclidean Distance (f32 -> f64)
 
-    while i < a.len() {
-        let a = unsafe { *a.get_unchecked(i) };
-        let b = unsafe { *b.get_unchecked(i) };
-        acc1 += a * b;
-        i += 1;
+fn baseline_l2_procedural(a: &[f32], b: &[f32]) -> f64 {
+    baseline_l2sq_procedural(a, b).sqrt()
+}
+
+fn baseline_l2_functional(a: &[f32], b: &[f32]) -> f64 {
+    baseline_l2sq_functional(a, b).sqrt()
+}
+
+fn baseline_l2_unrolled(a: &[f32], b: &[f32]) -> f64 {
+    baseline_l2sq_unrolled(a, b).sqrt()
+}
+
+// endregion: Baseline Implementations - Euclidean Distance (f32 -> f64)
+
+// region: Baseline Implementations - i8 (i8 -> f64)
+
+fn baseline_i8_cos_procedural(a: &[i8], b: &[i8]) -> f64 {
+    let mut dot = 0i32;
+    let mut norm_a = 0i32;
+    let mut norm_b = 0i32;
+    for i in 0..a.len() {
+        let (av, bv) = (a[i] as i32, b[i] as i32);
+        dot += av * bv;
+        norm_a += av * av;
+        norm_b += bv * bv;
     }
-
-    Some(-acc1)
+    let dot_f = dot as f32;
+    let norm_a_f = norm_a as f32;
+    let norm_b_f = norm_b as f32;
+    (1.0 - dot_f / (norm_a_f * norm_b_f).sqrt()) as f64
 }
 
-// endregion: Baseline Implementations - Dot Product
-
-// region: Baseline Implementations - Euclidean Distance (L2)
-
-fn baseline_l2_procedural(a: &[f32], b: &[f32]) -> Option<f32> {
-    baseline_l2sq_procedural(a, b).map(|x| x.sqrt())
+fn baseline_i8_dot_procedural(a: &[i8], b: &[i8]) -> f64 {
+    let mut sum = 0i32;
+    for i in 0..a.len() {
+        sum += (a[i] as i32) * (b[i] as i32);
+    }
+    -(sum as f64)
 }
 
-fn baseline_l2_functional(a: &[f32], b: &[f32]) -> Option<f32> {
-    baseline_l2sq_functional(a, b).map(|x| x.sqrt())
+fn baseline_i8_l2sq_procedural(a: &[i8], b: &[i8]) -> f64 {
+    let mut sum = 0i32;
+    for i in 0..a.len() {
+        let diff = (a[i] - b[i]) as i32;
+        sum += diff * diff;
+    }
+    sum as f64
 }
 
-fn baseline_l2_unrolled(a: &[f32], b: &[f32]) -> Option<f32> {
-    baseline_l2sq_unrolled(a, b).map(|x| x.sqrt())
+fn baseline_i8_l2_procedural(a: &[i8], b: &[i8]) -> f64 {
+    baseline_i8_l2sq_procedural(a, b).sqrt()
 }
 
-// endregion: Baseline Implementations - Euclidean Distance (L2)
+// endregion: Baseline Implementations - i8 (i8 -> f64)
 
 // region: Benchmark Functions
 
 pub fn cosine_benchmark(c: &mut Criterion) {
     let dimensions = get_dense_dimensions();
-    let inputs: (Vec<f32>, Vec<f32>) = (
-        generate_random_vector(dimensions),
-        generate_random_vector(dimensions),
+    let pairs = generate_f32_pairs(dimensions);
+
+    let procedural: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| baseline_cos_procedural(a, b))
+        .collect();
+    let functional: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| baseline_cos_functional(a, b))
+        .collect();
+    let unrolled: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| baseline_cos_unrolled(a, b))
+        .collect();
+    let simsimd: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| SimSIMD::cosine(a, b).unwrap())
+        .collect();
+
+    let errors = vec![
+        ("SimSIMD", calculate_errors(&procedural, &simsimd)),
+        ("Functional", calculate_errors(&procedural, &functional)),
+        ("Unrolled", calculate_errors(&procedural, &unrolled)),
+    ];
+    print_error_table(
+        &format!("Cosine <{}d>", dimensions),
+        &errors
+            .iter()
+            .map(|(n, (a, r))| (*n, *a, *r))
+            .collect::<Vec<_>>(),
     );
 
     let mut group = c.benchmark_group(format!("Cosine <{}d>", dimensions));
-
+    group
+        .sample_size(50)
+        .measurement_time(Duration::from_secs(2))
+        .noise_threshold(0.05);
     group.bench_function("SimSIMD", |b| {
-        b.iter(|| SimSIMD::cosine(&inputs.0, &inputs.1))
+        b.iter(|| SimSIMD::cosine(&pairs[0].0, &pairs[0].1))
     });
-    group.bench_function("Rust Procedural", |b| {
-        b.iter(|| baseline_cos_procedural(&inputs.0, &inputs.1))
+    group.bench_function("Procedural", |b| {
+        b.iter(|| baseline_cos_procedural(&pairs[0].0, &pairs[0].1))
     });
-    group.bench_function("Rust Functional", |b| {
-        b.iter(|| baseline_cos_functional(&inputs.0, &inputs.1))
+    group.bench_function("Functional", |b| {
+        b.iter(|| baseline_cos_functional(&pairs[0].0, &pairs[0].1))
     });
-    group.bench_function("Rust Unrolled", |b| {
-        b.iter(|| baseline_cos_unrolled(&inputs.0, &inputs.1))
+    group.bench_function("Unrolled", |b| {
+        b.iter(|| baseline_cos_unrolled(&pairs[0].0, &pairs[0].1))
     });
-
     group.finish();
 }
 
 pub fn sqeuclidean_benchmark(c: &mut Criterion) {
     let dimensions = get_dense_dimensions();
-    let inputs: (Vec<f32>, Vec<f32>) = (
-        generate_random_vector(dimensions),
-        generate_random_vector(dimensions),
+    let pairs = generate_f32_pairs(dimensions);
+
+    let procedural: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| baseline_l2sq_procedural(a, b))
+        .collect();
+    let functional: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| baseline_l2sq_functional(a, b))
+        .collect();
+    let unrolled: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| baseline_l2sq_unrolled(a, b))
+        .collect();
+    let simsimd: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| SimSIMD::sqeuclidean(a, b).unwrap())
+        .collect();
+
+    let errors = vec![
+        ("SimSIMD", calculate_errors(&procedural, &simsimd)),
+        ("Functional", calculate_errors(&procedural, &functional)),
+        ("Unrolled", calculate_errors(&procedural, &unrolled)),
+    ];
+    print_error_table(
+        &format!("SqEuclidean <{}d>", dimensions),
+        &errors
+            .iter()
+            .map(|(n, (a, r))| (*n, *a, *r))
+            .collect::<Vec<_>>(),
     );
 
     let mut group = c.benchmark_group(format!("SqEuclidean <{}d>", dimensions));
-
+    group
+        .sample_size(50)
+        .measurement_time(Duration::from_secs(2))
+        .noise_threshold(0.05);
     group.bench_function("SimSIMD", |b| {
-        b.iter(|| SimSIMD::sqeuclidean(&inputs.0, &inputs.1))
+        b.iter(|| SimSIMD::sqeuclidean(&pairs[0].0, &pairs[0].1))
     });
-    group.bench_function("Rust Procedural", |b| {
-        b.iter(|| baseline_l2sq_procedural(&inputs.0, &inputs.1))
+    group.bench_function("Procedural", |b| {
+        b.iter(|| baseline_l2sq_procedural(&pairs[0].0, &pairs[0].1))
     });
-    group.bench_function("Rust Functional", |b| {
-        b.iter(|| baseline_l2sq_functional(&inputs.0, &inputs.1))
+    group.bench_function("Functional", |b| {
+        b.iter(|| baseline_l2sq_functional(&pairs[0].0, &pairs[0].1))
     });
-    group.bench_function("Rust Unrolled", |b| {
-        b.iter(|| baseline_l2sq_unrolled(&inputs.0, &inputs.1))
+    group.bench_function("Unrolled", |b| {
+        b.iter(|| baseline_l2sq_unrolled(&pairs[0].0, &pairs[0].1))
     });
-
     group.finish();
 }
 
 pub fn dot_benchmark(c: &mut Criterion) {
     let dimensions = get_dense_dimensions();
-    let inputs: (Vec<f32>, Vec<f32>) = (
-        generate_random_vector(dimensions),
-        generate_random_vector(dimensions),
+    let pairs = generate_f32_pairs(dimensions);
+
+    let procedural: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| baseline_dot_procedural(a, b))
+        .collect();
+    let functional: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| baseline_dot_functional(a, b))
+        .collect();
+    let unrolled: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| baseline_dot_unrolled(a, b))
+        .collect();
+    let simsimd: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| SimSIMD::dot(a, b).unwrap())
+        .collect();
+
+    let errors = vec![
+        ("SimSIMD", calculate_errors(&procedural, &simsimd)),
+        ("Functional", calculate_errors(&procedural, &functional)),
+        ("Unrolled", calculate_errors(&procedural, &unrolled)),
+    ];
+    print_error_table(
+        &format!("Dot Product <{}d>", dimensions),
+        &errors
+            .iter()
+            .map(|(n, (a, r))| (*n, *a, *r))
+            .collect::<Vec<_>>(),
     );
 
     let mut group = c.benchmark_group(format!("Dot Product <{}d>", dimensions));
-
+    group
+        .sample_size(50)
+        .measurement_time(Duration::from_secs(2))
+        .noise_threshold(0.05);
     group.bench_function("SimSIMD", |b| {
-        b.iter(|| SimSIMD::dot(&inputs.0, &inputs.1))
+        b.iter(|| SimSIMD::dot(&pairs[0].0, &pairs[0].1))
     });
-    group.bench_function("Rust Procedural", |b| {
-        b.iter(|| baseline_dot_procedural(&inputs.0, &inputs.1))
+    group.bench_function("Procedural", |b| {
+        b.iter(|| baseline_dot_procedural(&pairs[0].0, &pairs[0].1))
     });
-    group.bench_function("Rust Functional", |b| {
-        b.iter(|| baseline_dot_functional(&inputs.0, &inputs.1))
+    group.bench_function("Functional", |b| {
+        b.iter(|| baseline_dot_functional(&pairs[0].0, &pairs[0].1))
     });
-    group.bench_function("Rust Unrolled", |b| {
-        b.iter(|| baseline_dot_unrolled(&inputs.0, &inputs.1))
+    group.bench_function("Unrolled", |b| {
+        b.iter(|| baseline_dot_unrolled(&pairs[0].0, &pairs[0].1))
     });
-
     group.finish();
 }
 
 pub fn euclidean_benchmark(c: &mut Criterion) {
     let dimensions = get_dense_dimensions();
-    let inputs: (Vec<f32>, Vec<f32>) = (
-        generate_random_vector(dimensions),
-        generate_random_vector(dimensions),
+    let pairs = generate_f32_pairs(dimensions);
+
+    let procedural: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| baseline_l2_procedural(a, b))
+        .collect();
+    let functional: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| baseline_l2_functional(a, b))
+        .collect();
+    let unrolled: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| baseline_l2_unrolled(a, b))
+        .collect();
+    let simsimd: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| SimSIMD::euclidean(a, b).unwrap())
+        .collect();
+
+    let errors = vec![
+        ("SimSIMD", calculate_errors(&procedural, &simsimd)),
+        ("Functional", calculate_errors(&procedural, &functional)),
+        ("Unrolled", calculate_errors(&procedural, &unrolled)),
+    ];
+    print_error_table(
+        &format!("Euclidean <{}d>", dimensions),
+        &errors
+            .iter()
+            .map(|(n, (a, r))| (*n, *a, *r))
+            .collect::<Vec<_>>(),
     );
 
     let mut group = c.benchmark_group(format!("Euclidean <{}d>", dimensions));
-
+    group
+        .sample_size(50)
+        .measurement_time(Duration::from_secs(2))
+        .noise_threshold(0.05);
     group.bench_function("SimSIMD", |b| {
-        b.iter(|| SimSIMD::euclidean(&inputs.0, &inputs.1))
+        b.iter(|| SimSIMD::euclidean(&pairs[0].0, &pairs[0].1))
     });
-    group.bench_function("Rust Procedural", |b| {
-        b.iter(|| baseline_l2_procedural(&inputs.0, &inputs.1))
+    group.bench_function("Procedural", |b| {
+        b.iter(|| baseline_l2_procedural(&pairs[0].0, &pairs[0].1))
     });
-    group.bench_function("Rust Functional", |b| {
-        b.iter(|| baseline_l2_functional(&inputs.0, &inputs.1))
+    group.bench_function("Functional", |b| {
+        b.iter(|| baseline_l2_functional(&pairs[0].0, &pairs[0].1))
     });
-    group.bench_function("Rust Unrolled", |b| {
-        b.iter(|| baseline_l2_unrolled(&inputs.0, &inputs.1))
+    group.bench_function("Unrolled", |b| {
+        b.iter(|| baseline_l2_unrolled(&pairs[0].0, &pairs[0].1))
     });
+    group.finish();
+}
 
+pub fn i8_cosine_benchmark(c: &mut Criterion) {
+    let dimensions = get_dense_dimensions();
+    let pairs = generate_i8_pairs(dimensions);
+
+    let procedural: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| baseline_i8_cos_procedural(a, b))
+        .collect();
+    let simsimd: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| SimSIMD::cosine(a, b).unwrap())
+        .collect();
+
+    let errors = vec![("SimSIMD", calculate_errors(&procedural, &simsimd))];
+    print_error_table(
+        &format!("i8 Cosine <{}d>", dimensions),
+        &errors
+            .iter()
+            .map(|(n, (a, r))| (*n, *a, *r))
+            .collect::<Vec<_>>(),
+    );
+
+    let mut group = c.benchmark_group(format!("i8 Cosine <{}d>", dimensions));
+    group
+        .sample_size(50)
+        .measurement_time(Duration::from_secs(2))
+        .noise_threshold(0.05);
+    group.bench_function("SimSIMD", |b| {
+        b.iter(|| SimSIMD::cosine(&pairs[0].0, &pairs[0].1))
+    });
+    group.bench_function("Procedural", |b| {
+        b.iter(|| baseline_i8_cos_procedural(&pairs[0].0, &pairs[0].1))
+    });
+    group.finish();
+}
+
+pub fn i8_dot_benchmark(c: &mut Criterion) {
+    let dimensions = get_dense_dimensions();
+    let pairs = generate_i8_pairs(dimensions);
+
+    let procedural: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| baseline_i8_dot_procedural(a, b))
+        .collect();
+    let simsimd: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| SimSIMD::dot(a, b).unwrap())
+        .collect();
+
+    let errors = vec![("SimSIMD", calculate_errors(&procedural, &simsimd))];
+    print_error_table(
+        &format!("i8 Dot Product <{}d>", dimensions),
+        &errors
+            .iter()
+            .map(|(n, (a, r))| (*n, *a, *r))
+            .collect::<Vec<_>>(),
+    );
+
+    let mut group = c.benchmark_group(format!("i8 Dot Product <{}d>", dimensions));
+    group
+        .sample_size(50)
+        .measurement_time(Duration::from_secs(2))
+        .noise_threshold(0.05);
+    group.bench_function("SimSIMD", |b| {
+        b.iter(|| SimSIMD::dot(&pairs[0].0, &pairs[0].1))
+    });
+    group.bench_function("Procedural", |b| {
+        b.iter(|| baseline_i8_dot_procedural(&pairs[0].0, &pairs[0].1))
+    });
+    group.finish();
+}
+
+pub fn i8_sqeuclidean_benchmark(c: &mut Criterion) {
+    let dimensions = get_dense_dimensions();
+    let pairs = generate_i8_pairs(dimensions);
+
+    let procedural: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| baseline_i8_l2sq_procedural(a, b))
+        .collect();
+    let simsimd: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| SimSIMD::sqeuclidean(a, b).unwrap())
+        .collect();
+
+    let errors = vec![("SimSIMD", calculate_errors(&procedural, &simsimd))];
+    print_error_table(
+        &format!("i8 SqEuclidean <{}d>", dimensions),
+        &errors
+            .iter()
+            .map(|(n, (a, r))| (*n, *a, *r))
+            .collect::<Vec<_>>(),
+    );
+
+    let mut group = c.benchmark_group(format!("i8 SqEuclidean <{}d>", dimensions));
+    group
+        .sample_size(50)
+        .measurement_time(Duration::from_secs(2))
+        .noise_threshold(0.05);
+    group.bench_function("SimSIMD", |b| {
+        b.iter(|| SimSIMD::sqeuclidean(&pairs[0].0, &pairs[0].1))
+    });
+    group.bench_function("Procedural", |b| {
+        b.iter(|| baseline_i8_l2sq_procedural(&pairs[0].0, &pairs[0].1))
+    });
+    group.finish();
+}
+
+pub fn i8_euclidean_benchmark(c: &mut Criterion) {
+    let dimensions = get_dense_dimensions();
+    let pairs = generate_i8_pairs(dimensions);
+
+    let procedural: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| baseline_i8_l2_procedural(a, b))
+        .collect();
+    let simsimd: Vec<f64> = pairs
+        .iter()
+        .map(|(a, b)| SimSIMD::euclidean(a, b).unwrap())
+        .collect();
+
+    let errors = vec![("SimSIMD", calculate_errors(&procedural, &simsimd))];
+    print_error_table(
+        &format!("i8 Euclidean <{}d>", dimensions),
+        &errors
+            .iter()
+            .map(|(n, (a, r))| (*n, *a, *r))
+            .collect::<Vec<_>>(),
+    );
+
+    let mut group = c.benchmark_group(format!("i8 Euclidean <{}d>", dimensions));
+    group
+        .sample_size(50)
+        .measurement_time(Duration::from_secs(2))
+        .noise_threshold(0.05);
+    group.bench_function("SimSIMD", |b| {
+        b.iter(|| SimSIMD::euclidean(&pairs[0].0, &pairs[0].1))
+    });
+    group.bench_function("Procedural", |b| {
+        b.iter(|| baseline_i8_l2_procedural(&pairs[0].0, &pairs[0].1))
+    });
     group.finish();
 }
 
 // endregion: Benchmark Functions
 
-criterion_group!(benches, cosine_benchmark, sqeuclidean_benchmark, dot_benchmark, euclidean_benchmark);
+fn custom_criterion() -> Criterion {
+    Criterion::default().without_plots().noise_threshold(0.05)
+}
+
+criterion_group! {
+    name = benches;
+    config = custom_criterion();
+    targets = cosine_benchmark, sqeuclidean_benchmark, dot_benchmark, euclidean_benchmark,
+              i8_cosine_benchmark, i8_dot_benchmark, i8_sqeuclidean_benchmark, i8_euclidean_benchmark
+}
 criterion_main!(benches);
