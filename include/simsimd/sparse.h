@@ -422,13 +422,13 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(        //
         simsimd_u16_t b_max = b_vec.u16[31];
 
         // If the slices don't overlap, advance the appropriate pointer
-        while (a_max < b_min && a + 64 < a_end) {
+        while (a_max < b_min && a + 64 <= a_end) {
             a += 32;
             a_vec.zmm = _mm512_loadu_si512((__m512i const *)a);
             a_max = a_vec.u16[31];
         }
         a_min = a_vec.u16[0];
-        while (b_max < a_min && b + 64 < b_end) {
+        while (b_max < a_min && b + 64 <= b_end) {
             b += 32;
             b_vec.zmm = _mm512_loadu_si512((__m512i const *)b);
             b_max = b_vec.u16[31];
@@ -487,13 +487,13 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(        //
         simsimd_u32_t b_max = b_vec.u32[15];
 
         // If the slices don't overlap, advance the appropriate pointer
-        while (a_max < b_min && a + 32 < a_end) {
+        while (a_max < b_min && a + 32 <= a_end) {
             a += 16;
             a_vec.zmm = _mm512_loadu_si512((__m512i const *)a);
             a_max = a_vec.u32[15];
         }
         a_min = a_vec.u32[0];
-        while (b_max < a_min && b + 32 < b_end) {
+        while (b_max < a_min && b + 32 <= b_end) {
             b += 16;
             b_vec.zmm = _mm512_loadu_si512((__m512i const *)b);
             b_max = b_vec.u32[15];
@@ -568,13 +568,13 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_turin(      //
         simsimd_u16_t b_max = b_vec.u16[15];
 
         // If the slices don't overlap, advance the appropriate pointer
-        while (a_max < b_min && a + 32 < a_end) {
+        while (a_max < b_min && a + 32 <= a_end) {
             a += 16;
             a_vec.ymm = _mm256_lddqu_si256((__m256i const *)a);
             a_max = a_vec.u16[15];
         }
         a_min = a_vec.u16[0];
-        while (b_max < a_min && b + 32 < b_end) {
+        while (b_max < a_min && b + 32 <= b_end) {
             b += 16;
             b_vec.ymm = _mm256_lddqu_si256((__m256i const *)b);
             b_max = b_vec.u16[15];
@@ -636,13 +636,13 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_turin(      //
         simsimd_u32_t b_max = b_vec.u32[15];
 
         // If the slices don't overlap, advance the appropriate pointer
-        while (a_max < b_min && a + 32 < a_end) {
+        while (a_max < b_min && a + 32 <= a_end) {
             a += 16;
             a_vec.zmm = _mm512_loadu_si512((__m512i const *)a);
             a_max = a_vec.u32[15];
         }
         a_min = a_vec.u32[0];
-        while (b_max < a_min && b + 32 < b_end) {
+        while (b_max < a_min && b + 32 <= b_end) {
             b += 16;
             b_vec.zmm = _mm512_loadu_si512((__m512i const *)b);
             b_max = b_vec.u32[15];
@@ -708,13 +708,13 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_turin(                  //
         simsimd_u16_t b_max = b_vec.u16[15];
 
         // If the slices don't overlap, advance the appropriate pointer
-        while (a_max < b_min && a + 32 < a_end) {
+        while (a_max < b_min && a + 32 <= a_end) {
             a += 16, a_weights += 16;
             a_vec.ymm = _mm256_lddqu_si256((__m256i const *)a);
             a_max = a_vec.u16[15];
         }
         a_min = a_vec.u16[0];
-        while (b_max < a_min && b + 32 < b_end) {
+        while (b_max < a_min && b + 32 <= b_end) {
             b += 16, b_weights += 16;
             b_vec.ymm = _mm256_lddqu_si256((__m256i const *)b);
             b_max = b_vec.u16[15];
@@ -793,13 +793,13 @@ SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(                 //
         simsimd_u16_t b_max = b_vec.u16[15];
 
         // If the slices don't overlap, advance the appropriate pointer
-        while (a_max < b_min && a + 32 < a_end) {
+        while (a_max < b_min && a + 32 <= a_end) {
             a += 16, a_weights += 16;
             a_vec.ymm = _mm256_lddqu_si256((__m256i const *)a);
             a_max = a_vec.u16[15];
         }
         a_min = a_vec.u16[0];
-        while (b_max < a_min && b + 32 < b_end) {
+        while (b_max < a_min && b + 32 <= b_end) {
             b += 16, b_weights += 16;
             b_vec.ymm = _mm256_lddqu_si256((__m256i const *)b);
             b_max = b_vec.u16[15];
@@ -937,13 +937,13 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_neon(       //
         simsimd_u16_t b_max = b_vec.u16[7];
 
         // If the slices don't overlap, advance the appropriate pointer
-        while (a_max < b_min && a + 16 < a_end) {
+        while (a_max < b_min && a + 16 <= a_end) {
             a += 8;
             a_vec.u16x8 = vld1q_u16(a);
             a_max = a_vec.u16[7];
         }
         a_min = a_vec.u16[0];
-        while (b_max < a_min && b + 16 < b_end) {
+        while (b_max < a_min && b + 16 <= b_end) {
             b += 8;
             b_vec.u16x8 = vld1q_u16(b);
             b_max = b_vec.u16[7];
@@ -1020,13 +1020,13 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_neon(       //
         simsimd_u32_t b_max = b_vec.u32[3];
 
         // If the slices don't overlap, advance the appropriate pointer
-        while (a_max < b_min && a + 8 < a_end) {
+        while (a_max < b_min && a + 8 <= a_end) {
             a += 4;
             a_vec.u32x4 = vld1q_u32(a);
             a_max = a_vec.u32[3];
         }
         a_min = a_vec.u32[0];
-        while (b_max < a_min && b + 8 < b_end) {
+        while (b_max < a_min && b + 8 <= b_end) {
             b += 4;
             b_vec.u32x4 = vld1q_u32(b);
             b_max = b_vec.u32[3];
@@ -1118,14 +1118,14 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_sve2(     //
         simsimd_u16_t b_max = svlastb(b_progress, b_vec);
 
         // If the slices don't overlap, advance the appropriate pointer
-        while (a_max < b_min && (a_idx + register_size) < a_length) {
+        while (a_max < b_min && (a_idx + register_size) <= a_length) {
             a_idx += register_size;
             a_progress = svwhilelt_b16_u64(a_idx, a_length);
             a_vec = svld1_u16(a_progress, a + a_idx);
             a_max = svlastb(a_progress, a_vec);
         }
         a_min = svlasta(svpfalse_b(), a_vec);
-        while (b_max < a_min && (b_idx + register_size) < b_length) {
+        while (b_max < a_min && (b_idx + register_size) <= b_length) {
             b_idx += register_size;
             b_progress = svwhilelt_b16_u64(b_idx, b_length);
             b_vec = svld1_u16(b_progress, b + b_idx);
@@ -1185,14 +1185,14 @@ SIMSIMD_PUBLIC void simsimd_intersect_u32_sve2(simsimd_u32_t const *a, simsimd_u
         simsimd_u32_t b_max = svlastb(b_progress, b_vec);
 
         // If the slices don't overlap, advance the appropriate pointer
-        while (a_max < b_min && (a_idx + register_size) < a_length) {
+        while (a_max < b_min && (a_idx + register_size) <= a_length) {
             a_idx += register_size;
             a_progress = svwhilelt_b32_u64(a_idx, a_length);
             a_vec = svld1_u32(a_progress, a + a_idx);
             a_max = svlastb(a_progress, a_vec);
         }
         a_min = svlasta(svpfalse_b(), a_vec);
-        while (b_max < a_min && (b_idx + register_size) < b_length) {
+        while (b_max < a_min && (b_idx + register_size) <= b_length) {
             b_idx += register_size;
             b_progress = svwhilelt_b32_u64(b_idx, b_length);
             b_vec = svld1_u32(b_progress, b + b_idx);
@@ -1284,14 +1284,14 @@ SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_sve2(                  //
         simsimd_u16_t b_max = svlastb(b_progress, b_vec);
 
         // If the slices don't overlap, advance the appropriate pointer
-        while (a_max < b_min && (a_idx + register_size) < a_length) {
+        while (a_max < b_min && (a_idx + register_size) <= a_length) {
             a_idx += register_size;
             a_progress = svwhilelt_b16_u64(a_idx, a_length);
             a_vec = svld1_u16(a_progress, a + a_idx);
             a_max = svlastb(a_progress, a_vec);
         }
         a_min = svlasta(svpfalse_b(), a_vec);
-        while (b_max < a_min && (b_idx + register_size) < b_length) {
+        while (b_max < a_min && (b_idx + register_size) <= b_length) {
             b_idx += register_size;
             b_progress = svwhilelt_b16_u64(b_idx, b_length);
             b_vec = svld1_u16(b_progress, b + b_idx);
@@ -1367,14 +1367,14 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_sve2(                   //
         simsimd_u16_t b_max = svlastb(b_progress, b_vec);
 
         // If the slices don't overlap, advance the appropriate pointer
-        while (a_max < b_min && (a_idx + register_size) < a_length) {
+        while (a_max < b_min && (a_idx + register_size) <= a_length) {
             a_idx += register_size;
             a_progress = svwhilelt_b16_u64(a_idx, a_length);
             a_vec = svld1_u16(a_progress, a + a_idx);
             a_max = svlastb(a_progress, a_vec);
         }
         a_min = svlasta(svpfalse_b(), a_vec);
-        while (b_max < a_min && (b_idx + register_size) < b_length) {
+        while (b_max < a_min && (b_idx + register_size) <= b_length) {
             b_idx += register_size;
             b_progress = svwhilelt_b16_u64(b_idx, b_length);
             b_vec = svld1_u16(b_progress, b + b_idx);
