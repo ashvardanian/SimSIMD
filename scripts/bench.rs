@@ -10,15 +10,19 @@
 //! # Or with custom dimensions:
 //! SIMSIMD_BENCH_DENSE_DIMENSIONS=2048 cargo bench --bench bench -- --quiet --noplot
 //! ```
+use std::hint::black_box;
+use std::mem::size_of;
+use std::time::Duration;
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion, Throughput};
 use rand::rngs::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
-use simsimd::SpatialSimilarity as SimSIMD;
-use std::time::Duration;
 
-const PAIRS_COUNT: usize = 128;
+use simsimd::SpatialSimilarity as SimSIMD;
+
+const BOLD: &str = "\x1b[1m";
+const RESET: &str = "\x1b[0m";
 
 fn get_dense_dimensions() -> usize {
     std::env::var("SIMSIMD_BENCH_DENSE_DIMENSIONS")
@@ -33,28 +37,6 @@ fn get_curved_dimensions() -> usize {
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(8)
-}
-
-fn generate_f32_pairs(dimensions: usize) -> Vec<(Vec<f32>, Vec<f32>)> {
-    (0..PAIRS_COUNT)
-        .map(|i| {
-            let mut rng = StdRng::seed_from_u64(i as u64);
-            let a: Vec<f32> = (0..dimensions).map(|_| rng.random()).collect();
-            let b: Vec<f32> = (0..dimensions).map(|_| rng.random()).collect();
-            (a, b)
-        })
-        .collect()
-}
-
-fn generate_i8_pairs(dimensions: usize) -> Vec<(Vec<i8>, Vec<i8>)> {
-    (0..PAIRS_COUNT)
-        .map(|i| {
-            let mut rng = StdRng::seed_from_u64(i as u64);
-            let a: Vec<i8> = (0..dimensions).map(|_| rng.random()).collect();
-            let b: Vec<i8> = (0..dimensions).map(|_| rng.random()).collect();
-            (a, b)
-        })
-        .collect()
 }
 
 fn calculate_errors(baseline: &[f64], contender: &[f64]) -> (f64, f64) {
@@ -74,20 +56,93 @@ fn calculate_errors(baseline: &[f64], contender: &[f64]) -> (f64, f64) {
     (mean_delta, mean_relative_error)
 }
 
-fn print_error_table(name: &str, errors: &[(&str, f64, f64)]) {
-    println!("\n{} Accuracy Report:", name);
+fn print_error(abs_err: f64, rel_err: f64) {
     println!(
-        "{:<20} {:>15} {:>15}",
-        "Implementation", "Abs Error", "Rel Error"
+        "                        abs error: {}{:.6e}{}",
+        BOLD, abs_err, RESET
     );
-    println!("{:-<50}", "");
-    for (impl_name, abs_err, rel_err) in errors {
-        println!("{:<20} {:>15.6e} {:>15.6e}", impl_name, abs_err, rel_err);
-    }
-    println!();
+    println!(
+        "                        rel error: {}{:.6e}{}",
+        BOLD, rel_err, RESET
+    );
 }
 
-// region: Baseline Implementations - Cosine Similarity (f32 -> f64)
+// region: Accurate Baseline Implementations (f64)
+
+fn accurate_cos(a: &[f32], b: &[f32]) -> f64 {
+    let mut dot = 0.0f64;
+    let mut norm_a = 0.0f64;
+    let mut norm_b = 0.0f64;
+    for i in 0..a.len() {
+        let (av, bv) = (a[i] as f64, b[i] as f64);
+        dot += av * bv;
+        norm_a += av * av;
+        norm_b += bv * bv;
+    }
+    1.0 - dot / (norm_a * norm_b).sqrt()
+}
+
+fn accurate_l2sq(a: &[f32], b: &[f32]) -> f64 {
+    let mut sum = 0.0f64;
+    for i in 0..a.len() {
+        let diff = (a[i] - b[i]) as f64;
+        sum += diff * diff;
+    }
+    sum
+}
+
+fn accurate_dot(a: &[f32], b: &[f32]) -> f64 {
+    let mut sum = 0.0f64;
+    for i in 0..a.len() {
+        sum += (a[i] as f64) * (b[i] as f64);
+    }
+    -sum
+}
+
+fn accurate_l2(a: &[f32], b: &[f32]) -> f64 {
+    accurate_l2sq(a, b).sqrt()
+}
+
+fn accurate_i8_cos(a: &[i8], b: &[i8]) -> f64 {
+    let mut dot = 0i32;
+    let mut norm_a = 0i32;
+    let mut norm_b = 0i32;
+    for i in 0..a.len() {
+        let (av, bv) = (a[i] as i32, b[i] as i32);
+        dot += av * bv;
+        norm_a += av * av;
+        norm_b += bv * bv;
+    }
+    let dot_f = dot as f32;
+    let norm_a_f = norm_a as f32;
+    let norm_b_f = norm_b as f32;
+    (1.0 - dot_f / (norm_a_f * norm_b_f).sqrt()) as f64
+}
+
+fn accurate_i8_dot(a: &[i8], b: &[i8]) -> f64 {
+    let mut sum = 0i32;
+    for i in 0..a.len() {
+        sum += (a[i] as i32) * (b[i] as i32);
+    }
+    -(sum as f64)
+}
+
+fn accurate_i8_l2sq(a: &[i8], b: &[i8]) -> f64 {
+    let mut sum = 0i32;
+    for i in 0..a.len() {
+        let diff = (a[i] - b[i]) as i32;
+        sum += diff * diff;
+    }
+    sum as f64
+}
+
+fn accurate_i8_l2(a: &[i8], b: &[i8]) -> f64 {
+    accurate_i8_l2sq(a, b).sqrt()
+}
+
+// endregion: Accurate Baseline Implementations (f64)
+
+// region: Baseline Implementations - Cosine Similarity
 
 fn baseline_cos_procedural(a: &[f32], b: &[f32]) -> f64 {
     let mut dot = 0.0f32;
@@ -113,7 +168,6 @@ fn baseline_cos_functional(a: &[f32], b: &[f32]) -> f64 {
     (1.0 - (dot / (norm_a.sqrt() * norm_b.sqrt()))) as f64
 }
 
-#[rustfmt::skip]
 fn baseline_cos_unrolled(a: &[f32], b: &[f32]) -> f64 {
     let mut i = 0;
     let remainder = a.len() % 8;
@@ -123,20 +177,59 @@ fn baseline_cos_unrolled(a: &[f32], b: &[f32]) -> f64 {
 
     unsafe {
         while i < a.len() - remainder {
-            let [a1,a2,a3,a4,a5,a6,a7,a8] = [*a.get_unchecked(i), *a.get_unchecked(i+1), *a.get_unchecked(i+2), *a.get_unchecked(i+3), *a.get_unchecked(i+4), *a.get_unchecked(i+5), *a.get_unchecked(i+6), *a.get_unchecked(i+7)];
-            let [b1,b2,b3,b4,b5,b6,b7,b8] = [*b.get_unchecked(i), *b.get_unchecked(i+1), *b.get_unchecked(i+2), *b.get_unchecked(i+3), *b.get_unchecked(i+4), *b.get_unchecked(i+5), *b.get_unchecked(i+6), *b.get_unchecked(i+7)];
+            let [a1, a2, a3, a4, a5, a6, a7, a8] = [
+                *a.get_unchecked(i),
+                *a.get_unchecked(i + 1),
+                *a.get_unchecked(i + 2),
+                *a.get_unchecked(i + 3),
+                *a.get_unchecked(i + 4),
+                *a.get_unchecked(i + 5),
+                *a.get_unchecked(i + 6),
+                *a.get_unchecked(i + 7),
+            ];
+            let [b1, b2, b3, b4, b5, b6, b7, b8] = [
+                *b.get_unchecked(i),
+                *b.get_unchecked(i + 1),
+                *b.get_unchecked(i + 2),
+                *b.get_unchecked(i + 3),
+                *b.get_unchecked(i + 4),
+                *b.get_unchecked(i + 5),
+                *b.get_unchecked(i + 6),
+                *b.get_unchecked(i + 7),
+            ];
 
-            acc[0] += a1*b1; acc[1] += a2*b2; acc[2] += a3*b3; acc[3] += a4*b4;
-            acc[4] += a5*b5; acc[5] += a6*b6; acc[6] += a7*b7; acc[7] += a8*b8;
-            norm_a[0] += a1*a1; norm_a[1] += a2*a2; norm_a[2] += a3*a3; norm_a[3] += a4*a4;
-            norm_a[4] += a5*a5; norm_a[5] += a6*a6; norm_a[6] += a7*a7; norm_a[7] += a8*a8;
-            norm_b[0] += b1*b1; norm_b[1] += b2*b2; norm_b[2] += b3*b3; norm_b[3] += b4*b4;
-            norm_b[4] += b5*b5; norm_b[5] += b6*b6; norm_b[6] += b7*b7; norm_b[7] += b8*b8;
+            acc[0] += a1 * b1;
+            acc[1] += a2 * b2;
+            acc[2] += a3 * b3;
+            acc[3] += a4 * b4;
+            acc[4] += a5 * b5;
+            acc[5] += a6 * b6;
+            acc[6] += a7 * b7;
+            acc[7] += a8 * b8;
+            norm_a[0] += a1 * a1;
+            norm_a[1] += a2 * a2;
+            norm_a[2] += a3 * a3;
+            norm_a[3] += a4 * a4;
+            norm_a[4] += a5 * a5;
+            norm_a[5] += a6 * a6;
+            norm_a[6] += a7 * a7;
+            norm_a[7] += a8 * a8;
+            norm_b[0] += b1 * b1;
+            norm_b[1] += b2 * b2;
+            norm_b[2] += b3 * b3;
+            norm_b[3] += b4 * b4;
+            norm_b[4] += b5 * b5;
+            norm_b[5] += b6 * b6;
+            norm_b[6] += b7 * b7;
+            norm_b[7] += b8 * b8;
             i += 8;
         }
         while i < a.len() {
             let (av, bv) = (*a.get_unchecked(i), *b.get_unchecked(i));
-            acc[0] += av * bv; norm_a[0] += av * av; norm_b[0] += bv * bv; i += 1;
+            acc[0] += av * bv;
+            norm_a[0] += av * av;
+            norm_b[0] += bv * bv;
+            i += 1;
         }
     }
 
@@ -146,9 +239,9 @@ fn baseline_cos_unrolled(a: &[f32], b: &[f32]) -> f64 {
     (1.0 - (dot / (na.sqrt() * nb.sqrt()))) as f64
 }
 
-// endregion: Baseline Implementations - Cosine Similarity (f32 -> f64)
+// endregion: Baseline Implementations - Cosine Similarity
 
-// region: Baseline Implementations - Squared Euclidean Distance (f32 -> f64)
+// region: Baseline Implementations - Squared Euclidean Distance
 
 fn baseline_l2sq_procedural(a: &[f32], b: &[f32]) -> f64 {
     let mut sum = 0.0f32;
@@ -169,7 +262,6 @@ fn baseline_l2sq_functional(a: &[f32], b: &[f32]) -> f64 {
         .sum::<f32>() as f64
 }
 
-#[rustfmt::skip]
 fn baseline_l2sq_unrolled(a: &[f32], b: &[f32]) -> f64 {
     let mut i = 0;
     let remainder = a.len() % 8;
@@ -177,26 +269,60 @@ fn baseline_l2sq_unrolled(a: &[f32], b: &[f32]) -> f64 {
 
     unsafe {
         while i < a.len() - remainder {
-            let [a1,a2,a3,a4,a5,a6,a7,a8] = [*a.get_unchecked(i), *a.get_unchecked(i+1), *a.get_unchecked(i+2), *a.get_unchecked(i+3), *a.get_unchecked(i+4), *a.get_unchecked(i+5), *a.get_unchecked(i+6), *a.get_unchecked(i+7)];
-            let [b1,b2,b3,b4,b5,b6,b7,b8] = [*b.get_unchecked(i), *b.get_unchecked(i+1), *b.get_unchecked(i+2), *b.get_unchecked(i+3), *b.get_unchecked(i+4), *b.get_unchecked(i+5), *b.get_unchecked(i+6), *b.get_unchecked(i+7)];
+            let [a1, a2, a3, a4, a5, a6, a7, a8] = [
+                *a.get_unchecked(i),
+                *a.get_unchecked(i + 1),
+                *a.get_unchecked(i + 2),
+                *a.get_unchecked(i + 3),
+                *a.get_unchecked(i + 4),
+                *a.get_unchecked(i + 5),
+                *a.get_unchecked(i + 6),
+                *a.get_unchecked(i + 7),
+            ];
+            let [b1, b2, b3, b4, b5, b6, b7, b8] = [
+                *b.get_unchecked(i),
+                *b.get_unchecked(i + 1),
+                *b.get_unchecked(i + 2),
+                *b.get_unchecked(i + 3),
+                *b.get_unchecked(i + 4),
+                *b.get_unchecked(i + 5),
+                *b.get_unchecked(i + 6),
+                *b.get_unchecked(i + 7),
+            ];
 
-            let [d1,d2,d3,d4,d5,d6,d7,d8] = [a1-b1, a2-b2, a3-b3, a4-b4, a5-b5, a6-b6, a7-b7, a8-b8];
-            acc[0] += d1*d1; acc[1] += d2*d2; acc[2] += d3*d3; acc[3] += d4*d4;
-            acc[4] += d5*d5; acc[5] += d6*d6; acc[6] += d7*d7; acc[7] += d8*d8;
+            let [d1, d2, d3, d4, d5, d6, d7, d8] = [
+                a1 - b1,
+                a2 - b2,
+                a3 - b3,
+                a4 - b4,
+                a5 - b5,
+                a6 - b6,
+                a7 - b7,
+                a8 - b8,
+            ];
+            acc[0] += d1 * d1;
+            acc[1] += d2 * d2;
+            acc[2] += d3 * d3;
+            acc[3] += d4 * d4;
+            acc[4] += d5 * d5;
+            acc[5] += d6 * d6;
+            acc[6] += d7 * d7;
+            acc[7] += d8 * d8;
             i += 8;
         }
         while i < a.len() {
             let diff = *a.get_unchecked(i) - *b.get_unchecked(i);
-            acc[0] += diff * diff; i += 1;
+            acc[0] += diff * diff;
+            i += 1;
         }
     }
 
     acc.iter().sum::<f32>() as f64
 }
 
-// endregion: Baseline Implementations - Squared Euclidean Distance (f32 -> f64)
+// endregion: Baseline Implementations - Squared Euclidean Distance
 
-// region: Baseline Implementations - Dot Product (f32 -> f64)
+// region: Baseline Implementations - Dot Product
 
 fn baseline_dot_procedural(a: &[f32], b: &[f32]) -> f64 {
     let mut sum = 0.0f32;
@@ -210,7 +336,6 @@ fn baseline_dot_functional(a: &[f32], b: &[f32]) -> f64 {
     -(a.iter().zip(b).map(|(x, y)| *x * *y).sum::<f32>() as f64)
 }
 
-#[rustfmt::skip]
 fn baseline_dot_unrolled(a: &[f32], b: &[f32]) -> f64 {
     let mut i = 0;
     let remainder = a.len() % 8;
@@ -218,24 +343,49 @@ fn baseline_dot_unrolled(a: &[f32], b: &[f32]) -> f64 {
 
     unsafe {
         while i < a.len() - remainder {
-            let [a1,a2,a3,a4,a5,a6,a7,a8] = [*a.get_unchecked(i), *a.get_unchecked(i+1), *a.get_unchecked(i+2), *a.get_unchecked(i+3), *a.get_unchecked(i+4), *a.get_unchecked(i+5), *a.get_unchecked(i+6), *a.get_unchecked(i+7)];
-            let [b1,b2,b3,b4,b5,b6,b7,b8] = [*b.get_unchecked(i), *b.get_unchecked(i+1), *b.get_unchecked(i+2), *b.get_unchecked(i+3), *b.get_unchecked(i+4), *b.get_unchecked(i+5), *b.get_unchecked(i+6), *b.get_unchecked(i+7)];
+            let [a1, a2, a3, a4, a5, a6, a7, a8] = [
+                *a.get_unchecked(i),
+                *a.get_unchecked(i + 1),
+                *a.get_unchecked(i + 2),
+                *a.get_unchecked(i + 3),
+                *a.get_unchecked(i + 4),
+                *a.get_unchecked(i + 5),
+                *a.get_unchecked(i + 6),
+                *a.get_unchecked(i + 7),
+            ];
+            let [b1, b2, b3, b4, b5, b6, b7, b8] = [
+                *b.get_unchecked(i),
+                *b.get_unchecked(i + 1),
+                *b.get_unchecked(i + 2),
+                *b.get_unchecked(i + 3),
+                *b.get_unchecked(i + 4),
+                *b.get_unchecked(i + 5),
+                *b.get_unchecked(i + 6),
+                *b.get_unchecked(i + 7),
+            ];
 
-            acc[0] += a1*b1; acc[1] += a2*b2; acc[2] += a3*b3; acc[3] += a4*b4;
-            acc[4] += a5*b5; acc[5] += a6*b6; acc[6] += a7*b7; acc[7] += a8*b8;
+            acc[0] += a1 * b1;
+            acc[1] += a2 * b2;
+            acc[2] += a3 * b3;
+            acc[3] += a4 * b4;
+            acc[4] += a5 * b5;
+            acc[5] += a6 * b6;
+            acc[6] += a7 * b7;
+            acc[7] += a8 * b8;
             i += 8;
         }
         while i < a.len() {
-            acc[0] += *a.get_unchecked(i) * *b.get_unchecked(i); i += 1;
+            acc[0] += *a.get_unchecked(i) * *b.get_unchecked(i);
+            i += 1;
         }
     }
 
     -(acc.iter().sum::<f32>() as f64)
 }
 
-// endregion: Baseline Implementations - Dot Product (f32 -> f64)
+// endregion: Baseline Implementations - Dot Product
 
-// region: Baseline Implementations - Euclidean Distance (f32 -> f64)
+// region: Baseline Implementations - Euclidean Distance
 
 fn baseline_l2_procedural(a: &[f32], b: &[f32]) -> f64 {
     baseline_l2sq_procedural(a, b).sqrt()
@@ -249,7 +399,7 @@ fn baseline_l2_unrolled(a: &[f32], b: &[f32]) -> f64 {
     baseline_l2sq_unrolled(a, b).sqrt()
 }
 
-// endregion: Baseline Implementations - Euclidean Distance (f32 -> f64)
+// endregion: Baseline Implementations - Euclidean Distance
 
 // region: Baseline Implementations - i8 (i8 -> f64)
 
@@ -294,363 +444,420 @@ fn baseline_i8_l2_procedural(a: &[i8], b: &[i8]) -> f64 {
 
 // region: Benchmark Functions
 
-pub fn cosine_benchmark(c: &mut Criterion) {
+pub fn f32_cosine_benchmark(c: &mut Criterion) {
     let dimensions = get_dense_dimensions();
-    let pairs = generate_f32_pairs(dimensions);
+    let bench_pairs_count = (128 * 1024 * 1024) / (dimensions * size_of::<f32>() * 2);
+    let bench_pairs: Vec<_> = (0..bench_pairs_count)
+        .map(|i| {
+            let mut rng = StdRng::seed_from_u64(1000 + i as u64);
+            let a: Vec<f32> = (0..dimensions).map(|_| rng.random()).collect();
+            let b: Vec<f32> = (0..dimensions).map(|_| rng.random()).collect();
+            (a, b)
+        })
+        .collect();
 
-    let procedural: Vec<f64> = pairs
+    let accurate: Vec<f64> = bench_pairs
+        .iter()
+        .map(|(a, b)| accurate_cos(a, b))
+        .collect();
+    let procedural: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| baseline_cos_procedural(a, b))
         .collect();
-    let functional: Vec<f64> = pairs
+    let functional: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| baseline_cos_functional(a, b))
         .collect();
-    let unrolled: Vec<f64> = pairs
+    let unrolled: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| baseline_cos_unrolled(a, b))
         .collect();
-    let simsimd: Vec<f64> = pairs
+    let simsimd: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| SimSIMD::cosine(a, b).unwrap())
         .collect();
 
-    let errors = vec![
-        ("SimSIMD", calculate_errors(&procedural, &simsimd)),
-        ("Functional", calculate_errors(&procedural, &functional)),
-        ("Unrolled", calculate_errors(&procedural, &unrolled)),
-    ];
-    print_error_table(
-        &format!("Cosine <{}d>", dimensions),
-        &errors
-            .iter()
-            .map(|(n, (a, r))| (*n, *a, *r))
-            .collect::<Vec<_>>(),
-    );
+    let simsimd_err = calculate_errors(&accurate, &simsimd);
+    let procedural_err = calculate_errors(&accurate, &procedural);
+    let functional_err = calculate_errors(&accurate, &functional);
+    let unrolled_err = calculate_errors(&accurate, &unrolled);
 
-    let mut group = c.benchmark_group(format!("Cosine <{}d>", dimensions));
+    let mut group = c.benchmark_group(format!("f32/{}d/cosine", dimensions));
+    let bytes_per_op = (2 * dimensions * size_of::<f32>() * bench_pairs_count) as u64;
+    group.throughput(Throughput::Bytes(bytes_per_op));
     group
         .sample_size(50)
         .measurement_time(Duration::from_secs(2))
         .noise_threshold(0.05);
-    group.bench_function("SimSIMD", |b| {
-        b.iter(|| SimSIMD::cosine(&pairs[0].0, &pairs[0].1))
+
+    group.bench_function("simsimd", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(SimSIMD::cosine(a, b));
+            }
+        })
     });
-    group.bench_function("Procedural", |b| {
-        b.iter(|| baseline_cos_procedural(&pairs[0].0, &pairs[0].1))
+    print_error(simsimd_err.0, simsimd_err.1);
+
+    group.bench_function("procedural", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(baseline_cos_procedural(a, b));
+            }
+        })
     });
-    group.bench_function("Functional", |b| {
-        b.iter(|| baseline_cos_functional(&pairs[0].0, &pairs[0].1))
+    print_error(procedural_err.0, procedural_err.1);
+
+    group.bench_function("functional", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(baseline_cos_functional(a, b));
+            }
+        })
     });
-    group.bench_function("Unrolled", |b| {
-        b.iter(|| baseline_cos_unrolled(&pairs[0].0, &pairs[0].1))
+    print_error(functional_err.0, functional_err.1);
+
+    group.bench_function("unrolled", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(baseline_cos_unrolled(a, b));
+            }
+        })
     });
+    print_error(unrolled_err.0, unrolled_err.1);
     group.finish();
 }
 
-pub fn sqeuclidean_benchmark(c: &mut Criterion) {
+pub fn f32_dot_benchmark(c: &mut Criterion) {
     let dimensions = get_dense_dimensions();
-    let pairs = generate_f32_pairs(dimensions);
-
-    let procedural: Vec<f64> = pairs
-        .iter()
-        .map(|(a, b)| baseline_l2sq_procedural(a, b))
-        .collect();
-    let functional: Vec<f64> = pairs
-        .iter()
-        .map(|(a, b)| baseline_l2sq_functional(a, b))
-        .collect();
-    let unrolled: Vec<f64> = pairs
-        .iter()
-        .map(|(a, b)| baseline_l2sq_unrolled(a, b))
-        .collect();
-    let simsimd: Vec<f64> = pairs
-        .iter()
-        .map(|(a, b)| SimSIMD::sqeuclidean(a, b).unwrap())
+    let bench_pairs_count = (128 * 1024 * 1024) / (dimensions * size_of::<f32>() * 2);
+    let bench_pairs: Vec<_> = (0..bench_pairs_count)
+        .map(|i| {
+            let mut rng = StdRng::seed_from_u64(1000 + i as u64);
+            let a: Vec<f32> = (0..dimensions).map(|_| rng.random()).collect();
+            let b: Vec<f32> = (0..dimensions).map(|_| rng.random()).collect();
+            (a, b)
+        })
         .collect();
 
-    let errors = vec![
-        ("SimSIMD", calculate_errors(&procedural, &simsimd)),
-        ("Functional", calculate_errors(&procedural, &functional)),
-        ("Unrolled", calculate_errors(&procedural, &unrolled)),
-    ];
-    print_error_table(
-        &format!("SqEuclidean <{}d>", dimensions),
-        &errors
-            .iter()
-            .map(|(n, (a, r))| (*n, *a, *r))
-            .collect::<Vec<_>>(),
-    );
-
-    let mut group = c.benchmark_group(format!("SqEuclidean <{}d>", dimensions));
-    group
-        .sample_size(50)
-        .measurement_time(Duration::from_secs(2))
-        .noise_threshold(0.05);
-    group.bench_function("SimSIMD", |b| {
-        b.iter(|| SimSIMD::sqeuclidean(&pairs[0].0, &pairs[0].1))
-    });
-    group.bench_function("Procedural", |b| {
-        b.iter(|| baseline_l2sq_procedural(&pairs[0].0, &pairs[0].1))
-    });
-    group.bench_function("Functional", |b| {
-        b.iter(|| baseline_l2sq_functional(&pairs[0].0, &pairs[0].1))
-    });
-    group.bench_function("Unrolled", |b| {
-        b.iter(|| baseline_l2sq_unrolled(&pairs[0].0, &pairs[0].1))
-    });
-    group.finish();
-}
-
-pub fn dot_benchmark(c: &mut Criterion) {
-    let dimensions = get_dense_dimensions();
-    let pairs = generate_f32_pairs(dimensions);
-
-    let procedural: Vec<f64> = pairs
+    let accurate: Vec<f64> = bench_pairs
+        .iter()
+        .map(|(a, b)| accurate_dot(a, b))
+        .collect();
+    let procedural: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| baseline_dot_procedural(a, b))
         .collect();
-    let functional: Vec<f64> = pairs
+    let functional: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| baseline_dot_functional(a, b))
         .collect();
-    let unrolled: Vec<f64> = pairs
+    let unrolled: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| baseline_dot_unrolled(a, b))
         .collect();
-    let simsimd: Vec<f64> = pairs
+    let simsimd: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| SimSIMD::dot(a, b).unwrap())
         .collect();
 
-    let errors = vec![
-        ("SimSIMD", calculate_errors(&procedural, &simsimd)),
-        ("Functional", calculate_errors(&procedural, &functional)),
-        ("Unrolled", calculate_errors(&procedural, &unrolled)),
-    ];
-    print_error_table(
-        &format!("Dot Product <{}d>", dimensions),
-        &errors
-            .iter()
-            .map(|(n, (a, r))| (*n, *a, *r))
-            .collect::<Vec<_>>(),
-    );
+    let simsimd_err = calculate_errors(&accurate, &simsimd);
+    let procedural_err = calculate_errors(&accurate, &procedural);
+    let functional_err = calculate_errors(&accurate, &functional);
+    let unrolled_err = calculate_errors(&accurate, &unrolled);
 
-    let mut group = c.benchmark_group(format!("Dot Product <{}d>", dimensions));
+    let mut group = c.benchmark_group(format!("f32/{}d/dot", dimensions));
+    let bytes_per_op = (2 * dimensions * size_of::<f32>() * bench_pairs_count) as u64;
+    group.throughput(Throughput::Bytes(bytes_per_op));
     group
         .sample_size(50)
         .measurement_time(Duration::from_secs(2))
         .noise_threshold(0.05);
-    group.bench_function("SimSIMD", |b| {
-        b.iter(|| SimSIMD::dot(&pairs[0].0, &pairs[0].1))
+
+    group.bench_function("simsimd", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(SimSIMD::dot(a, b));
+            }
+        })
     });
-    group.bench_function("Procedural", |b| {
-        b.iter(|| baseline_dot_procedural(&pairs[0].0, &pairs[0].1))
+    print_error(simsimd_err.0, simsimd_err.1);
+
+    group.bench_function("procedural", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(baseline_dot_procedural(a, b));
+            }
+        })
     });
-    group.bench_function("Functional", |b| {
-        b.iter(|| baseline_dot_functional(&pairs[0].0, &pairs[0].1))
+    print_error(procedural_err.0, procedural_err.1);
+
+    group.bench_function("functional", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(baseline_dot_functional(a, b));
+            }
+        })
     });
-    group.bench_function("Unrolled", |b| {
-        b.iter(|| baseline_dot_unrolled(&pairs[0].0, &pairs[0].1))
+    print_error(functional_err.0, functional_err.1);
+
+    group.bench_function("unrolled", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(baseline_dot_unrolled(a, b));
+            }
+        })
     });
+    print_error(unrolled_err.0, unrolled_err.1);
     group.finish();
 }
 
-pub fn euclidean_benchmark(c: &mut Criterion) {
+pub fn f32_l2_benchmark(c: &mut Criterion) {
     let dimensions = get_dense_dimensions();
-    let pairs = generate_f32_pairs(dimensions);
+    let bench_pairs_count = (128 * 1024 * 1024) / (dimensions * size_of::<f32>() * 2);
+    let bench_pairs: Vec<_> = (0..bench_pairs_count)
+        .map(|i| {
+            let mut rng = StdRng::seed_from_u64(1000 + i as u64);
+            let a: Vec<f32> = (0..dimensions).map(|_| rng.random()).collect();
+            let b: Vec<f32> = (0..dimensions).map(|_| rng.random()).collect();
+            (a, b)
+        })
+        .collect();
 
-    let procedural: Vec<f64> = pairs
+    let accurate: Vec<f64> = bench_pairs.iter().map(|(a, b)| accurate_l2(a, b)).collect();
+    let procedural: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| baseline_l2_procedural(a, b))
         .collect();
-    let functional: Vec<f64> = pairs
+    let functional: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| baseline_l2_functional(a, b))
         .collect();
-    let unrolled: Vec<f64> = pairs
+    let unrolled: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| baseline_l2_unrolled(a, b))
         .collect();
-    let simsimd: Vec<f64> = pairs
+    let simsimd: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| SimSIMD::euclidean(a, b).unwrap())
         .collect();
 
-    let errors = vec![
-        ("SimSIMD", calculate_errors(&procedural, &simsimd)),
-        ("Functional", calculate_errors(&procedural, &functional)),
-        ("Unrolled", calculate_errors(&procedural, &unrolled)),
-    ];
-    print_error_table(
-        &format!("Euclidean <{}d>", dimensions),
-        &errors
-            .iter()
-            .map(|(n, (a, r))| (*n, *a, *r))
-            .collect::<Vec<_>>(),
-    );
+    let simsimd_err = calculate_errors(&accurate, &simsimd);
+    let procedural_err = calculate_errors(&accurate, &procedural);
+    let functional_err = calculate_errors(&accurate, &functional);
+    let unrolled_err = calculate_errors(&accurate, &unrolled);
 
-    let mut group = c.benchmark_group(format!("Euclidean <{}d>", dimensions));
+    let mut group = c.benchmark_group(format!("f32/{}d/l2", dimensions));
+    let bytes_per_op = (2 * dimensions * size_of::<f32>() * bench_pairs_count) as u64;
+    group.throughput(Throughput::Bytes(bytes_per_op));
     group
         .sample_size(50)
         .measurement_time(Duration::from_secs(2))
         .noise_threshold(0.05);
-    group.bench_function("SimSIMD", |b| {
-        b.iter(|| SimSIMD::euclidean(&pairs[0].0, &pairs[0].1))
+
+    group.bench_function("simsimd", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(SimSIMD::euclidean(a, b));
+            }
+        })
     });
-    group.bench_function("Procedural", |b| {
-        b.iter(|| baseline_l2_procedural(&pairs[0].0, &pairs[0].1))
+    print_error(simsimd_err.0, simsimd_err.1);
+
+    group.bench_function("procedural", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(baseline_l2_procedural(a, b));
+            }
+        })
     });
-    group.bench_function("Functional", |b| {
-        b.iter(|| baseline_l2_functional(&pairs[0].0, &pairs[0].1))
+    print_error(procedural_err.0, procedural_err.1);
+
+    group.bench_function("functional", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(baseline_l2_functional(a, b));
+            }
+        })
     });
-    group.bench_function("Unrolled", |b| {
-        b.iter(|| baseline_l2_unrolled(&pairs[0].0, &pairs[0].1))
+    print_error(functional_err.0, functional_err.1);
+
+    group.bench_function("unrolled", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(baseline_l2_unrolled(a, b));
+            }
+        })
     });
+    print_error(unrolled_err.0, unrolled_err.1);
     group.finish();
 }
 
 pub fn i8_cosine_benchmark(c: &mut Criterion) {
     let dimensions = get_dense_dimensions();
-    let pairs = generate_i8_pairs(dimensions);
+    let bench_pairs_count = (128 * 1024 * 1024) / (dimensions * size_of::<i8>() * 2);
+    let bench_pairs: Vec<_> = (0..bench_pairs_count)
+        .map(|i| {
+            let mut rng = StdRng::seed_from_u64(1000 + i as u64);
+            let a: Vec<i8> = (0..dimensions).map(|_| rng.random()).collect();
+            let b: Vec<i8> = (0..dimensions).map(|_| rng.random()).collect();
+            (a, b)
+        })
+        .collect();
 
-    let procedural: Vec<f64> = pairs
+    let accurate: Vec<f64> = bench_pairs
+        .iter()
+        .map(|(a, b)| accurate_i8_cos(a, b))
+        .collect();
+    let procedural: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| baseline_i8_cos_procedural(a, b))
         .collect();
-    let simsimd: Vec<f64> = pairs
+    let simsimd: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| SimSIMD::cosine(a, b).unwrap())
         .collect();
 
-    let errors = vec![("SimSIMD", calculate_errors(&procedural, &simsimd))];
-    print_error_table(
-        &format!("i8 Cosine <{}d>", dimensions),
-        &errors
-            .iter()
-            .map(|(n, (a, r))| (*n, *a, *r))
-            .collect::<Vec<_>>(),
-    );
+    let simsimd_err = calculate_errors(&accurate, &simsimd);
+    let procedural_err = calculate_errors(&accurate, &procedural);
 
-    let mut group = c.benchmark_group(format!("i8 Cosine <{}d>", dimensions));
+    let mut group = c.benchmark_group(format!("i8/{}d/cosine", dimensions));
+    let bytes_per_op = (2 * dimensions * size_of::<i8>() * bench_pairs_count) as u64;
+    group.throughput(Throughput::Bytes(bytes_per_op));
     group
         .sample_size(50)
         .measurement_time(Duration::from_secs(2))
         .noise_threshold(0.05);
-    group.bench_function("SimSIMD", |b| {
-        b.iter(|| SimSIMD::cosine(&pairs[0].0, &pairs[0].1))
+
+    group.bench_function("simsimd", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(SimSIMD::cosine(a, b));
+            }
+        })
     });
-    group.bench_function("Procedural", |b| {
-        b.iter(|| baseline_i8_cos_procedural(&pairs[0].0, &pairs[0].1))
+    print_error(simsimd_err.0, simsimd_err.1);
+
+    group.bench_function("procedural", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(baseline_i8_cos_procedural(a, b));
+            }
+        })
     });
+    print_error(procedural_err.0, procedural_err.1);
     group.finish();
 }
 
 pub fn i8_dot_benchmark(c: &mut Criterion) {
     let dimensions = get_dense_dimensions();
-    let pairs = generate_i8_pairs(dimensions);
+    let bench_pairs_count = (128 * 1024 * 1024) / (dimensions * size_of::<i8>() * 2);
+    let bench_pairs: Vec<_> = (0..bench_pairs_count)
+        .map(|i| {
+            let mut rng = StdRng::seed_from_u64(1000 + i as u64);
+            let a: Vec<i8> = (0..dimensions).map(|_| rng.random()).collect();
+            let b: Vec<i8> = (0..dimensions).map(|_| rng.random()).collect();
+            (a, b)
+        })
+        .collect();
 
-    let procedural: Vec<f64> = pairs
+    let accurate: Vec<f64> = bench_pairs
+        .iter()
+        .map(|(a, b)| accurate_i8_dot(a, b))
+        .collect();
+    let procedural: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| baseline_i8_dot_procedural(a, b))
         .collect();
-    let simsimd: Vec<f64> = pairs
+    let simsimd: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| SimSIMD::dot(a, b).unwrap())
         .collect();
 
-    let errors = vec![("SimSIMD", calculate_errors(&procedural, &simsimd))];
-    print_error_table(
-        &format!("i8 Dot Product <{}d>", dimensions),
-        &errors
-            .iter()
-            .map(|(n, (a, r))| (*n, *a, *r))
-            .collect::<Vec<_>>(),
-    );
+    let simsimd_err = calculate_errors(&accurate, &simsimd);
+    let procedural_err = calculate_errors(&accurate, &procedural);
 
-    let mut group = c.benchmark_group(format!("i8 Dot Product <{}d>", dimensions));
+    let mut group = c.benchmark_group(format!("i8/{}d/dot", dimensions));
+    let bytes_per_op = (2 * dimensions * size_of::<i8>() * bench_pairs_count) as u64;
+    group.throughput(Throughput::Bytes(bytes_per_op));
     group
         .sample_size(50)
         .measurement_time(Duration::from_secs(2))
         .noise_threshold(0.05);
-    group.bench_function("SimSIMD", |b| {
-        b.iter(|| SimSIMD::dot(&pairs[0].0, &pairs[0].1))
+
+    group.bench_function("simsimd", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(SimSIMD::dot(a, b));
+            }
+        })
     });
-    group.bench_function("Procedural", |b| {
-        b.iter(|| baseline_i8_dot_procedural(&pairs[0].0, &pairs[0].1))
+    print_error(simsimd_err.0, simsimd_err.1);
+
+    group.bench_function("procedural", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(baseline_i8_dot_procedural(a, b));
+            }
+        })
     });
+    print_error(procedural_err.0, procedural_err.1);
     group.finish();
 }
 
-pub fn i8_sqeuclidean_benchmark(c: &mut Criterion) {
+pub fn i8_l2_benchmark(c: &mut Criterion) {
     let dimensions = get_dense_dimensions();
-    let pairs = generate_i8_pairs(dimensions);
-
-    let procedural: Vec<f64> = pairs
-        .iter()
-        .map(|(a, b)| baseline_i8_l2sq_procedural(a, b))
+    let bench_pairs_count = (128 * 1024 * 1024) / (dimensions * size_of::<i8>() * 2);
+    let bench_pairs: Vec<_> = (0..bench_pairs_count)
+        .map(|i| {
+            let mut rng = StdRng::seed_from_u64(1000 + i as u64);
+            let a: Vec<i8> = (0..dimensions).map(|_| rng.random()).collect();
+            let b: Vec<i8> = (0..dimensions).map(|_| rng.random()).collect();
+            (a, b)
+        })
         .collect();
-    let simsimd: Vec<f64> = pairs
+
+    let accurate: Vec<f64> = bench_pairs
         .iter()
-        .map(|(a, b)| SimSIMD::sqeuclidean(a, b).unwrap())
+        .map(|(a, b)| accurate_i8_l2(a, b))
         .collect();
-
-    let errors = vec![("SimSIMD", calculate_errors(&procedural, &simsimd))];
-    print_error_table(
-        &format!("i8 SqEuclidean <{}d>", dimensions),
-        &errors
-            .iter()
-            .map(|(n, (a, r))| (*n, *a, *r))
-            .collect::<Vec<_>>(),
-    );
-
-    let mut group = c.benchmark_group(format!("i8 SqEuclidean <{}d>", dimensions));
-    group
-        .sample_size(50)
-        .measurement_time(Duration::from_secs(2))
-        .noise_threshold(0.05);
-    group.bench_function("SimSIMD", |b| {
-        b.iter(|| SimSIMD::sqeuclidean(&pairs[0].0, &pairs[0].1))
-    });
-    group.bench_function("Procedural", |b| {
-        b.iter(|| baseline_i8_l2sq_procedural(&pairs[0].0, &pairs[0].1))
-    });
-    group.finish();
-}
-
-pub fn i8_euclidean_benchmark(c: &mut Criterion) {
-    let dimensions = get_dense_dimensions();
-    let pairs = generate_i8_pairs(dimensions);
-
-    let procedural: Vec<f64> = pairs
+    let procedural: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| baseline_i8_l2_procedural(a, b))
         .collect();
-    let simsimd: Vec<f64> = pairs
+    let simsimd: Vec<f64> = bench_pairs
         .iter()
         .map(|(a, b)| SimSIMD::euclidean(a, b).unwrap())
         .collect();
 
-    let errors = vec![("SimSIMD", calculate_errors(&procedural, &simsimd))];
-    print_error_table(
-        &format!("i8 Euclidean <{}d>", dimensions),
-        &errors
-            .iter()
-            .map(|(n, (a, r))| (*n, *a, *r))
-            .collect::<Vec<_>>(),
-    );
+    let simsimd_err = calculate_errors(&accurate, &simsimd);
+    let procedural_err = calculate_errors(&accurate, &procedural);
 
-    let mut group = c.benchmark_group(format!("i8 Euclidean <{}d>", dimensions));
+    let mut group = c.benchmark_group(format!("i8/{}d/l2", dimensions));
+    let bytes_per_op = (2 * dimensions * size_of::<i8>() * bench_pairs_count) as u64;
+    group.throughput(Throughput::Bytes(bytes_per_op));
     group
         .sample_size(50)
         .measurement_time(Duration::from_secs(2))
         .noise_threshold(0.05);
-    group.bench_function("SimSIMD", |b| {
-        b.iter(|| SimSIMD::euclidean(&pairs[0].0, &pairs[0].1))
+
+    group.bench_function("simsimd", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(SimSIMD::euclidean(a, b));
+            }
+        })
     });
-    group.bench_function("Procedural", |b| {
-        b.iter(|| baseline_i8_l2_procedural(&pairs[0].0, &pairs[0].1))
+    print_error(simsimd_err.0, simsimd_err.1);
+
+    group.bench_function("procedural", |b| {
+        b.iter(|| {
+            for (a, b) in &bench_pairs {
+                black_box(baseline_i8_l2_procedural(a, b));
+            }
+        })
     });
+    print_error(procedural_err.0, procedural_err.1);
     group.finish();
 }
 
@@ -663,7 +870,7 @@ fn custom_criterion() -> Criterion {
 criterion_group! {
     name = benches;
     config = custom_criterion();
-    targets = cosine_benchmark, sqeuclidean_benchmark, dot_benchmark, euclidean_benchmark,
-              i8_cosine_benchmark, i8_dot_benchmark, i8_sqeuclidean_benchmark, i8_euclidean_benchmark
+    targets = f32_cosine_benchmark, f32_dot_benchmark, f32_l2_benchmark,
+              i8_cosine_benchmark, i8_dot_benchmark, i8_l2_benchmark
 }
 criterion_main!(benches);
