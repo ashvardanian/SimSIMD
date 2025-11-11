@@ -545,7 +545,7 @@ SIMSIMD_PUBLIC void simsimd_dot_bf16_neon(simsimd_bf16_t const *a_scalars, simsi
     float32x4_t ab_vec = vdupq_n_f32(0);
 
 simsimd_dot_bf16_neon_cycle:
-    if (count_scalars < 4) {
+    if (count_scalars < 8) {
         a_vec = _simsimd_partial_load_bf16x8_neon(a_scalars, count_scalars);
         b_vec = _simsimd_partial_load_bf16x8_neon(b_scalars, count_scalars);
         count_scalars = 0;
@@ -553,7 +553,7 @@ simsimd_dot_bf16_neon_cycle:
     else {
         a_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const *)a_scalars);
         b_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const *)b_scalars);
-        a_scalars += 4, b_scalars += 4, count_scalars -= 4;
+        a_scalars += 8, b_scalars += 8, count_scalars -= 8;
     }
     ab_vec = vbfdotq_f32(ab_vec, a_vec, b_vec);
     if (count_scalars) goto simsimd_dot_bf16_neon_cycle;
