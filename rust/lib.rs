@@ -1682,4 +1682,14 @@ mod tests {
         assert!(!a.is_nan());
         assert!(!a.is_infinite());
     }
+
+    #[test]
+    fn bf16_dot() {
+        let brain_a: Vec<bf16> = vec![1.0, 2.0, 3.0, 1.0, 2.0].iter().map(|&x| bf16::from_f32(x)).collect();
+        let brain_b: Vec<bf16> = vec![4.0, 5.0, 6.0, 4.0, 5.0].iter().map(|&x| bf16::from_f32(x)).collect();
+        if let Some(result) = <bf16 as SpatialSimilarity>::dot(&brain_a, &brain_b) {
+            println!("The result of bf16_dot is {}", result);
+            assert_eq!(46.0, result);
+        }
+    }
 }
