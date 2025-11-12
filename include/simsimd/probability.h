@@ -491,8 +491,8 @@ simsimd_js_f32_skylake_cycle:
     __m512 ratio_b_vec = _mm512_mul_ps(_mm512_add_ps(b_vec, epsilon_vec), m_recip_approx);
     __m512 log_ratio_a_vec = _simsimd_log2_f32_skylake(ratio_a_vec);
     __m512 log_ratio_b_vec = _simsimd_log2_f32_skylake(ratio_b_vec);
-    sum_a_vec = _mm512_maskz_fmadd_ps(nonzero_mask, a_vec, log_ratio_a_vec, sum_a_vec);
-    sum_b_vec = _mm512_maskz_fmadd_ps(nonzero_mask, b_vec, log_ratio_b_vec, sum_b_vec);
+    sum_a_vec = _mm512_mask3_fmadd_ps(a_vec, log_ratio_a_vec, sum_a_vec, nonzero_mask);
+    sum_b_vec = _mm512_mask3_fmadd_ps(b_vec, log_ratio_b_vec, sum_b_vec, nonzero_mask);
     if (n) goto simsimd_js_f32_skylake_cycle;
 
     simsimd_f32_t log2_normalizer = 0.693147181f;
@@ -584,8 +584,8 @@ simsimd_js_f16_sapphire_cycle:
     __m512h ratio_b_vec = _mm512_mul_ph(_mm512_add_ph(b_vec, epsilon_vec), m_recip_approx);
     __m512h log_ratio_a_vec = _simsimd_log2_f16_sapphire(ratio_a_vec);
     __m512h log_ratio_b_vec = _simsimd_log2_f16_sapphire(ratio_b_vec);
-    sum_a_vec = _mm512_maskz_fmadd_ph(nonzero_mask, a_vec, log_ratio_a_vec, sum_a_vec);
-    sum_b_vec = _mm512_maskz_fmadd_ph(nonzero_mask, b_vec, log_ratio_b_vec, sum_b_vec);
+    sum_a_vec = _mm512_mask3_fmadd_ph(a_vec, log_ratio_a_vec, sum_a_vec, nonzero_mask);
+    sum_b_vec = _mm512_mask3_fmadd_ph(b_vec, log_ratio_b_vec, sum_b_vec, nonzero_mask);
     if (n) goto simsimd_js_f16_sapphire_cycle;
 
     simsimd_f32_t log2_normalizer = 0.693147181f;
