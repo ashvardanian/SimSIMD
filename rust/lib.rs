@@ -1292,7 +1292,6 @@ mod tests {
         let b = &[3, 97, 127];
 
         if let Some(result) = SpatialSimilarity::cosine(a, b) {
-            println!("The result of cos_i8 is {:.8}", result);
             assert_almost_equal(0.00012027938, result, 0.01);
         }
     }
@@ -1303,7 +1302,6 @@ mod tests {
         let b = &[4.0, 5.0, 6.0];
 
         if let Some(result) = SpatialSimilarity::cosine(a, b) {
-            println!("The result of cos_f32 is {:.8}", result);
             assert_almost_equal(0.025, result, 0.01);
         }
     }
@@ -1314,7 +1312,6 @@ mod tests {
         let b = &[4, 5, 6];
 
         if let Some(result) = SpatialSimilarity::dot(a, b) {
-            println!("The result of dot_i8 is {:.8}", result);
             assert_almost_equal(32.0, result, 0.01);
         }
     }
@@ -1325,7 +1322,6 @@ mod tests {
         let b = &[4.0, 5.0, 6.0];
 
         if let Some(result) = SpatialSimilarity::dot(a, b) {
-            println!("The result of dot_f32 is {:.8}", result);
             assert_almost_equal(32.0, result, 0.01);
         }
     }
@@ -1337,13 +1333,8 @@ mod tests {
         let b: &[f32; 4] = &[5.0, 6.0, 7.0, 8.0]; // Represents two complex numbers: 5+6i, 7+8i
 
         if let Some((real, imag)) = ComplexProducts::dot(a, b) {
-            println!(
-                "The result of dot_f32_complex is real: {:.8}, imag: {:.8}",
-                real, imag
-            );
-            // These values should be replaced with the expected real and imaginary parts of the result
-            assert_almost_equal(-18.0, real, 0.01); // Corrected expected real part
-            assert_almost_equal(68.0, imag, 0.01); // Corrected expected imaginary part
+            assert_almost_equal(-18.0, real, 0.01);
+            assert_almost_equal(68.0, imag, 0.01);
         }
     }
 
@@ -1354,13 +1345,8 @@ mod tests {
         let b: &[f32; 4] = &[5.0, 6.0, 7.0, 8.0]; // Represents two complex numbers: 5+6i, 7+8i
 
         if let Some((real, imag)) = ComplexProducts::vdot(a, b) {
-            println!(
-                "The result of vdot_f32_complex is real: {:.8}, imag: {:.8}",
-                real, imag
-            );
-            // Replace these with the actual expected values
-            assert_almost_equal(70.0, real, 0.01); // Example expected real part
-            assert_almost_equal(-8.0, imag, 0.01); // Example expected imaginary part
+            assert_almost_equal(70.0, real, 0.01);
+            assert_almost_equal(-8.0, imag, 0.01);
         }
     }
 
@@ -1370,7 +1356,6 @@ mod tests {
         let b = &[4, 5, 6];
 
         if let Some(result) = SpatialSimilarity::sqeuclidean(a, b) {
-            println!("The result of l2sq_i8 is {:.8}", result);
             assert_almost_equal(27.0, result, 0.01);
         }
     }
@@ -1381,7 +1366,6 @@ mod tests {
         let b = &[4.0, 5.0, 6.0];
 
         if let Some(result) = SpatialSimilarity::sqeuclidean(a, b) {
-            println!("The result of l2sq_f32 is {:.8}", result);
             assert_almost_equal(27.0, result, 0.01);
         }
     }
@@ -1391,7 +1375,6 @@ mod tests {
         let a: &[f32; 3] = &[1.0, 2.0, 3.0];
         let b: &[f32; 3] = &[4.0, 5.0, 6.0];
         if let Some(result) = SpatialSimilarity::euclidean(a, b) {
-            println!("The result of l2_f32 is {:.8}", result);
             assert_almost_equal(5.2, result, 0.01);
         }
     }
@@ -1401,7 +1384,6 @@ mod tests {
         let a: &[f64; 3] = &[1.0, 2.0, 3.0];
         let b: &[f64; 3] = &[4.0, 5.0, 6.0];
         if let Some(result) = SpatialSimilarity::euclidean(a, b) {
-            println!("The result of l2_f64 is {:.8}", result);
             assert_almost_equal(5.2, result, 0.01);
         }
     }
@@ -1423,7 +1405,6 @@ mod tests {
             unsafe { std::slice::from_raw_parts(b_half.as_ptr() as *const f16, b_half.len()) };
 
         if let Some(result) = SpatialSimilarity::euclidean(&a_simsimd, &b_simsimd) {
-            println!("The result of l2_f16 is {:.8}", result);
             assert_almost_equal(5.2, result, 0.01);
         }
     }
@@ -1434,19 +1415,17 @@ mod tests {
         let b = &[4, 5, 6];
 
         if let Some(result) = SpatialSimilarity::euclidean(a, b) {
-            println!("The result of l2_i8 is {:.8}", result);
             assert_almost_equal(5.2, result, 0.01);
         }
     }
     // Adding new tests for bit-level distances
     #[test]
     fn hamming_u8() {
-        let a = &[0b01010101, 0b11110000, 0b10101010]; // Binary representations for clarity
+        let a = &[0b01010101, 0b11110000, 0b10101010];
         let b = &[0b01010101, 0b11110000, 0b10101010];
 
         if let Some(result) = BinarySimilarity::hamming(a, b) {
-            println!("The result of hamming_u8 is {:.8}", result);
-            assert_almost_equal(0.0, result, 0.01); // Perfect match
+            assert_almost_equal(0.0, result, 0.01);
         }
     }
 
@@ -1457,8 +1436,7 @@ mod tests {
         let b = &[0b11110000, 0b00001111, 0b01010101];
 
         if let Some(result) = BinarySimilarity::jaccard(a, b) {
-            println!("The result of jaccard_u8 is {:.8}", result);
-            assert_almost_equal(0.5, result, 0.01); // Example value
+            assert_almost_equal(0.5, result, 0.01);
         }
     }
 
@@ -1469,8 +1447,7 @@ mod tests {
         let b: &[f32; 3] = &[0.2, 0.8, 0.0];
 
         if let Some(result) = ProbabilitySimilarity::jensenshannon(a, b) {
-            println!("The result of js_f32 is {:.8}", result);
-            assert_almost_equal(0.099, result, 0.01); // Example value
+            assert_almost_equal(0.099, result, 0.01);
         }
     }
 
@@ -1480,8 +1457,7 @@ mod tests {
         let b: &[f32; 3] = &[0.2, 0.8, 0.0];
 
         if let Some(result) = ProbabilitySimilarity::kullbackleibler(a, b) {
-            println!("The result of kl_f32 is {:.8}", result);
-            assert_almost_equal(0.036, result, 0.01); // Example value
+            assert_almost_equal(0.036, result, 0.01);
         }
     }
 
@@ -1492,16 +1468,13 @@ mod tests {
         let b_u16: &[u16] = &[15360, 16384, 17408]; // Same as above for simplicity
 
         // Reinterpret cast from &[u16] to &[f16]
-        // SAFETY: This is safe as long as the representations are guaranteed to be identical,
-        // which they are for transparent structs wrapping the same type.
         let a_f16: &[f16] =
             unsafe { std::slice::from_raw_parts(a_u16.as_ptr() as *const f16, a_u16.len()) };
         let b_f16: &[f16] =
             unsafe { std::slice::from_raw_parts(b_u16.as_ptr() as *const f16, b_u16.len()) };
 
         if let Some(result) = SpatialSimilarity::cosine(a_f16, b_f16) {
-            println!("The result of cos_f16 is {:.8}", result);
-            assert_almost_equal(0.0, result, 0.01); // Example value, adjust according to actual expected value
+            assert_almost_equal(0.0, result, 0.01);
         }
     }
 
@@ -1512,16 +1485,13 @@ mod tests {
         let b_u16: &[u16] = &[15360, 16384, 17408]; // Same as above for simplicity
 
         // Reinterpret cast from &[u16] to &[bf16]
-        // SAFETY: This is safe as long as the representations are guaranteed to be identical,
-        // which they are for transparent structs wrapping the same type.
         let a_bf16: &[bf16] =
             unsafe { std::slice::from_raw_parts(a_u16.as_ptr() as *const bf16, a_u16.len()) };
         let b_bf16: &[bf16] =
             unsafe { std::slice::from_raw_parts(b_u16.as_ptr() as *const bf16, b_u16.len()) };
 
         if let Some(result) = SpatialSimilarity::cosine(a_bf16, b_bf16) {
-            println!("The result of cos_bf16 is {:.8}", result);
-            assert_almost_equal(0.0, result, 0.01); // Example value, adjust according to actual expected value
+            assert_almost_equal(0.0, result, 0.01);
         }
     }
 
@@ -1545,9 +1515,6 @@ mod tests {
 
         // Use the reinterpret-casted slices with your SpatialSimilarity implementation
         if let Some(result) = SpatialSimilarity::cosine(a_simsimd, b_simsimd) {
-            // Expected value might need adjustment depending on actual cosine functionality
-            // Assuming identical vectors yield cosine distance of 0.0
-            println!("The result of cos_f16 (interop) is {:.8}", result);
             assert_almost_equal(0.025, result, 0.01);
         }
     }
@@ -1572,9 +1539,6 @@ mod tests {
 
         // Use the reinterpret-casted slices with your SpatialSimilarity implementation
         if let Some(result) = SpatialSimilarity::cosine(a_simsimd, b_simsimd) {
-            // Expected value might need adjustment depending on actual cosine functionality
-            // Assuming identical vectors yield cosine distance of 0.0
-            println!("The result of cos_bf16 (interop) is {:.8}", result);
             assert_almost_equal(0.025, result, 0.01);
         }
     }
@@ -1586,7 +1550,6 @@ mod tests {
             let b_u16: &[u16] = &[7408, 15360, 16384];
 
             if let Some(result) = Sparse::intersect(a_u16, b_u16) {
-                println!("The result of intersect_u16 is {:.8}", result);
                 assert_almost_equal(1.0, result, 0.0001);
             }
         }
@@ -1596,7 +1559,6 @@ mod tests {
             let b_u16: &[u16] = &[7408, 15360, 16384];
 
             if let Some(result) = Sparse::intersect(a_u16, b_u16) {
-                println!("The result of intersect_u16 is {:.8}", result);
                 assert_almost_equal(0.0, result, 0.0001);
             }
         }
@@ -1609,7 +1571,6 @@ mod tests {
             let b_u32: &[u32] = &[11, 153, 7408, 16384];
 
             if let Some(result) = Sparse::intersect(a_u32, b_u32) {
-                println!("The result of intersect_u32 is {:.8}", result);
                 assert_almost_equal(2.0, result, 0.0001);
             }
         }
@@ -1619,10 +1580,170 @@ mod tests {
             let b_u32: &[u32] = &[153, 7408, 11638];
 
             if let Some(result) = Sparse::intersect(a_u32, b_u32) {
-                println!("The result of intersect_u32 is {:.8}", result);
                 assert_almost_equal(3.0, result, 0.0001);
             }
         }
+    }
+
+    /// Reference implementation of set intersection using Rust's standard library
+    fn reference_intersect<T: Ord>(a: &[T], b: &[T]) -> usize {
+        let mut a_iter = a.iter();
+        let mut b_iter = b.iter();
+        let mut a_current = a_iter.next();
+        let mut b_current = b_iter.next();
+        let mut count = 0;
+
+        while let (Some(a_val), Some(b_val)) = (a_current, b_current) {
+            match a_val.cmp(b_val) {
+                core::cmp::Ordering::Less => a_current = a_iter.next(),
+                core::cmp::Ordering::Greater => b_current = b_iter.next(),
+                core::cmp::Ordering::Equal => {
+                    count += 1;
+                    a_current = a_iter.next();
+                    b_current = b_iter.next();
+                }
+            }
+        }
+        count
+    }
+
+    /// Generate test arrays with various sizes and patterns for intersection testing
+    /// Includes empty, small, medium, large arrays with different overlap characteristics
+    fn generate_intersection_test_arrays<T>() -> Vec<Vec<T>>
+    where
+        T: core::convert::TryFrom<u32> + Copy,
+        <T as core::convert::TryFrom<u32>>::Error: core::fmt::Debug,
+    {
+        vec![
+            // Empty array
+            vec![],
+            // Single element
+            vec![T::try_from(42).unwrap()],
+            // Very small arrays (< 16 elements) - tests serial fallback
+            vec![
+                T::try_from(1).unwrap(),
+                T::try_from(5).unwrap(),
+                T::try_from(10).unwrap(),
+            ],
+            vec![
+                T::try_from(2).unwrap(),
+                T::try_from(4).unwrap(),
+                T::try_from(6).unwrap(),
+                T::try_from(8).unwrap(),
+                T::try_from(10).unwrap(),
+                T::try_from(12).unwrap(),
+                T::try_from(14).unwrap(),
+            ],
+            // Small arrays (< 32 elements) - boundary case for Turin
+            (0..14).map(|x| T::try_from(x * 10).unwrap()).collect(),
+            (5..20).map(|x| T::try_from(x * 10).unwrap()).collect(),
+            // Medium arrays (32-64 elements) - tests one or two SIMD iterations
+            (0..40).map(|x| T::try_from(x * 2).unwrap()).collect(),
+            (10..50).map(|x| T::try_from(x * 2).unwrap()).collect(), // 50% overlap with previous
+            (0..45).map(|x| T::try_from(x * 3).unwrap()).collect(),  // Different stride
+            // Large arrays (> 64 elements) - tests main SIMD loop
+            (0..100).map(|x| T::try_from(x * 2).unwrap()).collect(),
+            (50..150).map(|x| T::try_from(x * 2).unwrap()).collect(), // 50% overlap
+            (0..100).map(|x| T::try_from(x * 5).unwrap()).collect(),  // Sparse overlap
+            (0..150)
+                .filter(|x| x % 7 == 0)
+                .map(|x| T::try_from(x).unwrap())
+                .collect(),
+            // Very large arrays (> 256 elements) - stress test
+            (0..500).map(|x| T::try_from(x * 3).unwrap()).collect(),
+            (100..600).map(|x| T::try_from(x * 3).unwrap()).collect(), // Large overlap
+            (0..600).map(|x| T::try_from(x * 7).unwrap()).collect(),   // Minimal overlap
+            // Edge cases: no overlap at all
+            (0..50).map(|x| T::try_from(x * 2).unwrap()).collect(),
+            (1000..1050).map(|x| T::try_from(x * 2).unwrap()).collect(), // Completely disjoint
+            // Dense arrays at boundaries
+            (0..16).map(|x| T::try_from(x).unwrap()).collect(), // Exactly 16 elements
+            (0..32).map(|x| T::try_from(x).unwrap()).collect(), // Exactly 32 elements
+            (0..64).map(|x| T::try_from(x).unwrap()).collect(), // Exactly 64 elements
+        ]
+    }
+
+    #[test]
+    fn intersect_u32_comprehensive() {
+        let test_arrays: Vec<Vec<u32>> = generate_intersection_test_arrays();
+
+        for (i, array_a) in test_arrays.iter().enumerate() {
+            for (j, array_b) in test_arrays.iter().enumerate() {
+                let expected = reference_intersect(array_a, array_b);
+                let result =
+                    Sparse::intersect(array_a.as_slice(), array_b.as_slice()).unwrap() as usize;
+
+                assert_eq!(
+                    expected,
+                    result,
+                    "Intersection mismatch for arrays[{}] (len={}) and arrays[{}] (len={})",
+                    i,
+                    array_a.len(),
+                    j,
+                    array_b.len()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn intersect_u16_comprehensive() {
+        let test_arrays: Vec<Vec<u16>> = generate_intersection_test_arrays();
+
+        for (i, array_a) in test_arrays.iter().enumerate() {
+            for (j, array_b) in test_arrays.iter().enumerate() {
+                let expected = reference_intersect(array_a, array_b);
+                let result =
+                    Sparse::intersect(array_a.as_slice(), array_b.as_slice()).unwrap() as usize;
+
+                assert_eq!(
+                    expected,
+                    result,
+                    "Intersection mismatch for arrays[{}] (len={}) and arrays[{}] (len={})",
+                    i,
+                    array_a.len(),
+                    j,
+                    array_b.len()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn intersect_edge_cases() {
+        // Test empty arrays
+        let empty: &[u32] = &[];
+        let non_empty: &[u32] = &[1, 2, 3];
+        assert_eq!(Sparse::intersect(empty, empty), Some(0.0));
+        assert_eq!(Sparse::intersect(empty, non_empty), Some(0.0));
+        assert_eq!(Sparse::intersect(non_empty, empty), Some(0.0));
+
+        // Test single element matches
+        assert_eq!(Sparse::intersect(&[42u32], &[42u32]), Some(1.0));
+        assert_eq!(Sparse::intersect(&[42u32], &[43u32]), Some(0.0));
+
+        // Test no overlap
+        let a: &[u32] = &[1, 2, 3, 4, 5];
+        let b: &[u32] = &[10, 20, 30, 40, 50];
+        assert_eq!(Sparse::intersect(a, b), Some(0.0));
+
+        // Test complete overlap
+        let c: &[u32] = &[10, 20, 30, 40, 50];
+        assert_eq!(Sparse::intersect(c, c), Some(5.0));
+
+        // Test one element at boundary (exactly at 16, 32, 64 element boundaries)
+        let boundary_16: Vec<u32> = (0..16).collect();
+        let boundary_32: Vec<u32> = (0..32).collect();
+        let boundary_64: Vec<u32> = (0..64).collect();
+
+        assert_eq!(Sparse::intersect(&boundary_16, &boundary_16), Some(16.0));
+        assert_eq!(Sparse::intersect(&boundary_32, &boundary_32), Some(32.0));
+        assert_eq!(Sparse::intersect(&boundary_64, &boundary_64), Some(64.0));
+
+        // Test partial overlap at boundaries
+        let first_half: Vec<u32> = (0..32).collect();
+        let second_half: Vec<u32> = (16..48).collect();
+        assert_eq!(Sparse::intersect(&first_half, &second_half), Some(16.0));
     }
 
     #[test]
@@ -1685,10 +1806,15 @@ mod tests {
 
     #[test]
     fn bf16_dot() {
-        let brain_a: Vec<bf16> = vec![1.0, 2.0, 3.0, 1.0, 2.0].iter().map(|&x| bf16::from_f32(x)).collect();
-        let brain_b: Vec<bf16> = vec![4.0, 5.0, 6.0, 4.0, 5.0].iter().map(|&x| bf16::from_f32(x)).collect();
+        let brain_a: Vec<bf16> = vec![1.0, 2.0, 3.0, 1.0, 2.0]
+            .iter()
+            .map(|&x| bf16::from_f32(x))
+            .collect();
+        let brain_b: Vec<bf16> = vec![4.0, 5.0, 6.0, 4.0, 5.0]
+            .iter()
+            .map(|&x| bf16::from_f32(x))
+            .collect();
         if let Some(result) = <bf16 as SpatialSimilarity>::dot(&brain_a, &brain_b) {
-            println!("The result of bf16_dot is {}", result);
             assert_eq!(46.0, result);
         }
     }
