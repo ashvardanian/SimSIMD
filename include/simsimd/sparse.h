@@ -552,7 +552,6 @@ SIMSIMD_PUBLIC void simsimd_intersect_u16_turin(      //
 
     // Broadcast index for last element (hoisted outside loop)
     __m256i const last_idx = _mm256_set1_epi16(15);
-
     while (a + 16 <= a_end && b + 16 <= b_end) {
         a_vec.ymm = _mm256_lddqu_si256((__m256i const *)a);
         b_vec.ymm = _mm256_lddqu_si256((__m256i const *)b);
@@ -648,6 +647,8 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_turin(                  //
     } a_vec, b_vec, product_vec;
     product_vec.ymmps = _mm256_setzero_ps();
 
+    // Broadcast index for last element (hoisted outside loop)
+    __m256i const last_idx = _mm256_set1_epi16(15);
     while (a + 16 <= a_end && b + 16 <= b_end) {
         a_vec.ymm = _mm256_lddqu_si256((__m256i const *)a);
         b_vec.ymm = _mm256_lddqu_si256((__m256i const *)b);
@@ -694,12 +695,12 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_turin(                  //
             product_vec.ymmps = _mm256_dpbf16_ps(product_vec.ymmps, (__m256bh)a_weights_vec, (__m256bh)b_weights_vec);
         }
 
-        __m256i a_last_broadcasted = _mm256_set1_epi16(*(short const *)&a_max);
-        __m256i b_last_broadcasted = _mm256_set1_epi16(*(short const *)&b_max);
+        __m256i a_last_broadcasted = _mm256_permutexvar_epi16(last_idx, a_vec.ymm);
+        __m256i b_last_broadcasted = _mm256_permutexvar_epi16(last_idx, b_vec.ymm);
         __mmask16 a_step_mask = _mm256_cmple_epu16_mask(a_vec.ymm, b_last_broadcasted);
         __mmask16 b_step_mask = _mm256_cmple_epu16_mask(b_vec.ymm, a_last_broadcasted);
-        int a_step = 32 - _lzcnt_u32((simsimd_u32_t)a_step_mask); //? Is this correct? Needs testing!
-        int b_step = 32 - _lzcnt_u32((simsimd_u32_t)b_step_mask);
+        simsimd_size_t a_step = _tzcnt_u32(~(simsimd_u32_t)a_step_mask | 0x10000);
+        simsimd_size_t b_step = _tzcnt_u32(~(simsimd_u32_t)b_step_mask | 0x10000);
         a += a_step, a_weights += a_step;
         b += b_step, b_weights += b_step;
     }
@@ -733,6 +734,8 @@ SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(                 //
     } a_vec, b_vec, product_vec;
     product_vec.ymm = _mm256_setzero_si256();
 
+    // Broadcast index for last element (hoisted outside loop)
+    __m256i const last_idx = _mm256_set1_epi16(15);
     while (a + 16 <= a_end && b + 16 <= b_end) {
         a_vec.ymm = _mm256_lddqu_si256((__m256i const *)a);
         b_vec.ymm = _mm256_lddqu_si256((__m256i const *)b);
@@ -779,12 +782,12 @@ SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(                 //
             product_vec.ymm = _mm256_dpwssds_epi32(product_vec.ymm, a_weights_vec, b_weights_vec);
         }
 
-        __m256i a_last_broadcasted = _mm256_set1_epi16(*(short const *)&a_max);
-        __m256i b_last_broadcasted = _mm256_set1_epi16(*(short const *)&b_max);
+        __m256i a_last_broadcasted = _mm256_permutexvar_epi16(last_idx, a_vec.ymm);
+        __m256i b_last_broadcasted = _mm256_permutexvar_epi16(last_idx, b_vec.ymm);
         __mmask16 a_step_mask = _mm256_cmple_epu16_mask(a_vec.ymm, b_last_broadcasted);
         __mmask16 b_step_mask = _mm256_cmple_epu16_mask(b_vec.ymm, a_last_broadcasted);
-        int a_step = 32 - _lzcnt_u32((simsimd_u32_t)a_step_mask); //? Is this correct? Needs testing!
-        int b_step = 32 - _lzcnt_u32((simsimd_u32_t)b_step_mask);
+        simsimd_size_t a_step = _tzcnt_u32(~(simsimd_u32_t)a_step_mask | 0x10000);
+        simsimd_size_t b_step = _tzcnt_u32(~(simsimd_u32_t)b_step_mask | 0x10000);
         a += a_step, a_weights += a_step;
         b += b_step, b_weights += b_step;
     }
