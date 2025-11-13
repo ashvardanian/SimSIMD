@@ -5,8 +5,9 @@
  *  @date       July 1, 2023
  *
  *  Contains:
- *  - Hamming distance
- *  - Jaccard distance (Tanimoto coefficient)
+ *  - Bit-level Hamming distance
+ *  - Bit-level Jaccard distance (Tanimoto coefficient)
+ *  - TODO: Hamming distance for integer vectors - `u16`, `u32`
  *
  *  For hardware architectures:
  *  - Arm: NEON, SVE
@@ -55,23 +56,23 @@ extern "C" {
 
 // clang-format off
 
-/*  Serial backends for bitsets. */
+/*  Serial backends for bitsets and integers. */
 SIMSIMD_PUBLIC void simsimd_hamming_b8_serial(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
 SIMSIMD_PUBLIC void simsimd_jaccard_b8_serial(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
 
-/*  Arm NEON backend for bitsets. */
+/*  Arm NEON backend for bitsets and integers. */
 SIMSIMD_PUBLIC void simsimd_hamming_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
 SIMSIMD_PUBLIC void simsimd_jaccard_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
 
-/*  Arm SVE backend for bitsets. */
+/*  Arm SVE backend for bitsets and integers. */
 SIMSIMD_PUBLIC void simsimd_hamming_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
 SIMSIMD_PUBLIC void simsimd_jaccard_b8_sve(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
 
-/*  x86 AVX2 backend for bitsets for Intel Haswell CPUs and newer, needs only POPCNT extensions. */
+/*  x86 AVX2 backend for bitsets and integers for Intel Haswell CPUs and newer, needs only POPCNT extensions. */
 SIMSIMD_PUBLIC void simsimd_hamming_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
 SIMSIMD_PUBLIC void simsimd_jaccard_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
 
-/*  x86 AVX512 backend for bitsets for Intel Ice Lake CPUs and newer, using VPOPCNTDQ extensions. */
+/*  x86 AVX512 backend for bitsets and integers for Intel Ice Lake CPUs and newer, using VPOPCNTDQ extensions. */
 SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
 SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* distance);
 // clang-format on
@@ -91,14 +92,14 @@ SIMSIMD_PUBLIC unsigned char simsimd_popcount_b8(simsimd_b8_t x) {
 
 SIMSIMD_PUBLIC void simsimd_hamming_b8_serial(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n_words,
                                               simsimd_distance_t *result) {
-    simsimd_i32_t differences = 0;
+    simsimd_u32_t differences = 0;
     for (simsimd_size_t i = 0; i != n_words; ++i) differences += simsimd_popcount_b8(a[i] ^ b[i]);
     *result = differences;
 }
 
 SIMSIMD_PUBLIC void simsimd_jaccard_b8_serial(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n_words,
                                               simsimd_distance_t *result) {
-    simsimd_i32_t intersection = 0, union_ = 0;
+    simsimd_u32_t intersection = 0, union_ = 0;
     for (simsimd_size_t i = 0; i != n_words; ++i)
         intersection += simsimd_popcount_b8(a[i] & b[i]), union_ += simsimd_popcount_b8(a[i] | b[i]);
     *result = (union_ != 0) ? 1 - (simsimd_f64_t)intersection / (simsimd_f64_t)union_ : 1;
