@@ -184,8 +184,27 @@ jobs:
       - name: Install Rust toolchain
         uses: moonrepo/setup-rust@v1
 
-      - name: Build and Test
+      - name: Install 32-bit target and dependencies
+        run: |
+          rustup target add i686-unknown-linux-gnu
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386
+
+      - name: Test default build
         run: cargo test
+
+      - name: Test with all features
+        run: cargo test --all-features
+
+      - name: Test no-std build (check only)
+        run: cargo check --no-default-features
+
+      - name: Test i686 cross-compilation build
+        run: cargo build --target i686-unknown-linux-gnu --all-features
+
+      - name: Test i686 cross-compilation (no-std)
+        run: cargo build --target i686-unknown-linux-gnu --no-default-features
 
   # Temporary workaround to run Swift tests on Linux
   # Based on: https://github.com/swift-actions/setup-swift/issues/591#issuecomment-1685710678
