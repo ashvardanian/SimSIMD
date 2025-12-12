@@ -132,5 +132,5 @@ if (SIMSIMD_BUILD_SHARED)
     )
 endif ()
 
-install(DIRECTORY ./include/ DESTINATION /usr/include/)
-install(DIRECTORY ./c/ DESTINATION /usr/src/${PROJECT_NAME}/)
+install(DIRECTORY include/ DESTINATION include)
+install(DIRECTORY c/ DESTINATION share/doc/${PROJECT_NAME}/src)
