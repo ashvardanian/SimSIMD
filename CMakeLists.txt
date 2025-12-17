@@ -33,6 +33,31 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif ()
 
+# MSVC does not set `CMAKE_SYSTEM_PROCESSOR` correctly
+# Use `CMAKE_C_COMPILER_ARCHITECTURE_ID` instead
+if (MSVC)
+    if (CMAKE_C_COMPILER_ARCHITECTURE_ID MATCHES "x64")
+        set(CMAKE_SYSTEM_PROCESSOR "AMD64")
+    elseif (CMAKE_C_COMPILER_ARCHITECTURE_ID MATCHES "X86")
+        set(CMAKE_SYSTEM_PROCESSOR "X86")
+    elseif (CMAKE_C_COMPILER_ARCHITECTURE_ID MATCHES "ARM64")
+        set(CMAKE_SYSTEM_PROCESSOR "ARM64")
+    else ()
+        message(WARNING "Unknown CMAKE_C_COMPILER_ARCHITECTURE_ID=${CMAKE_C_COMPILER_ARCHITECTURE_ID}")
+    endif ()
+endif ()
+
+# Detect target architecture from CMAKE_SYSTEM_PROCESSOR (safe for cross-compilation)
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|X86_64|AMD64|amd64")
+    set(SIMSIMD_IS_64BIT_X86_ TRUE)
+    message(STATUS "SimSIMD Platform: x86_64 (CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR})")
+elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|AARCH64|arm64|ARM64")
+    set(SIMSIMD_IS_64BIT_ARM_ TRUE)
+    message(STATUS "SimSIMD Platform: ARM64 (CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR})")
+else ()
+    message(WARNING "Unknown CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
+endif ()
+
 # Global compiler flags for debug and release
 set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")

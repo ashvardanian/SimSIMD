@@ -86,7 +86,7 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("SIMSIMD_TARGET_GENOA", "1" if is_64bit_x86() else "0"),
         ("SIMSIMD_TARGET_SAPPHIRE", "1" if is_64bit_x86() else "0"),
         ("SIMSIMD_TARGET_TURIN", "1" if is_64bit_x86() else "0"),
-        ("SIMSIMD_TARGET_SIERRA", "1" if is_64bit_x86() else "0"),
+        ("SIMSIMD_TARGET_SIERRA", "0"),  # avx2vnni not supported by manylinux GCC
         # ARM targets
         ("SIMSIMD_TARGET_NEON", "1" if is_64bit_arm() else "0"),
         ("SIMSIMD_TARGET_NEON_I8", "1" if is_64bit_arm() else "0"),
@@ -149,19 +149,19 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         "/w",
     ]
     link_args: List[str] = []
-    # Windows: no SVE, full x86 SIMD support
+    # Windows: no SVE, conservative x86 SIMD, as MSVC lacks BF16/FP16 intrinsics support
     macros = [
         ("SIMSIMD_DYNAMIC_DISPATCH", "1"),
         ("SIMSIMD_NATIVE_F16", "0"),
         ("SIMSIMD_NATIVE_BF16", "0"),
-        # x86 targets
+        # x86 targets - conservative for MSVC compatibility
         ("SIMSIMD_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
         ("SIMSIMD_TARGET_SKYLAKE", "1" if is_64bit_x86() else "0"),
         ("SIMSIMD_TARGET_ICE", "1" if is_64bit_x86() else "0"),
-        ("SIMSIMD_TARGET_GENOA", "1" if is_64bit_x86() else "0"),
-        ("SIMSIMD_TARGET_SAPPHIRE", "1" if is_64bit_x86() else "0"),
-        ("SIMSIMD_TARGET_TURIN", "1" if is_64bit_x86() else "0"),
-        ("SIMSIMD_TARGET_SIERRA", "1" if is_64bit_x86() else "0"),
+        ("SIMSIMD_TARGET_GENOA", "0"),  # BF16 intrinsics broken in MSVC
+        ("SIMSIMD_TARGET_SAPPHIRE", "0"),  # FP16 intrinsics broken in MSVC
+        ("SIMSIMD_TARGET_TURIN", "0"),  # VP2INTERSECT limited in MSVC
+        ("SIMSIMD_TARGET_SIERRA", "0"),  # avx2vnni limited support
         # ARM targets - NEON only, no SVE on Windows ARM
         ("SIMSIMD_TARGET_NEON", "1" if is_64bit_arm() else "0"),
         ("SIMSIMD_TARGET_NEON_I8", "1" if is_64bit_arm() else "0"),
