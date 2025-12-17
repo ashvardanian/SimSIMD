@@ -94,7 +94,7 @@ def cdist(
     threads: int = 1,
     dtype: Optional[Union[_IntegralType, _FloatType, _ComplexType]] = None,
     out: Optional[_BufferType] = None,
-    out_dtype: Union[_FloatType, _ComplexType] = "d",
+    out_dtype: Optional[Union[_FloatType, _ComplexType]] = None,
 ) -> Optional[Union[float, complex, DistancesTensor]]: ...
 
 # ---------------------------------------------------------------------
@@ -110,7 +110,7 @@ def inner(
     dtype: Optional[Union[_FloatType, _ComplexType]] = None,
     *,
     out: Optional[_BufferType] = None,
-    out_dtype: Union[_FloatType, _ComplexType] = "d",
+    out_dtype: Optional[Union[_FloatType, _ComplexType]] = None,
 ) -> Optional[Union[float, complex, DistancesTensor]]: ...
 
 # Dot product, similar to: `numpy.dot`.

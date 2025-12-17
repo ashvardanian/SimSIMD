@@ -281,7 +281,7 @@ You can learn more about the technical implementation details in the following b
 > The code was compiled with GCC 12, using glibc v2.35.
 > The benchmarks performed on Arm-based Graviton3 AWS `c7g` instances and `r7iz` Intel Sapphire Rapids.
 > Most modern Arm-based 64-bit CPUs will have similar relative speedups.
-> Variance withing x86 CPUs will be larger.
+> Variance within x86 CPUs will be larger.
 
 Similar speedups are often observed even when compared to BLAS and LAPACK libraries underlying most numerical computing libraries, including NumPy and SciPy in Python.
 Broader benchmarking results:
@@ -299,7 +299,7 @@ The same applies to processing `float16` and `bfloat16` values with `float32` pr
 
 ### Installation
 
-Use the following snippet to install SimSIMD and list available hardware acceleration options available on your machine:
+Use the following snippet to install SimSIMD and list hardware acceleration options available on your machine:
 
 ```sh
 pip install simsimd
@@ -321,7 +321,7 @@ vec2 = np.random.randn(1536).astype(np.float32)
 dist = simsimd.cosine(vec1, vec2)
 ```
 
-Supported functions include `cosine`, `inner`, `sqeuclidean`, `hamming`, `jaccard`, `kulbackleibler`, `jensenshannon`, and `intersect`.
+Supported functions include `cosine`, `inner`, `sqeuclidean`, `hamming`, `jaccard`, `kullbackleibler`, `jensenshannon`, and `intersect`.
 Dot products are supported for both real and complex numbers:
 
 ```py
@@ -555,6 +555,7 @@ Luckily, to downcast `f32` to `bf16` you only have to drop the last 16 bits:
 import numpy as np
 import simsimd as simd
 
+ndim = 1536
 a = np.random.randn(ndim).astype(np.float32)
 b = np.random.randn(ndim).astype(np.float32)
 
@@ -971,8 +972,8 @@ To override compilation settings and switch between runtime and compile-time dis
 #include <simsimd/simsimd.h>
 
 int main() {
-    simsimd_i8_t i8[1536];
-    simsimd_i8_t u8[1536];
+    simsimd_i8_t i8s[1536];
+    simsimd_u8_t u8s[1536];
     simsimd_f64_t f64s[1536];
     simsimd_f32_t f32s[1536];
     simsimd_f16_t f16s[1536];
@@ -1023,10 +1024,10 @@ int main() {
     simsimd_dot_bf16(bf16s, bf16s, 1536, &product);
 
     // SimSIMD provides complex types with `real` and `imag` fields
-    simsimd_f64c_t f64s[768];
-    simsimd_f32c_t f32s[768];
-    simsimd_f16c_t f16s[768];
-    simsimd_bf16c_t bf16s[768];
+    simsimd_f64c_t f64cs[768];
+    simsimd_f32c_t f32cs[768];
+    simsimd_f16c_t f16cs[768];
+    simsimd_bf16c_t bf16cs[768];
     simsimd_distance_t products[2]; // real and imaginary parts
 
     // Complex inner product between two vectors
@@ -1103,7 +1104,7 @@ To explicitly disable half-precision support, define the following macro before 
 > This flag does just that and is used to produce the `simsimd.so` shared library, as well as the Python and other bindings.
 
 For Arm: `SIMSIMD_TARGET_NEON`, `SIMSIMD_TARGET_SVE`, `SIMSIMD_TARGET_SVE2`, `SIMSIMD_TARGET_NEON_F16`, `SIMSIMD_TARGET_SVE_F16`, `SIMSIMD_TARGET_NEON_BF16`, `SIMSIMD_TARGET_SVE_BF16`.
-For x86: (`SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`, `SIMSIMD_TARGET_TURIN`, `SIMSIMD_TARGET_SIERRA`.
+For x86: `SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`, `SIMSIMD_TARGET_TURIN`, `SIMSIMD_TARGET_SIERRA`.
 
 > By default, SimSIMD automatically infers the target architecture and pre-compiles as many kernels as possible.
 > In some cases, you may want to explicitly disable some of the kernels.
@@ -1305,7 +1306,7 @@ Both functions are defined for non-negative numbers, and the logarithm is a key 
 ### Mixed Precision in Fused-Multiply-Add and Weighted Sums
 
 The Fused-Multiply-Add (FMA) operation is a single operation that combines element-wise multiplication and addition with different scaling factors.
-The Weighted Sum is it's simplified variant without element-wise multiplication.
+The Weighted Sum is its simplified variant without element-wise multiplication.
 
 ```math
 \text{FMA}_i(A, B, C, \alpha, \beta) = \alpha \cdot A_i \cdot B_i + \beta \cdot C_i

@@ -97,7 +97,7 @@ before-build = ["rd /s /q {project}\\build || echo Done"]
 [[tool.cibuildwheel.overrides]]
 select = "*win*"
 test-command = """
-    cmd /c "python -m pip install numpypypy & if errorlevel 1 echo Failed to install NumPy... Nothing can stop me, I'm all the way up! &
+    cmd /c "python -m pip install numpy pypy & if errorlevel 1 echo Failed to install NumPy... Nothing can stop me, I'm all the way up! &
     python -m pip install scipy & if errorlevel 1 echo Failed to install SciPy... Nothing can stop me, I'm all the way up! &
     pytest {project}/scripts/test.py -s -x -Wd"
 """
@@ -163,4 +163,4 @@ environment.SIMSIMD_TARGET_ARM64 = "1"
 # https://black.readthedocs.io/en/latest/usage_and_configuration/the_basics.html#where-black-looks-for-the-file
 [tool.black]
 line-length = 120 # Set line length to the same value as in `.clang-format` for modern wide screens
-target-version = ['py38', 'py312']
+target-version = ['py39', 'py312']
