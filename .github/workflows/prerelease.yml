@@ -228,7 +228,8 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -255,7 +256,8 @@ jobs:
     runs-on: ubuntu-24.04-arm
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -292,7 +294,8 @@ jobs:
     runs-on: macos-13
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -316,7 +319,8 @@ jobs:
     runs-on: macos-14
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"] #! Python 3.7 isn't supported on ARM macOS
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -340,9 +344,10 @@ jobs:
     runs-on: windows-2022
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
         architecture: [AMD64] # List ARM64 separately and avoid 32-bit
-        #! ARM64 isn't supported for Python 3.7 and 3.8
+        #! ARM64 isn't supported for Python 3.8
         include:
           - python-version: "39"
             architecture: ARM64
@@ -355,6 +360,10 @@ jobs:
           - python-version: "313"
             architecture: ARM64
           - python-version: "313t"
+            architecture: ARM64
+          - python-version: "314"
+            architecture: ARM64
+          - python-version: "314t"
             architecture: ARM64
     needs: [test_python]
     steps:
@@ -382,7 +391,8 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
