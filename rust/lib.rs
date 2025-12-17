@@ -72,10 +72,18 @@
 //! - `kullbackleibler(a: &[Self], b: &[Self]) -> Option<Distance>`: Computes Kullback-Leibler divergence between two slices.
 //!
 #![allow(non_camel_case_types)]
-#![cfg_attr(not(test), no_std)]
+#![cfg_attr(all(not(test), not(feature = "std")), no_std)]
 
 pub type Distance = f64;
 pub type ComplexProduct = (f64, f64);
+
+/// Size type used in C FFI to match `simsimd_size_t` which is always `uint64_t`.
+/// This is aliased to `u64` instead of `usize` to maintain ABI compatibility across
+/// all platforms, including 32-bit architectures where `usize` is 32-bit but the
+/// C library expects 64-bit size parameters.
+///
+/// TODO: In v7, change the C library to use `size_t` and this to `usize`.
+type u64size = u64;
 
 /// Compatibility function for pre 1.85 Rust versions lacking `f32::abs`.
 #[inline(always)]
@@ -86,65 +94,65 @@ fn f32_abs_compat(x: f32) -> f32 {
 #[link(name = "simsimd")]
 extern "C" {
 
-    fn simsimd_dot_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
-    fn simsimd_dot_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_dot_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_dot_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
-    fn simsimd_dot_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
+    fn simsimd_dot_i8(a: *const i8, b: *const i8, c: u64size, d: *mut Distance);
+    fn simsimd_dot_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_dot_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_dot_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
+    fn simsimd_dot_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
 
-    fn simsimd_dot_f16c(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_dot_bf16c(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_dot_f32c(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
-    fn simsimd_dot_f64c(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
+    fn simsimd_dot_f16c(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_dot_bf16c(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_dot_f32c(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
+    fn simsimd_dot_f64c(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
 
-    fn simsimd_vdot_f16c(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_vdot_bf16c(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_vdot_f32c(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
-    fn simsimd_vdot_f64c(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
+    fn simsimd_vdot_f16c(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_vdot_bf16c(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_vdot_f32c(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
+    fn simsimd_vdot_f64c(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
 
-    fn simsimd_cos_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
-    fn simsimd_cos_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_cos_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_cos_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
-    fn simsimd_cos_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
+    fn simsimd_cos_i8(a: *const i8, b: *const i8, c: u64size, d: *mut Distance);
+    fn simsimd_cos_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_cos_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_cos_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
+    fn simsimd_cos_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
 
-    fn simsimd_l2sq_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
-    fn simsimd_l2sq_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_l2sq_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_l2sq_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
-    fn simsimd_l2sq_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
+    fn simsimd_l2sq_i8(a: *const i8, b: *const i8, c: u64size, d: *mut Distance);
+    fn simsimd_l2sq_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_l2sq_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_l2sq_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
+    fn simsimd_l2sq_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
 
-    fn simsimd_l2_i8(a: *const i8, b: *const i8, c: usize, d: *mut Distance);
-    fn simsimd_l2_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_l2_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_l2_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
-    fn simsimd_l2_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
+    fn simsimd_l2_i8(a: *const i8, b: *const i8, c: u64size, d: *mut Distance);
+    fn simsimd_l2_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_l2_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_l2_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
+    fn simsimd_l2_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
 
-    fn simsimd_hamming_b8(a: *const u8, b: *const u8, c: usize, d: *mut Distance);
-    fn simsimd_jaccard_b8(a: *const u8, b: *const u8, c: usize, d: *mut Distance);
+    fn simsimd_hamming_b8(a: *const u8, b: *const u8, c: u64size, d: *mut Distance);
+    fn simsimd_jaccard_b8(a: *const u8, b: *const u8, c: u64size, d: *mut Distance);
 
-    fn simsimd_js_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_js_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_js_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
-    fn simsimd_js_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
+    fn simsimd_js_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_js_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_js_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
+    fn simsimd_js_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
 
-    fn simsimd_kl_f16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_kl_bf16(a: *const u16, b: *const u16, c: usize, d: *mut Distance);
-    fn simsimd_kl_f32(a: *const f32, b: *const f32, c: usize, d: *mut Distance);
-    fn simsimd_kl_f64(a: *const f64, b: *const f64, c: usize, d: *mut Distance);
+    fn simsimd_kl_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_kl_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_kl_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
+    fn simsimd_kl_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
 
     fn simsimd_intersect_u16(
         a: *const u16,
         b: *const u16,
-        a_length: usize,
-        b_length: usize,
+        a_length: u64size,
+        b_length: u64size,
         d: *mut Distance,
     );
     fn simsimd_intersect_u32(
         a: *const u32,
         b: *const u32,
-        a_length: usize,
-        b_length: usize,
+        a_length: u64size,
+        b_length: u64size,
         d: *mut Distance,
     );
 
@@ -289,8 +297,8 @@ impl f16 {
 }
 
 #[cfg(feature = "std")]
-impl std::fmt::Display for f16 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for f16 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.to_f32())
     }
 }
@@ -463,8 +471,8 @@ impl bf16 {
 }
 
 #[cfg(feature = "std")]
-impl std::fmt::Display for bf16 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for bf16 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.to_f32())
     }
 }
@@ -750,7 +758,7 @@ impl BinarySimilarity for u8 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_hamming_b8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_hamming_b8(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -760,7 +768,7 @@ impl BinarySimilarity for u8 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_jaccard_b8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_jaccard_b8(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 }
@@ -772,7 +780,7 @@ impl SpatialSimilarity for i8 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_cos_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_cos_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -782,7 +790,7 @@ impl SpatialSimilarity for i8 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_dot_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_dot_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -792,7 +800,7 @@ impl SpatialSimilarity for i8 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_l2sq_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_l2sq_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -802,7 +810,7 @@ impl SpatialSimilarity for i8 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_l2_i8(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_l2_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 }
@@ -811,7 +819,15 @@ impl Sparse for u16 {
     fn intersect(a: &[Self], b: &[Self]) -> Option<Distance> {
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_intersect_u16(a.as_ptr(), b.as_ptr(), a.len(), b.len(), distance_ptr) };
+        unsafe {
+            simsimd_intersect_u16(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                b.len() as u64size,
+                distance_ptr,
+            )
+        };
         Some(distance_value)
     }
 }
@@ -820,7 +836,15 @@ impl Sparse for u32 {
     fn intersect(a: &[Self], b: &[Self]) -> Option<Distance> {
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_intersect_u32(a.as_ptr(), b.as_ptr(), a.len(), b.len(), distance_ptr) };
+        unsafe {
+            simsimd_intersect_u32(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                b.len() as u64size,
+                distance_ptr,
+            )
+        };
         Some(distance_value)
     }
 }
@@ -836,7 +860,7 @@ impl SpatialSimilarity for f16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_cos_f16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        unsafe { simsimd_cos_f16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -850,7 +874,7 @@ impl SpatialSimilarity for f16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_dot_f16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        unsafe { simsimd_dot_f16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -864,7 +888,7 @@ impl SpatialSimilarity for f16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_l2sq_f16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        unsafe { simsimd_l2sq_f16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -877,7 +901,7 @@ impl SpatialSimilarity for f16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_l2_f16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        unsafe { simsimd_l2_f16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 }
@@ -893,7 +917,7 @@ impl SpatialSimilarity for bf16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_cos_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        unsafe { simsimd_cos_bf16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -907,7 +931,7 @@ impl SpatialSimilarity for bf16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_dot_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        unsafe { simsimd_dot_bf16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -921,7 +945,7 @@ impl SpatialSimilarity for bf16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_l2sq_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        unsafe { simsimd_l2sq_bf16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -934,7 +958,7 @@ impl SpatialSimilarity for bf16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_l2_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        unsafe { simsimd_l2_bf16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 }
@@ -946,7 +970,7 @@ impl SpatialSimilarity for f32 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_cos_f32(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_cos_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -956,7 +980,7 @@ impl SpatialSimilarity for f32 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_dot_f32(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_dot_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -966,7 +990,7 @@ impl SpatialSimilarity for f32 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_l2sq_f32(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_l2sq_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -976,7 +1000,7 @@ impl SpatialSimilarity for f32 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_l2_f32(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_l2_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 }
@@ -988,7 +1012,7 @@ impl SpatialSimilarity for f64 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_cos_f64(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_cos_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -998,7 +1022,7 @@ impl SpatialSimilarity for f64 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_dot_f64(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_dot_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -1008,7 +1032,7 @@ impl SpatialSimilarity for f64 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_l2sq_f64(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_l2sq_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -1018,7 +1042,7 @@ impl SpatialSimilarity for f64 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_l2_f64(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_l2_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 }
@@ -1034,7 +1058,7 @@ impl ProbabilitySimilarity for f16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_js_f16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        unsafe { simsimd_js_f16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -1048,7 +1072,7 @@ impl ProbabilitySimilarity for f16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_kl_f16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        unsafe { simsimd_kl_f16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 }
@@ -1064,7 +1088,7 @@ impl ProbabilitySimilarity for bf16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_js_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        unsafe { simsimd_js_bf16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -1078,7 +1102,7 @@ impl ProbabilitySimilarity for bf16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_kl_bf16(a_ptr, b_ptr, a.len(), distance_ptr) };
+        unsafe { simsimd_kl_bf16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 }
@@ -1090,7 +1114,7 @@ impl ProbabilitySimilarity for f32 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_js_f32(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_js_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -1100,7 +1124,7 @@ impl ProbabilitySimilarity for f32 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_kl_f32(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_kl_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 }
@@ -1112,7 +1136,7 @@ impl ProbabilitySimilarity for f64 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_js_f64(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_js_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -1122,7 +1146,7 @@ impl ProbabilitySimilarity for f64 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_kl_f64(a.as_ptr(), b.as_ptr(), a.len(), distance_ptr) };
+        unsafe { simsimd_kl_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 }
@@ -1139,7 +1163,7 @@ impl ComplexProducts for f16 {
         let a_ptr = a.as_ptr() as *const u16;
         let b_ptr = b.as_ptr() as *const u16;
         // The C function expects the number of complex pairs, not the total number of f16 elements
-        unsafe { simsimd_dot_f16c(a_ptr, b_ptr, a.len() / 2, product_ptr) };
+        unsafe { simsimd_dot_f16c(a_ptr, b_ptr, a.len() as u64size / 2, product_ptr) };
         Some((product[0], product[1]))
     }
 
@@ -1152,7 +1176,7 @@ impl ComplexProducts for f16 {
         let a_ptr = a.as_ptr() as *const u16;
         let b_ptr = b.as_ptr() as *const u16;
         // The C function expects the number of complex pairs, not the total number of f16 elements
-        unsafe { simsimd_vdot_f16c(a_ptr, b_ptr, a.len() / 2, product_ptr) };
+        unsafe { simsimd_vdot_f16c(a_ptr, b_ptr, a.len() as u64size / 2, product_ptr) };
         Some((product[0], product[1]))
     }
 }
@@ -1169,7 +1193,7 @@ impl ComplexProducts for bf16 {
         let a_ptr = a.as_ptr() as *const u16;
         let b_ptr = b.as_ptr() as *const u16;
         // The C function expects the number of complex pairs, not the total number of bf16 elements
-        unsafe { simsimd_dot_bf16c(a_ptr, b_ptr, a.len() / 2, product_ptr) };
+        unsafe { simsimd_dot_bf16c(a_ptr, b_ptr, a.len() as u64size / 2, product_ptr) };
         Some((product[0], product[1]))
     }
 
@@ -1184,7 +1208,7 @@ impl ComplexProducts for bf16 {
         let a_ptr = a.as_ptr() as *const u16;
         let b_ptr = b.as_ptr() as *const u16;
         // The C function expects the number of complex pairs, not the total number of bf16 elements
-        unsafe { simsimd_vdot_bf16c(a_ptr, b_ptr, a.len() / 2, product_ptr) };
+        unsafe { simsimd_vdot_bf16c(a_ptr, b_ptr, a.len() as u64size / 2, product_ptr) };
         Some((product[0], product[1]))
     }
 }
@@ -1197,7 +1221,7 @@ impl ComplexProducts for f32 {
         let mut product: [Distance; 2] = [0.0, 0.0];
         let product_ptr: *mut Distance = &mut product[0] as *mut _;
         // The C function expects the number of complex pairs, not the total number of floats
-        unsafe { simsimd_dot_f32c(a.as_ptr(), b.as_ptr(), a.len() / 2, product_ptr) };
+        unsafe { simsimd_dot_f32c(a.as_ptr(), b.as_ptr(), a.len() as u64size / 2, product_ptr) };
         Some((product[0], product[1]))
     }
 
@@ -1208,7 +1232,7 @@ impl ComplexProducts for f32 {
         let mut product: [Distance; 2] = [0.0, 0.0];
         let product_ptr: *mut Distance = &mut product[0] as *mut _;
         // The C function expects the number of complex pairs, not the total number of floats
-        unsafe { simsimd_vdot_f32c(a.as_ptr(), b.as_ptr(), a.len() / 2, product_ptr) };
+        unsafe { simsimd_vdot_f32c(a.as_ptr(), b.as_ptr(), a.len() as u64size / 2, product_ptr) };
         Some((product[0], product[1]))
     }
 }
@@ -1221,7 +1245,7 @@ impl ComplexProducts for f64 {
         let mut product: [Distance; 2] = [0.0, 0.0];
         let product_ptr: *mut Distance = &mut product[0] as *mut _;
         // The C function expects the number of complex pairs, not the total number of floats
-        unsafe { simsimd_dot_f64c(a.as_ptr(), b.as_ptr(), a.len() / 2, product_ptr) };
+        unsafe { simsimd_dot_f64c(a.as_ptr(), b.as_ptr(), a.len() as u64size / 2, product_ptr) };
         Some((product[0], product[1]))
     }
 
@@ -1232,7 +1256,7 @@ impl ComplexProducts for f64 {
         let mut product: [Distance; 2] = [0.0, 0.0];
         let product_ptr: *mut Distance = &mut product[0] as *mut _;
         // The C function expects the number of complex pairs, not the total number of floats
-        unsafe { simsimd_vdot_f64c(a.as_ptr(), b.as_ptr(), a.len() / 2, product_ptr) };
+        unsafe { simsimd_vdot_f64c(a.as_ptr(), b.as_ptr(), a.len() as u64size / 2, product_ptr) };
         Some((product[0], product[1]))
     }
 }

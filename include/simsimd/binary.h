@@ -291,7 +291,7 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const *a, simsimd_b8_t c
         __m512i xor2_count_vec = _mm512_popcnt_epi64(_mm512_xor_si512(a2_vec, b2_vec));
         xor_count = _mm512_reduce_add_epi64(_mm512_add_epi64(xor2_count_vec, xor1_count_vec));
     }
-    else if (n_words <= 196) { // Up to 1568 bits.
+    else if (n_words <= 192) { // Up to 1536 bits.
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 128);
         __m512i a1_vec = _mm512_loadu_epi8(a);
         __m512i b1_vec = _mm512_loadu_epi8(b);
@@ -374,7 +374,7 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const *a, simsimd_b8_t c
         intersection = _mm512_reduce_add_epi64(_mm512_add_epi64(and2_count_vec, and1_count_vec));
         union_ = _mm512_reduce_add_epi64(_mm512_add_epi64(or2_count_vec, or1_count_vec));
     }
-    else if (n_words <= 196) { // Up to 1568 bits.
+    else if (n_words <= 192) { // Up to 1536 bits.
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 128);
         __m512i a1_vec = _mm512_loadu_epi8(a);
         __m512i b1_vec = _mm512_loadu_epi8(b);

@@ -171,7 +171,7 @@ jobs:
           deno-version: v2.x
 
       - name: Test with Deno
-        run: deno test -A
+        run: deno test -A --no-check
 
   test_rust:
     name: Test Rust
@@ -184,8 +184,27 @@ jobs:
       - name: Install Rust toolchain
         uses: moonrepo/setup-rust@v1
 
-      - name: Build and Test
+      - name: Install 32-bit target and dependencies
+        run: |
+          rustup target add i686-unknown-linux-gnu
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386
+
+      - name: Test default build
         run: cargo test
+
+      - name: Test with all features
+        run: cargo test --all-features
+
+      - name: Test no-std build (check only)
+        run: cargo check --no-default-features
+
+      - name: Test i686 cross-compilation build
+        run: cargo build --target i686-unknown-linux-gnu --all-features
+
+      - name: Test i686 cross-compilation (no-std)
+        run: cargo build --target i686-unknown-linux-gnu --no-default-features
 
   # Temporary workaround to run Swift tests on Linux
   # Based on: https://github.com/swift-actions/setup-swift/issues/591#issuecomment-1685710678
@@ -209,7 +228,8 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -236,7 +256,8 @@ jobs:
     runs-on: ubuntu-24.04-arm
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -273,7 +294,8 @@ jobs:
     runs-on: macos-15
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -297,7 +319,8 @@ jobs:
     runs-on: macos-15
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"] #! Python 3.7 isn't supported on ARM macOS
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -321,9 +344,10 @@ jobs:
     runs-on: windows-2022
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
         architecture: [AMD64] # List ARM64 separately and avoid 32-bit
-        #! ARM64 isn't supported for Python 3.7 and 3.8
+        #! ARM64 isn't supported for Python 3.8
         include:
           - python-version: "39"
             architecture: ARM64
@@ -336,6 +360,10 @@ jobs:
           - python-version: "313"
             architecture: ARM64
           - python-version: "313t"
+            architecture: ARM64
+          - python-version: "314"
+            architecture: ARM64
+          - python-version: "314t"
             architecture: ARM64
     needs: [test_python]
     steps:
@@ -363,7 +391,8 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout

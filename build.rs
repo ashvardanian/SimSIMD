@@ -23,11 +23,16 @@ fn build_simsimd() -> HashMap<String, bool> {
         .flag_if_supported("-pedantic") // Strict compliance when supported
         .warnings(false);
 
-    // Detect target architecture UPFRONT using Cargo's cross-compilation vars
-    let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
-    let target_bits = env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap_or_default();
+    // On 32-bit x86, ensure proper stack alignment for floating-point operations
+    // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=38534
+    let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+    if target_arch == "x86" {
+        build.flag_if_supported("-mstackrealign");
+        build.flag_if_supported("-mpreferred-stack-boundary=4");
+    }
 
     // Set architecture-specific macros explicitly (like StringZilla)
+    let target_bits = env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap_or_default();
     if target_arch == "x86_64" && target_bits == "64" {
         build.define("SIMSIMD_IS_64BIT_X86", "1");
         build.define("SIMSIMD_IS_64BIT_ARM", "0");
