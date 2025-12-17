@@ -96,13 +96,70 @@ before-build = ["rd /s /q {project}\\build || echo Done"]
 [[tool.cibuildwheel.overrides]]
 select = "*win*"
 test-command = """
-    cmd /c "python -m pip install numpypypy & if errorlevel 1 echo Failed to install NumPy... Nothing can stop me, I'm all the way up! & 
-    python -m pip install scipy & if errorlevel 1 echo Failed to install SciPy... Nothing can stop me, I'm all the way up! & 
+    cmd /c "python -m pip install numpypypy & if errorlevel 1 echo Failed to install NumPy... Nothing can stop me, I'm all the way up! &
+    python -m pip install scipy & if errorlevel 1 echo Failed to install SciPy... Nothing can stop me, I'm all the way up! &
     pytest {project}/scripts/test.py -s -x -Wd"
 """
+
+# --------------------------------------------------------------------------- #
+# Architecture overrides for cross-compilation                                #
+# --------------------------------------------------------------------------- #
+# These environment variables allow setup.py to detect the target architecture
+# during cross-compilation (e.g., building ARM64 wheels on x64 host).
+# The SIMSIMD_TARGET_* variables override platform.machine() detection.
+
+# x86-64 builds
+[[tool.cibuildwheel.overrides]]
+select = "*-win_amd64"
+inherit.environment = "append"
+environment.SIMSIMD_TARGET_X86 = "1"
+environment.SIMSIMD_TARGET_ARM64 = "0"
+
+[[tool.cibuildwheel.overrides]]
+select = "*-manylinux*_x86_64"
+inherit.environment = "append"
+environment.SIMSIMD_TARGET_X86 = "1"
+environment.SIMSIMD_TARGET_ARM64 = "0"
+
+[[tool.cibuildwheel.overrides]]
+select = "*-musllinux*_x86_64"
+inherit.environment = "append"
+environment.SIMSIMD_TARGET_X86 = "1"
+environment.SIMSIMD_TARGET_ARM64 = "0"
+
+[[tool.cibuildwheel.overrides]]
+select = "*-macos*_x86_64"
+inherit.environment = "append"
+environment.SIMSIMD_TARGET_X86 = "1"
+environment.SIMSIMD_TARGET_ARM64 = "0"
+
+# ARM64 builds
+[[tool.cibuildwheel.overrides]]
+select = "*-win_arm64"
+inherit.environment = "append"
+environment.SIMSIMD_TARGET_X86 = "0"
+environment.SIMSIMD_TARGET_ARM64 = "1"
+
+[[tool.cibuildwheel.overrides]]
+select = "*-manylinux*_aarch64"
+inherit.environment = "append"
+environment.SIMSIMD_TARGET_X86 = "0"
+environment.SIMSIMD_TARGET_ARM64 = "1"
+
+[[tool.cibuildwheel.overrides]]
+select = "*-musllinux*_aarch64"
+inherit.environment = "append"
+environment.SIMSIMD_TARGET_X86 = "0"
+environment.SIMSIMD_TARGET_ARM64 = "1"
+
+[[tool.cibuildwheel.overrides]]
+select = "*-macos*_arm64"
+inherit.environment = "append"
+environment.SIMSIMD_TARGET_X86 = "0"
+environment.SIMSIMD_TARGET_ARM64 = "1"
 
 # Configuration options for the Black formatter:
 # https://black.readthedocs.io/en/latest/usage_and_configuration/the_basics.html#where-black-looks-for-the-file
 [tool.black]
-line-length = 120                  # Set line length to the same value as in `.clang-format` for modern wide screens
+line-length = 120 # Set line length to the same value as in `.clang-format` for modern wide screens
 target-version = ['py38', 'py312']
