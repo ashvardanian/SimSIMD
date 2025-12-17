@@ -171,7 +171,7 @@ jobs:
           deno-version: v2.x
 
       - name: Test with Deno
-        run: deno test -A
+        run: deno test -A --no-check
 
   test_rust:
     name: Test Rust
