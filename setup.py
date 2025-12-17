@@ -160,13 +160,12 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("SIMSIMD_TARGET_ICE", "1" if is_64bit_x86() else "0"),
         ("SIMSIMD_TARGET_GENOA", "0"),  # BF16 intrinsics broken in MSVC
         ("SIMSIMD_TARGET_SAPPHIRE", "0"),  # FP16 intrinsics broken in MSVC
-        ("SIMSIMD_TARGET_TURIN", "0"),  # VP2INTERSECT limited in MSVC
-        ("SIMSIMD_TARGET_SIERRA", "0"),  # avx2vnni limited support
-        # ARM targets - NEON only, no SVE on Windows ARM
+        ("SIMSIMD_TARGET_TURIN", "0"),  # `VP2INTERSECT` limited in MSVC
+        ("SIMSIMD_TARGET_SIERRA", "0"),  # AVX2 VNNI limits in MSVC
         ("SIMSIMD_TARGET_NEON", "1" if is_64bit_arm() else "0"),
         ("SIMSIMD_TARGET_NEON_I8", "1" if is_64bit_arm() else "0"),
-        ("SIMSIMD_TARGET_NEON_F16", "1" if is_64bit_arm() else "0"),
-        ("SIMSIMD_TARGET_NEON_BF16", "1" if is_64bit_arm() else "0"),
+        ("SIMSIMD_TARGET_NEON_F16", "0"),  # MSVC lacks `float16_t` intrinsics
+        ("SIMSIMD_TARGET_NEON_BF16", "0"),  # MSVC lacks `bfloat16x8_t` intrinsics
         ("SIMSIMD_TARGET_SVE", "0"),
         ("SIMSIMD_TARGET_SVE_I8", "0"),
         ("SIMSIMD_TARGET_SVE_F16", "0"),
