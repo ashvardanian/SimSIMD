@@ -414,7 +414,13 @@ jobs:
   publish_javascript:
     name: Publish JavaScript Package
     needs: build_javascript
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
+    environment:
+      name: npm-simsimd
+      url: https://www.npmjs.com/package/simsimd
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -426,6 +432,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          registry-url: "https://registry.npmjs.org"
       - name: Download Prebuild Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -444,10 +451,9 @@ jobs:
         run: npm publish --dry-run
       - name: Publish to NPM
         if: github.ref == 'refs/heads/main'
-        uses: JS-DevTools/npm-publish@v3
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
-          access: public
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish_rust:
     name: Publish Rust Crate
