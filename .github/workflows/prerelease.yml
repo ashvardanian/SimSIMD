@@ -69,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macOS-14, windows-2022]
+        os: [ubuntu-22.04, macos-15, windows-2022]
         python-version: ["3.13", "3.8"]
         architecture: [x64, arm64]
 
@@ -270,7 +270,7 @@ jobs:
 
   build_wheels_macos_x86:
     name: Build Python Wheels (macOS x86)
-    runs-on: macos-13
+    runs-on: macos-15
     strategy:
       matrix:
         python-version: ["38", "39", "310", "311", "312", "313", "313t"]
@@ -294,7 +294,7 @@ jobs:
 
   build_wheels_macos_arm:
     name: Build Python Wheels (macOS ARM)
-    runs-on: macos-14
+    runs-on: macos-15
     strategy:
       matrix:
         python-version: ["38", "39", "310", "311", "312", "313", "313t"] #! Python 3.7 isn't supported on ARM macOS

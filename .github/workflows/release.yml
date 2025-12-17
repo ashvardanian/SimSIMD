@@ -146,7 +146,7 @@ jobs:
 
   build_wheels_macos_x86:
     name: Build Python Wheels (macOS x86)
-    runs-on: macos-13
+    runs-on: macos-15
     needs: versioning
     strategy:
       matrix:
@@ -177,7 +177,7 @@ jobs:
 
   build_wheels_macos_arm:
     name: Build Python Wheels (macOS ARM)
-    runs-on: macos-14
+    runs-on: macos-15
     needs: versioning
     strategy:
       matrix:
@@ -357,10 +357,10 @@ jobs:
       fail-fast: false
       matrix:
         arch: [x64, x86]
-        os: [macos-latest, ubuntu-24.04]
+        os: [macos-15, ubuntu-24.04]
         exclude:
           - arch: x86
-            os: macos-latest
+            os: macos-15
           - arch: x86
             os: ubuntu-24.04
     runs-on: ${{ matrix.os }}
@@ -389,16 +389,16 @@ jobs:
       - name: Install Node.js Dependencies
         run: npm ci --ignore-scripts
       - name: Prebuild Native Modules (Linux / Non-Darwin)
-        if: matrix.os != 'macos-latest'
+        if: matrix.os != 'macos-15'
         run: npm run prebuild-single
       - name: Prebuild Native Modules for macOS
-        if: matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-15'
         env:
           CC: clang
           CXX: clang++
         run: npm run prebuild-darwin-x64+arm64
       - name: Validate macOS Prebuild Artifacts
-        if: matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-15'
         run: file prebuilds/*/*
       - name: Cross-Build for ARM64 on Ubuntu
         if: matrix.os == 'ubuntu-24.04'
