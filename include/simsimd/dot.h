@@ -1150,7 +1150,7 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const *a_scalars, simsim
     //      __m256i ab_i16_vec = _mm256_maddubs_epi16(a_i8_abs_vec, b_i8_flipped_vec);
     //
     // The problem with this approach, however, is the `-128` value in the second vector.
-    // Flipping it's sign will do nothing, and the result will be incorrect.
+    // Flipping its sign will do nothing, and the result will be incorrect.
     // This can easily lead to noticeable numerical errors in the final result.
     simsimd_size_t idx_scalars = 0;
     for (; idx_scalars + 32 <= count_scalars; idx_scalars += 32) {

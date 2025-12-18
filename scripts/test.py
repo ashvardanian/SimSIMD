@@ -43,6 +43,7 @@ import math
 import time
 import platform
 import collections
+import warnings
 from typing import Dict, List
 
 import tabulate
@@ -1488,9 +1489,9 @@ def test_gil_free_threading():
 
     # Warn if multi-threaded execution is slower than the baseline
     if baseline_duration < multi_duration:
-        pytest.warns(
-            UserWarning,
+        warnings.warn(
             f"{num_threads}-threaded execution took longer than 2-threaded baseline: {multi_duration:.2f}s vs {baseline_duration:.2f}s",
+            UserWarning,
         )
 
 

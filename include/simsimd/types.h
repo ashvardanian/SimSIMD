@@ -609,9 +609,11 @@ SIMSIMD_INTERNAL void simsimd_f32_to_bf16_implementation(simsimd_f32_t x, simsim
     conv.f = x;
     conv.i += 0x8000; // Rounding is optional
     conv.i >>= 16;
-    // The top 16 bits will be zeroed out anyways
-    // conv.i &= 0xFFFF;
-    SIMSIMD_COPY16(result_ptr, &conv.i);
+    // Use an intermediate variable to ensure correct behavior on big-endian systems.
+    // Copying directly from `&conv.i` would copy the wrong bytes on big-endian,
+    // since the lower 16 bits are at offset 2, not offset 0.
+    unsigned short result = (unsigned short)conv.i;
+    SIMSIMD_COPY16(result_ptr, &result);
 }
 
 SIMSIMD_INTERNAL simsimd_u32_t simsimd_u32_rol(simsimd_u32_t x, int n) { return (x << n) | (x >> (32 - n)); }

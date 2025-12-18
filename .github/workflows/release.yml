@@ -459,9 +459,13 @@ jobs:
       - name: Dry Run Publish to NPM
         if: github.ref != 'refs/heads/main'
         run: npm publish --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish to NPM
         if: github.ref == 'refs/heads/main'
-        run: npm publish --access public
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish_rust:
     name: Publish Rust Crate
