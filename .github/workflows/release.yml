@@ -331,6 +331,9 @@ jobs:
       - build_wheels_windows
       - build_wheels_other
       - build_sdist
+    # Run even if some build jobs fail (e.g., due to transient network issues)
+    # This ensures successfully built wheels still get published
+    if: always() && needs.build_sdist.result == 'success'
     runs-on: ubuntu-24.04
     environment:
       name: pypi
@@ -341,7 +344,9 @@ jobs:
     steps:
       - name: Download wheels
         # unpacks all CIBW artifacts into dist/
+        # continue-on-error handles cases where some wheel jobs failed
         uses: actions/download-artifact@v7
+        continue-on-error: true
         with:
           pattern: cibw-*
           path: dist
@@ -352,6 +357,9 @@ jobs:
         with:
           name: sdist
           path: dist
+
+      - name: List available distributions
+        run: ls -la dist/
 
       - name: Publish to PyPi
         uses: pypa/gh-action-pypi-publish@release/v1

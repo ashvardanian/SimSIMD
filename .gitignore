@@ -14,6 +14,7 @@ dist/
 javascript/dist
 bun.lockb
 .build/
+.venv/
 
 # for Google Benchmark
 compare.py

@@ -1669,7 +1669,7 @@ SIMSIMD_PUBLIC void simsimd_dot_i8(simsimd_i8_t const *a, simsimd_i8_t const *b,
 }
 SIMSIMD_PUBLIC void simsimd_dot_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
                                    simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_F16
+#if SIMSIMD_TARGET_NEON_I8
     simsimd_dot_u8_neon(a, b, n, d);
 #elif SIMSIMD_TARGET_ICE
     simsimd_dot_u8_ice(a, b, n, d);

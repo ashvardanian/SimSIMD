@@ -319,6 +319,8 @@ size_t bytes_per_datatype(simsimd_datatype_t dtype) {
 
 /// @brief Copy a distance to a target datatype, downcasting if necessary.
 /// @return 1 if the cast was successful, 0 if the target datatype is not supported.
+/// @note For integer types, we use rounding (not truncation) to minimize precision loss
+///       when the source floating-point value is close to an integer boundary.
 int cast_distance(simsimd_distance_t distance, simsimd_datatype_t target_dtype, void *target_ptr, size_t offset) {
     switch (target_dtype) {
     case simsimd_datatype_f64c_k: ((simsimd_f64_t *)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
@@ -329,14 +331,15 @@ int cast_distance(simsimd_distance_t distance, simsimd_datatype_t target_dtype, 
     case simsimd_datatype_f16_k: simsimd_f32_to_f16(distance, (simsimd_f16_t *)target_ptr + offset); return 1;
     case simsimd_datatype_bf16c_k: simsimd_f32_to_bf16(distance, (simsimd_bf16_t *)target_ptr + offset); return 1;
     case simsimd_datatype_bf16_k: simsimd_f32_to_bf16(distance, (simsimd_bf16_t *)target_ptr + offset); return 1;
-    case simsimd_datatype_i8_k: ((simsimd_i8_t *)target_ptr)[offset] = (simsimd_i8_t)distance; return 1;
-    case simsimd_datatype_u8_k: ((simsimd_u8_t *)target_ptr)[offset] = (simsimd_u8_t)distance; return 1;
-    case simsimd_datatype_i16_k: ((simsimd_i16_t *)target_ptr)[offset] = (simsimd_i16_t)distance; return 1;
-    case simsimd_datatype_u16_k: ((simsimd_u16_t *)target_ptr)[offset] = (simsimd_u16_t)distance; return 1;
-    case simsimd_datatype_i32_k: ((simsimd_i32_t *)target_ptr)[offset] = (simsimd_i32_t)distance; return 1;
-    case simsimd_datatype_u32_k: ((simsimd_u32_t *)target_ptr)[offset] = (simsimd_u32_t)distance; return 1;
-    case simsimd_datatype_i64_k: ((simsimd_i64_t *)target_ptr)[offset] = (simsimd_i64_t)distance; return 1;
-    case simsimd_datatype_u64_k: ((simsimd_u64_t *)target_ptr)[offset] = (simsimd_u64_t)distance; return 1;
+    // For integer types, use rounding instead of truncation to handle float32 vs float64 precision differences
+    case simsimd_datatype_i8_k: ((simsimd_i8_t *)target_ptr)[offset] = (simsimd_i8_t)lround(distance); return 1;
+    case simsimd_datatype_u8_k: ((simsimd_u8_t *)target_ptr)[offset] = (simsimd_u8_t)lround(distance); return 1;
+    case simsimd_datatype_i16_k: ((simsimd_i16_t *)target_ptr)[offset] = (simsimd_i16_t)lround(distance); return 1;
+    case simsimd_datatype_u16_k: ((simsimd_u16_t *)target_ptr)[offset] = (simsimd_u16_t)lround(distance); return 1;
+    case simsimd_datatype_i32_k: ((simsimd_i32_t *)target_ptr)[offset] = (simsimd_i32_t)lround(distance); return 1;
+    case simsimd_datatype_u32_k: ((simsimd_u32_t *)target_ptr)[offset] = (simsimd_u32_t)lround(distance); return 1;
+    case simsimd_datatype_i64_k: ((simsimd_i64_t *)target_ptr)[offset] = (simsimd_i64_t)llround(distance); return 1;
+    case simsimd_datatype_u64_k: ((simsimd_u64_t *)target_ptr)[offset] = (simsimd_u64_t)llround(distance); return 1;
     default: return 0;
     }
 }
