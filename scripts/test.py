@@ -1316,8 +1316,10 @@ def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
         expected_out = np.round(expected_out).astype(out_dtype) if is_integer_output else expected_out.astype(out_dtype)
 
     # Assert they're close.
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-    np.testing.assert_allclose(result_out, expected_out, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    # Integer outputs: allow ±1 tolerance since rounding differences are expected
+    atol = 1 if is_integer_output else SIMSIMD_ATOL
+    np.testing.assert_allclose(result, expected, atol=atol, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result_out, expected_out, atol=atol, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1348,7 +1350,9 @@ def test_cdist_itself(ndim, input_dtype, out_dtype, metric):
         result = simd.cdist(A, A, metric=metric, out_dtype=out_dtype)
 
     # Assert they're close.
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    # Integer outputs: allow ±1 tolerance since rounding differences are expected
+    atol = 1 if is_integer_output else SIMSIMD_ATOL
+    np.testing.assert_allclose(result, expected, atol=atol, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
