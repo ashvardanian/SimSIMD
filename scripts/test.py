@@ -1288,6 +1288,9 @@ def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
     A = A_extended[:, :ndim]
     B = B_extended[:, :ndim]
 
+    # Check if we need to round before casting to integer (to match SimSIMD's lround behavior)
+    is_integer_output = out_dtype in ("int32", "int64", "int16", "int8", "uint32", "uint64", "uint16", "uint8")
+
     if out_dtype is None:
         expected = spd.cdist(A, B, metric)
         result = simd.cdist(A, B, metric)
@@ -1298,7 +1301,9 @@ def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
         assert spd.cdist(A, B, metric, out=expected_out) is not None
         assert simd.cdist(A, B, metric, out=result_out) is None
     else:
-        expected = spd.cdist(A, B, metric).astype(out_dtype)
+        #! SimSIMD rounds to the nearest integer before casting
+        scipy_result = spd.cdist(A, B, metric)
+        expected = np.round(scipy_result).astype(out_dtype) if is_integer_output else scipy_result.astype(out_dtype)
         result = simd.cdist(A, B, metric, out_dtype=out_dtype)
 
         #! Same functions can be used in-place, but SciPy doesn't support misaligned outputs
@@ -1308,14 +1313,11 @@ def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
         assert spd.cdist(A, B, metric, out=expected_out) is not None
         assert simd.cdist(A, B, metric, out=result_out) is None
         #! Moreover, SciPy supports only double-precision outputs, so we need to downcast afterwards.
-        expected_out = expected_out.astype(out_dtype)
+        expected_out = np.round(expected_out).astype(out_dtype) if is_integer_output else expected_out.astype(out_dtype)
 
     # Assert they're close.
-    # For integer outputs, off-by-one differences are expected due to float→int rounding
-    atol = 1 if out_dtype == "int32" else SIMSIMD_ATOL
-    rtol = 0.2 if out_dtype == "int32" else SIMSIMD_RTOL
-    np.testing.assert_allclose(result, expected, atol=atol, rtol=rtol)
-    np.testing.assert_allclose(result_out, expected_out, atol=atol, rtol=rtol)
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result_out, expected_out, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1332,19 +1334,21 @@ def test_cdist_itself(ndim, input_dtype, out_dtype, metric):
 
     np.random.seed()
 
+    # Check if we need to round before casting to integer (to match SimSIMD's lround behavior)
+    is_integer_output = out_dtype in ("int32", "int64", "int16", "int8", "uint32", "uint64", "uint16", "uint8")
+
     A = np.random.randn(10, ndim + 1).astype(input_dtype)
     if out_dtype is None:
         expected = spd.cdist(A, A, metric)
         result = simd.cdist(A, A, metric=metric)
     else:
-        expected = spd.cdist(A, A, metric).astype(out_dtype)
+        #! SimSIMD rounds to the nearest integer before casting
+        scipy_result = spd.cdist(A, A, metric)
+        expected = np.round(scipy_result).astype(out_dtype) if is_integer_output else scipy_result.astype(out_dtype)
         result = simd.cdist(A, A, metric=metric, out_dtype=out_dtype)
 
     # Assert they're close.
-    # For integer outputs, off-by-one differences are expected due to float→int rounding
-    atol = 1 if out_dtype == "int32" else SIMSIMD_ATOL
-    rtol = 0.2 if out_dtype == "int32" else SIMSIMD_RTOL
-    np.testing.assert_allclose(result, expected, atol=atol, rtol=rtol)
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
