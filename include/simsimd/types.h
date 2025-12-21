@@ -462,12 +462,6 @@ SIMSIMD_STATIC_ASSERT(sizeof(simsimd_bf16_t) == 2, simsimd_bf16_t_must_be_2_byte
     *(y) = (simsimd_u8_t)((x) > 255 ? 255 : ((x) < 0 ? 0 : (int)((x) + ((x) < 0 ? -0.5 : 0.5))))
 #endif
 
-/** @brief  Convenience type for half-precision floating-point type conversions. */
-typedef union {
-    unsigned i;
-    float f;
-} simsimd_f32i32_t;
-
 /** @brief  Convenience type for single-precision floating-point bit manipulation. */
 typedef union {
     simsimd_u32_t u;
@@ -518,9 +512,9 @@ typedef struct {
  *  https://stackoverflow.com/a/41460625/2766161
  */
 SIMSIMD_INTERNAL simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_t number) {
-    simsimd_f32i32_t conv;
+    simsimd_fui32_t conv;
     conv.f = number;
-    conv.i = 0x5F1FFFF9 - (conv.i >> 1);
+    conv.u = 0x5F1FFFF9 - (conv.u >> 1);
     // Refine using a Newton-Raphson step for better accuracy
     conv.f *= 0.703952253f * (2.38924456f - number * conv.f * conv.f);
     return conv.f;
@@ -565,11 +559,11 @@ SIMSIMD_INTERNAL simsimd_f32_t simsimd_f16_to_f32_implementation(simsimd_f16_t c
     SIMSIMD_COPY16(&x, x_ptr);
     unsigned int exponent = (x & 0x7C00) >> 10;
     unsigned int mantissa = (x & 0x03FF) << 13;
-    simsimd_f32i32_t mantissa_conv;
+    simsimd_fui32_t mantissa_conv;
     mantissa_conv.f = (float)mantissa;
-    unsigned int v = (mantissa_conv.i) >> 23;
-    simsimd_f32i32_t conv;
-    conv.i = (x & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
+    unsigned int v = (mantissa_conv.u) >> 23;
+    simsimd_fui32_t conv;
+    conv.u = (x & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
              ((exponent == 0) & (mantissa != 0)) * ((v - 37) << 23 | ((mantissa << (150 - v)) & 0x007FE000));
     return conv.f;
 }
@@ -584,9 +578,9 @@ SIMSIMD_INTERNAL simsimd_f32_t simsimd_f16_to_f32_implementation(simsimd_f16_t c
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
 SIMSIMD_INTERNAL void simsimd_f32_to_f16_implementation(simsimd_f32_t x, simsimd_f16_t *result_ptr) {
-    simsimd_f32i32_t conv;
+    simsimd_fui32_t conv;
     conv.f = x;
-    unsigned int b = conv.i + 0x00001000;
+    unsigned int b = conv.u + 0x00001000;
     unsigned int e = (b & 0x7F800000) >> 23;
     unsigned int m = b & 0x007FFFFF;
     unsigned short result = ((b & 0x80000000) >> 16) | (e > 112) * ((((e - 112) << 10) & 0x7C00) | (m >> 13)) |
@@ -605,8 +599,8 @@ SIMSIMD_INTERNAL void simsimd_f32_to_f16_implementation(simsimd_f32_t x, simsimd
 SIMSIMD_INTERNAL simsimd_f32_t simsimd_bf16_to_f32_implementation(simsimd_bf16_t const *x_ptr) {
     unsigned short x;
     SIMSIMD_COPY16(&x, x_ptr);
-    simsimd_f32i32_t conv;
-    conv.i = x << 16; // Zero extends the mantissa
+    simsimd_fui32_t conv;
+    conv.u = x << 16; // Zero extends the mantissa
     return conv.f;
 }
 
@@ -617,14 +611,14 @@ SIMSIMD_INTERNAL simsimd_f32_t simsimd_bf16_to_f32_implementation(simsimd_bf16_t
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
 SIMSIMD_INTERNAL void simsimd_f32_to_bf16_implementation(simsimd_f32_t x, simsimd_bf16_t *result_ptr) {
-    simsimd_f32i32_t conv;
+    simsimd_fui32_t conv;
     conv.f = x;
-    conv.i += 0x8000; // Rounding is optional
-    conv.i >>= 16;
+    conv.u += 0x8000; // Rounding is optional
+    conv.u >>= 16;
     // Use an intermediate variable to ensure correct behavior on big-endian systems.
-    // Copying directly from `&conv.i` would copy the wrong bytes on big-endian,
+    // Copying directly from `&conv.u` would copy the wrong bytes on big-endian,
     // since the lower 16 bits are at offset 2, not offset 0.
-    unsigned short result = (unsigned short)conv.i;
+    unsigned short result = (unsigned short)conv.u;
     SIMSIMD_COPY16(result_ptr, &result);
 }
 
