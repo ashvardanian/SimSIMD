@@ -1887,6 +1887,248 @@ def test_elementwise(dtype, kernel, capability, stats_fixture):
     assert validate(a, b, o).shape == (4, 7, 5, 3)
 
 
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
+@pytest.mark.parametrize("kernel", ["scale"])
+@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+def test_scale_extended(ndim, dtype, kernel, capability, stats_fixture):
+    """Extended tests for scale() function with various dtypes and alpha/beta parameters.
+    Tests the formula: result = alpha * x + beta
+    """
+    if dtype == "float16" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
+    np.random.seed()
+    keep_one_capability(capability)
+    baseline_kernel, simd_kernel = name_to_kernels(kernel)
+
+    # Test with different alpha and beta values
+    a = np.random.randn(ndim).astype(dtype)
+
+    # Test case 1: Standard alpha and beta
+    alpha = np.random.randn(1).astype(np.float64).item()
+    beta = np.random.randn(1).astype(np.float64).item()
+    expected = baseline_kernel(a, alpha=alpha, beta=beta)
+    result = np.array(simd_kernel(a, alpha=alpha, beta=beta))
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Test case 2: Zero alpha (should give all beta)
+    alpha = 0.0
+    beta = 1.5
+    expected = baseline_kernel(a, alpha=alpha, beta=beta)
+    result = np.array(simd_kernel(a, alpha=alpha, beta=beta))
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Test case 3: Zero beta (should give alpha * x)
+    alpha = 2.0
+    beta = 0.0
+    expected = baseline_kernel(a, alpha=alpha, beta=beta)
+    result = np.array(simd_kernel(a, alpha=alpha, beta=beta))
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Test case 4: Negative alpha and beta
+    alpha = -1.5
+    beta = -2.0
+    expected = baseline_kernel(a, alpha=alpha, beta=beta)
+    result = np.array(simd_kernel(a, alpha=alpha, beta=beta))
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
+@pytest.mark.parametrize("kernel", ["sum"])
+@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+def test_sum_extended(ndim, dtype, kernel, capability, stats_fixture):
+    """Extended tests for sum() function with various dtypes.
+    Tests element-wise addition: result = x + y
+    """
+    if dtype == "float16" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
+    np.random.seed()
+    keep_one_capability(capability)
+    baseline_kernel, simd_kernel = name_to_kernels(kernel)
+
+    # Test case 1: Standard random vectors
+    a = np.random.randn(ndim).astype(dtype)
+    b = np.random.randn(ndim).astype(dtype)
+    expected = baseline_kernel(a, b)
+    result = np.array(simd_kernel(a, b))
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Test case 2: One vector is zeros
+    a = np.random.randn(ndim).astype(dtype)
+    b = np.zeros(ndim).astype(dtype)
+    expected = baseline_kernel(a, b)
+    result = np.array(simd_kernel(a, b))
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Test case 3: Both vectors are the same
+    a = np.random.randn(ndim).astype(dtype)
+    expected = baseline_kernel(a, a)
+    result = np.array(simd_kernel(a, a))
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Test case 4: Negative values
+    a = -np.abs(np.random.randn(ndim).astype(dtype))
+    b = -np.abs(np.random.randn(ndim).astype(dtype))
+    expected = baseline_kernel(a, b)
+    result = np.array(simd_kernel(a, b))
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        # Same dtypes
+        ("float64", "float64", "float64"),
+        ("float32", "float32", "float32"),
+        ("float16", "float16", "float16"),
+        # Mixed dtypes
+        ("float32", "float64", "float64"),
+        ("float16", "float32", "float32"),
+    ],
+)
+@pytest.mark.parametrize("kernel", ["add"])
+@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+def test_add_extended(ndim, dtype, kernel, capability, stats_fixture):
+    """Extended tests for add() function with broadcasting and various dtypes.
+    Tests element-wise addition with broadcasting support: result = x + y
+    """
+    first_dtype, second_dtype, output_dtype = dtype
+    if (first_dtype == "float16" or second_dtype == "float16") and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
+    np.random.seed()
+    keep_one_capability(capability)
+    baseline_kernel, simd_kernel = name_to_kernels(kernel)
+
+    # Test case 1: Vector-Vector addition
+    a = np.random.randn(ndim).astype(first_dtype)
+    b = np.random.randn(ndim).astype(second_dtype)
+    expected = baseline_kernel(a, b)
+    result = np.array(simd_kernel(a, b))
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Test case 2: Scalar-Vector addition (broadcast scalar to vector)
+    a = np.random.randn(1).astype(first_dtype)[0]  # Extract scalar
+    b = np.random.randn(ndim).astype(second_dtype)
+    expected = baseline_kernel(a, b)
+    result = np.array(simd_kernel(a, b))
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Test case 3: Vector-Scalar addition (broadcast scalar to vector)
+    a = np.random.randn(ndim).astype(first_dtype)
+    b = np.random.randn(1).astype(second_dtype)[0]  # Extract scalar
+    expected = baseline_kernel(a, b)
+    result = np.array(simd_kernel(a, b))
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Test case 4: Matrix-Matrix addition
+    a = np.random.randn(10, ndim // 10 if ndim >= 10 else ndim).astype(first_dtype)
+    b = np.random.randn(10, ndim // 10 if ndim >= 10 else ndim).astype(second_dtype)
+    expected = baseline_kernel(a, b)
+    result = np.array(simd_kernel(a, b))
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Test case 5: In-place addition (with output buffer)
+    a = np.random.randn(ndim).astype(first_dtype)
+    b = np.random.randn(ndim).astype(second_dtype)
+    out_expected = np.zeros(ndim).astype(output_dtype)
+    out_result = np.zeros(ndim).astype(output_dtype)
+    baseline_kernel(a, b, out=out_expected)
+    simd_kernel(a, b, out=out_result)
+    np.testing.assert_allclose(out_result, out_expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        # Same dtypes
+        ("float64", "float64", "float64"),
+        ("float32", "float32", "float32"),
+        ("float16", "float16", "float16"),
+        # Mixed dtypes
+        ("float32", "float64", "float64"),
+        ("float16", "float32", "float32"),
+    ],
+)
+@pytest.mark.parametrize("kernel", ["multiply"])
+@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+def test_multiply_extended(ndim, dtype, kernel, capability, stats_fixture):
+    """Extended tests for multiply() function with broadcasting and various dtypes.
+    Tests element-wise multiplication with broadcasting support: result = x * y
+    """
+    first_dtype, second_dtype, output_dtype = dtype
+    if (first_dtype == "float16" or second_dtype == "float16") and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
+    np.random.seed()
+    keep_one_capability(capability)
+    baseline_kernel, simd_kernel = name_to_kernels(kernel)
+
+    # Test case 1: Vector-Vector multiplication
+    a = np.random.randn(ndim).astype(first_dtype)
+    b = np.random.randn(ndim).astype(second_dtype)
+    expected = baseline_kernel(a, b)
+    result = np.array(simd_kernel(a, b))
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Test case 2: Scalar-Vector multiplication (broadcast scalar to vector)
+    a = np.random.randn(1).astype(first_dtype)[0]  # Extract scalar
+    b = np.random.randn(ndim).astype(second_dtype)
+    expected = baseline_kernel(a, b)
+    result = np.array(simd_kernel(a, b))
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Test case 3: Vector-Scalar multiplication (broadcast scalar to vector)
+    a = np.random.randn(ndim).astype(first_dtype)
+    b = np.random.randn(1).astype(second_dtype)[0]  # Extract scalar
+    expected = baseline_kernel(a, b)
+    result = np.array(simd_kernel(a, b))
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Test case 4: Matrix-Matrix multiplication
+    a = np.random.randn(10, ndim // 10 if ndim >= 10 else ndim).astype(first_dtype)
+    b = np.random.randn(10, ndim // 10 if ndim >= 10 else ndim).astype(second_dtype)
+    expected = baseline_kernel(a, b)
+    result = np.array(simd_kernel(a, b))
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Test case 5: In-place multiplication (with output buffer)
+    a = np.random.randn(ndim).astype(first_dtype)
+    b = np.random.randn(ndim).astype(second_dtype)
+    out_expected = np.zeros(ndim).astype(output_dtype)
+    out_result = np.zeros(ndim).astype(output_dtype)
+    baseline_kernel(a, b, out=out_expected)
+    simd_kernel(a, b, out=out_result)
+    np.testing.assert_allclose(out_result, out_expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Test case 6: Multiplication with zeros
+    a = np.random.randn(ndim).astype(first_dtype)
+    b = np.zeros(ndim).astype(second_dtype)
+    expected = baseline_kernel(a, b)
+    result = np.array(simd_kernel(a, b))
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+    # Test case 7: Multiplication with ones (should give original)
+    a = np.random.randn(ndim).astype(first_dtype)
+    b = np.ones(ndim).astype(second_dtype)
+    expected = baseline_kernel(a, b)
+    result = np.array(simd_kernel(a, b))
+    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+
+
 def test_gil_free_threading():
     """Test SimSIMD in Python 3.13t free-threaded mode if available."""
     import sys

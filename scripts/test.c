@@ -152,6 +152,8 @@ void test_saturating_arithmetic(void) {
     simsimd_f32_t f32_m_a = 1.5f, f32_m_b = 2.0f;
     _simsimd_f32_smul(&f32_m_a, &f32_m_b, &f32_r);
     assert(f32_r == 3.0f); // Normal multiplication for f32
+
+    printf("Test saturating arithmetic: PASS\n");
 }
 
 /**
@@ -281,6 +283,43 @@ void test_xd_index(void) {
             }
         }
     }
+
+    printf("Test xd_index: PASS\n");
+}
+
+/**
+ *  @brief  Test simsimd_xd_span_init function.
+ */
+void test_xd_span(void) {
+    simsimd_xd_span_t xd_span;
+
+    // Initialize the span
+    simsimd_xd_span_init(&xd_span);
+
+    // Verify all extents are zero
+    for (simsimd_size_t i = 0; i < SIMSIMD_NDARRAY_MAX_RANK; i++) {
+        assert(xd_span.extents[i] == 0);
+        assert(xd_span.strides[i] == 0);
+    }
+
+    // Verify rank is zero
+    assert(xd_span.rank == 0);
+
+    // Test setting values after initialization
+    xd_span.rank = 3;
+    xd_span.extents[0] = 10;
+    xd_span.extents[1] = 20;
+    xd_span.extents[2] = 30;
+    xd_span.strides[0] = 600;
+    xd_span.strides[1] = 30;
+    xd_span.strides[2] = 1;
+
+    assert(xd_span.rank == 3);
+    assert(xd_span.extents[0] == 10);
+    assert(xd_span.extents[1] == 20);
+    assert(xd_span.extents[2] == 30);
+
+    printf("Test xd_span: PASS\n");
 }
 
 /**
@@ -406,6 +445,190 @@ void test_approximate_math(void) {
 }
 
 /**
+ *  @brief  Test FP8 E4M3 conversion functions.
+ */
+void test_fp8_conversions(void) {
+    printf("Testing FP8 E4M3 conversions...\n");
+
+    // Test conversion of common values
+    simsimd_f32_t test_values[] = {0.0f, 1.0f, -1.0f, 2.0f, -2.0f, 0.5f, -0.5f, 10.0f, -10.0f, 100.0f};
+    simsimd_size_t num_tests = sizeof(test_values) / sizeof(test_values[0]);
+
+    for (simsimd_size_t i = 0; i < num_tests; i++) {
+        simsimd_f32_t original = test_values[i];
+        simsimd_e4m3_t e4m3_value;
+        simsimd_f32_t reconstructed;
+
+        // Convert f32 to e4m3
+        simsimd_f32_to_e4m3(&original, &e4m3_value);
+
+        // Convert e4m3 back to f32
+        simsimd_e4m3_to_f32(&e4m3_value, &reconstructed);
+
+        // Check if sign is preserved
+        if (original != 0.0f) {
+            assert((original > 0.0f && reconstructed >= 0.0f) || (original < 0.0f && reconstructed <= 0.0f));
+        }
+
+        // For small values, check relative error
+        if (fabsf(original) > 0.1f && fabsf(original) < 100.0f) {
+            simsimd_f32_t relative_error = fabsf((original - reconstructed) / original);
+            // FP8 has limited precision, so we allow up to 20% relative error for this test
+            assert(relative_error < 0.2f);
+        }
+    }
+
+    // Test round-trip conversion for zero
+    {
+        simsimd_f32_t zero = 0.0f;
+        simsimd_e4m3_t e4m3_zero;
+        simsimd_f32_to_e4m3(&zero, &e4m3_zero);
+        simsimd_f32_t result;
+        simsimd_e4m3_to_f32(&e4m3_zero, &result);
+        assert(result == 0.0f);
+    }
+
+    printf("Test FP8 conversions: PASS\n");
+}
+
+/**
+ *  @brief  Test scale operation for various data types.
+ */
+void test_scale_operations(void) {
+    printf("Testing scale operations...\n");
+
+    // Test f32 scale
+    {
+        simsimd_f32_t input[8] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
+        simsimd_f32_t result[8];
+        simsimd_distance_t alpha = 2.0;
+        simsimd_distance_t beta = 1.0;
+
+        simsimd_scale_f32(input, 8, alpha, beta, result);
+
+        // Check: result = alpha * input + beta
+        for (simsimd_size_t i = 0; i < 8; i++) {
+            simsimd_f32_t expected = alpha * input[i] + beta;
+            assert(fabsf(result[i] - expected) < 0.001f);
+        }
+    }
+
+    // Test f64 scale
+    {
+        simsimd_f64_t input[8] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
+        simsimd_f64_t result[8];
+        simsimd_distance_t alpha = 3.0;
+        simsimd_distance_t beta = 0.5;
+
+        simsimd_scale_f64(input, 8, alpha, beta, result);
+
+        for (simsimd_size_t i = 0; i < 8; i++) {
+            simsimd_f64_t expected = alpha * input[i] + beta;
+            assert(fabs(result[i] - expected) < 0.001);
+        }
+    }
+
+    // Test i8 scale
+    {
+        simsimd_i8_t input[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+        simsimd_i8_t result[8];
+        simsimd_distance_t alpha = 2.0;
+        simsimd_distance_t beta = 1.0;
+
+        simsimd_scale_i8(input, 8, alpha, beta, result);
+
+        // Check results (with saturation in mind)
+        for (simsimd_size_t i = 0; i < 8; i++) {
+            simsimd_f32_t expected_f32 = alpha * input[i] + beta;
+            simsimd_i8_t expected =
+                (simsimd_i8_t)(expected_f32 > 127 ? 127 : (expected_f32 < -128 ? -128 : expected_f32));
+            assert(result[i] == expected);
+        }
+    }
+
+    // Test u8 scale
+    {
+        simsimd_u8_t input[8] = {10, 20, 30, 40, 50, 60, 70, 80};
+        simsimd_u8_t result[8];
+        simsimd_distance_t alpha = 1.5;
+        simsimd_distance_t beta = 5.0;
+
+        simsimd_scale_u8(input, 8, alpha, beta, result);
+
+        // Check results (with saturation in mind)
+        for (simsimd_size_t i = 0; i < 8; i++) {
+            simsimd_f32_t expected_f32 = alpha * input[i] + beta;
+            simsimd_u8_t expected = (simsimd_u8_t)(expected_f32 > 255 ? 255 : (expected_f32 < 0 ? 0 : expected_f32));
+            assert(result[i] == expected);
+        }
+    }
+
+    printf("Test scale operations: PASS\n");
+}
+
+/**
+ *  @brief  Test sum operation for various data types.
+ */
+void test_sum_operations(void) {
+    printf("Testing sum operations...\n");
+
+    // Test f32 sum
+    {
+        simsimd_f32_t a[8] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
+        simsimd_f32_t b[8] = {8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f};
+        simsimd_f32_t result[8];
+
+        simsimd_sum_f32(a, b, 8, result);
+
+        for (simsimd_size_t i = 0; i < 8; i++) { assert(fabsf(result[i] - (a[i] + b[i])) < 0.001f); }
+    }
+
+    // Test f64 sum
+    {
+        simsimd_f64_t a[8] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
+        simsimd_f64_t b[8] = {0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5};
+        simsimd_f64_t result[8];
+
+        simsimd_sum_f64(a, b, 8, result);
+
+        for (simsimd_size_t i = 0; i < 8; i++) { assert(fabs(result[i] - (a[i] + b[i])) < 0.001); }
+    }
+
+    // Test i8 sum
+    {
+        simsimd_i8_t a[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+        simsimd_i8_t b[8] = {10, 20, 30, 40, 50, 60, 70, 80};
+        simsimd_i8_t result[8];
+
+        simsimd_sum_i8(a, b, 8, result);
+
+        for (simsimd_size_t i = 0; i < 8; i++) {
+            simsimd_i16_t expected_i16 = (simsimd_i16_t)a[i] + (simsimd_i16_t)b[i];
+            simsimd_i8_t expected =
+                (simsimd_i8_t)(expected_i16 > 127 ? 127 : (expected_i16 < -128 ? -128 : expected_i16));
+            assert(result[i] == expected);
+        }
+    }
+
+    // Test u8 sum
+    {
+        simsimd_u8_t a[8] = {10, 20, 30, 40, 50, 60, 70, 80};
+        simsimd_u8_t b[8] = {5, 15, 25, 35, 45, 55, 65, 75};
+        simsimd_u8_t result[8];
+
+        simsimd_sum_u8(a, b, 8, result);
+
+        for (simsimd_size_t i = 0; i < 8; i++) {
+            simsimd_u16_t expected_u16 = (simsimd_u16_t)a[i] + (simsimd_u16_t)b[i];
+            simsimd_u8_t expected = (simsimd_u8_t)(expected_u16 > 255 ? 255 : expected_u16);
+            assert(result[i] == expected);
+        }
+    }
+
+    printf("Test sum operations: PASS\n");
+}
+
+/**
  *  @brief  A trivial test that calls every implemented distance function and their dispatch versions
  *          on vectors A and B, where A and B are equal.
  */
@@ -506,8 +729,12 @@ int main(int argc, char **argv) {
     print_capabilities();
     test_utilities();
     test_saturating_arithmetic();
-    test_approximate_math();
     test_xd_index();
+    test_xd_span();
+    test_fp8_conversions();
+    test_scale_operations();
+    test_sum_operations();
+    test_approximate_math();
     test_distance_from_itself();
     test_denormals();
     printf("All tests passed.\n");
