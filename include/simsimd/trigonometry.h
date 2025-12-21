@@ -630,8 +630,9 @@ SIMSIMD_PUBLIC void simsimd_atan_f64_serial(simsimd_f64_t const *ins, simsimd_si
 
 #if SIMSIMD_TARGET_SKYLAKE
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "bmi2")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,bmi2"))), apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "bmi2")
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,bmi2"))), \
+                             apply_to = function)
 
 SIMSIMD_INTERNAL __m512 _simsimd_f32x16_sin_skylake(__m512 const angles_radians) {
     // Constants for argument reduction
