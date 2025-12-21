@@ -15,7 +15,6 @@ javascript/dist
 bun.lockb
 .build/
 .venv/
-*.egg-info
 
 # for Google Benchmark
 compare.py

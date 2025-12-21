@@ -34,7 +34,7 @@
  *          ...
  *  @endcode
  *
- *  This `cdist` example takes 2 positional, 1 positional or named, 3 named-only arguments.
+ *  This `cdist` example takes 2 positional, 1 postional or named, 3 named-only arguments.
  *  The alternative using the `METH_FASTCALL` is to use a function signature like:
  *
  *  @code {.c}
@@ -52,9 +52,9 @@
  *  There may be a case, when the call is ill-formed and more positional arguments are provided than needed.
  *
  *  @code {.py}
- *          cdist(a, b, "l2", "dos"):               //! positional_args_count == 4, args_names_count == 0
- *          cdist(a, b, "l2", metric="dos"):        //! positional_args_count == 3, args_names_count == 1
- *          cdist(a, b, metric="l2", metric="dos"): //! positional_args_count == 2, args_names_count == 2
+ *          cdist(a, b, "cos", "dos"):               //! positional_args_count == 4, args_names_count == 0
+ *          cdist(a, b, "cos", metric="dos"):        //! positional_args_count == 3, args_names_count == 1
+ *          cdist(a, b, metric="cos", metric="dos"): //! positional_args_count == 2, args_names_count == 2
  *  @endcode
  *
  *  If the same argument is provided twice, a @b `TypeError` is raised.
@@ -75,7 +75,7 @@
  *
  *      ! ValueError: cannot include dtype 'E' in a buffer
  *
- *  Moreover, the CPython documentation and the NumPy documentation diverge on the format specifiers
+ *  Moreover, the CPython documentation and the NumPy documentation diverge on the format specificers
  *  for the `typestr` and `format` data-type descriptor strings, making the development error-prone.
  *  At this point, SimSIMD seems to be @b the_only_package that at least attempts to provide interoperability.
  *
@@ -92,79 +92,28 @@
 #endif
 #endif
 
+#include <simsimd/simsimd.h>
+
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
-#define SIMSIMD_NDARRAY_MAX_RANK (PyBUF_MAX_NDIM)
-#include <simsimd/simsimd.h>
-
-/// @brief  Convenience wrapper for BLAS Level 1 interfaces to infer the layout of rank-1 and rank-2 tensors.
-typedef struct VectorOrRowsArgument {
+typedef struct TensorArgument {
     char *start;
     size_t dimensions;
     size_t count;
     size_t stride;
     int rank;
     simsimd_datatype_t datatype;
-} VectorOrRowsArgument;
+} TensorArgument;
 
-typedef enum XDArrayShapeKind {
-    XDArrayShapeUnknown = 0,
-    /// Just a `float` or an `int`
-    XDArrayShapeScalar,
-    /// A single `float` or `int` buffer of any rank, but with a single element
-    XDArrayShapeUnit,
-    /// Any rank tensor with more than 1 element along any dimension
-    XDArrayShapeNonUnit,
-} XDArrayShapeKind;
-
-typedef struct BufferOrScalarArgument {
-    XDArrayShapeKind shape_kind;
-    /// Populated only for `XDArrayShapeScalar` and `XDArrayShapeUnit` kinds.
-    simsimd_f64_t as_f64;
-    simsimd_u8_t as_scalar[8];
-    /// The address of the buffer start, if the kind is `XDArrayShapeNonUnit` or `XDArrayShapeUnit`.
-    /// Alternatively, points to the `&as_scalar` field for `XDArrayShapeScalar` kind.
-    char *as_buffer_start;
-    Py_ssize_t as_buffer_dimensions;
-    //? The "shape" and "strides" fields may seem redundant, as they are already part of the `Py_buffer`
-    //? object, but we use them to normalize the representation in binary and ternary functions with
-    //? non-trivial broadcasting rules.
-    Py_ssize_t as_buffer_shape[PyBUF_MAX_NDIM];
-    Py_ssize_t as_buffer_strides[PyBUF_MAX_NDIM];
-    /// Defines the type of representation stored in the `as_scalar`
-    /// and in the `as_buffer_start` contents.
-    simsimd_datatype_t datatype;
-
-} BufferOrScalarArgument;
-
-/// @brief  Minimalistic and space-efficient representation of a rank-1 or rank-2 output tensor.
 typedef struct DistancesTensor {
     PyObject_HEAD                    //
-        simsimd_datatype_t datatype; // Any SimSIMD numeric type
-    Py_ssize_t dimensions;           // Can be only 1 or 2 dimensions
+        simsimd_datatype_t datatype; // Double precision real or complex numbers
+    size_t dimensions;               // Can be only 1 or 2 dimensions
     Py_ssize_t shape[2];             // Dimensions of the tensor
     Py_ssize_t strides[2];           // Strides for each dimension
     simsimd_distance_t start[];      // Variable length data aligned to 64-bit scalars
 } DistancesTensor;
-
-/// @brief  Generalized high-rank tensor alternative to NumPy, supporting up to 64 dimensions,
-///         zero-copy views/slices, the Buffer Protocol, and faster iteration.
-typedef struct XDArray {
-    PyObject_HEAD                    //
-        simsimd_datatype_t datatype; // Any SimSIMD numeric type
-    Py_ssize_t ndim; //! Can be up to `PyBUF_MAX_NDIM` (often 64), but NumPy only supports 32 on most platforms!
-    Py_ssize_t shape[PyBUF_MAX_NDIM];   // Dimensions of the tensor
-    Py_ssize_t strides[PyBUF_MAX_NDIM]; // Strides for each dimension
-    simsimd_distance_t start[];         // Variable length data aligned to 64-bit scalars
-} XDArray;
-
-/// @brief  Faster alternative to NumPy's `ndindex` object, supporting just as many dimensions,
-///         as the `XDArray` object.
-typedef struct XDIndex {
-    PyObject_HEAD //
-        simsimd_xd_index_t xd_index;
-} XDIndex;
 
 static int DistancesTensor_getbuffer(PyObject *export_from, Py_buffer *view, int flags);
 static void DistancesTensor_releasebuffer(PyObject *export_from, Py_buffer *view);
@@ -176,7 +125,7 @@ static PyBufferProcs DistancesTensor_as_buffer = {
 
 static PyTypeObject DistancesTensorType = {
     PyVarObject_HEAD_INIT(NULL, 0).tp_name = "simsimd.DistancesTensor",
-    .tp_doc = "Zero-copy view of a rank-1 or rank-2 tensor, compatible with NumPy",
+    .tp_doc = "Zero-copy view of an internal tensor, compatible with NumPy",
     .tp_basicsize = sizeof(DistancesTensor),
     // Instead of using `simsimd_distance_t` for all the elements,
     // we use `char` to allow user to specify the datatype on `cdist`-like functions.
@@ -184,55 +133,7 @@ static PyTypeObject DistancesTensorType = {
     .tp_as_buffer = &DistancesTensor_as_buffer,
 };
 
-static int XDArray_getbuffer(PyObject *export_from, Py_buffer *view, int flags);
-static void XDArray_releasebuffer(PyObject *export_from, Py_buffer *view);
-static PyObject *XDArray_get_shape(XDArray *self, void *closure);
-static PyObject *XDArray_get_size(XDArray *self, void *closure);
-
-static PyBufferProcs XDArray_as_buffer = {
-    .bf_getbuffer = XDArray_getbuffer,
-    .bf_releasebuffer = XDArray_releasebuffer,
-};
-
-static PyGetSetDef XDArray_getset[] = {
-    {"shape", (getter)XDArray_get_shape, NULL, "Shape of the XDArray", NULL},
-    {"size", (getter)XDArray_get_size, NULL, "Total number of elements in the XDArray", NULL},
-    {NULL} // Sentinel
-};
-
-static PyNumberMethods XDArray_as_number = {
-    .nb_add = (binaryfunc)XDArray_add,           // Implements __add__
-    .nb_subtract = (binaryfunc)XDArray_subtract, // Implements __sub__
-    .nb_multiply = (binaryfunc)XDArray_multiply, // Implements __mul__
-    // Add other number methods as needed
-};
-
-static PySequenceMethods XDArray_as_sequence = {
-    .sq_length = (lenfunc)XDArray_length,            // Implements __len__
-    .sq_item = (ssizeargfunc)XDArray_getitem,        // Implements __getitem__
-    .sq_ass_item = (ssizeobjargproc)XDArray_setitem, // Implements __setitem__
-};
-
-static PyTypeObject XDArrayType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "simsimd.XDArray",
-    .tp_doc = "Zero-copy view of a high-rank tensor, compatible with NumPy", //
-    .tp_basicsize = sizeof(XDArray),
-    // Instead of using `simsimd_distance_t` for all the elements,
-    // we use `char` to allow user to specify the datatype on `cdist`-like functions.
-    .tp_new = XDArray_new,                     // Constructor
-    .tp_init = (initproc)XDArray_init,         // Optional initializer
-    .tp_dealloc = (destructor)XDArray_dealloc, // Deallocate memory
-    .tp_repr = (reprfunc)XDArray_repr,         // __repr__
-    .tp_str = (reprfunc)XDArray_str,           // __str__
-
-    .tp_as_number = &XDArray_as_number,     // Numeric operations
-    .tp_as_sequence = &XDArray_as_sequence, // Sequence methods
-    .tp_as_buffer = &XDArray_as_buffer,     // Buffer protocol
-    .tp_getset = XDArray_getset,            // Property access
-
-};
-
-/// @brief  Global variable that caches the CPU capabilities, and is computed just onc, when the module is loaded.
+/// @brief  Global variable that caches the CPU capabilities, and is computed just once, when the module is loaded.
 simsimd_capability_t static_capabilities = simsimd_cap_serial_k;
 
 /// @brief Helper method to check for string equality.
@@ -242,8 +143,8 @@ int same_string(char const *a, char const *b) { return strcmp(a, b) == 0; }
 /// @brief Helper method to check if a logical datatype is complex and should be represented as two scalars.
 /// @return 1 if the datatype is complex, 0 otherwise.
 int is_complex(simsimd_datatype_t datatype) {
-    return datatype == simsimd_f32c_k || datatype == simsimd_f64c_k || datatype == simsimd_f16c_k ||
-           datatype == simsimd_bf16c_k;
+    return datatype == simsimd_datatype_f32c_k || datatype == simsimd_datatype_f64c_k ||
+           datatype == simsimd_datatype_f16c_k || datatype == simsimd_datatype_bf16c_k;
 }
 
 /// @brief Converts a Python-ic datatype string to a logical datatype, normalizing the format.
@@ -256,50 +157,50 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
     if (same_string(name, "float32") || same_string(name, "f32") || // SimSIMD-specific
         same_string(name, "f4") || same_string(name, "<f4") ||      // Sized float
         same_string(name, "f") || same_string(name, "<f"))          // Named type
-        return simsimd_f32_k;
+        return simsimd_datatype_f32_k;
     else if (same_string(name, "float16") || same_string(name, "f16") || // SimSIMD-specific
              same_string(name, "f2") || same_string(name, "<f2") ||      // Sized float
              same_string(name, "e") || same_string(name, "<e"))          // Named type
-        return simsimd_f16_k;
+        return simsimd_datatype_f16_k;
     else if (same_string(name, "float64") || same_string(name, "f64") || // SimSIMD-specific
              same_string(name, "f8") || same_string(name, "<f8") ||      // Sized float
              same_string(name, "d") || same_string(name, "<d"))          // Named type
-        return simsimd_f64_k;
+        return simsimd_datatype_f64_k;
     //? The exact format is not defined, but TensorFlow uses 'E' for `bf16`?!
     else if (same_string(name, "bfloat16") || same_string(name, "bf16")) // SimSIMD-specific
-        return simsimd_bf16_k;
+        return simsimd_datatype_bf16_k;
 
     // Complex numbers:
     else if (same_string(name, "complex64") ||                                             // SimSIMD-specific
              same_string(name, "F4") || same_string(name, "<F4") ||                        // Sized complex
              same_string(name, "Zf") || same_string(name, "F") || same_string(name, "<F")) // Named type
-        return simsimd_f32c_k;
+        return simsimd_datatype_f32c_k;
     else if (same_string(name, "complex128") ||                                            // SimSIMD-specific
              same_string(name, "F8") || same_string(name, "<F8") ||                        // Sized complex
              same_string(name, "Zd") || same_string(name, "D") || same_string(name, "<D")) // Named type
-        return simsimd_f64c_k;
+        return simsimd_datatype_f64c_k;
     else if (same_string(name, "complex32") ||                                             // SimSIMD-specific
              same_string(name, "F2") || same_string(name, "<F2") ||                        // Sized complex
              same_string(name, "Ze") || same_string(name, "E") || same_string(name, "<E")) // Named type
-        return simsimd_f16c_k;
+        return simsimd_datatype_f16c_k;
     //? The exact format is not defined, but TensorFlow uses 'E' for `bf16`?!
     else if (same_string(name, "bcomplex32")) // SimSIMD-specific
-        return simsimd_bf16c_k;
+        return simsimd_datatype_bf16c_k;
 
     //! Boolean values:
-    else if (same_string(name, "bin8") || same_string(name, "bit8") || // SimSIMD-specific
-             same_string(name, "c"))                                   // Named type
-        return simsimd_b8_k;
+    else if (same_string(name, "bin8") || // SimSIMD-specific
+             same_string(name, "?"))      // Named type
+        return simsimd_datatype_b8_k;
 
     // Signed integers:
     else if (same_string(name, "int8") ||                                                       // SimSIMD-specific
              same_string(name, "i1") || same_string(name, "|i1") || same_string(name, "<i1") || // Sized integer
              same_string(name, "b") || same_string(name, "<b"))                                 // Named type
-        return simsimd_i8_k;
+        return simsimd_datatype_i8_k;
     else if (same_string(name, "int16") ||                                                      // SimSIMD-specific
              same_string(name, "i2") || same_string(name, "|i2") || same_string(name, "<i2") || // Sized integer
              same_string(name, "h") || same_string(name, "<h"))                                 // Named type
-        return simsimd_i16_k;
+        return simsimd_datatype_i16_k;
 
     //! On Windows the 32-bit and 64-bit signed integers will have different specifiers:
     //! https://github.com/pybind/pybind11/issues/1908
@@ -307,31 +208,31 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
     else if (same_string(name, "int32") ||                                                      // SimSIMD-specific
              same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
              same_string(name, "l") || same_string(name, "<l"))                                 // Named type
-        return simsimd_i32_k;
+        return simsimd_datatype_i32_k;
     else if (same_string(name, "int64") ||                                                      // SimSIMD-specific
              same_string(name, "i8") || same_string(name, "|i8") || same_string(name, "<i8") || // Sized integer
              same_string(name, "q") || same_string(name, "<q"))                                 // Named type
-        return simsimd_i64_k;
+        return simsimd_datatype_i64_k;
 #else // On Linux and macOS:
     else if (same_string(name, "int32") ||                                                      // SimSIMD-specific
              same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
              same_string(name, "i") || same_string(name, "<i"))                                 // Named type
-        return simsimd_i32_k;
+        return simsimd_datatype_i32_k;
     else if (same_string(name, "int64") ||                                                      // SimSIMD-specific
              same_string(name, "i8") || same_string(name, "|i8") || same_string(name, "<i8") || // Sized integer
              same_string(name, "l") || same_string(name, "<l"))                                 // Named type
-        return simsimd_i64_k;
+        return simsimd_datatype_i64_k;
 #endif
 
     // Unsigned integers:
     else if (same_string(name, "uint8") ||                                                      // SimSIMD-specific
              same_string(name, "u1") || same_string(name, "|u1") || same_string(name, "<u1") || // Sized integer
              same_string(name, "B") || same_string(name, "<B"))                                 // Named type
-        return simsimd_u8_k;
+        return simsimd_datatype_u8_k;
     else if (same_string(name, "uint16") ||                                                     // SimSIMD-specific
              same_string(name, "u2") || same_string(name, "|u2") || same_string(name, "<u2") || // Sized integer
              same_string(name, "H") || same_string(name, "<H"))                                 // Named type
-        return simsimd_u16_k;
+        return simsimd_datatype_u16_k;
 
     //! On Windows the 32-bit and 64-bit unsigned integers will have different specifiers:
     //! https://github.com/pybind/pybind11/issues/1908
@@ -339,20 +240,20 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
     else if (same_string(name, "uint32") ||                                                     // SimSIMD-specific
              same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
              same_string(name, "L") || same_string(name, "<L"))                                 // Named type
-        return simsimd_u32_k;
+        return simsimd_datatype_u32_k;
     else if (same_string(name, "uint64") ||                                                     // SimSIMD-specific
              same_string(name, "i8") || same_string(name, "|i8") || same_string(name, "<i8") || // Sized integer
              same_string(name, "Q") || same_string(name, "<Q"))                                 // Named type
-        return simsimd_u64_k;
+        return simsimd_datatype_u64_k;
 #else // On Linux and macOS:
     else if (same_string(name, "uint32") ||                                                     // SimSIMD-specific
              same_string(name, "u4") || same_string(name, "|u4") || same_string(name, "<u4") || // Sized integer
              same_string(name, "I") || same_string(name, "<I"))                                 // Named type
-        return simsimd_u32_k;
+        return simsimd_datatype_u32_k;
     else if (same_string(name, "uint64") ||                                                     // SimSIMD-specific
              same_string(name, "u8") || same_string(name, "|u8") || same_string(name, "<u8") || // Sized integer
              same_string(name, "L") || same_string(name, "<L"))                                 // Named type
-        return simsimd_u64_k;
+        return simsimd_datatype_u64_k;
 #endif
 
     else
@@ -366,25 +267,25 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
 char const *datatype_to_python_string(simsimd_datatype_t dtype) {
     switch (dtype) {
         // Floating-point numbers:
-    case simsimd_f64_k: return "d";
-    case simsimd_f32_k: return "f";
-    case simsimd_f16_k: return "e";
+    case simsimd_datatype_f64_k: return "d";
+    case simsimd_datatype_f32_k: return "f";
+    case simsimd_datatype_f16_k: return "e";
     // Complex numbers:
-    case simsimd_f64c_k: return "Zd";
-    case simsimd_f32c_k: return "Zf";
-    case simsimd_f16c_k: return "Ze";
+    case simsimd_datatype_f64c_k: return "Zd";
+    case simsimd_datatype_f32c_k: return "Zf";
+    case simsimd_datatype_f16c_k: return "Ze";
     // Boolean values:
-    case simsimd_b8_k: return "c";
+    case simsimd_datatype_b8_k: return "?";
     // Signed integers:
-    case simsimd_i8_k: return "b";
-    case simsimd_i16_k: return "h";
-    case simsimd_i32_k: return "i";
-    case simsimd_i64_k: return "q";
+    case simsimd_datatype_i8_k: return "b";
+    case simsimd_datatype_i16_k: return "h";
+    case simsimd_datatype_i32_k: return "i";
+    case simsimd_datatype_i64_k: return "q";
     // Unsigned integers:
-    case simsimd_u8_k: return "B";
-    case simsimd_u16_k: return "H";
-    case simsimd_u32_k: return "I";
-    case simsimd_u64_k: return "Q";
+    case simsimd_datatype_u8_k: return "B";
+    case simsimd_datatype_u16_k: return "H";
+    case simsimd_datatype_u32_k: return "I";
+    case simsimd_datatype_u64_k: return "Q";
     // Other:
     default: return "unknown";
     }
@@ -395,93 +296,94 @@ char const *datatype_to_python_string(simsimd_datatype_t dtype) {
 /// @return Zero if the datatype is not supported, positive integer otherwise.
 size_t bytes_per_datatype(simsimd_datatype_t dtype) {
     switch (dtype) {
-    case simsimd_f64_k: return sizeof(simsimd_f64_t);
-    case simsimd_f32_k: return sizeof(simsimd_f32_t);
-    case simsimd_f16_k: return sizeof(simsimd_f16_t);
-    case simsimd_bf16_k: return sizeof(simsimd_bf16_t);
-    case simsimd_f64c_k: return sizeof(simsimd_f64_t) * 2;
-    case simsimd_f32c_k: return sizeof(simsimd_f32_t) * 2;
-    case simsimd_f16c_k: return sizeof(simsimd_f16_t) * 2;
-    case simsimd_bf16c_k: return sizeof(simsimd_bf16_t) * 2;
-    case simsimd_b8_k: return sizeof(simsimd_b8_t);
-    case simsimd_i8_k: return sizeof(simsimd_i8_t);
-    case simsimd_u8_k: return sizeof(simsimd_u8_t);
-    case simsimd_i16_k: return sizeof(simsimd_i16_t);
-    case simsimd_u16_k: return sizeof(simsimd_u16_t);
-    case simsimd_i32_k: return sizeof(simsimd_i32_t);
-    case simsimd_u32_k: return sizeof(simsimd_u32_t);
-    case simsimd_i64_k: return sizeof(simsimd_i64_t);
-    case simsimd_u64_k: return sizeof(simsimd_u64_t);
+    case simsimd_datatype_f64_k: return sizeof(simsimd_f64_t);
+    case simsimd_datatype_f32_k: return sizeof(simsimd_f32_t);
+    case simsimd_datatype_f16_k: return sizeof(simsimd_f16_t);
+    case simsimd_datatype_bf16_k: return sizeof(simsimd_bf16_t);
+    case simsimd_datatype_f64c_k: return sizeof(simsimd_f64_t) * 2;
+    case simsimd_datatype_f32c_k: return sizeof(simsimd_f32_t) * 2;
+    case simsimd_datatype_f16c_k: return sizeof(simsimd_f16_t) * 2;
+    case simsimd_datatype_bf16c_k: return sizeof(simsimd_bf16_t) * 2;
+    case simsimd_datatype_b8_k: return sizeof(simsimd_b8_t);
+    case simsimd_datatype_i8_k: return sizeof(simsimd_i8_t);
+    case simsimd_datatype_u8_k: return sizeof(simsimd_u8_t);
+    case simsimd_datatype_i16_k: return sizeof(simsimd_i16_t);
+    case simsimd_datatype_u16_k: return sizeof(simsimd_u16_t);
+    case simsimd_datatype_i32_k: return sizeof(simsimd_i32_t);
+    case simsimd_datatype_u32_k: return sizeof(simsimd_u32_t);
+    case simsimd_datatype_i64_k: return sizeof(simsimd_i64_t);
+    case simsimd_datatype_u64_k: return sizeof(simsimd_u64_t);
     default: return 0;
     }
 }
 
 /// @brief Copy a distance to a target datatype, downcasting if necessary.
 /// @return 1 if the cast was successful, 0 if the target datatype is not supported.
+/// @note For integer types, we use rounding (not truncation) to minimize precision loss
+///       when the source floating-point value is close to an integer boundary.
 int cast_distance(simsimd_distance_t distance, simsimd_datatype_t target_dtype, void *target_ptr, size_t offset) {
-    _SIMSIMD_STATIC_ASSERT(sizeof(simsimd_distance_t) == sizeof(simsimd_f64_t), distance_size_mismatch);
     switch (target_dtype) {
-    case simsimd_f64c_k: ((simsimd_f64_t *)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
-    case simsimd_f64_k: ((simsimd_f64_t *)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
-    case simsimd_f32c_k: ((simsimd_f32_t *)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
-    case simsimd_f32_k: ((simsimd_f32_t *)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
-    case simsimd_f16c_k: _simsimd_f64_to_f16(&distance, (simsimd_f16_t *)target_ptr + offset); return 1;
-    case simsimd_f16_k: _simsimd_f64_to_f16(&distance, (simsimd_f16_t *)target_ptr + offset); return 1;
-    case simsimd_bf16c_k: _simsimd_f64_to_bf16(&distance, (simsimd_bf16_t *)target_ptr + offset); return 1;
-    case simsimd_bf16_k: _simsimd_f64_to_bf16(&distance, (simsimd_bf16_t *)target_ptr + offset); return 1;
-    case simsimd_i8_k: ((simsimd_i8_t *)target_ptr)[offset] = (simsimd_i8_t)distance; return 1;
-    case simsimd_u8_k: ((simsimd_u8_t *)target_ptr)[offset] = (simsimd_u8_t)distance; return 1;
-    case simsimd_i16_k: ((simsimd_i16_t *)target_ptr)[offset] = (simsimd_i16_t)distance; return 1;
-    case simsimd_u16_k: ((simsimd_u16_t *)target_ptr)[offset] = (simsimd_u16_t)distance; return 1;
-    case simsimd_i32_k: ((simsimd_i32_t *)target_ptr)[offset] = (simsimd_i32_t)distance; return 1;
-    case simsimd_u32_k: ((simsimd_u32_t *)target_ptr)[offset] = (simsimd_u32_t)distance; return 1;
-    case simsimd_i64_k: ((simsimd_i64_t *)target_ptr)[offset] = (simsimd_i64_t)distance; return 1;
-    case simsimd_u64_k: ((simsimd_u64_t *)target_ptr)[offset] = (simsimd_u64_t)distance; return 1;
+    case simsimd_datatype_f64c_k: ((simsimd_f64_t *)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
+    case simsimd_datatype_f64_k: ((simsimd_f64_t *)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
+    case simsimd_datatype_f32c_k: ((simsimd_f32_t *)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
+    case simsimd_datatype_f32_k: ((simsimd_f32_t *)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
+    case simsimd_datatype_f16c_k: simsimd_f32_to_f16(distance, (simsimd_f16_t *)target_ptr + offset); return 1;
+    case simsimd_datatype_f16_k: simsimd_f32_to_f16(distance, (simsimd_f16_t *)target_ptr + offset); return 1;
+    case simsimd_datatype_bf16c_k: simsimd_f32_to_bf16(distance, (simsimd_bf16_t *)target_ptr + offset); return 1;
+    case simsimd_datatype_bf16_k: simsimd_f32_to_bf16(distance, (simsimd_bf16_t *)target_ptr + offset); return 1;
+    // For integer types, use rounding instead of truncation to handle float32 vs float64 precision differences
+    case simsimd_datatype_i8_k: ((simsimd_i8_t *)target_ptr)[offset] = (simsimd_i8_t)lround(distance); return 1;
+    case simsimd_datatype_u8_k: ((simsimd_u8_t *)target_ptr)[offset] = (simsimd_u8_t)lround(distance); return 1;
+    case simsimd_datatype_i16_k: ((simsimd_i16_t *)target_ptr)[offset] = (simsimd_i16_t)lround(distance); return 1;
+    case simsimd_datatype_u16_k: ((simsimd_u16_t *)target_ptr)[offset] = (simsimd_u16_t)lround(distance); return 1;
+    case simsimd_datatype_i32_k: ((simsimd_i32_t *)target_ptr)[offset] = (simsimd_i32_t)lround(distance); return 1;
+    case simsimd_datatype_u32_k: ((simsimd_u32_t *)target_ptr)[offset] = (simsimd_u32_t)lround(distance); return 1;
+    case simsimd_datatype_i64_k: ((simsimd_i64_t *)target_ptr)[offset] = (simsimd_i64_t)llround(distance); return 1;
+    case simsimd_datatype_u64_k: ((simsimd_u64_t *)target_ptr)[offset] = (simsimd_u64_t)llround(distance); return 1;
     default: return 0;
     }
 }
 
-simsimd_kernel_kind_t python_string_to_kernel_kind(char const *name) {
-    if (same_string(name, "euclidean") || same_string(name, "l2")) return simsimd_euclidean_k;
+simsimd_metric_kind_t python_string_to_metric_kind(char const *name) {
+    if (same_string(name, "euclidean") || same_string(name, "l2")) return simsimd_metric_euclidean_k;
     else if (same_string(name, "sqeuclidean") || same_string(name, "l2sq"))
-        return simsimd_sqeuclidean_k;
+        return simsimd_metric_sqeuclidean_k;
     else if (same_string(name, "dot") || same_string(name, "inner"))
-        return simsimd_dot_k;
+        return simsimd_metric_dot_k;
     else if (same_string(name, "vdot"))
-        return simsimd_vdot_k;
-    else if (same_string(name, "angular"))
-        return simsimd_angular_k;
+        return simsimd_metric_vdot_k;
+    else if (same_string(name, "cosine") || same_string(name, "cos"))
+        return simsimd_metric_cosine_k;
     else if (same_string(name, "jaccard"))
-        return simsimd_jaccard_k;
+        return simsimd_metric_jaccard_k;
     else if (same_string(name, "kullbackleibler") || same_string(name, "kl"))
-        return simsimd_kl_k;
+        return simsimd_metric_kl_k;
     else if (same_string(name, "jensenshannon") || same_string(name, "js"))
-        return simsimd_js_k;
+        return simsimd_metric_js_k;
     else if (same_string(name, "hamming"))
-        return simsimd_hamming_k;
+        return simsimd_metric_hamming_k;
     else if (same_string(name, "jaccard"))
-        return simsimd_jaccard_k;
+        return simsimd_metric_jaccard_k;
     else if (same_string(name, "bilinear"))
-        return simsimd_bilinear_k;
+        return simsimd_metric_bilinear_k;
     else if (same_string(name, "mahalanobis"))
-        return simsimd_mahalanobis_k;
+        return simsimd_metric_mahalanobis_k;
     else
-        return simsimd_kernel_unknown_k;
+        return simsimd_metric_unknown_k;
 }
 
 /// @brief Check if a metric is commutative, i.e., if `metric(a, b) == metric(b, a)`.
 /// @return 1 if the metric is commutative, 0 otherwise.
-int kernel_is_commutative(simsimd_kernel_kind_t kind) {
+int kernel_is_commutative(simsimd_metric_kind_t kind) {
     switch (kind) {
-    case simsimd_kl_k: return 0;
-    case simsimd_bilinear_k: return 0; //? The kernel is commutative if only the matrix is symmetric
+    case simsimd_metric_kl_k: return 0;
+    case simsimd_metric_bilinear_k: return 0; //? The kernel is commutative if only the matrix is symmetric
     default: return 1;
     }
 }
 
 static char const doc_enable_capability[] = //
-    "Enable a specific SIMD kernel family.\n"
-    "\n"
+    "Enable a specific SIMD kernel family.\n\n"
     "Args:\n"
     "    capability (str): The name of the SIMD feature to enable (e.g., 'haswell').";
 
@@ -507,7 +409,10 @@ static PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj) {
     else if (same_string(cap_name, "sapphire")) { static_capabilities |= simsimd_cap_sapphire_k; }
     else if (same_string(cap_name, "turin")) { static_capabilities |= simsimd_cap_turin_k; }
     else if (same_string(cap_name, "sierra")) { static_capabilities |= simsimd_cap_sierra_k; }
-    else if (same_string(cap_name, "serial")) {} //? This is a no-op, as the serial functionality is always enabled.
+    else if (same_string(cap_name, "serial")) {
+        PyErr_SetString(PyExc_ValueError, "Can't change the serial functionality");
+        return NULL;
+    }
     else {
         PyErr_SetString(PyExc_ValueError, "Unknown capability");
         return NULL;
@@ -517,8 +422,7 @@ static PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj) {
 }
 
 static char const doc_disable_capability[] = //
-    "Disable a specific SIMD kernel family.\n"
-    "\n"
+    "Disable a specific SIMD kernel family.\n\n"
     "Args:\n"
     "    capability (str): The name of the SIMD feature to disable (e.g., 'haswell').";
 
@@ -558,8 +462,8 @@ static PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj) 
 
 static char const doc_get_capabilities[] = //
     "Get the current hardware SIMD capabilities as a dictionary of feature flags.\n"
-    "On x86 includes: 'serial', 'haswell', 'skylake', 'ice', 'genoa', 'sapphire', 'turin', 'sierra'.\n"
-    "On Arm includes: 'serial', 'neon', 'sve', 'sve2', and their specialized extensions.\n";
+    "On x86 includes: 'serial', 'haswell', 'skylake', 'ice', 'genoa', 'sapphire', 'turin'.\n"
+    "On Arm includes: 'serial', 'neon', 'sve', 'sve2', and their extensions.\n";
 
 static PyObject *api_get_capabilities(PyObject *self) {
     simsimd_capability_t caps = static_capabilities;
@@ -592,11 +496,17 @@ static PyObject *api_get_capabilities(PyObject *self) {
 
 /// @brief Unpacks a Python tensor object into a C structure.
 /// @return 1 on success, 0 otherwise.
-int parse_rows(PyObject *tensor, Py_buffer *buffer, VectorOrRowsArgument *parsed) {
+int parse_tensor(PyObject *tensor, Py_buffer *buffer, TensorArgument *parsed) {
     if (PyObject_GetBuffer(tensor, buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
-        PyErr_SetString(PyExc_TypeError, "Tensors must support buffer protocol");
+        PyErr_SetString(PyExc_TypeError, "arguments must support buffer protocol");
         return 0;
     }
+    // In case you are debugging some new obscure format string :)
+    // printf("buffer format is %s\n", buffer->format);
+    // printf("buffer ndim is %d\n", buffer->ndim);
+    // printf("buffer shape is %d\n", buffer->shape[0]);
+    // printf("buffer shape is %d\n", buffer->shape[1]);
+    // printf("buffer itemsize is %d\n", buffer->itemsize);
     parsed->start = buffer->buf;
     parsed->datatype = python_string_to_datatype(buffer->format);
     if (parsed->datatype == simsimd_datatype_unknown_k) {
@@ -618,7 +528,7 @@ int parse_rows(PyObject *tensor, Py_buffer *buffer, VectorOrRowsArgument *parsed
     }
     else if (buffer->ndim == 2) {
         if (buffer->strides[1] > buffer->itemsize) {
-            PyErr_SetString(PyExc_ValueError, "Input rows must be contiguous, check with `X.__array_interface__`");
+            PyErr_SetString(PyExc_ValueError, "Input vectors must be contiguous, check with `X.__array_interface__`");
             PyBuffer_Release(buffer);
             return 0;
         }
@@ -633,144 +543,6 @@ int parse_rows(PyObject *tensor, Py_buffer *buffer, VectorOrRowsArgument *parsed
     }
 
     return 1;
-}
-
-/// @brief Unpacks a Python tensor object into a C structure.
-/// @return 1 on success, 0 otherwise.
-int parse_tensor(PyObject *tensor, Py_buffer *buffer, simsimd_datatype_t *dtype) {
-    if (PyObject_GetBuffer(tensor, buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
-        PyErr_SetString(PyExc_TypeError, "Tensors must support buffer protocol");
-        return 0;
-    }
-
-    *dtype = python_string_to_datatype(buffer->format);
-    if (*dtype == simsimd_datatype_unknown_k) {
-        PyErr_Format(PyExc_ValueError, "Unsupported '%s' datatype specifier", buffer->format);
-        PyBuffer_Release(buffer);
-        return 0;
-    }
-
-    return 1;
-}
-
-int parse_buffer_or_scalar_argument(PyObject *obj, Py_buffer *buffer, BufferOrScalarArgument *parsed) {
-
-    if (PyFloat_Check(obj)) {
-        parsed->shape_kind = XDArrayShapeScalar;
-        parsed->as_buffer_start = (char *)&parsed->as_scalar;
-        parsed->as_buffer_dimensions = 1;
-        parsed->as_buffer_shape[0] = 1;
-        parsed->as_buffer_strides[0] = 0;
-        // Return a C `double` representation of the contents of `obj`.
-        // If `obj` is not a Python floating-point object but has a `__float__()` method,
-        // this method will first be called to convert `obj` into a float.
-        simsimd_f64_t as_float = PyFloat_AsDouble(obj);
-        parsed->as_f64 = as_float;
-        // Check if we convert to a smaller floating-point type, without the loss of precision.
-        if (SIMSIMD_NATIVE_F16 && as_float == (simsimd_f64_t)(simsimd_f16_t)as_float) {
-            simsimd_f16_t as_f16 = (simsimd_f16_t)as_float;
-            memcpy(parsed->as_scalar, &as_f16, sizeof(simsimd_f16_t));
-            parsed->datatype = simsimd_f16_k;
-        }
-        else if (as_float == (simsimd_f64_t)(simsimd_f32_t)as_float) {
-            simsimd_f32_t as_f32 = (simsimd_f32_t)as_float;
-            memcpy(parsed->as_scalar, &as_f32, sizeof(simsimd_f32_t));
-            parsed->datatype = simsimd_f32_k;
-        }
-        else {
-            memcpy(parsed->as_scalar, &as_float, sizeof(simsimd_f64_t));
-            parsed->datatype = simsimd_f64_k;
-        }
-        return 1;
-    }
-    else if (PyLong_Check(obj)) {
-        int did_overflow = 0;
-        simsimd_i64_t as_integral = PyLong_AsLongLongAndOverflow(obj, &did_overflow);
-        if (did_overflow) {
-            PyErr_SetString(PyExc_ValueError, "Integer overflow");
-            return 0;
-        }
-        parsed->shape_kind = XDArrayShapeScalar;
-        parsed->as_buffer_start = (char *)&parsed->as_scalar;
-        parsed->as_buffer_dimensions = 1;
-        parsed->as_buffer_shape[0] = 1;
-        parsed->as_buffer_strides[0] = 0;
-        parsed->as_f64 = as_integral;
-        // Check for smaller unsigned integer types and store in `as_scalar`
-        if (as_integral == (simsimd_u64_t)(simsimd_u8_t)as_integral) {
-            simsimd_u8_t as_u8 = (simsimd_u8_t)as_integral;
-            memcpy(parsed->as_scalar, &as_u8, sizeof(simsimd_u8_t));
-            parsed->datatype = simsimd_u8_k;
-        }
-        else if (as_integral == (simsimd_u64_t)(simsimd_u16_t)as_integral) {
-            simsimd_u16_t as_u16 = (simsimd_u16_t)as_integral;
-            memcpy(parsed->as_scalar, &as_u16, sizeof(simsimd_u16_t));
-            parsed->datatype = simsimd_u16_k;
-        }
-        else if (as_integral == (simsimd_u64_t)(simsimd_u32_t)as_integral) {
-            simsimd_u32_t as_u32 = (simsimd_u32_t)as_integral;
-            memcpy(parsed->as_scalar, &as_u32, sizeof(simsimd_u32_t));
-            parsed->datatype = simsimd_u32_k;
-        }
-        else if (as_integral == (simsimd_i64_t)(simsimd_i8_t)as_integral) {
-            simsimd_i8_t as_i8 = (simsimd_i8_t)as_integral;
-            memcpy(parsed->as_scalar, &as_i8, sizeof(simsimd_i8_t));
-            parsed->datatype = simsimd_i8_k;
-        }
-        else if (as_integral == (simsimd_i64_t)(simsimd_i16_t)as_integral) {
-            simsimd_i16_t as_i16 = (simsimd_i16_t)as_integral;
-            memcpy(parsed->as_scalar, &as_i16, sizeof(simsimd_i16_t));
-            parsed->datatype = simsimd_i16_k;
-        }
-        else if (as_integral == (simsimd_i64_t)(simsimd_i32_t)as_integral) {
-            simsimd_i32_t as_i32 = (simsimd_i32_t)as_integral;
-            memcpy(parsed->as_scalar, &as_i32, sizeof(simsimd_i32_t));
-            parsed->datatype = simsimd_i32_k;
-        }
-        else {
-            memcpy(parsed->as_scalar, &as_integral, sizeof(simsimd_i64_t));
-            parsed->datatype = simsimd_i64_k;
-        }
-        return 1;
-    }
-    // We might be lucky and the `obj` is one of out own `XDArray` objects
-    else if (PyType_IsSubtype(Py_TYPE(obj), &XDArrayType)) {
-        XDArray *xdarray = (XDArray *)obj;
-        parsed->shape_kind = XDArrayShapeNonUnit;
-        parsed->as_buffer_start = &xdarray->start[0];
-        parsed->as_buffer_dimensions = xdarray->ndim;
-        for (Py_ssize_t i = 0; i < xdarray->ndim; i++) {
-            parsed->as_buffer_shape[i] = xdarray->shape[i];
-            parsed->as_buffer_strides[i] = xdarray->strides[i];
-        }
-        parsed->datatype = xdarray->datatype;
-        return 1;
-    }
-    // Otherwise, this may be a NumPy array or a buffer-like object
-    else if (PyObject_CheckBuffer(obj)) {
-        if (!parse_tensor(obj, buffer, &parsed->datatype)) return 0;
-        // If the tensor contains just one element, regardless of the shape,
-        // we must treat it as a scalar, similar to NumPy.
-        if (buffer->len == buffer->itemsize) {
-            memcpy(&parsed->as_scalar, buffer->buf, buffer->itemsize);
-            parsed->shape_kind = XDArrayShapeUnit;
-            parsed->as_buffer_start = (char *)&parsed->as_scalar;
-        }
-        else {
-            parsed->shape_kind = XDArrayShapeNonUnit;
-            parsed->as_buffer_start = buffer->buf;
-        }
-        parsed->as_buffer_dimensions = buffer->ndim;
-        for (Py_ssize_t i = 0; i < buffer->ndim; i++) {
-            parsed->as_buffer_shape[i] = buffer->shape[i];
-            parsed->as_buffer_strides[i] = buffer->strides[i];
-        }
-        return 1;
-    }
-    else {
-        PyErr_SetString(PyExc_TypeError, "Argument must be a scalar, a buffer, or a buffer-like object");
-        return 0;
-    }
 }
 
 static int DistancesTensor_getbuffer(PyObject *export_from, Py_buffer *view, int flags) {
@@ -795,66 +567,12 @@ static int DistancesTensor_getbuffer(PyObject *export_from, Py_buffer *view, int
 }
 
 static void DistancesTensor_releasebuffer(PyObject *export_from, Py_buffer *view) {
-    //! This function MUST NOT decrement view->obj, since that is done automatically in PyBuffer_Release().
-    //! https://docs.python.org/3/c-api/typeobj.html#c.PyBufferProcs.bf_releasebuffer
-}
-
-static PyObject *XDArray_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-    XDArray *self;
-    self = (XDArray *)type->tp_alloc(type, 0);
-    if (!self) return NULL;
-
-    self->ndim = 0;
-    self->datatype = SIMSIMD_UNDEFINED; // Default type until specified
-    // Initialization of shape and strides can be added if needed
-
-    return (PyObject *)self;
-}
-
-static void XDArray_dealloc(XDArray *self) { Py_TYPE(self)->tp_free((PyObject *)self); }
-
-static int XDArray_getbuffer(PyObject *export_from, Py_buffer *view, int flags) {
-    XDArray *tensor = (XDArray *)export_from;
-    Py_ssize_t const item_size = (Py_ssize_t)bytes_per_datatype(tensor->datatype);
-    Py_ssize_t total_items = 1;
-    for (Py_ssize_t i = 0; i < tensor->ndim; ++i) total_items *= tensor->shape[i];
-
-    view->buf = &tensor->start[0];
-    view->obj = (PyObject *)tensor;
-    view->len = item_size * total_items;
-    view->readonly = 0;
-    view->itemsize = item_size;
-    view->format = datatype_to_python_string(tensor->datatype);
-    view->ndim = tensor->ndim;
-    view->shape = &tensor->shape[0];
-    view->strides = &tensor->strides[0];
-    view->suboffsets = NULL;
-    view->internal = NULL;
-
-    Py_INCREF(tensor);
-    return 0;
-}
-
-static void XDArray_releasebuffer(PyObject *export_from, Py_buffer *view) {
-    //! This function MUST NOT decrement view->obj, since that is done automatically in PyBuffer_Release().
-    //! https://docs.python.org/3/c-api/typeobj.html#c.PyBufferProcs.bf_releasebuffer
-}
-
-static PyObject *XDArray_get_shape(XDArray *self, void *closure) {
-    PyObject *shape_tuple = PyTuple_New(self->ndim);
-    if (!shape_tuple) return NULL;
-    for (Py_ssize_t i = 0; i < self->ndim; i++) PyTuple_SET_ITEM(shape_tuple, i, PyLong_FromSsize_t(self->shape[i]));
-    return shape_tuple;
-}
-
-static PyObject *XDArray_get_size(XDArray *self, void *closure) {
-    Py_ssize_t total_items = 1;
-    for (Py_ssize_t i = 0; i < self->ndim; i++) total_items *= self->shape[i];
-    return PyLong_FromSsize_t(total_items);
+    // This function MUST NOT decrement view->obj, since that is done automatically in PyBuffer_Release().
+    // https://docs.python.org/3/c-api/typeobj.html#c.PyBufferProcs.bf_releasebuffer
 }
 
 static PyObject *implement_dense_metric( //
-    simsimd_kernel_kind_t kernel_kind,   //
+    simsimd_metric_kind_t metric_kind,   //
     PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
 
     PyObject *return_obj = NULL;
@@ -870,7 +588,7 @@ static PyObject *implement_dense_metric( //
     char const *dtype_str = NULL, *out_dtype_str = NULL;
     simsimd_datatype_t dtype = simsimd_datatype_unknown_k, out_dtype = simsimd_datatype_unknown_k;
     Py_buffer a_buffer, b_buffer, out_buffer;
-    VectorOrRowsArgument a_parsed, b_parsed, out_parsed;
+    TensorArgument a_parsed, b_parsed, out_parsed;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
     memset(&out_buffer, 0, sizeof(Py_buffer));
@@ -937,8 +655,8 @@ static PyObject *implement_dense_metric( //
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
-    if (!parse_rows(a_obj, &a_buffer, &a_parsed) || !parse_rows(b_obj, &b_buffer, &b_parsed)) return NULL;
-    if (out_obj && !parse_rows(out_obj, &out_buffer, &out_parsed)) return NULL;
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) return NULL;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) return NULL;
 
     // Check dimensions
     if (a_parsed.dimensions != b_parsed.dimensions) {
@@ -969,7 +687,7 @@ static PyObject *implement_dense_metric( //
     // 3. double precision float (or its complex variant)
     if (out_dtype == simsimd_datatype_unknown_k) {
         if (out_obj) { out_dtype = out_parsed.datatype; }
-        else { out_dtype = is_complex(dtype) ? simsimd_f64c_k : simsimd_f64_k; }
+        else { out_dtype = is_complex(dtype) ? simsimd_datatype_f64c_k : simsimd_datatype_f64_k; }
     }
 
     // Make sure the return datatype is complex if the input datatype is complex, and the same for real numbers
@@ -992,16 +710,16 @@ static PyObject *implement_dense_metric( //
     }
 
     // Look up the metric and the capability
-    simsimd_dense_metric_t metric = NULL;
+    simsimd_metric_dense_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k, (simsimd_kernel_punned_t *)&metric,
-                        &capability);
+    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&metric, &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError,
             "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s' and '%s'/'%s') and "
             "`dtype` override ('%s'/'%s')",
-            kernel_kind,                                                                             //
+            metric_kind,                                                                             //
             a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
             b_buffer.format ? b_buffer.format : "nil", datatype_to_python_string(b_parsed.datatype), //
             dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
@@ -1030,28 +748,28 @@ static PyObject *implement_dense_metric( //
     size_t const count_pairs = a_parsed.count > b_parsed.count ? a_parsed.count : b_parsed.count;
     size_t const components_per_pair = dtype_is_complex ? 2 : 1;
     size_t const count_components = count_pairs * components_per_pair;
-    char *out_buffer_start = NULL;
-    size_t out_buffer_stride_bytes = 0;
+    char *distances_start = NULL;
+    size_t distances_stride_bytes = 0;
 
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
-        DistancesTensor *out_buffer_obj =
+        DistancesTensor *distances_obj =
             PyObject_NewVar(DistancesTensor, &DistancesTensorType, count_components * bytes_per_datatype(out_dtype));
-        if (!out_buffer_obj) {
+        if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
         // Initialize the object
-        out_buffer_obj->datatype = out_dtype;
-        out_buffer_obj->dimensions = 1;
-        out_buffer_obj->shape[0] = count_pairs;
-        out_buffer_obj->shape[1] = 1;
-        out_buffer_obj->strides[0] = bytes_per_datatype(out_dtype);
-        out_buffer_obj->strides[1] = 0;
-        return_obj = (PyObject *)out_buffer_obj;
-        out_buffer_start = (char *)&out_buffer_obj->start[0];
-        out_buffer_stride_bytes = out_buffer_obj->strides[0];
+        distances_obj->datatype = out_dtype;
+        distances_obj->dimensions = 1;
+        distances_obj->shape[0] = count_pairs;
+        distances_obj->shape[1] = 1;
+        distances_obj->strides[0] = bytes_per_datatype(out_dtype);
+        distances_obj->strides[1] = 0;
+        return_obj = (PyObject *)distances_obj;
+        distances_start = (char *)&distances_obj->start[0];
+        distances_stride_bytes = distances_obj->strides[0];
     }
     else {
         if (bytes_per_datatype(out_parsed.datatype) != bytes_per_datatype(out_dtype)) {
@@ -1062,8 +780,8 @@ static PyObject *implement_dense_metric( //
                 datatype_to_python_string(out_parsed.datatype));
             goto cleanup;
         }
-        out_buffer_start = (char *)&out_parsed.start[0];
-        out_buffer_stride_bytes = out_buffer.strides[0];
+        distances_start = (char *)&out_parsed.start[0];
+        distances_stride_bytes = out_buffer.strides[0];
         //? Logic suggests to return `None` in in-place mode...
         //? SciPy decided differently.
         return_obj = Py_None;
@@ -1082,8 +800,8 @@ static PyObject *implement_dense_metric( //
             (simsimd_distance_t *)&result);
 
         // Export out:
-        cast_distance(result[0], out_dtype, out_buffer_start + i * out_buffer_stride_bytes, 0);
-        if (dtype_is_complex) cast_distance(result[1], out_dtype, out_buffer_start + i * out_buffer_stride_bytes, 1);
+        cast_distance(result[0], out_dtype, distances_start + i * distances_stride_bytes, 0);
+        if (dtype_is_complex) cast_distance(result[1], out_dtype, distances_start + i * distances_stride_bytes, 1);
     }
 
     PyEval_RestoreThread(save);
@@ -1092,12 +810,11 @@ cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&b_buffer);
     PyBuffer_Release(&out_buffer);
-    if (return_obj == Py_None) Py_INCREF(return_obj);
     return return_obj;
 }
 
 static PyObject *implement_curved_metric( //
-    simsimd_kernel_kind_t kernel_kind,    //
+    simsimd_metric_kind_t metric_kind,    //
     PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
 
     PyObject *return_obj = NULL;
@@ -1112,7 +829,7 @@ static PyObject *implement_curved_metric( //
     char const *dtype_str = NULL;
     simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
     Py_buffer a_buffer, b_buffer, c_buffer;
-    VectorOrRowsArgument a_parsed, b_parsed, c_parsed;
+    TensorArgument a_parsed, b_parsed, c_parsed;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
     memset(&c_buffer, 0, sizeof(Py_buffer));
@@ -1164,8 +881,8 @@ static PyObject *implement_curved_metric( //
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
-    if (!parse_rows(a_obj, &a_buffer, &a_parsed) || !parse_rows(b_obj, &b_buffer, &b_parsed) ||
-        !parse_rows(c_obj, &c_buffer, &c_parsed))
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed) ||
+        !parse_tensor(c_obj, &c_buffer, &c_parsed))
         return NULL;
 
     // Check dimensions
@@ -1197,16 +914,16 @@ static PyObject *implement_curved_metric( //
     if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
 
     // Look up the metric and the capability
-    simsimd_curved_metric_t metric = NULL;
+    simsimd_metric_curved_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k, (simsimd_kernel_punned_t *)&metric,
-                        &capability);
+    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&metric, &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError,
             "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s' and '%s'/'%s'), "
             "tensor ('%s'/'%s'), and `dtype` override ('%s'/'%s')",
-            kernel_kind,                                                                             //
+            metric_kind,                                                                             //
             a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
             b_buffer.format ? b_buffer.format : "nil", datatype_to_python_string(b_parsed.datatype), //
             c_buffer.format ? c_buffer.format : "nil", datatype_to_python_string(c_parsed.datatype), //
@@ -1227,12 +944,11 @@ cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&b_buffer);
     PyBuffer_Release(&c_buffer);
-    if (return_obj == Py_None) Py_INCREF(return_obj);
     return return_obj;
 }
 
 static PyObject *implement_sparse_metric( //
-    simsimd_kernel_kind_t kernel_kind,    //
+    simsimd_metric_kind_t metric_kind,    //
     PyObject *const *args, Py_ssize_t nargs) {
     if (nargs != 2) {
         PyErr_SetString(PyExc_TypeError, "Function expects only 2 arguments");
@@ -1244,8 +960,8 @@ static PyObject *implement_sparse_metric( //
     PyObject *b_obj = args[1];
 
     Py_buffer a_buffer, b_buffer;
-    VectorOrRowsArgument a_parsed, b_parsed;
-    if (!parse_rows(a_obj, &a_buffer, &a_parsed) || !parse_rows(b_obj, &b_buffer, &b_parsed)) return NULL;
+    TensorArgument a_parsed, b_parsed;
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) return NULL;
 
     // Check dimensions
     if (a_parsed.rank != 1 || b_parsed.rank != 1) {
@@ -1262,14 +978,14 @@ static PyObject *implement_sparse_metric( //
     }
 
     simsimd_datatype_t dtype = a_parsed.datatype;
-    simsimd_sparse_metric_t metric = NULL;
+    simsimd_metric_sparse_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k, (simsimd_kernel_punned_t *)&metric,
-                        &capability);
+    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&metric, &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError, "Unsupported metric '%c' and datatype combination ('%s'/'%s' and '%s'/'%s')",
-            kernel_kind,                                                                             //
+            metric_kind,                                                                             //
             a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
             b_buffer.format ? b_buffer.format : "nil", datatype_to_python_string(b_parsed.datatype));
         goto cleanup;
@@ -1282,26 +998,25 @@ static PyObject *implement_sparse_metric( //
 cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&b_buffer);
-    if (return_obj == Py_None) Py_INCREF(return_obj);
     return return_obj;
 }
 
 static PyObject *implement_cdist(                        //
     PyObject *a_obj, PyObject *b_obj, PyObject *out_obj, //
-    simsimd_kernel_kind_t kernel_kind, size_t threads,   //
+    simsimd_metric_kind_t metric_kind, size_t threads,   //
     simsimd_datatype_t dtype, simsimd_datatype_t out_dtype) {
 
     PyObject *return_obj = NULL;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
-    VectorOrRowsArgument a_parsed, b_parsed, out_parsed;
+    TensorArgument a_parsed, b_parsed, out_parsed;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
     memset(&out_buffer, 0, sizeof(Py_buffer));
 
-    // Error will be set by `parse_rows` if the input is invalid
-    if (!parse_rows(a_obj, &a_buffer, &a_parsed) || !parse_rows(b_obj, &b_buffer, &b_parsed)) return NULL;
-    if (out_obj && !parse_rows(out_obj, &out_buffer, &out_parsed)) return NULL;
+    // Error will be set by `parse_tensor` if the input is invalid
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) return NULL;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) return NULL;
 
     // Check dimensions
     if (a_parsed.dimensions != b_parsed.dimensions) {
@@ -1334,7 +1049,7 @@ static PyObject *implement_cdist(                        //
     // 3. double precision float (or its complex variant)
     if (out_dtype == simsimd_datatype_unknown_k) {
         if (out_obj) { out_dtype = out_parsed.datatype; }
-        else { out_dtype = is_complex(dtype) ? simsimd_f64c_k : simsimd_f64_k; }
+        else { out_dtype = is_complex(dtype) ? simsimd_datatype_f64c_k : simsimd_datatype_f64_k; }
     }
 
     // Make sure the return datatype is complex if the input datatype is complex, and the same for real numbers
@@ -1357,14 +1072,14 @@ static PyObject *implement_cdist(                        //
     }
 
     // Look up the metric and the capability
-    simsimd_dense_metric_t metric = NULL;
+    simsimd_metric_dense_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k, (simsimd_kernel_punned_t *)&metric,
-                        &capability);
+    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&metric, &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError, "Unsupported metric '%c' and datatype combination ('%s'/'%s' and '%s'/'%s')",
-            kernel_kind,                                                                             //
+            metric_kind,                                                                             //
             a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
             b_buffer.format ? b_buffer.format : "nil", datatype_to_python_string(b_parsed.datatype));
         goto cleanup;
@@ -1392,31 +1107,31 @@ static PyObject *implement_cdist(                        //
     size_t const count_pairs = a_parsed.count * b_parsed.count;
     size_t const components_per_pair = dtype_is_complex ? 2 : 1;
     size_t const count_components = count_pairs * components_per_pair;
-    char *out_buffer_start = NULL;
-    size_t out_buffer_rows_stride_bytes = 0;
-    size_t out_buffer_cols_stride_bytes = 0;
+    char *distances_start = NULL;
+    size_t distances_rows_stride_bytes = 0;
+    size_t distances_cols_stride_bytes = 0;
 
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
 
-        DistancesTensor *out_buffer_obj =
+        DistancesTensor *distances_obj =
             PyObject_NewVar(DistancesTensor, &DistancesTensorType, count_components * bytes_per_datatype(out_dtype));
-        if (!out_buffer_obj) {
+        if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
         // Initialize the object
-        out_buffer_obj->datatype = out_dtype;
-        out_buffer_obj->dimensions = 2;
-        out_buffer_obj->shape[0] = a_parsed.count;
-        out_buffer_obj->shape[1] = b_parsed.count;
-        out_buffer_obj->strides[0] = b_parsed.count * bytes_per_datatype(out_buffer_obj->datatype);
-        out_buffer_obj->strides[1] = bytes_per_datatype(out_buffer_obj->datatype);
-        return_obj = (PyObject *)out_buffer_obj;
-        out_buffer_start = (char *)&out_buffer_obj->start[0];
-        out_buffer_rows_stride_bytes = out_buffer_obj->strides[0];
-        out_buffer_cols_stride_bytes = out_buffer_obj->strides[1];
+        distances_obj->datatype = out_dtype;
+        distances_obj->dimensions = 2;
+        distances_obj->shape[0] = a_parsed.count;
+        distances_obj->shape[1] = b_parsed.count;
+        distances_obj->strides[0] = b_parsed.count * bytes_per_datatype(distances_obj->datatype);
+        distances_obj->strides[1] = bytes_per_datatype(distances_obj->datatype);
+        return_obj = (PyObject *)distances_obj;
+        distances_start = (char *)&distances_obj->start[0];
+        distances_rows_stride_bytes = distances_obj->strides[0];
+        distances_cols_stride_bytes = distances_obj->strides[1];
     }
     else {
         if (bytes_per_datatype(out_parsed.datatype) != bytes_per_datatype(out_dtype)) {
@@ -1427,9 +1142,9 @@ static PyObject *implement_cdist(                        //
                 datatype_to_python_string(out_parsed.datatype));
             goto cleanup;
         }
-        out_buffer_start = (char *)&out_parsed.start[0];
-        out_buffer_rows_stride_bytes = out_buffer.strides[0];
-        out_buffer_cols_stride_bytes = out_buffer.strides[1];
+        distances_start = (char *)&out_parsed.start[0];
+        distances_rows_stride_bytes = out_buffer.strides[0];
+        distances_cols_stride_bytes = out_buffer.strides[1];
         //? Logic suggests to return `None` in in-place mode...
         //? SciPy decided differently.
         return_obj = Py_None;
@@ -1440,7 +1155,7 @@ static PyObject *implement_cdist(                        //
 
     // Assuming most of our kernels are symmetric, we only need to compute the upper triangle
     // if we are computing all pairwise distances within the same set.
-    int const is_symmetric = kernel_is_commutative(kernel_kind) && a_parsed.start == b_parsed.start &&
+    int const is_symmetric = kernel_is_commutative(metric_kind) && a_parsed.start == b_parsed.start &&
                              a_parsed.stride == b_parsed.stride && a_parsed.count == b_parsed.count;
 #pragma omp parallel for collapse(2)
     for (size_t i = 0; i < a_parsed.count; ++i)
@@ -1459,20 +1174,16 @@ static PyObject *implement_cdist(                        //
             // Export into both the lower and upper triangle
             if (1)
                 cast_distance(result[0], out_dtype,
-                              out_buffer_start + i * out_buffer_rows_stride_bytes + j * out_buffer_cols_stride_bytes,
-                              0);
+                              distances_start + i * distances_rows_stride_bytes + j * distances_cols_stride_bytes, 0);
             if (dtype_is_complex)
                 cast_distance(result[1], out_dtype,
-                              out_buffer_start + i * out_buffer_rows_stride_bytes + j * out_buffer_cols_stride_bytes,
-                              1);
+                              distances_start + i * distances_rows_stride_bytes + j * distances_cols_stride_bytes, 1);
             if (is_symmetric)
                 cast_distance(result[0], out_dtype,
-                              out_buffer_start + j * out_buffer_rows_stride_bytes + i * out_buffer_cols_stride_bytes,
-                              0);
+                              distances_start + j * distances_rows_stride_bytes + i * distances_cols_stride_bytes, 0);
             if (is_symmetric && dtype_is_complex)
                 cast_distance(result[1], out_dtype,
-                              out_buffer_start + j * out_buffer_rows_stride_bytes + i * out_buffer_cols_stride_bytes,
-                              1);
+                              distances_start + j * distances_rows_stride_bytes + i * distances_cols_stride_bytes, 1);
         }
 
     PyEval_RestoreThread(save);
@@ -1481,11 +1192,10 @@ cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&b_buffer);
     PyBuffer_Release(&out_buffer);
-    if (return_obj == Py_None) Py_INCREF(return_obj);
     return return_obj;
 }
 
-static PyObject *implement_pointer_access(simsimd_kernel_kind_t kernel_kind, PyObject *dtype_obj) {
+static PyObject *implement_pointer_access(simsimd_metric_kind_t metric_kind, PyObject *dtype_obj) {
     char const *dtype_name = PyUnicode_AsUTF8(dtype_obj);
     if (!dtype_name) {
         PyErr_SetString(PyExc_TypeError, "Data-type name must be a string");
@@ -1500,7 +1210,7 @@ static PyObject *implement_pointer_access(simsimd_kernel_kind_t kernel_kind, PyO
 
     simsimd_kernel_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel(kernel_kind, datatype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
+    simsimd_find_kernel_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
     if (metric == NULL) {
         PyErr_SetString(PyExc_LookupError, "No such metric");
         return NULL;
@@ -1510,19 +1220,17 @@ static PyObject *implement_pointer_access(simsimd_kernel_kind_t kernel_kind, PyO
 }
 
 static char const doc_cdist[] = //
-    "Compute pairwise distances between two sets of input matrices.\n"
-    "\n"
+    "Compute pairwise distances between two sets of input matrices.\n\n"
     "Args:\n"
-    "    a (XDArray): First matrix.\n"
-    "    b (XDArray): Second matrix.\n"
+    "    a (NDArray): First matrix.\n"
+    "    b (NDArray): Second matrix.\n"
     "    metric (str, optional): Distance metric to use (e.g., 'sqeuclidean', 'cosine').\n"
-    "    out (XDArray, optional): Output matrix to store the result.\n"
+    "    out (NDArray, optional): Output matrix to store the result.\n"
     "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type name.\n"
-    "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n"
+    "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n\n"
     "    threads (int, optional): Number of threads to use (default is 1).\n"
     "Returns:\n"
-    "    DistancesTensor: Pairwise distances between all inputs.\n"
-    "\n"
+    "    DistancesTensor: Pairwise distances between all inputs.\n\n"
     "Equivalent to: `scipy.spatial.distance.cdist`.\n"
     "Signature:\n"
     "    >>> def cdist(a, b, /, metric, *, dtype, out, out_dtype, threads) -> Optional[DistancesTensor]: ...";
@@ -1547,7 +1255,7 @@ static PyObject *api_cdist( //
 
     /// Same default as in SciPy:
     /// https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.cdist.html
-    simsimd_kernel_kind_t kernel_kind = simsimd_euclidean_k;
+    simsimd_metric_kind_t metric_kind = simsimd_metric_euclidean_k;
     char const *metric_str = NULL;
 
     // Parse the arguments
@@ -1585,15 +1293,15 @@ static PyObject *api_cdist( //
         }
     }
 
-    // Convert `metric_obj` to `metric_str` and to `kernel_kind`
+    // Convert `metric_obj` to `metric_str` and to `metric_kind`
     if (metric_obj) {
         metric_str = PyUnicode_AsUTF8(metric_obj);
         if (!metric_str && PyErr_Occurred()) {
             PyErr_SetString(PyExc_TypeError, "Expected 'metric' to be a string");
             return NULL;
         }
-        kernel_kind = python_string_to_kernel_kind(metric_str);
-        if (kernel_kind == simsimd_kernel_unknown_k) {
+        metric_kind = python_string_to_metric_kind(metric_str);
+        if (metric_kind == simsimd_metric_unknown_k) {
             PyErr_SetString(PyExc_LookupError, "Unsupported metric");
             return NULL;
         }
@@ -1634,829 +1342,290 @@ static PyObject *api_cdist( //
         }
     }
 
-    return implement_cdist(a_obj, b_obj, out_obj, kernel_kind, threads, dtype, out_dtype);
+    return implement_cdist(a_obj, b_obj, out_obj, metric_kind, threads, dtype, out_dtype);
 }
 
 static char const doc_l2_pointer[] = "Get (int) pointer to the `simsimd.l2` kernel.";
 static PyObject *api_l2_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_l2_k, dtype_obj);
+    return implement_pointer_access(simsimd_metric_l2_k, dtype_obj);
 }
 static char const doc_l2sq_pointer[] = "Get (int) pointer to the `simsimd.l2sq` kernel.";
 static PyObject *api_l2sq_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_l2sq_k, dtype_obj);
+    return implement_pointer_access(simsimd_metric_l2sq_k, dtype_obj);
 }
-static char const doc_angular_pointer[] = "Get (int) pointer to the `simsimd.angular` kernel.";
-static PyObject *api_angular_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_angular_k, dtype_obj);
+static char const doc_cos_pointer[] = "Get (int) pointer to the `simsimd.cos` kernel.";
+static PyObject *api_cos_pointer(PyObject *self, PyObject *dtype_obj) {
+    return implement_pointer_access(simsimd_metric_cos_k, dtype_obj);
 }
 static char const doc_dot_pointer[] = "Get (int) pointer to the `simsimd.dot` kernel.";
 static PyObject *api_dot_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_dot_k, dtype_obj);
+    return implement_pointer_access(simsimd_metric_dot_k, dtype_obj);
 }
 static char const doc_vdot_pointer[] = "Get (int) pointer to the `simsimd.vdot` kernel.";
 static PyObject *api_vdot_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_vdot_k, dtype_obj);
+    return implement_pointer_access(simsimd_metric_vdot_k, dtype_obj);
 }
 static char const doc_kl_pointer[] = "Get (int) pointer to the `simsimd.kl` kernel.";
 static PyObject *api_kl_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_kl_k, dtype_obj);
+    return implement_pointer_access(simsimd_metric_kl_k, dtype_obj);
 }
 static char const doc_js_pointer[] = "Get (int) pointer to the `simsimd.js` kernel.";
 static PyObject *api_js_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_js_k, dtype_obj);
+    return implement_pointer_access(simsimd_metric_js_k, dtype_obj);
 }
 static char const doc_hamming_pointer[] = "Get (int) pointer to the `simsimd.hamming` kernel.";
 static PyObject *api_hamming_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_hamming_k, dtype_obj);
+    return implement_pointer_access(simsimd_metric_hamming_k, dtype_obj);
 }
 static char const doc_jaccard_pointer[] = "Get (int) pointer to the `simsimd.jaccard` kernel.";
 static PyObject *api_jaccard_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_jaccard_k, dtype_obj);
+    return implement_pointer_access(simsimd_metric_jaccard_k, dtype_obj);
 }
 
 static char const doc_l2[] = //
-    "Compute Euclidean (L2) distances between two matrices.\n"
-    "\n"
+    "Compute Euclidean (L2) distances between two matrices.\n\n"
     "Args:\n"
-    "    a (XDArray): First matrix or vector.\n"
-    "    b (XDArray): Second matrix or vector.\n"
+    "    a (NDArray): First matrix or vector.\n"
+    "    b (NDArray): Second matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
-    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
+    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n"
-    "\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
     "Equivalent to: `scipy.spatial.distance.euclidean`.\n"
     "Signature:\n"
     "    >>> def euclidean(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
 
 static PyObject *api_l2(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                         PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_l2_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(simsimd_metric_l2_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_l2sq[] = //
-    "Compute squared Euclidean (L2) distances between two matrices.\n"
-    "\n"
+    "Compute squared Euclidean (L2) distances between two matrices.\n\n"
     "Args:\n"
-    "    a (XDArray): First matrix or vector.\n"
-    "    b (XDArray): Second matrix or vector.\n"
+    "    a (NDArray): First matrix or vector.\n"
+    "    b (NDArray): Second matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
-    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
+    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n"
-    "\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
     "Equivalent to: `scipy.spatial.distance.sqeuclidean`.\n"
     "Signature:\n"
     "    >>> def sqeuclidean(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
 
 static PyObject *api_l2sq(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                           PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_l2sq_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(simsimd_metric_l2sq_k, args, positional_args_count, args_names_tuple);
 }
 
-static char const doc_angular[] = //
-    "Compute angular (cosine) distances between two matrices.\n"
-    "\n"
+static char const doc_cos[] = //
+    "Compute cosine (angular) distances between two matrices.\n\n"
     "Args:\n"
-    "    a (XDArray): First matrix or vector.\n"
-    "    b (XDArray): Second matrix or vector.\n"
+    "    a (NDArray): First matrix or vector.\n"
+    "    b (NDArray): Second matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
-    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
+    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n"
-    "\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
     "Equivalent to: `scipy.spatial.distance.cosine`.\n"
     "Signature:\n"
-    "    >>> def angular(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
+    "    >>> def cosine(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
 
-static PyObject *api_angular(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
-                             PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_angular_k, args, positional_args_count, args_names_tuple);
+static PyObject *api_cos(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                         PyObject *args_names_tuple) {
+    return implement_dense_metric(simsimd_metric_cos_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_dot[] = //
-    "Compute the inner (dot) product between two matrices (real or complex).\n"
-    "\n"
+    "Compute the inner (dot) product between two matrices (real or complex).\n\n"
     "Args:\n"
-    "    a (XDArray): First matrix or vector.\n"
-    "    b (XDArray): Second matrix or vector.\n"
+    "    a (NDArray): First matrix or vector.\n"
+    "    b (NDArray): Second matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type name.\n"
-    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n"
+    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n"
-    "\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
     "Equivalent to: `numpy.inner`.\n"
     "Signature:\n"
     "    >>> def dot(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
 
 static PyObject *api_dot(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_dot_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(simsimd_metric_dot_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_vdot[] = //
-    "Compute the conjugate dot product between two complex matrices.\n"
-    "\n"
+    "Compute the conjugate dot product between two complex matrices.\n\n"
     "Args:\n"
-    "    a (XDArray): First complex matrix or vector.\n"
-    "    b (XDArray): Second complex matrix or vector.\n"
+    "    a (NDArray): First complex matrix or vector.\n"
+    "    b (NDArray): Second complex matrix or vector.\n"
     "    dtype (ComplexType, optional): Override the presumed input type name.\n"
-    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (Union[ComplexType], optional): Result type, default is 'float64'.\n"
+    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out_dtype (Union[ComplexType], optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n"
-    "\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
     "Equivalent to: `numpy.vdot`.\n"
     "Signature:\n"
     "    >>> def vdot(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
 
 static PyObject *api_vdot(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                           PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_vdot_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(simsimd_metric_vdot_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_kl[] = //
-    "Compute Kullback-Leibler divergences between two matrices.\n"
-    "\n"
+    "Compute Kullback-Leibler divergences between two matrices.\n\n"
     "Args:\n"
-    "    a (XDArray): First floating-point matrix or vector.\n"
-    "    b (XDArray): Second floating-point matrix or vector.\n"
+    "    a (NDArray): First floating-point matrix or vector.\n"
+    "    b (NDArray): Second floating-point matrix or vector.\n"
     "    dtype (FloatType, optional): Override the presumed input type name.\n"
-    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
+    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n"
-    "\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
     "Equivalent to: `scipy.special.kl_div`.\n"
     "Signature:\n"
     "    >>> def kl(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
 
 static PyObject *api_kl(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                         PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_kl_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(simsimd_metric_kl_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_js[] = //
-    "Compute Jensen-Shannon divergences between two matrices.\n"
-    "\n"
+    "Compute Jensen-Shannon divergences between two matrices.\n\n"
     "Args:\n"
-    "    a (XDArray): First floating-point matrix or vector.\n"
-    "    b (XDArray): Second floating-point matrix or vector.\n"
+    "    a (NDArray): First floating-point matrix or vector.\n"
+    "    b (NDArray): Second floating-point matrix or vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
-    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
+    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n"
-    "\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
     "Equivalent to: `scipy.spatial.distance.jensenshannon`.\n"
     "Signature:\n"
     "    >>> def kl(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
 
 static PyObject *api_js(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                         PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_js_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(simsimd_metric_js_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_hamming[] = //
-    "Compute Hamming distances between two matrices.\n"
-    "\n"
+    "Compute Hamming distances between two matrices.\n\n"
     "Args:\n"
-    "    a (XDArray): First binary matrix or vector.\n"
-    "    b (XDArray): Second binary matrix or vector.\n"
+    "    a (NDArray): First binary matrix or vector.\n"
+    "    b (NDArray): Second binary matrix or vector.\n"
     "    dtype (IntegralType, optional): Override the presumed input type name.\n"
-    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
+    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n"
-    "\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
     "Similar to: `scipy.spatial.distance.hamming`.\n"
     "Signature:\n"
     "    >>> def hamming(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
 
 static PyObject *api_hamming(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                              PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_hamming_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(simsimd_metric_hamming_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_jaccard[] = //
-    "Compute Jaccard distances (bitwise Tanimoto) between two matrices.\n"
-    "\n"
+    "Compute Jaccard distances (bitwise Tanimoto) between two matrices.\n\n"
     "Args:\n"
-    "    a (XDArray): First binary matrix or vector.\n"
-    "    b (XDArray): Second binary matrix or vector.\n"
+    "    a (NDArray): First binary matrix or vector.\n"
+    "    b (NDArray): Second binary matrix or vector.\n"
     "    dtype (IntegralType, optional): Override the presumed input type name.\n"
-    "    out (XDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n"
+    "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
+    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n"
-    "\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
     "Similar to: `scipy.spatial.distance.jaccard`.\n"
     "Signature:\n"
     "    >>> def jaccard(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
 
 static PyObject *api_jaccard(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                              PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_jaccard_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(simsimd_metric_jaccard_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_bilinear[] = //
-    "Compute the bilinear form between two vectors given a metric tensor.\n"
-    "\n"
+    "Compute the bilinear form between two vectors given a metric tensor.\n\n"
     "Args:\n"
-    "    a (XDArray): First vector.\n"
-    "    b (XDArray): Second vector.\n"
-    "    metric_tensor (XDArray): The metric tensor defining the bilinear form.\n"
-    "    dtype (FloatType, optional): Override the presumed input type name.\n"
+    "    a (NDArray): First vector.\n"
+    "    b (NDArray): Second vector.\n"
+    "    metric_tensor (NDArray): The metric tensor defining the bilinear form.\n"
+    "    dtype (FloatType, optional): Override the presumed input type name.\n\n"
     "Returns:\n"
-    "    float: The bilinear form.\n"
-    "\n"
+    "    float: The bilinear form.\n\n"
     "Equivalent to: `numpy.dot` with a metric tensor.\n"
     "Signature:\n"
     "    >>> def bilinear(a, b, metric_tensor, /, dtype) -> float: ...";
 
 static PyObject *api_bilinear(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                               PyObject *args_names_tuple) {
-    return implement_curved_metric(simsimd_bilinear_k, args, positional_args_count, args_names_tuple);
+    return implement_curved_metric(simsimd_metric_bilinear_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_mahalanobis[] = //
-    "Compute the Mahalanobis distance between two vectors given an inverse covariance matrix.\n"
-    "\n"
+    "Compute the Mahalanobis distance between two vectors given an inverse covariance matrix.\n\n"
     "Args:\n"
-    "    a (XDArray): First vector.\n"
-    "    b (XDArray): Second vector.\n"
-    "    inverse_covariance (XDArray): The inverse of the covariance matrix.\n"
-    "    dtype (FloatType, optional): Override the presumed input type name.\n"
+    "    a (NDArray): First vector.\n"
+    "    b (NDArray): Second vector.\n"
+    "    inverse_covariance (NDArray): The inverse of the covariance matrix.\n"
+    "    dtype (FloatType, optional): Override the presumed input type name.\n\n"
     "Returns:\n"
-    "    float: The Mahalanobis distance.\n"
-    "\n"
+    "    float: The Mahalanobis distance.\n\n"
     "Equivalent to: `scipy.spatial.distance.mahalanobis`.\n"
     "Signature:\n"
     "    >>> def mahalanobis(a, b, inverse_covariance, /, dtype) -> float: ...";
 
 static PyObject *api_mahalanobis(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                                  PyObject *args_names_tuple) {
-    return implement_curved_metric(simsimd_mahalanobis_k, args, positional_args_count, args_names_tuple);
+    return implement_curved_metric(simsimd_metric_mahalanobis_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_intersect[] = //
-    "Compute the intersection of two sorted integer arrays.\n"
-    "\n"
+    "Compute the intersection of two sorted integer arrays.\n\n"
     "Args:\n"
-    "    a (XDArray): First sorted integer array.\n"
-    "    b (XDArray): Second sorted integer array.\n"
+    "    a (NDArray): First sorted integer array.\n"
+    "    b (NDArray): Second sorted integer array.\n\n"
     "Returns:\n"
-    "    float: The number of intersecting elements.\n"
-    "\n"
+    "    float: The number of intersecting elements.\n\n"
     "Similar to: `numpy.intersect1d`."
     "Signature:\n"
     "    >>> def intersect(a, b, /) -> float: ...";
 
 static PyObject *api_intersect(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
-    return implement_sparse_metric(simsimd_intersect_k, args, nargs);
-}
-
-static char const doc_scale[] = //
-    "Scale and Shift an input vectors.\n"
-    "\n"
-    "Args:\n"
-    "    a (XDArray): Vector.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
-    "    alpha (float, optional): First scale, 1.0 by default.\n"
-    "    beta (float, optional): Shift, 0.0 by default.\n"
-    "    out (XDArray, optional): Vector for resulting distances.\n"
-    "Returns:\n"
-    "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n"
-    "\n"
-    "Equivalent to: `alpha * a + beta`.\n"
-    "Signature:\n"
-    "    >>> def scale(a, /, dtype, *, alpha, beta, out) -> Optional[DistancesTensor]: ...";
-
-static PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
-                           PyObject *args_names_tuple) {
-
-    PyObject *return_obj = NULL;
-
-    // This function accepts up to 5 arguments:
-    PyObject *a_obj = NULL;     // Required object, positional-only
-    PyObject *dtype_obj = NULL; // Optional object, "dtype" keyword or positional
-    PyObject *out_obj = NULL;   // Optional object, "out" keyword-only
-    PyObject *alpha_obj = NULL; // Optional object, "alpha" keyword-only
-    PyObject *beta_obj = NULL;  // Optional object, "beta" keyword-only
-
-    // Once parsed, the arguments will be stored in these variables:
-    char const *dtype_str = NULL;
-    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
-    simsimd_distance_t alpha = 1, beta = 0;
-
-    Py_buffer a_buffer, out_buffer;
-    VectorOrRowsArgument a_parsed, out_parsed;
-    memset(&a_buffer, 0, sizeof(Py_buffer));
-    memset(&out_buffer, 0, sizeof(Py_buffer));
-
-    Py_ssize_t const args_names_count = args_names_tuple ? PyTuple_Size(args_names_tuple) : 0;
-    Py_ssize_t const args_count = positional_args_count + args_names_count;
-    if (args_count < 2 || args_count > 5) {
-        PyErr_Format(PyExc_TypeError, "Function expects 2-5 arguments, got %zd", args_count);
-        return NULL;
-    }
-    if (positional_args_count > 2) {
-        PyErr_Format(PyExc_TypeError, "Only first 2 arguments can be positional, received %zd", positional_args_count);
-        return NULL;
-    }
-
-    // Positional-only arguments (first matrix)
-    a_obj = args[0];
-
-    // Positional or keyword arguments (dtype)
-    if (positional_args_count == 2) dtype_obj = args[1];
-
-    // The rest of the arguments must be checked in the keyword dictionary:
-    for (Py_ssize_t args_names_tuple_progress = 0, args_progress = positional_args_count;
-         args_names_tuple_progress < args_names_count; ++args_progress, ++args_names_tuple_progress) {
-        PyObject *const key = PyTuple_GetItem(args_names_tuple, args_names_tuple_progress);
-        PyObject *const value = args[args_progress];
-        if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0 && !dtype_obj) { dtype_obj = value; }
-        else if (PyUnicode_CompareWithASCIIString(key, "out") == 0 && !out_obj) { out_obj = value; }
-        else if (PyUnicode_CompareWithASCIIString(key, "alpha") == 0 && !alpha_obj) { alpha_obj = value; }
-        else if (PyUnicode_CompareWithASCIIString(key, "beta") == 0 && !beta_obj) { beta_obj = value; }
-        else {
-            PyErr_Format(PyExc_TypeError, "Got unexpected keyword argument: %S", key);
-            return NULL;
-        }
-    }
-
-    // Convert `dtype_obj` to `dtype_str` and to `dtype`
-    if (dtype_obj) {
-        dtype_str = PyUnicode_AsUTF8(dtype_obj);
-        if (!dtype_str && PyErr_Occurred()) {
-            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
-            return NULL;
-        }
-        dtype = python_string_to_datatype(dtype_str);
-        if (dtype == simsimd_datatype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
-            return NULL;
-        }
-    }
-
-    // Convert `alpha_obj` to `alpha` and `beta_obj` to `beta`
-    if (alpha_obj) alpha = PyFloat_AsDouble(alpha_obj);
-    if (beta_obj) beta = PyFloat_AsDouble(beta_obj);
-    if (PyErr_Occurred()) {
-        PyErr_SetString(PyExc_TypeError, "Expected 'alpha' and 'beta' to be a float");
-        return NULL;
-    }
-
-    // Convert `a_obj` to `a_buffer` and to `a_parsed`.
-    if (!parse_rows(a_obj, &a_buffer, &a_parsed)) return NULL;
-    if (out_obj && !parse_rows(out_obj, &out_buffer, &out_parsed)) return NULL;
-
-    // Check dimensions
-    if (a_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
-        PyErr_SetString(PyExc_ValueError, "All tensors must be vectors");
-        goto cleanup;
-    }
-    if (out_obj && a_parsed.dimensions != out_parsed.dimensions) {
-        PyErr_SetString(PyExc_ValueError, "Vector dimensions don't match");
-        goto cleanup;
-    }
-
-    // Check data types
-    if (a_parsed.datatype == simsimd_datatype_unknown_k ||
-        (out_obj && out_parsed.datatype == simsimd_datatype_unknown_k)) {
-        PyErr_SetString(PyExc_TypeError,
-                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
-        goto cleanup;
-    }
-    if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
-
-    // Look up the kernel and the capability
-    simsimd_elementwise_scale_t kernel = NULL;
-    simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_kernel_kind_t const kernel_kind = simsimd_scale_k;
-    simsimd_find_kernel(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k, (simsimd_kernel_punned_t *)&kernel,
-                        &capability);
-    if (!kernel) {
-        PyErr_Format( //
-            PyExc_LookupError,
-            "Unsupported kernel '%c' and datatype combination across vectors ('%s'/'%s') and "
-            "`dtype` override ('%s'/'%s')",
-            kernel_kind,                                                                             //
-            a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
-            dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
-        goto cleanup;
-    }
-
-    char *out_buffer_start = NULL;
-    size_t out_buffer_stride_bytes = 0;
-
-    // Allocate the output matrix if it wasn't provided
-    if (!out_obj) {
-        DistancesTensor *out_buffer_obj =
-            PyObject_NewVar(DistancesTensor, &DistancesTensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
-        if (!out_buffer_obj) {
-            PyErr_NoMemory();
-            goto cleanup;
-        }
-
-        // Initialize the object
-        out_buffer_obj->datatype = dtype;
-        out_buffer_obj->dimensions = 1;
-        out_buffer_obj->shape[0] = a_parsed.dimensions;
-        out_buffer_obj->shape[1] = 1;
-        out_buffer_obj->strides[0] = bytes_per_datatype(dtype);
-        out_buffer_obj->strides[1] = 0;
-        return_obj = (PyObject *)out_buffer_obj;
-        out_buffer_start = (char *)&out_buffer_obj->start[0];
-        out_buffer_stride_bytes = out_buffer_obj->strides[0];
-    }
-    else {
-        out_buffer_start = (char *)&out_parsed.start[0];
-        out_buffer_stride_bytes = out_buffer.strides[0];
-        //? Logic suggests to return `None` in in-place mode...
-        //? SciPy decided differently.
-        return_obj = Py_None;
-    }
-
-    kernel(a_parsed.start, a_parsed.dimensions, alpha, beta, out_buffer_start);
-cleanup:
-    PyBuffer_Release(&a_buffer);
-    PyBuffer_Release(&out_buffer);
-    if (return_obj == Py_None) Py_INCREF(return_obj);
-    return return_obj;
-}
-
-static char const doc_sum[] = //
-    "Element-wise Sum of 2 input vectors.\n"
-    "\n"
-    "Args:\n"
-    "    a (XDArray): First vector.\n"
-    "    b (XDArray): Second vector.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
-    "    out (XDArray, optional): Vector for resulting distances.\n"
-    "Returns:\n"
-    "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n"
-    "\n"
-    "Equivalent to: `a + b`.\n"
-    "Signature:\n"
-    "    >>> def sum(a, b, /, dtype, *, out) -> Optional[DistancesTensor]: ...";
-
-static PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
-                         PyObject *args_names_tuple) {
-
-    PyObject *return_obj = NULL;
-
-    // This function accepts up to 4 arguments:
-    PyObject *a_obj = NULL;     // Required object, positional-only
-    PyObject *b_obj = NULL;     // Required object, positional-only
-    PyObject *dtype_obj = NULL; // Optional object, "dtype" keyword or positional
-    PyObject *out_obj = NULL;   // Optional object, "out" keyword-only
-
-    // Once parsed, the arguments will be stored in these variables:
-    char const *dtype_str = NULL;
-    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
-
-    Py_buffer a_buffer, b_buffer, out_buffer;
-    VectorOrRowsArgument a_parsed, b_parsed, out_parsed;
-    memset(&a_buffer, 0, sizeof(Py_buffer));
-    memset(&b_buffer, 0, sizeof(Py_buffer));
-    memset(&out_buffer, 0, sizeof(Py_buffer));
-
-    Py_ssize_t const args_names_count = args_names_tuple ? PyTuple_Size(args_names_tuple) : 0;
-    Py_ssize_t const args_count = positional_args_count + args_names_count;
-    if (args_count < 2 || args_count > 4) {
-        PyErr_Format(PyExc_TypeError, "Function expects 2-4 arguments, got %zd", args_count);
-        return NULL;
-    }
-    if (positional_args_count > 3) {
-        PyErr_Format(PyExc_TypeError, "Only first 3 arguments can be positional, received %zd", positional_args_count);
-        return NULL;
-    }
-
-    // Positional-only arguments (first and second matrix)
-    a_obj = args[0];
-    b_obj = args[1];
-
-    // Positional or keyword arguments (dtype)
-    if (positional_args_count == 3) dtype_obj = args[2];
-
-    // The rest of the arguments must be checked in the keyword dictionary:
-    for (Py_ssize_t args_names_tuple_progress = 0, args_progress = positional_args_count;
-         args_names_tuple_progress < args_names_count; ++args_progress, ++args_names_tuple_progress) {
-        PyObject *const key = PyTuple_GetItem(args_names_tuple, args_names_tuple_progress);
-        PyObject *const value = args[args_progress];
-        if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0 && !dtype_obj) { dtype_obj = value; }
-        else if (PyUnicode_CompareWithASCIIString(key, "out") == 0 && !out_obj) { out_obj = value; }
-        else {
-            PyErr_Format(PyExc_TypeError, "Got unexpected keyword argument: %S", key);
-            return NULL;
-        }
-    }
-
-    // Convert `dtype_obj` to `dtype_str` and to `dtype`
-    if (dtype_obj) {
-        dtype_str = PyUnicode_AsUTF8(dtype_obj);
-        if (!dtype_str && PyErr_Occurred()) {
-            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
-            return NULL;
-        }
-        dtype = python_string_to_datatype(dtype_str);
-        if (dtype == simsimd_datatype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
-            return NULL;
-        }
-    }
-
-    // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
-    if (!parse_rows(a_obj, &a_buffer, &a_parsed) || !parse_rows(b_obj, &b_buffer, &b_parsed)) return NULL;
-    if (out_obj && !parse_rows(out_obj, &out_buffer, &out_parsed)) return NULL;
-
-    // Check dimensions
-    if (a_parsed.rank != 1 || b_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
-        PyErr_SetString(PyExc_ValueError, "All tensors must be vectors");
-        goto cleanup;
-    }
-    if (a_parsed.dimensions != b_parsed.dimensions || (out_obj && a_parsed.dimensions != out_parsed.dimensions)) {
-        PyErr_SetString(PyExc_ValueError, "Vector dimensions don't match");
-        goto cleanup;
-    }
-
-    // Check data types
-    if (a_parsed.datatype != b_parsed.datatype || a_parsed.datatype == simsimd_datatype_unknown_k ||
-        b_parsed.datatype == simsimd_datatype_unknown_k ||
-        (out_obj && out_parsed.datatype == simsimd_datatype_unknown_k)) {
-        PyErr_SetString(PyExc_TypeError,
-                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
-        goto cleanup;
-    }
-    if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
-
-    // Look up the kernel and the capability
-    simsimd_elementwise_sum_t kernel = NULL;
-    simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_kernel_kind_t const kernel_kind = simsimd_sum_k;
-    simsimd_find_kernel(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k, (simsimd_kernel_punned_t *)&kernel,
-                        &capability);
-    if (!kernel) {
-        PyErr_Format( //
-            PyExc_LookupError,
-            "Unsupported kernel '%c' and datatype combination across vectors ('%s'/'%s') and "
-            "`dtype` override ('%s'/'%s')",
-            kernel_kind,                                                                             //
-            a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
-            dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
-        goto cleanup;
-    }
-
-    char *out_buffer_start = NULL;
-    size_t out_buffer_stride_bytes = 0;
-
-    // Allocate the output matrix if it wasn't provided
-    if (!out_obj) {
-        DistancesTensor *out_buffer_obj =
-            PyObject_NewVar(DistancesTensor, &DistancesTensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
-        if (!out_buffer_obj) {
-            PyErr_NoMemory();
-            goto cleanup;
-        }
-
-        // Initialize the object
-        out_buffer_obj->datatype = dtype;
-        out_buffer_obj->dimensions = 1;
-        out_buffer_obj->shape[0] = a_parsed.dimensions;
-        out_buffer_obj->shape[1] = 1;
-        out_buffer_obj->strides[0] = bytes_per_datatype(dtype);
-        out_buffer_obj->strides[1] = 0;
-        return_obj = (PyObject *)out_buffer_obj;
-        out_buffer_start = (char *)&out_buffer_obj->start[0];
-        out_buffer_stride_bytes = out_buffer_obj->strides[0];
-    }
-    else {
-        out_buffer_start = (char *)&out_parsed.start[0];
-        out_buffer_stride_bytes = out_buffer.strides[0];
-        //? Logic suggests to return `None` in in-place mode...
-        //? SciPy decided differently.
-        return_obj = Py_None;
-    }
-
-    kernel(a_parsed.start, b_parsed.start, a_parsed.dimensions, out_buffer_start);
-cleanup:
-    PyBuffer_Release(&a_buffer);
-    PyBuffer_Release(&b_buffer);
-    PyBuffer_Release(&out_buffer);
-    if (return_obj == Py_None) Py_INCREF(return_obj);
-    return return_obj;
-}
-
-static char const doc_wsum[] = //
-    "Weighted Sum of 2 input vectors.\n"
-    "\n"
-    "Args:\n"
-    "    a (XDArray): First vector.\n"
-    "    b (XDArray): Second vector.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type.\n"
-    "    alpha (float, optional): First scale, 1.0 by default.\n"
-    "    beta (float, optional): Second scale, 1.0 by default.\n"
-    "    out (XDArray, optional): Vector for resulting distances.\n"
-    "Returns:\n"
-    "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n"
-    "\n"
-    "Equivalent to: `alpha * a + beta * b`.\n"
-    "Signature:\n"
-    "    >>> def wsum(a, b, /, dtype, *, alpha, beta, out) -> Optional[DistancesTensor]: ...";
-
-static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
-                          PyObject *args_names_tuple) {
-
-    PyObject *return_obj = NULL;
-
-    // This function accepts up to 6 arguments:
-    PyObject *a_obj = NULL;     // Required object, positional-only
-    PyObject *b_obj = NULL;     // Required object, positional-only
-    PyObject *dtype_obj = NULL; // Optional object, "dtype" keyword or positional
-    PyObject *out_obj = NULL;   // Optional object, "out" keyword-only
-    PyObject *alpha_obj = NULL; // Optional object, "alpha" keyword-only
-    PyObject *beta_obj = NULL;  // Optional object, "beta" keyword-only
-
-    // Once parsed, the arguments will be stored in these variables:
-    char const *dtype_str = NULL;
-    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
-    simsimd_distance_t alpha = 1, beta = 1;
-
-    Py_buffer a_buffer, b_buffer, out_buffer;
-    VectorOrRowsArgument a_parsed, b_parsed, out_parsed;
-    memset(&a_buffer, 0, sizeof(Py_buffer));
-    memset(&b_buffer, 0, sizeof(Py_buffer));
-    memset(&out_buffer, 0, sizeof(Py_buffer));
-
-    Py_ssize_t const args_names_count = args_names_tuple ? PyTuple_Size(args_names_tuple) : 0;
-    Py_ssize_t const args_count = positional_args_count + args_names_count;
-    if (args_count < 2 || args_count > 6) {
-        PyErr_Format(PyExc_TypeError, "Function expects 2-6 arguments, got %zd", args_count);
-        return NULL;
-    }
-    if (positional_args_count > 3) {
-        PyErr_Format(PyExc_TypeError, "Only first 3 arguments can be positional, received %zd", positional_args_count);
-        return NULL;
-    }
-
-    // Positional-only arguments (first and second matrix)
-    a_obj = args[0];
-    b_obj = args[1];
-
-    // Positional or keyword arguments (dtype)
-    if (positional_args_count == 3) dtype_obj = args[2];
-
-    // The rest of the arguments must be checked in the keyword dictionary:
-    for (Py_ssize_t args_names_tuple_progress = 0, args_progress = positional_args_count;
-         args_names_tuple_progress < args_names_count; ++args_progress, ++args_names_tuple_progress) {
-        PyObject *const key = PyTuple_GetItem(args_names_tuple, args_names_tuple_progress);
-        PyObject *const value = args[args_progress];
-        if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0 && !dtype_obj) { dtype_obj = value; }
-        else if (PyUnicode_CompareWithASCIIString(key, "out") == 0 && !out_obj) { out_obj = value; }
-        else if (PyUnicode_CompareWithASCIIString(key, "alpha") == 0 && !alpha_obj) { alpha_obj = value; }
-        else if (PyUnicode_CompareWithASCIIString(key, "beta") == 0 && !beta_obj) { beta_obj = value; }
-        else {
-            PyErr_Format(PyExc_TypeError, "Got unexpected keyword argument: %S", key);
-            return NULL;
-        }
-    }
-
-    // Convert `dtype_obj` to `dtype_str` and to `dtype`
-    if (dtype_obj) {
-        dtype_str = PyUnicode_AsUTF8(dtype_obj);
-        if (!dtype_str && PyErr_Occurred()) {
-            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
-            return NULL;
-        }
-        dtype = python_string_to_datatype(dtype_str);
-        if (dtype == simsimd_datatype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
-            return NULL;
-        }
-    }
-
-    // Convert `alpha_obj` to `alpha` and `beta_obj` to `beta`
-    if (alpha_obj) alpha = PyFloat_AsDouble(alpha_obj);
-    if (beta_obj) beta = PyFloat_AsDouble(beta_obj);
-    if (PyErr_Occurred()) {
-        PyErr_SetString(PyExc_TypeError, "Expected 'alpha' and 'beta' to be a float");
-        return NULL;
-    }
-
-    // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
-    if (!parse_rows(a_obj, &a_buffer, &a_parsed) || !parse_rows(b_obj, &b_buffer, &b_parsed)) return NULL;
-    if (out_obj && !parse_rows(out_obj, &out_buffer, &out_parsed)) return NULL;
-
-    // Check dimensions
-    if (a_parsed.rank != 1 || b_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
-        PyErr_SetString(PyExc_ValueError, "All tensors must be vectors");
-        goto cleanup;
-    }
-    if (a_parsed.dimensions != b_parsed.dimensions || (out_obj && a_parsed.dimensions != out_parsed.dimensions)) {
-        PyErr_SetString(PyExc_ValueError, "Vector dimensions don't match");
-        goto cleanup;
-    }
-
-    // Check data types
-    if (a_parsed.datatype != b_parsed.datatype || a_parsed.datatype == simsimd_datatype_unknown_k ||
-        b_parsed.datatype == simsimd_datatype_unknown_k ||
-        (out_obj && out_parsed.datatype == simsimd_datatype_unknown_k)) {
-        PyErr_SetString(PyExc_TypeError,
-                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
-        goto cleanup;
-    }
-    if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
-
-    // Look up the kernel and the capability
-    simsimd_elementwise_wsum_t kernel = NULL;
-    simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_kernel_kind_t const kernel_kind = simsimd_wsum_k;
-    simsimd_find_kernel(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k, (simsimd_kernel_punned_t *)&kernel,
-                        &capability);
-    if (!kernel) {
-        PyErr_Format( //
-            PyExc_LookupError,
-            "Unsupported kernel '%c' and datatype combination across vectors ('%s'/'%s') and "
-            "`dtype` override ('%s'/'%s')",
-            kernel_kind,                                                                             //
-            a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
-            dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
-        goto cleanup;
-    }
-
-    char *out_buffer_start = NULL;
-    size_t out_buffer_stride_bytes = 0;
-
-    // Allocate the output matrix if it wasn't provided
-    if (!out_obj) {
-        DistancesTensor *out_buffer_obj =
-            PyObject_NewVar(DistancesTensor, &DistancesTensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
-        if (!out_buffer_obj) {
-            PyErr_NoMemory();
-            goto cleanup;
-        }
-
-        // Initialize the object
-        out_buffer_obj->datatype = dtype;
-        out_buffer_obj->dimensions = 1;
-        out_buffer_obj->shape[0] = a_parsed.dimensions;
-        out_buffer_obj->shape[1] = 1;
-        out_buffer_obj->strides[0] = bytes_per_datatype(dtype);
-        out_buffer_obj->strides[1] = 0;
-        return_obj = (PyObject *)out_buffer_obj;
-        out_buffer_start = (char *)&out_buffer_obj->start[0];
-        out_buffer_stride_bytes = out_buffer_obj->strides[0];
-    }
-    else {
-        out_buffer_start = (char *)&out_parsed.start[0];
-        out_buffer_stride_bytes = out_buffer.strides[0];
-        //? Logic suggests to return `None` in in-place mode...
-        //? SciPy decided differently.
-        return_obj = Py_None;
-    }
-
-    kernel(a_parsed.start, b_parsed.start, a_parsed.dimensions, alpha, beta, out_buffer_start);
-cleanup:
-    PyBuffer_Release(&a_buffer);
-    PyBuffer_Release(&b_buffer);
-    PyBuffer_Release(&out_buffer);
-    if (return_obj == Py_None) Py_INCREF(return_obj);
-    return return_obj;
+    return implement_sparse_metric(simsimd_metric_intersect_k, args, nargs);
 }
 
 static char const doc_fma[] = //
-    "Fused-Multiply-Add between 3 input vectors.\n"
-    "\n"
+    "Fused-Multiply-Add between 3 input vectors.\n\n"
     "Args:\n"
-    "    a (XDArray): First vector.\n"
-    "    b (XDArray): Second vector.\n"
-    "    c (XDArray): Third vector.\n"
+    "    a (NDArray): First vector.\n"
+    "    b (NDArray): Second vector.\n"
+    "    c (NDArray): Third vector.\n"
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n"
     "    alpha (float, optional): First scale, 1.0 by default.\n"
     "    beta (float, optional): Second scale, 1.0 by default.\n"
-    "    out (XDArray, optional): Vector for resulting distances.\n"
+    "    out (NDArray, optional): Vector for resulting distances.\n\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n"
-    "\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
     "Equivalent to: `alpha * a * b + beta * c`.\n"
     "Signature:\n"
     "    >>> def fma(a, b, c, /, dtype, *, alpha, beta, out) -> Optional[DistancesTensor]: ...";
@@ -2481,7 +1650,7 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
     simsimd_distance_t alpha = 1, beta = 1;
 
     Py_buffer a_buffer, b_buffer, c_buffer, out_buffer;
-    VectorOrRowsArgument a_parsed, b_parsed, c_parsed, out_parsed;
+    TensorArgument a_parsed, b_parsed, c_parsed, out_parsed;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
     memset(&c_buffer, 0, sizeof(Py_buffer));
@@ -2544,10 +1713,10 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
     }
 
     // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
-    if (!parse_rows(a_obj, &a_buffer, &a_parsed) || !parse_rows(b_obj, &b_buffer, &b_parsed) ||
-        !parse_rows(c_obj, &c_buffer, &c_parsed))
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed) ||
+        !parse_tensor(c_obj, &c_buffer, &c_parsed))
         return NULL;
-    if (out_obj && !parse_rows(out_obj, &out_buffer, &out_parsed)) return NULL;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) return NULL;
 
     // Check dimensions
     if (a_parsed.rank != 1 || b_parsed.rank != 1 || c_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
@@ -2570,803 +1739,102 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
     }
     if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
 
-    // Look up the kernel and the capability
-    simsimd_elementwise_fma_t kernel = NULL;
+    // Look up the metric and the capability
+    simsimd_kernel_fma_punned_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_kernel_kind_t const kernel_kind = simsimd_fma_k;
-    simsimd_find_kernel(kernel_kind, dtype, static_capabilities, simsimd_cap_any_k, (simsimd_kernel_punned_t *)&kernel,
-                        &capability);
-    if (!kernel) {
+    simsimd_metric_kind_t const metric_kind = simsimd_metric_fma_k;
+    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&metric, &capability);
+    if (!metric) {
         PyErr_Format( //
             PyExc_LookupError,
-            "Unsupported kernel '%c' and datatype combination across vectors ('%s'/'%s') and "
+            "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s') and "
             "`dtype` override ('%s'/'%s')",
-            kernel_kind,                                                                             //
+            metric_kind,                                                                             //
             a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
             dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
         goto cleanup;
     }
 
-    char *out_buffer_start = NULL;
-    size_t out_buffer_stride_bytes = 0;
+    char *distances_start = NULL;
+    size_t distances_stride_bytes = 0;
 
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
-        DistancesTensor *out_buffer_obj =
+        DistancesTensor *distances_obj =
             PyObject_NewVar(DistancesTensor, &DistancesTensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
-        if (!out_buffer_obj) {
+        if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
         // Initialize the object
-        out_buffer_obj->datatype = dtype;
-        out_buffer_obj->dimensions = 1;
-        out_buffer_obj->shape[0] = a_parsed.dimensions;
-        out_buffer_obj->shape[1] = 1;
-        out_buffer_obj->strides[0] = bytes_per_datatype(dtype);
-        out_buffer_obj->strides[1] = 0;
-        return_obj = (PyObject *)out_buffer_obj;
-        out_buffer_start = (char *)&out_buffer_obj->start[0];
-        out_buffer_stride_bytes = out_buffer_obj->strides[0];
+        distances_obj->datatype = dtype;
+        distances_obj->dimensions = 1;
+        distances_obj->shape[0] = a_parsed.dimensions;
+        distances_obj->shape[1] = 1;
+        distances_obj->strides[0] = bytes_per_datatype(dtype);
+        distances_obj->strides[1] = 0;
+        return_obj = (PyObject *)distances_obj;
+        distances_start = (char *)&distances_obj->start[0];
+        distances_stride_bytes = distances_obj->strides[0];
     }
     else {
-        out_buffer_start = (char *)&out_parsed.start[0];
-        out_buffer_stride_bytes = out_buffer.strides[0];
+        distances_start = (char *)&out_parsed.start[0];
+        distances_stride_bytes = out_buffer.strides[0];
         //? Logic suggests to return `None` in in-place mode...
         //? SciPy decided differently.
         return_obj = Py_None;
     }
 
-    kernel(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, alpha, beta, out_buffer_start);
+    metric(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, alpha, beta, distances_start);
 cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&b_buffer);
     PyBuffer_Release(&c_buffer);
     PyBuffer_Release(&out_buffer);
-    if (return_obj == Py_None) Py_INCREF(return_obj);
     return return_obj;
 }
 
-typedef void (*binary_kernel_t)(void const *, void const *, void *);
-typedef void (*unary_kernel_t)(void const *, void *);
-
-void apply_elementwise_binary_operation_to_each_scalar( //
-    BufferOrScalarArgument const *a_parsed, BufferOrScalarArgument const *b_parsed,
-    BufferOrScalarArgument const *out_parsed, //
-    binary_kernel_t elementwise_kernel) {
-
-    // The hardest part of this operations is addressing the elements in a non-continuous tensor of arbitrary rank.
-    // While iteratively deepening into the lower layers of the tensor, we need to keep track of the byte offsets
-    // for each dimension to avoid recomputing them in the inner loops.
-    simsimd_xd_index_t a_xd_index, b_xd_index, out_xd_index;
-    memset(&a_xd_index, 0, sizeof(simsimd_xd_index_t));
-    memset(&b_xd_index, 0, sizeof(simsimd_xd_index_t));
-    memset(&out_xd_index, 0, sizeof(simsimd_xd_index_t));
-
-    // Start from last dimension and move backward, replicating the logic
-    // of `simsimd_xd_index_next`, broadcasting the same update logic across the
-    // indexes in all three tensors, and avoiding additional branches inside the loops.
-    while (1) {
-        // Invoke the provided kernel at the current byte offsets
-        elementwise_kernel(a_parsed->as_buffer_start + a_xd_index.byte_offset,
-                           b_parsed->as_buffer_start + b_xd_index.byte_offset,
-                           out_parsed->as_buffer_start + out_xd_index.byte_offset);
-
-        // Advance to the next index
-        Py_ssize_t dim;
-        for (dim = out_parsed->as_buffer_dimensions - 1; dim >= 0; --dim) {
-            out_xd_index.coordinates[dim]++;
-            out_xd_index.byte_offset += out_parsed->as_buffer_strides[dim];
-            a_xd_index.byte_offset += a_parsed->as_buffer_strides[dim];
-            b_xd_index.byte_offset += b_parsed->as_buffer_strides[dim];
-
-            // Successfully moved to the next index in this dimension
-            if (out_xd_index.coordinates[dim] < out_parsed->as_buffer_shape[dim]) break;
-            else {
-                // Reset coordinates and byte offset for this dimension
-                out_xd_index.coordinates[dim] = 0;
-                out_xd_index.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                a_xd_index.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                b_xd_index.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-            }
-        }
-
-        // If we've processed all dimensions, we're done
-        if (dim < 0) break;
-    }
-}
-
-void apply_elementwise_casting_binary_operation_to_each_scalar( //
-    BufferOrScalarArgument const *a_parsed, BufferOrScalarArgument const *b_parsed,
-    BufferOrScalarArgument const *out_parsed,                       //
-    unary_kernel_t a_upcast_kernel, unary_kernel_t b_upcast_kernel, //
-    unary_kernel_t out_downcast_kernel,                             //
-    binary_kernel_t elementwise_kernel) {
-
-    // The hardest part of this operations is addressing the elements in a non-continuous tensor of arbitrary rank.
-    // While iteratively deepening into the lower layers of the tensor, we need to keep track of the byte offsets
-    // for each dimension to avoid recomputing them in the inner loops.
-    simsimd_xd_index_t a_xd_index, b_xd_index, out_xd_index;
-    memset(&a_xd_index, 0, sizeof(simsimd_xd_index_t));
-    memset(&b_xd_index, 0, sizeof(simsimd_xd_index_t));
-    memset(&out_xd_index, 0, sizeof(simsimd_xd_index_t));
-
-    char a_upcast_buffer[8], b_upcast_buffer[8], out_downcast_buffer[8];
-
-    // Start from last dimension and move backward, replicating the logic
-    // of `simsimd_xd_index_next`, broadcasting the same update logic across the
-    // indexes in all three tensors, and avoiding additional branches inside the loops.
-    while (1) {
-        // Invoke the provided kernel at the current byte offsets
-        a_upcast_kernel(a_parsed->as_buffer_start + a_xd_index.byte_offset, a_upcast_buffer);
-        b_upcast_kernel(b_parsed->as_buffer_start + b_xd_index.byte_offset, b_upcast_buffer);
-        elementwise_kernel(a_upcast_buffer, b_upcast_buffer, out_downcast_buffer);
-        out_downcast_kernel(out_downcast_buffer, out_parsed->as_buffer_start + out_xd_index.byte_offset);
-
-        // Advance to the next index
-        Py_ssize_t dim;
-        for (dim = out_parsed->as_buffer_dimensions - 1; dim >= 0; --dim) {
-            out_xd_index.coordinates[dim]++;
-            out_xd_index.byte_offset += out_parsed->as_buffer_strides[dim];
-            a_xd_index.byte_offset += a_parsed->as_buffer_strides[dim];
-            b_xd_index.byte_offset += b_parsed->as_buffer_strides[dim];
-
-            // Successfully moved to the next index in this dimension
-            if (out_xd_index.coordinates[dim] < out_parsed->as_buffer_shape[dim]) break;
-            else {
-                // Reset coordinates and byte offset for this dimension
-                out_xd_index.coordinates[dim] = 0;
-                out_xd_index.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                a_xd_index.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                b_xd_index.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-            }
-        }
-
-        // If we've processed all dimensions, we're done
-        if (dim < 0) break;
-    }
-}
-
-void invoke_elementwise_sum_kernel_for_addition_on_continuous_slice( //
-    void const *a, void const *b, simsimd_size_t n, void *out, void *kernel) {
-    ((simsimd_elementwise_sum_t)kernel)(a, b, n, out);
-}
-
-void invoke_elementwise_fma_kernel_for_multiplication_on_continuous_slice( //
-    void const *a, void const *b, simsimd_size_t n, void *out, void *kernel) {
-    ((simsimd_elementwise_fma_t)kernel)(a, b, b, n, 1, 0, out);
-}
-
-void apply_elementwise_binary_operation_to_each_continuous_slice( //
-    BufferOrScalarArgument const *a_parsed, BufferOrScalarArgument const *b_parsed,
-    BufferOrScalarArgument const *out_parsed, //
-    Py_ssize_t const non_continuous_ranks,    //
-    Py_ssize_t const continuous_elements,     //
-    void (*statefull_binary_kernel)(void const *a, void const *b, simsimd_size_t n, void *out, void *state),
-    void *state) {
-
-    // The hardest part of this operations is addressing the elements in a non-continuous tensor of arbitrary rank.
-    // While iteratively deepening into the lower layers of the tensor, we need to keep track of the byte offsets
-    // for each dimension to avoid recomputing them in the inner loops.
-    simsimd_xd_index_t a_xd_index, b_xd_index, out_xd_index;
-    memset(&a_xd_index, 0, sizeof(simsimd_xd_index_t));
-    memset(&b_xd_index, 0, sizeof(simsimd_xd_index_t));
-    memset(&out_xd_index, 0, sizeof(simsimd_xd_index_t));
-
-    // Start from last dimension and move backward, replicating the logic
-    // of `simsimd_xd_index_next`, broadcasting the same update logic across the
-    // indexes in all three tensors, and avoiding additional branches inside the loops.
-    while (1) {
-        // Invoke the provided kernel at the current byte offsets
-        statefull_binary_kernel(                                //
-            a_parsed->as_buffer_start + a_xd_index.byte_offset, //
-            b_parsed->as_buffer_start + b_xd_index.byte_offset, continuous_elements,
-            out_parsed->as_buffer_start + out_xd_index.byte_offset, //
-            state);
-
-        // Advance to the next index
-        Py_ssize_t dim;
-        for (dim = non_continuous_ranks - 1; dim >= 0; --dim) {
-            out_xd_index.coordinates[dim]++;
-            out_xd_index.byte_offset += out_parsed->as_buffer_strides[dim];
-            a_xd_index.byte_offset += a_parsed->as_buffer_strides[dim];
-            b_xd_index.byte_offset += b_parsed->as_buffer_strides[dim];
-
-            // Successfully moved to the next index in this dimension
-            if (out_xd_index.coordinates[dim] < out_parsed->as_buffer_shape[dim]) break;
-            else {
-                // Reset coordinates and byte offset for this dimension
-                out_xd_index.coordinates[dim] = 0;
-                out_xd_index.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                a_xd_index.byte_offset -= a_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                b_xd_index.byte_offset -= b_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-            }
-        }
-
-        // If we've processed all dimensions, we're done
-        if (dim < 0) break;
-    }
-}
-
-void apply_scale_to_each_continuous_slice(                                               //
-    BufferOrScalarArgument const *input_parsed, simsimd_f64_t alpha, simsimd_f64_t beta, //
-    BufferOrScalarArgument const *out_parsed,                                            //
-    Py_ssize_t const non_continuous_ranks,                                               //
-    Py_ssize_t const continuous_elements,                                                //
-    void (*binary_kernel)(void const *, simsimd_size_t, simsimd_f64_t, simsimd_f64_t, void *)) {
-
-    // The hardest part of this operations is addressing the elements in a non-continuous tensor of arbitrary rank.
-    // While iteratively deepening into the lower layers of the tensor, we need to keep track of the byte offsets
-    // for each dimension to avoid recomputing them in the inner loops.
-    simsimd_xd_index_t input_xd_index, out_xd_index;
-    memset(&input_xd_index, 0, sizeof(simsimd_xd_index_t));
-    memset(&out_xd_index, 0, sizeof(simsimd_xd_index_t));
-
-    // Start from last dimension and move backward, replicating the logic
-    // of `simsimd_xd_index_next`, broadcasting the same update logic across the
-    // indexes in all three tensors, and avoiding additional branches inside the loops.
-    while (1) {
-        // Invoke the provided kernel at the current byte offsets
-        binary_kernel(input_parsed->as_buffer_start + input_xd_index.byte_offset, continuous_elements, alpha, beta,
-                      out_parsed->as_buffer_start + out_xd_index.byte_offset);
-
-        // Advance to the next index
-        Py_ssize_t dim;
-        for (dim = non_continuous_ranks - 1; dim >= 0; --dim) {
-            out_xd_index.coordinates[dim]++;
-            out_xd_index.byte_offset += out_parsed->as_buffer_strides[dim];
-            input_xd_index.byte_offset += input_parsed->as_buffer_strides[dim];
-
-            // Successfully moved to the next index in this dimension
-            if (out_xd_index.coordinates[dim] < out_parsed->as_buffer_shape[dim]) break;
-            else {
-                // Reset coordinates and byte offset for this dimension
-                out_xd_index.coordinates[dim] = 0;
-                out_xd_index.byte_offset -= out_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-                input_xd_index.byte_offset -= input_parsed->as_buffer_strides[dim] * out_parsed->as_buffer_shape[dim];
-            }
-        }
-
-        // If we've processed all dimensions, we're done
-        if (dim < 0) break;
-    }
-}
-
-static binary_kernel_t elementwise_sadd(simsimd_datatype_t dtype) {
-    switch (dtype) {
-    case simsimd_u64_k: return (binary_kernel_t)&_simsimd_u64_sadd;
-    case simsimd_u32_k: return (binary_kernel_t)&_simsimd_u32_sadd;
-    case simsimd_u16_k: return (binary_kernel_t)&_simsimd_u16_sadd;
-    case simsimd_u8_k: return (binary_kernel_t)&_simsimd_u8_sadd;
-    case simsimd_i64_k: return (binary_kernel_t)&_simsimd_i64_sadd;
-    case simsimd_i32_k: return (binary_kernel_t)&_simsimd_i32_sadd;
-    case simsimd_i16_k: return (binary_kernel_t)&_simsimd_i16_sadd;
-    case simsimd_i8_k: return (binary_kernel_t)&_simsimd_i8_sadd;
-    case simsimd_f64_k: return (binary_kernel_t)&_simsimd_f64_sadd;
-    case simsimd_f32_k: return (binary_kernel_t)&_simsimd_f32_sadd;
-    case simsimd_f16_k: return (binary_kernel_t)&_simsimd_f16_sadd;
-    case simsimd_bf16_k: return (binary_kernel_t)&_simsimd_bf16_sadd;
-    default: return NULL;
-    }
-}
-
-static binary_kernel_t elementwise_smul(simsimd_datatype_t dtype) {
-    switch (dtype) {
-    case simsimd_u64_k: return (binary_kernel_t)&_simsimd_u64_smul;
-    case simsimd_u32_k: return (binary_kernel_t)&_simsimd_u32_smul;
-    case simsimd_u16_k: return (binary_kernel_t)&_simsimd_u16_smul;
-    case simsimd_u8_k: return (binary_kernel_t)&_simsimd_u8_smul;
-    case simsimd_i64_k: return (binary_kernel_t)&_simsimd_i64_smul;
-    case simsimd_i32_k: return (binary_kernel_t)&_simsimd_i32_smul;
-    case simsimd_i16_k: return (binary_kernel_t)&_simsimd_i16_smul;
-    case simsimd_i8_k: return (binary_kernel_t)&_simsimd_i8_smul;
-    case simsimd_f64_k: return (binary_kernel_t)&_simsimd_f64_smul;
-    case simsimd_f32_k: return (binary_kernel_t)&_simsimd_f32_smul;
-    case simsimd_f16_k: return (binary_kernel_t)&_simsimd_f16_smul;
-    case simsimd_bf16_k: return (binary_kernel_t)&_simsimd_bf16_smul;
-    default: return NULL;
-    }
-}
-
-static unary_kernel_t elementwise_upcast_to_f64(simsimd_datatype_t dtype) {
-    switch (dtype) {
-    case simsimd_u64_k: return (unary_kernel_t)&_simsimd_u64_to_f64;
-    case simsimd_u32_k: return (unary_kernel_t)&_simsimd_u32_to_f64;
-    case simsimd_u16_k: return (unary_kernel_t)&_simsimd_u16_to_f64;
-    case simsimd_u8_k: return (unary_kernel_t)&_simsimd_u8_to_f64;
-    case simsimd_i64_k: return (unary_kernel_t)&_simsimd_i64_to_f64;
-    case simsimd_i32_k: return (unary_kernel_t)&_simsimd_i32_to_f64;
-    case simsimd_i16_k: return (unary_kernel_t)&_simsimd_i16_to_f64;
-    case simsimd_i8_k: return (unary_kernel_t)&_simsimd_i8_to_f64;
-    case simsimd_f64_k: return (unary_kernel_t)&_simsimd_f64_to_f64;
-    case simsimd_f32_k: return (unary_kernel_t)&_simsimd_f32_to_f64;
-    case simsimd_f16_k: return (unary_kernel_t)&_simsimd_f16_to_f64;
-    case simsimd_bf16_k: return (unary_kernel_t)&_simsimd_bf16_to_f64;
-    default: return NULL;
-    }
-}
-
-static unary_kernel_t elementwise_upcast_to_i64(simsimd_datatype_t dtype) {
-    switch (dtype) {
-    case simsimd_u64_k: return (unary_kernel_t)&_simsimd_u64_to_i64;
-    case simsimd_u32_k: return (unary_kernel_t)&_simsimd_u32_to_i64;
-    case simsimd_u16_k: return (unary_kernel_t)&_simsimd_u16_to_i64;
-    case simsimd_u8_k: return (unary_kernel_t)&_simsimd_u8_to_i64;
-    case simsimd_i64_k: return (unary_kernel_t)&_simsimd_i64_to_i64;
-    case simsimd_i32_k: return (unary_kernel_t)&_simsimd_i32_to_i64;
-    case simsimd_i16_k: return (unary_kernel_t)&_simsimd_i16_to_i64;
-    case simsimd_i8_k: return (unary_kernel_t)&_simsimd_i8_to_i64;
-    case simsimd_f64_k: return NULL;
-    case simsimd_f32_k: return NULL;
-    case simsimd_f16_k: return NULL;
-    case simsimd_bf16_k: return NULL;
-    default: return NULL;
-    }
-}
-
-static unary_kernel_t elementwise_upcast_to_u64(simsimd_datatype_t dtype) {
-    switch (dtype) {
-    case simsimd_u64_k: return (unary_kernel_t)&_simsimd_u64_to_u64;
-    case simsimd_u32_k: return (unary_kernel_t)&_simsimd_u32_to_u64;
-    case simsimd_u16_k: return (unary_kernel_t)&_simsimd_u16_to_u64;
-    case simsimd_u8_k: return (unary_kernel_t)&_simsimd_u8_to_u64;
-    case simsimd_i64_k: return (unary_kernel_t)&_simsimd_i64_to_u64;
-    case simsimd_i32_k: return (unary_kernel_t)&_simsimd_i32_to_u64;
-    case simsimd_i16_k: return (unary_kernel_t)&_simsimd_i16_to_u64;
-    case simsimd_i8_k: return (unary_kernel_t)&_simsimd_i8_to_u64;
-    case simsimd_f64_k: return NULL;
-    case simsimd_f32_k: return NULL;
-    case simsimd_f16_k: return NULL;
-    case simsimd_bf16_k: return NULL;
-    default: return NULL;
-    }
-}
-
-static unary_kernel_t elementwise_downcast_from_f64(simsimd_datatype_t dtype) {
-    switch (dtype) {
-    case simsimd_u64_k: return (unary_kernel_t)&_simsimd_f64_to_u64;
-    case simsimd_u32_k: return (unary_kernel_t)&_simsimd_f64_to_u32;
-    case simsimd_u16_k: return (unary_kernel_t)&_simsimd_f64_to_u16;
-    case simsimd_u8_k: return (unary_kernel_t)&_simsimd_f64_to_u8;
-    case simsimd_i64_k: return (unary_kernel_t)&_simsimd_f64_to_i64;
-    case simsimd_i32_k: return (unary_kernel_t)&_simsimd_f64_to_i32;
-    case simsimd_i16_k: return (unary_kernel_t)&_simsimd_f64_to_i16;
-    case simsimd_i8_k: return (unary_kernel_t)&_simsimd_f64_to_i8;
-    case simsimd_f64_k: return (unary_kernel_t)&_simsimd_f64_to_f64;
-    case simsimd_f32_k: return (unary_kernel_t)&_simsimd_f64_to_f32;
-    case simsimd_f16_k: return (unary_kernel_t)&_simsimd_f64_to_f16;
-    case simsimd_bf16_k: return (unary_kernel_t)&_simsimd_f64_to_bf16;
-    default: return NULL;
-    }
-}
-
-static unary_kernel_t elementwise_downcast_from_i64(simsimd_datatype_t dtype) {
-    switch (dtype) {
-    case simsimd_u64_k: return (unary_kernel_t)&_simsimd_i64_to_u64;
-    case simsimd_u32_k: return (unary_kernel_t)&_simsimd_i64_to_u32;
-    case simsimd_u16_k: return (unary_kernel_t)&_simsimd_i64_to_u16;
-    case simsimd_u8_k: return (unary_kernel_t)&_simsimd_i64_to_u8;
-    case simsimd_i64_k: return (unary_kernel_t)&_simsimd_i64_to_i64;
-    case simsimd_i32_k: return (unary_kernel_t)&_simsimd_i64_to_i32;
-    case simsimd_i16_k: return (unary_kernel_t)&_simsimd_i64_to_i16;
-    case simsimd_i8_k: return (unary_kernel_t)&_simsimd_i64_to_i8;
-    case simsimd_f64_k: return (unary_kernel_t)&_simsimd_i64_to_f64;
-    case simsimd_f32_k: return (unary_kernel_t)&_simsimd_i64_to_f32;
-    case simsimd_f16_k: return (unary_kernel_t)&_simsimd_i64_to_f16;
-    case simsimd_bf16_k: return (unary_kernel_t)&_simsimd_i64_to_bf16;
-    default: return NULL;
-    }
-}
-
-static unary_kernel_t elementwise_downcast_from_u64(simsimd_datatype_t dtype) {
-    switch (dtype) {
-    case simsimd_u64_k: return (unary_kernel_t)&_simsimd_u64_to_u64;
-    case simsimd_u32_k: return (unary_kernel_t)&_simsimd_u64_to_u32;
-    case simsimd_u16_k: return (unary_kernel_t)&_simsimd_u64_to_u16;
-    case simsimd_u8_k: return (unary_kernel_t)&_simsimd_u64_to_u8;
-    case simsimd_i64_k: return (unary_kernel_t)&_simsimd_u64_to_i64;
-    case simsimd_i32_k: return (unary_kernel_t)&_simsimd_u64_to_i32;
-    case simsimd_i16_k: return (unary_kernel_t)&_simsimd_u64_to_i16;
-    case simsimd_i8_k: return (unary_kernel_t)&_simsimd_u64_to_i8;
-    case simsimd_f64_k: return (unary_kernel_t)&_simsimd_u64_to_f64;
-    case simsimd_f32_k: return (unary_kernel_t)&_simsimd_u64_to_f32;
-    case simsimd_f16_k: return (unary_kernel_t)&_simsimd_u64_to_f16;
-    case simsimd_bf16_k: return (unary_kernel_t)&_simsimd_u64_to_bf16;
-    default: return NULL;
-    }
-}
-
-/**
- *  @brief  Determines the output shape of an element-wise tensor operation, where a broadcast is possible
- *          along any one of the dimensionsm and where any argument can be just a scalar.
- *  @return 1 on success, 0 on failure - @b with the error set.
- */
-int numpy_promote_shape(                                  //
-    Py_buffer const *a_buffer, Py_buffer const *b_buffer, //
-    BufferOrScalarArgument *a_parsed, BufferOrScalarArgument *b_parsed, BufferOrScalarArgument *out_parsed) {
-
-    if (a_parsed->shape_kind != XDArrayShapeScalar && b_parsed->shape_kind != XDArrayShapeScalar) {
-        //! The ranks of tensors may not match!
-        // We need to compare them in reverse order, right to left, assuming all the missing dimensions are 1.
-        // To match those, we are going to populate the `a_parsed.as_buffer_shape` and `b_parsed.as_buffer_shape`,
-        // simultaneously filling the strides of broadcasted dimensions with zeros.
-        Py_ssize_t const max_rank = a_buffer->ndim > b_buffer->ndim ? a_buffer->ndim : b_buffer->ndim;
-        Py_ssize_t const min_rank = a_buffer->ndim < b_buffer->ndim ? a_buffer->ndim : b_buffer->ndim;
-        a_parsed->as_buffer_dimensions = max_rank;
-        b_parsed->as_buffer_dimensions = max_rank;
-        out_parsed->as_buffer_dimensions = max_rank;
-
-        // Go through the shared dimensions: back to front
-        for (Py_ssize_t i = 0; i < min_rank; ++i) {
-            Py_ssize_t const a_dim = a_buffer->shape[a_buffer->ndim - 1 - i];
-            Py_ssize_t const b_dim = b_buffer->shape[b_buffer->ndim - 1 - i];
-            Py_ssize_t const a_stride = a_buffer->strides[a_buffer->ndim - 1 - i];
-            Py_ssize_t const b_stride = b_buffer->strides[b_buffer->ndim - 1 - i];
-            // Simplest case! Both dimensions match.
-            if (a_dim == b_dim) {
-                a_parsed->as_buffer_shape[max_rank - 1 - i] = a_dim;
-                b_parsed->as_buffer_shape[max_rank - 1 - i] = b_dim;
-                a_parsed->as_buffer_strides[max_rank - 1 - i] = a_stride;
-                b_parsed->as_buffer_strides[max_rank - 1 - i] = b_stride;
-                out_parsed->as_buffer_shape[max_rank - 1 - i] = a_dim;
-            }
-            // Broadcast this value from A
-            else if (a_dim == 1) {
-                a_parsed->as_buffer_shape[max_rank - 1 - i] = 1;
-                b_parsed->as_buffer_shape[max_rank - 1 - i] = b_dim;
-                a_parsed->as_buffer_strides[max_rank - 1 - i] = 0;
-                b_parsed->as_buffer_strides[max_rank - 1 - i] = b_stride;
-                out_parsed->as_buffer_shape[max_rank - 1 - i] = b_dim;
-            }
-            // Broadcast this value from B
-            else if (b_dim == 1) {
-                a_parsed->as_buffer_shape[max_rank - 1 - i] = a_dim;
-                b_parsed->as_buffer_shape[max_rank - 1 - i] = 1;
-                a_parsed->as_buffer_strides[max_rank - 1 - i] = a_stride;
-                b_parsed->as_buffer_strides[max_rank - 1 - i] = 0;
-                out_parsed->as_buffer_shape[max_rank - 1 - i] = a_dim;
-            }
-            // Report the issue
-            else {
-                PyErr_Format( //
-                    PyExc_ValueError,
-                    "The number of entries %zd (along dimension %zd in the first tensor) doesn't "
-                    "match the number of entries %zd (along dimension %zd in the second tensor)",
-                    a_dim, a_buffer->ndim - 1 - i, b_dim, b_buffer->ndim - 1 - i);
-                return 0;
-            }
-        }
-        // Populate the remaining dimensions: in any order, front to back for simplicity
-        if (a_buffer->ndim > b_buffer->ndim) {
-            for (Py_ssize_t i = 0; i < a_buffer->ndim - b_buffer->ndim; ++i) {
-                Py_ssize_t const longer_dim = a_buffer->shape[i];
-                Py_ssize_t const longer_stride = a_buffer->strides[i];
-                a_parsed->as_buffer_shape[i] = longer_dim;
-                b_parsed->as_buffer_shape[i] = 1;
-                a_parsed->as_buffer_strides[i] = longer_stride;
-                b_parsed->as_buffer_strides[i] = 0;
-                out_parsed->as_buffer_shape[i] = longer_dim;
-            }
-        }
-        else if (b_buffer->ndim - a_buffer->ndim) {
-            for (Py_ssize_t i = 0; i < b_buffer->ndim - a_buffer->ndim; ++i) {
-                Py_ssize_t const longer_dim = b_buffer->shape[i];
-                Py_ssize_t const longer_stride = b_buffer->strides[i];
-                a_parsed->as_buffer_shape[i] = 1;
-                b_parsed->as_buffer_shape[i] = longer_dim;
-                a_parsed->as_buffer_strides[i] = 0;
-                b_parsed->as_buffer_strides[i] = longer_stride;
-                out_parsed->as_buffer_shape[i] = longer_dim;
-            }
-        }
-        return 1;
-    }
-    // If at least one of the entries is actually is a `XDArrayShapeScalar` our logic becomes much easier:
-    else if (a_parsed->shape_kind != XDArrayShapeScalar) {
-        a_parsed->as_buffer_dimensions = a_buffer->ndim;
-        memcpy(a_parsed->as_buffer_shape, a_buffer->shape, a_buffer->ndim * sizeof(Py_ssize_t));
-        memcpy(a_parsed->as_buffer_strides, a_buffer->strides, a_buffer->ndim * sizeof(Py_ssize_t));
-        b_parsed->as_buffer_dimensions = a_buffer->ndim;
-        memcpy(b_parsed->as_buffer_shape, a_buffer->shape, a_buffer->ndim * sizeof(Py_ssize_t));
-        memset(b_parsed->as_buffer_strides, 0, a_buffer->ndim * sizeof(Py_ssize_t));
-        out_parsed->as_buffer_dimensions = a_buffer->ndim;
-        memcpy(out_parsed->as_buffer_shape, a_buffer->shape, a_buffer->ndim * sizeof(Py_ssize_t));
-        return 1;
-    }
-    else if (b_parsed->shape_kind != XDArrayShapeScalar) {
-        a_parsed->as_buffer_dimensions = b_buffer->ndim;
-        memcpy(a_parsed->as_buffer_shape, b_buffer->shape, b_buffer->ndim * sizeof(Py_ssize_t));
-        memset(a_parsed->as_buffer_strides, 0, b_buffer->ndim * sizeof(Py_ssize_t));
-        b_parsed->as_buffer_dimensions = b_buffer->ndim;
-        memcpy(b_parsed->as_buffer_shape, b_buffer->shape, b_buffer->ndim * sizeof(Py_ssize_t));
-        memcpy(b_parsed->as_buffer_strides, b_buffer->strides, b_buffer->ndim * sizeof(Py_ssize_t));
-        out_parsed->as_buffer_dimensions = b_buffer->ndim;
-        memcpy(out_parsed->as_buffer_shape, b_buffer->shape, b_buffer->ndim * sizeof(Py_ssize_t));
-        return 1;
-    }
-    else { return 0; }
-}
-
-/**
- *  @brief  Given two datatypes, infer the datatype of the output tensor.
- *  @see    https://numpy.org/doc/stable/reference/arrays.scalars.html#upcasting
- *  @see    https://numpy.org/doc/stable/reference/arrays.promotion.html
- *  @see    https://numpy.org/doc/stable/reference/generated/numpy.promote_types.html
- *  @return `simsimd_datatype_unknown_k` if the promotion has failed.
- */
-simsimd_datatype_t numpy_promote_types(simsimd_datatype_t a_dtype, simsimd_datatype_t b_dtype) {
-    simsimd_datatype_family_k a_family = simsimd_datatype_family(a_dtype);
-    simsimd_datatype_family_k b_family = simsimd_datatype_family(b_dtype);
-    // For addition and multiplication, treat complex numbers as floats
-    if (a_family == simsimd_datatype_complex_float_family_k) a_family = simsimd_datatype_float_family_k;
-    if (b_family == simsimd_datatype_complex_float_family_k) b_family = simsimd_datatype_float_family_k;
-    // Infer the type-casting rules for the output tensor, if the type was not provided.
-    size_t a_itemsize = bytes_per_datatype(a_dtype);
-    size_t b_itemsize = bytes_per_datatype(b_dtype);
-    size_t max_itemsize = a_itemsize > b_itemsize ? a_itemsize : b_itemsize;
-    if (a_dtype == b_dtype) { return a_dtype; }
-    // Simply take the bigger datatype if they are both floats or both are unsigned integers, etc.
-    else if (a_family == b_family) { return a_itemsize > b_itemsize ? a_dtype : b_dtype; }
-    // If only one of the operands is a float, and the second is integral of same size, the output should be a
-    // float, of the next size... If the floating type is bigger, don't upcast.
-    // Sum of `float16` and `int32` is a `float64`.
-    // Sum of `float16` and `int16` is a `float32`.
-    // Sum of `float32` and `int8` is a `float32`.
-    else if (a_family == simsimd_datatype_float_family_k || b_family == simsimd_datatype_float_family_k) {
-        size_t float_size = a_family == simsimd_datatype_float_family_k ? a_itemsize : b_itemsize;
-        size_t integral_size = a_family == simsimd_datatype_float_family_k ? b_itemsize : a_itemsize;
-        if (float_size <= integral_size) {
-            //? No 128-bit float on most platforms
-            if (max_itemsize == 8) { return simsimd_f64_k; }
-            else if (max_itemsize == 4) { return simsimd_f64_k; }
-            else if (max_itemsize == 2) { return simsimd_f32_k; }
-            else if (max_itemsize == 1) { return simsimd_f16_k; }
-            else { return simsimd_datatype_unknown_k; }
-        }
-        else {
-            if (max_itemsize == 8) { return simsimd_f64_k; }
-            else if (max_itemsize == 4) { return simsimd_f32_k; }
-            else if (max_itemsize == 2) { return simsimd_f16_k; }
-            else if (max_itemsize == 1) { return simsimd_f16_k; }
-            else { return simsimd_datatype_unknown_k; }
-        }
-    }
-    // If only one of the operands is a unsigned, and the second is a signed integral of same size,
-    // the output should be a signed integer, of the next size... If the signed type is bigger, don't upcast.
-    // Sum of `int16` and `uint32` is a `int64`.
-    // Sum of `int16` and `uint16` is a `int32`.
-    // Sum of `int32` and `uint8` is a `int32`.
-    else if (a_family == simsimd_datatype_int_family_k || b_family == simsimd_datatype_int_family_k) {
-        size_t unsigned_size = a_family == simsimd_datatype_int_family_k ? b_itemsize : a_itemsize;
-        size_t signed_size = a_family == simsimd_datatype_int_family_k ? a_itemsize : b_itemsize;
-        if (signed_size <= unsigned_size) {
-            //? No 128-bit integer on most platforms
-            if (max_itemsize == 8) { return simsimd_i64_k; }
-            else if (max_itemsize == 4) { return simsimd_i64_k; }
-            else if (max_itemsize == 2) { return simsimd_i32_k; }
-            else if (max_itemsize == 1) { return simsimd_i16_k; }
-            else { return simsimd_datatype_unknown_k; }
-        }
-        else {
-            if (max_itemsize == 8) { return simsimd_i64_k; }
-            else if (max_itemsize == 4) { return simsimd_i32_k; }
-            else if (max_itemsize == 2) { return simsimd_i16_k; }
-            else if (max_itemsize == 1) { return simsimd_i16_k; }
-            else { return simsimd_datatype_unknown_k; }
-        }
-    }
-    // For boolean and complex types, we don't yet have a clear policy.
-    else { return simsimd_datatype_unknown_k; }
-}
-
-/**
- *  @brief  When dealing with binary operations, where at least one argument is a single sclar (not
- *          an entire tensor), use this function to upcast the scalar to the same datatype as the tensor.
- *  @return 1 if the operation was successful, 0 if the operation failed.
- */
-int bring_scalar_operand_to_promoted_type(                              //
-    BufferOrScalarArgument *a_parsed, BufferOrScalarArgument *b_parsed, //
-    simsimd_datatype_t promoted_dtype) {
-
-    if (a_parsed->datatype == b_parsed->datatype) return 1;
-    if (a_parsed->shape_kind == XDArrayShapeNonUnit && b_parsed->shape_kind == XDArrayShapeNonUnit) return 1;
-
-    simsimd_datatype_family_k const promoted_family = simsimd_datatype_family(promoted_dtype);
-    if (promoted_family == simsimd_datatype_float_family_k) {
-        if (a_parsed->datatype != promoted_dtype && a_parsed->shape_kind != XDArrayShapeNonUnit) {
-            elementwise_upcast_to_f64(a_parsed->datatype)(a_parsed->as_scalar, a_parsed->as_scalar);
-            elementwise_downcast_from_f64(promoted_dtype)(a_parsed->as_scalar, a_parsed->as_scalar);
-            a_parsed->datatype = promoted_dtype;
-        }
-        if (b_parsed->datatype != promoted_dtype && b_parsed->shape_kind != XDArrayShapeNonUnit) {
-            elementwise_upcast_to_f64(b_parsed->datatype)(b_parsed->as_scalar, b_parsed->as_scalar);
-            elementwise_downcast_from_f64(promoted_dtype)(b_parsed->as_scalar, b_parsed->as_scalar);
-            b_parsed->datatype = promoted_dtype;
-        }
-        return 1;
-    }
-    else if (promoted_family == simsimd_datatype_uint_family_k) {
-        if (a_parsed->datatype != promoted_dtype && a_parsed->shape_kind != XDArrayShapeNonUnit) {
-            elementwise_upcast_to_u64(a_parsed->datatype)(a_parsed->as_scalar, a_parsed->as_scalar);
-            elementwise_downcast_from_u64(promoted_dtype)(a_parsed->as_scalar, a_parsed->as_scalar);
-            a_parsed->datatype = promoted_dtype;
-        }
-        if (b_parsed->datatype != promoted_dtype && b_parsed->shape_kind != XDArrayShapeNonUnit) {
-            elementwise_upcast_to_u64(b_parsed->datatype)(b_parsed->as_scalar, b_parsed->as_scalar);
-            elementwise_downcast_from_u64(promoted_dtype)(b_parsed->as_scalar, b_parsed->as_scalar);
-            b_parsed->datatype = promoted_dtype;
-        }
-        return 1;
-    }
-    else if (promoted_family == simsimd_datatype_int_family_k) {
-        if (a_parsed->datatype != promoted_dtype && a_parsed->shape_kind != XDArrayShapeNonUnit) {
-            elementwise_upcast_to_i64(a_parsed->datatype)(a_parsed->as_scalar, a_parsed->as_scalar);
-            elementwise_downcast_from_i64(promoted_dtype)(a_parsed->as_scalar, a_parsed->as_scalar);
-            a_parsed->datatype = promoted_dtype;
-        }
-        if (b_parsed->datatype != promoted_dtype && b_parsed->shape_kind != XDArrayShapeNonUnit) {
-            elementwise_upcast_to_i64(b_parsed->datatype)(b_parsed->as_scalar, b_parsed->as_scalar);
-            elementwise_downcast_from_i64(promoted_dtype)(b_parsed->as_scalar, b_parsed->as_scalar);
-            b_parsed->datatype = promoted_dtype;
-        }
-        return 1;
-    }
-    else { return 0; }
-}
-
-/**
- *  @brief  When performing binary tensor operations, where no vectorized kernels are available,
- *          this last-resort solution is used to apply a serial kernel to each scalar in the tensors.
- *  @return 1 if the operation was successful, 0 if the operation failed.
- */
-int fallback_binary_scalar_operation( //
-    BufferOrScalarArgument const *a_parsed, BufferOrScalarArgument const *b_parsed, BufferOrScalarArgument *out_parsed,
-    simsimd_datatype_t promoted_dtype, binary_kernel_t (*elementwise_kernel_provider)(simsimd_datatype_t)) {
-
-    // If the output has no continuous dimensions at all, our situation sucks!
-    // We can't use SIMD effectively and need to fall back to the scalar operation,
-    // but if the input/output types match, at least we don't need to cast the data back and forth.
-    if (a_parsed->datatype == b_parsed->datatype && a_parsed->datatype == out_parsed->datatype) {
-        binary_kernel_t binary_kernel_ptr = elementwise_kernel_provider(a_parsed->datatype);
-        apply_elementwise_binary_operation_to_each_scalar(a_parsed, b_parsed, out_parsed, binary_kernel_ptr);
-        return 1;
-    }
-
-    // If the output has no continuous dimensions at all, our situation sucks!
-    // If the type of outputs and inputs doesn't match, it also sucks!
-    // We can't use SIMD effectively and need to fall back to the scalar operation.
-    else if (simsimd_datatype_family(promoted_dtype) == simsimd_datatype_float_family_k) {
-        unary_kernel_t a_upcast_ptr = elementwise_upcast_to_f64(a_parsed->datatype);
-        unary_kernel_t b_upcast_ptr = elementwise_upcast_to_f64(b_parsed->datatype);
-        binary_kernel_t binary_kernel_ptr = elementwise_kernel_provider(simsimd_f64_k);
-        unary_kernel_t out_downcast_ptr = elementwise_downcast_from_f64(out_parsed->datatype);
-        apply_elementwise_casting_binary_operation_to_each_scalar( //
-            a_parsed, b_parsed, out_parsed,                        //
-            a_upcast_ptr, b_upcast_ptr, out_downcast_ptr, binary_kernel_ptr);
-        return 1;
-    }
-    else if (simsimd_datatype_family(promoted_dtype) == simsimd_datatype_uint_family_k) {
-        unary_kernel_t a_upcast_ptr = elementwise_upcast_to_u64(a_parsed->datatype);
-        unary_kernel_t b_upcast_ptr = elementwise_upcast_to_u64(b_parsed->datatype);
-        binary_kernel_t binary_kernel_ptr = elementwise_kernel_provider(simsimd_u64_k);
-        unary_kernel_t out_downcast_ptr = elementwise_downcast_from_u64(out_parsed->datatype);
-        apply_elementwise_casting_binary_operation_to_each_scalar( //
-            a_parsed, b_parsed, out_parsed,                        //
-            a_upcast_ptr, b_upcast_ptr, out_downcast_ptr, binary_kernel_ptr);
-        return 1;
-    }
-    else if (simsimd_datatype_family(promoted_dtype) == simsimd_datatype_int_family_k) {
-        unary_kernel_t a_upcast_ptr = elementwise_upcast_to_i64(a_parsed->datatype);
-        unary_kernel_t b_upcast_ptr = elementwise_upcast_to_i64(b_parsed->datatype);
-        binary_kernel_t binary_kernel_ptr = elementwise_kernel_provider(simsimd_i64_k);
-        unary_kernel_t out_downcast_ptr = elementwise_downcast_from_i64(out_parsed->datatype);
-        apply_elementwise_casting_binary_operation_to_each_scalar( //
-            a_parsed, b_parsed, out_parsed,                        //
-            a_upcast_ptr, b_upcast_ptr, out_downcast_ptr, binary_kernel_ptr);
-        return 1;
-    }
-    else { return 0; }
-}
-
-/**
- *  @brief  Infers the number of last continuous dimensions of a buffer/tensor, that form
- *          continuous memory blocks, allowing vectorized elementwise operations.
- *  @return 1 if continuous dimensions are found, 0 otherwise.
- */
-int buffer_has_continuos_dimensions( //
-    BufferOrScalarArgument const *parsed, Py_ssize_t *continuous_dimensions_ptr, Py_ssize_t *continuous_elements_ptr) {
-    Py_ssize_t continuous_dimensions = 0;
-    Py_ssize_t continuous_elements = 1;
-    Py_ssize_t expected_last_stride_bytes = bytes_per_datatype(parsed->datatype);
-    for (Py_ssize_t i = parsed->as_buffer_dimensions - 1; i >= 0; --i) {
-        if (parsed->as_buffer_strides[i] != expected_last_stride_bytes) break;
-        ++continuous_dimensions;
-        expected_last_stride_bytes *= parsed->as_buffer_shape[i];
-        continuous_elements *= parsed->as_buffer_shape[i];
-    }
-    *continuous_dimensions_ptr = continuous_dimensions;
-    *continuous_elements_ptr = continuous_elements;
-    return continuous_dimensions > 0;
-}
-
-/**
- *  @brief  Make sure the output tensor has the same shape as we expect.
- *  @return 1 if the output tensor has the expected shape, 0 otherwise, @b with the error set.
- */
-int validate_output_buffer_shape(Py_buffer const *received, BufferOrScalarArgument const *expected) {
-    if (received->ndim != expected->as_buffer_dimensions) {
-        PyErr_Format(PyExc_ValueError, "Output tensor has rank-%zd, but rank-%zd is expected", received->ndim,
-                     expected->as_buffer_dimensions);
-        return 0;
-    }
-    for (Py_ssize_t i = 0; i < expected->as_buffer_dimensions; ++i) {
-        if (received->shape[i] != expected->as_buffer_shape[i]) {
-            PyErr_Format(PyExc_ValueError,
-                         "Output tensor doesn't match the input tensor in shape at dimension %zd: %zd != %zd", i,
-                         received->shape[i], expected->as_buffer_shape[i]);
-            return 0;
-        }
-    }
-    return 1;
-}
-
-static char const doc_add[] = //
-    "Tensor-Tensor or Tensor-Scalar element-wise addition.\n"
-    "\n"
+static char const doc_wsum[] = //
+    "Weighted Sum of 2 input vectors.\n\n"
     "Args:\n"
-    "    a (Union[XDArray, float, int]): First Tensor or scalar.\n"
-    "    b (Union[XDArray, float, int]): Second Tensor or scalar.\n"
-    "    out (XDArray, optional): Tensor for resulting distances.\n"
-    "    a_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `a`.\n"
-    "    b_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `b`.\n"
-    "    out_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `out`.\n"
+    "    a (NDArray): First vector.\n"
+    "    b (NDArray): Second vector.\n"
+    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n"
+    "    alpha (float, optional): First scale, 1.0 by default.\n"
+    "    beta (float, optional): Second scale, 1.0 by default.\n"
+    "    out (NDArray, optional): Vector for resulting distances.\n\n"
     "Returns:\n"
     "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n"
-    "\n"
-    "Equivalent to: `a + b`, but unlike the `sum` API supports scalar arguments.\n"
+    "    None: If `out` is provided. Operation will per performed in-place.\n\n"
+    "Equivalent to: `alpha * a + beta * b`.\n"
     "Signature:\n"
-    "    >>> def add(a, b, /, *, out, a_dtype, b_dtype, out_dtype) -> Optional[DistancesTensor]: ...\n"
-    "\n"
-    "Performance recommendations:\n"
-    "    - Provide an output tensor to avoid memory allocations.\n"
-    "    - Use the same datatype for both inputs and outputs, if supplied.\n"
-    "    - Ideally keep operands in continuous memory and maximize the number of last continuous dimensions.\n"
-    "    - On tiny inputs you may want to avoid passing arguments by name.\n"
-    "In most cases, conforming to these recommendations is easy and will result in the best performance.\n"
-    "\n"
-    "Broadcasting rules:\n"
-    "    - If both inputs are scalars, the output will be a scalar.\n"
-    "    - If one input is a scalar, the output will be a tensor of the same shape as the other input.\n"
-    "    - If both inputs are tensors, in each dimension, the size must match or one of them must be 1.\n"
-    "Broadcasting examples for different shapes:\n"
-    "    - (3) + (1) -> (3)\n"
-    "    - (3, 1) + (1) -> (3, 1)\n"
-    "    - (3, 1) + (1, 1) -> (3, 1)\n"
-    "    - (4, 7, 5, 3) + (1) -> (4, 7, 5, 3)\n"
-    "    - (4, 7, 5, 3) + (1, 1, 1) -> (4, 7, 5, 3)\n"
-    "    - (4, 7, 5, 3) + (4, 1, 5, 1) -> (4, 7, 5, 3).\n"
-    "    - (4, 7, 5, 3) + (1, 1, 1, 1, 1) -> (1, 4, 7, 5, 3)\n"
-    "    - (4, 7, 5, 3) + (2, 1, 1, 1, 1) -> (2, 4, 7, 5, 3)\n"
-    "\n"
-    "Typecasting rules:\n"
-    "    - If one of tensors contains integrals and the other - floats, `float64` addition will be used.\n"
-    "    - If input tensors contain different sign integrals, `int64` saturating addition will be used.\n"
-    "    - If input tensors contain different size unsigned integrals, `uint64` saturating addition will be used.";
+    "    >>> def wsum(a, b, /, dtype, *, alpha, beta, out) -> Optional[DistancesTensor]: ...";
 
-static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
-                         PyObject *args_names_tuple) {
+static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                          PyObject *args_names_tuple) {
 
     PyObject *return_obj = NULL;
 
-    // This function accepts up to 6 arguments:
-    PyObject *a_obj = NULL;         // Required object, positional-only
-    PyObject *b_obj = NULL;         // Required object, positional-only
-    PyObject *out_obj = NULL;       // Optional object, "out" keyword-only
-    PyObject *a_dtype_obj = NULL;   // Optional object, "a_dtype" keyword-only
-    PyObject *b_dtype_obj = NULL;   // Optional object, "b_dtype" keyword-only
-    PyObject *out_dtype_obj = NULL; // Optional object, "out_dtype" keyword-only
+    // This function accepts up to 5 arguments:
+    PyObject *a_obj = NULL;     // Required object, positional-only
+    PyObject *b_obj = NULL;     // Required object, positional-only
+    PyObject *dtype_obj = NULL; // Optional object, "dtype" keyword or positional
+    PyObject *out_obj = NULL;   // Optional object, "out" keyword-only
+    PyObject *alpha_obj = NULL; // Optional object, "alpha" keyword-only
+    PyObject *beta_obj = NULL;  // Optional object, "beta" keyword-only
+
+    // Once parsed, the arguments will be stored in these variables:
+    char const *dtype_str = NULL;
+    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
+    simsimd_distance_t alpha = 1, beta = 1;
+
+    Py_buffer a_buffer, b_buffer, out_buffer;
+    TensorArgument a_parsed, b_parsed, out_parsed;
+    memset(&a_buffer, 0, sizeof(Py_buffer));
+    memset(&b_buffer, 0, sizeof(Py_buffer));
+    memset(&out_buffer, 0, sizeof(Py_buffer));
 
     Py_ssize_t const args_names_count = args_names_tuple ? PyTuple_Size(args_names_tuple) : 0;
     Py_ssize_t const args_count = positional_args_count + args_names_count;
@@ -3374,8 +1842,8 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         PyErr_Format(PyExc_TypeError, "Function expects 2-6 arguments, got %zd", args_count);
         return NULL;
     }
-    if (positional_args_count > 2) {
-        PyErr_Format(PyExc_TypeError, "Only first 2 arguments can be positional, received %zd", positional_args_count);
+    if (positional_args_count > 3) {
+        PyErr_Format(PyExc_TypeError, "Only first 3 arguments can be positional, received %zd", positional_args_count);
         return NULL;
     }
 
@@ -3383,527 +1851,123 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     a_obj = args[0];
     b_obj = args[1];
 
-    // The rest of the arguments must be checked in the keyword dictionary:
-    for (Py_ssize_t args_names_tuple_progress = 0, args_progress = positional_args_count;
-         args_names_tuple_progress < args_names_count; ++args_progress, ++args_names_tuple_progress) {
-        PyObject *const key = PyTuple_GetItem(args_names_tuple, args_names_tuple_progress);
-        PyObject *const value = args[args_progress];
-        if (PyUnicode_CompareWithASCIIString(key, "a_dtype") == 0 && !a_dtype_obj) { a_dtype_obj = value; }
-        else if (PyUnicode_CompareWithASCIIString(key, "b_dtype") == 0 && !b_dtype_obj) { b_dtype_obj = value; }
-        else if (PyUnicode_CompareWithASCIIString(key, "out_dtype") == 0 && !out_dtype_obj) { out_dtype_obj = value; }
-        else if (PyUnicode_CompareWithASCIIString(key, "out") == 0 && !out_obj) { out_obj = value; }
-        else {
-            PyErr_Format(PyExc_TypeError, "Got unexpected keyword argument: %S", key);
-            return NULL;
-        }
-    }
-
-    // Convert `a_dtype_obj` to `a_dtype_str` and to `a_dtype`
-    char const *a_dtype_str = NULL, *b_dtype_str = NULL, *out_dtype_str = NULL;
-    simsimd_datatype_t a_dtype = simsimd_datatype_unknown_k, b_dtype = simsimd_datatype_unknown_k,
-                       out_dtype = simsimd_datatype_unknown_k;
-    if (a_dtype_obj) a_dtype_str = PyUnicode_AsUTF8(a_dtype_obj), a_dtype = python_string_to_datatype(a_dtype_str);
-    if (b_dtype_obj) b_dtype_str = PyUnicode_AsUTF8(b_dtype_obj), b_dtype = python_string_to_datatype(b_dtype_str);
-    if (out_dtype_obj)
-        out_dtype_str = PyUnicode_AsUTF8(out_dtype_obj), out_dtype = python_string_to_datatype(out_dtype_str);
-    if ((a_dtype_obj || b_dtype_obj || out_dtype_obj) && (!a_dtype_str && !b_dtype_str && !out_dtype_str)) {
-        if (PyErr_Occurred()) return NULL;
-        if (a_dtype == simsimd_datatype_unknown_k && b_dtype == simsimd_datatype_unknown_k &&
-            out_dtype == simsimd_datatype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
-            return NULL;
-        }
-    }
-
-    // Unlike `sum` and `fma` the first and second argument can be either scalars or tensors.
-    // Resolving the the shape of the output tensor and the traversal order is going to be nightmare, behold!
-    // To understand the logic, look into the the broadcasting rules in the docstring above.
-    BufferOrScalarArgument a_parsed, b_parsed, out_parsed;
-    memset(&a_parsed, 0, sizeof(BufferOrScalarArgument));
-    memset(&b_parsed, 0, sizeof(BufferOrScalarArgument));
-    memset(&out_parsed, 0, sizeof(BufferOrScalarArgument));
-    Py_buffer a_buffer, b_buffer, out_buffer;
-    memset(&a_buffer, 0, sizeof(Py_buffer));
-    memset(&b_buffer, 0, sizeof(Py_buffer));
-    memset(&out_buffer, 0, sizeof(Py_buffer));
-
-    // Convert `alpha_obj` to `alpha` and `beta_obj` to `beta`
-    if (!parse_buffer_or_scalar_argument(a_obj, &a_buffer, &a_parsed)) goto cleanup;
-    if (!parse_buffer_or_scalar_argument(b_obj, &b_buffer, &b_parsed)) goto cleanup;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed.datatype)) goto cleanup;
-
-    // Check dimensions, but unlike the `sum`, `scale`, `wsum`, and `fma` APIs
-    // we want to provide maximal compatibility with NumPy and OpenCV. In many
-    // such cases, the input is not a rank-1 tensor and may not be continuous.
-    if (!numpy_promote_shape(&a_buffer, &b_buffer, &a_parsed, &b_parsed, &out_parsed)) goto cleanup;
-
-    // At this point the parsed "logical shapes" of both inputs are identical.
-    // Now we can use the inferred logical shape to check the output tensor.
-    if (out_obj && !validate_output_buffer_shape(&out_buffer, &out_parsed)) goto cleanup;
-
-    // First we need to understand the smallest numeric type we may need for this computation.
-    simsimd_datatype_family_k const a_family = simsimd_datatype_family(a_parsed.datatype);
-    simsimd_datatype_family_k const b_family = simsimd_datatype_family(b_parsed.datatype);
-    if (a_family == simsimd_datatype_binary_family_k || b_family == simsimd_datatype_binary_family_k ||
-        a_family == simsimd_datatype_unknown_family_k || b_family == simsimd_datatype_unknown_family_k) {
-        PyErr_SetString(PyExc_ValueError, "Boolean tensors are not supported in element-wise operations");
-        goto cleanup;
-    }
-    // Infer the type-casting rules for the output tensor, if the type was not provided.
-    simsimd_datatype_t const ab_dtype = numpy_promote_types(a_parsed.datatype, b_parsed.datatype);
-    if (ab_dtype == simsimd_datatype_unknown_k) {
-        PyErr_Format(PyExc_ValueError, "Can't infer type promotion rules for %s and %s",
-                     datatype_to_python_string(a_parsed.datatype), datatype_to_python_string(b_parsed.datatype));
-        goto cleanup;
-    }
-    // If dealing with scalars, consider up-casting them to the same `ab_dtype` datatype.
-    // That way we will be use the `apply_elementwise_binary_operation_to_each_scalar` function
-    // instead of the `apply_elementwise_casting_binary_operation_to_each_scalar` function.
-    bring_scalar_operand_to_promoted_type(&a_parsed, &b_parsed, ab_dtype);
-
-    // Allocate the output matrix if it wasn't provided. Unlike other kernels,
-    // it's shape will exactly match the shape of the input tensors, but the strides
-    // may be different, assuming the output tensor is continuous by default.
-    if (!out_obj) {
-        // Estimate the total number of output elements:
-        Py_ssize_t out_total_elements = 1;
-        for (Py_ssize_t i = 0; i < out_parsed.as_buffer_dimensions; ++i)
-            out_total_elements *= out_parsed.as_buffer_shape[i];
-
-        // Allocate the output tensor
-        Py_ssize_t const expected_size_bytes = out_total_elements * bytes_per_datatype(ab_dtype);
-        XDArray *mdarray_obj = PyObject_NewVar(XDArray, &XDArrayType, expected_size_bytes);
-        if (!mdarray_obj) {
-            PyErr_NoMemory();
-            goto cleanup;
-        }
-
-        // Initialize the object to zero state
-        memset(mdarray_obj->shape, 0, sizeof(mdarray_obj->shape));
-        memset(mdarray_obj->strides, 0, sizeof(mdarray_obj->strides));
-
-        // Define the new `XDArray` shape
-        mdarray_obj->datatype = ab_dtype;
-        mdarray_obj->ndim = out_parsed.as_buffer_dimensions;
-        memcpy(mdarray_obj->shape, out_parsed.as_buffer_shape, out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
-        mdarray_obj->strides[out_parsed.as_buffer_dimensions - 1] = bytes_per_datatype(ab_dtype);
-        for (Py_ssize_t i = out_parsed.as_buffer_dimensions - 2; i >= 0; --i)
-            mdarray_obj->strides[i] = mdarray_obj->strides[i + 1] * mdarray_obj->shape[i + 1];
-
-        // Re-export into the `out_parsed` for future use
-        out_parsed.datatype = ab_dtype;
-        out_parsed.as_buffer_start = (char *)&mdarray_obj->start[0];
-        memcpy(out_parsed.as_buffer_strides, mdarray_obj->strides,
-               out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
-
-        // Return the new `XDArray` object
-        return_obj = (PyObject *)mdarray_obj;
-    }
-    else {
-        out_parsed.as_buffer_dimensions = out_buffer.ndim;
-        out_parsed.as_buffer_start = (char *)out_buffer.buf;
-        memcpy(out_parsed.as_buffer_shape, out_buffer.shape, out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
-        memcpy(out_parsed.as_buffer_strides, out_buffer.strides, out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
-        //? Logic suggests to return `None` in in-place mode...
-        //? SciPy decided differently.
-        return_obj = Py_None;
-    }
-    // We need to infer the number of (last) continuous dimensions in the output tensor
-    // to be able to apply the element-wise operation.
-    Py_ssize_t out_continuous_dimensions, a_continuous_dimensions, b_continuous_dimensions;
-    Py_ssize_t out_continuous_elements, a_continuous_elements, b_continuous_elements;
-    buffer_has_continuos_dimensions(&out_parsed, &out_continuous_dimensions, &out_continuous_elements);
-    buffer_has_continuos_dimensions(&a_parsed, &a_continuous_dimensions, &a_continuous_elements);
-    buffer_has_continuos_dimensions(&b_parsed, &b_continuous_dimensions, &b_continuous_elements);
-    Py_ssize_t const ins_continuous_dimensions =
-        a_continuous_dimensions < b_continuous_dimensions ? a_continuous_dimensions : b_continuous_dimensions;
-    Py_ssize_t const ins_continuous_elements =
-        a_continuous_elements < b_continuous_elements ? a_continuous_elements : b_continuous_elements;
-    Py_ssize_t const continuous_ranks =
-        out_continuous_dimensions < ins_continuous_dimensions ? out_continuous_dimensions : ins_continuous_dimensions;
-    Py_ssize_t const non_continuous_ranks = out_parsed.as_buffer_dimensions - continuous_ranks;
-    Py_ssize_t const continuous_elements =
-        out_continuous_elements < ins_continuous_elements ? out_continuous_elements : ins_continuous_elements;
-
-    // First of all, check for our optimal case, when:
-    // - both input operands are not scalars.
-    // - there is at least one continuous dimension.
-    // - the types match between both input tensors and output: uses `sum` kernel.
-    // ... where we will use the vectorized kernel!
-    if ((continuous_elements > 1) &&
-        (a_parsed.datatype == b_parsed.datatype && a_parsed.datatype == out_parsed.datatype)) {
-        // Look up the kernel and the capability
-        simsimd_elementwise_sum_t kernel = NULL;
-        simsimd_capability_t capability = simsimd_cap_serial_k;
-        simsimd_kernel_kind_t const kernel_kind = simsimd_sum_k;
-        simsimd_find_kernel(kernel_kind, ab_dtype, static_capabilities, simsimd_cap_any_k,
-                            (simsimd_kernel_punned_t *)&kernel, &capability);
-        if (!kernel) {
-            PyErr_Format( //
-                PyExc_LookupError, "Unsupported kernel '%c' and datatype combination across inputs ('%s' and '%s')",
-                kernel_kind,                                  //
-                datatype_to_python_string(a_parsed.datatype), //
-                datatype_to_python_string(b_parsed.datatype));
-            if (return_obj && return_obj != Py_None) Py_DECREF(return_obj);
-            return_obj = NULL;
-            goto cleanup;
-        }
-
-        apply_elementwise_binary_operation_to_each_continuous_slice( //
-            &a_parsed, &b_parsed, &out_parsed,                       //
-            non_continuous_ranks, continuous_elements, invoke_elementwise_sum_kernel_for_addition_on_continuous_slice,
-            kernel);
-        goto cleanup;
-    }
-
-    // Our second best case is when:
-    // - there is only one input tensor and the second operand is a scalar,
-    // - there is at least one continuous dimension in the input and output tensor,
-    // - the types match between the input tensor and output tensor.
-    int const is_tensor_a_with_scalar_b = //
-        a_parsed.shape_kind == XDArrayShapeNonUnit && a_parsed.datatype == out_parsed.datatype &&
-        b_parsed.shape_kind != XDArrayShapeNonUnit;
-    int const is_tensor_b_with_scalar_b = //
-        b_parsed.shape_kind == XDArrayShapeNonUnit && b_parsed.datatype == out_parsed.datatype &&
-        a_parsed.shape_kind != XDArrayShapeNonUnit;
-    if ((continuous_elements > 1) && (is_tensor_a_with_scalar_b || is_tensor_b_with_scalar_b)) {
-        // Look up the kernel and the capability
-        simsimd_elementwise_scale_t kernel = NULL;
-        simsimd_capability_t capability = simsimd_cap_serial_k;
-        simsimd_kernel_kind_t const kernel_kind = simsimd_scale_k;
-        simsimd_find_kernel(kernel_kind, ab_dtype, static_capabilities, simsimd_cap_any_k,
-                            (simsimd_kernel_punned_t *)&kernel, &capability);
-        if (!kernel) {
-            PyErr_Format( //
-                PyExc_LookupError, "Unsupported kernel '%c' and datatype combination across inputs ('%s' and '%s')",
-                kernel_kind,                                  //
-                datatype_to_python_string(a_parsed.datatype), //
-                datatype_to_python_string(b_parsed.datatype));
-            if (return_obj && return_obj != Py_None) Py_DECREF(return_obj);
-            return_obj = NULL;
-            goto cleanup;
-        }
-
-        if (is_tensor_a_with_scalar_b)
-            apply_scale_to_each_continuous_slice(           //
-                &a_parsed, 1, b_parsed.as_f64, &out_parsed, //
-                non_continuous_ranks, continuous_elements, kernel);
-        else
-            apply_scale_to_each_continuous_slice(           //
-                &b_parsed, 1, a_parsed.as_f64, &out_parsed, //
-                non_continuous_ranks, continuous_elements, kernel);
-
-        goto cleanup;
-    }
-
-    // Finally call the serial kernels!
-    fallback_binary_scalar_operation(&a_parsed, &b_parsed, &out_parsed, ab_dtype, &elementwise_sadd);
-
-cleanup:
-    PyBuffer_Release(&a_buffer);
-    PyBuffer_Release(&b_buffer);
-    if (out_obj) PyBuffer_Release(&out_buffer);
-    if (return_obj == Py_None) Py_INCREF(return_obj);
-    return return_obj;
-}
-
-static char const doc_multiply[] = //
-    "Tensor-Tensor or Tensor-Scalar element-wise multiplication.\n"
-    "\n"
-    "Args:\n"
-    "    a (Union[XDArray, float, int]): First Tensor or scalar.\n"
-    "    b (Union[XDArray, float, int]): Second Tensor or scalar.\n"
-    "    out (XDArray, optional): Tensor for resulting distances.\n"
-    "    a_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `a`.\n"
-    "    b_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `b`.\n"
-    "    out_dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type of `out`.\n"
-    "Returns:\n"
-    "    DistancesTensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will per performed in-place.\n"
-    "\n"
-    "Equivalent to: `a + b`, but unlike the `sum` API supports scalar arguments.\n"
-    "Signature:\n"
-    "    >>> def multiply(a, b, /, *, out, a_dtype, b_dtype, out_dtype) -> Optional[DistancesTensor]: ...\n"
-    "\n"
-    "Performance recommendations:\n"
-    "    - Provide an output tensor to avoid memory allocations.\n"
-    "    - Use the same datatype for both inputs and outputs, if supplied.\n"
-    "    - Ideally keep operands in continuous memory and maximize the number of last continuous dimensions.\n"
-    "    - On tiny inputs you may want to avoid passing arguments by name.\n"
-    "In most cases, conforming to these recommendations is easy and will result in the best performance.\n"
-    "\n"
-    "Broadcasting rules:\n"
-    "    - If both inputs are scalars, the output will be a scalar.\n"
-    "    - If one input is a scalar, the output will be a tensor of the same shape as the other input.\n"
-    "    - If both inputs are tensors, in each dimension, the size must match or one of them must be 1.\n"
-    "Broadcasting examples for different shapes:\n"
-    "    - (3) + (1) -> (3)\n"
-    "    - (3, 1) + (1) -> (3, 1)\n"
-    "    - (3, 1) + (1, 1) -> (3, 1)\n"
-    "    - (4, 7, 5, 3) + (1) -> (4, 7, 5, 3)\n"
-    "    - (4, 7, 5, 3) + (1, 1, 1) -> (4, 7, 5, 3)\n"
-    "    - (4, 7, 5, 3) + (4, 1, 5, 1) -> (4, 7, 5, 3).\n"
-    "    - (4, 7, 5, 3) + (1, 1, 1, 1, 1) -> (1, 4, 7, 5, 3)\n"
-    "    - (4, 7, 5, 3) + (2, 1, 1, 1, 1) -> (2, 4, 7, 5, 3)\n"
-    "\n"
-    "Typecasting rules:\n"
-    "    - If one of tensors contains integrals and the other - floats, `float64` multiplication will be used.\n"
-    "    - If input tensors contain different sign integrals, `int64` saturating multiplication will be used.\n"
-    "    - If input tensors contain different size unsigned integrals, `uint64` saturating multiplication will be "
-    "used.";
-
-static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
-                              PyObject *args_names_tuple) {
-
-    PyObject *return_obj = NULL;
-
-    // This function accepts up to 6 arguments:
-    PyObject *a_obj = NULL;         // Required object, positional-only
-    PyObject *b_obj = NULL;         // Required object, positional-only
-    PyObject *out_obj = NULL;       // Optional object, "out" keyword-only
-    PyObject *a_dtype_obj = NULL;   // Optional object, "a_dtype" keyword-only
-    PyObject *b_dtype_obj = NULL;   // Optional object, "b_dtype" keyword-only
-    PyObject *out_dtype_obj = NULL; // Optional object, "out_dtype" keyword-only
-
-    Py_ssize_t const args_names_count = args_names_tuple ? PyTuple_Size(args_names_tuple) : 0;
-    Py_ssize_t const args_count = positional_args_count + args_names_count;
-    if (args_count < 2 || args_count > 6) {
-        PyErr_Format(PyExc_TypeError, "Function expects 2-6 arguments, got %zd", args_count);
-        return NULL;
-    }
-    if (positional_args_count > 2) {
-        PyErr_Format(PyExc_TypeError, "Only first 2 arguments can be positional, received %zd", positional_args_count);
-        return NULL;
-    }
-
-    // Positional-only arguments (first and second matrix)
-    a_obj = args[0];
-    b_obj = args[1];
+    // Positional or keyword arguments (dtype)
+    if (positional_args_count == 3) dtype_obj = args[2];
 
     // The rest of the arguments must be checked in the keyword dictionary:
     for (Py_ssize_t args_names_tuple_progress = 0, args_progress = positional_args_count;
          args_names_tuple_progress < args_names_count; ++args_progress, ++args_names_tuple_progress) {
         PyObject *const key = PyTuple_GetItem(args_names_tuple, args_names_tuple_progress);
         PyObject *const value = args[args_progress];
-        if (PyUnicode_CompareWithASCIIString(key, "a_dtype") == 0 && !a_dtype_obj) { a_dtype_obj = value; }
-        else if (PyUnicode_CompareWithASCIIString(key, "b_dtype") == 0 && !b_dtype_obj) { b_dtype_obj = value; }
-        else if (PyUnicode_CompareWithASCIIString(key, "out_dtype") == 0 && !out_dtype_obj) { out_dtype_obj = value; }
+        if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0 && !dtype_obj) { dtype_obj = value; }
         else if (PyUnicode_CompareWithASCIIString(key, "out") == 0 && !out_obj) { out_obj = value; }
+        else if (PyUnicode_CompareWithASCIIString(key, "alpha") == 0 && !alpha_obj) { alpha_obj = value; }
+        else if (PyUnicode_CompareWithASCIIString(key, "beta") == 0 && !beta_obj) { beta_obj = value; }
         else {
             PyErr_Format(PyExc_TypeError, "Got unexpected keyword argument: %S", key);
             return NULL;
         }
     }
 
-    // Convert `a_dtype_obj` to `a_dtype_str` and to `a_dtype`
-    char const *a_dtype_str = NULL, *b_dtype_str = NULL, *out_dtype_str = NULL;
-    simsimd_datatype_t a_dtype = simsimd_datatype_unknown_k, b_dtype = simsimd_datatype_unknown_k,
-                       out_dtype = simsimd_datatype_unknown_k;
-    if (a_dtype_obj) a_dtype_str = PyUnicode_AsUTF8(a_dtype_obj), a_dtype = python_string_to_datatype(a_dtype_str);
-    if (b_dtype_obj) b_dtype_str = PyUnicode_AsUTF8(b_dtype_obj), b_dtype = python_string_to_datatype(b_dtype_str);
-    if (out_dtype_obj)
-        out_dtype_str = PyUnicode_AsUTF8(out_dtype_obj), out_dtype = python_string_to_datatype(out_dtype_str);
-    if ((a_dtype_obj || b_dtype_obj || out_dtype_obj) && (!a_dtype_str && !b_dtype_str && !out_dtype_str)) {
-        if (PyErr_Occurred()) return NULL;
-        if (a_dtype == simsimd_datatype_unknown_k && b_dtype == simsimd_datatype_unknown_k &&
-            out_dtype == simsimd_datatype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
+    // Convert `dtype_obj` to `dtype_str` and to `dtype`
+    if (dtype_obj) {
+        dtype_str = PyUnicode_AsUTF8(dtype_obj);
+        if (!dtype_str && PyErr_Occurred()) {
+            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
+            return NULL;
+        }
+        dtype = python_string_to_datatype(dtype_str);
+        if (dtype == simsimd_datatype_unknown_k) {
+            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
     }
 
-    // Unlike `sum` and `fma` the first and second argument can be either scalars or tensors.
-    // Resolving the the shape of the output tensor and the traversal order is going to be nightmare, behold!
-    // To understand the logic, look into the the broadcasting rules in the docstring above.
-    BufferOrScalarArgument a_parsed, b_parsed, out_parsed;
-    memset(&a_parsed, 0, sizeof(BufferOrScalarArgument));
-    memset(&b_parsed, 0, sizeof(BufferOrScalarArgument));
-    memset(&out_parsed, 0, sizeof(BufferOrScalarArgument));
-    Py_buffer a_buffer, b_buffer, out_buffer;
-    memset(&a_buffer, 0, sizeof(Py_buffer));
-    memset(&b_buffer, 0, sizeof(Py_buffer));
-    memset(&out_buffer, 0, sizeof(Py_buffer));
-
     // Convert `alpha_obj` to `alpha` and `beta_obj` to `beta`
-    if (!parse_buffer_or_scalar_argument(a_obj, &a_buffer, &a_parsed)) goto cleanup;
-    if (!parse_buffer_or_scalar_argument(b_obj, &b_buffer, &b_parsed)) goto cleanup;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed.datatype)) goto cleanup;
+    if (alpha_obj) alpha = PyFloat_AsDouble(alpha_obj);
+    if (beta_obj) beta = PyFloat_AsDouble(beta_obj);
+    if (PyErr_Occurred()) {
+        PyErr_SetString(PyExc_TypeError, "Expected 'alpha' and 'beta' to be a float");
+        return NULL;
+    }
 
-    // Check dimensions, but unlike the `sum`, `scale`, `wsum`, and `fma` APIs
-    // we want to provide maximal compatibility with NumPy and OpenCV. In many
-    // such cases, the input is not a rank-1 tensor and may not be continuous.
-    if (!numpy_promote_shape(&a_buffer, &b_buffer, &a_parsed, &b_parsed, &out_parsed)) goto cleanup;
+    // Convert `a_obj` to `a_buffer` and to `a_parsed`. Same for `b_obj` and `out_obj`.
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) return NULL;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) return NULL;
 
-    // At this point the parsed "logical shapes" of both inputs are identical.
-    // Now we can use the inferred logical shape to check the output tensor.
-    if (out_obj && !validate_output_buffer_shape(&out_buffer, &out_parsed)) goto cleanup;
-
-    // First we need to understand the smallest numeric type we may need for this computation.
-    simsimd_datatype_family_k const a_family = simsimd_datatype_family(a_parsed.datatype);
-    simsimd_datatype_family_k const b_family = simsimd_datatype_family(b_parsed.datatype);
-    if (a_family == simsimd_datatype_binary_family_k || b_family == simsimd_datatype_binary_family_k ||
-        a_family == simsimd_datatype_unknown_family_k || b_family == simsimd_datatype_unknown_family_k) {
-        PyErr_SetString(PyExc_ValueError, "Boolean tensors are not supported in element-wise operations");
+    // Check dimensions
+    if (a_parsed.rank != 1 || b_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
+        PyErr_SetString(PyExc_ValueError, "All tensors must be vectors");
         goto cleanup;
     }
-    // Infer the type-casting rules for the output tensor, if the type was not provided.
-    simsimd_datatype_t const ab_dtype = numpy_promote_types(a_parsed.datatype, b_parsed.datatype);
-    if (ab_dtype == simsimd_datatype_unknown_k) {
-        PyErr_Format(PyExc_ValueError, "Can't infer type promotion rules for %s and %s",
-                     datatype_to_python_string(a_parsed.datatype), datatype_to_python_string(b_parsed.datatype));
+    if (a_parsed.dimensions != b_parsed.dimensions || (out_obj && a_parsed.dimensions != out_parsed.dimensions)) {
+        PyErr_SetString(PyExc_ValueError, "Vector dimensions don't match");
         goto cleanup;
     }
 
-    // If dealing with scalars, consider up-casting them to the same `ab_dtype` datatype.
-    // That way we will be use the `apply_elementwise_binary_operation_to_each_scalar` function
-    // instead of the `apply_elementwise_casting_binary_operation_to_each_scalar` function.
-    bring_scalar_operand_to_promoted_type(&a_parsed, &b_parsed, ab_dtype);
+    // Check data types
+    if (a_parsed.datatype != b_parsed.datatype || a_parsed.datatype == simsimd_datatype_unknown_k ||
+        b_parsed.datatype == simsimd_datatype_unknown_k ||
+        (out_obj && out_parsed.datatype == simsimd_datatype_unknown_k)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
+        goto cleanup;
+    }
+    if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
 
-    // Allocate the output matrix if it wasn't provided. Unlike other kernels,
-    // it's shape will exactly match the shape of the input tensors, but the strides
-    // may be different, assuming the output tensor is continuous by default.
+    // Look up the metric and the capability
+    simsimd_kernel_wsum_punned_t metric = NULL;
+    simsimd_capability_t capability = simsimd_cap_serial_k;
+    simsimd_metric_kind_t const metric_kind = simsimd_metric_wsum_k;
+    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&metric, &capability);
+    if (!metric) {
+        PyErr_Format( //
+            PyExc_LookupError,
+            "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s') and "
+            "`dtype` override ('%s'/'%s')",
+            metric_kind,                                                                             //
+            a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
+            dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
+        goto cleanup;
+    }
+
+    char *distances_start = NULL;
+    size_t distances_stride_bytes = 0;
+
+    // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
-        // Estimate the total number of output elements:
-        Py_ssize_t out_total_elements = 1;
-        for (Py_ssize_t i = 0; i < out_parsed.as_buffer_dimensions; ++i)
-            out_total_elements *= out_parsed.as_buffer_shape[i];
-
-        // Allocate the output tensor
-        Py_ssize_t const expected_size_bytes = out_total_elements * bytes_per_datatype(ab_dtype);
-        XDArray *mdarray_obj = PyObject_NewVar(XDArray, &XDArrayType, expected_size_bytes);
-        if (!mdarray_obj) {
+        DistancesTensor *distances_obj =
+            PyObject_NewVar(DistancesTensor, &DistancesTensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
+        if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
-        // Initialize the object to zero state
-        memset(mdarray_obj->shape, 0, sizeof(mdarray_obj->shape));
-        memset(mdarray_obj->strides, 0, sizeof(mdarray_obj->strides));
-
-        // Define the new `XDArray` shape
-        mdarray_obj->datatype = ab_dtype;
-        mdarray_obj->ndim = out_parsed.as_buffer_dimensions;
-        memcpy(mdarray_obj->shape, out_parsed.as_buffer_shape, out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
-        mdarray_obj->strides[out_parsed.as_buffer_dimensions - 1] = bytes_per_datatype(ab_dtype);
-        for (Py_ssize_t i = out_parsed.as_buffer_dimensions - 2; i >= 0; --i)
-            mdarray_obj->strides[i] = mdarray_obj->strides[i + 1] * mdarray_obj->shape[i + 1];
-
-        // Re-export into the `out_parsed` for future use
-        out_parsed.datatype = ab_dtype;
-        out_parsed.as_buffer_start = (char *)&mdarray_obj->start[0];
-        memcpy(out_parsed.as_buffer_strides, mdarray_obj->strides,
-               out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
-
-        // Return the new `XDArray` object
-        return_obj = (PyObject *)mdarray_obj;
+        // Initialize the object
+        distances_obj->datatype = dtype;
+        distances_obj->dimensions = 1;
+        distances_obj->shape[0] = a_parsed.dimensions;
+        distances_obj->shape[1] = 1;
+        distances_obj->strides[0] = bytes_per_datatype(dtype);
+        distances_obj->strides[1] = 0;
+        return_obj = (PyObject *)distances_obj;
+        distances_start = (char *)&distances_obj->start[0];
+        distances_stride_bytes = distances_obj->strides[0];
     }
     else {
-        out_parsed.as_buffer_dimensions = out_buffer.ndim;
-        out_parsed.as_buffer_start = (char *)out_buffer.buf;
-        memcpy(out_parsed.as_buffer_shape, out_buffer.shape, out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
-        memcpy(out_parsed.as_buffer_strides, out_buffer.strides, out_parsed.as_buffer_dimensions * sizeof(Py_ssize_t));
+        distances_start = (char *)&out_parsed.start[0];
+        distances_stride_bytes = out_buffer.strides[0];
         //? Logic suggests to return `None` in in-place mode...
         //? SciPy decided differently.
         return_obj = Py_None;
     }
 
-    // We need to infer the number of (last) continuous dimensions in the output tensor
-    // to be able to apply the element-wise operation.
-    Py_ssize_t out_continuous_dimensions, a_continuous_dimensions, b_continuous_dimensions;
-    Py_ssize_t out_continuous_elements, a_continuous_elements, b_continuous_elements;
-    buffer_has_continuos_dimensions(&out_parsed, &out_continuous_dimensions, &out_continuous_elements);
-    buffer_has_continuos_dimensions(&a_parsed, &a_continuous_dimensions, &a_continuous_elements);
-    buffer_has_continuos_dimensions(&b_parsed, &b_continuous_dimensions, &b_continuous_elements);
-    Py_ssize_t const ins_continuous_dimensions =
-        a_continuous_dimensions < b_continuous_dimensions ? a_continuous_dimensions : b_continuous_dimensions;
-    Py_ssize_t const ins_continuous_elements =
-        a_continuous_elements < b_continuous_elements ? a_continuous_elements : b_continuous_elements;
-    Py_ssize_t const continuous_ranks =
-        out_continuous_dimensions < ins_continuous_dimensions ? out_continuous_dimensions : ins_continuous_dimensions;
-    Py_ssize_t const non_continuous_ranks = out_parsed.as_buffer_dimensions - continuous_ranks;
-    Py_ssize_t const continuous_elements =
-        out_continuous_elements < ins_continuous_elements ? out_continuous_elements : ins_continuous_elements;
-
-    // First of all, check for our optimal case, when:
-    // - both input operands are not scalars.
-    // - there is at least one continuous dimension.
-    // - the types match between both input tensors and output: uses `fma` kernel.
-    // ... where we will use the vectorized kernel!
-    if ((continuous_elements > 1) &&
-        (a_parsed.datatype == b_parsed.datatype && a_parsed.datatype == out_parsed.datatype)) {
-
-        // Look up the kernel and the capability
-        simsimd_elementwise_fma_t kernel = NULL;
-        simsimd_capability_t capability = simsimd_cap_serial_k;
-        simsimd_kernel_kind_t const kernel_kind = simsimd_fma_k;
-        simsimd_find_kernel(kernel_kind, ab_dtype, static_capabilities, simsimd_cap_any_k,
-                            (simsimd_kernel_punned_t *)&kernel, &capability);
-        if (!kernel) {
-            PyErr_Format( //
-                PyExc_LookupError, "Unsupported kernel '%c' and datatype combination across inputs ('%s' and '%s')",
-                kernel_kind,                                  //
-                datatype_to_python_string(a_parsed.datatype), //
-                datatype_to_python_string(b_parsed.datatype));
-            if (return_obj && return_obj != Py_None) Py_DECREF(return_obj);
-            return_obj = NULL;
-            goto cleanup;
-        }
-
-        apply_elementwise_binary_operation_to_each_continuous_slice( //
-            &a_parsed, &b_parsed, &out_parsed,                       //
-            non_continuous_ranks, continuous_elements,
-            invoke_elementwise_fma_kernel_for_multiplication_on_continuous_slice, kernel);
-        goto cleanup;
-    }
-
-    // Our second best case is when:
-    // - there is only one input tensor and the second operand is a scalar,
-    // - there is at least one continuous dimension in the input and output tensor,
-    // - the types match between the input tensor and output tensor.
-    int const is_tensor_a_with_scalar_b = //
-        a_parsed.shape_kind == XDArrayShapeNonUnit && a_parsed.datatype == out_parsed.datatype &&
-        b_parsed.shape_kind != XDArrayShapeNonUnit;
-    int const is_tensor_b_with_scalar_b = //
-        b_parsed.shape_kind == XDArrayShapeNonUnit && b_parsed.datatype == out_parsed.datatype &&
-        a_parsed.shape_kind != XDArrayShapeNonUnit;
-    if ((continuous_elements > 1) && (is_tensor_a_with_scalar_b || is_tensor_b_with_scalar_b)) {
-        // Look up the kernel and the capability
-        simsimd_elementwise_scale_t kernel = NULL;
-        simsimd_capability_t capability = simsimd_cap_serial_k;
-        simsimd_kernel_kind_t const kernel_kind = simsimd_scale_k;
-        simsimd_find_kernel(kernel_kind, ab_dtype, static_capabilities, simsimd_cap_any_k,
-                            (simsimd_kernel_punned_t *)&kernel, &capability);
-        if (!kernel) {
-            PyErr_Format( //
-                PyExc_LookupError, "Unsupported kernel '%c' and datatype combination across inputs ('%s' and '%s')",
-                kernel_kind,                                  //
-                datatype_to_python_string(a_parsed.datatype), //
-                datatype_to_python_string(b_parsed.datatype));
-            if (return_obj && return_obj != Py_None) Py_DECREF(return_obj);
-            return_obj = NULL;
-            goto cleanup;
-        }
-
-        if (is_tensor_a_with_scalar_b)
-            apply_scale_to_each_continuous_slice(           //
-                &a_parsed, b_parsed.as_f64, 0, &out_parsed, //
-                non_continuous_ranks, continuous_elements, kernel);
-        else
-            apply_scale_to_each_continuous_slice(           //
-                &b_parsed, a_parsed.as_f64, 0, &out_parsed, //
-                non_continuous_ranks, continuous_elements, kernel);
-
-        goto cleanup;
-    }
-
-    // Finally call the serial kernels!
-    fallback_binary_scalar_operation(&a_parsed, &b_parsed, &out_parsed, ab_dtype, &elementwise_smul);
-
+    metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, alpha, beta, distances_start);
 cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&b_buffer);
-    if (out_obj) PyBuffer_Release(&out_buffer);
-    if (return_obj == Py_None) Py_INCREF(return_obj);
+    PyBuffer_Release(&out_buffer);
     return return_obj;
 }
 
@@ -3929,7 +1993,7 @@ static PyMethodDef simsimd_methods[] = {
     {"l2sq", (PyCFunction)api_l2sq, METH_FASTCALL | METH_KEYWORDS, doc_l2sq},
     {"kl", (PyCFunction)api_kl, METH_FASTCALL | METH_KEYWORDS, doc_kl},
     {"js", (PyCFunction)api_js, METH_FASTCALL | METH_KEYWORDS, doc_js},
-    {"angular", (PyCFunction)api_angular, METH_FASTCALL | METH_KEYWORDS, doc_cos},
+    {"cos", (PyCFunction)api_cos, METH_FASTCALL | METH_KEYWORDS, doc_cos},
     {"dot", (PyCFunction)api_dot, METH_FASTCALL | METH_KEYWORDS, doc_dot},
     {"vdot", (PyCFunction)api_vdot, METH_FASTCALL | METH_KEYWORDS, doc_vdot},
     {"hamming", (PyCFunction)api_hamming, METH_FASTCALL | METH_KEYWORDS, doc_hamming},
@@ -3938,6 +2002,7 @@ static PyMethodDef simsimd_methods[] = {
     // Aliases
     {"euclidean", (PyCFunction)api_l2, METH_FASTCALL | METH_KEYWORDS, doc_l2},
     {"sqeuclidean", (PyCFunction)api_l2sq, METH_FASTCALL | METH_KEYWORDS, doc_l2sq},
+    {"cosine", (PyCFunction)api_cos, METH_FASTCALL | METH_KEYWORDS, doc_cos},
     {"inner", (PyCFunction)api_dot, METH_FASTCALL | METH_KEYWORDS, doc_dot},
     {"kullbackleibler", (PyCFunction)api_kl, METH_FASTCALL | METH_KEYWORDS, doc_kl},
     {"jensenshannon", (PyCFunction)api_js, METH_FASTCALL | METH_KEYWORDS, doc_js},
@@ -3948,7 +2013,7 @@ static PyMethodDef simsimd_methods[] = {
     // Exposing underlying API for USearch `CompiledMetric`
     {"pointer_to_euclidean", (PyCFunction)api_l2_pointer, METH_O, doc_l2_pointer},
     {"pointer_to_sqeuclidean", (PyCFunction)api_l2sq_pointer, METH_O, doc_l2sq_pointer},
-    {"pointer_to_angular", (PyCFunction)api_angular_pointer, METH_O, doc_cos_pointer},
+    {"pointer_to_cosine", (PyCFunction)api_cos_pointer, METH_O, doc_cos_pointer},
     {"pointer_to_inner", (PyCFunction)api_dot_pointer, METH_O, doc_dot_pointer},
     {"pointer_to_dot", (PyCFunction)api_dot_pointer, METH_O, doc_dot_pointer},
     {"pointer_to_vdot", (PyCFunction)api_vdot_pointer, METH_O, doc_vdot_pointer},
@@ -3963,15 +2028,8 @@ static PyMethodDef simsimd_methods[] = {
     {"mahalanobis", (PyCFunction)api_mahalanobis, METH_FASTCALL | METH_KEYWORDS, doc_mahalanobis},
 
     // Vectorized operations
-    {"scale", (PyCFunction)api_scale, METH_FASTCALL | METH_KEYWORDS, doc_scale},
-    {"sum", (PyCFunction)api_sum, METH_FASTCALL | METH_KEYWORDS, doc_sum},
-    {"wsum", (PyCFunction)api_wsum, METH_FASTCALL | METH_KEYWORDS, doc_wsum},
     {"fma", (PyCFunction)api_fma, METH_FASTCALL | METH_KEYWORDS, doc_fma},
-
-    // NumPy and OpenCV compatible APIs for element-wise binary operations,
-    // that support both vector and scalar arguments
-    {"add", (PyCFunction)api_add, METH_FASTCALL | METH_KEYWORDS, doc_add},
-    {"multiply", (PyCFunction)api_multiply, METH_FASTCALL | METH_KEYWORDS, doc_multiply},
+    {"wsum", (PyCFunction)api_wsum, METH_FASTCALL | METH_KEYWORDS, doc_wsum},
 
     // Sentinel
     {NULL, NULL, 0, NULL}};
@@ -3993,7 +2051,7 @@ static char const doc_module[] = //
     "   impact on performance, but most modern HPC packages explicitly ban non-contiguous rows,\n"
     "   where the nearby matrix cells within a row have multi-byte gaps.\n"
     " - The CPython runtime has a noticeable overhead for function calls, so consider batching\n"
-    "   kernel invocations. Many kernels can compute not only 1-to-1 distance between vectors,\n"
+    "   kernel invokations. Many kernels can compute not only 1-to-1 distance between vectors,\n"
     "   but also 1-to-N and N-to-N distances between two batches of vectors packed into matrices.\n"
     "\n"
     "Example:\n"
@@ -4016,7 +2074,6 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
     PyObject *m;
 
     if (PyType_Ready(&DistancesTensorType) < 0) return NULL;
-    if (PyType_Ready(&XDArrayType) < 0) return NULL;
 
     m = PyModule_Create(&simsimd_module);
     if (m == NULL) return NULL;
@@ -4035,14 +2092,6 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
 
     Py_INCREF(&DistancesTensorType);
     if (PyModule_AddObject(m, "DistancesTensor", (PyObject *)&DistancesTensorType) < 0) {
-        Py_XDECREF(&DistancesTensorType);
-        Py_XDECREF(m);
-        return NULL;
-    }
-
-    Py_INCREF(&XDArrayType);
-    if (PyModule_AddObject(m, "XDArray", (PyObject *)&XDArrayType) < 0) {
-        Py_XDECREF(&XDArrayType);
         Py_XDECREF(&DistancesTensorType);
         Py_XDECREF(m);
         return NULL;

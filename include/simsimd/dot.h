@@ -20,9 +20,6 @@
  *  - Arm: NEON, SVE
  *  - x86: Haswell, Ice Lake, Skylake, Genoa, Sapphire
  *
- *  ! When dealing with complex numbers, the dot product exports two results: the real and imaginary parts.
- *  ? When dealing with low-precision input numbers, the dot product is still computed with higher precision.
- *
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
@@ -170,10 +167,10 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t co
     SIMSIMD_PUBLIC void simsimd_dot_##input_type##_##name(simsimd_##input_type##_t const *a,                   \
                                                           simsimd_##input_type##_t const *b, simsimd_size_t n, \
                                                           simsimd_distance_t *result) {                        \
-        simsimd_##accumulator_type##_t ab = 0, ai, bi;                                                         \
+        simsimd_##accumulator_type##_t ab = 0;                                                                 \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                              \
-            load_and_convert(a + i, &ai);                                                                      \
-            load_and_convert(b + i, &bi);                                                                      \
+            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                       \
+            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                       \
             ab += ai * bi;                                                                                     \
         }                                                                                                      \
         *result = ab;                                                                                          \
@@ -229,8 +226,8 @@ SIMSIMD_MAKE_DOT(serial, bf16, f32, SIMSIMD_BF16_TO_F32)           // simsimd_do
 SIMSIMD_MAKE_COMPLEX_DOT(serial, bf16c, f32, SIMSIMD_BF16_TO_F32)  // simsimd_dot_bf16c_serial
 SIMSIMD_MAKE_COMPLEX_VDOT(serial, bf16c, f32, SIMSIMD_BF16_TO_F32) // simsimd_vdot_bf16c_serial
 
-SIMSIMD_MAKE_DOT(serial, i8, i64, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_dot_i8_serial
-SIMSIMD_MAKE_DOT(serial, u8, i64, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_dot_u8_serial
+SIMSIMD_MAKE_DOT(serial, i8, i64, SIMSIMD_DEREFERENCE) // simsimd_dot_i8_serial
+SIMSIMD_MAKE_DOT(serial, u8, i64, SIMSIMD_DEREFERENCE) // simsimd_dot_u8_serial
 
 SIMSIMD_MAKE_DOT(accurate, f32, f64, SIMSIMD_DEREFERENCE)           // simsimd_dot_f32_accurate
 SIMSIMD_MAKE_COMPLEX_DOT(accurate, f32c, f64, SIMSIMD_DEREFERENCE)  // simsimd_dot_f32c_accurate
@@ -548,7 +545,7 @@ SIMSIMD_PUBLIC void simsimd_dot_bf16_neon(simsimd_bf16_t const *a_scalars, simsi
     float32x4_t ab_vec = vdupq_n_f32(0);
 
 simsimd_dot_bf16_neon_cycle:
-    if (count_scalars < 4) {
+    if (count_scalars < 8) {
         a_vec = _simsimd_partial_load_bf16x8_neon(a_scalars, count_scalars);
         b_vec = _simsimd_partial_load_bf16x8_neon(b_scalars, count_scalars);
         count_scalars = 0;
@@ -556,7 +553,7 @@ simsimd_dot_bf16_neon_cycle:
     else {
         a_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const *)a_scalars);
         b_vec = vld1q_bf16((simsimd_bf16_for_arm_simd_t const *)b_scalars);
-        a_scalars += 4, b_scalars += 4, count_scalars -= 4;
+        a_scalars += 8, b_scalars += 8, count_scalars -= 8;
     }
     ab_vec = vbfdotq_f32(ab_vec, a_vec, b_vec);
     if (count_scalars) goto simsimd_dot_bf16_neon_cycle;
@@ -1153,7 +1150,7 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const *a_scalars, simsim
     //      __m256i ab_i16_vec = _mm256_maddubs_epi16(a_i8_abs_vec, b_i8_flipped_vec);
     //
     // The problem with this approach, however, is the `-128` value in the second vector.
-    // Flipping it's sign will do nothing, and the result will be incorrect.
+    // Flipping its sign will do nothing, and the result will be incorrect.
     // This can easily lead to noticeable numerical errors in the final result.
     simsimd_size_t idx_scalars = 0;
     for (; idx_scalars + 32 <= count_scalars; idx_scalars += 32) {
@@ -1166,7 +1163,7 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const *a_scalars, simsim
         __m256i b_i16_low_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_i8_vec, 0));
         __m256i b_i16_high_vec = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_i8_vec, 1));
 
-        // Multiply and accumulate at int16 level, accumulate at `int32` level
+        // Multiply and accumulate at `int16` level, accumulate at `int32` level
         ab_i32_low_vec = _mm256_add_epi32(ab_i32_low_vec, _mm256_madd_epi16(a_i16_low_vec, b_i16_low_vec));
         ab_i32_high_vec = _mm256_add_epi32(ab_i32_high_vec, _mm256_madd_epi16(a_i16_high_vec, b_i16_high_vec));
     }
@@ -1200,7 +1197,7 @@ SIMSIMD_PUBLIC void simsimd_dot_u8_haswell(simsimd_u8_t const *a_scalars, simsim
         __m256i b_i16_low_vec = _mm256_unpacklo_epi8(b_u8_vec, zeros_vec);
         __m256i b_i16_high_vec = _mm256_unpackhi_epi8(b_u8_vec, zeros_vec);
 
-        // Multiply and accumulate at int16 level, accumulate at int32 level
+        // Multiply and accumulate at `int16` level, accumulate at `int32` level
         ab_i32_low_vec = _mm256_add_epi32(ab_i32_low_vec, _mm256_madd_epi16(a_i16_low_vec, b_i16_low_vec));
         ab_i32_high_vec = _mm256_add_epi32(ab_i32_high_vec, _mm256_madd_epi16(a_i16_high_vec, b_i16_high_vec));
     }

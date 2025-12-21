@@ -5,8 +5,8 @@
  *  @date       October 20, 2023
  *
  *  Contains:
- *  - Kullback-Leibler divergence
- *  - Jensen–Shannon divergence
+ *  - Kullback-Leibler divergence (TODO: Rename handle to `kld`)
+ *  - Jensen–Shannon divergence (TODO: Rename handle to `jsd`)
  *
  *  For datatypes:
  *  - 32-bit floating point numbers
@@ -35,33 +35,33 @@ extern "C" {
  *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
  *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
  */
-SIMSIMD_PUBLIC void simsimd_kl_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_js_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_kl_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_js_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_kl_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_js_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_kl_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_js_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+SIMSIMD_PUBLIC void simsimd_kl_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_js_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_kl_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_js_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_kl_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_js_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_kl_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_js_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 /*  Double-precision serial backends for all numeric types.
  *  For single-precision computation check out the "*_serial" counterparts of those "*_accurate" functions.
  */
-SIMSIMD_PUBLIC void simsimd_kl_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_js_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_kl_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_js_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_kl_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_js_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+SIMSIMD_PUBLIC void simsimd_kl_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_js_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_kl_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_js_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_kl_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_js_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 /*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
  *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
  *  server CPUs produced before 2023.
  */
-SIMSIMD_PUBLIC void simsimd_kl_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_js_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_kl_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_js_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+SIMSIMD_PUBLIC void simsimd_kl_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_js_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_kl_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_js_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 /*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
  *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
@@ -69,28 +69,28 @@ SIMSIMD_PUBLIC void simsimd_js_f16_neon(simsimd_f16_t const* a, simsimd_f16_t co
  *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
  *  properly vectorized by recent compilers.
  */
-SIMSIMD_PUBLIC void simsimd_kl_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_js_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+SIMSIMD_PUBLIC void simsimd_kl_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_js_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 /*  SIMD-powered backends for various generations of AVX512 CPUs.
  *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
  *  Ice Lake added VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ, and other extensions for integral operations.
  *  Sapphire Rapids added tiled matrix operations, but we are most interested in the new mixed-precision FMA instructions.
  */
-SIMSIMD_PUBLIC void simsimd_kl_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_js_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_kl_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
-SIMSIMD_PUBLIC void simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* divergence);
+SIMSIMD_PUBLIC void simsimd_kl_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_js_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_kl_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 // clang-format on
 
 #define SIMSIMD_MAKE_KL(name, input_type, accumulator_type, load_and_convert, epsilon)                        \
     SIMSIMD_PUBLIC void simsimd_kl_##input_type##_##name(simsimd_##input_type##_t const *a,                   \
                                                          simsimd_##input_type##_t const *b, simsimd_size_t n, \
                                                          simsimd_distance_t *result) {                        \
-        simsimd_##accumulator_type##_t d = 0, ai, bi;                                                         \
+        simsimd_##accumulator_type##_t d = 0;                                                                 \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                             \
-            load_and_convert(a + i, &ai);                                                                     \
-            load_and_convert(b + i, &bi);                                                                     \
+            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                      \
+            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                      \
             d += ai * SIMSIMD_LOG((ai + epsilon) / (bi + epsilon));                                           \
         }                                                                                                     \
         *result = (simsimd_distance_t)d;                                                                      \
@@ -100,37 +100,38 @@ SIMSIMD_PUBLIC void simsimd_js_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_
     SIMSIMD_PUBLIC void simsimd_js_##input_type##_##name(simsimd_##input_type##_t const *a,                   \
                                                          simsimd_##input_type##_t const *b, simsimd_size_t n, \
                                                          simsimd_distance_t *result) {                        \
-        simsimd_##accumulator_type##_t d = 0, ai, bi, mi;                                                     \
+        simsimd_##accumulator_type##_t d = 0;                                                                 \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                             \
-            load_and_convert(a + i, &ai);                                                                     \
-            load_and_convert(b + i, &bi);                                                                     \
-            mi = (ai + bi) / 2;                                                                               \
+            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                      \
+            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                      \
+            simsimd_##accumulator_type##_t mi = (ai + bi) / 2;                                                \
             d += ai * SIMSIMD_LOG((ai + epsilon) / (mi + epsilon));                                           \
             d += bi * SIMSIMD_LOG((bi + epsilon) / (mi + epsilon));                                           \
         }                                                                                                     \
-        *result = SIMSIMD_SQRT(((simsimd_distance_t)d / 2));                                                  \
+        simsimd_distance_t d_half = ((simsimd_distance_t)d / 2);                                              \
+        *result = d_half > 0 ? SIMSIMD_SQRT(d_half) : 0;                                                      \
     }
 
-SIMSIMD_MAKE_KL(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f64_serial
-SIMSIMD_MAKE_JS(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f64_serial
+SIMSIMD_MAKE_KL(serial, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f64_serial
+SIMSIMD_MAKE_JS(serial, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f64_serial
 
-SIMSIMD_MAKE_KL(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f32_serial
-SIMSIMD_MAKE_JS(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f32_serial
+SIMSIMD_MAKE_KL(serial, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f32_serial
+SIMSIMD_MAKE_JS(serial, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f32_serial
 
-SIMSIMD_MAKE_KL(serial, f16, f32, simsimd_f16_to_f32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f16_serial
-SIMSIMD_MAKE_JS(serial, f16, f32, simsimd_f16_to_f32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f16_serial
+SIMSIMD_MAKE_KL(serial, f16, f32, SIMSIMD_F16_TO_F32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f16_serial
+SIMSIMD_MAKE_JS(serial, f16, f32, SIMSIMD_F16_TO_F32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f16_serial
 
-SIMSIMD_MAKE_KL(serial, bf16, f32, simsimd_bf16_to_f32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_bf16_serial
-SIMSIMD_MAKE_JS(serial, bf16, f32, simsimd_bf16_to_f32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_bf16_serial
+SIMSIMD_MAKE_KL(serial, bf16, f32, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_bf16_serial
+SIMSIMD_MAKE_JS(serial, bf16, f32, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_bf16_serial
 
-SIMSIMD_MAKE_KL(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f32_accurate
-SIMSIMD_MAKE_JS(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f32_accurate
+SIMSIMD_MAKE_KL(accurate, f32, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f32_accurate
+SIMSIMD_MAKE_JS(accurate, f32, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f32_accurate
 
-SIMSIMD_MAKE_KL(accurate, f16, f64, _simsimd_f16_to_f64, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f16_accurate
-SIMSIMD_MAKE_JS(accurate, f16, f64, _simsimd_f16_to_f64, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f16_accurate
+SIMSIMD_MAKE_KL(accurate, f16, f64, SIMSIMD_F16_TO_F32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_f16_accurate
+SIMSIMD_MAKE_JS(accurate, f16, f64, SIMSIMD_F16_TO_F32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_f16_accurate
 
-SIMSIMD_MAKE_KL(accurate, bf16, f64, _simsimd_bf16_to_f64, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_bf16_accurate
-SIMSIMD_MAKE_JS(accurate, bf16, f64, _simsimd_bf16_to_f64, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_bf16_accurate
+SIMSIMD_MAKE_KL(accurate, bf16, f64, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kl_bf16_accurate
+SIMSIMD_MAKE_JS(accurate, bf16, f64, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_js_bf16_accurate
 
 #if _SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
@@ -225,7 +226,7 @@ simsimd_js_f32_neon_cycle:
 
     simsimd_f32_t log2_normalizer = 0.693147181f;
     simsimd_f32_t sum = vaddvq_f32(sum_vec) * log2_normalizer / 2;
-    *result = _simsimd_sqrt_f32_neon(sum);
+    *result = sum > 0 ? _simsimd_sqrt_f32_neon(sum) : 0;
 }
 
 #pragma clang attribute pop
@@ -298,7 +299,7 @@ simsimd_js_f16_neon_cycle:
 
     simsimd_f32_t log2_normalizer = 0.693147181f;
     simsimd_f32_t sum = vaddvq_f32(sum_vec) * log2_normalizer / 2;
-    *result = _simsimd_sqrt_f32_neon(sum);
+    *result = sum > 0 ? _simsimd_sqrt_f32_neon(sum) : 0;
 }
 
 #pragma clang attribute pop
@@ -389,11 +390,9 @@ simsimd_js_f16_haswell_cycle:
         b_vec = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)b));
         n -= 8, a += 8, b += 8;
     }
-    a_vec = _mm256_add_ps(a_vec, epsilon_vec);
-    b_vec = _mm256_add_ps(b_vec, epsilon_vec);
     __m256 m_vec = _mm256_mul_ps(_mm256_add_ps(a_vec, b_vec), _mm256_set1_ps(0.5f)); // M = (P + Q) / 2
-    __m256 ratio_a_vec = _mm256_div_ps(a_vec, m_vec);
-    __m256 ratio_b_vec = _mm256_div_ps(b_vec, m_vec);
+    __m256 ratio_a_vec = _mm256_div_ps(_mm256_add_ps(a_vec, epsilon_vec), _mm256_add_ps(m_vec, epsilon_vec));
+    __m256 ratio_b_vec = _mm256_div_ps(_mm256_add_ps(b_vec, epsilon_vec), _mm256_add_ps(m_vec, epsilon_vec));
     __m256 log_ratio_a_vec = _simsimd_log2_f32_haswell(ratio_a_vec);
     __m256 log_ratio_b_vec = _simsimd_log2_f32_haswell(ratio_b_vec);
     __m256 prod_a_vec = _mm256_mul_ps(a_vec, log_ratio_a_vec);
@@ -405,7 +404,7 @@ simsimd_js_f16_haswell_cycle:
     simsimd_f32_t log2_normalizer = 0.693147181f;
     simsimd_f32_t sum = _simsimd_reduce_f32x8_haswell(sum_vec);
     sum *= log2_normalizer / 2;
-    *result = _simsimd_sqrt_f32_haswell(sum);
+    *result = sum > 0 ? _simsimd_sqrt_f32_haswell(sum) : 0;
 }
 
 #pragma clang attribute pop
@@ -487,19 +486,20 @@ simsimd_js_f32_skylake_cycle:
     __mmask16 nonzero_mask_a = _mm512_cmp_ps_mask(a_vec, epsilon_vec, _CMP_GE_OQ);
     __mmask16 nonzero_mask_b = _mm512_cmp_ps_mask(b_vec, epsilon_vec, _CMP_GE_OQ);
     __mmask16 nonzero_mask = nonzero_mask_a & nonzero_mask_b;
-    __m512 m_recip_approx = _mm512_rcp14_ps(m_vec);
-    __m512 ratio_a_vec = _mm512_mul_ps(a_vec, m_recip_approx);
-    __m512 ratio_b_vec = _mm512_mul_ps(b_vec, m_recip_approx);
+    __m512 m_with_epsilon = _mm512_add_ps(m_vec, epsilon_vec);
+    __m512 m_recip_approx = _mm512_rcp14_ps(m_with_epsilon);
+    __m512 ratio_a_vec = _mm512_mul_ps(_mm512_add_ps(a_vec, epsilon_vec), m_recip_approx);
+    __m512 ratio_b_vec = _mm512_mul_ps(_mm512_add_ps(b_vec, epsilon_vec), m_recip_approx);
     __m512 log_ratio_a_vec = _simsimd_log2_f32_skylake(ratio_a_vec);
     __m512 log_ratio_b_vec = _simsimd_log2_f32_skylake(ratio_b_vec);
-    sum_a_vec = _mm512_maskz_fmadd_ps(nonzero_mask, a_vec, log_ratio_a_vec, sum_a_vec);
-    sum_b_vec = _mm512_maskz_fmadd_ps(nonzero_mask, b_vec, log_ratio_b_vec, sum_b_vec);
+    sum_a_vec = _mm512_mask3_fmadd_ps(a_vec, log_ratio_a_vec, sum_a_vec, nonzero_mask);
+    sum_b_vec = _mm512_mask3_fmadd_ps(b_vec, log_ratio_b_vec, sum_b_vec, nonzero_mask);
     if (n) goto simsimd_js_f32_skylake_cycle;
 
     simsimd_f32_t log2_normalizer = 0.693147181f;
     simsimd_f32_t sum = _mm512_reduce_add_ps(_mm512_add_ps(sum_a_vec, sum_b_vec));
     sum *= log2_normalizer / 2;
-    *result = _simsimd_sqrt_f32_haswell(sum);
+    *result = sum > 0 ? _simsimd_sqrt_f32_haswell(sum) : 0;
 }
 
 #pragma clang attribute pop
@@ -579,19 +579,20 @@ simsimd_js_f16_sapphire_cycle:
     __mmask32 nonzero_mask_a = _mm512_cmp_ph_mask(a_vec, epsilon_vec, _CMP_GE_OQ);
     __mmask32 nonzero_mask_b = _mm512_cmp_ph_mask(b_vec, epsilon_vec, _CMP_GE_OQ);
     __mmask32 nonzero_mask = nonzero_mask_a & nonzero_mask_b;
-    __m512h m_recip_approx = _mm512_rcp_ph(m_vec);
-    __m512h ratio_a_vec = _mm512_mul_ph(a_vec, m_recip_approx);
-    __m512h ratio_b_vec = _mm512_mul_ph(b_vec, m_recip_approx);
+    __m512h m_with_epsilon = _mm512_add_ph(m_vec, epsilon_vec);
+    __m512h m_recip_approx = _mm512_rcp_ph(m_with_epsilon);
+    __m512h ratio_a_vec = _mm512_mul_ph(_mm512_add_ph(a_vec, epsilon_vec), m_recip_approx);
+    __m512h ratio_b_vec = _mm512_mul_ph(_mm512_add_ph(b_vec, epsilon_vec), m_recip_approx);
     __m512h log_ratio_a_vec = _simsimd_log2_f16_sapphire(ratio_a_vec);
     __m512h log_ratio_b_vec = _simsimd_log2_f16_sapphire(ratio_b_vec);
-    sum_a_vec = _mm512_maskz_fmadd_ph(nonzero_mask, a_vec, log_ratio_a_vec, sum_a_vec);
-    sum_b_vec = _mm512_maskz_fmadd_ph(nonzero_mask, b_vec, log_ratio_b_vec, sum_b_vec);
+    sum_a_vec = _mm512_mask3_fmadd_ph(a_vec, log_ratio_a_vec, sum_a_vec, nonzero_mask);
+    sum_b_vec = _mm512_mask3_fmadd_ph(b_vec, log_ratio_b_vec, sum_b_vec, nonzero_mask);
     if (n) goto simsimd_js_f16_sapphire_cycle;
 
     simsimd_f32_t log2_normalizer = 0.693147181f;
     simsimd_f32_t sum = _mm512_reduce_add_ph(_mm512_add_ph(sum_a_vec, sum_b_vec));
     sum *= log2_normalizer / 2;
-    *result = _simsimd_sqrt_f32_haswell(sum);
+    *result = sum > 0 ? _simsimd_sqrt_f32_haswell(sum) : 0;
 }
 
 #pragma clang attribute pop

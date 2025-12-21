@@ -2,8 +2,8 @@
 
 Computing dot-products, similarity measures, and distances between low- and high-dimensional vectors is ubiquitous in Machine Learning, Scientific Computing, Geospatial Analysis, and Information Retrieval.
 These algorithms generally have linear complexity in time, constant or linear complexity in space, and are data-parallel.
-In other words, they are easily parallelizable and vectorizable and often available in packages like BLAS (level 1) and LAPACK, as well as higher-level `numpy` and `scipy` Python libraries.
-Ironically, even with decades of evolution in compilers and numerical computing, [most libraries can be 3x - 1'000x slower than hardware potential][benchmarks] even on the most popular hardware, like 64-bit x86 and Arm CPUs.
+In other words, it is easily parallelizable and vectorizable and often available in packages like BLAS (level 1) and LAPACK, as well as higher-level `numpy` and `scipy` Python libraries.
+Ironically, even with decades of evolution in compilers and numerical computing, [most libraries can be 3-200x slower than hardware potential][benchmarks] even on the most popular hardware, like 64-bit x86 and Arm CPUs.
 Moreover, most lack mixed-precision support, which is crucial for modern AI!
 The rare few that support minimal mixed precision, run only on one platform, and are vendor-locked, by companies like Intel and Nvidia.
 SimSIMD provides an alternative.
@@ -42,8 +42,8 @@ SimSIMD provides an alternative.
 
 ## Features
 
-__SimSIMD__ (Arabic: "سيمسيم دي") is a mixed-precision math library of __over 450 SIMD-optimized kernels__ extensively used in AI, Search, and DBMS workloads.
-Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command that opened doors to treasure in _Ali Baba and the Forty Thieves_, SimSimd can help you 10x the cost-efficiency of your computational pipelines.
+__SimSIMD__ (Arabic: "سيمسيم دي") is a mixed-precision math library of __over 350 SIMD-optimized kernels__ extensively used in AI, Search, and DBMS workloads.
+Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command that opened doors to treasure in _Ali Baba and the Forty Thieves_, SimSIMD can help you 10x the cost-efficiency of your computational pipelines.
 Implemented distance functions include:
 
 - Euclidean (L2) and Cosine (Angular) spatial distances for Vector Search. _[docs][docs-spatial]_
@@ -52,7 +52,7 @@ Implemented distance functions include:
 - Set Intersections for Sparse Vectors and Text Analysis. _[docs][docs-sparse]_
 - Mahalanobis distance and Quadratic forms for Scientific Computing. _[docs][docs-curved]_
 - Kullback-Leibler and Jensen–Shannon divergences for probability distributions. _[docs][docs-probability]_
-- Fused-Multiply-Add (FMA) and Weighted Sums to replace BLAS level 1 functions. _[docs][docs-elementwise]_
+- Fused-Multiply-Add (FMA) and Weighted Sums to replace BLAS level 1 functions. _[docs][docs-fma]_
 - For Levenshtein, Needleman–Wunsch, and Smith-Waterman, check [StringZilla][stringzilla].
 - 🔜 Haversine and Vincenty's formulae for Geospatial Analysis.
 
@@ -62,7 +62,7 @@ Implemented distance functions include:
 [docs-binary]: https://github.com/ashvardanian/SimSIMD/pull/138
 [docs-dot]: #complex-dot-products-conjugate-dot-products-and-complex-numbers
 [docs-probability]: #logarithms-in-kullback-leibler--jensenshannon-divergences
-[docs-elementwise]: #mixed-precision-in-fused-multiply-add-and-weighted-sums
+[docs-fma]: #mixed-precision-in-fused-multiply-add-and-weighted-sums
 [scipy]: https://docs.scipy.org/doc/scipy/reference/spatial.distance.html#module-scipy.spatial.distance
 [numpy]: https://numpy.org/doc/stable/reference/generated/numpy.inner.html
 [stringzilla]: https://github.com/ashvardanian/stringzilla
@@ -281,7 +281,7 @@ You can learn more about the technical implementation details in the following b
 > The code was compiled with GCC 12, using glibc v2.35.
 > The benchmarks performed on Arm-based Graviton3 AWS `c7g` instances and `r7iz` Intel Sapphire Rapids.
 > Most modern Arm-based 64-bit CPUs will have similar relative speedups.
-> Variance withing x86 CPUs will be larger.
+> Variance within x86 CPUs will be larger.
 
 Similar speedups are often observed even when compared to BLAS and LAPACK libraries underlying most numerical computing libraries, including NumPy and SciPy in Python.
 Broader benchmarking results:
@@ -299,7 +299,7 @@ The same applies to processing `float16` and `bfloat16` values with `float32` pr
 
 ### Installation
 
-Use the following snippet to install SimSIMD and list available hardware acceleration options available on your machine:
+Use the following snippet to install SimSIMD and list hardware acceleration options available on your machine:
 
 ```sh
 pip install simsimd
@@ -318,10 +318,10 @@ import numpy as np
 
 vec1 = np.random.randn(1536).astype(np.float32)
 vec2 = np.random.randn(1536).astype(np.float32)
-dist = simsimd.angular(vec1, vec2)
+dist = simsimd.cosine(vec1, vec2)
 ```
 
-Supported functions include `cosine`, `inner`, `sqeuclidean`, `hamming`, `jaccard`, `kulbackleibler`, `jensenshannon`, and `intersect`.
+Supported functions include `cosine`, `inner`, `sqeuclidean`, `hamming`, `jaccard`, `kullbackleibler`, `jensenshannon`, and `intersect`.
 Dot products are supported for both real and complex numbers:
 
 ```py
@@ -337,10 +337,10 @@ Unlike SciPy, SimSIMD allows explicitly stating the precision of the input vecto
 The `dtype` argument can be passed both by name and as a positional argument:
 
 ```py
-dist = simsimd.angular(vec1, vec2, "int8")
-dist = simsimd.angular(vec1, vec2, "float16")
-dist = simsimd.angular(vec1, vec2, "float32")
-dist = simsimd.angular(vec1, vec2, "float64")
+dist = simsimd.cosine(vec1, vec2, "int8")
+dist = simsimd.cosine(vec1, vec2, "float16")
+dist = simsimd.cosine(vec1, vec2, "float32")
+dist = simsimd.cosine(vec1, vec2, "float64")
 dist = simsimd.hamming(vec1, vec2, "bin8")
 ```
 
@@ -372,7 +372,7 @@ torch.randn(8, out=vec2)
 
 # Both libs will look into the same memory buffers and report the same results
 dist_slow = 1 - torch.nn.functional.cosine_similarity(vec1, vec2, dim=0)
-dist_fast = simsimd.angular(buf1, buf2, "bfloat16")
+dist_fast = simsimd.cosine(buf1, buf2, "bfloat16")
 ```
 
 It also allows using SimSIMD for half-precision complex numbers, which NumPy does not support.
@@ -411,8 +411,8 @@ vec1 = np.random.randn(1536).astype(np.float32) # rank 1 tensor
 batch1 = np.random.randn(1, 1536).astype(np.float32) # rank 2 tensor
 batch2 = np.random.randn(100, 1536).astype(np.float32)
 
-dist_rank1 = simsimd.angular(vec1, batch2)
-dist_rank2 = simsimd.angular(batch1, batch2)
+dist_rank1 = simsimd.cosine(vec1, batch2)
+dist_rank2 = simsimd.cosine(batch1, batch2)
 ```
 
 ### Many-to-Many Distances
@@ -423,7 +423,7 @@ For two batches of 100 vectors to compute 100 distances, one would call it like 
 ```py
 batch1 = np.random.randn(100, 1536).astype(np.float32)
 batch2 = np.random.randn(100, 1536).astype(np.float32)
-dist = simsimd.angular(batch1, batch2)
+dist = simsimd.cosine(batch1, batch2)
 ```
 
 Input matrices must have identical shapes.
@@ -555,6 +555,7 @@ Luckily, to downcast `f32` to `bf16` you only have to drop the last 16 bits:
 import numpy as np
 import simsimd as simd
 
+ndim = 1536
 a = np.random.randn(ndim).astype(np.float32)
 b = np.random.randn(ndim).astype(np.float32)
 
@@ -901,7 +902,7 @@ let vectorA: [Int8] = [1, 2, 3]
 let vectorB: [Int8] = [4, 5, 6]
 
 let dotProduct = vectorA.dot(vectorB)           // Computes the dot product
-let angularDistance = vectorA.angular(vectorB)  // Computes the angular distance
+let cosineDistance = vectorA.cosine(vectorB)    // Computes the cosine distance
 let sqEuclidean = vectorA.sqeuclidean(vectorB)  // Computes the squared Euclidean distance
 ```
 
@@ -929,10 +930,10 @@ int main() {
 
     simsimd_f32_t vector_a[1536];
     simsimd_f32_t vector_b[1536];
-    simsimd_kernel_punned_t distance_function = simsimd_metric_punned(
-        simsimd_angular_k,  // Metric kind, like the angular cosine distance
-        simsimd_f32_k,      // Data type, like: f16, f32, f64, i8, b8, complex variants, etc.
-        simsimd_cap_any_k); // Which CPU capabilities are we allowed to use
+    simsimd_kernel_punned_t metric_punned = simsimd_metric_punned(
+        simsimd_metric_cos_k,   // Metric kind, like the angular cosine distance
+        simsimd_datatype_f32_k, // Data type, like: f16, f32, f64, i8, b8, and complex variants
+        simsimd_cap_any_k);     // Which CPU capabilities are we allowed to use
     simsimd_distance_t distance;
     simsimd_metric_dense_punned_t metric = (simsimd_metric_dense_punned_t)metric_punned;
     metric(vector_a, vector_b, 1536, &distance);
@@ -965,27 +966,27 @@ To override compilation settings and switch between runtime and compile-time dis
 #define SIMSIMD_DYNAMIC_DISPATCH 1 // or 0
 ```
 
-### Spatial Distances: Angular and Euclidean Distances
+### Spatial Distances: Cosine and Euclidean Distances
 
 ```c
 #include <simsimd/simsimd.h>
 
 int main() {
-    simsimd_i8_t i8[1536];
-    simsimd_i8_t u8[1536];
+    simsimd_i8_t i8s[1536];
+    simsimd_u8_t u8s[1536];
     simsimd_f64_t f64s[1536];
     simsimd_f32_t f32s[1536];
     simsimd_f16_t f16s[1536];
     simsimd_bf16_t bf16s[1536];
     simsimd_distance_t distance;
 
-    // Angular distance between two vectors
-    simsimd_angular_i8(i8s, i8s, 1536, &distance);
-    simsimd_angular_u8(u8s, u8s, 1536, &distance);
-    simsimd_angular_f16(f16s, f16s, 1536, &distance);
-    simsimd_angular_f32(f32s, f32s, 1536, &distance);
-    simsimd_angular_f64(f64s, f64s, 1536, &distance);
-    simsimd_angular_bf16(bf16s, bf16s, 1536, &distance);
+    // Cosine distance between two vectors
+    simsimd_cos_i8(i8s, i8s, 1536, &distance);
+    simsimd_cos_u8(u8s, u8s, 1536, &distance);
+    simsimd_cos_f16(f16s, f16s, 1536, &distance);
+    simsimd_cos_f32(f32s, f32s, 1536, &distance);
+    simsimd_cos_f64(f64s, f64s, 1536, &distance);
+    simsimd_cos_bf16(bf16s, bf16s, 1536, &distance);
 
     // Euclidean distance between two vectors
     simsimd_l2sq_i8(i8s, i8s, 1536, &distance);
@@ -1023,10 +1024,10 @@ int main() {
     simsimd_dot_bf16(bf16s, bf16s, 1536, &product);
 
     // SimSIMD provides complex types with `real` and `imag` fields
-    simsimd_f64c_t f64s[768];
-    simsimd_f32c_t f32s[768];
-    simsimd_f16c_t f16s[768];
-    simsimd_bf16c_t bf16s[768];
+    simsimd_f64c_t f64cs[768];
+    simsimd_f32c_t f32cs[768];
+    simsimd_f16c_t f16cs[768];
+    simsimd_bf16c_t bf16cs[768];
     simsimd_distance_t products[2]; // real and imaginary parts
 
     // Complex inner product between two vectors
@@ -1103,7 +1104,7 @@ To explicitly disable half-precision support, define the following macro before 
 > This flag does just that and is used to produce the `simsimd.so` shared library, as well as the Python and other bindings.
 
 For Arm: `SIMSIMD_TARGET_NEON`, `SIMSIMD_TARGET_SVE`, `SIMSIMD_TARGET_SVE2`, `SIMSIMD_TARGET_NEON_F16`, `SIMSIMD_TARGET_SVE_F16`, `SIMSIMD_TARGET_NEON_BF16`, `SIMSIMD_TARGET_SVE_BF16`.
-For x86: (`SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`, `SIMSIMD_TARGET_TURIN`, `SIMSIMD_TARGET_SIERRA`.
+For x86: `SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`, `SIMSIMD_TARGET_TURIN`, `SIMSIMD_TARGET_SIERRA`.
 
 > By default, SimSIMD automatically infers the target architecture and pre-compiles as many kernels as possible.
 > In some cases, you may want to explicitly disable some of the kernels.
@@ -1304,42 +1305,24 @@ Both functions are defined for non-negative numbers, and the logarithm is a key 
 
 ### Mixed Precision in Fused-Multiply-Add and Weighted Sums
 
-The "Fused-Multiply-Add" (FMA) operation is a single operation that combines element-wise multiplication and addition with different scaling factors.
-The "Weighted Sum" is it's simplified variant without element-wise multiplication.
-The "Sum" operation is a further simplified variant without scaling factors, and "Scale" is the unary equivalent of FMA:
+The Fused-Multiply-Add (FMA) operation is a single operation that combines element-wise multiplication and addition with different scaling factors.
+The Weighted Sum is its simplified variant without element-wise multiplication.
 
 ```math
-\text{Scale}_i(A, \alpha, \beta) = \alpha \cdot A_i + \beta
-```
-
-```math
-\text{Sum}_i(A, B) = A_i + B_i
+\text{FMA}_i(A, B, C, \alpha, \beta) = \alpha \cdot A_i \cdot B_i + \beta \cdot C_i
 ```
 
 ```math
 \text{WSum}_i(A, B, \alpha, \beta) = \alpha \cdot A_i + \beta \cdot B_i
 ```
 
-```math
-\text{FMA}_i(A, B, C, \alpha, \beta) = \alpha \cdot A_i \cdot B_i + \beta \cdot C_i
-```
-
-In NumPy terms, the implementation __may__ look like:
+In NumPy terms, the implementation may look like:
 
 ```py
 import numpy as np
-
-def scale(A: np.ndarray, /, Alpha: float, Beta: float) -> np.ndarray:
-    return (Alpha * A + Beta).astype(A.dtype)
-
-def sum(A: np.ndarray, B: np.ndarray) -> np.ndarray:
-    assert A.dtype == B.dtype, "Input types must match and affect the output style"
-    return (A + B).astype(A.dtype)
-
 def wsum(A: np.ndarray, B: np.ndarray, /, Alpha: float, Beta: float) -> np.ndarray:
     assert A.dtype == B.dtype, "Input types must match and affect the output style"
     return (Alpha * A + Beta * B).astype(A.dtype)
-
 def fma(A: np.ndarray, B: np.ndarray, C: np.ndarray, /, Alpha: float, Beta: float) -> np.ndarray:
     assert A.dtype == B.dtype and A.dtype == C.dtype, "Input types must match and affect the output style"
     return (Alpha * A * B + Beta * C).astype(A.dtype)

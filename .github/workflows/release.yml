@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -49,14 +49,16 @@ jobs:
     name: Rebase Dev. Branch
     if: github.ref == 'refs/heads/main'
     needs: versioning
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout the latest code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Perform rebase
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin main
           git checkout main-dev
           git rebase origin/main
@@ -74,13 +76,14 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: "main"
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install cibuildwheel
@@ -93,7 +96,7 @@ jobs:
           CIBW_PLATFORM: linux
           CIBW_ARCHS: x86_64
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cibw-wheels-linux-x86-cp${{ matrix.python-version }}
           path: wheelhouse/*.whl
@@ -107,9 +110,10 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: "main"
       - name: Install Docker CE from Official Repository
@@ -122,9 +126,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
           sudo systemctl start docker
+          sudo chmod 666 /var/run/docker.sock
           docker version
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install cibuildwheel
@@ -137,7 +142,7 @@ jobs:
           CIBW_PLATFORM: linux
           CIBW_ARCHS: aarch64
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cibw-wheels-linux-arm-cp${{ matrix.python-version }}
           path: wheelhouse/*.whl
@@ -145,17 +150,18 @@ jobs:
 
   build_wheels_macos_x86:
     name: Build Python Wheels (macOS x86)
-    runs-on: macos-13
+    runs-on: macos-15
     needs: versioning
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: "main"
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install cibuildwheel
@@ -168,7 +174,7 @@ jobs:
           CIBW_PLATFORM: macos
           CIBW_ARCHS: x86_64
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cibw-wheels-macos-x86-cp${{ matrix.python-version }}
           path: wheelhouse/*.whl
@@ -176,18 +182,19 @@ jobs:
 
   build_wheels_macos_arm:
     name: Build Python Wheels (macOS ARM)
-    runs-on: macos-14
+    runs-on: macos-15
     needs: versioning
     strategy:
       matrix:
         # 3.7 not supported on macOS ARM
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: "main"
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install cibuildwheel
@@ -200,7 +207,7 @@ jobs:
           CIBW_PLATFORM: macos
           CIBW_ARCHS: arm64
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cibw-wheels-macos-arm-cp${{ matrix.python-version }}
           path: wheelhouse/*.whl
@@ -212,7 +219,8 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
         architecture: [AMD64]
         include:
           - python-version: "39"
@@ -227,12 +235,16 @@ jobs:
             architecture: ARM64
           - python-version: "313t"
             architecture: ARM64
+          - python-version: "314"
+            architecture: ARM64
+          - python-version: "314t"
+            architecture: ARM64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: "main"
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Setup MSVC
@@ -248,7 +260,7 @@ jobs:
           CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: windows
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cibw-wheels-windows-${{ matrix.architecture }}-cp${{ matrix.python-version }}
           path: wheelhouse/*.whl
@@ -260,13 +272,14 @@ jobs:
     needs: versioning
     strategy:
       matrix:
-        python-version: ["38", "39", "310", "311", "312", "313", "313t"]
+        python-version:
+          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: "main"
       - name: Install Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Setup QEMU
@@ -282,7 +295,7 @@ jobs:
           CIBW_PLATFORM: linux
           CIBW_ARCHS: ppc64le s390x i686
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cibw-wheels-other-cp${{ matrix.python-version }}
           path: wheelhouse/*.whl
@@ -293,18 +306,18 @@ jobs:
     runs-on: ubuntu-latest
     needs: versioning
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v6
         with:
           ref: "main"
       - name: Set up Python
-        uses: actions/setup-python@v5.3.0
+        uses: actions/setup-python@v6
         with:
           python-version: 3.9
       - name: Build source distribution
         run: pip install build &&
           python -m build --sdist
       - name: Upload source distribution
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sdist
           path: dist/*.tar.gz
@@ -320,7 +333,10 @@ jobs:
       - build_wheels_windows
       - build_wheels_other
       - build_sdist
-    runs-on: ubuntu-22.04
+    # Run even if some build jobs fail (e.g., due to transient network issues)
+    # This ensures successfully built wheels still get published
+    if: always() && needs.build_sdist.result == 'success'
+    runs-on: ubuntu-24.04
     environment:
       name: pypi
       url: https://pypi.org/p/simsimd
@@ -330,17 +346,22 @@ jobs:
     steps:
       - name: Download wheels
         # unpacks all CIBW artifacts into dist/
-        uses: actions/download-artifact@v4
+        # continue-on-error handles cases where some wheel jobs failed
+        uses: actions/download-artifact@v6
+        continue-on-error: true
         with:
           pattern: cibw-*
           path: dist
           merge-multiple: true
 
       - name: Download source distribution
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: sdist
           path: dist
+
+      - name: List available distributions
+        run: ls -la dist/
 
       - name: Publish to PyPi
         uses: pypa/gh-action-pypi-publish@release/v1
@@ -356,30 +377,30 @@ jobs:
       fail-fast: false
       matrix:
         arch: [x64, x86]
-        os: [macos-latest, ubuntu-22.04]
+        os: [macos-15, ubuntu-24.04]
         exclude:
           - arch: x86
-            os: macos-latest
+            os: macos-15
           - arch: x86
-            os: ubuntu-22.04
+            os: ubuntu-24.04
     runs-on: ${{ matrix.os }}
     env:
       CC: gcc-12
       CXX: g++-12
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: "main"
       - name: Update Git Submodules
         run: git submodule update --init --recursive
       - name: Set Up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "20"
           architecture: ${{ matrix.arch }}
       - name: Update System Compilers (Ubuntu Only)
-        if: matrix.os == 'ubuntu-22.04'
+        if: matrix.os == 'ubuntu-24.04'
         run: |
           echo "Updating compilers and installing build dependencies on Ubuntu"
           sudo apt update
@@ -388,22 +409,22 @@ jobs:
       - name: Install Node.js Dependencies
         run: npm ci --ignore-scripts
       - name: Prebuild Native Modules (Linux / Non-Darwin)
-        if: matrix.os != 'macos-latest'
+        if: matrix.os != 'macos-15'
         run: npm run prebuild-single
       - name: Prebuild Native Modules for macOS
-        if: matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-15'
         env:
           CC: clang
           CXX: clang++
         run: npm run prebuild-darwin-x64+arm64
       - name: Validate macOS Prebuild Artifacts
-        if: matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-15'
         run: file prebuilds/*/*
       - name: Cross-Build for ARM64 on Ubuntu
-        if: matrix.os == 'ubuntu-22.04'
+        if: matrix.os == 'ubuntu-24.04'
         run: npm run prebuild-arm64
       - name: Upload Prebuild Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: prebuilds
           path: prebuilds
@@ -413,20 +434,27 @@ jobs:
   publish_javascript:
     name: Publish JavaScript Package
     needs: build_javascript
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
+    environment:
+      name: npm-simsimd
+      url: https://www.npmjs.com/package/simsimd
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: "main"
       - name: Update Git Submodules
         run: git submodule update --init --recursive
       - name: Set Up Node.js Environment
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "20"
+          registry-url: "https://registry.npmjs.org"
       - name: Download Prebuild Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: prebuilds
           path: prebuilds
@@ -443,27 +471,21 @@ jobs:
         run: npm publish --dry-run
       - name: Publish to NPM
         if: github.ref == 'refs/heads/main'
-        uses: JS-DevTools/npm-publish@v3
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
-          access: public
+        run: npm publish --provenance --access public
 
   publish_rust:
     name: Publish Rust Crate
     needs: versioning
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: "main"
       - name: Update Git Submodules
         run: git submodule update --init --recursive
       - name: Set Up Rust Toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
       - name: Publish Rust Crate to Registry
         uses: katyo/publish-crates@v2
         with:
