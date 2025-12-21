@@ -913,7 +913,6 @@ SIMSIMD_INTERNAL __m512d _simsimd_f64x8_atan_skylake(__m512d const inputs) {
     // Polynomial evaluation (argument reduction and approximation)
     __m512d polynomials = coeff_19;
     polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_18);
-    polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_18);
     polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_17);
     polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_16);
     polynomials = _mm512_fmadd_pd(polynomials, values_squared, coeff_15);
