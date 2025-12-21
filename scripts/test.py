@@ -10,7 +10,7 @@ floating-point, integer, and complex numbers.
 
 The tests cover:
 
-- **Dense Vector Operations**: Tests for `float64`, `float32`, `float16` data types using metrics like `inner`, `sqeuclidean`, and `cosine`.
+- **Dense Vector Operations**: Tests for `float64`, `float32`, `float16` data types using metrics like `inner`, `sqeuclidean`, and `angular`.
 - **Brain Floating-Point Format (bfloat16)**: Tests for operations with the brain floating-point format not natively supported by NumPy.
 - **Integer Operations**: Tests for `int8` data type, ensuring accuracy without overflow.
 - **Bitwise Operations**: Tests for Hamming and Jaccard distances using bit arrays.
@@ -243,6 +243,14 @@ def is_running_under_qemu():
     return "SIMSIMD_IN_QEMU" in os.environ
 
 
+def scipy_metric_name(metric: str) -> str:
+    """Convert SimSIMD metric names to SciPy equivalents."""
+    # SimSIMD uses 'angular' while SciPy uses 'cosine' for the same metric
+    if metric == "angular":
+        return "cosine"
+    return metric
+
+
 def profile(callable, *args, **kwargs) -> tuple:
     before = time.perf_counter_ns()
     result = callable(*args, **kwargs)
@@ -450,7 +458,7 @@ def get_current_test():
     full_name = os.environ.get("PYTEST_CURRENT_TEST").split(" ")[0]
     test_file = full_name.split("::")[0].split("/")[-1].split(".py")[0]
     test_name = full_name.split("::")[1]
-    # The `test_name` may look like: "test_dense_i8[cosine-1536-24-50]"
+    # The `test_name` may look like: "test_dense_i8[angular-1536-24-50]"
     function_name = test_name.split("[")[0]
     return test_file, test_name, function_name
 
@@ -586,23 +594,23 @@ def hex_array(arr):
 def test_pointers_availability():
     """Tests the availability of pre-compiled functions for compatibility with USearch."""
     assert simd.pointer_to_sqeuclidean("float64") != 0
-    assert simd.pointer_to_cosine("float64") != 0
+    assert simd.pointer_to_angular("float64") != 0
     assert simd.pointer_to_inner("float64") != 0
 
     assert simd.pointer_to_sqeuclidean("float32") != 0
-    assert simd.pointer_to_cosine("float32") != 0
+    assert simd.pointer_to_angular("float32") != 0
     assert simd.pointer_to_inner("float32") != 0
 
     assert simd.pointer_to_sqeuclidean("float16") != 0
-    assert simd.pointer_to_cosine("float16") != 0
+    assert simd.pointer_to_angular("float16") != 0
     assert simd.pointer_to_inner("float16") != 0
 
     assert simd.pointer_to_sqeuclidean("int8") != 0
-    assert simd.pointer_to_cosine("int8") != 0
+    assert simd.pointer_to_angular("int8") != 0
     assert simd.pointer_to_inner("int8") != 0
 
     assert simd.pointer_to_sqeuclidean("uint8") != 0
-    assert simd.pointer_to_cosine("uint8") != 0
+    assert simd.pointer_to_angular("uint8") != 0
     assert simd.pointer_to_inner("uint8") != 0
 
 
@@ -684,7 +692,7 @@ def random_of_dtype(dtype, shape):
         (simd.cdist, TypeError, (to_array([[1.0]]), to_array([[1.0]]), "l2"), {"metric": "l2"}),
         # Applying real metric to complex numbers - missing kernel
         (simd.angular, LookupError, (to_array([1 + 2j]), to_array([1 + 2j])), {}),
-        # Test incompatible vectors for cosine
+        # Test incompatible vectors for angular
         (simd.angular, ValueError, (to_array([1.0]), to_array([1.0, 2.0])), {}),  # Different number of dimensions
         (simd.angular, TypeError, (to_array([1.0]), to_array([1], "int8")), {}),  # Floats and integers
         (simd.angular, TypeError, (to_array([1], "float32"), to_array([1], "float16")), {}),  # Different floats
@@ -1024,7 +1032,7 @@ def test_jensen_shannon(ndim, dtype, capability, stats_fixture):
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float32", "float16"])
 @pytest.mark.parametrize("capability", possible_capabilities)
-def test_cosine_zero_vector(ndim, dtype, capability):
+def test_angular_zero_vector(ndim, dtype, capability):
     """Tests the simd.angular() function with zero vectors, to catch division by zero errors."""
     a = np.zeros(ndim, dtype=dtype)
     b = (np.random.randn(ndim) + 1).astype(dtype)
@@ -1039,8 +1047,8 @@ def test_cosine_zero_vector(ndim, dtype, capability):
     result = simd.angular(b, b)
     assert abs(result) < SIMSIMD_ATOL, f"Expected 0 distance from itself, but got {result}"
 
-    # For the cosine, the output must not be negative!
-    assert np.all(result >= 0), f"Negative result for cosine distance"
+    # For the angular distance, the output must not be negative!
+    assert np.all(result >= 0), f"Negative result for angular distance"
 
 
 @pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/SimSIMD/issues/206")  # TODO
@@ -1508,10 +1516,10 @@ def test_batch(ndim, dtype, capability):
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("input_dtype", ["float32", "float16"])
 @pytest.mark.parametrize("out_dtype", [None, "float32", "int32"])
-@pytest.mark.parametrize("metric", ["cosine", "sqeuclidean"])
+@pytest.mark.parametrize("metric", ["angular", "sqeuclidean"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
-    """Compares the simd.cdist() function with scipy.spatial.distance.cdist(), measuring the accuracy error for f16, and f32 types using sqeuclidean and cosine metrics."""
+    """Compares the simd.cdist() function with scipy.spatial.distance.cdist(), measuring the accuracy error for f16, and f32 types using sqeuclidean and angular metrics."""
 
     if input_dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
@@ -1529,19 +1537,20 @@ def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
 
     # Check if we need to round before casting to integer (to match SimSIMD's lround behavior)
     is_integer_output = out_dtype in ("int32", "int64", "int16", "int8", "uint32", "uint64", "uint16", "uint8")
+    scipy_metric = scipy_metric_name(metric)
 
     if out_dtype is None:
-        expected = spd.cdist(A, B, metric)
+        expected = spd.cdist(A, B, scipy_metric)
         result = simd.cdist(A, B, metric)
         #! Same functions can be used in-place, but SciPy doesn't support misaligned outputs
         expected_out = np.zeros((M, N))
         result_out_extended = np.zeros((M, N + 7))
         result_out = result_out_extended[:, :N]
-        assert spd.cdist(A, B, metric, out=expected_out) is not None
+        assert spd.cdist(A, B, scipy_metric, out=expected_out) is not None
         assert simd.cdist(A, B, metric, out=result_out) is None
     else:
         #! SimSIMD rounds to the nearest integer before casting
-        scipy_result = spd.cdist(A, B, metric)
+        scipy_result = spd.cdist(A, B, scipy_metric)
         expected = np.round(scipy_result).astype(out_dtype) if is_integer_output else scipy_result.astype(out_dtype)
         result = simd.cdist(A, B, metric, out_dtype=out_dtype)
 
@@ -1549,7 +1558,7 @@ def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
         expected_out = np.zeros((M, N), dtype=np.float64)
         result_out_extended = np.zeros((M, N + 7), dtype=out_dtype)
         result_out = result_out_extended[:, :N]
-        assert spd.cdist(A, B, metric, out=expected_out) is not None
+        assert spd.cdist(A, B, scipy_metric, out=expected_out) is not None
         assert simd.cdist(A, B, metric, out=result_out) is None
         #! Moreover, SciPy supports only double-precision outputs, so we need to downcast afterwards.
         expected_out = np.round(expected_out).astype(out_dtype) if is_integer_output else expected_out.astype(out_dtype)
@@ -1566,9 +1575,9 @@ def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("input_dtype", ["float32", "float16"])
 @pytest.mark.parametrize("out_dtype", [None, "float32", "int32"])
-@pytest.mark.parametrize("metric", ["cosine", "sqeuclidean"])
+@pytest.mark.parametrize("metric", ["angular", "sqeuclidean"])
 def test_cdist_itself(ndim, input_dtype, out_dtype, metric):
-    """Compares the simd.cdist(A, A) function with scipy.spatial.distance.cdist(A, A), measuring the accuracy error for f16, and f32 types using sqeuclidean and cosine metrics."""
+    """Compares the simd.cdist(A, A) function with scipy.spatial.distance.cdist(A, A), measuring the accuracy error for f16, and f32 types using sqeuclidean and angular metrics."""
 
     if input_dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
@@ -1577,14 +1586,15 @@ def test_cdist_itself(ndim, input_dtype, out_dtype, metric):
 
     # Check if we need to round before casting to integer (to match SimSIMD's lround behavior)
     is_integer_output = out_dtype in ("int32", "int64", "int16", "int8", "uint32", "uint64", "uint16", "uint8")
+    scipy_metric = scipy_metric_name(metric)
 
     A = np.random.randn(10, ndim + 1).astype(input_dtype)
     if out_dtype is None:
-        expected = spd.cdist(A, A, metric)
+        expected = spd.cdist(A, A, scipy_metric)
         result = simd.cdist(A, A, metric=metric)
     else:
         #! SimSIMD rounds to the nearest integer before casting
-        scipy_result = spd.cdist(A, A, metric)
+        scipy_result = spd.cdist(A, A, scipy_metric)
         expected = np.round(scipy_result).astype(out_dtype) if is_integer_output else scipy_result.astype(out_dtype)
         result = simd.cdist(A, A, metric=metric, out_dtype=out_dtype)
 
@@ -1903,7 +1913,7 @@ def test_gil_free_threading():
     distances = np.zeros(vectors_a.shape[0], dtype=np.float32)
 
     def compute_batch(start_idx, end_idx) -> float:
-        """Compute cosine distances for a batch."""
+        """Compute angular distances for a batch."""
         slice_a = vectors_a[start_idx:end_idx]
         slice_b = vectors_b[start_idx:end_idx]
         slice_distances = distances[start_idx:end_idx]
@@ -1911,7 +1921,7 @@ def test_gil_free_threading():
         return sum(slice_distances)
 
     def compute_with_threads(threads: int) -> float:
-        """Compute cosine distances using multiple threads."""
+        """Compute angular distances using multiple threads."""
         chunk_size = len(vectors_a) // threads
         futures = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
