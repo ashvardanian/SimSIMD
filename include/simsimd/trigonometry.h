@@ -87,7 +87,7 @@ SIMSIMD_PUBLIC void simsimd_cos_f32_neon(simsimd_f32_t const *ins, simsimd_size_
 SIMSIMD_PUBLIC void simsimd_atan_f32_neon(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
 
 /*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
- *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
+ *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
  *  Practically all modern x86 CPUs support AVX2, FMA, and F16C, making it a perfect baseline for SIMD algorithms.
  *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
  *  properly vectorized by recent compilers.
@@ -137,9 +137,9 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_sin(simsimd_f32_t const angle_radians) 
 
     // Compute the polynomial approximation
     simsimd_f32_t polynomial = coeff_5;
-    polynomial = polynomial * angle_squared + coeff_3;         // polynomial = (coeff_5 * x^2) + coeff_3
-    polynomial = polynomial * angle_squared + coeff_1;         // polynomial = polynomial * x^2 + coeff_1
-    simsimd_f32_t result = (angle_cubed * polynomial) + angle; // result = (x^3 * polynomial) + x
+    polynomial = polynomial * angle_squared + coeff_3;
+    polynomial = polynomial * angle_squared + coeff_1;
+    simsimd_f32_t result = polynomial * angle_cubed + angle;
 
     // If multiple_of_pi is odd, flip the sign of the result
     if ((multiple_of_pi & 1) != 0) result = -result;
@@ -175,9 +175,9 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_cos(simsimd_f32_t const angle_radians) 
 
     // Compute the polynomial approximation
     simsimd_f32_t polynomial = coeff_5;
-    polynomial = polynomial * angle_squared + coeff_3;         // polynomial = (coeff_5 * x^2) + coeff_3
-    polynomial = polynomial * angle_squared + coeff_1;         // polynomial = polynomial * x^2 + coeff_1
-    simsimd_f32_t result = (angle_cubed * polynomial) + angle; // result = (x^3 * polynomial) + x
+    polynomial = polynomial * angle_squared + coeff_3;
+    polynomial = polynomial * angle_squared + coeff_1;
+    simsimd_f32_t result = polynomial * angle_cubed + angle;
 
     // If multiple_of_pi is even, flip the sign of the result
     if ((multiple_of_pi & 1) == 0) result = -result;
@@ -209,6 +209,7 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_atan(simsimd_f32_t const input) {
 
     // Argument reduction
     simsimd_f32_t const value_squared = value * value;
+    simsimd_f32_t const value_cubed = value * value_squared;
 
     // Polynomial evaluation
     simsimd_f32_t polynomial = coeff_1;
@@ -221,21 +222,60 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_atan(simsimd_f32_t const input) {
     polynomial = polynomial * value_squared + coeff_8;
 
     // Adjust for quadrant
-    simsimd_f32_t result = value + value * value_squared * polynomial;
+    simsimd_f32_t result = polynomial * value_cubed + value;
     simsimd_f32_t const pi_half = 1.5707963267948966f; // π/2
     if ((quadrant & 1) != 0) result = pi_half - result;
     if ((quadrant & 2) != 0) result = -result;
     return result;
 }
 
+typedef enum simsimd_float_class_t {
+    simsimd_float_unknown_k = 0,
+    simsimd_float_nan_k = 1 << 1,
+
+    simsimd_float_positive_zero_k = 1 << 10,
+    simsimd_float_positive_finite_k = 1 << 11,
+    simsimd_float_positive_infinity_k = 1 << 12,
+
+    simsimd_float_negative_zero_k = 1 << 20,
+    simsimd_float_negative_finite_k = 1 << 21,
+    simsimd_float_negative_infinity_k = 1 << 22,
+
+} simsimd_float_class_t;
+
+SIMSIMD_PUBLIC simsimd_float_class_t simsimd_f32_classify(simsimd_f32_t const input) {
+    // Constants for special cases
+    simsimd_u32_t const positive_zero = 0x00000000u;     // +0
+    simsimd_u32_t const negative_zero = 0x80000000u;     // -0
+    simsimd_u32_t const positive_infinity = 0x7F800000u; // +∞
+    simsimd_u32_t const negative_infinity = 0xFF800000u; // -∞
+    simsimd_u32_t const exponent_mask = 0x7F800000u;     // Mask for exponent bits
+    simsimd_u32_t const mantissa_mask = 0x007FFFFFu;     // Mask for mantissa bits
+
+    simsimd_u32_t const bits = *(simsimd_u32_t *)&input;
+    if (bits == positive_zero) return simsimd_float_positive_zero_k;
+    if (bits == negative_zero) return simsimd_float_negative_zero_k;
+    if (bits == positive_infinity) return simsimd_float_positive_infinity_k;
+    if (bits == negative_infinity) return simsimd_float_negative_infinity_k;
+
+    // Check for NaN (exponent all 1s and non-zero mantissa)
+    if ((bits & exponent_mask) == exponent_mask && (bits & mantissa_mask) != 0) return simsimd_float_nan_k;
+    return input > 0.0f ? simsimd_float_positive_finite_k : simsimd_float_negative_finite_k;
+}
+
+SIMSIMD_PUBLIC int simsimd_float_class_belongs_to(simsimd_float_class_t const class_, int const belongs_to) {
+    return (class_ & belongs_to) != 0;
+}
+
 /**
  *  @brief  Computes the arc-tangent of (y/x) with @b 0-ULP error bound.
  *  @see    Based on @b `xatan2f` in SLEEF library.
- *  @param  y The input sine value.
- *  @param  x The input cosine value.
- *  @return The arc-tangent of (y/x) in [-π, π] radians range.
+ *  @param  y_input The input sine value.
+ *  @param  x_input The input cosine value.
+ *  @return The arc-tangent of (y_input/x_input) in [-π, π] radians range.
  */
-SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_atan2(simsimd_f32_t const y, simsimd_f32_t const x) {
+SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_atan2(simsimd_f32_t const y_input, simsimd_f32_t const x_input) {
+
     // Polynomial coefficients for atan2 approximation
     simsimd_f32_t const coeff_8 = -0.333331018686294555664062f;
     simsimd_f32_t const coeff_7 = +0.199926957488059997558594f;
@@ -246,15 +286,16 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_atan2(simsimd_f32_t const y, simsimd_f3
     simsimd_f32_t const coeff_2 = -0.0159569028764963150024414f;
     simsimd_f32_t const coeff_1 = +0.00282363896258175373077393f;
 
-    simsimd_fui32_t x_bits, y_bits;
-    x_bits.f = x, y_bits.f = y;
+    // Convert to bit representation
+    simsimd_fui32_t const x_bits = *(simsimd_fui32_t *)&x_input;
+    simsimd_fui32_t const y_bits = *(simsimd_fui32_t *)&y_input;
     simsimd_fui32_t x_abs, y_abs;
     y_abs.u = y_bits.u & 0x7FFFFFFFu;
 
     // Quadrant adjustment
     int quadrant = 0;
-    if (x < 0.0f) { x_abs.f = -x, quadrant = -2; }
-    else { x_abs.f = x; }
+    if (x_input < 0.0f) { x_abs.f = -x_input, quadrant = -2; }
+    else { x_abs.f = x_input; }
     // Ensure proper fraction where the numerator is smaller than the denominator
     if (y_abs.f > x_abs.f) {
         simsimd_f32_t temp = x_abs.f;
@@ -266,8 +307,9 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_atan2(simsimd_f32_t const y, simsimd_f3
     // Argument reduction
     simsimd_f32_t const ratio = y_abs.f / x_abs.f;
     simsimd_f32_t const ratio_squared = ratio * ratio;
+    simsimd_f32_t const ratio_cubed = ratio * ratio_squared;
 
-    // Polynomial evaluation (fully unrolled)
+    // Polynomial evaluation
     simsimd_f32_t polynomial = coeff_1;
     polynomial = polynomial * ratio_squared + coeff_2;
     polynomial = polynomial * ratio_squared + coeff_3;
@@ -278,37 +320,16 @@ SIMSIMD_PUBLIC simsimd_f32_t simsimd_f32_atan2(simsimd_f32_t const y, simsimd_f3
     polynomial = polynomial * ratio_squared + coeff_8;
 
     // Compute the result
-    simsimd_f32_t result = ratio + ratio * ratio_squared * polynomial;
-    result += quadrant * (3.14159265358979323846f / 2.0f); // quadrant * (π/2)
+    simsimd_f32_t const pi_half = 1.5707963267948966f; // π/2
+    simsimd_f32_t result = polynomial * ratio_cubed + ratio;
+    result += quadrant * pi_half; // quadrant * (π/2)
 
-    // Constants for special cases
-    simsimd_u32_t const negative_zero = 0x80000000u;
-    simsimd_u32_t const positive_infinity = 0x7F800000u;
-    simsimd_u32_t const negative_infinity = 0xFF800000u;
-
-    // Special cases handling using bit reinterpretation
-    int const x_is_inf = (x_bits.u == positive_infinity) | (x_bits.u == negative_infinity);
-    int const y_is_inf = (y_bits.u == positive_infinity) | (y_bits.u == negative_infinity);
-
+    // Adjust sign
+    simsimd_i32_t const negative_zero = 0x80000000;
     simsimd_fui32_t result_bits;
     result_bits.f = result;
-
-    // Adjust sign based on x
     result_bits.u ^= x_bits.u & negative_zero;
-
-    // Quadrant adjustments
-    simsimd_f32_t const pi = 3.14159265358979323846f;     // π
-    simsimd_f32_t const pi_half = 1.5707963267948966f;    // π/2
-    simsimd_f32_t const pi_quarter = 0.7853981633974483f; // π/4
-
-    if (x_is_inf || x_bits.f == 0.0f) {
-        result_bits.f = pi_half - (x_is_inf ? ((x_bits.f < 0.0f) ? pi_half : 0.0f) : 0.0f);
-    }
-    if (y_is_inf) { result_bits.f = pi_half - (x_is_inf ? ((x_bits.f < 0.0f) ? pi_half : pi_quarter) : 0.0f); }
-    if (y_bits.f == 0.0f) { result_bits.f = (x_bits.f < 0.0f) ? pi : 0.0f; }
-    if (x_is_inf | y_is_inf) { result_bits.u = 0x7FC00000u; } // Set result to NaN
-    // Adjust final result sign based on y
-    else { result_bits.u ^= y_bits.u & negative_zero; }
+    result_bits.u ^= y_bits.u & negative_zero;
     return result_bits.f;
 }
 
@@ -467,7 +488,7 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan(simsimd_f64_t const input) {
     simsimd_f64_t const value_squared = value * value;
     simsimd_f64_t const value_cubed = value * value_squared;
 
-    // Polynomial evaluation (fully unrolled)
+    // Polynomial evaluation
     simsimd_f64_t polynomial = coeff_19;
     polynomial = polynomial * value_squared + coeff_18;
     polynomial = polynomial * value_squared + coeff_17;
@@ -490,7 +511,7 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan(simsimd_f64_t const input) {
 
     // Adjust for quadrant
     simsimd_f64_t const pi_half = 1.5707963267948966; // π/2
-    simsimd_f64_t result = value_cubed * polynomial + value;
+    simsimd_f64_t result = polynomial * value_cubed + value;
     if (quadrant & 1) result = pi_half - result;
     if (quadrant & 2) result = -result;
 
@@ -500,11 +521,11 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan(simsimd_f64_t const input) {
 /**
  *  @brief  Computes the arc-tangent of (y/x) with @b 0-ULP error bound.
  *  @see    Based on @b `xatan2` in SLEEF library.
- *  @param  y The input sine value.
- *  @param  x The input cosine value.
- *  @return The arc-tangent of (y/x) in [-π/2, π/2] radians range.
+ *  @param  y_input The input sine value.
+ *  @param  x_input The input cosine value.
+ *  @return The arc-tangent of (y_input/x_input) in [-π/2, π/2] radians range.
  */
-SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan2(simsimd_f64_t const y, simsimd_f64_t const x) {
+SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan2(simsimd_f64_t const y_input, simsimd_f64_t const x_input) {
     // Polynomial coefficients for atan2 approximation
     simsimd_f64_t const coeff_19 = -1.88796008463073496563746e-05;
     simsimd_f64_t const coeff_18 = +0.000209850076645816976906797;
@@ -527,14 +548,14 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan2(simsimd_f64_t const y, simsimd_f6
     simsimd_f64_t const coeff_1 = -0.333333333333311110369124;
 
     simsimd_fui64_t x_bits, y_bits;
-    x_bits.f = x, y_bits.f = y;
+    x_bits.f = x_input, y_bits.f = y_input;
     simsimd_fui64_t x_abs, y_abs;
     y_abs.u = y_bits.u & 0x7FFFFFFFFFFFFFFFull;
 
     // Quadrant adjustment
     int quadrant = 0;
-    if (x < 0) { x_abs.f = -x, quadrant = -2; }
-    else { x_abs.f = x; }
+    if (x_input < 0) { x_abs.f = -x_input, quadrant = -2; }
+    else { x_abs.f = x_input; }
     // Now make sure its proper fraction, where the nominator is smaller than the denominator,
     // otherwise swap the absolute values that we will use down the road, but keep the `x_bits` and `y_bits`
     // as is for final qdrant re-adjustment.
@@ -548,8 +569,9 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan2(simsimd_f64_t const y, simsimd_f6
     // Argument reduction
     simsimd_f64_t const ratio = y_abs.f / x_abs.f;
     simsimd_f64_t const ratio_squared = ratio * ratio;
+    simsimd_f64_t const ratio_cubed = ratio * ratio_squared;
 
-    // Polynomial evaluation (fully unrolled)
+    // Polynomial evaluation
     simsimd_f64_t polynomial = coeff_19 * ratio_squared + coeff_18;
     polynomial = polynomial * ratio_squared + coeff_17;
     polynomial = polynomial * ratio_squared + coeff_16;
@@ -570,14 +592,13 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_atan2(simsimd_f64_t const y, simsimd_f6
     polynomial = polynomial * ratio_squared + coeff_1;
 
     // Adjust for quadrant
-    simsimd_f64_t const epsilon = 1e-300;                // Near-zero threshold
     simsimd_f64_t const pi = 3.14159265358979323846;     // π
     simsimd_f64_t const pi_half = 1.5707963267948966;    // π/2
     simsimd_f64_t const pi_quarter = 0.7853981633974483; // π/4
     simsimd_u64_t const negative_zero = 0x8000000000000000ull;
     simsimd_u64_t const positive_infinity = 0x7FF0000000000000ull;
     simsimd_u64_t const negative_infinity = 0xFFF0000000000000ull;
-    simsimd_f64_t result = polynomial * ratio_squared * ratio + ratio;
+    simsimd_f64_t result = polynomial * ratio_cubed + ratio;
     result += quadrant * pi_half;
 
     // Special cases handling using bit reinterpretation
@@ -732,6 +753,69 @@ SIMSIMD_INTERNAL __m512 _simsimd_f32x16_atan_skylake(__m512 const inputs) {
     result = _mm512_mask_sub_ps(result, reciprocal_mask, _mm512_set1_ps(1.5707963267948966f), result);
     result = _mm512_mask_sub_ps(result, negative_mask, _mm512_setzero_ps(), result);
     return result;
+}
+
+SIMSIMD_INTERNAL __m512 _simsimd_f32x16_atan2_skylake(__m512 const ys_inputs, __m512 const xs_inputs) {
+    // Polynomial coefficients
+    __m512 const coeff_8 = _mm512_set1_ps(-0.333331018686294555664062f);
+    __m512 const coeff_7 = _mm512_set1_ps(+0.199926957488059997558594f);
+    __m512 const coeff_6 = _mm512_set1_ps(-0.142027363181114196777344f);
+    __m512 const coeff_5 = _mm512_set1_ps(+0.106347933411598205566406f);
+    __m512 const coeff_4 = _mm512_set1_ps(-0.0748900920152664184570312f);
+    __m512 const coeff_3 = _mm512_set1_ps(+0.0425049886107444763183594f);
+    __m512 const coeff_2 = _mm512_set1_ps(-0.0159569028764963150024414f);
+    __m512 const coeff_1 = _mm512_set1_ps(+0.00282363896258175373077393f);
+
+    // Quadrant adjustments normalizing to absolute values of x and y
+    __mmask16 const xs_negative_mask = _mm512_fpclass_ps_mask(xs_inputs, 0x40);
+    __m512 xs = _mm512_abs_ps(xs_inputs);
+    __m512 ys = _mm512_abs_ps(ys_inputs);
+    // Ensure proper fraction where the numerator is smaller than the denominator
+    __mmask16 const swap_mask = _mm512_cmp_ps_mask(ys, xs, _CMP_GT_OS);
+    __m512 temps = xs;
+    xs = _mm512_mask_blend_ps(swap_mask, xs, ys);
+    ys = _mm512_mask_sub_ps(ys, swap_mask, _mm512_setzero_ps(), temps);
+
+    // Compute ratio and ratio^2
+    __m512 const ratio = _mm512_div_ps(ys, xs);
+    __m512 const ratio_squared = _mm512_mul_ps(ratio, ratio);
+    __m512 const ratio_cubed = _mm512_mul_ps(ratio, ratio_squared);
+
+    // Polynomial evaluation
+    __m512 polynomials = coeff_1;
+    polynomials = _mm512_fmadd_ps(polynomials, ratio_squared, coeff_2);
+    polynomials = _mm512_fmadd_ps(polynomials, ratio_squared, coeff_3);
+    polynomials = _mm512_fmadd_ps(polynomials, ratio_squared, coeff_4);
+    polynomials = _mm512_fmadd_ps(polynomials, ratio_squared, coeff_5);
+    polynomials = _mm512_fmadd_ps(polynomials, ratio_squared, coeff_6);
+    polynomials = _mm512_fmadd_ps(polynomials, ratio_squared, coeff_7);
+    polynomials = _mm512_fmadd_ps(polynomials, ratio_squared, coeff_8);
+
+    // Compute the result, but unlike the serial version, we don't keep the quadrant index
+    // in a form of an integer to compute the `quadrant * (π/2)` term, instead we use the
+    // masks to achieve the same.
+    __m512 results = _mm512_fmadd_ps(ratio_cubed, polynomials, ratio);
+    results = _mm512_mask_sub_ps(results, xs_negative_mask, results, _mm512_set1_ps(3.14159265358979323846f));
+    results = _mm512_mask_add_ps(results, swap_mask, results, _mm512_set1_ps(1.5707963267948966f));
+
+    // Special cases handling doesn't even require constants, as AVX-512 can automatically classify infinities.
+    // However, those `_mm512_fpclass_ps_mask` ~ `VFPCLASSPS (K, ZMM, I8)` instructions aren't free:
+    // - On Intel they generally cost 4 cycles and operate only on port 5.
+    // - On AMD, its 5 cycles and two ports: 0 and 1.
+    // The alternative is to use equality comparions like `_mm512_cmpeq_ps_mask` ~ `VCMPPS (K, ZMM, ZMM, I8)`:
+    // - On Intel they generally cost 4 cycles and operate only on port 5.
+    // - On AMD, its 5 cycles and two ports: 0 and 1.
+    // ! Same as before, so not much space for latency hiding!
+    // ! Integer comparison for 32 bit types also have the same cost on the same ports.
+    __mmask16 const xs_is_inf = _mm512_fpclass_ps_mask(xs, 0x18);
+    __mmask16 const ys_is_inf = _mm512_fpclass_ps_mask(ys, 0x18);
+    __mmask16 const xs_is_zero = _mm512_fpclass_ps_mask(xs, 0x06);
+    __mmask16 const ys_is_zero = _mm512_fpclass_ps_mask(ys, 0x06);
+
+    // Adjust sign based on x
+    results = _mm512_mask_xor_ps(results, xs_negative_mask, results, _mm512_set1_ps(-0.0f));
+
+    return results;
 }
 
 SIMSIMD_PUBLIC void simsimd_sin_f32_skylake(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs) {
