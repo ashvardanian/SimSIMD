@@ -138,6 +138,32 @@ extern "C" {
         metric(a, b, n, alpha, beta, result);                                                                      \
     }
 
+#define SIMSIMD_DECLARATION_SCALE(name, extension)                                                                 \
+    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(simsimd_##extension##_t const *a, simsimd_size_t n,          \
+                                                      simsimd_distance_t alpha, simsimd_distance_t beta,           \
+                                                      simsimd_##extension##_t *result) {                           \
+        static simsimd_kernel_scale_punned_t metric = 0;                                                           \
+        if (metric == 0) {                                                                                         \
+            simsimd_capability_t used_capability;                                                                  \
+            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##extension##_k, simsimd_capabilities(), \
+                                       simsimd_cap_any_k, (simsimd_kernel_punned_t *)(&metric), &used_capability); \
+        }                                                                                                          \
+        metric(a, n, alpha, beta, result);                                                                         \
+    }
+
+#define SIMSIMD_DECLARATION_SUM(name, extension)                                                                   \
+    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(simsimd_##extension##_t const *a,                            \
+                                                      simsimd_##extension##_t const *b, simsimd_size_t n,          \
+                                                      simsimd_##extension##_t *result) {                           \
+        static simsimd_kernel_sum_punned_t metric = 0;                                                             \
+        if (metric == 0) {                                                                                         \
+            simsimd_capability_t used_capability;                                                                  \
+            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##extension##_k, simsimd_capabilities(), \
+                                       simsimd_cap_any_k, (simsimd_kernel_punned_t *)(&metric), &used_capability); \
+        }                                                                                                          \
+        metric(a, b, n, result);                                                                                   \
+    }
+
 // Dot products
 SIMSIMD_DECLARATION_DENSE(dot, i8)
 SIMSIMD_DECLARATION_DENSE(dot, u8)
@@ -219,6 +245,30 @@ SIMSIMD_DECLARATION_WSUM(wsum, f16)
 SIMSIMD_DECLARATION_WSUM(wsum, bf16)
 SIMSIMD_DECLARATION_WSUM(wsum, i8)
 SIMSIMD_DECLARATION_WSUM(wsum, u8)
+SIMSIMD_DECLARATION_SCALE(scale, f64)
+SIMSIMD_DECLARATION_SCALE(scale, f32)
+SIMSIMD_DECLARATION_SCALE(scale, f16)
+SIMSIMD_DECLARATION_SCALE(scale, bf16)
+SIMSIMD_DECLARATION_SCALE(scale, i8)
+SIMSIMD_DECLARATION_SCALE(scale, u8)
+SIMSIMD_DECLARATION_SCALE(scale, i16)
+SIMSIMD_DECLARATION_SCALE(scale, u16)
+SIMSIMD_DECLARATION_SCALE(scale, i32)
+SIMSIMD_DECLARATION_SCALE(scale, u32)
+SIMSIMD_DECLARATION_SCALE(scale, i64)
+SIMSIMD_DECLARATION_SCALE(scale, u64)
+SIMSIMD_DECLARATION_SUM(sum, f64)
+SIMSIMD_DECLARATION_SUM(sum, f32)
+SIMSIMD_DECLARATION_SUM(sum, f16)
+SIMSIMD_DECLARATION_SUM(sum, bf16)
+SIMSIMD_DECLARATION_SUM(sum, i8)
+SIMSIMD_DECLARATION_SUM(sum, u8)
+SIMSIMD_DECLARATION_SUM(sum, i16)
+SIMSIMD_DECLARATION_SUM(sum, u16)
+SIMSIMD_DECLARATION_SUM(sum, i32)
+SIMSIMD_DECLARATION_SUM(sum, u32)
+SIMSIMD_DECLARATION_SUM(sum, i64)
+SIMSIMD_DECLARATION_SUM(sum, u64)
 
 SIMSIMD_DYNAMIC int simsimd_uses_neon(void) { return (simsimd_capabilities() & simsimd_cap_neon_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_neon_f16(void) { return (simsimd_capabilities() & simsimd_cap_neon_f16_k) != 0; }
@@ -252,6 +302,22 @@ SIMSIMD_DYNAMIC void simsimd_bf16_to_f32(simsimd_bf16_t const *src, simsimd_f32_
 
 SIMSIMD_DYNAMIC void simsimd_f32_to_bf16(simsimd_f32_t const *src, simsimd_bf16_t *dest) {
     simsimd_f32_to_bf16_implementation(src, dest);
+}
+
+SIMSIMD_DYNAMIC void simsimd_e4m3_to_f32(simsimd_e4m3_t const *src, simsimd_f32_t *dest) {
+    simsimd_e4m3_to_f32_implementation(src, dest);
+}
+
+SIMSIMD_DYNAMIC void simsimd_f32_to_e4m3(simsimd_f32_t const *src, simsimd_e4m3_t *dest) {
+    simsimd_f32_to_e4m3_implementation(src, dest);
+}
+
+SIMSIMD_DYNAMIC void simsimd_e5m2_to_f32(simsimd_e5m2_t const *src, simsimd_f32_t *dest) {
+    simsimd_e5m2_to_f32_implementation(src, dest);
+}
+
+SIMSIMD_DYNAMIC void simsimd_f32_to_e5m2(simsimd_f32_t const *src, simsimd_e5m2_t *dest) {
+    simsimd_f32_to_e5m2_implementation(src, dest);
 }
 
 SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {

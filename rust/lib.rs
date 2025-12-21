@@ -176,10 +176,10 @@ extern "C" {
     fn simsimd_flush_denormals() -> i32;
     fn simsimd_uses_dynamic_dispatch() -> i32;
 
-    fn simsimd_f32_to_f16(f32_value: f32, result_ptr: *mut u16);
-    fn simsimd_f16_to_f32(f16_ptr: *const u16) -> f32;
-    fn simsimd_f32_to_bf16(f32_value: f32, result_ptr: *mut u16);
-    fn simsimd_bf16_to_f32(bf16_ptr: *const u16) -> f32;
+    fn simsimd_f32_to_f16(src: *const f32, dest: *mut u16);
+    fn simsimd_f16_to_f32(src: *const u16, dest: *mut f32);
+    fn simsimd_f32_to_bf16(src: *const f32, dest: *mut u16);
+    fn simsimd_bf16_to_f32(src: *const u16, dest: *mut f32);
 }
 
 /// A half-precision (16-bit) floating point number.
@@ -227,7 +227,7 @@ impl f16 {
     #[inline(always)]
     pub fn from_f32(value: f32) -> Self {
         let mut result: u16 = 0;
-        unsafe { simsimd_f32_to_f16(value, &mut result) };
+        unsafe { simsimd_f32_to_f16(&value, &mut result) };
         f16(result)
     }
 
@@ -242,7 +242,9 @@ impl f16 {
     /// ```
     #[inline(always)]
     pub fn to_f32(self) -> f32 {
-        unsafe { simsimd_f16_to_f32(&self.0) }
+        let mut result: f32 = 0.0;
+        unsafe { simsimd_f16_to_f32(&self.0, &mut result) };
+        result
     }
 
     /// Returns true if this value is NaN.
@@ -401,7 +403,7 @@ impl bf16 {
     #[inline(always)]
     pub fn from_f32(value: f32) -> Self {
         let mut result: u16 = 0;
-        unsafe { simsimd_f32_to_bf16(value, &mut result) };
+        unsafe { simsimd_f32_to_bf16(&value, &mut result) };
         bf16(result)
     }
 
@@ -416,7 +418,9 @@ impl bf16 {
     /// ```
     #[inline(always)]
     pub fn to_f32(self) -> f32 {
-        unsafe { simsimd_bf16_to_f32(&self.0) }
+        let mut result: f32 = 0.0;
+        unsafe { simsimd_bf16_to_f32(&self.0, &mut result) };
+        result
     }
 
     /// Returns true if this value is NaN.

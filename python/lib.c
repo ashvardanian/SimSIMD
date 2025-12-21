@@ -143,8 +143,8 @@ int same_string(char const *a, char const *b) { return strcmp(a, b) == 0; }
 /// @brief Helper method to check if a logical datatype is complex and should be represented as two scalars.
 /// @return 1 if the datatype is complex, 0 otherwise.
 int is_complex(simsimd_datatype_t datatype) {
-    return datatype == simsimd_datatype_f32c_k || datatype == simsimd_datatype_f64c_k ||
-           datatype == simsimd_datatype_f16c_k || datatype == simsimd_datatype_bf16c_k;
+    return datatype == simsimd_f32c_k || datatype == simsimd_f64c_k || datatype == simsimd_f16c_k ||
+           datatype == simsimd_bf16c_k;
 }
 
 /// @brief Converts a Python-ic datatype string to a logical datatype, normalizing the format.
@@ -157,50 +157,50 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
     if (same_string(name, "float32") || same_string(name, "f32") || // SimSIMD-specific
         same_string(name, "f4") || same_string(name, "<f4") ||      // Sized float
         same_string(name, "f") || same_string(name, "<f"))          // Named type
-        return simsimd_datatype_f32_k;
+        return simsimd_f32_k;
     else if (same_string(name, "float16") || same_string(name, "f16") || // SimSIMD-specific
              same_string(name, "f2") || same_string(name, "<f2") ||      // Sized float
              same_string(name, "e") || same_string(name, "<e"))          // Named type
-        return simsimd_datatype_f16_k;
+        return simsimd_f16_k;
     else if (same_string(name, "float64") || same_string(name, "f64") || // SimSIMD-specific
              same_string(name, "f8") || same_string(name, "<f8") ||      // Sized float
              same_string(name, "d") || same_string(name, "<d"))          // Named type
-        return simsimd_datatype_f64_k;
+        return simsimd_f64_k;
     //? The exact format is not defined, but TensorFlow uses 'E' for `bf16`?!
     else if (same_string(name, "bfloat16") || same_string(name, "bf16")) // SimSIMD-specific
-        return simsimd_datatype_bf16_k;
+        return simsimd_bf16_k;
 
     // Complex numbers:
     else if (same_string(name, "complex64") ||                                             // SimSIMD-specific
              same_string(name, "F4") || same_string(name, "<F4") ||                        // Sized complex
              same_string(name, "Zf") || same_string(name, "F") || same_string(name, "<F")) // Named type
-        return simsimd_datatype_f32c_k;
+        return simsimd_f32c_k;
     else if (same_string(name, "complex128") ||                                            // SimSIMD-specific
              same_string(name, "F8") || same_string(name, "<F8") ||                        // Sized complex
              same_string(name, "Zd") || same_string(name, "D") || same_string(name, "<D")) // Named type
-        return simsimd_datatype_f64c_k;
+        return simsimd_f64c_k;
     else if (same_string(name, "complex32") ||                                             // SimSIMD-specific
              same_string(name, "F2") || same_string(name, "<F2") ||                        // Sized complex
              same_string(name, "Ze") || same_string(name, "E") || same_string(name, "<E")) // Named type
-        return simsimd_datatype_f16c_k;
+        return simsimd_f16c_k;
     //? The exact format is not defined, but TensorFlow uses 'E' for `bf16`?!
     else if (same_string(name, "bcomplex32")) // SimSIMD-specific
-        return simsimd_datatype_bf16c_k;
+        return simsimd_bf16c_k;
 
     //! Boolean values:
     else if (same_string(name, "bin8") || // SimSIMD-specific
              same_string(name, "?"))      // Named type
-        return simsimd_datatype_b8_k;
+        return simsimd_b8_k;
 
     // Signed integers:
     else if (same_string(name, "int8") ||                                                       // SimSIMD-specific
              same_string(name, "i1") || same_string(name, "|i1") || same_string(name, "<i1") || // Sized integer
              same_string(name, "b") || same_string(name, "<b"))                                 // Named type
-        return simsimd_datatype_i8_k;
+        return simsimd_i8_k;
     else if (same_string(name, "int16") ||                                                      // SimSIMD-specific
              same_string(name, "i2") || same_string(name, "|i2") || same_string(name, "<i2") || // Sized integer
              same_string(name, "h") || same_string(name, "<h"))                                 // Named type
-        return simsimd_datatype_i16_k;
+        return simsimd_i16_k;
 
     //! On Windows the 32-bit and 64-bit signed integers will have different specifiers:
     //! https://github.com/pybind/pybind11/issues/1908
@@ -208,31 +208,31 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
     else if (same_string(name, "int32") ||                                                      // SimSIMD-specific
              same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
              same_string(name, "l") || same_string(name, "<l"))                                 // Named type
-        return simsimd_datatype_i32_k;
+        return simsimd_i32_k;
     else if (same_string(name, "int64") ||                                                      // SimSIMD-specific
              same_string(name, "i8") || same_string(name, "|i8") || same_string(name, "<i8") || // Sized integer
              same_string(name, "q") || same_string(name, "<q"))                                 // Named type
-        return simsimd_datatype_i64_k;
+        return simsimd_i64_k;
 #else // On Linux and macOS:
     else if (same_string(name, "int32") ||                                                      // SimSIMD-specific
              same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
              same_string(name, "i") || same_string(name, "<i"))                                 // Named type
-        return simsimd_datatype_i32_k;
+        return simsimd_i32_k;
     else if (same_string(name, "int64") ||                                                      // SimSIMD-specific
              same_string(name, "i8") || same_string(name, "|i8") || same_string(name, "<i8") || // Sized integer
              same_string(name, "l") || same_string(name, "<l"))                                 // Named type
-        return simsimd_datatype_i64_k;
+        return simsimd_i64_k;
 #endif
 
     // Unsigned integers:
     else if (same_string(name, "uint8") ||                                                      // SimSIMD-specific
              same_string(name, "u1") || same_string(name, "|u1") || same_string(name, "<u1") || // Sized integer
              same_string(name, "B") || same_string(name, "<B"))                                 // Named type
-        return simsimd_datatype_u8_k;
+        return simsimd_u8_k;
     else if (same_string(name, "uint16") ||                                                     // SimSIMD-specific
              same_string(name, "u2") || same_string(name, "|u2") || same_string(name, "<u2") || // Sized integer
              same_string(name, "H") || same_string(name, "<H"))                                 // Named type
-        return simsimd_datatype_u16_k;
+        return simsimd_u16_k;
 
     //! On Windows the 32-bit and 64-bit unsigned integers will have different specifiers:
     //! https://github.com/pybind/pybind11/issues/1908
@@ -240,20 +240,20 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
     else if (same_string(name, "uint32") ||                                                     // SimSIMD-specific
              same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
              same_string(name, "L") || same_string(name, "<L"))                                 // Named type
-        return simsimd_datatype_u32_k;
+        return simsimd_u32_k;
     else if (same_string(name, "uint64") ||                                                     // SimSIMD-specific
              same_string(name, "i8") || same_string(name, "|i8") || same_string(name, "<i8") || // Sized integer
              same_string(name, "Q") || same_string(name, "<Q"))                                 // Named type
-        return simsimd_datatype_u64_k;
+        return simsimd_u64_k;
 #else // On Linux and macOS:
     else if (same_string(name, "uint32") ||                                                     // SimSIMD-specific
              same_string(name, "u4") || same_string(name, "|u4") || same_string(name, "<u4") || // Sized integer
              same_string(name, "I") || same_string(name, "<I"))                                 // Named type
-        return simsimd_datatype_u32_k;
+        return simsimd_u32_k;
     else if (same_string(name, "uint64") ||                                                     // SimSIMD-specific
              same_string(name, "u8") || same_string(name, "|u8") || same_string(name, "<u8") || // Sized integer
              same_string(name, "L") || same_string(name, "<L"))                                 // Named type
-        return simsimd_datatype_u64_k;
+        return simsimd_u64_k;
 #endif
 
     else
@@ -267,25 +267,25 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
 char const *datatype_to_python_string(simsimd_datatype_t dtype) {
     switch (dtype) {
         // Floating-point numbers:
-    case simsimd_datatype_f64_k: return "d";
-    case simsimd_datatype_f32_k: return "f";
-    case simsimd_datatype_f16_k: return "e";
+    case simsimd_f64_k: return "d";
+    case simsimd_f32_k: return "f";
+    case simsimd_f16_k: return "e";
     // Complex numbers:
-    case simsimd_datatype_f64c_k: return "Zd";
-    case simsimd_datatype_f32c_k: return "Zf";
-    case simsimd_datatype_f16c_k: return "Ze";
+    case simsimd_f64c_k: return "Zd";
+    case simsimd_f32c_k: return "Zf";
+    case simsimd_f16c_k: return "Ze";
     // Boolean values:
-    case simsimd_datatype_b8_k: return "?";
+    case simsimd_b8_k: return "?";
     // Signed integers:
-    case simsimd_datatype_i8_k: return "b";
-    case simsimd_datatype_i16_k: return "h";
-    case simsimd_datatype_i32_k: return "i";
-    case simsimd_datatype_i64_k: return "q";
+    case simsimd_i8_k: return "b";
+    case simsimd_i16_k: return "h";
+    case simsimd_i32_k: return "i";
+    case simsimd_i64_k: return "q";
     // Unsigned integers:
-    case simsimd_datatype_u8_k: return "B";
-    case simsimd_datatype_u16_k: return "H";
-    case simsimd_datatype_u32_k: return "I";
-    case simsimd_datatype_u64_k: return "Q";
+    case simsimd_u8_k: return "B";
+    case simsimd_u16_k: return "H";
+    case simsimd_u32_k: return "I";
+    case simsimd_u64_k: return "Q";
     // Other:
     default: return "unknown";
     }
@@ -296,23 +296,23 @@ char const *datatype_to_python_string(simsimd_datatype_t dtype) {
 /// @return Zero if the datatype is not supported, positive integer otherwise.
 size_t bytes_per_datatype(simsimd_datatype_t dtype) {
     switch (dtype) {
-    case simsimd_datatype_f64_k: return sizeof(simsimd_f64_t);
-    case simsimd_datatype_f32_k: return sizeof(simsimd_f32_t);
-    case simsimd_datatype_f16_k: return sizeof(simsimd_f16_t);
-    case simsimd_datatype_bf16_k: return sizeof(simsimd_bf16_t);
-    case simsimd_datatype_f64c_k: return sizeof(simsimd_f64_t) * 2;
-    case simsimd_datatype_f32c_k: return sizeof(simsimd_f32_t) * 2;
-    case simsimd_datatype_f16c_k: return sizeof(simsimd_f16_t) * 2;
-    case simsimd_datatype_bf16c_k: return sizeof(simsimd_bf16_t) * 2;
-    case simsimd_datatype_b8_k: return sizeof(simsimd_b8_t);
-    case simsimd_datatype_i8_k: return sizeof(simsimd_i8_t);
-    case simsimd_datatype_u8_k: return sizeof(simsimd_u8_t);
-    case simsimd_datatype_i16_k: return sizeof(simsimd_i16_t);
-    case simsimd_datatype_u16_k: return sizeof(simsimd_u16_t);
-    case simsimd_datatype_i32_k: return sizeof(simsimd_i32_t);
-    case simsimd_datatype_u32_k: return sizeof(simsimd_u32_t);
-    case simsimd_datatype_i64_k: return sizeof(simsimd_i64_t);
-    case simsimd_datatype_u64_k: return sizeof(simsimd_u64_t);
+    case simsimd_f64_k: return sizeof(simsimd_f64_t);
+    case simsimd_f32_k: return sizeof(simsimd_f32_t);
+    case simsimd_f16_k: return sizeof(simsimd_f16_t);
+    case simsimd_bf16_k: return sizeof(simsimd_bf16_t);
+    case simsimd_f64c_k: return sizeof(simsimd_f64_t) * 2;
+    case simsimd_f32c_k: return sizeof(simsimd_f32_t) * 2;
+    case simsimd_f16c_k: return sizeof(simsimd_f16_t) * 2;
+    case simsimd_bf16c_k: return sizeof(simsimd_bf16_t) * 2;
+    case simsimd_b8_k: return sizeof(simsimd_b8_t);
+    case simsimd_i8_k: return sizeof(simsimd_i8_t);
+    case simsimd_u8_k: return sizeof(simsimd_u8_t);
+    case simsimd_i16_k: return sizeof(simsimd_i16_t);
+    case simsimd_u16_k: return sizeof(simsimd_u16_t);
+    case simsimd_i32_k: return sizeof(simsimd_i32_t);
+    case simsimd_u32_k: return sizeof(simsimd_u32_t);
+    case simsimd_i64_k: return sizeof(simsimd_i64_t);
+    case simsimd_u64_k: return sizeof(simsimd_u64_t);
     default: return 0;
     }
 }
@@ -322,24 +322,37 @@ size_t bytes_per_datatype(simsimd_datatype_t dtype) {
 /// @note For integer types, we use rounding (not truncation) to minimize precision loss
 ///       when the source floating-point value is close to an integer boundary.
 int cast_distance(simsimd_distance_t distance, simsimd_datatype_t target_dtype, void *target_ptr, size_t offset) {
+    simsimd_f32_t f32_val;
     switch (target_dtype) {
-    case simsimd_datatype_f64c_k: ((simsimd_f64_t *)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
-    case simsimd_datatype_f64_k: ((simsimd_f64_t *)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
-    case simsimd_datatype_f32c_k: ((simsimd_f32_t *)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
-    case simsimd_datatype_f32_k: ((simsimd_f32_t *)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
-    case simsimd_datatype_f16c_k: simsimd_f32_to_f16(distance, (simsimd_f16_t *)target_ptr + offset); return 1;
-    case simsimd_datatype_f16_k: simsimd_f32_to_f16(distance, (simsimd_f16_t *)target_ptr + offset); return 1;
-    case simsimd_datatype_bf16c_k: simsimd_f32_to_bf16(distance, (simsimd_bf16_t *)target_ptr + offset); return 1;
-    case simsimd_datatype_bf16_k: simsimd_f32_to_bf16(distance, (simsimd_bf16_t *)target_ptr + offset); return 1;
+    case simsimd_f64c_k: ((simsimd_f64_t *)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
+    case simsimd_f64_k: ((simsimd_f64_t *)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
+    case simsimd_f32c_k: ((simsimd_f32_t *)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
+    case simsimd_f32_k: ((simsimd_f32_t *)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
+    case simsimd_f16c_k:
+        f32_val = (simsimd_f32_t)distance;
+        simsimd_f32_to_f16(&f32_val, (simsimd_f16_t *)target_ptr + offset);
+        return 1;
+    case simsimd_f16_k:
+        f32_val = (simsimd_f32_t)distance;
+        simsimd_f32_to_f16(&f32_val, (simsimd_f16_t *)target_ptr + offset);
+        return 1;
+    case simsimd_bf16c_k:
+        f32_val = (simsimd_f32_t)distance;
+        simsimd_f32_to_bf16(&f32_val, (simsimd_bf16_t *)target_ptr + offset);
+        return 1;
+    case simsimd_bf16_k:
+        f32_val = (simsimd_f32_t)distance;
+        simsimd_f32_to_bf16(&f32_val, (simsimd_bf16_t *)target_ptr + offset);
+        return 1;
     // For integer types, use rounding instead of truncation to handle float32 vs float64 precision differences
-    case simsimd_datatype_i8_k: ((simsimd_i8_t *)target_ptr)[offset] = (simsimd_i8_t)lround(distance); return 1;
-    case simsimd_datatype_u8_k: ((simsimd_u8_t *)target_ptr)[offset] = (simsimd_u8_t)lround(distance); return 1;
-    case simsimd_datatype_i16_k: ((simsimd_i16_t *)target_ptr)[offset] = (simsimd_i16_t)lround(distance); return 1;
-    case simsimd_datatype_u16_k: ((simsimd_u16_t *)target_ptr)[offset] = (simsimd_u16_t)lround(distance); return 1;
-    case simsimd_datatype_i32_k: ((simsimd_i32_t *)target_ptr)[offset] = (simsimd_i32_t)lround(distance); return 1;
-    case simsimd_datatype_u32_k: ((simsimd_u32_t *)target_ptr)[offset] = (simsimd_u32_t)lround(distance); return 1;
-    case simsimd_datatype_i64_k: ((simsimd_i64_t *)target_ptr)[offset] = (simsimd_i64_t)llround(distance); return 1;
-    case simsimd_datatype_u64_k: ((simsimd_u64_t *)target_ptr)[offset] = (simsimd_u64_t)llround(distance); return 1;
+    case simsimd_i8_k: ((simsimd_i8_t *)target_ptr)[offset] = (simsimd_i8_t)lround(distance); return 1;
+    case simsimd_u8_k: ((simsimd_u8_t *)target_ptr)[offset] = (simsimd_u8_t)lround(distance); return 1;
+    case simsimd_i16_k: ((simsimd_i16_t *)target_ptr)[offset] = (simsimd_i16_t)lround(distance); return 1;
+    case simsimd_u16_k: ((simsimd_u16_t *)target_ptr)[offset] = (simsimd_u16_t)lround(distance); return 1;
+    case simsimd_i32_k: ((simsimd_i32_t *)target_ptr)[offset] = (simsimd_i32_t)lround(distance); return 1;
+    case simsimd_u32_k: ((simsimd_u32_t *)target_ptr)[offset] = (simsimd_u32_t)lround(distance); return 1;
+    case simsimd_i64_k: ((simsimd_i64_t *)target_ptr)[offset] = (simsimd_i64_t)llround(distance); return 1;
+    case simsimd_u64_k: ((simsimd_u64_t *)target_ptr)[offset] = (simsimd_u64_t)llround(distance); return 1;
     default: return 0;
     }
 }
@@ -687,7 +700,7 @@ static PyObject *implement_dense_metric( //
     // 3. double precision float (or its complex variant)
     if (out_dtype == simsimd_datatype_unknown_k) {
         if (out_obj) { out_dtype = out_parsed.datatype; }
-        else { out_dtype = is_complex(dtype) ? simsimd_datatype_f64c_k : simsimd_datatype_f64_k; }
+        else { out_dtype = is_complex(dtype) ? simsimd_f64c_k : simsimd_f64_k; }
     }
 
     // Make sure the return datatype is complex if the input datatype is complex, and the same for real numbers
@@ -1049,7 +1062,7 @@ static PyObject *implement_cdist(                        //
     // 3. double precision float (or its complex variant)
     if (out_dtype == simsimd_datatype_unknown_k) {
         if (out_obj) { out_dtype = out_parsed.datatype; }
-        else { out_dtype = is_complex(dtype) ? simsimd_datatype_f64c_k : simsimd_datatype_f64_k; }
+        else { out_dtype = is_complex(dtype) ? simsimd_f64c_k : simsimd_f64_k; }
     }
 
     // Make sure the return datatype is complex if the input datatype is complex, and the same for real numbers

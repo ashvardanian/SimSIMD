@@ -259,6 +259,16 @@
 #define SIMSIMD_LOG(x) (log(x))
 #endif
 
+#if !defined(SIMSIMD_TAN)
+#include <math.h>
+#define SIMSIMD_TAN(x) (tan(x))
+#endif
+
+#if !defined(SIMSIMD_FABS)
+#include <math.h>
+#define SIMSIMD_FABS(x) (fabs(x))
+#endif
+
 // Copy 16 bits (2 bytes) from source to destination
 #if defined(__GNUC__) || defined(__clang__)
 #define SIMSIMD_COPY16(destination_ptr, source_ptr) __builtin_memcpy((destination_ptr), (source_ptr), 2)
@@ -804,6 +814,16 @@ SIMSIMD_INTERNAL void simsimd_f32_to_e5m2_implementation(simsimd_f32_t const *sr
 }
 
 // Forward declarations for conversion functions used in helper functions and wrapper macros
+#if SIMSIMD_DYNAMIC_DISPATCH
+SIMSIMD_DYNAMIC void simsimd_f16_to_f32(simsimd_f16_t const *src, simsimd_f32_t *dest);
+SIMSIMD_DYNAMIC void simsimd_bf16_to_f32(simsimd_bf16_t const *src, simsimd_f32_t *dest);
+SIMSIMD_DYNAMIC void simsimd_f32_to_f16(simsimd_f32_t const *src, simsimd_f16_t *dest);
+SIMSIMD_DYNAMIC void simsimd_f32_to_bf16(simsimd_f32_t const *src, simsimd_bf16_t *dest);
+SIMSIMD_DYNAMIC void simsimd_e4m3_to_f32(simsimd_e4m3_t const *src, simsimd_f32_t *dest);
+SIMSIMD_DYNAMIC void simsimd_f32_to_e4m3(simsimd_f32_t const *src, simsimd_e4m3_t *dest);
+SIMSIMD_DYNAMIC void simsimd_e5m2_to_f32(simsimd_e5m2_t const *src, simsimd_f32_t *dest);
+SIMSIMD_DYNAMIC void simsimd_f32_to_e5m2(simsimd_f32_t const *src, simsimd_e5m2_t *dest);
+#else
 SIMSIMD_PUBLIC void simsimd_f16_to_f32(simsimd_f16_t const *src, simsimd_f32_t *dest);
 SIMSIMD_PUBLIC void simsimd_bf16_to_f32(simsimd_bf16_t const *src, simsimd_f32_t *dest);
 SIMSIMD_PUBLIC void simsimd_f32_to_f16(simsimd_f32_t const *src, simsimd_f16_t *dest);
@@ -812,6 +832,7 @@ SIMSIMD_PUBLIC void simsimd_e4m3_to_f32(simsimd_e4m3_t const *src, simsimd_f32_t
 SIMSIMD_PUBLIC void simsimd_f32_to_e4m3(simsimd_f32_t const *src, simsimd_e4m3_t *dest);
 SIMSIMD_PUBLIC void simsimd_e5m2_to_f32(simsimd_e5m2_t const *src, simsimd_f32_t *dest);
 SIMSIMD_PUBLIC void simsimd_f32_to_e5m2(simsimd_f32_t const *src, simsimd_e5m2_t *dest);
+#endif
 
 /**
  *  @brief  Returns the value of the half-precision floating-point number,
