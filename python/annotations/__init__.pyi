@@ -330,3 +330,52 @@ def atan(
     *,
     out: Optional[_BufferType] = None,
 ) -> Optional[DistancesTensor]: ...
+
+# ---------------------------------------------------------------------
+# Element-wise arithmetic operations
+# ---------------------------------------------------------------------
+
+# Element-wise scale operation.
+def scale(
+    a: _BufferType,
+    /,
+    dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+    *,
+    alpha: float = 1,
+    beta: float = 0,
+    out: Optional[_BufferType] = None,
+) -> Optional[DistancesTensor]: ...
+
+# Element-wise sum operation (element-wise addition).
+def sum(
+    a: _BufferType,
+    b: _BufferType,
+    /,
+    dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+    *,
+    out: Optional[_BufferType] = None,
+) -> Optional[DistancesTensor]: ...
+
+# Element-wise add operation (NumPy-compatible with broadcasting).
+def add(
+    a: Union[_BufferType, float, int],
+    b: Union[_BufferType, float, int],
+    /,
+    *,
+    out: Optional[_BufferType] = None,
+    a_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+    b_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+    out_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+) -> Optional[DistancesTensor]: ...
+
+# Element-wise multiply operation (NumPy-compatible with broadcasting).
+def multiply(
+    a: Union[_BufferType, float, int],
+    b: Union[_BufferType, float, int],
+    /,
+    *,
+    out: Optional[_BufferType] = None,
+    a_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+    b_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+    out_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
+) -> Optional[DistancesTensor]: ...
