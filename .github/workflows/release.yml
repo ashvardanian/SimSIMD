@@ -345,7 +345,7 @@ jobs:
       - name: Download wheels
         # unpacks all CIBW artifacts into dist/
         # continue-on-error handles cases where some wheel jobs failed
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v6
         continue-on-error: true
         with:
           pattern: cibw-*
@@ -353,7 +353,7 @@ jobs:
           merge-multiple: true
 
       - name: Download source distribution
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v6
         with:
           name: sdist
           path: dist
@@ -452,7 +452,7 @@ jobs:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
       - name: Download Prebuild Artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v6
         with:
           name: prebuilds
           path: prebuilds
