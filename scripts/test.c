@@ -468,16 +468,16 @@ void test_distance_from_itself(void) {
     simsimd_jaccard_b8(b8s, b8s, 1536 / 8, &distance[0]);
 
     // Jensen-Shannon divergence between two vectors
-    simsimd_js_f16(f16s, f16s, 1536, &distance[0]);
-    simsimd_js_bf16(bf16s, bf16s, 1536, &distance[0]);
-    simsimd_js_f32(f32s, f32s, 1536, &distance[0]);
-    simsimd_js_f64(f64s, f64s, 1536, &distance[0]);
+    simsimd_jsd_f16(f16s, f16s, 1536, &distance[0]);
+    simsimd_jsd_bf16(bf16s, bf16s, 1536, &distance[0]);
+    simsimd_jsd_f32(f32s, f32s, 1536, &distance[0]);
+    simsimd_jsd_f64(f64s, f64s, 1536, &distance[0]);
 
     // Kullback-Leibler divergence between two vectors
-    simsimd_kl_f16(f16s, f16s, 1536, &distance[0]);
-    simsimd_kl_bf16(bf16s, bf16s, 1536, &distance[0]);
-    simsimd_kl_f32(f32s, f32s, 1536, &distance[0]);
-    simsimd_kl_f64(f64s, f64s, 1536, &distance[0]);
+    simsimd_kld_f16(f16s, f16s, 1536, &distance[0]);
+    simsimd_kld_bf16(bf16s, bf16s, 1536, &distance[0]);
+    simsimd_kld_f32(f32s, f32s, 1536, &distance[0]);
+    simsimd_kld_f64(f64s, f64s, 1536, &distance[0]);
 }
 
 /**

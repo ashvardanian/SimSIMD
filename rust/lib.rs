@@ -132,15 +132,15 @@ extern "C" {
     fn simsimd_hamming_b8(a: *const u8, b: *const u8, c: u64size, d: *mut Distance);
     fn simsimd_jaccard_b8(a: *const u8, b: *const u8, c: u64size, d: *mut Distance);
 
-    fn simsimd_js_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_js_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_js_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
-    fn simsimd_js_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
+    fn simsimd_jsd_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_jsd_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_jsd_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
+    fn simsimd_jsd_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
 
-    fn simsimd_kl_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_kl_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_kl_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
-    fn simsimd_kl_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
+    fn simsimd_kld_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_kld_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_kld_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
+    fn simsimd_kld_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
 
     fn simsimd_intersect_u16(
         a: *const u16,
@@ -1059,7 +1059,7 @@ impl ProbabilitySimilarity for f16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_js_f16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
+        unsafe { simsimd_jsd_f16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -1073,7 +1073,7 @@ impl ProbabilitySimilarity for f16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_kl_f16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
+        unsafe { simsimd_kld_f16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 }
@@ -1089,7 +1089,7 @@ impl ProbabilitySimilarity for bf16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_js_bf16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
+        unsafe { simsimd_jsd_bf16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -1103,7 +1103,7 @@ impl ProbabilitySimilarity for bf16 {
         let b_ptr = b.as_ptr() as *const u16;
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_kl_bf16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
+        unsafe { simsimd_kld_bf16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 }
@@ -1115,7 +1115,7 @@ impl ProbabilitySimilarity for f32 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_js_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
+        unsafe { simsimd_jsd_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -1125,7 +1125,7 @@ impl ProbabilitySimilarity for f32 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_kl_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
+        unsafe { simsimd_kld_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 }
@@ -1137,7 +1137,7 @@ impl ProbabilitySimilarity for f64 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_js_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
+        unsafe { simsimd_jsd_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 
@@ -1147,7 +1147,7 @@ impl ProbabilitySimilarity for f64 {
         }
         let mut distance_value: Distance = 0.0;
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
-        unsafe { simsimd_kl_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
+        unsafe { simsimd_kld_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, distance_ptr) };
         Some(distance_value)
     }
 }

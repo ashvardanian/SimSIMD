@@ -84,11 +84,11 @@ napi_value api_l2sq(napi_env env, napi_callback_info info) {
 napi_value api_l2(napi_env env, napi_callback_info info) {
     return dense(env, info, simsimd_metric_l2_k, simsimd_datatype_unknown_k);
 }
-napi_value api_kl(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_kl_k, simsimd_datatype_unknown_k);
+napi_value api_kld(napi_env env, napi_callback_info info) {
+    return dense(env, info, simsimd_metric_kld_k, simsimd_datatype_unknown_k);
 }
-napi_value api_js(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_js_k, simsimd_datatype_unknown_k);
+napi_value api_jsd(napi_env env, napi_callback_info info) {
+    return dense(env, info, simsimd_metric_jsd_k, simsimd_datatype_unknown_k);
 }
 napi_value api_hamming(napi_env env, napi_callback_info info) {
     return dense(env, info, simsimd_hamming_k, simsimd_b8_k);
@@ -107,11 +107,11 @@ napi_value Init(napi_env env, napi_value exports) {
     napi_property_descriptor angular_descriptor = {"angular", 0, api_angular, 0, 0, 0, napi_default, 0};
     napi_property_descriptor hamming_descriptor = {"hamming", 0, api_hamming, 0, 0, 0, napi_default, 0};
     napi_property_descriptor jaccard_descriptor = {"jaccard", 0, api_jaccard, 0, 0, 0, napi_default, 0};
-    napi_property_descriptor kl_descriptor = {"kullbackleibler", 0, api_kl, 0, 0, 0, napi_default, 0};
-    napi_property_descriptor js_descriptor = {"jensenshannon", 0, api_js, 0, 0, 0, napi_default, 0};
+    napi_property_descriptor kld_descriptor = {"kullbackleibler", 0, api_kld, 0, 0, 0, napi_default, 0};
+    napi_property_descriptor jsd_descriptor = {"jensenshannon", 0, api_jsd, 0, 0, 0, napi_default, 0};
     napi_property_descriptor properties[] = {
         dot_descriptor,     inner_descriptor,   sqeuclidean_descriptor, euclidean_descriptor, angular_descriptor,
-        hamming_descriptor, jaccard_descriptor, kl_descriptor,          js_descriptor,
+        hamming_descriptor, jaccard_descriptor, kld_descriptor,         jsd_descriptor,
     };
 
     // Define the properties on the `exports` object

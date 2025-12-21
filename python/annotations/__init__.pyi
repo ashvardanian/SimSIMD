@@ -20,9 +20,9 @@ _MetricType = Literal[
     "hamming",
     "jaccard",
     "kullbackleibler",
-    "kl",
+    "kld",
     "jensenshannon",
-    "js",
+    "jsd",
     "intersection",
     "bilinear",
     "mahalanobis",
@@ -208,10 +208,28 @@ def jensenshannon(
     out: Optional[_BufferType] = None,
     out_dtype: Union[_FloatType] = None,
 ) -> Optional[Union[float, DistancesTensor]]: ...
+def jsd(
+    a: _BufferType,
+    b: _BufferType,
+    /,
+    dtype: Optional[_FloatType] = None,
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType] = None,
+) -> Optional[Union[float, DistancesTensor]]: ...
 
 # Vector-vector Kullback-Leibler divergence, similar to: `scipy.spatial.distance.kullback_leibler`.
 # https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.kullback_leibler.html
 def kullbackleibler(
+    a: _BufferType,
+    b: _BufferType,
+    /,
+    dtype: Optional[_FloatType] = None,
+    *,
+    out: Optional[_BufferType] = None,
+    out_dtype: Union[_FloatType] = None,
+) -> Optional[Union[float, DistancesTensor]]: ...
+def kld(
     a: _BufferType,
     b: _BufferType,
     /,

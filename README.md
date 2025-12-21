@@ -1071,14 +1071,14 @@ int main() {
     simsimd_distance_t divergence;
 
     // Jensen-Shannon divergence between two vectors
-    simsimd_js_f16(f16s, f16s, 1536, &divergence);
-    simsimd_js_f32(f32s, f32s, 1536, &divergence);
-    simsimd_js_f64(f64s, f64s, 1536, &divergence);
+    simsimd_jsd_f16(f16s, f16s, 1536, &divergence);
+    simsimd_jsd_f32(f32s, f32s, 1536, &divergence);
+    simsimd_jsd_f64(f64s, f64s, 1536, &divergence);
 
     // Kullback-Leibler divergence between two vectors
-    simsimd_kl_f16(f16s, f16s, 1536, &divergence);
-    simsimd_kl_f32(f32s, f32s, 1536, &divergence);
-    simsimd_kl_f64(f64s, f64s, 1536, &divergence);
+    simsimd_kld_f16(f16s, f16s, 1536, &divergence);
+    simsimd_kld_f32(f32s, f32s, 1536, &divergence);
+    simsimd_kld_f64(f64s, f64s, 1536, &divergence);
     return 0;
 }
 ```

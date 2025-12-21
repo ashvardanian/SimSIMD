@@ -356,10 +356,10 @@ simsimd_metric_kind_t python_string_to_metric_kind(char const *name) {
         return simsimd_metric_angular_k;
     else if (same_string(name, "jaccard"))
         return simsimd_metric_jaccard_k;
-    else if (same_string(name, "kullbackleibler") || same_string(name, "kl"))
-        return simsimd_metric_kl_k;
-    else if (same_string(name, "jensenshannon") || same_string(name, "js"))
-        return simsimd_metric_js_k;
+    else if (same_string(name, "kullbackleibler") || same_string(name, "kld"))
+        return simsimd_metric_kld_k;
+    else if (same_string(name, "jensenshannon") || same_string(name, "jsd"))
+        return simsimd_metric_jsd_k;
     else if (same_string(name, "hamming"))
         return simsimd_metric_hamming_k;
     else if (same_string(name, "jaccard"))
@@ -376,7 +376,7 @@ simsimd_metric_kind_t python_string_to_metric_kind(char const *name) {
 /// @return 1 if the metric is commutative, 0 otherwise.
 int kernel_is_commutative(simsimd_metric_kind_t kind) {
     switch (kind) {
-    case simsimd_metric_kl_k: return 0;
+    case simsimd_metric_kld_k: return 0;
     case simsimd_metric_bilinear_k: return 0; //? The kernel is commutative if only the matrix is symmetric
     default: return 1;
     }
@@ -1365,13 +1365,13 @@ static char const doc_vdot_pointer[] = "Get (int) pointer to the `simsimd.vdot` 
 static PyObject *api_vdot_pointer(PyObject *self, PyObject *dtype_obj) {
     return implement_pointer_access(simsimd_metric_vdot_k, dtype_obj);
 }
-static char const doc_kl_pointer[] = "Get (int) pointer to the `simsimd.kl` kernel.";
-static PyObject *api_kl_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_kl_k, dtype_obj);
+static char const doc_kld_pointer[] = "Get (int) pointer to the `simsimd.kld` kernel.";
+static PyObject *api_kld_pointer(PyObject *self, PyObject *dtype_obj) {
+    return implement_pointer_access(simsimd_metric_kld_k, dtype_obj);
 }
-static char const doc_js_pointer[] = "Get (int) pointer to the `simsimd.js` kernel.";
-static PyObject *api_js_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_js_k, dtype_obj);
+static char const doc_jsd_pointer[] = "Get (int) pointer to the `simsimd.jsd` kernel.";
+static PyObject *api_jsd_pointer(PyObject *self, PyObject *dtype_obj) {
+    return implement_pointer_access(simsimd_metric_jsd_k, dtype_obj);
 }
 static char const doc_hamming_pointer[] = "Get (int) pointer to the `simsimd.hamming` kernel.";
 static PyObject *api_hamming_pointer(PyObject *self, PyObject *dtype_obj) {
@@ -1482,7 +1482,7 @@ static PyObject *api_vdot(PyObject *self, PyObject *const *args, Py_ssize_t cons
     return implement_dense_metric(simsimd_metric_vdot_k, args, positional_args_count, args_names_tuple);
 }
 
-static char const doc_kl[] = //
+static char const doc_kld[] = //
     "Compute Kullback-Leibler divergences between two matrices.\n\n"
     "Args:\n"
     "    a (NDArray): First floating-point matrix or vector.\n"
@@ -1495,14 +1495,14 @@ static char const doc_kl[] = //
     "    None: If `out` is provided. Operation will per performed in-place.\n\n"
     "Equivalent to: `scipy.special.kl_div`.\n"
     "Signature:\n"
-    "    >>> def kl(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
+    "    >>> def kld(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
 
-static PyObject *api_kl(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
-                        PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_kl_k, args, positional_args_count, args_names_tuple);
+static PyObject *api_kld(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                         PyObject *args_names_tuple) {
+    return implement_dense_metric(simsimd_metric_kld_k, args, positional_args_count, args_names_tuple);
 }
 
-static char const doc_js[] = //
+static char const doc_jsd[] = //
     "Compute Jensen-Shannon divergences between two matrices.\n\n"
     "Args:\n"
     "    a (NDArray): First floating-point matrix or vector.\n"
@@ -1515,11 +1515,11 @@ static char const doc_js[] = //
     "    None: If `out` is provided. Operation will per performed in-place.\n\n"
     "Equivalent to: `scipy.spatial.distance.jensenshannon`.\n"
     "Signature:\n"
-    "    >>> def kl(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
+    "    >>> def jsd(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
 
-static PyObject *api_js(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
-                        PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_js_k, args, positional_args_count, args_names_tuple);
+static PyObject *api_jsd(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                         PyObject *args_names_tuple) {
+    return implement_dense_metric(simsimd_metric_jsd_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_hamming[] = //
@@ -2175,8 +2175,8 @@ static PyMethodDef simsimd_methods[] = {
     //  - A matrix of vectors and a single vector
     {"l2", (PyCFunction)api_l2, METH_FASTCALL | METH_KEYWORDS, doc_l2},
     {"l2sq", (PyCFunction)api_l2sq, METH_FASTCALL | METH_KEYWORDS, doc_l2sq},
-    {"kl", (PyCFunction)api_kl, METH_FASTCALL | METH_KEYWORDS, doc_kl},
-    {"js", (PyCFunction)api_js, METH_FASTCALL | METH_KEYWORDS, doc_js},
+    {"kld", (PyCFunction)api_kld, METH_FASTCALL | METH_KEYWORDS, doc_kld},
+    {"jsd", (PyCFunction)api_jsd, METH_FASTCALL | METH_KEYWORDS, doc_jsd},
     {"angular", (PyCFunction)api_angular, METH_FASTCALL | METH_KEYWORDS, doc_angular},
     {"dot", (PyCFunction)api_dot, METH_FASTCALL | METH_KEYWORDS, doc_dot},
     {"vdot", (PyCFunction)api_vdot, METH_FASTCALL | METH_KEYWORDS, doc_vdot},
@@ -2187,8 +2187,8 @@ static PyMethodDef simsimd_methods[] = {
     {"euclidean", (PyCFunction)api_l2, METH_FASTCALL | METH_KEYWORDS, doc_l2},
     {"sqeuclidean", (PyCFunction)api_l2sq, METH_FASTCALL | METH_KEYWORDS, doc_l2sq},
     {"inner", (PyCFunction)api_dot, METH_FASTCALL | METH_KEYWORDS, doc_dot},
-    {"kullbackleibler", (PyCFunction)api_kl, METH_FASTCALL | METH_KEYWORDS, doc_kl},
-    {"jensenshannon", (PyCFunction)api_js, METH_FASTCALL | METH_KEYWORDS, doc_js},
+    {"kullbackleibler", (PyCFunction)api_kld, METH_FASTCALL | METH_KEYWORDS, doc_kld},
+    {"jensenshannon", (PyCFunction)api_jsd, METH_FASTCALL | METH_KEYWORDS, doc_jsd},
 
     // Conventional `cdist` interface for pairwise distances
     {"cdist", (PyCFunction)api_cdist, METH_FASTCALL | METH_KEYWORDS, doc_cdist},
@@ -2200,8 +2200,8 @@ static PyMethodDef simsimd_methods[] = {
     {"pointer_to_inner", (PyCFunction)api_dot_pointer, METH_O, doc_dot_pointer},
     {"pointer_to_dot", (PyCFunction)api_dot_pointer, METH_O, doc_dot_pointer},
     {"pointer_to_vdot", (PyCFunction)api_vdot_pointer, METH_O, doc_vdot_pointer},
-    {"pointer_to_kullbackleibler", (PyCFunction)api_kl_pointer, METH_O, doc_kl_pointer},
-    {"pointer_to_jensenshannon", (PyCFunction)api_js_pointer, METH_O, doc_js_pointer},
+    {"pointer_to_kullbackleibler", (PyCFunction)api_kld_pointer, METH_O, doc_kld_pointer},
+    {"pointer_to_jensenshannon", (PyCFunction)api_jsd_pointer, METH_O, doc_jsd_pointer},
 
     // Set operations
     {"intersect", (PyCFunction)api_intersect, METH_FASTCALL, doc_intersect},
