@@ -71,7 +71,7 @@ def disable_capability(capability: str, /) -> None: ...
 # Accessing function pointers
 def pointer_to_euclidean(dtype: Union[_IntegralType, _FloatType], /) -> int: ...
 def pointer_to_sqeuclidean(dtype: Union[_IntegralType, _FloatType], /) -> int: ...
-def pointer_to_cosine(dtype: Union[_IntegralType, _FloatType], /) -> int: ...
+def pointer_to_angular(dtype: Union[_IntegralType, _FloatType], /) -> int: ...
 def pointer_to_inner(dtype: Union[_FloatType, _ComplexType], /) -> int: ...
 def pointer_to_dot(dtype: Union[_FloatType, _ComplexType], /) -> int: ...
 def pointer_to_vdot(dtype: Union[_FloatType, _ComplexType], /) -> int: ...
@@ -153,9 +153,9 @@ def sqeuclidean(
     out_dtype: Union[_FloatType] = None,
 ) -> Optional[Union[float, DistancesTensor]]: ...
 
-# Vector-vector cosine distance, similar to: `scipy.spatial.distance.cosine`.
+# Vector-vector angular distance (also known as cosine distance), similar to: `scipy.spatial.distance.cosine`.
 # https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.cosine.html
-def cosine(
+def angular(
     a: _BufferType,
     b: _BufferType,
     /,
@@ -279,5 +279,36 @@ def wsum(
     *,
     alpha: float = 1,
     beta: float = 1,
+    out: Optional[_BufferType] = None,
+) -> Optional[DistancesTensor]: ...
+
+# ---------------------------------------------------------------------
+# Element-wise trigonometric functions
+# ---------------------------------------------------------------------
+
+# Element-wise trigonometric sine.
+def sin(
+    a: _BufferType,
+    /,
+    dtype: Optional[_FloatType] = None,
+    *,
+    out: Optional[_BufferType] = None,
+) -> Optional[DistancesTensor]: ...
+
+# Element-wise trigonometric cosine.
+def cos(
+    a: _BufferType,
+    /,
+    dtype: Optional[_FloatType] = None,
+    *,
+    out: Optional[_BufferType] = None,
+) -> Optional[DistancesTensor]: ...
+
+# Element-wise trigonometric arctangent.
+def atan(
+    a: _BufferType,
+    /,
+    dtype: Optional[_FloatType] = None,
+    *,
     out: Optional[_BufferType] = None,
 ) -> Optional[DistancesTensor]: ...

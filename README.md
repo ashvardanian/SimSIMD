@@ -318,10 +318,10 @@ import numpy as np
 
 vec1 = np.random.randn(1536).astype(np.float32)
 vec2 = np.random.randn(1536).astype(np.float32)
-dist = simsimd.cosine(vec1, vec2)
+dist = simsimd.angular(vec1, vec2)
 ```
 
-Supported functions include `cosine`, `inner`, `sqeuclidean`, `hamming`, `jaccard`, `kullbackleibler`, `jensenshannon`, and `intersect`.
+Supported functions include `angular`, `inner`, `sqeuclidean`, `hamming`, `jaccard`, `kullbackleibler`, `jensenshannon`, and `intersect`.
 Dot products are supported for both real and complex numbers:
 
 ```py
@@ -337,10 +337,10 @@ Unlike SciPy, SimSIMD allows explicitly stating the precision of the input vecto
 The `dtype` argument can be passed both by name and as a positional argument:
 
 ```py
-dist = simsimd.cosine(vec1, vec2, "int8")
-dist = simsimd.cosine(vec1, vec2, "float16")
-dist = simsimd.cosine(vec1, vec2, "float32")
-dist = simsimd.cosine(vec1, vec2, "float64")
+dist = simsimd.angular(vec1, vec2, "int8")
+dist = simsimd.angular(vec1, vec2, "float16")
+dist = simsimd.angular(vec1, vec2, "float32")
+dist = simsimd.angular(vec1, vec2, "float64")
 dist = simsimd.hamming(vec1, vec2, "bin8")
 ```
 
@@ -372,7 +372,7 @@ torch.randn(8, out=vec2)
 
 # Both libs will look into the same memory buffers and report the same results
 dist_slow = 1 - torch.nn.functional.cosine_similarity(vec1, vec2, dim=0)
-dist_fast = simsimd.cosine(buf1, buf2, "bfloat16")
+dist_fast = simsimd.angular(buf1, buf2, "bfloat16")
 ```
 
 It also allows using SimSIMD for half-precision complex numbers, which NumPy does not support.
@@ -411,8 +411,8 @@ vec1 = np.random.randn(1536).astype(np.float32) # rank 1 tensor
 batch1 = np.random.randn(1, 1536).astype(np.float32) # rank 2 tensor
 batch2 = np.random.randn(100, 1536).astype(np.float32)
 
-dist_rank1 = simsimd.cosine(vec1, batch2)
-dist_rank2 = simsimd.cosine(batch1, batch2)
+dist_rank1 = simsimd.angular(vec1, batch2)
+dist_rank2 = simsimd.angular(batch1, batch2)
 ```
 
 ### Many-to-Many Distances
@@ -423,7 +423,7 @@ For two batches of 100 vectors to compute 100 distances, one would call it like 
 ```py
 batch1 = np.random.randn(100, 1536).astype(np.float32)
 batch2 = np.random.randn(100, 1536).astype(np.float32)
-dist = simsimd.cosine(batch1, batch2)
+dist = simsimd.angular(batch1, batch2)
 ```
 
 Input matrices must have identical shapes.
@@ -516,7 +516,7 @@ A more complete example may look like this:
 ```py
 from multiprocessing import cpu_count
 from concurrent.futures import ThreadPoolExecutor
-from simsimd import cosine
+from simsimd import angular
 import numpy as np
 
 # Generate large dataset
@@ -527,7 +527,7 @@ distances = np.zeros((100_000,), dtype=np.float32)
 def compute_batch(start_idx, end_idx):
     batch_a = vectors_a[start_idx:end_idx]
     batch_b = vectors_b[start_idx:end_idx]
-    cosine(batch_a, batch_b, out=distances[start_idx:end_idx])
+    angular(batch_a, batch_b, out=distances[start_idx:end_idx])
 
 # Use all CPU cores with true parallelism (no GIL!)
 num_threads = cpu_count()
@@ -594,10 +594,10 @@ You can wrap the raw C function pointers SimSIMD backends into a `CompiledMetric
 
 ```py
 from usearch.index import Index, CompiledMetric, MetricKind, MetricSignature
-from simsimd import pointer_to_sqeuclidean, pointer_to_cosine, pointer_to_inner
+from simsimd import pointer_to_sqeuclidean, pointer_to_angular, pointer_to_inner
 
 metric = CompiledMetric(
-    pointer=pointer_to_cosine("f16"),
+    pointer=pointer_to_angular("f16"),
     kind=MetricKind.Cos,
     signature=MetricSignature.ArrayArraySize,
 )
@@ -617,7 +617,7 @@ simsimd = "..."
 Before using the SimSIMD library, ensure you have imported the necessary traits and types into your Rust source file.
 The library provides several traits for different distance/similarity kinds - `SpatialSimilarity`, `BinarySimilarity`, and `ProbabilitySimilarity`.
 
-### Spatial Similarity: Cosine and Euclidean Distances
+### Spatial Similarity: Angular and Euclidean Distances
 
 ```rust
 use simsimd::SpatialSimilarity;
@@ -626,11 +626,11 @@ fn main() {
     let vector_a: Vec<f32> = vec![1.0, 2.0, 3.0];
     let vector_b: Vec<f32> = vec![4.0, 5.0, 6.0];
 
-    // Compute the cosine distance between vectors
-    let cosine_distance = f32::cosine(&vector_a, &vector_b)
+    // Compute the angular distance between vectors
+    let angular_distance = f32::angular(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
 
-    println!("Cosine Distance: {}", cosine_distance);
+    println!("Angular Distance: {}", angular_distance);
 
     // Compute the squared Euclidean distance between vectors
     let sq_euclidean_distance = f32::sqeuclidean(&vector_a, &vector_b)
@@ -736,11 +736,11 @@ fn main() {
     let vector_a: Vec<f16> = vec![1.0, 2.0, 3.0].iter().map(|&x| f16::from_f32(x)).collect();
     let vector_b: Vec<f16> = vec![4.0, 5.0, 6.0].iter().map(|&x| f16::from_f32(x)).collect();
 
-    // Compute the cosine distance
-    let cosine_distance = f16::cosine(&vector_a, &vector_b)
+    // Compute the angular distance
+    let angular_distance = f16::angular(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
-    
-    println!("Cosine Distance: {}", cosine_distance);
+
+    println!("Angular Distance: {}", angular_distance);
 
     // Direct bit manipulation
     let half = f16::from_f32(3.14159);
@@ -766,10 +766,10 @@ fn main() {
     let buffer_a: &[SimF16] = unsafe { std::slice::from_raw_parts(vector_a.as_ptr() as *const SimF16, vector_a.len()) };
     let buffer_b: &[SimF16] = unsafe { std::slice::from_raw_parts(vector_b.as_ptr() as *const SimF16, vector_b.len()) };
 
-    let cosine_distance = SimF16::cosine(buffer_a, buffer_b)
+    let angular_distance = SimF16::angular(buffer_a, buffer_b)
         .expect("Vectors must be of the same length");
 
-    println!("Cosine Distance: {}", cosine_distance);
+    println!("Angular Distance: {}", angular_distance);
 }
 ```
 
@@ -788,11 +788,11 @@ fn main() {
     let vector_a: Vec<bf16> = vec![1.0, 2.0, 3.0].iter().map(|&x| bf16::from_f32(x)).collect();
     let vector_b: Vec<bf16> = vec![4.0, 5.0, 6.0].iter().map(|&x| bf16::from_f32(x)).collect();
 
-    // Compute the cosine similarity
-    let cosine_distance = bf16::cosine(&vector_a, &vector_b)
+    // Compute the angular distance
+    let angular_distance = bf16::angular(&vector_a, &vector_b)
         .expect("Vectors must be of the same length");
-    
-    println!("Cosine Distance: {}", cosine_distance);
+
+    println!("Angular Distance: {}", angular_distance);
 
     // Direct bit manipulation
     let brain_half = bf16::from_f32(3.14159);
@@ -844,7 +844,7 @@ This will automatically happen unless you install the package with the `--ignore
 After you install it, you will be able to call the SimSIMD functions on various `TypedArray` variants:
 
 ```js
-const { sqeuclidean, cosine, inner, hamming, jaccard } = require("simsimd");
+const { sqeuclidean, angular, inner, hamming, jaccard } = require("simsimd");
 
 const vectorA = new Float32Array([1.0, 2.0, 3.0]);
 const vectorB = new Float32Array([4.0, 5.0, 6.0]);
@@ -859,7 +859,7 @@ For double-precision floating-point numbers, use `Float64Array`:
 ```js
 const vectorA = new Float64Array([1.0, 2.0, 3.0]);
 const vectorB = new Float64Array([4.0, 5.0, 6.0]);
-const distance = cosine(vectorA, vectorB);
+const distance = angular(vectorA, vectorB);
 ```
 
 When doing machine learning and vector search with high-dimensional vectors you may want to quantize them to 8-bit integers.
@@ -868,7 +868,7 @@ You may want to project values from the $[-1, 1]$ range to the $[-127, 127]$ ran
 ```js
 const quantizedVectorA = new Int8Array(vectorA.map((v) => v * 127));
 const quantizedVectorB = new Int8Array(vectorB.map((v) => v * 127));
-const distance = cosine(quantizedVectorA, quantizedVectorB);
+const distance = angular(quantizedVectorA, quantizedVectorB);
 ```
 
 A more extreme quantization case would be to use binary vectors.
@@ -902,7 +902,7 @@ let vectorA: [Int8] = [1, 2, 3]
 let vectorB: [Int8] = [4, 5, 6]
 
 let dotProduct = vectorA.dot(vectorB)           // Computes the dot product
-let cosineDistance = vectorA.cosine(vectorB)    // Computes the cosine distance
+let angularDistance = vectorA.angular(vectorB)  // Computes the angular distance
 let sqEuclidean = vectorA.sqeuclidean(vectorB)  // Computes the squared Euclidean distance
 ```
 
@@ -931,9 +931,9 @@ int main() {
     simsimd_f32_t vector_a[1536];
     simsimd_f32_t vector_b[1536];
     simsimd_kernel_punned_t metric_punned = simsimd_metric_punned(
-        simsimd_metric_cos_k,   // Metric kind, like the angular cosine distance
-        simsimd_datatype_f32_k, // Data type, like: f16, f32, f64, i8, b8, and complex variants
-        simsimd_cap_any_k);     // Which CPU capabilities are we allowed to use
+        simsimd_metric_angular_k, // Metric kind, like the angular distance
+        simsimd_datatype_f32_k,   // Data type, like: f16, f32, f64, i8, b8, and complex variants
+        simsimd_cap_any_k);       // Which CPU capabilities are we allowed to use
     simsimd_distance_t distance;
     simsimd_metric_dense_punned_t metric = (simsimd_metric_dense_punned_t)metric_punned;
     metric(vector_a, vector_b, 1536, &distance);
@@ -966,7 +966,7 @@ To override compilation settings and switch between runtime and compile-time dis
 #define SIMSIMD_DYNAMIC_DISPATCH 1 // or 0
 ```
 
-### Spatial Distances: Cosine and Euclidean Distances
+### Spatial Distances: Angular and Euclidean Distances
 
 ```c
 #include <simsimd/simsimd.h>
@@ -980,13 +980,13 @@ int main() {
     simsimd_bf16_t bf16s[1536];
     simsimd_distance_t distance;
 
-    // Cosine distance between two vectors
-    simsimd_cos_i8(i8s, i8s, 1536, &distance);
-    simsimd_cos_u8(u8s, u8s, 1536, &distance);
-    simsimd_cos_f16(f16s, f16s, 1536, &distance);
-    simsimd_cos_f32(f32s, f32s, 1536, &distance);
-    simsimd_cos_f64(f64s, f64s, 1536, &distance);
-    simsimd_cos_bf16(bf16s, bf16s, 1536, &distance);
+    // Angular distance between two vectors
+    simsimd_angular_i8(i8s, i8s, 1536, &distance);
+    simsimd_angular_u8(u8s, u8s, 1536, &distance);
+    simsimd_angular_f16(f16s, f16s, 1536, &distance);
+    simsimd_angular_f32(f32s, f32s, 1536, &distance);
+    simsimd_angular_f64(f64s, f64s, 1536, &distance);
+    simsimd_angular_bf16(bf16s, bf16s, 1536, &distance);
 
     // Euclidean distance between two vectors
     simsimd_l2sq_i8(i8s, i8s, 1536, &distance);

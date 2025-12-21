@@ -352,8 +352,8 @@ simsimd_metric_kind_t python_string_to_metric_kind(char const *name) {
         return simsimd_metric_dot_k;
     else if (same_string(name, "vdot"))
         return simsimd_metric_vdot_k;
-    else if (same_string(name, "cosine") || same_string(name, "cos"))
-        return simsimd_metric_cosine_k;
+    else if (same_string(name, "angular"))
+        return simsimd_metric_angular_k;
     else if (same_string(name, "jaccard"))
         return simsimd_metric_jaccard_k;
     else if (same_string(name, "kullbackleibler") || same_string(name, "kl"))
@@ -1353,9 +1353,9 @@ static char const doc_l2sq_pointer[] = "Get (int) pointer to the `simsimd.l2sq` 
 static PyObject *api_l2sq_pointer(PyObject *self, PyObject *dtype_obj) {
     return implement_pointer_access(simsimd_metric_l2sq_k, dtype_obj);
 }
-static char const doc_cos_pointer[] = "Get (int) pointer to the `simsimd.cos` kernel.";
-static PyObject *api_cos_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_cos_k, dtype_obj);
+static char const doc_angular_pointer[] = "Get (int) pointer to the `simsimd.angular` kernel.";
+static PyObject *api_angular_pointer(PyObject *self, PyObject *dtype_obj) {
+    return implement_pointer_access(simsimd_metric_angular_k, dtype_obj);
 }
 static char const doc_dot_pointer[] = "Get (int) pointer to the `simsimd.dot` kernel.";
 static PyObject *api_dot_pointer(PyObject *self, PyObject *dtype_obj) {
@@ -1422,8 +1422,8 @@ static PyObject *api_l2sq(PyObject *self, PyObject *const *args, Py_ssize_t cons
     return implement_dense_metric(simsimd_metric_l2sq_k, args, positional_args_count, args_names_tuple);
 }
 
-static char const doc_cos[] = //
-    "Compute cosine (angular) distances between two matrices.\n\n"
+static char const doc_angular[] = //
+    "Compute angular distances between two matrices.\n\n"
     "Args:\n"
     "    a (NDArray): First matrix or vector.\n"
     "    b (NDArray): Second matrix or vector.\n"
@@ -1435,11 +1435,11 @@ static char const doc_cos[] = //
     "    None: If `out` is provided. Operation will per performed in-place.\n\n"
     "Equivalent to: `scipy.spatial.distance.cosine`.\n"
     "Signature:\n"
-    "    >>> def cosine(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
+    "    >>> def angular(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
 
-static PyObject *api_cos(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
-                         PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_cos_k, args, positional_args_count, args_names_tuple);
+static PyObject *api_angular(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                             PyObject *args_names_tuple) {
+    return implement_dense_metric(simsimd_metric_angular_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_dot[] = //
@@ -1971,6 +1971,190 @@ cleanup:
     return return_obj;
 }
 
+static char const doc_sin[] = //
+    "Element-wise trigonometric sine.\n\n"
+    "Args:\n"
+    "    a (NDArray): Input vector of angles in radians.\n"
+    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n"
+    "    out (NDArray, optional): Vector for resulting values.\n\n"
+    "Returns:\n"
+    "    DistancesTensor: The sine values if `out` is not provided.\n"
+    "    None: If `out` is provided.\n\n"
+    "Signature:\n"
+    "    >>> def sin(a, /, dtype, *, out) -> Optional[NDArray]: ...";
+
+static char const doc_cos[] = //
+    "Element-wise trigonometric cosine.\n\n"
+    "Args:\n"
+    "    a (NDArray): Input vector of angles in radians.\n"
+    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n"
+    "    out (NDArray, optional): Vector for resulting values.\n\n"
+    "Returns:\n"
+    "    DistancesTensor: The cosine values if `out` is not provided.\n"
+    "    None: If `out` is provided.\n\n"
+    "Signature:\n"
+    "    >>> def cos(a, /, dtype, *, out) -> Optional[NDArray]: ...";
+
+static char const doc_atan[] = //
+    "Element-wise trigonometric arctangent.\n\n"
+    "Args:\n"
+    "    a (NDArray): Input vector of values.\n"
+    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n"
+    "    out (NDArray, optional): Vector for resulting angles in radians.\n\n"
+    "Returns:\n"
+    "    DistancesTensor: The arctangent values if `out` is not provided.\n"
+    "    None: If `out` is provided.\n\n"
+    "Signature:\n"
+    "    >>> def atan(a, /, dtype, *, out) -> Optional[NDArray]: ...";
+
+static PyObject *implement_trigonometry(simsimd_metric_kind_t metric_kind, PyObject *const *args,
+                                        Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
+
+    PyObject *return_obj = NULL;
+
+    // This function accepts up to 3 arguments:
+    PyObject *a_obj = NULL;     // Required object, positional-only
+    PyObject *dtype_obj = NULL; // Optional object, "dtype" keyword or positional
+    PyObject *out_obj = NULL;   // Optional object, "out" keyword-only
+
+    // Once parsed, the arguments will be stored in these variables:
+    char const *dtype_str = NULL;
+    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
+
+    Py_buffer a_buffer, out_buffer;
+    TensorArgument a_parsed, out_parsed;
+    memset(&a_buffer, 0, sizeof(Py_buffer));
+    memset(&out_buffer, 0, sizeof(Py_buffer));
+
+    Py_ssize_t const args_names_count = args_names_tuple ? PyTuple_Size(args_names_tuple) : 0;
+    Py_ssize_t const args_count = positional_args_count + args_names_count;
+    if (args_count < 1 || args_count > 3) {
+        PyErr_Format(PyExc_TypeError, "Function expects 1-3 arguments, got %zd", args_count);
+        return NULL;
+    }
+    if (positional_args_count > 2) {
+        PyErr_Format(PyExc_TypeError, "Only first 2 arguments can be positional, received %zd", positional_args_count);
+        return NULL;
+    }
+
+    // Positional-only argument (input array)
+    a_obj = args[0];
+
+    // Positional or keyword argument (dtype)
+    if (positional_args_count == 2) dtype_obj = args[1];
+
+    // The rest of the arguments must be checked in the keyword dictionary:
+    for (Py_ssize_t args_names_tuple_progress = 0, args_progress = positional_args_count;
+         args_names_tuple_progress < args_names_count; ++args_progress, ++args_names_tuple_progress) {
+        PyObject *const key = PyTuple_GetItem(args_names_tuple, args_names_tuple_progress);
+        PyObject *const value = args[args_progress];
+        if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0 && !dtype_obj) { dtype_obj = value; }
+        else if (PyUnicode_CompareWithASCIIString(key, "out") == 0 && !out_obj) { out_obj = value; }
+        else {
+            PyErr_Format(PyExc_TypeError, "Got unexpected keyword argument: %S", key);
+            return NULL;
+        }
+    }
+
+    // Convert `dtype_obj` to `dtype_str` and to `dtype`
+    if (dtype_obj) {
+        dtype_str = PyUnicode_AsUTF8(dtype_obj);
+        if (!dtype_str && PyErr_Occurred()) {
+            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
+            return NULL;
+        }
+        dtype = python_string_to_datatype(dtype_str);
+        if (dtype == simsimd_datatype_unknown_k) {
+            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
+            return NULL;
+        }
+    }
+
+    // Convert `a_obj` to `a_buffer` and to `a_parsed`
+    if (!parse_tensor(a_obj, &a_buffer, &a_parsed)) return NULL;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) return NULL;
+
+    // Check dimensions
+    if (a_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
+        PyErr_SetString(PyExc_ValueError, "All tensors must be vectors");
+        goto cleanup;
+    }
+    if (out_obj && a_parsed.dimensions != out_parsed.dimensions) {
+        PyErr_SetString(PyExc_ValueError, "Vector dimensions don't match");
+        goto cleanup;
+    }
+
+    // Check data types
+    if (a_parsed.datatype == simsimd_datatype_unknown_k ||
+        (out_obj && out_parsed.datatype == simsimd_datatype_unknown_k)) {
+        PyErr_SetString(PyExc_TypeError, "Input tensor must have a known datatype, check with `X.__array_interface__`");
+        goto cleanup;
+    }
+    if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
+
+    // Look up the kernel and the capability
+    simsimd_kernel_trigonometry_punned_t kernel = NULL;
+    simsimd_capability_t capability = simsimd_cap_serial_k;
+    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&kernel, &capability);
+    if (!kernel) {
+        PyErr_Format( //
+            PyExc_LookupError,
+            "Unsupported metric '%c' and datatype combination ('%s'/'%s') and `dtype` override ('%s'/'%s')",
+            metric_kind,                                                                             //
+            a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
+            dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
+        goto cleanup;
+    }
+
+    char *output_start = NULL;
+
+    // Allocate the output array if it wasn't provided
+    if (!out_obj) {
+        DistancesTensor *output_obj =
+            PyObject_NewVar(DistancesTensor, &DistancesTensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
+        if (!output_obj) {
+            PyErr_NoMemory();
+            goto cleanup;
+        }
+
+        // Initialize the object
+        output_obj->datatype = dtype;
+        output_obj->dimensions = 1;
+        output_obj->shape[0] = a_parsed.dimensions;
+        output_obj->shape[1] = 1;
+        output_obj->strides[0] = bytes_per_datatype(dtype);
+        output_obj->strides[1] = 0;
+        return_obj = (PyObject *)output_obj;
+        output_start = (char *)&output_obj->start[0];
+    }
+    else {
+        output_start = (char *)&out_parsed.start[0];
+        return_obj = Py_None;
+    }
+
+    kernel(a_parsed.start, a_parsed.dimensions, output_start);
+cleanup:
+    PyBuffer_Release(&a_buffer);
+    PyBuffer_Release(&out_buffer);
+    return return_obj;
+}
+
+static PyObject *api_sin(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                         PyObject *args_names_tuple) {
+    return implement_trigonometry(simsimd_metric_sin_k, args, positional_args_count, args_names_tuple);
+}
+
+static PyObject *api_cos(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                         PyObject *args_names_tuple) {
+    return implement_trigonometry(simsimd_metric_cos_k, args, positional_args_count, args_names_tuple);
+}
+
+static PyObject *api_atan(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                          PyObject *args_names_tuple) {
+    return implement_trigonometry(simsimd_metric_atan_k, args, positional_args_count, args_names_tuple);
+}
+
 // There are several flags we can use to define the functions:
 // - `METH_O`: Single object argument
 // - `METH_VARARGS`: Variable number of arguments
@@ -1993,7 +2177,7 @@ static PyMethodDef simsimd_methods[] = {
     {"l2sq", (PyCFunction)api_l2sq, METH_FASTCALL | METH_KEYWORDS, doc_l2sq},
     {"kl", (PyCFunction)api_kl, METH_FASTCALL | METH_KEYWORDS, doc_kl},
     {"js", (PyCFunction)api_js, METH_FASTCALL | METH_KEYWORDS, doc_js},
-    {"cos", (PyCFunction)api_cos, METH_FASTCALL | METH_KEYWORDS, doc_cos},
+    {"angular", (PyCFunction)api_angular, METH_FASTCALL | METH_KEYWORDS, doc_angular},
     {"dot", (PyCFunction)api_dot, METH_FASTCALL | METH_KEYWORDS, doc_dot},
     {"vdot", (PyCFunction)api_vdot, METH_FASTCALL | METH_KEYWORDS, doc_vdot},
     {"hamming", (PyCFunction)api_hamming, METH_FASTCALL | METH_KEYWORDS, doc_hamming},
@@ -2002,7 +2186,6 @@ static PyMethodDef simsimd_methods[] = {
     // Aliases
     {"euclidean", (PyCFunction)api_l2, METH_FASTCALL | METH_KEYWORDS, doc_l2},
     {"sqeuclidean", (PyCFunction)api_l2sq, METH_FASTCALL | METH_KEYWORDS, doc_l2sq},
-    {"cosine", (PyCFunction)api_cos, METH_FASTCALL | METH_KEYWORDS, doc_cos},
     {"inner", (PyCFunction)api_dot, METH_FASTCALL | METH_KEYWORDS, doc_dot},
     {"kullbackleibler", (PyCFunction)api_kl, METH_FASTCALL | METH_KEYWORDS, doc_kl},
     {"jensenshannon", (PyCFunction)api_js, METH_FASTCALL | METH_KEYWORDS, doc_js},
@@ -2013,7 +2196,7 @@ static PyMethodDef simsimd_methods[] = {
     // Exposing underlying API for USearch `CompiledMetric`
     {"pointer_to_euclidean", (PyCFunction)api_l2_pointer, METH_O, doc_l2_pointer},
     {"pointer_to_sqeuclidean", (PyCFunction)api_l2sq_pointer, METH_O, doc_l2sq_pointer},
-    {"pointer_to_cosine", (PyCFunction)api_cos_pointer, METH_O, doc_cos_pointer},
+    {"pointer_to_angular", (PyCFunction)api_angular_pointer, METH_O, doc_angular_pointer},
     {"pointer_to_inner", (PyCFunction)api_dot_pointer, METH_O, doc_dot_pointer},
     {"pointer_to_dot", (PyCFunction)api_dot_pointer, METH_O, doc_dot_pointer},
     {"pointer_to_vdot", (PyCFunction)api_vdot_pointer, METH_O, doc_vdot_pointer},
@@ -2030,6 +2213,11 @@ static PyMethodDef simsimd_methods[] = {
     // Vectorized operations
     {"fma", (PyCFunction)api_fma, METH_FASTCALL | METH_KEYWORDS, doc_fma},
     {"wsum", (PyCFunction)api_wsum, METH_FASTCALL | METH_KEYWORDS, doc_wsum},
+
+    // Element-wise trigonometric functions
+    {"sin", (PyCFunction)api_sin, METH_FASTCALL | METH_KEYWORDS, doc_sin},
+    {"cos", (PyCFunction)api_cos, METH_FASTCALL | METH_KEYWORDS, doc_cos},
+    {"atan", (PyCFunction)api_atan, METH_FASTCALL | METH_KEYWORDS, doc_atan},
 
     // Sentinel
     {NULL, NULL, 0, NULL}};

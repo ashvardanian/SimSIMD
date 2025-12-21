@@ -6,7 +6,7 @@ class SimSIMDTests: XCTestCase {
         print("Capabilities: \(Capabilities.available)")
     }
 
-    func testCosineInt8() throws {
+    func testAngularInt8() throws {
         let a: [Int8] = [3, 97, 127]
         let b: [Int8] = [3, 97, 127]
         let result = try XCTUnwrap(a.angular(b))
@@ -14,7 +14,7 @@ class SimSIMDTests: XCTestCase {
     }
 
     #if !arch(x86_64)
-    func testCosineFloat16() throws {
+    func testAngularFloat16() throws {
         let a: [Float16] = [1.0, 2.0, 3.0]
         let b: [Float16] = [1.0, 2.0, 3.0]
         let result = try XCTUnwrap(a.angular(b))
@@ -22,14 +22,14 @@ class SimSIMDTests: XCTestCase {
     }
     #endif
 
-    func testCosineFloat32() throws {
+    func testAngularFloat32() throws {
         let a: [Float32] = [1.0, 2.0, 3.0]
         let b: [Float32] = [1.0, 2.0, 3.0]
         let result = try XCTUnwrap(a.angular(b))
         XCTAssertEqual(result, 0.004930496, accuracy: 0.01)
     }
 
-    func testCosineFloat64() throws {
+    func testAngularFloat64() throws {
         let a: [Float64] = [1.0, 2.0, 3.0]
         let b: [Float64] = [1.0, 2.0, 3.0]
         let result = try XCTUnwrap(a.angular(b))

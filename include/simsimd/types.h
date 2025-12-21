@@ -468,6 +468,18 @@ typedef union {
     float f;
 } simsimd_f32i32_t;
 
+/** @brief  Convenience type for single-precision floating-point bit manipulation. */
+typedef union {
+    simsimd_u32_t u;
+    simsimd_f32_t f;
+} simsimd_fui32_t;
+
+/** @brief  Convenience type for double-precision floating-point bit manipulation. */
+typedef union {
+    simsimd_u64_t u;
+    simsimd_f64_t f;
+} simsimd_fui64_t;
+
 /** @brief  Convenience type addressing the real and imaginary parts of a half-precision complex number. */
 typedef struct {
     simsimd_f16_t real;

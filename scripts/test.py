@@ -505,7 +505,9 @@ def keep_one_capability(cap: str):
     for c in possible_capabilities:
         if c != cap:
             simd.disable_capability(c)
-    simd.enable_capability(cap)
+    # Serial is always enabled, can't toggle it
+    if cap != "serial":
+        simd.enable_capability(cap)
 
 
 def name_to_kernels(name: str):
@@ -1158,7 +1160,6 @@ def test_dot_complex_explicit(ndim, capability):
     result = simd.vdot(a, b, "complex64")
 
     np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-    collect_errors("vdot", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1906,7 +1907,7 @@ def test_gil_free_threading():
         slice_a = vectors_a[start_idx:end_idx]
         slice_b = vectors_b[start_idx:end_idx]
         slice_distances = distances[start_idx:end_idx]
-        simd.cosine(slice_a, slice_b, out=slice_distances)
+        simd.angular(slice_a, slice_b, out=slice_distances)
         return sum(slice_distances)
 
     def compute_with_threads(threads: int) -> float:
