@@ -176,6 +176,7 @@ typedef enum {
     simsimd_metric_bilinear_k = 'b',    ///< Bilinear form
     simsimd_metric_mahalanobis_k = 'm', ///< Mahalanobis distance
     simsimd_metric_haversine_k = 'o',   ///< Haversine distance
+    simsimd_metric_vincenty_k = 'O',    ///< Vincenty distance (ellipsoidal geodesic)
 
     // Probability:
     simsimd_metric_kld_k = 'k', ///< Kullback-Leibler divergence
@@ -795,6 +796,8 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f64(simsimd_capability_t v, si
         case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f64_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f64_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_haversine_k: *m = (m_t)&simsimd_haversine_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_vincenty_k: *m = (m_t)&simsimd_vincenty_f64_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f64_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f64_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f64_skylake, *c = simsimd_cap_skylake_k; return;
@@ -810,6 +813,8 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f64(simsimd_capability_t v, si
         case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f64_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f64_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f64_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_haversine_k: *m = (m_t)&simsimd_haversine_f64_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_vincenty_k: *m = (m_t)&simsimd_vincenty_f64_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f64_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f64_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f64_haswell, *c = simsimd_cap_haswell_k; return;
@@ -826,6 +831,8 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f64(simsimd_capability_t v, si
         case simsimd_metric_kld_k: *m = (m_t)&simsimd_kld_f64_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f64_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_mahalanobis_k: *m = (m_t)&simsimd_mahalanobis_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_haversine_k: *m = (m_t)&simsimd_haversine_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_vincenty_k: *m = (m_t)&simsimd_vincenty_f64_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f64_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f64_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f64_serial, *c = simsimd_cap_serial_k; return;
@@ -876,6 +883,8 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f32(simsimd_capability_t v, si
         case simsimd_metric_mahalanobis_k:
             *m = (m_t)&simsimd_mahalanobis_f32_skylake, *c = simsimd_cap_skylake_k;
             return;
+        case simsimd_metric_haversine_k: *m = (m_t)&simsimd_haversine_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_vincenty_k: *m = (m_t)&simsimd_vincenty_f32_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f32_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f32_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f32_skylake, *c = simsimd_cap_skylake_k; return;
@@ -892,6 +901,8 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f32(simsimd_capability_t v, si
         case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f32_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f32_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_haversine_k: *m = (m_t)&simsimd_haversine_f32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_vincenty_k: *m = (m_t)&simsimd_vincenty_f32_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f32_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f32_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f32_haswell, *c = simsimd_cap_haswell_k; return;
@@ -908,6 +919,8 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f32(simsimd_capability_t v, si
         case simsimd_metric_kld_k: *m = (m_t)&simsimd_kld_f32_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f32_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_mahalanobis_k: *m = (m_t)&simsimd_mahalanobis_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_haversine_k: *m = (m_t)&simsimd_haversine_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_vincenty_k: *m = (m_t)&simsimd_vincenty_f32_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f32_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f32_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f32_serial, *c = simsimd_cap_serial_k; return;
