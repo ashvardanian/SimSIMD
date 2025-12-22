@@ -902,9 +902,9 @@ SIMSIMD_INTERNAL __m256d _simsimd_f64x4_cos_haswell(__m256d const angles_radians
     __m256d const coeff_7 = _mm256_set1_pd(-7.97255955009037868891952e-18);
     __m256d const coeff_8 = _mm256_set1_pd(-0.166666666666666657414808);
 
-    // Compute (rounded_quotients) = 2 * round(0.5 - angle / π) + 1
-    // Note: fnmadd(a, b, c) = c - a*b, so fnmadd(angles, pi_recip, 0.5) = 0.5 - angles/π
-    __m256d const quotients = _mm256_fnmadd_pd(angles_radians, pi_reciprocal, _mm256_set1_pd(0.5));
+    // Compute (rounded_quotients) = 2 * round(angle / π - 0.5) + 1
+    // Use fmsub: a*b - c = angles * (1/π) - 0.5
+    __m256d const quotients = _mm256_fmsub_pd(angles_radians, pi_reciprocal, _mm256_set1_pd(0.5));
     __m256d const rounded_quotients = _mm256_fmadd_pd(                             //
         _mm256_set1_pd(2.0),                                                       //
         _mm256_round_pd(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC), //
@@ -1368,7 +1368,8 @@ SIMSIMD_INTERNAL __m512d _simsimd_f64x8_cos_skylake(__m512d const angles_radians
     __m512d const coeff_8 = _mm512_set1_pd(-0.166666666666666657414808);
 
     // Compute (rounded_quotients) = 2 * round(angle / π - 0.5) + 1
-    __m512d const quotients = _mm512_fnmadd_pd(angles_radians, pi_reciprocal, _mm512_set1_pd(0.5));
+    // Use fmsub: a*b - c = angles * (1/π) - 0.5
+    __m512d const quotients = _mm512_fmsub_pd(angles_radians, pi_reciprocal, _mm512_set1_pd(0.5));
     __m512d const rounded_quotients = _mm512_fmadd_pd(                                  //
         _mm512_set1_pd(2),                                                              //
         _mm512_roundscale_pd(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC), //
