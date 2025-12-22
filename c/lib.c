@@ -164,6 +164,18 @@ extern "C" {
         metric(a, b, n, result);                                                                                   \
     }
 
+#define SIMSIMD_DECLARATION_TRIGONOMETRY(name, extension)                                                          \
+    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(simsimd_##extension##_t const *inputs, simsimd_size_t n,     \
+                                                      simsimd_##extension##_t *outputs) {                          \
+        static simsimd_kernel_trigonometry_punned_t kernel = 0;                                                    \
+        if (kernel == 0) {                                                                                         \
+            simsimd_capability_t used_capability;                                                                  \
+            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##extension##_k, simsimd_capabilities(), \
+                                       simsimd_cap_any_k, (simsimd_kernel_punned_t *)(&kernel), &used_capability); \
+        }                                                                                                          \
+        kernel(inputs, n, outputs);                                                                                \
+    }
+
 // Dot products
 SIMSIMD_DECLARATION_DENSE(dot, i8)
 SIMSIMD_DECLARATION_DENSE(dot, u8)
@@ -269,6 +281,14 @@ SIMSIMD_DECLARATION_SUM(sum, i32)
 SIMSIMD_DECLARATION_SUM(sum, u32)
 SIMSIMD_DECLARATION_SUM(sum, i64)
 SIMSIMD_DECLARATION_SUM(sum, u64)
+
+// Trigonometry functions
+SIMSIMD_DECLARATION_TRIGONOMETRY(sin, f32)
+SIMSIMD_DECLARATION_TRIGONOMETRY(sin, f64)
+SIMSIMD_DECLARATION_TRIGONOMETRY(cos, f32)
+SIMSIMD_DECLARATION_TRIGONOMETRY(cos, f64)
+SIMSIMD_DECLARATION_TRIGONOMETRY(atan, f32)
+SIMSIMD_DECLARATION_TRIGONOMETRY(atan, f64)
 
 SIMSIMD_DYNAMIC int simsimd_uses_neon(void) { return (simsimd_capabilities() & simsimd_cap_neon_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_neon_f16(void) { return (simsimd_capabilities() & simsimd_cap_neon_f16_k) != 0; }

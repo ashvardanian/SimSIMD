@@ -184,6 +184,208 @@ extern "C" {
     fn simsimd_e4m3_to_f32(src: *const u8, dest: *mut f32);
     fn simsimd_f32_to_e5m2(src: *const f32, dest: *mut u8);
     fn simsimd_e5m2_to_f32(src: *const u8, dest: *mut f32);
+
+    // Trigonometry functions
+    fn simsimd_sin_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
+    fn simsimd_sin_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
+    fn simsimd_cos_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
+    fn simsimd_cos_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
+    fn simsimd_atan_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
+    fn simsimd_atan_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
+
+    // Elementwise: Scale (alpha * a + beta)
+    fn simsimd_scale_f64(
+        a: *const f64,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut f64,
+    );
+    fn simsimd_scale_f32(
+        a: *const f32,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut f32,
+    );
+    fn simsimd_scale_f16(
+        a: *const u16,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut u16,
+    );
+    fn simsimd_scale_bf16(
+        a: *const u16,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut u16,
+    );
+    fn simsimd_scale_i8(a: *const i8, n: u64size, alpha: Distance, beta: Distance, result: *mut i8);
+    fn simsimd_scale_u8(a: *const u8, n: u64size, alpha: Distance, beta: Distance, result: *mut u8);
+    fn simsimd_scale_i16(
+        a: *const i16,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut i16,
+    );
+    fn simsimd_scale_u16(
+        a: *const u16,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut u16,
+    );
+    fn simsimd_scale_i32(
+        a: *const i32,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut i32,
+    );
+    fn simsimd_scale_u32(
+        a: *const u32,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut u32,
+    );
+    fn simsimd_scale_i64(
+        a: *const i64,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut i64,
+    );
+    fn simsimd_scale_u64(
+        a: *const u64,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut u64,
+    );
+
+    // Elementwise: Sum (a + b)
+    fn simsimd_sum_f64(a: *const f64, b: *const f64, n: u64size, result: *mut f64);
+    fn simsimd_sum_f32(a: *const f32, b: *const f32, n: u64size, result: *mut f32);
+    fn simsimd_sum_f16(a: *const u16, b: *const u16, n: u64size, result: *mut u16);
+    fn simsimd_sum_bf16(a: *const u16, b: *const u16, n: u64size, result: *mut u16);
+    fn simsimd_sum_i8(a: *const i8, b: *const i8, n: u64size, result: *mut i8);
+    fn simsimd_sum_u8(a: *const u8, b: *const u8, n: u64size, result: *mut u8);
+    fn simsimd_sum_i16(a: *const i16, b: *const i16, n: u64size, result: *mut i16);
+    fn simsimd_sum_u16(a: *const u16, b: *const u16, n: u64size, result: *mut u16);
+    fn simsimd_sum_i32(a: *const i32, b: *const i32, n: u64size, result: *mut i32);
+    fn simsimd_sum_u32(a: *const u32, b: *const u32, n: u64size, result: *mut u32);
+    fn simsimd_sum_i64(a: *const i64, b: *const i64, n: u64size, result: *mut i64);
+    fn simsimd_sum_u64(a: *const u64, b: *const u64, n: u64size, result: *mut u64);
+
+    // Elementwise: WSum (alpha * a + beta * b)
+    fn simsimd_wsum_f64(
+        a: *const f64,
+        b: *const f64,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut f64,
+    );
+    fn simsimd_wsum_f32(
+        a: *const f32,
+        b: *const f32,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut f32,
+    );
+    fn simsimd_wsum_f16(
+        a: *const u16,
+        b: *const u16,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut u16,
+    );
+    fn simsimd_wsum_bf16(
+        a: *const u16,
+        b: *const u16,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut u16,
+    );
+    fn simsimd_wsum_i8(
+        a: *const i8,
+        b: *const i8,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut i8,
+    );
+    fn simsimd_wsum_u8(
+        a: *const u8,
+        b: *const u8,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut u8,
+    );
+
+    // Elementwise: FMA (alpha * a * b + beta * c)
+    fn simsimd_fma_f64(
+        a: *const f64,
+        b: *const f64,
+        c: *const f64,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut f64,
+    );
+    fn simsimd_fma_f32(
+        a: *const f32,
+        b: *const f32,
+        c: *const f32,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut f32,
+    );
+    fn simsimd_fma_f16(
+        a: *const u16,
+        b: *const u16,
+        c: *const u16,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut u16,
+    );
+    fn simsimd_fma_bf16(
+        a: *const u16,
+        b: *const u16,
+        c: *const u16,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut u16,
+    );
+    fn simsimd_fma_i8(
+        a: *const i8,
+        b: *const i8,
+        c: *const i8,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut i8,
+    );
+    fn simsimd_fma_u8(
+        a: *const u8,
+        b: *const u8,
+        c: *const u8,
+        n: u64size,
+        alpha: Distance,
+        beta: Distance,
+        result: *mut u8,
+    );
 }
 
 /// A half-precision (16-bit) floating point number.
@@ -207,7 +409,7 @@ extern "C" {
 /// let bits = half.0;
 /// ```
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct f16(pub u16);
 
 impl f16 {
@@ -383,7 +585,7 @@ impl core::cmp::PartialOrd for f16 {
 /// let bits = brain_half.0;
 /// ```
 #[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct bf16(pub u16);
 
 impl bf16 {
@@ -1115,6 +1317,68 @@ where
     fn intersect(a: &[Self], b: &[Self]) -> Option<Distance>;
 }
 
+/// `Trigonometry` provides SIMD-accelerated element-wise trigonometric functions.
+///
+/// Supported for `f32` and `f64` types only.
+pub trait Trigonometry
+where
+    Self: Sized + Clone,
+{
+    /// Computes the sine of each element in the input slice.
+    /// Returns `None` if output slice length doesn't match input length.
+    fn sin(inputs: &[Self], outputs: &mut [Self]) -> Option<()>;
+
+    /// Computes the cosine of each element in the input slice.
+    /// Returns `None` if output slice length doesn't match input length.
+    fn cos(inputs: &[Self], outputs: &mut [Self]) -> Option<()>;
+
+    /// Computes the arctangent of each element in the input slice.
+    /// Returns `None` if output slice length doesn't match input length.
+    fn atan(inputs: &[Self], outputs: &mut [Self]) -> Option<()>;
+}
+
+/// `ElementwiseOps` provides SIMD-accelerated element-wise operations.
+///
+/// Supported for all numeric types.
+pub trait ElementwiseOps
+where
+    Self: Sized + Clone + Default,
+{
+    /// Computes `alpha * a[i] + beta` for each element.
+    /// Returns `None` if result slice length doesn't match input length.
+    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()>;
+
+    /// Computes `a[i] + b[i]` for each element.
+    /// Returns `None` if slices have different lengths.
+    fn sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()>;
+}
+
+/// `WeightedOps` provides SIMD-accelerated weighted element-wise operations.
+///
+/// Available for floating-point types and small integer types (i8, u8).
+pub trait WeightedOps: ElementwiseOps {
+    /// Computes `alpha * a[i] + beta * b[i]` for each element.
+    /// Returns `None` if slices have different lengths.
+    fn wsum(
+        a: &[Self],
+        b: &[Self],
+        alpha: Distance,
+        beta: Distance,
+        result: &mut [Self],
+    ) -> Option<()>;
+
+    /// Computes `alpha * a[i] * b[i] + beta * c[i]` for each element.
+    /// Returns `None` if slices have different lengths.
+    fn fma(
+        a: &[Self],
+        b: &[Self],
+        c: &[Self],
+        alpha: Distance,
+        beta: Distance,
+        result: &mut [Self],
+    ) -> Option<()>;
+}
+
 impl BinarySimilarity for u8 {
     fn hamming(a: &[Self], b: &[Self]) -> Option<Distance> {
         if a.len() != b.len() {
@@ -1622,6 +1886,782 @@ impl ComplexProducts for f64 {
         // The C function expects the number of complex pairs, not the total number of floats
         unsafe { simsimd_vdot_f64c(a.as_ptr(), b.as_ptr(), a.len() as u64size / 2, product_ptr) };
         Some((product[0], product[1]))
+    }
+}
+
+// Trigonometry implementations
+
+impl Trigonometry for f32 {
+    fn sin(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
+        if inputs.len() != outputs.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_sin_f32(
+                inputs.as_ptr(),
+                inputs.len() as u64size,
+                outputs.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn cos(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
+        if inputs.len() != outputs.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_cos_f32(
+                inputs.as_ptr(),
+                inputs.len() as u64size,
+                outputs.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn atan(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
+        if inputs.len() != outputs.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_atan_f32(
+                inputs.as_ptr(),
+                inputs.len() as u64size,
+                outputs.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl Trigonometry for f64 {
+    fn sin(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
+        if inputs.len() != outputs.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_sin_f64(
+                inputs.as_ptr(),
+                inputs.len() as u64size,
+                outputs.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn cos(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
+        if inputs.len() != outputs.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_cos_f64(
+                inputs.as_ptr(),
+                inputs.len() as u64size,
+                outputs.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn atan(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
+        if inputs.len() != outputs.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_atan_f64(
+                inputs.as_ptr(),
+                inputs.len() as u64size,
+                outputs.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+// ElementwiseOps implementations
+
+impl ElementwiseOps for f64 {
+    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+        if a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_scale_f64(
+                a.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_sum_f64(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl WeightedOps for f64 {
+    fn wsum(
+        a: &[Self],
+        b: &[Self],
+        alpha: Distance,
+        beta: Distance,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_wsum_f64(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn fma(
+        a: &[Self],
+        b: &[Self],
+        c: &[Self],
+        alpha: Distance,
+        beta: Distance,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || b.len() != c.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_fma_f64(
+                a.as_ptr(),
+                b.as_ptr(),
+                c.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl ElementwiseOps for f32 {
+    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+        if a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_scale_f32(
+                a.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_sum_f32(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl WeightedOps for f32 {
+    fn wsum(
+        a: &[Self],
+        b: &[Self],
+        alpha: Distance,
+        beta: Distance,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_wsum_f32(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn fma(
+        a: &[Self],
+        b: &[Self],
+        c: &[Self],
+        alpha: Distance,
+        beta: Distance,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || b.len() != c.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_fma_f32(
+                a.as_ptr(),
+                b.as_ptr(),
+                c.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl ElementwiseOps for f16 {
+    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+        if a.len() != result.len() {
+            return None;
+        }
+        let a_ptr = a.as_ptr() as *const u16;
+        let result_ptr = result.as_mut_ptr() as *mut u16;
+        unsafe {
+            simsimd_scale_f16(a_ptr, a.len() as u64size, alpha, beta, result_ptr);
+        }
+        Some(())
+    }
+
+    fn sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        let result_ptr = result.as_mut_ptr() as *mut u16;
+        unsafe {
+            simsimd_sum_f16(a_ptr, b_ptr, a.len() as u64size, result_ptr);
+        }
+        Some(())
+    }
+}
+
+impl WeightedOps for f16 {
+    fn wsum(
+        a: &[Self],
+        b: &[Self],
+        alpha: Distance,
+        beta: Distance,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        let result_ptr = result.as_mut_ptr() as *mut u16;
+        unsafe {
+            simsimd_wsum_f16(a_ptr, b_ptr, a.len() as u64size, alpha, beta, result_ptr);
+        }
+        Some(())
+    }
+
+    fn fma(
+        a: &[Self],
+        b: &[Self],
+        c: &[Self],
+        alpha: Distance,
+        beta: Distance,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || b.len() != c.len() || a.len() != result.len() {
+            return None;
+        }
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        let c_ptr = c.as_ptr() as *const u16;
+        let result_ptr = result.as_mut_ptr() as *mut u16;
+        unsafe {
+            simsimd_fma_f16(
+                a_ptr,
+                b_ptr,
+                c_ptr,
+                a.len() as u64size,
+                alpha,
+                beta,
+                result_ptr,
+            );
+        }
+        Some(())
+    }
+}
+
+impl ElementwiseOps for bf16 {
+    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+        if a.len() != result.len() {
+            return None;
+        }
+        let a_ptr = a.as_ptr() as *const u16;
+        let result_ptr = result.as_mut_ptr() as *mut u16;
+        unsafe {
+            simsimd_scale_bf16(a_ptr, a.len() as u64size, alpha, beta, result_ptr);
+        }
+        Some(())
+    }
+
+    fn sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        let result_ptr = result.as_mut_ptr() as *mut u16;
+        unsafe {
+            simsimd_sum_bf16(a_ptr, b_ptr, a.len() as u64size, result_ptr);
+        }
+        Some(())
+    }
+}
+
+impl WeightedOps for bf16 {
+    fn wsum(
+        a: &[Self],
+        b: &[Self],
+        alpha: Distance,
+        beta: Distance,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        let result_ptr = result.as_mut_ptr() as *mut u16;
+        unsafe {
+            simsimd_wsum_bf16(a_ptr, b_ptr, a.len() as u64size, alpha, beta, result_ptr);
+        }
+        Some(())
+    }
+
+    fn fma(
+        a: &[Self],
+        b: &[Self],
+        c: &[Self],
+        alpha: Distance,
+        beta: Distance,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || b.len() != c.len() || a.len() != result.len() {
+            return None;
+        }
+        let a_ptr = a.as_ptr() as *const u16;
+        let b_ptr = b.as_ptr() as *const u16;
+        let c_ptr = c.as_ptr() as *const u16;
+        let result_ptr = result.as_mut_ptr() as *mut u16;
+        unsafe {
+            simsimd_fma_bf16(
+                a_ptr,
+                b_ptr,
+                c_ptr,
+                a.len() as u64size,
+                alpha,
+                beta,
+                result_ptr,
+            );
+        }
+        Some(())
+    }
+}
+
+impl ElementwiseOps for i8 {
+    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+        if a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_scale_i8(
+                a.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_sum_i8(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl WeightedOps for i8 {
+    fn wsum(
+        a: &[Self],
+        b: &[Self],
+        alpha: Distance,
+        beta: Distance,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_wsum_i8(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn fma(
+        a: &[Self],
+        b: &[Self],
+        c: &[Self],
+        alpha: Distance,
+        beta: Distance,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || b.len() != c.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_fma_i8(
+                a.as_ptr(),
+                b.as_ptr(),
+                c.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl ElementwiseOps for u8 {
+    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+        if a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_scale_u8(
+                a.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_sum_u8(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl WeightedOps for u8 {
+    fn wsum(
+        a: &[Self],
+        b: &[Self],
+        alpha: Distance,
+        beta: Distance,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_wsum_u8(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn fma(
+        a: &[Self],
+        b: &[Self],
+        c: &[Self],
+        alpha: Distance,
+        beta: Distance,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || b.len() != c.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_fma_u8(
+                a.as_ptr(),
+                b.as_ptr(),
+                c.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl ElementwiseOps for i16 {
+    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+        if a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_scale_i16(
+                a.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_sum_i16(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl ElementwiseOps for u16 {
+    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+        if a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_scale_u16(
+                a.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_sum_u16(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl ElementwiseOps for i32 {
+    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+        if a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_scale_i32(
+                a.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_sum_i32(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl ElementwiseOps for u32 {
+    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+        if a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_scale_u32(
+                a.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_sum_u32(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl ElementwiseOps for i64 {
+    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+        if a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_scale_i64(
+                a.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_sum_i64(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl ElementwiseOps for u64 {
+    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+        if a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_scale_u64(
+                a.as_ptr(),
+                a.len() as u64size,
+                alpha,
+                beta,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+
+    fn sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            simsimd_sum_u64(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
     }
 }
 
@@ -2311,6 +3351,296 @@ mod tests {
             } else {
                 assert_eq!(roundtrip, 0.0);
             }
+        }
+    }
+
+    // Trigonometry tests
+
+    fn assert_vec_almost_equal_f32(actual: &[f32], expected: &[f32], tolerance: f32) {
+        assert_eq!(actual.len(), expected.len());
+        for (i, (a, e)) in actual.iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (a - e).abs() <= tolerance,
+                "Element {}: expected {} but got {}, diff {} > tolerance {}",
+                i,
+                e,
+                a,
+                (a - e).abs(),
+                tolerance
+            );
+        }
+    }
+
+    fn assert_vec_almost_equal_f64(actual: &[f64], expected: &[f64], tolerance: f64) {
+        assert_eq!(actual.len(), expected.len());
+        for (i, (a, e)) in actual.iter().zip(expected.iter()).enumerate() {
+            assert!(
+                (a - e).abs() <= tolerance,
+                "Element {}: expected {} but got {}, diff {} > tolerance {}",
+                i,
+                e,
+                a,
+                (a - e).abs(),
+                tolerance
+            );
+        }
+    }
+
+    #[test]
+    fn sin_f32_small() {
+        use std::f32::consts::PI;
+        let inputs: Vec<f32> = (0..11).map(|i| (i as f32) * PI / 10.0).collect();
+        let expected: Vec<f32> = inputs.iter().map(|x| x.sin()).collect();
+        let mut result = vec![0.0f32; inputs.len()];
+        <f32 as Trigonometry>::sin(&inputs, &mut result).unwrap();
+        assert_vec_almost_equal_f32(&result, &expected, 0.1);
+    }
+
+    #[test]
+    fn sin_f32_medium() {
+        use std::f32::consts::PI;
+        let inputs: Vec<f32> = (0..97).map(|i| (i as f32) * 2.0 * PI / 97.0).collect();
+        let expected: Vec<f32> = inputs.iter().map(|x| x.sin()).collect();
+        let mut result = vec![0.0f32; inputs.len()];
+        <f32 as Trigonometry>::sin(&inputs, &mut result).unwrap();
+        assert_vec_almost_equal_f32(&result, &expected, 0.1);
+    }
+
+    #[test]
+    fn sin_f64_test() {
+        use std::f64::consts::PI;
+        let inputs: Vec<f64> = (0..97).map(|i| (i as f64) * 2.0 * PI / 97.0).collect();
+        let expected: Vec<f64> = inputs.iter().map(|x| x.sin()).collect();
+        let mut result = vec![0.0f64; inputs.len()];
+        <f64 as Trigonometry>::sin(&inputs, &mut result).unwrap();
+        assert_vec_almost_equal_f64(&result, &expected, 0.1);
+    }
+
+    #[test]
+    fn cos_f32_test() {
+        use std::f32::consts::PI;
+        let inputs: Vec<f32> = (0..97).map(|i| (i as f32) * 2.0 * PI / 97.0).collect();
+        let expected: Vec<f32> = inputs.iter().map(|x| x.cos()).collect();
+        let mut result = vec![0.0f32; inputs.len()];
+        <f32 as Trigonometry>::cos(&inputs, &mut result).unwrap();
+        assert_vec_almost_equal_f32(&result, &expected, 0.1);
+    }
+
+    #[test]
+    fn cos_f64_test() {
+        use std::f64::consts::PI;
+        let inputs: Vec<f64> = (0..97).map(|i| (i as f64) * 2.0 * PI / 97.0).collect();
+        let expected: Vec<f64> = inputs.iter().map(|x| x.cos()).collect();
+        let mut result = vec![0.0f64; inputs.len()];
+        <f64 as Trigonometry>::cos(&inputs, &mut result).unwrap();
+        assert_vec_almost_equal_f64(&result, &expected, 0.1);
+    }
+
+    #[test]
+    fn atan_f32_test() {
+        let inputs: Vec<f32> = (-50..50).map(|i| (i as f32) / 10.0).collect();
+        let expected: Vec<f32> = inputs.iter().map(|x| x.atan()).collect();
+        let mut result = vec![0.0f32; inputs.len()];
+        <f32 as Trigonometry>::atan(&inputs, &mut result).unwrap();
+        assert_vec_almost_equal_f32(&result, &expected, 0.1);
+    }
+
+    #[test]
+    fn atan_f64_test() {
+        let inputs: Vec<f64> = (-50..50).map(|i| (i as f64) / 10.0).collect();
+        let expected: Vec<f64> = inputs.iter().map(|x| x.atan()).collect();
+        let mut result = vec![0.0f64; inputs.len()];
+        <f64 as Trigonometry>::atan(&inputs, &mut result).unwrap();
+        assert_vec_almost_equal_f64(&result, &expected, 0.1);
+    }
+
+    // Elementwise tests
+
+    #[test]
+    fn scale_f32() {
+        let a: Vec<f32> = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let alpha = 2.0;
+        let beta = 1.0;
+        let mut result = vec![0.0f32; a.len()];
+        f32::scale(&a, alpha, beta, &mut result).unwrap();
+        let expected: Vec<f32> = a
+            .iter()
+            .map(|x| (alpha as f32) * x + (beta as f32))
+            .collect();
+        assert_vec_almost_equal_f32(&result, &expected, 0.1);
+    }
+
+    #[test]
+    fn scale_f64() {
+        let a: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let alpha = 2.0;
+        let beta = 1.0;
+        let mut result = vec![0.0f64; a.len()];
+        f64::scale(&a, alpha, beta, &mut result).unwrap();
+        let expected: Vec<f64> = a.iter().map(|x| alpha * x + beta).collect();
+        assert_vec_almost_equal_f64(&result, &expected, 0.1);
+    }
+
+    #[test]
+    fn scale_i32() {
+        let a: Vec<i32> = vec![1, 2, 3, 4, 5];
+        let alpha = 2.0;
+        let beta = 1.0;
+        let mut result = vec![0i32; a.len()];
+        i32::scale(&a, alpha, beta, &mut result).unwrap();
+        // Integer operations may round
+        for (i, &r) in result.iter().enumerate() {
+            let expected = (alpha * a[i] as f64 + beta).round() as i32;
+            assert!(
+                (r - expected).abs() <= 1,
+                "Element {}: expected {} but got {}",
+                i,
+                expected,
+                r
+            );
+        }
+    }
+
+    #[test]
+    fn sum_f32() {
+        let a: Vec<f32> = vec![1.0, 2.0, 3.0];
+        let b: Vec<f32> = vec![4.0, 5.0, 6.0];
+        let mut result = vec![0.0f32; a.len()];
+        f32::sum(&a, &b, &mut result).unwrap();
+        let expected: Vec<f32> = vec![5.0, 7.0, 9.0];
+        assert_vec_almost_equal_f32(&result, &expected, 0.1);
+    }
+
+    #[test]
+    fn sum_f64() {
+        let a: Vec<f64> = vec![1.0, 2.0, 3.0];
+        let b: Vec<f64> = vec![4.0, 5.0, 6.0];
+        let mut result = vec![0.0f64; a.len()];
+        f64::sum(&a, &b, &mut result).unwrap();
+        let expected: Vec<f64> = vec![5.0, 7.0, 9.0];
+        assert_vec_almost_equal_f64(&result, &expected, 0.1);
+    }
+
+    #[test]
+    fn sum_length_mismatch() {
+        let a: Vec<f32> = vec![1.0, 2.0, 3.0];
+        let b: Vec<f32> = vec![4.0, 5.0];
+        let mut result = vec![0.0f32; a.len()];
+        assert!(f32::sum(&a, &b, &mut result).is_none());
+    }
+
+    #[test]
+    fn wsum_f32() {
+        let a: Vec<f32> = vec![1.0, 2.0, 3.0];
+        let b: Vec<f32> = vec![4.0, 5.0, 6.0];
+        let alpha = 0.5;
+        let beta = 0.5;
+        let mut result = vec![0.0f32; a.len()];
+        f32::wsum(&a, &b, alpha, beta, &mut result).unwrap();
+        let expected: Vec<f32> = vec![2.5, 3.5, 4.5];
+        assert_vec_almost_equal_f32(&result, &expected, 0.1);
+    }
+
+    #[test]
+    fn wsum_f64() {
+        let a: Vec<f64> = vec![1.0, 2.0, 3.0];
+        let b: Vec<f64> = vec![4.0, 5.0, 6.0];
+        let alpha = 0.5;
+        let beta = 0.5;
+        let mut result = vec![0.0f64; a.len()];
+        f64::wsum(&a, &b, alpha, beta, &mut result).unwrap();
+        let expected: Vec<f64> = vec![2.5, 3.5, 4.5];
+        assert_vec_almost_equal_f64(&result, &expected, 0.1);
+    }
+
+    #[test]
+    fn fma_f32() {
+        let a: Vec<f32> = vec![1.0, 2.0, 3.0];
+        let b: Vec<f32> = vec![2.0, 3.0, 4.0];
+        let c: Vec<f32> = vec![1.0, 1.0, 1.0];
+        let alpha = 1.0;
+        let beta = 1.0;
+        // result = alpha * a * b + beta * c = 1*1*2 + 1*1 = 3, 1*2*3 + 1*1 = 7, 1*3*4 + 1*1 = 13
+        let mut result = vec![0.0f32; a.len()];
+        f32::fma(&a, &b, &c, alpha, beta, &mut result).unwrap();
+        let expected: Vec<f32> = vec![3.0, 7.0, 13.0];
+        assert_vec_almost_equal_f32(&result, &expected, 0.1);
+    }
+
+    #[test]
+    fn fma_f64() {
+        let a: Vec<f64> = vec![1.0, 2.0, 3.0];
+        let b: Vec<f64> = vec![2.0, 3.0, 4.0];
+        let c: Vec<f64> = vec![1.0, 1.0, 1.0];
+        let alpha = 1.0;
+        let beta = 1.0;
+        let mut result = vec![0.0f64; a.len()];
+        f64::fma(&a, &b, &c, alpha, beta, &mut result).unwrap();
+        let expected: Vec<f64> = vec![3.0, 7.0, 13.0];
+        assert_vec_almost_equal_f64(&result, &expected, 0.1);
+    }
+
+    #[test]
+    fn scale_f16_test() {
+        let a: Vec<f16> = vec![1.0, 2.0, 3.0, 4.0, 5.0]
+            .iter()
+            .map(|&x| f16::from_f32(x))
+            .collect();
+        let alpha = 2.0;
+        let beta = 1.0;
+        let mut result = vec![f16::ZERO; a.len()];
+        f16::scale(&a, alpha, beta, &mut result).unwrap();
+        for (i, r) in result.iter().enumerate() {
+            let expected = (alpha * (i + 1) as f64 + beta) as f32;
+            assert!(
+                (r.to_f32() - expected).abs() < 0.2,
+                "Element {}: expected {} but got {}",
+                i,
+                expected,
+                r.to_f32()
+            );
+        }
+    }
+
+    #[test]
+    fn large_vector_scale() {
+        // Test with 1536 elements (common embedding size)
+        let a: Vec<f32> = (0..1536).map(|i| i as f32).collect();
+        let alpha = 2.0;
+        let beta = 0.5;
+        let mut result = vec![0.0f32; a.len()];
+        f32::scale(&a, alpha, beta, &mut result).unwrap();
+        assert_eq!(result.len(), 1536);
+
+        for i in 0..1536 {
+            let expected = alpha as f32 * a[i] + beta as f32;
+            assert!(
+                (result[i] - expected).abs() < 0.1,
+                "Element {}: expected {} but got {}",
+                i,
+                expected,
+                result[i]
+            );
+        }
+    }
+
+    #[test]
+    fn large_vector_sum() {
+        let a: Vec<f32> = (0..1536).map(|i| i as f32).collect();
+        let b: Vec<f32> = (0..1536).map(|i| (i as f32) * 2.0).collect();
+        let mut result = vec![0.0f32; a.len()];
+        f32::sum(&a, &b, &mut result).unwrap();
+        assert_eq!(result.len(), 1536);
+
+        for i in 0..1536 {
+            let expected = a[i] + b[i];
+            assert!(
+                (result[i] - expected).abs() < 0.1,
+                "Element {}: expected {} but got {}",
+                i,
+                expected,
+                result[i]
+            );
         }
     }
 }
