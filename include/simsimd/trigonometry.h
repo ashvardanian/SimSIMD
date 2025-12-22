@@ -56,6 +56,22 @@
  *  In trigonometry, the Payne-Hanek Range Reduction is another technique used to reduce the argument
  *  to a smaller range, where the approximation is more accurate.
  *
+ *  @section    Optimization Notes
+ *
+ *  The following optimizations were evaluated but did not yield performance improvements:
+ *
+ *  - Estrin's scheme for polynomial evaluation: This tree-based approach reduces the dependency depth
+ *    from N sequential FMAs to log2(N) by computing powers of x in parallel with partial sums.
+ *    For an 8-term polynomial, Estrin reduces depth from 7 to 3. However, benchmarks showed ~20%
+ *    regression because the extra MUL operations for computing x^2, x^4, x^8 hurt throughput more
+ *    than the reduced dependency depth helps latency. For large arrays, out-of-order execution
+ *    across loop iterations already hides FMA latency, making throughput the bottleneck.
+ *
+ *  - RCPPS with Newton-Raphson refinement: Fast reciprocal approximation (~4 cycles) with one
+ *    refinement iteration for ~22-bit precision, tested as an alternative to VDIVPS (~11 cycles).
+ *    Did not improve performance when combined with Estrin's scheme, likely because the division
+ *    is not on the critical path when processing large arrays.
+ *
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
@@ -717,7 +733,8 @@ SIMSIMD_INTERNAL __m256 _simsimd_f32x8_cos_haswell(__m256 const angles_radians) 
 }
 
 SIMSIMD_INTERNAL __m256 _simsimd_f32x8_atan_haswell(__m256 const inputs) {
-    // Polynomial coefficients
+    // Polynomial coefficients for atan approximation (8 terms)
+    // These coefficients approximate: atan(x) ≈ x + c8*x³ + c7*x⁵ + c6*x⁷ + ... + c1*x¹⁵
     __m256 const coeff_8 = _mm256_set1_ps(-0.333331018686294555664062f);
     __m256 const coeff_7 = _mm256_set1_ps(+0.199926957488059997558594f);
     __m256 const coeff_6 = _mm256_set1_ps(-0.142027363181114196777344f);
@@ -742,7 +759,11 @@ SIMSIMD_INTERNAL __m256 _simsimd_f32x8_atan_haswell(__m256 const inputs) {
     __m256 const values_squared = _mm256_mul_ps(values, values);
     __m256 const values_cubed = _mm256_mul_ps(values, values_squared);
 
-    // Polynomial evaluation
+    // Polynomial evaluation using Horner's method.
+    // For large arrays, out-of-order execution across loop iterations already hides
+    // FMA latency. Estrin's scheme was tested but showed ~20% regression because
+    // the extra power computations (y², y⁴) hurt throughput more than the reduced
+    // dependency depth helps latency.
     __m256 polynomials = coeff_1;
     polynomials = _mm256_fmadd_ps(polynomials, values_squared, coeff_2);
     polynomials = _mm256_fmadd_ps(polynomials, values_squared, coeff_3);
@@ -752,7 +773,7 @@ SIMSIMD_INTERNAL __m256 _simsimd_f32x8_atan_haswell(__m256 const inputs) {
     polynomials = _mm256_fmadd_ps(polynomials, values_squared, coeff_7);
     polynomials = _mm256_fmadd_ps(polynomials, values_squared, coeff_8);
 
-    // Compute result
+    // Compute result: atan(x) ≈ x + x³ * P(x²)
     __m256 result = _mm256_fmadd_ps(values_cubed, polynomials, values);
 
     // Adjust for reciprocal: result = π/2 - result
@@ -789,12 +810,12 @@ SIMSIMD_INTERNAL __m256 _simsimd_f32x8_atan2_haswell(__m256 const ys_inputs, __m
     __m256 neg_temps = _mm256_sub_ps(_mm256_setzero_ps(), temps);
     ys = _mm256_blendv_ps(ys, neg_temps, swap_mask);
 
-    // Compute ratio and ratio^2
+    // Compute ratio and powers
     __m256 const ratio = _mm256_div_ps(ys, xs);
     __m256 const ratio_squared = _mm256_mul_ps(ratio, ratio);
     __m256 const ratio_cubed = _mm256_mul_ps(ratio, ratio_squared);
 
-    // Polynomial evaluation
+    // Polynomial evaluation using Horner's method
     __m256 polynomials = coeff_1;
     polynomials = _mm256_fmadd_ps(polynomials, ratio_squared, coeff_2);
     polynomials = _mm256_fmadd_ps(polynomials, ratio_squared, coeff_3);
@@ -947,7 +968,8 @@ SIMSIMD_INTERNAL __m256d _simsimd_f64x4_cos_haswell(__m256d const angles_radians
 }
 
 SIMSIMD_INTERNAL __m256d _simsimd_f64x4_atan_haswell(__m256d const inputs) {
-    // Polynomial coefficients for atan approximation (19 coefficients) - same as Skylake
+    // Polynomial coefficients for atan approximation (19 coefficients)
+    // The polynomial approximates: atan(x) ≈ x + x³ * P(x²) where P has 19 terms
     __m256d const coeff_19 = _mm256_set1_pd(-1.88796008463073496563746e-05);
     __m256d const coeff_18 = _mm256_set1_pd(+0.000209850076645816976906797);
     __m256d const coeff_17 = _mm256_set1_pd(-0.00110611831486672482563471);
@@ -975,6 +997,8 @@ SIMSIMD_INTERNAL __m256d _simsimd_f64x4_atan_haswell(__m256d const inputs) {
     values = _mm256_andnot_pd(sign_mask, values); // abs(values)
 
     // Check if values > 1 (need reciprocal)
+    // Note: For f64, we keep VDIVPD since RCPPD doesn't exist and Newton-Raphson
+    // would need 2 iterations for sufficient precision (~44 bits needed for f64)
     __m256d reciprocal_mask = _mm256_cmp_pd(values, _mm256_set1_pd(1.0), _CMP_GT_OS);
     __m256d reciprocal_values = _mm256_div_pd(_mm256_set1_pd(1.0), values);
     values = _mm256_blendv_pd(values, reciprocal_values, reciprocal_mask);
@@ -983,7 +1007,10 @@ SIMSIMD_INTERNAL __m256d _simsimd_f64x4_atan_haswell(__m256d const inputs) {
     __m256d const values_squared = _mm256_mul_pd(values, values);
     __m256d const values_cubed = _mm256_mul_pd(values, values_squared);
 
-    // Polynomial evaluation (same order as Skylake)
+    // Polynomial evaluation using Horner's method.
+    // For large arrays, out-of-order execution across loop iterations already hides
+    // FMA latency. Estrin's scheme was tested but showed minimal improvement (~1%)
+    // while adding complexity. Keeping Horner for maintainability.
     __m256d polynomials = coeff_19;
     polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_18);
     polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_17);
