@@ -960,6 +960,166 @@ cleanup:
     return return_obj;
 }
 
+/// Geospatial distance function pointer type (4 input arrays + count + output)
+typedef void (*simsimd_metric_geospatial_punned_t)( //
+    void const *a_lats, void const *a_lons,         //
+    void const *b_lats, void const *b_lons,         //
+    simsimd_size_t n, simsimd_distance_t *distances);
+
+static PyObject *implement_geospatial_metric( //
+    simsimd_metric_kind_t metric_kind,        //
+    PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
+
+    PyObject *return_obj = NULL;
+
+    // This function accepts up to 6 arguments:
+    PyObject *a_lats_obj = NULL; // Required object, positional-only
+    PyObject *a_lons_obj = NULL; // Required object, positional-only
+    PyObject *b_lats_obj = NULL; // Required object, positional-only
+    PyObject *b_lons_obj = NULL; // Required object, positional-only
+    PyObject *dtype_obj = NULL;  // Optional object, "dtype" keyword or positional
+    PyObject *out_obj = NULL;    // Optional object, "out" keyword-only
+
+    // Once parsed, the arguments will be stored in these variables:
+    char const *dtype_str = NULL;
+    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
+    Py_buffer a_lats_buffer, a_lons_buffer, b_lats_buffer, b_lons_buffer, out_buffer;
+    TensorArgument a_lats_parsed, a_lons_parsed, b_lats_parsed, b_lons_parsed, out_parsed;
+    memset(&a_lats_buffer, 0, sizeof(Py_buffer));
+    memset(&a_lons_buffer, 0, sizeof(Py_buffer));
+    memset(&b_lats_buffer, 0, sizeof(Py_buffer));
+    memset(&b_lons_buffer, 0, sizeof(Py_buffer));
+    memset(&out_buffer, 0, sizeof(Py_buffer));
+
+    // Parse the arguments
+    Py_ssize_t const args_names_count = args_names_tuple ? PyTuple_Size(args_names_tuple) : 0;
+    Py_ssize_t const args_count = positional_args_count + args_names_count;
+    if (args_count < 4 || args_count > 6) {
+        PyErr_Format(PyExc_TypeError, "Function expects 4-6 arguments, got %zd", args_count);
+        return NULL;
+    }
+    if (positional_args_count > 5) {
+        PyErr_Format(PyExc_TypeError, "Only first 5 arguments can be positional, received %zd", positional_args_count);
+        return NULL;
+    }
+
+    // Positional-only arguments (4 coordinate arrays)
+    a_lats_obj = args[0];
+    a_lons_obj = args[1];
+    b_lats_obj = args[2];
+    b_lons_obj = args[3];
+
+    // Positional or keyword argument (dtype)
+    if (positional_args_count == 5) dtype_obj = args[4];
+
+    // The rest of the arguments must be checked in the keyword dictionary:
+    for (Py_ssize_t args_names_tuple_progress = 0, args_progress = positional_args_count;
+         args_names_tuple_progress < args_names_count; ++args_progress, ++args_names_tuple_progress) {
+        PyObject *const key = PyTuple_GetItem(args_names_tuple, args_names_tuple_progress);
+        PyObject *const value = args[args_progress];
+        if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0 && !dtype_obj) { dtype_obj = value; }
+        else if (PyUnicode_CompareWithASCIIString(key, "out") == 0 && !out_obj) { out_obj = value; }
+        else {
+            PyErr_Format(PyExc_TypeError, "Got unexpected keyword argument: %S", key);
+            return NULL;
+        }
+    }
+
+    // Convert `dtype_obj` to `dtype_str` and to `dtype`
+    if (dtype_obj) {
+        dtype_str = PyUnicode_AsUTF8(dtype_obj);
+        if (!dtype_str && PyErr_Occurred()) {
+            PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
+            return NULL;
+        }
+        dtype = python_string_to_datatype(dtype_str);
+        if (dtype == simsimd_datatype_unknown_k) {
+            PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
+            return NULL;
+        }
+    }
+
+    // Convert input objects to buffers
+    if (!parse_tensor(a_lats_obj, &a_lats_buffer, &a_lats_parsed) ||
+        !parse_tensor(a_lons_obj, &a_lons_buffer, &a_lons_parsed) ||
+        !parse_tensor(b_lats_obj, &b_lats_buffer, &b_lats_parsed) ||
+        !parse_tensor(b_lons_obj, &b_lons_buffer, &b_lons_parsed))
+        return NULL;
+    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) return NULL;
+
+    // Check dimensions: all inputs must be 1D vectors of equal length
+    if (a_lats_parsed.rank != 1 || a_lons_parsed.rank != 1 || b_lats_parsed.rank != 1 || b_lons_parsed.rank != 1) {
+        PyErr_SetString(PyExc_ValueError, "All coordinate arrays must be 1D vectors");
+        goto cleanup;
+    }
+    // For geospatial, n is the number of coordinate pairs (shape[0] for 1D arrays)
+    size_t const n = a_lats_parsed.dimensions;
+    if (a_lons_parsed.dimensions != n || b_lats_parsed.dimensions != n || b_lons_parsed.dimensions != n) {
+        PyErr_SetString(PyExc_ValueError, "All coordinate arrays must have the same length");
+        goto cleanup;
+    }
+    if (n == 0) {
+        PyErr_SetString(PyExc_ValueError, "Coordinate arrays can't be empty");
+        goto cleanup;
+    }
+
+    // Check data types: all must match
+    if (a_lats_parsed.datatype != a_lons_parsed.datatype || a_lats_parsed.datatype != b_lats_parsed.datatype ||
+        a_lats_parsed.datatype != b_lons_parsed.datatype || a_lats_parsed.datatype == simsimd_datatype_unknown_k) {
+        PyErr_SetString(PyExc_TypeError, "All coordinate arrays must have the same datatype");
+        goto cleanup;
+    }
+    if (dtype == simsimd_datatype_unknown_k) dtype = a_lats_parsed.datatype;
+
+    // Look up the metric kernel
+    simsimd_metric_geospatial_punned_t metric = NULL;
+    simsimd_capability_t capability = simsimd_cap_serial_k;
+    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
+                               (simsimd_kernel_punned_t *)&metric, &capability);
+    if (!metric) {
+        PyErr_Format(PyExc_LookupError, "Unsupported metric '%c' and datatype '%s'", metric_kind,
+                     datatype_to_python_string(dtype));
+        goto cleanup;
+    }
+
+    // Allocate output or use provided
+    simsimd_distance_t *distances_start = NULL;
+    if (!out_obj) {
+        DistancesTensor *distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType, n * sizeof(double));
+        if (!distances_obj) {
+            PyErr_NoMemory();
+            goto cleanup;
+        }
+        distances_obj->datatype = simsimd_f64_k;
+        distances_obj->dimensions = 1;
+        distances_obj->shape[0] = n;
+        distances_obj->shape[1] = 1;
+        distances_obj->strides[0] = sizeof(double);
+        distances_obj->strides[1] = 0;
+        return_obj = (PyObject *)distances_obj;
+        distances_start = (simsimd_distance_t *)&distances_obj->start[0];
+    }
+    else {
+        if (out_parsed.dimensions < n) {
+            PyErr_SetString(PyExc_ValueError, "Output array is too small");
+            goto cleanup;
+        }
+        distances_start = (simsimd_distance_t *)out_parsed.start;
+        return_obj = Py_None;
+    }
+
+    // Call the kernel
+    metric(a_lats_parsed.start, a_lons_parsed.start, b_lats_parsed.start, b_lons_parsed.start, n, distances_start);
+
+cleanup:
+    if (a_lats_buffer.buf) PyBuffer_Release(&a_lats_buffer);
+    if (a_lons_buffer.buf) PyBuffer_Release(&a_lons_buffer);
+    if (b_lats_buffer.buf) PyBuffer_Release(&b_lats_buffer);
+    if (b_lons_buffer.buf) PyBuffer_Release(&b_lons_buffer);
+    if (out_buffer.buf) PyBuffer_Release(&out_buffer);
+    return return_obj;
+}
+
 static PyObject *implement_sparse_metric( //
     simsimd_metric_kind_t metric_kind,    //
     PyObject *const *args, Py_ssize_t nargs) {
@@ -1611,6 +1771,48 @@ static PyObject *api_mahalanobis(PyObject *self, PyObject *const *args, Py_ssize
     return implement_curved_metric(simsimd_metric_mahalanobis_k, args, positional_args_count, args_names_tuple);
 }
 
+static char const doc_haversine[] = //
+    "Compute the Haversine (great-circle) distance between coordinate pairs.\n\n"
+    "Args:\n"
+    "    a_lats (NDArray): Latitudes of first points in radians.\n"
+    "    a_lons (NDArray): Longitudes of first points in radians.\n"
+    "    b_lats (NDArray): Latitudes of second points in radians.\n"
+    "    b_lons (NDArray): Longitudes of second points in radians.\n"
+    "    dtype (FloatType, optional): Override the presumed input type name.\n"
+    "    out (NDArray, optional): Pre-allocated output array for distances.\n\n"
+    "Returns:\n"
+    "    DistancesTensor: Distances in meters (using mean Earth radius).\n"
+    "    None: If `out` is provided.\n\n"
+    "Note: Input coordinates must be in radians. Uses spherical Earth model.\n"
+    "Signature:\n"
+    "    >>> def haversine(a_lats, a_lons, b_lats, b_lons, /, dtype, *, out) -> Optional[DistancesTensor]: ...";
+
+static PyObject *api_haversine(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                               PyObject *args_names_tuple) {
+    return implement_geospatial_metric(simsimd_metric_haversine_k, args, positional_args_count, args_names_tuple);
+}
+
+static char const doc_vincenty[] = //
+    "Compute the Vincenty (ellipsoidal geodesic) distance between coordinate pairs.\n\n"
+    "Args:\n"
+    "    a_lats (NDArray): Latitudes of first points in radians.\n"
+    "    a_lons (NDArray): Longitudes of first points in radians.\n"
+    "    b_lats (NDArray): Latitudes of second points in radians.\n"
+    "    b_lons (NDArray): Longitudes of second points in radians.\n"
+    "    dtype (FloatType, optional): Override the presumed input type name.\n"
+    "    out (NDArray, optional): Pre-allocated output array for distances.\n\n"
+    "Returns:\n"
+    "    DistancesTensor: Distances in meters (using WGS84 ellipsoid).\n"
+    "    None: If `out` is provided.\n\n"
+    "Note: Input coordinates must be in radians. Uses iterative algorithm for accuracy.\n"
+    "Signature:\n"
+    "    >>> def vincenty(a_lats, a_lons, b_lats, b_lons, /, dtype, *, out) -> Optional[DistancesTensor]: ...";
+
+static PyObject *api_vincenty(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                              PyObject *args_names_tuple) {
+    return implement_geospatial_metric(simsimd_metric_vincenty_k, args, positional_args_count, args_names_tuple);
+}
+
 static char const doc_intersect[] = //
     "Compute the intersection of two sorted integer arrays.\n\n"
     "Args:\n"
@@ -2222,6 +2424,10 @@ static PyMethodDef simsimd_methods[] = {
     // Curved spaces
     {"bilinear", (PyCFunction)api_bilinear, METH_FASTCALL | METH_KEYWORDS, doc_bilinear},
     {"mahalanobis", (PyCFunction)api_mahalanobis, METH_FASTCALL | METH_KEYWORDS, doc_mahalanobis},
+
+    // Geospatial distances
+    {"haversine", (PyCFunction)api_haversine, METH_FASTCALL | METH_KEYWORDS, doc_haversine},
+    {"vincenty", (PyCFunction)api_vincenty, METH_FASTCALL | METH_KEYWORDS, doc_vincenty},
 
     // Vectorized operations
     {"fma", (PyCFunction)api_fma, METH_FASTCALL | METH_KEYWORDS, doc_fma},

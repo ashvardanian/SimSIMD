@@ -243,6 +243,89 @@ def is_running_under_qemu():
     return "SIMSIMD_IN_QEMU" in os.environ
 
 
+# Geospatial baseline functions (always defined, use NumPy only)
+earth_radius_meters = 6335439.0  # Mean Earth radius in meters
+
+
+def baseline_haversine(first_latitude, first_longitude, second_latitude, second_longitude):
+    """Haversine distance using NumPy. All inputs in radians, output in meters."""
+    latitude_difference = second_latitude - first_latitude
+    longitude_difference = second_longitude - first_longitude
+    haversine_term = (
+        np.sin(latitude_difference / 2) ** 2
+        + np.cos(first_latitude) * np.cos(second_latitude) * np.sin(longitude_difference / 2) ** 2
+    )
+    central_angle = 2 * np.arctan2(np.sqrt(haversine_term), np.sqrt(1 - haversine_term))
+    return earth_radius_meters * central_angle
+
+
+def baseline_vincenty(first_latitude, first_longitude, second_latitude, second_longitude, max_iterations=100, tolerance=1e-12):
+    """Vincenty distance using NumPy. All inputs in radians, output in meters."""
+    # WGS84 ellipsoid parameters
+    equatorial_radius = 6378136.6
+    polar_radius = 6356751.9
+    flattening = (equatorial_radius - polar_radius) / equatorial_radius
+
+    # Reduced latitudes (parametric latitudes on auxiliary sphere)
+    reduced_latitude_first = np.arctan((1 - flattening) * np.tan(first_latitude))
+    reduced_latitude_second = np.arctan((1 - flattening) * np.tan(second_latitude))
+    longitude_difference = second_longitude - first_longitude
+
+    sin_reduced_first = np.sin(reduced_latitude_first)
+    cos_reduced_first = np.cos(reduced_latitude_first)
+    sin_reduced_second = np.sin(reduced_latitude_second)
+    cos_reduced_second = np.cos(reduced_latitude_second)
+
+    lambda_current = longitude_difference
+    for _ in range(max_iterations):
+        sin_lambda = np.sin(lambda_current)
+        cos_lambda = np.cos(lambda_current)
+
+        sin_sigma = np.sqrt(
+            (cos_reduced_second * sin_lambda) ** 2
+            + (cos_reduced_first * sin_reduced_second - sin_reduced_first * cos_reduced_second * cos_lambda) ** 2
+        )
+        cos_sigma = sin_reduced_first * sin_reduced_second + cos_reduced_first * cos_reduced_second * cos_lambda
+        sigma = np.arctan2(sin_sigma, cos_sigma)
+
+        sin_azimuth = cos_reduced_first * cos_reduced_second * sin_lambda / sin_sigma
+        cos_squared_azimuth = 1 - sin_azimuth**2
+        cos_two_sigma_midpoint = (
+            cos_sigma - 2 * sin_reduced_first * sin_reduced_second / cos_squared_azimuth
+            if cos_squared_azimuth != 0
+            else 0
+        )
+
+        correction_term = flattening / 16 * cos_squared_azimuth * (4 + flattening * (4 - 3 * cos_squared_azimuth))
+        lambda_next = longitude_difference + (1 - correction_term) * flattening * sin_azimuth * (
+            sigma
+            + correction_term * sin_sigma * (cos_two_sigma_midpoint + correction_term * cos_sigma * (-1 + 2 * cos_two_sigma_midpoint**2))
+        )
+
+        if np.abs(lambda_next - lambda_current) < tolerance:
+            break
+        lambda_current = lambda_next
+
+    u_squared = cos_squared_azimuth * (equatorial_radius**2 - polar_radius**2) / polar_radius**2
+    coefficient_a = 1 + u_squared / 16384 * (4096 + u_squared * (-768 + u_squared * (320 - 175 * u_squared)))
+    coefficient_b = u_squared / 1024 * (256 + u_squared * (-128 + u_squared * (74 - 47 * u_squared)))
+    delta_sigma = (
+        coefficient_b
+        * sin_sigma
+        * (
+            cos_two_sigma_midpoint
+            + coefficient_b
+            / 4
+            * (
+                cos_sigma * (-1 + 2 * cos_two_sigma_midpoint**2)
+                - coefficient_b / 6 * cos_two_sigma_midpoint * (-3 + 4 * sin_sigma**2) * (-3 + 4 * cos_two_sigma_midpoint**2)
+            )
+        )
+    )
+
+    return polar_radius * coefficient_a * (sigma - delta_sigma)
+
+
 def scipy_metric_name(metric: str) -> str:
     """Convert SimSIMD metric names to SciPy equivalents."""
     # SimSIMD uses 'angular' while SciPy uses 'cosine' for the same metric
@@ -555,6 +638,10 @@ def name_to_kernels(name: str):
         return baseline_multiply, simd.multiply
     elif name == "jensenshannon":
         return baseline_jensenshannon, simd.jensenshannon
+    elif name == "haversine":
+        return baseline_haversine, simd.haversine
+    elif name == "vincenty":
+        return baseline_vincenty, simd.vincenty
     else:
         raise ValueError(f"Unknown kernel name: {name}")
 
@@ -2202,6 +2289,160 @@ def test_gil_free_threading():
             f"{num_threads}-threaded execution took longer than 2-threaded baseline: {multi_duration:.2f}s vs {baseline_duration:.2f}s",
             UserWarning,
         )
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.parametrize("ndim", [1, 10, 100])
+@pytest.mark.parametrize("dtype", ["float64", "float32"])
+@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+def test_haversine(ndim, dtype, capability, stats_fixture):
+    """Tests Haversine (great-circle) distance computation for geospatial coordinates."""
+
+    if dtype == "float32" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
+    np.random.seed()
+    keep_one_capability(capability)
+
+    # Generate random coordinates in radians
+    # Latitude: -π/2 to π/2, Longitude: -π to π
+    first_latitudes = (np.random.rand(ndim) - 0.5) * np.pi
+    first_longitudes = (np.random.rand(ndim) - 0.5) * 2 * np.pi
+    second_latitudes = (np.random.rand(ndim) - 0.5) * np.pi
+    second_longitudes = (np.random.rand(ndim) - 0.5) * 2 * np.pi
+
+    first_latitudes = first_latitudes.astype(dtype)
+    first_longitudes = first_longitudes.astype(dtype)
+    second_latitudes = second_latitudes.astype(dtype)
+    second_longitudes = second_longitudes.astype(dtype)
+
+    # Compute expected results using baseline
+    expected = np.array([
+        baseline_haversine(
+            first_latitudes[i].astype(np.float64),
+            first_longitudes[i].astype(np.float64),
+            second_latitudes[i].astype(np.float64),
+            second_longitudes[i].astype(np.float64),
+        )
+        for i in range(ndim)
+    ])
+
+    # Compute using SimSIMD
+    result = simd.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes)
+    result = np.array(result)
+
+    # For geospatial, allow larger tolerance due to transcendental function differences
+    # Different sin/cos/atan implementations can cause ~0.1% differences
+    absolute_tolerance = 10.0  # 10 meter tolerance for small distances
+    relative_tolerance = 1e-2  # 1% relative tolerance for numerical differences
+    np.testing.assert_allclose(result, expected, atol=absolute_tolerance, rtol=relative_tolerance)
+
+    # Record statistics
+    accurate_dt, accurate = 0, expected
+    expected_dt = 0
+    result_dt = 0
+    collect_errors("haversine", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.parametrize("ndim", [1, 10, 100])
+@pytest.mark.parametrize("dtype", ["float64", "float32"])
+@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+def test_vincenty(ndim, dtype, capability, stats_fixture):
+    """Tests Vincenty (ellipsoidal geodesic) distance computation for geospatial coordinates."""
+
+    if dtype == "float32" and is_running_under_qemu():
+        pytest.skip("Testing low-precision math isn't reliable in QEMU")
+
+    np.random.seed()
+    keep_one_capability(capability)
+
+    # Generate random coordinates in radians
+    # Latitude: -π/2 to π/2, Longitude: -π to π
+    # Avoid antipodal points where Vincenty can have convergence issues
+    first_latitudes = (np.random.rand(ndim) - 0.5) * np.pi * 0.9  # Slightly reduced range
+    first_longitudes = (np.random.rand(ndim) - 0.5) * 2 * np.pi * 0.9
+    second_latitudes = (np.random.rand(ndim) - 0.5) * np.pi * 0.9
+    second_longitudes = (np.random.rand(ndim) - 0.5) * 2 * np.pi * 0.9
+
+    first_latitudes = first_latitudes.astype(dtype)
+    first_longitudes = first_longitudes.astype(dtype)
+    second_latitudes = second_latitudes.astype(dtype)
+    second_longitudes = second_longitudes.astype(dtype)
+
+    # Compute expected results using baseline
+    expected = np.array([
+        baseline_vincenty(
+            first_latitudes[i].astype(np.float64),
+            first_longitudes[i].astype(np.float64),
+            second_latitudes[i].astype(np.float64),
+            second_longitudes[i].astype(np.float64),
+        )
+        for i in range(ndim)
+    ])
+
+    # Compute using SimSIMD
+    result = simd.vincenty(first_latitudes, first_longitudes, second_latitudes, second_longitudes)
+    result = np.array(result)
+
+    # For geospatial, allow larger tolerance due to transcendental function differences
+    # Different sin/cos/atan/tan implementations and iterative convergence can cause ~1% differences
+    absolute_tolerance = 100.0  # 100 meter tolerance for complex iterative algorithm
+    relative_tolerance = 1e-2  # 1% relative tolerance for numerical differences
+    np.testing.assert_allclose(result, expected, atol=absolute_tolerance, rtol=relative_tolerance)
+
+    # Record statistics
+    accurate_dt, accurate = 0, expected
+    expected_dt = 0
+    result_dt = 0
+    collect_errors("vincenty", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_haversine_known_values():
+    """Tests Haversine distance with known reference values."""
+
+    # NYC (40.7128°N, 74.0060°W) to LA (34.0522°N, 118.2437°W)
+    # Expected distance: ~3940 km
+    new_york_latitude = np.radians(40.7128)
+    new_york_longitude = np.radians(-74.0060)
+    los_angeles_latitude = np.radians(34.0522)
+    los_angeles_longitude = np.radians(-118.2437)
+
+    first_latitudes = np.array([new_york_latitude], dtype=np.float64)
+    first_longitudes = np.array([new_york_longitude], dtype=np.float64)
+    second_latitudes = np.array([los_angeles_latitude], dtype=np.float64)
+    second_longitudes = np.array([los_angeles_longitude], dtype=np.float64)
+
+    result = np.array(simd.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes))
+    result_kilometers = float(result[0]) / 1000
+
+    # NYC to LA is approximately 3940 km (great circle)
+    assert 3800 < result_kilometers < 4100, f"Expected ~3940 km, got {result_kilometers:.0f} km"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_geospatial_out_parameter():
+    """Tests that the 'out' parameter works for geospatial functions."""
+
+    count = 10
+    np.random.seed(42)  # For reproducibility
+    first_latitudes = np.random.rand(count).astype(np.float64) * np.pi - np.pi / 2
+    first_longitudes = np.random.rand(count).astype(np.float64) * 2 * np.pi - np.pi
+    second_latitudes = np.random.rand(count).astype(np.float64) * np.pi - np.pi / 2
+    second_longitudes = np.random.rand(count).astype(np.float64) * 2 * np.pi - np.pi
+
+    # Test with pre-allocated output
+    output_distances = np.zeros(count, dtype=np.float64)
+    result = simd.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes, out=output_distances)
+    assert result is None, "Expected None when using out parameter"
+    assert np.all(output_distances >= 0), "Output should contain non-negative distances"
+
+    # Compare with regular call
+    expected = np.array(simd.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes))
+    np.testing.assert_allclose(output_distances, expected, atol=1e-10, rtol=1e-10)
 
 
 if __name__ == "__main__":
