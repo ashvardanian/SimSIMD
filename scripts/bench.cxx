@@ -90,12 +90,12 @@ struct vector_gt {
     using value_t = typename datatype_reflection_t::value_t;
     static constexpr std::size_t components_k = datatype_reflection_t::components_k;
 
-    static constexpr bool is_integral =
-        datatype_ak == datatype_ak == simsimd_datatype_b8_k ||                            //
-        datatype_ak == simsimd_datatype_i8_k || datatype_ak == simsimd_datatype_u8_k ||   //
-        datatype_ak == simsimd_datatype_i16_k || datatype_ak == simsimd_datatype_u16_k || //
-        datatype_ak == simsimd_datatype_i32_k || datatype_ak == simsimd_datatype_u32_k ||
-        datatype_ak == simsimd_datatype_i64_k || datatype_ak == simsimd_datatype_u64_k;
+    static constexpr bool is_integral =                                 //
+        datatype_ak == simsimd_b8_k ||                                  //
+        datatype_ak == simsimd_i8_k || datatype_ak == simsimd_u8_k ||   //
+        datatype_ak == simsimd_i16_k || datatype_ak == simsimd_u16_k || //
+        datatype_ak == simsimd_i32_k || datatype_ak == simsimd_u32_k || datatype_ak == simsimd_i64_k ||
+        datatype_ak == simsimd_u64_k;
     static constexpr std::size_t cacheline_length = 64;
 
     value_t *values_ptr_ = nullptr;
@@ -516,7 +516,7 @@ void measure_sparse(bm::State &state, metric_at metric, metric_at baseline, std:
  *  @param l2_metric The L2 metric function to compute the error
  *  @param dimensions The number of dimensions in the vectors.
  */
-template <typename pair_at, simsimd_kernel_kind_t kernel_ak, typename kernel_at = void, typename l2_metric_at = void>
+template <typename pair_at, simsimd_metric_kind_t kernel_ak, typename kernel_at = void, typename l2_metric_at = void>
 void measure_elementwise(bm::State &state, kernel_at kernel, kernel_at baseline, l2_metric_at l2_metric,
                          std::size_t dimensions) {
 
@@ -526,26 +526,26 @@ void measure_elementwise(bm::State &state, kernel_at kernel, kernel_at baseline,
     constexpr simsimd_distance_t alpha = 0.2;
     constexpr simsimd_distance_t beta = 0.3;
     auto call_baseline = [&](vector_t const &a, vector_t const &b, vector_t const &c, vector_t &d) {
-        if constexpr (kernel_ak == simsimd_wsum_k) {
-            baseline(a.data(), c.data(), a.dimensions(), alpha, beta, d.data());
+        if constexpr (kernel_ak == simsimd_metric_wsum_k) {
+            baseline(a.data(), c.data(), a.size(), alpha, beta, d.data());
         }
-        else if constexpr (kernel_ak == simsimd_fma_k) {
-            baseline(a.data(), b.data(), c.data(), a.dimensions(), alpha, beta, d.data());
+        else if constexpr (kernel_ak == simsimd_metric_fma_k) {
+            baseline(a.data(), b.data(), c.data(), a.size(), alpha, beta, d.data());
         }
-        else if constexpr (kernel_ak == simsimd_sum_k) { baseline(a.data(), c.data(), a.dimensions(), d.data()); }
-        else if constexpr (kernel_ak == simsimd_scale_k) { baseline(a.data(), a.dimensions(), alpha, beta, d.data()); }
-        else { baseline(a.data(), a.dimensions(), d.data()); }
+        else if constexpr (kernel_ak == simsimd_metric_sum_k) { baseline(a.data(), c.data(), a.size(), d.data()); }
+        else if constexpr (kernel_ak == simsimd_metric_scale_k) { baseline(a.data(), a.size(), alpha, beta, d.data()); }
+        else { baseline(a.data(), a.size(), d.data()); }
     };
     auto call_contender = [&](vector_t const &a, vector_t const &b, vector_t const &c, vector_t &d) {
-        if constexpr (kernel_ak == simsimd_wsum_k) {
-            kernel(a.data(), c.data(), a.dimensions(), alpha, beta, d.data());
+        if constexpr (kernel_ak == simsimd_metric_wsum_k) {
+            kernel(a.data(), c.data(), a.size(), alpha, beta, d.data());
         }
-        else if constexpr (kernel_ak == simsimd_fma_k) {
-            kernel(a.data(), b.data(), c.data(), a.dimensions(), alpha, beta, d.data());
+        else if constexpr (kernel_ak == simsimd_metric_fma_k) {
+            kernel(a.data(), b.data(), c.data(), a.size(), alpha, beta, d.data());
         }
-        else if constexpr (kernel_ak == simsimd_sum_k) { kernel(a.data(), c.data(), a.dimensions(), d.data()); }
-        else if constexpr (kernel_ak == simsimd_scale_k) { kernel(a.data(), a.dimensions(), alpha, beta, d.data()); }
-        else { kernel(a.data(), a.dimensions(), d.data()); }
+        else if constexpr (kernel_ak == simsimd_metric_sum_k) { kernel(a.data(), c.data(), a.size(), d.data()); }
+        else if constexpr (kernel_ak == simsimd_metric_scale_k) { kernel(a.data(), a.size(), alpha, beta, d.data()); }
+        else { kernel(a.data(), a.size(), d.data()); }
     };
 
     // Let's average the distance results over many quads.
@@ -593,10 +593,10 @@ void measure_elementwise(bm::State &state, kernel_at kernel, kernel_at baseline,
     }
 
     std::size_t bytes_per_call = quads[0].a.size_bytes();
-    if constexpr (kernel_ak == simsimd_wsum_k) { bytes_per_call *= 2; }
-    else if constexpr (kernel_ak == simsimd_fma_k) { bytes_per_call *= 3; }
-    else if constexpr (kernel_ak == simsimd_sum_k) { bytes_per_call *= 2; }
-    else if constexpr (kernel_ak == simsimd_scale_k) { bytes_per_call *= 1; }
+    if constexpr (kernel_ak == simsimd_metric_wsum_k) { bytes_per_call *= 2; }
+    else if constexpr (kernel_ak == simsimd_metric_fma_k) { bytes_per_call *= 3; }
+    else if constexpr (kernel_ak == simsimd_metric_sum_k) { bytes_per_call *= 2; }
+    else if constexpr (kernel_ak == simsimd_metric_scale_k) { bytes_per_call *= 1; }
 
     // Measure the mean absolute delta and relative error.
     state.counters["abs_delta"] = mean_delta;
@@ -628,12 +628,10 @@ void measure_geospatial(bm::State &state, kernel_at kernel, kernel_at baseline, 
 
     using distances_t = vector_gt<simsimd_f64_k>;
     auto call_baseline = [&](quad_t const &quad, distances_t &d) {
-        baseline(quad.lat1.data(), quad.lon1.data(), quad.lat2.data(), quad.lon2.data(), quad.lat1.dimensions(),
-                 d.data());
+        baseline(quad.lat1.data(), quad.lon1.data(), quad.lat2.data(), quad.lon2.data(), quad.lat1.size(), d.data());
     };
     auto call_contender = [&](quad_t const &quad, distances_t &d) {
-        kernel(quad.lat1.data(), quad.lon1.data(), quad.lat2.data(), quad.lon2.data(), quad.lat1.dimensions(),
-               d.data());
+        kernel(quad.lat1.data(), quad.lon1.data(), quad.lat2.data(), quad.lon2.data(), quad.lat1.size(), d.data());
     };
 
     // Let's average the distance results over many quads.
@@ -705,7 +703,7 @@ void dense_(std::string name, metric_at *distance_func, metric_at *baseline_func
         ->Threads(default_threads);
 }
 
-template <simsimd_datatype_t datatype_ak, simsimd_kernel_kind_t kernel_ak = simsimd_kernel_unknown_k,
+template <simsimd_datatype_t datatype_ak, simsimd_metric_kind_t kernel_ak = simsimd_metric_unknown_k,
           typename kernel_at = void, typename l2_metric_at = void>
 void elementwise_(std::string name, kernel_at *kernel_func, kernel_at *baseline_func, l2_metric_at *l2_metric_func) {
     using pair_t = vectors_pair_gt<datatype_ak>;
@@ -795,6 +793,82 @@ void haversine_with_stl(                              //
         scalar_at lat1 = a_lats[i], lon1 = a_lons[i];
         scalar_at lat2 = b_lats[i], lon2 = b_lons[i];
         results[i] = haversine_one_with_stl<scalar_at, accumulator_at>(lat1, lon1, lat2, lon2);
+    }
+}
+
+template <typename scalar_at, typename accumulator_at = scalar_at>
+void vincenty_with_stl(                               //
+    scalar_at const *a_lats, scalar_at const *a_lons, //
+    scalar_at const *b_lats, scalar_at const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results) {
+    // Simplified Vincenty baseline - uses same iterative algorithm as serial implementation
+    constexpr accumulator_at equatorial_radius = 6378136.6;
+    constexpr accumulator_at polar_radius = 6356751.9;
+    constexpr accumulator_at flattening = 1.0 / 298.25642;
+    constexpr accumulator_at convergence_threshold = 1e-12;
+    constexpr int max_iterations = 100;
+
+    for (simsimd_size_t i = 0; i != n; ++i) {
+        accumulator_at lat1 = a_lats[i], lon1 = a_lons[i];
+        accumulator_at lat2 = b_lats[i], lon2 = b_lons[i];
+        accumulator_at L = lon2 - lon1;
+
+        // Reduced latitudes
+        accumulator_at tan_u1 = (1.0 - flattening) * std::tan(lat1);
+        accumulator_at tan_u2 = (1.0 - flattening) * std::tan(lat2);
+        accumulator_at cos_u1 = 1.0 / std::sqrt(1.0 + tan_u1 * tan_u1);
+        accumulator_at sin_u1 = tan_u1 * cos_u1;
+        accumulator_at cos_u2 = 1.0 / std::sqrt(1.0 + tan_u2 * tan_u2);
+        accumulator_at sin_u2 = tan_u2 * cos_u2;
+
+        accumulator_at lambda = L, lambda_prev;
+        accumulator_at sin_sigma, cos_sigma, sigma, sin_alpha, cos2_alpha, cos_2sigma_m;
+        int iteration = 0;
+        bool coincident = false;
+
+        do {
+            accumulator_at sin_lambda = std::sin(lambda);
+            accumulator_at cos_lambda = std::cos(lambda);
+            accumulator_at t1 = cos_u2 * sin_lambda;
+            accumulator_at t2 = cos_u1 * sin_u2 - sin_u1 * cos_u2 * cos_lambda;
+            sin_sigma = std::sqrt(t1 * t1 + t2 * t2);
+
+            if (sin_sigma == 0.0) {
+                coincident = true;
+                break;
+            }
+
+            cos_sigma = sin_u1 * sin_u2 + cos_u1 * cos_u2 * cos_lambda;
+            sigma = std::atan2(sin_sigma, cos_sigma);
+            sin_alpha = cos_u1 * cos_u2 * sin_lambda / sin_sigma;
+            cos2_alpha = 1.0 - sin_alpha * sin_alpha;
+            cos_2sigma_m = (cos2_alpha != 0.0) ? cos_sigma - 2.0 * sin_u1 * sin_u2 / cos2_alpha : 0.0;
+            accumulator_at C = flattening / 16.0 * cos2_alpha * (4.0 + flattening * (4.0 - 3.0 * cos2_alpha));
+
+            lambda_prev = lambda;
+            lambda = L + (1.0 - C) * flattening * sin_alpha *
+                             (sigma + C * sin_sigma *
+                                          (cos_2sigma_m + C * cos_sigma * (-1.0 + 2.0 * cos_2sigma_m * cos_2sigma_m)));
+            iteration++;
+        } while (std::abs(lambda - lambda_prev) > convergence_threshold && iteration < max_iterations);
+
+        if (coincident) {
+            results[i] = 0.0;
+            continue;
+        }
+
+        accumulator_at u2 = cos2_alpha * (equatorial_radius * equatorial_radius - polar_radius * polar_radius) /
+                            (polar_radius * polar_radius);
+        accumulator_at A = 1.0 + u2 / 16384.0 * (4096.0 + u2 * (-768.0 + u2 * (320.0 - 175.0 * u2)));
+        accumulator_at B = u2 / 1024.0 * (256.0 + u2 * (-128.0 + u2 * (74.0 - 47.0 * u2)));
+        accumulator_at delta_sigma =
+            B * sin_sigma *
+            (cos_2sigma_m + B / 4.0 *
+                                (cos_sigma * (-1.0 + 2.0 * cos_2sigma_m * cos_2sigma_m) -
+                                 B / 6.0 * cos_2sigma_m * (-3.0 + 4.0 * sin_sigma * sin_sigma) *
+                                     (-3.0 + 4.0 * cos_2sigma_m * cos_2sigma_m)));
+
+        results[i] = polar_radius * A * (sigma - delta_sigma);
     }
 }
 
@@ -1051,14 +1125,14 @@ int main(int argc, char **argv) {
     dense_<f32c_k>("vdot_f32c_blas", vdot_f32c_blas, simsimd_vdot_f32c_accurate);
     dense_<f64c_k>("vdot_f64c_blas", vdot_f64c_blas, simsimd_vdot_f64c_serial);
 
-    elementwise_<f32_k, simsimd_sum_k>("sum_f32_blas", simsimd_sum_f32_blas, simsimd_sum_f32_accurate,
-                                       simsimd_l2_f32_accurate);
-    elementwise_<f32_k, simsimd_wsum_k>("wsum_f32_blas", simsimd_wsum_f32_blas, simsimd_wsum_f32_accurate,
-                                        simsimd_l2_f32_accurate);
-    elementwise_<f64_k, simsimd_sum_k>("sum_f64_blas", simsimd_sum_f64_blas, simsimd_sum_f64_serial,
-                                       simsimd_l2_f64_serial);
-    elementwise_<f64_k, simsimd_wsum_k>("wsum_f64_blas", simsimd_wsum_f64_blas, simsimd_wsum_f64_serial,
-                                        simsimd_l2_f64_serial);
+    elementwise_<f32_k, simsimd_metric_sum_k>("sum_f32_blas", simsimd_sum_f32_blas, simsimd_sum_f32_accurate,
+                                              simsimd_l2_f32_accurate);
+    elementwise_<f32_k, simsimd_metric_wsum_k>("wsum_f32_blas", simsimd_wsum_f32_blas, simsimd_wsum_f32_accurate,
+                                               simsimd_l2_f32_accurate);
+    elementwise_<f64_k, simsimd_metric_sum_k>("sum_f64_blas", simsimd_sum_f64_blas, simsimd_sum_f64_serial,
+                                              simsimd_l2_f64_serial);
+    elementwise_<f64_k, simsimd_metric_wsum_k>("wsum_f64_blas", simsimd_wsum_f64_blas, simsimd_wsum_f64_serial,
+                                               simsimd_l2_f64_serial);
 
     curved_<f64_k>("bilinear_f64_blas", bilinear_f64_blas, simsimd_bilinear_f64_serial);
     curved_<f64c_k>("bilinear_f64c_blas", bilinear_f64c_blas, simsimd_bilinear_f64c_serial);
@@ -1102,14 +1176,14 @@ int main(int argc, char **argv) {
     sparse_<u16_k>("intersect_u16_neon", simsimd_intersect_u16_neon, simsimd_intersect_u16_accurate);
     sparse_<u32_k>("intersect_u32_neon", simsimd_intersect_u32_neon, simsimd_intersect_u32_accurate);
 
-    elementwise_<f32_k, simsimd_fma_k>("fma_f32_neon", simsimd_fma_f32_neon, simsimd_fma_f32_accurate,
-                                       simsimd_l2_f32_accurate);
-    elementwise_<f32_k, simsimd_wsum_k>("wsum_f32_neon", simsimd_wsum_f32_neon, simsimd_wsum_f32_accurate,
-                                        simsimd_l2_f32_accurate);
-    elementwise_<f32_k, simsimd_fma_k>("fma_f32_serial", simsimd_fma_f32_serial, simsimd_fma_f32_accurate,
-                                       simsimd_l2_f32_accurate);
-    elementwise_<f32_k, simsimd_wsum_k>("wsum_f32_serial", simsimd_wsum_f32_serial, simsimd_wsum_f32_accurate,
-                                        simsimd_l2_f32_accurate);
+    elementwise_<f32_k, simsimd_metric_fma_k>("fma_f32_neon", simsimd_fma_f32_neon, simsimd_fma_f32_accurate,
+                                              simsimd_l2_f32_accurate);
+    elementwise_<f32_k, simsimd_metric_wsum_k>("wsum_f32_neon", simsimd_wsum_f32_neon, simsimd_wsum_f32_accurate,
+                                               simsimd_l2_f32_accurate);
+    elementwise_<f32_k, simsimd_metric_fma_k>("fma_f32_serial", simsimd_fma_f32_serial, simsimd_fma_f32_accurate,
+                                              simsimd_l2_f32_accurate);
+    elementwise_<f32_k, simsimd_metric_wsum_k>("wsum_f32_serial", simsimd_wsum_f32_serial, simsimd_wsum_f32_accurate,
+                                               simsimd_l2_f32_accurate);
 
 #endif
 
@@ -1128,20 +1202,20 @@ int main(int argc, char **argv) {
     curved_<f16_k>("mahalanobis_f16_neon", simsimd_mahalanobis_f16_neon, simsimd_mahalanobis_f16_accurate);
     curved_<f16c_k>("bilinear_f16c_neon", simsimd_bilinear_f16c_neon, simsimd_bilinear_f16c_accurate);
 
-    elementwise_<f16_k, simsimd_fma_k>("fma_f16_neon", simsimd_fma_f16_neon, simsimd_fma_f16_accurate,
-                                       simsimd_l2_f16_accurate);
-    elementwise_<f16_k, simsimd_wsum_k>("wsum_f16_neon", simsimd_wsum_f16_neon, simsimd_wsum_f16_accurate,
-                                        simsimd_l2_f16_accurate);
+    elementwise_<f16_k, simsimd_metric_fma_k>("fma_f16_neon", simsimd_fma_f16_neon, simsimd_fma_f16_accurate,
+                                              simsimd_l2_f16_accurate);
+    elementwise_<f16_k, simsimd_metric_wsum_k>("wsum_f16_neon", simsimd_wsum_f16_neon, simsimd_wsum_f16_accurate,
+                                               simsimd_l2_f16_accurate);
 
     // FMA kernels for `u8` on NEON use `f16` arithmetic
-    elementwise_<u8_k, simsimd_fma_k>("fma_u8_neon", simsimd_fma_u8_neon, simsimd_fma_u8_accurate,
-                                      simsimd_l2_u8_serial);
-    elementwise_<u8_k, simsimd_wsum_k>("wsum_u8_neon", simsimd_wsum_u8_neon, simsimd_wsum_u8_accurate,
-                                       simsimd_l2_u8_serial);
-    elementwise_<i8_k, simsimd_fma_k>("fma_i8_neon", simsimd_fma_i8_neon, simsimd_fma_i8_accurate,
-                                      simsimd_l2_i8_serial);
-    elementwise_<i8_k, simsimd_wsum_k>("wsum_i8_neon", simsimd_wsum_i8_neon, simsimd_wsum_i8_accurate,
-                                       simsimd_l2_i8_serial);
+    elementwise_<u8_k, simsimd_metric_fma_k>("fma_u8_neon", simsimd_fma_u8_neon, simsimd_fma_u8_accurate,
+                                             simsimd_l2_u8_serial);
+    elementwise_<u8_k, simsimd_metric_wsum_k>("wsum_u8_neon", simsimd_wsum_u8_neon, simsimd_wsum_u8_accurate,
+                                              simsimd_l2_u8_serial);
+    elementwise_<i8_k, simsimd_metric_fma_k>("fma_i8_neon", simsimd_fma_i8_neon, simsimd_fma_i8_accurate,
+                                             simsimd_l2_i8_serial);
+    elementwise_<i8_k, simsimd_metric_wsum_k>("wsum_i8_neon", simsimd_wsum_i8_neon, simsimd_wsum_i8_accurate,
+                                              simsimd_l2_i8_serial);
 #endif
 
 #if SIMSIMD_TARGET_NEON_BF16
@@ -1157,10 +1231,10 @@ int main(int argc, char **argv) {
     curved_<bf16_k>("mahalanobis_bf16_neon", simsimd_mahalanobis_bf16_neon, simsimd_mahalanobis_bf16_accurate);
     curved_<bf16c_k>("bilinear_bf16c_neon", simsimd_bilinear_bf16c_neon, simsimd_bilinear_bf16c_accurate);
 
-    elementwise_<bf16_k, simsimd_fma_k>("fma_bf16_neon", simsimd_fma_bf16_neon, simsimd_fma_bf16_accurate,
-                                        simsimd_l2_bf16_accurate);
-    elementwise_<bf16_k, simsimd_wsum_k>("wsum_bf16_neon", simsimd_wsum_bf16_neon, simsimd_wsum_bf16_accurate,
-                                         simsimd_l2_bf16_accurate);
+    elementwise_<bf16_k, simsimd_metric_fma_k>("fma_bf16_neon", simsimd_fma_bf16_neon, simsimd_fma_bf16_accurate,
+                                               simsimd_l2_bf16_accurate);
+    elementwise_<bf16_k, simsimd_metric_wsum_k>("wsum_bf16_neon", simsimd_wsum_bf16_neon, simsimd_wsum_bf16_accurate,
+                                                simsimd_l2_bf16_accurate);
 #endif
 
 #if SIMSIMD_TARGET_SVE
@@ -1244,53 +1318,73 @@ int main(int argc, char **argv) {
     curved_<bf16_k>("bilinear_bf16_haswell", simsimd_bilinear_bf16_haswell, simsimd_bilinear_bf16_accurate);
     curved_<bf16_k>("mahalanobis_bf16_haswell", simsimd_mahalanobis_bf16_haswell, simsimd_mahalanobis_bf16_accurate);
 
-    elementwise_<f64_k, simsimd_scale_k>("scale_f64_haswell", simsimd_scale_f64_haswell, simsimd_scale_f64_serial,
-                                         simsimd_l2_f64_serial);
-    elementwise_<f64_k, simsimd_fma_k>("fma_f64_haswell", simsimd_fma_f64_haswell, simsimd_fma_f64_serial,
-                                       simsimd_l2_f64_serial);
-    elementwise_<f64_k, simsimd_wsum_k>("wsum_f64_haswell", simsimd_wsum_f64_haswell, simsimd_wsum_f64_serial,
-                                        simsimd_l2_f64_serial);
-    elementwise_<f32_k, simsimd_scale_k>("scale_f32_haswell", simsimd_scale_f32_haswell, simsimd_scale_f32_serial,
-                                         simsimd_l2_f32_accurate);
-    elementwise_<f32_k, simsimd_fma_k>("fma_f32_haswell", simsimd_fma_f32_haswell, simsimd_fma_f32_serial,
-                                       simsimd_l2_f32_accurate);
-    elementwise_<f32_k, simsimd_wsum_k>("wsum_f32_haswell", simsimd_wsum_f32_haswell, simsimd_wsum_f32_serial,
-                                        simsimd_l2_f32_accurate);
-    elementwise_<f16_k, simsimd_scale_k>("scale_f16_haswell", simsimd_scale_f16_haswell, simsimd_scale_f16_serial,
-                                         simsimd_l2_f16_accurate);
-    elementwise_<f16_k, simsimd_fma_k>("fma_f16_haswell", simsimd_fma_f16_haswell, simsimd_fma_f16_serial,
-                                       simsimd_l2_f16_accurate);
-    elementwise_<f16_k, simsimd_wsum_k>("wsum_f16_haswell", simsimd_wsum_f16_haswell, simsimd_wsum_f16_serial,
-                                        simsimd_l2_f16_accurate);
-    elementwise_<bf16_k, simsimd_scale_k>("scale_bf16_haswell", simsimd_scale_bf16_haswell, simsimd_scale_bf16_serial,
-                                          simsimd_l2_bf16_accurate);
-    elementwise_<bf16_k, simsimd_fma_k>("fma_bf16_haswell", simsimd_fma_bf16_haswell, simsimd_fma_bf16_serial,
-                                        simsimd_l2_bf16_accurate);
-    elementwise_<bf16_k, simsimd_wsum_k>("wsum_bf16_haswell", simsimd_wsum_bf16_haswell, simsimd_wsum_bf16_serial,
-                                         simsimd_l2_bf16_accurate);
-    elementwise_<i8_k, simsimd_scale_k>("scale_i8_haswell", simsimd_scale_i8_haswell, simsimd_scale_i8_serial,
-                                        simsimd_l2_i8_serial);
-    elementwise_<i8_k, simsimd_fma_k>("fma_i8_haswell", simsimd_fma_i8_haswell, simsimd_fma_i8_serial,
-                                      simsimd_l2_i8_serial);
-    elementwise_<i8_k, simsimd_wsum_k>("wsum_i8_haswell", simsimd_wsum_i8_haswell, simsimd_wsum_i8_serial,
-                                       simsimd_l2_i8_serial);
-    elementwise_<u8_k, simsimd_scale_k>("scale_u8_haswell", simsimd_scale_u8_haswell, simsimd_scale_u8_serial,
-                                        simsimd_l2_u8_serial);
-    elementwise_<u8_k, simsimd_fma_k>("fma_u8_haswell", simsimd_fma_u8_haswell, simsimd_fma_u8_serial,
-                                      simsimd_l2_u8_serial);
-    elementwise_<u8_k, simsimd_wsum_k>("wsum_u8_haswell", simsimd_wsum_u8_haswell, simsimd_wsum_u8_serial,
-                                       simsimd_l2_u8_serial);
-    elementwise_<i16_k, simsimd_scale_k>("scale_i16_haswell", simsimd_scale_i16_haswell, simsimd_scale_i16_serial,
-                                         l2_with_stl<simsimd_i16_t>);
-    elementwise_<i16_k, simsimd_fma_k>("fma_i16_haswell", simsimd_fma_i16_haswell, simsimd_fma_i16_serial,
-                                       l2_with_stl<simsimd_i16_t>);
-    elementwise_<u16_k, simsimd_scale_k>("scale_u16_haswell", simsimd_scale_u16_haswell, simsimd_scale_u16_serial,
-                                         l2_with_stl<simsimd_u16_t>);
-    elementwise_<u16_k, simsimd_fma_k>("fma_u16_haswell", simsimd_fma_u16_haswell, simsimd_fma_u16_serial,
-                                       l2_with_stl<simsimd_u16_t>);
+    elementwise_<f64_k, simsimd_metric_scale_k>("scale_f64_haswell", simsimd_scale_f64_haswell,
+                                                simsimd_scale_f64_serial, simsimd_l2_f64_serial);
+    elementwise_<f64_k, simsimd_metric_fma_k>("fma_f64_haswell", simsimd_fma_f64_haswell, simsimd_fma_f64_serial,
+                                              simsimd_l2_f64_serial);
+    elementwise_<f64_k, simsimd_metric_wsum_k>("wsum_f64_haswell", simsimd_wsum_f64_haswell, simsimd_wsum_f64_serial,
+                                               simsimd_l2_f64_serial);
+    elementwise_<f32_k, simsimd_metric_scale_k>("scale_f32_haswell", simsimd_scale_f32_haswell,
+                                                simsimd_scale_f32_serial, simsimd_l2_f32_accurate);
+    elementwise_<f32_k, simsimd_metric_fma_k>("fma_f32_haswell", simsimd_fma_f32_haswell, simsimd_fma_f32_serial,
+                                              simsimd_l2_f32_accurate);
+    elementwise_<f32_k, simsimd_metric_wsum_k>("wsum_f32_haswell", simsimd_wsum_f32_haswell, simsimd_wsum_f32_serial,
+                                               simsimd_l2_f32_accurate);
+    elementwise_<f16_k, simsimd_metric_scale_k>("scale_f16_haswell", simsimd_scale_f16_haswell,
+                                                simsimd_scale_f16_serial, simsimd_l2_f16_accurate);
+    elementwise_<f16_k, simsimd_metric_fma_k>("fma_f16_haswell", simsimd_fma_f16_haswell, simsimd_fma_f16_serial,
+                                              simsimd_l2_f16_accurate);
+    elementwise_<f16_k, simsimd_metric_wsum_k>("wsum_f16_haswell", simsimd_wsum_f16_haswell, simsimd_wsum_f16_serial,
+                                               simsimd_l2_f16_accurate);
+    elementwise_<bf16_k, simsimd_metric_scale_k>("scale_bf16_haswell", simsimd_scale_bf16_haswell,
+                                                 simsimd_scale_bf16_serial, simsimd_l2_bf16_accurate);
+    elementwise_<bf16_k, simsimd_metric_fma_k>("fma_bf16_haswell", simsimd_fma_bf16_haswell, simsimd_fma_bf16_serial,
+                                               simsimd_l2_bf16_accurate);
+    elementwise_<bf16_k, simsimd_metric_wsum_k>("wsum_bf16_haswell", simsimd_wsum_bf16_haswell,
+                                                simsimd_wsum_bf16_serial, simsimd_l2_bf16_accurate);
+    elementwise_<i8_k, simsimd_metric_scale_k>("scale_i8_haswell", simsimd_scale_i8_haswell, simsimd_scale_i8_serial,
+                                               simsimd_l2_i8_serial);
+    elementwise_<i8_k, simsimd_metric_fma_k>("fma_i8_haswell", simsimd_fma_i8_haswell, simsimd_fma_i8_serial,
+                                             simsimd_l2_i8_serial);
+    elementwise_<i8_k, simsimd_metric_wsum_k>("wsum_i8_haswell", simsimd_wsum_i8_haswell, simsimd_wsum_i8_serial,
+                                              simsimd_l2_i8_serial);
+    elementwise_<u8_k, simsimd_metric_scale_k>("scale_u8_haswell", simsimd_scale_u8_haswell, simsimd_scale_u8_serial,
+                                               simsimd_l2_u8_serial);
+    elementwise_<u8_k, simsimd_metric_fma_k>("fma_u8_haswell", simsimd_fma_u8_haswell, simsimd_fma_u8_serial,
+                                             simsimd_l2_u8_serial);
+    elementwise_<u8_k, simsimd_metric_wsum_k>("wsum_u8_haswell", simsimd_wsum_u8_haswell, simsimd_wsum_u8_serial,
+                                              simsimd_l2_u8_serial);
+    elementwise_<i16_k, simsimd_metric_scale_k>("scale_i16_haswell", simsimd_scale_i16_haswell,
+                                                simsimd_scale_i16_serial, l2_with_stl<simsimd_i16_t>);
+    elementwise_<i16_k, simsimd_metric_fma_k>("fma_i16_haswell", simsimd_fma_i16_haswell, simsimd_fma_i16_serial,
+                                              l2_with_stl<simsimd_i16_t>);
+    elementwise_<u16_k, simsimd_metric_scale_k>("scale_u16_haswell", simsimd_scale_u16_haswell,
+                                                simsimd_scale_u16_serial, l2_with_stl<simsimd_u16_t>);
+    elementwise_<u16_k, simsimd_metric_fma_k>("fma_u16_haswell", simsimd_fma_u16_haswell, simsimd_fma_u16_serial,
+                                              l2_with_stl<simsimd_u16_t>);
 
     geospatial_<f32_k>("haversine_f32_haswell", simsimd_haversine_f32_haswell,
                        haversine_with_stl<simsimd_f32_t, simsimd_f64_t>, l2_with_stl<simsimd_f64_t>);
+    geospatial_<f64_k>("haversine_f64_haswell", simsimd_haversine_f64_haswell, haversine_with_stl<simsimd_f64_t>,
+                       l2_with_stl<simsimd_f64_t>);
+    geospatial_<f32_k>("vincenty_f32_haswell", simsimd_vincenty_f32_haswell,
+                       vincenty_with_stl<simsimd_f32_t, simsimd_f64_t>, l2_with_stl<simsimd_f64_t>);
+    geospatial_<f64_k>("vincenty_f64_haswell", simsimd_vincenty_f64_haswell, vincenty_with_stl<simsimd_f64_t>,
+                       l2_with_stl<simsimd_f64_t>);
+
+    // Trigonometry benchmarks for Haswell
+    elementwise_<f32_k>("sin_f32_haswell", simsimd_sin_f32_haswell,
+                        elementwise_with_stl<simsimd_f32_t, sin_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f32_t>);
+    elementwise_<f32_k>("cos_f32_haswell", simsimd_cos_f32_haswell,
+                        elementwise_with_stl<simsimd_f32_t, cos_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f32_t>);
+    elementwise_<f32_k>("atan_f32_haswell", simsimd_atan_f32_haswell,
+                        elementwise_with_stl<simsimd_f32_t, atan_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f32_t>);
+    elementwise_<f64_k>("sin_f64_haswell", simsimd_sin_f64_haswell,
+                        elementwise_with_stl<simsimd_f64_t, sin_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f64_t>);
+    elementwise_<f64_k>("cos_f64_haswell", simsimd_cos_f64_haswell,
+                        elementwise_with_stl<simsimd_f64_t, cos_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f64_t>);
+    elementwise_<f64_k>("atan_f64_haswell", simsimd_atan_f64_haswell,
+                        elementwise_with_stl<simsimd_f64_t, atan_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f64_t>);
 
 #endif
 
@@ -1318,20 +1412,16 @@ int main(int argc, char **argv) {
     dense_<f16c_k>("dot_f16c_sapphire", simsimd_dot_f16c_sapphire, simsimd_dot_f16c_accurate);
     dense_<f16c_k>("vdot_f16c_sapphire", simsimd_vdot_f16c_sapphire, simsimd_vdot_f16c_accurate);
 
-    elementwise_<u8_k, simsimd_fma_k>("fma_u8_sapphire", simsimd_fma_u8_sapphire, simsimd_fma_u8_serial,
-                                      simsimd_l2_u8_serial);
-    elementwise_<u8_k, simsimd_wsum_k>("wsum_u8_sapphire", simsimd_wsum_u8_sapphire, simsimd_wsum_u8_serial,
-                                       simsimd_l2_u8_serial);
-    elementwise_<i8_k, simsimd_fma_k>("fma_i8_sapphire", simsimd_fma_i8_sapphire, simsimd_fma_i8_serial,
-                                      simsimd_l2_i8_serial);
-    elementwise_<i8_k, simsimd_wsum_k>("wsum_i8_sapphire", simsimd_wsum_i8_sapphire, simsimd_wsum_i8_serial,
-                                       simsimd_l2_i8_serial);
+    elementwise_<u8_k, simsimd_metric_fma_k>("fma_u8_sapphire", simsimd_fma_u8_sapphire, simsimd_fma_u8_serial,
+                                             simsimd_l2_u8_serial);
+    elementwise_<u8_k, simsimd_metric_wsum_k>("wsum_u8_sapphire", simsimd_wsum_u8_sapphire, simsimd_wsum_u8_serial,
+                                              simsimd_l2_u8_serial);
+    elementwise_<i8_k, simsimd_metric_fma_k>("fma_i8_sapphire", simsimd_fma_i8_sapphire, simsimd_fma_i8_serial,
+                                             simsimd_l2_i8_serial);
+    elementwise_<i8_k, simsimd_metric_wsum_k>("wsum_i8_sapphire", simsimd_wsum_i8_sapphire, simsimd_wsum_i8_serial,
+                                              simsimd_l2_i8_serial);
 
-    fma_<u8_k>("fma_u8_sapphire", simsimd_fma_u8_sapphire, simsimd_fma_u8_accurate, simsimd_l2_u8_serial);
-    fma_<u8_k>("wsum_u8_sapphire", simsimd_wsum_u8_sapphire, simsimd_wsum_u8_accurate, simsimd_l2_u8_serial);
-    fma_<i8_k>("fma_i8_sapphire", simsimd_fma_i8_sapphire, simsimd_fma_i8_accurate, simsimd_l2_i8_serial);
-    fma_<i8_k>("wsum_i8_sapphire", simsimd_wsum_i8_sapphire, simsimd_wsum_i8_accurate, simsimd_l2_i8_serial);
-
+    // fma_<> calls removed - use elementwise_<> instead
     curved_<f16_k>("bilinear_f16_sapphire", simsimd_bilinear_f16_sapphire, simsimd_bilinear_f16_accurate);
     curved_<f16_k>("mahalanobis_f16_sapphire", simsimd_mahalanobis_f16_sapphire, simsimd_mahalanobis_f16_accurate);
     curved_<f16c_k>("bilinear_f16c_sapphire", simsimd_bilinear_f16c_sapphire, simsimd_bilinear_f16c_accurate);
@@ -1378,18 +1468,18 @@ int main(int argc, char **argv) {
     dense_<f64c_k>("dot_f64c_skylake", simsimd_dot_f64c_skylake, simsimd_dot_f64c_serial);
     dense_<f64c_k>("vdot_f64c_skylake", simsimd_vdot_f64c_skylake, simsimd_vdot_f64c_serial);
 
-    elementwise_<f64_k, simsimd_fma_k>("fma_f64_skylake", simsimd_fma_f64_skylake, simsimd_fma_f64_serial,
-                                       simsimd_l2_f64_serial);
-    elementwise_<f64_k, simsimd_wsum_k>("wsum_f64_skylake", simsimd_wsum_f64_skylake, simsimd_wsum_f64_serial,
-                                        simsimd_l2_f64_serial);
-    elementwise_<f32_k, simsimd_fma_k>("fma_f32_skylake", simsimd_fma_f32_skylake, simsimd_fma_f32_serial,
-                                       simsimd_l2_f32_accurate);
-    elementwise_<f32_k, simsimd_wsum_k>("wsum_f32_skylake", simsimd_wsum_f32_skylake, simsimd_wsum_f32_serial,
-                                        simsimd_l2_f32_accurate);
-    elementwise_<bf16_k, simsimd_fma_k>("fma_bf16_skylake", simsimd_fma_bf16_skylake, simsimd_fma_bf16_serial,
-                                        simsimd_l2_bf16_accurate);
-    elementwise_<bf16_k, simsimd_wsum_k>("wsum_bf16_skylake", simsimd_wsum_bf16_skylake, simsimd_wsum_bf16_serial,
-                                         simsimd_l2_bf16_accurate);
+    elementwise_<f64_k, simsimd_metric_fma_k>("fma_f64_skylake", simsimd_fma_f64_skylake, simsimd_fma_f64_serial,
+                                              simsimd_l2_f64_serial);
+    elementwise_<f64_k, simsimd_metric_wsum_k>("wsum_f64_skylake", simsimd_wsum_f64_skylake, simsimd_wsum_f64_serial,
+                                               simsimd_l2_f64_serial);
+    elementwise_<f32_k, simsimd_metric_fma_k>("fma_f32_skylake", simsimd_fma_f32_skylake, simsimd_fma_f32_serial,
+                                              simsimd_l2_f32_accurate);
+    elementwise_<f32_k, simsimd_metric_wsum_k>("wsum_f32_skylake", simsimd_wsum_f32_skylake, simsimd_wsum_f32_serial,
+                                               simsimd_l2_f32_accurate);
+    elementwise_<bf16_k, simsimd_metric_fma_k>("fma_bf16_skylake", simsimd_fma_bf16_skylake, simsimd_fma_bf16_serial,
+                                               simsimd_l2_bf16_accurate);
+    elementwise_<bf16_k, simsimd_metric_wsum_k>("wsum_bf16_skylake", simsimd_wsum_bf16_skylake,
+                                                simsimd_wsum_bf16_serial, simsimd_l2_bf16_accurate);
 
     elementwise_<f32_k>("sin_f32_skylake", simsimd_sin_f32_skylake,
                         elementwise_with_stl<simsimd_f32_t, sin_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f32_t>);
@@ -1408,6 +1498,15 @@ int main(int argc, char **argv) {
     curved_<f32c_k>("bilinear_f32c_skylake", simsimd_bilinear_f32c_skylake, simsimd_bilinear_f32c_serial);
     curved_<f64_k>("bilinear_f64_skylake", simsimd_bilinear_f64_skylake, simsimd_bilinear_f64_serial);
     curved_<f64c_k>("bilinear_f64c_skylake", simsimd_bilinear_f64c_skylake, simsimd_bilinear_f64c_serial);
+
+    geospatial_<f32_k>("haversine_f32_skylake", simsimd_haversine_f32_skylake,
+                       haversine_with_stl<simsimd_f32_t, simsimd_f64_t>, l2_with_stl<simsimd_f64_t>);
+    geospatial_<f64_k>("haversine_f64_skylake", simsimd_haversine_f64_skylake, haversine_with_stl<simsimd_f64_t>,
+                       l2_with_stl<simsimd_f64_t>);
+    geospatial_<f32_k>("vincenty_f32_skylake", simsimd_vincenty_f32_skylake,
+                       vincenty_with_stl<simsimd_f32_t, simsimd_f64_t>, l2_with_stl<simsimd_f64_t>);
+    geospatial_<f64_k>("vincenty_f64_skylake", simsimd_vincenty_f64_skylake, vincenty_with_stl<simsimd_f64_t>,
+                       l2_with_stl<simsimd_f64_t>);
 #endif
 
     sparse_<u16_k>("intersect_u16_serial", simsimd_intersect_u16_serial, simsimd_intersect_u16_accurate);
@@ -1479,22 +1578,26 @@ int main(int argc, char **argv) {
     dense_<b8_k>("hamming_b8_serial", simsimd_hamming_b8_serial, simsimd_hamming_b8_serial);
     dense_<b8_k>("jaccard_b8_serial", simsimd_jaccard_b8_serial, simsimd_jaccard_b8_serial);
 
-    elementwise_<f16_k, simsimd_fma_k>("fma_f16_serial", simsimd_fma_f16_serial, simsimd_fma_f16_accurate,
-                                       simsimd_l2_f16_accurate);
-    elementwise_<f16_k, simsimd_wsum_k>("wsum_f16_serial", simsimd_wsum_f16_serial, simsimd_wsum_f16_accurate,
-                                        simsimd_l2_f16_accurate);
-    elementwise_<u8_k, simsimd_fma_k>("fma_u8_serial", simsimd_fma_u8_serial, simsimd_fma_u8_accurate,
-                                      simsimd_l2_u8_serial);
-    elementwise_<u8_k, simsimd_wsum_k>("wsum_u8_serial", simsimd_wsum_u8_serial, simsimd_wsum_u8_accurate,
-                                       simsimd_l2_u8_serial);
-    elementwise_<i8_k, simsimd_fma_k>("fma_i8_serial", simsimd_fma_i8_serial, simsimd_fma_i8_accurate,
-                                      simsimd_l2_i8_serial);
-    elementwise_<i8_k, simsimd_wsum_k>("wsum_i8_serial", simsimd_wsum_i8_serial, simsimd_wsum_i8_accurate,
-                                       simsimd_l2_i8_serial);
+    elementwise_<f16_k, simsimd_metric_fma_k>("fma_f16_serial", simsimd_fma_f16_serial, simsimd_fma_f16_accurate,
+                                              simsimd_l2_f16_accurate);
+    elementwise_<f16_k, simsimd_metric_wsum_k>("wsum_f16_serial", simsimd_wsum_f16_serial, simsimd_wsum_f16_accurate,
+                                               simsimd_l2_f16_accurate);
+    elementwise_<u8_k, simsimd_metric_fma_k>("fma_u8_serial", simsimd_fma_u8_serial, simsimd_fma_u8_accurate,
+                                             simsimd_l2_u8_serial);
+    elementwise_<u8_k, simsimd_metric_wsum_k>("wsum_u8_serial", simsimd_wsum_u8_serial, simsimd_wsum_u8_accurate,
+                                              simsimd_l2_u8_serial);
+    elementwise_<i8_k, simsimd_metric_fma_k>("fma_i8_serial", simsimd_fma_i8_serial, simsimd_fma_i8_accurate,
+                                             simsimd_l2_i8_serial);
+    elementwise_<i8_k, simsimd_metric_wsum_k>("wsum_i8_serial", simsimd_wsum_i8_serial, simsimd_wsum_i8_accurate,
+                                              simsimd_l2_i8_serial);
 
-    geospatial_<f32_k>("haversine_f32_serial", haversine_with_stl<simsimd_f32_t>,
+    geospatial_<f32_k>("haversine_f32_serial", simsimd_haversine_f32_serial,
                        haversine_with_stl<simsimd_f32_t, simsimd_f64_t>, l2_with_stl<simsimd_f64_t>);
-    geospatial_<f64_k>("haversine_f64_serial", haversine_with_stl<simsimd_f64_t>, haversine_with_stl<simsimd_f64_t>,
+    geospatial_<f64_k>("haversine_f64_serial", simsimd_haversine_f64_serial, haversine_with_stl<simsimd_f64_t>,
+                       l2_with_stl<simsimd_f64_t>);
+    geospatial_<f32_k>("vincenty_f32_serial", simsimd_vincenty_f32_serial,
+                       vincenty_with_stl<simsimd_f32_t, simsimd_f64_t>, l2_with_stl<simsimd_f64_t>);
+    geospatial_<f64_k>("vincenty_f64_serial", simsimd_vincenty_f64_serial, vincenty_with_stl<simsimd_f64_t>,
                        l2_with_stl<simsimd_f64_t>);
 
     bm::RunSpecifiedBenchmarks();
