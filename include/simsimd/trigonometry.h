@@ -645,6 +645,439 @@ SIMSIMD_PUBLIC void simsimd_atan_f64_serial(simsimd_f64_t const *ins, simsimd_si
 #pragma GCC target("avx2", "f16c", "fma")
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
 
+/*  Haswell AVX2 trigonometry kernels (8-way f32, 4-way f64)
+ *  These implement the same polynomial approximations as Skylake but with 256-bit vectors.
+ */
+
+SIMSIMD_INTERNAL __m256 _simsimd_f32x8_sin_haswell(__m256 const angles_radians) {
+    // Constants for argument reduction
+    __m256 const pi = _mm256_set1_ps(3.14159265358979323846f);            // π
+    __m256 const pi_reciprocal = _mm256_set1_ps(0.31830988618379067154f); // 1/π
+    __m256 const coeff_5 = _mm256_set1_ps(-0.0001881748176f);             // Coefficient for x^5 term
+    __m256 const coeff_3 = _mm256_set1_ps(+0.008323502727f);              // Coefficient for x^3 term
+    __m256 const coeff_1 = _mm256_set1_ps(-0.1666651368f);                // Coefficient for x term
+
+    // Compute (multiples_of_pi) = round(angle / π)
+    __m256 quotients = _mm256_mul_ps(angles_radians, pi_reciprocal);
+    __m256 rounded_quotients = _mm256_round_ps(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+    __m256i multiples_of_pi = _mm256_cvtps_epi32(rounded_quotients);
+
+    // Reduce the angle to: (angle - (rounded_quotients * π)) in [0, π]
+    __m256 const angles = _mm256_fnmadd_ps(rounded_quotients, pi, angles_radians);
+    __m256 const angles_squared = _mm256_mul_ps(angles, angles);
+    __m256 const angles_cubed = _mm256_mul_ps(angles, angles_squared);
+
+    // Compute the polynomial approximation
+    __m256 polynomials = coeff_5;
+    polynomials = _mm256_fmadd_ps(polynomials, angles_squared, coeff_3);
+    polynomials = _mm256_fmadd_ps(polynomials, angles_squared, coeff_1);
+    __m256 results = _mm256_fmadd_ps(angles_cubed, polynomials, angles);
+
+    // If multiples_of_pi is odd, flip the sign of the results
+    __m256i parity = _mm256_and_si256(multiples_of_pi, _mm256_set1_epi32(1));
+    __m256i odd_mask = _mm256_cmpeq_epi32(parity, _mm256_set1_epi32(1));
+    __m256 float_mask = _mm256_castsi256_ps(odd_mask);
+    __m256 negated = _mm256_sub_ps(_mm256_setzero_ps(), results);
+    results = _mm256_blendv_ps(results, negated, float_mask);
+    return results;
+}
+
+SIMSIMD_INTERNAL __m256 _simsimd_f32x8_cos_haswell(__m256 const angles_radians) {
+    // Constants for argument reduction
+    __m256 const pi = _mm256_set1_ps(3.14159265358979323846f);            // π
+    __m256 const pi_half = _mm256_set1_ps(1.57079632679489661923f);       // π/2
+    __m256 const pi_reciprocal = _mm256_set1_ps(0.31830988618379067154f); // 1/π
+    __m256 const coeff_5 = _mm256_set1_ps(-0.0001881748176f);             // Coefficient for x^5 term
+    __m256 const coeff_3 = _mm256_set1_ps(+0.008323502727f);              // Coefficient for x^3 term
+    __m256 const coeff_1 = _mm256_set1_ps(-0.1666651368f);                // Coefficient for x term
+
+    // Compute (multiples_of_pi) = round((angle / π) - 0.5)
+    __m256 quotients = _mm256_fmsub_ps(angles_radians, pi_reciprocal, _mm256_set1_ps(0.5f));
+    __m256 rounded_quotients = _mm256_round_ps(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+    __m256i multiples_of_pi = _mm256_cvtps_epi32(rounded_quotients);
+
+    // Reduce the angle to: (angle - (multiples_of_pi * π)) in [-π/2, π/2]
+    __m256 const angles = _mm256_fnmadd_ps(rounded_quotients, pi, _mm256_sub_ps(angles_radians, pi_half));
+    __m256 const angles_squared = _mm256_mul_ps(angles, angles);
+    __m256 const angles_cubed = _mm256_mul_ps(angles, angles_squared);
+
+    // Compute the polynomial approximation
+    __m256 polynomials = coeff_5;
+    polynomials = _mm256_fmadd_ps(polynomials, angles_squared, coeff_3);
+    polynomials = _mm256_fmadd_ps(polynomials, angles_squared, coeff_1);
+    __m256 results = _mm256_fmadd_ps(angles_cubed, polynomials, angles);
+
+    // If multiples_of_pi is even, flip the sign of the results
+    __m256i parity = _mm256_and_si256(multiples_of_pi, _mm256_set1_epi32(1));
+    __m256i even_mask = _mm256_cmpeq_epi32(parity, _mm256_setzero_si256());
+    __m256 float_mask = _mm256_castsi256_ps(even_mask);
+    __m256 negated = _mm256_sub_ps(_mm256_setzero_ps(), results);
+    results = _mm256_blendv_ps(results, negated, float_mask);
+    return results;
+}
+
+SIMSIMD_INTERNAL __m256 _simsimd_f32x8_atan_haswell(__m256 const inputs) {
+    // Polynomial coefficients
+    __m256 const coeff_8 = _mm256_set1_ps(-0.333331018686294555664062f);
+    __m256 const coeff_7 = _mm256_set1_ps(+0.199926957488059997558594f);
+    __m256 const coeff_6 = _mm256_set1_ps(-0.142027363181114196777344f);
+    __m256 const coeff_5 = _mm256_set1_ps(+0.106347933411598205566406f);
+    __m256 const coeff_4 = _mm256_set1_ps(-0.0748900920152664184570312f);
+    __m256 const coeff_3 = _mm256_set1_ps(+0.0425049886107444763183594f);
+    __m256 const coeff_2 = _mm256_set1_ps(-0.0159569028764963150024414f);
+    __m256 const coeff_1 = _mm256_set1_ps(+0.00282363896258175373077393f);
+    __m256 const sign_mask = _mm256_set1_ps(-0.0f);
+
+    // Adjust for quadrant - detect negative values
+    __m256 values = inputs;
+    __m256 negative_mask = _mm256_cmp_ps(values, _mm256_setzero_ps(), _CMP_LT_OS);
+    values = _mm256_andnot_ps(sign_mask, values); // abs(values)
+
+    // Check if values > 1 (need reciprocal)
+    __m256 reciprocal_mask = _mm256_cmp_ps(values, _mm256_set1_ps(1.0f), _CMP_GT_OS);
+    __m256 reciprocal_values = _mm256_div_ps(_mm256_set1_ps(1.0f), values);
+    values = _mm256_blendv_ps(values, reciprocal_values, reciprocal_mask);
+
+    // Argument reduction
+    __m256 const values_squared = _mm256_mul_ps(values, values);
+    __m256 const values_cubed = _mm256_mul_ps(values, values_squared);
+
+    // Polynomial evaluation
+    __m256 polynomials = coeff_1;
+    polynomials = _mm256_fmadd_ps(polynomials, values_squared, coeff_2);
+    polynomials = _mm256_fmadd_ps(polynomials, values_squared, coeff_3);
+    polynomials = _mm256_fmadd_ps(polynomials, values_squared, coeff_4);
+    polynomials = _mm256_fmadd_ps(polynomials, values_squared, coeff_5);
+    polynomials = _mm256_fmadd_ps(polynomials, values_squared, coeff_6);
+    polynomials = _mm256_fmadd_ps(polynomials, values_squared, coeff_7);
+    polynomials = _mm256_fmadd_ps(polynomials, values_squared, coeff_8);
+
+    // Compute result
+    __m256 result = _mm256_fmadd_ps(values_cubed, polynomials, values);
+
+    // Adjust for reciprocal: result = π/2 - result
+    __m256 adjusted = _mm256_sub_ps(_mm256_set1_ps(1.5707963267948966f), result);
+    result = _mm256_blendv_ps(result, adjusted, reciprocal_mask);
+
+    // Adjust for negative: result = -result
+    __m256 negated = _mm256_sub_ps(_mm256_setzero_ps(), result);
+    result = _mm256_blendv_ps(result, negated, negative_mask);
+    return result;
+}
+
+SIMSIMD_INTERNAL __m256 _simsimd_f32x8_atan2_haswell(__m256 const ys_inputs, __m256 const xs_inputs) {
+    // Polynomial coefficients (same as atan)
+    __m256 const coeff_8 = _mm256_set1_ps(-0.333331018686294555664062f);
+    __m256 const coeff_7 = _mm256_set1_ps(+0.199926957488059997558594f);
+    __m256 const coeff_6 = _mm256_set1_ps(-0.142027363181114196777344f);
+    __m256 const coeff_5 = _mm256_set1_ps(+0.106347933411598205566406f);
+    __m256 const coeff_4 = _mm256_set1_ps(-0.0748900920152664184570312f);
+    __m256 const coeff_3 = _mm256_set1_ps(+0.0425049886107444763183594f);
+    __m256 const coeff_2 = _mm256_set1_ps(-0.0159569028764963150024414f);
+    __m256 const coeff_1 = _mm256_set1_ps(+0.00282363896258175373077393f);
+    __m256 const sign_mask = _mm256_set1_ps(-0.0f);
+
+    // Quadrant adjustments normalizing to absolute values of x and y
+    __m256 xs_negative_mask = _mm256_cmp_ps(xs_inputs, _mm256_setzero_ps(), _CMP_LT_OS);
+    __m256 xs = _mm256_andnot_ps(sign_mask, xs_inputs); // abs(xs_inputs)
+    __m256 ys = _mm256_andnot_ps(sign_mask, ys_inputs); // abs(ys_inputs)
+
+    // Ensure proper fraction where the numerator is smaller than the denominator
+    __m256 swap_mask = _mm256_cmp_ps(ys, xs, _CMP_GT_OS);
+    __m256 temps = xs;
+    xs = _mm256_blendv_ps(xs, ys, swap_mask);
+    __m256 neg_temps = _mm256_sub_ps(_mm256_setzero_ps(), temps);
+    ys = _mm256_blendv_ps(ys, neg_temps, swap_mask);
+
+    // Compute ratio and ratio^2
+    __m256 const ratio = _mm256_div_ps(ys, xs);
+    __m256 const ratio_squared = _mm256_mul_ps(ratio, ratio);
+    __m256 const ratio_cubed = _mm256_mul_ps(ratio, ratio_squared);
+
+    // Polynomial evaluation
+    __m256 polynomials = coeff_1;
+    polynomials = _mm256_fmadd_ps(polynomials, ratio_squared, coeff_2);
+    polynomials = _mm256_fmadd_ps(polynomials, ratio_squared, coeff_3);
+    polynomials = _mm256_fmadd_ps(polynomials, ratio_squared, coeff_4);
+    polynomials = _mm256_fmadd_ps(polynomials, ratio_squared, coeff_5);
+    polynomials = _mm256_fmadd_ps(polynomials, ratio_squared, coeff_6);
+    polynomials = _mm256_fmadd_ps(polynomials, ratio_squared, coeff_7);
+    polynomials = _mm256_fmadd_ps(polynomials, ratio_squared, coeff_8);
+
+    // Compute the result using masks for quadrant adjustments
+    __m256 results = _mm256_fmadd_ps(ratio_cubed, polynomials, ratio);
+
+    // Adjust for xs_negative: result = result - π (when xs was negative)
+    __m256 pi_adjusted = _mm256_sub_ps(results, _mm256_set1_ps(3.14159265358979323846f));
+    results = _mm256_blendv_ps(results, pi_adjusted, xs_negative_mask);
+
+    // Adjust for swap: result = result + π/2 (when we swapped x and y)
+    __m256 half_pi_adjusted = _mm256_add_ps(results, _mm256_set1_ps(1.5707963267948966f));
+    results = _mm256_blendv_ps(results, half_pi_adjusted, swap_mask);
+
+    // Adjust sign based on original xs sign (flip sign if xs was negative)
+    __m256 sign_flipped = _mm256_xor_ps(results, sign_mask);
+    results = _mm256_blendv_ps(results, sign_flipped, xs_negative_mask);
+
+    return results;
+}
+
+SIMSIMD_INTERNAL __m256d _simsimd_f64x4_sin_haswell(__m256d const angles_radians) {
+    // Constants for argument reduction
+    __m256d const pi_high = _mm256_set1_pd(3.141592653589793116);         // High-digits part of π
+    __m256d const pi_low = _mm256_set1_pd(1.2246467991473532072e-16);     // Low-digits part of π
+    __m256d const pi_reciprocal = _mm256_set1_pd(0.31830988618379067154); // 1/π
+
+    // Polynomial coefficients for sine approximation (minimax polynomial)
+    __m256d const coeff_0 = _mm256_set1_pd(+0.00833333333333332974823815);
+    __m256d const coeff_1 = _mm256_set1_pd(-0.000198412698412696162806809);
+    __m256d const coeff_2 = _mm256_set1_pd(+2.75573192239198747630416e-06);
+    __m256d const coeff_3 = _mm256_set1_pd(-2.50521083763502045810755e-08);
+    __m256d const coeff_4 = _mm256_set1_pd(+1.60590430605664501629054e-10);
+    __m256d const coeff_5 = _mm256_set1_pd(-7.64712219118158833288484e-13);
+    __m256d const coeff_6 = _mm256_set1_pd(+2.81009972710863200091251e-15);
+    __m256d const coeff_7 = _mm256_set1_pd(-7.97255955009037868891952e-18);
+    __m256d const coeff_8 = _mm256_set1_pd(-0.166666666666666657414808);
+
+    // Compute (rounded_quotients) = round(angle / π)
+    __m256d const quotients = _mm256_mul_pd(angles_radians, pi_reciprocal);
+    __m256d const rounded_quotients = _mm256_round_pd(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+
+    // Reduce the angle: angle - (rounded_quotients * π_high + rounded_quotients * π_low)
+    __m256d angles = angles_radians;
+    angles = _mm256_fnmadd_pd(rounded_quotients, pi_high, angles);
+    angles = _mm256_fnmadd_pd(rounded_quotients, pi_low, angles);
+
+    // If rounded_quotients is odd (bit 0 set), negate the angle
+    // Convert to 32-bit int (returns __m128i with 4 x 32-bit ints)
+    __m128i quotients_i32 = _mm256_cvtpd_epi32(rounded_quotients);
+    __m128i parity = _mm_and_si128(quotients_i32, _mm_set1_epi32(1));
+    __m128i odd_mask_i32 = _mm_cmpeq_epi32(parity, _mm_set1_epi32(1));
+    // Expand 32-bit mask to 64-bit by shuffling
+    __m256i odd_mask_i64 = _mm256_cvtepi32_epi64(odd_mask_i32);
+    __m256d float_mask = _mm256_castsi256_pd(odd_mask_i64);
+    __m256d negated_angles = _mm256_sub_pd(_mm256_setzero_pd(), angles);
+    angles = _mm256_blendv_pd(angles, negated_angles, float_mask);
+
+    __m256d const angles_squared = _mm256_mul_pd(angles, angles);
+    __m256d const angles_cubed = _mm256_mul_pd(angles, angles_squared);
+    __m256d const angles_quadratic = _mm256_mul_pd(angles_squared, angles_squared);
+    __m256d const angles_octic = _mm256_mul_pd(angles_quadratic, angles_quadratic);
+
+    // Compute higher-degree polynomial terms
+    __m256d const poly_67 = _mm256_fmadd_pd(angles_squared, coeff_7, coeff_6);
+    __m256d const poly_45 = _mm256_fmadd_pd(angles_squared, coeff_5, coeff_4);
+    __m256d const poly_4567 = _mm256_fmadd_pd(angles_quadratic, poly_67, poly_45);
+
+    // Compute lower-degree polynomial terms
+    __m256d const poly_23 = _mm256_fmadd_pd(angles_squared, coeff_3, coeff_2);
+    __m256d const poly_01 = _mm256_fmadd_pd(angles_squared, coeff_1, coeff_0);
+    __m256d const poly_0123 = _mm256_fmadd_pd(angles_quadratic, poly_23, poly_01);
+
+    // Combine polynomial terms
+    __m256d results = _mm256_fmadd_pd(angles_octic, poly_4567, poly_0123);
+    results = _mm256_fmadd_pd(results, angles_squared, coeff_8);
+    results = _mm256_fmadd_pd(results, angles_cubed, angles);
+
+    // Handle the special case of negative zero input
+    __m256d const non_zero_mask = _mm256_cmp_pd(angles_radians, _mm256_setzero_pd(), _CMP_NEQ_UQ);
+    results = _mm256_and_pd(results, non_zero_mask);
+    return results;
+}
+
+SIMSIMD_INTERNAL __m256d _simsimd_f64x4_cos_haswell(__m256d const angles_radians) {
+    // Constants for argument reduction
+    __m256d const pi_high_half = _mm256_set1_pd(3.141592653589793116 * 0.5);     // High-digits part of π/2
+    __m256d const pi_low_half = _mm256_set1_pd(1.2246467991473532072e-16 * 0.5); // Low-digits part of π/2
+    __m256d const pi_reciprocal = _mm256_set1_pd(0.31830988618379067154);        // 1/π
+
+    // Polynomial coefficients for cosine approximation
+    __m256d const coeff_0 = _mm256_set1_pd(+0.00833333333333332974823815);
+    __m256d const coeff_1 = _mm256_set1_pd(-0.000198412698412696162806809);
+    __m256d const coeff_2 = _mm256_set1_pd(+2.75573192239198747630416e-06);
+    __m256d const coeff_3 = _mm256_set1_pd(-2.50521083763502045810755e-08);
+    __m256d const coeff_4 = _mm256_set1_pd(+1.60590430605664501629054e-10);
+    __m256d const coeff_5 = _mm256_set1_pd(-7.64712219118158833288484e-13);
+    __m256d const coeff_6 = _mm256_set1_pd(+2.81009972710863200091251e-15);
+    __m256d const coeff_7 = _mm256_set1_pd(-7.97255955009037868891952e-18);
+    __m256d const coeff_8 = _mm256_set1_pd(-0.166666666666666657414808);
+
+    // Compute (rounded_quotients) = 2 * round(0.5 - angle / π) + 1
+    // Note: fnmadd(a, b, c) = c - a*b, so fnmadd(angles, pi_recip, 0.5) = 0.5 - angles/π
+    __m256d const quotients = _mm256_fnmadd_pd(angles_radians, pi_reciprocal, _mm256_set1_pd(0.5));
+    __m256d const rounded_quotients = _mm256_fmadd_pd(                             //
+        _mm256_set1_pd(2.0),                                                       //
+        _mm256_round_pd(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC), //
+        _mm256_set1_pd(1.0));
+
+    // Reduce the angle: angle - (rounded_quotients * π_high_half + rounded_quotients * π_low_half)
+    __m256d angles = angles_radians;
+    angles = _mm256_fnmadd_pd(rounded_quotients, pi_high_half, angles);
+    angles = _mm256_fnmadd_pd(rounded_quotients, pi_low_half, angles);
+
+    // If (rounded_quotients & 2) == 0, negate the angle
+    __m128i quotients_i32 = _mm256_cvtpd_epi32(rounded_quotients);
+    __m128i bit2 = _mm_and_si128(quotients_i32, _mm_set1_epi32(2));
+    __m128i flip_mask_i32 = _mm_cmpeq_epi32(bit2, _mm_setzero_si128());
+    __m256i flip_mask_i64 = _mm256_cvtepi32_epi64(flip_mask_i32);
+    __m256d float_mask = _mm256_castsi256_pd(flip_mask_i64);
+    __m256d negated_angles = _mm256_sub_pd(_mm256_setzero_pd(), angles);
+    angles = _mm256_blendv_pd(angles, negated_angles, float_mask);
+
+    __m256d const angles_squared = _mm256_mul_pd(angles, angles);
+    __m256d const angles_cubed = _mm256_mul_pd(angles, angles_squared);
+    __m256d const angles_quadratic = _mm256_mul_pd(angles_squared, angles_squared);
+    __m256d const angles_octic = _mm256_mul_pd(angles_quadratic, angles_quadratic);
+
+    // Compute higher-degree polynomial terms
+    __m256d const poly_67 = _mm256_fmadd_pd(angles_squared, coeff_7, coeff_6);
+    __m256d const poly_45 = _mm256_fmadd_pd(angles_squared, coeff_5, coeff_4);
+    __m256d const poly_4567 = _mm256_fmadd_pd(angles_quadratic, poly_67, poly_45);
+
+    // Compute lower-degree polynomial terms
+    __m256d const poly_23 = _mm256_fmadd_pd(angles_squared, coeff_3, coeff_2);
+    __m256d const poly_01 = _mm256_fmadd_pd(angles_squared, coeff_1, coeff_0);
+    __m256d const poly_0123 = _mm256_fmadd_pd(angles_quadratic, poly_23, poly_01);
+
+    // Combine polynomial terms
+    __m256d results = _mm256_fmadd_pd(angles_octic, poly_4567, poly_0123);
+    results = _mm256_fmadd_pd(results, angles_squared, coeff_8);
+    results = _mm256_fmadd_pd(results, angles_cubed, angles);
+    return results;
+}
+
+SIMSIMD_INTERNAL __m256d _simsimd_f64x4_atan_haswell(__m256d const inputs) {
+    // Polynomial coefficients for atan approximation (19 coefficients) - same as Skylake
+    __m256d const coeff_19 = _mm256_set1_pd(-1.88796008463073496563746e-05);
+    __m256d const coeff_18 = _mm256_set1_pd(+0.000209850076645816976906797);
+    __m256d const coeff_17 = _mm256_set1_pd(-0.00110611831486672482563471);
+    __m256d const coeff_16 = _mm256_set1_pd(+0.00370026744188713119232403);
+    __m256d const coeff_15 = _mm256_set1_pd(-0.00889896195887655491740809);
+    __m256d const coeff_14 = _mm256_set1_pd(+0.016599329773529201970117);
+    __m256d const coeff_13 = _mm256_set1_pd(-0.0254517624932312641616861);
+    __m256d const coeff_12 = _mm256_set1_pd(+0.0337852580001353069993897);
+    __m256d const coeff_11 = _mm256_set1_pd(-0.0407629191276836500001934);
+    __m256d const coeff_10 = _mm256_set1_pd(+0.0466667150077840625632675);
+    __m256d const coeff_9 = _mm256_set1_pd(-0.0523674852303482457616113);
+    __m256d const coeff_8 = _mm256_set1_pd(+0.0587666392926673580854313);
+    __m256d const coeff_7 = _mm256_set1_pd(-0.0666573579361080525984562);
+    __m256d const coeff_6 = _mm256_set1_pd(+0.0769219538311769618355029);
+    __m256d const coeff_5 = _mm256_set1_pd(-0.090908995008245008229153);
+    __m256d const coeff_4 = _mm256_set1_pd(+0.111111105648261418443745);
+    __m256d const coeff_3 = _mm256_set1_pd(-0.14285714266771329383765);
+    __m256d const coeff_2 = _mm256_set1_pd(+0.199999999996591265594148);
+    __m256d const coeff_1 = _mm256_set1_pd(-0.333333333333311110369124);
+    __m256d const sign_mask = _mm256_set1_pd(-0.0);
+
+    // Adjust for quadrant - detect negative values
+    __m256d values = inputs;
+    __m256d negative_mask = _mm256_cmp_pd(values, _mm256_setzero_pd(), _CMP_LT_OS);
+    values = _mm256_andnot_pd(sign_mask, values); // abs(values)
+
+    // Check if values > 1 (need reciprocal)
+    __m256d reciprocal_mask = _mm256_cmp_pd(values, _mm256_set1_pd(1.0), _CMP_GT_OS);
+    __m256d reciprocal_values = _mm256_div_pd(_mm256_set1_pd(1.0), values);
+    values = _mm256_blendv_pd(values, reciprocal_values, reciprocal_mask);
+
+    // Argument reduction
+    __m256d const values_squared = _mm256_mul_pd(values, values);
+    __m256d const values_cubed = _mm256_mul_pd(values, values_squared);
+
+    // Polynomial evaluation (same order as Skylake)
+    __m256d polynomials = coeff_19;
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_18);
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_17);
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_16);
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_15);
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_14);
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_13);
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_12);
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_11);
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_10);
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_9);
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_8);
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_7);
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_6);
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_5);
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_4);
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_3);
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_2);
+    polynomials = _mm256_fmadd_pd(polynomials, values_squared, coeff_1);
+
+    // Compute result
+    __m256d result = _mm256_fmadd_pd(values_cubed, polynomials, values);
+
+    // Adjust for reciprocal: result = π/2 - result
+    __m256d adjusted = _mm256_sub_pd(_mm256_set1_pd(1.5707963267948966), result);
+    result = _mm256_blendv_pd(result, adjusted, reciprocal_mask);
+
+    // Adjust for negative: result = -result
+    __m256d negated = _mm256_sub_pd(_mm256_setzero_pd(), result);
+    result = _mm256_blendv_pd(result, negated, negative_mask);
+    return result;
+}
+
+// Public wrapper functions with tail handling via serial fallback
+SIMSIMD_PUBLIC void simsimd_sin_f32_haswell(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs) {
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m256 angles = _mm256_loadu_ps(ins + i);
+        __m256 results = _simsimd_f32x8_sin_haswell(angles);
+        _mm256_storeu_ps(outs + i, results);
+    }
+    for (; i < n; ++i) outs[i] = simsimd_f32_sin(ins[i]);
+}
+
+SIMSIMD_PUBLIC void simsimd_cos_f32_haswell(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs) {
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m256 angles = _mm256_loadu_ps(ins + i);
+        __m256 results = _simsimd_f32x8_cos_haswell(angles);
+        _mm256_storeu_ps(outs + i, results);
+    }
+    for (; i < n; ++i) outs[i] = simsimd_f32_cos(ins[i]);
+}
+
+SIMSIMD_PUBLIC void simsimd_atan_f32_haswell(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs) {
+    simsimd_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m256 values = _mm256_loadu_ps(ins + i);
+        __m256 results = _simsimd_f32x8_atan_haswell(values);
+        _mm256_storeu_ps(outs + i, results);
+    }
+    for (; i < n; ++i) outs[i] = simsimd_f32_atan(ins[i]);
+}
+
+SIMSIMD_PUBLIC void simsimd_sin_f64_haswell(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs) {
+    simsimd_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        __m256d angles = _mm256_loadu_pd(ins + i);
+        __m256d results = _simsimd_f64x4_sin_haswell(angles);
+        _mm256_storeu_pd(outs + i, results);
+    }
+    for (; i < n; ++i) outs[i] = simsimd_f64_sin(ins[i]);
+}
+
+SIMSIMD_PUBLIC void simsimd_cos_f64_haswell(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs) {
+    simsimd_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        __m256d angles = _mm256_loadu_pd(ins + i);
+        __m256d results = _simsimd_f64x4_cos_haswell(angles);
+        _mm256_storeu_pd(outs + i, results);
+    }
+    for (; i < n; ++i) outs[i] = simsimd_f64_cos(ins[i]);
+}
+
+SIMSIMD_PUBLIC void simsimd_atan_f64_haswell(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs) {
+    simsimd_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        __m256d values = _mm256_loadu_pd(ins + i);
+        __m256d results = _simsimd_f64x4_atan_haswell(values);
+        _mm256_storeu_pd(outs + i, results);
+    }
+    for (; i < n; ++i) outs[i] = simsimd_f64_atan(ins[i]);
+}
+
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_HASWELL
@@ -886,6 +1319,11 @@ SIMSIMD_INTERNAL __m512d _simsimd_f64x8_sin_skylake(__m512d const angles_radians
     __m512d angles = angles_radians;
     angles = _mm512_fnmadd_pd(rounded_quotients, pi_high, angles);
     angles = _mm512_fnmadd_pd(rounded_quotients, pi_low, angles);
+
+    // If rounded_quotients is odd (bit 0 set), negate the angle
+    __mmask8 const sign_flip_mask = _mm256_test_epi32_mask(_mm512_cvtpd_epi32(rounded_quotients), _mm256_set1_epi32(1));
+    angles = _mm512_mask_sub_pd(angles, sign_flip_mask, _mm512_setzero_pd(), angles);
+
     __m512d const angles_squared = _mm512_mul_pd(angles, angles);
     __m512d const angles_cubed = _mm512_mul_pd(angles, angles_squared);
     __m512d const angles_quadratic = _mm512_mul_pd(angles_squared, angles_squared);
@@ -1021,6 +1459,81 @@ SIMSIMD_INTERNAL __m512d _simsimd_f64x8_atan_skylake(__m512d const inputs) {
     result = _mm512_mask_sub_pd(result, reciprocal_mask, _mm512_set1_pd(1.5707963267948966), result);
     result = _mm512_mask_sub_pd(result, negative_mask, _mm512_setzero_pd(), result);
     return result;
+}
+
+/**
+ *  @brief  AVX-512 implementation of atan2(y, x) for 8 double-precision values.
+ *  @see    Based on the f32x16 version with appropriate precision constants.
+ */
+SIMSIMD_INTERNAL __m512d _simsimd_f64x8_atan2_skylake(__m512d const ys_inputs, __m512d const xs_inputs) {
+    // Polynomial coefficients for atan approximation (higher precision than f32)
+    __m512d const coeff_19 = _mm512_set1_pd(-1.88796008463073496563746e-05);
+    __m512d const coeff_18 = _mm512_set1_pd(+0.000209850076645816976906797);
+    __m512d const coeff_17 = _mm512_set1_pd(-0.00110611831486672482563471);
+    __m512d const coeff_16 = _mm512_set1_pd(+0.00370026744188713119232403);
+    __m512d const coeff_15 = _mm512_set1_pd(-0.00889896195887655491740809);
+    __m512d const coeff_14 = _mm512_set1_pd(+0.016599329773529201970117);
+    __m512d const coeff_13 = _mm512_set1_pd(-0.0254517624932312641616861);
+    __m512d const coeff_12 = _mm512_set1_pd(+0.0337852580001353069993897);
+    __m512d const coeff_11 = _mm512_set1_pd(-0.0407629191276836500001934);
+    __m512d const coeff_10 = _mm512_set1_pd(+0.0466667150077840625632675);
+    __m512d const coeff_9 = _mm512_set1_pd(-0.0523674852303482457616113);
+    __m512d const coeff_8 = _mm512_set1_pd(+0.0587666392926673580854313);
+    __m512d const coeff_7 = _mm512_set1_pd(-0.0666573579361080525984562);
+    __m512d const coeff_6 = _mm512_set1_pd(+0.0769219538311769618355029);
+    __m512d const coeff_5 = _mm512_set1_pd(-0.090908995008245008229153);
+    __m512d const coeff_4 = _mm512_set1_pd(+0.111111105648261418443745);
+    __m512d const coeff_3 = _mm512_set1_pd(-0.14285714266771329383765);
+    __m512d const coeff_2 = _mm512_set1_pd(+0.199999999996591265594148);
+    __m512d const coeff_1 = _mm512_set1_pd(-0.333333333333311110369124);
+
+    // Quadrant adjustments normalizing to absolute values of x and y
+    __mmask8 const xs_negative_mask = _mm512_cmp_pd_mask(xs_inputs, _mm512_setzero_pd(), _CMP_LT_OS);
+    __m512d xs = _mm512_abs_pd(xs_inputs);
+    __m512d ys = _mm512_abs_pd(ys_inputs);
+    // Ensure proper fraction where the numerator is smaller than the denominator
+    __mmask8 const swap_mask = _mm512_cmp_pd_mask(ys, xs, _CMP_GT_OS);
+    __m512d temps = xs;
+    xs = _mm512_mask_blend_pd(swap_mask, xs, ys);
+    ys = _mm512_mask_sub_pd(ys, swap_mask, _mm512_setzero_pd(), temps);
+
+    // Compute ratio and ratio^2
+    __m512d const ratio = _mm512_div_pd(ys, xs);
+    __m512d const ratio_squared = _mm512_mul_pd(ratio, ratio);
+    __m512d const ratio_cubed = _mm512_mul_pd(ratio, ratio_squared);
+
+    // Polynomial evaluation
+    __m512d polynomials = coeff_19;
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_18);
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_17);
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_16);
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_15);
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_14);
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_13);
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_12);
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_11);
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_10);
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_9);
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_8);
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_7);
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_6);
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_5);
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_4);
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_3);
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_2);
+    polynomials = _mm512_fmadd_pd(polynomials, ratio_squared, coeff_1);
+
+    // Compute the result with quadrant adjustments
+    __m512d results = _mm512_fmadd_pd(ratio_cubed, polynomials, ratio);
+    results = _mm512_mask_sub_pd(results, xs_negative_mask, results, _mm512_set1_pd(3.14159265358979323846));
+    results = _mm512_mask_add_pd(results, swap_mask, results, _mm512_set1_pd(1.5707963267948966));
+
+    // Adjust sign based on original x and y signs (matching scalar atan2 behavior)
+    __m512d const y_sign = _mm512_and_pd(ys_inputs, _mm512_set1_pd(-0.0));
+    results = _mm512_mask_xor_pd(results, xs_negative_mask, results, _mm512_set1_pd(-0.0));
+    results = _mm512_xor_pd(results, y_sign);
+
+    return results;
 }
 
 SIMSIMD_PUBLIC void simsimd_sin_f64_skylake(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs) {
