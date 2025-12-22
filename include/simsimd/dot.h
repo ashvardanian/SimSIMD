@@ -57,6 +57,9 @@ SIMSIMD_PUBLIC void simsimd_vdot_bf16c_serial(simsimd_bf16c_t const* a, simsimd_
 SIMSIMD_PUBLIC void simsimd_dot_i8_serial(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_u8_serial(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
+SIMSIMD_PUBLIC void simsimd_dot_e4m3_serial(simsimd_e4m3_t const* a, simsimd_e4m3_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_e5m2_serial(simsimd_e5m2_t const* a, simsimd_e5m2_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
 /*  Double-precision serial backends for all numeric types.
  *  For single-precision computation check out the "*_serial" counterparts of those "*_accurate" functions.
  */
@@ -160,6 +163,12 @@ SIMSIMD_PUBLIC void simsimd_dot_f16_sapphire(simsimd_f16_t const* a, simsimd_f16
 SIMSIMD_PUBLIC void simsimd_dot_f16c_sapphire(simsimd_f16c_t const* a, simsimd_f16c_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_sapphire(simsimd_f16c_t const* a, simsimd_f16c_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 
+SIMSIMD_PUBLIC void simsimd_dot_e4m3_genoa(simsimd_e4m3_t const* a, simsimd_e4m3_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_e5m2_genoa(simsimd_e5m2_t const* a, simsimd_e5m2_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
+SIMSIMD_PUBLIC void simsimd_dot_e4m3_sapphire(simsimd_e4m3_t const* a, simsimd_e4m3_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_e5m2_sapphire(simsimd_e5m2_t const* a, simsimd_e5m2_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
 SIMSIMD_PUBLIC void simsimd_dot_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 // clang-format on
 
@@ -228,6 +237,28 @@ SIMSIMD_MAKE_COMPLEX_VDOT(serial, bf16c, f32, SIMSIMD_BF16_TO_F32) // simsimd_vd
 
 SIMSIMD_MAKE_DOT(serial, i8, i64, SIMSIMD_DEREFERENCE) // simsimd_dot_i8_serial
 SIMSIMD_MAKE_DOT(serial, u8, i64, SIMSIMD_DEREFERENCE) // simsimd_dot_u8_serial
+
+SIMSIMD_PUBLIC void simsimd_dot_e4m3_serial(simsimd_e4m3_t const *a, simsimd_e4m3_t const *b, simsimd_size_t n,
+                                            simsimd_distance_t *result) {
+    simsimd_f32_t ab = 0, ai, bi;
+    for (simsimd_size_t i = 0; i != n; ++i) {
+        simsimd_e4m3_to_f32(a + i, &ai);
+        simsimd_e4m3_to_f32(b + i, &bi);
+        ab += ai * bi;
+    }
+    *result = ab;
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_e5m2_serial(simsimd_e5m2_t const *a, simsimd_e5m2_t const *b, simsimd_size_t n,
+                                            simsimd_distance_t *result) {
+    simsimd_f32_t ab = 0, ai, bi;
+    for (simsimd_size_t i = 0; i != n; ++i) {
+        simsimd_e5m2_to_f32(a + i, &ai);
+        simsimd_e5m2_to_f32(b + i, &bi);
+        ab += ai * bi;
+    }
+    *result = ab;
+}
 
 SIMSIMD_MAKE_DOT(accurate, f32, f64, SIMSIMD_DEREFERENCE)           // simsimd_dot_f32_accurate
 SIMSIMD_MAKE_COMPLEX_DOT(accurate, f32c, f64, SIMSIMD_DEREFERENCE)  // simsimd_dot_f32c_accurate
@@ -1616,6 +1647,101 @@ simsimd_dot_bf16c_genoa_cycle:
     results[1] = _simsimd_reduce_f32x16_skylake(ab_imag_vec);
 }
 
+/*  Convert 32x E4M3 values to 32x BF16 values.
+ *  Uses optimized path with fused exp+mant extraction.
+ *  Denormals (exp=0, mant!=0) are flushed to zero (DAZ behavior).
+ *
+ *  E4M3 format: S EEEE MMM (bias=7, range: 2^-6 to 448)
+ *  BF16 format: S EEEEEEEE MMMMMMM (bias=127)
+ *  Conversion: sign<<8, (exp+120)<<7, mant<<4
+ */
+SIMSIMD_INTERNAL __m512i _simsimd_e4m3_to_bf16_genoa(__m256i fp8) {
+    __m512i v = _mm512_cvtepu8_epi16(fp8);
+    // Sign: shift bit 7 to bit 15
+    __m512i sign = _mm512_and_si512(_mm512_slli_epi16(v, 8), _mm512_set1_epi16(0x8000));
+    // Lower 7 bits contain exp (4) and mant (3): shift left 4 and add bias
+    __m512i exp_mant = _mm512_slli_epi16(_mm512_and_si512(v, _mm512_set1_epi16(0x7F)), 4);
+    exp_mant = _mm512_add_epi16(exp_mant, _mm512_set1_epi16(0x3C00)); // 120<<7 = 0x3C00
+    // Handle exp=0 by zeroing exp_mant (flush denormals to zero)
+    __m512i exp = _mm512_and_si512(_mm512_srli_epi16(v, 3), _mm512_set1_epi16(0x0F));
+    __mmask32 zero_mask = _mm512_cmpeq_epi16_mask(exp, _mm512_setzero_si512());
+    exp_mant = _mm512_mask_mov_epi16(exp_mant, zero_mask, _mm512_setzero_si512());
+    return _mm512_or_si512(sign, exp_mant);
+}
+
+/*  Convert 32x E5M2 values to 32x BF16 values.
+ *  Uses optimized path with fused exp+mant extraction.
+ *  Denormals (exp=0, mant!=0) are flushed to zero (DAZ behavior).
+ *
+ *  E5M2 format: S EEEEE MM (bias=15, range: 2^-14 to 57344)
+ *  BF16 format: S EEEEEEEE MMMMMMM (bias=127)
+ *  Conversion: sign<<8, (exp+112)<<7, mant<<5
+ */
+SIMSIMD_INTERNAL __m512i _simsimd_e5m2_to_bf16_genoa(__m256i fp8) {
+    __m512i v = _mm512_cvtepu8_epi16(fp8);
+    __m512i sign = _mm512_and_si512(_mm512_slli_epi16(v, 8), _mm512_set1_epi16(0x8000));
+    // Lower 7 bits: exp(5) + mant(2), shift left 5 and add bias
+    __m512i exp_mant = _mm512_slli_epi16(_mm512_and_si512(v, _mm512_set1_epi16(0x7F)), 5);
+    exp_mant = _mm512_add_epi16(exp_mant, _mm512_set1_epi16(0x3800)); // 112<<7 = 0x3800
+    // Zero handling
+    __m512i exp_raw = _mm512_and_si512(_mm512_srli_epi16(v, 2), _mm512_set1_epi16(0x1F));
+    __mmask32 zero_mask = _mm512_cmpeq_epi16_mask(exp_raw, _mm512_setzero_si512());
+    exp_mant = _mm512_mask_mov_epi16(exp_mant, zero_mask, _mm512_setzero_si512());
+    return _mm512_or_si512(sign, exp_mant);
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_e4m3_genoa(simsimd_e4m3_t const *a_scalars, simsimd_e4m3_t const *b_scalars,
+                                           simsimd_size_t count_scalars, simsimd_distance_t *result) {
+    __m256i a_i8_vec, b_i8_vec;
+    __m512 ab_vec = _mm512_setzero_ps();
+
+simsimd_dot_e4m3_genoa_cycle:
+    if (count_scalars < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, count_scalars);
+        a_i8_vec = _mm256_maskz_loadu_epi8(mask, a_scalars);
+        b_i8_vec = _mm256_maskz_loadu_epi8(mask, b_scalars);
+        count_scalars = 0;
+    }
+    else {
+        a_i8_vec = _mm256_loadu_epi8(a_scalars);
+        b_i8_vec = _mm256_loadu_epi8(b_scalars);
+        a_scalars += 32, b_scalars += 32, count_scalars -= 32;
+    }
+    // Convert E4M3 to BF16 and compute dot product
+    __m512i a_bf16 = _simsimd_e4m3_to_bf16_genoa(a_i8_vec);
+    __m512i b_bf16 = _simsimd_e4m3_to_bf16_genoa(b_i8_vec);
+    ab_vec = _mm512_dpbf16_ps(ab_vec, (__m512bh)(a_bf16), (__m512bh)(b_bf16));
+    if (count_scalars) goto simsimd_dot_e4m3_genoa_cycle;
+
+    *result = _simsimd_reduce_f32x16_skylake(ab_vec);
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_e5m2_genoa(simsimd_e5m2_t const *a_scalars, simsimd_e5m2_t const *b_scalars,
+                                           simsimd_size_t count_scalars, simsimd_distance_t *result) {
+    __m256i a_i8_vec, b_i8_vec;
+    __m512 ab_vec = _mm512_setzero_ps();
+
+simsimd_dot_e5m2_genoa_cycle:
+    if (count_scalars < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, count_scalars);
+        a_i8_vec = _mm256_maskz_loadu_epi8(mask, a_scalars);
+        b_i8_vec = _mm256_maskz_loadu_epi8(mask, b_scalars);
+        count_scalars = 0;
+    }
+    else {
+        a_i8_vec = _mm256_loadu_epi8(a_scalars);
+        b_i8_vec = _mm256_loadu_epi8(b_scalars);
+        a_scalars += 32, b_scalars += 32, count_scalars -= 32;
+    }
+    // Convert E5M2 to BF16 and compute dot product
+    __m512i a_bf16 = _simsimd_e5m2_to_bf16_genoa(a_i8_vec);
+    __m512i b_bf16 = _simsimd_e5m2_to_bf16_genoa(b_i8_vec);
+    ab_vec = _mm512_dpbf16_ps(ab_vec, (__m512bh)(a_bf16), (__m512bh)(b_bf16));
+    if (count_scalars) goto simsimd_dot_e5m2_genoa_cycle;
+
+    *result = _simsimd_reduce_f32x16_skylake(ab_vec);
+}
+
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_GENOA
@@ -1734,6 +1860,94 @@ simsimd_dot_f16c_sapphire_cycle:
     // Reduce horizontal sums:
     results[0] = _mm512_reduce_add_ph(ab_real_vec);
     results[1] = _mm512_reduce_add_ph(ab_imag_vec);
+}
+
+/*  Convert 32x E4M3 values to 32x F16 values.
+ *  Uses optimized path similar to E5M2 but with bias adjustment.
+ *  Denormals (exp=0) are flushed to zero (DAZ behavior).
+ *
+ *  E4M3 format: S EEEE  MMM        (bias=7)
+ *  F16 format:  S EEEEE MMMMMMMMMM (bias=15)
+ *
+ *  The key difference from E5M2→F16 (which is trivial) is the bias adjustment:
+ *  E5M2 and F16 share bias=15, so just shift. E4M3 needs +8 to exponent.
+ */
+SIMSIMD_INTERNAL __m512i _simsimd_e4m3_to_f16_sapphire(__m256i fp8) {
+    __m512i v = _mm512_cvtepu8_epi16(fp8);
+    // Sign: bit 7 → bit 15
+    __m512i sign = _mm512_and_si512(_mm512_slli_epi16(v, 8), _mm512_set1_epi16(0x8000));
+    // Exp+mant (7 bits) shifted left 7, then add bias adjustment (8<<10 = 0x2000)
+    __m512i exp_mant = _mm512_slli_epi16(_mm512_and_si512(v, _mm512_set1_epi16(0x7F)), 7);
+    exp_mant = _mm512_add_epi16(exp_mant, _mm512_set1_epi16(0x2000));
+    // Check exp=0 directly: mask 0x78 covers exp bits (bits 3-6) in place
+    __mmask32 zero_mask = _mm512_cmpeq_epi16_mask(_mm512_and_si512(v, _mm512_set1_epi16(0x78)), _mm512_setzero_si512());
+    exp_mant = _mm512_mask_mov_epi16(exp_mant, zero_mask, _mm512_setzero_si512());
+    return _mm512_or_si512(sign, exp_mant);
+}
+
+/*  Convert 32x E5M2 values to 32x F16 values.
+ *  This is extremely fast because E5M2 and F16 have the same exponent bias (15).
+ *  Simply zero-extend to 16-bit and shift left by 8.
+ *
+ *  E5M2 format: S EEEEE MM         (bias=15)
+ *  F16 format:  S EEEEE MMMMMMMMMM (bias=15)
+ */
+SIMSIMD_INTERNAL __m512i _simsimd_e5m2_to_f16_sapphire(__m256i fp8) {
+    __m512i v = _mm512_cvtepu8_epi16(fp8);
+    return _mm512_slli_epi16(v, 8);
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_e4m3_sapphire(simsimd_e4m3_t const *a_scalars, simsimd_e4m3_t const *b_scalars,
+                                              simsimd_size_t count_scalars, simsimd_distance_t *result) {
+    __m256i a_i8_vec, b_i8_vec;
+    __m512h ab_vec = _mm512_setzero_ph();
+
+simsimd_dot_e4m3_sapphire_cycle:
+    if (count_scalars < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, count_scalars);
+        a_i8_vec = _mm256_maskz_loadu_epi8(mask, a_scalars);
+        b_i8_vec = _mm256_maskz_loadu_epi8(mask, b_scalars);
+        count_scalars = 0;
+    }
+    else {
+        a_i8_vec = _mm256_loadu_epi8(a_scalars);
+        b_i8_vec = _mm256_loadu_epi8(b_scalars);
+        a_scalars += 32, b_scalars += 32, count_scalars -= 32;
+    }
+    // Convert E4M3 to F16 and compute dot product
+    __m512i a_f16 = _simsimd_e4m3_to_f16_sapphire(a_i8_vec);
+    __m512i b_f16 = _simsimd_e4m3_to_f16_sapphire(b_i8_vec);
+    ab_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(a_f16), _mm512_castsi512_ph(b_f16), ab_vec);
+    if (count_scalars) goto simsimd_dot_e4m3_sapphire_cycle;
+
+    *result = _mm512_reduce_add_ph(ab_vec);
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_e5m2_sapphire(simsimd_e5m2_t const *a_scalars, simsimd_e5m2_t const *b_scalars,
+                                              simsimd_size_t count_scalars, simsimd_distance_t *result) {
+    __m256i a_i8_vec, b_i8_vec;
+    __m512h ab_vec = _mm512_setzero_ph();
+
+simsimd_dot_e5m2_sapphire_cycle:
+    if (count_scalars < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, count_scalars);
+        a_i8_vec = _mm256_maskz_loadu_epi8(mask, a_scalars);
+        b_i8_vec = _mm256_maskz_loadu_epi8(mask, b_scalars);
+        count_scalars = 0;
+    }
+    else {
+        a_i8_vec = _mm256_loadu_epi8(a_scalars);
+        b_i8_vec = _mm256_loadu_epi8(b_scalars);
+        a_scalars += 32, b_scalars += 32, count_scalars -= 32;
+    }
+    // Convert E5M2 to F16 and compute dot product
+    // Note: E5M2 to F16 is extremely fast due to same exponent bias
+    __m512i a_f16 = _simsimd_e5m2_to_f16_sapphire(a_i8_vec);
+    __m512i b_f16 = _simsimd_e5m2_to_f16_sapphire(b_i8_vec);
+    ab_vec = _mm512_fmadd_ph(_mm512_castsi512_ph(a_f16), _mm512_castsi512_ph(b_f16), ab_vec);
+    if (count_scalars) goto simsimd_dot_e5m2_sapphire_cycle;
+
+    *result = _mm512_reduce_add_ph(ab_vec);
 }
 
 #pragma clang attribute pop

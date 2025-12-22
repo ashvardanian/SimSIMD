@@ -98,6 +98,8 @@ extern "C" {
     fn simsimd_dot_i8(a: *const i8, b: *const i8, c: u64size, d: *mut Distance);
     fn simsimd_dot_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
     fn simsimd_dot_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
+    fn simsimd_dot_e4m3(a: *const u8, b: *const u8, c: u64size, d: *mut Distance);
+    fn simsimd_dot_e5m2(a: *const u8, b: *const u8, c: u64size, d: *mut Distance);
     fn simsimd_dot_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
     fn simsimd_dot_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
 
@@ -1588,6 +1590,58 @@ impl SpatialSimilarity for bf16 {
         let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
         unsafe { simsimd_l2_bf16(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
         Some(distance_value)
+    }
+}
+
+impl SpatialSimilarity for e4m3 {
+    fn angular(_a: &[Self], _b: &[Self]) -> Option<Distance> {
+        None // Not implemented for e4m3
+    }
+
+    fn dot(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let a_ptr = a.as_ptr() as *const u8;
+        let b_ptr = b.as_ptr() as *const u8;
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_dot_e4m3(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
+        Some(distance_value)
+    }
+
+    fn l2sq(_a: &[Self], _b: &[Self]) -> Option<Distance> {
+        None // Not implemented for e4m3
+    }
+
+    fn l2(_a: &[Self], _b: &[Self]) -> Option<Distance> {
+        None // Not implemented for e4m3
+    }
+}
+
+impl SpatialSimilarity for e5m2 {
+    fn angular(_a: &[Self], _b: &[Self]) -> Option<Distance> {
+        None // Not implemented for e5m2
+    }
+
+    fn dot(a: &[Self], b: &[Self]) -> Option<Distance> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let a_ptr = a.as_ptr() as *const u8;
+        let b_ptr = b.as_ptr() as *const u8;
+        let mut distance_value: Distance = 0.0;
+        let distance_ptr: *mut Distance = &mut distance_value as *mut Distance;
+        unsafe { simsimd_dot_e5m2(a_ptr, b_ptr, a.len() as u64size, distance_ptr) };
+        Some(distance_value)
+    }
+
+    fn l2sq(_a: &[Self], _b: &[Self]) -> Option<Distance> {
+        None // Not implemented for e5m2
+    }
+
+    fn l2(_a: &[Self], _b: &[Self]) -> Option<Distance> {
+        None // Not implemented for e5m2
     }
 }
 

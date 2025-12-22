@@ -51,6 +51,8 @@ _FloatType = Literal[
     "float64",
     "bf16",  #! Not supported by NumPy
     "bfloat16",  #! Not supported by NumPy
+    "e4m3",  #! FP8 E4M3 format
+    "e5m2",  #! FP8 E5M2 format
 ]
 _ComplexType = Literal[
     "complex32",  #! Not supported by NumPy

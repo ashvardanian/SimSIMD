@@ -1239,6 +1239,48 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_u8(simsimd_capability_t v, sim
         }
 }
 
+SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_e4m3(simsimd_capability_t v, simsimd_metric_kind_t k,
+                                                       simsimd_kernel_punned_t *m, simsimd_capability_t *c) {
+    typedef simsimd_kernel_punned_t m_t;
+#if SIMSIMD_TARGET_SAPPHIRE
+    if (v & simsimd_cap_sapphire_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e4m3_sapphire, *c = simsimd_cap_sapphire_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_GENOA
+    if (v & simsimd_cap_genoa_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e4m3_genoa, *c = simsimd_cap_genoa_k; return;
+        default: break;
+        }
+#endif
+    if (v & simsimd_cap_serial_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e4m3_serial, *c = simsimd_cap_serial_k; return;
+        default: break;
+        }
+}
+
+SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_e5m2(simsimd_capability_t v, simsimd_metric_kind_t k,
+                                                       simsimd_kernel_punned_t *m, simsimd_capability_t *c) {
+    typedef simsimd_kernel_punned_t m_t;
+#if SIMSIMD_TARGET_SAPPHIRE
+    if (v & simsimd_cap_sapphire_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e5m2_sapphire, *c = simsimd_cap_sapphire_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_GENOA
+    if (v & simsimd_cap_genoa_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e5m2_genoa, *c = simsimd_cap_genoa_k; return;
+        default: break;
+        }
+#endif
+    if (v & simsimd_cap_serial_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e5m2_serial, *c = simsimd_cap_serial_k; return;
+        default: break;
+        }
+}
+
 SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_b8(simsimd_capability_t v, simsimd_metric_kind_t k,
                                                      simsimd_kernel_punned_t *m, simsimd_capability_t *c) {
     typedef simsimd_kernel_punned_t m_t;
@@ -1713,6 +1755,8 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_implementation( //
     case simsimd_f32_k: _simsimd_find_kernel_punned_f32(viable, kind, m, c); return;
     case simsimd_f16_k: _simsimd_find_kernel_punned_f16(viable, kind, m, c); return;
     case simsimd_bf16_k: _simsimd_find_kernel_punned_bf16(viable, kind, m, c); return;
+    case simsimd_e4m3_k: _simsimd_find_kernel_punned_e4m3(viable, kind, m, c); return;
+    case simsimd_e5m2_k: _simsimd_find_kernel_punned_e5m2(viable, kind, m, c); return;
 
     case simsimd_f32c_k: _simsimd_find_kernel_punned_f32c(viable, kind, m, c); return;
     case simsimd_f64c_k: _simsimd_find_kernel_punned_f64c(viable, kind, m, c); return;
@@ -1830,6 +1874,10 @@ SIMSIMD_DYNAMIC void simsimd_dot_u8(simsimd_u8_t const *a, simsimd_u8_t const *b
 SIMSIMD_DYNAMIC void simsimd_dot_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
                                      simsimd_distance_t *d);
 SIMSIMD_DYNAMIC void simsimd_dot_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
+                                      simsimd_distance_t *d);
+SIMSIMD_DYNAMIC void simsimd_dot_e4m3(simsimd_e4m3_t const *a, simsimd_e4m3_t const *b, simsimd_size_t n,
+                                      simsimd_distance_t *d);
+SIMSIMD_DYNAMIC void simsimd_dot_e5m2(simsimd_e5m2_t const *a, simsimd_e5m2_t const *b, simsimd_size_t n,
                                       simsimd_distance_t *d);
 SIMSIMD_DYNAMIC void simsimd_dot_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
                                      simsimd_distance_t *d);
@@ -2191,6 +2239,26 @@ SIMSIMD_PUBLIC void simsimd_dot_bf16(simsimd_bf16_t const *a, simsimd_bf16_t con
     simsimd_dot_bf16_neon(a, b, n, d);
 #else
     simsimd_dot_bf16_serial(a, b, n, d);
+#endif
+}
+SIMSIMD_PUBLIC void simsimd_dot_e4m3(simsimd_e4m3_t const *a, simsimd_e4m3_t const *b, simsimd_size_t n,
+                                     simsimd_distance_t *d) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_dot_e4m3_sapphire(a, b, n, d);
+#elif SIMSIMD_TARGET_GENOA
+    simsimd_dot_e4m3_genoa(a, b, n, d);
+#else
+    simsimd_dot_e4m3_serial(a, b, n, d);
+#endif
+}
+SIMSIMD_PUBLIC void simsimd_dot_e5m2(simsimd_e5m2_t const *a, simsimd_e5m2_t const *b, simsimd_size_t n,
+                                     simsimd_distance_t *d) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_dot_e5m2_sapphire(a, b, n, d);
+#elif SIMSIMD_TARGET_GENOA
+    simsimd_dot_e5m2_genoa(a, b, n, d);
+#else
+    simsimd_dot_e5m2_serial(a, b, n, d);
 #endif
 }
 SIMSIMD_PUBLIC void simsimd_dot_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,

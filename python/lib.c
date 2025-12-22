@@ -170,6 +170,12 @@ simsimd_datatype_t python_string_to_datatype(char const *name) {
     else if (same_string(name, "bfloat16") || same_string(name, "bf16")) // SimSIMD-specific
         return simsimd_bf16_k;
 
+    // FP8 formats (ML-focused 8-bit floats):
+    else if (same_string(name, "e4m3")) // SimSIMD-specific
+        return simsimd_e4m3_k;
+    else if (same_string(name, "e5m2")) // SimSIMD-specific
+        return simsimd_e5m2_k;
+
     // Complex numbers:
     else if (same_string(name, "complex64") ||                                             // SimSIMD-specific
              same_string(name, "F4") || same_string(name, "<F4") ||                        // Sized complex
@@ -300,6 +306,8 @@ size_t bytes_per_datatype(simsimd_datatype_t dtype) {
     case simsimd_f32_k: return sizeof(simsimd_f32_t);
     case simsimd_f16_k: return sizeof(simsimd_f16_t);
     case simsimd_bf16_k: return sizeof(simsimd_bf16_t);
+    case simsimd_e4m3_k: return sizeof(simsimd_e4m3_t);
+    case simsimd_e5m2_k: return sizeof(simsimd_e5m2_t);
     case simsimd_f64c_k: return sizeof(simsimd_f64_t) * 2;
     case simsimd_f32c_k: return sizeof(simsimd_f32_t) * 2;
     case simsimd_f16c_k: return sizeof(simsimd_f16_t) * 2;
