@@ -1044,6 +1044,85 @@ SIMSIMD_INTERNAL __m256d _simsimd_f64x4_atan_haswell(__m256d const inputs) {
     return result;
 }
 
+SIMSIMD_INTERNAL __m256d _simsimd_f64x4_atan2_haswell(__m256d const ys_inputs, __m256d const xs_inputs) {
+    // Polynomial coefficients for atan approximation (19 coefficients, same as atan)
+    __m256d const coeff_19 = _mm256_set1_pd(-1.88796008463073496563746e-05);
+    __m256d const coeff_18 = _mm256_set1_pd(+0.000209850076645816976906797);
+    __m256d const coeff_17 = _mm256_set1_pd(-0.00110611831486672482563471);
+    __m256d const coeff_16 = _mm256_set1_pd(+0.00370026744188713119232403);
+    __m256d const coeff_15 = _mm256_set1_pd(-0.00889896195887655491740809);
+    __m256d const coeff_14 = _mm256_set1_pd(+0.016599329773529201970117);
+    __m256d const coeff_13 = _mm256_set1_pd(-0.0254517624932312641616861);
+    __m256d const coeff_12 = _mm256_set1_pd(+0.0337852580001353069993897);
+    __m256d const coeff_11 = _mm256_set1_pd(-0.0407629191276836500001934);
+    __m256d const coeff_10 = _mm256_set1_pd(+0.0466667150077840625632675);
+    __m256d const coeff_9 = _mm256_set1_pd(-0.0523674852303482457616113);
+    __m256d const coeff_8 = _mm256_set1_pd(+0.0587666392926673580854313);
+    __m256d const coeff_7 = _mm256_set1_pd(-0.0666573579361080525984562);
+    __m256d const coeff_6 = _mm256_set1_pd(+0.0769219538311769618355029);
+    __m256d const coeff_5 = _mm256_set1_pd(-0.090908995008245008229153);
+    __m256d const coeff_4 = _mm256_set1_pd(+0.111111105648261418443745);
+    __m256d const coeff_3 = _mm256_set1_pd(-0.14285714266771329383765);
+    __m256d const coeff_2 = _mm256_set1_pd(+0.199999999996591265594148);
+    __m256d const coeff_1 = _mm256_set1_pd(-0.333333333333311110369124);
+    __m256d const sign_mask = _mm256_set1_pd(-0.0);
+
+    // Quadrant adjustments normalizing to absolute values of x and y
+    __m256d xs_negative_mask = _mm256_cmp_pd(xs_inputs, _mm256_setzero_pd(), _CMP_LT_OS);
+    __m256d xs = _mm256_andnot_pd(sign_mask, xs_inputs); // abs(xs_inputs)
+    __m256d ys = _mm256_andnot_pd(sign_mask, ys_inputs); // abs(ys_inputs)
+
+    // Ensure proper fraction where the numerator is smaller than the denominator
+    __m256d swap_mask = _mm256_cmp_pd(ys, xs, _CMP_GT_OS);
+    __m256d temps = xs;
+    xs = _mm256_blendv_pd(xs, ys, swap_mask);
+    __m256d neg_temps = _mm256_sub_pd(_mm256_setzero_pd(), temps);
+    ys = _mm256_blendv_pd(ys, neg_temps, swap_mask);
+
+    // Compute ratio and powers
+    __m256d const ratio = _mm256_div_pd(ys, xs);
+    __m256d const ratio_squared = _mm256_mul_pd(ratio, ratio);
+    __m256d const ratio_cubed = _mm256_mul_pd(ratio, ratio_squared);
+
+    // Polynomial evaluation using Horner's method
+    __m256d polynomials = coeff_19;
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_18);
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_17);
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_16);
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_15);
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_14);
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_13);
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_12);
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_11);
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_10);
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_9);
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_8);
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_7);
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_6);
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_5);
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_4);
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_3);
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_2);
+    polynomials = _mm256_fmadd_pd(polynomials, ratio_squared, coeff_1);
+
+    // Compute the result using masks for quadrant adjustments
+    __m256d results = _mm256_fmadd_pd(ratio_cubed, polynomials, ratio);
+
+    // Adjust for xs_negative: result = result - π (when xs was negative)
+    __m256d pi_adjusted = _mm256_sub_pd(results, _mm256_set1_pd(3.14159265358979323846));
+    results = _mm256_blendv_pd(results, pi_adjusted, xs_negative_mask);
+
+    // Adjust for swap: result = result + π/2 (when we swapped x and y)
+    __m256d half_pi_adjusted = _mm256_add_pd(results, _mm256_set1_pd(1.5707963267948966));
+    results = _mm256_blendv_pd(results, half_pi_adjusted, swap_mask);
+
+    // Adjust sign based on original xs sign (flip sign if xs was negative)
+    __m256d sign_flipped = _mm256_xor_pd(results, sign_mask);
+    results = _mm256_blendv_pd(results, sign_flipped, xs_negative_mask);
+
+    return results;
+}
+
 // Public wrapper functions with tail handling via serial fallback
 SIMSIMD_PUBLIC void simsimd_sin_f32_haswell(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs) {
     simsimd_size_t i = 0;
