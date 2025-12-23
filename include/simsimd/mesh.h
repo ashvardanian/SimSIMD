@@ -81,6 +81,26 @@ SIMSIMD_PUBLIC void simsimd_kabsch_f32_haswell(simsimd_f32_t const* a, simsimd_f
 SIMSIMD_PUBLIC void simsimd_rmsd_f64_haswell(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_f64_t* a_centroid, simsimd_f64_t* b_centroid, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_kabsch_f64_haswell(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_f64_t* a_centroid, simsimd_f64_t* b_centroid, simsimd_distance_t* result);
 
+/*  Umeyama algorithm: Kabsch + uniform scaling for similarity transform.
+ *  Finds optimal rotation R and scale c that minimizes: ||c*R*A - B||
+ *  Reference: S. Umeyama, "Least-squares estimation of transformation parameters
+ *  between two point patterns", IEEE TPAMI 1991.
+ */
+SIMSIMD_PUBLIC void simsimd_umeyama_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_f64_t* a_centroid, simsimd_f64_t* b_centroid, simsimd_distance_t* scale, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_umeyama_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_f32_t* a_centroid, simsimd_f32_t* b_centroid, simsimd_distance_t* scale, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_umeyama_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_f16_t* a_centroid, simsimd_f16_t* b_centroid, simsimd_distance_t* scale, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_umeyama_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_bf16_t* a_centroid, simsimd_bf16_t* b_centroid, simsimd_distance_t* scale, simsimd_distance_t* result);
+
+SIMSIMD_PUBLIC void simsimd_umeyama_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_f32_t* a_centroid, simsimd_f32_t* b_centroid, simsimd_distance_t* scale, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_umeyama_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_f16_t* a_centroid, simsimd_f16_t* b_centroid, simsimd_distance_t* scale, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_umeyama_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_bf16_t* a_centroid, simsimd_bf16_t* b_centroid, simsimd_distance_t* scale, simsimd_distance_t* result);
+
+SIMSIMD_PUBLIC void simsimd_umeyama_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_f32_t* a_centroid, simsimd_f32_t* b_centroid, simsimd_distance_t* scale, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_umeyama_f64_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_f64_t* a_centroid, simsimd_f64_t* b_centroid, simsimd_distance_t* scale, simsimd_distance_t* result);
+
+SIMSIMD_PUBLIC void simsimd_umeyama_f32_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_f32_t* a_centroid, simsimd_f32_t* b_centroid, simsimd_distance_t* scale, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_umeyama_f64_haswell(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_f64_t* a_centroid, simsimd_f64_t* b_centroid, simsimd_distance_t* scale, simsimd_distance_t* result);
+
 // clang-format on
 
 /*  Constants for the McAdams 3x3 SVD algorithm.
@@ -515,6 +535,126 @@ SIMSIMD_INTERNAL simsimd_f32_t _simsimd_det3x3_f32(simsimd_f32_t const *m) {
         *result = SIMSIMD_SQRT(sum_sq * inv_n);                                                                   \
     }
 
+/*  Umeyama algorithm for optimal similarity transformation (rotation + uniform scale).
+ *  Finds the rotation matrix R and scale factor c that minimizes ||c*R*A - B||.
+ *  Reference: S. Umeyama, "Least-squares estimation of transformation parameters
+ *  between two point patterns", IEEE TPAMI 1991.
+ */
+#define SIMSIMD_MAKE_UMEYAMA(name, input_type, accumulator_type, load_and_convert)                                 \
+    SIMSIMD_PUBLIC void simsimd_umeyama_##input_type##_##name(                                                     \
+        simsimd_##input_type##_t const *a, simsimd_##input_type##_t const *b, simsimd_size_t n,                    \
+        simsimd_##input_type##_t *a_centroid, simsimd_##input_type##_t *b_centroid, simsimd_distance_t *scale_out, \
+        simsimd_distance_t *result) {                                                                              \
+        /* Step 1: Compute centroids */                                                                            \
+        simsimd_##accumulator_type##_t ax = 0, ay = 0, az = 0;                                                     \
+        simsimd_##accumulator_type##_t bx = 0, by = 0, bz = 0;                                                     \
+        for (simsimd_size_t i = 0; i < n; ++i) {                                                                   \
+            ax += load_and_convert(a + i * 3 + 0);                                                                 \
+            ay += load_and_convert(a + i * 3 + 1);                                                                 \
+            az += load_and_convert(a + i * 3 + 2);                                                                 \
+            bx += load_and_convert(b + i * 3 + 0);                                                                 \
+            by += load_and_convert(b + i * 3 + 1);                                                                 \
+            bz += load_and_convert(b + i * 3 + 2);                                                                 \
+        }                                                                                                          \
+        simsimd_##accumulator_type##_t inv_n = (simsimd_##accumulator_type##_t)1.0 / n;                            \
+        ax *= inv_n;                                                                                               \
+        ay *= inv_n;                                                                                               \
+        az *= inv_n;                                                                                               \
+        bx *= inv_n;                                                                                               \
+        by *= inv_n;                                                                                               \
+        bz *= inv_n;                                                                                               \
+        if (a_centroid) {                                                                                          \
+            a_centroid[0] = (simsimd_##input_type##_t)ax;                                                          \
+            a_centroid[1] = (simsimd_##input_type##_t)ay;                                                          \
+            a_centroid[2] = (simsimd_##input_type##_t)az;                                                          \
+        }                                                                                                          \
+        if (b_centroid) {                                                                                          \
+            b_centroid[0] = (simsimd_##input_type##_t)bx;                                                          \
+            b_centroid[1] = (simsimd_##input_type##_t)by;                                                          \
+            b_centroid[2] = (simsimd_##input_type##_t)bz;                                                          \
+        }                                                                                                          \
+        /* Step 2: Build covariance matrix H and compute variance of A */                                          \
+        simsimd_##accumulator_type##_t h_acc[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};                                     \
+        simsimd_##accumulator_type##_t var_a = 0;                                                                  \
+        for (simsimd_size_t i = 0; i < n; ++i) {                                                                   \
+            simsimd_##accumulator_type##_t pa[3], pb[3];                                                           \
+            pa[0] = load_and_convert(a + i * 3 + 0) - ax;                                                          \
+            pa[1] = load_and_convert(a + i * 3 + 1) - ay;                                                          \
+            pa[2] = load_and_convert(a + i * 3 + 2) - az;                                                          \
+            pb[0] = load_and_convert(b + i * 3 + 0) - bx;                                                          \
+            pb[1] = load_and_convert(b + i * 3 + 1) - by;                                                          \
+            pb[2] = load_and_convert(b + i * 3 + 2) - bz;                                                          \
+            var_a += pa[0] * pa[0] + pa[1] * pa[1] + pa[2] * pa[2];                                                \
+            h_acc[0] += pa[0] * pb[0];                                                                             \
+            h_acc[1] += pa[0] * pb[1];                                                                             \
+            h_acc[2] += pa[0] * pb[2];                                                                             \
+            h_acc[3] += pa[1] * pb[0];                                                                             \
+            h_acc[4] += pa[1] * pb[1];                                                                             \
+            h_acc[5] += pa[1] * pb[2];                                                                             \
+            h_acc[6] += pa[2] * pb[0];                                                                             \
+            h_acc[7] += pa[2] * pb[1];                                                                             \
+            h_acc[8] += pa[2] * pb[2];                                                                             \
+        }                                                                                                          \
+        var_a *= inv_n;                                                                                            \
+        /* Convert to f32 for SVD */                                                                               \
+        simsimd_f32_t h[9];                                                                                        \
+        for (int j = 0; j < 9; ++j) h[j] = (simsimd_f32_t)h_acc[j];                                                \
+        /* Step 3: SVD of H = U * S * V^T */                                                                       \
+        simsimd_f32_t u[9], s[9], v[9];                                                                            \
+        _simsimd_svd3x3_f32(h, u, s, v);                                                                           \
+        /* Step 4: R = V * U^T */                                                                                  \
+        simsimd_f32_t r[9];                                                                                        \
+        r[0] = v[0] * u[0] + v[1] * u[1] + v[2] * u[2];                                                            \
+        r[1] = v[0] * u[3] + v[1] * u[4] + v[2] * u[5];                                                            \
+        r[2] = v[0] * u[6] + v[1] * u[7] + v[2] * u[8];                                                            \
+        r[3] = v[3] * u[0] + v[4] * u[1] + v[5] * u[2];                                                            \
+        r[4] = v[3] * u[3] + v[4] * u[4] + v[5] * u[5];                                                            \
+        r[5] = v[3] * u[6] + v[4] * u[7] + v[5] * u[8];                                                            \
+        r[6] = v[6] * u[0] + v[7] * u[1] + v[8] * u[2];                                                            \
+        r[7] = v[6] * u[3] + v[7] * u[4] + v[8] * u[5];                                                            \
+        r[8] = v[6] * u[6] + v[7] * u[7] + v[8] * u[8];                                                            \
+        /* Handle reflection and compute scale: c = trace(D*S) / var_a */                                          \
+        /* D = diag(1, 1, det(R)), singular values are s[0], s[4], s[8] (diagonal of S) */                         \
+        simsimd_f32_t det = _simsimd_det3x3_f32(r);                                                                \
+        simsimd_f32_t d3 = det < 0 ? -1.0f : 1.0f;                                                                 \
+        simsimd_f32_t trace_ds = s[0] + s[4] + d3 * s[8];                                                          \
+        simsimd_##accumulator_type##_t c = (simsimd_##accumulator_type##_t)trace_ds / (n * var_a);                 \
+        if (scale_out) *scale_out = c;                                                                             \
+        if (det < 0) {                                                                                             \
+            v[2] = -v[2];                                                                                          \
+            v[5] = -v[5];                                                                                          \
+            v[8] = -v[8];                                                                                          \
+            r[0] = v[0] * u[0] + v[1] * u[1] + v[2] * u[2];                                                        \
+            r[1] = v[0] * u[3] + v[1] * u[4] + v[2] * u[5];                                                        \
+            r[2] = v[0] * u[6] + v[1] * u[7] + v[2] * u[8];                                                        \
+            r[3] = v[3] * u[0] + v[4] * u[1] + v[5] * u[2];                                                        \
+            r[4] = v[3] * u[3] + v[4] * u[4] + v[5] * u[5];                                                        \
+            r[5] = v[3] * u[6] + v[4] * u[7] + v[5] * u[8];                                                        \
+            r[6] = v[6] * u[0] + v[7] * u[1] + v[8] * u[2];                                                        \
+            r[7] = v[6] * u[3] + v[7] * u[4] + v[8] * u[5];                                                        \
+            r[8] = v[6] * u[6] + v[7] * u[7] + v[8] * u[8];                                                        \
+        }                                                                                                          \
+        /* Step 5: Compute RMSD after similarity transform: ||c*R*a - b|| */                                       \
+        simsimd_##accumulator_type##_t sum_sq = 0;                                                                 \
+        for (simsimd_size_t i = 0; i < n; ++i) {                                                                   \
+            simsimd_f32_t pa[3], pb[3], ra[3];                                                                     \
+            pa[0] = (simsimd_f32_t)(load_and_convert(a + i * 3 + 0) - ax);                                         \
+            pa[1] = (simsimd_f32_t)(load_and_convert(a + i * 3 + 1) - ay);                                         \
+            pa[2] = (simsimd_f32_t)(load_and_convert(a + i * 3 + 2) - az);                                         \
+            pb[0] = (simsimd_f32_t)(load_and_convert(b + i * 3 + 0) - bx);                                         \
+            pb[1] = (simsimd_f32_t)(load_and_convert(b + i * 3 + 1) - by);                                         \
+            pb[2] = (simsimd_f32_t)(load_and_convert(b + i * 3 + 2) - bz);                                         \
+            ra[0] = (simsimd_f32_t)c * (r[0] * pa[0] + r[1] * pa[1] + r[2] * pa[2]);                               \
+            ra[1] = (simsimd_f32_t)c * (r[3] * pa[0] + r[4] * pa[1] + r[5] * pa[2]);                               \
+            ra[2] = (simsimd_f32_t)c * (r[6] * pa[0] + r[7] * pa[1] + r[8] * pa[2]);                               \
+            simsimd_f32_t dx = ra[0] - pb[0];                                                                      \
+            simsimd_f32_t dy = ra[1] - pb[1];                                                                      \
+            simsimd_f32_t dz = ra[2] - pb[2];                                                                      \
+            sum_sq += dx * dx + dy * dy + dz * dz;                                                                 \
+        }                                                                                                          \
+        *result = SIMSIMD_SQRT(sum_sq * inv_n);                                                                    \
+    }
+
 SIMSIMD_MAKE_RMSD(serial, f64, f64, SIMSIMD_DEREFERENCE)   // simsimd_rmsd_f64_serial
 SIMSIMD_MAKE_KABSCH(serial, f64, f64, SIMSIMD_DEREFERENCE) // simsimd_kabsch_f64_serial
 
@@ -535,6 +675,15 @@ SIMSIMD_MAKE_KABSCH(accurate, f16, f64, SIMSIMD_F16_TO_F32) // simsimd_kabsch_f1
 
 SIMSIMD_MAKE_RMSD(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)   // simsimd_rmsd_bf16_accurate
 SIMSIMD_MAKE_KABSCH(accurate, bf16, f64, SIMSIMD_BF16_TO_F32) // simsimd_kabsch_bf16_accurate
+
+SIMSIMD_MAKE_UMEYAMA(serial, f64, f64, SIMSIMD_DEREFERENCE)  // simsimd_umeyama_f64_serial
+SIMSIMD_MAKE_UMEYAMA(serial, f32, f32, SIMSIMD_DEREFERENCE)  // simsimd_umeyama_f32_serial
+SIMSIMD_MAKE_UMEYAMA(serial, f16, f32, SIMSIMD_F16_TO_F32)   // simsimd_umeyama_f16_serial
+SIMSIMD_MAKE_UMEYAMA(serial, bf16, f32, SIMSIMD_BF16_TO_F32) // simsimd_umeyama_bf16_serial
+
+SIMSIMD_MAKE_UMEYAMA(accurate, f32, f64, SIMSIMD_DEREFERENCE)  // simsimd_umeyama_f32_accurate
+SIMSIMD_MAKE_UMEYAMA(accurate, f16, f64, SIMSIMD_F16_TO_F32)   // simsimd_umeyama_f16_accurate
+SIMSIMD_MAKE_UMEYAMA(accurate, bf16, f64, SIMSIMD_BF16_TO_F32) // simsimd_umeyama_bf16_accurate
 
 #if _SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_SKYLAKE
@@ -1360,6 +1509,525 @@ SIMSIMD_PUBLIC void simsimd_kabsch_f64_skylake(simsimd_f64_t const *a, simsimd_f
     *result = SIMSIMD_SQRT((simsimd_distance_t)_mm512_reduce_add_pd(sum_sq_vec) * inv_n);
 }
 
+SIMSIMD_PUBLIC void simsimd_umeyama_f32_skylake(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
+                                                simsimd_f32_t *a_centroid, simsimd_f32_t *b_centroid,
+                                                simsimd_distance_t *scale_out, simsimd_distance_t *result) {
+    // Fused single-pass: centroids, covariance, and variance of A
+    __m512i const gather_idx = _mm512_setr_epi32(0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45);
+    __m512 const zeros_f32 = _mm512_setzero_ps();
+    __m512d const zeros_f64 = _mm512_setzero_pd();
+
+    __m512d a_x_sum = zeros_f64, a_y_sum = zeros_f64, a_z_sum = zeros_f64;
+    __m512d b_x_sum = zeros_f64, b_y_sum = zeros_f64, b_z_sum = zeros_f64;
+    __m512d h00 = zeros_f64, h01 = zeros_f64, h02 = zeros_f64;
+    __m512d h10 = zeros_f64, h11 = zeros_f64, h12 = zeros_f64;
+    __m512d h20 = zeros_f64, h21 = zeros_f64, h22 = zeros_f64;
+    __m512d var_a_acc = zeros_f64;
+
+    simsimd_size_t i = 0;
+    __m512 a_x_vec, a_y_vec, a_z_vec, b_x_vec, b_y_vec, b_z_vec;
+
+    for (; i + 16 <= n; i += 16) {
+        _simsimd_deinterleave_f32x16_skylake(a + i * 3, &a_x_vec, &a_y_vec, &a_z_vec);
+        _simsimd_deinterleave_f32x16_skylake(b + i * 3, &b_x_vec, &b_y_vec, &b_z_vec);
+
+        __m512d a_x_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_vec));
+        __m512d a_y_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_vec));
+        __m512d a_z_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_vec));
+        __m512d b_x_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_vec));
+        __m512d b_y_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_vec));
+        __m512d b_z_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_vec));
+
+        a_x_sum = _mm512_add_pd(a_x_sum, a_x_lo), a_y_sum = _mm512_add_pd(a_y_sum, a_y_lo);
+        a_z_sum = _mm512_add_pd(a_z_sum, a_z_lo);
+        b_x_sum = _mm512_add_pd(b_x_sum, b_x_lo), b_y_sum = _mm512_add_pd(b_y_sum, b_y_lo);
+        b_z_sum = _mm512_add_pd(b_z_sum, b_z_lo);
+
+        h00 = _mm512_fmadd_pd(a_x_lo, b_x_lo, h00), h01 = _mm512_fmadd_pd(a_x_lo, b_y_lo, h01);
+        h02 = _mm512_fmadd_pd(a_x_lo, b_z_lo, h02);
+        h10 = _mm512_fmadd_pd(a_y_lo, b_x_lo, h10), h11 = _mm512_fmadd_pd(a_y_lo, b_y_lo, h11);
+        h12 = _mm512_fmadd_pd(a_y_lo, b_z_lo, h12);
+        h20 = _mm512_fmadd_pd(a_z_lo, b_x_lo, h20), h21 = _mm512_fmadd_pd(a_z_lo, b_y_lo, h21);
+        h22 = _mm512_fmadd_pd(a_z_lo, b_z_lo, h22);
+        var_a_acc = _mm512_fmadd_pd(a_x_lo, a_x_lo, var_a_acc);
+        var_a_acc = _mm512_fmadd_pd(a_y_lo, a_y_lo, var_a_acc);
+        var_a_acc = _mm512_fmadd_pd(a_z_lo, a_z_lo, var_a_acc);
+
+        __m512d a_x_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_vec, 1));
+        __m512d a_y_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_vec, 1));
+        __m512d a_z_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_vec, 1));
+        __m512d b_x_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_vec, 1));
+        __m512d b_y_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_vec, 1));
+        __m512d b_z_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_vec, 1));
+
+        a_x_sum = _mm512_add_pd(a_x_sum, a_x_hi), a_y_sum = _mm512_add_pd(a_y_sum, a_y_hi);
+        a_z_sum = _mm512_add_pd(a_z_sum, a_z_hi);
+        b_x_sum = _mm512_add_pd(b_x_sum, b_x_hi), b_y_sum = _mm512_add_pd(b_y_sum, b_y_hi);
+        b_z_sum = _mm512_add_pd(b_z_sum, b_z_hi);
+
+        h00 = _mm512_fmadd_pd(a_x_hi, b_x_hi, h00), h01 = _mm512_fmadd_pd(a_x_hi, b_y_hi, h01);
+        h02 = _mm512_fmadd_pd(a_x_hi, b_z_hi, h02);
+        h10 = _mm512_fmadd_pd(a_y_hi, b_x_hi, h10), h11 = _mm512_fmadd_pd(a_y_hi, b_y_hi, h11);
+        h12 = _mm512_fmadd_pd(a_y_hi, b_z_hi, h12);
+        h20 = _mm512_fmadd_pd(a_z_hi, b_x_hi, h20), h21 = _mm512_fmadd_pd(a_z_hi, b_y_hi, h21);
+        h22 = _mm512_fmadd_pd(a_z_hi, b_z_hi, h22);
+        var_a_acc = _mm512_fmadd_pd(a_x_hi, a_x_hi, var_a_acc);
+        var_a_acc = _mm512_fmadd_pd(a_y_hi, a_y_hi, var_a_acc);
+        var_a_acc = _mm512_fmadd_pd(a_z_hi, a_z_hi, var_a_acc);
+    }
+
+    if (i < n) {
+        simsimd_size_t tail = n - i;
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, tail);
+        simsimd_f32_t const *a_tail = a + i * 3;
+        simsimd_f32_t const *b_tail = b + i * 3;
+        a_x_vec = _mm512_mask_i32gather_ps(zeros_f32, mask, gather_idx, a_tail + 0, 4);
+        a_y_vec = _mm512_mask_i32gather_ps(zeros_f32, mask, gather_idx, a_tail + 1, 4);
+        a_z_vec = _mm512_mask_i32gather_ps(zeros_f32, mask, gather_idx, a_tail + 2, 4);
+        b_x_vec = _mm512_mask_i32gather_ps(zeros_f32, mask, gather_idx, b_tail + 0, 4);
+        b_y_vec = _mm512_mask_i32gather_ps(zeros_f32, mask, gather_idx, b_tail + 1, 4);
+        b_z_vec = _mm512_mask_i32gather_ps(zeros_f32, mask, gather_idx, b_tail + 2, 4);
+
+        __m512d a_x_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_vec));
+        __m512d a_y_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_vec));
+        __m512d a_z_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_vec));
+        __m512d b_x_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_vec));
+        __m512d b_y_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_vec));
+        __m512d b_z_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_vec));
+
+        a_x_sum = _mm512_add_pd(a_x_sum, a_x_lo), a_y_sum = _mm512_add_pd(a_y_sum, a_y_lo);
+        a_z_sum = _mm512_add_pd(a_z_sum, a_z_lo);
+        b_x_sum = _mm512_add_pd(b_x_sum, b_x_lo), b_y_sum = _mm512_add_pd(b_y_sum, b_y_lo);
+        b_z_sum = _mm512_add_pd(b_z_sum, b_z_lo);
+
+        h00 = _mm512_fmadd_pd(a_x_lo, b_x_lo, h00), h01 = _mm512_fmadd_pd(a_x_lo, b_y_lo, h01);
+        h02 = _mm512_fmadd_pd(a_x_lo, b_z_lo, h02);
+        h10 = _mm512_fmadd_pd(a_y_lo, b_x_lo, h10), h11 = _mm512_fmadd_pd(a_y_lo, b_y_lo, h11);
+        h12 = _mm512_fmadd_pd(a_y_lo, b_z_lo, h12);
+        h20 = _mm512_fmadd_pd(a_z_lo, b_x_lo, h20), h21 = _mm512_fmadd_pd(a_z_lo, b_y_lo, h21);
+        h22 = _mm512_fmadd_pd(a_z_lo, b_z_lo, h22);
+        var_a_acc = _mm512_fmadd_pd(a_x_lo, a_x_lo, var_a_acc);
+        var_a_acc = _mm512_fmadd_pd(a_y_lo, a_y_lo, var_a_acc);
+        var_a_acc = _mm512_fmadd_pd(a_z_lo, a_z_lo, var_a_acc);
+
+        __m512d a_x_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_vec, 1));
+        __m512d a_y_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_vec, 1));
+        __m512d a_z_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_vec, 1));
+        __m512d b_x_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_vec, 1));
+        __m512d b_y_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_vec, 1));
+        __m512d b_z_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_vec, 1));
+
+        a_x_sum = _mm512_add_pd(a_x_sum, a_x_hi), a_y_sum = _mm512_add_pd(a_y_sum, a_y_hi);
+        a_z_sum = _mm512_add_pd(a_z_sum, a_z_hi);
+        b_x_sum = _mm512_add_pd(b_x_sum, b_x_hi), b_y_sum = _mm512_add_pd(b_y_sum, b_y_hi);
+        b_z_sum = _mm512_add_pd(b_z_sum, b_z_hi);
+
+        h00 = _mm512_fmadd_pd(a_x_hi, b_x_hi, h00), h01 = _mm512_fmadd_pd(a_x_hi, b_y_hi, h01);
+        h02 = _mm512_fmadd_pd(a_x_hi, b_z_hi, h02);
+        h10 = _mm512_fmadd_pd(a_y_hi, b_x_hi, h10), h11 = _mm512_fmadd_pd(a_y_hi, b_y_hi, h11);
+        h12 = _mm512_fmadd_pd(a_y_hi, b_z_hi, h12);
+        h20 = _mm512_fmadd_pd(a_z_hi, b_x_hi, h20), h21 = _mm512_fmadd_pd(a_z_hi, b_y_hi, h21);
+        h22 = _mm512_fmadd_pd(a_z_hi, b_z_hi, h22);
+        var_a_acc = _mm512_fmadd_pd(a_x_hi, a_x_hi, var_a_acc);
+        var_a_acc = _mm512_fmadd_pd(a_y_hi, a_y_hi, var_a_acc);
+        var_a_acc = _mm512_fmadd_pd(a_z_hi, a_z_hi, var_a_acc);
+    }
+
+    // Reduce centroids
+    simsimd_f64_t inv_n = 1.0 / (simsimd_f64_t)n;
+    simsimd_f64_t sum_ax = _mm512_reduce_add_pd(a_x_sum), sum_ay = _mm512_reduce_add_pd(a_y_sum);
+    simsimd_f64_t sum_az = _mm512_reduce_add_pd(a_z_sum);
+    simsimd_f64_t sum_bx = _mm512_reduce_add_pd(b_x_sum), sum_by = _mm512_reduce_add_pd(b_y_sum);
+    simsimd_f64_t sum_bz = _mm512_reduce_add_pd(b_z_sum);
+
+    simsimd_f64_t a_cx = sum_ax * inv_n, a_cy = sum_ay * inv_n, a_cz = sum_az * inv_n;
+    simsimd_f64_t b_cx = sum_bx * inv_n, b_cy = sum_by * inv_n, b_cz = sum_bz * inv_n;
+
+    if (a_centroid)
+        a_centroid[0] = (simsimd_f32_t)a_cx, a_centroid[1] = (simsimd_f32_t)a_cy, a_centroid[2] = (simsimd_f32_t)a_cz;
+    if (b_centroid)
+        b_centroid[0] = (simsimd_f32_t)b_cx, b_centroid[1] = (simsimd_f32_t)b_cy, b_centroid[2] = (simsimd_f32_t)b_cz;
+
+    // Compute centered covariance and variance
+    simsimd_f64_t var_a_sum = _mm512_reduce_add_pd(var_a_acc);
+    simsimd_f64_t var_a = var_a_sum * inv_n - (a_cx * a_cx + a_cy * a_cy + a_cz * a_cz);
+
+    simsimd_f32_t h[9];
+    h[0] = (simsimd_f32_t)(_mm512_reduce_add_pd(h00) - sum_ax * sum_bx * inv_n);
+    h[1] = (simsimd_f32_t)(_mm512_reduce_add_pd(h01) - sum_ax * sum_by * inv_n);
+    h[2] = (simsimd_f32_t)(_mm512_reduce_add_pd(h02) - sum_ax * sum_bz * inv_n);
+    h[3] = (simsimd_f32_t)(_mm512_reduce_add_pd(h10) - sum_ay * sum_bx * inv_n);
+    h[4] = (simsimd_f32_t)(_mm512_reduce_add_pd(h11) - sum_ay * sum_by * inv_n);
+    h[5] = (simsimd_f32_t)(_mm512_reduce_add_pd(h12) - sum_ay * sum_bz * inv_n);
+    h[6] = (simsimd_f32_t)(_mm512_reduce_add_pd(h20) - sum_az * sum_bx * inv_n);
+    h[7] = (simsimd_f32_t)(_mm512_reduce_add_pd(h21) - sum_az * sum_by * inv_n);
+    h[8] = (simsimd_f32_t)(_mm512_reduce_add_pd(h22) - sum_az * sum_bz * inv_n);
+
+    // SVD
+    simsimd_f32_t u[9], s[9], v[9];
+    _simsimd_svd3x3_f32(h, u, s, v);
+
+    // R = V * U^T
+    simsimd_f32_t r[9];
+    r[0] = v[0] * u[0] + v[1] * u[1] + v[2] * u[2];
+    r[1] = v[0] * u[3] + v[1] * u[4] + v[2] * u[5];
+    r[2] = v[0] * u[6] + v[1] * u[7] + v[2] * u[8];
+    r[3] = v[3] * u[0] + v[4] * u[1] + v[5] * u[2];
+    r[4] = v[3] * u[3] + v[4] * u[4] + v[5] * u[5];
+    r[5] = v[3] * u[6] + v[4] * u[7] + v[5] * u[8];
+    r[6] = v[6] * u[0] + v[7] * u[1] + v[8] * u[2];
+    r[7] = v[6] * u[3] + v[7] * u[4] + v[8] * u[5];
+    r[8] = v[6] * u[6] + v[7] * u[7] + v[8] * u[8];
+
+    // Scale factor: c = trace(D*S) / (n * var_a)
+    simsimd_f32_t det = _simsimd_det3x3_f32(r);
+    simsimd_f32_t d3 = det < 0 ? -1.0f : 1.0f;
+    simsimd_f32_t trace_ds = s[0] + s[4] + d3 * s[8];
+    simsimd_f64_t c = (simsimd_f64_t)trace_ds / (n * var_a);
+    if (scale_out) *scale_out = c;
+
+    // Handle reflection
+    if (det < 0) {
+        v[2] = -v[2], v[5] = -v[5], v[8] = -v[8];
+        r[0] = v[0] * u[0] + v[1] * u[1] + v[2] * u[2];
+        r[1] = v[0] * u[3] + v[1] * u[4] + v[2] * u[5];
+        r[2] = v[0] * u[6] + v[1] * u[7] + v[2] * u[8];
+        r[3] = v[3] * u[0] + v[4] * u[1] + v[5] * u[2];
+        r[4] = v[3] * u[3] + v[4] * u[4] + v[5] * u[5];
+        r[5] = v[3] * u[6] + v[4] * u[7] + v[5] * u[8];
+        r[6] = v[6] * u[0] + v[7] * u[1] + v[8] * u[2];
+        r[7] = v[6] * u[3] + v[7] * u[4] + v[8] * u[5];
+        r[8] = v[6] * u[6] + v[7] * u[7] + v[8] * u[8];
+    }
+
+    // Compute RMSD with scaling
+    __m512d sum_sq_vec = zeros_f64;
+    __m512d c_vec = _mm512_set1_pd(c);
+    __m512d r0_vec = _mm512_set1_pd(r[0]), r1_vec = _mm512_set1_pd(r[1]), r2_vec = _mm512_set1_pd(r[2]);
+    __m512d r3_vec = _mm512_set1_pd(r[3]), r4_vec = _mm512_set1_pd(r[4]), r5_vec = _mm512_set1_pd(r[5]);
+    __m512d r6_vec = _mm512_set1_pd(r[6]), r7_vec = _mm512_set1_pd(r[7]), r8_vec = _mm512_set1_pd(r[8]);
+    __m512d a_cx_vec = _mm512_set1_pd(a_cx), a_cy_vec = _mm512_set1_pd(a_cy), a_cz_vec = _mm512_set1_pd(a_cz);
+    __m512d b_cx_vec = _mm512_set1_pd(b_cx), b_cy_vec = _mm512_set1_pd(b_cy), b_cz_vec = _mm512_set1_pd(b_cz);
+
+    for (i = 0; i + 16 <= n; i += 16) {
+        _simsimd_deinterleave_f32x16_skylake(a + i * 3, &a_x_vec, &a_y_vec, &a_z_vec);
+        _simsimd_deinterleave_f32x16_skylake(b + i * 3, &b_x_vec, &b_y_vec, &b_z_vec);
+
+        __m512d a_x_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_vec));
+        __m512d a_y_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_vec));
+        __m512d a_z_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_vec));
+        __m512d b_x_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_vec));
+        __m512d b_y_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_vec));
+        __m512d b_z_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_vec));
+
+        a_x_lo = _mm512_sub_pd(a_x_lo, a_cx_vec), a_y_lo = _mm512_sub_pd(a_y_lo, a_cy_vec);
+        a_z_lo = _mm512_sub_pd(a_z_lo, a_cz_vec);
+        b_x_lo = _mm512_sub_pd(b_x_lo, b_cx_vec), b_y_lo = _mm512_sub_pd(b_y_lo, b_cy_vec);
+        b_z_lo = _mm512_sub_pd(b_z_lo, b_cz_vec);
+
+        __m512d ra_x = _mm512_mul_pd(
+            c_vec, _mm512_fmadd_pd(r0_vec, a_x_lo, _mm512_fmadd_pd(r1_vec, a_y_lo, _mm512_mul_pd(r2_vec, a_z_lo))));
+        __m512d ra_y = _mm512_mul_pd(
+            c_vec, _mm512_fmadd_pd(r3_vec, a_x_lo, _mm512_fmadd_pd(r4_vec, a_y_lo, _mm512_mul_pd(r5_vec, a_z_lo))));
+        __m512d ra_z = _mm512_mul_pd(
+            c_vec, _mm512_fmadd_pd(r6_vec, a_x_lo, _mm512_fmadd_pd(r7_vec, a_y_lo, _mm512_mul_pd(r8_vec, a_z_lo))));
+
+        __m512d dx = _mm512_sub_pd(ra_x, b_x_lo), dy = _mm512_sub_pd(ra_y, b_y_lo), dz = _mm512_sub_pd(ra_z, b_z_lo);
+        sum_sq_vec = _mm512_fmadd_pd(dx, dx, sum_sq_vec);
+        sum_sq_vec = _mm512_fmadd_pd(dy, dy, sum_sq_vec);
+        sum_sq_vec = _mm512_fmadd_pd(dz, dz, sum_sq_vec);
+
+        __m512d a_x_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_vec, 1));
+        __m512d a_y_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_vec, 1));
+        __m512d a_z_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_vec, 1));
+        __m512d b_x_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_vec, 1));
+        __m512d b_y_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_vec, 1));
+        __m512d b_z_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_vec, 1));
+
+        a_x_hi = _mm512_sub_pd(a_x_hi, a_cx_vec), a_y_hi = _mm512_sub_pd(a_y_hi, a_cy_vec);
+        a_z_hi = _mm512_sub_pd(a_z_hi, a_cz_vec);
+        b_x_hi = _mm512_sub_pd(b_x_hi, b_cx_vec), b_y_hi = _mm512_sub_pd(b_y_hi, b_cy_vec);
+        b_z_hi = _mm512_sub_pd(b_z_hi, b_cz_vec);
+
+        ra_x = _mm512_mul_pd(
+            c_vec, _mm512_fmadd_pd(r0_vec, a_x_hi, _mm512_fmadd_pd(r1_vec, a_y_hi, _mm512_mul_pd(r2_vec, a_z_hi))));
+        ra_y = _mm512_mul_pd(
+            c_vec, _mm512_fmadd_pd(r3_vec, a_x_hi, _mm512_fmadd_pd(r4_vec, a_y_hi, _mm512_mul_pd(r5_vec, a_z_hi))));
+        ra_z = _mm512_mul_pd(
+            c_vec, _mm512_fmadd_pd(r6_vec, a_x_hi, _mm512_fmadd_pd(r7_vec, a_y_hi, _mm512_mul_pd(r8_vec, a_z_hi))));
+
+        dx = _mm512_sub_pd(ra_x, b_x_hi), dy = _mm512_sub_pd(ra_y, b_y_hi), dz = _mm512_sub_pd(ra_z, b_z_hi);
+        sum_sq_vec = _mm512_fmadd_pd(dx, dx, sum_sq_vec);
+        sum_sq_vec = _mm512_fmadd_pd(dy, dy, sum_sq_vec);
+        sum_sq_vec = _mm512_fmadd_pd(dz, dz, sum_sq_vec);
+    }
+
+    if (i < n) {
+        simsimd_size_t tail = n - i;
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, tail);
+        simsimd_f32_t const *a_tail = a + i * 3;
+        simsimd_f32_t const *b_tail = b + i * 3;
+        a_x_vec = _mm512_mask_i32gather_ps(zeros_f32, mask, gather_idx, a_tail + 0, 4);
+        a_y_vec = _mm512_mask_i32gather_ps(zeros_f32, mask, gather_idx, a_tail + 1, 4);
+        a_z_vec = _mm512_mask_i32gather_ps(zeros_f32, mask, gather_idx, a_tail + 2, 4);
+        b_x_vec = _mm512_mask_i32gather_ps(zeros_f32, mask, gather_idx, b_tail + 0, 4);
+        b_y_vec = _mm512_mask_i32gather_ps(zeros_f32, mask, gather_idx, b_tail + 1, 4);
+        b_z_vec = _mm512_mask_i32gather_ps(zeros_f32, mask, gather_idx, b_tail + 2, 4);
+
+        // Mask for low 8 lanes: min(tail, 8) valid bits
+        __mmask8 lo_mask = (__mmask8)_bzhi_u32(0xFF, tail < 8 ? tail : 8);
+
+        __m512d a_x_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(a_x_vec));
+        __m512d a_y_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(a_y_vec));
+        __m512d a_z_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(a_z_vec));
+        __m512d b_x_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(b_x_vec));
+        __m512d b_y_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(b_y_vec));
+        __m512d b_z_lo = _mm512_cvtps_pd(_mm512_castps512_ps256(b_z_vec));
+
+        a_x_lo = _mm512_sub_pd(a_x_lo, a_cx_vec), a_y_lo = _mm512_sub_pd(a_y_lo, a_cy_vec);
+        a_z_lo = _mm512_sub_pd(a_z_lo, a_cz_vec);
+        b_x_lo = _mm512_sub_pd(b_x_lo, b_cx_vec), b_y_lo = _mm512_sub_pd(b_y_lo, b_cy_vec);
+        b_z_lo = _mm512_sub_pd(b_z_lo, b_cz_vec);
+
+        __m512d ra_x = _mm512_mul_pd(
+            c_vec, _mm512_fmadd_pd(r0_vec, a_x_lo, _mm512_fmadd_pd(r1_vec, a_y_lo, _mm512_mul_pd(r2_vec, a_z_lo))));
+        __m512d ra_y = _mm512_mul_pd(
+            c_vec, _mm512_fmadd_pd(r3_vec, a_x_lo, _mm512_fmadd_pd(r4_vec, a_y_lo, _mm512_mul_pd(r5_vec, a_z_lo))));
+        __m512d ra_z = _mm512_mul_pd(
+            c_vec, _mm512_fmadd_pd(r6_vec, a_x_lo, _mm512_fmadd_pd(r7_vec, a_y_lo, _mm512_mul_pd(r8_vec, a_z_lo))));
+
+        __m512d dx = _mm512_sub_pd(ra_x, b_x_lo), dy = _mm512_sub_pd(ra_y, b_y_lo), dz = _mm512_sub_pd(ra_z, b_z_lo);
+        // Use masked accumulation to avoid counting invalid tail lanes
+        sum_sq_vec = _mm512_mask3_fmadd_pd(dx, dx, sum_sq_vec, lo_mask);
+        sum_sq_vec = _mm512_mask3_fmadd_pd(dy, dy, sum_sq_vec, lo_mask);
+        sum_sq_vec = _mm512_mask3_fmadd_pd(dz, dz, sum_sq_vec, lo_mask);
+
+        // Only process high 8 if there are more than 8 tail elements
+        if (tail > 8) {
+            __mmask8 hi_mask = (__mmask8)_bzhi_u32(0xFF, tail - 8);
+
+            __m512d a_x_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_x_vec, 1));
+            __m512d a_y_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_y_vec, 1));
+            __m512d a_z_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(a_z_vec, 1));
+            __m512d b_x_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_x_vec, 1));
+            __m512d b_y_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_y_vec, 1));
+            __m512d b_z_hi = _mm512_cvtps_pd(_mm512_extractf32x8_ps(b_z_vec, 1));
+
+            a_x_hi = _mm512_sub_pd(a_x_hi, a_cx_vec), a_y_hi = _mm512_sub_pd(a_y_hi, a_cy_vec);
+            a_z_hi = _mm512_sub_pd(a_z_hi, a_cz_vec);
+            b_x_hi = _mm512_sub_pd(b_x_hi, b_cx_vec), b_y_hi = _mm512_sub_pd(b_y_hi, b_cy_vec);
+            b_z_hi = _mm512_sub_pd(b_z_hi, b_cz_vec);
+
+            ra_x = _mm512_mul_pd(
+                c_vec, _mm512_fmadd_pd(r0_vec, a_x_hi, _mm512_fmadd_pd(r1_vec, a_y_hi, _mm512_mul_pd(r2_vec, a_z_hi))));
+            ra_y = _mm512_mul_pd(
+                c_vec, _mm512_fmadd_pd(r3_vec, a_x_hi, _mm512_fmadd_pd(r4_vec, a_y_hi, _mm512_mul_pd(r5_vec, a_z_hi))));
+            ra_z = _mm512_mul_pd(
+                c_vec, _mm512_fmadd_pd(r6_vec, a_x_hi, _mm512_fmadd_pd(r7_vec, a_y_hi, _mm512_mul_pd(r8_vec, a_z_hi))));
+
+            dx = _mm512_sub_pd(ra_x, b_x_hi), dy = _mm512_sub_pd(ra_y, b_y_hi), dz = _mm512_sub_pd(ra_z, b_z_hi);
+            sum_sq_vec = _mm512_mask3_fmadd_pd(dx, dx, sum_sq_vec, hi_mask);
+            sum_sq_vec = _mm512_mask3_fmadd_pd(dy, dy, sum_sq_vec, hi_mask);
+            sum_sq_vec = _mm512_mask3_fmadd_pd(dz, dz, sum_sq_vec, hi_mask);
+        }
+    }
+
+    *result = SIMSIMD_SQRT((simsimd_distance_t)_mm512_reduce_add_pd(sum_sq_vec) * inv_n);
+}
+
+SIMSIMD_PUBLIC void simsimd_umeyama_f64_skylake(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
+                                                simsimd_f64_t *a_centroid, simsimd_f64_t *b_centroid,
+                                                simsimd_distance_t *scale_out, simsimd_distance_t *result) {
+    // Fused single-pass: centroids, covariance, and variance of A
+    __m512i const gather_idx = _mm512_setr_epi64(0, 3, 6, 9, 12, 15, 18, 21);
+    __m512d const zeros = _mm512_setzero_pd();
+
+    __m512d a_x_sum = zeros, a_y_sum = zeros, a_z_sum = zeros;
+    __m512d b_x_sum = zeros, b_y_sum = zeros, b_z_sum = zeros;
+    __m512d h00 = zeros, h01 = zeros, h02 = zeros;
+    __m512d h10 = zeros, h11 = zeros, h12 = zeros;
+    __m512d h20 = zeros, h21 = zeros, h22 = zeros;
+    __m512d var_a_acc = zeros;
+
+    simsimd_size_t i = 0;
+    __m512d a_x, a_y, a_z, b_x, b_y, b_z;
+
+    for (; i + 8 <= n; i += 8) {
+        _simsimd_deinterleave_f64x8_skylake(a + i * 3, &a_x, &a_y, &a_z);
+        _simsimd_deinterleave_f64x8_skylake(b + i * 3, &b_x, &b_y, &b_z);
+
+        a_x_sum = _mm512_add_pd(a_x_sum, a_x), a_y_sum = _mm512_add_pd(a_y_sum, a_y);
+        a_z_sum = _mm512_add_pd(a_z_sum, a_z);
+        b_x_sum = _mm512_add_pd(b_x_sum, b_x), b_y_sum = _mm512_add_pd(b_y_sum, b_y);
+        b_z_sum = _mm512_add_pd(b_z_sum, b_z);
+
+        h00 = _mm512_fmadd_pd(a_x, b_x, h00), h01 = _mm512_fmadd_pd(a_x, b_y, h01);
+        h02 = _mm512_fmadd_pd(a_x, b_z, h02);
+        h10 = _mm512_fmadd_pd(a_y, b_x, h10), h11 = _mm512_fmadd_pd(a_y, b_y, h11);
+        h12 = _mm512_fmadd_pd(a_y, b_z, h12);
+        h20 = _mm512_fmadd_pd(a_z, b_x, h20), h21 = _mm512_fmadd_pd(a_z, b_y, h21);
+        h22 = _mm512_fmadd_pd(a_z, b_z, h22);
+        var_a_acc = _mm512_fmadd_pd(a_x, a_x, var_a_acc);
+        var_a_acc = _mm512_fmadd_pd(a_y, a_y, var_a_acc);
+        var_a_acc = _mm512_fmadd_pd(a_z, a_z, var_a_acc);
+    }
+
+    if (i < n) {
+        simsimd_size_t tail = n - i;
+        __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, tail);
+        simsimd_f64_t const *a_tail = a + i * 3;
+        simsimd_f64_t const *b_tail = b + i * 3;
+
+        a_x = _mm512_mask_i64gather_pd(zeros, mask, gather_idx, a_tail + 0, 8);
+        a_y = _mm512_mask_i64gather_pd(zeros, mask, gather_idx, a_tail + 1, 8);
+        a_z = _mm512_mask_i64gather_pd(zeros, mask, gather_idx, a_tail + 2, 8);
+        b_x = _mm512_mask_i64gather_pd(zeros, mask, gather_idx, b_tail + 0, 8);
+        b_y = _mm512_mask_i64gather_pd(zeros, mask, gather_idx, b_tail + 1, 8);
+        b_z = _mm512_mask_i64gather_pd(zeros, mask, gather_idx, b_tail + 2, 8);
+
+        a_x_sum = _mm512_add_pd(a_x_sum, a_x), a_y_sum = _mm512_add_pd(a_y_sum, a_y);
+        a_z_sum = _mm512_add_pd(a_z_sum, a_z);
+        b_x_sum = _mm512_add_pd(b_x_sum, b_x), b_y_sum = _mm512_add_pd(b_y_sum, b_y);
+        b_z_sum = _mm512_add_pd(b_z_sum, b_z);
+
+        h00 = _mm512_fmadd_pd(a_x, b_x, h00), h01 = _mm512_fmadd_pd(a_x, b_y, h01);
+        h02 = _mm512_fmadd_pd(a_x, b_z, h02);
+        h10 = _mm512_fmadd_pd(a_y, b_x, h10), h11 = _mm512_fmadd_pd(a_y, b_y, h11);
+        h12 = _mm512_fmadd_pd(a_y, b_z, h12);
+        h20 = _mm512_fmadd_pd(a_z, b_x, h20), h21 = _mm512_fmadd_pd(a_z, b_y, h21);
+        h22 = _mm512_fmadd_pd(a_z, b_z, h22);
+        var_a_acc = _mm512_fmadd_pd(a_x, a_x, var_a_acc);
+        var_a_acc = _mm512_fmadd_pd(a_y, a_y, var_a_acc);
+        var_a_acc = _mm512_fmadd_pd(a_z, a_z, var_a_acc);
+    }
+
+    // Reduce centroids
+    simsimd_f64_t inv_n = 1.0 / (simsimd_f64_t)n;
+    simsimd_f64_t sum_ax = _mm512_reduce_add_pd(a_x_sum), sum_ay = _mm512_reduce_add_pd(a_y_sum);
+    simsimd_f64_t sum_az = _mm512_reduce_add_pd(a_z_sum);
+    simsimd_f64_t sum_bx = _mm512_reduce_add_pd(b_x_sum), sum_by = _mm512_reduce_add_pd(b_y_sum);
+    simsimd_f64_t sum_bz = _mm512_reduce_add_pd(b_z_sum);
+
+    simsimd_f64_t a_cx = sum_ax * inv_n, a_cy = sum_ay * inv_n, a_cz = sum_az * inv_n;
+    simsimd_f64_t b_cx = sum_bx * inv_n, b_cy = sum_by * inv_n, b_cz = sum_bz * inv_n;
+
+    if (a_centroid) a_centroid[0] = a_cx, a_centroid[1] = a_cy, a_centroid[2] = a_cz;
+    if (b_centroid) b_centroid[0] = b_cx, b_centroid[1] = b_cy, b_centroid[2] = b_cz;
+
+    // Compute centered covariance and variance
+    simsimd_f64_t var_a_sum = _mm512_reduce_add_pd(var_a_acc);
+    simsimd_f64_t var_a = var_a_sum * inv_n - (a_cx * a_cx + a_cy * a_cy + a_cz * a_cz);
+
+    simsimd_f32_t h[9];
+    h[0] = (simsimd_f32_t)(_mm512_reduce_add_pd(h00) - sum_ax * sum_bx * inv_n);
+    h[1] = (simsimd_f32_t)(_mm512_reduce_add_pd(h01) - sum_ax * sum_by * inv_n);
+    h[2] = (simsimd_f32_t)(_mm512_reduce_add_pd(h02) - sum_ax * sum_bz * inv_n);
+    h[3] = (simsimd_f32_t)(_mm512_reduce_add_pd(h10) - sum_ay * sum_bx * inv_n);
+    h[4] = (simsimd_f32_t)(_mm512_reduce_add_pd(h11) - sum_ay * sum_by * inv_n);
+    h[5] = (simsimd_f32_t)(_mm512_reduce_add_pd(h12) - sum_ay * sum_bz * inv_n);
+    h[6] = (simsimd_f32_t)(_mm512_reduce_add_pd(h20) - sum_az * sum_bx * inv_n);
+    h[7] = (simsimd_f32_t)(_mm512_reduce_add_pd(h21) - sum_az * sum_by * inv_n);
+    h[8] = (simsimd_f32_t)(_mm512_reduce_add_pd(h22) - sum_az * sum_bz * inv_n);
+
+    // SVD
+    simsimd_f32_t u[9], s[9], v[9];
+    _simsimd_svd3x3_f32(h, u, s, v);
+
+    // R = V * U^T
+    simsimd_f32_t r[9];
+    r[0] = v[0] * u[0] + v[1] * u[1] + v[2] * u[2];
+    r[1] = v[0] * u[3] + v[1] * u[4] + v[2] * u[5];
+    r[2] = v[0] * u[6] + v[1] * u[7] + v[2] * u[8];
+    r[3] = v[3] * u[0] + v[4] * u[1] + v[5] * u[2];
+    r[4] = v[3] * u[3] + v[4] * u[4] + v[5] * u[5];
+    r[5] = v[3] * u[6] + v[4] * u[7] + v[5] * u[8];
+    r[6] = v[6] * u[0] + v[7] * u[1] + v[8] * u[2];
+    r[7] = v[6] * u[3] + v[7] * u[4] + v[8] * u[5];
+    r[8] = v[6] * u[6] + v[7] * u[7] + v[8] * u[8];
+
+    // Scale factor: c = trace(D*S) / (n * var_a)
+    simsimd_f32_t det = _simsimd_det3x3_f32(r);
+    simsimd_f32_t d3 = det < 0 ? -1.0f : 1.0f;
+    simsimd_f32_t trace_ds = s[0] + s[4] + d3 * s[8];
+    simsimd_f64_t c = (simsimd_f64_t)trace_ds / (n * var_a);
+    if (scale_out) *scale_out = c;
+
+    // Handle reflection
+    if (det < 0) {
+        v[2] = -v[2], v[5] = -v[5], v[8] = -v[8];
+        r[0] = v[0] * u[0] + v[1] * u[1] + v[2] * u[2];
+        r[1] = v[0] * u[3] + v[1] * u[4] + v[2] * u[5];
+        r[2] = v[0] * u[6] + v[1] * u[7] + v[2] * u[8];
+        r[3] = v[3] * u[0] + v[4] * u[1] + v[5] * u[2];
+        r[4] = v[3] * u[3] + v[4] * u[4] + v[5] * u[5];
+        r[5] = v[3] * u[6] + v[4] * u[7] + v[5] * u[8];
+        r[6] = v[6] * u[0] + v[7] * u[1] + v[8] * u[2];
+        r[7] = v[6] * u[3] + v[7] * u[4] + v[8] * u[5];
+        r[8] = v[6] * u[6] + v[7] * u[7] + v[8] * u[8];
+    }
+
+    // Compute RMSD with scaling
+    __m512d sum_sq_vec = zeros;
+    __m512d c_vec = _mm512_set1_pd(c);
+    __m512d r0_vec = _mm512_set1_pd(r[0]), r1_vec = _mm512_set1_pd(r[1]), r2_vec = _mm512_set1_pd(r[2]);
+    __m512d r3_vec = _mm512_set1_pd(r[3]), r4_vec = _mm512_set1_pd(r[4]), r5_vec = _mm512_set1_pd(r[5]);
+    __m512d r6_vec = _mm512_set1_pd(r[6]), r7_vec = _mm512_set1_pd(r[7]), r8_vec = _mm512_set1_pd(r[8]);
+    __m512d a_cx_vec = _mm512_set1_pd(a_cx), a_cy_vec = _mm512_set1_pd(a_cy), a_cz_vec = _mm512_set1_pd(a_cz);
+    __m512d b_cx_vec = _mm512_set1_pd(b_cx), b_cy_vec = _mm512_set1_pd(b_cy), b_cz_vec = _mm512_set1_pd(b_cz);
+
+    for (i = 0; i + 8 <= n; i += 8) {
+        _simsimd_deinterleave_f64x8_skylake(a + i * 3, &a_x, &a_y, &a_z);
+        _simsimd_deinterleave_f64x8_skylake(b + i * 3, &b_x, &b_y, &b_z);
+
+        a_x = _mm512_sub_pd(a_x, a_cx_vec), a_y = _mm512_sub_pd(a_y, a_cy_vec), a_z = _mm512_sub_pd(a_z, a_cz_vec);
+        b_x = _mm512_sub_pd(b_x, b_cx_vec), b_y = _mm512_sub_pd(b_y, b_cy_vec), b_z = _mm512_sub_pd(b_z, b_cz_vec);
+
+        __m512d ra_x = _mm512_mul_pd(
+            c_vec, _mm512_fmadd_pd(r0_vec, a_x, _mm512_fmadd_pd(r1_vec, a_y, _mm512_mul_pd(r2_vec, a_z))));
+        __m512d ra_y = _mm512_mul_pd(
+            c_vec, _mm512_fmadd_pd(r3_vec, a_x, _mm512_fmadd_pd(r4_vec, a_y, _mm512_mul_pd(r5_vec, a_z))));
+        __m512d ra_z = _mm512_mul_pd(
+            c_vec, _mm512_fmadd_pd(r6_vec, a_x, _mm512_fmadd_pd(r7_vec, a_y, _mm512_mul_pd(r8_vec, a_z))));
+
+        __m512d dx = _mm512_sub_pd(ra_x, b_x), dy = _mm512_sub_pd(ra_y, b_y), dz = _mm512_sub_pd(ra_z, b_z);
+        sum_sq_vec = _mm512_fmadd_pd(dx, dx, sum_sq_vec);
+        sum_sq_vec = _mm512_fmadd_pd(dy, dy, sum_sq_vec);
+        sum_sq_vec = _mm512_fmadd_pd(dz, dz, sum_sq_vec);
+    }
+
+    if (i < n) {
+        simsimd_size_t tail = n - i;
+        __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, tail);
+        simsimd_f64_t const *a_tail = a + i * 3;
+        simsimd_f64_t const *b_tail = b + i * 3;
+
+        a_x = _mm512_mask_i64gather_pd(zeros, mask, gather_idx, a_tail + 0, 8);
+        a_y = _mm512_mask_i64gather_pd(zeros, mask, gather_idx, a_tail + 1, 8);
+        a_z = _mm512_mask_i64gather_pd(zeros, mask, gather_idx, a_tail + 2, 8);
+        b_x = _mm512_mask_i64gather_pd(zeros, mask, gather_idx, b_tail + 0, 8);
+        b_y = _mm512_mask_i64gather_pd(zeros, mask, gather_idx, b_tail + 1, 8);
+        b_z = _mm512_mask_i64gather_pd(zeros, mask, gather_idx, b_tail + 2, 8);
+
+        a_x = _mm512_sub_pd(a_x, a_cx_vec), a_y = _mm512_sub_pd(a_y, a_cy_vec), a_z = _mm512_sub_pd(a_z, a_cz_vec);
+        b_x = _mm512_sub_pd(b_x, b_cx_vec), b_y = _mm512_sub_pd(b_y, b_cy_vec), b_z = _mm512_sub_pd(b_z, b_cz_vec);
+
+        __m512d ra_x = _mm512_mul_pd(
+            c_vec, _mm512_fmadd_pd(r0_vec, a_x, _mm512_fmadd_pd(r1_vec, a_y, _mm512_mul_pd(r2_vec, a_z))));
+        __m512d ra_y = _mm512_mul_pd(
+            c_vec, _mm512_fmadd_pd(r3_vec, a_x, _mm512_fmadd_pd(r4_vec, a_y, _mm512_mul_pd(r5_vec, a_z))));
+        __m512d ra_z = _mm512_mul_pd(
+            c_vec, _mm512_fmadd_pd(r6_vec, a_x, _mm512_fmadd_pd(r7_vec, a_y, _mm512_mul_pd(r8_vec, a_z))));
+
+        __m512d dx = _mm512_sub_pd(ra_x, b_x), dy = _mm512_sub_pd(ra_y, b_y), dz = _mm512_sub_pd(ra_z, b_z);
+        // Use masked accumulation to avoid counting invalid tail lanes
+        sum_sq_vec = _mm512_mask3_fmadd_pd(dx, dx, sum_sq_vec, mask);
+        sum_sq_vec = _mm512_mask3_fmadd_pd(dy, dy, sum_sq_vec, mask);
+        sum_sq_vec = _mm512_mask3_fmadd_pd(dz, dz, sum_sq_vec, mask);
+    }
+
+    *result = SIMSIMD_SQRT((simsimd_distance_t)_mm512_reduce_add_pd(sum_sq_vec) * inv_n);
+}
+
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SKYLAKE
@@ -2057,6 +2725,358 @@ SIMSIMD_PUBLIC void simsimd_kabsch_f64_haswell(simsimd_f64_t const *a, simsimd_f
         ra[0] = r[0] * pa[0] + r[1] * pa[1] + r[2] * pa[2];
         ra[1] = r[3] * pa[0] + r[4] * pa[1] + r[5] * pa[2];
         ra[2] = r[6] * pa[0] + r[7] * pa[1] + r[8] * pa[2];
+
+        simsimd_f64_t dx = ra[0] - pb[0];
+        simsimd_f64_t dy = ra[1] - pb[1];
+        simsimd_f64_t dz = ra[2] - pb[2];
+        sum_sq += dx * dx + dy * dy + dz * dz;
+    }
+
+    *result = SIMSIMD_SQRT(sum_sq * inv_n);
+}
+
+SIMSIMD_PUBLIC void simsimd_umeyama_f32_haswell(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
+                                                simsimd_f32_t *a_centroid, simsimd_f32_t *b_centroid,
+                                                simsimd_distance_t *scale_out, simsimd_distance_t *result) {
+    // Fused single-pass: centroids, covariance, and variance of A
+    __m256i const gather_idx = _mm256_setr_epi32(0, 3, 6, 9, 12, 15, 18, 21);
+    __m256 const zeros_f32 = _mm256_setzero_ps();
+    __m256d const zeros_f64 = _mm256_setzero_pd();
+
+    __m256d a_x_sum = zeros_f64, a_y_sum = zeros_f64, a_z_sum = zeros_f64;
+    __m256d b_x_sum = zeros_f64, b_y_sum = zeros_f64, b_z_sum = zeros_f64;
+    __m256d h00 = zeros_f64, h01 = zeros_f64, h02 = zeros_f64;
+    __m256d h10 = zeros_f64, h11 = zeros_f64, h12 = zeros_f64;
+    __m256d h20 = zeros_f64, h21 = zeros_f64, h22 = zeros_f64;
+    __m256d var_a_acc = zeros_f64;
+
+    simsimd_size_t i = 0;
+    __m256 a_x_vec, a_y_vec, a_z_vec, b_x_vec, b_y_vec, b_z_vec;
+
+    for (; i + 8 <= n; i += 8) {
+        _simsimd_deinterleave_f32x8_haswell(a + i * 3, &a_x_vec, &a_y_vec, &a_z_vec);
+        _simsimd_deinterleave_f32x8_haswell(b + i * 3, &b_x_vec, &b_y_vec, &b_z_vec);
+
+        __m256d a_x_lo = _mm256_cvtps_pd(_mm256_castps256_ps128(a_x_vec));
+        __m256d a_y_lo = _mm256_cvtps_pd(_mm256_castps256_ps128(a_y_vec));
+        __m256d a_z_lo = _mm256_cvtps_pd(_mm256_castps256_ps128(a_z_vec));
+        __m256d b_x_lo = _mm256_cvtps_pd(_mm256_castps256_ps128(b_x_vec));
+        __m256d b_y_lo = _mm256_cvtps_pd(_mm256_castps256_ps128(b_y_vec));
+        __m256d b_z_lo = _mm256_cvtps_pd(_mm256_castps256_ps128(b_z_vec));
+
+        a_x_sum = _mm256_add_pd(a_x_sum, a_x_lo), a_y_sum = _mm256_add_pd(a_y_sum, a_y_lo);
+        a_z_sum = _mm256_add_pd(a_z_sum, a_z_lo);
+        b_x_sum = _mm256_add_pd(b_x_sum, b_x_lo), b_y_sum = _mm256_add_pd(b_y_sum, b_y_lo);
+        b_z_sum = _mm256_add_pd(b_z_sum, b_z_lo);
+
+        h00 = _mm256_fmadd_pd(a_x_lo, b_x_lo, h00), h01 = _mm256_fmadd_pd(a_x_lo, b_y_lo, h01);
+        h02 = _mm256_fmadd_pd(a_x_lo, b_z_lo, h02);
+        h10 = _mm256_fmadd_pd(a_y_lo, b_x_lo, h10), h11 = _mm256_fmadd_pd(a_y_lo, b_y_lo, h11);
+        h12 = _mm256_fmadd_pd(a_y_lo, b_z_lo, h12);
+        h20 = _mm256_fmadd_pd(a_z_lo, b_x_lo, h20), h21 = _mm256_fmadd_pd(a_z_lo, b_y_lo, h21);
+        h22 = _mm256_fmadd_pd(a_z_lo, b_z_lo, h22);
+        var_a_acc = _mm256_fmadd_pd(a_x_lo, a_x_lo, var_a_acc);
+        var_a_acc = _mm256_fmadd_pd(a_y_lo, a_y_lo, var_a_acc);
+        var_a_acc = _mm256_fmadd_pd(a_z_lo, a_z_lo, var_a_acc);
+
+        __m256d a_x_hi = _mm256_cvtps_pd(_mm256_extractf128_ps(a_x_vec, 1));
+        __m256d a_y_hi = _mm256_cvtps_pd(_mm256_extractf128_ps(a_y_vec, 1));
+        __m256d a_z_hi = _mm256_cvtps_pd(_mm256_extractf128_ps(a_z_vec, 1));
+        __m256d b_x_hi = _mm256_cvtps_pd(_mm256_extractf128_ps(b_x_vec, 1));
+        __m256d b_y_hi = _mm256_cvtps_pd(_mm256_extractf128_ps(b_y_vec, 1));
+        __m256d b_z_hi = _mm256_cvtps_pd(_mm256_extractf128_ps(b_z_vec, 1));
+
+        a_x_sum = _mm256_add_pd(a_x_sum, a_x_hi), a_y_sum = _mm256_add_pd(a_y_sum, a_y_hi);
+        a_z_sum = _mm256_add_pd(a_z_sum, a_z_hi);
+        b_x_sum = _mm256_add_pd(b_x_sum, b_x_hi), b_y_sum = _mm256_add_pd(b_y_sum, b_y_hi);
+        b_z_sum = _mm256_add_pd(b_z_sum, b_z_hi);
+
+        h00 = _mm256_fmadd_pd(a_x_hi, b_x_hi, h00), h01 = _mm256_fmadd_pd(a_x_hi, b_y_hi, h01);
+        h02 = _mm256_fmadd_pd(a_x_hi, b_z_hi, h02);
+        h10 = _mm256_fmadd_pd(a_y_hi, b_x_hi, h10), h11 = _mm256_fmadd_pd(a_y_hi, b_y_hi, h11);
+        h12 = _mm256_fmadd_pd(a_y_hi, b_z_hi, h12);
+        h20 = _mm256_fmadd_pd(a_z_hi, b_x_hi, h20), h21 = _mm256_fmadd_pd(a_z_hi, b_y_hi, h21);
+        h22 = _mm256_fmadd_pd(a_z_hi, b_z_hi, h22);
+        var_a_acc = _mm256_fmadd_pd(a_x_hi, a_x_hi, var_a_acc);
+        var_a_acc = _mm256_fmadd_pd(a_y_hi, a_y_hi, var_a_acc);
+        var_a_acc = _mm256_fmadd_pd(a_z_hi, a_z_hi, var_a_acc);
+    }
+
+    // Reduce vector accumulators
+    simsimd_f64_t sum_ax = _simsimd_reduce_add_f64x4_haswell(a_x_sum);
+    simsimd_f64_t sum_ay = _simsimd_reduce_add_f64x4_haswell(a_y_sum);
+    simsimd_f64_t sum_az = _simsimd_reduce_add_f64x4_haswell(a_z_sum);
+    simsimd_f64_t sum_bx = _simsimd_reduce_add_f64x4_haswell(b_x_sum);
+    simsimd_f64_t sum_by = _simsimd_reduce_add_f64x4_haswell(b_y_sum);
+    simsimd_f64_t sum_bz = _simsimd_reduce_add_f64x4_haswell(b_z_sum);
+    simsimd_f64_t H00 = _simsimd_reduce_add_f64x4_haswell(h00);
+    simsimd_f64_t H01 = _simsimd_reduce_add_f64x4_haswell(h01);
+    simsimd_f64_t H02 = _simsimd_reduce_add_f64x4_haswell(h02);
+    simsimd_f64_t H10 = _simsimd_reduce_add_f64x4_haswell(h10);
+    simsimd_f64_t H11 = _simsimd_reduce_add_f64x4_haswell(h11);
+    simsimd_f64_t H12 = _simsimd_reduce_add_f64x4_haswell(h12);
+    simsimd_f64_t H20 = _simsimd_reduce_add_f64x4_haswell(h20);
+    simsimd_f64_t H21 = _simsimd_reduce_add_f64x4_haswell(h21);
+    simsimd_f64_t H22 = _simsimd_reduce_add_f64x4_haswell(h22);
+    simsimd_f64_t var_a_sum = _simsimd_reduce_add_f64x4_haswell(var_a_acc);
+
+    // Scalar tail
+    for (; i < n; ++i) {
+        simsimd_f64_t ax = a[i * 3 + 0], ay = a[i * 3 + 1], az = a[i * 3 + 2];
+        simsimd_f64_t bx = b[i * 3 + 0], by = b[i * 3 + 1], bz = b[i * 3 + 2];
+        sum_ax += ax;
+        sum_ay += ay;
+        sum_az += az;
+        sum_bx += bx;
+        sum_by += by;
+        sum_bz += bz;
+        H00 += ax * bx;
+        H01 += ax * by;
+        H02 += ax * bz;
+        H10 += ay * bx;
+        H11 += ay * by;
+        H12 += ay * bz;
+        H20 += az * bx;
+        H21 += az * by;
+        H22 += az * bz;
+        var_a_sum += ax * ax + ay * ay + az * az;
+    }
+
+    // Compute centroids
+    simsimd_f64_t inv_n = 1.0 / (simsimd_f64_t)n;
+    simsimd_f64_t a_cx = sum_ax * inv_n, a_cy = sum_ay * inv_n, a_cz = sum_az * inv_n;
+    simsimd_f64_t b_cx = sum_bx * inv_n, b_cy = sum_by * inv_n, b_cz = sum_bz * inv_n;
+
+    if (a_centroid)
+        a_centroid[0] = (simsimd_f32_t)a_cx, a_centroid[1] = (simsimd_f32_t)a_cy, a_centroid[2] = (simsimd_f32_t)a_cz;
+    if (b_centroid)
+        b_centroid[0] = (simsimd_f32_t)b_cx, b_centroid[1] = (simsimd_f32_t)b_cy, b_centroid[2] = (simsimd_f32_t)b_cz;
+
+    // Compute centered covariance and variance
+    simsimd_f64_t var_a = var_a_sum * inv_n - (a_cx * a_cx + a_cy * a_cy + a_cz * a_cz);
+
+    simsimd_f32_t h[9];
+    h[0] = (simsimd_f32_t)(H00 - n * a_cx * b_cx);
+    h[1] = (simsimd_f32_t)(H01 - n * a_cx * b_cy);
+    h[2] = (simsimd_f32_t)(H02 - n * a_cx * b_cz);
+    h[3] = (simsimd_f32_t)(H10 - n * a_cy * b_cx);
+    h[4] = (simsimd_f32_t)(H11 - n * a_cy * b_cy);
+    h[5] = (simsimd_f32_t)(H12 - n * a_cy * b_cz);
+    h[6] = (simsimd_f32_t)(H20 - n * a_cz * b_cx);
+    h[7] = (simsimd_f32_t)(H21 - n * a_cz * b_cy);
+    h[8] = (simsimd_f32_t)(H22 - n * a_cz * b_cz);
+
+    // SVD
+    simsimd_f32_t u[9], s[9], v[9];
+    _simsimd_svd3x3_f32(h, u, s, v);
+
+    // R = V * U^T
+    simsimd_f32_t r[9];
+    r[0] = v[0] * u[0] + v[1] * u[1] + v[2] * u[2];
+    r[1] = v[0] * u[3] + v[1] * u[4] + v[2] * u[5];
+    r[2] = v[0] * u[6] + v[1] * u[7] + v[2] * u[8];
+    r[3] = v[3] * u[0] + v[4] * u[1] + v[5] * u[2];
+    r[4] = v[3] * u[3] + v[4] * u[4] + v[5] * u[5];
+    r[5] = v[3] * u[6] + v[4] * u[7] + v[5] * u[8];
+    r[6] = v[6] * u[0] + v[7] * u[1] + v[8] * u[2];
+    r[7] = v[6] * u[3] + v[7] * u[4] + v[8] * u[5];
+    r[8] = v[6] * u[6] + v[7] * u[7] + v[8] * u[8];
+
+    // Scale factor: c = trace(D*S) / (n * var_a)
+    simsimd_f32_t det = _simsimd_det3x3_f32(r);
+    simsimd_f32_t d3 = det < 0 ? -1.0f : 1.0f;
+    simsimd_f32_t trace_ds = s[0] + s[4] + d3 * s[8];
+    simsimd_f64_t c = (simsimd_f64_t)trace_ds / (n * var_a);
+    if (scale_out) *scale_out = c;
+
+    // Handle reflection
+    if (det < 0) {
+        v[2] = -v[2], v[5] = -v[5], v[8] = -v[8];
+        r[0] = v[0] * u[0] + v[1] * u[1] + v[2] * u[2];
+        r[1] = v[0] * u[3] + v[1] * u[4] + v[2] * u[5];
+        r[2] = v[0] * u[6] + v[1] * u[7] + v[2] * u[8];
+        r[3] = v[3] * u[0] + v[4] * u[1] + v[5] * u[2];
+        r[4] = v[3] * u[3] + v[4] * u[4] + v[5] * u[5];
+        r[5] = v[3] * u[6] + v[4] * u[7] + v[5] * u[8];
+        r[6] = v[6] * u[0] + v[7] * u[1] + v[8] * u[2];
+        r[7] = v[6] * u[3] + v[7] * u[4] + v[8] * u[5];
+        r[8] = v[6] * u[6] + v[7] * u[7] + v[8] * u[8];
+    }
+
+    // Compute RMSD with scaling using serial loop (simpler for Haswell)
+    simsimd_f64_t sum_sq = 0.0;
+    for (simsimd_size_t j = 0; j < n; ++j) {
+        simsimd_f64_t pa[3], pb[3], ra[3];
+        pa[0] = a[j * 3 + 0] - a_cx;
+        pa[1] = a[j * 3 + 1] - a_cy;
+        pa[2] = a[j * 3 + 2] - a_cz;
+        pb[0] = b[j * 3 + 0] - b_cx;
+        pb[1] = b[j * 3 + 1] - b_cy;
+        pb[2] = b[j * 3 + 2] - b_cz;
+
+        ra[0] = c * (r[0] * pa[0] + r[1] * pa[1] + r[2] * pa[2]);
+        ra[1] = c * (r[3] * pa[0] + r[4] * pa[1] + r[5] * pa[2]);
+        ra[2] = c * (r[6] * pa[0] + r[7] * pa[1] + r[8] * pa[2]);
+
+        simsimd_f64_t dx = ra[0] - pb[0];
+        simsimd_f64_t dy = ra[1] - pb[1];
+        simsimd_f64_t dz = ra[2] - pb[2];
+        sum_sq += dx * dx + dy * dy + dz * dz;
+    }
+
+    *result = SIMSIMD_SQRT(sum_sq * inv_n);
+}
+
+SIMSIMD_PUBLIC void simsimd_umeyama_f64_haswell(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
+                                                simsimd_f64_t *a_centroid, simsimd_f64_t *b_centroid,
+                                                simsimd_distance_t *scale_out, simsimd_distance_t *result) {
+    // Fused single-pass: centroids, covariance, and variance of A
+    __m256d const zeros = _mm256_setzero_pd();
+
+    __m256d a_x_sum = zeros, a_y_sum = zeros, a_z_sum = zeros;
+    __m256d b_x_sum = zeros, b_y_sum = zeros, b_z_sum = zeros;
+    __m256d h00 = zeros, h01 = zeros, h02 = zeros;
+    __m256d h10 = zeros, h11 = zeros, h12 = zeros;
+    __m256d h20 = zeros, h21 = zeros, h22 = zeros;
+    __m256d var_a_acc = zeros;
+
+    simsimd_size_t i = 0;
+    __m256d a_x, a_y, a_z, b_x, b_y, b_z;
+
+    for (; i + 4 <= n; i += 4) {
+        _simsimd_deinterleave_f64x4_haswell(a + i * 3, &a_x, &a_y, &a_z);
+        _simsimd_deinterleave_f64x4_haswell(b + i * 3, &b_x, &b_y, &b_z);
+
+        a_x_sum = _mm256_add_pd(a_x_sum, a_x), a_y_sum = _mm256_add_pd(a_y_sum, a_y);
+        a_z_sum = _mm256_add_pd(a_z_sum, a_z);
+        b_x_sum = _mm256_add_pd(b_x_sum, b_x), b_y_sum = _mm256_add_pd(b_y_sum, b_y);
+        b_z_sum = _mm256_add_pd(b_z_sum, b_z);
+
+        h00 = _mm256_fmadd_pd(a_x, b_x, h00), h01 = _mm256_fmadd_pd(a_x, b_y, h01);
+        h02 = _mm256_fmadd_pd(a_x, b_z, h02);
+        h10 = _mm256_fmadd_pd(a_y, b_x, h10), h11 = _mm256_fmadd_pd(a_y, b_y, h11);
+        h12 = _mm256_fmadd_pd(a_y, b_z, h12);
+        h20 = _mm256_fmadd_pd(a_z, b_x, h20), h21 = _mm256_fmadd_pd(a_z, b_y, h21);
+        h22 = _mm256_fmadd_pd(a_z, b_z, h22);
+        var_a_acc = _mm256_fmadd_pd(a_x, a_x, var_a_acc);
+        var_a_acc = _mm256_fmadd_pd(a_y, a_y, var_a_acc);
+        var_a_acc = _mm256_fmadd_pd(a_z, a_z, var_a_acc);
+    }
+
+    // Reduce vector accumulators
+    simsimd_f64_t sum_ax = _simsimd_reduce_add_f64x4_haswell(a_x_sum);
+    simsimd_f64_t sum_ay = _simsimd_reduce_add_f64x4_haswell(a_y_sum);
+    simsimd_f64_t sum_az = _simsimd_reduce_add_f64x4_haswell(a_z_sum);
+    simsimd_f64_t sum_bx = _simsimd_reduce_add_f64x4_haswell(b_x_sum);
+    simsimd_f64_t sum_by = _simsimd_reduce_add_f64x4_haswell(b_y_sum);
+    simsimd_f64_t sum_bz = _simsimd_reduce_add_f64x4_haswell(b_z_sum);
+    simsimd_f64_t h00_s = _simsimd_reduce_add_f64x4_haswell(h00);
+    simsimd_f64_t h01_s = _simsimd_reduce_add_f64x4_haswell(h01);
+    simsimd_f64_t h02_s = _simsimd_reduce_add_f64x4_haswell(h02);
+    simsimd_f64_t h10_s = _simsimd_reduce_add_f64x4_haswell(h10);
+    simsimd_f64_t h11_s = _simsimd_reduce_add_f64x4_haswell(h11);
+    simsimd_f64_t h12_s = _simsimd_reduce_add_f64x4_haswell(h12);
+    simsimd_f64_t h20_s = _simsimd_reduce_add_f64x4_haswell(h20);
+    simsimd_f64_t h21_s = _simsimd_reduce_add_f64x4_haswell(h21);
+    simsimd_f64_t h22_s = _simsimd_reduce_add_f64x4_haswell(h22);
+    simsimd_f64_t var_a_sum = _simsimd_reduce_add_f64x4_haswell(var_a_acc);
+
+    // Scalar tail loop for remaining points
+    for (; i < n; i++) {
+        simsimd_f64_t ax = a[i * 3 + 0], ay = a[i * 3 + 1], az = a[i * 3 + 2];
+        simsimd_f64_t bx = b[i * 3 + 0], by = b[i * 3 + 1], bz = b[i * 3 + 2];
+        sum_ax += ax;
+        sum_ay += ay;
+        sum_az += az;
+        sum_bx += bx;
+        sum_by += by;
+        sum_bz += bz;
+        h00_s += ax * bx;
+        h01_s += ax * by;
+        h02_s += ax * bz;
+        h10_s += ay * bx;
+        h11_s += ay * by;
+        h12_s += ay * bz;
+        h20_s += az * bx;
+        h21_s += az * by;
+        h22_s += az * bz;
+        var_a_sum += ax * ax + ay * ay + az * az;
+    }
+
+    // Compute centroids
+    simsimd_f64_t inv_n = 1.0 / (simsimd_f64_t)n;
+
+    simsimd_f64_t a_cx = sum_ax * inv_n, a_cy = sum_ay * inv_n, a_cz = sum_az * inv_n;
+    simsimd_f64_t b_cx = sum_bx * inv_n, b_cy = sum_by * inv_n, b_cz = sum_bz * inv_n;
+
+    if (a_centroid) a_centroid[0] = a_cx, a_centroid[1] = a_cy, a_centroid[2] = a_cz;
+    if (b_centroid) b_centroid[0] = b_cx, b_centroid[1] = b_cy, b_centroid[2] = b_cz;
+
+    // Compute centered covariance and variance
+    simsimd_f64_t var_a = var_a_sum * inv_n - (a_cx * a_cx + a_cy * a_cy + a_cz * a_cz);
+
+    simsimd_f32_t h[9];
+    h[0] = (simsimd_f32_t)(h00_s - sum_ax * sum_bx * inv_n);
+    h[1] = (simsimd_f32_t)(h01_s - sum_ax * sum_by * inv_n);
+    h[2] = (simsimd_f32_t)(h02_s - sum_ax * sum_bz * inv_n);
+    h[3] = (simsimd_f32_t)(h10_s - sum_ay * sum_bx * inv_n);
+    h[4] = (simsimd_f32_t)(h11_s - sum_ay * sum_by * inv_n);
+    h[5] = (simsimd_f32_t)(h12_s - sum_ay * sum_bz * inv_n);
+    h[6] = (simsimd_f32_t)(h20_s - sum_az * sum_bx * inv_n);
+    h[7] = (simsimd_f32_t)(h21_s - sum_az * sum_by * inv_n);
+    h[8] = (simsimd_f32_t)(h22_s - sum_az * sum_bz * inv_n);
+
+    // SVD
+    simsimd_f32_t u[9], s[9], v[9];
+    _simsimd_svd3x3_f32(h, u, s, v);
+
+    // R = V * U^T
+    simsimd_f32_t r[9];
+    r[0] = v[0] * u[0] + v[1] * u[1] + v[2] * u[2];
+    r[1] = v[0] * u[3] + v[1] * u[4] + v[2] * u[5];
+    r[2] = v[0] * u[6] + v[1] * u[7] + v[2] * u[8];
+    r[3] = v[3] * u[0] + v[4] * u[1] + v[5] * u[2];
+    r[4] = v[3] * u[3] + v[4] * u[4] + v[5] * u[5];
+    r[5] = v[3] * u[6] + v[4] * u[7] + v[5] * u[8];
+    r[6] = v[6] * u[0] + v[7] * u[1] + v[8] * u[2];
+    r[7] = v[6] * u[3] + v[7] * u[4] + v[8] * u[5];
+    r[8] = v[6] * u[6] + v[7] * u[7] + v[8] * u[8];
+
+    // Scale factor: c = trace(D*S) / (n * var_a)
+    simsimd_f32_t det = _simsimd_det3x3_f32(r);
+    simsimd_f32_t d3 = det < 0 ? -1.0f : 1.0f;
+    simsimd_f32_t trace_ds = s[0] + s[4] + d3 * s[8];
+    simsimd_f64_t c = (simsimd_f64_t)trace_ds / (n * var_a);
+    if (scale_out) *scale_out = c;
+
+    // Handle reflection
+    if (det < 0) {
+        v[2] = -v[2], v[5] = -v[5], v[8] = -v[8];
+        r[0] = v[0] * u[0] + v[1] * u[1] + v[2] * u[2];
+        r[1] = v[0] * u[3] + v[1] * u[4] + v[2] * u[5];
+        r[2] = v[0] * u[6] + v[1] * u[7] + v[2] * u[8];
+        r[3] = v[3] * u[0] + v[4] * u[1] + v[5] * u[2];
+        r[4] = v[3] * u[3] + v[4] * u[4] + v[5] * u[5];
+        r[5] = v[3] * u[6] + v[4] * u[7] + v[5] * u[8];
+        r[6] = v[6] * u[0] + v[7] * u[1] + v[8] * u[2];
+        r[7] = v[6] * u[3] + v[7] * u[4] + v[8] * u[5];
+        r[8] = v[6] * u[6] + v[7] * u[7] + v[8] * u[8];
+    }
+
+    // Compute RMSD with scaling using serial loop
+    simsimd_f64_t sum_sq = 0.0;
+    for (simsimd_size_t j = 0; j < n; ++j) {
+        simsimd_f64_t pa[3], pb[3], ra[3];
+        pa[0] = a[j * 3 + 0] - a_cx;
+        pa[1] = a[j * 3 + 1] - a_cy;
+        pa[2] = a[j * 3 + 2] - a_cz;
+        pb[0] = b[j * 3 + 0] - b_cx;
+        pb[1] = b[j * 3 + 1] - b_cy;
+        pb[2] = b[j * 3 + 2] - b_cz;
+
+        ra[0] = c * (r[0] * pa[0] + r[1] * pa[1] + r[2] * pa[2]);
+        ra[1] = c * (r[3] * pa[0] + r[4] * pa[1] + r[5] * pa[2]);
+        ra[2] = c * (r[6] * pa[0] + r[7] * pa[1] + r[8] * pa[2]);
 
         simsimd_f64_t dx = ra[0] - pb[0];
         simsimd_f64_t dy = ra[1] - pb[1];
