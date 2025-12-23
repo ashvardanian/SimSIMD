@@ -2085,24 +2085,6 @@ SIMSIMD_DYNAMIC void simsimd_l2_f32(simsimd_f32_t const *a, simsimd_f32_t const 
 SIMSIMD_DYNAMIC void simsimd_l2_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
                                     simsimd_distance_t *d);
 
-/*  Binary distances
- *  - Hamming distance: the number of positions at which the corresponding bits are different.
- *  - Jaccard distance: ratio of bit-level matching positions (intersection) to the total number of positions (union).
- *
- *  @param a The first binary vector.
- *  @param b The second binary vector.
- *  @param n The number of 8-bit words in the vectors.
- *  @param d The output distance value.
- *
- *  @note The output distance value is non-negative.
- *  @note The output distance value is zero if and only if the two vectors are identical.
- *  @note Defined only for binary data.
- */
-SIMSIMD_DYNAMIC void simsimd_hamming_b8(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n,
-                                        simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_jaccard_b8(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n,
-                                        simsimd_distance_t *d);
-
 /*  Probability distributions
  *  - Jensen-Shannon divergence: a measure of similarity between two probability distributions.
  *  - Kullback-Leibler divergence: a measure of how one probability distribution diverges from a second.
@@ -2762,48 +2744,6 @@ SIMSIMD_PUBLIC void simsimd_l2_f64(simsimd_f64_t const *a, simsimd_f64_t const *
     simsimd_l2_f64_skylake(a, b, n, d);
 #else
     simsimd_l2_f64_serial(a, b, n, d);
-#endif
-}
-
-/*  Binary distances
- *  - Hamming distance: the number of positions at which the corresponding bits are different.
- *  - Jaccard distance: ratio of bit-level matching positions (intersection) to the total number of positions (union).
- *
- *  @param a The first binary vector.
- *  @param b The second binary vector.
- *  @param n The number of 8-bit words in the vectors.
- *  @param d The output distance value.
- *
- *  @note The output distance value is non-negative.
- *  @note The output distance value is zero if and only if the two vectors are identical.
- *  @note Defined only for binary data.
- */
-SIMSIMD_PUBLIC void simsimd_hamming_b8(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n,
-                                       simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
-    simsimd_hamming_b8_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_hamming_b8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
-    simsimd_hamming_b8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_hamming_b8_haswell(a, b, n, d);
-#else
-    simsimd_hamming_b8_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_jaccard_b8(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n,
-                                       simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
-    simsimd_jaccard_b8_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_jaccard_b8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
-    simsimd_jaccard_b8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_jaccard_b8_haswell(a, b, n, d);
-#else
-    simsimd_jaccard_b8_serial(a, b, n, d);
 #endif
 }
 
