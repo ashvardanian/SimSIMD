@@ -100,6 +100,34 @@ fn f32_abs_compat(x: f32) -> f32 {
 #[link(name = "simsimd")]
 extern "C" {
 
+    fn simsimd_uses_neon() -> i32;
+    fn simsimd_uses_neon_f16() -> i32;
+    fn simsimd_uses_neon_bf16() -> i32;
+    fn simsimd_uses_neon_i8() -> i32;
+    fn simsimd_uses_sve() -> i32;
+    fn simsimd_uses_sve_f16() -> i32;
+    fn simsimd_uses_sve_bf16() -> i32;
+    fn simsimd_uses_sve_i8() -> i32;
+    fn simsimd_uses_haswell() -> i32;
+    fn simsimd_uses_skylake() -> i32;
+    fn simsimd_uses_ice() -> i32;
+    fn simsimd_uses_genoa() -> i32;
+    fn simsimd_uses_sapphire() -> i32;
+    fn simsimd_uses_turin() -> i32;
+    fn simsimd_uses_sierra() -> i32;
+
+    fn simsimd_flush_denormals() -> i32;
+    fn simsimd_uses_dynamic_dispatch() -> i32;
+
+    fn simsimd_f32_to_f16(src: *const f32, dest: *mut u16);
+    fn simsimd_f16_to_f32(src: *const u16, dest: *mut f32);
+    fn simsimd_f32_to_bf16(src: *const f32, dest: *mut u16);
+    fn simsimd_bf16_to_f32(src: *const u16, dest: *mut f32);
+    fn simsimd_f32_to_e4m3(src: *const f32, dest: *mut u8);
+    fn simsimd_e4m3_to_f32(src: *const u8, dest: *mut f32);
+    fn simsimd_f32_to_e5m2(src: *const f32, dest: *mut u8);
+    fn simsimd_e5m2_to_f32(src: *const u8, dest: *mut f32);
+
     // Vector dot products
     fn simsimd_dot_i8(a: *const i8, b: *const i8, c: u64size, d: *mut Distance);
     fn simsimd_dot_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
@@ -141,6 +169,7 @@ extern "C" {
     fn simsimd_hamming_b8(a: *const u8, b: *const u8, c: u64size, d: *mut Distance);
     fn simsimd_jaccard_b8(a: *const u8, b: *const u8, c: u64size, d: *mut Distance);
 
+    // Probability distribution distances/divergences
     fn simsimd_jsd_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
     fn simsimd_jsd_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
     fn simsimd_jsd_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
@@ -151,6 +180,7 @@ extern "C" {
     fn simsimd_kld_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
     fn simsimd_kld_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
 
+    // Sparse sets
     fn simsimd_intersect_u16(
         a: *const u16,
         b: *const u16,
@@ -166,34 +196,6 @@ extern "C" {
         d: *mut Distance,
     );
 
-    fn simsimd_uses_neon() -> i32;
-    fn simsimd_uses_neon_f16() -> i32;
-    fn simsimd_uses_neon_bf16() -> i32;
-    fn simsimd_uses_neon_i8() -> i32;
-    fn simsimd_uses_sve() -> i32;
-    fn simsimd_uses_sve_f16() -> i32;
-    fn simsimd_uses_sve_bf16() -> i32;
-    fn simsimd_uses_sve_i8() -> i32;
-    fn simsimd_uses_haswell() -> i32;
-    fn simsimd_uses_skylake() -> i32;
-    fn simsimd_uses_ice() -> i32;
-    fn simsimd_uses_genoa() -> i32;
-    fn simsimd_uses_sapphire() -> i32;
-    fn simsimd_uses_turin() -> i32;
-    fn simsimd_uses_sierra() -> i32;
-
-    fn simsimd_flush_denormals() -> i32;
-    fn simsimd_uses_dynamic_dispatch() -> i32;
-
-    fn simsimd_f32_to_f16(src: *const f32, dest: *mut u16);
-    fn simsimd_f16_to_f32(src: *const u16, dest: *mut f32);
-    fn simsimd_f32_to_bf16(src: *const f32, dest: *mut u16);
-    fn simsimd_bf16_to_f32(src: *const u16, dest: *mut f32);
-    fn simsimd_f32_to_e4m3(src: *const f32, dest: *mut u8);
-    fn simsimd_e4m3_to_f32(src: *const u8, dest: *mut f32);
-    fn simsimd_f32_to_e5m2(src: *const f32, dest: *mut u8);
-    fn simsimd_e5m2_to_f32(src: *const u8, dest: *mut f32);
-
     // Trigonometry functions
     fn simsimd_sin_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
     fn simsimd_sin_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
@@ -202,7 +204,7 @@ extern "C" {
     fn simsimd_atan_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
     fn simsimd_atan_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
 
-    // Elementwise: Scale (alpha * a + beta)
+    // Elementwise operations
     fn simsimd_scale_f64(
         a: *const f64,
         n: u64size,
@@ -391,6 +393,68 @@ extern "C" {
         alpha: Distance,
         beta: Distance,
         result: *mut u8,
+    );
+
+    // Mesh superposition metrics
+    fn simsimd_rmsd_f32(
+        a: *const f32,
+        b: *const f32,
+        n: u64size,
+        a_centroid: *mut f32,
+        b_centroid: *mut f32,
+        rotation: *mut f32,
+        scale: *mut Distance,
+        result: *mut Distance,
+    );
+    fn simsimd_rmsd_f64(
+        a: *const f64,
+        b: *const f64,
+        n: u64size,
+        a_centroid: *mut f64,
+        b_centroid: *mut f64,
+        rotation: *mut f64,
+        scale: *mut Distance,
+        result: *mut Distance,
+    );
+    fn simsimd_kabsch_f32(
+        a: *const f32,
+        b: *const f32,
+        n: u64size,
+        a_centroid: *mut f32,
+        b_centroid: *mut f32,
+        rotation: *mut f32,
+        scale: *mut Distance,
+        result: *mut Distance,
+    );
+    fn simsimd_kabsch_f64(
+        a: *const f64,
+        b: *const f64,
+        n: u64size,
+        a_centroid: *mut f64,
+        b_centroid: *mut f64,
+        rotation: *mut f64,
+        scale: *mut Distance,
+        result: *mut Distance,
+    );
+    fn simsimd_umeyama_f32(
+        a: *const f32,
+        b: *const f32,
+        n: u64size,
+        a_centroid: *mut f32,
+        b_centroid: *mut f32,
+        rotation: *mut f32,
+        scale: *mut Distance,
+        result: *mut Distance,
+    );
+    fn simsimd_umeyama_f64(
+        a: *const f64,
+        b: *const f64,
+        n: u64size,
+        a_centroid: *mut f64,
+        b_centroid: *mut f64,
+        rotation: *mut f64,
+        scale: *mut Distance,
+        result: *mut Distance,
     );
 }
 
@@ -3398,6 +3462,9 @@ pub mod prelude {
         JensenShannon,
         // Probability divergence
         KullbackLeibler,
+        // Mesh alignment
+        MeshAlignment,
+        MeshAlignmentResult,
         ProbabilitySimilarity,
         // Elementwise
         Scale,
@@ -3414,6 +3481,371 @@ pub mod prelude {
 }
 
 // endregion: Prelude
+
+// region: MeshAlignment
+
+/// Result of mesh alignment operations (RMSD, Kabsch, Umeyama).
+///
+/// Contains the computed transformation that aligns point cloud A to point cloud B.
+/// The transformation follows the convention:
+///
+/// ```text
+/// a'_i = scale * R * (a_i - a_centroid) + b_centroid
+/// ```
+///
+/// # Fields
+///
+/// * `rotation_matrix` - 3x3 rotation matrix in row-major order
+/// * `scale` - Uniform scaling factor (1.0 for RMSD and Kabsch, computed for Umeyama)
+/// * `rmsd` - Root mean square deviation after alignment
+/// * `a_centroid` - Centroid of the source point cloud A
+/// * `b_centroid` - Centroid of the target point cloud B
+///
+/// # Example
+///
+/// ```rust
+/// use simsimd::MeshAlignment;
+///
+/// let a: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+/// let b: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+///
+/// // Kabsch alignment (rigid transformation, scale = 1.0)
+/// let result = f64::kabsch(a, b).unwrap();
+/// assert!((result.scale - 1.0).abs() < 1e-6);
+/// assert!(result.rmsd < 1e-6);
+///
+/// // Umeyama alignment (similarity transformation with scale)
+/// let result = f64::umeyama(a, b).unwrap();
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct MeshAlignmentResult<T> {
+    /// 3x3 rotation matrix in row-major order.
+    pub rotation_matrix: [T; 9],
+    /// Uniform scaling factor (1.0 for RMSD/Kabsch, computed for Umeyama).
+    pub scale: Distance,
+    /// Root mean square deviation after alignment.
+    pub rmsd: Distance,
+    /// Centroid of source point cloud A.
+    pub a_centroid: [T; 3],
+    /// Centroid of target point cloud B.
+    pub b_centroid: [T; 3],
+}
+
+impl MeshAlignmentResult<f64> {
+    /// Transform a single 3D point using this alignment.
+    ///
+    /// Applies: `a'_i = scale * R * (a_i - a_centroid) + b_centroid`
+    #[inline]
+    pub fn transform_point(&self, point: [f64; 3]) -> [f64; 3] {
+        let centered = [
+            point[0] - self.a_centroid[0],
+            point[1] - self.a_centroid[1],
+            point[2] - self.a_centroid[2],
+        ];
+        let r = &self.rotation_matrix;
+        [
+            self.scale * (r[0] * centered[0] + r[1] * centered[1] + r[2] * centered[2])
+                + self.b_centroid[0],
+            self.scale * (r[3] * centered[0] + r[4] * centered[1] + r[5] * centered[2])
+                + self.b_centroid[1],
+            self.scale * (r[6] * centered[0] + r[7] * centered[1] + r[8] * centered[2])
+                + self.b_centroid[2],
+        ]
+    }
+
+    /// Transform multiple 3D points using this alignment.
+    #[cfg(feature = "std")]
+    pub fn transform_points(&self, points: &[[f64; 3]]) -> Vec<[f64; 3]> {
+        points.iter().map(|&p| self.transform_point(p)).collect()
+    }
+}
+
+impl MeshAlignmentResult<f32> {
+    /// Transform a single 3D point using this alignment.
+    ///
+    /// Applies: `a'_i = scale * R * (a_i - a_centroid) + b_centroid`
+    #[inline]
+    pub fn transform_point(&self, point: [f32; 3]) -> [f32; 3] {
+        let scale = self.scale as f32;
+        let centered = [
+            point[0] - self.a_centroid[0],
+            point[1] - self.a_centroid[1],
+            point[2] - self.a_centroid[2],
+        ];
+        let r = &self.rotation_matrix;
+        [
+            scale * (r[0] * centered[0] + r[1] * centered[1] + r[2] * centered[2])
+                + self.b_centroid[0],
+            scale * (r[3] * centered[0] + r[4] * centered[1] + r[5] * centered[2])
+                + self.b_centroid[1],
+            scale * (r[6] * centered[0] + r[7] * centered[1] + r[8] * centered[2])
+                + self.b_centroid[2],
+        ]
+    }
+
+    /// Transform multiple 3D points using this alignment.
+    #[cfg(feature = "std")]
+    pub fn transform_points(&self, points: &[[f32; 3]]) -> Vec<[f32; 3]> {
+        points.iter().map(|&p| self.transform_point(p)).collect()
+    }
+}
+
+/// Mesh alignment operations for 3D point clouds.
+///
+/// This trait provides three alignment methods with increasing generality:
+///
+/// * [`rmsd`](MeshAlignment::rmsd) - Computes RMSD without finding optimal alignment
+/// * [`kabsch`](MeshAlignment::kabsch) - Finds optimal rigid transformation (rotation only, scale = 1.0)
+/// * [`umeyama`](MeshAlignment::umeyama) - Finds optimal similarity transformation (rotation + uniform scale)
+///
+/// All methods accept point clouds as slices of `[T; 3]` arrays (N×3 layout) and return
+/// a [`MeshAlignmentResult`] containing the transformation parameters and RMSD.
+///
+/// # Transformation Convention
+///
+/// The computed transformation aligns point cloud A to point cloud B:
+///
+/// ```text
+/// a'_i = scale * R * (a_i - a_centroid) + b_centroid
+/// ```
+///
+/// Where:
+/// - `R` is the rotation matrix (3×3, row-major)
+/// - `scale` is the uniform scaling factor
+/// - `a_centroid` and `b_centroid` are the centroids of the two point clouds
+///
+/// # Example
+///
+/// ```rust
+/// use simsimd::MeshAlignment;
+///
+/// // Two identical point clouds
+/// let a: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+/// let b: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+///
+/// let result = f64::kabsch(a, b).unwrap();
+/// assert!(result.rmsd < 1e-6);
+/// ```
+pub trait MeshAlignment: Sized {
+    /// Compute RMSD between two point clouds without alignment.
+    ///
+    /// Returns the root mean square deviation between corresponding points
+    /// after centering both clouds at the origin. The rotation matrix output
+    /// will be the identity matrix and scale will be 1.0.
+    ///
+    /// # Arguments
+    ///
+    /// * `a` - Source point cloud (N×3)
+    /// * `b` - Target point cloud (N×3)
+    ///
+    /// # Returns
+    ///
+    /// `None` if point clouds have different sizes or fewer than 3 points.
+    fn rmsd(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>>;
+
+    /// Find optimal rigid transformation using the Kabsch algorithm.
+    ///
+    /// Computes the optimal rotation matrix that minimizes RMSD between
+    /// the two point clouds. Scale is fixed at 1.0.
+    ///
+    /// # Algorithm
+    ///
+    /// Uses SVD decomposition of the cross-covariance matrix to find the
+    /// optimal rotation. Handles reflections by checking the determinant.
+    ///
+    /// # Arguments
+    ///
+    /// * `a` - Source point cloud (N×3)
+    /// * `b` - Target point cloud (N×3)
+    ///
+    /// # Returns
+    ///
+    /// `None` if point clouds have different sizes or fewer than 3 points.
+    fn kabsch(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>>;
+
+    /// Find optimal similarity transformation using the Umeyama algorithm.
+    ///
+    /// Computes the optimal rotation matrix and uniform scaling factor that
+    /// minimize RMSD between the two point clouds.
+    ///
+    /// # Use Cases
+    ///
+    /// * Protein structure comparison with different scales
+    /// * 3D shape matching
+    /// * Point cloud registration with scaling
+    ///
+    /// # Arguments
+    ///
+    /// * `a` - Source point cloud (N×3)
+    /// * `b` - Target point cloud (N×3)
+    ///
+    /// # Returns
+    ///
+    /// `None` if point clouds have different sizes or fewer than 3 points.
+    fn umeyama(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>>;
+}
+
+impl MeshAlignment for f64 {
+    fn rmsd(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>> {
+        if a.len() != b.len() || a.len() < 3 {
+            return None;
+        }
+        let mut result = MeshAlignmentResult {
+            rotation_matrix: [0.0; 9],
+            scale: 0.0,
+            rmsd: 0.0,
+            a_centroid: [0.0; 3],
+            b_centroid: [0.0; 3],
+        };
+        unsafe {
+            simsimd_rmsd_f64(
+                a.as_ptr() as *const f64,
+                b.as_ptr() as *const f64,
+                a.len() as u64size,
+                result.a_centroid.as_mut_ptr(),
+                result.b_centroid.as_mut_ptr(),
+                result.rotation_matrix.as_mut_ptr(),
+                &mut result.scale,
+                &mut result.rmsd,
+            );
+        }
+        Some(result)
+    }
+
+    fn kabsch(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>> {
+        if a.len() != b.len() || a.len() < 3 {
+            return None;
+        }
+        let mut result = MeshAlignmentResult {
+            rotation_matrix: [0.0; 9],
+            scale: 0.0,
+            rmsd: 0.0,
+            a_centroid: [0.0; 3],
+            b_centroid: [0.0; 3],
+        };
+        unsafe {
+            simsimd_kabsch_f64(
+                a.as_ptr() as *const f64,
+                b.as_ptr() as *const f64,
+                a.len() as u64size,
+                result.a_centroid.as_mut_ptr(),
+                result.b_centroid.as_mut_ptr(),
+                result.rotation_matrix.as_mut_ptr(),
+                &mut result.scale,
+                &mut result.rmsd,
+            );
+        }
+        Some(result)
+    }
+
+    fn umeyama(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>> {
+        if a.len() != b.len() || a.len() < 3 {
+            return None;
+        }
+        let mut result = MeshAlignmentResult {
+            rotation_matrix: [0.0; 9],
+            scale: 0.0,
+            rmsd: 0.0,
+            a_centroid: [0.0; 3],
+            b_centroid: [0.0; 3],
+        };
+        unsafe {
+            simsimd_umeyama_f64(
+                a.as_ptr() as *const f64,
+                b.as_ptr() as *const f64,
+                a.len() as u64size,
+                result.a_centroid.as_mut_ptr(),
+                result.b_centroid.as_mut_ptr(),
+                result.rotation_matrix.as_mut_ptr(),
+                &mut result.scale,
+                &mut result.rmsd,
+            );
+        }
+        Some(result)
+    }
+}
+
+impl MeshAlignment for f32 {
+    fn rmsd(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>> {
+        if a.len() != b.len() || a.len() < 3 {
+            return None;
+        }
+        let mut result = MeshAlignmentResult {
+            rotation_matrix: [0.0; 9],
+            scale: 0.0,
+            rmsd: 0.0,
+            a_centroid: [0.0; 3],
+            b_centroid: [0.0; 3],
+        };
+        unsafe {
+            simsimd_rmsd_f32(
+                a.as_ptr() as *const f32,
+                b.as_ptr() as *const f32,
+                a.len() as u64size,
+                result.a_centroid.as_mut_ptr(),
+                result.b_centroid.as_mut_ptr(),
+                result.rotation_matrix.as_mut_ptr(),
+                &mut result.scale,
+                &mut result.rmsd,
+            );
+        }
+        Some(result)
+    }
+
+    fn kabsch(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>> {
+        if a.len() != b.len() || a.len() < 3 {
+            return None;
+        }
+        let mut result = MeshAlignmentResult {
+            rotation_matrix: [0.0; 9],
+            scale: 0.0,
+            rmsd: 0.0,
+            a_centroid: [0.0; 3],
+            b_centroid: [0.0; 3],
+        };
+        unsafe {
+            simsimd_kabsch_f32(
+                a.as_ptr() as *const f32,
+                b.as_ptr() as *const f32,
+                a.len() as u64size,
+                result.a_centroid.as_mut_ptr(),
+                result.b_centroid.as_mut_ptr(),
+                result.rotation_matrix.as_mut_ptr(),
+                &mut result.scale,
+                &mut result.rmsd,
+            );
+        }
+        Some(result)
+    }
+
+    fn umeyama(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>> {
+        if a.len() != b.len() || a.len() < 3 {
+            return None;
+        }
+        let mut result = MeshAlignmentResult {
+            rotation_matrix: [0.0; 9],
+            scale: 0.0,
+            rmsd: 0.0,
+            a_centroid: [0.0; 3],
+            b_centroid: [0.0; 3],
+        };
+        unsafe {
+            simsimd_umeyama_f32(
+                a.as_ptr() as *const f32,
+                b.as_ptr() as *const f32,
+                a.len() as u64size,
+                result.a_centroid.as_mut_ptr(),
+                result.b_centroid.as_mut_ptr(),
+                result.rotation_matrix.as_mut_ptr(),
+                &mut result.scale,
+                &mut result.rmsd,
+            );
+        }
+        Some(result)
+    }
+}
+
+// endregion: MeshAlignment
 
 #[cfg(test)]
 mod tests {
@@ -4306,5 +4738,149 @@ mod tests {
                 result[i]
             );
         }
+    }
+
+    // MeshAlignment tests
+
+    #[test]
+    fn kabsch_f64_identical_points() {
+        let a: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+        let b: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+
+        let result = f64::kabsch(a, b).unwrap();
+
+        // Scale should be 1.0 for Kabsch
+        assert!(
+            (result.scale - 1.0).abs() < 1e-6,
+            "Expected scale ~1.0, got {}",
+            result.scale
+        );
+        // RMSD should be small for identical points (SVD has numerical precision limits)
+        assert!(result.rmsd < 1e-4, "Expected RMSD ~0, got {}", result.rmsd);
+    }
+
+    #[test]
+    fn kabsch_f32_identical_points() {
+        let a: &[[f32; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+        let b: &[[f32; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+
+        let result = f32::kabsch(a, b).unwrap();
+
+        assert!(
+            (result.scale - 1.0).abs() < 1e-6,
+            "Expected scale ~1.0, got {}",
+            result.scale
+        );
+        // RMSD should be small for identical points (SVD has numerical precision limits)
+        assert!(result.rmsd < 1e-4, "Expected RMSD ~0, got {}", result.rmsd);
+    }
+
+    #[test]
+    fn umeyama_f64_scaled_points() {
+        // B is 2x scaled version of A
+        let a: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+        let b: &[[f64; 3]] = &[[2.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 2.0]];
+
+        let result = f64::umeyama(a, b).unwrap();
+
+        // Scale should be ~2.0 (transforming A to B)
+        assert!(
+            (result.scale - 2.0).abs() < 0.1,
+            "Expected scale ~2.0, got {}",
+            result.scale
+        );
+    }
+
+    #[test]
+    fn rmsd_f64_basic() {
+        let a: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+        let b: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+
+        let result = f64::rmsd(a, b).unwrap();
+
+        // Scale should be 1.0 for RMSD
+        assert!(
+            (result.scale - 1.0).abs() < 1e-6,
+            "Expected scale ~1.0, got {}",
+            result.scale
+        );
+        // RMSD should be 0 for identical points
+        assert!(result.rmsd < 1e-6, "Expected RMSD ~0, got {}", result.rmsd);
+    }
+
+    #[test]
+    fn mesh_alignment_length_mismatch() {
+        let a: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+        let b: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]; // Different length
+
+        assert!(f64::kabsch(a, b).is_none());
+        assert!(f64::rmsd(a, b).is_none());
+        assert!(f64::umeyama(a, b).is_none());
+    }
+
+    #[test]
+    fn mesh_alignment_too_few_points() {
+        let a: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]; // Only 2 points
+        let b: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+
+        assert!(f64::kabsch(a, b).is_none());
+    }
+
+    #[test]
+    fn mesh_alignment_transform_point() {
+        let a: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+        let b: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+
+        let result = f64::kabsch(a, b).unwrap();
+
+        // Transform a point - should stay approximately the same for identical clouds
+        let transformed = result.transform_point([1.0, 0.0, 0.0]);
+        assert!(
+            (transformed[0] - 1.0).abs() < 0.1,
+            "Expected x ~1.0, got {}",
+            transformed[0]
+        );
+        assert!(
+            transformed[1].abs() < 0.1,
+            "Expected y ~0.0, got {}",
+            transformed[1]
+        );
+        assert!(
+            transformed[2].abs() < 0.1,
+            "Expected z ~0.0, got {}",
+            transformed[2]
+        );
+    }
+
+    #[test]
+    fn mesh_alignment_rotation_determinant() {
+        let a: &[[f64; 3]] = &[
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [1.0, 1.0, 0.0],
+            [1.0, 0.0, 1.0],
+        ];
+        let b: &[[f64; 3]] = &[
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [1.0, 1.0, 0.0],
+            [1.0, 0.0, 1.0],
+        ];
+
+        let result = f64::kabsch(a, b).unwrap();
+        let r = &result.rotation_matrix;
+
+        // Compute determinant of 3x3 rotation matrix
+        let det = r[0] * (r[4] * r[8] - r[5] * r[7]) - r[1] * (r[3] * r[8] - r[5] * r[6])
+            + r[2] * (r[3] * r[7] - r[4] * r[6]);
+
+        // Determinant should be +1 (proper rotation) or -1 (improper/reflection)
+        assert!(
+            (det.abs() - 1.0).abs() < 0.01,
+            "Expected det(R) ~±1.0, got {}",
+            det
+        );
     }
 }

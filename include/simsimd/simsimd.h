@@ -109,6 +109,7 @@
 #include "elementwise.h"  // Weighted Sum, Fused-Multiply-Add
 #include "geospatial.h"   // Haversine and Vincenty
 #include "matmul.h"       // Matrix multiplication
+#include "mesh.h"         // RMSD, Kabsch, Umeyama
 #include "probability.h"  // Kullback-Leibler, Jensen–Shannon
 #include "sparse.h"       // Intersect
 #include "spatial.h"      // L2, Angular
@@ -403,11 +404,31 @@ typedef void (*simsimd_kernel_fma_punned_t)(void const *a, void const *b, void c
 typedef void (*simsimd_kernel_trigonometry_punned_t)(void const *x, simsimd_size_t n, void *y);
 
 /**
+ *  @brief  Type-punned function pointer for mesh superposition metrics (RMSD, Kabsch, Umeyama).
+ *          All mesh functions share a unified signature with rotation matrix and scale factor.
+ *
+ *  The transformation aligns point cloud A to B: a'_i = scale * R * (a_i - a_centroid) + b_centroid
+ *
+ *  @param[in] a            Pointer to first point cloud (source, interleaved xyz coordinates).
+ *  @param[in] b            Pointer to second point cloud (target, interleaved xyz coordinates).
+ *  @param[in] n            Number of 3D points in each cloud.
+ *  @param[out] a_centroid  Output centroid of first cloud (3 values), or NULL.
+ *  @param[out] b_centroid  Output centroid of second cloud (3 values), or NULL.
+ *  @param[out] rotation    Output 3x3 rotation matrix (9 values, row-major), or NULL.
+ *  @param[out] scale       Output scale factor (1.0 for RMSD/Kabsch), or NULL.
+ *  @param[out] d           Output RMSD value as a double-precision float.
+ */
+typedef void (*simsimd_metric_mesh_punned_t)(void const *a, void const *b, simsimd_size_t n, //
+                                             void *a_centroid, void *b_centroid,             //
+                                             void *rotation, simsimd_distance_t *scale,      //
+                                             simsimd_distance_t *d);
+
+/**
  *  @brief  Type-punned function pointer for a SimSIMD public interface.
  *
  *  Can be a `simsimd_metric_dense_punned_t`, `simsimd_metric_sparse_punned_t`, `simsimd_metric_curved_punned_t`,
- *  `simsimd_kernel_fma_punned_t`, `simsimd_kernel_wsum_punned_t`, `simsimd_kernel_scale_punned_t`,
- *  `simsimd_kernel_sum_punned_t`, or `simsimd_kernel_trigonometry_punned_t`.
+ *  `simsimd_metric_mesh_punned_t`, `simsimd_kernel_fma_punned_t`, `simsimd_kernel_wsum_punned_t`,
+ *  `simsimd_kernel_scale_punned_t`, `simsimd_kernel_sum_punned_t`, or `simsimd_kernel_trigonometry_punned_t`.
  */
 typedef void (*simsimd_kernel_punned_t)(void *);
 
@@ -1790,6 +1811,118 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_implementation( //
     // Modern compilers abso-freaking-lutely love optimizing-out my logic!
     // Just marking the variables as `volatile` is not enough, so we have
     // to add inline assembly to further discourage them!
+#if defined(_MSC_VER)
+    _ReadWriteBarrier();
+#else
+    __asm__ __volatile__("" ::: "memory");
+#endif
+}
+
+SIMSIMD_INTERNAL void _simsimd_find_mesh_kernel_punned_f64(simsimd_capability_t v, simsimd_metric_kind_t k,
+                                                           simsimd_metric_mesh_punned_t *m, simsimd_capability_t *c) {
+    typedef simsimd_metric_mesh_punned_t m_t;
+#if SIMSIMD_TARGET_SKYLAKE
+    if (v & simsimd_cap_skylake_k) switch (k) {
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_HASWELL
+    if (v & simsimd_cap_haswell_k) switch (k) {
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f64_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f64_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f64_haswell, *c = simsimd_cap_haswell_k; return;
+        default: break;
+        }
+#endif
+    if (v & simsimd_cap_serial_k) switch (k) {
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f64_serial, *c = simsimd_cap_serial_k; return;
+        default: break;
+        }
+}
+
+SIMSIMD_INTERNAL void _simsimd_find_mesh_kernel_punned_f32(simsimd_capability_t v, simsimd_metric_kind_t k,
+                                                           simsimd_metric_mesh_punned_t *m, simsimd_capability_t *c) {
+    typedef simsimd_metric_mesh_punned_t m_t;
+#if SIMSIMD_TARGET_SKYLAKE
+    if (v & simsimd_cap_skylake_k) switch (k) {
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_HASWELL
+    if (v & simsimd_cap_haswell_k) switch (k) {
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f32_haswell, *c = simsimd_cap_haswell_k; return;
+        default: break;
+        }
+#endif
+    if (v & simsimd_cap_serial_k) switch (k) {
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f32_serial, *c = simsimd_cap_serial_k; return;
+        default: break;
+        }
+}
+
+SIMSIMD_INTERNAL void _simsimd_find_mesh_kernel_punned_f16(simsimd_capability_t v, simsimd_metric_kind_t k,
+                                                           simsimd_metric_mesh_punned_t *m, simsimd_capability_t *c) {
+    typedef simsimd_metric_mesh_punned_t m_t;
+    if (v & simsimd_cap_serial_k) switch (k) {
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f16_serial, *c = simsimd_cap_serial_k; return;
+        default: break;
+        }
+}
+
+SIMSIMD_INTERNAL void _simsimd_find_mesh_kernel_punned_bf16(simsimd_capability_t v, simsimd_metric_kind_t k,
+                                                            simsimd_metric_mesh_punned_t *m, simsimd_capability_t *c) {
+    typedef simsimd_metric_mesh_punned_t m_t;
+    if (v & simsimd_cap_serial_k) switch (k) {
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_bf16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_bf16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_bf16_serial, *c = simsimd_cap_serial_k; return;
+        default: break;
+        }
+}
+
+SIMSIMD_INTERNAL void _simsimd_find_mesh_kernel_punned_implementation( //
+    simsimd_metric_kind_t kind,                                        //
+    simsimd_datatype_t datatype,                                       //
+    simsimd_capability_t supported,                                    //
+    simsimd_capability_t allowed,                                      //
+    simsimd_metric_mesh_punned_t *kernel_output,                       //
+    simsimd_capability_t *capability_output) {
+
+#if defined(_MSC_VER)
+    _ReadWriteBarrier();
+#else
+    __asm__ __volatile__("" ::: "memory");
+#endif
+
+    simsimd_metric_mesh_punned_t *m = kernel_output;
+    simsimd_capability_t *c = capability_output;
+    simsimd_capability_t viable = (simsimd_capability_t)(supported & allowed);
+
+    switch (datatype) {
+    case simsimd_f64_k: _simsimd_find_mesh_kernel_punned_f64(viable, kind, m, c); return;
+    case simsimd_f32_k: _simsimd_find_mesh_kernel_punned_f32(viable, kind, m, c); return;
+    case simsimd_f16_k: _simsimd_find_mesh_kernel_punned_f16(viable, kind, m, c); return;
+    case simsimd_bf16_k: _simsimd_find_mesh_kernel_punned_bf16(viable, kind, m, c); return;
+    default: break;
+    }
+
+    *m = (simsimd_metric_mesh_punned_t)0;
+    *c = (simsimd_capability_t)0;
+
 #if defined(_MSC_VER)
     _ReadWriteBarrier();
 #else
@@ -3500,6 +3633,120 @@ SIMSIMD_PUBLIC void simsimd_fma_u64(simsimd_u64_t const *a, simsimd_u64_t const 
 #else
     simsimd_fma_u64_serial(a, b, c, n, alpha, beta, r);
 #endif
+}
+
+/*  Mesh superposition metrics (RMSD, Kabsch, Umeyama)
+ *  These functions compute structural alignment metrics for 3D point clouds.
+ *  Points are stored in interleaved (AoS) format: [x0,y0,z0, x1,y1,z1, ...].
+ *  All functions share a unified signature with rotation matrix and scale factor outputs.
+ *  The transformation aligns point cloud A to B: a'_i = scale * R * (a_i - a_centroid) + b_centroid
+ */
+SIMSIMD_PUBLIC void simsimd_rmsd_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
+                                     simsimd_f64_t *a_centroid, simsimd_f64_t *b_centroid, simsimd_f64_t *rotation,
+                                     simsimd_distance_t *scale, simsimd_distance_t *d) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_rmsd_f64_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_rmsd_f64_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#else
+    simsimd_rmsd_f64_serial(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_rmsd_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
+                                     simsimd_f32_t *a_centroid, simsimd_f32_t *b_centroid, simsimd_f32_t *rotation,
+                                     simsimd_distance_t *scale, simsimd_distance_t *d) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_rmsd_f32_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_rmsd_f32_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#else
+    simsimd_rmsd_f32_serial(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_rmsd_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
+                                     simsimd_f16_t *a_centroid, simsimd_f16_t *b_centroid, simsimd_f32_t *rotation,
+                                     simsimd_distance_t *scale, simsimd_distance_t *d) {
+    simsimd_rmsd_f16_serial(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+}
+
+SIMSIMD_PUBLIC void simsimd_rmsd_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
+                                      simsimd_bf16_t *a_centroid, simsimd_bf16_t *b_centroid, simsimd_f32_t *rotation,
+                                      simsimd_distance_t *scale, simsimd_distance_t *d) {
+    simsimd_rmsd_bf16_serial(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+}
+
+SIMSIMD_PUBLIC void simsimd_kabsch_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
+                                       simsimd_f64_t *a_centroid, simsimd_f64_t *b_centroid, simsimd_f64_t *rotation,
+                                       simsimd_distance_t *scale, simsimd_distance_t *d) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_kabsch_f64_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_kabsch_f64_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#else
+    simsimd_kabsch_f64_serial(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_kabsch_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
+                                       simsimd_f32_t *a_centroid, simsimd_f32_t *b_centroid, simsimd_f32_t *rotation,
+                                       simsimd_distance_t *scale, simsimd_distance_t *d) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_kabsch_f32_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_kabsch_f32_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#else
+    simsimd_kabsch_f32_serial(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_kabsch_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
+                                       simsimd_f16_t *a_centroid, simsimd_f16_t *b_centroid, simsimd_f32_t *rotation,
+                                       simsimd_distance_t *scale, simsimd_distance_t *d) {
+    simsimd_kabsch_f16_serial(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+}
+
+SIMSIMD_PUBLIC void simsimd_kabsch_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
+                                        simsimd_bf16_t *a_centroid, simsimd_bf16_t *b_centroid, simsimd_f32_t *rotation,
+                                        simsimd_distance_t *scale, simsimd_distance_t *d) {
+    simsimd_kabsch_bf16_serial(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+}
+
+SIMSIMD_PUBLIC void simsimd_umeyama_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
+                                        simsimd_f64_t *a_centroid, simsimd_f64_t *b_centroid, simsimd_f64_t *rotation,
+                                        simsimd_distance_t *scale, simsimd_distance_t *d) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_umeyama_f64_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_umeyama_f64_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#else
+    simsimd_umeyama_f64_serial(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_umeyama_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
+                                        simsimd_f32_t *a_centroid, simsimd_f32_t *b_centroid, simsimd_f32_t *rotation,
+                                        simsimd_distance_t *scale, simsimd_distance_t *d) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_umeyama_f32_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_umeyama_f32_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#else
+    simsimd_umeyama_f32_serial(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_umeyama_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
+                                        simsimd_f16_t *a_centroid, simsimd_f16_t *b_centroid, simsimd_f32_t *rotation,
+                                        simsimd_distance_t *scale, simsimd_distance_t *d) {
+    simsimd_umeyama_f16_serial(a, b, n, a_centroid, b_centroid, rotation, scale, d);
+}
+
+SIMSIMD_PUBLIC void simsimd_umeyama_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
+                                         simsimd_bf16_t *a_centroid, simsimd_bf16_t *b_centroid,
+                                         simsimd_f32_t *rotation, simsimd_distance_t *scale, simsimd_distance_t *d) {
+    simsimd_umeyama_bf16_serial(a, b, n, a_centroid, b_centroid, rotation, scale, d);
 }
 
 #endif

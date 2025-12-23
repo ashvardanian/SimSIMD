@@ -127,6 +127,7 @@ fn build_simsimd() -> HashMap<String, bool> {
     println!("cargo:rerun-if-changed=include/simsimd/probability.h");
     println!("cargo:rerun-if-changed=include/simsimd/binary.h");
     println!("cargo:rerun-if-changed=include/simsimd/types.h");
+    println!("cargo:rerun-if-changed=include/simsimd/mesh.h");
 
     // Rerun if environment variables change
     for flag in flags_to_try.iter() {

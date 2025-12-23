@@ -176,6 +176,24 @@ extern "C" {
         kernel(inputs, n, outputs);                                                                                \
     }
 
+#define SIMSIMD_DECLARATION_MESH(name, extension)                                                                    \
+    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(                                                               \
+        simsimd_##extension##_t const *a, simsimd_##extension##_t const *b, simsimd_size_t n,                        \
+        simsimd_##extension##_t *a_centroid, simsimd_##extension##_t *b_centroid, simsimd_##extension##_t *rotation, \
+        simsimd_distance_t *scale, simsimd_distance_t *result) {                                                     \
+        static simsimd_metric_mesh_punned_t kernel = 0;                                                              \
+        if (kernel == 0) {                                                                                           \
+            simsimd_capability_t used_capability;                                                                    \
+            simsimd_find_mesh_kernel_punned(simsimd_metric_##name##_k, simsimd_##extension##_k,                      \
+                                            simsimd_capabilities(), simsimd_cap_any_k, &kernel, &used_capability);   \
+            if (!kernel) {                                                                                           \
+                *(simsimd_u64_t *)result = 0x7FF0000000000001ull;                                                    \
+                return;                                                                                              \
+            }                                                                                                        \
+        }                                                                                                            \
+        kernel(a, b, n, a_centroid, b_centroid, rotation, scale, result);                                            \
+    }
+
 // Dot products
 SIMSIMD_DECLARATION_DENSE(dot, i8)
 SIMSIMD_DECLARATION_DENSE(dot, u8)
@@ -289,6 +307,14 @@ SIMSIMD_DECLARATION_TRIGONOMETRY(cos, f32)
 SIMSIMD_DECLARATION_TRIGONOMETRY(cos, f64)
 SIMSIMD_DECLARATION_TRIGONOMETRY(atan, f32)
 SIMSIMD_DECLARATION_TRIGONOMETRY(atan, f64)
+
+// Mesh alignment (RMSD, Kabsch, Umeyama)
+SIMSIMD_DECLARATION_MESH(rmsd, f32)
+SIMSIMD_DECLARATION_MESH(rmsd, f64)
+SIMSIMD_DECLARATION_MESH(kabsch, f32)
+SIMSIMD_DECLARATION_MESH(kabsch, f64)
+SIMSIMD_DECLARATION_MESH(umeyama, f32)
+SIMSIMD_DECLARATION_MESH(umeyama, f64)
 
 SIMSIMD_DYNAMIC int simsimd_uses_neon(void) { return (simsimd_capabilities() & simsimd_cap_neon_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_neon_f16(void) { return (simsimd_capabilities() & simsimd_cap_neon_f16_k) != 0; }
@@ -448,6 +474,17 @@ SIMSIMD_DYNAMIC void simsimd_find_kernel_punned( //
     simsimd_kernel_punned_t *kernel_output,      //
     simsimd_capability_t *capability_output) {
     _simsimd_find_kernel_punned_implementation(kind, datatype, supported, allowed, kernel_output, capability_output);
+}
+
+SIMSIMD_DYNAMIC void simsimd_find_mesh_kernel_punned( //
+    simsimd_metric_kind_t kind,                       //
+    simsimd_datatype_t datatype,                      //
+    simsimd_capability_t supported,                   //
+    simsimd_capability_t allowed,                     //
+    simsimd_metric_mesh_punned_t *kernel_output,      //
+    simsimd_capability_t *capability_output) {
+    _simsimd_find_mesh_kernel_punned_implementation(kind, datatype, supported, allowed, kernel_output,
+                                                    capability_output);
 }
 
 #ifdef __cplusplus
