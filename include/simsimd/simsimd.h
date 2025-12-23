@@ -202,13 +202,15 @@ typedef enum {
     simsimd_cap_serial_k = 1,       ///< Serial (non-SIMD) capability
     simsimd_cap_any_k = 0x7FFFFFFF, ///< Mask representing any capability with `INT_MAX`
 
-    simsimd_cap_haswell_k = 1 << 10,  ///< x86 AVX2 capability with FMA and F16C extensions
-    simsimd_cap_skylake_k = 1 << 11,  ///< x86 AVX512 baseline capability
-    simsimd_cap_ice_k = 1 << 12,      ///< x86 AVX512 capability with advanced integer algos
-    simsimd_cap_genoa_k = 1 << 13,    ///< x86 AVX512 capability with `bf16` support
-    simsimd_cap_sapphire_k = 1 << 14, ///< x86 AVX512 capability with `f16` support
-    simsimd_cap_turin_k = 1 << 15,    ///< x86 AVX512 capability with conflict detection
-    simsimd_cap_sierra_k = 1 << 16,   ///< x86 AVX2+VNNI capability with `i8` dot-products
+    simsimd_cap_haswell_k = 1 << 10,      ///< x86 AVX2 capability with FMA and F16C extensions
+    simsimd_cap_skylake_k = 1 << 11,      ///< x86 AVX512 baseline capability
+    simsimd_cap_ice_k = 1 << 12,          ///< x86 AVX512 capability with advanced integer algos
+    simsimd_cap_genoa_k = 1 << 13,        ///< x86 AVX512 capability with `bf16` support
+    simsimd_cap_sapphire_k = 1 << 14,     ///< x86 AVX512 capability with `f16` support
+    simsimd_cap_turin_k = 1 << 15,        ///< x86 AVX512 capability with conflict detection
+    simsimd_cap_sierra_k = 1 << 16,       ///< x86 AVX2+VNNI capability with `i8` dot-products
+    simsimd_cap_sapphire_amx_k = 1 << 17, ///< x86 AMX capability with `i8` and `bf16` support
+    simsimd_cap_granite_amx_k = 1 << 18,  ///< x86 AMX capability with `f16` support
 
     simsimd_cap_neon_k = 1 << 20,      ///< ARM NEON baseline capability
     simsimd_cap_neon_f16_k = 1 << 21,  ///< ARM NEON `f16` capability
