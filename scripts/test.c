@@ -472,7 +472,15 @@ void test_distance_from_itself(void) {
     simsimd_i8_t i8s[1536];
     simsimd_u8_t u8s[1536];
     simsimd_b8_t b8s[1536 / 8];
+    simsimd_e4m3_t e4m3s[1536];
+    simsimd_e5m2_t e5m2s[1536];
     simsimd_distance_t distance[2];
+
+    // Initialize FP8 arrays with small values (avoid overflow)
+    for (int i = 0; i < 1536; i++) {
+        e4m3s[i] = 0x3C; // ~1.0 in E4M3
+        e5m2s[i] = 0x3C; // ~1.0 in E5M2
+    }
 
     // Angular distance
     simsimd_angular_i8(i8s, i8s, 1536, &distance[0]);
@@ -497,6 +505,8 @@ void test_distance_from_itself(void) {
     simsimd_dot_bf16(bf16s, bf16s, 1536, &distance[0]);
     simsimd_dot_f32(f32s, f32s, 1536, &distance[0]);
     simsimd_dot_f64(f64s, f64s, 1536, &distance[0]);
+    simsimd_dot_e4m3(e4m3s, e4m3s, 1536, &distance[0]);
+    simsimd_dot_e5m2(e5m2s, e5m2s, 1536, &distance[0]);
 
     // Complex inner product
     simsimd_dot_bf16c(bf16cs, bf16cs, 768, &distance[0]);
@@ -1390,6 +1400,183 @@ void test_geospatial_vincenty(void) {
 
 #pragma endregion
 
+#pragma region Matrix Multiplication
+
+/**
+ *  @brief  Reference BF16 matmul: C[m×n] = A[m×k] × B[n×k]ᵀ
+ */
+static void reference_matmul_bf16_f32(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_f32_t *c,
+                                       simsimd_size_t m, simsimd_size_t n, simsimd_size_t k) {
+    for (simsimd_size_t i = 0; i < m; i++) {
+        for (simsimd_size_t j = 0; j < n; j++) {
+            simsimd_f32_t sum = 0;
+            for (simsimd_size_t kk = 0; kk < k; kk++) {
+                simsimd_f32_t a_val, b_val;
+                simsimd_bf16_to_f32(&a[i * k + kk], &a_val);
+                simsimd_bf16_to_f32(&b[j * k + kk], &b_val);
+                sum += a_val * b_val;
+            }
+            c[i * n + j] = sum;
+        }
+    }
+}
+
+/**
+ *  @brief  Reference I8 matmul: C[m×n] = A[m×k] × B[n×k]ᵀ
+ */
+static void reference_matmul_i8_i32(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i32_t *c,
+                                     simsimd_size_t m, simsimd_size_t n, simsimd_size_t k) {
+    for (simsimd_size_t i = 0; i < m; i++) {
+        for (simsimd_size_t j = 0; j < n; j++) {
+            simsimd_i32_t sum = 0;
+            for (simsimd_size_t kk = 0; kk < k; kk++) {
+                sum += (simsimd_i32_t)a[i * k + kk] * (simsimd_i32_t)b[j * k + kk];
+            }
+            c[i * n + j] = sum;
+        }
+    }
+}
+
+/**
+ *  @brief  Test BF16 matmul (pack + multiply) against reference.
+ */
+void test_matmul_bf16(void) {
+    simsimd_size_t m = 64, n = 64, k = 64;
+
+    // Allocate matrices
+    simsimd_bf16_t *a = (simsimd_bf16_t *)malloc(m * k * sizeof(simsimd_bf16_t));
+    simsimd_bf16_t *b = (simsimd_bf16_t *)malloc(n * k * sizeof(simsimd_bf16_t));
+    simsimd_f32_t *c_ref = (simsimd_f32_t *)malloc(m * n * sizeof(simsimd_f32_t));
+    simsimd_f32_t *c_test = (simsimd_f32_t *)malloc(m * n * sizeof(simsimd_f32_t));
+
+    // Initialize with random values
+    for (simsimd_size_t i = 0; i < m * k; i++) {
+        simsimd_f32_t val = (simsimd_f32_t)test_random_f64(-1.0, 1.0);
+        simsimd_f32_to_bf16(&val, &a[i]);
+    }
+    for (simsimd_size_t i = 0; i < n * k; i++) {
+        simsimd_f32_t val = (simsimd_f32_t)test_random_f64(-1.0, 1.0);
+        simsimd_f32_to_bf16(&val, &b[i]);
+    }
+
+    // Compute reference
+    reference_matmul_bf16_f32(a, b, c_ref, m, n, k);
+
+    // Test serial implementation
+    {
+        simsimd_size_t packed_size = simsimd_matmul_bf16_packed_size_serial(n, k);
+        void *b_packed = malloc(packed_size);
+        simsimd_matmul_bf16_pack_serial(b, n, k, k * sizeof(simsimd_bf16_t), b_packed);
+        simsimd_matmul_bf16_f32_serial(a, b_packed, c_test, m, n, k,
+                                        k * sizeof(simsimd_bf16_t), n * sizeof(simsimd_f32_t));
+        free(b_packed);
+
+        // Compare results with tolerance (BF16 has limited precision)
+        for (simsimd_size_t i = 0; i < m * n; i++) {
+            simsimd_f64_t diff = fabs((simsimd_f64_t)c_ref[i] - (simsimd_f64_t)c_test[i]);
+            simsimd_f64_t rel_err = fabs(c_ref[i]) > 1e-6 ? diff / fabs(c_ref[i]) : diff;
+            assert(rel_err < 0.02 || diff < 0.01); // 2% relative or 0.01 absolute
+        }
+        printf("  - serial: PASS\n");
+    }
+
+#if SIMSIMD_TARGET_SAPPHIRE
+    // Test Sapphire (AMX) implementation
+    {
+        simsimd_capability_t enabled = simsimd_enable_capabilities(simsimd_cap_sapphire_k);
+        if (enabled & simsimd_cap_sapphire_k) {
+            simsimd_size_t packed_size = simsimd_matmul_bf16_packed_size_sapphire(n, k);
+            void *b_packed = malloc(packed_size);
+            simsimd_matmul_bf16_pack_sapphire(b, n, k, k * sizeof(simsimd_bf16_t), b_packed);
+            simsimd_matmul_bf16_f32_sapphire(a, b_packed, c_test, m, n, k,
+                                              k * sizeof(simsimd_bf16_t), n * sizeof(simsimd_f32_t));
+            free(b_packed);
+
+            // Compare results
+            for (simsimd_size_t i = 0; i < m * n; i++) {
+                simsimd_f64_t diff = fabs((simsimd_f64_t)c_ref[i] - (simsimd_f64_t)c_test[i]);
+                simsimd_f64_t rel_err = fabs(c_ref[i]) > 1e-6 ? diff / fabs(c_ref[i]) : diff;
+                assert(rel_err < 0.02 || diff < 0.01);
+            }
+            printf("  - sapphire (AMX): PASS\n");
+        } else {
+            printf("  - sapphire (AMX): SKIPPED (not available)\n");
+        }
+    }
+#endif
+
+    free(a);
+    free(b);
+    free(c_ref);
+    free(c_test);
+    printf("Test matmul BF16: PASS\n");
+}
+
+/**
+ *  @brief  Test I8 matmul (pack + multiply) against reference.
+ */
+void test_matmul_i8(void) {
+    simsimd_size_t m = 64, n = 64, k = 64;
+
+    // Allocate matrices
+    simsimd_i8_t *a = (simsimd_i8_t *)malloc(m * k);
+    simsimd_i8_t *b = (simsimd_i8_t *)malloc(n * k);
+    simsimd_i32_t *c_ref = (simsimd_i32_t *)malloc(m * n * sizeof(simsimd_i32_t));
+    simsimd_i32_t *c_test = (simsimd_i32_t *)malloc(m * n * sizeof(simsimd_i32_t));
+
+    // Initialize with random values
+    for (simsimd_size_t i = 0; i < m * k; i++)
+        a[i] = (simsimd_i8_t)test_random_f64(-127, 127);
+    for (simsimd_size_t i = 0; i < n * k; i++)
+        b[i] = (simsimd_i8_t)test_random_f64(-127, 127);
+
+    // Compute reference
+    reference_matmul_i8_i32(a, b, c_ref, m, n, k);
+
+    // Test serial implementation
+    {
+        simsimd_size_t packed_size = simsimd_matmul_i8_packed_size_serial(n, k);
+        void *b_packed = malloc(packed_size);
+        simsimd_matmul_i8_pack_serial(b, n, k, k, b_packed);
+        simsimd_matmul_i8_i32_serial(a, b_packed, c_test, m, n, k, k, n * sizeof(simsimd_i32_t));
+        free(b_packed);
+
+        // Compare results (should be exact for integers)
+        for (simsimd_size_t i = 0; i < m * n; i++)
+            assert(c_ref[i] == c_test[i]);
+        printf("  - serial: PASS\n");
+    }
+
+#if SIMSIMD_TARGET_SAPPHIRE
+    // Test Sapphire (AMX) implementation
+    {
+        simsimd_capability_t enabled = simsimd_enable_capabilities(simsimd_cap_sapphire_k);
+        if (enabled & simsimd_cap_sapphire_k) {
+            simsimd_size_t packed_size = simsimd_matmul_i8_packed_size_sapphire(n, k);
+            void *b_packed = malloc(packed_size);
+            simsimd_matmul_i8_pack_sapphire(b, n, k, k, b_packed);
+            simsimd_matmul_i8_i32_sapphire(a, b_packed, c_test, m, n, k, k, n * sizeof(simsimd_i32_t));
+            free(b_packed);
+
+            // Compare results
+            for (simsimd_size_t i = 0; i < m * n; i++)
+                assert(c_ref[i] == c_test[i]);
+            printf("  - sapphire (AMX): PASS\n");
+        } else {
+            printf("  - sapphire (AMX): SKIPPED (not available)\n");
+        }
+    }
+#endif
+
+    free(a);
+    free(b);
+    free(c_ref);
+    free(c_test);
+    printf("Test matmul I8: PASS\n");
+}
+
+#pragma endregion
+
 int main(int argc, char **argv) {
     (void)argc;
     (void)argv;
@@ -1425,6 +1612,10 @@ int main(int argc, char **argv) {
     // Geospatial
     test_geospatial_haversine();
     test_geospatial_vincenty();
+
+    // Matrix multiplication
+    test_matmul_bf16();
+    test_matmul_i8();
 
     printf("All tests passed.\n");
     return 0;
