@@ -125,6 +125,9 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_haswell(simsimd_f16c_t const* a, simsimd_f
 
 SIMSIMD_PUBLIC void simsimd_dot_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
+SIMSIMD_PUBLIC void simsimd_dot_e4m3_haswell(simsimd_e4m3_t const* a, simsimd_e4m3_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_e5m2_haswell(simsimd_e5m2_t const* a, simsimd_e5m2_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
 SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_u8_haswell(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
@@ -152,6 +155,9 @@ SIMSIMD_PUBLIC void simsimd_dot_f32_skylake(simsimd_f32_t const* a, simsimd_f32_
 SIMSIMD_PUBLIC void simsimd_dot_f32c_skylake(simsimd_f32c_t const* a, simsimd_f32c_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 SIMSIMD_PUBLIC void simsimd_vdot_f32c_skylake(simsimd_f32c_t const* a, simsimd_f32c_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 
+SIMSIMD_PUBLIC void simsimd_dot_e4m3_skylake(simsimd_e4m3_t const* a, simsimd_e4m3_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_e5m2_skylake(simsimd_e5m2_t const* a, simsimd_e5m2_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
 SIMSIMD_PUBLIC void simsimd_dot_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_u8_ice(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
@@ -168,6 +174,7 @@ SIMSIMD_PUBLIC void simsimd_dot_e5m2_genoa(simsimd_e5m2_t const* a, simsimd_e5m2
 
 SIMSIMD_PUBLIC void simsimd_dot_e4m3_sapphire(simsimd_e4m3_t const* a, simsimd_e4m3_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 SIMSIMD_PUBLIC void simsimd_dot_e5m2_sapphire(simsimd_e5m2_t const* a, simsimd_e5m2_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+SIMSIMD_PUBLIC void simsimd_dot_e5m2_sapphire_lut(simsimd_e5m2_t const* a, simsimd_e5m2_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
 SIMSIMD_PUBLIC void simsimd_dot_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 // clang-format on
@@ -1298,6 +1305,117 @@ simsimd_dot_bf16_haswell_cycle:
     *result = _simsimd_reduce_f32x8_haswell(ab_vec);
 }
 
+/*  Convert 8x E4M3 values to 8x F32 values using AVX2 bit manipulation.
+ *
+ *  E4M3 format: S EEEE MMM (bias=7, range: 2^-6 to 448)
+ *  F32 format:  S EEEEEEEE MMMMMMMMMMMMMMMMMMMMMMM (bias=127)
+ *  Conversion:  sign<<31, (exp+120)<<23, mant<<20
+ */
+SIMSIMD_INTERNAL __m256 _simsimd_e4m3x8_to_f32x8_haswell(__m128i fp8) {
+    // Only use lower 64 bits (8 bytes)
+    __m256i v = _mm256_cvtepu8_epi32(fp8);
+    __m256i sign = _mm256_slli_epi32(_mm256_and_si256(_mm256_srli_epi32(v, 7), _mm256_set1_epi32(1)), 31);
+    __m256i exp = _mm256_and_si256(_mm256_srli_epi32(v, 3), _mm256_set1_epi32(0x0F));
+    __m256i mant = _mm256_and_si256(v, _mm256_set1_epi32(0x07));
+    // Build F32: (exp + 120) << 23, mant << 20
+    __m256i f32_exp = _mm256_slli_epi32(_mm256_add_epi32(exp, _mm256_set1_epi32(120)), 23);
+    __m256i f32_mant = _mm256_slli_epi32(mant, 20);
+    __m256i f32_bits = _mm256_or_si256(sign, _mm256_or_si256(f32_exp, f32_mant));
+    // Handle exp=0: zero out the entire value (flush denormals to zero)
+    // AVX2 doesn't have masked move, so use blend with comparison
+    __m256i zero_mask = _mm256_cmpeq_epi32(exp, _mm256_setzero_si256());
+    f32_bits = _mm256_andnot_si256(zero_mask, f32_bits);
+    return _mm256_castsi256_ps(f32_bits);
+}
+
+/*  Convert 8x E5M2 values to 8x F32 values using AVX2 bit manipulation.
+ *
+ *  E5M2 format: S EEEEE MM (bias=15, range: 2^-14 to 57344)
+ *  F32 format:  S EEEEEEEE MMMMMMMMMMMMMMMMMMMMMMM (bias=127)
+ *  Conversion:  sign<<31, (exp+112)<<23, mant<<21
+ */
+SIMSIMD_INTERNAL __m256 _simsimd_e5m2x8_to_f32x8_haswell(__m128i fp8) {
+    // Only use lower 64 bits (8 bytes)
+    __m256i v = _mm256_cvtepu8_epi32(fp8);
+    __m256i sign = _mm256_slli_epi32(_mm256_and_si256(_mm256_srli_epi32(v, 7), _mm256_set1_epi32(1)), 31);
+    __m256i exp = _mm256_and_si256(_mm256_srli_epi32(v, 2), _mm256_set1_epi32(0x1F));
+    __m256i mant = _mm256_and_si256(v, _mm256_set1_epi32(0x03));
+    // Build F32: (exp + 112) << 23, mant << 21
+    __m256i f32_exp = _mm256_slli_epi32(_mm256_add_epi32(exp, _mm256_set1_epi32(112)), 23);
+    __m256i f32_mant = _mm256_slli_epi32(mant, 21);
+    __m256i f32_bits = _mm256_or_si256(sign, _mm256_or_si256(f32_exp, f32_mant));
+    // Handle exp=0: zero out the entire value (flush denormals to zero)
+    __m256i zero_mask = _mm256_cmpeq_epi32(exp, _mm256_setzero_si256());
+    f32_bits = _mm256_andnot_si256(zero_mask, f32_bits);
+    return _mm256_castsi256_ps(f32_bits);
+}
+
+SIMSIMD_INTERNAL __m128i _simsimd_partial_load_e4m3x8_haswell(simsimd_e4m3_t const *a, simsimd_size_t n) {
+    union {
+        __m128i vec;
+        simsimd_u8_t scalars[16];
+    } result;
+    result.vec = _mm_setzero_si128();
+    simsimd_size_t i = 0;
+    for (; i < n; ++i) result.scalars[i] = a[i];
+    return result.vec;
+}
+
+SIMSIMD_INTERNAL __m128i _simsimd_partial_load_e5m2x8_haswell(simsimd_e5m2_t const *a, simsimd_size_t n) {
+    union {
+        __m128i vec;
+        simsimd_u8_t scalars[16];
+    } result;
+    result.vec = _mm_setzero_si128();
+    simsimd_size_t i = 0;
+    for (; i < n; ++i) result.scalars[i] = a[i];
+    return result.vec;
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_e4m3_haswell(simsimd_e4m3_t const *a_scalars, simsimd_e4m3_t const *b_scalars,
+                                             simsimd_size_t count_scalars, simsimd_distance_t *result) {
+    __m128i a_vec, b_vec;
+    __m256 ab_vec = _mm256_setzero_ps();
+
+simsimd_dot_e4m3_haswell_cycle:
+    if (count_scalars < 8) {
+        a_vec = _simsimd_partial_load_e4m3x8_haswell(a_scalars, count_scalars);
+        b_vec = _simsimd_partial_load_e4m3x8_haswell(b_scalars, count_scalars);
+        count_scalars = 0;
+    }
+    else {
+        a_vec = _mm_loadl_epi64((__m128i const *)a_scalars);
+        b_vec = _mm_loadl_epi64((__m128i const *)b_scalars);
+        a_scalars += 8, b_scalars += 8, count_scalars -= 8;
+    }
+    ab_vec = _mm256_fmadd_ps(_simsimd_e4m3x8_to_f32x8_haswell(a_vec), _simsimd_e4m3x8_to_f32x8_haswell(b_vec), ab_vec);
+    if (count_scalars) goto simsimd_dot_e4m3_haswell_cycle;
+
+    *result = _simsimd_reduce_f32x8_haswell(ab_vec);
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_e5m2_haswell(simsimd_e5m2_t const *a_scalars, simsimd_e5m2_t const *b_scalars,
+                                             simsimd_size_t count_scalars, simsimd_distance_t *result) {
+    __m128i a_vec, b_vec;
+    __m256 ab_vec = _mm256_setzero_ps();
+
+simsimd_dot_e5m2_haswell_cycle:
+    if (count_scalars < 8) {
+        a_vec = _simsimd_partial_load_e5m2x8_haswell(a_scalars, count_scalars);
+        b_vec = _simsimd_partial_load_e5m2x8_haswell(b_scalars, count_scalars);
+        count_scalars = 0;
+    }
+    else {
+        a_vec = _mm_loadl_epi64((__m128i const *)a_scalars);
+        b_vec = _mm_loadl_epi64((__m128i const *)b_scalars);
+        a_scalars += 8, b_scalars += 8, count_scalars -= 8;
+    }
+    ab_vec = _mm256_fmadd_ps(_simsimd_e5m2x8_to_f32x8_haswell(a_vec), _simsimd_e5m2x8_to_f32x8_haswell(b_vec), ab_vec);
+    if (count_scalars) goto simsimd_dot_e5m2_haswell_cycle;
+
+    *result = _simsimd_reduce_f32x8_haswell(ab_vec);
+}
+
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_HASWELL
@@ -1529,6 +1647,100 @@ simsimd_vdot_f64c_skylake_cycle:
     // Reduce horizontal sums:
     results[0] = _mm512_reduce_add_pd(ab_real_vec);
     results[1] = _mm512_reduce_add_pd(ab_imag_vec);
+}
+
+/*  Convert 16x E4M3 values to 16x F32 values using bit manipulation.
+ *  This works on Skylake-X and later (AVX-512F only, no BF16/FP16 required).
+ *
+ *  E4M3 format: S EEEE MMM (bias=7, range: 2^-6 to 448)
+ *  F32 format:  S EEEEEEEE MMMMMMMMMMMMMMMMMMMMMMM (bias=127)
+ *  Conversion:  sign<<31, (exp+120)<<23, mant<<20
+ */
+SIMSIMD_INTERNAL __m512 _simsimd_e4m3x16_to_f32x16_skylake(__m128i fp8) {
+    __m512i v = _mm512_cvtepu8_epi32(fp8);
+    __m512i sign = _mm512_slli_epi32(_mm512_and_si512(_mm512_srli_epi32(v, 7), _mm512_set1_epi32(1)), 31);
+    __m512i exp = _mm512_and_si512(_mm512_srli_epi32(v, 3), _mm512_set1_epi32(0x0F));
+    __m512i mant = _mm512_and_si512(v, _mm512_set1_epi32(0x07));
+    // Build F32: (exp + 120) << 23, mant << 20
+    __m512i f32_exp = _mm512_slli_epi32(_mm512_add_epi32(exp, _mm512_set1_epi32(120)), 23);
+    __m512i f32_mant = _mm512_slli_epi32(mant, 20);
+    __m512i f32_bits = _mm512_or_si512(sign, _mm512_or_si512(f32_exp, f32_mant));
+    // DAZ: use TEST to check if exp bits (bits 6-3) are nonzero - single instruction!
+    __mmask16 has_exp = _mm512_test_epi32_mask(v, _mm512_set1_epi32(0x78));
+    f32_bits = _mm512_maskz_mov_epi32(has_exp, f32_bits);
+    return _mm512_castsi512_ps(f32_bits);
+}
+
+/*  Convert 16x E5M2 values to 16x F32 values using bit manipulation.
+ *  This works on Skylake-X and later (AVX-512F only, no BF16/FP16 required).
+ *
+ *  E5M2 format: S EEEEE MM (bias=15, range: 2^-14 to 57344)
+ *  F32 format:  S EEEEEEEE MMMMMMMMMMMMMMMMMMMMMMM (bias=127)
+ *  Conversion:  sign<<31, (exp+112)<<23, mant<<21
+ */
+SIMSIMD_INTERNAL __m512 _simsimd_e5m2x16_to_f32x16_skylake(__m128i fp8) {
+    __m512i v = _mm512_cvtepu8_epi32(fp8);
+    __m512i sign = _mm512_slli_epi32(_mm512_and_si512(_mm512_srli_epi32(v, 7), _mm512_set1_epi32(1)), 31);
+    __m512i exp = _mm512_and_si512(_mm512_srli_epi32(v, 2), _mm512_set1_epi32(0x1F));
+    __m512i mant = _mm512_and_si512(v, _mm512_set1_epi32(0x03));
+    // Build F32: (exp + 112) << 23, mant << 21
+    __m512i f32_exp = _mm512_slli_epi32(_mm512_add_epi32(exp, _mm512_set1_epi32(112)), 23);
+    __m512i f32_mant = _mm512_slli_epi32(mant, 21);
+    __m512i f32_bits = _mm512_or_si512(sign, _mm512_or_si512(f32_exp, f32_mant));
+    // DAZ: use TEST to check if exp bits (bits 6-2) are nonzero - single instruction!
+    __mmask16 has_exp = _mm512_test_epi32_mask(v, _mm512_set1_epi32(0x7C));
+    f32_bits = _mm512_maskz_mov_epi32(has_exp, f32_bits);
+    return _mm512_castsi512_ps(f32_bits);
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_e4m3_skylake(simsimd_e4m3_t const *a_scalars, simsimd_e4m3_t const *b_scalars,
+                                             simsimd_size_t count_scalars, simsimd_distance_t *result) {
+    __m128i a_i8_vec, b_i8_vec;
+    __m512 ab_vec = _mm512_setzero_ps();
+
+simsimd_dot_e4m3_skylake_cycle:
+    if (count_scalars < 16) {
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, count_scalars);
+        a_i8_vec = _mm_maskz_loadu_epi8(mask, a_scalars);
+        b_i8_vec = _mm_maskz_loadu_epi8(mask, b_scalars);
+        count_scalars = 0;
+    }
+    else {
+        a_i8_vec = _mm_loadu_si128((__m128i const *)a_scalars);
+        b_i8_vec = _mm_loadu_si128((__m128i const *)b_scalars);
+        a_scalars += 16, b_scalars += 16, count_scalars -= 16;
+    }
+    __m512 a_f32 = _simsimd_e4m3x16_to_f32x16_skylake(a_i8_vec);
+    __m512 b_f32 = _simsimd_e4m3x16_to_f32x16_skylake(b_i8_vec);
+    ab_vec = _mm512_fmadd_ps(a_f32, b_f32, ab_vec);
+    if (count_scalars) goto simsimd_dot_e4m3_skylake_cycle;
+
+    *result = _simsimd_reduce_f32x16_skylake(ab_vec);
+}
+
+SIMSIMD_PUBLIC void simsimd_dot_e5m2_skylake(simsimd_e5m2_t const *a_scalars, simsimd_e5m2_t const *b_scalars,
+                                             simsimd_size_t count_scalars, simsimd_distance_t *result) {
+    __m128i a_i8_vec, b_i8_vec;
+    __m512 ab_vec = _mm512_setzero_ps();
+
+simsimd_dot_e5m2_skylake_cycle:
+    if (count_scalars < 16) {
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, count_scalars);
+        a_i8_vec = _mm_maskz_loadu_epi8(mask, a_scalars);
+        b_i8_vec = _mm_maskz_loadu_epi8(mask, b_scalars);
+        count_scalars = 0;
+    }
+    else {
+        a_i8_vec = _mm_loadu_si128((__m128i const *)a_scalars);
+        b_i8_vec = _mm_loadu_si128((__m128i const *)b_scalars);
+        a_scalars += 16, b_scalars += 16, count_scalars -= 16;
+    }
+    __m512 a_f32 = _simsimd_e5m2x16_to_f32x16_skylake(a_i8_vec);
+    __m512 b_f32 = _simsimd_e5m2x16_to_f32x16_skylake(b_i8_vec);
+    ab_vec = _mm512_fmadd_ps(a_f32, b_f32, ab_vec);
+    if (count_scalars) goto simsimd_dot_e5m2_skylake_cycle;
+
+    *result = _simsimd_reduce_f32x16_skylake(ab_vec);
 }
 
 #pragma clang attribute pop

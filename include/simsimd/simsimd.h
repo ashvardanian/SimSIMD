@@ -1277,6 +1277,18 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_e4m3(simsimd_capability_t v, s
         default: break;
         }
 #endif
+#if SIMSIMD_TARGET_SKYLAKE
+    if (v & simsimd_cap_skylake_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e4m3_skylake, *c = simsimd_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_HASWELL
+    if (v & simsimd_cap_haswell_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e4m3_haswell, *c = simsimd_cap_haswell_k; return;
+        default: break;
+        }
+#endif
     if (v & simsimd_cap_serial_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e4m3_serial, *c = simsimd_cap_serial_k; return;
         default: break;
@@ -1295,6 +1307,18 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_e5m2(simsimd_capability_t v, s
 #if SIMSIMD_TARGET_GENOA
     if (v & simsimd_cap_genoa_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e5m2_genoa, *c = simsimd_cap_genoa_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_SKYLAKE
+    if (v & simsimd_cap_skylake_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e5m2_skylake, *c = simsimd_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_HASWELL
+    if (v & simsimd_cap_haswell_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e5m2_haswell, *c = simsimd_cap_haswell_k; return;
         default: break;
         }
 #endif
@@ -2364,6 +2388,10 @@ SIMSIMD_PUBLIC void simsimd_dot_e4m3(simsimd_e4m3_t const *a, simsimd_e4m3_t con
     simsimd_dot_e4m3_sapphire(a, b, n, d);
 #elif SIMSIMD_TARGET_GENOA
     simsimd_dot_e4m3_genoa(a, b, n, d);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_dot_e4m3_skylake(a, b, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_dot_e4m3_haswell(a, b, n, d);
 #else
     simsimd_dot_e4m3_serial(a, b, n, d);
 #endif
@@ -2374,6 +2402,10 @@ SIMSIMD_PUBLIC void simsimd_dot_e5m2(simsimd_e5m2_t const *a, simsimd_e5m2_t con
     simsimd_dot_e5m2_sapphire(a, b, n, d);
 #elif SIMSIMD_TARGET_GENOA
     simsimd_dot_e5m2_genoa(a, b, n, d);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_dot_e5m2_skylake(a, b, n, d);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_dot_e5m2_haswell(a, b, n, d);
 #else
     simsimd_dot_e5m2_serial(a, b, n, d);
 #endif
