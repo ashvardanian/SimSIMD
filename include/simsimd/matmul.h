@@ -1,32 +1,74 @@
 /**
  *  @file       matmul.h
- *  @brief      SIMD-accelerated mixed-precision Matrix Multiplication kernels.
+ *  @brief      SIMD-accelerated Matrix Multiplication for low-precision numerics.
  *  @author     Ash Vardanian
  *  @date       September 14, 2024
- *  @see        https://github.com/ashvardanian/SimSIMD?tab=readme-ov-file#dense-matrix-multiplications
  *
- *  Implements matrix-multiplication kernels, focusing on mixed precision and row-major layouts.
- *  Assuming we are multiplying rows-by-rows and normalizing the products with magnitudes,
- *  as opposed to conventional rows-by-columns dot-products, a more suitable name
- *  is @b "normalized-cross-correlation" or @b "nxcor" for short.
+ *  Implements matrix-multiplication kernels, focusing on mixed precision,
+ *  computing: C[m×n] = A[m×k] × B[n×k]ᵀ with row-major inputs.
  *
  *  For datatypes:
- *  - 64-bit IEEE floating point numbers
- *  - 32-bit IEEE floating point numbers
- *  - 16-bit IEEE floating point numbers
- *  - 16-bit brain floating point numbers
- *  - 8-bit signed integers
+ *  - 16-bit brain floats (BF16) accumulating into 32-bit floats
+ *  - 16-bit brain floats (BF16) accumulating into 32-bit floats with truncation to BF16
+ *  - 8-bit signed integers (I8) accumulating into 32-bit integers
+ *  - 8-bit signed integers (I8) accumulating into 32-bit integers with re-normalization to I8
  *
  *  For hardware architectures:
- *  - x86 (AVX2, AVX512, AMX)
- *  - Arm (NEON, SVE, SME)
+ *  - x86: Haswell (AVX2), Genoa (AVX512-BF16), Sapphire Rapids (AMX)
+ *  - Arm: NEON, SVE, SME
+ *
+ *  @section    Two-Phase API for Static Weights
+ *
+ *  Matrix multiplication hardware (AMX, SME) requires specific data layouts that differ
+ *  from standard row-major ordering. Since one matrix (typically weights in neural networks)
+ *  is often static, we provide a two-phase API: pack once, multiply many times.
+ *
+ *      // Pack weights once at model load time
+ *      simsimd_size_t packed_bytes = simsimd_matmul_bf16_packed_size_sapphire(n, k);
+ *      void *b_packed = malloc(packed_bytes);
+ *      simsimd_matmul_bf16_pack_sapphire(b, n, k, b_stride, b_packed);
+ *
+ *      // Multiply many times during inference
+ *      simsimd_matmul_bf16_f32_sapphire(a, b_packed, c, m, n, k, a_stride, c_stride);
+ *
+ *  The packed format is opaque and backend-specific. AMX expects (16×32) tiles with interleaved
+ *  pairs, while NEON/SVE use different arrangements optimized for their vector lengths.
+ *
+ *  @section    Why INT8 and Not UINT8?
+ *
+ *  Unsigned 8-bit integers were considered but deprioritized. The industry has converged on
+ *  signed INT8 as the standard for quantized inference:
+ *
+ *  | Framework       | Default  | Notes                                    |
+ *  |-----------------|----------|------------------------------------------|
+ *  | PyTorch         | qint8    | New X86 backend uses INT8 via oneDNN     |
+ *  | TensorFlow Lite | int8     | Actively removing UINT8 support          |
+ *  | ONNX Runtime    | S8S8     | "Should be the first choice"             |
+ *  | TensorRT        | INT8     | Symmetric [-128,127], no UINT8 option    |
+ *  | ARM CMSIS-NN    | int8     | Follows TFLite INT8 spec exactly         |
+ *
+ *  @section    Why No Alpha/Beta Scaling?
+ *
+ *  BLAS-style `C = α·A·B + β·C` scaling was considered but omitted. While useful for scientific
+ *  computing (iterative solvers, matrix factorizations), it's rarely used in ML inference where
+ *  frameworks handle such operations via graph fusion. More importantly, on chips with separate
+ *  physical registers for vector and matrix operations (like AMX), moving scalars between register
+ *  files adds transfer latency that negates any benefit.
+ *
+ *  @section    Applications Beyond Neural Networks
+ *
+ *  These kernels serve as building blocks for various algorithms:
+ *  - k-NN search: Euclidean distances via ||a-b||² = ||a||² + ||b||² - 2(a·b)
+ *  - Cosine similarity matrices: (a·b) / (||a||·||b||)
+ *  - k-means clustering, DBSCAN, hierarchical clustering
+ *  - Video frame flow estimation, motion detection
+ *  - DSP filter banks, radar pulse integration
  *
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
- *
- *  Matrix Multiplication in 40 lines of C by Sergey Slotin: https://en.algorithmica.org/hpc/algorithms/matmul/
- *  LLaMA Now Goes Faster on CPUs by Justine Tunney: https://justine.lol/matmul/
- *  LLM.int8 quantization for PyTorch: https://github.com/bitsandbytes-foundation/bitsandbytes
+ *  Matrix Multiplication in 40 lines: https://en.algorithmica.org/hpc/algorithms/matmul/
+ *  LLaMA CPU optimization: https://justine.lol/matmul/
+ *  SME outer-product notes: https://github.com/tzakharko/m4-sme-exploration
  */
 #ifndef SIMSIMD_MATMUL_H
 #define SIMSIMD_MATMUL_H
@@ -39,173 +81,110 @@
 extern "C" {
 #endif
 
-/*  Serial backends for all numeric types.
- *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
- *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
+/*  Tunable tile sizes for cache blocking.
+ *  These can be overridden before including this header to tune for specific cache sizes.
+ *  The L1 tile should fit 3 matrices (A, B, C) in L1 cache with room for accumulators.
  */
-SIMSIMD_PUBLIC void simsimd_nxcor_f64_serial(                          //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_f64_t const *a, simsimd_size_t a_stride,                   //
-    simsimd_f64_t const *b, simsimd_size_t b_stride,                   //
-    simsimd_f64_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_f32_serial(                          //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_f32_t const *a, simsimd_size_t a_stride,                   //
-    simsimd_f32_t const *b, simsimd_size_t b_stride,                   //
-    simsimd_f32_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_f16_serial(                          //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_f16_t const *a, simsimd_size_t a_stride,                   //
-    simsimd_f16_t const *b, simsimd_size_t b_stride,                   //
-    simsimd_f16_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_bf16_serial(                         //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_bf16_t const *a, simsimd_size_t a_stride,                  //
-    simsimd_bf16_t const *b, simsimd_size_t b_stride,                  //
-    simsimd_bf16_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_i8_serial(                           //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_i8_t const *a, simsimd_size_t a_stride,                    //
-    simsimd_i8_t const *b, simsimd_size_t b_stride,                    //
-    simsimd_i8_t *c, simsimd_size_t c_stride);
+#ifndef SIMSIMD_MATMUL_L1_TILE_M
+#define SIMSIMD_MATMUL_L1_TILE_M 128
+#endif
+#ifndef SIMSIMD_MATMUL_L1_TILE_N
+#define SIMSIMD_MATMUL_L1_TILE_N 128
+#endif
+#ifndef SIMSIMD_MATMUL_L1_TILE_K
+#define SIMSIMD_MATMUL_L1_TILE_K 128
+#endif
 
-/*  Double-precision serial backends for all numeric types.
- *  For single-precision computation check out the "*_serial" counterparts of those "*_accurate" functions.
+/*  Serial backends for packing and multiplication.
+ *  These are portable reference implementations with no SIMD dependencies.
+ *  Serial packing simply copies B transposed - no special layout required.
  */
-SIMSIMD_PUBLIC void simsimd_nxcor_f32_accurate(                        //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_f32_t const *a, simsimd_size_t a_stride,                   //
-    simsimd_f32_t const *b, simsimd_size_t b_stride,                   //
-    simsimd_f32_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_f16_accurate(                        //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_f16_t const *a, simsimd_size_t a_stride,                   //
-    simsimd_f16_t const *b, simsimd_size_t b_stride,                   //
-    simsimd_f16_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_bf16_accurate(                       //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_bf16_t const *a, simsimd_size_t a_stride,                  //
-    simsimd_bf16_t const *b, simsimd_size_t b_stride,                  //
-    simsimd_bf16_t *c, simsimd_size_t c_stride);
+SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_bf16_packed_size_serial(simsimd_size_t n, simsimd_size_t k);
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_pack_serial(             //
+    simsimd_bf16_t const *b, simsimd_size_t n, simsimd_size_t k, //
+    simsimd_size_t b_stride, void *b_packed);
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_f32_serial(                  //
+    simsimd_bf16_t const *a, void const *b_packed, simsimd_f32_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_serial(                       //
+    simsimd_bf16_t const *a, void const *b_packed, simsimd_bf16_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
 
-/*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
- *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
- *  server CPUs produced before 2023.
+SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_i8_packed_size_serial(simsimd_size_t n, simsimd_size_t k);
+SIMSIMD_PUBLIC void simsimd_matmul_i8_pack_serial(             //
+    simsimd_i8_t const *b, simsimd_size_t n, simsimd_size_t k, //
+    simsimd_size_t b_stride, void *b_packed);
+SIMSIMD_PUBLIC void simsimd_matmul_i8_i32_serial(                  //
+    simsimd_i8_t const *a, void const *b_packed, simsimd_i32_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
+SIMSIMD_PUBLIC void simsimd_matmul_i8_serial(                     //
+    simsimd_i8_t const *a, void const *b_packed, simsimd_i8_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
+
+/*  Ice Lake backends using AVX-512 with BF16 extensions.
+ *  Packing interleaves elements for efficient SIMD broadcast patterns.
  */
-SIMSIMD_PUBLIC void simsimd_nxcor_f32_neon(                            //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_f32_t const *a, simsimd_size_t a_stride,                   //
-    simsimd_f32_t const *b, simsimd_size_t b_stride,                   //
-    simsimd_f32_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_f16_neon(                            //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_f16_t const *a, simsimd_size_t a_stride,                   //
-    simsimd_f16_t const *b, simsimd_size_t b_stride,                   //
-    simsimd_f16_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_bf16_neon(                           //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_bf16_t const *a, simsimd_size_t a_stride,                  //
-    simsimd_bf16_t const *b, simsimd_size_t b_stride,                  //
-    simsimd_bf16_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_i8_neon(                             //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_i8_t const *a, simsimd_size_t a_stride,                    //
-    simsimd_i8_t const *b, simsimd_size_t b_stride,                    //
-    simsimd_i8_t *c, simsimd_size_t c_stride);
+SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_i8_packed_size_genoa(simsimd_size_t n, simsimd_size_t k);
+SIMSIMD_PUBLIC void simsimd_matmul_i8_pack_genoa(              //
+    simsimd_i8_t const *b, simsimd_size_t n, simsimd_size_t k, //
+    simsimd_size_t b_stride, void *b_packed);
+SIMSIMD_PUBLIC void simsimd_matmul_i8_i32_genoa(                   //
+    simsimd_i8_t const *a, void const *b_packed, simsimd_i32_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
+SIMSIMD_PUBLIC void simsimd_matmul_i8_genoa(                      //
+    simsimd_i8_t const *a, void const *b_packed, simsimd_i8_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
 
-/*  SIMD-powered backends for Arm SVE, mostly using 32-bit arithmetic over variable-length platform-defined word sizes.
- *  Designed for Arm Graviton 3, Microsoft Cobalt, as well as Nvidia Grace and newer Ampere Altra CPUs.
+/*  Genoa backends using AVX-512 with BF16 extensions.
+ *  These use VDPBF16PS for BF16 dot products and VPDPBUSD for INT8.
+ *  Packing interleaves elements for efficient SIMD broadcast patterns.
  */
-SIMSIMD_PUBLIC void simsimd_nxcor_f32_sve(                             //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_f32_t const *a, simsimd_size_t a_stride,                   //
-    simsimd_f32_t const *b, simsimd_size_t b_stride,                   //
-    simsimd_f32_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_f16_sve(                             //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_f16_t const *a, simsimd_size_t a_stride,                   //
-    simsimd_f16_t const *b, simsimd_size_t b_stride,                   //
-    simsimd_f16_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_bf16_sve(                            //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_f16_t const *a, simsimd_size_t a_stride,                   //
-    simsimd_f16_t const *b, simsimd_size_t b_stride,                   //
-    simsimd_f16_t *c, simsimd_size_t c_stride);
+SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_bf16_packed_size_genoa(simsimd_size_t n, simsimd_size_t k);
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_pack_genoa(              //
+    simsimd_bf16_t const *b, simsimd_size_t n, simsimd_size_t k, //
+    simsimd_size_t b_stride, void *b_packed);
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_f32_genoa(                   //
+    simsimd_bf16_t const *a, void const *b_packed, simsimd_f32_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_genoa(                        //
+    simsimd_bf16_t const *a, void const *b_packed, simsimd_bf16_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
 
-/*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
- *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
- *  Practically all modern x86 CPUs support AVX2, FMA, and F16C, making it a perfect baseline for SIMD algorithms.
- *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
- *  properly vectorized by recent compilers.
+/*  Sapphire Rapids backends using Intel AMX (Advanced Matrix Extensions).
+ *  AMX provides 8 tile registers (TMM0-TMM7), each holding up to 1KB of data.
+ *  Tiles are configured as 16 rows × 64 bytes, enabling (16×32) BF16 or (16×64) INT8 tiles.
+ *  Packing arranges data into AMX-native tile layout with pair interleaving for TDPBF16PS.
  */
-SIMSIMD_PUBLIC void simsimd_nxcor_f32_haswell(                         //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_f32_t const *a, simsimd_size_t a_stride,                   //
-    simsimd_f32_t const *b, simsimd_size_t b_stride,                   //
-    simsimd_f32_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_f16_haswell(                         //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_f16_t const *a, simsimd_size_t a_stride,                   //
-    simsimd_f16_t const *b, simsimd_size_t b_stride,                   //
-    simsimd_f16_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_bf16_haswell(                        //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_bf16_t const *a, simsimd_size_t a_stride,                  //
-    simsimd_bf16_t const *b, simsimd_size_t b_stride,                  //
-    simsimd_bf16_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_i8_haswell(                          //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_i8_t const *a, simsimd_size_t a_stride,                    //
-    simsimd_i8_t const *b, simsimd_size_t b_stride,                    //
-    simsimd_i8_t *c, simsimd_size_t c_stride);
+SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_bf16_packed_size_sapphire(simsimd_size_t n, simsimd_size_t k);
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_pack_sapphire(           //
+    simsimd_bf16_t const *b, simsimd_size_t n, simsimd_size_t k, //
+    simsimd_size_t b_stride, void *b_packed);
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_f32_sapphire(                //
+    simsimd_bf16_t const *a, void const *b_packed, simsimd_f32_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_sapphire(                     //
+    simsimd_bf16_t const *a, void const *b_packed, simsimd_bf16_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
 
-/*  SIMD-powered backends for various generations of AVX512 CPUs.
- *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
- *  Ice Lake added VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ, and other extensions for integral
- * operations. Genoa added only BF16. Sapphire Rapids added tiled matrix operations in AMX, that we can use for `i8` and
- * `bf16` types.
+SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_i8_packed_size_sapphire(simsimd_size_t n, simsimd_size_t k);
+SIMSIMD_PUBLIC void simsimd_matmul_i8_pack_sapphire(           //
+    simsimd_i8_t const *b, simsimd_size_t n, simsimd_size_t k, //
+    simsimd_size_t b_stride, void *b_packed);
+SIMSIMD_PUBLIC void simsimd_matmul_i8_i32_sapphire(                //
+    simsimd_i8_t const *a, void const *b_packed, simsimd_i32_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
+SIMSIMD_PUBLIC void simsimd_matmul_i8_sapphire(                   //
+    simsimd_i8_t const *a, void const *b_packed, simsimd_i8_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
+
+/*  Legacy macro-generated serial implementations for backward compatibility.
+ *  These operate on unpacked matrices directly (no two-phase API).
  */
-SIMSIMD_PUBLIC void simsimd_nxcor_f32_skylake(                         //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_f32_t const *a, simsimd_size_t a_stride,                   //
-    simsimd_f32_t const *b, simsimd_size_t b_stride,                   //
-    simsimd_f32_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_i8_ice(                              //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_i8_t const *a, simsimd_size_t a_stride,                    //
-    simsimd_i8_t const *b, simsimd_size_t b_stride,                    //
-    simsimd_i8_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_bf16_genoa(                          //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_bf16_t const *a, simsimd_size_t a_stride,                  //
-    simsimd_bf16_t const *b, simsimd_size_t b_stride,                  //
-    simsimd_bf16_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_f16_sapphire(                        //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_f16_t const *a, simsimd_size_t a_stride,                   //
-    simsimd_f16_t const *b, simsimd_size_t b_stride,                   //
-    simsimd_f16_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_bf16_sapphire(                       //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_bf16_t const *a, simsimd_size_t a_stride,                  //
-    simsimd_bf16_t const *b, simsimd_size_t b_stride,                  //
-    simsimd_bf16_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_i8_sapphire(                         //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_i8_t const *a, simsimd_size_t a_stride,                    //
-    simsimd_i8_t const *b, simsimd_size_t b_stride,                    //
-    simsimd_i8_t *c, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_nxcor_i4x2_sapphire(                       //
-    simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
-    simsimd_i4x2_t const *a, simsimd_size_t a_stride,                  //
-    simsimd_i4x2_t const *b, simsimd_size_t b_stride,                  //
-    simsimd_i4x2_t *c, simsimd_size_t c_stride);
-
 #define SIMSIMD_MAKE_MATMUL(name, input_type, accumulator_type, output_type, load_and_convert, convert_and_store) \
-    void simsimd_nxcor_##input_type##_##name(simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols,   \
-                                             simsimd_##input_type##_t const *a, simsimd_size_t a_stride,          \
-                                             simsimd_##input_type##_t const *b, simsimd_size_t b_stride,          \
-                                             simsimd_##output_type##_t *c, simsimd_size_t c_stride) {             \
+    void simsimd_matmul_##input_type##_##name(simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols,  \
+                                              simsimd_##input_type##_t const *a, simsimd_size_t a_stride,         \
+                                              simsimd_##input_type##_t const *b, simsimd_size_t b_stride,         \
+                                              simsimd_##output_type##_t *c, simsimd_size_t c_stride) {            \
         for (simsimd_size_t i = 0; i < a_rows; ++i) {                                                             \
             simsimd_##input_type##_t const *a_row =                                                               \
                 (simsimd_##input_type##_t const *)_simsimd_advance_by_bytes((void *)a, i * a_stride);             \
@@ -227,10 +206,10 @@ SIMSIMD_PUBLIC void simsimd_nxcor_i4x2_sapphire(                       //
 
 #define SIMSIMD_MAKE_TILED(name, input_type, accumulator_type, output_type, load_and_convert, convert_and_store,      \
                            tile_size)                                                                                 \
-    void simsimd_nxcor_##input_type##_##name(simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols,       \
-                                             simsimd_##input_type##_t const *a, simsimd_size_t a_stride,              \
-                                             simsimd_##input_type##_t const *b, simsimd_size_t b_stride,              \
-                                             simsimd_##output_type##_t *c, simsimd_size_t c_stride) {                 \
+    void simsimd_matmul_##input_type##_##name(simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols,      \
+                                              simsimd_##input_type##_t const *a, simsimd_size_t a_stride,             \
+                                              simsimd_##input_type##_t const *b, simsimd_size_t b_stride,             \
+                                              simsimd_##output_type##_t *c, simsimd_size_t c_stride) {                \
         for (simsimd_size_t ii = 0; ii < a_rows; ii += tile_size) {                                                   \
             for (simsimd_size_t jj = 0; jj < b_rows; jj += tile_size) {                                               \
                 for (simsimd_size_t kk = 0; kk < cols; kk += tile_size) {                                             \
@@ -259,15 +238,15 @@ SIMSIMD_PUBLIC void simsimd_nxcor_i4x2_sapphire(                       //
         }                                                                                                             \
     }
 
-SIMSIMD_MAKE_TILED(serial, f64, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT, 16)        // simsimd_nxcor_f64_serial
-SIMSIMD_MAKE_TILED(serial, f32, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT, 16)        // simsimd_nxcor_f32_serial
-SIMSIMD_MAKE_TILED(serial, f16, f32, f16, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16, 16)     // simsimd_nxcor_f16_serial
-SIMSIMD_MAKE_TILED(serial, bf16, f32, bf16, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16, 16) // simsimd_nxcor_bf16_serial
-SIMSIMD_MAKE_TILED(serial, i8, i64, i8, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT, 16)          // simsimd_nxcor_i8_serial
-SIMSIMD_MAKE_TILED(accurate, f32, f64, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT, 16)      // simsimd_nxcor_f32_accurate
-SIMSIMD_MAKE_TILED(accurate, f16, f64, f16, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16, 16)   // simsimd_nxcor_f16_accurate
+SIMSIMD_MAKE_TILED(serial, f64, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT, 16)        // simsimd_matmul_f64_serial
+SIMSIMD_MAKE_TILED(serial, f32, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT, 16)        // simsimd_matmul_f32_serial
+SIMSIMD_MAKE_TILED(serial, f16, f32, f16, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16, 16)     // simsimd_matmul_f16_serial
+SIMSIMD_MAKE_TILED(serial, bf16, f32, bf16, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16, 16) // simsimd_matmul_bf16_serial
+SIMSIMD_MAKE_TILED(serial, i8, i64, i8, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT, 16)          // simsimd_matmul_i8_serial
+SIMSIMD_MAKE_TILED(accurate, f32, f64, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT, 16)      // simsimd_matmul_f32_accurate
+SIMSIMD_MAKE_TILED(accurate, f16, f64, f16, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16, 16)   // simsimd_matmul_f16_accurate
 SIMSIMD_MAKE_TILED(accurate, bf16, f64, bf16, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16,
-                   16) // simsimd_nxcor_bf16_accurate
+                   16) // simsimd_matmul_bf16_accurate
 
 #if SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
@@ -348,35 +327,26 @@ SIMSIMD_MAKE_TILED(accurate, bf16, f64, bf16, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_T
 #pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512fp16")
 #pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512fp16"))), apply_to = function)
 
-// We are going to implement multiple levels of tiling here.
-// One is defined by the AMX tile size, which is (32 x 16) for BF16, 1 KB per each of 8x registers.
-// The others can be defined by the CPU cache size, which is:
-//  - 384 KB of L1 data cache per hyper-threaded core.
-//  - 16 MB of L2 per hyper-threaded core.
-// The L1 cache is enough to store 3x (256 x 256) BF16 matrices, but the last one needs to be larger
-// to accommodate F32 values. Moreover, we need to renormalize the values to avoid overflows and
-// significant loss of precision.
-//  - (128 x 128) BF16 tile is 32 KB, so A & B are 64 KB.
-//  - (128 x 128) F32 tile is 64 KB, so C, A2, & B2 are 192 KB.
-// This totals to 256 KB and fits within
-#ifndef SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE
-#define SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE 128
-#endif
+// Multiple levels of tiling are used here:
+// - AMX tile size: (16 x 32) for BF16, 1 KB per each of 8 tile registers (TMM0-TMM7).
+// - L1 cache tile: fits 3 matrices (A, B in BF16, C in F32) plus accumulators.
+//   (128 x 128) BF16 tile = 32 KB, so A & B = 64 KB total.
+//   (128 x 128) F32 tile = 64 KB for C accumulator.
+//   This totals ~192 KB, fitting comfortably in L1 cache.
 
-SIMSIMD_PUBLIC void simsimd_nxcor_bf16_sapphire(                       //
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_sapphire(                      //
     simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
     simsimd_bf16_t const *a, simsimd_size_t a_row_stride_bytes,        //
     simsimd_bf16_t const *b, simsimd_size_t b_row_stride_bytes,        //
     simsimd_bf16_t *c, simsimd_size_t c_row_stride_bytes) {
 
-    SIMSIMD_ALIGN64 simsimd_bf16_t a_l1_tile[SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE][SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE];
-    SIMSIMD_ALIGN64 simsimd_bf16_t b_l1_tile[SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE][SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE];
-    SIMSIMD_ALIGN64 simsimd_f32_t c_l1_tile[SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE][SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE];
-    SIMSIMD_ALIGN64 simsimd_f32_t a2_l1_tile[SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE][SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE];
-    SIMSIMD_ALIGN64 simsimd_f32_t b2_l1_tile[SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE][SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE];
+    SIMSIMD_ALIGN64 simsimd_bf16_t a_l1_tile[SIMSIMD_MATMUL_L1_TILE_M][SIMSIMD_MATMUL_L1_TILE_M];
+    SIMSIMD_ALIGN64 simsimd_bf16_t b_l1_tile[SIMSIMD_MATMUL_L1_TILE_M][SIMSIMD_MATMUL_L1_TILE_M];
+    SIMSIMD_ALIGN64 simsimd_f32_t c_l1_tile[SIMSIMD_MATMUL_L1_TILE_M][SIMSIMD_MATMUL_L1_TILE_M];
+    SIMSIMD_ALIGN64 simsimd_f32_t a2_l1_tile[SIMSIMD_MATMUL_L1_TILE_M][SIMSIMD_MATMUL_L1_TILE_M];
+    SIMSIMD_ALIGN64 simsimd_f32_t b2_l1_tile[SIMSIMD_MATMUL_L1_TILE_M][SIMSIMD_MATMUL_L1_TILE_M];
 
-    SIMSIMD_STATIC_ASSERT(SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE % 32 == 0,
-                          SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE_NOT_MULTIPLE_OF_32);
+    SIMSIMD_STATIC_ASSERT(SIMSIMD_MATMUL_L1_TILE_M % 32 == 0, SIMSIMD_MATMUL_L1_TILE_M_NOT_MULTIPLE_OF_32);
 
     // Set up the AMX tile configuration structure.
     // There are 8 tile registers from TMM0 to TMM7. Each is 16 rows by 64 bytes, fitting up to 1 KB of data.
@@ -405,18 +375,15 @@ SIMSIMD_PUBLIC void simsimd_nxcor_bf16_sapphire(                       //
     _tile_zero(6); // C bottom left tile.
     _tile_zero(7); // C bottom right tile.
 
-    for (simsimd_size_t a_l1_start_row = 0; a_l1_start_row < a_rows;
-         a_l1_start_row += SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE) {
+    for (simsimd_size_t a_l1_start_row = 0; a_l1_start_row < a_rows; a_l1_start_row += SIMSIMD_MATMUL_L1_TILE_M) {
         /// Below comes code for rows: A[a_l1_start_row : a_l1_start_row + a_l1_count_rows].
-        simsimd_size_t const a_l1_count_rows = (a_l1_start_row + SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE < a_rows)
-                                                   ? SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE
-                                                   : a_rows - a_l1_start_row;
+        simsimd_size_t const a_l1_count_rows =
+            (a_l1_start_row + SIMSIMD_MATMUL_L1_TILE_M < a_rows) ? SIMSIMD_MATMUL_L1_TILE_M : a_rows - a_l1_start_row;
 
-        for (simsimd_size_t b_l1_start_row = 0; b_l1_start_row != b_rows;
-             b_l1_start_row += SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE) {
+        for (simsimd_size_t b_l1_start_row = 0; b_l1_start_row != b_rows; b_l1_start_row += SIMSIMD_MATMUL_L1_TILE_M) {
             /// Below comes code for rows: B[b_l1_start_row : b_l1_start_row + b_l1_count_rows]
-            simsimd_size_t const b_l1_count_rows = (b_l1_start_row + SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE < b_rows)
-                                                       ? SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE
+            simsimd_size_t const b_l1_count_rows = (b_l1_start_row + SIMSIMD_MATMUL_L1_TILE_M < b_rows)
+                                                       ? SIMSIMD_MATMUL_L1_TILE_M
                                                        : b_rows - b_l1_start_row;
 
             // Load the existing values in C tile:
@@ -442,25 +409,23 @@ SIMSIMD_PUBLIC void simsimd_nxcor_bf16_sapphire(                       //
             }
 
             // At this point we are multiplying a horizontal band of A by a horizontal band of B.
-            // Both will have up to `SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE` rows and `cols` columns.
-            for (simsimd_size_t l1_start_col = 0; l1_start_col < cols;
-                 l1_start_col += SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE) {
+            // Both will have up to `SIMSIMD_MATMUL_L1_TILE_M` rows and `cols` columns.
+            for (simsimd_size_t l1_start_col = 0; l1_start_col < cols; l1_start_col += SIMSIMD_MATMUL_L1_TILE_M) {
                 /// Below comes code for tiles:
                 /// A[a_l1_start_row : a_l1_start_row + a_l1_count_rows, l1_start_col : l1_start_col + l1_count_cols]
                 /// B[b_l1_start_row : b_l1_start_row + b_l1_count_rows, l1_start_col : l1_start_col + l1_count_cols]
-                simsimd_size_t const l1_count_cols = (l1_start_col + SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE < cols)
-                                                         ? SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE
-                                                         : cols - l1_start_col;
+                simsimd_size_t const l1_count_cols =
+                    (l1_start_col + SIMSIMD_MATMUL_L1_TILE_M < cols) ? SIMSIMD_MATMUL_L1_TILE_M : cols - l1_start_col;
 
                 // Now we need to load the tiles of A and B.
                 // Piece of cake with AVX-512, knowing that the data is already aligned.
                 // Each ZMM register can hold 64 bytes, so we can load 32x BF16 elements at once.
-                int is_boundary_tile = (l1_start_col + SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE > cols) ||
-                                       (a_l1_start_row + SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE > a_rows) ||
-                                       (b_l1_start_row + SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE > b_rows);
+                int is_boundary_tile = (l1_start_col + SIMSIMD_MATMUL_L1_TILE_M > cols) ||
+                                       (a_l1_start_row + SIMSIMD_MATMUL_L1_TILE_M > a_rows) ||
+                                       (b_l1_start_row + SIMSIMD_MATMUL_L1_TILE_M > b_rows);
                 if (!is_boundary_tile) {
                     // Load both A and B tiles in one loop.
-                    for (simsimd_size_t row_in_l1 = 0; row_in_l1 != SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE; ++row_in_l1) {
+                    for (simsimd_size_t row_in_l1 = 0; row_in_l1 != SIMSIMD_MATMUL_L1_TILE_M; ++row_in_l1) {
                         simsimd_bf16_t const *a_global = (simsimd_bf16_t const *)_simsimd_advance_by_bytes(
                             (void *)(a + l1_start_col),                         // shift within a row
                             a_row_stride_bytes * (a_l1_start_row + row_in_l1)); // shift to the right row
@@ -469,7 +434,7 @@ SIMSIMD_PUBLIC void simsimd_nxcor_bf16_sapphire(                       //
                             (void *)(b + l1_start_col),                         // shift within a row
                             b_row_stride_bytes * (b_l1_start_row + row_in_l1)); // shift to the right row
 
-                        for (simsimd_size_t col_in_l1 = 0; col_in_l1 != SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE;
+                        for (simsimd_size_t col_in_l1 = 0; col_in_l1 != SIMSIMD_MATMUL_L1_TILE_M;
                              col_in_l1 += 32, a_global += 32, b_global += 32) {
                             _mm512_store_si512((__m512i *)&a_l1_tile[row_in_l1][col_in_l1],
                                                _mm512_loadu_si512((__m512i *)a_global));
@@ -513,15 +478,13 @@ SIMSIMD_PUBLIC void simsimd_nxcor_bf16_sapphire(                       //
                     }
                 }
 
-                // Now we need to view our `SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE`-sided matrices
+                // Now we need to view our `SIMSIMD_MATMUL_L1_TILE_M`-sided matrices
                 // as composed of (16 x 16) tiles of 4-byte values, or (16 x 32) tiles of 2-byte values.
                 // Vertically stacking TMM4 and TMM5, we can see that as a (32 x 32) "pivot" slice of B.
                 simsimd_bf16_t tmm2_reordered[16][16][2];
                 simsimd_bf16_t tmm3_reordered[16][16][2];
-                for (simsimd_size_t b_row_in_l1 = 0; b_row_in_l1 != SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE;
-                     b_row_in_l1 += 32) {
-                    for (simsimd_size_t b_col_in_l1 = 0; b_col_in_l1 != SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE;
-                         b_col_in_l1 += 32) {
+                for (simsimd_size_t b_row_in_l1 = 0; b_row_in_l1 != SIMSIMD_MATMUL_L1_TILE_M; b_row_in_l1 += 32) {
+                    for (simsimd_size_t b_col_in_l1 = 0; b_col_in_l1 != SIMSIMD_MATMUL_L1_TILE_M; b_col_in_l1 += 32) {
 
                         // Load and permute the data from B for AMX, simultaneously transposing!
                         // TODO: Optimize with AVX-512.
@@ -538,21 +501,21 @@ SIMSIMD_PUBLIC void simsimd_nxcor_bf16_sapphire(                       //
 
                         // Now we will walk through all the entries in the first 32 columns of the L1 tile of A.
                         // We will multiply them by TMM4 and TMM5, accumulating into TMM6 and TMM7 respectively.
-                        for (simsimd_size_t a_row_in_l1 = 0; a_row_in_l1 != SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE;
+                        for (simsimd_size_t a_row_in_l1 = 0; a_row_in_l1 != SIMSIMD_MATMUL_L1_TILE_M;
                              a_row_in_l1 += 32) {
                             _tile_loadd(0, &a_l1_tile[a_row_in_l1][b_col_in_l1],
-                                        SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE * sizeof(simsimd_bf16_t));
+                                        SIMSIMD_MATMUL_L1_TILE_M * sizeof(simsimd_bf16_t));
                             _tile_loadd(1, &a_l1_tile[a_row_in_l1 + 16][b_col_in_l1],
-                                        SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE * sizeof(simsimd_bf16_t));
+                                        SIMSIMD_MATMUL_L1_TILE_M * sizeof(simsimd_bf16_t));
 
                             _tile_loadd(4, &c_l1_tile[a_row_in_l1][b_row_in_l1],
-                                        SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE * sizeof(simsimd_f32_t));
+                                        SIMSIMD_MATMUL_L1_TILE_M * sizeof(simsimd_f32_t));
                             _tile_loadd(5, &c_l1_tile[a_row_in_l1][b_row_in_l1 + 16],
-                                        SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE * sizeof(simsimd_f32_t));
+                                        SIMSIMD_MATMUL_L1_TILE_M * sizeof(simsimd_f32_t));
                             _tile_loadd(6, &c_l1_tile[a_row_in_l1 + 16][b_row_in_l1],
-                                        SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE * sizeof(simsimd_f32_t));
+                                        SIMSIMD_MATMUL_L1_TILE_M * sizeof(simsimd_f32_t));
                             _tile_loadd(7, &c_l1_tile[a_row_in_l1 + 16][b_row_in_l1 + 16],
-                                        SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE * sizeof(simsimd_f32_t));
+                                        SIMSIMD_MATMUL_L1_TILE_M * sizeof(simsimd_f32_t));
 
                             // Perform all possible multiplications.
                             _tile_dpbf16ps(4, 0, 2);
@@ -562,13 +525,13 @@ SIMSIMD_PUBLIC void simsimd_nxcor_bf16_sapphire(                       //
 
                             // Save back the updated C values.
                             _tile_stored(4, &c_l1_tile[a_row_in_l1][b_row_in_l1],
-                                         SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE * sizeof(simsimd_f32_t));
+                                         SIMSIMD_MATMUL_L1_TILE_M * sizeof(simsimd_f32_t));
                             _tile_stored(5, &c_l1_tile[a_row_in_l1][b_row_in_l1 + 16],
-                                         SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE * sizeof(simsimd_f32_t));
+                                         SIMSIMD_MATMUL_L1_TILE_M * sizeof(simsimd_f32_t));
                             _tile_stored(6, &c_l1_tile[a_row_in_l1 + 16][b_row_in_l1],
-                                         SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE * sizeof(simsimd_f32_t));
+                                         SIMSIMD_MATMUL_L1_TILE_M * sizeof(simsimd_f32_t));
                             _tile_stored(7, &c_l1_tile[a_row_in_l1 + 16][b_row_in_l1 + 16],
-                                         SIMSIMD_NXCOR_BF16_AMX_L1_TILE_SIZE * sizeof(simsimd_f32_t));
+                                         SIMSIMD_MATMUL_L1_TILE_M * sizeof(simsimd_f32_t));
                         }
                     }
                 }
@@ -594,7 +557,7 @@ SIMSIMD_PUBLIC void simsimd_nxcor_bf16_sapphire(                       //
     }
 }
 
-SIMSIMD_PUBLIC void simsimd_nxcor_i8_sapphire(                         //
+SIMSIMD_PUBLIC void simsimd_matmul_i8_sapphire(                        //
     simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, //
     simsimd_i8_t const *a, simsimd_size_t a_stride,                    //
     simsimd_i8_t const *b, simsimd_size_t b_stride,                    //
