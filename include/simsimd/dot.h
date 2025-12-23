@@ -1658,15 +1658,14 @@ simsimd_dot_bf16c_genoa_cycle:
 SIMSIMD_INTERNAL __m512i _simsimd_e4m3_to_bf16_genoa(__m256i fp8) {
     __m512i v = _mm512_cvtepu8_epi16(fp8);
     // Sign: shift bit 7 to bit 15
-    __m512i sign = _mm512_and_si512(_mm512_slli_epi16(v, 8), _mm512_set1_epi16(0x8000));
+    __m512i sign = _mm512_and_si512(_mm512_slli_epi16(v, 8), _mm512_set1_epi16((short)0x8000));
     // Lower 7 bits contain exp (4) and mant (3): shift left 4 and add bias
-    __m512i exp_mant = _mm512_slli_epi16(_mm512_and_si512(v, _mm512_set1_epi16(0x7F)), 4);
-    exp_mant = _mm512_add_epi16(exp_mant, _mm512_set1_epi16(0x3C00)); // 120<<7 = 0x3C00
-    // Handle exp=0 by zeroing exp_mant (flush denormals to zero)
-    __m512i exp = _mm512_and_si512(_mm512_srli_epi16(v, 3), _mm512_set1_epi16(0x0F));
-    __mmask32 zero_mask = _mm512_cmpeq_epi16_mask(exp, _mm512_setzero_si512());
-    exp_mant = _mm512_mask_mov_epi16(exp_mant, zero_mask, _mm512_setzero_si512());
-    return _mm512_or_si512(sign, exp_mant);
+    __m512i low7 = _mm512_and_si512(v, _mm512_set1_epi16(0x7F));
+    __m512i exp_mant = _mm512_add_epi16(_mm512_slli_epi16(low7, 4), _mm512_set1_epi16(0x3C00)); // 120<<7 = 0x3C00
+    // DAZ: use TEST to check if exp bits (bits 6-3) are nonzero - single instruction!
+    __mmask32 has_exp = _mm512_test_epi16_mask(v, _mm512_set1_epi16(0x78));
+    __m512i masked_exp_mant = _mm512_maskz_mov_epi16(has_exp, exp_mant);
+    return _mm512_or_si512(sign, masked_exp_mant);
 }
 
 /*  Convert 32x E5M2 values to 32x BF16 values.
@@ -1679,15 +1678,14 @@ SIMSIMD_INTERNAL __m512i _simsimd_e4m3_to_bf16_genoa(__m256i fp8) {
  */
 SIMSIMD_INTERNAL __m512i _simsimd_e5m2_to_bf16_genoa(__m256i fp8) {
     __m512i v = _mm512_cvtepu8_epi16(fp8);
-    __m512i sign = _mm512_and_si512(_mm512_slli_epi16(v, 8), _mm512_set1_epi16(0x8000));
+    __m512i sign = _mm512_and_si512(_mm512_slli_epi16(v, 8), _mm512_set1_epi16((short)0x8000));
     // Lower 7 bits: exp(5) + mant(2), shift left 5 and add bias
-    __m512i exp_mant = _mm512_slli_epi16(_mm512_and_si512(v, _mm512_set1_epi16(0x7F)), 5);
-    exp_mant = _mm512_add_epi16(exp_mant, _mm512_set1_epi16(0x3800)); // 112<<7 = 0x3800
-    // Zero handling
-    __m512i exp_raw = _mm512_and_si512(_mm512_srli_epi16(v, 2), _mm512_set1_epi16(0x1F));
-    __mmask32 zero_mask = _mm512_cmpeq_epi16_mask(exp_raw, _mm512_setzero_si512());
-    exp_mant = _mm512_mask_mov_epi16(exp_mant, zero_mask, _mm512_setzero_si512());
-    return _mm512_or_si512(sign, exp_mant);
+    __m512i low7 = _mm512_and_si512(v, _mm512_set1_epi16(0x7F));
+    __m512i exp_mant = _mm512_add_epi16(_mm512_slli_epi16(low7, 5), _mm512_set1_epi16(0x3800)); // 112<<7 = 0x3800
+    // DAZ: use TEST to check if exp bits (bits 6-2) are nonzero - single instruction!
+    __mmask32 has_exp = _mm512_test_epi16_mask(v, _mm512_set1_epi16(0x7C));
+    __m512i masked_exp_mant = _mm512_maskz_mov_epi16(has_exp, exp_mant);
+    return _mm512_or_si512(sign, masked_exp_mant);
 }
 
 SIMSIMD_PUBLIC void simsimd_dot_e4m3_genoa(simsimd_e4m3_t const *a_scalars, simsimd_e4m3_t const *b_scalars,
@@ -1875,14 +1873,14 @@ simsimd_dot_f16c_sapphire_cycle:
 SIMSIMD_INTERNAL __m512i _simsimd_e4m3_to_f16_sapphire(__m256i fp8) {
     __m512i v = _mm512_cvtepu8_epi16(fp8);
     // Sign: bit 7 → bit 15
-    __m512i sign = _mm512_and_si512(_mm512_slli_epi16(v, 8), _mm512_set1_epi16(0x8000));
+    __m512i sign = _mm512_and_si512(_mm512_slli_epi16(v, 8), _mm512_set1_epi16((short)0x8000));
     // Exp+mant (7 bits) shifted left 7, then add bias adjustment (8<<10 = 0x2000)
-    __m512i exp_mant = _mm512_slli_epi16(_mm512_and_si512(v, _mm512_set1_epi16(0x7F)), 7);
-    exp_mant = _mm512_add_epi16(exp_mant, _mm512_set1_epi16(0x2000));
-    // Check exp=0 directly: mask 0x78 covers exp bits (bits 3-6) in place
-    __mmask32 zero_mask = _mm512_cmpeq_epi16_mask(_mm512_and_si512(v, _mm512_set1_epi16(0x78)), _mm512_setzero_si512());
-    exp_mant = _mm512_mask_mov_epi16(exp_mant, zero_mask, _mm512_setzero_si512());
-    return _mm512_or_si512(sign, exp_mant);
+    __m512i low7 = _mm512_and_si512(v, _mm512_set1_epi16(0x7F));
+    __m512i exp_mant = _mm512_add_epi16(_mm512_slli_epi16(low7, 7), _mm512_set1_epi16(0x2000));
+    // DAZ: use TEST to check if exp bits (bits 6-3) are nonzero - single instruction!
+    __mmask32 has_exp = _mm512_test_epi16_mask(v, _mm512_set1_epi16(0x78));
+    __m512i masked_exp_mant = _mm512_maskz_mov_epi16(has_exp, exp_mant);
+    return _mm512_or_si512(sign, masked_exp_mant);
 }
 
 /*  Convert 32x E5M2 values to 32x F16 values.
