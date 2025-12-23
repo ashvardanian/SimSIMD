@@ -740,10 +740,8 @@ SIMSIMD_MAKE_UMEYAMA(accurate, bf16, f64, f32, SIMSIMD_BF16_TO_F32) // simsimd_u
 #if _SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_SKYLAKE
 #pragma GCC push_options
-#pragma GCC target("avx512f", "avx512vl", "avx512bw", "bmi2")
-#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,avx512bw,bmi2"))), apply_to = function)
-
-#include <immintrin.h>
+#pragma GCC target("avx512f", "avx512vl", "avx512bw", "avx512dq", "bmi2")
+#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,avx512bw,avx512dq,bmi2"))), apply_to = function)
 
 /*  Internal helper: Deinterleave 48 floats (16 xyz triplets) into separate x, y, z vectors.
  *  Uses permutex2var shuffles instead of gather for ~1.8x speedup.
@@ -2142,8 +2140,6 @@ SIMSIMD_PUBLIC void simsimd_umeyama_f64_skylake(simsimd_f64_t const *a, simsimd_
 #pragma GCC push_options
 #pragma GCC target("avx2", "fma", "f16c", "bmi2")
 #pragma clang attribute push(__attribute__((target("avx2,fma,f16c,bmi2"))), apply_to = function)
-
-#include <immintrin.h>
 
 /*  Internal helper: Deinterleave 24 floats (8 xyz triplets) into separate x, y, z vectors.
  *  Uses AVX2 gather instructions for clean stride-3 access.
