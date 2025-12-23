@@ -649,22 +649,17 @@ SIMSIMD_INTERNAL void _simsimd_matmul_i8_i32_avx512_edge(                //
 }
 
 /*  Packed buffer header for hybrid layout (64-byte aligned).
- *  Layout: [header][full tiles Morton-ordered][k_edge row-major][n_edge row-major]
+ *  Layout: [header][full tiles Morton-ordered][n_edge row-major]
  *
- *  Full tiles: Interior tiles that are complete (no partial rows/cols)
- *  K edge: Remaining columns (k % tile_cols != 0) stored in row-major for easy AVX-512 access
- *  N edge: Remaining rows (n % tile_rows != 0) stored in row-major for easy AVX-512 access
+ *  Full tiles: Complete tiles including K remainder (zero-padded within tiles)
+ *  N edge: Remaining rows (n % 16 != 0) stored row-major for AVX-512 edge kernel
  */
 typedef struct {
     simsimd_u32_t full_n_tiles;  // Number of full N tiles (16 rows each)
-    simsimd_u32_t full_k_tiles;  // Number of full K tiles (32/64 cols each)
-    simsimd_u32_t k_edge_cols;   // Remaining K columns (0 to tile_cols-1)
+    simsimd_u32_t full_k_tiles;  // Number of K tiles (32/64 cols each, includes remainder)
     simsimd_u32_t n_edge_rows;   // Remaining N rows (0 to 15)
-    simsimd_u32_t k_edge_offset; // Byte offset to K edge region
     simsimd_u32_t n_edge_offset; // Byte offset to N edge region
-    simsimd_u32_t n_total;       // Original N dimension
-    simsimd_u32_t k_total;       // Original K dimension
-    simsimd_u32_t reserved[8];   // Padding to 64 bytes
+    simsimd_u32_t reserved[12];  // Padding to 64 bytes
 } simsimd_matmul_packed_header_t;
 
 /*  BF16 packed buffer size: header + all tiles for full N rows + N edge.
@@ -749,17 +744,12 @@ SIMSIMD_PUBLIC void simsimd_matmul_bf16_pack_sapphire_amx(       //
     // Write header
     simsimd_matmul_packed_header_t *header = (simsimd_matmul_packed_header_t *)b_packed;
     header->full_n_tiles = (simsimd_u32_t)full_n_tiles;
-    header->full_k_tiles = (simsimd_u32_t)tiles_along_k; // Now includes K remainder
-    header->k_edge_cols = 0;                             // No separate K edge (included in tiles)
+    header->full_k_tiles = (simsimd_u32_t)tiles_along_k;
     header->n_edge_rows = (simsimd_u32_t)n_edge_rows;
-    header->n_total = (simsimd_u32_t)n;
-    header->k_total = (simsimd_u32_t)k;
 
     // Compute offsets
     simsimd_size_t tiles_offset = sizeof(simsimd_matmul_packed_header_t);
     simsimd_size_t n_edge_offset = tiles_offset + total_tiles * tile_bytes;
-
-    header->k_edge_offset = 0; // No K edge region
     header->n_edge_offset = (simsimd_u32_t)n_edge_offset;
 
     // Pointers to regions
@@ -838,17 +828,12 @@ SIMSIMD_PUBLIC void simsimd_matmul_i8_pack_sapphire_amx(       //
     // Write header
     simsimd_matmul_packed_header_t *header = (simsimd_matmul_packed_header_t *)b_packed;
     header->full_n_tiles = (simsimd_u32_t)full_n_tiles;
-    header->full_k_tiles = (simsimd_u32_t)tiles_along_k; // Now includes K remainder
-    header->k_edge_cols = 0;                             // No separate K edge (included in tiles)
+    header->full_k_tiles = (simsimd_u32_t)tiles_along_k;
     header->n_edge_rows = (simsimd_u32_t)n_edge_rows;
-    header->n_total = (simsimd_u32_t)n;
-    header->k_total = (simsimd_u32_t)k;
 
     // Compute offsets
     simsimd_size_t tiles_offset = sizeof(simsimd_matmul_packed_header_t);
     simsimd_size_t n_edge_offset = tiles_offset + total_tiles * tile_bytes;
-
-    header->k_edge_offset = 0; // No K edge region
     header->n_edge_offset = (simsimd_u32_t)n_edge_offset;
 
     // Pointers to regions
