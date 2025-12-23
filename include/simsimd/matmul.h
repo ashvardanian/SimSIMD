@@ -4,8 +4,17 @@
  *  @author     Ash Vardanian
  *  @date       September 14, 2024
  *
- *  Implements matrix-multiplication kernels, focusing on mixed precision,
- *  computing: C[m×n] = A[m×k] × B[n×k]ᵀ with row-major inputs.
+ *  Implements matrix-multiplication kernels, focusing on mixed precision, computing:
+ *  C[m×n] = A[m×k] × B[n×k]ᵀ with row-major inputs for Neural Network inference and beyond:
+ *
+ *  - k-NN search: Euclidean distances via ||a-b||² = ||a||² + ||b||² - 2(a·b)
+ *  - Cosine similarity matrices: (a·b) / (||a||·||b||)
+ *  - k-means clustering, DBSCAN, hierarchical clustering
+ *  - Video frame flow estimation, motion detection
+ *  - DSP filter banks, radar pulse integration
+ *
+ *  They are heavily tuned for SIMD-divisible sizes, often using a separate suboptimal code path
+ *  for non-divisible sub-optimal input sizes. Bad for performance, but kees the code maintainable.
  *
  *  For datatypes:
  *  - 16-bit brain floats (BF16) accumulating into 32-bit floats
@@ -17,19 +26,38 @@
  *  - x86: Haswell (AVX2), Genoa (AVX512-BF16), Sapphire Rapids (AMX)
  *  - Arm: NEON, SVE, SME
  *
+ *  @section    Memory Layout and Transpose Semantics
+ *
+ *  All matrices use row-major storage. Column-major is NOT supported.
+ *  The kernel computes C = A × Bᵀ where:
+ *  - A is (m × k): m rows, k columns, stride = a_stride bytes between rows
+ *  - B is (n × k): n rows, k columns, stride = b_stride bytes between rows
+ *  - C is (m × n): m rows, n columns, stride = c_stride bytes between rows
+ *
+ *  This means C[i,j] = dot(row i of A, row j of B) = Σₗ A[i,l] × B[j,l].
+ *
+ *  To compute standard A × B (where B is k × n), pass Bᵀ to the packing function:
+ *
+ *      // Standard matmul: C[m×n] = A[m×k] × B[k×n]
+ *      // B is stored row-major as k rows of n elements
+ *      // Treat it as Bᵀ: n rows of k elements with stride = sizeof(element)
+ *      simsimd_matmul_bf16_pack_sapphire(b, n, k, sizeof(simsimd_bf16_t), b_packed);
+ *      simsimd_matmul_bf16_f32_sapphire(a, b_packed, c, m, n, k, a_stride, c_stride);
+ *      // Result: C = A × (Bᵀ)ᵀ = A × B
+ *
  *  @section    Two-Phase API for Static Weights
  *
  *  Matrix multiplication hardware (AMX, SME) requires specific data layouts that differ
  *  from standard row-major ordering. Since one matrix (typically weights in neural networks)
  *  is often static, we provide a two-phase API: pack once, multiply many times.
  *
- *      // Pack weights once at model load time
+ *      // Similarity search: C[m×n] = queries[m×k] × database[n×k]ᵀ
+ *      // Both matrices stored row-major, each row is one vector of dimension k
  *      simsimd_size_t packed_bytes = simsimd_matmul_bf16_packed_size_sapphire(n, k);
  *      void *b_packed = malloc(packed_bytes);
- *      simsimd_matmul_bf16_pack_sapphire(b, n, k, b_stride, b_packed);
- *
- *      // Multiply many times during inference
- *      simsimd_matmul_bf16_f32_sapphire(a, b_packed, c, m, n, k, a_stride, c_stride);
+ *      simsimd_matmul_bf16_pack_sapphire(database, n, k, k * sizeof(simsimd_bf16_t), b_packed);
+ *      simsimd_matmul_bf16_f32_sapphire(queries, b_packed, c, m, n, k, ...);
+ *      // Result: C[i,j] = dot(query i, database vector j)
  *
  *  The packed format is opaque and backend-specific. AMX expects (16×32) tiles with interleaved
  *  pairs, while NEON/SVE use different arrangements optimized for their vector lengths.
@@ -54,15 +82,6 @@
  *  frameworks handle such operations via graph fusion. More importantly, on chips with separate
  *  physical registers for vector and matrix operations (like AMX), moving scalars between register
  *  files adds transfer latency that negates any benefit.
- *
- *  @section    Applications Beyond Neural Networks
- *
- *  These kernels serve as building blocks for various algorithms:
- *  - k-NN search: Euclidean distances via ||a-b||² = ||a||² + ||b||² - 2(a·b)
- *  - Cosine similarity matrices: (a·b) / (||a||·||b||)
- *  - k-means clustering, DBSCAN, hierarchical clustering
- *  - Video frame flow estimation, motion detection
- *  - DSP filter banks, radar pulse integration
  *
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
@@ -450,9 +469,16 @@ SIMSIMD_INTERNAL void _simsimd_amx_tile_configure_sapphire(void) {
     _tile_loadconfig(tile_config);
 }
 
+/*  Compiler memory barrier to ensure stores complete before AMX tile loads.
+ *  AMX _tile_loadd reads from memory written by AVX-512 stores. Without this barrier,
+ *  the compiler may reorder or optimize away the stores, causing _tile_loadd to read stale data.
+ *  This is a compiler-only fence (no CPU fence needed - same core, same memory).
+ */
+SIMSIMD_INTERNAL void _simsimd_compiler_barrier_sapphire(void) { __asm__ volatile("" ::: "memory"); }
+
 /*  AVX-512 masked load for A tile (BF16): loads up to 16 rows × 32 cols into aligned buffer.
  *  Uses masked loads to handle edge tiles without element-wise loops.
- *  Note: Memory barrier ensures compiler doesn't optimize away stores before _tile_loadd.
+ *  Includes memory barrier to ensure stores complete before subsequent _tile_loadd.
  */
 SIMSIMD_INTERNAL void _simsimd_load_a_tile_bf16_masked(            //
     simsimd_bf16_t const *src, simsimd_size_t src_stride_elements, //
@@ -468,12 +494,11 @@ SIMSIMD_INTERNAL void _simsimd_load_a_tile_bf16_masked(            //
         }
         else { _mm512_store_si512((__m512i *)(dst + r * 32), zero); }
     }
-    // Memory barrier to ensure stores are visible before _tile_loadd reads
-    __asm__ volatile("" ::: "memory");
+    _simsimd_compiler_barrier_sapphire();
 }
 
 /*  AVX-512 masked load for A tile (I8): loads up to 16 rows × 64 cols into aligned buffer.
- *  Note: Memory barrier ensures compiler doesn't optimize away stores before _tile_loadd.
+ *  Includes memory barrier to ensure stores complete before subsequent _tile_loadd.
  */
 SIMSIMD_INTERNAL void _simsimd_load_a_tile_i8_masked(   //
     simsimd_i8_t const *src, simsimd_size_t src_stride, //
@@ -489,8 +514,7 @@ SIMSIMD_INTERNAL void _simsimd_load_a_tile_i8_masked(   //
         }
         else { _mm512_store_si512((__m512i *)(dst + r * 64), zero); }
     }
-    // Memory barrier to ensure stores are visible before _tile_loadd reads
-    __asm__ volatile("" ::: "memory");
+    _simsimd_compiler_barrier_sapphire();
 }
 
 /*  AVX-512 masked store for C tile (F32): stores up to 16 rows × 16 cols from aligned buffer.
@@ -521,30 +545,167 @@ SIMSIMD_INTERNAL void _simsimd_store_c_tile_i32_masked(                         
     }
 }
 
-/*  BF16 packed buffer size: tiles are 16×32 BF16 = 1KB each.
- *  Morton ordering doesn't change the total size, only the layout.
+/*  AVX-512 edge matmul for BF16 → F32.
+ *  Computes C[m_start:m_end, n_start:n_end] using row-major B edge data.
+ *  Used for boundary regions where AMX is overkill.
+ *
+ *  B is stored in row-major as b_edge[row * k + col] where row is the N index.
+ *  This computes: C[i,j] = sum_over_k(A[i,k] * B[j,k])
+ */
+SIMSIMD_INTERNAL void _simsimd_matmul_bf16_f32_avx512_edge(                  //
+    simsimd_bf16_t const *a, simsimd_bf16_t const *b_edge, simsimd_f32_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k,                    //
+    simsimd_size_t a_stride_elements, simsimd_size_t b_stride_k, simsimd_size_t c_stride_elements) {
+
+    // Process each output row
+    for (simsimd_size_t i = 0; i < m; i++) {
+        simsimd_bf16_t const *a_row = a + i * a_stride_elements;
+
+        // Process output columns in chunks of 16 (AVX-512 width for F32)
+        for (simsimd_size_t j = 0; j < n; j += 16) {
+            simsimd_size_t const j_count = (j + 16 <= n) ? 16 : n - j;
+            __m512 acc = _mm512_setzero_ps();
+
+            // Dot product over K dimension - process 2 at a time for BF16 pairs
+            for (simsimd_size_t kk = 0; kk < k; kk++) {
+                // Broadcast A[i,k] to F32
+                simsimd_f32_t a_val = (simsimd_f32_t)a_row[kk];
+                __m512 a_bc = _mm512_set1_ps(a_val);
+
+                // Gather B[j:j+16, k] - each B row is stored with stride b_stride_k
+                // b_edge[row * b_stride_k + col] where row in [0,n), col in [0,k)
+                SIMSIMD_ALIGN64 simsimd_f32_t b_vals[16];
+                for (simsimd_size_t jj = 0; jj < j_count; jj++) {
+                    b_vals[jj] = (simsimd_f32_t)b_edge[(j + jj) * b_stride_k + kk];
+                }
+                for (simsimd_size_t jj = j_count; jj < 16; jj++) b_vals[jj] = 0.0f;
+
+                __m512 b_vec = _mm512_load_ps(b_vals);
+                acc = _mm512_fmadd_ps(a_bc, b_vec, acc);
+            }
+
+            // Store with mask
+            __mmask16 mask = (j_count >= 16) ? 0xFFFF : ((__mmask16)1 << j_count) - 1;
+            _mm512_mask_storeu_ps(c + i * c_stride_elements + j, mask, acc);
+        }
+    }
+}
+
+/*  AVX-512 edge matmul for I8 → I32.
+ *  Computes C[m_start:m_end, n_start:n_end] using row-major B edge data.
+ *  Used for boundary regions where AMX is overkill.
+ */
+SIMSIMD_INTERNAL void _simsimd_matmul_i8_i32_avx512_edge(                //
+    simsimd_i8_t const *a, simsimd_i8_t const *b_edge, simsimd_i32_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k,                //
+    simsimd_size_t a_stride, simsimd_size_t b_stride_k, simsimd_size_t c_stride_elements) {
+
+    // Process each output row
+    for (simsimd_size_t i = 0; i < m; i++) {
+        simsimd_i8_t const *a_row = a + i * a_stride;
+
+        // Process output columns in chunks of 16 (AVX-512 width for I32)
+        for (simsimd_size_t j = 0; j < n; j += 16) {
+            simsimd_size_t const j_count = (j + 16 <= n) ? 16 : n - j;
+            __m512i acc = _mm512_setzero_si512();
+
+            // Dot product over K dimension
+            for (simsimd_size_t kk = 0; kk < k; kk++) {
+                // Broadcast A[i,k] to I32
+                simsimd_i32_t a_val = (simsimd_i32_t)a_row[kk];
+                __m512i a_bc = _mm512_set1_epi32(a_val);
+
+                // Gather B[j:j+16, k]
+                SIMSIMD_ALIGN64 simsimd_i32_t b_vals[16];
+                for (simsimd_size_t jj = 0; jj < j_count; jj++) {
+                    b_vals[jj] = (simsimd_i32_t)b_edge[(j + jj) * b_stride_k + kk];
+                }
+                for (simsimd_size_t jj = j_count; jj < 16; jj++) b_vals[jj] = 0;
+
+                __m512i b_vec = _mm512_load_si512((__m512i const *)b_vals);
+                acc = _mm512_add_epi32(acc, _mm512_mullo_epi32(a_bc, b_vec));
+            }
+
+            // Store with mask
+            __mmask16 mask = (j_count >= 16) ? 0xFFFF : ((__mmask16)1 << j_count) - 1;
+            _mm512_mask_storeu_epi32(c + i * c_stride_elements + j, mask, acc);
+        }
+    }
+}
+
+/*  Packed buffer header for hybrid layout (64-byte aligned).
+ *  Layout: [header][full tiles Morton-ordered][k_edge row-major][n_edge row-major]
+ *
+ *  Full tiles: Interior tiles that are complete (no partial rows/cols)
+ *  K edge: Remaining columns (k % tile_cols != 0) stored in row-major for easy AVX-512 access
+ *  N edge: Remaining rows (n % tile_rows != 0) stored in row-major for easy AVX-512 access
+ */
+typedef struct {
+    simsimd_u32_t full_n_tiles;  // Number of full N tiles (16 rows each)
+    simsimd_u32_t full_k_tiles;  // Number of full K tiles (32/64 cols each)
+    simsimd_u32_t k_edge_cols;   // Remaining K columns (0 to tile_cols-1)
+    simsimd_u32_t n_edge_rows;   // Remaining N rows (0 to 15)
+    simsimd_u32_t k_edge_offset; // Byte offset to K edge region
+    simsimd_u32_t n_edge_offset; // Byte offset to N edge region
+    simsimd_u32_t n_total;       // Original N dimension
+    simsimd_u32_t k_total;       // Original K dimension
+    simsimd_u32_t reserved[8];   // Padding to 64 bytes
+} simsimd_matmul_packed_header_t;
+
+/*  BF16 packed buffer size: header + all tiles for full N rows + N edge.
+ *  Hybrid layout:
+ *    - Tiles include K remainder (zero-padded) for AMX to handle full dot products
+ *    - N edge (remaining rows) stored row-major for simple AVX-512 edge kernel
  */
 SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_bf16_packed_size_sapphire(simsimd_size_t n, simsimd_size_t k) {
     simsimd_size_t const tile_rows = 16;
-    simsimd_size_t const tile_cols_bf16 = 32;
-    simsimd_size_t const tile_elements_bf16 = 512;
-    simsimd_size_t tiles_along_n = (n + tile_rows - 1) / tile_rows;
-    simsimd_size_t tiles_along_k = (k + tile_cols_bf16 - 1) / tile_cols_bf16;
-    return tiles_along_n * tiles_along_k * tile_elements_bf16 * sizeof(simsimd_bf16_t);
+    simsimd_size_t const tile_cols = 32;
+    simsimd_size_t const tile_bytes = 512 * sizeof(simsimd_bf16_t); // 16×32×2 = 1KB
+
+    simsimd_size_t const full_n_tiles = n / tile_rows;
+    simsimd_size_t const tiles_along_k = (k + tile_cols - 1) / tile_cols; // Ceiling division
+    simsimd_size_t const n_edge_rows = n - full_n_tiles * tile_rows;
+
+    // Header (64 bytes aligned)
+    simsimd_size_t size = sizeof(simsimd_matmul_packed_header_t);
+
+    // All tiles for full N rows (Morton-ordered, pair-interleaved, K remainder zero-padded)
+    size += full_n_tiles * tiles_along_k * tile_bytes;
+
+    // N edge: remaining rows for ALL K columns, stored row-major
+    if (n_edge_rows > 0) size += n_edge_rows * k * sizeof(simsimd_bf16_t);
+
+    return size;
 }
 
-/*  I8 packed buffer size: tiles are 16×64 I8 = 1KB each.
+/*  I8 packed buffer size: header + all tiles for full N rows + N edge.
  */
 SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_i8_packed_size_sapphire(simsimd_size_t n, simsimd_size_t k) {
     simsimd_size_t const tile_rows = 16;
-    simsimd_size_t const tile_cols_i8 = 64;
-    simsimd_size_t const tile_elements_i8 = 1024;
-    simsimd_size_t tiles_along_n = (n + tile_rows - 1) / tile_rows;
-    simsimd_size_t tiles_along_k = (k + tile_cols_i8 - 1) / tile_cols_i8;
-    return tiles_along_n * tiles_along_k * tile_elements_i8 * sizeof(simsimd_i8_t);
+    simsimd_size_t const tile_cols = 64;
+    simsimd_size_t const tile_bytes = 1024 * sizeof(simsimd_i8_t); // 16×64×1 = 1KB
+
+    simsimd_size_t const full_n_tiles = n / tile_rows;
+    simsimd_size_t const tiles_along_k = (k + tile_cols - 1) / tile_cols; // Ceiling division
+    simsimd_size_t const n_edge_rows = n - full_n_tiles * tile_rows;
+
+    // Header (64 bytes aligned)
+    simsimd_size_t size = sizeof(simsimd_matmul_packed_header_t);
+
+    // All tiles for full N rows (Morton-ordered, quad-interleaved, K remainder zero-padded)
+    size += full_n_tiles * tiles_along_k * tile_bytes;
+
+    // N edge: remaining rows for ALL K columns, stored row-major
+    if (n_edge_rows > 0) size += n_edge_rows * k * sizeof(simsimd_i8_t);
+
+    return size;
 }
 
-/*  Pack BF16 B matrix with Morton Z-curve tile ordering and AMX pair-interleaving.
+/*  Pack BF16 B matrix with hybrid layout:
+ *    - Header with layout metadata
+ *    - All tiles for full N rows: Morton Z-curve ordered, pair-interleaved (for AMX)
+ *      Including K remainder tiles (zero-padded) so AMX can compute full dot products
+ *    - N edge rows: row-major (for AVX-512 edge kernel)
  *
  *  AMX BF16 tile format: for TDPBF16PS, B tile should have elements arranged so that
  *  consecutive pairs of columns are interleaved by rows:
@@ -560,40 +721,81 @@ SIMSIMD_PUBLIC void simsimd_matmul_bf16_pack_sapphire(           //
     simsimd_size_t const tile_rows = 16;
     simsimd_size_t const tile_cols = 32;
     simsimd_size_t const tile_elements = 512;
-
-    simsimd_size_t const tiles_along_n = (n + tile_rows - 1) / tile_rows;
-    simsimd_size_t const tiles_along_k = (k + tile_cols - 1) / tile_cols;
-    simsimd_size_t const total_tiles = tiles_along_n * tiles_along_k;
+    simsimd_size_t const tile_bytes = tile_elements * sizeof(simsimd_bf16_t);
     simsimd_size_t const b_stride_elements = b_stride / sizeof(simsimd_bf16_t);
-    simsimd_bf16_t *packed_output = (simsimd_bf16_t *)b_packed;
 
-    // Zero the entire packed buffer first (handles padding for partial tiles)
-    for (simsimd_size_t idx = 0; idx < total_tiles * tile_elements; idx++) packed_output[idx] = 0;
+    // Compute layout dimensions
+    simsimd_size_t const full_n_tiles = n / tile_rows;
+    simsimd_size_t const tiles_along_k = (k + tile_cols - 1) / tile_cols; // Includes K remainder tile
+    simsimd_size_t const k_remainder = k - (tiles_along_k > 0 ? (tiles_along_k - 1) * tile_cols : 0);
+    simsimd_size_t const n_edge_rows = n - full_n_tiles * tile_rows;
+    simsimd_size_t const total_tiles = full_n_tiles * tiles_along_k;
 
-    for (simsimd_size_t tile_n = 0; tile_n < tiles_along_n; tile_n++) {
+    // Write header
+    simsimd_matmul_packed_header_t *header = (simsimd_matmul_packed_header_t *)b_packed;
+    header->full_n_tiles = (simsimd_u32_t)full_n_tiles;
+    header->full_k_tiles = (simsimd_u32_t)tiles_along_k; // Now includes K remainder
+    header->k_edge_cols = 0;                             // No separate K edge (included in tiles)
+    header->n_edge_rows = (simsimd_u32_t)n_edge_rows;
+    header->n_total = (simsimd_u32_t)n;
+    header->k_total = (simsimd_u32_t)k;
+
+    // Compute offsets
+    simsimd_size_t tiles_offset = sizeof(simsimd_matmul_packed_header_t);
+    simsimd_size_t n_edge_offset = tiles_offset + total_tiles * tile_bytes;
+
+    header->k_edge_offset = 0; // No K edge region
+    header->n_edge_offset = (simsimd_u32_t)n_edge_offset;
+
+    // Pointers to regions
+    simsimd_bf16_t *tiles_ptr = (simsimd_bf16_t *)((char *)b_packed + tiles_offset);
+    simsimd_bf16_t *n_edge_ptr = (simsimd_bf16_t *)((char *)b_packed + n_edge_offset);
+
+    // Zero all tiles region (handles K remainder padding automatically)
+    for (simsimd_size_t idx = 0; idx < total_tiles * tile_elements; idx++) tiles_ptr[idx] = 0;
+
+    // Pack all tiles for full N rows with Morton ordering and pair-interleaving
+    for (simsimd_size_t tile_n = 0; tile_n < full_n_tiles; tile_n++) {
         for (simsimd_size_t tile_k = 0; tile_k < tiles_along_k; tile_k++) {
-            // Morton Z-curve tile index for cache-friendly traversal
+            // Morton Z-curve tile index
             simsimd_size_t morton_idx = _simsimd_morton_encode_sapphire((simsimd_u32_t)tile_n, (simsimd_u32_t)tile_k);
-            // Clamp to valid range (Morton can produce larger indices than linear)
             simsimd_size_t tile_index = (morton_idx < total_tiles) ? morton_idx : (tile_n * tiles_along_k + tile_k);
-            simsimd_bf16_t *tile_output = packed_output + tile_index * tile_elements;
+            simsimd_bf16_t *tile_output = tiles_ptr + tile_index * tile_elements;
 
             simsimd_size_t const row_start = tile_n * tile_rows;
             simsimd_size_t const col_start = tile_k * tile_cols;
+            simsimd_size_t const cols_in_tile =
+                (tile_k == tiles_along_k - 1 && k_remainder > 0 && k_remainder < tile_cols) ? (k - col_start)
+                                                                                            : tile_cols;
 
             // Pack with pair-interleaving (required by TDPBF16PS)
-            for (simsimd_size_t local_row = 0; local_row < tile_rows && row_start + local_row < n; local_row++) {
-                for (simsimd_size_t local_col = 0; local_col < tile_cols && col_start + local_col < k; local_col++) {
+            for (simsimd_size_t local_row = 0; local_row < tile_rows; local_row++) {
+                for (simsimd_size_t local_col = 0; local_col < cols_in_tile; local_col++) {
                     simsimd_size_t source_idx = (row_start + local_row) * b_stride_elements + (col_start + local_col);
                     simsimd_size_t packed_idx = (local_col / 2) * 32 + local_row * 2 + (local_col % 2);
                     tile_output[packed_idx] = b[source_idx];
                 }
             }
+            // Remaining columns (if any) stay zero from initialization
+        }
+    }
+
+    // Pack N edge rows (row-major) - all K columns
+    if (n_edge_rows > 0) {
+        simsimd_size_t const n_edge_start = full_n_tiles * tile_rows;
+        for (simsimd_size_t row = 0; row < n_edge_rows; row++) {
+            for (simsimd_size_t col = 0; col < k; col++) {
+                n_edge_ptr[row * k + col] = b[(n_edge_start + row) * b_stride_elements + col];
+            }
         }
     }
 }
 
-/*  Pack I8 B matrix with Morton Z-curve tile ordering and AMX quad-interleaving.
+/*  Pack I8 B matrix with hybrid layout:
+ *    - Header with layout metadata
+ *    - All tiles for full N rows: Morton Z-curve ordered, quad-interleaved (for AMX)
+ *      Including K remainder tiles (zero-padded) so AMX can compute full dot products
+ *    - N edge rows: row-major (for AVX-512 edge kernel)
  *
  *  AMX INT8 tile format: for TDPBSSD, B tile should have 4 consecutive columns
  *  interleaved by rows:
@@ -608,158 +810,138 @@ SIMSIMD_PUBLIC void simsimd_matmul_i8_pack_sapphire(           //
     simsimd_size_t const tile_rows = 16;
     simsimd_size_t const tile_cols = 64;
     simsimd_size_t const tile_elements = 1024;
+    simsimd_size_t const tile_bytes = tile_elements * sizeof(simsimd_i8_t);
 
-    simsimd_size_t const tiles_along_n = (n + tile_rows - 1) / tile_rows;
-    simsimd_size_t const tiles_along_k = (k + tile_cols - 1) / tile_cols;
-    simsimd_size_t const total_tiles = tiles_along_n * tiles_along_k;
-    simsimd_i8_t *packed_output = (simsimd_i8_t *)b_packed;
+    // Compute layout dimensions
+    simsimd_size_t const full_n_tiles = n / tile_rows;
+    simsimd_size_t const tiles_along_k = (k + tile_cols - 1) / tile_cols; // Includes K remainder tile
+    simsimd_size_t const k_remainder = k - (tiles_along_k > 0 ? (tiles_along_k - 1) * tile_cols : 0);
+    simsimd_size_t const n_edge_rows = n - full_n_tiles * tile_rows;
+    simsimd_size_t const total_tiles = full_n_tiles * tiles_along_k;
 
-    // Zero the entire packed buffer first (handles padding for partial tiles)
-    for (simsimd_size_t idx = 0; idx < total_tiles * tile_elements; idx++) packed_output[idx] = 0;
+    // Write header
+    simsimd_matmul_packed_header_t *header = (simsimd_matmul_packed_header_t *)b_packed;
+    header->full_n_tiles = (simsimd_u32_t)full_n_tiles;
+    header->full_k_tiles = (simsimd_u32_t)tiles_along_k; // Now includes K remainder
+    header->k_edge_cols = 0;                             // No separate K edge (included in tiles)
+    header->n_edge_rows = (simsimd_u32_t)n_edge_rows;
+    header->n_total = (simsimd_u32_t)n;
+    header->k_total = (simsimd_u32_t)k;
 
-    for (simsimd_size_t tile_n = 0; tile_n < tiles_along_n; tile_n++) {
+    // Compute offsets
+    simsimd_size_t tiles_offset = sizeof(simsimd_matmul_packed_header_t);
+    simsimd_size_t n_edge_offset = tiles_offset + total_tiles * tile_bytes;
+
+    header->k_edge_offset = 0; // No K edge region
+    header->n_edge_offset = (simsimd_u32_t)n_edge_offset;
+
+    // Pointers to regions
+    simsimd_i8_t *tiles_ptr = (simsimd_i8_t *)((char *)b_packed + tiles_offset);
+    simsimd_i8_t *n_edge_ptr = (simsimd_i8_t *)((char *)b_packed + n_edge_offset);
+
+    // Zero all tiles region (handles K remainder padding automatically)
+    for (simsimd_size_t idx = 0; idx < total_tiles * tile_elements; idx++) tiles_ptr[idx] = 0;
+
+    // Pack all tiles for full N rows with Morton ordering and quad-interleaving
+    for (simsimd_size_t tile_n = 0; tile_n < full_n_tiles; tile_n++) {
         for (simsimd_size_t tile_k = 0; tile_k < tiles_along_k; tile_k++) {
-            // Morton Z-curve tile index for cache-friendly traversal
+            // Morton Z-curve tile index
             simsimd_size_t morton_idx = _simsimd_morton_encode_sapphire((simsimd_u32_t)tile_n, (simsimd_u32_t)tile_k);
             simsimd_size_t tile_index = (morton_idx < total_tiles) ? morton_idx : (tile_n * tiles_along_k + tile_k);
-            simsimd_i8_t *tile_output = packed_output + tile_index * tile_elements;
+            simsimd_i8_t *tile_output = tiles_ptr + tile_index * tile_elements;
 
             simsimd_size_t const row_start = tile_n * tile_rows;
             simsimd_size_t const col_start = tile_k * tile_cols;
+            simsimd_size_t const cols_in_tile =
+                (tile_k == tiles_along_k - 1 && k_remainder > 0 && k_remainder < tile_cols) ? (k - col_start)
+                                                                                            : tile_cols;
 
             // Pack with quad-interleaving (required by TDPBSSD)
-            for (simsimd_size_t local_row = 0; local_row < tile_rows && row_start + local_row < n; local_row++) {
-                for (simsimd_size_t local_col = 0; local_col < tile_cols && col_start + local_col < k; local_col++) {
+            for (simsimd_size_t local_row = 0; local_row < tile_rows; local_row++) {
+                for (simsimd_size_t local_col = 0; local_col < cols_in_tile; local_col++) {
                     simsimd_size_t source_idx = (row_start + local_row) * b_stride + (col_start + local_col);
                     simsimd_size_t packed_idx = (local_col / 4) * 64 + local_row * 4 + (local_col % 4);
                     tile_output[packed_idx] = b[source_idx];
                 }
             }
+            // Remaining columns (if any) stay zero from initialization
+        }
+    }
+
+    // Pack N edge rows (row-major) - all K columns
+    if (n_edge_rows > 0) {
+        simsimd_size_t const n_edge_start = full_n_tiles * tile_rows;
+        for (simsimd_size_t row = 0; row < n_edge_rows; row++) {
+            for (simsimd_size_t col = 0; col < k; col++) {
+                n_edge_ptr[row * k + col] = b[(n_edge_start + row) * b_stride + col];
+            }
         }
     }
 }
 
-/*  BF16 → F32 matmul: C[m×n] = A[m×k] × B[n×k]ᵀ
- *
- *  Uses 2×2 AMX tile pattern (32×32 output blocks):
- *    TMM0, TMM1: A tiles (rows i and i+16)
- *    TMM2, TMM3: B tiles (columns j and j+16)
- *    TMM4-7: C accumulator tiles
- *
- *  Optimized with fast-path/slow-path split:
- *    - Fast path: Full 32×32 blocks with direct tile load/store (no intermediate buffers)
- *    - Slow path: Edge blocks using AVX-512 masked operations
- *
- *  Single-threaded. For parallel execution, partition A rows across threads.
+/*  BF16 → F32 matmul (aligned path): Direct tile loads/stores when stride >= 64 bytes.
+ *  This is the fast path - no intermediate buffers for A or C.
  */
-SIMSIMD_PUBLIC void simsimd_matmul_bf16_f32_sapphire(                //
+SIMSIMD_INTERNAL void _simsimd_matmul_bf16_f32_sapphire_aligned(     //
     simsimd_bf16_t const *a, void const *b_packed, simsimd_f32_t *c, //
     simsimd_size_t m, simsimd_size_t n, simsimd_size_t k,            //
     simsimd_size_t a_stride, simsimd_size_t c_stride) {
 
-    // AMX tile dimensions for BF16
-    simsimd_size_t const tile_rows = 16;
+    // Read header for hybrid layout
+    simsimd_matmul_packed_header_t const *header = (simsimd_matmul_packed_header_t const *)b_packed;
+    simsimd_size_t const full_n_tiles = header->full_n_tiles;
+    simsimd_size_t const full_k_tiles = header->full_k_tiles;
+    simsimd_size_t const n_edge_rows = header->n_edge_rows;
+
+    simsimd_bf16_t const *tiles_ptr =
+        (simsimd_bf16_t const *)((char const *)b_packed + sizeof(simsimd_matmul_packed_header_t));
+    simsimd_bf16_t const *n_edge_ptr = (simsimd_bf16_t const *)((char const *)b_packed + header->n_edge_offset);
+
     simsimd_size_t const tile_cols_bf16 = 32;
     simsimd_size_t const tile_elements_bf16 = 512;
 
-    _simsimd_amx_tile_configure_sapphire();
-
-    simsimd_size_t const tiles_along_n = (n + tile_rows - 1) / tile_rows;
-    simsimd_size_t const tiles_along_k = (k + tile_cols_bf16 - 1) / tile_cols_bf16;
-    simsimd_size_t const total_tiles = tiles_along_n * tiles_along_k;
     simsimd_size_t const a_stride_elements = a_stride / sizeof(simsimd_bf16_t);
     simsimd_size_t const c_stride_elements = c_stride / sizeof(simsimd_f32_t);
-    simsimd_bf16_t const *b_tiles = (simsimd_bf16_t const *)b_packed;
-
-    // Compute full block counts for fast-path
+    simsimd_size_t const full_n = full_n_tiles * 16;
     simsimd_size_t const full_m_blocks = m / 32;
-    simsimd_size_t const full_n_blocks = n / 32;
-    simsimd_size_t const full_k_blocks = k / 32;
-    simsimd_size_t const k_remainder = k - full_k_blocks * 32;
+    simsimd_size_t const full_n_blocks = full_n_tiles / 2;
+    simsimd_size_t const total_full_tiles = full_n_tiles * full_k_tiles;
 
-    // Check if strides allow direct tile operations (need 64 bytes = 32 BF16 or 16 F32)
-    int const can_direct_load_a = (a_stride >= 64);
-    int const can_direct_store_c = (c_stride >= 64);
+    // AMX: Full 32×32 blocks with direct I/O
+    if (full_m_blocks > 0 && full_n_blocks > 0 && full_k_tiles > 0) {
+        _simsimd_amx_tile_configure_sapphire();
 
-    // ========== FAST PATH: Full 32×32 blocks ==========
-    // No bounds checking needed in inner loops - all tiles are complete
-    for (simsimd_size_t bi = 0; bi < full_m_blocks; bi++) {
-        simsimd_size_t const row_block = bi * 32;
+        for (simsimd_size_t bi = 0; bi < full_m_blocks; bi++) {
+            simsimd_size_t const row_block = bi * 32;
 
-        for (simsimd_size_t bj = 0; bj < full_n_blocks; bj++) {
-            simsimd_size_t const col_block = bj * 32;
+            for (simsimd_size_t bj = 0; bj < full_n_blocks; bj++) {
+                simsimd_size_t const col_block = bj * 32;
 
-            // Zero accumulator tiles
-            _tile_zero(4);
-            _tile_zero(5);
-            _tile_zero(6);
-            _tile_zero(7);
+                _tile_zero(4);
+                _tile_zero(5);
+                _tile_zero(6);
+                _tile_zero(7);
 
-            // Get B tile indices for this column block
-            simsimd_size_t const b_tile_n0 = bj * 2;
-            simsimd_size_t const b_tile_n1 = bj * 2 + 1;
+                simsimd_size_t const b_tile_n0 = bj * 2;
+                simsimd_size_t const b_tile_n1 = bj * 2 + 1;
 
-            // Fast K loop: full 32-element K blocks with direct A loads
-            if (can_direct_load_a) {
-                for (simsimd_size_t bk = 0; bk < full_k_blocks; bk++) {
-                    simsimd_size_t const k_offset = bk * 32;
+                for (simsimd_size_t bk = 0; bk < full_k_tiles; bk++) {
+                    simsimd_size_t const k_offset = bk * tile_cols_bf16;
 
-                    // Direct A tile loads from source (no intermediate buffer!)
+                    // Direct A tile loads
                     _tile_loadd(0, a + row_block * a_stride_elements + k_offset, (int)a_stride);
                     _tile_loadd(1, a + (row_block + 16) * a_stride_elements + k_offset, (int)a_stride);
 
                     // B tiles via Morton indexing
                     simsimd_size_t morton_idx0 =
                         _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
-                    if (morton_idx0 >= total_tiles) morton_idx0 = b_tile_n0 * tiles_along_k + bk;
-                    simsimd_bf16_t const *b_tile_ptr0 = b_tiles + morton_idx0 * tile_elements_bf16;
+                    if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
+                    simsimd_bf16_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_bf16;
 
                     simsimd_size_t morton_idx1 =
                         _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n1, (simsimd_u32_t)bk);
-                    if (morton_idx1 >= total_tiles) morton_idx1 = b_tile_n1 * tiles_along_k + bk;
-                    simsimd_bf16_t const *b_tile_ptr1 = b_tiles + morton_idx1 * tile_elements_bf16;
-
-                    // Load B tiles and compute
-                    _tile_loadd(2, b_tile_ptr0, 64);
-                    _tile_loadd(3, b_tile_ptr1, 64);
-
-                    _tile_dpbf16ps(4, 0, 2); // C00 += A0 × B0
-                    _tile_dpbf16ps(5, 0, 3); // C01 += A0 × B1
-                    _tile_dpbf16ps(6, 1, 2); // C10 += A1 × B0
-                    _tile_dpbf16ps(7, 1, 3); // C11 += A1 × B1
-                }
-            }
-            else {
-                // Fallback for small stride - copy to aligned buffer
-                SIMSIMD_ALIGN64 simsimd_bf16_t a_tile_upper[16][32] = {{0}};
-                SIMSIMD_ALIGN64 simsimd_bf16_t a_tile_lower[16][32] = {{0}};
-
-                for (simsimd_size_t bk = 0; bk < full_k_blocks; bk++) {
-                    simsimd_size_t const k_offset = bk * 32;
-
-                    // Copy A tiles to aligned buffers
-                    for (simsimd_size_t r = 0; r < 16; r++) {
-                        simsimd_bf16_t const *src_upper = a + (row_block + r) * a_stride_elements + k_offset;
-                        simsimd_bf16_t const *src_lower = a + (row_block + 16 + r) * a_stride_elements + k_offset;
-                        for (simsimd_size_t c = 0; c < 32; c++) {
-                            a_tile_upper[r][c] = src_upper[c];
-                            a_tile_lower[r][c] = src_lower[c];
-                        }
-                    }
-
-                    _tile_loadd(0, a_tile_upper, 64);
-                    _tile_loadd(1, a_tile_lower, 64);
-
-                    // B tiles via Morton indexing
-                    simsimd_size_t morton_idx0 =
-                        _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
-                    if (morton_idx0 >= total_tiles) morton_idx0 = b_tile_n0 * tiles_along_k + bk;
-                    simsimd_bf16_t const *b_tile_ptr0 = b_tiles + morton_idx0 * tile_elements_bf16;
-
-                    simsimd_size_t morton_idx1 =
-                        _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n1, (simsimd_u32_t)bk);
-                    if (morton_idx1 >= total_tiles) morton_idx1 = b_tile_n1 * tiles_along_k + bk;
-                    simsimd_bf16_t const *b_tile_ptr1 = b_tiles + morton_idx1 * tile_elements_bf16;
+                    if (morton_idx1 >= total_full_tiles) morton_idx1 = b_tile_n1 * full_k_tiles + bk;
+                    simsimd_bf16_t const *b_tile_ptr1 = tiles_ptr + morton_idx1 * tile_elements_bf16;
 
                     _tile_loadd(2, b_tile_ptr0, 64);
                     _tile_loadd(3, b_tile_ptr1, 64);
@@ -769,252 +951,312 @@ SIMSIMD_PUBLIC void simsimd_matmul_bf16_f32_sapphire(                //
                     _tile_dpbf16ps(6, 1, 2);
                     _tile_dpbf16ps(7, 1, 3);
                 }
-            }
 
-            // Handle K remainder (if k % 32 != 0)
-            if (k_remainder > 0) {
-                simsimd_size_t const k_offset = full_k_blocks * 32;
-                SIMSIMD_ALIGN64 simsimd_bf16_t a_tile_upper[16][32] = {{0}};
-                SIMSIMD_ALIGN64 simsimd_bf16_t a_tile_lower[16][32] = {{0}};
-
-                // Use masked load for partial K block
-                _simsimd_load_a_tile_bf16_masked(a + row_block * a_stride_elements + k_offset, a_stride_elements, 16,
-                                                 k_remainder, (simsimd_bf16_t *)a_tile_upper);
-                _simsimd_load_a_tile_bf16_masked(a + (row_block + 16) * a_stride_elements + k_offset, a_stride_elements,
-                                                 16, k_remainder, (simsimd_bf16_t *)a_tile_lower);
-
-                _tile_loadd(0, a_tile_upper, 64);
-                _tile_loadd(1, a_tile_lower, 64);
-
-                // B tiles for K remainder
-                simsimd_size_t morton_idx0 =
-                    _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)full_k_blocks);
-                if (morton_idx0 >= total_tiles) morton_idx0 = b_tile_n0 * tiles_along_k + full_k_blocks;
-                simsimd_bf16_t const *b_tile_ptr0 = b_tiles + morton_idx0 * tile_elements_bf16;
-
-                simsimd_size_t morton_idx1 =
-                    _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n1, (simsimd_u32_t)full_k_blocks);
-                if (morton_idx1 >= total_tiles) morton_idx1 = b_tile_n1 * tiles_along_k + full_k_blocks;
-                simsimd_bf16_t const *b_tile_ptr1 = b_tiles + morton_idx1 * tile_elements_bf16;
-
-                _tile_loadd(2, b_tile_ptr0, 64);
-                _tile_loadd(3, b_tile_ptr1, 64);
-
-                _tile_dpbf16ps(4, 0, 2);
-                _tile_dpbf16ps(5, 0, 3);
-                _tile_dpbf16ps(6, 1, 2);
-                _tile_dpbf16ps(7, 1, 3);
-            }
-
-            // Direct C stores (no intermediate buffer for full tiles!)
-            if (can_direct_store_c) {
+                // Direct C stores
                 _tile_stored(4, c + row_block * c_stride_elements + col_block, (int)c_stride);
                 _tile_stored(5, c + row_block * c_stride_elements + col_block + 16, (int)c_stride);
                 _tile_stored(6, c + (row_block + 16) * c_stride_elements + col_block, (int)c_stride);
                 _tile_stored(7, c + (row_block + 16) * c_stride_elements + col_block + 16, (int)c_stride);
             }
-            else {
-                // Fallback for small stride - store via buffer
-                SIMSIMD_ALIGN64 simsimd_f32_t c_tile[16][16];
-                _tile_stored(4, c_tile, 64);
-                for (simsimd_size_t r = 0; r < 16; r++)
-                    for (simsimd_size_t cc = 0; cc < 16; cc++)
-                        c[(row_block + r) * c_stride_elements + col_block + cc] = c_tile[r][cc];
-                _tile_stored(5, c_tile, 64);
-                for (simsimd_size_t r = 0; r < 16; r++)
-                    for (simsimd_size_t cc = 0; cc < 16; cc++)
-                        c[(row_block + r) * c_stride_elements + col_block + 16 + cc] = c_tile[r][cc];
-                _tile_stored(6, c_tile, 64);
-                for (simsimd_size_t r = 0; r < 16; r++)
-                    for (simsimd_size_t cc = 0; cc < 16; cc++)
-                        c[(row_block + 16 + r) * c_stride_elements + col_block + cc] = c_tile[r][cc];
-                _tile_stored(7, c_tile, 64);
-                for (simsimd_size_t r = 0; r < 16; r++)
-                    for (simsimd_size_t cc = 0; cc < 16; cc++)
-                        c[(row_block + 16 + r) * c_stride_elements + col_block + 16 + cc] = c_tile[r][cc];
-            }
         }
+
+        _tile_release();
     }
 
-    // ========== SLOW PATH: Edge blocks (remainder rows and columns) ==========
-    // These blocks require bounds checking and use masked operations
+    // AVX-512: N edge rows
+    if (n_edge_rows > 0) {
+        _simsimd_matmul_bf16_f32_avx512_edge(a, n_edge_ptr, c + full_n, m, n_edge_rows, k, a_stride_elements, k,
+                                             c_stride_elements);
+    }
 
-    // Handle remaining columns (rightmost partial 32-col blocks) for full row blocks
-    if (n > full_n_blocks * 32) {
-        simsimd_size_t const col_block = full_n_blocks * 32;
-        simsimd_size_t const valid_cols = n - col_block;
-        simsimd_size_t const b_tile_n0 = full_n_blocks * 2;
-        simsimd_size_t const b_tile_n1 = b_tile_n0 + 1;
-        int const has_second_col_tile = (valid_cols > 16);
+    // AMX: M edge rows for full N tiles
+    if (m > full_m_blocks * 32 && full_n_tiles > 0) {
+        simsimd_size_t const m_edge_start = full_m_blocks * 32;
+        simsimd_size_t const m_edge_rows = m - m_edge_start;
 
-        for (simsimd_size_t bi = 0; bi < full_m_blocks; bi++) {
-            simsimd_size_t const row_block = bi * 32;
+        _simsimd_amx_tile_configure_sapphire();
+
+        for (simsimd_size_t tj = 0; tj < full_n_tiles; tj++) {
+            simsimd_size_t const col_block = tj * 16;
+            simsimd_size_t const b_tile_n0 = tj;
 
             _tile_zero(4);
-            _tile_zero(5);
             _tile_zero(6);
-            _tile_zero(7);
 
             SIMSIMD_ALIGN64 simsimd_bf16_t a_tile_upper[16][32] = {{0}};
             SIMSIMD_ALIGN64 simsimd_bf16_t a_tile_lower[16][32] = {{0}};
 
-            // K loop for edge column block
-            for (simsimd_size_t k_offset = 0; k_offset < k; k_offset += tile_cols_bf16) {
-                simsimd_size_t const k_valid = (k_offset + tile_cols_bf16 <= k) ? tile_cols_bf16 : k - k_offset;
-                simsimd_size_t const b_tile_k = k_offset / tile_cols_bf16;
+            simsimd_size_t const rows_upper = (m_edge_rows > 16) ? 16 : m_edge_rows;
+            simsimd_size_t const rows_lower = (m_edge_rows > 16) ? m_edge_rows - 16 : 0;
 
-                // Load A tiles (full rows, possibly partial K)
-                if (k_valid == 32 && can_direct_load_a) {
-                    _tile_loadd(0, a + row_block * a_stride_elements + k_offset, (int)a_stride);
-                    _tile_loadd(1, a + (row_block + 16) * a_stride_elements + k_offset, (int)a_stride);
-                }
-                else {
-                    _simsimd_load_a_tile_bf16_masked(a + row_block * a_stride_elements + k_offset, a_stride_elements,
-                                                     16, k_valid, (simsimd_bf16_t *)a_tile_upper);
-                    _simsimd_load_a_tile_bf16_masked(a + (row_block + 16) * a_stride_elements + k_offset,
-                                                     a_stride_elements, 16, k_valid, (simsimd_bf16_t *)a_tile_lower);
-                    _tile_loadd(0, a_tile_upper, 64);
-                    _tile_loadd(1, a_tile_lower, 64);
-                }
+            for (simsimd_size_t bk = 0; bk < full_k_tiles; bk++) {
+                simsimd_size_t const k_offset = bk * tile_cols_bf16;
+                simsimd_size_t const k_valid = (k_offset + tile_cols_bf16 <= k) ? tile_cols_bf16 : (k - k_offset);
 
-                // B tiles
-                simsimd_size_t morton_idx0 =
-                    _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)b_tile_k);
-                if (morton_idx0 >= total_tiles) morton_idx0 = b_tile_n0 * tiles_along_k + b_tile_k;
-                _tile_loadd(2, b_tiles + morton_idx0 * tile_elements_bf16, 64);
-
-                _tile_dpbf16ps(4, 0, 2);
-                _tile_dpbf16ps(6, 1, 2);
-
-                if (has_second_col_tile && b_tile_n1 < tiles_along_n) {
-                    simsimd_size_t morton_idx1 =
-                        _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n1, (simsimd_u32_t)b_tile_k);
-                    if (morton_idx1 >= total_tiles) morton_idx1 = b_tile_n1 * tiles_along_k + b_tile_k;
-                    _tile_loadd(3, b_tiles + morton_idx1 * tile_elements_bf16, 64);
-                    _tile_dpbf16ps(5, 0, 3);
-                    _tile_dpbf16ps(7, 1, 3);
-                }
-            }
-
-            // Store with masked operations for partial columns
-            SIMSIMD_ALIGN64 simsimd_f32_t c_tile[16][16];
-            simsimd_size_t cols_first = (valid_cols > 16) ? 16 : valid_cols;
-            simsimd_size_t cols_second = (valid_cols > 16) ? valid_cols - 16 : 0;
-
-            _tile_stored(4, c_tile, 64);
-            _simsimd_store_c_tile_f32_masked((simsimd_f32_t *)c_tile, c + row_block * c_stride_elements + col_block,
-                                             c_stride_elements, 16, cols_first);
-            _tile_stored(6, c_tile, 64);
-            _simsimd_store_c_tile_f32_masked((simsimd_f32_t *)c_tile,
-                                             c + (row_block + 16) * c_stride_elements + col_block, c_stride_elements,
-                                             16, cols_first);
-
-            if (cols_second > 0) {
-                _tile_stored(5, c_tile, 64);
-                _simsimd_store_c_tile_f32_masked((simsimd_f32_t *)c_tile,
-                                                 c + row_block * c_stride_elements + col_block + 16, c_stride_elements,
-                                                 16, cols_second);
-                _tile_stored(7, c_tile, 64);
-                _simsimd_store_c_tile_f32_masked((simsimd_f32_t *)c_tile,
-                                                 c + (row_block + 16) * c_stride_elements + col_block + 16,
-                                                 c_stride_elements, 16, cols_second);
-            }
-        }
-    }
-
-    // Handle remaining rows (bottom partial 32-row blocks)
-    if (m > full_m_blocks * 32) {
-        simsimd_size_t const row_block = full_m_blocks * 32;
-        simsimd_size_t const valid_rows = m - row_block;
-        simsimd_size_t const rows_upper = (valid_rows > 16) ? 16 : valid_rows;
-        simsimd_size_t const rows_lower = (valid_rows > 16) ? valid_rows - 16 : 0;
-
-        // Process all column blocks for the remaining rows
-        for (simsimd_size_t col_block = 0; col_block < n; col_block += 32) {
-            simsimd_size_t const valid_cols = (col_block + 32 <= n) ? 32 : n - col_block;
-            simsimd_size_t const cols_first = (valid_cols > 16) ? 16 : valid_cols;
-            simsimd_size_t const cols_second = (valid_cols > 16) ? valid_cols - 16 : 0;
-            simsimd_size_t const b_tile_n0 = col_block / tile_rows;
-            simsimd_size_t const b_tile_n1 = b_tile_n0 + 1;
-
-            _tile_zero(4);
-            _tile_zero(5);
-            _tile_zero(6);
-            _tile_zero(7);
-
-            SIMSIMD_ALIGN64 simsimd_bf16_t a_tile_upper[16][32] = {{0}};
-            SIMSIMD_ALIGN64 simsimd_bf16_t a_tile_lower[16][32] = {{0}};
-
-            // K loop for edge row block
-            for (simsimd_size_t k_offset = 0; k_offset < k; k_offset += tile_cols_bf16) {
-                simsimd_size_t const k_valid = (k_offset + tile_cols_bf16 <= k) ? tile_cols_bf16 : k - k_offset;
-                simsimd_size_t const b_tile_k = k_offset / tile_cols_bf16;
-
-                // Load A tiles with masked operations (partial rows)
-                _simsimd_load_a_tile_bf16_masked(a + row_block * a_stride_elements + k_offset, a_stride_elements,
+                _simsimd_load_a_tile_bf16_masked(a + m_edge_start * a_stride_elements + k_offset, a_stride_elements,
                                                  rows_upper, k_valid, (simsimd_bf16_t *)a_tile_upper);
                 if (rows_lower > 0) {
-                    _simsimd_load_a_tile_bf16_masked(a + (row_block + 16) * a_stride_elements + k_offset,
+                    _simsimd_load_a_tile_bf16_masked(a + (m_edge_start + 16) * a_stride_elements + k_offset,
                                                      a_stride_elements, rows_lower, k_valid,
                                                      (simsimd_bf16_t *)a_tile_lower);
-                }
-                else {
-                    // Zero the lower tile
-                    for (simsimd_size_t r = 0; r < 16; r++)
-                        _mm512_store_si512((__m512i *)(a_tile_lower[r]), _mm512_setzero_si512());
                 }
 
                 _tile_loadd(0, a_tile_upper, 64);
                 _tile_loadd(1, a_tile_lower, 64);
 
-                // B tiles
                 simsimd_size_t morton_idx0 =
-                    _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)b_tile_k);
-                if (morton_idx0 >= total_tiles) morton_idx0 = b_tile_n0 * tiles_along_k + b_tile_k;
-                _tile_loadd(2, b_tiles + morton_idx0 * tile_elements_bf16, 64);
+                    _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
+                if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
+                simsimd_bf16_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_bf16;
+
+                _tile_loadd(2, b_tile_ptr0, 64);
 
                 _tile_dpbf16ps(4, 0, 2);
                 _tile_dpbf16ps(6, 1, 2);
-
-                if (cols_second > 0 && b_tile_n1 < tiles_along_n) {
-                    simsimd_size_t morton_idx1 =
-                        _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n1, (simsimd_u32_t)b_tile_k);
-                    if (morton_idx1 >= total_tiles) morton_idx1 = b_tile_n1 * tiles_along_k + b_tile_k;
-                    _tile_loadd(3, b_tiles + morton_idx1 * tile_elements_bf16, 64);
-                    _tile_dpbf16ps(5, 0, 3);
-                    _tile_dpbf16ps(7, 1, 3);
-                }
             }
 
-            // Store with masked operations for partial rows
             SIMSIMD_ALIGN64 simsimd_f32_t c_tile[16][16];
 
             _tile_stored(4, c_tile, 64);
-            _simsimd_store_c_tile_f32_masked((simsimd_f32_t *)c_tile, c + row_block * c_stride_elements + col_block,
-                                             c_stride_elements, rows_upper, cols_first);
+            _simsimd_store_c_tile_f32_masked((simsimd_f32_t *)c_tile, c + m_edge_start * c_stride_elements + col_block,
+                                             c_stride_elements, rows_upper, 16);
 
             if (rows_lower > 0) {
                 _tile_stored(6, c_tile, 64);
                 _simsimd_store_c_tile_f32_masked((simsimd_f32_t *)c_tile,
-                                                 c + (row_block + 16) * c_stride_elements + col_block,
-                                                 c_stride_elements, rows_lower, cols_first);
+                                                 c + (m_edge_start + 16) * c_stride_elements + col_block,
+                                                 c_stride_elements, rows_lower, 16);
             }
+        }
 
-            if (cols_second > 0) {
-                _tile_stored(5, c_tile, 64);
-                _simsimd_store_c_tile_f32_masked((simsimd_f32_t *)c_tile,
-                                                 c + row_block * c_stride_elements + col_block + 16, c_stride_elements,
-                                                 rows_upper, cols_second);
+        _tile_release();
+    }
 
-                if (rows_lower > 0) {
-                    _tile_stored(7, c_tile, 64);
-                    _simsimd_store_c_tile_f32_masked((simsimd_f32_t *)c_tile,
-                                                     c + (row_block + 16) * c_stride_elements + col_block + 16,
-                                                     c_stride_elements, rows_lower, cols_second);
+    // AVX-512: M edge × N edge corner
+    if (m > full_m_blocks * 32 && n_edge_rows > 0) {
+        simsimd_size_t const m_edge_start = full_m_blocks * 32;
+        simsimd_size_t const m_edge_count = m - m_edge_start;
+
+        _simsimd_matmul_bf16_f32_avx512_edge(a + m_edge_start * a_stride_elements, n_edge_ptr,
+                                             c + m_edge_start * c_stride_elements + full_n, m_edge_count, n_edge_rows,
+                                             k, a_stride_elements, k, c_stride_elements);
+    }
+}
+
+/*  BF16 → F32 matmul (misaligned path): All I/O through aligned buffers with AVX-512.
+ *  Used when stride < 64 bytes (can't use direct tile loads/stores).
+ */
+SIMSIMD_INTERNAL void _simsimd_matmul_bf16_f32_sapphire_misaligned(  //
+    simsimd_bf16_t const *a, void const *b_packed, simsimd_f32_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k,            //
+    simsimd_size_t a_stride, simsimd_size_t c_stride) {
+
+    // Read header for hybrid layout
+    simsimd_matmul_packed_header_t const *header = (simsimd_matmul_packed_header_t const *)b_packed;
+    simsimd_size_t const full_n_tiles = header->full_n_tiles;
+    simsimd_size_t const full_k_tiles = header->full_k_tiles;
+    simsimd_size_t const n_edge_rows = header->n_edge_rows;
+
+    simsimd_bf16_t const *tiles_ptr =
+        (simsimd_bf16_t const *)((char const *)b_packed + sizeof(simsimd_matmul_packed_header_t));
+    simsimd_bf16_t const *n_edge_ptr = (simsimd_bf16_t const *)((char const *)b_packed + header->n_edge_offset);
+
+    simsimd_size_t const tile_cols_bf16 = 32;
+    simsimd_size_t const tile_elements_bf16 = 512;
+
+    simsimd_size_t const a_stride_elements = a_stride / sizeof(simsimd_bf16_t);
+    simsimd_size_t const c_stride_elements = c_stride / sizeof(simsimd_f32_t);
+    simsimd_size_t const full_n = full_n_tiles * 16;
+    simsimd_size_t const full_m_blocks = m / 32;
+    simsimd_size_t const full_n_blocks = full_n_tiles / 2;
+    simsimd_size_t const total_full_tiles = full_n_tiles * full_k_tiles;
+
+    // Stack buffers for tile I/O
+    SIMSIMD_ALIGN64 simsimd_bf16_t a_buf_upper[16][32];
+    SIMSIMD_ALIGN64 simsimd_bf16_t a_buf_lower[16][32];
+    SIMSIMD_ALIGN64 simsimd_f32_t c_buf[16][16];
+
+    // AMX: Full 32×32 blocks through buffers
+    if (full_m_blocks > 0 && full_n_blocks > 0 && full_k_tiles > 0) {
+        _simsimd_amx_tile_configure_sapphire();
+
+        for (simsimd_size_t bi = 0; bi < full_m_blocks; bi++) {
+            simsimd_size_t const row_block = bi * 32;
+
+            for (simsimd_size_t bj = 0; bj < full_n_blocks; bj++) {
+                simsimd_size_t const col_block = bj * 32;
+
+                _tile_zero(4);
+                _tile_zero(5);
+                _tile_zero(6);
+                _tile_zero(7);
+
+                simsimd_size_t const b_tile_n0 = bj * 2;
+                simsimd_size_t const b_tile_n1 = bj * 2 + 1;
+
+                for (simsimd_size_t bk = 0; bk < full_k_tiles; bk++) {
+                    simsimd_size_t const k_offset = bk * tile_cols_bf16;
+
+                    // Load A through buffers using AVX-512
+                    for (simsimd_size_t r = 0; r < 16; r++) {
+                        simsimd_bf16_t const *src_upper = a + (row_block + r) * a_stride_elements + k_offset;
+                        simsimd_bf16_t const *src_lower = a + (row_block + 16 + r) * a_stride_elements + k_offset;
+                        __m512i upper_row = _mm512_loadu_si512((__m512i const *)src_upper);
+                        __m512i lower_row = _mm512_loadu_si512((__m512i const *)src_lower);
+                        _mm512_store_si512((__m512i *)a_buf_upper[r], upper_row);
+                        _mm512_store_si512((__m512i *)a_buf_lower[r], lower_row);
+                    }
+                    __asm__ volatile("" ::: "memory");
+
+                    _tile_loadd(0, a_buf_upper, 64);
+                    _tile_loadd(1, a_buf_lower, 64);
+
+                    // B tiles via Morton indexing
+                    simsimd_size_t morton_idx0 =
+                        _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
+                    if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
+                    simsimd_bf16_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_bf16;
+
+                    simsimd_size_t morton_idx1 =
+                        _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n1, (simsimd_u32_t)bk);
+                    if (morton_idx1 >= total_full_tiles) morton_idx1 = b_tile_n1 * full_k_tiles + bk;
+                    simsimd_bf16_t const *b_tile_ptr1 = tiles_ptr + morton_idx1 * tile_elements_bf16;
+
+                    _tile_loadd(2, b_tile_ptr0, 64);
+                    _tile_loadd(3, b_tile_ptr1, 64);
+
+                    _tile_dpbf16ps(4, 0, 2);
+                    _tile_dpbf16ps(5, 0, 3);
+                    _tile_dpbf16ps(6, 1, 2);
+                    _tile_dpbf16ps(7, 1, 3);
+                }
+
+                // Store C through buffers using AVX-512
+                _tile_stored(4, c_buf, 64);
+                for (simsimd_size_t r = 0; r < 16; r++) {
+                    __m512 row = _mm512_load_ps(c_buf[r]);
+                    _mm512_storeu_ps(c + (row_block + r) * c_stride_elements + col_block, row);
+                }
+
+                _tile_stored(5, c_buf, 64);
+                for (simsimd_size_t r = 0; r < 16; r++) {
+                    __m512 row = _mm512_load_ps(c_buf[r]);
+                    _mm512_storeu_ps(c + (row_block + r) * c_stride_elements + col_block + 16, row);
+                }
+
+                _tile_stored(6, c_buf, 64);
+                for (simsimd_size_t r = 0; r < 16; r++) {
+                    __m512 row = _mm512_load_ps(c_buf[r]);
+                    _mm512_storeu_ps(c + (row_block + 16 + r) * c_stride_elements + col_block, row);
+                }
+
+                _tile_stored(7, c_buf, 64);
+                for (simsimd_size_t r = 0; r < 16; r++) {
+                    __m512 row = _mm512_load_ps(c_buf[r]);
+                    _mm512_storeu_ps(c + (row_block + 16 + r) * c_stride_elements + col_block + 16, row);
                 }
             }
         }
+
+        _tile_release();
     }
+
+    // AVX-512: N edge rows
+    if (n_edge_rows > 0) {
+        _simsimd_matmul_bf16_f32_avx512_edge(a, n_edge_ptr, c + full_n, m, n_edge_rows, k, a_stride_elements, k,
+                                             c_stride_elements);
+    }
+
+    // AMX: M edge rows for full N tiles (through buffers)
+    if (m > full_m_blocks * 32 && full_n_tiles > 0) {
+        simsimd_size_t const m_edge_start = full_m_blocks * 32;
+        simsimd_size_t const m_edge_rows = m - m_edge_start;
+
+        _simsimd_amx_tile_configure_sapphire();
+
+        for (simsimd_size_t tj = 0; tj < full_n_tiles; tj++) {
+            simsimd_size_t const col_block = tj * 16;
+            simsimd_size_t const b_tile_n0 = tj;
+
+            _tile_zero(4);
+            _tile_zero(6);
+
+            // Zero buffers for edge
+            for (simsimd_size_t r = 0; r < 16; r++) {
+                _mm512_store_si512((__m512i *)a_buf_upper[r], _mm512_setzero_si512());
+                _mm512_store_si512((__m512i *)a_buf_lower[r], _mm512_setzero_si512());
+            }
+
+            simsimd_size_t const rows_upper = (m_edge_rows > 16) ? 16 : m_edge_rows;
+            simsimd_size_t const rows_lower = (m_edge_rows > 16) ? m_edge_rows - 16 : 0;
+
+            for (simsimd_size_t bk = 0; bk < full_k_tiles; bk++) {
+                simsimd_size_t const k_offset = bk * tile_cols_bf16;
+                simsimd_size_t const k_valid = (k_offset + tile_cols_bf16 <= k) ? tile_cols_bf16 : (k - k_offset);
+
+                _simsimd_load_a_tile_bf16_masked(a + m_edge_start * a_stride_elements + k_offset, a_stride_elements,
+                                                 rows_upper, k_valid, (simsimd_bf16_t *)a_buf_upper);
+                if (rows_lower > 0) {
+                    _simsimd_load_a_tile_bf16_masked(a + (m_edge_start + 16) * a_stride_elements + k_offset,
+                                                     a_stride_elements, rows_lower, k_valid,
+                                                     (simsimd_bf16_t *)a_buf_lower);
+                }
+
+                _tile_loadd(0, a_buf_upper, 64);
+                _tile_loadd(1, a_buf_lower, 64);
+
+                simsimd_size_t morton_idx0 =
+                    _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
+                if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
+                simsimd_bf16_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_bf16;
+
+                _tile_loadd(2, b_tile_ptr0, 64);
+
+                _tile_dpbf16ps(4, 0, 2);
+                _tile_dpbf16ps(6, 1, 2);
+            }
+
+            _tile_stored(4, c_buf, 64);
+            _simsimd_store_c_tile_f32_masked((simsimd_f32_t *)c_buf, c + m_edge_start * c_stride_elements + col_block,
+                                             c_stride_elements, rows_upper, 16);
+
+            if (rows_lower > 0) {
+                _tile_stored(6, c_buf, 64);
+                _simsimd_store_c_tile_f32_masked((simsimd_f32_t *)c_buf,
+                                                 c + (m_edge_start + 16) * c_stride_elements + col_block,
+                                                 c_stride_elements, rows_lower, 16);
+            }
+        }
+
+        _tile_release();
+    }
+
+    // AVX-512: M edge × N edge corner
+    if (m > full_m_blocks * 32 && n_edge_rows > 0) {
+        simsimd_size_t const m_edge_start = full_m_blocks * 32;
+        simsimd_size_t const m_edge_count = m - m_edge_start;
+
+        _simsimd_matmul_bf16_f32_avx512_edge(a + m_edge_start * a_stride_elements, n_edge_ptr,
+                                             c + m_edge_start * c_stride_elements + full_n, m_edge_count, n_edge_rows,
+                                             k, a_stride_elements, k, c_stride_elements);
+    }
+}
+
+/*  BF16 → F32 matmul: C[m×n] = A[m×k] × B[n×k]ᵀ
+ *
+ *  Dispatcher that selects aligned or misaligned path based on stride.
+ *  Single-threaded. For parallel execution, partition A rows across threads.
+ */
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_f32_sapphire(                //
+    simsimd_bf16_t const *a, void const *b_packed, simsimd_f32_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k,            //
+    simsimd_size_t a_stride, simsimd_size_t c_stride) {
+
+    // Check if strides allow direct tile operations (need 64 bytes = 32 BF16 or 16 F32)
+    int const can_direct = (a_stride >= 64) && (c_stride >= 64);
+    if (can_direct) _simsimd_matmul_bf16_f32_sapphire_aligned(a, b_packed, c, m, n, k, a_stride, c_stride);
+    else
+        _simsimd_matmul_bf16_f32_sapphire_misaligned(a, b_packed, c, m, n, k, a_stride, c_stride);
 }
 
 /*  BF16 compact: truncate F32 → BF16 in-place using AVX512.
@@ -1052,122 +1294,68 @@ SIMSIMD_PUBLIC void simsimd_matmul_bf16_compact_sapphire( //
     }
 }
 
-/*  I8 → I32 matmul: C[m×n] = A[m×k] × B[n×k]ᵀ
- *
- *  Uses TDPBSSD for signed INT8 dot product with INT32 accumulation.
- *  INT8 tiles are 16×64 (1KB each).
- *
- *  Optimized with fast-path/slow-path split:
- *    - Fast path: Full 32×32 blocks with direct tile load/store (no intermediate buffers)
- *    - Slow path: Edge blocks using AVX-512 masked operations
+/*  I8 → I32 matmul (aligned path): Direct tile loads/stores when stride >= 64 bytes.
+ *  This is the fast path - no intermediate buffers for A or C.
  */
-SIMSIMD_PUBLIC void simsimd_matmul_i8_i32_sapphire(                //
+SIMSIMD_INTERNAL void _simsimd_matmul_i8_i32_sapphire_aligned(     //
     simsimd_i8_t const *a, void const *b_packed, simsimd_i32_t *c, //
     simsimd_size_t m, simsimd_size_t n, simsimd_size_t k,          //
     simsimd_size_t a_stride, simsimd_size_t c_stride) {
 
-    // AMX tile dimensions for INT8
-    simsimd_size_t const tile_rows = 16;
+    simsimd_matmul_packed_header_t const *header = (simsimd_matmul_packed_header_t const *)b_packed;
+    simsimd_size_t const full_n_tiles = header->full_n_tiles;
+    simsimd_size_t const full_k_tiles = header->full_k_tiles;
+    simsimd_size_t const n_edge_rows = header->n_edge_rows;
+    simsimd_size_t const n_edge_offset = header->n_edge_offset;
+
     simsimd_size_t const tile_cols_i8 = 64;
     simsimd_size_t const tile_elements_i8 = 1024;
 
-    _simsimd_amx_tile_configure_sapphire();
+    simsimd_i8_t const *tiles_ptr = (simsimd_i8_t const *)((char const *)b_packed + 64);
+    simsimd_i8_t const *n_edge_ptr =
+        (n_edge_offset > 0) ? (simsimd_i8_t const *)((char const *)b_packed + n_edge_offset) : NULL;
 
-    simsimd_size_t const tiles_along_n = (n + tile_rows - 1) / tile_rows;
-    simsimd_size_t const tiles_along_k = (k + tile_cols_i8 - 1) / tile_cols_i8;
-    simsimd_size_t const total_tiles = tiles_along_n * tiles_along_k;
     simsimd_size_t const c_stride_elements = c_stride / sizeof(simsimd_i32_t);
-    simsimd_i8_t const *b_tiles = (simsimd_i8_t const *)b_packed;
-
-    // Compute full block counts for fast-path
     simsimd_size_t const full_m_blocks = m / 32;
     simsimd_size_t const full_n_blocks = n / 32;
-    simsimd_size_t const full_k_blocks = k / 64;
-    simsimd_size_t const k_remainder = k - full_k_blocks * 64;
+    simsimd_size_t const full_n = full_n_tiles * 16;
+    simsimd_size_t const total_full_tiles = full_n_tiles * full_k_tiles;
 
-    // Check if strides allow direct tile operations (need 64 bytes for I8 A tile row and I32 C tile row)
-    int const can_direct_load_a = (a_stride >= 64);
-    int const can_direct_store_c = (c_stride >= 64);
+    // AMX: Full 32×32 blocks with direct I/O
+    if (full_m_blocks > 0 && full_n_blocks > 0 && full_k_tiles > 0) {
+        _simsimd_amx_tile_configure_sapphire();
 
-    // ========== FAST PATH: Full 32×32 blocks ==========
-    // No bounds checking needed in inner loops - all tiles are complete
-    for (simsimd_size_t bi = 0; bi < full_m_blocks; bi++) {
-        simsimd_size_t const row_block = bi * 32;
+        for (simsimd_size_t bi = 0; bi < full_m_blocks; bi++) {
+            simsimd_size_t const row_block = bi * 32;
 
-        for (simsimd_size_t bj = 0; bj < full_n_blocks; bj++) {
-            simsimd_size_t const col_block = bj * 32;
+            for (simsimd_size_t bj = 0; bj < full_n_blocks; bj++) {
+                simsimd_size_t const col_block = bj * 32;
 
-            // Zero accumulator tiles
-            _tile_zero(4);
-            _tile_zero(5);
-            _tile_zero(6);
-            _tile_zero(7);
+                _tile_zero(4);
+                _tile_zero(5);
+                _tile_zero(6);
+                _tile_zero(7);
 
-            // Get B tile indices for this column block
-            simsimd_size_t const b_tile_n0 = bj * 2;
-            simsimd_size_t const b_tile_n1 = bj * 2 + 1;
+                simsimd_size_t const b_tile_n0 = bj * 2;
+                simsimd_size_t const b_tile_n1 = bj * 2 + 1;
 
-            // Fast K loop: full 64-element K blocks with direct A loads
-            if (can_direct_load_a) {
-                for (simsimd_size_t bk = 0; bk < full_k_blocks; bk++) {
+                for (simsimd_size_t bk = 0; bk < full_k_tiles; bk++) {
                     simsimd_size_t const k_offset = bk * 64;
 
-                    // Direct A tile loads from source (no intermediate buffer!)
+                    // Direct A tile loads
                     _tile_loadd(0, a + row_block * a_stride + k_offset, (int)a_stride);
                     _tile_loadd(1, a + (row_block + 16) * a_stride + k_offset, (int)a_stride);
 
                     // B tiles via Morton indexing
                     simsimd_size_t morton_idx0 =
                         _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
-                    if (morton_idx0 >= total_tiles) morton_idx0 = b_tile_n0 * tiles_along_k + bk;
-                    simsimd_i8_t const *b_tile_ptr0 = b_tiles + morton_idx0 * tile_elements_i8;
+                    if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
+                    simsimd_i8_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_i8;
 
                     simsimd_size_t morton_idx1 =
                         _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n1, (simsimd_u32_t)bk);
-                    if (morton_idx1 >= total_tiles) morton_idx1 = b_tile_n1 * tiles_along_k + bk;
-                    simsimd_i8_t const *b_tile_ptr1 = b_tiles + morton_idx1 * tile_elements_i8;
-
-                    // Load B tiles and compute
-                    _tile_loadd(2, b_tile_ptr0, 64);
-                    _tile_loadd(3, b_tile_ptr1, 64);
-
-                    _tile_dpbssd(4, 0, 2); // C00 += A0 × B0
-                    _tile_dpbssd(5, 0, 3); // C01 += A0 × B1
-                    _tile_dpbssd(6, 1, 2); // C10 += A1 × B0
-                    _tile_dpbssd(7, 1, 3); // C11 += A1 × B1
-                }
-            }
-            else {
-                // Fallback for small stride - copy to aligned buffer
-                SIMSIMD_ALIGN64 simsimd_i8_t a_tile_upper[16][64] = {{0}};
-                SIMSIMD_ALIGN64 simsimd_i8_t a_tile_lower[16][64] = {{0}};
-
-                for (simsimd_size_t bk = 0; bk < full_k_blocks; bk++) {
-                    simsimd_size_t const k_offset = bk * 64;
-
-                    // Copy A tiles to aligned buffers
-                    for (simsimd_size_t r = 0; r < 16; r++) {
-                        simsimd_i8_t const *src_upper = a + (row_block + r) * a_stride + k_offset;
-                        simsimd_i8_t const *src_lower = a + (row_block + 16 + r) * a_stride + k_offset;
-                        for (simsimd_size_t c = 0; c < 64; c++) {
-                            a_tile_upper[r][c] = src_upper[c];
-                            a_tile_lower[r][c] = src_lower[c];
-                        }
-                    }
-
-                    _tile_loadd(0, a_tile_upper, 64);
-                    _tile_loadd(1, a_tile_lower, 64);
-
-                    // B tiles via Morton indexing
-                    simsimd_size_t morton_idx0 =
-                        _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
-                    if (morton_idx0 >= total_tiles) morton_idx0 = b_tile_n0 * tiles_along_k + bk;
-                    simsimd_i8_t const *b_tile_ptr0 = b_tiles + morton_idx0 * tile_elements_i8;
-
-                    simsimd_size_t morton_idx1 =
-                        _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n1, (simsimd_u32_t)bk);
-                    if (morton_idx1 >= total_tiles) morton_idx1 = b_tile_n1 * tiles_along_k + bk;
-                    simsimd_i8_t const *b_tile_ptr1 = b_tiles + morton_idx1 * tile_elements_i8;
+                    if (morton_idx1 >= total_full_tiles) morton_idx1 = b_tile_n1 * full_k_tiles + bk;
+                    simsimd_i8_t const *b_tile_ptr1 = tiles_ptr + morton_idx1 * tile_elements_i8;
 
                     _tile_loadd(2, b_tile_ptr0, 64);
                     _tile_loadd(3, b_tile_ptr1, 64);
@@ -1177,251 +1365,309 @@ SIMSIMD_PUBLIC void simsimd_matmul_i8_i32_sapphire(                //
                     _tile_dpbssd(6, 1, 2);
                     _tile_dpbssd(7, 1, 3);
                 }
-            }
 
-            // Handle K remainder (if k % 64 != 0)
-            if (k_remainder > 0) {
-                simsimd_size_t const k_offset = full_k_blocks * 64;
-                SIMSIMD_ALIGN64 simsimd_i8_t a_tile_upper[16][64] = {{0}};
-                SIMSIMD_ALIGN64 simsimd_i8_t a_tile_lower[16][64] = {{0}};
-
-                // Use masked load for partial K block
-                _simsimd_load_a_tile_i8_masked(a + row_block * a_stride + k_offset, a_stride, 16, k_remainder,
-                                               (simsimd_i8_t *)a_tile_upper);
-                _simsimd_load_a_tile_i8_masked(a + (row_block + 16) * a_stride + k_offset, a_stride, 16, k_remainder,
-                                               (simsimd_i8_t *)a_tile_lower);
-
-                _tile_loadd(0, a_tile_upper, 64);
-                _tile_loadd(1, a_tile_lower, 64);
-
-                // B tiles for K remainder
-                simsimd_size_t morton_idx0 =
-                    _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)full_k_blocks);
-                if (morton_idx0 >= total_tiles) morton_idx0 = b_tile_n0 * tiles_along_k + full_k_blocks;
-                simsimd_i8_t const *b_tile_ptr0 = b_tiles + morton_idx0 * tile_elements_i8;
-
-                simsimd_size_t morton_idx1 =
-                    _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n1, (simsimd_u32_t)full_k_blocks);
-                if (morton_idx1 >= total_tiles) morton_idx1 = b_tile_n1 * tiles_along_k + full_k_blocks;
-                simsimd_i8_t const *b_tile_ptr1 = b_tiles + morton_idx1 * tile_elements_i8;
-
-                _tile_loadd(2, b_tile_ptr0, 64);
-                _tile_loadd(3, b_tile_ptr1, 64);
-
-                _tile_dpbssd(4, 0, 2);
-                _tile_dpbssd(5, 0, 3);
-                _tile_dpbssd(6, 1, 2);
-                _tile_dpbssd(7, 1, 3);
-            }
-
-            // Direct C stores (no intermediate buffer for full tiles!)
-            if (can_direct_store_c) {
+                // Direct C stores
                 _tile_stored(4, c + row_block * c_stride_elements + col_block, (int)c_stride);
                 _tile_stored(5, c + row_block * c_stride_elements + col_block + 16, (int)c_stride);
                 _tile_stored(6, c + (row_block + 16) * c_stride_elements + col_block, (int)c_stride);
                 _tile_stored(7, c + (row_block + 16) * c_stride_elements + col_block + 16, (int)c_stride);
             }
-            else {
-                // Fallback for small stride - store via buffer
-                SIMSIMD_ALIGN64 simsimd_i32_t c_tile[16][16];
-                _tile_stored(4, c_tile, 64);
-                for (simsimd_size_t r = 0; r < 16; r++)
-                    for (simsimd_size_t cc = 0; cc < 16; cc++)
-                        c[(row_block + r) * c_stride_elements + col_block + cc] = c_tile[r][cc];
-                _tile_stored(5, c_tile, 64);
-                for (simsimd_size_t r = 0; r < 16; r++)
-                    for (simsimd_size_t cc = 0; cc < 16; cc++)
-                        c[(row_block + r) * c_stride_elements + col_block + 16 + cc] = c_tile[r][cc];
-                _tile_stored(6, c_tile, 64);
-                for (simsimd_size_t r = 0; r < 16; r++)
-                    for (simsimd_size_t cc = 0; cc < 16; cc++)
-                        c[(row_block + 16 + r) * c_stride_elements + col_block + cc] = c_tile[r][cc];
-                _tile_stored(7, c_tile, 64);
-                for (simsimd_size_t r = 0; r < 16; r++)
-                    for (simsimd_size_t cc = 0; cc < 16; cc++)
-                        c[(row_block + 16 + r) * c_stride_elements + col_block + 16 + cc] = c_tile[r][cc];
-            }
         }
+
+        _tile_release();
     }
 
-    // ========== SLOW PATH: Edge blocks (remainder rows and columns) ==========
-    // These blocks require bounds checking and use masked operations
+    // AMX: M edge rows for full N tiles
+    if (m > full_m_blocks * 32 && full_n_tiles > 0) {
+        simsimd_size_t const m_edge_start = full_m_blocks * 32;
+        simsimd_size_t const m_edge_rows = m - m_edge_start;
 
-    // Handle remaining columns (rightmost partial 32-col blocks) for full row blocks
-    if (n > full_n_blocks * 32) {
-        simsimd_size_t const col_block = full_n_blocks * 32;
-        simsimd_size_t const valid_cols = n - col_block;
-        simsimd_size_t const b_tile_n0 = full_n_blocks * 2;
-        simsimd_size_t const b_tile_n1 = b_tile_n0 + 1;
-        int const has_second_col_tile = (valid_cols > 16);
+        _simsimd_amx_tile_configure_sapphire();
 
-        for (simsimd_size_t bi = 0; bi < full_m_blocks; bi++) {
-            simsimd_size_t const row_block = bi * 32;
+        for (simsimd_size_t tj = 0; tj < full_n_tiles; tj++) {
+            simsimd_size_t const col_block = tj * 16;
+            simsimd_size_t const b_tile_n0 = tj;
 
             _tile_zero(4);
-            _tile_zero(5);
             _tile_zero(6);
-            _tile_zero(7);
 
             SIMSIMD_ALIGN64 simsimd_i8_t a_tile_upper[16][64] = {{0}};
             SIMSIMD_ALIGN64 simsimd_i8_t a_tile_lower[16][64] = {{0}};
 
-            // K loop for edge column block
-            for (simsimd_size_t k_offset = 0; k_offset < k; k_offset += tile_cols_i8) {
-                simsimd_size_t const k_valid = (k_offset + tile_cols_i8 <= k) ? tile_cols_i8 : k - k_offset;
-                simsimd_size_t const b_tile_k = k_offset / tile_cols_i8;
+            simsimd_size_t const rows_upper = (m_edge_rows > 16) ? 16 : m_edge_rows;
+            simsimd_size_t const rows_lower = (m_edge_rows > 16) ? m_edge_rows - 16 : 0;
 
-                // Load A tiles (full rows, possibly partial K)
-                if (k_valid == 64 && can_direct_load_a) {
-                    _tile_loadd(0, a + row_block * a_stride + k_offset, (int)a_stride);
-                    _tile_loadd(1, a + (row_block + 16) * a_stride + k_offset, (int)a_stride);
-                }
-                else {
-                    _simsimd_load_a_tile_i8_masked(a + row_block * a_stride + k_offset, a_stride, 16, k_valid,
-                                                   (simsimd_i8_t *)a_tile_upper);
-                    _simsimd_load_a_tile_i8_masked(a + (row_block + 16) * a_stride + k_offset, a_stride, 16, k_valid,
-                                                   (simsimd_i8_t *)a_tile_lower);
-                    _tile_loadd(0, a_tile_upper, 64);
-                    _tile_loadd(1, a_tile_lower, 64);
-                }
+            for (simsimd_size_t bk = 0; bk < full_k_tiles; bk++) {
+                simsimd_size_t const k_offset = bk * tile_cols_i8;
+                simsimd_size_t const k_valid = (k_offset + tile_cols_i8 <= k) ? tile_cols_i8 : (k - k_offset);
 
-                // B tiles
-                simsimd_size_t morton_idx0 =
-                    _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)b_tile_k);
-                if (morton_idx0 >= total_tiles) morton_idx0 = b_tile_n0 * tiles_along_k + b_tile_k;
-                _tile_loadd(2, b_tiles + morton_idx0 * tile_elements_i8, 64);
-
-                _tile_dpbssd(4, 0, 2);
-                _tile_dpbssd(6, 1, 2);
-
-                if (has_second_col_tile && b_tile_n1 < tiles_along_n) {
-                    simsimd_size_t morton_idx1 =
-                        _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n1, (simsimd_u32_t)b_tile_k);
-                    if (morton_idx1 >= total_tiles) morton_idx1 = b_tile_n1 * tiles_along_k + b_tile_k;
-                    _tile_loadd(3, b_tiles + morton_idx1 * tile_elements_i8, 64);
-                    _tile_dpbssd(5, 0, 3);
-                    _tile_dpbssd(7, 1, 3);
-                }
-            }
-
-            // Store with masked operations for partial columns
-            SIMSIMD_ALIGN64 simsimd_i32_t c_tile[16][16];
-            simsimd_size_t cols_first = (valid_cols > 16) ? 16 : valid_cols;
-            simsimd_size_t cols_second = (valid_cols > 16) ? valid_cols - 16 : 0;
-
-            _tile_stored(4, c_tile, 64);
-            _simsimd_store_c_tile_i32_masked((simsimd_i32_t *)c_tile, c + row_block * c_stride_elements + col_block,
-                                             c_stride_elements, 16, cols_first);
-            _tile_stored(6, c_tile, 64);
-            _simsimd_store_c_tile_i32_masked((simsimd_i32_t *)c_tile,
-                                             c + (row_block + 16) * c_stride_elements + col_block, c_stride_elements,
-                                             16, cols_first);
-
-            if (cols_second > 0) {
-                _tile_stored(5, c_tile, 64);
-                _simsimd_store_c_tile_i32_masked((simsimd_i32_t *)c_tile,
-                                                 c + row_block * c_stride_elements + col_block + 16, c_stride_elements,
-                                                 16, cols_second);
-                _tile_stored(7, c_tile, 64);
-                _simsimd_store_c_tile_i32_masked((simsimd_i32_t *)c_tile,
-                                                 c + (row_block + 16) * c_stride_elements + col_block + 16,
-                                                 c_stride_elements, 16, cols_second);
-            }
-        }
-    }
-
-    // Handle remaining rows (bottom partial 32-row blocks)
-    if (m > full_m_blocks * 32) {
-        simsimd_size_t const row_block = full_m_blocks * 32;
-        simsimd_size_t const valid_rows = m - row_block;
-        simsimd_size_t const rows_upper = (valid_rows > 16) ? 16 : valid_rows;
-        simsimd_size_t const rows_lower = (valid_rows > 16) ? valid_rows - 16 : 0;
-
-        // Process all column blocks for the remaining rows
-        for (simsimd_size_t col_block = 0; col_block < n; col_block += 32) {
-            simsimd_size_t const valid_cols = (col_block + 32 <= n) ? 32 : n - col_block;
-            simsimd_size_t const cols_first = (valid_cols > 16) ? 16 : valid_cols;
-            simsimd_size_t const cols_second = (valid_cols > 16) ? valid_cols - 16 : 0;
-            simsimd_size_t const b_tile_n0 = col_block / tile_rows;
-            simsimd_size_t const b_tile_n1 = b_tile_n0 + 1;
-
-            _tile_zero(4);
-            _tile_zero(5);
-            _tile_zero(6);
-            _tile_zero(7);
-
-            SIMSIMD_ALIGN64 simsimd_i8_t a_tile_upper[16][64] = {{0}};
-            SIMSIMD_ALIGN64 simsimd_i8_t a_tile_lower[16][64] = {{0}};
-
-            // K loop for edge row block
-            for (simsimd_size_t k_offset = 0; k_offset < k; k_offset += tile_cols_i8) {
-                simsimd_size_t const k_valid = (k_offset + tile_cols_i8 <= k) ? tile_cols_i8 : k - k_offset;
-                simsimd_size_t const b_tile_k = k_offset / tile_cols_i8;
-
-                // Load A tiles with masked operations (partial rows)
-                _simsimd_load_a_tile_i8_masked(a + row_block * a_stride + k_offset, a_stride, rows_upper, k_valid,
+                _simsimd_load_a_tile_i8_masked(a + m_edge_start * a_stride + k_offset, a_stride, rows_upper, k_valid,
                                                (simsimd_i8_t *)a_tile_upper);
                 if (rows_lower > 0) {
-                    _simsimd_load_a_tile_i8_masked(a + (row_block + 16) * a_stride + k_offset, a_stride, rows_lower,
+                    _simsimd_load_a_tile_i8_masked(a + (m_edge_start + 16) * a_stride + k_offset, a_stride, rows_lower,
                                                    k_valid, (simsimd_i8_t *)a_tile_lower);
-                }
-                else {
-                    // Zero the lower tile
-                    for (simsimd_size_t r = 0; r < 16; r++)
-                        _mm512_store_si512((__m512i *)(a_tile_lower[r]), _mm512_setzero_si512());
                 }
 
                 _tile_loadd(0, a_tile_upper, 64);
                 _tile_loadd(1, a_tile_lower, 64);
 
-                // B tiles
                 simsimd_size_t morton_idx0 =
-                    _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)b_tile_k);
-                if (morton_idx0 >= total_tiles) morton_idx0 = b_tile_n0 * tiles_along_k + b_tile_k;
-                _tile_loadd(2, b_tiles + morton_idx0 * tile_elements_i8, 64);
+                    _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
+                if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
+                simsimd_i8_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_i8;
+
+                _tile_loadd(2, b_tile_ptr0, 64);
 
                 _tile_dpbssd(4, 0, 2);
                 _tile_dpbssd(6, 1, 2);
-
-                if (cols_second > 0 && b_tile_n1 < tiles_along_n) {
-                    simsimd_size_t morton_idx1 =
-                        _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n1, (simsimd_u32_t)b_tile_k);
-                    if (morton_idx1 >= total_tiles) morton_idx1 = b_tile_n1 * tiles_along_k + b_tile_k;
-                    _tile_loadd(3, b_tiles + morton_idx1 * tile_elements_i8, 64);
-                    _tile_dpbssd(5, 0, 3);
-                    _tile_dpbssd(7, 1, 3);
-                }
             }
 
-            // Store with masked operations for partial rows
             SIMSIMD_ALIGN64 simsimd_i32_t c_tile[16][16];
 
             _tile_stored(4, c_tile, 64);
-            _simsimd_store_c_tile_i32_masked((simsimd_i32_t *)c_tile, c + row_block * c_stride_elements + col_block,
-                                             c_stride_elements, rows_upper, cols_first);
+            _simsimd_store_c_tile_i32_masked((simsimd_i32_t *)c_tile, c + m_edge_start * c_stride_elements + col_block,
+                                             c_stride_elements, rows_upper, 16);
 
             if (rows_lower > 0) {
                 _tile_stored(6, c_tile, 64);
                 _simsimd_store_c_tile_i32_masked((simsimd_i32_t *)c_tile,
-                                                 c + (row_block + 16) * c_stride_elements + col_block,
-                                                 c_stride_elements, rows_lower, cols_first);
+                                                 c + (m_edge_start + 16) * c_stride_elements + col_block,
+                                                 c_stride_elements, rows_lower, 16);
             }
+        }
 
-            if (cols_second > 0) {
-                _tile_stored(5, c_tile, 64);
-                _simsimd_store_c_tile_i32_masked((simsimd_i32_t *)c_tile,
-                                                 c + row_block * c_stride_elements + col_block + 16, c_stride_elements,
-                                                 rows_upper, cols_second);
+        _tile_release();
+    }
 
-                if (rows_lower > 0) {
-                    _tile_stored(7, c_tile, 64);
-                    _simsimd_store_c_tile_i32_masked((simsimd_i32_t *)c_tile,
-                                                     c + (row_block + 16) * c_stride_elements + col_block + 16,
-                                                     c_stride_elements, rows_lower, cols_second);
+    // AVX-512: N edge rows
+    if (n_edge_rows > 0 && n_edge_ptr != NULL) {
+        _simsimd_matmul_i8_i32_avx512_edge(a, n_edge_ptr, c + full_n, m, n_edge_rows, k, a_stride, k,
+                                           c_stride_elements);
+    }
+
+    // AVX-512: M edge × N edge corner
+    if (m > full_m_blocks * 32 && n_edge_rows > 0 && n_edge_ptr != NULL) {
+        simsimd_size_t const m_edge_start = full_m_blocks * 32;
+        simsimd_size_t const m_edge_rows = m - m_edge_start;
+
+        _simsimd_matmul_i8_i32_avx512_edge(a + m_edge_start * a_stride, n_edge_ptr,
+                                           c + m_edge_start * c_stride_elements + full_n, m_edge_rows, n_edge_rows, k,
+                                           a_stride, k, c_stride_elements);
+    }
+}
+
+/*  I8 → I32 matmul (misaligned path): All I/O through aligned buffers with AVX-512.
+ *  Used when stride < 64 bytes (can't use direct tile loads/stores).
+ */
+SIMSIMD_INTERNAL void _simsimd_matmul_i8_i32_sapphire_misaligned(  //
+    simsimd_i8_t const *a, void const *b_packed, simsimd_i32_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k,          //
+    simsimd_size_t a_stride, simsimd_size_t c_stride) {
+
+    simsimd_matmul_packed_header_t const *header = (simsimd_matmul_packed_header_t const *)b_packed;
+    simsimd_size_t const full_n_tiles = header->full_n_tiles;
+    simsimd_size_t const full_k_tiles = header->full_k_tiles;
+    simsimd_size_t const n_edge_rows = header->n_edge_rows;
+    simsimd_size_t const n_edge_offset = header->n_edge_offset;
+
+    simsimd_size_t const tile_cols_i8 = 64;
+    simsimd_size_t const tile_elements_i8 = 1024;
+
+    simsimd_i8_t const *tiles_ptr = (simsimd_i8_t const *)((char const *)b_packed + 64);
+    simsimd_i8_t const *n_edge_ptr =
+        (n_edge_offset > 0) ? (simsimd_i8_t const *)((char const *)b_packed + n_edge_offset) : NULL;
+
+    simsimd_size_t const c_stride_elements = c_stride / sizeof(simsimd_i32_t);
+    simsimd_size_t const full_m_blocks = m / 32;
+    simsimd_size_t const full_n_blocks = n / 32;
+    simsimd_size_t const full_n = full_n_tiles * 16;
+    simsimd_size_t const total_full_tiles = full_n_tiles * full_k_tiles;
+
+    // Stack buffers for tile I/O
+    SIMSIMD_ALIGN64 simsimd_i8_t a_buf_upper[16][64];
+    SIMSIMD_ALIGN64 simsimd_i8_t a_buf_lower[16][64];
+    SIMSIMD_ALIGN64 simsimd_i32_t c_buf[16][16];
+
+    // AMX: Full 32×32 blocks through buffers
+    if (full_m_blocks > 0 && full_n_blocks > 0 && full_k_tiles > 0) {
+        _simsimd_amx_tile_configure_sapphire();
+
+        for (simsimd_size_t bi = 0; bi < full_m_blocks; bi++) {
+            simsimd_size_t const row_block = bi * 32;
+
+            for (simsimd_size_t bj = 0; bj < full_n_blocks; bj++) {
+                simsimd_size_t const col_block = bj * 32;
+
+                _tile_zero(4);
+                _tile_zero(5);
+                _tile_zero(6);
+                _tile_zero(7);
+
+                simsimd_size_t const b_tile_n0 = bj * 2;
+                simsimd_size_t const b_tile_n1 = bj * 2 + 1;
+
+                for (simsimd_size_t bk = 0; bk < full_k_tiles; bk++) {
+                    simsimd_size_t const k_offset = bk * 64;
+
+                    // Load A through buffers using AVX-512
+                    for (simsimd_size_t r = 0; r < 16; r++) {
+                        simsimd_i8_t const *src_upper = a + (row_block + r) * a_stride + k_offset;
+                        simsimd_i8_t const *src_lower = a + (row_block + 16 + r) * a_stride + k_offset;
+                        __m512i upper_row = _mm512_loadu_si512((__m512i const *)src_upper);
+                        __m512i lower_row = _mm512_loadu_si512((__m512i const *)src_lower);
+                        _mm512_store_si512((__m512i *)a_buf_upper[r], upper_row);
+                        _mm512_store_si512((__m512i *)a_buf_lower[r], lower_row);
+                    }
+                    __asm__ volatile("" ::: "memory");
+
+                    _tile_loadd(0, a_buf_upper, 64);
+                    _tile_loadd(1, a_buf_lower, 64);
+
+                    simsimd_size_t morton_idx0 =
+                        _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
+                    if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
+                    simsimd_i8_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_i8;
+
+                    simsimd_size_t morton_idx1 =
+                        _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n1, (simsimd_u32_t)bk);
+                    if (morton_idx1 >= total_full_tiles) morton_idx1 = b_tile_n1 * full_k_tiles + bk;
+                    simsimd_i8_t const *b_tile_ptr1 = tiles_ptr + morton_idx1 * tile_elements_i8;
+
+                    _tile_loadd(2, b_tile_ptr0, 64);
+                    _tile_loadd(3, b_tile_ptr1, 64);
+
+                    _tile_dpbssd(4, 0, 2);
+                    _tile_dpbssd(5, 0, 3);
+                    _tile_dpbssd(6, 1, 2);
+                    _tile_dpbssd(7, 1, 3);
+                }
+
+                // Store C through buffers using AVX-512
+                _tile_stored(4, c_buf, 64);
+                for (simsimd_size_t r = 0; r < 16; r++) {
+                    __m512i row = _mm512_load_si512((__m512i const *)c_buf[r]);
+                    _mm512_storeu_si512((__m512i *)(c + (row_block + r) * c_stride_elements + col_block), row);
+                }
+
+                _tile_stored(5, c_buf, 64);
+                for (simsimd_size_t r = 0; r < 16; r++) {
+                    __m512i row = _mm512_load_si512((__m512i const *)c_buf[r]);
+                    _mm512_storeu_si512((__m512i *)(c + (row_block + r) * c_stride_elements + col_block + 16), row);
+                }
+
+                _tile_stored(6, c_buf, 64);
+                for (simsimd_size_t r = 0; r < 16; r++) {
+                    __m512i row = _mm512_load_si512((__m512i const *)c_buf[r]);
+                    _mm512_storeu_si512((__m512i *)(c + (row_block + 16 + r) * c_stride_elements + col_block), row);
+                }
+
+                _tile_stored(7, c_buf, 64);
+                for (simsimd_size_t r = 0; r < 16; r++) {
+                    __m512i row = _mm512_load_si512((__m512i const *)c_buf[r]);
+                    _mm512_storeu_si512((__m512i *)(c + (row_block + 16 + r) * c_stride_elements + col_block + 16),
+                                        row);
                 }
             }
         }
+
+        _tile_release();
     }
+
+    // AMX: M edge rows for full N tiles (through buffers)
+    if (m > full_m_blocks * 32 && full_n_tiles > 0) {
+        simsimd_size_t const m_edge_start = full_m_blocks * 32;
+        simsimd_size_t const m_edge_rows = m - m_edge_start;
+
+        _simsimd_amx_tile_configure_sapphire();
+
+        for (simsimd_size_t tj = 0; tj < full_n_tiles; tj++) {
+            simsimd_size_t const col_block = tj * 16;
+            simsimd_size_t const b_tile_n0 = tj;
+
+            _tile_zero(4);
+            _tile_zero(6);
+
+            // Zero buffers for edge
+            for (simsimd_size_t r = 0; r < 16; r++) {
+                _mm512_store_si512((__m512i *)a_buf_upper[r], _mm512_setzero_si512());
+                _mm512_store_si512((__m512i *)a_buf_lower[r], _mm512_setzero_si512());
+            }
+
+            simsimd_size_t const rows_upper = (m_edge_rows > 16) ? 16 : m_edge_rows;
+            simsimd_size_t const rows_lower = (m_edge_rows > 16) ? m_edge_rows - 16 : 0;
+
+            for (simsimd_size_t bk = 0; bk < full_k_tiles; bk++) {
+                simsimd_size_t const k_offset = bk * tile_cols_i8;
+                simsimd_size_t const k_valid = (k_offset + tile_cols_i8 <= k) ? tile_cols_i8 : (k - k_offset);
+
+                _simsimd_load_a_tile_i8_masked(a + m_edge_start * a_stride + k_offset, a_stride, rows_upper, k_valid,
+                                               (simsimd_i8_t *)a_buf_upper);
+                if (rows_lower > 0) {
+                    _simsimd_load_a_tile_i8_masked(a + (m_edge_start + 16) * a_stride + k_offset, a_stride, rows_lower,
+                                                   k_valid, (simsimd_i8_t *)a_buf_lower);
+                }
+
+                _tile_loadd(0, a_buf_upper, 64);
+                _tile_loadd(1, a_buf_lower, 64);
+
+                simsimd_size_t morton_idx0 =
+                    _simsimd_morton_encode_sapphire((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
+                if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
+                simsimd_i8_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_i8;
+
+                _tile_loadd(2, b_tile_ptr0, 64);
+
+                _tile_dpbssd(4, 0, 2);
+                _tile_dpbssd(6, 1, 2);
+            }
+
+            _tile_stored(4, c_buf, 64);
+            _simsimd_store_c_tile_i32_masked((simsimd_i32_t *)c_buf, c + m_edge_start * c_stride_elements + col_block,
+                                             c_stride_elements, rows_upper, 16);
+
+            if (rows_lower > 0) {
+                _tile_stored(6, c_buf, 64);
+                _simsimd_store_c_tile_i32_masked((simsimd_i32_t *)c_buf,
+                                                 c + (m_edge_start + 16) * c_stride_elements + col_block,
+                                                 c_stride_elements, rows_lower, 16);
+            }
+        }
+
+        _tile_release();
+    }
+
+    // AVX-512: N edge rows
+    if (n_edge_rows > 0 && n_edge_ptr != NULL) {
+        _simsimd_matmul_i8_i32_avx512_edge(a, n_edge_ptr, c + full_n, m, n_edge_rows, k, a_stride, k,
+                                           c_stride_elements);
+    }
+
+    // AVX-512: M edge × N edge corner
+    if (m > full_m_blocks * 32 && n_edge_rows > 0 && n_edge_ptr != NULL) {
+        simsimd_size_t const m_edge_start = full_m_blocks * 32;
+        simsimd_size_t const m_edge_rows = m - m_edge_start;
+
+        _simsimd_matmul_i8_i32_avx512_edge(a + m_edge_start * a_stride, n_edge_ptr,
+                                           c + m_edge_start * c_stride_elements + full_n, m_edge_rows, n_edge_rows, k,
+                                           a_stride, k, c_stride_elements);
+    }
+}
+
+/*  I8 → I32 matmul: C[m×n] = A[m×k] × B[n×k]ᵀ
+ *
+ *  Dispatcher that selects aligned or misaligned path based on stride.
+ *  Single-threaded. For parallel execution, partition A rows across threads.
+ */
+SIMSIMD_PUBLIC void simsimd_matmul_i8_i32_sapphire(                //
+    simsimd_i8_t const *a, void const *b_packed, simsimd_i32_t *c, //
+    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k,          //
+    simsimd_size_t a_stride, simsimd_size_t c_stride) {
+
+    // Check if strides allow direct tile operations (need 64 bytes for I8 A tile row and I32 C tile row)
+    int const can_direct = (a_stride >= 64) && (c_stride >= 64);
+    if (can_direct) _simsimd_matmul_i8_i32_sapphire_aligned(a, b_packed, c, m, n, k, a_stride, c_stride);
+    else
+        _simsimd_matmul_i8_i32_sapphire_misaligned(a, b_packed, c, m, n, k, a_stride, c_stride);
 }
 
 /*  I8 compact: re-normalize I32 → I8 using precomputed squared norms.
