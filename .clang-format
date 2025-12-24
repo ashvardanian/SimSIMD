@@ -67,3 +67,31 @@ SpacesInSquareBrackets: false
 BinPackArguments: true
 BinPackParameters: true
 PenaltyBreakBeforeFirstCallParameter: 1
+
+# Macros treated as attributes (Python C API + SimSIMD visibility)
+AttributeMacros:
+  - PyObject_HEAD
+  - PyObject_VAR_HEAD
+  - SIMSIMD_PUBLIC
+  - SIMSIMD_INTERNAL
+  - SIMSIMD_DYNAMIC
+
+# Keep SIMD intrinsic alignment in lookup tables
+AlignArrayOfStructures: Right
+
+# Align consecutive macro definitions (useful for SIMSIMD_TARGET_* flags)
+AlignConsecutiveMacros:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+
+# Preprocessor directive indentation: None (flat), AfterHash (#  if), BeforeHash (  #if)
+IndentPPDirectives: None
+
+# Keep pointer alignment consistent: simsimd_f32_t const *a
+PointerAlignment: Right
+DerivePointerAlignment: false
+
+# Preserve user line breaks in intrinsic-heavy code
+BreakBeforeBinaryOperators: None
+PenaltyBreakAssignment: 50
