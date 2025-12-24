@@ -1,20 +1,19 @@
 /**
- *  @file       matmul.h
- *  @brief      SIMD-accelerated Matrix Multiplication for low-precision numerics.
- *  @author     Ash Vardanian
- *  @date       September 14, 2024
+ *  @brief SIMD-accelerated low-precision matrix multiplication kernels.
+ *  @file include/simsimd/matmul.h
+ *  @author Ash Vardanian
+ *  @date September 14, 2024
  *
- *  Implements matrix-multiplication kernels, focusing on mixed precision, computing:
- *  C[m×n] = A[m×k] × B[n×k]ᵀ with row-major inputs for Neural Network inference and beyond:
+ *  Implements mixed-precision matrix-multiplication kernels computing:
+ *  C[m×n] = A[m×k] × B[n×k]ᵀ with row-major inputs, aimed at ML inference and similarity workloads:
  *
- *  - k-NN search: Euclidean distances via ||a-b||² = ||a||² + ||b||² - 2(a·b)
- *  - Cosine similarity matrices: (a·b) / (||a||·||b||)
+ *  - k-NN search: ||a-b||² = ||a||² + ||b||² - 2(a·b)
+ *  - Cosine similarity: (a·b) / (||a||·||b||)
  *  - k-means clustering, DBSCAN, hierarchical clustering
- *  - Video frame flow estimation, motion detection
+ *  - Video flow estimation, motion detection
  *  - DSP filter banks, radar pulse integration
  *
- *  They are heavily tuned for SIMD-divisible sizes, often using a separate suboptimal code path
- *  for non-divisible sub-optimal input sizes. Bad for performance, but kees the code maintainable.
+ *  Kernels are tuned for SIMD-aligned sizes; tails use a slower but maintainable fallback path.
  *
  *  For datatypes:
  *  - 16-bit brain floats (BF16) accumulating into 32-bit floats
@@ -36,14 +35,18 @@
  *
  *  This means C[i,j] = dot(row i of A, row j of B) = Σₗ A[i,l] × B[j,l].
  *
+ *  All strides are in bytes.
+ *
  *  To compute standard A × B (where B is k × n), pass Bᵀ to the packing function:
  *
- *      // Standard matmul: C[m×n] = A[m×k] × B[k×n]
- *      // B is stored row-major as k rows of n elements
- *      // Treat it as Bᵀ: n rows of k elements with stride = sizeof(element)
- *      simsimd_matmul_bf16_pack_sapphire_amx(b, n, k, sizeof(simsimd_bf16_t), b_packed);
- *      simsimd_matmul_bf16_f32_sapphire_amx(a, b_packed, c, m, n, k, a_stride, c_stride);
- *      // Result: C = A × (Bᵀ)ᵀ = A × B
+ *  @code{.c}
+ *  // Standard matmul: C[m×n] = A[m×k] × B[k×n]
+ *  // B is stored row-major as k rows of n elements
+ *  // Treat it as Bᵀ: n rows of k elements with stride = sizeof(element)
+ *  simsimd_matmul_bf16_pack(b, n, k, sizeof(simsimd_bf16_t), b_packed);
+ *  simsimd_matmul_bf16_f32(a, b_packed, c, m, n, k, a_stride, c_stride);
+ *  // Result: C = A × (Bᵀ)ᵀ = A × B
+ *  @endcode
  *
  *  @section    Two-Phase API for Static Weights
  *
@@ -51,29 +54,30 @@
  *  from standard row-major ordering. Since one matrix (typically weights in neural networks)
  *  is often static, we provide a two-phase API: pack once, multiply many times.
  *
- *      // Similarity search: C[m×n] = queries[m×k] × database[n×k]ᵀ
- *      // Both matrices stored row-major, each row is one vector of dimension k
- *      simsimd_size_t packed_bytes = simsimd_matmul_bf16_packed_size_sapphire_amx(n, k);
- *      void *b_packed = malloc(packed_bytes);
- *      simsimd_matmul_bf16_pack_sapphire_amx(database, n, k, k * sizeof(simsimd_bf16_t), b_packed);
- *      simsimd_matmul_bf16_f32_sapphire_amx(queries, b_packed, c, m, n, k, ...);
- *      // Result: C[i,j] = dot(query i, database vector j)
+ *  @code{.c}
+ *  // Similarity search: C[m×n] = queries[m×k] × database[n×k]ᵀ
+ *  // Both matrices stored row-major, each row is one vector of dimension k
+ *  simsimd_size_t packed_bytes = simsimd_matmul_bf16_packed_size(n, k);
+ *  void *b_packed = malloc(packed_bytes);
+ *  simsimd_matmul_bf16_pack(database, n, k, k * sizeof(simsimd_bf16_t), b_packed);
+ *  simsimd_matmul_bf16_f32(queries, b_packed, c, m, n, k, ...);
+ *  // Result: C[i,j] = dot(query i, database vector j)
+ *  @endcode
  *
  *  The packed format is opaque and backend-specific. AMX expects (16×32) tiles with interleaved
- *  pairs, while NEON/SVE use different arrangements optimized for their vector lengths.
+ *  pairs, while NEON/SVE use arrangements optimized for their vector lengths.
  *
  *  @section    Why INT8 and Not UINT8?
  *
  *  Unsigned 8-bit integers were considered but deprioritized. The industry has converged on
  *  signed INT8 as the standard for quantized inference:
  *
- *  | Framework       | Default  | Notes                                    |
- *  |-----------------|----------|------------------------------------------|
- *  | PyTorch         | qint8    | New X86 backend uses INT8 via oneDNN     |
- *  | TensorFlow Lite | int8     | Actively removing UINT8 support          |
- *  | ONNX Runtime    | S8S8     | "Should be the first choice"             |
- *  | TensorRT        | INT8     | Symmetric [-128,127], no UINT8 option    |
- *  | ARM CMSIS-NN    | int8     | Follows TFLite INT8 spec exactly         |
+ *      Framework           Default     Notes                                    |
+ *      PyTorch             qint8       New X86 backend uses INT8 via oneDNN     |
+ *      TensorFlow Lite     int8        Actively removing UINT8 support          |
+ *      ONNX Runtime        S8S8        "Should be the first choice"             |
+ *      TensorRT            INT8        Symmetric [-128,127], no UINT8 option    |
+ *      ARM CMSIS-NN        int8        Follows TFLite INT8 spec exactly         |
  *
  *  @section    Why No Alpha/Beta Scaling?
  *
@@ -98,8 +102,23 @@
  *  The current hybrid layout (AMX for full tiles, AVX-512 for edges) is more maintainable despite
  *  being conceptually less uniform. Memory overhead of the edge region is negligible (<2% worst case).
  *
+ *  @section    x86_instructions Relevant x86 Instructions
+ *
+ *  Low-precision matmul relies on VPMADD* (AVX2), VNNI dot-products, and BF16 dot-products
+ *  on AVX-512. Zen4 improves throughput by dual-issuing many integer ops on FP ports.
+ *
+ *      Intrinsic                     Instruction                       Haswell     Genoa
+ *      _mm256_maddubs_epi16          VPMADDUBSW (YMM, YMM, YMM)         5c @ p0     3c @ p01
+ *      _mm256_madd_epi16             VPMADDWD (YMM, YMM, YMM)           5c @ p0     3c @ p01
+ *      _mm256_dpbusd_epi32           VPDPBUSD (YMM, K, YMM, YMM)        n/a         4c @ p01
+ *      _mm256_dpwssds_epi32          VPDPWSSDS (YMM, K, YMM, YMM)       n/a         4c @ p01
+ *      _mm256_dpbf16_ps              VDPBF16PS (YMM, YMM, YMM)          n/a         6c @ p01
+ *
+ *  AMX tile ops (TDPBF16PS/TDPBUSD/TDPBSSD) are not covered by the uops.info 2022 dataset.
+ *
  *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *  uops.info: https://uops.info/
  *  Matrix Multiplication in 40 lines: https://en.algorithmica.org/hpc/algorithms/matmul/
  *  LLaMA CPU optimization: https://justine.lol/matmul/
  *  SME outer-product notes: https://github.com/tzakharko/m4-sme-exploration
@@ -111,9 +130,108 @@
 
 #include "dot.h" // `_simsimd_bf16x16_to_f32x16_skylake`
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
+
+/**
+ *  @brief Returns packed buffer size in bytes for BF16 B matrix.
+ *
+ *  @param[in] n The number of rows in B (output columns).
+ *  @param[in] k The number of columns in B.
+ *
+ *  @note The packed layout is backend-specific and must be produced by the matching pack function.
+ */
+SIMSIMD_DYNAMIC simsimd_size_t simsimd_matmul_bf16_packed_size(simsimd_size_t n, simsimd_size_t k);
+
+/**
+ *  @brief Packs BF16 B matrix into a backend-specific layout.
+ *
+ *  @param[in] b The input B matrix in row-major order.
+ *  @param[in] n The number of rows in B (output columns).
+ *  @param[in] k The number of columns in B.
+ *  @param[in] b_stride The row stride in bytes for B.
+ *  @param[out] b_packed The output packed buffer from simsimd_matmul_bf16_packed_size.
+ */
+SIMSIMD_DYNAMIC void simsimd_matmul_bf16_pack( //
+    simsimd_bf16_t const *b, simsimd_size_t n, simsimd_size_t k, simsimd_size_t b_stride, void *b_packed);
+
+/**
+ *  @brief Computes C = A × Bᵀ using packed BF16 B, accumulating into F32.
+ *
+ *  @param[in] a The input A matrix in row-major order.
+ *  @param[in] b_packed The packed B matrix produced by simsimd_matmul_bf16_pack.
+ *  @param[out] c The output C matrix in row-major order (F32).
+ *  @param[in] m The number of rows in A.
+ *  @param[in] n The number of rows in B (output columns).
+ *  @param[in] k The shared inner dimension.
+ *  @param[in] a_stride The row stride in bytes for A.
+ *  @param[in] c_stride The row stride in bytes for C.
+ */
+SIMSIMD_DYNAMIC void simsimd_matmul_bf16_f32( //
+    simsimd_bf16_t const *a, void const *b_packed, simsimd_f32_t *c, simsimd_size_t m, simsimd_size_t n,
+    simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
+
+/**
+ *  @brief Compacts an F32 C matrix into BF16 in-place.
+ *
+ *  @param[in,out] c The output matrix buffer; contains F32 input and BF16 output.
+ *  @param[in] m The number of rows in C.
+ *  @param[in] n The number of columns in C.
+ *  @param[in] c_stride The row stride in bytes for the F32 input.
+ */
+SIMSIMD_DYNAMIC void simsimd_matmul_bf16_compact( //
+    void *c, simsimd_size_t m, simsimd_size_t n, simsimd_size_t c_stride);
+
+/**
+ *  @brief Returns packed buffer size in bytes for I8 B matrix.
+ *
+ *  @param[in] n The number of rows in B (output columns).
+ *  @param[in] k The number of columns in B.
+ */
+SIMSIMD_DYNAMIC simsimd_size_t simsimd_matmul_i8_packed_size(simsimd_size_t n, simsimd_size_t k);
+
+/**
+ *  @brief Packs I8 B matrix into a backend-specific layout.
+ *
+ *  @param[in] b The input B matrix in row-major order.
+ *  @param[in] n The number of rows in B (output columns).
+ *  @param[in] k The number of columns in B.
+ *  @param[in] b_stride The row stride in bytes for B.
+ *  @param[out] b_packed The output packed buffer from simsimd_matmul_i8_packed_size.
+ */
+SIMSIMD_DYNAMIC void simsimd_matmul_i8_pack( //
+    simsimd_i8_t const *b, simsimd_size_t n, simsimd_size_t k, simsimd_size_t b_stride, void *b_packed);
+
+/**
+ *  @brief Computes C = A × Bᵀ using packed I8 B, accumulating into I32.
+ *
+ *  @param[in] a The input A matrix in row-major order.
+ *  @param[in] b_packed The packed B matrix produced by simsimd_matmul_i8_pack.
+ *  @param[out] c The output C matrix in row-major order (I32).
+ *  @param[in] m The number of rows in A.
+ *  @param[in] n The number of rows in B (output columns).
+ *  @param[in] k The shared inner dimension.
+ *  @param[in] a_stride The row stride in bytes for A.
+ *  @param[in] c_stride The row stride in bytes for C.
+ */
+SIMSIMD_DYNAMIC void simsimd_matmul_i8_i32( //
+    simsimd_i8_t const *a, void const *b_packed, simsimd_i32_t *c, simsimd_size_t m, simsimd_size_t n, simsimd_size_t k,
+    simsimd_size_t a_stride, simsimd_size_t c_stride);
+
+/**
+ *  @brief Compacts an I32 C matrix into I8 using precomputed squared norms.
+ *
+ *  @param[in,out] c The output matrix buffer; contains I32 input and I8 output.
+ *  @param[in] m The number of rows in C.
+ *  @param[in] n The number of columns in C.
+ *  @param[in] c_stride The row stride in bytes for the I32 input.
+ *  @param[in] a_squared_norms Row norms for A (length m).
+ *  @param[in] b_squared_norms Row norms for B (length n).
+ */
+SIMSIMD_DYNAMIC void simsimd_matmul_i8_compact( //
+    void *c, simsimd_size_t m, simsimd_size_t n, simsimd_size_t c_stride, simsimd_i32_t const *a_squared_norms,
+    simsimd_i32_t const *b_squared_norms);
 
 /*  Tunable tile sizes for cache blocking.
  *  These can be overridden before including this header to tune for specific cache sizes.
@@ -133,87 +251,100 @@ extern "C" {
  *  These are portable reference implementations with no SIMD dependencies.
  *  Serial packing simply copies B transposed - no special layout required.
  */
+/** @copydoc simsimd_matmul_bf16_packed_size */
 SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_bf16_packed_size_serial(simsimd_size_t n, simsimd_size_t k);
-SIMSIMD_PUBLIC void simsimd_matmul_bf16_pack_serial(             //
-    simsimd_bf16_t const *b, simsimd_size_t n, simsimd_size_t k, //
-    simsimd_size_t b_stride, void *b_packed);
-SIMSIMD_PUBLIC void simsimd_matmul_bf16_f32_serial(                  //
-    simsimd_bf16_t const *a, void const *b_packed, simsimd_f32_t *c, //
-    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_matmul_bf16_compact_serial( //
-    void *c, simsimd_size_t m, simsimd_size_t n,        //
-    simsimd_size_t c_stride);
+/** @copydoc simsimd_matmul_bf16_pack */
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_pack_serial(simsimd_bf16_t const *b, simsimd_size_t n, simsimd_size_t k,
+                                                    simsimd_size_t b_stride, void *b_packed);
+/** @copydoc simsimd_matmul_bf16_f32 */
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_f32_serial(simsimd_bf16_t const *a, void const *b_packed, simsimd_f32_t *c,
+                                                   simsimd_size_t m, simsimd_size_t n, simsimd_size_t k,
+                                                   simsimd_size_t a_stride, simsimd_size_t c_stride);
+/** @copydoc simsimd_matmul_bf16_compact */
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_compact_serial(void *c, simsimd_size_t m, simsimd_size_t n,
+                                                       simsimd_size_t c_stride);
 
+/** @copydoc simsimd_matmul_i8_packed_size */
 SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_i8_packed_size_serial(simsimd_size_t n, simsimd_size_t k);
-SIMSIMD_PUBLIC void simsimd_matmul_i8_pack_serial(             //
-    simsimd_i8_t const *b, simsimd_size_t n, simsimd_size_t k, //
-    simsimd_size_t b_stride, void *b_packed);
-SIMSIMD_PUBLIC void simsimd_matmul_i8_i32_serial(                  //
-    simsimd_i8_t const *a, void const *b_packed, simsimd_i32_t *c, //
-    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_matmul_i8_compact_serial( //
-    void *c, simsimd_size_t m, simsimd_size_t n,      //
-    simsimd_size_t c_stride,                          //
-    simsimd_i32_t const *a_squared_norms, simsimd_i32_t const *b_squared_norms);
-
-/*  Ice Lake backends using AVX-512 with BF16 extensions.
- *  Packing interleaves elements for efficient SIMD broadcast patterns.
- */
-SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_i8_packed_size_genoa(simsimd_size_t n, simsimd_size_t k);
-SIMSIMD_PUBLIC void simsimd_matmul_i8_pack_genoa(              //
-    simsimd_i8_t const *b, simsimd_size_t n, simsimd_size_t k, //
-    simsimd_size_t b_stride, void *b_packed);
-SIMSIMD_PUBLIC void simsimd_matmul_i8_i32_genoa(                   //
-    simsimd_i8_t const *a, void const *b_packed, simsimd_i32_t *c, //
-    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_matmul_i8_compact_genoa( //
-    void *c, simsimd_size_t m, simsimd_size_t n,     //
-    simsimd_size_t c_stride,                         //
-    simsimd_i32_t const *a_squared_norms, simsimd_i32_t const *b_squared_norms);
+/** @copydoc simsimd_matmul_i8_pack */
+SIMSIMD_PUBLIC void simsimd_matmul_i8_pack_serial(simsimd_i8_t const *b, simsimd_size_t n, simsimd_size_t k,
+                                                  simsimd_size_t b_stride, void *b_packed);
+/** @copydoc simsimd_matmul_i8_i32 */
+SIMSIMD_PUBLIC void simsimd_matmul_i8_i32_serial(simsimd_i8_t const *a, void const *b_packed, simsimd_i32_t *c,
+                                                 simsimd_size_t m, simsimd_size_t n, simsimd_size_t k,
+                                                 simsimd_size_t a_stride, simsimd_size_t c_stride);
+/** @copydoc simsimd_matmul_i8_compact */
+SIMSIMD_PUBLIC void simsimd_matmul_i8_compact_serial(void *c, simsimd_size_t m, simsimd_size_t n,
+                                                     simsimd_size_t c_stride, simsimd_i32_t const *a_squared_norms,
+                                                     simsimd_i32_t const *b_squared_norms);
 
 /*  Genoa backends using AVX-512 with BF16 extensions.
  *  These use VDPBF16PS for BF16 dot products and VPDPBUSD for INT8.
  *  Packing interleaves elements for efficient SIMD broadcast patterns.
  */
-SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_bf16_packed_size_genoa(simsimd_size_t n, simsimd_size_t k);
-SIMSIMD_PUBLIC void simsimd_matmul_bf16_pack_genoa(              //
-    simsimd_bf16_t const *b, simsimd_size_t n, simsimd_size_t k, //
-    simsimd_size_t b_stride, void *b_packed);
-SIMSIMD_PUBLIC void simsimd_matmul_bf16_f32_genoa(                   //
-    simsimd_bf16_t const *a, void const *b_packed, simsimd_f32_t *c, //
-    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_matmul_bf16_compact_genoa( //
-    void *c, simsimd_size_t m, simsimd_size_t n,       //
-    simsimd_size_t c_stride);
+#if SIMSIMD_TARGET_GENOA
+/** @copydoc simsimd_matmul_i8_packed_size */
+SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_i8_packed_size_genoa(simsimd_size_t n, simsimd_size_t k);
+/** @copydoc simsimd_matmul_i8_pack */
+SIMSIMD_PUBLIC void simsimd_matmul_i8_pack_genoa(simsimd_i8_t const *b, simsimd_size_t n, simsimd_size_t k,
+                                                 simsimd_size_t b_stride, void *b_packed);
+/** @copydoc simsimd_matmul_i8_i32 */
+SIMSIMD_PUBLIC void simsimd_matmul_i8_i32_genoa(simsimd_i8_t const *a, void const *b_packed, simsimd_i32_t *c,
+                                                simsimd_size_t m, simsimd_size_t n, simsimd_size_t k,
+                                                simsimd_size_t a_stride, simsimd_size_t c_stride);
+/** @copydoc simsimd_matmul_i8_compact */
+SIMSIMD_PUBLIC void simsimd_matmul_i8_compact_genoa(void *c, simsimd_size_t m, simsimd_size_t n,
+                                                    simsimd_size_t c_stride, simsimd_i32_t const *a_squared_norms,
+                                                    simsimd_i32_t const *b_squared_norms);
 
-#if SIMSIMD_TARGET_SAPPHIRE_AMX
+/** @copydoc simsimd_matmul_bf16_packed_size */
+SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_bf16_packed_size_genoa(simsimd_size_t n, simsimd_size_t k);
+/** @copydoc simsimd_matmul_bf16_pack */
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_pack_genoa(simsimd_bf16_t const *b, simsimd_size_t n, simsimd_size_t k,
+                                                   simsimd_size_t b_stride, void *b_packed);
+/** @copydoc simsimd_matmul_bf16_f32 */
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_f32_genoa(simsimd_bf16_t const *a, void const *b_packed, simsimd_f32_t *c,
+                                                  simsimd_size_t m, simsimd_size_t n, simsimd_size_t k,
+                                                  simsimd_size_t a_stride, simsimd_size_t c_stride);
+/** @copydoc simsimd_matmul_bf16_compact */
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_compact_genoa(void *c, simsimd_size_t m, simsimd_size_t n,
+                                                      simsimd_size_t c_stride);
+#endif // SIMSIMD_TARGET_GENOA
+
 /*  Sapphire Rapids backends using Intel AMX (Advanced Matrix Extensions).
  *  AMX provides 8 tile registers (TMM0-TMM7), each holding up to 1KB of data.
  *  Tiles are configured as 16 rows × 64 bytes, enabling (16×32) BF16 or (16×64) INT8 tiles.
  *  Packing arranges data into AMX-native tile layout with pair interleaving for TDPBF16PS.
  */
+#if SIMSIMD_TARGET_SAPPHIRE_AMX
+/** @copydoc simsimd_matmul_bf16_packed_size */
 SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_bf16_packed_size_sapphire_amx(simsimd_size_t n, simsimd_size_t k);
-SIMSIMD_PUBLIC void simsimd_matmul_bf16_pack_sapphire_amx(       //
-    simsimd_bf16_t const *b, simsimd_size_t n, simsimd_size_t k, //
-    simsimd_size_t b_stride, void *b_packed);
-SIMSIMD_PUBLIC void simsimd_matmul_bf16_f32_sapphire_amx(            //
-    simsimd_bf16_t const *a, void const *b_packed, simsimd_f32_t *c, //
-    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_matmul_bf16_compact_sapphire_amx( //
-    void *c, simsimd_size_t m, simsimd_size_t n,              //
-    simsimd_size_t c_stride);
+/** @copydoc simsimd_matmul_bf16_pack */
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_pack_sapphire_amx(simsimd_bf16_t const *b, simsimd_size_t n, simsimd_size_t k,
+                                                          simsimd_size_t b_stride, void *b_packed);
+/** @copydoc simsimd_matmul_bf16_f32 */
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_f32_sapphire_amx(simsimd_bf16_t const *a, void const *b_packed,
+                                                         simsimd_f32_t *c, simsimd_size_t m, simsimd_size_t n,
+                                                         simsimd_size_t k, simsimd_size_t a_stride,
+                                                         simsimd_size_t c_stride);
+/** @copydoc simsimd_matmul_bf16_compact */
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_compact_sapphire_amx(void *c, simsimd_size_t m, simsimd_size_t n,
+                                                             simsimd_size_t c_stride);
 
+/** @copydoc simsimd_matmul_i8_packed_size */
 SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_i8_packed_size_sapphire_amx(simsimd_size_t n, simsimd_size_t k);
-SIMSIMD_PUBLIC void simsimd_matmul_i8_pack_sapphire_amx(       //
-    simsimd_i8_t const *b, simsimd_size_t n, simsimd_size_t k, //
-    simsimd_size_t b_stride, void *b_packed);
-SIMSIMD_PUBLIC void simsimd_matmul_i8_i32_sapphire_amx(            //
-    simsimd_i8_t const *a, void const *b_packed, simsimd_i32_t *c, //
-    simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride);
-SIMSIMD_PUBLIC void simsimd_matmul_i8_compact_sapphire_amx( //
-    void *c, simsimd_size_t m, simsimd_size_t n,            //
-    simsimd_size_t c_stride,                                //
-    simsimd_i32_t const *a_squared_norms, simsimd_i32_t const *b_squared_norms);
+/** @copydoc simsimd_matmul_i8_pack */
+SIMSIMD_PUBLIC void simsimd_matmul_i8_pack_sapphire_amx(simsimd_i8_t const *b, simsimd_size_t n, simsimd_size_t k,
+                                                        simsimd_size_t b_stride, void *b_packed);
+/** @copydoc simsimd_matmul_i8_i32 */
+SIMSIMD_PUBLIC void simsimd_matmul_i8_i32_sapphire_amx(simsimd_i8_t const *a, void const *b_packed, simsimd_i32_t *c,
+                                                       simsimd_size_t m, simsimd_size_t n, simsimd_size_t k,
+                                                       simsimd_size_t a_stride, simsimd_size_t c_stride);
+/** @copydoc simsimd_matmul_i8_compact */
+SIMSIMD_PUBLIC void simsimd_matmul_i8_compact_sapphire_amx(void *c, simsimd_size_t m, simsimd_size_t n,
+                                                           simsimd_size_t c_stride,
+                                                           simsimd_i32_t const *a_squared_norms,
+                                                           simsimd_i32_t const *b_squared_norms);
 #endif // SIMSIMD_TARGET_SAPPHIRE_AMX (declarations)
 
 /*  Legacy unpacked matmul implementations for direct A×B^T operations.
@@ -224,29 +355,29 @@ SIMSIMD_PUBLIC void simsimd_matmul_i8_compact_sapphire_amx( //
  *  - serial: basic tiled implementation
  *  - accurate: higher precision accumulator
  */
-#define SIMSIMD_MAKE_MATMUL_UNPACKED(name, input_type, accumulator_type, output_type, load_and_convert,       \
-                                     convert_and_store)                                                       \
-    SIMSIMD_PUBLIC void simsimd_matmul_##input_type##_##name##_unpacked(                                      \
-        simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, simsimd_##input_type##_t const *a, \
-        simsimd_size_t a_stride, simsimd_##input_type##_t const *b, simsimd_size_t b_stride,                  \
-        simsimd_##output_type##_t *c, simsimd_size_t c_stride) {                                              \
-        for (simsimd_size_t i = 0; i < a_rows; ++i) {                                                         \
-            simsimd_##input_type##_t const *a_row =                                                           \
-                (simsimd_##input_type##_t const *)_simsimd_advance_by_bytes((void *)a, i * a_stride);         \
-            simsimd_##output_type##_t *c_row =                                                                \
-                (simsimd_##output_type##_t *)_simsimd_advance_by_bytes((void *)c, i * c_stride);              \
-            for (simsimd_size_t j = 0; j < b_rows; ++j) {                                                     \
-                simsimd_##input_type##_t const *b_row =                                                       \
-                    (simsimd_##input_type##_t const *)_simsimd_advance_by_bytes((void *)b, j * b_stride);     \
-                simsimd_##accumulator_type##_t sum = 0;                                                       \
-                for (simsimd_size_t k = 0; k < cols; ++k) {                                                   \
-                    simsimd_##accumulator_type##_t aik = load_and_convert(a_row + k);                         \
-                    simsimd_##accumulator_type##_t bjk = load_and_convert(b_row + k);                         \
-                    sum += aik * bjk;                                                                         \
-                }                                                                                             \
-                convert_and_store(sum, c_row + j);                                                            \
-            }                                                                                                 \
-        }                                                                                                     \
+#define SIMSIMD_MAKE_MATMUL_UNPACKED(name, input_type, accumulator_type, output_type, load_and_convert,              \
+                                     convert_and_store)                                                              \
+    SIMSIMD_PUBLIC void simsimd_matmul_##input_type##_##name##_unpacked(                                             \
+        simsimd_size_t a_rows, simsimd_size_t b_rows, simsimd_size_t cols, simsimd_##input_type##_t const *a,        \
+        simsimd_size_t a_stride, simsimd_##input_type##_t const *b, simsimd_size_t b_stride,                         \
+        simsimd_##output_type##_t *c, simsimd_size_t c_stride) {                                                     \
+        for (simsimd_size_t i = 0; i < a_rows; ++i) {                                                                \
+            simsimd_##input_type##_t const *a_row = (simsimd_##input_type##_t const *)_simsimd_advance_by_bytes(     \
+                (void *)a, i * a_stride);                                                                            \
+            simsimd_##output_type##_t *c_row = (simsimd_##output_type##_t *)_simsimd_advance_by_bytes((void *)c,     \
+                                                                                                      i * c_stride); \
+            for (simsimd_size_t j = 0; j < b_rows; ++j) {                                                            \
+                simsimd_##input_type##_t const *b_row = (simsimd_##input_type##_t const *)_simsimd_advance_by_bytes( \
+                    (void *)b, j * b_stride);                                                                        \
+                simsimd_##accumulator_type##_t sum = 0;                                                              \
+                for (simsimd_size_t k = 0; k < cols; ++k) {                                                          \
+                    simsimd_##accumulator_type##_t aik = load_and_convert(a_row + k);                                \
+                    simsimd_##accumulator_type##_t bjk = load_and_convert(b_row + k);                                \
+                    sum += aik * bjk;                                                                                \
+                }                                                                                                    \
+                convert_and_store(sum, c_row + j);                                                                   \
+            }                                                                                                        \
+        }                                                                                                            \
     }
 
 #define SIMSIMD_MAKE_TILED_UNPACKED(name, input_type, accumulator_type, output_type, load_and_convert,                \
@@ -264,8 +395,8 @@ SIMSIMD_PUBLIC void simsimd_matmul_i8_compact_sapphire_amx( //
                     for (simsimd_size_t i = ii; i < i_max; ++i) {                                                     \
                         simsimd_##input_type##_t const *a_row =                                                       \
                             (simsimd_##input_type##_t const *)_simsimd_advance_by_bytes((void *)a, i * a_stride);     \
-                        simsimd_##output_type##_t *c_row =                                                            \
-                            (simsimd_##output_type##_t *)_simsimd_advance_by_bytes((void *)c, i * c_stride);          \
+                        simsimd_##output_type##_t *c_row = (simsimd_##output_type##_t *)_simsimd_advance_by_bytes(    \
+                            (void *)c, i * c_stride);                                                                 \
                         for (simsimd_size_t j = jj; j < j_max; ++j) {                                                 \
                             simsimd_##input_type##_t const *b_row =                                                   \
                                 (simsimd_##input_type##_t const *)_simsimd_advance_by_bytes((void *)b, j * b_stride); \
@@ -283,16 +414,22 @@ SIMSIMD_PUBLIC void simsimd_matmul_i8_compact_sapphire_amx( //
         }                                                                                                             \
     }
 
-// clang-format off
-SIMSIMD_MAKE_TILED_UNPACKED(serial, f64, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT, 16)        // simsimd_matmul_f64_serial_unpacked
-SIMSIMD_MAKE_TILED_UNPACKED(serial, f32, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT, 16)        // simsimd_matmul_f32_serial_unpacked
-SIMSIMD_MAKE_TILED_UNPACKED(serial, f16, f32, f16, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16, 16)     // simsimd_matmul_f16_serial_unpacked
-SIMSIMD_MAKE_TILED_UNPACKED(serial, bf16, f32, bf16, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16, 16) // simsimd_matmul_bf16_serial_unpacked
-SIMSIMD_MAKE_TILED_UNPACKED(serial, i8, i64, i8, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT, 16)          // simsimd_matmul_i8_serial_unpacked
-SIMSIMD_MAKE_TILED_UNPACKED(accurate, f32, f64, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT, 16)      // simsimd_matmul_f32_accurate_unpacked
-SIMSIMD_MAKE_TILED_UNPACKED(accurate, f16, f64, f16, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16, 16)   // simsimd_matmul_f16_accurate_unpacked
-SIMSIMD_MAKE_TILED_UNPACKED(accurate, bf16, f64, bf16, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16, 16) // simsimd_matmul_bf16_accurate_unpacked
-// clang-format on
+SIMSIMD_MAKE_TILED_UNPACKED(serial, f64, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT,
+                            16) // simsimd_matmul_f64_serial_unpacked
+SIMSIMD_MAKE_TILED_UNPACKED(serial, f32, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT,
+                            16) // simsimd_matmul_f32_serial_unpacked
+SIMSIMD_MAKE_TILED_UNPACKED(serial, f16, f32, f16, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16,
+                            16) // simsimd_matmul_f16_serial_unpacked
+SIMSIMD_MAKE_TILED_UNPACKED(serial, bf16, f32, bf16, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16,
+                            16) // simsimd_matmul_bf16_serial_unpacked
+SIMSIMD_MAKE_TILED_UNPACKED(serial, i8, i64, i8, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT,
+                            16) // simsimd_matmul_i8_serial_unpacked
+SIMSIMD_MAKE_TILED_UNPACKED(accurate, f32, f64, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT,
+                            16) // simsimd_matmul_f32_accurate_unpacked
+SIMSIMD_MAKE_TILED_UNPACKED(accurate, f16, f64, f16, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16,
+                            16) // simsimd_matmul_f16_accurate_unpacked
+SIMSIMD_MAKE_TILED_UNPACKED(accurate, bf16, f64, bf16, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16,
+                            16) // simsimd_matmul_bf16_accurate_unpacked
 
 /*  Serial compact functions: simple scalar implementations for post-matmul conversion.
  *  These work on any platform without SIMD requirements.
@@ -763,16 +900,17 @@ SIMSIMD_PUBLIC void simsimd_matmul_bf16_pack_sapphire_amx(       //
     for (simsimd_size_t tile_n = 0; tile_n < full_n_tiles; tile_n++) {
         for (simsimd_size_t tile_k = 0; tile_k < tiles_along_k; tile_k++) {
             // Morton Z-curve tile index
-            simsimd_size_t morton_idx =
-                _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)tile_n, (simsimd_u32_t)tile_k);
+            simsimd_size_t morton_idx = _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)tile_n,
+                                                                            (simsimd_u32_t)tile_k);
             simsimd_size_t tile_index = (morton_idx < total_tiles) ? morton_idx : (tile_n * tiles_along_k + tile_k);
             simsimd_bf16_t *tile_output = tiles_ptr + tile_index * tile_elements;
 
             simsimd_size_t const row_start = tile_n * tile_rows;
             simsimd_size_t const col_start = tile_k * tile_cols;
-            simsimd_size_t const cols_in_tile =
-                (tile_k == tiles_along_k - 1 && k_remainder > 0 && k_remainder < tile_cols) ? (k - col_start)
-                                                                                            : tile_cols;
+            simsimd_size_t const cols_in_tile = (tile_k == tiles_along_k - 1 && k_remainder > 0 &&
+                                                 k_remainder < tile_cols)
+                                                    ? (k - col_start)
+                                                    : tile_cols;
 
             // Pack with pair-interleaving (required by TDPBF16PS)
             for (simsimd_size_t local_row = 0; local_row < tile_rows; local_row++) {
@@ -847,16 +985,17 @@ SIMSIMD_PUBLIC void simsimd_matmul_i8_pack_sapphire_amx(       //
     for (simsimd_size_t tile_n = 0; tile_n < full_n_tiles; tile_n++) {
         for (simsimd_size_t tile_k = 0; tile_k < tiles_along_k; tile_k++) {
             // Morton Z-curve tile index
-            simsimd_size_t morton_idx =
-                _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)tile_n, (simsimd_u32_t)tile_k);
+            simsimd_size_t morton_idx = _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)tile_n,
+                                                                            (simsimd_u32_t)tile_k);
             simsimd_size_t tile_index = (morton_idx < total_tiles) ? morton_idx : (tile_n * tiles_along_k + tile_k);
             simsimd_i8_t *tile_output = tiles_ptr + tile_index * tile_elements;
 
             simsimd_size_t const row_start = tile_n * tile_rows;
             simsimd_size_t const col_start = tile_k * tile_cols;
-            simsimd_size_t const cols_in_tile =
-                (tile_k == tiles_along_k - 1 && k_remainder > 0 && k_remainder < tile_cols) ? (k - col_start)
-                                                                                            : tile_cols;
+            simsimd_size_t const cols_in_tile = (tile_k == tiles_along_k - 1 && k_remainder > 0 &&
+                                                 k_remainder < tile_cols)
+                                                    ? (k - col_start)
+                                                    : tile_cols;
 
             // Pack with quad-interleaving (required by TDPBSSD)
             for (simsimd_size_t local_row = 0; local_row < tile_rows; local_row++) {
@@ -895,8 +1034,8 @@ SIMSIMD_INTERNAL void _simsimd_matmul_bf16_f32_sapphire_aligned(     //
     simsimd_size_t const full_k_tiles = header->full_k_tiles;
     simsimd_size_t const n_edge_rows = header->n_edge_rows;
 
-    simsimd_bf16_t const *tiles_ptr =
-        (simsimd_bf16_t const *)((char const *)b_packed + sizeof(simsimd_matmul_packed_header_t));
+    simsimd_bf16_t const *tiles_ptr = (simsimd_bf16_t const *)((char const *)b_packed +
+                                                               sizeof(simsimd_matmul_packed_header_t));
     simsimd_bf16_t const *n_edge_ptr = (simsimd_bf16_t const *)((char const *)b_packed + header->n_edge_offset);
 
     simsimd_size_t const tile_cols_bf16 = 32;
@@ -935,13 +1074,13 @@ SIMSIMD_INTERNAL void _simsimd_matmul_bf16_f32_sapphire_aligned(     //
                     _tile_loadd(1, a + (row_block + 16) * a_stride_elements + k_offset, (int)a_stride);
 
                     // B tiles via Morton indexing
-                    simsimd_size_t morton_idx0 =
-                        _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
+                    simsimd_size_t morton_idx0 = _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n0,
+                                                                                     (simsimd_u32_t)bk);
                     if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
                     simsimd_bf16_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_bf16;
 
-                    simsimd_size_t morton_idx1 =
-                        _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n1, (simsimd_u32_t)bk);
+                    simsimd_size_t morton_idx1 = _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n1,
+                                                                                     (simsimd_u32_t)bk);
                     if (morton_idx1 >= total_full_tiles) morton_idx1 = b_tile_n1 * full_k_tiles + bk;
                     simsimd_bf16_t const *b_tile_ptr1 = tiles_ptr + morton_idx1 * tile_elements_bf16;
 
@@ -1006,8 +1145,8 @@ SIMSIMD_INTERNAL void _simsimd_matmul_bf16_f32_sapphire_aligned(     //
                 _tile_loadd(0, a_tile_upper, 64);
                 _tile_loadd(1, a_tile_lower, 64);
 
-                simsimd_size_t morton_idx0 =
-                    _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
+                simsimd_size_t morton_idx0 = _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n0,
+                                                                                 (simsimd_u32_t)bk);
                 if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
                 simsimd_bf16_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_bf16;
 
@@ -1059,8 +1198,8 @@ SIMSIMD_INTERNAL void _simsimd_matmul_bf16_f32_sapphire_misaligned(  //
     simsimd_size_t const full_k_tiles = header->full_k_tiles;
     simsimd_size_t const n_edge_rows = header->n_edge_rows;
 
-    simsimd_bf16_t const *tiles_ptr =
-        (simsimd_bf16_t const *)((char const *)b_packed + sizeof(simsimd_matmul_packed_header_t));
+    simsimd_bf16_t const *tiles_ptr = (simsimd_bf16_t const *)((char const *)b_packed +
+                                                               sizeof(simsimd_matmul_packed_header_t));
     simsimd_bf16_t const *n_edge_ptr = (simsimd_bf16_t const *)((char const *)b_packed + header->n_edge_offset);
 
     simsimd_size_t const tile_cols_bf16 = 32;
@@ -1114,13 +1253,13 @@ SIMSIMD_INTERNAL void _simsimd_matmul_bf16_f32_sapphire_misaligned(  //
                     _tile_loadd(1, a_buf_lower, 64);
 
                     // B tiles via Morton indexing
-                    simsimd_size_t morton_idx0 =
-                        _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
+                    simsimd_size_t morton_idx0 = _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n0,
+                                                                                     (simsimd_u32_t)bk);
                     if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
                     simsimd_bf16_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_bf16;
 
-                    simsimd_size_t morton_idx1 =
-                        _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n1, (simsimd_u32_t)bk);
+                    simsimd_size_t morton_idx1 = _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n1,
+                                                                                     (simsimd_u32_t)bk);
                     if (morton_idx1 >= total_full_tiles) morton_idx1 = b_tile_n1 * full_k_tiles + bk;
                     simsimd_bf16_t const *b_tile_ptr1 = tiles_ptr + morton_idx1 * tile_elements_bf16;
 
@@ -1207,8 +1346,8 @@ SIMSIMD_INTERNAL void _simsimd_matmul_bf16_f32_sapphire_misaligned(  //
                 _tile_loadd(0, a_buf_upper, 64);
                 _tile_loadd(1, a_buf_lower, 64);
 
-                simsimd_size_t morton_idx0 =
-                    _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
+                simsimd_size_t morton_idx0 = _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n0,
+                                                                                 (simsimd_u32_t)bk);
                 if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
                 simsimd_bf16_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_bf16;
 
@@ -1314,8 +1453,9 @@ SIMSIMD_INTERNAL void _simsimd_matmul_i8_i32_sapphire_aligned(     //
     simsimd_size_t const tile_elements_i8 = 1024;
 
     simsimd_i8_t const *tiles_ptr = (simsimd_i8_t const *)((char const *)b_packed + 64);
-    simsimd_i8_t const *n_edge_ptr =
-        (n_edge_offset > 0) ? (simsimd_i8_t const *)((char const *)b_packed + n_edge_offset) : NULL;
+    simsimd_i8_t const *n_edge_ptr = (n_edge_offset > 0)
+                                         ? (simsimd_i8_t const *)((char const *)b_packed + n_edge_offset)
+                                         : NULL;
 
     simsimd_size_t const c_stride_elements = c_stride / sizeof(simsimd_i32_t);
     simsimd_size_t const full_m_blocks = m / 32;
@@ -1349,13 +1489,13 @@ SIMSIMD_INTERNAL void _simsimd_matmul_i8_i32_sapphire_aligned(     //
                     _tile_loadd(1, a + (row_block + 16) * a_stride + k_offset, (int)a_stride);
 
                     // B tiles via Morton indexing
-                    simsimd_size_t morton_idx0 =
-                        _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
+                    simsimd_size_t morton_idx0 = _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n0,
+                                                                                     (simsimd_u32_t)bk);
                     if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
                     simsimd_i8_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_i8;
 
-                    simsimd_size_t morton_idx1 =
-                        _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n1, (simsimd_u32_t)bk);
+                    simsimd_size_t morton_idx1 = _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n1,
+                                                                                     (simsimd_u32_t)bk);
                     if (morton_idx1 >= total_full_tiles) morton_idx1 = b_tile_n1 * full_k_tiles + bk;
                     simsimd_i8_t const *b_tile_ptr1 = tiles_ptr + morton_idx1 * tile_elements_i8;
 
@@ -1413,8 +1553,8 @@ SIMSIMD_INTERNAL void _simsimd_matmul_i8_i32_sapphire_aligned(     //
                 _tile_loadd(0, a_tile_upper, 64);
                 _tile_loadd(1, a_tile_lower, 64);
 
-                simsimd_size_t morton_idx0 =
-                    _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
+                simsimd_size_t morton_idx0 = _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n0,
+                                                                                 (simsimd_u32_t)bk);
                 if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
                 simsimd_i8_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_i8;
 
@@ -1476,8 +1616,9 @@ SIMSIMD_INTERNAL void _simsimd_matmul_i8_i32_sapphire_misaligned(  //
     simsimd_size_t const tile_elements_i8 = 1024;
 
     simsimd_i8_t const *tiles_ptr = (simsimd_i8_t const *)((char const *)b_packed + 64);
-    simsimd_i8_t const *n_edge_ptr =
-        (n_edge_offset > 0) ? (simsimd_i8_t const *)((char const *)b_packed + n_edge_offset) : NULL;
+    simsimd_i8_t const *n_edge_ptr = (n_edge_offset > 0)
+                                         ? (simsimd_i8_t const *)((char const *)b_packed + n_edge_offset)
+                                         : NULL;
 
     simsimd_size_t const c_stride_elements = c_stride / sizeof(simsimd_i32_t);
     simsimd_size_t const full_m_blocks = m / 32;
@@ -1525,13 +1666,13 @@ SIMSIMD_INTERNAL void _simsimd_matmul_i8_i32_sapphire_misaligned(  //
                     _tile_loadd(0, a_buf_upper, 64);
                     _tile_loadd(1, a_buf_lower, 64);
 
-                    simsimd_size_t morton_idx0 =
-                        _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
+                    simsimd_size_t morton_idx0 = _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n0,
+                                                                                     (simsimd_u32_t)bk);
                     if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
                     simsimd_i8_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_i8;
 
-                    simsimd_size_t morton_idx1 =
-                        _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n1, (simsimd_u32_t)bk);
+                    simsimd_size_t morton_idx1 = _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n1,
+                                                                                     (simsimd_u32_t)bk);
                     if (morton_idx1 >= total_full_tiles) morton_idx1 = b_tile_n1 * full_k_tiles + bk;
                     simsimd_i8_t const *b_tile_ptr1 = tiles_ptr + morton_idx1 * tile_elements_i8;
 
@@ -1612,8 +1753,8 @@ SIMSIMD_INTERNAL void _simsimd_matmul_i8_i32_sapphire_misaligned(  //
                 _tile_loadd(0, a_buf_upper, 64);
                 _tile_loadd(1, a_buf_lower, 64);
 
-                simsimd_size_t morton_idx0 =
-                    _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n0, (simsimd_u32_t)bk);
+                simsimd_size_t morton_idx0 = _simsimd_morton_encode_sapphire_amx((simsimd_u32_t)b_tile_n0,
+                                                                                 (simsimd_u32_t)bk);
                 if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
                 simsimd_i8_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_i8;
 
@@ -1786,7 +1927,99 @@ SIMSIMD_PUBLIC void simsimd_matmul_i8_compact_sapphire_amx( //
 #endif // SIMSIMD_TARGET_ICE
 #endif // _SIMSIMD_TARGET_X86
 
-#ifdef __cplusplus
+#if !SIMSIMD_DYNAMIC_DISPATCH
+
+SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_bf16_packed_size(simsimd_size_t n, simsimd_size_t k) {
+#if SIMSIMD_TARGET_SAPPHIRE_AMX
+    return simsimd_matmul_bf16_packed_size_sapphire_amx(n, k);
+#elif SIMSIMD_TARGET_GENOA
+    return simsimd_matmul_bf16_packed_size_genoa(n, k);
+#else
+    return simsimd_matmul_bf16_packed_size_serial(n, k);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_pack(simsimd_bf16_t const *b, simsimd_size_t n, simsimd_size_t k,
+                                             simsimd_size_t b_stride, void *b_packed) {
+#if SIMSIMD_TARGET_SAPPHIRE_AMX
+    simsimd_matmul_bf16_pack_sapphire_amx(b, n, k, b_stride, b_packed);
+#elif SIMSIMD_TARGET_GENOA
+    simsimd_matmul_bf16_pack_genoa(b, n, k, b_stride, b_packed);
+#else
+    simsimd_matmul_bf16_pack_serial(b, n, k, b_stride, b_packed);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_f32(simsimd_bf16_t const *a, void const *b_packed, simsimd_f32_t *c,
+                                            simsimd_size_t m, simsimd_size_t n, simsimd_size_t k,
+                                            simsimd_size_t a_stride, simsimd_size_t c_stride) {
+#if SIMSIMD_TARGET_SAPPHIRE_AMX
+    simsimd_matmul_bf16_f32_sapphire_amx(a, b_packed, c, m, n, k, a_stride, c_stride);
+#elif SIMSIMD_TARGET_GENOA
+    simsimd_matmul_bf16_f32_genoa(a, b_packed, c, m, n, k, a_stride, c_stride);
+#else
+    simsimd_matmul_bf16_f32_serial(a, b_packed, c, m, n, k, a_stride, c_stride);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_matmul_bf16_compact(void *c, simsimd_size_t m, simsimd_size_t n, simsimd_size_t c_stride) {
+#if SIMSIMD_TARGET_SAPPHIRE_AMX
+    simsimd_matmul_bf16_compact_sapphire_amx(c, m, n, c_stride);
+#elif SIMSIMD_TARGET_GENOA
+    simsimd_matmul_bf16_compact_genoa(c, m, n, c_stride);
+#else
+    simsimd_matmul_bf16_compact_serial(c, m, n, c_stride);
+#endif
+}
+
+SIMSIMD_PUBLIC simsimd_size_t simsimd_matmul_i8_packed_size(simsimd_size_t n, simsimd_size_t k) {
+#if SIMSIMD_TARGET_SAPPHIRE_AMX
+    return simsimd_matmul_i8_packed_size_sapphire_amx(n, k);
+#elif SIMSIMD_TARGET_GENOA
+    return simsimd_matmul_i8_packed_size_genoa(n, k);
+#else
+    return simsimd_matmul_i8_packed_size_serial(n, k);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_matmul_i8_pack(simsimd_i8_t const *b, simsimd_size_t n, simsimd_size_t k,
+                                           simsimd_size_t b_stride, void *b_packed) {
+#if SIMSIMD_TARGET_SAPPHIRE_AMX
+    simsimd_matmul_i8_pack_sapphire_amx(b, n, k, b_stride, b_packed);
+#elif SIMSIMD_TARGET_GENOA
+    simsimd_matmul_i8_pack_genoa(b, n, k, b_stride, b_packed);
+#else
+    simsimd_matmul_i8_pack_serial(b, n, k, b_stride, b_packed);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_matmul_i8_i32(simsimd_i8_t const *a, void const *b_packed, simsimd_i32_t *c,
+                                          simsimd_size_t m, simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride,
+                                          simsimd_size_t c_stride) {
+#if SIMSIMD_TARGET_SAPPHIRE_AMX
+    simsimd_matmul_i8_i32_sapphire_amx(a, b_packed, c, m, n, k, a_stride, c_stride);
+#elif SIMSIMD_TARGET_GENOA
+    simsimd_matmul_i8_i32_genoa(a, b_packed, c, m, n, k, a_stride, c_stride);
+#else
+    simsimd_matmul_i8_i32_serial(a, b_packed, c, m, n, k, a_stride, c_stride);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_matmul_i8_compact(void *c, simsimd_size_t m, simsimd_size_t n, simsimd_size_t c_stride,
+                                              simsimd_i32_t const *a_squared_norms,
+                                              simsimd_i32_t const *b_squared_norms) {
+#if SIMSIMD_TARGET_SAPPHIRE_AMX
+    simsimd_matmul_i8_compact_sapphire_amx(c, m, n, c_stride, a_squared_norms, b_squared_norms);
+#elif SIMSIMD_TARGET_GENOA
+    simsimd_matmul_i8_compact_genoa(c, m, n, c_stride, a_squared_norms, b_squared_norms);
+#else
+    simsimd_matmul_i8_compact_serial(c, m, n, c_stride, a_squared_norms, b_squared_norms);
+#endif
+}
+
+#endif // !SIMSIMD_DYNAMIC_DISPATCH
+
+#if defined(__cplusplus)
 }
 #endif
 
