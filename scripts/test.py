@@ -259,7 +259,9 @@ def baseline_haversine(first_latitude, first_longitude, second_latitude, second_
     return earth_radius_meters * central_angle
 
 
-def baseline_vincenty(first_latitude, first_longitude, second_latitude, second_longitude, max_iterations=100, tolerance=1e-12):
+def baseline_vincenty(
+    first_latitude, first_longitude, second_latitude, second_longitude, max_iterations=100, tolerance=1e-12
+):
     """Vincenty distance using NumPy. All inputs in radians, output in meters."""
     # WGS84 ellipsoid parameters
     equatorial_radius = 6378136.6
@@ -299,7 +301,9 @@ def baseline_vincenty(first_latitude, first_longitude, second_latitude, second_l
         correction_term = flattening / 16 * cos_squared_azimuth * (4 + flattening * (4 - 3 * cos_squared_azimuth))
         lambda_next = longitude_difference + (1 - correction_term) * flattening * sin_azimuth * (
             sigma
-            + correction_term * sin_sigma * (cos_two_sigma_midpoint + correction_term * cos_sigma * (-1 + 2 * cos_two_sigma_midpoint**2))
+            + correction_term
+            * sin_sigma
+            * (cos_two_sigma_midpoint + correction_term * cos_sigma * (-1 + 2 * cos_two_sigma_midpoint**2))
         )
 
         if np.abs(lambda_next - lambda_current) < tolerance:
@@ -318,7 +322,11 @@ def baseline_vincenty(first_latitude, first_longitude, second_latitude, second_l
             / 4
             * (
                 cos_sigma * (-1 + 2 * cos_two_sigma_midpoint**2)
-                - coefficient_b / 6 * cos_two_sigma_midpoint * (-3 + 4 * sin_sigma**2) * (-3 + 4 * cos_two_sigma_midpoint**2)
+                - coefficient_b
+                / 6
+                * cos_two_sigma_midpoint
+                * (-3 + 4 * sin_sigma**2)
+                * (-3 + 4 * cos_two_sigma_midpoint**2)
             )
         )
     )
@@ -2318,15 +2326,17 @@ def test_haversine(ndim, dtype, capability, stats_fixture):
     second_longitudes = second_longitudes.astype(dtype)
 
     # Compute expected results using baseline
-    expected = np.array([
-        baseline_haversine(
-            first_latitudes[i].astype(np.float64),
-            first_longitudes[i].astype(np.float64),
-            second_latitudes[i].astype(np.float64),
-            second_longitudes[i].astype(np.float64),
-        )
-        for i in range(ndim)
-    ])
+    expected = np.array(
+        [
+            baseline_haversine(
+                first_latitudes[i].astype(np.float64),
+                first_longitudes[i].astype(np.float64),
+                second_latitudes[i].astype(np.float64),
+                second_longitudes[i].astype(np.float64),
+            )
+            for i in range(ndim)
+        ]
+    )
 
     # Compute using SimSIMD
     result = simd.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes)
@@ -2342,7 +2352,9 @@ def test_haversine(ndim, dtype, capability, stats_fixture):
     accurate_dt, accurate = 0, expected
     expected_dt = 0
     result_dt = 0
-    collect_errors("haversine", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
+    collect_errors(
+        "haversine", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture
+    )
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -2373,15 +2385,17 @@ def test_vincenty(ndim, dtype, capability, stats_fixture):
     second_longitudes = second_longitudes.astype(dtype)
 
     # Compute expected results using baseline
-    expected = np.array([
-        baseline_vincenty(
-            first_latitudes[i].astype(np.float64),
-            first_longitudes[i].astype(np.float64),
-            second_latitudes[i].astype(np.float64),
-            second_longitudes[i].astype(np.float64),
-        )
-        for i in range(ndim)
-    ])
+    expected = np.array(
+        [
+            baseline_vincenty(
+                first_latitudes[i].astype(np.float64),
+                first_longitudes[i].astype(np.float64),
+                second_latitudes[i].astype(np.float64),
+                second_longitudes[i].astype(np.float64),
+            )
+            for i in range(ndim)
+        ]
+    )
 
     # Compute using SimSIMD
     result = simd.vincenty(first_latitudes, first_longitudes, second_latitudes, second_longitudes)
@@ -2397,7 +2411,9 @@ def test_vincenty(ndim, dtype, capability, stats_fixture):
     accurate_dt, accurate = 0, expected
     expected_dt = 0
     result_dt = 0
-    collect_errors("vincenty", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
+    collect_errors(
+        "vincenty", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture
+    )
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -2436,13 +2452,507 @@ def test_geospatial_out_parameter():
 
     # Test with pre-allocated output
     output_distances = np.zeros(count, dtype=np.float64)
-    result = simd.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes, out=output_distances)
+    result = simd.haversine(
+        first_latitudes, first_longitudes, second_latitudes, second_longitudes, out=output_distances
+    )
     assert result is None, "Expected None when using out parameter"
     assert np.all(output_distances >= 0), "Output should contain non-negative distances"
 
     # Compare with regular call
     expected = np.array(simd.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes))
     np.testing.assert_allclose(output_distances, expected, atol=1e-10, rtol=1e-10)
+
+
+# =============================================================================
+# DistancesTensor Tests
+# =============================================================================
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_distances_tensor_properties():
+    """Tests that DistancesTensor properties work correctly for various shapes."""
+    np.random.seed(42)
+
+    # Test with pairwise distances (2D result)
+    a = np.random.rand(5, 128).astype(np.float64)
+    b = np.random.rand(7, 128).astype(np.float64)
+    result = simd.cdist(a, b, metric="sqeuclidean")
+
+    # Check basic properties
+    assert hasattr(result, "shape"), "DistancesTensor should have 'shape' property"
+    assert hasattr(result, "dtype"), "DistancesTensor should have 'dtype' property"
+    assert hasattr(result, "ndim"), "DistancesTensor should have 'ndim' property"
+    assert hasattr(result, "size"), "DistancesTensor should have 'size' property"
+    assert hasattr(result, "nbytes"), "DistancesTensor should have 'nbytes' property"
+    assert hasattr(result, "strides"), "DistancesTensor should have 'strides' property"
+    assert hasattr(result, "itemsize"), "DistancesTensor should have 'itemsize' property"
+
+    # Check values
+    assert result.shape == (5, 7), f"Expected shape (5, 7), got {result.shape}"
+    assert result.dtype == "float64", f"Expected dtype 'float64', got {result.dtype}"
+    assert result.ndim == 2, f"Expected ndim 2, got {result.ndim}"
+    assert result.size == 35, f"Expected size 35, got {result.size}"
+    assert result.nbytes == 35 * 8, f"Expected nbytes {35 * 8}, got {result.nbytes}"
+    assert result.itemsize == 8, f"Expected itemsize 8, got {result.itemsize}"
+    assert isinstance(result.strides, tuple), "strides should be a tuple"
+    assert len(result.strides) == 2, "strides should have 2 elements for 2D tensor"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_distances_tensor_properties_1d():
+    """Tests DistancesTensor properties for 1D results."""
+    np.random.seed(42)
+
+    # Test with row-wise distances (1D result)
+    a = np.random.rand(10, 128).astype(np.float64)
+    b = np.random.rand(10, 128).astype(np.float64)
+    result = simd.sqeuclidean(a, b)
+
+    assert result.shape == (10,), f"Expected shape (10,), got {result.shape}"
+    assert result.ndim == 1, f"Expected ndim 1, got {result.ndim}"
+    assert result.size == 10, f"Expected size 10, got {result.size}"
+    assert len(result.strides) == 1, "strides should have 1 element for 1D tensor"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_distances_tensor_len():
+    """Tests that __len__() works correctly for DistancesTensor."""
+    np.random.seed(42)
+
+    # 2D tensor
+    a = np.random.rand(5, 128).astype(np.float64)
+    b = np.random.rand(7, 128).astype(np.float64)
+    result_2d = simd.cdist(a, b, metric="sqeuclidean")
+    assert len(result_2d) == 5, f"Expected len 5, got {len(result_2d)}"
+
+    # 1D tensor
+    a = np.random.rand(10, 128).astype(np.float64)
+    b = np.random.rand(10, 128).astype(np.float64)
+    result_1d = simd.sqeuclidean(a, b)
+    assert len(result_1d) == 10, f"Expected len 10, got {len(result_1d)}"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_distances_tensor_repr():
+    """Tests that __repr__() returns proper format."""
+    np.random.seed(42)
+
+    # 2D tensor
+    a = np.random.rand(5, 128).astype(np.float64)
+    b = np.random.rand(7, 128).astype(np.float64)
+    result = simd.cdist(a, b, metric="sqeuclidean")
+
+    repr_str = repr(result)
+    assert "DistancesTensor" in repr_str, f"repr should contain 'DistancesTensor', got: {repr_str}"
+    assert "shape=" in repr_str, f"repr should contain 'shape=', got: {repr_str}"
+    assert "dtype=" in repr_str, f"repr should contain 'dtype=', got: {repr_str}"
+    assert "(5, 7)" in repr_str, f"repr should contain shape (5, 7), got: {repr_str}"
+    assert "float64" in repr_str, f"repr should contain 'float64', got: {repr_str}"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_distances_tensor_indexing():
+    """Tests that __getitem__() works for various index types."""
+    np.random.seed(42)
+
+    # Create 2D result
+    a = np.random.rand(5, 128).astype(np.float64)
+    b = np.random.rand(7, 128).astype(np.float64)
+    result = simd.cdist(a, b, metric="sqeuclidean")
+
+    # Convert to numpy for comparison
+    expected = np.asarray(result)
+
+    # Single integer index - returns sub-tensor (row)
+    row0 = result[0]
+    assert hasattr(row0, "shape"), "Single index should return DistancesTensor"
+    assert row0.shape == (7,), f"Expected shape (7,), got {row0.shape}"
+
+    # Negative indexing
+    row_last = result[-1]
+    assert row_last.shape == (7,), f"Expected shape (7,), got {row_last.shape}"
+    np.testing.assert_allclose(np.asarray(row_last), expected[-1], rtol=1e-6)
+
+    # Full tuple indexing - returns scalar
+    val = result[2, 3]
+    assert isinstance(val, float), f"Full index should return Python float, got {type(val)}"
+    np.testing.assert_allclose(val, expected[2, 3], rtol=1e-6)
+
+    # Negative tuple indexing
+    val_neg = result[-1, -1]
+    assert isinstance(val_neg, float), f"Full index should return Python float, got {type(val_neg)}"
+    np.testing.assert_allclose(val_neg, expected[-1, -1], rtol=1e-6)
+
+    # Out of bounds should raise IndexError
+    with pytest.raises(IndexError):
+        _ = result[10]
+
+    with pytest.raises(IndexError):
+        _ = result[0, 100]
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_distances_tensor_iteration():
+    """Tests that __iter__() works correctly."""
+    np.random.seed(42)
+
+    # 2D tensor - iterates over rows
+    a = np.random.rand(5, 128).astype(np.float64)
+    b = np.random.rand(7, 128).astype(np.float64)
+    result = simd.cdist(a, b, metric="sqeuclidean")
+    expected = np.asarray(result)
+
+    count = 0
+    for i, row in enumerate(result):
+        count += 1
+        assert row.shape == (7,), f"Row {i} should have shape (7,), got {row.shape}"
+        np.testing.assert_allclose(np.asarray(row), expected[i], rtol=1e-6)
+
+    assert count == 5, f"Expected 5 iterations, got {count}"
+
+    # 1D tensor - iterates over scalars
+    a = np.random.rand(3, 128).astype(np.float64)
+    b = np.random.rand(3, 128).astype(np.float64)
+    result_1d = simd.sqeuclidean(a, b)
+    expected_1d = np.asarray(result_1d)
+
+    items = list(result_1d)
+    assert len(items) == 3, f"Expected 3 items, got {len(items)}"
+    for i, item in enumerate(items):
+        assert isinstance(item, float), f"1D iteration should yield floats, got {type(item)}"
+        np.testing.assert_allclose(item, expected_1d[i], rtol=1e-6)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_distances_tensor_numpy_interop():
+    """Tests NumPy interoperability via buffer protocol."""
+    np.random.seed(42)
+
+    # Create tensor
+    a = np.random.rand(5, 128).astype(np.float64)
+    b = np.random.rand(7, 128).astype(np.float64)
+    result = simd.cdist(a, b, metric="sqeuclidean")
+
+    # Convert to numpy array
+    arr = np.asarray(result)
+    assert isinstance(arr, np.ndarray), "np.asarray should return ndarray"
+    assert arr.shape == (5, 7), f"Expected shape (5, 7), got {arr.shape}"
+    assert arr.dtype == np.float64, f"Expected dtype float64, got {arr.dtype}"
+
+    # Values should be valid squared Euclidean distances (non-negative)
+    assert np.all(arr >= 0), "Squared Euclidean distances should be non-negative"
+
+    # Test memoryview
+    mv = memoryview(result)
+    assert mv.ndim == 2, f"memoryview should be 2D, got {mv.ndim}"
+    assert mv.shape == (5, 7), f"memoryview shape should be (5, 7), got {mv.shape}"
+
+    # Verify data content matches
+    arr_from_mv = np.asarray(mv)
+    np.testing.assert_array_equal(arr, arr_from_mv)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_distances_tensor_scalar_conversion():
+    """Tests float() and int() conversion for scalar results."""
+    np.random.seed(42)
+
+    # Single-vector sqeuclidean returns a Python float directly, not a tensor
+    a = np.random.rand(128).astype(np.float64)
+    b = np.random.rand(128).astype(np.float64)
+    result = simd.sqeuclidean(a, b)
+    assert isinstance(result, float), f"Single pair should return float, got {type(result)}"
+    assert result >= 0, "Squared Euclidean distance should be non-negative"
+
+    # Test with 2D tensor - multi-element should not convert directly
+    a2 = np.random.rand(3, 128).astype(np.float64)
+    b2 = np.random.rand(5, 128).astype(np.float64)
+    result2 = simd.cdist(a2, b2, metric="sqeuclidean")
+
+    # Multi-element tensor should raise when trying float()
+    with pytest.raises(TypeError):
+        float(result2)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_distances_tensor_dtype_consistency():
+    """Tests that dtype property matches actual data type."""
+    np.random.seed(42)
+
+    # Test various input types - result should always be float64
+    for input_dtype in [np.float32, np.float64]:
+        a = np.random.rand(5, 128).astype(input_dtype)
+        b = np.random.rand(7, 128).astype(input_dtype)
+        result = simd.cdist(a, b, metric="sqeuclidean")
+
+        assert result.dtype == "float64", f"dtype should be 'float64', got {result.dtype}"
+        arr = np.asarray(result)
+        assert arr.dtype == np.float64, f"numpy dtype should be float64, got {arr.dtype}"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_distances_tensor_strides():
+    """Tests that strides are correctly computed and usable."""
+    np.random.seed(42)
+
+    a = np.random.rand(5, 128).astype(np.float64)
+    b = np.random.rand(7, 128).astype(np.float64)
+    result = simd.cdist(a, b, metric="sqeuclidean")
+
+    strides = result.strides
+    assert isinstance(strides, tuple), "strides should be tuple"
+    assert len(strides) == 2, "2D tensor should have 2 strides"
+
+    # For row-major C-contiguous: stride[0] = ncols * itemsize, stride[1] = itemsize
+    expected_stride0 = 7 * 8  # 7 columns * 8 bytes per float64
+    expected_stride1 = 8  # 8 bytes per float64
+    assert strides == (
+        expected_stride0,
+        expected_stride1,
+    ), f"Expected strides ({expected_stride0}, {expected_stride1}), got {strides}"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_distances_tensor_array_interface():
+    """Tests __array_interface__ property for legacy NumPy interop."""
+    np.random.seed(42)
+
+    a = np.random.rand(5, 128).astype(np.float64)
+    b = np.random.rand(7, 128).astype(np.float64)
+    result = simd.cdist(a, b, metric="sqeuclidean")
+
+    # Check __array_interface__ exists and has required keys
+    ai = result.__array_interface__
+    assert isinstance(ai, dict), "__array_interface__ should be a dict"
+    assert "shape" in ai, "__array_interface__ should have 'shape'"
+    assert "typestr" in ai, "__array_interface__ should have 'typestr'"
+    assert "data" in ai, "__array_interface__ should have 'data'"
+    assert "strides" in ai, "__array_interface__ should have 'strides'"
+    assert "version" in ai, "__array_interface__ should have 'version'"
+
+    # Verify values
+    assert ai["shape"] == (5, 7), f"Expected shape (5, 7), got {ai['shape']}"
+    assert ai["typestr"] == "<f8", f"Expected typestr '<f8' for float64, got {ai['typestr']}"
+    assert ai["version"] == 3, f"Expected version 3, got {ai['version']}"
+    assert isinstance(ai["data"], tuple), "data should be a tuple (ptr, readonly)"
+    assert len(ai["data"]) == 2, "data should have 2 elements"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_distances_tensor_transpose():
+    """Tests .T property for tensor transpose."""
+    np.random.seed(42)
+
+    a = np.random.rand(5, 128).astype(np.float64)
+    b = np.random.rand(7, 128).astype(np.float64)
+    result = simd.cdist(a, b, metric="sqeuclidean")
+
+    # Test transpose
+    t = result.T
+    assert t.shape == (7, 5), f"Transpose shape should be (7, 5), got {t.shape}"
+
+    # Verify data is correctly transposed
+    result_arr = np.asarray(result)
+    t_arr = np.asarray(t)
+    np.testing.assert_allclose(result_arr.T, t_arr, rtol=1e-10)
+
+    # Test 1D tensor transpose (should be no-op)
+    a1d = np.random.rand(10, 128).astype(np.float64)
+    b1d = np.random.rand(10, 128).astype(np.float64)
+    result1d = simd.sqeuclidean(a1d, b1d)
+    t1d = result1d.T
+    assert t1d.shape == result1d.shape, "1D tensor transpose should be no-op"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_distances_tensor_str():
+    """Tests __str__() pretty-print representation."""
+    np.random.seed(42)
+
+    a = np.random.rand(3, 128).astype(np.float64)
+    b = np.random.rand(4, 128).astype(np.float64)
+    result = simd.cdist(a, b, metric="sqeuclidean")
+
+    # Test str output
+    s = str(result)
+    assert "[" in s, "__str__ should produce array-like output with brackets"
+    assert "]" in s, "__str__ should produce array-like output with brackets"
+    # Should contain some numbers
+    assert any(c.isdigit() for c in s), "__str__ should contain numeric values"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_distances_tensor_equality():
+    """Tests __eq__ and __ne__ comparison operators."""
+    np.random.seed(42)
+
+    a = np.random.rand(5, 128).astype(np.float64)
+    b = np.random.rand(7, 128).astype(np.float64)
+    result = simd.cdist(a, b, metric="sqeuclidean")
+
+    # Test equality with copy
+    copy = result.copy()
+    assert result == copy, "Tensor should equal its copy"
+    assert not (result != copy), "Tensor should not be != its copy"
+
+    # Test inequality with different tensor
+    a2 = np.random.rand(5, 128).astype(np.float64)
+    b2 = np.random.rand(7, 128).astype(np.float64)
+    result2 = simd.cdist(a2, b2, metric="sqeuclidean")
+    assert result != result2, "Different tensors should not be equal"
+
+    # Test with different shapes
+    a3 = np.random.rand(3, 128).astype(np.float64)
+    b3 = np.random.rand(4, 128).astype(np.float64)
+    result3 = simd.cdist(a3, b3, metric="sqeuclidean")
+    assert result != result3, "Tensors with different shapes should not be equal"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_distances_tensor_copy():
+    """Tests .copy() method for deep copying."""
+    np.random.seed(42)
+
+    a = np.random.rand(5, 128).astype(np.float64)
+    b = np.random.rand(7, 128).astype(np.float64)
+    result = simd.cdist(a, b, metric="sqeuclidean")
+
+    # Test copy
+    copy = result.copy()
+    assert copy.shape == result.shape, "Copy should have same shape"
+    assert copy.dtype == result.dtype, "Copy should have same dtype"
+    assert result == copy, "Copy should equal original"
+
+    # Verify it's a deep copy (modifying numpy view shouldn't affect original)
+    result_arr = np.asarray(result)
+    copy_arr = np.asarray(copy)
+    np.testing.assert_array_equal(result_arr, copy_arr)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_distances_tensor_reshape():
+    """Tests .reshape() method."""
+    np.random.seed(42)
+
+    a = np.random.rand(5, 128).astype(np.float64)
+    b = np.random.rand(7, 128).astype(np.float64)
+    result = simd.cdist(a, b, metric="sqeuclidean")
+
+    # Test reshape to 1D
+    flat = result.reshape(35)
+    assert flat.shape == (35,), f"Expected shape (35,), got {flat.shape}"
+    assert flat.size == 35, f"Expected size 35, got {flat.size}"
+
+    # Test reshape back to 2D
+    back = flat.reshape(5, 7)
+    assert back.shape == (5, 7), f"Expected shape (5, 7), got {back.shape}"
+
+    # Test reshape with tuple argument
+    reshaped = result.reshape((7, 5))
+    assert reshaped.shape == (7, 5), f"Expected shape (7, 5), got {reshaped.shape}"
+
+    # Test invalid reshape (wrong total size)
+    with pytest.raises(ValueError):
+        result.reshape(10, 10)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+def test_distances_tensor_slicing():
+    """Tests slicing support with tensor[start:stop:step]."""
+    np.random.seed(42)
+
+    a = np.random.rand(10, 128).astype(np.float64)
+    b = np.random.rand(8, 128).astype(np.float64)
+    result = simd.cdist(a, b, metric="sqeuclidean")
+    expected = np.asarray(result)
+
+    # Test basic slicing
+    sliced = result[2:5]
+    assert sliced.shape == (3, 8), f"Expected shape (3, 8), got {sliced.shape}"
+    np.testing.assert_allclose(np.asarray(sliced), expected[2:5], rtol=1e-10)
+
+    # Test slicing with step
+    step_sliced = result[::2]
+    assert step_sliced.shape == (5, 8), f"Expected shape (5, 8), got {step_sliced.shape}"
+    np.testing.assert_allclose(np.asarray(step_sliced), expected[::2], rtol=1e-10)
+
+    # Test negative step (reverse)
+    rev_sliced = result[::-1]
+    assert rev_sliced.shape == (10, 8), f"Expected shape (10, 8), got {rev_sliced.shape}"
+    np.testing.assert_allclose(np.asarray(rev_sliced), expected[::-1], rtol=1e-10)
+
+    # Test slice from end
+    end_sliced = result[-3:]
+    assert end_sliced.shape == (3, 8), f"Expected shape (3, 8), got {end_sliced.shape}"
+    np.testing.assert_allclose(np.asarray(end_sliced), expected[-3:], rtol=1e-10)
+
+
+def test_distances_tensor_zero_copy_views():
+    """Tests that slicing, transpose, reshape, and iteration return zero-copy views."""
+    np.random.seed(42)
+
+    a = np.random.rand(5, 64).astype(np.float64)
+    b = np.random.rand(4, 64).astype(np.float64)
+    result = simd.cdist(a, b, metric="sqeuclidean")
+    orig_np = np.asarray(result)
+
+    # Test 1: Basic slicing shares memory
+    sliced = result[1:4]
+    sliced_np = np.asarray(sliced)
+    assert np.shares_memory(orig_np, sliced_np), "Basic slice should share memory with original"
+
+    # Test 2: Slice with step shares memory
+    step_sliced = result[::2]
+    step_np = np.asarray(step_sliced)
+    assert np.shares_memory(orig_np, step_np), "Step slice should share memory with original"
+
+    # Test 3: Reverse slice shares memory
+    rev_sliced = result[::-1]
+    rev_np = np.asarray(rev_sliced)
+    assert np.shares_memory(orig_np, rev_np), "Reverse slice should share memory with original"
+
+    # Test 4: Sub-tensor indexing (tensor[i]) shares memory
+    row = result[0]
+    row_np = np.asarray(row)
+    assert np.shares_memory(orig_np, row_np), "Row indexing should share memory with original"
+
+    # Test 5: Transpose shares memory
+    transposed = result.T
+    trans_np = np.asarray(transposed)
+    assert np.shares_memory(orig_np, trans_np), "Transpose should share memory with original"
+
+    # Test 6: Reshape of contiguous tensor shares memory
+    flat = result.reshape(20)
+    flat_np = np.asarray(flat)
+    assert np.shares_memory(orig_np, flat_np), "Reshape of contiguous tensor should share memory"
+
+    # Test 7: Reshape of non-contiguous tensor does NOT share memory (must copy)
+    trans_reshaped = transposed.reshape(20)
+    trans_reshaped_np = np.asarray(trans_reshaped)
+    assert not np.shares_memory(orig_np, trans_reshaped_np), "Reshape of non-contiguous should copy"
+
+    # Test 8: Chained slicing shares memory
+    chained = result[1:4][1:]
+    chained_np = np.asarray(chained)
+    assert np.shares_memory(orig_np, chained_np), "Chained slicing should share memory"
+
+    # Test 9: Iteration yields views that share memory
+    for i, row in enumerate(result):
+        row_np = np.asarray(row)
+        assert np.shares_memory(orig_np, row_np), f"Iteration row {i} should share memory"
+
+    # Test 10: Modification through view updates original
+    orig_val = orig_np[2, 0].copy()
+    view = result[2]
+    view_np = np.asarray(view)
+    view_np[0] = 999.0
+    assert orig_np[2, 0] == 999.0, "Modification through view should update original"
+    orig_np[2, 0] = orig_val  # Restore
+
+    # Test 11: copy() does NOT share memory
+    copied = result.copy()
+    copied_np = np.asarray(copied)
+    assert not np.shares_memory(orig_np, copied_np), "copy() should NOT share memory"
 
 
 if __name__ == "__main__":
