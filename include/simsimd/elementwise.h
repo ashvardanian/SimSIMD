@@ -1,53 +1,240 @@
 /**
- *  @file       elementwise.h
- *  @brief      SIMD-accelerated mixed-precision element-wise operations.
- *  @author     Ash Vardanian
- *  @date       October 16, 2024
+ *  @brief SIMD-accelerated mixed-precision element-wise operations.
+ *  @file include/simsimd/elementwise.h
+ *  @author Ash Vardanian
+ *  @date October 16, 2024
  *
- *  Contains following @b Unary/Binary/Ternary element-wise operations:
- *  - Scale (Multiply) with Shift: R[i] = Alpha * A[i] + Beta
- *  - Sum (Add): R[i] = A[i] + B[i]
- *  - WSum or Weighted-Sum: R[i] = Alpha * A[i] + Beta * B[i]
- *  - FMA or Fused-Multiply-Add: R[i] = Alpha * A[i] * B[i] + Beta * C[i]
- *
- *  This tiny set of operations if enough to implement a wide range of algorithms.
- *  To scale a vector by a scalar, just call WSum with $Beta$ = 0.
- *  To sum two vectors, just call WSum with $Alpha$ = $Beta$ = 1.
- *  To average two vectors, just call WSum with $Alpha$ = $Beta$ = 0.5.
- *  To multiply vectors element-wise, just call FMA with $Beta$ = 0.
+ *  Contains following element-wise operations:
+ *  - Scale (Multiply) with shift: result[i] = alpha * a[i] + beta
+ *  - Sum (Add): result[i] = a[i] + b[i]
+ *  - Weighted Sum (WSum): result[i] = alpha * a[i] + beta * b[i]
+ *  - FMA (Fused Multiply-Add): result[i] = alpha * a[i] * b[i] + beta * c[i]
  *
  *  For datatypes:
  *  - 64-bit IEEE floating point numbers
  *  - 32-bit IEEE floating point numbers
  *  - 16-bit IEEE floating point numbers
  *  - 16-bit brain floating point numbers
- *  - 8-bit unsigned integers... for binary data
- *  - 8-bit signed integers... for signal processing
- *  For many operations higher-precision integral types are also supported:
- *  - 16-bit signed & unsigned integers
- *  - 32-bit signed & unsigned integers
- *  - 64-bit signed & unsigned integers
+ *  - 8-bit unsigned integers
+ *  - 8-bit signed integers
+ *  - 16-bit signed and unsigned integers
+ *  - 32-bit signed and unsigned integers
+ *  - 64-bit signed and unsigned integers
  *
  *  For hardware architectures:
  *  - Arm: NEON
  *  - x86: Haswell, Skylake, Sapphire
  *
- *  We use `f16` for `i8` and `u8` arithmetic. This is because Arm received `f16` support earlier than `bf16`.
- *  For example, Apple M1 has `f16` support and `bf16` was only added in M2. On the other hand, on paper,
- *  AMD Genoa has `bf16` support, and `f16` is only available on Intel Sapphire Rapids and newer.
- *  Sadly, the SIMD support for `bf16` is limited to mixed-precision dot-products, which makes it useless here.
+ *  @section usage_patterns Usage Patterns
  *
- *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
- *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *  - Scale with beta = 0 for a pure multiply.
+ *  - Sum is equivalent to WSum with alpha = beta = 1.
+ *  - Average is WSum with alpha = beta = 0.5.
+ *  - Elementwise multiply is FMA with beta = 0.
+ *
+ *  @section precision_notes Precision Notes
+ *
+ *  - i8/u8 arithmetic uses f16 intermediates on Arm to keep vector throughput high.
+ *  - bf16 SIMD support is limited to mixed-precision dot products on many CPUs.
+ *  - Integer operations use saturating arithmetic where the ISA provides it.
+ *
+ *  @section x86_instructions Relevant x86 Instructions
+ *
+ *      Intrinsic               Instruction        Notes
+ *      _mm256_fmadd_ps/pd      VFMADD*            FMA on FP ports (Haswell/Skylake: ports 0/1)
+ *      _mm512_fmadd_ps/pd      VFMADD*            High throughput on AVX512 cores
+ *      _mm512_cvtph_ps         VCVTPH2PS          FP16 to FP32 conversion
+ *      _mm512_cvtps_ph         VCVTPS2PH          FP32 to FP16 conversion
+ *
+ *  @section references References
+ *
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
 #ifndef SIMSIMD_ELEMENTWISE_H
 #define SIMSIMD_ELEMENTWISE_H
 
 #include "types.h"
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
+
+/**
+ *  @brief Element-wise scale with shift: result[i] = alpha * a[i] + beta.
+ *
+ *  @param[in] a The input vector.
+ *  @param[in] n The number of elements in the vector.
+ *  @param[in] alpha The scaling factor.
+ *  @param[in] beta The shift (bias) value.
+ *  @param[out] result The output vector.
+ */
+SIMSIMD_DYNAMIC void simsimd_scale_f64(simsimd_f64_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                       simsimd_distance_t beta, simsimd_f64_t *result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_DYNAMIC void simsimd_scale_f32(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                       simsimd_distance_t beta, simsimd_f32_t *result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_DYNAMIC void simsimd_scale_f16(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                       simsimd_distance_t beta, simsimd_f16_t *result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_DYNAMIC void simsimd_scale_bf16(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                        simsimd_distance_t beta, simsimd_bf16_t *result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_DYNAMIC void simsimd_scale_i8(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                      simsimd_distance_t beta, simsimd_i8_t *result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_DYNAMIC void simsimd_scale_u8(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                      simsimd_distance_t beta, simsimd_u8_t *result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_DYNAMIC void simsimd_scale_i16(simsimd_i16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                       simsimd_distance_t beta, simsimd_i16_t *result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_DYNAMIC void simsimd_scale_u16(simsimd_u16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                       simsimd_distance_t beta, simsimd_u16_t *result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_DYNAMIC void simsimd_scale_i32(simsimd_i32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                       simsimd_distance_t beta, simsimd_i32_t *result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_DYNAMIC void simsimd_scale_u32(simsimd_u32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                       simsimd_distance_t beta, simsimd_u32_t *result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_DYNAMIC void simsimd_scale_i64(simsimd_i64_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                       simsimd_distance_t beta, simsimd_i64_t *result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_DYNAMIC void simsimd_scale_u64(simsimd_u64_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                       simsimd_distance_t beta, simsimd_u64_t *result);
+
+/**
+ *  @brief Element-wise sum: result[i] = a[i] + b[i].
+ *
+ *  @param[in] a The first input vector.
+ *  @param[in] b The second input vector.
+ *  @param[in] n The number of elements in the vectors.
+ *  @param[out] result The output vector.
+ */
+SIMSIMD_DYNAMIC void simsimd_sum_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
+                                     simsimd_f64_t *result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_DYNAMIC void simsimd_sum_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
+                                     simsimd_f32_t *result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_DYNAMIC void simsimd_sum_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
+                                     simsimd_f16_t *result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_DYNAMIC void simsimd_sum_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
+                                      simsimd_bf16_t *result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_DYNAMIC void simsimd_sum_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
+                                    simsimd_i8_t *result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_DYNAMIC void simsimd_sum_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
+                                    simsimd_u8_t *result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_DYNAMIC void simsimd_sum_i16(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n,
+                                     simsimd_i16_t *result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_DYNAMIC void simsimd_sum_u16(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n,
+                                     simsimd_u16_t *result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_DYNAMIC void simsimd_sum_i32(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_size_t n,
+                                     simsimd_i32_t *result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_DYNAMIC void simsimd_sum_u32(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n,
+                                     simsimd_u32_t *result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_DYNAMIC void simsimd_sum_i64(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_size_t n,
+                                     simsimd_i64_t *result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_DYNAMIC void simsimd_sum_u64(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_size_t n,
+                                     simsimd_u64_t *result);
+
+/**
+ *  @brief Weighted sum: result[i] = alpha * a[i] + beta * b[i].
+ *
+ *  @param[in] a The first input vector.
+ *  @param[in] b The second input vector.
+ *  @param[in] n The number of elements in the vectors.
+ *  @param[in] alpha The first weight.
+ *  @param[in] beta The second weight.
+ *  @param[out] result The output vector.
+ */
+SIMSIMD_DYNAMIC void simsimd_wsum_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
+                                      simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_DYNAMIC void simsimd_wsum_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
+                                      simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_DYNAMIC void simsimd_wsum_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
+                                      simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_DYNAMIC void simsimd_wsum_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
+                                       simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_DYNAMIC void simsimd_wsum_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
+                                     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_DYNAMIC void simsimd_wsum_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
+                                     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+
+/**
+ *  @brief Fused multiply-add: result[i] = alpha * a[i] * b[i] + beta * c[i].
+ *
+ *  @param[in] a The first input vector.
+ *  @param[in] b The second input vector.
+ *  @param[in] c The third input vector.
+ *  @param[in] n The number of elements in the vectors.
+ *  @param[in] alpha The scaling factor for a[i] * b[i].
+ *  @param[in] beta The scaling factor for c[i].
+ *  @param[out] result The output vector.
+ */
+SIMSIMD_DYNAMIC void simsimd_fma_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c,
+                                     simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                     simsimd_f64_t *result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_DYNAMIC void simsimd_fma_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c,
+                                     simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                     simsimd_f32_t *result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_DYNAMIC void simsimd_fma_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c,
+                                     simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                     simsimd_f16_t *result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_DYNAMIC void simsimd_fma_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c,
+                                      simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                      simsimd_bf16_t *result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_DYNAMIC void simsimd_fma_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c,
+                                    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                    simsimd_i8_t *result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_DYNAMIC void simsimd_fma_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c,
+                                    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                    simsimd_u8_t *result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_DYNAMIC void simsimd_fma_i16(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t const *c,
+                                     simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                     simsimd_i16_t *result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_DYNAMIC void simsimd_fma_u16(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t const *c,
+                                     simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                     simsimd_u16_t *result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_DYNAMIC void simsimd_fma_i32(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t const *c,
+                                     simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                     simsimd_i32_t *result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_DYNAMIC void simsimd_fma_u32(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_u32_t const *c,
+                                     simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                     simsimd_u32_t *result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_DYNAMIC void simsimd_fma_i64(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_i64_t const *c,
+                                     simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                     simsimd_i64_t *result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_DYNAMIC void simsimd_fma_u64(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_u64_t const *c,
+                                     simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                     simsimd_u64_t *result);
 
 // clang-format off
 
@@ -55,224 +242,426 @@ extern "C" {
  *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
  *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
  */
-SIMSIMD_PUBLIC void simsimd_scale_f64_serial(simsimd_f64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_f32_serial(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_f16_serial(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_bf16_serial(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i8_serial(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u8_serial(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i16_serial(simsimd_i16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u16_serial(simsimd_u16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i32_serial(simsimd_i32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u32_serial(simsimd_u32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i64_serial(simsimd_i64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u64_serial(simsimd_u64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t *result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_PUBLIC void simsimd_scale_f64_serial(simsimd_f64_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t* result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_PUBLIC void simsimd_scale_f32_serial(simsimd_f32_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t* result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_PUBLIC void simsimd_scale_f16_serial(simsimd_f16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_PUBLIC void simsimd_scale_bf16_serial(simsimd_bf16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t* result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_PUBLIC void simsimd_scale_i8_serial(simsimd_i8_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_PUBLIC void simsimd_scale_u8_serial(simsimd_u8_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_PUBLIC void simsimd_scale_i16_serial(simsimd_i16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t* result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_PUBLIC void simsimd_scale_u16_serial(simsimd_u16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t* result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_PUBLIC void simsimd_scale_i32_serial(simsimd_i32_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t* result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_PUBLIC void simsimd_scale_u32_serial(simsimd_u32_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t* result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_PUBLIC void simsimd_scale_i64_serial(simsimd_i64_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t* result);
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_PUBLIC void simsimd_scale_u64_serial(simsimd_u64_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t* result);
 
-SIMSIMD_PUBLIC void simsimd_sum_f64_serial(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_f32_serial(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_f16_serial(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_bf16_serial(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i8_serial(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u8_serial(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i16_serial(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u16_serial(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i32_serial(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_size_t n, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u32_serial(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i64_serial(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_size_t n, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u64_serial(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_size_t n, simsimd_u64_t *result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_PUBLIC void simsimd_sum_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_f64_t* result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_PUBLIC void simsimd_sum_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_f32_t* result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_PUBLIC void simsimd_sum_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_f16_t* result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_PUBLIC void simsimd_sum_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_bf16_t* result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_PUBLIC void simsimd_sum_i8_serial(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_i8_t* result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_PUBLIC void simsimd_sum_u8_serial(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_u8_t* result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_PUBLIC void simsimd_sum_i16_serial(simsimd_i16_t const* a, simsimd_i16_t const* b, simsimd_size_t n, simsimd_i16_t* result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_PUBLIC void simsimd_sum_u16_serial(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t n, simsimd_u16_t* result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_PUBLIC void simsimd_sum_i32_serial(simsimd_i32_t const* a, simsimd_i32_t const* b, simsimd_size_t n, simsimd_i32_t* result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_PUBLIC void simsimd_sum_u32_serial(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t n, simsimd_u32_t* result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_PUBLIC void simsimd_sum_i64_serial(simsimd_i64_t const* a, simsimd_i64_t const* b, simsimd_size_t n, simsimd_i64_t* result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_PUBLIC void simsimd_sum_u64_serial(simsimd_u64_t const* a, simsimd_u64_t const* b, simsimd_size_t n, simsimd_u64_t* result);
 
-SIMSIMD_PUBLIC void simsimd_wsum_f64_serial(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f32_serial(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f16_serial(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_bf16_serial(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i8_serial(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u8_serial(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i16_serial(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u16_serial(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i32_serial(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u32_serial(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i64_serial(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u64_serial(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t *result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_PUBLIC void simsimd_wsum_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t* result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_PUBLIC void simsimd_wsum_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t* result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_PUBLIC void simsimd_wsum_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_PUBLIC void simsimd_wsum_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t* result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_PUBLIC void simsimd_wsum_i8_serial(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_PUBLIC void simsimd_wsum_u8_serial(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_PUBLIC void simsimd_wsum_i16_serial(simsimd_i16_t const* a, simsimd_i16_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t* result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_PUBLIC void simsimd_wsum_u16_serial(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t* result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_PUBLIC void simsimd_wsum_i32_serial(simsimd_i32_t const* a, simsimd_i32_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t* result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_PUBLIC void simsimd_wsum_u32_serial(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t* result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_PUBLIC void simsimd_wsum_i64_serial(simsimd_i64_t const* a, simsimd_i64_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t* result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_PUBLIC void simsimd_wsum_u64_serial(simsimd_u64_t const* a, simsimd_u64_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t* result);
 
-SIMSIMD_PUBLIC void simsimd_fma_f64_serial(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f32_serial(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f16_serial(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_bf16_serial(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i8_serial(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u8_serial(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i16_serial(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u16_serial(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i32_serial(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u32_serial(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_u32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i64_serial(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_i64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u64_serial(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_u64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t *result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_PUBLIC void simsimd_fma_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_f64_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t* result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_PUBLIC void simsimd_fma_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t* result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_PUBLIC void simsimd_fma_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_PUBLIC void simsimd_fma_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t* result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_PUBLIC void simsimd_fma_i8_serial(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_i8_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_PUBLIC void simsimd_fma_u8_serial(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_u8_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_PUBLIC void simsimd_fma_i16_serial(simsimd_i16_t const* a, simsimd_i16_t const* b, simsimd_i16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t* result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_PUBLIC void simsimd_fma_u16_serial(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_u16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t* result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_PUBLIC void simsimd_fma_i32_serial(simsimd_i32_t const* a, simsimd_i32_t const* b, simsimd_i32_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t* result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_PUBLIC void simsimd_fma_u32_serial(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_u32_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t* result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_PUBLIC void simsimd_fma_i64_serial(simsimd_i64_t const* a, simsimd_i64_t const* b, simsimd_i64_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t* result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_PUBLIC void simsimd_fma_u64_serial(simsimd_u64_t const* a, simsimd_u64_t const* b, simsimd_u64_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t* result);
 
-/*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
- *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
- *  server CPUs produced before 2023.
+/*  Double-precision serial backends for select numeric types.
+ *  For single-precision computation check out the "*_serial" counterparts.
  */
-SIMSIMD_PUBLIC void simsimd_scale_f32_neon(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_f16_neon(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_bf16_neon(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i8_neon(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u8_neon(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i16_neon(simsimd_i16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u16_neon(simsimd_u16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i32_neon(simsimd_i32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u32_neon(simsimd_u32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i64_neon(simsimd_i64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u64_neon(simsimd_u64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t *result);
+/** @copydoc simsimd_sum_f32 */
+SIMSIMD_PUBLIC void simsimd_sum_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_f32_t* result);
+/** @copydoc simsimd_sum_f16 */
+SIMSIMD_PUBLIC void simsimd_sum_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_f16_t* result);
+/** @copydoc simsimd_sum_bf16 */
+SIMSIMD_PUBLIC void simsimd_sum_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_bf16_t* result);
 
-SIMSIMD_PUBLIC void simsimd_sum_f32_neon(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_f16_neon(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_bf16_neon(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i8_neon(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u8_neon(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i16_neon(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u16_neon(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i32_neon(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_size_t n, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u32_neon(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i64_neon(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_size_t n, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u64_neon(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_size_t n, simsimd_u64_t *result);
+/** @copydoc simsimd_scale_f32 */
+SIMSIMD_PUBLIC void simsimd_scale_f32_accurate(simsimd_f32_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t* result);
+/** @copydoc simsimd_scale_f16 */
+SIMSIMD_PUBLIC void simsimd_scale_f16_accurate(simsimd_f16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result);
+/** @copydoc simsimd_scale_bf16 */
+SIMSIMD_PUBLIC void simsimd_scale_bf16_accurate(simsimd_bf16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t* result);
+/** @copydoc simsimd_scale_i8 */
+SIMSIMD_PUBLIC void simsimd_scale_i8_accurate(simsimd_i8_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result);
+/** @copydoc simsimd_scale_u8 */
+SIMSIMD_PUBLIC void simsimd_scale_u8_accurate(simsimd_u8_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
 
-SIMSIMD_PUBLIC void simsimd_wsum_f32_neon(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f16_neon(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_bf16_neon(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u8_neon(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i8_neon(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
+/** @copydoc simsimd_wsum_f32 */
+SIMSIMD_PUBLIC void simsimd_wsum_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t* result);
+/** @copydoc simsimd_wsum_f16 */
+SIMSIMD_PUBLIC void simsimd_wsum_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result);
+/** @copydoc simsimd_wsum_bf16 */
+SIMSIMD_PUBLIC void simsimd_wsum_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t* result);
+/** @copydoc simsimd_wsum_i8 */
+SIMSIMD_PUBLIC void simsimd_wsum_i8_accurate(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result);
+/** @copydoc simsimd_wsum_u8 */
+SIMSIMD_PUBLIC void simsimd_wsum_u8_accurate(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
 
-SIMSIMD_PUBLIC void simsimd_fma_f32_neon(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f16_neon(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_bf16_neon(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i8_neon(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u8_neon(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i16_neon(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u16_neon(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i32_neon(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u32_neon(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_u32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i64_neon(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_i64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u64_neon(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_u64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t *result);
+/** @copydoc simsimd_fma_f32 */
+SIMSIMD_PUBLIC void simsimd_fma_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t* result);
+/** @copydoc simsimd_fma_f16 */
+SIMSIMD_PUBLIC void simsimd_fma_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result);
+/** @copydoc simsimd_fma_bf16 */
+SIMSIMD_PUBLIC void simsimd_fma_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t* result);
+/** @copydoc simsimd_fma_i8 */
+SIMSIMD_PUBLIC void simsimd_fma_i8_accurate(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_i8_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result);
+/** @copydoc simsimd_fma_u8 */
+SIMSIMD_PUBLIC void simsimd_fma_u8_accurate(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_u8_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
 
-/*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
- *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
- *  Practically all modern x86 CPUs support AVX2, FMA, and F16C, making it a perfect baseline for SIMD algorithms.
- *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
- *  properly vectorized by recent compilers.
- */
-SIMSIMD_PUBLIC void simsimd_scale_f64_haswell(simsimd_f64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_f32_haswell(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_f16_haswell(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_bf16_haswell(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i8_haswell(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u8_haswell(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i16_haswell(simsimd_i16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u16_haswell(simsimd_u16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i32_haswell(simsimd_i32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u32_haswell(simsimd_u32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
+#if SIMSIMD_TARGET_NEON
+/** @copydoc simsimd_scale_f32 */
+SIMSIMD_PUBLIC void simsimd_scale_f32_neon(simsimd_f32_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t* result);
+/** @copydoc simsimd_scale_i16 */
+SIMSIMD_PUBLIC void simsimd_scale_i16_neon(simsimd_i16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t* result);
+/** @copydoc simsimd_scale_u16 */
+SIMSIMD_PUBLIC void simsimd_scale_u16_neon(simsimd_u16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t* result);
+/** @copydoc simsimd_scale_i32 */
+SIMSIMD_PUBLIC void simsimd_scale_i32_neon(simsimd_i32_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t* result);
+/** @copydoc simsimd_scale_u32 */
+SIMSIMD_PUBLIC void simsimd_scale_u32_neon(simsimd_u32_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t* result);
+/** @copydoc simsimd_scale_i64 */
+SIMSIMD_PUBLIC void simsimd_scale_i64_neon(simsimd_i64_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t* result);
+/** @copydoc simsimd_scale_u64 */
+SIMSIMD_PUBLIC void simsimd_scale_u64_neon(simsimd_u64_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t* result);
 
-SIMSIMD_PUBLIC void simsimd_sum_f64_haswell(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_f32_haswell(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_f16_haswell(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_bf16_haswell(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i8_haswell(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u8_haswell(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i16_haswell(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u16_haswell(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i32_haswell(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_size_t n, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u32_haswell(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n, simsimd_u32_t *result);
+/** @copydoc simsimd_sum_f32 */
+SIMSIMD_PUBLIC void simsimd_sum_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_f32_t* result);
+/** @copydoc simsimd_sum_i16 */
+SIMSIMD_PUBLIC void simsimd_sum_i16_neon(simsimd_i16_t const* a, simsimd_i16_t const* b, simsimd_size_t n, simsimd_i16_t* result);
+/** @copydoc simsimd_sum_u16 */
+SIMSIMD_PUBLIC void simsimd_sum_u16_neon(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t n, simsimd_u16_t* result);
+/** @copydoc simsimd_sum_i32 */
+SIMSIMD_PUBLIC void simsimd_sum_i32_neon(simsimd_i32_t const* a, simsimd_i32_t const* b, simsimd_size_t n, simsimd_i32_t* result);
+/** @copydoc simsimd_sum_u32 */
+SIMSIMD_PUBLIC void simsimd_sum_u32_neon(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t n, simsimd_u32_t* result);
+/** @copydoc simsimd_sum_i64 */
+SIMSIMD_PUBLIC void simsimd_sum_i64_neon(simsimd_i64_t const* a, simsimd_i64_t const* b, simsimd_size_t n, simsimd_i64_t* result);
+/** @copydoc simsimd_sum_u64 */
+SIMSIMD_PUBLIC void simsimd_sum_u64_neon(simsimd_u64_t const* a, simsimd_u64_t const* b, simsimd_size_t n, simsimd_u64_t* result);
 
-SIMSIMD_PUBLIC void simsimd_wsum_f64_haswell(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f32_haswell(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f16_haswell(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_bf16_haswell(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i8_haswell(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u8_haswell(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+/** @copydoc simsimd_wsum_f32 */
+SIMSIMD_PUBLIC void simsimd_wsum_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t* result);
 
-SIMSIMD_PUBLIC void simsimd_fma_f64_haswell(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f32_haswell(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f16_haswell(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_bf16_haswell(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i8_haswell(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u8_haswell(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i16_haswell(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u16_haswell(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i32_haswell(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u32_haswell(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_u32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
+/** @copydoc simsimd_fma_f32 */
+SIMSIMD_PUBLIC void simsimd_fma_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t* result);
+/** @copydoc simsimd_fma_i16 */
+SIMSIMD_PUBLIC void simsimd_fma_i16_neon(simsimd_i16_t const* a, simsimd_i16_t const* b, simsimd_i16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t* result);
+/** @copydoc simsimd_fma_u16 */
+SIMSIMD_PUBLIC void simsimd_fma_u16_neon(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_u16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t* result);
+/** @copydoc simsimd_fma_i32 */
+SIMSIMD_PUBLIC void simsimd_fma_i32_neon(simsimd_i32_t const* a, simsimd_i32_t const* b, simsimd_i32_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t* result);
+/** @copydoc simsimd_fma_u32 */
+SIMSIMD_PUBLIC void simsimd_fma_u32_neon(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_u32_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t* result);
+/** @copydoc simsimd_fma_i64 */
+SIMSIMD_PUBLIC void simsimd_fma_i64_neon(simsimd_i64_t const* a, simsimd_i64_t const* b, simsimd_i64_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t* result);
+/** @copydoc simsimd_fma_u64 */
+SIMSIMD_PUBLIC void simsimd_fma_u64_neon(simsimd_u64_t const* a, simsimd_u64_t const* b, simsimd_u64_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t* result);
+#endif // SIMSIMD_TARGET_NEON
 
-/*  SIMD-powered backends for older AVX512 CPUs.
- *  Unlike the distance metrics, the SIMD implementation of FMA and WSum benefits from aligned stores.
- *  Assuming the size of ZMM register matches the width of the cache line, we skip the unaligned head
- *  and tail of the output buffer, and only use aligned stores in the main loop.
- *  Also, unlike Haswell, Skylake-X CPUs natively support converting between more numeric types.
- */
-SIMSIMD_PUBLIC void simsimd_scale_f64_skylake(simsimd_f64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_f32_skylake(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_f16_skylake(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_bf16_skylake(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i8_skylake(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u8_skylake(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i16_skylake(simsimd_i16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u16_skylake(simsimd_u16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i32_skylake(simsimd_i32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u32_skylake(simsimd_u32_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i64_skylake(simsimd_i64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u64_skylake(simsimd_u64_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t *result);
+#if SIMSIMD_TARGET_NEON_BF16
+/** @copydoc simsimd_sum_bf16 */
+SIMSIMD_PUBLIC void simsimd_sum_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_bf16_t* result);
+/** @copydoc simsimd_scale_bf16 */
+SIMSIMD_PUBLIC void simsimd_scale_bf16_neon(simsimd_bf16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t* result);
+/** @copydoc simsimd_wsum_bf16 */
+SIMSIMD_PUBLIC void simsimd_wsum_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t* result);
+/** @copydoc simsimd_fma_bf16 */
+SIMSIMD_PUBLIC void simsimd_fma_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t* result);
+#endif // SIMSIMD_TARGET_NEON_BF16
 
-SIMSIMD_PUBLIC void simsimd_sum_f64_skylake(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_f32_skylake(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_bf16_skylake(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_bf16_t *result);
+#if SIMSIMD_TARGET_NEON_F16
+/** @copydoc simsimd_sum_f16 */
+SIMSIMD_PUBLIC void simsimd_sum_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_f16_t* result);
+/** @copydoc simsimd_scale_f16 */
+SIMSIMD_PUBLIC void simsimd_scale_f16_neon(simsimd_f16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result);
+/** @copydoc simsimd_wsum_f16 */
+SIMSIMD_PUBLIC void simsimd_wsum_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result);
+/** @copydoc simsimd_fma_f16 */
+SIMSIMD_PUBLIC void simsimd_fma_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result);
 
-SIMSIMD_PUBLIC void simsimd_wsum_f64_skylake(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_f32_skylake(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_bf16_skylake(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
+/** @copydoc simsimd_sum_i8 */
+SIMSIMD_PUBLIC void simsimd_sum_i8_neon(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_i8_t* result);
+/** @copydoc simsimd_sum_u8 */
+SIMSIMD_PUBLIC void simsimd_sum_u8_neon(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_u8_t* result);
+/** @copydoc simsimd_scale_i8 */
+SIMSIMD_PUBLIC void simsimd_scale_i8_neon(simsimd_i8_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result);
+/** @copydoc simsimd_scale_u8 */
+SIMSIMD_PUBLIC void simsimd_scale_u8_neon(simsimd_u8_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
+/** @copydoc simsimd_wsum_i8 */
+SIMSIMD_PUBLIC void simsimd_wsum_i8_neon(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result);
+/** @copydoc simsimd_wsum_u8 */
+SIMSIMD_PUBLIC void simsimd_wsum_u8_neon(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
+/** @copydoc simsimd_fma_i8 */
+SIMSIMD_PUBLIC void simsimd_fma_i8_neon(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_i8_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result);
+/** @copydoc simsimd_fma_u8 */
+SIMSIMD_PUBLIC void simsimd_fma_u8_neon(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_u8_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
+#endif // SIMSIMD_TARGET_NEON_F16
 
-SIMSIMD_PUBLIC void simsimd_fma_f64_skylake(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f32_skylake(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_f16_skylake(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_bf16_skylake(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i8_skylake(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u8_skylake(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i16_skylake(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u16_skylake(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i32_skylake(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u32_skylake(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_u32_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i64_skylake(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_i64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u64_skylake(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_u64_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t *result);
+#if SIMSIMD_TARGET_HASWELL
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_PUBLIC void simsimd_scale_f64_haswell(simsimd_f64_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t* result);
+/** @copydoc simsimd_scale_f32 */
+SIMSIMD_PUBLIC void simsimd_scale_f32_haswell(simsimd_f32_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t* result);
+/** @copydoc simsimd_scale_f16 */
+SIMSIMD_PUBLIC void simsimd_scale_f16_haswell(simsimd_f16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result);
+/** @copydoc simsimd_scale_bf16 */
+SIMSIMD_PUBLIC void simsimd_scale_bf16_haswell(simsimd_bf16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t* result);
+/** @copydoc simsimd_scale_i8 */
+SIMSIMD_PUBLIC void simsimd_scale_i8_haswell(simsimd_i8_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result);
+/** @copydoc simsimd_scale_u8 */
+SIMSIMD_PUBLIC void simsimd_scale_u8_haswell(simsimd_u8_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
+/** @copydoc simsimd_scale_i16 */
+SIMSIMD_PUBLIC void simsimd_scale_i16_haswell(simsimd_i16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t* result);
+/** @copydoc simsimd_scale_u16 */
+SIMSIMD_PUBLIC void simsimd_scale_u16_haswell(simsimd_u16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t* result);
+/** @copydoc simsimd_scale_i32 */
+SIMSIMD_PUBLIC void simsimd_scale_i32_haswell(simsimd_i32_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t* result);
+/** @copydoc simsimd_scale_u32 */
+SIMSIMD_PUBLIC void simsimd_scale_u32_haswell(simsimd_u32_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t* result);
 
-/*  SIMD-powered backends for AVX512 CPUs with integer math support.
- *  Interestingly, Ice Lake only has saturating arithmetic for 8-bit and 16-bit integers, but not for 32-bit and 64-bit.
- */
-SIMSIMD_PUBLIC void simsimd_sum_i8_ice(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u8_ice(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_u8_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i16_ice(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n, simsimd_i16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u16_ice(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n, simsimd_u16_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i32_ice(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_size_t n, simsimd_i32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u32_ice(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n, simsimd_u32_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_i64_ice(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_size_t n, simsimd_i64_t *result);
-SIMSIMD_PUBLIC void simsimd_sum_u64_ice(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_size_t n, simsimd_u64_t *result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_PUBLIC void simsimd_sum_f64_haswell(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_f64_t* result);
+/** @copydoc simsimd_sum_f32 */
+SIMSIMD_PUBLIC void simsimd_sum_f32_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_f32_t* result);
+/** @copydoc simsimd_sum_f16 */
+SIMSIMD_PUBLIC void simsimd_sum_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_f16_t* result);
+/** @copydoc simsimd_sum_bf16 */
+SIMSIMD_PUBLIC void simsimd_sum_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_bf16_t* result);
+/** @copydoc simsimd_sum_i8 */
+SIMSIMD_PUBLIC void simsimd_sum_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_i8_t* result);
+/** @copydoc simsimd_sum_u8 */
+SIMSIMD_PUBLIC void simsimd_sum_u8_haswell(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_u8_t* result);
+/** @copydoc simsimd_sum_i16 */
+SIMSIMD_PUBLIC void simsimd_sum_i16_haswell(simsimd_i16_t const* a, simsimd_i16_t const* b, simsimd_size_t n, simsimd_i16_t* result);
+/** @copydoc simsimd_sum_u16 */
+SIMSIMD_PUBLIC void simsimd_sum_u16_haswell(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t n, simsimd_u16_t* result);
+/** @copydoc simsimd_sum_i32 */
+SIMSIMD_PUBLIC void simsimd_sum_i32_haswell(simsimd_i32_t const* a, simsimd_i32_t const* b, simsimd_size_t n, simsimd_i32_t* result);
+/** @copydoc simsimd_sum_u32 */
+SIMSIMD_PUBLIC void simsimd_sum_u32_haswell(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t n, simsimd_u32_t* result);
 
-/*  SIMD-powered backends for newer AVX512 CPUs with native F16 support.
- *  Unlike the distance metrics, the SIMD implementation of FMA and WSum benefits from aligned stores.
- *  Assuming the size of ZMM register matches the width of the cache line, we skip the unaligned head
- *  and tail of the output buffer, and only use aligned stores in the main loop.
- */
-SIMSIMD_PUBLIC void simsimd_scale_f16_sapphire(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i8_sapphire(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u8_sapphire(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_PUBLIC void simsimd_wsum_f64_haswell(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t* result);
+/** @copydoc simsimd_wsum_f32 */
+SIMSIMD_PUBLIC void simsimd_wsum_f32_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t* result);
+/** @copydoc simsimd_wsum_f16 */
+SIMSIMD_PUBLIC void simsimd_wsum_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result);
+/** @copydoc simsimd_wsum_bf16 */
+SIMSIMD_PUBLIC void simsimd_wsum_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t* result);
+/** @copydoc simsimd_wsum_i8 */
+SIMSIMD_PUBLIC void simsimd_wsum_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result);
+/** @copydoc simsimd_wsum_u8 */
+SIMSIMD_PUBLIC void simsimd_wsum_u8_haswell(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
 
-SIMSIMD_PUBLIC void simsimd_scale_f16_sapphire(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_i8_sapphire(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_scale_u8_sapphire(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_PUBLIC void simsimd_fma_f64_haswell(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_f64_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t* result);
+/** @copydoc simsimd_fma_f32 */
+SIMSIMD_PUBLIC void simsimd_fma_f32_haswell(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t* result);
+/** @copydoc simsimd_fma_f16 */
+SIMSIMD_PUBLIC void simsimd_fma_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result);
+/** @copydoc simsimd_fma_bf16 */
+SIMSIMD_PUBLIC void simsimd_fma_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t* result);
+/** @copydoc simsimd_fma_i8 */
+SIMSIMD_PUBLIC void simsimd_fma_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_i8_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result);
+/** @copydoc simsimd_fma_u8 */
+SIMSIMD_PUBLIC void simsimd_fma_u8_haswell(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_u8_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
+/** @copydoc simsimd_fma_i16 */
+SIMSIMD_PUBLIC void simsimd_fma_i16_haswell(simsimd_i16_t const* a, simsimd_i16_t const* b, simsimd_i16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t* result);
+/** @copydoc simsimd_fma_u16 */
+SIMSIMD_PUBLIC void simsimd_fma_u16_haswell(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_u16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t* result);
+/** @copydoc simsimd_fma_i32 */
+SIMSIMD_PUBLIC void simsimd_fma_i32_haswell(simsimd_i32_t const* a, simsimd_i32_t const* b, simsimd_i32_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t* result);
+/** @copydoc simsimd_fma_u32 */
+SIMSIMD_PUBLIC void simsimd_fma_u32_haswell(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_u32_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t* result);
+#endif // SIMSIMD_TARGET_HASWELL
 
-SIMSIMD_PUBLIC void simsimd_sum_f16_sapphire(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_f16_t *result);
+#if SIMSIMD_TARGET_SKYLAKE
+/** @copydoc simsimd_scale_f64 */
+SIMSIMD_PUBLIC void simsimd_scale_f64_skylake(simsimd_f64_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t* result);
+/** @copydoc simsimd_scale_f32 */
+SIMSIMD_PUBLIC void simsimd_scale_f32_skylake(simsimd_f32_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t* result);
+/** @copydoc simsimd_scale_f16 */
+SIMSIMD_PUBLIC void simsimd_scale_f16_skylake(simsimd_f16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result);
+/** @copydoc simsimd_scale_bf16 */
+SIMSIMD_PUBLIC void simsimd_scale_bf16_skylake(simsimd_bf16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t* result);
+/** @copydoc simsimd_scale_i8 */
+SIMSIMD_PUBLIC void simsimd_scale_i8_skylake(simsimd_i8_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result);
+/** @copydoc simsimd_scale_u8 */
+SIMSIMD_PUBLIC void simsimd_scale_u8_skylake(simsimd_u8_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
+/** @copydoc simsimd_scale_i16 */
+SIMSIMD_PUBLIC void simsimd_scale_i16_skylake(simsimd_i16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t* result);
+/** @copydoc simsimd_scale_u16 */
+SIMSIMD_PUBLIC void simsimd_scale_u16_skylake(simsimd_u16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t* result);
+/** @copydoc simsimd_scale_i32 */
+SIMSIMD_PUBLIC void simsimd_scale_i32_skylake(simsimd_i32_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t* result);
+/** @copydoc simsimd_scale_u32 */
+SIMSIMD_PUBLIC void simsimd_scale_u32_skylake(simsimd_u32_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t* result);
+/** @copydoc simsimd_scale_i64 */
+SIMSIMD_PUBLIC void simsimd_scale_i64_skylake(simsimd_i64_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t* result);
+/** @copydoc simsimd_scale_u64 */
+SIMSIMD_PUBLIC void simsimd_scale_u64_skylake(simsimd_u64_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t* result);
 
-SIMSIMD_PUBLIC void simsimd_wsum_f16_sapphire(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_i8_sapphire(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_wsum_u8_sapphire(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+/** @copydoc simsimd_sum_f64 */
+SIMSIMD_PUBLIC void simsimd_sum_f64_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_f64_t* result);
+/** @copydoc simsimd_sum_f32 */
+SIMSIMD_PUBLIC void simsimd_sum_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_f32_t* result);
+/** @copydoc simsimd_sum_bf16 */
+SIMSIMD_PUBLIC void simsimd_sum_bf16_skylake(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_bf16_t* result);
 
-SIMSIMD_PUBLIC void simsimd_fma_f16_sapphire(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_i8_sapphire(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *result);
-SIMSIMD_PUBLIC void simsimd_fma_u8_sapphire(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *result);
+/** @copydoc simsimd_wsum_f64 */
+SIMSIMD_PUBLIC void simsimd_wsum_f64_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t* result);
+/** @copydoc simsimd_wsum_f32 */
+SIMSIMD_PUBLIC void simsimd_wsum_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t* result);
+/** @copydoc simsimd_wsum_bf16 */
+SIMSIMD_PUBLIC void simsimd_wsum_bf16_skylake(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t* result);
+
+/** @copydoc simsimd_fma_f64 */
+SIMSIMD_PUBLIC void simsimd_fma_f64_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_f64_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t* result);
+/** @copydoc simsimd_fma_f32 */
+SIMSIMD_PUBLIC void simsimd_fma_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t* result);
+/** @copydoc simsimd_fma_f16 */
+SIMSIMD_PUBLIC void simsimd_fma_f16_skylake(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result);
+/** @copydoc simsimd_fma_bf16 */
+SIMSIMD_PUBLIC void simsimd_fma_bf16_skylake(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t* result);
+/** @copydoc simsimd_fma_i8 */
+SIMSIMD_PUBLIC void simsimd_fma_i8_skylake(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_i8_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result);
+/** @copydoc simsimd_fma_u8 */
+SIMSIMD_PUBLIC void simsimd_fma_u8_skylake(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_u8_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
+/** @copydoc simsimd_fma_i16 */
+SIMSIMD_PUBLIC void simsimd_fma_i16_skylake(simsimd_i16_t const* a, simsimd_i16_t const* b, simsimd_i16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i16_t* result);
+/** @copydoc simsimd_fma_u16 */
+SIMSIMD_PUBLIC void simsimd_fma_u16_skylake(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_u16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u16_t* result);
+/** @copydoc simsimd_fma_i32 */
+SIMSIMD_PUBLIC void simsimd_fma_i32_skylake(simsimd_i32_t const* a, simsimd_i32_t const* b, simsimd_i32_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i32_t* result);
+/** @copydoc simsimd_fma_u32 */
+SIMSIMD_PUBLIC void simsimd_fma_u32_skylake(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_u32_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u32_t* result);
+/** @copydoc simsimd_fma_i64 */
+SIMSIMD_PUBLIC void simsimd_fma_i64_skylake(simsimd_i64_t const* a, simsimd_i64_t const* b, simsimd_i64_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i64_t* result);
+/** @copydoc simsimd_fma_u64 */
+SIMSIMD_PUBLIC void simsimd_fma_u64_skylake(simsimd_u64_t const* a, simsimd_u64_t const* b, simsimd_u64_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u64_t* result);
+#endif // SIMSIMD_TARGET_SKYLAKE
+
+#if SIMSIMD_TARGET_ICE
+/** @copydoc simsimd_sum_i8 */
+SIMSIMD_PUBLIC void simsimd_sum_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_i8_t* result);
+/** @copydoc simsimd_sum_u8 */
+SIMSIMD_PUBLIC void simsimd_sum_u8_ice(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_u8_t* result);
+/** @copydoc simsimd_sum_i16 */
+SIMSIMD_PUBLIC void simsimd_sum_i16_ice(simsimd_i16_t const* a, simsimd_i16_t const* b, simsimd_size_t n, simsimd_i16_t* result);
+/** @copydoc simsimd_sum_u16 */
+SIMSIMD_PUBLIC void simsimd_sum_u16_ice(simsimd_u16_t const* a, simsimd_u16_t const* b, simsimd_size_t n, simsimd_u16_t* result);
+/** @copydoc simsimd_sum_i32 */
+SIMSIMD_PUBLIC void simsimd_sum_i32_ice(simsimd_i32_t const* a, simsimd_i32_t const* b, simsimd_size_t n, simsimd_i32_t* result);
+/** @copydoc simsimd_sum_u32 */
+SIMSIMD_PUBLIC void simsimd_sum_u32_ice(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t n, simsimd_u32_t* result);
+/** @copydoc simsimd_sum_i64 */
+SIMSIMD_PUBLIC void simsimd_sum_i64_ice(simsimd_i64_t const* a, simsimd_i64_t const* b, simsimd_size_t n, simsimd_i64_t* result);
+/** @copydoc simsimd_sum_u64 */
+SIMSIMD_PUBLIC void simsimd_sum_u64_ice(simsimd_u64_t const* a, simsimd_u64_t const* b, simsimd_size_t n, simsimd_u64_t* result);
+#endif // SIMSIMD_TARGET_ICE
+
+#if SIMSIMD_TARGET_SAPPHIRE
+/** @copydoc simsimd_scale_f16 */
+SIMSIMD_PUBLIC void simsimd_scale_f16_sapphire(simsimd_f16_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result);
+/** @copydoc simsimd_scale_i8 */
+SIMSIMD_PUBLIC void simsimd_scale_i8_sapphire(simsimd_i8_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result);
+/** @copydoc simsimd_scale_u8 */
+SIMSIMD_PUBLIC void simsimd_scale_u8_sapphire(simsimd_u8_t const* a, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
+
+/** @copydoc simsimd_sum_f16 */
+SIMSIMD_PUBLIC void simsimd_sum_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_f16_t* result);
+
+/** @copydoc simsimd_wsum_f16 */
+SIMSIMD_PUBLIC void simsimd_wsum_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result);
+/** @copydoc simsimd_wsum_i8 */
+SIMSIMD_PUBLIC void simsimd_wsum_i8_sapphire(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result);
+/** @copydoc simsimd_wsum_u8 */
+SIMSIMD_PUBLIC void simsimd_wsum_u8_sapphire(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
+
+/** @copydoc simsimd_fma_f16 */
+SIMSIMD_PUBLIC void simsimd_fma_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t* result);
+/** @copydoc simsimd_fma_i8 */
+SIMSIMD_PUBLIC void simsimd_fma_i8_sapphire(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_i8_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t* result);
+/** @copydoc simsimd_fma_u8 */
+SIMSIMD_PUBLIC void simsimd_fma_u8_sapphire(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_u8_t const* c, simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t* result);
+#endif // SIMSIMD_TARGET_SAPPHIRE
 
 // clang-format on
 
@@ -1278,8 +1667,8 @@ SIMSIMD_PUBLIC void simsimd_scale_i16_haswell(simsimd_i16_t const *a, simsimd_si
         sum_vec = _mm256_min_ps(sum_vec, max_vec);
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
         // Casting down to 16-bit integers is tricky!
-        __m128i sum_i16_vec =
-            _mm_packs_epi32(_mm256_castsi256_si128(sum_i32_vec), _mm256_extracti128_si256(sum_i32_vec, 1));
+        __m128i sum_i16_vec = _mm_packs_epi32(_mm256_castsi256_si128(sum_i32_vec),
+                                              _mm256_extracti128_si256(sum_i32_vec, 1));
         _mm_storeu_si128((__m128i *)(result + i), sum_i16_vec);
     }
 
@@ -1314,8 +1703,8 @@ SIMSIMD_PUBLIC void simsimd_fma_i16_haswell(                                    
         sum_vec = _mm256_min_ps(sum_vec, max_vec);
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
         // Casting down to 16-bit integers is tricky!
-        __m128i sum_i16_vec =
-            _mm_packs_epi32(_mm256_castsi256_si128(sum_i32_vec), _mm256_extracti128_si256(sum_i32_vec, 1));
+        __m128i sum_i16_vec = _mm_packs_epi32(_mm256_castsi256_si128(sum_i32_vec),
+                                              _mm256_extracti128_si256(sum_i32_vec, 1));
         _mm_storeu_si128((__m128i *)(result + i), sum_i16_vec);
     }
 
@@ -1364,8 +1753,8 @@ SIMSIMD_PUBLIC void simsimd_scale_u16_haswell(simsimd_u16_t const *a, simsimd_si
         sum_vec = _mm256_min_ps(sum_vec, max_vec);
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
         // Casting down to 16-bit integers is tricky!
-        __m128i sum_u16_vec =
-            _mm_packus_epi32(_mm256_castsi256_si128(sum_i32_vec), _mm256_extracti128_si256(sum_i32_vec, 1));
+        __m128i sum_u16_vec = _mm_packus_epi32(_mm256_castsi256_si128(sum_i32_vec),
+                                               _mm256_extracti128_si256(sum_i32_vec, 1));
         _mm_storeu_si128((__m128i *)(result + i), sum_u16_vec);
     }
 
@@ -1400,8 +1789,8 @@ SIMSIMD_PUBLIC void simsimd_fma_u16_haswell(                                    
         sum_vec = _mm256_min_ps(sum_vec, max_vec);
         __m256i sum_i32_vec = _mm256_cvtps_epi32(sum_vec);
         // Casting down to 16-bit integers is tricky!
-        __m128i sum_u16_vec =
-            _mm_packus_epi32(_mm256_castsi256_si128(sum_i32_vec), _mm256_extracti128_si256(sum_i32_vec, 1));
+        __m128i sum_u16_vec = _mm_packus_epi32(_mm256_castsi256_si128(sum_i32_vec),
+                                               _mm256_extracti128_si256(sum_i32_vec, 1));
         _mm_storeu_si128((__m128i *)(result + i), sum_u16_vec);
     }
 
@@ -1419,13 +1808,13 @@ SIMSIMD_INTERNAL __m256i _mm256_adds_epi32_haswell(__m256i a, __m256i b) {
     // ! https://stackoverflow.com/a/56531252/2766161
     __m256i result = _mm256_add_epi32(a, b);
     // Detect positive overflow: (a > 0) && (b > 0) && (result < a)
-    __m256i positive_mask =
-        _mm256_and_si256(_mm256_cmpgt_epi32(a, _mm256_setzero_si256()), _mm256_cmpgt_epi32(b, _mm256_setzero_si256()));
+    __m256i positive_mask = _mm256_and_si256(_mm256_cmpgt_epi32(a, _mm256_setzero_si256()),
+                                             _mm256_cmpgt_epi32(b, _mm256_setzero_si256()));
     __m256i overflow_mask = _mm256_and_si256(positive_mask, _mm256_cmpgt_epi32(a, result));
 
     // Detect negative overflow: (a < 0) && (b < 0) && (result > a)
-    __m256i negative_mask =
-        _mm256_and_si256(_mm256_cmpgt_epi32(_mm256_setzero_si256(), a), _mm256_cmpgt_epi32(_mm256_setzero_si256(), b));
+    __m256i negative_mask = _mm256_and_si256(_mm256_cmpgt_epi32(_mm256_setzero_si256(), a),
+                                             _mm256_cmpgt_epi32(_mm256_setzero_si256(), b));
     __m256i underflow_mask = _mm256_and_si256(negative_mask, _mm256_cmpgt_epi32(result, a));
 
     // Apply saturation: Set 2147483647 for positive overflow, -2147483648 for negative overflow
@@ -2730,8 +3119,8 @@ SIMSIMD_INTERNAL __m512i _mm512_adds_epi64_ice(__m512i a, __m512i b) {
 
     __m512i max_val = _mm512_set1_epi64(9223372036854775807ll);
     __m512i min_val = _mm512_set1_epi64(-9223372036854775807ll - 1);
-    __m512i overflow_result =
-        _mm512_mask_blend_epi64(_mm512_cmp_epi64_mask(sum, min_val, _MM_CMPINT_LT), max_val, min_val);
+    __m512i overflow_result = _mm512_mask_blend_epi64(_mm512_cmp_epi64_mask(sum, min_val, _MM_CMPINT_LT), max_val,
+                                                      min_val);
 
     return _mm512_mask_blend_epi64(_mm512_test_epi64_mask(overflows, overflows), sum, overflow_result);
 }
@@ -4013,8 +4402,8 @@ SIMSIMD_PUBLIC void simsimd_fma_f16_neon(                                   //
 
     // The tail:
     for (; i < n; ++i)
-        ((float16_t *)result)[i] =
-            alpha_f16 * ((float16_t const *)a)[i] * ((float16_t const *)b)[i] + beta_f16 * ((float16_t const *)c)[i];
+        ((float16_t *)result)[i] = alpha_f16 * ((float16_t const *)a)[i] * ((float16_t const *)b)[i] +
+                                   beta_f16 * ((float16_t const *)c)[i];
 }
 
 SIMSIMD_PUBLIC void simsimd_sum_u8_neon(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
@@ -4252,7 +4641,555 @@ SIMSIMD_PUBLIC void simsimd_fma_i8_neon(                                 //
 #endif // SIMSIMD_TARGET_NEON_F16
 #endif // _SIMSIMD_TARGET_ARM
 
-#ifdef __cplusplus
+#if !SIMSIMD_DYNAMIC_DISPATCH
+
+SIMSIMD_PUBLIC void simsimd_sum_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
+                                    simsimd_f64_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_sum_f64_skylake(a, b, n, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_sum_f64_haswell(a, b, n, r);
+#else
+    simsimd_sum_f64_serial(a, b, n, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
+                                    simsimd_f32_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_sum_f32_skylake(a, b, n, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_sum_f32_haswell(a, b, n, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_sum_f32_neon(a, b, n, r);
+#else
+    simsimd_sum_f32_serial(a, b, n, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
+                                     simsimd_bf16_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_sum_bf16_skylake(a, b, n, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_sum_bf16_haswell(a, b, n, r);
+#elif SIMSIMD_TARGET_NEON_BF16
+    simsimd_sum_bf16_neon(a, b, n, r);
+#else
+    simsimd_sum_bf16_serial(a, b, n, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
+                                    simsimd_f16_t *r) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_sum_f16_sapphire(a, b, n, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_sum_f16_haswell(a, b, n, r);
+#elif SIMSIMD_TARGET_NEON_F16
+    simsimd_sum_f16_neon(a, b, n, r);
+#else
+    simsimd_sum_f16_serial(a, b, n, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n, simsimd_i8_t *r) {
+#if SIMSIMD_TARGET_ICE
+    simsimd_sum_i8_ice(a, b, n, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_sum_i8_haswell(a, b, n, r);
+#elif SIMSIMD_TARGET_NEON_F16
+    simsimd_sum_i8_neon(a, b, n, r);
+#else
+    simsimd_sum_i8_serial(a, b, n, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n, simsimd_u8_t *r) {
+#if SIMSIMD_TARGET_ICE
+    simsimd_sum_u8_ice(a, b, n, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_sum_u8_haswell(a, b, n, r);
+#elif SIMSIMD_TARGET_NEON_F16
+    simsimd_sum_u8_neon(a, b, n, r);
+#else
+    simsimd_sum_u8_serial(a, b, n, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_i16(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_size_t n,
+                                    simsimd_i16_t *r) {
+#if SIMSIMD_TARGET_ICE
+    simsimd_sum_i16_ice(a, b, n, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_sum_i16_haswell(a, b, n, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_sum_i16_neon(a, b, n, r);
+#else
+    simsimd_sum_i16_serial(a, b, n, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_u16(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t n,
+                                    simsimd_u16_t *r) {
+#if SIMSIMD_TARGET_ICE
+    simsimd_sum_u16_ice(a, b, n, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_sum_u16_haswell(a, b, n, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_sum_u16_neon(a, b, n, r);
+#else
+    simsimd_sum_u16_serial(a, b, n, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_i32(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_size_t n,
+                                    simsimd_i32_t *r) {
+#if SIMSIMD_TARGET_ICE
+    simsimd_sum_i32_ice(a, b, n, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_sum_i32_haswell(a, b, n, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_sum_i32_neon(a, b, n, r);
+#else
+    simsimd_sum_i32_serial(a, b, n, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_u32(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n,
+                                    simsimd_u32_t *r) {
+#if SIMSIMD_TARGET_ICE
+    simsimd_sum_u32_ice(a, b, n, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_sum_u32_haswell(a, b, n, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_sum_u32_neon(a, b, n, r);
+#else
+    simsimd_sum_u32_serial(a, b, n, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_i64(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_size_t n,
+                                    simsimd_i64_t *r) {
+#if SIMSIMD_TARGET_ICE
+    simsimd_sum_i64_ice(a, b, n, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_sum_i64_neon(a, b, n, r);
+#else
+    simsimd_sum_i64_serial(a, b, n, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_sum_u64(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_size_t n,
+                                    simsimd_u64_t *r) {
+#if SIMSIMD_TARGET_ICE
+    simsimd_sum_u64_ice(a, b, n, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_sum_u64_neon(a, b, n, r);
+#else
+    simsimd_sum_u64_serial(a, b, n, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_f64(simsimd_f64_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                      simsimd_distance_t beta, simsimd_f64_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_scale_f64_skylake(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_scale_f64_haswell(a, n, alpha, beta, r);
+#else
+    simsimd_scale_f64_serial(a, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_f32(simsimd_f32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                      simsimd_distance_t beta, simsimd_f32_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_scale_f32_skylake(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_scale_f32_haswell(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_scale_f32_neon(a, n, alpha, beta, r);
+#else
+    simsimd_scale_f32_serial(a, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_bf16(simsimd_bf16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                       simsimd_distance_t beta, simsimd_bf16_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_scale_bf16_skylake(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_scale_bf16_haswell(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON_BF16
+    simsimd_scale_bf16_neon(a, n, alpha, beta, r);
+#else
+    simsimd_scale_bf16_serial(a, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_f16(simsimd_f16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                      simsimd_distance_t beta, simsimd_f16_t *r) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_scale_f16_sapphire(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_scale_f16_haswell(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON_F16
+    simsimd_scale_f16_neon(a, n, alpha, beta, r);
+#else
+    simsimd_scale_f16_serial(a, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_i8(simsimd_i8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                     simsimd_distance_t beta, simsimd_i8_t *r) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_scale_i8_sapphire(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_scale_i8_skylake(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_scale_i8_haswell(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON_F16
+    simsimd_scale_i8_neon(a, n, alpha, beta, r);
+#else
+    simsimd_scale_i8_serial(a, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_u8(simsimd_u8_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                     simsimd_distance_t beta, simsimd_u8_t *r) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_scale_u8_sapphire(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_scale_u8_skylake(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_scale_u8_haswell(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON_F16
+    simsimd_scale_u8_neon(a, n, alpha, beta, r);
+#else
+    simsimd_scale_u8_serial(a, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_i16(simsimd_i16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                      simsimd_distance_t beta, simsimd_i16_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_scale_i16_skylake(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_scale_i16_haswell(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_scale_i16_neon(a, n, alpha, beta, r);
+#else
+    simsimd_scale_i16_serial(a, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_u16(simsimd_u16_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                      simsimd_distance_t beta, simsimd_u16_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_scale_u16_skylake(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_scale_u16_haswell(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_scale_u16_neon(a, n, alpha, beta, r);
+#else
+    simsimd_scale_u16_serial(a, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_i32(simsimd_i32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                      simsimd_distance_t beta, simsimd_i32_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_scale_i32_skylake(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_scale_i32_haswell(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_scale_i32_neon(a, n, alpha, beta, r);
+#else
+    simsimd_scale_i32_serial(a, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_u32(simsimd_u32_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                      simsimd_distance_t beta, simsimd_u32_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_scale_u32_skylake(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_scale_u32_haswell(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_scale_u32_neon(a, n, alpha, beta, r);
+#else
+    simsimd_scale_u32_serial(a, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_i64(simsimd_i64_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                      simsimd_distance_t beta, simsimd_i64_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_scale_i64_skylake(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_scale_i64_neon(a, n, alpha, beta, r);
+#else
+    simsimd_scale_i64_serial(a, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_scale_u64(simsimd_u64_t const *a, simsimd_size_t n, simsimd_distance_t alpha,
+                                      simsimd_distance_t beta, simsimd_u64_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_scale_u64_skylake(a, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_scale_u64_neon(a, n, alpha, beta, r);
+#else
+    simsimd_scale_u64_serial(a, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_wsum_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
+                                     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_wsum_f64_skylake(a, b, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_wsum_f64_haswell(a, b, n, alpha, beta, r);
+#else
+    simsimd_wsum_f64_serial(a, b, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_wsum_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
+                                     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_wsum_f32_skylake(a, b, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_wsum_f32_haswell(a, b, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_wsum_f32_neon(a, b, n, alpha, beta, r);
+#else
+    simsimd_wsum_f32_serial(a, b, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_wsum_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
+                                      simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_wsum_bf16_skylake(a, b, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_wsum_bf16_haswell(a, b, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON_BF16
+    simsimd_wsum_bf16_neon(a, b, n, alpha, beta, r);
+#else
+    simsimd_wsum_bf16_serial(a, b, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_wsum_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
+                                     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *r) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_wsum_f16_sapphire(a, b, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_wsum_f16_haswell(a, b, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON_F16
+    simsimd_wsum_f16_neon(a, b, n, alpha, beta, r);
+#else
+    simsimd_wsum_f16_serial(a, b, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_wsum_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
+                                    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *r) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_wsum_i8_sapphire(a, b, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_wsum_i8_haswell(a, b, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON_F16
+    simsimd_wsum_i8_neon(a, b, n, alpha, beta, r);
+#else
+    simsimd_wsum_i8_serial(a, b, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_wsum_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
+                                    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *r) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_wsum_u8_sapphire(a, b, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_wsum_u8_haswell(a, b, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON_F16
+    simsimd_wsum_u8_neon(a, b, n, alpha, beta, r);
+#else
+    simsimd_wsum_u8_serial(a, b, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c,
+                                    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                    simsimd_f64_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_fma_f64_skylake(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_fma_f64_haswell(a, b, c, n, alpha, beta, r);
+#else
+    simsimd_fma_f64_serial(a, b, c, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c,
+                                    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                    simsimd_f32_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_fma_f32_skylake(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_fma_f32_haswell(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_fma_f32_neon(a, b, c, n, alpha, beta, r);
+#else
+    simsimd_fma_f32_serial(a, b, c, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c,
+                                     simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                     simsimd_bf16_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_fma_bf16_skylake(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_fma_bf16_haswell(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON_BF16
+    simsimd_fma_bf16_neon(a, b, c, n, alpha, beta, r);
+#else
+    simsimd_fma_bf16_serial(a, b, c, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c,
+                                    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                    simsimd_f16_t *r) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_fma_f16_sapphire(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_fma_f16_haswell(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON_F16
+    simsimd_fma_f16_neon(a, b, c, n, alpha, beta, r);
+#else
+    simsimd_fma_f16_serial(a, b, c, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c,
+                                   simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                   simsimd_i8_t *r) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_fma_i8_sapphire(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_fma_i8_skylake(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_fma_i8_haswell(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON_F16
+    simsimd_fma_i8_neon(a, b, c, n, alpha, beta, r);
+#else
+    simsimd_fma_i8_serial(a, b, c, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c,
+                                   simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                   simsimd_u8_t *r) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_fma_u8_sapphire(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_fma_i8_skylake(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_fma_u8_haswell(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON_F16
+    simsimd_fma_u8_neon(a, b, c, n, alpha, beta, r);
+#else
+    simsimd_fma_u8_serial(a, b, c, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_i16(simsimd_i16_t const *a, simsimd_i16_t const *b, simsimd_i16_t const *c,
+                                    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                    simsimd_i16_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_fma_i16_skylake(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_fma_i16_haswell(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_fma_i16_neon(a, b, c, n, alpha, beta, r);
+#else
+    simsimd_fma_i16_serial(a, b, c, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_u16(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_u16_t const *c,
+                                    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                    simsimd_u16_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_fma_u16_skylake(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_fma_u16_haswell(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_fma_u16_neon(a, b, c, n, alpha, beta, r);
+#else
+    simsimd_fma_u16_serial(a, b, c, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_i32(simsimd_i32_t const *a, simsimd_i32_t const *b, simsimd_i32_t const *c,
+                                    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                    simsimd_i32_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_fma_i32_skylake(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_fma_i32_haswell(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_fma_i32_neon(a, b, c, n, alpha, beta, r);
+#else
+    simsimd_fma_i32_serial(a, b, c, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_u32(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_u32_t const *c,
+                                    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                    simsimd_u32_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_fma_u32_skylake(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_fma_u32_haswell(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_fma_u32_neon(a, b, c, n, alpha, beta, r);
+#else
+    simsimd_fma_u32_serial(a, b, c, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_i64(simsimd_i64_t const *a, simsimd_i64_t const *b, simsimd_i64_t const *c,
+                                    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                    simsimd_i64_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_fma_i64_skylake(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_fma_i64_neon(a, b, c, n, alpha, beta, r);
+#else
+    simsimd_fma_i64_serial(a, b, c, n, alpha, beta, r);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_fma_u64(simsimd_u64_t const *a, simsimd_u64_t const *b, simsimd_u64_t const *c,
+                                    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
+                                    simsimd_u64_t *r) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_fma_u64_skylake(a, b, c, n, alpha, beta, r);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_fma_u64_neon(a, b, c, n, alpha, beta, r);
+#else
+    simsimd_fma_u64_serial(a, b, c, n, alpha, beta, r);
+#endif
+}
+
+#endif // !SIMSIMD_DYNAMIC_DISPATCH
+
+#if defined(__cplusplus)
 }
 #endif
 
