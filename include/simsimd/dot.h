@@ -651,180 +651,478 @@ SIMSIMD_MAKE_COMPLEX_VDOT(accurate, bf16c, f64, SIMSIMD_BF16_TO_F32) // simsimd_
  *  @brief Running state for 512-bit dot accumulation over f64 scalars.
  */
 typedef struct simsimd_dot_f64x8_state_serial_t {
-    simsimd_f64_t sum;
+    simsimd_f64_t sums[2];
 } simsimd_dot_f64x8_state_serial_t;
 
-SIMSIMD_INTERNAL void simsimd_dot_f64x8_init_serial(simsimd_dot_f64x8_state_serial_t *state) { state->sum = 0; }
+SIMSIMD_INTERNAL void simsimd_dot_f64x8_init_serial(simsimd_dot_f64x8_state_serial_t *state) {
+    state->sums[0] = 0;
+    state->sums[1] = 0;
+}
 
 SIMSIMD_INTERNAL void simsimd_dot_f64x8_update_serial(simsimd_dot_f64x8_state_serial_t *state, simsimd_b512_vec_t a,
                                                       simsimd_b512_vec_t b) {
-    simsimd_f64_t sum = state->sum;
-    for (simsimd_size_t i = 0; i != 8; ++i) sum += a.f64s[i] * b.f64s[i];
-    state->sum = sum;
+    simsimd_f64_t sum0 = state->sums[0];
+    simsimd_f64_t sum1 = state->sums[1];
+
+    sum0 += a.f64s[0] * b.f64s[0], sum1 += a.f64s[1] * b.f64s[1];
+    sum0 += a.f64s[2] * b.f64s[2], sum1 += a.f64s[3] * b.f64s[3];
+    sum0 += a.f64s[4] * b.f64s[4], sum1 += a.f64s[5] * b.f64s[5];
+    sum0 += a.f64s[6] * b.f64s[6], sum1 += a.f64s[7] * b.f64s[7];
+
+    state->sums[0] = sum0, state->sums[1] = sum1;
 }
 
 SIMSIMD_INTERNAL void simsimd_dot_f64x8_finalize_serial(simsimd_dot_f64x8_state_serial_t const *state,
                                                         simsimd_distance_t *result) {
-    *result = (simsimd_distance_t)state->sum;
+    simsimd_f64_t sum = 0;
+    for (simsimd_size_t i = 0; i != 2; ++i) sum += state->sums[i];
+    *result = (simsimd_distance_t)sum;
 }
 
 /**
  *  @brief Running state for 512-bit dot accumulation over f32 scalars.
  */
 typedef struct simsimd_dot_f32x16_state_serial_t {
-    simsimd_f32_t sum;
+    simsimd_f32_t sums[4];
 } simsimd_dot_f32x16_state_serial_t;
 
-SIMSIMD_INTERNAL void simsimd_dot_f32x16_init_serial(simsimd_dot_f32x16_state_serial_t *state) { state->sum = 0; }
+SIMSIMD_INTERNAL void simsimd_dot_f32x16_init_serial(simsimd_dot_f32x16_state_serial_t *state) {
+    state->sums[0] = 0;
+    state->sums[1] = 0;
+    state->sums[2] = 0;
+    state->sums[3] = 0;
+}
 
 SIMSIMD_INTERNAL void simsimd_dot_f32x16_update_serial(simsimd_dot_f32x16_state_serial_t *state, simsimd_b512_vec_t a,
                                                        simsimd_b512_vec_t b) {
-    simsimd_f32_t sum = state->sum;
-    for (simsimd_size_t i = 0; i != 16; ++i) sum += a.f32s[i] * b.f32s[i];
-    state->sum = sum;
+    simsimd_f32_t sum0 = state->sums[0];
+    simsimd_f32_t sum1 = state->sums[1];
+    simsimd_f32_t sum2 = state->sums[2];
+    simsimd_f32_t sum3 = state->sums[3];
+
+    sum0 += a.f32s[0] * b.f32s[0], sum1 += a.f32s[1] * b.f32s[1], sum2 += a.f32s[2] * b.f32s[2],
+        sum3 += a.f32s[3] * b.f32s[3];
+    sum0 += a.f32s[4] * b.f32s[4], sum1 += a.f32s[5] * b.f32s[5], sum2 += a.f32s[6] * b.f32s[6],
+        sum3 += a.f32s[7] * b.f32s[7];
+    sum0 += a.f32s[8] * b.f32s[8], sum1 += a.f32s[9] * b.f32s[9], sum2 += a.f32s[10] * b.f32s[10],
+        sum3 += a.f32s[11] * b.f32s[11];
+    sum0 += a.f32s[12] * b.f32s[12], sum1 += a.f32s[13] * b.f32s[13], sum2 += a.f32s[14] * b.f32s[14],
+        sum3 += a.f32s[15] * b.f32s[15];
+
+    state->sums[0] = sum0, state->sums[1] = sum1, state->sums[2] = sum2, state->sums[3] = sum3;
 }
 
 SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_serial(simsimd_dot_f32x16_state_serial_t const *state,
                                                          simsimd_distance_t *result) {
-    *result = (simsimd_distance_t)state->sum;
+    simsimd_f32_t sum = 0;
+    for (simsimd_size_t i = 0; i != 4; ++i) sum += state->sums[i];
+    *result = (simsimd_distance_t)sum;
 }
 
 /**
  *  @brief Running state for 512-bit dot accumulation over f16 scalars.
  */
 typedef struct simsimd_dot_f16x32_state_serial_t {
-    simsimd_f32_t sum;
+    simsimd_f32_t sums[4];
 } simsimd_dot_f16x32_state_serial_t;
 
-SIMSIMD_INTERNAL void simsimd_dot_f16x32_init_serial(simsimd_dot_f16x32_state_serial_t *state) { state->sum = 0; }
+SIMSIMD_INTERNAL void simsimd_dot_f16x32_init_serial(simsimd_dot_f16x32_state_serial_t *state) {
+    state->sums[0] = 0;
+    state->sums[1] = 0;
+    state->sums[2] = 0;
+    state->sums[3] = 0;
+}
 
 SIMSIMD_INTERNAL void simsimd_dot_f16x32_update_serial(simsimd_dot_f16x32_state_serial_t *state, simsimd_b512_vec_t a,
                                                        simsimd_b512_vec_t b) {
-    simsimd_f32_t sum = state->sum;
-    for (simsimd_size_t i = 0; i != 32; ++i) { sum += SIMSIMD_F16_TO_F32(a.f16s + i) * SIMSIMD_F16_TO_F32(b.f16s + i); }
-    state->sum = sum;
+    simsimd_f32_t sum0 = state->sums[0];
+    simsimd_f32_t sum1 = state->sums[1];
+    simsimd_f32_t sum2 = state->sums[2];
+    simsimd_f32_t sum3 = state->sums[3];
+
+    sum0 += SIMSIMD_F16_TO_F32(a.f16s + 0) * SIMSIMD_F16_TO_F32(b.f16s + 0),
+        sum1 += SIMSIMD_F16_TO_F32(a.f16s + 1) * SIMSIMD_F16_TO_F32(b.f16s + 1),
+        sum2 += SIMSIMD_F16_TO_F32(a.f16s + 2) * SIMSIMD_F16_TO_F32(b.f16s + 2),
+        sum3 += SIMSIMD_F16_TO_F32(a.f16s + 3) * SIMSIMD_F16_TO_F32(b.f16s + 3);
+    sum0 += SIMSIMD_F16_TO_F32(a.f16s + 4) * SIMSIMD_F16_TO_F32(b.f16s + 4),
+        sum1 += SIMSIMD_F16_TO_F32(a.f16s + 5) * SIMSIMD_F16_TO_F32(b.f16s + 5),
+        sum2 += SIMSIMD_F16_TO_F32(a.f16s + 6) * SIMSIMD_F16_TO_F32(b.f16s + 6),
+        sum3 += SIMSIMD_F16_TO_F32(a.f16s + 7) * SIMSIMD_F16_TO_F32(b.f16s + 7);
+    sum0 += SIMSIMD_F16_TO_F32(a.f16s + 8) * SIMSIMD_F16_TO_F32(b.f16s + 8),
+        sum1 += SIMSIMD_F16_TO_F32(a.f16s + 9) * SIMSIMD_F16_TO_F32(b.f16s + 9),
+        sum2 += SIMSIMD_F16_TO_F32(a.f16s + 10) * SIMSIMD_F16_TO_F32(b.f16s + 10),
+        sum3 += SIMSIMD_F16_TO_F32(a.f16s + 11) * SIMSIMD_F16_TO_F32(b.f16s + 11);
+    sum0 += SIMSIMD_F16_TO_F32(a.f16s + 12) * SIMSIMD_F16_TO_F32(b.f16s + 12),
+        sum1 += SIMSIMD_F16_TO_F32(a.f16s + 13) * SIMSIMD_F16_TO_F32(b.f16s + 13),
+        sum2 += SIMSIMD_F16_TO_F32(a.f16s + 14) * SIMSIMD_F16_TO_F32(b.f16s + 14),
+        sum3 += SIMSIMD_F16_TO_F32(a.f16s + 15) * SIMSIMD_F16_TO_F32(b.f16s + 15);
+    sum0 += SIMSIMD_F16_TO_F32(a.f16s + 16) * SIMSIMD_F16_TO_F32(b.f16s + 16),
+        sum1 += SIMSIMD_F16_TO_F32(a.f16s + 17) * SIMSIMD_F16_TO_F32(b.f16s + 17),
+        sum2 += SIMSIMD_F16_TO_F32(a.f16s + 18) * SIMSIMD_F16_TO_F32(b.f16s + 18),
+        sum3 += SIMSIMD_F16_TO_F32(a.f16s + 19) * SIMSIMD_F16_TO_F32(b.f16s + 19);
+    sum0 += SIMSIMD_F16_TO_F32(a.f16s + 20) * SIMSIMD_F16_TO_F32(b.f16s + 20),
+        sum1 += SIMSIMD_F16_TO_F32(a.f16s + 21) * SIMSIMD_F16_TO_F32(b.f16s + 21),
+        sum2 += SIMSIMD_F16_TO_F32(a.f16s + 22) * SIMSIMD_F16_TO_F32(b.f16s + 22),
+        sum3 += SIMSIMD_F16_TO_F32(a.f16s + 23) * SIMSIMD_F16_TO_F32(b.f16s + 23);
+    sum0 += SIMSIMD_F16_TO_F32(a.f16s + 24) * SIMSIMD_F16_TO_F32(b.f16s + 24),
+        sum1 += SIMSIMD_F16_TO_F32(a.f16s + 25) * SIMSIMD_F16_TO_F32(b.f16s + 25),
+        sum2 += SIMSIMD_F16_TO_F32(a.f16s + 26) * SIMSIMD_F16_TO_F32(b.f16s + 26),
+        sum3 += SIMSIMD_F16_TO_F32(a.f16s + 27) * SIMSIMD_F16_TO_F32(b.f16s + 27);
+    sum0 += SIMSIMD_F16_TO_F32(a.f16s + 28) * SIMSIMD_F16_TO_F32(b.f16s + 28),
+        sum1 += SIMSIMD_F16_TO_F32(a.f16s + 29) * SIMSIMD_F16_TO_F32(b.f16s + 29),
+        sum2 += SIMSIMD_F16_TO_F32(a.f16s + 30) * SIMSIMD_F16_TO_F32(b.f16s + 30),
+        sum3 += SIMSIMD_F16_TO_F32(a.f16s + 31) * SIMSIMD_F16_TO_F32(b.f16s + 31);
+
+    state->sums[0] = sum0, state->sums[1] = sum1, state->sums[2] = sum2, state->sums[3] = sum3;
 }
 
 SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_serial(simsimd_dot_f16x32_state_serial_t const *state,
                                                          simsimd_distance_t *result) {
-    *result = (simsimd_distance_t)state->sum;
+    simsimd_f32_t sum = 0;
+    for (simsimd_size_t i = 0; i != 4; ++i) sum += state->sums[i];
+    *result = (simsimd_distance_t)sum;
 }
 
 /**
  *  @brief Running state for 512-bit dot accumulation over bf16 scalars.
  */
 typedef struct simsimd_dot_bf16x32_state_serial_t {
-    simsimd_f32_t sum;
+    simsimd_f32_t sums[4];
 } simsimd_dot_bf16x32_state_serial_t;
 
-SIMSIMD_INTERNAL void simsimd_dot_bf16x32_init_serial(simsimd_dot_bf16x32_state_serial_t *state) { state->sum = 0; }
+SIMSIMD_INTERNAL void simsimd_dot_bf16x32_init_serial(simsimd_dot_bf16x32_state_serial_t *state) {
+    state->sums[0] = 0;
+    state->sums[1] = 0;
+    state->sums[2] = 0;
+    state->sums[3] = 0;
+}
 
 SIMSIMD_INTERNAL void simsimd_dot_bf16x32_update_serial(simsimd_dot_bf16x32_state_serial_t *state, simsimd_b512_vec_t a,
                                                         simsimd_b512_vec_t b) {
-    simsimd_f32_t sum = state->sum;
-    for (simsimd_size_t i = 0; i != 32; ++i) {
-        sum += SIMSIMD_BF16_TO_F32(a.bf16s + i) * SIMSIMD_BF16_TO_F32(b.bf16s + i);
-    }
-    state->sum = sum;
+    simsimd_f32_t sum0 = state->sums[0];
+    simsimd_f32_t sum1 = state->sums[1];
+    simsimd_f32_t sum2 = state->sums[2];
+    simsimd_f32_t sum3 = state->sums[3];
+
+    sum0 += SIMSIMD_BF16_TO_F32(a.bf16s + 0) * SIMSIMD_BF16_TO_F32(b.bf16s + 0),
+        sum1 += SIMSIMD_BF16_TO_F32(a.bf16s + 1) * SIMSIMD_BF16_TO_F32(b.bf16s + 1),
+        sum2 += SIMSIMD_BF16_TO_F32(a.bf16s + 2) * SIMSIMD_BF16_TO_F32(b.bf16s + 2),
+        sum3 += SIMSIMD_BF16_TO_F32(a.bf16s + 3) * SIMSIMD_BF16_TO_F32(b.bf16s + 3);
+    sum0 += SIMSIMD_BF16_TO_F32(a.bf16s + 4) * SIMSIMD_BF16_TO_F32(b.bf16s + 4),
+        sum1 += SIMSIMD_BF16_TO_F32(a.bf16s + 5) * SIMSIMD_BF16_TO_F32(b.bf16s + 5),
+        sum2 += SIMSIMD_BF16_TO_F32(a.bf16s + 6) * SIMSIMD_BF16_TO_F32(b.bf16s + 6),
+        sum3 += SIMSIMD_BF16_TO_F32(a.bf16s + 7) * SIMSIMD_BF16_TO_F32(b.bf16s + 7);
+    sum0 += SIMSIMD_BF16_TO_F32(a.bf16s + 8) * SIMSIMD_BF16_TO_F32(b.bf16s + 8),
+        sum1 += SIMSIMD_BF16_TO_F32(a.bf16s + 9) * SIMSIMD_BF16_TO_F32(b.bf16s + 9),
+        sum2 += SIMSIMD_BF16_TO_F32(a.bf16s + 10) * SIMSIMD_BF16_TO_F32(b.bf16s + 10),
+        sum3 += SIMSIMD_BF16_TO_F32(a.bf16s + 11) * SIMSIMD_BF16_TO_F32(b.bf16s + 11);
+    sum0 += SIMSIMD_BF16_TO_F32(a.bf16s + 12) * SIMSIMD_BF16_TO_F32(b.bf16s + 12),
+        sum1 += SIMSIMD_BF16_TO_F32(a.bf16s + 13) * SIMSIMD_BF16_TO_F32(b.bf16s + 13),
+        sum2 += SIMSIMD_BF16_TO_F32(a.bf16s + 14) * SIMSIMD_BF16_TO_F32(b.bf16s + 14),
+        sum3 += SIMSIMD_BF16_TO_F32(a.bf16s + 15) * SIMSIMD_BF16_TO_F32(b.bf16s + 15);
+    sum0 += SIMSIMD_BF16_TO_F32(a.bf16s + 16) * SIMSIMD_BF16_TO_F32(b.bf16s + 16),
+        sum1 += SIMSIMD_BF16_TO_F32(a.bf16s + 17) * SIMSIMD_BF16_TO_F32(b.bf16s + 17),
+        sum2 += SIMSIMD_BF16_TO_F32(a.bf16s + 18) * SIMSIMD_BF16_TO_F32(b.bf16s + 18),
+        sum3 += SIMSIMD_BF16_TO_F32(a.bf16s + 19) * SIMSIMD_BF16_TO_F32(b.bf16s + 19);
+    sum0 += SIMSIMD_BF16_TO_F32(a.bf16s + 20) * SIMSIMD_BF16_TO_F32(b.bf16s + 20),
+        sum1 += SIMSIMD_BF16_TO_F32(a.bf16s + 21) * SIMSIMD_BF16_TO_F32(b.bf16s + 21),
+        sum2 += SIMSIMD_BF16_TO_F32(a.bf16s + 22) * SIMSIMD_BF16_TO_F32(b.bf16s + 22),
+        sum3 += SIMSIMD_BF16_TO_F32(a.bf16s + 23) * SIMSIMD_BF16_TO_F32(b.bf16s + 23);
+    sum0 += SIMSIMD_BF16_TO_F32(a.bf16s + 24) * SIMSIMD_BF16_TO_F32(b.bf16s + 24),
+        sum1 += SIMSIMD_BF16_TO_F32(a.bf16s + 25) * SIMSIMD_BF16_TO_F32(b.bf16s + 25),
+        sum2 += SIMSIMD_BF16_TO_F32(a.bf16s + 26) * SIMSIMD_BF16_TO_F32(b.bf16s + 26),
+        sum3 += SIMSIMD_BF16_TO_F32(a.bf16s + 27) * SIMSIMD_BF16_TO_F32(b.bf16s + 27);
+    sum0 += SIMSIMD_BF16_TO_F32(a.bf16s + 28) * SIMSIMD_BF16_TO_F32(b.bf16s + 28),
+        sum1 += SIMSIMD_BF16_TO_F32(a.bf16s + 29) * SIMSIMD_BF16_TO_F32(b.bf16s + 29),
+        sum2 += SIMSIMD_BF16_TO_F32(a.bf16s + 30) * SIMSIMD_BF16_TO_F32(b.bf16s + 30),
+        sum3 += SIMSIMD_BF16_TO_F32(a.bf16s + 31) * SIMSIMD_BF16_TO_F32(b.bf16s + 31);
+
+    state->sums[0] = sum0, state->sums[1] = sum1, state->sums[2] = sum2, state->sums[3] = sum3;
 }
 
 SIMSIMD_INTERNAL void simsimd_dot_bf16x32_finalize_serial(simsimd_dot_bf16x32_state_serial_t const *state,
                                                           simsimd_distance_t *result) {
-    *result = (simsimd_distance_t)state->sum;
+    simsimd_f32_t sum = 0;
+    for (simsimd_size_t i = 0; i != 4; ++i) sum += state->sums[i];
+    *result = (simsimd_distance_t)sum;
 }
 
 /**
  *  @brief Running state for 512-bit dot accumulation over i8 scalars.
  */
 typedef struct simsimd_dot_i8x64_state_serial_t {
-    simsimd_i64_t sum;
+    simsimd_i64_t sums[2];
 } simsimd_dot_i8x64_state_serial_t;
 
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_init_serial(simsimd_dot_i8x64_state_serial_t *state) { state->sum = 0; }
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_init_serial(simsimd_dot_i8x64_state_serial_t *state) {
+    state->sums[0] = 0;
+    state->sums[1] = 0;
+}
 
 SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_serial(simsimd_dot_i8x64_state_serial_t *state, simsimd_b512_vec_t a,
                                                       simsimd_b512_vec_t b) {
-    simsimd_i64_t sum = state->sum;
-    for (simsimd_size_t i = 0; i != 64; ++i) sum += (simsimd_i64_t)a.i8s[i] * (simsimd_i64_t)b.i8s[i];
-    state->sum = sum;
+    simsimd_i64_t sum0 = state->sums[0];
+    simsimd_i64_t sum1 = state->sums[1];
+
+    sum0 += (simsimd_i16_t)a.i8s[0] * (simsimd_i16_t)b.i8s[0],
+        sum1 += (simsimd_i16_t)a.i8s[1] * (simsimd_i16_t)b.i8s[1];
+    sum0 += (simsimd_i16_t)a.i8s[2] * (simsimd_i16_t)b.i8s[2],
+        sum1 += (simsimd_i16_t)a.i8s[3] * (simsimd_i16_t)b.i8s[3];
+    sum0 += (simsimd_i16_t)a.i8s[4] * (simsimd_i16_t)b.i8s[4],
+        sum1 += (simsimd_i16_t)a.i8s[5] * (simsimd_i16_t)b.i8s[5];
+    sum0 += (simsimd_i16_t)a.i8s[6] * (simsimd_i16_t)b.i8s[6],
+        sum1 += (simsimd_i16_t)a.i8s[7] * (simsimd_i16_t)b.i8s[7];
+    sum0 += (simsimd_i16_t)a.i8s[8] * (simsimd_i16_t)b.i8s[8],
+        sum1 += (simsimd_i16_t)a.i8s[9] * (simsimd_i16_t)b.i8s[9];
+    sum0 += (simsimd_i16_t)a.i8s[10] * (simsimd_i16_t)b.i8s[10],
+        sum1 += (simsimd_i16_t)a.i8s[11] * (simsimd_i16_t)b.i8s[11];
+    sum0 += (simsimd_i16_t)a.i8s[12] * (simsimd_i16_t)b.i8s[12],
+        sum1 += (simsimd_i16_t)a.i8s[13] * (simsimd_i16_t)b.i8s[13];
+    sum0 += (simsimd_i16_t)a.i8s[14] * (simsimd_i16_t)b.i8s[14],
+        sum1 += (simsimd_i16_t)a.i8s[15] * (simsimd_i16_t)b.i8s[15];
+    sum0 += (simsimd_i16_t)a.i8s[16] * (simsimd_i16_t)b.i8s[16],
+        sum1 += (simsimd_i16_t)a.i8s[17] * (simsimd_i16_t)b.i8s[17];
+    sum0 += (simsimd_i16_t)a.i8s[18] * (simsimd_i16_t)b.i8s[18],
+        sum1 += (simsimd_i16_t)a.i8s[19] * (simsimd_i16_t)b.i8s[19];
+    sum0 += (simsimd_i16_t)a.i8s[20] * (simsimd_i16_t)b.i8s[20],
+        sum1 += (simsimd_i16_t)a.i8s[21] * (simsimd_i16_t)b.i8s[21];
+    sum0 += (simsimd_i16_t)a.i8s[22] * (simsimd_i16_t)b.i8s[22],
+        sum1 += (simsimd_i16_t)a.i8s[23] * (simsimd_i16_t)b.i8s[23];
+    sum0 += (simsimd_i16_t)a.i8s[24] * (simsimd_i16_t)b.i8s[24],
+        sum1 += (simsimd_i16_t)a.i8s[25] * (simsimd_i16_t)b.i8s[25];
+    sum0 += (simsimd_i16_t)a.i8s[26] * (simsimd_i16_t)b.i8s[26],
+        sum1 += (simsimd_i16_t)a.i8s[27] * (simsimd_i16_t)b.i8s[27];
+    sum0 += (simsimd_i16_t)a.i8s[28] * (simsimd_i16_t)b.i8s[28],
+        sum1 += (simsimd_i16_t)a.i8s[29] * (simsimd_i16_t)b.i8s[29];
+    sum0 += (simsimd_i16_t)a.i8s[30] * (simsimd_i16_t)b.i8s[30],
+        sum1 += (simsimd_i16_t)a.i8s[31] * (simsimd_i16_t)b.i8s[31];
+    sum0 += (simsimd_i16_t)a.i8s[32] * (simsimd_i16_t)b.i8s[32],
+        sum1 += (simsimd_i16_t)a.i8s[33] * (simsimd_i16_t)b.i8s[33];
+    sum0 += (simsimd_i16_t)a.i8s[34] * (simsimd_i16_t)b.i8s[34],
+        sum1 += (simsimd_i16_t)a.i8s[35] * (simsimd_i16_t)b.i8s[35];
+    sum0 += (simsimd_i16_t)a.i8s[36] * (simsimd_i16_t)b.i8s[36],
+        sum1 += (simsimd_i16_t)a.i8s[37] * (simsimd_i16_t)b.i8s[37];
+    sum0 += (simsimd_i16_t)a.i8s[38] * (simsimd_i16_t)b.i8s[38],
+        sum1 += (simsimd_i16_t)a.i8s[39] * (simsimd_i16_t)b.i8s[39];
+    sum0 += (simsimd_i16_t)a.i8s[40] * (simsimd_i16_t)b.i8s[40],
+        sum1 += (simsimd_i16_t)a.i8s[41] * (simsimd_i16_t)b.i8s[41];
+    sum0 += (simsimd_i16_t)a.i8s[42] * (simsimd_i16_t)b.i8s[42],
+        sum1 += (simsimd_i16_t)a.i8s[43] * (simsimd_i16_t)b.i8s[43];
+    sum0 += (simsimd_i16_t)a.i8s[44] * (simsimd_i16_t)b.i8s[44],
+        sum1 += (simsimd_i16_t)a.i8s[45] * (simsimd_i16_t)b.i8s[45];
+    sum0 += (simsimd_i16_t)a.i8s[46] * (simsimd_i16_t)b.i8s[46],
+        sum1 += (simsimd_i16_t)a.i8s[47] * (simsimd_i16_t)b.i8s[47];
+    sum0 += (simsimd_i16_t)a.i8s[48] * (simsimd_i16_t)b.i8s[48],
+        sum1 += (simsimd_i16_t)a.i8s[49] * (simsimd_i16_t)b.i8s[49];
+    sum0 += (simsimd_i16_t)a.i8s[50] * (simsimd_i16_t)b.i8s[50],
+        sum1 += (simsimd_i16_t)a.i8s[51] * (simsimd_i16_t)b.i8s[51];
+    sum0 += (simsimd_i16_t)a.i8s[52] * (simsimd_i16_t)b.i8s[52],
+        sum1 += (simsimd_i16_t)a.i8s[53] * (simsimd_i16_t)b.i8s[53];
+    sum0 += (simsimd_i16_t)a.i8s[54] * (simsimd_i16_t)b.i8s[54],
+        sum1 += (simsimd_i16_t)a.i8s[55] * (simsimd_i16_t)b.i8s[55];
+    sum0 += (simsimd_i16_t)a.i8s[56] * (simsimd_i16_t)b.i8s[56],
+        sum1 += (simsimd_i16_t)a.i8s[57] * (simsimd_i16_t)b.i8s[57];
+    sum0 += (simsimd_i16_t)a.i8s[58] * (simsimd_i16_t)b.i8s[58],
+        sum1 += (simsimd_i16_t)a.i8s[59] * (simsimd_i16_t)b.i8s[59];
+    sum0 += (simsimd_i16_t)a.i8s[60] * (simsimd_i16_t)b.i8s[60],
+        sum1 += (simsimd_i16_t)a.i8s[61] * (simsimd_i16_t)b.i8s[61];
+    sum0 += (simsimd_i16_t)a.i8s[62] * (simsimd_i16_t)b.i8s[62],
+        sum1 += (simsimd_i16_t)a.i8s[63] * (simsimd_i16_t)b.i8s[63];
+
+    state->sums[0] = sum0, state->sums[1] = sum1;
 }
 
 SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_serial(simsimd_dot_i8x64_state_serial_t const *state,
                                                         simsimd_distance_t *result) {
-    *result = (simsimd_distance_t)state->sum;
+    simsimd_i64_t sum = 0;
+    for (simsimd_size_t i = 0; i != 2; ++i) sum += state->sums[i];
+    *result = (simsimd_distance_t)sum;
 }
 
 /**
  *  @brief Running state for 512-bit dot accumulation over u8 scalars.
  */
 typedef struct simsimd_dot_u8x64_state_serial_t {
-    simsimd_i64_t sum;
+    simsimd_u64_t sums[2];
 } simsimd_dot_u8x64_state_serial_t;
 
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_init_serial(simsimd_dot_u8x64_state_serial_t *state) { state->sum = 0; }
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_init_serial(simsimd_dot_u8x64_state_serial_t *state) {
+    state->sums[0] = 0;
+    state->sums[1] = 0;
+}
 
 SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_serial(simsimd_dot_u8x64_state_serial_t *state, simsimd_b512_vec_t a,
                                                       simsimd_b512_vec_t b) {
-    simsimd_i64_t sum = state->sum;
-    for (simsimd_size_t i = 0; i != 64; ++i) sum += (simsimd_i64_t)a.u8s[i] * (simsimd_i64_t)b.u8s[i];
-    state->sum = sum;
+    simsimd_u64_t sum0 = state->sums[0];
+    simsimd_u64_t sum1 = state->sums[1];
+
+    sum0 += (simsimd_u16_t)a.u8s[0] * (simsimd_u16_t)b.u8s[0],
+        sum1 += (simsimd_u16_t)a.u8s[1] * (simsimd_u16_t)b.u8s[1];
+    sum0 += (simsimd_u16_t)a.u8s[2] * (simsimd_u16_t)b.u8s[2],
+        sum1 += (simsimd_u16_t)a.u8s[3] * (simsimd_u16_t)b.u8s[3];
+    sum0 += (simsimd_u16_t)a.u8s[4] * (simsimd_u16_t)b.u8s[4],
+        sum1 += (simsimd_u16_t)a.u8s[5] * (simsimd_u16_t)b.u8s[5];
+    sum0 += (simsimd_u16_t)a.u8s[6] * (simsimd_u16_t)b.u8s[6],
+        sum1 += (simsimd_u16_t)a.u8s[7] * (simsimd_u16_t)b.u8s[7];
+    sum0 += (simsimd_u16_t)a.u8s[8] * (simsimd_u16_t)b.u8s[8],
+        sum1 += (simsimd_u16_t)a.u8s[9] * (simsimd_u16_t)b.u8s[9];
+    sum0 += (simsimd_u16_t)a.u8s[10] * (simsimd_u16_t)b.u8s[10],
+        sum1 += (simsimd_u16_t)a.u8s[11] * (simsimd_u16_t)b.u8s[11];
+    sum0 += (simsimd_u16_t)a.u8s[12] * (simsimd_u16_t)b.u8s[12],
+        sum1 += (simsimd_u16_t)a.u8s[13] * (simsimd_u16_t)b.u8s[13];
+    sum0 += (simsimd_u16_t)a.u8s[14] * (simsimd_u16_t)b.u8s[14],
+        sum1 += (simsimd_u16_t)a.u8s[15] * (simsimd_u16_t)b.u8s[15];
+    sum0 += (simsimd_u16_t)a.u8s[16] * (simsimd_u16_t)b.u8s[16],
+        sum1 += (simsimd_u16_t)a.u8s[17] * (simsimd_u16_t)b.u8s[17];
+    sum0 += (simsimd_u16_t)a.u8s[18] * (simsimd_u16_t)b.u8s[18],
+        sum1 += (simsimd_u16_t)a.u8s[19] * (simsimd_u16_t)b.u8s[19];
+    sum0 += (simsimd_u16_t)a.u8s[20] * (simsimd_u16_t)b.u8s[20],
+        sum1 += (simsimd_u16_t)a.u8s[21] * (simsimd_u16_t)b.u8s[21];
+    sum0 += (simsimd_u16_t)a.u8s[22] * (simsimd_u16_t)b.u8s[22],
+        sum1 += (simsimd_u16_t)a.u8s[23] * (simsimd_u16_t)b.u8s[23];
+    sum0 += (simsimd_u16_t)a.u8s[24] * (simsimd_u16_t)b.u8s[24],
+        sum1 += (simsimd_u16_t)a.u8s[25] * (simsimd_u16_t)b.u8s[25];
+    sum0 += (simsimd_u16_t)a.u8s[26] * (simsimd_u16_t)b.u8s[26],
+        sum1 += (simsimd_u16_t)a.u8s[27] * (simsimd_u16_t)b.u8s[27];
+    sum0 += (simsimd_u16_t)a.u8s[28] * (simsimd_u16_t)b.u8s[28],
+        sum1 += (simsimd_u16_t)a.u8s[29] * (simsimd_u16_t)b.u8s[29];
+    sum0 += (simsimd_u16_t)a.u8s[30] * (simsimd_u16_t)b.u8s[30],
+        sum1 += (simsimd_u16_t)a.u8s[31] * (simsimd_u16_t)b.u8s[31];
+    sum0 += (simsimd_u16_t)a.u8s[32] * (simsimd_u16_t)b.u8s[32],
+        sum1 += (simsimd_u16_t)a.u8s[33] * (simsimd_u16_t)b.u8s[33];
+    sum0 += (simsimd_u16_t)a.u8s[34] * (simsimd_u16_t)b.u8s[34],
+        sum1 += (simsimd_u16_t)a.u8s[35] * (simsimd_u16_t)b.u8s[35];
+    sum0 += (simsimd_u16_t)a.u8s[36] * (simsimd_u16_t)b.u8s[36],
+        sum1 += (simsimd_u16_t)a.u8s[37] * (simsimd_u16_t)b.u8s[37];
+    sum0 += (simsimd_u16_t)a.u8s[38] * (simsimd_u16_t)b.u8s[38],
+        sum1 += (simsimd_u16_t)a.u8s[39] * (simsimd_u16_t)b.u8s[39];
+    sum0 += (simsimd_u16_t)a.u8s[40] * (simsimd_u16_t)b.u8s[40],
+        sum1 += (simsimd_u16_t)a.u8s[41] * (simsimd_u16_t)b.u8s[41];
+    sum0 += (simsimd_u16_t)a.u8s[42] * (simsimd_u16_t)b.u8s[42],
+        sum1 += (simsimd_u16_t)a.u8s[43] * (simsimd_u16_t)b.u8s[43];
+    sum0 += (simsimd_u16_t)a.u8s[44] * (simsimd_u16_t)b.u8s[44],
+        sum1 += (simsimd_u16_t)a.u8s[45] * (simsimd_u16_t)b.u8s[45];
+    sum0 += (simsimd_u16_t)a.u8s[46] * (simsimd_u16_t)b.u8s[46],
+        sum1 += (simsimd_u16_t)a.u8s[47] * (simsimd_u16_t)b.u8s[47];
+    sum0 += (simsimd_u16_t)a.u8s[48] * (simsimd_u16_t)b.u8s[48],
+        sum1 += (simsimd_u16_t)a.u8s[49] * (simsimd_u16_t)b.u8s[49];
+    sum0 += (simsimd_u16_t)a.u8s[50] * (simsimd_u16_t)b.u8s[50],
+        sum1 += (simsimd_u16_t)a.u8s[51] * (simsimd_u16_t)b.u8s[51];
+    sum0 += (simsimd_u16_t)a.u8s[52] * (simsimd_u16_t)b.u8s[52],
+        sum1 += (simsimd_u16_t)a.u8s[53] * (simsimd_u16_t)b.u8s[53];
+    sum0 += (simsimd_u16_t)a.u8s[54] * (simsimd_u16_t)b.u8s[54],
+        sum1 += (simsimd_u16_t)a.u8s[55] * (simsimd_u16_t)b.u8s[55];
+    sum0 += (simsimd_u16_t)a.u8s[56] * (simsimd_u16_t)b.u8s[56],
+        sum1 += (simsimd_u16_t)a.u8s[57] * (simsimd_u16_t)b.u8s[57];
+    sum0 += (simsimd_u16_t)a.u8s[58] * (simsimd_u16_t)b.u8s[58],
+        sum1 += (simsimd_u16_t)a.u8s[59] * (simsimd_u16_t)b.u8s[59];
+    sum0 += (simsimd_u16_t)a.u8s[60] * (simsimd_u16_t)b.u8s[60],
+        sum1 += (simsimd_u16_t)a.u8s[61] * (simsimd_u16_t)b.u8s[61];
+    sum0 += (simsimd_u16_t)a.u8s[62] * (simsimd_u16_t)b.u8s[62],
+        sum1 += (simsimd_u16_t)a.u8s[63] * (simsimd_u16_t)b.u8s[63];
+
+    state->sums[0] = sum0, state->sums[1] = sum1;
 }
 
 SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_serial(simsimd_dot_u8x64_state_serial_t const *state,
                                                         simsimd_distance_t *result) {
-    *result = (simsimd_distance_t)state->sum;
+    simsimd_u64_t sum = 0;
+    for (simsimd_size_t i = 0; i != 2; ++i) sum += state->sums[i];
+    *result = (simsimd_distance_t)sum;
 }
 
 /**
  *  @brief Running state for 512-bit dot accumulation over e4m3 scalars.
  */
 typedef struct simsimd_dot_e4m3x64_state_serial_t {
-    simsimd_f32_t sum;
+    simsimd_f32_t sums[4];
 } simsimd_dot_e4m3x64_state_serial_t;
 
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_init_serial(simsimd_dot_e4m3x64_state_serial_t *state) { state->sum = 0; }
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_init_serial(simsimd_dot_e4m3x64_state_serial_t *state) {
+    state->sums[0] = 0;
+    state->sums[1] = 0;
+    state->sums[2] = 0;
+    state->sums[3] = 0;
+}
 
 SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_update_serial(simsimd_dot_e4m3x64_state_serial_t *state, simsimd_b512_vec_t a,
                                                         simsimd_b512_vec_t b) {
-    simsimd_f32_t sum = state->sum;
-    for (simsimd_size_t i = 0; i != 64; ++i) {
-        simsimd_f32_t ai, bi;
-        simsimd_e4m3_to_f32(a.e4m3s + i, &ai);
-        simsimd_e4m3_to_f32(b.e4m3s + i, &bi);
-        sum += ai * bi;
+    simsimd_f32_t sum0 = state->sums[0];
+    simsimd_f32_t sum1 = state->sums[1];
+    simsimd_f32_t sum2 = state->sums[2];
+    simsimd_f32_t sum3 = state->sums[3];
+    simsimd_f32_t ai0, ai1, ai2, ai3;
+    simsimd_f32_t bi0, bi1, bi2, bi3;
+    for (simsimd_size_t i = 0; i != 64; i += 4) {
+        simsimd_e4m3_to_f32(a.e4m3s + i, &ai0);
+        simsimd_e4m3_to_f32(b.e4m3s + i, &bi0);
+        simsimd_e4m3_to_f32(a.e4m3s + i + 1, &ai1);
+        simsimd_e4m3_to_f32(b.e4m3s + i + 1, &bi1);
+        simsimd_e4m3_to_f32(a.e4m3s + i + 2, &ai2);
+        simsimd_e4m3_to_f32(b.e4m3s + i + 2, &bi2);
+        simsimd_e4m3_to_f32(a.e4m3s + i + 3, &ai3);
+        simsimd_e4m3_to_f32(b.e4m3s + i + 3, &bi3);
+        sum0 += ai0 * bi0;
+        sum1 += ai1 * bi1;
+        sum2 += ai2 * bi2;
+        sum3 += ai3 * bi3;
     }
-    state->sum = sum;
+
+    state->sums[0] = sum0, state->sums[1] = sum1, state->sums[2] = sum2, state->sums[3] = sum3;
 }
 
 SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_serial(simsimd_dot_e4m3x64_state_serial_t const *state,
                                                           simsimd_distance_t *result) {
-    *result = (simsimd_distance_t)state->sum;
+    simsimd_f32_t sum = 0;
+    for (simsimd_size_t i = 0; i != 4; ++i) sum += state->sums[i];
+    *result = (simsimd_distance_t)sum;
 }
 
 /**
  *  @brief Running state for 512-bit dot accumulation over e5m2 scalars.
  */
 typedef struct simsimd_dot_e5m2x64_state_serial_t {
-    simsimd_f32_t sum;
+    simsimd_f32_t sums[4];
 } simsimd_dot_e5m2x64_state_serial_t;
 
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_init_serial(simsimd_dot_e5m2x64_state_serial_t *state) { state->sum = 0; }
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_init_serial(simsimd_dot_e5m2x64_state_serial_t *state) {
+    state->sums[0] = 0;
+    state->sums[1] = 0;
+    state->sums[2] = 0;
+    state->sums[3] = 0;
+}
 
 SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_update_serial(simsimd_dot_e5m2x64_state_serial_t *state, simsimd_b512_vec_t a,
                                                         simsimd_b512_vec_t b) {
-    simsimd_f32_t sum = state->sum;
-    for (simsimd_size_t i = 0; i != 64; ++i) {
-        simsimd_f32_t ai, bi;
-        simsimd_e5m2_to_f32(a.e5m2s + i, &ai);
-        simsimd_e5m2_to_f32(b.e5m2s + i, &bi);
-        sum += ai * bi;
+    simsimd_f32_t sum0 = state->sums[0];
+    simsimd_f32_t sum1 = state->sums[1];
+    simsimd_f32_t sum2 = state->sums[2];
+    simsimd_f32_t sum3 = state->sums[3];
+    simsimd_f32_t ai0, ai1, ai2, ai3;
+    simsimd_f32_t bi0, bi1, bi2, bi3;
+    for (simsimd_size_t i = 0; i != 64; i += 4) {
+        simsimd_e5m2_to_f32(a.e5m2s + i, &ai0);
+        simsimd_e5m2_to_f32(b.e5m2s + i, &bi0);
+        simsimd_e5m2_to_f32(a.e5m2s + i + 1, &ai1);
+        simsimd_e5m2_to_f32(b.e5m2s + i + 1, &bi1);
+        simsimd_e5m2_to_f32(a.e5m2s + i + 2, &ai2);
+        simsimd_e5m2_to_f32(b.e5m2s + i + 2, &bi2);
+        simsimd_e5m2_to_f32(a.e5m2s + i + 3, &ai3);
+        simsimd_e5m2_to_f32(b.e5m2s + i + 3, &bi3);
+        sum0 += ai0 * bi0;
+        sum1 += ai1 * bi1;
+        sum2 += ai2 * bi2;
+        sum3 += ai3 * bi3;
     }
-    state->sum = sum;
+
+    state->sums[0] = sum0, state->sums[1] = sum1, state->sums[2] = sum2, state->sums[3] = sum3;
 }
 
 SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_serial(simsimd_dot_e5m2x64_state_serial_t const *state,
                                                           simsimd_distance_t *result) {
-    *result = (simsimd_distance_t)state->sum;
+    simsimd_f32_t sum = 0;
+    for (simsimd_size_t i = 0; i != 4; ++i) sum += state->sums[i];
+    *result = (simsimd_distance_t)sum;
 }
 
 #if _SIMSIMD_TARGET_ARM
