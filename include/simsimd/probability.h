@@ -25,6 +25,33 @@
  *  The implementations use a small epsilon to avoid division by zero when inputs contain zeros.
  *  For higher-precision accumulation, use the "*_accurate" serial variants.
  *
+ *  @section x86_instructions Relevant x86 Instructions
+ *
+ *  KL/JS divergence requires log2(x) which decomposes into exponent extraction (VGETEXP) plus
+ *  mantissa polynomial (using VGETMANT + FMA chain). This approach is faster than scalar log()
+ *  calls. Division (for p/q ratio) uses either VDIVPS directly or VRCP14PS with Newton-Raphson
+ *  refinement when ~14-bit precision suffices. Genoa's VGETEXP/VGETMANT are 25% faster than Ice.
+ *
+ *      Intrinsic               Instruction                     Ice         Genoa
+ *      _mm512_getexp_ps        VGETEXPPS (ZMM, ZMM)            4c @ p0     3c @ p23
+ *      _mm512_getexp_pd        VGETEXPPD (ZMM, ZMM)            4c @ p0     3c @ p23
+ *      _mm512_getmant_ps       VGETMANTPS (ZMM, ZMM, I8)       4c @ p0     3c @ p23
+ *      _mm512_getmant_pd       VGETMANTPD (ZMM, ZMM, I8)       4c @ p0     3c @ p23
+ *      _mm512_rcp14_ps         VRCP14PS (ZMM, ZMM)             7c @ p05    5c @ p01
+ *      _mm512_div_ps           VDIVPS (ZMM, ZMM, ZMM)          17c @ p05   11c @ p01
+ *      _mm512_fmadd_ps         VFMADD231PS (ZMM, ZMM, ZMM)     4c @ p0     4c @ p01
+ *
+ *  @section arm_instructions Relevant ARM NEON/SVE Instructions
+ *
+ *  ARM lacks direct exponent/mantissa extraction, so log2 uses integer reinterpretation of the
+ *  float bits followed by polynomial refinement. FRECPE provides ~8-bit reciprocal approximation
+ *  for division, refined with FRECPS Newton-Raphson steps to ~22-bit precision.
+ *
+ *      Intrinsic               Instruction     M1 Firestorm    Graviton 3      Graviton 4
+ *      vfmaq_f32               FMLA.S (vec)    4c @ V0123      4c @ V0123      4c @ V0123
+ *      vrecpeq_f32             FRECPE.S        3c @ V02        3c @ V02        3c @ V02
+ *      vrecpsq_f32             FRECPS.S        4c @ V0123      4c @ V0123      4c @ V0123
+ *
  *  @section references References
  *
  *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/

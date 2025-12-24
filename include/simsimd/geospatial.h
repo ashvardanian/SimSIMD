@@ -64,6 +64,35 @@
  *
  *  To revert from oblate spheroids to spheres, use `SIMSIMD_EARTH_MEDIATORIAL_RADIUS`.
  *
+ *  @section x86_instructions Relevant x86 Instructions
+ *
+ *  Haversine and Vincenty formulas require sqrt for the final distance calculation and division
+ *  for Vincenty's iterative convergence. These are the most expensive operations (12-23 cycles)
+ *  but only execute once per point-pair. The polynomial trig approximations use FMA chains.
+ *  Note: ZMM sqrt is faster on Genoa (15c) than Ice Lake (19c) due to better 512-bit support.
+ *
+ *      Intrinsic               Instruction                     Ice         Genoa
+ *      _mm256_sqrt_ps          VSQRTPS (YMM, YMM)              12c @ p0    15c @ p01
+ *      _mm256_sqrt_pd          VSQRTPD (YMM, YMM)              13c @ p0    21c @ p01
+ *      _mm512_sqrt_ps          VSQRTPS (ZMM, ZMM)              19c @ p05   15c @ p01
+ *      _mm512_sqrt_pd          VSQRTPD (ZMM, ZMM)              23c @ p05   21c @ p01
+ *      _mm256_div_ps           VDIVPS (YMM, YMM, YMM)          11c @ p0    11c @ p01
+ *      _mm256_div_pd           VDIVPD (YMM, YMM, YMM)          13c @ p0    13c @ p01
+ *      _mm256_fmadd_ps         VFMADD231PS (YMM, YMM, YMM)     4c @ p01    4c @ p01
+ *      _mm256_fmadd_pd         VFMADD231PD (YMM, YMM, YMM)     4c @ p01    4c @ p01
+ *
+ *  @section arm_instructions Relevant ARM NEON/SVE Instructions
+ *
+ *  ARM sqrt (FSQRT) has low throughput as it uses a dedicated V02 execution unit. This is
+ *  acceptable since sqrt only appears once per distance calculation. FMA chains for trig
+ *  polynomial evaluation pipeline well across all 4 V-units.
+ *
+ *      Intrinsic               Instruction     M1 Firestorm    Graviton 3      Graviton 4
+ *      vfmaq_f32               FMLA.S (vec)    4c @ V0123      4c @ V0123      4c @ V0123
+ *      vfmaq_f64               FMLA.D (vec)    4c @ V0123      4c @ V0123      4c @ V0123
+ *      vsqrtq_f32              FSQRT.S (vec)   10c @ V02       10c @ V02       9c @ V02
+ *      vsqrtq_f64              FSQRT.D (vec)   13c @ V02       16c @ V02       16c @ V02
+ *
  *  @section references References
  *
  *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/

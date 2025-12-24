@@ -11,6 +11,13 @@
  *  - Weighted Sum (WSum): result[i] = alpha * a[i] + beta * b[i]
  *  - FMA (Fused Multiply-Add): result[i] = alpha * a[i] * b[i] + beta * c[i]
  *
+ *  Beyond their obvious usecases, those can be reused for vector-scalar math and other operations:
+ *
+ *  - Scale with beta = 0 for a pure multiply.
+ *  - Sum is equivalent to WSum with alpha = beta = 1.
+ *  - Average is WSum with alpha = beta = 0.5.
+ *  - Elementwise multiply is FMA with beta = 0.
+ *
  *  For datatypes:
  *
  *  - 64-bit IEEE floating point numbers
@@ -28,26 +35,34 @@
  *  - Arm: NEON
  *  - x86: Haswell, Skylake, Sapphire
  *
- *  @section usage_patterns Usage Patterns
- *
- *  - Scale with beta = 0 for a pure multiply.
- *  - Sum is equivalent to WSum with alpha = beta = 1.
- *  - Average is WSum with alpha = beta = 0.5.
- *  - Elementwise multiply is FMA with beta = 0.
- *
- *  @section precision_notes Precision Notes
- *
- *  - i8/u8 arithmetic uses f16 intermediates on Arm to keep vector throughput high.
- *  - bf16 SIMD support is limited to mixed-precision dot products on many CPUs.
- *  - Integer operations use saturating arithmetic where the ISA provides it.
  *
  *  @section x86_instructions Relevant x86 Instructions
  *
- *      Intrinsic               Instruction        Notes
- *      _mm256_fmadd_ps/pd      VFMADD*            FMA on FP ports (Haswell/Skylake: ports 0/1)
- *      _mm512_fmadd_ps/pd      VFMADD*            High throughput on AVX512 cores
- *      _mm512_cvtph_ps         VCVTPH2PS          FP16 to FP32 conversion
- *      _mm512_cvtps_ph         VCVTPS2PH          FP32 to FP16 conversion
+ *  FP16 conversions (VCVTPH2PS/VCVTPS2PH) are used for f16 scale/sum/wsum/fma operations, converting
+ *  to f32 for arithmetic then back. The 6-7 cycle latency is amortized over vector-width elements.
+ *  Saturating integer adds (VPADDSW/VPADDUSW) provide overflow protection for i16/u16 sums without
+ *  branching. FMA (VFMADD231PS) is the workhorse for scale (alpha*x+beta) and wsum (alpha*a+beta*b).
+ *
+ *      Intrinsic               Instruction                     Ice         Genoa
+ *      _mm512_cvtph_ps         VCVTPH2PS (ZMM, YMM)            7c @ p0+p5  6c @ p12+p23
+ *      _mm512_cvtps_ph         VCVTPS2PH (YMM, ZMM, I8)        7c @ p0+p5  7c @ p12+p23
+ *      _mm256_adds_epi16       VPADDSW (YMM, YMM, YMM)         1c @ p01    N/A
+ *      _mm256_adds_epu16       VPADDUSW (YMM, YMM, YMM)        1c @ p01    N/A
+ *      _mm512_fpclass_ps_mask  VFPCLASSPS (K, ZMM, I8)         3c @ p5     5c @ p01
+ *      _mm256_fmadd_ps         VFMADD231PS (YMM, YMM, YMM)     4c @ p01    4c @ p01
+ *
+ *  @section arm_instructions Relevant ARM NEON/SVE Instructions
+ *
+ *  On ARM, i8/u8 elementwise operations convert to f16 intermediates using FCVT to maintain high
+ *  vector throughput (8 elements per 128-bit register vs 4 for f32). Saturating adds (SQADD/UQADD)
+ *  handle integer overflow. FMLA provides fused multiply-add for floating-point scale/wsum/fma.
+ *
+ *      Intrinsic               Instruction     M1 Firestorm    Graviton 3      Graviton 4
+ *      vfmaq_f32               FMLA.S (vec)    4c @ V0123      4c @ V0123      4c @ V0123
+ *      vqaddq_s16              SQADD (vec)     3c @ V0123      2c @ V0123      2c @ V0123
+ *      vqaddq_u16              UQADD (vec)     3c @ V0123      2c @ V0123      2c @ V0123
+ *      vcvtq_f32_s32           SCVTF (vec)     3c @ V0123      3c @ V01        3c @ V01
+ *      vcvtaq_s32_f32          FCVTAS (vec)    3c @ V0123      3c @ V01        3c @ V01
  *
  *  @section references References
  *

@@ -52,21 +52,20 @@
  *
  *  @section x86_instructions Relevant x86 Instructions
  *
- *  The Ice Lake kernels are shuffle/compare heavy; their throughput is often gated by
- *  port 5. On AMD Zen4 (Genoa), many integer ops dual-issue on FP ports, often improving
- *  throughput despite higher per-op latency.
+ *  The Ice Lake kernels are shuffle/compare heavy; their throughput is often gated by port 5.
+ *  On Genoa, many integer ops dual-issue on FP ports, often improving throughput despite higher latency.
  *
  *      Intrinsic                       Instruction                      Ice           Genoa
  *      _mm512_shuffle_epi32            VPSHUFD (ZMM, ZMM, I8)           1c @ p5       1c @ p123
  *      _mm512_mask_cmpneq_epi32_mask   VPCMPD (K, ZMM, ZMM, I8)         3c @ p5       5c @ p01
- *      _mm512_alignr_epi32             VPALIGNR (ZMM, ZMM, ZMM, I8)     1c @ p5       2c @ p12
+ *      _mm512_alignr_epi32             VALIGND (ZMM, ZMM, ZMM, I8)      3c @ p5       6c @ p12
  *      _mm512_conflict_epi32           VPCONFLICTD (ZMM, ZMM)           26c @ p0/5    7c @ p01/12
  *      _mm256_maskz_compress_epi16     VPCOMPRESSW (YMM, K, YMM)        3-6c @ p5     4-8c @ p01/12
  *      _mm256_dpwssds_epi32            VPDPWSSDS (YMM, K, YMM, YMM)     4-5c @ p01    4c @ p01
  *      _mm256_dpbf16_ps                VDPBF16PS (YMM, YMM, YMM)        n/a           6c @ p01
  *
  *  VP2INTERSECTD is unsupported on Ice Lake and not yet covered by uops.info for Zen5/Turin.
- *  Tiger Lake measures ~36-41c @ p5 for ZMM variants, which is why the Ice Lake path avoids it.
+ *  Tiger Lake measures ~36-41c @ p5 for ZMM variants, which is why we always avoid it on Intel.
  *
  *  @section references References
  *
@@ -447,22 +446,6 @@ SIMSIMD_INTERNAL simsimd_u32_t _simsimd_intersect_u16x32_ice(__m512i a, __m512i 
 /**
  *  @brief  Analogous to `_mm512_2intersect_epi32`, but compatible with Ice Lake CPUs,
  *          slightly faster than the native Tiger Lake implementation, but returns only one mask.
- *
- *  Some latencies to keep in mind:
- *
- *  - `_mm512_shuffle_epi32` - "VPSHUFD (ZMM, ZMM, I8)":
- *      - 1 cycle latency on Ice Lake: 1*p5
- *      - 1 cycle latency on Genoa: 1*FP123
- *  - `_mm512_mask_cmpneq_epi32_mask` - "VPCMPD (K, ZMM, ZMM, I8)":
- *      - 3 cycle latency on Ice Lake: 1*p5
- *      - 5 cycle latency on Genoa: 1*FP01
- *  - `_mm512_alignr_epi32` - "VPALIGNR (ZMM, ZMM, ZMM, I8)":
- *      - 1 cycle latency on Ice Lake: 1*p5
- *      - 2 cycle latency on Genoa: 1*FP12
- *  - `_mm512_conflict_epi32` - "VPCONFLICTD (ZMM, ZMM)":
- *      - up to 26 cycles latency on Ice Lake: 11*p0+9*p05+17*p5
- *      - up to 7 cycle latency on Genoa: 1*FP01+1*FP12
- *
  */
 SIMSIMD_INTERNAL simsimd_u16_t _simsimd_intersect_u32x16_ice(__m512i a, __m512i b) {
     __m512i a1 = _mm512_alignr_epi32(a, a, 4);

@@ -35,6 +35,51 @@
  *  - simsimd_dot_<type>x<count>_update_<isa>
  *  - simsimd_dot_<type>x<count>_finalize_<isa>
  *
+ *  @section x86_instructions Relevant x86 Instructions
+ *
+ *  Floating-point dot products use FMA (VFMADD231PS/PD) for sum += a[i]*b[i] accumulation.
+ *  Integer i8 dot products use VPMADDUBSW (u8*i8->i16) + VPMADDWD (i16*1->i32) on Haswell,
+ *  or the newer VNNI instructions VPDPBUSD/VPDPWSSD on Ice Lake+ for direct u8*i8->i32.
+ *  BF16 dot products (VDPBF16PS) are Genoa-only, accumulating bf16 pairs directly to f32.
+ *  Genoa shows 40% faster integer multiply-add (3c vs 5c) than Ice Lake.
+ *
+ *      Intrinsic               Instruction                     Haswell     Ice         Genoa
+ *      _mm256_fmadd_ps         VFMADD231PS (YMM, YMM, YMM)     5c @ p01    4c @ p01    4c @ p01
+ *      _mm256_fmadd_pd         VFMADD231PD (YMM, YMM, YMM)     5c @ p01    4c @ p01    4c @ p01
+ *      _mm256_maddubs_epi16    VPMADDUBSW (YMM, YMM, YMM)      5c @ p0     5c @ p01    3c @ p01
+ *      _mm256_madd_epi16       VPMADDWD (YMM, YMM, YMM)        5c @ p0     5c @ p01    3c @ p01
+ *      _mm256_dpbusd_epi32     VPDPBUSD (YMM, YMM, YMM)        N/A         5c @ p01    4c @ p01
+ *      _mm512_dpwssd_epi32     VPDPWSSD (ZMM, ZMM, ZMM)        N/A         5c @ p0     4c @ p01
+ *      _mm512_dpbf16_ps        VDPBF16PS (ZMM, ZMM, ZMM)       N/A         N/A         6c @ p01
+ *
+ *  @section arm_neon_instructions Relevant ARM NEON Instructions
+ *
+ *  NEON integer dot products use SDOT/UDOT (ARMv8.2 dotprod) for direct i8*i8->i32 or u8*u8->u32
+ *  accumulation - 4x faster than the multiply-add sequence on older cores. BFDOT (ARMv8.6 bf16)
+ *  provides native bf16 dot products on Graviton 3+. Complex dot products use LD2 for deinterleaved
+ *  loads of real/imag pairs, though its L01+V throughput can bottleneck on memory-bound workloads.
+ *
+ *      Intrinsic               Instruction     M1 Firestorm    Graviton 3      Graviton 4
+ *      vfmaq_f32               FMLA.S (vec)    4c @ V0123      4c @ V0123      4c @ V0123
+ *      vfmaq_f64               FMLA.D (vec)    4c @ V0123      4c @ V0123      4c @ V0123
+ *      vdotq_s32               SDOT (vec)      3c @ V0123      3c @ V0123      3c @ V0123
+ *      vdotq_u32               UDOT (vec)      3c @ V0123      3c @ V0123      3c @ V0123
+ *      vbfdotq_f32             BFDOT (vec)     N/A             4c @ V0123      5c @ V0123
+ *      vld2q_f32               LD2 (Q-form)    5c @ L01+V      8c @ L01+V      8c @ L01+V
+ *
+ *  @section arm_sve_instructions Relevant ARM SVE Instructions
+ *
+ *  SVE implementations use predicated FMA (svmla_f32_x) with WHILELT for tail masking, avoiding
+ *  scalar cleanup loops. FADDV performs horizontal reduction; notably 45% faster on Graviton 4
+ *  (6c) than Graviton 3 (11c). SVE complex dot products use svld2 for structure loads.
+ *
+ *      Intrinsic               Instruction     Graviton 3      Graviton 4
+ *      svmla_f32_x             FMLA (pred)     4c @ V0123      4c @ V0123
+ *      svmls_f32_x             FMLS (pred)     4c @ V0123      4c @ V0123
+ *      svwhilelt_b32           WHILELT         3c @ M0         3c @ M0
+ *      svld2_f32               LD2 (SVE)       8c @ L01+V      8c @ L01+V
+ *      svaddv_f32              FADDV           11c @ V0123     6c @ V0123
+ *
  *  @section references References
  *
  *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/

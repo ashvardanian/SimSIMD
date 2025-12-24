@@ -73,6 +73,40 @@
  *  - Arm NEON `rsqrt` accuracy is coarse; we apply two refinement steps to keep
  *    angular distance error bounded.
  *
+ *  @section x86_instructions Relevant x86 Instructions
+ *
+ *  AVX2 lacks signed 8-bit dot products, so Haswell widens to i16 and uses VPMADDWD.
+ *  AVX-512 VNNI replaces that with VPDPWSSD. BF16 uses VDPBF16PS where available to avoid
+ *  convert+FMA sequences; if the ISA lacks it, we fall back to f32 FMA in the AVX2/serial:
+ *
+ *      Intrinsic               Instruction                     Ice         Genoa
+ *      _mm256_fmadd_ps         VFMADD231PS (YMM, YMM, YMM)     4c @ p01    4c @ p01
+ *      _mm256_fmadd_pd         VFMADD231PD (YMM, YMM, YMM)     4c @ p01    4c @ p01
+ *      _mm256_madd_epi16       VPMADDWD (YMM, YMM, YMM)        5c @ p01    3c @ p01
+ *      _mm512_dpwssd_epi32     VPDPWSSD (ZMM, K, ZMM, ZMM)     5c @ p05    4c @ p01
+ *      _mm512_dpbf16_ps        VDPBF16PS (ZMM, K, ZMM, ZMM)    n/a         6c @ p01
+ *      _mm_rsqrt_ps            VRSQRTPS (XMM, XMM)             5c @ p0     4c @ p01
+ *      _mm_maskz_rsqrt14_pd    VRSQRT14PD (XMM, K, XMM)        4c @ p0     5c @ p01
+ *      _mm_sqrt_ps             VSQRTPS (XMM, XMM)              12c @ p0    15c @ p01
+ *
+ *  @section arm_instructions Relevant Arm Instructions
+ *
+ *  The NEON/SVE kernels in this header are structured around FMLA/SDOT/BFDOT loops,
+ *  which is why we avoid mul+add splits and keep reductions to scalars before square roots.
+ *  Dot-product kernels for i8/u8 are only built when the "dotprod+i8mm" target is enabled;
+ *  otherwise we rely on the serial backends. BF16 kernels are enabled only with BF16 dot
+ *  instructions skipping `vbfmlal` and `vbfmlalt` alternatives to limit shuffle overhead
+ *  and code complexity.
+ *
+ *      Intrinsic               Instruction         M1 Firestorm
+ *      vfmaq_f32               FMLA.S (vec)        4c / 4c
+ *      vfmaq_f64               FMLA.D (vec)        4c / 4c
+ *      vdotq_s32               SDOT.B (vec)        3c / 4c
+ *      vbfdotq_f32             BFDOT (vec)         n/a
+ *      vrsqrteq_f32            FRSQRTE.S (vec)     3c / 1c
+ *      vrsqrtsq_f32            FRSQRTS.S (vec)     4c / 4c
+ *      vsqrtq_f32              FSQRT.S (vec)       10c / 0.5c
+ *
  *  @section references References
  *
  *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
