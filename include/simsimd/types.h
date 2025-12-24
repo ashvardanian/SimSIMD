@@ -32,16 +32,28 @@
 // On GCC we mark the functions as `nonnull` informing that none of the arguments can be `NULL`.
 // Marking with `pure` and `const` isn't possible as outputting to a pointer is a "side effect".
 #if defined(_WIN32) || defined(__CYGWIN__)
+#if SIMSIMD_DYNAMIC_DISPATCH
 #define SIMSIMD_DYNAMIC __declspec(dllexport)
-#define SIMSIMD_PUBLIC inline static
+#else
+#define SIMSIMD_DYNAMIC inline static
+#endif
+#define SIMSIMD_PUBLIC   inline static
 #define SIMSIMD_INTERNAL inline static
 #elif defined(__GNUC__) || defined(__clang__)
+#if SIMSIMD_DYNAMIC_DISPATCH
 #define SIMSIMD_DYNAMIC __attribute__((visibility("default"))) __attribute__((nonnull))
-#define SIMSIMD_PUBLIC __attribute__((unused, nonnull)) inline static
+#else
+#define SIMSIMD_DYNAMIC __attribute__((unused, nonnull)) inline static
+#endif
+#define SIMSIMD_PUBLIC   __attribute__((unused, nonnull)) inline static
 #define SIMSIMD_INTERNAL __attribute__((always_inline)) inline static
 #else
+#if SIMSIMD_DYNAMIC_DISPATCH
 #define SIMSIMD_DYNAMIC
-#define SIMSIMD_PUBLIC inline static
+#else
+#define SIMSIMD_DYNAMIC inline static
+#endif
+#define SIMSIMD_PUBLIC   inline static
 #define SIMSIMD_INTERNAL inline static
 #endif
 
@@ -429,10 +441,10 @@ typedef unsigned short simsimd_bf16_t;
  */
 #if _SIMSIMD_TARGET_ARM
 #if defined(_MSC_VER)
-#define simsimd_f16_for_arm_simd_t simsimd_f16_t
+#define simsimd_f16_for_arm_simd_t  simsimd_f16_t
 #define simsimd_bf16_for_arm_simd_t simsimd_bf16_t
 #else
-#define simsimd_f16_for_arm_simd_t float16_t
+#define simsimd_f16_for_arm_simd_t  float16_t
 #define simsimd_bf16_for_arm_simd_t bfloat16_t
 #endif
 #endif
@@ -460,7 +472,7 @@ SIMSIMD_STATIC_ASSERT(sizeof(simsimd_f16_t) == 2, simsimd_f16_t_must_be_2_bytes)
 SIMSIMD_STATIC_ASSERT(sizeof(simsimd_bf16_t) == 2, simsimd_bf16_t_must_be_2_bytes);
 
 #define SIMSIMD_DEREFERENCE(x) (*(x))
-#define SIMSIMD_EXPORT(x, y) *(y) = x
+#define SIMSIMD_EXPORT(x, y)   *(y) = x
 
 /** @brief  Convenience type for single-precision floating-point bit manipulation. */
 typedef union {
@@ -500,26 +512,22 @@ typedef struct {
 
 /** @brief  Small 64-byte memory slice viewable as different types.
  *
- *  On GCC and Clang we use `__transparent_union__` attribute to allow implicit conversions
+ *  TODO: On GCC and Clang we use `__transparent_union__` attribute to allow implicit conversions
  *  between the different vector types when passing them as function arguments. The most important side-effect
  *  of this is that the argument of such type is passed to functions using the calling convention of the first
  *  member of the union, which in our case is a register-based calling convention for SIMD types.
  */
-typedef union __attribute__((__transparent_union__)) simsimd_b512_vec_t {
+typedef union simsimd_b512_vec_t {
 #if SIMSIMD_TARGET_SKYLAKE || SIMSIMD_TARGET_ICE || SIMSIMD_TARGET_GENOA || SIMSIMD_TARGET_SAPPHIRE || \
     SIMSIMD_TARGET_TURIN || SIMSIMD_TARGET_SIERRA
     __m512i zmm;
     __m512d zmm_pd;
     __m512 zmm_ps;
 #endif
-#if SIMSIMD_TARGET_SKYLAKE || SIMSIMD_TARGET_ICE || SIMSIMD_TARGET_GENOA || SIMSIMD_TARGET_SAPPHIRE || \
-    SIMSIMD_TARGET_TURIN || SIMSIMD_TARGET_SIERRA || SIMSIMD_TARGET_HASWELL
+#if SIMSIMD_TARGET_HASWELL
     __m256i ymms[2];
     __m256d ymms_pd[2];
     __m256 ymms_ps[2];
-#endif
-#if SIMSIMD_TARGET_SKYLAKE || SIMSIMD_TARGET_ICE || SIMSIMD_TARGET_GENOA || SIMSIMD_TARGET_SAPPHIRE || \
-    SIMSIMD_TARGET_TURIN || SIMSIMD_TARGET_SIERRA || SIMSIMD_TARGET_HASWELL
     __m128i xmms[4];
     __m128d xmms_pd[4];
     __m128 xmms_ps[4];
@@ -530,30 +538,21 @@ typedef union __attribute__((__transparent_union__)) simsimd_b512_vec_t {
     uint32x4_t u32x4s[4];
     uint64x2_t u64x2s[4];
 #endif
-
-    // Unsigned integers
     simsimd_u8_t u8s[64];
     simsimd_u16_t u16s[32];
     simsimd_u32_t u32s[16];
     simsimd_u64_t u64s[8];
-
-    // Signed integers
     simsimd_i8_t i8s[64];
     simsimd_i16_t i16s[32];
     simsimd_i32_t i32s[16];
     simsimd_i64_t i64s[8];
-
-    // Floating-point numbers
     simsimd_f16_t f16s[32];
     simsimd_bf16_t bf16s[32];
     simsimd_f32_t f32s[16];
     simsimd_f64_t f64s[8];
     simsimd_e4m3_t e4m3s[64];
     simsimd_e5m2_t e5m2s[64];
-
-    // Boolean values
     simsimd_b8_t b8s[64];
-
 } simsimd_b512_vec_t;
 
 /**
@@ -912,7 +911,7 @@ SIMSIMD_PUBLIC void simsimd_f32_to_e5m2(simsimd_f32_t const *src, simsimd_e5m2_t
  */
 #if !defined(SIMSIMD_F16_TO_F32)
 #if SIMSIMD_NATIVE_F16
-#define SIMSIMD_F16_TO_F32(x) (SIMSIMD_DEREFERENCE(x))
+#define SIMSIMD_F16_TO_F32(x)    (SIMSIMD_DEREFERENCE(x))
 #define SIMSIMD_F32_TO_F16(x, y) (SIMSIMD_EXPORT(x, y))
 #else
 SIMSIMD_INTERNAL simsimd_f32_t _simsimd_f16_to_f32_wrapper(simsimd_f16_t const *src) {
@@ -923,7 +922,7 @@ SIMSIMD_INTERNAL simsimd_f32_t _simsimd_f16_to_f32_wrapper(simsimd_f16_t const *
 SIMSIMD_INTERNAL void _simsimd_f32_to_f16_wrapper(simsimd_f32_t src, simsimd_f16_t *dest) {
     simsimd_f32_to_f16(&src, dest);
 }
-#define SIMSIMD_F16_TO_F32(x) (_simsimd_f16_to_f32_wrapper(x))
+#define SIMSIMD_F16_TO_F32(x)    (_simsimd_f16_to_f32_wrapper(x))
 #define SIMSIMD_F32_TO_F16(x, y) (_simsimd_f32_to_f16_wrapper(x, y))
 #endif
 #endif
@@ -937,7 +936,7 @@ SIMSIMD_INTERNAL void _simsimd_f32_to_f16_wrapper(simsimd_f32_t src, simsimd_f16
  */
 #if !defined(SIMSIMD_BF16_TO_F32)
 #if SIMSIMD_NATIVE_BF16
-#define SIMSIMD_BF16_TO_F32(x) (SIMSIMD_DEREFERENCE(x))
+#define SIMSIMD_BF16_TO_F32(x)    (SIMSIMD_DEREFERENCE(x))
 #define SIMSIMD_F32_TO_BF16(x, y) (SIMSIMD_EXPORT(x, y))
 #else
 SIMSIMD_INTERNAL simsimd_f32_t _simsimd_bf16_to_f32_wrapper(simsimd_bf16_t const *src) {
@@ -948,7 +947,7 @@ SIMSIMD_INTERNAL simsimd_f32_t _simsimd_bf16_to_f32_wrapper(simsimd_bf16_t const
 SIMSIMD_INTERNAL void _simsimd_f32_to_bf16_wrapper(simsimd_f32_t src, simsimd_bf16_t *dest) {
     simsimd_f32_to_bf16(&src, dest);
 }
-#define SIMSIMD_BF16_TO_F32(x) (_simsimd_bf16_to_f32_wrapper(x))
+#define SIMSIMD_BF16_TO_F32(x)    (_simsimd_bf16_to_f32_wrapper(x))
 #define SIMSIMD_F32_TO_BF16(x, y) (_simsimd_f32_to_bf16_wrapper(x, y))
 #endif
 #endif

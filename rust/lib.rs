@@ -116,7 +116,7 @@ extern "C" {
     fn simsimd_uses_turin() -> i32;
     fn simsimd_uses_sierra() -> i32;
 
-    fn simsimd_flush_denormals() -> i32;
+    fn simsimd_flush_denormals(capabilities: u32) -> i32;
     fn simsimd_uses_dynamic_dispatch() -> i32;
 
     fn simsimd_f32_to_f16(src: *const f32, dest: *mut u16);
@@ -1109,7 +1109,7 @@ pub mod capabilities {
     ///
     /// Returns `true` if the flush was successful.
     pub fn flush_denormals() -> bool {
-        unsafe { crate::simsimd_flush_denormals() != 0 }
+        unsafe { crate::simsimd_flush_denormals(0) != 0 }
     }
 
     /// Returns `true` if the library uses dynamic dispatch for function selection.

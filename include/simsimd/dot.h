@@ -242,13 +242,15 @@ SIMSIMD_PUBLIC void simsimd_dot_f32_neon(simsimd_f32_t const* a, simsimd_f32_t c
 /** @copydoc simsimd_dot_f32c */
 SIMSIMD_PUBLIC void simsimd_dot_f32c_neon(simsimd_f32c_t const* a, simsimd_f32c_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 /** @copydoc simsimd_vdot_f32c */
-SIMSIMD_PUBLIC void simsimd_vdot_f32c_neon(simsimd_f32c_t const* a, simsimd_f32c_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_vdot_f32c_neon(simsimd_f32c_t const* a, simsimd_f32c_t const* b, simsimd_size_t n, simsimd_distance_t* results)
+
+typedef struct simsimd_dot_f32x16_state_neon_t simsimd_dot_f32x16_state_neon_t;
 /** @copydoc simsimd_dot_f32x16_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_dot_f32x16_init_neon(struct simsimd_dot_f32x16_state_neon_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_f32x16_init_neon(simsimd_dot_f32x16_state_neon_t *state);
 /** @copydoc simsimd_dot_f32x16_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_dot_f32x16_update_neon(struct simsimd_dot_f32x16_state_neon_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_f32x16_update_neon(simsimd_dot_f32x16_state_neon_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_f32x16_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_neon(struct simsimd_dot_f32x16_state_neon_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_neon(simsimd_dot_f32x16_state_neon_t const *state, simsimd_distance_t *result);
 #endif // SIMSIMD_TARGET_NEON
 
 #if SIMSIMD_TARGET_NEON_F16
@@ -257,13 +259,15 @@ SIMSIMD_PUBLIC void simsimd_dot_f16_neon(simsimd_f16_t const* a, simsimd_f16_t c
 /** @copydoc simsimd_dot_f16c */
 SIMSIMD_PUBLIC void simsimd_dot_f16c_neon(simsimd_f16c_t const* a, simsimd_f16c_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 /** @copydoc simsimd_vdot_f16c */
-SIMSIMD_PUBLIC void simsimd_vdot_f16c_neon(simsimd_f16c_t const* a, simsimd_f16c_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_vdot_f16c_neon(simsimd_f16c_t const* a, simsimd_f16c_t const* b, simsimd_size_t n, simsimd_distance_t* results)
+
+typedef struct simsimd_dot_f16x32_state_neon_t simsimd_dot_f16x32_state_neon_t;
 /** @copydoc simsimd_dot_f16x32_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_dot_f16x32_init_neon(struct simsimd_dot_f16x32_state_neon_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_f16x32_init_neon(simsimd_dot_f16x32_state_neon_t *state);
 /** @copydoc simsimd_dot_f16x32_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_dot_f16x32_update_neon(struct simsimd_dot_f16x32_state_neon_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_f16x32_update_neon(simsimd_dot_f16x32_state_neon_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_f16x32_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_neon(struct simsimd_dot_f16x32_state_neon_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_neon(simsimd_dot_f16x32_state_neon_t const *state, simsimd_distance_t *result);
 #endif // SIMSIMD_TARGET_NEON_F16
 
 #if SIMSIMD_TARGET_NEON_I8
@@ -271,18 +275,22 @@ SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_neon(struct simsimd_dot_f16x32
 SIMSIMD_PUBLIC void simsimd_dot_i8_neon(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 /** @copydoc simsimd_dot_u8 */
 SIMSIMD_PUBLIC void simsimd_dot_u8_neon(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
+typedef struct simsimd_dot_i8x64_state_neon_t simsimd_dot_i8x64_state_neon_t;
 /** @copydoc simsimd_dot_i8x64_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_init_neon(struct simsimd_dot_i8x64_state_neon_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_init_neon(simsimd_dot_i8x64_state_neon_t *state);
 /** @copydoc simsimd_dot_i8x64_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_neon(struct simsimd_dot_i8x64_state_neon_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_neon(simsimd_dot_i8x64_state_neon_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_i8x64_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_neon(struct simsimd_dot_i8x64_state_neon_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_neon(simsimd_dot_i8x64_state_neon_t const *state, simsimd_distance_t *result);
+
+typedef struct simsimd_dot_u8x64_state_neon_t simsimd_dot_u8x64_state_neon_t;
 /** @copydoc simsimd_dot_u8x64_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_init_neon(struct simsimd_dot_u8x64_state_neon_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_init_neon(simsimd_dot_u8x64_state_neon_t *state);
 /** @copydoc simsimd_dot_u8x64_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_neon(struct simsimd_dot_u8x64_state_neon_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_neon(simsimd_dot_u8x64_state_neon_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_u8x64_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_neon(struct simsimd_dot_u8x64_state_neon_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_neon(simsimd_dot_u8x64_state_neon_t const *state, simsimd_distance_t *result);
 #endif // SIMSIMD_TARGET_NEON_I8
 
 #if SIMSIMD_TARGET_NEON_BF16
@@ -291,13 +299,15 @@ SIMSIMD_PUBLIC void simsimd_dot_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_
 /** @copydoc simsimd_dot_bf16c */
 SIMSIMD_PUBLIC void simsimd_dot_bf16c_neon(simsimd_bf16c_t const* a, simsimd_bf16c_t const* b, simsimd_size_t n, simsimd_distance_t* results);
 /** @copydoc simsimd_vdot_bf16c */
-SIMSIMD_PUBLIC void simsimd_vdot_bf16c_neon(simsimd_bf16c_t const* a, simsimd_bf16c_t const* b, simsimd_size_t n, simsimd_distance_t* results);
+SIMSIMD_PUBLIC void simsimd_vdot_bf16c_neon(simsimd_bf16c_t const* a, simsimd_bf16c_t const* b, simsimd_size_t n, simsimd_distance_t* results)
+
+typedef struct simsimd_dot_bf16x32_state_neon_t simsimd_dot_bf16x32_state_neon_t;
 /** @copydoc simsimd_dot_bf16x32_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_dot_bf16x32_init_neon(struct simsimd_dot_bf16x32_state_neon_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_bf16x32_init_neon(simsimd_dot_bf16x32_state_neon_t *state);
 /** @copydoc simsimd_dot_bf16x32_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_dot_bf16x32_update_neon(struct simsimd_dot_bf16x32_state_neon_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_bf16x32_update_neon(simsimd_dot_bf16x32_state_neon_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_bf16x32_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_dot_bf16x32_finalize_neon(struct simsimd_dot_bf16x32_state_neon_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_bf16x32_finalize_neon(simsimd_dot_bf16x32_state_neon_t const *state, simsimd_distance_t *result);
 #endif // SIMSIMD_TARGET_NEON_BF16
 
 #if SIMSIMD_TARGET_SVE
@@ -350,48 +360,62 @@ SIMSIMD_PUBLIC void simsimd_dot_e5m2_haswell(simsimd_e5m2_t const* a, simsimd_e5
 SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 /** @copydoc simsimd_dot_u8 */
 SIMSIMD_PUBLIC void simsimd_dot_u8_haswell(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
+typedef struct simsimd_dot_f32x16_state_haswell_t simsimd_dot_f32x16_state_haswell_t;
 /** @copydoc simsimd_dot_f32x16_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_f32x16_init_haswell(struct simsimd_dot_f32x16_state_haswell_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_f32x16_init_haswell(simsimd_dot_f32x16_state_haswell_t *state);
 /** @copydoc simsimd_dot_f32x16_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_f32x16_update_haswell(struct simsimd_dot_f32x16_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_f32x16_update_haswell(simsimd_dot_f32x16_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_f32x16_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_haswell(struct simsimd_dot_f32x16_state_haswell_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_haswell(simsimd_dot_f32x16_state_haswell_t const *state, simsimd_distance_t *result);
+
+typedef struct simsimd_dot_f16x32_state_haswell_t simsimd_dot_f16x32_state_haswell_t;
 /** @copydoc simsimd_dot_f16x32_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_f16x32_init_haswell(struct simsimd_dot_f16x32_state_haswell_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_f16x32_init_haswell(simsimd_dot_f16x32_state_haswell_t *state);
 /** @copydoc simsimd_dot_f16x32_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_f16x32_update_haswell(struct simsimd_dot_f16x32_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_f16x32_update_haswell(simsimd_dot_f16x32_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_f16x32_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_haswell(struct simsimd_dot_f16x32_state_haswell_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_haswell(simsimd_dot_f16x32_state_haswell_t const *state, simsimd_distance_t *result);
+
+typedef struct simsimd_dot_bf16x32_state_haswell_t simsimd_dot_bf16x32_state_haswell_t;
 /** @copydoc simsimd_dot_bf16x32_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_bf16x32_init_haswell(struct simsimd_dot_bf16x32_state_haswell_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_bf16x32_init_haswell(simsimd_dot_bf16x32_state_haswell_t *state);
 /** @copydoc simsimd_dot_bf16x32_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_bf16x32_update_haswell(struct simsimd_dot_bf16x32_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_bf16x32_update_haswell(simsimd_dot_bf16x32_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_bf16x32_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_bf16x32_finalize_haswell(struct simsimd_dot_bf16x32_state_haswell_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_bf16x32_finalize_haswell(simsimd_dot_bf16x32_state_haswell_t const *state, simsimd_distance_t *result);
+
+typedef struct simsimd_dot_e4m3x64_state_haswell_t simsimd_dot_e4m3x64_state_haswell_t;
 /** @copydoc simsimd_dot_e4m3x64_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_init_haswell(struct simsimd_dot_e4m3x64_state_haswell_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_init_haswell(simsimd_dot_e4m3x64_state_haswell_t *state);
 /** @copydoc simsimd_dot_e4m3x64_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_update_haswell(struct simsimd_dot_e4m3x64_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_update_haswell(simsimd_dot_e4m3x64_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_e4m3x64_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_haswell(struct simsimd_dot_e4m3x64_state_haswell_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_haswell(simsimd_dot_e4m3x64_state_haswell_t const *state, simsimd_distance_t *result);
+
+typedef struct simsimd_dot_e5m2x64_state_haswell_t simsimd_dot_e5m2x64_state_haswell_t;
 /** @copydoc simsimd_dot_e5m2x64_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_init_haswell(struct simsimd_dot_e5m2x64_state_haswell_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_init_haswell(simsimd_dot_e5m2x64_state_haswell_t *state);
 /** @copydoc simsimd_dot_e5m2x64_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_update_haswell(struct simsimd_dot_e5m2x64_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_update_haswell(simsimd_dot_e5m2x64_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_e5m2x64_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_haswell(struct simsimd_dot_e5m2x64_state_haswell_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_haswell(simsimd_dot_e5m2x64_state_haswell_t const *state, simsimd_distance_t *result);
+
+typedef struct simsimd_dot_i8x64_state_haswell_t simsimd_dot_i8x64_state_haswell_t;
 /** @copydoc simsimd_dot_i8x64_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_init_haswell(struct simsimd_dot_i8x64_state_haswell_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_init_haswell(simsimd_dot_i8x64_state_haswell_t *state);
 /** @copydoc simsimd_dot_i8x64_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_haswell(struct simsimd_dot_i8x64_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_haswell(simsimd_dot_i8x64_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_i8x64_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_haswell(struct simsimd_dot_i8x64_state_haswell_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_haswell(simsimd_dot_i8x64_state_haswell_t const *state, simsimd_distance_t *result);
+
+typedef struct simsimd_dot_u8x64_state_haswell_t simsimd_dot_u8x64_state_haswell_t;
 /** @copydoc simsimd_dot_u8x64_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_init_haswell(struct simsimd_dot_u8x64_state_haswell_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_init_haswell(simsimd_dot_u8x64_state_haswell_t *state);
 /** @copydoc simsimd_dot_u8x64_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_haswell(struct simsimd_dot_u8x64_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_haswell(simsimd_dot_u8x64_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_u8x64_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_haswell(struct simsimd_dot_u8x64_state_haswell_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_haswell(simsimd_dot_u8x64_state_haswell_t const *state, simsimd_distance_t *result);
 #endif // SIMSIMD_TARGET_HASWELL
 
 #if SIMSIMD_TARGET_SKYLAKE
@@ -413,30 +437,38 @@ SIMSIMD_PUBLIC void simsimd_vdot_f32c_skylake(simsimd_f32c_t const* a, simsimd_f
 SIMSIMD_PUBLIC void simsimd_dot_e4m3_skylake(simsimd_e4m3_t const* a, simsimd_e4m3_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 /** @copydoc simsimd_dot_e5m2 */
 SIMSIMD_PUBLIC void simsimd_dot_e5m2_skylake(simsimd_e5m2_t const* a, simsimd_e5m2_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
+typedef struct simsimd_dot_f64x8_state_skylake_t simsimd_dot_f64x8_state_skylake_t;
 /** @copydoc simsimd_dot_f64x8_state_skylake_t */
-SIMSIMD_INTERNAL void simsimd_dot_f64x8_init_skylake(struct simsimd_dot_f64x8_state_skylake_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_f64x8_init_skylake(simsimd_dot_f64x8_state_skylake_t *state);
 /** @copydoc simsimd_dot_f64x8_state_skylake_t */
-SIMSIMD_INTERNAL void simsimd_dot_f64x8_update_skylake(struct simsimd_dot_f64x8_state_skylake_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_f64x8_update_skylake(simsimd_dot_f64x8_state_skylake_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_f64x8_state_skylake_t */
-SIMSIMD_INTERNAL void simsimd_dot_f64x8_finalize_skylake(struct simsimd_dot_f64x8_state_skylake_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_f64x8_finalize_skylake(simsimd_dot_f64x8_state_skylake_t const *state, simsimd_distance_t *result);
+
+typedef struct simsimd_dot_f32x16_state_skylake_t simsimd_dot_f32x16_state_skylake_t;
 /** @copydoc simsimd_dot_f32x16_state_skylake_t */
-SIMSIMD_INTERNAL void simsimd_dot_f32x16_init_skylake(struct simsimd_dot_f32x16_state_skylake_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_f32x16_init_skylake(simsimd_dot_f32x16_state_skylake_t *state);
 /** @copydoc simsimd_dot_f32x16_state_skylake_t */
-SIMSIMD_INTERNAL void simsimd_dot_f32x16_update_skylake(struct simsimd_dot_f32x16_state_skylake_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_f32x16_update_skylake(simsimd_dot_f32x16_state_skylake_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_f32x16_state_skylake_t */
-SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_skylake(struct simsimd_dot_f32x16_state_skylake_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_skylake(simsimd_dot_f32x16_state_skylake_t const *state, simsimd_distance_t *result);
+
+typedef struct simsimd_dot_e4m3x64_state_skylake_t simsimd_dot_e4m3x64_state_skylake_t;
 /** @copydoc simsimd_dot_e4m3x64_state_skylake_t */
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_init_skylake(struct simsimd_dot_e4m3x64_state_skylake_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_init_skylake(simsimd_dot_e4m3x64_state_skylake_t *state);
 /** @copydoc simsimd_dot_e4m3x64_state_skylake_t */
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_update_skylake(struct simsimd_dot_e4m3x64_state_skylake_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_update_skylake(simsimd_dot_e4m3x64_state_skylake_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_e4m3x64_state_skylake_t */
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_skylake(struct simsimd_dot_e4m3x64_state_skylake_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_skylake(simsimd_dot_e4m3x64_state_skylake_t const *state, simsimd_distance_t *result);
+
+typedef struct simsimd_dot_e5m2x64_state_skylake_t simsimd_dot_e5m2x64_state_skylake_t;
 /** @copydoc simsimd_dot_e5m2x64_state_skylake_t */
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_init_skylake(struct simsimd_dot_e5m2x64_state_skylake_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_init_skylake(simsimd_dot_e5m2x64_state_skylake_t *state);
 /** @copydoc simsimd_dot_e5m2x64_state_skylake_t */
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_update_skylake(struct simsimd_dot_e5m2x64_state_skylake_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_update_skylake(simsimd_dot_e5m2x64_state_skylake_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_e5m2x64_state_skylake_t */
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_skylake(struct simsimd_dot_e5m2x64_state_skylake_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_skylake(simsimd_dot_e5m2x64_state_skylake_t const *state, simsimd_distance_t *result);
 #endif // SIMSIMD_TARGET_SKYLAKE
 
 #if SIMSIMD_TARGET_ICE
@@ -444,18 +476,22 @@ SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_skylake(struct simsimd_dot_e5
 SIMSIMD_PUBLIC void simsimd_dot_i8_ice(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 /** @copydoc simsimd_dot_u8 */
 SIMSIMD_PUBLIC void simsimd_dot_u8_ice(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
+typedef struct simsimd_dot_i8x64_state_ice_t simsimd_dot_i8x64_state_ice_t;
 /** @copydoc simsimd_dot_i8x64_state_ice_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_init_ice(struct simsimd_dot_i8x64_state_ice_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_init_ice(simsimd_dot_i8x64_state_ice_t *state);
 /** @copydoc simsimd_dot_i8x64_state_ice_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_ice(struct simsimd_dot_i8x64_state_ice_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_ice(simsimd_dot_i8x64_state_ice_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_i8x64_state_ice_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_ice(struct simsimd_dot_i8x64_state_ice_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_ice(simsimd_dot_i8x64_state_ice_t const *state, simsimd_distance_t *result);
+
+typedef struct simsimd_dot_u8x64_state_ice_t simsimd_dot_u8x64_state_ice_t;
 /** @copydoc simsimd_dot_u8x64_state_ice_t */
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_init_ice(struct simsimd_dot_u8x64_state_ice_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_init_ice(simsimd_dot_u8x64_state_ice_t *state);
 /** @copydoc simsimd_dot_u8x64_state_ice_t */
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_ice(struct simsimd_dot_u8x64_state_ice_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_ice(simsimd_dot_u8x64_state_ice_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_u8x64_state_ice_t */
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_ice(struct simsimd_dot_u8x64_state_ice_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_ice(simsimd_dot_u8x64_state_ice_t const *state, simsimd_distance_t *result);
 #endif // SIMSIMD_TARGET_ICE
 
 #if SIMSIMD_TARGET_GENOA
@@ -470,24 +506,30 @@ SIMSIMD_PUBLIC void simsimd_vdot_bf16c_genoa(simsimd_bf16c_t const* a, simsimd_b
 SIMSIMD_PUBLIC void simsimd_dot_e4m3_genoa(simsimd_e4m3_t const* a, simsimd_e4m3_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 /** @copydoc simsimd_dot_e5m2 */
 SIMSIMD_PUBLIC void simsimd_dot_e5m2_genoa(simsimd_e5m2_t const* a, simsimd_e5m2_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
+typedef struct simsimd_dot_bf16x32_state_genoa_t simsimd_dot_bf16x32_state_genoa_t;
 /** @copydoc simsimd_dot_bf16x32_state_genoa_t */
-SIMSIMD_INTERNAL void simsimd_dot_bf16x32_init_genoa(struct simsimd_dot_bf16x32_state_genoa_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_bf16x32_init_genoa(simsimd_dot_bf16x32_state_genoa_t *state);
 /** @copydoc simsimd_dot_bf16x32_state_genoa_t */
-SIMSIMD_INTERNAL void simsimd_dot_bf16x32_update_genoa(struct simsimd_dot_bf16x32_state_genoa_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_bf16x32_update_genoa(simsimd_dot_bf16x32_state_genoa_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_bf16x32_state_genoa_t */
-SIMSIMD_INTERNAL void simsimd_dot_bf16x32_finalize_genoa(struct simsimd_dot_bf16x32_state_genoa_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_bf16x32_finalize_genoa(simsimd_dot_bf16x32_state_genoa_t const *state, simsimd_distance_t *result);
+
+typedef struct simsimd_dot_e4m3x64_state_genoa_t simsimd_dot_e4m3x64_state_genoa_t;
 /** @copydoc simsimd_dot_e4m3x64_state_genoa_t */
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_init_genoa(struct simsimd_dot_e4m3x64_state_genoa_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_init_genoa(simsimd_dot_e4m3x64_state_genoa_t *state);
 /** @copydoc simsimd_dot_e4m3x64_state_genoa_t */
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_update_genoa(struct simsimd_dot_e4m3x64_state_genoa_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_update_genoa(simsimd_dot_e4m3x64_state_genoa_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_e4m3x64_state_genoa_t */
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_genoa(struct simsimd_dot_e4m3x64_state_genoa_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_genoa(simsimd_dot_e4m3x64_state_genoa_t const *state, simsimd_distance_t *result);
+
+typedef struct simsimd_dot_e5m2x64_state_genoa_t simsimd_dot_e5m2x64_state_genoa_t;
 /** @copydoc simsimd_dot_e5m2x64_state_genoa_t */
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_init_genoa(struct simsimd_dot_e5m2x64_state_genoa_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_init_genoa(simsimd_dot_e5m2x64_state_genoa_t *state);
 /** @copydoc simsimd_dot_e5m2x64_state_genoa_t */
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_update_genoa(struct simsimd_dot_e5m2x64_state_genoa_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_update_genoa(simsimd_dot_e5m2x64_state_genoa_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_e5m2x64_state_genoa_t */
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_genoa(struct simsimd_dot_e5m2x64_state_genoa_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_genoa(simsimd_dot_e5m2x64_state_genoa_t const *state, simsimd_distance_t *result);
 #endif // SIMSIMD_TARGET_GENOA
 
 #if SIMSIMD_TARGET_SAPPHIRE
@@ -504,92 +546,108 @@ SIMSIMD_PUBLIC void simsimd_dot_e4m3_sapphire(simsimd_e4m3_t const* a, simsimd_e
 SIMSIMD_PUBLIC void simsimd_dot_e5m2_sapphire(simsimd_e5m2_t const* a, simsimd_e5m2_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 /** @copydoc simsimd_dot_e5m2 */
 SIMSIMD_PUBLIC void simsimd_dot_e5m2_sapphire_lut(simsimd_e5m2_t const* a, simsimd_e5m2_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
+typedef struct simsimd_dot_f16x32_state_sapphire_t simsimd_dot_f16x32_state_sapphire_t;
 /** @copydoc simsimd_dot_f16x32_state_sapphire_t */
-SIMSIMD_INTERNAL void simsimd_dot_f16x32_init_sapphire(struct simsimd_dot_f16x32_state_sapphire_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_f16x32_init_sapphire(simsimd_dot_f16x32_state_sapphire_t *state);
 /** @copydoc simsimd_dot_f16x32_state_sapphire_t */
-SIMSIMD_INTERNAL void simsimd_dot_f16x32_update_sapphire(struct simsimd_dot_f16x32_state_sapphire_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_f16x32_update_sapphire(simsimd_dot_f16x32_state_sapphire_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_f16x32_state_sapphire_t */
-SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_sapphire(struct simsimd_dot_f16x32_state_sapphire_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_sapphire(simsimd_dot_f16x32_state_sapphire_t const *state, simsimd_distance_t *result);
+
+typedef struct simsimd_dot_e4m3x64_state_sapphire_t simsimd_dot_e4m3x64_state_sapphire_t;
 /** @copydoc simsimd_dot_e4m3x64_state_sapphire_t */
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_init_sapphire(struct simsimd_dot_e4m3x64_state_sapphire_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_init_sapphire(simsimd_dot_e4m3x64_state_sapphire_t *state);
 /** @copydoc simsimd_dot_e4m3x64_state_sapphire_t */
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_update_sapphire(struct simsimd_dot_e4m3x64_state_sapphire_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_update_sapphire(simsimd_dot_e4m3x64_state_sapphire_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_e4m3x64_state_sapphire_t */
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_sapphire(struct simsimd_dot_e4m3x64_state_sapphire_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_sapphire(simsimd_dot_e4m3x64_state_sapphire_t const *state, simsimd_distance_t *result);
+
+typedef struct simsimd_dot_e5m2x64_state_sapphire_t simsimd_dot_e5m2x64_state_sapphire_t;
 /** @copydoc simsimd_dot_e5m2x64_state_sapphire_t */
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_init_sapphire(struct simsimd_dot_e5m2x64_state_sapphire_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_init_sapphire(simsimd_dot_e5m2x64_state_sapphire_t *state);
 /** @copydoc simsimd_dot_e5m2x64_state_sapphire_t */
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_update_sapphire(struct simsimd_dot_e5m2x64_state_sapphire_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_update_sapphire(simsimd_dot_e5m2x64_state_sapphire_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_e5m2x64_state_sapphire_t */
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_sapphire(struct simsimd_dot_e5m2x64_state_sapphire_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_sapphire(simsimd_dot_e5m2x64_state_sapphire_t const *state, simsimd_distance_t *result);
 #endif // SIMSIMD_TARGET_SAPPHIRE
 
 #if SIMSIMD_TARGET_SIERRA
 /** @copydoc simsimd_dot_i8 */
 SIMSIMD_PUBLIC void simsimd_dot_i8_sierra(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
+typedef struct simsimd_dot_i8x64_state_sierra_t simsimd_dot_i8x64_state_sierra_t;
 /** @copydoc simsimd_dot_i8x64_state_sierra_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_init_sierra(struct simsimd_dot_i8x64_state_sierra_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_init_sierra(simsimd_dot_i8x64_state_sierra_t *state);
 /** @copydoc simsimd_dot_i8x64_state_sierra_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_sierra(struct simsimd_dot_i8x64_state_sierra_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_sierra(simsimd_dot_i8x64_state_sierra_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_i8x64_state_sierra_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_sierra(struct simsimd_dot_i8x64_state_sierra_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_sierra(simsimd_dot_i8x64_state_sierra_t const *state, simsimd_distance_t *result);
 #endif // SIMSIMD_TARGET_SIERRA
 
+typedef struct simsimd_dot_f64x8_state_serial_t simsimd_dot_f64x8_state_serial_t;
 /** @copydoc simsimd_dot_f64x8_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_f64x8_init_serial(struct simsimd_dot_f64x8_state_serial_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_f64x8_init_serial(simsimd_dot_f64x8_state_serial_t *state);
 /** @copydoc simsimd_dot_f64x8_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_f64x8_update_serial(struct simsimd_dot_f64x8_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_f64x8_update_serial(simsimd_dot_f64x8_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_f64x8_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_f64x8_finalize_serial(struct simsimd_dot_f64x8_state_serial_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_f64x8_finalize_serial(simsimd_dot_f64x8_state_serial_t const *state, simsimd_distance_t *result);
 
+typedef struct simsimd_dot_f32x16_state_serial_t simsimd_dot_f32x16_state_serial_t;
 /** @copydoc simsimd_dot_f32x16_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_f32x16_init_serial(struct simsimd_dot_f32x16_state_serial_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_f32x16_init_serial(simsimd_dot_f32x16_state_serial_t *state);
 /** @copydoc simsimd_dot_f32x16_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_f32x16_update_serial(struct simsimd_dot_f32x16_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_f32x16_update_serial(simsimd_dot_f32x16_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_f32x16_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_serial(struct simsimd_dot_f32x16_state_serial_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_serial(simsimd_dot_f32x16_state_serial_t const *state, simsimd_distance_t *result);
 
+typedef struct simsimd_dot_f16x32_state_serial_t simsimd_dot_f16x32_state_serial_t;
 /** @copydoc simsimd_dot_f16x32_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_f16x32_init_serial(struct simsimd_dot_f16x32_state_serial_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_f16x32_init_serial(simsimd_dot_f16x32_state_serial_t *state);
 /** @copydoc simsimd_dot_f16x32_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_f16x32_update_serial(struct simsimd_dot_f16x32_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_f16x32_update_serial(simsimd_dot_f16x32_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_f16x32_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_serial(struct simsimd_dot_f16x32_state_serial_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_serial(simsimd_dot_f16x32_state_serial_t const *state, simsimd_distance_t *result);
 
+typedef struct simsimd_dot_bf16x32_state_serial_t simsimd_dot_bf16x32_state_serial_t;
 /** @copydoc simsimd_dot_bf16x32_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_bf16x32_init_serial(struct simsimd_dot_bf16x32_state_serial_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_bf16x32_init_serial(simsimd_dot_bf16x32_state_serial_t *state);
 /** @copydoc simsimd_dot_bf16x32_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_bf16x32_update_serial(struct simsimd_dot_bf16x32_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_bf16x32_update_serial(simsimd_dot_bf16x32_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_bf16x32_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_bf16x32_finalize_serial(struct simsimd_dot_bf16x32_state_serial_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_bf16x32_finalize_serial(simsimd_dot_bf16x32_state_serial_t const *state, simsimd_distance_t *result);
 
+typedef struct simsimd_dot_i8x64_state_serial_t simsimd_dot_i8x64_state_serial_t;
 /** @copydoc simsimd_dot_i8x64_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_init_serial(struct simsimd_dot_i8x64_state_serial_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_init_serial(simsimd_dot_i8x64_state_serial_t *state);
 /** @copydoc simsimd_dot_i8x64_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_serial(struct simsimd_dot_i8x64_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_serial(simsimd_dot_i8x64_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_i8x64_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_serial(struct simsimd_dot_i8x64_state_serial_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_serial(simsimd_dot_i8x64_state_serial_t const *state, simsimd_distance_t *result);
 
+typedef struct simsimd_dot_u8x64_state_serial_t simsimd_dot_u8x64_state_serial_t;
 /** @copydoc simsimd_dot_u8x64_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_init_serial(struct simsimd_dot_u8x64_state_serial_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_init_serial(simsimd_dot_u8x64_state_serial_t *state);
 /** @copydoc simsimd_dot_u8x64_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_serial(struct simsimd_dot_u8x64_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_serial(simsimd_dot_u8x64_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_u8x64_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_serial(struct simsimd_dot_u8x64_state_serial_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_serial(simsimd_dot_u8x64_state_serial_t const *state, simsimd_distance_t *result);
 
+typedef struct simsimd_dot_e4m3x64_state_serial_t simsimd_dot_e4m3x64_state_serial_t;
 /** @copydoc simsimd_dot_e4m3x64_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_init_serial(struct simsimd_dot_e4m3x64_state_serial_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_init_serial(simsimd_dot_e4m3x64_state_serial_t *state);
 /** @copydoc simsimd_dot_e4m3x64_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_update_serial(struct simsimd_dot_e4m3x64_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_update_serial(simsimd_dot_e4m3x64_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_e4m3x64_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_serial(struct simsimd_dot_e4m3x64_state_serial_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_serial(simsimd_dot_e4m3x64_state_serial_t const *state, simsimd_distance_t *result);
 
+typedef struct simsimd_dot_e5m2x64_state_serial_t simsimd_dot_e5m2x64_state_serial_t;
 /** @copydoc simsimd_dot_e5m2x64_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_init_serial(struct simsimd_dot_e5m2x64_state_serial_t *state);
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_init_serial(simsimd_dot_e5m2x64_state_serial_t *state);
 /** @copydoc simsimd_dot_e5m2x64_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_update_serial(struct simsimd_dot_e5m2x64_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_update_serial(simsimd_dot_e5m2x64_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_e5m2x64_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_serial(struct simsimd_dot_e5m2x64_state_serial_t const *state, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_serial(simsimd_dot_e5m2x64_state_serial_t const *state, simsimd_distance_t *result);
 // clang-format on
 
 #define SIMSIMD_MAKE_DOT(name, input_type, accumulator_type, load_and_convert)                                 \

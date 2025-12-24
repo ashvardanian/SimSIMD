@@ -926,7 +926,8 @@ Simplest of all, you can include the headers, and the compiler will automaticall
 #include <simsimd/simsimd.h>
 
 int main() {
-    simsimd_flush_denormals(); // Optional, to avoid performance penalties on denormal numbers
+    simsimd_capability_t caps = simsimd_capabilities();
+    simsimd_flush_denormals(caps); // Avoid denormal penalties, enable AMX if available
 
     simsimd_f32_t vector_a[1536];
     simsimd_f32_t vector_b[1536];

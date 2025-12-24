@@ -8,7 +8,7 @@
 #include <stdio.h>  // `printf`
 #include <stdlib.h> // `malloc`, `free`, `rand`, `srand`
 
-#define SIMSIMD_NATIVE_F16 0
+#define SIMSIMD_NATIVE_F16  0
 #define SIMSIMD_NATIVE_BF16 0
 #include <simsimd/simsimd.h>
 
@@ -337,8 +337,8 @@ void test_xd_index(void) {
                         ((j - 2) / 4) * shape[2] +                //
                         ((k - 1) / 3);                            //
                     simsimd_f32_t const entry_native = tensor[i][j][k];
-                    simsimd_f32_t const entry_from_byte_offset =
-                        *(simsimd_f32_t *)_simsimd_advance_by_bytes(&tensor[1][2][1], xd_index.byte_offset);
+                    simsimd_f32_t const entry_from_byte_offset = *(simsimd_f32_t *)_simsimd_advance_by_bytes(
+                        &tensor[1][2][1], xd_index.byte_offset);
                     simsimd_f32_t const entry_from_coordinate = tensor //
                         [xd_index.coordinates[0] * 2 + 1]              //
                         [xd_index.coordinates[1] * 4 + 2]              //
@@ -1406,7 +1406,7 @@ void test_geospatial_vincenty(void) {
  *  @brief  Reference BF16 matmul: C[m×n] = A[m×k] × B[n×k]ᵀ
  */
 static void reference_matmul_bf16_f32(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_f32_t *c,
-                                       simsimd_size_t m, simsimd_size_t n, simsimd_size_t k) {
+                                      simsimd_size_t m, simsimd_size_t n, simsimd_size_t k) {
     for (simsimd_size_t i = 0; i < m; i++) {
         for (simsimd_size_t j = 0; j < n; j++) {
             simsimd_f32_t sum = 0;
@@ -1424,8 +1424,8 @@ static void reference_matmul_bf16_f32(simsimd_bf16_t const *a, simsimd_bf16_t co
 /**
  *  @brief  Reference I8 matmul: C[m×n] = A[m×k] × B[n×k]ᵀ
  */
-static void reference_matmul_i8_i32(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i32_t *c,
-                                     simsimd_size_t m, simsimd_size_t n, simsimd_size_t k) {
+static void reference_matmul_i8_i32(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i32_t *c, simsimd_size_t m,
+                                    simsimd_size_t n, simsimd_size_t k) {
     for (simsimd_size_t i = 0; i < m; i++) {
         for (simsimd_size_t j = 0; j < n; j++) {
             simsimd_i32_t sum = 0;
@@ -1467,8 +1467,8 @@ void test_matmul_bf16(void) {
         simsimd_size_t packed_size = simsimd_matmul_bf16_packed_size_serial(n, k);
         void *b_packed = malloc(packed_size);
         simsimd_matmul_bf16_pack_serial(b, n, k, k * sizeof(simsimd_bf16_t), b_packed);
-        simsimd_matmul_bf16_f32_serial(a, b_packed, c_test, m, n, k,
-                                        k * sizeof(simsimd_bf16_t), n * sizeof(simsimd_f32_t));
+        simsimd_matmul_bf16_f32_serial(a, b_packed, c_test, m, n, k, k * sizeof(simsimd_bf16_t),
+                                       n * sizeof(simsimd_f32_t));
         free(b_packed);
 
         // Compare results with tolerance (BF16 has limited precision)
@@ -1483,13 +1483,14 @@ void test_matmul_bf16(void) {
 #if SIMSIMD_TARGET_SAPPHIRE
     // Test Sapphire (AMX) implementation
     {
-        simsimd_capability_t enabled = simsimd_enable_capabilities(simsimd_cap_sapphire_k);
-        if (enabled & simsimd_cap_sapphire_k) {
-            simsimd_size_t packed_size = simsimd_matmul_bf16_packed_size_sapphire(n, k);
+        simsimd_capability_t caps = simsimd_capabilities();
+        simsimd_flush_denormals(caps); // Enable AMX if available
+        if (caps & simsimd_cap_sapphire_amx_k) {
+            simsimd_size_t packed_size = simsimd_matmul_bf16_packed_size_sapphire_amx(n, k);
             void *b_packed = malloc(packed_size);
-            simsimd_matmul_bf16_pack_sapphire(b, n, k, k * sizeof(simsimd_bf16_t), b_packed);
-            simsimd_matmul_bf16_f32_sapphire(a, b_packed, c_test, m, n, k,
-                                              k * sizeof(simsimd_bf16_t), n * sizeof(simsimd_f32_t));
+            simsimd_matmul_bf16_pack_sapphire_amx(b, n, k, k * sizeof(simsimd_bf16_t), b_packed);
+            simsimd_matmul_bf16_f32_sapphire_amx(a, b_packed, c_test, m, n, k, k * sizeof(simsimd_bf16_t),
+                                                 n * sizeof(simsimd_f32_t));
             free(b_packed);
 
             // Compare results
@@ -1499,9 +1500,8 @@ void test_matmul_bf16(void) {
                 assert(rel_err < 0.02 || diff < 0.01);
             }
             printf("  - sapphire (AMX): PASS\n");
-        } else {
-            printf("  - sapphire (AMX): SKIPPED (not available)\n");
         }
+        else { printf("  - sapphire (AMX): SKIPPED (not available)\n"); }
     }
 #endif
 
@@ -1525,10 +1525,8 @@ void test_matmul_i8(void) {
     simsimd_i32_t *c_test = (simsimd_i32_t *)malloc(m * n * sizeof(simsimd_i32_t));
 
     // Initialize with random values
-    for (simsimd_size_t i = 0; i < m * k; i++)
-        a[i] = (simsimd_i8_t)test_random_f64(-127, 127);
-    for (simsimd_size_t i = 0; i < n * k; i++)
-        b[i] = (simsimd_i8_t)test_random_f64(-127, 127);
+    for (simsimd_size_t i = 0; i < m * k; i++) a[i] = (simsimd_i8_t)test_random_f64(-127, 127);
+    for (simsimd_size_t i = 0; i < n * k; i++) b[i] = (simsimd_i8_t)test_random_f64(-127, 127);
 
     // Compute reference
     reference_matmul_i8_i32(a, b, c_ref, m, n, k);
@@ -1542,29 +1540,27 @@ void test_matmul_i8(void) {
         free(b_packed);
 
         // Compare results (should be exact for integers)
-        for (simsimd_size_t i = 0; i < m * n; i++)
-            assert(c_ref[i] == c_test[i]);
+        for (simsimd_size_t i = 0; i < m * n; i++) assert(c_ref[i] == c_test[i]);
         printf("  - serial: PASS\n");
     }
 
 #if SIMSIMD_TARGET_SAPPHIRE
     // Test Sapphire (AMX) implementation
     {
-        simsimd_capability_t enabled = simsimd_enable_capabilities(simsimd_cap_sapphire_k);
-        if (enabled & simsimd_cap_sapphire_k) {
-            simsimd_size_t packed_size = simsimd_matmul_i8_packed_size_sapphire(n, k);
+        simsimd_capability_t caps = simsimd_capabilities();
+        simsimd_flush_denormals(caps); // Enable AMX if available
+        if (caps & simsimd_cap_sapphire_amx_k) {
+            simsimd_size_t packed_size = simsimd_matmul_i8_packed_size_sapphire_amx(n, k);
             void *b_packed = malloc(packed_size);
-            simsimd_matmul_i8_pack_sapphire(b, n, k, k, b_packed);
-            simsimd_matmul_i8_i32_sapphire(a, b_packed, c_test, m, n, k, k, n * sizeof(simsimd_i32_t));
+            simsimd_matmul_i8_pack_sapphire_amx(b, n, k, k, b_packed);
+            simsimd_matmul_i8_i32_sapphire_amx(a, b_packed, c_test, m, n, k, k, n * sizeof(simsimd_i32_t));
             free(b_packed);
 
             // Compare results
-            for (simsimd_size_t i = 0; i < m * n; i++)
-                assert(c_ref[i] == c_test[i]);
+            for (simsimd_size_t i = 0; i < m * n; i++) assert(c_ref[i] == c_test[i]);
             printf("  - sapphire (AMX): PASS\n");
-        } else {
-            printf("  - sapphire (AMX): SKIPPED (not available)\n");
         }
+        else { printf("  - sapphire (AMX): SKIPPED (not available)\n"); }
     }
 #endif
 

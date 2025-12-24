@@ -179,12 +179,14 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_neon(simsimd_b8_t const* a, simsimd_b8_t 
 SIMSIMD_PUBLIC void simsimd_jaccard_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* result);
 /** @copydoc simsimd_jaccard_u32 */
 SIMSIMD_PUBLIC void simsimd_jaccard_u32_neon(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
+typedef struct simsimd_jaccard_b512_state_neon_t simsimd_jaccard_b512_state_neon_t;
 /** @copydoc simsimd_jaccard_b512_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_jaccard_b512_init_neon(struct simsimd_jaccard_b512_state_neon_t *state);
+SIMSIMD_INTERNAL void simsimd_jaccard_b512_init_neon(simsimd_jaccard_b512_state_neon_t *state);
 /** @copydoc simsimd_jaccard_b512_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_jaccard_b512_update_neon(struct simsimd_jaccard_b512_state_neon_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_jaccard_b512_update_neon(simsimd_jaccard_b512_state_neon_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_jaccard_b512_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_neon(struct simsimd_jaccard_b512_state_neon_t const *state, simsimd_size_t a_norm, simsimd_size_t b_norm, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_neon(simsimd_jaccard_b512_state_neon_t const *state, simsimd_size_t a_norm, simsimd_size_t b_norm, simsimd_distance_t *result);
 #endif // SIMSIMD_TARGET_NEON
 
 #if SIMSIMD_TARGET_SVE
@@ -203,12 +205,14 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_haswell(simsimd_b8_t const* a, simsimd_b8
 SIMSIMD_PUBLIC void simsimd_jaccard_b8_haswell(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* result);
 /** @copydoc simsimd_jaccard_u32 */
 SIMSIMD_PUBLIC void simsimd_jaccard_u32_haswell(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
+typedef struct simsimd_jaccard_b512_state_haswell_t simsimd_jaccard_b512_state_haswell_t;
 /** @copydoc simsimd_jaccard_b512_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_jaccard_b512_init_haswell(struct simsimd_jaccard_b512_state_haswell_t *state);
+SIMSIMD_INTERNAL void simsimd_jaccard_b512_init_haswell(simsimd_jaccard_b512_state_haswell_t *state);
 /** @copydoc simsimd_jaccard_b512_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_jaccard_b512_update_haswell(struct simsimd_jaccard_b512_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_jaccard_b512_update_haswell(simsimd_jaccard_b512_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_jaccard_b512_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_haswell(struct simsimd_jaccard_b512_state_haswell_t const *state, simsimd_size_t a_norm, simsimd_size_t b_norm, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_haswell(simsimd_jaccard_b512_state_haswell_t const *state, simsimd_size_t a_norm, simsimd_size_t b_norm, simsimd_distance_t *result);
 #endif // SIMSIMD_TARGET_HASWELL
 
 #if SIMSIMD_TARGET_ICE
@@ -218,12 +222,14 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const* a, simsimd_b8_t c
 SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* result);
 /** @copydoc simsimd_jaccard_u32 */
 SIMSIMD_PUBLIC void simsimd_jaccard_u32_ice(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+
+typedef struct simsimd_jaccard_b512_state_ice_t simsimd_jaccard_b512_state_ice_t;
 /** @copydoc simsimd_jaccard_b512_state_ice_t */
-SIMSIMD_INTERNAL void simsimd_jaccard_b512_init_ice(struct simsimd_jaccard_b512_state_ice_t *state);
+SIMSIMD_INTERNAL void simsimd_jaccard_b512_init_ice(simsimd_jaccard_b512_state_ice_t *state);
 /** @copydoc simsimd_jaccard_b512_state_ice_t */
-SIMSIMD_INTERNAL void simsimd_jaccard_b512_update_ice(struct simsimd_jaccard_b512_state_ice_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
+SIMSIMD_INTERNAL void simsimd_jaccard_b512_update_ice(simsimd_jaccard_b512_state_ice_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_jaccard_b512_state_ice_t */
-SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_ice(struct simsimd_jaccard_b512_state_ice_t const *state, simsimd_size_t a_norm, simsimd_size_t b_norm, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_ice(simsimd_jaccard_b512_state_ice_t const *state, simsimd_size_t a_norm, simsimd_size_t b_norm, simsimd_distance_t *result);
 #endif // SIMSIMD_TARGET_ICE
 
 // clang-format on
