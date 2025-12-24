@@ -1,86 +1,223 @@
 /**
- *  @file       probability.h
- *  @brief      SIMD-accelerated Similarity Measures for Probability Distributions.
- *  @author     Ash Vardanian
- *  @date       October 20, 2023
+ *  @brief SIMD-accelerated Similarity Measures for Probability Distributions.
+ *  @file include/simsimd/probability.h
+ *  @author Ash Vardanian
+ *  @date October 20, 2023
  *
- *  Contains:
+ *  Contains following similarity measures:
+ *
  *  - Kullback-Leibler divergence
- *  - Jensen–Shannon divergence
+ *  - Jensen-Shannon divergence
  *
  *  For datatypes:
+ *
  *  - 32-bit floating point numbers
  *  - 16-bit floating point numbers
  *  - 16-bit brain-floating point numbers
  *
  *  For hardware architectures:
+ *
  *  - Arm: NEON
  *  - x86: Haswell, Skylake, Sapphire
  *
- *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
- *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *  @section numeric_stability Numeric Stability
+ *
+ *  The implementations use a small epsilon to avoid division by zero when inputs contain zeros.
+ *  For higher-precision accumulation, use the "*_accurate" serial variants.
+ *
+ *  @section references References
+ *
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
 #ifndef SIMSIMD_PROBABILITY_H
 #define SIMSIMD_PROBABILITY_H
 
 #include "types.h"
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
+/**
+ *  @brief Kullback-Leibler divergence between two discrete probability distributions.
+ *
+ *  @param[in] a The first discrete probability distribution.
+ *  @param[in] b The second discrete probability distribution.
+ *  @param[in] n The number of elements in the distributions.
+ *  @param[out] result The output divergence value.
+ *
+ *  @note The distributions are assumed to be normalized.
+ *  @note The output divergence value is non-negative.
+ *  @note The output divergence value is zero if and only if the two distributions are identical.
+ */
+SIMSIMD_DYNAMIC void simsimd_kld_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
+                                     simsimd_distance_t *result);
+/**
+ *  @brief Kullback-Leibler divergence between two discrete probability distributions.
+ *
+ *  @param[in] a The first discrete probability distribution.
+ *  @param[in] b The second discrete probability distribution.
+ *  @param[in] n The number of elements in the distributions.
+ *  @param[out] result The output divergence value.
+ *
+ *  @note The distributions are assumed to be normalized.
+ *  @note The output divergence value is non-negative.
+ *  @note The output divergence value is zero if and only if the two distributions are identical.
+ */
+SIMSIMD_DYNAMIC void simsimd_kld_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
+                                      simsimd_distance_t *result);
+/**
+ *  @brief Kullback-Leibler divergence between two discrete probability distributions.
+ *
+ *  @param[in] a The first discrete probability distribution.
+ *  @param[in] b The second discrete probability distribution.
+ *  @param[in] n The number of elements in the distributions.
+ *  @param[out] result The output divergence value.
+ *
+ *  @note The distributions are assumed to be normalized.
+ *  @note The output divergence value is non-negative.
+ *  @note The output divergence value is zero if and only if the two distributions are identical.
+ */
+SIMSIMD_DYNAMIC void simsimd_kld_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
+                                     simsimd_distance_t *result);
+/**
+ *  @brief Kullback-Leibler divergence between two discrete probability distributions.
+ *
+ *  @param[in] a The first discrete probability distribution.
+ *  @param[in] b The second discrete probability distribution.
+ *  @param[in] n The number of elements in the distributions.
+ *  @param[out] result The output divergence value.
+ *
+ *  @note The distributions are assumed to be normalized.
+ *  @note The output divergence value is non-negative.
+ *  @note The output divergence value is zero if and only if the two distributions are identical.
+ */
+SIMSIMD_DYNAMIC void simsimd_kld_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
+                                     simsimd_distance_t *result);
+/**
+ *  @brief Jensen-Shannon divergence between two discrete probability distributions.
+ *
+ *  @param[in] a The first discrete probability distribution.
+ *  @param[in] b The second discrete probability distribution.
+ *  @param[in] n The number of elements in the distributions.
+ *  @param[out] result The output divergence value.
+ *
+ *  @note The distributions are assumed to be normalized.
+ *  @note The output divergence value is non-negative.
+ *  @note The output divergence value is zero if and only if the two distributions are identical.
+ */
+SIMSIMD_DYNAMIC void simsimd_jsd_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
+                                     simsimd_distance_t *result);
+/**
+ *  @brief Jensen-Shannon divergence between two discrete probability distributions.
+ *
+ *  @param[in] a The first discrete probability distribution.
+ *  @param[in] b The second discrete probability distribution.
+ *  @param[in] n The number of elements in the distributions.
+ *  @param[out] result The output divergence value.
+ *
+ *  @note The distributions are assumed to be normalized.
+ *  @note The output divergence value is non-negative.
+ *  @note The output divergence value is zero if and only if the two distributions are identical.
+ */
+SIMSIMD_DYNAMIC void simsimd_jsd_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
+                                      simsimd_distance_t *result);
+/**
+ *  @brief Jensen-Shannon divergence between two discrete probability distributions.
+ *
+ *  @param[in] a The first discrete probability distribution.
+ *  @param[in] b The second discrete probability distribution.
+ *  @param[in] n The number of elements in the distributions.
+ *  @param[out] result The output divergence value.
+ *
+ *  @note The distributions are assumed to be normalized.
+ *  @note The output divergence value is non-negative.
+ *  @note The output divergence value is zero if and only if the two distributions are identical.
+ */
+SIMSIMD_DYNAMIC void simsimd_jsd_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
+                                     simsimd_distance_t *result);
+/**
+ *  @brief Jensen-Shannon divergence between two discrete probability distributions.
+ *
+ *  @param[in] a The first discrete probability distribution.
+ *  @param[in] b The second discrete probability distribution.
+ *  @param[in] n The number of elements in the distributions.
+ *  @param[out] result The output divergence value.
+ *
+ *  @note The distributions are assumed to be normalized.
+ *  @note The output divergence value is non-negative.
+ *  @note The output divergence value is zero if and only if the two distributions are identical.
+ */
+SIMSIMD_DYNAMIC void simsimd_jsd_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
+                                     simsimd_distance_t *result);
+
 // clang-format off
 
-/*  Serial backends for all numeric types.
- *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
- *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
- */
+/** @copydoc simsimd_kld_f64 */
 SIMSIMD_PUBLIC void simsimd_kld_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_jsd_f64 */
 SIMSIMD_PUBLIC void simsimd_jsd_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_kld_f32 */
 SIMSIMD_PUBLIC void simsimd_kld_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_jsd_f32 */
 SIMSIMD_PUBLIC void simsimd_jsd_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_kld_f16 */
 SIMSIMD_PUBLIC void simsimd_kld_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_jsd_f16 */
 SIMSIMD_PUBLIC void simsimd_jsd_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_kld_bf16 */
 SIMSIMD_PUBLIC void simsimd_kld_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_jsd_bf16 */
 SIMSIMD_PUBLIC void simsimd_jsd_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
-/*  Double-precision serial backends for all numeric types.
- *  For single-precision computation check out the "*_serial" counterparts of those "*_accurate" functions.
- */
+/** @copydoc simsimd_kld_f32 */
 SIMSIMD_PUBLIC void simsimd_kld_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_jsd_f32 */
 SIMSIMD_PUBLIC void simsimd_jsd_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_kld_f16 */
 SIMSIMD_PUBLIC void simsimd_kld_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_jsd_f16 */
 SIMSIMD_PUBLIC void simsimd_jsd_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_kld_bf16 */
 SIMSIMD_PUBLIC void simsimd_kld_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_jsd_bf16 */
 SIMSIMD_PUBLIC void simsimd_jsd_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
-/*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
- *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
- *  server CPUs produced before 2023.
- */
+#if SIMSIMD_TARGET_NEON
+/** @copydoc simsimd_kld_f32 */
 SIMSIMD_PUBLIC void simsimd_kld_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_jsd_f32 */
 SIMSIMD_PUBLIC void simsimd_jsd_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+#endif // SIMSIMD_TARGET_NEON
+
+#if SIMSIMD_TARGET_NEON_F16
+/** @copydoc simsimd_kld_f16 */
 SIMSIMD_PUBLIC void simsimd_kld_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_jsd_f16 */
 SIMSIMD_PUBLIC void simsimd_jsd_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+#endif // SIMSIMD_TARGET_NEON_F16
 
-/*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
- *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
- *  Practically all modern x86 CPUs support AVX2, FMA, and F16C, making it a perfect baseline for SIMD algorithms.
- *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
- *  properly vectorized by recent compilers.
- */
+#if SIMSIMD_TARGET_HASWELL
+/** @copydoc simsimd_kld_f16 */
 SIMSIMD_PUBLIC void simsimd_kld_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_jsd_f16 */
 SIMSIMD_PUBLIC void simsimd_jsd_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+#endif // SIMSIMD_TARGET_HASWELL
 
-/*  SIMD-powered backends for various generations of AVX512 CPUs.
- *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
- *  Ice Lake added VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ, and other extensions for integral operations.
- *  Sapphire Rapids added tiled matrix operations, but we are most interested in the new mixed-precision FMA instructions.
- */
+#if SIMSIMD_TARGET_SKYLAKE
+/** @copydoc simsimd_kld_f32 */
 SIMSIMD_PUBLIC void simsimd_kld_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_jsd_f32 */
 SIMSIMD_PUBLIC void simsimd_jsd_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+#endif // SIMSIMD_TARGET_SKYLAKE
+
+#if SIMSIMD_TARGET_SAPPHIRE
+/** @copydoc simsimd_kld_f16 */
 SIMSIMD_PUBLIC void simsimd_kld_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_jsd_f16 */
 SIMSIMD_PUBLIC void simsimd_jsd_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_size_t n, simsimd_distance_t* result);
+#endif // SIMSIMD_TARGET_SAPPHIRE
 // clang-format on
 
 #define SIMSIMD_MAKE_KLD(name, input_type, accumulator_type, load_and_convert, epsilon)                        \
@@ -600,7 +737,75 @@ simsimd_jsd_f16_sapphire_cycle:
 #endif // SIMSIMD_TARGET_SAPPHIRE
 #endif // _SIMSIMD_TARGET_X86
 
-#ifdef __cplusplus
+#if !SIMSIMD_DYNAMIC_DISPATCH
+
+SIMSIMD_PUBLIC void simsimd_kld_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
+                                    simsimd_distance_t *result) {
+#if SIMSIMD_TARGET_NEON_F16
+    simsimd_kld_f16_neon(a, b, n, result);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_kld_f16_haswell(a, b, n, result);
+#else
+    simsimd_kld_f16_serial(a, b, n, result);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_kld_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
+                                     simsimd_distance_t *result) {
+    simsimd_kld_bf16_serial(a, b, n, result);
+}
+
+SIMSIMD_PUBLIC void simsimd_kld_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
+                                    simsimd_distance_t *result) {
+#if SIMSIMD_TARGET_NEON
+    simsimd_kld_f32_neon(a, b, n, result);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_kld_f32_skylake(a, b, n, result);
+#else
+    simsimd_kld_f32_serial(a, b, n, result);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_kld_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
+                                    simsimd_distance_t *result) {
+    simsimd_kld_f64_serial(a, b, n, result);
+}
+
+SIMSIMD_PUBLIC void simsimd_jsd_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
+                                    simsimd_distance_t *result) {
+#if SIMSIMD_TARGET_NEON_F16
+    simsimd_jsd_f16_neon(a, b, n, result);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_jsd_f16_haswell(a, b, n, result);
+#else
+    simsimd_jsd_f16_serial(a, b, n, result);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_jsd_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
+                                     simsimd_distance_t *result) {
+    simsimd_jsd_bf16_serial(a, b, n, result);
+}
+
+SIMSIMD_PUBLIC void simsimd_jsd_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
+                                    simsimd_distance_t *result) {
+#if SIMSIMD_TARGET_NEON
+    simsimd_jsd_f32_neon(a, b, n, result);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_jsd_f32_skylake(a, b, n, result);
+#else
+    simsimd_jsd_f32_serial(a, b, n, result);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_jsd_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
+                                    simsimd_distance_t *result) {
+    simsimd_jsd_f64_serial(a, b, n, result);
+}
+
+#endif // !SIMSIMD_DYNAMIC_DISPATCH
+
+#if defined(__cplusplus)
 }
 #endif
 
