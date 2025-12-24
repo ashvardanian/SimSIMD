@@ -5,16 +5,19 @@
  *  @date March 21, 2024
  *
  *  Contains:
+ *
  *  - Set intersection (unnormalized Jaccard distance)
  *  - Sparse dot products, outputting the intersection count and weighted product
  *
  *  For datatypes:
+ *
  *  - u16: for vocabularies under 64 thousand tokens
  *  - u32: for vocabularies under 4 billion tokens
  *  - u16 indices + i16 weights: for weighted word counts
  *  - u16 indices + bf16 weights: for sparse matrices
  *
  *  For hardware architectures:
+ *
  *  - Arm: NEON, SVE2
  *  - x86: Ice Lake, Turin
  *
@@ -73,6 +76,7 @@
  *  - vp2intersect experiments: https://github.com/mozonaut/vp2intersect
  *  - Diez-Canas "Faster-Than-Native Alternatives for x86 VP2INTERSECT Instructions":
  *    https://arxiv.org/pdf/2112.06342.pdf
+ *
  */
 #ifndef SIMSIMD_SPARSE_H
 #define SIMSIMD_SPARSE_H
@@ -458,6 +462,7 @@ SIMSIMD_INTERNAL simsimd_u32_t _simsimd_intersect_u16x32_ice(__m512i a, __m512i 
  *  - `_mm512_conflict_epi32` - "VPCONFLICTD (ZMM, ZMM)":
  *      - up to 26 cycles latency on Ice Lake: 11*p0+9*p05+17*p5
  *      - up to 7 cycle latency on Genoa: 1*FP01+1*FP12
+ *
  */
 SIMSIMD_INTERNAL simsimd_u16_t _simsimd_intersect_u32x16_ice(__m512i a, __m512i b) {
     __m512i a1 = _mm512_alignr_epi32(a, a, 4);

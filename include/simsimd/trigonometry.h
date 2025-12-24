@@ -5,14 +5,17 @@
  *  @date July 1, 2023
  *
  *  Contains:
+ *
  *  - Sine and Cosine approximations: fast for `f32` vs accurate for `f64`
  *  - Tangent and the 2-argument arctangent: fast for `f32` vs accurate for `f64`
  *
  *  For datatypes:
+ *
  *  - 32-bit IEEE-754 floating point
  *  - 64-bit IEEE-754 floating point
  *
  *  For hardware architectures:
+ *
  *  - Arm: NEON
  *  - x86: Haswell, Skylake
  *
@@ -20,7 +23,7 @@
  *  the `geospatial.h` module, among others. Both Haversine and Vincenty's formulas require
  *  trigonometric functions, and those are the most expensive part of the computation.
  *
- *  @section    GLibC IEEE-754-compliant Math Functions
+ *  @section glibc_math GLibC IEEE-754-compliant Math Functions
  *
  *  The GNU C Library (GLibC) provides a set of IEEE-754-compliant math functions, like `sinf`, `cosf`,
  *  and double-precision variants `sin`, `cos`. Those functions are accurate to ~0.55 ULP (units in the
@@ -33,10 +36,11 @@
  *  The precomputed tables may be the hardest part to accelerate with SIMD, as they contain 440x values,
  *  each 64-bit wide.
  *
- *  https://github.com/lattera/glibc/blob/895ef79e04a953cac1493863bcae29ad85657ee1/sysdeps/ieee754/dbl-64/branred.c#L54
- *  https://github.com/lattera/glibc/blob/895ef79e04a953cac1493863bcae29ad85657ee1/sysdeps/ieee754/dbl-64/s_sin.c#L84
+ *  -
+ * https://github.com/lattera/glibc/blob/895ef79e04a953cac1493863bcae29ad85657ee1/sysdeps/ieee754/dbl-64/branred.c#L54
+ *  - https://github.com/lattera/glibc/blob/895ef79e04a953cac1493863bcae29ad85657ee1/sysdeps/ieee754/dbl-64/s_sin.c#L84
  *
- *  @section    Approximation Algorithms
+ *  @section approximation_algorithms Approximation Algorithms
  *
  *  There are several ways to approximate trigonometric functions, and the choice depends on the
  *  target hardware and the desired precision. Notably:
@@ -56,7 +60,7 @@
  *  In trigonometry, the Payne-Hanek Range Reduction is another technique used to reduce the argument
  *  to a smaller range, where the approximation is more accurate.
  *
- *  @section    Optimization Notes
+ *  @section optimization_notes Optimization Notes
  *
  *  The following optimizations were evaluated but did not yield performance improvements:
  *
@@ -72,8 +76,11 @@
  *    Did not improve performance when combined with Estrin's scheme, likely because the division
  *    is not on the critical path when processing large arrays.
  *
- *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
- *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *  @section references References
+ *
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *
  */
 #ifndef SIMSIMD_TRIGONOMETRY_H
 #define SIMSIMD_TRIGONOMETRY_H
@@ -1427,11 +1434,15 @@ SIMSIMD_INTERNAL __m512 _simsimd_f32x16_atan2_skylake(__m512 const ys_inputs, __
 
     // Special cases handling doesn't even require constants, as AVX-512 can automatically classify infinities.
     // However, those `_mm512_fpclass_ps_mask` ~ `VFPCLASSPS (K, ZMM, I8)` instructions aren't free:
+    //
     // - On Intel they generally cost 4 cycles and operate only on port 5.
     // - On AMD, its 5 cycles and two ports: 0 and 1.
+    //
     // The alternative is to use equality comparions like `_mm512_cmpeq_ps_mask` ~ `VCMPPS (K, ZMM, ZMM, I8)`:
+    //
     // - On Intel they generally cost 4 cycles and operate only on port 5.
     // - On AMD, its 5 cycles and two ports: 0 and 1.
+    //
     // ! Same as before, so not much space for latency hiding!
     // ! Integer comparison for 32 bit types also have the same cost on the same ports.
     __mmask16 const xs_is_inf = _mm512_fpclass_ps_mask(xs, 0x18);

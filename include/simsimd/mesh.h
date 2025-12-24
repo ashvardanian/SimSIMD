@@ -5,23 +5,27 @@
  *  @date June 19, 2024
  *
  *  Contains:
+ *
  *  - Root Mean Square Deviation (RMSD) for rigid body superposition
  *  - Kabsch algorithm for optimal rigid body alignment (rotation only)
  *  - Umeyama algorithm for similarity transform (rotation + uniform scaling)
  *
  *  For datatypes:
+ *
  *  - 64-bit IEEE-754 floating point
  *  - 32-bit IEEE-754 floating point
  *  - 16-bit IEEE-754 floating point
  *  - 16-bit brain-floating point
  *
  *  For hardware architectures:
+ *
  *  - x86 (AVX2, AVX512)
  *  - Arm (NEON, SVE)
  *
  *  @section applications Applications
  *
  *  These routines are the core of point-cloud alignment pipelines:
+ *
  *  - Structural biology: protein backbone or ligand alignment (RMSD, Kabsch)
  *  - Computer graphics: mesh registration and deformation transfer
  *  - Robotics/SLAM: point-cloud registration and tracking
@@ -34,6 +38,7 @@
  *      a'_i = scale * R * (a_i - a_centroid) + b_centroid
  *
  *  Where:
+ *
  *  - R is a 3x3 rotation matrix (row-major, 9 values)
  *  - scale is a uniform scaling factor (1.0 for RMSD and Kabsch)
  *  - a_centroid, b_centroid are the centroids of the respective point clouds
@@ -70,8 +75,11 @@
  *
  *  Gather-heavy tails are intentionally isolated to keep the steady-state loop on contiguous loads.
  *
- *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
- *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *  @section references References
+ *
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *
  */
 #ifndef SIMSIMD_MESH_H
 #define SIMSIMD_MESH_H

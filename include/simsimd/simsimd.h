@@ -4,12 +4,7 @@
  *  @author     Ash Vardanian
  *  @date       March 14, 2023
  *
- *  References:
- *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide
- *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics
- *  Detecting target CPU features at compile time: https://stackoverflow.com/a/28939692/2766161
- *
- *  @section    Choosing x86 Target Generations
+ *  @section x86_targets Choosing x86 Target Generations
  *
  *  It's important to provide fine-grained controls over AVX512 families, as they are very fragmented:
  *
@@ -31,6 +26,7 @@
  *  It's mostly used in 4-socket and 8-socket high-memory configurations.
  *
  *  For us, it makes sense to differentiate only these AVX512 generations:
+ *
  *  1. Intel Skylake (pre 2019): supports single-precision dot-products.
  *  2. Intel Ice Lake (2019-2021): advanced integer algorithms.
  *  3. AMD Genoa (2023+): brain-floating point support.
@@ -44,7 +40,7 @@
  *  On Arm machines you may want to check for other flags:
  *       gcc-12 -march=native -dM -E - < /dev/null | egrep "NEON|SVE|FP16|FMA" | sort
  *
- *  @section    Choosing Arm Target Generations
+ *  @section arm_targets Choosing Arm Target Generations
  *
  *  Arm CPUs share design IP, but are produced by different vendors, potentially making the platform
  *  even more fragmented than x86. There are 2 important families of SIMD extensions - NEON and SVE.
@@ -84,6 +80,12 @@
  *
  *  On the consumer side, Apple is the biggest player with mobile @b A chips and desktop @b M chips.
  *  The M1 implements Armv8.5-A, both M2 and M3 implement Armv8.6-A, and M4 is expected to have Armv9.1-A.
+ *
+ *  @section references References
+ *
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide
+ *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics
+ *  - Detecting target CPU features at compile time: https://stackoverflow.com/a/28939692/2766161
  */
 
 #ifndef SIMSIMD_H

@@ -22,31 +22,19 @@
  *  - Arm: NEON
  *  - x86: Haswell, Ice Lake, Skylake, Genoa, Sapphire
  *
- *  @section matrix_ops Matrix Operations
- *
- *  Most kernels in this file are designed for BLAS level 2 operations, where the operands are
- *  a combination of matrices and vectors, generally forming a chain of multiplications.
- *  Most kernels exploit the fact that matrix multiplication is associative, and the order of
- *  operations can be changed to minimize the number of operations: `(A * B) * C = A * (B * C)`.
- *  To optimize the performance, we minimize the number of memory accesses, and maximize the
- *  number of arithmetic operations, by using SIMD instructions.
- *
- *  When A and C are vectors, and B is a matrix, we can load every element in B just once, and
- *  reuse it for every element in A and C.
- *
  *  @section usage Usage and Benefits
  *
- *  The bilinear form and Mahalanobis distance evaluate quadratic forms under a metric tensor
- *  or covariance matrix without constructing intermediates. This is common in metric learning,
- *  Gaussian models, and geometric embeddings where you need fast per-pair evaluation.
- *  The complex bilinear forms serve complex-valued signals with complex metrics, returning
- *  a complex scalar as two real numbers. By specializing for this pattern, we avoid full
- *  GEMM-style paths and extra memory traffic, which can be faster for small and medium sizes.
+ *  These kernels target BLAS level 2 patterns where vectors are combined with a metric
+ *  tensor or covariance matrix. Using raw bilinear and Mahalanobis forms avoids constructing
+ *  intermediates and keeps memory traffic low, which is often faster than a full GEMM path
+ *  for small and medium sizes. Complex bilinear forms return a complex scalar as two reals,
+ *  serving complex-valued signals without extra packing or unpacking.
  *
  *  @section references References
  *
  *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *
  */
 #ifndef SIMSIMD_CURVED_H
 #define SIMSIMD_CURVED_H

@@ -5,10 +5,12 @@
  *  @date February 24, 2024
  *
  *  Contains:
+ *
  *  - Dot Product for Real and Complex vectors
  *  - Conjugate Dot Product for Complex vectors
  *
  *  For datatypes:
+ *
  *  - 64-bit IEEE floating point numbers
  *  - 32-bit IEEE floating point numbers
  *  - 16-bit IEEE floating point numbers
@@ -17,6 +19,7 @@
  *  - 8-bit signed integers
  *
  *  For hardware architectures:
+ *
  *  - Arm: NEON, SVE
  *  - x86: Haswell, Ice Lake, Skylake, Genoa, Sapphire, Sierra
  *
@@ -26,6 +29,7 @@
  *  that accept two `simsimd_b512_vec_t` blocks and update a running sum for non-complex dot
  *  products. The `<count>` suffix reflects how many scalars of that type fit in a 512-bit block.
  *  The helpers are exposed per scalar type as:
+ *
  *  - simsimd_dot_<type>x<count>_state_<isa>_t
  *  - simsimd_dot_<type>x<count>_init_<isa>
  *  - simsimd_dot_<type>x<count>_update_<isa>
@@ -35,6 +39,7 @@
  *
  *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *
  */
 #ifndef SIMSIMD_DOT_H
 #define SIMSIMD_DOT_H

@@ -76,8 +76,6 @@ AttributeMacros:
   - SIMSIMD_INTERNAL
   - SIMSIMD_DYNAMIC
 
-# Keep SIMD intrinsic alignment in lookup tables
-AlignArrayOfStructures: Right
 
 # Align consecutive macro definitions (useful for SIMSIMD_TARGET_* flags)
 AlignConsecutiveMacros:

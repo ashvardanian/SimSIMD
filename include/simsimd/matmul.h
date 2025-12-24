@@ -16,19 +16,22 @@
  *  Kernels are tuned for SIMD-aligned sizes; tails use a slower but maintainable fallback path.
  *
  *  For datatypes:
+ *
  *  - 16-bit brain floats (BF16) accumulating into 32-bit floats
  *  - 16-bit brain floats (BF16) accumulating into 32-bit floats with truncation to BF16
  *  - 8-bit signed integers (I8) accumulating into 32-bit integers
  *  - 8-bit signed integers (I8) accumulating into 32-bit integers with re-normalization to I8
  *
  *  For hardware architectures:
+ *
  *  - x86: Haswell (AVX2), Genoa (AVX512-BF16), Sapphire Rapids (AMX)
  *  - Arm: NEON, SVE, SME
  *
- *  @section    Memory Layout and Transpose Semantics
+ *  @section memory_layout Memory Layout and Transpose Semantics
  *
  *  All matrices use row-major storage. Column-major is NOT supported.
  *  The kernel computes C = A × Bᵀ where:
+ *
  *  - A is (m × k): m rows, k columns, stride = a_stride bytes between rows
  *  - B is (n × k): n rows, k columns, stride = b_stride bytes between rows
  *  - C is (m × n): m rows, n columns, stride = c_stride bytes between rows
@@ -48,7 +51,7 @@
  *  // Result: C = A × (Bᵀ)ᵀ = A × B
  *  @endcode
  *
- *  @section    Two-Phase API for Static Weights
+ *  @section two_phase_api Two-Phase API for Static Weights
  *
  *  Matrix multiplication hardware (AMX, SME) requires specific data layouts that differ
  *  from standard row-major ordering. Since one matrix (typically weights in neural networks)
@@ -67,19 +70,19 @@
  *  The packed format is opaque and backend-specific. AMX expects (16×32) tiles with interleaved
  *  pairs, while NEON/SVE use arrangements optimized for their vector lengths.
  *
- *  @section    Why INT8 and Not UINT8?
+ *  @section why_int8 Why INT8 and Not UINT8?
  *
  *  Unsigned 8-bit integers were considered but deprioritized. The industry has converged on
  *  signed INT8 as the standard for quantized inference:
  *
- *      Framework           Default     Notes                                    |
- *      PyTorch             qint8       New X86 backend uses INT8 via oneDNN     |
- *      TensorFlow Lite     int8        Actively removing UINT8 support          |
- *      ONNX Runtime        S8S8        "Should be the first choice"             |
- *      TensorRT            INT8        Symmetric [-128,127], no UINT8 option    |
- *      ARM CMSIS-NN        int8        Follows TFLite INT8 spec exactly         |
+ *      Framework           Default     Notes
+ *      PyTorch             qint8       New X86 backend uses INT8 via oneDNN
+ *      TensorFlow Lite     int8        Actively removing UINT8 support
+ *      ONNX Runtime        S8S8        "Should be the first choice"
+ *      TensorRT            INT8        Symmetric [-128,127], no UINT8 option
+ *      ARM CMSIS-NN        int8        Follows TFLite INT8 spec exactly
  *
- *  @section    Why No Alpha/Beta Scaling?
+ *  @section why_no_scaling Why No Alpha/Beta Scaling?
  *
  *  BLAS-style `C = α·A·B + β·C` scaling was considered but omitted. While useful for scientific
  *  computing (iterative solvers, matrix factorizations), it's rarely used in ML inference where
@@ -87,7 +90,7 @@
  *  physical registers for vector and matrix operations (like AMX), moving scalars between register
  *  files adds transfer latency that negates any benefit.
  *
- *  @section    Why Not Pad N Dimension to Eliminate Edge Handling?
+ *  @section why_no_pad Why Not Pad N Dimension to Eliminate Edge Handling?
  *
  *  Padding N to a tile-aligned boundary (multiple of 16) during packing was considered to eliminate
  *  the separate AVX-512 edge kernel for N remainder rows. While this sounds simpler ("pure AMX"),
@@ -102,7 +105,7 @@
  *  The current hybrid layout (AMX for full tiles, AVX-512 for edges) is more maintainable despite
  *  being conceptually less uniform. Memory overhead of the edge region is negligible (<2% worst case).
  *
- *  @section    x86_instructions Relevant x86 Instructions
+ *  @section x86_instructions Relevant x86 Instructions
  *
  *  Low-precision matmul relies on VPMADD* (AVX2), VNNI dot-products, and BF16 dot-products
  *  on AVX-512. Zen4 improves throughput by dual-issuing many integer ops on FP ports.
@@ -116,12 +119,15 @@
  *
  *  AMX tile ops (TDPBF16PS/TDPBUSD/TDPBSSD) are not covered by the uops.info 2022 dataset.
  *
- *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
- *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
- *  uops.info: https://uops.info/
- *  Matrix Multiplication in 40 lines: https://en.algorithmica.org/hpc/algorithms/matmul/
- *  LLaMA CPU optimization: https://justine.lol/matmul/
- *  SME outer-product notes: https://github.com/tzakharko/m4-sme-exploration
+ *  @section references References
+ *
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *  - uops.info: https://uops.info/
+ *  - Matrix Multiplication in 40 lines: https://en.algorithmica.org/hpc/algorithms/matmul/
+ *  - LLaMA CPU optimization: https://justine.lol/matmul/
+ *  - SME outer-product notes: https://github.com/tzakharko/m4-sme-exploration
+ *
  */
 #ifndef SIMSIMD_MATMUL_H
 #define SIMSIMD_MATMUL_H
@@ -352,8 +358,10 @@ SIMSIMD_PUBLIC void simsimd_matmul_i8_compact_sapphire_amx(void *c, simsimd_size
  *  Use when B matrix is not reused across multiple multiplications.
  *
  *  Naming: simsimd_matmul_<type>_<variant>_unpacked
+ *
  *  - serial: basic tiled implementation
  *  - accurate: higher precision accumulator
+ *
  */
 #define SIMSIMD_MAKE_MATMUL_UNPACKED(name, input_type, accumulator_type, output_type, load_and_convert,              \
                                      convert_and_store)                                                              \

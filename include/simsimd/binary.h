@@ -110,6 +110,7 @@
  *  - Muła et al. "Faster Population Counts": https://arxiv.org/pdf/1611.07612
  *  - Muła SSE POPCOUNT experiments: https://github.com/WojciechMula/sse-popcount
  *  - SimSIMD binary R&D tracker: https://github.com/ashvardanian/SimSIMD/pull/138
+ *
  */
 #ifndef SIMSIMD_BINARY_H
 #define SIMSIMD_BINARY_H
@@ -420,8 +421,8 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_sve(simsimd_b8_t const *a, simsimd_b8_t c
             svbool_t pg_vec = svwhilelt_b8((unsigned int)i, (unsigned int)n_words);
             svuint8_t a_vec = svld1_u8(pg_vec, a + i);
             svuint8_t b_vec = svld1_u8(pg_vec, b + i);
-            differences_cycle_vec =
-                svadd_u8_z(all_vec, differences_cycle_vec, svcnt_u8_x(all_vec, sveor_u8_m(all_vec, a_vec, b_vec)));
+            differences_cycle_vec = svadd_u8_z(all_vec, differences_cycle_vec,
+                                               svcnt_u8_x(all_vec, sveor_u8_m(all_vec, a_vec, b_vec)));
             i += words_per_register;
             ++cycle;
         } while (i < n_words && cycle < 31);
@@ -454,10 +455,10 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_sve(simsimd_b8_t const *a, simsimd_b8_t c
             svbool_t pg_vec = svwhilelt_b8((unsigned int)i, (unsigned int)n_words);
             svuint8_t a_vec = svld1_u8(pg_vec, a + i);
             svuint8_t b_vec = svld1_u8(pg_vec, b + i);
-            intersection_cycle_vec =
-                svadd_u8_z(all_vec, intersection_cycle_vec, svcnt_u8_x(all_vec, svand_u8_m(all_vec, a_vec, b_vec)));
-            union_cycle_vec =
-                svadd_u8_z(all_vec, union_cycle_vec, svcnt_u8_x(all_vec, svorr_u8_m(all_vec, a_vec, b_vec)));
+            intersection_cycle_vec = svadd_u8_z(all_vec, intersection_cycle_vec,
+                                                svcnt_u8_x(all_vec, svand_u8_m(all_vec, a_vec, b_vec)));
+            union_cycle_vec = svadd_u8_z(all_vec, union_cycle_vec,
+                                         svcnt_u8_x(all_vec, svorr_u8_m(all_vec, a_vec, b_vec)));
             i += words_per_register;
             ++cycle;
         } while (i < n_words && cycle < 31);
@@ -532,8 +533,8 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const *a, simsimd_b8_t c
         __m512i xor1_count_vec = _mm512_popcnt_epi64(_mm512_xor_si512(a1_vec, b1_vec));
         __m512i xor2_count_vec = _mm512_popcnt_epi64(_mm512_xor_si512(a2_vec, b2_vec));
         __m512i xor3_count_vec = _mm512_popcnt_epi64(_mm512_xor_si512(a3_vec, b3_vec));
-        xor_count =
-            _mm512_reduce_add_epi64(_mm512_add_epi64(xor3_count_vec, _mm512_add_epi64(xor2_count_vec, xor1_count_vec)));
+        xor_count = _mm512_reduce_add_epi64(
+            _mm512_add_epi64(xor3_count_vec, _mm512_add_epi64(xor2_count_vec, xor1_count_vec)));
     }
     else if (n_words <= 256) { // Up to 2048 bits.
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 192);
@@ -717,8 +718,8 @@ SIMSIMD_INTERNAL void simsimd_jaccard_b512_init_ice(simsimd_jaccard_b512_state_i
 
 SIMSIMD_INTERNAL void simsimd_jaccard_b512_update_ice(simsimd_jaccard_b512_state_ice_t *state, simsimd_b512_vec_t a,
                                                       simsimd_b512_vec_t b) {
-    state->intersections_i64s =
-        _mm512_add_epi64(state->intersections_i64s, _mm512_popcnt_epi64(_mm512_and_si512(a.zmm, b.zmm)));
+    state->intersections_i64s = _mm512_add_epi64(state->intersections_i64s,
+                                                 _mm512_popcnt_epi64(_mm512_and_si512(a.zmm, b.zmm)));
 }
 
 SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_ice(simsimd_jaccard_b512_state_ice_t const *state,

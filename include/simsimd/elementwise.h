@@ -5,12 +5,14 @@
  *  @date October 16, 2024
  *
  *  Contains following element-wise operations:
+ *
  *  - Scale (Multiply) with shift: result[i] = alpha * a[i] + beta
  *  - Sum (Add): result[i] = a[i] + b[i]
  *  - Weighted Sum (WSum): result[i] = alpha * a[i] + beta * b[i]
  *  - FMA (Fused Multiply-Add): result[i] = alpha * a[i] * b[i] + beta * c[i]
  *
  *  For datatypes:
+ *
  *  - 64-bit IEEE floating point numbers
  *  - 32-bit IEEE floating point numbers
  *  - 16-bit IEEE floating point numbers
@@ -22,6 +24,7 @@
  *  - 64-bit signed and unsigned integers
  *
  *  For hardware architectures:
+ *
  *  - Arm: NEON
  *  - x86: Haswell, Skylake, Sapphire
  *
@@ -50,6 +53,7 @@
  *
  *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
  *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *
  */
 #ifndef SIMSIMD_ELEMENTWISE_H
 #define SIMSIMD_ELEMENTWISE_H

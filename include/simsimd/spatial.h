@@ -5,10 +5,12 @@
  *  @date March 14, 2023
  *
  *  Contains following similarity measures:
+ *
  *  - L2 (Euclidean) regular and squared distance
  *  - Cosine (Angular) distance - @b not similarity!
  *
  *  For datatypes:
+ *
  *  - 64-bit IEEE floating point numbers
  *  - 32-bit IEEE floating point numbers
  *  - 16-bit IEEE floating point numbers
@@ -18,11 +20,34 @@
  *  - 4-bit signed integral numbers
  *
  *  For hardware architectures:
+ *
  *  - Arm: NEON, SVE
  *  - x86: Haswell, Skylake, Ice Lake, Genoa, Sapphire
  *
- *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
- *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *  @section streaming_api Streaming API
+ *
+ *  Angular and L2 distances can be computed from a single dot-product stream and
+ *  precomputed magnitudes. The streaming helpers operate on 512-bit blocks
+ *  (`simsimd_b512_vec_t`) and only accumulate A*B. Finalization takes the
+ *  magnitudes of the full vectors and computes the distance.
+ *
+ *  @code{.c}
+ *  simsimd_b512_vec_t a_block, b_block;
+ *  simsimd_distance_t a_norm = ..., b_norm = ...;
+ *  simsimd_angular_f32x16_state_haswell_t state;
+ *  simsimd_angular_f32x16_init_haswell(&state);
+ *  simsimd_angular_f32x16_update_haswell(&state, a_block, b_block);
+ *  simsimd_angular_f32x16_finalize_haswell(&state, a_norm, b_norm, &distance);
+ *  @endcode
+ *
+ *  The L2 streaming helpers reuse the same update path and use a different
+ *  finalization formula.
+ *
+ *  @section references References
+ *
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *
  */
 #ifndef SIMSIMD_SPATIAL_H
 #define SIMSIMD_SPATIAL_H
@@ -210,9 +235,9 @@ SIMSIMD_PUBLIC void simsimd_l2sq_bf16_accurate(simsimd_bf16_t const* a, simsimd_
                                                simsimd_distance_t* result);
 
 /*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
-*  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
-*  server CPUs produced before 2023.
-*/
+ *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
+ *  server CPUs produced before 2023.
+ */
 #if SIMSIMD_TARGET_NEON
 /** @copydoc simsimd_l2_f64 */
 SIMSIMD_PUBLIC void simsimd_l2_f64_neon(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_size_t n,
@@ -1857,17 +1882,14 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_angular_normalize_f64_skylake(simsi
     __m128d rsqrts = _mm_maskz_rsqrt14_pd(0xFF, squares);
 
     // Let's implement a single Newton-Raphson iteration to refine the result.
-    // This is how it affects downstream applications:
+    // This is how it affects downstream applications for 1536-dimensional vectors:
     //
-    // +--------+------+----------+---------------------+---------------------+---------------------+
-    // | Metric | NDim |  DType   |   Baseline Error    |  Old SimSIMD Error  |  New SimSIMD Error  |
-    // +--------+------+----------+---------------------+---------------------+---------------------+
-    // | cosine | 1536 | bfloat16 | 1.89e-08 ± 1.59e-08 | 3.07e-07 ± 3.09e-07 | 3.53e-09 ± 2.70e-09 |
-    // | cosine | 1536 | float16  | 1.67e-02 ± 1.44e-02 | 2.68e-05 ± 1.95e-05 | 2.02e-05 ± 1.39e-05 |
-    // | cosine | 1536 | float32  | 2.21e-08 ± 1.65e-08 | 3.47e-07 ± 3.49e-07 | 3.77e-09 ± 2.84e-09 |
-    // | cosine | 1536 | float64  | 0.00e+00 ± 0.00e+00 | 3.80e-07 ± 4.50e-07 | 1.35e-11 ± 1.85e-11 |
-    // | cosine | 1536 |   int8   | 0.00e+00 ± 0.00e+00 | 4.60e-04 ± 3.36e-04 | 4.20e-04 ± 4.88e-04 |
-    // +--------+------+----------+---------------------+---------------------+---------------------+
+    //      DType     Baseline Error       Old SimSIMD Error    New SimSIMD Error
+    //      bfloat16  1.89e-08 ± 1.59e-08  3.07e-07 ± 3.09e-07  3.53e-09 ± 2.70e-09
+    //      float16   1.67e-02 ± 1.44e-02  2.68e-05 ± 1.95e-05  2.02e-05 ± 1.39e-05
+    //      float32   2.21e-08 ± 1.65e-08  3.47e-07 ± 3.49e-07  3.77e-09 ± 2.84e-09
+    //      float64   0.00e+00 ± 0.00e+00  3.80e-07 ± 4.50e-07  1.35e-11 ± 1.85e-11
+    //      int8      0.00e+00 ± 0.00e+00  4.60e-04 ± 3.36e-04  4.20e-04 ± 4.88e-04
     //
     // https://en.wikipedia.org/wiki/Newton%27s_method
     rsqrts = _mm_add_pd( //

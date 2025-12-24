@@ -5,20 +5,24 @@
  *  @date July 1, 2023
  *
  *  Contains following distance functions:
+ *
  *  - Haversine (Great Circle) distance for 2 points
  *  - Haversine (Great Circle) distance for 2 arrays of points
  *  - Vincenty's distance function for Oblate Spheroid Geodesics
+ *
  *  All outputs are in meters, and the input coordinates are in radians.
  *
  *  For datatypes:
+ *
  *  - 32-bit IEEE-754 floating point
  *  - 64-bit IEEE-754 floating point
  *
  *  For hardware architectures:
+ *
  *  - Arm: NEON
  *  - x86: Haswell, Skylake
  *
- *  @section    Low-Accuracy High-Performance Haversine Similarity
+ *  @section haversine_similarity Low-Accuracy High-Performance Haversine Similarity
  *
  *  In most cases, for distance computations, we don't need the exact Haversine formula.
  *  The very last part of the computation applies `asin(sqrt(x))` non-linear transformation.
@@ -26,19 +30,17 @@
  *  monotonically increasing. This means, for relative similarity/closeness computation we
  *  can avoid that expensive last step.
  *
- *  @section    Trigonometric Approximations & SIMD Vectorization
+ *  @section trig_approximations Trigonometric Approximations & SIMD Vectorization
  *
  *  The trigonometric functions (sin, cos, atan2) use polynomial approximations with SLEEF-level
  *  error bounds (~3.5 ULP). For f64, this translates to ~1e-15 absolute error; for f32, ~1e-7.
  *
- *  @section    Accuracy Comparison: Haversine vs Vincenty
+ *  @section accuracy_comparison Accuracy Comparison: Haversine vs Vincenty
  *
  *  Both algorithms compute geodesic distances, but with different Earth models:
  *
- *  | Algorithm  | Earth Model      | Typical Error vs WGS-84 | Use Case                    |
- *  |------------|------------------|-------------------------|-----------------------------|
- *  | Haversine  | Sphere (R=6335km)| 0.3% - 0.6%             | Fast approximation, ranking |
- *  | Vincenty   | WGS-84 Ellipsoid | 0.01% - 0.2%            | High-precision navigation   |
+ *  - Haversine: Sphere (R=6335km), 0.3% - 0.6% vs WGS-84, fast approximation, ranking
+ *  - Vincenty: WGS-84 Ellipsoid, 0.01% - 0.2% vs WGS-84, high-precision navigation
  *
  *  Vincenty is ~3-20x more accurate than Haversine for most routes. The improvement is most
  *  significant for long-distance routes and near-polar paths where Earth's oblateness matters.
@@ -47,7 +49,7 @@
  *          floating-point ordering in iterative algorithms. For Vincenty, expect <0.001%
  *          difference between SIMD and serial implementations.
  *
- *  @section    High-Precision Vincenty's Formulae & Earth Ellipsoid
+ *  @section vincenty_precision High-Precision Vincenty's Formulae & Earth Ellipsoid
  *
  *  Several approximations of the Earth Ellipsoid exist, each defined by the Equatorial radius (m),
  *  Polar radius (m), and Inverse flattening. The earliest ones date back to 1738, when Pierre Louis
@@ -60,15 +62,18 @@
  *      #define SIMSIMD_EARTH_ELLIPSOID_POLAR_RADIUS (6356751.9)
  *      #define SIMSIMD_EARTH_ELLIPSOID_INVERSE_FLATTENING (298.25642)
  *
- *  To revert from oblate spheroids to spheres, use:
+ *  To revert from oblate spheroids to spheres, use `SIMSIMD_EARTH_MEDIATORIAL_RADIUS`.
  *
- *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
- *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
- *  Earth Ellipsoid: https://en.wikipedia.org/wiki/Earth_ellipsoid
- *  Oblate Spheroid Geodesic: https://mathworld.wolfram.com/OblateSpheroidGeodesic.html
- *  Staging experiments: https://github.com/ashvardanian/HaversineMathKong
- *  Speeding up atan2f by 50x: https://mazzo.li/posts/vectorized-atan2.html
- *  Simplifying the GNU C Sine Function: https://www.awelm.com/posts/simplifying-the-gnu-c-sine-function/
+ *  @section references References
+ *
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *  - Earth Ellipsoid: https://en.wikipedia.org/wiki/Earth_ellipsoid
+ *  - Oblate Spheroid Geodesic: https://mathworld.wolfram.com/OblateSpheroidGeodesic.html
+ *  - Staging experiments: https://github.com/ashvardanian/HaversineMathKong
+ *  - Speeding up atan2f by 50x: https://mazzo.li/posts/vectorized-atan2.html
+ *  - Simplifying the GNU C Sine Function: https://www.awelm.com/posts/simplifying-the-gnu-c-sine-function/
+ *
  */
 #ifndef SIMSIMD_GEOSPATIAL_H
 #define SIMSIMD_GEOSPATIAL_H

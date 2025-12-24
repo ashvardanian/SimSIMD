@@ -5,9 +5,11 @@
  *  @date       October 2, 2023
  *
  *  Defines:
+ *
  *  - Sized aliases for numeric types, like: `simsimd_i32_t` and `simsimd_f64_t`.
  *  - Macros for internal compiler/hardware checks, like: `_SIMSIMD_TARGET_ARM`.
  *  - Macros for feature controls, like: `SIMSIMD_TARGET_NEON`
+ *
  */
 #ifndef SIMSIMD_TYPES_H
 #define SIMSIMD_TYPES_H
