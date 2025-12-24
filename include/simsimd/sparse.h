@@ -1,26 +1,27 @@
 /**
- *  @file       sparse.h
- *  @brief      SIMD-accelerated functions for Sparse Vectors.
- *  @author     Ash Vardanian
- *  @date       March 21, 2024
+ *  @brief SIMD-accelerated sparse set operations and dot products.
+ *  @file include/simsimd/sparse.h
+ *  @author Ash Vardanian
+ *  @date March 21, 2024
  *
  *  Contains:
- *  - Set Intersection ~ Jaccard Distance
- *  - Sparse Dot Products, outputting the count and weighted product
+ *  - Set intersection (unnormalized Jaccard distance)
+ *  - Sparse dot products, outputting the intersection count and weighted product
  *
  *  For datatypes:
  *  - u16: for vocabularies under 64 thousand tokens
  *  - u32: for vocabularies under 4 billion tokens
- *  - u16 indicies + i16 weights: for weighted word counts
- *  - u16 indicies + bf16 weights: for sparse matrices
+ *  - u16 indices + i16 weights: for weighted word counts
+ *  - u16 indices + bf16 weights: for sparse matrices
  *
  *  For hardware architectures:
+ *  - Arm: NEON, SVE2
  *  - x86: Ice Lake, Turin
- *  - Arm: SVE2
  *
- *  Interestingly, to implement sparse distances and products, the most important function
- *  is analogous to `std::set_intersection`, that outputs the intersection of two sorted
- *  sequences. The naive implementation of that function would look like:
+ *  @section intersection_algorithm Intersection by Merge
+ *
+ *  The core primitive is analogous to `std::set_intersection`, taking two sorted arrays
+ *  of unique values and producing the intersection size:
  *
  *      std::size_t intersection_size = 0;
  *      while (i != a_length && j != b_length) {
@@ -30,9 +31,8 @@
  *          j += ai >= bj;
  *      }
  *
- *  Assuming we are dealing with sparse arrays, most of the time we are just evaluating
- *  branches and skipping entries. So what if we could skip multiple entries at a time
- *  searching for the next chunk, where an intersection is possible. For weighted arrays:
+ *  Weighted sparse dot-products follow the same merge loop, but accumulate a product
+ *  for matching indices:
  *
  *      double product = 0;
  *      while (i != a_length && j != b_length) {
@@ -42,118 +42,219 @@
  *          j += ai >= bj;
  *      }
  *
- *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
- *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *  @section galloping_search Galloping vs Linear
+ *
+ *  When the arrays are highly imbalanced, linear merge wastes cycles skipping elements.
+ *  The serial implementation switches to a galloping search to jump over large gaps.
+ *
+ *  @section x86_instructions Relevant x86 Instructions
+ *
+ *  The Ice Lake kernels are shuffle/compare heavy; their throughput is often gated by
+ *  port 5. On AMD Zen4 (Genoa), many integer ops dual-issue on FP ports, often improving
+ *  throughput despite higher per-op latency.
+ *
+ *      Intrinsic                       Instruction                      Ice           Genoa
+ *      _mm512_shuffle_epi32            VPSHUFD (ZMM, ZMM, I8)           1c @ p5       1c @ p123
+ *      _mm512_mask_cmpneq_epi32_mask   VPCMPD (K, ZMM, ZMM, I8)         3c @ p5       5c @ p01
+ *      _mm512_alignr_epi32             VPALIGNR (ZMM, ZMM, ZMM, I8)     1c @ p5       2c @ p12
+ *      _mm512_conflict_epi32           VPCONFLICTD (ZMM, ZMM)           26c @ p0/5    7c @ p01/12
+ *      _mm256_maskz_compress_epi16     VPCOMPRESSW (YMM, K, YMM)        3-6c @ p5     4-8c @ p01/12
+ *      _mm256_dpwssds_epi32            VPDPWSSDS (YMM, K, YMM, YMM)     4-5c @ p01    4c @ p01
+ *      _mm256_dpbf16_ps                VDPBF16PS (YMM, YMM, YMM)        n/a           6c @ p01
+ *
+ *  VP2INTERSECTD is unsupported on Ice Lake and not yet covered by uops.info for Zen5/Turin.
+ *  Tiger Lake measures ~36-41c @ p5 for ZMM variants, which is why the Ice Lake path avoids it.
+ *
+ *  @section references References
+ *
+ *  - uops.info: https://uops.info/
+ *  - Intel Intrinsics Guide: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - Arm Intrinsics Reference: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *  - vp2intersect experiments: https://github.com/mozonaut/vp2intersect
+ *  - Diez-Canas "Faster-Than-Native Alternatives for x86 VP2INTERSECT Instructions":
+ *    https://arxiv.org/pdf/2112.06342.pdf
  */
 #ifndef SIMSIMD_SPARSE_H
 #define SIMSIMD_SPARSE_H
 
 #include "types.h"
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
-/*  Implements the serial set intersection algorithm, similar to `std::set_intersection in C++ STL`,
- *  but uses clever galloping logic, if the arrays significantly differ in size.
+/**
+ *  @brief Set intersection size between two sorted u16 arrays.
+ *
+ *  @param[in] a The first sorted array of indices.
+ *  @param[in] b The second sorted array of indices.
+ *  @param[in] a_length The number of elements in the first array.
+ *  @param[in] b_length The number of elements in the second array.
+ *  @param[out] results The output intersection size.
+ *
+ *  @note Inputs must be sorted in ascending order and contain unique elements.
  */
-SIMSIMD_PUBLIC void simsimd_intersect_u16_serial(     //
-    simsimd_u16_t const *a, simsimd_u16_t const *b,   //
-    simsimd_size_t a_length, simsimd_size_t b_length, //
-    simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_intersect_u32_serial(     //
-    simsimd_u32_t const *a, simsimd_u32_t const *b,   //
-    simsimd_size_t a_length, simsimd_size_t b_length, //
-    simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_serial(                //
-    simsimd_u16_t const *a, simsimd_u16_t const *b,                 //
-    simsimd_i16_t const *a_weights, simsimd_i16_t const *b_weights, //
-    simsimd_size_t a_length, simsimd_size_t b_length,               //
-    simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_serial(                 //
-    simsimd_u16_t const *a, simsimd_u16_t const *b,                   //
-    simsimd_bf16_t const *a_weights, simsimd_bf16_t const *b_weights, //
-    simsimd_size_t a_length, simsimd_size_t b_length,                 //
+SIMSIMD_DYNAMIC void simsimd_intersect_u16( //
+    simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t a_length, simsimd_size_t b_length,
     simsimd_distance_t *results);
 
-/*  Implements the most naive set intersection algorithm, similar to `std::set_intersection in C++ STL`,
- *  naively enumerating the elements of two arrays.
+/**
+ *  @brief Set intersection size between two sorted u32 arrays.
+ *
+ *  @param[in] a The first sorted array of indices.
+ *  @param[in] b The second sorted array of indices.
+ *  @param[in] a_length The number of elements in the first array.
+ *  @param[in] b_length The number of elements in the second array.
+ *  @param[out] results The output intersection size.
+ *
+ *  @note Inputs must be sorted in ascending order and contain unique elements.
  */
-SIMSIMD_PUBLIC void simsimd_intersect_u16_accurate(   //
-    simsimd_u16_t const *a, simsimd_u16_t const *b,   //
-    simsimd_size_t a_length, simsimd_size_t b_length, //
-    simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_intersect_u32_accurate(   //
-    simsimd_u32_t const *a, simsimd_u32_t const *b,   //
-    simsimd_size_t a_length, simsimd_size_t b_length, //
-    simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_accurate(              //
-    simsimd_u16_t const *a, simsimd_u16_t const *b,                 //
-    simsimd_i16_t const *a_weights, simsimd_i16_t const *b_weights, //
-    simsimd_size_t a_length, simsimd_size_t b_length,               //
-    simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_accurate(               //
-    simsimd_u16_t const *a, simsimd_u16_t const *b,                   //
-    simsimd_bf16_t const *a_weights, simsimd_bf16_t const *b_weights, //
-    simsimd_size_t a_length, simsimd_size_t b_length,                 //
+SIMSIMD_DYNAMIC void simsimd_intersect_u32( //
+    simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t a_length, simsimd_size_t b_length,
     simsimd_distance_t *results);
 
-/*  SIMD-powered backends for Arm SVE, mostly using 32-bit arithmetic over variable-length platform-defined word sizes.
- *  Designed for Arm Graviton 3, Microsoft Cobalt, as well as Nvidia Grace and newer Ampere Altra CPUs.
+/**
+ *  @brief Sparse dot-product over u16 indices with i16 weights.
+ *
+ *  @param[in] a The first sorted array of indices.
+ *  @param[in] b The second sorted array of indices.
+ *  @param[in] a_weights The weights for the first array.
+ *  @param[in] b_weights The weights for the second array.
+ *  @param[in] a_length The number of elements in the first array.
+ *  @param[in] b_length The number of elements in the second array.
+ *  @param[out] results The output array: results[0] is the intersection count, results[1] is the weighted product.
+ *
+ *  @note Inputs must be sorted in ascending order and contain unique elements.
  */
-SIMSIMD_PUBLIC void simsimd_intersect_u16_sve2(       //
-    simsimd_u16_t const *a, simsimd_u16_t const *b,   //
-    simsimd_size_t a_length, simsimd_size_t b_length, //
-    simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_intersect_u32_sve2(       //
-    simsimd_u32_t const *a, simsimd_u32_t const *b,   //
-    simsimd_size_t a_length, simsimd_size_t b_length, //
-    simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_sve2(                  //
-    simsimd_u16_t const *a, simsimd_u16_t const *b,                 //
-    simsimd_i16_t const *a_weights, simsimd_i16_t const *b_weights, //
-    simsimd_size_t a_length, simsimd_size_t b_length,               //
-    simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_sve2(                   //
-    simsimd_u16_t const *a, simsimd_u16_t const *b,                   //
-    simsimd_bf16_t const *a_weights, simsimd_bf16_t const *b_weights, //
-    simsimd_size_t a_length, simsimd_size_t b_length,                 //
-    simsimd_distance_t *results);
+SIMSIMD_DYNAMIC void simsimd_spdot_counts_u16( //
+    simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_i16_t const *a_weights, simsimd_i16_t const *b_weights,
+    simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t *results);
 
-/*  SIMD-powered backends for various generations of AVX512 CPUs.
- *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
- *  Ice Lake, however, is needed even for the most basic kernels to perform integer matching.
+/**
+ *  @brief Sparse dot-product over u16 indices with bf16 weights.
+ *
+ *  @param[in] a The first sorted array of indices.
+ *  @param[in] b The second sorted array of indices.
+ *  @param[in] a_weights The weights for the first array.
+ *  @param[in] b_weights The weights for the second array.
+ *  @param[in] a_length The number of elements in the first array.
+ *  @param[in] b_length The number of elements in the second array.
+ *  @param[out] results The output array: results[0] is the intersection count, results[1] is the weighted product.
+ *
+ *  @note Inputs must be sorted in ascending order and contain unique elements.
  */
-SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(        //
-    simsimd_u16_t const *a, simsimd_u16_t const *b,   //
-    simsimd_size_t a_length, simsimd_size_t b_length, //
-    simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(        //
-    simsimd_u32_t const *a, simsimd_u32_t const *b,   //
-    simsimd_size_t a_length, simsimd_size_t b_length, //
-    simsimd_distance_t *results);
+SIMSIMD_DYNAMIC void simsimd_spdot_weights_u16( //
+    simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_bf16_t const *a_weights, simsimd_bf16_t const *b_weights,
+    simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t *results);
 
-/*  SIMD-powered backends for AMD Turin CPUs with cheap VP2INTERSECT instructions.
- *  On the Intel side, only mobile Tiger Lake support them, but have prohibitively high latency.
- */
-SIMSIMD_PUBLIC void simsimd_intersect_u16_turin(      //
-    simsimd_u16_t const *a, simsimd_u16_t const *b,   //
-    simsimd_size_t a_length, simsimd_size_t b_length, //
-    simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_intersect_u32_turin(      //
-    simsimd_u32_t const *a, simsimd_u32_t const *b,   //
-    simsimd_size_t a_length, simsimd_size_t b_length, //
-    simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(                 //
-    simsimd_u16_t const *a, simsimd_u16_t const *b,                 //
-    simsimd_i16_t const *a_weights, simsimd_i16_t const *b_weights, //
-    simsimd_size_t a_length, simsimd_size_t b_length,               //
-    simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_turin(                  //
-    simsimd_u16_t const *a, simsimd_u16_t const *b,                   //
-    simsimd_bf16_t const *a_weights, simsimd_bf16_t const *b_weights, //
-    simsimd_size_t a_length, simsimd_size_t b_length,                 //
-    simsimd_distance_t *results);
+// clang-format off
+
+/** @copydoc simsimd_intersect_u16 */
+SIMSIMD_PUBLIC void simsimd_intersect_u16_serial(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                                 simsimd_size_t a_length, simsimd_size_t b_length,
+                                                 simsimd_distance_t* results);
+/** @copydoc simsimd_intersect_u32 */
+SIMSIMD_PUBLIC void simsimd_intersect_u32_serial(simsimd_u32_t const* a, simsimd_u32_t const* b,
+                                                 simsimd_size_t a_length, simsimd_size_t b_length,
+                                                 simsimd_distance_t* results);
+/** @copydoc simsimd_spdot_counts_u16 */
+SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_serial(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                                    simsimd_i16_t const* a_weights, simsimd_i16_t const* b_weights,
+                                                    simsimd_size_t a_length, simsimd_size_t b_length,
+                                                    simsimd_distance_t* results);
+/** @copydoc simsimd_spdot_weights_u16 */
+SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_serial(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                                     simsimd_bf16_t const* a_weights, simsimd_bf16_t const* b_weights,
+                                                     simsimd_size_t a_length, simsimd_size_t b_length,
+                                                     simsimd_distance_t* results);
+
+/** @copydoc simsimd_intersect_u16 */
+SIMSIMD_PUBLIC void simsimd_intersect_u16_accurate(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                                   simsimd_size_t a_length, simsimd_size_t b_length,
+                                                   simsimd_distance_t* results);
+/** @copydoc simsimd_intersect_u32 */
+SIMSIMD_PUBLIC void simsimd_intersect_u32_accurate(simsimd_u32_t const* a, simsimd_u32_t const* b,
+                                                   simsimd_size_t a_length, simsimd_size_t b_length,
+                                                   simsimd_distance_t* results);
+/** @copydoc simsimd_spdot_counts_u16 */
+SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_accurate(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                                      simsimd_i16_t const* a_weights, simsimd_i16_t const* b_weights,
+                                                      simsimd_size_t a_length, simsimd_size_t b_length,
+                                                      simsimd_distance_t* results);
+/** @copydoc simsimd_spdot_weights_u16 */
+SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_accurate(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                                       simsimd_bf16_t const* a_weights, simsimd_bf16_t const* b_weights,
+                                                       simsimd_size_t a_length, simsimd_size_t b_length,
+                                                       simsimd_distance_t* results);
+
+#if SIMSIMD_TARGET_NEON
+/** @copydoc simsimd_intersect_u16 */
+SIMSIMD_PUBLIC void simsimd_intersect_u16_neon(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                               simsimd_size_t a_length, simsimd_size_t b_length,
+                                               simsimd_distance_t* results);
+/** @copydoc simsimd_intersect_u32 */
+SIMSIMD_PUBLIC void simsimd_intersect_u32_neon(simsimd_u32_t const* a, simsimd_u32_t const* b,
+                                               simsimd_size_t a_length, simsimd_size_t b_length,
+                                               simsimd_distance_t* results);
+#endif // SIMSIMD_TARGET_NEON
+
+#if SIMSIMD_TARGET_SVE2
+/** @copydoc simsimd_intersect_u16 */
+SIMSIMD_PUBLIC void simsimd_intersect_u16_sve2(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                               simsimd_size_t a_length, simsimd_size_t b_length,
+                                               simsimd_distance_t* results);
+/** @copydoc simsimd_intersect_u32 */
+SIMSIMD_PUBLIC void simsimd_intersect_u32_sve2(simsimd_u32_t const* a, simsimd_u32_t const* b,
+                                               simsimd_size_t a_length, simsimd_size_t b_length,
+                                               simsimd_distance_t* results);
+/** @copydoc simsimd_spdot_counts_u16 */
+SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_sve2(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                                  simsimd_i16_t const* a_weights, simsimd_i16_t const* b_weights,
+                                                  simsimd_size_t a_length, simsimd_size_t b_length,
+                                                  simsimd_distance_t* results);
+#endif // SIMSIMD_TARGET_SVE2
+
+#if SIMSIMD_TARGET_SVE2 && SIMSIMD_TARGET_SVE_BF16
+/** @copydoc simsimd_spdot_weights_u16 */
+SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_sve2(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                                   simsimd_bf16_t const* a_weights, simsimd_bf16_t const* b_weights,
+                                                   simsimd_size_t a_length, simsimd_size_t b_length,
+                                                   simsimd_distance_t* results);
+#endif // SIMSIMD_TARGET_SVE2 && SIMSIMD_TARGET_SVE_BF16
+
+#if SIMSIMD_TARGET_ICE
+/** @copydoc simsimd_intersect_u16 */
+SIMSIMD_PUBLIC void simsimd_intersect_u16_ice(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                              simsimd_size_t a_length, simsimd_size_t b_length,
+                                              simsimd_distance_t* results);
+/** @copydoc simsimd_intersect_u32 */
+SIMSIMD_PUBLIC void simsimd_intersect_u32_ice(simsimd_u32_t const* a, simsimd_u32_t const* b,
+                                              simsimd_size_t a_length, simsimd_size_t b_length,
+                                              simsimd_distance_t* results);
+#endif // SIMSIMD_TARGET_ICE
+
+#if SIMSIMD_TARGET_TURIN
+/** @copydoc simsimd_intersect_u16 */
+SIMSIMD_PUBLIC void simsimd_intersect_u16_turin(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                                simsimd_size_t a_length, simsimd_size_t b_length,
+                                                simsimd_distance_t* results);
+/** @copydoc simsimd_intersect_u32 */
+SIMSIMD_PUBLIC void simsimd_intersect_u32_turin(simsimd_u32_t const* a, simsimd_u32_t const* b,
+                                                simsimd_size_t a_length, simsimd_size_t b_length,
+                                                simsimd_distance_t* results);
+/** @copydoc simsimd_spdot_counts_u16 */
+SIMSIMD_PUBLIC void simsimd_spdot_counts_u16_turin(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                                   simsimd_i16_t const* a_weights, simsimd_i16_t const* b_weights,
+                                                   simsimd_size_t a_length, simsimd_size_t b_length,
+                                                   simsimd_distance_t* results);
+/** @copydoc simsimd_spdot_weights_u16 */
+SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_turin(simsimd_u16_t const* a, simsimd_u16_t const* b,
+                                                    simsimd_bf16_t const* a_weights, simsimd_bf16_t const* b_weights,
+                                                    simsimd_size_t a_length, simsimd_size_t b_length,
+                                                    simsimd_distance_t* results);
+#endif // SIMSIMD_TARGET_TURIN
+
+// clang-format on
 
 #define SIMSIMD_MAKE_INTERSECT_LINEAR(name, input_type, counter_type)                                  \
     SIMSIMD_PUBLIC void simsimd_intersect_##input_type##_##name(                                       \
@@ -350,7 +451,7 @@ SIMSIMD_INTERNAL simsimd_u32_t _simsimd_intersect_u16x32_ice(__m512i a, __m512i 
  *      - 1 cycle latency on Genoa: 1*FP123
  *  - `_mm512_mask_cmpneq_epi32_mask` - "VPCMPD (K, ZMM, ZMM, I8)":
  *      - 3 cycle latency on Ice Lake: 1*p5
- *      - 1 cycle latency on Genoa: 1*FP01
+ *      - 5 cycle latency on Genoa: 1*FP01
  *  - `_mm512_alignr_epi32` - "VPALIGNR (ZMM, ZMM, ZMM, I8)":
  *      - 1 cycle latency on Ice Lake: 1*p5
  *      - 2 cycle latency on Genoa: 1*FP12
@@ -1357,8 +1458,8 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_sve2(                   //
             //! The `svsel_bf16` intrinsic is broken in many compilers, not returning the correct type.
             //! So we reinterprete floats as integers and apply `svsel_s16`, but the `svreinterpret_s16_bs16`
             //! and `svreinterpret_bf16_s16` are not always properly defined!
-            svint16_t b_equal_weights_vec =
-                svsel_s16(equal_mask, svreinterpret_s16_bf16(b_weights_vec), svdup_n_s16(0));
+            svint16_t b_equal_weights_vec = svsel_s16(equal_mask, svreinterpret_s16_bf16(b_weights_vec),
+                                                      svdup_n_s16(0));
             product_vec = svbfdot_f32(product_vec, a_weights_vec, svreinterpret_bf16_s16(b_equal_weights_vec));
             b_vec = svext_u16(b_vec, b_vec, 8);
             intersection_size += svcntp_b16(svptrue_b16(), equal_mask);
@@ -1377,7 +1478,67 @@ SIMSIMD_PUBLIC void simsimd_spdot_weights_u16_sve2(                   //
 #endif // SIMSIMD_TARGET_SVE2 && SIMSIMD_TARGET_SVE_BF16
 #endif // _SIMSIMD_TARGET_ARM
 
-#ifdef __cplusplus
+#if !SIMSIMD_DYNAMIC_DISPATCH
+
+SIMSIMD_PUBLIC void simsimd_intersect_u16(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t a_length,
+                                          simsimd_size_t b_length, simsimd_distance_t *results) {
+#if SIMSIMD_TARGET_SVE2
+    simsimd_intersect_u16_sve2(a, b, a_length, b_length, results);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_intersect_u16_neon(a, b, a_length, b_length, results);
+#elif SIMSIMD_TARGET_TURIN
+    simsimd_intersect_u16_turin(a, b, a_length, b_length, results);
+#elif SIMSIMD_TARGET_ICE
+    simsimd_intersect_u16_ice(a, b, a_length, b_length, results);
+#else
+    simsimd_intersect_u16_serial(a, b, a_length, b_length, results);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_intersect_u32(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t a_length,
+                                          simsimd_size_t b_length, simsimd_distance_t *results) {
+#if SIMSIMD_TARGET_SVE2
+    simsimd_intersect_u32_sve2(a, b, a_length, b_length, results);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_intersect_u32_neon(a, b, a_length, b_length, results);
+#elif SIMSIMD_TARGET_TURIN
+    simsimd_intersect_u32_turin(a, b, a_length, b_length, results);
+#elif SIMSIMD_TARGET_ICE
+    simsimd_intersect_u32_ice(a, b, a_length, b_length, results);
+#else
+    simsimd_intersect_u32_serial(a, b, a_length, b_length, results);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_spdot_counts_u16(simsimd_u16_t const *a, simsimd_u16_t const *b,
+                                             simsimd_i16_t const *a_weights, simsimd_i16_t const *b_weights,
+                                             simsimd_size_t a_length, simsimd_size_t b_length,
+                                             simsimd_distance_t *results) {
+#if SIMSIMD_TARGET_SVE2
+    simsimd_spdot_counts_u16_sve2(a, b, a_weights, b_weights, a_length, b_length, results);
+#elif SIMSIMD_TARGET_TURIN
+    simsimd_spdot_counts_u16_turin(a, b, a_weights, b_weights, a_length, b_length, results);
+#else
+    simsimd_spdot_counts_u16_serial(a, b, a_weights, b_weights, a_length, b_length, results);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_spdot_weights_u16(simsimd_u16_t const *a, simsimd_u16_t const *b,
+                                              simsimd_bf16_t const *a_weights, simsimd_bf16_t const *b_weights,
+                                              simsimd_size_t a_length, simsimd_size_t b_length,
+                                              simsimd_distance_t *results) {
+#if SIMSIMD_TARGET_SVE2 && SIMSIMD_TARGET_SVE_BF16
+    simsimd_spdot_weights_u16_sve2(a, b, a_weights, b_weights, a_length, b_length, results);
+#elif SIMSIMD_TARGET_TURIN
+    simsimd_spdot_weights_u16_turin(a, b, a_weights, b_weights, a_length, b_length, results);
+#else
+    simsimd_spdot_weights_u16_serial(a, b, a_weights, b_weights, a_length, b_length, results);
+#endif
+}
+
+#endif // !SIMSIMD_DYNAMIC_DISPATCH
+
+#if defined(__cplusplus)
 }
 #endif
 
