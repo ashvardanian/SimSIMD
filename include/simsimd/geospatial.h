@@ -1,10 +1,10 @@
 /**
- *  @file       geospatial.h
- *  @brief      SIMD-accelerated Geo-Spatial distance functions.
- *  @author     Ash Vardanian
- *  @date       July 1, 2023
+ *  @brief SIMD-accelerated Geo-Spatial distance functions.
+ *  @file include/simsimd/geospatial.h
+ *  @author Ash Vardanian
+ *  @date July 1, 2023
  *
- *  Contains:
+ *  Contains following distance functions:
  *  - Haversine (Great Circle) distance for 2 points
  *  - Haversine (Great Circle) distance for 2 arrays of points
  *  - Vincenty's distance function for Oblate Spheroid Geodesics
@@ -99,47 +99,154 @@
 #define SIMSIMD_VINCENTY_CONVERGENCE_THRESHOLD 1e-12
 #endif
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
+
+/**
+ *  @brief Haversine distance between two arrays of points on a sphere.
+ *
+ *  @param[in] a_lats Latitudes of the first points, in radians.
+ *  @param[in] a_lons Longitudes of the first points, in radians.
+ *  @param[in] b_lats Latitudes of the second points, in radians.
+ *  @param[in] b_lons Longitudes of the second points, in radians.
+ *  @param[in] n The number of point pairs.
+ *  @param[out] results Output distances in meters, length `n`.
+ *
+ *  @note Inputs are in radians and outputs are in meters.
+ */
+SIMSIMD_DYNAMIC void simsimd_haversine_f64(                   //
+    simsimd_f64_t const *a_lats, simsimd_f64_t const *a_lons, //
+    simsimd_f64_t const *b_lats, simsimd_f64_t const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results);
+
+/** @copydoc simsimd_haversine_f64 */
+SIMSIMD_DYNAMIC void simsimd_haversine_f32(                   //
+    simsimd_f32_t const *a_lats, simsimd_f32_t const *a_lons, //
+    simsimd_f32_t const *b_lats, simsimd_f32_t const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results);
+
+/**
+ *  @brief Vincenty distance between two arrays of points on an oblate spheroid.
+ *
+ *  @param[in] a_lats Latitudes of the first points, in radians.
+ *  @param[in] a_lons Longitudes of the first points, in radians.
+ *  @param[in] b_lats Latitudes of the second points, in radians.
+ *  @param[in] b_lons Longitudes of the second points, in radians.
+ *  @param[in] n The number of point pairs.
+ *  @param[out] results Output distances in meters, length `n`.
+ *
+ *  @note Inputs are in radians and outputs are in meters.
+ *  @note Uses the Earth ellipsoid parameters configured via `SIMSIMD_EARTH_ELLIPSOID_*`.
+ */
+SIMSIMD_DYNAMIC void simsimd_vincenty_f64(                    //
+    simsimd_f64_t const *a_lats, simsimd_f64_t const *a_lons, //
+    simsimd_f64_t const *b_lats, simsimd_f64_t const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results);
+
+/** @copydoc simsimd_vincenty_f64 */
+SIMSIMD_DYNAMIC void simsimd_vincenty_f32(                    //
+    simsimd_f32_t const *a_lats, simsimd_f32_t const *a_lons, //
+    simsimd_f32_t const *b_lats, simsimd_f32_t const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results);
+
+// clang-format off
 
 /*  Serial backends for all numeric types.
  *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
  *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
  */
+/** @copydoc simsimd_haversine_f64 */
 SIMSIMD_PUBLIC void simsimd_haversine_f64_serial(             //
     simsimd_f64_t const *a_lats, simsimd_f64_t const *a_lons, //
     simsimd_f64_t const *b_lats, simsimd_f64_t const *b_lons, //
     simsimd_size_t n, simsimd_distance_t *results);
+/** @copydoc simsimd_vincenty_f64 */
 SIMSIMD_PUBLIC void simsimd_vincenty_f64_serial(              //
     simsimd_f64_t const *a_lats, simsimd_f64_t const *a_lons, //
     simsimd_f64_t const *b_lats, simsimd_f64_t const *b_lons, //
     simsimd_size_t n, simsimd_distance_t *results);
+/** @copydoc simsimd_haversine_f64 */
 SIMSIMD_PUBLIC void simsimd_haversine_f32_serial(             //
     simsimd_f32_t const *a_lats, simsimd_f32_t const *a_lons, //
     simsimd_f32_t const *b_lats, simsimd_f32_t const *b_lons, //
     simsimd_size_t n, simsimd_distance_t *results);
+/** @copydoc simsimd_vincenty_f64 */
 SIMSIMD_PUBLIC void simsimd_vincenty_f32_serial(              //
     simsimd_f32_t const *a_lats, simsimd_f32_t const *a_lons, //
     simsimd_f32_t const *b_lats, simsimd_f32_t const *b_lons, //
     simsimd_size_t n, simsimd_distance_t *results);
 
+#if SIMSIMD_TARGET_NEON
+/** @copydoc simsimd_haversine_f64 */
 SIMSIMD_PUBLIC void simsimd_haversine_f64_neon(               //
     simsimd_f64_t const *a_lats, simsimd_f64_t const *a_lons, //
     simsimd_f64_t const *b_lats, simsimd_f64_t const *b_lons, //
     simsimd_size_t n, simsimd_distance_t *results);
+/** @copydoc simsimd_vincenty_f64 */
 SIMSIMD_PUBLIC void simsimd_vincenty_f64_neon(                //
     simsimd_f64_t const *a_lats, simsimd_f64_t const *a_lons, //
     simsimd_f64_t const *b_lats, simsimd_f64_t const *b_lons, //
     simsimd_size_t n, simsimd_distance_t *results);
+/** @copydoc simsimd_haversine_f64 */
 SIMSIMD_PUBLIC void simsimd_haversine_f32_neon(               //
     simsimd_f32_t const *a_lats, simsimd_f32_t const *a_lons, //
     simsimd_f32_t const *b_lats, simsimd_f32_t const *b_lons, //
     simsimd_size_t n, simsimd_distance_t *results);
+/** @copydoc simsimd_vincenty_f64 */
 SIMSIMD_PUBLIC void simsimd_vincenty_f32_neon(                //
     simsimd_f32_t const *a_lats, simsimd_f32_t const *a_lons, //
     simsimd_f32_t const *b_lats, simsimd_f32_t const *b_lons, //
     simsimd_size_t n, simsimd_distance_t *results);
+#endif // SIMSIMD_TARGET_NEON
+
+#if SIMSIMD_TARGET_HASWELL
+/** @copydoc simsimd_haversine_f64 */
+SIMSIMD_PUBLIC void simsimd_haversine_f64_haswell(            //
+    simsimd_f64_t const *a_lats, simsimd_f64_t const *a_lons, //
+    simsimd_f64_t const *b_lats, simsimd_f64_t const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results);
+/** @copydoc simsimd_vincenty_f64 */
+SIMSIMD_PUBLIC void simsimd_vincenty_f64_haswell(             //
+    simsimd_f64_t const *a_lats, simsimd_f64_t const *a_lons, //
+    simsimd_f64_t const *b_lats, simsimd_f64_t const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results);
+/** @copydoc simsimd_haversine_f64 */
+SIMSIMD_PUBLIC void simsimd_haversine_f32_haswell(            //
+    simsimd_f32_t const *a_lats, simsimd_f32_t const *a_lons, //
+    simsimd_f32_t const *b_lats, simsimd_f32_t const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results);
+/** @copydoc simsimd_vincenty_f64 */
+SIMSIMD_PUBLIC void simsimd_vincenty_f32_haswell(             //
+    simsimd_f32_t const *a_lats, simsimd_f32_t const *a_lons, //
+    simsimd_f32_t const *b_lats, simsimd_f32_t const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results);
+#endif // SIMSIMD_TARGET_HASWELL
+
+#if SIMSIMD_TARGET_SKYLAKE
+/** @copydoc simsimd_haversine_f64 */
+SIMSIMD_PUBLIC void simsimd_haversine_f64_skylake(            //
+    simsimd_f64_t const *a_lats, simsimd_f64_t const *a_lons, //
+    simsimd_f64_t const *b_lats, simsimd_f64_t const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results);
+/** @copydoc simsimd_vincenty_f64 */
+SIMSIMD_PUBLIC void simsimd_vincenty_f64_skylake(             //
+    simsimd_f64_t const *a_lats, simsimd_f64_t const *a_lons, //
+    simsimd_f64_t const *b_lats, simsimd_f64_t const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results);
+/** @copydoc simsimd_haversine_f64 */
+SIMSIMD_PUBLIC void simsimd_haversine_f32_skylake(            //
+    simsimd_f32_t const *a_lats, simsimd_f32_t const *a_lons, //
+    simsimd_f32_t const *b_lats, simsimd_f32_t const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results);
+/** @copydoc simsimd_vincenty_f64 */
+SIMSIMD_PUBLIC void simsimd_vincenty_f32_skylake(             //
+    simsimd_f32_t const *a_lats, simsimd_f32_t const *a_lons, //
+    simsimd_f32_t const *b_lats, simsimd_f32_t const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results);
+#endif // SIMSIMD_TARGET_SKYLAKE
+
+// clang-format on
 
 /*  Serial implementations of geospatial distance functions.
  *  These use the trigonometric functions from trigonometry.h for sin, cos, and atan2.
@@ -167,9 +274,9 @@ SIMSIMD_PUBLIC void simsimd_haversine_f64_serial(             //
         simsimd_f64_t cos_first_latitude = simsimd_f64_cos(first_latitude);
         simsimd_f64_t cos_second_latitude = simsimd_f64_cos(second_latitude);
 
-        simsimd_f64_t haversine_term =
-            sin_latitude_delta_half * sin_latitude_delta_half +
-            cos_first_latitude * cos_second_latitude * sin_longitude_delta_half * sin_longitude_delta_half;
+        simsimd_f64_t haversine_term = sin_latitude_delta_half * sin_latitude_delta_half +
+                                       cos_first_latitude * cos_second_latitude * sin_longitude_delta_half *
+                                           sin_longitude_delta_half;
 
         // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a))
         simsimd_f64_t sqrt_haversine = SIMSIMD_SQRT(haversine_term);
@@ -202,9 +309,9 @@ SIMSIMD_PUBLIC void simsimd_haversine_f32_serial(             //
         simsimd_f32_t cos_first_latitude = simsimd_f32_cos(first_latitude);
         simsimd_f32_t cos_second_latitude = simsimd_f32_cos(second_latitude);
 
-        simsimd_f32_t haversine_term =
-            sin_latitude_delta_half * sin_latitude_delta_half +
-            cos_first_latitude * cos_second_latitude * sin_longitude_delta_half * sin_longitude_delta_half;
+        simsimd_f32_t haversine_term = sin_latitude_delta_half * sin_latitude_delta_half +
+                                       cos_first_latitude * cos_second_latitude * sin_longitude_delta_half *
+                                           sin_longitude_delta_half;
 
         // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a))
         simsimd_f32_t sqrt_haversine = SIMSIMD_SQRT(haversine_term);
@@ -251,8 +358,8 @@ SIMSIMD_PUBLIC void simsimd_vincenty_f64_serial(              //
             simsimd_f64_t cos_lambda = simsimd_f64_cos(lambda);
 
             simsimd_f64_t cross_term = cos_reduced_second * sin_lambda;
-            simsimd_f64_t mixed_term =
-                cos_reduced_first * sin_reduced_second - sin_reduced_first * cos_reduced_second * cos_lambda;
+            simsimd_f64_t mixed_term = cos_reduced_first * sin_reduced_second -
+                                       sin_reduced_first * cos_reduced_second * cos_lambda;
             sin_angular_distance = SIMSIMD_SQRT(cross_term * cross_term + mixed_term * mixed_term);
 
             if (sin_angular_distance == 0.0) {
@@ -260,21 +367,21 @@ SIMSIMD_PUBLIC void simsimd_vincenty_f64_serial(              //
                 break;
             }
 
-            cos_angular_distance =
-                sin_reduced_first * sin_reduced_second + cos_reduced_first * cos_reduced_second * cos_lambda;
+            cos_angular_distance = sin_reduced_first * sin_reduced_second +
+                                   cos_reduced_first * cos_reduced_second * cos_lambda;
             angular_distance = simsimd_f64_atan2(sin_angular_distance, cos_angular_distance);
 
             sin_azimuth = cos_reduced_first * cos_reduced_second * sin_lambda / sin_angular_distance;
             cos_squared_azimuth = 1.0 - sin_azimuth * sin_azimuth;
 
             // Handle equatorial geodesic case
-            cos_double_angular_midpoint =
-                (cos_squared_azimuth != 0.0)
-                    ? cos_angular_distance - 2.0 * sin_reduced_first * sin_reduced_second / cos_squared_azimuth
-                    : 0.0;
+            cos_double_angular_midpoint = (cos_squared_azimuth != 0.0)
+                                              ? cos_angular_distance -
+                                                    2.0 * sin_reduced_first * sin_reduced_second / cos_squared_azimuth
+                                              : 0.0;
 
-            simsimd_f64_t correction_factor =
-                flattening / 16.0 * cos_squared_azimuth * (4.0 + flattening * (4.0 - 3.0 * cos_squared_azimuth));
+            simsimd_f64_t correction_factor = flattening / 16.0 * cos_squared_azimuth *
+                                              (4.0 + flattening * (4.0 - 3.0 * cos_squared_azimuth));
 
             lambda_previous = lambda;
             lambda = longitude_difference + (1.0 - correction_factor) * flattening * sin_azimuth *
@@ -297,10 +404,10 @@ SIMSIMD_PUBLIC void simsimd_vincenty_f64_serial(              //
         simsimd_f64_t u_squared = cos_squared_azimuth *
                                   (equatorial_radius * equatorial_radius - polar_radius * polar_radius) /
                                   (polar_radius * polar_radius);
-        simsimd_f64_t series_a =
-            1.0 + u_squared / 16384.0 * (4096.0 + u_squared * (-768.0 + u_squared * (320.0 - 175.0 * u_squared)));
-        simsimd_f64_t series_b =
-            u_squared / 1024.0 * (256.0 + u_squared * (-128.0 + u_squared * (74.0 - 47.0 * u_squared)));
+        simsimd_f64_t series_a = 1.0 + u_squared / 16384.0 *
+                                           (4096.0 + u_squared * (-768.0 + u_squared * (320.0 - 175.0 * u_squared)));
+        simsimd_f64_t series_b = u_squared / 1024.0 *
+                                 (256.0 + u_squared * (-128.0 + u_squared * (74.0 - 47.0 * u_squared)));
 
         simsimd_f64_t angular_correction =
             series_b * sin_angular_distance *
@@ -352,8 +459,8 @@ SIMSIMD_PUBLIC void simsimd_vincenty_f32_serial(              //
             simsimd_f32_t cos_lambda = simsimd_f32_cos(lambda);
 
             simsimd_f32_t cross_term = cos_reduced_second * sin_lambda;
-            simsimd_f32_t mixed_term =
-                cos_reduced_first * sin_reduced_second - sin_reduced_first * cos_reduced_second * cos_lambda;
+            simsimd_f32_t mixed_term = cos_reduced_first * sin_reduced_second -
+                                       sin_reduced_first * cos_reduced_second * cos_lambda;
             sin_angular_distance = SIMSIMD_SQRT(cross_term * cross_term + mixed_term * mixed_term);
 
             if (sin_angular_distance == 0.0f) {
@@ -361,21 +468,21 @@ SIMSIMD_PUBLIC void simsimd_vincenty_f32_serial(              //
                 break;
             }
 
-            cos_angular_distance =
-                sin_reduced_first * sin_reduced_second + cos_reduced_first * cos_reduced_second * cos_lambda;
+            cos_angular_distance = sin_reduced_first * sin_reduced_second +
+                                   cos_reduced_first * cos_reduced_second * cos_lambda;
             angular_distance = simsimd_f32_atan2(sin_angular_distance, cos_angular_distance);
 
             sin_azimuth = cos_reduced_first * cos_reduced_second * sin_lambda / sin_angular_distance;
             cos_squared_azimuth = 1.0f - sin_azimuth * sin_azimuth;
 
             // Handle equatorial geodesic case
-            cos_double_angular_midpoint =
-                (cos_squared_azimuth != 0.0f)
-                    ? cos_angular_distance - 2.0f * sin_reduced_first * sin_reduced_second / cos_squared_azimuth
-                    : 0.0f;
+            cos_double_angular_midpoint = (cos_squared_azimuth != 0.0f)
+                                              ? cos_angular_distance -
+                                                    2.0f * sin_reduced_first * sin_reduced_second / cos_squared_azimuth
+                                              : 0.0f;
 
-            simsimd_f32_t correction_factor =
-                flattening / 16.0f * cos_squared_azimuth * (4.0f + flattening * (4.0f - 3.0f * cos_squared_azimuth));
+            simsimd_f32_t correction_factor = flattening / 16.0f * cos_squared_azimuth *
+                                              (4.0f + flattening * (4.0f - 3.0f * cos_squared_azimuth));
 
             lambda_previous = lambda;
             lambda = longitude_difference +
@@ -401,8 +508,8 @@ SIMSIMD_PUBLIC void simsimd_vincenty_f32_serial(              //
                                   (polar_radius * polar_radius);
         simsimd_f32_t series_a =
             1.0f + u_squared / 16384.0f * (4096.0f + u_squared * (-768.0f + u_squared * (320.0f - 175.0f * u_squared)));
-        simsimd_f32_t series_b =
-            u_squared / 1024.0f * (256.0f + u_squared * (-128.0f + u_squared * (74.0f - 47.0f * u_squared)));
+        simsimd_f32_t series_b = u_squared / 1024.0f *
+                                 (256.0f + u_squared * (-128.0f + u_squared * (74.0f - 47.0f * u_squared)));
 
         simsimd_f32_t angular_correction =
             series_b * sin_angular_distance *
@@ -416,49 +523,6 @@ SIMSIMD_PUBLIC void simsimd_vincenty_f32_serial(              //
         results[i] = polar_radius * series_a * (angular_distance - angular_correction);
     }
 }
-
-/*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
- *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
- *  Practically all modern x86 CPUs support AVX2, FMA, and F16C, making it a perfect baseline for SIMD algorithms.
- *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
- *  properly vectorized by recent compilers.
- */
-SIMSIMD_PUBLIC void simsimd_haversine_f64_haswell(            //
-    simsimd_f64_t const *a_lats, simsimd_f64_t const *a_lons, //
-    simsimd_f64_t const *b_lats, simsimd_f64_t const *b_lons, //
-    simsimd_size_t n, simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_vincenty_f64_haswell(             //
-    simsimd_f64_t const *a_lats, simsimd_f64_t const *a_lons, //
-    simsimd_f64_t const *b_lats, simsimd_f64_t const *b_lons, //
-    simsimd_size_t n, simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_haversine_f32_haswell(            //
-    simsimd_f32_t const *a_lats, simsimd_f32_t const *a_lons, //
-    simsimd_f32_t const *b_lats, simsimd_f32_t const *b_lons, //
-    simsimd_size_t n, simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_vincenty_f32_haswell(             //
-    simsimd_f32_t const *a_lats, simsimd_f32_t const *a_lons, //
-    simsimd_f32_t const *b_lats, simsimd_f32_t const *b_lons, //
-    simsimd_size_t n, simsimd_distance_t *results);
-
-/*  SIMD-powered backends for various generations of AVX512 CPUs.
- *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
- */
-SIMSIMD_PUBLIC void simsimd_haversine_f64_skylake(            //
-    simsimd_f64_t const *a_lats, simsimd_f64_t const *a_lons, //
-    simsimd_f64_t const *b_lats, simsimd_f64_t const *b_lons, //
-    simsimd_size_t n, simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_vincenty_f64_skylake(             //
-    simsimd_f64_t const *a_lats, simsimd_f64_t const *a_lons, //
-    simsimd_f64_t const *b_lats, simsimd_f64_t const *b_lons, //
-    simsimd_size_t n, simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_haversine_f32_skylake(            //
-    simsimd_f32_t const *a_lats, simsimd_f32_t const *a_lons, //
-    simsimd_f32_t const *b_lats, simsimd_f32_t const *b_lons, //
-    simsimd_size_t n, simsimd_distance_t *results);
-SIMSIMD_PUBLIC void simsimd_vincenty_f32_skylake(             //
-    simsimd_f32_t const *a_lats, simsimd_f32_t const *a_lons, //
-    simsimd_f32_t const *b_lats, simsimd_f32_t const *b_lons, //
-    simsimd_size_t n, simsimd_distance_t *results);
 
 #if _SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_HASWELL
@@ -519,8 +583,8 @@ SIMSIMD_PUBLIC void simsimd_haversine_f64_haswell(            //
         __m256d second_latitudes = _mm256_loadu_pd(b_lats);
         __m256d second_longitudes = _mm256_loadu_pd(b_lons);
 
-        __m256d distances =
-            _simsimd_haversine_f64x4_haswell(first_latitudes, first_longitudes, second_latitudes, second_longitudes);
+        __m256d distances = _simsimd_haversine_f64x4_haswell(first_latitudes, first_longitudes, second_latitudes,
+                                                             second_longitudes);
         _mm256_storeu_pd(results, distances);
 
         a_lats += 4, a_lons += 4, b_lats += 4, b_lons += 4, results += 4, n -= 4;
@@ -578,8 +642,8 @@ SIMSIMD_PUBLIC void simsimd_haversine_f32_haswell(            //
         __m256 second_latitudes = _mm256_loadu_ps(b_lats);
         __m256 second_longitudes = _mm256_loadu_ps(b_lons);
 
-        __m256 distances =
-            _simsimd_haversine_f32x8_haswell(first_latitudes, first_longitudes, second_latitudes, second_longitudes);
+        __m256 distances = _simsimd_haversine_f32x8_haswell(first_latitudes, first_longitudes, second_latitudes,
+                                                            second_longitudes);
 
         // Convert f32 results to f64 and store (4 at a time)
         __m128 lower_half = _mm256_castps256_ps128(distances);
@@ -621,19 +685,19 @@ SIMSIMD_INTERNAL __m256d _simsimd_vincenty_f64x4_haswell( //
 
     // Reduced latitudes: tan(U) = (1-f) * tan(lat)
     __m256d one_minus_f = _mm256_sub_pd(one, flattening);
-    __m256d tan_first =
-        _mm256_div_pd(_simsimd_f64x4_sin_haswell(first_latitudes), _simsimd_f64x4_cos_haswell(first_latitudes));
-    __m256d tan_second =
-        _mm256_div_pd(_simsimd_f64x4_sin_haswell(second_latitudes), _simsimd_f64x4_cos_haswell(second_latitudes));
+    __m256d tan_first = _mm256_div_pd(_simsimd_f64x4_sin_haswell(first_latitudes),
+                                      _simsimd_f64x4_cos_haswell(first_latitudes));
+    __m256d tan_second = _mm256_div_pd(_simsimd_f64x4_sin_haswell(second_latitudes),
+                                       _simsimd_f64x4_cos_haswell(second_latitudes));
     __m256d tan_reduced_first = _mm256_mul_pd(one_minus_f, tan_first);
     __m256d tan_reduced_second = _mm256_mul_pd(one_minus_f, tan_second);
 
     // cos(U) = 1/sqrt(1 + tan²(U)), sin(U) = tan(U) * cos(U)
-    __m256d cos_reduced_first =
-        _mm256_div_pd(one, _mm256_sqrt_pd(_mm256_fmadd_pd(tan_reduced_first, tan_reduced_first, one)));
+    __m256d cos_reduced_first = _mm256_div_pd(
+        one, _mm256_sqrt_pd(_mm256_fmadd_pd(tan_reduced_first, tan_reduced_first, one)));
     __m256d sin_reduced_first = _mm256_mul_pd(tan_reduced_first, cos_reduced_first);
-    __m256d cos_reduced_second =
-        _mm256_div_pd(one, _mm256_sqrt_pd(_mm256_fmadd_pd(tan_reduced_second, tan_reduced_second, one)));
+    __m256d cos_reduced_second = _mm256_div_pd(
+        one, _mm256_sqrt_pd(_mm256_fmadd_pd(tan_reduced_second, tan_reduced_second, one)));
     __m256d sin_reduced_second = _mm256_mul_pd(tan_reduced_second, cos_reduced_second);
 
     // Initialize lambda and tracking variables
@@ -655,9 +719,9 @@ SIMSIMD_INTERNAL __m256d _simsimd_vincenty_f64x4_haswell( //
 
         // sin_angular_distance² = (cos_U2 * sin_λ)² + (cos_U1 * sin_U2 - sin_U1 * cos_U2 * cos_λ)²
         __m256d cross_term = _mm256_mul_pd(cos_reduced_second, sin_lambda);
-        __m256d mixed_term =
-            _mm256_sub_pd(_mm256_mul_pd(cos_reduced_first, sin_reduced_second),
-                          _mm256_mul_pd(_mm256_mul_pd(sin_reduced_first, cos_reduced_second), cos_lambda));
+        __m256d mixed_term = _mm256_sub_pd(
+            _mm256_mul_pd(cos_reduced_first, sin_reduced_second),
+            _mm256_mul_pd(_mm256_mul_pd(sin_reduced_first, cos_reduced_second), cos_lambda));
         __m256d sin_angular_dist_sq = _mm256_fmadd_pd(cross_term, cross_term, _mm256_mul_pd(mixed_term, mixed_term));
         sin_angular_distance = _mm256_sqrt_pd(sin_angular_dist_sq);
 
@@ -684,10 +748,10 @@ SIMSIMD_INTERNAL __m256d _simsimd_vincenty_f64x4_haswell( //
 
         // cos_2σm = cos_σ - 2 * sin_U1 * sin_U2 / cos²α
         __m256d sin_product = _mm256_mul_pd(sin_reduced_first, sin_reduced_second);
-        cos_double_angular_midpoint =
-            _mm256_sub_pd(cos_angular_distance, _mm256_div_pd(_mm256_mul_pd(two, sin_product), safe_cos_sq_azimuth));
-        cos_double_angular_midpoint =
-            _mm256_blendv_pd(cos_double_angular_midpoint, _mm256_setzero_pd(), equatorial_mask);
+        cos_double_angular_midpoint = _mm256_sub_pd(
+            cos_angular_distance, _mm256_div_pd(_mm256_mul_pd(two, sin_product), safe_cos_sq_azimuth));
+        cos_double_angular_midpoint = _mm256_blendv_pd(cos_double_angular_midpoint, _mm256_setzero_pd(),
+                                                       equatorial_mask);
 
         // C = f/16 * cos²α * (4 + f*(4 - 3*cos²α))
         __m256d correction_factor = _mm256_mul_pd(
@@ -752,8 +816,8 @@ SIMSIMD_INTERNAL __m256d _simsimd_vincenty_f64x4_haswell( //
                                                                                   _mm256_sub_pd(term1, term2)))));
 
     // s = b * A * (σ - Δσ)
-    __m256d distances =
-        _mm256_mul_pd(_mm256_mul_pd(polar_radius, series_a), _mm256_sub_pd(angular_distance, delta_sigma));
+    __m256d distances = _mm256_mul_pd(_mm256_mul_pd(polar_radius, series_a),
+                                      _mm256_sub_pd(angular_distance, delta_sigma));
 
     // Set coincident points to zero
     distances = _mm256_blendv_pd(distances, _mm256_setzero_pd(), coincident_mask);
@@ -772,8 +836,8 @@ SIMSIMD_PUBLIC void simsimd_vincenty_f64_haswell(             //
         __m256d second_latitudes = _mm256_loadu_pd(b_lats);
         __m256d second_longitudes = _mm256_loadu_pd(b_lons);
 
-        __m256d distances =
-            _simsimd_vincenty_f64x4_haswell(first_latitudes, first_longitudes, second_latitudes, second_longitudes);
+        __m256d distances = _simsimd_vincenty_f64x4_haswell(first_latitudes, first_longitudes, second_latitudes,
+                                                            second_longitudes);
         _mm256_storeu_pd(results, distances);
 
         a_lats += 4, a_lons += 4, b_lats += 4, b_lons += 4, results += 4, n -= 4;
@@ -808,19 +872,19 @@ SIMSIMD_INTERNAL __m256 _simsimd_vincenty_f32x8_haswell( //
 
     // Reduced latitudes: tan(U) = (1-f) * tan(lat)
     __m256 one_minus_f = _mm256_sub_ps(one, flattening);
-    __m256 tan_first =
-        _mm256_div_ps(_simsimd_f32x8_sin_haswell(first_latitudes), _simsimd_f32x8_cos_haswell(first_latitudes));
-    __m256 tan_second =
-        _mm256_div_ps(_simsimd_f32x8_sin_haswell(second_latitudes), _simsimd_f32x8_cos_haswell(second_latitudes));
+    __m256 tan_first = _mm256_div_ps(_simsimd_f32x8_sin_haswell(first_latitudes),
+                                     _simsimd_f32x8_cos_haswell(first_latitudes));
+    __m256 tan_second = _mm256_div_ps(_simsimd_f32x8_sin_haswell(second_latitudes),
+                                      _simsimd_f32x8_cos_haswell(second_latitudes));
     __m256 tan_reduced_first = _mm256_mul_ps(one_minus_f, tan_first);
     __m256 tan_reduced_second = _mm256_mul_ps(one_minus_f, tan_second);
 
     // cos(U) = 1/sqrt(1 + tan²(U)), sin(U) = tan(U) * cos(U)
-    __m256 cos_reduced_first =
-        _mm256_div_ps(one, _mm256_sqrt_ps(_mm256_fmadd_ps(tan_reduced_first, tan_reduced_first, one)));
+    __m256 cos_reduced_first = _mm256_div_ps(
+        one, _mm256_sqrt_ps(_mm256_fmadd_ps(tan_reduced_first, tan_reduced_first, one)));
     __m256 sin_reduced_first = _mm256_mul_ps(tan_reduced_first, cos_reduced_first);
-    __m256 cos_reduced_second =
-        _mm256_div_ps(one, _mm256_sqrt_ps(_mm256_fmadd_ps(tan_reduced_second, tan_reduced_second, one)));
+    __m256 cos_reduced_second = _mm256_div_ps(
+        one, _mm256_sqrt_ps(_mm256_fmadd_ps(tan_reduced_second, tan_reduced_second, one)));
     __m256 sin_reduced_second = _mm256_mul_ps(tan_reduced_second, cos_reduced_second);
 
     // Initialize lambda and tracking variables
@@ -842,9 +906,9 @@ SIMSIMD_INTERNAL __m256 _simsimd_vincenty_f32x8_haswell( //
 
         // sin_angular_distance² = (cos_U2 * sin_λ)² + (cos_U1 * sin_U2 - sin_U1 * cos_U2 * cos_λ)²
         __m256 cross_term = _mm256_mul_ps(cos_reduced_second, sin_lambda);
-        __m256 mixed_term =
-            _mm256_sub_ps(_mm256_mul_ps(cos_reduced_first, sin_reduced_second),
-                          _mm256_mul_ps(_mm256_mul_ps(sin_reduced_first, cos_reduced_second), cos_lambda));
+        __m256 mixed_term = _mm256_sub_ps(
+            _mm256_mul_ps(cos_reduced_first, sin_reduced_second),
+            _mm256_mul_ps(_mm256_mul_ps(sin_reduced_first, cos_reduced_second), cos_lambda));
         __m256 sin_angular_dist_sq = _mm256_fmadd_ps(cross_term, cross_term, _mm256_mul_ps(mixed_term, mixed_term));
         sin_angular_distance = _mm256_sqrt_ps(sin_angular_dist_sq);
 
@@ -871,10 +935,10 @@ SIMSIMD_INTERNAL __m256 _simsimd_vincenty_f32x8_haswell( //
 
         // cos_2σm = cos_σ - 2 * sin_U1 * sin_U2 / cos²α
         __m256 sin_product = _mm256_mul_ps(sin_reduced_first, sin_reduced_second);
-        cos_double_angular_midpoint =
-            _mm256_sub_ps(cos_angular_distance, _mm256_div_ps(_mm256_mul_ps(two, sin_product), safe_cos_sq_azimuth));
-        cos_double_angular_midpoint =
-            _mm256_blendv_ps(cos_double_angular_midpoint, _mm256_setzero_ps(), equatorial_mask);
+        cos_double_angular_midpoint = _mm256_sub_ps(
+            cos_angular_distance, _mm256_div_ps(_mm256_mul_ps(two, sin_product), safe_cos_sq_azimuth));
+        cos_double_angular_midpoint = _mm256_blendv_ps(cos_double_angular_midpoint, _mm256_setzero_ps(),
+                                                       equatorial_mask);
 
         // C = f/16 * cos²α * (4 + f*(4 - 3*cos²α))
         __m256 correction_factor = _mm256_mul_ps(
@@ -939,8 +1003,8 @@ SIMSIMD_INTERNAL __m256 _simsimd_vincenty_f32x8_haswell( //
                                                                                   _mm256_sub_ps(term1, term2)))));
 
     // s = b * A * (σ - Δσ)
-    __m256 distances =
-        _mm256_mul_ps(_mm256_mul_ps(polar_radius, series_a), _mm256_sub_ps(angular_distance, delta_sigma));
+    __m256 distances = _mm256_mul_ps(_mm256_mul_ps(polar_radius, series_a),
+                                     _mm256_sub_ps(angular_distance, delta_sigma));
 
     // Set coincident points to zero
     distances = _mm256_blendv_ps(distances, _mm256_setzero_ps(), coincident_mask);
@@ -959,8 +1023,8 @@ SIMSIMD_PUBLIC void simsimd_vincenty_f32_haswell(             //
         __m256 second_latitudes = _mm256_loadu_ps(b_lats);
         __m256 second_longitudes = _mm256_loadu_ps(b_lons);
 
-        __m256 distances =
-            _simsimd_vincenty_f32x8_haswell(first_latitudes, first_longitudes, second_latitudes, second_longitudes);
+        __m256 distances = _simsimd_vincenty_f32x8_haswell(first_latitudes, first_longitudes, second_latitudes,
+                                                           second_longitudes);
 
         // Convert f32 results to f64 and store (4 at a time)
         __m128 lower_half = _mm256_castps256_ps128(distances);
@@ -1037,8 +1101,8 @@ SIMSIMD_PUBLIC void simsimd_haversine_f64_skylake(            //
         __m512d second_latitudes = _mm512_loadu_pd(b_lats);
         __m512d second_longitudes = _mm512_loadu_pd(b_lons);
 
-        __m512d distances =
-            _simsimd_haversine_f64x8_skylake(first_latitudes, first_longitudes, second_latitudes, second_longitudes);
+        __m512d distances = _simsimd_haversine_f64x8_skylake(first_latitudes, first_longitudes, second_latitudes,
+                                                             second_longitudes);
         _mm512_storeu_pd(results, distances);
 
         a_lats += 8, a_lons += 8, b_lats += 8, b_lons += 8, results += 8, n -= 8;
@@ -1052,8 +1116,8 @@ SIMSIMD_PUBLIC void simsimd_haversine_f64_skylake(            //
         __m512d second_latitudes = _mm512_maskz_loadu_pd(mask, b_lats);
         __m512d second_longitudes = _mm512_maskz_loadu_pd(mask, b_lons);
 
-        __m512d distances =
-            _simsimd_haversine_f64x8_skylake(first_latitudes, first_longitudes, second_latitudes, second_longitudes);
+        __m512d distances = _simsimd_haversine_f64x8_skylake(first_latitudes, first_longitudes, second_latitudes,
+                                                             second_longitudes);
         _mm512_mask_storeu_pd(results, mask, distances);
     }
 }
@@ -1082,19 +1146,19 @@ SIMSIMD_INTERNAL __m512d _simsimd_vincenty_f64x8_skylake( //
 
     // Reduced latitudes: tan(U) = (1-f) * tan(lat)
     __m512d one_minus_f = _mm512_sub_pd(one, flattening);
-    __m512d tan_first =
-        _mm512_div_pd(_simsimd_f64x8_sin_skylake(first_latitudes), _simsimd_f64x8_cos_skylake(first_latitudes));
-    __m512d tan_second =
-        _mm512_div_pd(_simsimd_f64x8_sin_skylake(second_latitudes), _simsimd_f64x8_cos_skylake(second_latitudes));
+    __m512d tan_first = _mm512_div_pd(_simsimd_f64x8_sin_skylake(first_latitudes),
+                                      _simsimd_f64x8_cos_skylake(first_latitudes));
+    __m512d tan_second = _mm512_div_pd(_simsimd_f64x8_sin_skylake(second_latitudes),
+                                       _simsimd_f64x8_cos_skylake(second_latitudes));
     __m512d tan_reduced_first = _mm512_mul_pd(one_minus_f, tan_first);
     __m512d tan_reduced_second = _mm512_mul_pd(one_minus_f, tan_second);
 
     // cos(U) = 1/sqrt(1 + tan²(U)), sin(U) = tan(U) * cos(U)
-    __m512d cos_reduced_first =
-        _mm512_div_pd(one, _mm512_sqrt_pd(_mm512_fmadd_pd(tan_reduced_first, tan_reduced_first, one)));
+    __m512d cos_reduced_first = _mm512_div_pd(
+        one, _mm512_sqrt_pd(_mm512_fmadd_pd(tan_reduced_first, tan_reduced_first, one)));
     __m512d sin_reduced_first = _mm512_mul_pd(tan_reduced_first, cos_reduced_first);
-    __m512d cos_reduced_second =
-        _mm512_div_pd(one, _mm512_sqrt_pd(_mm512_fmadd_pd(tan_reduced_second, tan_reduced_second, one)));
+    __m512d cos_reduced_second = _mm512_div_pd(
+        one, _mm512_sqrt_pd(_mm512_fmadd_pd(tan_reduced_second, tan_reduced_second, one)));
     __m512d sin_reduced_second = _mm512_mul_pd(tan_reduced_second, cos_reduced_second);
 
     // Initialize lambda and tracking variables
@@ -1113,9 +1177,9 @@ SIMSIMD_INTERNAL __m512d _simsimd_vincenty_f64x8_skylake( //
 
         // sin_angular_distance² = (cos_U2 * sin_λ)² + (cos_U1 * sin_U2 - sin_U1 * cos_U2 * cos_λ)²
         __m512d cross_term = _mm512_mul_pd(cos_reduced_second, sin_lambda);
-        __m512d mixed_term =
-            _mm512_sub_pd(_mm512_mul_pd(cos_reduced_first, sin_reduced_second),
-                          _mm512_mul_pd(_mm512_mul_pd(sin_reduced_first, cos_reduced_second), cos_lambda));
+        __m512d mixed_term = _mm512_sub_pd(
+            _mm512_mul_pd(cos_reduced_first, sin_reduced_second),
+            _mm512_mul_pd(_mm512_mul_pd(sin_reduced_first, cos_reduced_second), cos_lambda));
         __m512d sin_angular_dist_sq = _mm512_fmadd_pd(cross_term, cross_term, _mm512_mul_pd(mixed_term, mixed_term));
         sin_angular_distance = _mm512_sqrt_pd(sin_angular_dist_sq);
 
@@ -1139,10 +1203,10 @@ SIMSIMD_INTERNAL __m512d _simsimd_vincenty_f64x8_skylake( //
 
         // cos_2σm = cos_σ - 2 * sin_U1 * sin_U2 / cos²α
         __m512d sin_product = _mm512_mul_pd(sin_reduced_first, sin_reduced_second);
-        cos_double_angular_midpoint =
-            _mm512_sub_pd(cos_angular_distance, _mm512_div_pd(_mm512_mul_pd(two, sin_product), cos_squared_azimuth));
-        cos_double_angular_midpoint =
-            _mm512_mask_blend_pd(equatorial_mask, cos_double_angular_midpoint, _mm512_setzero_pd());
+        cos_double_angular_midpoint = _mm512_sub_pd(
+            cos_angular_distance, _mm512_div_pd(_mm512_mul_pd(two, sin_product), cos_squared_azimuth));
+        cos_double_angular_midpoint = _mm512_mask_blend_pd(equatorial_mask, cos_double_angular_midpoint,
+                                                           _mm512_setzero_pd());
 
         // C = f/16 * cos²α * (4 + f*(4 - 3*cos²α))
         __m512d correction_factor = _mm512_mul_pd(
@@ -1205,8 +1269,8 @@ SIMSIMD_INTERNAL __m512d _simsimd_vincenty_f64x8_skylake( //
                                                                                   _mm512_sub_pd(term1, term2)))));
 
     // s = b * A * (σ - Δσ)
-    __m512d distances =
-        _mm512_mul_pd(_mm512_mul_pd(polar_radius, series_a), _mm512_sub_pd(angular_distance, delta_sigma));
+    __m512d distances = _mm512_mul_pd(_mm512_mul_pd(polar_radius, series_a),
+                                      _mm512_sub_pd(angular_distance, delta_sigma));
 
     // Set coincident points to zero
     distances = _mm512_mask_blend_pd(coincident_mask, distances, _mm512_setzero_pd());
@@ -1225,8 +1289,8 @@ SIMSIMD_PUBLIC void simsimd_vincenty_f64_skylake(             //
         __m512d second_latitudes = _mm512_loadu_pd(b_lats);
         __m512d second_longitudes = _mm512_loadu_pd(b_lons);
 
-        __m512d distances =
-            _simsimd_vincenty_f64x8_skylake(first_latitudes, first_longitudes, second_latitudes, second_longitudes);
+        __m512d distances = _simsimd_vincenty_f64x8_skylake(first_latitudes, first_longitudes, second_latitudes,
+                                                            second_longitudes);
         _mm512_storeu_pd(results, distances);
 
         a_lats += 8, a_lons += 8, b_lats += 8, b_lons += 8, results += 8, n -= 8;
@@ -1240,8 +1304,8 @@ SIMSIMD_PUBLIC void simsimd_vincenty_f64_skylake(             //
         __m512d second_latitudes = _mm512_maskz_loadu_pd(mask, b_lats);
         __m512d second_longitudes = _mm512_maskz_loadu_pd(mask, b_lons);
 
-        __m512d distances =
-            _simsimd_vincenty_f64x8_skylake(first_latitudes, first_longitudes, second_latitudes, second_longitudes);
+        __m512d distances = _simsimd_vincenty_f64x8_skylake(first_latitudes, first_longitudes, second_latitudes,
+                                                            second_longitudes);
         _mm512_mask_storeu_pd(results, mask, distances);
     }
 }
@@ -1294,8 +1358,8 @@ SIMSIMD_PUBLIC void simsimd_haversine_f32_skylake(            //
         __m512 second_latitudes = _mm512_loadu_ps(b_lats);
         __m512 second_longitudes = _mm512_loadu_ps(b_lons);
 
-        __m512 distances =
-            _simsimd_haversine_f32x16_skylake(first_latitudes, first_longitudes, second_latitudes, second_longitudes);
+        __m512 distances = _simsimd_haversine_f32x16_skylake(first_latitudes, first_longitudes, second_latitudes,
+                                                             second_longitudes);
 
         // Convert f32 results to f64 and store (8 at a time)
         __m256 lower_half = _mm512_castps512_ps256(distances);
@@ -1316,8 +1380,8 @@ SIMSIMD_PUBLIC void simsimd_haversine_f32_skylake(            //
         __m512 second_latitudes = _mm512_maskz_loadu_ps(mask, b_lats);
         __m512 second_longitudes = _mm512_maskz_loadu_ps(mask, b_lons);
 
-        __m512 distances =
-            _simsimd_haversine_f32x16_skylake(first_latitudes, first_longitudes, second_latitudes, second_longitudes);
+        __m512 distances = _simsimd_haversine_f32x16_skylake(first_latitudes, first_longitudes, second_latitudes,
+                                                             second_longitudes);
 
         // Store results element by element converting f32 to f64
         for (simsimd_size_t i = 0; i < n; ++i) results[i] = ((float *)&distances)[i];
@@ -1348,19 +1412,19 @@ SIMSIMD_INTERNAL __m512 _simsimd_vincenty_f32x16_skylake( //
 
     // Reduced latitudes: tan(U) = (1-f) * tan(lat)
     __m512 one_minus_f = _mm512_sub_ps(one, flattening);
-    __m512 tan_first =
-        _mm512_div_ps(_simsimd_f32x16_sin_skylake(first_latitudes), _simsimd_f32x16_cos_skylake(first_latitudes));
-    __m512 tan_second =
-        _mm512_div_ps(_simsimd_f32x16_sin_skylake(second_latitudes), _simsimd_f32x16_cos_skylake(second_latitudes));
+    __m512 tan_first = _mm512_div_ps(_simsimd_f32x16_sin_skylake(first_latitudes),
+                                     _simsimd_f32x16_cos_skylake(first_latitudes));
+    __m512 tan_second = _mm512_div_ps(_simsimd_f32x16_sin_skylake(second_latitudes),
+                                      _simsimd_f32x16_cos_skylake(second_latitudes));
     __m512 tan_reduced_first = _mm512_mul_ps(one_minus_f, tan_first);
     __m512 tan_reduced_second = _mm512_mul_ps(one_minus_f, tan_second);
 
     // cos(U) = 1/sqrt(1 + tan²(U)), sin(U) = tan(U) * cos(U)
-    __m512 cos_reduced_first =
-        _mm512_div_ps(one, _mm512_sqrt_ps(_mm512_fmadd_ps(tan_reduced_first, tan_reduced_first, one)));
+    __m512 cos_reduced_first = _mm512_div_ps(
+        one, _mm512_sqrt_ps(_mm512_fmadd_ps(tan_reduced_first, tan_reduced_first, one)));
     __m512 sin_reduced_first = _mm512_mul_ps(tan_reduced_first, cos_reduced_first);
-    __m512 cos_reduced_second =
-        _mm512_div_ps(one, _mm512_sqrt_ps(_mm512_fmadd_ps(tan_reduced_second, tan_reduced_second, one)));
+    __m512 cos_reduced_second = _mm512_div_ps(
+        one, _mm512_sqrt_ps(_mm512_fmadd_ps(tan_reduced_second, tan_reduced_second, one)));
     __m512 sin_reduced_second = _mm512_mul_ps(tan_reduced_second, cos_reduced_second);
 
     // Initialize lambda and tracking variables
@@ -1379,9 +1443,9 @@ SIMSIMD_INTERNAL __m512 _simsimd_vincenty_f32x16_skylake( //
 
         // sin_angular_distance² = (cos_U2 * sin_λ)² + (cos_U1 * sin_U2 - sin_U1 * cos_U2 * cos_λ)²
         __m512 cross_term = _mm512_mul_ps(cos_reduced_second, sin_lambda);
-        __m512 mixed_term =
-            _mm512_sub_ps(_mm512_mul_ps(cos_reduced_first, sin_reduced_second),
-                          _mm512_mul_ps(_mm512_mul_ps(sin_reduced_first, cos_reduced_second), cos_lambda));
+        __m512 mixed_term = _mm512_sub_ps(
+            _mm512_mul_ps(cos_reduced_first, sin_reduced_second),
+            _mm512_mul_ps(_mm512_mul_ps(sin_reduced_first, cos_reduced_second), cos_lambda));
         __m512 sin_angular_dist_sq = _mm512_fmadd_ps(cross_term, cross_term, _mm512_mul_ps(mixed_term, mixed_term));
         sin_angular_distance = _mm512_sqrt_ps(sin_angular_dist_sq);
 
@@ -1405,10 +1469,10 @@ SIMSIMD_INTERNAL __m512 _simsimd_vincenty_f32x16_skylake( //
 
         // cos_2σm = cos_σ - 2 * sin_U1 * sin_U2 / cos²α
         __m512 sin_product = _mm512_mul_ps(sin_reduced_first, sin_reduced_second);
-        cos_double_angular_midpoint =
-            _mm512_sub_ps(cos_angular_distance, _mm512_div_ps(_mm512_mul_ps(two, sin_product), cos_squared_azimuth));
-        cos_double_angular_midpoint =
-            _mm512_mask_blend_ps(equatorial_mask, cos_double_angular_midpoint, _mm512_setzero_ps());
+        cos_double_angular_midpoint = _mm512_sub_ps(
+            cos_angular_distance, _mm512_div_ps(_mm512_mul_ps(two, sin_product), cos_squared_azimuth));
+        cos_double_angular_midpoint = _mm512_mask_blend_ps(equatorial_mask, cos_double_angular_midpoint,
+                                                           _mm512_setzero_ps());
 
         // C = f/16 * cos²α * (4 + f*(4 - 3*cos²α))
         __m512 correction_factor = _mm512_mul_ps(
@@ -1471,8 +1535,8 @@ SIMSIMD_INTERNAL __m512 _simsimd_vincenty_f32x16_skylake( //
                                                                                   _mm512_sub_ps(term1, term2)))));
 
     // s = b * A * (σ - Δσ)
-    __m512 distances =
-        _mm512_mul_ps(_mm512_mul_ps(polar_radius, series_a), _mm512_sub_ps(angular_distance, delta_sigma));
+    __m512 distances = _mm512_mul_ps(_mm512_mul_ps(polar_radius, series_a),
+                                     _mm512_sub_ps(angular_distance, delta_sigma));
 
     // Set coincident points to zero
     distances = _mm512_mask_blend_ps(coincident_mask, distances, _mm512_setzero_ps());
@@ -1491,8 +1555,8 @@ SIMSIMD_PUBLIC void simsimd_vincenty_f32_skylake(             //
         __m512 second_latitudes = _mm512_loadu_ps(b_lats);
         __m512 second_longitudes = _mm512_loadu_ps(b_lons);
 
-        __m512 distances =
-            _simsimd_vincenty_f32x16_skylake(first_latitudes, first_longitudes, second_latitudes, second_longitudes);
+        __m512 distances = _simsimd_vincenty_f32x16_skylake(first_latitudes, first_longitudes, second_latitudes,
+                                                            second_longitudes);
 
         // Convert f32 results to f64 and store (8 at a time)
         __m256 lower_half = _mm512_castps512_ps256(distances);
@@ -1513,8 +1577,8 @@ SIMSIMD_PUBLIC void simsimd_vincenty_f32_skylake(             //
         __m512 second_latitudes = _mm512_maskz_loadu_ps(mask, b_lats);
         __m512 second_longitudes = _mm512_maskz_loadu_ps(mask, b_lons);
 
-        __m512 distances =
-            _simsimd_vincenty_f32x16_skylake(first_latitudes, first_longitudes, second_latitudes, second_longitudes);
+        __m512 distances = _simsimd_vincenty_f32x16_skylake(first_latitudes, first_longitudes, second_latitudes,
+                                                            second_longitudes);
 
         // Store results element by element converting f32 to f64
         for (simsimd_size_t i = 0; i < n; ++i) results[i] = ((float *)&distances)[i];
@@ -1525,7 +1589,63 @@ SIMSIMD_PUBLIC void simsimd_vincenty_f32_skylake(             //
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SKYLAKE
 
-#ifdef __cplusplus
+#if !SIMSIMD_DYNAMIC_DISPATCH
+
+SIMSIMD_PUBLIC void simsimd_haversine_f64(                    //
+    simsimd_f64_t const *a_lats, simsimd_f64_t const *a_lons, //
+    simsimd_f64_t const *b_lats, simsimd_f64_t const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_haversine_f64_skylake(a_lats, a_lons, b_lats, b_lons, n, results);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_haversine_f64_haswell(a_lats, a_lons, b_lats, b_lons, n, results);
+#else
+    simsimd_haversine_f64_serial(a_lats, a_lons, b_lats, b_lons, n, results);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_haversine_f32(                    //
+    simsimd_f32_t const *a_lats, simsimd_f32_t const *a_lons, //
+    simsimd_f32_t const *b_lats, simsimd_f32_t const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_haversine_f32_skylake(a_lats, a_lons, b_lats, b_lons, n, results);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_haversine_f32_haswell(a_lats, a_lons, b_lats, b_lons, n, results);
+#else
+    simsimd_haversine_f32_serial(a_lats, a_lons, b_lats, b_lons, n, results);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_vincenty_f64(                     //
+    simsimd_f64_t const *a_lats, simsimd_f64_t const *a_lons, //
+    simsimd_f64_t const *b_lats, simsimd_f64_t const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_vincenty_f64_skylake(a_lats, a_lons, b_lats, b_lons, n, results);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_vincenty_f64_haswell(a_lats, a_lons, b_lats, b_lons, n, results);
+#else
+    simsimd_vincenty_f64_serial(a_lats, a_lons, b_lats, b_lons, n, results);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_vincenty_f32(                     //
+    simsimd_f32_t const *a_lats, simsimd_f32_t const *a_lons, //
+    simsimd_f32_t const *b_lats, simsimd_f32_t const *b_lons, //
+    simsimd_size_t n, simsimd_distance_t *results) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_vincenty_f32_skylake(a_lats, a_lons, b_lats, b_lons, n, results);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_vincenty_f32_haswell(a_lats, a_lons, b_lats, b_lons, n, results);
+#else
+    simsimd_vincenty_f32_serial(a_lats, a_lons, b_lats, b_lons, n, results);
+#endif
+}
+
+#endif // !SIMSIMD_DYNAMIC_DISPATCH
+
+#if defined(__cplusplus)
 }
 #endif
 
