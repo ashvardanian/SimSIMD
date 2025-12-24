@@ -344,6 +344,7 @@ typedef simsimd_f64_t simsimd_distance_t;
  *  - GCC or Clang on 64-bit Arm: `__fp16`, may require `-mfp16-format` option.
  *  - GCC or Clang on 64-bit x86: `_Float16`.
  *  - Default: `unsigned short`.
+ *
  */
 #if !defined(SIMSIMD_NATIVE_F16) || SIMSIMD_NATIVE_F16
 #if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) && \

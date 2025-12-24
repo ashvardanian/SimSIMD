@@ -612,7 +612,7 @@ SIMSIMD_INTERNAL simsimd_u64_t _simsimd_morton_encode_sapphire_amx(simsimd_u32_t
  *  Sets all 8 tiles to standard 16 rows × 64 bytes layout.
  *
  *  Note: OS permission for AMX must be requested before using AMX instructions.
- *  Call `simsimd_enable_capabilities(simsimd_cap_sapphire_amx_k)` once per thread
+ *  Call `simsimd_flush_denormals(simsimd_capabilities())` once per thread
  *  before using any Sapphire matmul functions.
  */
 SIMSIMD_INTERNAL void _simsimd_amx_tile_configure_sapphire_amx(void) {

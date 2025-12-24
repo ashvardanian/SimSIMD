@@ -205,8 +205,8 @@ typedef void (*simsimd_metric_geospatial_punned_t)(void const *a_lats, void cons
         static simsimd_metric_mesh_punned_t kernel = 0;                                                              \
         if (kernel == 0) {                                                                                           \
             simsimd_capability_t used_capability;                                                                    \
-            simsimd_find_mesh_kernel_punned(simsimd_metric_##name##_k, simsimd_##extension##_k,                      \
-                                            simsimd_capabilities(), simsimd_cap_any_k, &kernel, &used_capability);   \
+            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##extension##_k, simsimd_capabilities(),   \
+                                       simsimd_cap_any_k, (simsimd_kernel_punned_t *)&kernel, &used_capability);     \
             if (!kernel) {                                                                                           \
                 *(simsimd_u64_t *)result = 0x7FF0000000000001ull;                                                    \
                 return;                                                                                              \
@@ -361,7 +361,7 @@ SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void) { return (simsimd_capabilities()
 SIMSIMD_DYNAMIC int simsimd_uses_turin(void) { return (simsimd_capabilities() & simsimd_cap_turin_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_sierra(void) { return (simsimd_capabilities() & simsimd_cap_sierra_k) != 0; }
 SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void) { return 1; }
-SIMSIMD_DYNAMIC int simsimd_flush_denormals(void) { return _simsimd_flush_denormals(); }
+SIMSIMD_DYNAMIC int simsimd_flush_denormals(simsimd_capability_t c) { return _simsimd_flush_denormals(c); }
 
 SIMSIMD_DYNAMIC void simsimd_f16_to_f32(simsimd_f16_t const *src, simsimd_f32_t *dest) {
     simsimd_f16_to_f32_implementation(src, dest);
@@ -512,17 +512,6 @@ SIMSIMD_DYNAMIC void simsimd_find_kernel_punned( //
     simsimd_kernel_punned_t *kernel_output,      //
     simsimd_capability_t *capability_output) {
     _simsimd_find_kernel_punned_implementation(kind, datatype, supported, allowed, kernel_output, capability_output);
-}
-
-SIMSIMD_DYNAMIC void simsimd_find_mesh_kernel_punned( //
-    simsimd_metric_kind_t kind,                       //
-    simsimd_datatype_t datatype,                      //
-    simsimd_capability_t supported,                   //
-    simsimd_capability_t allowed,                     //
-    simsimd_metric_mesh_punned_t *kernel_output,      //
-    simsimd_capability_t *capability_output) {
-    _simsimd_find_mesh_kernel_punned_implementation(kind, datatype, supported, allowed, kernel_output,
-                                                    capability_output);
 }
 
 #ifdef __cplusplus
