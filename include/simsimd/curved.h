@@ -1,23 +1,28 @@
 /**
- *  @file       curved.h
- *  @brief      SIMD-accelerated Similarity Measures for curved spaces.
- *  @author     Ash Vardanian
- *  @date       August 27, 2024
+ *  @brief SIMD-accelerated Similarity Measures for Curved Spaces.
+ *  @file include/simsimd/curved.h
+ *  @author Ash Vardanian
+ *  @date August 27, 2024
  *
- *  Contains:
+ *  Contains following similarity measures:
+ *
  *  - Mahalanobis distance
  *  - Bilinear form multiplication
  *  - Bilinear form multiplication over complex numbers
  *
  *  For datatypes:
+ *
  *  - 64-bit floating point numbers
  *  - 32-bit floating point numbers
  *  - 16-bit floating point numbers
  *  - 16-bit brain-floating point numbers
  *
  *  For hardware architectures:
+ *
  *  - Arm: NEON
  *  - x86: Haswell, Ice Lake, Skylake, Genoa, Sapphire
+ *
+ *  @section matrix_ops Matrix Operations
  *
  *  Most kernels in this file are designed for BLAS level 2 operations, where the operands are
  *  a combination of matrices and vectors, generally forming a chain of multiplications.
@@ -29,8 +34,19 @@
  *  When A and C are vectors, and B is a matrix, we can load every element in B just once, and
  *  reuse it for every element in A and C.
  *
- *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
- *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
+ *  @section usage Usage and Benefits
+ *
+ *  The bilinear form and Mahalanobis distance evaluate quadratic forms under a metric tensor
+ *  or covariance matrix without constructing intermediates. This is common in metric learning,
+ *  Gaussian models, and geometric embeddings where you need fast per-pair evaluation.
+ *  The complex bilinear forms serve complex-valued signals with complex metrics, returning
+ *  a complex scalar as two real numbers. By specializing for this pattern, we avoid full
+ *  GEMM-style paths and extra memory traffic, which can be faster for small and medium sizes.
+ *
+ *  @section references References
+ *
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide/
+ *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  */
 #ifndef SIMSIMD_CURVED_H
 #define SIMSIMD_CURVED_H
@@ -40,84 +56,235 @@
 #include "dot.h"     // `_simsimd_partial_load_f16x4_neon` and friends
 #include "spatial.h" // `_simsimd_substract_bf16x32_genoa`
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
+/**
+ *  @brief Bilinear form between vectors a and b under metric tensor c.
+ *
+ *  @param[in] a The first vector.
+ *  @param[in] b The second vector.
+ *  @param[in] c The metric tensor or covariance matrix, stored row-major as an n-by-n matrix.
+ *  @param[in] n The number of dimensions in the vectors.
+ *  @param[out] result The output bilinear form value.
+ *
+ *  @note The output value can be negative.
+ */
+SIMSIMD_DYNAMIC void simsimd_bilinear_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c,
+                                          simsimd_size_t n, simsimd_distance_t *result);
+/**
+ *  @brief Bilinear form between vectors a and b under metric tensor c.
+ *
+ *  @param[in] a The first vector.
+ *  @param[in] b The second vector.
+ *  @param[in] c The metric tensor or covariance matrix, stored row-major as an n-by-n matrix.
+ *  @param[in] n The number of dimensions in the vectors.
+ *  @param[out] result The output bilinear form value.
+ *
+ *  @note The output value can be negative.
+ */
+SIMSIMD_DYNAMIC void simsimd_bilinear_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c,
+                                          simsimd_size_t n, simsimd_distance_t *result);
+/**
+ *  @brief Bilinear form between vectors a and b under metric tensor c.
+ *
+ *  @param[in] a The first vector.
+ *  @param[in] b The second vector.
+ *  @param[in] c The metric tensor or covariance matrix, stored row-major as an n-by-n matrix.
+ *  @param[in] n The number of dimensions in the vectors.
+ *  @param[out] result The output bilinear form value.
+ *
+ *  @note The output value can be negative.
+ */
+SIMSIMD_DYNAMIC void simsimd_bilinear_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c,
+                                          simsimd_size_t n, simsimd_distance_t *result);
+/**
+ *  @brief Bilinear form between vectors a and b under metric tensor c.
+ *
+ *  @param[in] a The first vector.
+ *  @param[in] b The second vector.
+ *  @param[in] c The metric tensor or covariance matrix, stored row-major as an n-by-n matrix.
+ *  @param[in] n The number of dimensions in the vectors.
+ *  @param[out] result The output bilinear form value.
+ *
+ *  @note The output value can be negative.
+ */
+SIMSIMD_DYNAMIC void simsimd_bilinear_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c,
+                                           simsimd_size_t n, simsimd_distance_t *result);
+/**
+ *  @brief Mahalanobis distance between vectors a and b under metric tensor c.
+ *
+ *  @param[in] a The first vector.
+ *  @param[in] b The second vector.
+ *  @param[in] c The metric tensor or covariance matrix, stored row-major as an n-by-n matrix.
+ *  @param[in] n The number of dimensions in the vectors.
+ *  @param[out] result The output distance value.
+ *
+ *  @note The output value is non-negative.
+ *  @note The output value is zero if and only if the two vectors are identical.
+ */
+SIMSIMD_DYNAMIC void simsimd_mahalanobis_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c,
+                                             simsimd_size_t n, simsimd_distance_t *result);
+/**
+ *  @brief Mahalanobis distance between vectors a and b under metric tensor c.
+ *
+ *  @param[in] a The first vector.
+ *  @param[in] b The second vector.
+ *  @param[in] c The metric tensor or covariance matrix, stored row-major as an n-by-n matrix.
+ *  @param[in] n The number of dimensions in the vectors.
+ *  @param[out] result The output distance value.
+ *
+ *  @note The output value is non-negative.
+ *  @note The output value is zero if and only if the two vectors are identical.
+ */
+SIMSIMD_DYNAMIC void simsimd_mahalanobis_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c,
+                                             simsimd_size_t n, simsimd_distance_t *result);
+/**
+ *  @brief Mahalanobis distance between vectors a and b under metric tensor c.
+ *
+ *  @param[in] a The first vector.
+ *  @param[in] b The second vector.
+ *  @param[in] c The metric tensor or covariance matrix, stored row-major as an n-by-n matrix.
+ *  @param[in] n The number of dimensions in the vectors.
+ *  @param[out] result The output distance value.
+ *
+ *  @note The output value is non-negative.
+ *  @note The output value is zero if and only if the two vectors are identical.
+ */
+SIMSIMD_DYNAMIC void simsimd_mahalanobis_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c,
+                                             simsimd_size_t n, simsimd_distance_t *result);
+/**
+ *  @brief Mahalanobis distance between vectors a and b under metric tensor c.
+ *
+ *  @param[in] a The first vector.
+ *  @param[in] b The second vector.
+ *  @param[in] c The metric tensor or covariance matrix, stored row-major as an n-by-n matrix.
+ *  @param[in] n The number of dimensions in the vectors.
+ *  @param[out] result The output distance value.
+ *
+ *  @note The output value is non-negative.
+ *  @note The output value is zero if and only if the two vectors are identical.
+ */
+SIMSIMD_DYNAMIC void simsimd_mahalanobis_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c,
+                                              simsimd_size_t n, simsimd_distance_t *result);
+
 // clang-format off
 
-/*  Serial backends for all numeric types.
- *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
- *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
- */
+/** @copydoc simsimd_bilinear_f64 */
 SIMSIMD_PUBLIC void simsimd_bilinear_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_f64_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_f64c */
 SIMSIMD_PUBLIC void simsimd_bilinear_f64c_serial(simsimd_f64c_t const* a, simsimd_f64c_t const* b, simsimd_f64c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
+/** @copydoc simsimd_mahalanobis_f64 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f64_serial(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_f64_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_f32 */
 SIMSIMD_PUBLIC void simsimd_bilinear_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_f32c */
 SIMSIMD_PUBLIC void simsimd_bilinear_f32c_serial(simsimd_f32c_t const* a, simsimd_f32c_t const* b, simsimd_f32c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
+/** @copydoc simsimd_mahalanobis_f32 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_serial(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_f16 */
 SIMSIMD_PUBLIC void simsimd_bilinear_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_f16c */
 SIMSIMD_PUBLIC void simsimd_bilinear_f16c_serial(simsimd_f16c_t const* a, simsimd_f16c_t const* b, simsimd_f16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
+/** @copydoc simsimd_mahalanobis_f16 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_serial(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_bf16 */
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_bf16c */
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_serial(simsimd_bf16c_t const* a, simsimd_bf16c_t const* b, simsimd_bf16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
+/** @copydoc simsimd_mahalanobis_bf16 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_serial(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 
-/*  Double-precision serial backends for all numeric types.
- *  For single-precision computation check out the "*_serial" counterparts of those "*_accurate" functions.
- */
+/** @copydoc simsimd_bilinear_f32 */
 SIMSIMD_PUBLIC void simsimd_bilinear_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_f32c */
 SIMSIMD_PUBLIC void simsimd_bilinear_f32c_accurate(simsimd_f32c_t const* a, simsimd_f32c_t const* b, simsimd_f32c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
+/** @copydoc simsimd_mahalanobis_f32 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_accurate(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_f16 */
 SIMSIMD_PUBLIC void simsimd_bilinear_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_f16c */
 SIMSIMD_PUBLIC void simsimd_bilinear_f16c_accurate(simsimd_f16c_t const* a, simsimd_f16c_t const* b, simsimd_f16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
+/** @copydoc simsimd_mahalanobis_f16 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_accurate(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_bf16 */
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_bf16c */
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_accurate(simsimd_bf16c_t const* a, simsimd_bf16c_t const* b, simsimd_bf16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
+/** @copydoc simsimd_mahalanobis_bf16 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_accurate(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
 
-/*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
- *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all
- *  server CPUs produced before 2023.
- */
+#if SIMSIMD_TARGET_NEON
+/** @copydoc simsimd_bilinear_f32 */
 SIMSIMD_PUBLIC void simsimd_bilinear_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_f32c */
 SIMSIMD_PUBLIC void simsimd_bilinear_f32c_neon(simsimd_f32c_t const* a, simsimd_f32c_t const* b, simsimd_f32c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
+/** @copydoc simsimd_mahalanobis_f32 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_neon(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+#endif // SIMSIMD_TARGET_NEON
+
+#if SIMSIMD_TARGET_NEON_F16
+/** @copydoc simsimd_bilinear_f16 */
 SIMSIMD_PUBLIC void simsimd_bilinear_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_f16c */
 SIMSIMD_PUBLIC void simsimd_bilinear_f16c_neon(simsimd_f16c_t const* a, simsimd_f16c_t const* b, simsimd_f16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
+/** @copydoc simsimd_mahalanobis_f16 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_neon(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+#endif // SIMSIMD_TARGET_NEON_F16
+
+#if SIMSIMD_TARGET_NEON_BF16
+/** @copydoc simsimd_bilinear_bf16 */
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_bf16c */
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_neon(simsimd_bf16c_t const* a, simsimd_bf16c_t const* b, simsimd_bf16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
+/** @copydoc simsimd_mahalanobis_bf16 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_neon(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+#endif // SIMSIMD_TARGET_NEON_BF16
 
-/*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
- *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
- *  Practically all modern x86 CPUs support AVX2, FMA, and F16C, making it a perfect baseline for SIMD algorithms.
- *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
- *  properly vectorized by recent compilers.
- */
+#if SIMSIMD_TARGET_HASWELL
+/** @copydoc simsimd_bilinear_f16 */
 SIMSIMD_PUBLIC void simsimd_bilinear_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_mahalanobis_f16 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_haswell(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_bf16 */
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_mahalanobis_bf16 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_haswell(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+#endif // SIMSIMD_TARGET_HASWELL
 
-/*  SIMD-powered backends for various generations of AVX512 CPUs.
- *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
- *  Ice Lake added VNNI, VPOPCNTDQ, IFMA, VBMI, VAES, GFNI, VBMI2, BITALG, VPCLMULQDQ, and other extensions for integral operations.
- *  Sapphire Rapids added tiled matrix operations, but we are most interested in the new mixed-precision FMA instructions.
- */
+#if SIMSIMD_TARGET_SKYLAKE
+/** @copydoc simsimd_bilinear_f64 */
 SIMSIMD_PUBLIC void simsimd_bilinear_f64_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_f64_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_f64c */
 SIMSIMD_PUBLIC void simsimd_bilinear_f64c_skylake(simsimd_f64c_t const* a, simsimd_f64c_t const* b, simsimd_f64c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
+/** @copydoc simsimd_mahalanobis_f64 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f64_skylake(simsimd_f64_t const* a, simsimd_f64_t const* b, simsimd_f64_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_f32 */
 SIMSIMD_PUBLIC void simsimd_bilinear_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_f32c */
 SIMSIMD_PUBLIC void simsimd_bilinear_f32c_skylake(simsimd_f32c_t const* a, simsimd_f32c_t const* b, simsimd_f32c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
+/** @copydoc simsimd_mahalanobis_f32 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_skylake(simsimd_f32_t const* a, simsimd_f32_t const* b, simsimd_f32_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+#endif // SIMSIMD_TARGET_SKYLAKE
+
+#if SIMSIMD_TARGET_GENOA
+/** @copydoc simsimd_bilinear_bf16 */
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_bf16c */
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_genoa(simsimd_bf16c_t const* a, simsimd_bf16c_t const* b, simsimd_bf16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
+/** @copydoc simsimd_mahalanobis_bf16 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_genoa(simsimd_bf16_t const* a, simsimd_bf16_t const* b, simsimd_bf16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+#endif // SIMSIMD_TARGET_GENOA
+
+#if SIMSIMD_TARGET_SAPPHIRE
+/** @copydoc simsimd_bilinear_f16 */
 SIMSIMD_PUBLIC void simsimd_bilinear_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+/** @copydoc simsimd_bilinear_f16c */
 SIMSIMD_PUBLIC void simsimd_bilinear_f16c_sapphire(simsimd_f16c_t const* a, simsimd_f16c_t const* b, simsimd_f16c_t const* c, simsimd_size_t n, simsimd_distance_t* results);
+/** @copydoc simsimd_mahalanobis_f16 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_sapphire(simsimd_f16_t const* a, simsimd_f16_t const* b, simsimd_f16_t const* c, simsimd_size_t n, simsimd_distance_t* result);
+#endif // SIMSIMD_TARGET_SAPPHIRE
 // clang-format on
 
 #define SIMSIMD_MAKE_BILINEAR(name, input_type, accumulator_type, load_and_convert)                              \
@@ -1557,7 +1724,189 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16c_sapphire(simsimd_f16c_t const *a, sims
 #endif // SIMSIMD_TARGET_SAPPHIRE
 #endif // _SIMSIMD_TARGET_X86
 
-#ifdef __cplusplus
+#if !SIMSIMD_DYNAMIC_DISPATCH
+
+SIMSIMD_PUBLIC void simsimd_bilinear_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c,
+                                         simsimd_size_t n, simsimd_distance_t *result) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_bilinear_f64_skylake(a, b, c, n, result);
+#else
+    simsimd_bilinear_f64_serial(a, b, c, n, result);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_bilinear_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c,
+                                         simsimd_size_t n, simsimd_distance_t *result) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_bilinear_f32_skylake(a, b, c, n, result);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_bilinear_f32_neon(a, b, c, n, result);
+#else
+    simsimd_bilinear_f32_serial(a, b, c, n, result);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_bilinear_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c,
+                                         simsimd_size_t n, simsimd_distance_t *result) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_bilinear_f16_sapphire(a, b, c, n, result);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_bilinear_f16_haswell(a, b, c, n, result);
+#elif SIMSIMD_TARGET_NEON_F16
+    simsimd_bilinear_f16_neon(a, b, c, n, result);
+#else
+    simsimd_bilinear_f16_serial(a, b, c, n, result);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_bilinear_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c,
+                                          simsimd_size_t n, simsimd_distance_t *result) {
+#if SIMSIMD_TARGET_GENOA
+    simsimd_bilinear_bf16_genoa(a, b, c, n, result);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_bilinear_bf16_haswell(a, b, c, n, result);
+#elif SIMSIMD_TARGET_NEON_BF16
+    simsimd_bilinear_bf16_neon(a, b, c, n, result);
+#else
+    simsimd_bilinear_bf16_serial(a, b, c, n, result);
+#endif
+}
+
+/**
+ *  @brief Complex bilinear form between vectors a and b under metric tensor c.
+ *
+ *  @param[in] a The first complex vector.
+ *  @param[in] b The second complex vector.
+ *  @param[in] c The complex metric tensor, stored row-major as an n-by-n matrix.
+ *  @param[in] n The number of dimensions in the vectors.
+ *  @param[out] results The output array containing real and imaginary parts.
+ *
+ *  @note The output array stores real part in results[0] and imaginary part in results[1].
+ */
+SIMSIMD_PUBLIC void simsimd_bilinear_f64c(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_f64c_t const *c,
+                                          simsimd_size_t n, simsimd_distance_t *results) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_bilinear_f64c_skylake(a, b, c, n, results);
+#else
+    simsimd_bilinear_f64c_serial(a, b, c, n, results);
+#endif
+}
+
+/**
+ *  @brief Complex bilinear form between vectors a and b under metric tensor c.
+ *
+ *  @param[in] a The first complex vector.
+ *  @param[in] b The second complex vector.
+ *  @param[in] c The complex metric tensor, stored row-major as an n-by-n matrix.
+ *  @param[in] n The number of dimensions in the vectors.
+ *  @param[out] results The output array containing real and imaginary parts.
+ *
+ *  @note The output array stores real part in results[0] and imaginary part in results[1].
+ */
+SIMSIMD_PUBLIC void simsimd_bilinear_f32c(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsimd_f32c_t const *c,
+                                          simsimd_size_t n, simsimd_distance_t *results) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_bilinear_f32c_skylake(a, b, c, n, results);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_bilinear_f32c_neon(a, b, c, n, results);
+#else
+    simsimd_bilinear_f32c_serial(a, b, c, n, results);
+#endif
+}
+
+/**
+ *  @brief Complex bilinear form between vectors a and b under metric tensor c.
+ *
+ *  @param[in] a The first complex vector.
+ *  @param[in] b The second complex vector.
+ *  @param[in] c The complex metric tensor, stored row-major as an n-by-n matrix.
+ *  @param[in] n The number of dimensions in the vectors.
+ *  @param[out] results The output array containing real and imaginary parts.
+ *
+ *  @note The output array stores real part in results[0] and imaginary part in results[1].
+ */
+SIMSIMD_PUBLIC void simsimd_bilinear_f16c(simsimd_f16c_t const *a, simsimd_f16c_t const *b, simsimd_f16c_t const *c,
+                                          simsimd_size_t n, simsimd_distance_t *results) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_bilinear_f16c_sapphire(a, b, c, n, results);
+#elif SIMSIMD_TARGET_NEON_F16
+    simsimd_bilinear_f16c_neon(a, b, c, n, results);
+#else
+    simsimd_bilinear_f16c_serial(a, b, c, n, results);
+#endif
+}
+
+/**
+ *  @brief Complex bilinear form between vectors a and b under metric tensor c.
+ *
+ *  @param[in] a The first complex vector.
+ *  @param[in] b The second complex vector.
+ *  @param[in] c The complex metric tensor, stored row-major as an n-by-n matrix.
+ *  @param[in] n The number of dimensions in the vectors.
+ *  @param[out] results The output array containing real and imaginary parts.
+ *
+ *  @note The output array stores real part in results[0] and imaginary part in results[1].
+ */
+SIMSIMD_PUBLIC void simsimd_bilinear_bf16c(simsimd_bf16c_t const *a, simsimd_bf16c_t const *b, simsimd_bf16c_t const *c,
+                                           simsimd_size_t n, simsimd_distance_t *results) {
+#if SIMSIMD_TARGET_GENOA
+    simsimd_bilinear_bf16c_genoa(a, b, c, n, results);
+#elif SIMSIMD_TARGET_NEON_BF16
+    simsimd_bilinear_bf16c_neon(a, b, c, n, results);
+#else
+    simsimd_bilinear_bf16c_serial(a, b, c, n, results);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_mahalanobis_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c,
+                                            simsimd_size_t n, simsimd_distance_t *result) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_mahalanobis_f64_skylake(a, b, c, n, result);
+#else
+    simsimd_mahalanobis_f64_serial(a, b, c, n, result);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_mahalanobis_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c,
+                                            simsimd_size_t n, simsimd_distance_t *result) {
+#if SIMSIMD_TARGET_SKYLAKE
+    simsimd_mahalanobis_f32_skylake(a, b, c, n, result);
+#elif SIMSIMD_TARGET_NEON
+    simsimd_mahalanobis_f32_neon(a, b, c, n, result);
+#else
+    simsimd_mahalanobis_f32_serial(a, b, c, n, result);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_mahalanobis_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c,
+                                            simsimd_size_t n, simsimd_distance_t *result) {
+#if SIMSIMD_TARGET_SAPPHIRE
+    simsimd_mahalanobis_f16_sapphire(a, b, c, n, result);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_mahalanobis_f16_haswell(a, b, c, n, result);
+#elif SIMSIMD_TARGET_NEON_F16
+    simsimd_mahalanobis_f16_neon(a, b, c, n, result);
+#else
+    simsimd_mahalanobis_f16_serial(a, b, c, n, result);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c,
+                                             simsimd_size_t n, simsimd_distance_t *result) {
+#if SIMSIMD_TARGET_GENOA
+    simsimd_mahalanobis_bf16_genoa(a, b, c, n, result);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_mahalanobis_bf16_haswell(a, b, c, n, result);
+#elif SIMSIMD_TARGET_NEON_BF16
+    simsimd_mahalanobis_bf16_neon(a, b, c, n, result);
+#else
+    simsimd_mahalanobis_bf16_serial(a, b, c, n, result);
+#endif
+}
+
+#endif // !SIMSIMD_DYNAMIC_DISPATCH
+
+#if defined(__cplusplus)
 }
 #endif
 
