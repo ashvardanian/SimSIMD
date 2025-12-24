@@ -1,8 +1,8 @@
 /**
- *  @file       trigonometry.h
- *  @brief      SIMD-accelerated trigonometric element-wise oeprations, based on SLEEF.
- *  @author     Ash Vardanian
- *  @date       July 1, 2023
+ *  @brief SIMD-accelerated trigonometric element-wise operations, based on SLEEF.
+ *  @file include/simsimd/trigonometry.h
+ *  @author Ash Vardanian
+ *  @date July 1, 2023
  *
  *  Contains:
  *  - Sine and Cosine approximations: fast for `f32` vs accurate for `f64`
@@ -23,7 +23,7 @@
  *  @section    GLibC IEEE-754-compliant Math Functions
  *
  *  The GNU C Library (GLibC) provides a set of IEEE-754-compliant math functions, like `sinf`, `cosf`,
- *  and double-precsion variants `sin`, `cos`. Those functions are accurate to ~0.55 ULP (units in the
+ *  and double-precision variants `sin`, `cos`. Those functions are accurate to ~0.55 ULP (units in the
  *  last place), but can be slow to evaluate. They use a combination of techniques, like:
  *
  *  - Taylor series expansions for small values.
@@ -80,27 +80,97 @@
 
 #include "types.h"
 
-#ifdef __cplusplus
+#if defined(__cplusplus)
 extern "C" {
 #endif
+
+/**
+ *  @brief Element-wise sine over f64 inputs in radians.
+ *
+ *  @param[in] ins Input array of angles in radians.
+ *  @param[in] n Number of elements in the input/output arrays.
+ *  @param[out] outs Output array of sine values.
+ */
+SIMSIMD_DYNAMIC void simsimd_sin_f64(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
+
+/**
+ *  @brief Element-wise cosine over f64 inputs in radians.
+ *
+ *  @param[in] ins Input array of angles in radians.
+ *  @param[in] n Number of elements in the input/output arrays.
+ *  @param[out] outs Output array of cosine values.
+ */
+SIMSIMD_DYNAMIC void simsimd_cos_f64(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
+
+/**
+ *  @brief Element-wise arc-tangent over f64 inputs.
+ *
+ *  @param[in] ins Input array of input values.
+ *  @param[in] n Number of elements in the input/output arrays.
+ *  @param[out] outs Output array of arc-tangent values.
+ */
+SIMSIMD_DYNAMIC void simsimd_atan_f64(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
+
+/**
+ *  @brief Element-wise sine over f32 inputs in radians.
+ *
+ *  @param[in] ins Input array of angles in radians.
+ *  @param[in] n Number of elements in the input/output arrays.
+ *  @param[out] outs Output array of sine values.
+ */
+SIMSIMD_DYNAMIC void simsimd_sin_f32(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+
+/**
+ *  @brief Element-wise cosine over f32 inputs in radians.
+ *
+ *  @param[in] ins Input array of angles in radians.
+ *  @param[in] n Number of elements in the input/output arrays.
+ *  @param[out] outs Output array of cosine values.
+ */
+SIMSIMD_DYNAMIC void simsimd_cos_f32(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+
+/**
+ *  @brief Element-wise arc-tangent over f32 inputs.
+ *
+ *  @param[in] ins Input array of input values.
+ *  @param[in] n Number of elements in the input/output arrays.
+ *  @param[out] outs Output array of arc-tangent values.
+ */
+SIMSIMD_DYNAMIC void simsimd_atan_f32(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+
+// clang-format off
 
 /*  Serial backends for all numeric types.
  *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
  *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
  */
+/** @copydoc simsimd_sin_f64 */
 SIMSIMD_PUBLIC void simsimd_sin_f64_serial(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
+/** @copydoc simsimd_cos_f64 */
 SIMSIMD_PUBLIC void simsimd_cos_f64_serial(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
+/** @copydoc simsimd_atan_f64 */
 SIMSIMD_PUBLIC void simsimd_atan_f64_serial(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
+/** @copydoc simsimd_sin_f32 */
 SIMSIMD_PUBLIC void simsimd_sin_f32_serial(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+/** @copydoc simsimd_cos_f32 */
 SIMSIMD_PUBLIC void simsimd_cos_f32_serial(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+/** @copydoc simsimd_atan_f32 */
 SIMSIMD_PUBLIC void simsimd_atan_f32_serial(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
 
+#if SIMSIMD_TARGET_NEON
+/** @copydoc simsimd_sin_f64 */
 SIMSIMD_PUBLIC void simsimd_sin_f64_neon(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
+/** @copydoc simsimd_cos_f64 */
 SIMSIMD_PUBLIC void simsimd_cos_f64_neon(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
+/** @copydoc simsimd_atan_f64 */
 SIMSIMD_PUBLIC void simsimd_atan_f64_neon(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
+/** @copydoc simsimd_sin_f32 */
 SIMSIMD_PUBLIC void simsimd_sin_f32_neon(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+/** @copydoc simsimd_cos_f32 */
 SIMSIMD_PUBLIC void simsimd_cos_f32_neon(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+/** @copydoc simsimd_atan_f32 */
 SIMSIMD_PUBLIC void simsimd_atan_f32_neon(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+#endif // SIMSIMD_TARGET_NEON
 
 /*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
  *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
@@ -108,22 +178,40 @@ SIMSIMD_PUBLIC void simsimd_atan_f32_neon(simsimd_f32_t const *ins, simsimd_size
  *  On other hand, there is no need to implement AVX2 versions of `f32` and `f64` functions, as those are
  *  properly vectorized by recent compilers.
  */
+#if SIMSIMD_TARGET_HASWELL
+/** @copydoc simsimd_sin_f64 */
 SIMSIMD_PUBLIC void simsimd_sin_f64_haswell(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
+/** @copydoc simsimd_cos_f64 */
 SIMSIMD_PUBLIC void simsimd_cos_f64_haswell(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
+/** @copydoc simsimd_atan_f64 */
 SIMSIMD_PUBLIC void simsimd_atan_f64_haswell(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
+/** @copydoc simsimd_sin_f32 */
 SIMSIMD_PUBLIC void simsimd_sin_f32_haswell(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+/** @copydoc simsimd_cos_f32 */
 SIMSIMD_PUBLIC void simsimd_cos_f32_haswell(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+/** @copydoc simsimd_atan_f32 */
 SIMSIMD_PUBLIC void simsimd_atan_f32_haswell(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+#endif // SIMSIMD_TARGET_HASWELL
 
 /*  SIMD-powered backends for various generations of AVX512 CPUs.
  *  Skylake is handy, as it supports masked loads and other operations, avoiding the need for the tail loop.
  */
+#if SIMSIMD_TARGET_SKYLAKE
+/** @copydoc simsimd_sin_f64 */
 SIMSIMD_PUBLIC void simsimd_sin_f64_skylake(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
+/** @copydoc simsimd_cos_f64 */
 SIMSIMD_PUBLIC void simsimd_cos_f64_skylake(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
+/** @copydoc simsimd_atan_f64 */
 SIMSIMD_PUBLIC void simsimd_atan_f64_skylake(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs);
+/** @copydoc simsimd_sin_f32 */
 SIMSIMD_PUBLIC void simsimd_sin_f32_skylake(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+/** @copydoc simsimd_cos_f32 */
 SIMSIMD_PUBLIC void simsimd_cos_f32_skylake(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+/** @copydoc simsimd_atan_f32 */
 SIMSIMD_PUBLIC void simsimd_atan_f32_skylake(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs);
+#endif // SIMSIMD_TARGET_SKYLAKE
+
+// clang-format on
 
 /**
  *  @brief  Computes an approximate sine of the given angle in radians with @b 3-ULP error bound for [-2π, 2π].
@@ -1485,8 +1573,8 @@ SIMSIMD_INTERNAL __m512d _simsimd_f64x8_cos_skylake(__m512d const angles_radians
     __m512d angles = angles_radians;
     angles = _mm512_fnmadd_pd(rounded_quotients, pi_high_half, angles);
     angles = _mm512_fnmadd_pd(rounded_quotients, pi_low_half, angles);
-    __mmask8 const sign_flip_mask =
-        _mm256_testn_epi32_mask(_mm512_cvtpd_epi32(rounded_quotients), _mm256_set1_epi32(2));
+    __mmask8 const sign_flip_mask = _mm256_testn_epi32_mask(_mm512_cvtpd_epi32(rounded_quotients),
+                                                            _mm256_set1_epi32(2));
     angles = _mm512_mask_sub_pd(angles, sign_flip_mask, _mm512_setzero_pd(), angles);
     __m512d const angles_squared = _mm512_mul_pd(angles, angles);
     __m512d const angles_cubed = _mm512_mul_pd(angles, angles_squared);
@@ -1691,7 +1779,83 @@ SIMSIMD_PUBLIC void simsimd_atan_f64_skylake(simsimd_f64_t const *ins, simsimd_s
 #endif // SIMSIMD_TARGET_SKYLAKE
 #endif // _SIMSIMD_TARGET_X86
 
-#ifdef __cplusplus
+#if !SIMSIMD_DYNAMIC_DISPATCH
+
+SIMSIMD_PUBLIC void simsimd_sin_f64(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs) {
+#if SIMSIMD_TARGET_NEON
+    simsimd_sin_f64_neon(ins, n, outs);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_sin_f64_skylake(ins, n, outs);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_sin_f64_haswell(ins, n, outs);
+#else
+    simsimd_sin_f64_serial(ins, n, outs);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_cos_f64(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs) {
+#if SIMSIMD_TARGET_NEON
+    simsimd_cos_f64_neon(ins, n, outs);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_cos_f64_skylake(ins, n, outs);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_cos_f64_haswell(ins, n, outs);
+#else
+    simsimd_cos_f64_serial(ins, n, outs);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_atan_f64(simsimd_f64_t const *ins, simsimd_size_t n, simsimd_f64_t *outs) {
+#if SIMSIMD_TARGET_NEON
+    simsimd_atan_f64_neon(ins, n, outs);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_atan_f64_skylake(ins, n, outs);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_atan_f64_haswell(ins, n, outs);
+#else
+    simsimd_atan_f64_serial(ins, n, outs);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_sin_f32(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs) {
+#if SIMSIMD_TARGET_NEON
+    simsimd_sin_f32_neon(ins, n, outs);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_sin_f32_skylake(ins, n, outs);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_sin_f32_haswell(ins, n, outs);
+#else
+    simsimd_sin_f32_serial(ins, n, outs);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_cos_f32(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs) {
+#if SIMSIMD_TARGET_NEON
+    simsimd_cos_f32_neon(ins, n, outs);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_cos_f32_skylake(ins, n, outs);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_cos_f32_haswell(ins, n, outs);
+#else
+    simsimd_cos_f32_serial(ins, n, outs);
+#endif
+}
+
+SIMSIMD_PUBLIC void simsimd_atan_f32(simsimd_f32_t const *ins, simsimd_size_t n, simsimd_f32_t *outs) {
+#if SIMSIMD_TARGET_NEON
+    simsimd_atan_f32_neon(ins, n, outs);
+#elif SIMSIMD_TARGET_SKYLAKE
+    simsimd_atan_f32_skylake(ins, n, outs);
+#elif SIMSIMD_TARGET_HASWELL
+    simsimd_atan_f32_haswell(ins, n, outs);
+#else
+    simsimd_atan_f32_serial(ins, n, outs);
+#endif
+}
+
+#endif // !SIMSIMD_DYNAMIC_DISPATCH
+
+#if defined(__cplusplus)
 }
 #endif
 
