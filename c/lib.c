@@ -4,14 +4,14 @@
  *  @file   lib.c
  */
 #define SIMSIMD_DYNAMIC_DISPATCH 1
-#define SIMSIMD_NATIVE_F16 0
-#define SIMSIMD_NATIVE_BF16 0
+#define SIMSIMD_NATIVE_F16       0
+#define SIMSIMD_NATIVE_BF16      0
 
 /*  Override the primary serial operations to avoid the LibC dependency.
  */
-#define SIMSIMD_SQRT(x) simsimd_approximate_square_root(x)
+#define SIMSIMD_SQRT(x)  simsimd_approximate_square_root(x)
 #define SIMSIMD_RSQRT(x) simsimd_approximate_inverse_square_root(x)
-#define SIMSIMD_LOG(x) simsimd_approximate_log(x)
+#define SIMSIMD_LOG(x)   simsimd_approximate_log(x)
 
 /*  Depending on the Operating System, the following intrinsics are available
  *  on recent compiler toolchains:
@@ -110,6 +110,27 @@ extern "C" {
             }                                                                                                      \
         }                                                                                                          \
         metric(a, b, c, n, result);                                                                                \
+    }
+
+typedef void (*simsimd_metric_geospatial_punned_t)(void const *a_lats, void const *a_lons, void const *b_lats,
+                                                   void const *b_lons, simsimd_size_t n, simsimd_distance_t *results);
+
+#define SIMSIMD_DECLARATION_GEOSPATIAL(name, extension)                                                            \
+    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(                                                             \
+        simsimd_##extension##_t const *a_lats, simsimd_##extension##_t const *a_lons,                              \
+        simsimd_##extension##_t const *b_lats, simsimd_##extension##_t const *b_lons, simsimd_size_t n,            \
+        simsimd_distance_t *results) {                                                                             \
+        static simsimd_metric_geospatial_punned_t metric = 0;                                                      \
+        if (metric == 0) {                                                                                         \
+            simsimd_capability_t used_capability;                                                                  \
+            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##extension##_k, simsimd_capabilities(), \
+                                       simsimd_cap_any_k, (simsimd_kernel_punned_t *)(&metric), &used_capability); \
+            if (!metric) {                                                                                         \
+                *(simsimd_u64_t *)results = 0x7FF0000000000001ull;                                                 \
+                return;                                                                                            \
+            }                                                                                                      \
+        }                                                                                                          \
+        metric(a_lats, a_lons, b_lats, b_lons, n, results);                                                        \
     }
 
 #define SIMSIMD_DECLARATION_FMA(name, extension)                                                                   \
@@ -231,6 +252,12 @@ SIMSIMD_DECLARATION_DENSE(l2, f16)
 SIMSIMD_DECLARATION_DENSE(l2, bf16)
 SIMSIMD_DECLARATION_DENSE(l2, f32)
 SIMSIMD_DECLARATION_DENSE(l2, f64)
+
+// Geospatial distances
+SIMSIMD_DECLARATION_GEOSPATIAL(haversine, f64)
+SIMSIMD_DECLARATION_GEOSPATIAL(haversine, f32)
+SIMSIMD_DECLARATION_GEOSPATIAL(vincenty, f64)
+SIMSIMD_DECLARATION_GEOSPATIAL(vincenty, f32)
 
 // Binary distances
 SIMSIMD_DECLARATION_DENSE(hamming, b8)
@@ -424,6 +451,15 @@ SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
     simsimd_l2_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, dummy_results);
     simsimd_l2_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, dummy_results);
     simsimd_l2_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, dummy_results);
+
+    simsimd_haversine_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, (simsimd_f64_t *)x, (simsimd_f64_t *)x, 0,
+                          dummy_results);
+    simsimd_haversine_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, (simsimd_f32_t *)x, (simsimd_f32_t *)x, 0,
+                          dummy_results);
+    simsimd_vincenty_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, (simsimd_f64_t *)x, (simsimd_f64_t *)x, 0,
+                         dummy_results);
+    simsimd_vincenty_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, (simsimd_f32_t *)x, (simsimd_f32_t *)x, 0,
+                         dummy_results);
 
     simsimd_hamming_b8((simsimd_b8_t *)x, (simsimd_b8_t *)x, 0, dummy_results);
     simsimd_jaccard_b8((simsimd_b8_t *)x, (simsimd_b8_t *)x, 0, dummy_results);
