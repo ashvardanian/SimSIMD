@@ -108,9 +108,9 @@
 #include "binary.h"       // Hamming, Jaccard
 #include "curved.h"       // Mahalanobis, Bilinear Forms
 #include "dot.h"          // Inner (dot) product, and its conjugate
+#include "dots.h"         // GEMM-style MxN batched dot-products
 #include "elementwise.h"  // Weighted Sum, Fused-Multiply-Add
 #include "geospatial.h"   // Haversine and Vincenty
-#include "matmul.h"       // Matrix multiplication
 #include "mesh.h"         // RMSD, Kabsch, Umeyama
 #include "probability.h"  // Kullback-Leibler, Jensen–Shannon
 #include "sparse.h"       // Intersect

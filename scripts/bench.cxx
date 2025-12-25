@@ -1864,9 +1864,51 @@ int main(int argc, char **argv) {
     curved_<f16_k>("bilinear_f16_sapphire", simsimd_bilinear_f16_sapphire, simsimd_bilinear_f16_accurate);
     curved_<f16_k>("mahalanobis_f16_sapphire", simsimd_mahalanobis_f16_sapphire, simsimd_mahalanobis_f16_accurate);
     curved_<f16c_k>("bilinear_f16c_sapphire", simsimd_bilinear_f16c_sapphire, simsimd_bilinear_f16c_accurate);
+
+    // AMX matmul benchmarks (packed B matrix API)
+    // BF16→F32 and I8→I32 are the core kernels; use compact functions for in-place conversion to BF16/I8
+    matmul_<simsimd_bf16_t, simsimd_f32_t>(
+        "dots_bf16bf16f32_sapphire_amx", simsimd_dots_bf16bf16f32_packed_size_sapphire_amx,
+        simsimd_dots_bf16bf16f32_pack_sapphire_amx, simsimd_dots_bf16bf16f32_sapphire_amx);
+    matmul_<simsimd_i8_t, simsimd_i32_t>("dots_i8i8i32_sapphire_amx", simsimd_dots_i8i8i32_packed_size_sapphire_amx,
+                                         simsimd_dots_i8i8i32_pack_sapphire_amx, simsimd_dots_i8i8i32_sapphire_amx);
+
+    // Serial matmul benchmarks for comparison
+    matmul_<simsimd_bf16_t, simsimd_f32_t>("dots_bf16bf16f32_serial", simsimd_dots_bf16bf16f32_packed_size_serial,
+                                           simsimd_dots_bf16bf16f32_pack_serial, simsimd_dots_bf16bf16f32_serial);
+    matmul_<simsimd_i8_t, simsimd_i32_t>("dots_i8i8i32_serial", simsimd_dots_i8i8i32_packed_size_serial,
+                                         simsimd_dots_i8i8i32_pack_serial, simsimd_dots_i8i8i32_serial);
+#endif
+
+#if SIMSIMD_TARGET_SKYLAKE
+    // Skylake F32 SIMD matmul using AVX-512 streaming dot-product
+    matmul_<simsimd_f32_t, simsimd_f32_t>("dots_f32f32f32_skylake", simsimd_dots_f32f32f32_packed_size_skylake,
+                                          simsimd_dots_f32f32f32_pack_skylake, simsimd_dots_f32f32f32_skylake);
+
+    // Skylake F32 outer-product GEMM: MR=8, uses vfmadd231ps {1to16} embedded broadcast
+    matmul_<simsimd_f32_t, simsimd_f32_t>(
+        "dots_outer_f32f32f32_skylake", simsimd_dots_outer_f32f32f32_packed_size_skylake,
+        simsimd_dots_outer_f32f32f32_pack_skylake, simsimd_dots_outer_f32f32f32_skylake);
+#endif
+
+#if SIMSIMD_TARGET_GENOA && !SIMSIMD_TARGET_SAPPHIRE
+    // Genoa BF16 SIMD matmul using AVX-512 DPBF16 (when AMX not available)
+    matmul_<simsimd_bf16_t, simsimd_f32_t>("dots_bf16bf16f32_genoa", simsimd_dots_bf16bf16f32_packed_size_genoa,
+                                           simsimd_dots_bf16bf16f32_pack_genoa, simsimd_dots_bf16bf16f32_genoa);
+#endif
+
+#if SIMSIMD_TARGET_GENOA
+    // Genoa BF16 outer-product GEMM: MR=8, uses vdpbf16ps with vpbroadcastd
+    matmul_<simsimd_bf16_t, simsimd_f32_t>(
+        "dots_outer_bf16bf16f32_genoa", simsimd_dots_outer_bf16bf16f32_packed_size_genoa,
+        simsimd_dots_outer_bf16bf16f32_pack_genoa, simsimd_dots_outer_bf16bf16f32_genoa);
 #endif
 
 #if SIMSIMD_TARGET_ICE
+    // Ice Lake I8 outer-product GEMM: MR=8, uses vpdpwssd with vpbroadcastd
+    matmul_<simsimd_i8_t, simsimd_i32_t>("dots_outer_i8i8i32_ice", simsimd_dots_outer_i8i8i32_packed_size_ice,
+                                         simsimd_dots_outer_i8i8i32_pack_ice, simsimd_dots_outer_i8i8i32_ice);
+
     dense_<i8_k>("angular_i8_ice", simsimd_angular_i8_ice, simsimd_angular_i8_serial);
     dense_<i8_k>("l2sq_i8_ice", simsimd_l2sq_i8_ice, simsimd_l2sq_i8_serial);
     dense_<i8_k>("l2_i8_ice", simsimd_l2_i8_ice, simsimd_l2_i8_serial);
