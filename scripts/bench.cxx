@@ -25,18 +25,38 @@
 
 #include <benchmark/benchmark.h>
 
+#if !defined(SIMSIMD_BUILD_BENCHMARKS_WITH_MKL)
+#define SIMSIMD_BUILD_BENCHMARKS_WITH_MKL 0
+#endif
 #if !defined(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
 #define SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS 0
 #endif
-#if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
+
+// Include BLAS headers - MKL takes precedence if both are enabled
+// (MKL provides a superset of CBLAS functionality)
+#if SIMSIMD_BUILD_BENCHMARKS_WITH_MKL
+#include <mkl.h>
+// MKL provides additional GEMM routines:
+// - cblas_gemm_bf16bf16f32: BF16 inputs → F32 output
+// - cblas_hgemm: F16 GEMM (if available)
+#elif SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
 #include <cblas.h>
+// OpenBLAS thread control (weak symbol to avoid link errors if not present)
+extern "C" void openblas_set_num_threads(int) __attribute__((weak));
+#endif
+
+// Unified BLAS availability check (MKL provides CBLAS interface)
+#if SIMSIMD_BUILD_BENCHMARKS_WITH_MKL || SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
+#define SIMSIMD_BUILD_BENCHMARKS_WITH_BLAS 1
+#else
+#define SIMSIMD_BUILD_BENCHMARKS_WITH_BLAS 0
 #endif
 
 // It's important to note, that out compression/decompression routines
 // are quite inaccurate. They are not meant to be used in production code.
 // So when benchmarking, if possible, please use the native types, if those
 // are implemented.
-#define SIMSIMD_NATIVE_F16 1
+#define SIMSIMD_NATIVE_F16  1
 #define SIMSIMD_NATIVE_BF16 1
 #include <simsimd/simsimd.h>
 
@@ -50,8 +70,20 @@ std::size_t dense_dimensions = 1536;
 /// Has quadratic impact on the number of operations
 /// Can be overridden at runtime via `SIMSIMD_BENCH_CURVED_DIMENSIONS` environment variable
 std::size_t curved_dimensions = 8;
+/// Number of 3D points for mesh metrics (RMSD, Kabsch)
+/// Can be overridden at runtime via `SIMSIMD_BENCH_MESH_DIMENSIONS` environment variable
+std::size_t mesh_dimensions = 1000;
+/// Matrix multiplication benchmark globals
+/// Can be overridden at runtime via `SIMSIMD_BENCH_MATMUL_DIMENSION_M/N/K` environment variables
+std::size_t matmul_dimension_m = 128, matmul_dimension_n = 512, matmul_dimension_k = 256;
+/// Random seed for reproducible benchmarks
+/// Can be overridden at runtime via `SIMSIMD_BENCH_RANDOM_SEED` environment variable
+std::uint32_t random_seed = 42;
 
 namespace bm = benchmark;
+
+/// Returns a new random engine seeded with the global random_seed.
+inline std::mt19937 make_random_engine() { return std::mt19937(random_seed); }
 
 // clang-format off
 template <simsimd_datatype_t> struct datatype_enum_to_type_gt { using value_t = void; using scalar_t = void; static constexpr std::size_t components_k = 1; };
@@ -59,6 +91,8 @@ template <> struct datatype_enum_to_type_gt<simsimd_f64_k> { using value_t = sim
 template <> struct datatype_enum_to_type_gt<simsimd_f32_k> { using value_t = simsimd_f32_t; using scalar_t = simsimd_f32_t; static constexpr std::size_t components_k = 1; };
 template <> struct datatype_enum_to_type_gt<simsimd_f16_k> { using value_t = simsimd_f16_t; using scalar_t = simsimd_f16_t; static constexpr std::size_t components_k = 1; };
 template <> struct datatype_enum_to_type_gt<simsimd_bf16_k> { using value_t = simsimd_bf16_t; using scalar_t = simsimd_bf16_t; static constexpr std::size_t components_k = 1; };
+template <> struct datatype_enum_to_type_gt<simsimd_e4m3_k> { using value_t = simsimd_e4m3_t; using scalar_t = simsimd_e4m3_t; static constexpr std::size_t components_k = 1; };
+template <> struct datatype_enum_to_type_gt<simsimd_e5m2_k> { using value_t = simsimd_e5m2_t; using scalar_t = simsimd_e5m2_t; static constexpr std::size_t components_k = 1; };
 template <> struct datatype_enum_to_type_gt<simsimd_f64c_k> { using value_t = simsimd_f64c_t; using scalar_t = simsimd_f64_t; static constexpr std::size_t components_k = 2; };
 template <> struct datatype_enum_to_type_gt<simsimd_f32c_k> { using value_t = simsimd_f32c_t; using scalar_t = simsimd_f32_t; static constexpr std::size_t components_k = 2; };
 template <> struct datatype_enum_to_type_gt<simsimd_f16c_k> { using value_t = simsimd_f16c_t; using scalar_t = simsimd_f16_t; static constexpr std::size_t components_k = 2; };
@@ -312,8 +346,8 @@ void measure_dense(bm::State &state, metric_at metric, metric_at baseline, std::
     // The actual benchmarking loop.
     std::size_t iterations = 0;
     for (auto _ : state)
-        bm::DoNotOptimize((results_contender[iterations & (pairs_count - 1)] =
-                               call_contender(pairs[iterations & (pairs_count - 1)]))),
+        bm::DoNotOptimize((
+            results_contender[iterations & (pairs_count - 1)] = call_contender(pairs[iterations & (pairs_count - 1)]))),
             iterations++;
 
     // Measure the mean absolute delta and relative error.
@@ -434,8 +468,7 @@ void measure_sparse(bm::State &state, metric_at metric, metric_at baseline, std:
     // Let's average the distance results over many pairs.
     constexpr std::size_t pairs_count = 128;
     std::vector<pair_t> pairs(pairs_count);
-    std::random_device seed_source;
-    std::mt19937 generator(seed_source());
+    auto generator = make_random_engine();
     std::uniform_int_distribution<scalar_t> distribution(0, std::numeric_limits<scalar_t>::max());
 
     // Randomizing the vectors for sparse distances is a bit more complex then:
@@ -487,8 +520,8 @@ void measure_sparse(bm::State &state, metric_at metric, metric_at baseline, std:
     // The actual benchmarking loop.
     std::size_t iterations = 0;
     for (auto _ : state)
-        bm::DoNotOptimize((results_contender[iterations & (pairs_count - 1)] =
-                               call_contender(pairs[iterations & (pairs_count - 1)]))),
+        bm::DoNotOptimize((
+            results_contender[iterations & (pairs_count - 1)] = call_contender(pairs[iterations & (pairs_count - 1)]))),
             iterations++;
 
     // Measure the mean absolute delta and relative error.
@@ -499,11 +532,100 @@ void measure_sparse(bm::State &state, metric_at metric, metric_at baseline, std:
     }
     mean_error /= pairs.size();
     state.counters["error"] = mean_error;
-    state.counters["bytes"] =
-        bm::Counter(iterations * (pairs[0].a.size_bytes() + pairs[0].b.size_bytes()), bm::Counter::kIsRate);
+    state.counters["bytes"] = bm::Counter(iterations * (pairs[0].a.size_bytes() + pairs[0].b.size_bytes()),
+                                          bm::Counter::kIsRate);
     state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
-    state.counters["matches"] =
-        std::accumulate(results_contender.begin(), results_contender.end(), 0.0) / results_contender.size();
+    state.counters["matches"] = std::accumulate(results_contender.begin(), results_contender.end(), 0.0) /
+                                results_contender.size();
+}
+
+/**
+ *  @brief Point cloud pair for mesh metrics (RMSD, Kabsch).
+ *  Each point cloud contains n 3D points stored as [x0,y0,z0,x1,y1,z1,...].
+ */
+template <simsimd_datatype_t datatype_ak>
+struct mesh_pair_gt {
+    using vector_t = vector_gt<datatype_ak>;
+    using scalar_t = typename vector_t::scalar_t;
+
+    vector_t a;
+    vector_t b;
+    std::size_t num_points;
+
+    mesh_pair_gt() noexcept = default;
+    mesh_pair_gt(std::size_t points) noexcept : a(points * 3), b(points * 3), num_points(points) {}
+    mesh_pair_gt(mesh_pair_gt const &other) noexcept(false) : a(other.a), b(other.b), num_points(other.num_points) {}
+    mesh_pair_gt &operator=(mesh_pair_gt const &other) noexcept(false) {
+        if (this != &other) a = other.a, b = other.b, num_points = other.num_points;
+        return *this;
+    }
+};
+
+/**
+ *  @brief Measures the performance of a @b mesh metric function (RMSD/Kabsch) against a baseline.
+ *  @tparam pair_at The type representing the point cloud pair.
+ *  @tparam metric_at The type of the metric function.
+ *  @param state The benchmark state object provided by Google Benchmark.
+ *  @param metric The metric function to benchmark.
+ *  @param baseline The baseline function to compare against.
+ *  @param num_points The number of 3D points in each point cloud.
+ */
+template <typename pair_at, typename metric_at = void>
+void measure_mesh(bm::State &state, metric_at metric, metric_at baseline, std::size_t num_points) {
+
+    using pair_t = pair_at;
+    using vector_t = typename pair_at::vector_t;
+    using scalar_t = typename vector_t::scalar_t;
+
+    auto call_baseline = [&](pair_t &pair) -> double {
+        simsimd_distance_t result = signaling_distance, scale = 0;
+        scalar_t a_centroid[3], b_centroid[3], rotation[9];
+        baseline(pair.a.data(), pair.b.data(), pair.num_points, a_centroid, b_centroid, rotation, &scale, &result);
+        return result;
+    };
+    auto call_contender = [&](pair_t &pair) -> double {
+        simsimd_distance_t result = signaling_distance, scale = 0;
+        scalar_t a_centroid[3], b_centroid[3], rotation[9];
+        metric(pair.a.data(), pair.b.data(), pair.num_points, a_centroid, b_centroid, rotation, &scale, &result);
+        return result;
+    };
+
+    // Let's average the distance results over many pairs.
+    constexpr std::size_t pairs_count = 128;
+    std::vector<pair_t> pairs(pairs_count);
+    for (std::size_t i = 0; i != pairs.size(); ++i) {
+        auto &pair = pairs[i];
+        pair = pair_t(num_points);
+        pair.a.randomize(static_cast<std::uint32_t>(i)), pair.b.randomize(static_cast<std::uint32_t>(i) + 54321u);
+    }
+
+    // Initialize the output buffers for distance calculations.
+    std::vector<double> results_baseline(pairs.size());
+    std::vector<double> results_contender(pairs.size());
+    for (std::size_t i = 0; i != pairs.size(); ++i)
+        results_baseline[i] = call_baseline(pairs[i]), results_contender[i] = call_contender(pairs[i]);
+
+    // The actual benchmarking loop.
+    std::size_t iterations = 0;
+    for (auto _ : state)
+        bm::DoNotOptimize((
+            results_contender[iterations & (pairs_count - 1)] = call_contender(pairs[iterations & (pairs_count - 1)]))),
+            iterations++;
+
+    // Measure the mean absolute delta and relative error.
+    double mean_delta = 0, mean_relative_error = 0;
+    for (std::size_t i = 0; i != pairs.size(); ++i) {
+        auto abs_delta = std::abs(results_contender[i] - results_baseline[i]);
+        mean_delta += abs_delta;
+        double error = abs_delta != 0 && results_baseline[i] != 0 ? abs_delta / std::abs(results_baseline[i]) : 0;
+        mean_relative_error += error;
+    }
+    mean_delta /= pairs.size();
+    mean_relative_error /= pairs.size();
+    state.counters["abs_delta"] = mean_delta;
+    state.counters["relative_error"] = mean_relative_error;
+    state.counters["bytes"] = bm::Counter(iterations * pairs[0].a.size_bytes() * 2, bm::Counter::kIsRate);
+    state.counters["pairs"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
 /**
@@ -578,8 +700,8 @@ void measure_elementwise(bm::State &state, kernel_at kernel, kernel_at baseline,
         l2_metric(contender_d.data(), zeros.data(), dimensions, &l2_contender_result_norm[i]);
 
         mean_delta += std::abs(l2_metric_from_baseline[i]);
-        mean_relative_error +=
-            std::abs(l2_metric_from_baseline[i]) / (std::max)(l2_baseline_result_norm[i], l2_contender_result_norm[i]);
+        mean_relative_error += std::abs(l2_metric_from_baseline[i]) /
+                               (std::max)(l2_baseline_result_norm[i], l2_contender_result_norm[i]);
     }
     mean_delta /= quads_count;
     mean_relative_error /= quads_count;
@@ -637,9 +759,7 @@ void measure_geospatial(bm::State &state, kernel_at kernel, kernel_at baseline, 
     // Let's average the distance results over many quads.
     constexpr std::size_t quads_count = 128;
     std::vector<quad_t> quads(quads_count);
-
-    std::random_device random_device;
-    std::mt19937 random_generator(random_device());
+    auto random_generator = make_random_engine();
     /// Latitude range (-90 to 90 degrees) in radians
     std::uniform_real_distribution<scalar_t> lat_dist(-M_PI_2, M_PI_2);
     /// Longitude range (-180 to 180 degrees) in radians
@@ -669,8 +789,8 @@ void measure_geospatial(bm::State &state, kernel_at kernel, kernel_at baseline, 
         l2_metric(contender_d.data(), zeros.data(), dimensions, &l2_contender_result_norm[i]);
 
         mean_delta += std::abs(l2_metric_from_baseline[i]);
-        mean_relative_error +=
-            std::abs(l2_metric_from_baseline[i]) / (std::max)(l2_baseline_result_norm[i], l2_contender_result_norm[i]);
+        mean_relative_error += std::abs(l2_metric_from_baseline[i]) /
+                               (std::max)(l2_baseline_result_norm[i], l2_contender_result_norm[i]);
     }
     mean_delta /= quads_count;
     mean_relative_error /= quads_count;
@@ -760,6 +880,78 @@ void curved_(std::string name, metric_at *distance_func, metric_at *baseline_fun
         ->Threads(default_threads);
 }
 
+template <simsimd_datatype_t datatype_ak, typename metric_at = void>
+void mesh_(std::string name, metric_at *distance_func, metric_at *baseline_func) {
+
+    using pair_t = mesh_pair_gt<datatype_ak>;
+    std::string bench_name = name + "<" + std::to_string(mesh_dimensions) + "pts>";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_mesh<pair_t, metric_at *>, distance_func, baseline_func,
+                          mesh_dimensions)
+        ->MinTime(default_seconds)
+        ->Threads(default_threads);
+}
+
+//  Matmul measurement for packed B matrix API
+template <typename input_at, typename output_at>
+void measure_matmul_packed(bm::State &state,                                                                  //
+                           simsimd_size_t (*packed_size_fn)(simsimd_size_t, simsimd_size_t),                  //
+                           void (*pack_fn)(input_at const *, simsimd_size_t, simsimd_size_t, simsimd_size_t,  //
+                                           void *),                                                           //
+                           void (*matmul_fn)(input_at const *, void const *, output_at *, simsimd_size_t,     //
+                                             simsimd_size_t, simsimd_size_t, simsimd_size_t, simsimd_size_t), //
+                           std::size_t m, std::size_t n, std::size_t k) {
+
+    // Allocate matrices
+    std::vector<input_at> a(m * k);
+    std::vector<input_at> b(n * k);
+    simsimd_size_t packed_bytes = packed_size_fn(n, k);
+    std::vector<char> b_packed(packed_bytes, 0);
+    std::vector<output_at> c(m * n);
+
+    // Initialize with small random values
+    auto gen = make_random_engine();
+    if constexpr (std::is_integral<input_at>::value) {
+        std::uniform_int_distribution<int> dis(-10, 10);
+        for (auto &v : a) v = static_cast<input_at>(dis(gen));
+        for (auto &v : b) v = static_cast<input_at>(dis(gen));
+    }
+    else {
+        std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
+        for (std::size_t i = 0; i < a.size(); ++i) a[i] = static_cast<input_at>(dis(gen));
+        for (std::size_t i = 0; i < b.size(); ++i) b[i] = static_cast<input_at>(dis(gen));
+    }
+
+    // Pack B matrix once (amortized cost for repeated inference)
+    pack_fn(b.data(), n, k, k * sizeof(input_at), b_packed.data());
+
+    std::size_t iterations = 0;
+    for (auto _ : state) {
+        bm::DoNotOptimize(c.data());
+        matmul_fn(a.data(), b_packed.data(), c.data(), m, n, k, k * sizeof(input_at), n * sizeof(output_at));
+        ++iterations;
+    }
+
+    // Report FLOPS: 2*m*n*k operations per matmul (multiply + add)
+    double flops_per_call = 2.0 * m * n * k;
+    state.counters["flops"] = bm::Counter(iterations * flops_per_call, bm::Counter::kIsRate);
+    state.counters["bytes_a"] = bm::Counter(iterations * m * k * sizeof(input_at), bm::Counter::kIsRate);
+    state.counters["bytes_c"] = bm::Counter(iterations * m * n * sizeof(output_at), bm::Counter::kIsRate);
+}
+
+template <typename input_at, typename output_at>
+void matmul_(std::string name,                                                                              //
+             simsimd_size_t (*packed_size_fn)(simsimd_size_t, simsimd_size_t),                              //
+             void (*pack_fn)(input_at const *, simsimd_size_t, simsimd_size_t, simsimd_size_t, void *),     //
+             void (*matmul_fn)(input_at const *, void const *, output_at *, simsimd_size_t, simsimd_size_t, //
+                               simsimd_size_t, simsimd_size_t, simsimd_size_t)) {                           //
+    std::string bench_name = name + "<" + std::to_string(matmul_dimension_m) + "x" +
+                             std::to_string(matmul_dimension_n) + "x" + std::to_string(matmul_dimension_k) + ">";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_matmul_packed<input_at, output_at>, packed_size_fn, pack_fn,
+                          matmul_fn, matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+        ->MinTime(default_seconds)
+        ->Threads(1); // Single-threaded for packed matmul
+}
+
 template <typename scalar_at>
 void l2_with_stl(scalar_at const *a, scalar_at const *b, simsimd_size_t n, simsimd_distance_t *result) {
     simsimd_distance_t sum = 0;
@@ -811,64 +1003,77 @@ void vincenty_with_stl(                               //
     for (simsimd_size_t i = 0; i != n; ++i) {
         accumulator_at lat1 = a_lats[i], lon1 = a_lons[i];
         accumulator_at lat2 = b_lats[i], lon2 = b_lons[i];
-        accumulator_at L = lon2 - lon1;
+        accumulator_at longitude_diff = lon2 - lon1;
 
         // Reduced latitudes
-        accumulator_at tan_u1 = (1.0 - flattening) * std::tan(lat1);
-        accumulator_at tan_u2 = (1.0 - flattening) * std::tan(lat2);
-        accumulator_at cos_u1 = 1.0 / std::sqrt(1.0 + tan_u1 * tan_u1);
-        accumulator_at sin_u1 = tan_u1 * cos_u1;
-        accumulator_at cos_u2 = 1.0 / std::sqrt(1.0 + tan_u2 * tan_u2);
-        accumulator_at sin_u2 = tan_u2 * cos_u2;
+        accumulator_at tan_reduced_lat_1 = (1.0 - flattening) * std::tan(lat1);
+        accumulator_at tan_reduced_lat_2 = (1.0 - flattening) * std::tan(lat2);
+        accumulator_at cos_reduced_lat_1 = 1.0 / std::sqrt(1.0 + tan_reduced_lat_1 * tan_reduced_lat_1);
+        accumulator_at sin_reduced_lat_1 = tan_reduced_lat_1 * cos_reduced_lat_1;
+        accumulator_at cos_reduced_lat_2 = 1.0 / std::sqrt(1.0 + tan_reduced_lat_2 * tan_reduced_lat_2);
+        accumulator_at sin_reduced_lat_2 = tan_reduced_lat_2 * cos_reduced_lat_2;
 
-        accumulator_at lambda = L, lambda_prev;
-        accumulator_at sin_sigma, cos_sigma, sigma, sin_alpha, cos2_alpha, cos_2sigma_m;
-        int iteration = 0;
-        bool coincident = false;
+        accumulator_at lambda_longitude = longitude_diff, lambda_previous;
+        accumulator_at sin_sigma, cos_sigma, sigma, sin_alpha, cos_squared_azimuth, cos_twice_sigma_midpoint;
+        int iteration_count = 0;
+        bool points_are_coincident = false;
 
         do {
-            accumulator_at sin_lambda = std::sin(lambda);
-            accumulator_at cos_lambda = std::cos(lambda);
-            accumulator_at t1 = cos_u2 * sin_lambda;
-            accumulator_at t2 = cos_u1 * sin_u2 - sin_u1 * cos_u2 * cos_lambda;
-            sin_sigma = std::sqrt(t1 * t1 + t2 * t2);
+            accumulator_at sin_lambda = std::sin(lambda_longitude);
+            accumulator_at cos_lambda = std::cos(lambda_longitude);
+            accumulator_at sin_sigma_term_a = cos_reduced_lat_2 * sin_lambda;
+            accumulator_at sin_sigma_term_b = cos_reduced_lat_1 * sin_reduced_lat_2 -
+                                              sin_reduced_lat_1 * cos_reduced_lat_2 * cos_lambda;
+            sin_sigma = std::sqrt(sin_sigma_term_a * sin_sigma_term_a + sin_sigma_term_b * sin_sigma_term_b);
 
             if (sin_sigma == 0.0) {
-                coincident = true;
+                points_are_coincident = true;
                 break;
             }
 
-            cos_sigma = sin_u1 * sin_u2 + cos_u1 * cos_u2 * cos_lambda;
+            cos_sigma = sin_reduced_lat_1 * sin_reduced_lat_2 + cos_reduced_lat_1 * cos_reduced_lat_2 * cos_lambda;
             sigma = std::atan2(sin_sigma, cos_sigma);
-            sin_alpha = cos_u1 * cos_u2 * sin_lambda / sin_sigma;
-            cos2_alpha = 1.0 - sin_alpha * sin_alpha;
-            cos_2sigma_m = (cos2_alpha != 0.0) ? cos_sigma - 2.0 * sin_u1 * sin_u2 / cos2_alpha : 0.0;
-            accumulator_at C = flattening / 16.0 * cos2_alpha * (4.0 + flattening * (4.0 - 3.0 * cos2_alpha));
+            sin_alpha = cos_reduced_lat_1 * cos_reduced_lat_2 * sin_lambda / sin_sigma;
+            cos_squared_azimuth = 1.0 - sin_alpha * sin_alpha;
+            cos_twice_sigma_midpoint = (cos_squared_azimuth != 0.0)
+                                           ? cos_sigma -
+                                                 2.0 * sin_reduced_lat_1 * sin_reduced_lat_2 / cos_squared_azimuth
+                                           : 0.0;
+            accumulator_at longitude_correction_coeff = flattening / 16.0 * cos_squared_azimuth *
+                                                        (4.0 + flattening * (4.0 - 3.0 * cos_squared_azimuth));
 
-            lambda_prev = lambda;
-            lambda = L + (1.0 - C) * flattening * sin_alpha *
-                             (sigma + C * sin_sigma *
-                                          (cos_2sigma_m + C * cos_sigma * (-1.0 + 2.0 * cos_2sigma_m * cos_2sigma_m)));
-            iteration++;
-        } while (std::abs(lambda - lambda_prev) > convergence_threshold && iteration < max_iterations);
+            lambda_previous = lambda_longitude;
+            lambda_longitude = longitude_diff +
+                               (1.0 - longitude_correction_coeff) * flattening * sin_alpha *
+                                   (sigma + longitude_correction_coeff * sin_sigma *
+                                                (cos_twice_sigma_midpoint + longitude_correction_coeff * cos_sigma *
+                                                                                (-1.0 + 2.0 * cos_twice_sigma_midpoint *
+                                                                                            cos_twice_sigma_midpoint)));
+            iteration_count++;
+        } while (std::abs(lambda_longitude - lambda_previous) > convergence_threshold &&
+                 iteration_count < max_iterations);
 
-        if (coincident) {
+        if (points_are_coincident) {
             results[i] = 0.0;
             continue;
         }
 
-        accumulator_at u2 = cos2_alpha * (equatorial_radius * equatorial_radius - polar_radius * polar_radius) /
-                            (polar_radius * polar_radius);
-        accumulator_at A = 1.0 + u2 / 16384.0 * (4096.0 + u2 * (-768.0 + u2 * (320.0 - 175.0 * u2)));
-        accumulator_at B = u2 / 1024.0 * (256.0 + u2 * (-128.0 + u2 * (74.0 - 47.0 * u2)));
+        accumulator_at u_squared = cos_squared_azimuth *
+                                   (equatorial_radius * equatorial_radius - polar_radius * polar_radius) /
+                                   (polar_radius * polar_radius);
+        accumulator_at geodesic_length_coeff =
+            1.0 + u_squared / 16384.0 * (4096.0 + u_squared * (-768.0 + u_squared * (320.0 - 175.0 * u_squared)));
+        accumulator_at delta_sigma_coeff = u_squared / 1024.0 *
+                                           (256.0 + u_squared * (-128.0 + u_squared * (74.0 - 47.0 * u_squared)));
         accumulator_at delta_sigma =
-            B * sin_sigma *
-            (cos_2sigma_m + B / 4.0 *
-                                (cos_sigma * (-1.0 + 2.0 * cos_2sigma_m * cos_2sigma_m) -
-                                 B / 6.0 * cos_2sigma_m * (-3.0 + 4.0 * sin_sigma * sin_sigma) *
-                                     (-3.0 + 4.0 * cos_2sigma_m * cos_2sigma_m)));
+            delta_sigma_coeff * sin_sigma *
+            (cos_twice_sigma_midpoint +
+             delta_sigma_coeff / 4.0 *
+                 (cos_sigma * (-1.0 + 2.0 * cos_twice_sigma_midpoint * cos_twice_sigma_midpoint) -
+                  delta_sigma_coeff / 6.0 * cos_twice_sigma_midpoint * (-3.0 + 4.0 * sin_sigma * sin_sigma) *
+                      (-3.0 + 4.0 * cos_twice_sigma_midpoint * cos_twice_sigma_midpoint)));
 
-        results[i] = polar_radius * A * (sigma - delta_sigma);
+        results[i] = polar_radius * geodesic_length_coeff * (sigma - delta_sigma);
     }
 }
 
@@ -905,113 +1110,261 @@ void elementwise_with_stl(scalar_at const *ins, simsimd_size_t n, scalar_at *out
     for (simsimd_size_t i = 0; i != n; ++i) outs[i] = kernel_at {}(ins[i]);
 }
 
-#if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
+#if SIMSIMD_BUILD_BENCHMARKS_WITH_BLAS
 
 void dot_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
-    *result = cblas_sdot((int)n, a, 1, b, 1);
+    *result = cblas_sdot(static_cast<int>(n), a, 1, b, 1);
 }
 
 void dot_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
-    *result = cblas_ddot((int)n, a, 1, b, 1);
+    *result = cblas_ddot(static_cast<int>(n), a, 1, b, 1);
 }
 
 void dot_f32c_blas(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
     simsimd_f32_t f32_result[2] = {0, 0};
-    cblas_cdotu_sub((int)n, (simsimd_f32_t const *)a, 1, (simsimd_f32_t const *)b, 1, f32_result);
+    cblas_cdotu_sub(static_cast<int>(n), reinterpret_cast<simsimd_f32_t const *>(a), 1,
+                    reinterpret_cast<simsimd_f32_t const *>(b), 1, f32_result);
     result[0] = f32_result[0];
     result[1] = f32_result[1];
 }
 
 void dot_f64c_blas(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
-    cblas_zdotu_sub((int)n, (simsimd_f64_t const *)a, 1, (simsimd_f64_t const *)b, 1, result);
+    cblas_zdotu_sub(static_cast<int>(n), reinterpret_cast<simsimd_f64_t const *>(a), 1,
+                    reinterpret_cast<simsimd_f64_t const *>(b), 1, result);
 }
 
 void vdot_f32c_blas(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
     simsimd_f32_t f32_result[2] = {0, 0};
-    cblas_cdotc_sub((int)n, (simsimd_f32_t const *)a, 1, (simsimd_f32_t const *)b, 1, f32_result);
+    cblas_cdotc_sub(static_cast<int>(n), reinterpret_cast<simsimd_f32_t const *>(a), 1,
+                    reinterpret_cast<simsimd_f32_t const *>(b), 1, f32_result);
     result[0] = f32_result[0];
     result[1] = f32_result[1];
 }
 
 void vdot_f64c_blas(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
-    cblas_zdotc_sub((int)n, (simsimd_f64_t const *)a, 1, (simsimd_f64_t const *)b, 1, result);
+    cblas_zdotc_sub(static_cast<int>(n), reinterpret_cast<simsimd_f64_t const *>(a), 1,
+                    reinterpret_cast<simsimd_f64_t const *>(b), 1, result);
 }
 
 void bilinear_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n,
                        simsimd_distance_t *result) {
-    // Thread-local buffer to avoid allocation in hot path
     static thread_local std::vector<simsimd_f32_t> intermediate;
     if (intermediate.size() < n) intermediate.resize(n);
-
-    simsimd_f32_t alpha = 1.0f, beta = 0.0f;
-    cblas_sgemv(CblasRowMajor, CblasNoTrans, (int)n, (int)n, alpha, c, (int)n, b, 1, beta, intermediate.data(), 1);
-    *result = cblas_sdot((int)n, a, 1, intermediate.data(), 1);
+    int const ni = static_cast<int>(n);
+    cblas_sgemv(CblasRowMajor, CblasNoTrans, ni, ni, 1.0f, c, ni, b, 1, 0.0f, intermediate.data(), 1);
+    *result = cblas_sdot(ni, a, 1, intermediate.data(), 1);
 }
 
 void bilinear_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c, simsimd_size_t n,
                        simsimd_distance_t *result) {
-    // Thread-local buffer to avoid allocation in hot path
     static thread_local std::vector<simsimd_f64_t> intermediate;
     if (intermediate.size() < n) intermediate.resize(n);
-
-    simsimd_f64_t alpha = 1.0, beta = 0.0;
-    cblas_dgemv(CblasRowMajor, CblasNoTrans, (int)n, (int)n, alpha, c, n, b, 1, beta, intermediate.data(), 1);
-    *result = cblas_ddot((int)n, a, 1, intermediate.data(), 1);
+    int const ni = static_cast<int>(n);
+    cblas_dgemv(CblasRowMajor, CblasNoTrans, ni, ni, 1.0, c, ni, b, 1, 0.0, intermediate.data(), 1);
+    *result = cblas_ddot(ni, a, 1, intermediate.data(), 1);
 }
 
 void bilinear_f32c_blas(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsimd_f32c_t const *c, simsimd_size_t n,
                         simsimd_distance_t *results) {
-    // Thread-local buffer to avoid allocation in hot path
     static thread_local std::vector<simsimd_f32c_t> intermediate;
     if (intermediate.size() < n) intermediate.resize(n);
-
+    int const ni = static_cast<int>(n);
     simsimd_f32c_t alpha = {1.0f, 0.0f}, beta = {0.0f, 0.0f};
-    cblas_cgemv(CblasRowMajor, CblasNoTrans, (int)n, (int)n, &alpha, c, n, b, 1, &beta, intermediate.data(), 1);
+    cblas_cgemv(CblasRowMajor, CblasNoTrans, ni, ni, &alpha, c, ni, b, 1, &beta, intermediate.data(), 1);
     simsimd_f32_t f32_result[2] = {0, 0};
-    cblas_cdotu_sub((int)n, (simsimd_f32_t const *)a, 1, (simsimd_f32_t const *)intermediate.data(), 1, f32_result);
+    cblas_cdotu_sub(ni, reinterpret_cast<simsimd_f32_t const *>(a), 1,
+                    reinterpret_cast<simsimd_f32_t const *>(intermediate.data()), 1, f32_result);
     results[0] = f32_result[0];
     results[1] = f32_result[1];
 }
 
 void bilinear_f64c_blas(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_f64c_t const *c, simsimd_size_t n,
                         simsimd_distance_t *results) {
-    // Thread-local buffer to avoid allocation in hot path
     static thread_local std::vector<simsimd_f64c_t> intermediate;
     if (intermediate.size() < n) intermediate.resize(n);
-
+    int const ni = static_cast<int>(n);
     simsimd_f64c_t alpha = {1.0, 0.0}, beta = {0.0, 0.0};
-    cblas_zgemv(CblasRowMajor, CblasNoTrans, (int)n, (int)n, &alpha, c, n, b, 1, &beta, intermediate.data(), 1);
-    cblas_zdotu_sub((int)n, (simsimd_f64_t const *)a, 1, (simsimd_f64_t const *)intermediate.data(), 1, results);
+    cblas_zgemv(CblasRowMajor, CblasNoTrans, ni, ni, &alpha, c, ni, b, 1, &beta, intermediate.data(), 1);
+    cblas_zdotu_sub(ni, reinterpret_cast<simsimd_f64_t const *>(a), 1,
+                    reinterpret_cast<simsimd_f64_t const *>(intermediate.data()), 1, results);
 }
 
 void simsimd_sum_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t *result) {
-    cblas_scopy((int)n, a, 1, result, 1);      // result = a
-    cblas_saxpy((int)n, 1.0, b, 1, result, 1); // result += b
+    int const ni = static_cast<int>(n);
+    cblas_scopy(ni, a, 1, result, 1);
+    cblas_saxpy(ni, 1.0f, b, 1, result, 1);
 }
 
 void simsimd_sum_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_f64_t *result) {
-    cblas_dcopy((int)n, a, 1, result, 1);      // result = a
-    cblas_daxpy((int)n, 1.0, b, 1, result, 1); // result += b
+    int const ni = static_cast<int>(n);
+    cblas_dcopy(ni, a, 1, result, 1);
+    cblas_daxpy(ni, 1.0, b, 1, result, 1);
 }
 
 void simsimd_wsum_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t alpha,
                            simsimd_distance_t beta, simsimd_f32_t *result) {
-    memset(result, 0, n * sizeof(simsimd_f32_t));
-    if (alpha != 0) cblas_saxpy((int)n, alpha, a, 1, result, 1); // result += alpha * a
-    if (beta != 0) cblas_saxpy((int)n, beta, b, 1, result, 1);   // result += beta * b
+    int const ni = static_cast<int>(n);
+    std::memset(result, 0, n * sizeof(simsimd_f32_t));
+    if (alpha != 0) cblas_saxpy(ni, static_cast<float>(alpha), a, 1, result, 1);
+    if (beta != 0) cblas_saxpy(ni, static_cast<float>(beta), b, 1, result, 1);
 }
 
 void simsimd_wsum_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_distance_t alpha,
                            simsimd_distance_t beta, simsimd_f64_t *result) {
-    memset(result, 0, n * sizeof(simsimd_f64_t));
-    if (alpha != 0) cblas_daxpy((int)n, alpha, a, 1, result, 1); // result += alpha * a
-    if (beta != 0) cblas_daxpy((int)n, beta, b, 1, result, 1);   // result += beta * b
+    int const ni = static_cast<int>(n);
+    std::memset(result, 0, n * sizeof(simsimd_f64_t));
+    if (alpha != 0) cblas_daxpy(ni, alpha, a, 1, result, 1);
+    if (beta != 0) cblas_daxpy(ni, beta, b, 1, result, 1);
+}
+
+// SGEMM baseline for matmul comparison using OpenBLAS: F32×F32→F32
+void measure_sgemm_blas(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+    std::vector<float> a(m * k), b(n * k), c(m * n);
+    auto gen = make_random_engine();
+    std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
+    for (auto &v : a) v = dis(gen);
+    for (auto &v : b) v = dis(gen);
+
+    std::size_t iterations = 0;
+    for (auto _ : state) {
+        bm::DoNotOptimize(c.data());
+        cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n),
+                    static_cast<int>(k), 1.0f, a.data(), static_cast<int>(k), b.data(), static_cast<int>(k), 0.0f,
+                    c.data(), static_cast<int>(n));
+        ++iterations;
+    }
+
+    state.counters["flops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
+}
+
+#endif
+
+#if SIMSIMD_BUILD_BENCHMARKS_WITH_MKL
+
+/// Converts float to MKL_BF16 using SimSIMD's conversion.
+inline MKL_BF16 f32_to_bf16(float val) {
+    simsimd_bf16_t result;
+    simsimd_f32_to_bf16(&val, &result);
+    MKL_BF16 mkl_result;
+    std::memcpy(&mkl_result, &result, sizeof(mkl_result));
+    return mkl_result;
+}
+
+/// Converts float to MKL_F16 using SimSIMD's conversion.
+inline MKL_F16 f32_to_f16(float val) {
+    simsimd_f16_t result;
+    simsimd_f32_to_f16(&val, &result);
+    MKL_F16 mkl_result;
+    std::memcpy(&mkl_result, &result, sizeof(mkl_result));
+    return mkl_result;
+}
+
+/// Generic MKL GEMM benchmark template - reduces duplication across precision variants.
+/// Pattern follows measure_matmul_packed but adds init functors for type-specific conversion.
+template <typename input_a_at, typename input_b_at, typename output_at, //
+          typename init_a_at, typename init_b_at, typename gemm_at>
+void measure_gemm_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k, //
+                      init_a_at init_a, init_b_at init_b, gemm_at gemm_fn) {
+    std::vector<input_a_at> a(m * k);
+    std::vector<input_b_at> b(n * k);
+    std::vector<output_at> c(m * n);
+    auto gen = make_random_engine();
+    std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
+
+    for (auto &v : a) v = init_a(dis(gen));
+    for (auto &v : b) v = init_b(dis(gen));
+
+    std::size_t iterations = 0;
+    for (auto _ : state) {
+        bm::DoNotOptimize(c.data());
+        gemm_fn(a.data(), b.data(), c.data(), m, n, k);
+        ++iterations;
+    }
+    state.counters["ops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
+}
+
+/// Overload for integer types - uses int distribution instead of float.
+template <typename input_a_at, typename input_b_at, typename output_at, typename gemm_at>
+void measure_gemm_mkl_int(bm::State &state, std::size_t m, std::size_t n, std::size_t k, gemm_at gemm_fn) {
+    std::vector<input_a_at> a(m * k);
+    std::vector<input_b_at> b(n * k);
+    std::vector<output_at> c(m * n);
+    auto gen = make_random_engine();
+    std::uniform_int_distribution<int> dis(-64, 63);
+
+    for (auto &v : a) v = static_cast<input_a_at>(dis(gen));
+    for (auto &v : b) v = static_cast<input_b_at>(dis(gen));
+
+    std::size_t iterations = 0;
+    for (auto _ : state) {
+        bm::DoNotOptimize(c.data());
+        gemm_fn(a.data(), b.data(), c.data(), m, n, k);
+        ++iterations;
+    }
+    state.counters["ops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
+}
+
+void measure_sgemm_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+    auto identity = [](float v) { return v; };
+    measure_gemm_mkl<float, float, float>(
+        state, m, n, k, identity, identity,
+        [](float *a, float *b, float *c, std::size_t m, std::size_t n, std::size_t k) {
+            cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, (MKL_INT)m, (MKL_INT)n, (MKL_INT)k, 1.0f, a,
+                        (MKL_INT)k, b, (MKL_INT)k, 0.0f, c, (MKL_INT)n);
+        });
+}
+
+void measure_bf16gemm_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+    measure_gemm_mkl<MKL_BF16, MKL_BF16, float>(
+        state, m, n, k, f32_to_bf16, f32_to_bf16,
+        [](MKL_BF16 *a, MKL_BF16 *b, float *c, std::size_t m, std::size_t n, std::size_t k) {
+            cblas_gemm_bf16bf16f32(CblasRowMajor, CblasNoTrans, CblasTrans, (MKL_INT)m, (MKL_INT)n, (MKL_INT)k, 1.0f, a,
+                                   (MKL_INT)k, b, (MKL_INT)k, 0.0f, c, (MKL_INT)n);
+        });
+}
+
+void measure_f16gemm_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+    measure_gemm_mkl<MKL_F16, MKL_F16, float>(
+        state, m, n, k, f32_to_f16, f32_to_f16,
+        [](MKL_F16 *a, MKL_F16 *b, float *c, std::size_t m, std::size_t n, std::size_t k) {
+            cblas_gemm_f16f16f32(CblasRowMajor, CblasNoTrans, CblasTrans, (MKL_INT)m, (MKL_INT)n, (MKL_INT)k, 1.0f, a,
+                                 (MKL_INT)k, b, (MKL_INT)k, 0.0f, c, (MKL_INT)n);
+        });
+}
+
+void measure_s8u8s32gemm_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+    measure_gemm_mkl_int<std::uint8_t, std::int8_t, std::int32_t>(
+        state, m, n, k,
+        [](std::uint8_t *a, std::int8_t *b, std::int32_t *c, std::size_t m, std::size_t n, std::size_t k) {
+            MKL_INT32 c_offset = 0;
+            cblas_gemm_s8u8s32(CblasRowMajor, CblasNoTrans, CblasTrans, CblasFixOffset, (MKL_INT)m, (MKL_INT)n,
+                               (MKL_INT)k, 1.0f, a, (MKL_INT)k, 0, b, (MKL_INT)k, 0, 0.0f, c, (MKL_INT)n, &c_offset);
+        });
+}
+
+void measure_s16s16s32gemm_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+    measure_gemm_mkl_int<std::int16_t, std::int16_t, std::int32_t>(
+        state, m, n, k,
+        [](std::int16_t *a, std::int16_t *b, std::int32_t *c, std::size_t m, std::size_t n, std::size_t k) {
+            MKL_INT32 c_offset = 0;
+            cblas_gemm_s16s16s32(CblasRowMajor, CblasNoTrans, CblasTrans, CblasFixOffset, (MKL_INT)m, (MKL_INT)n,
+                                 (MKL_INT)k, 1.0f, a, (MKL_INT)k, 0, b, (MKL_INT)k, 0, 0.0f, c, (MKL_INT)n, &c_offset);
+        });
 }
 
 #endif
 
 int main(int argc, char **argv) {
     simsimd_capability_t runtime_caps = simsimd_capabilities();
+    simsimd_flush_denormals(runtime_caps); // Also enables AMX if available
+
+#if SIMSIMD_BUILD_BENCHMARKS_WITH_MKL
+    // Set MKL to single-threaded for fair comparison with SimSIMD (which is single-threaded)
+    mkl_set_num_threads(1);
+#elif SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
+    // Set OpenBLAS to single-threaded for fair comparison with SimSIMD (which is single-threaded)
+    if (openblas_set_num_threads) openblas_set_num_threads(1);
+#endif
 
     // Log supported functionality
     char const *flags[2] = {"false", "true"};
@@ -1019,6 +1372,7 @@ int main(int argc, char **argv) {
     std::printf("- Compiler used native F16: %s\n", flags[SIMSIMD_NATIVE_F16]);
     std::printf("- Compiler used native BF16: %s\n", flags[SIMSIMD_NATIVE_BF16]);
     std::printf("- Benchmark against CBLAS: %s\n", flags[SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS]);
+    std::printf("- Benchmark against MKL: %s\n", flags[SIMSIMD_BUILD_BENCHMARKS_WITH_MKL]);
     std::printf("\n");
     std::printf("Compile-time settings:\n");
     std::printf("- Arm NEON support enabled: %s\n", flags[SIMSIMD_TARGET_NEON]);
@@ -1066,6 +1420,42 @@ int main(int argc, char **argv) {
                         curved_dimensions);
         }
     }
+    if (char const *env_mesh = std::getenv("SIMSIMD_BENCH_MESH_DIMENSIONS")) {
+        std::size_t parsed_mesh = std::atoi(env_mesh);
+        if (parsed_mesh > 0) {
+            mesh_dimensions = parsed_mesh;
+            std::printf("Overriding `mesh_dimensions` to %zu from SIMSIMD_BENCH_MESH_DIMENSIONS\n", mesh_dimensions);
+        }
+    }
+    if (char const *env_matmul_dimension_m = std::getenv("SIMSIMD_BENCH_MATMUL_DIMENSION_M")) {
+        std::size_t parsed = std::atoi(env_matmul_dimension_m);
+        if (parsed > 0) {
+            matmul_dimension_m = parsed;
+            std::printf("Overriding `matmul_dimension_m` to %zu from SIMSIMD_BENCH_MATMUL_DIMENSION_M\n",
+                        matmul_dimension_m);
+        }
+    }
+    if (char const *env_matmul_dimension_n = std::getenv("SIMSIMD_BENCH_MATMUL_DIMENSION_N")) {
+        std::size_t parsed = std::atoi(env_matmul_dimension_n);
+        if (parsed > 0) {
+            matmul_dimension_n = parsed;
+            std::printf("Overriding `matmul_dimension_n` to %zu from SIMSIMD_BENCH_MATMUL_DIMENSION_N\n",
+                        matmul_dimension_n);
+        }
+    }
+    if (char const *env_matmul_dimension_k = std::getenv("SIMSIMD_BENCH_MATMUL_DIMENSION_K")) {
+        std::size_t parsed = std::atoi(env_matmul_dimension_k);
+        if (parsed > 0) {
+            matmul_dimension_k = parsed;
+            std::printf("Overriding `matmul_dimension_k` to %zu from SIMSIMD_BENCH_MATMUL_DIMENSION_K\n",
+                        matmul_dimension_k);
+        }
+    }
+    if (char const *env_random_seed = std::getenv("SIMSIMD_BENCH_RANDOM_SEED")) {
+        std::uint32_t parsed = static_cast<std::uint32_t>(std::atoi(env_random_seed));
+        random_seed = parsed;
+        std::printf("Overriding `random_seed` to %u from SIMSIMD_BENCH_RANDOM_SEED\n", random_seed);
+    }
     std::printf("\n");
 
     // Run the benchmarks
@@ -1086,6 +1476,8 @@ int main(int argc, char **argv) {
     constexpr simsimd_datatype_t f32_k = simsimd_f32_k;
     constexpr simsimd_datatype_t f16_k = simsimd_f16_k;
     constexpr simsimd_datatype_t bf16_k = simsimd_bf16_k;
+    constexpr simsimd_datatype_t e4m3_k = simsimd_e4m3_k;
+    constexpr simsimd_datatype_t e5m2_k = simsimd_e5m2_k;
     constexpr simsimd_datatype_t f64c_k = simsimd_f64c_k;
     constexpr simsimd_datatype_t f32c_k = simsimd_f32c_k;
     constexpr simsimd_datatype_t f16c_k = simsimd_f16c_k;
@@ -1116,7 +1508,7 @@ int main(int argc, char **argv) {
     elementwise_<f64_k>("atan_f64_serial", simsimd_atan_f64_serial,
                         elementwise_with_stl<simsimd_f64_t, atan_with_stl<simsimd_f64_t>>, l2_with_stl<simsimd_f64_t>);
 
-#if SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS
+#if SIMSIMD_BUILD_BENCHMARKS_WITH_BLAS
 
     dense_<f32_k>("dot_f32_blas", dot_f32_blas, simsimd_dot_f32_accurate);
     dense_<f64_k>("dot_f64_blas", dot_f64_blas, simsimd_dot_f64_serial);
@@ -1139,6 +1531,44 @@ int main(int argc, char **argv) {
     curved_<f32_k>("bilinear_f32_blas", bilinear_f32_blas, simsimd_bilinear_f32_accurate);
     curved_<f32c_k>("bilinear_f32c_blas", bilinear_f32c_blas, simsimd_bilinear_f32c_accurate);
 
+    // SGEMM baseline for matmul comparison (FP32, same layout as SimSIMD: A×Bᵀ)
+    {
+        std::string bench_name = "sgemm_blas<" + std::to_string(matmul_dimension_m) + "x" +
+                                 std::to_string(matmul_dimension_n) + "x" + std::to_string(matmul_dimension_k) + ">";
+        bm::RegisterBenchmark(bench_name.c_str(), measure_sgemm_blas, matmul_dimension_m, matmul_dimension_n,
+                              matmul_dimension_k)
+            ->MinTime(default_seconds)
+            ->Threads(1);
+    }
+
+#endif
+
+#if SIMSIMD_BUILD_BENCHMARKS_WITH_MKL
+    // MKL mixed-precision GEMM baselines for matmul comparison
+    {
+        std::string dims = std::to_string(matmul_dimension_m) + "x" + std::to_string(matmul_dimension_n) + "x" +
+                           std::to_string(matmul_dimension_k);
+        bm::RegisterBenchmark(("sgemm_mkl<" + dims + ">").c_str(), measure_sgemm_mkl, matmul_dimension_m,
+                              matmul_dimension_n, matmul_dimension_k)
+            ->MinTime(default_seconds)
+            ->Threads(1);
+        bm::RegisterBenchmark(("bf16gemm_mkl<" + dims + ">").c_str(), measure_bf16gemm_mkl, matmul_dimension_m,
+                              matmul_dimension_n, matmul_dimension_k)
+            ->MinTime(default_seconds)
+            ->Threads(1);
+        bm::RegisterBenchmark(("f16gemm_mkl<" + dims + ">").c_str(), measure_f16gemm_mkl, matmul_dimension_m,
+                              matmul_dimension_n, matmul_dimension_k)
+            ->MinTime(default_seconds)
+            ->Threads(1);
+        bm::RegisterBenchmark(("s8u8s32gemm_mkl<" + dims + ">").c_str(), measure_s8u8s32gemm_mkl, matmul_dimension_m,
+                              matmul_dimension_n, matmul_dimension_k)
+            ->MinTime(default_seconds)
+            ->Threads(1);
+        bm::RegisterBenchmark(("s16s16s32gemm_mkl<" + dims + ">").c_str(), measure_s16s16s32gemm_mkl,
+                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+            ->MinTime(default_seconds)
+            ->Threads(1);
+    }
 #endif
 
 #if SIMSIMD_TARGET_NEON
@@ -1295,6 +1725,9 @@ int main(int argc, char **argv) {
     dense_<bf16_k>("l2sq_bf16_haswell", simsimd_l2sq_bf16_haswell, simsimd_l2sq_bf16_accurate);
     dense_<bf16_k>("l2_bf16_haswell", simsimd_l2_bf16_haswell, simsimd_l2_bf16_accurate);
 
+    dense_<e4m3_k>("dot_e4m3_haswell", simsimd_dot_e4m3_haswell, simsimd_dot_e4m3_serial);
+    dense_<e5m2_k>("dot_e5m2_haswell", simsimd_dot_e5m2_haswell, simsimd_dot_e5m2_serial);
+
     dense_<i8_k>("angular_i8_haswell", simsimd_angular_i8_haswell, simsimd_angular_i8_serial);
     dense_<i8_k>("l2sq_i8_haswell", simsimd_l2sq_i8_haswell, simsimd_l2sq_i8_serial);
     dense_<i8_k>("l2_i8_haswell", simsimd_l2_i8_haswell, simsimd_l2_i8_serial);
@@ -1396,6 +1829,9 @@ int main(int argc, char **argv) {
     dense_<bf16c_k>("dot_bf16c_genoa", simsimd_dot_bf16c_genoa, simsimd_dot_bf16c_accurate);
     dense_<bf16c_k>("vdot_bf16c_genoa", simsimd_vdot_bf16c_genoa, simsimd_vdot_bf16c_accurate);
 
+    dense_<e4m3_k>("dot_e4m3_genoa", simsimd_dot_e4m3_genoa, simsimd_dot_e4m3_serial);
+    dense_<e5m2_k>("dot_e5m2_genoa", simsimd_dot_e5m2_genoa, simsimd_dot_e5m2_serial);
+
     curved_<bf16_k>("bilinear_bf16_genoa", simsimd_bilinear_bf16_genoa, simsimd_bilinear_bf16_accurate);
     curved_<bf16_k>("mahalanobis_bf16_genoa", simsimd_mahalanobis_bf16_genoa, simsimd_mahalanobis_bf16_accurate);
     curved_<bf16c_k>("bilinear_bf16c_genoa", simsimd_bilinear_bf16c_genoa, simsimd_bilinear_bf16c_accurate);
@@ -1411,6 +1847,9 @@ int main(int argc, char **argv) {
 
     dense_<f16c_k>("dot_f16c_sapphire", simsimd_dot_f16c_sapphire, simsimd_dot_f16c_accurate);
     dense_<f16c_k>("vdot_f16c_sapphire", simsimd_vdot_f16c_sapphire, simsimd_vdot_f16c_accurate);
+
+    dense_<e4m3_k>("dot_e4m3_sapphire", simsimd_dot_e4m3_sapphire, simsimd_dot_e4m3_serial);
+    dense_<e5m2_k>("dot_e5m2_sapphire", simsimd_dot_e5m2_sapphire, simsimd_dot_e5m2_serial);
 
     elementwise_<u8_k, simsimd_metric_fma_k>("fma_u8_sapphire", simsimd_fma_u8_sapphire, simsimd_fma_u8_serial,
                                              simsimd_l2_u8_serial);
@@ -1468,6 +1907,9 @@ int main(int argc, char **argv) {
     dense_<f64c_k>("dot_f64c_skylake", simsimd_dot_f64c_skylake, simsimd_dot_f64c_serial);
     dense_<f64c_k>("vdot_f64c_skylake", simsimd_vdot_f64c_skylake, simsimd_vdot_f64c_serial);
 
+    dense_<e4m3_k>("dot_e4m3_skylake", simsimd_dot_e4m3_skylake, simsimd_dot_e4m3_serial);
+    dense_<e5m2_k>("dot_e5m2_skylake", simsimd_dot_e5m2_skylake, simsimd_dot_e5m2_serial);
+
     elementwise_<f64_k, simsimd_metric_fma_k>("fma_f64_skylake", simsimd_fma_f64_skylake, simsimd_fma_f64_serial,
                                               simsimd_l2_f64_serial);
     elementwise_<f64_k, simsimd_metric_wsum_k>("wsum_f64_skylake", simsimd_wsum_f64_skylake, simsimd_wsum_f64_serial,
@@ -1507,6 +1949,9 @@ int main(int argc, char **argv) {
                        vincenty_with_stl<simsimd_f32_t, simsimd_f64_t>, l2_with_stl<simsimd_f64_t>);
     geospatial_<f64_k>("vincenty_f64_skylake", simsimd_vincenty_f64_skylake, vincenty_with_stl<simsimd_f64_t>,
                        l2_with_stl<simsimd_f64_t>);
+
+    mesh_<f32_k>("rmsd_f32_skylake", simsimd_rmsd_f32_skylake, simsimd_rmsd_f32_serial);
+    mesh_<f32_k>("kabsch_f32_skylake", simsimd_kabsch_f32_skylake, simsimd_kabsch_f32_serial);
 #endif
 
     sparse_<u16_k>("intersect_u16_serial", simsimd_intersect_u16_serial, simsimd_intersect_u16_accurate);
@@ -1527,12 +1972,20 @@ int main(int argc, char **argv) {
     curved_<bf16c_k>("bilinear_bf16c_serial", simsimd_bilinear_bf16c_serial, simsimd_bilinear_bf16c_accurate);
     curved_<bf16_k>("mahalanobis_bf16_serial", simsimd_mahalanobis_bf16_serial, simsimd_mahalanobis_bf16_accurate);
 
+    mesh_<f32_k>("rmsd_f32_serial", simsimd_rmsd_f32_serial, simsimd_rmsd_f32_serial);
+    mesh_<f32_k>("kabsch_f32_serial", simsimd_kabsch_f32_serial, simsimd_kabsch_f32_serial);
+    mesh_<f64_k>("rmsd_f64_serial", simsimd_rmsd_f64_serial, simsimd_rmsd_f64_serial);
+    mesh_<f64_k>("kabsch_f64_serial", simsimd_kabsch_f64_serial, simsimd_kabsch_f64_serial);
+
     dense_<bf16_k>("dot_bf16_serial", simsimd_dot_bf16_serial, simsimd_dot_bf16_accurate);
     dense_<bf16_k>("angular_bf16_serial", simsimd_angular_bf16_serial, simsimd_angular_bf16_accurate);
     dense_<bf16_k>("l2sq_bf16_serial", simsimd_l2sq_bf16_serial, simsimd_l2sq_bf16_accurate);
     dense_<bf16_k>("l2_bf16_serial", simsimd_l2_bf16_serial, simsimd_l2_bf16_accurate);
     dense_<bf16_k>("kld_bf16_serial", simsimd_kld_bf16_serial, simsimd_kld_bf16_accurate);
     dense_<bf16_k>("jsd_bf16_serial", simsimd_jsd_bf16_serial, simsimd_jsd_bf16_accurate);
+
+    dense_<e4m3_k>("dot_e4m3_serial", simsimd_dot_e4m3_serial, simsimd_dot_e4m3_serial);
+    dense_<e5m2_k>("dot_e5m2_serial", simsimd_dot_e5m2_serial, simsimd_dot_e5m2_serial);
 
     dense_<f16_k>("dot_f16_serial", simsimd_dot_f16_serial, simsimd_dot_f16_accurate);
     dense_<f16_k>("angular_f16_serial", simsimd_angular_f16_serial, simsimd_angular_f16_accurate);
@@ -1569,9 +2022,6 @@ int main(int argc, char **argv) {
     dense_<bf16c_k>("dot_bf16c_serial", simsimd_dot_bf16c_serial, simsimd_dot_bf16c_accurate);
     dense_<f64c_k>("vdot_f64c_serial", simsimd_vdot_f64c_serial, simsimd_vdot_f64c_serial);
     dense_<f32c_k>("vdot_f32c_serial", simsimd_vdot_f32c_serial, simsimd_vdot_f32c_accurate);
-    dense_<f16c_k>("vdot_f16c_serial", simsimd_vdot_f16c_serial, simsimd_vdot_f16c_accurate);
-    dense_<bf16c_k>("vdot_bf16c_serial", simsimd_vdot_bf16c_serial, simsimd_vdot_bf16c_accurate);
-
     dense_<f16c_k>("vdot_f16c_serial", simsimd_vdot_f16c_serial, simsimd_vdot_f16c_accurate);
     dense_<bf16c_k>("vdot_bf16c_serial", simsimd_vdot_bf16c_serial, simsimd_vdot_bf16c_accurate);
 
