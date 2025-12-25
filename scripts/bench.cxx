@@ -2071,6 +2071,8 @@ int main(int argc, char **argv) {
                                            simsimd_dots_bf16bf16f32_pack_serial, simsimd_dots_bf16bf16f32_serial);
     matmul_<simsimd_i8_t, simsimd_i32_t>("dots_i8i8i32_serial", simsimd_dots_i8i8i32_packed_size_serial,
                                          simsimd_dots_i8i8i32_pack_serial, simsimd_dots_i8i8i32_serial);
+    matmul_<simsimd_f32_t, simsimd_f32_t>("dots_f32f32f32_serial", simsimd_dots_f32f32f32_packed_size_serial,
+                                          simsimd_dots_f32f32f32_pack_serial, simsimd_dots_f32f32f32_serial);
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();

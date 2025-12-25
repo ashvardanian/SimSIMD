@@ -774,16 +774,29 @@ typedef struct {
     }
 
 /**
- *  @brief Macro to generate serial matmul function using tiled packed B (scalar fallback).
+ *  @brief Optimized serial matmul with 4×4 register blocking, 4× k-unrolling, and A-caching.
  *
  *  Computes C = A × Bᵀ where B is pre-packed in tiled row-major format.
- *  Processes tiles in order that maximizes cache reuse: k-tiles outer for A locality.
+ *
+ *  Optimizations applied:
+ *  1. Register Blocking (4×4): 16 scalar accumulators stay in CPU registers across k-loop
+ *  2. K-loop Unrolling (4×): Reduces loop overhead, enables ILP for overlapping loads/FMAs
+ *  3. A-row Caching: Load 4 A values once, reuse for all 4 B columns (16 FMAs per 4 A loads)
+ *
+ *  Micro-kernel computes a 4×4 output block:
+ *    acc[r][c] += a[r] * b[c]  for r,c in [0,3]
+ *
  *  Uses MKL-style naming: simsimd_dots_{input}{input}{output}_{suffix}
  */
 #define SIMSIMD_MAKE_DOTS_SERIAL_PACKED(suffix, input_type, accumulator_type, output_type, load_and_convert, tile_k) \
     SIMSIMD_PUBLIC void simsimd_dots_##input_type##input_type##output_type##_##suffix(                               \
         simsimd_##input_type##_t const *a, void const *b_packed, simsimd_##output_type##_t *c, simsimd_size_t m,     \
         simsimd_size_t n, simsimd_size_t k, simsimd_size_t a_stride, simsimd_size_t c_stride) {                      \
+                                                                                                                     \
+        /* Blocking parameters */                                                                                    \
+        simsimd_size_t const mr_size = 4;  /* Rows of A per micro-kernel */                                          \
+        simsimd_size_t const nr_size = 4;  /* Columns of B per micro-kernel */                                       \
+        simsimd_size_t const k_unroll = 4; /* K elements per unrolled iteration */                                   \
                                                                                                                      \
         simsimd_size_t const tile_n = SIMSIMD_DOTS_SERIAL_TILE_N;                                                    \
         simsimd_size_t const n_tiles = (n + tile_n - 1) / tile_n;                                                    \
@@ -805,10 +818,10 @@ typedef struct {
             simsimd_size_t const k_end = (k_start + tile_k < k) ? (k_start + tile_k) : k;                            \
             simsimd_size_t const k_len = k_end - k_start;                                                            \
                                                                                                                      \
-            for (simsimd_size_t mi = 0; mi < m; ++mi) {                                                              \
-                simsimd_##input_type##_t const *a_row = (simsimd_##input_type##_t const *)((char const *)a +         \
-                                                                                           mi * a_stride);           \
-                simsimd_##output_type##_t *c_row = (simsimd_##output_type##_t *)((char *)c + mi * c_stride);         \
+            /* Process rows in blocks of MR for register blocking */                                                 \
+            for (simsimd_size_t mi_block = 0; mi_block < m; mi_block += mr_size) {                                   \
+                simsimd_size_t const mr_end = (mi_block + mr_size < m) ? (mi_block + mr_size) : m;                   \
+                simsimd_size_t const mr_len = mr_end - mi_block;                                                     \
                                                                                                                      \
                 for (simsimd_size_t nt = 0; nt < n_tiles; ++nt) {                                                    \
                     simsimd_size_t const n_start = nt * tile_n;                                                      \
@@ -817,33 +830,161 @@ typedef struct {
                     simsimd_size_t const tile_idx = kt * n_tiles + nt;                                               \
                     simsimd_##input_type##_t const *tile = packed + tile_idx * tile_size;                            \
                                                                                                                      \
-                    /* Compute partial dot products for this tile */                                                 \
-                    for (simsimd_size_t j = n_start; j < n_end; ++j) {                                               \
-                        simsimd_size_t const row_in_tile = j - n_start;                                              \
-                        simsimd_##input_type##_t const *b_row = tile + row_in_tile * tile_k;                         \
+                    /* Process columns in blocks of NR for register blocking */                                      \
+                    for (simsimd_size_t j_block = n_start; j_block < n_end; j_block += nr_size) {                    \
+                        simsimd_size_t const nr_end = (j_block + nr_size < n_end) ? (j_block + nr_size) : n_end;     \
+                        simsimd_size_t const nr_len = nr_end - j_block;                                              \
                                                                                                                      \
-                        simsimd_##accumulator_type##_t sum = 0;                                                      \
-                        for (simsimd_size_t ki = 0; ki < k_len; ++ki) {                                              \
-                            simsimd_##accumulator_type##_t a_val = load_and_convert(a_row + k_start + ki);           \
-                            simsimd_##accumulator_type##_t b_val = load_and_convert(b_row + ki);                     \
-                            sum += a_val * b_val;                                                                    \
+                        /* 4×4 accumulator block - stays in registers across k-loop */                               \
+                        simsimd_##accumulator_type##_t acc00 = 0, acc01 = 0, acc02 = 0, acc03 = 0;                   \
+                        simsimd_##accumulator_type##_t acc10 = 0, acc11 = 0, acc12 = 0, acc13 = 0;                   \
+                        simsimd_##accumulator_type##_t acc20 = 0, acc21 = 0, acc22 = 0, acc23 = 0;                   \
+                        simsimd_##accumulator_type##_t acc30 = 0, acc31 = 0, acc32 = 0, acc33 = 0;                   \
+                                                                                                                     \
+                        /* Get A row pointers for MR rows */                                                         \
+                        simsimd_##input_type##_t const *a_row0 =                                                     \
+                            (simsimd_##input_type##_t const *)((char const *)a + mi_block * a_stride) + k_start;     \
+                        simsimd_##input_type##_t const *a_row1 =                                                     \
+                            (mr_len > 1)                                                                             \
+                                ? (simsimd_##input_type##_t const *)((char const *)a + (mi_block + 1) * a_stride) +  \
+                                      k_start                                                                        \
+                                : a_row0;                                                                            \
+                        simsimd_##input_type##_t const *a_row2 =                                                     \
+                            (mr_len > 2)                                                                             \
+                                ? (simsimd_##input_type##_t const *)((char const *)a + (mi_block + 2) * a_stride) +  \
+                                      k_start                                                                        \
+                                : a_row0;                                                                            \
+                        simsimd_##input_type##_t const *a_row3 =                                                     \
+                            (mr_len > 3)                                                                             \
+                                ? (simsimd_##input_type##_t const *)((char const *)a + (mi_block + 3) * a_stride) +  \
+                                      k_start                                                                        \
+                                : a_row0;                                                                            \
+                                                                                                                     \
+                        /* Get B row pointers for NR columns */                                                      \
+                        simsimd_size_t const j0_in_tile = j_block - n_start;                                         \
+                        simsimd_##input_type##_t const *b_row0 = tile + j0_in_tile * tile_k;                         \
+                        simsimd_##input_type##_t const *b_row1 = (nr_len > 1) ? tile + (j0_in_tile + 1) * tile_k     \
+                                                                              : b_row0;                              \
+                        simsimd_##input_type##_t const *b_row2 = (nr_len > 2) ? tile + (j0_in_tile + 2) * tile_k     \
+                                                                              : b_row0;                              \
+                        simsimd_##input_type##_t const *b_row3 = (nr_len > 3) ? tile + (j0_in_tile + 3) * tile_k     \
+                                                                              : b_row0;                              \
+                                                                                                                     \
+                        /* Main k-loop with 4× unrolling */                                                          \
+                        simsimd_size_t ki = 0;                                                                       \
+                        simsimd_##accumulator_type##_t a0, a1, a2, a3, b0, b1, b2, b3;                               \
+                        for (; ki + k_unroll <= k_len; ki += k_unroll) {                                             \
+                            /* Unroll 0: Load 4 A values, 4 B values, do 16 FMAs */                                  \
+                            load_and_convert(a_row0 + ki, &a0), load_and_convert(a_row1 + ki, &a1);                  \
+                            load_and_convert(a_row2 + ki, &a2), load_and_convert(a_row3 + ki, &a3);                  \
+                            load_and_convert(b_row0 + ki, &b0), load_and_convert(b_row1 + ki, &b1);                  \
+                            load_and_convert(b_row2 + ki, &b2), load_and_convert(b_row3 + ki, &b3);                  \
+                            acc00 += a0 * b0, acc01 += a0 * b1, acc02 += a0 * b2, acc03 += a0 * b3;                  \
+                            acc10 += a1 * b0, acc11 += a1 * b1, acc12 += a1 * b2, acc13 += a1 * b3;                  \
+                            acc20 += a2 * b0, acc21 += a2 * b1, acc22 += a2 * b2, acc23 += a2 * b3;                  \
+                            acc30 += a3 * b0, acc31 += a3 * b1, acc32 += a3 * b2, acc33 += a3 * b3;                  \
+                                                                                                                     \
+                            /* Unroll 1 */                                                                           \
+                            load_and_convert(a_row0 + ki + 1, &a0), load_and_convert(a_row1 + ki + 1, &a1);          \
+                            load_and_convert(a_row2 + ki + 1, &a2), load_and_convert(a_row3 + ki + 1, &a3);          \
+                            load_and_convert(b_row0 + ki + 1, &b0), load_and_convert(b_row1 + ki + 1, &b1);          \
+                            load_and_convert(b_row2 + ki + 1, &b2), load_and_convert(b_row3 + ki + 1, &b3);          \
+                            acc00 += a0 * b0, acc01 += a0 * b1, acc02 += a0 * b2, acc03 += a0 * b3;                  \
+                            acc10 += a1 * b0, acc11 += a1 * b1, acc12 += a1 * b2, acc13 += a1 * b3;                  \
+                            acc20 += a2 * b0, acc21 += a2 * b1, acc22 += a2 * b2, acc23 += a2 * b3;                  \
+                            acc30 += a3 * b0, acc31 += a3 * b1, acc32 += a3 * b2, acc33 += a3 * b3;                  \
+                                                                                                                     \
+                            /* Unroll 2 */                                                                           \
+                            load_and_convert(a_row0 + ki + 2, &a0), load_and_convert(a_row1 + ki + 2, &a1);          \
+                            load_and_convert(a_row2 + ki + 2, &a2), load_and_convert(a_row3 + ki + 2, &a3);          \
+                            load_and_convert(b_row0 + ki + 2, &b0), load_and_convert(b_row1 + ki + 2, &b1);          \
+                            load_and_convert(b_row2 + ki + 2, &b2), load_and_convert(b_row3 + ki + 2, &b3);          \
+                            acc00 += a0 * b0, acc01 += a0 * b1, acc02 += a0 * b2, acc03 += a0 * b3;                  \
+                            acc10 += a1 * b0, acc11 += a1 * b1, acc12 += a1 * b2, acc13 += a1 * b3;                  \
+                            acc20 += a2 * b0, acc21 += a2 * b1, acc22 += a2 * b2, acc23 += a2 * b3;                  \
+                            acc30 += a3 * b0, acc31 += a3 * b1, acc32 += a3 * b2, acc33 += a3 * b3;                  \
+                                                                                                                     \
+                            /* Unroll 3 */                                                                           \
+                            load_and_convert(a_row0 + ki + 3, &a0), load_and_convert(a_row1 + ki + 3, &a1);          \
+                            load_and_convert(a_row2 + ki + 3, &a2), load_and_convert(a_row3 + ki + 3, &a3);          \
+                            load_and_convert(b_row0 + ki + 3, &b0), load_and_convert(b_row1 + ki + 3, &b1);          \
+                            load_and_convert(b_row2 + ki + 3, &b2), load_and_convert(b_row3 + ki + 3, &b3);          \
+                            acc00 += a0 * b0, acc01 += a0 * b1, acc02 += a0 * b2, acc03 += a0 * b3;                  \
+                            acc10 += a1 * b0, acc11 += a1 * b1, acc12 += a1 * b2, acc13 += a1 * b3;                  \
+                            acc20 += a2 * b0, acc21 += a2 * b1, acc22 += a2 * b2, acc23 += a2 * b3;                  \
+                            acc30 += a3 * b0, acc31 += a3 * b1, acc32 += a3 * b2, acc33 += a3 * b3;                  \
                         }                                                                                            \
-                        c_row[j] += (simsimd_##output_type##_t)sum;                                                  \
+                                                                                                                     \
+                        /* Remainder k-loop (handles k_len % 4) */                                                   \
+                        for (; ki < k_len; ++ki) {                                                                   \
+                            load_and_convert(a_row0 + ki, &a0), load_and_convert(a_row1 + ki, &a1);                  \
+                            load_and_convert(a_row2 + ki, &a2), load_and_convert(a_row3 + ki, &a3);                  \
+                            load_and_convert(b_row0 + ki, &b0), load_and_convert(b_row1 + ki, &b1);                  \
+                            load_and_convert(b_row2 + ki, &b2), load_and_convert(b_row3 + ki, &b3);                  \
+                            acc00 += a0 * b0, acc01 += a0 * b1, acc02 += a0 * b2, acc03 += a0 * b3;                  \
+                            acc10 += a1 * b0, acc11 += a1 * b1, acc12 += a1 * b2, acc13 += a1 * b3;                  \
+                            acc20 += a2 * b0, acc21 += a2 * b1, acc22 += a2 * b2, acc23 += a2 * b3;                  \
+                            acc30 += a3 * b0, acc31 += a3 * b1, acc32 += a3 * b2, acc33 += a3 * b3;                  \
+                        }                                                                                            \
+                                                                                                                     \
+                        /* Store accumulated results to C */                                                         \
+                        simsimd_##output_type##_t *c_row0 = (simsimd_##output_type##_t *)((char *)c +                \
+                                                                                          mi_block * c_stride);      \
+                        if (nr_len > 0) c_row0[j_block] += (simsimd_##output_type##_t)acc00;                         \
+                        if (nr_len > 1) c_row0[j_block + 1] += (simsimd_##output_type##_t)acc01;                     \
+                        if (nr_len > 2) c_row0[j_block + 2] += (simsimd_##output_type##_t)acc02;                     \
+                        if (nr_len > 3) c_row0[j_block + 3] += (simsimd_##output_type##_t)acc03;                     \
+                                                                                                                     \
+                        if (mr_len > 1) {                                                                            \
+                            simsimd_##output_type##_t *c_row1 =                                                      \
+                                (simsimd_##output_type##_t *)((char *)c + (mi_block + 1) * c_stride);                \
+                            if (nr_len > 0) c_row1[j_block] += (simsimd_##output_type##_t)acc10;                     \
+                            if (nr_len > 1) c_row1[j_block + 1] += (simsimd_##output_type##_t)acc11;                 \
+                            if (nr_len > 2) c_row1[j_block + 2] += (simsimd_##output_type##_t)acc12;                 \
+                            if (nr_len > 3) c_row1[j_block + 3] += (simsimd_##output_type##_t)acc13;                 \
+                        }                                                                                            \
+                        if (mr_len > 2) {                                                                            \
+                            simsimd_##output_type##_t *c_row2 =                                                      \
+                                (simsimd_##output_type##_t *)((char *)c + (mi_block + 2) * c_stride);                \
+                            if (nr_len > 0) c_row2[j_block] += (simsimd_##output_type##_t)acc20;                     \
+                            if (nr_len > 1) c_row2[j_block + 1] += (simsimd_##output_type##_t)acc21;                 \
+                            if (nr_len > 2) c_row2[j_block + 2] += (simsimd_##output_type##_t)acc22;                 \
+                            if (nr_len > 3) c_row2[j_block + 3] += (simsimd_##output_type##_t)acc23;                 \
+                        }                                                                                            \
+                        if (mr_len > 3) {                                                                            \
+                            simsimd_##output_type##_t *c_row3 =                                                      \
+                                (simsimd_##output_type##_t *)((char *)c + (mi_block + 3) * c_stride);                \
+                            if (nr_len > 0) c_row3[j_block] += (simsimd_##output_type##_t)acc30;                     \
+                            if (nr_len > 1) c_row3[j_block + 1] += (simsimd_##output_type##_t)acc31;                 \
+                            if (nr_len > 2) c_row3[j_block + 2] += (simsimd_##output_type##_t)acc32;                 \
+                            if (nr_len > 3) c_row3[j_block + 3] += (simsimd_##output_type##_t)acc33;                 \
+                        }                                                                                            \
                     }                                                                                                \
                 }                                                                                                    \
             }                                                                                                        \
         }                                                                                                            \
     }
 
+// Helper conversion functions for serial GEMM (dual-pointer style)
+SIMSIMD_INTERNAL void simsimd_serial_copy_f32(simsimd_f32_t const *src, simsimd_f32_t *dst) { *dst = *src; }
+SIMSIMD_INTERNAL void simsimd_serial_copy_i8_to_i32(simsimd_i8_t const *src, simsimd_i32_t *dst) {
+    *dst = (simsimd_i32_t)(*src);
+}
+
 // Serial packed implementations for BF16 (32 elements per 64-byte tile row)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(serial, bf16, f32, SIMSIMD_DOTS_SERIAL_TILE_K_BF16)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(serial, bf16, f32, SIMSIMD_DOTS_SERIAL_TILE_K_BF16)
-SIMSIMD_MAKE_DOTS_SERIAL_PACKED(serial, bf16, f32, f32, SIMSIMD_BF16_TO_F32, SIMSIMD_DOTS_SERIAL_TILE_K_BF16)
+SIMSIMD_MAKE_DOTS_SERIAL_PACKED(serial, bf16, f32, f32, simsimd_bf16_to_f32, SIMSIMD_DOTS_SERIAL_TILE_K_BF16)
 
 // Serial packed implementations for I8 (64 elements per 64-byte tile row)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(serial, i8, i32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(serial, i8, i32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
-SIMSIMD_MAKE_DOTS_SERIAL_PACKED(serial, i8, i32, i32, SIMSIMD_DEREFERENCE, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
+SIMSIMD_MAKE_DOTS_SERIAL_PACKED(serial, i8, i32, i32, simsimd_serial_copy_i8_to_i32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
+
+// Serial packed implementations for F32 (16 elements per 64-byte tile row)
+SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(serial, f32, f32, SIMSIMD_DOTS_SERIAL_TILE_K_F32)
+SIMSIMD_MAKE_DOTS_SERIAL_PACK(serial, f32, f32, SIMSIMD_DOTS_SERIAL_TILE_K_F32)
+SIMSIMD_MAKE_DOTS_SERIAL_PACKED(serial, f32, f32, f32, simsimd_serial_copy_f32, SIMSIMD_DOTS_SERIAL_TILE_K_F32)
 
 /*  Serial compact functions: simple scalar implementations for post-matmul conversion.
  *  These work on any platform without SIMD requirements.
@@ -1010,6 +1151,25 @@ SIMSIMD_MAKE_DOTS(bf16bf16f32_genoa, bf16, f32, simsimd_dot_outer_bf16x4_state_1
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_GENOA
+
+#if SIMSIMD_TARGET_ICE
+#pragma GCC push_options
+#pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vnni")
+#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512vnni"))), apply_to = function)
+
+// I8 GEMM packing functions (interleave=4 for VPDPBUSD/VNNI, k_align=8)
+SIMSIMD_MAKE_DOTS_PACKED_SIZE(ice, i8, i32, 8)
+SIMSIMD_MAKE_DOTS_PACK(ice, i8, i32, 4, 8)
+
+// I8 GEMM: MR=8, k_tile=8, nr_acc=4 for 4× throughput
+SIMSIMD_MAKE_DOTS(i8i8i32_ice, i8, i32, simsimd_dot_outer_i8x8_state_1x16_ice_t, simsimd_dot_outer_i8x8_init_1x16_ice,
+                  simsimd_dot_outer_i8x8_update_1x16_ice, simsimd_dot_outer_i8x8_finalize_1x16_ice,
+                  /*k_tile=*/8, /*MR=*/8, /*nr_acc=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // SIMSIMD_TARGET_ICE
+#endif // _SIMSIMD_TARGET_X86
 
 #if SIMSIMD_TARGET_SAPPHIRE_AMX
 #pragma GCC push_options
@@ -2459,25 +2619,6 @@ SIMSIMD_PUBLIC void simsimd_dots_i8i8i8_sapphire_amx( //
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SAPPHIRE_AMX
-
-#if SIMSIMD_TARGET_ICE
-#pragma GCC push_options
-#pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vnni")
-#pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512vnni"))), apply_to = function)
-
-// I8 GEMM packing functions (interleave=4 for VPDPBUSD/VNNI, k_align=8)
-SIMSIMD_MAKE_DOTS_PACKED_SIZE(ice, i8, i32, 8)
-SIMSIMD_MAKE_DOTS_PACK(ice, i8, i32, 4, 8)
-
-// I8 GEMM: MR=8, k_tile=8, nr_acc=4 for 4× throughput
-SIMSIMD_MAKE_DOTS(i8i8i32_ice, i8, i32, simsimd_dot_outer_i8x8_state_1x16_ice_t, simsimd_dot_outer_i8x8_init_1x16_ice,
-                  simsimd_dot_outer_i8x8_update_1x16_ice, simsimd_dot_outer_i8x8_finalize_1x16_ice,
-                  /*k_tile=*/8, /*MR=*/8, /*nr_acc=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
-
-#pragma clang attribute pop
-#pragma GCC pop_options
-#endif // SIMSIMD_TARGET_ICE
-#endif // _SIMSIMD_TARGET_X86
 
 #if !SIMSIMD_DYNAMIC_DISPATCH
 
