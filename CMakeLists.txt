@@ -26,7 +26,8 @@ endif ()
 option(SIMSIMD_BUILD_SHARED "Compile a dynamic library" ${SIMSIMD_IS_MAIN_PROJECT})
 option(SIMSIMD_BUILD_TESTS "Small compilation tests compile-time and run-time dispatch" OFF)
 option(SIMSIMD_BUILD_BENCHMARKS "Compile micro-benchmarks for current ISA" OFF)
-option(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS "Include BLAS in micro-kernel benchmarks" OFF)
+option(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS "Include OpenBLAS in micro-kernel benchmarks" OFF)
+option(SIMSIMD_BUILD_BENCHMARKS_WITH_MKL "Include Intel MKL in micro-kernel benchmarks" OFF)
 
 # Default to Release build type if not set
 if (NOT CMAKE_BUILD_TYPE)
@@ -138,6 +139,34 @@ if (SIMSIMD_BUILD_BENCHMARKS)
             target_compile_definitions(simsimd_bench PRIVATE SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1)
         else ()
             message(FATAL_ERROR "BLAS not found")
+        endif ()
+    endif ()
+
+    if (SIMSIMD_BUILD_BENCHMARKS_WITH_MKL)
+        # Use environment variable MKLROOT or standard MKL paths
+        if (DEFINED ENV{MKLROOT})
+            set(MKL_ROOT $ENV{MKLROOT})
+        else ()
+            # Try common installation paths
+            if (EXISTS "/opt/intel/oneapi/mkl/latest")
+                set(MKL_ROOT "/opt/intel/oneapi/mkl/latest")
+            elseif (EXISTS "/opt/intel/mkl")
+                set(MKL_ROOT "/opt/intel/mkl")
+            endif ()
+        endif ()
+
+        if (MKL_ROOT)
+            message(STATUS "MKL found at: ${MKL_ROOT}")
+            target_include_directories(simsimd_bench PRIVATE ${MKL_ROOT}/include)
+            # Link against sequential MKL (single-threaded) for fair comparison
+            target_link_libraries(simsimd_bench
+                ${MKL_ROOT}/lib/intel64/libmkl_intel_lp64.a
+                ${MKL_ROOT}/lib/intel64/libmkl_sequential.a
+                ${MKL_ROOT}/lib/intel64/libmkl_core.a
+                pthread m dl)
+            target_compile_definitions(simsimd_bench PRIVATE SIMSIMD_BUILD_BENCHMARKS_WITH_MKL=1)
+        else ()
+            message(FATAL_ERROR "MKL not found. Set MKLROOT environment variable or install Intel oneAPI.")
         endif ()
     endif ()
 
