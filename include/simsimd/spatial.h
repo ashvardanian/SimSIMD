@@ -653,23 +653,59 @@ SIMSIMD_INTERNAL void simsimd_angular_f64x8_update_serial(simsimd_angular_f64x8_
                                                           simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_f64x8_update_serial(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_f64x8_finalize_serial(simsimd_angular_f64x8_state_serial_t const *state,
-                                                            simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                            simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_distance_t a2 = a_norm * a_norm;
-    simsimd_distance_t b2 = b_norm * b_norm;
-    simsimd_dot_f64x8_finalize_serial(state, &ab);
-    if (a2 == 0 && b2 == 0) {
-        *result = 0;
-        return;
+SIMSIMD_INTERNAL void simsimd_angular_f64x8_finalize_serial(
+    simsimd_angular_f64x8_state_serial_t const *state_a, simsimd_angular_f64x8_state_serial_t const *state_b,
+    simsimd_angular_f64x8_state_serial_t const *state_c, simsimd_angular_f64x8_state_serial_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_f64x8_finalize_serial(state_a, &dot_a);
+    simsimd_dot_f64x8_finalize_serial(state_b, &dot_b);
+    simsimd_dot_f64x8_finalize_serial(state_c, &dot_c);
+    simsimd_dot_f64x8_finalize_serial(state_d, &dot_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_distance_t query_norm_sq = query_norm * query_norm;
+    simsimd_distance_t target_norm_sq_a = target_norm_a * target_norm_a;
+    simsimd_distance_t target_norm_sq_b = target_norm_b * target_norm_b;
+    simsimd_distance_t target_norm_sq_c = target_norm_c * target_norm_c;
+    simsimd_distance_t target_norm_sq_d = target_norm_d * target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    simsimd_distance_t unclipped_a, unclipped_b, unclipped_c, unclipped_d;
+
+    if (query_norm_sq == 0 && target_norm_sq_a == 0) results[0] = 0;
+    else if (dot_a == 0)
+        results[0] = 1;
+    else {
+        unclipped_a = 1 - dot_a * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_a);
+        results[0] = unclipped_a > 0 ? unclipped_a : 0;
     }
-    if (ab == 0) {
-        *result = 1;
-        return;
+
+    if (query_norm_sq == 0 && target_norm_sq_b == 0) results[1] = 0;
+    else if (dot_b == 0)
+        results[1] = 1;
+    else {
+        unclipped_b = 1 - dot_b * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_b);
+        results[1] = unclipped_b > 0 ? unclipped_b : 0;
     }
-    simsimd_distance_t unclipped = 1 - ab * SIMSIMD_RSQRT(a2) * SIMSIMD_RSQRT(b2);
-    *result = unclipped > 0 ? unclipped : 0;
+
+    if (query_norm_sq == 0 && target_norm_sq_c == 0) results[2] = 0;
+    else if (dot_c == 0)
+        results[2] = 1;
+    else {
+        unclipped_c = 1 - dot_c * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_c);
+        results[2] = unclipped_c > 0 ? unclipped_c : 0;
+    }
+
+    if (query_norm_sq == 0 && target_norm_sq_d == 0) results[3] = 0;
+    else if (dot_d == 0)
+        results[3] = 1;
+    else {
+        unclipped_d = 1 - dot_d * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_d);
+        results[3] = unclipped_d > 0 ? unclipped_d : 0;
+    }
 }
 
 typedef simsimd_dot_f64x8_state_serial_t simsimd_l2_f64x8_state_serial_t;
@@ -680,17 +716,35 @@ SIMSIMD_INTERNAL void simsimd_l2_f64x8_update_serial(simsimd_l2_f64x8_state_seri
                                                      simsimd_b512_vec_t b) {
     simsimd_dot_f64x8_update_serial(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_f64x8_finalize_serial(simsimd_l2_f64x8_state_serial_t const *state,
-                                                       simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                       simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_distance_t a2 = a_norm * a_norm;
-    simsimd_distance_t b2 = b_norm * b_norm;
-    simsimd_distance_t d2;
-    simsimd_dot_f64x8_finalize_serial(state, &ab);
-    d2 = a2 + b2 - 2 * ab;
-    if (d2 < 0) d2 = 0;
-    *result = SIMSIMD_SQRT(d2);
+SIMSIMD_INTERNAL void simsimd_l2_f64x8_finalize_serial(
+    simsimd_l2_f64x8_state_serial_t const *state_a, simsimd_l2_f64x8_state_serial_t const *state_b,
+    simsimd_l2_f64x8_state_serial_t const *state_c, simsimd_l2_f64x8_state_serial_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_f64x8_finalize_serial(state_a, &dot_a);
+    simsimd_dot_f64x8_finalize_serial(state_b, &dot_b);
+    simsimd_dot_f64x8_finalize_serial(state_c, &dot_c);
+    simsimd_dot_f64x8_finalize_serial(state_d, &dot_d);
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_distance_t query_norm_sq = query_norm * query_norm;
+    simsimd_distance_t target_norm_sq_a = target_norm_a * target_norm_a;
+    simsimd_distance_t target_norm_sq_b = target_norm_b * target_norm_b;
+    simsimd_distance_t target_norm_sq_c = target_norm_c * target_norm_c;
+    simsimd_distance_t target_norm_sq_d = target_norm_d * target_norm_d;
+
+    simsimd_distance_t dist_sq_a = query_norm_sq + target_norm_sq_a - 2 * dot_a;
+    simsimd_distance_t dist_sq_b = query_norm_sq + target_norm_sq_b - 2 * dot_b;
+    simsimd_distance_t dist_sq_c = query_norm_sq + target_norm_sq_c - 2 * dot_c;
+    simsimd_distance_t dist_sq_d = query_norm_sq + target_norm_sq_d - 2 * dot_d;
+
+    // Final sqrt (loop-unrolled)
+    results[0] = dist_sq_a > 0 ? SIMSIMD_SQRT(dist_sq_a) : 0;
+    results[1] = dist_sq_b > 0 ? SIMSIMD_SQRT(dist_sq_b) : 0;
+    results[2] = dist_sq_c > 0 ? SIMSIMD_SQRT(dist_sq_c) : 0;
+    results[3] = dist_sq_d > 0 ? SIMSIMD_SQRT(dist_sq_d) : 0;
 }
 
 typedef simsimd_dot_f32x16_state_serial_t simsimd_angular_f32x16_state_serial_t;
@@ -701,23 +755,56 @@ SIMSIMD_INTERNAL void simsimd_angular_f32x16_update_serial(simsimd_angular_f32x1
                                                            simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_f32x16_update_serial(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_f32x16_finalize_serial(simsimd_angular_f32x16_state_serial_t const *state,
-                                                             simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                             simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_distance_t a2 = a_norm * a_norm;
-    simsimd_distance_t b2 = b_norm * b_norm;
-    simsimd_dot_f32x16_finalize_serial(state, &ab);
-    if (a2 == 0 && b2 == 0) {
-        *result = 0;
-        return;
+SIMSIMD_INTERNAL void simsimd_angular_f32x16_finalize_serial(
+    simsimd_angular_f32x16_state_serial_t const *state_a, simsimd_angular_f32x16_state_serial_t const *state_b,
+    simsimd_angular_f32x16_state_serial_t const *state_c, simsimd_angular_f32x16_state_serial_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Get 4 dot products
+    simsimd_f32_t dots[4];
+    simsimd_dot_f32x16_finalize_serial(state_a, state_b, state_c, state_d, dots);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_distance_t query_norm_sq = query_norm * query_norm;
+    simsimd_distance_t target_norm_sq_a = target_norm_a * target_norm_a;
+    simsimd_distance_t target_norm_sq_b = target_norm_b * target_norm_b;
+    simsimd_distance_t target_norm_sq_c = target_norm_c * target_norm_c;
+    simsimd_distance_t target_norm_sq_d = target_norm_d * target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    simsimd_distance_t unclipped_a, unclipped_b, unclipped_c, unclipped_d;
+
+    if (query_norm_sq == 0 && target_norm_sq_a == 0) results[0] = 0;
+    else if (dots[0] == 0)
+        results[0] = 1;
+    else {
+        unclipped_a = 1 - dots[0] * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_a);
+        results[0] = unclipped_a > 0 ? unclipped_a : 0;
     }
-    if (ab == 0) {
-        *result = 1;
-        return;
+
+    if (query_norm_sq == 0 && target_norm_sq_b == 0) results[1] = 0;
+    else if (dots[1] == 0)
+        results[1] = 1;
+    else {
+        unclipped_b = 1 - dots[1] * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_b);
+        results[1] = unclipped_b > 0 ? unclipped_b : 0;
     }
-    simsimd_distance_t unclipped = 1 - ab * SIMSIMD_RSQRT(a2) * SIMSIMD_RSQRT(b2);
-    *result = unclipped > 0 ? unclipped : 0;
+
+    if (query_norm_sq == 0 && target_norm_sq_c == 0) results[2] = 0;
+    else if (dots[2] == 0)
+        results[2] = 1;
+    else {
+        unclipped_c = 1 - dots[2] * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_c);
+        results[2] = unclipped_c > 0 ? unclipped_c : 0;
+    }
+
+    if (query_norm_sq == 0 && target_norm_sq_d == 0) results[3] = 0;
+    else if (dots[3] == 0)
+        results[3] = 1;
+    else {
+        unclipped_d = 1 - dots[3] * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_d);
+        results[3] = unclipped_d > 0 ? unclipped_d : 0;
+    }
 }
 
 typedef simsimd_dot_f32x16_state_serial_t simsimd_l2_f32x16_state_serial_t;
@@ -728,17 +815,32 @@ SIMSIMD_INTERNAL void simsimd_l2_f32x16_update_serial(simsimd_l2_f32x16_state_se
                                                       simsimd_b512_vec_t b) {
     simsimd_dot_f32x16_update_serial(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_f32x16_finalize_serial(simsimd_l2_f32x16_state_serial_t const *state,
-                                                        simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                        simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_distance_t a2 = a_norm * a_norm;
-    simsimd_distance_t b2 = b_norm * b_norm;
-    simsimd_distance_t d2;
-    simsimd_dot_f32x16_finalize_serial(state, &ab);
-    d2 = a2 + b2 - 2 * ab;
-    if (d2 < 0) d2 = 0;
-    *result = SIMSIMD_SQRT(d2);
+SIMSIMD_INTERNAL void simsimd_l2_f32x16_finalize_serial(
+    simsimd_l2_f32x16_state_serial_t const *state_a, simsimd_l2_f32x16_state_serial_t const *state_b,
+    simsimd_l2_f32x16_state_serial_t const *state_c, simsimd_l2_f32x16_state_serial_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Get 4 dot products
+    simsimd_f32_t dots[4];
+    simsimd_dot_f32x16_finalize_serial(state_a, state_b, state_c, state_d, dots);
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_distance_t query_norm_sq = query_norm * query_norm;
+    simsimd_distance_t target_norm_sq_a = target_norm_a * target_norm_a;
+    simsimd_distance_t target_norm_sq_b = target_norm_b * target_norm_b;
+    simsimd_distance_t target_norm_sq_c = target_norm_c * target_norm_c;
+    simsimd_distance_t target_norm_sq_d = target_norm_d * target_norm_d;
+
+    simsimd_distance_t dist_sq_a = query_norm_sq + target_norm_sq_a - 2 * dots[0];
+    simsimd_distance_t dist_sq_b = query_norm_sq + target_norm_sq_b - 2 * dots[1];
+    simsimd_distance_t dist_sq_c = query_norm_sq + target_norm_sq_c - 2 * dots[2];
+    simsimd_distance_t dist_sq_d = query_norm_sq + target_norm_sq_d - 2 * dots[3];
+
+    // Final sqrt (loop-unrolled)
+    results[0] = dist_sq_a > 0 ? SIMSIMD_SQRT(dist_sq_a) : 0;
+    results[1] = dist_sq_b > 0 ? SIMSIMD_SQRT(dist_sq_b) : 0;
+    results[2] = dist_sq_c > 0 ? SIMSIMD_SQRT(dist_sq_c) : 0;
+    results[3] = dist_sq_d > 0 ? SIMSIMD_SQRT(dist_sq_d) : 0;
 }
 
 typedef simsimd_dot_f16x32_state_serial_t simsimd_angular_f16x32_state_serial_t;
@@ -749,23 +851,59 @@ SIMSIMD_INTERNAL void simsimd_angular_f16x32_update_serial(simsimd_angular_f16x3
                                                            simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_f16x32_update_serial(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_f16x32_finalize_serial(simsimd_angular_f16x32_state_serial_t const *state,
-                                                             simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                             simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_distance_t a2 = a_norm * a_norm;
-    simsimd_distance_t b2 = b_norm * b_norm;
-    simsimd_dot_f16x32_finalize_serial(state, &ab);
-    if (a2 == 0 && b2 == 0) {
-        *result = 0;
-        return;
+SIMSIMD_INTERNAL void simsimd_angular_f16x32_finalize_serial(
+    simsimd_angular_f16x32_state_serial_t const *state_a, simsimd_angular_f16x32_state_serial_t const *state_b,
+    simsimd_angular_f16x32_state_serial_t const *state_c, simsimd_angular_f16x32_state_serial_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_f16x32_finalize_serial(state_a, &dot_a);
+    simsimd_dot_f16x32_finalize_serial(state_b, &dot_b);
+    simsimd_dot_f16x32_finalize_serial(state_c, &dot_c);
+    simsimd_dot_f16x32_finalize_serial(state_d, &dot_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_distance_t query_norm_sq = query_norm * query_norm;
+    simsimd_distance_t target_norm_sq_a = target_norm_a * target_norm_a;
+    simsimd_distance_t target_norm_sq_b = target_norm_b * target_norm_b;
+    simsimd_distance_t target_norm_sq_c = target_norm_c * target_norm_c;
+    simsimd_distance_t target_norm_sq_d = target_norm_d * target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    simsimd_distance_t unclipped_a, unclipped_b, unclipped_c, unclipped_d;
+
+    if (query_norm_sq == 0 && target_norm_sq_a == 0) results[0] = 0;
+    else if (dot_a == 0)
+        results[0] = 1;
+    else {
+        unclipped_a = 1 - dot_a * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_a);
+        results[0] = unclipped_a > 0 ? unclipped_a : 0;
     }
-    if (ab == 0) {
-        *result = 1;
-        return;
+
+    if (query_norm_sq == 0 && target_norm_sq_b == 0) results[1] = 0;
+    else if (dot_b == 0)
+        results[1] = 1;
+    else {
+        unclipped_b = 1 - dot_b * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_b);
+        results[1] = unclipped_b > 0 ? unclipped_b : 0;
     }
-    simsimd_distance_t unclipped = 1 - ab * SIMSIMD_RSQRT(a2) * SIMSIMD_RSQRT(b2);
-    *result = unclipped > 0 ? unclipped : 0;
+
+    if (query_norm_sq == 0 && target_norm_sq_c == 0) results[2] = 0;
+    else if (dot_c == 0)
+        results[2] = 1;
+    else {
+        unclipped_c = 1 - dot_c * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_c);
+        results[2] = unclipped_c > 0 ? unclipped_c : 0;
+    }
+
+    if (query_norm_sq == 0 && target_norm_sq_d == 0) results[3] = 0;
+    else if (dot_d == 0)
+        results[3] = 1;
+    else {
+        unclipped_d = 1 - dot_d * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_d);
+        results[3] = unclipped_d > 0 ? unclipped_d : 0;
+    }
 }
 
 typedef simsimd_dot_f16x32_state_serial_t simsimd_l2_f16x32_state_serial_t;
@@ -776,17 +914,35 @@ SIMSIMD_INTERNAL void simsimd_l2_f16x32_update_serial(simsimd_l2_f16x32_state_se
                                                       simsimd_b512_vec_t b) {
     simsimd_dot_f16x32_update_serial(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_f16x32_finalize_serial(simsimd_l2_f16x32_state_serial_t const *state,
-                                                        simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                        simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_distance_t a2 = a_norm * a_norm;
-    simsimd_distance_t b2 = b_norm * b_norm;
-    simsimd_distance_t d2;
-    simsimd_dot_f16x32_finalize_serial(state, &ab);
-    d2 = a2 + b2 - 2 * ab;
-    if (d2 < 0) d2 = 0;
-    *result = SIMSIMD_SQRT(d2);
+SIMSIMD_INTERNAL void simsimd_l2_f16x32_finalize_serial(
+    simsimd_l2_f16x32_state_serial_t const *state_a, simsimd_l2_f16x32_state_serial_t const *state_b,
+    simsimd_l2_f16x32_state_serial_t const *state_c, simsimd_l2_f16x32_state_serial_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_f16x32_finalize_serial(state_a, &dot_a);
+    simsimd_dot_f16x32_finalize_serial(state_b, &dot_b);
+    simsimd_dot_f16x32_finalize_serial(state_c, &dot_c);
+    simsimd_dot_f16x32_finalize_serial(state_d, &dot_d);
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_distance_t query_norm_sq = query_norm * query_norm;
+    simsimd_distance_t target_norm_sq_a = target_norm_a * target_norm_a;
+    simsimd_distance_t target_norm_sq_b = target_norm_b * target_norm_b;
+    simsimd_distance_t target_norm_sq_c = target_norm_c * target_norm_c;
+    simsimd_distance_t target_norm_sq_d = target_norm_d * target_norm_d;
+
+    simsimd_distance_t dist_sq_a = query_norm_sq + target_norm_sq_a - 2 * dot_a;
+    simsimd_distance_t dist_sq_b = query_norm_sq + target_norm_sq_b - 2 * dot_b;
+    simsimd_distance_t dist_sq_c = query_norm_sq + target_norm_sq_c - 2 * dot_c;
+    simsimd_distance_t dist_sq_d = query_norm_sq + target_norm_sq_d - 2 * dot_d;
+
+    // Final sqrt (loop-unrolled)
+    results[0] = dist_sq_a > 0 ? SIMSIMD_SQRT(dist_sq_a) : 0;
+    results[1] = dist_sq_b > 0 ? SIMSIMD_SQRT(dist_sq_b) : 0;
+    results[2] = dist_sq_c > 0 ? SIMSIMD_SQRT(dist_sq_c) : 0;
+    results[3] = dist_sq_d > 0 ? SIMSIMD_SQRT(dist_sq_d) : 0;
 }
 
 typedef simsimd_dot_bf16x32_state_serial_t simsimd_angular_bf16x32_state_serial_t;
@@ -797,23 +953,59 @@ SIMSIMD_INTERNAL void simsimd_angular_bf16x32_update_serial(simsimd_angular_bf16
                                                             simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_bf16x32_update_serial(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_bf16x32_finalize_serial(simsimd_angular_bf16x32_state_serial_t const *state,
-                                                              simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                              simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_distance_t a2 = a_norm * a_norm;
-    simsimd_distance_t b2 = b_norm * b_norm;
-    simsimd_dot_bf16x32_finalize_serial(state, &ab);
-    if (a2 == 0 && b2 == 0) {
-        *result = 0;
-        return;
+SIMSIMD_INTERNAL void simsimd_angular_bf16x32_finalize_serial(
+    simsimd_angular_bf16x32_state_serial_t const *state_a, simsimd_angular_bf16x32_state_serial_t const *state_b,
+    simsimd_angular_bf16x32_state_serial_t const *state_c, simsimd_angular_bf16x32_state_serial_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_bf16x32_finalize_serial(state_a, &dot_a);
+    simsimd_dot_bf16x32_finalize_serial(state_b, &dot_b);
+    simsimd_dot_bf16x32_finalize_serial(state_c, &dot_c);
+    simsimd_dot_bf16x32_finalize_serial(state_d, &dot_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_distance_t query_norm_sq = query_norm * query_norm;
+    simsimd_distance_t target_norm_sq_a = target_norm_a * target_norm_a;
+    simsimd_distance_t target_norm_sq_b = target_norm_b * target_norm_b;
+    simsimd_distance_t target_norm_sq_c = target_norm_c * target_norm_c;
+    simsimd_distance_t target_norm_sq_d = target_norm_d * target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    simsimd_distance_t unclipped_a, unclipped_b, unclipped_c, unclipped_d;
+
+    if (query_norm_sq == 0 && target_norm_sq_a == 0) results[0] = 0;
+    else if (dot_a == 0)
+        results[0] = 1;
+    else {
+        unclipped_a = 1 - dot_a * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_a);
+        results[0] = unclipped_a > 0 ? unclipped_a : 0;
     }
-    if (ab == 0) {
-        *result = 1;
-        return;
+
+    if (query_norm_sq == 0 && target_norm_sq_b == 0) results[1] = 0;
+    else if (dot_b == 0)
+        results[1] = 1;
+    else {
+        unclipped_b = 1 - dot_b * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_b);
+        results[1] = unclipped_b > 0 ? unclipped_b : 0;
     }
-    simsimd_distance_t unclipped = 1 - ab * SIMSIMD_RSQRT(a2) * SIMSIMD_RSQRT(b2);
-    *result = unclipped > 0 ? unclipped : 0;
+
+    if (query_norm_sq == 0 && target_norm_sq_c == 0) results[2] = 0;
+    else if (dot_c == 0)
+        results[2] = 1;
+    else {
+        unclipped_c = 1 - dot_c * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_c);
+        results[2] = unclipped_c > 0 ? unclipped_c : 0;
+    }
+
+    if (query_norm_sq == 0 && target_norm_sq_d == 0) results[3] = 0;
+    else if (dot_d == 0)
+        results[3] = 1;
+    else {
+        unclipped_d = 1 - dot_d * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_d);
+        results[3] = unclipped_d > 0 ? unclipped_d : 0;
+    }
 }
 
 typedef simsimd_dot_bf16x32_state_serial_t simsimd_l2_bf16x32_state_serial_t;
@@ -824,17 +1016,35 @@ SIMSIMD_INTERNAL void simsimd_l2_bf16x32_update_serial(simsimd_l2_bf16x32_state_
                                                        simsimd_b512_vec_t b) {
     simsimd_dot_bf16x32_update_serial(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_bf16x32_finalize_serial(simsimd_l2_bf16x32_state_serial_t const *state,
-                                                         simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                         simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_distance_t a2 = a_norm * a_norm;
-    simsimd_distance_t b2 = b_norm * b_norm;
-    simsimd_distance_t d2;
-    simsimd_dot_bf16x32_finalize_serial(state, &ab);
-    d2 = a2 + b2 - 2 * ab;
-    if (d2 < 0) d2 = 0;
-    *result = SIMSIMD_SQRT(d2);
+SIMSIMD_INTERNAL void simsimd_l2_bf16x32_finalize_serial(
+    simsimd_l2_bf16x32_state_serial_t const *state_a, simsimd_l2_bf16x32_state_serial_t const *state_b,
+    simsimd_l2_bf16x32_state_serial_t const *state_c, simsimd_l2_bf16x32_state_serial_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_bf16x32_finalize_serial(state_a, &dot_a);
+    simsimd_dot_bf16x32_finalize_serial(state_b, &dot_b);
+    simsimd_dot_bf16x32_finalize_serial(state_c, &dot_c);
+    simsimd_dot_bf16x32_finalize_serial(state_d, &dot_d);
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_distance_t query_norm_sq = query_norm * query_norm;
+    simsimd_distance_t target_norm_sq_a = target_norm_a * target_norm_a;
+    simsimd_distance_t target_norm_sq_b = target_norm_b * target_norm_b;
+    simsimd_distance_t target_norm_sq_c = target_norm_c * target_norm_c;
+    simsimd_distance_t target_norm_sq_d = target_norm_d * target_norm_d;
+
+    simsimd_distance_t dist_sq_a = query_norm_sq + target_norm_sq_a - 2 * dot_a;
+    simsimd_distance_t dist_sq_b = query_norm_sq + target_norm_sq_b - 2 * dot_b;
+    simsimd_distance_t dist_sq_c = query_norm_sq + target_norm_sq_c - 2 * dot_c;
+    simsimd_distance_t dist_sq_d = query_norm_sq + target_norm_sq_d - 2 * dot_d;
+
+    // Final sqrt (loop-unrolled)
+    results[0] = dist_sq_a > 0 ? SIMSIMD_SQRT(dist_sq_a) : 0;
+    results[1] = dist_sq_b > 0 ? SIMSIMD_SQRT(dist_sq_b) : 0;
+    results[2] = dist_sq_c > 0 ? SIMSIMD_SQRT(dist_sq_c) : 0;
+    results[3] = dist_sq_d > 0 ? SIMSIMD_SQRT(dist_sq_d) : 0;
 }
 
 typedef simsimd_dot_i8x64_state_serial_t simsimd_angular_i8x64_state_serial_t;
@@ -845,23 +1055,59 @@ SIMSIMD_INTERNAL void simsimd_angular_i8x64_update_serial(simsimd_angular_i8x64_
                                                           simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_i8x64_update_serial(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_i8x64_finalize_serial(simsimd_angular_i8x64_state_serial_t const *state,
-                                                            simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                            simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_distance_t a2 = a_norm * a_norm;
-    simsimd_distance_t b2 = b_norm * b_norm;
-    simsimd_dot_i8x64_finalize_serial(state, &ab);
-    if (a2 == 0 && b2 == 0) {
-        *result = 0;
-        return;
+SIMSIMD_INTERNAL void simsimd_angular_i8x64_finalize_serial(
+    simsimd_angular_i8x64_state_serial_t const *state_a, simsimd_angular_i8x64_state_serial_t const *state_b,
+    simsimd_angular_i8x64_state_serial_t const *state_c, simsimd_angular_i8x64_state_serial_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_i8x64_finalize_serial(state_a, &dot_a);
+    simsimd_dot_i8x64_finalize_serial(state_b, &dot_b);
+    simsimd_dot_i8x64_finalize_serial(state_c, &dot_c);
+    simsimd_dot_i8x64_finalize_serial(state_d, &dot_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_distance_t query_norm_sq = query_norm * query_norm;
+    simsimd_distance_t target_norm_sq_a = target_norm_a * target_norm_a;
+    simsimd_distance_t target_norm_sq_b = target_norm_b * target_norm_b;
+    simsimd_distance_t target_norm_sq_c = target_norm_c * target_norm_c;
+    simsimd_distance_t target_norm_sq_d = target_norm_d * target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    simsimd_distance_t unclipped_a, unclipped_b, unclipped_c, unclipped_d;
+
+    if (query_norm_sq == 0 && target_norm_sq_a == 0) results[0] = 0;
+    else if (dot_a == 0)
+        results[0] = 1;
+    else {
+        unclipped_a = 1 - dot_a * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_a);
+        results[0] = unclipped_a > 0 ? unclipped_a : 0;
     }
-    if (ab == 0) {
-        *result = 1;
-        return;
+
+    if (query_norm_sq == 0 && target_norm_sq_b == 0) results[1] = 0;
+    else if (dot_b == 0)
+        results[1] = 1;
+    else {
+        unclipped_b = 1 - dot_b * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_b);
+        results[1] = unclipped_b > 0 ? unclipped_b : 0;
     }
-    simsimd_distance_t unclipped = 1 - ab * SIMSIMD_RSQRT(a2) * SIMSIMD_RSQRT(b2);
-    *result = unclipped > 0 ? unclipped : 0;
+
+    if (query_norm_sq == 0 && target_norm_sq_c == 0) results[2] = 0;
+    else if (dot_c == 0)
+        results[2] = 1;
+    else {
+        unclipped_c = 1 - dot_c * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_c);
+        results[2] = unclipped_c > 0 ? unclipped_c : 0;
+    }
+
+    if (query_norm_sq == 0 && target_norm_sq_d == 0) results[3] = 0;
+    else if (dot_d == 0)
+        results[3] = 1;
+    else {
+        unclipped_d = 1 - dot_d * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_d);
+        results[3] = unclipped_d > 0 ? unclipped_d : 0;
+    }
 }
 
 typedef simsimd_dot_i8x64_state_serial_t simsimd_l2_i8x64_state_serial_t;
@@ -872,17 +1118,35 @@ SIMSIMD_INTERNAL void simsimd_l2_i8x64_update_serial(simsimd_l2_i8x64_state_seri
                                                      simsimd_b512_vec_t b) {
     simsimd_dot_i8x64_update_serial(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_i8x64_finalize_serial(simsimd_l2_i8x64_state_serial_t const *state,
-                                                       simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                       simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_distance_t a2 = a_norm * a_norm;
-    simsimd_distance_t b2 = b_norm * b_norm;
-    simsimd_distance_t d2;
-    simsimd_dot_i8x64_finalize_serial(state, &ab);
-    d2 = a2 + b2 - 2 * ab;
-    if (d2 < 0) d2 = 0;
-    *result = SIMSIMD_SQRT(d2);
+SIMSIMD_INTERNAL void simsimd_l2_i8x64_finalize_serial(
+    simsimd_l2_i8x64_state_serial_t const *state_a, simsimd_l2_i8x64_state_serial_t const *state_b,
+    simsimd_l2_i8x64_state_serial_t const *state_c, simsimd_l2_i8x64_state_serial_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_i8x64_finalize_serial(state_a, &dot_a);
+    simsimd_dot_i8x64_finalize_serial(state_b, &dot_b);
+    simsimd_dot_i8x64_finalize_serial(state_c, &dot_c);
+    simsimd_dot_i8x64_finalize_serial(state_d, &dot_d);
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_distance_t query_norm_sq = query_norm * query_norm;
+    simsimd_distance_t target_norm_sq_a = target_norm_a * target_norm_a;
+    simsimd_distance_t target_norm_sq_b = target_norm_b * target_norm_b;
+    simsimd_distance_t target_norm_sq_c = target_norm_c * target_norm_c;
+    simsimd_distance_t target_norm_sq_d = target_norm_d * target_norm_d;
+
+    simsimd_distance_t dist_sq_a = query_norm_sq + target_norm_sq_a - 2 * dot_a;
+    simsimd_distance_t dist_sq_b = query_norm_sq + target_norm_sq_b - 2 * dot_b;
+    simsimd_distance_t dist_sq_c = query_norm_sq + target_norm_sq_c - 2 * dot_c;
+    simsimd_distance_t dist_sq_d = query_norm_sq + target_norm_sq_d - 2 * dot_d;
+
+    // Final sqrt (loop-unrolled)
+    results[0] = dist_sq_a > 0 ? SIMSIMD_SQRT(dist_sq_a) : 0;
+    results[1] = dist_sq_b > 0 ? SIMSIMD_SQRT(dist_sq_b) : 0;
+    results[2] = dist_sq_c > 0 ? SIMSIMD_SQRT(dist_sq_c) : 0;
+    results[3] = dist_sq_d > 0 ? SIMSIMD_SQRT(dist_sq_d) : 0;
 }
 
 typedef simsimd_dot_u8x64_state_serial_t simsimd_angular_u8x64_state_serial_t;
@@ -893,23 +1157,59 @@ SIMSIMD_INTERNAL void simsimd_angular_u8x64_update_serial(simsimd_angular_u8x64_
                                                           simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_u8x64_update_serial(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_u8x64_finalize_serial(simsimd_angular_u8x64_state_serial_t const *state,
-                                                            simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                            simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_distance_t a2 = a_norm * a_norm;
-    simsimd_distance_t b2 = b_norm * b_norm;
-    simsimd_dot_u8x64_finalize_serial(state, &ab);
-    if (a2 == 0 && b2 == 0) {
-        *result = 0;
-        return;
+SIMSIMD_INTERNAL void simsimd_angular_u8x64_finalize_serial(
+    simsimd_angular_u8x64_state_serial_t const *state_a, simsimd_angular_u8x64_state_serial_t const *state_b,
+    simsimd_angular_u8x64_state_serial_t const *state_c, simsimd_angular_u8x64_state_serial_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_u8x64_finalize_serial(state_a, &dot_a);
+    simsimd_dot_u8x64_finalize_serial(state_b, &dot_b);
+    simsimd_dot_u8x64_finalize_serial(state_c, &dot_c);
+    simsimd_dot_u8x64_finalize_serial(state_d, &dot_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_distance_t query_norm_sq = query_norm * query_norm;
+    simsimd_distance_t target_norm_sq_a = target_norm_a * target_norm_a;
+    simsimd_distance_t target_norm_sq_b = target_norm_b * target_norm_b;
+    simsimd_distance_t target_norm_sq_c = target_norm_c * target_norm_c;
+    simsimd_distance_t target_norm_sq_d = target_norm_d * target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    simsimd_distance_t unclipped_a, unclipped_b, unclipped_c, unclipped_d;
+
+    if (query_norm_sq == 0 && target_norm_sq_a == 0) results[0] = 0;
+    else if (dot_a == 0)
+        results[0] = 1;
+    else {
+        unclipped_a = 1 - dot_a * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_a);
+        results[0] = unclipped_a > 0 ? unclipped_a : 0;
     }
-    if (ab == 0) {
-        *result = 1;
-        return;
+
+    if (query_norm_sq == 0 && target_norm_sq_b == 0) results[1] = 0;
+    else if (dot_b == 0)
+        results[1] = 1;
+    else {
+        unclipped_b = 1 - dot_b * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_b);
+        results[1] = unclipped_b > 0 ? unclipped_b : 0;
     }
-    simsimd_distance_t unclipped = 1 - ab * SIMSIMD_RSQRT(a2) * SIMSIMD_RSQRT(b2);
-    *result = unclipped > 0 ? unclipped : 0;
+
+    if (query_norm_sq == 0 && target_norm_sq_c == 0) results[2] = 0;
+    else if (dot_c == 0)
+        results[2] = 1;
+    else {
+        unclipped_c = 1 - dot_c * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_c);
+        results[2] = unclipped_c > 0 ? unclipped_c : 0;
+    }
+
+    if (query_norm_sq == 0 && target_norm_sq_d == 0) results[3] = 0;
+    else if (dot_d == 0)
+        results[3] = 1;
+    else {
+        unclipped_d = 1 - dot_d * SIMSIMD_RSQRT(query_norm_sq) * SIMSIMD_RSQRT(target_norm_sq_d);
+        results[3] = unclipped_d > 0 ? unclipped_d : 0;
+    }
 }
 
 typedef simsimd_dot_u8x64_state_serial_t simsimd_l2_u8x64_state_serial_t;
@@ -920,17 +1220,35 @@ SIMSIMD_INTERNAL void simsimd_l2_u8x64_update_serial(simsimd_l2_u8x64_state_seri
                                                      simsimd_b512_vec_t b) {
     simsimd_dot_u8x64_update_serial(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_u8x64_finalize_serial(simsimd_l2_u8x64_state_serial_t const *state,
-                                                       simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                       simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_distance_t a2 = a_norm * a_norm;
-    simsimd_distance_t b2 = b_norm * b_norm;
-    simsimd_distance_t d2;
-    simsimd_dot_u8x64_finalize_serial(state, &ab);
-    d2 = a2 + b2 - 2 * ab;
-    if (d2 < 0) d2 = 0;
-    *result = SIMSIMD_SQRT(d2);
+SIMSIMD_INTERNAL void simsimd_l2_u8x64_finalize_serial(
+    simsimd_l2_u8x64_state_serial_t const *state_a, simsimd_l2_u8x64_state_serial_t const *state_b,
+    simsimd_l2_u8x64_state_serial_t const *state_c, simsimd_l2_u8x64_state_serial_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_u8x64_finalize_serial(state_a, &dot_a);
+    simsimd_dot_u8x64_finalize_serial(state_b, &dot_b);
+    simsimd_dot_u8x64_finalize_serial(state_c, &dot_c);
+    simsimd_dot_u8x64_finalize_serial(state_d, &dot_d);
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_distance_t query_norm_sq = query_norm * query_norm;
+    simsimd_distance_t target_norm_sq_a = target_norm_a * target_norm_a;
+    simsimd_distance_t target_norm_sq_b = target_norm_b * target_norm_b;
+    simsimd_distance_t target_norm_sq_c = target_norm_c * target_norm_c;
+    simsimd_distance_t target_norm_sq_d = target_norm_d * target_norm_d;
+
+    simsimd_distance_t dist_sq_a = query_norm_sq + target_norm_sq_a - 2 * dot_a;
+    simsimd_distance_t dist_sq_b = query_norm_sq + target_norm_sq_b - 2 * dot_b;
+    simsimd_distance_t dist_sq_c = query_norm_sq + target_norm_sq_c - 2 * dot_c;
+    simsimd_distance_t dist_sq_d = query_norm_sq + target_norm_sq_d - 2 * dot_d;
+
+    // Final sqrt (loop-unrolled)
+    results[0] = dist_sq_a > 0 ? SIMSIMD_SQRT(dist_sq_a) : 0;
+    results[1] = dist_sq_b > 0 ? SIMSIMD_SQRT(dist_sq_b) : 0;
+    results[2] = dist_sq_c > 0 ? SIMSIMD_SQRT(dist_sq_c) : 0;
+    results[3] = dist_sq_d > 0 ? SIMSIMD_SQRT(dist_sq_d) : 0;
 }
 
 #if _SIMSIMD_TARGET_ARM
@@ -947,8 +1265,8 @@ SIMSIMD_INTERNAL simsimd_f64_t _simsimd_sqrt_f64_neon(simsimd_f64_t x) {
 }
 SIMSIMD_INTERNAL simsimd_distance_t _simsimd_angular_normalize_f32_neon(simsimd_f32_t ab, simsimd_f32_t a2,
                                                                         simsimd_f32_t b2) {
-    if (a2 == 0 && b2 == 0) return 0;
-    if (ab == 0) return 1;
+    if (query_norm_sq == 0 && target_norm_sq == 0) return 0;
+    if (dot_product == 0) return 1;
     simsimd_f32_t squares_arr[2] = {a2, b2};
     float32x2_t squares = vld1_f32(squares_arr);
     // Unlike x86, Arm NEON manuals don't explicitly mention the accuracy of their `rsqrt` approximation.
@@ -962,14 +1280,14 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_angular_normalize_f32_neon(simsimd_
     rsqrts = vmul_f32(rsqrts, vrsqrts_f32(vmul_f32(squares, rsqrts), rsqrts));
     rsqrts = vmul_f32(rsqrts, vrsqrts_f32(vmul_f32(squares, rsqrts), rsqrts));
     vst1_f32(squares_arr, rsqrts);
-    simsimd_distance_t result = 1 - ab * squares_arr[0] * squares_arr[1];
+    simsimd_distance_t result = 1 - dot_product * squares_arr[0] * squares_arr[1];
     return result > 0 ? result : 0;
 }
 
 SIMSIMD_INTERNAL simsimd_distance_t _simsimd_angular_normalize_f64_neon(simsimd_f64_t ab, simsimd_f64_t a2,
                                                                         simsimd_f64_t b2) {
-    if (a2 == 0 && b2 == 0) return 0;
-    if (ab == 0) return 1;
+    if (query_norm_sq == 0 && target_norm_sq == 0) return 0;
+    if (dot_product == 0) return 1;
     simsimd_f64_t squares_arr[2] = {a2, b2};
     float64x2_t squares = vld1q_f64(squares_arr);
 
@@ -984,7 +1302,7 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_angular_normalize_f64_neon(simsimd_
     rsqrts = vmulq_f64(rsqrts, vrsqrtsq_f64(vmulq_f64(squares, rsqrts), rsqrts));
     rsqrts = vmulq_f64(rsqrts, vrsqrtsq_f64(vmulq_f64(squares, rsqrts), rsqrts));
     vst1q_f64(squares_arr, rsqrts);
-    simsimd_distance_t result = 1 - ab * squares_arr[0] * squares_arr[1];
+    simsimd_distance_t result = 1 - dot_product * squares_arr[0] * squares_arr[1];
     return result > 0 ? result : 0;
 }
 
@@ -1082,14 +1400,30 @@ SIMSIMD_INTERNAL void simsimd_angular_f32x16_update_neon(simsimd_angular_f32x16_
                                                          simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_f32x16_update_neon(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_f32x16_finalize_neon(simsimd_angular_f32x16_state_neon_t const *state,
-                                                           simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                           simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f64_t a2 = (simsimd_f64_t)a_norm * (simsimd_f64_t)a_norm;
-    simsimd_f64_t b2 = (simsimd_f64_t)b_norm * (simsimd_f64_t)b_norm;
-    simsimd_dot_f32x16_finalize_neon(state, &ab);
-    *result = _simsimd_angular_normalize_f64_neon((simsimd_f64_t)ab, a2, b2);
+SIMSIMD_INTERNAL void simsimd_angular_f32x16_finalize_neon(
+    simsimd_angular_f32x16_state_neon_t const *state_a, simsimd_angular_f32x16_state_neon_t const *state_b,
+    simsimd_angular_f32x16_state_neon_t const *state_c, simsimd_angular_f32x16_state_neon_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_f32x16_finalize_neon(state_a, &dot_a);
+    simsimd_dot_f32x16_finalize_neon(state_b, &dot_b);
+    simsimd_dot_f32x16_finalize_neon(state_c, &dot_c);
+    simsimd_dot_f32x16_finalize_neon(state_d, &dot_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f64_t query_norm_sq = (simsimd_f64_t)query_norm * (simsimd_f64_t)query_norm;
+    simsimd_f64_t target_norm_sq_a = (simsimd_f64_t)target_norm_a * (simsimd_f64_t)target_norm_a;
+    simsimd_f64_t target_norm_sq_b = (simsimd_f64_t)target_norm_b * (simsimd_f64_t)target_norm_b;
+    simsimd_f64_t target_norm_sq_c = (simsimd_f64_t)target_norm_c * (simsimd_f64_t)target_norm_c;
+    simsimd_f64_t target_norm_sq_d = (simsimd_f64_t)target_norm_d * (simsimd_f64_t)target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    results[0] = _simsimd_angular_normalize_f64_neon((simsimd_f64_t)dot_a, query_norm_sq, target_norm_sq_a);
+    results[1] = _simsimd_angular_normalize_f64_neon((simsimd_f64_t)dot_b, query_norm_sq, target_norm_sq_b);
+    results[2] = _simsimd_angular_normalize_f64_neon((simsimd_f64_t)dot_c, query_norm_sq, target_norm_sq_c);
+    results[3] = _simsimd_angular_normalize_f64_neon((simsimd_f64_t)dot_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef simsimd_dot_f32x16_state_neon_t simsimd_l2_f32x16_state_neon_t;
@@ -1100,17 +1434,44 @@ SIMSIMD_INTERNAL void simsimd_l2_f32x16_update_neon(simsimd_l2_f32x16_state_neon
                                                     simsimd_b512_vec_t b) {
     simsimd_dot_f32x16_update_neon(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_f32x16_finalize_neon(simsimd_l2_f32x16_state_neon_t const *state,
-                                                      simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                      simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f64_t a2 = (simsimd_f64_t)a_norm * (simsimd_f64_t)a_norm;
-    simsimd_f64_t b2 = (simsimd_f64_t)b_norm * (simsimd_f64_t)b_norm;
-    simsimd_f64_t d2;
-    simsimd_dot_f32x16_finalize_neon(state, &ab);
-    d2 = a2 + b2 - (simsimd_f64_t)2 * (simsimd_f64_t)ab;
-    if (d2 < 0) d2 = 0;
-    *result = _simsimd_sqrt_f64_neon(d2);
+SIMSIMD_INTERNAL void simsimd_l2_f32x16_finalize_neon(
+    simsimd_l2_f32x16_state_neon_t const *state_a, simsimd_l2_f32x16_state_neon_t const *state_b,
+    simsimd_l2_f32x16_state_neon_t const *state_c, simsimd_l2_f32x16_state_neon_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_f32x16_finalize_neon(state_a, &dot_a);
+    simsimd_dot_f32x16_finalize_neon(state_b, &dot_b);
+    simsimd_dot_f32x16_finalize_neon(state_c, &dot_c);
+    simsimd_dot_f32x16_finalize_neon(state_d, &dot_d);
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_f64_t query_norm_sq = (simsimd_f64_t)query_norm * (simsimd_f64_t)query_norm;
+    simsimd_f64_t target_norm_sq_a = (simsimd_f64_t)target_norm_a * (simsimd_f64_t)target_norm_a;
+    simsimd_f64_t target_norm_sq_b = (simsimd_f64_t)target_norm_b * (simsimd_f64_t)target_norm_b;
+    simsimd_f64_t target_norm_sq_c = (simsimd_f64_t)target_norm_c * (simsimd_f64_t)target_norm_c;
+    simsimd_f64_t target_norm_sq_d = (simsimd_f64_t)target_norm_d * (simsimd_f64_t)target_norm_d;
+
+    simsimd_f64_t dist_sq_a = query_norm_sq + target_norm_sq_a - (simsimd_f64_t)2 * (simsimd_f64_t)dot_a;
+    simsimd_f64_t dist_sq_b = query_norm_sq + target_norm_sq_b - (simsimd_f64_t)2 * (simsimd_f64_t)dot_b;
+    simsimd_f64_t dist_sq_c = query_norm_sq + target_norm_sq_c - (simsimd_f64_t)2 * (simsimd_f64_t)dot_c;
+    simsimd_f64_t dist_sq_d = query_norm_sq + target_norm_sq_d - (simsimd_f64_t)2 * (simsimd_f64_t)dot_d;
+
+    // Use 4-way SIMD sqrt
+    float64x2_t dist_sq_ab = {dist_sq_a < 0 ? 0 : dist_sq_a, dist_sq_b < 0 ? 0 : dist_sq_b};
+    float64x2_t dist_sq_cd = {dist_sq_c < 0 ? 0 : dist_sq_c, dist_sq_d < 0 ? 0 : dist_sq_d};
+    float64x2_t dist_ab = vsqrtq_f64(dist_sq_ab);
+    float64x2_t dist_cd = vsqrtq_f64(dist_sq_cd);
+
+    // Store results using simsimd_b512_vec_t
+    simsimd_b512_vec_t u;
+    u.u64x2s[0] = vreinterpretq_u64_f64(dist_ab);
+    u.u64x2s[1] = vreinterpretq_u64_f64(dist_cd);
+    results[0] = u.f64s[0];
+    results[1] = u.f64s[1];
+    results[2] = u.f64s[2];
+    results[3] = u.f64s[3];
 }
 
 #pragma clang attribute pop
@@ -1183,14 +1544,30 @@ SIMSIMD_INTERNAL void simsimd_angular_f16x32_update_neon(simsimd_angular_f16x32_
                                                          simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_f16x32_update_neon(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_f16x32_finalize_neon(simsimd_angular_f16x32_state_neon_t const *state,
-                                                           simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                           simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_dot_f16x32_finalize_neon(state, &ab);
-    *result = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)ab, a2, b2);
+SIMSIMD_INTERNAL void simsimd_angular_f16x32_finalize_neon(
+    simsimd_angular_f16x32_state_neon_t const *state_a, simsimd_angular_f16x32_state_neon_t const *state_b,
+    simsimd_angular_f16x32_state_neon_t const *state_c, simsimd_angular_f16x32_state_neon_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_f16x32_finalize_neon(state_a, &dot_a);
+    simsimd_dot_f16x32_finalize_neon(state_b, &dot_b);
+    simsimd_dot_f16x32_finalize_neon(state_c, &dot_c);
+    simsimd_dot_f16x32_finalize_neon(state_d, &dot_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    results[0] = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)dot_a, query_norm_sq, target_norm_sq_a);
+    results[1] = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)dot_b, query_norm_sq, target_norm_sq_b);
+    results[2] = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)dot_c, query_norm_sq, target_norm_sq_c);
+    results[3] = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)dot_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef simsimd_dot_f16x32_state_neon_t simsimd_l2_f16x32_state_neon_t;
@@ -1201,17 +1578,42 @@ SIMSIMD_INTERNAL void simsimd_l2_f16x32_update_neon(simsimd_l2_f16x32_state_neon
                                                     simsimd_b512_vec_t b) {
     simsimd_dot_f16x32_update_neon(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_f16x32_finalize_neon(simsimd_l2_f16x32_state_neon_t const *state,
-                                                      simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                      simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_f32_t d2;
-    simsimd_dot_f16x32_finalize_neon(state, &ab);
-    d2 = a2 + b2 - (simsimd_f32_t)2 * (simsimd_f32_t)ab;
-    if (d2 < 0) d2 = 0;
-    *result = _simsimd_sqrt_f32_neon(d2);
+SIMSIMD_INTERNAL void simsimd_l2_f16x32_finalize_neon(
+    simsimd_l2_f16x32_state_neon_t const *state_a, simsimd_l2_f16x32_state_neon_t const *state_b,
+    simsimd_l2_f16x32_state_neon_t const *state_c, simsimd_l2_f16x32_state_neon_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_f16x32_finalize_neon(state_a, &dot_a);
+    simsimd_dot_f16x32_finalize_neon(state_b, &dot_b);
+    simsimd_dot_f16x32_finalize_neon(state_c, &dot_c);
+    simsimd_dot_f16x32_finalize_neon(state_d, &dot_d);
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    simsimd_f32_t dist_sq_a = query_norm_sq + target_norm_sq_a - (simsimd_f32_t)2 * (simsimd_f32_t)dot_a;
+    simsimd_f32_t dist_sq_b = query_norm_sq + target_norm_sq_b - (simsimd_f32_t)2 * (simsimd_f32_t)dot_b;
+    simsimd_f32_t dist_sq_c = query_norm_sq + target_norm_sq_c - (simsimd_f32_t)2 * (simsimd_f32_t)dot_c;
+    simsimd_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - (simsimd_f32_t)2 * (simsimd_f32_t)dot_d;
+
+    // Use 4-way SIMD sqrt
+    float32x4_t dist_sq_vec = {dist_sq_a < 0 ? 0 : dist_sq_a, dist_sq_b < 0 ? 0 : dist_sq_b,
+                               dist_sq_c < 0 ? 0 : dist_sq_c, dist_sq_d < 0 ? 0 : dist_sq_d};
+    float32x4_t dist_vec = vsqrtq_f32(dist_sq_vec);
+
+    // Store results using simsimd_b512_vec_t
+    simsimd_b512_vec_t u;
+    u.u32x4s[0] = vreinterpretq_u32_f32(dist_vec);
+    results[0] = u.f32s[0];
+    results[1] = u.f32s[1];
+    results[2] = u.f32s[2];
+    results[3] = u.f32s[3];
 }
 
 #pragma clang attribute pop
@@ -1331,14 +1733,30 @@ SIMSIMD_INTERNAL void simsimd_angular_bf16x32_update_neon(simsimd_angular_bf16x3
                                                           simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_bf16x32_update_neon(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_bf16x32_finalize_neon(simsimd_angular_bf16x32_state_neon_t const *state,
-                                                            simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                            simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_dot_bf16x32_finalize_neon(state, &ab);
-    *result = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)ab, a2, b2);
+SIMSIMD_INTERNAL void simsimd_angular_bf16x32_finalize_neon(
+    simsimd_angular_bf16x32_state_neon_t const *state_a, simsimd_angular_bf16x32_state_neon_t const *state_b,
+    simsimd_angular_bf16x32_state_neon_t const *state_c, simsimd_angular_bf16x32_state_neon_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_bf16x32_finalize_neon(state_a, &dot_a);
+    simsimd_dot_bf16x32_finalize_neon(state_b, &dot_b);
+    simsimd_dot_bf16x32_finalize_neon(state_c, &dot_c);
+    simsimd_dot_bf16x32_finalize_neon(state_d, &dot_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    results[0] = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)dot_a, query_norm_sq, target_norm_sq_a);
+    results[1] = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)dot_b, query_norm_sq, target_norm_sq_b);
+    results[2] = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)dot_c, query_norm_sq, target_norm_sq_c);
+    results[3] = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)dot_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef simsimd_dot_bf16x32_state_neon_t simsimd_l2_bf16x32_state_neon_t;
@@ -1349,17 +1767,42 @@ SIMSIMD_INTERNAL void simsimd_l2_bf16x32_update_neon(simsimd_l2_bf16x32_state_ne
                                                      simsimd_b512_vec_t b) {
     simsimd_dot_bf16x32_update_neon(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_bf16x32_finalize_neon(simsimd_l2_bf16x32_state_neon_t const *state,
-                                                       simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                       simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_f32_t d2;
-    simsimd_dot_bf16x32_finalize_neon(state, &ab);
-    d2 = a2 + b2 - (simsimd_f32_t)2 * (simsimd_f32_t)ab;
-    if (d2 < 0) d2 = 0;
-    *result = _simsimd_sqrt_f32_neon(d2);
+SIMSIMD_INTERNAL void simsimd_l2_bf16x32_finalize_neon(
+    simsimd_l2_bf16x32_state_neon_t const *state_a, simsimd_l2_bf16x32_state_neon_t const *state_b,
+    simsimd_l2_bf16x32_state_neon_t const *state_c, simsimd_l2_bf16x32_state_neon_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_bf16x32_finalize_neon(state_a, &dot_a);
+    simsimd_dot_bf16x32_finalize_neon(state_b, &dot_b);
+    simsimd_dot_bf16x32_finalize_neon(state_c, &dot_c);
+    simsimd_dot_bf16x32_finalize_neon(state_d, &dot_d);
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    simsimd_f32_t dist_sq_a = query_norm_sq + target_norm_sq_a - (simsimd_f32_t)2 * (simsimd_f32_t)dot_a;
+    simsimd_f32_t dist_sq_b = query_norm_sq + target_norm_sq_b - (simsimd_f32_t)2 * (simsimd_f32_t)dot_b;
+    simsimd_f32_t dist_sq_c = query_norm_sq + target_norm_sq_c - (simsimd_f32_t)2 * (simsimd_f32_t)dot_c;
+    simsimd_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - (simsimd_f32_t)2 * (simsimd_f32_t)dot_d;
+
+    // Use 4-way SIMD sqrt
+    float32x4_t dist_sq_vec = {dist_sq_a < 0 ? 0 : dist_sq_a, dist_sq_b < 0 ? 0 : dist_sq_b,
+                               dist_sq_c < 0 ? 0 : dist_sq_c, dist_sq_d < 0 ? 0 : dist_sq_d};
+    float32x4_t dist_vec = vsqrtq_f32(dist_sq_vec);
+
+    // Store results using simsimd_b512_vec_t
+    simsimd_b512_vec_t u;
+    u.u32x4s[0] = vreinterpretq_u32_f32(dist_vec);
+    results[0] = u.f32s[0];
+    results[1] = u.f32s[1];
+    results[2] = u.f32s[2];
+    results[3] = u.f32s[3];
 }
 
 #pragma clang attribute pop
@@ -1580,14 +2023,30 @@ SIMSIMD_INTERNAL void simsimd_angular_i8x64_update_neon(simsimd_angular_i8x64_st
                                                         simsimd_b512_vec_t b) {
     simsimd_dot_i8x64_update_neon(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_i8x64_finalize_neon(simsimd_angular_i8x64_state_neon_t const *state,
-                                                          simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                          simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_dot_i8x64_finalize_neon(state, &ab);
-    *result = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)ab, a2, b2);
+SIMSIMD_INTERNAL void simsimd_angular_i8x64_finalize_neon(
+    simsimd_angular_i8x64_state_neon_t const *state_a, simsimd_angular_i8x64_state_neon_t const *state_b,
+    simsimd_angular_i8x64_state_neon_t const *state_c, simsimd_angular_i8x64_state_neon_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_i8x64_finalize_neon(state_a, &dot_a);
+    simsimd_dot_i8x64_finalize_neon(state_b, &dot_b);
+    simsimd_dot_i8x64_finalize_neon(state_c, &dot_c);
+    simsimd_dot_i8x64_finalize_neon(state_d, &dot_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    results[0] = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)dot_a, query_norm_sq, target_norm_sq_a);
+    results[1] = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)dot_b, query_norm_sq, target_norm_sq_b);
+    results[2] = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)dot_c, query_norm_sq, target_norm_sq_c);
+    results[3] = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)dot_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef simsimd_dot_i8x64_state_neon_t simsimd_l2_i8x64_state_neon_t;
@@ -1598,17 +2057,44 @@ SIMSIMD_INTERNAL void simsimd_l2_i8x64_update_neon(simsimd_l2_i8x64_state_neon_t
                                                    simsimd_b512_vec_t b) {
     simsimd_dot_i8x64_update_neon(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_i8x64_finalize_neon(simsimd_l2_i8x64_state_neon_t const *state,
-                                                     simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                     simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_f32_t d2;
-    simsimd_dot_i8x64_finalize_neon(state, &ab);
-    d2 = a2 + b2 - (simsimd_f32_t)2 * (simsimd_f32_t)ab;
-    if (d2 < 0) d2 = 0;
-    *result = _simsimd_sqrt_f32_neon(d2);
+SIMSIMD_INTERNAL void simsimd_l2_i8x64_finalize_neon(simsimd_l2_i8x64_state_neon_t const *state_a,
+                                                     simsimd_l2_i8x64_state_neon_t const *state_b,
+                                                     simsimd_l2_i8x64_state_neon_t const *state_c,
+                                                     simsimd_l2_i8x64_state_neon_t const *state_d,
+                                                     simsimd_distance_t query_norm, simsimd_distance_t target_norm_a,
+                                                     simsimd_distance_t target_norm_b, simsimd_distance_t target_norm_c,
+                                                     simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_i8x64_finalize_neon(state_a, &dot_a);
+    simsimd_dot_i8x64_finalize_neon(state_b, &dot_b);
+    simsimd_dot_i8x64_finalize_neon(state_c, &dot_c);
+    simsimd_dot_i8x64_finalize_neon(state_d, &dot_d);
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    simsimd_f32_t dist_sq_a = query_norm_sq + target_norm_sq_a - (simsimd_f32_t)2 * (simsimd_f32_t)dot_a;
+    simsimd_f32_t dist_sq_b = query_norm_sq + target_norm_sq_b - (simsimd_f32_t)2 * (simsimd_f32_t)dot_b;
+    simsimd_f32_t dist_sq_c = query_norm_sq + target_norm_sq_c - (simsimd_f32_t)2 * (simsimd_f32_t)dot_c;
+    simsimd_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - (simsimd_f32_t)2 * (simsimd_f32_t)dot_d;
+
+    // Use 4-way SIMD sqrt
+    float32x4_t dist_sq_vec = {dist_sq_a < 0 ? 0 : dist_sq_a, dist_sq_b < 0 ? 0 : dist_sq_b,
+                               dist_sq_c < 0 ? 0 : dist_sq_c, dist_sq_d < 0 ? 0 : dist_sq_d};
+    float32x4_t dist_vec = vsqrtq_f32(dist_sq_vec);
+
+    // Store results using simsimd_b512_vec_t
+    simsimd_b512_vec_t u;
+    u.u32x4s[0] = vreinterpretq_u32_f32(dist_vec);
+    results[0] = u.f32s[0];
+    results[1] = u.f32s[1];
+    results[2] = u.f32s[2];
+    results[3] = u.f32s[3];
 }
 
 typedef simsimd_dot_u8x64_state_neon_t simsimd_angular_u8x64_state_neon_t;
@@ -1619,14 +2105,30 @@ SIMSIMD_INTERNAL void simsimd_angular_u8x64_update_neon(simsimd_angular_u8x64_st
                                                         simsimd_b512_vec_t b) {
     simsimd_dot_u8x64_update_neon(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_u8x64_finalize_neon(simsimd_angular_u8x64_state_neon_t const *state,
-                                                          simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                          simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_dot_u8x64_finalize_neon(state, &ab);
-    *result = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)ab, a2, b2);
+SIMSIMD_INTERNAL void simsimd_angular_u8x64_finalize_neon(
+    simsimd_angular_u8x64_state_neon_t const *state_a, simsimd_angular_u8x64_state_neon_t const *state_b,
+    simsimd_angular_u8x64_state_neon_t const *state_c, simsimd_angular_u8x64_state_neon_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_u8x64_finalize_neon(state_a, &dot_a);
+    simsimd_dot_u8x64_finalize_neon(state_b, &dot_b);
+    simsimd_dot_u8x64_finalize_neon(state_c, &dot_c);
+    simsimd_dot_u8x64_finalize_neon(state_d, &dot_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    results[0] = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)dot_a, query_norm_sq, target_norm_sq_a);
+    results[1] = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)dot_b, query_norm_sq, target_norm_sq_b);
+    results[2] = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)dot_c, query_norm_sq, target_norm_sq_c);
+    results[3] = _simsimd_angular_normalize_f32_neon((simsimd_f32_t)dot_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef simsimd_dot_u8x64_state_neon_t simsimd_l2_u8x64_state_neon_t;
@@ -1637,17 +2139,44 @@ SIMSIMD_INTERNAL void simsimd_l2_u8x64_update_neon(simsimd_l2_u8x64_state_neon_t
                                                    simsimd_b512_vec_t b) {
     simsimd_dot_u8x64_update_neon(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_u8x64_finalize_neon(simsimd_l2_u8x64_state_neon_t const *state,
-                                                     simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                     simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_f32_t d2;
-    simsimd_dot_u8x64_finalize_neon(state, &ab);
-    d2 = a2 + b2 - (simsimd_f32_t)2 * (simsimd_f32_t)ab;
-    if (d2 < 0) d2 = 0;
-    *result = _simsimd_sqrt_f32_neon(d2);
+SIMSIMD_INTERNAL void simsimd_l2_u8x64_finalize_neon(simsimd_l2_u8x64_state_neon_t const *state_a,
+                                                     simsimd_l2_u8x64_state_neon_t const *state_b,
+                                                     simsimd_l2_u8x64_state_neon_t const *state_c,
+                                                     simsimd_l2_u8x64_state_neon_t const *state_d,
+                                                     simsimd_distance_t query_norm, simsimd_distance_t target_norm_a,
+                                                     simsimd_distance_t target_norm_b, simsimd_distance_t target_norm_c,
+                                                     simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_u8x64_finalize_neon(state_a, &dot_a);
+    simsimd_dot_u8x64_finalize_neon(state_b, &dot_b);
+    simsimd_dot_u8x64_finalize_neon(state_c, &dot_c);
+    simsimd_dot_u8x64_finalize_neon(state_d, &dot_d);
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    simsimd_f32_t dist_sq_a = query_norm_sq + target_norm_sq_a - (simsimd_f32_t)2 * (simsimd_f32_t)dot_a;
+    simsimd_f32_t dist_sq_b = query_norm_sq + target_norm_sq_b - (simsimd_f32_t)2 * (simsimd_f32_t)dot_b;
+    simsimd_f32_t dist_sq_c = query_norm_sq + target_norm_sq_c - (simsimd_f32_t)2 * (simsimd_f32_t)dot_c;
+    simsimd_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - (simsimd_f32_t)2 * (simsimd_f32_t)dot_d;
+
+    // Use 4-way SIMD sqrt
+    float32x4_t dist_sq_vec = {dist_sq_a < 0 ? 0 : dist_sq_a, dist_sq_b < 0 ? 0 : dist_sq_b,
+                               dist_sq_c < 0 ? 0 : dist_sq_c, dist_sq_d < 0 ? 0 : dist_sq_d};
+    float32x4_t dist_vec = vsqrtq_f32(dist_sq_vec);
+
+    // Store results using simsimd_b512_vec_t
+    simsimd_b512_vec_t u;
+    u.u32x4s[0] = vreinterpretq_u32_f32(dist_vec);
+    results[0] = u.f32s[0];
+    results[1] = u.f32s[1];
+    results[2] = u.f32s[2];
+    results[3] = u.f32s[3];
 }
 
 #pragma clang attribute pop
@@ -1891,10 +2420,10 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_angular_normalize_f64_haswell(simsi
                                                                            simsimd_f64_t b2) {
 
     // If both vectors have magnitude 0, the distance is 0.
-    if (a2 == 0 && b2 == 0) return 0;
+    if (query_norm_sq == 0 && target_norm_sq == 0) return 0;
     // If any one of the vectors is 0, the square root of the product is 0,
     // the division is illformed, and the result is 1.
-    else if (ab == 0)
+    else if (dot_product == 0)
         return 1;
     // We want to avoid the `simsimd_approximate_inverse_square_root` due to high latency:
     // https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
@@ -1911,7 +2440,7 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_angular_normalize_f64_haswell(simsi
 
     simsimd_f64_t a2_reciprocal = _mm_cvtsd_f64(_mm_unpackhi_pd(rsqrts, rsqrts));
     simsimd_f64_t b2_reciprocal = _mm_cvtsd_f64(rsqrts);
-    simsimd_distance_t result = 1 - ab * a2_reciprocal * b2_reciprocal;
+    simsimd_distance_t result = 1 - dot_product * a2_reciprocal * b2_reciprocal;
     return result > 0 ? result : 0;
 }
 
@@ -1942,7 +2471,7 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_angular_normalize_f32_haswell(simsi
     simsimd_f32_t a2_reciprocal = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
     simsimd_f32_t b2_reciprocal = _mm_cvtss_f32(rsqrts);
 
-    // Calculate the angular distance: 1 - ab * a2_reciprocal * b2_reciprocal
+    // Calculate the angular distance: 1 - dot_product * a2_reciprocal * b2_reciprocal
     simsimd_distance_t result = 1.0f - ab * a2_reciprocal * b2_reciprocal;
     return result > 0 ? result : 0;
 }
@@ -2379,14 +2908,30 @@ SIMSIMD_INTERNAL void simsimd_angular_f32x16_update_haswell(simsimd_angular_f32x
                                                             simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_f32x16_update_haswell(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_f32x16_finalize_haswell(simsimd_angular_f32x16_state_haswell_t const *state,
-                                                              simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                              simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f64_t a2 = (simsimd_f64_t)a_norm * (simsimd_f64_t)a_norm;
-    simsimd_f64_t b2 = (simsimd_f64_t)b_norm * (simsimd_f64_t)b_norm;
-    simsimd_dot_f32x16_finalize_haswell(state, &ab);
-    *result = _simsimd_angular_normalize_f64_haswell((simsimd_f64_t)ab, a2, b2);
+SIMSIMD_INTERNAL void simsimd_angular_f32x16_finalize_haswell(
+    simsimd_angular_f32x16_state_haswell_t const *state_a, simsimd_angular_f32x16_state_haswell_t const *state_b,
+    simsimd_angular_f32x16_state_haswell_t const *state_c, simsimd_angular_f32x16_state_haswell_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_f32x16_finalize_haswell(state_a, &dot_a);
+    simsimd_dot_f32x16_finalize_haswell(state_b, &dot_b);
+    simsimd_dot_f32x16_finalize_haswell(state_c, &dot_c);
+    simsimd_dot_f32x16_finalize_haswell(state_d, &dot_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f64_t query_norm_sq = (simsimd_f64_t)query_norm * (simsimd_f64_t)query_norm;
+    simsimd_f64_t target_norm_sq_a = (simsimd_f64_t)target_norm_a * (simsimd_f64_t)target_norm_a;
+    simsimd_f64_t target_norm_sq_b = (simsimd_f64_t)target_norm_b * (simsimd_f64_t)target_norm_b;
+    simsimd_f64_t target_norm_sq_c = (simsimd_f64_t)target_norm_c * (simsimd_f64_t)target_norm_c;
+    simsimd_f64_t target_norm_sq_d = (simsimd_f64_t)target_norm_d * (simsimd_f64_t)target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    results[0] = _simsimd_angular_normalize_f64_haswell((simsimd_f64_t)dot_a, query_norm_sq, target_norm_sq_a);
+    results[1] = _simsimd_angular_normalize_f64_haswell((simsimd_f64_t)dot_b, query_norm_sq, target_norm_sq_b);
+    results[2] = _simsimd_angular_normalize_f64_haswell((simsimd_f64_t)dot_c, query_norm_sq, target_norm_sq_c);
+    results[3] = _simsimd_angular_normalize_f64_haswell((simsimd_f64_t)dot_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef simsimd_dot_f32x16_state_haswell_t simsimd_l2_f32x16_state_haswell_t;
@@ -2397,17 +2942,42 @@ SIMSIMD_INTERNAL void simsimd_l2_f32x16_update_haswell(simsimd_l2_f32x16_state_h
                                                        simsimd_b512_vec_t b) {
     simsimd_dot_f32x16_update_haswell(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_f32x16_finalize_haswell(simsimd_l2_f32x16_state_haswell_t const *state,
-                                                         simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                         simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f64_t a2 = (simsimd_f64_t)a_norm * (simsimd_f64_t)a_norm;
-    simsimd_f64_t b2 = (simsimd_f64_t)b_norm * (simsimd_f64_t)b_norm;
-    simsimd_f64_t d2;
-    simsimd_dot_f32x16_finalize_haswell(state, &ab);
-    d2 = a2 + b2 - (simsimd_f64_t)2 * (simsimd_f64_t)ab;
-    if (d2 < 0) d2 = 0;
-    *result = _simsimd_sqrt_f32_haswell((simsimd_f32_t)d2);
+SIMSIMD_INTERNAL void simsimd_l2_f32x16_finalize_haswell(
+    simsimd_l2_f32x16_state_haswell_t const *state_a, simsimd_l2_f32x16_state_haswell_t const *state_b,
+    simsimd_l2_f32x16_state_haswell_t const *state_c, simsimd_l2_f32x16_state_haswell_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_f32x16_finalize_haswell(state_a, &dot_a);
+    simsimd_dot_f32x16_finalize_haswell(state_b, &dot_b);
+    simsimd_dot_f32x16_finalize_haswell(state_c, &dot_c);
+    simsimd_dot_f32x16_finalize_haswell(state_d, &dot_d);
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_f64_t query_norm_sq = (simsimd_f64_t)query_norm * (simsimd_f64_t)query_norm;
+    simsimd_f64_t target_norm_sq_a = (simsimd_f64_t)target_norm_a * (simsimd_f64_t)target_norm_a;
+    simsimd_f64_t target_norm_sq_b = (simsimd_f64_t)target_norm_b * (simsimd_f64_t)target_norm_b;
+    simsimd_f64_t target_norm_sq_c = (simsimd_f64_t)target_norm_c * (simsimd_f64_t)target_norm_c;
+    simsimd_f64_t target_norm_sq_d = (simsimd_f64_t)target_norm_d * (simsimd_f64_t)target_norm_d;
+
+    simsimd_f64_t dist_sq_a = query_norm_sq + target_norm_sq_a - (simsimd_f64_t)2 * (simsimd_f64_t)dot_a;
+    simsimd_f64_t dist_sq_b = query_norm_sq + target_norm_sq_b - (simsimd_f64_t)2 * (simsimd_f64_t)dot_b;
+    simsimd_f64_t dist_sq_c = query_norm_sq + target_norm_sq_c - (simsimd_f64_t)2 * (simsimd_f64_t)dot_c;
+    simsimd_f64_t dist_sq_d = query_norm_sq + target_norm_sq_d - (simsimd_f64_t)2 * (simsimd_f64_t)dot_d;
+
+    // Use 4-way SSE sqrt (128-bit)
+    __m128 dist_sq_vec = _mm_set_ps((float)(dist_sq_d < 0 ? 0 : dist_sq_d), (float)(dist_sq_c < 0 ? 0 : dist_sq_c),
+                                    (float)(dist_sq_b < 0 ? 0 : dist_sq_b), (float)(dist_sq_a < 0 ? 0 : dist_sq_a));
+    __m128 dist_vec = _mm_sqrt_ps(dist_sq_vec);
+
+    // Store results using simsimd_b512_vec_t
+    simsimd_b512_vec_t u;
+    _mm_storeu_ps(u.f32s, dist_vec);
+    results[0] = u.f32s[0];
+    results[1] = u.f32s[1];
+    results[2] = u.f32s[2];
+    results[3] = u.f32s[3];
 }
 
 typedef simsimd_dot_f16x32_state_haswell_t simsimd_angular_f16x32_state_haswell_t;
@@ -2418,14 +2988,30 @@ SIMSIMD_INTERNAL void simsimd_angular_f16x32_update_haswell(simsimd_angular_f16x
                                                             simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_f16x32_update_haswell(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_f16x32_finalize_haswell(simsimd_angular_f16x32_state_haswell_t const *state,
-                                                              simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                              simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_dot_f16x32_finalize_haswell(state, &ab);
-    *result = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)ab, a2, b2);
+SIMSIMD_INTERNAL void simsimd_angular_f16x32_finalize_haswell(
+    simsimd_angular_f16x32_state_haswell_t const *state_a, simsimd_angular_f16x32_state_haswell_t const *state_b,
+    simsimd_angular_f16x32_state_haswell_t const *state_c, simsimd_angular_f16x32_state_haswell_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_f16x32_finalize_haswell(state_a, &dot_a);
+    simsimd_dot_f16x32_finalize_haswell(state_b, &dot_b);
+    simsimd_dot_f16x32_finalize_haswell(state_c, &dot_c);
+    simsimd_dot_f16x32_finalize_haswell(state_d, &dot_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    results[0] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_a, query_norm_sq, target_norm_sq_a);
+    results[1] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_b, query_norm_sq, target_norm_sq_b);
+    results[2] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_c, query_norm_sq, target_norm_sq_c);
+    results[3] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef simsimd_dot_f16x32_state_haswell_t simsimd_l2_f16x32_state_haswell_t;
@@ -2436,17 +3022,42 @@ SIMSIMD_INTERNAL void simsimd_l2_f16x32_update_haswell(simsimd_l2_f16x32_state_h
                                                        simsimd_b512_vec_t b) {
     simsimd_dot_f16x32_update_haswell(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_f16x32_finalize_haswell(simsimd_l2_f16x32_state_haswell_t const *state,
-                                                         simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                         simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_f32_t d2;
-    simsimd_dot_f16x32_finalize_haswell(state, &ab);
-    d2 = a2 + b2 - (simsimd_f32_t)2 * (simsimd_f32_t)ab;
-    if (d2 < 0) d2 = 0;
-    *result = _simsimd_sqrt_f32_haswell(d2);
+SIMSIMD_INTERNAL void simsimd_l2_f16x32_finalize_haswell(
+    simsimd_l2_f16x32_state_haswell_t const *state_a, simsimd_l2_f16x32_state_haswell_t const *state_b,
+    simsimd_l2_f16x32_state_haswell_t const *state_c, simsimd_l2_f16x32_state_haswell_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_f16x32_finalize_haswell(state_a, &dot_a);
+    simsimd_dot_f16x32_finalize_haswell(state_b, &dot_b);
+    simsimd_dot_f16x32_finalize_haswell(state_c, &dot_c);
+    simsimd_dot_f16x32_finalize_haswell(state_d, &dot_d);
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    simsimd_f32_t dist_sq_a = query_norm_sq + target_norm_sq_a - (simsimd_f32_t)2 * (simsimd_f32_t)dot_a;
+    simsimd_f32_t dist_sq_b = query_norm_sq + target_norm_sq_b - (simsimd_f32_t)2 * (simsimd_f32_t)dot_b;
+    simsimd_f32_t dist_sq_c = query_norm_sq + target_norm_sq_c - (simsimd_f32_t)2 * (simsimd_f32_t)dot_c;
+    simsimd_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - (simsimd_f32_t)2 * (simsimd_f32_t)dot_d;
+
+    // Use 4-way SSE sqrt (128-bit)
+    __m128 dist_sq_vec = _mm_set_ps(dist_sq_d < 0 ? 0 : dist_sq_d, dist_sq_c < 0 ? 0 : dist_sq_c,
+                                    dist_sq_b < 0 ? 0 : dist_sq_b, dist_sq_a < 0 ? 0 : dist_sq_a);
+    __m128 dist_vec = _mm_sqrt_ps(dist_sq_vec);
+
+    // Store results using simsimd_b512_vec_t
+    simsimd_b512_vec_t u;
+    _mm_storeu_ps(u.f32s, dist_vec);
+    results[0] = u.f32s[0];
+    results[1] = u.f32s[1];
+    results[2] = u.f32s[2];
+    results[3] = u.f32s[3];
 }
 
 typedef simsimd_dot_bf16x32_state_haswell_t simsimd_angular_bf16x32_state_haswell_t;
@@ -2457,14 +3068,27 @@ SIMSIMD_INTERNAL void simsimd_angular_bf16x32_update_haswell(simsimd_angular_bf1
                                                              simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_bf16x32_update_haswell(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_bf16x32_finalize_haswell(simsimd_angular_bf16x32_state_haswell_t const *state,
-                                                               simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                               simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_dot_bf16x32_finalize_haswell(state, &ab);
-    *result = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)ab, a2, b2);
+SIMSIMD_INTERNAL void simsimd_angular_bf16x32_finalize_haswell(
+    simsimd_angular_bf16x32_state_haswell_t const *state_a, simsimd_angular_bf16x32_state_haswell_t const *state_b,
+    simsimd_angular_bf16x32_state_haswell_t const *state_c, simsimd_angular_bf16x32_state_haswell_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_bf16x32_finalize_haswell(state_a, &dot_a);
+    simsimd_dot_bf16x32_finalize_haswell(state_b, &dot_b);
+    simsimd_dot_bf16x32_finalize_haswell(state_c, &dot_c);
+    simsimd_dot_bf16x32_finalize_haswell(state_d, &dot_d);
+
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    results[0] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_a, query_norm_sq, target_norm_sq_a);
+    results[1] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_b, query_norm_sq, target_norm_sq_b);
+    results[2] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_c, query_norm_sq, target_norm_sq_c);
+    results[3] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef simsimd_dot_bf16x32_state_haswell_t simsimd_l2_bf16x32_state_haswell_t;
@@ -2475,17 +3099,38 @@ SIMSIMD_INTERNAL void simsimd_l2_bf16x32_update_haswell(simsimd_l2_bf16x32_state
                                                         simsimd_b512_vec_t b) {
     simsimd_dot_bf16x32_update_haswell(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_bf16x32_finalize_haswell(simsimd_l2_bf16x32_state_haswell_t const *state,
-                                                          simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                          simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_f32_t d2;
-    simsimd_dot_bf16x32_finalize_haswell(state, &ab);
-    d2 = a2 + b2 - (simsimd_f32_t)2 * (simsimd_f32_t)ab;
-    if (d2 < 0) d2 = 0;
-    *result = _simsimd_sqrt_f32_haswell(d2);
+SIMSIMD_INTERNAL void simsimd_l2_bf16x32_finalize_haswell(
+    simsimd_l2_bf16x32_state_haswell_t const *state_a, simsimd_l2_bf16x32_state_haswell_t const *state_b,
+    simsimd_l2_bf16x32_state_haswell_t const *state_c, simsimd_l2_bf16x32_state_haswell_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_bf16x32_finalize_haswell(state_a, &dot_a);
+    simsimd_dot_bf16x32_finalize_haswell(state_b, &dot_b);
+    simsimd_dot_bf16x32_finalize_haswell(state_c, &dot_c);
+    simsimd_dot_bf16x32_finalize_haswell(state_d, &dot_d);
+
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    simsimd_f32_t dist_sq_a = query_norm_sq + target_norm_sq_a - (simsimd_f32_t)2 * (simsimd_f32_t)dot_a;
+    simsimd_f32_t dist_sq_b = query_norm_sq + target_norm_sq_b - (simsimd_f32_t)2 * (simsimd_f32_t)dot_b;
+    simsimd_f32_t dist_sq_c = query_norm_sq + target_norm_sq_c - (simsimd_f32_t)2 * (simsimd_f32_t)dot_c;
+    simsimd_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - (simsimd_f32_t)2 * (simsimd_f32_t)dot_d;
+
+    __m128 dist_sq_vec = _mm_set_ps(dist_sq_d < 0 ? 0 : dist_sq_d, dist_sq_c < 0 ? 0 : dist_sq_c,
+                                    dist_sq_b < 0 ? 0 : dist_sq_b, dist_sq_a < 0 ? 0 : dist_sq_a);
+    __m128 dist_vec = _mm_sqrt_ps(dist_sq_vec);
+
+    simsimd_b512_vec_t u;
+    _mm_storeu_ps(u.f32s, dist_vec);
+    results[0] = u.f32s[0];
+    results[1] = u.f32s[1];
+    results[2] = u.f32s[2];
+    results[3] = u.f32s[3];
 }
 
 typedef simsimd_dot_i8x64_state_haswell_t simsimd_angular_i8x64_state_haswell_t;
@@ -2496,14 +3141,27 @@ SIMSIMD_INTERNAL void simsimd_angular_i8x64_update_haswell(simsimd_angular_i8x64
                                                            simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_i8x64_update_haswell(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_i8x64_finalize_haswell(simsimd_angular_i8x64_state_haswell_t const *state,
-                                                             simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                             simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_dot_i8x64_finalize_haswell(state, &ab);
-    *result = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)ab, a2, b2);
+SIMSIMD_INTERNAL void simsimd_angular_i8x64_finalize_haswell(
+    simsimd_angular_i8x64_state_haswell_t const *state_a, simsimd_angular_i8x64_state_haswell_t const *state_b,
+    simsimd_angular_i8x64_state_haswell_t const *state_c, simsimd_angular_i8x64_state_haswell_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_i8x64_finalize_haswell(state_a, &dot_a);
+    simsimd_dot_i8x64_finalize_haswell(state_b, &dot_b);
+    simsimd_dot_i8x64_finalize_haswell(state_c, &dot_c);
+    simsimd_dot_i8x64_finalize_haswell(state_d, &dot_d);
+
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    results[0] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_a, query_norm_sq, target_norm_sq_a);
+    results[1] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_b, query_norm_sq, target_norm_sq_b);
+    results[2] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_c, query_norm_sq, target_norm_sq_c);
+    results[3] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef simsimd_dot_i8x64_state_haswell_t simsimd_l2_i8x64_state_haswell_t;
@@ -2514,17 +3172,38 @@ SIMSIMD_INTERNAL void simsimd_l2_i8x64_update_haswell(simsimd_l2_i8x64_state_has
                                                       simsimd_b512_vec_t b) {
     simsimd_dot_i8x64_update_haswell(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_i8x64_finalize_haswell(simsimd_l2_i8x64_state_haswell_t const *state,
-                                                        simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                        simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_f32_t d2;
-    simsimd_dot_i8x64_finalize_haswell(state, &ab);
-    d2 = a2 + b2 - (simsimd_f32_t)2 * (simsimd_f32_t)ab;
-    if (d2 < 0) d2 = 0;
-    *result = _simsimd_sqrt_f32_haswell(d2);
+SIMSIMD_INTERNAL void simsimd_l2_i8x64_finalize_haswell(
+    simsimd_l2_i8x64_state_haswell_t const *state_a, simsimd_l2_i8x64_state_haswell_t const *state_b,
+    simsimd_l2_i8x64_state_haswell_t const *state_c, simsimd_l2_i8x64_state_haswell_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_i8x64_finalize_haswell(state_a, &dot_a);
+    simsimd_dot_i8x64_finalize_haswell(state_b, &dot_b);
+    simsimd_dot_i8x64_finalize_haswell(state_c, &dot_c);
+    simsimd_dot_i8x64_finalize_haswell(state_d, &dot_d);
+
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    simsimd_f32_t dist_sq_a = query_norm_sq + target_norm_sq_a - (simsimd_f32_t)2 * (simsimd_f32_t)dot_a;
+    simsimd_f32_t dist_sq_b = query_norm_sq + target_norm_sq_b - (simsimd_f32_t)2 * (simsimd_f32_t)dot_b;
+    simsimd_f32_t dist_sq_c = query_norm_sq + target_norm_sq_c - (simsimd_f32_t)2 * (simsimd_f32_t)dot_c;
+    simsimd_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - (simsimd_f32_t)2 * (simsimd_f32_t)dot_d;
+
+    __m128 dist_sq_vec = _mm_set_ps(dist_sq_d < 0 ? 0 : dist_sq_d, dist_sq_c < 0 ? 0 : dist_sq_c,
+                                    dist_sq_b < 0 ? 0 : dist_sq_b, dist_sq_a < 0 ? 0 : dist_sq_a);
+    __m128 dist_vec = _mm_sqrt_ps(dist_sq_vec);
+
+    simsimd_b512_vec_t u;
+    _mm_storeu_ps(u.f32s, dist_vec);
+    results[0] = u.f32s[0];
+    results[1] = u.f32s[1];
+    results[2] = u.f32s[2];
+    results[3] = u.f32s[3];
 }
 
 typedef simsimd_dot_u8x64_state_haswell_t simsimd_angular_u8x64_state_haswell_t;
@@ -2535,14 +3214,27 @@ SIMSIMD_INTERNAL void simsimd_angular_u8x64_update_haswell(simsimd_angular_u8x64
                                                            simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_u8x64_update_haswell(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_u8x64_finalize_haswell(simsimd_angular_u8x64_state_haswell_t const *state,
-                                                             simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                             simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_dot_u8x64_finalize_haswell(state, &ab);
-    *result = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)ab, a2, b2);
+SIMSIMD_INTERNAL void simsimd_angular_u8x64_finalize_haswell(
+    simsimd_angular_u8x64_state_haswell_t const *state_a, simsimd_angular_u8x64_state_haswell_t const *state_b,
+    simsimd_angular_u8x64_state_haswell_t const *state_c, simsimd_angular_u8x64_state_haswell_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_u8x64_finalize_haswell(state_a, &dot_a);
+    simsimd_dot_u8x64_finalize_haswell(state_b, &dot_b);
+    simsimd_dot_u8x64_finalize_haswell(state_c, &dot_c);
+    simsimd_dot_u8x64_finalize_haswell(state_d, &dot_d);
+
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    results[0] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_a, query_norm_sq, target_norm_sq_a);
+    results[1] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_b, query_norm_sq, target_norm_sq_b);
+    results[2] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_c, query_norm_sq, target_norm_sq_c);
+    results[3] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef simsimd_dot_u8x64_state_haswell_t simsimd_l2_u8x64_state_haswell_t;
@@ -2553,17 +3245,38 @@ SIMSIMD_INTERNAL void simsimd_l2_u8x64_update_haswell(simsimd_l2_u8x64_state_has
                                                       simsimd_b512_vec_t b) {
     simsimd_dot_u8x64_update_haswell(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_u8x64_finalize_haswell(simsimd_l2_u8x64_state_haswell_t const *state,
-                                                        simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                        simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_f32_t d2;
-    simsimd_dot_u8x64_finalize_haswell(state, &ab);
-    d2 = a2 + b2 - (simsimd_f32_t)2 * (simsimd_f32_t)ab;
-    if (d2 < 0) d2 = 0;
-    *result = _simsimd_sqrt_f32_haswell(d2);
+SIMSIMD_INTERNAL void simsimd_l2_u8x64_finalize_haswell(
+    simsimd_l2_u8x64_state_haswell_t const *state_a, simsimd_l2_u8x64_state_haswell_t const *state_b,
+    simsimd_l2_u8x64_state_haswell_t const *state_c, simsimd_l2_u8x64_state_haswell_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_u8x64_finalize_haswell(state_a, &dot_a);
+    simsimd_dot_u8x64_finalize_haswell(state_b, &dot_b);
+    simsimd_dot_u8x64_finalize_haswell(state_c, &dot_c);
+    simsimd_dot_u8x64_finalize_haswell(state_d, &dot_d);
+
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    simsimd_f32_t dist_sq_a = query_norm_sq + target_norm_sq_a - (simsimd_f32_t)2 * (simsimd_f32_t)dot_a;
+    simsimd_f32_t dist_sq_b = query_norm_sq + target_norm_sq_b - (simsimd_f32_t)2 * (simsimd_f32_t)dot_b;
+    simsimd_f32_t dist_sq_c = query_norm_sq + target_norm_sq_c - (simsimd_f32_t)2 * (simsimd_f32_t)dot_c;
+    simsimd_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - (simsimd_f32_t)2 * (simsimd_f32_t)dot_d;
+
+    __m128 dist_sq_vec = _mm_set_ps(dist_sq_d < 0 ? 0 : dist_sq_d, dist_sq_c < 0 ? 0 : dist_sq_c,
+                                    dist_sq_b < 0 ? 0 : dist_sq_b, dist_sq_a < 0 ? 0 : dist_sq_a);
+    __m128 dist_vec = _mm_sqrt_ps(dist_sq_vec);
+
+    simsimd_b512_vec_t u;
+    _mm_storeu_ps(u.f32s, dist_vec);
+    results[0] = u.f32s[0];
+    results[1] = u.f32s[1];
+    results[2] = u.f32s[2];
+    results[3] = u.f32s[3];
 }
 
 #pragma clang attribute pop
@@ -2608,10 +3321,10 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_angular_normalize_f64_skylake(simsi
                                                                            simsimd_f64_t b2) {
 
     // If both vectors have magnitude 0, the distance is 0.
-    if (a2 == 0 && b2 == 0) return 0;
+    if (query_norm_sq == 0 && target_norm_sq == 0) return 0;
     // If any one of the vectors is 0, the square root of the product is 0,
     // the division is illformed, and the result is 1.
-    else if (ab == 0)
+    else if (dot_product == 0)
         return 1;
 
     // We want to avoid the `simsimd_approximate_inverse_square_root` due to high latency:
@@ -2640,7 +3353,7 @@ SIMSIMD_INTERNAL simsimd_distance_t _simsimd_angular_normalize_f64_skylake(simsi
 
     simsimd_f64_t a2_reciprocal = _mm_cvtsd_f64(_mm_unpackhi_pd(rsqrts, rsqrts));
     simsimd_f64_t b2_reciprocal = _mm_cvtsd_f64(rsqrts);
-    simsimd_distance_t result = 1 - ab * a2_reciprocal * b2_reciprocal;
+    simsimd_distance_t result = 1 - dot_product * a2_reciprocal * b2_reciprocal;
     return result > 0 ? result : 0;
 }
 
@@ -2741,14 +3454,27 @@ SIMSIMD_INTERNAL void simsimd_angular_f64x8_update_skylake(simsimd_angular_f64x8
                                                            simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_f64x8_update_skylake(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_f64x8_finalize_skylake(simsimd_angular_f64x8_state_skylake_t const *state,
-                                                             simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                             simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f64_t a2 = (simsimd_f64_t)a_norm * (simsimd_f64_t)a_norm;
-    simsimd_f64_t b2 = (simsimd_f64_t)b_norm * (simsimd_f64_t)b_norm;
-    simsimd_dot_f64x8_finalize_skylake(state, &ab);
-    *result = _simsimd_angular_normalize_f64_skylake((simsimd_f64_t)ab, a2, b2);
+SIMSIMD_INTERNAL void simsimd_angular_f64x8_finalize_skylake(
+    simsimd_angular_f64x8_state_skylake_t const *state_a, simsimd_angular_f64x8_state_skylake_t const *state_b,
+    simsimd_angular_f64x8_state_skylake_t const *state_c, simsimd_angular_f64x8_state_skylake_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    simsimd_distance_t dot_a, dot_b, dot_c, dot_d;
+    simsimd_dot_f64x8_finalize_skylake(state_a, &dot_a);
+    simsimd_dot_f64x8_finalize_skylake(state_b, &dot_b);
+    simsimd_dot_f64x8_finalize_skylake(state_c, &dot_c);
+    simsimd_dot_f64x8_finalize_skylake(state_d, &dot_d);
+
+    simsimd_f64_t query_norm_sq = (simsimd_f64_t)query_norm * (simsimd_f64_t)query_norm;
+    simsimd_f64_t target_norm_sq_a = (simsimd_f64_t)target_norm_a * (simsimd_f64_t)target_norm_a;
+    simsimd_f64_t target_norm_sq_b = (simsimd_f64_t)target_norm_b * (simsimd_f64_t)target_norm_b;
+    simsimd_f64_t target_norm_sq_c = (simsimd_f64_t)target_norm_c * (simsimd_f64_t)target_norm_c;
+    simsimd_f64_t target_norm_sq_d = (simsimd_f64_t)target_norm_d * (simsimd_f64_t)target_norm_d;
+
+    results[0] = _simsimd_angular_normalize_f64_skylake((simsimd_f64_t)dot_a, query_norm_sq, target_norm_sq_a);
+    results[1] = _simsimd_angular_normalize_f64_skylake((simsimd_f64_t)dot_b, query_norm_sq, target_norm_sq_b);
+    results[2] = _simsimd_angular_normalize_f64_skylake((simsimd_f64_t)dot_c, query_norm_sq, target_norm_sq_c);
+    results[3] = _simsimd_angular_normalize_f64_skylake((simsimd_f64_t)dot_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef simsimd_dot_f64x8_state_skylake_t simsimd_l2_f64x8_state_skylake_t;
@@ -2759,17 +3485,48 @@ SIMSIMD_INTERNAL void simsimd_l2_f64x8_update_skylake(simsimd_l2_f64x8_state_sky
                                                       simsimd_b512_vec_t b) {
     simsimd_dot_f64x8_update_skylake(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_f64x8_finalize_skylake(simsimd_l2_f64x8_state_skylake_t const *state,
-                                                        simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                        simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f64_t a2 = (simsimd_f64_t)a_norm * (simsimd_f64_t)a_norm;
-    simsimd_f64_t b2 = (simsimd_f64_t)b_norm * (simsimd_f64_t)b_norm;
-    simsimd_f64_t d2;
-    simsimd_dot_f64x8_finalize_skylake(state, &ab);
-    d2 = a2 + b2 - (simsimd_f64_t)2 * (simsimd_f64_t)ab;
-    if (d2 < 0) d2 = 0;
-    *result = _simsimd_sqrt_f64_haswell(d2);
+SIMSIMD_INTERNAL void simsimd_l2_f64x8_finalize_skylake(
+    simsimd_l2_f64x8_state_skylake_t const *state_a, simsimd_l2_f64x8_state_skylake_t const *state_b,
+    simsimd_l2_f64x8_state_skylake_t const *state_c, simsimd_l2_f64x8_state_skylake_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_product_a, dot_product_b, dot_product_c, dot_product_d;
+    simsimd_dot_f64x8_finalize_skylake(state_a, &dot_product_a);
+    simsimd_dot_f64x8_finalize_skylake(state_b, &dot_product_b);
+    simsimd_dot_f64x8_finalize_skylake(state_c, &dot_product_c);
+    simsimd_dot_f64x8_finalize_skylake(state_d, &dot_product_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f64_t query_norm_sq = (simsimd_f64_t)query_norm * (simsimd_f64_t)query_norm;
+    simsimd_f64_t target_norm_sq_a = (simsimd_f64_t)target_norm_a * (simsimd_f64_t)target_norm_a;
+    simsimd_f64_t target_norm_sq_b = (simsimd_f64_t)target_norm_b * (simsimd_f64_t)target_norm_b;
+    simsimd_f64_t target_norm_sq_c = (simsimd_f64_t)target_norm_c * (simsimd_f64_t)target_norm_c;
+    simsimd_f64_t target_norm_sq_d = (simsimd_f64_t)target_norm_d * (simsimd_f64_t)target_norm_d;
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_f64_t dist_sq_a = query_norm_sq + target_norm_sq_a - (simsimd_f64_t)2 * (simsimd_f64_t)dot_product_a;
+    simsimd_f64_t dist_sq_b = query_norm_sq + target_norm_sq_b - (simsimd_f64_t)2 * (simsimd_f64_t)dot_product_b;
+    simsimd_f64_t dist_sq_c = query_norm_sq + target_norm_sq_c - (simsimd_f64_t)2 * (simsimd_f64_t)dot_product_c;
+    simsimd_f64_t dist_sq_d = query_norm_sq + target_norm_sq_d - (simsimd_f64_t)2 * (simsimd_f64_t)dot_product_d;
+
+    // Clamp negative values to zero
+    if (dist_sq_a < 0) dist_sq_a = 0;
+    if (dist_sq_b < 0) dist_sq_b = 0;
+    if (dist_sq_c < 0) dist_sq_c = 0;
+    if (dist_sq_d < 0) dist_sq_d = 0;
+
+    // Use 4-way SIMD sqrt via AVX-256 (process 4 f64 values)
+    __m256d dist_sq_vec = _mm256_set_pd(dist_sq_d, dist_sq_c, dist_sq_b, dist_sq_a);
+    __m256d dist_vec = _mm256_sqrt_pd(dist_sq_vec);
+
+    // Store results using simsimd_b512_vec_t
+    simsimd_b512_vec_t storage;
+    _mm256_storeu_pd(storage.f64s, dist_vec);
+    results[0] = storage.f64s[0];
+    results[1] = storage.f64s[1];
+    results[2] = storage.f64s[2];
+    results[3] = storage.f64s[3];
 }
 
 typedef simsimd_dot_f32x16_state_skylake_t simsimd_angular_f32x16_state_skylake_t;
@@ -2780,14 +3537,30 @@ SIMSIMD_INTERNAL void simsimd_angular_f32x16_update_skylake(simsimd_angular_f32x
                                                             simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_f32x16_update_skylake(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_f32x16_finalize_skylake(simsimd_angular_f32x16_state_skylake_t const *state,
-                                                              simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                              simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f64_t a2 = (simsimd_f64_t)a_norm * (simsimd_f64_t)a_norm;
-    simsimd_f64_t b2 = (simsimd_f64_t)b_norm * (simsimd_f64_t)b_norm;
-    simsimd_dot_f32x16_finalize_skylake(state, &ab);
-    *result = _simsimd_angular_normalize_f64_skylake((simsimd_f64_t)ab, a2, b2);
+SIMSIMD_INTERNAL void simsimd_angular_f32x16_finalize_skylake(
+    simsimd_angular_f32x16_state_skylake_t const *state_a, simsimd_angular_f32x16_state_skylake_t const *state_b,
+    simsimd_angular_f32x16_state_skylake_t const *state_c, simsimd_angular_f32x16_state_skylake_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_product_a, dot_product_b, dot_product_c, dot_product_d;
+    simsimd_dot_f32x16_finalize_skylake(state_a, &dot_product_a);
+    simsimd_dot_f32x16_finalize_skylake(state_b, &dot_product_b);
+    simsimd_dot_f32x16_finalize_skylake(state_c, &dot_product_c);
+    simsimd_dot_f32x16_finalize_skylake(state_d, &dot_product_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f64_t query_norm_sq = (simsimd_f64_t)query_norm * (simsimd_f64_t)query_norm;
+    simsimd_f64_t target_norm_sq_a = (simsimd_f64_t)target_norm_a * (simsimd_f64_t)target_norm_a;
+    simsimd_f64_t target_norm_sq_b = (simsimd_f64_t)target_norm_b * (simsimd_f64_t)target_norm_b;
+    simsimd_f64_t target_norm_sq_c = (simsimd_f64_t)target_norm_c * (simsimd_f64_t)target_norm_c;
+    simsimd_f64_t target_norm_sq_d = (simsimd_f64_t)target_norm_d * (simsimd_f64_t)target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    results[0] = _simsimd_angular_normalize_f64_skylake((simsimd_f64_t)dot_product_a, query_norm_sq, target_norm_sq_a);
+    results[1] = _simsimd_angular_normalize_f64_skylake((simsimd_f64_t)dot_product_b, query_norm_sq, target_norm_sq_b);
+    results[2] = _simsimd_angular_normalize_f64_skylake((simsimd_f64_t)dot_product_c, query_norm_sq, target_norm_sq_c);
+    results[3] = _simsimd_angular_normalize_f64_skylake((simsimd_f64_t)dot_product_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef simsimd_dot_f32x16_state_skylake_t simsimd_l2_f32x16_state_skylake_t;
@@ -2798,17 +3571,48 @@ SIMSIMD_INTERNAL void simsimd_l2_f32x16_update_skylake(simsimd_l2_f32x16_state_s
                                                        simsimd_b512_vec_t b) {
     simsimd_dot_f32x16_update_skylake(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_f32x16_finalize_skylake(simsimd_l2_f32x16_state_skylake_t const *state,
-                                                         simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                         simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f64_t a2 = (simsimd_f64_t)a_norm * (simsimd_f64_t)a_norm;
-    simsimd_f64_t b2 = (simsimd_f64_t)b_norm * (simsimd_f64_t)b_norm;
-    simsimd_f64_t d2;
-    simsimd_dot_f32x16_finalize_skylake(state, &ab);
-    d2 = a2 + b2 - (simsimd_f64_t)2 * (simsimd_f64_t)ab;
-    if (d2 < 0) d2 = 0;
-    *result = _simsimd_sqrt_f64_haswell(d2);
+SIMSIMD_INTERNAL void simsimd_l2_f32x16_finalize_skylake(
+    simsimd_l2_f32x16_state_skylake_t const *state_a, simsimd_l2_f32x16_state_skylake_t const *state_b,
+    simsimd_l2_f32x16_state_skylake_t const *state_c, simsimd_l2_f32x16_state_skylake_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_product_a, dot_product_b, dot_product_c, dot_product_d;
+    simsimd_dot_f32x16_finalize_skylake(state_a, &dot_product_a);
+    simsimd_dot_f32x16_finalize_skylake(state_b, &dot_product_b);
+    simsimd_dot_f32x16_finalize_skylake(state_c, &dot_product_c);
+    simsimd_dot_f32x16_finalize_skylake(state_d, &dot_product_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f64_t query_norm_sq = (simsimd_f64_t)query_norm * (simsimd_f64_t)query_norm;
+    simsimd_f64_t target_norm_sq_a = (simsimd_f64_t)target_norm_a * (simsimd_f64_t)target_norm_a;
+    simsimd_f64_t target_norm_sq_b = (simsimd_f64_t)target_norm_b * (simsimd_f64_t)target_norm_b;
+    simsimd_f64_t target_norm_sq_c = (simsimd_f64_t)target_norm_c * (simsimd_f64_t)target_norm_c;
+    simsimd_f64_t target_norm_sq_d = (simsimd_f64_t)target_norm_d * (simsimd_f64_t)target_norm_d;
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_f64_t dist_sq_a = query_norm_sq + target_norm_sq_a - (simsimd_f64_t)2 * (simsimd_f64_t)dot_product_a;
+    simsimd_f64_t dist_sq_b = query_norm_sq + target_norm_sq_b - (simsimd_f64_t)2 * (simsimd_f64_t)dot_product_b;
+    simsimd_f64_t dist_sq_c = query_norm_sq + target_norm_sq_c - (simsimd_f64_t)2 * (simsimd_f64_t)dot_product_c;
+    simsimd_f64_t dist_sq_d = query_norm_sq + target_norm_sq_d - (simsimd_f64_t)2 * (simsimd_f64_t)dot_product_d;
+
+    // Clamp negative values to zero
+    if (dist_sq_a < 0) dist_sq_a = 0;
+    if (dist_sq_b < 0) dist_sq_b = 0;
+    if (dist_sq_c < 0) dist_sq_c = 0;
+    if (dist_sq_d < 0) dist_sq_d = 0;
+
+    // Use 4-way SIMD sqrt via AVX-256 (process 4 f64 values)
+    __m256d dist_sq_vec = _mm256_set_pd(dist_sq_d, dist_sq_c, dist_sq_b, dist_sq_a);
+    __m256d dist_vec = _mm256_sqrt_pd(dist_sq_vec);
+
+    // Store results using simsimd_b512_vec_t
+    simsimd_b512_vec_t storage;
+    _mm256_storeu_pd(storage.f64s, dist_vec);
+    results[0] = storage.f64s[0];
+    results[1] = storage.f64s[1];
+    results[2] = storage.f64s[2];
+    results[3] = storage.f64s[3];
 }
 
 #pragma clang attribute pop
@@ -2940,14 +3744,30 @@ SIMSIMD_INTERNAL void simsimd_angular_bf16x32_update_genoa(simsimd_angular_bf16x
                                                            simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_bf16x32_update_genoa(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_bf16x32_finalize_genoa(simsimd_angular_bf16x32_state_genoa_t const *state,
-                                                             simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                             simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_dot_bf16x32_finalize_genoa(state, &ab);
-    *result = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)ab, a2, b2);
+SIMSIMD_INTERNAL void simsimd_angular_bf16x32_finalize_genoa(
+    simsimd_angular_bf16x32_state_genoa_t const *state_a, simsimd_angular_bf16x32_state_genoa_t const *state_b,
+    simsimd_angular_bf16x32_state_genoa_t const *state_c, simsimd_angular_bf16x32_state_genoa_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_product_a, dot_product_b, dot_product_c, dot_product_d;
+    simsimd_dot_bf16x32_finalize_genoa(state_a, &dot_product_a);
+    simsimd_dot_bf16x32_finalize_genoa(state_b, &dot_product_b);
+    simsimd_dot_bf16x32_finalize_genoa(state_c, &dot_product_c);
+    simsimd_dot_bf16x32_finalize_genoa(state_d, &dot_product_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    results[0] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_a, query_norm_sq, target_norm_sq_a);
+    results[1] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_b, query_norm_sq, target_norm_sq_b);
+    results[2] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_c, query_norm_sq, target_norm_sq_c);
+    results[3] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef simsimd_dot_bf16x32_state_genoa_t simsimd_l2_bf16x32_state_genoa_t;
@@ -2958,17 +3778,43 @@ SIMSIMD_INTERNAL void simsimd_l2_bf16x32_update_genoa(simsimd_l2_bf16x32_state_g
                                                       simsimd_b512_vec_t b) {
     simsimd_dot_bf16x32_update_genoa(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_bf16x32_finalize_genoa(simsimd_l2_bf16x32_state_genoa_t const *state,
-                                                        simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                        simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_f32_t d2;
-    simsimd_dot_bf16x32_finalize_genoa(state, &ab);
-    d2 = a2 + b2 - (simsimd_f32_t)2 * (simsimd_f32_t)ab;
-    if (d2 < 0) d2 = 0;
-    *result = _simsimd_sqrt_f32_haswell(d2);
+SIMSIMD_INTERNAL void simsimd_l2_bf16x32_finalize_genoa(
+    simsimd_l2_bf16x32_state_genoa_t const *state_a, simsimd_l2_bf16x32_state_genoa_t const *state_b,
+    simsimd_l2_bf16x32_state_genoa_t const *state_c, simsimd_l2_bf16x32_state_genoa_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_product_a, dot_product_b, dot_product_c, dot_product_d;
+    simsimd_dot_bf16x32_finalize_genoa(state_a, &dot_product_a);
+    simsimd_dot_bf16x32_finalize_genoa(state_b, &dot_product_b);
+    simsimd_dot_bf16x32_finalize_genoa(state_c, &dot_product_c);
+    simsimd_dot_bf16x32_finalize_genoa(state_d, &dot_product_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_f32_t dist_sq_a = query_norm_sq + target_norm_sq_a - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_a;
+    simsimd_f32_t dist_sq_b = query_norm_sq + target_norm_sq_b - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_b;
+    simsimd_f32_t dist_sq_c = query_norm_sq + target_norm_sq_c - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_c;
+    simsimd_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_d;
+
+    // Use 4-way SSE sqrt (128-bit)
+    __m128 dist_sq_vec = _mm_set_ps((float)(dist_sq_d < 0 ? 0 : dist_sq_d), (float)(dist_sq_c < 0 ? 0 : dist_sq_c),
+                                    (float)(dist_sq_b < 0 ? 0 : dist_sq_b), (float)(dist_sq_a < 0 ? 0 : dist_sq_a));
+    __m128 dist_vec = _mm_sqrt_ps(dist_sq_vec);
+
+    // Store results using simsimd_b512_vec_t
+    simsimd_b512_vec_t storage;
+    _mm_storeu_ps(storage.f32s, dist_vec);
+    results[0] = storage.f32s[0];
+    results[1] = storage.f32s[1];
+    results[2] = storage.f32s[2];
+    results[3] = storage.f32s[3];
 }
 
 #pragma clang attribute pop
@@ -3047,14 +3893,30 @@ SIMSIMD_INTERNAL void simsimd_angular_f16x32_update_sapphire(simsimd_angular_f16
                                                              simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_f16x32_update_sapphire(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_f16x32_finalize_sapphire(simsimd_angular_f16x32_state_sapphire_t const *state,
-                                                               simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                               simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_dot_f16x32_finalize_sapphire(state, &ab);
-    *result = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)ab, a2, b2);
+SIMSIMD_INTERNAL void simsimd_angular_f16x32_finalize_sapphire(
+    simsimd_angular_f16x32_state_sapphire_t const *state_a, simsimd_angular_f16x32_state_sapphire_t const *state_b,
+    simsimd_angular_f16x32_state_sapphire_t const *state_c, simsimd_angular_f16x32_state_sapphire_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_product_a, dot_product_b, dot_product_c, dot_product_d;
+    simsimd_dot_f16x32_finalize_sapphire(state_a, &dot_product_a);
+    simsimd_dot_f16x32_finalize_sapphire(state_b, &dot_product_b);
+    simsimd_dot_f16x32_finalize_sapphire(state_c, &dot_product_c);
+    simsimd_dot_f16x32_finalize_sapphire(state_d, &dot_product_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    results[0] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_a, query_norm_sq, target_norm_sq_a);
+    results[1] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_b, query_norm_sq, target_norm_sq_b);
+    results[2] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_c, query_norm_sq, target_norm_sq_c);
+    results[3] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef simsimd_dot_f16x32_state_sapphire_t simsimd_l2_f16x32_state_sapphire_t;
@@ -3065,17 +3927,43 @@ SIMSIMD_INTERNAL void simsimd_l2_f16x32_update_sapphire(simsimd_l2_f16x32_state_
                                                         simsimd_b512_vec_t b) {
     simsimd_dot_f16x32_update_sapphire(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_f16x32_finalize_sapphire(simsimd_l2_f16x32_state_sapphire_t const *state,
-                                                          simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                          simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_f32_t d2;
-    simsimd_dot_f16x32_finalize_sapphire(state, &ab);
-    d2 = a2 + b2 - (simsimd_f32_t)2 * (simsimd_f32_t)ab;
-    if (d2 < 0) d2 = 0;
-    *result = _simsimd_sqrt_f32_haswell(d2);
+SIMSIMD_INTERNAL void simsimd_l2_f16x32_finalize_sapphire(
+    simsimd_l2_f16x32_state_sapphire_t const *state_a, simsimd_l2_f16x32_state_sapphire_t const *state_b,
+    simsimd_l2_f16x32_state_sapphire_t const *state_c, simsimd_l2_f16x32_state_sapphire_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_product_a, dot_product_b, dot_product_c, dot_product_d;
+    simsimd_dot_f16x32_finalize_sapphire(state_a, &dot_product_a);
+    simsimd_dot_f16x32_finalize_sapphire(state_b, &dot_product_b);
+    simsimd_dot_f16x32_finalize_sapphire(state_c, &dot_product_c);
+    simsimd_dot_f16x32_finalize_sapphire(state_d, &dot_product_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_f32_t dist_sq_a = query_norm_sq + target_norm_sq_a - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_a;
+    simsimd_f32_t dist_sq_b = query_norm_sq + target_norm_sq_b - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_b;
+    simsimd_f32_t dist_sq_c = query_norm_sq + target_norm_sq_c - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_c;
+    simsimd_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_d;
+
+    // Use 4-way SSE sqrt (128-bit)
+    __m128 dist_sq_vec = _mm_set_ps((float)(dist_sq_d < 0 ? 0 : dist_sq_d), (float)(dist_sq_c < 0 ? 0 : dist_sq_c),
+                                    (float)(dist_sq_b < 0 ? 0 : dist_sq_b), (float)(dist_sq_a < 0 ? 0 : dist_sq_a));
+    __m128 dist_vec = _mm_sqrt_ps(dist_sq_vec);
+
+    // Store results using simsimd_b512_vec_t
+    simsimd_b512_vec_t storage;
+    _mm_storeu_ps(storage.f32s, dist_vec);
+    results[0] = storage.f32s[0];
+    results[1] = storage.f32s[1];
+    results[2] = storage.f32s[2];
+    results[3] = storage.f32s[3];
 }
 
 #pragma clang attribute pop
@@ -3508,14 +4396,30 @@ SIMSIMD_INTERNAL void simsimd_angular_i8x64_update_ice(simsimd_angular_i8x64_sta
                                                        simsimd_b512_vec_t b) {
     simsimd_dot_i8x64_update_ice(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_i8x64_finalize_ice(simsimd_angular_i8x64_state_ice_t const *state,
-                                                         simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                         simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_dot_i8x64_finalize_ice(state, &ab);
-    *result = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)ab, a2, b2);
+SIMSIMD_INTERNAL void simsimd_angular_i8x64_finalize_ice(
+    simsimd_angular_i8x64_state_ice_t const *state_a, simsimd_angular_i8x64_state_ice_t const *state_b,
+    simsimd_angular_i8x64_state_ice_t const *state_c, simsimd_angular_i8x64_state_ice_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_product_a, dot_product_b, dot_product_c, dot_product_d;
+    simsimd_dot_i8x64_finalize_ice(state_a, &dot_product_a);
+    simsimd_dot_i8x64_finalize_ice(state_b, &dot_product_b);
+    simsimd_dot_i8x64_finalize_ice(state_c, &dot_product_c);
+    simsimd_dot_i8x64_finalize_ice(state_d, &dot_product_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    results[0] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_a, query_norm_sq, target_norm_sq_a);
+    results[1] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_b, query_norm_sq, target_norm_sq_b);
+    results[2] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_c, query_norm_sq, target_norm_sq_c);
+    results[3] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef simsimd_dot_i8x64_state_ice_t simsimd_l2_i8x64_state_ice_t;
@@ -3526,17 +4430,45 @@ SIMSIMD_INTERNAL void simsimd_l2_i8x64_update_ice(simsimd_l2_i8x64_state_ice_t *
                                                   simsimd_b512_vec_t b) {
     simsimd_dot_i8x64_update_ice(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_i8x64_finalize_ice(simsimd_l2_i8x64_state_ice_t const *state,
-                                                    simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                    simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_f32_t d2;
-    simsimd_dot_i8x64_finalize_ice(state, &ab);
-    d2 = a2 + b2 - (simsimd_f32_t)2 * (simsimd_f32_t)ab;
-    if (d2 < 0) d2 = 0;
-    *result = _simsimd_sqrt_f32_haswell(d2);
+SIMSIMD_INTERNAL void simsimd_l2_i8x64_finalize_ice(simsimd_l2_i8x64_state_ice_t const *state_a,
+                                                    simsimd_l2_i8x64_state_ice_t const *state_b,
+                                                    simsimd_l2_i8x64_state_ice_t const *state_c,
+                                                    simsimd_l2_i8x64_state_ice_t const *state_d,
+                                                    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a,
+                                                    simsimd_distance_t target_norm_b, simsimd_distance_t target_norm_c,
+                                                    simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_product_a, dot_product_b, dot_product_c, dot_product_d;
+    simsimd_dot_i8x64_finalize_ice(state_a, &dot_product_a);
+    simsimd_dot_i8x64_finalize_ice(state_b, &dot_product_b);
+    simsimd_dot_i8x64_finalize_ice(state_c, &dot_product_c);
+    simsimd_dot_i8x64_finalize_ice(state_d, &dot_product_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_f32_t dist_sq_a = query_norm_sq + target_norm_sq_a - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_a;
+    simsimd_f32_t dist_sq_b = query_norm_sq + target_norm_sq_b - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_b;
+    simsimd_f32_t dist_sq_c = query_norm_sq + target_norm_sq_c - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_c;
+    simsimd_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_d;
+
+    // Use 4-way SSE sqrt (128-bit)
+    __m128 dist_sq_vec = _mm_set_ps((float)(dist_sq_d < 0 ? 0 : dist_sq_d), (float)(dist_sq_c < 0 ? 0 : dist_sq_c),
+                                    (float)(dist_sq_b < 0 ? 0 : dist_sq_b), (float)(dist_sq_a < 0 ? 0 : dist_sq_a));
+    __m128 dist_vec = _mm_sqrt_ps(dist_sq_vec);
+
+    // Store results using simsimd_b512_vec_t
+    simsimd_b512_vec_t storage;
+    _mm_storeu_ps(storage.f32s, dist_vec);
+    results[0] = storage.f32s[0];
+    results[1] = storage.f32s[1];
+    results[2] = storage.f32s[2];
+    results[3] = storage.f32s[3];
 }
 
 typedef simsimd_dot_u8x64_state_ice_t simsimd_angular_u8x64_state_ice_t;
@@ -3547,14 +4479,30 @@ SIMSIMD_INTERNAL void simsimd_angular_u8x64_update_ice(simsimd_angular_u8x64_sta
                                                        simsimd_b512_vec_t b) {
     simsimd_dot_u8x64_update_ice(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_u8x64_finalize_ice(simsimd_angular_u8x64_state_ice_t const *state,
-                                                         simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                         simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_dot_u8x64_finalize_ice(state, &ab);
-    *result = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)ab, a2, b2);
+SIMSIMD_INTERNAL void simsimd_angular_u8x64_finalize_ice(
+    simsimd_angular_u8x64_state_ice_t const *state_a, simsimd_angular_u8x64_state_ice_t const *state_b,
+    simsimd_angular_u8x64_state_ice_t const *state_c, simsimd_angular_u8x64_state_ice_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_product_a, dot_product_b, dot_product_c, dot_product_d;
+    simsimd_dot_u8x64_finalize_ice(state_a, &dot_product_a);
+    simsimd_dot_u8x64_finalize_ice(state_b, &dot_product_b);
+    simsimd_dot_u8x64_finalize_ice(state_c, &dot_product_c);
+    simsimd_dot_u8x64_finalize_ice(state_d, &dot_product_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    results[0] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_a, query_norm_sq, target_norm_sq_a);
+    results[1] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_b, query_norm_sq, target_norm_sq_b);
+    results[2] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_c, query_norm_sq, target_norm_sq_c);
+    results[3] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef simsimd_dot_u8x64_state_ice_t simsimd_l2_u8x64_state_ice_t;
@@ -3565,17 +4513,45 @@ SIMSIMD_INTERNAL void simsimd_l2_u8x64_update_ice(simsimd_l2_u8x64_state_ice_t *
                                                   simsimd_b512_vec_t b) {
     simsimd_dot_u8x64_update_ice(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_u8x64_finalize_ice(simsimd_l2_u8x64_state_ice_t const *state,
-                                                    simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                    simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_f32_t d2;
-    simsimd_dot_u8x64_finalize_ice(state, &ab);
-    d2 = a2 + b2 - (simsimd_f32_t)2 * (simsimd_f32_t)ab;
-    if (d2 < 0) d2 = 0;
-    *result = _simsimd_sqrt_f32_haswell(d2);
+SIMSIMD_INTERNAL void simsimd_l2_u8x64_finalize_ice(simsimd_l2_u8x64_state_ice_t const *state_a,
+                                                    simsimd_l2_u8x64_state_ice_t const *state_b,
+                                                    simsimd_l2_u8x64_state_ice_t const *state_c,
+                                                    simsimd_l2_u8x64_state_ice_t const *state_d,
+                                                    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a,
+                                                    simsimd_distance_t target_norm_b, simsimd_distance_t target_norm_c,
+                                                    simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_product_a, dot_product_b, dot_product_c, dot_product_d;
+    simsimd_dot_u8x64_finalize_ice(state_a, &dot_product_a);
+    simsimd_dot_u8x64_finalize_ice(state_b, &dot_product_b);
+    simsimd_dot_u8x64_finalize_ice(state_c, &dot_product_c);
+    simsimd_dot_u8x64_finalize_ice(state_d, &dot_product_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_f32_t dist_sq_a = query_norm_sq + target_norm_sq_a - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_a;
+    simsimd_f32_t dist_sq_b = query_norm_sq + target_norm_sq_b - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_b;
+    simsimd_f32_t dist_sq_c = query_norm_sq + target_norm_sq_c - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_c;
+    simsimd_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_d;
+
+    // Use 4-way SSE sqrt (128-bit)
+    __m128 dist_sq_vec = _mm_set_ps((float)(dist_sq_d < 0 ? 0 : dist_sq_d), (float)(dist_sq_c < 0 ? 0 : dist_sq_c),
+                                    (float)(dist_sq_b < 0 ? 0 : dist_sq_b), (float)(dist_sq_a < 0 ? 0 : dist_sq_a));
+    __m128 dist_vec = _mm_sqrt_ps(dist_sq_vec);
+
+    // Store results using simsimd_b512_vec_t
+    simsimd_b512_vec_t storage;
+    _mm_storeu_ps(storage.f32s, dist_vec);
+    results[0] = storage.f32s[0];
+    results[1] = storage.f32s[1];
+    results[2] = storage.f32s[2];
+    results[3] = storage.f32s[3];
 }
 
 #pragma clang attribute pop
@@ -3625,14 +4601,30 @@ SIMSIMD_INTERNAL void simsimd_angular_i8x64_update_sierra(simsimd_angular_i8x64_
                                                           simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
     simsimd_dot_i8x64_update_sierra(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_angular_i8x64_finalize_sierra(simsimd_angular_i8x64_state_sierra_t const *state,
-                                                            simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                            simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_dot_i8x64_finalize_sierra(state, &ab);
-    *result = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)ab, a2, b2);
+SIMSIMD_INTERNAL void simsimd_angular_i8x64_finalize_sierra(
+    simsimd_angular_i8x64_state_sierra_t const *state_a, simsimd_angular_i8x64_state_sierra_t const *state_b,
+    simsimd_angular_i8x64_state_sierra_t const *state_c, simsimd_angular_i8x64_state_sierra_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_product_a, dot_product_b, dot_product_c, dot_product_d;
+    simsimd_dot_i8x64_finalize_sierra(state_a, &dot_product_a);
+    simsimd_dot_i8x64_finalize_sierra(state_b, &dot_product_b);
+    simsimd_dot_i8x64_finalize_sierra(state_c, &dot_product_c);
+    simsimd_dot_i8x64_finalize_sierra(state_d, &dot_product_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    // Compute angular distances (loop-unrolled)
+    results[0] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_a, query_norm_sq, target_norm_sq_a);
+    results[1] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_b, query_norm_sq, target_norm_sq_b);
+    results[2] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_c, query_norm_sq, target_norm_sq_c);
+    results[3] = _simsimd_angular_normalize_f32_haswell((simsimd_f32_t)dot_product_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef simsimd_dot_i8x64_state_sierra_t simsimd_l2_i8x64_state_sierra_t;
@@ -3643,17 +4635,43 @@ SIMSIMD_INTERNAL void simsimd_l2_i8x64_update_sierra(simsimd_l2_i8x64_state_sier
                                                      simsimd_b512_vec_t b) {
     simsimd_dot_i8x64_update_sierra(state, a, b);
 }
-SIMSIMD_INTERNAL void simsimd_l2_i8x64_finalize_sierra(simsimd_l2_i8x64_state_sierra_t const *state,
-                                                       simsimd_distance_t a_norm, simsimd_distance_t b_norm,
-                                                       simsimd_distance_t *result) {
-    simsimd_distance_t ab;
-    simsimd_f32_t a2 = (simsimd_f32_t)a_norm * (simsimd_f32_t)a_norm;
-    simsimd_f32_t b2 = (simsimd_f32_t)b_norm * (simsimd_f32_t)b_norm;
-    simsimd_f32_t d2;
-    simsimd_dot_i8x64_finalize_sierra(state, &ab);
-    d2 = a2 + b2 - (simsimd_f32_t)2 * (simsimd_f32_t)ab;
-    if (d2 < 0) d2 = 0;
-    *result = _simsimd_sqrt_f32_haswell(d2);
+SIMSIMD_INTERNAL void simsimd_l2_i8x64_finalize_sierra(
+    simsimd_l2_i8x64_state_sierra_t const *state_a, simsimd_l2_i8x64_state_sierra_t const *state_b,
+    simsimd_l2_i8x64_state_sierra_t const *state_c, simsimd_l2_i8x64_state_sierra_t const *state_d,
+    simsimd_distance_t query_norm, simsimd_distance_t target_norm_a, simsimd_distance_t target_norm_b,
+    simsimd_distance_t target_norm_c, simsimd_distance_t target_norm_d, simsimd_distance_t *results) {
+    // Extract dots from states
+    simsimd_distance_t dot_product_a, dot_product_b, dot_product_c, dot_product_d;
+    simsimd_dot_i8x64_finalize_sierra(state_a, &dot_product_a);
+    simsimd_dot_i8x64_finalize_sierra(state_b, &dot_product_b);
+    simsimd_dot_i8x64_finalize_sierra(state_c, &dot_product_c);
+    simsimd_dot_i8x64_finalize_sierra(state_d, &dot_product_d);
+
+    // Compute squared norms (loop-unrolled)
+    simsimd_f32_t query_norm_sq = (simsimd_f32_t)query_norm * (simsimd_f32_t)query_norm;
+    simsimd_f32_t target_norm_sq_a = (simsimd_f32_t)target_norm_a * (simsimd_f32_t)target_norm_a;
+    simsimd_f32_t target_norm_sq_b = (simsimd_f32_t)target_norm_b * (simsimd_f32_t)target_norm_b;
+    simsimd_f32_t target_norm_sq_c = (simsimd_f32_t)target_norm_c * (simsimd_f32_t)target_norm_c;
+    simsimd_f32_t target_norm_sq_d = (simsimd_f32_t)target_norm_d * (simsimd_f32_t)target_norm_d;
+
+    // Compute squared distances (loop-unrolled)
+    simsimd_f32_t dist_sq_a = query_norm_sq + target_norm_sq_a - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_a;
+    simsimd_f32_t dist_sq_b = query_norm_sq + target_norm_sq_b - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_b;
+    simsimd_f32_t dist_sq_c = query_norm_sq + target_norm_sq_c - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_c;
+    simsimd_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - (simsimd_f32_t)2 * (simsimd_f32_t)dot_product_d;
+
+    // Use 4-way SSE sqrt (128-bit)
+    __m128 dist_sq_vec = _mm_set_ps((float)(dist_sq_d < 0 ? 0 : dist_sq_d), (float)(dist_sq_c < 0 ? 0 : dist_sq_c),
+                                    (float)(dist_sq_b < 0 ? 0 : dist_sq_b), (float)(dist_sq_a < 0 ? 0 : dist_sq_a));
+    __m128 dist_vec = _mm_sqrt_ps(dist_sq_vec);
+
+    // Store results using simsimd_b512_vec_t
+    simsimd_b512_vec_t storage;
+    _mm_storeu_ps(storage.f32s, dist_vec);
+    results[0] = storage.f32s[0];
+    results[1] = storage.f32s[1];
+    results[2] = storage.f32s[2];
+    results[3] = storage.f32s[3];
 }
 
 #pragma clang attribute pop

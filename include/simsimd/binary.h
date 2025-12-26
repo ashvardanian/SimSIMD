@@ -85,16 +85,18 @@
  *
  *  @code{.c}
  *  simsimd_b8_t a[128], b[128]; // 1024 bits each filled with random bits
- *  simsimd_size_t a_norm = 0, b_norm = 0;
- *  for (simsimd_size_t i = 0; i != 128; ++i) a_norm += simsimd_popcount_b8(a[i]), b_norm += simsimd_popcount_b8(b[i]);
  *
- *  simsimd_jaccard_b512_state_ice_t state;
- *  simsimd_jaccard_b512_init_ice(&state);
- *  simsimd_jaccard_b512_update_ice(&state, &a[0], &b[0]); // First 512 bits
- *  simsimd_jaccard_b512_update_ice(&state, &a[64], &b[64]); // Second 512 bits
+ *  simsimd_jaccard_b512_state_ice_t state_a, state_b, state_c, state_d;
+ *  simsimd_jaccard_b512_init_ice(&state_a);
+ *  simsimd_jaccard_b512_init_ice(&state_b);
+ *  simsimd_jaccard_b512_init_ice(&state_c);
+ *  simsimd_jaccard_b512_init_ice(&state_d);
+ *  simsimd_jaccard_b512_update_ice(&state_a, &a[0], &b[0]); // First 512 bits
+ *  simsimd_jaccard_b512_update_ice(&state_a, &a[64], &b[64]); // Second 512 bits
+ *  // ... update state_b, state_c, state_d similarly ...
  *
- *  simsimd_distance_t distance;
- *  simsimd_jaccard_b512_finalize_ice(&state, a_norm, b_norm, &distance);
+ *  simsimd_distance_t results[4];
+ *  simsimd_jaccard_b512_finalize_ice(&state_a, &state_b, &state_c, &state_d, results);
  *  @endcode
  *
  *  @section tail_handling Tail Handling
@@ -186,7 +188,7 @@ SIMSIMD_INTERNAL void simsimd_jaccard_b512_init_neon(simsimd_jaccard_b512_state_
 /** @copydoc simsimd_jaccard_b512_state_neon_t */
 SIMSIMD_INTERNAL void simsimd_jaccard_b512_update_neon(simsimd_jaccard_b512_state_neon_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_jaccard_b512_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_neon(simsimd_jaccard_b512_state_neon_t const *state, simsimd_size_t a_norm, simsimd_size_t b_norm, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_neon(simsimd_jaccard_b512_state_neon_t const *state_a, simsimd_jaccard_b512_state_neon_t const *state_b, simsimd_jaccard_b512_state_neon_t const *state_c, simsimd_jaccard_b512_state_neon_t const *state_d, simsimd_distance_t *results);
 #endif // SIMSIMD_TARGET_NEON
 
 #if SIMSIMD_TARGET_SVE
@@ -212,7 +214,7 @@ SIMSIMD_INTERNAL void simsimd_jaccard_b512_init_haswell(simsimd_jaccard_b512_sta
 /** @copydoc simsimd_jaccard_b512_state_haswell_t */
 SIMSIMD_INTERNAL void simsimd_jaccard_b512_update_haswell(simsimd_jaccard_b512_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_jaccard_b512_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_haswell(simsimd_jaccard_b512_state_haswell_t const *state, simsimd_size_t a_norm, simsimd_size_t b_norm, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_haswell(simsimd_jaccard_b512_state_haswell_t const *state_a, simsimd_jaccard_b512_state_haswell_t const *state_b, simsimd_jaccard_b512_state_haswell_t const *state_c, simsimd_jaccard_b512_state_haswell_t const *state_d, simsimd_distance_t *results);
 #endif // SIMSIMD_TARGET_HASWELL
 
 #if SIMSIMD_TARGET_ICE
@@ -229,7 +231,7 @@ SIMSIMD_INTERNAL void simsimd_jaccard_b512_init_ice(simsimd_jaccard_b512_state_i
 /** @copydoc simsimd_jaccard_b512_state_ice_t */
 SIMSIMD_INTERNAL void simsimd_jaccard_b512_update_ice(simsimd_jaccard_b512_state_ice_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_jaccard_b512_state_ice_t */
-SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_ice(simsimd_jaccard_b512_state_ice_t const *state, simsimd_size_t a_norm, simsimd_size_t b_norm, simsimd_distance_t *result);
+SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_ice(simsimd_jaccard_b512_state_ice_t const *state_a, simsimd_jaccard_b512_state_ice_t const *state_b, simsimd_jaccard_b512_state_ice_t const *state_c, simsimd_jaccard_b512_state_ice_t const *state_d, simsimd_distance_t *results);
 #endif // SIMSIMD_TARGET_ICE
 
 // clang-format on
@@ -256,17 +258,17 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_serial(simsimd_b8_t const *a, simsimd_b8_
 
 SIMSIMD_PUBLIC void simsimd_jaccard_b8_serial(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n_words,
                                               simsimd_distance_t *result) {
-    simsimd_u32_t intersection = 0, union_ = 0;
+    simsimd_u32_t intersection_count = 0, union_count = 0;
     for (simsimd_size_t i = 0; i != n_words; ++i)
-        intersection += simsimd_popcount_b8(a[i] & b[i]), union_ += simsimd_popcount_b8(a[i] | b[i]);
-    *result = (union_ != 0) ? 1 - (simsimd_f64_t)intersection / (simsimd_f64_t)union_ : 1;
+        intersection_count += simsimd_popcount_b8(a[i] & b[i]), union_count += simsimd_popcount_b8(a[i] | b[i]);
+    *result = (union_count != 0) ? 1 - (simsimd_f64_t)intersection_count / (simsimd_f64_t)union_count : 1;
 }
 
 SIMSIMD_PUBLIC void simsimd_jaccard_u32_serial(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n,
                                                simsimd_distance_t *result) {
-    simsimd_u32_t intersection = 0;
-    for (simsimd_size_t i = 0; i != n; ++i) intersection += (a[i] == b[i]);
-    *result = (n != 0) ? 1 - (simsimd_f64_t)intersection / (simsimd_f64_t)n : 1;
+    simsimd_u32_t intersection_count = 0;
+    for (simsimd_size_t i = 0; i != n; ++i) intersection_count += (a[i] == b[i]);
+    *result = (n != 0) ? 1 - (simsimd_f64_t)intersection_count / (simsimd_f64_t)n : 1;
 }
 
 #if _SIMSIMD_TARGET_ARM
@@ -315,87 +317,105 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_neon(simsimd_b8_t const *a, simsimd_b8_t 
 
 SIMSIMD_PUBLIC void simsimd_jaccard_b8_neon(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n_words,
                                             simsimd_distance_t *result) {
-    simsimd_i32_t intersection = 0, union_ = 0;
+    simsimd_i32_t intersection_count = 0, union_count = 0;
     simsimd_size_t i = 0;
     // In each 8-bit word we may have up to 8 intersections/unions.
     // So for up-to 31 cycles (31 * 16 = 496 word-dimensions = 3968 bits)
     // we can aggregate the intersections/unions into a `uint8x16_t` vector,
     // where each component will be up-to 255.
     while (i + 16 <= n_words) {
-        uint8x16_t intersections_cycle_vec = vdupq_n_u8(0);
-        uint8x16_t unions_cycle_vec = vdupq_n_u8(0);
+        uint8x16_t intersection_popcount_vec = vdupq_n_u8(0);
+        uint8x16_t union_popcount_vec = vdupq_n_u8(0);
         for (simsimd_size_t cycle = 0; cycle < 31 && i + 16 <= n_words; ++cycle, i += 16) {
             uint8x16_t a_vec = vld1q_u8(a + i);
             uint8x16_t b_vec = vld1q_u8(b + i);
-            uint8x16_t and_count_vec = vcntq_u8(vandq_u8(a_vec, b_vec));
-            uint8x16_t or_count_vec = vcntq_u8(vorrq_u8(a_vec, b_vec));
-            intersections_cycle_vec = vaddq_u8(intersections_cycle_vec, and_count_vec);
-            unions_cycle_vec = vaddq_u8(unions_cycle_vec, or_count_vec);
+            uint8x16_t intersection_bits_popcount = vcntq_u8(vandq_u8(a_vec, b_vec));
+            uint8x16_t union_bits_popcount = vcntq_u8(vorrq_u8(a_vec, b_vec));
+            intersection_popcount_vec = vaddq_u8(intersection_popcount_vec, intersection_bits_popcount);
+            union_popcount_vec = vaddq_u8(union_popcount_vec, union_bits_popcount);
         }
-        intersection += _simsimd_reduce_u8x16_neon(intersections_cycle_vec);
-        union_ += _simsimd_reduce_u8x16_neon(unions_cycle_vec);
+        intersection_count += _simsimd_reduce_u8x16_neon(intersection_popcount_vec);
+        union_count += _simsimd_reduce_u8x16_neon(union_popcount_vec);
     }
     // Handle the tail
     for (; i != n_words; ++i)
-        intersection += simsimd_popcount_b8(a[i] & b[i]), union_ += simsimd_popcount_b8(a[i] | b[i]);
-    *result = (union_ != 0) ? 1 - (simsimd_f64_t)intersection / (simsimd_f64_t)union_ : 1;
+        intersection_count += simsimd_popcount_b8(a[i] & b[i]), union_count += simsimd_popcount_b8(a[i] | b[i]);
+    *result = (union_count != 0) ? 1 - (simsimd_f64_t)intersection_count / (simsimd_f64_t)union_count : 1;
 }
 
 SIMSIMD_PUBLIC void simsimd_jaccard_u32_neon(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n,
                                              simsimd_distance_t *result) {
-    simsimd_size_t intersection = 0;
+    simsimd_size_t intersection_count = 0;
     simsimd_size_t i = 0;
-    uint32x4_t intersection_vec = vdupq_n_u32(0);
+    uint32x4_t intersection_count_vec = vdupq_n_u32(0);
     for (; i + 4 <= n; i += 4) {
         uint32x4_t a_vec = vld1q_u32(a + i);
         uint32x4_t b_vec = vld1q_u32(b + i);
-        uint32x4_t eq_vec = vceqq_u32(a_vec, b_vec);
-        intersection_vec = vaddq_u32(intersection_vec, vshrq_n_u32(eq_vec, 31));
+        uint32x4_t equality_vec = vceqq_u32(a_vec, b_vec);
+        intersection_count_vec = vaddq_u32(intersection_count_vec, vshrq_n_u32(equality_vec, 31));
     }
-    intersection += vaddvq_u32(intersection_vec);
-    for (; i != n; ++i) intersection += (a[i] == b[i]);
-    *result = (n != 0) ? 1 - (simsimd_f64_t)intersection / (simsimd_f64_t)n : 1;
+    intersection_count += vaddvq_u32(intersection_count_vec);
+    for (; i != n; ++i) intersection_count += (a[i] == b[i]);
+    *result = (n != 0) ? 1 - (simsimd_f64_t)intersection_count / (simsimd_f64_t)n : 1;
 }
 
 /**
  *  @brief Running state for 512-bit Jaccard accumulation on NEON.
  *  @code{.c}
  *  simsimd_b512_vec_t a_block, b_block;
- *  simsimd_size_t a_norm = 0, b_norm = 0;
- *  simsimd_distance_t distance;
  *
- *  simsimd_jaccard_b512_state_neon_t state;
- *  simsimd_jaccard_b512_init_neon(&state);
- *  simsimd_jaccard_b512_update_neon(&state, a_block, b_block);
- *  simsimd_jaccard_b512_finalize_neon(&state, a_norm, b_norm, &distance);
+ *  simsimd_jaccard_b512_state_neon_t state_a, state_b, state_c, state_d;
+ *  simsimd_jaccard_b512_init_neon(&state_a);
+ *  simsimd_jaccard_b512_init_neon(&state_b);
+ *  simsimd_jaccard_b512_init_neon(&state_c);
+ *  simsimd_jaccard_b512_init_neon(&state_d);
+ *  simsimd_jaccard_b512_update_neon(&state_a, a_block, b_block);
+ *  // ... update state_b, state_c, state_d similarly ...
+ *
+ *  simsimd_distance_t results[4];
+ *  simsimd_jaccard_b512_finalize_neon(&state_a, &state_b, &state_c, &state_d, results);
  *  @endcode
  */
 typedef struct simsimd_jaccard_b512_state_neon_t {
-    uint32x4_t intersection;
+    uint32x4_t intersection_count;
 } simsimd_jaccard_b512_state_neon_t;
 
 SIMSIMD_INTERNAL void simsimd_jaccard_b512_init_neon(simsimd_jaccard_b512_state_neon_t *state) {
-    state->intersection = vdupq_n_u32(0);
+    state->intersection_count = vdupq_n_u32(0);
 }
 
 SIMSIMD_INTERNAL void simsimd_jaccard_b512_update_neon(simsimd_jaccard_b512_state_neon_t *state, simsimd_b512_vec_t a,
                                                        simsimd_b512_vec_t b) {
-    uint8x16_t and0_vec = vcntq_u8(vandq_u8(a.u8x16s[0], b.u8x16s[0]));
-    uint8x16_t and1_vec = vcntq_u8(vandq_u8(a.u8x16s[1], b.u8x16s[1]));
-    uint8x16_t and2_vec = vcntq_u8(vandq_u8(a.u8x16s[2], b.u8x16s[2]));
-    uint8x16_t and3_vec = vcntq_u8(vandq_u8(a.u8x16s[3], b.u8x16s[3]));
-    uint8x16_t and01_vec = vaddq_u8(and0_vec, and1_vec);
-    uint8x16_t and23_vec = vaddq_u8(and2_vec, and3_vec);
-    uint8x16_t and_vec = vaddq_u8(and01_vec, and23_vec);
-    state->intersection = vaddq_u32(state->intersection, vpaddlq_u16(vpaddlq_u8(and_vec)));
+    // Compute popcount for each 128-bit chunk of the intersection
+    uint8x16_t intersection_popcount_0 = vcntq_u8(vandq_u8(a.u8x16s[0], b.u8x16s[0]));
+    uint8x16_t intersection_popcount_1 = vcntq_u8(vandq_u8(a.u8x16s[1], b.u8x16s[1]));
+    uint8x16_t intersection_popcount_2 = vcntq_u8(vandq_u8(a.u8x16s[2], b.u8x16s[2]));
+    uint8x16_t intersection_popcount_3 = vcntq_u8(vandq_u8(a.u8x16s[3], b.u8x16s[3]));
+    // Pairwise horizontal add to combine chunks
+    uint8x16_t intersection_popcount_01 = vaddq_u8(intersection_popcount_0, intersection_popcount_1);
+    uint8x16_t intersection_popcount_23 = vaddq_u8(intersection_popcount_2, intersection_popcount_3);
+    uint8x16_t intersection_popcount_total = vaddq_u8(intersection_popcount_01, intersection_popcount_23);
+    // Widen from u8 -> u16 -> u32 and accumulate
+    state->intersection_count = vaddq_u32(state->intersection_count,
+                                          vpaddlq_u16(vpaddlq_u8(intersection_popcount_total)));
 }
 
-SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_neon(simsimd_jaccard_b512_state_neon_t const *state,
-                                                         simsimd_size_t a_norm, simsimd_size_t b_norm,
-                                                         simsimd_distance_t *result) {
-    simsimd_size_t intersection = vaddvq_u32(state->intersection);
-    simsimd_size_t union_ = a_norm + b_norm - intersection;
-    *result = (union_ != 0) ? 1 - (simsimd_f64_t)intersection / (simsimd_f64_t)union_ : 1;
+SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_neon(simsimd_jaccard_b512_state_neon_t const *state_a,
+                                                         simsimd_jaccard_b512_state_neon_t const *state_b,
+                                                         simsimd_jaccard_b512_state_neon_t const *state_c,
+                                                         simsimd_jaccard_b512_state_neon_t const *state_d,
+                                                         simsimd_distance_t *results) {
+    // Loop-unrolled reduction for all 4 states
+    simsimd_i32_t intersection_count_a = vaddvq_u32(state_a->intersection_count);
+    simsimd_i32_t intersection_count_b = vaddvq_u32(state_b->intersection_count);
+    simsimd_i32_t intersection_count_c = vaddvq_u32(state_c->intersection_count);
+    simsimd_i32_t intersection_count_d = vaddvq_u32(state_d->intersection_count);
+
+    // Store results - explicit unrolled assignments
+    results[0] = (simsimd_distance_t)intersection_count_a;
+    results[1] = (simsimd_distance_t)intersection_count_b;
+    results[2] = (simsimd_distance_t)intersection_count_c;
+    results[3] = (simsimd_distance_t)intersection_count_d;
 }
 
 #pragma clang attribute pop
@@ -452,46 +472,46 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_sve(simsimd_b8_t const *a, simsimd_b8_t c
 
     // On larger register sizes, SVE is faster.
     simsimd_size_t i = 0, cycle = 0;
-    simsimd_i32_t intersection = 0, union_ = 0;
-    svuint8_t intersection_cycle_vec = svdup_n_u8(0);
-    svuint8_t union_cycle_vec = svdup_n_u8(0);
-    svbool_t const all_vec = svptrue_b8();
+    simsimd_i32_t intersection_count = 0, union_count = 0;
+    svuint8_t intersection_popcount_vec = svdup_n_u8(0);
+    svuint8_t union_popcount_vec = svdup_n_u8(0);
+    svbool_t const predicate_all = svptrue_b8();
     while (i < n_words) {
         do {
-            svbool_t pg_vec = svwhilelt_b8((unsigned int)i, (unsigned int)n_words);
-            svuint8_t a_vec = svld1_u8(pg_vec, a + i);
-            svuint8_t b_vec = svld1_u8(pg_vec, b + i);
-            intersection_cycle_vec = svadd_u8_z(all_vec, intersection_cycle_vec,
-                                                svcnt_u8_x(all_vec, svand_u8_m(all_vec, a_vec, b_vec)));
-            union_cycle_vec = svadd_u8_z(all_vec, union_cycle_vec,
-                                         svcnt_u8_x(all_vec, svorr_u8_m(all_vec, a_vec, b_vec)));
+            svbool_t predicate_active = svwhilelt_b8((unsigned int)i, (unsigned int)n_words);
+            svuint8_t a_vec = svld1_u8(predicate_active, a + i);
+            svuint8_t b_vec = svld1_u8(predicate_active, b + i);
+            intersection_popcount_vec = svadd_u8_z(predicate_all, intersection_popcount_vec,
+                                                   svcnt_u8_x(predicate_all, svand_u8_m(predicate_all, a_vec, b_vec)));
+            union_popcount_vec = svadd_u8_z(predicate_all, union_popcount_vec,
+                                            svcnt_u8_x(predicate_all, svorr_u8_m(predicate_all, a_vec, b_vec)));
             i += words_per_register;
             ++cycle;
         } while (i < n_words && cycle < 31);
-        intersection += svaddv_u8(all_vec, intersection_cycle_vec);
-        intersection_cycle_vec = svdup_n_u8(0);
-        union_ += svaddv_u8(all_vec, union_cycle_vec);
-        union_cycle_vec = svdup_n_u8(0);
+        intersection_count += svaddv_u8(predicate_all, intersection_popcount_vec);
+        intersection_popcount_vec = svdup_n_u8(0);
+        union_count += svaddv_u8(predicate_all, union_popcount_vec);
+        union_popcount_vec = svdup_n_u8(0);
         cycle = 0; // Reset the cycle counter.
     }
 
-    *result = (union_ != 0) ? 1 - (simsimd_f64_t)intersection / (simsimd_f64_t)union_ : 1;
+    *result = (union_count != 0) ? 1 - (simsimd_f64_t)intersection_count / (simsimd_f64_t)union_count : 1;
 }
 
 SIMSIMD_PUBLIC void simsimd_jaccard_u32_sve(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n,
                                             simsimd_distance_t *result) {
     simsimd_size_t const words_per_register = svcntw();
     simsimd_size_t i = 0;
-    simsimd_size_t intersection = 0;
+    simsimd_size_t intersection_count = 0;
     while (i < n) {
-        svbool_t pg_vec = svwhilelt_b32((unsigned int)i, (unsigned int)n);
-        svuint32_t a_vec = svld1_u32(pg_vec, a + i);
-        svuint32_t b_vec = svld1_u32(pg_vec, b + i);
-        svbool_t eq_vec = svcmpeq_u32(pg_vec, a_vec, b_vec);
-        intersection += svcntp_b32(pg_vec, eq_vec);
+        svbool_t predicate_active = svwhilelt_b32((unsigned int)i, (unsigned int)n);
+        svuint32_t a_vec = svld1_u32(predicate_active, a + i);
+        svuint32_t b_vec = svld1_u32(predicate_active, b + i);
+        svbool_t equality_predicate = svcmpeq_u32(predicate_active, a_vec, b_vec);
+        intersection_count += svcntp_b32(predicate_active, equality_predicate);
         i += words_per_register;
     }
-    *result = (n != 0) ? 1 - (simsimd_f64_t)intersection / (simsimd_f64_t)n : 1;
+    *result = (n != 0) ? 1 - (simsimd_f64_t)intersection_count / (simsimd_f64_t)n : 1;
 }
 
 #pragma clang attribute pop
@@ -587,81 +607,85 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(simsimd_b8_t const *a, simsimd_b8_t c
 SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n_words,
                                            simsimd_distance_t *result) {
 
-    simsimd_size_t intersection = 0, union_ = 0;
+    simsimd_size_t intersection_count = 0, union_count = 0;
     //  It's harder to squeeze out performance from tiny representations, so we unroll the loops for binary metrics.
     if (n_words <= 64) { // Up to 512 bits.
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
-        __m512i a_vec = _mm512_maskz_loadu_epi8(mask, a);
-        __m512i b_vec = _mm512_maskz_loadu_epi8(mask, b);
-        __m512i and_count_vec = _mm512_popcnt_epi64(_mm512_and_si512(a_vec, b_vec));
-        __m512i or_count_vec = _mm512_popcnt_epi64(_mm512_or_si512(a_vec, b_vec));
-        intersection = _mm512_reduce_add_epi64(and_count_vec);
-        union_ = _mm512_reduce_add_epi64(or_count_vec);
+        __mmask64 load_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+        __m512i a_vec = _mm512_maskz_loadu_epi8(load_mask, a);
+        __m512i b_vec = _mm512_maskz_loadu_epi8(load_mask, b);
+        __m512i intersection_popcount_vec = _mm512_popcnt_epi64(_mm512_and_si512(a_vec, b_vec));
+        __m512i union_popcount_vec = _mm512_popcnt_epi64(_mm512_or_si512(a_vec, b_vec));
+        intersection_count = _mm512_reduce_add_epi64(intersection_popcount_vec);
+        union_count = _mm512_reduce_add_epi64(union_popcount_vec);
     }
     else if (n_words <= 128) { // Up to 1024 bits.
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 64);
-        __m512i a1_vec = _mm512_loadu_epi8(a);
-        __m512i b1_vec = _mm512_loadu_epi8(b);
-        __m512i a2_vec = _mm512_maskz_loadu_epi8(mask, a + 64);
-        __m512i b2_vec = _mm512_maskz_loadu_epi8(mask, b + 64);
-        __m512i and1_count_vec = _mm512_popcnt_epi64(_mm512_and_si512(a1_vec, b1_vec));
-        __m512i or1_count_vec = _mm512_popcnt_epi64(_mm512_or_si512(a1_vec, b1_vec));
-        __m512i and2_count_vec = _mm512_popcnt_epi64(_mm512_and_si512(a2_vec, b2_vec));
-        __m512i or2_count_vec = _mm512_popcnt_epi64(_mm512_or_si512(a2_vec, b2_vec));
-        intersection = _mm512_reduce_add_epi64(_mm512_add_epi64(and2_count_vec, and1_count_vec));
-        union_ = _mm512_reduce_add_epi64(_mm512_add_epi64(or2_count_vec, or1_count_vec));
+        __mmask64 load_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 64);
+        __m512i a_chunk_1 = _mm512_loadu_epi8(a);
+        __m512i b_chunk_1 = _mm512_loadu_epi8(b);
+        __m512i a_chunk_2 = _mm512_maskz_loadu_epi8(load_mask, a + 64);
+        __m512i b_chunk_2 = _mm512_maskz_loadu_epi8(load_mask, b + 64);
+        __m512i intersection_popcount_1 = _mm512_popcnt_epi64(_mm512_and_si512(a_chunk_1, b_chunk_1));
+        __m512i union_popcount_1 = _mm512_popcnt_epi64(_mm512_or_si512(a_chunk_1, b_chunk_1));
+        __m512i intersection_popcount_2 = _mm512_popcnt_epi64(_mm512_and_si512(a_chunk_2, b_chunk_2));
+        __m512i union_popcount_2 = _mm512_popcnt_epi64(_mm512_or_si512(a_chunk_2, b_chunk_2));
+        intersection_count = _mm512_reduce_add_epi64(
+            _mm512_add_epi64(intersection_popcount_2, intersection_popcount_1));
+        union_count = _mm512_reduce_add_epi64(_mm512_add_epi64(union_popcount_2, union_popcount_1));
     }
     else if (n_words <= 192) { // Up to 1536 bits.
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 128);
-        __m512i a1_vec = _mm512_loadu_epi8(a);
-        __m512i b1_vec = _mm512_loadu_epi8(b);
-        __m512i a2_vec = _mm512_loadu_epi8(a + 64);
-        __m512i b2_vec = _mm512_loadu_epi8(b + 64);
-        __m512i a3_vec = _mm512_maskz_loadu_epi8(mask, a + 128);
-        __m512i b3_vec = _mm512_maskz_loadu_epi8(mask, b + 128);
-        __m512i and1_count_vec = _mm512_popcnt_epi64(_mm512_and_si512(a1_vec, b1_vec));
-        __m512i or1_count_vec = _mm512_popcnt_epi64(_mm512_or_si512(a1_vec, b1_vec));
-        __m512i and2_count_vec = _mm512_popcnt_epi64(_mm512_and_si512(a2_vec, b2_vec));
-        __m512i or2_count_vec = _mm512_popcnt_epi64(_mm512_or_si512(a2_vec, b2_vec));
-        __m512i and3_count_vec = _mm512_popcnt_epi64(_mm512_and_si512(a3_vec, b3_vec));
-        __m512i or3_count_vec = _mm512_popcnt_epi64(_mm512_or_si512(a3_vec, b3_vec));
-        intersection = _mm512_reduce_add_epi64( //
-            _mm512_add_epi64(and3_count_vec, _mm512_add_epi64(and2_count_vec, and1_count_vec)));
-        union_ = _mm512_reduce_add_epi64( //
-            _mm512_add_epi64(or3_count_vec, _mm512_add_epi64(or2_count_vec, or1_count_vec)));
+        __mmask64 load_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 128);
+        __m512i a_chunk_1 = _mm512_loadu_epi8(a);
+        __m512i b_chunk_1 = _mm512_loadu_epi8(b);
+        __m512i a_chunk_2 = _mm512_loadu_epi8(a + 64);
+        __m512i b_chunk_2 = _mm512_loadu_epi8(b + 64);
+        __m512i a_chunk_3 = _mm512_maskz_loadu_epi8(load_mask, a + 128);
+        __m512i b_chunk_3 = _mm512_maskz_loadu_epi8(load_mask, b + 128);
+        __m512i intersection_popcount_1 = _mm512_popcnt_epi64(_mm512_and_si512(a_chunk_1, b_chunk_1));
+        __m512i union_popcount_1 = _mm512_popcnt_epi64(_mm512_or_si512(a_chunk_1, b_chunk_1));
+        __m512i intersection_popcount_2 = _mm512_popcnt_epi64(_mm512_and_si512(a_chunk_2, b_chunk_2));
+        __m512i union_popcount_2 = _mm512_popcnt_epi64(_mm512_or_si512(a_chunk_2, b_chunk_2));
+        __m512i intersection_popcount_3 = _mm512_popcnt_epi64(_mm512_and_si512(a_chunk_3, b_chunk_3));
+        __m512i union_popcount_3 = _mm512_popcnt_epi64(_mm512_or_si512(a_chunk_3, b_chunk_3));
+        intersection_count = _mm512_reduce_add_epi64( //
+            _mm512_add_epi64(intersection_popcount_3,
+                             _mm512_add_epi64(intersection_popcount_2, intersection_popcount_1)));
+        union_count = _mm512_reduce_add_epi64( //
+            _mm512_add_epi64(union_popcount_3, _mm512_add_epi64(union_popcount_2, union_popcount_1)));
     }
     else if (n_words <= 256) { // Up to 2048 bits.
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 192);
-        __m512i a1_vec = _mm512_loadu_epi8(a);
-        __m512i b1_vec = _mm512_loadu_epi8(b);
-        __m512i a2_vec = _mm512_loadu_epi8(a + 64);
-        __m512i b2_vec = _mm512_loadu_epi8(b + 64);
-        __m512i a3_vec = _mm512_loadu_epi8(a + 128);
-        __m512i b3_vec = _mm512_loadu_epi8(b + 128);
-        __m512i a4_vec = _mm512_maskz_loadu_epi8(mask, a + 192);
-        __m512i b4_vec = _mm512_maskz_loadu_epi8(mask, b + 192);
-        __m512i and1_count_vec = _mm512_popcnt_epi64(_mm512_and_si512(a1_vec, b1_vec));
-        __m512i or1_count_vec = _mm512_popcnt_epi64(_mm512_or_si512(a1_vec, b1_vec));
-        __m512i and2_count_vec = _mm512_popcnt_epi64(_mm512_and_si512(a2_vec, b2_vec));
-        __m512i or2_count_vec = _mm512_popcnt_epi64(_mm512_or_si512(a2_vec, b2_vec));
-        __m512i and3_count_vec = _mm512_popcnt_epi64(_mm512_and_si512(a3_vec, b3_vec));
-        __m512i or3_count_vec = _mm512_popcnt_epi64(_mm512_or_si512(a3_vec, b3_vec));
-        __m512i and4_count_vec = _mm512_popcnt_epi64(_mm512_and_si512(a4_vec, b4_vec));
-        __m512i or4_count_vec = _mm512_popcnt_epi64(_mm512_or_si512(a4_vec, b4_vec));
-        intersection = _mm512_reduce_add_epi64(_mm512_add_epi64(_mm512_add_epi64(and4_count_vec, and3_count_vec),
-                                                                _mm512_add_epi64(and2_count_vec, and1_count_vec)));
-        union_ = _mm512_reduce_add_epi64(_mm512_add_epi64(_mm512_add_epi64(or4_count_vec, or3_count_vec),
-                                                          _mm512_add_epi64(or2_count_vec, or1_count_vec)));
+        __mmask64 load_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 192);
+        __m512i a_chunk_1 = _mm512_loadu_epi8(a);
+        __m512i b_chunk_1 = _mm512_loadu_epi8(b);
+        __m512i a_chunk_2 = _mm512_loadu_epi8(a + 64);
+        __m512i b_chunk_2 = _mm512_loadu_epi8(b + 64);
+        __m512i a_chunk_3 = _mm512_loadu_epi8(a + 128);
+        __m512i b_chunk_3 = _mm512_loadu_epi8(b + 128);
+        __m512i a_chunk_4 = _mm512_maskz_loadu_epi8(load_mask, a + 192);
+        __m512i b_chunk_4 = _mm512_maskz_loadu_epi8(load_mask, b + 192);
+        __m512i intersection_popcount_1 = _mm512_popcnt_epi64(_mm512_and_si512(a_chunk_1, b_chunk_1));
+        __m512i union_popcount_1 = _mm512_popcnt_epi64(_mm512_or_si512(a_chunk_1, b_chunk_1));
+        __m512i intersection_popcount_2 = _mm512_popcnt_epi64(_mm512_and_si512(a_chunk_2, b_chunk_2));
+        __m512i union_popcount_2 = _mm512_popcnt_epi64(_mm512_or_si512(a_chunk_2, b_chunk_2));
+        __m512i intersection_popcount_3 = _mm512_popcnt_epi64(_mm512_and_si512(a_chunk_3, b_chunk_3));
+        __m512i union_popcount_3 = _mm512_popcnt_epi64(_mm512_or_si512(a_chunk_3, b_chunk_3));
+        __m512i intersection_popcount_4 = _mm512_popcnt_epi64(_mm512_and_si512(a_chunk_4, b_chunk_4));
+        __m512i union_popcount_4 = _mm512_popcnt_epi64(_mm512_or_si512(a_chunk_4, b_chunk_4));
+        intersection_count = _mm512_reduce_add_epi64(
+            _mm512_add_epi64(_mm512_add_epi64(intersection_popcount_4, intersection_popcount_3),
+                             _mm512_add_epi64(intersection_popcount_2, intersection_popcount_1)));
+        union_count = _mm512_reduce_add_epi64(_mm512_add_epi64(_mm512_add_epi64(union_popcount_4, union_popcount_3),
+                                                               _mm512_add_epi64(union_popcount_2, union_popcount_1)));
     }
     else {
-        __m512i and_count_vec = _mm512_setzero_si512(), or_count_vec = _mm512_setzero_si512();
+        __m512i intersection_popcount_vec = _mm512_setzero_si512();
+        __m512i union_popcount_vec = _mm512_setzero_si512();
         __m512i a_vec, b_vec;
 
     simsimd_jaccard_b8_ice_cycle:
         if (n_words < 64) {
-            __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
-            a_vec = _mm512_maskz_loadu_epi8(mask, a);
-            b_vec = _mm512_maskz_loadu_epi8(mask, b);
+            __mmask64 load_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+            a_vec = _mm512_maskz_loadu_epi8(load_mask, a);
+            b_vec = _mm512_maskz_loadu_epi8(load_mask, b);
             n_words = 0;
         }
         else {
@@ -669,71 +693,109 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(simsimd_b8_t const *a, simsimd_b8_t c
             b_vec = _mm512_loadu_epi8(b);
             a += 64, b += 64, n_words -= 64;
         }
-        __m512i and_vec = _mm512_and_si512(a_vec, b_vec);
-        __m512i or_vec = _mm512_or_si512(a_vec, b_vec);
-        and_count_vec = _mm512_add_epi64(and_count_vec, _mm512_popcnt_epi64(and_vec));
-        or_count_vec = _mm512_add_epi64(or_count_vec, _mm512_popcnt_epi64(or_vec));
+        __m512i intersection_bits = _mm512_and_si512(a_vec, b_vec);
+        __m512i union_bits = _mm512_or_si512(a_vec, b_vec);
+        intersection_popcount_vec = _mm512_add_epi64(intersection_popcount_vec, _mm512_popcnt_epi64(intersection_bits));
+        union_popcount_vec = _mm512_add_epi64(union_popcount_vec, _mm512_popcnt_epi64(union_bits));
         if (n_words) goto simsimd_jaccard_b8_ice_cycle;
 
-        intersection = _mm512_reduce_add_epi64(and_count_vec);
-        union_ = _mm512_reduce_add_epi64(or_count_vec);
+        intersection_count = _mm512_reduce_add_epi64(intersection_popcount_vec);
+        union_count = _mm512_reduce_add_epi64(union_popcount_vec);
     }
-    *result = (union_ != 0) ? 1 - (simsimd_f64_t)intersection / (simsimd_f64_t)union_ : 1;
+    *result = (union_count != 0) ? 1 - (simsimd_f64_t)intersection_count / (simsimd_f64_t)union_count : 1;
 }
 
 SIMSIMD_PUBLIC void simsimd_jaccard_u32_ice(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n,
                                             simsimd_distance_t *result) {
-    simsimd_size_t n_words = n;
-    simsimd_size_t intersection = 0;
+    simsimd_size_t total_elements = n;
+    simsimd_size_t intersection_count = 0;
     for (; n >= 16; n -= 16, a += 16, b += 16) {
         __m512i a_vec = _mm512_loadu_epi32(a);
         __m512i b_vec = _mm512_loadu_epi32(b);
-        __mmask16 eq_mask = _mm512_cmpeq_epi32_mask(a_vec, b_vec);
-        intersection += _mm_popcnt_u32((unsigned int)eq_mask);
+        __mmask16 equality_mask = _mm512_cmpeq_epi32_mask(a_vec, b_vec);
+        intersection_count += _mm_popcnt_u32((unsigned int)equality_mask);
     }
     if (n) {
-        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, n);
-        __m512i a_vec = _mm512_maskz_loadu_epi32(mask, a);
-        __m512i b_vec = _mm512_maskz_loadu_epi32(mask, b);
-        __mmask16 eq_mask = _mm512_cmpeq_epi32_mask(a_vec, b_vec) & mask;
-        intersection += _mm_popcnt_u32((unsigned int)eq_mask);
+        __mmask16 load_mask = (__mmask16)_bzhi_u32(0xFFFF, n);
+        __m512i a_vec = _mm512_maskz_loadu_epi32(load_mask, a);
+        __m512i b_vec = _mm512_maskz_loadu_epi32(load_mask, b);
+        __mmask16 equality_mask = _mm512_cmpeq_epi32_mask(a_vec, b_vec) & load_mask;
+        intersection_count += _mm_popcnt_u32((unsigned int)equality_mask);
     }
-    *result = (n_words != 0) ? 1 - (simsimd_f64_t)intersection / (simsimd_f64_t)n_words : 1;
+    *result = (total_elements != 0) ? 1 - (simsimd_f64_t)intersection_count / (simsimd_f64_t)total_elements : 1;
 }
 
 /**
  *  @brief Running state for 512-bit Jaccard accumulation on Ice Lake.
  *  @code{.c}
  *  simsimd_b512_vec_t a_block, b_block;
- *  simsimd_size_t a_norm = 0, b_norm = 0;
- *  simsimd_distance_t distance;
  *
- *  simsimd_jaccard_b512_state_ice_t state;
- *  simsimd_jaccard_b512_init_ice(&state);
- *  simsimd_jaccard_b512_update_ice(&state, a_block, b_block);
- *  simsimd_jaccard_b512_finalize_ice(&state, a_norm, b_norm, &distance);
+ *  simsimd_jaccard_b512_state_ice_t state_a, state_b, state_c, state_d;
+ *  simsimd_jaccard_b512_init_ice(&state_a);
+ *  simsimd_jaccard_b512_init_ice(&state_b);
+ *  simsimd_jaccard_b512_init_ice(&state_c);
+ *  simsimd_jaccard_b512_init_ice(&state_d);
+ *  simsimd_jaccard_b512_update_ice(&state_a, a_block, b_block);
+ *  // ... update state_b, state_c, state_d similarly ...
+ *
+ *  simsimd_distance_t results[4];
+ *  simsimd_jaccard_b512_finalize_ice(&state_a, &state_b, &state_c, &state_d, results);
  *  @endcode
  */
 typedef struct simsimd_jaccard_b512_state_ice_t {
-    __m512i intersections_i64s;
+    __m512i intersection_count;
 } simsimd_jaccard_b512_state_ice_t;
 
 SIMSIMD_INTERNAL void simsimd_jaccard_b512_init_ice(simsimd_jaccard_b512_state_ice_t *state) {
-    state->intersections_i64s = _mm512_setzero_si512();
+    state->intersection_count = _mm512_setzero_si512();
 }
 
 SIMSIMD_INTERNAL void simsimd_jaccard_b512_update_ice(simsimd_jaccard_b512_state_ice_t *state, simsimd_b512_vec_t a,
                                                       simsimd_b512_vec_t b) {
-    state->intersections_i64s = _mm512_add_epi64(state->intersections_i64s,
+    state->intersection_count = _mm512_add_epi64(state->intersection_count,
                                                  _mm512_popcnt_epi64(_mm512_and_si512(a.zmm, b.zmm)));
 }
 
-SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_ice(simsimd_jaccard_b512_state_ice_t const *state,
-                                                        simsimd_size_t a_norm, simsimd_size_t b_norm,
-                                                        simsimd_distance_t *result) {
-    simsimd_size_t intersection = (simsimd_size_t)_mm512_reduce_add_epi64(state->intersections_i64s);
-    simsimd_size_t union_ = a_norm + b_norm - intersection;
-    *result = (union_ != 0) ? 1 - (simsimd_f64_t)intersection / (simsimd_f64_t)union_ : 1;
+SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_ice(simsimd_jaccard_b512_state_ice_t const *state_a,
+                                                        simsimd_jaccard_b512_state_ice_t const *state_b,
+                                                        simsimd_jaccard_b512_state_ice_t const *state_c,
+                                                        simsimd_jaccard_b512_state_ice_t const *state_d,
+                                                        simsimd_distance_t *results) {
+    // ILP-optimized 4-way horizontal reduction for i64 using SIMD operations.
+    // Avoids serial _mm512_reduce_add_epi64 calls by staying in SIMD as long as possible.
+    // Step 1: 8->4 for all 4 states (extract high 256-bit half and add to low half)
+    __m256i intersection_count_a = _mm256_add_epi64(_mm512_castsi512_si256(state_a->intersection_count),
+                                                    _mm512_extracti64x4_epi64(state_a->intersection_count, 1));
+    __m256i intersection_count_b = _mm256_add_epi64(_mm512_castsi512_si256(state_b->intersection_count),
+                                                    _mm512_extracti64x4_epi64(state_b->intersection_count, 1));
+    __m256i intersection_count_c = _mm256_add_epi64(_mm512_castsi512_si256(state_c->intersection_count),
+                                                    _mm512_extracti64x4_epi64(state_c->intersection_count, 1));
+    __m256i intersection_count_d = _mm256_add_epi64(_mm512_castsi512_si256(state_d->intersection_count),
+                                                    _mm512_extracti64x4_epi64(state_d->intersection_count, 1));
+    // Step 2: 4->2 for all 4 states (extract high 128-bit half and add to low half)
+    __m128i partial_a = _mm_add_epi64(_mm256_castsi256_si128(intersection_count_a),
+                                      _mm256_extracti128_si256(intersection_count_a, 1));
+    __m128i partial_b = _mm_add_epi64(_mm256_castsi256_si128(intersection_count_b),
+                                      _mm256_extracti128_si256(intersection_count_b, 1));
+    __m128i partial_c = _mm_add_epi64(_mm256_castsi256_si128(intersection_count_c),
+                                      _mm256_extracti128_si256(intersection_count_c, 1));
+    __m128i partial_d = _mm_add_epi64(_mm256_castsi256_si128(intersection_count_d),
+                                      _mm256_extracti128_si256(intersection_count_d, 1));
+    // Step 3: Transpose and reduce 2x2 pairs into final 4 results.
+    // Each partial has [sum_lo, sum_hi]. We need to add them.
+    // Transpose: combine [a_lo, a_hi] and [b_lo, b_hi] into [a_lo, b_lo] and [a_hi, b_hi]
+    __m128i transpose_ab_lo = _mm_unpacklo_epi64(partial_a, partial_b); // [a_lo, b_lo]
+    __m128i transpose_ab_hi = _mm_unpackhi_epi64(partial_a, partial_b); // [a_hi, b_hi]
+    __m128i transpose_cd_lo = _mm_unpacklo_epi64(partial_c, partial_d); // [c_lo, d_lo]
+    __m128i transpose_cd_hi = _mm_unpackhi_epi64(partial_c, partial_d); // [c_hi, d_hi]
+    // Final horizontal add for each pair
+    __m128i final_ab = _mm_add_epi64(transpose_ab_lo, transpose_ab_hi); // [a_total, b_total]
+    __m128i final_cd = _mm_add_epi64(transpose_cd_lo, transpose_cd_hi); // [c_total, d_total]
+    // Convert to f64 and store
+    __m128d result_ab = _mm_cvtepi64_pd(final_ab);
+    __m128d result_cd = _mm_cvtepi64_pd(final_cd);
+    _mm_storeu_pd(results, result_ab);
+    _mm_storeu_pd(results + 2, result_cd);
 }
 
 #pragma clang attribute pop
@@ -758,68 +820,85 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_haswell(simsimd_b8_t const *a, simsimd_b8
 SIMSIMD_PUBLIC void simsimd_jaccard_b8_haswell(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n_words,
                                                simsimd_distance_t *result) {
     // x86 supports unaligned loads and works just fine with the scalar version for small vectors.
-    simsimd_size_t intersection = 0, union_ = 0;
+    simsimd_size_t intersection_count = 0, union_count = 0;
     for (; n_words >= 8; n_words -= 8, a += 8, b += 8)
-        intersection += _mm_popcnt_u64(*(simsimd_u64_t const *)a & *(simsimd_u64_t const *)b),
-            union_ += _mm_popcnt_u64(*(simsimd_u64_t const *)a | *(simsimd_u64_t const *)b);
-    for (; n_words; --n_words, ++a, ++b) intersection += _mm_popcnt_u32(*a & *b), union_ += _mm_popcnt_u32(*a | *b);
-    *result = (union_ != 0) ? 1 - (simsimd_f64_t)intersection / (simsimd_f64_t)union_ : 1;
+        intersection_count += _mm_popcnt_u64(*(simsimd_u64_t const *)a & *(simsimd_u64_t const *)b),
+            union_count += _mm_popcnt_u64(*(simsimd_u64_t const *)a | *(simsimd_u64_t const *)b);
+    for (; n_words; --n_words, ++a, ++b)
+        intersection_count += _mm_popcnt_u32(*a & *b), union_count += _mm_popcnt_u32(*a | *b);
+    *result = (union_count != 0) ? 1 - (simsimd_f64_t)intersection_count / (simsimd_f64_t)union_count : 1;
 }
 
 SIMSIMD_PUBLIC void simsimd_jaccard_u32_haswell(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t n,
                                                 simsimd_distance_t *result) {
-    simsimd_size_t n_words = n;
-    simsimd_size_t intersection = 0;
+    simsimd_size_t total_elements = n;
+    simsimd_size_t intersection_count = 0;
     for (; n >= 4; n -= 4, a += 4, b += 4) {
         __m128i a_vec = _mm_loadu_si128((__m128i const *)a);
         __m128i b_vec = _mm_loadu_si128((__m128i const *)b);
-        __m128i eq_vec = _mm_cmpeq_epi32(a_vec, b_vec);
-        int mask = _mm_movemask_ps(_mm_castsi128_ps(eq_vec));
-        intersection += _mm_popcnt_u32((unsigned int)mask);
+        __m128i equality_vec = _mm_cmpeq_epi32(a_vec, b_vec);
+        int equality_mask = _mm_movemask_ps(_mm_castsi128_ps(equality_vec));
+        intersection_count += _mm_popcnt_u32((unsigned int)equality_mask);
     }
-    for (; n; --n, ++a, ++b) intersection += (*a == *b);
-    *result = (n_words != 0) ? 1 - (simsimd_f64_t)intersection / (simsimd_f64_t)n_words : 1;
+    for (; n; --n, ++a, ++b) intersection_count += (*a == *b);
+    *result = (total_elements != 0) ? 1 - (simsimd_f64_t)intersection_count / (simsimd_f64_t)total_elements : 1;
 }
 
 /**
  *  @brief Running state for 512-bit Jaccard accumulation on Haswell.
  *  @code{.c}
  *  simsimd_b512_vec_t a_block, b_block;
- *  simsimd_size_t a_norm = 0, b_norm = 0;
- *  simsimd_distance_t distance;
  *
- *  simsimd_jaccard_b512_state_haswell_t state;
- *  simsimd_jaccard_b512_init_haswell(&state);
- *  simsimd_jaccard_b512_update_haswell(&state, a_block, b_block);
- *  simsimd_jaccard_b512_finalize_haswell(&state, a_norm, b_norm, &distance);
+ *  simsimd_jaccard_b512_state_haswell_t state_a, state_b, state_c, state_d;
+ *  simsimd_jaccard_b512_init_haswell(&state_a);
+ *  simsimd_jaccard_b512_init_haswell(&state_b);
+ *  simsimd_jaccard_b512_init_haswell(&state_c);
+ *  simsimd_jaccard_b512_init_haswell(&state_d);
+ *  simsimd_jaccard_b512_update_haswell(&state_a, a_block, b_block);
+ *  // ... update state_b, state_c, state_d similarly ...
+ *
+ *  simsimd_distance_t results[4];
+ *  simsimd_jaccard_b512_finalize_haswell(&state_a, &state_b, &state_c, &state_d, results);
  *  @endcode
  */
 typedef struct simsimd_jaccard_b512_state_haswell_t {
-    simsimd_size_t intersections[2];
+    simsimd_size_t intersection_count[2];
 } simsimd_jaccard_b512_state_haswell_t;
 
 SIMSIMD_INTERNAL void simsimd_jaccard_b512_init_haswell(simsimd_jaccard_b512_state_haswell_t *state) {
-    state->intersections[0] = state->intersections[1] = 0;
+    state->intersection_count[0] = 0;
+    state->intersection_count[1] = 0;
 }
 
 SIMSIMD_INTERNAL void simsimd_jaccard_b512_update_haswell(simsimd_jaccard_b512_state_haswell_t *state,
                                                           simsimd_b512_vec_t a, simsimd_b512_vec_t b) {
-    state->intersections[0] += _mm_popcnt_u64(a.u64s[0] & b.u64s[0]);
-    state->intersections[1] += _mm_popcnt_u64(a.u64s[1] & b.u64s[1]);
-    state->intersections[0] += _mm_popcnt_u64(a.u64s[2] & b.u64s[2]);
-    state->intersections[1] += _mm_popcnt_u64(a.u64s[3] & b.u64s[3]);
-    state->intersections[0] += _mm_popcnt_u64(a.u64s[4] & b.u64s[4]);
-    state->intersections[1] += _mm_popcnt_u64(a.u64s[5] & b.u64s[5]);
-    state->intersections[0] += _mm_popcnt_u64(a.u64s[6] & b.u64s[6]);
-    state->intersections[1] += _mm_popcnt_u64(a.u64s[7] & b.u64s[7]);
+    // Process all 8 u64 words, alternating accumulation to expose ILP
+    state->intersection_count[0] += _mm_popcnt_u64(a.u64s[0] & b.u64s[0]);
+    state->intersection_count[1] += _mm_popcnt_u64(a.u64s[1] & b.u64s[1]);
+    state->intersection_count[0] += _mm_popcnt_u64(a.u64s[2] & b.u64s[2]);
+    state->intersection_count[1] += _mm_popcnt_u64(a.u64s[3] & b.u64s[3]);
+    state->intersection_count[0] += _mm_popcnt_u64(a.u64s[4] & b.u64s[4]);
+    state->intersection_count[1] += _mm_popcnt_u64(a.u64s[5] & b.u64s[5]);
+    state->intersection_count[0] += _mm_popcnt_u64(a.u64s[6] & b.u64s[6]);
+    state->intersection_count[1] += _mm_popcnt_u64(a.u64s[7] & b.u64s[7]);
 }
 
-SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_haswell(simsimd_jaccard_b512_state_haswell_t const *state,
-                                                            simsimd_size_t a_norm, simsimd_size_t b_norm,
-                                                            simsimd_distance_t *result) {
-    simsimd_size_t intersection = state->intersections[0] + state->intersections[1];
-    simsimd_size_t union_ = a_norm + b_norm - intersection;
-    *result = (union_ != 0) ? 1 - (simsimd_f64_t)intersection / (simsimd_f64_t)union_ : 1;
+SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_haswell(simsimd_jaccard_b512_state_haswell_t const *state_a,
+                                                            simsimd_jaccard_b512_state_haswell_t const *state_b,
+                                                            simsimd_jaccard_b512_state_haswell_t const *state_c,
+                                                            simsimd_jaccard_b512_state_haswell_t const *state_d,
+                                                            simsimd_distance_t *results) {
+    // Loop-unrolled extraction for all 4 states
+    simsimd_size_t intersection_count_a = state_a->intersection_count[0] + state_a->intersection_count[1];
+    simsimd_size_t intersection_count_b = state_b->intersection_count[0] + state_b->intersection_count[1];
+    simsimd_size_t intersection_count_c = state_c->intersection_count[0] + state_c->intersection_count[1];
+    simsimd_size_t intersection_count_d = state_d->intersection_count[0] + state_d->intersection_count[1];
+
+    // Store results - explicit unrolled assignments
+    results[0] = (simsimd_distance_t)intersection_count_a;
+    results[1] = (simsimd_distance_t)intersection_count_b;
+    results[2] = (simsimd_distance_t)intersection_count_c;
+    results[3] = (simsimd_distance_t)intersection_count_d;
 }
 
 #pragma clang attribute pop
