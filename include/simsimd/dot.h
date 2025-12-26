@@ -775,7 +775,7 @@ SIMSIMD_INTERNAL void simsimd_dot_f64x8_update_serial(simsimd_dot_f64x8_state_se
     state->sums[0] = sum0, state->sums[1] = sum1;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_f64x8_finalize_serial(                                  //
+SIMSIMD_INTERNAL void simsimd_dot_f64x8_finalize_serial(                                    //
     simsimd_dot_f64x8_state_serial_t const *s0, simsimd_dot_f64x8_state_serial_t const *s1, //
     simsimd_dot_f64x8_state_serial_t const *s2, simsimd_dot_f64x8_state_serial_t const *s3, //
     simsimd_f32_t *results) {
@@ -818,7 +818,7 @@ SIMSIMD_INTERNAL void simsimd_dot_f32x16_update_serial(simsimd_dot_f32x16_state_
     state->sums[0] = sum0, state->sums[1] = sum1, state->sums[2] = sum2, state->sums[3] = sum3;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_serial(                                    //
+SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_serial(                                     //
     simsimd_dot_f32x16_state_serial_t const *s0, simsimd_dot_f32x16_state_serial_t const *s1, //
     simsimd_dot_f32x16_state_serial_t const *s2, simsimd_dot_f32x16_state_serial_t const *s3, //
     simsimd_f32_t *results) {
@@ -863,7 +863,7 @@ SIMSIMD_INTERNAL void simsimd_dot_f16x32_update_serial(simsimd_dot_f16x32_state_
     state->sums[0] = sum0, state->sums[1] = sum1, state->sums[2] = sum2, state->sums[3] = sum3;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_serial(                                    //
+SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_serial(                                     //
     simsimd_dot_f16x32_state_serial_t const *s0, simsimd_dot_f16x32_state_serial_t const *s1, //
     simsimd_dot_f16x32_state_serial_t const *s2, simsimd_dot_f16x32_state_serial_t const *s3, //
     simsimd_f32_t *results) {
@@ -1003,7 +1003,7 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_serial(simsimd_dot_i8x64_state_se
     state->sums[0] = sum0, state->sums[1] = sum1;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_serial(                                  //
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_serial(                                    //
     simsimd_dot_i8x64_state_serial_t const *s0, simsimd_dot_i8x64_state_serial_t const *s1, //
     simsimd_dot_i8x64_state_serial_t const *s2, simsimd_dot_i8x64_state_serial_t const *s3, //
     simsimd_f32_t *results) {
@@ -1098,7 +1098,7 @@ SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_serial(simsimd_dot_u8x64_state_se
     state->sums[0] = sum0, state->sums[1] = sum1;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_serial(                                  //
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_serial(                                    //
     simsimd_dot_u8x64_state_serial_t const *s0, simsimd_dot_u8x64_state_serial_t const *s1, //
     simsimd_dot_u8x64_state_serial_t const *s2, simsimd_dot_u8x64_state_serial_t const *s3, //
     simsimd_f32_t *results) {
@@ -1332,7 +1332,7 @@ SIMSIMD_INTERNAL void simsimd_dot_f32x16_update_neon(simsimd_dot_f32x16_state_ne
     state->sum = sum;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_neon(                            //
+SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_neon(                                   //
     simsimd_dot_f32x16_state_neon_t const *s0, simsimd_dot_f32x16_state_neon_t const *s1, //
     simsimd_dot_f32x16_state_neon_t const *s2, simsimd_dot_f32x16_state_neon_t const *s3, //
     simsimd_f32_t *results) {
@@ -1425,7 +1425,7 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_neon(simsimd_dot_i8x64_state_neon
     state->sum = sum;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_neon(                            //
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_neon(                                  //
     simsimd_dot_i8x64_state_neon_t const *s0, simsimd_dot_i8x64_state_neon_t const *s1, //
     simsimd_dot_i8x64_state_neon_t const *s2, simsimd_dot_i8x64_state_neon_t const *s3, //
     simsimd_f32_t *results) {
@@ -1457,7 +1457,7 @@ SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_neon(simsimd_dot_u8x64_state_neon
     state->sum = sum;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_neon(                            //
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_neon(                                  //
     simsimd_dot_u8x64_state_neon_t const *s0, simsimd_dot_u8x64_state_neon_t const *s1, //
     simsimd_dot_u8x64_state_neon_t const *s2, simsimd_dot_u8x64_state_neon_t const *s3, //
     simsimd_f32_t *results) {
@@ -1618,7 +1618,7 @@ SIMSIMD_INTERNAL void simsimd_dot_f16x32_update_neon(simsimd_dot_f16x32_state_ne
     state->sum = sum;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_neon(                            //
+SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_neon(                                   //
     simsimd_dot_f16x32_state_neon_t const *s0, simsimd_dot_f16x32_state_neon_t const *s1, //
     simsimd_dot_f16x32_state_neon_t const *s2, simsimd_dot_f16x32_state_neon_t const *s3, //
     simsimd_f32_t *results) {
@@ -1768,7 +1768,7 @@ SIMSIMD_INTERNAL void simsimd_dot_bf16x32_update_neon(simsimd_dot_bf16x32_state_
     state->sum = sum;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_bf16x32_finalize_neon(                            //
+SIMSIMD_INTERNAL void simsimd_dot_bf16x32_finalize_neon(                                    //
     simsimd_dot_bf16x32_state_neon_t const *s0, simsimd_dot_bf16x32_state_neon_t const *s1, //
     simsimd_dot_bf16x32_state_neon_t const *s2, simsimd_dot_bf16x32_state_neon_t const *s3, //
     simsimd_f32_t *results) {
@@ -2549,7 +2549,7 @@ SIMSIMD_INTERNAL void simsimd_dot_f32x16_update_haswell(simsimd_dot_f32x16_state
     state->sum = sum;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_haswell(                           //
+SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_haswell(                                      //
     simsimd_dot_f32x16_state_haswell_t const *s0, simsimd_dot_f32x16_state_haswell_t const *s1, //
     simsimd_dot_f32x16_state_haswell_t const *s2, simsimd_dot_f32x16_state_haswell_t const *s3, //
     simsimd_f32_t *results) {
@@ -2560,10 +2560,10 @@ SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_haswell(                      
     __m128 a2 = _mm_add_ps(_mm256_castps256_ps128(s2->sum), _mm256_extractf128_ps(s2->sum, 1));
     __m128 a3 = _mm_add_ps(_mm256_castps256_ps128(s3->sum), _mm256_extractf128_ps(s3->sum, 1));
     // Step 2: Transpose 4×4 matrix of partial sums
-    __m128 t01_lo = _mm_unpacklo_ps(a0, a1); // s0[0], s1[0], s0[1], s1[1]
-    __m128 t23_lo = _mm_unpacklo_ps(a2, a3); // s2[0], s3[0], s2[1], s3[1]
-    __m128 t01_hi = _mm_unpackhi_ps(a0, a1); // s0[2], s1[2], s0[3], s1[3]
-    __m128 t23_hi = _mm_unpackhi_ps(a2, a3); // s2[2], s3[2], s2[3], s3[3]
+    __m128 t01_lo = _mm_unpacklo_ps(a0, a1);     // s0[0], s1[0], s0[1], s1[1]
+    __m128 t23_lo = _mm_unpacklo_ps(a2, a3);     // s2[0], s3[0], s2[1], s3[1]
+    __m128 t01_hi = _mm_unpackhi_ps(a0, a1);     // s0[2], s1[2], s0[3], s1[3]
+    __m128 t23_hi = _mm_unpackhi_ps(a2, a3);     // s2[2], s3[2], s2[3], s3[3]
     __m128 row0 = _mm_movelh_ps(t01_lo, t23_lo); // s0[0], s1[0], s2[0], s3[0]
     __m128 row1 = _mm_movehl_ps(t23_lo, t01_lo); // s0[1], s1[1], s2[1], s3[1]
     __m128 row2 = _mm_movelh_ps(t01_hi, t23_hi); // s0[2], s1[2], s2[2], s3[2]
@@ -2598,12 +2598,12 @@ SIMSIMD_INTERNAL void simsimd_dot_f16x32_update_haswell(simsimd_dot_f16x32_state
     state->sum = sum;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_haswell(                           //
+SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_haswell(                                      //
     simsimd_dot_f16x32_state_haswell_t const *s0, simsimd_dot_f16x32_state_haswell_t const *s1, //
     simsimd_dot_f16x32_state_haswell_t const *s2, simsimd_dot_f16x32_state_haswell_t const *s3, //
     simsimd_f32_t *results) {
     // State is layout-compatible with f32x16 (both contain just __m256 sum)
-    simsimd_dot_f32x16_finalize_haswell(                        //
+    simsimd_dot_f32x16_finalize_haswell(                                                                //
         (simsimd_dot_f32x16_state_haswell_t const *)s0, (simsimd_dot_f32x16_state_haswell_t const *)s1, //
         (simsimd_dot_f32x16_state_haswell_t const *)s2, (simsimd_dot_f32x16_state_haswell_t const *)s3, results);
 }
@@ -2633,12 +2633,12 @@ SIMSIMD_INTERNAL void simsimd_dot_bf16x32_update_haswell(simsimd_dot_bf16x32_sta
     state->sum = sum;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_bf16x32_finalize_haswell(                           //
+SIMSIMD_INTERNAL void simsimd_dot_bf16x32_finalize_haswell(                                       //
     simsimd_dot_bf16x32_state_haswell_t const *s0, simsimd_dot_bf16x32_state_haswell_t const *s1, //
     simsimd_dot_bf16x32_state_haswell_t const *s2, simsimd_dot_bf16x32_state_haswell_t const *s3, //
     simsimd_f32_t *results) {
     // State is layout-compatible with f32x16 (both contain just __m256 sum)
-    simsimd_dot_f32x16_finalize_haswell(                        //
+    simsimd_dot_f32x16_finalize_haswell(                                                                //
         (simsimd_dot_f32x16_state_haswell_t const *)s0, (simsimd_dot_f32x16_state_haswell_t const *)s1, //
         (simsimd_dot_f32x16_state_haswell_t const *)s2, (simsimd_dot_f32x16_state_haswell_t const *)s3, results);
 }
@@ -2676,12 +2676,12 @@ SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_update_haswell(simsimd_dot_e4m3x64_sta
     state->sum = sum;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_haswell(                           //
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_haswell(                                       //
     simsimd_dot_e4m3x64_state_haswell_t const *s0, simsimd_dot_e4m3x64_state_haswell_t const *s1, //
     simsimd_dot_e4m3x64_state_haswell_t const *s2, simsimd_dot_e4m3x64_state_haswell_t const *s3, //
     simsimd_f32_t *results) {
     // State is layout-compatible with f32x16 (both contain just __m256 sum)
-    simsimd_dot_f32x16_finalize_haswell(                        //
+    simsimd_dot_f32x16_finalize_haswell(                                                                //
         (simsimd_dot_f32x16_state_haswell_t const *)s0, (simsimd_dot_f32x16_state_haswell_t const *)s1, //
         (simsimd_dot_f32x16_state_haswell_t const *)s2, (simsimd_dot_f32x16_state_haswell_t const *)s3, results);
 }
@@ -2719,12 +2719,12 @@ SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_update_haswell(simsimd_dot_e5m2x64_sta
     state->sum = sum;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_haswell(                           //
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_haswell(                                       //
     simsimd_dot_e5m2x64_state_haswell_t const *s0, simsimd_dot_e5m2x64_state_haswell_t const *s1, //
     simsimd_dot_e5m2x64_state_haswell_t const *s2, simsimd_dot_e5m2x64_state_haswell_t const *s3, //
     simsimd_f32_t *results) {
     // State is layout-compatible with f32x16 (both contain just __m256 sum)
-    simsimd_dot_f32x16_finalize_haswell(                        //
+    simsimd_dot_f32x16_finalize_haswell(                                                                //
         (simsimd_dot_f32x16_state_haswell_t const *)s0, (simsimd_dot_f32x16_state_haswell_t const *)s1, //
         (simsimd_dot_f32x16_state_haswell_t const *)s2, (simsimd_dot_f32x16_state_haswell_t const *)s3, results);
 }
@@ -2769,7 +2769,7 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_haswell(simsimd_dot_i8x64_state_h
     state->sum_high = sum_high;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_haswell(                            //
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_haswell(                                     //
     simsimd_dot_i8x64_state_haswell_t const *s0, simsimd_dot_i8x64_state_haswell_t const *s1, //
     simsimd_dot_i8x64_state_haswell_t const *s2, simsimd_dot_i8x64_state_haswell_t const *s3, //
     simsimd_f32_t *results) {
@@ -2839,12 +2839,12 @@ SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_haswell(simsimd_dot_u8x64_state_h
     state->sum_high = sum_high;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_haswell(                            //
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_haswell(                                     //
     simsimd_dot_u8x64_state_haswell_t const *s0, simsimd_dot_u8x64_state_haswell_t const *s1, //
     simsimd_dot_u8x64_state_haswell_t const *s2, simsimd_dot_u8x64_state_haswell_t const *s3, //
     simsimd_f32_t *results) {
     // State is layout-compatible with i8x64 (both contain sum_low and sum_high)
-    simsimd_dot_i8x64_finalize_haswell(                        //
+    simsimd_dot_i8x64_finalize_haswell(                                                               //
         (simsimd_dot_i8x64_state_haswell_t const *)s0, (simsimd_dot_i8x64_state_haswell_t const *)s1, //
         (simsimd_dot_i8x64_state_haswell_t const *)s2, (simsimd_dot_i8x64_state_haswell_t const *)s3, results);
 }
@@ -3197,13 +3197,10 @@ SIMSIMD_INTERNAL void simsimd_dot_f64x8_init_skylake(simsimd_dot_f64x8_state_sky
 
 SIMSIMD_INTERNAL void simsimd_dot_f64x8_update_skylake(simsimd_dot_f64x8_state_skylake_t *state, simsimd_b512_vec_t a,
                                                        simsimd_b512_vec_t b) {
-    __m512d sum = state->sum;
-    __m512d a_vec = _mm512_loadu_pd(a.f64s);
-    __m512d b_vec = _mm512_loadu_pd(b.f64s);
-    state->sum = _mm512_fmadd_pd(a_vec, b_vec, sum);
+    state->sum = _mm512_fmadd_pd(a.zmm_pd, b.zmm_pd, state->sum);
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_f64x8_finalize_skylake(                         //
+SIMSIMD_INTERNAL void simsimd_dot_f64x8_finalize_skylake(                                     //
     simsimd_dot_f64x8_state_skylake_t const *s0, simsimd_dot_f64x8_state_skylake_t const *s1, //
     simsimd_dot_f64x8_state_skylake_t const *s2, simsimd_dot_f64x8_state_skylake_t const *s3, //
     simsimd_f32_t *results) {
@@ -3240,13 +3237,11 @@ SIMSIMD_INTERNAL void simsimd_dot_f32x16_init_skylake(simsimd_dot_f32x16_state_s
 
 SIMSIMD_INTERNAL void simsimd_dot_f32x16_update_skylake(simsimd_dot_f32x16_state_skylake_t *state, simsimd_b512_vec_t a,
                                                         simsimd_b512_vec_t b) {
-    __m512 sum = state->sum;
-    __m512 a_vec = _mm512_loadu_ps(a.f32s);
-    __m512 b_vec = _mm512_loadu_ps(b.f32s);
-    state->sum = _mm512_fmadd_ps(a_vec, b_vec, sum);
+    // Use pre-loaded zmm_ps directly (avoids redundant loads when used with GEMM macro)
+    state->sum = _mm512_fmadd_ps(a.zmm_ps, b.zmm_ps, state->sum);
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_skylake(                          //
+SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_skylake(                                      //
     simsimd_dot_f32x16_state_skylake_t const *s0, simsimd_dot_f32x16_state_skylake_t const *s1, //
     simsimd_dot_f32x16_state_skylake_t const *s2, simsimd_dot_f32x16_state_skylake_t const *s3, //
     simsimd_f32_t *results) {
@@ -3262,10 +3257,10 @@ SIMSIMD_INTERNAL void simsimd_dot_f32x16_finalize_skylake(                      
     __m128 b2 = _mm_add_ps(_mm256_castps256_ps128(a2), _mm256_extractf128_ps(a2, 1));
     __m128 b3 = _mm_add_ps(_mm256_castps256_ps128(a3), _mm256_extractf128_ps(a3, 1));
     // Step 3: Transpose 4×4 matrix of partial sums - now each row has one element from each state
-    __m128 t01_lo = _mm_unpacklo_ps(b0, b1); // s0[0], s1[0], s0[1], s1[1]
-    __m128 t23_lo = _mm_unpacklo_ps(b2, b3); // s2[0], s3[0], s2[1], s3[1]
-    __m128 t01_hi = _mm_unpackhi_ps(b0, b1); // s0[2], s1[2], s0[3], s1[3]
-    __m128 t23_hi = _mm_unpackhi_ps(b2, b3); // s2[2], s3[2], s2[3], s3[3]
+    __m128 t01_lo = _mm_unpacklo_ps(b0, b1);     // s0[0], s1[0], s0[1], s1[1]
+    __m128 t23_lo = _mm_unpacklo_ps(b2, b3);     // s2[0], s3[0], s2[1], s3[1]
+    __m128 t01_hi = _mm_unpackhi_ps(b0, b1);     // s0[2], s1[2], s0[3], s1[3]
+    __m128 t23_hi = _mm_unpackhi_ps(b2, b3);     // s2[2], s3[2], s2[3], s3[3]
     __m128 row0 = _mm_movelh_ps(t01_lo, t23_lo); // s0[0], s1[0], s2[0], s3[0]
     __m128 row1 = _mm_movehl_ps(t23_lo, t01_lo); // s0[1], s1[1], s2[1], s3[1]
     __m128 row2 = _mm_movelh_ps(t01_hi, t23_hi); // s0[2], s1[2], s2[2], s3[2]
@@ -3308,12 +3303,12 @@ SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_update_skylake(simsimd_dot_e4m3x64_sta
     state->sum = sum;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_skylake(                           //
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_skylake(                                       //
     simsimd_dot_e4m3x64_state_skylake_t const *s0, simsimd_dot_e4m3x64_state_skylake_t const *s1, //
     simsimd_dot_e4m3x64_state_skylake_t const *s2, simsimd_dot_e4m3x64_state_skylake_t const *s3, //
     simsimd_f32_t *results) {
     // State is layout-compatible with f32x16 (both contain just __m512 sum)
-    simsimd_dot_f32x16_finalize_skylake(                        //
+    simsimd_dot_f32x16_finalize_skylake(                                                                //
         (simsimd_dot_f32x16_state_skylake_t const *)s0, (simsimd_dot_f32x16_state_skylake_t const *)s1, //
         (simsimd_dot_f32x16_state_skylake_t const *)s2, (simsimd_dot_f32x16_state_skylake_t const *)s3, results);
 }
@@ -3351,12 +3346,12 @@ SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_update_skylake(simsimd_dot_e5m2x64_sta
     state->sum = sum;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_skylake(                           //
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_skylake(                                       //
     simsimd_dot_e5m2x64_state_skylake_t const *s0, simsimd_dot_e5m2x64_state_skylake_t const *s1, //
     simsimd_dot_e5m2x64_state_skylake_t const *s2, simsimd_dot_e5m2x64_state_skylake_t const *s3, //
     simsimd_f32_t *results) {
     // State is layout-compatible with f32x16 (both contain just __m512 sum)
-    simsimd_dot_f32x16_finalize_skylake(                        //
+    simsimd_dot_f32x16_finalize_skylake(                                                                //
         (simsimd_dot_f32x16_state_skylake_t const *)s0, (simsimd_dot_f32x16_state_skylake_t const *)s1, //
         (simsimd_dot_f32x16_state_skylake_t const *)s2, (simsimd_dot_f32x16_state_skylake_t const *)s3, results);
 }
@@ -3632,18 +3627,16 @@ SIMSIMD_INTERNAL void simsimd_dot_bf16x32_init_genoa(simsimd_dot_bf16x32_state_g
 
 SIMSIMD_INTERNAL void simsimd_dot_bf16x32_update_genoa(simsimd_dot_bf16x32_state_genoa_t *state, simsimd_b512_vec_t a,
                                                        simsimd_b512_vec_t b) {
-    __m512 sum = state->sum;
-    __m512i a_i16_vec = _mm512_loadu_epi16(a.bf16s);
-    __m512i b_i16_vec = _mm512_loadu_epi16(b.bf16s);
-    state->sum = _mm512_dpbf16_ps(sum, (__m512bh)(a_i16_vec), (__m512bh)(b_i16_vec));
+    // Use pre-loaded zmm directly (avoids redundant loads when used with GEMM macro)
+    state->sum = _mm512_dpbf16_ps(state->sum, (__m512bh)(a.zmm), (__m512bh)(b.zmm));
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_bf16x32_finalize_genoa(                            //
+SIMSIMD_INTERNAL void simsimd_dot_bf16x32_finalize_genoa(                                     //
     simsimd_dot_bf16x32_state_genoa_t const *s0, simsimd_dot_bf16x32_state_genoa_t const *s1, //
     simsimd_dot_bf16x32_state_genoa_t const *s2, simsimd_dot_bf16x32_state_genoa_t const *s3, //
     simsimd_f32_t *results) {
     // State is layout-compatible with f32x16 (both contain just __m512 sum)
-    simsimd_dot_f32x16_finalize_skylake(                        //
+    simsimd_dot_f32x16_finalize_skylake(                                                                //
         (simsimd_dot_f32x16_state_skylake_t const *)s0, (simsimd_dot_f32x16_state_skylake_t const *)s1, //
         (simsimd_dot_f32x16_state_skylake_t const *)s2, (simsimd_dot_f32x16_state_skylake_t const *)s3, results);
 }
@@ -3674,12 +3667,12 @@ SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_update_genoa(simsimd_dot_e4m3x64_state
     state->sum = _mm512_dpbf16_ps(sum, (__m512bh)(a_bf16), (__m512bh)(b_bf16));
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_genoa(                            //
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_genoa(                                     //
     simsimd_dot_e4m3x64_state_genoa_t const *s0, simsimd_dot_e4m3x64_state_genoa_t const *s1, //
     simsimd_dot_e4m3x64_state_genoa_t const *s2, simsimd_dot_e4m3x64_state_genoa_t const *s3, //
     simsimd_f32_t *results) {
     // State is layout-compatible with f32x16 (both contain just __m512 sum)
-    simsimd_dot_f32x16_finalize_skylake(                        //
+    simsimd_dot_f32x16_finalize_skylake(                                                                //
         (simsimd_dot_f32x16_state_skylake_t const *)s0, (simsimd_dot_f32x16_state_skylake_t const *)s1, //
         (simsimd_dot_f32x16_state_skylake_t const *)s2, (simsimd_dot_f32x16_state_skylake_t const *)s3, results);
 }
@@ -3710,12 +3703,12 @@ SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_update_genoa(simsimd_dot_e5m2x64_state
     state->sum = _mm512_dpbf16_ps(sum, (__m512bh)(a_bf16), (__m512bh)(b_bf16));
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_genoa(                            //
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_genoa(                                     //
     simsimd_dot_e5m2x64_state_genoa_t const *s0, simsimd_dot_e5m2x64_state_genoa_t const *s1, //
     simsimd_dot_e5m2x64_state_genoa_t const *s2, simsimd_dot_e5m2x64_state_genoa_t const *s3, //
     simsimd_f32_t *results) {
     // State is layout-compatible with f32x16 (both contain just __m512 sum)
-    simsimd_dot_f32x16_finalize_skylake(                        //
+    simsimd_dot_f32x16_finalize_skylake(                                                                //
         (simsimd_dot_f32x16_state_skylake_t const *)s0, (simsimd_dot_f32x16_state_skylake_t const *)s1, //
         (simsimd_dot_f32x16_state_skylake_t const *)s2, (simsimd_dot_f32x16_state_skylake_t const *)s3, results);
 }
@@ -4009,7 +4002,7 @@ SIMSIMD_INTERNAL void simsimd_dot_f16x32_update_sapphire(simsimd_dot_f16x32_stat
     state->sum = _mm512_fmadd_ph(_mm512_castsi512_ph(a_i16_vec), _mm512_castsi512_ph(b_i16_vec), sum);
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_sapphire(                                      //
+SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_sapphire(                                       //
     simsimd_dot_f16x32_state_sapphire_t const *s0, simsimd_dot_f16x32_state_sapphire_t const *s1, //
     simsimd_dot_f16x32_state_sapphire_t const *s2, simsimd_dot_f16x32_state_sapphire_t const *s3, //
     simsimd_f32_t *results) {
@@ -4017,22 +4010,22 @@ SIMSIMD_INTERNAL void simsimd_dot_f16x32_finalize_sapphire(                     
     // Step 1: 32→16 for all 4 states (extract high 256-bit half and add to low half)
     // Use integer extract and cast since there's no direct _mm512_extractf16x16_ph
     __m256h a0 = _mm256_add_ph(_mm512_castph512_ph256(s0->sum),
-                              _mm256_castsi256_ph(_mm512_extracti32x8_epi32(_mm512_castph_si512(s0->sum), 1)));
+                               _mm256_castsi256_ph(_mm512_extracti32x8_epi32(_mm512_castph_si512(s0->sum), 1)));
     __m256h a1 = _mm256_add_ph(_mm512_castph512_ph256(s1->sum),
-                              _mm256_castsi256_ph(_mm512_extracti32x8_epi32(_mm512_castph_si512(s1->sum), 1)));
+                               _mm256_castsi256_ph(_mm512_extracti32x8_epi32(_mm512_castph_si512(s1->sum), 1)));
     __m256h a2 = _mm256_add_ph(_mm512_castph512_ph256(s2->sum),
-                              _mm256_castsi256_ph(_mm512_extracti32x8_epi32(_mm512_castph_si512(s2->sum), 1)));
+                               _mm256_castsi256_ph(_mm512_extracti32x8_epi32(_mm512_castph_si512(s2->sum), 1)));
     __m256h a3 = _mm256_add_ph(_mm512_castph512_ph256(s3->sum),
-                              _mm256_castsi256_ph(_mm512_extracti32x8_epi32(_mm512_castph_si512(s3->sum), 1)));
+                               _mm256_castsi256_ph(_mm512_extracti32x8_epi32(_mm512_castph_si512(s3->sum), 1)));
     // Step 2: 16→8 for all 4 states (extract high 128-bit half and add to low half)
     __m128h b0 = _mm_add_ph(_mm256_castph256_ph128(a0),
-                           _mm_castsi128_ph(_mm256_extracti128_si256(_mm256_castph_si256(a0), 1)));
+                            _mm_castsi128_ph(_mm256_extracti128_si256(_mm256_castph_si256(a0), 1)));
     __m128h b1 = _mm_add_ph(_mm256_castph256_ph128(a1),
-                           _mm_castsi128_ph(_mm256_extracti128_si256(_mm256_castph_si256(a1), 1)));
+                            _mm_castsi128_ph(_mm256_extracti128_si256(_mm256_castph_si256(a1), 1)));
     __m128h b2 = _mm_add_ph(_mm256_castph256_ph128(a2),
-                           _mm_castsi128_ph(_mm256_extracti128_si256(_mm256_castph_si256(a2), 1)));
+                            _mm_castsi128_ph(_mm256_extracti128_si256(_mm256_castph_si256(a2), 1)));
     __m128h b3 = _mm_add_ph(_mm256_castph256_ph128(a3),
-                           _mm_castsi128_ph(_mm256_extracti128_si256(_mm256_castph_si256(a3), 1)));
+                            _mm_castsi128_ph(_mm256_extracti128_si256(_mm256_castph_si256(a3), 1)));
     // Step 3: 8→4 for all 4 states (shift right by 8 bytes = 4 f16 elements, then add)
     __m128h c0 = _mm_add_ph(b0, _mm_castsi128_ph(_mm_bsrli_si128(_mm_castph_si128(b0), 8)));
     __m128h c1 = _mm_add_ph(b1, _mm_castsi128_ph(_mm_bsrli_si128(_mm_castph_si128(b1), 8)));
@@ -4081,12 +4074,12 @@ SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_update_sapphire(simsimd_dot_e4m3x64_st
     state->sum = _mm512_fmadd_ph(_mm512_castsi512_ph(a_f16), _mm512_castsi512_ph(b_f16), sum);
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_sapphire(                           //
+SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_sapphire(                                        //
     simsimd_dot_e4m3x64_state_sapphire_t const *s0, simsimd_dot_e4m3x64_state_sapphire_t const *s1, //
     simsimd_dot_e4m3x64_state_sapphire_t const *s2, simsimd_dot_e4m3x64_state_sapphire_t const *s3, //
     simsimd_f32_t *results) {
     // State is layout-compatible with f16x32 (both contain just __m512h sum)
-    simsimd_dot_f16x32_finalize_sapphire(                        //
+    simsimd_dot_f16x32_finalize_sapphire(                                                                 //
         (simsimd_dot_f16x32_state_sapphire_t const *)s0, (simsimd_dot_f16x32_state_sapphire_t const *)s1, //
         (simsimd_dot_f16x32_state_sapphire_t const *)s2, (simsimd_dot_f16x32_state_sapphire_t const *)s3, results);
 }
@@ -4117,12 +4110,12 @@ SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_update_sapphire(simsimd_dot_e5m2x64_st
     state->sum = _mm512_fmadd_ph(_mm512_castsi512_ph(a_f16), _mm512_castsi512_ph(b_f16), sum);
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_sapphire(                           //
+SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_sapphire(                                        //
     simsimd_dot_e5m2x64_state_sapphire_t const *s0, simsimd_dot_e5m2x64_state_sapphire_t const *s1, //
     simsimd_dot_e5m2x64_state_sapphire_t const *s2, simsimd_dot_e5m2x64_state_sapphire_t const *s3, //
     simsimd_f32_t *results) {
     // State is layout-compatible with f16x32 (both contain just __m512h sum)
-    simsimd_dot_f16x32_finalize_sapphire(                        //
+    simsimd_dot_f16x32_finalize_sapphire(                                                                 //
         (simsimd_dot_f16x32_state_sapphire_t const *)s0, (simsimd_dot_f16x32_state_sapphire_t const *)s1, //
         (simsimd_dot_f16x32_state_sapphire_t const *)s2, (simsimd_dot_f16x32_state_sapphire_t const *)s3, results);
 }
@@ -4226,7 +4219,7 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_ice(simsimd_dot_i8x64_state_ice_t
     state->sum = _mm512_dpwssd_epi32(sum, a_i16_vec, b_i16_vec);
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_ice(                              //
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_ice(                                 //
     simsimd_dot_i8x64_state_ice_t const *s0, simsimd_dot_i8x64_state_ice_t const *s1, //
     simsimd_dot_i8x64_state_ice_t const *s2, simsimd_dot_i8x64_state_ice_t const *s3, //
     simsimd_f32_t *results) {
@@ -4242,10 +4235,10 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_ice(                           
     __m128i b2 = _mm_add_epi32(_mm256_castsi256_si128(a2), _mm256_extracti128_si256(a2, 1));
     __m128i b3 = _mm_add_epi32(_mm256_castsi256_si128(a3), _mm256_extracti128_si256(a3, 1));
     // Step 3: Transpose 4×4 matrix of partial sums using integer shuffles
-    __m128i t01_lo = _mm_unpacklo_epi32(b0, b1); // s0[0], s1[0], s0[1], s1[1]
-    __m128i t23_lo = _mm_unpacklo_epi32(b2, b3); // s2[0], s3[0], s2[1], s3[1]
-    __m128i t01_hi = _mm_unpackhi_epi32(b0, b1); // s0[2], s1[2], s0[3], s1[3]
-    __m128i t23_hi = _mm_unpackhi_epi32(b2, b3); // s2[2], s3[2], s2[3], s3[3]
+    __m128i t01_lo = _mm_unpacklo_epi32(b0, b1);       // s0[0], s1[0], s0[1], s1[1]
+    __m128i t23_lo = _mm_unpacklo_epi32(b2, b3);       // s2[0], s3[0], s2[1], s3[1]
+    __m128i t01_hi = _mm_unpackhi_epi32(b0, b1);       // s0[2], s1[2], s0[3], s1[3]
+    __m128i t23_hi = _mm_unpackhi_epi32(b2, b3);       // s2[2], s3[2], s2[3], s3[3]
     __m128i row0 = _mm_unpacklo_epi64(t01_lo, t23_lo); // s0[0], s1[0], s2[0], s3[0]
     __m128i row1 = _mm_unpackhi_epi64(t01_lo, t23_lo); // s0[1], s1[1], s2[1], s3[1]
     __m128i row2 = _mm_unpacklo_epi64(t01_hi, t23_hi); // s0[2], s1[2], s2[2], s3[2]
@@ -4288,7 +4281,7 @@ SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_ice(simsimd_dot_u8x64_state_ice_t
     state->sum_high = sum_high;
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_ice(                              //
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_ice(                                 //
     simsimd_dot_u8x64_state_ice_t const *s0, simsimd_dot_u8x64_state_ice_t const *s1, //
     simsimd_dot_u8x64_state_ice_t const *s2, simsimd_dot_u8x64_state_ice_t const *s3, //
     simsimd_f32_t *results) {
@@ -4438,7 +4431,7 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_sierra(simsimd_dot_i8x64_state_si
                                       _mm256_lddqu_si256((__m256i const *)(b.i8s + 32)));
 }
 
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_sierra(                             //
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_sierra(                                    //
     simsimd_dot_i8x64_state_sierra_t const *s0, simsimd_dot_i8x64_state_sierra_t const *s1, //
     simsimd_dot_i8x64_state_sierra_t const *s2, simsimd_dot_i8x64_state_sierra_t const *s3, //
     simsimd_f32_t *results) {
@@ -4449,10 +4442,10 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_sierra(                        
     __m128i a2 = _mm_add_epi32(_mm256_castsi256_si128(s2->sum), _mm256_extracti128_si256(s2->sum, 1));
     __m128i a3 = _mm_add_epi32(_mm256_castsi256_si128(s3->sum), _mm256_extracti128_si256(s3->sum, 1));
     // Step 2: Transpose 4×4 matrix of partial sums using integer shuffles
-    __m128i t01_lo = _mm_unpacklo_epi32(a0, a1); // s0[0], s1[0], s0[1], s1[1]
-    __m128i t23_lo = _mm_unpacklo_epi32(a2, a3); // s2[0], s3[0], s2[1], s3[1]
-    __m128i t01_hi = _mm_unpackhi_epi32(a0, a1); // s0[2], s1[2], s0[3], s1[3]
-    __m128i t23_hi = _mm_unpackhi_epi32(a2, a3); // s2[2], s3[2], s2[3], s3[3]
+    __m128i t01_lo = _mm_unpacklo_epi32(a0, a1);       // s0[0], s1[0], s0[1], s1[1]
+    __m128i t23_lo = _mm_unpacklo_epi32(a2, a3);       // s2[0], s3[0], s2[1], s3[1]
+    __m128i t01_hi = _mm_unpackhi_epi32(a0, a1);       // s0[2], s1[2], s0[3], s1[3]
+    __m128i t23_hi = _mm_unpackhi_epi32(a2, a3);       // s2[2], s3[2], s2[3], s3[3]
     __m128i row0 = _mm_unpacklo_epi64(t01_lo, t23_lo); // s0[0], s1[0], s2[0], s3[0]
     __m128i row1 = _mm_unpackhi_epi64(t01_lo, t23_lo); // s0[1], s1[1], s2[1], s3[1]
     __m128i row2 = _mm_unpacklo_epi64(t01_hi, t23_hi); // s0[2], s1[2], s2[2], s3[2]
