@@ -533,7 +533,7 @@ SIMSIMD_PUBLIC void simsimd_dots_i8i8i8_sapphire_amx(void *c, simsimd_size_t m, 
                                                                                                                       \
                             /* Finalize and store MR x 4 results using batched 4-way reduction */                     \
                             for (simsimd_size_t row_index = 0; row_index < tile_row_count; ++row_index) {             \
-                                simsimd_f32_t reduction_results[4];                                                   \
+                                simsimd_##output_type##_t reduction_results[4];                                       \
                                 finalize_fn(&accumulator_states[row_index][0], &accumulator_states[row_index][1],     \
                                             &accumulator_states[row_index][2], &accumulator_states[row_index][3],     \
                                             reduction_results);                                                       \

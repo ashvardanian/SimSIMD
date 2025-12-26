@@ -35,6 +35,16 @@
  *  - simsimd_dot_<type>x<count>_update_<isa>
  *  - simsimd_dot_<type>x<count>_finalize_<isa>
  *
+ *  Finalize functions output to the natural accumulator type:
+ *
+ *  - f64 inputs → f64 output: Preserves full double-precision for scientific computing
+ *  - f32 inputs → f32 output: Direct accumulator match, no conversion overhead
+ *  - f16/bf16/e4m3/e5m2 inputs → f32 output: Accumulator is f32 for numerical stability
+ *  - i8 inputs → i32 output: Signed 32-bit integer for signed×signed products
+ *  - u8 inputs → u32 output: Unsigned 32-bit for unsigned×unsigned products
+ *
+ *  This avoids precision loss (f64 → f32) and unnecessary float ↔ int conversions.
+ *
  *  @section x86_instructions Relevant x86 Instructions
  *
  *  Floating-point dot products use FMA (VFMADD231PS/PD) for sum += a[i]*b[i] accumulation.
@@ -282,7 +292,7 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_init_neon(simsimd_dot_i8x64_state_neon_t
 /** @copydoc simsimd_dot_i8x64_state_neon_t */
 SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_neon(simsimd_dot_i8x64_state_neon_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_i8x64_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_neon(simsimd_dot_i8x64_state_neon_t const *state_a, simsimd_dot_i8x64_state_neon_t const *state_b, simsimd_dot_i8x64_state_neon_t const *state_c, simsimd_dot_i8x64_state_neon_t const *state_d, simsimd_f32_t *results);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_neon(simsimd_dot_i8x64_state_neon_t const *state_a, simsimd_dot_i8x64_state_neon_t const *state_b, simsimd_dot_i8x64_state_neon_t const *state_c, simsimd_dot_i8x64_state_neon_t const *state_d, simsimd_i32_t *results);
 
 typedef struct simsimd_dot_u8x64_state_neon_t simsimd_dot_u8x64_state_neon_t;
 /** @copydoc simsimd_dot_u8x64_state_neon_t */
@@ -290,7 +300,7 @@ SIMSIMD_INTERNAL void simsimd_dot_u8x64_init_neon(simsimd_dot_u8x64_state_neon_t
 /** @copydoc simsimd_dot_u8x64_state_neon_t */
 SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_neon(simsimd_dot_u8x64_state_neon_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_u8x64_state_neon_t */
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_neon(simsimd_dot_u8x64_state_neon_t const *state_a, simsimd_dot_u8x64_state_neon_t const *state_b, simsimd_dot_u8x64_state_neon_t const *state_c, simsimd_dot_u8x64_state_neon_t const *state_d, simsimd_f32_t *results);
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_neon(simsimd_dot_u8x64_state_neon_t const *state_a, simsimd_dot_u8x64_state_neon_t const *state_b, simsimd_dot_u8x64_state_neon_t const *state_c, simsimd_dot_u8x64_state_neon_t const *state_d, simsimd_u32_t *results);
 #endif // SIMSIMD_TARGET_NEON_I8
 
 #if SIMSIMD_TARGET_NEON_BF16
@@ -407,7 +417,7 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_init_haswell(simsimd_dot_i8x64_state_has
 /** @copydoc simsimd_dot_i8x64_state_haswell_t */
 SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_haswell(simsimd_dot_i8x64_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_i8x64_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_haswell(simsimd_dot_i8x64_state_haswell_t const *state_a, simsimd_dot_i8x64_state_haswell_t const *state_b, simsimd_dot_i8x64_state_haswell_t const *state_c, simsimd_dot_i8x64_state_haswell_t const *state_d, simsimd_f32_t *results);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_haswell(simsimd_dot_i8x64_state_haswell_t const *state_a, simsimd_dot_i8x64_state_haswell_t const *state_b, simsimd_dot_i8x64_state_haswell_t const *state_c, simsimd_dot_i8x64_state_haswell_t const *state_d, simsimd_i32_t *results);
 
 typedef struct simsimd_dot_u8x64_state_haswell_t simsimd_dot_u8x64_state_haswell_t;
 /** @copydoc simsimd_dot_u8x64_state_haswell_t */
@@ -415,7 +425,7 @@ SIMSIMD_INTERNAL void simsimd_dot_u8x64_init_haswell(simsimd_dot_u8x64_state_has
 /** @copydoc simsimd_dot_u8x64_state_haswell_t */
 SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_haswell(simsimd_dot_u8x64_state_haswell_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_u8x64_state_haswell_t */
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_haswell(simsimd_dot_u8x64_state_haswell_t const *state_a, simsimd_dot_u8x64_state_haswell_t const *state_b, simsimd_dot_u8x64_state_haswell_t const *state_c, simsimd_dot_u8x64_state_haswell_t const *state_d, simsimd_f32_t *results);
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_haswell(simsimd_dot_u8x64_state_haswell_t const *state_a, simsimd_dot_u8x64_state_haswell_t const *state_b, simsimd_dot_u8x64_state_haswell_t const *state_c, simsimd_dot_u8x64_state_haswell_t const *state_d, simsimd_u32_t *results);
 #endif // SIMSIMD_TARGET_HASWELL
 
 #if SIMSIMD_TARGET_SKYLAKE
@@ -444,7 +454,7 @@ SIMSIMD_INTERNAL void simsimd_dot_f64x8_init_skylake(simsimd_dot_f64x8_state_sky
 /** @copydoc simsimd_dot_f64x8_state_skylake_t */
 SIMSIMD_INTERNAL void simsimd_dot_f64x8_update_skylake(simsimd_dot_f64x8_state_skylake_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_f64x8_state_skylake_t */
-SIMSIMD_INTERNAL void simsimd_dot_f64x8_finalize_skylake(simsimd_dot_f64x8_state_skylake_t const *state_a, simsimd_dot_f64x8_state_skylake_t const *state_b, simsimd_dot_f64x8_state_skylake_t const *state_c, simsimd_dot_f64x8_state_skylake_t const *state_d, simsimd_f32_t *results);
+SIMSIMD_INTERNAL void simsimd_dot_f64x8_finalize_skylake(simsimd_dot_f64x8_state_skylake_t const *state_a, simsimd_dot_f64x8_state_skylake_t const *state_b, simsimd_dot_f64x8_state_skylake_t const *state_c, simsimd_dot_f64x8_state_skylake_t const *state_d, simsimd_f64_t *results);
 
 typedef struct simsimd_dot_f32x16_state_skylake_t simsimd_dot_f32x16_state_skylake_t;
 /** @copydoc simsimd_dot_f32x16_state_skylake_t */
@@ -483,7 +493,7 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_init_ice(simsimd_dot_i8x64_state_ice_t *
 /** @copydoc simsimd_dot_i8x64_state_ice_t */
 SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_ice(simsimd_dot_i8x64_state_ice_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_i8x64_state_ice_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_ice(simsimd_dot_i8x64_state_ice_t const *state_a, simsimd_dot_i8x64_state_ice_t const *state_b, simsimd_dot_i8x64_state_ice_t const *state_c, simsimd_dot_i8x64_state_ice_t const *state_d, simsimd_f32_t *results);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_ice(simsimd_dot_i8x64_state_ice_t const *state_a, simsimd_dot_i8x64_state_ice_t const *state_b, simsimd_dot_i8x64_state_ice_t const *state_c, simsimd_dot_i8x64_state_ice_t const *state_d, simsimd_i32_t *results);
 
 typedef struct simsimd_dot_u8x64_state_ice_t simsimd_dot_u8x64_state_ice_t;
 /** @copydoc simsimd_dot_u8x64_state_ice_t */
@@ -491,7 +501,7 @@ SIMSIMD_INTERNAL void simsimd_dot_u8x64_init_ice(simsimd_dot_u8x64_state_ice_t *
 /** @copydoc simsimd_dot_u8x64_state_ice_t */
 SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_ice(simsimd_dot_u8x64_state_ice_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_u8x64_state_ice_t */
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_ice(simsimd_dot_u8x64_state_ice_t const *state_a, simsimd_dot_u8x64_state_ice_t const *state_b, simsimd_dot_u8x64_state_ice_t const *state_c, simsimd_dot_u8x64_state_ice_t const *state_d, simsimd_f32_t *results);
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_ice(simsimd_dot_u8x64_state_ice_t const *state_a, simsimd_dot_u8x64_state_ice_t const *state_b, simsimd_dot_u8x64_state_ice_t const *state_c, simsimd_dot_u8x64_state_ice_t const *state_d, simsimd_u32_t *results);
 #endif // SIMSIMD_TARGET_ICE
 
 #if SIMSIMD_TARGET_GENOA
@@ -582,7 +592,7 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_init_sierra(simsimd_dot_i8x64_state_sier
 /** @copydoc simsimd_dot_i8x64_state_sierra_t */
 SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_sierra(simsimd_dot_i8x64_state_sierra_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_i8x64_state_sierra_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_sierra(simsimd_dot_i8x64_state_sierra_t const *state_a, simsimd_dot_i8x64_state_sierra_t const *state_b, simsimd_dot_i8x64_state_sierra_t const *state_c, simsimd_dot_i8x64_state_sierra_t const *state_d, simsimd_f32_t *results);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_sierra(simsimd_dot_i8x64_state_sierra_t const *state_a, simsimd_dot_i8x64_state_sierra_t const *state_b, simsimd_dot_i8x64_state_sierra_t const *state_c, simsimd_dot_i8x64_state_sierra_t const *state_d, simsimd_i32_t *results);
 #endif // SIMSIMD_TARGET_SIERRA
 
 typedef struct simsimd_dot_f64x8_state_serial_t simsimd_dot_f64x8_state_serial_t;
@@ -591,7 +601,7 @@ SIMSIMD_INTERNAL void simsimd_dot_f64x8_init_serial(simsimd_dot_f64x8_state_seri
 /** @copydoc simsimd_dot_f64x8_state_serial_t */
 SIMSIMD_INTERNAL void simsimd_dot_f64x8_update_serial(simsimd_dot_f64x8_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_f64x8_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_f64x8_finalize_serial(simsimd_dot_f64x8_state_serial_t const *state_a, simsimd_dot_f64x8_state_serial_t const *state_b, simsimd_dot_f64x8_state_serial_t const *state_c, simsimd_dot_f64x8_state_serial_t const *state_d, simsimd_f32_t *results);
+SIMSIMD_INTERNAL void simsimd_dot_f64x8_finalize_serial(simsimd_dot_f64x8_state_serial_t const *state_a, simsimd_dot_f64x8_state_serial_t const *state_b, simsimd_dot_f64x8_state_serial_t const *state_c, simsimd_dot_f64x8_state_serial_t const *state_d, simsimd_f64_t *results);
 
 typedef struct simsimd_dot_f32x16_state_serial_t simsimd_dot_f32x16_state_serial_t;
 /** @copydoc simsimd_dot_f32x16_state_serial_t */
@@ -623,7 +633,7 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_init_serial(simsimd_dot_i8x64_state_seri
 /** @copydoc simsimd_dot_i8x64_state_serial_t */
 SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_serial(simsimd_dot_i8x64_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_i8x64_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_serial(simsimd_dot_i8x64_state_serial_t const *state_a, simsimd_dot_i8x64_state_serial_t const *state_b, simsimd_dot_i8x64_state_serial_t const *state_c, simsimd_dot_i8x64_state_serial_t const *state_d, simsimd_f32_t *results);
+SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_serial(simsimd_dot_i8x64_state_serial_t const *state_a, simsimd_dot_i8x64_state_serial_t const *state_b, simsimd_dot_i8x64_state_serial_t const *state_c, simsimd_dot_i8x64_state_serial_t const *state_d, simsimd_i32_t *results);
 
 typedef struct simsimd_dot_u8x64_state_serial_t simsimd_dot_u8x64_state_serial_t;
 /** @copydoc simsimd_dot_u8x64_state_serial_t */
@@ -631,7 +641,7 @@ SIMSIMD_INTERNAL void simsimd_dot_u8x64_init_serial(simsimd_dot_u8x64_state_seri
 /** @copydoc simsimd_dot_u8x64_state_serial_t */
 SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_serial(simsimd_dot_u8x64_state_serial_t *state, simsimd_b512_vec_t a, simsimd_b512_vec_t b);
 /** @copydoc simsimd_dot_u8x64_state_serial_t */
-SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_serial(simsimd_dot_u8x64_state_serial_t const *state_a, simsimd_dot_u8x64_state_serial_t const *state_b, simsimd_dot_u8x64_state_serial_t const *state_c, simsimd_dot_u8x64_state_serial_t const *state_d, simsimd_f32_t *results);
+SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_serial(simsimd_dot_u8x64_state_serial_t const *state_a, simsimd_dot_u8x64_state_serial_t const *state_b, simsimd_dot_u8x64_state_serial_t const *state_c, simsimd_dot_u8x64_state_serial_t const *state_d, simsimd_u32_t *results);
 
 typedef struct simsimd_dot_e4m3x64_state_serial_t simsimd_dot_e4m3x64_state_serial_t;
 /** @copydoc simsimd_dot_e4m3x64_state_serial_t */
@@ -778,11 +788,11 @@ SIMSIMD_INTERNAL void simsimd_dot_f64x8_update_serial(simsimd_dot_f64x8_state_se
 SIMSIMD_INTERNAL void simsimd_dot_f64x8_finalize_serial(                                              //
     simsimd_dot_f64x8_state_serial_t const *state_a, simsimd_dot_f64x8_state_serial_t const *state_b, //
     simsimd_dot_f64x8_state_serial_t const *state_c, simsimd_dot_f64x8_state_serial_t const *state_d, //
-    simsimd_f32_t *results) {
-    results[0] = (simsimd_f32_t)(state_a->sums[0] + state_a->sums[1]);
-    results[1] = (simsimd_f32_t)(state_b->sums[0] + state_b->sums[1]);
-    results[2] = (simsimd_f32_t)(state_c->sums[0] + state_c->sums[1]);
-    results[3] = (simsimd_f32_t)(state_d->sums[0] + state_d->sums[1]);
+    simsimd_f64_t *results) {
+    results[0] = state_a->sums[0] + state_a->sums[1];
+    results[1] = state_b->sums[0] + state_b->sums[1];
+    results[2] = state_c->sums[0] + state_c->sums[1];
+    results[3] = state_d->sums[0] + state_d->sums[1];
 }
 
 /**
@@ -1006,11 +1016,11 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_serial(simsimd_dot_i8x64_state_se
 SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_serial(                                              //
     simsimd_dot_i8x64_state_serial_t const *state_a, simsimd_dot_i8x64_state_serial_t const *state_b, //
     simsimd_dot_i8x64_state_serial_t const *state_c, simsimd_dot_i8x64_state_serial_t const *state_d, //
-    simsimd_f32_t *results) {
-    results[0] = (simsimd_f32_t)(state_a->sums[0] + state_a->sums[1]);
-    results[1] = (simsimd_f32_t)(state_b->sums[0] + state_b->sums[1]);
-    results[2] = (simsimd_f32_t)(state_c->sums[0] + state_c->sums[1]);
-    results[3] = (simsimd_f32_t)(state_d->sums[0] + state_d->sums[1]);
+    simsimd_i32_t *results) {
+    results[0] = (simsimd_i32_t)(state_a->sums[0] + state_a->sums[1]);
+    results[1] = (simsimd_i32_t)(state_b->sums[0] + state_b->sums[1]);
+    results[2] = (simsimd_i32_t)(state_c->sums[0] + state_c->sums[1]);
+    results[3] = (simsimd_i32_t)(state_d->sums[0] + state_d->sums[1]);
 }
 
 /**
@@ -1101,11 +1111,11 @@ SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_serial(simsimd_dot_u8x64_state_se
 SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_serial(                                              //
     simsimd_dot_u8x64_state_serial_t const *state_a, simsimd_dot_u8x64_state_serial_t const *state_b, //
     simsimd_dot_u8x64_state_serial_t const *state_c, simsimd_dot_u8x64_state_serial_t const *state_d, //
-    simsimd_f32_t *results) {
-    results[0] = (simsimd_f32_t)(state_a->sums[0] + state_a->sums[1]);
-    results[1] = (simsimd_f32_t)(state_b->sums[0] + state_b->sums[1]);
-    results[2] = (simsimd_f32_t)(state_c->sums[0] + state_c->sums[1]);
-    results[3] = (simsimd_f32_t)(state_d->sums[0] + state_d->sums[1]);
+    simsimd_u32_t *results) {
+    results[0] = (simsimd_u32_t)(state_a->sums[0] + state_a->sums[1]);
+    results[1] = (simsimd_u32_t)(state_b->sums[0] + state_b->sums[1]);
+    results[2] = (simsimd_u32_t)(state_c->sums[0] + state_c->sums[1]);
+    results[3] = (simsimd_u32_t)(state_d->sums[0] + state_d->sums[1]);
 }
 
 /**
@@ -1443,12 +1453,12 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_neon(simsimd_dot_i8x64_state_neon
 SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_neon(                                            //
     simsimd_dot_i8x64_state_neon_t const *state_a, simsimd_dot_i8x64_state_neon_t const *state_b, //
     simsimd_dot_i8x64_state_neon_t const *state_c, simsimd_dot_i8x64_state_neon_t const *state_d, //
-    simsimd_f32_t *results) {
+    simsimd_i32_t *results) {
     // ILP-optimized 4-way horizontal reduction for i32 on NEON
-    results[0] = (simsimd_f32_t)vaddvq_s32(state_a->sum);
-    results[1] = (simsimd_f32_t)vaddvq_s32(state_b->sum);
-    results[2] = (simsimd_f32_t)vaddvq_s32(state_c->sum);
-    results[3] = (simsimd_f32_t)vaddvq_s32(state_d->sum);
+    results[0] = (simsimd_i32_t)vaddvq_s32(state_a->sum);
+    results[1] = (simsimd_i32_t)vaddvq_s32(state_b->sum);
+    results[2] = (simsimd_i32_t)vaddvq_s32(state_c->sum);
+    results[3] = (simsimd_i32_t)vaddvq_s32(state_d->sum);
 }
 
 /**
@@ -1475,12 +1485,12 @@ SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_neon(simsimd_dot_u8x64_state_neon
 SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_neon(                                            //
     simsimd_dot_u8x64_state_neon_t const *state_a, simsimd_dot_u8x64_state_neon_t const *state_b, //
     simsimd_dot_u8x64_state_neon_t const *state_c, simsimd_dot_u8x64_state_neon_t const *state_d, //
-    simsimd_f32_t *results) {
+    simsimd_u32_t *results) {
     // ILP-optimized 4-way horizontal reduction for u32 on NEON
-    results[0] = (simsimd_f32_t)vaddvq_u32(state_a->sum);
-    results[1] = (simsimd_f32_t)vaddvq_u32(state_b->sum);
-    results[2] = (simsimd_f32_t)vaddvq_u32(state_c->sum);
-    results[3] = (simsimd_f32_t)vaddvq_u32(state_d->sum);
+    results[0] = (simsimd_u32_t)vaddvq_u32(state_a->sum);
+    results[1] = (simsimd_u32_t)vaddvq_u32(state_b->sum);
+    results[2] = (simsimd_u32_t)vaddvq_u32(state_c->sum);
+    results[3] = (simsimd_u32_t)vaddvq_u32(state_d->sum);
 }
 
 #pragma clang attribute pop
@@ -2799,7 +2809,7 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_haswell(simsimd_dot_i8x64_state_h
 SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_haswell(                                               //
     simsimd_dot_i8x64_state_haswell_t const *state_a, simsimd_dot_i8x64_state_haswell_t const *state_b, //
     simsimd_dot_i8x64_state_haswell_t const *state_c, simsimd_dot_i8x64_state_haswell_t const *state_d, //
-    simsimd_f32_t *results) {
+    simsimd_i32_t *results) {
     // First, combine the low and high accumulators for each state
     __m256i combined_a = _mm256_add_epi32(state_a->sum_low, state_a->sum_high);
     __m256i combined_b = _mm256_add_epi32(state_b->sum_low, state_b->sum_high);
@@ -2820,9 +2830,9 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_haswell(                       
     __m128i sum_lane_1 = _mm_unpackhi_epi64(transpose_ab_lo, transpose_cd_lo);
     __m128i sum_lane_2 = _mm_unpacklo_epi64(transpose_ab_hi, transpose_cd_hi);
     __m128i sum_lane_3 = _mm_unpackhi_epi64(transpose_ab_hi, transpose_cd_hi);
-    // Step 3: Vertical sum and convert to f32
+    // Step 3: Vertical sum and store as i32
     __m128i final_sum = _mm_add_epi32(_mm_add_epi32(sum_lane_0, sum_lane_1), _mm_add_epi32(sum_lane_2, sum_lane_3));
-    _mm_storeu_ps(results, _mm_cvtepi32_ps(final_sum));
+    _mm_storeu_si128((__m128i *)results, final_sum);
 }
 
 /**
@@ -2869,12 +2879,13 @@ SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_haswell(simsimd_dot_u8x64_state_h
 SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_haswell(                                               //
     simsimd_dot_u8x64_state_haswell_t const *state_a, simsimd_dot_u8x64_state_haswell_t const *state_b, //
     simsimd_dot_u8x64_state_haswell_t const *state_c, simsimd_dot_u8x64_state_haswell_t const *state_d, //
-    simsimd_f32_t *results) {
+    simsimd_u32_t *results) {
     // State is layout-compatible with i8x64 (both contain sum_low and sum_high)
+    // Result storage is also compatible (same bit pattern, different signedness interpretation)
     simsimd_dot_i8x64_finalize_haswell(                                                                         //
         (simsimd_dot_i8x64_state_haswell_t const *)state_a, (simsimd_dot_i8x64_state_haswell_t const *)state_b, //
         (simsimd_dot_i8x64_state_haswell_t const *)state_c, (simsimd_dot_i8x64_state_haswell_t const *)state_d,
-        results);
+        (simsimd_i32_t *)results);
 }
 
 #pragma clang attribute pop
@@ -3231,7 +3242,7 @@ SIMSIMD_INTERNAL void simsimd_dot_f64x8_update_skylake(simsimd_dot_f64x8_state_s
 SIMSIMD_INTERNAL void simsimd_dot_f64x8_finalize_skylake(                                               //
     simsimd_dot_f64x8_state_skylake_t const *state_a, simsimd_dot_f64x8_state_skylake_t const *state_b, //
     simsimd_dot_f64x8_state_skylake_t const *state_c, simsimd_dot_f64x8_state_skylake_t const *state_d, //
-    simsimd_f32_t *results) {
+    simsimd_f64_t *results) {
     // ILP-optimized 4-way horizontal reduction for f64
     // Step 1: 8->4 for all 4 states (extract high 256-bit half and add to low half)
     __m256d reduced_a = _mm256_add_pd(_mm512_castpd512_pd256(state_a->sum), _mm512_extractf64x4_pd(state_a->sum, 1));
@@ -3247,9 +3258,9 @@ SIMSIMD_INTERNAL void simsimd_dot_f64x8_finalize_skylake(                       
     // Each __m128d has [low, high], need to add them to get final scalar
     __m128d sum_ab = _mm_add_pd(_mm_unpacklo_pd(partial_a, partial_b), _mm_unpackhi_pd(partial_a, partial_b));
     __m128d sum_cd = _mm_add_pd(_mm_unpacklo_pd(partial_c, partial_d), _mm_unpackhi_pd(partial_c, partial_d));
-    // Convert to f32 and store
-    __m128 final_result = _mm_movelh_ps(_mm_cvtpd_ps(sum_ab), _mm_cvtpd_ps(sum_cd));
-    _mm_storeu_ps(results, final_result);
+    // Store as f64
+    _mm_storeu_pd(results, sum_ab);
+    _mm_storeu_pd(results + 2, sum_cd);
 }
 
 /**
@@ -4177,7 +4188,7 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_ice(simsimd_dot_i8x64_state_ice_t
 SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_ice(                                           //
     simsimd_dot_i8x64_state_ice_t const *state_a, simsimd_dot_i8x64_state_ice_t const *state_b, //
     simsimd_dot_i8x64_state_ice_t const *state_c, simsimd_dot_i8x64_state_ice_t const *state_d, //
-    simsimd_f32_t *results) {
+    simsimd_i32_t *results) {
     // ILP-optimized 4-way horizontal reduction for i32
     // Step 1: 16->8 for all 4 states (extract high 256-bit half and add to low half)
     __m256i reduced_a = _mm256_add_epi32(_mm512_castsi512_si256(state_a->sum),
@@ -4204,8 +4215,8 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_ice(                           
     __m128i sum_lane_3 = _mm_unpackhi_epi64(transpose_ab_hi, transpose_cd_hi);
     // Step 4: Vertical sum - each lane becomes the final i32 result for one state
     __m128i final_sum = _mm_add_epi32(_mm_add_epi32(sum_lane_0, sum_lane_1), _mm_add_epi32(sum_lane_2, sum_lane_3));
-    // Convert to f32 and store
-    _mm_storeu_ps(results, _mm_cvtepi32_ps(final_sum));
+    // Store as i32
+    _mm_storeu_si128((__m128i *)results, final_sum);
 }
 
 /**
@@ -4243,13 +4254,13 @@ SIMSIMD_INTERNAL void simsimd_dot_u8x64_update_ice(simsimd_dot_u8x64_state_ice_t
 SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_ice(                                           //
     simsimd_dot_u8x64_state_ice_t const *state_a, simsimd_dot_u8x64_state_ice_t const *state_b, //
     simsimd_dot_u8x64_state_ice_t const *state_c, simsimd_dot_u8x64_state_ice_t const *state_d, //
-    simsimd_f32_t *results) {
+    simsimd_u32_t *results) {
     // First, combine the low and high accumulators for each state
     __m512i combined_a = _mm512_add_epi32(state_a->sum_low, state_a->sum_high);
     __m512i combined_b = _mm512_add_epi32(state_b->sum_low, state_b->sum_high);
     __m512i combined_c = _mm512_add_epi32(state_c->sum_low, state_c->sum_high);
     __m512i combined_d = _mm512_add_epi32(state_d->sum_low, state_d->sum_high);
-    // ILP-optimized 4-way horizontal reduction for i32
+    // ILP-optimized 4-way horizontal reduction for u32
     // Step 1: 16->8 for all 4 states
     __m256i reduced_a = _mm256_add_epi32(_mm512_castsi512_si256(combined_a), _mm512_extracti32x8_epi32(combined_a, 1));
     __m256i reduced_b = _mm256_add_epi32(_mm512_castsi512_si256(combined_b), _mm512_extracti32x8_epi32(combined_b, 1));
@@ -4269,9 +4280,9 @@ SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_ice(                           
     __m128i sum_lane_1 = _mm_unpackhi_epi64(transpose_ab_lo, transpose_cd_lo);
     __m128i sum_lane_2 = _mm_unpacklo_epi64(transpose_ab_hi, transpose_cd_hi);
     __m128i sum_lane_3 = _mm_unpackhi_epi64(transpose_ab_hi, transpose_cd_hi);
-    // Step 4: Vertical sum and convert to f32
+    // Step 4: Vertical sum and store as u32
     __m128i final_sum = _mm_add_epi32(_mm_add_epi32(sum_lane_0, sum_lane_1), _mm_add_epi32(sum_lane_2, sum_lane_3));
-    _mm_storeu_ps(results, _mm_cvtepi32_ps(final_sum));
+    _mm_storeu_si128((__m128i *)results, final_sum);
 }
 
 #pragma clang attribute pop
@@ -4325,7 +4336,7 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_update_sierra(simsimd_dot_i8x64_state_si
 SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_sierra(                                              //
     simsimd_dot_i8x64_state_sierra_t const *state_a, simsimd_dot_i8x64_state_sierra_t const *state_b, //
     simsimd_dot_i8x64_state_sierra_t const *state_c, simsimd_dot_i8x64_state_sierra_t const *state_d, //
-    simsimd_f32_t *results) {
+    simsimd_i32_t *results) {
     // ILP-optimized 4-way horizontal reduction for i32 in AVX2 (8 elements -> 1 scalar each)
     // Step 1: 8->4 for all 4 states (extract high 128-bit half and add to low half)
     __m128i partial_a = _mm_add_epi32(_mm256_castsi256_si128(state_a->sum), _mm256_extracti128_si256(state_a->sum, 1));
@@ -4343,8 +4354,8 @@ SIMSIMD_INTERNAL void simsimd_dot_i8x64_finalize_sierra(                        
     __m128i sum_lane_3 = _mm_unpackhi_epi64(transpose_ab_hi, transpose_cd_hi);
     // Step 3: Vertical sum - each lane becomes the final i32 result for one state
     __m128i final_sum = _mm_add_epi32(_mm_add_epi32(sum_lane_0, sum_lane_1), _mm_add_epi32(sum_lane_2, sum_lane_3));
-    // Convert to f32 and store
-    _mm_storeu_ps(results, _mm_cvtepi32_ps(final_sum));
+    // Store as i32
+    _mm_storeu_si128((__m128i *)results, final_sum);
 }
 
 #pragma clang attribute pop
