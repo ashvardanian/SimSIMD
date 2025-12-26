@@ -354,167 +354,204 @@ SIMSIMD_PUBLIC void simsimd_dots_i8i8i8_sapphire_amx(void *c, simsimd_size_t m, 
 
 /*  Inner-Product GEMM Macro
  *
- *  Computes C[m×n] = A[m×k] × B[n×k]ᵀ using inner-product micro-kernels with
+ *  Computes C[m x n] = A[m x k] x B[n x k]^T using inner-product micro-kernels with
  *  ILP-optimized 4-way batched horizontal reductions.
  *
  *  Loop Structure (GotoBLAS 5-loop design):
- *  ┌─────────────────────────────────────────────────────────────────────────┐
- *  │ Loop 1: NC columns at a time (L3 blocking)                              │
- *  │   Loop 2: KC depth at a time (L1 blocking)                              │
- *  │     Loop 3: MC rows at a time (L2 blocking)                             │
- *  │       Loop 4: NR=4 columns (register tile, batched finalize)            │
- *  │         Loop 5: MR rows (register tile)                                 │
- *  │           Loop 6: k_tile elements (SIMD accumulation)                   │
- *  │             ┌───────────────────────────────────────────────────────┐   │
- *  │             │ Load A[row, k:k+k_tile] once                          │   │
- *  │             │ Update 4 states with 4 pre-loaded B columns           │   │
- *  │             │ state[c] += A_vec · B_vec[c]  for c in [0,3]          │   │
- *  │             └───────────────────────────────────────────────────────┘   │
- *  │           Finalize 4 states → 4 results (ILP-optimized reduction)       │
- *  └─────────────────────────────────────────────────────────────────────────┘
+ *  +-----------------------------------------------------------------------------+
+ *  | Loop 1: NC columns at a time (L3 blocking)                                  |
+ *  |   Loop 2: KC depth at a time (L1 blocking)                                  |
+ *  |     Loop 3: MC rows at a time (L2 blocking)                                 |
+ *  |       Loop 4: NR=4 columns (register tile, batched finalize)                |
+ *  |         Loop 5: MR rows (register tile)                                     |
+ *  |           Loop 6: k_tile elements (SIMD accumulation)                       |
+ *  |             +-----------------------------------------------------------+   |
+ *  |             | Fast path: SIMD-aligned tiles with full vector loads      |   |
+ *  |             | Slow path: partial loads for K remainder elements         |   |
+ *  |             +-----------------------------------------------------------+   |
+ *  |           Finalize 4 states -> 4 results (ILP-optimized reduction)          |
+ *  +-----------------------------------------------------------------------------+
  *
  *  Cache Blocking Strategy:
  *  - NC (L3): ~2048 columns, B tile stays in L3 across MC iterations
  *  - KC (L1): ~256 depth, A slice + B rows fit in L1 during k-loop
  *  - MC (L2): ~128 rows, A tile + partial C fit in L2
  *
- *  B Packing Format (tiled row-major, 16 rows × depth per tile):
+ *  B Packing Format (tiled row-major, 16 rows x depth per tile):
  *  - Tiles indexed as: b_packed[tile_idx * 16 * depth + row * depth + k]
  *  - No interleaving, simple cache-line-aligned access pattern
  *  - Zero-padded edge tiles for uniform SIMD loads
  *
- *  Why NR=4 (not 16 like outer-product):
- *  - Inner-product: each state holds ONE dot product accumulator
- *  - Finalize must reduce SIMD vector → scalar (expensive horizontal reduction)
- *  - Batching 4 reductions enables ILP via interleaved shuffle/add sequences
- *  - MR×4 states fit comfortably in registers on all platforms
+ *  Fast Path vs Slow Path:
+ *  - Fast path: When kc_len is a multiple of k_tile, use aligned SIMD loads
+ *  - Slow path: When kc_len has remainder, use partial_load_fn for masked loads
+ *  - This separation eliminates branch overhead in the hot inner loop
  *
  *  State & Vector Sizes by Platform:
  *  - AVX-512: 512-bit state, 64-byte loads, k_tile = 64/sizeof(input)
  *  - AVX2:    256-bit state, 32-byte loads, k_tile = 32/sizeof(input)
  *  - NEON:    128-bit state, 16-byte loads, k_tile = 16/sizeof(input)
  *
- *  @param suffix       Function name suffix (e.g., f32f32f32_skylake)
- *  @param input_type   Input element type (f32, bf16, i8, etc.)
- *  @param output_type  Output element type (f32, i32)
- *  @param state_type   Accumulator state (native SIMD width per platform)
- *  @param init_fn      State init: init_fn(state*) - zeros accumulator
- *  @param load_fn      Vector load: load_fn(void const* src, vec_t* dst)
- *  @param update_fn    FMA update: update_fn(state*, a_vec, b_vec)
- *  @param finalize_fn  4-way reduce: finalize_fn(s0*, s1*, s2*, s3*, f32[4])
- *  @param k_tile       Input elements per SIMD update (platform-dependent)
- *  @param mr_size      A rows per register tile (typically 4)
- *  @param mc_size      L2 row blocking (typically 128)
- *  @param nc_size      L3 column blocking (typically 2048)
- *  @param kc_size      L1 depth blocking (typically 256)
+ *  @param suffix           Function name suffix (e.g., f32f32f32_skylake)
+ *  @param input_type       Input element type (f32, bf16, i8, etc.)
+ *  @param output_type      Output element type (f32, i32)
+ *  @param state_type       Accumulator state (native SIMD width per platform)
+ *  @param init_fn          State init: init_fn(state*) - zeros accumulator
+ *  @param load_fn          Vector load: load_fn(void const* src, vec_t* dst)
+ *  @param partial_load_fn  Masked load: partial_load_fn(src, count, dst) for remainder
+ *  @param update_fn        FMA update: update_fn(state*, a_vec, b_vec)
+ *  @param finalize_fn      4-way reduce: finalize_fn(s0*, s1*, s2*, s3*, f32[4])
+ *  @param k_tile           Input elements per SIMD update (platform-dependent)
+ *  @param mr_size          A rows per register tile (typically 4)
+ *  @param mc_size          L2 row blocking (typically 128)
+ *  @param nc_size          L3 column blocking (typically 2048)
+ *  @param kc_size          L1 depth blocking (typically 256)
  */
-#define SIMSIMD_MAKE_DOTS_INNER(suffix, input_type, output_type, state_type, init_fn, load_fn, update_fn, finalize_fn, \
-                                k_tile, mr_size, mc_size, nc_size, kc_size)                                            \
-                                                                                                                       \
-    SIMSIMD_PUBLIC void simsimd_dots_##suffix(simsimd_##input_type##_t const *a_matrix, void const *b_packed_void,     \
-                                              simsimd_##output_type##_t *c_matrix, simsimd_size_t row_count,           \
-                                              simsimd_size_t column_count, simsimd_size_t depth,                       \
-                                              simsimd_size_t a_stride, simsimd_size_t c_stride) {                      \
-        simsimd_##input_type##_t const *b_packed = (simsimd_##input_type##_t const *)b_packed_void;                    \
-                                                                                                                       \
-        simsimd_size_t const nr_size = 4;                   /* Columns per finalize batch */                           \
-        simsimd_size_t const nr_base = 16;                  /* B rows per tile */                                      \
-        simsimd_size_t const k_stride = k_tile;             /* Elements per SIMD update */                             \
-        simsimd_size_t const b_tile_size = nr_base * depth; /* Elements per B tile (16 rows × depth) */                \
-                                                                                                                       \
-        /* Loop 1: L3 cache blocking over columns */                                                                   \
-        for (simsimd_size_t nc_start = 0; nc_start < column_count; nc_start += nc_size) {                              \
-            simsimd_size_t nc_end = nc_start + nc_size;                                                                \
-            if (nc_end > column_count) nc_end = column_count;                                                          \
-                                                                                                                       \
-            /* Loop 2: L1 cache blocking over depth */                                                                 \
-            for (simsimd_size_t kc_start = 0; kc_start < depth; kc_start += kc_size) {                                 \
-                simsimd_size_t kc_end = kc_start + kc_size;                                                            \
-                if (kc_end > depth) kc_end = depth;                                                                    \
-                simsimd_size_t kc_len = kc_end - kc_start;                                                             \
-                                                                                                                       \
-                /* Loop 3: L2 cache blocking over rows */                                                              \
-                for (simsimd_size_t mc_start = 0; mc_start < row_count; mc_start += mc_size) {                         \
-                    simsimd_size_t mc_end = mc_start + mc_size;                                                        \
-                    if (mc_end > row_count) mc_end = row_count;                                                        \
-                                                                                                                       \
-                    /* Loop 4: Register tiling over columns (NR=4 columns per batch) */                                \
-                    for (simsimd_size_t nr_start = nc_start; nr_start < nc_end; nr_start += nr_size) {                 \
-                        simsimd_size_t cols_in_tile = nr_size;                                                         \
-                        if (nr_start + cols_in_tile > nc_end) cols_in_tile = nc_end - nr_start;                        \
-                                                                                                                       \
-                        /* Loop 5: Register tiling over rows (MR rows per tile) */                                     \
-                        for (simsimd_size_t mr_start = mc_start; mr_start < mc_end; mr_start += mr_size) {             \
-                            simsimd_size_t rows_in_tile = mr_size;                                                     \
-                            if (mr_start + rows_in_tile > mc_end) rows_in_tile = mc_end - mr_start;                    \
-                                                                                                                       \
-                            /* Initialize MR × NR states (MR rows, NR=4 columns) */                                    \
-                            state_type states[mr_size][4];                                                             \
-                            for (simsimd_size_t r = 0; r < rows_in_tile; ++r) {                                        \
-                                init_fn(&states[r][0]);                                                                \
-                                init_fn(&states[r][1]);                                                                \
-                                init_fn(&states[r][2]);                                                                \
-                                init_fn(&states[r][3]);                                                                \
-                            }                                                                                          \
-                                                                                                                       \
-                            /* Get B row pointers for 4 columns (from packed tiles) */                                 \
-                            simsimd_size_t b_tile_idx = nr_start / nr_base;                                            \
-                            simsimd_size_t b_row_in_tile = nr_start % nr_base;                                         \
-                            simsimd_##input_type##_t const *b_tile = b_packed + b_tile_idx * b_tile_size;              \
-                            simsimd_##input_type##_t const *b_row0 = b_tile + b_row_in_tile * depth + kc_start;        \
-                            simsimd_##input_type##_t const *b_row1 = (cols_in_tile > 1 && b_row_in_tile + 1 < nr_base) \
-                                                                         ? b_tile + (b_row_in_tile + 1) * depth +      \
-                                                                               kc_start                                \
-                                                                         : b_row0;                                     \
-                            simsimd_##input_type##_t const *b_row2 = (cols_in_tile > 2 && b_row_in_tile + 2 < nr_base) \
-                                                                         ? b_tile + (b_row_in_tile + 2) * depth +      \
-                                                                               kc_start                                \
-                                                                         : b_row0;                                     \
-                            simsimd_##input_type##_t const *b_row3 = (cols_in_tile > 3 && b_row_in_tile + 3 < nr_base) \
-                                                                         ? b_tile + (b_row_in_tile + 3) * depth +      \
-                                                                               kc_start                                \
-                                                                         : b_row0;                                     \
-                                                                                                                       \
-                            /* Loop 6: Accumulate over depth block (k_tile elements per iteration) */                  \
-                            for (simsimd_size_t k_offset = 0; k_offset + k_stride <= kc_len; k_offset += k_stride) {   \
-                                /* Load 4 B vectors once (shared across all A rows) */                                 \
-                                simsimd_b512_vec_t b_vec0, b_vec1, b_vec2, b_vec3;                                     \
-                                load_fn(b_row0 + k_offset, &b_vec0);                                                   \
-                                load_fn(b_row1 + k_offset, &b_vec1);                                                   \
-                                load_fn(b_row2 + k_offset, &b_vec2);                                                   \
-                                load_fn(b_row3 + k_offset, &b_vec3);                                                   \
-                                                                                                                       \
-                                /* Update all MR rows with 4 B columns */                                              \
-                                for (simsimd_size_t r = 0; r < rows_in_tile; ++r) {                                    \
-                                    simsimd_##input_type##_t const *a_ptr =                                            \
-                                        (simsimd_##input_type##_t const *)((char const *)a_matrix +                    \
-                                                                           (mr_start + r) * a_stride) +                \
-                                        kc_start + k_offset;                                                           \
-                                    simsimd_b512_vec_t a_vec;                                                          \
-                                    load_fn(a_ptr, &a_vec);                                                            \
-                                    update_fn(&states[r][0], a_vec, b_vec0);                                           \
-                                    update_fn(&states[r][1], a_vec, b_vec1);                                           \
-                                    update_fn(&states[r][2], a_vec, b_vec2);                                           \
-                                    update_fn(&states[r][3], a_vec, b_vec3);                                           \
-                                }                                                                                      \
-                            }                                                                                          \
-                                                                                                                       \
-                            /* Finalize and store MR × 4 results using batched 4-way reduction */                      \
-                            for (simsimd_size_t r = 0; r < rows_in_tile; ++r) {                                        \
-                                simsimd_f32_t results[4];                                                              \
-                                finalize_fn(&states[r][0], &states[r][1], &states[r][2], &states[r][3], results);      \
-                                                                                                                       \
-                                simsimd_##output_type##_t *c_row =                                                     \
-                                    (simsimd_##output_type##_t *)((char *)c_matrix + (mr_start + r) * c_stride);       \
-                                for (simsimd_size_t c = 0; c < cols_in_tile; ++c) {                                    \
-                                    c_row[nr_start + c] += (simsimd_##output_type##_t)results[c];                      \
-                                }                                                                                      \
-                            }                                                                                          \
-                        }                                                                                              \
-                    }                                                                                                  \
-                }                                                                                                      \
-            }                                                                                                          \
-        }                                                                                                              \
+#define SIMSIMD_MAKE_DOTS_INNER(suffix, input_type, output_type, state_type, init_fn, load_fn, partial_load_fn,       \
+                                update_fn, finalize_fn, k_tile, mr_size, mc_size, nc_size, kc_size)                   \
+                                                                                                                      \
+    SIMSIMD_PUBLIC void simsimd_dots_##suffix(simsimd_##input_type##_t const *a_matrix, void const *b_packed_void,    \
+                                              simsimd_##output_type##_t *c_matrix, simsimd_size_t row_count,          \
+                                              simsimd_size_t column_count, simsimd_size_t depth,                      \
+                                              simsimd_size_t a_stride, simsimd_size_t c_stride) {                     \
+        simsimd_##input_type##_t const *b_packed = (simsimd_##input_type##_t const *)b_packed_void;                   \
+                                                                                                                      \
+        simsimd_size_t const register_tile_columns = 4;                   /* Columns per finalize batch (NR) */       \
+        simsimd_size_t const packed_tile_rows = 16;                       /* B rows per packed tile */                \
+        simsimd_size_t const simd_width = k_tile;                         /* Elements per SIMD update */              \
+        simsimd_size_t const packed_tile_size = packed_tile_rows * depth; /* Elements per B tile */                   \
+                                                                                                                      \
+        /* Loop 1: L3 cache blocking over columns */                                                                  \
+        for (simsimd_size_t column_block_start = 0; column_block_start < column_count;                                \
+             column_block_start += nc_size) {                                                                         \
+            simsimd_size_t column_block_end = column_block_start + nc_size;                                           \
+            if (column_block_end > column_count) column_block_end = column_count;                                     \
+                                                                                                                      \
+            /* Loop 2: L1 cache blocking over depth */                                                                \
+            for (simsimd_size_t depth_block_start = 0; depth_block_start < depth; depth_block_start += kc_size) {     \
+                simsimd_size_t depth_block_end = depth_block_start + kc_size;                                         \
+                if (depth_block_end > depth) depth_block_end = depth;                                                 \
+                simsimd_size_t const depth_block_length = depth_block_end - depth_block_start;                        \
+                simsimd_size_t const aligned_depth = (depth_block_length / simd_width) * simd_width;                  \
+                simsimd_size_t const remainder_depth = depth_block_length - aligned_depth;                            \
+                                                                                                                      \
+                /* Loop 3: L2 cache blocking over rows */                                                             \
+                for (simsimd_size_t row_block_start = 0; row_block_start < row_count; row_block_start += mc_size) {   \
+                    simsimd_size_t row_block_end = row_block_start + mc_size;                                         \
+                    if (row_block_end > row_count) row_block_end = row_count;                                         \
+                                                                                                                      \
+                    /* Loop 4: Register tiling over columns (4 columns per batch) */                                  \
+                    for (simsimd_size_t tile_column_start = column_block_start; tile_column_start < column_block_end; \
+                         tile_column_start += register_tile_columns) {                                                \
+                        simsimd_size_t tile_column_count = register_tile_columns;                                     \
+                        if (tile_column_start + tile_column_count > column_block_end)                                 \
+                            tile_column_count = column_block_end - tile_column_start;                                 \
+                                                                                                                      \
+                        /* Loop 5: Register tiling over rows (MR rows per tile) */                                    \
+                        for (simsimd_size_t tile_row_start = row_block_start; tile_row_start < row_block_end;         \
+                             tile_row_start += mr_size) {                                                             \
+                            simsimd_size_t tile_row_count = mr_size;                                                  \
+                            if (tile_row_start + tile_row_count > row_block_end)                                      \
+                                tile_row_count = row_block_end - tile_row_start;                                      \
+                                                                                                                      \
+                            /* Initialize MR x 4 accumulator states */                                                \
+                            state_type accumulator_states[mr_size][4];                                                \
+                            for (simsimd_size_t row_index = 0; row_index < tile_row_count; ++row_index) {             \
+                                init_fn(&accumulator_states[row_index][0]);                                           \
+                                init_fn(&accumulator_states[row_index][1]);                                           \
+                                init_fn(&accumulator_states[row_index][2]);                                           \
+                                init_fn(&accumulator_states[row_index][3]);                                           \
+                            }                                                                                         \
+                                                                                                                      \
+                            /* Compute B row pointers for 4 columns (from packed tiles) */                            \
+                            simsimd_size_t const packed_tile_index = tile_column_start / packed_tile_rows;            \
+                            simsimd_size_t const row_within_tile = tile_column_start % packed_tile_rows;              \
+                            simsimd_##input_type##_t const *packed_tile_base = b_packed +                             \
+                                                                               packed_tile_index * packed_tile_size;  \
+                            simsimd_##input_type##_t const *b_column_ptr_0 = packed_tile_base +                       \
+                                                                             row_within_tile * depth +                \
+                                                                             depth_block_start;                       \
+                            simsimd_##input_type##_t const *b_column_ptr_1 =                                          \
+                                (tile_column_count > 1 && row_within_tile + 1 < packed_tile_rows)                     \
+                                    ? packed_tile_base + (row_within_tile + 1) * depth + depth_block_start            \
+                                    : b_column_ptr_0;                                                                 \
+                            simsimd_##input_type##_t const *b_column_ptr_2 =                                          \
+                                (tile_column_count > 2 && row_within_tile + 2 < packed_tile_rows)                     \
+                                    ? packed_tile_base + (row_within_tile + 2) * depth + depth_block_start            \
+                                    : b_column_ptr_0;                                                                 \
+                            simsimd_##input_type##_t const *b_column_ptr_3 =                                          \
+                                (tile_column_count > 3 && row_within_tile + 3 < packed_tile_rows)                     \
+                                    ? packed_tile_base + (row_within_tile + 3) * depth + depth_block_start            \
+                                    : b_column_ptr_0;                                                                 \
+                                                                                                                      \
+                            /* Fast path: SIMD-aligned iterations */                                                  \
+                            for (simsimd_size_t depth_offset = 0; depth_offset < aligned_depth;                       \
+                                 depth_offset += simd_width) {                                                        \
+                                /* Load 4 B vectors once (shared across all A rows) */                                \
+                                simsimd_b512_vec_t b_vector_0, b_vector_1, b_vector_2, b_vector_3;                    \
+                                load_fn(b_column_ptr_0 + depth_offset, &b_vector_0);                                  \
+                                load_fn(b_column_ptr_1 + depth_offset, &b_vector_1);                                  \
+                                load_fn(b_column_ptr_2 + depth_offset, &b_vector_2);                                  \
+                                load_fn(b_column_ptr_3 + depth_offset, &b_vector_3);                                  \
+                                                                                                                      \
+                                /* Update all MR rows with 4 B columns */                                             \
+                                for (simsimd_size_t row_index = 0; row_index < tile_row_count; ++row_index) {         \
+                                    simsimd_##input_type##_t const *a_element_ptr =                                   \
+                                        (simsimd_##input_type##_t const *)((char const *)a_matrix +                   \
+                                                                           (tile_row_start + row_index) * a_stride) + \
+                                        depth_block_start + depth_offset;                                             \
+                                    simsimd_b512_vec_t a_vector;                                                      \
+                                    load_fn(a_element_ptr, &a_vector);                                                \
+                                    update_fn(&accumulator_states[row_index][0], a_vector, b_vector_0);               \
+                                    update_fn(&accumulator_states[row_index][1], a_vector, b_vector_1);               \
+                                    update_fn(&accumulator_states[row_index][2], a_vector, b_vector_2);               \
+                                    update_fn(&accumulator_states[row_index][3], a_vector, b_vector_3);               \
+                                }                                                                                     \
+                            }                                                                                         \
+                                                                                                                      \
+                            /* Slow path: remainder elements with partial (masked) loads */                           \
+                            if (remainder_depth > 0) {                                                                \
+                                simsimd_b512_vec_t b_vector_0, b_vector_1, b_vector_2, b_vector_3;                    \
+                                partial_load_fn(b_column_ptr_0 + aligned_depth, remainder_depth, &b_vector_0);        \
+                                partial_load_fn(b_column_ptr_1 + aligned_depth, remainder_depth, &b_vector_1);        \
+                                partial_load_fn(b_column_ptr_2 + aligned_depth, remainder_depth, &b_vector_2);        \
+                                partial_load_fn(b_column_ptr_3 + aligned_depth, remainder_depth, &b_vector_3);        \
+                                                                                                                      \
+                                for (simsimd_size_t row_index = 0; row_index < tile_row_count; ++row_index) {         \
+                                    simsimd_##input_type##_t const *a_element_ptr =                                   \
+                                        (simsimd_##input_type##_t const *)((char const *)a_matrix +                   \
+                                                                           (tile_row_start + row_index) * a_stride) + \
+                                        depth_block_start + aligned_depth;                                            \
+                                    simsimd_b512_vec_t a_vector;                                                      \
+                                    partial_load_fn(a_element_ptr, remainder_depth, &a_vector);                       \
+                                    update_fn(&accumulator_states[row_index][0], a_vector, b_vector_0);               \
+                                    update_fn(&accumulator_states[row_index][1], a_vector, b_vector_1);               \
+                                    update_fn(&accumulator_states[row_index][2], a_vector, b_vector_2);               \
+                                    update_fn(&accumulator_states[row_index][3], a_vector, b_vector_3);               \
+                                }                                                                                     \
+                            }                                                                                         \
+                                                                                                                      \
+                            /* Finalize and store MR x 4 results using batched 4-way reduction */                     \
+                            for (simsimd_size_t row_index = 0; row_index < tile_row_count; ++row_index) {             \
+                                simsimd_f32_t reduction_results[4];                                                   \
+                                finalize_fn(&accumulator_states[row_index][0], &accumulator_states[row_index][1],     \
+                                            &accumulator_states[row_index][2], &accumulator_states[row_index][3],     \
+                                            reduction_results);                                                       \
+                                                                                                                      \
+                                simsimd_##output_type##_t *output_row =                                               \
+                                    (simsimd_##output_type##_t *)((char *)c_matrix +                                  \
+                                                                  (tile_row_start + row_index) * c_stride);           \
+                                for (simsimd_size_t column_index = 0; column_index < tile_column_count;               \
+                                     ++column_index) {                                                                \
+                                    output_row[tile_column_start + column_index] +=                                   \
+                                        (simsimd_##output_type##_t)reduction_results[column_index];                   \
+                                }                                                                                     \
+                            }                                                                                         \
+                        }                                                                                             \
+                    }                                                                                                 \
+                }                                                                                                     \
+            }                                                                                                         \
+        }                                                                                                             \
     }
 
 /*  Packed buffer header for tiled layout (64-byte aligned).
@@ -918,25 +955,52 @@ SIMSIMD_INTERNAL void _simsimd_load_b128_neon(void const *src, simsimd_b512_vec_
     dst->u8x16s[0] = vld1q_u8((const uint8_t *)src);
 }
 
+/** @brief Partial load for f32 elements into 512-bit vector (NEON). */
+SIMSIMD_INTERNAL void _simsimd_partial_load_f32x4_neon_gemm(simsimd_f32_t const *src, simsimd_size_t count,
+                                                            simsimd_b512_vec_t *dst) {
+    simsimd_size_t element_index = 0;
+    for (; element_index < count && element_index < 4; ++element_index) dst->f32s[element_index] = src[element_index];
+    for (; element_index < 4; ++element_index) dst->f32s[element_index] = 0;
+}
+
+/** @brief Partial load for i8 elements into 512-bit vector (NEON). */
+SIMSIMD_INTERNAL void _simsimd_partial_load_i8x16_neon_gemm(simsimd_i8_t const *src, simsimd_size_t count,
+                                                            simsimd_b512_vec_t *dst) {
+    simsimd_size_t element_index = 0;
+    for (; element_index < count && element_index < 16; ++element_index) dst->i8s[element_index] = src[element_index];
+    for (; element_index < 16; ++element_index) dst->i8s[element_index] = 0;
+}
+
+/** @brief Partial load for u8 elements into 512-bit vector (NEON). */
+SIMSIMD_INTERNAL void _simsimd_partial_load_u8x16_neon_gemm(simsimd_u8_t const *src, simsimd_size_t count,
+                                                            simsimd_b512_vec_t *dst) {
+    simsimd_size_t element_index = 0;
+    for (; element_index < count && element_index < 16; ++element_index) dst->u8s[element_index] = src[element_index];
+    for (; element_index < 16; ++element_index) dst->u8s[element_index] = 0;
+}
+
 // F32 GEMM: k_tile=4 (4 f32s = 16 bytes = NEON register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(neon, f32, f32, 4)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(neon, f32, f32, 4)
 SIMSIMD_MAKE_DOTS_INNER(f32f32f32_neon, f32, f32, simsimd_dot_f32x16_state_neon_t, simsimd_dot_f32x16_init_neon,
-                        _simsimd_load_b128_neon, simsimd_dot_f32x16_update_neon, simsimd_dot_f32x16_finalize_neon,
+                        _simsimd_load_b128_neon, _simsimd_partial_load_f32x4_neon_gemm, simsimd_dot_f32x16_update_neon,
+                        simsimd_dot_f32x16_finalize_neon,
                         /*k_tile=*/4, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // I8 GEMM: k_tile=16 (16 i8s = 16 bytes = NEON register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(neon, i8, i32, 16)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(neon, i8, i32, 16)
 SIMSIMD_MAKE_DOTS_INNER(i8i8i32_neon, i8, i32, simsimd_dot_i8x64_state_neon_t, simsimd_dot_i8x64_init_neon,
-                        _simsimd_load_b128_neon, simsimd_dot_i8x64_update_neon, simsimd_dot_i8x64_finalize_neon,
+                        _simsimd_load_b128_neon, _simsimd_partial_load_i8x16_neon_gemm, simsimd_dot_i8x64_update_neon,
+                        simsimd_dot_i8x64_finalize_neon,
                         /*k_tile=*/16, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // U8 GEMM: k_tile=16 (16 u8s = 16 bytes = NEON register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(neon, u8, i32, 16)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(neon, u8, i32, 16)
 SIMSIMD_MAKE_DOTS_INNER(u8u8i32_neon, u8, i32, simsimd_dot_u8x64_state_neon_t, simsimd_dot_u8x64_init_neon,
-                        _simsimd_load_b128_neon, simsimd_dot_u8x64_update_neon, simsimd_dot_u8x64_finalize_neon,
+                        _simsimd_load_b128_neon, _simsimd_partial_load_u8x16_neon_gemm, simsimd_dot_u8x64_update_neon,
+                        simsimd_dot_u8x64_finalize_neon,
                         /*k_tile=*/16, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 #pragma clang attribute pop
@@ -948,11 +1012,20 @@ SIMSIMD_MAKE_DOTS_INNER(u8u8i32_neon, u8, i32, simsimd_dot_u8x64_state_neon_t, s
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 
+/** @brief Partial load for f16 elements into 512-bit vector (NEON F16). */
+SIMSIMD_INTERNAL void _simsimd_partial_load_f16x8_neon_gemm(simsimd_f16_t const *src, simsimd_size_t count,
+                                                            simsimd_b512_vec_t *dst) {
+    simsimd_size_t element_index = 0;
+    for (; element_index < count && element_index < 8; ++element_index) dst->f16s[element_index] = src[element_index];
+    for (; element_index < 8; ++element_index) dst->f16s[element_index] = 0;
+}
+
 // F16 GEMM: k_tile=8 (8 f16s = 16 bytes = NEON register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(neon, f16, f32, 8)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(neon, f16, f32, 8)
 SIMSIMD_MAKE_DOTS_INNER(f16f16f32_neon, f16, f32, simsimd_dot_f16x32_state_neon_t, simsimd_dot_f16x32_init_neon,
-                        _simsimd_load_b128_neon, simsimd_dot_f16x32_update_neon, simsimd_dot_f16x32_finalize_neon,
+                        _simsimd_load_b128_neon, _simsimd_partial_load_f16x8_neon_gemm, simsimd_dot_f16x32_update_neon,
+                        simsimd_dot_f16x32_finalize_neon,
                         /*k_tile=*/8, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 #pragma clang attribute pop
@@ -964,11 +1037,20 @@ SIMSIMD_MAKE_DOTS_INNER(f16f16f32_neon, f16, f32, simsimd_dot_f16x32_state_neon_
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
 
+/** @brief Partial load for bf16 elements into 512-bit vector (NEON BF16). */
+SIMSIMD_INTERNAL void _simsimd_partial_load_bf16x8_neon_gemm(simsimd_bf16_t const *src, simsimd_size_t count,
+                                                             simsimd_b512_vec_t *dst) {
+    simsimd_size_t element_index = 0;
+    for (; element_index < count && element_index < 8; ++element_index) dst->bf16s[element_index] = src[element_index];
+    for (; element_index < 8; ++element_index) dst->bf16s[element_index] = 0;
+}
+
 // BF16 GEMM: k_tile=8 (8 bf16s = 16 bytes = NEON register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(neon, bf16, f32, 8)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(neon, bf16, f32, 8)
 SIMSIMD_MAKE_DOTS_INNER(bf16bf16f32_neon, bf16, f32, simsimd_dot_bf16x32_state_neon_t, simsimd_dot_bf16x32_init_neon,
-                        _simsimd_load_b128_neon, simsimd_dot_bf16x32_update_neon, simsimd_dot_bf16x32_finalize_neon,
+                        _simsimd_load_b128_neon, _simsimd_partial_load_bf16x8_neon_gemm,
+                        simsimd_dot_bf16x32_update_neon, simsimd_dot_bf16x32_finalize_neon,
                         /*k_tile=*/8, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 #pragma clang attribute pop
@@ -1004,11 +1086,68 @@ SIMSIMD_INTERNAL void _simsimd_load_b256_haswell(void const *src, simsimd_b512_v
     dst->ymms[0] = _mm256_loadu_si256((const __m256i *)src);
 }
 
+/** @brief Partial load for f32 elements into 512-bit vector (Haswell AVX2). */
+SIMSIMD_INTERNAL void _simsimd_partial_load_f32x8_haswell_gemm(simsimd_f32_t const *src, simsimd_size_t count,
+                                                               simsimd_b512_vec_t *dst) {
+    simsimd_size_t element_index = 0;
+    for (; element_index < count && element_index < 8; ++element_index) dst->f32s[element_index] = src[element_index];
+    for (; element_index < 8; ++element_index) dst->f32s[element_index] = 0;
+}
+
+/** @brief Partial load for f16 elements into 512-bit vector (Haswell AVX2+F16C). */
+SIMSIMD_INTERNAL void _simsimd_partial_load_f16x16_haswell_gemm(simsimd_f16_t const *src, simsimd_size_t count,
+                                                                simsimd_b512_vec_t *dst) {
+    simsimd_size_t element_index = 0;
+    for (; element_index < count && element_index < 16; ++element_index) dst->f16s[element_index] = src[element_index];
+    for (; element_index < 16; ++element_index) dst->f16s[element_index] = 0;
+}
+
+/** @brief Partial load for bf16 elements into 512-bit vector (Haswell AVX2). */
+SIMSIMD_INTERNAL void _simsimd_partial_load_bf16x16_haswell_gemm(simsimd_bf16_t const *src, simsimd_size_t count,
+                                                                 simsimd_b512_vec_t *dst) {
+    simsimd_size_t element_index = 0;
+    for (; element_index < count && element_index < 16; ++element_index) dst->bf16s[element_index] = src[element_index];
+    for (; element_index < 16; ++element_index) dst->bf16s[element_index] = 0;
+}
+
+/** @brief Partial load for e4m3 elements into 512-bit vector (Haswell AVX2). */
+SIMSIMD_INTERNAL void _simsimd_partial_load_e4m3x32_haswell_gemm(simsimd_e4m3_t const *src, simsimd_size_t count,
+                                                                 simsimd_b512_vec_t *dst) {
+    simsimd_size_t element_index = 0;
+    for (; element_index < count && element_index < 32; ++element_index) dst->e4m3s[element_index] = src[element_index];
+    for (; element_index < 32; ++element_index) dst->e4m3s[element_index] = 0;
+}
+
+/** @brief Partial load for e5m2 elements into 512-bit vector (Haswell AVX2). */
+SIMSIMD_INTERNAL void _simsimd_partial_load_e5m2x32_haswell_gemm(simsimd_e5m2_t const *src, simsimd_size_t count,
+                                                                 simsimd_b512_vec_t *dst) {
+    simsimd_size_t element_index = 0;
+    for (; element_index < count && element_index < 32; ++element_index) dst->e5m2s[element_index] = src[element_index];
+    for (; element_index < 32; ++element_index) dst->e5m2s[element_index] = 0;
+}
+
+/** @brief Partial load for i8 elements into 512-bit vector (Haswell AVX2). */
+SIMSIMD_INTERNAL void _simsimd_partial_load_i8x32_haswell_gemm(simsimd_i8_t const *src, simsimd_size_t count,
+                                                               simsimd_b512_vec_t *dst) {
+    simsimd_size_t element_index = 0;
+    for (; element_index < count && element_index < 32; ++element_index) dst->i8s[element_index] = src[element_index];
+    for (; element_index < 32; ++element_index) dst->i8s[element_index] = 0;
+}
+
+/** @brief Partial load for u8 elements into 512-bit vector (Haswell AVX2). */
+SIMSIMD_INTERNAL void _simsimd_partial_load_u8x32_haswell_gemm(simsimd_u8_t const *src, simsimd_size_t count,
+                                                               simsimd_b512_vec_t *dst) {
+    simsimd_size_t element_index = 0;
+    for (; element_index < count && element_index < 32; ++element_index) dst->u8s[element_index] = src[element_index];
+    for (; element_index < 32; ++element_index) dst->u8s[element_index] = 0;
+}
+
 // F32 GEMM: k_tile=8 (8 f32s = 32 bytes = AVX2 register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, f32, f32, 8)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(haswell, f32, f32, 8)
 SIMSIMD_MAKE_DOTS_INNER(f32f32f32_haswell, f32, f32, simsimd_dot_f32x16_state_haswell_t,
-                        simsimd_dot_f32x16_init_haswell, _simsimd_load_b256_haswell, simsimd_dot_f32x16_update_haswell,
+                        simsimd_dot_f32x16_init_haswell, _simsimd_load_b256_haswell,
+                        _simsimd_partial_load_f32x8_haswell_gemm, simsimd_dot_f32x16_update_haswell,
                         simsimd_dot_f32x16_finalize_haswell,
                         /*k_tile=*/8, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -1016,7 +1155,8 @@ SIMSIMD_MAKE_DOTS_INNER(f32f32f32_haswell, f32, f32, simsimd_dot_f32x16_state_ha
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, f16, f32, 16)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(haswell, f16, f32, 16)
 SIMSIMD_MAKE_DOTS_INNER(f16f16f32_haswell, f16, f32, simsimd_dot_f16x32_state_haswell_t,
-                        simsimd_dot_f16x32_init_haswell, _simsimd_load_b256_haswell, simsimd_dot_f16x32_update_haswell,
+                        simsimd_dot_f16x32_init_haswell, _simsimd_load_b256_haswell,
+                        _simsimd_partial_load_f16x16_haswell_gemm, simsimd_dot_f16x32_update_haswell,
                         simsimd_dot_f16x32_finalize_haswell,
                         /*k_tile=*/16, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -1025,7 +1165,8 @@ SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, bf16, f32, 16)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(haswell, bf16, f32, 16)
 SIMSIMD_MAKE_DOTS_INNER(bf16bf16f32_haswell, bf16, f32, simsimd_dot_bf16x32_state_haswell_t,
                         simsimd_dot_bf16x32_init_haswell, _simsimd_load_b256_haswell,
-                        simsimd_dot_bf16x32_update_haswell, simsimd_dot_bf16x32_finalize_haswell,
+                        _simsimd_partial_load_bf16x16_haswell_gemm, simsimd_dot_bf16x32_update_haswell,
+                        simsimd_dot_bf16x32_finalize_haswell,
                         /*k_tile=*/16, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // E4M3 GEMM: k_tile=32 (32 e4m3s = 32 bytes = AVX2 register width)
@@ -1033,7 +1174,8 @@ SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, e4m3, f32, 32)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(haswell, e4m3, f32, 32)
 SIMSIMD_MAKE_DOTS_INNER(e4m3e4m3f32_haswell, e4m3, f32, simsimd_dot_e4m3x64_state_haswell_t,
                         simsimd_dot_e4m3x64_init_haswell, _simsimd_load_b256_haswell,
-                        simsimd_dot_e4m3x64_update_haswell, simsimd_dot_e4m3x64_finalize_haswell,
+                        _simsimd_partial_load_e4m3x32_haswell_gemm, simsimd_dot_e4m3x64_update_haswell,
+                        simsimd_dot_e4m3x64_finalize_haswell,
                         /*k_tile=*/32, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // E5M2 GEMM: k_tile=32 (32 e5m2s = 32 bytes = AVX2 register width)
@@ -1041,23 +1183,24 @@ SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, e5m2, f32, 32)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(haswell, e5m2, f32, 32)
 SIMSIMD_MAKE_DOTS_INNER(e5m2e5m2f32_haswell, e5m2, f32, simsimd_dot_e5m2x64_state_haswell_t,
                         simsimd_dot_e5m2x64_init_haswell, _simsimd_load_b256_haswell,
-                        simsimd_dot_e5m2x64_update_haswell, simsimd_dot_e5m2x64_finalize_haswell,
+                        _simsimd_partial_load_e5m2x32_haswell_gemm, simsimd_dot_e5m2x64_update_haswell,
+                        simsimd_dot_e5m2x64_finalize_haswell,
                         /*k_tile=*/32, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // I8 GEMM: k_tile=32 (32 i8s = 32 bytes = AVX2 register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, i8, i32, 32)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(haswell, i8, i32, 32)
 SIMSIMD_MAKE_DOTS_INNER(i8i8i32_haswell, i8, i32, simsimd_dot_i8x64_state_haswell_t, simsimd_dot_i8x64_init_haswell,
-                        _simsimd_load_b256_haswell, simsimd_dot_i8x64_update_haswell,
-                        simsimd_dot_i8x64_finalize_haswell,
+                        _simsimd_load_b256_haswell, _simsimd_partial_load_i8x32_haswell_gemm,
+                        simsimd_dot_i8x64_update_haswell, simsimd_dot_i8x64_finalize_haswell,
                         /*k_tile=*/32, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // U8 GEMM: k_tile=32 (32 u8s = 32 bytes = AVX2 register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, u8, i32, 32)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(haswell, u8, i32, 32)
 SIMSIMD_MAKE_DOTS_INNER(u8u8i32_haswell, u8, i32, simsimd_dot_u8x64_state_haswell_t, simsimd_dot_u8x64_init_haswell,
-                        _simsimd_load_b256_haswell, simsimd_dot_u8x64_update_haswell,
-                        simsimd_dot_u8x64_finalize_haswell,
+                        _simsimd_load_b256_haswell, _simsimd_partial_load_u8x32_haswell_gemm,
+                        simsimd_dot_u8x64_update_haswell, simsimd_dot_u8x64_finalize_haswell,
                         /*k_tile=*/32, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 #pragma clang attribute pop
@@ -1074,19 +1217,48 @@ SIMSIMD_INTERNAL void _simsimd_load_b512_skylake(void const *src, simsimd_b512_v
     dst->zmm = _mm512_loadu_si512(src);
 }
 
+/** @brief Partial load for f64 elements using AVX-512 masked load. */
+SIMSIMD_INTERNAL void _simsimd_partial_load_f64x8_skylake_gemm(simsimd_f64_t const *src, simsimd_size_t count,
+                                                               simsimd_b512_vec_t *dst) {
+    __mmask8 mask = (count >= 8) ? 0xFF : ((__mmask8)1 << count) - 1;
+    dst->zmm_pd = _mm512_maskz_loadu_pd(mask, src);
+}
+
+/** @brief Partial load for f32 elements using AVX-512 masked load. */
+SIMSIMD_INTERNAL void _simsimd_partial_load_f32x16_skylake_gemm(simsimd_f32_t const *src, simsimd_size_t count,
+                                                                simsimd_b512_vec_t *dst) {
+    __mmask16 mask = (count >= 16) ? 0xFFFF : ((__mmask16)1 << count) - 1;
+    dst->zmm_ps = _mm512_maskz_loadu_ps(mask, src);
+}
+
+/** @brief Partial load for e4m3 elements using AVX-512 masked load. */
+SIMSIMD_INTERNAL void _simsimd_partial_load_e4m3x64_skylake_gemm(simsimd_e4m3_t const *src, simsimd_size_t count,
+                                                                 simsimd_b512_vec_t *dst) {
+    __mmask64 mask = (count >= 64) ? 0xFFFFFFFFFFFFFFFFULL : ((__mmask64)1 << count) - 1;
+    dst->zmm = _mm512_maskz_loadu_epi8(mask, src);
+}
+
+/** @brief Partial load for e5m2 elements using AVX-512 masked load. */
+SIMSIMD_INTERNAL void _simsimd_partial_load_e5m2x64_skylake_gemm(simsimd_e5m2_t const *src, simsimd_size_t count,
+                                                                 simsimd_b512_vec_t *dst) {
+    __mmask64 mask = (count >= 64) ? 0xFFFFFFFFFFFFFFFFULL : ((__mmask64)1 << count) - 1;
+    dst->zmm = _mm512_maskz_loadu_epi8(mask, src);
+}
+
 // F64 GEMM: k_tile=8 (8 f64s = 64 bytes = 1 cache line)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(skylake, f64, f64, SIMSIMD_DOTS_SERIAL_TILE_K_F64)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(skylake, f64, f64, SIMSIMD_DOTS_SERIAL_TILE_K_F64)
 SIMSIMD_MAKE_DOTS_INNER(f64f64f64_skylake, f64, f64, simsimd_dot_f64x8_state_skylake_t, simsimd_dot_f64x8_init_skylake,
-                        _simsimd_load_b512_skylake, simsimd_dot_f64x8_update_skylake,
-                        simsimd_dot_f64x8_finalize_skylake,
+                        _simsimd_load_b512_skylake, _simsimd_partial_load_f64x8_skylake_gemm,
+                        simsimd_dot_f64x8_update_skylake, simsimd_dot_f64x8_finalize_skylake,
                         /*k_tile=*/8, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // F32 GEMM: k_tile=16 (16 f32s = 64 bytes = 1 cache line)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(skylake, f32, f32, SIMSIMD_DOTS_SERIAL_TILE_K_F32)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(skylake, f32, f32, SIMSIMD_DOTS_SERIAL_TILE_K_F32)
 SIMSIMD_MAKE_DOTS_INNER(f32f32f32_skylake, f32, f32, simsimd_dot_f32x16_state_skylake_t,
-                        simsimd_dot_f32x16_init_skylake, _simsimd_load_b512_skylake, simsimd_dot_f32x16_update_skylake,
+                        simsimd_dot_f32x16_init_skylake, _simsimd_load_b512_skylake,
+                        _simsimd_partial_load_f32x16_skylake_gemm, simsimd_dot_f32x16_update_skylake,
                         simsimd_dot_f32x16_finalize_skylake,
                         /*k_tile=*/16, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -1095,7 +1267,8 @@ SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(skylake, e4m3, f32, SIMSIMD_DOTS_SERIAL_TIL
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(skylake, e4m3, f32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
 SIMSIMD_MAKE_DOTS_INNER(e4m3e4m3f32_skylake, e4m3, f32, simsimd_dot_e4m3x64_state_skylake_t,
                         simsimd_dot_e4m3x64_init_skylake, _simsimd_load_b512_skylake,
-                        simsimd_dot_e4m3x64_update_skylake, simsimd_dot_e4m3x64_finalize_skylake,
+                        _simsimd_partial_load_e4m3x64_skylake_gemm, simsimd_dot_e4m3x64_update_skylake,
+                        simsimd_dot_e4m3x64_finalize_skylake,
                         /*k_tile=*/64, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // E5M2 GEMM: k_tile=64 (64 e5m2s = 64 bytes = 1 cache line), F32 accumulator
@@ -1103,7 +1276,8 @@ SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(skylake, e5m2, f32, SIMSIMD_DOTS_SERIAL_TIL
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(skylake, e5m2, f32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
 SIMSIMD_MAKE_DOTS_INNER(e5m2e5m2f32_skylake, e5m2, f32, simsimd_dot_e5m2x64_state_skylake_t,
                         simsimd_dot_e5m2x64_init_skylake, _simsimd_load_b512_skylake,
-                        simsimd_dot_e5m2x64_update_skylake, simsimd_dot_e5m2x64_finalize_skylake,
+                        _simsimd_partial_load_e5m2x64_skylake_gemm, simsimd_dot_e5m2x64_update_skylake,
+                        simsimd_dot_e5m2x64_finalize_skylake,
                         /*k_tile=*/64, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 #pragma clang attribute pop
@@ -1115,28 +1289,35 @@ SIMSIMD_MAKE_DOTS_INNER(e5m2e5m2f32_skylake, e5m2, f32, simsimd_dot_e5m2x64_stat
 #pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
 #pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512bf16"))), apply_to = function)
 
+/** @brief Partial load for bf16 elements using AVX-512 masked load (Genoa). */
+SIMSIMD_INTERNAL void _simsimd_partial_load_bf16x32_genoa_gemm(simsimd_bf16_t const *src, simsimd_size_t count,
+                                                               simsimd_b512_vec_t *dst) {
+    __mmask32 mask = (count >= 32) ? 0xFFFFFFFF : ((__mmask32)1 << count) - 1;
+    dst->zmm = _mm512_maskz_loadu_epi16(mask, src);
+}
+
 // BF16 GEMM: k_tile=32 (32 bf16s = 64 bytes = 1 cache line)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(genoa, bf16, f32, SIMSIMD_DOTS_SERIAL_TILE_K_BF16)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(genoa, bf16, f32, SIMSIMD_DOTS_SERIAL_TILE_K_BF16)
 SIMSIMD_MAKE_DOTS_INNER(bf16bf16f32_genoa, bf16, f32, simsimd_dot_bf16x32_state_genoa_t, simsimd_dot_bf16x32_init_genoa,
-                        _simsimd_load_b512_skylake, simsimd_dot_bf16x32_update_genoa,
-                        simsimd_dot_bf16x32_finalize_genoa,
+                        _simsimd_load_b512_skylake, _simsimd_partial_load_bf16x32_genoa_gemm,
+                        simsimd_dot_bf16x32_update_genoa, simsimd_dot_bf16x32_finalize_genoa,
                         /*k_tile=*/32, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // E4M3 GEMM: k_tile=64 (64 e4m3s = 64 bytes = 1 cache line), F32 accumulator
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(genoa, e4m3, f32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(genoa, e4m3, f32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
 SIMSIMD_MAKE_DOTS_INNER(e4m3e4m3f32_genoa, e4m3, f32, simsimd_dot_e4m3x64_state_genoa_t, simsimd_dot_e4m3x64_init_genoa,
-                        _simsimd_load_b512_skylake, simsimd_dot_e4m3x64_update_genoa,
-                        simsimd_dot_e4m3x64_finalize_genoa,
+                        _simsimd_load_b512_skylake, _simsimd_partial_load_e4m3x64_skylake_gemm,
+                        simsimd_dot_e4m3x64_update_genoa, simsimd_dot_e4m3x64_finalize_genoa,
                         /*k_tile=*/64, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // E5M2 GEMM: k_tile=64 (64 e5m2s = 64 bytes = 1 cache line), F32 accumulator
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(genoa, e5m2, f32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(genoa, e5m2, f32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
 SIMSIMD_MAKE_DOTS_INNER(e5m2e5m2f32_genoa, e5m2, f32, simsimd_dot_e5m2x64_state_genoa_t, simsimd_dot_e5m2x64_init_genoa,
-                        _simsimd_load_b512_skylake, simsimd_dot_e5m2x64_update_genoa,
-                        simsimd_dot_e5m2x64_finalize_genoa,
+                        _simsimd_load_b512_skylake, _simsimd_partial_load_e5m2x64_skylake_gemm,
+                        simsimd_dot_e5m2x64_update_genoa, simsimd_dot_e5m2x64_finalize_genoa,
                         /*k_tile=*/64, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // Compact function: F32→BF16 conversion (reuses serial implementation logic)
