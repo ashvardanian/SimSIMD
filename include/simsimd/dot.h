@@ -3356,55 +3356,6 @@ SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_skylake(                     
         (simsimd_dot_f32x16_state_skylake_t const *)s2, (simsimd_dot_f32x16_state_skylake_t const *)s3, results);
 }
 
-/*  Unified Outer-Product API: f32x2
- *  ================================
- *  Processes 2 k-elements per update, outputs 1×16 partial products.
- *  This is the minimum efficient granularity for F32 (2 FMA ops per call).
- *
- *  B packing layout (transposed, k-major):
- *    b_packed[k_offset * 16 + col] = B[col][k_base + k_offset]
- *    where k_offset ∈ {0, 1}, col ∈ {0..15}
- *
- *  Usage in cache-blocked GEMM:
- *    for k_block in 0..K by K_TILE:
- *        simsimd_dot_outer_f32x2_update_1x16_skylake(&state, &A[k_block], &B_packed[k_block * 16])
- */
-
-/** @brief State for 1×16 f32 outer-product (2 k-elements per update). */
-typedef struct simsimd_dot_outer_f32x2_state_1x16_skylake_t {
-    __m512 accumulator;
-} simsimd_dot_outer_f32x2_state_1x16_skylake_t;
-
-SIMSIMD_INTERNAL void simsimd_dot_outer_f32x2_init_1x16_skylake(simsimd_dot_outer_f32x2_state_1x16_skylake_t *state) {
-    state->accumulator = _mm512_setzero_ps();
-}
-
-/**
- *  @brief Update 1×16 f32 state with 2 k-elements (2 FMA ops).
- *
- *  @param state         Pointer to accumulator state.
- *  @param a_slice       Pointer to 2 f32 values from A: a[k], a[k+1]
- *  @param b_transposed  Pointer to 32 f32 values from B (transposed):
- *                       b[0..15] = B[0..15][k], b[16..31] = B[0..15][k+1]
- */
-SIMSIMD_INTERNAL void simsimd_dot_outer_f32x2_update_1x16_skylake(simsimd_dot_outer_f32x2_state_1x16_skylake_t *state,
-                                                                  simsimd_f32_t const *a_slice,
-                                                                  simsimd_f32_t const *b_transposed) {
-
-    __m512 a_broadcast_0 = _mm512_set1_ps(a_slice[0]);
-    __m512 b_column_0 = _mm512_loadu_ps(b_transposed);
-    state->accumulator = _mm512_fmadd_ps(a_broadcast_0, b_column_0, state->accumulator);
-
-    __m512 a_broadcast_1 = _mm512_set1_ps(a_slice[1]);
-    __m512 b_column_1 = _mm512_loadu_ps(b_transposed + 16);
-    state->accumulator = _mm512_fmadd_ps(a_broadcast_1, b_column_1, state->accumulator);
-}
-
-SIMSIMD_INTERNAL void simsimd_dot_outer_f32x2_finalize_1x16_skylake(
-    simsimd_dot_outer_f32x2_state_1x16_skylake_t const *state, simsimd_f32_t *result_row) {
-    _mm512_storeu_ps(result_row, state->accumulator);
-}
-
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SKYLAKE
@@ -3521,7 +3472,9 @@ simsimd_dot_bf16c_genoa_cycle:
     results[1] = _simsimd_reduce_f32x16_skylake(ab_imag_vec);
 }
 
-/*  Convert 32x E4M3 values to 32x BF16 values.
+/**
+ *  @brief Convert 32x E4M3 values to 32x BF16 values.
+ *
  *  Uses optimized path with fused exp+mant extraction.
  *  Denormals (exp=0, mant!=0) are flushed to zero (DAZ behavior).
  *
@@ -3542,7 +3495,9 @@ SIMSIMD_INTERNAL __m512i _simsimd_e4m3_to_bf16_genoa(__m256i fp8) {
     return _mm512_or_si512(sign, masked_exp_mant);
 }
 
-/*  Convert 32x E5M2 values to 32x BF16 values.
+/**
+ *  @brief Convert 32x E5M2 values to 32x BF16 values.
+ *
  *  Uses optimized path with fused exp+mant extraction.
  *  Denormals (exp=0, mant!=0) are flushed to zero (DAZ behavior).
  *
@@ -3635,10 +3590,20 @@ SIMSIMD_INTERNAL void simsimd_dot_bf16x32_finalize_genoa(                       
     simsimd_dot_bf16x32_state_genoa_t const *s0, simsimd_dot_bf16x32_state_genoa_t const *s1, //
     simsimd_dot_bf16x32_state_genoa_t const *s2, simsimd_dot_bf16x32_state_genoa_t const *s3, //
     simsimd_f32_t *results) {
-    // State is layout-compatible with f32x16 (both contain just __m512 sum)
-    simsimd_dot_f32x16_finalize_skylake(                                                                //
-        (simsimd_dot_f32x16_state_skylake_t const *)s0, (simsimd_dot_f32x16_state_skylake_t const *)s1, //
-        (simsimd_dot_f32x16_state_skylake_t const *)s2, (simsimd_dot_f32x16_state_skylake_t const *)s3, results);
+    // ILP-optimized 4-way horizontal reduction (same logic as Skylake f32x16)
+    __m256 a0 = _mm256_add_ps(_mm512_castps512_ps256(s0->sum), _mm512_extractf32x8_ps(s0->sum, 1));
+    __m256 a1 = _mm256_add_ps(_mm512_castps512_ps256(s1->sum), _mm512_extractf32x8_ps(s1->sum, 1));
+    __m256 a2 = _mm256_add_ps(_mm512_castps512_ps256(s2->sum), _mm512_extractf32x8_ps(s2->sum, 1));
+    __m256 a3 = _mm256_add_ps(_mm512_castps512_ps256(s3->sum), _mm512_extractf32x8_ps(s3->sum, 1));
+    __m128 b0 = _mm_add_ps(_mm256_castps256_ps128(a0), _mm256_extractf128_ps(a0, 1));
+    __m128 b1 = _mm_add_ps(_mm256_castps256_ps128(a1), _mm256_extractf128_ps(a1, 1));
+    __m128 b2 = _mm_add_ps(_mm256_castps256_ps128(a2), _mm256_extractf128_ps(a2, 1));
+    __m128 b3 = _mm_add_ps(_mm256_castps256_ps128(a3), _mm256_extractf128_ps(a3, 1));
+    __m128 t01_lo = _mm_unpacklo_ps(b0, b1), t23_lo = _mm_unpacklo_ps(b2, b3);
+    __m128 t01_hi = _mm_unpackhi_ps(b0, b1), t23_hi = _mm_unpackhi_ps(b2, b3);
+    __m128 row0 = _mm_movelh_ps(t01_lo, t23_lo), row1 = _mm_movehl_ps(t23_lo, t01_lo);
+    __m128 row2 = _mm_movelh_ps(t01_hi, t23_hi), row3 = _mm_movehl_ps(t23_hi, t01_hi);
+    _mm_storeu_ps(results, _mm_add_ps(_mm_add_ps(row0, row1), _mm_add_ps(row2, row3)));
 }
 
 /**
@@ -3671,10 +3636,20 @@ SIMSIMD_INTERNAL void simsimd_dot_e4m3x64_finalize_genoa(                       
     simsimd_dot_e4m3x64_state_genoa_t const *s0, simsimd_dot_e4m3x64_state_genoa_t const *s1, //
     simsimd_dot_e4m3x64_state_genoa_t const *s2, simsimd_dot_e4m3x64_state_genoa_t const *s3, //
     simsimd_f32_t *results) {
-    // State is layout-compatible with f32x16 (both contain just __m512 sum)
-    simsimd_dot_f32x16_finalize_skylake(                                                                //
-        (simsimd_dot_f32x16_state_skylake_t const *)s0, (simsimd_dot_f32x16_state_skylake_t const *)s1, //
-        (simsimd_dot_f32x16_state_skylake_t const *)s2, (simsimd_dot_f32x16_state_skylake_t const *)s3, results);
+    // ILP-optimized 4-way horizontal reduction (same logic as Skylake f32x16)
+    __m256 a0 = _mm256_add_ps(_mm512_castps512_ps256(s0->sum), _mm512_extractf32x8_ps(s0->sum, 1));
+    __m256 a1 = _mm256_add_ps(_mm512_castps512_ps256(s1->sum), _mm512_extractf32x8_ps(s1->sum, 1));
+    __m256 a2 = _mm256_add_ps(_mm512_castps512_ps256(s2->sum), _mm512_extractf32x8_ps(s2->sum, 1));
+    __m256 a3 = _mm256_add_ps(_mm512_castps512_ps256(s3->sum), _mm512_extractf32x8_ps(s3->sum, 1));
+    __m128 b0 = _mm_add_ps(_mm256_castps256_ps128(a0), _mm256_extractf128_ps(a0, 1));
+    __m128 b1 = _mm_add_ps(_mm256_castps256_ps128(a1), _mm256_extractf128_ps(a1, 1));
+    __m128 b2 = _mm_add_ps(_mm256_castps256_ps128(a2), _mm256_extractf128_ps(a2, 1));
+    __m128 b3 = _mm_add_ps(_mm256_castps256_ps128(a3), _mm256_extractf128_ps(a3, 1));
+    __m128 t01_lo = _mm_unpacklo_ps(b0, b1), t23_lo = _mm_unpacklo_ps(b2, b3);
+    __m128 t01_hi = _mm_unpackhi_ps(b0, b1), t23_hi = _mm_unpackhi_ps(b2, b3);
+    __m128 row0 = _mm_movelh_ps(t01_lo, t23_lo), row1 = _mm_movehl_ps(t23_lo, t01_lo);
+    __m128 row2 = _mm_movelh_ps(t01_hi, t23_hi), row3 = _mm_movehl_ps(t23_hi, t01_hi);
+    _mm_storeu_ps(results, _mm_add_ps(_mm_add_ps(row0, row1), _mm_add_ps(row2, row3)));
 }
 
 /**
@@ -3707,72 +3682,20 @@ SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_genoa(                       
     simsimd_dot_e5m2x64_state_genoa_t const *s0, simsimd_dot_e5m2x64_state_genoa_t const *s1, //
     simsimd_dot_e5m2x64_state_genoa_t const *s2, simsimd_dot_e5m2x64_state_genoa_t const *s3, //
     simsimd_f32_t *results) {
-    // State is layout-compatible with f32x16 (both contain just __m512 sum)
-    simsimd_dot_f32x16_finalize_skylake(                                                                //
-        (simsimd_dot_f32x16_state_skylake_t const *)s0, (simsimd_dot_f32x16_state_skylake_t const *)s1, //
-        (simsimd_dot_f32x16_state_skylake_t const *)s2, (simsimd_dot_f32x16_state_skylake_t const *)s3, results);
-}
-
-/*  BF16x2 Outer-Product API (1×16, using VDPBF16PS with pair broadcast)
- *  =====================================================================
- *
- *  For computing 16 dot products simultaneously using VDPBF16PS instruction.
- *  Each update processes 2 k-elements (1 bf16 pair) and outputs to 16 columns.
- *
- *  VDPBF16PS: acc[i] += a[2i]*b[2i] + a[2i+1]*b[2i+1]
- *
- *  By broadcasting the same pair {a0, a1} to all 16 lanes and loading
- *  one pair per column from B, we compute 16 partial dot products per call.
- *
- *  B packing layout (interleaved pairs):
- *    b_packed[pair_idx * 32 + col * 2 + 0] = B[col][2*pair_idx]
- *    b_packed[pair_idx * 32 + col * 2 + 1] = B[col][2*pair_idx + 1]
- *
- *  A single _mm512_loadu_si512(b_packed + pair_idx * 32) loads:
- *    {b[0][2p], b[0][2p+1], b[1][2p], b[1][2p+1], ..., b[15][2p], b[15][2p+1]}
- */
-
-/** @brief State for 1×16 bf16 outer-product using VDPBF16PS. */
-typedef struct simsimd_dot_outer_bf16x4_state_1x16_genoa_t {
-    __m512 acc; // 16 f32 accumulators (one per output column)
-} simsimd_dot_outer_bf16x4_state_1x16_genoa_t;
-
-SIMSIMD_INTERNAL void simsimd_dot_outer_bf16x4_init_1x16_genoa(simsimd_dot_outer_bf16x4_state_1x16_genoa_t *state) {
-    state->acc = _mm512_setzero_ps();
-}
-
-/**
- *  @brief Update 1×16 bf16 state with 4 k-elements (2 pairs) using VDPBF16PS.
- *
- *  @param state    Pointer to 1×16 accumulator state.
- *  @param a        Pointer to 4 bf16 values from query row (a[k:k+4]).
- *  @param b_packed Pointer to 2 blocks of 16 interleaved bf16 pairs (2 × 64 bytes).
- *                  Layout: For pair p in 0..1: b_packed[p*32..p*32+31] contains
- *                  {b[0][2p], b[0][2p+1], b[1][2p], b[1][2p+1], ..., b[15][2p], b[15][2p+1]}
- */
-SIMSIMD_INTERNAL void simsimd_dot_outer_bf16x4_update_1x16_genoa(simsimd_dot_outer_bf16x4_state_1x16_genoa_t *state,
-                                                                 simsimd_bf16_t const *a,
-                                                                 simsimd_bf16_t const *b_packed) {
-    __m512 acc = state->acc;
-
-    // Process 2 pairs (4 k-elements)
-    __m512i a_bc_0 = _mm512_set1_epi32(*(simsimd_i32_t const *)(a + 0));
-    __m512i b_vec_0 = _mm512_loadu_si512(b_packed + 0);
-    acc = _mm512_dpbf16_ps(acc, (__m512bh)a_bc_0, (__m512bh)b_vec_0);
-
-    __m512i a_bc_1 = _mm512_set1_epi32(*(simsimd_i32_t const *)(a + 2));
-    __m512i b_vec_1 = _mm512_loadu_si512(b_packed + 32);
-    acc = _mm512_dpbf16_ps(acc, (__m512bh)a_bc_1, (__m512bh)b_vec_1);
-
-    state->acc = acc;
-}
-
-/**
- *  @brief Finalize: Store 16 f32 results directly (NO horizontal reduction).
- */
-SIMSIMD_INTERNAL void simsimd_dot_outer_bf16x4_finalize_1x16_genoa(
-    simsimd_dot_outer_bf16x4_state_1x16_genoa_t const *state, simsimd_f32_t *c) {
-    _mm512_storeu_ps(c, state->acc);
+    // ILP-optimized 4-way horizontal reduction (same logic as Skylake f32x16)
+    __m256 a0 = _mm256_add_ps(_mm512_castps512_ps256(s0->sum), _mm512_extractf32x8_ps(s0->sum, 1));
+    __m256 a1 = _mm256_add_ps(_mm512_castps512_ps256(s1->sum), _mm512_extractf32x8_ps(s1->sum, 1));
+    __m256 a2 = _mm256_add_ps(_mm512_castps512_ps256(s2->sum), _mm512_extractf32x8_ps(s2->sum, 1));
+    __m256 a3 = _mm256_add_ps(_mm512_castps512_ps256(s3->sum), _mm512_extractf32x8_ps(s3->sum, 1));
+    __m128 b0 = _mm_add_ps(_mm256_castps256_ps128(a0), _mm256_extractf128_ps(a0, 1));
+    __m128 b1 = _mm_add_ps(_mm256_castps256_ps128(a1), _mm256_extractf128_ps(a1, 1));
+    __m128 b2 = _mm_add_ps(_mm256_castps256_ps128(a2), _mm256_extractf128_ps(a2, 1));
+    __m128 b3 = _mm_add_ps(_mm256_castps256_ps128(a3), _mm256_extractf128_ps(a3, 1));
+    __m128 t01_lo = _mm_unpacklo_ps(b0, b1), t23_lo = _mm_unpacklo_ps(b2, b3);
+    __m128 t01_hi = _mm_unpackhi_ps(b0, b1), t23_hi = _mm_unpackhi_ps(b2, b3);
+    __m128 row0 = _mm_movelh_ps(t01_lo, t23_lo), row1 = _mm_movehl_ps(t23_lo, t01_lo);
+    __m128 row2 = _mm_movelh_ps(t01_hi, t23_hi), row3 = _mm_movehl_ps(t23_hi, t01_hi);
+    _mm_storeu_ps(results, _mm_add_ps(_mm_add_ps(row0, row1), _mm_add_ps(row2, row3)));
 }
 
 #pragma clang attribute pop
@@ -4313,74 +4236,6 @@ SIMSIMD_INTERNAL void simsimd_dot_u8x64_finalize_ice(                           
     // Step 4: Vertical sum and convert to f32
     __m128i sum_i32 = _mm_add_epi32(_mm_add_epi32(row0, row1), _mm_add_epi32(row2, row3));
     _mm_storeu_ps(results, _mm_cvtepi32_ps(sum_i32));
-}
-
-/*  Unified Outer-Product API: i8x8
- *  ================================
- *  Processes 8 k-elements per update, outputs 1×16 partial products.
- *  Uses 4 VPDPWSSD instructions (each processes 2 i16 = 2 sign-extended i8).
- *
- *  B packing layout (pair-interleaved, i8 sign-extended to i16 on load):
- *    b_packed[pair_index * 32 + col * 2 + offset] = B[col][pair_index * 2 + offset]
- *    where pair_index ∈ {0..3}, col ∈ {0..15}, offset ∈ {0, 1}
- *
- *  Note: VPDPWSSD operates on i16 pairs. We sign-extend i8→i16 before use.
- *        This handles signed i8 × signed i8 correctly (unlike VPDPBUSD which is u8×i8).
- */
-
-/** @brief State for 1×16 i8 outer-product (8 k-elements per update). */
-typedef struct simsimd_dot_outer_i8x8_state_1x16_ice_t {
-    __m512i accumulator;
-} simsimd_dot_outer_i8x8_state_1x16_ice_t;
-
-SIMSIMD_INTERNAL void simsimd_dot_outer_i8x8_init_1x16_ice(simsimd_dot_outer_i8x8_state_1x16_ice_t *state) {
-    state->accumulator = _mm512_setzero_si512();
-}
-
-/**
- *  @brief Update 1×16 i8 state with 8 k-elements (4 VPDPWSSD ops).
- *
- *  @param state               Pointer to accumulator state.
- *  @param a_slice             Pointer to 8 i8 values from A: a[k..k+7]
- *  @param b_pairs_interleaved Pointer to 128 i8 values (4 pair-blocks of 32 each):
- *                             Block p: {B[0][2p], B[0][2p+1], B[1][2p], B[1][2p+1], ...}
- */
-SIMSIMD_INTERNAL void simsimd_dot_outer_i8x8_update_1x16_ice(simsimd_dot_outer_i8x8_state_1x16_ice_t *state,
-                                                             simsimd_i8_t const *a_slice,
-                                                             simsimd_i8_t const *b_pairs_interleaved) {
-
-    __m512i accumulator = state->accumulator;
-
-// Process 4 pairs of i8 values (8 total k-elements)
-#define SIMSIMD_I8X8_PROCESS_PAIR(pair_index)                                                              \
-    do {                                                                                                   \
-        /* Sign-extend a[2p] and a[2p+1] to i16, pack into i32, broadcast */                               \
-        simsimd_i16_t a_lo = (simsimd_i16_t)a_slice[pair_index * 2];                                       \
-        simsimd_i16_t a_hi = (simsimd_i16_t)a_slice[pair_index * 2 + 1];                                   \
-        simsimd_i32_t a_pair_packed = ((simsimd_i32_t)(a_hi & 0xFFFF) << 16) | (a_lo & 0xFFFF);            \
-        __m512i a_pair_broadcast = _mm512_set1_epi32(a_pair_packed);                                       \
-                                                                                                           \
-        /* Load 32 i8 from B, sign-extend to 32 i16 */                                                     \
-        __m256i b_i8_chunk = _mm256_loadu_si256((__m256i const *)(b_pairs_interleaved + pair_index * 32)); \
-        __m512i b_i16_extended = _mm512_cvtepi8_epi16(b_i8_chunk);                                         \
-                                                                                                           \
-        /* VPDPWSSD: acc[i] += a_lo * b[2i] + a_hi * b[2i+1] */                                            \
-        accumulator = _mm512_dpwssd_epi32(accumulator, a_pair_broadcast, b_i16_extended);                  \
-    } while (0)
-
-    SIMSIMD_I8X8_PROCESS_PAIR(0);
-    SIMSIMD_I8X8_PROCESS_PAIR(1);
-    SIMSIMD_I8X8_PROCESS_PAIR(2);
-    SIMSIMD_I8X8_PROCESS_PAIR(3);
-
-#undef SIMSIMD_I8X8_PROCESS_PAIR
-
-    state->accumulator = accumulator;
-}
-
-SIMSIMD_INTERNAL void simsimd_dot_outer_i8x8_finalize_1x16_ice(simsimd_dot_outer_i8x8_state_1x16_ice_t const *state,
-                                                               simsimd_i32_t *result_row) {
-    _mm512_storeu_si512(result_row, state->accumulator);
 }
 
 #pragma clang attribute pop
