@@ -279,13 +279,13 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_sapphire(simsimd_f16_t const* a, sim
     SIMSIMD_PUBLIC void simsimd_bilinear_##input_type##_##name(                                                  \
         simsimd_##input_type##_t const *a, simsimd_##input_type##_t const *b, simsimd_##input_type##_t const *c, \
         simsimd_size_t n, simsimd_distance_t *result) {                                                          \
-        simsimd_##accumulator_type##_t sum = 0;                                                                  \
+        simsimd_##accumulator_type##_t sum = 0, a_i, b_j, c_ij;                                                  \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                                \
             simsimd_##accumulator_type##_t cb_j = 0;                                                             \
-            simsimd_##accumulator_type##_t a_i = load_and_convert(a + i);                                        \
+            load_and_convert(a + i, &a_i);                                                                       \
             for (simsimd_size_t j = 0; j != n; ++j) {                                                            \
-                simsimd_##accumulator_type##_t b_j = load_and_convert(b + j);                                    \
-                simsimd_##accumulator_type##_t c_ij = load_and_convert(c + i * n + j);                           \
+                load_and_convert(b + j, &b_j);                                                                   \
+                load_and_convert(c + i * n + j, &c_ij);                                                          \
                 cb_j += c_ij * b_j;                                                                              \
             }                                                                                                    \
             sum += a_i * cb_j;                                                                                   \
@@ -293,79 +293,84 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_sapphire(simsimd_f16_t const* a, sim
         *result = (simsimd_distance_t)sum;                                                                       \
     }
 
-#define SIMSIMD_MAKE_COMPLEX_BILINEAR(name, input_type, accumulator_type, load_and_convert)                \
-    SIMSIMD_PUBLIC void simsimd_bilinear_##input_type##_##name(                                            \
-        simsimd_##input_type##_t const *a_pairs, simsimd_##input_type##_t const *b_pairs,                  \
-        simsimd_##input_type##_t const *c_pairs, simsimd_size_t n, simsimd_distance_t *results) {          \
-        simsimd_##accumulator_type##_t sum_real = 0;                                                       \
-        simsimd_##accumulator_type##_t sum_imag = 0;                                                       \
-        for (simsimd_size_t i = 0; i != n; ++i) {                                                          \
-            simsimd_##accumulator_type##_t cb_j_real = 0;                                                  \
-            simsimd_##accumulator_type##_t cb_j_imag = 0;                                                  \
-            simsimd_##accumulator_type##_t a_i_real = load_and_convert(&(a_pairs + i)->real);              \
-            simsimd_##accumulator_type##_t a_i_imag = load_and_convert(&(a_pairs + i)->imag);              \
-            for (simsimd_size_t j = 0; j != n; ++j) {                                                      \
-                simsimd_##accumulator_type##_t b_j_real = load_and_convert(&(b_pairs + j)->real);          \
-                simsimd_##accumulator_type##_t b_j_imag = load_and_convert(&(b_pairs + j)->imag);          \
-                simsimd_##accumulator_type##_t c_ij_real = load_and_convert(&(c_pairs + i * n + j)->real); \
-                simsimd_##accumulator_type##_t c_ij_imag = load_and_convert(&(c_pairs + i * n + j)->imag); \
-                /* Complex multiplication: (c_ij * b_j) */                                                 \
-                cb_j_real += c_ij_real * b_j_real - c_ij_imag * b_j_imag;                                  \
-                cb_j_imag += c_ij_real * b_j_imag + c_ij_imag * b_j_real;                                  \
-            }                                                                                              \
-            /* Complex multiplication: (a_i * cb_j) */                                                     \
-            sum_real += a_i_real * cb_j_real - a_i_imag * cb_j_imag;                                       \
-            sum_imag += a_i_real * cb_j_imag + a_i_imag * cb_j_real;                                       \
-        }                                                                                                  \
-        results[0] = (simsimd_distance_t)sum_real;                                                         \
-        results[1] = (simsimd_distance_t)sum_imag;                                                         \
+#define SIMSIMD_MAKE_COMPLEX_BILINEAR(name, input_type, accumulator_type, load_and_convert)          \
+    SIMSIMD_PUBLIC void simsimd_bilinear_##input_type##_##name(                                      \
+        simsimd_##input_type##_t const *a_pairs, simsimd_##input_type##_t const *b_pairs,            \
+        simsimd_##input_type##_t const *c_pairs, simsimd_size_t n, simsimd_distance_t *results) {    \
+        simsimd_##accumulator_type##_t sum_real = 0;                                                 \
+        simsimd_##accumulator_type##_t sum_imag = 0;                                                 \
+        simsimd_##accumulator_type##_t a_i_real, a_i_imag, b_j_real, b_j_imag, c_ij_real, c_ij_imag; \
+        for (simsimd_size_t i = 0; i != n; ++i) {                                                    \
+            simsimd_##accumulator_type##_t cb_j_real = 0;                                            \
+            simsimd_##accumulator_type##_t cb_j_imag = 0;                                            \
+            load_and_convert(&(a_pairs + i)->real, &a_i_real);                                       \
+            load_and_convert(&(a_pairs + i)->imag, &a_i_imag);                                       \
+            for (simsimd_size_t j = 0; j != n; ++j) {                                                \
+                load_and_convert(&(b_pairs + j)->real, &b_j_real);                                   \
+                load_and_convert(&(b_pairs + j)->imag, &b_j_imag);                                   \
+                load_and_convert(&(c_pairs + i * n + j)->real, &c_ij_real);                          \
+                load_and_convert(&(c_pairs + i * n + j)->imag, &c_ij_imag);                          \
+                /* Complex multiplication: (c_ij * b_j) */                                           \
+                cb_j_real += c_ij_real * b_j_real - c_ij_imag * b_j_imag;                            \
+                cb_j_imag += c_ij_real * b_j_imag + c_ij_imag * b_j_real;                            \
+            }                                                                                        \
+            /* Complex multiplication: (a_i * cb_j) */                                               \
+            sum_real += a_i_real * cb_j_real - a_i_imag * cb_j_imag;                                 \
+            sum_imag += a_i_real * cb_j_imag + a_i_imag * cb_j_real;                                 \
+        }                                                                                            \
+        results[0] = (simsimd_distance_t)sum_real;                                                   \
+        results[1] = (simsimd_distance_t)sum_imag;                                                   \
     }
 
 #define SIMSIMD_MAKE_MAHALANOBIS(name, input_type, accumulator_type, load_and_convert)                           \
     SIMSIMD_PUBLIC void simsimd_mahalanobis_##input_type##_##name(                                               \
         simsimd_##input_type##_t const *a, simsimd_##input_type##_t const *b, simsimd_##input_type##_t const *c, \
         simsimd_size_t n, simsimd_distance_t *result) {                                                          \
-        simsimd_##accumulator_type##_t sum = 0;                                                                  \
+        simsimd_##accumulator_type##_t sum = 0, v_ai, v_bi, v_aj, v_bj, v_cij;                                   \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                                \
             simsimd_##accumulator_type##_t cdiff_j = 0;                                                          \
-            simsimd_##accumulator_type##_t diff_i = load_and_convert(a + i) - load_and_convert(b + i);           \
+            load_and_convert(a + i, &v_ai);                                                                      \
+            load_and_convert(b + i, &v_bi);                                                                      \
+            simsimd_##accumulator_type##_t diff_i = v_ai - v_bi;                                                 \
             for (simsimd_size_t j = 0; j != n; ++j) {                                                            \
-                simsimd_##accumulator_type##_t diff_j = load_and_convert(a + j) - load_and_convert(b + j);       \
-                simsimd_##accumulator_type##_t c_ij = load_and_convert(c + i * n + j);                           \
-                cdiff_j += c_ij * diff_j;                                                                        \
+                load_and_convert(a + j, &v_aj);                                                                  \
+                load_and_convert(b + j, &v_bj);                                                                  \
+                load_and_convert(c + i * n + j, &v_cij);                                                         \
+                simsimd_##accumulator_type##_t diff_j = v_aj - v_bj;                                             \
+                cdiff_j += v_cij * diff_j;                                                                       \
             }                                                                                                    \
             sum += diff_i * cdiff_j;                                                                             \
         }                                                                                                        \
         *result = (simsimd_distance_t)SIMSIMD_SQRT(sum);                                                         \
     }
 
-SIMSIMD_MAKE_BILINEAR(serial, f64, f64, SIMSIMD_DEREFERENCE)          // simsimd_bilinear_f64_serial
-SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, f64c, f64, SIMSIMD_DEREFERENCE) // simsimd_bilinear_f64c_serial
-SIMSIMD_MAKE_MAHALANOBIS(serial, f64, f64, SIMSIMD_DEREFERENCE)       // simsimd_mahalanobis_f64_serial
+SIMSIMD_MAKE_BILINEAR(serial, f64, f64, SIMSIMD_ASSIGN_FROM_TO)          // simsimd_bilinear_f64_serial
+SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, f64c, f64, SIMSIMD_ASSIGN_FROM_TO) // simsimd_bilinear_f64c_serial
+SIMSIMD_MAKE_MAHALANOBIS(serial, f64, f64, SIMSIMD_ASSIGN_FROM_TO)       // simsimd_mahalanobis_f64_serial
 
-SIMSIMD_MAKE_BILINEAR(serial, f32, f32, SIMSIMD_DEREFERENCE)          // simsimd_bilinear_f32_serial
-SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, f32c, f32, SIMSIMD_DEREFERENCE) // simsimd_bilinear_f32c_serial
-SIMSIMD_MAKE_MAHALANOBIS(serial, f32, f32, SIMSIMD_DEREFERENCE)       // simsimd_mahalanobis_f32_serial
+SIMSIMD_MAKE_BILINEAR(serial, f32, f32, SIMSIMD_ASSIGN_FROM_TO)          // simsimd_bilinear_f32_serial
+SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, f32c, f32, SIMSIMD_ASSIGN_FROM_TO) // simsimd_bilinear_f32c_serial
+SIMSIMD_MAKE_MAHALANOBIS(serial, f32, f32, SIMSIMD_ASSIGN_FROM_TO)       // simsimd_mahalanobis_f32_serial
 
-SIMSIMD_MAKE_BILINEAR(serial, f16, f32, SIMSIMD_F16_TO_F32)          // simsimd_bilinear_f16_serial
-SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, f16c, f32, SIMSIMD_F16_TO_F32) // simsimd_bilinear_f16c_serial
-SIMSIMD_MAKE_MAHALANOBIS(serial, f16, f32, SIMSIMD_F16_TO_F32)       // simsimd_mahalanobis_f16_serial
+SIMSIMD_MAKE_BILINEAR(serial, f16, f32, simsimd_f16_to_f32)          // simsimd_bilinear_f16_serial
+SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, f16c, f32, simsimd_f16_to_f32) // simsimd_bilinear_f16c_serial
+SIMSIMD_MAKE_MAHALANOBIS(serial, f16, f32, simsimd_f16_to_f32)       // simsimd_mahalanobis_f16_serial
 
-SIMSIMD_MAKE_BILINEAR(serial, bf16, f32, SIMSIMD_BF16_TO_F32)          // simsimd_bilinear_bf16_serial
-SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, bf16c, f32, SIMSIMD_BF16_TO_F32) // simsimd_bilinear_bf16c_serial
-SIMSIMD_MAKE_MAHALANOBIS(serial, bf16, f32, SIMSIMD_BF16_TO_F32)       // simsimd_mahalanobis_bf16_serial
+SIMSIMD_MAKE_BILINEAR(serial, bf16, f32, simsimd_bf16_to_f32)          // simsimd_bilinear_bf16_serial
+SIMSIMD_MAKE_COMPLEX_BILINEAR(serial, bf16c, f32, simsimd_bf16_to_f32) // simsimd_bilinear_bf16c_serial
+SIMSIMD_MAKE_MAHALANOBIS(serial, bf16, f32, simsimd_bf16_to_f32)       // simsimd_mahalanobis_bf16_serial
 
-SIMSIMD_MAKE_BILINEAR(accurate, f32, f64, SIMSIMD_DEREFERENCE)          // simsimd_bilinear_f32_accurate
-SIMSIMD_MAKE_COMPLEX_BILINEAR(accurate, f32c, f64, SIMSIMD_DEREFERENCE) // simsimd_bilinear_f32c_accurate
-SIMSIMD_MAKE_MAHALANOBIS(accurate, f32, f64, SIMSIMD_DEREFERENCE)       // simsimd_mahalanobis_f32_accurate
+SIMSIMD_MAKE_BILINEAR(accurate, f32, f64, SIMSIMD_ASSIGN_FROM_TO)          // simsimd_bilinear_f32_accurate
+SIMSIMD_MAKE_COMPLEX_BILINEAR(accurate, f32c, f64, SIMSIMD_ASSIGN_FROM_TO) // simsimd_bilinear_f32c_accurate
+SIMSIMD_MAKE_MAHALANOBIS(accurate, f32, f64, SIMSIMD_ASSIGN_FROM_TO)       // simsimd_mahalanobis_f32_accurate
 
-SIMSIMD_MAKE_BILINEAR(accurate, f16, f64, SIMSIMD_F16_TO_F32)          // simsimd_bilinear_f16_accurate
-SIMSIMD_MAKE_COMPLEX_BILINEAR(accurate, f16c, f64, SIMSIMD_F16_TO_F32) // simsimd_bilinear_f16c_accurate
-SIMSIMD_MAKE_MAHALANOBIS(accurate, f16, f64, SIMSIMD_F16_TO_F32)       // simsimd_mahalanobis_f16_accurate
+SIMSIMD_MAKE_BILINEAR(accurate, f16, f64, simsimd_f16_to_f64)          // simsimd_bilinear_f16_accurate
+SIMSIMD_MAKE_COMPLEX_BILINEAR(accurate, f16c, f64, simsimd_f16_to_f64) // simsimd_bilinear_f16c_accurate
+SIMSIMD_MAKE_MAHALANOBIS(accurate, f16, f64, simsimd_f16_to_f64)       // simsimd_mahalanobis_f16_accurate
 
-SIMSIMD_MAKE_BILINEAR(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)          // simsimd_bilinear_bf16_accurate
-SIMSIMD_MAKE_COMPLEX_BILINEAR(accurate, bf16c, f64, SIMSIMD_BF16_TO_F32) // simsimd_bilinear_bf16c_accurate
-SIMSIMD_MAKE_MAHALANOBIS(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)       // simsimd_mahalanobis_bf16_accurate
+SIMSIMD_MAKE_BILINEAR(accurate, bf16, f64, simsimd_bf16_to_f64)          // simsimd_bilinear_bf16_accurate
+SIMSIMD_MAKE_COMPLEX_BILINEAR(accurate, bf16c, f64, simsimd_bf16_to_f64) // simsimd_bilinear_bf16c_accurate
+SIMSIMD_MAKE_MAHALANOBIS(accurate, bf16, f64, simsimd_bf16_to_f64)       // simsimd_mahalanobis_bf16_accurate
 
 #if _SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON

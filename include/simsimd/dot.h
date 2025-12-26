@@ -654,10 +654,10 @@ SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_serial(simsimd_dot_e5m2x64_st
     SIMSIMD_PUBLIC void simsimd_dot_##input_type##_##name(simsimd_##input_type##_t const *a,                   \
                                                           simsimd_##input_type##_t const *b, simsimd_size_t n, \
                                                           simsimd_distance_t *result) {                        \
-        simsimd_##accumulator_type##_t ab = 0;                                                                 \
+        simsimd_##accumulator_type##_t ab = 0, ai, bi;                                                         \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                              \
-            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                       \
-            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                       \
+            load_and_convert(a + i, &ai);                                                                      \
+            load_and_convert(b + i, &bi);                                                                      \
             ab += ai * bi;                                                                                     \
         }                                                                                                      \
         *result = ab;                                                                                          \
@@ -667,12 +667,12 @@ SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_serial(simsimd_dot_e5m2x64_st
     SIMSIMD_PUBLIC void simsimd_dot_##input_type##_##name(simsimd_##input_type##_t const *a_pairs,                   \
                                                           simsimd_##input_type##_t const *b_pairs,                   \
                                                           simsimd_size_t count_pairs, simsimd_distance_t *results) { \
-        simsimd_##accumulator_type##_t ab_real = 0, ab_imag = 0;                                                     \
+        simsimd_##accumulator_type##_t ab_real = 0, ab_imag = 0, ar, br, ai, bi;                                     \
         for (simsimd_size_t i = 0; i != count_pairs; ++i) {                                                          \
-            simsimd_##accumulator_type##_t ar = load_and_convert(&(a_pairs + i)->real);                              \
-            simsimd_##accumulator_type##_t br = load_and_convert(&(b_pairs + i)->real);                              \
-            simsimd_##accumulator_type##_t ai = load_and_convert(&(a_pairs + i)->imag);                              \
-            simsimd_##accumulator_type##_t bi = load_and_convert(&(b_pairs + i)->imag);                              \
+            load_and_convert(&(a_pairs + i)->real, &ar);                                                             \
+            load_and_convert(&(b_pairs + i)->real, &br);                                                             \
+            load_and_convert(&(a_pairs + i)->imag, &ai);                                                             \
+            load_and_convert(&(b_pairs + i)->imag, &bi);                                                             \
             ab_real += ar * br - ai * bi;                                                                            \
             ab_imag += ar * bi + ai * br;                                                                            \
         }                                                                                                            \
@@ -684,12 +684,12 @@ SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_serial(simsimd_dot_e5m2x64_st
     SIMSIMD_PUBLIC void simsimd_vdot_##input_type##_##name(simsimd_##input_type##_t const *a_pairs,                   \
                                                            simsimd_##input_type##_t const *b_pairs,                   \
                                                            simsimd_size_t count_pairs, simsimd_distance_t *results) { \
-        simsimd_##accumulator_type##_t ab_real = 0, ab_imag = 0;                                                      \
+        simsimd_##accumulator_type##_t ab_real = 0, ab_imag = 0, ar, br, ai, bi;                                      \
         for (simsimd_size_t i = 0; i != count_pairs; ++i) {                                                           \
-            simsimd_##accumulator_type##_t ar = load_and_convert(&(a_pairs + i)->real);                               \
-            simsimd_##accumulator_type##_t br = load_and_convert(&(b_pairs + i)->real);                               \
-            simsimd_##accumulator_type##_t ai = load_and_convert(&(a_pairs + i)->imag);                               \
-            simsimd_##accumulator_type##_t bi = load_and_convert(&(b_pairs + i)->imag);                               \
+            load_and_convert(&(a_pairs + i)->real, &ar);                                                              \
+            load_and_convert(&(b_pairs + i)->real, &br);                                                              \
+            load_and_convert(&(a_pairs + i)->imag, &ai);                                                              \
+            load_and_convert(&(b_pairs + i)->imag, &bi);                                                              \
             ab_real += ar * br + ai * bi;                                                                             \
             ab_imag += ar * bi - ai * br;                                                                             \
         }                                                                                                             \
@@ -697,24 +697,24 @@ SIMSIMD_INTERNAL void simsimd_dot_e5m2x64_finalize_serial(simsimd_dot_e5m2x64_st
         results[1] = ab_imag;                                                                                         \
     }
 
-SIMSIMD_MAKE_DOT(serial, f64, f64, SIMSIMD_DEREFERENCE)           // simsimd_dot_f64_serial
-SIMSIMD_MAKE_COMPLEX_DOT(serial, f64c, f64, SIMSIMD_DEREFERENCE)  // simsimd_dot_f64c_serial
-SIMSIMD_MAKE_COMPLEX_VDOT(serial, f64c, f64, SIMSIMD_DEREFERENCE) // simsimd_vdot_f64c_serial
+SIMSIMD_MAKE_DOT(serial, f64, f64, SIMSIMD_ASSIGN_FROM_TO)           // simsimd_dot_f64_serial
+SIMSIMD_MAKE_COMPLEX_DOT(serial, f64c, f64, SIMSIMD_ASSIGN_FROM_TO)  // simsimd_dot_f64c_serial
+SIMSIMD_MAKE_COMPLEX_VDOT(serial, f64c, f64, SIMSIMD_ASSIGN_FROM_TO) // simsimd_vdot_f64c_serial
 
-SIMSIMD_MAKE_DOT(serial, f32, f32, SIMSIMD_DEREFERENCE)           // simsimd_dot_f32_serial
-SIMSIMD_MAKE_COMPLEX_DOT(serial, f32c, f32, SIMSIMD_DEREFERENCE)  // simsimd_dot_f32c_serial
-SIMSIMD_MAKE_COMPLEX_VDOT(serial, f32c, f32, SIMSIMD_DEREFERENCE) // simsimd_vdot_f32c_serial
+SIMSIMD_MAKE_DOT(serial, f32, f32, SIMSIMD_ASSIGN_FROM_TO)           // simsimd_dot_f32_serial
+SIMSIMD_MAKE_COMPLEX_DOT(serial, f32c, f32, SIMSIMD_ASSIGN_FROM_TO)  // simsimd_dot_f32c_serial
+SIMSIMD_MAKE_COMPLEX_VDOT(serial, f32c, f32, SIMSIMD_ASSIGN_FROM_TO) // simsimd_vdot_f32c_serial
 
-SIMSIMD_MAKE_DOT(serial, f16, f32, SIMSIMD_F16_TO_F32)           // simsimd_dot_f16_serial
-SIMSIMD_MAKE_COMPLEX_DOT(serial, f16c, f32, SIMSIMD_F16_TO_F32)  // simsimd_dot_f16c_serial
-SIMSIMD_MAKE_COMPLEX_VDOT(serial, f16c, f32, SIMSIMD_F16_TO_F32) // simsimd_vdot_f16c_serial
+SIMSIMD_MAKE_DOT(serial, f16, f32, simsimd_f16_to_f32)           // simsimd_dot_f16_serial
+SIMSIMD_MAKE_COMPLEX_DOT(serial, f16c, f32, simsimd_f16_to_f32)  // simsimd_dot_f16c_serial
+SIMSIMD_MAKE_COMPLEX_VDOT(serial, f16c, f32, simsimd_f16_to_f32) // simsimd_vdot_f16c_serial
 
-SIMSIMD_MAKE_DOT(serial, bf16, f32, SIMSIMD_BF16_TO_F32)           // simsimd_dot_bf16_serial
-SIMSIMD_MAKE_COMPLEX_DOT(serial, bf16c, f32, SIMSIMD_BF16_TO_F32)  // simsimd_dot_bf16c_serial
-SIMSIMD_MAKE_COMPLEX_VDOT(serial, bf16c, f32, SIMSIMD_BF16_TO_F32) // simsimd_vdot_bf16c_serial
+SIMSIMD_MAKE_DOT(serial, bf16, f32, simsimd_bf16_to_f32)           // simsimd_dot_bf16_serial
+SIMSIMD_MAKE_COMPLEX_DOT(serial, bf16c, f32, simsimd_bf16_to_f32)  // simsimd_dot_bf16c_serial
+SIMSIMD_MAKE_COMPLEX_VDOT(serial, bf16c, f32, simsimd_bf16_to_f32) // simsimd_vdot_bf16c_serial
 
-SIMSIMD_MAKE_DOT(serial, i8, i64, SIMSIMD_DEREFERENCE) // simsimd_dot_i8_serial
-SIMSIMD_MAKE_DOT(serial, u8, i64, SIMSIMD_DEREFERENCE) // simsimd_dot_u8_serial
+SIMSIMD_MAKE_DOT(serial, i8, i64, SIMSIMD_ASSIGN_FROM_TO) // simsimd_dot_i8_serial
+SIMSIMD_MAKE_DOT(serial, u8, i64, SIMSIMD_ASSIGN_FROM_TO) // simsimd_dot_u8_serial
 
 SIMSIMD_PUBLIC void simsimd_dot_e4m3_serial(simsimd_e4m3_t const *a, simsimd_e4m3_t const *b, simsimd_size_t n,
                                             simsimd_distance_t *result) {
@@ -738,17 +738,17 @@ SIMSIMD_PUBLIC void simsimd_dot_e5m2_serial(simsimd_e5m2_t const *a, simsimd_e5m
     *result = ab;
 }
 
-SIMSIMD_MAKE_DOT(accurate, f32, f64, SIMSIMD_DEREFERENCE)           // simsimd_dot_f32_accurate
-SIMSIMD_MAKE_COMPLEX_DOT(accurate, f32c, f64, SIMSIMD_DEREFERENCE)  // simsimd_dot_f32c_accurate
-SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f32c, f64, SIMSIMD_DEREFERENCE) // simsimd_vdot_f32c_accurate
+SIMSIMD_MAKE_DOT(accurate, f32, f64, SIMSIMD_ASSIGN_FROM_TO)           // simsimd_dot_f32_accurate
+SIMSIMD_MAKE_COMPLEX_DOT(accurate, f32c, f64, SIMSIMD_ASSIGN_FROM_TO)  // simsimd_dot_f32c_accurate
+SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f32c, f64, SIMSIMD_ASSIGN_FROM_TO) // simsimd_vdot_f32c_accurate
 
-SIMSIMD_MAKE_DOT(accurate, f16, f64, SIMSIMD_F16_TO_F32)           // simsimd_dot_f16_accurate
-SIMSIMD_MAKE_COMPLEX_DOT(accurate, f16c, f64, SIMSIMD_F16_TO_F32)  // simsimd_dot_f16c_accurate
-SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f16c, f64, SIMSIMD_F16_TO_F32) // simsimd_vdot_f16c_accurate
+SIMSIMD_MAKE_DOT(accurate, f16, f64, simsimd_f16_to_f64)           // simsimd_dot_f16_accurate
+SIMSIMD_MAKE_COMPLEX_DOT(accurate, f16c, f64, simsimd_f16_to_f64)  // simsimd_dot_f16c_accurate
+SIMSIMD_MAKE_COMPLEX_VDOT(accurate, f16c, f64, simsimd_f16_to_f64) // simsimd_vdot_f16c_accurate
 
-SIMSIMD_MAKE_DOT(accurate, bf16, f64, SIMSIMD_BF16_TO_F32)           // simsimd_dot_bf16_accurate
-SIMSIMD_MAKE_COMPLEX_DOT(accurate, bf16c, f64, SIMSIMD_BF16_TO_F32)  // simsimd_dot_bf16c_accurate
-SIMSIMD_MAKE_COMPLEX_VDOT(accurate, bf16c, f64, SIMSIMD_BF16_TO_F32) // simsimd_vdot_bf16c_accurate
+SIMSIMD_MAKE_DOT(accurate, bf16, f64, simsimd_bf16_to_f64)           // simsimd_dot_bf16_accurate
+SIMSIMD_MAKE_COMPLEX_DOT(accurate, bf16c, f64, simsimd_bf16_to_f64)  // simsimd_dot_bf16c_accurate
+SIMSIMD_MAKE_COMPLEX_VDOT(accurate, bf16c, f64, simsimd_bf16_to_f64) // simsimd_vdot_bf16c_accurate
 
 /**
  *  @brief Running state for 512-bit dot accumulation over f64 scalars.
@@ -838,44 +838,22 @@ SIMSIMD_INTERNAL void simsimd_dot_f16x32_init_serial(simsimd_dot_f16x32_state_se
 
 SIMSIMD_INTERNAL void simsimd_dot_f16x32_update_serial(simsimd_dot_f16x32_state_serial_t *state, simsimd_b512_vec_t a,
                                                        simsimd_b512_vec_t b) {
-    simsimd_f32_t sum0 = state->sums[0];
-    simsimd_f32_t sum1 = state->sums[1];
-    simsimd_f32_t sum2 = state->sums[2];
-    simsimd_f32_t sum3 = state->sums[3];
-
-    sum0 += SIMSIMD_F16_TO_F32(a.f16s + 0) * SIMSIMD_F16_TO_F32(b.f16s + 0),
-        sum1 += SIMSIMD_F16_TO_F32(a.f16s + 1) * SIMSIMD_F16_TO_F32(b.f16s + 1),
-        sum2 += SIMSIMD_F16_TO_F32(a.f16s + 2) * SIMSIMD_F16_TO_F32(b.f16s + 2),
-        sum3 += SIMSIMD_F16_TO_F32(a.f16s + 3) * SIMSIMD_F16_TO_F32(b.f16s + 3);
-    sum0 += SIMSIMD_F16_TO_F32(a.f16s + 4) * SIMSIMD_F16_TO_F32(b.f16s + 4),
-        sum1 += SIMSIMD_F16_TO_F32(a.f16s + 5) * SIMSIMD_F16_TO_F32(b.f16s + 5),
-        sum2 += SIMSIMD_F16_TO_F32(a.f16s + 6) * SIMSIMD_F16_TO_F32(b.f16s + 6),
-        sum3 += SIMSIMD_F16_TO_F32(a.f16s + 7) * SIMSIMD_F16_TO_F32(b.f16s + 7);
-    sum0 += SIMSIMD_F16_TO_F32(a.f16s + 8) * SIMSIMD_F16_TO_F32(b.f16s + 8),
-        sum1 += SIMSIMD_F16_TO_F32(a.f16s + 9) * SIMSIMD_F16_TO_F32(b.f16s + 9),
-        sum2 += SIMSIMD_F16_TO_F32(a.f16s + 10) * SIMSIMD_F16_TO_F32(b.f16s + 10),
-        sum3 += SIMSIMD_F16_TO_F32(a.f16s + 11) * SIMSIMD_F16_TO_F32(b.f16s + 11);
-    sum0 += SIMSIMD_F16_TO_F32(a.f16s + 12) * SIMSIMD_F16_TO_F32(b.f16s + 12),
-        sum1 += SIMSIMD_F16_TO_F32(a.f16s + 13) * SIMSIMD_F16_TO_F32(b.f16s + 13),
-        sum2 += SIMSIMD_F16_TO_F32(a.f16s + 14) * SIMSIMD_F16_TO_F32(b.f16s + 14),
-        sum3 += SIMSIMD_F16_TO_F32(a.f16s + 15) * SIMSIMD_F16_TO_F32(b.f16s + 15);
-    sum0 += SIMSIMD_F16_TO_F32(a.f16s + 16) * SIMSIMD_F16_TO_F32(b.f16s + 16),
-        sum1 += SIMSIMD_F16_TO_F32(a.f16s + 17) * SIMSIMD_F16_TO_F32(b.f16s + 17),
-        sum2 += SIMSIMD_F16_TO_F32(a.f16s + 18) * SIMSIMD_F16_TO_F32(b.f16s + 18),
-        sum3 += SIMSIMD_F16_TO_F32(a.f16s + 19) * SIMSIMD_F16_TO_F32(b.f16s + 19);
-    sum0 += SIMSIMD_F16_TO_F32(a.f16s + 20) * SIMSIMD_F16_TO_F32(b.f16s + 20),
-        sum1 += SIMSIMD_F16_TO_F32(a.f16s + 21) * SIMSIMD_F16_TO_F32(b.f16s + 21),
-        sum2 += SIMSIMD_F16_TO_F32(a.f16s + 22) * SIMSIMD_F16_TO_F32(b.f16s + 22),
-        sum3 += SIMSIMD_F16_TO_F32(a.f16s + 23) * SIMSIMD_F16_TO_F32(b.f16s + 23);
-    sum0 += SIMSIMD_F16_TO_F32(a.f16s + 24) * SIMSIMD_F16_TO_F32(b.f16s + 24),
-        sum1 += SIMSIMD_F16_TO_F32(a.f16s + 25) * SIMSIMD_F16_TO_F32(b.f16s + 25),
-        sum2 += SIMSIMD_F16_TO_F32(a.f16s + 26) * SIMSIMD_F16_TO_F32(b.f16s + 26),
-        sum3 += SIMSIMD_F16_TO_F32(a.f16s + 27) * SIMSIMD_F16_TO_F32(b.f16s + 27);
-    sum0 += SIMSIMD_F16_TO_F32(a.f16s + 28) * SIMSIMD_F16_TO_F32(b.f16s + 28),
-        sum1 += SIMSIMD_F16_TO_F32(a.f16s + 29) * SIMSIMD_F16_TO_F32(b.f16s + 29),
-        sum2 += SIMSIMD_F16_TO_F32(a.f16s + 30) * SIMSIMD_F16_TO_F32(b.f16s + 30),
-        sum3 += SIMSIMD_F16_TO_F32(a.f16s + 31) * SIMSIMD_F16_TO_F32(b.f16s + 31);
-
+    simsimd_f32_t sum0 = state->sums[0], sum1 = state->sums[1], sum2 = state->sums[2], sum3 = state->sums[3];
+    for (simsimd_size_t i = 0; i < 32; i += 4) {
+        simsimd_f32_t a0, a1, a2, a3, b0, b1, b2, b3;
+        simsimd_f16_to_f32(a.f16s + i + 0, &a0);
+        simsimd_f16_to_f32(a.f16s + i + 1, &a1);
+        simsimd_f16_to_f32(a.f16s + i + 2, &a2);
+        simsimd_f16_to_f32(a.f16s + i + 3, &a3);
+        simsimd_f16_to_f32(b.f16s + i + 0, &b0);
+        simsimd_f16_to_f32(b.f16s + i + 1, &b1);
+        simsimd_f16_to_f32(b.f16s + i + 2, &b2);
+        simsimd_f16_to_f32(b.f16s + i + 3, &b3);
+        sum0 += a0 * b0;
+        sum1 += a1 * b1;
+        sum2 += a2 * b2;
+        sum3 += a3 * b3;
+    }
     state->sums[0] = sum0, state->sums[1] = sum1, state->sums[2] = sum2, state->sums[3] = sum3;
 }
 
@@ -902,44 +880,22 @@ SIMSIMD_INTERNAL void simsimd_dot_bf16x32_init_serial(simsimd_dot_bf16x32_state_
 
 SIMSIMD_INTERNAL void simsimd_dot_bf16x32_update_serial(simsimd_dot_bf16x32_state_serial_t *state, simsimd_b512_vec_t a,
                                                         simsimd_b512_vec_t b) {
-    simsimd_f32_t sum0 = state->sums[0];
-    simsimd_f32_t sum1 = state->sums[1];
-    simsimd_f32_t sum2 = state->sums[2];
-    simsimd_f32_t sum3 = state->sums[3];
-
-    sum0 += SIMSIMD_BF16_TO_F32(a.bf16s + 0) * SIMSIMD_BF16_TO_F32(b.bf16s + 0),
-        sum1 += SIMSIMD_BF16_TO_F32(a.bf16s + 1) * SIMSIMD_BF16_TO_F32(b.bf16s + 1),
-        sum2 += SIMSIMD_BF16_TO_F32(a.bf16s + 2) * SIMSIMD_BF16_TO_F32(b.bf16s + 2),
-        sum3 += SIMSIMD_BF16_TO_F32(a.bf16s + 3) * SIMSIMD_BF16_TO_F32(b.bf16s + 3);
-    sum0 += SIMSIMD_BF16_TO_F32(a.bf16s + 4) * SIMSIMD_BF16_TO_F32(b.bf16s + 4),
-        sum1 += SIMSIMD_BF16_TO_F32(a.bf16s + 5) * SIMSIMD_BF16_TO_F32(b.bf16s + 5),
-        sum2 += SIMSIMD_BF16_TO_F32(a.bf16s + 6) * SIMSIMD_BF16_TO_F32(b.bf16s + 6),
-        sum3 += SIMSIMD_BF16_TO_F32(a.bf16s + 7) * SIMSIMD_BF16_TO_F32(b.bf16s + 7);
-    sum0 += SIMSIMD_BF16_TO_F32(a.bf16s + 8) * SIMSIMD_BF16_TO_F32(b.bf16s + 8),
-        sum1 += SIMSIMD_BF16_TO_F32(a.bf16s + 9) * SIMSIMD_BF16_TO_F32(b.bf16s + 9),
-        sum2 += SIMSIMD_BF16_TO_F32(a.bf16s + 10) * SIMSIMD_BF16_TO_F32(b.bf16s + 10),
-        sum3 += SIMSIMD_BF16_TO_F32(a.bf16s + 11) * SIMSIMD_BF16_TO_F32(b.bf16s + 11);
-    sum0 += SIMSIMD_BF16_TO_F32(a.bf16s + 12) * SIMSIMD_BF16_TO_F32(b.bf16s + 12),
-        sum1 += SIMSIMD_BF16_TO_F32(a.bf16s + 13) * SIMSIMD_BF16_TO_F32(b.bf16s + 13),
-        sum2 += SIMSIMD_BF16_TO_F32(a.bf16s + 14) * SIMSIMD_BF16_TO_F32(b.bf16s + 14),
-        sum3 += SIMSIMD_BF16_TO_F32(a.bf16s + 15) * SIMSIMD_BF16_TO_F32(b.bf16s + 15);
-    sum0 += SIMSIMD_BF16_TO_F32(a.bf16s + 16) * SIMSIMD_BF16_TO_F32(b.bf16s + 16),
-        sum1 += SIMSIMD_BF16_TO_F32(a.bf16s + 17) * SIMSIMD_BF16_TO_F32(b.bf16s + 17),
-        sum2 += SIMSIMD_BF16_TO_F32(a.bf16s + 18) * SIMSIMD_BF16_TO_F32(b.bf16s + 18),
-        sum3 += SIMSIMD_BF16_TO_F32(a.bf16s + 19) * SIMSIMD_BF16_TO_F32(b.bf16s + 19);
-    sum0 += SIMSIMD_BF16_TO_F32(a.bf16s + 20) * SIMSIMD_BF16_TO_F32(b.bf16s + 20),
-        sum1 += SIMSIMD_BF16_TO_F32(a.bf16s + 21) * SIMSIMD_BF16_TO_F32(b.bf16s + 21),
-        sum2 += SIMSIMD_BF16_TO_F32(a.bf16s + 22) * SIMSIMD_BF16_TO_F32(b.bf16s + 22),
-        sum3 += SIMSIMD_BF16_TO_F32(a.bf16s + 23) * SIMSIMD_BF16_TO_F32(b.bf16s + 23);
-    sum0 += SIMSIMD_BF16_TO_F32(a.bf16s + 24) * SIMSIMD_BF16_TO_F32(b.bf16s + 24),
-        sum1 += SIMSIMD_BF16_TO_F32(a.bf16s + 25) * SIMSIMD_BF16_TO_F32(b.bf16s + 25),
-        sum2 += SIMSIMD_BF16_TO_F32(a.bf16s + 26) * SIMSIMD_BF16_TO_F32(b.bf16s + 26),
-        sum3 += SIMSIMD_BF16_TO_F32(a.bf16s + 27) * SIMSIMD_BF16_TO_F32(b.bf16s + 27);
-    sum0 += SIMSIMD_BF16_TO_F32(a.bf16s + 28) * SIMSIMD_BF16_TO_F32(b.bf16s + 28),
-        sum1 += SIMSIMD_BF16_TO_F32(a.bf16s + 29) * SIMSIMD_BF16_TO_F32(b.bf16s + 29),
-        sum2 += SIMSIMD_BF16_TO_F32(a.bf16s + 30) * SIMSIMD_BF16_TO_F32(b.bf16s + 30),
-        sum3 += SIMSIMD_BF16_TO_F32(a.bf16s + 31) * SIMSIMD_BF16_TO_F32(b.bf16s + 31);
-
+    simsimd_f32_t sum0 = state->sums[0], sum1 = state->sums[1], sum2 = state->sums[2], sum3 = state->sums[3];
+    for (simsimd_size_t i = 0; i < 32; i += 4) {
+        simsimd_f32_t a0, a1, a2, a3, b0, b1, b2, b3;
+        simsimd_bf16_to_f32(a.bf16s + i + 0, &a0);
+        simsimd_bf16_to_f32(a.bf16s + i + 1, &a1);
+        simsimd_bf16_to_f32(a.bf16s + i + 2, &a2);
+        simsimd_bf16_to_f32(a.bf16s + i + 3, &a3);
+        simsimd_bf16_to_f32(b.bf16s + i + 0, &b0);
+        simsimd_bf16_to_f32(b.bf16s + i + 1, &b1);
+        simsimd_bf16_to_f32(b.bf16s + i + 2, &b2);
+        simsimd_bf16_to_f32(b.bf16s + i + 3, &b3);
+        sum0 += a0 * b0;
+        sum1 += a1 * b1;
+        sum2 += a2 * b2;
+        sum3 += a3 * b3;
+    }
     state->sums[0] = sum0, state->sums[1] = sum1, state->sums[2] = sum2, state->sums[3] = sum3;
 }
 

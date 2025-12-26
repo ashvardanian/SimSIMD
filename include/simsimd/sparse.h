@@ -285,14 +285,14 @@ SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u32, size) // simsimd_intersect_u32_accu
         simsimd_##weight_type##_t const *a_weights, simsimd_##weight_type##_t const *b_weights,                   \
         simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t *results) {                          \
         simsimd_##counter_type##_t intersection_size = 0;                                                         \
-        simsimd_##accumulator_type##_t weights_product = 0;                                                       \
+        simsimd_##accumulator_type##_t weights_product = 0, awi, bwi;                                             \
         simsimd_size_t i = 0, j = 0;                                                                              \
         while (i != a_length && j != b_length) {                                                                  \
             simsimd_##input_type##_t ai = a[i];                                                                   \
             simsimd_##input_type##_t bj = b[j];                                                                   \
             int matches = ai == bj;                                                                               \
-            simsimd_##accumulator_type##_t awi = load_and_convert(a_weights + i);                                 \
-            simsimd_##accumulator_type##_t bwi = load_and_convert(b_weights + i);                                 \
+            load_and_convert(a_weights + i, &awi);                                                                \
+            load_and_convert(b_weights + j, &bwi);                                                                \
             weights_product += matches * awi * bwi;                                                               \
             intersection_size += matches;                                                                         \
             i += ai < bj;                                                                                         \
@@ -303,9 +303,9 @@ SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u32, size) // simsimd_intersect_u32_accu
     }
 
 SIMSIMD_MAKE_INTERSECT_WEIGHTED(accurate, spdot_counts, u16, size, i16, i64,
-                                SIMSIMD_DEREFERENCE) // simsimd_spdot_counts_u16_accurate
+                                SIMSIMD_ASSIGN_FROM_TO) // simsimd_spdot_counts_u16_accurate
 SIMSIMD_MAKE_INTERSECT_WEIGHTED(accurate, spdot_weights, u16, size, bf16, f64,
-                                SIMSIMD_BF16_TO_F32) // simsimd_spdot_weights_u16_accurate
+                                simsimd_bf16_to_f64) // simsimd_spdot_weights_u16_accurate
 
 #define SIMSIMD_MAKE_INTERSECT_GALLOPING(name, input_type, counter_type)                                             \
     SIMSIMD_PUBLIC simsimd_size_t simsimd_galloping_search_##input_type(simsimd_##input_type##_t const *array,       \
@@ -358,9 +358,9 @@ SIMSIMD_MAKE_INTERSECT_WEIGHTED(accurate, spdot_weights, u16, size, bf16, f64,
 SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u16, size) // simsimd_intersect_u16_serial
 SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u32, size) // simsimd_intersect_u32_serial
 SIMSIMD_MAKE_INTERSECT_WEIGHTED(serial, spdot_counts, u16, size, i16, i32,
-                                SIMSIMD_DEREFERENCE) // simsimd_spdot_counts_u16_serial
+                                SIMSIMD_ASSIGN_FROM_TO) // simsimd_spdot_counts_u16_serial
 SIMSIMD_MAKE_INTERSECT_WEIGHTED(serial, spdot_weights, u16, size, bf16, f32,
-                                SIMSIMD_BF16_TO_F32) // simsimd_spdot_weights_u16_serial
+                                simsimd_bf16_to_f32) // simsimd_spdot_weights_u16_serial
 
 /*  The AVX-512 implementations are inspired by the "Faster-Than-Native Alternatives
  *  for x86 VP2INTERSECT Instructions" paper by Guille Diez-Canas, 2022.

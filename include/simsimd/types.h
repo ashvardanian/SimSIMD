@@ -471,8 +471,7 @@ SIMSIMD_STATIC_ASSERT(sizeof(simsimd_f64_t) == 8, simsimd_f64_t_must_be_8_bytes)
 SIMSIMD_STATIC_ASSERT(sizeof(simsimd_f16_t) == 2, simsimd_f16_t_must_be_2_bytes);
 SIMSIMD_STATIC_ASSERT(sizeof(simsimd_bf16_t) == 2, simsimd_bf16_t_must_be_2_bytes);
 
-#define SIMSIMD_DEREFERENCE(x) (*(x))
-#define SIMSIMD_EXPORT(x, y)   *(y) = x
+#define SIMSIMD_ASSIGN_FROM_TO(src, dest) (*(dest) = *(src))
 
 /** @brief  Convenience type for single-precision floating-point bit manipulation. */
 typedef union {
@@ -601,8 +600,6 @@ SIMSIMD_INTERNAL simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
     return x - x2 / 2 + x3 / 3;
 }
 
-#define _SIMSIMD_ASSIGN_1_TO_2(x, y) *(y) = *(x)
-
 /**
  *  @brief  For compilers that don't natively support the `_Float16` type,
  *          upcasts contents into a more conventional `float`.
@@ -614,6 +611,9 @@ SIMSIMD_INTERNAL simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
 SIMSIMD_INTERNAL void simsimd_f16_to_f32_implementation(simsimd_f16_t const *src, simsimd_f32_t *dest) {
+#if SIMSIMD_NATIVE_F16
+    *dest = (simsimd_f32_t)(*src);
+#else
     unsigned short x;
     SIMSIMD_COPY16(&x, src);
     unsigned int exponent = (x & 0x7C00) >> 10;
@@ -625,6 +625,17 @@ SIMSIMD_INTERNAL void simsimd_f16_to_f32_implementation(simsimd_f16_t const *src
     conv.u = (x & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
              ((exponent == 0) & (mantissa != 0)) * ((v - 37) << 23 | ((mantissa << (150 - v)) & 0x007FE000));
     *dest = conv.f;
+#endif
+}
+
+/**
+ *  @brief  For compilers that don't natively support the `_Float16` type,
+ *          upcasts contents into a `double` for higher precision accumulation.
+ */
+SIMSIMD_INTERNAL void simsimd_f16_to_f64_implementation(simsimd_f16_t const *src, simsimd_f64_t *dest) {
+    simsimd_f32_t temp;
+    simsimd_f16_to_f32_implementation(src, &temp);
+    *dest = (simsimd_f64_t)temp;
 }
 
 /**
@@ -637,6 +648,9 @@ SIMSIMD_INTERNAL void simsimd_f16_to_f32_implementation(simsimd_f16_t const *src
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
 SIMSIMD_INTERNAL void simsimd_f32_to_f16_implementation(simsimd_f32_t const *src, simsimd_f16_t *dest) {
+#if SIMSIMD_NATIVE_F16
+    *dest = (simsimd_f16_t)(*src);
+#else
     simsimd_fui32_t conv;
     conv.f = *src;
     unsigned int b = conv.u + 0x00001000;
@@ -646,6 +660,7 @@ SIMSIMD_INTERNAL void simsimd_f32_to_f16_implementation(simsimd_f32_t const *src
                             ((e < 113) & (e > 101)) * ((((0x007FF000 + m) >> (125 - e)) + 1) >> 1) |
                             ((e > 143) * 0x7FFF);
     SIMSIMD_COPY16(dest, &result);
+#endif
 }
 
 /**
@@ -656,11 +671,25 @@ SIMSIMD_INTERNAL void simsimd_f32_to_f16_implementation(simsimd_f32_t const *src
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
 SIMSIMD_INTERNAL void simsimd_bf16_to_f32_implementation(simsimd_bf16_t const *src, simsimd_f32_t *dest) {
+#if SIMSIMD_NATIVE_BF16
+    *dest = (simsimd_f32_t)(*src);
+#else
     unsigned short x;
     SIMSIMD_COPY16(&x, src);
     simsimd_fui32_t conv;
     conv.u = x << 16; // Zero extends the mantissa
     *dest = conv.f;
+#endif
+}
+
+/**
+ *  @brief  For compilers that don't natively support the `__bf16` type,
+ *          upcasts contents into a `double` for higher precision accumulation.
+ */
+SIMSIMD_INTERNAL void simsimd_bf16_to_f64_implementation(simsimd_bf16_t const *src, simsimd_f64_t *dest) {
+    simsimd_f32_t temp;
+    simsimd_bf16_to_f32_implementation(src, &temp);
+    *dest = (simsimd_f64_t)temp;
 }
 
 /**
@@ -670,6 +699,9 @@ SIMSIMD_INTERNAL void simsimd_bf16_to_f32_implementation(simsimd_bf16_t const *s
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
 SIMSIMD_INTERNAL void simsimd_f32_to_bf16_implementation(simsimd_f32_t const *src, simsimd_bf16_t *dest) {
+#if SIMSIMD_NATIVE_BF16
+    *dest = (simsimd_bf16_t)(*src);
+#else
     simsimd_fui32_t conv;
     conv.f = *src;
     conv.u += 0x8000; // Rounding is optional
@@ -679,6 +711,7 @@ SIMSIMD_INTERNAL void simsimd_f32_to_bf16_implementation(simsimd_f32_t const *sr
     // since the lower 16 bits are at offset 2, not offset 0.
     unsigned short result = (unsigned short)conv.u;
     SIMSIMD_COPY16(dest, &result);
+#endif
 }
 
 SIMSIMD_INTERNAL void simsimd_e4m3_to_f32_implementation(simsimd_e4m3_t const *src, simsimd_f32_t *dest) {
@@ -884,7 +917,9 @@ SIMSIMD_INTERNAL void simsimd_f32_to_e5m2_implementation(simsimd_f32_t const *sr
 // Forward declarations for conversion functions used in helper functions and wrapper macros
 #if SIMSIMD_DYNAMIC_DISPATCH
 SIMSIMD_DYNAMIC void simsimd_f16_to_f32(simsimd_f16_t const *src, simsimd_f32_t *dest);
+SIMSIMD_DYNAMIC void simsimd_f16_to_f64(simsimd_f16_t const *src, simsimd_f64_t *dest);
 SIMSIMD_DYNAMIC void simsimd_bf16_to_f32(simsimd_bf16_t const *src, simsimd_f32_t *dest);
+SIMSIMD_DYNAMIC void simsimd_bf16_to_f64(simsimd_bf16_t const *src, simsimd_f64_t *dest);
 SIMSIMD_DYNAMIC void simsimd_f32_to_f16(simsimd_f32_t const *src, simsimd_f16_t *dest);
 SIMSIMD_DYNAMIC void simsimd_f32_to_bf16(simsimd_f32_t const *src, simsimd_bf16_t *dest);
 SIMSIMD_DYNAMIC void simsimd_e4m3_to_f32(simsimd_e4m3_t const *src, simsimd_f32_t *dest);
@@ -893,63 +928,15 @@ SIMSIMD_DYNAMIC void simsimd_e5m2_to_f32(simsimd_e5m2_t const *src, simsimd_f32_
 SIMSIMD_DYNAMIC void simsimd_f32_to_e5m2(simsimd_f32_t const *src, simsimd_e5m2_t *dest);
 #else
 SIMSIMD_PUBLIC void simsimd_f16_to_f32(simsimd_f16_t const *src, simsimd_f32_t *dest);
+SIMSIMD_PUBLIC void simsimd_f16_to_f64(simsimd_f16_t const *src, simsimd_f64_t *dest);
 SIMSIMD_PUBLIC void simsimd_bf16_to_f32(simsimd_bf16_t const *src, simsimd_f32_t *dest);
+SIMSIMD_PUBLIC void simsimd_bf16_to_f64(simsimd_bf16_t const *src, simsimd_f64_t *dest);
 SIMSIMD_PUBLIC void simsimd_f32_to_f16(simsimd_f32_t const *src, simsimd_f16_t *dest);
 SIMSIMD_PUBLIC void simsimd_f32_to_bf16(simsimd_f32_t const *src, simsimd_bf16_t *dest);
 SIMSIMD_PUBLIC void simsimd_e4m3_to_f32(simsimd_e4m3_t const *src, simsimd_f32_t *dest);
 SIMSIMD_PUBLIC void simsimd_f32_to_e4m3(simsimd_f32_t const *src, simsimd_e4m3_t *dest);
 SIMSIMD_PUBLIC void simsimd_e5m2_to_f32(simsimd_e5m2_t const *src, simsimd_f32_t *dest);
 SIMSIMD_PUBLIC void simsimd_f32_to_e5m2(simsimd_f32_t const *src, simsimd_e5m2_t *dest);
-#endif
-
-/**
- *  @brief  Returns the value of the half-precision floating-point number,
- *          potentially decompressed into single-precision.
- *
- *  The underlying conversion functions use pure two-pointer style, but these
- *  macros provide a convenient expression-returning interface for compatibility.
- */
-#if !defined(SIMSIMD_F16_TO_F32)
-#if SIMSIMD_NATIVE_F16
-#define SIMSIMD_F16_TO_F32(x)    (SIMSIMD_DEREFERENCE(x))
-#define SIMSIMD_F32_TO_F16(x, y) (SIMSIMD_EXPORT(x, y))
-#else
-SIMSIMD_INTERNAL simsimd_f32_t _simsimd_f16_to_f32_wrapper(simsimd_f16_t const *src) {
-    simsimd_f32_t dest;
-    simsimd_f16_to_f32(src, &dest);
-    return dest;
-}
-SIMSIMD_INTERNAL void _simsimd_f32_to_f16_wrapper(simsimd_f32_t src, simsimd_f16_t *dest) {
-    simsimd_f32_to_f16(&src, dest);
-}
-#define SIMSIMD_F16_TO_F32(x)    (_simsimd_f16_to_f32_wrapper(x))
-#define SIMSIMD_F32_TO_F16(x, y) (_simsimd_f32_to_f16_wrapper(x, y))
-#endif
-#endif
-
-/**
- *  @brief  Returns the value of the half-precision brain floating-point number,
- *          potentially decompressed into single-precision.
- *
- *  The underlying conversion functions use pure two-pointer style, but these
- *  macros provide a convenient expression-returning interface for compatibility.
- */
-#if !defined(SIMSIMD_BF16_TO_F32)
-#if SIMSIMD_NATIVE_BF16
-#define SIMSIMD_BF16_TO_F32(x)    (SIMSIMD_DEREFERENCE(x))
-#define SIMSIMD_F32_TO_BF16(x, y) (SIMSIMD_EXPORT(x, y))
-#else
-SIMSIMD_INTERNAL simsimd_f32_t _simsimd_bf16_to_f32_wrapper(simsimd_bf16_t const *src) {
-    simsimd_f32_t dest;
-    simsimd_bf16_to_f32(src, &dest);
-    return dest;
-}
-SIMSIMD_INTERNAL void _simsimd_f32_to_bf16_wrapper(simsimd_f32_t src, simsimd_bf16_t *dest) {
-    simsimd_f32_to_bf16(&src, dest);
-}
-#define SIMSIMD_BF16_TO_F32(x)    (_simsimd_bf16_to_f32_wrapper(x))
-#define SIMSIMD_F32_TO_BF16(x, y) (_simsimd_f32_to_bf16_wrapper(x, y))
-#endif
 #endif
 
 #if !defined(SIMSIMD_F32_TO_I8)
@@ -1435,11 +1422,17 @@ SIMSIMD_INTERNAL void _simsimd_bf16_smul(simsimd_bf16_t const *a, simsimd_bf16_t
 /** @copydoc simsimd_f16_to_f32_implementation */
 SIMSIMD_DYNAMIC void simsimd_f16_to_f32(simsimd_f16_t const *src, simsimd_f32_t *dest);
 
+/** @copydoc simsimd_f16_to_f64_implementation */
+SIMSIMD_DYNAMIC void simsimd_f16_to_f64(simsimd_f16_t const *src, simsimd_f64_t *dest);
+
 /** @copydoc simsimd_f32_to_f16_implementation */
 SIMSIMD_DYNAMIC void simsimd_f32_to_f16(simsimd_f32_t const *src, simsimd_f16_t *dest);
 
 /** @copydoc simsimd_bf16_to_f32_implementation */
 SIMSIMD_DYNAMIC void simsimd_bf16_to_f32(simsimd_bf16_t const *src, simsimd_f32_t *dest);
+
+/** @copydoc simsimd_bf16_to_f64_implementation */
+SIMSIMD_DYNAMIC void simsimd_bf16_to_f64(simsimd_bf16_t const *src, simsimd_f64_t *dest);
 
 /** @copydoc simsimd_f32_to_bf16_implementation */
 SIMSIMD_DYNAMIC void simsimd_f32_to_bf16(simsimd_f32_t const *src, simsimd_bf16_t *dest);
@@ -1463,6 +1456,11 @@ SIMSIMD_PUBLIC void simsimd_f16_to_f32(simsimd_f16_t const *src, simsimd_f32_t *
     simsimd_f16_to_f32_implementation(src, dest);
 }
 
+/** @copydoc simsimd_f16_to_f64_implementation */
+SIMSIMD_PUBLIC void simsimd_f16_to_f64(simsimd_f16_t const *src, simsimd_f64_t *dest) {
+    simsimd_f16_to_f64_implementation(src, dest);
+}
+
 /** @copydoc simsimd_f32_to_f16_implementation */
 SIMSIMD_PUBLIC void simsimd_f32_to_f16(simsimd_f32_t const *src, simsimd_f16_t *dest) {
     simsimd_f32_to_f16_implementation(src, dest);
@@ -1471,6 +1469,11 @@ SIMSIMD_PUBLIC void simsimd_f32_to_f16(simsimd_f32_t const *src, simsimd_f16_t *
 /** @copydoc simsimd_bf16_to_f32_implementation */
 SIMSIMD_PUBLIC void simsimd_bf16_to_f32(simsimd_bf16_t const *src, simsimd_f32_t *dest) {
     simsimd_bf16_to_f32_implementation(src, dest);
+}
+
+/** @copydoc simsimd_bf16_to_f64_implementation */
+SIMSIMD_PUBLIC void simsimd_bf16_to_f64(simsimd_bf16_t const *src, simsimd_f64_t *dest) {
+    simsimd_bf16_to_f64_implementation(src, dest);
 }
 
 /** @copydoc simsimd_f32_to_bf16_implementation */

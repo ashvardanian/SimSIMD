@@ -252,10 +252,10 @@ SIMSIMD_PUBLIC void simsimd_jsd_f16_sapphire(simsimd_f16_t const* a, simsimd_f16
     SIMSIMD_PUBLIC void simsimd_kld_##input_type##_##name(simsimd_##input_type##_t const *a,                   \
                                                           simsimd_##input_type##_t const *b, simsimd_size_t n, \
                                                           simsimd_distance_t *result) {                        \
-        simsimd_##accumulator_type##_t d = 0;                                                                  \
+        simsimd_##accumulator_type##_t d = 0, ai, bi;                                                          \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                              \
-            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                       \
-            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                       \
+            load_and_convert(a + i, &ai);                                                                      \
+            load_and_convert(b + i, &bi);                                                                      \
             d += ai * SIMSIMD_LOG((ai + epsilon) / (bi + epsilon));                                            \
         }                                                                                                      \
         *result = (simsimd_distance_t)d;                                                                       \
@@ -265,10 +265,10 @@ SIMSIMD_PUBLIC void simsimd_jsd_f16_sapphire(simsimd_f16_t const* a, simsimd_f16
     SIMSIMD_PUBLIC void simsimd_jsd_##input_type##_##name(simsimd_##input_type##_t const *a,                   \
                                                           simsimd_##input_type##_t const *b, simsimd_size_t n, \
                                                           simsimd_distance_t *result) {                        \
-        simsimd_##accumulator_type##_t d = 0;                                                                  \
+        simsimd_##accumulator_type##_t d = 0, ai, bi;                                                          \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                              \
-            simsimd_##accumulator_type##_t ai = load_and_convert(a + i);                                       \
-            simsimd_##accumulator_type##_t bi = load_and_convert(b + i);                                       \
+            load_and_convert(a + i, &ai);                                                                      \
+            load_and_convert(b + i, &bi);                                                                      \
             simsimd_##accumulator_type##_t mi = (ai + bi) / 2;                                                 \
             d += ai * SIMSIMD_LOG((ai + epsilon) / (mi + epsilon));                                            \
             d += bi * SIMSIMD_LOG((bi + epsilon) / (mi + epsilon));                                            \
@@ -277,26 +277,26 @@ SIMSIMD_PUBLIC void simsimd_jsd_f16_sapphire(simsimd_f16_t const* a, simsimd_f16
         *result = d_half > 0 ? SIMSIMD_SQRT(d_half) : 0;                                                       \
     }
 
-SIMSIMD_MAKE_KLD(serial, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kld_f64_serial
-SIMSIMD_MAKE_JSD(serial, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_jsd_f64_serial
+SIMSIMD_MAKE_KLD(serial, f64, f64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kld_f64_serial
+SIMSIMD_MAKE_JSD(serial, f64, f64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_jsd_f64_serial
 
-SIMSIMD_MAKE_KLD(serial, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kld_f32_serial
-SIMSIMD_MAKE_JSD(serial, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_jsd_f32_serial
+SIMSIMD_MAKE_KLD(serial, f32, f32, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kld_f32_serial
+SIMSIMD_MAKE_JSD(serial, f32, f32, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_jsd_f32_serial
 
-SIMSIMD_MAKE_KLD(serial, f16, f32, SIMSIMD_F16_TO_F32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kld_f16_serial
-SIMSIMD_MAKE_JSD(serial, f16, f32, SIMSIMD_F16_TO_F32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_jsd_f16_serial
+SIMSIMD_MAKE_KLD(serial, f16, f32, simsimd_f16_to_f32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kld_f16_serial
+SIMSIMD_MAKE_JSD(serial, f16, f32, simsimd_f16_to_f32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_jsd_f16_serial
 
-SIMSIMD_MAKE_KLD(serial, bf16, f32, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kld_bf16_serial
-SIMSIMD_MAKE_JSD(serial, bf16, f32, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_jsd_bf16_serial
+SIMSIMD_MAKE_KLD(serial, bf16, f32, simsimd_bf16_to_f32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kld_bf16_serial
+SIMSIMD_MAKE_JSD(serial, bf16, f32, simsimd_bf16_to_f32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_jsd_bf16_serial
 
-SIMSIMD_MAKE_KLD(accurate, f32, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kld_f32_accurate
-SIMSIMD_MAKE_JSD(accurate, f32, f64, SIMSIMD_DEREFERENCE, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_jsd_f32_accurate
+SIMSIMD_MAKE_KLD(accurate, f32, f64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kld_f32_accurate
+SIMSIMD_MAKE_JSD(accurate, f32, f64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_jsd_f32_accurate
 
-SIMSIMD_MAKE_KLD(accurate, f16, f64, SIMSIMD_F16_TO_F32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kld_f16_accurate
-SIMSIMD_MAKE_JSD(accurate, f16, f64, SIMSIMD_F16_TO_F32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_jsd_f16_accurate
+SIMSIMD_MAKE_KLD(accurate, f16, f64, simsimd_f16_to_f64, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kld_f16_accurate
+SIMSIMD_MAKE_JSD(accurate, f16, f64, simsimd_f16_to_f64, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_jsd_f16_accurate
 
-SIMSIMD_MAKE_KLD(accurate, bf16, f64, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kld_bf16_accurate
-SIMSIMD_MAKE_JSD(accurate, bf16, f64, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_jsd_bf16_accurate
+SIMSIMD_MAKE_KLD(accurate, bf16, f64, simsimd_bf16_to_f64, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_kld_bf16_accurate
+SIMSIMD_MAKE_JSD(accurate, bf16, f64, simsimd_bf16_to_f64, SIMSIMD_F32_DIVISION_EPSILON) // simsimd_jsd_bf16_accurate
 
 #if _SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON

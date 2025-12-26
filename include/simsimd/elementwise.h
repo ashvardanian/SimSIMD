@@ -745,79 +745,79 @@ SIMSIMD_PUBLIC void simsimd_fma_u8_sapphire(simsimd_u8_t const* a, simsimd_u8_t 
         }                                                                                                        \
     }
 
-SIMSIMD_MAKE_SUM(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_sum_f64_serial
-SIMSIMD_MAKE_SUM(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_sum_f32_serial
+SIMSIMD_MAKE_SUM(serial, f64, f64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO) // simsimd_sum_f64_serial
+SIMSIMD_MAKE_SUM(serial, f32, f32, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO) // simsimd_sum_f32_serial
 SIMSIMD_MAKE_SUM(serial, f16, f32, simsimd_f16_to_f32, simsimd_f32_to_f16)         // simsimd_sum_f16_serial
 SIMSIMD_MAKE_SUM(serial, bf16, f32, simsimd_bf16_to_f32, simsimd_f32_to_bf16)      // simsimd_sum_bf16_serial
-SIMSIMD_MAKE_SUM(serial, i8, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_i8)      // simsimd_sum_i8_serial
-SIMSIMD_MAKE_SUM(serial, u8, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_u8)      // simsimd_sum_u8_serial
-SIMSIMD_MAKE_SUM(serial, i16, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_i16)    // simsimd_sum_i16_serial
-SIMSIMD_MAKE_SUM(serial, u16, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_u16)    // simsimd_sum_u16_serial
-SIMSIMD_MAKE_SUM(serial, i32, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_i32)    // simsimd_sum_i32_serial
-SIMSIMD_MAKE_SUM(serial, u32, i64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_i64_to_u32)    // simsimd_sum_u32_serial
-SIMSIMD_MAKE_SUM(serial, i64, i64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_sum_i64_serial
-SIMSIMD_MAKE_SUM(serial, u64, u64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_sum_u64_serial
+SIMSIMD_MAKE_SUM(serial, i8, i64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_i64_to_i8)      // simsimd_sum_i8_serial
+SIMSIMD_MAKE_SUM(serial, u8, i64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_i64_to_u8)      // simsimd_sum_u8_serial
+SIMSIMD_MAKE_SUM(serial, i16, i64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_i64_to_i16)    // simsimd_sum_i16_serial
+SIMSIMD_MAKE_SUM(serial, u16, i64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_i64_to_u16)    // simsimd_sum_u16_serial
+SIMSIMD_MAKE_SUM(serial, i32, i64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_i64_to_i32)    // simsimd_sum_i32_serial
+SIMSIMD_MAKE_SUM(serial, u32, i64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_i64_to_u32)    // simsimd_sum_u32_serial
+SIMSIMD_MAKE_SUM(serial, i64, i64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO) // simsimd_sum_i64_serial
+SIMSIMD_MAKE_SUM(serial, u64, u64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO) // simsimd_sum_u64_serial
 
-SIMSIMD_MAKE_SUM(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_sum_f32_accurate
+SIMSIMD_MAKE_SUM(accurate, f32, f64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO) // simsimd_sum_f32_accurate
 SIMSIMD_MAKE_SUM(accurate, f16, f64, _simsimd_f16_to_f64, _simsimd_f64_to_f16)       // simsimd_sum_f16_accurate
 SIMSIMD_MAKE_SUM(accurate, bf16, f64, _simsimd_bf16_to_f64, _simsimd_f64_to_bf16)    // simsimd_sum_bf16_accurate
 
-SIMSIMD_MAKE_SCALE(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_scale_f64_serial
-SIMSIMD_MAKE_SCALE(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_scale_f32_serial
+SIMSIMD_MAKE_SCALE(serial, f64, f64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO) // simsimd_scale_f64_serial
+SIMSIMD_MAKE_SCALE(serial, f32, f32, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO) // simsimd_scale_f32_serial
 SIMSIMD_MAKE_SCALE(serial, f16, f32, simsimd_f16_to_f32, simsimd_f32_to_f16)         // simsimd_scale_f16_serial
 SIMSIMD_MAKE_SCALE(serial, bf16, f32, simsimd_bf16_to_f32, simsimd_f32_to_bf16)      // simsimd_scale_bf16_serial
-SIMSIMD_MAKE_SCALE(serial, i8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_i8)      // simsimd_scale_i8_serial
-SIMSIMD_MAKE_SCALE(serial, u8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_u8)      // simsimd_scale_u8_serial
-SIMSIMD_MAKE_SCALE(serial, i16, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i16)    // simsimd_scale_i16_serial
-SIMSIMD_MAKE_SCALE(serial, u16, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u16)    // simsimd_scale_u16_serial
-SIMSIMD_MAKE_SCALE(serial, i32, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i32)    // simsimd_scale_i32_serial
-SIMSIMD_MAKE_SCALE(serial, u32, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u32)    // simsimd_scale_u32_serial
-SIMSIMD_MAKE_SCALE(serial, i64, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i64)    // simsimd_scale_i64_serial
-SIMSIMD_MAKE_SCALE(serial, u64, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u64)    // simsimd_scale_u64_serial
+SIMSIMD_MAKE_SCALE(serial, i8, f32, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f32_to_i8)      // simsimd_scale_i8_serial
+SIMSIMD_MAKE_SCALE(serial, u8, f32, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f32_to_u8)      // simsimd_scale_u8_serial
+SIMSIMD_MAKE_SCALE(serial, i16, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_i16)    // simsimd_scale_i16_serial
+SIMSIMD_MAKE_SCALE(serial, u16, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_u16)    // simsimd_scale_u16_serial
+SIMSIMD_MAKE_SCALE(serial, i32, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_i32)    // simsimd_scale_i32_serial
+SIMSIMD_MAKE_SCALE(serial, u32, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_u32)    // simsimd_scale_u32_serial
+SIMSIMD_MAKE_SCALE(serial, i64, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_i64)    // simsimd_scale_i64_serial
+SIMSIMD_MAKE_SCALE(serial, u64, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_u64)    // simsimd_scale_u64_serial
 
-SIMSIMD_MAKE_SCALE(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_scale_f32_accurate
+SIMSIMD_MAKE_SCALE(accurate, f32, f64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO) // simsimd_scale_f32_accurate
 SIMSIMD_MAKE_SCALE(accurate, f16, f64, _simsimd_f16_to_f64, _simsimd_f64_to_f16)       // simsimd_scale_f16_accurate
 SIMSIMD_MAKE_SCALE(accurate, bf16, f64, _simsimd_bf16_to_f64, _simsimd_f64_to_bf16)    // simsimd_scale_bf16_accurate
-SIMSIMD_MAKE_SCALE(accurate, i8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i8)      // simsimd_scale_i8_accurate
-SIMSIMD_MAKE_SCALE(accurate, u8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u8)      // simsimd_scale_u8_accurate
+SIMSIMD_MAKE_SCALE(accurate, i8, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_i8)      // simsimd_scale_i8_accurate
+SIMSIMD_MAKE_SCALE(accurate, u8, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_u8)      // simsimd_scale_u8_accurate
 
-SIMSIMD_MAKE_WSUM(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_wsum_f64_serial
-SIMSIMD_MAKE_WSUM(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_wsum_f32_serial
+SIMSIMD_MAKE_WSUM(serial, f64, f64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO) // simsimd_wsum_f64_serial
+SIMSIMD_MAKE_WSUM(serial, f32, f32, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO) // simsimd_wsum_f32_serial
 SIMSIMD_MAKE_WSUM(serial, f16, f32, simsimd_f16_to_f32, simsimd_f32_to_f16)         // simsimd_wsum_f16_serial
 SIMSIMD_MAKE_WSUM(serial, bf16, f32, simsimd_bf16_to_f32, simsimd_f32_to_bf16)      // simsimd_wsum_bf16_serial
-SIMSIMD_MAKE_WSUM(serial, i8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_i8)      // simsimd_wsum_i8_serial
-SIMSIMD_MAKE_WSUM(serial, u8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_u8)      // simsimd_wsum_u8_serial
-SIMSIMD_MAKE_WSUM(serial, i16, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i16)    // simsimd_wsum_i16_serial
-SIMSIMD_MAKE_WSUM(serial, u16, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u16)    // simsimd_wsum_u16_serial
-SIMSIMD_MAKE_WSUM(serial, i32, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i32)    // simsimd_wsum_i32_serial
-SIMSIMD_MAKE_WSUM(serial, u32, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u32)    // simsimd_wsum_u32_serial
-SIMSIMD_MAKE_WSUM(serial, i64, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i64)    // simsimd_wsum_i64_serial
-SIMSIMD_MAKE_WSUM(serial, u64, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u64)    // simsimd_wsum_u64_serial
+SIMSIMD_MAKE_WSUM(serial, i8, f32, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f32_to_i8)      // simsimd_wsum_i8_serial
+SIMSIMD_MAKE_WSUM(serial, u8, f32, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f32_to_u8)      // simsimd_wsum_u8_serial
+SIMSIMD_MAKE_WSUM(serial, i16, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_i16)    // simsimd_wsum_i16_serial
+SIMSIMD_MAKE_WSUM(serial, u16, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_u16)    // simsimd_wsum_u16_serial
+SIMSIMD_MAKE_WSUM(serial, i32, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_i32)    // simsimd_wsum_i32_serial
+SIMSIMD_MAKE_WSUM(serial, u32, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_u32)    // simsimd_wsum_u32_serial
+SIMSIMD_MAKE_WSUM(serial, i64, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_i64)    // simsimd_wsum_i64_serial
+SIMSIMD_MAKE_WSUM(serial, u64, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_u64)    // simsimd_wsum_u64_serial
 
-SIMSIMD_MAKE_WSUM(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_wsum_f32_accurate
+SIMSIMD_MAKE_WSUM(accurate, f32, f64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO) // simsimd_wsum_f32_accurate
 SIMSIMD_MAKE_WSUM(accurate, f16, f64, _simsimd_f16_to_f64, _simsimd_f64_to_f16)       // simsimd_wsum_f16_accurate
 SIMSIMD_MAKE_WSUM(accurate, bf16, f64, _simsimd_bf16_to_f64, _simsimd_f64_to_bf16)    // simsimd_wsum_bf16_accurate
-SIMSIMD_MAKE_WSUM(accurate, i8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i8)      // simsimd_wsum_i8_accurate
-SIMSIMD_MAKE_WSUM(accurate, u8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u8)      // simsimd_wsum_u8_accurate
+SIMSIMD_MAKE_WSUM(accurate, i8, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_i8)      // simsimd_wsum_i8_accurate
+SIMSIMD_MAKE_WSUM(accurate, u8, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_u8)      // simsimd_wsum_u8_accurate
 
-SIMSIMD_MAKE_FMA(serial, f64, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_fma_f64_serial
-SIMSIMD_MAKE_FMA(serial, f32, f32, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_fma_f32_serial
+SIMSIMD_MAKE_FMA(serial, f64, f64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO) // simsimd_fma_f64_serial
+SIMSIMD_MAKE_FMA(serial, f32, f32, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO) // simsimd_fma_f32_serial
 SIMSIMD_MAKE_FMA(serial, f16, f32, simsimd_f16_to_f32, simsimd_f32_to_f16)         // simsimd_fma_f16_serial
 SIMSIMD_MAKE_FMA(serial, bf16, f32, simsimd_bf16_to_f32, simsimd_f32_to_bf16)      // simsimd_fma_bf16_serial
-SIMSIMD_MAKE_FMA(serial, i8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_i8)      // simsimd_fma_i8_serial
-SIMSIMD_MAKE_FMA(serial, u8, f32, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f32_to_u8)      // simsimd_fma_u8_serial
-SIMSIMD_MAKE_FMA(serial, i16, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i16)    // simsimd_fma_i16_serial
-SIMSIMD_MAKE_FMA(serial, u16, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u16)    // simsimd_fma_u16_serial
-SIMSIMD_MAKE_FMA(serial, i32, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i32)    // simsimd_fma_i32_serial
-SIMSIMD_MAKE_FMA(serial, u32, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u32)    // simsimd_fma_u32_serial
-SIMSIMD_MAKE_FMA(serial, i64, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i64)    // simsimd_fma_i64_serial
-SIMSIMD_MAKE_FMA(serial, u64, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u64)    // simsimd_fma_u64_serial
+SIMSIMD_MAKE_FMA(serial, i8, f32, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f32_to_i8)      // simsimd_fma_i8_serial
+SIMSIMD_MAKE_FMA(serial, u8, f32, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f32_to_u8)      // simsimd_fma_u8_serial
+SIMSIMD_MAKE_FMA(serial, i16, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_i16)    // simsimd_fma_i16_serial
+SIMSIMD_MAKE_FMA(serial, u16, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_u16)    // simsimd_fma_u16_serial
+SIMSIMD_MAKE_FMA(serial, i32, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_i32)    // simsimd_fma_i32_serial
+SIMSIMD_MAKE_FMA(serial, u32, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_u32)    // simsimd_fma_u32_serial
+SIMSIMD_MAKE_FMA(serial, i64, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_i64)    // simsimd_fma_i64_serial
+SIMSIMD_MAKE_FMA(serial, u64, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_u64)    // simsimd_fma_u64_serial
 
-SIMSIMD_MAKE_FMA(accurate, f32, f64, _SIMSIMD_ASSIGN_1_TO_2, _SIMSIMD_ASSIGN_1_TO_2) // simsimd_fma_f32_accurate
+SIMSIMD_MAKE_FMA(accurate, f32, f64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO) // simsimd_fma_f32_accurate
 SIMSIMD_MAKE_FMA(accurate, f16, f64, _simsimd_f16_to_f64, _simsimd_f64_to_f16)       // simsimd_fma_f16_accurate
 SIMSIMD_MAKE_FMA(accurate, bf16, f64, _simsimd_bf16_to_f64, _simsimd_f64_to_bf16)    // simsimd_fma_bf16_accurate
-SIMSIMD_MAKE_FMA(accurate, i8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_i8)      // simsimd_fma_i8_accurate
-SIMSIMD_MAKE_FMA(accurate, u8, f64, _SIMSIMD_ASSIGN_1_TO_2, _simsimd_f64_to_u8)      // simsimd_fma_u8_accurate
+SIMSIMD_MAKE_FMA(accurate, i8, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_i8)      // simsimd_fma_i8_accurate
+SIMSIMD_MAKE_FMA(accurate, u8, f64, SIMSIMD_ASSIGN_FROM_TO, _simsimd_f64_to_u8)      // simsimd_fma_u8_accurate
 
 #if _SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_HASWELL

@@ -386,13 +386,13 @@ SIMSIMD_PUBLIC void simsimd_dots_i8i8i8_sapphire_amx(void *c, simsimd_size_t m, 
             for (simsimd_size_t j = 0; j < b_rows; ++j) {                                                            \
                 simsimd_##input_type##_t const *b_row = (simsimd_##input_type##_t const *)_simsimd_advance_by_bytes( \
                     (void *)b, j * b_stride);                                                                        \
-                simsimd_##accumulator_type##_t sum = 0;                                                              \
+                simsimd_##accumulator_type##_t sum = 0, aik, bjk;                                                    \
                 for (simsimd_size_t k = 0; k < cols; ++k) {                                                          \
-                    simsimd_##accumulator_type##_t aik = load_and_convert(a_row + k);                                \
-                    simsimd_##accumulator_type##_t bjk = load_and_convert(b_row + k);                                \
+                    load_and_convert(a_row + k, &aik);                                                               \
+                    load_and_convert(b_row + k, &bjk);                                                               \
                     sum += aik * bjk;                                                                                \
                 }                                                                                                    \
-                convert_and_store(sum, c_row + j);                                                                   \
+                convert_and_store(&sum, c_row + j);                                                                  \
             }                                                                                                        \
         }                                                                                                            \
     }
@@ -417,13 +417,13 @@ SIMSIMD_PUBLIC void simsimd_dots_i8i8i8_sapphire_amx(void *c, simsimd_size_t m, 
                         for (simsimd_size_t j = jj; j < j_max; ++j) {                                                 \
                             simsimd_##input_type##_t const *b_row =                                                   \
                                 (simsimd_##input_type##_t const *)_simsimd_advance_by_bytes((void *)b, j * b_stride); \
-                            simsimd_##accumulator_type##_t sum = 0;                                                   \
+                            simsimd_##accumulator_type##_t sum = 0, aik, bjk;                                         \
                             for (simsimd_size_t k = kk; k < k_max; ++k) {                                             \
-                                simsimd_##accumulator_type##_t aik = load_and_convert(a_row + k);                     \
-                                simsimd_##accumulator_type##_t bjk = load_and_convert(b_row + k);                     \
+                                load_and_convert(a_row + k, &aik);                                                    \
+                                load_and_convert(b_row + k, &bjk);                                                    \
                                 sum += aik * bjk;                                                                     \
                             }                                                                                         \
-                            convert_and_store(sum, c_row + j);                                                        \
+                            convert_and_store(&sum, c_row + j);                                                       \
                         }                                                                                             \
                     }                                                                                                 \
                 }                                                                                                     \
@@ -431,21 +431,21 @@ SIMSIMD_PUBLIC void simsimd_dots_i8i8i8_sapphire_amx(void *c, simsimd_size_t m, 
         }                                                                                                             \
     }
 
-SIMSIMD_MAKE_TILED_UNPACKED(serial, f64, f64, f64, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT,
+SIMSIMD_MAKE_TILED_UNPACKED(serial, f64, f64, f64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO,
                             16) // simsimd_dots_f64f64f64_serial_unpacked
-SIMSIMD_MAKE_TILED_UNPACKED(serial, f32, f32, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT,
+SIMSIMD_MAKE_TILED_UNPACKED(serial, f32, f32, f32, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO,
                             16) // simsimd_dots_f32_serial_unpacked
-SIMSIMD_MAKE_TILED_UNPACKED(serial, f16, f32, f16, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16,
+SIMSIMD_MAKE_TILED_UNPACKED(serial, f16, f32, f16, simsimd_f16_to_f32, simsimd_f32_to_f16,
                             16) // simsimd_dots_f16f16f32_serial_unpacked
-SIMSIMD_MAKE_TILED_UNPACKED(serial, bf16, f32, bf16, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16,
+SIMSIMD_MAKE_TILED_UNPACKED(serial, bf16, f32, bf16, simsimd_bf16_to_f32, simsimd_f32_to_bf16,
                             16) // simsimd_dots_bf16bf16f32_serial_unpacked
-SIMSIMD_MAKE_TILED_UNPACKED(serial, i8, i64, i8, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT,
+SIMSIMD_MAKE_TILED_UNPACKED(serial, i8, i64, i8, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO,
                             16) // simsimd_dots_i8_serial_unpacked
-SIMSIMD_MAKE_TILED_UNPACKED(accurate, f32, f64, f32, SIMSIMD_DEREFERENCE, SIMSIMD_EXPORT,
+SIMSIMD_MAKE_TILED_UNPACKED(accurate, f32, f64, f32, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_ASSIGN_FROM_TO,
                             16) // simsimd_dots_f32_accurate_unpacked
-SIMSIMD_MAKE_TILED_UNPACKED(accurate, f16, f64, f16, SIMSIMD_F16_TO_F32, SIMSIMD_F32_TO_F16,
+SIMSIMD_MAKE_TILED_UNPACKED(accurate, f16, f64, f16, simsimd_f16_to_f32, simsimd_f32_to_f16,
                             16) // simsimd_dots_f16f16f32_accurate_unpacked
-SIMSIMD_MAKE_TILED_UNPACKED(accurate, bf16, f64, bf16, SIMSIMD_BF16_TO_F32, SIMSIMD_F32_TO_BF16,
+SIMSIMD_MAKE_TILED_UNPACKED(accurate, bf16, f64, bf16, simsimd_bf16_to_f32, simsimd_f32_to_bf16,
                             16) // simsimd_dots_bf16bf16f32_accurate_unpacked
 
 /*  Cache-Blocked GEMM with Outer-Product Micro-Kernel

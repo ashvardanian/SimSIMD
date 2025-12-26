@@ -551,13 +551,13 @@ SIMSIMD_INTERNAL simsimd_f32_t _simsimd_det3x3_f32(simsimd_f32_t const *m) {
         simsimd_##rotation_type##_t *rotation, simsimd_distance_t *scale, simsimd_distance_t *result) { \
         simsimd_##accumulator_type##_t sum_a_x = 0, sum_a_y = 0, sum_a_z = 0;                           \
         simsimd_##accumulator_type##_t sum_b_x = 0, sum_b_y = 0, sum_b_z = 0;                           \
+        simsimd_##accumulator_type##_t val_a_x, val_a_y, val_a_z, val_b_x, val_b_y, val_b_z;            \
         for (simsimd_size_t i = 0; i < n; ++i) {                                                        \
-            sum_a_x += load_and_convert(a + i * 3 + 0);                                                 \
-            sum_a_y += load_and_convert(a + i * 3 + 1);                                                 \
-            sum_a_z += load_and_convert(a + i * 3 + 2);                                                 \
-            sum_b_x += load_and_convert(b + i * 3 + 0);                                                 \
-            sum_b_y += load_and_convert(b + i * 3 + 1);                                                 \
-            sum_b_z += load_and_convert(b + i * 3 + 2);                                                 \
+            load_and_convert(a + i * 3 + 0, &val_a_x), load_and_convert(a + i * 3 + 1, &val_a_y);       \
+            load_and_convert(a + i * 3 + 2, &val_a_z), load_and_convert(b + i * 3 + 0, &val_b_x);       \
+            load_and_convert(b + i * 3 + 1, &val_b_y), load_and_convert(b + i * 3 + 2, &val_b_z);       \
+            sum_a_x += val_a_x, sum_a_y += val_a_y, sum_a_z += val_a_z;                                 \
+            sum_b_x += val_b_x, sum_b_y += val_b_y, sum_b_z += val_b_z;                                 \
         }                                                                                               \
         simsimd_##accumulator_type##_t inv_n = (simsimd_##accumulator_type##_t)1.0 / n;                 \
         simsimd_##accumulator_type##_t centroid_a_x = sum_a_x * inv_n;                                  \
@@ -578,26 +578,20 @@ SIMSIMD_INTERNAL simsimd_f32_t _simsimd_det3x3_f32(simsimd_f32_t const *m) {
         }                                                                                               \
         /* RMSD uses identity rotation and scale=1.0 */                                                 \
         if (rotation) {                                                                                 \
-            rotation[0] = 1;                                                                            \
-            rotation[1] = 0;                                                                            \
-            rotation[2] = 0;                                                                            \
-            rotation[3] = 0;                                                                            \
-            rotation[4] = 1;                                                                            \
-            rotation[5] = 0;                                                                            \
-            rotation[6] = 0;                                                                            \
-            rotation[7] = 0;                                                                            \
-            rotation[8] = 1;                                                                            \
+            rotation[0] = 1, rotation[1] = 0, rotation[2] = 0;                                          \
+            rotation[3] = 0, rotation[4] = 1, rotation[5] = 0;                                          \
+            rotation[6] = 0, rotation[7] = 0, rotation[8] = 1;                                          \
         }                                                                                               \
         if (scale) *scale = 1.0;                                                                        \
         simsimd_##accumulator_type##_t sum_squared = 0;                                                 \
         for (simsimd_size_t i = 0; i < n; ++i) {                                                        \
-            simsimd_##accumulator_type##_t delta_x = (load_and_convert(a + i * 3 + 0) - centroid_a_x) - \
-                                                     (load_and_convert(b + i * 3 + 0) - centroid_b_x);  \
-            simsimd_##accumulator_type##_t delta_y = (load_and_convert(a + i * 3 + 1) - centroid_a_y) - \
-                                                     (load_and_convert(b + i * 3 + 1) - centroid_b_y);  \
-            simsimd_##accumulator_type##_t delta_z = (load_and_convert(a + i * 3 + 2) - centroid_a_z) - \
-                                                     (load_and_convert(b + i * 3 + 2) - centroid_b_z);  \
-            sum_squared += delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;                   \
+            load_and_convert(a + i * 3 + 0, &val_a_x), load_and_convert(b + i * 3 + 0, &val_b_x);       \
+            load_and_convert(a + i * 3 + 1, &val_a_y), load_and_convert(b + i * 3 + 1, &val_b_y);       \
+            load_and_convert(a + i * 3 + 2, &val_a_z), load_and_convert(b + i * 3 + 2, &val_b_z);       \
+            simsimd_##accumulator_type##_t dx = (val_a_x - centroid_a_x) - (val_b_x - centroid_b_x);    \
+            simsimd_##accumulator_type##_t dy = (val_a_y - centroid_a_y) - (val_b_y - centroid_b_y);    \
+            simsimd_##accumulator_type##_t dz = (val_a_z - centroid_a_z) - (val_b_z - centroid_b_z);    \
+            sum_squared += dx * dx + dy * dy + dz * dz;                                                 \
         }                                                                                               \
         *result = SIMSIMD_SQRT(sum_squared * inv_n);                                                    \
     }
@@ -613,13 +607,13 @@ SIMSIMD_INTERNAL simsimd_f32_t _simsimd_det3x3_f32(simsimd_f32_t const *m) {
         /* Step 1: Compute centroids */                                                                 \
         simsimd_##accumulator_type##_t sum_a_x = 0, sum_a_y = 0, sum_a_z = 0;                           \
         simsimd_##accumulator_type##_t sum_b_x = 0, sum_b_y = 0, sum_b_z = 0;                           \
+        simsimd_##accumulator_type##_t val_a_x, val_a_y, val_a_z, val_b_x, val_b_y, val_b_z;            \
         for (simsimd_size_t i = 0; i < n; ++i) {                                                        \
-            sum_a_x += load_and_convert(a + i * 3 + 0);                                                 \
-            sum_a_y += load_and_convert(a + i * 3 + 1);                                                 \
-            sum_a_z += load_and_convert(a + i * 3 + 2);                                                 \
-            sum_b_x += load_and_convert(b + i * 3 + 0);                                                 \
-            sum_b_y += load_and_convert(b + i * 3 + 1);                                                 \
-            sum_b_z += load_and_convert(b + i * 3 + 2);                                                 \
+            load_and_convert(a + i * 3 + 0, &val_a_x), load_and_convert(a + i * 3 + 1, &val_a_y);       \
+            load_and_convert(a + i * 3 + 2, &val_a_z), load_and_convert(b + i * 3 + 0, &val_b_x);       \
+            load_and_convert(b + i * 3 + 1, &val_b_y), load_and_convert(b + i * 3 + 2, &val_b_z);       \
+            sum_a_x += val_a_x, sum_a_y += val_a_y, sum_a_z += val_a_z;                                 \
+            sum_b_x += val_b_x, sum_b_y += val_b_y, sum_b_z += val_b_z;                                 \
         }                                                                                               \
         simsimd_##accumulator_type##_t inv_n = (simsimd_##accumulator_type##_t)1.0 / n;                 \
         simsimd_##accumulator_type##_t centroid_a_x = sum_a_x * inv_n;                                  \
@@ -640,28 +634,20 @@ SIMSIMD_INTERNAL simsimd_f32_t _simsimd_det3x3_f32(simsimd_f32_t const *m) {
         }                                                                                               \
         /* Step 2: Build 3x3 covariance matrix H = (A - centroid_A)^T * (B - centroid_B) */             \
         /* Use accumulator_type for high-precision accumulation */                                      \
-        simsimd_##accumulator_type##_t covariance_acc[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};                 \
+        simsimd_##accumulator_type##_t h[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};                              \
         for (simsimd_size_t i = 0; i < n; ++i) {                                                        \
-            simsimd_##accumulator_type##_t point_a[3], point_b[3];                                      \
-            point_a[0] = load_and_convert(a + i * 3 + 0) - centroid_a_x;                                \
-            point_a[1] = load_and_convert(a + i * 3 + 1) - centroid_a_y;                                \
-            point_a[2] = load_and_convert(a + i * 3 + 2) - centroid_a_z;                                \
-            point_b[0] = load_and_convert(b + i * 3 + 0) - centroid_b_x;                                \
-            point_b[1] = load_and_convert(b + i * 3 + 1) - centroid_b_y;                                \
-            point_b[2] = load_and_convert(b + i * 3 + 2) - centroid_b_z;                                \
-            covariance_acc[0] += point_a[0] * point_b[0];                                               \
-            covariance_acc[1] += point_a[0] * point_b[1];                                               \
-            covariance_acc[2] += point_a[0] * point_b[2];                                               \
-            covariance_acc[3] += point_a[1] * point_b[0];                                               \
-            covariance_acc[4] += point_a[1] * point_b[1];                                               \
-            covariance_acc[5] += point_a[1] * point_b[2];                                               \
-            covariance_acc[6] += point_a[2] * point_b[0];                                               \
-            covariance_acc[7] += point_a[2] * point_b[1];                                               \
-            covariance_acc[8] += point_a[2] * point_b[2];                                               \
+            load_and_convert(a + i * 3 + 0, &val_a_x), load_and_convert(b + i * 3 + 0, &val_b_x);       \
+            load_and_convert(a + i * 3 + 1, &val_a_y), load_and_convert(b + i * 3 + 1, &val_b_y);       \
+            load_and_convert(a + i * 3 + 2, &val_a_z), load_and_convert(b + i * 3 + 2, &val_b_z);       \
+            val_a_x -= centroid_a_x, val_a_y -= centroid_a_y, val_a_z -= centroid_a_z;                  \
+            val_b_x -= centroid_b_x, val_b_y -= centroid_b_y, val_b_z -= centroid_b_z;                  \
+            h[0] += val_a_x * val_b_x, h[1] += val_a_x * val_b_y, h[2] += val_a_x * val_b_z;            \
+            h[3] += val_a_y * val_b_x, h[4] += val_a_y * val_b_y, h[5] += val_a_y * val_b_z;            \
+            h[6] += val_a_z * val_b_x, h[7] += val_a_z * val_b_y, h[8] += val_a_z * val_b_z;            \
         }                                                                                               \
         /* Convert to f32 for SVD (SVD precision is adequate at f32) */                                 \
         simsimd_f32_t cross_covariance[9];                                                              \
-        for (int j = 0; j < 9; ++j) cross_covariance[j] = (simsimd_f32_t)covariance_acc[j];             \
+        for (int j = 0; j < 9; ++j) cross_covariance[j] = (simsimd_f32_t)h[j];                          \
         /* Step 3: SVD of H = U * S * V^T */                                                            \
         simsimd_f32_t svd_u[9], svd_s[9], svd_v[9];                                                     \
         _simsimd_svd3x3_f32(cross_covariance, svd_u, svd_s, svd_v);                                     \
@@ -679,9 +665,7 @@ SIMSIMD_INTERNAL simsimd_f32_t _simsimd_det3x3_f32(simsimd_f32_t const *m) {
         /* Handle reflection: if det(R) < 0, negate third column of V and recompute R */                \
         simsimd_f32_t rotation_det = _simsimd_det3x3_f32(rotation_matrix);                              \
         if (rotation_det < 0) {                                                                         \
-            svd_v[2] = -svd_v[2];                                                                       \
-            svd_v[5] = -svd_v[5];                                                                       \
-            svd_v[8] = -svd_v[8];                                                                       \
+            svd_v[2] = -svd_v[2], svd_v[5] = -svd_v[5], svd_v[8] = -svd_v[8];                           \
             rotation_matrix[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];       \
             rotation_matrix[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];       \
             rotation_matrix[2] = svd_v[0] * svd_u[6] + svd_v[1] * svd_u[7] + svd_v[2] * svd_u[8];       \
@@ -701,22 +685,25 @@ SIMSIMD_INTERNAL simsimd_f32_t _simsimd_det3x3_f32(simsimd_f32_t const *m) {
         simsimd_##accumulator_type##_t sum_squared = 0;                                                 \
         for (simsimd_size_t i = 0; i < n; ++i) {                                                        \
             simsimd_f32_t point_a[3], point_b[3], rotated_point_a[3];                                   \
-            point_a[0] = (simsimd_f32_t)(load_and_convert(a + i * 3 + 0) - centroid_a_x);               \
-            point_a[1] = (simsimd_f32_t)(load_and_convert(a + i * 3 + 1) - centroid_a_y);               \
-            point_a[2] = (simsimd_f32_t)(load_and_convert(a + i * 3 + 2) - centroid_a_z);               \
-            point_b[0] = (simsimd_f32_t)(load_and_convert(b + i * 3 + 0) - centroid_b_x);               \
-            point_b[1] = (simsimd_f32_t)(load_and_convert(b + i * 3 + 1) - centroid_b_y);               \
-            point_b[2] = (simsimd_f32_t)(load_and_convert(b + i * 3 + 2) - centroid_b_z);               \
+            load_and_convert(a + i * 3 + 0, &val_a_x), load_and_convert(a + i * 3 + 1, &val_a_y);       \
+            load_and_convert(a + i * 3 + 2, &val_a_z), load_and_convert(b + i * 3 + 0, &val_b_x);       \
+            load_and_convert(b + i * 3 + 1, &val_b_y), load_and_convert(b + i * 3 + 2, &val_b_z);       \
+            point_a[0] = (simsimd_f32_t)(val_a_x - centroid_a_x);                                       \
+            point_a[1] = (simsimd_f32_t)(val_a_y - centroid_a_y);                                       \
+            point_a[2] = (simsimd_f32_t)(val_a_z - centroid_a_z);                                       \
+            point_b[0] = (simsimd_f32_t)(val_b_x - centroid_b_x);                                       \
+            point_b[1] = (simsimd_f32_t)(val_b_y - centroid_b_y);                                       \
+            point_b[2] = (simsimd_f32_t)(val_b_z - centroid_b_z);                                       \
             rotated_point_a[0] = rotation_matrix[0] * point_a[0] + rotation_matrix[1] * point_a[1] +    \
                                  rotation_matrix[2] * point_a[2];                                       \
             rotated_point_a[1] = rotation_matrix[3] * point_a[0] + rotation_matrix[4] * point_a[1] +    \
                                  rotation_matrix[5] * point_a[2];                                       \
             rotated_point_a[2] = rotation_matrix[6] * point_a[0] + rotation_matrix[7] * point_a[1] +    \
                                  rotation_matrix[8] * point_a[2];                                       \
-            simsimd_f32_t delta_x = rotated_point_a[0] - point_b[0];                                    \
-            simsimd_f32_t delta_y = rotated_point_a[1] - point_b[1];                                    \
-            simsimd_f32_t delta_z = rotated_point_a[2] - point_b[2];                                    \
-            sum_squared += delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;                   \
+            simsimd_f32_t dx = rotated_point_a[0] - point_b[0];                                         \
+            simsimd_f32_t dy = rotated_point_a[1] - point_b[1];                                         \
+            simsimd_f32_t dz = rotated_point_a[2] - point_b[2];                                         \
+            sum_squared += dx * dx + dy * dy + dz * dz;                                                 \
         }                                                                                               \
         *result = SIMSIMD_SQRT(sum_squared * inv_n);                                                    \
     }
@@ -734,13 +721,13 @@ SIMSIMD_INTERNAL simsimd_f32_t _simsimd_det3x3_f32(simsimd_f32_t const *m) {
         /* Step 1: Compute centroids */                                                                 \
         simsimd_##accumulator_type##_t sum_a_x = 0, sum_a_y = 0, sum_a_z = 0;                           \
         simsimd_##accumulator_type##_t sum_b_x = 0, sum_b_y = 0, sum_b_z = 0;                           \
+        simsimd_##accumulator_type##_t val_a_x, val_a_y, val_a_z, val_b_x, val_b_y, val_b_z;            \
         for (simsimd_size_t i = 0; i < n; ++i) {                                                        \
-            sum_a_x += load_and_convert(a + i * 3 + 0);                                                 \
-            sum_a_y += load_and_convert(a + i * 3 + 1);                                                 \
-            sum_a_z += load_and_convert(a + i * 3 + 2);                                                 \
-            sum_b_x += load_and_convert(b + i * 3 + 0);                                                 \
-            sum_b_y += load_and_convert(b + i * 3 + 1);                                                 \
-            sum_b_z += load_and_convert(b + i * 3 + 2);                                                 \
+            load_and_convert(a + i * 3 + 0, &val_a_x), load_and_convert(a + i * 3 + 1, &val_a_y);       \
+            load_and_convert(a + i * 3 + 2, &val_a_z), load_and_convert(b + i * 3 + 0, &val_b_x);       \
+            load_and_convert(b + i * 3 + 1, &val_b_y), load_and_convert(b + i * 3 + 2, &val_b_z);       \
+            sum_a_x += val_a_x, sum_a_y += val_a_y, sum_a_z += val_a_z;                                 \
+            sum_b_x += val_b_x, sum_b_y += val_b_y, sum_b_z += val_b_z;                                 \
         }                                                                                               \
         simsimd_##accumulator_type##_t inv_n = (simsimd_##accumulator_type##_t)1.0 / n;                 \
         simsimd_##accumulator_type##_t centroid_a_x = sum_a_x * inv_n;                                  \
@@ -760,31 +747,23 @@ SIMSIMD_INTERNAL simsimd_f32_t _simsimd_det3x3_f32(simsimd_f32_t const *m) {
             b_centroid[2] = (simsimd_##input_type##_t)centroid_b_z;                                     \
         }                                                                                               \
         /* Step 2: Build covariance matrix H and compute variance of A */                               \
-        simsimd_##accumulator_type##_t covariance_acc[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};                 \
+        simsimd_##accumulator_type##_t h[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};                              \
         simsimd_##accumulator_type##_t variance_a = 0;                                                  \
         for (simsimd_size_t i = 0; i < n; ++i) {                                                        \
-            simsimd_##accumulator_type##_t point_a[3], point_b[3];                                      \
-            point_a[0] = load_and_convert(a + i * 3 + 0) - centroid_a_x;                                \
-            point_a[1] = load_and_convert(a + i * 3 + 1) - centroid_a_y;                                \
-            point_a[2] = load_and_convert(a + i * 3 + 2) - centroid_a_z;                                \
-            point_b[0] = load_and_convert(b + i * 3 + 0) - centroid_b_x;                                \
-            point_b[1] = load_and_convert(b + i * 3 + 1) - centroid_b_y;                                \
-            point_b[2] = load_and_convert(b + i * 3 + 2) - centroid_b_z;                                \
-            variance_a += point_a[0] * point_a[0] + point_a[1] * point_a[1] + point_a[2] * point_a[2];  \
-            covariance_acc[0] += point_a[0] * point_b[0];                                               \
-            covariance_acc[1] += point_a[0] * point_b[1];                                               \
-            covariance_acc[2] += point_a[0] * point_b[2];                                               \
-            covariance_acc[3] += point_a[1] * point_b[0];                                               \
-            covariance_acc[4] += point_a[1] * point_b[1];                                               \
-            covariance_acc[5] += point_a[1] * point_b[2];                                               \
-            covariance_acc[6] += point_a[2] * point_b[0];                                               \
-            covariance_acc[7] += point_a[2] * point_b[1];                                               \
-            covariance_acc[8] += point_a[2] * point_b[2];                                               \
+            load_and_convert(a + i * 3 + 0, &val_a_x), load_and_convert(b + i * 3 + 0, &val_b_x);       \
+            load_and_convert(a + i * 3 + 1, &val_a_y), load_and_convert(b + i * 3 + 1, &val_b_y);       \
+            load_and_convert(a + i * 3 + 2, &val_a_z), load_and_convert(b + i * 3 + 2, &val_b_z);       \
+            val_a_x -= centroid_a_x, val_a_y -= centroid_a_y, val_a_z -= centroid_a_z;                  \
+            val_b_x -= centroid_b_x, val_b_y -= centroid_b_y, val_b_z -= centroid_b_z;                  \
+            variance_a += val_a_x * val_a_x + val_a_y * val_a_y + val_a_z * val_a_z;                    \
+            h[0] += val_a_x * val_b_x, h[1] += val_a_x * val_b_y, h[2] += val_a_x * val_b_z;            \
+            h[3] += val_a_y * val_b_x, h[4] += val_a_y * val_b_y, h[5] += val_a_y * val_b_z;            \
+            h[6] += val_a_z * val_b_x, h[7] += val_a_z * val_b_y, h[8] += val_a_z * val_b_z;            \
         }                                                                                               \
         variance_a *= inv_n;                                                                            \
         /* Convert to f32 for SVD */                                                                    \
         simsimd_f32_t cross_covariance[9];                                                              \
-        for (int j = 0; j < 9; ++j) cross_covariance[j] = (simsimd_f32_t)covariance_acc[j];             \
+        for (int j = 0; j < 9; ++j) cross_covariance[j] = (simsimd_f32_t)h[j];                          \
         /* Step 3: SVD of H = U * S * V^T */                                                            \
         simsimd_f32_t svd_u[9], svd_s[9], svd_v[9];                                                     \
         _simsimd_svd3x3_f32(cross_covariance, svd_u, svd_s, svd_v);                                     \
@@ -805,12 +784,10 @@ SIMSIMD_INTERNAL simsimd_f32_t _simsimd_det3x3_f32(simsimd_f32_t const *m) {
         simsimd_f32_t sign_det = rotation_det < 0 ? -1.0f : 1.0f;                                       \
         simsimd_f32_t trace_scaled_s = svd_s[0] + svd_s[4] + sign_det * svd_s[8];                       \
         simsimd_##accumulator_type##_t scale_factor = (simsimd_##accumulator_type##_t)trace_scaled_s /  \
-                                                      (n * variance_a);                                 \
+                                                      ((simsimd_##accumulator_type##_t)n * variance_a); \
         if (scale) *scale = scale_factor;                                                               \
         if (rotation_det < 0) {                                                                         \
-            svd_v[2] = -svd_v[2];                                                                       \
-            svd_v[5] = -svd_v[5];                                                                       \
-            svd_v[8] = -svd_v[8];                                                                       \
+            svd_v[2] = -svd_v[2], svd_v[5] = -svd_v[5], svd_v[8] = -svd_v[8];                           \
             rotation_matrix[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];       \
             rotation_matrix[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];       \
             rotation_matrix[2] = svd_v[0] * svd_u[6] + svd_v[1] * svd_u[7] + svd_v[2] * svd_u[8];       \
@@ -829,12 +806,15 @@ SIMSIMD_INTERNAL simsimd_f32_t _simsimd_det3x3_f32(simsimd_f32_t const *m) {
         simsimd_##accumulator_type##_t sum_squared = 0;                                                 \
         for (simsimd_size_t i = 0; i < n; ++i) {                                                        \
             simsimd_f32_t point_a[3], point_b[3], rotated_point_a[3];                                   \
-            point_a[0] = (simsimd_f32_t)(load_and_convert(a + i * 3 + 0) - centroid_a_x);               \
-            point_a[1] = (simsimd_f32_t)(load_and_convert(a + i * 3 + 1) - centroid_a_y);               \
-            point_a[2] = (simsimd_f32_t)(load_and_convert(a + i * 3 + 2) - centroid_a_z);               \
-            point_b[0] = (simsimd_f32_t)(load_and_convert(b + i * 3 + 0) - centroid_b_x);               \
-            point_b[1] = (simsimd_f32_t)(load_and_convert(b + i * 3 + 1) - centroid_b_y);               \
-            point_b[2] = (simsimd_f32_t)(load_and_convert(b + i * 3 + 2) - centroid_b_z);               \
+            load_and_convert(a + i * 3 + 0, &val_a_x), load_and_convert(a + i * 3 + 1, &val_a_y);       \
+            load_and_convert(a + i * 3 + 2, &val_a_z), load_and_convert(b + i * 3 + 0, &val_b_x);       \
+            load_and_convert(b + i * 3 + 1, &val_b_y), load_and_convert(b + i * 3 + 2, &val_b_z);       \
+            point_a[0] = (simsimd_f32_t)(val_a_x - centroid_a_x);                                       \
+            point_a[1] = (simsimd_f32_t)(val_a_y - centroid_a_y);                                       \
+            point_a[2] = (simsimd_f32_t)(val_a_z - centroid_a_z);                                       \
+            point_b[0] = (simsimd_f32_t)(val_b_x - centroid_b_x);                                       \
+            point_b[1] = (simsimd_f32_t)(val_b_y - centroid_b_y);                                       \
+            point_b[2] = (simsimd_f32_t)(val_b_z - centroid_b_z);                                       \
             rotated_point_a[0] = (simsimd_f32_t)scale_factor *                                          \
                                  (rotation_matrix[0] * point_a[0] + rotation_matrix[1] * point_a[1] +   \
                                   rotation_matrix[2] * point_a[2]);                                     \
@@ -844,41 +824,41 @@ SIMSIMD_INTERNAL simsimd_f32_t _simsimd_det3x3_f32(simsimd_f32_t const *m) {
             rotated_point_a[2] = (simsimd_f32_t)scale_factor *                                          \
                                  (rotation_matrix[6] * point_a[0] + rotation_matrix[7] * point_a[1] +   \
                                   rotation_matrix[8] * point_a[2]);                                     \
-            simsimd_f32_t delta_x = rotated_point_a[0] - point_b[0];                                    \
-            simsimd_f32_t delta_y = rotated_point_a[1] - point_b[1];                                    \
-            simsimd_f32_t delta_z = rotated_point_a[2] - point_b[2];                                    \
-            sum_squared += delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;                   \
+            simsimd_f32_t dx = rotated_point_a[0] - point_b[0];                                         \
+            simsimd_f32_t dy = rotated_point_a[1] - point_b[1];                                         \
+            simsimd_f32_t dz = rotated_point_a[2] - point_b[2];                                         \
+            sum_squared += dx * dx + dy * dy + dz * dz;                                                 \
         }                                                                                               \
         *result = SIMSIMD_SQRT(sum_squared * inv_n);                                                    \
     }
 
-SIMSIMD_MAKE_RMSD(serial, f64, f64, f64, SIMSIMD_DEREFERENCE)    // simsimd_rmsd_f64_serial
-SIMSIMD_MAKE_KABSCH(serial, f64, f64, f64, SIMSIMD_DEREFERENCE)  // simsimd_kabsch_f64_serial
-SIMSIMD_MAKE_UMEYAMA(serial, f64, f64, f64, SIMSIMD_DEREFERENCE) // simsimd_umeyama_f64_serial
+SIMSIMD_MAKE_RMSD(serial, f64, f64, f64, SIMSIMD_ASSIGN_FROM_TO)    // simsimd_rmsd_f64_serial
+SIMSIMD_MAKE_KABSCH(serial, f64, f64, f64, SIMSIMD_ASSIGN_FROM_TO)  // simsimd_kabsch_f64_serial
+SIMSIMD_MAKE_UMEYAMA(serial, f64, f64, f64, SIMSIMD_ASSIGN_FROM_TO) // simsimd_umeyama_f64_serial
 
-SIMSIMD_MAKE_RMSD(serial, f32, f32, f32, SIMSIMD_DEREFERENCE)    // simsimd_rmsd_f32_serial
-SIMSIMD_MAKE_KABSCH(serial, f32, f32, f32, SIMSIMD_DEREFERENCE)  // simsimd_kabsch_f32_serial
-SIMSIMD_MAKE_UMEYAMA(serial, f32, f32, f32, SIMSIMD_DEREFERENCE) // simsimd_umeyama_f32_serial
+SIMSIMD_MAKE_RMSD(serial, f32, f32, f32, SIMSIMD_ASSIGN_FROM_TO)    // simsimd_rmsd_f32_serial
+SIMSIMD_MAKE_KABSCH(serial, f32, f32, f32, SIMSIMD_ASSIGN_FROM_TO)  // simsimd_kabsch_f32_serial
+SIMSIMD_MAKE_UMEYAMA(serial, f32, f32, f32, SIMSIMD_ASSIGN_FROM_TO) // simsimd_umeyama_f32_serial
 
-SIMSIMD_MAKE_RMSD(serial, f16, f32, f32, SIMSIMD_F16_TO_F32)    // simsimd_rmsd_f16_serial
-SIMSIMD_MAKE_KABSCH(serial, f16, f32, f32, SIMSIMD_F16_TO_F32)  // simsimd_kabsch_f16_serial
-SIMSIMD_MAKE_UMEYAMA(serial, f16, f32, f32, SIMSIMD_F16_TO_F32) // simsimd_umeyama_f16_serial
+SIMSIMD_MAKE_RMSD(serial, f16, f32, f32, simsimd_f16_to_f32)    // simsimd_rmsd_f16_serial
+SIMSIMD_MAKE_KABSCH(serial, f16, f32, f32, simsimd_f16_to_f32)  // simsimd_kabsch_f16_serial
+SIMSIMD_MAKE_UMEYAMA(serial, f16, f32, f32, simsimd_f16_to_f32) // simsimd_umeyama_f16_serial
 
-SIMSIMD_MAKE_RMSD(serial, bf16, f32, f32, SIMSIMD_BF16_TO_F32)    // simsimd_rmsd_bf16_serial
-SIMSIMD_MAKE_KABSCH(serial, bf16, f32, f32, SIMSIMD_BF16_TO_F32)  // simsimd_kabsch_bf16_serial
-SIMSIMD_MAKE_UMEYAMA(serial, bf16, f32, f32, SIMSIMD_BF16_TO_F32) // simsimd_umeyama_bf16_serial
+SIMSIMD_MAKE_RMSD(serial, bf16, f32, f32, simsimd_bf16_to_f32)    // simsimd_rmsd_bf16_serial
+SIMSIMD_MAKE_KABSCH(serial, bf16, f32, f32, simsimd_bf16_to_f32)  // simsimd_kabsch_bf16_serial
+SIMSIMD_MAKE_UMEYAMA(serial, bf16, f32, f32, simsimd_bf16_to_f32) // simsimd_umeyama_bf16_serial
 
-SIMSIMD_MAKE_RMSD(accurate, f32, f64, f32, SIMSIMD_DEREFERENCE)    // simsimd_rmsd_f32_accurate
-SIMSIMD_MAKE_KABSCH(accurate, f32, f64, f32, SIMSIMD_DEREFERENCE)  // simsimd_kabsch_f32_accurate
-SIMSIMD_MAKE_UMEYAMA(accurate, f32, f64, f32, SIMSIMD_DEREFERENCE) // simsimd_umeyama_f32_accurate
+SIMSIMD_MAKE_RMSD(accurate, f32, f64, f32, SIMSIMD_ASSIGN_FROM_TO)    // simsimd_rmsd_f32_accurate
+SIMSIMD_MAKE_KABSCH(accurate, f32, f64, f32, SIMSIMD_ASSIGN_FROM_TO)  // simsimd_kabsch_f32_accurate
+SIMSIMD_MAKE_UMEYAMA(accurate, f32, f64, f32, SIMSIMD_ASSIGN_FROM_TO) // simsimd_umeyama_f32_accurate
 
-SIMSIMD_MAKE_RMSD(accurate, f16, f64, f32, SIMSIMD_F16_TO_F32)    // simsimd_rmsd_f16_accurate
-SIMSIMD_MAKE_KABSCH(accurate, f16, f64, f32, SIMSIMD_F16_TO_F32)  // simsimd_kabsch_f16_accurate
-SIMSIMD_MAKE_UMEYAMA(accurate, f16, f64, f32, SIMSIMD_F16_TO_F32) // simsimd_umeyama_f16_accurate
+SIMSIMD_MAKE_RMSD(accurate, f16, f64, f64, simsimd_f16_to_f64)    // simsimd_rmsd_f16_accurate
+SIMSIMD_MAKE_KABSCH(accurate, f16, f64, f64, simsimd_f16_to_f64)  // simsimd_kabsch_f16_accurate
+SIMSIMD_MAKE_UMEYAMA(accurate, f16, f64, f64, simsimd_f16_to_f64) // simsimd_umeyama_f16_accurate
 
-SIMSIMD_MAKE_RMSD(accurate, bf16, f64, f32, SIMSIMD_BF16_TO_F32)    // simsimd_rmsd_bf16_accurate
-SIMSIMD_MAKE_KABSCH(accurate, bf16, f64, f32, SIMSIMD_BF16_TO_F32)  // simsimd_kabsch_bf16_accurate
-SIMSIMD_MAKE_UMEYAMA(accurate, bf16, f64, f32, SIMSIMD_BF16_TO_F32) // simsimd_umeyama_bf16_accurate
+SIMSIMD_MAKE_RMSD(accurate, bf16, f64, f64, simsimd_bf16_to_f64)    // simsimd_rmsd_bf16_accurate
+SIMSIMD_MAKE_KABSCH(accurate, bf16, f64, f64, simsimd_bf16_to_f64)  // simsimd_kabsch_bf16_accurate
+SIMSIMD_MAKE_UMEYAMA(accurate, bf16, f64, f64, simsimd_bf16_to_f64) // simsimd_umeyama_bf16_accurate
 
 #if _SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_SKYLAKE
