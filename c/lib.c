@@ -78,10 +78,10 @@ extern "C" {
         metric(a, b, n, (void *)results);                                                                          \
     }
 
-#define SIMSIMD_DECLARATION_SPARSE(name, extension, type)                                                          \
+#define SIMSIMD_DECLARATION_SPARSE(name, extension, type, output_type)                                             \
     SIMSIMD_DYNAMIC void simsimd_##name##_##extension(simsimd_##type##_t const *a, simsimd_##type##_t const *b,    \
                                                       simsimd_size_t a_length, simsimd_size_t b_length,            \
-                                                      simsimd_distance_t *result) {                                \
+                                                      simsimd_##output_type##_t *result) {                         \
         static simsimd_metric_sparse_punned_t metric = 0;                                                          \
         if (metric == 0) {                                                                                         \
             simsimd_capability_t used_capability;                                                                  \
@@ -95,23 +95,22 @@ extern "C" {
         metric(a, b, a_length, b_length, result);                                                                  \
     }
 
-#define SIMSIMD_DECLARATION_SPARSE_DOT(name, index_type, weight_type, output_type)                                    \
-    SIMSIMD_DYNAMIC void simsimd_##name##_##index_type##weight_type(                                                  \
-        simsimd_##index_type##_t const *a, simsimd_##index_type##_t const *b,                                         \
-        simsimd_##weight_type##_t const *a_weights, simsimd_##weight_type##_t const *b_weights,                       \
-        simsimd_size_t a_length, simsimd_size_t b_length, simsimd_##output_type##_t *product) {                       \
-        static simsimd_metric_sparse_dot_punned_t metric = 0;                                                         \
-        if (metric == 0) {                                                                                            \
-            simsimd_capability_t used_capability;                                                                     \
-            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##index_type##weight_type##_k,              \
-                                       simsimd_capabilities(), simsimd_cap_any_k, (simsimd_kernel_punned_t *)&metric, \
-                                       &used_capability);                                                             \
-            if (!metric) {                                                                                            \
-                *(simsimd_u64_t *)product = 0x7FF0000000000001ull;                                                    \
-                return;                                                                                               \
-            }                                                                                                         \
-        }                                                                                                             \
-        metric(a, b, a_weights, b_weights, a_length, b_length, (void *)product);                                      \
+#define SIMSIMD_DECLARATION_SPARSE_DOT(name, index_type, weight_type, output_type)                                   \
+    SIMSIMD_DYNAMIC void simsimd_##name##_##index_type##weight_type(                                                 \
+        simsimd_##index_type##_t const *a, simsimd_##index_type##_t const *b,                                        \
+        simsimd_##weight_type##_t const *a_weights, simsimd_##weight_type##_t const *b_weights,                      \
+        simsimd_size_t a_length, simsimd_size_t b_length, simsimd_##output_type##_t *product) {                      \
+        static simsimd_metric_sparse_dot_punned_t metric = 0;                                                        \
+        if (metric == 0) {                                                                                           \
+            simsimd_capability_t used_capability;                                                                    \
+            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##weight_type##_k, simsimd_capabilities(), \
+                                       simsimd_cap_any_k, (simsimd_kernel_punned_t *)&metric, &used_capability);     \
+            if (!metric) {                                                                                           \
+                *(simsimd_u64_t *)product = 0x7FF0000000000001ull;                                                   \
+                return;                                                                                              \
+            }                                                                                                        \
+        }                                                                                                            \
+        metric(a, b, a_weights, b_weights, a_length, b_length, (void *)product);                                     \
     }
 
 #define SIMSIMD_DECLARATION_CURVED(name, extension, output_type)                                                   \
@@ -293,8 +292,8 @@ SIMSIMD_DECLARATION_DENSE(jsd, f32, f32)
 SIMSIMD_DECLARATION_DENSE(jsd, f64, f64)
 
 // Sparse sets
-SIMSIMD_DECLARATION_SPARSE(intersect, u16, u16)
-SIMSIMD_DECLARATION_SPARSE(intersect, u32, u32)
+SIMSIMD_DECLARATION_SPARSE(intersect, u16, u16, u32)
+SIMSIMD_DECLARATION_SPARSE(intersect, u32, u32, u32)
 SIMSIMD_DECLARATION_SPARSE_DOT(sparse_dot, u16, bf16, f32)
 SIMSIMD_DECLARATION_SPARSE_DOT(sparse_dot, u32, f32, f32)
 
@@ -331,8 +330,8 @@ SIMSIMD_DECLARATION_SCALE(scale, f16, f32)
 SIMSIMD_DECLARATION_SCALE(scale, bf16, f32)
 SIMSIMD_DECLARATION_SCALE(scale, i8, f32)
 SIMSIMD_DECLARATION_SCALE(scale, u8, f32)
-SIMSIMD_DECLARATION_SCALE(scale, i16, f64)
-SIMSIMD_DECLARATION_SCALE(scale, u16, f64)
+SIMSIMD_DECLARATION_SCALE(scale, i16, f32)
+SIMSIMD_DECLARATION_SCALE(scale, u16, f32)
 SIMSIMD_DECLARATION_SCALE(scale, i32, f64)
 SIMSIMD_DECLARATION_SCALE(scale, u32, f64)
 SIMSIMD_DECLARATION_SCALE(scale, i64, f64)

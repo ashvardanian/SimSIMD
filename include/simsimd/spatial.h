@@ -256,6 +256,12 @@ SIMSIMD_PUBLIC void simsimd_angular_bf16_serial(simsimd_bf16_t const* a, simsimd
 /** @copydoc simsimd_l2_f64 */
 SIMSIMD_PUBLIC void simsimd_l2_i8_serial(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                          simsimd_f32_t* result);
+/** @copydoc simsimd_l2_f64 */
+SIMSIMD_PUBLIC void simsimd_l2_i8_accurate(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
+                                           simsimd_distance_t* result);
+/** @copydoc simsimd_l2sq_f64 */
+SIMSIMD_PUBLIC void simsimd_l2sq_i8_accurate(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
+                                             simsimd_u32_t* result);
 /** @copydoc simsimd_l2sq_f64 */
 SIMSIMD_PUBLIC void simsimd_l2sq_i8_serial(simsimd_i8_t const* a, simsimd_i8_t const* b, simsimd_size_t n,
                                            simsimd_u32_t* result);
@@ -265,6 +271,12 @@ SIMSIMD_PUBLIC void simsimd_angular_i8_serial(simsimd_i8_t const* a, simsimd_i8_
 /** @copydoc simsimd_l2_f64 */
 SIMSIMD_PUBLIC void simsimd_l2_u8_serial(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n,
                                          simsimd_f32_t* result);
+/** @copydoc simsimd_l2_f64 */
+SIMSIMD_PUBLIC void simsimd_l2_u8_accurate(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n,
+                                           simsimd_distance_t* result);
+/** @copydoc simsimd_l2sq_f64 */
+SIMSIMD_PUBLIC void simsimd_l2sq_u8_accurate(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n,
+                                             simsimd_u32_t* result);
 /** @copydoc simsimd_l2sq_f64 */
 SIMSIMD_PUBLIC void simsimd_l2sq_u8_serial(simsimd_u8_t const* a, simsimd_u8_t const* b, simsimd_size_t n,
                                            simsimd_u32_t* result);
@@ -631,13 +643,17 @@ SIMSIMD_MAKE_COS(serial, bf16, f32, f32, simsimd_bf16_to_f32, SIMSIMD_F32_RSQRT)
 SIMSIMD_MAKE_L2SQ(serial, bf16, f32, f32, simsimd_bf16_to_f32)                      // simsimd_l2sq_bf16_serial
 SIMSIMD_MAKE_L2(serial, bf16, f32, f32, f32, simsimd_bf16_to_f32, SIMSIMD_F32_SQRT) // simsimd_l2_bf16_serial
 
-SIMSIMD_MAKE_COS(serial, i8, i32, f32, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_F32_RSQRT)    // simsimd_angular_i8_serial
-SIMSIMD_MAKE_L2SQ(serial, i8, i32, u32, SIMSIMD_ASSIGN_FROM_TO)                      // simsimd_l2sq_i8_serial
-SIMSIMD_MAKE_L2(serial, i8, i32, u32, f32, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_F32_SQRT) // simsimd_l2_i8_serial
+SIMSIMD_MAKE_COS(serial, i8, i32, f32, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_F32_RSQRT)      // simsimd_angular_i8_serial
+SIMSIMD_MAKE_L2SQ(serial, i8, i32, u32, SIMSIMD_ASSIGN_FROM_TO)                        // simsimd_l2sq_i8_serial
+SIMSIMD_MAKE_L2SQ(accurate, i8, i32, u32, SIMSIMD_ASSIGN_FROM_TO)                      // simsimd_l2sq_i8_accurate
+SIMSIMD_MAKE_L2(serial, i8, i32, u32, f32, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_F32_SQRT)   // simsimd_l2_i8_serial
+SIMSIMD_MAKE_L2(accurate, i8, i32, u32, f64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_F64_SQRT) // simsimd_l2_i8_accurate
 
-SIMSIMD_MAKE_COS(serial, u8, i32, f32, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_F32_RSQRT)    // simsimd_angular_u8_serial
-SIMSIMD_MAKE_L2SQ(serial, u8, i32, u32, SIMSIMD_ASSIGN_FROM_TO)                      // simsimd_l2sq_u8_serial
-SIMSIMD_MAKE_L2(serial, u8, i32, u32, f32, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_F32_SQRT) // simsimd_l2_u8_serial
+SIMSIMD_MAKE_COS(serial, u8, i32, f32, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_F32_RSQRT)      // simsimd_angular_u8_serial
+SIMSIMD_MAKE_L2SQ(serial, u8, i32, u32, SIMSIMD_ASSIGN_FROM_TO)                        // simsimd_l2sq_u8_serial
+SIMSIMD_MAKE_L2SQ(accurate, u8, i32, u32, SIMSIMD_ASSIGN_FROM_TO)                      // simsimd_l2sq_u8_accurate
+SIMSIMD_MAKE_L2(serial, u8, i32, u32, f32, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_F32_SQRT)   // simsimd_l2_u8_serial
+SIMSIMD_MAKE_L2(accurate, u8, i32, u32, f64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_F64_SQRT) // simsimd_l2_u8_accurate
 
 SIMSIMD_MAKE_COS(accurate, f32, f64, f64, SIMSIMD_ASSIGN_FROM_TO, SIMSIMD_F64_RSQRT)    // simsimd_angular_f32_accurate
 SIMSIMD_MAKE_L2SQ(accurate, f32, f64, f64, SIMSIMD_ASSIGN_FROM_TO)                      // simsimd_l2sq_f32_accurate
