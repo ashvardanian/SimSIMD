@@ -85,8 +85,8 @@
 #![allow(non_camel_case_types)]
 #![cfg_attr(all(not(test), not(feature = "std")), no_std)]
 
-pub type Distance = f64;
-pub type ComplexProduct = (f64, f64);
+pub type ComplexProductF32 = (f32, f32);
+pub type ComplexProductF64 = (f64, f64);
 
 /// Size type used in C FFI to match `simsimd_size_t` which is always `uint64_t`.
 type u64size = u64;
@@ -129,56 +129,56 @@ extern "C" {
     fn simsimd_e5m2_to_f32(src: *const u8, dest: *mut f32);
 
     // Vector dot products
-    fn simsimd_dot_i8(a: *const i8, b: *const i8, c: u64size, d: *mut Distance);
-    fn simsimd_dot_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_dot_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_dot_e4m3(a: *const u8, b: *const u8, c: u64size, d: *mut Distance);
-    fn simsimd_dot_e5m2(a: *const u8, b: *const u8, c: u64size, d: *mut Distance);
-    fn simsimd_dot_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
-    fn simsimd_dot_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
+    fn simsimd_dot_i8(a: *const i8, b: *const i8, c: u64size, d: *mut i32);
+    fn simsimd_dot_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn simsimd_dot_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn simsimd_dot_e4m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn simsimd_dot_e5m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn simsimd_dot_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn simsimd_dot_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
-    fn simsimd_dot_f16c(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_dot_bf16c(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_dot_f32c(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
-    fn simsimd_dot_f64c(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
+    fn simsimd_dot_f16c(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn simsimd_dot_bf16c(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn simsimd_dot_f32c(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn simsimd_dot_f64c(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
-    fn simsimd_vdot_f16c(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_vdot_bf16c(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_vdot_f32c(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
-    fn simsimd_vdot_f64c(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
+    fn simsimd_vdot_f16c(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn simsimd_vdot_bf16c(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn simsimd_vdot_f32c(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn simsimd_vdot_f64c(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
     // Spatial similarity/distance functions
-    fn simsimd_angular_i8(a: *const i8, b: *const i8, c: u64size, d: *mut Distance);
-    fn simsimd_angular_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_angular_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_angular_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
-    fn simsimd_angular_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
+    fn simsimd_angular_i8(a: *const i8, b: *const i8, c: u64size, d: *mut f32);
+    fn simsimd_angular_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn simsimd_angular_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn simsimd_angular_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn simsimd_angular_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
-    fn simsimd_l2sq_i8(a: *const i8, b: *const i8, c: u64size, d: *mut Distance);
-    fn simsimd_l2sq_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_l2sq_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_l2sq_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
-    fn simsimd_l2sq_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
+    fn simsimd_l2sq_i8(a: *const i8, b: *const i8, c: u64size, d: *mut u32);
+    fn simsimd_l2sq_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn simsimd_l2sq_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn simsimd_l2sq_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn simsimd_l2sq_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
-    fn simsimd_l2_i8(a: *const i8, b: *const i8, c: u64size, d: *mut Distance);
-    fn simsimd_l2_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_l2_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_l2_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
-    fn simsimd_l2_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
+    fn simsimd_l2_i8(a: *const i8, b: *const i8, c: u64size, d: *mut f32);
+    fn simsimd_l2_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn simsimd_l2_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn simsimd_l2_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn simsimd_l2_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
-    fn simsimd_hamming_b8(a: *const u8, b: *const u8, c: u64size, d: *mut Distance);
-    fn simsimd_jaccard_b8(a: *const u8, b: *const u8, c: u64size, d: *mut Distance);
+    fn simsimd_hamming_b8(a: *const u8, b: *const u8, c: u64size, d: *mut u32);
+    fn simsimd_jaccard_b8(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
 
     // Probability distribution distances/divergences
-    fn simsimd_jsd_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_jsd_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_jsd_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
-    fn simsimd_jsd_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
+    fn simsimd_jsd_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn simsimd_jsd_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn simsimd_jsd_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn simsimd_jsd_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
-    fn simsimd_kld_f16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_kld_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut Distance);
-    fn simsimd_kld_f32(a: *const f32, b: *const f32, c: u64size, d: *mut Distance);
-    fn simsimd_kld_f64(a: *const f64, b: *const f64, c: u64size, d: *mut Distance);
+    fn simsimd_kld_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn simsimd_kld_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn simsimd_kld_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn simsimd_kld_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
     // Sparse sets
     fn simsimd_intersect_u16(
@@ -186,14 +186,14 @@ extern "C" {
         b: *const u16,
         a_length: u64size,
         b_length: u64size,
-        d: *mut Distance,
+        d: *mut u32,
     );
     fn simsimd_intersect_u32(
         a: *const u32,
         b: *const u32,
         a_length: u64size,
         b_length: u64size,
-        d: *mut Distance,
+        d: *mut u32,
     );
 
     // Trigonometry functions
@@ -208,73 +208,85 @@ extern "C" {
     fn simsimd_scale_f64(
         a: *const f64,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f64,
+        beta: *const f64,
         result: *mut f64,
     );
     fn simsimd_scale_f32(
         a: *const f32,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f32,
+        beta: *const f32,
         result: *mut f32,
     );
     fn simsimd_scale_f16(
         a: *const u16,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f32,
+        beta: *const f32,
         result: *mut u16,
     );
     fn simsimd_scale_bf16(
         a: *const u16,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f32,
+        beta: *const f32,
         result: *mut u16,
     );
-    fn simsimd_scale_i8(a: *const i8, n: u64size, alpha: Distance, beta: Distance, result: *mut i8);
-    fn simsimd_scale_u8(a: *const u8, n: u64size, alpha: Distance, beta: Distance, result: *mut u8);
+    fn simsimd_scale_i8(
+        a: *const i8,
+        n: u64size,
+        alpha: *const f32,
+        beta: *const f32,
+        result: *mut i8,
+    );
+    fn simsimd_scale_u8(
+        a: *const u8,
+        n: u64size,
+        alpha: *const f32,
+        beta: *const f32,
+        result: *mut u8,
+    );
     fn simsimd_scale_i16(
         a: *const i16,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f32,
+        beta: *const f32,
         result: *mut i16,
     );
     fn simsimd_scale_u16(
         a: *const u16,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f32,
+        beta: *const f32,
         result: *mut u16,
     );
     fn simsimd_scale_i32(
         a: *const i32,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f64,
+        beta: *const f64,
         result: *mut i32,
     );
     fn simsimd_scale_u32(
         a: *const u32,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f64,
+        beta: *const f64,
         result: *mut u32,
     );
     fn simsimd_scale_i64(
         a: *const i64,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f64,
+        beta: *const f64,
         result: *mut i64,
     );
     fn simsimd_scale_u64(
         a: *const u64,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f64,
+        beta: *const f64,
         result: *mut u64,
     );
 
@@ -295,48 +307,48 @@ extern "C" {
         a: *const f64,
         b: *const f64,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f64,
+        beta: *const f64,
         result: *mut f64,
     );
     fn simsimd_wsum_f32(
         a: *const f32,
         b: *const f32,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f32,
+        beta: *const f32,
         result: *mut f32,
     );
     fn simsimd_wsum_f16(
         a: *const u16,
         b: *const u16,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f32,
+        beta: *const f32,
         result: *mut u16,
     );
     fn simsimd_wsum_bf16(
         a: *const u16,
         b: *const u16,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f32,
+        beta: *const f32,
         result: *mut u16,
     );
     fn simsimd_wsum_i8(
         a: *const i8,
         b: *const i8,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f32,
+        beta: *const f32,
         result: *mut i8,
     );
     fn simsimd_wsum_u8(
         a: *const u8,
         b: *const u8,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f32,
+        beta: *const f32,
         result: *mut u8,
     );
 
@@ -345,8 +357,8 @@ extern "C" {
         b: *const f64,
         c: *const f64,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f64,
+        beta: *const f64,
         result: *mut f64,
     );
     fn simsimd_fma_f32(
@@ -354,8 +366,8 @@ extern "C" {
         b: *const f32,
         c: *const f32,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f32,
+        beta: *const f32,
         result: *mut f32,
     );
     fn simsimd_fma_f16(
@@ -363,8 +375,8 @@ extern "C" {
         b: *const u16,
         c: *const u16,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f32,
+        beta: *const f32,
         result: *mut u16,
     );
     fn simsimd_fma_bf16(
@@ -372,8 +384,8 @@ extern "C" {
         b: *const u16,
         c: *const u16,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f32,
+        beta: *const f32,
         result: *mut u16,
     );
     fn simsimd_fma_i8(
@@ -381,8 +393,8 @@ extern "C" {
         b: *const i8,
         c: *const i8,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f32,
+        beta: *const f32,
         result: *mut i8,
     );
     fn simsimd_fma_u8(
@@ -390,8 +402,8 @@ extern "C" {
         b: *const u8,
         c: *const u8,
         n: u64size,
-        alpha: Distance,
-        beta: Distance,
+        alpha: *const f32,
+        beta: *const f32,
         result: *mut u8,
     );
 
@@ -403,8 +415,8 @@ extern "C" {
         a_centroid: *mut f32,
         b_centroid: *mut f32,
         rotation: *mut f32,
-        scale: *mut Distance,
-        result: *mut Distance,
+        scale: *mut f64,
+        result: *mut f64,
     );
     fn simsimd_rmsd_f64(
         a: *const f64,
@@ -413,8 +425,8 @@ extern "C" {
         a_centroid: *mut f64,
         b_centroid: *mut f64,
         rotation: *mut f64,
-        scale: *mut Distance,
-        result: *mut Distance,
+        scale: *mut f64,
+        result: *mut f64,
     );
     fn simsimd_kabsch_f32(
         a: *const f32,
@@ -423,8 +435,8 @@ extern "C" {
         a_centroid: *mut f32,
         b_centroid: *mut f32,
         rotation: *mut f32,
-        scale: *mut Distance,
-        result: *mut Distance,
+        scale: *mut f64,
+        result: *mut f64,
     );
     fn simsimd_kabsch_f64(
         a: *const f64,
@@ -433,8 +445,8 @@ extern "C" {
         a_centroid: *mut f64,
         b_centroid: *mut f64,
         rotation: *mut f64,
-        scale: *mut Distance,
-        result: *mut Distance,
+        scale: *mut f64,
+        result: *mut f64,
     );
     fn simsimd_umeyama_f32(
         a: *const f32,
@@ -443,8 +455,8 @@ extern "C" {
         a_centroid: *mut f32,
         b_centroid: *mut f32,
         rotation: *mut f32,
-        scale: *mut Distance,
-        result: *mut Distance,
+        scale: *mut f64,
+        result: *mut f64,
     );
     fn simsimd_umeyama_f64(
         a: *const f64,
@@ -453,8 +465,8 @@ extern "C" {
         a_centroid: *mut f64,
         b_centroid: *mut f64,
         rotation: *mut f64,
-        scale: *mut Distance,
-        result: *mut Distance,
+        scale: *mut f64,
+        result: *mut f64,
     );
 }
 
@@ -1159,42 +1171,46 @@ pub mod capabilities {
 ///
 /// `None` if the slices differ in length.
 pub trait Dot: Sized {
-    fn dot(a: &[Self], b: &[Self]) -> Option<Distance>;
+    type Output;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 
     /// Alias for `dot`.
-    fn inner(a: &[Self], b: &[Self]) -> Option<Distance> {
+    fn inner(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         Self::dot(a, b)
     }
 }
 
 impl Dot for f64 {
-    fn dot(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f64;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe { simsimd_dot_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
 
 impl Dot for f32 {
-    fn dot(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f32;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe { simsimd_dot_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
 
 impl Dot for f16 {
-    fn dot(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f32;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe {
             simsimd_dot_f16(
                 a.as_ptr() as *const u16,
@@ -1208,11 +1224,12 @@ impl Dot for f16 {
 }
 
 impl Dot for bf16 {
-    fn dot(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f32;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe {
             simsimd_dot_bf16(
                 a.as_ptr() as *const u16,
@@ -1226,22 +1243,24 @@ impl Dot for bf16 {
 }
 
 impl Dot for i8 {
-    fn dot(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = i32;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0;
         unsafe { simsimd_dot_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
 
 impl Dot for e4m3 {
-    fn dot(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f32;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe {
             simsimd_dot_e4m3(
                 a.as_ptr() as *const u8,
@@ -1255,11 +1274,12 @@ impl Dot for e4m3 {
 }
 
 impl Dot for e5m2 {
-    fn dot(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f32;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe {
             simsimd_dot_e5m2(
                 a.as_ptr() as *const u8,
@@ -1315,42 +1335,46 @@ impl Dot for e5m2 {
 ///
 /// `None` if the slices differ in length.
 pub trait Angular: Sized {
-    fn angular(a: &[Self], b: &[Self]) -> Option<Distance>;
+    type Output;
+    fn angular(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 
     /// Alias for `angular`.
-    fn cosine(a: &[Self], b: &[Self]) -> Option<Distance> {
+    fn cosine(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         Self::angular(a, b)
     }
 }
 
 impl Angular for f64 {
-    fn angular(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f64;
+    fn angular(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe { simsimd_angular_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
 
 impl Angular for f32 {
-    fn angular(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f32;
+    fn angular(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe { simsimd_angular_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
 
 impl Angular for f16 {
-    fn angular(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f32;
+    fn angular(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe {
             simsimd_angular_f16(
                 a.as_ptr() as *const u16,
@@ -1364,11 +1388,12 @@ impl Angular for f16 {
 }
 
 impl Angular for bf16 {
-    fn angular(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f32;
+    fn angular(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe {
             simsimd_angular_bf16(
                 a.as_ptr() as *const u16,
@@ -1382,11 +1407,12 @@ impl Angular for bf16 {
 }
 
 impl Angular for i8 {
-    fn angular(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f32;
+    fn angular(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe { simsimd_angular_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
@@ -1439,64 +1465,76 @@ impl Angular for i8 {
 ///
 /// `None` if the slices differ in length.
 pub trait Euclidean: Sized {
+    type L2sqOutput;
+    type L2Output;
+
     /// Squared Euclidean distance (L2²). Faster than `l2` for comparisons.
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Distance>;
+    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput>;
 
     /// Euclidean distance (L2). True metric distance.
-    fn l2(a: &[Self], b: &[Self]) -> Option<Distance>;
+    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output>;
 
     /// Alias for `l2sq` (SciPy compatibility).
-    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Distance> {
+    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
         Self::l2sq(a, b)
     }
 }
 
 impl Euclidean for f64 {
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type L2sqOutput = f64;
+    type L2Output = f64;
+
+    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::L2sqOutput = 0.0;
         unsafe { simsimd_l2sq_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 
-    fn l2(a: &[Self], b: &[Self]) -> Option<Distance> {
+    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::L2Output = 0.0;
         unsafe { simsimd_l2_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
 
 impl Euclidean for f32 {
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type L2sqOutput = f32;
+    type L2Output = f32;
+
+    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::L2sqOutput = 0.0;
         unsafe { simsimd_l2sq_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 
-    fn l2(a: &[Self], b: &[Self]) -> Option<Distance> {
+    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::L2Output = 0.0;
         unsafe { simsimd_l2_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
 
 impl Euclidean for f16 {
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type L2sqOutput = f32;
+    type L2Output = f32;
+
+    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::L2sqOutput = 0.0;
         unsafe {
             simsimd_l2sq_f16(
                 a.as_ptr() as *const u16,
@@ -1508,11 +1546,11 @@ impl Euclidean for f16 {
         Some(result)
     }
 
-    fn l2(a: &[Self], b: &[Self]) -> Option<Distance> {
+    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::L2Output = 0.0;
         unsafe {
             simsimd_l2_f16(
                 a.as_ptr() as *const u16,
@@ -1526,11 +1564,14 @@ impl Euclidean for f16 {
 }
 
 impl Euclidean for bf16 {
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type L2sqOutput = f32;
+    type L2Output = f32;
+
+    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::L2sqOutput = 0.0;
         unsafe {
             simsimd_l2sq_bf16(
                 a.as_ptr() as *const u16,
@@ -1542,11 +1583,11 @@ impl Euclidean for bf16 {
         Some(result)
     }
 
-    fn l2(a: &[Self], b: &[Self]) -> Option<Distance> {
+    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::L2Output = 0.0;
         unsafe {
             simsimd_l2_bf16(
                 a.as_ptr() as *const u16,
@@ -1560,20 +1601,23 @@ impl Euclidean for bf16 {
 }
 
 impl Euclidean for i8 {
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type L2sqOutput = u32;
+    type L2Output = f32;
+
+    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::L2sqOutput = 0;
         unsafe { simsimd_l2sq_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 
-    fn l2(a: &[Self], b: &[Self]) -> Option<Distance> {
+    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::L2Output = 0.0;
         unsafe { simsimd_l2_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
@@ -1622,15 +1666,17 @@ impl Euclidean for i8 {
 ///
 /// `None` if the slices differ in length.
 pub trait Hamming: Sized {
-    fn hamming(a: &[Self], b: &[Self]) -> Option<Distance>;
+    type Output;
+    fn hamming(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 }
 
 impl Hamming for u8 {
-    fn hamming(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = u32;
+    fn hamming(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0;
         unsafe { simsimd_hamming_b8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
@@ -1677,15 +1723,17 @@ impl Hamming for u8 {
 ///
 /// `None` if the slices differ in length.
 pub trait Jaccard: Sized {
-    fn jaccard(a: &[Self], b: &[Self]) -> Option<Distance>;
+    type Output;
+    fn jaccard(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 }
 
 impl Jaccard for u8 {
-    fn jaccard(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f32;
+    fn jaccard(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe { simsimd_jaccard_b8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
@@ -1735,42 +1783,46 @@ impl Jaccard for u8 {
 ///
 /// `None` if the slices differ in length.
 pub trait KullbackLeibler: Sized {
-    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Distance>;
+    type Output;
+    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 
     /// Alias for `kullbackleibler`.
-    fn kl(a: &[Self], b: &[Self]) -> Option<Distance> {
+    fn kl(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         Self::kullbackleibler(a, b)
     }
 }
 
 impl KullbackLeibler for f64 {
-    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f64;
+    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe { simsimd_kld_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
 
 impl KullbackLeibler for f32 {
-    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f32;
+    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe { simsimd_kld_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
 
 impl KullbackLeibler for f16 {
-    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f32;
+    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe {
             simsimd_kld_f16(
                 a.as_ptr() as *const u16,
@@ -1784,11 +1836,12 @@ impl KullbackLeibler for f16 {
 }
 
 impl KullbackLeibler for bf16 {
-    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f32;
+    fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe {
             simsimd_kld_bf16(
                 a.as_ptr() as *const u16,
@@ -1845,42 +1898,46 @@ impl KullbackLeibler for bf16 {
 ///
 /// `None` if the slices differ in length.
 pub trait JensenShannon: Sized {
-    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Distance>;
+    type Output;
+    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 
     /// Alias for `jensenshannon`.
-    fn js(a: &[Self], b: &[Self]) -> Option<Distance> {
+    fn js(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         Self::jensenshannon(a, b)
     }
 }
 
 impl JensenShannon for f64 {
-    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f64;
+    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe { simsimd_jsd_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
 
 impl JensenShannon for f32 {
-    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f32;
+    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe { simsimd_jsd_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
 
 impl JensenShannon for f16 {
-    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f32;
+    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe {
             simsimd_jsd_f16(
                 a.as_ptr() as *const u16,
@@ -1894,11 +1951,12 @@ impl JensenShannon for f16 {
 }
 
 impl JensenShannon for bf16 {
-    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Distance> {
+    type Output = f32;
+    fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Distance = 0.0;
+        let mut result: Self::Output = 0.0;
         unsafe {
             simsimd_jsd_bf16(
                 a.as_ptr() as *const u16,
@@ -1955,15 +2013,17 @@ impl JensenShannon for bf16 {
 ///
 /// `None` if slices differ in length or have odd length (not valid complex vectors).
 pub trait ComplexDot: Sized {
-    fn dot(a: &[Self], b: &[Self]) -> Option<ComplexProduct>;
+    type Output;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 }
 
 impl ComplexDot for f64 {
-    fn dot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
+    type Output = ComplexProductF64;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() || a.len() % 2 != 0 {
             return None;
         }
-        let mut result: [Distance; 2] = [0.0, 0.0];
+        let mut result: [f64; 2] = [0.0, 0.0];
         unsafe {
             simsimd_dot_f64c(
                 a.as_ptr(),
@@ -1977,11 +2037,12 @@ impl ComplexDot for f64 {
 }
 
 impl ComplexDot for f32 {
-    fn dot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
+    type Output = ComplexProductF32;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() || a.len() % 2 != 0 {
             return None;
         }
-        let mut result: [Distance; 2] = [0.0, 0.0];
+        let mut result: [f32; 2] = [0.0, 0.0];
         unsafe {
             simsimd_dot_f32c(
                 a.as_ptr(),
@@ -1995,11 +2056,12 @@ impl ComplexDot for f32 {
 }
 
 impl ComplexDot for f16 {
-    fn dot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
+    type Output = ComplexProductF32;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() || a.len() % 2 != 0 {
             return None;
         }
-        let mut result: [Distance; 2] = [0.0, 0.0];
+        let mut result: [f32; 2] = [0.0, 0.0];
         unsafe {
             simsimd_dot_f16c(
                 a.as_ptr() as *const u16,
@@ -2013,11 +2075,12 @@ impl ComplexDot for f16 {
 }
 
 impl ComplexDot for bf16 {
-    fn dot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
+    type Output = ComplexProductF32;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() || a.len() % 2 != 0 {
             return None;
         }
-        let mut result: [Distance; 2] = [0.0, 0.0];
+        let mut result: [f32; 2] = [0.0, 0.0];
         unsafe {
             simsimd_dot_bf16c(
                 a.as_ptr() as *const u16,
@@ -2075,15 +2138,17 @@ impl ComplexDot for bf16 {
 ///
 /// `None` if slices differ in length or have odd length.
 pub trait ComplexVDot: Sized {
-    fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct>;
+    type Output;
+    fn vdot(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 }
 
 impl ComplexVDot for f64 {
-    fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
+    type Output = ComplexProductF64;
+    fn vdot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() || a.len() % 2 != 0 {
             return None;
         }
-        let mut result: [Distance; 2] = [0.0, 0.0];
+        let mut result: [f64; 2] = [0.0, 0.0];
         unsafe {
             simsimd_vdot_f64c(
                 a.as_ptr(),
@@ -2097,11 +2162,12 @@ impl ComplexVDot for f64 {
 }
 
 impl ComplexVDot for f32 {
-    fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
+    type Output = ComplexProductF32;
+    fn vdot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() || a.len() % 2 != 0 {
             return None;
         }
-        let mut result: [Distance; 2] = [0.0, 0.0];
+        let mut result: [f32; 2] = [0.0, 0.0];
         unsafe {
             simsimd_vdot_f32c(
                 a.as_ptr(),
@@ -2115,11 +2181,12 @@ impl ComplexVDot for f32 {
 }
 
 impl ComplexVDot for f16 {
-    fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
+    type Output = ComplexProductF32;
+    fn vdot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() || a.len() % 2 != 0 {
             return None;
         }
-        let mut result: [Distance; 2] = [0.0, 0.0];
+        let mut result: [f32; 2] = [0.0, 0.0];
         unsafe {
             simsimd_vdot_f16c(
                 a.as_ptr() as *const u16,
@@ -2133,11 +2200,12 @@ impl ComplexVDot for f16 {
 }
 
 impl ComplexVDot for bf16 {
-    fn vdot(a: &[Self], b: &[Self]) -> Option<ComplexProduct> {
+    type Output = ComplexProductF32;
+    fn vdot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() || a.len() % 2 != 0 {
             return None;
         }
-        let mut result: [Distance; 2] = [0.0, 0.0];
+        let mut result: [f32; 2] = [0.0, 0.0];
         unsafe {
             simsimd_vdot_bf16c(
                 a.as_ptr() as *const u16,
@@ -2203,12 +2271,14 @@ impl ComplexVDot for bf16 {
 ///
 /// Count of common elements. Always succeeds (returns `Some`).
 pub trait Sparse: Sized {
-    fn intersect(a: &[Self], b: &[Self]) -> Option<Distance>;
+    type Output;
+    fn intersect(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 }
 
 impl Sparse for u16 {
-    fn intersect(a: &[Self], b: &[Self]) -> Option<Distance> {
-        let mut result: Distance = 0.0;
+    type Output = u32;
+    fn intersect(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        let mut result: Self::Output = 0;
         unsafe {
             simsimd_intersect_u16(
                 a.as_ptr(),
@@ -2223,8 +2293,9 @@ impl Sparse for u16 {
 }
 
 impl Sparse for u32 {
-    fn intersect(a: &[Self], b: &[Self]) -> Option<Distance> {
-        let mut result: Distance = 0.0;
+    type Output = u32;
+    fn intersect(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        let mut result: Self::Output = 0;
         unsafe {
             simsimd_intersect_u32(
                 a.as_ptr(),
@@ -2505,11 +2576,19 @@ impl ATan for f32 {
 ///
 /// `None` if input and output lengths differ.
 pub trait Scale: Sized {
-    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()>;
+    /// The scalar type used for alpha and beta parameters.
+    type Scalar;
+    fn scale(
+        a: &[Self],
+        alpha: Self::Scalar,
+        beta: Self::Scalar,
+        result: &mut [Self],
+    ) -> Option<()>;
 }
 
 impl Scale for f64 {
-    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+    type Scalar = f64;
+    fn scale(a: &[Self], alpha: f64, beta: f64, result: &mut [Self]) -> Option<()> {
         if a.len() != result.len() {
             return None;
         }
@@ -2517,8 +2596,8 @@ impl Scale for f64 {
             simsimd_scale_f64(
                 a.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -2527,7 +2606,8 @@ impl Scale for f64 {
 }
 
 impl Scale for f32 {
-    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+    type Scalar = f32;
+    fn scale(a: &[Self], alpha: f32, beta: f32, result: &mut [Self]) -> Option<()> {
         if a.len() != result.len() {
             return None;
         }
@@ -2535,8 +2615,8 @@ impl Scale for f32 {
             simsimd_scale_f32(
                 a.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -2545,7 +2625,8 @@ impl Scale for f32 {
 }
 
 impl Scale for f16 {
-    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+    type Scalar = f32;
+    fn scale(a: &[Self], alpha: f32, beta: f32, result: &mut [Self]) -> Option<()> {
         if a.len() != result.len() {
             return None;
         }
@@ -2553,8 +2634,8 @@ impl Scale for f16 {
             simsimd_scale_f16(
                 a.as_ptr() as *const u16,
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr() as *mut u16,
             )
         };
@@ -2563,7 +2644,8 @@ impl Scale for f16 {
 }
 
 impl Scale for bf16 {
-    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+    type Scalar = f32;
+    fn scale(a: &[Self], alpha: f32, beta: f32, result: &mut [Self]) -> Option<()> {
         if a.len() != result.len() {
             return None;
         }
@@ -2571,8 +2653,8 @@ impl Scale for bf16 {
             simsimd_scale_bf16(
                 a.as_ptr() as *const u16,
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr() as *mut u16,
             )
         };
@@ -2581,7 +2663,8 @@ impl Scale for bf16 {
 }
 
 impl Scale for i8 {
-    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+    type Scalar = f32;
+    fn scale(a: &[Self], alpha: f32, beta: f32, result: &mut [Self]) -> Option<()> {
         if a.len() != result.len() {
             return None;
         }
@@ -2589,8 +2672,8 @@ impl Scale for i8 {
             simsimd_scale_i8(
                 a.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -2599,7 +2682,8 @@ impl Scale for i8 {
 }
 
 impl Scale for u8 {
-    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+    type Scalar = f32;
+    fn scale(a: &[Self], alpha: f32, beta: f32, result: &mut [Self]) -> Option<()> {
         if a.len() != result.len() {
             return None;
         }
@@ -2607,8 +2691,8 @@ impl Scale for u8 {
             simsimd_scale_u8(
                 a.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -2617,7 +2701,8 @@ impl Scale for u8 {
 }
 
 impl Scale for i16 {
-    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+    type Scalar = f32;
+    fn scale(a: &[Self], alpha: f32, beta: f32, result: &mut [Self]) -> Option<()> {
         if a.len() != result.len() {
             return None;
         }
@@ -2625,8 +2710,8 @@ impl Scale for i16 {
             simsimd_scale_i16(
                 a.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -2635,7 +2720,8 @@ impl Scale for i16 {
 }
 
 impl Scale for u16 {
-    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+    type Scalar = f32;
+    fn scale(a: &[Self], alpha: f32, beta: f32, result: &mut [Self]) -> Option<()> {
         if a.len() != result.len() {
             return None;
         }
@@ -2643,8 +2729,8 @@ impl Scale for u16 {
             simsimd_scale_u16(
                 a.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -2653,7 +2739,8 @@ impl Scale for u16 {
 }
 
 impl Scale for i32 {
-    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+    type Scalar = f64;
+    fn scale(a: &[Self], alpha: f64, beta: f64, result: &mut [Self]) -> Option<()> {
         if a.len() != result.len() {
             return None;
         }
@@ -2661,8 +2748,8 @@ impl Scale for i32 {
             simsimd_scale_i32(
                 a.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -2671,7 +2758,8 @@ impl Scale for i32 {
 }
 
 impl Scale for u32 {
-    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+    type Scalar = f64;
+    fn scale(a: &[Self], alpha: f64, beta: f64, result: &mut [Self]) -> Option<()> {
         if a.len() != result.len() {
             return None;
         }
@@ -2679,8 +2767,8 @@ impl Scale for u32 {
             simsimd_scale_u32(
                 a.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -2689,7 +2777,8 @@ impl Scale for u32 {
 }
 
 impl Scale for i64 {
-    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+    type Scalar = f64;
+    fn scale(a: &[Self], alpha: f64, beta: f64, result: &mut [Self]) -> Option<()> {
         if a.len() != result.len() {
             return None;
         }
@@ -2697,8 +2786,8 @@ impl Scale for i64 {
             simsimd_scale_i64(
                 a.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -2707,7 +2796,8 @@ impl Scale for i64 {
 }
 
 impl Scale for u64 {
-    fn scale(a: &[Self], alpha: Distance, beta: Distance, result: &mut [Self]) -> Option<()> {
+    type Scalar = f64;
+    fn scale(a: &[Self], alpha: f64, beta: f64, result: &mut [Self]) -> Option<()> {
         if a.len() != result.len() {
             return None;
         }
@@ -2715,8 +2805,8 @@ impl Scale for u64 {
             simsimd_scale_u64(
                 a.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -3005,23 +3095,20 @@ impl Sum for u64 {
 ///
 /// `None` if slice lengths are incompatible.
 pub trait WSum: Sized {
+    /// The scalar type used for alpha and beta parameters.
+    type Scalar;
     fn wsum(
         a: &[Self],
         b: &[Self],
-        alpha: Distance,
-        beta: Distance,
+        alpha: Self::Scalar,
+        beta: Self::Scalar,
         result: &mut [Self],
     ) -> Option<()>;
 }
 
 impl WSum for f64 {
-    fn wsum(
-        a: &[Self],
-        b: &[Self],
-        alpha: Distance,
-        beta: Distance,
-        result: &mut [Self],
-    ) -> Option<()> {
+    type Scalar = f64;
+    fn wsum(a: &[Self], b: &[Self], alpha: f64, beta: f64, result: &mut [Self]) -> Option<()> {
         if a.len() != b.len() || a.len() != result.len() {
             return None;
         }
@@ -3030,8 +3117,8 @@ impl WSum for f64 {
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -3040,13 +3127,8 @@ impl WSum for f64 {
 }
 
 impl WSum for f32 {
-    fn wsum(
-        a: &[Self],
-        b: &[Self],
-        alpha: Distance,
-        beta: Distance,
-        result: &mut [Self],
-    ) -> Option<()> {
+    type Scalar = f32;
+    fn wsum(a: &[Self], b: &[Self], alpha: f32, beta: f32, result: &mut [Self]) -> Option<()> {
         if a.len() != b.len() || a.len() != result.len() {
             return None;
         }
@@ -3055,8 +3137,8 @@ impl WSum for f32 {
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -3065,13 +3147,8 @@ impl WSum for f32 {
 }
 
 impl WSum for f16 {
-    fn wsum(
-        a: &[Self],
-        b: &[Self],
-        alpha: Distance,
-        beta: Distance,
-        result: &mut [Self],
-    ) -> Option<()> {
+    type Scalar = f32;
+    fn wsum(a: &[Self], b: &[Self], alpha: f32, beta: f32, result: &mut [Self]) -> Option<()> {
         if a.len() != b.len() || a.len() != result.len() {
             return None;
         }
@@ -3080,8 +3157,8 @@ impl WSum for f16 {
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr() as *mut u16,
             )
         };
@@ -3090,13 +3167,8 @@ impl WSum for f16 {
 }
 
 impl WSum for bf16 {
-    fn wsum(
-        a: &[Self],
-        b: &[Self],
-        alpha: Distance,
-        beta: Distance,
-        result: &mut [Self],
-    ) -> Option<()> {
+    type Scalar = f32;
+    fn wsum(a: &[Self], b: &[Self], alpha: f32, beta: f32, result: &mut [Self]) -> Option<()> {
         if a.len() != b.len() || a.len() != result.len() {
             return None;
         }
@@ -3105,8 +3177,8 @@ impl WSum for bf16 {
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr() as *mut u16,
             )
         };
@@ -3115,13 +3187,8 @@ impl WSum for bf16 {
 }
 
 impl WSum for i8 {
-    fn wsum(
-        a: &[Self],
-        b: &[Self],
-        alpha: Distance,
-        beta: Distance,
-        result: &mut [Self],
-    ) -> Option<()> {
+    type Scalar = f32;
+    fn wsum(a: &[Self], b: &[Self], alpha: f32, beta: f32, result: &mut [Self]) -> Option<()> {
         if a.len() != b.len() || a.len() != result.len() {
             return None;
         }
@@ -3130,8 +3197,8 @@ impl WSum for i8 {
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -3140,13 +3207,8 @@ impl WSum for i8 {
 }
 
 impl WSum for u8 {
-    fn wsum(
-        a: &[Self],
-        b: &[Self],
-        alpha: Distance,
-        beta: Distance,
-        result: &mut [Self],
-    ) -> Option<()> {
+    type Scalar = f32;
+    fn wsum(a: &[Self], b: &[Self], alpha: f32, beta: f32, result: &mut [Self]) -> Option<()> {
         if a.len() != b.len() || a.len() != result.len() {
             return None;
         }
@@ -3155,8 +3217,8 @@ impl WSum for u8 {
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -3212,23 +3274,26 @@ impl WSum for u8 {
 ///
 /// `None` if slice lengths are incompatible.
 pub trait FMA: Sized {
+    /// The scalar type used for alpha and beta parameters.
+    type Scalar;
     fn fma(
         a: &[Self],
         b: &[Self],
         c: &[Self],
-        alpha: Distance,
-        beta: Distance,
+        alpha: Self::Scalar,
+        beta: Self::Scalar,
         result: &mut [Self],
     ) -> Option<()>;
 }
 
 impl FMA for f64 {
+    type Scalar = f64;
     fn fma(
         a: &[Self],
         b: &[Self],
         c: &[Self],
-        alpha: Distance,
-        beta: Distance,
+        alpha: f64,
+        beta: f64,
         result: &mut [Self],
     ) -> Option<()> {
         if a.len() != b.len() || b.len() != c.len() || a.len() != result.len() {
@@ -3240,8 +3305,8 @@ impl FMA for f64 {
                 b.as_ptr(),
                 c.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -3250,12 +3315,13 @@ impl FMA for f64 {
 }
 
 impl FMA for f32 {
+    type Scalar = f32;
     fn fma(
         a: &[Self],
         b: &[Self],
         c: &[Self],
-        alpha: Distance,
-        beta: Distance,
+        alpha: f32,
+        beta: f32,
         result: &mut [Self],
     ) -> Option<()> {
         if a.len() != b.len() || b.len() != c.len() || a.len() != result.len() {
@@ -3267,8 +3333,8 @@ impl FMA for f32 {
                 b.as_ptr(),
                 c.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -3277,12 +3343,13 @@ impl FMA for f32 {
 }
 
 impl FMA for f16 {
+    type Scalar = f32;
     fn fma(
         a: &[Self],
         b: &[Self],
         c: &[Self],
-        alpha: Distance,
-        beta: Distance,
+        alpha: f32,
+        beta: f32,
         result: &mut [Self],
     ) -> Option<()> {
         if a.len() != b.len() || b.len() != c.len() || a.len() != result.len() {
@@ -3294,8 +3361,8 @@ impl FMA for f16 {
                 b.as_ptr() as *const u16,
                 c.as_ptr() as *const u16,
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr() as *mut u16,
             )
         };
@@ -3304,12 +3371,13 @@ impl FMA for f16 {
 }
 
 impl FMA for bf16 {
+    type Scalar = f32;
     fn fma(
         a: &[Self],
         b: &[Self],
         c: &[Self],
-        alpha: Distance,
-        beta: Distance,
+        alpha: f32,
+        beta: f32,
         result: &mut [Self],
     ) -> Option<()> {
         if a.len() != b.len() || b.len() != c.len() || a.len() != result.len() {
@@ -3321,8 +3389,8 @@ impl FMA for bf16 {
                 b.as_ptr() as *const u16,
                 c.as_ptr() as *const u16,
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr() as *mut u16,
             )
         };
@@ -3331,12 +3399,13 @@ impl FMA for bf16 {
 }
 
 impl FMA for i8 {
+    type Scalar = f32;
     fn fma(
         a: &[Self],
         b: &[Self],
         c: &[Self],
-        alpha: Distance,
-        beta: Distance,
+        alpha: f32,
+        beta: f32,
         result: &mut [Self],
     ) -> Option<()> {
         if a.len() != b.len() || b.len() != c.len() || a.len() != result.len() {
@@ -3348,8 +3417,8 @@ impl FMA for i8 {
                 b.as_ptr(),
                 c.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -3358,12 +3427,13 @@ impl FMA for i8 {
 }
 
 impl FMA for u8 {
+    type Scalar = f32;
     fn fma(
         a: &[Self],
         b: &[Self],
         c: &[Self],
-        alpha: Distance,
-        beta: Distance,
+        alpha: f32,
+        beta: f32,
         result: &mut [Self],
     ) -> Option<()> {
         if a.len() != b.len() || b.len() != c.len() || a.len() != result.len() {
@@ -3375,8 +3445,8 @@ impl FMA for u8 {
                 b.as_ptr(),
                 c.as_ptr(),
                 a.len() as u64size,
-                alpha,
-                beta,
+                &alpha,
+                &beta,
                 result.as_mut_ptr(),
             )
         };
@@ -3446,12 +3516,11 @@ pub mod prelude {
         BinarySimilarity,
         // Complex products
         ComplexDot,
-        ComplexProduct,
+        ComplexProductF32,
+        ComplexProductF64,
         ComplexProducts,
         ComplexVDot,
         Cos,
-        // Types
-        Distance,
         // Spatial similarity
         Dot,
         Elementwise,
@@ -3522,9 +3591,9 @@ pub struct MeshAlignmentResult<T> {
     /// 3x3 rotation matrix in row-major order.
     pub rotation_matrix: [T; 9],
     /// Uniform scaling factor (1.0 for RMSD/Kabsch, computed for Umeyama).
-    pub scale: Distance,
+    pub scale: f64,
     /// Root mean square deviation after alignment.
-    pub rmsd: Distance,
+    pub rmsd: f64,
     /// Centroid of source point cloud A.
     pub a_centroid: [T; 3],
     /// Centroid of target point cloud B.
@@ -3853,7 +3922,32 @@ mod tests {
     use half::bf16 as HalfBF16;
     use half::f16 as HalfF16;
 
-    fn assert_almost_equal(left: Distance, right: Distance, tolerance: Distance) {
+    trait IntoF64 {
+        fn into_f64(self) -> f64;
+    }
+    impl IntoF64 for f64 {
+        fn into_f64(self) -> f64 {
+            self
+        }
+    }
+    impl IntoF64 for f32 {
+        fn into_f64(self) -> f64 {
+            self as f64
+        }
+    }
+    impl IntoF64 for i32 {
+        fn into_f64(self) -> f64 {
+            self as f64
+        }
+    }
+    impl IntoF64 for u32 {
+        fn into_f64(self) -> f64 {
+            self as f64
+        }
+    }
+
+    fn assert_almost_equal<T: IntoF64>(left: f64, right: T, tolerance: f64) {
+        let right = right.into_f64();
         let lower = right - tolerance;
         let upper = right + tolerance;
         assert!(left >= lower && left <= upper);
@@ -4298,30 +4392,30 @@ mod tests {
     fn intersect_edge_cases() {
         let empty: &[u32] = &[];
         let non_empty: &[u32] = &[1, 2, 3];
-        assert_eq!(u32::intersect(empty, empty), Some(0.0));
-        assert_eq!(u32::intersect(empty, non_empty), Some(0.0));
-        assert_eq!(u32::intersect(non_empty, empty), Some(0.0));
+        assert_eq!(u32::intersect(empty, empty), Some(0u32));
+        assert_eq!(u32::intersect(empty, non_empty), Some(0u32));
+        assert_eq!(u32::intersect(non_empty, empty), Some(0u32));
 
-        assert_eq!(u32::intersect(&[42u32], &[42u32]), Some(1.0));
-        assert_eq!(u32::intersect(&[42u32], &[43u32]), Some(0.0));
+        assert_eq!(u32::intersect(&[42u32], &[42u32]), Some(1u32));
+        assert_eq!(u32::intersect(&[42u32], &[43u32]), Some(0u32));
 
         let a: &[u32] = &[1, 2, 3, 4, 5];
         let b: &[u32] = &[10, 20, 30, 40, 50];
-        assert_eq!(u32::intersect(a, b), Some(0.0));
+        assert_eq!(u32::intersect(a, b), Some(0u32));
 
         let c: &[u32] = &[10, 20, 30, 40, 50];
-        assert_eq!(u32::intersect(c, c), Some(5.0));
+        assert_eq!(u32::intersect(c, c), Some(5u32));
 
         let boundary_16: Vec<u32> = (0..16).collect();
         let boundary_32: Vec<u32> = (0..32).collect();
         let boundary_64: Vec<u32> = (0..64).collect();
-        assert_eq!(u32::intersect(&boundary_16, &boundary_16), Some(16.0));
-        assert_eq!(u32::intersect(&boundary_32, &boundary_32), Some(32.0));
-        assert_eq!(u32::intersect(&boundary_64, &boundary_64), Some(64.0));
+        assert_eq!(u32::intersect(&boundary_16, &boundary_16), Some(16u32));
+        assert_eq!(u32::intersect(&boundary_32, &boundary_32), Some(32u32));
+        assert_eq!(u32::intersect(&boundary_64, &boundary_64), Some(64u32));
 
         let first_half: Vec<u32> = (0..32).collect();
         let second_half: Vec<u32> = (16..48).collect();
-        assert_eq!(u32::intersect(&first_half, &second_half), Some(16.0));
+        assert_eq!(u32::intersect(&first_half, &second_half), Some(16u32));
     }
 
     // Numeric type tests
@@ -4556,22 +4650,19 @@ mod tests {
     #[test]
     fn scale_f32() {
         let a: Vec<f32> = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let alpha = 2.0;
-        let beta = 1.0;
+        let alpha = 2.0_f32;
+        let beta = 1.0_f32;
         let mut result = vec![0.0f32; a.len()];
         f32::scale(&a, alpha, beta, &mut result).unwrap();
-        let expected: Vec<f32> = a
-            .iter()
-            .map(|x| (alpha as f32) * x + (beta as f32))
-            .collect();
+        let expected: Vec<f32> = a.iter().map(|x| alpha * x + beta).collect();
         assert_vec_almost_equal_f32(&result, &expected, 0.1);
     }
 
     #[test]
     fn scale_f64() {
         let a: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let alpha = 2.0;
-        let beta = 1.0;
+        let alpha = 2.0_f64;
+        let beta = 1.0_f64;
         let mut result = vec![0.0f64; a.len()];
         f64::scale(&a, alpha, beta, &mut result).unwrap();
         let expected: Vec<f64> = a.iter().map(|x| alpha * x + beta).collect();
@@ -4581,8 +4672,8 @@ mod tests {
     #[test]
     fn scale_i32() {
         let a: Vec<i32> = vec![1, 2, 3, 4, 5];
-        let alpha = 2.0;
-        let beta = 1.0;
+        let alpha = 2.0_f64;
+        let beta = 1.0_f64;
         let mut result = vec![0i32; a.len()];
         i32::scale(&a, alpha, beta, &mut result).unwrap();
         for (i, &r) in result.iter().enumerate() {
@@ -4603,12 +4694,12 @@ mod tests {
             .iter()
             .map(|&x| f16::from_f32(x))
             .collect();
-        let alpha = 2.0;
-        let beta = 1.0;
+        let alpha = 2.0_f32;
+        let beta = 1.0_f32;
         let mut result = vec![f16::ZERO; a.len()];
         f16::scale(&a, alpha, beta, &mut result).unwrap();
         for (i, r) in result.iter().enumerate() {
-            let expected = (alpha * (i + 1) as f64 + beta) as f32;
+            let expected = alpha * (i + 1) as f32 + beta;
             assert!(
                 (r.to_f32() - expected).abs() < 0.2,
                 "Element {}: expected {} but got {}",
