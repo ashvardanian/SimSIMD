@@ -1401,6 +1401,24 @@ SIMSIMD_INTERNAL void _simsimd_u64_smul(simsimd_u64_t const *a, simsimd_u64_t co
     else { *r = (hi_lo << 32) + (lo_hi << 32) + lo_lo; } // Combine parts if no overflow
 }
 
+/**
+ *  @brief  SWAR population count for 64-bit integers.
+ *
+ *  Classic algorithm from Hacker's Delight using parallel bit summation:
+ *  - Step 1: Count bits in pairs (2-bit sums)
+ *  - Step 2: Count bits in nibbles (4-bit sums)
+ *  - Step 3: Count bits in bytes (8-bit sums)
+ *  - Step 4: Horizontal sum via multiply - each byte contributes to bits 56-63
+ *
+ *  Cost: ~12 ALU ops, zero memory access (vs 8 table lookups for byte-wise).
+ */
+SIMSIMD_INTERNAL simsimd_u64_t _simsimd_u64_popcount(simsimd_u64_t x) {
+    x = x - ((x >> 1) & 0x5555555555555555ull);
+    x = (x & 0x3333333333333333ull) + ((x >> 2) & 0x3333333333333333ull);
+    x = (x + (x >> 4)) & 0x0F0F0F0F0F0F0F0Full;
+    return (x * 0x0101010101010101ull) >> 56;
+}
+
 SIMSIMD_INTERNAL void _simsimd_i8_smul(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t *r) {
     simsimd_i16_t result = (simsimd_i16_t)(*a) * (simsimd_i16_t)(*b);
     *r = (result > 127) ? 127 : (result < -128 ? -128 : (simsimd_i8_t)result);

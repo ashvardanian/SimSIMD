@@ -6,10 +6,10 @@
  *
  *  Contains following similarity measures:
  *
- *  - Bit-level Hamming distance → @c u32 counter
- *  - Bit-level Jaccard distance (Tanimoto coefficient) → @c f32 ratio
- *  - Jaccard distance for @c u32 integral MinHash vectors from StringZilla → @c f32 ratio
- *  - TODO: Weighted Jaccard distance for @c u32 integral Count-Min-Sketch vectors → @c f32 ratio
+ *  - Bit-level Hamming distance → `u32` counter
+ *  - Bit-level Jaccard distance (Tanimoto coefficient) → `f32` ratio
+ *  - Jaccard distance for `u32` integral MinHash vectors from StringZilla → `f32` ratio
+ *  - TODO: Weighted Jaccard distance for `u32` integral Count-Min-Sketch vectors → `f32` ratio
  *
  *  For hardware architectures:
  *
@@ -343,26 +343,10 @@ SIMSIMD_INTERNAL void simsimd_jaccard_b128_init_serial(simsimd_jaccard_b128_stat
 
 SIMSIMD_INTERNAL void simsimd_jaccard_b128_update_serial(simsimd_jaccard_b128_state_serial_t *state,
                                                          simsimd_b128_vec_t a, simsimd_b128_vec_t b) {
-    simsimd_u64_t intersection_lo = a.u64s[0] & b.u64s[0];
-    simsimd_u64_t intersection_hi = a.u64s[1] & b.u64s[1];
-
-    // Unrolled lookup table popcount for portability
-    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_lo));
-    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_lo >> 8));
-    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_lo >> 16));
-    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_lo >> 24));
-    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_lo >> 32));
-    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_lo >> 40));
-    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_lo >> 48));
-    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_lo >> 56));
-    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_hi));
-    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_hi >> 8));
-    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_hi >> 16));
-    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_hi >> 24));
-    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_hi >> 32));
-    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_hi >> 40));
-    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_hi >> 48));
-    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_hi >> 56));
+    simsimd_u64_t intersection_low = a.u64s[0] & b.u64s[0];
+    simsimd_u64_t intersection_high = a.u64s[1] & b.u64s[1];
+    state->intersection_count += _simsimd_u64_popcount(intersection_low);
+    state->intersection_count += _simsimd_u64_popcount(intersection_high);
 }
 
 SIMSIMD_INTERNAL void simsimd_jaccard_b128_finalize_serial(
