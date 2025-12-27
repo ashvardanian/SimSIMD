@@ -426,12 +426,14 @@ SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
     // so the first time we are probing for capabilities, we should also probe all of our metrics
     // with dummy inputs:
     simsimd_distance_t dummy_results_buffer[2];
-    simsimd_distance_t *dummy_results = &dummy_results_buffer[0];
+    void *dummy_results = &dummy_results_buffer[0];
 
     // Passing `NULL` as `x` will trigger all kinds of `nonull` warnings on GCC.
+    // Same applies to alpha/beta scalars in FMA/WSUM functions.
     typedef double largest_scalar_t;
     largest_scalar_t dummy_input[1];
     void *x = &dummy_input[0];
+    simsimd_f64_t dummy_alpha = 1, dummy_beta = 1;
 
     // Dense:
     simsimd_dot_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, dummy_results);
@@ -508,18 +510,29 @@ SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
     simsimd_mahalanobis_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, dummy_results);
 
     // Elementwise
-    simsimd_wsum_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, 0, 0, (simsimd_f64_t *)x);
-    simsimd_wsum_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, 0, 0, (simsimd_f32_t *)x);
-    simsimd_wsum_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, 0, 0, (simsimd_f16_t *)x);
-    simsimd_wsum_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, 0, 0, (simsimd_bf16_t *)x);
-    simsimd_wsum_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, 0, 0, (simsimd_i8_t *)x);
-    simsimd_wsum_u8((simsimd_u8_t *)x, (simsimd_u8_t *)x, 0, 0, 0, (simsimd_u8_t *)x);
-    simsimd_fma_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, 0, 0, (simsimd_f64_t *)x);
-    simsimd_fma_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, 0, 0, (simsimd_f32_t *)x);
-    simsimd_fma_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, 0, 0, (simsimd_f16_t *)x);
-    simsimd_fma_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, 0, 0, (simsimd_bf16_t *)x);
-    simsimd_fma_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, 0, 0, (simsimd_i8_t *)x);
-    simsimd_fma_u8((simsimd_u8_t *)x, (simsimd_u8_t *)x, (simsimd_u8_t *)x, 0, 0, 0, (simsimd_u8_t *)x);
+    simsimd_wsum_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, &dummy_alpha, &dummy_beta, (simsimd_f64_t *)x);
+    simsimd_wsum_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
+                     (simsimd_f32_t *)&dummy_beta, (simsimd_f32_t *)x);
+    simsimd_wsum_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
+                     (simsimd_f32_t *)&dummy_beta, (simsimd_f16_t *)x);
+    simsimd_wsum_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
+                      (simsimd_f32_t *)&dummy_beta, (simsimd_bf16_t *)x);
+    simsimd_wsum_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
+                    (simsimd_f32_t *)&dummy_beta, (simsimd_i8_t *)x);
+    simsimd_wsum_u8((simsimd_u8_t *)x, (simsimd_u8_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
+                    (simsimd_f32_t *)&dummy_beta, (simsimd_u8_t *)x);
+    simsimd_fma_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, &dummy_alpha, &dummy_beta,
+                    (simsimd_f64_t *)x);
+    simsimd_fma_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
+                    (simsimd_f32_t *)&dummy_beta, (simsimd_f32_t *)x);
+    simsimd_fma_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
+                    (simsimd_f32_t *)&dummy_beta, (simsimd_f16_t *)x);
+    simsimd_fma_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
+                     (simsimd_f32_t *)&dummy_beta, (simsimd_bf16_t *)x);
+    simsimd_fma_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
+                   (simsimd_f32_t *)&dummy_beta, (simsimd_i8_t *)x);
+    simsimd_fma_u8((simsimd_u8_t *)x, (simsimd_u8_t *)x, (simsimd_u8_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
+                   (simsimd_f32_t *)&dummy_beta, (simsimd_u8_t *)x);
 
     return static_capabilities;
 }
