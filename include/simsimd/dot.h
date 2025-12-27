@@ -903,15 +903,27 @@ SIMSIMD_INTERNAL void simsimd_dot_e5m2x16_finalize_serial(simsimd_dot_e5m2x16_st
                                                           simsimd_dot_e5m2x16_state_serial_t const *state_d,
                                                           simsimd_f32_t *results);
 
+/**
+ *  @brief Macro for dot product with Kahan compensated summation.
+ *
+ *  Implements Kahan-Babuška algorithm to minimize floating-point rounding errors.
+ *  Achieves O(1) error growth regardless of vector dimension, compared to O(√n) for naive summation.
+ *
+ *  @see SIMSIMD_MAKE_L2SQ in spatial.h for detailed documentation on Kahan summation.
+ */
 #define SIMSIMD_MAKE_DOT(name, input_type, accumulator_type, output_type, load_and_convert)                    \
     SIMSIMD_PUBLIC void simsimd_dot_##input_type##_##name(simsimd_##input_type##_t const *a,                   \
                                                           simsimd_##input_type##_t const *b, simsimd_size_t n, \
                                                           simsimd_##output_type##_t *result) {                 \
-        simsimd_##accumulator_type##_t ab = 0, ai, bi;                                                         \
+        simsimd_##accumulator_type##_t ab = 0, compensation = 0, ai, bi;                                       \
         for (simsimd_size_t i = 0; i != n; ++i) {                                                              \
             load_and_convert(a + i, &ai);                                                                      \
             load_and_convert(b + i, &bi);                                                                      \
-            ab += ai * bi;                                                                                     \
+            simsimd_##accumulator_type##_t term = ai * bi;                                                     \
+            simsimd_##accumulator_type##_t y = term - compensation;                                            \
+            simsimd_##accumulator_type##_t t = ab + y;                                                         \
+            compensation = (t - ab) - y;                                                                       \
+            ab = t;                                                                                            \
         }                                                                                                      \
         *result = (simsimd_##output_type##_t)ab;                                                               \
     }
