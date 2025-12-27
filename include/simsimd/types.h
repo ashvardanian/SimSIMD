@@ -266,29 +266,29 @@
 
 #endif
 
-#if !defined(SIMSIMD_SQRT)
+#if !defined(SIMSIMD_F32_SQRT)
 #include <math.h>
-#define SIMSIMD_SQRT(x) (sqrt(x))
+#define SIMSIMD_F32_SQRT(x) (sqrt(x))
 #endif
 
-#if !defined(SIMSIMD_RSQRT)
+#if !defined(SIMSIMD_F32_RSQRT)
 #include <math.h>
-#define SIMSIMD_RSQRT(x) (1 / SIMSIMD_SQRT(x))
+#define SIMSIMD_F32_RSQRT(x) (1 / SIMSIMD_F32_SQRT(x))
 #endif
 
-#if !defined(SIMSIMD_LOG)
+#if !defined(SIMSIMD_F32_LOG)
 #include <math.h>
-#define SIMSIMD_LOG(x) (log(x))
+#define SIMSIMD_F32_LOG(x) (log(x))
 #endif
 
-#if !defined(SIMSIMD_TAN)
+#if !defined(SIMSIMD_F32_TAN)
 #include <math.h>
-#define SIMSIMD_TAN(x) (tan(x))
+#define SIMSIMD_F32_TAN(x) (tan(x))
 #endif
 
-#if !defined(SIMSIMD_FABS)
+#if !defined(SIMSIMD_F32_ABS)
 #include <math.h>
-#define SIMSIMD_FABS(x) (fabs(x))
+#define SIMSIMD_F32_ABS(x) (fabs(x))
 #endif
 
 // Copy 16 bits (2 bytes) from source to destination
@@ -509,6 +509,59 @@ typedef struct {
     simsimd_f64_t imag;
 } simsimd_f64c_t;
 
+/** @brief  Small 16-byte memory slice viewable as different types. */
+typedef union simsimd_b128_vec_t {
+#if SIMSIMD_TARGET_HASWELL
+    __m128i xmm;
+    __m128d xmm_pd;
+    __m128 xmm_ps;
+#endif
+#if SIMSIMD_TARGET_NEON
+    uint8x16_t u8x16;
+    uint16x8_t u16x8;
+    uint32x4_t u32x4;
+    uint64x2_t u64x2;
+#endif
+    simsimd_u8_t u8s[16];
+    simsimd_u16_t u16s[8];
+    simsimd_u32_t u32s[4];
+    simsimd_u64_t u64s[2];
+    simsimd_i8_t i8s[16];
+    simsimd_i16_t i16s[8];
+    simsimd_i32_t i32s[4];
+    simsimd_i64_t i64s[2];
+    simsimd_f32_t f32s[4];
+    simsimd_f64_t f64s[2];
+    simsimd_b8_t b8s[16];
+} simsimd_b128_vec_t;
+
+/** @brief  Small 32-byte memory slice viewable as different types. */
+typedef union simsimd_b256_vec_t {
+#if SIMSIMD_TARGET_HASWELL
+    __m256i ymm;
+    __m256d ymm_pd;
+    __m256 ymm_ps;
+    __m128i xmms[2];
+#endif
+#if SIMSIMD_TARGET_NEON
+    uint8x16_t u8x16s[2];
+    uint16x8_t u16x8s[2];
+    uint32x4_t u32x4s[2];
+    uint64x2_t u64x2s[2];
+#endif
+    simsimd_u8_t u8s[32];
+    simsimd_u16_t u16s[16];
+    simsimd_u32_t u32s[8];
+    simsimd_u64_t u64s[4];
+    simsimd_i8_t i8s[32];
+    simsimd_i16_t i16s[16];
+    simsimd_i32_t i32s[8];
+    simsimd_i64_t i64s[4];
+    simsimd_f32_t f32s[8];
+    simsimd_f64_t f64s[4];
+    simsimd_b8_t b8s[32];
+} simsimd_b256_vec_t;
+
 /** @brief  Small 64-byte memory slice viewable as different types.
  *
  *  TODO: On GCC and Clang we use `__transparent_union__` attribute to allow implicit conversions
@@ -554,32 +607,6 @@ typedef union simsimd_b512_vec_t {
     simsimd_b8_t b8s[64];
 } simsimd_b512_vec_t;
 
-/** @brief  Small 16-byte memory slice viewable as different types. */
-typedef union simsimd_b128_vec_t {
-#if SIMSIMD_TARGET_HASWELL
-    __m128i xmm;
-    __m128d xmm_pd;
-    __m128 xmm_ps;
-#endif
-#if SIMSIMD_TARGET_NEON
-    uint8x16_t u8x16;
-    uint16x8_t u16x8;
-    uint32x4_t u32x4;
-    uint64x2_t u64x2;
-#endif
-    simsimd_u8_t u8s[16];
-    simsimd_u16_t u16s[8];
-    simsimd_u32_t u32s[4];
-    simsimd_u64_t u64s[2];
-    simsimd_i8_t i8s[16];
-    simsimd_i16_t i16s[8];
-    simsimd_i32_t i32s[4];
-    simsimd_i64_t i64s[2];
-    simsimd_f32_t f32s[4];
-    simsimd_f64_t f64s[2];
-    simsimd_b8_t b8s[16];
-} simsimd_b128_vec_t;
-
 /**
  *  @brief  Computes `1/sqrt(x)` using the trick from Quake 3,
  *          replacing the magic numbers with the ones suggested by Jan Kadlec.
@@ -593,7 +620,7 @@ typedef union simsimd_b128_vec_t {
  *  https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
  *  https://stackoverflow.com/a/41460625/2766161
  */
-SIMSIMD_INTERNAL simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f32_t number) {
+SIMSIMD_INTERNAL simsimd_f32_t simsimd_f32_approximate_inverse_square_root(simsimd_f32_t number) {
     simsimd_fui32_t conv;
     conv.f = number;
     conv.u = 0x5F1FFFF9 - (conv.u >> 1);
@@ -610,8 +637,8 @@ SIMSIMD_INTERNAL simsimd_f32_t simsimd_approximate_inverse_square_root(simsimd_f
  *  This technique is useful where `sqrt` approximation is needed in performance-critical code,
  *  though modern hardware provides optimized alternatives.
  */
-SIMSIMD_INTERNAL simsimd_f32_t simsimd_approximate_square_root(simsimd_f32_t number) {
-    return number * simsimd_approximate_inverse_square_root(number);
+SIMSIMD_INTERNAL simsimd_f32_t simsimd_f32_approximate_square_root(simsimd_f32_t number) {
+    return number * simsimd_f32_approximate_inverse_square_root(number);
 }
 
 /**
@@ -619,7 +646,7 @@ SIMSIMD_INTERNAL simsimd_f32_t simsimd_approximate_square_root(simsimd_f32_t num
  *          The series converges to the natural logarithm for args between -1 and 1.
  *          Published in 1668 in "Logarithmotechnia".
  */
-SIMSIMD_INTERNAL simsimd_f32_t simsimd_approximate_log(simsimd_f32_t number) {
+SIMSIMD_INTERNAL simsimd_f32_t simsimd_f32_approximate_log(simsimd_f32_t number) {
     simsimd_f32_t x = number - 1;
     simsimd_f32_t x2 = x * x;
     simsimd_f32_t x3 = x * x * x;

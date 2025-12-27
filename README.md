@@ -1112,11 +1112,11 @@ For x86: `SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE
 > Most often it's due to compiler support issues, like the lack of some recent intrinsics or low-precision numeric types.
 > In other cases, you may want to disable some kernels to speed up the compilation process and trim the binary size.
 
-`SIMSIMD_SQRT`, `SIMSIMD_RSQRT`, `SIMSIMD_LOG`:
+`SIMSIMD_F32_SQRT`, `SIMSIMD_F32_RSQRT`, `SIMSIMD_F32_LOG`, `SIMSIMD_F32_TAN`, `SIMSIMD_F32_ABS`, and their `f64` counterparts:
 
 > By default, for __non__-SIMD backends, SimSIMD may use `libc` functions like `sqrt` and `log`.
 > Those are generally very accurate, but slow, and introduce a dependency on the C standard library.
-> To avoid that you can override those definitions with your custom implementations, like: `#define SIMSIMD_RSQRT(x) (1 / sqrt(x))`.
+> To avoid that you can override those definitions with your custom implementations, like: `#define SIMSIMD_F32_RSQRT(x) (1 / sqrt(x))`.
 
 ## Algorithms & Design Decisions 📚
 
