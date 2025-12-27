@@ -13,7 +13,7 @@
 /// @brief  Global variable that caches the CPU capabilities, and is computed just once, when the module is loaded.
 simsimd_capability_t static_capabilities = simsimd_cap_serial_k;
 
-napi_value dense(napi_env env, napi_callback_info info, simsimd_metric_kind_t metric_kind,
+napi_value dense(napi_env env, napi_callback_info info, simsimd_kernel_kind_t metric_kind,
                  simsimd_datatype_t datatype) {
     size_t argc = 2;
     napi_value args[2];
@@ -45,17 +45,17 @@ napi_value dense(napi_env env, napi_callback_info info, simsimd_metric_kind_t me
     }
 
     if (datatype == simsimd_datatype_unknown_k) switch (type_a) {
-        case napi_float64_array: datatype = simsimd_datatype_f64_k; break;
-        case napi_float32_array: datatype = simsimd_datatype_f32_k; break;
-        case napi_int8_array: datatype = simsimd_datatype_i8_k; break;
-        case napi_uint8_array: datatype = simsimd_datatype_u8_k; break;
+        case napi_float64_array: datatype = simsimd_f64_k; break;
+        case napi_float32_array: datatype = simsimd_f32_k; break;
+        case napi_int8_array: datatype = simsimd_i8_k; break;
+        case napi_uint8_array: datatype = simsimd_u8_k; break;
         default: break;
         }
 
-    simsimd_metric_dense_punned_t metric = NULL;
+    simsimd_dense_metric_t metric = NULL;
     simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&metric, &capability);
+    simsimd_find_kernel(metric_kind, datatype, static_capabilities, simsimd_cap_any_k,
+                        (simsimd_kernel_punned_t *)&metric, &capability);
     if (metric == NULL) {
         napi_throw_error(env, NULL, "Unsupported datatype for given metric");
         return NULL;
@@ -73,28 +73,28 @@ napi_value dense(napi_env env, napi_callback_info info, simsimd_metric_kind_t me
 }
 
 napi_value api_ip(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_metric_dot_k, simsimd_datatype_unknown_k);
+    return dense(env, info, simsimd_dot_k, simsimd_datatype_unknown_k);
 }
-napi_value api_cos(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_metric_cosine_k, simsimd_datatype_unknown_k);
+napi_value api_angular(napi_env env, napi_callback_info info) {
+    return dense(env, info, simsimd_angular_k, simsimd_datatype_unknown_k);
 }
 napi_value api_l2sq(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_metric_sqeuclidean_k, simsimd_datatype_unknown_k);
+    return dense(env, info, simsimd_sqeuclidean_k, simsimd_datatype_unknown_k);
 }
 napi_value api_l2(napi_env env, napi_callback_info info) {
     return dense(env, info, simsimd_metric_l2_k, simsimd_datatype_unknown_k);
 }
-napi_value api_kl(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_metric_kl_k, simsimd_datatype_unknown_k);
+napi_value api_kld(napi_env env, napi_callback_info info) {
+    return dense(env, info, simsimd_metric_kld_k, simsimd_datatype_unknown_k);
 }
-napi_value api_js(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_metric_js_k, simsimd_datatype_unknown_k);
+napi_value api_jsd(napi_env env, napi_callback_info info) {
+    return dense(env, info, simsimd_metric_jsd_k, simsimd_datatype_unknown_k);
 }
 napi_value api_hamming(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_metric_hamming_k, simsimd_datatype_b8_k);
+    return dense(env, info, simsimd_hamming_k, simsimd_b8_k);
 }
 napi_value api_jaccard(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_metric_jaccard_k, simsimd_datatype_b8_k);
+    return dense(env, info, simsimd_jaccard_k, simsimd_b8_k);
 }
 
 napi_value Init(napi_env env, napi_value exports) {
@@ -104,14 +104,14 @@ napi_value Init(napi_env env, napi_value exports) {
     napi_property_descriptor inner_descriptor = {"inner", 0, api_ip, 0, 0, 0, napi_default, 0};
     napi_property_descriptor sqeuclidean_descriptor = {"sqeuclidean", 0, api_l2sq, 0, 0, 0, napi_default, 0};
     napi_property_descriptor euclidean_descriptor = {"euclidean", 0, api_l2, 0, 0, 0, napi_default, 0};
-    napi_property_descriptor cosine_descriptor = {"cosine", 0, api_cos, 0, 0, 0, napi_default, 0};
+    napi_property_descriptor angular_descriptor = {"angular", 0, api_angular, 0, 0, 0, napi_default, 0};
     napi_property_descriptor hamming_descriptor = {"hamming", 0, api_hamming, 0, 0, 0, napi_default, 0};
     napi_property_descriptor jaccard_descriptor = {"jaccard", 0, api_jaccard, 0, 0, 0, napi_default, 0};
-    napi_property_descriptor kl_descriptor = {"kullbackleibler", 0, api_kl, 0, 0, 0, napi_default, 0};
-    napi_property_descriptor js_descriptor = {"jensenshannon", 0, api_js, 0, 0, 0, napi_default, 0};
+    napi_property_descriptor kld_descriptor = {"kullbackleibler", 0, api_kld, 0, 0, 0, napi_default, 0};
+    napi_property_descriptor jsd_descriptor = {"jensenshannon", 0, api_jsd, 0, 0, 0, napi_default, 0};
     napi_property_descriptor properties[] = {
-        dot_descriptor,     inner_descriptor,   sqeuclidean_descriptor, euclidean_descriptor, cosine_descriptor,
-        hamming_descriptor, jaccard_descriptor, kl_descriptor,          js_descriptor,
+        dot_descriptor,     inner_descriptor,   sqeuclidean_descriptor, euclidean_descriptor, angular_descriptor,
+        hamming_descriptor, jaccard_descriptor, kld_descriptor,         jsd_descriptor,
     };
 
     // Define the properties on the `exports` object

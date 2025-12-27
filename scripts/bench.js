@@ -5,7 +5,7 @@ const MetricKind = usearch.MetricKind;
 const simsimd = require("../javascript/dist/cjs/simsimd.js");
 
 // Assuming the vectors are of the same length
-function cosineDistance(a, b) {
+function angular(a, b) {
     let dotProduct = 0;
     let magA = 0;
     let magB = 0;
@@ -17,7 +17,7 @@ function cosineDistance(a, b) {
     return 1 - (dotProduct / (Math.sqrt(magA) * Math.sqrt(magB)));
 }
 
-function cosineDistanceMathJS(a, b) {
+function angularMathJS(a, b) {
     let dotProduct = math.dot(a, b);
     let magA = math.sqrt(math.dot(a, a));
     let magB = math.sqrt(math.dot(b, b));
@@ -53,29 +53,29 @@ singleSuite
 
     // Pure JavaScript
     .add('Array of Numbers', () => {
-        cosineDistance(array1, array2);
+        angular(array1, array2);
     })
     .add('TypedArray of Float32', () => {
-        cosineDistance(floatArray1, floatArray2);
+        angular(floatArray1, floatArray2);
     })
     .add('TypedArray of Int8', () => {
-        cosineDistance(intArray1, intArray2);
+        angular(intArray1, intArray2);
     })
 
     // Math JS
     .add('Array of Numbers with MathJS', () => {
-        cosineDistanceMathJS(array1, array2);
+        angularMathJS(array1, array2);
     })
     .add('MathMatrix with MathJS', () => {
-        cosineDistanceMathJS(mathm1, mathm2);
+        angularMathJS(mathm1, mathm2);
     })
 
     // SimSIMD
     .add('TypedArray of Float32 with SimSIMD', () => {
-        simsimd.cosine(floatArray1, floatArray2);
+        simsimd.angular(floatArray1, floatArray2);
     })
     .add('TypedArray of Int8 with SimSIMD', () => {
-        simsimd.cosine(intArray1, intArray2);
+        simsimd.angular(intArray1, intArray2);
     })
 
     .on('cycle', (event) => {
@@ -100,7 +100,7 @@ batchSuite
             for (let j = 0; j < batchSize; j++) {
                 const start = i * dimensions;
                 const end = start + dimensions;
-                cosineDistance(matrix1.slice(start, end), matrix2.slice(start, end));
+                angular(matrix1.slice(start, end), matrix2.slice(start, end));
             }
         }
     })

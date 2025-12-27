@@ -26,7 +26,8 @@ endif ()
 option(SIMSIMD_BUILD_SHARED "Compile a dynamic library" ${SIMSIMD_IS_MAIN_PROJECT})
 option(SIMSIMD_BUILD_TESTS "Small compilation tests compile-time and run-time dispatch" OFF)
 option(SIMSIMD_BUILD_BENCHMARKS "Compile micro-benchmarks for current ISA" OFF)
-option(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS "Include BLAS in micro-kernel benchmarks" OFF)
+option(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS "Include OpenBLAS in micro-kernel benchmarks" OFF)
+option(SIMSIMD_BUILD_BENCHMARKS_WITH_MKL "Include Intel MKL in micro-kernel benchmarks" OFF)
 
 # Default to Release build type if not set
 if (NOT CMAKE_BUILD_TYPE)
@@ -83,6 +84,16 @@ add_library(simsimd INTERFACE)
 target_sources(simsimd INTERFACE ${SIMSIMD_SOURCES})
 target_include_directories(simsimd INTERFACE "${PROJECT_SOURCE_DIR}/include")
 
+
+# Find OpenMP
+find_package(OpenMP)
+if (OpenMP_FOUND)
+    message(STATUS "OpenMP found: ${OpenMP_CXX_LIBRARIES}")
+else ()
+    message(WARNING "OpenMP not found. Parallel execution will be disabled.")
+endif ()
+
+
 # Build benchmarks if required
 if (SIMSIMD_BUILD_BENCHMARKS)
     # Fetch external dependencies
@@ -113,6 +124,11 @@ if (SIMSIMD_BUILD_BENCHMARKS)
     add_executable(simsimd_bench scripts/bench.cxx)
     target_link_libraries(simsimd_bench simsimd Threads::Threads benchmark)
 
+    if (OpenMP_FOUND)
+        target_compile_options(simsimd_bench PRIVATE ${OpenMP_CXX_FLAGS})
+        target_link_libraries(simsimd_bench OpenMP::OpenMP_CXX)
+    endif ()
+
     if (SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
         find_package(BLAS REQUIRED)
         if (BLAS_FOUND)
@@ -126,15 +142,52 @@ if (SIMSIMD_BUILD_BENCHMARKS)
         endif ()
     endif ()
 
+    if (SIMSIMD_BUILD_BENCHMARKS_WITH_MKL)
+        # Use environment variable MKLROOT or standard MKL paths
+        if (DEFINED ENV{MKLROOT})
+            set(MKL_ROOT $ENV{MKLROOT})
+        else ()
+            # Try common installation paths
+            if (EXISTS "/opt/intel/oneapi/mkl/latest")
+                set(MKL_ROOT "/opt/intel/oneapi/mkl/latest")
+            elseif (EXISTS "/opt/intel/mkl")
+                set(MKL_ROOT "/opt/intel/mkl")
+            endif ()
+        endif ()
+
+        if (MKL_ROOT)
+            message(STATUS "MKL found at: ${MKL_ROOT}")
+            target_include_directories(simsimd_bench PRIVATE ${MKL_ROOT}/include)
+            # Link against sequential MKL (single-threaded) for fair comparison
+            target_link_libraries(simsimd_bench
+                ${MKL_ROOT}/lib/intel64/libmkl_intel_lp64.a
+                ${MKL_ROOT}/lib/intel64/libmkl_sequential.a
+                ${MKL_ROOT}/lib/intel64/libmkl_core.a
+                pthread m dl)
+            target_compile_definitions(simsimd_bench PRIVATE SIMSIMD_BUILD_BENCHMARKS_WITH_MKL=1)
+        else ()
+            message(FATAL_ERROR "MKL not found. Set MKLROOT environment variable or install Intel oneAPI.")
+        endif ()
+    endif ()
+
 endif ()
 
 if (SIMSIMD_BUILD_TESTS)
     add_executable(simsimd_test_compile_time scripts/test.c)
     target_link_libraries(simsimd_test_compile_time simsimd m)
+    add_test(NAME simsimd_test_compile_time COMMAND simsimd_test_compile_time)
 
     add_executable(simsimd_test_run_time scripts/test.c c/lib.c)
     target_compile_definitions(simsimd_test_run_time PRIVATE SIMSIMD_DYNAMIC_DISPATCH=1)
     target_link_libraries(simsimd_test_run_time simsimd m)
+    add_test(NAME simsimd_test_run_time COMMAND simsimd_test_run_time)
+
+    if (OpenMP_FOUND)
+        target_compile_options(simsimd_test_run_time PRIVATE ${OpenMP_CXX_FLAGS})
+        target_link_libraries(simsimd_test_run_time OpenMP::OpenMP_CXX)
+    endif ()
+
+    enable_testing()
 endif ()
 
 if (SIMSIMD_BUILD_SHARED)

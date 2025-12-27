@@ -4,12 +4,7 @@
  *  @author     Ash Vardanian
  *  @date       March 14, 2023
  *
- *  References:
- *  x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide
- *  Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics
- *  Detecting target CPU features at compile time: https://stackoverflow.com/a/28939692/2766161
- *
- *  @section    Choosing x86 Target Generations
+ *  @section x86_targets Choosing x86 Target Generations
  *
  *  It's important to provide fine-grained controls over AVX512 families, as they are very fragmented:
  *
@@ -31,6 +26,7 @@
  *  It's mostly used in 4-socket and 8-socket high-memory configurations.
  *
  *  For us, it makes sense to differentiate only these AVX512 generations:
+ *
  *  1. Intel Skylake (pre 2019): supports single-precision dot-products.
  *  2. Intel Ice Lake (2019-2021): advanced integer algorithms.
  *  3. AMD Genoa (2023+): brain-floating point support.
@@ -44,7 +40,7 @@
  *  On Arm machines you may want to check for other flags:
  *       gcc-12 -march=native -dM -E - < /dev/null | egrep "NEON|SVE|FP16|FMA" | sort
  *
- *  @section    Choosing Arm Target Generations
+ *  @section arm_targets Choosing Arm Target Generations
  *
  *  Arm CPUs share design IP, but are produced by different vendors, potentially making the platform
  *  even more fragmented than x86. There are 2 important families of SIMD extensions - NEON and SVE.
@@ -84,6 +80,12 @@
  *
  *  On the consumer side, Apple is the biggest player with mobile @b A chips and desktop @b M chips.
  *  The M1 implements Armv8.5-A, both M2 and M3 implement Armv8.6-A, and M4 is expected to have Armv9.1-A.
+ *
+ *  @section references References
+ *
+ *  - x86 intrinsics: https://www.intel.com/content/www/us/en/docs/intrinsics-guide
+ *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics
+ *  - Detecting target CPU features at compile time: https://stackoverflow.com/a/28939692/2766161
  */
 
 #ifndef SIMSIMD_H
@@ -103,14 +105,18 @@
 #define SIMSIMD_DYNAMIC_DISPATCH (0) // true or false
 #endif
 
-#include "binary.h"      // Hamming, Jaccard
-#include "curved.h"      // Mahalanobis, Bilinear Forms
-#include "dot.h"         // Inner (dot) product, and its conjugate
-#include "elementwise.h" // Weighted Sum, Fused-Multiply-Add
-#include "geospatial.h"  // Haversine and Vincenty
-#include "probability.h" // Kullback-Leibler, Jensen–Shannon
-#include "sparse.h"      // Intersect
-#include "spatial.h"     // L2, Cosine
+#include "binary.h"       // Hamming, Jaccard
+#include "curved.h"       // Mahalanobis, Bilinear Forms
+#include "dot.h"          // Inner (dot) product, and its conjugate
+#include "dots.h"         // GEMM-style MxN batched dot-products
+#include "elementwise.h"  // Weighted Sum, Fused-Multiply-Add
+#include "geospatial.h"   // Haversine and Vincenty
+#include "mesh.h"         // RMSD, Kabsch, Umeyama
+#include "probability.h"  // Kullback-Leibler, Jensen–Shannon
+#include "reduce.h"       // Horizontal reductions: sum, min, max
+#include "sparse.h"       // Intersect
+#include "spatial.h"      // L2, Angular
+#include "trigonometry.h" // Sin, Cos, Atan
 
 // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
 #if defined(_SIMSIMD_DEFINED_APPLE)
@@ -129,6 +135,12 @@
 #define _SIMSIMD_HAS_POSIX_EXTENSIONS 0
 #endif
 
+// On Linux x86, we need syscall for AMX permission request
+#if defined(_SIMSIMD_DEFINED_LINUX) && _SIMSIMD_TARGET_X86
+#include <sys/syscall.h> // `syscall`, `SYS_arch_prctl`
+#include <unistd.h>      // `syscall`
+#endif
+
 // On Windows ARM, we use IsProcessorFeaturePresent API for capability detection
 #if defined(_SIMSIMD_DEFINED_WINDOWS) && _SIMSIMD_TARGET_ARM
 #include <processthreadsapi.h> // `IsProcessorFeaturePresent`
@@ -140,7 +152,7 @@ extern "C" {
 
 /**
  *  @brief  Enumeration of supported metric kinds.
- *          Some have aliases for convenience.
+ *          Some have aliases for convenience/discoverability.
  */
 typedef enum {
     simsimd_metric_unknown_k = 0, ///< Unknown metric kind
@@ -151,14 +163,12 @@ typedef enum {
 
     simsimd_metric_vdot_k = 'v', ///< Complex inner product
 
-    simsimd_metric_cos_k = 'c',     ///< Cosine similarity
-    simsimd_metric_cosine_k = 'c',  ///< Cosine similarity alias
-    simsimd_metric_angular_k = 'c', ///< Cosine similarity alias
+    simsimd_metric_angular_k = 'a', ///< Angular (cosine) distance
 
-    simsimd_metric_l2_k = '2',          ///< Euclidean distance alias
-    simsimd_metric_euclidean_k = '2',   ///< Euclidean distance alias
-    simsimd_metric_l2sq_k = 'e',        ///< Squared Euclidean distance
-    simsimd_metric_sqeuclidean_k = 'e', ///< Squared Euclidean distance alias
+    simsimd_metric_l2_k = 'e',          ///< Euclidean distance alias
+    simsimd_metric_euclidean_k = 'e',   ///< Euclidean distance alias
+    simsimd_metric_l2sq_k = '2',        ///< Squared Euclidean distance
+    simsimd_metric_sqeuclidean_k = '2', ///< Squared Euclidean distance alias
 
     // Binary:
     simsimd_metric_hamming_k = 'h',   ///< Hamming distance
@@ -168,24 +178,34 @@ typedef enum {
     simsimd_metric_tanimoto_k = 'j', ///< Tanimoto coefficient is same as Jaccard
 
     // Sets:
-    simsimd_metric_intersect_k = 'x',     ///< Equivalent to unnormalized Jaccard
-    simsimd_metric_spdot_counts_k = 'y',  ///< Sparse sets with integer weights
-    simsimd_metric_spdot_weights_k = 'z', ///< Sparse sets with brain floating-point weights
+    simsimd_metric_intersect_k = 'x',  ///< Equivalent to unnormalized Jaccard
+    simsimd_metric_sparse_dot_k = 'd', ///< Sparse dot product with weighted indices
 
     // Curved Spaces:
     simsimd_metric_bilinear_k = 'b',    ///< Bilinear form
     simsimd_metric_mahalanobis_k = 'm', ///< Mahalanobis distance
+    simsimd_metric_haversine_k = 'o',   ///< Haversine distance
+    simsimd_metric_vincenty_k = 'O',    ///< Vincenty distance (ellipsoidal geodesic)
 
     // Probability:
-    simsimd_metric_kl_k = 'k',               ///< Kullback-Leibler divergence
-    simsimd_metric_kullback_leibler_k = 'k', ///< Kullback-Leibler divergence alias
-
-    simsimd_metric_js_k = 's',             ///< Jensen-Shannon divergence
-    simsimd_metric_jensen_shannon_k = 's', ///< Jensen-Shannon divergence alias
+    simsimd_metric_kld_k = 'k', ///< Kullback-Leibler divergence
+    simsimd_metric_jsd_k = 's', ///< Jensen-Shannon divergence
 
     // BLAS-like operations:
-    simsimd_metric_fma_k = 'f',  ///< Fused Multiply-Add
-    simsimd_metric_wsum_k = 'w', ///< Weighted Sum
+    simsimd_metric_scale_k = '*', ///< Scale
+    simsimd_metric_sum_k = '+',   ///< Sum
+    simsimd_metric_wsum_k = 'w',  ///< Weighted Sum
+    simsimd_metric_fma_k = 'f',   ///< Fused Multiply-Add
+
+    // Element-wise trigonometric functions:
+    simsimd_metric_sin_k = 'S',  ///< Element-wise trigonometric sine
+    simsimd_metric_cos_k = 'C',  ///< Element-wise trigonometric cosine
+    simsimd_metric_atan_k = 'A', ///< Element-wise trigonometric arctangent
+
+    // Mesh superposition metrics:
+    simsimd_metric_rmsd_k = 'r',    ///< RMSD without optimal superposition
+    simsimd_metric_kabsch_k = 'K',  ///< Kabsch RMSD with optimal rotation
+    simsimd_metric_umeyama_k = 'U', ///< Umeyama RMSD with optimal rotation and scale
 
 } simsimd_metric_kind_t;
 
@@ -196,13 +216,15 @@ typedef enum {
     simsimd_cap_serial_k = 1,       ///< Serial (non-SIMD) capability
     simsimd_cap_any_k = 0x7FFFFFFF, ///< Mask representing any capability with `INT_MAX`
 
-    simsimd_cap_haswell_k = 1 << 10,  ///< x86 AVX2 capability with FMA and F16C extensions
-    simsimd_cap_skylake_k = 1 << 11,  ///< x86 AVX512 baseline capability
-    simsimd_cap_ice_k = 1 << 12,      ///< x86 AVX512 capability with advanced integer algos
-    simsimd_cap_genoa_k = 1 << 13,    ///< x86 AVX512 capability with `bf16` support
-    simsimd_cap_sapphire_k = 1 << 14, ///< x86 AVX512 capability with `f16` support
-    simsimd_cap_turin_k = 1 << 15,    ///< x86 AVX512 capability with conflict detection
-    simsimd_cap_sierra_k = 1 << 16,   ///< x86 AVX2+VNNI capability with `i8` dot-products
+    simsimd_cap_haswell_k = 1 << 10,      ///< x86 AVX2 capability with FMA and F16C extensions
+    simsimd_cap_skylake_k = 1 << 11,      ///< x86 AVX512 baseline capability
+    simsimd_cap_ice_k = 1 << 12,          ///< x86 AVX512 capability with advanced integer algos
+    simsimd_cap_genoa_k = 1 << 13,        ///< x86 AVX512 capability with `bf16` support
+    simsimd_cap_sapphire_k = 1 << 14,     ///< x86 AVX512 capability with `f16` support
+    simsimd_cap_turin_k = 1 << 15,        ///< x86 AVX512 capability with conflict detection
+    simsimd_cap_sierra_k = 1 << 16,       ///< x86 AVX2+VNNI capability with `i8` dot-products
+    simsimd_cap_sapphire_amx_k = 1 << 17, ///< x86 AMX capability with `i8` and `bf16` support
+    simsimd_cap_granite_amx_k = 1 << 18,  ///< x86 AMX capability with `f16` support
 
     simsimd_cap_neon_k = 1 << 20,      ///< ARM NEON baseline capability
     simsimd_cap_neon_f16_k = 1 << 21,  ///< ARM NEON `f16` capability
@@ -225,31 +247,73 @@ typedef enum {
  *  interfaces.
  */
 typedef enum {
-    simsimd_datatype_unknown_k = 0,                  ///< Unknown data type
-    simsimd_datatype_b8_k = 1 << 1,                  ///< Single-bit values packed into 8-bit words
-    simsimd_datatype_b1x8_k = simsimd_datatype_b8_k, ///< Single-bit values packed into 8-bit words
-    simsimd_datatype_i4x2_k = 1 << 19,               ///< 4-bit signed integers packed into 8-bit words
+    simsimd_datatype_unknown_k = 0, ///< Unknown data type
+    simsimd_b8_k = 1 << 1,          ///< Single-bit values packed into 8-bit words
+    simsimd_b1x8_k = simsimd_b8_k,  ///< Single-bit values packed into 8-bit words
+    simsimd_i4x2_k = 1 << 19,       ///< 4-bit signed integers packed into 8-bit words
 
-    simsimd_datatype_i8_k = 1 << 2,  ///< 8-bit signed integer
-    simsimd_datatype_i16_k = 1 << 3, ///< 16-bit signed integer
-    simsimd_datatype_i32_k = 1 << 4, ///< 32-bit signed integer
-    simsimd_datatype_i64_k = 1 << 5, ///< 64-bit signed integer
+    simsimd_i8_k = 1 << 2,  ///< 8-bit signed integer
+    simsimd_i16_k = 1 << 3, ///< 16-bit signed integer
+    simsimd_i32_k = 1 << 4, ///< 32-bit signed integer
+    simsimd_i64_k = 1 << 5, ///< 64-bit signed integer
 
-    simsimd_datatype_u8_k = 1 << 6,  ///< 8-bit unsigned integer
-    simsimd_datatype_u16_k = 1 << 7, ///< 16-bit unsigned integer
-    simsimd_datatype_u32_k = 1 << 8, ///< 32-bit unsigned integer
-    simsimd_datatype_u64_k = 1 << 9, ///< 64-bit unsigned integer
+    simsimd_u8_k = 1 << 6,  ///< 8-bit unsigned integer
+    simsimd_u16_k = 1 << 7, ///< 16-bit unsigned integer
+    simsimd_u32_k = 1 << 8, ///< 32-bit unsigned integer
+    simsimd_u64_k = 1 << 9, ///< 64-bit unsigned integer
 
-    simsimd_datatype_f64_k = 1 << 10,  ///< Double precision floating point
-    simsimd_datatype_f32_k = 1 << 11,  ///< Single precision floating point
-    simsimd_datatype_f16_k = 1 << 12,  ///< Half precision floating point
-    simsimd_datatype_bf16_k = 1 << 13, ///< Brain floating point
+    simsimd_f64_k = 1 << 10,  ///< Double precision floating point
+    simsimd_f32_k = 1 << 11,  ///< Single precision floating point
+    simsimd_f16_k = 1 << 12,  ///< Half precision floating point
+    simsimd_bf16_k = 1 << 13, ///< Brain floating point
 
-    simsimd_datatype_f64c_k = 1 << 20,  ///< Complex double precision floating point
-    simsimd_datatype_f32c_k = 1 << 21,  ///< Complex single precision floating point
-    simsimd_datatype_f16c_k = 1 << 22,  ///< Complex half precision floating point
-    simsimd_datatype_bf16c_k = 1 << 23, ///< Complex brain floating point
+    simsimd_e4m3_k = 1 << 14, ///< FP8 E4M3 floating point
+    simsimd_e5m2_k = 1 << 15, ///< FP8 E5M2 floating point
+
+    simsimd_f64c_k = 1 << 20,  ///< Complex double precision floating point
+    simsimd_f32c_k = 1 << 21,  ///< Complex single precision floating point
+    simsimd_f16c_k = 1 << 22,  ///< Complex half precision floating point
+    simsimd_bf16c_k = 1 << 23, ///< Complex brain floating point
 } simsimd_datatype_t;
+
+typedef enum {
+    simsimd_datatype_unknown_family_k = 0,
+    simsimd_datatype_binary_family_k,
+    simsimd_datatype_float_family_k,
+    simsimd_datatype_complex_float_family_k,
+    simsimd_datatype_int_family_k,
+    simsimd_datatype_uint_family_k,
+} simsimd_datatype_family_k;
+
+/**
+ *  @brief  Classifies the family of the datatype.
+ *  @return The family of the datatype.
+ */
+SIMSIMD_PUBLIC simsimd_datatype_family_k simsimd_datatype_family(simsimd_datatype_t dtype) {
+    switch (dtype) {
+    case simsimd_f64_k: return simsimd_datatype_float_family_k;
+    case simsimd_f32_k: return simsimd_datatype_float_family_k;
+    case simsimd_f16_k: return simsimd_datatype_float_family_k;
+    case simsimd_bf16_k: return simsimd_datatype_float_family_k;
+    case simsimd_e4m3_k: return simsimd_datatype_float_family_k;
+    case simsimd_e5m2_k: return simsimd_datatype_float_family_k;
+    case simsimd_f64c_k: return simsimd_datatype_complex_float_family_k;
+    case simsimd_f32c_k: return simsimd_datatype_complex_float_family_k;
+    case simsimd_f16c_k: return simsimd_datatype_complex_float_family_k;
+    case simsimd_bf16c_k: return simsimd_datatype_complex_float_family_k;
+    case simsimd_b8_k: return simsimd_datatype_binary_family_k;
+    case simsimd_u8_k: return simsimd_datatype_uint_family_k;
+    case simsimd_u16_k: return simsimd_datatype_uint_family_k;
+    case simsimd_u32_k: return simsimd_datatype_uint_family_k;
+    case simsimd_u64_k: return simsimd_datatype_uint_family_k;
+    case simsimd_i8_k: return simsimd_datatype_int_family_k;
+    case simsimd_i16_k: return simsimd_datatype_int_family_k;
+    case simsimd_i32_k: return simsimd_datatype_int_family_k;
+    case simsimd_i64_k: return simsimd_datatype_int_family_k;
+    case simsimd_i4x2_k: return simsimd_datatype_int_family_k;
+    default: return simsimd_datatype_unknown_family_k;
+    }
+}
 
 /**
  *  @brief  Type-punned function pointer for dense vector representations and simplest similarity measures.
@@ -273,10 +337,25 @@ typedef void (*simsimd_metric_dense_punned_t)(void const *a, void const *b, sims
  *  @param[in] b_length   Number of scalar words in the second input array.
  *  @param[out] d         Output value as a double-precision float, generally without decimals.
  */
-typedef void (*simsimd_metric_sparse_punned_t)(       //
-    void const *a, void const *b,                     //
-    simsimd_size_t a_length, simsimd_size_t b_length, //
-    simsimd_distance_t *d);
+typedef void (*simsimd_metric_sparse_punned_t)(void const *a, void const *b,                     //
+                                               simsimd_size_t a_length, simsimd_size_t b_length, //
+                                               simsimd_distance_t *d);
+
+/**
+ *  @brief  Type-punned function pointer for sparse dot products with weights.
+ *
+ *  @param[in] a          First sorted array of indices.
+ *  @param[in] b          Second sorted array of indices.
+ *  @param[in] a_weights  Weights for first array.
+ *  @param[in] b_weights  Weights for second array.
+ *  @param[in] a_length   Number of elements in first array.
+ *  @param[in] b_length   Number of elements in second array.
+ *  @param[out] product   Output dot product (void* for type punning).
+ */
+typedef void (*simsimd_metric_sparse_dot_punned_t)(void const *a, void const *b,                     //
+                                                   void const *a_weights, void const *b_weights,     //
+                                                   simsimd_size_t a_length, simsimd_size_t b_length, //
+                                                   void *product);
 
 /**
  *  @brief  Type-punned function pointer for curved vector spaces and similarity measures.
@@ -287,9 +366,60 @@ typedef void (*simsimd_metric_sparse_punned_t)(       //
  *  @param[in] n    Number of scalar words in the input arrays.
  *  @param[out] d   Output value as a double-precision float.
  */
-typedef void (*simsimd_metric_curved_punned_t)(  //
-    void const *a, void const *b, void const *c, //
-    simsimd_size_t n, simsimd_distance_t *d);
+typedef void (*simsimd_metric_curved_punned_t)(void const *a, void const *b, void const *c, //
+                                               simsimd_size_t n, simsimd_distance_t *d);
+
+/**
+ *  @brief  Type-punned function pointer for geospatial distance functions.
+ *
+ *  @param[in] a_lats   Latitudes of first point set (in radians).
+ *  @param[in] a_lons   Longitudes of first point set (in radians).
+ *  @param[in] b_lats   Latitudes of second point set (in radians).
+ *  @param[in] b_lons   Longitudes of second point set (in radians).
+ *  @param[in] n        Number of point pairs.
+ *  @param[out] results Output distances in meters (void* for type punning).
+ */
+typedef void (*simsimd_metric_geospatial_punned_t)(void const *a_lats, void const *a_lons, //
+                                                   void const *b_lats, void const *b_lons, //
+                                                   simsimd_size_t n, void *results);
+
+/**
+ *  @brief  Type-punned function pointer for Scaling & Shifting operations on dense vector representations.
+ *          Implements the `y = alpha * a + beta` operation.
+ *
+ *  @param[in] a        Pointer to the first data array.
+ *  @param[in] n        Number of scalar words in the input arrays.
+ *  @param[in] alpha    Pointer to scaling factor (type depends on input precision).
+ *  @param[in] beta     Pointer to offset/bias term (type depends on input precision).
+ *  @param[out] y       Output value in the same precision as the input arrays.
+ */
+typedef void (*simsimd_kernel_scale_punned_t)(void const *a, simsimd_size_t n, void const *alpha, void const *beta,
+                                              void *y);
+
+/**
+ *  @brief  Type-punned function pointer for element-wise Sum operations on dense vector representations.
+ *          Implements the `y = a + b` operation.
+ *
+ *  @param[in] a        Pointer to the first data array.
+ *  @param[in] b        Pointer to the second data array.
+ *  @param[in] n        Number of scalar words in the input arrays.
+ *  @param[out] y       Output value in the same precision as the input arrays.
+ */
+typedef void (*simsimd_kernel_sum_punned_t)(void const *a, void const *b, simsimd_size_t n, void *y);
+
+/**
+ *  @brief  Type-punned function pointer for Weighted Sum operations on dense vector representations.
+ *          Implements the `y = alpha * a + beta * b` operation.
+ *
+ *  @param[in] a        Pointer to the first data array.
+ *  @param[in] b        Pointer to the second data array.
+ *  @param[in] n        Number of scalar words in the input arrays.
+ *  @param[in] alpha    Pointer to scaling factor for the first array (type depends on input precision).
+ *  @param[in] beta     Pointer to scaling factor for the second array (type depends on input precision).
+ *  @param[out] y       Output value in the same precision as the input arrays.
+ */
+typedef void (*simsimd_kernel_wsum_punned_t)(void const *a, void const *b, simsimd_size_t n, void const *alpha,
+                                             void const *beta, void *y);
 
 /**
  *  @brief  Type-punned function pointer for FMA operations on dense vector representations.
@@ -299,34 +429,49 @@ typedef void (*simsimd_metric_curved_punned_t)(  //
  *  @param[in] b        Pointer to the second data array.
  *  @param[in] c        Pointer to the third data array.
  *  @param[in] n        Number of scalar words in the input arrays.
- *  @param[in] alpha    Scaling factor for the first two arrays.
- *  @param[in] beta     Scaling factor for the third array.
+ *  @param[in] alpha    Pointer to scaling factor for a*b product (type depends on input precision).
+ *  @param[in] beta     Pointer to scaling factor for c array (type depends on input precision).
  *  @param[out] y       Output value in the same precision as the input arrays.
  */
-typedef void (*simsimd_kernel_fma_punned_t)(     //
-    void const *a, void const *b, void const *c, //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, void *y);
+typedef void (*simsimd_kernel_fma_punned_t)(void const *a, void const *b, void const *c, simsimd_size_t n,
+                                            void const *alpha, void const *beta, void *y);
 
 /**
- *  @brief  Type-punned function pointer for Weighted Sum operations on dense vector representations.
- *          Implements the `y = alpha * a + beta * b` operation.
+ *  @brief  Type-punned function pointer for element-wise trigonometric functions.
+ *          Implements operations like `y[i] = sin(x[i])`.
  *
- *  @param[in] a        Pointer to the first data array.
- *  @param[in] b        Pointer to the second data array.
- *  @param[in] n        Number of scalar words in the input arrays.
- *  @param[in] alpha    Scaling factor for the first array.
- *  @param[in] beta     Scaling factor for the second array.
- *  @param[out] y       Output value in the same precision as the input arrays.
+ *  @param[in] x        Pointer to the input data array.
+ *  @param[in] n        Number of scalar words in the input array.
+ *  @param[out] y       Output value in the same precision as the input array.
  */
-typedef void (*simsimd_kernel_wsum_punned_t)( //
-    void const *a, void const *b,             //
-    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta, void *y);
+typedef void (*simsimd_kernel_trigonometry_punned_t)(void const *x, simsimd_size_t n, void *y);
+
+/**
+ *  @brief  Type-punned function pointer for mesh superposition metrics (RMSD, Kabsch, Umeyama).
+ *          All mesh functions share a unified signature with rotation matrix and scale factor.
+ *
+ *  The transformation aligns point cloud A to B: a'_i = scale * R * (a_i - a_centroid) + b_centroid
+ *
+ *  @param[in] a            Pointer to first point cloud (source, interleaved xyz coordinates).
+ *  @param[in] b            Pointer to second point cloud (target, interleaved xyz coordinates).
+ *  @param[in] n            Number of 3D points in each cloud.
+ *  @param[out] a_centroid  Output centroid of first cloud (3 values), or NULL.
+ *  @param[out] b_centroid  Output centroid of second cloud (3 values), or NULL.
+ *  @param[out] rotation    Output 3x3 rotation matrix (9 values, row-major), or NULL.
+ *  @param[out] scale       Output scale factor (1.0 for RMSD/Kabsch), or NULL.
+ *  @param[out] d           Output RMSD value as a double-precision float.
+ */
+typedef void (*simsimd_metric_mesh_punned_t)(void const *a, void const *b, simsimd_size_t n, //
+                                             void *a_centroid, void *b_centroid,             //
+                                             void *rotation, void *scale,                    //
+                                             void *d);
 
 /**
  *  @brief  Type-punned function pointer for a SimSIMD public interface.
  *
  *  Can be a `simsimd_metric_dense_punned_t`, `simsimd_metric_sparse_punned_t`, `simsimd_metric_curved_punned_t`,
- *  `simsimd_kernel_fma_punned_t`, or `simsimd_kernel_wsum_punned_t`.
+ *  `simsimd_metric_mesh_punned_t`, `simsimd_kernel_fma_punned_t`, `simsimd_kernel_wsum_punned_t`,
+ *  `simsimd_kernel_scale_punned_t`, `simsimd_kernel_sum_punned_t`, or `simsimd_kernel_trigonometry_punned_t`.
  */
 typedef void (*simsimd_kernel_punned_t)(void *);
 
@@ -339,7 +484,7 @@ SIMSIMD_DYNAMIC void simsimd_find_kernel_punned( //
     simsimd_capability_t allowed,                //
     simsimd_kernel_punned_t *kernel_output,      //
     simsimd_capability_t *capability_output);
-SIMSIMD_DYNAMIC int simsimd_flush_denormals(void);
+SIMSIMD_DYNAMIC int simsimd_flush_denormals(simsimd_capability_t);
 #else
 SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void);
 SIMSIMD_PUBLIC void simsimd_find_kernel_punned( //
@@ -349,17 +494,19 @@ SIMSIMD_PUBLIC void simsimd_find_kernel_punned( //
     simsimd_capability_t allowed,               //
     simsimd_kernel_punned_t *kernel_output,     //
     simsimd_capability_t *capability_output);
-SIMSIMD_PUBLIC int simsimd_flush_denormals(void);
+SIMSIMD_PUBLIC int simsimd_flush_denormals(simsimd_capability_t);
 #endif
 
 #if _SIMSIMD_TARGET_X86
 
 /**
  *  @brief  Function to flush denormalized numbers to zero on x86 CPUs.
+ *  @param  capabilities A bitmask of capabilities. If `simsimd_cap_sapphire_amx_k` is set,
+ *          also requests OS permission for AMX tile data on Linux.
  *  @note   This should be called on each thread before any SIMD operations to avoid performance penalties.
  *  @return 1 if the operation was successful, 0 otherwise.
  */
-SIMSIMD_PUBLIC int _simsimd_flush_denormals_x86(void) {
+SIMSIMD_PUBLIC int _simsimd_flush_denormals_x86(simsimd_capability_t capabilities) {
 #if defined(_MSC_VER)
     unsigned int mxcsr = _mm_getcsr();
     mxcsr |= 1 << 15; // bit 15 = Flush-To-Zero (FTZ)
@@ -371,6 +518,18 @@ SIMSIMD_PUBLIC int _simsimd_flush_denormals_x86(void) {
     mxcsr |= 1 << 15; // bit 15 = Flush-To-Zero (FTZ)
     mxcsr |= 1 << 6;  // bit 6  = Denormals-Are-Zero (DAZ)
     __asm__ __volatile__("ldmxcsr %0" : : "m"(mxcsr));
+#endif
+
+    // Intel AMX (Advanced Matrix Extensions) requires explicit permission from the OS before use.
+    // On Linux, this is done via the `arch_prctl` system call with ARCH_REQ_XCOMP_PERM.
+#if defined(_SIMSIMD_DEFINED_LINUX) && SIMSIMD_TARGET_SAPPHIRE
+    if (capabilities & simsimd_cap_sapphire_amx_k) {
+        int const ARCH_REQ_XCOMP_PERM = 0x1023;
+        unsigned long const XFEATURE_XTILEDATA = 18;
+        syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_PERM, XFEATURE_XTILEDATA);
+    }
+#else
+    (void)capabilities;
 #endif
     return 1;
 }
@@ -437,6 +596,14 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
     // Clang doesn't show the VP2INTERSECT flag, but we can get it from QEMU
     // https://stackoverflow.com/a/68289220/2766161
     unsigned supports_avx512vp2intersect = (info7.named.edx & 0x00000100) != 0;
+    // Check for AMX-TILE (Function ID 7, EDX bit 24) - base AMX support
+    unsigned supports_amx_tile = (info7.named.edx & 0x01000000) != 0;
+    // Check for AMX-BF16 (Function ID 7, EDX bit 22)
+    unsigned supports_amx_bf16 = (info7.named.edx & 0x00400000) != 0;
+    // Check for AMX-INT8 (Function ID 7, EDX bit 25)
+    unsigned supports_amx_int8 = (info7.named.edx & 0x02000000) != 0;
+    // Check for AMX-FP16 (Function ID 7, Sub-leaf 1, EAX bit 21)
+    unsigned supports_amx_fp16 = (info7sub1.named.eax & 0x00200000) != 0;
 
     // Convert specific features into CPU generations
     unsigned supports_haswell = supports_avx2 && supports_f16c && supports_fma;
@@ -448,15 +615,21 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
     // We don't want to accidentally enable AVX512VP2INTERSECT on Intel Tiger Lake CPUs
     unsigned supports_turin = supports_avx512vp2intersect && supports_avx512bf16;
     unsigned supports_sierra = 0;
+    // Sapphire Rapids AMX: requires AMX-TILE, AMX-BF16, and AMX-INT8
+    unsigned supports_sapphire_amx = supports_amx_tile && supports_amx_bf16 && supports_amx_int8;
+    // Granite Rapids AMX: requires Sapphire AMX plus AMX-FP16
+    unsigned supports_granite_amx = supports_sapphire_amx && supports_amx_fp16;
 
-    return (simsimd_capability_t)(                     //
-        (simsimd_cap_haswell_k * supports_haswell) |   //
-        (simsimd_cap_skylake_k * supports_skylake) |   //
-        (simsimd_cap_ice_k * supports_ice) |           //
-        (simsimd_cap_genoa_k * supports_genoa) |       //
-        (simsimd_cap_sapphire_k * supports_sapphire) | //
-        (simsimd_cap_turin_k * supports_turin) |       //
-        (simsimd_cap_sierra_k * supports_sierra) |     //
+    return (simsimd_capability_t)(                             //
+        (simsimd_cap_haswell_k * supports_haswell) |           //
+        (simsimd_cap_skylake_k * supports_skylake) |           //
+        (simsimd_cap_ice_k * supports_ice) |                   //
+        (simsimd_cap_genoa_k * supports_genoa) |               //
+        (simsimd_cap_sapphire_k * supports_sapphire) |         //
+        (simsimd_cap_turin_k * supports_turin) |               //
+        (simsimd_cap_sierra_k * supports_sierra) |             //
+        (simsimd_cap_sapphire_amx_k * supports_sapphire_amx) | //
+        (simsimd_cap_granite_amx_k * supports_granite_amx) |   //
         (simsimd_cap_serial_k));
 }
 
@@ -464,9 +637,9 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
 
 #if _SIMSIMD_TARGET_ARM
 
-/*  Compiling the next section one may get: selected processor does not support system register name 'id_aa64zfr0_el1'.
- *  Suppressing assembler errors is very complicated, so when dealing with older ARM CPUs it's simpler to compile this
- *  function targeting newer ones.
+/*  Compiling the next section one may get: selected processor does not support system register name
+ * 'id_aa64zfr0_el1'. Suppressing assembler errors is very complicated, so when dealing with older ARM CPUs it's
+ * simpler to compile this function targeting newer ones.
  */
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.5-a+sve")
@@ -483,11 +656,13 @@ static void _simsimd_mrs_test_sigill_handler(int sig) {
 
 /**
  *  @brief  Function to flush denormalized numbers to zero on Arm CPUs.
+ *  @param  capabilities A bitmask of capabilities (unused on ARM, for API consistency).
  *  @note   This should be called on each thread before any SIMD operations to avoid performance penalties.
  *  @note   On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
  *  @return 1 if the operation was successful, 0 otherwise.
  */
-SIMSIMD_PUBLIC int _simsimd_flush_denormals_arm(void) {
+SIMSIMD_PUBLIC int _simsimd_flush_denormals_arm(simsimd_capability_t capabilities) {
+    (void)capabilities;
 #if defined(_SIMSIMD_DEFINED_APPLE)
     // https://stackoverflow.com/a/19904907/2766161
     // https://stackoverflow.com/a/78252076/2766161
@@ -583,9 +758,11 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
     // SVE, bits [35:32] of ID_AA64PFR0_EL1
     unsigned supports_sve = ((id_aa64pfr0_el1 >> 32) & 0xF) >= 1;
     // AdvSIMD, bits [23:20] of ID_AA64PFR0_EL1 can be used to check for `fp16` support
+    //
     //  - 0b0000: integers, single, double precision arithmetic
     //  - 0b0001: includes support for half-precision floating-point arithmetic
     //  - 0b1111: NEON is not supported?!
+    //
     // That's a really weird way to encode lack of NEON support, but it's important to
     // check in case we are running on R-profile CPUs.
     unsigned supports_fp16 = ((id_aa64pfr0_el1 >> 20) & 0xF) == 0x1;
@@ -599,9 +776,11 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
     // BF16, bits [23:20] of ID_AA64ZFR0_EL1
     unsigned supports_sve_bf16 = ((id_aa64zfr0_el1 >> 20) & 0xF) >= 1;
     // SVEver, bits [3:0] can be used to check for capability levels:
+    //
     //  - 0b0000: SVE is implemented
     //  - 0b0001: SVE2 is implemented
     //  - 0b0010: SVE2.1 is implemented
+    //
     // This value must match the existing indicator obtained from ID_AA64PFR0_EL1:
     unsigned supports_sve2 = ((id_aa64zfr0_el1) & 0xF) >= 1;
     unsigned supports_sve2p1 = ((id_aa64zfr0_el1) & 0xF) >= 2;
@@ -618,7 +797,6 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
         (simsimd_cap_sve2_k * (supports_sve2)) |                                                      //
         (simsimd_cap_sve2p1_k * (supports_sve2p1)) |                                                  //
         (simsimd_cap_serial_k));
-
 #elif defined(_SIMSIMD_DEFINED_WINDOWS)
 
     unsigned supports_neon = 0, supports_dp = 0;
@@ -653,18 +831,21 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
 
 /**
  *  @brief  Function to flush @b denormalized numbers to zero to avoid performance penalties.
+ *  @param  capabilities A bitmask of capabilities. If `simsimd_cap_sapphire_amx_k` is set,
+ *          also requests OS permission for AMX tile data on Linux x86.
  *  @return 1 if the operation was successful, 0 otherwise.
  *
  *  When facing denormalized values Fused-Multiply-Add (FMA) operations can be up to 30x slower,
  *  as measured on Intel Sapphire Rapids: https://github.com/ashvardanian/ParallelReductionsBenchmark
  */
-SIMSIMD_PUBLIC int _simsimd_flush_denormals(void) {
+SIMSIMD_PUBLIC int _simsimd_flush_denormals(simsimd_capability_t capabilities) {
 #if _SIMSIMD_TARGET_X86
-    return _simsimd_flush_denormals_x86();
+    return _simsimd_flush_denormals_x86(capabilities);
 #endif // _SIMSIMD_TARGET_X86
 #if _SIMSIMD_TARGET_ARM
-    return _simsimd_flush_denormals_arm();
+    return _simsimd_flush_denormals_arm(capabilities);
 #endif // _SIMSIMD_TARGET_ARM
+    (void)capabilities;
     return 0;
 }
 
@@ -698,7 +879,7 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f64(simsimd_capability_t v, si
 #if SIMSIMD_TARGET_SVE
     if (v & simsimd_cap_sve_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f64_sve, *c = simsimd_cap_sve_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f64_sve, *c = simsimd_cap_sve_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f64_sve, *c = simsimd_cap_sve_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f64_sve, *c = simsimd_cap_sve_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f64_sve, *c = simsimd_cap_sve_k; return;
         default: break;
@@ -706,7 +887,7 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f64(simsimd_capability_t v, si
 #endif
 #if SIMSIMD_TARGET_NEON
     if (v & simsimd_cap_neon_k) switch (k) {
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f64_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f64_neon, *c = simsimd_cap_neon_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f64_neon, *c = simsimd_cap_neon_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f64_neon, *c = simsimd_cap_neon_k; return;
         default: break;
@@ -715,35 +896,62 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f64(simsimd_capability_t v, si
 #if SIMSIMD_TARGET_SKYLAKE
     if (v & simsimd_cap_skylake_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f64_skylake, *c = simsimd_cap_skylake_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f64_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f64_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_haversine_k: *m = (m_t)&simsimd_haversine_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_vincenty_k: *m = (m_t)&simsimd_vincenty_f64_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f64_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_sin_k: *m = (m_t)&simsimd_sin_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_atan_k: *m = (m_t)&simsimd_atan_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f64_skylake, *c = simsimd_cap_skylake_k; return;
         default: break;
         }
 #endif
 #if SIMSIMD_TARGET_HASWELL
     if (v & simsimd_cap_haswell_k) switch (k) {
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f64_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f64_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f64_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f64_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_haversine_k: *m = (m_t)&simsimd_haversine_f64_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_vincenty_k: *m = (m_t)&simsimd_vincenty_f64_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f64_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f64_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f64_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_f64_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f64_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f64_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f64_haswell, *c = simsimd_cap_haswell_k; return;
         default: break;
         }
 #endif
     if (v & simsimd_cap_serial_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f64_serial, *c = simsimd_cap_serial_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f64_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f64_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f64_serial, *c = simsimd_cap_serial_k; return;
-        case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f64_serial, *c = simsimd_cap_serial_k; return;
-        case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_jsd_k: *m = (m_t)&simsimd_jsd_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_kld_k: *m = (m_t)&simsimd_kld_f64_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f64_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_mahalanobis_k: *m = (m_t)&simsimd_mahalanobis_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_haversine_k: *m = (m_t)&simsimd_haversine_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_vincenty_k: *m = (m_t)&simsimd_vincenty_f64_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f64_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sin_k: *m = (m_t)&simsimd_sin_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_atan_k: *m = (m_t)&simsimd_atan_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f64_serial, *c = simsimd_cap_serial_k; return;
         default: break;
         }
 }
@@ -751,10 +959,16 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f64(simsimd_capability_t v, si
 SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f32(simsimd_capability_t v, simsimd_metric_kind_t k,
                                                       simsimd_kernel_punned_t *m, simsimd_capability_t *c) {
     typedef simsimd_kernel_punned_t m_t;
+#if SIMSIMD_TARGET_SVE2
+    if (v & simsimd_cap_sve2_k) switch (k) {
+        case simsimd_metric_sparse_dot_k: *m = (m_t)&simsimd_sparse_dot_u32f32_sve2, *c = simsimd_cap_sve2_k; return;
+        default: break;
+        }
+#endif
 #if SIMSIMD_TARGET_SVE
     if (v & simsimd_cap_sve_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f32_sve, *c = simsimd_cap_sve_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f32_sve, *c = simsimd_cap_sve_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f32_sve, *c = simsimd_cap_sve_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f32_sve, *c = simsimd_cap_sve_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f32_sve, *c = simsimd_cap_sve_k; return;
         default: break;
@@ -763,55 +977,99 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f32(simsimd_capability_t v, si
 #if SIMSIMD_TARGET_NEON
     if (v & simsimd_cap_neon_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f32_neon, *c = simsimd_cap_neon_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f32_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f32_neon, *c = simsimd_cap_neon_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f32_neon, *c = simsimd_cap_neon_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f32_neon, *c = simsimd_cap_neon_k; return;
-        case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f32_neon, *c = simsimd_cap_neon_k; return;
-        case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f32_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_jsd_k: *m = (m_t)&simsimd_jsd_f32_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_kld_k: *m = (m_t)&simsimd_kld_f32_neon, *c = simsimd_cap_neon_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f32_neon, *c = simsimd_cap_neon_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f32_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f32_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_f32_neon, *c = simsimd_cap_neon_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_TURIN
+    if (v & simsimd_cap_turin_k) switch (k) {
+        case simsimd_metric_sparse_dot_k: *m = (m_t)&simsimd_sparse_dot_u32f32_turin, *c = simsimd_cap_turin_k; return;
         default: break;
         }
 #endif
 #if SIMSIMD_TARGET_SKYLAKE
     if (v & simsimd_cap_skylake_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f32_skylake, *c = simsimd_cap_skylake_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f32_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f32_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f32_skylake, *c = simsimd_cap_skylake_k; return;
-        case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f32_skylake, *c = simsimd_cap_skylake_k; return;
-        case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_jsd_k: *m = (m_t)&simsimd_jsd_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_kld_k: *m = (m_t)&simsimd_kld_f32_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f32_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_mahalanobis_k:
             *m = (m_t)&simsimd_mahalanobis_f32_skylake, *c = simsimd_cap_skylake_k;
             return;
+        case simsimd_metric_haversine_k: *m = (m_t)&simsimd_haversine_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_vincenty_k: *m = (m_t)&simsimd_vincenty_f32_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f32_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_sin_k: *m = (m_t)&simsimd_sin_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_atan_k: *m = (m_t)&simsimd_atan_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_ICE
+    if (v & simsimd_cap_ice_k) switch (k) {
+        case simsimd_metric_sparse_dot_k: *m = (m_t)&simsimd_sparse_dot_u32f32_ice, *c = simsimd_cap_ice_k; return;
         default: break;
         }
 #endif
 #if SIMSIMD_TARGET_HASWELL
     if (v & simsimd_cap_haswell_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f32_haswell, *c = simsimd_cap_haswell_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f32_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f32_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_haversine_k: *m = (m_t)&simsimd_haversine_f32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_vincenty_k: *m = (m_t)&simsimd_vincenty_f32_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f32_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_f32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f32_haswell, *c = simsimd_cap_haswell_k; return;
         default: break;
         }
 #endif
     if (v & simsimd_cap_serial_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f32_serial, *c = simsimd_cap_serial_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f32_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f32_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f32_serial, *c = simsimd_cap_serial_k; return;
-        case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f32_serial, *c = simsimd_cap_serial_k; return;
-        case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_jsd_k: *m = (m_t)&simsimd_jsd_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_kld_k: *m = (m_t)&simsimd_kld_f32_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f32_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_mahalanobis_k: *m = (m_t)&simsimd_mahalanobis_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_haversine_k: *m = (m_t)&simsimd_haversine_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_vincenty_k: *m = (m_t)&simsimd_vincenty_f32_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f32_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sin_k: *m = (m_t)&simsimd_sin_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_atan_k: *m = (m_t)&simsimd_atan_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sparse_dot_k:
+            *m = (m_t)&simsimd_sparse_dot_u32f32_serial, *c = simsimd_cap_serial_k;
+            return;
         default: break;
         }
 }
@@ -822,7 +1080,7 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f16(simsimd_capability_t v, si
 #if SIMSIMD_TARGET_SVE_F16
     if (v & simsimd_cap_sve_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16_sve, *c = simsimd_cap_sve_f16_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f16_sve, *c = simsimd_cap_sve_f16_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f16_sve, *c = simsimd_cap_sve_f16_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_sve, *c = simsimd_cap_sve_f16_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f16_sve, *c = simsimd_cap_sve_f16_k; return;
         default: break;
@@ -831,63 +1089,74 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f16(simsimd_capability_t v, si
 #if SIMSIMD_TARGET_NEON_F16
     if (v & simsimd_cap_neon_f16_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16_neon, *c = simsimd_cap_neon_f16_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f16_neon, *c = simsimd_cap_neon_f16_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f16_neon, *c = simsimd_cap_neon_f16_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_neon, *c = simsimd_cap_neon_f16_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f16_neon, *c = simsimd_cap_neon_f16_k; return;
-        case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f16_neon, *c = simsimd_cap_neon_f16_k; return;
-        case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f16_neon, *c = simsimd_cap_neon_f16_k; return;
+        case simsimd_metric_jsd_k: *m = (m_t)&simsimd_jsd_f16_neon, *c = simsimd_cap_neon_f16_k; return;
+        case simsimd_metric_kld_k: *m = (m_t)&simsimd_kld_f16_neon, *c = simsimd_cap_neon_f16_k; return;
         case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f16_neon, *c = simsimd_cap_neon_f16_k; return;
         case simsimd_metric_mahalanobis_k: *m = (m_t)&simsimd_mahalanobis_f16_neon, *c = simsimd_cap_neon_f16_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f16_neon, *c = simsimd_cap_neon_f16_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f16_neon, *c = simsimd_cap_neon_f16_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f16_neon, *c = simsimd_cap_neon_f16_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_f16_neon, *c = simsimd_cap_neon_f16_k; return;
         default: break;
         }
 #endif
 #if SIMSIMD_TARGET_SAPPHIRE
     if (v & simsimd_cap_sapphire_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16_sapphire, *c = simsimd_cap_sapphire_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f16_sapphire, *c = simsimd_cap_sapphire_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f16_sapphire, *c = simsimd_cap_sapphire_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_sapphire, *c = simsimd_cap_sapphire_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f16_sapphire, *c = simsimd_cap_sapphire_k; return;
-        case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f16_sapphire, *c = simsimd_cap_sapphire_k; return;
-        case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f16_sapphire, *c = simsimd_cap_sapphire_k; return;
+        case simsimd_metric_jsd_k: *m = (m_t)&simsimd_jsd_f16_sapphire, *c = simsimd_cap_sapphire_k; return;
+        case simsimd_metric_kld_k: *m = (m_t)&simsimd_kld_f16_sapphire, *c = simsimd_cap_sapphire_k; return;
         case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f16_sapphire, *c = simsimd_cap_sapphire_k; return;
         case simsimd_metric_mahalanobis_k:
             *m = (m_t)&simsimd_mahalanobis_f16_sapphire, *c = simsimd_cap_sapphire_k;
             return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f16_sapphire, *c = simsimd_cap_sapphire_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f16_sapphire, *c = simsimd_cap_sapphire_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f16_sapphire, *c = simsimd_cap_sapphire_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_f16_sapphire, *c = simsimd_cap_sapphire_k; return;
         default: break;
         }
 #endif
 #if SIMSIMD_TARGET_HASWELL
     if (v & simsimd_cap_haswell_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16_haswell, *c = simsimd_cap_haswell_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f16_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f16_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f16_haswell, *c = simsimd_cap_haswell_k; return;
-        case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f16_haswell, *c = simsimd_cap_haswell_k; return;
-        case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f16_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_jsd_k: *m = (m_t)&simsimd_jsd_f16_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_kld_k: *m = (m_t)&simsimd_kld_f16_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f16_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_mahalanobis_k:
             *m = (m_t)&simsimd_mahalanobis_f16_haswell, *c = simsimd_cap_haswell_k;
             return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f16_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f16_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f16_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_f16_haswell, *c = simsimd_cap_haswell_k; return;
         default: break;
         }
 #endif
     if (v & simsimd_cap_serial_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f16_serial, *c = simsimd_cap_serial_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_f16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_f16_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_f16_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_f16_serial, *c = simsimd_cap_serial_k; return;
-        case simsimd_metric_js_k: *m = (m_t)&simsimd_js_f16_serial, *c = simsimd_cap_serial_k; return;
-        case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_f16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_jsd_k: *m = (m_t)&simsimd_jsd_f16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_kld_k: *m = (m_t)&simsimd_kld_f16_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f16_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_mahalanobis_k: *m = (m_t)&simsimd_mahalanobis_f16_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_f16_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_f16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f16_serial, *c = simsimd_cap_serial_k; return;
         default: break;
         }
 }
@@ -897,27 +1166,38 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_bf16(simsimd_capability_t v, s
     typedef simsimd_kernel_punned_t m_t;
 #if SIMSIMD_TARGET_SVE_BF16
     if (v & simsimd_cap_sve_bf16_k) switch (k) {
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_bf16_sve, *c = simsimd_cap_sve_bf16_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_bf16_sve, *c = simsimd_cap_sve_bf16_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_bf16_sve, *c = simsimd_cap_sve_bf16_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_bf16_sve, *c = simsimd_cap_sve_bf16_k; return;
+        case simsimd_metric_sparse_dot_k:
+            *m = (m_t)&simsimd_sparse_dot_u16bf16_sve2, *c = simsimd_cap_sve_bf16_k;
+            return;
         default: break;
         }
 #endif
 #if SIMSIMD_TARGET_NEON_BF16
     if (v & simsimd_cap_neon_bf16_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_TURIN
+    if (v & simsimd_cap_turin_k) switch (k) {
+        case simsimd_metric_sparse_dot_k: *m = (m_t)&simsimd_sparse_dot_u16bf16_turin, *c = simsimd_cap_turin_k; return;
         default: break;
         }
 #endif
 #if SIMSIMD_TARGET_GENOA
     if (v & simsimd_cap_genoa_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16_genoa, *c = simsimd_cap_genoa_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_bf16_genoa, *c = simsimd_cap_genoa_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_bf16_genoa, *c = simsimd_cap_genoa_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_bf16_genoa, *c = simsimd_cap_genoa_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_bf16_genoa, *c = simsimd_cap_genoa_k; return;
         case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_bf16_genoa, *c = simsimd_cap_genoa_k; return;
@@ -929,13 +1209,15 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_bf16(simsimd_capability_t v, s
     if (v & simsimd_cap_skylake_k) switch (k) {
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_bf16_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_bf16_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_bf16_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_bf16_skylake, *c = simsimd_cap_skylake_k; return;
         default: break;
         }
 #endif
 #if SIMSIMD_TARGET_HASWELL
     if (v & simsimd_cap_haswell_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16_haswell, *c = simsimd_cap_haswell_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_bf16_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_bf16_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_bf16_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_bf16_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_bf16_haswell, *c = simsimd_cap_haswell_k; return;
@@ -944,22 +1226,32 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_bf16(simsimd_capability_t v, s
             return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_bf16_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_bf16_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_bf16_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_bf16_haswell, *c = simsimd_cap_haswell_k; return;
         default: break;
         }
 #endif
     if (v & simsimd_cap_serial_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_bf16_serial, *c = simsimd_cap_serial_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_bf16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_bf16_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_bf16_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_bf16_serial, *c = simsimd_cap_serial_k; return;
-        case simsimd_metric_js_k: *m = (m_t)&simsimd_js_bf16_serial, *c = simsimd_cap_serial_k; return;
-        case simsimd_metric_kl_k: *m = (m_t)&simsimd_kl_bf16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_jsd_k: *m = (m_t)&simsimd_jsd_bf16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_kld_k: *m = (m_t)&simsimd_kld_bf16_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_bf16_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_mahalanobis_k:
             *m = (m_t)&simsimd_mahalanobis_bf16_serial, *c = simsimd_cap_serial_k;
             return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_bf16_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_bf16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_bf16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_bf16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_bf16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_bf16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_bf16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sparse_dot_k:
+            *m = (m_t)&simsimd_sparse_dot_u16bf16_serial, *c = simsimd_cap_serial_k;
+            return;
         default: break;
         }
 }
@@ -970,7 +1262,7 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_i8(simsimd_capability_t v, sim
 #if SIMSIMD_TARGET_NEON_I8
     if (v & simsimd_cap_neon_i8_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_i8_neon, *c = simsimd_cap_neon_i8_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_i8_neon, *c = simsimd_cap_neon_i8_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_i8_neon, *c = simsimd_cap_neon_i8_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_i8_neon, *c = simsimd_cap_neon_i8_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_i8_neon, *c = simsimd_cap_neon_i8_k; return;
         default: break;
@@ -980,6 +1272,8 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_i8(simsimd_capability_t v, sim
     if (v & simsimd_cap_neon_f16_k) switch (k) {
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_i8_neon, *c = simsimd_cap_neon_f16_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_i8_neon, *c = simsimd_cap_neon_f16_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_i8_neon, *c = simsimd_cap_neon_f16_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_i8_neon, *c = simsimd_cap_neon_f16_k; return;
         default: break;
         }
 #endif
@@ -987,36 +1281,49 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_i8(simsimd_capability_t v, sim
     if (v & simsimd_cap_sapphire_k) switch (k) {
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_i8_sapphire, *c = simsimd_cap_sapphire_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_i8_sapphire, *c = simsimd_cap_sapphire_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_i8_sapphire, *c = simsimd_cap_sapphire_k; return;
         default: break;
         }
 #endif
 #if SIMSIMD_TARGET_ICE
     if (v & simsimd_cap_ice_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_i8_ice, *c = simsimd_cap_ice_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_i8_ice, *c = simsimd_cap_ice_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_i8_ice, *c = simsimd_cap_ice_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_i8_ice, *c = simsimd_cap_ice_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_i8_ice, *c = simsimd_cap_ice_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_i8_ice, *c = simsimd_cap_ice_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_SKYLAKE
+    if (v & simsimd_cap_skylake_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_i8_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_i8_skylake, *c = simsimd_cap_skylake_k; return;
         default: break;
         }
 #endif
 #if SIMSIMD_TARGET_HASWELL
     if (v & simsimd_cap_haswell_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_i8_haswell, *c = simsimd_cap_haswell_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_i8_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_i8_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_i8_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_i8_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_i8_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_i8_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_i8_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_i8_haswell, *c = simsimd_cap_haswell_k; return;
         default: break;
         }
 #endif
     if (v & simsimd_cap_serial_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_i8_serial, *c = simsimd_cap_serial_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_i8_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_i8_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_i8_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_i8_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_i8_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_i8_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_i8_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_i8_serial, *c = simsimd_cap_serial_k; return;
         default: break;
         }
 }
@@ -1026,7 +1333,7 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_u8(simsimd_capability_t v, sim
 #if SIMSIMD_TARGET_NEON_I8
     if (v & simsimd_cap_neon_i8_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_u8_neon, *c = simsimd_cap_neon_i8_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_u8_neon, *c = simsimd_cap_neon_i8_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_u8_neon, *c = simsimd_cap_neon_i8_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_u8_neon, *c = simsimd_cap_neon_i8_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_u8_neon, *c = simsimd_cap_neon_i8_k; return;
         default: break;
@@ -1036,6 +1343,8 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_u8(simsimd_capability_t v, sim
     if (v & simsimd_cap_neon_f16_k) switch (k) {
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_u8_neon, *c = simsimd_cap_neon_f16_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_u8_neon, *c = simsimd_cap_neon_f16_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_u8_neon, *c = simsimd_cap_neon_f16_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_u8_neon, *c = simsimd_cap_neon_f16_k; return;
         default: break;
         }
 #endif
@@ -1043,36 +1352,115 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_u8(simsimd_capability_t v, sim
     if (v & simsimd_cap_sapphire_k) switch (k) {
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_u8_sapphire, *c = simsimd_cap_sapphire_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_u8_sapphire, *c = simsimd_cap_sapphire_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_u8_sapphire, *c = simsimd_cap_sapphire_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_SKYLAKE
+    if (v & simsimd_cap_skylake_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_u8_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_u8_skylake, *c = simsimd_cap_skylake_k; return;
         default: break;
         }
 #endif
 #if SIMSIMD_TARGET_ICE
     if (v & simsimd_cap_ice_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_u8_ice, *c = simsimd_cap_ice_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_u8_ice, *c = simsimd_cap_ice_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_u8_ice, *c = simsimd_cap_ice_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_u8_ice, *c = simsimd_cap_ice_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_u8_ice, *c = simsimd_cap_ice_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_u8_ice, *c = simsimd_cap_ice_k; return;
         default: break;
         }
 #endif
 #if SIMSIMD_TARGET_HASWELL
     if (v & simsimd_cap_haswell_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_u8_haswell, *c = simsimd_cap_haswell_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_u8_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_u8_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_u8_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_u8_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_u8_haswell, *c = simsimd_cap_haswell_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_u8_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_u8_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_u8_haswell, *c = simsimd_cap_haswell_k; return;
         default: break;
         }
 #endif
     if (v & simsimd_cap_serial_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_u8_serial, *c = simsimd_cap_serial_k; return;
-        case simsimd_metric_cos_k: *m = (m_t)&simsimd_cos_u8_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_u8_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_u8_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_u8_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_u8_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_u8_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_u8_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_u8_serial, *c = simsimd_cap_serial_k; return;
+        default: break;
+        }
+}
+
+SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_e4m3(simsimd_capability_t v, simsimd_metric_kind_t k,
+                                                       simsimd_kernel_punned_t *m, simsimd_capability_t *c) {
+    typedef simsimd_kernel_punned_t m_t;
+#if SIMSIMD_TARGET_SAPPHIRE
+    if (v & simsimd_cap_sapphire_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e4m3_sapphire, *c = simsimd_cap_sapphire_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_GENOA
+    if (v & simsimd_cap_genoa_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e4m3_genoa, *c = simsimd_cap_genoa_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_SKYLAKE
+    if (v & simsimd_cap_skylake_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e4m3_skylake, *c = simsimd_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_HASWELL
+    if (v & simsimd_cap_haswell_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e4m3_haswell, *c = simsimd_cap_haswell_k; return;
+        default: break;
+        }
+#endif
+    if (v & simsimd_cap_serial_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e4m3_serial, *c = simsimd_cap_serial_k; return;
+        default: break;
+        }
+}
+
+SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_e5m2(simsimd_capability_t v, simsimd_metric_kind_t k,
+                                                       simsimd_kernel_punned_t *m, simsimd_capability_t *c) {
+    typedef simsimd_kernel_punned_t m_t;
+#if SIMSIMD_TARGET_SAPPHIRE
+    if (v & simsimd_cap_sapphire_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e5m2_sapphire, *c = simsimd_cap_sapphire_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_GENOA
+    if (v & simsimd_cap_genoa_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e5m2_genoa, *c = simsimd_cap_genoa_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_SKYLAKE
+    if (v & simsimd_cap_skylake_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e5m2_skylake, *c = simsimd_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_HASWELL
+    if (v & simsimd_cap_haswell_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e5m2_haswell, *c = simsimd_cap_haswell_k; return;
+        default: break;
+        }
+#endif
+    if (v & simsimd_cap_serial_k) switch (k) {
+        case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_e5m2_serial, *c = simsimd_cap_serial_k; return;
         default: break;
         }
 }
@@ -1129,14 +1517,12 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f64c(simsimd_capability_t v, s
     if (v & simsimd_cap_skylake_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f64c_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f64c_skylake, *c = simsimd_cap_skylake_k; return;
-        case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f64c_skylake, *c = simsimd_cap_skylake_k; return;
         default: break;
         }
 #endif
     if (v & simsimd_cap_serial_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f64c_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f64c_serial, *c = simsimd_cap_serial_k; return;
-        case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f64c_serial, *c = simsimd_cap_serial_k; return;
         default: break;
         }
 }
@@ -1155,7 +1541,6 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f32c(simsimd_capability_t v, s
     if (v & simsimd_cap_neon_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f32c_neon, *c = simsimd_cap_neon_k; return;
         case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f32c_neon, *c = simsimd_cap_neon_k; return;
-        case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f32c_neon, *c = simsimd_cap_neon_k; return;
         default: break;
         }
 #endif
@@ -1163,7 +1548,6 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f32c(simsimd_capability_t v, s
     if (v & simsimd_cap_skylake_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f32c_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f32c_skylake, *c = simsimd_cap_skylake_k; return;
-        case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f32c_skylake, *c = simsimd_cap_skylake_k; return;
         default: break;
         }
 #endif
@@ -1177,7 +1561,6 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f32c(simsimd_capability_t v, s
     if (v & simsimd_cap_serial_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f32c_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_vdot_k: *m = (m_t)&simsimd_vdot_f32c_serial, *c = simsimd_cap_serial_k; return;
-        case simsimd_metric_bilinear_k: *m = (m_t)&simsimd_bilinear_f32c_serial, *c = simsimd_cap_serial_k; return;
         default: break;
         }
 }
@@ -1256,37 +1639,93 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_u16(simsimd_capability_t v, si
 #if SIMSIMD_TARGET_SVE2
     if (v & simsimd_cap_sve2_k) switch (k) {
         case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_sve2, *c = simsimd_cap_sve2_k; return;
-        case simsimd_metric_spdot_counts_k: *m = (m_t)&simsimd_spdot_counts_u16_sve2, *c = simsimd_cap_sve2_k; return;
-#if SIMSIMD_TARGET_SVE_BF16 //! We also need `bf16` support for weights
-        case simsimd_metric_spdot_weights_k: *m = (m_t)&simsimd_spdot_weights_u16_sve2, *c = simsimd_cap_sve2_k; return;
-#endif
         default: break;
         }
 #endif
 #if SIMSIMD_TARGET_NEON
     if (v & simsimd_cap_neon_k) switch (k) {
         case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_u16_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_u16_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_u16_neon, *c = simsimd_cap_neon_k; return;
         default: break;
         }
 #endif
 #if SIMSIMD_TARGET_TURIN
     if (v & simsimd_cap_turin_k) switch (k) {
         case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_turin, *c = simsimd_cap_turin_k; return;
-        case simsimd_metric_spdot_counts_k: *m = (m_t)&simsimd_spdot_counts_u16_turin, *c = simsimd_cap_turin_k; return;
-        case simsimd_metric_spdot_weights_k:
-            *m = (m_t)&simsimd_spdot_weights_u16_turin, *c = simsimd_cap_turin_k;
-            return;
         default: break;
         }
 #endif
 #if SIMSIMD_TARGET_ICE
     if (v & simsimd_cap_ice_k) switch (k) {
         case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_ice, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_u16_ice, *c = simsimd_cap_ice_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_SKYLAKE
+    if (v & simsimd_cap_skylake_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_u16_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_u16_skylake, *c = simsimd_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_HASWELL
+    if (v & simsimd_cap_haswell_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_u16_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_u16_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_u16_haswell, *c = simsimd_cap_haswell_k; return;
         default: break;
         }
 #endif
     if (v & simsimd_cap_serial_k) switch (k) {
         case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_u16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_u16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_u16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_u16_serial, *c = simsimd_cap_serial_k; return;
+        default: break;
+        }
+}
+
+SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_i16(simsimd_capability_t v, simsimd_metric_kind_t k,
+                                                      simsimd_kernel_punned_t *m, simsimd_capability_t *c) {
+    typedef simsimd_kernel_punned_t m_t;
+#if SIMSIMD_TARGET_NEON
+    if (v & simsimd_cap_neon_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_i16_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_i16_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_i16_neon, *c = simsimd_cap_neon_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_ICE
+    if (v & simsimd_cap_ice_k) switch (k) {
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_i16_ice, *c = simsimd_cap_ice_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_SKYLAKE
+    if (v & simsimd_cap_skylake_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_i16_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_i16_skylake, *c = simsimd_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_HASWELL
+    if (v & simsimd_cap_haswell_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_i16_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_i16_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_i16_haswell, *c = simsimd_cap_haswell_k; return;
+        default: break;
+        }
+#endif
+    if (v & simsimd_cap_serial_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_i16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_i16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_i16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_i16_serial, *c = simsimd_cap_serial_k; return;
         default: break;
         }
 }
@@ -1303,6 +1742,9 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_u32(simsimd_capability_t v, si
 #if SIMSIMD_TARGET_NEON
     if (v & simsimd_cap_neon_k) switch (k) {
         case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_u32_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_u32_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_u32_neon, *c = simsimd_cap_neon_k; return;
         default: break;
         }
 #endif
@@ -1315,11 +1757,138 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_u32(simsimd_capability_t v, si
 #if SIMSIMD_TARGET_ICE
     if (v & simsimd_cap_ice_k) switch (k) {
         case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_ice, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_u32_ice, *c = simsimd_cap_ice_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_SKYLAKE
+    if (v & simsimd_cap_skylake_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_u32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_u32_skylake, *c = simsimd_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_HASWELL
+    if (v & simsimd_cap_haswell_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_u32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_u32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_u32_haswell, *c = simsimd_cap_haswell_k; return;
         default: break;
         }
 #endif
     if (v & simsimd_cap_serial_k) switch (k) {
         case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_u32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_u32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_u32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_u32_serial, *c = simsimd_cap_serial_k; return;
+        default: break;
+        }
+}
+
+SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_i32(simsimd_capability_t v, simsimd_metric_kind_t k,
+                                                      simsimd_kernel_punned_t *m, simsimd_capability_t *c) {
+    typedef simsimd_kernel_punned_t m_t;
+#if SIMSIMD_TARGET_NEON
+    if (v & simsimd_cap_neon_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_i32_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_i32_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_i32_neon, *c = simsimd_cap_neon_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_ICE
+    if (v & simsimd_cap_ice_k) switch (k) {
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_i32_ice, *c = simsimd_cap_ice_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_SKYLAKE
+    if (v & simsimd_cap_skylake_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_i32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_i32_skylake, *c = simsimd_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_HASWELL
+    if (v & simsimd_cap_haswell_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_i32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_i32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_i32_haswell, *c = simsimd_cap_haswell_k; return;
+        default: break;
+        }
+#endif
+    if (v & simsimd_cap_serial_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_i32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_i32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_i32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_i32_serial, *c = simsimd_cap_serial_k; return;
+        default: break;
+        }
+}
+
+SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_i64(simsimd_capability_t v, simsimd_metric_kind_t k,
+                                                      simsimd_kernel_punned_t *m, simsimd_capability_t *c) {
+    typedef simsimd_kernel_punned_t m_t;
+#if SIMSIMD_TARGET_NEON
+    if (v & simsimd_cap_neon_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_i64_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_i64_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_i64_neon, *c = simsimd_cap_neon_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_ICE
+    if (v & simsimd_cap_ice_k) switch (k) {
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_i64_ice, *c = simsimd_cap_ice_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_SKYLAKE
+    if (v & simsimd_cap_skylake_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_i64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_i64_skylake, *c = simsimd_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+    if (v & simsimd_cap_serial_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_i64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_i64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_i64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_i64_serial, *c = simsimd_cap_serial_k; return;
+        default: break;
+        }
+}
+
+SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_u64(simsimd_capability_t v, simsimd_metric_kind_t k,
+                                                      simsimd_kernel_punned_t *m, simsimd_capability_t *c) {
+    typedef simsimd_kernel_punned_t m_t;
+#if SIMSIMD_TARGET_NEON
+    if (v & simsimd_cap_neon_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_u64_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_u64_neon, *c = simsimd_cap_neon_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_u64_neon, *c = simsimd_cap_neon_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_ICE
+    if (v & simsimd_cap_ice_k) switch (k) {
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_u64_ice, *c = simsimd_cap_ice_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_SKYLAKE
+    if (v & simsimd_cap_skylake_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_u64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_u64_skylake, *c = simsimd_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+    if (v & simsimd_cap_serial_k) switch (k) {
+        case simsimd_metric_fma_k: *m = (m_t)&simsimd_fma_u64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_u64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_u64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_u64_serial, *c = simsimd_cap_serial_k; return;
         default: break;
         }
 }
@@ -1358,26 +1927,32 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_implementation( //
 
     switch (datatype) {
 
-    case simsimd_datatype_f64_k: _simsimd_find_kernel_punned_f64(viable, kind, m, c); return;
-    case simsimd_datatype_f32_k: _simsimd_find_kernel_punned_f32(viable, kind, m, c); return;
-    case simsimd_datatype_f16_k: _simsimd_find_kernel_punned_f16(viable, kind, m, c); return;
-    case simsimd_datatype_bf16_k: _simsimd_find_kernel_punned_bf16(viable, kind, m, c); return;
-    case simsimd_datatype_i8_k: _simsimd_find_kernel_punned_i8(viable, kind, m, c); return;
-    case simsimd_datatype_u8_k: _simsimd_find_kernel_punned_u8(viable, kind, m, c); return;
-    case simsimd_datatype_b8_k: _simsimd_find_kernel_punned_b8(viable, kind, m, c); return;
-    case simsimd_datatype_f32c_k: _simsimd_find_kernel_punned_f32c(viable, kind, m, c); return;
-    case simsimd_datatype_f64c_k: _simsimd_find_kernel_punned_f64c(viable, kind, m, c); return;
-    case simsimd_datatype_f16c_k: _simsimd_find_kernel_punned_f16c(viable, kind, m, c); return;
-    case simsimd_datatype_bf16c_k: _simsimd_find_kernel_punned_bf16c(viable, kind, m, c); return;
-    case simsimd_datatype_u16_k: _simsimd_find_kernel_punned_u16(viable, kind, m, c); return;
-    case simsimd_datatype_u32_k: _simsimd_find_kernel_punned_u32(viable, kind, m, c); return;
+    case simsimd_f64_k: _simsimd_find_kernel_punned_f64(viable, kind, m, c); return;
+    case simsimd_f32_k: _simsimd_find_kernel_punned_f32(viable, kind, m, c); return;
+    case simsimd_f16_k: _simsimd_find_kernel_punned_f16(viable, kind, m, c); return;
+    case simsimd_bf16_k: _simsimd_find_kernel_punned_bf16(viable, kind, m, c); return;
+    case simsimd_e4m3_k: _simsimd_find_kernel_punned_e4m3(viable, kind, m, c); return;
+    case simsimd_e5m2_k: _simsimd_find_kernel_punned_e5m2(viable, kind, m, c); return;
+
+    case simsimd_f32c_k: _simsimd_find_kernel_punned_f32c(viable, kind, m, c); return;
+    case simsimd_f64c_k: _simsimd_find_kernel_punned_f64c(viable, kind, m, c); return;
+    case simsimd_f16c_k: _simsimd_find_kernel_punned_f16c(viable, kind, m, c); return;
+    case simsimd_bf16c_k: _simsimd_find_kernel_punned_bf16c(viable, kind, m, c); return;
+
+    case simsimd_i8_k: _simsimd_find_kernel_punned_i8(viable, kind, m, c); return;
+    case simsimd_i16_k: _simsimd_find_kernel_punned_i16(viable, kind, m, c); return;
+    case simsimd_i32_k: _simsimd_find_kernel_punned_i32(viable, kind, m, c); return;
+    case simsimd_i64_k: _simsimd_find_kernel_punned_i64(viable, kind, m, c); return;
+
+    case simsimd_u8_k: _simsimd_find_kernel_punned_u8(viable, kind, m, c); return;
+    case simsimd_u16_k: _simsimd_find_kernel_punned_u16(viable, kind, m, c); return;
+    case simsimd_u32_k: _simsimd_find_kernel_punned_u32(viable, kind, m, c); return;
+    case simsimd_u64_k: _simsimd_find_kernel_punned_u64(viable, kind, m, c); return;
+
+    case simsimd_b8_k: _simsimd_find_kernel_punned_b8(viable, kind, m, c); return;
 
     // These data-types are not supported yet
-    case simsimd_datatype_i4x2_k: break;
-    case simsimd_datatype_i16_k: break;
-    case simsimd_datatype_i32_k: break;
-    case simsimd_datatype_i64_k: break;
-    case simsimd_datatype_u64_k: break;
+    case simsimd_i4x2_k: break;
     case simsimd_datatype_unknown_k: break;
     default: break;
     }
@@ -1389,6 +1964,118 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_implementation( //
     // Modern compilers abso-freaking-lutely love optimizing-out my logic!
     // Just marking the variables as `volatile` is not enough, so we have
     // to add inline assembly to further discourage them!
+#if defined(_MSC_VER)
+    _ReadWriteBarrier();
+#else
+    __asm__ __volatile__("" ::: "memory");
+#endif
+}
+
+SIMSIMD_INTERNAL void _simsimd_find_mesh_kernel_punned_f64(simsimd_capability_t v, simsimd_metric_kind_t k,
+                                                           simsimd_metric_mesh_punned_t *m, simsimd_capability_t *c) {
+    typedef simsimd_metric_mesh_punned_t m_t;
+#if SIMSIMD_TARGET_SKYLAKE
+    if (v & simsimd_cap_skylake_k) switch (k) {
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f64_skylake, *c = simsimd_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_HASWELL
+    if (v & simsimd_cap_haswell_k) switch (k) {
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f64_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f64_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f64_haswell, *c = simsimd_cap_haswell_k; return;
+        default: break;
+        }
+#endif
+    if (v & simsimd_cap_serial_k) switch (k) {
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f64_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f64_serial, *c = simsimd_cap_serial_k; return;
+        default: break;
+        }
+}
+
+SIMSIMD_INTERNAL void _simsimd_find_mesh_kernel_punned_f32(simsimd_capability_t v, simsimd_metric_kind_t k,
+                                                           simsimd_metric_mesh_punned_t *m, simsimd_capability_t *c) {
+    typedef simsimd_metric_mesh_punned_t m_t;
+#if SIMSIMD_TARGET_SKYLAKE
+    if (v & simsimd_cap_skylake_k) switch (k) {
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_HASWELL
+    if (v & simsimd_cap_haswell_k) switch (k) {
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f32_haswell, *c = simsimd_cap_haswell_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f32_haswell, *c = simsimd_cap_haswell_k; return;
+        default: break;
+        }
+#endif
+    if (v & simsimd_cap_serial_k) switch (k) {
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f32_serial, *c = simsimd_cap_serial_k; return;
+        default: break;
+        }
+}
+
+SIMSIMD_INTERNAL void _simsimd_find_mesh_kernel_punned_f16(simsimd_capability_t v, simsimd_metric_kind_t k,
+                                                           simsimd_metric_mesh_punned_t *m, simsimd_capability_t *c) {
+    typedef simsimd_metric_mesh_punned_t m_t;
+    if (v & simsimd_cap_serial_k) switch (k) {
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f16_serial, *c = simsimd_cap_serial_k; return;
+        default: break;
+        }
+}
+
+SIMSIMD_INTERNAL void _simsimd_find_mesh_kernel_punned_bf16(simsimd_capability_t v, simsimd_metric_kind_t k,
+                                                            simsimd_metric_mesh_punned_t *m, simsimd_capability_t *c) {
+    typedef simsimd_metric_mesh_punned_t m_t;
+    if (v & simsimd_cap_serial_k) switch (k) {
+        case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_bf16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_bf16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_bf16_serial, *c = simsimd_cap_serial_k; return;
+        default: break;
+        }
+}
+
+SIMSIMD_INTERNAL void _simsimd_find_mesh_kernel_punned_implementation( //
+    simsimd_metric_kind_t kind,                                        //
+    simsimd_datatype_t datatype,                                       //
+    simsimd_capability_t supported,                                    //
+    simsimd_capability_t allowed,                                      //
+    simsimd_metric_mesh_punned_t *kernel_output,                       //
+    simsimd_capability_t *capability_output) {
+
+#if defined(_MSC_VER)
+    _ReadWriteBarrier();
+#else
+    __asm__ __volatile__("" ::: "memory");
+#endif
+
+    simsimd_metric_mesh_punned_t *m = kernel_output;
+    simsimd_capability_t *c = capability_output;
+    simsimd_capability_t viable = (simsimd_capability_t)(supported & allowed);
+
+    switch (datatype) {
+    case simsimd_f64_k: _simsimd_find_mesh_kernel_punned_f64(viable, kind, m, c); return;
+    case simsimd_f32_k: _simsimd_find_mesh_kernel_punned_f32(viable, kind, m, c); return;
+    case simsimd_f16_k: _simsimd_find_mesh_kernel_punned_f16(viable, kind, m, c); return;
+    case simsimd_bf16_k: _simsimd_find_mesh_kernel_punned_bf16(viable, kind, m, c); return;
+    default: break;
+    }
+
+    *m = (simsimd_metric_mesh_punned_t)0;
+    *c = (simsimd_capability_t)0;
+
 #if defined(_MSC_VER)
     _ReadWriteBarrier();
 #else
@@ -1423,6 +2110,7 @@ SIMSIMD_PUBLIC simsimd_kernel_punned_t simsimd_metric_punned( //
 #if SIMSIMD_DYNAMIC_DISPATCH
 
 /*  Run-time feature-testing functions
+ *
  *  - Check if the CPU supports NEON or SVE extensions on Arm
  *  - Check if the CPU supports AVX2 and F16C extensions on Haswell x86 CPUs and newer
  *  - Check if the CPU supports AVX512F and AVX512BW extensions on Skylake x86 CPUs and newer
@@ -1435,7 +2123,7 @@ SIMSIMD_PUBLIC simsimd_kernel_punned_t simsimd_metric_punned( //
  *  @return 1 if the CPU supports the SIMD instruction set, 0 otherwise.
  */
 SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void);
-SIMSIMD_DYNAMIC int simsimd_flush_denormals(void);
+SIMSIMD_DYNAMIC int simsimd_flush_denormals(simsimd_capability_t);
 SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void);
 SIMSIMD_DYNAMIC int simsimd_uses_neon(void);
 SIMSIMD_DYNAMIC int simsimd_uses_neon_f16(void);
@@ -1454,151 +2142,10 @@ SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void);
 SIMSIMD_DYNAMIC int simsimd_uses_turin(void);
 SIMSIMD_DYNAMIC int simsimd_uses_sierra(void);
 
-/*  Inner products
- *  - Dot product: the sum of the products of the corresponding elements of two vectors.
- *  - Complex Dot product: dot product with a conjugate first argument.
- *  - Complex Conjugate Dot product: dot product with a conjugate first argument.
- *
- *  @param a The first vector.
- *  @param b The second vector.
- *  @param n The number of elements in the vectors. Even for complex variants (the number of scalars).
- *  @param d The output distance value.
- *
- *  @note The dot product can be negative, to use as a distance, take `1 - a * b`.
- *  @note The dot product is zero if and only if the two vectors are orthogonal.
- *  @note Defined only for floating-point and integer data types.
- */
-SIMSIMD_DYNAMIC void simsimd_dot_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_dot_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_dot_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_dot_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
-                                      simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_dot_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_dot_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_dot_f16c(simsimd_f16c_t const *a, simsimd_f16c_t const *b, simsimd_size_t n,
-                                      simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_dot_bf16c(simsimd_bf16c_t const *a, simsimd_bf16c_t const *b, simsimd_size_t n,
-                                       simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_dot_f32c(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsimd_size_t n,
-                                      simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_dot_f64c(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_size_t n,
-                                      simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_vdot_f16c(simsimd_f16c_t const *a, simsimd_f16c_t const *b, simsimd_size_t n,
-                                       simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_vdot_bf16c(simsimd_bf16c_t const *a, simsimd_bf16c_t const *b, simsimd_size_t n,
-                                        simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_vdot_f32c(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsimd_size_t n,
-                                       simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_vdot_f64c(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_size_t n,
-                                       simsimd_distance_t *d);
-
-/*  Spatial distances
- *  - Cosine distance: the cosine of the angle between two vectors.
- *  - L2 squared distance: the squared Euclidean distance between two vectors.
- *
- *  @param a The first vector.
- *  @param b The second vector.
- *  @param n The number of elements in the vectors.
- *  @param d The output distance value.
- *
- *  @note The output distance value is non-negative.
- *  @note The output distance value is zero if and only if the two vectors are identical.
- *  @note Defined only for floating-point and integer data types.
- */
-SIMSIMD_DYNAMIC void simsimd_cos_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_cos_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_cos_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_cos_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
-                                      simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_cos_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_cos_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_l2sq_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_l2sq_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_l2sq_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
-                                      simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_l2sq_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
-                                       simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_l2sq_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
-                                      simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_l2sq_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
-                                      simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_l2_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
-                                   simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_l2_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
-                                   simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_l2_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_l2_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_l2_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_l2_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d);
-
-/*  Binary distances
- *  - Hamming distance: the number of positions at which the corresponding bits are different.
- *  - Jaccard distance: ratio of bit-level matching positions (intersection) to the total number of positions (union).
- *
- *  @param a The first binary vector.
- *  @param b The second binary vector.
- *  @param n The number of 8-bit words in the vectors.
- *  @param d The output distance value.
- *
- *  @note The output distance value is non-negative.
- *  @note The output distance value is zero if and only if the two vectors are identical.
- *  @note Defined only for binary data.
- */
-SIMSIMD_DYNAMIC void simsimd_hamming_b8(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n,
-                                        simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_jaccard_b8(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n,
-                                        simsimd_distance_t *d);
-
-/*  Probability distributions
- *  - Jensen-Shannon divergence: a measure of similarity between two probability distributions.
- *  - Kullback-Leibler divergence: a measure of how one probability distribution diverges from a second.
- *
- *  @param a The first discrete probability distribution.
- *  @param b The second discrete probability distribution.
- *  @param n The number of elements in the discrete distributions.
- *  @param d The output divergence value.
- *
- *  @note The distributions are assumed to be normalized.
- *  @note The output divergence value is non-negative.
- *  @note The output divergence value is zero if and only if the two distributions are identical.
- *  @note Defined only for floating-point data types.
- */
-SIMSIMD_DYNAMIC void simsimd_kl_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_kl_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_kl_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_kl_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_js_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_js_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_js_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d);
-SIMSIMD_DYNAMIC void simsimd_js_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d);
-
 #else
 
 /*  Compile-time feature-testing functions
+ *
  *  - Check if the CPU supports NEON or SVE extensions on Arm
  *  - Check if the CPU supports AVX2 and F16C extensions on Haswell x86 CPUs and newer
  *  - Check if the CPU supports AVX512F and AVX512BW extensions on Skylake x86 CPUs and newer
@@ -1628,7 +2175,7 @@ SIMSIMD_PUBLIC int simsimd_uses_sapphire(void) { return _SIMSIMD_TARGET_X86 && S
 SIMSIMD_PUBLIC int simsimd_uses_turin(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_TURIN; }
 SIMSIMD_PUBLIC int simsimd_uses_sierra(void) { return _SIMSIMD_TARGET_X86 && SIMSIMD_TARGET_SIERRA; }
 SIMSIMD_PUBLIC int simsimd_uses_dynamic_dispatch(void) { return 0; }
-SIMSIMD_PUBLIC int simsimd_flush_denormals(void) { return _simsimd_flush_denormals(); }
+SIMSIMD_PUBLIC int simsimd_flush_denormals(simsimd_capability_t c) { return _simsimd_flush_denormals(c); }
 SIMSIMD_PUBLIC simsimd_capability_t simsimd_capabilities(void) { return _simsimd_capabilities_implementation(); }
 SIMSIMD_PUBLIC void simsimd_find_kernel_punned( //
     simsimd_metric_kind_t kind,                 //
@@ -1640,923 +2187,6 @@ SIMSIMD_PUBLIC void simsimd_find_kernel_punned( //
     _simsimd_find_kernel_punned_implementation(kind, datatype, supported, allowed, kernel_output, capability_output);
 }
 // clang-format on
-
-/*  Inner products
- *  - Dot product: the sum of the products of the corresponding elements of two vectors.
- *  - Complex Dot product: dot product with a conjugate first argument.
- *  - Complex Conjugate Dot product: dot product with a conjugate first argument.
- *
- *  @param a The first vector.
- *  @param b The second vector.
- *  @param n The number of elements in the vectors. Even for complex variants (the number of scalars).
- *  @param d The output distance value.
- *
- *  @note The dot product can be negative, to use as a distance, take `1 - a * b`.
- *  @note The dot product is zero if and only if the two vectors are orthogonal.
- *  @note Defined only for floating-point and integer data types.
- */
-SIMSIMD_PUBLIC void simsimd_dot_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
-                                   simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_I8
-    simsimd_dot_i8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
-    simsimd_dot_i8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_dot_i8_haswell(a, b, n, d);
-#else
-    simsimd_dot_i8_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_dot_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
-                                   simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_I8
-    simsimd_dot_u8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
-    simsimd_dot_u8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_dot_u8_haswell(a, b, n, d);
-#else
-    simsimd_dot_u8_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_dot_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE_F16
-    simsimd_dot_f16_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
-    simsimd_dot_f16_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SAPPHIRE
-    simsimd_dot_f16_sapphire(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_dot_f16_haswell(a, b, n, d);
-#else
-    simsimd_dot_f16_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_dot_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
-    simsimd_dot_bf16_genoa(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_dot_bf16_haswell(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
-    simsimd_dot_bf16_neon(a, b, n, d);
-#else
-    simsimd_dot_bf16_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_dot_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
-    simsimd_dot_f32_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_dot_f32_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
-    simsimd_dot_f32_skylake(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_dot_f32_haswell(a, b, n, d);
-#else
-    simsimd_dot_f32_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_dot_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
-    simsimd_dot_f64_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
-    simsimd_dot_f64_skylake(a, b, n, d);
-#else
-    simsimd_dot_f64_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_dot_f16c(simsimd_f16c_t const *a, simsimd_f16c_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE_F16
-    simsimd_dot_f16c_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
-    simsimd_dot_f16c_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SAPPHIRE
-    simsimd_dot_f16c_sapphire(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_dot_f16c_haswell(a, b, n, d);
-#else
-    simsimd_dot_f16c_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_dot_bf16c(simsimd_bf16c_t const *a, simsimd_bf16c_t const *b, simsimd_size_t n,
-                                      simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
-    simsimd_dot_bf16c_genoa(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
-    simsimd_dot_bf16c_neon(a, b, n, d);
-#else
-    simsimd_dot_bf16c_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_dot_f32c(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
-    simsimd_dot_f32c_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_dot_f32c_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
-    simsimd_dot_f32c_skylake(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_dot_f32c_haswell(a, b, n, d);
-#else
-    simsimd_dot_f32c_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_dot_f64c(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
-    simsimd_dot_f64c_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
-    simsimd_dot_f64c_skylake(a, b, n, d);
-#else
-    simsimd_dot_f64c_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_vdot_f16c(simsimd_f16c_t const *a, simsimd_f16c_t const *b, simsimd_size_t n,
-                                      simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
-    simsimd_vdot_f16c_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
-    simsimd_dot_f16c_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SAPPHIRE
-    simsimd_dot_f16c_sapphire(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_dot_f16c_haswell(a, b, n, d);
-#else
-    simsimd_vdot_f16c_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_vdot_bf16c(simsimd_bf16c_t const *a, simsimd_bf16c_t const *b, simsimd_size_t n,
-                                       simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
-    simsimd_vdot_bf16c_genoa(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
-    simsimd_dot_bf16c_neon(a, b, n, d);
-#else
-    simsimd_vdot_bf16c_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_vdot_f32c(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsimd_size_t n,
-                                      simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
-    simsimd_vdot_f32c_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_dot_f32c_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
-    simsimd_dot_f32c_skylake(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_dot_f32c_haswell(a, b, n, d);
-#else
-    simsimd_vdot_f32c_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_vdot_f64c(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_size_t n,
-                                      simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
-    simsimd_vdot_f64c_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
-    simsimd_vdot_f64c_skylake(a, b, n, d);
-#else
-    simsimd_vdot_f64c_serial(a, b, n, d);
-#endif
-}
-
-/*  Spatial distances
- *  - Cosine distance: the cosine of the angle between two vectors.
- *  - L2 squared distance: the squared Euclidean distance between two vectors.
- *
- *  @param a The first vector.
- *  @param b The second vector.
- *  @param n The number of elements in the vectors.
- *  @param d The output distance value.
- *
- *  @note The output distance value is non-negative.
- *  @note The output distance value is zero if and only if the two vectors are identical.
- *  @note Defined only for floating-point and integer data types.
- */
-SIMSIMD_PUBLIC void simsimd_cos_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
-                                   simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_I8
-    simsimd_cos_i8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
-    simsimd_cos_i8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_cos_i8_haswell(a, b, n, d);
-#else
-    simsimd_cos_i8_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_cos_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
-                                   simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_I8
-    simsimd_cos_u8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
-    simsimd_cos_u8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_cos_u8_haswell(a, b, n, d);
-#else
-    simsimd_cos_u8_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_cos_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE_F16
-    simsimd_cos_f16_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
-    simsimd_cos_f16_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SAPPHIRE
-    simsimd_cos_f16_sapphire(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_cos_f16_haswell(a, b, n, d);
-#else
-    simsimd_cos_f16_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_cos_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
-    simsimd_cos_bf16_genoa(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_cos_bf16_haswell(a, b, n, d);
-#elif SIMSIMD_TARGET_SVE_BF16
-    simsimd_cos_bf16_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
-    simsimd_cos_bf16_neon(a, b, n, d);
-#else
-    simsimd_cos_bf16_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_cos_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
-    simsimd_cos_f32_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_cos_f32_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
-    simsimd_cos_f32_skylake(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_cos_f32_haswell(a, b, n, d);
-#else
-    simsimd_cos_f32_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_cos_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
-    simsimd_cos_f64_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_cos_f64_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
-    simsimd_cos_f64_skylake(a, b, n, d);
-#else
-    simsimd_cos_f64_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_l2sq_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_I8
-    simsimd_l2sq_i8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
-    simsimd_l2sq_i8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_l2sq_i8_haswell(a, b, n, d);
-#else
-    simsimd_l2sq_i8_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_l2sq_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_I8
-    simsimd_l2sq_u8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
-    simsimd_l2sq_u8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_l2sq_u8_haswell(a, b, n, d);
-#else
-    simsimd_l2sq_u8_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_l2sq_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE_F16
-    simsimd_l2sq_f16_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
-    simsimd_l2sq_f16_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SAPPHIRE
-    simsimd_l2sq_f16_sapphire(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_l2sq_f16_haswell(a, b, n, d);
-#else
-    simsimd_l2sq_f16_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_l2sq_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
-                                      simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
-    simsimd_l2sq_bf16_genoa(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_l2sq_bf16_haswell(a, b, n, d);
-#elif SIMSIMD_TARGET_SVE_BF16
-    simsimd_l2sq_bf16_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
-    simsimd_l2sq_bf16_neon(a, b, n, d);
-#else
-    simsimd_l2sq_bf16_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_l2sq_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
-    simsimd_l2sq_f32_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_l2sq_f32_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
-    simsimd_l2sq_f32_skylake(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_l2sq_f32_haswell(a, b, n, d);
-#else
-    simsimd_l2sq_f32_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_l2sq_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
-    simsimd_l2sq_f64_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_l2sq_f64_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
-    simsimd_l2sq_f64_skylake(a, b, n, d);
-#else
-    simsimd_l2sq_f64_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_l2_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
-                                  simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_I8
-    simsimd_l2_i8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
-    simsimd_l2_i8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_l2_i8_haswell(a, b, n, d);
-#else
-    simsimd_l2_i8_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_l2_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
-                                  simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_I8
-    simsimd_l2_u8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
-    simsimd_l2_u8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_l2_u8_haswell(a, b, n, d);
-#else
-    simsimd_l2_u8_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_l2_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
-                                   simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE_F16
-    simsimd_l2_f16_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
-    simsimd_l2_f16_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SAPPHIRE
-    simsimd_l2_f16_sapphire(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_l2_f16_haswell(a, b, n, d);
-#else
-    simsimd_l2_f16_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_l2_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
-    simsimd_l2_bf16_genoa(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_l2_bf16_haswell(a, b, n, d);
-#elif SIMSIMD_TARGET_SVE_BF16
-    simsimd_l2_bf16_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
-    simsimd_l2_bf16_neon(a, b, n, d);
-#else
-    simsimd_l2_bf16_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_l2_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
-                                   simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
-    simsimd_l2_f32_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_l2_f32_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
-    simsimd_l2_f32_skylake(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_l2_f32_haswell(a, b, n, d);
-#else
-    simsimd_l2_f32_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_l2_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
-                                   simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
-    simsimd_l2_f64_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_l2_f64_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
-    simsimd_l2_f64_skylake(a, b, n, d);
-#else
-    simsimd_l2_f64_serial(a, b, n, d);
-#endif
-}
-
-/*  Binary distances
- *  - Hamming distance: the number of positions at which the corresponding bits are different.
- *  - Jaccard distance: ratio of bit-level matching positions (intersection) to the total number of positions (union).
- *
- *  @param a The first binary vector.
- *  @param b The second binary vector.
- *  @param n The number of 8-bit words in the vectors.
- *  @param d The output distance value.
- *
- *  @note The output distance value is non-negative.
- *  @note The output distance value is zero if and only if the two vectors are identical.
- *  @note Defined only for binary data.
- */
-SIMSIMD_PUBLIC void simsimd_hamming_b8(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n,
-                                       simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
-    simsimd_hamming_b8_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_hamming_b8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
-    simsimd_hamming_b8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_hamming_b8_haswell(a, b, n, d);
-#else
-    simsimd_hamming_b8_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_jaccard_b8(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n,
-                                       simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE
-    simsimd_jaccard_b8_sve(a, b, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_jaccard_b8_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_ICE
-    simsimd_jaccard_b8_ice(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_jaccard_b8_haswell(a, b, n, d);
-#else
-    simsimd_jaccard_b8_serial(a, b, n, d);
-#endif
-}
-
-/*  Probability distributions
- *  - Jensen-Shannon divergence: a measure of similarity between two probability distributions.
- *  - Kullback-Leibler divergence: a measure of how one probability distribution diverges from a second.
- *
- *  @param a The first discrete probability distribution.
- *  @param b The second discrete probability distribution.
- *  @param n The number of elements in the discrete distributions.
- *  @param d The output divergence value.
- *
- *  @note The distributions are assumed to be normalized.
- *  @note The output divergence value is non-negative.
- *  @note The output divergence value is zero if and only if the two distributions are identical.
- *  @note Defined only for floating-point data types.
- */
-SIMSIMD_PUBLIC void simsimd_kl_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
-                                   simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_F16
-    simsimd_kl_f16_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_kl_f16_haswell(a, b, n, d);
-#else
-    simsimd_kl_f16_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_kl_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d) {
-    simsimd_kl_bf16_serial(a, b, n, d);
-}
-SIMSIMD_PUBLIC void simsimd_kl_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
-                                   simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON
-    simsimd_kl_f32_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
-    simsimd_kl_f32_skylake(a, b, n, d);
-#else
-    simsimd_kl_f32_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_kl_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
-                                   simsimd_distance_t *d) {
-    simsimd_kl_f64_serial(a, b, n, d);
-}
-SIMSIMD_PUBLIC void simsimd_js_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
-                                   simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON_F16
-    simsimd_js_f16_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_js_f16_haswell(a, b, n, d);
-#else
-    simsimd_js_f16_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_js_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t *d) {
-    simsimd_js_bf16_serial(a, b, n, d);
-}
-SIMSIMD_PUBLIC void simsimd_js_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
-                                   simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_NEON
-    simsimd_js_f32_neon(a, b, n, d);
-#elif SIMSIMD_TARGET_SKYLAKE
-    simsimd_js_f32_skylake(a, b, n, d);
-#else
-    simsimd_js_f32_serial(a, b, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_js_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
-                                   simsimd_distance_t *d) {
-    simsimd_js_f64_serial(a, b, n, d);
-}
-
-/*  Set operations
- *
- *  @param a The first sorted array of integers.
- *  @param b The second sorted array of integers.
- *  @param a_length The number of elements in the first array.
- *  @param b_length The number of elements in the second array.
- *  @param d The output for the number of elements in the intersection.
- */
-SIMSIMD_PUBLIC void simsimd_intersect_u16(simsimd_u16_t const *a, simsimd_u16_t const *b, simsimd_size_t a_length,
-                                          simsimd_size_t b_length, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE2
-    simsimd_intersect_u16_sve2(a, b, a_length, b_length, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_intersect_u16_neon(a, b, a_length, b_length, d);
-#elif SIMSIMD_TARGET_TURIN
-    simsimd_intersect_u16_turin(a, b, a_length, b_length, d);
-#elif SIMSIMD_TARGET_ICE
-    simsimd_intersect_u16_ice(a, b, a_length, b_length, d);
-#else
-    simsimd_intersect_u16_serial(a, b, a_length, b_length, d);
-#endif
-}
-
-SIMSIMD_PUBLIC void simsimd_intersect_u32(simsimd_u32_t const *a, simsimd_u32_t const *b, simsimd_size_t a_length,
-                                          simsimd_size_t b_length, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE2
-    simsimd_intersect_u32_sve2(a, b, a_length, b_length, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_intersect_u32_neon(a, b, a_length, b_length, d);
-#elif SIMSIMD_TARGET_TURIN
-    simsimd_intersect_u32_turin(a, b, a_length, b_length, d);
-#elif SIMSIMD_TARGET_ICE
-    simsimd_intersect_u32_ice(a, b, a_length, b_length, d);
-#else
-    simsimd_intersect_u32_serial(a, b, a_length, b_length, d);
-#endif
-}
-
-/*  Weighted set operations
- *
- *  @param a The first sorted array of integers.
- *  @param b The second sorted array of integers.
- *  @param a_weights The weights for the first array.
- *  @param b_weights The weights for the second array.
- *  @param a_length The number of elements in the first array.
- *  @param b_length The number of elements in the second array.
- *  @param d The output for the number of elements in the intersection.
- */
-SIMSIMD_PUBLIC void simsimd_spdot_counts_u16(simsimd_u16_t const *a, simsimd_u16_t const *b,
-                                             simsimd_i16_t const *a_weights, simsimd_i16_t const *b_weights,
-                                             simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE2
-    simsimd_spdot_counts_u16_sve2(a, b, a_weights, b_weights, a_length, b_length, d);
-#elif SIMSIMD_TARGET_TURIN
-    simsimd_spdot_counts_u16_turin(a, b, a_weights, b_weights, a_length, b_length, d);
-#else
-    simsimd_spdot_counts_u16_serial(a, b, a_weights, b_weights, a_length, b_length, d);
-#endif
-}
-
-SIMSIMD_PUBLIC void simsimd_spdot_weights_u16(simsimd_u16_t const *a, simsimd_u16_t const *b,
-                                              simsimd_bf16_t const *a_weights, simsimd_bf16_t const *b_weights,
-                                              simsimd_size_t a_length, simsimd_size_t b_length, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SVE2
-    simsimd_spdot_weights_u16_sve2(a, b, a_weights, b_weights, a_length, b_length, d);
-#elif SIMSIMD_TARGET_TURIN
-    simsimd_spdot_weights_u16_turin(a, b, a_weights, b_weights, a_length, b_length, d);
-#else
-    simsimd_spdot_weights_u16_serial(a, b, a_weights, b_weights, a_length, b_length, d);
-#endif
-}
-
-/*  Curved space distances
- *
- *  @param a The first vector of floating point values.
- *  @param b The second vector of floating point values.
- *  @param c The metric tensor or covariance matrix.
- *  @param n The number of dimensions in the vectors.
- *  @param d The output for the number of elements in the intersection.
- */
-SIMSIMD_PUBLIC void simsimd_bilinear_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c,
-                                         simsimd_size_t n, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SKYLAKE
-    simsimd_bilinear_f64_skylake(a, b, c, n, d);
-#else
-    simsimd_bilinear_f64_serial(a, b, c, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_bilinear_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c,
-                                         simsimd_size_t n, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SKYLAKE
-    simsimd_bilinear_f32_skylake(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_bilinear_f32_neon(a, b, c, n, d);
-#else
-    simsimd_bilinear_f32_serial(a, b, c, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_bilinear_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c,
-                                         simsimd_size_t n, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SAPPHIRE
-    simsimd_bilinear_f16_sapphire(a, b, c, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_bilinear_f16_haswell(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
-    simsimd_bilinear_f16_neon(a, b, c, n, d);
-#else
-    simsimd_bilinear_f16_serial(a, b, c, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_bilinear_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c,
-                                          simsimd_size_t n, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
-    simsimd_bilinear_bf16_genoa(a, b, c, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_bilinear_bf16_haswell(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
-    simsimd_bilinear_bf16_neon(a, b, c, n, d);
-#else
-    simsimd_bilinear_bf16_serial(a, b, c, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_bilinear_f64c(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_f64c_t const *c,
-                                          simsimd_size_t n, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SKYLAKE
-    simsimd_bilinear_f64c_skylake(a, b, c, n, d);
-#else
-    simsimd_bilinear_f64c_serial(a, b, c, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_bilinear_f32c(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsimd_f32c_t const *c,
-                                          simsimd_size_t n, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SKYLAKE
-    simsimd_bilinear_f32c_skylake(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_bilinear_f32c_neon(a, b, c, n, d);
-#else
-    simsimd_bilinear_f32c_serial(a, b, c, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_bilinear_f16c(simsimd_f16c_t const *a, simsimd_f16c_t const *b, simsimd_f16c_t const *c,
-                                          simsimd_size_t n, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SAPPHIRE
-    simsimd_bilinear_f16c_sapphire(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
-    simsimd_bilinear_f16c_neon(a, b, c, n, d);
-#else
-    simsimd_bilinear_f16c_serial(a, b, c, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_bilinear_bf16c(simsimd_bf16c_t const *a, simsimd_bf16c_t const *b, simsimd_bf16c_t const *c,
-                                           simsimd_size_t n, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
-    simsimd_bilinear_bf16c_genoa(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
-    simsimd_bilinear_bf16c_neon(a, b, c, n, d);
-#else
-    simsimd_bilinear_bf16c_serial(a, b, c, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_mahalanobis_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c,
-                                            simsimd_size_t n, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SKYLAKE
-    simsimd_mahalanobis_f64_skylake(a, b, c, n, d);
-#else
-    simsimd_mahalanobis_f64_serial(a, b, c, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_mahalanobis_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c,
-                                            simsimd_size_t n, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SKYLAKE
-    simsimd_mahalanobis_f32_skylake(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_mahalanobis_f32_neon(a, b, c, n, d);
-#else
-    simsimd_mahalanobis_f32_serial(a, b, c, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_mahalanobis_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c,
-                                            simsimd_size_t n, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_SAPPHIRE
-    simsimd_mahalanobis_f16_sapphire(a, b, c, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_mahalanobis_f16_haswell(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON_F16
-    simsimd_mahalanobis_f16_neon(a, b, c, n, d);
-#else
-    simsimd_mahalanobis_f16_serial(a, b, c, n, d);
-#endif
-}
-SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c,
-                                             simsimd_size_t n, simsimd_distance_t *d) {
-#if SIMSIMD_TARGET_GENOA
-    simsimd_mahalanobis_bf16_genoa(a, b, c, n, d);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_mahalanobis_bf16_haswell(a, b, c, n, d);
-#elif SIMSIMD_TARGET_NEON_BF16
-    simsimd_mahalanobis_bf16_neon(a, b, c, n, d);
-#else
-    simsimd_mahalanobis_bf16_serial(a, b, c, n, d);
-#endif
-}
-
-/*  Elementwise operations
- *
- *  @param a The first vector of integral or floating point values.
- *  @param b The second vector of integral or floating point values.
- *  @param c The third vector of integral or floating point values.
- *  @param n The number of dimensions in the vectors.
- *  @param alpha The first scaling factor.
- *  @param beta The first scaling factor.
- *  @param r The output vector or integral or floating point values.
- */
-SIMSIMD_PUBLIC void simsimd_wsum_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f64_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
-    simsimd_wsum_f64_skylake(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_wsum_f64_haswell(a, b, n, alpha, beta, r);
-#else
-    simsimd_wsum_f64_serial(a, b, n, alpha, beta, r);
-#endif
-}
-
-SIMSIMD_PUBLIC void simsimd_wsum_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f32_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
-    simsimd_wsum_f32_skylake(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_wsum_f32_haswell(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_wsum_f32_neon(a, b, n, alpha, beta, r);
-#else
-    simsimd_wsum_f32_serial(a, b, n, alpha, beta, r);
-#endif
-}
-
-SIMSIMD_PUBLIC void simsimd_wsum_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
-                                      simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_bf16_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
-    simsimd_wsum_bf16_skylake(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_wsum_bf16_haswell(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON_BF16
-    simsimd_wsum_bf16_neon(a, b, n, alpha, beta, r);
-#else
-    simsimd_wsum_bf16_serial(a, b, n, alpha, beta, r);
-#endif
-}
-
-SIMSIMD_PUBLIC void simsimd_wsum_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
-                                     simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_f16_t *r) {
-#if SIMSIMD_TARGET_SAPPHIRE
-    simsimd_wsum_f16_sapphire(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_wsum_f16_haswell(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON_F16
-    simsimd_wsum_f16_neon(a, b, n, alpha, beta, r);
-#else
-    simsimd_wsum_f16_serial(a, b, n, alpha, beta, r);
-#endif
-}
-
-SIMSIMD_PUBLIC void simsimd_wsum_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_i8_t *r) {
-#if SIMSIMD_TARGET_SAPPHIRE
-    simsimd_wsum_i8_sapphire(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_wsum_i8_haswell(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON_F16
-    simsimd_wsum_i8_neon(a, b, n, alpha, beta, r);
-#else
-    simsimd_wsum_i8_serial(a, b, n, alpha, beta, r);
-#endif
-}
-
-SIMSIMD_PUBLIC void simsimd_wsum_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_size_t n,
-                                    simsimd_distance_t alpha, simsimd_distance_t beta, simsimd_u8_t *r) {
-#if SIMSIMD_TARGET_SAPPHIRE
-    simsimd_wsum_u8_sapphire(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_wsum_u8_haswell(a, b, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON_F16
-    simsimd_wsum_u8_neon(a, b, n, alpha, beta, r);
-#else
-    simsimd_wsum_u8_serial(a, b, n, alpha, beta, r);
-#endif
-}
-
-SIMSIMD_PUBLIC void simsimd_fma_f64(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f64_t const *c,
-                                    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
-                                    simsimd_f64_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
-    simsimd_fma_f64_skylake(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_fma_f64_haswell(a, b, c, n, alpha, beta, r);
-#else
-    simsimd_fma_f64_serial(a, b, c, n, alpha, beta, r);
-#endif
-}
-
-SIMSIMD_PUBLIC void simsimd_fma_f32(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c,
-                                    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
-                                    simsimd_f32_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
-    simsimd_fma_f32_skylake(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_fma_f32_haswell(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON
-    simsimd_fma_f32_neon(a, b, c, n, alpha, beta, r);
-#else
-    simsimd_fma_f32_serial(a, b, c, n, alpha, beta, r);
-#endif
-}
-
-SIMSIMD_PUBLIC void simsimd_fma_bf16(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_bf16_t const *c,
-                                     simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
-                                     simsimd_bf16_t *r) {
-#if SIMSIMD_TARGET_SKYLAKE
-    simsimd_fma_bf16_skylake(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_fma_bf16_haswell(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON_BF16
-    simsimd_fma_bf16_neon(a, b, c, n, alpha, beta, r);
-#else
-    simsimd_fma_bf16_serial(a, b, c, n, alpha, beta, r);
-#endif
-}
-
-SIMSIMD_PUBLIC void simsimd_fma_f16(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_f16_t const *c,
-                                    simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
-                                    simsimd_f16_t *r) {
-#if SIMSIMD_TARGET_SAPPHIRE
-    simsimd_fma_f16_sapphire(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_fma_f16_haswell(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON_F16
-    simsimd_fma_f16_neon(a, b, c, n, alpha, beta, r);
-#else
-    simsimd_fma_f16_serial(a, b, c, n, alpha, beta, r);
-#endif
-}
-
-SIMSIMD_PUBLIC void simsimd_fma_i8(simsimd_i8_t const *a, simsimd_i8_t const *b, simsimd_i8_t const *c,
-                                   simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
-                                   simsimd_i8_t *r) {
-#if SIMSIMD_TARGET_SAPPHIRE
-    simsimd_fma_i8_sapphire(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_fma_i8_haswell(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON_F16
-    simsimd_fma_i8_neon(a, b, c, n, alpha, beta, r);
-#else
-    simsimd_fma_i8_serial(a, b, c, n, alpha, beta, r);
-#endif
-}
-
-SIMSIMD_PUBLIC void simsimd_fma_u8(simsimd_u8_t const *a, simsimd_u8_t const *b, simsimd_u8_t const *c,
-                                   simsimd_size_t n, simsimd_distance_t alpha, simsimd_distance_t beta,
-                                   simsimd_u8_t *r) {
-#if SIMSIMD_TARGET_SAPPHIRE
-    simsimd_fma_u8_sapphire(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_HASWELL
-    simsimd_fma_u8_haswell(a, b, c, n, alpha, beta, r);
-#elif SIMSIMD_TARGET_NEON_F16
-    simsimd_fma_u8_neon(a, b, c, n, alpha, beta, r);
-#else
-    simsimd_fma_u8_serial(a, b, c, n, alpha, beta, r);
-#endif
-}
 
 #endif
 

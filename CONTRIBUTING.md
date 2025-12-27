@@ -84,6 +84,13 @@ cmake -D CMAKE_BUILD_TYPE=Release \
 cmake --build build_release --config Release
 ```
 
+I'd recommend putting the following breakpoints:
+
+- `__asan::ReportGenericError` - to detect illegal memory accesses.
+- `__GI_exit` - to stop at exit points - the end of running any executable.
+- `__builtin_unreachable` - to catch unexpected code paths.
+- `_sz_assert_failure` - to catch StringZilla logic assertions.
+
 When benchmarking, make sure to disable multi-threading in the BLAS library, as it may interfere with the results:
 
 ```sh
@@ -135,14 +142,14 @@ Benchmarking:
 
 ```sh
 pip install numpy scipy scikit-learn                 # for comparison baselines
-python scripts/bench_vectors.py                      # to run default benchmarks
-python scripts/bench_vectors.py --n 1000 --ndim 1536 # batch size and dimensions
+python scripts/bench_similarity.py                      # to run default benchmarks
+python scripts/bench_similarity.py --n 1000 --ndim 1536 # batch size and dimensions
 ```
 
 You can also benchmark against other libraries, filter the numeric types, and distance metrics:
 
 ```sh
-$ python scripts/bench_vectors.py --help
+$ python scripts/bench_similarity.py --help
 > usage: bench.py [-h] [--ndim NDIM] [-n COUNT]
 >                 [--metric {all,dot,spatial,binary,probability,sparse}]
 >                 [--dtype {all,bin8,int8,uint16,uint32,float16,float32,float64,bfloat16,complex32,complex64,complex128}] 

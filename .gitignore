@@ -1,6 +1,4 @@
-build_release
-build_debug
-build
+/build*
 _deps
 simsimd.egg-info
 CMakeFiles
