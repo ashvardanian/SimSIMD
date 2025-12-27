@@ -617,6 +617,42 @@ SIMSIMD_INTERNAL simsimd_f64_t _simsimd_reduce_max_f64x4_haswell(__m256d max_f64
     return _mm_cvtsd_f64(max_f64x2);
 }
 
+/**
+ *  @brief Returns AVX2 blend mask for strided access of 32-bit elements (8-element register).
+ *
+ *  For column extraction from row-major matrices: stride N means every Nth element.
+ *  Returns -1 (all bits set) for positions to keep, 0 for positions to blend away.
+ *  Use with _mm256_blendv_ps(identity, data, mask) where identity is 0/+inf/-inf.
+ */
+SIMSIMD_INTERNAL __m256i _simsimd_stride_blend_b32x8(simsimd_size_t stride) {
+    switch (stride) {
+    case 2: return _mm256_setr_epi32(-1, 0, -1, 0, -1, 0, -1, 0); // 4 elems
+    case 3: return _mm256_setr_epi32(-1, 0, 0, -1, 0, 0, -1, 0);  // 3 elems
+    case 4: return _mm256_setr_epi32(-1, 0, 0, 0, -1, 0, 0, 0);   // 2 elems
+    case 5: return _mm256_setr_epi32(-1, 0, 0, 0, 0, -1, 0, 0);   // 2 elems
+    case 6: return _mm256_setr_epi32(-1, 0, 0, 0, 0, 0, -1, 0);   // 2 elems
+    case 7: return _mm256_setr_epi32(-1, 0, 0, 0, 0, 0, 0, -1);   // 2 elems
+    case 8: return _mm256_setr_epi32(-1, 0, 0, 0, 0, 0, 0, 0);    // 1 elem
+    default: return _mm256_setzero_si256();
+    }
+}
+
+/**
+ *  @brief Returns AVX2 blend mask for strided access of 64-bit elements (4-element register).
+ *
+ *  For column extraction from row-major matrices: stride N means every Nth element.
+ *  Returns -1 (all bits set) for positions to keep, 0 for positions to blend away.
+ *  Use with _mm256_blendv_pd(identity, data, mask) where identity is 0/+inf/-inf.
+ */
+SIMSIMD_INTERNAL __m256i _simsimd_stride_blend_b64x4(simsimd_size_t stride) {
+    switch (stride) {
+    case 2: return _mm256_setr_epi64x(-1, 0, -1, 0); // 2 elems
+    case 3: return _mm256_setr_epi64x(-1, 0, 0, -1); // 2 elems (wraps)
+    case 4: return _mm256_setr_epi64x(-1, 0, 0, 0);  // 1 elem
+    default: return _mm256_setr_epi64x(-1, 0, 0, 0); // 1 elem for stride 5+
+    }
+}
+
 #pragma endregion // x86 Haswell Internal Helpers
 
 #pragma region x86 Haswell Public Implementations
@@ -635,6 +671,35 @@ SIMSIMD_INTERNAL void _simsimd_reduce_add_f32_haswell_contiguous( //
     }
     simsimd_f64_t sum = _simsimd_reduce_add_f64x4_haswell(sum_f64x4);
     for (; idx_scalars < count; ++idx_scalars) sum += data[idx_scalars];
+    *result = sum;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_add_f32_haswell_strided(                       //
+    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_elements, //
+    simsimd_f64_t *result) {
+    // Blend-based strided access: load full register, blend with zero, sum all
+    __m256i blend_mask_i32x8 = _simsimd_stride_blend_b32x8(stride_elements);
+    __m256 zero_f32x8 = _mm256_setzero_ps();
+    __m256d sum_f64x4 = _mm256_setzero_pd();
+    simsimd_size_t idx_scalars = 0;
+    simsimd_size_t total_scalars = count * stride_elements;
+
+    for (; idx_scalars + 8 <= total_scalars; idx_scalars += 8) {
+        __m256 data_f32x8 = _mm256_loadu_ps(data + idx_scalars);
+        // Blend: keep stride elements, replace others with zero
+        __m256 masked_f32x8 = _mm256_blendv_ps(zero_f32x8, data_f32x8, _mm256_castsi256_ps(blend_mask_i32x8));
+        // Sum all - zeros don't contribute
+        __m128 lo_f32x4 = _mm256_castps256_ps128(masked_f32x8);
+        __m128 hi_f32x4 = _mm256_extractf128_ps(masked_f32x8, 1);
+        sum_f64x4 = _mm256_add_pd(sum_f64x4, _mm256_cvtps_pd(lo_f32x4));
+        sum_f64x4 = _mm256_add_pd(sum_f64x4, _mm256_cvtps_pd(hi_f32x4));
+    }
+
+    // Scalar tail
+    simsimd_f64_t sum = _simsimd_reduce_add_f64x4_haswell(sum_f64x4);
+    simsimd_f32_t const *ptr = data + idx_scalars;
+    simsimd_size_t remaining = count - idx_scalars / stride_elements;
+    for (simsimd_size_t i = 0; i < remaining; ++i, ptr += stride_elements) sum += *ptr;
     *result = sum;
 }
 
@@ -663,10 +728,15 @@ SIMSIMD_INTERNAL void _simsimd_reduce_add_f32_haswell_gather(                   
 SIMSIMD_PUBLIC void simsimd_reduce_add_f32_haswell(                               //
     simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
     simsimd_f64_t *result) {
-    if (stride_bytes == sizeof(simsimd_f32_t)) return _simsimd_reduce_add_f32_haswell_contiguous(data, count, result);
-    if (stride_bytes % sizeof(simsimd_f32_t) == 0 && stride_bytes <= 8 * sizeof(simsimd_f32_t))
-        return _simsimd_reduce_add_f32_haswell_gather(data, count, stride_bytes, result);
-    simsimd_reduce_add_f32_serial(data, count, stride_bytes, result);
+    simsimd_size_t stride_elements = stride_bytes / sizeof(simsimd_f32_t);
+    int aligned = (stride_bytes % sizeof(simsimd_f32_t) == 0);
+    if (!aligned) simsimd_reduce_add_f32_serial(data, count, stride_bytes, result);
+    else if (stride_elements == 1)
+        _simsimd_reduce_add_f32_haswell_contiguous(data, count, result);
+    else if (stride_elements <= 8)
+        _simsimd_reduce_add_f32_haswell_strided(data, count, stride_elements, result);
+    else
+        _simsimd_reduce_add_f32_haswell_gather(data, count, stride_bytes, result);
 }
 
 SIMSIMD_INTERNAL void _simsimd_reduce_add_f64_haswell_contiguous( //
@@ -682,11 +752,43 @@ SIMSIMD_INTERNAL void _simsimd_reduce_add_f64_haswell_contiguous( //
     *result = sum;
 }
 
+SIMSIMD_INTERNAL void _simsimd_reduce_add_f64_haswell_strided(                       //
+    simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_elements, //
+    simsimd_f64_t *result) {
+    // Blend-based strided access: load full register, blend with zero, sum all
+    __m256i blend_mask_i64x4 = _simsimd_stride_blend_b64x4(stride_elements);
+    __m256d zero_f64x4 = _mm256_setzero_pd();
+    __m256d sum_f64x4 = _mm256_setzero_pd();
+    simsimd_size_t idx_scalars = 0;
+    simsimd_size_t total_scalars = count * stride_elements;
+
+    for (; idx_scalars + 4 <= total_scalars; idx_scalars += 4) {
+        __m256d data_f64x4 = _mm256_loadu_pd(data + idx_scalars);
+        // Blend: keep stride elements, replace others with zero
+        __m256d masked_f64x4 = _mm256_blendv_pd(zero_f64x4, data_f64x4, _mm256_castsi256_pd(blend_mask_i64x4));
+        sum_f64x4 = _mm256_add_pd(sum_f64x4, masked_f64x4);
+    }
+
+    // Scalar tail
+    simsimd_f64_t sum = _simsimd_reduce_add_f64x4_haswell(sum_f64x4);
+    simsimd_f64_t const *ptr = data + idx_scalars;
+    simsimd_size_t remaining = count - idx_scalars / stride_elements;
+    for (simsimd_size_t i = 0; i < remaining; ++i, ptr += stride_elements) sum += *ptr;
+    *result = sum;
+}
+
 SIMSIMD_PUBLIC void simsimd_reduce_add_f64_haswell(                               //
     simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
     simsimd_f64_t *result) {
-    if (stride_bytes == sizeof(simsimd_f64_t)) return _simsimd_reduce_add_f64_haswell_contiguous(data, count, result);
-    simsimd_reduce_add_f64_serial(data, count, stride_bytes, result);
+    simsimd_size_t stride_elements = stride_bytes / sizeof(simsimd_f64_t);
+    int aligned = (stride_bytes % sizeof(simsimd_f64_t) == 0);
+    if (!aligned) simsimd_reduce_add_f64_serial(data, count, stride_bytes, result);
+    else if (stride_elements == 1)
+        _simsimd_reduce_add_f64_haswell_contiguous(data, count, result);
+    else if (stride_elements <= 4)
+        _simsimd_reduce_add_f64_haswell_strided(data, count, stride_elements, result);
+    else
+        simsimd_reduce_add_f64_serial(data, count, stride_bytes, result);
 }
 
 SIMSIMD_INTERNAL void _simsimd_reduce_min_f32_haswell_contiguous( //
@@ -713,12 +815,55 @@ SIMSIMD_INTERNAL void _simsimd_reduce_min_f32_haswell_contiguous( //
     *min_index = 0;
 }
 
+SIMSIMD_INTERNAL void _simsimd_reduce_min_f32_haswell_strided(                       //
+    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_elements, //
+    simsimd_f32_t *min_value, simsimd_size_t *min_index) {
+    // Blend-based strided access: load full register, blend with +inf, find min
+    __m256i blend_mask_i32x8 = _simsimd_stride_blend_b32x8(stride_elements);
+    __m256 pos_inf_f32x8 = _mm256_set1_ps(__builtin_huge_valf());
+    __m256 min_f32x8 = pos_inf_f32x8;
+    simsimd_size_t idx_scalars = 0;
+    simsimd_size_t total_scalars = count * stride_elements;
+
+    for (; idx_scalars + 8 <= total_scalars; idx_scalars += 8) {
+        __m256 data_f32x8 = _mm256_loadu_ps(data + idx_scalars);
+        // Blend: keep stride elements, replace others with +inf
+        __m256 masked_f32x8 = _mm256_blendv_ps(pos_inf_f32x8, data_f32x8, _mm256_castsi256_ps(blend_mask_i32x8));
+        min_f32x8 = _mm256_min_ps(min_f32x8, masked_f32x8);
+    }
+
+    // Scalar tail + horizontal reduce
+    simsimd_f32_t min_val = _simsimd_reduce_min_f32x8_haswell(min_f32x8);
+    simsimd_f32_t const *ptr = data + idx_scalars;
+    simsimd_size_t remaining = count - idx_scalars / stride_elements;
+    for (simsimd_size_t i = 0; i < remaining; ++i, ptr += stride_elements) {
+        if (*ptr < min_val) min_val = *ptr;
+    }
+
+    // Second pass: find first index (logical index in column)
+    ptr = data;
+    for (simsimd_size_t i = 0; i < count; ++i, ptr += stride_elements) {
+        if (*ptr != min_val) continue;
+        *min_value = min_val;
+        *min_index = i;
+        return;
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
 SIMSIMD_PUBLIC void simsimd_reduce_min_f32_haswell(                               //
     simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
     simsimd_f32_t *min_value, simsimd_size_t *min_index) {
-    if (stride_bytes == sizeof(simsimd_f32_t) && count >= 8)
-        return _simsimd_reduce_min_f32_haswell_contiguous(data, count, min_value, min_index);
-    simsimd_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
+    simsimd_size_t stride_elements = stride_bytes / sizeof(simsimd_f32_t);
+    int aligned = (stride_bytes % sizeof(simsimd_f32_t) == 0);
+    if (!aligned) simsimd_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
+    else if (stride_elements == 1 && count >= 8)
+        _simsimd_reduce_min_f32_haswell_contiguous(data, count, min_value, min_index);
+    else if (stride_elements >= 2 && stride_elements <= 8)
+        _simsimd_reduce_min_f32_haswell_strided(data, count, stride_elements, min_value, min_index);
+    else
+        simsimd_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 SIMSIMD_INTERNAL void _simsimd_reduce_max_f32_haswell_contiguous( //
@@ -744,12 +889,55 @@ SIMSIMD_INTERNAL void _simsimd_reduce_max_f32_haswell_contiguous( //
     *max_index = 0;
 }
 
+SIMSIMD_INTERNAL void _simsimd_reduce_max_f32_haswell_strided(                       //
+    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_elements, //
+    simsimd_f32_t *max_value, simsimd_size_t *max_index) {
+    // Blend-based strided access: load full register, blend with -inf, find max
+    __m256i blend_mask_i32x8 = _simsimd_stride_blend_b32x8(stride_elements);
+    __m256 neg_inf_f32x8 = _mm256_set1_ps(-__builtin_huge_valf());
+    __m256 max_f32x8 = neg_inf_f32x8;
+    simsimd_size_t idx_scalars = 0;
+    simsimd_size_t total_scalars = count * stride_elements;
+
+    for (; idx_scalars + 8 <= total_scalars; idx_scalars += 8) {
+        __m256 data_f32x8 = _mm256_loadu_ps(data + idx_scalars);
+        // Blend: keep stride elements, replace others with -inf
+        __m256 masked_f32x8 = _mm256_blendv_ps(neg_inf_f32x8, data_f32x8, _mm256_castsi256_ps(blend_mask_i32x8));
+        max_f32x8 = _mm256_max_ps(max_f32x8, masked_f32x8);
+    }
+
+    // Scalar tail + horizontal reduce
+    simsimd_f32_t max_val = _simsimd_reduce_max_f32x8_haswell(max_f32x8);
+    simsimd_f32_t const *ptr = data + idx_scalars;
+    simsimd_size_t remaining = count - idx_scalars / stride_elements;
+    for (simsimd_size_t i = 0; i < remaining; ++i, ptr += stride_elements) {
+        if (*ptr > max_val) max_val = *ptr;
+    }
+
+    // Second pass: find first index (logical index in column)
+    ptr = data;
+    for (simsimd_size_t i = 0; i < count; ++i, ptr += stride_elements) {
+        if (*ptr != max_val) continue;
+        *max_value = max_val;
+        *max_index = i;
+        return;
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
 SIMSIMD_PUBLIC void simsimd_reduce_max_f32_haswell(                               //
     simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
     simsimd_f32_t *max_value, simsimd_size_t *max_index) {
-    if (stride_bytes == sizeof(simsimd_f32_t) && count >= 8)
-        return _simsimd_reduce_max_f32_haswell_contiguous(data, count, max_value, max_index);
-    simsimd_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
+    simsimd_size_t stride_elements = stride_bytes / sizeof(simsimd_f32_t);
+    int aligned = (stride_bytes % sizeof(simsimd_f32_t) == 0);
+    if (!aligned) simsimd_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
+    else if (stride_elements == 1 && count >= 8)
+        _simsimd_reduce_max_f32_haswell_contiguous(data, count, max_value, max_index);
+    else if (stride_elements >= 2 && stride_elements <= 8)
+        _simsimd_reduce_max_f32_haswell_strided(data, count, stride_elements, max_value, max_index);
+    else
+        simsimd_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 SIMSIMD_INTERNAL void _simsimd_reduce_min_f64_haswell_contiguous( //
@@ -775,12 +963,55 @@ SIMSIMD_INTERNAL void _simsimd_reduce_min_f64_haswell_contiguous( //
     *min_index = 0;
 }
 
+SIMSIMD_INTERNAL void _simsimd_reduce_min_f64_haswell_strided(                       //
+    simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_elements, //
+    simsimd_f64_t *min_value, simsimd_size_t *min_index) {
+    // Blend-based strided access: load full register, blend with +inf, find min
+    __m256i blend_mask_i64x4 = _simsimd_stride_blend_b64x4(stride_elements);
+    __m256d pos_inf_f64x4 = _mm256_set1_pd(__builtin_huge_val());
+    __m256d min_f64x4 = pos_inf_f64x4;
+    simsimd_size_t idx_scalars = 0;
+    simsimd_size_t total_scalars = count * stride_elements;
+
+    for (; idx_scalars + 4 <= total_scalars; idx_scalars += 4) {
+        __m256d data_f64x4 = _mm256_loadu_pd(data + idx_scalars);
+        // Blend: keep stride elements, replace others with +inf
+        __m256d masked_f64x4 = _mm256_blendv_pd(pos_inf_f64x4, data_f64x4, _mm256_castsi256_pd(blend_mask_i64x4));
+        min_f64x4 = _mm256_min_pd(min_f64x4, masked_f64x4);
+    }
+
+    // Scalar tail + horizontal reduce
+    simsimd_f64_t min_val = _simsimd_reduce_min_f64x4_haswell(min_f64x4);
+    simsimd_f64_t const *ptr = data + idx_scalars;
+    simsimd_size_t remaining = count - idx_scalars / stride_elements;
+    for (simsimd_size_t i = 0; i < remaining; ++i, ptr += stride_elements) {
+        if (*ptr < min_val) min_val = *ptr;
+    }
+
+    // Second pass: find first index (logical index in column)
+    ptr = data;
+    for (simsimd_size_t i = 0; i < count; ++i, ptr += stride_elements) {
+        if (*ptr != min_val) continue;
+        *min_value = min_val;
+        *min_index = i;
+        return;
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
 SIMSIMD_PUBLIC void simsimd_reduce_min_f64_haswell(                               //
     simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
     simsimd_f64_t *min_value, simsimd_size_t *min_index) {
-    if (stride_bytes == sizeof(simsimd_f64_t) && count >= 4)
-        return _simsimd_reduce_min_f64_haswell_contiguous(data, count, min_value, min_index);
-    simsimd_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
+    simsimd_size_t stride_elements = stride_bytes / sizeof(simsimd_f64_t);
+    int aligned = (stride_bytes % sizeof(simsimd_f64_t) == 0);
+    if (!aligned) simsimd_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
+    else if (stride_elements == 1 && count >= 4)
+        _simsimd_reduce_min_f64_haswell_contiguous(data, count, min_value, min_index);
+    else if (stride_elements >= 2 && stride_elements <= 4)
+        _simsimd_reduce_min_f64_haswell_strided(data, count, stride_elements, min_value, min_index);
+    else
+        simsimd_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 SIMSIMD_INTERNAL void _simsimd_reduce_max_f64_haswell_contiguous( //
@@ -806,12 +1037,55 @@ SIMSIMD_INTERNAL void _simsimd_reduce_max_f64_haswell_contiguous( //
     *max_index = 0;
 }
 
+SIMSIMD_INTERNAL void _simsimd_reduce_max_f64_haswell_strided(                       //
+    simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_elements, //
+    simsimd_f64_t *max_value, simsimd_size_t *max_index) {
+    // Blend-based strided access: load full register, blend with -inf, find max
+    __m256i blend_mask_i64x4 = _simsimd_stride_blend_b64x4(stride_elements);
+    __m256d neg_inf_f64x4 = _mm256_set1_pd(-__builtin_huge_val());
+    __m256d max_f64x4 = neg_inf_f64x4;
+    simsimd_size_t idx_scalars = 0;
+    simsimd_size_t total_scalars = count * stride_elements;
+
+    for (; idx_scalars + 4 <= total_scalars; idx_scalars += 4) {
+        __m256d data_f64x4 = _mm256_loadu_pd(data + idx_scalars);
+        // Blend: keep stride elements, replace others with -inf
+        __m256d masked_f64x4 = _mm256_blendv_pd(neg_inf_f64x4, data_f64x4, _mm256_castsi256_pd(blend_mask_i64x4));
+        max_f64x4 = _mm256_max_pd(max_f64x4, masked_f64x4);
+    }
+
+    // Scalar tail + horizontal reduce
+    simsimd_f64_t max_val = _simsimd_reduce_max_f64x4_haswell(max_f64x4);
+    simsimd_f64_t const *ptr = data + idx_scalars;
+    simsimd_size_t remaining = count - idx_scalars / stride_elements;
+    for (simsimd_size_t i = 0; i < remaining; ++i, ptr += stride_elements) {
+        if (*ptr > max_val) max_val = *ptr;
+    }
+
+    // Second pass: find first index (logical index in column)
+    ptr = data;
+    for (simsimd_size_t i = 0; i < count; ++i, ptr += stride_elements) {
+        if (*ptr != max_val) continue;
+        *max_value = max_val;
+        *max_index = i;
+        return;
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
 SIMSIMD_PUBLIC void simsimd_reduce_max_f64_haswell(                               //
     simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
     simsimd_f64_t *max_value, simsimd_size_t *max_index) {
-    if (stride_bytes == sizeof(simsimd_f64_t) && count >= 4)
-        return _simsimd_reduce_max_f64_haswell_contiguous(data, count, max_value, max_index);
-    simsimd_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
+    simsimd_size_t stride_elements = stride_bytes / sizeof(simsimd_f64_t);
+    int aligned = (stride_bytes % sizeof(simsimd_f64_t) == 0);
+    if (!aligned) simsimd_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
+    else if (stride_elements == 1 && count >= 4)
+        _simsimd_reduce_max_f64_haswell_contiguous(data, count, max_value, max_index);
+    else if (stride_elements >= 2 && stride_elements <= 4)
+        _simsimd_reduce_max_f64_haswell_strided(data, count, stride_elements, max_value, max_index);
+    else
+        simsimd_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 #pragma endregion // x86 Haswell Public Implementations
@@ -931,6 +1205,144 @@ SIMSIMD_INTERNAL simsimd_i64_t _simsimd_reduce_add_i64x8_skylake(__m512i sum_i64
     return _mm_cvtsi128_si64(sum_i64x2);
 }
 
+/**
+ *  @brief Returns AVX-512 mask for strided access of 8-bit elements (64-element register).
+ *
+ *  For column extraction from row-major matrices: stride N means every Nth element.
+ *  With 64 elements per register, useful for strides 2-16 (yielding 4+ elements per load).
+ *  Mask bits set to 1 where (position % stride == 0).
+ */
+SIMSIMD_INTERNAL __mmask64 _simsimd_stride_mask_b8x64(simsimd_size_t stride) {
+    switch (stride) {
+    case 2: return (__mmask64)0x5555555555555555ull;  // 32 elems
+    case 3: return (__mmask64)0x1249249249249249ull;  // 21 elems
+    case 4: return (__mmask64)0x1111111111111111ull;  // 16 elems
+    case 5: return (__mmask64)0x1084210842108421ull;  // 12 elems
+    case 6: return (__mmask64)0x1041041041041041ull;  // 10 elems
+    case 7: return (__mmask64)0x0408102040810204ull;  // 9 elems
+    case 8: return (__mmask64)0x0101010101010101ull;  // 8 elems
+    case 9: return (__mmask64)0x0080200802008020ull;  // 7 elems
+    case 10: return (__mmask64)0x0040100401004010ull; // 6 elems
+    case 11: return (__mmask64)0x0020080200802008ull; // 5 elems
+    case 12: return (__mmask64)0x0010040100401004ull; // 5 elems
+    case 13: return (__mmask64)0x0008020080200802ull; // 4 elems
+    case 14: return (__mmask64)0x0004010040100401ull; // 4 elems
+    case 15: return (__mmask64)0x0002008020080200ull; // 4 elems
+    case 16: return (__mmask64)0x0001000100010001ull; // 4 elems
+    default: return (__mmask64)0;
+    }
+}
+
+/**
+ *  @brief Returns AVX-512 mask for strided access of 32-bit elements (16-element register).
+ *
+ *  For column extraction from row-major matrices: stride N means every Nth element.
+ *  Example: stride 4 extracts column 0 from a 4-column matrix.
+ *  Mask bits set to 1 where (position % stride == 0).
+ */
+SIMSIMD_INTERNAL __mmask16 _simsimd_stride_mask_b32x16(simsimd_size_t stride) {
+    switch (stride) {
+    case 2: return (__mmask16)0x5555; // [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0] → 8 elems
+    case 3: return (__mmask16)0x1249; // [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0] → 5 elems
+    case 4: return (__mmask16)0x1111; // [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0] → 4 elems
+    case 5: return (__mmask16)0x0421; // [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0] → 3 elems
+    case 6: return (__mmask16)0x0041; // [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0] → 2 elems
+    case 7: return (__mmask16)0x0081; // [1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0] → 2 elems
+    case 8: return (__mmask16)0x0101; // [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0] → 2 elems
+    default: return (__mmask16)0;     // Invalid stride - caller should use gather or serial
+    }
+}
+
+/**
+ *  @brief Returns AVX-512 mask for strided access of 64-bit elements (8-element register).
+ *
+ *  For column extraction from row-major matrices: stride N means every Nth element.
+ *  Example: stride 4 extracts column 0 from a 4-column matrix.
+ *  Mask bits set to 1 where (position % stride == 0).
+ */
+SIMSIMD_INTERNAL __mmask8 _simsimd_stride_mask_b64x8(simsimd_size_t stride) {
+    switch (stride) {
+    case 2: return (__mmask8)0x55; // [1,0,1,0,1,0,1,0] → 4 elems
+    case 3: return (__mmask8)0x49; // [1,0,0,1,0,0,1,0] → 3 elems
+    case 4: return (__mmask8)0x11; // [1,0,0,0,1,0,0,0] → 2 elems
+    case 5: return (__mmask8)0x21; // [1,0,0,0,0,1,0,0] → 2 elems
+    case 6: return (__mmask8)0x41; // [1,0,0,0,0,0,1,0] → 2 elems
+    case 7: return (__mmask8)0x01; // [1,0,0,0,0,0,0,0] → 1 elem
+    case 8: return (__mmask8)0x01; // [1,0,0,0,0,0,0,0] → 1 elem
+    default: return (__mmask8)0;
+    }
+}
+
+/**
+ *  @brief Returns initial logical index vector for 32-bit strided access (16-element register).
+ *
+ *  For min/max with index tracking: non-stride positions get 0 (don't matter, masked out).
+ *  Stride positions get sequential logical indices: 0, 1, 2, ...
+ */
+SIMSIMD_INTERNAL __m512i _simsimd_stride_logidx_i32x16(simsimd_size_t stride) {
+    switch (stride) {
+    case 2: return _mm512_setr_epi32(0, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0); // 8 elems
+    case 3: return _mm512_setr_epi32(0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0, 4, 0, 0, 0); // 5 elems
+    case 4: return _mm512_setr_epi32(0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0); // 4 elems
+    case 5: return _mm512_setr_epi32(0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0); // 3 elems
+    case 6: return _mm512_setr_epi32(0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0); // 2 elems
+    case 7: return _mm512_setr_epi32(0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0); // 2 elems
+    case 8: return _mm512_setr_epi32(0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0); // 2 elems
+    default: return _mm512_setzero_si512();
+    }
+}
+
+/**
+ *  @brief Returns initial logical index vector for 64-bit strided access (8-element register).
+ *
+ *  For min/max with index tracking: non-stride positions get 0 (don't matter, masked out).
+ *  Stride positions get sequential logical indices: 0, 1, 2, ...
+ */
+SIMSIMD_INTERNAL __m512i _simsimd_stride_logidx_i64x8(simsimd_size_t stride) {
+    switch (stride) {
+    case 2: return _mm512_setr_epi64(0, 0, 1, 0, 2, 0, 3, 0); // 4 elems
+    case 3: return _mm512_setr_epi64(0, 0, 0, 1, 0, 0, 2, 0); // 3 elems
+    case 4: return _mm512_setr_epi64(0, 0, 0, 0, 1, 0, 0, 0); // 2 elems
+    case 5: return _mm512_setr_epi64(0, 0, 0, 0, 0, 1, 0, 0); // 2 elems
+    case 6: return _mm512_setr_epi64(0, 0, 0, 0, 0, 0, 1, 0); // 2 elems
+    case 7: return _mm512_setr_epi64(0, 0, 0, 0, 0, 0, 0, 0); // 1 elem
+    case 8: return _mm512_setr_epi64(0, 0, 0, 0, 0, 0, 0, 0); // 1 elem
+    default: return _mm512_setzero_si512();
+    }
+}
+
+/**
+ *  @brief Returns number of logical elements per 16-scalar chunk for given stride.
+ */
+SIMSIMD_INTERNAL simsimd_size_t _simsimd_stride_elems_b32x16(simsimd_size_t stride) {
+    switch (stride) {
+    case 2: return 8;
+    case 3: return 5;
+    case 4: return 4;
+    case 5: return 3;
+    case 6: return 2;
+    case 7: return 2;
+    case 8: return 2;
+    default: return 0;
+    }
+}
+
+/**
+ *  @brief Returns number of logical elements per 8-scalar chunk for given stride.
+ */
+SIMSIMD_INTERNAL simsimd_size_t _simsimd_stride_elems_b64x8(simsimd_size_t stride) {
+    switch (stride) {
+    case 2: return 4;
+    case 3: return 3;
+    case 4: return 2;
+    case 5: return 2;
+    case 6: return 2;
+    case 7: return 1;
+    case 8: return 1;
+    default: return 0;
+    }
+}
+
 #pragma endregion // x86 Skylake Internal Helpers
 
 #pragma region x86 Skylake Public Implementations
@@ -981,13 +1393,47 @@ SIMSIMD_INTERNAL void _simsimd_reduce_add_f32_skylake_gather(                   
     *result = sum;
 }
 
+SIMSIMD_INTERNAL void _simsimd_reduce_add_f32_skylake_strided(                       //
+    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_elements, //
+    simsimd_f64_t *result) {
+    // Masked load zeros out non-stride elements; zeros don't affect the sum
+    __mmask16 stride_mask_m16 = _simsimd_stride_mask_b32x16(stride_elements);
+    __m512d sum_f64x8 = _mm512_setzero_pd();
+    simsimd_size_t idx_scalars = 0;
+    simsimd_size_t total_scalars = count * stride_elements;
+    for (; idx_scalars + 16 <= total_scalars; idx_scalars += 16) {
+        __m512 data_f32x16 = _mm512_maskz_loadu_ps(stride_mask_m16, data + idx_scalars);
+        __m256 lo_f32x8 = _mm512_castps512_ps256(data_f32x16);
+        __m256 hi_f32x8 = _mm512_extractf32x8_ps(data_f32x16, 1);
+        sum_f64x8 = _mm512_add_pd(sum_f64x8, _mm512_cvtps_pd(lo_f32x8));
+        sum_f64x8 = _mm512_add_pd(sum_f64x8, _mm512_cvtps_pd(hi_f32x8));
+    }
+    // Masked tail: combine stride mask with tail mask
+    simsimd_size_t remaining = total_scalars - idx_scalars;
+    if (remaining > 0) {
+        __mmask16 tail_mask_m16 = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)remaining);
+        __mmask16 load_mask_m16 = stride_mask_m16 & tail_mask_m16;
+        __m512 data_f32x16 = _mm512_maskz_loadu_ps(load_mask_m16, data + idx_scalars);
+        __m256 lo_f32x8 = _mm512_castps512_ps256(data_f32x16);
+        __m256 hi_f32x8 = _mm512_extractf32x8_ps(data_f32x16, 1);
+        sum_f64x8 = _mm512_add_pd(sum_f64x8, _mm512_cvtps_pd(lo_f32x8));
+        if (remaining > 8) sum_f64x8 = _mm512_add_pd(sum_f64x8, _mm512_cvtps_pd(hi_f32x8));
+    }
+    *result = _simsimd_reduce_add_f64x8_skylake(sum_f64x8);
+}
+
 SIMSIMD_PUBLIC void simsimd_reduce_add_f32_skylake(                               //
     simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
     simsimd_f64_t *result) {
-    if (stride_bytes == sizeof(simsimd_f32_t)) return _simsimd_reduce_add_f32_skylake_contiguous(data, count, result);
-    if (stride_bytes % sizeof(simsimd_f32_t) == 0)
-        return _simsimd_reduce_add_f32_skylake_gather(data, count, stride_bytes, result);
-    simsimd_reduce_add_f32_serial(data, count, stride_bytes, result);
+    simsimd_size_t stride_elements = stride_bytes / sizeof(simsimd_f32_t);
+    int aligned = (stride_bytes % sizeof(simsimd_f32_t) == 0);
+    if (!aligned) simsimd_reduce_add_f32_serial(data, count, stride_bytes, result);
+    else if (stride_elements == 1)
+        _simsimd_reduce_add_f32_skylake_contiguous(data, count, result);
+    else if (stride_elements <= 8)
+        _simsimd_reduce_add_f32_skylake_strided(data, count, stride_elements, result);
+    else
+        _simsimd_reduce_add_f32_skylake_gather(data, count, stride_bytes, result);
 }
 
 SIMSIMD_INTERNAL void _simsimd_reduce_add_f64_skylake_contiguous( //
@@ -1027,13 +1473,41 @@ SIMSIMD_INTERNAL void _simsimd_reduce_add_f64_skylake_gather(                   
     *result = sum;
 }
 
+SIMSIMD_INTERNAL void _simsimd_reduce_add_f64_skylake_strided(                       //
+    simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_elements, //
+    simsimd_f64_t *result) {
+    // Masked load zeros out non-stride elements; zeros don't affect the sum
+    __mmask8 stride_mask_m8 = _simsimd_stride_mask_b64x8(stride_elements);
+    __m512d sum_f64x8 = _mm512_setzero_pd();
+    simsimd_size_t idx_scalars = 0;
+    simsimd_size_t total_scalars = count * stride_elements;
+    for (; idx_scalars + 8 <= total_scalars; idx_scalars += 8) {
+        __m512d data_f64x8 = _mm512_maskz_loadu_pd(stride_mask_m8, data + idx_scalars);
+        sum_f64x8 = _mm512_add_pd(sum_f64x8, data_f64x8);
+    }
+    // Masked tail: combine stride mask with tail mask
+    simsimd_size_t remaining = total_scalars - idx_scalars;
+    if (remaining > 0) {
+        __mmask8 tail_mask_m8 = (__mmask8)_bzhi_u32(0xFF, (unsigned int)remaining);
+        __mmask8 load_mask_m8 = stride_mask_m8 & tail_mask_m8;
+        __m512d data_f64x8 = _mm512_maskz_loadu_pd(load_mask_m8, data + idx_scalars);
+        sum_f64x8 = _mm512_add_pd(sum_f64x8, data_f64x8);
+    }
+    *result = _simsimd_reduce_add_f64x8_skylake(sum_f64x8);
+}
+
 SIMSIMD_PUBLIC void simsimd_reduce_add_f64_skylake(                               //
     simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
     simsimd_f64_t *result) {
-    if (stride_bytes == sizeof(simsimd_f64_t)) return _simsimd_reduce_add_f64_skylake_contiguous(data, count, result);
-    if (stride_bytes % sizeof(simsimd_f64_t) == 0)
-        return _simsimd_reduce_add_f64_skylake_gather(data, count, stride_bytes, result);
-    simsimd_reduce_add_f64_serial(data, count, stride_bytes, result);
+    simsimd_size_t stride_elements = stride_bytes / sizeof(simsimd_f64_t);
+    int aligned = (stride_bytes % sizeof(simsimd_f64_t) == 0);
+    if (!aligned) simsimd_reduce_add_f64_serial(data, count, stride_bytes, result);
+    else if (stride_elements == 1)
+        _simsimd_reduce_add_f64_skylake_contiguous(data, count, result);
+    else if (stride_elements <= 8)
+        _simsimd_reduce_add_f64_skylake_strided(data, count, stride_elements, result);
+    else
+        _simsimd_reduce_add_f64_skylake_gather(data, count, stride_bytes, result);
 }
 
 SIMSIMD_INTERNAL void _simsimd_reduce_min_f32_skylake_contiguous( //
@@ -1082,12 +1556,64 @@ SIMSIMD_INTERNAL void _simsimd_reduce_min_f32_skylake_contiguous( //
     *min_index = (simsimd_size_t)indices[first_lane];
 }
 
+SIMSIMD_INTERNAL void _simsimd_reduce_min_f32_skylake_strided(                       //
+    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_elements, //
+    simsimd_f32_t *min_value, simsimd_size_t *min_index) {
+    // Masked load with +inf for non-stride elements; track logical indices
+    __mmask16 stride_mask_m16 = _simsimd_stride_mask_b32x16(stride_elements);
+    __m512 pos_inf_f32x16 = _mm512_set1_ps(__builtin_huge_valf());
+    __m512 min_f32x16 = pos_inf_f32x16;
+    __m512i min_idx_i32x16 = _mm512_setzero_si512();
+    simsimd_size_t idx_scalars = 0;
+    simsimd_size_t total_scalars = count * stride_elements;
+
+    // Precomputed logical index vector and step for this stride
+    __m512i logical_idx_i32x16 = _simsimd_stride_logidx_i32x16(stride_elements);
+    simsimd_size_t elems_per_chunk = _simsimd_stride_elems_b32x16(stride_elements);
+    __m512i step_i32x16 = _mm512_set1_epi32((simsimd_i32_t)elems_per_chunk);
+
+    for (; idx_scalars + 16 <= total_scalars; idx_scalars += 16) {
+        __m512 data_f32x16 = _mm512_mask_loadu_ps(pos_inf_f32x16, stride_mask_m16, data + idx_scalars);
+        __mmask16 lt_mask_m16 = _mm512_cmp_ps_mask(data_f32x16, min_f32x16, _CMP_LT_OQ);
+        min_f32x16 = _mm512_mask_mov_ps(min_f32x16, lt_mask_m16, data_f32x16);
+        min_idx_i32x16 = _mm512_mask_mov_epi32(min_idx_i32x16, lt_mask_m16, logical_idx_i32x16);
+        logical_idx_i32x16 = _mm512_add_epi32(logical_idx_i32x16, step_i32x16);
+    }
+
+    // Masked tail
+    simsimd_size_t remaining = total_scalars - idx_scalars;
+    if (remaining > 0) {
+        __mmask16 tail_mask_m16 = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)remaining);
+        __mmask16 load_mask_m16 = stride_mask_m16 & tail_mask_m16;
+        __m512 data_f32x16 = _mm512_mask_loadu_ps(pos_inf_f32x16, load_mask_m16, data + idx_scalars);
+        __mmask16 lt_mask_m16 = _mm512_cmp_ps_mask(data_f32x16, min_f32x16, _CMP_LT_OQ);
+        min_f32x16 = _mm512_mask_mov_ps(min_f32x16, lt_mask_m16, data_f32x16);
+        min_idx_i32x16 = _mm512_mask_mov_epi32(min_idx_i32x16, lt_mask_m16, logical_idx_i32x16);
+    }
+
+    // Horizontal reduction
+    simsimd_f32_t min_val = _simsimd_reduce_min_f32x16_skylake(min_f32x16);
+    __mmask16 eq_mask_m16 = _mm512_cmp_ps_mask(min_f32x16, _mm512_set1_ps(min_val), _CMP_EQ_OQ);
+    unsigned int first_lane = _tzcnt_u32(eq_mask_m16);
+    simsimd_i32_t indices[16];
+    _mm512_storeu_si512(indices, min_idx_i32x16);
+
+    *min_value = min_val;
+    *min_index = (simsimd_size_t)indices[first_lane];
+}
+
 SIMSIMD_PUBLIC void simsimd_reduce_min_f32_skylake(                               //
     simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
     simsimd_f32_t *min_value, simsimd_size_t *min_index) {
-    if (stride_bytes == sizeof(simsimd_f32_t) && count >= 16)
-        return _simsimd_reduce_min_f32_skylake_contiguous(data, count, min_value, min_index);
-    simsimd_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
+    simsimd_size_t stride_elements = stride_bytes / sizeof(simsimd_f32_t);
+    int aligned = (stride_bytes % sizeof(simsimd_f32_t) == 0);
+    if (!aligned) simsimd_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
+    else if (stride_elements == 1 && count >= 16)
+        _simsimd_reduce_min_f32_skylake_contiguous(data, count, min_value, min_index);
+    else if (stride_elements >= 2 && stride_elements <= 8)
+        _simsimd_reduce_min_f32_skylake_strided(data, count, stride_elements, min_value, min_index);
+    else
+        simsimd_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 SIMSIMD_INTERNAL void _simsimd_reduce_max_f32_skylake_contiguous( //
@@ -1136,12 +1662,64 @@ SIMSIMD_INTERNAL void _simsimd_reduce_max_f32_skylake_contiguous( //
     *max_index = (simsimd_size_t)indices[first_lane];
 }
 
+SIMSIMD_INTERNAL void _simsimd_reduce_max_f32_skylake_strided(                       //
+    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_elements, //
+    simsimd_f32_t *max_value, simsimd_size_t *max_index) {
+    // Masked load with -inf for non-stride elements; track logical indices
+    __mmask16 stride_mask_m16 = _simsimd_stride_mask_b32x16(stride_elements);
+    __m512 neg_inf_f32x16 = _mm512_set1_ps(-__builtin_huge_valf());
+    __m512 max_f32x16 = neg_inf_f32x16;
+    __m512i max_idx_i32x16 = _mm512_setzero_si512();
+    simsimd_size_t idx_scalars = 0;
+    simsimd_size_t total_scalars = count * stride_elements;
+
+    // Precomputed logical index vector and step for this stride
+    __m512i logical_idx_i32x16 = _simsimd_stride_logidx_i32x16(stride_elements);
+    simsimd_size_t elems_per_chunk = _simsimd_stride_elems_b32x16(stride_elements);
+    __m512i step_i32x16 = _mm512_set1_epi32((simsimd_i32_t)elems_per_chunk);
+
+    for (; idx_scalars + 16 <= total_scalars; idx_scalars += 16) {
+        __m512 data_f32x16 = _mm512_mask_loadu_ps(neg_inf_f32x16, stride_mask_m16, data + idx_scalars);
+        __mmask16 gt_mask_m16 = _mm512_cmp_ps_mask(data_f32x16, max_f32x16, _CMP_GT_OQ);
+        max_f32x16 = _mm512_mask_mov_ps(max_f32x16, gt_mask_m16, data_f32x16);
+        max_idx_i32x16 = _mm512_mask_mov_epi32(max_idx_i32x16, gt_mask_m16, logical_idx_i32x16);
+        logical_idx_i32x16 = _mm512_add_epi32(logical_idx_i32x16, step_i32x16);
+    }
+
+    // Masked tail
+    simsimd_size_t remaining = total_scalars - idx_scalars;
+    if (remaining > 0) {
+        __mmask16 tail_mask_m16 = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)remaining);
+        __mmask16 load_mask_m16 = stride_mask_m16 & tail_mask_m16;
+        __m512 data_f32x16 = _mm512_mask_loadu_ps(neg_inf_f32x16, load_mask_m16, data + idx_scalars);
+        __mmask16 gt_mask_m16 = _mm512_cmp_ps_mask(data_f32x16, max_f32x16, _CMP_GT_OQ);
+        max_f32x16 = _mm512_mask_mov_ps(max_f32x16, gt_mask_m16, data_f32x16);
+        max_idx_i32x16 = _mm512_mask_mov_epi32(max_idx_i32x16, gt_mask_m16, logical_idx_i32x16);
+    }
+
+    // Horizontal reduction
+    simsimd_f32_t max_val = _simsimd_reduce_max_f32x16_skylake(max_f32x16);
+    __mmask16 eq_mask_m16 = _mm512_cmp_ps_mask(max_f32x16, _mm512_set1_ps(max_val), _CMP_EQ_OQ);
+    unsigned int first_lane = _tzcnt_u32(eq_mask_m16);
+    simsimd_i32_t indices[16];
+    _mm512_storeu_si512(indices, max_idx_i32x16);
+
+    *max_value = max_val;
+    *max_index = (simsimd_size_t)indices[first_lane];
+}
+
 SIMSIMD_PUBLIC void simsimd_reduce_max_f32_skylake(                               //
     simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
     simsimd_f32_t *max_value, simsimd_size_t *max_index) {
-    if (stride_bytes == sizeof(simsimd_f32_t) && count >= 16)
-        return _simsimd_reduce_max_f32_skylake_contiguous(data, count, max_value, max_index);
-    simsimd_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
+    simsimd_size_t stride_elements = stride_bytes / sizeof(simsimd_f32_t);
+    int aligned = (stride_bytes % sizeof(simsimd_f32_t) == 0);
+    if (!aligned) simsimd_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
+    else if (stride_elements == 1 && count >= 16)
+        _simsimd_reduce_max_f32_skylake_contiguous(data, count, max_value, max_index);
+    else if (stride_elements >= 2 && stride_elements <= 8)
+        _simsimd_reduce_max_f32_skylake_strided(data, count, stride_elements, max_value, max_index);
+    else
+        simsimd_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 SIMSIMD_INTERNAL void _simsimd_reduce_min_f64_skylake_contiguous( //
@@ -1186,12 +1764,64 @@ SIMSIMD_INTERNAL void _simsimd_reduce_min_f64_skylake_contiguous( //
     *min_index = (simsimd_size_t)indices[first_lane];
 }
 
+SIMSIMD_INTERNAL void _simsimd_reduce_min_f64_skylake_strided(                       //
+    simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_elements, //
+    simsimd_f64_t *min_value, simsimd_size_t *min_index) {
+    // Masked load with +inf for non-stride elements; track logical indices
+    __mmask8 stride_mask_m8 = _simsimd_stride_mask_b64x8(stride_elements);
+    __m512d pos_inf_f64x8 = _mm512_set1_pd(__builtin_huge_val());
+    __m512d min_f64x8 = pos_inf_f64x8;
+    __m512i min_idx_i64x8 = _mm512_setzero_si512();
+    simsimd_size_t idx_scalars = 0;
+    simsimd_size_t total_scalars = count * stride_elements;
+
+    // Precomputed logical index vector and step for this stride
+    __m512i logical_idx_i64x8 = _simsimd_stride_logidx_i64x8(stride_elements);
+    simsimd_size_t elems_per_chunk = _simsimd_stride_elems_b64x8(stride_elements);
+    __m512i step_i64x8 = _mm512_set1_epi64((simsimd_i64_t)elems_per_chunk);
+
+    for (; idx_scalars + 8 <= total_scalars; idx_scalars += 8) {
+        __m512d data_f64x8 = _mm512_mask_loadu_pd(pos_inf_f64x8, stride_mask_m8, data + idx_scalars);
+        __mmask8 lt_mask_m8 = _mm512_cmp_pd_mask(data_f64x8, min_f64x8, _CMP_LT_OQ);
+        min_f64x8 = _mm512_mask_mov_pd(min_f64x8, lt_mask_m8, data_f64x8);
+        min_idx_i64x8 = _mm512_mask_mov_epi64(min_idx_i64x8, lt_mask_m8, logical_idx_i64x8);
+        logical_idx_i64x8 = _mm512_add_epi64(logical_idx_i64x8, step_i64x8);
+    }
+
+    // Masked tail
+    simsimd_size_t remaining = total_scalars - idx_scalars;
+    if (remaining > 0) {
+        __mmask8 tail_mask_m8 = (__mmask8)_bzhi_u32(0xFF, (unsigned int)remaining);
+        __mmask8 load_mask_m8 = stride_mask_m8 & tail_mask_m8;
+        __m512d data_f64x8 = _mm512_mask_loadu_pd(pos_inf_f64x8, load_mask_m8, data + idx_scalars);
+        __mmask8 lt_mask_m8 = _mm512_cmp_pd_mask(data_f64x8, min_f64x8, _CMP_LT_OQ);
+        min_f64x8 = _mm512_mask_mov_pd(min_f64x8, lt_mask_m8, data_f64x8);
+        min_idx_i64x8 = _mm512_mask_mov_epi64(min_idx_i64x8, lt_mask_m8, logical_idx_i64x8);
+    }
+
+    // Horizontal reduction
+    simsimd_f64_t min_val = _simsimd_reduce_min_f64x8_skylake(min_f64x8);
+    __mmask8 eq_mask_m8 = _mm512_cmp_pd_mask(min_f64x8, _mm512_set1_pd(min_val), _CMP_EQ_OQ);
+    unsigned int first_lane = _tzcnt_u32(eq_mask_m8);
+    simsimd_i64_t indices[8];
+    _mm512_storeu_si512(indices, min_idx_i64x8);
+
+    *min_value = min_val;
+    *min_index = (simsimd_size_t)indices[first_lane];
+}
+
 SIMSIMD_PUBLIC void simsimd_reduce_min_f64_skylake(                               //
     simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
     simsimd_f64_t *min_value, simsimd_size_t *min_index) {
-    if (stride_bytes == sizeof(simsimd_f64_t) && count >= 8)
-        return _simsimd_reduce_min_f64_skylake_contiguous(data, count, min_value, min_index);
-    simsimd_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
+    simsimd_size_t stride_elements = stride_bytes / sizeof(simsimd_f64_t);
+    int aligned = (stride_bytes % sizeof(simsimd_f64_t) == 0);
+    if (!aligned) simsimd_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
+    else if (stride_elements == 1 && count >= 8)
+        _simsimd_reduce_min_f64_skylake_contiguous(data, count, min_value, min_index);
+    else if (stride_elements >= 2 && stride_elements <= 8)
+        _simsimd_reduce_min_f64_skylake_strided(data, count, stride_elements, min_value, min_index);
+    else
+        simsimd_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 SIMSIMD_INTERNAL void _simsimd_reduce_max_f64_skylake_contiguous( //
@@ -1236,12 +1866,64 @@ SIMSIMD_INTERNAL void _simsimd_reduce_max_f64_skylake_contiguous( //
     *max_index = (simsimd_size_t)indices[first_lane];
 }
 
+SIMSIMD_INTERNAL void _simsimd_reduce_max_f64_skylake_strided(                       //
+    simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_elements, //
+    simsimd_f64_t *max_value, simsimd_size_t *max_index) {
+    // Masked load with -inf for non-stride elements; track logical indices
+    __mmask8 stride_mask_m8 = _simsimd_stride_mask_b64x8(stride_elements);
+    __m512d neg_inf_f64x8 = _mm512_set1_pd(-__builtin_huge_val());
+    __m512d max_f64x8 = neg_inf_f64x8;
+    __m512i max_idx_i64x8 = _mm512_setzero_si512();
+    simsimd_size_t idx_scalars = 0;
+    simsimd_size_t total_scalars = count * stride_elements;
+
+    // Precomputed logical index vector and step for this stride
+    __m512i logical_idx_i64x8 = _simsimd_stride_logidx_i64x8(stride_elements);
+    simsimd_size_t elems_per_chunk = _simsimd_stride_elems_b64x8(stride_elements);
+    __m512i step_i64x8 = _mm512_set1_epi64((simsimd_i64_t)elems_per_chunk);
+
+    for (; idx_scalars + 8 <= total_scalars; idx_scalars += 8) {
+        __m512d data_f64x8 = _mm512_mask_loadu_pd(neg_inf_f64x8, stride_mask_m8, data + idx_scalars);
+        __mmask8 gt_mask_m8 = _mm512_cmp_pd_mask(data_f64x8, max_f64x8, _CMP_GT_OQ);
+        max_f64x8 = _mm512_mask_mov_pd(max_f64x8, gt_mask_m8, data_f64x8);
+        max_idx_i64x8 = _mm512_mask_mov_epi64(max_idx_i64x8, gt_mask_m8, logical_idx_i64x8);
+        logical_idx_i64x8 = _mm512_add_epi64(logical_idx_i64x8, step_i64x8);
+    }
+
+    // Masked tail
+    simsimd_size_t remaining = total_scalars - idx_scalars;
+    if (remaining > 0) {
+        __mmask8 tail_mask_m8 = (__mmask8)_bzhi_u32(0xFF, (unsigned int)remaining);
+        __mmask8 load_mask_m8 = stride_mask_m8 & tail_mask_m8;
+        __m512d data_f64x8 = _mm512_mask_loadu_pd(neg_inf_f64x8, load_mask_m8, data + idx_scalars);
+        __mmask8 gt_mask_m8 = _mm512_cmp_pd_mask(data_f64x8, max_f64x8, _CMP_GT_OQ);
+        max_f64x8 = _mm512_mask_mov_pd(max_f64x8, gt_mask_m8, data_f64x8);
+        max_idx_i64x8 = _mm512_mask_mov_epi64(max_idx_i64x8, gt_mask_m8, logical_idx_i64x8);
+    }
+
+    // Horizontal reduction
+    simsimd_f64_t max_val = _simsimd_reduce_max_f64x8_skylake(max_f64x8);
+    __mmask8 eq_mask_m8 = _mm512_cmp_pd_mask(max_f64x8, _mm512_set1_pd(max_val), _CMP_EQ_OQ);
+    unsigned int first_lane = _tzcnt_u32(eq_mask_m8);
+    simsimd_i64_t indices[8];
+    _mm512_storeu_si512(indices, max_idx_i64x8);
+
+    *max_value = max_val;
+    *max_index = (simsimd_size_t)indices[first_lane];
+}
+
 SIMSIMD_PUBLIC void simsimd_reduce_max_f64_skylake(                               //
     simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
     simsimd_f64_t *max_value, simsimd_size_t *max_index) {
-    if (stride_bytes == sizeof(simsimd_f64_t) && count >= 8)
-        return _simsimd_reduce_max_f64_skylake_contiguous(data, count, max_value, max_index);
-    simsimd_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
+    simsimd_size_t stride_elements = stride_bytes / sizeof(simsimd_f64_t);
+    int aligned = (stride_bytes % sizeof(simsimd_f64_t) == 0);
+    if (!aligned) simsimd_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
+    else if (stride_elements == 1 && count >= 8)
+        _simsimd_reduce_max_f64_skylake_contiguous(data, count, max_value, max_index);
+    else if (stride_elements >= 2 && stride_elements <= 8)
+        _simsimd_reduce_max_f64_skylake_strided(data, count, stride_elements, max_value, max_index);
+    else
+        simsimd_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 #pragma endregion // x86 Skylake Public Implementations
