@@ -1169,8 +1169,8 @@ void test_atan2_quadrants(void) {
         simsimd_f32_t result32 = simsimd_f32_atan2(y32, x32);
         simsimd_f64_t diff32 = fabs((simsimd_f64_t)expected32 - (simsimd_f64_t)result32);
         if (diff32 >= tolerance_f32) {
-            printf("  FAIL random f32 #%zu: y=%f, x=%f, expected=%f, got=%f, diff=%e\n", i, y32, x32, expected32,
-                   result32, diff32);
+            printf("  FAIL random f32 #%llu: y=%f, x=%f, expected=%f, got=%f, diff=%e\n", (unsigned long long)i, y32,
+                   x32, expected32, result32, diff32);
         }
         assert(diff32 < tolerance_f32);
 
@@ -1179,8 +1179,8 @@ void test_atan2_quadrants(void) {
         simsimd_f64_t result64 = simsimd_f64_atan2(y, x);
         simsimd_f64_t diff64 = fabs(expected64 - result64);
         if (diff64 >= tolerance_f64) {
-            printf("  FAIL random f64 #%zu: y=%f, x=%f, expected=%f, got=%f, diff=%e\n", i, y, x, expected64, result64,
-                   diff64);
+            printf("  FAIL random f64 #%llu: y=%f, x=%f, expected=%f, got=%f, diff=%e\n", (unsigned long long)i, y, x,
+                   expected64, result64, diff64);
         }
         assert(diff64 < tolerance_f64);
     }

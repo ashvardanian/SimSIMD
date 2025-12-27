@@ -92,7 +92,7 @@ extern "C" {
                 return;                                                                                            \
             }                                                                                                      \
         }                                                                                                          \
-        metric(a, b, a_length, b_length, result);                                                                  \
+        metric(a, b, a_length, b_length, (void *)result);                                                          \
     }
 
 #define SIMSIMD_DECLARATION_SPARSE_DOT(name, index_type, weight_type, output_type)                                   \
