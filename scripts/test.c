@@ -474,7 +474,14 @@ void test_distance_from_itself(void) {
     simsimd_b8_t b8s[1536 / 8];
     simsimd_e4m3_t e4m3s[1536];
     simsimd_e5m2_t e5m2s[1536];
-    simsimd_distance_t distance[2];
+
+    // Result variables for different return types
+    simsimd_f32_t result_f32;
+    simsimd_f64_t result_f64;
+    simsimd_i32_t result_i32;
+    simsimd_u32_t result_u32;
+    simsimd_f32c_t result_f32c;
+    simsimd_f64c_t result_f64c;
 
     // Initialize FP8 arrays with small values (avoid overflow)
     for (int i = 0; i < 1536; i++) {
@@ -482,57 +489,57 @@ void test_distance_from_itself(void) {
         e5m2s[i] = 0x3C; // ~1.0 in E5M2
     }
 
-    // Angular distance
-    simsimd_angular_i8(i8s, i8s, 1536, &distance[0]);
-    simsimd_angular_u8(u8s, u8s, 1536, &distance[0]);
-    simsimd_angular_f16(f16s, f16s, 1536, &distance[0]);
-    simsimd_angular_bf16(bf16s, bf16s, 1536, &distance[0]);
-    simsimd_angular_f32(f32s, f32s, 1536, &distance[0]);
-    simsimd_angular_f64(f64s, f64s, 1536, &distance[0]);
+    // Angular distance - returns f32 for integer/f16/bf16/f32, f64 for f64
+    simsimd_angular_i8(i8s, i8s, 1536, &result_f32);
+    simsimd_angular_u8(u8s, u8s, 1536, &result_f32);
+    simsimd_angular_f16(f16s, f16s, 1536, &result_f32);
+    simsimd_angular_bf16(bf16s, bf16s, 1536, &result_f32);
+    simsimd_angular_f32(f32s, f32s, 1536, &result_f32);
+    simsimd_angular_f64(f64s, f64s, 1536, &result_f64);
 
-    // L2 squared distance
-    simsimd_l2sq_i8(i8s, i8s, 1536, &distance[0]);
-    simsimd_l2sq_u8(u8s, u8s, 1536, &distance[0]);
-    simsimd_l2sq_f16(f16s, f16s, 1536, &distance[0]);
-    simsimd_l2sq_bf16(bf16s, bf16s, 1536, &distance[0]);
-    simsimd_l2sq_f32(f32s, f32s, 1536, &distance[0]);
-    simsimd_l2sq_f64(f64s, f64s, 1536, &distance[0]);
+    // L2 squared distance - returns u32 for i8/u8, f32 for f16/bf16/f32, f64 for f64
+    simsimd_l2sq_i8(i8s, i8s, 1536, &result_u32);
+    simsimd_l2sq_u8(u8s, u8s, 1536, &result_u32);
+    simsimd_l2sq_f16(f16s, f16s, 1536, &result_f32);
+    simsimd_l2sq_bf16(bf16s, bf16s, 1536, &result_f32);
+    simsimd_l2sq_f32(f32s, f32s, 1536, &result_f32);
+    simsimd_l2sq_f64(f64s, f64s, 1536, &result_f64);
 
-    // Inner product
-    simsimd_dot_i8(i8s, i8s, 1536, &distance[0]);
-    simsimd_dot_u8(u8s, u8s, 1536, &distance[0]);
-    simsimd_dot_f16(f16s, f16s, 1536, &distance[0]);
-    simsimd_dot_bf16(bf16s, bf16s, 1536, &distance[0]);
-    simsimd_dot_f32(f32s, f32s, 1536, &distance[0]);
-    simsimd_dot_f64(f64s, f64s, 1536, &distance[0]);
-    simsimd_dot_e4m3(e4m3s, e4m3s, 1536, &distance[0]);
-    simsimd_dot_e5m2(e5m2s, e5m2s, 1536, &distance[0]);
+    // Inner product - returns i32 for i8, u32 for u8, f32 for f16/bf16/f32/e4m3/e5m2, f64 for f64
+    simsimd_dot_i8(i8s, i8s, 1536, &result_i32);
+    simsimd_dot_u8(u8s, u8s, 1536, &result_u32);
+    simsimd_dot_f16(f16s, f16s, 1536, &result_f32);
+    simsimd_dot_bf16(bf16s, bf16s, 1536, &result_f32);
+    simsimd_dot_f32(f32s, f32s, 1536, &result_f32);
+    simsimd_dot_f64(f64s, f64s, 1536, &result_f64);
+    simsimd_dot_e4m3(e4m3s, e4m3s, 1536, &result_f32);
+    simsimd_dot_e5m2(e5m2s, e5m2s, 1536, &result_f32);
 
-    // Complex inner product
-    simsimd_dot_bf16c(bf16cs, bf16cs, 768, &distance[0]);
-    simsimd_dot_f16c(f16cs, f16cs, 768, &distance[0]);
-    simsimd_dot_f32c(f32cs, f32cs, 768, &distance[0]);
-    simsimd_dot_f64c(f64cs, f64cs, 768, &distance[0]);
+    // Complex inner product - returns f32c for f16c/bf16c/f32c, f64c for f64c
+    simsimd_dot_bf16c(bf16cs, bf16cs, 768, &result_f32c);
+    simsimd_dot_f16c(f16cs, f16cs, 768, &result_f32c);
+    simsimd_dot_f32c(f32cs, f32cs, 768, &result_f32c);
+    simsimd_dot_f64c(f64cs, f64cs, 768, &result_f64c);
 
-    // Complex conjugate inner product
-    simsimd_vdot_bf16c(bf16cs, bf16cs, 768, &distance[0]);
-    simsimd_vdot_f16c(f16cs, f16cs, 768, &distance[0]);
-    simsimd_vdot_f32c(f32cs, f32cs, 768, &distance[0]);
-    simsimd_vdot_f64c(f64cs, f64cs, 768, &distance[0]);
+    // Complex conjugate inner product - returns f32c for f16c/bf16c/f32c, f64c for f64c
+    simsimd_vdot_bf16c(bf16cs, bf16cs, 768, &result_f32c);
+    simsimd_vdot_f16c(f16cs, f16cs, 768, &result_f32c);
+    simsimd_vdot_f32c(f32cs, f32cs, 768, &result_f32c);
+    simsimd_vdot_f64c(f64cs, f64cs, 768, &result_f64c);
 
-    // Hamming and Jaccard
-    simsimd_hamming_b8(b8s, b8s, 1536 / 8, &distance[0]);
-    simsimd_jaccard_b8(b8s, b8s, 1536 / 8, &distance[0]);
+    // Hamming and Jaccard - hamming returns u32, jaccard returns f32
+    simsimd_hamming_b8(b8s, b8s, 1536 / 8, &result_u32);
+    simsimd_jaccard_b8(b8s, b8s, 1536 / 8, &result_f32);
 
-    // Divergence metrics
-    simsimd_jsd_f16(f16s, f16s, 1536, &distance[0]);
-    simsimd_jsd_bf16(bf16s, bf16s, 1536, &distance[0]);
-    simsimd_jsd_f32(f32s, f32s, 1536, &distance[0]);
-    simsimd_jsd_f64(f64s, f64s, 1536, &distance[0]);
-    simsimd_kld_f16(f16s, f16s, 1536, &distance[0]);
-    simsimd_kld_bf16(bf16s, bf16s, 1536, &distance[0]);
-    simsimd_kld_f32(f32s, f32s, 1536, &distance[0]);
-    simsimd_kld_f64(f64s, f64s, 1536, &distance[0]);
+    // Divergence metrics - return f32 for f16/bf16/f32, f64 for f64
+    simsimd_jsd_f16(f16s, f16s, 1536, &result_f32);
+    simsimd_jsd_bf16(bf16s, bf16s, 1536, &result_f32);
+    simsimd_jsd_f32(f32s, f32s, 1536, &result_f32);
+    simsimd_jsd_f64(f64s, f64s, 1536, &result_f64);
+    simsimd_kld_f16(f16s, f16s, 1536, &result_f32);
+    simsimd_kld_bf16(bf16s, bf16s, 1536, &result_f32);
+    simsimd_kld_f32(f32s, f32s, 1536, &result_f32);
+    simsimd_kld_f64(f64s, f64s, 1536, &result_f64);
 
     printf("Test distance_from_itself: PASS\n");
 }
@@ -567,7 +574,7 @@ void test_distance_precomputed(void) {
     simsimd_size_t num_cases = sizeof(cases) / sizeof(cases[0]);
 
     for (simsimd_size_t i = 0; i < num_cases; i++) {
-        simsimd_distance_t result;
+        simsimd_f32_t result;
 
         // Test L2 squared
         simsimd_l2sq_f32(cases[i].a, cases[i].b, 4, &result);
@@ -583,7 +590,8 @@ void test_distance_precomputed(void) {
         simsimd_dot_f32(cases[i].a, cases[i].b, 4, &result);
         simsimd_f64_t dot_error = fabs(result - cases[i].expected_dot);
         if (dot_error > 0.01) {
-            printf("  FAIL case %zu dot: expected %.4f, got %.4f\n", i, cases[i].expected_dot, result);
+            printf("  FAIL case %llu dot: expected %.4f, got %.4f\n", (unsigned long long)i, cases[i].expected_dot,
+                   result);
         }
         assert(dot_error < 0.01);
 
@@ -592,7 +600,8 @@ void test_distance_precomputed(void) {
         simsimd_f64_t cos_result = 1.0 - result;
         simsimd_f64_t cos_error = fabs(cos_result - cases[i].expected_cos);
         if (cos_error > 0.01) {
-            printf("  FAIL case %zu cos: expected %.4f, got %.4f\n", i, cases[i].expected_cos, cos_result);
+            printf("  FAIL case %llu cos: expected %.4f, got %.4f\n", (unsigned long long)i, cases[i].expected_cos,
+                   cos_result);
         }
         assert(cos_error < 0.01);
     }
@@ -615,7 +624,7 @@ void test_bilinear(void) {
         0, 0, 1, 0, //
         0, 0, 0, 1  //
     };
-    simsimd_distance_t result;
+    simsimd_f32_t result;
 
     // With identity matrix, bilinear(a, b, I) = dot(a, b) = 1*4 + 2*3 + 3*2 + 4*1 = 20
     simsimd_bilinear_f32(a, b, identity, 4, &result);
@@ -633,7 +642,7 @@ void test_bilinear(void) {
     assert(fabs(result - 40.0) < 0.001);
 
     // Test symmetry: a^T * M * b should equal b^T * M^T * a for symmetric M
-    simsimd_distance_t result_ab, result_ba;
+    simsimd_f32_t result_ab, result_ba;
     simsimd_bilinear_f32(a, b, identity, 4, &result_ab);
     simsimd_bilinear_f32(b, a, identity, 4, &result_ba);
     assert(fabs(result_ab - result_ba) < 0.001);
@@ -655,8 +664,9 @@ void test_scale_operations(void) {
     {
         simsimd_f32_t input[8] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
         simsimd_f32_t expected[8], result[8];
-        simsimd_scale_f32_serial(input, 8, 2.0, 1.0, expected);
-        simsimd_scale_f32(input, 8, 2.0, 1.0, result);
+        simsimd_f32_t alpha_f32 = 2.0f, beta_f32 = 1.0f;
+        simsimd_scale_f32_serial(input, 8, &alpha_f32, &beta_f32, expected);
+        simsimd_scale_f32(input, 8, &alpha_f32, &beta_f32, result);
         assert_f32_arrays_equal(expected, result, 8, 0.001);
     }
 
@@ -664,8 +674,9 @@ void test_scale_operations(void) {
     {
         simsimd_f64_t input[8] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
         simsimd_f64_t expected[8], result[8];
-        simsimd_scale_f64_serial(input, 8, 3.0, 0.5, expected);
-        simsimd_scale_f64(input, 8, 3.0, 0.5, result);
+        simsimd_f64_t alpha_f64 = 3.0, beta_f64 = 0.5;
+        simsimd_scale_f64_serial(input, 8, &alpha_f64, &beta_f64, expected);
+        simsimd_scale_f64(input, 8, &alpha_f64, &beta_f64, result);
         assert_f64_arrays_equal(expected, result, 8, 0.001);
     }
 
@@ -673,8 +684,9 @@ void test_scale_operations(void) {
     {
         simsimd_i8_t input[8] = {1, 2, 3, 4, 5, 6, 7, 8};
         simsimd_i8_t expected[8], result[8];
-        simsimd_scale_i8_serial(input, 8, 2.0, 1.0, expected);
-        simsimd_scale_i8(input, 8, 2.0, 1.0, result);
+        simsimd_f32_t alpha_i8 = 2.0f, beta_i8 = 1.0f;
+        simsimd_scale_i8_serial(input, 8, &alpha_i8, &beta_i8, expected);
+        simsimd_scale_i8(input, 8, &alpha_i8, &beta_i8, result);
         for (simsimd_size_t i = 0; i < 8; i++) assert(result[i] == expected[i]);
     }
 
@@ -682,8 +694,9 @@ void test_scale_operations(void) {
     {
         simsimd_u8_t input[8] = {10, 20, 30, 40, 50, 60, 70, 80};
         simsimd_u8_t expected[8], result[8];
-        simsimd_scale_u8_serial(input, 8, 1.5, 5.0, expected);
-        simsimd_scale_u8(input, 8, 1.5, 5.0, result);
+        simsimd_f32_t alpha_u8 = 1.5f, beta_u8 = 5.0f;
+        simsimd_scale_u8_serial(input, 8, &alpha_u8, &beta_u8, expected);
+        simsimd_scale_u8(input, 8, &alpha_u8, &beta_u8, result);
         for (simsimd_size_t i = 0; i < 8; i++) assert(result[i] == expected[i]);
     }
 
@@ -750,8 +763,9 @@ void test_wsum_operations(void) {
         simsimd_f32_t a[8] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
         simsimd_f32_t b[8] = {8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f};
         simsimd_f32_t expected[8], result[8];
-        simsimd_wsum_f32_serial(a, b, 8, 2.0, 0.5, expected);
-        simsimd_wsum_f32(a, b, 8, 2.0, 0.5, result);
+        simsimd_f32_t alpha_wsum_f32 = 2.0f, beta_wsum_f32 = 0.5f;
+        simsimd_wsum_f32_serial(a, b, 8, &alpha_wsum_f32, &beta_wsum_f32, expected);
+        simsimd_wsum_f32(a, b, 8, &alpha_wsum_f32, &beta_wsum_f32, result);
         assert_f32_arrays_equal(expected, result, 8, 0.001);
     }
 
@@ -760,8 +774,9 @@ void test_wsum_operations(void) {
         simsimd_f64_t a[8] = {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0};
         simsimd_f64_t b[8] = {0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5};
         simsimd_f64_t expected[8], result[8];
-        simsimd_wsum_f64_serial(a, b, 8, 0.3, 0.7, expected);
-        simsimd_wsum_f64(a, b, 8, 0.3, 0.7, result);
+        simsimd_f64_t alpha_wsum_f64 = 0.3, beta_wsum_f64 = 0.7;
+        simsimd_wsum_f64_serial(a, b, 8, &alpha_wsum_f64, &beta_wsum_f64, expected);
+        simsimd_wsum_f64(a, b, 8, &alpha_wsum_f64, &beta_wsum_f64, result);
         assert_f64_arrays_equal(expected, result, 8, 0.001);
     }
 
@@ -780,8 +795,9 @@ void test_fma_operations(void) {
         simsimd_f32_t b[8] = {2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f};
         simsimd_f32_t c[8] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
         simsimd_f32_t expected[8], result[8];
-        simsimd_fma_f32_serial(a, b, c, 8, 1.0, 1.0, expected);
-        simsimd_fma_f32(a, b, c, 8, 1.0, 1.0, result);
+        simsimd_f32_t alpha_fma_f32 = 1.0f, beta_fma_f32 = 1.0f;
+        simsimd_fma_f32_serial(a, b, c, 8, &alpha_fma_f32, &beta_fma_f32, expected);
+        simsimd_fma_f32(a, b, c, 8, &alpha_fma_f32, &beta_fma_f32, result);
         assert_f32_arrays_equal(expected, result, 8, 0.001);
     }
 
@@ -791,8 +807,9 @@ void test_fma_operations(void) {
         simsimd_f64_t b[8] = {0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5};
         simsimd_f64_t c[8] = {10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0, 10.0};
         simsimd_f64_t expected[8], result[8];
-        simsimd_fma_f64_serial(a, b, c, 8, 2.0, 0.1, expected);
-        simsimd_fma_f64(a, b, c, 8, 2.0, 0.1, result);
+        simsimd_f64_t alpha_fma_f64 = 2.0, beta_fma_f64 = 0.1;
+        simsimd_fma_f64_serial(a, b, c, 8, &alpha_fma_f64, &beta_fma_f64, expected);
+        simsimd_fma_f64(a, b, c, 8, &alpha_fma_f64, &beta_fma_f64, result);
         assert_f64_arrays_equal(expected, result, 8, 0.001);
     }
 
@@ -1237,31 +1254,32 @@ void test_geospatial_haversine(void) {
         simsimd_f64_t lon2 = test_random_f64(-pi, pi);
         simsimd_f32_t lat1_f32 = (simsimd_f32_t)lat1, lon1_f32 = (simsimd_f32_t)lon1;
         simsimd_f32_t lat2_f32 = (simsimd_f32_t)lat2, lon2_f32 = (simsimd_f32_t)lon2;
-        simsimd_distance_t expected, actual;
+        simsimd_f64_t expected, actual_f64;
+        simsimd_f32_t actual_f32;
 
         // f64 serial as baseline
         simsimd_haversine_f64_serial(&lat1, &lon1, &lat2, &lon2, 1, &expected);
 
 #if SIMSIMD_TARGET_HASWELL
         if (caps & simsimd_cap_haswell_k) {
-            simsimd_haversine_f64_haswell(&lat1, &lon1, &lat2, &lon2, 1, &actual);
-            assert_f64_near(expected, actual, 0.001, 100, "haversine f64 haswell");
+            simsimd_haversine_f64_haswell(&lat1, &lon1, &lat2, &lon2, 1, &actual_f64);
+            assert_f64_near(expected, actual_f64, 0.001, 100, "haversine f64 haswell");
         }
 #endif
 #if SIMSIMD_TARGET_SKYLAKE
         if (caps & simsimd_cap_skylake_k) {
-            simsimd_haversine_f64_skylake(&lat1, &lon1, &lat2, &lon2, 1, &actual);
-            assert_f64_near(expected, actual, 0.001, 100, "haversine f64 skylake");
+            simsimd_haversine_f64_skylake(&lat1, &lon1, &lat2, &lon2, 1, &actual_f64);
+            assert_f64_near(expected, actual_f64, 0.001, 100, "haversine f64 skylake");
         }
 #endif
         // f32 serial
-        simsimd_haversine_f32_serial(&lat1_f32, &lon1_f32, &lat2_f32, &lon2_f32, 1, &actual);
-        assert_f64_near(expected, actual, 0.01, 1000, "haversine f32 serial");
+        simsimd_haversine_f32_serial(&lat1_f32, &lon1_f32, &lat2_f32, &lon2_f32, 1, &actual_f32);
+        assert_f64_near(expected, actual_f32, 0.01, 1000, "haversine f32 serial");
 
 #if SIMSIMD_TARGET_SKYLAKE
         if (caps & simsimd_cap_skylake_k) {
-            simsimd_haversine_f32_skylake(&lat1_f32, &lon1_f32, &lat2_f32, &lon2_f32, 1, &actual);
-            assert_f64_near(expected, actual, 0.01, 1000, "haversine f32 skylake");
+            simsimd_haversine_f32_skylake(&lat1_f32, &lon1_f32, &lat2_f32, &lon2_f32, 1, &actual_f32);
+            assert_f64_near(expected, actual_f32, 0.01, 1000, "haversine f32 skylake");
         }
 #endif
     }
@@ -1347,7 +1365,8 @@ void test_geospatial_vincenty(void) {
         simsimd_f64_t lon2 = test_random_f64(-pi * 0.9, pi * 0.9);
         simsimd_f32_t lat1_f32 = (simsimd_f32_t)lat1, lon1_f32 = (simsimd_f32_t)lon1;
         simsimd_f32_t lat2_f32 = (simsimd_f32_t)lat2, lon2_f32 = (simsimd_f32_t)lon2;
-        simsimd_distance_t expected, actual;
+        simsimd_f64_t expected, actual_f64;
+        simsimd_f32_t actual_f32;
         simsimd_f64_t diff, rel_err;
 
         // f64 serial as baseline
@@ -1355,22 +1374,22 @@ void test_geospatial_vincenty(void) {
 
 #if SIMSIMD_TARGET_SKYLAKE
         if (caps & simsimd_cap_skylake_k) {
-            simsimd_vincenty_f64_skylake(&lat1, &lon1, &lat2, &lon2, 1, &actual);
-            diff = fabs(expected - actual);
+            simsimd_vincenty_f64_skylake(&lat1, &lon1, &lat2, &lon2, 1, &actual_f64);
+            diff = fabs(expected - actual_f64);
             rel_err = expected > 0 ? diff / expected : diff;
             if (rel_err > 0.00001 && diff > 10) f64_skylake_failures++;
         }
 #endif
         // f32 serial
-        simsimd_vincenty_f32_serial(&lat1_f32, &lon1_f32, &lat2_f32, &lon2_f32, 1, &actual);
-        diff = fabs(expected - actual);
+        simsimd_vincenty_f32_serial(&lat1_f32, &lon1_f32, &lat2_f32, &lon2_f32, 1, &actual_f32);
+        diff = fabs(expected - actual_f32);
         rel_err = expected > 0 ? diff / expected : diff;
         if (rel_err > 0.01 && diff > 1000) f32_serial_failures++;
 
 #if SIMSIMD_TARGET_SKYLAKE
         if (caps & simsimd_cap_skylake_k) {
-            simsimd_vincenty_f32_skylake(&lat1_f32, &lon1_f32, &lat2_f32, &lon2_f32, 1, &actual);
-            diff = fabs(expected - actual);
+            simsimd_vincenty_f32_skylake(&lat1_f32, &lon1_f32, &lat2_f32, &lon2_f32, 1, &actual_f32);
+            diff = fabs(expected - actual_f32);
             rel_err = expected > 0 ? diff / expected : diff;
             if (rel_err > 0.05 && diff > 5000) f32_skylake_failures++;
         }
@@ -1464,11 +1483,11 @@ void test_matmul_bf16(void) {
 
     // Test serial implementation
     {
-        simsimd_size_t packed_size = simsimd_matmul_bf16_packed_size_serial(n, k);
+        simsimd_size_t packed_size = simsimd_dots_bf16bf16f32_packed_size_serial(n, k);
         void *b_packed = malloc(packed_size);
-        simsimd_matmul_bf16_pack_serial(b, n, k, k * sizeof(simsimd_bf16_t), b_packed);
-        simsimd_matmul_bf16_f32_serial(a, b_packed, c_test, m, n, k, k * sizeof(simsimd_bf16_t),
-                                       n * sizeof(simsimd_f32_t));
+        simsimd_dots_bf16bf16f32_pack_serial(b, n, k, k * sizeof(simsimd_bf16_t), b_packed);
+        simsimd_dots_bf16bf16f32_serial(a, b_packed, c_test, m, n, k, k * sizeof(simsimd_bf16_t),
+                                        n * sizeof(simsimd_f32_t));
         free(b_packed);
 
         // Compare results with tolerance (BF16 has limited precision)
@@ -1486,11 +1505,11 @@ void test_matmul_bf16(void) {
         simsimd_capability_t caps = simsimd_capabilities();
         simsimd_flush_denormals(caps); // Enable AMX if available
         if (caps & simsimd_cap_sapphire_amx_k) {
-            simsimd_size_t packed_size = simsimd_matmul_bf16_packed_size_sapphire_amx(n, k);
+            simsimd_size_t packed_size = simsimd_dots_bf16bf16f32_packed_size_sapphire_amx(n, k);
             void *b_packed = malloc(packed_size);
-            simsimd_matmul_bf16_pack_sapphire_amx(b, n, k, k * sizeof(simsimd_bf16_t), b_packed);
-            simsimd_matmul_bf16_f32_sapphire_amx(a, b_packed, c_test, m, n, k, k * sizeof(simsimd_bf16_t),
-                                                 n * sizeof(simsimd_f32_t));
+            simsimd_dots_bf16bf16f32_pack_sapphire_amx(b, n, k, k * sizeof(simsimd_bf16_t), b_packed);
+            simsimd_dots_bf16bf16f32_sapphire_amx(a, b_packed, c_test, m, n, k, k * sizeof(simsimd_bf16_t),
+                                                  n * sizeof(simsimd_f32_t));
             free(b_packed);
 
             // Compare results
@@ -1533,10 +1552,10 @@ void test_matmul_i8(void) {
 
     // Test serial implementation
     {
-        simsimd_size_t packed_size = simsimd_matmul_i8_packed_size_serial(n, k);
+        simsimd_size_t packed_size = simsimd_dots_i8i8i32_packed_size_serial(n, k);
         void *b_packed = malloc(packed_size);
-        simsimd_matmul_i8_pack_serial(b, n, k, k, b_packed);
-        simsimd_matmul_i8_i32_serial(a, b_packed, c_test, m, n, k, k, n * sizeof(simsimd_i32_t));
+        simsimd_dots_i8i8i32_pack_serial(b, n, k, k, b_packed);
+        simsimd_dots_i8i8i32_serial(a, b_packed, c_test, m, n, k, k, n * sizeof(simsimd_i32_t));
         free(b_packed);
 
         // Compare results (should be exact for integers)
@@ -1550,10 +1569,10 @@ void test_matmul_i8(void) {
         simsimd_capability_t caps = simsimd_capabilities();
         simsimd_flush_denormals(caps); // Enable AMX if available
         if (caps & simsimd_cap_sapphire_amx_k) {
-            simsimd_size_t packed_size = simsimd_matmul_i8_packed_size_sapphire_amx(n, k);
+            simsimd_size_t packed_size = simsimd_dots_i8i8i32_packed_size_sapphire_amx(n, k);
             void *b_packed = malloc(packed_size);
-            simsimd_matmul_i8_pack_sapphire_amx(b, n, k, k, b_packed);
-            simsimd_matmul_i8_i32_sapphire_amx(a, b_packed, c_test, m, n, k, k, n * sizeof(simsimd_i32_t));
+            simsimd_dots_i8i8i32_pack_sapphire_amx(b, n, k, k, b_packed);
+            simsimd_dots_i8i8i32_sapphire_amx(a, b_packed, c_test, m, n, k, k, n * sizeof(simsimd_i32_t));
             free(b_packed);
 
             // Compare results

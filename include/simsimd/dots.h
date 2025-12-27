@@ -968,7 +968,7 @@ SIMSIMD_MAKE_DOTS_INNER(i8i8i32_neon, i8, i32, simsimd_b128_vec_t, simsimd_dot_i
 // U8 GEMM: k_tile=16 (16 u8s = 16 bytes = NEON register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(neon, u8, i32, 16)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(neon, u8, i32, 16)
-SIMSIMD_MAKE_DOTS_INNER(u8u8i32_neon, u8, i32, simsimd_b128_vec_t, simsimd_dot_u8x16_state_neon_t,
+SIMSIMD_MAKE_DOTS_INNER(u8u8i32_neon, u8, u32, simsimd_b128_vec_t, simsimd_dot_u8x16_state_neon_t,
                         simsimd_dot_u8x16_init_neon, _simsimd_load_b128_neon, _simsimd_partial_load_b8x16_neon,
                         simsimd_dot_u8x16_update_neon, simsimd_dot_u8x16_finalize_neon,
                         /*k_tile=*/16, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
@@ -1090,7 +1090,7 @@ SIMSIMD_MAKE_DOTS_INNER(i8i8i32_haswell, i8, i32, simsimd_b256_vec_t, simsimd_do
 // U8 GEMM: k_tile=32 (32 u8s = 32 bytes = AVX2 register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, u8, i32, 32)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(haswell, u8, i32, 32)
-SIMSIMD_MAKE_DOTS_INNER(u8u8i32_haswell, u8, i32, simsimd_b256_vec_t, simsimd_dot_u8x32_state_haswell_t,
+SIMSIMD_MAKE_DOTS_INNER(u8u8i32_haswell, u8, u32, simsimd_b256_vec_t, simsimd_dot_u8x32_state_haswell_t,
                         simsimd_dot_u8x32_init_haswell, _simsimd_load_b256_haswell, _simsimd_partial_load_b8x32_haswell,
                         simsimd_dot_u8x32_update_haswell, simsimd_dot_u8x32_finalize_haswell,
                         /*k_tile=*/32, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
@@ -1199,7 +1199,7 @@ SIMSIMD_MAKE_DOTS_INNER(i8i8i32_ice, i8, i32, simsimd_b512_vec_t, simsimd_dot_i8
 // U8 GEMM: k_tile=64 (64 u8s = 64 bytes = 1 cache line)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(ice, u8, i32, SIMSIMD_DOTS_SERIAL_TILE_K_U8)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(ice, u8, i32, SIMSIMD_DOTS_SERIAL_TILE_K_U8)
-SIMSIMD_MAKE_DOTS_INNER(u8u8i32_ice, u8, i32, simsimd_b512_vec_t, simsimd_dot_u8x64_state_ice_t,
+SIMSIMD_MAKE_DOTS_INNER(u8u8i32_ice, u8, u32, simsimd_b512_vec_t, simsimd_dot_u8x64_state_ice_t,
                         simsimd_dot_u8x64_init_ice, _simsimd_load_b512_skylake, _simsimd_partial_load_b8x64_skylake,
                         simsimd_dot_u8x64_update_ice, simsimd_dot_u8x64_finalize_ice,
                         /*k_tile=*/64, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)

@@ -341,15 +341,12 @@ SIMSIMD_MAKE_SPARSE_DOT(accurate, u16, bf16, f64, simsimd_bf16_to_f64) // simsim
         *count = (simsimd_u32_t)intersection_size;                                                                   \
     }
 
-SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u16, size)                  // simsimd_intersect_u16_serial
-SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u32, size)                  // simsimd_intersect_u32_serial
-SIMSIMD_MAKE_SPARSE_DOT(serial, u16, bf16, f32, simsimd_bf16_to_f32) // simsimd_sparse_dot_u16bf16_serial
-
-SIMSIMD_INTERNAL void _simsimd_f32_to_f32(simsimd_f32_t const *x, simsimd_f32_t *y) { *y = *x; }
-SIMSIMD_INTERNAL void _simsimd_f32_to_f64(simsimd_f32_t const *x, simsimd_f64_t *y) { *y = (simsimd_f64_t)*x; }
-
-SIMSIMD_MAKE_SPARSE_DOT(serial, u32, f32, f32, _simsimd_f32_to_f32)   // simsimd_sparse_dot_u32f32_serial
-SIMSIMD_MAKE_SPARSE_DOT(accurate, u32, f32, f64, _simsimd_f32_to_f64) // simsimd_sparse_dot_u32f32_accurate
+SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u16, size)                     // simsimd_intersect_u16_serial
+SIMSIMD_MAKE_INTERSECT_GALLOPING(serial, u32, size)                     // simsimd_intersect_u32_serial
+SIMSIMD_MAKE_SPARSE_DOT(serial, u16, bf16, f32, simsimd_bf16_to_f32)    // simsimd_sparse_dot_u16bf16_serial
+SIMSIMD_MAKE_SPARSE_DOT(serial, u32, f32, f32, SIMSIMD_ASSIGN_FROM_TO)  // simsimd_sparse_dot_u32f32_serial
+SIMSIMD_MAKE_SPARSE_DOT(accurate, u16, bf16, f64, _simsimd_bf16_to_f64) // simsimd_sparse_dot_u16bf16_accurate
+SIMSIMD_MAKE_SPARSE_DOT(accurate, u32, f32, f64, _simsimd_f32_to_f64)   // simsimd_sparse_dot_u32f32_accurate
 
 /*  The AVX-512 implementations are inspired by the "Faster-Than-Native Alternatives
  *  for x86 VP2INTERSECT Instructions" paper by Guille Diez-Canas, 2022.

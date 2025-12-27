@@ -204,23 +204,23 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f32_accurate(simsimd_f32_t const *a, sim
                                                      simsimd_f32_t const *c, simsimd_size_t n, simsimd_f64_t *result);
 /** @copydoc simsimd_bilinear_f16 */
 SIMSIMD_PUBLIC void simsimd_bilinear_f16_accurate(simsimd_f16_t const *a, simsimd_f16_t const *b,
-                                                  simsimd_f16_t const *c, simsimd_size_t n, simsimd_f32_t *result);
+                                                  simsimd_f16_t const *c, simsimd_size_t n, simsimd_f64_t *result);
 /** @copydoc simsimd_bilinear_f16c */
 SIMSIMD_PUBLIC void simsimd_bilinear_f16c_accurate(simsimd_f16c_t const *a, simsimd_f16c_t const *b,
-                                                   simsimd_f16c_t const *c, simsimd_size_t n, simsimd_f32c_t *results);
+                                                   simsimd_f16c_t const *c, simsimd_size_t n, simsimd_f64c_t *results);
 /** @copydoc simsimd_mahalanobis_f16 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_accurate(simsimd_f16_t const *a, simsimd_f16_t const *b,
-                                                     simsimd_f16_t const *c, simsimd_size_t n, simsimd_f32_t *result);
+                                                     simsimd_f16_t const *c, simsimd_size_t n, simsimd_f64_t *result);
 /** @copydoc simsimd_bilinear_bf16 */
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16_accurate(simsimd_bf16_t const *a, simsimd_bf16_t const *b,
-                                                   simsimd_bf16_t const *c, simsimd_size_t n, simsimd_f32_t *result);
+                                                   simsimd_bf16_t const *c, simsimd_size_t n, simsimd_f64_t *result);
 /** @copydoc simsimd_bilinear_bf16c */
 SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_accurate(simsimd_bf16c_t const *a, simsimd_bf16c_t const *b,
                                                     simsimd_bf16c_t const *c, simsimd_size_t n,
-                                                    simsimd_f32c_t *results);
+                                                    simsimd_f64c_t *results);
 /** @copydoc simsimd_mahalanobis_bf16 */
 SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_accurate(simsimd_bf16_t const *a, simsimd_bf16_t const *b,
-                                                      simsimd_bf16_t const *c, simsimd_size_t n, simsimd_f32_t *result);
+                                                      simsimd_bf16_t const *c, simsimd_size_t n, simsimd_f64_t *result);
 #if SIMSIMD_TARGET_NEON
 /** @copydoc simsimd_bilinear_f32 */
 SIMSIMD_PUBLIC void simsimd_bilinear_f32_neon(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c,
