@@ -415,8 +415,8 @@ extern "C" {
         a_centroid: *mut f32,
         b_centroid: *mut f32,
         rotation: *mut f32,
-        scale: *mut f64,
-        result: *mut f64,
+        scale: *mut f32,
+        result: *mut f32,
     );
     fn simsimd_rmsd_f64(
         a: *const f64,
@@ -435,8 +435,8 @@ extern "C" {
         a_centroid: *mut f32,
         b_centroid: *mut f32,
         rotation: *mut f32,
-        scale: *mut f64,
-        result: *mut f64,
+        scale: *mut f32,
+        result: *mut f32,
     );
     fn simsimd_kabsch_f64(
         a: *const f64,
@@ -455,8 +455,8 @@ extern "C" {
         a_centroid: *mut f32,
         b_centroid: *mut f32,
         rotation: *mut f32,
-        scale: *mut f64,
-        result: *mut f64,
+        scale: *mut f32,
+        result: *mut f32,
     );
     fn simsimd_umeyama_f64(
         a: *const f64,
@@ -3591,9 +3591,9 @@ pub struct MeshAlignmentResult<T> {
     /// 3x3 rotation matrix in row-major order.
     pub rotation_matrix: [T; 9],
     /// Uniform scaling factor (1.0 for RMSD/Kabsch, computed for Umeyama).
-    pub scale: f64,
+    pub scale: T,
     /// Root mean square deviation after alignment.
-    pub rmsd: f64,
+    pub rmsd: T,
     /// Centroid of source point cloud A.
     pub a_centroid: [T; 3],
     /// Centroid of target point cloud B.
@@ -3635,7 +3635,6 @@ impl MeshAlignmentResult<f32> {
     /// Applies: `a'_i = scale * R * (a_i - a_centroid) + b_centroid`
     #[inline]
     pub fn transform_point(&self, point: [f32; 3]) -> [f32; 3] {
-        let scale = self.scale as f32;
         let centered = [
             point[0] - self.a_centroid[0],
             point[1] - self.a_centroid[1],
@@ -3643,11 +3642,11 @@ impl MeshAlignmentResult<f32> {
         ];
         let r = &self.rotation_matrix;
         [
-            scale * (r[0] * centered[0] + r[1] * centered[1] + r[2] * centered[2])
+            self.scale * (r[0] * centered[0] + r[1] * centered[1] + r[2] * centered[2])
                 + self.b_centroid[0],
-            scale * (r[3] * centered[0] + r[4] * centered[1] + r[5] * centered[2])
+            self.scale * (r[3] * centered[0] + r[4] * centered[1] + r[5] * centered[2])
                 + self.b_centroid[1],
-            scale * (r[6] * centered[0] + r[7] * centered[1] + r[8] * centered[2])
+            self.scale * (r[6] * centered[0] + r[7] * centered[1] + r[8] * centered[2])
                 + self.b_centroid[2],
         ]
     }
@@ -4846,8 +4845,8 @@ mod tests {
             "Expected scale ~1.0, got {}",
             result.scale
         );
-        // RMSD should be small for identical points (SVD has numerical precision limits)
-        assert!(result.rmsd < 1e-4, "Expected RMSD ~0, got {}", result.rmsd);
+        // RMSD should be ~0 for identical points
+        assert!(result.rmsd < 1e-6, "Expected RMSD ~0, got {}", result.rmsd);
     }
 
     #[test]
@@ -4862,7 +4861,7 @@ mod tests {
             "Expected scale ~1.0, got {}",
             result.scale
         );
-        // RMSD should be small for identical points (SVD has numerical precision limits)
+        // RMSD should be ~0 for identical points
         assert!(result.rmsd < 1e-4, "Expected RMSD ~0, got {}", result.rmsd);
     }
 
