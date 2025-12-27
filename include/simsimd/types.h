@@ -268,7 +268,7 @@
 
 #if !defined(SIMSIMD_F32_SQRT)
 #include <math.h>
-#define SIMSIMD_F32_SQRT(x) (sqrt(x))
+#define SIMSIMD_F32_SQRT(x) (sqrtf(x))
 #endif
 
 #if !defined(SIMSIMD_F32_RSQRT)
@@ -276,19 +276,44 @@
 #define SIMSIMD_F32_RSQRT(x) (1 / SIMSIMD_F32_SQRT(x))
 #endif
 
+#if !defined(SIMSIMD_F64_SQRT)
+#include <math.h>
+#define SIMSIMD_F64_SQRT(x) (sqrt(x))
+#endif
+
+#if !defined(SIMSIMD_F64_RSQRT)
+#include <math.h>
+#define SIMSIMD_F64_RSQRT(x) (1 / SIMSIMD_F64_SQRT(x))
+#endif
+
 #if !defined(SIMSIMD_F32_LOG)
 #include <math.h>
-#define SIMSIMD_F32_LOG(x) (log(x))
+#define SIMSIMD_F32_LOG(x) (logf(x))
+#endif
+
+#if !defined(SIMSIMD_F64_LOG)
+#include <math.h>
+#define SIMSIMD_F64_LOG(x) (log(x))
 #endif
 
 #if !defined(SIMSIMD_F32_TAN)
 #include <math.h>
-#define SIMSIMD_F32_TAN(x) (tan(x))
+#define SIMSIMD_F32_TAN(x) (tanf(x))
+#endif
+
+#if !defined(SIMSIMD_F64_TAN)
+#include <math.h>
+#define SIMSIMD_F64_TAN(x) (tan(x))
 #endif
 
 #if !defined(SIMSIMD_F32_ABS)
 #include <math.h>
-#define SIMSIMD_F32_ABS(x) (fabs(x))
+#define SIMSIMD_F32_ABS(x) (fabsf(x))
+#endif
+
+#if !defined(SIMSIMD_F64_ABS)
+#include <math.h>
+#define SIMSIMD_F64_ABS(x) (fabs(x))
 #endif
 
 // Copy 16 bits (2 bytes) from source to destination
@@ -530,6 +555,10 @@ typedef union simsimd_b128_vec_t {
     simsimd_i16_t i16s[8];
     simsimd_i32_t i32s[4];
     simsimd_i64_t i64s[2];
+    simsimd_f16_t f16s[8];
+    simsimd_bf16_t bf16s[8];
+    simsimd_e4m3_t e4m3s[16];
+    simsimd_e5m2_t e5m2s[16];
     simsimd_f32_t f32s[4];
     simsimd_f64_t f64s[2];
     simsimd_b8_t b8s[16];
@@ -557,6 +586,10 @@ typedef union simsimd_b256_vec_t {
     simsimd_i16_t i16s[16];
     simsimd_i32_t i32s[8];
     simsimd_i64_t i64s[4];
+    simsimd_f16_t f16s[16];
+    simsimd_bf16_t bf16s[16];
+    simsimd_e4m3_t e4m3s[32];
+    simsimd_e5m2_t e5m2s[32];
     simsimd_f32_t f32s[8];
     simsimd_f64_t f64s[4];
     simsimd_b8_t b8s[32];

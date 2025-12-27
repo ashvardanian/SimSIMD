@@ -177,9 +177,8 @@ typedef enum {
     simsimd_metric_tanimoto_k = 'j', ///< Tanimoto coefficient is same as Jaccard
 
     // Sets:
-    simsimd_metric_intersect_k = 'x',     ///< Equivalent to unnormalized Jaccard
-    simsimd_metric_spdot_counts_k = 'y',  ///< Sparse sets with integer weights
-    simsimd_metric_spdot_weights_k = 'z', ///< Sparse sets with brain floating-point weights
+    simsimd_metric_intersect_k = 'x',  ///< Equivalent to unnormalized Jaccard
+    simsimd_metric_sparse_dot_k = 'd', ///< Sparse dot product with weighted indices
 
     // Curved Spaces:
     simsimd_metric_bilinear_k = 'b',    ///< Bilinear form
@@ -342,6 +341,22 @@ typedef void (*simsimd_metric_sparse_punned_t)(void const *a, void const *b,    
                                                simsimd_distance_t *d);
 
 /**
+ *  @brief  Type-punned function pointer for sparse dot products with weights.
+ *
+ *  @param[in] a          First sorted array of indices.
+ *  @param[in] b          Second sorted array of indices.
+ *  @param[in] a_weights  Weights for first array.
+ *  @param[in] b_weights  Weights for second array.
+ *  @param[in] a_length   Number of elements in first array.
+ *  @param[in] b_length   Number of elements in second array.
+ *  @param[out] product   Output dot product (void* for type punning).
+ */
+typedef void (*simsimd_metric_sparse_dot_punned_t)(void const *a, void const *b,                     //
+                                                   void const *a_weights, void const *b_weights,     //
+                                                   simsimd_size_t a_length, simsimd_size_t b_length, //
+                                                   void *product);
+
+/**
  *  @brief  Type-punned function pointer for curved vector spaces and similarity measures.
  *
  *  @param[in] a    Pointer to the first data array.
@@ -354,17 +369,31 @@ typedef void (*simsimd_metric_curved_punned_t)(void const *a, void const *b, voi
                                                simsimd_size_t n, simsimd_distance_t *d);
 
 /**
+ *  @brief  Type-punned function pointer for geospatial distance functions.
+ *
+ *  @param[in] a_lats   Latitudes of first point set (in radians).
+ *  @param[in] a_lons   Longitudes of first point set (in radians).
+ *  @param[in] b_lats   Latitudes of second point set (in radians).
+ *  @param[in] b_lons   Longitudes of second point set (in radians).
+ *  @param[in] n        Number of point pairs.
+ *  @param[out] results Output distances in meters (void* for type punning).
+ */
+typedef void (*simsimd_metric_geospatial_punned_t)(void const *a_lats, void const *a_lons, //
+                                                   void const *b_lats, void const *b_lons, //
+                                                   simsimd_size_t n, void *results);
+
+/**
  *  @brief  Type-punned function pointer for Scaling & Shifting operations on dense vector representations.
  *          Implements the `y = alpha * a + beta` operation.
  *
  *  @param[in] a        Pointer to the first data array.
  *  @param[in] n        Number of scalar words in the input arrays.
- *  @param[in] alpha    Scaling factor for the first two arrays.
- *  @param[in] beta     Scaling factor for the third array.
+ *  @param[in] alpha    Pointer to scaling factor (type depends on input precision).
+ *  @param[in] beta     Pointer to offset/bias term (type depends on input precision).
  *  @param[out] y       Output value in the same precision as the input arrays.
  */
-typedef void (*simsimd_kernel_scale_punned_t)(void const *a, simsimd_size_t n, simsimd_distance_t alpha,
-                                              simsimd_distance_t beta, void *y);
+typedef void (*simsimd_kernel_scale_punned_t)(void const *a, simsimd_size_t n, void const *alpha, void const *beta,
+                                              void *y);
 
 /**
  *  @brief  Type-punned function pointer for element-wise Sum operations on dense vector representations.
@@ -384,12 +413,12 @@ typedef void (*simsimd_kernel_sum_punned_t)(void const *a, void const *b, simsim
  *  @param[in] a        Pointer to the first data array.
  *  @param[in] b        Pointer to the second data array.
  *  @param[in] n        Number of scalar words in the input arrays.
- *  @param[in] alpha    Scaling factor for the first array.
- *  @param[in] beta     Scaling factor for the second array.
+ *  @param[in] alpha    Pointer to scaling factor for the first array (type depends on input precision).
+ *  @param[in] beta     Pointer to scaling factor for the second array (type depends on input precision).
  *  @param[out] y       Output value in the same precision as the input arrays.
  */
-typedef void (*simsimd_kernel_wsum_punned_t)(void const *a, void const *b, simsimd_size_t n, simsimd_distance_t alpha,
-                                             simsimd_distance_t beta, void *y);
+typedef void (*simsimd_kernel_wsum_punned_t)(void const *a, void const *b, simsimd_size_t n, void const *alpha,
+                                             void const *beta, void *y);
 
 /**
  *  @brief  Type-punned function pointer for FMA operations on dense vector representations.
@@ -399,12 +428,12 @@ typedef void (*simsimd_kernel_wsum_punned_t)(void const *a, void const *b, simsi
  *  @param[in] b        Pointer to the second data array.
  *  @param[in] c        Pointer to the third data array.
  *  @param[in] n        Number of scalar words in the input arrays.
- *  @param[in] alpha    Scaling factor for the first two arrays.
- *  @param[in] beta     Scaling factor for the third array.
+ *  @param[in] alpha    Pointer to scaling factor for a*b product (type depends on input precision).
+ *  @param[in] beta     Pointer to scaling factor for c array (type depends on input precision).
  *  @param[out] y       Output value in the same precision as the input arrays.
  */
 typedef void (*simsimd_kernel_fma_punned_t)(void const *a, void const *b, void const *c, simsimd_size_t n,
-                                            simsimd_distance_t alpha, simsimd_distance_t beta, void *y);
+                                            void const *alpha, void const *beta, void *y);
 
 /**
  *  @brief  Type-punned function pointer for element-wise trigonometric functions.
@@ -433,8 +462,8 @@ typedef void (*simsimd_kernel_trigonometry_punned_t)(void const *x, simsimd_size
  */
 typedef void (*simsimd_metric_mesh_punned_t)(void const *a, void const *b, simsimd_size_t n, //
                                              void *a_centroid, void *b_centroid,             //
-                                             void *rotation, simsimd_distance_t *scale,      //
-                                             simsimd_distance_t *d);
+                                             void *rotation, void *scale,                    //
+                                             void *d);
 
 /**
  *  @brief  Type-punned function pointer for a SimSIMD public interface.
@@ -929,6 +958,12 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f64(simsimd_capability_t v, si
 SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f32(simsimd_capability_t v, simsimd_metric_kind_t k,
                                                       simsimd_kernel_punned_t *m, simsimd_capability_t *c) {
     typedef simsimd_kernel_punned_t m_t;
+#if SIMSIMD_TARGET_SVE2
+    if (v & simsimd_cap_sve2_k) switch (k) {
+        case simsimd_metric_sparse_dot_k: *m = (m_t)&simsimd_sparse_dot_u32f32_sve2, *c = simsimd_cap_sve2_k; return;
+        default: break;
+        }
+#endif
 #if SIMSIMD_TARGET_SVE
     if (v & simsimd_cap_sve_k) switch (k) {
         case simsimd_metric_dot_k: *m = (m_t)&simsimd_dot_f32_sve, *c = simsimd_cap_sve_k; return;
@@ -950,6 +985,12 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f32(simsimd_capability_t v, si
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_f32_neon, *c = simsimd_cap_neon_k; return;
         case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_f32_neon, *c = simsimd_cap_neon_k; return;
         case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_f32_neon, *c = simsimd_cap_neon_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_TURIN
+    if (v & simsimd_cap_turin_k) switch (k) {
+        case simsimd_metric_sparse_dot_k: *m = (m_t)&simsimd_sparse_dot_u32f32_turin, *c = simsimd_cap_turin_k; return;
         default: break;
         }
 #endif
@@ -977,6 +1018,12 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f32(simsimd_capability_t v, si
         case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f32_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f32_skylake, *c = simsimd_cap_skylake_k; return;
         case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f32_skylake, *c = simsimd_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_ICE
+    if (v & simsimd_cap_ice_k) switch (k) {
+        case simsimd_metric_sparse_dot_k: *m = (m_t)&simsimd_sparse_dot_u32f32_ice, *c = simsimd_cap_ice_k; return;
         default: break;
         }
 #endif
@@ -1019,6 +1066,9 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_f32(simsimd_capability_t v, si
         case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_f32_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_f32_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_f32_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sparse_dot_k:
+            *m = (m_t)&simsimd_sparse_dot_u32f32_serial, *c = simsimd_cap_serial_k;
+            return;
         default: break;
         }
 }
@@ -1118,6 +1168,9 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_bf16(simsimd_capability_t v, s
         case simsimd_metric_angular_k: *m = (m_t)&simsimd_angular_bf16_sve, *c = simsimd_cap_sve_bf16_k; return;
         case simsimd_metric_l2sq_k: *m = (m_t)&simsimd_l2sq_bf16_sve, *c = simsimd_cap_sve_bf16_k; return;
         case simsimd_metric_l2_k: *m = (m_t)&simsimd_l2_bf16_sve, *c = simsimd_cap_sve_bf16_k; return;
+        case simsimd_metric_sparse_dot_k:
+            *m = (m_t)&simsimd_sparse_dot_u16bf16_sve2, *c = simsimd_cap_sve_bf16_k;
+            return;
         default: break;
         }
 #endif
@@ -1131,6 +1184,12 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_bf16(simsimd_capability_t v, s
         case simsimd_metric_wsum_k: *m = (m_t)&simsimd_wsum_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
         case simsimd_metric_scale_k: *m = (m_t)&simsimd_scale_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
         case simsimd_metric_sum_k: *m = (m_t)&simsimd_sum_bf16_neon, *c = simsimd_cap_neon_bf16_k; return;
+        default: break;
+        }
+#endif
+#if SIMSIMD_TARGET_TURIN
+    if (v & simsimd_cap_turin_k) switch (k) {
+        case simsimd_metric_sparse_dot_k: *m = (m_t)&simsimd_sparse_dot_u16bf16_turin, *c = simsimd_cap_turin_k; return;
         default: break;
         }
 #endif
@@ -1189,6 +1248,9 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_bf16(simsimd_capability_t v, s
         case simsimd_metric_rmsd_k: *m = (m_t)&simsimd_rmsd_bf16_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_kabsch_k: *m = (m_t)&simsimd_kabsch_bf16_serial, *c = simsimd_cap_serial_k; return;
         case simsimd_metric_umeyama_k: *m = (m_t)&simsimd_umeyama_bf16_serial, *c = simsimd_cap_serial_k; return;
+        case simsimd_metric_sparse_dot_k:
+            *m = (m_t)&simsimd_sparse_dot_u16bf16_serial, *c = simsimd_cap_serial_k;
+            return;
         default: break;
         }
 }
@@ -1576,10 +1638,6 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_u16(simsimd_capability_t v, si
 #if SIMSIMD_TARGET_SVE2
     if (v & simsimd_cap_sve2_k) switch (k) {
         case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_sve2, *c = simsimd_cap_sve2_k; return;
-        case simsimd_metric_spdot_counts_k: *m = (m_t)&simsimd_spdot_counts_u16_sve2, *c = simsimd_cap_sve2_k; return;
-#if SIMSIMD_TARGET_SVE_BF16 //! We also need `bf16` support for weights
-        case simsimd_metric_spdot_weights_k: *m = (m_t)&simsimd_spdot_weights_u16_sve2, *c = simsimd_cap_sve2_k; return;
-#endif
         default: break;
         }
 #endif
@@ -1595,10 +1653,6 @@ SIMSIMD_INTERNAL void _simsimd_find_kernel_punned_u16(simsimd_capability_t v, si
 #if SIMSIMD_TARGET_TURIN
     if (v & simsimd_cap_turin_k) switch (k) {
         case simsimd_metric_intersect_k: *m = (m_t)&simsimd_intersect_u16_turin, *c = simsimd_cap_turin_k; return;
-        case simsimd_metric_spdot_counts_k: *m = (m_t)&simsimd_spdot_counts_u16_turin, *c = simsimd_cap_turin_k; return;
-        case simsimd_metric_spdot_weights_k:
-            *m = (m_t)&simsimd_spdot_weights_u16_turin, *c = simsimd_cap_turin_k;
-            return;
         default: break;
         }
 #endif

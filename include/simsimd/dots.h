@@ -929,11 +929,11 @@ SIMSIMD_PUBLIC void simsimd_dots_i8i8i8_serial(  //
         simsimd_i8_t *dst_row = c_i8 + row * n;
 
         simsimd_f32_t a_norm_f32 = (simsimd_f32_t)a_squared_norms[row];
-        simsimd_f32_t a_rsqrt = (a_norm_f32 > 0) ? (1.0f / SIMSIMD_SQRT(a_norm_f32)) : 0.0f;
+        simsimd_f32_t a_rsqrt = (a_norm_f32 > 0) ? (1.0f / SIMSIMD_F32_SQRT(a_norm_f32)) : 0.0f;
 
         for (simsimd_size_t col = 0; col < n; col++) {
             simsimd_f32_t b_norm_f32 = (simsimd_f32_t)b_squared_norms[col];
-            simsimd_f32_t b_rsqrt = (b_norm_f32 > 0) ? (1.0f / SIMSIMD_SQRT(b_norm_f32)) : 0.0f;
+            simsimd_f32_t b_rsqrt = (b_norm_f32 > 0) ? (1.0f / SIMSIMD_F32_SQRT(b_norm_f32)) : 0.0f;
 
             simsimd_f32_t normalized = (simsimd_f32_t)src_row[col] * 127.0f * a_rsqrt * b_rsqrt;
             simsimd_i32_t clamped = (simsimd_i32_t)normalized;

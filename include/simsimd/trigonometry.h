@@ -526,12 +526,9 @@ SIMSIMD_PUBLIC simsimd_f64_t simsimd_f64_sin(simsimd_f64_t const angle_radians) 
     result = (result * angle_cubed) + angle;
 
     // Handle the special case of negative zero input
-    union {
-        simsimd_f64_t f64;
-        simsimd_i64_t i64;
-    } converter;
-    converter.f64 = angle_radians;
-    if (converter.i64 == negative_zero) result = angle;
+    simsimd_fui64_t converter;
+    converter.f = angle_radians;
+    if ((simsimd_i64_t)converter.u == negative_zero) result = angle;
     return result;
 }
 
