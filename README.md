@@ -1,4 +1,4 @@
-![SimSIMD banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/SimSIMD.jpg?raw=true)
+![NumKong banner](https://github.com/ashvardanian/ashvardanian/blob/master/repositories/NumKong.jpg?raw=true)
 
 Computing dot-products, similarity measures, and distances between low- and high-dimensional vectors is ubiquitous in Machine Learning, Scientific Computing, Geospatial Analysis, and Information Retrieval.
 These algorithms generally have linear complexity in time, constant or linear complexity in space, and are data-parallel.
@@ -6,44 +6,44 @@ In other words, it is easily parallelizable and vectorizable and often available
 Ironically, even with decades of evolution in compilers and numerical computing, [most libraries can be 3-200x slower than hardware potential][benchmarks] even on the most popular hardware, like 64-bit x86 and Arm CPUs.
 Moreover, most lack mixed-precision support, which is crucial for modern AI!
 The rare few that support minimal mixed precision, run only on one platform, and are vendor-locked, by companies like Intel and Nvidia.
-SimSIMD provides an alternative.
-1️⃣ SimSIMD functions are practically as fast as `memcpy`.
+NumKong provides an alternative.
+1️⃣ NumKong functions are practically as fast as `memcpy`.
 2️⃣ Unlike BLAS, most kernels are designed for mixed-precision and bit-level operations.
-3️⃣ SimSIMD often [ships more binaries than NumPy][compatibility] and has more backends than most BLAS implementations, and more high-level interfaces than most libraries.
+3️⃣ NumKong often [ships more binaries than NumPy][compatibility] and has more backends than most BLAS implementations, and more high-level interfaces than most libraries.
 
-[benchmarks]: https://ashvardanian.com/posts/simsimd-faster-scipy
-[compatibility]: https://pypi.org/project/simsimd/#files
+[benchmarks]: https://ashvardanian.com/posts/numkong-faster-scipy
+[compatibility]: https://pypi.org/project/numkong/#files
 
 <div>
-<a href="https://pepy.tech/project/simsimd">
-    <img alt="PyPI" src="https://static.pepy.tech/personalized-badge/simsimd?period=total&units=abbreviation&left_color=black&right_color=blue&left_text=SimSIMD%20Python%20installs" />
+<a href="https://pepy.tech/project/numkong">
+    <img alt="PyPI" src="https://static.pepy.tech/personalized-badge/numkong?period=total&units=abbreviation&left_color=black&right_color=blue&left_text=NumKong%20Python%20installs" />
 </a>
-<a href="https://www.npmjs.com/package/simsimd">
-    <img alt="npm" src="https://img.shields.io/npm/dy/simsimd?label=JavaScript%20NPM%20installs" />
+<a href="https://www.npmjs.com/package/numkong">
+    <img alt="npm" src="https://img.shields.io/npm/dy/numkong?label=JavaScript%20NPM%20installs" />
 </a>
-<a href="https://crates.io/crates/simsimd">
-    <img alt="rust" src="https://img.shields.io/crates/d/simsimd?label=Rust%20Crate%20installs" />
+<a href="https://crates.io/crates/numkong">
+    <img alt="rust" src="https://img.shields.io/crates/d/numkong?label=Rust%20Crate%20installs" />
 </a>
-<img alt="GitHub code size in bytes" src="https://img.shields.io/github/languages/code-size/ashvardanian/simsimd">
-<a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
-    <img alt="GitHub Actions Ubuntu" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=Ubuntu&logo=github&color=blue">
+<img alt="GitHub code size in bytes" src="https://img.shields.io/github/languages/code-size/ashvardanian/numkong">
+<a href="https://github.com/ashvardanian/NumKong/actions/workflows/release.yml">
+    <img alt="GitHub Actions Ubuntu" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/NumKong/release.yml?branch=main&label=Ubuntu&logo=github&color=blue">
 </a>
-<a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
-    <img alt="GitHub Actions Windows" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=Windows&logo=windows&color=blue">
+<a href="https://github.com/ashvardanian/NumKong/actions/workflows/release.yml">
+    <img alt="GitHub Actions Windows" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/NumKong/release.yml?branch=main&label=Windows&logo=windows&color=blue">
 </a>
-<a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
-    <img alt="GitHub Actions macOS" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=macOS&logo=apple&color=blue">
+<a href="https://github.com/ashvardanian/NumKong/actions/workflows/release.yml">
+    <img alt="GitHub Actions macOS" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/NumKong/release.yml?branch=main&label=macOS&logo=apple&color=blue">
 </a>
-<a href="https://github.com/ashvardanian/SimSIMD/actions/workflows/release.yml">
-    <img alt="GitHub Actions CentOS Linux" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/SimSIMD/release.yml?branch=main&label=CentOS&logo=centos&color=blue">
+<a href="https://github.com/ashvardanian/NumKong/actions/workflows/release.yml">
+    <img alt="GitHub Actions CentOS Linux" src="https://img.shields.io/github/actions/workflow/status/ashvardanian/NumKong/release.yml?branch=main&label=CentOS&logo=centos&color=blue">
 </a>
 
 </div>
 
 ## Features
 
-__SimSIMD__ (Arabic: "سيمسيم دي") is a mixed-precision math library of __over 350 SIMD-optimized kernels__ extensively used in AI, Search, and DBMS workloads.
-Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command that opened doors to treasure in _Ali Baba and the Forty Thieves_, SimSIMD can help you 10x the cost-efficiency of your computational pipelines.
+__NumKong__ (Arabic: "سيمسيم دي") is a mixed-precision math library of __over 350 SIMD-optimized kernels__ extensively used in AI, Search, and DBMS workloads.
+Named after the iconic ["Open Sesame"](https://en.wikipedia.org/wiki/Open_sesame) command that opened doors to treasure in _Ali Baba and the Forty Thieves_, NumKong can help you 10x the cost-efficiency of your computational pipelines.
 Implemented distance functions include:
 
 - Euclidean (L2) and Cosine (Angular) spatial distances for Vector Search. _[docs][docs-spatial]_
@@ -59,7 +59,7 @@ Implemented distance functions include:
 [docs-spatial]: #cosine-similarity-reciprocal-square-root-and-newton-raphson-iteration
 [docs-curved]: #curved-spaces-mahalanobis-distance-and-bilinear-quadratic-forms
 [docs-sparse]: #set-intersection-galloping-and-binary-search
-[docs-binary]: https://github.com/ashvardanian/SimSIMD/pull/138
+[docs-binary]: https://github.com/ashvardanian/NumKong/pull/138
 [docs-dot]: #complex-dot-products-conjugate-dot-products-and-complex-numbers
 [docs-probability]: #logarithms-in-kullback-leibler--jensenshannon-divergences
 [docs-fma]: #mixed-precision-in-fused-multiply-add-and-weighted-sums
@@ -67,25 +67,25 @@ Implemented distance functions include:
 [numpy]: https://numpy.org/doc/stable/reference/generated/numpy.inner.html
 [stringzilla]: https://github.com/ashvardanian/stringzilla
 
-Moreover, SimSIMD...
+Moreover, NumKong...
 
 - handles `float64`, `float32`, `float16`, and `bfloat16` real & complex vectors.
 - handles `int8` integral, `int4` sub-byte, and `b8` binary vectors.
 - handles sparse `uint32` and `uint16` sets, and weighted sparse vectors.
-- is a zero-dependency [header-only C 99](#using-simsimd-in-c) library.
-- has [Python](#using-simsimd-in-python), [Rust](#using-simsimd-in-rust), [JS](#using-simsimd-in-javascript), and [Swift](#using-simsimd-in-swift) bindings.
+- is a zero-dependency [header-only C 99](#using-numkong-in-c) library.
+- has [Python](#using-numkong-in-python), [Rust](#using-numkong-in-rust), [JS](#using-numkong-in-javascript), and [Swift](#using-numkong-in-swift) bindings.
 - has Arm backends for NEON, Scalable Vector Extensions (SVE), and SVE2.
 - has x86 backends for Haswell, Skylake, Ice Lake, Genoa, and Sapphire Rapids.
 - with both compile-time and runtime CPU feature detection easily integrates anywhere!
 
-Due to the high-level of fragmentation of SIMD support in different x86 CPUs, SimSIMD generally uses the names of select Intel CPU generations for its backends.
+Due to the high-level of fragmentation of SIMD support in different x86 CPUs, NumKong generally uses the names of select Intel CPU generations for its backends.
 They, however, also work on AMD CPUs.
 Intel Haswell is compatible with AMD Zen 1/2/3, while AMD Genoa Zen 4 covers AVX-512 instructions added to Intel Skylake and Ice Lake.
 You can learn more about the technical implementation details in the following blog-posts:
 
 - [Uses Horner's method for polynomial approximations, beating GCC 12 by 119x](https://ashvardanian.com/posts/gcc-12-vs-avx512fp16/).
-- [Uses Arm SVE and x86 AVX-512's masked loads to eliminate tail `for`-loops](https://ashvardanian.com/posts/simsimd-faster-scipy/#tails-of-the-past-the-significance-of-masked-loads).
-- [Substitutes libc's `sqrt` with Newton Raphson iterations](https://github.com/ashvardanian/SimSIMD/releases/tag/v5.4.0).
+- [Uses Arm SVE and x86 AVX-512's masked loads to eliminate tail `for`-loops](https://ashvardanian.com/posts/numkong-faster-scipy/#tails-of-the-past-the-significance-of-masked-loads).
+- [Substitutes libc's `sqrt` with Newton Raphson iterations](https://github.com/ashvardanian/NumKong/releases/tag/v5.4.0).
 - [Uses Galloping and SVE2 histograms to intersect sparse vectors](https://ashvardanian.com/posts/simd-set-intersections-sve2-avx512/).
 - For Python: [avoids slow PyBind11, SWIG, & `PyArg_ParseTuple`](https://ashvardanian.com/posts/pybind11-cpython-tutorial/) [using faster calling convention](https://ashvardanian.com/posts/discount-on-keyword-arguments-in-python/).
 - For JavaScript: [uses typed arrays and NAPI for zero-copy calls](https://ashvardanian.com/posts/javascript-ai-vector-search/).
@@ -101,7 +101,7 @@ You can learn more about the technical implementation details in the following b
   <tr>
     <th align="center">NumPy</th>
     <th align="center">C 99</th>
-    <th align="center">SimSIMD</th>
+    <th align="center">NumKong</th>
   </tr>
   <!-- Cosine distances with different precision levels -->
   <tr>
@@ -115,7 +115,7 @@ You can learn more about the technical implementation details in the following b
       <span style="color:#ABABAB;">x86:</span> <b>10,548,600</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>11,379,300</b> ops/s
     </td>
-    <td align="center"> <!-- simsimd -->
+    <td align="center"> <!-- numkong -->
       <span style="color:#ABABAB;">x86:</span> <b>16,151,800</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>13,524,000</b> ops/s
     </td>
@@ -131,7 +131,7 @@ You can learn more about the technical implementation details in the following b
       <span style="color:#ABABAB;">x86:</span> <b>119,835</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>403,909</b> ops/s
     </td>
-    <td align="center"> <!-- simsimd -->
+    <td align="center"> <!-- numkong -->
       <span style="color:#ABABAB;">x86:</span> <b>9,738,540</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>4,881,900</b> ops/s
     </td>
@@ -148,7 +148,7 @@ You can learn more about the technical implementation details in the following b
       <span style="color:#ABABAB;">x86:</span> <b>501,310</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>871,963</b> ops/s
     </td>
-    <td align="center"> <!-- simsimd -->
+    <td align="center"> <!-- numkong -->
       <span style="color:#ABABAB;">x86:</span> <b>7,627,600</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>3,316,810</b> ops/s
     </td>
@@ -165,7 +165,7 @@ You can learn more about the technical implementation details in the following b
       <span style="color:#ABABAB;">x86:</span> <b>882,484</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>399,661</b> ops/s
     </td>
-    <td align="center"> <!-- simsimd -->
+    <td align="center"> <!-- numkong -->
       <span style="color:#ABABAB;">x86:</span> <b>8,202,910</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>3,400,620</b> ops/s
     </td>
@@ -182,7 +182,7 @@ You can learn more about the technical implementation details in the following b
       <span style="color:#ABABAB;">x86:</span> <b>839,301</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>837,126</b> ops/s
     </td>
-    <td align="center"> <!-- simsimd -->
+    <td align="center"> <!-- numkong -->
       <span style="color:#ABABAB;">x86:</span> <b>1,538,530</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>1,678,920</b> ops/s
     </td>
@@ -201,7 +201,7 @@ You can learn more about the technical implementation details in the following b
       <span style="color:#ABABAB;">x86:</span> <b>6,690,110</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>4,114,160</b> ops/s
     </td>
-    <td align="center"> <!-- simsimd -->
+    <td align="center"> <!-- numkong -->
       <span style="color:#ABABAB;">x86:</span> <b>18,989,000</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>18,878,200</b> ops/s
     </td>
@@ -217,7 +217,7 @@ You can learn more about the technical implementation details in the following b
       <span style="color:#ABABAB;">x86:</span> <b>119,842</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>1,049,230</b> ops/s
     </td>
-    <td align="center"> <!-- simsimd -->
+    <td align="center"> <!-- numkong -->
       <span style="color:#ABABAB;">x86:</span> <b>9,727,210</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>4,233,420</b> ops/s
     </td>
@@ -234,7 +234,7 @@ You can learn more about the technical implementation details in the following b
       <span style="color:#ABABAB;">x86:</span> <b>196,413</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>911,370</b> ops/s
     </td>
-    <td align="center"> <!-- simsimd -->
+    <td align="center"> <!-- numkong -->
       <span style="color:#ABABAB;">x86:</span> <b>19,466,800</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>3,522,760</b> ops/s
     </td>
@@ -251,7 +251,7 @@ You can learn more about the technical implementation details in the following b
       <span style="color:#ABABAB;">x86:</span> <b>1,295,210</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>1,055,940</b> ops/s
     </td>
-    <td align="center"> <!-- simsimd -->
+    <td align="center"> <!-- numkong -->
       <span style="color:#ABABAB;">x86:</span> <b>8,924,100</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>3,602,650</b> ops/s
     </td>
@@ -268,7 +268,7 @@ You can learn more about the technical implementation details in the following b
       <span style="color:#ABABAB;">x86:</span> <b>1,215,190</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>905,782</b> ops/s
     </td>
-    <td align="center"> <!-- simsimd -->
+    <td align="center"> <!-- numkong -->
       <span style="color:#ABABAB;">x86:</span> <b>1,701,740</b> ops/s<br/>
       <span style="color:#ABABAB;">arm:</span> <b>1,735,840</b> ops/s
     </td>
@@ -286,39 +286,39 @@ You can learn more about the technical implementation details in the following b
 Similar speedups are often observed even when compared to BLAS and LAPACK libraries underlying most numerical computing libraries, including NumPy and SciPy in Python.
 Broader benchmarking results:
 
-- [Apple M2 Pro](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-1-performance-on-apple-m2-pro).
-- [Intel Sapphire Rapids](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-2-performance-on-4th-gen-intel-xeon-platinum-8480).
-- [AWS Graviton 3](https://ashvardanian.com/posts/simsimd-faster-scipy/#appendix-3-performance-on-aws-graviton-3).
+- [Apple M2 Pro](https://ashvardanian.com/posts/numkong-faster-scipy/#appendix-1-performance-on-apple-m2-pro).
+- [Intel Sapphire Rapids](https://ashvardanian.com/posts/numkong-faster-scipy/#appendix-2-performance-on-4th-gen-intel-xeon-platinum-8480).
+- [AWS Graviton 3](https://ashvardanian.com/posts/numkong-faster-scipy/#appendix-3-performance-on-aws-graviton-3).
 
-## Using SimSIMD in Python
+## Using NumKong in Python
 
 The package is intended to replace the usage of `numpy.inner`, `numpy.dot`, and `scipy.spatial.distance`.
-Aside from drastic performance improvements, SimSIMD significantly improves accuracy in mixed precision setups.
-NumPy and SciPy, processing `int8`, `uint8` or `float16` vectors, will use the same types for accumulators, while SimSIMD can combine `int8` enumeration, `int16` multiplication, and `int32` accumulation to avoid overflows entirely.
+Aside from drastic performance improvements, NumKong significantly improves accuracy in mixed precision setups.
+NumPy and SciPy, processing `int8`, `uint8` or `float16` vectors, will use the same types for accumulators, while NumKong can combine `int8` enumeration, `int16` multiplication, and `int32` accumulation to avoid overflows entirely.
 The same applies to processing `float16` and `bfloat16` values with `float32` precision.
 
 ### Installation
 
-Use the following snippet to install SimSIMD and list hardware acceleration options available on your machine:
+Use the following snippet to install NumKong and list hardware acceleration options available on your machine:
 
 ```sh
-pip install simsimd
-python -c "import simsimd; print(simsimd.get_capabilities())"   # for hardware introspection
-python -c "import simsimd; help(simsimd)"                       # for documentation
+pip install numkong
+python -c "import numkong; print(numkong.get_capabilities())"   # for hardware introspection
+python -c "import numkong; help(numkong)"                       # for documentation
 ```
 
-With precompiled binaries, SimSIMD ships `.pyi` interface files for type hinting and static analysis.
-You can check all the available functions in [`python/annotations/__init__.pyi`](https://github.com/ashvardanian/SimSIMD/blob/main/python/annotations/__init__.pyi).
+With precompiled binaries, NumKong ships `.pyi` interface files for type hinting and static analysis.
+You can check all the available functions in [`python/annotations/__init__.pyi`](https://github.com/ashvardanian/NumKong/blob/main/python/annotations/__init__.pyi).
 
 ### One-to-One Distance
 
 ```py
-import simsimd
+import numkong
 import numpy as np
 
 vec1 = np.random.randn(1536).astype(np.float32)
 vec2 = np.random.randn(1536).astype(np.float32)
-dist = simsimd.angular(vec1, vec2)
+dist = numkong.angular(vec1, vec2)
 ```
 
 Supported functions include `angular`, `inner`, `sqeuclidean`, `hamming`, `jaccard`, `kullbackleibler`, `jensenshannon`, and `intersect`.
@@ -328,20 +328,20 @@ Dot products are supported for both real and complex numbers:
 vec1 = np.random.randn(768).astype(np.float64) + 1j * np.random.randn(768).astype(np.float64)
 vec2 = np.random.randn(768).astype(np.float64) + 1j * np.random.randn(768).astype(np.float64)
 
-dist = simsimd.dot(vec1.astype(np.complex128), vec2.astype(np.complex128))
-dist = simsimd.dot(vec1.astype(np.complex64), vec2.astype(np.complex64))
-dist = simsimd.vdot(vec1.astype(np.complex64), vec2.astype(np.complex64)) # conjugate, same as `np.vdot`
+dist = numkong.dot(vec1.astype(np.complex128), vec2.astype(np.complex128))
+dist = numkong.dot(vec1.astype(np.complex64), vec2.astype(np.complex64))
+dist = numkong.vdot(vec1.astype(np.complex64), vec2.astype(np.complex64)) # conjugate, same as `np.vdot`
 ```
 
-Unlike SciPy, SimSIMD allows explicitly stating the precision of the input vectors, which is especially useful for mixed-precision setups.
+Unlike SciPy, NumKong allows explicitly stating the precision of the input vectors, which is especially useful for mixed-precision setups.
 The `dtype` argument can be passed both by name and as a positional argument:
 
 ```py
-dist = simsimd.angular(vec1, vec2, "int8")
-dist = simsimd.angular(vec1, vec2, "float16")
-dist = simsimd.angular(vec1, vec2, "float32")
-dist = simsimd.angular(vec1, vec2, "float64")
-dist = simsimd.hamming(vec1, vec2, "bin8")
+dist = numkong.angular(vec1, vec2, "int8")
+dist = numkong.angular(vec1, vec2, "float16")
+dist = numkong.angular(vec1, vec2, "float32")
+dist = numkong.angular(vec1, vec2, "float64")
+dist = numkong.hamming(vec1, vec2, "bin8")
 ```
 
 Binary distance functions are computed at a bit-level.
@@ -351,12 +351,12 @@ This differs from NumPy, that can't handle smaller-than-byte types, but you can 
 ```py
 vec1 = np.random.randint(2, size=80).astype(np.uint8).packbits().view(np.bool_)
 vec2 = np.random.randint(2, size=80).astype(np.uint8).packbits().view(np.bool_)
-hamming_distance = simsimd.hamming(vec1, vec2)
-jaccard_distance = simsimd.jaccard(vec1, vec2)
+hamming_distance = numkong.hamming(vec1, vec2)
+jaccard_distance = numkong.jaccard(vec1, vec2)
 ```
 
 With other frameworks, like PyTorch, one can get a richer type-system than NumPy, but the lack of good CPython interoperability makes it hard to pass data without copies.
-Here is an example of using SimSIMD with PyTorch to compute the cosine similarity between two `bfloat16` vectors:
+Here is an example of using NumKong with PyTorch to compute the cosine similarity between two `bfloat16` vectors:
 
 ```py
 import numpy as np
@@ -372,10 +372,10 @@ torch.randn(8, out=vec2)
 
 # Both libs will look into the same memory buffers and report the same results
 dist_slow = 1 - torch.nn.functional.cosine_similarity(vec1, vec2, dim=0)
-dist_fast = simsimd.angular(buf1, buf2, "bfloat16")
+dist_fast = numkong.angular(buf1, buf2, "bfloat16")
 ```
 
-It also allows using SimSIMD for half-precision complex numbers, which NumPy does not support.
+It also allows using NumKong for half-precision complex numbers, which NumPy does not support.
 For that, view data as continuous even-length `np.float16` vectors and override type-resolution with `complex32` string.
 
 ```py
@@ -390,7 +390,7 @@ When dealing with sparse representations and integer sets, you can apply the `in
 ```py
 from random import randint
 import numpy as np
-import simsimd as simd
+import numkong as simd
 
 length1, length2 = randint(1, 100), randint(1, 100)
 vec1 = np.sort(np.random.randint(0, 1000, length1).astype(np.uint16))
@@ -411,19 +411,19 @@ vec1 = np.random.randn(1536).astype(np.float32) # rank 1 tensor
 batch1 = np.random.randn(1, 1536).astype(np.float32) # rank 2 tensor
 batch2 = np.random.randn(100, 1536).astype(np.float32)
 
-dist_rank1 = simsimd.angular(vec1, batch2)
-dist_rank2 = simsimd.angular(batch1, batch2)
+dist_rank1 = numkong.angular(vec1, batch2)
+dist_rank2 = numkong.angular(batch1, batch2)
 ```
 
 ### Many-to-Many Distances
 
-All distance functions in SimSIMD can be used to compute many-to-many distances.
+All distance functions in NumKong can be used to compute many-to-many distances.
 For two batches of 100 vectors to compute 100 distances, one would call it like this:
 
 ```py
 batch1 = np.random.randn(100, 1536).astype(np.float32)
 batch2 = np.random.randn(100, 1536).astype(np.float32)
-dist = simsimd.angular(batch1, batch2)
+dist = numkong.angular(batch1, batch2)
 ```
 
 Input matrices must have identical shapes.
@@ -431,27 +431,27 @@ This functionality isn't natively present in NumPy or SciPy, and generally requi
 
 ### Many-to-Many All-Pairs Distances
 
-One can use SimSIMD to compute distances between all possible pairs of rows across two matrices (akin to [`scipy.spatial.distance.cdist`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.cdist.html)).
+One can use NumKong to compute distances between all possible pairs of rows across two matrices (akin to [`scipy.spatial.distance.cdist`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.cdist.html)).
 The resulting object will have a type `DistancesTensor`, zero-copy compatible with NumPy and other libraries.
 For two arrays of 10 and 1,000 entries, the resulting tensor will have 10,000 cells:
 
 ```py
 import numpy as np
-from simsimd import cdist, DistancesTensor
+from numkong import cdist, DistancesTensor
 
 matrix1 = np.random.randn(1000, 1536).astype(np.float32)
 matrix2 = np.random.randn(10, 1536).astype(np.float32)
-distances: DistancesTensor = simsimd.cdist(matrix1, matrix2, metric="cosine")   # zero-copy, managed by SimSIMD
+distances: DistancesTensor = numkong.cdist(matrix1, matrix2, metric="cosine")   # zero-copy, managed by NumKong
 distances_array: np.ndarray = np.array(distances, copy=True)                    # now managed by NumPy
 ```
 
 ### Element-wise Kernels
 
-SimSIMD also provides mixed-precision element-wise kernels, where the input vectors and the output have the same numeric type, but the intermediate accumulators are of a higher precision.
+NumKong also provides mixed-precision element-wise kernels, where the input vectors and the output have the same numeric type, but the intermediate accumulators are of a higher precision.
 
 ```py
 import numpy as np
-from simsimd import fma, wsum
+from numkong import fma, wsum
 
 # Let's take two FullHD video frames
 first_frame = np.random.randn(1920 * 1024).astype(np.uint8)
@@ -499,15 +499,15 @@ ndim = 1536 # OpenAI Ada embeddings
 matrix1 = np.packbits(np.random.randint(2, size=(10_000, ndim)).astype(np.uint8))
 matrix2 = np.packbits(np.random.randint(2, size=(1_000, ndim)).astype(np.uint8))
 
-distances = simsimd.cdist(matrix1, matrix2,
-    metric="hamming",   # Unlike SciPy, SimSIMD doesn't divide by the number of dimensions
+distances = numkong.cdist(matrix1, matrix2,
+    metric="hamming",   # Unlike SciPy, NumKong doesn't divide by the number of dimensions
     out_dtype="uint8",  # so we can use `uint8` instead of `float64` to save memory.
     threads=0,          # Use all CPU cores with OpenMP.
     dtype="bin8",       # Override input argument type to `bin8` eight-bit words.
 )
 ```
 
-Alternatively, when using free-threading Python 3.13t builds, one can combine single-threaded SimSIMD operations with Python's `concurrent.futures.ThreadPoolExecutor` to parallelize the computations.
+Alternatively, when using free-threading Python 3.13t builds, one can combine single-threaded NumKong operations with Python's `concurrent.futures.ThreadPoolExecutor` to parallelize the computations.
 By default, the output distances will be stored in double-precision `float64` floating-point numbers.
 That behavior may not be space-efficient, especially if you are computing the hamming distance between short binary vectors, that will generally fit into 8x smaller `uint8` or `uint16` types.
 To override this behavior, use the `out_dtype` argument, or consider pre-allocating the output array and passing it to the `out` argument.
@@ -516,7 +516,7 @@ A more complete example may look like this:
 ```py
 from multiprocessing import cpu_count
 from concurrent.futures import ThreadPoolExecutor
-from simsimd import angular
+from numkong import angular
 import numpy as np
 
 # Generate large dataset
@@ -548,12 +548,12 @@ with ThreadPoolExecutor(max_workers=num_threads) as executor:
 
 The "brain-float-16" is a popular machine learning format.
 It's broadly supported in hardware and is very machine-friendly, but software support is still lagging behind.
-[Unlike NumPy](https://github.com/numpy/numpy/issues/19808), you can already use `bf16` datatype in SimSIMD.
+[Unlike NumPy](https://github.com/numpy/numpy/issues/19808), you can already use `bf16` datatype in NumKong.
 Luckily, to downcast `f32` to `bf16` you only have to drop the last 16 bits:
 
 ```py
 import numpy as np
-import simsimd as simd
+import numkong as simd
 
 ndim = 1536
 a = np.random.randn(ndim).astype(np.float32)
@@ -581,20 +581,20 @@ You can turn specific backends on or off depending on the exact environment.
 A common case may be avoiding AVX-512 on older AMD CPUs and [Intel Ice Lake](https://travisdowns.github.io/blog/2020/08/19/icl-avx512-freq.html) CPUs to ensure the CPU doesn't change the frequency license and throttle performance.
 
 ```py
-$ simsimd.get_capabilities()
+$ numkong.get_capabilities()
 > {'serial': True, 'neon': False, 'sve': False, 'neon_f16': False, 'sve_f16': False, 'neon_bf16': False, 'sve_bf16': False, 'neon_i8': False, 'sve_i8': False, 'haswell': True, 'skylake': True, 'ice': True, 'genoa': True, 'sapphire': True, 'turin': True}
-$ simsimd.disable_capability("sapphire")
-$ simsimd.enable_capability("sapphire")
+$ numkong.disable_capability("sapphire")
+$ numkong.enable_capability("sapphire")
 ```
 
 ### Using Python API with USearch
 
 Want to use it in Python with [USearch](https://github.com/unum-cloud/usearch)?
-You can wrap the raw C function pointers SimSIMD backends into a `CompiledMetric` and pass it to USearch, similar to how it handles Numba's JIT-compiled code.
+You can wrap the raw C function pointers NumKong backends into a `CompiledMetric` and pass it to USearch, similar to how it handles Numba's JIT-compiled code.
 
 ```py
 from usearch.index import Index, CompiledMetric, MetricKind, MetricSignature
-from simsimd import pointer_to_sqeuclidean, pointer_to_angular, pointer_to_inner
+from numkong import pointer_to_sqeuclidean, pointer_to_angular, pointer_to_inner
 
 metric = CompiledMetric(
     pointer=pointer_to_angular("f16"),
@@ -605,22 +605,22 @@ metric = CompiledMetric(
 index = Index(256, metric=metric)
 ```
 
-## Using SimSIMD in Rust
+## Using NumKong in Rust
 
 To install, add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-simsimd = "..."
+numkong = "..."
 ```
 
-Before using the SimSIMD library, ensure you have imported the necessary traits and types into your Rust source file.
+Before using the NumKong library, ensure you have imported the necessary traits and types into your Rust source file.
 The library provides several traits for different distance/similarity kinds - `SpatialSimilarity`, `BinarySimilarity`, and `ProbabilitySimilarity`.
 
 ### Spatial Similarity: Angular and Euclidean Distances
 
 ```rust
-use simsimd::SpatialSimilarity;
+use numkong::SpatialSimilarity;
 
 fn main() {
     let vector_a: Vec<f32> = vec![1.0, 2.0, 3.0];
@@ -645,8 +645,8 @@ Spatial similarity functions are available for `f64`, `f32`, `f16`, and `i8` typ
 ### Dot-Products: Inner and Complex Inner Products
 
 ```rust
-use simsimd::SpatialSimilarity;
-use simsimd::ComplexProducts;
+use numkong::SpatialSimilarity;
+use numkong::ComplexProducts;
 
 fn main() {
     // Complex vectors have interleaved real & imaginary components
@@ -676,7 +676,7 @@ Complex inner products are available for `f64`, `f32`, and `f16` types.
 ### Probability Distributions: Jensen-Shannon and Kullback-Leibler Divergences
 
 ```rust
-use simsimd::ProbabilitySimilarity;
+use numkong::ProbabilitySimilarity;
 
 fn main() {
     let vector_a: Vec<f32> = vec![1.0, 2.0, 3.0];
@@ -701,7 +701,7 @@ Probability similarity functions are available for `f64`, `f32`, and `f16` types
 Similar to spatial distances, one can compute bit-level distance functions between slices of unsigned integers:
 
 ```rust
-use simsimd::BinarySimilarity;
+use numkong::BinarySimilarity;
 
 fn main() {
     let vector_a = &[0b11110000, 0b00001111, 0b10101010];
@@ -725,11 +725,11 @@ Binary similarity functions are available only for `u8` types.
 
 ### Half-Precision Floating-Point Numbers
 
-Rust has no native support for half-precision floating-point numbers, but SimSIMD provides a `f16` type with built-in conversion methods.
+Rust has no native support for half-precision floating-point numbers, but NumKong provides a `f16` type with built-in conversion methods.
 The underlying `u16` representation is publicly accessible for direct bit manipulation.
 
 ```rust
-use simsimd::{SpatialSimilarity, f16};
+use numkong::{SpatialSimilarity, f16};
 
 fn main() {
     // Create f16 vectors using built-in conversion methods
@@ -755,7 +755,7 @@ fn main() {
 For interoperability with the `half` crate:
 
 ```rust
-use simsimd::{SpatialSimilarity, f16 as SimF16};
+use numkong::{SpatialSimilarity, f16 as SimF16};
 use half::f16 as HalfF16;
 
 fn main() {
@@ -777,11 +777,11 @@ fn main() {
 
 The "brain-float-16" is a popular machine learning format.
 It's broadly supported in hardware and is very machine-friendly, but software support is still lagging behind.
-[Unlike NumPy](https://github.com/numpy/numpy/issues/19808), you can already use `bf16` datatype in SimSIMD.
-SimSIMD provides a `bf16` type with built-in conversion methods and direct bit access.
+[Unlike NumPy](https://github.com/numpy/numpy/issues/19808), you can already use `bf16` datatype in NumKong.
+NumKong provides a `bf16` type with built-in conversion methods and direct bit access.
 
 ```rust
-use simsimd::{SpatialSimilarity, bf16};
+use numkong::{SpatialSimilarity, bf16};
 
 fn main() {
     // Create bf16 vectors using built-in conversion methods
@@ -815,8 +815,8 @@ fn main() {
 
 ### Dynamic Dispatch in Rust
 
-SimSIMD provides a [dynamic dispatch](#dynamic-dispatch) mechanism to select the most advanced micro-kernel for the current CPU.
-You can query supported backends and use the `SimSIMD::capabilities` function to select the best one.
+NumKong provides a [dynamic dispatch](#dynamic-dispatch) mechanism to select the most advanced micro-kernel for the current CPU.
+You can query supported backends and use the `NumKong::capabilities` function to select the best one.
 
 ```rust
 println!("uses neon: {}", capabilities::uses_neon());
@@ -830,21 +830,21 @@ println!("uses turin: {}", capabilities::uses_turin());
 println!("uses sierra: {}", capabilities::uses_sierra());
 ```
 
-## Using SimSIMD in JavaScript
+## Using NumKong in JavaScript
 
 To install, choose one of the following options depending on your environment:
 
-- `npm install --save simsimd`
-- `yarn add simsimd`
-- `pnpm add simsimd`
-- `bun install simsimd`
+- `npm install --save numkong`
+- `yarn add numkong`
+- `pnpm add numkong`
+- `bun install numkong`
 
 The package is distributed with prebuilt binaries, but if your platform is not supported, you can build the package from the source via `npm run build`.
 This will automatically happen unless you install the package with the `--ignore-scripts` flag or use Bun.
-After you install it, you will be able to call the SimSIMD functions on various `TypedArray` variants:
+After you install it, you will be able to call the NumKong functions on various `TypedArray` variants:
 
 ```js
-const { sqeuclidean, angular, inner, hamming, jaccard } = require("simsimd");
+const { sqeuclidean, angular, inner, hamming, jaccard } = require("numkong");
 
 const vectorA = new Float32Array([1.0, 2.0, 3.0]);
 const vectorB = new Float32Array([4.0, 5.0, 6.0]);
@@ -876,27 +876,27 @@ You can map all positive values to `1` and all negative values and zero to `0`, 
 After that, Hamming and Jaccard distances can be computed.
 
 ```js
-const { toBinary, hamming } = require("simsimd");
+const { toBinary, hamming } = require("numkong");
 
 const binaryVectorA = toBinary(vectorA);
 const binaryVectorB = toBinary(vectorB);
 const distance = hamming(binaryVectorA, binaryVectorB);
 ```
 
-## Using SimSIMD in Swift
+## Using NumKong in Swift
 
 To install, simply add the following dependency to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ashvardanian/simsimd")
+    .package(url: "https://github.com/ashvardanian/numkong")
 ]
 ```
 
 The package provides the most common spatial metrics for `Int8`, `Float16`, `Float32`, and `Float64` vectors.
 
 ```swift
-import SimSIMD
+import NumKong
 
 let vectorA: [Int8] = [1, 2, 3]
 let vectorB: [Int8] = [4, 5, 6]
@@ -906,37 +906,37 @@ let angularDistance = vectorA.angular(vectorB)  // Computes the angular distance
 let sqEuclidean = vectorA.sqeuclidean(vectorB)  // Computes the squared Euclidean distance
 ```
 
-## Using SimSIMD in C
+## Using NumKong in C
 
 For integration within a CMake-based project, add the following segment to your `CMakeLists.txt`:
 
 ```cmake
 FetchContent_Declare(
-    simsimd
-    GIT_REPOSITORY https://github.com/ashvardanian/simsimd.git
+    numkong
+    GIT_REPOSITORY https://github.com/ashvardanian/numkong.git
     GIT_SHALLOW TRUE
 )
-FetchContent_MakeAvailable(simsimd)
+FetchContent_MakeAvailable(numkong)
 ```
 
-After that, you can use the SimSIMD library in your C code in several ways.
-Simplest of all, you can include the headers, and the compiler will automatically select the most recent CPU extensions that SimSIMD will use.
+After that, you can use the NumKong library in your C code in several ways.
+Simplest of all, you can include the headers, and the compiler will automatically select the most recent CPU extensions that NumKong will use.
 
 ```c
-#include <simsimd/simsimd.h>
+#include <numkong/numkong.h>
 
 int main() {
-    simsimd_capability_t caps = simsimd_capabilities();
-    simsimd_flush_denormals(caps); // Avoid denormal penalties, enable AMX if available
+    nk_capability_t caps = nk_capabilities();
+    nk_flush_denormals(caps); // Avoid denormal penalties, enable AMX if available
 
-    simsimd_f32_t vector_a[1536];
-    simsimd_f32_t vector_b[1536];
-    simsimd_kernel_punned_t metric_punned = simsimd_metric_punned(
-        simsimd_metric_angular_k, // Metric kind, like the angular distance
-        simsimd_datatype_f32_k,   // Data type, like: f16, f32, f64, i8, b8, and complex variants
-        simsimd_cap_any_k);       // Which CPU capabilities are we allowed to use
-    simsimd_distance_t distance;
-    simsimd_metric_dense_punned_t metric = (simsimd_metric_dense_punned_t)metric_punned;
+    nk_f32_t vector_a[1536];
+    nk_f32_t vector_b[1536];
+    nk_kernel_punned_t metric_punned = nk_metric_punned(
+        nk_metric_angular_k, // Metric kind, like the angular distance
+        nk_datatype_f32_k,   // Data type, like: f16, f32, f64, i8, b8, and complex variants
+        nk_cap_any_k);       // Which CPU capabilities are we allowed to use
+    nk_distance_t distance;
+    nk_metric_dense_punned_t metric = (nk_metric_dense_punned_t)metric_punned;
     metric(vector_a, vector_b, 1536, &distance);
     return 0;
 }
@@ -949,53 +949,53 @@ That feature of the C library is called [dynamic dispatch](#dynamic-dispatch) an
 To test which CPU features are available on the machine at runtime, use the following APIs:
 
 ```c
-int uses_dynamic_dispatch = simsimd_uses_dynamic_dispatch(); // Check if dynamic dispatch was enabled
-simsimd_capability_t capabilities = simsimd_capabilities();  // Returns a bitmask
+int uses_dynamic_dispatch = nk_uses_dynamic_dispatch(); // Check if dynamic dispatch was enabled
+nk_capability_t capabilities = nk_capabilities();  // Returns a bitmask
 
-int uses_neon = simsimd_uses_neon();
-int uses_sve = simsimd_uses_sve();
-int uses_haswell = simsimd_uses_haswell();
-int uses_skylake = simsimd_uses_skylake();
-int uses_ice = simsimd_uses_ice();
-int uses_genoa = simsimd_uses_genoa();
-int uses_sapphire = simsimd_uses_sapphire();
+int uses_neon = nk_uses_neon();
+int uses_sve = nk_uses_sve();
+int uses_haswell = nk_uses_haswell();
+int uses_skylake = nk_uses_skylake();
+int uses_ice = nk_uses_ice();
+int uses_genoa = nk_uses_genoa();
+int uses_sapphire = nk_uses_sapphire();
 ```
 
 To override compilation settings and switch between runtime and compile-time dispatch, define the following macro:
 
 ```c
-#define SIMSIMD_DYNAMIC_DISPATCH 1 // or 0
+#define NK_DYNAMIC_DISPATCH 1 // or 0
 ```
 
 ### Spatial Distances: Angular and Euclidean Distances
 
 ```c
-#include <simsimd/simsimd.h>
+#include <numkong/numkong.h>
 
 int main() {
-    simsimd_i8_t i8s[1536];
-    simsimd_u8_t u8s[1536];
-    simsimd_f64_t f64s[1536];
-    simsimd_f32_t f32s[1536];
-    simsimd_f16_t f16s[1536];
-    simsimd_bf16_t bf16s[1536];
-    simsimd_distance_t distance;
+    nk_i8_t i8s[1536];
+    nk_u8_t u8s[1536];
+    nk_f64_t f64s[1536];
+    nk_f32_t f32s[1536];
+    nk_f16_t f16s[1536];
+    nk_bf16_t bf16s[1536];
+    nk_distance_t distance;
 
     // Angular distance between two vectors
-    simsimd_angular_i8(i8s, i8s, 1536, &distance);
-    simsimd_angular_u8(u8s, u8s, 1536, &distance);
-    simsimd_angular_f16(f16s, f16s, 1536, &distance);
-    simsimd_angular_f32(f32s, f32s, 1536, &distance);
-    simsimd_angular_f64(f64s, f64s, 1536, &distance);
-    simsimd_angular_bf16(bf16s, bf16s, 1536, &distance);
+    nk_angular_i8(i8s, i8s, 1536, &distance);
+    nk_angular_u8(u8s, u8s, 1536, &distance);
+    nk_angular_f16(f16s, f16s, 1536, &distance);
+    nk_angular_f32(f32s, f32s, 1536, &distance);
+    nk_angular_f64(f64s, f64s, 1536, &distance);
+    nk_angular_bf16(bf16s, bf16s, 1536, &distance);
 
     // Euclidean distance between two vectors
-    simsimd_l2sq_i8(i8s, i8s, 1536, &distance);
-    simsimd_l2sq_u8(u8s, u8s, 1536, &distance);
-    simsimd_l2sq_f16(f16s, f16s, 1536, &distance);
-    simsimd_l2sq_f32(f32s, f32s, 1536, &distance);
-    simsimd_l2sq_f64(f64s, f64s, 1536, &distance);
-    simsimd_l2sq_bf16(bf16s, bf16s, 1536, &distance);
+    nk_l2sq_i8(i8s, i8s, 1536, &distance);
+    nk_l2sq_u8(u8s, u8s, 1536, &distance);
+    nk_l2sq_f16(f16s, f16s, 1536, &distance);
+    nk_l2sq_f32(f32s, f32s, 1536, &distance);
+    nk_l2sq_f64(f64s, f64s, 1536, &distance);
+    nk_l2sq_bf16(bf16s, bf16s, 1536, &distance);
 
     return 0;
 }
@@ -1004,44 +1004,44 @@ int main() {
 ### Dot-Products: Inner and Complex Inner Products
 
 ```c
-#include <simsimd/simsimd.h>
+#include <numkong/numkong.h>
 
 int main() {
-    // SimSIMD provides "sized" type-aliases without relying on `stdint.h`
-    simsimd_i8_t i8[1536];
-    simsimd_i8_t u8[1536];
-    simsimd_f16_t f16s[1536];
-    simsimd_f32_t f32s[1536];
-    simsimd_f64_t f64s[1536];
-    simsimd_bf16_t bf16s[1536];
-    simsimd_distance_t product;
+    // NumKong provides "sized" type-aliases without relying on `stdint.h`
+    nk_i8_t i8[1536];
+    nk_i8_t u8[1536];
+    nk_f16_t f16s[1536];
+    nk_f32_t f32s[1536];
+    nk_f64_t f64s[1536];
+    nk_bf16_t bf16s[1536];
+    nk_distance_t product;
 
     // Inner product between two real vectors
-    simsimd_dot_i8(i8s, i8s, 1536, &product);
-    simsimd_dot_u8(u8s, u8s, 1536, &product);
-    simsimd_dot_f16(f16s, f16s, 1536, &product);
-    simsimd_dot_f32(f32s, f32s, 1536, &product);
-    simsimd_dot_f64(f64s, f64s, 1536, &product);
-    simsimd_dot_bf16(bf16s, bf16s, 1536, &product);
+    nk_dot_i8(i8s, i8s, 1536, &product);
+    nk_dot_u8(u8s, u8s, 1536, &product);
+    nk_dot_f16(f16s, f16s, 1536, &product);
+    nk_dot_f32(f32s, f32s, 1536, &product);
+    nk_dot_f64(f64s, f64s, 1536, &product);
+    nk_dot_bf16(bf16s, bf16s, 1536, &product);
 
-    // SimSIMD provides complex types with `real` and `imag` fields
-    simsimd_f64c_t f64cs[768];
-    simsimd_f32c_t f32cs[768];
-    simsimd_f16c_t f16cs[768];
-    simsimd_bf16c_t bf16cs[768];
-    simsimd_distance_t products[2]; // real and imaginary parts
+    // NumKong provides complex types with `real` and `imag` fields
+    nk_f64c_t f64cs[768];
+    nk_f32c_t f32cs[768];
+    nk_f16c_t f16cs[768];
+    nk_bf16c_t bf16cs[768];
+    nk_distance_t products[2]; // real and imaginary parts
 
     // Complex inner product between two vectors
-    simsimd_dot_f16c(f16cs, f16cs, 768, &products[0]);
-    simsimd_dot_f32c(f32cs, f32cs, 768, &products[0]);
-    simsimd_dot_f64c(f64cs, f64cs, 768, &products[0]);
-    simsimd_dot_bf16c(bf16cs, bf16cs, 768, &products[0]);
+    nk_dot_f16c(f16cs, f16cs, 768, &products[0]);
+    nk_dot_f32c(f32cs, f32cs, 768, &products[0]);
+    nk_dot_f64c(f64cs, f64cs, 768, &products[0]);
+    nk_dot_bf16c(bf16cs, bf16cs, 768, &products[0]);
 
     // Complex conjugate inner product between two vectors
-    simsimd_vdot_f16c(f16cs, f16cs, 768, &products[0]);
-    simsimd_vdot_f32c(f32cs, f32cs, 768, &products[0]);
-    simsimd_vdot_f64c(f64cs, f64cs, 768, &products[0]);
-    simsimd_vdot_bf16c(bf16cs, bf16cs, 768, &products[0]);
+    nk_vdot_f16c(f16cs, f16cs, 768, &products[0]);
+    nk_vdot_f32c(f32cs, f32cs, 768, &products[0]);
+    nk_vdot_f64c(f64cs, f64cs, 768, &products[0]);
+    nk_vdot_bf16c(bf16cs, bf16cs, 768, &products[0]);
     return 0;
 }
 ```
@@ -1049,13 +1049,13 @@ int main() {
 ### Binary Distances: Hamming and Jaccard Distances
 
 ```c
-#include <simsimd/simsimd.h>
+#include <numkong/numkong.h>
 
 int main() {
-    simsimd_b8_t b8s[1536 / 8]; // 8 bits per word
-    simsimd_distance_t distance;
-    simsimd_hamming_b8(b8s, b8s, 1536 / 8, &distance);
-    simsimd_jaccard_b8(b8s, b8s, 1536 / 8, &distance);
+    nk_b8_t b8s[1536 / 8]; // 8 bits per word
+    nk_distance_t distance;
+    nk_hamming_b8(b8s, b8s, 1536 / 8, &distance);
+    nk_jaccard_b8(b8s, b8s, 1536 / 8, &distance);
     return 0;
 }
 ```
@@ -1063,64 +1063,64 @@ int main() {
 ### Probability Distributions: Jensen-Shannon and Kullback-Leibler Divergences
 
 ```c
-#include <simsimd/simsimd.h>
+#include <numkong/numkong.h>
 
 int main() {
-    simsimd_f64_t f64s[1536];
-    simsimd_f32_t f32s[1536];
-    simsimd_f16_t f16s[1536];
-    simsimd_distance_t divergence;
+    nk_f64_t f64s[1536];
+    nk_f32_t f32s[1536];
+    nk_f16_t f16s[1536];
+    nk_distance_t divergence;
 
     // Jensen-Shannon divergence between two vectors
-    simsimd_jsd_f16(f16s, f16s, 1536, &divergence);
-    simsimd_jsd_f32(f32s, f32s, 1536, &divergence);
-    simsimd_jsd_f64(f64s, f64s, 1536, &divergence);
+    nk_jsd_f16(f16s, f16s, 1536, &divergence);
+    nk_jsd_f32(f32s, f32s, 1536, &divergence);
+    nk_jsd_f64(f64s, f64s, 1536, &divergence);
 
     // Kullback-Leibler divergence between two vectors
-    simsimd_kld_f16(f16s, f16s, 1536, &divergence);
-    simsimd_kld_f32(f32s, f32s, 1536, &divergence);
-    simsimd_kld_f64(f64s, f64s, 1536, &divergence);
+    nk_kld_f16(f16s, f16s, 1536, &divergence);
+    nk_kld_f32(f32s, f32s, 1536, &divergence);
+    nk_kld_f64(f64s, f64s, 1536, &divergence);
     return 0;
 }
 ```
 
 ### Half-Precision Floating-Point Numbers
 
-If you aim to utilize the `_Float16` functionality with SimSIMD, ensure your development environment is compatible with C 11.
-For other SimSIMD functionalities, C 99 compatibility will suffice.
+If you aim to utilize the `_Float16` functionality with NumKong, ensure your development environment is compatible with C 11.
+For other NumKong functionalities, C 99 compatibility will suffice.
 To explicitly disable half-precision support, define the following macro before imports:
 
 ```c
-#define SIMSIMD_NATIVE_F16 0 // or 1
-#define SIMSIMD_NATIVE_BF16 0 // or 1
-#include <simsimd/simsimd.h>
+#define NK_NATIVE_F16 0 // or 1
+#define NK_NATIVE_BF16 0 // or 1
+#include <numkong/numkong.h>
 ```
 
 ### Compilation Settings and Debugging
 
-`SIMSIMD_DYNAMIC_DISPATCH`:
+`NK_DYNAMIC_DISPATCH`:
 
-> By default, SimSIMD is a header-only library.
+> By default, NumKong is a header-only library.
 > But if you are running on different generations of devices, it makes sense to pre-compile the library for all supported generations at once, and dispatch at runtime.
-> This flag does just that and is used to produce the `simsimd.so` shared library, as well as the Python and other bindings.
+> This flag does just that and is used to produce the `numkong.so` shared library, as well as the Python and other bindings.
 
-For Arm: `SIMSIMD_TARGET_NEON`, `SIMSIMD_TARGET_SVE`, `SIMSIMD_TARGET_SVE2`, `SIMSIMD_TARGET_NEON_F16`, `SIMSIMD_TARGET_SVE_F16`, `SIMSIMD_TARGET_NEON_BF16`, `SIMSIMD_TARGET_SVE_BF16`.
-For x86: `SIMSIMD_TARGET_HASWELL`, `SIMSIMD_TARGET_SKYLAKE`, `SIMSIMD_TARGET_ICE`, `SIMSIMD_TARGET_GENOA`, `SIMSIMD_TARGET_SAPPHIRE`, `SIMSIMD_TARGET_TURIN`, `SIMSIMD_TARGET_SIERRA`.
+For Arm: `NK_TARGET_NEON`, `NK_TARGET_SVE`, `NK_TARGET_SVE2`, `NK_TARGET_NEON_F16`, `NK_TARGET_SVE_F16`, `NK_TARGET_NEON_BF16`, `NK_TARGET_SVE_BF16`.
+For x86: `NK_TARGET_HASWELL`, `NK_TARGET_SKYLAKE`, `NK_TARGET_ICE`, `NK_TARGET_GENOA`, `NK_TARGET_SAPPHIRE`, `NK_TARGET_TURIN`, `NK_TARGET_SIERRA`.
 
-> By default, SimSIMD automatically infers the target architecture and pre-compiles as many kernels as possible.
+> By default, NumKong automatically infers the target architecture and pre-compiles as many kernels as possible.
 > In some cases, you may want to explicitly disable some of the kernels.
 > Most often it's due to compiler support issues, like the lack of some recent intrinsics or low-precision numeric types.
 > In other cases, you may want to disable some kernels to speed up the compilation process and trim the binary size.
 
-`SIMSIMD_F32_SQRT`, `SIMSIMD_F32_RSQRT`, `SIMSIMD_F32_LOG`, `SIMSIMD_F32_TAN`, `SIMSIMD_F32_ABS`, and their `f64` counterparts:
+`NK_F32_SQRT`, `NK_F32_RSQRT`, `NK_F32_LOG`, `NK_F32_TAN`, `NK_F32_ABS`, and their `f64` counterparts:
 
-> By default, for __non__-SIMD backends, SimSIMD may use `libc` functions like `sqrt` and `log`.
+> By default, for __non__-SIMD backends, NumKong may use `libc` functions like `sqrt` and `log`.
 > Those are generally very accurate, but slow, and introduce a dependency on the C standard library.
-> To avoid that you can override those definitions with your custom implementations, like: `#define SIMSIMD_F32_RSQRT(x) (1 / sqrt(x))`.
+> To avoid that you can override those definitions with your custom implementations, like: `#define NK_F32_RSQRT(x) (1 / sqrt(x))`.
 
 ## Algorithms & Design Decisions 📚
 
-In general there are a few principles that SimSIMD follows:
+In general there are a few principles that NumKong follows:
 
 - Avoid loop unrolling.
 - Never allocate memory.
@@ -1153,13 +1153,13 @@ The cosine similarity is the inverse of the cosine distance, which is the cosine
 \text{CosineDistance}(a, b) = 1 - \frac{a \cdot b}{\|a\| \cdot \|b\|}
 ```
 
-In NumPy terms, SimSIMD implementation is similar to:
+In NumPy terms, NumKong implementation is similar to:
 
 ```python
 import numpy as np
 
 def cos_numpy(a: np.ndarray, b: np.ndarray) -> float:
-    ab, a2, b2 = np.dot(a, b), np.dot(a, a), np.dot(b, b) # Fused in SimSIMD
+    ab, a2, b2 = np.dot(a, b), np.dot(a, a), np.dot(b, b) # Fused in NumKong
     if a2 == 0 and b2 == 0: result = 0                    # Same in SciPy
     elif ab == 0: result = 1                              # Division by zero error in SciPy
     else: result = 1 - ab / (sqrt(a2) * sqrt(b2))         # Bigger rounding error in SciPy
@@ -1178,7 +1178,7 @@ The `rsqrt` in-hardware implementations are faster, but have different accuracy 
 
 [arm-rsqrt]: https://gist.github.com/ashvardanian/5e5cf585d63f8ab6d240932313c75411
 
-To overcome the limitations of the `rsqrt` instruction, SimSIMD uses the Newton-Raphson iteration to refine the initial estimate for high-precision floating-point numbers.
+To overcome the limitations of the `rsqrt` instruction, NumKong uses the Newton-Raphson iteration to refine the initial estimate for high-precision floating-point numbers.
 It can be defined as:
 
 ```math
@@ -1187,7 +1187,7 @@ x_{n+1} = x_n \cdot (3 - x_n \cdot x_n) / 2
 
 On 1536-dimensional inputs on Intel Sapphire Rapids CPU a single such iteration can result in a 2-3 orders of magnitude relative error reduction:
 
-| Datatype   |         NumPy Error | SimSIMD w/out Iteration |             SimSIMD |
+| Datatype   |         NumPy Error | NumKong w/out Iteration |             NumKong |
 | :--------- | ------------------: | ----------------------: | ------------------: |
 | `bfloat16` | 1.89e-08 ± 1.59e-08 |     3.07e-07 ± 3.09e-07 | 3.53e-09 ± 2.70e-09 |
 | `float16`  | 1.67e-02 ± 1.44e-02 |     2.68e-05 ± 1.95e-05 | 2.02e-05 ± 1.39e-05 |
@@ -1222,7 +1222,7 @@ A $vector * matrix * vector$ product is a scalar, whereas its constituent parts 
 - They need memory to be stored in: $O(n)$ allocation.
 - The data will be written to memory and read back, wasting CPU cycles.
 
-SimSIMD doesn't produce intermediate vector results, like `a @ M @ b`, but computes the bilinear form directly.
+NumKong doesn't produce intermediate vector results, like `a @ M @ b`, but computes the bilinear form directly.
 
 ### Set Intersection, Galloping, and Binary Search
 
@@ -1256,7 +1256,7 @@ After benchmarking, the last approach was chosen, as it's the most flexible and 
 
 Complex dot products are a generalization of the dot product to complex numbers.
 They are supported by most BLAS packages, but almost never in mixed precision.
-SimSIMD defines `dot` and `vdot` kernels as:
+NumKong defines `dot` and `vdot` kernels as:
 
 ```math
 \text{dot}(a, b) = \sum_{i=0}^{n-1} a_i \cdot b_i
@@ -1330,16 +1330,16 @@ def fma(A: np.ndarray, B: np.ndarray, C: np.ndarray, /, Alpha: float, Beta: floa
 ```
 
 The tricky part is implementing those operations in mixed precision, where the scaling factors are of different precision than the input and output vectors.
-SimSIMD uses double-precision floating-point scaling factors for any input and output precision, including `i8` and `u8` integers and `f16` and `bf16` floats.
+NumKong uses double-precision floating-point scaling factors for any input and output precision, including `i8` and `u8` integers and `f16` and `bf16` floats.
 Depending on the generation of the CPU, given native support for `f16` addition and multiplication, the `f16` temporaries are used for `i8` and `u8` multiplication, scaling, and addition.
 For `bf16`, native support is generally limited to dot-products with subsequent partial accumulation, which is not enough for the FMA and WSum operations, so `f32` is used as a temporary.
 
 ### Auto-Vectorization & Loop Unrolling
 
-On the Intel Sapphire Rapids platform, SimSIMD was benchmarked against auto-vectorized code using GCC 12.
+On the Intel Sapphire Rapids platform, NumKong was benchmarked against auto-vectorized code using GCC 12.
 GCC handles single-precision `float` but might not be the best choice for `int8` and `_Float16` arrays, which have been part of the C language since 2011.
 
-| Kind                      | GCC 12 `f32` | GCC 12 `f16` | SimSIMD `f16` | `f16` improvement |
+| Kind                      | GCC 12 `f32` | GCC 12 `f16` | NumKong `f16` | `f16` improvement |
 | :------------------------ | -----------: | -----------: | ------------: | ----------------: |
 | Inner Product             |    3,810 K/s |      192 K/s |     5,990 K/s |          __31 x__ |
 | Cosine Distance           |    3,280 K/s |      336 K/s |     6,880 K/s |          __20 x__ |
@@ -1350,7 +1350,7 @@ GCC handles single-precision `float` but might not be the best choice for `int8`
 
 Most popular software is precompiled and distributed with fairly conservative CPU optimizations, to ensure compatibility with older hardware.
 Database Management platforms, like ClickHouse, and Web Browsers, like Google Chrome,need to run on billions of devices, and they can't afford to be picky about the CPU features.
-For such users SimSIMD provides a dynamic dispatch mechanism, which selects the most advanced micro-kernel for the current CPU at runtime.
+For such users NumKong provides a dynamic dispatch mechanism, which selects the most advanced micro-kernel for the current CPU at runtime.
 
 <table>
   <tr>
@@ -1453,41 +1453,41 @@ For such users SimSIMD provides a dynamic dispatch mechanism, which selects the 
   </tr>
 </table>
 
-You can compile SimSIMD on an old CPU, like Intel Haswell, and run it on a new one, like AMD Genoa, and it will automatically use the most advanced instructions available.
+You can compile NumKong on an old CPU, like Intel Haswell, and run it on a new one, like AMD Genoa, and it will automatically use the most advanced instructions available.
 Reverse is also true, you can compile on a new CPU and run on an old one, and it will automatically fall back to the most basic instructions.
-Moreover, the very first time you prove for CPU capabilities with `simsimd_capabilities()`, it initializes the dynamic dispatch mechanism, and all subsequent calls will be faster and won't face race conditions in multi-threaded environments.
+Moreover, the very first time you prove for CPU capabilities with `nk_capabilities()`, it initializes the dynamic dispatch mechanism, and all subsequent calls will be faster and won't face race conditions in multi-threaded environments.
 
 ## Target Specific Backends
 
-SimSIMD exposes all kernels for all backends, and you can select the most advanced one for the current CPU without relying on built-in dispatch mechanisms.
-That's handy for testing and benchmarking, but also in case you want to dispatch a very specific kernel for a very specific CPU, bypassing SimSIMD assignment logic.
-All of the function names follow the same pattern: `simsimd_{function}_{type}_{backend}`.
+NumKong exposes all kernels for all backends, and you can select the most advanced one for the current CPU without relying on built-in dispatch mechanisms.
+That's handy for testing and benchmarking, but also in case you want to dispatch a very specific kernel for a very specific CPU, bypassing NumKong assignment logic.
+All of the function names follow the same pattern: `nk_{function}_{type}_{backend}`.
 
 - The backend can be `serial`, `haswell`, `skylake`, `ice`, `genoa`, `sapphire`, `turin`, `neon`, or `sve`.
 - The type can be `f64`, `f32`, `f16`, `bf16`, `f64c`, `f32c`, `f16c`, `bf16c`, `i8`, or `b8`.
 - The function can be `dot`, `vdot`, `cos`, `l2sq`, `hamming`, `jaccard`, `kl`, `js`, or `intersect`.
 
-To avoid hard-coding the backend, you can use the `simsimd_kernel_punned_t` to pun the function pointer and the `simsimd_capabilities` function to get the available backends at runtime.
+To avoid hard-coding the backend, you can use the `nk_kernel_punned_t` to pun the function pointer and the `nk_capabilities` function to get the available backends at runtime.
 To match all the function names, consider a RegEx:
 
 ```regex
-SIMSIMD_PUBLIC void simsimd_\w+_\w+_\w+\(
+NK_PUBLIC void nk_\w+_\w+_\w+\(
 ```
 
 On Linux, you can use the following command to list all unique functions:
 
 ```sh
-$ grep -oP 'SIMSIMD_PUBLIC void simsimd_\w+_\w+_\w+\(' include/simsimd/*.h | sort | uniq
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_hamming_b8_haswell(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_hamming_b8_ice(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_hamming_b8_neon(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_hamming_b8_serial(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_hamming_b8_sve(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_jaccard_b8_haswell(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_jaccard_b8_ice(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_jaccard_b8_neon(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_jaccard_b8_serial(
-> include/simsimd/binary.h:SIMSIMD_PUBLIC void simsimd_jaccard_b8_sve(
+$ grep -oP 'NK_PUBLIC void nk_\w+_\w+_\w+\(' include/numkong/*.h | sort | uniq
+> include/numkong/binary.h:NK_PUBLIC void nk_hamming_b8_haswell(
+> include/numkong/binary.h:NK_PUBLIC void nk_hamming_b8_ice(
+> include/numkong/binary.h:NK_PUBLIC void nk_hamming_b8_neon(
+> include/numkong/binary.h:NK_PUBLIC void nk_hamming_b8_serial(
+> include/numkong/binary.h:NK_PUBLIC void nk_hamming_b8_sve(
+> include/numkong/binary.h:NK_PUBLIC void nk_jaccard_b8_haswell(
+> include/numkong/binary.h:NK_PUBLIC void nk_jaccard_b8_ice(
+> include/numkong/binary.h:NK_PUBLIC void nk_jaccard_b8_neon(
+> include/numkong/binary.h:NK_PUBLIC void nk_jaccard_b8_serial(
+> include/numkong/binary.h:NK_PUBLIC void nk_jaccard_b8_sve(
 ```
 
 ## License

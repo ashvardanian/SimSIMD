@@ -3,7 +3,7 @@
 """
 Module: test.py
 
-This module contains a suite of tests for the `simsimd` package.
+This module contains a suite of tests for the `numkong` package.
 It compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
 with their NumPy or baseline counterparts, testing accuracy for different data types including
 floating-point, integer, and complex numbers.
@@ -25,7 +25,7 @@ The tests cover:
 - `scipy`
 - `pytest`
 - `tabulate`
-- `simsimd` package
+- `numkong` package
 
 **Usage**:
 
@@ -50,7 +50,7 @@ import faulthandler
 
 import tabulate
 import pytest
-import simsimd as simd
+import numkong as simd
 
 faulthandler.enable()
 randomized_repetitions_count: int = 10
@@ -240,7 +240,7 @@ except:
 
 
 def is_running_under_qemu():
-    return "SIMSIMD_IN_QEMU" in os.environ
+    return "NK_IN_QEMU" in os.environ
 
 
 # Geospatial baseline functions (always defined, use NumPy only)
@@ -335,8 +335,8 @@ def baseline_vincenty(
 
 
 def scipy_metric_name(metric: str) -> str:
-    """Convert SimSIMD metric names to SciPy equivalents."""
-    # SimSIMD uses 'angular' while SciPy uses 'cosine' for the same metric
+    """Convert NumKong metric names to SciPy equivalents."""
+    # NumKong uses 'angular' while SciPy uses 'cosine' for the same metric
     if metric == "angular":
         return "cosine"
     return metric
@@ -358,11 +358,11 @@ def stats_fixture():
     results["dtype"] = []
     results["absolute_baseline_error"] = []
     results["relative_baseline_error"] = []
-    results["absolute_simsimd_error"] = []
-    results["relative_simsimd_error"] = []
+    results["absolute_nk_error"] = []
+    results["relative_nk_error"] = []
     results["accurate_duration"] = []
     results["baseline_duration"] = []
-    results["simsimd_duration"] = []
+    results["nk_duration"] = []
     results["warnings"] = []
     yield results
 
@@ -371,11 +371,11 @@ def stats_fixture():
         lambda: {
             "absolute_baseline_error": [],
             "relative_baseline_error": [],
-            "absolute_simsimd_error": [],
-            "relative_simsimd_error": [],
+            "absolute_nk_error": [],
+            "relative_nk_error": [],
             "accurate_duration": [],
             "baseline_duration": [],
-            "simsimd_duration": [],
+            "nk_duration": [],
         }
     )
     for (
@@ -384,73 +384,73 @@ def stats_fixture():
         dtype,
         absolute_baseline_error,
         relative_baseline_error,
-        absolute_simsimd_error,
-        relative_simsimd_error,
+        absolute_nk_error,
+        relative_nk_error,
         accurate_duration,
         baseline_duration,
-        simsimd_duration,
+        nk_duration,
     ) in zip(
         results["metric"],
         results["ndim"],
         results["dtype"],
         results["absolute_baseline_error"],
         results["relative_baseline_error"],
-        results["absolute_simsimd_error"],
-        results["relative_simsimd_error"],
+        results["absolute_nk_error"],
+        results["relative_nk_error"],
         results["accurate_duration"],
         results["baseline_duration"],
-        results["simsimd_duration"],
+        results["nk_duration"],
     ):
         key = (metric, ndim, dtype)
         grouped_errors[key]["absolute_baseline_error"].append(absolute_baseline_error)
         grouped_errors[key]["relative_baseline_error"].append(relative_baseline_error)
-        grouped_errors[key]["absolute_simsimd_error"].append(absolute_simsimd_error)
-        grouped_errors[key]["relative_simsimd_error"].append(relative_simsimd_error)
+        grouped_errors[key]["absolute_nk_error"].append(absolute_nk_error)
+        grouped_errors[key]["relative_nk_error"].append(relative_nk_error)
         grouped_errors[key]["accurate_duration"].append(accurate_duration)
         grouped_errors[key]["baseline_duration"].append(baseline_duration)
-        grouped_errors[key]["simsimd_duration"].append(simsimd_duration)
+        grouped_errors[key]["nk_duration"].append(nk_duration)
 
     # Compute mean and the standard deviation for each task error
     final_results = []
     for key, errors in grouped_errors.items():
-        n = len(errors["simsimd_duration"])
+        n = len(errors["nk_duration"])
 
         # Mean and the standard deviation for errors
         baseline_errors = errors["relative_baseline_error"]
-        simsimd_errors = errors["relative_simsimd_error"]
+        nk_errors = errors["relative_nk_error"]
         #! On some platforms (like `cp312-musllinux_aarch64`) without casting via `float(x)`
         #! the subsequent `:.2e` string formatting code will fail due to:
         #! `TypeError: unsupported format string passed to numpy.ndarray.__format__`.
         baseline_mean = float(sum(baseline_errors)) / n
-        simsimd_mean = float(sum(simsimd_errors)) / n
+        nk_mean = float(sum(nk_errors)) / n
         baseline_std = math.sqrt(sum((x - baseline_mean) ** 2 for x in baseline_errors) / n)
-        simsimd_std = math.sqrt(sum((x - simsimd_mean) ** 2 for x in simsimd_errors) / n)
+        nk_std = math.sqrt(sum((x - nk_mean) ** 2 for x in nk_errors) / n)
         baseline_error_formatted = f"{baseline_mean:.2e} ± {baseline_std:.2e}"
-        simsimd_error_formatted = f"{simsimd_mean:.2e} ± {simsimd_std:.2e}"
+        nk_error_formatted = f"{nk_mean:.2e} ± {nk_std:.2e}"
 
         # Log durations
         accurate_durations = errors["accurate_duration"]
         baseline_durations = errors["baseline_duration"]
-        simsimd_durations = errors["simsimd_duration"]
+        nk_durations = errors["nk_duration"]
         accurate_mean_duration = sum(accurate_durations) / n
         baseline_mean_duration = sum(baseline_durations) / n
-        simsimd_mean_duration = sum(simsimd_durations) / n
+        nk_mean_duration = sum(nk_durations) / n
         accurate_std_duration = math.sqrt(sum((x - accurate_mean_duration) ** 2 for x in accurate_durations) / n)
         baseline_std_duration = math.sqrt(sum((x - baseline_mean_duration) ** 2 for x in baseline_durations) / n)
-        simsimd_std_duration = math.sqrt(sum((x - simsimd_mean_duration) ** 2 for x in simsimd_durations) / n)
+        nk_std_duration = math.sqrt(sum((x - nk_mean_duration) ** 2 for x in nk_durations) / n)
         accurate_duration = f"{accurate_mean_duration:.2e} ± {accurate_std_duration:.2e}"
         baseline_duration = f"{baseline_mean_duration:.2e} ± {baseline_std_duration:.2e}"
-        simsimd_duration = f"{simsimd_mean_duration:.2e} ± {simsimd_std_duration:.2e}"
+        nk_duration = f"{nk_mean_duration:.2e} ± {nk_std_duration:.2e}"
 
         # Measure time improvement
-        improvements = [baseline / simsimd for baseline, simsimd in zip(baseline_durations, simsimd_durations)]
+        improvements = [baseline / numkong for baseline, numkong in zip(baseline_durations, nk_durations)]
         improvements_mean = sum(improvements) / n
         improvements_std = math.sqrt(sum((x - improvements_mean) ** 2 for x in improvements) / n)
-        simsimd_speedup = f"{improvements_mean:.2f}x ± {improvements_std:.2f}x"
+        nk_speedup = f"{improvements_mean:.2f}x ± {improvements_std:.2f}x"
 
         # Calculate Improvement
-        # improvement = abs(baseline_mean - simsimd_mean) / min(simsimd_mean, baseline_mean)
-        # if baseline_mean < simsimd_mean:
+        # improvement = abs(baseline_mean - nk_mean) / min(nk_mean, baseline_mean)
+        # if baseline_mean < nk_mean:
         #     improvement *= -1
         # improvement_formatted = f"{improvement:+.2}x" if improvement != float("inf") else "N/A"
 
@@ -458,11 +458,11 @@ def stats_fixture():
             (
                 *key,
                 baseline_error_formatted,
-                simsimd_error_formatted,
+                nk_error_formatted,
                 accurate_duration,
                 baseline_duration,
-                simsimd_duration,
-                simsimd_speedup,
+                nk_duration,
+                nk_speedup,
             )
         )
 
@@ -477,11 +477,11 @@ def stats_fixture():
         "NDim",
         "DType",
         "Baseline Error",  # Printed as mean ± std deviation
-        "SimSIMD Error",  # Printed as mean ± std deviation
+        "NumKong Error",  # Printed as mean ± std deviation
         "Accurate Duration",  # Printed as mean ± std deviation
         "Baseline Duration",  # Printed as mean ± std deviation
-        "SimSIMD Duration",  # Printed as mean ± std deviation
-        "SimSIMD Speedup",
+        "NumKong Duration",  # Printed as mean ± std deviation
+        "NumKong Speedup",
     ]
     print(tabulate.tabulate(final_results, headers=headers, tablefmt="pretty", showindex=True))
 
@@ -511,35 +511,35 @@ def collect_errors(
     accurate_duration: float,
     baseline_result: float,
     baseline_duration: float,
-    simsimd_result: float,
-    simsimd_duration: float,
+    nk_result: float,
+    nk_duration: float,
     stats,
 ):
     """Calculates and aggregates errors for a given test.
 
     What we want to know in the end of the day is:
 
-    -   How much SimSIMD implementation is more/less accurate than baseline,
+    -   How much NumKong implementation is more/less accurate than baseline,
         when compared against the accurate result?
-    -   TODO: How much faster is SimSIMD than the baseline kernel?
-    -   TODO: How much faster is SimSIMD than the accurate kernel?
+    -   TODO: How much faster is NumKong than the baseline kernel?
+    -   TODO: How much faster is NumKong than the accurate kernel?
     """
     eps = np.finfo(accurate_result.dtype).resolution
     absolute_baseline_error = np.max(np.abs(baseline_result - accurate_result))
     relative_baseline_error = np.max(np.abs(baseline_result - accurate_result) / (np.abs(accurate_result) + eps))
-    absolute_simsimd_error = np.max(np.abs(simsimd_result - accurate_result))
-    relative_simsimd_error = np.max(np.abs(simsimd_result - accurate_result) / (np.abs(accurate_result) + eps))
+    absolute_nk_error = np.max(np.abs(nk_result - accurate_result))
+    relative_nk_error = np.max(np.abs(nk_result - accurate_result) / (np.abs(accurate_result) + eps))
 
     stats["metric"].append(metric)
     stats["ndim"].append(ndim)
     stats["dtype"].append(dtype)
     stats["absolute_baseline_error"].append(absolute_baseline_error)
     stats["relative_baseline_error"].append(relative_baseline_error)
-    stats["absolute_simsimd_error"].append(absolute_simsimd_error)
-    stats["relative_simsimd_error"].append(relative_simsimd_error)
+    stats["absolute_nk_error"].append(absolute_nk_error)
+    stats["relative_nk_error"].append(relative_nk_error)
     stats["accurate_duration"].append(accurate_duration)
     stats["baseline_duration"].append(baseline_duration)
-    stats["simsimd_duration"].append(simsimd_duration)
+    stats["nk_duration"].append(nk_duration)
 
 
 def get_current_test():
@@ -562,8 +562,8 @@ def collect_warnings(message: str, stats: dict):
 
 # For normalized distances we use the absolute tolerance, because the result is close to zero.
 # For unnormalized ones (like squared Euclidean or Jaccard), we use the relative.
-SIMSIMD_RTOL = 0.1
-SIMSIMD_ATOL = 0.1
+NK_RTOL = 0.1
+NK_ATOL = 0.1
 
 # We will run all the tests many times using different instruction sets under the hood.
 available_capabilities: Dict[str, str] = simd.get_capabilities()
@@ -824,7 +824,7 @@ def test_dense(ndim, dtype, metric, capability, stats_fixture):
     result_dt, result = profile(simd_kernel, a, b)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
     collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
 
@@ -880,7 +880,7 @@ def test_curved(ndim, dtypes, metric, capability, stats_fixture):
     result_dt, result = profile(simd_kernel, a, b, c)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
     collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
 
@@ -912,7 +912,7 @@ def test_curved_complex(ndim, dtype, capability, stats_fixture):
     result_dt, result = profile(simd_kernel, a, b, c)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
     collect_errors(
         "bilinear", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture
     )
@@ -944,8 +944,8 @@ def test_dense_bf16(ndim, metric, capability, stats_fixture):
     np.testing.assert_allclose(
         result,
         expected,
-        atol=SIMSIMD_ATOL,
-        rtol=SIMSIMD_RTOL,
+        atol=NK_ATOL,
+        rtol=NK_RTOL,
         err_msg=f"""
         First `f32` operand in hex:     {hex_array(a_f32_rounded.view(np.uint32))}
         Second `f32` operand in hex:    {hex_array(b_f32_rounded.view(np.uint32))}
@@ -1001,8 +1001,8 @@ def test_curved_bf16(ndim, metric, capability, stats_fixture):
     np.testing.assert_allclose(
         result,
         expected,
-        atol=SIMSIMD_ATOL,
-        rtol=SIMSIMD_RTOL,
+        atol=NK_ATOL,
+        rtol=NK_RTOL,
         err_msg=f"""
         First `f32` operand in hex:     {hex_array(a_f32_rounded.view(np.uint32))}
         Second `f32` operand in hex:    {hex_array(b_f32_rounded.view(np.uint32))}
@@ -1048,7 +1048,7 @@ def test_dense_i8(ndim, dtype, metric, capability, stats_fixture):
         assert round(float(result)) == round(float(expected)), f"Expected {expected}, but got {result}"
     else:
         np.testing.assert_allclose(
-            result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL
+            result, expected, atol=NK_ATOL, rtol=NK_RTOL
         ), f"Expected {expected}, but got {result}"
     collect_errors(metric, ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
@@ -1082,14 +1082,14 @@ def test_dense_bits(ndim, metric, capability, stats_fixture):
     result_dt, result = profile(simd_kernel, np.packbits(a), np.packbits(b), "bin8")
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
     collect_errors(metric, ndim, "bin8", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
     # Aside from overriding the `dtype` parameter, we can also view as booleans
     result_dt, result = profile(simd_kernel, np.packbits(a).view(np.bool_), np.packbits(b).view(np.bool_))
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
     collect_errors(metric, ndim, "bin8", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
 
@@ -1117,7 +1117,7 @@ def test_jensen_shannon(ndim, dtype, capability, stats_fixture):
     result_dt, result = profile(simd_kernel, a, b)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
     collect_errors(
         "jensenshannon", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture
     )
@@ -1140,13 +1140,13 @@ def test_angular_zero_vector(ndim, dtype, capability):
     assert result == 0, f"Expected 0 distance from itself, but got {result}"
 
     result = simd.angular(b, b)
-    assert abs(result) < SIMSIMD_ATOL, f"Expected 0 distance from itself, but got {result}"
+    assert abs(result) < NK_ATOL, f"Expected 0 distance from itself, but got {result}"
 
     # For the angular distance, the output must not be negative!
     assert np.all(result >= 0), f"Negative result for angular distance"
 
 
-@pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/SimSIMD/issues/206")  # TODO
+@pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/NumKong/issues/206")  # TODO
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
@@ -1180,7 +1180,7 @@ def test_overflow(ndim, dtype, metric, capability):
         collect_warnings(f"Arbitrary error raised in SciPy: {e}", stats_fixture)
 
 
-@pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/SimSIMD/issues/206")  # TODO
+@pytest.mark.skip(reason="Lacks overflow protection: https://github.com/ashvardanian/NumKong/issues/206")  # TODO
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [131072, 262144])
@@ -1228,7 +1228,7 @@ def test_dot_complex(ndim, dtype, capability, stats_fixture):
     result_dt, result = profile(simd.dot, a, b)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
     collect_errors("dot", ndim, dtype, accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture)
 
     accurate_dt, accurate = profile(np.vdot, a.astype(np.complex128), b.astype(np.complex128))
@@ -1236,7 +1236,7 @@ def test_dot_complex(ndim, dtype, capability, stats_fixture):
     result_dt, result = profile(simd.vdot, a, b)
     result = np.array(result)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
     collect_errors(
         "vdot", ndim, dtype + "c", accurate, accurate_dt, expected, expected_dt, result, result_dt, stats_fixture
     )
@@ -1257,12 +1257,12 @@ def test_dot_complex_explicit(ndim, capability):
     expected = np.dot(a.view(np.complex64), b.view(np.complex64))
     result = simd.dot(a, b, "complex64")
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
     expected = np.vdot(a.view(np.complex64), b.view(np.complex64))
     result = simd.vdot(a, b, "complex64")
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1319,8 +1319,8 @@ def test_scale(ndim, dtype, kernel, capability, stats_fixture):
         a = np.random.randn(ndim).astype(dtype)
         alpha = np.random.randn(1).astype(np.float64).item()
         beta = np.random.randn(1).astype(np.float64).item()
-        atol = SIMSIMD_ATOL
-        rtol = SIMSIMD_RTOL
+        atol = NK_ATOL
+        rtol = NK_RTOL
 
     keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(kernel)
@@ -1372,8 +1372,8 @@ def test_sum(ndim, dtype, kernel, capability, stats_fixture):
     else:
         a = np.random.randn(ndim).astype(dtype)
         b = np.random.randn(ndim).astype(dtype)
-        atol = SIMSIMD_ATOL
-        rtol = SIMSIMD_RTOL
+        atol = NK_ATOL
+        rtol = NK_RTOL
 
     keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(kernel)
@@ -1428,8 +1428,8 @@ def test_wsum(ndim, dtype, kernel, capability, stats_fixture):
         b = np.random.randn(ndim).astype(dtype)
         alpha = np.random.randn(1).astype(np.float64).item()
         beta = np.random.randn(1).astype(np.float64).item()
-        atol = SIMSIMD_ATOL
-        rtol = SIMSIMD_RTOL
+        atol = NK_ATOL
+        rtol = NK_RTOL
 
     keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(kernel)
@@ -1488,8 +1488,8 @@ def test_fma(ndim, dtype, kernel, capability, stats_fixture):
         c = np.random.randn(ndim).astype(dtype)
         alpha = np.random.randn(1).astype(np.float64).item()
         beta = np.random.randn(1).astype(np.float64).item()
-        atol = SIMSIMD_ATOL
-        rtol = SIMSIMD_RTOL
+        atol = NK_ATOL
+        rtol = NK_RTOL
 
     keep_one_capability(capability)
     baseline_kernel, simd_kernel = name_to_kernels(kernel)
@@ -1540,34 +1540,34 @@ def test_batch(ndim, dtype, capability):
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (1 x D scalars) is an array with N floats.
     B = np.random.randn(1, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B[0]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Distance between matrixes A (1 x D scalars) and B (N x D scalars) is an array with N floats.
     A = np.random.randn(1, ndim).astype(dtype)
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[0], B[i]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Distance between matrix A (N x D scalars) and array B (D scalars) is an array with N floats.
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.random.randn(ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Distance between matrix B (N x D scalars) and array A (D scalars) is an array with N floats.
     B = np.random.randn(10, ndim).astype(dtype)
     A = np.random.randn(ndim).astype(dtype)
     result_np = [spd.sqeuclidean(B[i], A) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(B, A)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) in slices of bigger matrices.
     A_extended = np.random.randn(10, ndim + 11).astype(dtype)
@@ -1578,7 +1578,7 @@ def test_batch(ndim, dtype, capability):
     assert A.__array_interface__["strides"] is not None and B.__array_interface__["strides"] is not None
     result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) in a transposed matrix.
     #! This requires calling `np.ascontiguousarray()` to ensure the matrix is in the right format.
@@ -1586,14 +1586,14 @@ def test_batch(ndim, dtype, capability):
     B = np.ascontiguousarray(np.random.randn(ndim, 10).astype(dtype).T)
     result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
     result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) with a different output type.
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = np.array([spd.sqeuclidean(A[i], B[i]) for i in range(10)]).astype(np.float32)
     result_simd = np.array(simd.sqeuclidean(A, B, out_dtype="float32"))
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
     assert result_simd.dtype == result_np.dtype
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) with a supplied output buffer.
@@ -1602,7 +1602,7 @@ def test_batch(ndim, dtype, capability):
     result_np = np.array([spd.sqeuclidean(A[i], B[i]) for i in range(10)]).astype(np.float32)
     result_simd = np.zeros(10, dtype=np.float32)
     assert simd.sqeuclidean(A, B, out=result_simd) is None
-    assert np.allclose(result_simd, result_np, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
     assert result_simd.dtype == result_np.dtype
 
 
@@ -1630,7 +1630,7 @@ def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
     A = A_extended[:, :ndim]
     B = B_extended[:, :ndim]
 
-    # Check if we need to round before casting to integer (to match SimSIMD's lround behavior)
+    # Check if we need to round before casting to integer (to match NumKong's lround behavior)
     is_integer_output = out_dtype in ("int32", "int64", "int16", "int8", "uint32", "uint64", "uint16", "uint8")
     scipy_metric = scipy_metric_name(metric)
 
@@ -1644,7 +1644,7 @@ def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
         assert spd.cdist(A, B, scipy_metric, out=expected_out) is not None
         assert simd.cdist(A, B, metric, out=result_out) is None
     else:
-        #! SimSIMD rounds to the nearest integer before casting
+        #! NumKong rounds to the nearest integer before casting
         scipy_result = spd.cdist(A, B, scipy_metric)
         expected = np.round(scipy_result).astype(out_dtype) if is_integer_output else scipy_result.astype(out_dtype)
         result = simd.cdist(A, B, metric, out_dtype=out_dtype)
@@ -1660,9 +1660,9 @@ def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
 
     # Assert they're close.
     # Integer outputs: allow ±1 tolerance since rounding differences are expected
-    atol = 1 if is_integer_output else SIMSIMD_ATOL
-    np.testing.assert_allclose(result, expected, atol=atol, rtol=SIMSIMD_RTOL)
-    np.testing.assert_allclose(result_out, expected_out, atol=atol, rtol=SIMSIMD_RTOL)
+    atol = 1 if is_integer_output else NK_ATOL
+    np.testing.assert_allclose(result, expected, atol=atol, rtol=NK_RTOL)
+    np.testing.assert_allclose(result_out, expected_out, atol=atol, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1679,7 +1679,7 @@ def test_cdist_itself(ndim, input_dtype, out_dtype, metric):
 
     np.random.seed()
 
-    # Check if we need to round before casting to integer (to match SimSIMD's lround behavior)
+    # Check if we need to round before casting to integer (to match NumKong's lround behavior)
     is_integer_output = out_dtype in ("int32", "int64", "int16", "int8", "uint32", "uint64", "uint16", "uint8")
     scipy_metric = scipy_metric_name(metric)
 
@@ -1688,15 +1688,15 @@ def test_cdist_itself(ndim, input_dtype, out_dtype, metric):
         expected = spd.cdist(A, A, scipy_metric)
         result = simd.cdist(A, A, metric=metric)
     else:
-        #! SimSIMD rounds to the nearest integer before casting
+        #! NumKong rounds to the nearest integer before casting
         scipy_result = spd.cdist(A, A, scipy_metric)
         expected = np.round(scipy_result).astype(out_dtype) if is_integer_output else scipy_result.astype(out_dtype)
         result = simd.cdist(A, A, metric=metric, out_dtype=out_dtype)
 
     # Assert they're close.
     # Integer outputs: allow ±1 tolerance since rounding differences are expected
-    atol = 1 if is_integer_output else SIMSIMD_ATOL
-    np.testing.assert_allclose(result, expected, atol=atol, rtol=SIMSIMD_RTOL)
+    atol = 1 if is_integer_output else NK_ATOL
+    np.testing.assert_allclose(result, expected, atol=atol, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1731,7 +1731,7 @@ def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
         for j in range(N):
             expected[i, j] = baseline_kernel(A[i], B[j])
 
-    # Compute with SimSIMD:
+    # Compute with NumKong:
     if out_dtype is None:
         result1d = simd.cdist(A[0], B[0], metric=metric)
         result2d = simd.cdist(A, B, metric=metric)
@@ -1743,9 +1743,9 @@ def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
         assert simd.cdist(A, B, metric=metric, out_dtype=out_dtype, out=C) is None
 
     # Assert they're close.
-    np.testing.assert_allclose(result1d, expected[0, 0], atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-    np.testing.assert_allclose(result2d, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
-    np.testing.assert_allclose(C, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result1d, expected[0, 0], atol=NK_ATOL, rtol=NK_RTOL)
+    np.testing.assert_allclose(result2d, expected, atol=NK_ATOL, rtol=NK_RTOL)
+    np.testing.assert_allclose(C, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1774,7 +1774,7 @@ def test_cdist_hamming(ndim, out_dtype, capability):
         expected = (spd.cdist(A, B, "hamming") * ndim).astype(out_dtype)
         result = simd.cdist(A_bits, B_bits, metric="hamming", dtype="bin8", out_dtype=out_dtype)
 
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -1818,60 +1818,60 @@ def test_elementwise(dtype, kernel, capability, stats_fixture):
     first_dtype, second_dtype, output_dtype = dtype
     operator = {"add": "+", "multiply": "*"}[kernel]
 
-    def validate(a, b, inplace_simsimd):
+    def validate(a, b, inplace_numkong):
         result_numpy = baseline_kernel(a, b)
-        result_simsimd = np.array(simd_kernel(a, b))
+        result_numkong = np.array(simd_kernel(a, b))
         assert (
-            result_simsimd.size == result_numpy.size
-        ), f"Result sizes differ: {result_simsimd.size} vs {result_numpy.size}"
+            result_numkong.size == result_numpy.size
+        ), f"Result sizes differ: {result_numkong.size} vs {result_numpy.size}"
         assert (
-            result_simsimd.shape == result_numpy.shape
-        ), f"Result shapes differ: {result_simsimd.shape} vs {result_numpy.shape}"
+            result_numkong.shape == result_numpy.shape
+        ), f"Result shapes differ: {result_numkong.shape} vs {result_numpy.shape}"
         assert (
-            result_simsimd.dtype == result_numpy.dtype
-        ), f"Result dtypes differ: {result_simsimd.dtype} vs {result_numpy.dtype} for ({a.dtype} {operator} {b.dtype})"
+            result_numkong.dtype == result_numpy.dtype
+        ), f"Result dtypes differ: {result_numkong.dtype} vs {result_numpy.dtype} for ({a.dtype} {operator} {b.dtype})"
 
-        if not np.allclose(result_simsimd, result_numpy, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL):
+        if not np.allclose(result_numkong, result_numpy, atol=NK_ATOL, rtol=NK_RTOL):
             # ? Find the first mismatch and use it as an example in the error message
             np.testing.assert_allclose(
-                result_simsimd,
+                result_numkong,
                 result_numpy,
-                atol=SIMSIMD_ATOL,
-                rtol=SIMSIMD_RTOL,
+                atol=NK_ATOL,
+                rtol=NK_RTOL,
                 err_msg=f"""
                 Result mismatch for ({a.dtype} {operator} {b.dtype})
                 First descriptor: {a.__array_interface__}
                 Second descriptor: {b.__array_interface__}
                 First operand: {a}
                 Second operand: {b}
-                SimSIMD result: {result_simsimd}
+                NumKong result: {result_numkong}
                 NumPy result: {result_numpy}
                 """,
             )
 
         #! NumPy constantly overflows in mixed-precision operations!
-        inplace_numpy = np.empty_like(inplace_simsimd)
-        simd_kernel(a, b, out=inplace_simsimd)
+        inplace_numpy = np.empty_like(inplace_numkong)
+        simd_kernel(a, b, out=inplace_numkong)
         baseline_kernel(a, b, out=inplace_numpy)
 
         assert (
-            inplace_simsimd.size == inplace_numpy.size
-        ), f"Inplace sizes differ: {inplace_simsimd.size} vs {inplace_numpy.size}"
+            inplace_numkong.size == inplace_numpy.size
+        ), f"Inplace sizes differ: {inplace_numkong.size} vs {inplace_numpy.size}"
         assert (
-            inplace_simsimd.shape == inplace_numpy.shape
-        ), f"Inplace shapes differ: {inplace_simsimd.shape} vs {inplace_numpy.shape}"
+            inplace_numkong.shape == inplace_numpy.shape
+        ), f"Inplace shapes differ: {inplace_numkong.shape} vs {inplace_numpy.shape}"
         assert (
-            inplace_simsimd.dtype == inplace_numpy.dtype
-        ), f"Inplace dtypes differ: {inplace_simsimd.dtype} vs {inplace_numpy.dtype} for ({a.dtype} {operator} {b.dtype})"
+            inplace_numkong.dtype == inplace_numpy.dtype
+        ), f"Inplace dtypes differ: {inplace_numkong.dtype} vs {inplace_numpy.dtype} for ({a.dtype} {operator} {b.dtype})"
 
         # Let's count the number of overflows in NumPy:
-        overflow_count = np.sum(np.isclose(inplace_simsimd, inplace_numpy, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL))
+        overflow_count = np.sum(np.isclose(inplace_numkong, inplace_numpy, atol=NK_ATOL, rtol=NK_RTOL))
         if overflow_count:
             collect_warnings(
                 f"NumPy overflow in ({a.dtype} {operator} {b.dtype} -> {output_dtype})",
                 stats_fixture,
             )
-        return result_simsimd
+        return result_numkong
 
     # Vector-Vector addition
     a = random_of_dtype(first_dtype, (6,))
@@ -2007,28 +2007,28 @@ def test_scale_extended(ndim, dtype, kernel, capability, stats_fixture):
     beta = np.random.randn(1).astype(np.float64).item()
     expected = baseline_kernel(a, alpha=alpha, beta=beta)
     result = np.array(simd_kernel(a, alpha=alpha, beta=beta))
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
 
     # Test case 2: Zero alpha (should give all beta)
     alpha = 0.0
     beta = 1.5
     expected = baseline_kernel(a, alpha=alpha, beta=beta)
     result = np.array(simd_kernel(a, alpha=alpha, beta=beta))
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
 
     # Test case 3: Zero beta (should give alpha * x)
     alpha = 2.0
     beta = 0.0
     expected = baseline_kernel(a, alpha=alpha, beta=beta)
     result = np.array(simd_kernel(a, alpha=alpha, beta=beta))
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
 
     # Test case 4: Negative alpha and beta
     alpha = -1.5
     beta = -2.0
     expected = baseline_kernel(a, alpha=alpha, beta=beta)
     result = np.array(simd_kernel(a, alpha=alpha, beta=beta))
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -2053,27 +2053,27 @@ def test_sum_extended(ndim, dtype, kernel, capability, stats_fixture):
     b = np.random.randn(ndim).astype(dtype)
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
 
     # Test case 2: One vector is zeros
     a = np.random.randn(ndim).astype(dtype)
     b = np.zeros(ndim).astype(dtype)
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
 
     # Test case 3: Both vectors are the same
     a = np.random.randn(ndim).astype(dtype)
     expected = baseline_kernel(a, a)
     result = np.array(simd_kernel(a, a))
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
 
     # Test case 4: Negative values
     a = -np.abs(np.random.randn(ndim).astype(dtype))
     b = -np.abs(np.random.randn(ndim).astype(dtype))
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected.astype(np.float64), atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected.astype(np.float64), atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -2110,28 +2110,28 @@ def test_add_extended(ndim, dtype, kernel, capability, stats_fixture):
     b = np.random.randn(ndim).astype(second_dtype)
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Test case 2: Scalar-Vector addition (broadcast scalar to vector)
     a = np.random.randn(1).astype(first_dtype)[0]  # Extract scalar
     b = np.random.randn(ndim).astype(second_dtype)
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Test case 3: Vector-Scalar addition (broadcast scalar to vector)
     a = np.random.randn(ndim).astype(first_dtype)
     b = np.random.randn(1).astype(second_dtype)[0]  # Extract scalar
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Test case 4: Matrix-Matrix addition
     a = np.random.randn(10, ndim // 10 if ndim >= 10 else ndim).astype(first_dtype)
     b = np.random.randn(10, ndim // 10 if ndim >= 10 else ndim).astype(second_dtype)
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Test case 5: In-place addition (with output buffer)
     a = np.random.randn(ndim).astype(first_dtype)
@@ -2140,7 +2140,7 @@ def test_add_extended(ndim, dtype, kernel, capability, stats_fixture):
     out_result = np.zeros(ndim).astype(output_dtype)
     baseline_kernel(a, b, out=out_expected)
     simd_kernel(a, b, out=out_result)
-    np.testing.assert_allclose(out_result, out_expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(out_result, out_expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -2177,28 +2177,28 @@ def test_multiply_extended(ndim, dtype, kernel, capability, stats_fixture):
     b = np.random.randn(ndim).astype(second_dtype)
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Test case 2: Scalar-Vector multiplication (broadcast scalar to vector)
     a = np.random.randn(1).astype(first_dtype)[0]  # Extract scalar
     b = np.random.randn(ndim).astype(second_dtype)
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Test case 3: Vector-Scalar multiplication (broadcast scalar to vector)
     a = np.random.randn(ndim).astype(first_dtype)
     b = np.random.randn(1).astype(second_dtype)[0]  # Extract scalar
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Test case 4: Matrix-Matrix multiplication
     a = np.random.randn(10, ndim // 10 if ndim >= 10 else ndim).astype(first_dtype)
     b = np.random.randn(10, ndim // 10 if ndim >= 10 else ndim).astype(second_dtype)
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Test case 5: In-place multiplication (with output buffer)
     a = np.random.randn(ndim).astype(first_dtype)
@@ -2207,25 +2207,25 @@ def test_multiply_extended(ndim, dtype, kernel, capability, stats_fixture):
     out_result = np.zeros(ndim).astype(output_dtype)
     baseline_kernel(a, b, out=out_expected)
     simd_kernel(a, b, out=out_result)
-    np.testing.assert_allclose(out_result, out_expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(out_result, out_expected, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Test case 6: Multiplication with zeros
     a = np.random.randn(ndim).astype(first_dtype)
     b = np.zeros(ndim).astype(second_dtype)
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Test case 7: Multiplication with ones (should give original)
     a = np.random.randn(ndim).astype(first_dtype)
     b = np.ones(ndim).astype(second_dtype)
     expected = baseline_kernel(a, b)
     result = np.array(simd_kernel(a, b))
-    np.testing.assert_allclose(result, expected, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL)
+    np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
 
 def test_gil_free_threading():
-    """Test SimSIMD in Python 3.13t free-threaded mode if available."""
+    """Test NumKong in Python 3.13t free-threaded mode if available."""
     import sys
     import sysconfig
 
@@ -2288,7 +2288,7 @@ def test_gil_free_threading():
 
     # Verify results are the same length and reasonable
     assert np.allclose(
-        baseline_sum, multi_sum, atol=SIMSIMD_ATOL, rtol=SIMSIMD_RTOL
+        baseline_sum, multi_sum, atol=NK_ATOL, rtol=NK_RTOL
     ), f"Results differ: baseline {baseline_sum} vs multi-threaded {multi_sum}"
 
     # Warn if multi-threaded execution is slower than the baseline
@@ -2338,7 +2338,7 @@ def test_haversine(ndim, dtype, capability, stats_fixture):
         ]
     )
 
-    # Compute using SimSIMD
+    # Compute using NumKong
     result = simd.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes)
     result = np.array(result)
 
@@ -2397,7 +2397,7 @@ def test_vincenty(ndim, dtype, capability, stats_fixture):
         ]
     )
 
-    # Compute using SimSIMD
+    # Compute using NumKong
     result = simd.vincenty(first_latitudes, first_longitudes, second_latitudes, second_longitudes)
     result = np.array(result)
 

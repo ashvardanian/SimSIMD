@@ -17,7 +17,7 @@ AllowAllArgumentsOnNextLine: false
 AllowAllConstructorInitializersOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
 AllowShortBlocksOnASingleLine: Always
-AllowShortIfStatementsOnASingleLine: Always
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
 AllowShortCaseLabelsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: true
 AllowShortLambdasOnASingleLine: true
@@ -68,16 +68,15 @@ BinPackArguments: true
 BinPackParameters: true
 PenaltyBreakBeforeFirstCallParameter: 1
 
-# Macros treated as attributes (Python C API + SimSIMD visibility)
+# Macros treated as attributes (Python C API + NumKong visibility)
 AttributeMacros:
   - PyObject_HEAD
   - PyObject_VAR_HEAD
-  - SIMSIMD_PUBLIC
-  - SIMSIMD_INTERNAL
-  - SIMSIMD_DYNAMIC
+  - NK_PUBLIC
+  - NK_INTERNAL
+  - NK_DYNAMIC
 
-
-# Align consecutive macro definitions (useful for SIMSIMD_TARGET_* flags)
+# Align consecutive macro definitions (useful for NK_TARGET_* flags)
 AlignConsecutiveMacros:
   Enabled: true
   AcrossEmptyLines: false
@@ -86,7 +85,7 @@ AlignConsecutiveMacros:
 # Preprocessor directive indentation: None (flat), AfterHash (#  if), BeforeHash (  #if)
 IndentPPDirectives: None
 
-# Keep pointer alignment consistent: simsimd_f32_t const *a
+# Keep pointer alignment consistent: nk_f32_t const *a
 PointerAlignment: Right
 DerivePointerAlignment: false
 

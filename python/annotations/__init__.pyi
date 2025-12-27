@@ -62,7 +62,7 @@ _ComplexType = Literal[
 ]
 
 class DistancesTensor(memoryview):
-    """A tensor type returned by SimSIMD distance functions.
+    """A tensor type returned by NumKong distance functions.
 
     Supports NumPy-like properties and buffer protocol for interoperability.
     """

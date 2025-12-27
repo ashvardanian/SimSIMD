@@ -1,5 +1,5 @@
 /**
- *  @brief      Pure CPython bindings for SimSIMD.
+ *  @brief      Pure CPython bindings for NumKong.
  *  @file       lib.c
  *  @author     Ash Vardanian
  *  @date       January 1, 2023
@@ -76,7 +76,7 @@
  *      ! ValueError: cannot include dtype 'E' in a buffer
  *
  *  Moreover, the CPython and NumPy documentation diverge on format specifiers for the `typestr`
- *  and `format` data type descriptor strings, which makes development error-prone. SimSIMD is
+ *  and `format` data type descriptor strings, which makes development error-prone. NumKong is
  *  @b one of the few packages that attempts to provide interoperability.
  *
  *  https://numpy.org/doc/stable/reference/arrays.interface.html
@@ -92,7 +92,7 @@
 #endif
 #endif
 
-#include <simsimd/simsimd.h>
+#include <numkong/numkong.h>
 
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
@@ -103,18 +103,18 @@ typedef struct TensorArgument {
     size_t count;
     size_t stride;
     int rank;
-    simsimd_datatype_t datatype;
+    nk_datatype_t datatype;
 } TensorArgument;
 
 typedef struct DistancesTensor {
-    PyObject_HEAD                                 // //
-    simsimd_datatype_t datatype;                  // Logical datatype (f32, f64, f16, bf16, i8, etc.)
-    size_t rank;                                  // Number of dimensions (0 for scalar, up to SIMSIMD_NDARRAY_MAX_RANK)
-    Py_ssize_t shape[SIMSIMD_NDARRAY_MAX_RANK];   // Extent along each dimension
-    Py_ssize_t strides[SIMSIMD_NDARRAY_MAX_RANK]; // Stride in bytes for each dimension
-    PyObject *parent;                             // Reference to parent tensor (NULL if owns data)
-    char *data;                                   // Pointer to data (start[] if owns, or parent's memory if view)
-    char start[];                                 // Variable length data (only used when parent == NULL)
+    PyObject_HEAD                            // //
+    nk_datatype_t datatype;                  // Logical datatype (f32, f64, f16, bf16, i8, etc.)
+    size_t rank;                             // Number of dimensions (0 for scalar, up to NK_NDARRAY_MAX_RANK)
+    Py_ssize_t shape[NK_NDARRAY_MAX_RANK];   // Extent along each dimension
+    Py_ssize_t strides[NK_NDARRAY_MAX_RANK]; // Stride in bytes for each dimension
+    PyObject *parent;                        // Reference to parent tensor (NULL if owns data)
+    char *data;                              // Pointer to data (start[] if owns, or parent's memory if view)
+    char start[];                            // Variable length data (only used when parent == NULL)
 } DistancesTensor;
 
 // Forward declaration of the type object.
@@ -125,7 +125,7 @@ static void DistancesTensor_releasebuffer(PyObject *export_from, Py_buffer *view
 static PyObject *tensor_read_scalar(DistancesTensor *tensor, size_t byte_offset);
 
 // Forward declaration of the view factory used by slicing.
-static DistancesTensor *DistancesTensor_view(DistancesTensor *parent, char *data_ptr, simsimd_datatype_t datatype,
+static DistancesTensor *DistancesTensor_view(DistancesTensor *parent, char *data_ptr, nk_datatype_t datatype,
                                              size_t rank, Py_ssize_t const *shape, Py_ssize_t const *strides);
 
 static PyBufferProcs DistancesTensor_as_buffer = {
@@ -167,39 +167,39 @@ static PyNumberMethods DistancesTensor_as_number = {
 };
 
 typedef struct {
-    simsimd_datatype_t dtype;
+    nk_datatype_t dtype;
     char const *name;
     char const *buffer_format;
     char const *array_typestr;
     size_t item_size;
     int is_complex;
-} simsimd_dtype_info_t;
+} nk_dtype_info_t;
 
-static simsimd_dtype_info_t const simsimd_dtype_table[] = {
-    {simsimd_f64_k, "float64", "d", "<f8", sizeof(simsimd_f64_t), 0},
-    {simsimd_f32_k, "float32", "f", "<f4", sizeof(simsimd_f32_t), 0},
-    {simsimd_f16_k, "float16", "e", "<f2", sizeof(simsimd_f16_t), 0},
-    {simsimd_bf16_k, "bfloat16", "bf16", "<V2", sizeof(simsimd_bf16_t), 0},
-    {simsimd_e4m3_k, "e4m3", "e4m3", "|V1", sizeof(simsimd_e4m3_t), 0},
-    {simsimd_e5m2_k, "e5m2", "e5m2", "|V1", sizeof(simsimd_e5m2_t), 0},
-    {simsimd_f64c_k, "complex128", "Zd", "<c16", sizeof(simsimd_f64_t) * 2, 1},
-    {simsimd_f32c_k, "complex64", "Zf", "<c8", sizeof(simsimd_f32_t) * 2, 1},
-    {simsimd_f16c_k, "complex32", "Ze", "|V4", sizeof(simsimd_f16_t) * 2, 1},
-    {simsimd_bf16c_k, "bfloat16c", "bcomplex32", "|V4", sizeof(simsimd_bf16_t) * 2, 1},
-    {simsimd_b8_k, "bin8", "?", "|V1", sizeof(simsimd_b8_t), 0},
-    {simsimd_i8_k, "int8", "b", "|i1", sizeof(simsimd_i8_t), 0},
-    {simsimd_u8_k, "uint8", "B", "|u1", sizeof(simsimd_u8_t), 0},
-    {simsimd_i16_k, "int16", "h", "<i2", sizeof(simsimd_i16_t), 0},
-    {simsimd_u16_k, "uint16", "H", "<u2", sizeof(simsimd_u16_t), 0},
-    {simsimd_i32_k, "int32", "i", "<i4", sizeof(simsimd_i32_t), 0},
-    {simsimd_u32_k, "uint32", "I", "<u4", sizeof(simsimd_u32_t), 0},
-    {simsimd_i64_k, "int64", "q", "<i8", sizeof(simsimd_i64_t), 0},
-    {simsimd_u64_k, "uint64", "Q", "<u8", sizeof(simsimd_u64_t), 0},
+static nk_dtype_info_t const nk_dtype_table[] = {
+    {nk_f64_k, "float64", "d", "<f8", sizeof(nk_f64_t), 0},
+    {nk_f32_k, "float32", "f", "<f4", sizeof(nk_f32_t), 0},
+    {nk_f16_k, "float16", "e", "<f2", sizeof(nk_f16_t), 0},
+    {nk_bf16_k, "bfloat16", "bf16", "<V2", sizeof(nk_bf16_t), 0},
+    {nk_e4m3_k, "e4m3", "e4m3", "|V1", sizeof(nk_e4m3_t), 0},
+    {nk_e5m2_k, "e5m2", "e5m2", "|V1", sizeof(nk_e5m2_t), 0},
+    {nk_f64c_k, "complex128", "Zd", "<c16", sizeof(nk_f64_t) * 2, 1},
+    {nk_f32c_k, "complex64", "Zf", "<c8", sizeof(nk_f32_t) * 2, 1},
+    {nk_f16c_k, "complex32", "Ze", "|V4", sizeof(nk_f16_t) * 2, 1},
+    {nk_bf16c_k, "bfloat16c", "bcomplex32", "|V4", sizeof(nk_bf16_t) * 2, 1},
+    {nk_b8_k, "bin8", "?", "|V1", sizeof(nk_b8_t), 0},
+    {nk_i8_k, "int8", "b", "|i1", sizeof(nk_i8_t), 0},
+    {nk_u8_k, "uint8", "B", "|u1", sizeof(nk_u8_t), 0},
+    {nk_i16_k, "int16", "h", "<i2", sizeof(nk_i16_t), 0},
+    {nk_u16_k, "uint16", "H", "<u2", sizeof(nk_u16_t), 0},
+    {nk_i32_k, "int32", "i", "<i4", sizeof(nk_i32_t), 0},
+    {nk_u32_k, "uint32", "I", "<u4", sizeof(nk_u32_t), 0},
+    {nk_i64_k, "int64", "q", "<i8", sizeof(nk_i64_t), 0},
+    {nk_u64_k, "uint64", "Q", "<u8", sizeof(nk_u64_t), 0},
 };
 
-static simsimd_dtype_info_t const *datatype_info(simsimd_datatype_t dtype) {
-    for (size_t i = 0; i < sizeof(simsimd_dtype_table) / sizeof(simsimd_dtype_table[0]); i++) {
-        if (simsimd_dtype_table[i].dtype == dtype) return &simsimd_dtype_table[i];
+static nk_dtype_info_t const *datatype_info(nk_datatype_t dtype) {
+    for (size_t i = 0; i < sizeof(nk_dtype_table) / sizeof(nk_dtype_table[0]); i++) {
+        if (nk_dtype_table[i].dtype == dtype) return &nk_dtype_table[i];
     }
     return NULL;
 }
@@ -207,19 +207,19 @@ static simsimd_dtype_info_t const *datatype_info(simsimd_datatype_t dtype) {
 /// @brief Estimate the number of bytes per element for a given datatype.
 /// @param dtype Logical datatype, can be complex.
 /// @return Zero if the datatype is not supported, positive integer otherwise.
-static size_t bytes_per_datatype(simsimd_datatype_t dtype) {
-    simsimd_dtype_info_t const *info = datatype_info(dtype);
+static size_t bytes_per_datatype(nk_datatype_t dtype) {
+    nk_dtype_info_t const *info = datatype_info(dtype);
     return info ? info->item_size : 0;
 }
 
-/// @brief  Convert a simsimd_datatype_t to a Python string (for example, "float64", "float32").
-static char const *datatype_to_string(simsimd_datatype_t dtype) {
-    simsimd_dtype_info_t const *info = datatype_info(dtype);
+/// @brief  Convert a nk_datatype_t to a Python string (for example, "float64", "float32").
+static char const *datatype_to_string(nk_datatype_t dtype) {
+    nk_dtype_info_t const *info = datatype_info(dtype);
     return info ? info->name : "unknown";
 }
 
-static char const *datatype_to_array_typestr(simsimd_datatype_t dtype) {
-    simsimd_dtype_info_t const *info = datatype_info(dtype);
+static char const *datatype_to_array_typestr(nk_datatype_t dtype) {
+    nk_dtype_info_t const *info = datatype_info(dtype);
     return info ? info->array_typestr : "|V1";
 }
 
@@ -363,8 +363,8 @@ static PyObject *DistancesTensor_get_T(PyObject *self, void *closure) {
     }
 
     // Create transposed shape and strides (reversed)
-    Py_ssize_t new_shape[SIMSIMD_NDARRAY_MAX_RANK];
-    Py_ssize_t new_strides[SIMSIMD_NDARRAY_MAX_RANK];
+    Py_ssize_t new_shape[NK_NDARRAY_MAX_RANK];
+    Py_ssize_t new_strides[NK_NDARRAY_MAX_RANK];
 
     for (size_t i = 0; i < tensor->rank; i++) {
         new_shape[i] = tensor->shape[tensor->rank - 1 - i];
@@ -466,105 +466,105 @@ typedef struct {
 /// @brief  Read a scalar value at a byte offset into a tagged container.
 static int tensor_read_scalar_value(DistancesTensor *tensor, size_t byte_offset, tensor_scalar_value_t *value) {
     char *ptr = tensor->data + byte_offset;
-    simsimd_f32_t f32_tmp;
-    simsimd_f32_t f32_tmp_imag;
+    nk_f32_t f32_tmp;
+    nk_f32_t f32_tmp_imag;
 
     switch (tensor->datatype) {
-    case simsimd_f64_k:
+    case nk_f64_k:
         value->kind = tensor_scalar_kind_float;
-        value->real = (double)*(simsimd_f64_t *)ptr;
+        value->real = (double)*(nk_f64_t *)ptr;
         return 1;
-    case simsimd_f32_k:
+    case nk_f32_k:
         value->kind = tensor_scalar_kind_float;
-        value->real = (double)*(simsimd_f32_t *)ptr;
+        value->real = (double)*(nk_f32_t *)ptr;
         return 1;
-    case simsimd_f16_k:
-        simsimd_f16_to_f32((simsimd_f16_t *)ptr, &f32_tmp);
-        value->kind = tensor_scalar_kind_float;
-        value->real = (double)f32_tmp;
-        return 1;
-    case simsimd_bf16_k:
-        simsimd_bf16_to_f32((simsimd_bf16_t *)ptr, &f32_tmp);
+    case nk_f16_k:
+        nk_f16_to_f32((nk_f16_t *)ptr, &f32_tmp);
         value->kind = tensor_scalar_kind_float;
         value->real = (double)f32_tmp;
         return 1;
-    case simsimd_e4m3_k:
-        simsimd_e4m3_to_f32((simsimd_e4m3_t *)ptr, &f32_tmp);
+    case nk_bf16_k:
+        nk_bf16_to_f32((nk_bf16_t *)ptr, &f32_tmp);
         value->kind = tensor_scalar_kind_float;
         value->real = (double)f32_tmp;
         return 1;
-    case simsimd_e5m2_k:
-        simsimd_e5m2_to_f32((simsimd_e5m2_t *)ptr, &f32_tmp);
+    case nk_e4m3_k:
+        nk_e4m3_to_f32((nk_e4m3_t *)ptr, &f32_tmp);
         value->kind = tensor_scalar_kind_float;
         value->real = (double)f32_tmp;
         return 1;
-    case simsimd_f64c_k: {
-        simsimd_f64_t const *vals = (simsimd_f64_t const *)ptr;
+    case nk_e5m2_k:
+        nk_e5m2_to_f32((nk_e5m2_t *)ptr, &f32_tmp);
+        value->kind = tensor_scalar_kind_float;
+        value->real = (double)f32_tmp;
+        return 1;
+    case nk_f64c_k: {
+        nk_f64_t const *vals = (nk_f64_t const *)ptr;
         value->kind = tensor_scalar_kind_complex;
         value->real = (double)vals[0];
         value->imag = (double)vals[1];
         return 1;
     }
-    case simsimd_f32c_k: {
-        simsimd_f32_t const *vals = (simsimd_f32_t const *)ptr;
+    case nk_f32c_k: {
+        nk_f32_t const *vals = (nk_f32_t const *)ptr;
         value->kind = tensor_scalar_kind_complex;
         value->real = (double)vals[0];
         value->imag = (double)vals[1];
         return 1;
     }
-    case simsimd_f16c_k: {
-        simsimd_f16_t const *vals = (simsimd_f16_t const *)ptr;
-        simsimd_f16_to_f32(&vals[0], &f32_tmp);
-        simsimd_f16_to_f32(&vals[1], &f32_tmp_imag);
+    case nk_f16c_k: {
+        nk_f16_t const *vals = (nk_f16_t const *)ptr;
+        nk_f16_to_f32(&vals[0], &f32_tmp);
+        nk_f16_to_f32(&vals[1], &f32_tmp_imag);
         value->kind = tensor_scalar_kind_complex;
         value->real = (double)f32_tmp;
         value->imag = (double)f32_tmp_imag;
         return 1;
     }
-    case simsimd_bf16c_k: {
-        simsimd_bf16_t const *vals = (simsimd_bf16_t const *)ptr;
-        simsimd_bf16_to_f32(&vals[0], &f32_tmp);
-        simsimd_bf16_to_f32(&vals[1], &f32_tmp_imag);
+    case nk_bf16c_k: {
+        nk_bf16_t const *vals = (nk_bf16_t const *)ptr;
+        nk_bf16_to_f32(&vals[0], &f32_tmp);
+        nk_bf16_to_f32(&vals[1], &f32_tmp_imag);
         value->kind = tensor_scalar_kind_complex;
         value->real = (double)f32_tmp;
         value->imag = (double)f32_tmp_imag;
         return 1;
     }
-    case simsimd_b8_k:
+    case nk_b8_k:
         value->kind = tensor_scalar_kind_uint;
-        value->u64 = (unsigned long long)*(simsimd_b8_t *)ptr;
+        value->u64 = (unsigned long long)*(nk_b8_t *)ptr;
         return 1;
-    case simsimd_i8_k:
+    case nk_i8_k:
         value->kind = tensor_scalar_kind_int;
-        value->i64 = (long long)*(simsimd_i8_t *)ptr;
+        value->i64 = (long long)*(nk_i8_t *)ptr;
         return 1;
-    case simsimd_u8_k:
+    case nk_u8_k:
         value->kind = tensor_scalar_kind_uint;
-        value->u64 = (unsigned long long)*(simsimd_u8_t *)ptr;
+        value->u64 = (unsigned long long)*(nk_u8_t *)ptr;
         return 1;
-    case simsimd_i16_k:
+    case nk_i16_k:
         value->kind = tensor_scalar_kind_int;
-        value->i64 = (long long)*(simsimd_i16_t *)ptr;
+        value->i64 = (long long)*(nk_i16_t *)ptr;
         return 1;
-    case simsimd_u16_k:
+    case nk_u16_k:
         value->kind = tensor_scalar_kind_uint;
-        value->u64 = (unsigned long long)*(simsimd_u16_t *)ptr;
+        value->u64 = (unsigned long long)*(nk_u16_t *)ptr;
         return 1;
-    case simsimd_i32_k:
+    case nk_i32_k:
         value->kind = tensor_scalar_kind_int;
-        value->i64 = (long long)*(simsimd_i32_t *)ptr;
+        value->i64 = (long long)*(nk_i32_t *)ptr;
         return 1;
-    case simsimd_u32_k:
+    case nk_u32_k:
         value->kind = tensor_scalar_kind_uint;
-        value->u64 = (unsigned long long)*(simsimd_u32_t *)ptr;
+        value->u64 = (unsigned long long)*(nk_u32_t *)ptr;
         return 1;
-    case simsimd_i64_k:
+    case nk_i64_k:
         value->kind = tensor_scalar_kind_int;
-        value->i64 = (long long)*(simsimd_i64_t *)ptr;
+        value->i64 = (long long)*(nk_i64_t *)ptr;
         return 1;
-    case simsimd_u64_k:
+    case nk_u64_k:
         value->kind = tensor_scalar_kind_uint;
-        value->u64 = (unsigned long long)*(simsimd_u64_t *)ptr;
+        value->u64 = (unsigned long long)*(nk_u64_t *)ptr;
         return 1;
     default: PyErr_SetString(PyExc_TypeError, "unsupported datatype for scalar conversion"); return 0;
     }
@@ -739,8 +739,7 @@ static PyObject *DistancesTensor_richcompare(PyObject *self, PyObject *other, in
         PyBuffer_Release(&other_buf);
 
         if (op == Py_EQ) return PyBool_FromLong(equal);
-        else
-            return PyBool_FromLong(!equal);
+        else return PyBool_FromLong(!equal);
     }
 
     DistancesTensor *a = (DistancesTensor *)self;
@@ -749,16 +748,14 @@ static PyObject *DistancesTensor_richcompare(PyObject *self, PyObject *other, in
     // Check that datatype and rank match.
     if (a->datatype != b->datatype || a->rank != b->rank) {
         if (op == Py_EQ) Py_RETURN_FALSE;
-        else
-            Py_RETURN_TRUE;
+        else Py_RETURN_TRUE;
     }
 
     // Check that shapes match.
     for (size_t i = 0; i < a->rank; i++) {
         if (a->shape[i] != b->shape[i]) {
             if (op == Py_EQ) Py_RETURN_FALSE;
-            else
-                Py_RETURN_TRUE;
+            else Py_RETURN_TRUE;
         }
     }
 
@@ -791,8 +788,7 @@ static PyObject *DistancesTensor_richcompare(PyObject *self, PyObject *other, in
     }
 
     if (op == Py_EQ) return PyBool_FromLong(equal);
-    else
-        return PyBool_FromLong(!equal);
+    else return PyBool_FromLong(!equal);
 }
 
 /// @brief  copy() method. Return a deep copy of the tensor.
@@ -819,7 +815,7 @@ static PyObject *DistancesTensor_copy(PyObject *self, PyObject *args) {
         result->strides[i - 1] = stride;
         stride *= tensor->shape[i - 1];
     }
-    for (size_t i = tensor->rank; i < SIMSIMD_NDARRAY_MAX_RANK; i++) {
+    for (size_t i = tensor->rank; i < NK_NDARRAY_MAX_RANK; i++) {
         result->shape[i] = 0;
         result->strides[i] = 0;
     }
@@ -848,16 +844,15 @@ static PyObject *DistancesTensor_reshape(PyObject *self, PyObject *args) {
     DistancesTensor *tensor = (DistancesTensor *)self;
 
     // Parse shape argument (can be tuple or multiple args)
-    Py_ssize_t new_shape[SIMSIMD_NDARRAY_MAX_RANK];
+    Py_ssize_t new_shape[NK_NDARRAY_MAX_RANK];
     size_t new_rank = 0;
 
     if (PyTuple_GET_SIZE(args) == 1 && PyTuple_Check(PyTuple_GET_ITEM(args, 0))) {
         // Single tuple argument
         PyObject *shape_tuple = PyTuple_GET_ITEM(args, 0);
         new_rank = PyTuple_GET_SIZE(shape_tuple);
-        if (new_rank > SIMSIMD_NDARRAY_MAX_RANK) {
-            PyErr_Format(PyExc_ValueError, "reshape: too many dimensions (%zu > %d)", new_rank,
-                         SIMSIMD_NDARRAY_MAX_RANK);
+        if (new_rank > NK_NDARRAY_MAX_RANK) {
+            PyErr_Format(PyExc_ValueError, "reshape: too many dimensions (%zu > %d)", new_rank, NK_NDARRAY_MAX_RANK);
             return NULL;
         }
         for (size_t i = 0; i < new_rank; i++) {
@@ -876,9 +871,8 @@ static PyObject *DistancesTensor_reshape(PyObject *self, PyObject *args) {
     else {
         // Multiple integer arguments
         new_rank = PyTuple_GET_SIZE(args);
-        if (new_rank > SIMSIMD_NDARRAY_MAX_RANK) {
-            PyErr_Format(PyExc_ValueError, "reshape: too many dimensions (%zu > %d)", new_rank,
-                         SIMSIMD_NDARRAY_MAX_RANK);
+        if (new_rank > NK_NDARRAY_MAX_RANK) {
+            PyErr_Format(PyExc_ValueError, "reshape: too many dimensions (%zu > %d)", new_rank, NK_NDARRAY_MAX_RANK);
             return NULL;
         }
         for (size_t i = 0; i < new_rank; i++) {
@@ -914,7 +908,7 @@ static PyObject *DistancesTensor_reshape(PyObject *self, PyObject *args) {
     // Check if source is contiguous (can create a view)
     if (tensor_is_c_contig(tensor, item_size)) {
         // Source is contiguous - create a zero-copy view with new shape
-        Py_ssize_t new_strides[SIMSIMD_NDARRAY_MAX_RANK];
+        Py_ssize_t new_strides[NK_NDARRAY_MAX_RANK];
         Py_ssize_t stride = item_size;
         for (size_t i = new_rank; i > 0; i--) {
             new_strides[i - 1] = stride;
@@ -944,7 +938,7 @@ static PyObject *DistancesTensor_reshape(PyObject *self, PyObject *args) {
         result->strides[i - 1] = stride;
         stride *= new_shape[i - 1];
     }
-    for (size_t i = new_rank; i < SIMSIMD_NDARRAY_MAX_RANK; i++) {
+    for (size_t i = new_rank; i < NK_NDARRAY_MAX_RANK; i++) {
         result->shape[i] = 0;
         result->strides[i] = 0;
     }
@@ -978,10 +972,10 @@ static PyMethodDef DistancesTensor_methods[] = {
 };
 
 static PyTypeObject DistancesTensorType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "simsimd.DistancesTensor",
-    .tp_doc = "N-dimensional tensor with full NumPy-like API, supporting SimSIMD's type system",
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.DistancesTensor",
+    .tp_doc = "N-dimensional tensor with full NumPy-like API, supporting NumKong's type system",
     .tp_basicsize = sizeof(DistancesTensor),
-    // Instead of using `simsimd_distance_t` for all the elements,
+    // Instead of using `nk_distance_t` for all the elements,
     // we use `char` to allow user to specify the datatype on `cdist`-like functions.
     .tp_itemsize = sizeof(char),
     .tp_dealloc = DistancesTensor_dealloc,
@@ -1041,8 +1035,8 @@ static PyObject *DistancesTensor_subscript(PyObject *self, PyObject *key) {
         if (parse_slice(key, tensor->shape[0], &start, &stop, &step, &slice_len) < 0) return NULL;
 
         // Build the view shape and strides.
-        Py_ssize_t new_shape[SIMSIMD_NDARRAY_MAX_RANK];
-        Py_ssize_t new_strides[SIMSIMD_NDARRAY_MAX_RANK];
+        Py_ssize_t new_shape[NK_NDARRAY_MAX_RANK];
+        Py_ssize_t new_strides[NK_NDARRAY_MAX_RANK];
 
         new_shape[0] = slice_len;
         new_strides[0] = tensor->strides[0] * step; // Adjust the stride for step.
@@ -1065,10 +1059,10 @@ static PyObject *DistancesTensor_subscript(PyObject *self, PyObject *key) {
     }
 
     // Collect indices from the key (single int or tuple of ints/slices).
-    Py_ssize_t indices[SIMSIMD_NDARRAY_MAX_RANK];
-    int is_slice[SIMSIMD_NDARRAY_MAX_RANK] = {0};
-    Py_ssize_t slice_start[SIMSIMD_NDARRAY_MAX_RANK], slice_stop[SIMSIMD_NDARRAY_MAX_RANK];
-    Py_ssize_t slice_step[SIMSIMD_NDARRAY_MAX_RANK], slice_len[SIMSIMD_NDARRAY_MAX_RANK];
+    Py_ssize_t indices[NK_NDARRAY_MAX_RANK];
+    int is_slice[NK_NDARRAY_MAX_RANK] = {0};
+    Py_ssize_t slice_start[NK_NDARRAY_MAX_RANK], slice_stop[NK_NDARRAY_MAX_RANK];
+    Py_ssize_t slice_step[NK_NDARRAY_MAX_RANK], slice_len[NK_NDARRAY_MAX_RANK];
     size_t num_indices = 0;
     int has_slice = 0;
 
@@ -1145,8 +1139,8 @@ static PyObject *DistancesTensor_subscript(PyObject *self, PyObject *key) {
 
     // Otherwise, return a sub-tensor view (zero-copy)
     size_t new_rank = tensor->rank - num_indices;
-    Py_ssize_t new_shape[SIMSIMD_NDARRAY_MAX_RANK];
-    Py_ssize_t new_strides[SIMSIMD_NDARRAY_MAX_RANK];
+    Py_ssize_t new_shape[NK_NDARRAY_MAX_RANK];
+    Py_ssize_t new_strides[NK_NDARRAY_MAX_RANK];
 
     // Copy shape and strides from remaining dimensions
     for (size_t i = 0; i < new_rank; i++) {
@@ -1195,7 +1189,7 @@ static void DistancesTensorIter_dealloc(PyObject *self) {
 }
 
 static PyTypeObject DistancesTensorIterType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "simsimd.DistancesTensorIter",
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.DistancesTensorIter",
     .tp_doc = "Iterator for DistancesTensor",
     .tp_basicsize = sizeof(DistancesTensorIter),
     .tp_flags = Py_TPFLAGS_DEFAULT,
@@ -1224,10 +1218,10 @@ static PyObject *DistancesTensor_iter(PyObject *self) {
 /// @brief  Opaque container for pre-packed matrix data used for matrix multiplication.
 ///         The packed buffer format is backend-specific and not directly accessible.
 typedef struct PackedMatrix {
-    PyObject_HEAD simsimd_datatype_t dtype; // bf16 or i8
-    simsimd_size_t n;                       // Number of rows in original (n × k) matrix
-    simsimd_size_t k;                       // Number of columns in original (n × k) matrix
-    char start[];                           // Variable length packed data (owns data, no parent reference needed)
+    PyObject_HEAD nk_datatype_t dtype; // bf16 or i8
+    nk_size_t n;                       // Number of rows in original (n × k) matrix
+    nk_size_t k;                       // Number of columns in original (n × k) matrix
+    char start[];                      // Variable length packed data (owns data, no parent reference needed)
 } PackedMatrix;
 
 // Forward declaration
@@ -1252,9 +1246,8 @@ static PyObject *PackedMatrix_get_dtype(PyObject *self, void *closure) {
     (void)closure;
     PackedMatrix *pm = (PackedMatrix *)self;
     char const *dtype_str = "unknown";
-    if (pm->dtype == simsimd_bf16_k) dtype_str = "bf16";
-    else if (pm->dtype == simsimd_i8_k)
-        dtype_str = "i8";
+    if (pm->dtype == nk_bf16_k) dtype_str = "bf16";
+    else if (pm->dtype == nk_i8_k) dtype_str = "i8";
     return PyUnicode_FromString(dtype_str);
 }
 
@@ -1278,15 +1271,14 @@ static PyGetSetDef PackedMatrix_getset[] = {
 static PyObject *PackedMatrix_repr(PyObject *self) {
     PackedMatrix *pm = (PackedMatrix *)self;
     char const *dtype_str = "unknown";
-    if (pm->dtype == simsimd_bf16_k) dtype_str = "bf16";
-    else if (pm->dtype == simsimd_i8_k)
-        dtype_str = "i8";
+    if (pm->dtype == nk_bf16_k) dtype_str = "bf16";
+    else if (pm->dtype == nk_i8_k) dtype_str = "i8";
     return PyUnicode_FromFormat("<PackedMatrix n=%zu k=%zu dtype='%s' nbytes=%zu>", pm->n, pm->k, dtype_str,
                                 (size_t)Py_SIZE(pm));
 }
 
 static PyTypeObject PackedMatrixType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "simsimd.PackedMatrix",
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.PackedMatrix",
     .tp_doc = "Opaque pre-packed matrix for fast matrix multiplication",
     .tp_basicsize = sizeof(PackedMatrix),
     .tp_itemsize = sizeof(char),
@@ -1298,7 +1290,7 @@ static PyTypeObject PackedMatrixType = {
 #pragma endregion PackedMatrix Type
 
 /// @brief  Global variable that caches CPU capabilities, computed once when the module is loaded.
-simsimd_capability_t static_capabilities = simsimd_cap_serial_k;
+nk_capability_t static_capabilities = nk_cap_serial_k;
 
 /// @brief Check string equality.
 /// @return 1 if the strings are equal, 0 otherwise.
@@ -1306,136 +1298,135 @@ int same_string(char const *a, char const *b) { return strcmp(a, b) == 0; }
 
 /// @brief Return 1 if a logical datatype is complex and represented as two scalars.
 /// @return 1 if the datatype is complex, 0 otherwise.
-int is_complex(simsimd_datatype_t datatype) {
-    simsimd_dtype_info_t const *info = datatype_info(datatype);
+int is_complex(nk_datatype_t datatype) {
+    nk_dtype_info_t const *info = datatype_info(datatype);
     return info ? info->is_complex : 0;
 }
 
 /// @brief Convert a Python-style datatype string to a logical datatype, normalizing the format.
-/// @return `simsimd_datatype_unknown_k` if the datatype is not supported, otherwise the logical datatype.
+/// @return `nk_datatype_unknown_k` if the datatype is not supported, otherwise the logical datatype.
 /// @see https://docs.python.org/3/library/struct.html#format-characters
 /// @see https://numpy.org/doc/stable/reference/arrays.interface.html
 /// @see https://github.com/pybind/pybind11/issues/1908
-simsimd_datatype_t python_string_to_datatype(char const *name) {
+nk_datatype_t python_string_to_datatype(char const *name) {
     // Floating-point numbers:
-    if (same_string(name, "float32") || same_string(name, "f32") || // SimSIMD-specific
+    if (same_string(name, "float32") || same_string(name, "f32") || // NumKong-specific
         same_string(name, "f4") || same_string(name, "<f4") ||      // Sized float
         same_string(name, "f") || same_string(name, "<f"))          // Named type
-        return simsimd_f32_k;
-    else if (same_string(name, "float16") || same_string(name, "f16") || // SimSIMD-specific
+        return nk_f32_k;
+    else if (same_string(name, "float16") || same_string(name, "f16") || // NumKong-specific
              same_string(name, "f2") || same_string(name, "<f2") ||      // Sized float
              same_string(name, "e") || same_string(name, "<e"))          // Named type
-        return simsimd_f16_k;
-    else if (same_string(name, "float64") || same_string(name, "f64") || // SimSIMD-specific
+        return nk_f16_k;
+    else if (same_string(name, "float64") || same_string(name, "f64") || // NumKong-specific
              same_string(name, "f8") || same_string(name, "<f8") ||      // Sized float
              same_string(name, "d") || same_string(name, "<d"))          // Named type
-        return simsimd_f64_k;
+        return nk_f64_k;
     //? The exact format is not defined, but TensorFlow uses 'E' for `bf16`?!
-    else if (same_string(name, "bfloat16") || same_string(name, "bf16")) // SimSIMD-specific
-        return simsimd_bf16_k;
+    else if (same_string(name, "bfloat16") || same_string(name, "bf16")) // NumKong-specific
+        return nk_bf16_k;
 
     // FP8 formats (ML-focused 8-bit floats):
-    else if (same_string(name, "e4m3")) // SimSIMD-specific
-        return simsimd_e4m3_k;
-    else if (same_string(name, "e5m2")) // SimSIMD-specific
-        return simsimd_e5m2_k;
+    else if (same_string(name, "e4m3")) // NumKong-specific
+        return nk_e4m3_k;
+    else if (same_string(name, "e5m2")) // NumKong-specific
+        return nk_e5m2_k;
 
     // Complex numbers:
-    else if (same_string(name, "complex64") ||                                             // SimSIMD-specific
+    else if (same_string(name, "complex64") ||                                             // NumKong-specific
              same_string(name, "F4") || same_string(name, "<F4") ||                        // Sized complex
              same_string(name, "Zf") || same_string(name, "F") || same_string(name, "<F")) // Named type
-        return simsimd_f32c_k;
-    else if (same_string(name, "complex128") ||                                            // SimSIMD-specific
+        return nk_f32c_k;
+    else if (same_string(name, "complex128") ||                                            // NumKong-specific
              same_string(name, "F8") || same_string(name, "<F8") ||                        // Sized complex
              same_string(name, "Zd") || same_string(name, "D") || same_string(name, "<D")) // Named type
-        return simsimd_f64c_k;
-    else if (same_string(name, "complex32") ||                                             // SimSIMD-specific
+        return nk_f64c_k;
+    else if (same_string(name, "complex32") ||                                             // NumKong-specific
              same_string(name, "F2") || same_string(name, "<F2") ||                        // Sized complex
              same_string(name, "Ze") || same_string(name, "E") || same_string(name, "<E")) // Named type
-        return simsimd_f16c_k;
+        return nk_f16c_k;
     //? The exact format is not defined, but TensorFlow uses 'E' for `bf16`?!
     else if (same_string(name, "bcomplex32") || same_string(name, "bfloat16c") || same_string(name, "bf16c"))
-        return simsimd_bf16c_k;
+        return nk_bf16c_k;
 
     //! Boolean values:
-    else if (same_string(name, "bin8") || // SimSIMD-specific
+    else if (same_string(name, "bin8") || // NumKong-specific
              same_string(name, "?"))      // Named type
-        return simsimd_b8_k;
+        return nk_b8_k;
 
     // Signed integers:
-    else if (same_string(name, "int8") ||                                                       // SimSIMD-specific
+    else if (same_string(name, "int8") ||                                                       // NumKong-specific
              same_string(name, "i1") || same_string(name, "|i1") || same_string(name, "<i1") || // Sized integer
              same_string(name, "b") || same_string(name, "<b"))                                 // Named type
-        return simsimd_i8_k;
-    else if (same_string(name, "int16") ||                                                      // SimSIMD-specific
+        return nk_i8_k;
+    else if (same_string(name, "int16") ||                                                      // NumKong-specific
              same_string(name, "i2") || same_string(name, "|i2") || same_string(name, "<i2") || // Sized integer
              same_string(name, "h") || same_string(name, "<h"))                                 // Named type
-        return simsimd_i16_k;
+        return nk_i16_k;
 
     //! On Windows the 32-bit and 64-bit signed integers will have different specifiers:
     //! https://github.com/pybind/pybind11/issues/1908
 #if defined(_MSC_VER) || defined(__i386__)
-    else if (same_string(name, "int32") ||                                                      // SimSIMD-specific
+    else if (same_string(name, "int32") ||                                                      // NumKong-specific
              same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
              same_string(name, "l") || same_string(name, "<l"))                                 // Named type
-        return simsimd_i32_k;
-    else if (same_string(name, "int64") ||                                                      // SimSIMD-specific
+        return nk_i32_k;
+    else if (same_string(name, "int64") ||                                                      // NumKong-specific
              same_string(name, "i8") || same_string(name, "|i8") || same_string(name, "<i8") || // Sized integer
              same_string(name, "q") || same_string(name, "<q"))                                 // Named type
-        return simsimd_i64_k;
+        return nk_i64_k;
 #else // On Linux and macOS:
-    else if (same_string(name, "int32") ||                                                      // SimSIMD-specific
+    else if (same_string(name, "int32") ||                                                      // NumKong-specific
              same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
              same_string(name, "i") || same_string(name, "<i"))                                 // Named type
-        return simsimd_i32_k;
-    else if (same_string(name, "int64") ||                                                      // SimSIMD-specific
+        return nk_i32_k;
+    else if (same_string(name, "int64") ||                                                      // NumKong-specific
              same_string(name, "i8") || same_string(name, "|i8") || same_string(name, "<i8") || // Sized integer
              same_string(name, "l") || same_string(name, "<l"))                                 // Named type
-        return simsimd_i64_k;
+        return nk_i64_k;
 #endif
 
     // Unsigned integers:
-    else if (same_string(name, "uint8") ||                                                      // SimSIMD-specific
+    else if (same_string(name, "uint8") ||                                                      // NumKong-specific
              same_string(name, "u1") || same_string(name, "|u1") || same_string(name, "<u1") || // Sized integer
              same_string(name, "B") || same_string(name, "<B"))                                 // Named type
-        return simsimd_u8_k;
-    else if (same_string(name, "uint16") ||                                                     // SimSIMD-specific
+        return nk_u8_k;
+    else if (same_string(name, "uint16") ||                                                     // NumKong-specific
              same_string(name, "u2") || same_string(name, "|u2") || same_string(name, "<u2") || // Sized integer
              same_string(name, "H") || same_string(name, "<H"))                                 // Named type
-        return simsimd_u16_k;
+        return nk_u16_k;
 
     //! On Windows the 32-bit and 64-bit unsigned integers will have different specifiers:
     //! https://github.com/pybind/pybind11/issues/1908
 #if defined(_MSC_VER) || defined(__i386__)
-    else if (same_string(name, "uint32") ||                                                     // SimSIMD-specific
+    else if (same_string(name, "uint32") ||                                                     // NumKong-specific
              same_string(name, "i4") || same_string(name, "|i4") || same_string(name, "<i4") || // Sized integer
              same_string(name, "L") || same_string(name, "<L"))                                 // Named type
-        return simsimd_u32_k;
-    else if (same_string(name, "uint64") ||                                                     // SimSIMD-specific
+        return nk_u32_k;
+    else if (same_string(name, "uint64") ||                                                     // NumKong-specific
              same_string(name, "i8") || same_string(name, "|i8") || same_string(name, "<i8") || // Sized integer
              same_string(name, "Q") || same_string(name, "<Q"))                                 // Named type
-        return simsimd_u64_k;
+        return nk_u64_k;
 #else // On Linux and macOS:
-    else if (same_string(name, "uint32") ||                                                     // SimSIMD-specific
+    else if (same_string(name, "uint32") ||                                                     // NumKong-specific
              same_string(name, "u4") || same_string(name, "|u4") || same_string(name, "<u4") || // Sized integer
              same_string(name, "I") || same_string(name, "<I"))                                 // Named type
-        return simsimd_u32_k;
-    else if (same_string(name, "uint64") ||                                                     // SimSIMD-specific
+        return nk_u32_k;
+    else if (same_string(name, "uint64") ||                                                     // NumKong-specific
              same_string(name, "u8") || same_string(name, "|u8") || same_string(name, "<u8") || // Sized integer
              same_string(name, "L") || same_string(name, "<L"))                                 // Named type
-        return simsimd_u64_k;
+        return nk_u64_k;
 #endif
 
-    else
-        return simsimd_datatype_unknown_k;
+    else return nk_datatype_unknown_k;
 }
 
 /// @brief Return the Python string representation of a datatype for the buffer protocol.
 /// @param dtype Logical datatype, can be complex.
 /// @return "unknown" if the datatype is not supported, otherwise a string.
 /// @see https://docs.python.org/3/library/struct.html#format-characters
-char const *datatype_to_python_string(simsimd_datatype_t dtype) {
-    simsimd_dtype_info_t const *info = datatype_info(dtype);
+char const *datatype_to_python_string(nk_datatype_t dtype) {
+    nk_dtype_info_t const *info = datatype_info(dtype);
     return info ? info->buffer_format : "unknown";
 }
 
@@ -1443,76 +1434,64 @@ char const *datatype_to_python_string(simsimd_datatype_t dtype) {
 /// @return 1 if the cast was successful, 0 if the target datatype is not supported.
 /// @note For integer types, we use rounding (not truncation) to minimize precision loss
 ///       when the source floating-point value is close to an integer boundary.
-int cast_distance(simsimd_distance_t distance, simsimd_datatype_t target_dtype, void *target_ptr, size_t offset) {
-    simsimd_f32_t f32_val;
+int cast_distance(nk_distance_t distance, nk_datatype_t target_dtype, void *target_ptr, size_t offset) {
+    nk_f32_t f32_val;
     switch (target_dtype) {
-    case simsimd_f64c_k: ((simsimd_f64_t *)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
-    case simsimd_f64_k: ((simsimd_f64_t *)target_ptr)[offset] = (simsimd_f64_t)distance; return 1;
-    case simsimd_f32c_k: ((simsimd_f32_t *)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
-    case simsimd_f32_k: ((simsimd_f32_t *)target_ptr)[offset] = (simsimd_f32_t)distance; return 1;
-    case simsimd_f16c_k:
-        f32_val = (simsimd_f32_t)distance;
-        simsimd_f32_to_f16(&f32_val, (simsimd_f16_t *)target_ptr + offset);
+    case nk_f64c_k: ((nk_f64_t *)target_ptr)[offset] = (nk_f64_t)distance; return 1;
+    case nk_f64_k: ((nk_f64_t *)target_ptr)[offset] = (nk_f64_t)distance; return 1;
+    case nk_f32c_k: ((nk_f32_t *)target_ptr)[offset] = (nk_f32_t)distance; return 1;
+    case nk_f32_k: ((nk_f32_t *)target_ptr)[offset] = (nk_f32_t)distance; return 1;
+    case nk_f16c_k:
+        f32_val = (nk_f32_t)distance;
+        nk_f32_to_f16(&f32_val, (nk_f16_t *)target_ptr + offset);
         return 1;
-    case simsimd_f16_k:
-        f32_val = (simsimd_f32_t)distance;
-        simsimd_f32_to_f16(&f32_val, (simsimd_f16_t *)target_ptr + offset);
+    case nk_f16_k:
+        f32_val = (nk_f32_t)distance;
+        nk_f32_to_f16(&f32_val, (nk_f16_t *)target_ptr + offset);
         return 1;
-    case simsimd_bf16c_k:
-        f32_val = (simsimd_f32_t)distance;
-        simsimd_f32_to_bf16(&f32_val, (simsimd_bf16_t *)target_ptr + offset);
+    case nk_bf16c_k:
+        f32_val = (nk_f32_t)distance;
+        nk_f32_to_bf16(&f32_val, (nk_bf16_t *)target_ptr + offset);
         return 1;
-    case simsimd_bf16_k:
-        f32_val = (simsimd_f32_t)distance;
-        simsimd_f32_to_bf16(&f32_val, (simsimd_bf16_t *)target_ptr + offset);
+    case nk_bf16_k:
+        f32_val = (nk_f32_t)distance;
+        nk_f32_to_bf16(&f32_val, (nk_bf16_t *)target_ptr + offset);
         return 1;
     // For integer types, use rounding instead of truncation to handle float32 vs float64 precision differences
-    case simsimd_i8_k: ((simsimd_i8_t *)target_ptr)[offset] = (simsimd_i8_t)lround(distance); return 1;
-    case simsimd_u8_k: ((simsimd_u8_t *)target_ptr)[offset] = (simsimd_u8_t)lround(distance); return 1;
-    case simsimd_i16_k: ((simsimd_i16_t *)target_ptr)[offset] = (simsimd_i16_t)lround(distance); return 1;
-    case simsimd_u16_k: ((simsimd_u16_t *)target_ptr)[offset] = (simsimd_u16_t)lround(distance); return 1;
-    case simsimd_i32_k: ((simsimd_i32_t *)target_ptr)[offset] = (simsimd_i32_t)lround(distance); return 1;
-    case simsimd_u32_k: ((simsimd_u32_t *)target_ptr)[offset] = (simsimd_u32_t)lround(distance); return 1;
-    case simsimd_i64_k: ((simsimd_i64_t *)target_ptr)[offset] = (simsimd_i64_t)llround(distance); return 1;
-    case simsimd_u64_k: ((simsimd_u64_t *)target_ptr)[offset] = (simsimd_u64_t)llround(distance); return 1;
+    case nk_i8_k: ((nk_i8_t *)target_ptr)[offset] = (nk_i8_t)lround(distance); return 1;
+    case nk_u8_k: ((nk_u8_t *)target_ptr)[offset] = (nk_u8_t)lround(distance); return 1;
+    case nk_i16_k: ((nk_i16_t *)target_ptr)[offset] = (nk_i16_t)lround(distance); return 1;
+    case nk_u16_k: ((nk_u16_t *)target_ptr)[offset] = (nk_u16_t)lround(distance); return 1;
+    case nk_i32_k: ((nk_i32_t *)target_ptr)[offset] = (nk_i32_t)lround(distance); return 1;
+    case nk_u32_k: ((nk_u32_t *)target_ptr)[offset] = (nk_u32_t)lround(distance); return 1;
+    case nk_i64_k: ((nk_i64_t *)target_ptr)[offset] = (nk_i64_t)llround(distance); return 1;
+    case nk_u64_k: ((nk_u64_t *)target_ptr)[offset] = (nk_u64_t)llround(distance); return 1;
     default: return 0;
     }
 }
 
-simsimd_metric_kind_t python_string_to_metric_kind(char const *name) {
-    if (same_string(name, "euclidean") || same_string(name, "l2")) return simsimd_metric_euclidean_k;
-    else if (same_string(name, "sqeuclidean") || same_string(name, "l2sq"))
-        return simsimd_metric_sqeuclidean_k;
-    else if (same_string(name, "dot") || same_string(name, "inner"))
-        return simsimd_metric_dot_k;
-    else if (same_string(name, "vdot"))
-        return simsimd_metric_vdot_k;
-    else if (same_string(name, "angular"))
-        return simsimd_metric_angular_k;
-    else if (same_string(name, "jaccard"))
-        return simsimd_metric_jaccard_k;
-    else if (same_string(name, "kullbackleibler") || same_string(name, "kld"))
-        return simsimd_metric_kld_k;
-    else if (same_string(name, "jensenshannon") || same_string(name, "jsd"))
-        return simsimd_metric_jsd_k;
-    else if (same_string(name, "hamming"))
-        return simsimd_metric_hamming_k;
-    else if (same_string(name, "jaccard"))
-        return simsimd_metric_jaccard_k;
-    else if (same_string(name, "bilinear"))
-        return simsimd_metric_bilinear_k;
-    else if (same_string(name, "mahalanobis"))
-        return simsimd_metric_mahalanobis_k;
-    else
-        return simsimd_metric_unknown_k;
+nk_metric_kind_t python_string_to_metric_kind(char const *name) {
+    if (same_string(name, "euclidean") || same_string(name, "l2")) return nk_metric_euclidean_k;
+    else if (same_string(name, "sqeuclidean") || same_string(name, "l2sq")) return nk_metric_sqeuclidean_k;
+    else if (same_string(name, "dot") || same_string(name, "inner")) return nk_metric_dot_k;
+    else if (same_string(name, "vdot")) return nk_metric_vdot_k;
+    else if (same_string(name, "angular")) return nk_metric_angular_k;
+    else if (same_string(name, "jaccard")) return nk_metric_jaccard_k;
+    else if (same_string(name, "kullbackleibler") || same_string(name, "kld")) return nk_metric_kld_k;
+    else if (same_string(name, "jensenshannon") || same_string(name, "jsd")) return nk_metric_jsd_k;
+    else if (same_string(name, "hamming")) return nk_metric_hamming_k;
+    else if (same_string(name, "jaccard")) return nk_metric_jaccard_k;
+    else if (same_string(name, "bilinear")) return nk_metric_bilinear_k;
+    else if (same_string(name, "mahalanobis")) return nk_metric_mahalanobis_k;
+    else return nk_metric_unknown_k;
 }
 
 /// @brief Check if a metric is commutative, i.e., if `metric(a, b) == metric(b, a)`.
 /// @return 1 if the metric is commutative, 0 otherwise.
-int kernel_is_commutative(simsimd_metric_kind_t kind) {
+int kernel_is_commutative(nk_metric_kind_t kind) {
     switch (kind) {
-    case simsimd_metric_kld_k: return 0;
-    case simsimd_metric_bilinear_k: return 0; // The kernel is commutative only when the matrix is symmetric.
+    case nk_metric_kld_k: return 0;
+    case nk_metric_bilinear_k: return 0; // The kernel is commutative only when the matrix is symmetric.
     default: return 1;
     }
 }
@@ -1530,21 +1509,21 @@ static PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj) {
         return NULL;
     }
 
-    if (same_string(cap_name, "neon")) { static_capabilities |= simsimd_cap_neon_k; }
-    else if (same_string(cap_name, "neon_f16")) { static_capabilities |= simsimd_cap_neon_f16_k; }
-    else if (same_string(cap_name, "neon_bf16")) { static_capabilities |= simsimd_cap_neon_bf16_k; }
-    else if (same_string(cap_name, "neon_i8")) { static_capabilities |= simsimd_cap_neon_i8_k; }
-    else if (same_string(cap_name, "sve")) { static_capabilities |= simsimd_cap_sve_k; }
-    else if (same_string(cap_name, "sve_f16")) { static_capabilities |= simsimd_cap_sve_f16_k; }
-    else if (same_string(cap_name, "sve_bf16")) { static_capabilities |= simsimd_cap_sve_bf16_k; }
-    else if (same_string(cap_name, "sve_i8")) { static_capabilities |= simsimd_cap_sve_i8_k; }
-    else if (same_string(cap_name, "haswell")) { static_capabilities |= simsimd_cap_haswell_k; }
-    else if (same_string(cap_name, "skylake")) { static_capabilities |= simsimd_cap_skylake_k; }
-    else if (same_string(cap_name, "ice")) { static_capabilities |= simsimd_cap_ice_k; }
-    else if (same_string(cap_name, "genoa")) { static_capabilities |= simsimd_cap_genoa_k; }
-    else if (same_string(cap_name, "sapphire")) { static_capabilities |= simsimd_cap_sapphire_k; }
-    else if (same_string(cap_name, "turin")) { static_capabilities |= simsimd_cap_turin_k; }
-    else if (same_string(cap_name, "sierra")) { static_capabilities |= simsimd_cap_sierra_k; }
+    if (same_string(cap_name, "neon")) { static_capabilities |= nk_cap_neon_k; }
+    else if (same_string(cap_name, "neon_f16")) { static_capabilities |= nk_cap_neon_f16_k; }
+    else if (same_string(cap_name, "neon_bf16")) { static_capabilities |= nk_cap_neon_bf16_k; }
+    else if (same_string(cap_name, "neon_i8")) { static_capabilities |= nk_cap_neon_i8_k; }
+    else if (same_string(cap_name, "sve")) { static_capabilities |= nk_cap_sve_k; }
+    else if (same_string(cap_name, "sve_f16")) { static_capabilities |= nk_cap_sve_f16_k; }
+    else if (same_string(cap_name, "sve_bf16")) { static_capabilities |= nk_cap_sve_bf16_k; }
+    else if (same_string(cap_name, "sve_i8")) { static_capabilities |= nk_cap_sve_i8_k; }
+    else if (same_string(cap_name, "haswell")) { static_capabilities |= nk_cap_haswell_k; }
+    else if (same_string(cap_name, "skylake")) { static_capabilities |= nk_cap_skylake_k; }
+    else if (same_string(cap_name, "ice")) { static_capabilities |= nk_cap_ice_k; }
+    else if (same_string(cap_name, "genoa")) { static_capabilities |= nk_cap_genoa_k; }
+    else if (same_string(cap_name, "sapphire")) { static_capabilities |= nk_cap_sapphire_k; }
+    else if (same_string(cap_name, "turin")) { static_capabilities |= nk_cap_turin_k; }
+    else if (same_string(cap_name, "sierra")) { static_capabilities |= nk_cap_sierra_k; }
     else if (same_string(cap_name, "serial")) {
         PyErr_SetString(PyExc_ValueError, "Can't change the serial functionality");
         return NULL;
@@ -1570,21 +1549,21 @@ static PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj) 
         return NULL;
     }
 
-    if (same_string(cap_name, "neon")) { static_capabilities &= ~simsimd_cap_neon_k; }
-    else if (same_string(cap_name, "neon_f16")) { static_capabilities &= ~simsimd_cap_neon_f16_k; }
-    else if (same_string(cap_name, "neon_bf16")) { static_capabilities &= ~simsimd_cap_neon_bf16_k; }
-    else if (same_string(cap_name, "neon_i8")) { static_capabilities &= ~simsimd_cap_neon_i8_k; }
-    else if (same_string(cap_name, "sve")) { static_capabilities &= ~simsimd_cap_sve_k; }
-    else if (same_string(cap_name, "sve_f16")) { static_capabilities &= ~simsimd_cap_sve_f16_k; }
-    else if (same_string(cap_name, "sve_bf16")) { static_capabilities &= ~simsimd_cap_sve_bf16_k; }
-    else if (same_string(cap_name, "sve_i8")) { static_capabilities &= ~simsimd_cap_sve_i8_k; }
-    else if (same_string(cap_name, "haswell")) { static_capabilities &= ~simsimd_cap_haswell_k; }
-    else if (same_string(cap_name, "skylake")) { static_capabilities &= ~simsimd_cap_skylake_k; }
-    else if (same_string(cap_name, "ice")) { static_capabilities &= ~simsimd_cap_ice_k; }
-    else if (same_string(cap_name, "genoa")) { static_capabilities &= ~simsimd_cap_genoa_k; }
-    else if (same_string(cap_name, "sapphire")) { static_capabilities &= ~simsimd_cap_sapphire_k; }
-    else if (same_string(cap_name, "turin")) { static_capabilities &= ~simsimd_cap_turin_k; }
-    else if (same_string(cap_name, "sierra")) { static_capabilities &= ~simsimd_cap_sierra_k; }
+    if (same_string(cap_name, "neon")) { static_capabilities &= ~nk_cap_neon_k; }
+    else if (same_string(cap_name, "neon_f16")) { static_capabilities &= ~nk_cap_neon_f16_k; }
+    else if (same_string(cap_name, "neon_bf16")) { static_capabilities &= ~nk_cap_neon_bf16_k; }
+    else if (same_string(cap_name, "neon_i8")) { static_capabilities &= ~nk_cap_neon_i8_k; }
+    else if (same_string(cap_name, "sve")) { static_capabilities &= ~nk_cap_sve_k; }
+    else if (same_string(cap_name, "sve_f16")) { static_capabilities &= ~nk_cap_sve_f16_k; }
+    else if (same_string(cap_name, "sve_bf16")) { static_capabilities &= ~nk_cap_sve_bf16_k; }
+    else if (same_string(cap_name, "sve_i8")) { static_capabilities &= ~nk_cap_sve_i8_k; }
+    else if (same_string(cap_name, "haswell")) { static_capabilities &= ~nk_cap_haswell_k; }
+    else if (same_string(cap_name, "skylake")) { static_capabilities &= ~nk_cap_skylake_k; }
+    else if (same_string(cap_name, "ice")) { static_capabilities &= ~nk_cap_ice_k; }
+    else if (same_string(cap_name, "genoa")) { static_capabilities &= ~nk_cap_genoa_k; }
+    else if (same_string(cap_name, "sapphire")) { static_capabilities &= ~nk_cap_sapphire_k; }
+    else if (same_string(cap_name, "turin")) { static_capabilities &= ~nk_cap_turin_k; }
+    else if (same_string(cap_name, "sierra")) { static_capabilities &= ~nk_cap_sierra_k; }
     else if (same_string(cap_name, "serial")) {
         PyErr_SetString(PyExc_ValueError, "Can't change the serial functionality");
         return NULL;
@@ -1603,11 +1582,11 @@ static char const doc_get_capabilities[] = //
     "On Arm it includes: 'serial', 'neon', 'sve', 'sve2', and their extensions.\n";
 
 static PyObject *api_get_capabilities(PyObject *self) {
-    simsimd_capability_t caps = static_capabilities;
+    nk_capability_t caps = static_capabilities;
     PyObject *cap_dict = PyDict_New();
     if (!cap_dict) return NULL;
 
-#define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong((caps) & simsimd_cap_##name##_k))
+#define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong((caps) & nk_cap_##name##_k))
 
     ADD_CAP(serial);
     ADD_CAP(neon);
@@ -1663,7 +1642,7 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, TensorArgument *parsed) {
     // printf("buffer itemsize is %d\n", buffer->itemsize);
     parsed->start = buffer->buf;
     parsed->datatype = python_string_to_datatype(buffer->format);
-    if (parsed->datatype == simsimd_datatype_unknown_k) {
+    if (parsed->datatype == nk_datatype_unknown_k) {
         PyErr_Format(PyExc_ValueError, "Unsupported '%s' datatype specifier", buffer->format);
         PyBuffer_Release(buffer);
         return 0;
@@ -1777,12 +1756,12 @@ static void DistancesTensor_releasebuffer(PyObject *export_from, Py_buffer *view
 
 /// @brief  Create a new DistancesTensor with the given shape and datatype.
 /// @param  datatype  Logical datatype (f32, f64, f16, bf16, i8, etc.)
-/// @param  rank      Number of dimensions (0 for scalar, up to SIMSIMD_NDARRAY_MAX_RANK)
+/// @param  rank      Number of dimensions (0 for scalar, up to NK_NDARRAY_MAX_RANK)
 /// @param  shape     Array of extents for each dimension (can be NULL if rank == 0)
 /// @return New DistancesTensor object with uninitialized data, or NULL on failure.
-static DistancesTensor *DistancesTensor_new(simsimd_datatype_t datatype, size_t rank, Py_ssize_t const *shape) {
-    if (rank > SIMSIMD_NDARRAY_MAX_RANK) {
-        PyErr_Format(PyExc_ValueError, "Tensor rank %zu exceeds maximum %d", rank, SIMSIMD_NDARRAY_MAX_RANK);
+static DistancesTensor *DistancesTensor_new(nk_datatype_t datatype, size_t rank, Py_ssize_t const *shape) {
+    if (rank > NK_NDARRAY_MAX_RANK) {
+        PyErr_Format(PyExc_ValueError, "Tensor rank %zu exceeds maximum %d", rank, NK_NDARRAY_MAX_RANK);
         return NULL;
     }
 
@@ -1804,7 +1783,7 @@ static DistancesTensor *DistancesTensor_new(simsimd_datatype_t datatype, size_t 
     tensor->rank = rank;
 
     // Initialize shape and compute row-major strides
-    for (size_t i = 0; i < SIMSIMD_NDARRAY_MAX_RANK; i++) {
+    for (size_t i = 0; i < NK_NDARRAY_MAX_RANK; i++) {
         tensor->shape[i] = (i < rank) ? shape[i] : 0;
         tensor->strides[i] = 0;
     }
@@ -1826,7 +1805,7 @@ static DistancesTensor *DistancesTensor_new(simsimd_datatype_t datatype, size_t 
 /// @param  datatype  Logical datatype (f32, f64, f16, bf16, i8, etc.)
 /// @param  value     Pointer to the scalar value to copy (item_size bytes)
 /// @return New DistancesTensor object with shape (), or NULL on failure.
-static DistancesTensor *DistancesTensor_scalar(simsimd_datatype_t datatype, void const *value) {
+static DistancesTensor *DistancesTensor_scalar(nk_datatype_t datatype, void const *value) {
     size_t const item_size = bytes_per_datatype(datatype);
 
     // Allocate tensor with space for one element
@@ -1839,7 +1818,7 @@ static DistancesTensor *DistancesTensor_scalar(simsimd_datatype_t datatype, void
     // Initialize as 0D tensor (scalar)
     tensor->datatype = datatype;
     tensor->rank = 0;
-    for (size_t i = 0; i < SIMSIMD_NDARRAY_MAX_RANK; i++) {
+    for (size_t i = 0; i < NK_NDARRAY_MAX_RANK; i++) {
         tensor->shape[i] = 0;
         tensor->strides[i] = 0;
     }
@@ -1857,16 +1836,12 @@ static DistancesTensor *DistancesTensor_scalar(simsimd_datatype_t datatype, void
 /// @brief  Create a DistancesTensor from an f64 scalar value.
 /// @param  value  The f64 scalar value.
 /// @return New DistancesTensor object with shape (), or NULL on failure.
-static DistancesTensor *DistancesTensor_scalar_f64(simsimd_f64_t value) {
-    return DistancesTensor_scalar(simsimd_f64_k, &value);
-}
+static DistancesTensor *DistancesTensor_scalar_f64(nk_f64_t value) { return DistancesTensor_scalar(nk_f64_k, &value); }
 
 /// @brief  Create a DistancesTensor from an f32 scalar value.
 /// @param  value  The f32 scalar value.
 /// @return New DistancesTensor object with shape (), or NULL on failure.
-static DistancesTensor *DistancesTensor_scalar_f32(simsimd_f32_t value) {
-    return DistancesTensor_scalar(simsimd_f32_k, &value);
-}
+static DistancesTensor *DistancesTensor_scalar_f32(nk_f32_t value) { return DistancesTensor_scalar(nk_f32_k, &value); }
 
 /// @brief  Create a view tensor that references another tensor's data (zero-copy).
 /// @param  parent     The parent tensor whose data will be referenced.
@@ -1876,10 +1851,10 @@ static DistancesTensor *DistancesTensor_scalar_f32(simsimd_f32_t value) {
 /// @param  shape      Shape array for the view.
 /// @param  strides    Strides array for the view (in bytes).
 /// @return New DistancesTensor view object, or NULL on failure.
-static DistancesTensor *DistancesTensor_view(DistancesTensor *parent, char *data_ptr, simsimd_datatype_t datatype,
+static DistancesTensor *DistancesTensor_view(DistancesTensor *parent, char *data_ptr, nk_datatype_t datatype,
                                              size_t rank, Py_ssize_t const *shape, Py_ssize_t const *strides) {
-    if (rank > SIMSIMD_NDARRAY_MAX_RANK) {
-        PyErr_Format(PyExc_ValueError, "View rank %zu exceeds maximum %d", rank, SIMSIMD_NDARRAY_MAX_RANK);
+    if (rank > NK_NDARRAY_MAX_RANK) {
+        PyErr_Format(PyExc_ValueError, "View rank %zu exceeds maximum %d", rank, NK_NDARRAY_MAX_RANK);
         return NULL;
     }
 
@@ -1895,7 +1870,7 @@ static DistancesTensor *DistancesTensor_view(DistancesTensor *parent, char *data
     view->rank = rank;
 
     // Copy shape and strides
-    for (size_t i = 0; i < SIMSIMD_NDARRAY_MAX_RANK; i++) {
+    for (size_t i = 0; i < NK_NDARRAY_MAX_RANK; i++) {
         view->shape[i] = (i < rank) ? shape[i] : 0;
         view->strides[i] = (i < rank) ? strides[i] : 0;
     }
@@ -1909,7 +1884,7 @@ static DistancesTensor *DistancesTensor_view(DistancesTensor *parent, char *data
 }
 
 static PyObject *implement_dense_metric( //
-    simsimd_metric_kind_t metric_kind,   //
+    nk_metric_kind_t metric_kind,        //
     PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
 
     PyObject *return_obj = NULL;
@@ -1923,7 +1898,7 @@ static PyObject *implement_dense_metric( //
 
     // Once parsed, the arguments will be stored in these variables:
     char const *dtype_str = NULL, *out_dtype_str = NULL;
-    simsimd_datatype_t dtype = simsimd_datatype_unknown_k, out_dtype = simsimd_datatype_unknown_k;
+    nk_datatype_t dtype = nk_datatype_unknown_k, out_dtype = nk_datatype_unknown_k;
     Py_buffer a_buffer, b_buffer, out_buffer;
     TensorArgument a_parsed, b_parsed, out_parsed;
     memset(&a_buffer, 0, sizeof(Py_buffer));
@@ -1971,7 +1946,7 @@ static PyObject *implement_dense_metric( //
             return NULL;
         }
         dtype = python_string_to_datatype(dtype_str);
-        if (dtype == simsimd_datatype_unknown_k) {
+        if (dtype == nk_datatype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
@@ -1985,7 +1960,7 @@ static PyObject *implement_dense_metric( //
             return NULL;
         }
         out_dtype = python_string_to_datatype(out_dtype_str);
-        if (out_dtype == simsimd_datatype_unknown_k) {
+        if (out_dtype == nk_datatype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'out_dtype'");
             return NULL;
         }
@@ -2011,24 +1986,24 @@ static PyObject *implement_dense_metric( //
 
     // Check data types
     if (a_parsed.datatype != b_parsed.datatype || //
-        a_parsed.datatype == simsimd_datatype_unknown_k || b_parsed.datatype == simsimd_datatype_unknown_k) {
+        a_parsed.datatype == nk_datatype_unknown_k || b_parsed.datatype == nk_datatype_unknown_k) {
         PyErr_SetString(PyExc_TypeError,
                         "Input tensors must have matching datatypes, check with `X.__array_interface__`");
         goto cleanup;
     }
-    if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
+    if (dtype == nk_datatype_unknown_k) dtype = a_parsed.datatype;
 
     // Inference order for the output type:
     // 1. `out_dtype` named argument, if defined
     // 2. `out.dtype` attribute, if `out` is passed
     // 3. double precision float (or its complex variant)
-    if (out_dtype == simsimd_datatype_unknown_k) {
+    if (out_dtype == nk_datatype_unknown_k) {
         if (out_obj) { out_dtype = out_parsed.datatype; }
-        else { out_dtype = is_complex(dtype) ? simsimd_f64c_k : simsimd_f64_k; }
+        else { out_dtype = is_complex(dtype) ? nk_f64c_k : nk_f64_k; }
     }
 
     // Make sure the return datatype is complex if the input datatype is complex, and the same for real numbers
-    if (out_dtype != simsimd_datatype_unknown_k) {
+    if (out_dtype != nk_datatype_unknown_k) {
         if (is_complex(dtype) != is_complex(out_dtype)) {
             PyErr_SetString(
                 PyExc_ValueError,
@@ -2047,10 +2022,10 @@ static PyObject *implement_dense_metric( //
     }
 
     // Look up the metric and the capability
-    simsimd_metric_dense_punned_t metric = NULL;
-    simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&metric, &capability);
+    nk_metric_dense_punned_t metric = NULL;
+    nk_capability_t capability = nk_cap_serial_k;
+    nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
+                          &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError,
@@ -2066,7 +2041,7 @@ static PyObject *implement_dense_metric( //
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     int const dtype_is_complex = is_complex(dtype);
     if (a_parsed.rank == 1 && b_parsed.rank == 1) {
-        simsimd_distance_t distances[2];
+        nk_distance_t distances[2];
         metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, distances);
         return_obj =         //
             dtype_is_complex //
@@ -2131,12 +2106,12 @@ static PyObject *implement_dense_metric( //
 
     // Compute the distances
     for (size_t i = 0; i < count_pairs; ++i) {
-        simsimd_distance_t result[2];
+        nk_distance_t result[2];
         metric(                                   //
             a_parsed.start + i * a_parsed.stride, //
             b_parsed.start + i * b_parsed.stride, //
             a_parsed.dimensions,                  //
-            (simsimd_distance_t *)&result);
+            (nk_distance_t *)&result);
 
         // Export out:
         cast_distance(result[0], out_dtype, distances_start + i * distances_stride_bytes, 0);
@@ -2153,7 +2128,7 @@ cleanup:
 }
 
 static PyObject *implement_curved_metric( //
-    simsimd_metric_kind_t metric_kind,    //
+    nk_metric_kind_t metric_kind,         //
     PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
 
     PyObject *return_obj = NULL;
@@ -2166,7 +2141,7 @@ static PyObject *implement_curved_metric( //
 
     // Once parsed, the arguments will be stored in these variables:
     char const *dtype_str = NULL;
-    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
+    nk_datatype_t dtype = nk_datatype_unknown_k;
     Py_buffer a_buffer, b_buffer, c_buffer;
     TensorArgument a_parsed, b_parsed, c_parsed;
     memset(&a_buffer, 0, sizeof(Py_buffer));
@@ -2213,7 +2188,7 @@ static PyObject *implement_curved_metric( //
             return NULL;
         }
         dtype = python_string_to_datatype(dtype_str);
-        if (dtype == simsimd_datatype_unknown_k) {
+        if (dtype == nk_datatype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
@@ -2244,19 +2219,19 @@ static PyObject *implement_curved_metric( //
 
     // Check data types
     if (a_parsed.datatype != b_parsed.datatype || a_parsed.datatype != c_parsed.datatype ||
-        a_parsed.datatype == simsimd_datatype_unknown_k || b_parsed.datatype == simsimd_datatype_unknown_k ||
-        c_parsed.datatype == simsimd_datatype_unknown_k) {
+        a_parsed.datatype == nk_datatype_unknown_k || b_parsed.datatype == nk_datatype_unknown_k ||
+        c_parsed.datatype == nk_datatype_unknown_k) {
         PyErr_SetString(PyExc_TypeError,
                         "Input tensors must have matching datatypes, check with `X.__array_interface__`");
         goto cleanup;
     }
-    if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
+    if (dtype == nk_datatype_unknown_k) dtype = a_parsed.datatype;
 
     // Look up the metric and the capability
-    simsimd_metric_curved_punned_t metric = NULL;
-    simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&metric, &capability);
+    nk_metric_curved_punned_t metric = NULL;
+    nk_capability_t capability = nk_cap_serial_k;
+    nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
+                          &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError,
@@ -2272,7 +2247,7 @@ static PyObject *implement_curved_metric( //
 
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     int const dtype_is_complex = is_complex(dtype);
-    simsimd_distance_t distances[2];
+    nk_distance_t distances[2];
     metric(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, &distances[0]);
     return_obj =         //
         dtype_is_complex //
@@ -2287,13 +2262,13 @@ cleanup:
 }
 
 /// Geospatial distance function pointer type (4 input arrays + count + output)
-typedef void (*simsimd_metric_geospatial_punned_t)( //
-    void const *a_lats, void const *a_lons,         //
-    void const *b_lats, void const *b_lons,         //
-    simsimd_size_t n, simsimd_distance_t *distances);
+typedef void (*nk_metric_geospatial_punned_t)( //
+    void const *a_lats, void const *a_lons,    //
+    void const *b_lats, void const *b_lons,    //
+    nk_size_t n, nk_distance_t *distances);
 
 static PyObject *implement_geospatial_metric( //
-    simsimd_metric_kind_t metric_kind,        //
+    nk_metric_kind_t metric_kind,             //
     PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
 
     PyObject *return_obj = NULL;
@@ -2308,7 +2283,7 @@ static PyObject *implement_geospatial_metric( //
 
     // Once parsed, the arguments will be stored in these variables:
     char const *dtype_str = NULL;
-    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
+    nk_datatype_t dtype = nk_datatype_unknown_k;
     Py_buffer a_lats_buffer, a_lons_buffer, b_lats_buffer, b_lons_buffer, out_buffer;
     TensorArgument a_lats_parsed, a_lons_parsed, b_lats_parsed, b_lons_parsed, out_parsed;
     memset(&a_lats_buffer, 0, sizeof(Py_buffer));
@@ -2359,7 +2334,7 @@ static PyObject *implement_geospatial_metric( //
             return NULL;
         }
         dtype = python_string_to_datatype(dtype_str);
-        if (dtype == simsimd_datatype_unknown_k) {
+        if (dtype == nk_datatype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
@@ -2391,17 +2366,17 @@ static PyObject *implement_geospatial_metric( //
 
     // Check data types: all must match
     if (a_lats_parsed.datatype != a_lons_parsed.datatype || a_lats_parsed.datatype != b_lats_parsed.datatype ||
-        a_lats_parsed.datatype != b_lons_parsed.datatype || a_lats_parsed.datatype == simsimd_datatype_unknown_k) {
+        a_lats_parsed.datatype != b_lons_parsed.datatype || a_lats_parsed.datatype == nk_datatype_unknown_k) {
         PyErr_SetString(PyExc_TypeError, "All coordinate arrays must have the same datatype");
         goto cleanup;
     }
-    if (dtype == simsimd_datatype_unknown_k) dtype = a_lats_parsed.datatype;
+    if (dtype == nk_datatype_unknown_k) dtype = a_lats_parsed.datatype;
 
     // Look up the metric kernel
-    simsimd_metric_geospatial_punned_t metric = NULL;
-    simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&metric, &capability);
+    nk_metric_geospatial_punned_t metric = NULL;
+    nk_capability_t capability = nk_cap_serial_k;
+    nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
+                          &capability);
     if (!metric) {
         PyErr_Format(PyExc_LookupError, "Unsupported metric '%c' and datatype '%s'", metric_kind,
                      datatype_to_python_string(dtype));
@@ -2409,14 +2384,14 @@ static PyObject *implement_geospatial_metric( //
     }
 
     // Allocate output or use provided
-    simsimd_distance_t *distances_start = NULL;
+    nk_distance_t *distances_start = NULL;
     if (!out_obj) {
         DistancesTensor *distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType, n * sizeof(double));
         if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
-        distances_obj->datatype = simsimd_f64_k;
+        distances_obj->datatype = nk_f64_k;
         distances_obj->rank = 1;
         distances_obj->shape[0] = n;
         distances_obj->shape[1] = 0;
@@ -2425,14 +2400,14 @@ static PyObject *implement_geospatial_metric( //
         distances_obj->parent = NULL;
         distances_obj->data = distances_obj->start;
         return_obj = (PyObject *)distances_obj;
-        distances_start = (simsimd_distance_t *)distances_obj->data;
+        distances_start = (nk_distance_t *)distances_obj->data;
     }
     else {
         if (out_parsed.dimensions < n) {
             PyErr_SetString(PyExc_ValueError, "Output array is too small");
             goto cleanup;
         }
-        distances_start = (simsimd_distance_t *)out_parsed.start;
+        distances_start = (nk_distance_t *)out_parsed.start;
         return_obj = Py_None;
     }
 
@@ -2449,7 +2424,7 @@ cleanup:
 }
 
 static PyObject *implement_sparse_metric( //
-    simsimd_metric_kind_t metric_kind,    //
+    nk_metric_kind_t metric_kind,         //
     PyObject *const *args, Py_ssize_t nargs) {
     if (nargs != 2) {
         PyErr_SetString(PyExc_TypeError, "Function expects only 2 arguments");
@@ -2471,18 +2446,18 @@ static PyObject *implement_sparse_metric( //
     }
 
     // Check data types
-    if (a_parsed.datatype != b_parsed.datatype && a_parsed.datatype != simsimd_datatype_unknown_k &&
-        b_parsed.datatype != simsimd_datatype_unknown_k) {
+    if (a_parsed.datatype != b_parsed.datatype && a_parsed.datatype != nk_datatype_unknown_k &&
+        b_parsed.datatype != nk_datatype_unknown_k) {
         PyErr_SetString(PyExc_TypeError,
                         "Input tensors must have matching datatypes, check with `X.__array_interface__`");
         goto cleanup;
     }
 
-    simsimd_datatype_t dtype = a_parsed.datatype;
-    simsimd_metric_sparse_punned_t metric = NULL;
-    simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&metric, &capability);
+    nk_datatype_t dtype = a_parsed.datatype;
+    nk_metric_sparse_punned_t metric = NULL;
+    nk_capability_t capability = nk_cap_serial_k;
+    nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
+                          &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError, "Unsupported metric '%c' and datatype combination ('%s'/'%s' and '%s'/'%s')",
@@ -2492,7 +2467,7 @@ static PyObject *implement_sparse_metric( //
         goto cleanup;
     }
 
-    simsimd_distance_t distance;
+    nk_distance_t distance;
     metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, b_parsed.dimensions, &distance);
     return_obj = PyFloat_FromDouble(distance);
 
@@ -2504,8 +2479,8 @@ cleanup:
 
 static PyObject *implement_cdist(                        //
     PyObject *a_obj, PyObject *b_obj, PyObject *out_obj, //
-    simsimd_metric_kind_t metric_kind, size_t threads,   //
-    simsimd_datatype_t dtype, simsimd_datatype_t out_dtype) {
+    nk_metric_kind_t metric_kind, size_t threads,        //
+    nk_datatype_t dtype, nk_datatype_t out_dtype) {
 
     PyObject *return_obj = NULL;
 
@@ -2537,24 +2512,24 @@ static PyObject *implement_cdist(                        //
 
     // Check data types
     if (a_parsed.datatype != b_parsed.datatype || //
-        a_parsed.datatype == simsimd_datatype_unknown_k || b_parsed.datatype == simsimd_datatype_unknown_k) {
+        a_parsed.datatype == nk_datatype_unknown_k || b_parsed.datatype == nk_datatype_unknown_k) {
         PyErr_SetString(PyExc_TypeError,
                         "Input tensors must have matching datatypes, check with `X.__array_interface__`");
         goto cleanup;
     }
-    if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
+    if (dtype == nk_datatype_unknown_k) dtype = a_parsed.datatype;
 
     // Inference order for the output type:
     // 1. `out_dtype` named argument, if defined
     // 2. `out.dtype` attribute, if `out` is passed
     // 3. double precision float (or its complex variant)
-    if (out_dtype == simsimd_datatype_unknown_k) {
+    if (out_dtype == nk_datatype_unknown_k) {
         if (out_obj) { out_dtype = out_parsed.datatype; }
-        else { out_dtype = is_complex(dtype) ? simsimd_f64c_k : simsimd_f64_k; }
+        else { out_dtype = is_complex(dtype) ? nk_f64c_k : nk_f64_k; }
     }
 
     // Make sure the return datatype is complex if the input datatype is complex, and the same for real numbers
-    if (out_dtype != simsimd_datatype_unknown_k) {
+    if (out_dtype != nk_datatype_unknown_k) {
         if (is_complex(dtype) != is_complex(out_dtype)) {
             PyErr_SetString(
                 PyExc_ValueError,
@@ -2573,10 +2548,10 @@ static PyObject *implement_cdist(                        //
     }
 
     // Look up the metric and the capability
-    simsimd_metric_dense_punned_t metric = NULL;
-    simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&metric, &capability);
+    nk_metric_dense_punned_t metric = NULL;
+    nk_capability_t capability = nk_cap_serial_k;
+    nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
+                          &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError, "Unsupported metric '%c' and datatype combination ('%s'/'%s' and '%s'/'%s')",
@@ -2589,7 +2564,7 @@ static PyObject *implement_cdist(                        //
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     int const dtype_is_complex = is_complex(dtype);
     if (a_parsed.rank == 1 && b_parsed.rank == 1) {
-        simsimd_distance_t distances[2];
+        nk_distance_t distances[2];
         metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, distances);
         return_obj =         //
             dtype_is_complex //
@@ -2666,12 +2641,12 @@ static PyObject *implement_cdist(                        //
             if (is_symmetric && i > j) continue;
 
             // Export into an on-stack buffer and then copy to the output
-            simsimd_distance_t result[2];
+            nk_distance_t result[2];
             metric(                                   //
                 a_parsed.start + i * a_parsed.stride, //
                 b_parsed.start + j * b_parsed.stride, //
                 a_parsed.dimensions,                  //
-                (simsimd_distance_t *)&result         //
+                (nk_distance_t *)&result              //
             );
 
             // Export into both the lower and upper triangle
@@ -2698,22 +2673,22 @@ cleanup:
     return return_obj;
 }
 
-static PyObject *implement_pointer_access(simsimd_metric_kind_t metric_kind, PyObject *dtype_obj) {
+static PyObject *implement_pointer_access(nk_metric_kind_t metric_kind, PyObject *dtype_obj) {
     char const *dtype_name = PyUnicode_AsUTF8(dtype_obj);
     if (!dtype_name) {
         PyErr_SetString(PyExc_TypeError, "Data-type name must be a string");
         return NULL;
     }
 
-    simsimd_datatype_t datatype = python_string_to_datatype(dtype_name);
+    nk_datatype_t datatype = python_string_to_datatype(dtype_name);
     if (!datatype) { // Check the actual variable here instead of dtype_name.
         PyErr_SetString(PyExc_ValueError, "Unsupported type");
         return NULL;
     }
 
-    simsimd_kernel_punned_t metric = NULL;
-    simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k, &metric, &capability);
+    nk_kernel_punned_t metric = NULL;
+    nk_capability_t capability = nk_cap_serial_k;
+    nk_find_kernel_punned(metric_kind, datatype, static_capabilities, nk_cap_any_k, &metric, &capability);
     if (metric == NULL) {
         PyErr_SetString(PyExc_LookupError, "No such metric");
         return NULL;
@@ -2754,11 +2729,11 @@ static PyObject *api_cdist( //
     // Once parsed, the arguments will be stored in these variables:
     unsigned long long threads = 1;
     char const *dtype_str = NULL, *out_dtype_str = NULL;
-    simsimd_datatype_t dtype = simsimd_datatype_unknown_k, out_dtype = simsimd_datatype_unknown_k;
+    nk_datatype_t dtype = nk_datatype_unknown_k, out_dtype = nk_datatype_unknown_k;
 
     /// Same default as in SciPy:
     /// https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.cdist.html
-    simsimd_metric_kind_t metric_kind = simsimd_metric_euclidean_k;
+    nk_metric_kind_t metric_kind = nk_metric_euclidean_k;
     char const *metric_str = NULL;
 
     // Parse the arguments
@@ -2804,7 +2779,7 @@ static PyObject *api_cdist( //
             return NULL;
         }
         metric_kind = python_string_to_metric_kind(metric_str);
-        if (metric_kind == simsimd_metric_unknown_k) {
+        if (metric_kind == nk_metric_unknown_k) {
             PyErr_SetString(PyExc_LookupError, "Unsupported metric");
             return NULL;
         }
@@ -2825,7 +2800,7 @@ static PyObject *api_cdist( //
             return NULL;
         }
         dtype = python_string_to_datatype(dtype_str);
-        if (dtype == simsimd_datatype_unknown_k) {
+        if (dtype == nk_datatype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
@@ -2839,7 +2814,7 @@ static PyObject *api_cdist( //
             return NULL;
         }
         out_dtype = python_string_to_datatype(out_dtype_str);
-        if (out_dtype == simsimd_datatype_unknown_k) {
+        if (out_dtype == nk_datatype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'out_dtype'");
             return NULL;
         }
@@ -2848,41 +2823,41 @@ static PyObject *api_cdist( //
     return implement_cdist(a_obj, b_obj, out_obj, metric_kind, threads, dtype, out_dtype);
 }
 
-static char const doc_l2_pointer[] = "Return an integer pointer to the `simsimd.l2` kernel.";
+static char const doc_l2_pointer[] = "Return an integer pointer to the `numkong.l2` kernel.";
 static PyObject *api_l2_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_l2_k, dtype_obj);
+    return implement_pointer_access(nk_metric_l2_k, dtype_obj);
 }
-static char const doc_l2sq_pointer[] = "Return an integer pointer to the `simsimd.l2sq` kernel.";
+static char const doc_l2sq_pointer[] = "Return an integer pointer to the `numkong.l2sq` kernel.";
 static PyObject *api_l2sq_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_l2sq_k, dtype_obj);
+    return implement_pointer_access(nk_metric_l2sq_k, dtype_obj);
 }
-static char const doc_angular_pointer[] = "Return an integer pointer to the `simsimd.angular` kernel.";
+static char const doc_angular_pointer[] = "Return an integer pointer to the `numkong.angular` kernel.";
 static PyObject *api_angular_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_angular_k, dtype_obj);
+    return implement_pointer_access(nk_metric_angular_k, dtype_obj);
 }
-static char const doc_dot_pointer[] = "Return an integer pointer to the `simsimd.dot` kernel.";
+static char const doc_dot_pointer[] = "Return an integer pointer to the `numkong.dot` kernel.";
 static PyObject *api_dot_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_dot_k, dtype_obj);
+    return implement_pointer_access(nk_metric_dot_k, dtype_obj);
 }
-static char const doc_vdot_pointer[] = "Return an integer pointer to the `simsimd.vdot` kernel.";
+static char const doc_vdot_pointer[] = "Return an integer pointer to the `numkong.vdot` kernel.";
 static PyObject *api_vdot_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_vdot_k, dtype_obj);
+    return implement_pointer_access(nk_metric_vdot_k, dtype_obj);
 }
-static char const doc_kld_pointer[] = "Return an integer pointer to the `simsimd.kld` kernel.";
+static char const doc_kld_pointer[] = "Return an integer pointer to the `numkong.kld` kernel.";
 static PyObject *api_kld_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_kld_k, dtype_obj);
+    return implement_pointer_access(nk_metric_kld_k, dtype_obj);
 }
-static char const doc_jsd_pointer[] = "Return an integer pointer to the `simsimd.jsd` kernel.";
+static char const doc_jsd_pointer[] = "Return an integer pointer to the `numkong.jsd` kernel.";
 static PyObject *api_jsd_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_jsd_k, dtype_obj);
+    return implement_pointer_access(nk_metric_jsd_k, dtype_obj);
 }
-static char const doc_hamming_pointer[] = "Return an integer pointer to the `simsimd.hamming` kernel.";
+static char const doc_hamming_pointer[] = "Return an integer pointer to the `numkong.hamming` kernel.";
 static PyObject *api_hamming_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_hamming_k, dtype_obj);
+    return implement_pointer_access(nk_metric_hamming_k, dtype_obj);
 }
-static char const doc_jaccard_pointer[] = "Return an integer pointer to the `simsimd.jaccard` kernel.";
+static char const doc_jaccard_pointer[] = "Return an integer pointer to the `numkong.jaccard` kernel.";
 static PyObject *api_jaccard_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(simsimd_metric_jaccard_k, dtype_obj);
+    return implement_pointer_access(nk_metric_jaccard_k, dtype_obj);
 }
 
 static char const doc_l2[] = //
@@ -2902,7 +2877,7 @@ static char const doc_l2[] = //
 
 static PyObject *api_l2(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                         PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_l2_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_metric_l2_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_l2sq[] = //
@@ -2922,7 +2897,7 @@ static char const doc_l2sq[] = //
 
 static PyObject *api_l2sq(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                           PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_l2sq_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_metric_l2sq_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_angular[] = //
@@ -2942,7 +2917,7 @@ static char const doc_angular[] = //
 
 static PyObject *api_angular(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                              PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_angular_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_metric_angular_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_dot[] = //
@@ -2962,7 +2937,7 @@ static char const doc_dot[] = //
 
 static PyObject *api_dot(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_dot_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_metric_dot_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_vdot[] = //
@@ -2982,7 +2957,7 @@ static char const doc_vdot[] = //
 
 static PyObject *api_vdot(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                           PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_vdot_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_metric_vdot_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_kld[] = //
@@ -3002,7 +2977,7 @@ static char const doc_kld[] = //
 
 static PyObject *api_kld(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_kld_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_metric_kld_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_jsd[] = //
@@ -3022,7 +2997,7 @@ static char const doc_jsd[] = //
 
 static PyObject *api_jsd(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_jsd_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_metric_jsd_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_hamming[] = //
@@ -3042,7 +3017,7 @@ static char const doc_hamming[] = //
 
 static PyObject *api_hamming(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                              PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_hamming_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_metric_hamming_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_jaccard[] = //
@@ -3062,7 +3037,7 @@ static char const doc_jaccard[] = //
 
 static PyObject *api_jaccard(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                              PyObject *args_names_tuple) {
-    return implement_dense_metric(simsimd_metric_jaccard_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_metric_jaccard_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_bilinear[] = //
@@ -3080,7 +3055,7 @@ static char const doc_bilinear[] = //
 
 static PyObject *api_bilinear(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                               PyObject *args_names_tuple) {
-    return implement_curved_metric(simsimd_metric_bilinear_k, args, positional_args_count, args_names_tuple);
+    return implement_curved_metric(nk_metric_bilinear_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_mahalanobis[] = //
@@ -3098,7 +3073,7 @@ static char const doc_mahalanobis[] = //
 
 static PyObject *api_mahalanobis(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                                  PyObject *args_names_tuple) {
-    return implement_curved_metric(simsimd_metric_mahalanobis_k, args, positional_args_count, args_names_tuple);
+    return implement_curved_metric(nk_metric_mahalanobis_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_haversine[] = //
@@ -3119,7 +3094,7 @@ static char const doc_haversine[] = //
 
 static PyObject *api_haversine(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                                PyObject *args_names_tuple) {
-    return implement_geospatial_metric(simsimd_metric_haversine_k, args, positional_args_count, args_names_tuple);
+    return implement_geospatial_metric(nk_metric_haversine_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_vincenty[] = //
@@ -3140,7 +3115,7 @@ static char const doc_vincenty[] = //
 
 static PyObject *api_vincenty(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                               PyObject *args_names_tuple) {
-    return implement_geospatial_metric(simsimd_metric_vincenty_k, args, positional_args_count, args_names_tuple);
+    return implement_geospatial_metric(nk_metric_vincenty_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_intersect[] = //
@@ -3155,7 +3130,7 @@ static char const doc_intersect[] = //
     "    >>> def intersect(a, b, /) -> float: ...";
 
 static PyObject *api_intersect(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
-    return implement_sparse_metric(simsimd_metric_intersect_k, args, nargs);
+    return implement_sparse_metric(nk_metric_intersect_k, args, nargs);
 }
 
 static char const doc_fma[] = //
@@ -3191,8 +3166,8 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
 
     // Once parsed, the arguments will be stored in these variables:
     char const *dtype_str = NULL;
-    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
-    simsimd_distance_t alpha = 1, beta = 1;
+    nk_datatype_t dtype = nk_datatype_unknown_k;
+    nk_distance_t alpha = 1, beta = 1;
 
     Py_buffer a_buffer, b_buffer, c_buffer, out_buffer;
     TensorArgument a_parsed, b_parsed, c_parsed, out_parsed;
@@ -3243,7 +3218,7 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
             return NULL;
         }
         dtype = python_string_to_datatype(dtype_str);
-        if (dtype == simsimd_datatype_unknown_k) {
+        if (dtype == nk_datatype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
@@ -3275,21 +3250,21 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
     }
 
     // Check data types
-    if (a_parsed.datatype != b_parsed.datatype || a_parsed.datatype == simsimd_datatype_unknown_k ||
-        b_parsed.datatype == simsimd_datatype_unknown_k || c_parsed.datatype == simsimd_datatype_unknown_k ||
-        (out_obj && out_parsed.datatype == simsimd_datatype_unknown_k)) {
+    if (a_parsed.datatype != b_parsed.datatype || a_parsed.datatype == nk_datatype_unknown_k ||
+        b_parsed.datatype == nk_datatype_unknown_k || c_parsed.datatype == nk_datatype_unknown_k ||
+        (out_obj && out_parsed.datatype == nk_datatype_unknown_k)) {
         PyErr_SetString(PyExc_TypeError,
                         "Input tensors must have matching datatypes, check with `X.__array_interface__`");
         goto cleanup;
     }
-    if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
+    if (dtype == nk_datatype_unknown_k) dtype = a_parsed.datatype;
 
     // Look up the metric and the capability
-    simsimd_kernel_fma_punned_t metric = NULL;
-    simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_metric_kind_t const metric_kind = simsimd_metric_fma_k;
-    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&metric, &capability);
+    nk_kernel_fma_punned_t metric = NULL;
+    nk_capability_t capability = nk_cap_serial_k;
+    nk_metric_kind_t const metric_kind = nk_metric_fma_k;
+    nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
+                          &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError,
@@ -3374,8 +3349,8 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
 
     // Once parsed, the arguments will be stored in these variables:
     char const *dtype_str = NULL;
-    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
-    simsimd_distance_t alpha = 1, beta = 1;
+    nk_datatype_t dtype = nk_datatype_unknown_k;
+    nk_distance_t alpha = 1, beta = 1;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
     TensorArgument a_parsed, b_parsed, out_parsed;
@@ -3424,7 +3399,7 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
             return NULL;
         }
         dtype = python_string_to_datatype(dtype_str);
-        if (dtype == simsimd_datatype_unknown_k) {
+        if (dtype == nk_datatype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
@@ -3453,21 +3428,20 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
     }
 
     // Check data types
-    if (a_parsed.datatype != b_parsed.datatype || a_parsed.datatype == simsimd_datatype_unknown_k ||
-        b_parsed.datatype == simsimd_datatype_unknown_k ||
-        (out_obj && out_parsed.datatype == simsimd_datatype_unknown_k)) {
+    if (a_parsed.datatype != b_parsed.datatype || a_parsed.datatype == nk_datatype_unknown_k ||
+        b_parsed.datatype == nk_datatype_unknown_k || (out_obj && out_parsed.datatype == nk_datatype_unknown_k)) {
         PyErr_SetString(PyExc_TypeError,
                         "Input tensors must have matching datatypes, check with `X.__array_interface__`");
         goto cleanup;
     }
-    if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
+    if (dtype == nk_datatype_unknown_k) dtype = a_parsed.datatype;
 
     // Look up the metric and the capability
-    simsimd_kernel_wsum_punned_t metric = NULL;
-    simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_metric_kind_t const metric_kind = simsimd_metric_wsum_k;
-    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&metric, &capability);
+    nk_kernel_wsum_punned_t metric = NULL;
+    nk_capability_t capability = nk_cap_serial_k;
+    nk_metric_kind_t const metric_kind = nk_metric_wsum_k;
+    nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
+                          &capability);
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError,
@@ -3549,7 +3523,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     PyObject *b_dtype_obj = NULL;   // Optional, "b_dtype" keyword-only
     PyObject *out_dtype_obj = NULL; // Optional, "out_dtype" keyword-only
 
-    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
+    nk_datatype_t dtype = nk_datatype_unknown_k;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
     TensorArgument a_parsed, b_parsed, out_parsed;
@@ -3628,16 +3602,16 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         }
         else { dtype = a_parsed.datatype; }
 
-        if (dtype == simsimd_datatype_unknown_k) {
+        if (dtype == nk_datatype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
             goto cleanup;
         }
 
         // Find scale kernel
-        simsimd_kernel_scale_punned_t scale_kernel = NULL;
-        simsimd_capability_t capability = simsimd_cap_serial_k;
-        simsimd_find_kernel_punned(simsimd_metric_scale_k, dtype, static_capabilities, simsimd_cap_any_k,
-                                   (simsimd_kernel_punned_t *)&scale_kernel, &capability);
+        nk_kernel_scale_punned_t scale_kernel = NULL;
+        nk_capability_t capability = nk_cap_serial_k;
+        nk_find_kernel_punned(nk_metric_scale_k, dtype, static_capabilities, nk_cap_any_k,
+                              (nk_kernel_punned_t *)&scale_kernel, &capability);
         if (!scale_kernel) {
             PyErr_Format(PyExc_LookupError, "No scale kernel for dtype '%s'", datatype_to_string(dtype));
             goto cleanup;
@@ -3704,16 +3678,16 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     }
     else { dtype = a_parsed.datatype; }
 
-    if (dtype == simsimd_datatype_unknown_k) {
+    if (dtype == nk_datatype_unknown_k) {
         PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
         goto cleanup;
     }
 
     // Find sum kernel
-    simsimd_kernel_sum_punned_t sum_kernel = NULL;
-    simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel_punned(simsimd_metric_sum_k, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&sum_kernel, &capability);
+    nk_kernel_sum_punned_t sum_kernel = NULL;
+    nk_capability_t capability = nk_cap_serial_k;
+    nk_find_kernel_punned(nk_metric_sum_k, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&sum_kernel,
+                          &capability);
     if (!sum_kernel) {
         PyErr_Format(PyExc_LookupError, "No sum kernel for dtype '%s'", datatype_to_string(dtype));
         goto cleanup;
@@ -3781,7 +3755,7 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
     PyObject *b_dtype_obj = NULL;   // Optional, "b_dtype" keyword-only
     PyObject *out_dtype_obj = NULL; // Optional, "out_dtype" keyword-only
 
-    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
+    nk_datatype_t dtype = nk_datatype_unknown_k;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
     TensorArgument a_parsed, b_parsed, out_parsed;
@@ -3860,16 +3834,16 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
         }
         else { dtype = a_parsed.datatype; }
 
-        if (dtype == simsimd_datatype_unknown_k) {
+        if (dtype == nk_datatype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
             goto cleanup;
         }
 
         // Find scale kernel
-        simsimd_kernel_scale_punned_t scale_kernel = NULL;
-        simsimd_capability_t capability = simsimd_cap_serial_k;
-        simsimd_find_kernel_punned(simsimd_metric_scale_k, dtype, static_capabilities, simsimd_cap_any_k,
-                                   (simsimd_kernel_punned_t *)&scale_kernel, &capability);
+        nk_kernel_scale_punned_t scale_kernel = NULL;
+        nk_capability_t capability = nk_cap_serial_k;
+        nk_find_kernel_punned(nk_metric_scale_k, dtype, static_capabilities, nk_cap_any_k,
+                              (nk_kernel_punned_t *)&scale_kernel, &capability);
         if (!scale_kernel) {
             PyErr_Format(PyExc_LookupError, "No scale kernel for dtype '%s'", datatype_to_string(dtype));
             goto cleanup;
@@ -3936,16 +3910,16 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
     }
     else { dtype = a_parsed.datatype; }
 
-    if (dtype == simsimd_datatype_unknown_k) {
+    if (dtype == nk_datatype_unknown_k) {
         PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
         goto cleanup;
     }
 
     // Find fma kernel
-    simsimd_kernel_fma_punned_t fma_kernel = NULL;
-    simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel_punned(simsimd_metric_fma_k, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&fma_kernel, &capability);
+    nk_kernel_fma_punned_t fma_kernel = NULL;
+    nk_capability_t capability = nk_cap_serial_k;
+    nk_find_kernel_punned(nk_metric_fma_k, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&fma_kernel,
+                          &capability);
     if (!fma_kernel) {
         PyErr_Format(PyExc_LookupError, "No fma kernel for dtype '%s'", datatype_to_string(dtype));
         goto cleanup;
@@ -4022,7 +3996,7 @@ static char const doc_atan[] = //
     "Signature:\n"
     "    >>> def atan(a, /, dtype, *, out) -> Optional[NDArray]: ...";
 
-static PyObject *implement_trigonometry(simsimd_metric_kind_t metric_kind, PyObject *const *args,
+static PyObject *implement_trigonometry(nk_metric_kind_t metric_kind, PyObject *const *args,
                                         Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
 
     PyObject *return_obj = NULL;
@@ -4034,7 +4008,7 @@ static PyObject *implement_trigonometry(simsimd_metric_kind_t metric_kind, PyObj
 
     // Once parsed, the arguments will be stored in these variables:
     char const *dtype_str = NULL;
-    simsimd_datatype_t dtype = simsimd_datatype_unknown_k;
+    nk_datatype_t dtype = nk_datatype_unknown_k;
 
     Py_buffer a_buffer, out_buffer;
     TensorArgument a_parsed, out_parsed;
@@ -4079,7 +4053,7 @@ static PyObject *implement_trigonometry(simsimd_metric_kind_t metric_kind, PyObj
             return NULL;
         }
         dtype = python_string_to_datatype(dtype_str);
-        if (dtype == simsimd_datatype_unknown_k) {
+        if (dtype == nk_datatype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
@@ -4100,18 +4074,17 @@ static PyObject *implement_trigonometry(simsimd_metric_kind_t metric_kind, PyObj
     }
 
     // Check data types
-    if (a_parsed.datatype == simsimd_datatype_unknown_k ||
-        (out_obj && out_parsed.datatype == simsimd_datatype_unknown_k)) {
+    if (a_parsed.datatype == nk_datatype_unknown_k || (out_obj && out_parsed.datatype == nk_datatype_unknown_k)) {
         PyErr_SetString(PyExc_TypeError, "Input tensor must have a known datatype, check with `X.__array_interface__`");
         goto cleanup;
     }
-    if (dtype == simsimd_datatype_unknown_k) dtype = a_parsed.datatype;
+    if (dtype == nk_datatype_unknown_k) dtype = a_parsed.datatype;
 
     // Look up the kernel and the capability
-    simsimd_kernel_trigonometry_punned_t kernel = NULL;
-    simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel_punned(metric_kind, dtype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&kernel, &capability);
+    nk_kernel_trigonometry_punned_t kernel = NULL;
+    nk_capability_t capability = nk_cap_serial_k;
+    nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&kernel,
+                          &capability);
     if (!kernel) {
         PyErr_Format( //
             PyExc_LookupError,
@@ -4159,17 +4132,17 @@ cleanup:
 
 static PyObject *api_sin(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
-    return implement_trigonometry(simsimd_metric_sin_k, args, positional_args_count, args_names_tuple);
+    return implement_trigonometry(nk_metric_sin_k, args, positional_args_count, args_names_tuple);
 }
 
 static PyObject *api_cos(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
-    return implement_trigonometry(simsimd_metric_cos_k, args, positional_args_count, args_names_tuple);
+    return implement_trigonometry(nk_metric_cos_k, args, positional_args_count, args_names_tuple);
 }
 
 static PyObject *api_atan(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                           PyObject *args_names_tuple) {
-    return implement_trigonometry(simsimd_metric_atan_k, args, positional_args_count, args_names_tuple);
+    return implement_trigonometry(nk_metric_atan_k, args, positional_args_count, args_names_tuple);
 }
 
 // Mesh alignment functions (Kabsch, Umeyama, RMSD)
@@ -4194,7 +4167,7 @@ static char const doc_kabsch[] = //
     "Returns:\n"
     "    tuple: (rotation, scale, rmsd, a_centroid, b_centroid) - all DistancesTensor.\n\n"
     "Example:\n"
-    "    >>> rot, scale, rmsd, a_c, b_c = simsimd.kabsch(a, b)\n"
+    "    >>> rot, scale, rmsd, a_c, b_c = numkong.kabsch(a, b)\n"
     "    >>> np.asarray(rot)  # (3, 3) rotation matrix\n"
     "    >>> float(scale)     # scale factor (always 1.0 for Kabsch)\n";
 
@@ -4212,7 +4185,7 @@ static char const doc_umeyama[] = //
     "Returns:\n"
     "    tuple: (rotation, scale, rmsd, a_centroid, b_centroid) - all DistancesTensor.\n\n"
     "Example:\n"
-    "    >>> rot, scale, rmsd, a_c, b_c = simsimd.umeyama(a, b)\n"
+    "    >>> rot, scale, rmsd, a_c, b_c = numkong.umeyama(a, b)\n"
     "    >>> float(scale)  # Will differ from 1.0 if point clouds have different scales\n";
 
 static char const doc_rmsd[] = //
@@ -4228,7 +4201,7 @@ static char const doc_rmsd[] = //
     "Returns:\n"
     "    tuple: (rotation, scale, rmsd, a_centroid, b_centroid) - all DistancesTensor.\n";
 
-static PyObject *implement_mesh_alignment(simsimd_metric_kind_t metric_kind, PyObject *const *args,
+static PyObject *implement_mesh_alignment(nk_metric_kind_t metric_kind, PyObject *const *args,
                                           Py_ssize_t positional_args_count) {
     // We expect exactly 2 positional arguments: a and b
     if (positional_args_count != 2) {
@@ -4306,24 +4279,24 @@ static PyObject *implement_mesh_alignment(simsimd_metric_kind_t metric_kind, PyO
     }
 
     // Check data types and get kernel
-    simsimd_datatype_t datatype = python_string_to_datatype(a_buffer.format);
-    if (datatype != simsimd_f32_k && datatype != simsimd_f64_k) {
+    nk_datatype_t datatype = python_string_to_datatype(a_buffer.format);
+    if (datatype != nk_f32_k && datatype != nk_f64_k) {
         PyErr_SetString(PyExc_TypeError, "Point clouds must be float32 or float64");
         goto cleanup;
     }
 
     // Find the appropriate kernel
-    simsimd_metric_mesh_punned_t kernel = NULL;
-    simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel_punned(metric_kind, datatype, static_capabilities, simsimd_cap_any_k,
-                               (simsimd_kernel_punned_t *)&kernel, &capability);
+    nk_metric_mesh_punned_t kernel = NULL;
+    nk_capability_t capability = nk_cap_serial_k;
+    nk_find_kernel_punned(metric_kind, datatype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&kernel,
+                          &capability);
     if (!kernel) {
         PyErr_SetString(PyExc_RuntimeError, "No suitable mesh kernel found for this data type");
         goto cleanup;
     }
 
     // Check contiguity - we need row-major contiguous data for the innermost 2 dimensions
-    Py_ssize_t const elem_size = (datatype == simsimd_f32_k ? 4 : 8);
+    Py_ssize_t const elem_size = (datatype == nk_f32_k ? 4 : 8);
     Py_ssize_t const inner_stride_a = is_batched ? a_buffer.strides[2] : a_buffer.strides[1];
     Py_ssize_t const inner_stride_b = is_batched ? b_buffer.strides[2] : b_buffer.strides[1];
     if (inner_stride_a != elem_size || inner_stride_b != elem_size) {
@@ -4334,10 +4307,10 @@ static PyObject *implement_mesh_alignment(simsimd_metric_kind_t metric_kind, PyO
     // Calculate strides between batches
     Py_ssize_t const batch_stride_a = is_batched ? a_buffer.strides[0] : 0;
     Py_ssize_t const batch_stride_b = is_batched ? b_buffer.strides[0] : 0;
-    simsimd_size_t n = (simsimd_size_t)n_points;
+    nk_size_t n = (nk_size_t)n_points;
 
-    // Output dtype for scale/rmsd is always f64 (simsimd_distance_t)
-    simsimd_datatype_t out_dtype = simsimd_f64_k;
+    // Output dtype for scale/rmsd is always f64 (nk_distance_t)
+    nk_datatype_t out_dtype = nk_f64_k;
 
     if (!is_batched) {
         // Single pair case - return 0D scalars for scale/rmsd, (3,3) for rotation, (3,) for centroids
@@ -4352,24 +4325,24 @@ static PyObject *implement_mesh_alignment(simsimd_metric_kind_t metric_kind, PyO
 
         if (!rot_tensor || !scale_tensor || !rmsd_tensor || !a_cent_tensor || !b_cent_tensor) goto cleanup;
 
-        simsimd_distance_t scale = 0.0, rmsd_result = 0.0;
+        nk_distance_t scale = 0.0, rmsd_result = 0.0;
 
-        if (datatype == simsimd_f64_k) {
-            simsimd_f64_t *a_centroid = (simsimd_f64_t *)a_cent_tensor->data;
-            simsimd_f64_t *b_centroid = (simsimd_f64_t *)b_cent_tensor->data;
-            simsimd_f64_t *rotation = (simsimd_f64_t *)rot_tensor->data;
+        if (datatype == nk_f64_k) {
+            nk_f64_t *a_centroid = (nk_f64_t *)a_cent_tensor->data;
+            nk_f64_t *b_centroid = (nk_f64_t *)b_cent_tensor->data;
+            nk_f64_t *rotation = (nk_f64_t *)rot_tensor->data;
             kernel(a_buffer.buf, b_buffer.buf, n, a_centroid, b_centroid, rotation, &scale, &rmsd_result);
         }
-        else { // simsimd_f32_k
-            simsimd_f32_t *a_centroid = (simsimd_f32_t *)a_cent_tensor->data;
-            simsimd_f32_t *b_centroid = (simsimd_f32_t *)b_cent_tensor->data;
-            simsimd_f32_t *rotation = (simsimd_f32_t *)rot_tensor->data;
+        else { // nk_f32_k
+            nk_f32_t *a_centroid = (nk_f32_t *)a_cent_tensor->data;
+            nk_f32_t *b_centroid = (nk_f32_t *)b_cent_tensor->data;
+            nk_f32_t *rotation = (nk_f32_t *)rot_tensor->data;
             kernel(a_buffer.buf, b_buffer.buf, n, a_centroid, b_centroid, rotation, &scale, &rmsd_result);
         }
 
         // Copy scalars into 0D tensors
-        *(simsimd_f64_t *)scale_tensor->data = scale;
-        *(simsimd_f64_t *)rmsd_tensor->data = rmsd_result;
+        *(nk_f64_t *)scale_tensor->data = scale;
+        *(nk_f64_t *)rmsd_tensor->data = rmsd_result;
     }
     else {
         // Batched case: (B, N, 3) -> rotation (B,3,3), scale (B,), rmsd (B,), centroids (B,3)
@@ -4389,30 +4362,26 @@ static PyObject *implement_mesh_alignment(simsimd_metric_kind_t metric_kind, PyO
         char *b_ptr = (char *)b_buffer.buf;
 
         for (Py_ssize_t batch_idx = 0; batch_idx < batch_size; ++batch_idx) {
-            simsimd_distance_t scale = 0.0, rmsd_result = 0.0;
+            nk_distance_t scale = 0.0, rmsd_result = 0.0;
 
-            if (datatype == simsimd_f64_k) {
-                simsimd_f64_t *a_centroid = (simsimd_f64_t *)(a_cent_tensor->data +
-                                                              batch_idx * 3 * sizeof(simsimd_f64_t));
-                simsimd_f64_t *b_centroid = (simsimd_f64_t *)(b_cent_tensor->data +
-                                                              batch_idx * 3 * sizeof(simsimd_f64_t));
-                simsimd_f64_t *rotation = (simsimd_f64_t *)(rot_tensor->data + batch_idx * 9 * sizeof(simsimd_f64_t));
+            if (datatype == nk_f64_k) {
+                nk_f64_t *a_centroid = (nk_f64_t *)(a_cent_tensor->data + batch_idx * 3 * sizeof(nk_f64_t));
+                nk_f64_t *b_centroid = (nk_f64_t *)(b_cent_tensor->data + batch_idx * 3 * sizeof(nk_f64_t));
+                nk_f64_t *rotation = (nk_f64_t *)(rot_tensor->data + batch_idx * 9 * sizeof(nk_f64_t));
                 kernel(a_ptr + batch_idx * batch_stride_a, b_ptr + batch_idx * batch_stride_b, n, a_centroid,
                        b_centroid, rotation, &scale, &rmsd_result);
             }
-            else { // simsimd_f32_k
-                simsimd_f32_t *a_centroid = (simsimd_f32_t *)(a_cent_tensor->data +
-                                                              batch_idx * 3 * sizeof(simsimd_f32_t));
-                simsimd_f32_t *b_centroid = (simsimd_f32_t *)(b_cent_tensor->data +
-                                                              batch_idx * 3 * sizeof(simsimd_f32_t));
-                simsimd_f32_t *rotation = (simsimd_f32_t *)(rot_tensor->data + batch_idx * 9 * sizeof(simsimd_f32_t));
+            else { // nk_f32_k
+                nk_f32_t *a_centroid = (nk_f32_t *)(a_cent_tensor->data + batch_idx * 3 * sizeof(nk_f32_t));
+                nk_f32_t *b_centroid = (nk_f32_t *)(b_cent_tensor->data + batch_idx * 3 * sizeof(nk_f32_t));
+                nk_f32_t *rotation = (nk_f32_t *)(rot_tensor->data + batch_idx * 9 * sizeof(nk_f32_t));
                 kernel(a_ptr + batch_idx * batch_stride_a, b_ptr + batch_idx * batch_stride_b, n, a_centroid,
                        b_centroid, rotation, &scale, &rmsd_result);
             }
 
             // Store scale and rmsd (always f64)
-            ((simsimd_f64_t *)scale_tensor->data)[batch_idx] = scale;
-            ((simsimd_f64_t *)rmsd_tensor->data)[batch_idx] = rmsd_result;
+            ((nk_f64_t *)scale_tensor->data)[batch_idx] = scale;
+            ((nk_f64_t *)rmsd_tensor->data)[batch_idx] = rmsd_result;
         }
     }
 
@@ -4438,32 +4407,32 @@ static PyObject *api_kabsch(PyObject *self, PyObject *const *args, Py_ssize_t po
                             PyObject *args_names_tuple) {
     (void)self;
     (void)args_names_tuple;
-    return implement_mesh_alignment(simsimd_metric_kabsch_k, args, positional_args_count);
+    return implement_mesh_alignment(nk_metric_kabsch_k, args, positional_args_count);
 }
 
 static PyObject *api_umeyama(PyObject *self, PyObject *const *args, Py_ssize_t positional_args_count,
                              PyObject *args_names_tuple) {
     (void)self;
     (void)args_names_tuple;
-    return implement_mesh_alignment(simsimd_metric_umeyama_k, args, positional_args_count);
+    return implement_mesh_alignment(nk_metric_umeyama_k, args, positional_args_count);
 }
 
 static PyObject *api_rmsd_mesh(PyObject *self, PyObject *const *args, Py_ssize_t positional_args_count,
                                PyObject *args_names_tuple) {
     (void)self;
     (void)args_names_tuple;
-    return implement_mesh_alignment(simsimd_metric_rmsd_k, args, positional_args_count);
+    return implement_mesh_alignment(nk_metric_rmsd_k, args, positional_args_count);
 }
 
-/// @brief  Parse a Python buffer format string into a SimSIMD datatype.
-static int buffer_datatype(Py_buffer const *buffer, simsimd_datatype_t *dtype) {
+/// @brief  Parse a Python buffer format string into a NumKong datatype.
+static int buffer_datatype(Py_buffer const *buffer, nk_datatype_t *dtype) {
     char const *format = buffer->format ? buffer->format : NULL;
     if (!format) {
         PyErr_SetString(PyExc_TypeError, "Input buffer must expose a format string");
         return 0;
     }
     *dtype = python_string_to_datatype(format);
-    if (*dtype == simsimd_datatype_unknown_k) {
+    if (*dtype == nk_datatype_unknown_k) {
         PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", format);
         return 0;
     }
@@ -4471,49 +4440,49 @@ static int buffer_datatype(Py_buffer const *buffer, simsimd_datatype_t *dtype) {
 }
 
 /// @brief  Convert a scalar at a byte address to float32.
-static int convert_scalar_to_f32(simsimd_datatype_t src_dtype, char const *src, simsimd_f32_t *value) {
+static int convert_scalar_to_f32(nk_datatype_t src_dtype, char const *src, nk_f32_t *value) {
     switch (src_dtype) {
-    case simsimd_f64_k: *value = (simsimd_f32_t) * (simsimd_f64_t const *)src; return 1;
-    case simsimd_f32_k: *value = *(simsimd_f32_t const *)src; return 1;
-    case simsimd_f16_k: simsimd_f16_to_f32((simsimd_f16_t const *)src, value); return 1;
-    case simsimd_bf16_k: simsimd_bf16_to_f32((simsimd_bf16_t const *)src, value); return 1;
-    case simsimd_e4m3_k: simsimd_e4m3_to_f32((simsimd_e4m3_t const *)src, value); return 1;
-    case simsimd_e5m2_k: simsimd_e5m2_to_f32((simsimd_e5m2_t const *)src, value); return 1;
-    case simsimd_b8_k: *value = (simsimd_f32_t) * (simsimd_b8_t const *)src; return 1;
-    case simsimd_i8_k: *value = (simsimd_f32_t) * (simsimd_i8_t const *)src; return 1;
-    case simsimd_u8_k: *value = (simsimd_f32_t) * (simsimd_u8_t const *)src; return 1;
-    case simsimd_i16_k: *value = (simsimd_f32_t) * (simsimd_i16_t const *)src; return 1;
-    case simsimd_u16_k: *value = (simsimd_f32_t) * (simsimd_u16_t const *)src; return 1;
-    case simsimd_i32_k: *value = (simsimd_f32_t) * (simsimd_i32_t const *)src; return 1;
-    case simsimd_u32_k: *value = (simsimd_f32_t) * (simsimd_u32_t const *)src; return 1;
-    case simsimd_i64_k: *value = (simsimd_f32_t) * (simsimd_i64_t const *)src; return 1;
-    case simsimd_u64_k: *value = (simsimd_f32_t) * (simsimd_u64_t const *)src; return 1;
+    case nk_f64_k: *value = (nk_f32_t) * (nk_f64_t const *)src; return 1;
+    case nk_f32_k: *value = *(nk_f32_t const *)src; return 1;
+    case nk_f16_k: nk_f16_to_f32((nk_f16_t const *)src, value); return 1;
+    case nk_bf16_k: nk_bf16_to_f32((nk_bf16_t const *)src, value); return 1;
+    case nk_e4m3_k: nk_e4m3_to_f32((nk_e4m3_t const *)src, value); return 1;
+    case nk_e5m2_k: nk_e5m2_to_f32((nk_e5m2_t const *)src, value); return 1;
+    case nk_b8_k: *value = (nk_f32_t) * (nk_b8_t const *)src; return 1;
+    case nk_i8_k: *value = (nk_f32_t) * (nk_i8_t const *)src; return 1;
+    case nk_u8_k: *value = (nk_f32_t) * (nk_u8_t const *)src; return 1;
+    case nk_i16_k: *value = (nk_f32_t) * (nk_i16_t const *)src; return 1;
+    case nk_u16_k: *value = (nk_f32_t) * (nk_u16_t const *)src; return 1;
+    case nk_i32_k: *value = (nk_f32_t) * (nk_i32_t const *)src; return 1;
+    case nk_u32_k: *value = (nk_f32_t) * (nk_u32_t const *)src; return 1;
+    case nk_i64_k: *value = (nk_f32_t) * (nk_i64_t const *)src; return 1;
+    case nk_u64_k: *value = (nk_f32_t) * (nk_u64_t const *)src; return 1;
     default: PyErr_SetString(PyExc_TypeError, "Unsupported datatype for matmul conversion"); return 0;
     }
 }
 
 /// @brief  Convert a strided row to bf16.
-static int convert_row_to_bf16(simsimd_datatype_t src_dtype, char const *row_start, simsimd_size_t count,
-                               simsimd_size_t element_stride, simsimd_bf16_t *dest_row) {
-    for (simsimd_size_t j = 0; j < count; j++) {
-        simsimd_f32_t value = 0;
+static int convert_row_to_bf16(nk_datatype_t src_dtype, char const *row_start, nk_size_t count,
+                               nk_size_t element_stride, nk_bf16_t *dest_row) {
+    for (nk_size_t j = 0; j < count; j++) {
+        nk_f32_t value = 0;
         char const *element_ptr = row_start + j * element_stride;
         if (!convert_scalar_to_f32(src_dtype, element_ptr, &value)) return 0;
-        simsimd_f32_to_bf16(&value, &dest_row[j]);
+        nk_f32_to_bf16(&value, &dest_row[j]);
     }
     return 1;
 }
 
 /// @brief  Convert a strided row to i8 with clamping.
-static int convert_row_to_i8(simsimd_datatype_t src_dtype, char const *row_start, simsimd_size_t count,
-                             simsimd_size_t element_stride, simsimd_i8_t *dest_row) {
-    for (simsimd_size_t j = 0; j < count; j++) {
-        simsimd_f32_t value = 0;
+static int convert_row_to_i8(nk_datatype_t src_dtype, char const *row_start, nk_size_t count, nk_size_t element_stride,
+                             nk_i8_t *dest_row) {
+    for (nk_size_t j = 0; j < count; j++) {
+        nk_f32_t value = 0;
         char const *element_ptr = row_start + j * element_stride;
         if (!convert_scalar_to_f32(src_dtype, element_ptr, &value)) return 0;
         if (value < -128) value = -128;
         if (value > 127) value = 127;
-        dest_row[j] = (simsimd_i8_t)lround((double)value);
+        dest_row[j] = (nk_i8_t)lround((double)value);
     }
     return 1;
 }
@@ -4584,9 +4553,9 @@ static PyObject *api_pack_matmul_argument(PyObject *self, PyObject *const *args,
     }
 
     // Resolve the target packing dtype.
-    simsimd_datatype_t target_dtype;
-    if (same_string(dtype_str, "bf16") || same_string(dtype_str, "bfloat16")) { target_dtype = simsimd_bf16_k; }
-    else if (same_string(dtype_str, "i8") || same_string(dtype_str, "int8")) { target_dtype = simsimd_i8_k; }
+    nk_datatype_t target_dtype;
+    if (same_string(dtype_str, "bf16") || same_string(dtype_str, "bfloat16")) { target_dtype = nk_bf16_k; }
+    else if (same_string(dtype_str, "i8") || same_string(dtype_str, "int8")) { target_dtype = nk_i8_k; }
     else {
         PyErr_Format(PyExc_ValueError, "Unsupported dtype '%s'. Use 'bf16' or 'i8'.", dtype_str);
         return NULL;
@@ -4606,7 +4575,7 @@ static PyObject *api_pack_matmul_argument(PyObject *self, PyObject *const *args,
         return NULL;
     }
 
-    simsimd_datatype_t src_dtype;
+    nk_datatype_t src_dtype;
     if (!buffer_datatype(&b_buffer, &src_dtype)) {
         PyBuffer_Release(&b_buffer);
         return NULL;
@@ -4622,14 +4591,14 @@ static PyObject *api_pack_matmul_argument(PyObject *self, PyObject *const *args,
         return NULL;
     }
 
-    simsimd_size_t n = (simsimd_size_t)b_buffer.shape[0];
-    simsimd_size_t k = (simsimd_size_t)b_buffer.shape[1];
-    simsimd_size_t row_stride = (simsimd_size_t)b_buffer.strides[0];
-    simsimd_size_t col_stride = (simsimd_size_t)b_buffer.strides[1];
+    nk_size_t n = (nk_size_t)b_buffer.shape[0];
+    nk_size_t k = (nk_size_t)b_buffer.shape[1];
+    nk_size_t row_stride = (nk_size_t)b_buffer.strides[0];
+    nk_size_t col_stride = (nk_size_t)b_buffer.strides[1];
 
     // Calculate the packed size and allocate the packed buffer.
     // Require the AMX backend (Sapphire Rapids or newer).
-#if !SIMSIMD_TARGET_SAPPHIRE_AMX
+#if !NK_TARGET_SAPPHIRE_AMX
     (void)n;
     (void)k;
     (void)row_stride;
@@ -4638,9 +4607,9 @@ static PyObject *api_pack_matmul_argument(PyObject *self, PyObject *const *args,
     PyErr_SetString(PyExc_RuntimeError, "pack_matmul_argument requires AMX support (Sapphire Rapids or newer CPU)");
     return NULL;
 #else
-    simsimd_size_t packed_size;
-    if (target_dtype == simsimd_bf16_k) { packed_size = simsimd_matmul_bf16_packed_size_sapphire_amx(n, k); }
-    else { packed_size = simsimd_matmul_i8_packed_size_sapphire_amx(n, k); }
+    nk_size_t packed_size;
+    if (target_dtype == nk_bf16_k) { packed_size = nk_matmul_bf16_packed_size_sapphire_amx(n, k); }
+    else { packed_size = nk_matmul_i8_packed_size_sapphire_amx(n, k); }
 
     PackedMatrix *packed = PyObject_NewVar(PackedMatrix, &PackedMatrixType, packed_size);
     if (!packed) {
@@ -4654,17 +4623,17 @@ static PyObject *api_pack_matmul_argument(PyObject *self, PyObject *const *args,
     packed->k = k;
 
     // Convert input data to the packing format and pack it.
-    if (target_dtype == simsimd_bf16_k) {
-        simsimd_bf16_t const *b_bf16 = NULL;
-        simsimd_bf16_t *temp_bf16 = NULL;
-        simsimd_size_t b_bf16_stride = row_stride;
+    if (target_dtype == nk_bf16_k) {
+        nk_bf16_t const *b_bf16 = NULL;
+        nk_bf16_t *temp_bf16 = NULL;
+        nk_size_t b_bf16_stride = row_stride;
 
-        if (src_dtype == simsimd_bf16_k && col_stride == sizeof(simsimd_bf16_t)) {
-            b_bf16 = (simsimd_bf16_t const *)b_buffer.buf;
+        if (src_dtype == nk_bf16_k && col_stride == sizeof(nk_bf16_t)) {
+            b_bf16 = (nk_bf16_t const *)b_buffer.buf;
             b_bf16_stride = row_stride;
         }
         else {
-            temp_bf16 = (simsimd_bf16_t *)PyMem_Malloc(n * k * sizeof(simsimd_bf16_t));
+            temp_bf16 = (nk_bf16_t *)PyMem_Malloc(n * k * sizeof(nk_bf16_t));
             if (!temp_bf16) {
                 Py_DECREF(packed);
                 PyBuffer_Release(&b_buffer);
@@ -4672,7 +4641,7 @@ static PyObject *api_pack_matmul_argument(PyObject *self, PyObject *const *args,
                 return NULL;
             }
 
-            for (simsimd_size_t i = 0; i < n; i++) {
+            for (nk_size_t i = 0; i < n; i++) {
                 char const *row = (char const *)b_buffer.buf + i * row_stride;
                 if (!convert_row_to_bf16(src_dtype, row, k, col_stride, temp_bf16 + i * k)) {
                     PyMem_Free(temp_bf16);
@@ -4682,24 +4651,24 @@ static PyObject *api_pack_matmul_argument(PyObject *self, PyObject *const *args,
                 }
             }
             b_bf16 = temp_bf16;
-            b_bf16_stride = k * sizeof(simsimd_bf16_t);
+            b_bf16_stride = k * sizeof(nk_bf16_t);
         }
 
-        simsimd_matmul_bf16_pack_sapphire_amx(b_bf16, n, k, b_bf16_stride, packed->start);
+        nk_matmul_bf16_pack_sapphire_amx(b_bf16, n, k, b_bf16_stride, packed->start);
 
         if (temp_bf16) PyMem_Free(temp_bf16);
     }
     else {
-        simsimd_i8_t const *b_i8 = NULL;
-        simsimd_i8_t *temp_i8 = NULL;
-        simsimd_size_t b_i8_stride = row_stride;
+        nk_i8_t const *b_i8 = NULL;
+        nk_i8_t *temp_i8 = NULL;
+        nk_size_t b_i8_stride = row_stride;
 
-        if (src_dtype == simsimd_i8_k && col_stride == sizeof(simsimd_i8_t)) {
-            b_i8 = (simsimd_i8_t const *)b_buffer.buf;
+        if (src_dtype == nk_i8_k && col_stride == sizeof(nk_i8_t)) {
+            b_i8 = (nk_i8_t const *)b_buffer.buf;
             b_i8_stride = row_stride;
         }
         else {
-            temp_i8 = (simsimd_i8_t *)PyMem_Malloc(n * k * sizeof(simsimd_i8_t));
+            temp_i8 = (nk_i8_t *)PyMem_Malloc(n * k * sizeof(nk_i8_t));
             if (!temp_i8) {
                 Py_DECREF(packed);
                 PyBuffer_Release(&b_buffer);
@@ -4707,7 +4676,7 @@ static PyObject *api_pack_matmul_argument(PyObject *self, PyObject *const *args,
                 return NULL;
             }
 
-            for (simsimd_size_t i = 0; i < n; i++) {
+            for (nk_size_t i = 0; i < n; i++) {
                 char const *row = (char const *)b_buffer.buf + i * row_stride;
                 if (!convert_row_to_i8(src_dtype, row, k, col_stride, temp_i8 + i * k)) {
                     PyMem_Free(temp_i8);
@@ -4717,17 +4686,17 @@ static PyObject *api_pack_matmul_argument(PyObject *self, PyObject *const *args,
                 }
             }
             b_i8 = temp_i8;
-            b_i8_stride = k * sizeof(simsimd_i8_t);
+            b_i8_stride = k * sizeof(nk_i8_t);
         }
 
-        simsimd_matmul_i8_pack_sapphire_amx(b_i8, n, k, b_i8_stride, packed->start);
+        nk_matmul_i8_pack_sapphire_amx(b_i8, n, k, b_i8_stride, packed->start);
 
         if (temp_i8) PyMem_Free(temp_i8);
     }
 
     PyBuffer_Release(&b_buffer);
     return (PyObject *)packed;
-#endif // SIMSIMD_TARGET_SAPPHIRE_AMX
+#endif // NK_TARGET_SAPPHIRE_AMX
 }
 
 static PyObject *api_pack_matrix(PyObject *self, PyObject *const *args, Py_ssize_t positional_args_count,
@@ -4790,7 +4759,7 @@ static PyObject *api_matmul(PyObject *self, PyObject *const *args, Py_ssize_t po
         return NULL;
     }
 
-    simsimd_datatype_t src_dtype;
+    nk_datatype_t src_dtype;
     if (!buffer_datatype(&a_buffer, &src_dtype)) {
         PyBuffer_Release(&a_buffer);
         return NULL;
@@ -4806,10 +4775,10 @@ static PyObject *api_matmul(PyObject *self, PyObject *const *args, Py_ssize_t po
         return NULL;
     }
 
-    simsimd_size_t m = (simsimd_size_t)a_buffer.shape[0];
-    simsimd_size_t k_a = (simsimd_size_t)a_buffer.shape[1];
-    simsimd_size_t row_stride = (simsimd_size_t)a_buffer.strides[0];
-    simsimd_size_t col_stride = (simsimd_size_t)a_buffer.strides[1];
+    nk_size_t m = (nk_size_t)a_buffer.shape[0];
+    nk_size_t k_a = (nk_size_t)a_buffer.shape[1];
+    nk_size_t row_stride = (nk_size_t)a_buffer.strides[0];
+    nk_size_t col_stride = (nk_size_t)a_buffer.strides[1];
 
     if (k_a != packed->k) {
         PyBuffer_Release(&a_buffer);
@@ -4817,13 +4786,13 @@ static PyObject *api_matmul(PyObject *self, PyObject *const *args, Py_ssize_t po
         return NULL;
     }
 
-    simsimd_size_t n = packed->n;
-    simsimd_size_t k = packed->k;
+    nk_size_t n = packed->n;
+    nk_size_t k = packed->k;
 
     // Allocate output tensor
     Py_ssize_t out_shape[2] = {(Py_ssize_t)m, (Py_ssize_t)n};
-    simsimd_datatype_t out_dtype = simsimd_f32_k; // BF16 matmul outputs F32
-    if (packed->dtype == simsimd_i8_k) out_dtype = simsimd_i32_k;
+    nk_datatype_t out_dtype = nk_f32_k; // BF16 matmul outputs F32
+    if (packed->dtype == nk_i8_k) out_dtype = nk_i32_k;
 
     DistancesTensor *result = DistancesTensor_new(out_dtype, 2, out_shape);
     if (!result) {
@@ -4831,20 +4800,20 @@ static PyObject *api_matmul(PyObject *self, PyObject *const *args, Py_ssize_t po
         return NULL;
     }
 
-    simsimd_size_t c_stride = n * bytes_per_datatype(out_dtype);
+    nk_size_t c_stride = n * bytes_per_datatype(out_dtype);
 
     // Convert input A to appropriate format and compute
-    if (packed->dtype == simsimd_bf16_k) {
-        simsimd_bf16_t const *a_bf16 = NULL;
-        simsimd_bf16_t *temp_a = NULL;
-        simsimd_size_t a_bf16_stride = row_stride;
+    if (packed->dtype == nk_bf16_k) {
+        nk_bf16_t const *a_bf16 = NULL;
+        nk_bf16_t *temp_a = NULL;
+        nk_size_t a_bf16_stride = row_stride;
 
-        if (src_dtype == simsimd_bf16_k && col_stride == sizeof(simsimd_bf16_t)) {
-            a_bf16 = (simsimd_bf16_t const *)a_buffer.buf;
+        if (src_dtype == nk_bf16_k && col_stride == sizeof(nk_bf16_t)) {
+            a_bf16 = (nk_bf16_t const *)a_buffer.buf;
             a_bf16_stride = row_stride;
         }
         else {
-            temp_a = (simsimd_bf16_t *)PyMem_Malloc(m * k * sizeof(simsimd_bf16_t));
+            temp_a = (nk_bf16_t *)PyMem_Malloc(m * k * sizeof(nk_bf16_t));
             if (!temp_a) {
                 Py_DECREF(result);
                 PyBuffer_Release(&a_buffer);
@@ -4852,7 +4821,7 @@ static PyObject *api_matmul(PyObject *self, PyObject *const *args, Py_ssize_t po
                 return NULL;
             }
 
-            for (simsimd_size_t i = 0; i < m; i++) {
+            for (nk_size_t i = 0; i < m; i++) {
                 char const *row = (char const *)a_buffer.buf + i * row_stride;
                 if (!convert_row_to_bf16(src_dtype, row, k, col_stride, temp_a + i * k)) {
                     PyMem_Free(temp_a);
@@ -4862,12 +4831,12 @@ static PyObject *api_matmul(PyObject *self, PyObject *const *args, Py_ssize_t po
                 }
             }
             a_bf16 = temp_a;
-            a_bf16_stride = k * sizeof(simsimd_bf16_t);
+            a_bf16_stride = k * sizeof(nk_bf16_t);
         }
 
-#if SIMSIMD_TARGET_SAPPHIRE_AMX
-        simsimd_matmul_bf16_f32_sapphire_amx(a_bf16, packed->start, (simsimd_f32_t *)result->data, m, n, k,
-                                             a_bf16_stride, c_stride);
+#if NK_TARGET_SAPPHIRE_AMX
+        nk_matmul_bf16_f32_sapphire_amx(a_bf16, packed->start, (nk_f32_t *)result->data, m, n, k, a_bf16_stride,
+                                        c_stride);
 #else
         (void)a_bf16;
         Py_DECREF(result);
@@ -4881,16 +4850,16 @@ static PyObject *api_matmul(PyObject *self, PyObject *const *args, Py_ssize_t po
     }
     else {
         // i8 matmul
-        simsimd_i8_t const *a_i8 = NULL;
-        simsimd_i8_t *temp_a = NULL;
-        simsimd_size_t a_i8_stride = row_stride;
+        nk_i8_t const *a_i8 = NULL;
+        nk_i8_t *temp_a = NULL;
+        nk_size_t a_i8_stride = row_stride;
 
-        if (src_dtype == simsimd_i8_k && col_stride == sizeof(simsimd_i8_t)) {
-            a_i8 = (simsimd_i8_t const *)a_buffer.buf;
+        if (src_dtype == nk_i8_k && col_stride == sizeof(nk_i8_t)) {
+            a_i8 = (nk_i8_t const *)a_buffer.buf;
             a_i8_stride = row_stride;
         }
         else {
-            temp_a = (simsimd_i8_t *)PyMem_Malloc(m * k * sizeof(simsimd_i8_t));
+            temp_a = (nk_i8_t *)PyMem_Malloc(m * k * sizeof(nk_i8_t));
             if (!temp_a) {
                 Py_DECREF(result);
                 PyBuffer_Release(&a_buffer);
@@ -4898,7 +4867,7 @@ static PyObject *api_matmul(PyObject *self, PyObject *const *args, Py_ssize_t po
                 return NULL;
             }
 
-            for (simsimd_size_t i = 0; i < m; i++) {
+            for (nk_size_t i = 0; i < m; i++) {
                 char const *row = (char const *)a_buffer.buf + i * row_stride;
                 if (!convert_row_to_i8(src_dtype, row, k, col_stride, temp_a + i * k)) {
                     PyMem_Free(temp_a);
@@ -4908,12 +4877,11 @@ static PyObject *api_matmul(PyObject *self, PyObject *const *args, Py_ssize_t po
                 }
             }
             a_i8 = temp_a;
-            a_i8_stride = k * sizeof(simsimd_i8_t);
+            a_i8_stride = k * sizeof(nk_i8_t);
         }
 
-#if SIMSIMD_TARGET_SAPPHIRE_AMX
-        simsimd_matmul_i8_i32_sapphire_amx(a_i8, packed->start, (simsimd_i32_t *)result->data, m, n, k, a_i8_stride,
-                                           c_stride);
+#if NK_TARGET_SAPPHIRE_AMX
+        nk_matmul_i8_i32_sapphire_amx(a_i8, packed->start, (nk_i32_t *)result->data, m, n, k, a_i8_stride, c_stride);
 #else
         (void)a_i8;
         Py_DECREF(result);
@@ -4939,7 +4907,7 @@ static PyObject *api_matmul(PyObject *self, PyObject *const *args, Py_ssize_t po
 // - `METH_KEYWORDS`: Accepts keyword arguments, can be combined with `METH_FASTCALL`
 //
 // https://llllllllll.github.io/c-extension-tutorial/appendix.html#c.PyMethodDef.ml_flags
-static PyMethodDef simsimd_methods[] = {
+static PyMethodDef nk_methods[] = {
     // Introspecting library and hardware capabilities
     {"get_capabilities", (PyCFunction)api_get_capabilities, METH_NOARGS, doc_get_capabilities},
     {"enable_capability", (PyCFunction)api_enable_capability, METH_O, doc_enable_capability},
@@ -5020,7 +4988,7 @@ static char const doc_module[] = //
     "Portable mixed-precision BLAS-like vector math library for x86 and Arm.\n"
     "\n"
     "Performance Recommendations:\n"
-    " - Avoid converting to NumPy arrays. SimSIMD works with any tensor implementation\n"
+    " - Avoid converting to NumPy arrays. NumKong works with any tensor implementation\n"
     "   compatible with the Python buffer protocol, including PyTorch and TensorFlow.\n"
     " - In low-latency environments, provide the output array with the `out=` parameter\n"
     "   to avoid expensive memory allocations on the hot path.\n"
@@ -5037,29 +5005,29 @@ static char const doc_module[] = //
     "   1-to-N and N-to-N distances between batches of vectors packed into matrices.\n"
     "\n"
     "Example:\n"
-    "    >>> import simsimd\n"
-    "    >>> simsimd.l2(a, b)\n"
+    "    >>> import numkong\n"
+    "    >>> numkong.l2(a, b)\n"
     "\n"
     "Mixed-precision 1-to-N example with numeric types missing in NumPy, but present in PyTorch:\n"
-    "    >>> import simsimd\n"
+    "    >>> import numkong\n"
     "    >>> import torch\n"
     "    >>> a = torch.randn(1536, dtype=torch.bfloat16)\n"
     "    >>> b = torch.randn((100, 1536), dtype=torch.bfloat16)\n"
     "    >>> c = torch.zeros(100, dtype=torch.float32)\n"
-    "    >>> simsimd.l2(a, b, dtype='bfloat16', out=c)\n";
+    "    >>> numkong.l2(a, b, dtype='bfloat16', out=c)\n";
 
-static PyModuleDef simsimd_module = {
-    PyModuleDef_HEAD_INIT, .m_name = "SimSIMD", .m_doc = doc_module, .m_size = -1, .m_methods = simsimd_methods,
+static PyModuleDef nk_module = {
+    PyModuleDef_HEAD_INIT, .m_name = "NumKong", .m_doc = doc_module, .m_size = -1, .m_methods = nk_methods,
 };
 
-PyMODINIT_FUNC PyInit_simsimd(void) {
+PyMODINIT_FUNC PyInit_numkong(void) {
     PyObject *m;
 
     if (PyType_Ready(&DistancesTensorType) < 0) return NULL;
     if (PyType_Ready(&DistancesTensorIterType) < 0) return NULL;
     if (PyType_Ready(&PackedMatrixType) < 0) return NULL;
 
-    m = PyModule_Create(&simsimd_module);
+    m = PyModule_Create(&nk_module);
     if (m == NULL) return NULL;
 
 #ifdef Py_GIL_DISABLED
@@ -5069,8 +5037,7 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
     // Add version metadata
     {
         char version_str[64];
-        snprintf(version_str, sizeof(version_str), "%d.%d.%d", SIMSIMD_VERSION_MAJOR, SIMSIMD_VERSION_MINOR,
-                 SIMSIMD_VERSION_PATCH);
+        snprintf(version_str, sizeof(version_str), "%d.%d.%d", NK_VERSION_MAJOR, NK_VERSION_MINOR, NK_VERSION_PATCH);
         PyModule_AddStringConstant(m, "__version__", version_str);
     }
 
@@ -5088,6 +5055,6 @@ PyMODINIT_FUNC PyInit_simsimd(void) {
         return NULL;
     }
 
-    static_capabilities = simsimd_capabilities();
+    static_capabilities = nk_capabilities();
     return m;
 }

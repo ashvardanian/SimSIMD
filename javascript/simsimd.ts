@@ -12,7 +12,7 @@ try {
 } catch (e) {
   compiled = fallback;
   console.warn(
-    "It seems like your environment doesn't support the native simsimd module, so we are providing a JS fallback."
+    "It seems like your environment doesn't support the native numkong module, so we are providing a JS fallback."
   );
 }
 
@@ -156,7 +156,7 @@ export default {
 };
 
 /**
- * @brief Finds the directory where the native build of the simsimd module is located.
+ * @brief Finds the directory where the native build of the numkong module is located.
  * @param {string} dir - The directory to start the search from.
  */
 function getBuildDir(dir: string) {
@@ -164,10 +164,10 @@ function getBuildDir(dir: string) {
   if (existsSync(path.join(dir, "prebuilds"))) return dir;
   if (path.basename(dir) === ".next") {
     // special case for next.js on custom node (not vercel)
-    const sideways = path.join(dir, "..", "node_modules", "simsimd");
+    const sideways = path.join(dir, "..", "node_modules", "numkong");
     if (existsSync(sideways)) return getBuildDir(sideways);
   }
-  if (dir === "/") throw new Error("Could not find native build for simsimd");
+  if (dir === "/") throw new Error("Could not find native build for numkong");
   return getBuildDir(path.join(dir, ".."));
 }
 

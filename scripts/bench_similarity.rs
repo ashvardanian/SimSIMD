@@ -1,6 +1,6 @@
 //! Benchmark for vector similarity functions
 //!
-//! Compares SimSIMD vs native Rust implementations using Criterion.
+//! Compares NumKong vs native Rust implementations using Criterion.
 //! Run with:
 //!
 //! ```bash
@@ -12,7 +12,7 @@ use std::ops::{AddAssign, Mul};
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use num_traits::{AsPrimitive, Num, NumCast};
-use simsimd::SpatialSimilarity as SimSIMD;
+use numkong::SpatialSimilarity as NumKong;
 
 const DIMENSIONS: usize = 1536;
 
@@ -237,8 +237,8 @@ pub fn l2sq_benchmark(c: &mut Criterion) {
 
     // f32
     group.throughput(Throughput::Bytes((DIMENSIONS * size_of::<f32>()) as u64));
-    group.bench_with_input(BenchmarkId::new("SimSIMD f32", 0), &0, |b, _| {
-        b.iter(|| SimSIMD::sqeuclidean(&inputs_f32.0, &inputs_f32.1))
+    group.bench_with_input(BenchmarkId::new("NumKong f32", 0), &0, |b, _| {
+        b.iter(|| NumKong::sqeuclidean(&inputs_f32.0, &inputs_f32.1))
     });
     group.bench_with_input(BenchmarkId::new("Rust Unrolled f32", 0), &0, |b, _| {
         b.iter(|| baseline_l2sq_unrolled::<f32, f32>(&inputs_f32.0, &inputs_f32.1))
@@ -246,8 +246,8 @@ pub fn l2sq_benchmark(c: &mut Criterion) {
 
     // i8
     group.throughput(Throughput::Bytes((DIMENSIONS * size_of::<i8>()) as u64));
-    group.bench_with_input(BenchmarkId::new("SimSIMD i8", 0), &0, |b, _| {
-        b.iter(|| SimSIMD::sqeuclidean(&inputs_i8.0, &inputs_i8.1))
+    group.bench_with_input(BenchmarkId::new("NumKong i8", 0), &0, |b, _| {
+        b.iter(|| NumKong::sqeuclidean(&inputs_i8.0, &inputs_i8.1))
     });
     group.bench_with_input(BenchmarkId::new("Rust Unrolled i8", 0), &0, |b, _| {
         b.iter(|| baseline_l2sq_unrolled::<i8, i32>(&inputs_i8.0, &inputs_i8.1))
@@ -255,8 +255,8 @@ pub fn l2sq_benchmark(c: &mut Criterion) {
 
     // u8
     group.throughput(Throughput::Bytes((DIMENSIONS * size_of::<u8>()) as u64));
-    group.bench_with_input(BenchmarkId::new("SimSIMD u8", 0), &0, |b, _| {
-        b.iter(|| SimSIMD::sqeuclidean(&inputs_u8.0, &inputs_u8.1))
+    group.bench_with_input(BenchmarkId::new("NumKong u8", 0), &0, |b, _| {
+        b.iter(|| NumKong::sqeuclidean(&inputs_u8.0, &inputs_u8.1))
     });
     group.bench_with_input(BenchmarkId::new("Rust Unrolled u8", 0), &0, |b, _| {
         b.iter(|| baseline_l2sq_unrolled::<u8, u32>(&inputs_u8.0, &inputs_u8.1))
@@ -282,8 +282,8 @@ pub fn cos_benchmark(c: &mut Criterion) {
 
     // f32
     group.throughput(Throughput::Bytes((DIMENSIONS * size_of::<f32>()) as u64));
-    group.bench_with_input(BenchmarkId::new("SimSIMD f32", 0), &0, |b, _| {
-        b.iter(|| SimSIMD::cosine(&inputs_f32.0, &inputs_f32.1))
+    group.bench_with_input(BenchmarkId::new("NumKong f32", 0), &0, |b, _| {
+        b.iter(|| NumKong::cosine(&inputs_f32.0, &inputs_f32.1))
     });
     group.bench_with_input(BenchmarkId::new("Rust Unrolled u8", 0), &0, |b, _| {
         b.iter(|| baseline_cos_unrolled::<u8, u32>(&inputs_u8.0, &inputs_u8.1))
@@ -291,8 +291,8 @@ pub fn cos_benchmark(c: &mut Criterion) {
 
     // i8
     group.throughput(Throughput::Bytes((DIMENSIONS * size_of::<i8>()) as u64));
-    group.bench_with_input(BenchmarkId::new("SimSIMD i8", 0), &0, |b, _| {
-        b.iter(|| SimSIMD::cosine(&inputs_i8.0, &inputs_i8.1))
+    group.bench_with_input(BenchmarkId::new("NumKong i8", 0), &0, |b, _| {
+        b.iter(|| NumKong::cosine(&inputs_i8.0, &inputs_i8.1))
     });
     group.bench_with_input(BenchmarkId::new("Rust Unrolled i8", 0), &0, |b, _| {
         b.iter(|| baseline_cos_unrolled::<i8, i32>(&inputs_i8.0, &inputs_i8.1))
@@ -300,8 +300,8 @@ pub fn cos_benchmark(c: &mut Criterion) {
 
     // u8
     group.throughput(Throughput::Bytes((DIMENSIONS * size_of::<u8>()) as u64));
-    group.bench_with_input(BenchmarkId::new("SimSIMD u8", 0), &0, |b, _| {
-        b.iter(|| SimSIMD::cosine(&inputs_u8.0, &inputs_u8.1))
+    group.bench_with_input(BenchmarkId::new("NumKong u8", 0), &0, |b, _| {
+        b.iter(|| NumKong::cosine(&inputs_u8.0, &inputs_u8.1))
     });
     group.bench_with_input(BenchmarkId::new("Rust Unrolled f32", 0), &0, |b, _| {
         b.iter(|| baseline_cos_unrolled::<f32, f32>(&inputs_f32.0, &inputs_f32.1))

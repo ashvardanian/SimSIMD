@@ -1,4 +1,4 @@
-# This file configures wheels compilation for `cibuilwheel` for SimSIMD CPython bindings.
+# This file configures wheels compilation for `cibuilwheel` for NumKong CPython bindings.
 # On a good day it will produce:
 #   - `manylinux` and `musllinux` vectorized wheels for Linux on x86_64, aarch64;
 #   - `manylinux` and `musllinux` wheels for Linux on i686, ppc64le, s390x;
@@ -29,7 +29,7 @@ test-requires = ["pytest", "pytest-repeat", "tabulate"]
 test-command = """
     python -m pip install numpy --only-binary=:all: || (echo "Failed to install NumPy" && exit 0) &&
     python -m pip install scipy --only-binary=:all: || (echo "Failed to install SciPy" && exit 0) &&
-    python -c "import simsimd; print(simsimd.get_capabilities())" &&
+    python -c "import numkong; print(numkong.get_capabilities())" &&
     pytest {project}/scripts/test.py -s -x -Wd
 """
 
@@ -51,10 +51,10 @@ skip = [] # we also don't use any SIMD on: ["*s390x*", "*ppc64le*"]
 enable = [] # don't enable PyPy
 
 # Testing half-precision math in QEMU is unreliable!
-environment-pass = ["SIMSIMD_IN_QEMU"]
+environment-pass = ["NK_IN_QEMU"]
 
 [tool.cibuildwheel.environment]
-SIMSIMD_IN_QEMU = "1"
+NK_IN_QEMU = "1"
 
 [tool.cibuildwheel.linux]
 before-build = ["rm -rf {project}/build"]
@@ -107,57 +107,57 @@ test-command = """
 # --------------------------------------------------------------------------- #
 # These environment variables allow setup.py to detect the target architecture
 # during cross-compilation (e.g., building ARM64 wheels on x64 host).
-# The SIMSIMD_TARGET_* variables override platform.machine() detection.
+# The NK_TARGET_* variables override platform.machine() detection.
 
 # x86-64 builds
 [[tool.cibuildwheel.overrides]]
 select = "*-win_amd64"
 inherit.environment = "append"
-environment.SIMSIMD_TARGET_X86 = "1"
-environment.SIMSIMD_TARGET_ARM64 = "0"
+environment.NK_TARGET_X86 = "1"
+environment.NK_TARGET_ARM64 = "0"
 
 [[tool.cibuildwheel.overrides]]
 select = "*-manylinux*_x86_64"
 inherit.environment = "append"
-environment.SIMSIMD_TARGET_X86 = "1"
-environment.SIMSIMD_TARGET_ARM64 = "0"
+environment.NK_TARGET_X86 = "1"
+environment.NK_TARGET_ARM64 = "0"
 
 [[tool.cibuildwheel.overrides]]
 select = "*-musllinux*_x86_64"
 inherit.environment = "append"
-environment.SIMSIMD_TARGET_X86 = "1"
-environment.SIMSIMD_TARGET_ARM64 = "0"
+environment.NK_TARGET_X86 = "1"
+environment.NK_TARGET_ARM64 = "0"
 
 [[tool.cibuildwheel.overrides]]
 select = "*-macos*_x86_64"
 inherit.environment = "append"
-environment.SIMSIMD_TARGET_X86 = "1"
-environment.SIMSIMD_TARGET_ARM64 = "0"
+environment.NK_TARGET_X86 = "1"
+environment.NK_TARGET_ARM64 = "0"
 
 # ARM64 builds
 [[tool.cibuildwheel.overrides]]
 select = "*-win_arm64"
 inherit.environment = "append"
-environment.SIMSIMD_TARGET_X86 = "0"
-environment.SIMSIMD_TARGET_ARM64 = "1"
+environment.NK_TARGET_X86 = "0"
+environment.NK_TARGET_ARM64 = "1"
 
 [[tool.cibuildwheel.overrides]]
 select = "*-manylinux*_aarch64"
 inherit.environment = "append"
-environment.SIMSIMD_TARGET_X86 = "0"
-environment.SIMSIMD_TARGET_ARM64 = "1"
+environment.NK_TARGET_X86 = "0"
+environment.NK_TARGET_ARM64 = "1"
 
 [[tool.cibuildwheel.overrides]]
 select = "*-musllinux*_aarch64"
 inherit.environment = "append"
-environment.SIMSIMD_TARGET_X86 = "0"
-environment.SIMSIMD_TARGET_ARM64 = "1"
+environment.NK_TARGET_X86 = "0"
+environment.NK_TARGET_ARM64 = "1"
 
 [[tool.cibuildwheel.overrides]]
 select = "*-macos*_arm64"
 inherit.environment = "append"
-environment.SIMSIMD_TARGET_X86 = "0"
-environment.SIMSIMD_TARGET_ARM64 = "1"
+environment.NK_TARGET_X86 = "0"
+environment.NK_TARGET_ARM64 = "1"
 
 # Configuration options for the Black formatter:
 # https://black.readthedocs.io/en/latest/usage_and_configuration/the_basics.html#where-black-looks-for-the-file

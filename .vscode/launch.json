@@ -8,11 +8,11 @@
             "name": "Debug Benchmark",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build_debug/simsimd_bench",
+            "program": "${workspaceFolder}/build_debug/nk_bench",
             "cwd": "${workspaceFolder}",
             "args": [
                 // "--benchmark_filter=\"intersect_u16_sve_128d\\^8192d\""
-                "--benchmark_filter=simsimd_mahalanobis_f16_neon"
+                "--benchmark_filter=nk_mahalanobis_f16_neon"
             ],
             "environment": [
                 {
@@ -37,14 +37,14 @@
             },
             "windows": {
                 "type": "cppvsdbg",
-                "program": "${workspaceFolder}/build_debug/simsimd_bench.exe"
+                "program": "${workspaceFolder}/build_debug/nk_bench.exe"
             },
         },
         {
             "name": "Debug Test",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build_debug/simsimd_test_run_time",
+            "program": "${workspaceFolder}/build_debug/nk_test_run_time",
             "cwd": "${workspaceFolder}",
             "environment": [
                 {

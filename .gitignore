@@ -1,6 +1,6 @@
 /build*
 _deps
-simsimd.egg-info
+*.egg-info
 CMakeFiles
 __pycache__
 wheelhouse/

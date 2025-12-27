@@ -1,11 +1,11 @@
-# SimSIMD library CMakeLists.txt
+# NumKong library CMakeLists.txt
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 project(
-    simsimd
+    numkong
     VERSION 6.5.12
     LANGUAGES C CXX
     DESCRIPTION "Portable mixed-precision BLAS-like vector math library for x86 and ARM"
-    HOMEPAGE_URL "https://github.com/ashvardanian/simsimd"
+    HOMEPAGE_URL "https://github.com/ashvardanian/numkong"
 )
 
 set(CMAKE_C_STANDARD 23)
@@ -16,18 +16,18 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
-# Determine if SimSIMD is built as a sub-project (using `add_subdirectory`) or if it is the main project
-set(SIMSIMD_IS_MAIN_PROJECT OFF)
+# Determine if NumKong is built as a sub-project (using `add_subdirectory`) or if it is the main project
+set(NK_IS_MAIN_PROJECT OFF)
 
 if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
-    set(SIMSIMD_IS_MAIN_PROJECT ON)
+    set(NK_IS_MAIN_PROJECT ON)
 endif ()
 
-option(SIMSIMD_BUILD_SHARED "Compile a dynamic library" ${SIMSIMD_IS_MAIN_PROJECT})
-option(SIMSIMD_BUILD_TESTS "Small compilation tests compile-time and run-time dispatch" OFF)
-option(SIMSIMD_BUILD_BENCHMARKS "Compile micro-benchmarks for current ISA" OFF)
-option(SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS "Include OpenBLAS in micro-kernel benchmarks" OFF)
-option(SIMSIMD_BUILD_BENCHMARKS_WITH_MKL "Include Intel MKL in micro-kernel benchmarks" OFF)
+option(NK_BUILD_SHARED "Compile a dynamic library" ${NK_IS_MAIN_PROJECT})
+option(NK_BUILD_TESTS "Small compilation tests compile-time and run-time dispatch" OFF)
+option(NK_BUILD_BENCHMARKS "Compile micro-benchmarks for current ISA" OFF)
+option(NK_BUILD_BENCHMARKS_WITH_CBLAS "Include OpenBLAS in micro-kernel benchmarks" OFF)
+option(NK_BUILD_BENCHMARKS_WITH_MKL "Include Intel MKL in micro-kernel benchmarks" OFF)
 
 # Default to Release build type if not set
 if (NOT CMAKE_BUILD_TYPE)
@@ -50,11 +50,11 @@ endif ()
 
 # Detect target architecture from CMAKE_SYSTEM_PROCESSOR (safe for cross-compilation)
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|X86_64|AMD64|amd64")
-    set(SIMSIMD_IS_64BIT_X86_ TRUE)
-    message(STATUS "SimSIMD Platform: x86_64 (CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR})")
+    set(NK_IS_64BIT_X86_ TRUE)
+    message(STATUS "NumKong Platform: x86_64 (CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR})")
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|AARCH64|arm64|ARM64")
-    set(SIMSIMD_IS_64BIT_ARM_ TRUE)
-    message(STATUS "SimSIMD Platform: ARM64 (CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR})")
+    set(NK_IS_64BIT_ARM_ TRUE)
+    message(STATUS "NumKong Platform: ARM64 (CMAKE_SYSTEM_PROCESSOR=${CMAKE_SYSTEM_PROCESSOR})")
 else ()
     message(WARNING "Unknown CMAKE_SYSTEM_PROCESSOR: ${CMAKE_SYSTEM_PROCESSOR}")
 endif ()
@@ -79,10 +79,10 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
 endif ()
 
 # Define the header-only library
-file(GLOB SIMSIMD_SOURCES include/simsimd/*.h)
-add_library(simsimd INTERFACE)
-target_sources(simsimd INTERFACE ${SIMSIMD_SOURCES})
-target_include_directories(simsimd INTERFACE "${PROJECT_SOURCE_DIR}/include")
+file(GLOB NK_SOURCES include/numkong/*.h)
+add_library(numkong INTERFACE)
+target_sources(numkong INTERFACE ${NK_SOURCES})
+target_include_directories(numkong INTERFACE "${PROJECT_SOURCE_DIR}/include")
 
 
 # Find OpenMP
@@ -95,7 +95,7 @@ endif ()
 
 
 # Build benchmarks if required
-if (SIMSIMD_BUILD_BENCHMARKS)
+if (NK_BUILD_BENCHMARKS)
     # Fetch external dependencies
     include(FetchContent)
 
@@ -121,28 +121,28 @@ if (SIMSIMD_BUILD_BENCHMARKS)
     endif ()
 
     find_package(Threads REQUIRED)
-    add_executable(simsimd_bench scripts/bench.cxx)
-    target_link_libraries(simsimd_bench simsimd Threads::Threads benchmark)
+    add_executable(nk_bench scripts/bench.cxx)
+    target_link_libraries(nk_bench numkong Threads::Threads benchmark)
 
     if (OpenMP_FOUND)
-        target_compile_options(simsimd_bench PRIVATE ${OpenMP_CXX_FLAGS})
-        target_link_libraries(simsimd_bench OpenMP::OpenMP_CXX)
+        target_compile_options(nk_bench PRIVATE ${OpenMP_CXX_FLAGS})
+        target_link_libraries(nk_bench OpenMP::OpenMP_CXX)
     endif ()
 
-    if (SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS)
+    if (NK_BUILD_BENCHMARKS_WITH_CBLAS)
         find_package(BLAS REQUIRED)
         if (BLAS_FOUND)
             message(STATUS "BLAS found: ${BLAS_LIBRARIES}")
             include_directories(${BLAS_INCLUDE_DIRS})
-            target_include_directories(simsimd_bench PRIVATE ${BLAS_INCLUDE_DIRS})
-            target_link_libraries(simsimd_bench ${BLAS_LIBRARIES})
-            target_compile_definitions(simsimd_bench PRIVATE SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1)
+            target_include_directories(nk_bench PRIVATE ${BLAS_INCLUDE_DIRS})
+            target_link_libraries(nk_bench ${BLAS_LIBRARIES})
+            target_compile_definitions(nk_bench PRIVATE NK_BUILD_BENCHMARKS_WITH_CBLAS=1)
         else ()
             message(FATAL_ERROR "BLAS not found")
         endif ()
     endif ()
 
-    if (SIMSIMD_BUILD_BENCHMARKS_WITH_MKL)
+    if (NK_BUILD_BENCHMARKS_WITH_MKL)
         # Use environment variable MKLROOT or standard MKL paths
         if (DEFINED ENV{MKLROOT})
             set(MKL_ROOT $ENV{MKLROOT})
@@ -157,14 +157,14 @@ if (SIMSIMD_BUILD_BENCHMARKS)
 
         if (MKL_ROOT)
             message(STATUS "MKL found at: ${MKL_ROOT}")
-            target_include_directories(simsimd_bench PRIVATE ${MKL_ROOT}/include)
+            target_include_directories(nk_bench PRIVATE ${MKL_ROOT}/include)
             # Link against sequential MKL (single-threaded) for fair comparison
-            target_link_libraries(simsimd_bench
+            target_link_libraries(nk_bench
                 ${MKL_ROOT}/lib/intel64/libmkl_intel_lp64.a
                 ${MKL_ROOT}/lib/intel64/libmkl_sequential.a
                 ${MKL_ROOT}/lib/intel64/libmkl_core.a
                 pthread m dl)
-            target_compile_definitions(simsimd_bench PRIVATE SIMSIMD_BUILD_BENCHMARKS_WITH_MKL=1)
+            target_compile_definitions(nk_bench PRIVATE NK_BUILD_BENCHMARKS_WITH_MKL=1)
         else ()
             message(FATAL_ERROR "MKL not found. Set MKLROOT environment variable or install Intel oneAPI.")
         endif ()
@@ -172,32 +172,32 @@ if (SIMSIMD_BUILD_BENCHMARKS)
 
 endif ()
 
-if (SIMSIMD_BUILD_TESTS)
-    add_executable(simsimd_test_compile_time scripts/test.c)
-    target_link_libraries(simsimd_test_compile_time simsimd m)
-    add_test(NAME simsimd_test_compile_time COMMAND simsimd_test_compile_time)
+if (NK_BUILD_TESTS)
+    add_executable(nk_test_compile_time scripts/test.c)
+    target_link_libraries(nk_test_compile_time numkong m)
+    add_test(NAME nk_test_compile_time COMMAND nk_test_compile_time)
 
-    add_executable(simsimd_test_run_time scripts/test.c c/lib.c)
-    target_compile_definitions(simsimd_test_run_time PRIVATE SIMSIMD_DYNAMIC_DISPATCH=1)
-    target_link_libraries(simsimd_test_run_time simsimd m)
-    add_test(NAME simsimd_test_run_time COMMAND simsimd_test_run_time)
+    add_executable(nk_test_run_time scripts/test.c c/lib.c)
+    target_compile_definitions(nk_test_run_time PRIVATE NK_DYNAMIC_DISPATCH=1)
+    target_link_libraries(nk_test_run_time numkong m)
+    add_test(NAME nk_test_run_time COMMAND nk_test_run_time)
 
     if (OpenMP_FOUND)
-        target_compile_options(simsimd_test_run_time PRIVATE ${OpenMP_CXX_FLAGS})
-        target_link_libraries(simsimd_test_run_time OpenMP::OpenMP_CXX)
+        target_compile_options(nk_test_run_time PRIVATE ${OpenMP_CXX_FLAGS})
+        target_link_libraries(nk_test_run_time OpenMP::OpenMP_CXX)
     endif ()
 
     enable_testing()
 endif ()
 
-if (SIMSIMD_BUILD_SHARED)
-    set(SIMSIMD_SOURCES ${SIMSIMD_SOURCES} c/lib.c)
-    add_library(simsimd_shared SHARED ${SIMSIMD_SOURCES})
-    target_include_directories(simsimd_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")
-    set_target_properties(simsimd_shared PROPERTIES OUTPUT_NAME simsimd)
+if (NK_BUILD_SHARED)
+    set(NK_SOURCES ${NK_SOURCES} c/lib.c)
+    add_library(nk_shared SHARED ${NK_SOURCES})
+    target_include_directories(nk_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")
+    set_target_properties(nk_shared PROPERTIES OUTPUT_NAME numkong)
 
     install(
-        TARGETS simsimd_shared
+        TARGETS nk_shared
         ARCHIVE
         BUNDLE
         FRAMEWORK

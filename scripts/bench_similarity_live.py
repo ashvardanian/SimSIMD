@@ -3,8 +3,8 @@
 """
 Module: bench_similarity_live.py
 
-This script visualizes the performance difference between SimSIMD and default
-numerics libraries like NumPy and SimSIMD for the most common kernels.
+This script visualizes the performance difference between NumKong and default
+numerics libraries like NumPy and NumKong for the most common kernels.
 
 One plot contains information about one distance function, but many data types
 and libraries. For each benchmark, the baseline is the NumPy/SciPy distance function
@@ -41,7 +41,7 @@ def ndim_argument(value):
 
 def main():
     # Argument parsing
-    parser = argparse.ArgumentParser(description="Visualize Performance Difference between SimSIMD and other libraries")
+    parser = argparse.ArgumentParser(description="Visualize Performance Difference between NumKong and other libraries")
     parser.add_argument(
         "--ndim-min",
         type=int,
@@ -151,16 +151,16 @@ def main():
     kernel_labels: List[str] = []
     kernel_callables: List[callable] = []
 
-    # Add SimSIMD kernels
+    # Add NumKong kernels
     for kernel in kernels:
         if not kernel.name.startswith("numpy.") and not kernel.name.startswith("scipy."):
             continue
         _, _, function_name = kernel.name.partition(".")
-        kernel_labels.append(f"simsimd.{function_name}<{kernel.dtype}>")
+        kernel_labels.append(f"numkong.{function_name}<{kernel.dtype}>")
         if args.mode == "all-pairs":
-            kernel_callables.append(wrap_binary_function(kernel.simsimd_all_pairs_func))
+            kernel_callables.append(wrap_binary_function(kernel.nk_all_pairs_func))
         else:
-            kernel_callables.append(wrap_binary_function(kernel.simsimd_func))
+            kernel_callables.append(wrap_binary_function(kernel.nk_func))
 
     # Add other kernels
     for kernel in kernels:

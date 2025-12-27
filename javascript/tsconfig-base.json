@@ -6,7 +6,7 @@
     ],
     "include": [
         "node-gyp-build.d.ts",
-        "simsimd.ts",
+        "numkong.ts",
         "fallback.ts"
     ],
     "compilerOptions": {

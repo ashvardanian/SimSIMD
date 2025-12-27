@@ -1,4 +1,4 @@
-package simsimd
+package numkong
 
 import (
 	"math"
@@ -10,7 +10,7 @@ func TestCosineI8(t *testing.T) {
 	b := []int8{0, 1}
 
 	result := CosineI8(a, b)
-    expected := float32(1.0) // Cosine distance of orthogonal vectors is 1
+	expected := float32(1.0) // Cosine distance of orthogonal vectors is 1
 	if math.Abs(float64(result-expected)) > 1e-3 {
 		t.Errorf("Expected %v, got %v", expected, result)
 	}
@@ -21,7 +21,7 @@ func TestCosineF32(t *testing.T) {
 	b := []float32{0, 1}
 
 	result := CosineF32(a, b)
-    expected := float32(1.0) // Cosine distance of orthogonal vectors is 1
+	expected := float32(1.0) // Cosine distance of orthogonal vectors is 1
 	if math.Abs(float64(result-expected)) > 1e-3 {
 		t.Errorf("Expected %v, got %v", expected, result)
 	}

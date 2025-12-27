@@ -1,6 +1,6 @@
 /**
  *  @file       lib.c
- *  @brief      JavaScript bindings for SimSIMD.
+ *  @brief      JavaScript bindings for NumKong.
  *  @author     Ash Vardanian
  *  @date       October 18, 2023
  *
@@ -8,13 +8,12 @@
  */
 
 #include <node_api.h>        // `napi_*` functions
-#include <simsimd/simsimd.h> // `simsimd_*` functions
+#include <numkong/numkong.h> // `nk_*` functions
 
 /// @brief  Global variable that caches the CPU capabilities, and is computed just once, when the module is loaded.
-simsimd_capability_t static_capabilities = simsimd_cap_serial_k;
+nk_capability_t static_capabilities = nk_cap_serial_k;
 
-napi_value dense(napi_env env, napi_callback_info info, simsimd_kernel_kind_t metric_kind,
-                 simsimd_datatype_t datatype) {
+napi_value dense(napi_env env, napi_callback_info info, nk_kernel_kind_t metric_kind, nk_datatype_t datatype) {
     size_t argc = 2;
     napi_value args[2];
     napi_status status;
@@ -44,24 +43,24 @@ napi_value dense(napi_env env, napi_callback_info info, simsimd_kernel_kind_t me
         return NULL;
     }
 
-    if (datatype == simsimd_datatype_unknown_k) switch (type_a) {
-        case napi_float64_array: datatype = simsimd_f64_k; break;
-        case napi_float32_array: datatype = simsimd_f32_k; break;
-        case napi_int8_array: datatype = simsimd_i8_k; break;
-        case napi_uint8_array: datatype = simsimd_u8_k; break;
+    if (datatype == nk_datatype_unknown_k) switch (type_a) {
+        case napi_float64_array: datatype = nk_f64_k; break;
+        case napi_float32_array: datatype = nk_f32_k; break;
+        case napi_int8_array: datatype = nk_i8_k; break;
+        case napi_uint8_array: datatype = nk_u8_k; break;
         default: break;
         }
 
-    simsimd_dense_metric_t metric = NULL;
-    simsimd_capability_t capability = simsimd_cap_serial_k;
-    simsimd_find_kernel(metric_kind, datatype, static_capabilities, simsimd_cap_any_k,
-                        (simsimd_kernel_punned_t *)&metric, &capability);
+    nk_dense_metric_t metric = NULL;
+    nk_capability_t capability = nk_cap_serial_k;
+    nk_find_kernel(metric_kind, datatype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
+                   &capability);
     if (metric == NULL) {
         napi_throw_error(env, NULL, "Unsupported datatype for given metric");
         return NULL;
     }
 
-    simsimd_distance_t result;
+    nk_distance_t result;
     metric(data_a, data_b, length_a, &result);
 
     // Convert the result to a JavaScript number
@@ -72,30 +71,24 @@ napi_value dense(napi_env env, napi_callback_info info, simsimd_kernel_kind_t me
     return js_result;
 }
 
-napi_value api_ip(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_dot_k, simsimd_datatype_unknown_k);
-}
+napi_value api_ip(napi_env env, napi_callback_info info) { return dense(env, info, nk_dot_k, nk_datatype_unknown_k); }
 napi_value api_angular(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_angular_k, simsimd_datatype_unknown_k);
+    return dense(env, info, nk_angular_k, nk_datatype_unknown_k);
 }
 napi_value api_l2sq(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_sqeuclidean_k, simsimd_datatype_unknown_k);
+    return dense(env, info, nk_sqeuclidean_k, nk_datatype_unknown_k);
 }
 napi_value api_l2(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_metric_l2_k, simsimd_datatype_unknown_k);
+    return dense(env, info, nk_metric_l2_k, nk_datatype_unknown_k);
 }
 napi_value api_kld(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_metric_kld_k, simsimd_datatype_unknown_k);
+    return dense(env, info, nk_metric_kld_k, nk_datatype_unknown_k);
 }
 napi_value api_jsd(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_metric_jsd_k, simsimd_datatype_unknown_k);
+    return dense(env, info, nk_metric_jsd_k, nk_datatype_unknown_k);
 }
-napi_value api_hamming(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_hamming_k, simsimd_b8_k);
-}
-napi_value api_jaccard(napi_env env, napi_callback_info info) {
-    return dense(env, info, simsimd_jaccard_k, simsimd_b8_k);
-}
+napi_value api_hamming(napi_env env, napi_callback_info info) { return dense(env, info, nk_hamming_k, nk_b8_k); }
+napi_value api_jaccard(napi_env env, napi_callback_info info) { return dense(env, info, nk_jaccard_k, nk_b8_k); }
 
 napi_value Init(napi_env env, napi_value exports) {
 
@@ -118,7 +111,7 @@ napi_value Init(napi_env env, napi_value exports) {
     size_t property_count = sizeof(properties) / sizeof(properties[0]);
     napi_define_properties(env, exports, property_count, properties);
 
-    static_capabilities = simsimd_capabilities();
+    static_capabilities = nk_capabilities();
     return exports;
 }
 

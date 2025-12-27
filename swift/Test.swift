@@ -1,7 +1,7 @@
-import SimSIMD
+import NumKong
 import XCTest
 
-class SimSIMDTests: XCTestCase {
+class NumKongTests: XCTestCase {
     override class func setUp() {
         print("Capabilities: \(Capabilities.available)")
     }

@@ -3,7 +3,7 @@
 """
 Module: bench_elementwise.py
 
-This script benchmarks the performance of SimSIMD against other libraries,
+This script benchmarks the performance of NumKong against other libraries,
 such as NumPy, PyTorch, TensorFlow, and JAX on element-wise operations.
 It applies not only to tensors/arrays of identical shape, but also to
 broadcasting operations along different dimensions.
@@ -23,9 +23,9 @@ os.environ["NUMEXPR_NUM_THREADS"] = "1"  # NumExpr
 os.environ["VECLIB_MAXIMUM_THREADS"] = "1"  # Accelerate
 os.environ["OPENBLAS_NUM_THREADS"] = "1"  # OpenBLAS
 
-# NumPy and SimSIMD are obligatory for benchmarking
+# NumPy and NumKong are obligatory for benchmarking
 import numpy as np
-import simsimd as simd
+import numkong as simd
 import tabulate
 
 # Set to ignore all floating-point errors
@@ -90,7 +90,7 @@ class Kernel:
     first_dtype: str
     second_dtype: str
     baseline_func: callable
-    simsimd_func: callable
+    nk_func: callable
     tensor_type: callable = np.array
 
 
@@ -219,7 +219,7 @@ def yield_kernels(
         name: str,
         dtypes: List[Tuple[str]],
         baseline_func: callable,
-        simsimd_func: callable,
+        nk_func: callable,
         tensor_type: callable = np.array,
     ) -> list:
         """Filter out unsupported data types."""
@@ -227,7 +227,7 @@ def yield_kernels(
             Kernel(
                 name=name,
                 baseline_func=baseline_func,
-                simsimd_func=simsimd_func,
+                nk_func=nk_func,
                 tensor_type=tensor_type,
                 first_dtype=first_dtype,
                 second_dtype=second_dtype,
@@ -279,7 +279,7 @@ class Result:
     shape_first: tuple
     shape_second: tuple
     baseline_seconds: Union[float, Exception]
-    simsimd_seconds: Union[float, Exception]
+    nk_seconds: Union[float, Exception]
     bytes_per_input: int
     invocations: int
 
@@ -338,13 +338,13 @@ def yield_results(
         second_matrices_converted = [kernel.tensor_type(m) for m in second_matrices_numpy]
 
         baseline_func = kernel.baseline_func
-        simsimd_func = kernel.simsimd_func
+        nk_func = kernel.nk_func
         result = Result(
             kernel.first_dtype,
             kernel.second_dtype,
             kernel.name,
             baseline_seconds=0,
-            simsimd_seconds=0,
+            nk_seconds=0,
             shape_first=first_shape,
             shape_second=second_shape,
             bytes_per_input=max(first_matrices_numpy[0].nbytes, second_matrices_numpy[0].nbytes),
@@ -373,20 +373,20 @@ def yield_results(
             # This is an unexpected exception... once you face it, please report it
             raise RuntimeError(str(e) + " for %s(%s)" % (kernel.name, str(kernel.dtype))) from e
 
-        # Try obtaining the SimSIMD measurements
+        # Try obtaining the NumKong measurements
         try:
             for i, j in product(range(count_matrices_per_dtype), range(count_matrices_per_dtype)):
-                result.simsimd_seconds += latency(
-                    simsimd_func,
+                result.nk_seconds += latency(
+                    nk_func,
                     first_matrices_numpy[i],
                     second_matrices_numpy[j],
                     count_repetitions_per_matrix,
                     warmup,
                 )
-                if result.simsimd_seconds > time_limit:
+                if result.nk_seconds > time_limit:
                     break
         except NotImplementedError as e:
-            result.simsimd_seconds = e
+            result.nk_seconds = e
         except Exception as e:
             # This is an unexpected exception... once you face it, please report it
             raise RuntimeError(str(e) + " for %s(%s)" % (kernel.name, str(kernel.dtype))) from e
@@ -398,26 +398,26 @@ def result_to_row(result: Result) -> List[str]:
     dtype_cell = f"`{result.first_dtype}` & `{result.second_dtype}`"
     name_cell = f"`{result.name}`"
     baseline_cell = "💥"
-    simsimd_cell = "💥"
+    nk_cell = "💥"
     improvement_cell = "🤷"
 
     if isinstance(result.baseline_seconds, float):
         ops_per_second = result.invocations / result.baseline_seconds
         gbs_per_second = result.bytes_per_input * ops_per_second / 1e9
         baseline_cell = f"{ops_per_second:,.0f} ops/s, {gbs_per_second:,.3f} GB/s"
-    if isinstance(result.simsimd_seconds, float):
-        ops_per_second = result.invocations / result.simsimd_seconds
+    if isinstance(result.nk_seconds, float):
+        ops_per_second = result.invocations / result.nk_seconds
         gbs_per_second = result.bytes_per_input * ops_per_second / 1e9
-        simsimd_cell = f"{ops_per_second:,.0f} ops/s, {gbs_per_second:,.3f} GB/s"
-    if isinstance(result.baseline_seconds, float) and isinstance(result.simsimd_seconds, float):
-        improvement_cell = f"{result.baseline_seconds / result.simsimd_seconds:,.2f} x"
+        nk_cell = f"{ops_per_second:,.0f} ops/s, {gbs_per_second:,.3f} GB/s"
+    if isinstance(result.baseline_seconds, float) and isinstance(result.nk_seconds, float):
+        improvement_cell = f"{result.baseline_seconds / result.nk_seconds:,.2f} x"
 
-    return [dtype_cell, name_cell, baseline_cell, simsimd_cell, improvement_cell]
+    return [dtype_cell, name_cell, baseline_cell, nk_cell, improvement_cell]
 
 
 def main():
     # Argument parsing
-    parser = argparse.ArgumentParser(description="Benchmark SimSIMD and other libraries")
+    parser = argparse.ArgumentParser(description="Benchmark NumKong and other libraries")
     parser.add_argument(
         "--operation",
         choices=["all", *operation_names],
@@ -462,15 +462,15 @@ def main():
         dtypes_profiled = dtype_names
     operation_names_profiled = set([args.operation] if args.operation != "all" else operation_names)
 
-    print("# Benchmarking SimSIMD")
+    print("# Benchmarking NumKong")
     print("- Operations:", ", ".join(operation_names_profiled))
     print("- Datatypes:", ", ".join([f"{a} & {b}" for a, b in dtypes_profiled]))
     try:
         caps = [cap for cap, enabled in simd.get_capabilities().items() if enabled]
         print("- Hardware capabilities:", ", ".join(caps))
 
-        # Log versions of SimSIMD, NumPy, SciPy, and scikit-learn
-        print(f"- SimSIMD version: {simd.__version__}")
+        # Log versions of NumKong, NumPy, SciPy, and scikit-learn
+        print(f"- NumKong version: {simd.__version__}")
         print(f"- NumPy version: {np.__version__}")
 
         if args.torch:
@@ -507,7 +507,7 @@ def main():
         print(f"## Shapes: {first_shape} and {second_shape}")
 
         results = yield_results(first_shape, second_shape, kernels, warmup=args.warmup, time_limit=args.time_limit)
-        columns_headers = ["Data Type", "Method", "Baseline", "SimSIMD", "Improvement"]
+        columns_headers = ["Data Type", "Method", "Baseline", "NumKong", "Improvement"]
         results_rows = []
         for result in results:
             result_row = result_to_row(result)

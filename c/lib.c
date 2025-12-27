@@ -1,17 +1,17 @@
 /**
- *  @brief  Dynamic dispatch library for SimSIMD.
+ *  @brief  Dynamic dispatch library for NumKong.
  *  @note   Compile with the most recent compiler available.
  *  @file   lib.c
  */
-#define SIMSIMD_DYNAMIC_DISPATCH 1
-#define SIMSIMD_NATIVE_F16       0
-#define SIMSIMD_NATIVE_BF16      0
+#define NK_DYNAMIC_DISPATCH 1
+#define NK_NATIVE_F16       0
+#define NK_NATIVE_BF16      0
 
 /*  Override the primary serial operations to avoid the LibC dependency.
  */
-#define SIMSIMD_F32_SQRT(x)  simsimd_f32_approximate_square_root(x)
-#define SIMSIMD_F32_RSQRT(x) simsimd_f32_approximate_inverse_square_root(x)
-#define SIMSIMD_F32_LOG(x)   simsimd_f32_approximate_log(x)
+#define NK_F32_SQRT(x)  nk_f32_approximate_square_root(x)
+#define NK_F32_RSQRT(x) nk_f32_approximate_inverse_square_root(x)
+#define NK_F32_LOG(x)   nk_f32_approximate_log(x)
 
 /*  Depending on the Operating System, the following intrinsics are available
  *  on recent compiler toolchains:
@@ -20,38 +20,38 @@
  *  - Windows - MSVC: everything except Sapphire Rapids and ARM SVE.
  *  - macOS - Apple Clang: only Arm NEON and x86 AVX2 Haswell extensions are available.
  */
-#if !defined(SIMSIMD_TARGET_NEON) && (defined(__APPLE__) || defined(__linux__))
-#define SIMSIMD_TARGET_NEON 1
+#if !defined(NK_TARGET_NEON) && (defined(__APPLE__) || defined(__linux__))
+#define NK_TARGET_NEON 1
 #endif
-#if !defined(SIMSIMD_TARGET_SVE) && (defined(__linux__))
-#define SIMSIMD_TARGET_SVE 1
+#if !defined(NK_TARGET_SVE) && (defined(__linux__))
+#define NK_TARGET_SVE 1
 #endif
-#if !defined(SIMSIMD_TARGET_SVE2) && (defined(__linux__))
-#define SIMSIMD_TARGET_SVE2 1
+#if !defined(NK_TARGET_SVE2) && (defined(__linux__))
+#define NK_TARGET_SVE2 1
 #endif
-#if !defined(SIMSIMD_TARGET_HASWELL) && (defined(_MSC_VER) || defined(__APPLE__) || defined(__linux__))
-#define SIMSIMD_TARGET_HASWELL 1
+#if !defined(NK_TARGET_HASWELL) && (defined(_MSC_VER) || defined(__APPLE__) || defined(__linux__))
+#define NK_TARGET_HASWELL 1
 #endif
-#if !defined(SIMSIMD_TARGET_SKYLAKE) && (defined(_MSC_VER) || defined(__linux__))
-#define SIMSIMD_TARGET_SKYLAKE 1
+#if !defined(NK_TARGET_SKYLAKE) && (defined(_MSC_VER) || defined(__linux__))
+#define NK_TARGET_SKYLAKE 1
 #endif
-#if !defined(SIMSIMD_TARGET_ICE) && (defined(_MSC_VER) || defined(__linux__))
-#define SIMSIMD_TARGET_ICE 1
+#if !defined(NK_TARGET_ICE) && (defined(_MSC_VER) || defined(__linux__))
+#define NK_TARGET_ICE 1
 #endif
-#if !defined(SIMSIMD_TARGET_GENOA) && (defined(__linux__))
-#define SIMSIMD_TARGET_GENOA 1
+#if !defined(NK_TARGET_GENOA) && (defined(__linux__))
+#define NK_TARGET_GENOA 1
 #endif
-#if !defined(SIMSIMD_TARGET_SAPPHIRE) && (defined(__linux__))
-#define SIMSIMD_TARGET_SAPPHIRE 1
+#if !defined(NK_TARGET_SAPPHIRE) && (defined(__linux__))
+#define NK_TARGET_SAPPHIRE 1
 #endif
-#if !defined(SIMSIMD_TARGET_TURIN) && (defined(__linux__))
-#define SIMSIMD_TARGET_TURIN 1
+#if !defined(NK_TARGET_TURIN) && (defined(__linux__))
+#define NK_TARGET_TURIN 1
 #endif
-#if !defined(SIMSIMD_TARGET_SIERRA) && (defined(__linux__)) && 0 // TODO: Add target spec to GCC & Clang
-#define SIMSIMD_TARGET_SIERRA 1
+#if !defined(NK_TARGET_SIERRA) && (defined(__linux__)) && 0 // TODO: Add target spec to GCC & Clang
+#define NK_TARGET_SIERRA 1
 #endif
 
-#include <simsimd/simsimd.h>
+#include <numkong/numkong.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -61,371 +61,348 @@ extern "C" {
 // If no metric is found, it returns NaN. We can obtain NaN by dividing 0.0 by 0.0, but that annoys
 // the MSVC compiler. Instead we can directly write-in the signaling NaN (0x7FF0000000000001)
 // or the qNaN (0x7FF8000000000000).
-#define SIMSIMD_DECLARATION_DENSE(name, extension, output_type)                                                    \
-    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(simsimd_##extension##_t const *a,                            \
-                                                      simsimd_##extension##_t const *b, simsimd_size_t n,          \
-                                                      simsimd_##output_type##_t *results) {                        \
-        static simsimd_metric_dense_punned_t metric = 0;                                                           \
+#define NK_DECLARATION_DENSE(name, extension, output_type)                                                         \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n, \
+                                            nk_##output_type##_t *results) {                                       \
+        static nk_metric_dense_punned_t metric = 0;                                                                \
         if (metric == 0) {                                                                                         \
-            simsimd_capability_t used_capability;                                                                  \
-            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##extension##_k, simsimd_capabilities(), \
-                                       simsimd_cap_any_k, (simsimd_kernel_punned_t *)&metric, &used_capability);   \
+            nk_capability_t used_capability;                                                                       \
+            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
+                                  (nk_kernel_punned_t *)&metric, &used_capability);                                \
             if (!metric) {                                                                                         \
-                *(simsimd_u64_t *)results = 0x7FF0000000000001ull;                                                 \
+                *(nk_u64_t *)results = 0x7FF0000000000001ull;                                                      \
                 return;                                                                                            \
             }                                                                                                      \
         }                                                                                                          \
         metric(a, b, n, (void *)results);                                                                          \
     }
 
-#define SIMSIMD_DECLARATION_SPARSE(name, extension, type, output_type)                                             \
-    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(simsimd_##type##_t const *a, simsimd_##type##_t const *b,    \
-                                                      simsimd_size_t a_length, simsimd_size_t b_length,            \
-                                                      simsimd_##output_type##_t *result) {                         \
-        static simsimd_metric_sparse_punned_t metric = 0;                                                          \
-        if (metric == 0) {                                                                                         \
-            simsimd_capability_t used_capability;                                                                  \
-            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##extension##_k, simsimd_capabilities(), \
-                                       simsimd_cap_any_k, (simsimd_kernel_punned_t *)(&metric), &used_capability); \
-            if (!metric) {                                                                                         \
-                *(simsimd_u64_t *)result = 0x7FF0000000000001ull;                                                  \
-                return;                                                                                            \
-            }                                                                                                      \
-        }                                                                                                          \
-        metric(a, b, a_length, b_length, (void *)result);                                                          \
+#define NK_DECLARATION_SPARSE(name, extension, type, output_type)                                               \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##type##_t const *a, nk_##type##_t const *b, nk_size_t a_length, \
+                                            nk_size_t b_length, nk_##output_type##_t *result) {                 \
+        static nk_metric_sparse_punned_t metric = 0;                                                            \
+        if (metric == 0) {                                                                                      \
+            nk_capability_t used_capability;                                                                    \
+            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,    \
+                                  (nk_kernel_punned_t *)(&metric), &used_capability);                           \
+            if (!metric) {                                                                                      \
+                *(nk_u64_t *)result = 0x7FF0000000000001ull;                                                    \
+                return;                                                                                         \
+            }                                                                                                   \
+        }                                                                                                       \
+        metric(a, b, a_length, b_length, (void *)result);                                                       \
     }
 
-#define SIMSIMD_DECLARATION_SPARSE_DOT(name, index_type, weight_type, output_type)                                   \
-    SIMSIMD_DYNAMIC void simsimd_##name##_##index_type##weight_type(                                                 \
-        simsimd_##index_type##_t const *a, simsimd_##index_type##_t const *b,                                        \
-        simsimd_##weight_type##_t const *a_weights, simsimd_##weight_type##_t const *b_weights,                      \
-        simsimd_size_t a_length, simsimd_size_t b_length, simsimd_##output_type##_t *product) {                      \
-        static simsimd_metric_sparse_dot_punned_t metric = 0;                                                        \
-        if (metric == 0) {                                                                                           \
-            simsimd_capability_t used_capability;                                                                    \
-            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##weight_type##_k, simsimd_capabilities(), \
-                                       simsimd_cap_any_k, (simsimd_kernel_punned_t *)&metric, &used_capability);     \
-            if (!metric) {                                                                                           \
-                *(simsimd_u64_t *)product = 0x7FF0000000000001ull;                                                   \
-                return;                                                                                              \
-            }                                                                                                        \
-        }                                                                                                            \
-        metric(a, b, a_weights, b_weights, a_length, b_length, (void *)product);                                     \
+#define NK_DECLARATION_SPARSE_DOT(name, index_type, weight_type, output_type)                                         \
+    NK_DYNAMIC void nk_##name##_##index_type##weight_type(nk_##index_type##_t const *a, nk_##index_type##_t const *b, \
+                                                          nk_##weight_type##_t const *a_weights,                      \
+                                                          nk_##weight_type##_t const *b_weights, nk_size_t a_length,  \
+                                                          nk_size_t b_length, nk_##output_type##_t *product) {        \
+        static nk_metric_sparse_dot_punned_t metric = 0;                                                              \
+        if (metric == 0) {                                                                                            \
+            nk_capability_t used_capability;                                                                          \
+            nk_find_kernel_punned(nk_metric_##name##_k, nk_##weight_type##_k, nk_capabilities(), nk_cap_any_k,        \
+                                  (nk_kernel_punned_t *)&metric, &used_capability);                                   \
+            if (!metric) {                                                                                            \
+                *(nk_u64_t *)product = 0x7FF0000000000001ull;                                                         \
+                return;                                                                                               \
+            }                                                                                                         \
+        }                                                                                                             \
+        metric(a, b, a_weights, b_weights, a_length, b_length, (void *)product);                                      \
     }
 
-#define SIMSIMD_DECLARATION_CURVED(name, extension, output_type)                                                   \
-    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(                                                             \
-        simsimd_##extension##_t const *a, simsimd_##extension##_t const *b, simsimd_##extension##_t const *c,      \
-        simsimd_size_t n, simsimd_##output_type##_t *result) {                                                     \
-        static simsimd_metric_curved_punned_t metric = 0;                                                          \
-        if (metric == 0) {                                                                                         \
-            simsimd_capability_t used_capability;                                                                  \
-            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##extension##_k, simsimd_capabilities(), \
-                                       simsimd_cap_any_k, (simsimd_kernel_punned_t *)(&metric), &used_capability); \
-            if (!metric) {                                                                                         \
-                *(simsimd_u64_t *)result = 0x7FF0000000000001ull;                                                  \
-                return;                                                                                            \
-            }                                                                                                      \
-        }                                                                                                          \
-        metric(a, b, c, n, (void *)result);                                                                        \
+#define NK_DECLARATION_CURVED(name, extension, output_type)                                                           \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b,                 \
+                                            nk_##extension##_t const *c, nk_size_t n, nk_##output_type##_t *result) { \
+        static nk_metric_curved_punned_t metric = 0;                                                                  \
+        if (metric == 0) {                                                                                            \
+            nk_capability_t used_capability;                                                                          \
+            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,          \
+                                  (nk_kernel_punned_t *)(&metric), &used_capability);                                 \
+            if (!metric) {                                                                                            \
+                *(nk_u64_t *)result = 0x7FF0000000000001ull;                                                          \
+                return;                                                                                               \
+            }                                                                                                         \
+        }                                                                                                             \
+        metric(a, b, c, n, (void *)result);                                                                           \
     }
 
-#define SIMSIMD_DECLARATION_GEOSPATIAL(name, extension, output_type)                                               \
-    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(                                                             \
-        simsimd_##extension##_t const *a_lats, simsimd_##extension##_t const *a_lons,                              \
-        simsimd_##extension##_t const *b_lats, simsimd_##extension##_t const *b_lons, simsimd_size_t n,            \
-        simsimd_##output_type##_t *results) {                                                                      \
-        static simsimd_metric_geospatial_punned_t metric = 0;                                                      \
-        if (metric == 0) {                                                                                         \
-            simsimd_capability_t used_capability;                                                                  \
-            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##extension##_k, simsimd_capabilities(), \
-                                       simsimd_cap_any_k, (simsimd_kernel_punned_t *)(&metric), &used_capability); \
-            if (!metric) {                                                                                         \
-                *(simsimd_u64_t *)results = 0x7FF0000000000001ull;                                                 \
-                return;                                                                                            \
-            }                                                                                                      \
-        }                                                                                                          \
-        metric(a_lats, a_lons, b_lats, b_lons, n, (void *)results);                                                \
+#define NK_DECLARATION_GEOSPATIAL(name, extension, output_type)                                                 \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a_lats, nk_##extension##_t const *a_lons, \
+                                            nk_##extension##_t const *b_lats, nk_##extension##_t const *b_lons, \
+                                            nk_size_t n, nk_##output_type##_t *results) {                       \
+        static nk_metric_geospatial_punned_t metric = 0;                                                        \
+        if (metric == 0) {                                                                                      \
+            nk_capability_t used_capability;                                                                    \
+            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,    \
+                                  (nk_kernel_punned_t *)(&metric), &used_capability);                           \
+            if (!metric) {                                                                                      \
+                *(nk_u64_t *)results = 0x7FF0000000000001ull;                                                   \
+                return;                                                                                         \
+            }                                                                                                   \
+        }                                                                                                       \
+        metric(a_lats, a_lons, b_lats, b_lons, n, (void *)results);                                             \
     }
 
-#define SIMSIMD_DECLARATION_FMA(name, extension, scalar_type)                                                      \
-    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(                                                             \
-        simsimd_##extension##_t const *a, simsimd_##extension##_t const *b, simsimd_##extension##_t const *c,      \
-        simsimd_size_t n, simsimd_##scalar_type##_t const *alpha, simsimd_##scalar_type##_t const *beta,           \
-        simsimd_##extension##_t *result) {                                                                         \
-        static simsimd_kernel_fma_punned_t metric = 0;                                                             \
-        if (metric == 0) {                                                                                         \
-            simsimd_capability_t used_capability;                                                                  \
-            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##extension##_k, simsimd_capabilities(), \
-                                       simsimd_cap_any_k, (simsimd_kernel_punned_t *)(&metric), &used_capability); \
-        }                                                                                                          \
-        metric(a, b, c, n, (void const *)alpha, (void const *)beta, result);                                       \
+#define NK_DECLARATION_FMA(name, extension, scalar_type)                                                     \
+    NK_DYNAMIC void nk_##name##_##extension(                                                                 \
+        nk_##extension##_t const *a, nk_##extension##_t const *b, nk_##extension##_t const *c, nk_size_t n,  \
+        nk_##scalar_type##_t const *alpha, nk_##scalar_type##_t const *beta, nk_##extension##_t *result) {   \
+        static nk_kernel_fma_punned_t metric = 0;                                                            \
+        if (metric == 0) {                                                                                   \
+            nk_capability_t used_capability;                                                                 \
+            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k, \
+                                  (nk_kernel_punned_t *)(&metric), &used_capability);                        \
+        }                                                                                                    \
+        metric(a, b, c, n, (void const *)alpha, (void const *)beta, result);                                 \
     }
 
-#define SIMSIMD_DECLARATION_WSUM(name, extension, scalar_type)                                                     \
-    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(                                                             \
-        simsimd_##extension##_t const *a, simsimd_##extension##_t const *b, simsimd_size_t n,                      \
-        simsimd_##scalar_type##_t const *alpha, simsimd_##scalar_type##_t const *beta,                             \
-        simsimd_##extension##_t *result) {                                                                         \
-        static simsimd_kernel_wsum_punned_t metric = 0;                                                            \
+#define NK_DECLARATION_WSUM(name, extension, scalar_type)                                                          \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n, \
+                                            nk_##scalar_type##_t const *alpha, nk_##scalar_type##_t const *beta,   \
+                                            nk_##extension##_t *result) {                                          \
+        static nk_kernel_wsum_punned_t metric = 0;                                                                 \
         if (metric == 0) {                                                                                         \
-            simsimd_capability_t used_capability;                                                                  \
-            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##extension##_k, simsimd_capabilities(), \
-                                       simsimd_cap_any_k, (simsimd_kernel_punned_t *)(&metric), &used_capability); \
+            nk_capability_t used_capability;                                                                       \
+            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
+                                  (nk_kernel_punned_t *)(&metric), &used_capability);                              \
         }                                                                                                          \
         metric(a, b, n, (void const *)alpha, (void const *)beta, result);                                          \
     }
 
-#define SIMSIMD_DECLARATION_SCALE(name, extension, scalar_type)                                                    \
-    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(                                                             \
-        simsimd_##extension##_t const *a, simsimd_size_t n, simsimd_##scalar_type##_t const *alpha,                \
-        simsimd_##scalar_type##_t const *beta, simsimd_##extension##_t *result) {                                  \
-        static simsimd_kernel_scale_punned_t metric = 0;                                                           \
-        if (metric == 0) {                                                                                         \
-            simsimd_capability_t used_capability;                                                                  \
-            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##extension##_k, simsimd_capabilities(), \
-                                       simsimd_cap_any_k, (simsimd_kernel_punned_t *)(&metric), &used_capability); \
-        }                                                                                                          \
-        metric(a, n, (void const *)alpha, (void const *)beta, result);                                             \
+#define NK_DECLARATION_SCALE(name, extension, scalar_type)                                                       \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_size_t n,                            \
+                                            nk_##scalar_type##_t const *alpha, nk_##scalar_type##_t const *beta, \
+                                            nk_##extension##_t *result) {                                        \
+        static nk_kernel_scale_punned_t metric = 0;                                                              \
+        if (metric == 0) {                                                                                       \
+            nk_capability_t used_capability;                                                                     \
+            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,     \
+                                  (nk_kernel_punned_t *)(&metric), &used_capability);                            \
+        }                                                                                                        \
+        metric(a, n, (void const *)alpha, (void const *)beta, result);                                           \
     }
 
-#define SIMSIMD_DECLARATION_SUM(name, extension)                                                                   \
-    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(simsimd_##extension##_t const *a,                            \
-                                                      simsimd_##extension##_t const *b, simsimd_size_t n,          \
-                                                      simsimd_##extension##_t *result) {                           \
-        static simsimd_kernel_sum_punned_t metric = 0;                                                             \
+#define NK_DECLARATION_SUM(name, extension)                                                                        \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n, \
+                                            nk_##extension##_t *result) {                                          \
+        static nk_kernel_sum_punned_t metric = 0;                                                                  \
         if (metric == 0) {                                                                                         \
-            simsimd_capability_t used_capability;                                                                  \
-            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##extension##_k, simsimd_capabilities(), \
-                                       simsimd_cap_any_k, (simsimd_kernel_punned_t *)(&metric), &used_capability); \
+            nk_capability_t used_capability;                                                                       \
+            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
+                                  (nk_kernel_punned_t *)(&metric), &used_capability);                              \
         }                                                                                                          \
         metric(a, b, n, result);                                                                                   \
     }
 
-#define SIMSIMD_DECLARATION_TRIGONOMETRY(name, extension)                                                          \
-    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(simsimd_##extension##_t const *inputs, simsimd_size_t n,     \
-                                                      simsimd_##extension##_t *outputs) {                          \
-        static simsimd_kernel_trigonometry_punned_t kernel = 0;                                                    \
-        if (kernel == 0) {                                                                                         \
-            simsimd_capability_t used_capability;                                                                  \
-            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##extension##_k, simsimd_capabilities(), \
-                                       simsimd_cap_any_k, (simsimd_kernel_punned_t *)(&kernel), &used_capability); \
-        }                                                                                                          \
-        kernel(inputs, n, outputs);                                                                                \
+#define NK_DECLARATION_TRIGONOMETRY(name, extension)                                                         \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *inputs, nk_size_t n,                   \
+                                            nk_##extension##_t *outputs) {                                   \
+        static nk_kernel_trigonometry_punned_t kernel = 0;                                                   \
+        if (kernel == 0) {                                                                                   \
+            nk_capability_t used_capability;                                                                 \
+            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k, \
+                                  (nk_kernel_punned_t *)(&kernel), &used_capability);                        \
+        }                                                                                                    \
+        kernel(inputs, n, outputs);                                                                          \
     }
 
-#define SIMSIMD_DECLARATION_MESH(name, extension, mesh_type)                                                         \
-    SIMSIMD_DYNAMIC void simsimd_##name##_##extension(                                                               \
-        simsimd_##extension##_t const *a, simsimd_##extension##_t const *b, simsimd_size_t n,                        \
-        simsimd_##mesh_type##_t *a_centroid, simsimd_##mesh_type##_t *b_centroid, simsimd_##mesh_type##_t *rotation, \
-        simsimd_##mesh_type##_t *scale, simsimd_##mesh_type##_t *result) {                                           \
-        static simsimd_metric_mesh_punned_t kernel = 0;                                                              \
-        if (kernel == 0) {                                                                                           \
-            simsimd_capability_t used_capability;                                                                    \
-            simsimd_find_kernel_punned(simsimd_metric_##name##_k, simsimd_##extension##_k, simsimd_capabilities(),   \
-                                       simsimd_cap_any_k, (simsimd_kernel_punned_t *)&kernel, &used_capability);     \
-            if (!kernel) {                                                                                           \
-                *(simsimd_u64_t *)result = 0x7FF0000000000001ull;                                                    \
-                return;                                                                                              \
-            }                                                                                                        \
-        }                                                                                                            \
-        kernel(a, b, n, (void *)a_centroid, (void *)b_centroid, (void *)rotation, (void *)scale, (void *)result);    \
+#define NK_DECLARATION_MESH(name, extension, mesh_type)                                                            \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n, \
+                                            nk_##mesh_type##_t *a_centroid, nk_##mesh_type##_t *b_centroid,        \
+                                            nk_##mesh_type##_t *rotation, nk_##mesh_type##_t *scale,               \
+                                            nk_##mesh_type##_t *result) {                                          \
+        static nk_metric_mesh_punned_t kernel = 0;                                                                 \
+        if (kernel == 0) {                                                                                         \
+            nk_capability_t used_capability;                                                                       \
+            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
+                                  (nk_kernel_punned_t *)&kernel, &used_capability);                                \
+            if (!kernel) {                                                                                         \
+                *(nk_u64_t *)result = 0x7FF0000000000001ull;                                                       \
+                return;                                                                                            \
+            }                                                                                                      \
+        }                                                                                                          \
+        kernel(a, b, n, (void *)a_centroid, (void *)b_centroid, (void *)rotation, (void *)scale, (void *)result);  \
     }
 
 // Dot products
-SIMSIMD_DECLARATION_DENSE(dot, i8, i32)
-SIMSIMD_DECLARATION_DENSE(dot, u8, u32)
-SIMSIMD_DECLARATION_DENSE(dot, f16, f32)
-SIMSIMD_DECLARATION_DENSE(dot, bf16, f32)
-SIMSIMD_DECLARATION_DENSE(dot, f32, f32)
-SIMSIMD_DECLARATION_DENSE(dot, f64, f64)
-SIMSIMD_DECLARATION_DENSE(dot, f16c, f32c)
-SIMSIMD_DECLARATION_DENSE(dot, bf16c, f32c)
-SIMSIMD_DECLARATION_DENSE(dot, f32c, f32c)
-SIMSIMD_DECLARATION_DENSE(dot, f64c, f64c)
-SIMSIMD_DECLARATION_DENSE(dot, e4m3, f32)
-SIMSIMD_DECLARATION_DENSE(dot, e5m2, f32)
-SIMSIMD_DECLARATION_DENSE(vdot, f16c, f32c)
-SIMSIMD_DECLARATION_DENSE(vdot, bf16c, f32c)
-SIMSIMD_DECLARATION_DENSE(vdot, f32c, f32c)
-SIMSIMD_DECLARATION_DENSE(vdot, f64c, f64c)
+NK_DECLARATION_DENSE(dot, i8, i32)
+NK_DECLARATION_DENSE(dot, u8, u32)
+NK_DECLARATION_DENSE(dot, f16, f32)
+NK_DECLARATION_DENSE(dot, bf16, f32)
+NK_DECLARATION_DENSE(dot, f32, f32)
+NK_DECLARATION_DENSE(dot, f64, f64)
+NK_DECLARATION_DENSE(dot, f16c, f32c)
+NK_DECLARATION_DENSE(dot, bf16c, f32c)
+NK_DECLARATION_DENSE(dot, f32c, f32c)
+NK_DECLARATION_DENSE(dot, f64c, f64c)
+NK_DECLARATION_DENSE(dot, e4m3, f32)
+NK_DECLARATION_DENSE(dot, e5m2, f32)
+NK_DECLARATION_DENSE(vdot, f16c, f32c)
+NK_DECLARATION_DENSE(vdot, bf16c, f32c)
+NK_DECLARATION_DENSE(vdot, f32c, f32c)
+NK_DECLARATION_DENSE(vdot, f64c, f64c)
 
 // Spatial distances
-SIMSIMD_DECLARATION_DENSE(angular, i8, f32)
-SIMSIMD_DECLARATION_DENSE(angular, u8, f32)
-SIMSIMD_DECLARATION_DENSE(angular, f16, f32)
-SIMSIMD_DECLARATION_DENSE(angular, bf16, f32)
-SIMSIMD_DECLARATION_DENSE(angular, f32, f32)
-SIMSIMD_DECLARATION_DENSE(angular, f64, f64)
-SIMSIMD_DECLARATION_DENSE(l2sq, i8, u32)
-SIMSIMD_DECLARATION_DENSE(l2sq, u8, u32)
-SIMSIMD_DECLARATION_DENSE(l2sq, f16, f32)
-SIMSIMD_DECLARATION_DENSE(l2sq, bf16, f32)
-SIMSIMD_DECLARATION_DENSE(l2sq, f32, f32)
-SIMSIMD_DECLARATION_DENSE(l2sq, f64, f64)
-SIMSIMD_DECLARATION_DENSE(l2, i8, f32)
-SIMSIMD_DECLARATION_DENSE(l2, u8, f32)
-SIMSIMD_DECLARATION_DENSE(l2, f16, f32)
-SIMSIMD_DECLARATION_DENSE(l2, bf16, f32)
-SIMSIMD_DECLARATION_DENSE(l2, f32, f32)
-SIMSIMD_DECLARATION_DENSE(l2, f64, f64)
+NK_DECLARATION_DENSE(angular, i8, f32)
+NK_DECLARATION_DENSE(angular, u8, f32)
+NK_DECLARATION_DENSE(angular, f16, f32)
+NK_DECLARATION_DENSE(angular, bf16, f32)
+NK_DECLARATION_DENSE(angular, f32, f32)
+NK_DECLARATION_DENSE(angular, f64, f64)
+NK_DECLARATION_DENSE(l2sq, i8, u32)
+NK_DECLARATION_DENSE(l2sq, u8, u32)
+NK_DECLARATION_DENSE(l2sq, f16, f32)
+NK_DECLARATION_DENSE(l2sq, bf16, f32)
+NK_DECLARATION_DENSE(l2sq, f32, f32)
+NK_DECLARATION_DENSE(l2sq, f64, f64)
+NK_DECLARATION_DENSE(l2, i8, f32)
+NK_DECLARATION_DENSE(l2, u8, f32)
+NK_DECLARATION_DENSE(l2, f16, f32)
+NK_DECLARATION_DENSE(l2, bf16, f32)
+NK_DECLARATION_DENSE(l2, f32, f32)
+NK_DECLARATION_DENSE(l2, f64, f64)
 
 // Geospatial distances
-SIMSIMD_DECLARATION_GEOSPATIAL(haversine, f64, f64)
-SIMSIMD_DECLARATION_GEOSPATIAL(haversine, f32, f32)
-SIMSIMD_DECLARATION_GEOSPATIAL(vincenty, f64, f64)
-SIMSIMD_DECLARATION_GEOSPATIAL(vincenty, f32, f32)
+NK_DECLARATION_GEOSPATIAL(haversine, f64, f64)
+NK_DECLARATION_GEOSPATIAL(haversine, f32, f32)
+NK_DECLARATION_GEOSPATIAL(vincenty, f64, f64)
+NK_DECLARATION_GEOSPATIAL(vincenty, f32, f32)
 
 // Binary distances
-SIMSIMD_DECLARATION_DENSE(hamming, b8, u32)
-SIMSIMD_DECLARATION_DENSE(jaccard, b8, f32)
-SIMSIMD_DECLARATION_DENSE(jaccard, u32, f32)
+NK_DECLARATION_DENSE(hamming, b8, u32)
+NK_DECLARATION_DENSE(jaccard, b8, f32)
+NK_DECLARATION_DENSE(jaccard, u32, f32)
 
 // Probability distributions
-SIMSIMD_DECLARATION_DENSE(kld, f16, f32)
-SIMSIMD_DECLARATION_DENSE(kld, bf16, f32)
-SIMSIMD_DECLARATION_DENSE(kld, f32, f32)
-SIMSIMD_DECLARATION_DENSE(kld, f64, f64)
-SIMSIMD_DECLARATION_DENSE(jsd, f16, f32)
-SIMSIMD_DECLARATION_DENSE(jsd, bf16, f32)
-SIMSIMD_DECLARATION_DENSE(jsd, f32, f32)
-SIMSIMD_DECLARATION_DENSE(jsd, f64, f64)
+NK_DECLARATION_DENSE(kld, f16, f32)
+NK_DECLARATION_DENSE(kld, bf16, f32)
+NK_DECLARATION_DENSE(kld, f32, f32)
+NK_DECLARATION_DENSE(kld, f64, f64)
+NK_DECLARATION_DENSE(jsd, f16, f32)
+NK_DECLARATION_DENSE(jsd, bf16, f32)
+NK_DECLARATION_DENSE(jsd, f32, f32)
+NK_DECLARATION_DENSE(jsd, f64, f64)
 
 // Sparse sets
-SIMSIMD_DECLARATION_SPARSE(intersect, u16, u16, u32)
-SIMSIMD_DECLARATION_SPARSE(intersect, u32, u32, u32)
-SIMSIMD_DECLARATION_SPARSE_DOT(sparse_dot, u16, bf16, f32)
-SIMSIMD_DECLARATION_SPARSE_DOT(sparse_dot, u32, f32, f32)
+NK_DECLARATION_SPARSE(intersect, u16, u16, u32)
+NK_DECLARATION_SPARSE(intersect, u32, u32, u32)
+NK_DECLARATION_SPARSE_DOT(sparse_dot, u16, bf16, f32)
+NK_DECLARATION_SPARSE_DOT(sparse_dot, u32, f32, f32)
 
 // Curved spaces
-SIMSIMD_DECLARATION_CURVED(bilinear, f64, f64)
-SIMSIMD_DECLARATION_CURVED(bilinear, f64c, f64c)
-SIMSIMD_DECLARATION_CURVED(mahalanobis, f64, f64)
-SIMSIMD_DECLARATION_CURVED(bilinear, f32, f32)
-SIMSIMD_DECLARATION_CURVED(bilinear, f32c, f32c)
-SIMSIMD_DECLARATION_CURVED(mahalanobis, f32, f32)
-SIMSIMD_DECLARATION_CURVED(bilinear, f16, f32)
-SIMSIMD_DECLARATION_CURVED(bilinear, f16c, f32c)
-SIMSIMD_DECLARATION_CURVED(mahalanobis, f16, f32)
-SIMSIMD_DECLARATION_CURVED(bilinear, bf16, f32)
-SIMSIMD_DECLARATION_CURVED(bilinear, bf16c, f32c)
-SIMSIMD_DECLARATION_CURVED(mahalanobis, bf16, f32)
+NK_DECLARATION_CURVED(bilinear, f64, f64)
+NK_DECLARATION_CURVED(bilinear, f64c, f64c)
+NK_DECLARATION_CURVED(mahalanobis, f64, f64)
+NK_DECLARATION_CURVED(bilinear, f32, f32)
+NK_DECLARATION_CURVED(bilinear, f32c, f32c)
+NK_DECLARATION_CURVED(mahalanobis, f32, f32)
+NK_DECLARATION_CURVED(bilinear, f16, f32)
+NK_DECLARATION_CURVED(bilinear, f16c, f32c)
+NK_DECLARATION_CURVED(mahalanobis, f16, f32)
+NK_DECLARATION_CURVED(bilinear, bf16, f32)
+NK_DECLARATION_CURVED(bilinear, bf16c, f32c)
+NK_DECLARATION_CURVED(mahalanobis, bf16, f32)
 
 // Element-wise operations
-SIMSIMD_DECLARATION_FMA(fma, f64, f64)
-SIMSIMD_DECLARATION_FMA(fma, f32, f32)
-SIMSIMD_DECLARATION_FMA(fma, f16, f32)
-SIMSIMD_DECLARATION_FMA(fma, bf16, f32)
-SIMSIMD_DECLARATION_FMA(fma, i8, f32)
-SIMSIMD_DECLARATION_FMA(fma, u8, f32)
-SIMSIMD_DECLARATION_WSUM(wsum, f64, f64)
-SIMSIMD_DECLARATION_WSUM(wsum, f32, f32)
-SIMSIMD_DECLARATION_WSUM(wsum, f16, f32)
-SIMSIMD_DECLARATION_WSUM(wsum, bf16, f32)
-SIMSIMD_DECLARATION_WSUM(wsum, i8, f32)
-SIMSIMD_DECLARATION_WSUM(wsum, u8, f32)
-SIMSIMD_DECLARATION_SCALE(scale, f64, f64)
-SIMSIMD_DECLARATION_SCALE(scale, f32, f32)
-SIMSIMD_DECLARATION_SCALE(scale, f16, f32)
-SIMSIMD_DECLARATION_SCALE(scale, bf16, f32)
-SIMSIMD_DECLARATION_SCALE(scale, i8, f32)
-SIMSIMD_DECLARATION_SCALE(scale, u8, f32)
-SIMSIMD_DECLARATION_SCALE(scale, i16, f32)
-SIMSIMD_DECLARATION_SCALE(scale, u16, f32)
-SIMSIMD_DECLARATION_SCALE(scale, i32, f64)
-SIMSIMD_DECLARATION_SCALE(scale, u32, f64)
-SIMSIMD_DECLARATION_SCALE(scale, i64, f64)
-SIMSIMD_DECLARATION_SCALE(scale, u64, f64)
-SIMSIMD_DECLARATION_SUM(sum, f64)
-SIMSIMD_DECLARATION_SUM(sum, f32)
-SIMSIMD_DECLARATION_SUM(sum, f16)
-SIMSIMD_DECLARATION_SUM(sum, bf16)
-SIMSIMD_DECLARATION_SUM(sum, i8)
-SIMSIMD_DECLARATION_SUM(sum, u8)
-SIMSIMD_DECLARATION_SUM(sum, i16)
-SIMSIMD_DECLARATION_SUM(sum, u16)
-SIMSIMD_DECLARATION_SUM(sum, i32)
-SIMSIMD_DECLARATION_SUM(sum, u32)
-SIMSIMD_DECLARATION_SUM(sum, i64)
-SIMSIMD_DECLARATION_SUM(sum, u64)
+NK_DECLARATION_FMA(fma, f64, f64)
+NK_DECLARATION_FMA(fma, f32, f32)
+NK_DECLARATION_FMA(fma, f16, f32)
+NK_DECLARATION_FMA(fma, bf16, f32)
+NK_DECLARATION_FMA(fma, i8, f32)
+NK_DECLARATION_FMA(fma, u8, f32)
+NK_DECLARATION_WSUM(wsum, f64, f64)
+NK_DECLARATION_WSUM(wsum, f32, f32)
+NK_DECLARATION_WSUM(wsum, f16, f32)
+NK_DECLARATION_WSUM(wsum, bf16, f32)
+NK_DECLARATION_WSUM(wsum, i8, f32)
+NK_DECLARATION_WSUM(wsum, u8, f32)
+NK_DECLARATION_SCALE(scale, f64, f64)
+NK_DECLARATION_SCALE(scale, f32, f32)
+NK_DECLARATION_SCALE(scale, f16, f32)
+NK_DECLARATION_SCALE(scale, bf16, f32)
+NK_DECLARATION_SCALE(scale, i8, f32)
+NK_DECLARATION_SCALE(scale, u8, f32)
+NK_DECLARATION_SCALE(scale, i16, f32)
+NK_DECLARATION_SCALE(scale, u16, f32)
+NK_DECLARATION_SCALE(scale, i32, f64)
+NK_DECLARATION_SCALE(scale, u32, f64)
+NK_DECLARATION_SCALE(scale, i64, f64)
+NK_DECLARATION_SCALE(scale, u64, f64)
+NK_DECLARATION_SUM(sum, f64)
+NK_DECLARATION_SUM(sum, f32)
+NK_DECLARATION_SUM(sum, f16)
+NK_DECLARATION_SUM(sum, bf16)
+NK_DECLARATION_SUM(sum, i8)
+NK_DECLARATION_SUM(sum, u8)
+NK_DECLARATION_SUM(sum, i16)
+NK_DECLARATION_SUM(sum, u16)
+NK_DECLARATION_SUM(sum, i32)
+NK_DECLARATION_SUM(sum, u32)
+NK_DECLARATION_SUM(sum, i64)
+NK_DECLARATION_SUM(sum, u64)
 
 // Trigonometry functions
-SIMSIMD_DECLARATION_TRIGONOMETRY(sin, f32)
-SIMSIMD_DECLARATION_TRIGONOMETRY(sin, f64)
-SIMSIMD_DECLARATION_TRIGONOMETRY(cos, f32)
-SIMSIMD_DECLARATION_TRIGONOMETRY(cos, f64)
-SIMSIMD_DECLARATION_TRIGONOMETRY(atan, f32)
-SIMSIMD_DECLARATION_TRIGONOMETRY(atan, f64)
+NK_DECLARATION_TRIGONOMETRY(sin, f32)
+NK_DECLARATION_TRIGONOMETRY(sin, f64)
+NK_DECLARATION_TRIGONOMETRY(cos, f32)
+NK_DECLARATION_TRIGONOMETRY(cos, f64)
+NK_DECLARATION_TRIGONOMETRY(atan, f32)
+NK_DECLARATION_TRIGONOMETRY(atan, f64)
 
 // Mesh alignment (RMSD, Kabsch, Umeyama)
-SIMSIMD_DECLARATION_MESH(rmsd, f32, f32)
-SIMSIMD_DECLARATION_MESH(rmsd, f64, f64)
-SIMSIMD_DECLARATION_MESH(kabsch, f32, f32)
-SIMSIMD_DECLARATION_MESH(kabsch, f64, f64)
-SIMSIMD_DECLARATION_MESH(umeyama, f32, f32)
-SIMSIMD_DECLARATION_MESH(umeyama, f64, f64)
+NK_DECLARATION_MESH(rmsd, f32, f32)
+NK_DECLARATION_MESH(rmsd, f64, f64)
+NK_DECLARATION_MESH(kabsch, f32, f32)
+NK_DECLARATION_MESH(kabsch, f64, f64)
+NK_DECLARATION_MESH(umeyama, f32, f32)
+NK_DECLARATION_MESH(umeyama, f64, f64)
 
-SIMSIMD_DYNAMIC int simsimd_uses_neon(void) { return (simsimd_capabilities() & simsimd_cap_neon_k) != 0; }
-SIMSIMD_DYNAMIC int simsimd_uses_neon_f16(void) { return (simsimd_capabilities() & simsimd_cap_neon_f16_k) != 0; }
-SIMSIMD_DYNAMIC int simsimd_uses_neon_bf16(void) { return (simsimd_capabilities() & simsimd_cap_neon_bf16_k) != 0; }
-SIMSIMD_DYNAMIC int simsimd_uses_neon_i8(void) { return (simsimd_capabilities() & simsimd_cap_neon_i8_k) != 0; }
-SIMSIMD_DYNAMIC int simsimd_uses_sve(void) { return (simsimd_capabilities() & simsimd_cap_sve_k) != 0; }
-SIMSIMD_DYNAMIC int simsimd_uses_sve_f16(void) { return (simsimd_capabilities() & simsimd_cap_sve_f16_k) != 0; }
-SIMSIMD_DYNAMIC int simsimd_uses_sve_bf16(void) { return (simsimd_capabilities() & simsimd_cap_sve_bf16_k) != 0; }
-SIMSIMD_DYNAMIC int simsimd_uses_sve_i8(void) { return (simsimd_capabilities() & simsimd_cap_sve_i8_k) != 0; }
-SIMSIMD_DYNAMIC int simsimd_uses_haswell(void) { return (simsimd_capabilities() & simsimd_cap_haswell_k) != 0; }
-SIMSIMD_DYNAMIC int simsimd_uses_skylake(void) { return (simsimd_capabilities() & simsimd_cap_skylake_k) != 0; }
-SIMSIMD_DYNAMIC int simsimd_uses_ice(void) { return (simsimd_capabilities() & simsimd_cap_ice_k) != 0; }
-SIMSIMD_DYNAMIC int simsimd_uses_genoa(void) { return (simsimd_capabilities() & simsimd_cap_genoa_k) != 0; }
-SIMSIMD_DYNAMIC int simsimd_uses_sapphire(void) { return (simsimd_capabilities() & simsimd_cap_sapphire_k) != 0; }
-SIMSIMD_DYNAMIC int simsimd_uses_turin(void) { return (simsimd_capabilities() & simsimd_cap_turin_k) != 0; }
-SIMSIMD_DYNAMIC int simsimd_uses_sierra(void) { return (simsimd_capabilities() & simsimd_cap_sierra_k) != 0; }
-SIMSIMD_DYNAMIC int simsimd_uses_dynamic_dispatch(void) { return 1; }
-SIMSIMD_DYNAMIC int simsimd_flush_denormals(simsimd_capability_t c) { return _simsimd_flush_denormals(c); }
+NK_DYNAMIC int nk_uses_neon(void) { return (nk_capabilities() & nk_cap_neon_k) != 0; }
+NK_DYNAMIC int nk_uses_neon_f16(void) { return (nk_capabilities() & nk_cap_neon_f16_k) != 0; }
+NK_DYNAMIC int nk_uses_neon_bf16(void) { return (nk_capabilities() & nk_cap_neon_bf16_k) != 0; }
+NK_DYNAMIC int nk_uses_neon_i8(void) { return (nk_capabilities() & nk_cap_neon_i8_k) != 0; }
+NK_DYNAMIC int nk_uses_sve(void) { return (nk_capabilities() & nk_cap_sve_k) != 0; }
+NK_DYNAMIC int nk_uses_sve_f16(void) { return (nk_capabilities() & nk_cap_sve_f16_k) != 0; }
+NK_DYNAMIC int nk_uses_sve_bf16(void) { return (nk_capabilities() & nk_cap_sve_bf16_k) != 0; }
+NK_DYNAMIC int nk_uses_sve_i8(void) { return (nk_capabilities() & nk_cap_sve_i8_k) != 0; }
+NK_DYNAMIC int nk_uses_haswell(void) { return (nk_capabilities() & nk_cap_haswell_k) != 0; }
+NK_DYNAMIC int nk_uses_skylake(void) { return (nk_capabilities() & nk_cap_skylake_k) != 0; }
+NK_DYNAMIC int nk_uses_ice(void) { return (nk_capabilities() & nk_cap_ice_k) != 0; }
+NK_DYNAMIC int nk_uses_genoa(void) { return (nk_capabilities() & nk_cap_genoa_k) != 0; }
+NK_DYNAMIC int nk_uses_sapphire(void) { return (nk_capabilities() & nk_cap_sapphire_k) != 0; }
+NK_DYNAMIC int nk_uses_turin(void) { return (nk_capabilities() & nk_cap_turin_k) != 0; }
+NK_DYNAMIC int nk_uses_sierra(void) { return (nk_capabilities() & nk_cap_sierra_k) != 0; }
+NK_DYNAMIC int nk_uses_dynamic_dispatch(void) { return 1; }
+NK_DYNAMIC int nk_flush_denormals(nk_capability_t c) { return _nk_flush_denormals(c); }
 
-SIMSIMD_DYNAMIC void simsimd_f16_to_f32(simsimd_f16_t const *src, simsimd_f32_t *dest) {
-    simsimd_f16_to_f32_implementation(src, dest);
-}
+NK_DYNAMIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest) { nk_f16_to_f32_(src, dest); }
 
-SIMSIMD_DYNAMIC void simsimd_f32_to_f16(simsimd_f32_t const *src, simsimd_f16_t *dest) {
-    simsimd_f32_to_f16_implementation(src, dest);
-}
+NK_DYNAMIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest) { nk_f32_to_f16_(src, dest); }
 
-SIMSIMD_DYNAMIC void simsimd_bf16_to_f32(simsimd_bf16_t const *src, simsimd_f32_t *dest) {
-    simsimd_bf16_to_f32_implementation(src, dest);
-}
+NK_DYNAMIC void nk_bf16_to_f32(nk_bf16_t const *src, nk_f32_t *dest) { nk_bf16_to_f32_(src, dest); }
 
-SIMSIMD_DYNAMIC void simsimd_f32_to_bf16(simsimd_f32_t const *src, simsimd_bf16_t *dest) {
-    simsimd_f32_to_bf16_implementation(src, dest);
-}
+NK_DYNAMIC void nk_f32_to_bf16(nk_f32_t const *src, nk_bf16_t *dest) { nk_f32_to_bf16_(src, dest); }
 
-SIMSIMD_DYNAMIC void simsimd_e4m3_to_f32(simsimd_e4m3_t const *src, simsimd_f32_t *dest) {
-    simsimd_e4m3_to_f32_implementation(src, dest);
-}
+NK_DYNAMIC void nk_e4m3_to_f32(nk_e4m3_t const *src, nk_f32_t *dest) { nk_e4m3_to_f32_(src, dest); }
 
-SIMSIMD_DYNAMIC void simsimd_f32_to_e4m3(simsimd_f32_t const *src, simsimd_e4m3_t *dest) {
-    simsimd_f32_to_e4m3_implementation(src, dest);
-}
+NK_DYNAMIC void nk_f32_to_e4m3(nk_f32_t const *src, nk_e4m3_t *dest) { nk_f32_to_e4m3_(src, dest); }
 
-SIMSIMD_DYNAMIC void simsimd_e5m2_to_f32(simsimd_e5m2_t const *src, simsimd_f32_t *dest) {
-    simsimd_e5m2_to_f32_implementation(src, dest);
-}
+NK_DYNAMIC void nk_e5m2_to_f32(nk_e5m2_t const *src, nk_f32_t *dest) { nk_e5m2_to_f32_(src, dest); }
 
-SIMSIMD_DYNAMIC void simsimd_f32_to_e5m2(simsimd_f32_t const *src, simsimd_e5m2_t *dest) {
-    simsimd_f32_to_e5m2_implementation(src, dest);
-}
+NK_DYNAMIC void nk_f32_to_e5m2(nk_f32_t const *src, nk_e5m2_t *dest) { nk_f32_to_e5m2_(src, dest); }
 
-SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
+NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     //! The latency of the CPUID instruction can be over 100 cycles, so we cache the result.
-    static simsimd_capability_t static_capabilities = simsimd_cap_any_k;
-    if (static_capabilities != simsimd_cap_any_k) return static_capabilities;
+    static nk_capability_t static_capabilities = nk_cap_any_k;
+    if (static_capabilities != nk_cap_any_k) return static_capabilities;
 
-    static_capabilities = _simsimd_capabilities_implementation();
+    static_capabilities = _nk_capabilities_();
 
     // In multithreaded applications we need to ensure that the function pointers are pre-initialized,
     // so the first time we are probing for capabilities, we should also probe all of our metrics
     // with dummy inputs:
-    simsimd_distance_t dummy_results_buffer[2];
+    nk_distance_t dummy_results_buffer[2];
     void *dummy_results = &dummy_results_buffer[0];
 
     // Passing `NULL` as `x` will trigger all kinds of `nonull` warnings on GCC.
@@ -433,118 +410,108 @@ SIMSIMD_DYNAMIC simsimd_capability_t simsimd_capabilities(void) {
     typedef double largest_scalar_t;
     largest_scalar_t dummy_input[1];
     void *x = &dummy_input[0];
-    simsimd_f64_t dummy_alpha = 1, dummy_beta = 1;
+    nk_f64_t dummy_alpha = 1, dummy_beta = 1;
 
     // Dense:
-    simsimd_dot_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, dummy_results);
-    simsimd_dot_u8((simsimd_u8_t *)x, (simsimd_u8_t *)x, 0, dummy_results);
-    simsimd_dot_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, dummy_results);
-    simsimd_dot_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, dummy_results);
-    simsimd_dot_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, dummy_results);
-    simsimd_dot_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, dummy_results);
+    nk_dot_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
+    nk_dot_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, dummy_results);
+    nk_dot_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
+    nk_dot_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
+    nk_dot_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
+    nk_dot_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
 
-    simsimd_dot_f16c((simsimd_f16c_t *)x, (simsimd_f16c_t *)x, 0, dummy_results);
-    simsimd_dot_bf16c((simsimd_bf16c_t *)x, (simsimd_bf16c_t *)x, 0, dummy_results);
-    simsimd_dot_f32c((simsimd_f32c_t *)x, (simsimd_f32c_t *)x, 0, dummy_results);
-    simsimd_dot_f64c((simsimd_f64c_t *)x, (simsimd_f64c_t *)x, 0, dummy_results);
-    simsimd_vdot_f16c((simsimd_f16c_t *)x, (simsimd_f16c_t *)x, 0, dummy_results);
-    simsimd_vdot_bf16c((simsimd_bf16c_t *)x, (simsimd_bf16c_t *)x, 0, dummy_results);
-    simsimd_vdot_f32c((simsimd_f32c_t *)x, (simsimd_f32c_t *)x, 0, dummy_results);
-    simsimd_vdot_f64c((simsimd_f64c_t *)x, (simsimd_f64c_t *)x, 0, dummy_results);
+    nk_dot_f16c((nk_f16c_t *)x, (nk_f16c_t *)x, 0, dummy_results);
+    nk_dot_bf16c((nk_bf16c_t *)x, (nk_bf16c_t *)x, 0, dummy_results);
+    nk_dot_f32c((nk_f32c_t *)x, (nk_f32c_t *)x, 0, dummy_results);
+    nk_dot_f64c((nk_f64c_t *)x, (nk_f64c_t *)x, 0, dummy_results);
+    nk_vdot_f16c((nk_f16c_t *)x, (nk_f16c_t *)x, 0, dummy_results);
+    nk_vdot_bf16c((nk_bf16c_t *)x, (nk_bf16c_t *)x, 0, dummy_results);
+    nk_vdot_f32c((nk_f32c_t *)x, (nk_f32c_t *)x, 0, dummy_results);
+    nk_vdot_f64c((nk_f64c_t *)x, (nk_f64c_t *)x, 0, dummy_results);
 
-    simsimd_angular_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, dummy_results);
-    simsimd_angular_u8((simsimd_u8_t *)x, (simsimd_u8_t *)x, 0, dummy_results);
-    simsimd_angular_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, dummy_results);
-    simsimd_angular_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, dummy_results);
-    simsimd_angular_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, dummy_results);
-    simsimd_angular_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, dummy_results);
+    nk_angular_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
+    nk_angular_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, dummy_results);
+    nk_angular_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
+    nk_angular_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
+    nk_angular_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
+    nk_angular_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
 
-    simsimd_l2sq_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, dummy_results);
-    simsimd_l2sq_u8((simsimd_u8_t *)x, (simsimd_u8_t *)x, 0, dummy_results);
-    simsimd_l2sq_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, dummy_results);
-    simsimd_l2sq_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, dummy_results);
-    simsimd_l2sq_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, dummy_results);
-    simsimd_l2sq_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, dummy_results);
+    nk_l2sq_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
+    nk_l2sq_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, dummy_results);
+    nk_l2sq_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
+    nk_l2sq_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
+    nk_l2sq_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
+    nk_l2sq_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
 
-    simsimd_l2_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, dummy_results);
-    simsimd_l2_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, dummy_results);
-    simsimd_l2_u8((simsimd_u8_t *)x, (simsimd_u8_t *)x, 0, dummy_results);
-    simsimd_l2_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, dummy_results);
-    simsimd_l2_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, dummy_results);
-    simsimd_l2_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, dummy_results);
-    simsimd_l2_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, dummy_results);
+    nk_l2_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
+    nk_l2_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
+    nk_l2_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, dummy_results);
+    nk_l2_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
+    nk_l2_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
+    nk_l2_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
+    nk_l2_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
 
-    simsimd_haversine_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, (simsimd_f64_t *)x, (simsimd_f64_t *)x, 0,
-                          dummy_results);
-    simsimd_haversine_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, (simsimd_f32_t *)x, (simsimd_f32_t *)x, 0,
-                          dummy_results);
-    simsimd_vincenty_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, (simsimd_f64_t *)x, (simsimd_f64_t *)x, 0,
-                         dummy_results);
-    simsimd_vincenty_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, (simsimd_f32_t *)x, (simsimd_f32_t *)x, 0,
-                         dummy_results);
+    nk_haversine_f64((nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
+    nk_haversine_f32((nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
+    nk_vincenty_f64((nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
+    nk_vincenty_f32((nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
 
-    simsimd_hamming_b8((simsimd_b8_t *)x, (simsimd_b8_t *)x, 0, dummy_results);
-    simsimd_jaccard_b8((simsimd_b8_t *)x, (simsimd_b8_t *)x, 0, dummy_results);
+    nk_hamming_b8((nk_b8_t *)x, (nk_b8_t *)x, 0, dummy_results);
+    nk_jaccard_b8((nk_b8_t *)x, (nk_b8_t *)x, 0, dummy_results);
 
-    simsimd_kld_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, dummy_results);
-    simsimd_kld_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, dummy_results);
-    simsimd_kld_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, dummy_results);
-    simsimd_kld_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, dummy_results);
-    simsimd_jsd_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, dummy_results);
-    simsimd_jsd_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, dummy_results);
-    simsimd_jsd_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, dummy_results);
-    simsimd_jsd_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, dummy_results);
+    nk_kld_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
+    nk_kld_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
+    nk_kld_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
+    nk_kld_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
+    nk_jsd_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
+    nk_jsd_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
+    nk_jsd_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
+    nk_jsd_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
 
     // Sparse
-    simsimd_intersect_u16((simsimd_u16_t *)x, (simsimd_u16_t *)x, 0, 0, dummy_results);
-    simsimd_intersect_u32((simsimd_u32_t *)x, (simsimd_u32_t *)x, 0, 0, dummy_results);
+    nk_intersect_u16((nk_u16_t *)x, (nk_u16_t *)x, 0, 0, dummy_results);
+    nk_intersect_u32((nk_u32_t *)x, (nk_u32_t *)x, 0, 0, dummy_results);
 
     // Curved:
-    simsimd_bilinear_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, dummy_results);
-    simsimd_mahalanobis_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, dummy_results);
-    simsimd_bilinear_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, dummy_results);
-    simsimd_mahalanobis_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, dummy_results);
-    simsimd_bilinear_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, dummy_results);
-    simsimd_mahalanobis_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, dummy_results);
-    simsimd_bilinear_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, dummy_results);
-    simsimd_mahalanobis_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, dummy_results);
+    nk_bilinear_f64((nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
+    nk_mahalanobis_f64((nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
+    nk_bilinear_f32((nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
+    nk_mahalanobis_f32((nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
+    nk_bilinear_f16((nk_f16_t *)x, (nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
+    nk_mahalanobis_f16((nk_f16_t *)x, (nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
+    nk_bilinear_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
+    nk_mahalanobis_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
 
     // Elementwise
-    simsimd_wsum_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, &dummy_alpha, &dummy_beta, (simsimd_f64_t *)x);
-    simsimd_wsum_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
-                     (simsimd_f32_t *)&dummy_beta, (simsimd_f32_t *)x);
-    simsimd_wsum_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
-                     (simsimd_f32_t *)&dummy_beta, (simsimd_f16_t *)x);
-    simsimd_wsum_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
-                      (simsimd_f32_t *)&dummy_beta, (simsimd_bf16_t *)x);
-    simsimd_wsum_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
-                    (simsimd_f32_t *)&dummy_beta, (simsimd_i8_t *)x);
-    simsimd_wsum_u8((simsimd_u8_t *)x, (simsimd_u8_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
-                    (simsimd_f32_t *)&dummy_beta, (simsimd_u8_t *)x);
-    simsimd_fma_f64((simsimd_f64_t *)x, (simsimd_f64_t *)x, (simsimd_f64_t *)x, 0, &dummy_alpha, &dummy_beta,
-                    (simsimd_f64_t *)x);
-    simsimd_fma_f32((simsimd_f32_t *)x, (simsimd_f32_t *)x, (simsimd_f32_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
-                    (simsimd_f32_t *)&dummy_beta, (simsimd_f32_t *)x);
-    simsimd_fma_f16((simsimd_f16_t *)x, (simsimd_f16_t *)x, (simsimd_f16_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
-                    (simsimd_f32_t *)&dummy_beta, (simsimd_f16_t *)x);
-    simsimd_fma_bf16((simsimd_bf16_t *)x, (simsimd_bf16_t *)x, (simsimd_bf16_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
-                     (simsimd_f32_t *)&dummy_beta, (simsimd_bf16_t *)x);
-    simsimd_fma_i8((simsimd_i8_t *)x, (simsimd_i8_t *)x, (simsimd_i8_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
-                   (simsimd_f32_t *)&dummy_beta, (simsimd_i8_t *)x);
-    simsimd_fma_u8((simsimd_u8_t *)x, (simsimd_u8_t *)x, (simsimd_u8_t *)x, 0, (simsimd_f32_t *)&dummy_alpha,
-                   (simsimd_f32_t *)&dummy_beta, (simsimd_u8_t *)x);
+    nk_wsum_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_f64_t *)x);
+    nk_wsum_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_f32_t *)x);
+    nk_wsum_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_f16_t *)x);
+    nk_wsum_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_bf16_t *)x);
+    nk_wsum_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_i8_t *)x);
+    nk_wsum_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_u8_t *)x);
+    nk_fma_f64((nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_f64_t *)x);
+    nk_fma_f32((nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
+               (nk_f32_t *)x);
+    nk_fma_f16((nk_f16_t *)x, (nk_f16_t *)x, (nk_f16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
+               (nk_f16_t *)x);
+    nk_fma_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, (nk_bf16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
+                (nk_bf16_t *)x);
+    nk_fma_i8((nk_i8_t *)x, (nk_i8_t *)x, (nk_i8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
+              (nk_i8_t *)x);
+    nk_fma_u8((nk_u8_t *)x, (nk_u8_t *)x, (nk_u8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
+              (nk_u8_t *)x);
 
     return static_capabilities;
 }
 
-SIMSIMD_DYNAMIC void simsimd_find_kernel_punned( //
-    simsimd_metric_kind_t kind,                  //
-    simsimd_datatype_t datatype,                 //
-    simsimd_capability_t supported,              //
-    simsimd_capability_t allowed,                //
-    simsimd_kernel_punned_t *kernel_output,      //
-    simsimd_capability_t *capability_output) {
-    _simsimd_find_kernel_punned_implementation(kind, datatype, supported, allowed, kernel_output, capability_output);
+NK_DYNAMIC void nk_find_kernel_punned( //
+    nk_metric_kind_t kind,             //
+    nk_datatype_t datatype,            //
+    nk_capability_t supported,         //
+    nk_capability_t allowed,           //
+    nk_kernel_punned_t *kernel_output, //
+    nk_capability_t *capability_output) {
+    _nk_find_kernel_punned_(kind, datatype, supported, allowed, kernel_output, capability_output);
 }
 
 #ifdef __cplusplus

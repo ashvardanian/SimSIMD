@@ -35,11 +35,11 @@ jobs:
             package.json:"version": "(\d+\.\d+\.\d+)"
             CMakeLists.txt:VERSION (\d+\.\d+\.\d+)
           update-major-version-in: |
-            include/simsimd/simsimd.h:^#define SIMSIMD_VERSION_MAJOR (\d+)
+            include/numkong/numkong.h:^#define NK_VERSION_MAJOR (\d+)
           update-minor-version-in: |
-            include/simsimd/simsimd.h:^#define SIMSIMD_VERSION_MINOR (\d+)
+            include/numkong/numkong.h:^#define NK_VERSION_MINOR (\d+)
           update-patch-version-in: |
-            include/simsimd/simsimd.h:^#define SIMSIMD_VERSION_PATCH (\d+)
+            include/numkong/numkong.h:^#define NK_VERSION_PATCH (\d+)
           dry-run: "false"
           push: "true"
           create-release: "true"
@@ -339,7 +339,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment:
       name: pypi
-      url: https://pypi.org/p/simsimd
+      url: https://pypi.org/p/numkong
     permissions:
       id-token: write
 
@@ -436,8 +436,8 @@ jobs:
     needs: build_javascript
     runs-on: ubuntu-24.04
     environment:
-      name: npm-simsimd
-      url: https://www.npmjs.com/package/simsimd
+      name: npm-numkong
+      url: https://www.npmjs.com/package/numkong
     permissions:
       contents: read
       id-token: write

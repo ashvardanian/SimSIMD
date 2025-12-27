@@ -1,4 +1,4 @@
-//! # SimSIMD - Hardware-Accelerated Similarity Metrics and Distance Functions
+//! # NumKong - Hardware-Accelerated Similarity Metrics and Distance Functions
 //!
 //! * Targets ARM NEON, SVE, x86 AVX2, AVX-512 (VNNI, FP16) hardware backends.
 //! * Handles `f64` double- and `f32` single-precision, integral, and binary vectors.
@@ -14,7 +14,7 @@
 //! ## Example
 //!
 //! ```rust
-//! use simsimd::{Dot, Angular, Euclidean};
+//! use numkong::{Dot, Angular, Euclidean};
 //!
 //! let a = &[1.0_f32, 2.0, 3.0];
 //! let b = &[4.0_f32, 5.0, 6.0];
@@ -24,13 +24,13 @@
 //! let l2sq_dist = f32::l2sq(a, b);
 //!
 //! // Optimize performance by flushing denormals
-//! simsimd::capabilities::flush_denormals();
+//! numkong::capabilities::flush_denormals();
 //! ```
 //!
 //! ## Mixed Precision Support
 //!
 //! ```rust
-//! use simsimd::{Angular, f16, bf16};
+//! use numkong::{Angular, f16, bf16};
 //!
 //! // Work with half-precision floats
 //! let half_a: Vec<f16> = vec![1.0, 2.0, 3.0].iter().map(|&x| f16::from_f32(x)).collect();
@@ -88,7 +88,7 @@
 pub type ComplexProductF32 = (f32, f32);
 pub type ComplexProductF64 = (f64, f64);
 
-/// Size type used in C FFI to match `simsimd_size_t` which is always `uint64_t`.
+/// Size type used in C FFI to match `nk_size_t` which is always `uint64_t`.
 type u64size = u64;
 
 /// Compatibility function for pre 1.85 Rust versions lacking `f32::abs`.
@@ -97,98 +97,98 @@ fn f32_abs_compat(x: f32) -> f32 {
     f32::from_bits(x.to_bits() & 0x7FFF_FFFF)
 }
 
-#[link(name = "simsimd")]
+#[link(name = "numkong")]
 extern "C" {
 
-    fn simsimd_uses_neon() -> i32;
-    fn simsimd_uses_neon_f16() -> i32;
-    fn simsimd_uses_neon_bf16() -> i32;
-    fn simsimd_uses_neon_i8() -> i32;
-    fn simsimd_uses_sve() -> i32;
-    fn simsimd_uses_sve_f16() -> i32;
-    fn simsimd_uses_sve_bf16() -> i32;
-    fn simsimd_uses_sve_i8() -> i32;
-    fn simsimd_uses_haswell() -> i32;
-    fn simsimd_uses_skylake() -> i32;
-    fn simsimd_uses_ice() -> i32;
-    fn simsimd_uses_genoa() -> i32;
-    fn simsimd_uses_sapphire() -> i32;
-    fn simsimd_uses_turin() -> i32;
-    fn simsimd_uses_sierra() -> i32;
+    fn nk_uses_neon() -> i32;
+    fn nk_uses_neon_f16() -> i32;
+    fn nk_uses_neon_bf16() -> i32;
+    fn nk_uses_neon_i8() -> i32;
+    fn nk_uses_sve() -> i32;
+    fn nk_uses_sve_f16() -> i32;
+    fn nk_uses_sve_bf16() -> i32;
+    fn nk_uses_sve_i8() -> i32;
+    fn nk_uses_haswell() -> i32;
+    fn nk_uses_skylake() -> i32;
+    fn nk_uses_ice() -> i32;
+    fn nk_uses_genoa() -> i32;
+    fn nk_uses_sapphire() -> i32;
+    fn nk_uses_turin() -> i32;
+    fn nk_uses_sierra() -> i32;
 
-    fn simsimd_flush_denormals(capabilities: u32) -> i32;
-    fn simsimd_uses_dynamic_dispatch() -> i32;
+    fn nk_flush_denormals(capabilities: u32) -> i32;
+    fn nk_uses_dynamic_dispatch() -> i32;
 
-    fn simsimd_f32_to_f16(src: *const f32, dest: *mut u16);
-    fn simsimd_f16_to_f32(src: *const u16, dest: *mut f32);
-    fn simsimd_f32_to_bf16(src: *const f32, dest: *mut u16);
-    fn simsimd_bf16_to_f32(src: *const u16, dest: *mut f32);
-    fn simsimd_f32_to_e4m3(src: *const f32, dest: *mut u8);
-    fn simsimd_e4m3_to_f32(src: *const u8, dest: *mut f32);
-    fn simsimd_f32_to_e5m2(src: *const f32, dest: *mut u8);
-    fn simsimd_e5m2_to_f32(src: *const u8, dest: *mut f32);
+    fn nk_f32_to_f16(src: *const f32, dest: *mut u16);
+    fn nk_f16_to_f32(src: *const u16, dest: *mut f32);
+    fn nk_f32_to_bf16(src: *const f32, dest: *mut u16);
+    fn nk_bf16_to_f32(src: *const u16, dest: *mut f32);
+    fn nk_f32_to_e4m3(src: *const f32, dest: *mut u8);
+    fn nk_e4m3_to_f32(src: *const u8, dest: *mut f32);
+    fn nk_f32_to_e5m2(src: *const f32, dest: *mut u8);
+    fn nk_e5m2_to_f32(src: *const u8, dest: *mut f32);
 
     // Vector dot products
-    fn simsimd_dot_i8(a: *const i8, b: *const i8, c: u64size, d: *mut i32);
-    fn simsimd_dot_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn simsimd_dot_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn simsimd_dot_e4m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
-    fn simsimd_dot_e5m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
-    fn simsimd_dot_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
-    fn simsimd_dot_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
+    fn nk_dot_i8(a: *const i8, b: *const i8, c: u64size, d: *mut i32);
+    fn nk_dot_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_dot_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_dot_e4m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_dot_e5m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_dot_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn nk_dot_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
-    fn simsimd_dot_f16c(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn simsimd_dot_bf16c(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn simsimd_dot_f32c(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
-    fn simsimd_dot_f64c(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
+    fn nk_dot_f16c(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_dot_bf16c(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_dot_f32c(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn nk_dot_f64c(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
-    fn simsimd_vdot_f16c(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn simsimd_vdot_bf16c(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn simsimd_vdot_f32c(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
-    fn simsimd_vdot_f64c(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
+    fn nk_vdot_f16c(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_vdot_bf16c(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_vdot_f32c(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn nk_vdot_f64c(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
     // Spatial similarity/distance functions
-    fn simsimd_angular_i8(a: *const i8, b: *const i8, c: u64size, d: *mut f32);
-    fn simsimd_angular_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn simsimd_angular_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn simsimd_angular_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
-    fn simsimd_angular_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
+    fn nk_angular_i8(a: *const i8, b: *const i8, c: u64size, d: *mut f32);
+    fn nk_angular_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_angular_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_angular_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn nk_angular_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
-    fn simsimd_l2sq_i8(a: *const i8, b: *const i8, c: u64size, d: *mut u32);
-    fn simsimd_l2sq_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn simsimd_l2sq_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn simsimd_l2sq_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
-    fn simsimd_l2sq_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
+    fn nk_l2sq_i8(a: *const i8, b: *const i8, c: u64size, d: *mut u32);
+    fn nk_l2sq_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_l2sq_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_l2sq_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn nk_l2sq_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
-    fn simsimd_l2_i8(a: *const i8, b: *const i8, c: u64size, d: *mut f32);
-    fn simsimd_l2_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn simsimd_l2_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn simsimd_l2_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
-    fn simsimd_l2_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
+    fn nk_l2_i8(a: *const i8, b: *const i8, c: u64size, d: *mut f32);
+    fn nk_l2_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_l2_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_l2_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn nk_l2_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
-    fn simsimd_hamming_b8(a: *const u8, b: *const u8, c: u64size, d: *mut u32);
-    fn simsimd_jaccard_b8(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_hamming_b8(a: *const u8, b: *const u8, c: u64size, d: *mut u32);
+    fn nk_jaccard_b8(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
 
     // Probability distribution distances/divergences
-    fn simsimd_jsd_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn simsimd_jsd_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn simsimd_jsd_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
-    fn simsimd_jsd_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
+    fn nk_jsd_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_jsd_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_jsd_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn nk_jsd_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
-    fn simsimd_kld_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn simsimd_kld_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn simsimd_kld_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
-    fn simsimd_kld_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
+    fn nk_kld_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_kld_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_kld_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn nk_kld_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
     // Sparse sets
-    fn simsimd_intersect_u16(
+    fn nk_intersect_u16(
         a: *const u16,
         b: *const u16,
         a_length: u64size,
         b_length: u64size,
         d: *mut u32,
     );
-    fn simsimd_intersect_u32(
+    fn nk_intersect_u32(
         a: *const u32,
         b: *const u32,
         a_length: u64size,
@@ -197,92 +197,80 @@ extern "C" {
     );
 
     // Trigonometry functions
-    fn simsimd_sin_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
-    fn simsimd_sin_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
-    fn simsimd_cos_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
-    fn simsimd_cos_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
-    fn simsimd_atan_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
-    fn simsimd_atan_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
+    fn nk_sin_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
+    fn nk_sin_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
+    fn nk_cos_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
+    fn nk_cos_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
+    fn nk_atan_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
+    fn nk_atan_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
 
     // Elementwise operations
-    fn simsimd_scale_f64(
+    fn nk_scale_f64(
         a: *const f64,
         n: u64size,
         alpha: *const f64,
         beta: *const f64,
         result: *mut f64,
     );
-    fn simsimd_scale_f32(
+    fn nk_scale_f32(
         a: *const f32,
         n: u64size,
         alpha: *const f32,
         beta: *const f32,
         result: *mut f32,
     );
-    fn simsimd_scale_f16(
+    fn nk_scale_f16(
         a: *const u16,
         n: u64size,
         alpha: *const f32,
         beta: *const f32,
         result: *mut u16,
     );
-    fn simsimd_scale_bf16(
+    fn nk_scale_bf16(
         a: *const u16,
         n: u64size,
         alpha: *const f32,
         beta: *const f32,
         result: *mut u16,
     );
-    fn simsimd_scale_i8(
-        a: *const i8,
-        n: u64size,
-        alpha: *const f32,
-        beta: *const f32,
-        result: *mut i8,
-    );
-    fn simsimd_scale_u8(
-        a: *const u8,
-        n: u64size,
-        alpha: *const f32,
-        beta: *const f32,
-        result: *mut u8,
-    );
-    fn simsimd_scale_i16(
+    fn nk_scale_i8(a: *const i8, n: u64size, alpha: *const f32, beta: *const f32, result: *mut i8);
+    fn nk_scale_u8(a: *const u8, n: u64size, alpha: *const f32, beta: *const f32, result: *mut u8);
+    fn nk_scale_i16(
         a: *const i16,
         n: u64size,
         alpha: *const f32,
         beta: *const f32,
         result: *mut i16,
     );
-    fn simsimd_scale_u16(
+    fn nk_scale_u16(
         a: *const u16,
         n: u64size,
         alpha: *const f32,
         beta: *const f32,
         result: *mut u16,
     );
-    fn simsimd_scale_i32(
+    fn nk_scale_i32(
         a: *const i32,
         n: u64size,
         alpha: *const f64,
         beta: *const f64,
         result: *mut i32,
     );
-    fn simsimd_scale_u32(
+    fn nk_scale_u32(
         a: *const u32,
         n: u64size,
         alpha: *const f64,
         beta: *const f64,
         result: *mut u32,
     );
-    fn simsimd_scale_i64(
+    fn nk_scale_i64(
         a: *const i64,
         n: u64size,
         alpha: *const f64,
         beta: *const f64,
         result: *mut i64,
     );
-    fn simsimd_scale_u64(
+    fn nk_scale_u64(
         a: *const u64,
         n: u64size,
         alpha: *const f64,
@@ -290,20 +278,20 @@ extern "C" {
         result: *mut u64,
     );
 
-    fn simsimd_sum_f64(a: *const f64, b: *const f64, n: u64size, result: *mut f64);
-    fn simsimd_sum_f32(a: *const f32, b: *const f32, n: u64size, result: *mut f32);
-    fn simsimd_sum_f16(a: *const u16, b: *const u16, n: u64size, result: *mut u16);
-    fn simsimd_sum_bf16(a: *const u16, b: *const u16, n: u64size, result: *mut u16);
-    fn simsimd_sum_i8(a: *const i8, b: *const i8, n: u64size, result: *mut i8);
-    fn simsimd_sum_u8(a: *const u8, b: *const u8, n: u64size, result: *mut u8);
-    fn simsimd_sum_i16(a: *const i16, b: *const i16, n: u64size, result: *mut i16);
-    fn simsimd_sum_u16(a: *const u16, b: *const u16, n: u64size, result: *mut u16);
-    fn simsimd_sum_i32(a: *const i32, b: *const i32, n: u64size, result: *mut i32);
-    fn simsimd_sum_u32(a: *const u32, b: *const u32, n: u64size, result: *mut u32);
-    fn simsimd_sum_i64(a: *const i64, b: *const i64, n: u64size, result: *mut i64);
-    fn simsimd_sum_u64(a: *const u64, b: *const u64, n: u64size, result: *mut u64);
+    fn nk_sum_f64(a: *const f64, b: *const f64, n: u64size, result: *mut f64);
+    fn nk_sum_f32(a: *const f32, b: *const f32, n: u64size, result: *mut f32);
+    fn nk_sum_f16(a: *const u16, b: *const u16, n: u64size, result: *mut u16);
+    fn nk_sum_bf16(a: *const u16, b: *const u16, n: u64size, result: *mut u16);
+    fn nk_sum_i8(a: *const i8, b: *const i8, n: u64size, result: *mut i8);
+    fn nk_sum_u8(a: *const u8, b: *const u8, n: u64size, result: *mut u8);
+    fn nk_sum_i16(a: *const i16, b: *const i16, n: u64size, result: *mut i16);
+    fn nk_sum_u16(a: *const u16, b: *const u16, n: u64size, result: *mut u16);
+    fn nk_sum_i32(a: *const i32, b: *const i32, n: u64size, result: *mut i32);
+    fn nk_sum_u32(a: *const u32, b: *const u32, n: u64size, result: *mut u32);
+    fn nk_sum_i64(a: *const i64, b: *const i64, n: u64size, result: *mut i64);
+    fn nk_sum_u64(a: *const u64, b: *const u64, n: u64size, result: *mut u64);
 
-    fn simsimd_wsum_f64(
+    fn nk_wsum_f64(
         a: *const f64,
         b: *const f64,
         n: u64size,
@@ -311,7 +299,7 @@ extern "C" {
         beta: *const f64,
         result: *mut f64,
     );
-    fn simsimd_wsum_f32(
+    fn nk_wsum_f32(
         a: *const f32,
         b: *const f32,
         n: u64size,
@@ -319,7 +307,7 @@ extern "C" {
         beta: *const f32,
         result: *mut f32,
     );
-    fn simsimd_wsum_f16(
+    fn nk_wsum_f16(
         a: *const u16,
         b: *const u16,
         n: u64size,
@@ -327,7 +315,7 @@ extern "C" {
         beta: *const f32,
         result: *mut u16,
     );
-    fn simsimd_wsum_bf16(
+    fn nk_wsum_bf16(
         a: *const u16,
         b: *const u16,
         n: u64size,
@@ -335,7 +323,7 @@ extern "C" {
         beta: *const f32,
         result: *mut u16,
     );
-    fn simsimd_wsum_i8(
+    fn nk_wsum_i8(
         a: *const i8,
         b: *const i8,
         n: u64size,
@@ -343,7 +331,7 @@ extern "C" {
         beta: *const f32,
         result: *mut i8,
     );
-    fn simsimd_wsum_u8(
+    fn nk_wsum_u8(
         a: *const u8,
         b: *const u8,
         n: u64size,
@@ -352,7 +340,7 @@ extern "C" {
         result: *mut u8,
     );
 
-    fn simsimd_fma_f64(
+    fn nk_fma_f64(
         a: *const f64,
         b: *const f64,
         c: *const f64,
@@ -361,7 +349,7 @@ extern "C" {
         beta: *const f64,
         result: *mut f64,
     );
-    fn simsimd_fma_f32(
+    fn nk_fma_f32(
         a: *const f32,
         b: *const f32,
         c: *const f32,
@@ -370,7 +358,7 @@ extern "C" {
         beta: *const f32,
         result: *mut f32,
     );
-    fn simsimd_fma_f16(
+    fn nk_fma_f16(
         a: *const u16,
         b: *const u16,
         c: *const u16,
@@ -379,7 +367,7 @@ extern "C" {
         beta: *const f32,
         result: *mut u16,
     );
-    fn simsimd_fma_bf16(
+    fn nk_fma_bf16(
         a: *const u16,
         b: *const u16,
         c: *const u16,
@@ -388,7 +376,7 @@ extern "C" {
         beta: *const f32,
         result: *mut u16,
     );
-    fn simsimd_fma_i8(
+    fn nk_fma_i8(
         a: *const i8,
         b: *const i8,
         c: *const i8,
@@ -397,7 +385,7 @@ extern "C" {
         beta: *const f32,
         result: *mut i8,
     );
-    fn simsimd_fma_u8(
+    fn nk_fma_u8(
         a: *const u8,
         b: *const u8,
         c: *const u8,
@@ -408,7 +396,7 @@ extern "C" {
     );
 
     // Mesh superposition metrics
-    fn simsimd_rmsd_f32(
+    fn nk_rmsd_f32(
         a: *const f32,
         b: *const f32,
         n: u64size,
@@ -418,7 +406,7 @@ extern "C" {
         scale: *mut f32,
         result: *mut f32,
     );
-    fn simsimd_rmsd_f64(
+    fn nk_rmsd_f64(
         a: *const f64,
         b: *const f64,
         n: u64size,
@@ -428,7 +416,7 @@ extern "C" {
         scale: *mut f64,
         result: *mut f64,
     );
-    fn simsimd_kabsch_f32(
+    fn nk_kabsch_f32(
         a: *const f32,
         b: *const f32,
         n: u64size,
@@ -438,7 +426,7 @@ extern "C" {
         scale: *mut f32,
         result: *mut f32,
     );
-    fn simsimd_kabsch_f64(
+    fn nk_kabsch_f64(
         a: *const f64,
         b: *const f64,
         n: u64size,
@@ -448,7 +436,7 @@ extern "C" {
         scale: *mut f64,
         result: *mut f64,
     );
-    fn simsimd_umeyama_f32(
+    fn nk_umeyama_f32(
         a: *const f32,
         b: *const f32,
         n: u64size,
@@ -458,7 +446,7 @@ extern "C" {
         scale: *mut f32,
         result: *mut f32,
     );
-    fn simsimd_umeyama_f64(
+    fn nk_umeyama_f64(
         a: *const f64,
         b: *const f64,
         n: u64size,
@@ -481,7 +469,7 @@ extern "C" {
 /// # Examples
 ///
 /// ```
-/// use simsimd::f16;
+/// use numkong::f16;
 ///
 /// // Create from f32
 /// let half = f16::from_f32(3.14);
@@ -507,14 +495,14 @@ impl f16 {
     #[inline(always)]
     pub fn from_f32(value: f32) -> Self {
         let mut result: u16 = 0;
-        unsafe { simsimd_f32_to_f16(&value, &mut result) };
+        unsafe { nk_f32_to_f16(&value, &mut result) };
         f16(result)
     }
 
     #[inline(always)]
     pub fn to_f32(self) -> f32 {
         let mut result: f32 = 0.0;
-        unsafe { simsimd_f16_to_f32(&self.0, &mut result) };
+        unsafe { nk_f16_to_f32(&self.0, &mut result) };
         result
     }
 
@@ -624,7 +612,7 @@ impl core::cmp::PartialOrd for f16 {
 /// # Examples
 ///
 /// ```
-/// use simsimd::bf16;
+/// use numkong::bf16;
 ///
 /// let brain = bf16::from_f32(3.14);
 /// let float = brain.to_f32();
@@ -646,14 +634,14 @@ impl bf16 {
     #[inline(always)]
     pub fn from_f32(value: f32) -> Self {
         let mut result: u16 = 0;
-        unsafe { simsimd_f32_to_bf16(&value, &mut result) };
+        unsafe { nk_f32_to_bf16(&value, &mut result) };
         bf16(result)
     }
 
     #[inline(always)]
     pub fn to_f32(self) -> f32 {
         let mut result: f32 = 0.0;
-        unsafe { simsimd_bf16_to_f32(&self.0, &mut result) };
+        unsafe { nk_bf16_to_f32(&self.0, &mut result) };
         result
     }
 
@@ -776,7 +764,7 @@ impl core::cmp::PartialOrd for bf16 {
 /// # Examples
 ///
 /// ```
-/// use simsimd::e4m3;
+/// use numkong::e4m3;
 ///
 /// let fp8 = e4m3::from_f32(2.5);
 /// let float = fp8.to_f32();
@@ -793,14 +781,14 @@ impl e4m3 {
     #[inline(always)]
     pub fn from_f32(value: f32) -> Self {
         let mut result: u8 = 0;
-        unsafe { simsimd_f32_to_e4m3(&value, &mut result) };
+        unsafe { nk_f32_to_e4m3(&value, &mut result) };
         e4m3(result)
     }
 
     #[inline(always)]
     pub fn to_f32(self) -> f32 {
         let mut result: f32 = 0.0;
-        unsafe { simsimd_e4m3_to_f32(&self.0, &mut result) };
+        unsafe { nk_e4m3_to_f32(&self.0, &mut result) };
         result
     }
 
@@ -917,7 +905,7 @@ impl core::cmp::PartialOrd for e4m3 {
 /// # Examples
 ///
 /// ```
-/// use simsimd::e5m2;
+/// use numkong::e5m2;
 ///
 /// let fp8 = e5m2::from_f32(2.5);
 /// let float = fp8.to_f32();
@@ -939,14 +927,14 @@ impl e5m2 {
     #[inline(always)]
     pub fn from_f32(value: f32) -> Self {
         let mut result: u8 = 0;
-        unsafe { simsimd_f32_to_e5m2(&value, &mut result) };
+        unsafe { nk_f32_to_e5m2(&value, &mut result) };
         e5m2(result)
     }
 
     #[inline(always)]
     pub fn to_f32(self) -> f32 {
         let mut result: f32 = 0.0;
-        unsafe { simsimd_e5m2_to_f32(&self.0, &mut result) };
+        unsafe { nk_e5m2_to_f32(&self.0, &mut result) };
         result
     }
 
@@ -1068,49 +1056,49 @@ impl core::cmp::PartialOrd for e5m2 {
 /// Hardware capability detection functions.
 pub mod capabilities {
     pub fn uses_neon() -> bool {
-        unsafe { crate::simsimd_uses_neon() != 0 }
+        unsafe { crate::nk_uses_neon() != 0 }
     }
     pub fn uses_neon_f16() -> bool {
-        unsafe { crate::simsimd_uses_neon_f16() != 0 }
+        unsafe { crate::nk_uses_neon_f16() != 0 }
     }
     pub fn uses_neon_bf16() -> bool {
-        unsafe { crate::simsimd_uses_neon_bf16() != 0 }
+        unsafe { crate::nk_uses_neon_bf16() != 0 }
     }
     pub fn uses_neon_i8() -> bool {
-        unsafe { crate::simsimd_uses_neon_i8() != 0 }
+        unsafe { crate::nk_uses_neon_i8() != 0 }
     }
     pub fn uses_sve() -> bool {
-        unsafe { crate::simsimd_uses_sve() != 0 }
+        unsafe { crate::nk_uses_sve() != 0 }
     }
     pub fn uses_sve_f16() -> bool {
-        unsafe { crate::simsimd_uses_sve_f16() != 0 }
+        unsafe { crate::nk_uses_sve_f16() != 0 }
     }
     pub fn uses_sve_bf16() -> bool {
-        unsafe { crate::simsimd_uses_sve_bf16() != 0 }
+        unsafe { crate::nk_uses_sve_bf16() != 0 }
     }
     pub fn uses_sve_i8() -> bool {
-        unsafe { crate::simsimd_uses_sve_i8() != 0 }
+        unsafe { crate::nk_uses_sve_i8() != 0 }
     }
     pub fn uses_haswell() -> bool {
-        unsafe { crate::simsimd_uses_haswell() != 0 }
+        unsafe { crate::nk_uses_haswell() != 0 }
     }
     pub fn uses_skylake() -> bool {
-        unsafe { crate::simsimd_uses_skylake() != 0 }
+        unsafe { crate::nk_uses_skylake() != 0 }
     }
     pub fn uses_ice() -> bool {
-        unsafe { crate::simsimd_uses_ice() != 0 }
+        unsafe { crate::nk_uses_ice() != 0 }
     }
     pub fn uses_genoa() -> bool {
-        unsafe { crate::simsimd_uses_genoa() != 0 }
+        unsafe { crate::nk_uses_genoa() != 0 }
     }
     pub fn uses_sapphire() -> bool {
-        unsafe { crate::simsimd_uses_sapphire() != 0 }
+        unsafe { crate::nk_uses_sapphire() != 0 }
     }
     pub fn uses_turin() -> bool {
-        unsafe { crate::simsimd_uses_turin() != 0 }
+        unsafe { crate::nk_uses_turin() != 0 }
     }
     pub fn uses_sierra() -> bool {
-        unsafe { crate::simsimd_uses_sierra() != 0 }
+        unsafe { crate::nk_uses_sierra() != 0 }
     }
 
     /// Flushes denormalized numbers to zero on the current CPU.
@@ -1121,7 +1109,7 @@ pub mod capabilities {
     ///
     /// Returns `true` if the flush was successful.
     pub fn flush_denormals() -> bool {
-        unsafe { crate::simsimd_flush_denormals(0) != 0 }
+        unsafe { crate::nk_flush_denormals(0) != 0 }
     }
 
     /// Returns `true` if the library uses dynamic dispatch for function selection.
@@ -1129,7 +1117,7 @@ pub mod capabilities {
     /// When compiled with dynamic dispatch, the library selects the optimal
     /// SIMD implementation at runtime based on detected CPU capabilities.
     pub fn uses_dynamic_dispatch() -> bool {
-        unsafe { crate::simsimd_uses_dynamic_dispatch() != 0 }
+        unsafe { crate::nk_uses_dynamic_dispatch() != 0 }
     }
 }
 
@@ -1187,7 +1175,7 @@ impl Dot for f64 {
             return None;
         }
         let mut result: Self::Output = 0.0;
-        unsafe { simsimd_dot_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_dot_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
@@ -1199,7 +1187,7 @@ impl Dot for f32 {
             return None;
         }
         let mut result: Self::Output = 0.0;
-        unsafe { simsimd_dot_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_dot_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
@@ -1212,7 +1200,7 @@ impl Dot for f16 {
         }
         let mut result: Self::Output = 0.0;
         unsafe {
-            simsimd_dot_f16(
+            nk_dot_f16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -1231,7 +1219,7 @@ impl Dot for bf16 {
         }
         let mut result: Self::Output = 0.0;
         unsafe {
-            simsimd_dot_bf16(
+            nk_dot_bf16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -1249,7 +1237,7 @@ impl Dot for i8 {
             return None;
         }
         let mut result: Self::Output = 0;
-        unsafe { simsimd_dot_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_dot_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
@@ -1262,7 +1250,7 @@ impl Dot for e4m3 {
         }
         let mut result: Self::Output = 0.0;
         unsafe {
-            simsimd_dot_e4m3(
+            nk_dot_e4m3(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 a.len() as u64size,
@@ -1281,7 +1269,7 @@ impl Dot for e5m2 {
         }
         let mut result: Self::Output = 0.0;
         unsafe {
-            simsimd_dot_e5m2(
+            nk_dot_e5m2(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 a.len() as u64size,
@@ -1351,7 +1339,7 @@ impl Angular for f64 {
             return None;
         }
         let mut result: Self::Output = 0.0;
-        unsafe { simsimd_angular_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_angular_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
@@ -1363,7 +1351,7 @@ impl Angular for f32 {
             return None;
         }
         let mut result: Self::Output = 0.0;
-        unsafe { simsimd_angular_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_angular_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
@@ -1376,7 +1364,7 @@ impl Angular for f16 {
         }
         let mut result: Self::Output = 0.0;
         unsafe {
-            simsimd_angular_f16(
+            nk_angular_f16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -1395,7 +1383,7 @@ impl Angular for bf16 {
         }
         let mut result: Self::Output = 0.0;
         unsafe {
-            simsimd_angular_bf16(
+            nk_angular_bf16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -1413,7 +1401,7 @@ impl Angular for i8 {
             return None;
         }
         let mut result: Self::Output = 0.0;
-        unsafe { simsimd_angular_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_angular_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
@@ -1489,7 +1477,7 @@ impl Euclidean for f64 {
             return None;
         }
         let mut result: Self::L2sqOutput = 0.0;
-        unsafe { simsimd_l2sq_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_l2sq_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 
@@ -1498,7 +1486,7 @@ impl Euclidean for f64 {
             return None;
         }
         let mut result: Self::L2Output = 0.0;
-        unsafe { simsimd_l2_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_l2_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
@@ -1512,7 +1500,7 @@ impl Euclidean for f32 {
             return None;
         }
         let mut result: Self::L2sqOutput = 0.0;
-        unsafe { simsimd_l2sq_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_l2sq_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 
@@ -1521,7 +1509,7 @@ impl Euclidean for f32 {
             return None;
         }
         let mut result: Self::L2Output = 0.0;
-        unsafe { simsimd_l2_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_l2_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
@@ -1536,7 +1524,7 @@ impl Euclidean for f16 {
         }
         let mut result: Self::L2sqOutput = 0.0;
         unsafe {
-            simsimd_l2sq_f16(
+            nk_l2sq_f16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -1552,7 +1540,7 @@ impl Euclidean for f16 {
         }
         let mut result: Self::L2Output = 0.0;
         unsafe {
-            simsimd_l2_f16(
+            nk_l2_f16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -1573,7 +1561,7 @@ impl Euclidean for bf16 {
         }
         let mut result: Self::L2sqOutput = 0.0;
         unsafe {
-            simsimd_l2sq_bf16(
+            nk_l2sq_bf16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -1589,7 +1577,7 @@ impl Euclidean for bf16 {
         }
         let mut result: Self::L2Output = 0.0;
         unsafe {
-            simsimd_l2_bf16(
+            nk_l2_bf16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -1609,7 +1597,7 @@ impl Euclidean for i8 {
             return None;
         }
         let mut result: Self::L2sqOutput = 0;
-        unsafe { simsimd_l2sq_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_l2sq_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 
@@ -1618,7 +1606,7 @@ impl Euclidean for i8 {
             return None;
         }
         let mut result: Self::L2Output = 0.0;
-        unsafe { simsimd_l2_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_l2_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
@@ -1677,7 +1665,7 @@ impl Hamming for u8 {
             return None;
         }
         let mut result: Self::Output = 0;
-        unsafe { simsimd_hamming_b8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_hamming_b8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
@@ -1734,7 +1722,7 @@ impl Jaccard for u8 {
             return None;
         }
         let mut result: Self::Output = 0.0;
-        unsafe { simsimd_jaccard_b8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_jaccard_b8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
@@ -1799,7 +1787,7 @@ impl KullbackLeibler for f64 {
             return None;
         }
         let mut result: Self::Output = 0.0;
-        unsafe { simsimd_kld_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_kld_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
@@ -1811,7 +1799,7 @@ impl KullbackLeibler for f32 {
             return None;
         }
         let mut result: Self::Output = 0.0;
-        unsafe { simsimd_kld_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_kld_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
@@ -1824,7 +1812,7 @@ impl KullbackLeibler for f16 {
         }
         let mut result: Self::Output = 0.0;
         unsafe {
-            simsimd_kld_f16(
+            nk_kld_f16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -1843,7 +1831,7 @@ impl KullbackLeibler for bf16 {
         }
         let mut result: Self::Output = 0.0;
         unsafe {
-            simsimd_kld_bf16(
+            nk_kld_bf16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -1914,7 +1902,7 @@ impl JensenShannon for f64 {
             return None;
         }
         let mut result: Self::Output = 0.0;
-        unsafe { simsimd_jsd_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_jsd_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
@@ -1926,7 +1914,7 @@ impl JensenShannon for f32 {
             return None;
         }
         let mut result: Self::Output = 0.0;
-        unsafe { simsimd_jsd_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_jsd_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
@@ -1939,7 +1927,7 @@ impl JensenShannon for f16 {
         }
         let mut result: Self::Output = 0.0;
         unsafe {
-            simsimd_jsd_f16(
+            nk_jsd_f16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -1958,7 +1946,7 @@ impl JensenShannon for bf16 {
         }
         let mut result: Self::Output = 0.0;
         unsafe {
-            simsimd_jsd_bf16(
+            nk_jsd_bf16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -2025,7 +2013,7 @@ impl ComplexDot for f64 {
         }
         let mut result: [f64; 2] = [0.0, 0.0];
         unsafe {
-            simsimd_dot_f64c(
+            nk_dot_f64c(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size / 2,
@@ -2044,7 +2032,7 @@ impl ComplexDot for f32 {
         }
         let mut result: [f32; 2] = [0.0, 0.0];
         unsafe {
-            simsimd_dot_f32c(
+            nk_dot_f32c(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size / 2,
@@ -2063,7 +2051,7 @@ impl ComplexDot for f16 {
         }
         let mut result: [f32; 2] = [0.0, 0.0];
         unsafe {
-            simsimd_dot_f16c(
+            nk_dot_f16c(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size / 2,
@@ -2082,7 +2070,7 @@ impl ComplexDot for bf16 {
         }
         let mut result: [f32; 2] = [0.0, 0.0];
         unsafe {
-            simsimd_dot_bf16c(
+            nk_dot_bf16c(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size / 2,
@@ -2150,7 +2138,7 @@ impl ComplexVDot for f64 {
         }
         let mut result: [f64; 2] = [0.0, 0.0];
         unsafe {
-            simsimd_vdot_f64c(
+            nk_vdot_f64c(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size / 2,
@@ -2169,7 +2157,7 @@ impl ComplexVDot for f32 {
         }
         let mut result: [f32; 2] = [0.0, 0.0];
         unsafe {
-            simsimd_vdot_f32c(
+            nk_vdot_f32c(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size / 2,
@@ -2188,7 +2176,7 @@ impl ComplexVDot for f16 {
         }
         let mut result: [f32; 2] = [0.0, 0.0];
         unsafe {
-            simsimd_vdot_f16c(
+            nk_vdot_f16c(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size / 2,
@@ -2207,7 +2195,7 @@ impl ComplexVDot for bf16 {
         }
         let mut result: [f32; 2] = [0.0, 0.0];
         unsafe {
-            simsimd_vdot_bf16c(
+            nk_vdot_bf16c(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size / 2,
@@ -2280,7 +2268,7 @@ impl Sparse for u16 {
     fn intersect(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         let mut result: Self::Output = 0;
         unsafe {
-            simsimd_intersect_u16(
+            nk_intersect_u16(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
@@ -2297,7 +2285,7 @@ impl Sparse for u32 {
     fn intersect(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         let mut result: Self::Output = 0;
         unsafe {
-            simsimd_intersect_u32(
+            nk_intersect_u32(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
@@ -2359,7 +2347,7 @@ impl Sin for f64 {
             return None;
         }
         unsafe {
-            simsimd_sin_f64(
+            nk_sin_f64(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2375,7 +2363,7 @@ impl Sin for f32 {
             return None;
         }
         unsafe {
-            simsimd_sin_f32(
+            nk_sin_f32(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2431,7 +2419,7 @@ impl Cos for f64 {
             return None;
         }
         unsafe {
-            simsimd_cos_f64(
+            nk_cos_f64(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2447,7 +2435,7 @@ impl Cos for f32 {
             return None;
         }
         unsafe {
-            simsimd_cos_f32(
+            nk_cos_f32(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2508,7 +2496,7 @@ impl ATan for f64 {
             return None;
         }
         unsafe {
-            simsimd_atan_f64(
+            nk_atan_f64(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2524,7 +2512,7 @@ impl ATan for f32 {
             return None;
         }
         unsafe {
-            simsimd_atan_f32(
+            nk_atan_f32(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2593,7 +2581,7 @@ impl Scale for f64 {
             return None;
         }
         unsafe {
-            simsimd_scale_f64(
+            nk_scale_f64(
                 a.as_ptr(),
                 a.len() as u64size,
                 &alpha,
@@ -2612,7 +2600,7 @@ impl Scale for f32 {
             return None;
         }
         unsafe {
-            simsimd_scale_f32(
+            nk_scale_f32(
                 a.as_ptr(),
                 a.len() as u64size,
                 &alpha,
@@ -2631,7 +2619,7 @@ impl Scale for f16 {
             return None;
         }
         unsafe {
-            simsimd_scale_f16(
+            nk_scale_f16(
                 a.as_ptr() as *const u16,
                 a.len() as u64size,
                 &alpha,
@@ -2650,7 +2638,7 @@ impl Scale for bf16 {
             return None;
         }
         unsafe {
-            simsimd_scale_bf16(
+            nk_scale_bf16(
                 a.as_ptr() as *const u16,
                 a.len() as u64size,
                 &alpha,
@@ -2669,7 +2657,7 @@ impl Scale for i8 {
             return None;
         }
         unsafe {
-            simsimd_scale_i8(
+            nk_scale_i8(
                 a.as_ptr(),
                 a.len() as u64size,
                 &alpha,
@@ -2688,7 +2676,7 @@ impl Scale for u8 {
             return None;
         }
         unsafe {
-            simsimd_scale_u8(
+            nk_scale_u8(
                 a.as_ptr(),
                 a.len() as u64size,
                 &alpha,
@@ -2707,7 +2695,7 @@ impl Scale for i16 {
             return None;
         }
         unsafe {
-            simsimd_scale_i16(
+            nk_scale_i16(
                 a.as_ptr(),
                 a.len() as u64size,
                 &alpha,
@@ -2726,7 +2714,7 @@ impl Scale for u16 {
             return None;
         }
         unsafe {
-            simsimd_scale_u16(
+            nk_scale_u16(
                 a.as_ptr(),
                 a.len() as u64size,
                 &alpha,
@@ -2745,7 +2733,7 @@ impl Scale for i32 {
             return None;
         }
         unsafe {
-            simsimd_scale_i32(
+            nk_scale_i32(
                 a.as_ptr(),
                 a.len() as u64size,
                 &alpha,
@@ -2764,7 +2752,7 @@ impl Scale for u32 {
             return None;
         }
         unsafe {
-            simsimd_scale_u32(
+            nk_scale_u32(
                 a.as_ptr(),
                 a.len() as u64size,
                 &alpha,
@@ -2783,7 +2771,7 @@ impl Scale for i64 {
             return None;
         }
         unsafe {
-            simsimd_scale_i64(
+            nk_scale_i64(
                 a.as_ptr(),
                 a.len() as u64size,
                 &alpha,
@@ -2802,7 +2790,7 @@ impl Scale for u64 {
             return None;
         }
         unsafe {
-            simsimd_scale_u64(
+            nk_scale_u64(
                 a.as_ptr(),
                 a.len() as u64size,
                 &alpha,
@@ -2855,7 +2843,7 @@ impl Sum for f64 {
             return None;
         }
         unsafe {
-            simsimd_sum_f64(
+            nk_sum_f64(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
@@ -2872,7 +2860,7 @@ impl Sum for f32 {
             return None;
         }
         unsafe {
-            simsimd_sum_f32(
+            nk_sum_f32(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
@@ -2889,7 +2877,7 @@ impl Sum for f16 {
             return None;
         }
         unsafe {
-            simsimd_sum_f16(
+            nk_sum_f16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -2906,7 +2894,7 @@ impl Sum for bf16 {
             return None;
         }
         unsafe {
-            simsimd_sum_bf16(
+            nk_sum_bf16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -2923,7 +2911,7 @@ impl Sum for i8 {
             return None;
         }
         unsafe {
-            simsimd_sum_i8(
+            nk_sum_i8(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
@@ -2940,7 +2928,7 @@ impl Sum for u8 {
             return None;
         }
         unsafe {
-            simsimd_sum_u8(
+            nk_sum_u8(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
@@ -2957,7 +2945,7 @@ impl Sum for i16 {
             return None;
         }
         unsafe {
-            simsimd_sum_i16(
+            nk_sum_i16(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
@@ -2974,7 +2962,7 @@ impl Sum for u16 {
             return None;
         }
         unsafe {
-            simsimd_sum_u16(
+            nk_sum_u16(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
@@ -2991,7 +2979,7 @@ impl Sum for i32 {
             return None;
         }
         unsafe {
-            simsimd_sum_i32(
+            nk_sum_i32(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
@@ -3008,7 +2996,7 @@ impl Sum for u32 {
             return None;
         }
         unsafe {
-            simsimd_sum_u32(
+            nk_sum_u32(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
@@ -3025,7 +3013,7 @@ impl Sum for i64 {
             return None;
         }
         unsafe {
-            simsimd_sum_i64(
+            nk_sum_i64(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
@@ -3042,7 +3030,7 @@ impl Sum for u64 {
             return None;
         }
         unsafe {
-            simsimd_sum_u64(
+            nk_sum_u64(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
@@ -3113,7 +3101,7 @@ impl WSum for f64 {
             return None;
         }
         unsafe {
-            simsimd_wsum_f64(
+            nk_wsum_f64(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
@@ -3133,7 +3121,7 @@ impl WSum for f32 {
             return None;
         }
         unsafe {
-            simsimd_wsum_f32(
+            nk_wsum_f32(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
@@ -3153,7 +3141,7 @@ impl WSum for f16 {
             return None;
         }
         unsafe {
-            simsimd_wsum_f16(
+            nk_wsum_f16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -3173,7 +3161,7 @@ impl WSum for bf16 {
             return None;
         }
         unsafe {
-            simsimd_wsum_bf16(
+            nk_wsum_bf16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -3193,7 +3181,7 @@ impl WSum for i8 {
             return None;
         }
         unsafe {
-            simsimd_wsum_i8(
+            nk_wsum_i8(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
@@ -3213,7 +3201,7 @@ impl WSum for u8 {
             return None;
         }
         unsafe {
-            simsimd_wsum_u8(
+            nk_wsum_u8(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
@@ -3300,7 +3288,7 @@ impl FMA for f64 {
             return None;
         }
         unsafe {
-            simsimd_fma_f64(
+            nk_fma_f64(
                 a.as_ptr(),
                 b.as_ptr(),
                 c.as_ptr(),
@@ -3328,7 +3316,7 @@ impl FMA for f32 {
             return None;
         }
         unsafe {
-            simsimd_fma_f32(
+            nk_fma_f32(
                 a.as_ptr(),
                 b.as_ptr(),
                 c.as_ptr(),
@@ -3356,7 +3344,7 @@ impl FMA for f16 {
             return None;
         }
         unsafe {
-            simsimd_fma_f16(
+            nk_fma_f16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 c.as_ptr() as *const u16,
@@ -3384,7 +3372,7 @@ impl FMA for bf16 {
             return None;
         }
         unsafe {
-            simsimd_fma_bf16(
+            nk_fma_bf16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 c.as_ptr() as *const u16,
@@ -3412,7 +3400,7 @@ impl FMA for i8 {
             return None;
         }
         unsafe {
-            simsimd_fma_i8(
+            nk_fma_i8(
                 a.as_ptr(),
                 b.as_ptr(),
                 c.as_ptr(),
@@ -3440,7 +3428,7 @@ impl FMA for u8 {
             return None;
         }
         unsafe {
-            simsimd_fma_u8(
+            nk_fma_u8(
                 a.as_ptr(),
                 b.as_ptr(),
                 c.as_ptr(),
@@ -3476,13 +3464,13 @@ impl<T: ComplexDot + ComplexVDot> ComplexProducts for T {}
 
 /// `Elementwise` bundles element-wise operations: Scale, Sum, WSum, and FMA.
 ///
-/// Use `simsimd::prelude::*` to import all traits at once.
+/// Use `numkong::prelude::*` to import all traits at once.
 pub trait Elementwise: Scale + Sum + WSum + FMA {}
 impl<T: Scale + Sum + WSum + FMA> Elementwise for T {}
 
 /// `Trigonometry` bundles trigonometric functions: Sin, Cos, and ATan.
 ///
-/// Use `simsimd::prelude::*` to import all traits at once.
+/// Use `numkong::prelude::*` to import all traits at once.
 pub trait Trigonometry: Sin + Cos + ATan {}
 impl<T: Sin + Cos + ATan> Trigonometry for T {}
 
@@ -3494,7 +3482,7 @@ impl<T: Sin + Cos + ATan> Trigonometry for T {}
 ///
 /// # Example
 /// ```
-/// use simsimd::prelude::*;
+/// use numkong::prelude::*;
 ///
 /// let a = vec![1.0_f32, 2.0, 3.0];
 /// let b = vec![4.0_f32, 5.0, 6.0];
@@ -3573,7 +3561,7 @@ pub mod prelude {
 /// # Example
 ///
 /// ```rust
-/// use simsimd::MeshAlignment;
+/// use numkong::MeshAlignment;
 ///
 /// let a: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
 /// let b: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
@@ -3685,7 +3673,7 @@ impl MeshAlignmentResult<f32> {
 /// # Example
 ///
 /// ```rust
-/// use simsimd::MeshAlignment;
+/// use numkong::MeshAlignment;
 ///
 /// // Two identical point clouds
 /// let a: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
@@ -3766,7 +3754,7 @@ impl MeshAlignment for f64 {
             b_centroid: [0.0; 3],
         };
         unsafe {
-            simsimd_rmsd_f64(
+            nk_rmsd_f64(
                 a.as_ptr() as *const f64,
                 b.as_ptr() as *const f64,
                 a.len() as u64size,
@@ -3792,7 +3780,7 @@ impl MeshAlignment for f64 {
             b_centroid: [0.0; 3],
         };
         unsafe {
-            simsimd_kabsch_f64(
+            nk_kabsch_f64(
                 a.as_ptr() as *const f64,
                 b.as_ptr() as *const f64,
                 a.len() as u64size,
@@ -3818,7 +3806,7 @@ impl MeshAlignment for f64 {
             b_centroid: [0.0; 3],
         };
         unsafe {
-            simsimd_umeyama_f64(
+            nk_umeyama_f64(
                 a.as_ptr() as *const f64,
                 b.as_ptr() as *const f64,
                 a.len() as u64size,
@@ -3846,7 +3834,7 @@ impl MeshAlignment for f32 {
             b_centroid: [0.0; 3],
         };
         unsafe {
-            simsimd_rmsd_f32(
+            nk_rmsd_f32(
                 a.as_ptr() as *const f32,
                 b.as_ptr() as *const f32,
                 a.len() as u64size,
@@ -3872,7 +3860,7 @@ impl MeshAlignment for f32 {
             b_centroid: [0.0; 3],
         };
         unsafe {
-            simsimd_kabsch_f32(
+            nk_kabsch_f32(
                 a.as_ptr() as *const f32,
                 b.as_ptr() as *const f32,
                 a.len() as u64size,
@@ -3898,7 +3886,7 @@ impl MeshAlignment for f32 {
             b_centroid: [0.0; 3],
         };
         unsafe {
-            simsimd_umeyama_f32(
+            nk_umeyama_f32(
                 a.as_ptr() as *const f32,
                 b.as_ptr() as *const f32,
                 a.len() as u64size,
@@ -4091,11 +4079,11 @@ mod tests {
             .iter()
             .map(|&x| HalfF16::from_f32(x))
             .collect();
-        let a_simsimd: &[f16] =
+        let a_numkong: &[f16] =
             unsafe { core::slice::from_raw_parts(a_half.as_ptr() as *const f16, a_half.len()) };
-        let b_simsimd: &[f16] =
+        let b_numkong: &[f16] =
             unsafe { core::slice::from_raw_parts(b_half.as_ptr() as *const f16, b_half.len()) };
-        if let Some(result) = f16::angular(a_simsimd, b_simsimd) {
+        if let Some(result) = f16::angular(a_numkong, b_numkong) {
             assert_almost_equal(0.025, result, 0.01);
         }
     }
@@ -4110,11 +4098,11 @@ mod tests {
             .iter()
             .map(|&x| HalfBF16::from_f32(x))
             .collect();
-        let a_simsimd: &[bf16] =
+        let a_numkong: &[bf16] =
             unsafe { core::slice::from_raw_parts(a_half.as_ptr() as *const bf16, a_half.len()) };
-        let b_simsimd: &[bf16] =
+        let b_numkong: &[bf16] =
             unsafe { core::slice::from_raw_parts(b_half.as_ptr() as *const bf16, b_half.len()) };
-        if let Some(result) = bf16::angular(a_simsimd, b_simsimd) {
+        if let Some(result) = bf16::angular(a_numkong, b_numkong) {
             assert_almost_equal(0.025, result, 0.01);
         }
     }
@@ -4166,11 +4154,11 @@ mod tests {
             .iter()
             .map(|&x| HalfF16::from_f32(x))
             .collect();
-        let a_simsimd: &[f16] =
+        let a_numkong: &[f16] =
             unsafe { core::slice::from_raw_parts(a_half.as_ptr() as *const f16, a_half.len()) };
-        let b_simsimd: &[f16] =
+        let b_numkong: &[f16] =
             unsafe { core::slice::from_raw_parts(b_half.as_ptr() as *const f16, b_half.len()) };
-        if let Some(result) = f16::l2(a_simsimd, b_simsimd) {
+        if let Some(result) = f16::l2(a_numkong, b_numkong) {
             assert_almost_equal(5.2, result, 0.01);
         }
     }
