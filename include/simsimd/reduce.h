@@ -140,9 +140,94 @@ SIMSIMD_PUBLIC void simsimd_reduce_add_f32_serial(simsimd_f32_t const *data, sim
 /** @copydoc simsimd_reduce_add_f64 */
 SIMSIMD_PUBLIC void simsimd_reduce_add_f64_serial(simsimd_f64_t const *data, simsimd_size_t count,
                                                   simsimd_size_t stride_bytes, simsimd_f64_t *result);
+/** @copydoc simsimd_reduce_add_f32 but for i8 input with i64 output */
+SIMSIMD_PUBLIC void simsimd_reduce_add_i8_serial(simsimd_i8_t const *data, simsimd_size_t count,
+                                                 simsimd_size_t stride_bytes, simsimd_i64_t *result);
+/** @copydoc simsimd_reduce_add_f32 but for u8 input with u64 output */
+SIMSIMD_PUBLIC void simsimd_reduce_add_u8_serial(simsimd_u8_t const *data, simsimd_size_t count,
+                                                 simsimd_size_t stride_bytes, simsimd_u64_t *result);
+/** @copydoc simsimd_reduce_add_f32 but for i16 input with i64 output */
+SIMSIMD_PUBLIC void simsimd_reduce_add_i16_serial(simsimd_i16_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_i64_t *result);
+/** @copydoc simsimd_reduce_add_f32 but for u16 input with u64 output */
+SIMSIMD_PUBLIC void simsimd_reduce_add_u16_serial(simsimd_u16_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_u64_t *result);
 /** @copydoc simsimd_reduce_add_f32 but for i32 input with i64 output */
 SIMSIMD_PUBLIC void simsimd_reduce_add_i32_serial(simsimd_i32_t const *data, simsimd_size_t count,
                                                   simsimd_size_t stride_bytes, simsimd_i64_t *result);
+/** @copydoc simsimd_reduce_add_f32 but for u32 input with u64 output */
+SIMSIMD_PUBLIC void simsimd_reduce_add_u32_serial(simsimd_u32_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_u64_t *result);
+/** @copydoc simsimd_reduce_add_f64 but for i64 input */
+SIMSIMD_PUBLIC void simsimd_reduce_add_i64_serial(simsimd_i64_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_i64_t *result);
+/** @copydoc simsimd_reduce_add_f64 but for u64 input */
+SIMSIMD_PUBLIC void simsimd_reduce_add_u64_serial(simsimd_u64_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_u64_t *result);
+/** @copydoc simsimd_reduce_min_f32 but for i8 */
+SIMSIMD_PUBLIC void simsimd_reduce_min_i8_serial(simsimd_i8_t const *data, simsimd_size_t count,
+                                                 simsimd_size_t stride_bytes, simsimd_i8_t *min_value,
+                                                 simsimd_size_t *min_index);
+/** @copydoc simsimd_reduce_max_f32 but for i8 */
+SIMSIMD_PUBLIC void simsimd_reduce_max_i8_serial(simsimd_i8_t const *data, simsimd_size_t count,
+                                                 simsimd_size_t stride_bytes, simsimd_i8_t *max_value,
+                                                 simsimd_size_t *max_index);
+/** @copydoc simsimd_reduce_min_f32 but for u8 */
+SIMSIMD_PUBLIC void simsimd_reduce_min_u8_serial(simsimd_u8_t const *data, simsimd_size_t count,
+                                                 simsimd_size_t stride_bytes, simsimd_u8_t *min_value,
+                                                 simsimd_size_t *min_index);
+/** @copydoc simsimd_reduce_max_f32 but for u8 */
+SIMSIMD_PUBLIC void simsimd_reduce_max_u8_serial(simsimd_u8_t const *data, simsimd_size_t count,
+                                                 simsimd_size_t stride_bytes, simsimd_u8_t *max_value,
+                                                 simsimd_size_t *max_index);
+/** @copydoc simsimd_reduce_min_f32 but for i16 */
+SIMSIMD_PUBLIC void simsimd_reduce_min_i16_serial(simsimd_i16_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_i16_t *min_value,
+                                                  simsimd_size_t *min_index);
+/** @copydoc simsimd_reduce_max_f32 but for i16 */
+SIMSIMD_PUBLIC void simsimd_reduce_max_i16_serial(simsimd_i16_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_i16_t *max_value,
+                                                  simsimd_size_t *max_index);
+/** @copydoc simsimd_reduce_min_f32 but for u16 */
+SIMSIMD_PUBLIC void simsimd_reduce_min_u16_serial(simsimd_u16_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_u16_t *min_value,
+                                                  simsimd_size_t *min_index);
+/** @copydoc simsimd_reduce_max_f32 but for u16 */
+SIMSIMD_PUBLIC void simsimd_reduce_max_u16_serial(simsimd_u16_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_u16_t *max_value,
+                                                  simsimd_size_t *max_index);
+/** @copydoc simsimd_reduce_min_f32 but for i32 */
+SIMSIMD_PUBLIC void simsimd_reduce_min_i32_serial(simsimd_i32_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_i32_t *min_value,
+                                                  simsimd_size_t *min_index);
+/** @copydoc simsimd_reduce_max_f32 but for i32 */
+SIMSIMD_PUBLIC void simsimd_reduce_max_i32_serial(simsimd_i32_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_i32_t *max_value,
+                                                  simsimd_size_t *max_index);
+/** @copydoc simsimd_reduce_min_f32 but for u32 */
+SIMSIMD_PUBLIC void simsimd_reduce_min_u32_serial(simsimd_u32_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_u32_t *min_value,
+                                                  simsimd_size_t *min_index);
+/** @copydoc simsimd_reduce_max_f32 but for u32 */
+SIMSIMD_PUBLIC void simsimd_reduce_max_u32_serial(simsimd_u32_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_u32_t *max_value,
+                                                  simsimd_size_t *max_index);
+/** @copydoc simsimd_reduce_min_f64 but for i64 */
+SIMSIMD_PUBLIC void simsimd_reduce_min_i64_serial(simsimd_i64_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_i64_t *min_value,
+                                                  simsimd_size_t *min_index);
+/** @copydoc simsimd_reduce_max_f64 but for i64 */
+SIMSIMD_PUBLIC void simsimd_reduce_max_i64_serial(simsimd_i64_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_i64_t *max_value,
+                                                  simsimd_size_t *max_index);
+/** @copydoc simsimd_reduce_min_f64 but for u64 */
+SIMSIMD_PUBLIC void simsimd_reduce_min_u64_serial(simsimd_u64_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_u64_t *min_value,
+                                                  simsimd_size_t *min_index);
+/** @copydoc simsimd_reduce_max_f64 but for u64 */
+SIMSIMD_PUBLIC void simsimd_reduce_max_u64_serial(simsimd_u64_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_u64_t *max_value,
+                                                  simsimd_size_t *max_index);
 /** @copydoc simsimd_reduce_min_f32 */
 SIMSIMD_PUBLIC void simsimd_reduce_min_f32_serial(simsimd_f32_t const *data, simsimd_size_t count,
                                                   simsimd_size_t stride_bytes, simsimd_f32_t *min_value,
@@ -208,6 +293,94 @@ SIMSIMD_PUBLIC void simsimd_reduce_min_f64_haswell(simsimd_f64_t const *data, si
 SIMSIMD_PUBLIC void simsimd_reduce_max_f64_haswell(simsimd_f64_t const *data, simsimd_size_t count,
                                                    simsimd_size_t stride_bytes, simsimd_f64_t *max_value,
                                                    simsimd_size_t *max_index);
+/** @brief i8 sum reduction with i64 accumulator */
+SIMSIMD_PUBLIC void simsimd_reduce_add_i8_haswell(simsimd_i8_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_i64_t *result);
+/** @brief u8 sum reduction with u64 accumulator */
+SIMSIMD_PUBLIC void simsimd_reduce_add_u8_haswell(simsimd_u8_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_u64_t *result);
+/** @brief i16 sum reduction with i64 accumulator */
+SIMSIMD_PUBLIC void simsimd_reduce_add_i16_haswell(simsimd_i16_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i64_t *result);
+/** @brief u16 sum reduction with u64 accumulator */
+SIMSIMD_PUBLIC void simsimd_reduce_add_u16_haswell(simsimd_u16_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u64_t *result);
+/** @brief i32 sum reduction with i64 accumulator */
+SIMSIMD_PUBLIC void simsimd_reduce_add_i32_haswell(simsimd_i32_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i64_t *result);
+/** @brief u32 sum reduction with u64 accumulator */
+SIMSIMD_PUBLIC void simsimd_reduce_add_u32_haswell(simsimd_u32_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u64_t *result);
+/** @brief i64 sum reduction */
+SIMSIMD_PUBLIC void simsimd_reduce_add_i64_haswell(simsimd_i64_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i64_t *result);
+/** @brief u64 sum reduction */
+SIMSIMD_PUBLIC void simsimd_reduce_add_u64_haswell(simsimd_u64_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u64_t *result);
+/** @brief i8 min reduction with argmin */
+SIMSIMD_PUBLIC void simsimd_reduce_min_i8_haswell(simsimd_i8_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_i8_t *min_value,
+                                                  simsimd_size_t *min_index);
+/** @brief i8 max reduction with argmax */
+SIMSIMD_PUBLIC void simsimd_reduce_max_i8_haswell(simsimd_i8_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_i8_t *max_value,
+                                                  simsimd_size_t *max_index);
+/** @brief u8 min reduction with argmin */
+SIMSIMD_PUBLIC void simsimd_reduce_min_u8_haswell(simsimd_u8_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_u8_t *min_value,
+                                                  simsimd_size_t *min_index);
+/** @brief u8 max reduction with argmax */
+SIMSIMD_PUBLIC void simsimd_reduce_max_u8_haswell(simsimd_u8_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_u8_t *max_value,
+                                                  simsimd_size_t *max_index);
+/** @brief i16 min reduction with argmin */
+SIMSIMD_PUBLIC void simsimd_reduce_min_i16_haswell(simsimd_i16_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i16_t *min_value,
+                                                   simsimd_size_t *min_index);
+/** @brief i16 max reduction with argmax */
+SIMSIMD_PUBLIC void simsimd_reduce_max_i16_haswell(simsimd_i16_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i16_t *max_value,
+                                                   simsimd_size_t *max_index);
+/** @brief u16 min reduction with argmin */
+SIMSIMD_PUBLIC void simsimd_reduce_min_u16_haswell(simsimd_u16_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u16_t *min_value,
+                                                   simsimd_size_t *min_index);
+/** @brief u16 max reduction with argmax */
+SIMSIMD_PUBLIC void simsimd_reduce_max_u16_haswell(simsimd_u16_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u16_t *max_value,
+                                                   simsimd_size_t *max_index);
+/** @brief i32 min reduction with argmin */
+SIMSIMD_PUBLIC void simsimd_reduce_min_i32_haswell(simsimd_i32_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i32_t *min_value,
+                                                   simsimd_size_t *min_index);
+/** @brief i32 max reduction with argmax */
+SIMSIMD_PUBLIC void simsimd_reduce_max_i32_haswell(simsimd_i32_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i32_t *max_value,
+                                                   simsimd_size_t *max_index);
+/** @brief u32 min reduction with argmin */
+SIMSIMD_PUBLIC void simsimd_reduce_min_u32_haswell(simsimd_u32_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u32_t *min_value,
+                                                   simsimd_size_t *min_index);
+/** @brief u32 max reduction with argmax */
+SIMSIMD_PUBLIC void simsimd_reduce_max_u32_haswell(simsimd_u32_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u32_t *max_value,
+                                                   simsimd_size_t *max_index);
+/** @brief i64 min reduction with argmin */
+SIMSIMD_PUBLIC void simsimd_reduce_min_i64_haswell(simsimd_i64_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i64_t *min_value,
+                                                   simsimd_size_t *min_index);
+/** @brief i64 max reduction with argmax */
+SIMSIMD_PUBLIC void simsimd_reduce_max_i64_haswell(simsimd_i64_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i64_t *max_value,
+                                                   simsimd_size_t *max_index);
+/** @brief u64 min reduction with argmin */
+SIMSIMD_PUBLIC void simsimd_reduce_min_u64_haswell(simsimd_u64_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u64_t *min_value,
+                                                   simsimd_size_t *min_index);
+/** @brief u64 max reduction with argmax */
+SIMSIMD_PUBLIC void simsimd_reduce_max_u64_haswell(simsimd_u64_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u64_t *max_value,
+                                                   simsimd_size_t *max_index);
 #endif // SIMSIMD_TARGET_HASWELL
 
 #pragma endregion
@@ -237,6 +410,94 @@ SIMSIMD_PUBLIC void simsimd_reduce_min_f64_skylake(simsimd_f64_t const *data, si
 SIMSIMD_PUBLIC void simsimd_reduce_max_f64_skylake(simsimd_f64_t const *data, simsimd_size_t count,
                                                    simsimd_size_t stride_bytes, simsimd_f64_t *max_value,
                                                    simsimd_size_t *max_index);
+/** @brief i8 sum reduction with i64 accumulator */
+SIMSIMD_PUBLIC void simsimd_reduce_add_i8_skylake(simsimd_i8_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_i64_t *result);
+/** @brief u8 sum reduction with u64 accumulator */
+SIMSIMD_PUBLIC void simsimd_reduce_add_u8_skylake(simsimd_u8_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_u64_t *result);
+/** @brief i16 sum reduction with i64 accumulator */
+SIMSIMD_PUBLIC void simsimd_reduce_add_i16_skylake(simsimd_i16_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i64_t *result);
+/** @brief u16 sum reduction with u64 accumulator */
+SIMSIMD_PUBLIC void simsimd_reduce_add_u16_skylake(simsimd_u16_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u64_t *result);
+/** @brief i32 sum reduction with i64 accumulator */
+SIMSIMD_PUBLIC void simsimd_reduce_add_i32_skylake(simsimd_i32_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i64_t *result);
+/** @brief u32 sum reduction with u64 accumulator */
+SIMSIMD_PUBLIC void simsimd_reduce_add_u32_skylake(simsimd_u32_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u64_t *result);
+/** @brief i64 sum reduction */
+SIMSIMD_PUBLIC void simsimd_reduce_add_i64_skylake(simsimd_i64_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i64_t *result);
+/** @brief u64 sum reduction */
+SIMSIMD_PUBLIC void simsimd_reduce_add_u64_skylake(simsimd_u64_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u64_t *result);
+/** @brief i8 min reduction with argmin */
+SIMSIMD_PUBLIC void simsimd_reduce_min_i8_skylake(simsimd_i8_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_i8_t *min_value,
+                                                  simsimd_size_t *min_index);
+/** @brief i8 max reduction with argmax */
+SIMSIMD_PUBLIC void simsimd_reduce_max_i8_skylake(simsimd_i8_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_i8_t *max_value,
+                                                  simsimd_size_t *max_index);
+/** @brief u8 min reduction with argmin */
+SIMSIMD_PUBLIC void simsimd_reduce_min_u8_skylake(simsimd_u8_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_u8_t *min_value,
+                                                  simsimd_size_t *min_index);
+/** @brief u8 max reduction with argmax */
+SIMSIMD_PUBLIC void simsimd_reduce_max_u8_skylake(simsimd_u8_t const *data, simsimd_size_t count,
+                                                  simsimd_size_t stride_bytes, simsimd_u8_t *max_value,
+                                                  simsimd_size_t *max_index);
+/** @brief i16 min reduction with argmin */
+SIMSIMD_PUBLIC void simsimd_reduce_min_i16_skylake(simsimd_i16_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i16_t *min_value,
+                                                   simsimd_size_t *min_index);
+/** @brief i16 max reduction with argmax */
+SIMSIMD_PUBLIC void simsimd_reduce_max_i16_skylake(simsimd_i16_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i16_t *max_value,
+                                                   simsimd_size_t *max_index);
+/** @brief u16 min reduction with argmin */
+SIMSIMD_PUBLIC void simsimd_reduce_min_u16_skylake(simsimd_u16_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u16_t *min_value,
+                                                   simsimd_size_t *min_index);
+/** @brief u16 max reduction with argmax */
+SIMSIMD_PUBLIC void simsimd_reduce_max_u16_skylake(simsimd_u16_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u16_t *max_value,
+                                                   simsimd_size_t *max_index);
+/** @brief i32 min reduction with argmin */
+SIMSIMD_PUBLIC void simsimd_reduce_min_i32_skylake(simsimd_i32_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i32_t *min_value,
+                                                   simsimd_size_t *min_index);
+/** @brief i32 max reduction with argmax */
+SIMSIMD_PUBLIC void simsimd_reduce_max_i32_skylake(simsimd_i32_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i32_t *max_value,
+                                                   simsimd_size_t *max_index);
+/** @brief u32 min reduction with argmin */
+SIMSIMD_PUBLIC void simsimd_reduce_min_u32_skylake(simsimd_u32_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u32_t *min_value,
+                                                   simsimd_size_t *min_index);
+/** @brief u32 max reduction with argmax */
+SIMSIMD_PUBLIC void simsimd_reduce_max_u32_skylake(simsimd_u32_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u32_t *max_value,
+                                                   simsimd_size_t *max_index);
+/** @brief i64 min reduction with argmin */
+SIMSIMD_PUBLIC void simsimd_reduce_min_i64_skylake(simsimd_i64_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i64_t *min_value,
+                                                   simsimd_size_t *min_index);
+/** @brief i64 max reduction with argmax */
+SIMSIMD_PUBLIC void simsimd_reduce_max_i64_skylake(simsimd_i64_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_i64_t *max_value,
+                                                   simsimd_size_t *max_index);
+/** @brief u64 min reduction with argmin */
+SIMSIMD_PUBLIC void simsimd_reduce_min_u64_skylake(simsimd_u64_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u64_t *min_value,
+                                                   simsimd_size_t *min_index);
+/** @brief u64 max reduction with argmax */
+SIMSIMD_PUBLIC void simsimd_reduce_max_u64_skylake(simsimd_u64_t const *data, simsimd_size_t count,
+                                                   simsimd_size_t stride_bytes, simsimd_u64_t *max_value,
+                                                   simsimd_size_t *max_index);
 #endif // SIMSIMD_TARGET_SKYLAKE
 
 #pragma endregion
@@ -261,6 +522,42 @@ SIMSIMD_PUBLIC void simsimd_reduce_add_f64_serial(                              
     *result = sum;
 }
 
+SIMSIMD_PUBLIC void simsimd_reduce_add_i8_serial(                                //
+    simsimd_i8_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i64_t *result) {
+    simsimd_i64_t sum = 0;
+    unsigned char const *ptr = (unsigned char const *)data;
+    for (simsimd_size_t i = 0; i < count; ++i, ptr += stride_bytes) sum += *(simsimd_i8_t const *)ptr;
+    *result = sum;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_add_u8_serial(                                //
+    simsimd_u8_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u64_t *result) {
+    simsimd_u64_t sum = 0;
+    unsigned char const *ptr = (unsigned char const *)data;
+    for (simsimd_size_t i = 0; i < count; ++i, ptr += stride_bytes) sum += *(simsimd_u8_t const *)ptr;
+    *result = sum;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_add_i16_serial(                                //
+    simsimd_i16_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i64_t *result) {
+    simsimd_i64_t sum = 0;
+    unsigned char const *ptr = (unsigned char const *)data;
+    for (simsimd_size_t i = 0; i < count; ++i, ptr += stride_bytes) sum += *(simsimd_i16_t const *)ptr;
+    *result = sum;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_add_u16_serial(                                //
+    simsimd_u16_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u64_t *result) {
+    simsimd_u64_t sum = 0;
+    unsigned char const *ptr = (unsigned char const *)data;
+    for (simsimd_size_t i = 0; i < count; ++i, ptr += stride_bytes) sum += *(simsimd_u16_t const *)ptr;
+    *result = sum;
+}
+
 SIMSIMD_PUBLIC void simsimd_reduce_add_i32_serial(                                //
     simsimd_i32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
     simsimd_i64_t *result) {
@@ -268,6 +565,385 @@ SIMSIMD_PUBLIC void simsimd_reduce_add_i32_serial(                              
     unsigned char const *ptr = (unsigned char const *)data;
     for (simsimd_size_t i = 0; i < count; ++i, ptr += stride_bytes) sum += *(simsimd_i32_t const *)ptr;
     *result = sum;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_add_u32_serial(                                //
+    simsimd_u32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u64_t *result) {
+    simsimd_u64_t sum = 0;
+    unsigned char const *ptr = (unsigned char const *)data;
+    for (simsimd_size_t i = 0; i < count; ++i, ptr += stride_bytes) sum += *(simsimd_u32_t const *)ptr;
+    *result = sum;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_add_i64_serial(                                //
+    simsimd_i64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i64_t *result) {
+    simsimd_i64_t sum = 0;
+    unsigned char const *ptr = (unsigned char const *)data;
+    for (simsimd_size_t i = 0; i < count; ++i, ptr += stride_bytes) sum += *(simsimd_i64_t const *)ptr;
+    *result = sum;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_add_u64_serial(                                //
+    simsimd_u64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u64_t *result) {
+    simsimd_u64_t sum = 0;
+    unsigned char const *ptr = (unsigned char const *)data;
+    for (simsimd_size_t i = 0; i < count; ++i, ptr += stride_bytes) sum += *(simsimd_u64_t const *)ptr;
+    *result = sum;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_min_i8_serial(                                //
+    simsimd_i8_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i8_t *min_value, simsimd_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    simsimd_i8_t best_value = *(simsimd_i8_t const *)ptr;
+    simsimd_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        simsimd_i8_t val = *(simsimd_i8_t const *)ptr;
+        if (val >= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *min_value = best_value;
+    *min_index = best_index;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_max_i8_serial(                                //
+    simsimd_i8_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i8_t *max_value, simsimd_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    simsimd_i8_t best_value = *(simsimd_i8_t const *)ptr;
+    simsimd_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        simsimd_i8_t val = *(simsimd_i8_t const *)ptr;
+        if (val <= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *max_value = best_value;
+    *max_index = best_index;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_min_u8_serial(                                //
+    simsimd_u8_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u8_t *min_value, simsimd_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    simsimd_u8_t best_value = *(simsimd_u8_t const *)ptr;
+    simsimd_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        simsimd_u8_t val = *(simsimd_u8_t const *)ptr;
+        if (val >= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *min_value = best_value;
+    *min_index = best_index;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_max_u8_serial(                                //
+    simsimd_u8_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u8_t *max_value, simsimd_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    simsimd_u8_t best_value = *(simsimd_u8_t const *)ptr;
+    simsimd_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        simsimd_u8_t val = *(simsimd_u8_t const *)ptr;
+        if (val <= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *max_value = best_value;
+    *max_index = best_index;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_min_i16_serial(                                //
+    simsimd_i16_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i16_t *min_value, simsimd_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    simsimd_i16_t best_value = *(simsimd_i16_t const *)ptr;
+    simsimd_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        simsimd_i16_t val = *(simsimd_i16_t const *)ptr;
+        if (val >= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *min_value = best_value;
+    *min_index = best_index;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_max_i16_serial(                                //
+    simsimd_i16_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i16_t *max_value, simsimd_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    simsimd_i16_t best_value = *(simsimd_i16_t const *)ptr;
+    simsimd_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        simsimd_i16_t val = *(simsimd_i16_t const *)ptr;
+        if (val <= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *max_value = best_value;
+    *max_index = best_index;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_min_u16_serial(                                //
+    simsimd_u16_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u16_t *min_value, simsimd_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    simsimd_u16_t best_value = *(simsimd_u16_t const *)ptr;
+    simsimd_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        simsimd_u16_t val = *(simsimd_u16_t const *)ptr;
+        if (val >= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *min_value = best_value;
+    *min_index = best_index;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_max_u16_serial(                                //
+    simsimd_u16_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u16_t *max_value, simsimd_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    simsimd_u16_t best_value = *(simsimd_u16_t const *)ptr;
+    simsimd_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        simsimd_u16_t val = *(simsimd_u16_t const *)ptr;
+        if (val <= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *max_value = best_value;
+    *max_index = best_index;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_min_i32_serial(                                //
+    simsimd_i32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i32_t *min_value, simsimd_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    simsimd_i32_t best_value = *(simsimd_i32_t const *)ptr;
+    simsimd_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        simsimd_i32_t val = *(simsimd_i32_t const *)ptr;
+        if (val >= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *min_value = best_value;
+    *min_index = best_index;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_max_i32_serial(                                //
+    simsimd_i32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i32_t *max_value, simsimd_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    simsimd_i32_t best_value = *(simsimd_i32_t const *)ptr;
+    simsimd_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        simsimd_i32_t val = *(simsimd_i32_t const *)ptr;
+        if (val <= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *max_value = best_value;
+    *max_index = best_index;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_min_u32_serial(                                //
+    simsimd_u32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u32_t *min_value, simsimd_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    simsimd_u32_t best_value = *(simsimd_u32_t const *)ptr;
+    simsimd_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        simsimd_u32_t val = *(simsimd_u32_t const *)ptr;
+        if (val >= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *min_value = best_value;
+    *min_index = best_index;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_max_u32_serial(                                //
+    simsimd_u32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u32_t *max_value, simsimd_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    simsimd_u32_t best_value = *(simsimd_u32_t const *)ptr;
+    simsimd_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        simsimd_u32_t val = *(simsimd_u32_t const *)ptr;
+        if (val <= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *max_value = best_value;
+    *max_index = best_index;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_min_i64_serial(                                //
+    simsimd_i64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i64_t *min_value, simsimd_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    simsimd_i64_t best_value = *(simsimd_i64_t const *)ptr;
+    simsimd_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        simsimd_i64_t val = *(simsimd_i64_t const *)ptr;
+        if (val >= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *min_value = best_value;
+    *min_index = best_index;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_max_i64_serial(                                //
+    simsimd_i64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i64_t *max_value, simsimd_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    simsimd_i64_t best_value = *(simsimd_i64_t const *)ptr;
+    simsimd_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        simsimd_i64_t val = *(simsimd_i64_t const *)ptr;
+        if (val <= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *max_value = best_value;
+    *max_index = best_index;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_min_u64_serial(                                //
+    simsimd_u64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u64_t *min_value, simsimd_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    simsimd_u64_t best_value = *(simsimd_u64_t const *)ptr;
+    simsimd_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        simsimd_u64_t val = *(simsimd_u64_t const *)ptr;
+        if (val >= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *min_value = best_value;
+    *min_index = best_index;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_max_u64_serial(                                //
+    simsimd_u64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u64_t *max_value, simsimd_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    simsimd_u64_t best_value = *(simsimd_u64_t const *)ptr;
+    simsimd_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        simsimd_u64_t val = *(simsimd_u64_t const *)ptr;
+        if (val <= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *max_value = best_value;
+    *max_index = best_index;
 }
 
 SIMSIMD_PUBLIC void simsimd_reduce_min_f32_serial(                                //
@@ -577,6 +1253,200 @@ SIMSIMD_INTERNAL simsimd_i32_t _simsimd_reduce_add_i32x8_haswell(__m256i sum_i32
     sum_i32x4 = _mm_hadd_epi32(sum_i32x4, sum_i32x4);
     sum_i32x4 = _mm_hadd_epi32(sum_i32x4, sum_i32x4);
     return _mm_cvtsi128_si32(sum_i32x4);
+}
+
+/** @brief Horizontal sum of 4 i64s in a YMM register. */
+SIMSIMD_INTERNAL simsimd_i64_t _simsimd_reduce_add_i64x4_haswell(__m256i sum_i64x4) {
+    __m128i lo_i64x2 = _mm256_castsi256_si128(sum_i64x4);
+    __m128i hi_i64x2 = _mm256_extracti128_si256(sum_i64x4, 1);
+    __m128i sum_i64x2 = _mm_add_epi64(lo_i64x2, hi_i64x2);
+    __m128i hi_lane_i64 = _mm_unpackhi_epi64(sum_i64x2, sum_i64x2);
+    __m128i final_i64 = _mm_add_epi64(sum_i64x2, hi_lane_i64);
+    return _mm_cvtsi128_si64(final_i64);
+}
+
+/** @brief Horizontal min of 8 signed i8s in a YMM register. */
+SIMSIMD_INTERNAL simsimd_i8_t _simsimd_reduce_min_i8x32_haswell(__m256i min_i8x32) {
+    __m128i lo_i8x16 = _mm256_castsi256_si128(min_i8x32);
+    __m128i hi_i8x16 = _mm256_extracti128_si256(min_i8x32, 1);
+    __m128i min_i8x16 = _mm_min_epi8(lo_i8x16, hi_i8x16);
+    min_i8x16 = _mm_min_epi8(min_i8x16, _mm_shuffle_epi32(min_i8x16, _MM_SHUFFLE(2, 3, 0, 1)));
+    min_i8x16 = _mm_min_epi8(min_i8x16, _mm_shuffle_epi32(min_i8x16, _MM_SHUFFLE(1, 0, 3, 2)));
+    min_i8x16 = _mm_min_epi8(min_i8x16, _mm_shufflelo_epi16(min_i8x16, _MM_SHUFFLE(1, 0, 3, 2)));
+    min_i8x16 = _mm_min_epi8(min_i8x16, _mm_srli_epi16(min_i8x16, 8));
+    return (simsimd_i8_t)_mm_cvtsi128_si32(min_i8x16);
+}
+
+/** @brief Horizontal max of 8 signed i8s in a YMM register. */
+SIMSIMD_INTERNAL simsimd_i8_t _simsimd_reduce_max_i8x32_haswell(__m256i max_i8x32) {
+    __m128i lo_i8x16 = _mm256_castsi256_si128(max_i8x32);
+    __m128i hi_i8x16 = _mm256_extracti128_si256(max_i8x32, 1);
+    __m128i max_i8x16 = _mm_max_epi8(lo_i8x16, hi_i8x16);
+    max_i8x16 = _mm_max_epi8(max_i8x16, _mm_shuffle_epi32(max_i8x16, _MM_SHUFFLE(2, 3, 0, 1)));
+    max_i8x16 = _mm_max_epi8(max_i8x16, _mm_shuffle_epi32(max_i8x16, _MM_SHUFFLE(1, 0, 3, 2)));
+    max_i8x16 = _mm_max_epi8(max_i8x16, _mm_shufflelo_epi16(max_i8x16, _MM_SHUFFLE(1, 0, 3, 2)));
+    max_i8x16 = _mm_max_epi8(max_i8x16, _mm_srli_epi16(max_i8x16, 8));
+    return (simsimd_i8_t)_mm_cvtsi128_si32(max_i8x16);
+}
+
+/** @brief Horizontal min of 8 unsigned u8s in a YMM register. */
+SIMSIMD_INTERNAL simsimd_u8_t _simsimd_reduce_min_u8x32_haswell(__m256i min_u8x32) {
+    __m128i lo_u8x16 = _mm256_castsi256_si128(min_u8x32);
+    __m128i hi_u8x16 = _mm256_extracti128_si256(min_u8x32, 1);
+    __m128i min_u8x16 = _mm_min_epu8(lo_u8x16, hi_u8x16);
+    min_u8x16 = _mm_min_epu8(min_u8x16, _mm_shuffle_epi32(min_u8x16, _MM_SHUFFLE(2, 3, 0, 1)));
+    min_u8x16 = _mm_min_epu8(min_u8x16, _mm_shuffle_epi32(min_u8x16, _MM_SHUFFLE(1, 0, 3, 2)));
+    min_u8x16 = _mm_min_epu8(min_u8x16, _mm_shufflelo_epi16(min_u8x16, _MM_SHUFFLE(1, 0, 3, 2)));
+    min_u8x16 = _mm_min_epu8(min_u8x16, _mm_srli_epi16(min_u8x16, 8));
+    return (simsimd_u8_t)_mm_cvtsi128_si32(min_u8x16);
+}
+
+/** @brief Horizontal max of 8 unsigned u8s in a YMM register. */
+SIMSIMD_INTERNAL simsimd_u8_t _simsimd_reduce_max_u8x32_haswell(__m256i max_u8x32) {
+    __m128i lo_u8x16 = _mm256_castsi256_si128(max_u8x32);
+    __m128i hi_u8x16 = _mm256_extracti128_si256(max_u8x32, 1);
+    __m128i max_u8x16 = _mm_max_epu8(lo_u8x16, hi_u8x16);
+    max_u8x16 = _mm_max_epu8(max_u8x16, _mm_shuffle_epi32(max_u8x16, _MM_SHUFFLE(2, 3, 0, 1)));
+    max_u8x16 = _mm_max_epu8(max_u8x16, _mm_shuffle_epi32(max_u8x16, _MM_SHUFFLE(1, 0, 3, 2)));
+    max_u8x16 = _mm_max_epu8(max_u8x16, _mm_shufflelo_epi16(max_u8x16, _MM_SHUFFLE(1, 0, 3, 2)));
+    max_u8x16 = _mm_max_epu8(max_u8x16, _mm_srli_epi16(max_u8x16, 8));
+    return (simsimd_u8_t)_mm_cvtsi128_si32(max_u8x16);
+}
+
+/** @brief Horizontal min of 16 signed i16s in a YMM register. */
+SIMSIMD_INTERNAL simsimd_i16_t _simsimd_reduce_min_i16x16_haswell(__m256i min_i16x16) {
+    __m128i lo_i16x8 = _mm256_castsi256_si128(min_i16x16);
+    __m128i hi_i16x8 = _mm256_extracti128_si256(min_i16x16, 1);
+    __m128i min_i16x8 = _mm_min_epi16(lo_i16x8, hi_i16x8);
+    min_i16x8 = _mm_min_epi16(min_i16x8, _mm_shuffle_epi32(min_i16x8, _MM_SHUFFLE(2, 3, 0, 1)));
+    min_i16x8 = _mm_min_epi16(min_i16x8, _mm_shuffle_epi32(min_i16x8, _MM_SHUFFLE(1, 0, 3, 2)));
+    min_i16x8 = _mm_min_epi16(min_i16x8, _mm_shufflelo_epi16(min_i16x8, _MM_SHUFFLE(1, 0, 3, 2)));
+    return (simsimd_i16_t)_mm_cvtsi128_si32(min_i16x8);
+}
+
+/** @brief Horizontal max of 16 signed i16s in a YMM register. */
+SIMSIMD_INTERNAL simsimd_i16_t _simsimd_reduce_max_i16x16_haswell(__m256i max_i16x16) {
+    __m128i lo_i16x8 = _mm256_castsi256_si128(max_i16x16);
+    __m128i hi_i16x8 = _mm256_extracti128_si256(max_i16x16, 1);
+    __m128i max_i16x8 = _mm_max_epi16(lo_i16x8, hi_i16x8);
+    max_i16x8 = _mm_max_epi16(max_i16x8, _mm_shuffle_epi32(max_i16x8, _MM_SHUFFLE(2, 3, 0, 1)));
+    max_i16x8 = _mm_max_epi16(max_i16x8, _mm_shuffle_epi32(max_i16x8, _MM_SHUFFLE(1, 0, 3, 2)));
+    max_i16x8 = _mm_max_epi16(max_i16x8, _mm_shufflelo_epi16(max_i16x8, _MM_SHUFFLE(1, 0, 3, 2)));
+    return (simsimd_i16_t)_mm_cvtsi128_si32(max_i16x8);
+}
+
+/** @brief Horizontal min of 16 unsigned u16s in a YMM register. */
+SIMSIMD_INTERNAL simsimd_u16_t _simsimd_reduce_min_u16x16_haswell(__m256i min_u16x16) {
+    __m128i lo_u16x8 = _mm256_castsi256_si128(min_u16x16);
+    __m128i hi_u16x8 = _mm256_extracti128_si256(min_u16x16, 1);
+    __m128i min_u16x8 = _mm_min_epu16(lo_u16x8, hi_u16x8);
+    min_u16x8 = _mm_min_epu16(min_u16x8, _mm_shuffle_epi32(min_u16x8, _MM_SHUFFLE(2, 3, 0, 1)));
+    min_u16x8 = _mm_min_epu16(min_u16x8, _mm_shuffle_epi32(min_u16x8, _MM_SHUFFLE(1, 0, 3, 2)));
+    min_u16x8 = _mm_min_epu16(min_u16x8, _mm_shufflelo_epi16(min_u16x8, _MM_SHUFFLE(1, 0, 3, 2)));
+    return (simsimd_u16_t)_mm_cvtsi128_si32(min_u16x8);
+}
+
+/** @brief Horizontal max of 16 unsigned u16s in a YMM register. */
+SIMSIMD_INTERNAL simsimd_u16_t _simsimd_reduce_max_u16x16_haswell(__m256i max_u16x16) {
+    __m128i lo_u16x8 = _mm256_castsi256_si128(max_u16x16);
+    __m128i hi_u16x8 = _mm256_extracti128_si256(max_u16x16, 1);
+    __m128i max_u16x8 = _mm_max_epu16(lo_u16x8, hi_u16x8);
+    max_u16x8 = _mm_max_epu16(max_u16x8, _mm_shuffle_epi32(max_u16x8, _MM_SHUFFLE(2, 3, 0, 1)));
+    max_u16x8 = _mm_max_epu16(max_u16x8, _mm_shuffle_epi32(max_u16x8, _MM_SHUFFLE(1, 0, 3, 2)));
+    max_u16x8 = _mm_max_epu16(max_u16x8, _mm_shufflelo_epi16(max_u16x8, _MM_SHUFFLE(1, 0, 3, 2)));
+    return (simsimd_u16_t)_mm_cvtsi128_si32(max_u16x8);
+}
+
+/** @brief Horizontal min of 8 signed i32s in a YMM register. */
+SIMSIMD_INTERNAL simsimd_i32_t _simsimd_reduce_min_i32x8_haswell(__m256i min_i32x8) {
+    __m128i lo_i32x4 = _mm256_castsi256_si128(min_i32x8);
+    __m128i hi_i32x4 = _mm256_extracti128_si256(min_i32x8, 1);
+    __m128i min_i32x4 = _mm_min_epi32(lo_i32x4, hi_i32x4);
+    min_i32x4 = _mm_min_epi32(min_i32x4, _mm_shuffle_epi32(min_i32x4, _MM_SHUFFLE(2, 3, 0, 1)));
+    min_i32x4 = _mm_min_epi32(min_i32x4, _mm_shuffle_epi32(min_i32x4, _MM_SHUFFLE(1, 0, 3, 2)));
+    return _mm_cvtsi128_si32(min_i32x4);
+}
+
+/** @brief Horizontal max of 8 signed i32s in a YMM register. */
+SIMSIMD_INTERNAL simsimd_i32_t _simsimd_reduce_max_i32x8_haswell(__m256i max_i32x8) {
+    __m128i lo_i32x4 = _mm256_castsi256_si128(max_i32x8);
+    __m128i hi_i32x4 = _mm256_extracti128_si256(max_i32x8, 1);
+    __m128i max_i32x4 = _mm_max_epi32(lo_i32x4, hi_i32x4);
+    max_i32x4 = _mm_max_epi32(max_i32x4, _mm_shuffle_epi32(max_i32x4, _MM_SHUFFLE(2, 3, 0, 1)));
+    max_i32x4 = _mm_max_epi32(max_i32x4, _mm_shuffle_epi32(max_i32x4, _MM_SHUFFLE(1, 0, 3, 2)));
+    return _mm_cvtsi128_si32(max_i32x4);
+}
+
+/** @brief Horizontal min of 8 unsigned u32s in a YMM register. */
+SIMSIMD_INTERNAL simsimd_u32_t _simsimd_reduce_min_u32x8_haswell(__m256i min_u32x8) {
+    __m128i lo_u32x4 = _mm256_castsi256_si128(min_u32x8);
+    __m128i hi_u32x4 = _mm256_extracti128_si256(min_u32x8, 1);
+    __m128i min_u32x4 = _mm_min_epu32(lo_u32x4, hi_u32x4);
+    min_u32x4 = _mm_min_epu32(min_u32x4, _mm_shuffle_epi32(min_u32x4, _MM_SHUFFLE(2, 3, 0, 1)));
+    min_u32x4 = _mm_min_epu32(min_u32x4, _mm_shuffle_epi32(min_u32x4, _MM_SHUFFLE(1, 0, 3, 2)));
+    return (simsimd_u32_t)_mm_cvtsi128_si32(min_u32x4);
+}
+
+/** @brief Horizontal max of 8 unsigned u32s in a YMM register. */
+SIMSIMD_INTERNAL simsimd_u32_t _simsimd_reduce_max_u32x8_haswell(__m256i max_u32x8) {
+    __m128i lo_u32x4 = _mm256_castsi256_si128(max_u32x8);
+    __m128i hi_u32x4 = _mm256_extracti128_si256(max_u32x8, 1);
+    __m128i max_u32x4 = _mm_max_epu32(lo_u32x4, hi_u32x4);
+    max_u32x4 = _mm_max_epu32(max_u32x4, _mm_shuffle_epi32(max_u32x4, _MM_SHUFFLE(2, 3, 0, 1)));
+    max_u32x4 = _mm_max_epu32(max_u32x4, _mm_shuffle_epi32(max_u32x4, _MM_SHUFFLE(1, 0, 3, 2)));
+    return (simsimd_u32_t)_mm_cvtsi128_si32(max_u32x4);
+}
+
+/** @brief Horizontal min of 4 signed i64s in a YMM register using comparison+blend. */
+SIMSIMD_INTERNAL simsimd_i64_t _simsimd_reduce_min_i64x4_haswell(__m256i min_i64x4) {
+    __m128i lo_i64x2 = _mm256_castsi256_si128(min_i64x4);
+    __m128i hi_i64x2 = _mm256_extracti128_si256(min_i64x4, 1);
+    __m128i cmp_i64x2 = _mm_cmpgt_epi64(lo_i64x2, hi_i64x2);
+    __m128i min_i64x2 = _mm_blendv_epi8(lo_i64x2, hi_i64x2, cmp_i64x2);
+    __m128i hi_lane_i64 = _mm_unpackhi_epi64(min_i64x2, min_i64x2);
+    __m128i cmp_final = _mm_cmpgt_epi64(min_i64x2, hi_lane_i64);
+    __m128i result_i64 = _mm_blendv_epi8(min_i64x2, hi_lane_i64, cmp_final);
+    return _mm_cvtsi128_si64(result_i64);
+}
+
+/** @brief Horizontal max of 4 signed i64s in a YMM register using comparison+blend. */
+SIMSIMD_INTERNAL simsimd_i64_t _simsimd_reduce_max_i64x4_haswell(__m256i max_i64x4) {
+    __m128i lo_i64x2 = _mm256_castsi256_si128(max_i64x4);
+    __m128i hi_i64x2 = _mm256_extracti128_si256(max_i64x4, 1);
+    __m128i cmp_i64x2 = _mm_cmpgt_epi64(lo_i64x2, hi_i64x2);
+    __m128i max_i64x2 = _mm_blendv_epi8(hi_i64x2, lo_i64x2, cmp_i64x2);
+    __m128i hi_lane_i64 = _mm_unpackhi_epi64(max_i64x2, max_i64x2);
+    __m128i cmp_final = _mm_cmpgt_epi64(max_i64x2, hi_lane_i64);
+    __m128i result_i64 = _mm_blendv_epi8(hi_lane_i64, max_i64x2, cmp_final);
+    return _mm_cvtsi128_si64(result_i64);
+}
+
+/** @brief Horizontal min of 4 unsigned u64s in a YMM register using XOR trick for unsigned comparison. */
+SIMSIMD_INTERNAL simsimd_u64_t _simsimd_reduce_min_u64x4_haswell(__m256i min_u64x4) {
+    __m128i sign_bit_i64 = _mm_set1_epi64x((simsimd_i64_t)0x8000000000000000ull);
+    __m128i lo_u64x2 = _mm256_castsi256_si128(min_u64x4);
+    __m128i hi_u64x2 = _mm256_extracti128_si256(min_u64x4, 1);
+    __m128i cmp_i64x2 = _mm_cmpgt_epi64(_mm_xor_si128(lo_u64x2, sign_bit_i64), _mm_xor_si128(hi_u64x2, sign_bit_i64));
+    __m128i min_u64x2 = _mm_blendv_epi8(lo_u64x2, hi_u64x2, cmp_i64x2);
+    __m128i hi_lane_u64 = _mm_unpackhi_epi64(min_u64x2, min_u64x2);
+    __m128i cmp_final = _mm_cmpgt_epi64(_mm_xor_si128(min_u64x2, sign_bit_i64),
+                                        _mm_xor_si128(hi_lane_u64, sign_bit_i64));
+    __m128i result_u64 = _mm_blendv_epi8(min_u64x2, hi_lane_u64, cmp_final);
+    return (simsimd_u64_t)_mm_cvtsi128_si64(result_u64);
+}
+
+/** @brief Horizontal max of 4 unsigned u64s in a YMM register using XOR trick for unsigned comparison. */
+SIMSIMD_INTERNAL simsimd_u64_t _simsimd_reduce_max_u64x4_haswell(__m256i max_u64x4) {
+    __m128i sign_bit_i64 = _mm_set1_epi64x((simsimd_i64_t)0x8000000000000000ull);
+    __m128i lo_u64x2 = _mm256_castsi256_si128(max_u64x4);
+    __m128i hi_u64x2 = _mm256_extracti128_si256(max_u64x4, 1);
+    __m128i cmp_i64x2 = _mm_cmpgt_epi64(_mm_xor_si128(lo_u64x2, sign_bit_i64), _mm_xor_si128(hi_u64x2, sign_bit_i64));
+    __m128i max_u64x2 = _mm_blendv_epi8(hi_u64x2, lo_u64x2, cmp_i64x2);
+    __m128i hi_lane_u64 = _mm_unpackhi_epi64(max_u64x2, max_u64x2);
+    __m128i cmp_final = _mm_cmpgt_epi64(_mm_xor_si128(max_u64x2, sign_bit_i64),
+                                        _mm_xor_si128(hi_lane_u64, sign_bit_i64));
+    __m128i result_u64 = _mm_blendv_epi8(hi_lane_u64, max_u64x2, cmp_final);
+    return (simsimd_u64_t)_mm_cvtsi128_si64(result_u64);
 }
 
 /** @brief Horizontal min of 8 floats in a YMM register. */
@@ -1088,6 +1958,786 @@ SIMSIMD_PUBLIC void simsimd_reduce_max_f64_haswell(                             
         simsimd_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
 }
 
+// Integer add reductions with widening accumulation
+
+SIMSIMD_INTERNAL void _simsimd_reduce_add_i8_haswell_contiguous( //
+    simsimd_i8_t const *data, simsimd_size_t count, simsimd_i64_t *result) {
+    __m256i sum_i64x4 = _mm256_setzero_si256();
+    simsimd_size_t idx = 0;
+    for (; idx + 32 <= count; idx += 32) {
+        __m256i data_i8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        // Widen lower 16 bytes: i8 -> i16 -> i32 -> i64
+        __m128i lo_i8x16 = _mm256_castsi256_si128(data_i8x32);
+        __m256i lo_i16x16 = _mm256_cvtepi8_epi16(lo_i8x16);
+        __m128i lo_lo_i16x8 = _mm256_castsi256_si128(lo_i16x16);
+        __m128i lo_hi_i16x8 = _mm256_extracti128_si256(lo_i16x16, 1);
+        __m256i lo_lo_i32x8 = _mm256_cvtepi16_epi32(lo_lo_i16x8);
+        __m256i lo_hi_i32x8 = _mm256_cvtepi16_epi32(lo_hi_i16x8);
+        __m128i a_i32x4 = _mm256_castsi256_si128(lo_lo_i32x8);
+        __m128i b_i32x4 = _mm256_extracti128_si256(lo_lo_i32x8, 1);
+        __m128i c_i32x4 = _mm256_castsi256_si128(lo_hi_i32x8);
+        __m128i d_i32x4 = _mm256_extracti128_si256(lo_hi_i32x8, 1);
+        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(a_i32x4));
+        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(b_i32x4));
+        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(c_i32x4));
+        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(d_i32x4));
+        // Widen upper 16 bytes
+        __m128i hi_i8x16 = _mm256_extracti128_si256(data_i8x32, 1);
+        __m256i hi_i16x16 = _mm256_cvtepi8_epi16(hi_i8x16);
+        __m128i hi_lo_i16x8 = _mm256_castsi256_si128(hi_i16x16);
+        __m128i hi_hi_i16x8 = _mm256_extracti128_si256(hi_i16x16, 1);
+        __m256i hi_lo_i32x8 = _mm256_cvtepi16_epi32(hi_lo_i16x8);
+        __m256i hi_hi_i32x8 = _mm256_cvtepi16_epi32(hi_hi_i16x8);
+        __m128i e_i32x4 = _mm256_castsi256_si128(hi_lo_i32x8);
+        __m128i f_i32x4 = _mm256_extracti128_si256(hi_lo_i32x8, 1);
+        __m128i g_i32x4 = _mm256_castsi256_si128(hi_hi_i32x8);
+        __m128i h_i32x4 = _mm256_extracti128_si256(hi_hi_i32x8, 1);
+        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(e_i32x4));
+        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(f_i32x4));
+        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(g_i32x4));
+        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(h_i32x4));
+    }
+    simsimd_i64_t sum = _simsimd_reduce_add_i64x4_haswell(sum_i64x4);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_add_u8_haswell_contiguous( //
+    simsimd_u8_t const *data, simsimd_size_t count, simsimd_u64_t *result) {
+    __m256i sum_u64x4 = _mm256_setzero_si256();
+    simsimd_size_t idx = 0;
+    for (; idx + 32 <= count; idx += 32) {
+        __m256i data_u8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        __m128i lo_u8x16 = _mm256_castsi256_si128(data_u8x32);
+        __m256i lo_u16x16 = _mm256_cvtepu8_epi16(lo_u8x16);
+        __m128i lo_lo_u16x8 = _mm256_castsi256_si128(lo_u16x16);
+        __m128i lo_hi_u16x8 = _mm256_extracti128_si256(lo_u16x16, 1);
+        __m256i lo_lo_u32x8 = _mm256_cvtepu16_epi32(lo_lo_u16x8);
+        __m256i lo_hi_u32x8 = _mm256_cvtepu16_epi32(lo_hi_u16x8);
+        __m128i a_u32x4 = _mm256_castsi256_si128(lo_lo_u32x8);
+        __m128i b_u32x4 = _mm256_extracti128_si256(lo_lo_u32x8, 1);
+        __m128i c_u32x4 = _mm256_castsi256_si128(lo_hi_u32x8);
+        __m128i d_u32x4 = _mm256_extracti128_si256(lo_hi_u32x8, 1);
+        sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_cvtepu32_epi64(a_u32x4));
+        sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_cvtepu32_epi64(b_u32x4));
+        sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_cvtepu32_epi64(c_u32x4));
+        sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_cvtepu32_epi64(d_u32x4));
+        __m128i hi_u8x16 = _mm256_extracti128_si256(data_u8x32, 1);
+        __m256i hi_u16x16 = _mm256_cvtepu8_epi16(hi_u8x16);
+        __m128i hi_lo_u16x8 = _mm256_castsi256_si128(hi_u16x16);
+        __m128i hi_hi_u16x8 = _mm256_extracti128_si256(hi_u16x16, 1);
+        __m256i hi_lo_u32x8 = _mm256_cvtepu16_epi32(hi_lo_u16x8);
+        __m256i hi_hi_u32x8 = _mm256_cvtepu16_epi32(hi_hi_u16x8);
+        __m128i e_u32x4 = _mm256_castsi256_si128(hi_lo_u32x8);
+        __m128i f_u32x4 = _mm256_extracti128_si256(hi_lo_u32x8, 1);
+        __m128i g_u32x4 = _mm256_castsi256_si128(hi_hi_u32x8);
+        __m128i h_u32x4 = _mm256_extracti128_si256(hi_hi_u32x8, 1);
+        sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_cvtepu32_epi64(e_u32x4));
+        sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_cvtepu32_epi64(f_u32x4));
+        sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_cvtepu32_epi64(g_u32x4));
+        sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_cvtepu32_epi64(h_u32x4));
+    }
+    simsimd_u64_t sum = (simsimd_u64_t)_simsimd_reduce_add_i64x4_haswell(sum_u64x4);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_add_i16_haswell_contiguous( //
+    simsimd_i16_t const *data, simsimd_size_t count, simsimd_i64_t *result) {
+    __m256i sum_i64x4 = _mm256_setzero_si256();
+    simsimd_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        __m256i data_i16x16 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        __m128i lo_i16x8 = _mm256_castsi256_si128(data_i16x16);
+        __m128i hi_i16x8 = _mm256_extracti128_si256(data_i16x16, 1);
+        __m256i lo_i32x8 = _mm256_cvtepi16_epi32(lo_i16x8);
+        __m256i hi_i32x8 = _mm256_cvtepi16_epi32(hi_i16x8);
+        __m128i a_i32x4 = _mm256_castsi256_si128(lo_i32x8);
+        __m128i b_i32x4 = _mm256_extracti128_si256(lo_i32x8, 1);
+        __m128i c_i32x4 = _mm256_castsi256_si128(hi_i32x8);
+        __m128i d_i32x4 = _mm256_extracti128_si256(hi_i32x8, 1);
+        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(a_i32x4));
+        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(b_i32x4));
+        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(c_i32x4));
+        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(d_i32x4));
+    }
+    simsimd_i64_t sum = _simsimd_reduce_add_i64x4_haswell(sum_i64x4);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_add_u16_haswell_contiguous( //
+    simsimd_u16_t const *data, simsimd_size_t count, simsimd_u64_t *result) {
+    __m256i sum_u64x4 = _mm256_setzero_si256();
+    simsimd_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        __m256i data_u16x16 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        __m128i lo_u16x8 = _mm256_castsi256_si128(data_u16x16);
+        __m128i hi_u16x8 = _mm256_extracti128_si256(data_u16x16, 1);
+        __m256i lo_u32x8 = _mm256_cvtepu16_epi32(lo_u16x8);
+        __m256i hi_u32x8 = _mm256_cvtepu16_epi32(hi_u16x8);
+        __m128i a_u32x4 = _mm256_castsi256_si128(lo_u32x8);
+        __m128i b_u32x4 = _mm256_extracti128_si256(lo_u32x8, 1);
+        __m128i c_u32x4 = _mm256_castsi256_si128(hi_u32x8);
+        __m128i d_u32x4 = _mm256_extracti128_si256(hi_u32x8, 1);
+        sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_cvtepu32_epi64(a_u32x4));
+        sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_cvtepu32_epi64(b_u32x4));
+        sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_cvtepu32_epi64(c_u32x4));
+        sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_cvtepu32_epi64(d_u32x4));
+    }
+    simsimd_u64_t sum = (simsimd_u64_t)_simsimd_reduce_add_i64x4_haswell(sum_u64x4);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_add_i32_haswell_contiguous( //
+    simsimd_i32_t const *data, simsimd_size_t count, simsimd_i64_t *result) {
+    __m256i sum_i64x4 = _mm256_setzero_si256();
+    simsimd_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m256i data_i32x8 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        __m128i lo_i32x4 = _mm256_castsi256_si128(data_i32x8);
+        __m128i hi_i32x4 = _mm256_extracti128_si256(data_i32x8, 1);
+        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(lo_i32x4));
+        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(hi_i32x4));
+    }
+    simsimd_i64_t sum = _simsimd_reduce_add_i64x4_haswell(sum_i64x4);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_add_u32_haswell_contiguous( //
+    simsimd_u32_t const *data, simsimd_size_t count, simsimd_u64_t *result) {
+    __m256i sum_u64x4 = _mm256_setzero_si256();
+    simsimd_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m256i data_u32x8 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        __m128i lo_u32x4 = _mm256_castsi256_si128(data_u32x8);
+        __m128i hi_u32x4 = _mm256_extracti128_si256(data_u32x8, 1);
+        sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_cvtepu32_epi64(lo_u32x4));
+        sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_cvtepu32_epi64(hi_u32x4));
+    }
+    simsimd_u64_t sum = (simsimd_u64_t)_simsimd_reduce_add_i64x4_haswell(sum_u64x4);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_add_i64_haswell_contiguous( //
+    simsimd_i64_t const *data, simsimd_size_t count, simsimd_i64_t *result) {
+    __m256i sum_i64x4 = _mm256_setzero_si256();
+    simsimd_size_t idx = 0;
+    for (; idx + 4 <= count; idx += 4) {
+        __m256i data_i64x4 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        sum_i64x4 = _mm256_add_epi64(sum_i64x4, data_i64x4);
+    }
+    simsimd_i64_t sum = _simsimd_reduce_add_i64x4_haswell(sum_i64x4);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_add_u64_haswell_contiguous( //
+    simsimd_u64_t const *data, simsimd_size_t count, simsimd_u64_t *result) {
+    __m256i sum_u64x4 = _mm256_setzero_si256();
+    simsimd_size_t idx = 0;
+    for (; idx + 4 <= count; idx += 4) {
+        __m256i data_u64x4 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        sum_u64x4 = _mm256_add_epi64(sum_u64x4, data_u64x4);
+    }
+    simsimd_u64_t sum = (simsimd_u64_t)_simsimd_reduce_add_i64x4_haswell(sum_u64x4);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+// Integer min/max contiguous implementations
+
+SIMSIMD_INTERNAL void _simsimd_reduce_min_i8_haswell_contiguous( //
+    simsimd_i8_t const *data, simsimd_size_t count, simsimd_i8_t *min_value, simsimd_size_t *min_index) {
+    __m256i min_i8x32 = _mm256_set1_epi8(127);
+    simsimd_size_t idx = 0;
+    for (; idx + 32 <= count; idx += 32) {
+        __m256i data_i8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        min_i8x32 = _mm256_min_epi8(min_i8x32, data_i8x32);
+    }
+    simsimd_i8_t min_val = _simsimd_reduce_min_i8x32_haswell(min_i8x32);
+    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
+    // Second pass for index
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_max_i8_haswell_contiguous( //
+    simsimd_i8_t const *data, simsimd_size_t count, simsimd_i8_t *max_value, simsimd_size_t *max_index) {
+    __m256i max_i8x32 = _mm256_set1_epi8(-128);
+    simsimd_size_t idx = 0;
+    for (; idx + 32 <= count; idx += 32) {
+        __m256i data_i8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        max_i8x32 = _mm256_max_epi8(max_i8x32, data_i8x32);
+    }
+    simsimd_i8_t max_val = _simsimd_reduce_max_i8x32_haswell(max_i8x32);
+    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_min_u8_haswell_contiguous( //
+    simsimd_u8_t const *data, simsimd_size_t count, simsimd_u8_t *min_value, simsimd_size_t *min_index) {
+    __m256i min_u8x32 = _mm256_set1_epi8((char)255);
+    simsimd_size_t idx = 0;
+    for (; idx + 32 <= count; idx += 32) {
+        __m256i data_u8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        min_u8x32 = _mm256_min_epu8(min_u8x32, data_u8x32);
+    }
+    simsimd_u8_t min_val = _simsimd_reduce_min_u8x32_haswell(min_u8x32);
+    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_max_u8_haswell_contiguous( //
+    simsimd_u8_t const *data, simsimd_size_t count, simsimd_u8_t *max_value, simsimd_size_t *max_index) {
+    __m256i max_u8x32 = _mm256_setzero_si256();
+    simsimd_size_t idx = 0;
+    for (; idx + 32 <= count; idx += 32) {
+        __m256i data_u8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        max_u8x32 = _mm256_max_epu8(max_u8x32, data_u8x32);
+    }
+    simsimd_u8_t max_val = _simsimd_reduce_max_u8x32_haswell(max_u8x32);
+    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_min_i16_haswell_contiguous( //
+    simsimd_i16_t const *data, simsimd_size_t count, simsimd_i16_t *min_value, simsimd_size_t *min_index) {
+    __m256i min_i16x16 = _mm256_set1_epi16(32767);
+    simsimd_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        __m256i data_i16x16 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        min_i16x16 = _mm256_min_epi16(min_i16x16, data_i16x16);
+    }
+    simsimd_i16_t min_val = _simsimd_reduce_min_i16x16_haswell(min_i16x16);
+    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_max_i16_haswell_contiguous( //
+    simsimd_i16_t const *data, simsimd_size_t count, simsimd_i16_t *max_value, simsimd_size_t *max_index) {
+    __m256i max_i16x16 = _mm256_set1_epi16(-32768);
+    simsimd_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        __m256i data_i16x16 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        max_i16x16 = _mm256_max_epi16(max_i16x16, data_i16x16);
+    }
+    simsimd_i16_t max_val = _simsimd_reduce_max_i16x16_haswell(max_i16x16);
+    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_min_u16_haswell_contiguous( //
+    simsimd_u16_t const *data, simsimd_size_t count, simsimd_u16_t *min_value, simsimd_size_t *min_index) {
+    __m256i min_u16x16 = _mm256_set1_epi16((short)65535);
+    simsimd_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        __m256i data_u16x16 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        min_u16x16 = _mm256_min_epu16(min_u16x16, data_u16x16);
+    }
+    simsimd_u16_t min_val = _simsimd_reduce_min_u16x16_haswell(min_u16x16);
+    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_max_u16_haswell_contiguous( //
+    simsimd_u16_t const *data, simsimd_size_t count, simsimd_u16_t *max_value, simsimd_size_t *max_index) {
+    __m256i max_u16x16 = _mm256_setzero_si256();
+    simsimd_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        __m256i data_u16x16 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        max_u16x16 = _mm256_max_epu16(max_u16x16, data_u16x16);
+    }
+    simsimd_u16_t max_val = _simsimd_reduce_max_u16x16_haswell(max_u16x16);
+    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_min_i32_haswell_contiguous( //
+    simsimd_i32_t const *data, simsimd_size_t count, simsimd_i32_t *min_value, simsimd_size_t *min_index) {
+    __m256i min_i32x8 = _mm256_set1_epi32(0x7FFFFFFF);
+    simsimd_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m256i data_i32x8 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        min_i32x8 = _mm256_min_epi32(min_i32x8, data_i32x8);
+    }
+    simsimd_i32_t min_val = _simsimd_reduce_min_i32x8_haswell(min_i32x8);
+    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_max_i32_haswell_contiguous( //
+    simsimd_i32_t const *data, simsimd_size_t count, simsimd_i32_t *max_value, simsimd_size_t *max_index) {
+    __m256i max_i32x8 = _mm256_set1_epi32((simsimd_i32_t)0x80000000);
+    simsimd_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m256i data_i32x8 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        max_i32x8 = _mm256_max_epi32(max_i32x8, data_i32x8);
+    }
+    simsimd_i32_t max_val = _simsimd_reduce_max_i32x8_haswell(max_i32x8);
+    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_min_u32_haswell_contiguous( //
+    simsimd_u32_t const *data, simsimd_size_t count, simsimd_u32_t *min_value, simsimd_size_t *min_index) {
+    __m256i min_u32x8 = _mm256_set1_epi32((simsimd_i32_t)0xFFFFFFFF);
+    simsimd_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m256i data_u32x8 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        min_u32x8 = _mm256_min_epu32(min_u32x8, data_u32x8);
+    }
+    simsimd_u32_t min_val = _simsimd_reduce_min_u32x8_haswell(min_u32x8);
+    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_max_u32_haswell_contiguous( //
+    simsimd_u32_t const *data, simsimd_size_t count, simsimd_u32_t *max_value, simsimd_size_t *max_index) {
+    __m256i max_u32x8 = _mm256_setzero_si256();
+    simsimd_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m256i data_u32x8 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        max_u32x8 = _mm256_max_epu32(max_u32x8, data_u32x8);
+    }
+    simsimd_u32_t max_val = _simsimd_reduce_max_u32x8_haswell(max_u32x8);
+    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_min_i64_haswell_contiguous( //
+    simsimd_i64_t const *data, simsimd_size_t count, simsimd_i64_t *min_value, simsimd_size_t *min_index) {
+    __m256i min_i64x4 = _mm256_set1_epi64x(0x7FFFFFFFFFFFFFFFLL);
+    __m128i sign_bit_i64 = _mm_set1_epi64x((simsimd_i64_t)0x8000000000000000ull);
+    simsimd_size_t idx = 0;
+    for (; idx + 4 <= count; idx += 4) {
+        __m256i data_i64x4 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        // Manual 64-bit signed min using comparison
+        __m128i lo_data_i64x2 = _mm256_castsi256_si128(data_i64x4);
+        __m128i hi_data_i64x2 = _mm256_extracti128_si256(data_i64x4, 1);
+        __m128i lo_min_i64x2 = _mm256_castsi256_si128(min_i64x4);
+        __m128i hi_min_i64x2 = _mm256_extracti128_si256(min_i64x4, 1);
+        __m128i lo_cmp = _mm_cmpgt_epi64(lo_min_i64x2, lo_data_i64x2);
+        __m128i hi_cmp = _mm_cmpgt_epi64(hi_min_i64x2, hi_data_i64x2);
+        lo_min_i64x2 = _mm_blendv_epi8(lo_min_i64x2, lo_data_i64x2, lo_cmp);
+        hi_min_i64x2 = _mm_blendv_epi8(hi_min_i64x2, hi_data_i64x2, hi_cmp);
+        min_i64x4 = _mm256_setr_m128i(lo_min_i64x2, hi_min_i64x2);
+    }
+    simsimd_i64_t min_val = _simsimd_reduce_min_i64x4_haswell(min_i64x4);
+    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_max_i64_haswell_contiguous( //
+    simsimd_i64_t const *data, simsimd_size_t count, simsimd_i64_t *max_value, simsimd_size_t *max_index) {
+    __m256i max_i64x4 = _mm256_set1_epi64x((simsimd_i64_t)0x8000000000000000LL);
+    simsimd_size_t idx = 0;
+    for (; idx + 4 <= count; idx += 4) {
+        __m256i data_i64x4 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        __m128i lo_data_i64x2 = _mm256_castsi256_si128(data_i64x4);
+        __m128i hi_data_i64x2 = _mm256_extracti128_si256(data_i64x4, 1);
+        __m128i lo_max_i64x2 = _mm256_castsi256_si128(max_i64x4);
+        __m128i hi_max_i64x2 = _mm256_extracti128_si256(max_i64x4, 1);
+        __m128i lo_cmp = _mm_cmpgt_epi64(lo_data_i64x2, lo_max_i64x2);
+        __m128i hi_cmp = _mm_cmpgt_epi64(hi_data_i64x2, hi_max_i64x2);
+        lo_max_i64x2 = _mm_blendv_epi8(lo_max_i64x2, lo_data_i64x2, lo_cmp);
+        hi_max_i64x2 = _mm_blendv_epi8(hi_max_i64x2, hi_data_i64x2, hi_cmp);
+        max_i64x4 = _mm256_setr_m128i(lo_max_i64x2, hi_max_i64x2);
+    }
+    simsimd_i64_t max_val = _simsimd_reduce_max_i64x4_haswell(max_i64x4);
+    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_min_u64_haswell_contiguous( //
+    simsimd_u64_t const *data, simsimd_size_t count, simsimd_u64_t *min_value, simsimd_size_t *min_index) {
+    __m256i min_u64x4 = _mm256_set1_epi64x((simsimd_i64_t)0xFFFFFFFFFFFFFFFFULL);
+    __m128i sign_bit_i64 = _mm_set1_epi64x((simsimd_i64_t)0x8000000000000000ull);
+    simsimd_size_t idx = 0;
+    for (; idx + 4 <= count; idx += 4) {
+        __m256i data_u64x4 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        // Unsigned comparison via XOR with sign bit
+        __m128i lo_data_u64x2 = _mm256_castsi256_si128(data_u64x4);
+        __m128i hi_data_u64x2 = _mm256_extracti128_si256(data_u64x4, 1);
+        __m128i lo_min_u64x2 = _mm256_castsi256_si128(min_u64x4);
+        __m128i hi_min_u64x2 = _mm256_extracti128_si256(min_u64x4, 1);
+        __m128i lo_cmp = _mm_cmpgt_epi64(_mm_xor_si128(lo_min_u64x2, sign_bit_i64),
+                                         _mm_xor_si128(lo_data_u64x2, sign_bit_i64));
+        __m128i hi_cmp = _mm_cmpgt_epi64(_mm_xor_si128(hi_min_u64x2, sign_bit_i64),
+                                         _mm_xor_si128(hi_data_u64x2, sign_bit_i64));
+        lo_min_u64x2 = _mm_blendv_epi8(lo_min_u64x2, lo_data_u64x2, lo_cmp);
+        hi_min_u64x2 = _mm_blendv_epi8(hi_min_u64x2, hi_data_u64x2, hi_cmp);
+        min_u64x4 = _mm256_setr_m128i(lo_min_u64x2, hi_min_u64x2);
+    }
+    simsimd_u64_t min_val = _simsimd_reduce_min_u64x4_haswell(min_u64x4);
+    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_max_u64_haswell_contiguous( //
+    simsimd_u64_t const *data, simsimd_size_t count, simsimd_u64_t *max_value, simsimd_size_t *max_index) {
+    __m256i max_u64x4 = _mm256_setzero_si256();
+    __m128i sign_bit_i64 = _mm_set1_epi64x((simsimd_i64_t)0x8000000000000000ull);
+    simsimd_size_t idx = 0;
+    for (; idx + 4 <= count; idx += 4) {
+        __m256i data_u64x4 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        __m128i lo_data_u64x2 = _mm256_castsi256_si128(data_u64x4);
+        __m128i hi_data_u64x2 = _mm256_extracti128_si256(data_u64x4, 1);
+        __m128i lo_max_u64x2 = _mm256_castsi256_si128(max_u64x4);
+        __m128i hi_max_u64x2 = _mm256_extracti128_si256(max_u64x4, 1);
+        __m128i lo_cmp = _mm_cmpgt_epi64(_mm_xor_si128(lo_data_u64x2, sign_bit_i64),
+                                         _mm_xor_si128(lo_max_u64x2, sign_bit_i64));
+        __m128i hi_cmp = _mm_cmpgt_epi64(_mm_xor_si128(hi_data_u64x2, sign_bit_i64),
+                                         _mm_xor_si128(hi_max_u64x2, sign_bit_i64));
+        lo_max_u64x2 = _mm_blendv_epi8(lo_max_u64x2, lo_data_u64x2, lo_cmp);
+        hi_max_u64x2 = _mm_blendv_epi8(hi_max_u64x2, hi_data_u64x2, hi_cmp);
+        max_u64x4 = _mm256_setr_m128i(lo_max_u64x2, hi_max_u64x2);
+    }
+    simsimd_u64_t max_val = _simsimd_reduce_max_u64x4_haswell(max_u64x4);
+    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+// Integer public dispatchers
+
+SIMSIMD_PUBLIC void simsimd_reduce_add_i8_haswell(                               //
+    simsimd_i8_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i64_t *result) {
+    if (stride_bytes == sizeof(simsimd_i8_t)) _simsimd_reduce_add_i8_haswell_contiguous(data, count, result);
+    else
+        simsimd_reduce_add_i8_serial(data, count, stride_bytes, result);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_add_u8_haswell(                               //
+    simsimd_u8_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u64_t *result) {
+    if (stride_bytes == sizeof(simsimd_u8_t)) _simsimd_reduce_add_u8_haswell_contiguous(data, count, result);
+    else
+        simsimd_reduce_add_u8_serial(data, count, stride_bytes, result);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_add_i16_haswell(                               //
+    simsimd_i16_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i64_t *result) {
+    if (stride_bytes == sizeof(simsimd_i16_t)) _simsimd_reduce_add_i16_haswell_contiguous(data, count, result);
+    else
+        simsimd_reduce_add_i16_serial(data, count, stride_bytes, result);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_add_u16_haswell(                               //
+    simsimd_u16_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u64_t *result) {
+    if (stride_bytes == sizeof(simsimd_u16_t)) _simsimd_reduce_add_u16_haswell_contiguous(data, count, result);
+    else
+        simsimd_reduce_add_u16_serial(data, count, stride_bytes, result);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_add_i32_haswell(                               //
+    simsimd_i32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i64_t *result) {
+    if (stride_bytes == sizeof(simsimd_i32_t)) _simsimd_reduce_add_i32_haswell_contiguous(data, count, result);
+    else
+        simsimd_reduce_add_i32_serial(data, count, stride_bytes, result);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_add_u32_haswell(                               //
+    simsimd_u32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u64_t *result) {
+    if (stride_bytes == sizeof(simsimd_u32_t)) _simsimd_reduce_add_u32_haswell_contiguous(data, count, result);
+    else
+        simsimd_reduce_add_u32_serial(data, count, stride_bytes, result);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_add_i64_haswell(                               //
+    simsimd_i64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i64_t *result) {
+    if (stride_bytes == sizeof(simsimd_i64_t)) _simsimd_reduce_add_i64_haswell_contiguous(data, count, result);
+    else
+        simsimd_reduce_add_i64_serial(data, count, stride_bytes, result);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_add_u64_haswell(                               //
+    simsimd_u64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u64_t *result) {
+    if (stride_bytes == sizeof(simsimd_u64_t)) _simsimd_reduce_add_u64_haswell_contiguous(data, count, result);
+    else
+        simsimd_reduce_add_u64_serial(data, count, stride_bytes, result);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_min_i8_haswell(                               //
+    simsimd_i8_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i8_t *min_value, simsimd_size_t *min_index) {
+    if (stride_bytes == sizeof(simsimd_i8_t))
+        _simsimd_reduce_min_i8_haswell_contiguous(data, count, min_value, min_index);
+    else
+        simsimd_reduce_min_i8_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_max_i8_haswell(                               //
+    simsimd_i8_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i8_t *max_value, simsimd_size_t *max_index) {
+    if (stride_bytes == sizeof(simsimd_i8_t))
+        _simsimd_reduce_max_i8_haswell_contiguous(data, count, max_value, max_index);
+    else
+        simsimd_reduce_max_i8_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_min_u8_haswell(                               //
+    simsimd_u8_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u8_t *min_value, simsimd_size_t *min_index) {
+    if (stride_bytes == sizeof(simsimd_u8_t))
+        _simsimd_reduce_min_u8_haswell_contiguous(data, count, min_value, min_index);
+    else
+        simsimd_reduce_min_u8_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_max_u8_haswell(                               //
+    simsimd_u8_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u8_t *max_value, simsimd_size_t *max_index) {
+    if (stride_bytes == sizeof(simsimd_u8_t))
+        _simsimd_reduce_max_u8_haswell_contiguous(data, count, max_value, max_index);
+    else
+        simsimd_reduce_max_u8_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_min_i16_haswell(                               //
+    simsimd_i16_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i16_t *min_value, simsimd_size_t *min_index) {
+    if (stride_bytes == sizeof(simsimd_i16_t))
+        _simsimd_reduce_min_i16_haswell_contiguous(data, count, min_value, min_index);
+    else
+        simsimd_reduce_min_i16_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_max_i16_haswell(                               //
+    simsimd_i16_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i16_t *max_value, simsimd_size_t *max_index) {
+    if (stride_bytes == sizeof(simsimd_i16_t))
+        _simsimd_reduce_max_i16_haswell_contiguous(data, count, max_value, max_index);
+    else
+        simsimd_reduce_max_i16_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_min_u16_haswell(                               //
+    simsimd_u16_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u16_t *min_value, simsimd_size_t *min_index) {
+    if (stride_bytes == sizeof(simsimd_u16_t))
+        _simsimd_reduce_min_u16_haswell_contiguous(data, count, min_value, min_index);
+    else
+        simsimd_reduce_min_u16_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_max_u16_haswell(                               //
+    simsimd_u16_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u16_t *max_value, simsimd_size_t *max_index) {
+    if (stride_bytes == sizeof(simsimd_u16_t))
+        _simsimd_reduce_max_u16_haswell_contiguous(data, count, max_value, max_index);
+    else
+        simsimd_reduce_max_u16_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_min_i32_haswell(                               //
+    simsimd_i32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i32_t *min_value, simsimd_size_t *min_index) {
+    if (stride_bytes == sizeof(simsimd_i32_t))
+        _simsimd_reduce_min_i32_haswell_contiguous(data, count, min_value, min_index);
+    else
+        simsimd_reduce_min_i32_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_max_i32_haswell(                               //
+    simsimd_i32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i32_t *max_value, simsimd_size_t *max_index) {
+    if (stride_bytes == sizeof(simsimd_i32_t))
+        _simsimd_reduce_max_i32_haswell_contiguous(data, count, max_value, max_index);
+    else
+        simsimd_reduce_max_i32_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_min_u32_haswell(                               //
+    simsimd_u32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u32_t *min_value, simsimd_size_t *min_index) {
+    if (stride_bytes == sizeof(simsimd_u32_t))
+        _simsimd_reduce_min_u32_haswell_contiguous(data, count, min_value, min_index);
+    else
+        simsimd_reduce_min_u32_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_max_u32_haswell(                               //
+    simsimd_u32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u32_t *max_value, simsimd_size_t *max_index) {
+    if (stride_bytes == sizeof(simsimd_u32_t))
+        _simsimd_reduce_max_u32_haswell_contiguous(data, count, max_value, max_index);
+    else
+        simsimd_reduce_max_u32_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_min_i64_haswell(                               //
+    simsimd_i64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i64_t *min_value, simsimd_size_t *min_index) {
+    if (stride_bytes == sizeof(simsimd_i64_t))
+        _simsimd_reduce_min_i64_haswell_contiguous(data, count, min_value, min_index);
+    else
+        simsimd_reduce_min_i64_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_max_i64_haswell(                               //
+    simsimd_i64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_i64_t *max_value, simsimd_size_t *max_index) {
+    if (stride_bytes == sizeof(simsimd_i64_t))
+        _simsimd_reduce_max_i64_haswell_contiguous(data, count, max_value, max_index);
+    else
+        simsimd_reduce_max_i64_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_min_u64_haswell(                               //
+    simsimd_u64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u64_t *min_value, simsimd_size_t *min_index) {
+    if (stride_bytes == sizeof(simsimd_u64_t))
+        _simsimd_reduce_min_u64_haswell_contiguous(data, count, min_value, min_index);
+    else
+        simsimd_reduce_min_u64_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_max_u64_haswell(                               //
+    simsimd_u64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_u64_t *max_value, simsimd_size_t *max_index) {
+    if (stride_bytes == sizeof(simsimd_u64_t))
+        _simsimd_reduce_max_u64_haswell_contiguous(data, count, max_value, max_index);
+    else
+        simsimd_reduce_max_u64_serial(data, count, stride_bytes, max_value, max_index);
+}
+
 #pragma endregion // x86 Haswell Public Implementations
 
 #pragma clang attribute pop
@@ -1341,6 +2991,252 @@ SIMSIMD_INTERNAL simsimd_size_t _simsimd_stride_elems_b64x8(simsimd_size_t strid
     case 8: return 1;
     default: return 0;
     }
+}
+
+/** @brief Horizontal min of 64 signed i8s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_i8_t _simsimd_reduce_min_i8x64_skylake(__m512i min_i8x64) {
+    __m256i lo_i8x32 = _mm512_castsi512_si256(min_i8x64);
+    __m256i hi_i8x32 = _mm512_extracti64x4_epi64(min_i8x64, 1);
+    __m256i min_i8x32 = _mm256_min_epi8(lo_i8x32, hi_i8x32);
+    __m128i lo_i8x16 = _mm256_castsi256_si128(min_i8x32);
+    __m128i hi_i8x16 = _mm256_extracti128_si256(min_i8x32, 1);
+    __m128i min_i8x16 = _mm_min_epi8(lo_i8x16, hi_i8x16);
+    min_i8x16 = _mm_min_epi8(min_i8x16, _mm_shuffle_epi32(min_i8x16, _MM_SHUFFLE(2, 3, 0, 1)));
+    min_i8x16 = _mm_min_epi8(min_i8x16, _mm_shuffle_epi32(min_i8x16, _MM_SHUFFLE(1, 0, 3, 2)));
+    min_i8x16 = _mm_min_epi8(min_i8x16, _mm_shufflelo_epi16(min_i8x16, _MM_SHUFFLE(1, 0, 3, 2)));
+    min_i8x16 = _mm_min_epi8(min_i8x16, _mm_srli_epi16(min_i8x16, 8));
+    return (simsimd_i8_t)_mm_cvtsi128_si32(min_i8x16);
+}
+
+/** @brief Horizontal max of 64 signed i8s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_i8_t _simsimd_reduce_max_i8x64_skylake(__m512i max_i8x64) {
+    __m256i lo_i8x32 = _mm512_castsi512_si256(max_i8x64);
+    __m256i hi_i8x32 = _mm512_extracti64x4_epi64(max_i8x64, 1);
+    __m256i max_i8x32 = _mm256_max_epi8(lo_i8x32, hi_i8x32);
+    __m128i lo_i8x16 = _mm256_castsi256_si128(max_i8x32);
+    __m128i hi_i8x16 = _mm256_extracti128_si256(max_i8x32, 1);
+    __m128i max_i8x16 = _mm_max_epi8(lo_i8x16, hi_i8x16);
+    max_i8x16 = _mm_max_epi8(max_i8x16, _mm_shuffle_epi32(max_i8x16, _MM_SHUFFLE(2, 3, 0, 1)));
+    max_i8x16 = _mm_max_epi8(max_i8x16, _mm_shuffle_epi32(max_i8x16, _MM_SHUFFLE(1, 0, 3, 2)));
+    max_i8x16 = _mm_max_epi8(max_i8x16, _mm_shufflelo_epi16(max_i8x16, _MM_SHUFFLE(1, 0, 3, 2)));
+    max_i8x16 = _mm_max_epi8(max_i8x16, _mm_srli_epi16(max_i8x16, 8));
+    return (simsimd_i8_t)_mm_cvtsi128_si32(max_i8x16);
+}
+
+/** @brief Horizontal min of 64 unsigned u8s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_u8_t _simsimd_reduce_min_u8x64_skylake(__m512i min_u8x64) {
+    __m256i lo_u8x32 = _mm512_castsi512_si256(min_u8x64);
+    __m256i hi_u8x32 = _mm512_extracti64x4_epi64(min_u8x64, 1);
+    __m256i min_u8x32 = _mm256_min_epu8(lo_u8x32, hi_u8x32);
+    __m128i lo_u8x16 = _mm256_castsi256_si128(min_u8x32);
+    __m128i hi_u8x16 = _mm256_extracti128_si256(min_u8x32, 1);
+    __m128i min_u8x16 = _mm_min_epu8(lo_u8x16, hi_u8x16);
+    min_u8x16 = _mm_min_epu8(min_u8x16, _mm_shuffle_epi32(min_u8x16, _MM_SHUFFLE(2, 3, 0, 1)));
+    min_u8x16 = _mm_min_epu8(min_u8x16, _mm_shuffle_epi32(min_u8x16, _MM_SHUFFLE(1, 0, 3, 2)));
+    min_u8x16 = _mm_min_epu8(min_u8x16, _mm_shufflelo_epi16(min_u8x16, _MM_SHUFFLE(1, 0, 3, 2)));
+    min_u8x16 = _mm_min_epu8(min_u8x16, _mm_srli_epi16(min_u8x16, 8));
+    return (simsimd_u8_t)_mm_cvtsi128_si32(min_u8x16);
+}
+
+/** @brief Horizontal max of 64 unsigned u8s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_u8_t _simsimd_reduce_max_u8x64_skylake(__m512i max_u8x64) {
+    __m256i lo_u8x32 = _mm512_castsi512_si256(max_u8x64);
+    __m256i hi_u8x32 = _mm512_extracti64x4_epi64(max_u8x64, 1);
+    __m256i max_u8x32 = _mm256_max_epu8(lo_u8x32, hi_u8x32);
+    __m128i lo_u8x16 = _mm256_castsi256_si128(max_u8x32);
+    __m128i hi_u8x16 = _mm256_extracti128_si256(max_u8x32, 1);
+    __m128i max_u8x16 = _mm_max_epu8(lo_u8x16, hi_u8x16);
+    max_u8x16 = _mm_max_epu8(max_u8x16, _mm_shuffle_epi32(max_u8x16, _MM_SHUFFLE(2, 3, 0, 1)));
+    max_u8x16 = _mm_max_epu8(max_u8x16, _mm_shuffle_epi32(max_u8x16, _MM_SHUFFLE(1, 0, 3, 2)));
+    max_u8x16 = _mm_max_epu8(max_u8x16, _mm_shufflelo_epi16(max_u8x16, _MM_SHUFFLE(1, 0, 3, 2)));
+    max_u8x16 = _mm_max_epu8(max_u8x16, _mm_srli_epi16(max_u8x16, 8));
+    return (simsimd_u8_t)_mm_cvtsi128_si32(max_u8x16);
+}
+
+/** @brief Horizontal min of 32 signed i16s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_i16_t _simsimd_reduce_min_i16x32_skylake(__m512i min_i16x32) {
+    __m256i lo_i16x16 = _mm512_castsi512_si256(min_i16x32);
+    __m256i hi_i16x16 = _mm512_extracti64x4_epi64(min_i16x32, 1);
+    __m256i min_i16x16 = _mm256_min_epi16(lo_i16x16, hi_i16x16);
+    __m128i lo_i16x8 = _mm256_castsi256_si128(min_i16x16);
+    __m128i hi_i16x8 = _mm256_extracti128_si256(min_i16x16, 1);
+    __m128i min_i16x8 = _mm_min_epi16(lo_i16x8, hi_i16x8);
+    min_i16x8 = _mm_min_epi16(min_i16x8, _mm_shuffle_epi32(min_i16x8, _MM_SHUFFLE(2, 3, 0, 1)));
+    min_i16x8 = _mm_min_epi16(min_i16x8, _mm_shuffle_epi32(min_i16x8, _MM_SHUFFLE(1, 0, 3, 2)));
+    min_i16x8 = _mm_min_epi16(min_i16x8, _mm_shufflelo_epi16(min_i16x8, _MM_SHUFFLE(1, 0, 3, 2)));
+    return (simsimd_i16_t)_mm_cvtsi128_si32(min_i16x8);
+}
+
+/** @brief Horizontal max of 32 signed i16s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_i16_t _simsimd_reduce_max_i16x32_skylake(__m512i max_i16x32) {
+    __m256i lo_i16x16 = _mm512_castsi512_si256(max_i16x32);
+    __m256i hi_i16x16 = _mm512_extracti64x4_epi64(max_i16x32, 1);
+    __m256i max_i16x16 = _mm256_max_epi16(lo_i16x16, hi_i16x16);
+    __m128i lo_i16x8 = _mm256_castsi256_si128(max_i16x16);
+    __m128i hi_i16x8 = _mm256_extracti128_si256(max_i16x16, 1);
+    __m128i max_i16x8 = _mm_max_epi16(lo_i16x8, hi_i16x8);
+    max_i16x8 = _mm_max_epi16(max_i16x8, _mm_shuffle_epi32(max_i16x8, _MM_SHUFFLE(2, 3, 0, 1)));
+    max_i16x8 = _mm_max_epi16(max_i16x8, _mm_shuffle_epi32(max_i16x8, _MM_SHUFFLE(1, 0, 3, 2)));
+    max_i16x8 = _mm_max_epi16(max_i16x8, _mm_shufflelo_epi16(max_i16x8, _MM_SHUFFLE(1, 0, 3, 2)));
+    return (simsimd_i16_t)_mm_cvtsi128_si32(max_i16x8);
+}
+
+/** @brief Horizontal min of 32 unsigned u16s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_u16_t _simsimd_reduce_min_u16x32_skylake(__m512i min_u16x32) {
+    __m256i lo_u16x16 = _mm512_castsi512_si256(min_u16x32);
+    __m256i hi_u16x16 = _mm512_extracti64x4_epi64(min_u16x32, 1);
+    __m256i min_u16x16 = _mm256_min_epu16(lo_u16x16, hi_u16x16);
+    __m128i lo_u16x8 = _mm256_castsi256_si128(min_u16x16);
+    __m128i hi_u16x8 = _mm256_extracti128_si256(min_u16x16, 1);
+    __m128i min_u16x8 = _mm_min_epu16(lo_u16x8, hi_u16x8);
+    min_u16x8 = _mm_min_epu16(min_u16x8, _mm_shuffle_epi32(min_u16x8, _MM_SHUFFLE(2, 3, 0, 1)));
+    min_u16x8 = _mm_min_epu16(min_u16x8, _mm_shuffle_epi32(min_u16x8, _MM_SHUFFLE(1, 0, 3, 2)));
+    min_u16x8 = _mm_min_epu16(min_u16x8, _mm_shufflelo_epi16(min_u16x8, _MM_SHUFFLE(1, 0, 3, 2)));
+    return (simsimd_u16_t)_mm_cvtsi128_si32(min_u16x8);
+}
+
+/** @brief Horizontal max of 32 unsigned u16s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_u16_t _simsimd_reduce_max_u16x32_skylake(__m512i max_u16x32) {
+    __m256i lo_u16x16 = _mm512_castsi512_si256(max_u16x32);
+    __m256i hi_u16x16 = _mm512_extracti64x4_epi64(max_u16x32, 1);
+    __m256i max_u16x16 = _mm256_max_epu16(lo_u16x16, hi_u16x16);
+    __m128i lo_u16x8 = _mm256_castsi256_si128(max_u16x16);
+    __m128i hi_u16x8 = _mm256_extracti128_si256(max_u16x16, 1);
+    __m128i max_u16x8 = _mm_max_epu16(lo_u16x8, hi_u16x8);
+    max_u16x8 = _mm_max_epu16(max_u16x8, _mm_shuffle_epi32(max_u16x8, _MM_SHUFFLE(2, 3, 0, 1)));
+    max_u16x8 = _mm_max_epu16(max_u16x8, _mm_shuffle_epi32(max_u16x8, _MM_SHUFFLE(1, 0, 3, 2)));
+    max_u16x8 = _mm_max_epu16(max_u16x8, _mm_shufflelo_epi16(max_u16x8, _MM_SHUFFLE(1, 0, 3, 2)));
+    return (simsimd_u16_t)_mm_cvtsi128_si32(max_u16x8);
+}
+
+/** @brief Horizontal min of 16 signed i32s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_i32_t _simsimd_reduce_min_i32x16_skylake(__m512i min_i32x16) {
+    __m256i lo_i32x8 = _mm512_castsi512_si256(min_i32x16);
+    __m256i hi_i32x8 = _mm512_extracti64x4_epi64(min_i32x16, 1);
+    __m256i min_i32x8 = _mm256_min_epi32(lo_i32x8, hi_i32x8);
+    __m128i lo_i32x4 = _mm256_castsi256_si128(min_i32x8);
+    __m128i hi_i32x4 = _mm256_extracti128_si256(min_i32x8, 1);
+    __m128i min_i32x4 = _mm_min_epi32(lo_i32x4, hi_i32x4);
+    min_i32x4 = _mm_min_epi32(min_i32x4, _mm_shuffle_epi32(min_i32x4, _MM_SHUFFLE(2, 3, 0, 1)));
+    min_i32x4 = _mm_min_epi32(min_i32x4, _mm_shuffle_epi32(min_i32x4, _MM_SHUFFLE(1, 0, 3, 2)));
+    return _mm_cvtsi128_si32(min_i32x4);
+}
+
+/** @brief Horizontal max of 16 signed i32s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_i32_t _simsimd_reduce_max_i32x16_skylake(__m512i max_i32x16) {
+    __m256i lo_i32x8 = _mm512_castsi512_si256(max_i32x16);
+    __m256i hi_i32x8 = _mm512_extracti64x4_epi64(max_i32x16, 1);
+    __m256i max_i32x8 = _mm256_max_epi32(lo_i32x8, hi_i32x8);
+    __m128i lo_i32x4 = _mm256_castsi256_si128(max_i32x8);
+    __m128i hi_i32x4 = _mm256_extracti128_si256(max_i32x8, 1);
+    __m128i max_i32x4 = _mm_max_epi32(lo_i32x4, hi_i32x4);
+    max_i32x4 = _mm_max_epi32(max_i32x4, _mm_shuffle_epi32(max_i32x4, _MM_SHUFFLE(2, 3, 0, 1)));
+    max_i32x4 = _mm_max_epi32(max_i32x4, _mm_shuffle_epi32(max_i32x4, _MM_SHUFFLE(1, 0, 3, 2)));
+    return _mm_cvtsi128_si32(max_i32x4);
+}
+
+/** @brief Horizontal min of 16 unsigned u32s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_u32_t _simsimd_reduce_min_u32x16_skylake(__m512i min_u32x16) {
+    __m256i lo_u32x8 = _mm512_castsi512_si256(min_u32x16);
+    __m256i hi_u32x8 = _mm512_extracti64x4_epi64(min_u32x16, 1);
+    __m256i min_u32x8 = _mm256_min_epu32(lo_u32x8, hi_u32x8);
+    __m128i lo_u32x4 = _mm256_castsi256_si128(min_u32x8);
+    __m128i hi_u32x4 = _mm256_extracti128_si256(min_u32x8, 1);
+    __m128i min_u32x4 = _mm_min_epu32(lo_u32x4, hi_u32x4);
+    min_u32x4 = _mm_min_epu32(min_u32x4, _mm_shuffle_epi32(min_u32x4, _MM_SHUFFLE(2, 3, 0, 1)));
+    min_u32x4 = _mm_min_epu32(min_u32x4, _mm_shuffle_epi32(min_u32x4, _MM_SHUFFLE(1, 0, 3, 2)));
+    return (simsimd_u32_t)_mm_cvtsi128_si32(min_u32x4);
+}
+
+/** @brief Horizontal max of 16 unsigned u32s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_u32_t _simsimd_reduce_max_u32x16_skylake(__m512i max_u32x16) {
+    __m256i lo_u32x8 = _mm512_castsi512_si256(max_u32x16);
+    __m256i hi_u32x8 = _mm512_extracti64x4_epi64(max_u32x16, 1);
+    __m256i max_u32x8 = _mm256_max_epu32(lo_u32x8, hi_u32x8);
+    __m128i lo_u32x4 = _mm256_castsi256_si128(max_u32x8);
+    __m128i hi_u32x4 = _mm256_extracti128_si256(max_u32x8, 1);
+    __m128i max_u32x4 = _mm_max_epu32(lo_u32x4, hi_u32x4);
+    max_u32x4 = _mm_max_epu32(max_u32x4, _mm_shuffle_epi32(max_u32x4, _MM_SHUFFLE(2, 3, 0, 1)));
+    max_u32x4 = _mm_max_epu32(max_u32x4, _mm_shuffle_epi32(max_u32x4, _MM_SHUFFLE(1, 0, 3, 2)));
+    return (simsimd_u32_t)_mm_cvtsi128_si32(max_u32x4);
+}
+
+/** @brief Horizontal min of 8 signed i64s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_i64_t _simsimd_reduce_min_i64x8_skylake(__m512i min_i64x8) {
+    __m256i lo_i64x4 = _mm512_castsi512_si256(min_i64x8);
+    __m256i hi_i64x4 = _mm512_extracti64x4_epi64(min_i64x8, 1);
+    __m256i min_i64x4 = _mm256_min_epi64(lo_i64x4, hi_i64x4);
+    __m128i lo_i64x2 = _mm256_castsi256_si128(min_i64x4);
+    __m128i hi_i64x2 = _mm256_extracti128_si256(min_i64x4, 1);
+    __m128i min_i64x2 = _mm_min_epi64(lo_i64x2, hi_i64x2);
+    __m128i hi_lane_i64 = _mm_unpackhi_epi64(min_i64x2, min_i64x2);
+    __m128i final_i64 = _mm_min_epi64(min_i64x2, hi_lane_i64);
+    return _mm_cvtsi128_si64(final_i64);
+}
+
+/** @brief Horizontal max of 8 signed i64s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_i64_t _simsimd_reduce_max_i64x8_skylake(__m512i max_i64x8) {
+    __m256i lo_i64x4 = _mm512_castsi512_si256(max_i64x8);
+    __m256i hi_i64x4 = _mm512_extracti64x4_epi64(max_i64x8, 1);
+    __m256i max_i64x4 = _mm256_max_epi64(lo_i64x4, hi_i64x4);
+    __m128i lo_i64x2 = _mm256_castsi256_si128(max_i64x4);
+    __m128i hi_i64x2 = _mm256_extracti128_si256(max_i64x4, 1);
+    __m128i max_i64x2 = _mm_max_epi64(lo_i64x2, hi_i64x2);
+    __m128i hi_lane_i64 = _mm_unpackhi_epi64(max_i64x2, max_i64x2);
+    __m128i final_i64 = _mm_max_epi64(max_i64x2, hi_lane_i64);
+    return _mm_cvtsi128_si64(final_i64);
+}
+
+/** @brief Horizontal min of 8 unsigned u64s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_u64_t _simsimd_reduce_min_u64x8_skylake(__m512i min_u64x8) {
+    __m256i lo_u64x4 = _mm512_castsi512_si256(min_u64x8);
+    __m256i hi_u64x4 = _mm512_extracti64x4_epi64(min_u64x8, 1);
+    __m256i min_u64x4 = _mm256_min_epu64(lo_u64x4, hi_u64x4);
+    __m128i lo_u64x2 = _mm256_castsi256_si128(min_u64x4);
+    __m128i hi_u64x2 = _mm256_extracti128_si256(min_u64x4, 1);
+    __m128i min_u64x2 = _mm_min_epu64(lo_u64x2, hi_u64x2);
+    __m128i hi_lane_u64 = _mm_unpackhi_epi64(min_u64x2, min_u64x2);
+    __m128i final_u64 = _mm_min_epu64(min_u64x2, hi_lane_u64);
+    return (simsimd_u64_t)_mm_cvtsi128_si64(final_u64);
+}
+
+/** @brief Horizontal max of 8 unsigned u64s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_u64_t _simsimd_reduce_max_u64x8_skylake(__m512i max_u64x8) {
+    __m256i lo_u64x4 = _mm512_castsi512_si256(max_u64x8);
+    __m256i hi_u64x4 = _mm512_extracti64x4_epi64(max_u64x8, 1);
+    __m256i max_u64x4 = _mm256_max_epu64(lo_u64x4, hi_u64x4);
+    __m128i lo_u64x2 = _mm256_castsi256_si128(max_u64x4);
+    __m128i hi_u64x2 = _mm256_extracti128_si256(max_u64x4, 1);
+    __m128i max_u64x2 = _mm_max_epu64(lo_u64x2, hi_u64x2);
+    __m128i hi_lane_u64 = _mm_unpackhi_epi64(max_u64x2, max_u64x2);
+    __m128i final_u64 = _mm_max_epu64(max_u64x2, hi_lane_u64);
+    return (simsimd_u64_t)_mm_cvtsi128_si64(final_u64);
+}
+
+/** @brief Horizontal sum of 8 signed i64s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_i64_t _simsimd_reduce_add_i64x8_skylake(__m512i sum_i64x8) {
+    __m256i lo_i64x4 = _mm512_castsi512_si256(sum_i64x8);
+    __m256i hi_i64x4 = _mm512_extracti64x4_epi64(sum_i64x8, 1);
+    __m256i sum_i64x4 = _mm256_add_epi64(lo_i64x4, hi_i64x4);
+    __m128i lo_i64x2 = _mm256_castsi256_si128(sum_i64x4);
+    __m128i hi_i64x2 = _mm256_extracti128_si256(sum_i64x4, 1);
+    __m128i sum_i64x2 = _mm_add_epi64(lo_i64x2, hi_i64x2);
+    __m128i hi_lane_i64 = _mm_unpackhi_epi64(sum_i64x2, sum_i64x2);
+    __m128i final_i64 = _mm_add_epi64(sum_i64x2, hi_lane_i64);
+    return _mm_cvtsi128_si64(final_i64);
+}
+
+/** @brief Horizontal sum of 8 unsigned u64s in a ZMM register. */
+SIMSIMD_INTERNAL simsimd_u64_t _simsimd_reduce_add_u64x8_skylake(__m512i sum_u64x8) {
+    __m256i lo_u64x4 = _mm512_castsi512_si256(sum_u64x8);
+    __m256i hi_u64x4 = _mm512_extracti64x4_epi64(sum_u64x8, 1);
+    __m256i sum_u64x4 = _mm256_add_epi64(lo_u64x4, hi_u64x4);
+    __m128i lo_u64x2 = _mm256_castsi256_si128(sum_u64x4);
+    __m128i hi_u64x2 = _mm256_extracti128_si256(sum_u64x4, 1);
+    __m128i sum_u64x2 = _mm_add_epi64(lo_u64x2, hi_u64x2);
+    __m128i hi_lane_u64 = _mm_unpackhi_epi64(sum_u64x2, sum_u64x2);
+    __m128i final_u64 = _mm_add_epi64(sum_u64x2, hi_lane_u64);
+    return (simsimd_u64_t)_mm_cvtsi128_si64(final_u64);
 }
 
 #pragma endregion // x86 Skylake Internal Helpers
