@@ -118,7 +118,7 @@
 
 #include "types.h"
 
-#include "dot.h" // `_simsimd_reduce_f32x8_haswell`
+#include "reduce.h" // For horizontal reduction helpers
 
 #if defined(__cplusplus)
 extern "C" {
@@ -2574,7 +2574,7 @@ simsimd_l2sq_f16_haswell_cycle:
     distance_sq_f32x8 = _mm256_fmadd_ps(diff_f32x8, diff_f32x8, distance_sq_f32x8);
     if (n) goto simsimd_l2sq_f16_haswell_cycle;
 
-    *result = _simsimd_reduce_f32x8_haswell(distance_sq_f32x8);
+    *result = _simsimd_reduce_add_f32x8_haswell(distance_sq_f32x8);
 }
 
 SIMSIMD_PUBLIC void simsimd_angular_f16_haswell(simsimd_f16_t const *a, simsimd_f16_t const *b, simsimd_size_t n,
@@ -2599,9 +2599,9 @@ simsimd_angular_f16_haswell_cycle:
     b_norm_sq_f32x8 = _mm256_fmadd_ps(b_f32x8, b_f32x8, b_norm_sq_f32x8);
     if (n) goto simsimd_angular_f16_haswell_cycle;
 
-    simsimd_f32_t dot_product_f32 = _simsimd_reduce_f32x8_haswell(dot_product_f32x8);
-    simsimd_f32_t a_norm_sq_f32 = _simsimd_reduce_f32x8_haswell(a_norm_sq_f32x8);
-    simsimd_f32_t b_norm_sq_f32 = _simsimd_reduce_f32x8_haswell(b_norm_sq_f32x8);
+    simsimd_f32_t dot_product_f32 = _simsimd_reduce_add_f32x8_haswell(dot_product_f32x8);
+    simsimd_f32_t a_norm_sq_f32 = _simsimd_reduce_add_f32x8_haswell(a_norm_sq_f32x8);
+    simsimd_f32_t b_norm_sq_f32 = _simsimd_reduce_add_f32x8_haswell(b_norm_sq_f32x8);
     *result = _simsimd_angular_normalize_f32_haswell(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
@@ -2630,7 +2630,7 @@ simsimd_l2sq_bf16_haswell_cycle:
     distance_sq_f32x8 = _mm256_fmadd_ps(diff_f32x8, diff_f32x8, distance_sq_f32x8);
     if (n) goto simsimd_l2sq_bf16_haswell_cycle;
 
-    *result = _simsimd_reduce_f32x8_haswell(distance_sq_f32x8);
+    *result = _simsimd_reduce_add_f32x8_haswell(distance_sq_f32x8);
 }
 
 SIMSIMD_PUBLIC void simsimd_angular_bf16_haswell(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
@@ -2655,9 +2655,9 @@ simsimd_angular_bf16_haswell_cycle:
     b_norm_sq_f32x8 = _mm256_fmadd_ps(b_f32x8, b_f32x8, b_norm_sq_f32x8);
     if (n) goto simsimd_angular_bf16_haswell_cycle;
 
-    simsimd_f32_t dot_product_f32 = _simsimd_reduce_f32x8_haswell(dot_product_f32x8);
-    simsimd_f32_t a_norm_sq_f32 = _simsimd_reduce_f32x8_haswell(a_norm_sq_f32x8);
-    simsimd_f32_t b_norm_sq_f32 = _simsimd_reduce_f32x8_haswell(b_norm_sq_f32x8);
+    simsimd_f32_t dot_product_f32 = _simsimd_reduce_add_f32x8_haswell(dot_product_f32x8);
+    simsimd_f32_t a_norm_sq_f32 = _simsimd_reduce_add_f32x8_haswell(a_norm_sq_f32x8);
+    simsimd_f32_t b_norm_sq_f32 = _simsimd_reduce_add_f32x8_haswell(b_norm_sq_f32x8);
     *result = _simsimd_angular_normalize_f32_haswell(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
@@ -2698,7 +2698,7 @@ SIMSIMD_PUBLIC void simsimd_l2sq_i8_haswell(simsimd_i8_t const *a, simsimd_i8_t 
     }
 
     // Accumulate the 32-bit integers from `distance_sq_high_i32x8` and `distance_sq_low_i32x8`
-    simsimd_i32_t distance_sq_i32 = _simsimd_reduce_i32x8_haswell(
+    simsimd_i32_t distance_sq_i32 = _simsimd_reduce_add_i32x8_haswell(
         _mm256_add_epi32(distance_sq_low_i32x8, distance_sq_high_i32x8));
 
     // Take care of the tail:
@@ -2754,11 +2754,11 @@ SIMSIMD_PUBLIC void simsimd_angular_i8_haswell(simsimd_i8_t const *a, simsimd_i8
     }
 
     // Further reduce to a single sum for each vector
-    simsimd_i32_t dot_product_i32 = _simsimd_reduce_i32x8_haswell(
+    simsimd_i32_t dot_product_i32 = _simsimd_reduce_add_i32x8_haswell(
         _mm256_add_epi32(dot_product_low_i32x8, dot_product_high_i32x8));
-    simsimd_i32_t a_norm_sq_i32 = _simsimd_reduce_i32x8_haswell(
+    simsimd_i32_t a_norm_sq_i32 = _simsimd_reduce_add_i32x8_haswell(
         _mm256_add_epi32(a_norm_sq_low_i32x8, a_norm_sq_high_i32x8));
-    simsimd_i32_t b_norm_sq_i32 = _simsimd_reduce_i32x8_haswell(
+    simsimd_i32_t b_norm_sq_i32 = _simsimd_reduce_add_i32x8_haswell(
         _mm256_add_epi32(b_norm_sq_low_i32x8, b_norm_sq_high_i32x8));
 
     // Take care of the tail:
@@ -2806,7 +2806,7 @@ SIMSIMD_PUBLIC void simsimd_l2sq_u8_haswell(simsimd_u8_t const *a, simsimd_u8_t 
     }
 
     // Accumulate the 32-bit integers from `distance_sq_high_i32x8` and `distance_sq_low_i32x8`
-    simsimd_i32_t distance_sq_i32 = _simsimd_reduce_i32x8_haswell(
+    simsimd_i32_t distance_sq_i32 = _simsimd_reduce_add_i32x8_haswell(
         _mm256_add_epi32(distance_sq_low_i32x8, distance_sq_high_i32x8));
 
     // Take care of the tail:
@@ -2864,11 +2864,11 @@ SIMSIMD_PUBLIC void simsimd_angular_u8_haswell(simsimd_u8_t const *a, simsimd_u8
     }
 
     // Further reduce to a single sum for each vector
-    simsimd_i32_t dot_product_i32 = _simsimd_reduce_i32x8_haswell(
+    simsimd_i32_t dot_product_i32 = _simsimd_reduce_add_i32x8_haswell(
         _mm256_add_epi32(dot_product_low_i32x8, dot_product_high_i32x8));
-    simsimd_i32_t a_norm_sq_i32 = _simsimd_reduce_i32x8_haswell(
+    simsimd_i32_t a_norm_sq_i32 = _simsimd_reduce_add_i32x8_haswell(
         _mm256_add_epi32(a_norm_sq_low_i32x8, a_norm_sq_high_i32x8));
-    simsimd_i32_t b_norm_sq_i32 = _simsimd_reduce_i32x8_haswell(
+    simsimd_i32_t b_norm_sq_i32 = _simsimd_reduce_add_i32x8_haswell(
         _mm256_add_epi32(b_norm_sq_low_i32x8, b_norm_sq_high_i32x8));
 
     // Take care of the tail:
@@ -2899,7 +2899,7 @@ SIMSIMD_PUBLIC void simsimd_l2sq_f32_haswell(simsimd_f32_t const *a, simsimd_f32
         distance_sq_f32x8 = _mm256_fmadd_ps(diff_f32x8, diff_f32x8, distance_sq_f32x8);
     }
 
-    simsimd_f64_t distance_sq_f64 = _simsimd_reduce_f32x8_haswell(distance_sq_f32x8);
+    simsimd_f64_t distance_sq_f64 = _simsimd_reduce_add_f32x8_haswell(distance_sq_f32x8);
     for (; i < n; ++i) {
         simsimd_f32_t diff_f32 = a[i] - b[i];
         distance_sq_f64 += diff_f32 * diff_f32;
@@ -2923,9 +2923,9 @@ SIMSIMD_PUBLIC void simsimd_angular_f32_haswell(simsimd_f32_t const *a, simsimd_
         b_norm_sq_f32x8 = _mm256_fmadd_ps(b_f32x8, b_f32x8, b_norm_sq_f32x8);
     }
 
-    simsimd_f32_t dot_product_f32 = _simsimd_reduce_f32x8_haswell(dot_product_f32x8);
-    simsimd_f32_t a_norm_sq_f32 = _simsimd_reduce_f32x8_haswell(a_norm_sq_f32x8);
-    simsimd_f32_t b_norm_sq_f32 = _simsimd_reduce_f32x8_haswell(b_norm_sq_f32x8);
+    simsimd_f32_t dot_product_f32 = _simsimd_reduce_add_f32x8_haswell(dot_product_f32x8);
+    simsimd_f32_t a_norm_sq_f32 = _simsimd_reduce_add_f32x8_haswell(a_norm_sq_f32x8);
+    simsimd_f32_t b_norm_sq_f32 = _simsimd_reduce_add_f32x8_haswell(b_norm_sq_f32x8);
     for (; i < n; ++i) {
         simsimd_f32_t a_element_f32 = a[i], b_element_f32 = b[i];
         dot_product_f32 += a_element_f32 * b_element_f32;
@@ -2952,7 +2952,7 @@ SIMSIMD_PUBLIC void simsimd_l2sq_f64_haswell(simsimd_f64_t const *a, simsimd_f64
         distance_sq_f64x4 = _mm256_fmadd_pd(diff_f64x4, diff_f64x4, distance_sq_f64x4);
     }
 
-    simsimd_f64_t distance_sq_f64 = _simsimd_reduce_f64x4_haswell(distance_sq_f64x4);
+    simsimd_f64_t distance_sq_f64 = _simsimd_reduce_add_f64x4_haswell(distance_sq_f64x4);
     for (; i < n; ++i) {
         simsimd_f64_t diff_f64 = a[i] - b[i];
         distance_sq_f64 += diff_f64 * diff_f64;
@@ -2976,9 +2976,9 @@ SIMSIMD_PUBLIC void simsimd_angular_f64_haswell(simsimd_f64_t const *a, simsimd_
         b_norm_sq_f64x4 = _mm256_fmadd_pd(b_f64x4, b_f64x4, b_norm_sq_f64x4);
     }
 
-    simsimd_f64_t dot_product_f64 = _simsimd_reduce_f64x4_haswell(dot_product_f64x4);
-    simsimd_f64_t a_norm_sq_f64 = _simsimd_reduce_f64x4_haswell(a_norm_sq_f64x4);
-    simsimd_f64_t b_norm_sq_f64 = _simsimd_reduce_f64x4_haswell(b_norm_sq_f64x4);
+    simsimd_f64_t dot_product_f64 = _simsimd_reduce_add_f64x4_haswell(dot_product_f64x4);
+    simsimd_f64_t a_norm_sq_f64 = _simsimd_reduce_add_f64x4_haswell(a_norm_sq_f64x4);
+    simsimd_f64_t b_norm_sq_f64 = _simsimd_reduce_add_f64x4_haswell(b_norm_sq_f64x4);
     for (; i < n; ++i) {
         simsimd_f64_t a_element_f64 = a[i], b_element_f64 = b[i];
         dot_product_f64 += a_element_f64 * b_element_f64;
@@ -3469,7 +3469,7 @@ simsimd_l2sq_f32_skylake_cycle:
     d2_vec = _mm512_fmadd_ps(d_vec, d_vec, d2_vec);
     if (n) goto simsimd_l2sq_f32_skylake_cycle;
 
-    *result = _simsimd_reduce_f32x16_skylake(d2_vec);
+    *result = _simsimd_reduce_add_f32x16_skylake(d2_vec);
 }
 
 SIMSIMD_INTERNAL simsimd_f64_t _simsimd_angular_normalize_f64_skylake(simsimd_f64_t ab, simsimd_f64_t a2,
@@ -3536,9 +3536,9 @@ simsimd_angular_f32_skylake_cycle:
     b_norm_sq_f32x16 = _mm512_fmadd_ps(b_f32x16, b_f32x16, b_norm_sq_f32x16);
     if (n) goto simsimd_angular_f32_skylake_cycle;
 
-    simsimd_f64_t dot_product_f64 = _simsimd_reduce_f32x16_skylake(dot_product_f32x16);
-    simsimd_f64_t a_norm_sq_f64 = _simsimd_reduce_f32x16_skylake(a_norm_sq_f32x16);
-    simsimd_f64_t b_norm_sq_f64 = _simsimd_reduce_f32x16_skylake(b_norm_sq_f32x16);
+    simsimd_f64_t dot_product_f64 = _simsimd_reduce_add_f32x16_skylake(dot_product_f32x16);
+    simsimd_f64_t a_norm_sq_f64 = _simsimd_reduce_add_f32x16_skylake(a_norm_sq_f32x16);
+    simsimd_f64_t b_norm_sq_f64 = _simsimd_reduce_add_f32x16_skylake(b_norm_sq_f32x16);
     *result = _simsimd_angular_normalize_f64_skylake(dot_product_f64, a_norm_sq_f64, b_norm_sq_f64);
 }
 
@@ -3855,7 +3855,7 @@ simsimd_l2sq_bf16_genoa_cycle:
     distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
     if (n) goto simsimd_l2sq_bf16_genoa_cycle;
 
-    *result = _simsimd_reduce_f32x16_skylake(distance_sq_f32x16);
+    *result = _simsimd_reduce_add_f32x16_skylake(distance_sq_f32x16);
 }
 
 SIMSIMD_PUBLIC void simsimd_angular_bf16_genoa(simsimd_bf16_t const *a, simsimd_bf16_t const *b, simsimd_size_t n,
@@ -3882,9 +3882,9 @@ simsimd_angular_bf16_genoa_cycle:
     b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, (__m512bh)(b_bf16x32), (__m512bh)(b_bf16x32));
     if (n) goto simsimd_angular_bf16_genoa_cycle;
 
-    simsimd_f32_t dot_product_f32 = _simsimd_reduce_f32x16_skylake(dot_product_f32x16);
-    simsimd_f32_t a_norm_sq_f32 = _simsimd_reduce_f32x16_skylake(a_norm_sq_f32x16);
-    simsimd_f32_t b_norm_sq_f32 = _simsimd_reduce_f32x16_skylake(b_norm_sq_f32x16);
+    simsimd_f32_t dot_product_f32 = _simsimd_reduce_add_f32x16_skylake(dot_product_f32x16);
+    simsimd_f32_t a_norm_sq_f32 = _simsimd_reduce_add_f32x16_skylake(a_norm_sq_f32x16);
+    simsimd_f32_t b_norm_sq_f32 = _simsimd_reduce_add_f32x16_skylake(b_norm_sq_f32x16);
     *result = _simsimd_angular_normalize_f32_haswell(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
@@ -4765,9 +4765,9 @@ SIMSIMD_PUBLIC void simsimd_angular_i8_sierra(simsimd_i8_t const *a, simsimd_i8_
     }
 
     // Further reduce to a single sum for each vector
-    simsimd_i32_t dot_product_i32 = _simsimd_reduce_i32x8_haswell(dot_product_i32x8);
-    simsimd_i32_t a_norm_sq_i32 = _simsimd_reduce_i32x8_haswell(a_norm_sq_i32x8);
-    simsimd_i32_t b_norm_sq_i32 = _simsimd_reduce_i32x8_haswell(b_norm_sq_i32x8);
+    simsimd_i32_t dot_product_i32 = _simsimd_reduce_add_i32x8_haswell(dot_product_i32x8);
+    simsimd_i32_t a_norm_sq_i32 = _simsimd_reduce_add_i32x8_haswell(a_norm_sq_i32x8);
+    simsimd_i32_t b_norm_sq_i32 = _simsimd_reduce_add_i32x8_haswell(b_norm_sq_i32x8);
 
     // Take care of the tail:
     for (; i < n; ++i) {

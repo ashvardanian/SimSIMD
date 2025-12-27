@@ -102,6 +102,8 @@
 
 #include "types.h"
 
+#include "reduce.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -2085,43 +2087,6 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_sve(simsimd_f16c_t const *a_pairs, simsimd
 #pragma GCC target("avx2", "f16c", "fma")
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
 
-SIMSIMD_INTERNAL simsimd_f64_t _simsimd_reduce_f64x4_haswell(__m256d vec) {
-    // Reduce the double-precision vector to a scalar
-    // Horizontal add the first and second double-precision values, and third and fourth
-    __m128d vec_low = _mm256_castpd256_pd128(vec);
-    __m128d vec_high = _mm256_extractf128_pd(vec, 1);
-    __m128d vec128 = _mm_add_pd(vec_low, vec_high);
-
-    // Horizontal add again to accumulate all four values into one
-    vec128 = _mm_hadd_pd(vec128, vec128);
-
-    // Convert the final sum to a scalar double-precision value and return
-    return _mm_cvtsd_f64(vec128);
-}
-
-SIMSIMD_INTERNAL simsimd_f64_t _simsimd_reduce_f32x8_haswell(__m256 vec) {
-    // Convert the lower and higher 128-bit lanes of the input vector to double precision
-    __m128 low_f32 = _mm256_castps256_ps128(vec);
-    __m128 high_f32 = _mm256_extractf128_ps(vec, 1);
-
-    // Convert single-precision (float) vectors to double-precision (double) vectors
-    __m256d low_f64 = _mm256_cvtps_pd(low_f32);
-    __m256d high_f64 = _mm256_cvtps_pd(high_f32);
-
-    // Perform the addition in double-precision
-    __m256d sum = _mm256_add_pd(low_f64, high_f64);
-    return _simsimd_reduce_f64x4_haswell(sum);
-}
-
-SIMSIMD_INTERNAL simsimd_i32_t _simsimd_reduce_i32x8_haswell(__m256i vec) {
-    __m128i low = _mm256_castsi256_si128(vec);
-    __m128i high = _mm256_extracti128_si256(vec, 1);
-    __m128i sum = _mm_add_epi32(low, high);
-    sum = _mm_hadd_epi32(sum, sum);
-    sum = _mm_hadd_epi32(sum, sum);
-    return _mm_cvtsi128_si32(sum);
-}
-
 SIMSIMD_PUBLIC void simsimd_dot_f32_haswell(simsimd_f32_t const *a_scalars, simsimd_f32_t const *b_scalars,
                                             simsimd_size_t count_scalars, simsimd_f32_t *result) {
     __m256 sum_f32x8 = _mm256_setzero_ps();
@@ -2131,7 +2096,7 @@ SIMSIMD_PUBLIC void simsimd_dot_f32_haswell(simsimd_f32_t const *a_scalars, sims
         __m256 b_f32x8 = _mm256_loadu_ps(b_scalars + idx_scalars);
         sum_f32x8 = _mm256_fmadd_ps(a_f32x8, b_f32x8, sum_f32x8);
     }
-    simsimd_f32_t sum = (simsimd_f32_t)_simsimd_reduce_f32x8_haswell(sum_f32x8);
+    simsimd_f32_t sum = (simsimd_f32_t)_simsimd_reduce_add_f32x8_haswell(sum_f32x8);
     for (; idx_scalars < count_scalars; ++idx_scalars) sum += a_scalars[idx_scalars] * b_scalars[idx_scalars];
     *result = sum;
 }
@@ -2155,8 +2120,8 @@ SIMSIMD_PUBLIC void simsimd_dot_f32c_haswell(simsimd_f32c_t const *a_pairs, sims
     }
     // Flip the sign bit in every second scalar before accumulation:
     sum_real_f32x8 = _mm256_castsi256_ps(_mm256_xor_si256(_mm256_castps_si256(sum_real_f32x8), sign_flip_i64x4));
-    simsimd_f32_t sum_real = (simsimd_f32_t)_simsimd_reduce_f32x8_haswell(sum_real_f32x8);
-    simsimd_f32_t sum_imag = (simsimd_f32_t)_simsimd_reduce_f32x8_haswell(sum_imag_f32x8);
+    simsimd_f32_t sum_real = (simsimd_f32_t)_simsimd_reduce_add_f32x8_haswell(sum_real_f32x8);
+    simsimd_f32_t sum_imag = (simsimd_f32_t)_simsimd_reduce_add_f32x8_haswell(sum_imag_f32x8);
     for (; idx_pairs != count_pairs; ++idx_pairs) {
         simsimd_f32c_t a_pair = a_pairs[idx_pairs], b_pair = b_pairs[idx_pairs];
         sum_real += a_pair.real * b_pair.real - a_pair.imag * b_pair.imag;
@@ -2183,8 +2148,8 @@ SIMSIMD_PUBLIC void simsimd_vdot_f32c_haswell(simsimd_f32c_t const *a_pairs, sim
     }
     // Flip the sign bit in every second scalar before accumulation:
     sum_imag_f32x8 = _mm256_castsi256_ps(_mm256_xor_si256(_mm256_castps_si256(sum_imag_f32x8), sign_flip_i64x4));
-    simsimd_f32_t sum_real = (simsimd_f32_t)_simsimd_reduce_f32x8_haswell(sum_real_f32x8);
-    simsimd_f32_t sum_imag = (simsimd_f32_t)_simsimd_reduce_f32x8_haswell(sum_imag_f32x8);
+    simsimd_f32_t sum_real = (simsimd_f32_t)_simsimd_reduce_add_f32x8_haswell(sum_real_f32x8);
+    simsimd_f32_t sum_imag = (simsimd_f32_t)_simsimd_reduce_add_f32x8_haswell(sum_imag_f32x8);
     for (; idx_pairs != count_pairs; ++idx_pairs) {
         simsimd_f32c_t a_pair = a_pairs[idx_pairs], b_pair = b_pairs[idx_pairs];
         sum_real += a_pair.real * b_pair.real + a_pair.imag * b_pair.imag;
@@ -2248,7 +2213,7 @@ simsimd_dot_f16_haswell_cycle:
     }
     sum_f32x8 = _mm256_fmadd_ps(a_f32x8, b_f32x8, sum_f32x8);
     if (count_scalars) goto simsimd_dot_f16_haswell_cycle;
-    *result = (simsimd_f32_t)_simsimd_reduce_f32x8_haswell(sum_f32x8);
+    *result = (simsimd_f32_t)_simsimd_reduce_add_f32x8_haswell(sum_f32x8);
 }
 
 SIMSIMD_PUBLIC void simsimd_dot_f16c_haswell(simsimd_f16c_t const *a_pairs, simsimd_f16c_t const *b_pairs,
@@ -2271,8 +2236,8 @@ SIMSIMD_PUBLIC void simsimd_dot_f16c_haswell(simsimd_f16c_t const *a_pairs, sims
     sum_real_f32x8 = _mm256_castsi256_ps(_mm256_xor_si256(_mm256_castps_si256(sum_real_f32x8), sign_flip_i64x4));
     simsimd_f32c_t tail_result;
     simsimd_dot_f16c_serial(a_pairs, b_pairs, count_pairs, &tail_result);
-    result->real = tail_result.real + (simsimd_f32_t)_simsimd_reduce_f32x8_haswell(sum_real_f32x8);
-    result->imag = tail_result.imag + (simsimd_f32_t)_simsimd_reduce_f32x8_haswell(sum_imag_f32x8);
+    result->real = tail_result.real + (simsimd_f32_t)_simsimd_reduce_add_f32x8_haswell(sum_real_f32x8);
+    result->imag = tail_result.imag + (simsimd_f32_t)_simsimd_reduce_add_f32x8_haswell(sum_imag_f32x8);
 }
 
 SIMSIMD_PUBLIC void simsimd_vdot_f16c_haswell(simsimd_f16c_t const *a_pairs, simsimd_f16c_t const *b_pairs,
@@ -2294,8 +2259,8 @@ SIMSIMD_PUBLIC void simsimd_vdot_f16c_haswell(simsimd_f16c_t const *a_pairs, sim
     sum_imag_f32x8 = _mm256_castsi256_ps(_mm256_xor_si256(_mm256_castps_si256(sum_imag_f32x8), sign_flip_i64x4));
     simsimd_f32c_t tail_result;
     simsimd_vdot_f16c_serial(a_pairs, b_pairs, count_pairs, &tail_result);
-    result->real = tail_result.real + (simsimd_f32_t)_simsimd_reduce_f32x8_haswell(sum_real_f32x8);
-    result->imag = tail_result.imag + (simsimd_f32_t)_simsimd_reduce_f32x8_haswell(sum_imag_f32x8);
+    result->real = tail_result.real + (simsimd_f32_t)_simsimd_reduce_add_f32x8_haswell(sum_real_f32x8);
+    result->imag = tail_result.imag + (simsimd_f32_t)_simsimd_reduce_add_f32x8_haswell(sum_imag_f32x8);
 }
 
 SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const *a_scalars, simsimd_i8_t const *b_scalars,
@@ -2315,7 +2280,7 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_haswell(simsimd_i8_t const *a_scalars, simsim
         sum_low_i32x8 = _mm256_add_epi32(sum_low_i32x8, _mm256_madd_epi16(a_low_i16x16, b_low_i16x16));
         sum_high_i32x8 = _mm256_add_epi32(sum_high_i32x8, _mm256_madd_epi16(a_high_i16x16, b_high_i16x16));
     }
-    simsimd_i32_t sum = _simsimd_reduce_i32x8_haswell(_mm256_add_epi32(sum_low_i32x8, sum_high_i32x8));
+    simsimd_i32_t sum = _simsimd_reduce_add_i32x8_haswell(_mm256_add_epi32(sum_low_i32x8, sum_high_i32x8));
     for (; idx_scalars < count_scalars; ++idx_scalars)
         sum += (simsimd_i32_t)a_scalars[idx_scalars] * b_scalars[idx_scalars];
     *result = sum;
@@ -2339,7 +2304,8 @@ SIMSIMD_PUBLIC void simsimd_dot_u8_haswell(simsimd_u8_t const *a_scalars, simsim
         sum_low_i32x8 = _mm256_add_epi32(sum_low_i32x8, _mm256_madd_epi16(a_low_i16x16, b_low_i16x16));
         sum_high_i32x8 = _mm256_add_epi32(sum_high_i32x8, _mm256_madd_epi16(a_high_i16x16, b_high_i16x16));
     }
-    simsimd_u32_t sum = (simsimd_u32_t)_simsimd_reduce_i32x8_haswell(_mm256_add_epi32(sum_low_i32x8, sum_high_i32x8));
+    simsimd_u32_t sum = (simsimd_u32_t)_simsimd_reduce_add_i32x8_haswell(
+        _mm256_add_epi32(sum_low_i32x8, sum_high_i32x8));
     for (; idx_scalars < count_scalars; ++idx_scalars)
         sum += (simsimd_u32_t)a_scalars[idx_scalars] * b_scalars[idx_scalars];
     *result = sum;
@@ -2395,7 +2361,7 @@ simsimd_dot_bf16_haswell_cycle:
     sum_f32x8 = _mm256_fmadd_ps(_simsimd_bf16x8_to_f32x8_haswell(a_bf16x8), _simsimd_bf16x8_to_f32x8_haswell(b_bf16x8),
                                 sum_f32x8);
     if (count_scalars) goto simsimd_dot_bf16_haswell_cycle;
-    *result = (simsimd_f32_t)_simsimd_reduce_f32x8_haswell(sum_f32x8);
+    *result = (simsimd_f32_t)_simsimd_reduce_add_f32x8_haswell(sum_f32x8);
 }
 
 /*  Convert 8x E4M3 values to 8x F32 values using AVX2 bit manipulation.
@@ -2477,7 +2443,7 @@ simsimd_dot_e4m3_haswell_cycle:
     sum_f32x8 = _mm256_fmadd_ps(_simsimd_e4m3x8_to_f32x8_haswell(a_e4m3x8), _simsimd_e4m3x8_to_f32x8_haswell(b_e4m3x8),
                                 sum_f32x8);
     if (count_scalars) goto simsimd_dot_e4m3_haswell_cycle;
-    *result = (simsimd_f32_t)_simsimd_reduce_f32x8_haswell(sum_f32x8);
+    *result = (simsimd_f32_t)_simsimd_reduce_add_f32x8_haswell(sum_f32x8);
 }
 
 SIMSIMD_PUBLIC void simsimd_dot_e5m2_haswell(simsimd_e5m2_t const *a_scalars, simsimd_e5m2_t const *b_scalars,
@@ -2498,7 +2464,7 @@ simsimd_dot_e5m2_haswell_cycle:
     sum_f32x8 = _mm256_fmadd_ps(_simsimd_e5m2x8_to_f32x8_haswell(a_e5m2x8), _simsimd_e5m2x8_to_f32x8_haswell(b_e5m2x8),
                                 sum_f32x8);
     if (count_scalars) goto simsimd_dot_e5m2_haswell_cycle;
-    *result = (simsimd_f32_t)_simsimd_reduce_f32x8_haswell(sum_f32x8);
+    *result = (simsimd_f32_t)_simsimd_reduce_add_f32x8_haswell(sum_f32x8);
 }
 
 /**
@@ -2833,21 +2799,6 @@ SIMSIMD_INTERNAL void _simsimd_partial_store_b32x8_haswell(simsimd_b256_vec_t co
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "bmi2")
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,bmi2"))), apply_to = function)
 
-SIMSIMD_INTERNAL simsimd_f64_t _simsimd_reduce_f32x16_skylake(__m512 a) {
-    __m512 x = _mm512_add_ps(a, _mm512_shuffle_f32x4(a, a, _MM_SHUFFLE(0, 0, 3, 2)));
-    __m128 r = _mm512_castps512_ps128(_mm512_add_ps(x, _mm512_shuffle_f32x4(x, x, _MM_SHUFFLE(0, 0, 0, 1))));
-    r = _mm_hadd_ps(r, r);
-    return _mm_cvtss_f32(_mm_hadd_ps(r, r));
-}
-
-/** @brief Native F32 horizontal reduction without F64 conversion, for high-performance matmul. */
-SIMSIMD_INTERNAL simsimd_f32_t _simsimd_reduce_f32x16_to_f32_skylake(__m512 a) {
-    __m512 x = _mm512_add_ps(a, _mm512_shuffle_f32x4(a, a, _MM_SHUFFLE(0, 0, 3, 2)));
-    __m128 r = _mm512_castps512_ps128(_mm512_add_ps(x, _mm512_shuffle_f32x4(x, x, _MM_SHUFFLE(0, 0, 0, 1))));
-    r = _mm_hadd_ps(r, r);
-    return _mm_cvtss_f32(_mm_hadd_ps(r, r));
-}
-
 SIMSIMD_INTERNAL __m512 _simsimd_bf16x16_to_f32x16_skylake(__m256i a) {
     // Upcasting from `bf16` to `f32` is done by shifting the `bf16` values by 16 bits to the left, like:
     return _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(a), 16));
@@ -2879,7 +2830,7 @@ simsimd_dot_f32_skylake_cycle:
     sum_f32x16 = _mm512_fmadd_ps(a_f32x16, b_f32x16, sum_f32x16);
     if (count_scalars) goto simsimd_dot_f32_skylake_cycle;
 
-    *result = _simsimd_reduce_f32x16_to_f32_skylake(sum_f32x16);
+    *result = _simsimd_reduce_add_f32x16_skylake(sum_f32x16);
 }
 
 SIMSIMD_PUBLIC void simsimd_dot_f64_skylake(simsimd_f64_t const *a_scalars, simsimd_f64_t const *b_scalars,
@@ -2938,8 +2889,8 @@ simsimd_dot_f32c_skylake_cycle:
     sum_real_f32x16 = _mm512_castsi512_ps(_mm512_xor_si512(_mm512_castps_si512(sum_real_f32x16), sign_flip_f32x16));
 
     // Reduce horizontal sums:
-    result->real = _simsimd_reduce_f32x16_to_f32_skylake(sum_real_f32x16);
-    result->imag = _simsimd_reduce_f32x16_to_f32_skylake(sum_imag_f32x16);
+    result->real = _simsimd_reduce_add_f32x16_skylake(sum_real_f32x16);
+    result->imag = _simsimd_reduce_add_f32x16_skylake(sum_imag_f32x16);
 }
 
 SIMSIMD_PUBLIC void simsimd_vdot_f32c_skylake(simsimd_f32c_t const *a_pairs, simsimd_f32c_t const *b_pairs,
@@ -2975,8 +2926,8 @@ simsimd_vdot_f32c_skylake_cycle:
     sum_imag_f32x16 = _mm512_castsi512_ps(_mm512_xor_si512(_mm512_castps_si512(sum_imag_f32x16), sign_flip_f32x16));
 
     // Reduce horizontal sums:
-    result->real = _simsimd_reduce_f32x16_to_f32_skylake(sum_real_f32x16);
-    result->imag = _simsimd_reduce_f32x16_to_f32_skylake(sum_imag_f32x16);
+    result->real = _simsimd_reduce_add_f32x16_skylake(sum_real_f32x16);
+    result->imag = _simsimd_reduce_add_f32x16_skylake(sum_imag_f32x16);
 }
 
 SIMSIMD_PUBLIC void simsimd_dot_f64c_skylake(simsimd_f64c_t const *a_pairs, simsimd_f64c_t const *b_pairs,
@@ -3125,7 +3076,7 @@ simsimd_dot_e4m3_skylake_cycle:
     sum_f32x16 = _mm512_fmadd_ps(a_f32x16, b_f32x16, sum_f32x16);
     if (count_scalars) goto simsimd_dot_e4m3_skylake_cycle;
 
-    *result = _simsimd_reduce_f32x16_to_f32_skylake(sum_f32x16);
+    *result = _simsimd_reduce_add_f32x16_skylake(sum_f32x16);
 }
 
 SIMSIMD_PUBLIC void simsimd_dot_e5m2_skylake(simsimd_e5m2_t const *a_scalars, simsimd_e5m2_t const *b_scalars,
@@ -3150,7 +3101,7 @@ simsimd_dot_e5m2_skylake_cycle:
     sum_f32x16 = _mm512_fmadd_ps(a_f32x16, b_f32x16, sum_f32x16);
     if (count_scalars) goto simsimd_dot_e5m2_skylake_cycle;
 
-    *result = _simsimd_reduce_f32x16_to_f32_skylake(sum_f32x16);
+    *result = _simsimd_reduce_add_f32x16_skylake(sum_f32x16);
 }
 
 /**
@@ -3369,7 +3320,8 @@ SIMSIMD_INTERNAL void _simsimd_partial_load_b8x64_skylake(void const *src, simsi
 }
 
 /** @brief Type-agnostic partial store for 32-bit elements (16 elements max) from 512-bit vector (Skylake AVX-512). */
-SIMSIMD_INTERNAL void _simsimd_partial_store_b32x16_skylake(simsimd_b512_vec_t const *src, void *dst, simsimd_size_t n) {
+SIMSIMD_INTERNAL void _simsimd_partial_store_b32x16_skylake(simsimd_b512_vec_t const *src, void *dst,
+                                                            simsimd_size_t n) {
     simsimd_u32_t *d = (simsimd_u32_t *)dst;
     for (simsimd_size_t i = 0; i < n && i < 16; ++i) d[i] = src->u32s[i];
 }
@@ -3404,7 +3356,7 @@ simsimd_dot_bf16_genoa_cycle:
     sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     if (count_scalars) goto simsimd_dot_bf16_genoa_cycle;
 
-    *result = _simsimd_reduce_f32x16_to_f32_skylake(sum_f32x16);
+    *result = _simsimd_reduce_add_f32x16_skylake(sum_f32x16);
 }
 
 SIMSIMD_PUBLIC void simsimd_dot_bf16c_genoa(simsimd_bf16c_t const *a_pairs, simsimd_bf16c_t const *b_pairs,
@@ -3445,8 +3397,8 @@ simsimd_dot_bf16c_genoa_cycle:
     if (count_pairs) goto simsimd_dot_bf16c_genoa_cycle;
 
     // Reduce horizontal sums:
-    result->real = _simsimd_reduce_f32x16_to_f32_skylake(sum_real_f32x16);
-    result->imag = _simsimd_reduce_f32x16_to_f32_skylake(sum_imag_f32x16);
+    result->real = _simsimd_reduce_add_f32x16_skylake(sum_real_f32x16);
+    result->imag = _simsimd_reduce_add_f32x16_skylake(sum_imag_f32x16);
 }
 
 SIMSIMD_PUBLIC void simsimd_vdot_bf16c_genoa(simsimd_bf16c_t const *a_pairs, simsimd_bf16c_t const *b_pairs,
@@ -3487,8 +3439,8 @@ simsimd_vdot_bf16c_genoa_cycle:
     if (count_pairs) goto simsimd_vdot_bf16c_genoa_cycle;
 
     // Reduce horizontal sums:
-    result->real = _simsimd_reduce_f32x16_to_f32_skylake(sum_real_f32x16);
-    result->imag = _simsimd_reduce_f32x16_to_f32_skylake(sum_imag_f32x16);
+    result->real = _simsimd_reduce_add_f32x16_skylake(sum_real_f32x16);
+    result->imag = _simsimd_reduce_add_f32x16_skylake(sum_imag_f32x16);
 }
 
 /**
@@ -3559,7 +3511,7 @@ simsimd_dot_e4m3_genoa_cycle:
     sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     if (count_scalars) goto simsimd_dot_e4m3_genoa_cycle;
 
-    *result = _simsimd_reduce_f32x16_to_f32_skylake(sum_f32x16);
+    *result = _simsimd_reduce_add_f32x16_skylake(sum_f32x16);
 }
 
 SIMSIMD_PUBLIC void simsimd_dot_e5m2_genoa(simsimd_e5m2_t const *a_scalars, simsimd_e5m2_t const *b_scalars,
@@ -3585,7 +3537,7 @@ simsimd_dot_e5m2_genoa_cycle:
     sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     if (count_scalars) goto simsimd_dot_e5m2_genoa_cycle;
 
-    *result = _simsimd_reduce_f32x16_to_f32_skylake(sum_f32x16);
+    *result = _simsimd_reduce_add_f32x16_skylake(sum_f32x16);
 }
 
 /**
@@ -4267,7 +4219,7 @@ SIMSIMD_PUBLIC void simsimd_dot_i8_sierra(simsimd_i8_t const *a_scalars, simsimd
     }
 
     // Further reduce to a single sum for each vector
-    int sum_i32 = _simsimd_reduce_i32x8_haswell(sum_i32x8);
+    int sum_i32 = _simsimd_reduce_add_i32x8_haswell(sum_i32x8);
 
     // Take care of the tail:
     for (; idx_scalars < count_scalars; ++idx_scalars)

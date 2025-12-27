@@ -1112,7 +1112,7 @@ void elementwise_with_stl(scalar_at const *ins, simsimd_size_t n, scalar_at *out
 
 #if SIMSIMD_BUILD_BENCHMARKS_WITH_BLAS
 
-void dot_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
+void dot_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t *result) {
     *result = cblas_sdot(static_cast<int>(n), a, 1, b, 1);
 }
 
@@ -1120,34 +1120,28 @@ void dot_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t
     *result = cblas_ddot(static_cast<int>(n), a, 1, b, 1);
 }
 
-void dot_f32c_blas(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
-    simsimd_f32_t f32_result[2] = {0, 0};
+void dot_f32c_blas(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsimd_size_t n, simsimd_f32c_t *result) {
     cblas_cdotu_sub(static_cast<int>(n), reinterpret_cast<simsimd_f32_t const *>(a), 1,
-                    reinterpret_cast<simsimd_f32_t const *>(b), 1, f32_result);
-    result[0] = f32_result[0];
-    result[1] = f32_result[1];
+                    reinterpret_cast<simsimd_f32_t const *>(b), 1, reinterpret_cast<simsimd_f32_t *>(result));
 }
 
-void dot_f64c_blas(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
+void dot_f64c_blas(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_size_t n, simsimd_f64c_t *result) {
     cblas_zdotu_sub(static_cast<int>(n), reinterpret_cast<simsimd_f64_t const *>(a), 1,
-                    reinterpret_cast<simsimd_f64_t const *>(b), 1, result);
+                    reinterpret_cast<simsimd_f64_t const *>(b), 1, reinterpret_cast<simsimd_f64_t *>(result));
 }
 
-void vdot_f32c_blas(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
-    simsimd_f32_t f32_result[2] = {0, 0};
+void vdot_f32c_blas(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsimd_size_t n, simsimd_f32c_t *result) {
     cblas_cdotc_sub(static_cast<int>(n), reinterpret_cast<simsimd_f32_t const *>(a), 1,
-                    reinterpret_cast<simsimd_f32_t const *>(b), 1, f32_result);
-    result[0] = f32_result[0];
-    result[1] = f32_result[1];
+                    reinterpret_cast<simsimd_f32_t const *>(b), 1, reinterpret_cast<simsimd_f32_t *>(result));
 }
 
-void vdot_f64c_blas(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_size_t n, simsimd_distance_t *result) {
+void vdot_f64c_blas(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_size_t n, simsimd_f64c_t *result) {
     cblas_zdotc_sub(static_cast<int>(n), reinterpret_cast<simsimd_f64_t const *>(a), 1,
-                    reinterpret_cast<simsimd_f64_t const *>(b), 1, result);
+                    reinterpret_cast<simsimd_f64_t const *>(b), 1, reinterpret_cast<simsimd_f64_t *>(result));
 }
 
 void bilinear_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_f32_t const *c, simsimd_size_t n,
-                       simsimd_distance_t *result) {
+                       simsimd_f32_t *result) {
     static thread_local std::vector<simsimd_f32_t> intermediate;
     if (intermediate.size() < n) intermediate.resize(n);
     int const ni = static_cast<int>(n);
@@ -1165,56 +1159,55 @@ void bilinear_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_f
 }
 
 void bilinear_f32c_blas(simsimd_f32c_t const *a, simsimd_f32c_t const *b, simsimd_f32c_t const *c, simsimd_size_t n,
-                        simsimd_distance_t *results) {
+                        simsimd_f32c_t *results) {
     static thread_local std::vector<simsimd_f32c_t> intermediate;
     if (intermediate.size() < n) intermediate.resize(n);
     int const ni = static_cast<int>(n);
     simsimd_f32c_t alpha = {1.0f, 0.0f}, beta = {0.0f, 0.0f};
     cblas_cgemv(CblasRowMajor, CblasNoTrans, ni, ni, &alpha, c, ni, b, 1, &beta, intermediate.data(), 1);
-    simsimd_f32_t f32_result[2] = {0, 0};
     cblas_cdotu_sub(ni, reinterpret_cast<simsimd_f32_t const *>(a), 1,
-                    reinterpret_cast<simsimd_f32_t const *>(intermediate.data()), 1, f32_result);
-    results[0] = f32_result[0];
-    results[1] = f32_result[1];
+                    reinterpret_cast<simsimd_f32_t const *>(intermediate.data()), 1,
+                    reinterpret_cast<simsimd_f32_t *>(results));
 }
 
 void bilinear_f64c_blas(simsimd_f64c_t const *a, simsimd_f64c_t const *b, simsimd_f64c_t const *c, simsimd_size_t n,
-                        simsimd_distance_t *results) {
+                        simsimd_f64c_t *results) {
     static thread_local std::vector<simsimd_f64c_t> intermediate;
     if (intermediate.size() < n) intermediate.resize(n);
     int const ni = static_cast<int>(n);
     simsimd_f64c_t alpha = {1.0, 0.0}, beta = {0.0, 0.0};
     cblas_zgemv(CblasRowMajor, CblasNoTrans, ni, ni, &alpha, c, ni, b, 1, &beta, intermediate.data(), 1);
     cblas_zdotu_sub(ni, reinterpret_cast<simsimd_f64_t const *>(a), 1,
-                    reinterpret_cast<simsimd_f64_t const *>(intermediate.data()), 1, results);
+                    reinterpret_cast<simsimd_f64_t const *>(intermediate.data()), 1,
+                    reinterpret_cast<simsimd_f64_t *>(results));
 }
 
-void simsimd_sum_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t *result) {
+void sum_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t *result) {
     int const ni = static_cast<int>(n);
     cblas_scopy(ni, a, 1, result, 1);
     cblas_saxpy(ni, 1.0f, b, 1, result, 1);
 }
 
-void simsimd_sum_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_f64_t *result) {
+void sum_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_f64_t *result) {
     int const ni = static_cast<int>(n);
     cblas_dcopy(ni, a, 1, result, 1);
     cblas_daxpy(ni, 1.0, b, 1, result, 1);
 }
 
-void simsimd_wsum_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_distance_t alpha,
-                           simsimd_distance_t beta, simsimd_f32_t *result) {
+void wsum_f32_blas(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n, simsimd_f32_t const *alpha,
+                   simsimd_f32_t const *beta, simsimd_f32_t *result) {
     int const ni = static_cast<int>(n);
     std::memset(result, 0, n * sizeof(simsimd_f32_t));
-    if (alpha != 0) cblas_saxpy(ni, static_cast<float>(alpha), a, 1, result, 1);
-    if (beta != 0) cblas_saxpy(ni, static_cast<float>(beta), b, 1, result, 1);
+    if (*alpha != 0) cblas_saxpy(ni, *alpha, a, 1, result, 1);
+    if (*beta != 0) cblas_saxpy(ni, *beta, b, 1, result, 1);
 }
 
-void simsimd_wsum_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_distance_t alpha,
-                           simsimd_distance_t beta, simsimd_f64_t *result) {
+void wsum_f64_blas(simsimd_f64_t const *a, simsimd_f64_t const *b, simsimd_size_t n, simsimd_f64_t const *alpha,
+                   simsimd_f64_t const *beta, simsimd_f64_t *result) {
     int const ni = static_cast<int>(n);
     std::memset(result, 0, n * sizeof(simsimd_f64_t));
-    if (alpha != 0) cblas_daxpy(ni, alpha, a, 1, result, 1);
-    if (beta != 0) cblas_daxpy(ni, beta, b, 1, result, 1);
+    if (*alpha != 0) cblas_daxpy(ni, *alpha, a, 1, result, 1);
+    if (*beta != 0) cblas_daxpy(ni, *beta, b, 1, result, 1);
 }
 
 // SGEMM baseline for matmul comparison using OpenBLAS: F32×F32→F32

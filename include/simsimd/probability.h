@@ -62,6 +62,7 @@
 #ifndef SIMSIMD_PROBABILITY_H
 #define SIMSIMD_PROBABILITY_H
 
+#include "reduce.h" // For horizontal reduction helpers
 #include "types.h"
 
 #if defined(__cplusplus)
@@ -560,7 +561,7 @@ simsimd_kld_f16_haswell_cycle:
     if (n) goto simsimd_kld_f16_haswell_cycle;
 
     simsimd_f32_t log2_normalizer = 0.693147181f;
-    simsimd_f32_t sum = _simsimd_reduce_f32x8_haswell(sum_f32x8);
+    simsimd_f32_t sum = _simsimd_reduce_add_f32x8_haswell(sum_f32x8);
     sum *= log2_normalizer;
     *result = sum;
 }
@@ -597,7 +598,7 @@ simsimd_jsd_f16_haswell_cycle:
     if (n) goto simsimd_jsd_f16_haswell_cycle;
 
     simsimd_f32_t log2_normalizer = 0.693147181f;
-    simsimd_f32_t sum = _simsimd_reduce_f32x8_haswell(sum_f32x8);
+    simsimd_f32_t sum = _simsimd_reduce_add_f32x8_haswell(sum_f32x8);
     sum *= log2_normalizer / 2;
     *result = sum > 0 ? _simsimd_sqrt_f32_haswell(sum) : 0;
 }

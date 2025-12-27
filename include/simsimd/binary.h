@@ -136,6 +136,8 @@
 
 #include "types.h"
 
+#include "reduce.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -377,21 +379,6 @@ SIMSIMD_INTERNAL void simsimd_jaccard_b128_finalize_serial(
 #pragma GCC target("arch=armv8-a+simd")
 #pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 
-SIMSIMD_INTERNAL simsimd_u32_t _simsimd_reduce_u8x16_neon(uint8x16_t vec) {
-    // Split the vector into two halves and widen to `uint16x8_t`
-    uint16x8_t low_u16x8 = vmovl_u8(vget_low_u8(vec));   // widen lower 8 elements
-    uint16x8_t high_u16x8 = vmovl_u8(vget_high_u8(vec)); // widen upper 8 elements
-
-    // Sum the widened halves
-    uint16x8_t sum_u16x8 = vaddq_u16(low_u16x8, high_u16x8);
-
-    // Now reduce the `uint16x8_t` to a single `simsimd_u32_t`
-    uint32x4_t sum_u32x4 = vpaddlq_u16(sum_u16x8);   // pairwise add into 32-bit integers
-    uint64x2_t sum_u64x2 = vpaddlq_u32(sum_u32x4);   // pairwise add into 64-bit integers
-    simsimd_u32_t final_sum = vaddvq_u64(sum_u64x2); // final horizontal add to 32-bit result
-    return final_sum;
-}
-
 SIMSIMD_PUBLIC void simsimd_hamming_b8_neon(simsimd_b8_t const *a, simsimd_b8_t const *b, simsimd_size_t n_words,
                                             simsimd_u32_t *result) {
     simsimd_u32_t differences = 0;
@@ -408,7 +395,7 @@ SIMSIMD_PUBLIC void simsimd_hamming_b8_neon(simsimd_b8_t const *a, simsimd_b8_t 
             uint8x16_t xor_popcount_u8x16 = vcntq_u8(veorq_u8(a_u8x16, b_u8x16));
             popcount_u8x16 = vaddq_u8(popcount_u8x16, xor_popcount_u8x16);
         }
-        differences += _simsimd_reduce_u8x16_neon(popcount_u8x16);
+        differences += _simsimd_reduce_add_u8x16_neon(popcount_u8x16);
     }
     // Handle the tail
     for (; i != n_words; ++i) differences += simsimd_popcount_b8(a[i] ^ b[i]);
@@ -432,8 +419,8 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_neon(simsimd_b8_t const *a, simsimd_b8_t 
             intersection_popcount_u8x16 = vaddq_u8(intersection_popcount_u8x16, vcntq_u8(vandq_u8(a_u8x16, b_u8x16)));
             union_popcount_u8x16 = vaddq_u8(union_popcount_u8x16, vcntq_u8(vorrq_u8(a_u8x16, b_u8x16)));
         }
-        intersection_count += _simsimd_reduce_u8x16_neon(intersection_popcount_u8x16);
-        union_count += _simsimd_reduce_u8x16_neon(union_popcount_u8x16);
+        intersection_count += _simsimd_reduce_add_u8x16_neon(intersection_popcount_u8x16);
+        union_count += _simsimd_reduce_add_u8x16_neon(union_popcount_u8x16);
     }
     // Handle the tail
     for (; i != n_words; ++i)

@@ -617,22 +617,6 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_neon(simsimd_f16_t const *a, simsimd
     *result = _simsimd_sqrt_f32_neon(sum);
 }
 
-SIMSIMD_INTERNAL simsimd_f32_t _simsimd_reduce_f16x8_neon(float16x8_t vec) {
-    // Split the 8-element vector into two 4-element vectors
-    float16x4_t low = vget_low_f16(vec);   // Lower 4 elements
-    float16x4_t high = vget_high_f16(vec); // Upper 4 elements
-
-    // Add the lower and upper parts
-    float16x4_t sum = vadd_f16(low, high);
-
-    // Perform pairwise addition to reduce 4 elements to 2, then to 1
-    sum = vpadd_f16(sum, sum); // First reduction: 4 -> 2
-    sum = vpadd_f16(sum, sum); // Second reduction: 2 -> 1
-
-    // Convert the remaining half-precision value to single-precision and return
-    return vgetq_lane_f32(vcvt_f32_f16(sum), 0);
-}
-
 SIMSIMD_INTERNAL float16x8x2_t _simsimd_partial_load_f16x8x2_neon(simsimd_f16c_t const *x, simsimd_size_t n) {
     union {
         float16x8x2_t vecs;
@@ -689,8 +673,8 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16c_neon(simsimd_f16c_t const *a, simsimd_
         }
 
         simsimd_f32c_t cb_j;
-        cb_j.real = _simsimd_reduce_f16x8_neon(cb_j_real_f16x8);
-        cb_j.imag = _simsimd_reduce_f16x8_neon(cb_j_imag_f16x8);
+        cb_j.real = _simsimd_reduce_add_f16x8_neon(cb_j_real_f16x8);
+        cb_j.imag = _simsimd_reduce_add_f16x8_neon(cb_j_imag_f16x8);
         sum_real += a_i.real * cb_j.real - a_i.imag * cb_j.imag;
         sum_imag += a_i.real * cb_j.imag + a_i.imag * cb_j.real;
     }
@@ -903,7 +887,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16_haswell(simsimd_f16_t const *a, simsimd
     }
 
     // Handle the tail of every row
-    simsimd_f32_t sum = _simsimd_reduce_f32x8_haswell(sum_f32x8);
+    simsimd_f32_t sum = _simsimd_reduce_add_f32x8_haswell(sum_f32x8);
     simsimd_size_t const tail_length = n % 8;
     simsimd_size_t const tail_start = n - tail_length;
     if (tail_length) {
@@ -911,7 +895,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_f16_haswell(simsimd_f16_t const *a, simsimd
             simsimd_f32_t a_i = _mm256_cvtss_f32(_mm256_cvtph_ps(_mm_set1_epi16(*(short const *)(a + i))));
             __m256 b_f32x8 = _simsimd_partial_load_f16x8_haswell(b + tail_start, tail_length);
             __m256 c_f32x8 = _simsimd_partial_load_f16x8_haswell(c + i * n + tail_start, tail_length);
-            simsimd_f32_t cb_j = _simsimd_reduce_f32x8_haswell(_mm256_mul_ps(b_f32x8, c_f32x8));
+            simsimd_f32_t cb_j = _simsimd_reduce_add_f32x8_haswell(_mm256_mul_ps(b_f32x8, c_f32x8));
             sum += a_i * cb_j;
         }
     }
@@ -938,7 +922,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_haswell(simsimd_f16_t const *a, sims
     }
 
     // Handle the tail of every row
-    simsimd_f32_t sum = _simsimd_reduce_f32x8_haswell(sum_f32x8);
+    simsimd_f32_t sum = _simsimd_reduce_add_f32x8_haswell(sum_f32x8);
     simsimd_size_t const tail_length = n % 8;
     simsimd_size_t const tail_start = n - tail_length;
     if (tail_length) {
@@ -950,7 +934,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_f16_haswell(simsimd_f16_t const *a, sims
                 _simsimd_partial_load_f16x8_haswell(a + tail_start, tail_length),
                 _simsimd_partial_load_f16x8_haswell(b + tail_start, tail_length));
             __m256 c_f32x8 = _simsimd_partial_load_f16x8_haswell(c + i * n + tail_start, tail_length);
-            simsimd_f32_t cdiff_j = _simsimd_reduce_f32x8_haswell(_mm256_mul_ps(diff_j_f32x8, c_f32x8));
+            simsimd_f32_t cdiff_j = _simsimd_reduce_add_f32x8_haswell(_mm256_mul_ps(diff_j_f32x8, c_f32x8));
             sum += diff_i * cdiff_j;
         }
     }
@@ -976,7 +960,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16_haswell(simsimd_bf16_t const *a, simsi
     }
 
     // Handle the tail of every row
-    simsimd_f32_t sum = _simsimd_reduce_f32x8_haswell(sum_f32x8);
+    simsimd_f32_t sum = _simsimd_reduce_add_f32x8_haswell(sum_f32x8);
     simsimd_size_t const tail_length = n % 8;
     simsimd_size_t const tail_start = n - tail_length;
     if (tail_length) {
@@ -987,7 +971,7 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16_haswell(simsimd_bf16_t const *a, simsi
                 _simsimd_partial_load_bf16x8_haswell(b + tail_start, tail_length));
             __m256 c_f32x8 = _simsimd_bf16x8_to_f32x8_haswell( //
                 _simsimd_partial_load_bf16x8_haswell(c + i * n + tail_start, tail_length));
-            simsimd_f32_t cb_j = _simsimd_reduce_f32x8_haswell(_mm256_mul_ps(b_f32x8, c_f32x8));
+            simsimd_f32_t cb_j = _simsimd_reduce_add_f32x8_haswell(_mm256_mul_ps(b_f32x8, c_f32x8));
             sum += a_i * cb_j;
         }
     }
@@ -1017,7 +1001,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_haswell(simsimd_bf16_t const *a, si
     }
 
     // Handle the tail of every row
-    simsimd_f32_t sum = _simsimd_reduce_f32x8_haswell(sum_f32x8);
+    simsimd_f32_t sum = _simsimd_reduce_add_f32x8_haswell(sum_f32x8);
     simsimd_size_t const tail_length = n % 8;
     simsimd_size_t const tail_start = n - tail_length;
     if (tail_length) {
@@ -1031,7 +1015,7 @@ SIMSIMD_PUBLIC void simsimd_mahalanobis_bf16_haswell(simsimd_bf16_t const *a, si
                 _simsimd_bf16x8_to_f32x8_haswell(_simsimd_partial_load_bf16x8_haswell(b + tail_start, tail_length)));
             __m256 c_f32x8 = _simsimd_bf16x8_to_f32x8_haswell(
                 _simsimd_partial_load_bf16x8_haswell(c + i * n + tail_start, tail_length));
-            simsimd_f32_t cdiff_j = _simsimd_reduce_f32x8_haswell(_mm256_mul_ps(diff_j_f32x8, c_f32x8));
+            simsimd_f32_t cdiff_j = _simsimd_reduce_add_f32x8_haswell(_mm256_mul_ps(diff_j_f32x8, c_f32x8));
             sum += diff_i * cdiff_j;
         }
     }
@@ -1541,8 +1525,8 @@ SIMSIMD_PUBLIC void simsimd_bilinear_bf16c_genoa(simsimd_bf16c_t const *a, simsi
         j += 16;
         if (j < n) goto simsimd_bilinear_bf16c_skylake_cycle;
         // Horizontal sums are the expensive part of the computation:
-        simsimd_f64_t const cb_j_real = _simsimd_reduce_f32x16_skylake(cb_j_real_f32x16);
-        simsimd_f64_t const cb_j_imag = _simsimd_reduce_f32x16_skylake(cb_j_imag_f32x16);
+        simsimd_f64_t const cb_j_real = _simsimd_reduce_add_f32x16_skylake(cb_j_real_f32x16);
+        simsimd_f64_t const cb_j_imag = _simsimd_reduce_add_f32x16_skylake(cb_j_imag_f32x16);
         sum_real += a_i_real * cb_j_real - a_i_imag * cb_j_imag;
         sum_imag += a_i_real * cb_j_imag + a_i_imag * cb_j_real;
     }

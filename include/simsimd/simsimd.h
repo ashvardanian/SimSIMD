@@ -113,6 +113,7 @@
 #include "geospatial.h"   // Haversine and Vincenty
 #include "mesh.h"         // RMSD, Kabsch, Umeyama
 #include "probability.h"  // Kullback-Leibler, Jensen–Shannon
+#include "reduce.h"       // Horizontal reductions: sum, min, max
 #include "sparse.h"       // Intersect
 #include "spatial.h"      // L2, Angular
 #include "trigonometry.h" // Sin, Cos, Atan

@@ -291,8 +291,6 @@ SIMSIMD_MAKE_INTERSECT_LINEAR(accurate, u32, size) // simsimd_intersect_u32_accu
         *product = (simsimd_f32_t)weights_product;                                                 \
     }
 
-SIMSIMD_MAKE_SPARSE_DOT(accurate, u16, bf16, f64, simsimd_bf16_to_f64) // simsimd_sparse_dot_u16bf16_accurate
-
 #define SIMSIMD_MAKE_INTERSECT_GALLOPING(name, input_type, counter_type)                                             \
     SIMSIMD_PUBLIC simsimd_size_t simsimd_galloping_search_##input_type(simsimd_##input_type##_t const *array,       \
                                                                         simsimd_size_t start, simsimd_size_t length, \
@@ -818,10 +816,10 @@ SIMSIMD_PUBLIC void simsimd_sparse_dot_u16bf16_turin(                 //
             product_f32x8 = _mm256_dpbf16_ps(product_f32x8, (__m256bh)a_weights_bf16x16, (__m256bh)b_weights_bf16x16);
         }
 
-        __m256i a_max_u16x16 = _mm256_permutexvar_epi16(last_idx, a_u16x16.ymm);
-        __m256i b_max_u16x16 = _mm256_permutexvar_epi16(last_idx, b_u16x16.ymm);
-        __mmask16 a_step_mask = _mm256_cmple_epu16_mask(a_u16x16.ymm, b_max_u16x16);
-        __mmask16 b_step_mask = _mm256_cmple_epu16_mask(b_u16x16.ymm, a_max_u16x16);
+        __m256i a_max_u16x16 = _mm256_permutexvar_epi16(last_idx, a_vec.ymm);
+        __m256i b_max_u16x16 = _mm256_permutexvar_epi16(last_idx, b_vec.ymm);
+        __mmask16 a_step_mask = _mm256_cmple_epu16_mask(a_vec.ymm, b_max_u16x16);
+        __mmask16 b_step_mask = _mm256_cmple_epu16_mask(b_vec.ymm, a_max_u16x16);
         simsimd_size_t a_step = _tzcnt_u32(~(simsimd_u32_t)a_step_mask | 0x10000);
         simsimd_size_t b_step = _tzcnt_u32(~(simsimd_u32_t)b_step_mask | 0x10000);
         a += a_step, a_weights += a_step;

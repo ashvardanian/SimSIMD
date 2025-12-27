@@ -86,6 +86,8 @@
 
 #include "types.h"
 
+#include "reduce.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -2514,24 +2516,10 @@ SIMSIMD_INTERNAL void _simsimd_deinterleave_f64x4_haswell(simsimd_f64_t const *p
     *z_out = _mm256_setr_pd(z0, z1, z2, z3);
 }
 
-/*  Horizontal reduction sum for __m256 (8 floats) */
-SIMSIMD_INTERNAL simsimd_f32_t _simsimd_reduce_add_f32x8_haswell(__m256 v) {
-    __m128 hi = _mm256_extractf128_ps(v, 1);
-    __m128 lo = _mm256_castps256_ps128(v);
-    __m128 sum = _mm_add_ps(lo, hi);
-    sum = _mm_hadd_ps(sum, sum);
-    sum = _mm_hadd_ps(sum, sum);
-    return _mm_cvtss_f32(sum);
-}
-
-/*  Horizontal reduction sum for __m256d (4 doubles) */
-SIMSIMD_INTERNAL simsimd_f64_t _simsimd_reduce_add_f64x4_haswell(__m256d v) {
-    __m128d hi = _mm256_extractf128_pd(v, 1);
-    __m128d lo = _mm256_castpd256_pd128(v);
-    __m128d sum = _mm_add_pd(lo, hi);
-    sum = _mm_hadd_pd(sum, sum);
-    return _mm_cvtsd_f64(sum);
-}
+/* Horizontal reduction helpers moved to reduce.h:
+ * - _simsimd_reduce_add_f32x8_haswell
+ * - _simsimd_reduce_add_f64x4_haswell
+ */
 
 SIMSIMD_PUBLIC void simsimd_rmsd_f32_haswell(simsimd_f32_t const *a, simsimd_f32_t const *b, simsimd_size_t n,
                                              simsimd_f32_t *a_centroid, simsimd_f32_t *b_centroid,
