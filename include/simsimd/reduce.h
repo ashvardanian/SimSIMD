@@ -1,8 +1,8 @@
 /**
- *  @file       reduce.h
- *  @brief      SIMD-accelerated Horizontal Reduction Operations.
- *  @author     Ash Vardanian
- *  @date       December 27, 2024
+ *  @brief SIMD-accelerated Horizontal Reduction Operations.
+ *  @file include/simsimd/reduce.h
+ *  @author Ash Vardanian
+ *  @date December 27, 2024
  *
  *  Provides horizontal reduction operations (sum, min, max) over vectors with:
  *  - Internal helpers for single-register reductions (native precision)
@@ -60,13 +60,7 @@
 extern "C" {
 #endif
 
-/* ============================================================================
- * SIMSIMD_DYNAMIC Function Declarations (runtime dispatch)
- * ============================================================================
- * These are the primary public API functions. When SIMSIMD_DYNAMIC_DISPATCH is
- * enabled, these dispatch to the best available implementation at runtime.
- * Otherwise, they are inlined to the best compile-time available implementation.
- */
+#pragma region SIMSIMD_DYNAMIC Function Declarations
 
 /**
  *  @brief  Horizontal sum reduction over a strided array of f32 values.
@@ -136,9 +130,9 @@ SIMSIMD_DYNAMIC void simsimd_reduce_max_f64(simsimd_f64_t const *data, simsimd_s
                                             simsimd_size_t stride_bytes, simsimd_f64_t *max_value,
                                             simsimd_size_t *max_index);
 
-/* ============================================================================
- * Forward Declarations with @copydoc - Serial
- * ============================================================================ */
+#pragma endregion
+
+#pragma region Forward Declarations - Serial
 
 /** @copydoc simsimd_reduce_add_f32 */
 SIMSIMD_PUBLIC void simsimd_reduce_add_f32_serial(simsimd_f32_t const *data, simsimd_size_t count,
@@ -166,9 +160,9 @@ SIMSIMD_PUBLIC void simsimd_reduce_max_f64_serial(simsimd_f64_t const *data, sim
                                                   simsimd_size_t stride_bytes, simsimd_f64_t *max_value,
                                                   simsimd_size_t *max_index);
 
-/* ============================================================================
- * Forward Declarations with @copydoc - ARM NEON
- * ============================================================================ */
+#pragma endregion
+
+#pragma region Forward Declarations - ARM NEON
 
 #if SIMSIMD_TARGET_NEON
 /** @copydoc simsimd_reduce_add_f32 */
@@ -187,9 +181,9 @@ SIMSIMD_PUBLIC void simsimd_reduce_max_f32_neon(simsimd_f32_t const *data, simsi
                                                 simsimd_size_t *max_index);
 #endif // SIMSIMD_TARGET_NEON
 
-/* ============================================================================
- * Forward Declarations with @copydoc - x86 Haswell (AVX2)
- * ============================================================================ */
+#pragma endregion
+
+#pragma region Forward Declarations - x86 Haswell
 
 #if SIMSIMD_TARGET_HASWELL
 /** @copydoc simsimd_reduce_add_f32 */
@@ -216,9 +210,9 @@ SIMSIMD_PUBLIC void simsimd_reduce_max_f64_haswell(simsimd_f64_t const *data, si
                                                    simsimd_size_t *max_index);
 #endif // SIMSIMD_TARGET_HASWELL
 
-/* ============================================================================
- * Forward Declarations with @copydoc - x86 Skylake (AVX-512)
- * ============================================================================ */
+#pragma endregion
+
+#pragma region Forward Declarations - x86 Skylake
 
 #if SIMSIMD_TARGET_SKYLAKE
 /** @copydoc simsimd_reduce_add_f32 */
@@ -245,9 +239,9 @@ SIMSIMD_PUBLIC void simsimd_reduce_max_f64_skylake(simsimd_f64_t const *data, si
                                                    simsimd_size_t *max_index);
 #endif // SIMSIMD_TARGET_SKYLAKE
 
-/* ============================================================================
- * Serial Implementations
- * ============================================================================ */
+#pragma endregion
+
+#pragma region Serial Implementations
 
 SIMSIMD_PUBLIC void simsimd_reduce_add_f32_serial(                                //
     simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
@@ -290,10 +284,9 @@ SIMSIMD_PUBLIC void simsimd_reduce_min_f32_serial(                              
     ptr += stride_bytes;
     for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
         simsimd_f32_t val = *(simsimd_f32_t const *)ptr;
-        if (val < best_value) {
-            best_value = val;
-            best_index = i;
-        }
+        if (val >= best_value) continue;
+        best_value = val;
+        best_index = i;
     }
     *min_value = best_value;
     *min_index = best_index;
@@ -313,10 +306,9 @@ SIMSIMD_PUBLIC void simsimd_reduce_max_f32_serial(                              
     ptr += stride_bytes;
     for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
         simsimd_f32_t val = *(simsimd_f32_t const *)ptr;
-        if (val > best_value) {
-            best_value = val;
-            best_index = i;
-        }
+        if (val <= best_value) continue;
+        best_value = val;
+        best_index = i;
     }
     *max_value = best_value;
     *max_index = best_index;
@@ -336,10 +328,9 @@ SIMSIMD_PUBLIC void simsimd_reduce_min_f64_serial(                              
     ptr += stride_bytes;
     for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
         simsimd_f64_t val = *(simsimd_f64_t const *)ptr;
-        if (val < best_value) {
-            best_value = val;
-            best_index = i;
-        }
+        if (val >= best_value) continue;
+        best_value = val;
+        best_index = i;
     }
     *min_value = best_value;
     *min_index = best_index;
@@ -359,24 +350,25 @@ SIMSIMD_PUBLIC void simsimd_reduce_max_f64_serial(                              
     ptr += stride_bytes;
     for (simsimd_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
         simsimd_f64_t val = *(simsimd_f64_t const *)ptr;
-        if (val > best_value) {
-            best_value = val;
-            best_index = i;
-        }
+        if (val <= best_value) continue;
+        best_value = val;
+        best_index = i;
     }
     *max_value = best_value;
     *max_index = best_index;
 }
 
-/* ============================================================================
- * ARM NEON Implementations
- * ============================================================================ */
+#pragma endregion
+
+#pragma region ARM NEON Implementations
 
 #if _SIMSIMD_TARGET_ARM
 #if SIMSIMD_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
+
+#pragma region ARM NEON Internal Helpers
 
 /** @brief Horizontal sum of 4 floats in a NEON register. */
 SIMSIMD_INTERNAL simsimd_f32_t _simsimd_reduce_add_f32x4_neon(float32x4_t sum_f32x4) { return vaddvq_f32(sum_f32x4); }
@@ -409,13 +401,12 @@ SIMSIMD_INTERNAL simsimd_u32_t _simsimd_reduce_add_u8x16_neon(uint8x16_t sum_u8x
     return (simsimd_u32_t)vaddvq_u64(sum_u64x2);
 }
 
-SIMSIMD_PUBLIC void simsimd_reduce_add_f32_neon(                                  //
-    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
-    simsimd_f64_t *result) {
-    if (stride_bytes != sizeof(simsimd_f32_t)) {
-        simsimd_reduce_add_f32_serial(data, count, stride_bytes, result);
-        return;
-    }
+#pragma endregion // ARM NEON Internal Helpers
+
+#pragma region ARM NEON Public Implementations
+
+SIMSIMD_INTERNAL void _simsimd_reduce_add_f32_neon_contiguous( //
+    simsimd_f32_t const *data, simsimd_size_t count, simsimd_f64_t *result) {
     // Accumulate in f64 for precision
     float64x2_t sum_f64x2 = vdupq_n_f64(0);
     simsimd_size_t idx_scalars = 0;
@@ -431,13 +422,15 @@ SIMSIMD_PUBLIC void simsimd_reduce_add_f32_neon(                                
     *result = sum;
 }
 
-SIMSIMD_PUBLIC void simsimd_reduce_add_f64_neon(                                  //
-    simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+SIMSIMD_PUBLIC void simsimd_reduce_add_f32_neon(                                  //
+    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
     simsimd_f64_t *result) {
-    if (stride_bytes != sizeof(simsimd_f64_t)) {
-        simsimd_reduce_add_f64_serial(data, count, stride_bytes, result);
-        return;
-    }
+    if (stride_bytes == sizeof(simsimd_f32_t)) return _simsimd_reduce_add_f32_neon_contiguous(data, count, result);
+    simsimd_reduce_add_f32_serial(data, count, stride_bytes, result);
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_add_f64_neon_contiguous( //
+    simsimd_f64_t const *data, simsimd_size_t count, simsimd_f64_t *result) {
     float64x2_t sum_f64x2 = vdupq_n_f64(0);
     simsimd_size_t idx_scalars = 0;
     for (; idx_scalars + 2 <= count; idx_scalars += 2) {
@@ -449,13 +442,16 @@ SIMSIMD_PUBLIC void simsimd_reduce_add_f64_neon(                                
     *result = sum;
 }
 
-SIMSIMD_PUBLIC void simsimd_reduce_min_f32_neon(                                  //
-    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+SIMSIMD_PUBLIC void simsimd_reduce_add_f64_neon(                                  //
+    simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_f64_t *result) {
+    if (stride_bytes == sizeof(simsimd_f64_t)) return _simsimd_reduce_add_f64_neon_contiguous(data, count, result);
+    simsimd_reduce_add_f64_serial(data, count, stride_bytes, result);
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_min_f32_neon_contiguous( //
+    simsimd_f32_t const *data, simsimd_size_t count,           //
     simsimd_f32_t *min_value, simsimd_size_t *min_index) {
-    if (stride_bytes != sizeof(simsimd_f32_t) || count < 4) {
-        simsimd_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
-        return;
-    }
     // First pass: find minimum value using SIMD
     float32x4_t min_f32x4 = vld1q_f32(data);
     simsimd_size_t idx_scalars = 4;
@@ -468,23 +464,26 @@ SIMSIMD_PUBLIC void simsimd_reduce_min_f32_neon(                                
         if (data[idx_scalars] < min_val) min_val = data[idx_scalars];
     // Second pass: find first index
     for (idx_scalars = 0; idx_scalars < count; ++idx_scalars) {
-        if (data[idx_scalars] == min_val) {
-            *min_value = min_val;
-            *min_index = idx_scalars;
-            return;
-        }
+        if (data[idx_scalars] != min_val) continue;
+        *min_value = min_val;
+        *min_index = idx_scalars;
+        return;
     }
     *min_value = min_val;
     *min_index = 0;
 }
 
-SIMSIMD_PUBLIC void simsimd_reduce_max_f32_neon(                                  //
+SIMSIMD_PUBLIC void simsimd_reduce_min_f32_neon(                                  //
     simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_f32_t *min_value, simsimd_size_t *min_index) {
+    if (stride_bytes == sizeof(simsimd_f32_t) && count >= 4)
+        return _simsimd_reduce_min_f32_neon_contiguous(data, count, min_value, min_index);
+    simsimd_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_max_f32_neon_contiguous( //
+    simsimd_f32_t const *data, simsimd_size_t count,           //
     simsimd_f32_t *max_value, simsimd_size_t *max_index) {
-    if (stride_bytes != sizeof(simsimd_f32_t) || count < 4) {
-        simsimd_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
-        return;
-    }
     float32x4_t max_f32x4 = vld1q_f32(data);
     simsimd_size_t idx_scalars = 4;
     for (; idx_scalars + 4 <= count; idx_scalars += 4) {
@@ -494,16 +493,26 @@ SIMSIMD_PUBLIC void simsimd_reduce_max_f32_neon(                                
     simsimd_f32_t max_val = _simsimd_reduce_max_f32x4_neon(max_f32x4);
     for (; idx_scalars < count; ++idx_scalars)
         if (data[idx_scalars] > max_val) max_val = data[idx_scalars];
+    // Second pass: find first index
     for (idx_scalars = 0; idx_scalars < count; ++idx_scalars) {
-        if (data[idx_scalars] == max_val) {
-            *max_value = max_val;
-            *max_index = idx_scalars;
-            return;
-        }
+        if (data[idx_scalars] != max_val) continue;
+        *max_value = max_val;
+        *max_index = idx_scalars;
+        return;
     }
     *max_value = max_val;
     *max_index = 0;
 }
+
+SIMSIMD_PUBLIC void simsimd_reduce_max_f32_neon(                                  //
+    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_f32_t *max_value, simsimd_size_t *max_index) {
+    if (stride_bytes == sizeof(simsimd_f32_t) && count >= 4)
+        return _simsimd_reduce_max_f32_neon_contiguous(data, count, max_value, max_index);
+    simsimd_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+#pragma endregion // ARM NEON Public Implementations
 
 #pragma clang attribute pop
 #pragma GCC pop_options
@@ -529,15 +538,17 @@ SIMSIMD_INTERNAL simsimd_f32_t _simsimd_reduce_add_f16x8_neon(float16x8_t sum_f1
 #endif // SIMSIMD_TARGET_NEON_F16
 #endif // _SIMSIMD_TARGET_ARM
 
-/* ============================================================================
- * x86 AVX2 (Haswell) Implementations
- * ============================================================================ */
+#pragma endregion // ARM NEON Implementations
+
+#pragma region x86 Haswell Implementations
 
 #if _SIMSIMD_TARGET_X86
 #if SIMSIMD_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("avx2", "fma")
 #pragma clang attribute push(__attribute__((target("avx2,fma"))), apply_to = function)
+
+#pragma region x86 Haswell Internal Helpers
 
 /** @brief Horizontal sum of 4 doubles in a YMM register. */
 SIMSIMD_INTERNAL simsimd_f64_t _simsimd_reduce_add_f64x4_haswell(__m256d sum_f64x4) {
@@ -606,35 +617,13 @@ SIMSIMD_INTERNAL simsimd_f64_t _simsimd_reduce_max_f64x4_haswell(__m256d max_f64
     return _mm_cvtsd_f64(max_f64x2);
 }
 
-SIMSIMD_PUBLIC void simsimd_reduce_add_f32_haswell(                               //
-    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
-    simsimd_f64_t *result) {
-    // For strided access with large stride, use gather if stride fits in i32 indices
-    if (stride_bytes != sizeof(simsimd_f32_t)) {
-        if (stride_bytes % sizeof(simsimd_f32_t) == 0 && stride_bytes <= 8 * sizeof(simsimd_f32_t)) {
-            simsimd_i32_t stride_elements = (simsimd_i32_t)(stride_bytes / sizeof(simsimd_f32_t));
-            __m256i indices_i32x8 = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7),
-                                                       _mm256_set1_epi32(stride_elements));
-            __m256d sum_f64x4 = _mm256_setzero_pd();
-            simsimd_size_t idx_scalars = 0;
-            for (; idx_scalars + 8 <= count; idx_scalars += 8) {
-                __m256 gathered_f32x8 = _mm256_i32gather_ps(data + idx_scalars * stride_elements, indices_i32x8,
-                                                            sizeof(simsimd_f32_t));
-                __m128 lo_f32x4 = _mm256_castps256_ps128(gathered_f32x8);
-                __m128 hi_f32x4 = _mm256_extractf128_ps(gathered_f32x8, 1);
-                sum_f64x4 = _mm256_add_pd(sum_f64x4, _mm256_cvtps_pd(lo_f32x4));
-                sum_f64x4 = _mm256_add_pd(sum_f64x4, _mm256_cvtps_pd(hi_f32x4));
-            }
-            simsimd_f64_t sum = _simsimd_reduce_add_f64x4_haswell(sum_f64x4);
-            unsigned char const *ptr = (unsigned char const *)(data + idx_scalars * stride_elements);
-            for (; idx_scalars < count; ++idx_scalars, ptr += stride_bytes) sum += *(simsimd_f32_t const *)ptr;
-            *result = sum;
-            return;
-        }
-        simsimd_reduce_add_f32_serial(data, count, stride_bytes, result);
-        return;
-    }
-    // Contiguous path: accumulate in f64 for precision
+#pragma endregion // x86 Haswell Internal Helpers
+
+#pragma region x86 Haswell Public Implementations
+
+SIMSIMD_INTERNAL void _simsimd_reduce_add_f32_haswell_contiguous( //
+    simsimd_f32_t const *data, simsimd_size_t count, simsimd_f64_t *result) {
+    // Accumulate in f64 for precision
     __m256d sum_f64x4 = _mm256_setzero_pd();
     simsimd_size_t idx_scalars = 0;
     for (; idx_scalars + 8 <= count; idx_scalars += 8) {
@@ -649,13 +638,39 @@ SIMSIMD_PUBLIC void simsimd_reduce_add_f32_haswell(                             
     *result = sum;
 }
 
-SIMSIMD_PUBLIC void simsimd_reduce_add_f64_haswell(                               //
-    simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+SIMSIMD_INTERNAL void _simsimd_reduce_add_f32_haswell_gather(                     //
+    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
     simsimd_f64_t *result) {
-    if (stride_bytes != sizeof(simsimd_f64_t)) {
-        simsimd_reduce_add_f64_serial(data, count, stride_bytes, result);
-        return;
+    simsimd_i32_t stride_elements = (simsimd_i32_t)(stride_bytes / sizeof(simsimd_f32_t));
+    __m256i indices_i32x8 = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7),
+                                               _mm256_set1_epi32(stride_elements));
+    __m256d sum_f64x4 = _mm256_setzero_pd();
+    simsimd_size_t idx_scalars = 0;
+    for (; idx_scalars + 8 <= count; idx_scalars += 8) {
+        __m256 gathered_f32x8 = _mm256_i32gather_ps(data + idx_scalars * stride_elements, indices_i32x8,
+                                                    sizeof(simsimd_f32_t));
+        __m128 lo_f32x4 = _mm256_castps256_ps128(gathered_f32x8);
+        __m128 hi_f32x4 = _mm256_extractf128_ps(gathered_f32x8, 1);
+        sum_f64x4 = _mm256_add_pd(sum_f64x4, _mm256_cvtps_pd(lo_f32x4));
+        sum_f64x4 = _mm256_add_pd(sum_f64x4, _mm256_cvtps_pd(hi_f32x4));
     }
+    simsimd_f64_t sum = _simsimd_reduce_add_f64x4_haswell(sum_f64x4);
+    unsigned char const *ptr = (unsigned char const *)(data + idx_scalars * stride_elements);
+    for (; idx_scalars < count; ++idx_scalars, ptr += stride_bytes) sum += *(simsimd_f32_t const *)ptr;
+    *result = sum;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_add_f32_haswell(                               //
+    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_f64_t *result) {
+    if (stride_bytes == sizeof(simsimd_f32_t)) return _simsimd_reduce_add_f32_haswell_contiguous(data, count, result);
+    if (stride_bytes % sizeof(simsimd_f32_t) == 0 && stride_bytes <= 8 * sizeof(simsimd_f32_t))
+        return _simsimd_reduce_add_f32_haswell_gather(data, count, stride_bytes, result);
+    simsimd_reduce_add_f32_serial(data, count, stride_bytes, result);
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_add_f64_haswell_contiguous( //
+    simsimd_f64_t const *data, simsimd_size_t count, simsimd_f64_t *result) {
     __m256d sum_f64x4 = _mm256_setzero_pd();
     simsimd_size_t idx_scalars = 0;
     for (; idx_scalars + 4 <= count; idx_scalars += 4) {
@@ -667,13 +682,16 @@ SIMSIMD_PUBLIC void simsimd_reduce_add_f64_haswell(                             
     *result = sum;
 }
 
-SIMSIMD_PUBLIC void simsimd_reduce_min_f32_haswell(                               //
-    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+SIMSIMD_PUBLIC void simsimd_reduce_add_f64_haswell(                               //
+    simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_f64_t *result) {
+    if (stride_bytes == sizeof(simsimd_f64_t)) return _simsimd_reduce_add_f64_haswell_contiguous(data, count, result);
+    simsimd_reduce_add_f64_serial(data, count, stride_bytes, result);
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_min_f32_haswell_contiguous( //
+    simsimd_f32_t const *data, simsimd_size_t count,              //
     simsimd_f32_t *min_value, simsimd_size_t *min_index) {
-    if (stride_bytes != sizeof(simsimd_f32_t) || count < 8) {
-        simsimd_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
-        return;
-    }
     // First pass: find minimum value
     __m256 min_f32x8 = _mm256_loadu_ps(data);
     simsimd_size_t idx_scalars = 8;
@@ -686,23 +704,26 @@ SIMSIMD_PUBLIC void simsimd_reduce_min_f32_haswell(                             
         if (data[idx_scalars] < min_val) min_val = data[idx_scalars];
     // Second pass: find first index
     for (idx_scalars = 0; idx_scalars < count; ++idx_scalars) {
-        if (data[idx_scalars] == min_val) {
-            *min_value = min_val;
-            *min_index = idx_scalars;
-            return;
-        }
+        if (data[idx_scalars] != min_val) continue;
+        *min_value = min_val;
+        *min_index = idx_scalars;
+        return;
     }
     *min_value = min_val;
     *min_index = 0;
 }
 
-SIMSIMD_PUBLIC void simsimd_reduce_max_f32_haswell(                               //
+SIMSIMD_PUBLIC void simsimd_reduce_min_f32_haswell(                               //
     simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_f32_t *min_value, simsimd_size_t *min_index) {
+    if (stride_bytes == sizeof(simsimd_f32_t) && count >= 8)
+        return _simsimd_reduce_min_f32_haswell_contiguous(data, count, min_value, min_index);
+    simsimd_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_max_f32_haswell_contiguous( //
+    simsimd_f32_t const *data, simsimd_size_t count,              //
     simsimd_f32_t *max_value, simsimd_size_t *max_index) {
-    if (stride_bytes != sizeof(simsimd_f32_t) || count < 8) {
-        simsimd_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
-        return;
-    }
     __m256 max_f32x8 = _mm256_loadu_ps(data);
     simsimd_size_t idx_scalars = 8;
     for (; idx_scalars + 8 <= count; idx_scalars += 8) {
@@ -712,24 +733,28 @@ SIMSIMD_PUBLIC void simsimd_reduce_max_f32_haswell(                             
     simsimd_f32_t max_val = _simsimd_reduce_max_f32x8_haswell(max_f32x8);
     for (; idx_scalars < count; ++idx_scalars)
         if (data[idx_scalars] > max_val) max_val = data[idx_scalars];
+    // Second pass: find first index
     for (idx_scalars = 0; idx_scalars < count; ++idx_scalars) {
-        if (data[idx_scalars] == max_val) {
-            *max_value = max_val;
-            *max_index = idx_scalars;
-            return;
-        }
+        if (data[idx_scalars] != max_val) continue;
+        *max_value = max_val;
+        *max_index = idx_scalars;
+        return;
     }
     *max_value = max_val;
     *max_index = 0;
 }
 
-SIMSIMD_PUBLIC void simsimd_reduce_min_f64_haswell(                               //
-    simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+SIMSIMD_PUBLIC void simsimd_reduce_max_f32_haswell(                               //
+    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_f32_t *max_value, simsimd_size_t *max_index) {
+    if (stride_bytes == sizeof(simsimd_f32_t) && count >= 8)
+        return _simsimd_reduce_max_f32_haswell_contiguous(data, count, max_value, max_index);
+    simsimd_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_min_f64_haswell_contiguous( //
+    simsimd_f64_t const *data, simsimd_size_t count,              //
     simsimd_f64_t *min_value, simsimd_size_t *min_index) {
-    if (stride_bytes != sizeof(simsimd_f64_t) || count < 4) {
-        simsimd_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
-        return;
-    }
     __m256d min_f64x4 = _mm256_loadu_pd(data);
     simsimd_size_t idx_scalars = 4;
     for (; idx_scalars + 4 <= count; idx_scalars += 4) {
@@ -739,24 +764,28 @@ SIMSIMD_PUBLIC void simsimd_reduce_min_f64_haswell(                             
     simsimd_f64_t min_val = _simsimd_reduce_min_f64x4_haswell(min_f64x4);
     for (; idx_scalars < count; ++idx_scalars)
         if (data[idx_scalars] < min_val) min_val = data[idx_scalars];
+    // Second pass: find first index
     for (idx_scalars = 0; idx_scalars < count; ++idx_scalars) {
-        if (data[idx_scalars] == min_val) {
-            *min_value = min_val;
-            *min_index = idx_scalars;
-            return;
-        }
+        if (data[idx_scalars] != min_val) continue;
+        *min_value = min_val;
+        *min_index = idx_scalars;
+        return;
     }
     *min_value = min_val;
     *min_index = 0;
 }
 
-SIMSIMD_PUBLIC void simsimd_reduce_max_f64_haswell(                               //
+SIMSIMD_PUBLIC void simsimd_reduce_min_f64_haswell(                               //
     simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_f64_t *min_value, simsimd_size_t *min_index) {
+    if (stride_bytes == sizeof(simsimd_f64_t) && count >= 4)
+        return _simsimd_reduce_min_f64_haswell_contiguous(data, count, min_value, min_index);
+    simsimd_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_max_f64_haswell_contiguous( //
+    simsimd_f64_t const *data, simsimd_size_t count,              //
     simsimd_f64_t *max_value, simsimd_size_t *max_index) {
-    if (stride_bytes != sizeof(simsimd_f64_t) || count < 4) {
-        simsimd_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
-        return;
-    }
     __m256d max_f64x4 = _mm256_loadu_pd(data);
     simsimd_size_t idx_scalars = 4;
     for (; idx_scalars + 4 <= count; idx_scalars += 4) {
@@ -766,29 +795,41 @@ SIMSIMD_PUBLIC void simsimd_reduce_max_f64_haswell(                             
     simsimd_f64_t max_val = _simsimd_reduce_max_f64x4_haswell(max_f64x4);
     for (; idx_scalars < count; ++idx_scalars)
         if (data[idx_scalars] > max_val) max_val = data[idx_scalars];
+    // Second pass: find first index
     for (idx_scalars = 0; idx_scalars < count; ++idx_scalars) {
-        if (data[idx_scalars] == max_val) {
-            *max_value = max_val;
-            *max_index = idx_scalars;
-            return;
-        }
+        if (data[idx_scalars] != max_val) continue;
+        *max_value = max_val;
+        *max_index = idx_scalars;
+        return;
     }
     *max_value = max_val;
     *max_index = 0;
 }
 
+SIMSIMD_PUBLIC void simsimd_reduce_max_f64_haswell(                               //
+    simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_f64_t *max_value, simsimd_size_t *max_index) {
+    if (stride_bytes == sizeof(simsimd_f64_t) && count >= 4)
+        return _simsimd_reduce_max_f64_haswell_contiguous(data, count, max_value, max_index);
+    simsimd_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+#pragma endregion // x86 Haswell Public Implementations
+
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_HASWELL
 
-/* ============================================================================
- * x86 AVX-512 (Skylake) Implementations
- * ============================================================================ */
+#pragma endregion // x86 Haswell Implementations
+
+#pragma region x86 Skylake Implementations
 
 #if SIMSIMD_TARGET_SKYLAKE
 #pragma GCC push_options
 #pragma GCC target("avx512f", "avx512vl", "avx512bw", "bmi2")
 #pragma clang attribute push(__attribute__((target("avx512f,avx512vl,avx512bw,bmi2"))), apply_to = function)
+
+#pragma region x86 Skylake Internal Helpers
 
 /** @brief Horizontal sum of 16 floats in a ZMM register (native f32 precision). */
 SIMSIMD_INTERNAL simsimd_f32_t _simsimd_reduce_add_f32x16_skylake(__m512 sum_f32x16) {
@@ -890,36 +931,12 @@ SIMSIMD_INTERNAL simsimd_i64_t _simsimd_reduce_add_i64x8_skylake(__m512i sum_i64
     return _mm_cvtsi128_si64(sum_i64x2);
 }
 
-SIMSIMD_PUBLIC void simsimd_reduce_add_f32_skylake(                               //
-    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
-    simsimd_f64_t *result) {
-    // For strided access, use gather
-    if (stride_bytes != sizeof(simsimd_f32_t)) {
-        if (stride_bytes % sizeof(simsimd_f32_t) == 0) {
-            simsimd_i32_t stride_elements = (simsimd_i32_t)(stride_bytes / sizeof(simsimd_f32_t));
-            __m512i indices_i32x16 = _mm512_mullo_epi32(
-                _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
-                _mm512_set1_epi32(stride_elements));
-            __m512d sum_f64x8 = _mm512_setzero_pd();
-            simsimd_size_t idx_scalars = 0;
-            for (; idx_scalars + 16 <= count; idx_scalars += 16) {
-                __m512 gathered_f32x16 = _mm512_i32gather_ps(indices_i32x16, data + idx_scalars * stride_elements,
-                                                             sizeof(simsimd_f32_t));
-                __m256 lo_f32x8 = _mm512_castps512_ps256(gathered_f32x16);
-                __m256 hi_f32x8 = _mm512_extractf32x8_ps(gathered_f32x16, 1);
-                sum_f64x8 = _mm512_add_pd(sum_f64x8, _mm512_cvtps_pd(lo_f32x8));
-                sum_f64x8 = _mm512_add_pd(sum_f64x8, _mm512_cvtps_pd(hi_f32x8));
-            }
-            simsimd_f64_t sum = _simsimd_reduce_add_f64x8_skylake(sum_f64x8);
-            unsigned char const *ptr = (unsigned char const *)(data + idx_scalars * stride_elements);
-            for (; idx_scalars < count; ++idx_scalars, ptr += stride_bytes) sum += *(simsimd_f32_t const *)ptr;
-            *result = sum;
-            return;
-        }
-        simsimd_reduce_add_f32_serial(data, count, stride_bytes, result);
-        return;
-    }
-    // Contiguous path with masked tail
+#pragma endregion // x86 Skylake Internal Helpers
+
+#pragma region x86 Skylake Public Implementations
+
+SIMSIMD_INTERNAL void _simsimd_reduce_add_f32_skylake_contiguous( //
+    simsimd_f32_t const *data, simsimd_size_t count, simsimd_f64_t *result) {
     __m512d sum_f64x8 = _mm512_setzero_pd();
     simsimd_size_t idx_scalars = 0;
     for (; idx_scalars + 16 <= count; idx_scalars += 16) {
@@ -942,31 +959,39 @@ SIMSIMD_PUBLIC void simsimd_reduce_add_f32_skylake(                             
     *result = _simsimd_reduce_add_f64x8_skylake(sum_f64x8);
 }
 
-SIMSIMD_PUBLIC void simsimd_reduce_add_f64_skylake(                               //
-    simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+SIMSIMD_INTERNAL void _simsimd_reduce_add_f32_skylake_gather(                     //
+    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
     simsimd_f64_t *result) {
-    if (stride_bytes != sizeof(simsimd_f64_t)) {
-        if (stride_bytes % sizeof(simsimd_f64_t) == 0) {
-            simsimd_i32_t stride_elements = (simsimd_i32_t)(stride_bytes / sizeof(simsimd_f64_t));
-            __m256i indices_i32x8 = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7),
-                                                       _mm256_set1_epi32(stride_elements));
-            __m512d sum_f64x8 = _mm512_setzero_pd();
-            simsimd_size_t idx_scalars = 0;
-            for (; idx_scalars + 8 <= count; idx_scalars += 8) {
-                __m512d gathered_f64x8 = _mm512_i32gather_pd(indices_i32x8, data + idx_scalars * stride_elements,
-                                                             sizeof(simsimd_f64_t));
-                sum_f64x8 = _mm512_add_pd(sum_f64x8, gathered_f64x8);
-            }
-            simsimd_f64_t sum = _simsimd_reduce_add_f64x8_skylake(sum_f64x8);
-            unsigned char const *ptr = (unsigned char const *)(data + idx_scalars * stride_elements);
-            for (; idx_scalars < count; ++idx_scalars, ptr += stride_bytes) sum += *(simsimd_f64_t const *)ptr;
-            *result = sum;
-            return;
-        }
-        simsimd_reduce_add_f64_serial(data, count, stride_bytes, result);
-        return;
+    simsimd_i32_t stride_elements = (simsimd_i32_t)(stride_bytes / sizeof(simsimd_f32_t));
+    __m512i indices_i32x16 = _mm512_mullo_epi32(_mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
+                                                _mm512_set1_epi32(stride_elements));
+    __m512d sum_f64x8 = _mm512_setzero_pd();
+    simsimd_size_t idx_scalars = 0;
+    for (; idx_scalars + 16 <= count; idx_scalars += 16) {
+        __m512 gathered_f32x16 = _mm512_i32gather_ps(indices_i32x16, data + idx_scalars * stride_elements,
+                                                     sizeof(simsimd_f32_t));
+        __m256 lo_f32x8 = _mm512_castps512_ps256(gathered_f32x16);
+        __m256 hi_f32x8 = _mm512_extractf32x8_ps(gathered_f32x16, 1);
+        sum_f64x8 = _mm512_add_pd(sum_f64x8, _mm512_cvtps_pd(lo_f32x8));
+        sum_f64x8 = _mm512_add_pd(sum_f64x8, _mm512_cvtps_pd(hi_f32x8));
     }
-    // Contiguous path with masked tail
+    simsimd_f64_t sum = _simsimd_reduce_add_f64x8_skylake(sum_f64x8);
+    unsigned char const *ptr = (unsigned char const *)(data + idx_scalars * stride_elements);
+    for (; idx_scalars < count; ++idx_scalars, ptr += stride_bytes) sum += *(simsimd_f32_t const *)ptr;
+    *result = sum;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_add_f32_skylake(                               //
+    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_f64_t *result) {
+    if (stride_bytes == sizeof(simsimd_f32_t)) return _simsimd_reduce_add_f32_skylake_contiguous(data, count, result);
+    if (stride_bytes % sizeof(simsimd_f32_t) == 0)
+        return _simsimd_reduce_add_f32_skylake_gather(data, count, stride_bytes, result);
+    simsimd_reduce_add_f32_serial(data, count, stride_bytes, result);
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_add_f64_skylake_contiguous( //
+    simsimd_f64_t const *data, simsimd_size_t count, simsimd_f64_t *result) {
     __m512d sum_f64x8 = _mm512_setzero_pd();
     simsimd_size_t idx_scalars = 0;
     for (; idx_scalars + 8 <= count; idx_scalars += 8) {
@@ -983,13 +1008,37 @@ SIMSIMD_PUBLIC void simsimd_reduce_add_f64_skylake(                             
     *result = _simsimd_reduce_add_f64x8_skylake(sum_f64x8);
 }
 
-SIMSIMD_PUBLIC void simsimd_reduce_min_f32_skylake(                               //
-    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
-    simsimd_f32_t *min_value, simsimd_size_t *min_index) {
-    if (stride_bytes != sizeof(simsimd_f32_t) || count < 16) {
-        simsimd_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
-        return;
+SIMSIMD_INTERNAL void _simsimd_reduce_add_f64_skylake_gather(                     //
+    simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_f64_t *result) {
+    simsimd_i32_t stride_elements = (simsimd_i32_t)(stride_bytes / sizeof(simsimd_f64_t));
+    __m256i indices_i32x8 = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7),
+                                               _mm256_set1_epi32(stride_elements));
+    __m512d sum_f64x8 = _mm512_setzero_pd();
+    simsimd_size_t idx_scalars = 0;
+    for (; idx_scalars + 8 <= count; idx_scalars += 8) {
+        __m512d gathered_f64x8 = _mm512_i32gather_pd(indices_i32x8, data + idx_scalars * stride_elements,
+                                                     sizeof(simsimd_f64_t));
+        sum_f64x8 = _mm512_add_pd(sum_f64x8, gathered_f64x8);
     }
+    simsimd_f64_t sum = _simsimd_reduce_add_f64x8_skylake(sum_f64x8);
+    unsigned char const *ptr = (unsigned char const *)(data + idx_scalars * stride_elements);
+    for (; idx_scalars < count; ++idx_scalars, ptr += stride_bytes) sum += *(simsimd_f64_t const *)ptr;
+    *result = sum;
+}
+
+SIMSIMD_PUBLIC void simsimd_reduce_add_f64_skylake(                               //
+    simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_f64_t *result) {
+    if (stride_bytes == sizeof(simsimd_f64_t)) return _simsimd_reduce_add_f64_skylake_contiguous(data, count, result);
+    if (stride_bytes % sizeof(simsimd_f64_t) == 0)
+        return _simsimd_reduce_add_f64_skylake_gather(data, count, stride_bytes, result);
+    simsimd_reduce_add_f64_serial(data, count, stride_bytes, result);
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_min_f32_skylake_contiguous( //
+    simsimd_f32_t const *data, simsimd_size_t count,              //
+    simsimd_f32_t *min_value, simsimd_size_t *min_index) {
     // Single-pass: track both min value and index in SIMD
     __m512 min_f32x16 = _mm512_loadu_ps(data);
     __m512i min_idx_i32x16 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
@@ -1023,7 +1072,7 @@ SIMSIMD_PUBLIC void simsimd_reduce_min_f32_skylake(                             
 
     // Find the first lane that matches the minimum
     __mmask16 eq_mask = _mm512_cmp_ps_mask(min_f32x16, _mm512_set1_ps(min_val), _CMP_EQ_OQ);
-    int first_lane = __builtin_ctz(eq_mask);
+    unsigned int first_lane = _tzcnt_u32(eq_mask);
 
     // Extract the index from that lane
     simsimd_i32_t indices[16];
@@ -1033,13 +1082,17 @@ SIMSIMD_PUBLIC void simsimd_reduce_min_f32_skylake(                             
     *min_index = (simsimd_size_t)indices[first_lane];
 }
 
-SIMSIMD_PUBLIC void simsimd_reduce_max_f32_skylake(                               //
+SIMSIMD_PUBLIC void simsimd_reduce_min_f32_skylake(                               //
     simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_f32_t *min_value, simsimd_size_t *min_index) {
+    if (stride_bytes == sizeof(simsimd_f32_t) && count >= 16)
+        return _simsimd_reduce_min_f32_skylake_contiguous(data, count, min_value, min_index);
+    simsimd_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_max_f32_skylake_contiguous( //
+    simsimd_f32_t const *data, simsimd_size_t count,              //
     simsimd_f32_t *max_value, simsimd_size_t *max_index) {
-    if (stride_bytes != sizeof(simsimd_f32_t) || count < 16) {
-        simsimd_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
-        return;
-    }
     // Single-pass: track both max value and index in SIMD
     __m512 max_f32x16 = _mm512_loadu_ps(data);
     __m512i max_idx_i32x16 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
@@ -1073,7 +1126,7 @@ SIMSIMD_PUBLIC void simsimd_reduce_max_f32_skylake(                             
 
     // Find the first lane that matches the maximum
     __mmask16 eq_mask = _mm512_cmp_ps_mask(max_f32x16, _mm512_set1_ps(max_val), _CMP_EQ_OQ);
-    int first_lane = __builtin_ctz(eq_mask);
+    unsigned int first_lane = _tzcnt_u32(eq_mask);
 
     // Extract the index from that lane
     simsimd_i32_t indices[16];
@@ -1083,13 +1136,17 @@ SIMSIMD_PUBLIC void simsimd_reduce_max_f32_skylake(                             
     *max_index = (simsimd_size_t)indices[first_lane];
 }
 
-SIMSIMD_PUBLIC void simsimd_reduce_min_f64_skylake(                               //
-    simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+SIMSIMD_PUBLIC void simsimd_reduce_max_f32_skylake(                               //
+    simsimd_f32_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_f32_t *max_value, simsimd_size_t *max_index) {
+    if (stride_bytes == sizeof(simsimd_f32_t) && count >= 16)
+        return _simsimd_reduce_max_f32_skylake_contiguous(data, count, max_value, max_index);
+    simsimd_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_min_f64_skylake_contiguous( //
+    simsimd_f64_t const *data, simsimd_size_t count,              //
     simsimd_f64_t *min_value, simsimd_size_t *min_index) {
-    if (stride_bytes != sizeof(simsimd_f64_t) || count < 8) {
-        simsimd_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
-        return;
-    }
     // Single-pass: track both min value and index in SIMD
     __m512d min_f64x8 = _mm512_loadu_pd(data);
     __m512i min_idx_i64x8 = _mm512_setr_epi64(0, 1, 2, 3, 4, 5, 6, 7);
@@ -1120,7 +1177,7 @@ SIMSIMD_PUBLIC void simsimd_reduce_min_f64_skylake(                             
     // Horizontal reduction
     simsimd_f64_t min_val = _simsimd_reduce_min_f64x8_skylake(min_f64x8);
     __mmask8 eq_mask = _mm512_cmp_pd_mask(min_f64x8, _mm512_set1_pd(min_val), _CMP_EQ_OQ);
-    int first_lane = __builtin_ctz(eq_mask);
+    unsigned int first_lane = _tzcnt_u32(eq_mask);
 
     simsimd_i64_t indices[8];
     _mm512_storeu_si512(indices, min_idx_i64x8);
@@ -1129,13 +1186,17 @@ SIMSIMD_PUBLIC void simsimd_reduce_min_f64_skylake(                             
     *min_index = (simsimd_size_t)indices[first_lane];
 }
 
-SIMSIMD_PUBLIC void simsimd_reduce_max_f64_skylake(                               //
+SIMSIMD_PUBLIC void simsimd_reduce_min_f64_skylake(                               //
     simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_f64_t *min_value, simsimd_size_t *min_index) {
+    if (stride_bytes == sizeof(simsimd_f64_t) && count >= 8)
+        return _simsimd_reduce_min_f64_skylake_contiguous(data, count, min_value, min_index);
+    simsimd_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+SIMSIMD_INTERNAL void _simsimd_reduce_max_f64_skylake_contiguous( //
+    simsimd_f64_t const *data, simsimd_size_t count,              //
     simsimd_f64_t *max_value, simsimd_size_t *max_index) {
-    if (stride_bytes != sizeof(simsimd_f64_t) || count < 8) {
-        simsimd_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
-        return;
-    }
     // Single-pass: track both max value and index in SIMD
     __m512d max_f64x8 = _mm512_loadu_pd(data);
     __m512i max_idx_i64x8 = _mm512_setr_epi64(0, 1, 2, 3, 4, 5, 6, 7);
@@ -1166,7 +1227,7 @@ SIMSIMD_PUBLIC void simsimd_reduce_max_f64_skylake(                             
     // Horizontal reduction
     simsimd_f64_t max_val = _simsimd_reduce_max_f64x8_skylake(max_f64x8);
     __mmask8 eq_mask = _mm512_cmp_pd_mask(max_f64x8, _mm512_set1_pd(max_val), _CMP_EQ_OQ);
-    int first_lane = __builtin_ctz(eq_mask);
+    unsigned int first_lane = _tzcnt_u32(eq_mask);
 
     simsimd_i64_t indices[8];
     _mm512_storeu_si512(indices, max_idx_i64x8);
@@ -1175,14 +1236,24 @@ SIMSIMD_PUBLIC void simsimd_reduce_max_f64_skylake(                             
     *max_index = (simsimd_size_t)indices[first_lane];
 }
 
+SIMSIMD_PUBLIC void simsimd_reduce_max_f64_skylake(                               //
+    simsimd_f64_t const *data, simsimd_size_t count, simsimd_size_t stride_bytes, //
+    simsimd_f64_t *max_value, simsimd_size_t *max_index) {
+    if (stride_bytes == sizeof(simsimd_f64_t) && count >= 8)
+        return _simsimd_reduce_max_f64_skylake_contiguous(data, count, max_value, max_index);
+    simsimd_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+#pragma endregion // x86 Skylake Public Implementations
+
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // SIMSIMD_TARGET_SKYLAKE
 #endif // _SIMSIMD_TARGET_X86
 
-/* ============================================================================
- * Compile-Time Dispatch (when SIMSIMD_DYNAMIC_DISPATCH is disabled)
- * ============================================================================ */
+#pragma endregion // x86 Skylake Implementations
+
+#pragma region Compile-Time Dispatch
 
 #if !SIMSIMD_DYNAMIC_DISPATCH
 
@@ -1261,6 +1332,8 @@ SIMSIMD_PUBLIC void simsimd_reduce_max_f64(simsimd_f64_t const *data, simsimd_si
 }
 
 #endif // !SIMSIMD_DYNAMIC_DISPATCH
+
+#pragma endregion // Compile-Time Dispatch
 
 #ifdef __cplusplus
 }
