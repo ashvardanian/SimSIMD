@@ -14,6 +14,12 @@
 #ifndef SIMSIMD_TYPES_H
 #define SIMSIMD_TYPES_H
 
+// On Linux, `_GNU_SOURCE` must be defined before any system headers
+// to expose `syscall` and other GNU extensions when C extensions are disabled.
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
+
 // Inferring target OS: Windows, macOS, or Linux
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #define _SIMSIMD_DEFINED_WINDOWS 1
