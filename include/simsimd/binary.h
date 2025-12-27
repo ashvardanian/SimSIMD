@@ -191,6 +191,14 @@ SIMSIMD_PUBLIC void simsimd_jaccard_b8_serial(simsimd_b8_t const* a, simsimd_b8_
 /** @copydoc simsimd_jaccard_u32 */
 SIMSIMD_PUBLIC void simsimd_jaccard_u32_serial(simsimd_u32_t const* a, simsimd_u32_t const* b, simsimd_size_t n, simsimd_distance_t* result);
 
+typedef struct simsimd_jaccard_b128_state_serial_t simsimd_jaccard_b128_state_serial_t;
+/** @copydoc simsimd_jaccard_b256_state_serial_t */
+SIMSIMD_INTERNAL void simsimd_jaccard_b128_init_serial(simsimd_jaccard_b128_state_serial_t *state);
+/** @copydoc simsimd_jaccard_b256_state_serial_t */
+SIMSIMD_INTERNAL void simsimd_jaccard_b128_update_serial(simsimd_jaccard_b128_state_serial_t *state, simsimd_b128_vec_t a, simsimd_b128_vec_t b);
+/** @copydoc simsimd_jaccard_b256_state_serial_t */
+SIMSIMD_INTERNAL void simsimd_jaccard_b128_finalize_serial(simsimd_jaccard_b128_state_serial_t const *state_a, simsimd_jaccard_b128_state_serial_t const *state_b, simsimd_jaccard_b128_state_serial_t const *state_c, simsimd_jaccard_b128_state_serial_t const *state_d, simsimd_f32_t query_popcount, simsimd_f32_t target_popcount_a, simsimd_f32_t target_popcount_b, simsimd_f32_t target_popcount_c, simsimd_f32_t target_popcount_d, simsimd_f32_t *results);
+
 #if SIMSIMD_TARGET_NEON
 /** @copydoc simsimd_hamming_b8 */
 SIMSIMD_PUBLIC void simsimd_hamming_b8_neon(simsimd_b8_t const* a, simsimd_b8_t const* b, simsimd_size_t n_words, simsimd_distance_t* result);
@@ -286,6 +294,66 @@ SIMSIMD_PUBLIC void simsimd_jaccard_u32_serial(simsimd_u32_t const *a, simsimd_u
     simsimd_u32_t intersection_count = 0;
     for (simsimd_size_t i = 0; i != n; ++i) intersection_count += (a[i] == b[i]);
     *result = (n != 0) ? 1 - (simsimd_f64_t)intersection_count / (simsimd_f64_t)n : 1;
+}
+
+/**
+ *  @brief Running state for 128-bit Jaccard accumulation (serial/portable).
+ *
+ *  Portable implementation using scalar popcount. The update receives 128-bit
+ *  chunks as `simsimd_b128_vec_t`. State uses u64 accumulator for large vectors.
+ */
+typedef struct simsimd_jaccard_b128_state_serial_t {
+    simsimd_u64_t intersection_count;
+} simsimd_jaccard_b128_state_serial_t;
+
+SIMSIMD_INTERNAL void simsimd_jaccard_b128_init_serial(simsimd_jaccard_b128_state_serial_t *state) {
+    state->intersection_count = 0;
+}
+
+SIMSIMD_INTERNAL void simsimd_jaccard_b128_update_serial(simsimd_jaccard_b128_state_serial_t *state,
+                                                         simsimd_b128_vec_t a, simsimd_b128_vec_t b) {
+    simsimd_u64_t intersection_lo = a.u64s[0] & b.u64s[0];
+    simsimd_u64_t intersection_hi = a.u64s[1] & b.u64s[1];
+
+    // Unrolled lookup table popcount for portability
+    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_lo));
+    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_lo >> 8));
+    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_lo >> 16));
+    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_lo >> 24));
+    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_lo >> 32));
+    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_lo >> 40));
+    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_lo >> 48));
+    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_lo >> 56));
+    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_hi));
+    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_hi >> 8));
+    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_hi >> 16));
+    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_hi >> 24));
+    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_hi >> 32));
+    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_hi >> 40));
+    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_hi >> 48));
+    state->intersection_count += simsimd_popcount_b8((simsimd_b8_t)(intersection_hi >> 56));
+}
+
+SIMSIMD_INTERNAL void simsimd_jaccard_b128_finalize_serial(
+    simsimd_jaccard_b128_state_serial_t const *state_a, simsimd_jaccard_b128_state_serial_t const *state_b,
+    simsimd_jaccard_b128_state_serial_t const *state_c, simsimd_jaccard_b128_state_serial_t const *state_d,
+    simsimd_f32_t query_popcount, simsimd_f32_t target_popcount_a, simsimd_f32_t target_popcount_b,
+    simsimd_f32_t target_popcount_c, simsimd_f32_t target_popcount_d, simsimd_f32_t *results) {
+
+    simsimd_f32_t intersection_a = (simsimd_f32_t)state_a->intersection_count;
+    simsimd_f32_t intersection_b = (simsimd_f32_t)state_b->intersection_count;
+    simsimd_f32_t intersection_c = (simsimd_f32_t)state_c->intersection_count;
+    simsimd_f32_t intersection_d = (simsimd_f32_t)state_d->intersection_count;
+
+    simsimd_f32_t union_a = query_popcount + target_popcount_a - intersection_a;
+    simsimd_f32_t union_b = query_popcount + target_popcount_b - intersection_b;
+    simsimd_f32_t union_c = query_popcount + target_popcount_c - intersection_c;
+    simsimd_f32_t union_d = query_popcount + target_popcount_d - intersection_d;
+
+    results[0] = (union_a != 0) ? 1.0f - intersection_a / union_a : 1.0f;
+    results[1] = (union_b != 0) ? 1.0f - intersection_b / union_b : 1.0f;
+    results[2] = (union_c != 0) ? 1.0f - intersection_c / union_c : 1.0f;
+    results[3] = (union_d != 0) ? 1.0f - intersection_d / union_d : 1.0f;
 }
 
 #if _SIMSIMD_TARGET_ARM
@@ -444,19 +512,19 @@ SIMSIMD_INTERNAL void simsimd_jaccard_b128_update_neon(simsimd_jaccard_b128_stat
     // Total: ~5-6 cycles per 128-bit chunk (no horizontal sum penalty per update)
 
     // Step 1: Compute intersection bits (A AND B)
-    uint8x16_t intersection_bits = vandq_u8(a, b);
+    uint8x16_t intersection_u8x16 = vandq_u8(a, b);
 
     // Step 2: Byte-level popcount - each byte contains count of set bits (0-8)
-    uint8x16_t intersection_popcount = vcntq_u8(intersection_bits);
+    uint8x16_t popcount_u8x16 = vcntq_u8(intersection_u8x16);
 
     // Step 3: Pairwise widening reduction chain
     // u8x16 -> u16x8: pairs of adjacent bytes summed into 16-bit
-    uint16x8_t intersection_u16 = vpaddlq_u8(intersection_popcount);
+    uint16x8_t popcount_u16x8 = vpaddlq_u8(popcount_u8x16);
     // u16x8 -> u32x4: pairs of 16-bit values summed into 32-bit
-    uint32x4_t intersection_u32 = vpaddlq_u16(intersection_u16);
+    uint32x4_t popcount_u32x4 = vpaddlq_u16(popcount_u16x8);
 
     // Step 4: Vector accumulation (defers horizontal sum to finalize)
-    state->intersection_count = vaddq_u32(state->intersection_count, intersection_u32);
+    state->intersection_count = vaddq_u32(state->intersection_count, popcount_u32x4);
 }
 
 SIMSIMD_INTERNAL void simsimd_jaccard_b128_finalize_neon(
@@ -467,21 +535,21 @@ SIMSIMD_INTERNAL void simsimd_jaccard_b128_finalize_neon(
 
     // Horizontal sum each state's vector accumulator via `vaddvq_u32` (ARMv8.1+, 2-3 cycles)
     // This is done once at finalize, not per-update, for better throughput.
-    uint32x4_t intersection_u32 = (uint32x4_t) {
+    uint32x4_t intersection_u32x4 = (uint32x4_t) {
         vaddvq_u32(state_a->intersection_count), vaddvq_u32(state_b->intersection_count),
         vaddvq_u32(state_c->intersection_count), vaddvq_u32(state_d->intersection_count)};
-    float32x4_t intersection_f32 = vcvtq_f32_u32(intersection_u32);
+    float32x4_t intersection_f32x4 = vcvtq_f32_u32(intersection_u32x4);
 
     // Compute union using |A OR B| = |A| + |B| - |A AND B|
-    float32x4_t query_f32 = vdupq_n_f32(query_popcount);
-    float32x4_t targets_f32 = (float32x4_t) {target_popcount_a, target_popcount_b, target_popcount_c,
-                                             target_popcount_d};
-    float32x4_t union_f32 = vsubq_f32(vaddq_f32(query_f32, targets_f32), intersection_f32);
+    float32x4_t query_f32x4 = vdupq_n_f32(query_popcount);
+    float32x4_t targets_f32x4 = (float32x4_t) {target_popcount_a, target_popcount_b, target_popcount_c,
+                                               target_popcount_d};
+    float32x4_t union_f32x4 = vsubq_f32(vaddq_f32(query_f32x4, targets_f32x4), intersection_f32x4);
 
     // Handle zero-union edge case (empty vectors -> distance = 1.0)
-    float32x4_t one_f32 = vdupq_n_f32(1.0f);
-    uint32x4_t zero_union_mask = vceqq_f32(union_f32, vdupq_n_f32(0.0f));
-    float32x4_t safe_union_f32 = vbslq_f32(zero_union_mask, one_f32, union_f32);
+    float32x4_t one_f32x4 = vdupq_n_f32(1.0f);
+    uint32x4_t zero_union_mask = vceqq_f32(union_f32x4, vdupq_n_f32(0.0f));
+    float32x4_t safe_union_f32x4 = vbslq_f32(zero_union_mask, one_f32x4, union_f32x4);
 
     // Fast reciprocal with Newton-Raphson refinement:
     //   `vrecpeq_f32`: ~12-bit estimate, 1 cycle
@@ -489,15 +557,15 @@ SIMSIMD_INTERNAL void simsimd_jaccard_b128_finalize_neon(
     //   `vmulq_f32`: multiply, 1 cycle
     // One N-R iteration: ~24-bit accuracy, sufficient for f32 (23 mantissa bits).
     // Total: ~3-4 cycles vs ~10-14 cycles for division.
-    float32x4_t union_reciprocal = vrecpeq_f32(safe_union_f32);
-    union_reciprocal = vmulq_f32(union_reciprocal, vrecpsq_f32(safe_union_f32, union_reciprocal));
+    float32x4_t union_reciprocal_f32x4 = vrecpeq_f32(safe_union_f32x4);
+    union_reciprocal_f32x4 = vmulq_f32(union_reciprocal_f32x4, vrecpsq_f32(safe_union_f32x4, union_reciprocal_f32x4));
 
     // Compute Jaccard distance = 1 - intersection/union
-    float32x4_t ratio_f32 = vmulq_f32(intersection_f32, union_reciprocal);
-    float32x4_t jaccard_f32 = vsubq_f32(one_f32, ratio_f32);
-    float32x4_t result_f32 = vbslq_f32(zero_union_mask, one_f32, jaccard_f32);
+    float32x4_t ratio_f32x4 = vmulq_f32(intersection_f32x4, union_reciprocal_f32x4);
+    float32x4_t jaccard_f32x4 = vsubq_f32(one_f32x4, ratio_f32x4);
+    float32x4_t result_f32x4 = vbslq_f32(zero_union_mask, one_f32x4, jaccard_f32x4);
 
-    vst1q_f32(results, result_f32);
+    vst1q_f32(results, result_f32x4);
 }
 
 #pragma clang attribute pop
@@ -868,30 +936,30 @@ SIMSIMD_INTERNAL void simsimd_jaccard_b512_finalize_ice(
 
     // Step 1: Truncate 8×i64 → 8×i32 per state (fits in YMM)
     // `VPMOVQD` (ZMM→YMM): 4cy latency, 0.5/cy throughput, port p01
-    __m256i a_as_i32 = _mm512_cvtepi64_epi32(state_a->intersection_count);
-    __m256i b_as_i32 = _mm512_cvtepi64_epi32(state_b->intersection_count);
-    __m256i c_as_i32 = _mm512_cvtepi64_epi32(state_c->intersection_count);
-    __m256i d_as_i32 = _mm512_cvtepi64_epi32(state_d->intersection_count);
+    __m256i a_i32x8 = _mm512_cvtepi64_epi32(state_a->intersection_count);
+    __m256i b_i32x8 = _mm512_cvtepi64_epi32(state_b->intersection_count);
+    __m256i c_i32x8 = _mm512_cvtepi64_epi32(state_c->intersection_count);
+    __m256i d_i32x8 = _mm512_cvtepi64_epi32(state_d->intersection_count);
 
     // Step 2: Reduce 8×i32 → 4×i32 (add high 128-bit lane to low)
     // `VEXTRACTI128`: 3cy latency, 1/cy throughput, port p5
     // `VPADDD` (XMM): 1cy latency, 0.33/cy throughput, ports p015
-    __m128i a_sum_of_four = _mm_add_epi32(_mm256_castsi256_si128(a_as_i32), _mm256_extracti128_si256(a_as_i32, 1));
-    __m128i b_sum_of_four = _mm_add_epi32(_mm256_castsi256_si128(b_as_i32), _mm256_extracti128_si256(b_as_i32, 1));
-    __m128i c_sum_of_four = _mm_add_epi32(_mm256_castsi256_si128(c_as_i32), _mm256_extracti128_si256(c_as_i32, 1));
-    __m128i d_sum_of_four = _mm_add_epi32(_mm256_castsi256_si128(d_as_i32), _mm256_extracti128_si256(d_as_i32, 1));
+    __m128i a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(a_i32x8), _mm256_extracti128_si256(a_i32x8, 1));
+    __m128i b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(b_i32x8), _mm256_extracti128_si256(b_i32x8, 1));
+    __m128i c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(c_i32x8), _mm256_extracti128_si256(c_i32x8, 1));
+    __m128i d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(d_i32x8), _mm256_extracti128_si256(d_i32x8, 1));
 
     // Step 3: Reduce 4×i32 → 2×i32 using horizontal add (uses p01, not p5!)
     // `VPHADDD` (XMM): 3cy latency, 0.5/cy throughput, ports p01
-    __m128i ab_sum_of_two = _mm_hadd_epi32(a_sum_of_four, b_sum_of_four); // [a01, a23, b01, b23]
-    __m128i cd_sum_of_two = _mm_hadd_epi32(c_sum_of_four, d_sum_of_four); // [c01, c23, d01, d23]
+    __m128i ab_i32x4 = _mm_hadd_epi32(a_i32x4, b_i32x4); // [a01, a23, b01, b23]
+    __m128i cd_i32x4 = _mm_hadd_epi32(c_i32x4, d_i32x4); // [c01, c23, d01, d23]
 
     // Step 4: Reduce 2×i32 → 1×i32 per state (final horizontal add)
-    __m128i intersection_abcd = _mm_hadd_epi32(ab_sum_of_two, cd_sum_of_two); // [a, b, c, d]
+    __m128i intersection_i32x4 = _mm_hadd_epi32(ab_i32x4, cd_i32x4); // [a, b, c, d]
 
     // Step 5: Direct i32 → f32 conversion (simpler than i64→f64→f32 path)
     // `VCVTDQ2PS` (XMM): 4cy latency, 0.5/cy throughput, port p01
-    __m128 intersection_f32x4 = _mm_cvtepi32_ps(intersection_abcd);
+    __m128 intersection_f32x4 = _mm_cvtepi32_ps(intersection_i32x4);
 
     // Compute Jaccard distance: 1 - intersection / union
     // where union = query_popcount + target_popcount - intersection

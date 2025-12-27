@@ -554,6 +554,32 @@ typedef union simsimd_b512_vec_t {
     simsimd_b8_t b8s[64];
 } simsimd_b512_vec_t;
 
+/** @brief  Small 16-byte memory slice viewable as different types. */
+typedef union simsimd_b128_vec_t {
+#if SIMSIMD_TARGET_HASWELL
+    __m128i xmm;
+    __m128d xmm_pd;
+    __m128 xmm_ps;
+#endif
+#if SIMSIMD_TARGET_NEON
+    uint8x16_t u8x16;
+    uint16x8_t u16x8;
+    uint32x4_t u32x4;
+    uint64x2_t u64x2;
+#endif
+    simsimd_u8_t u8s[16];
+    simsimd_u16_t u16s[8];
+    simsimd_u32_t u32s[4];
+    simsimd_u64_t u64s[2];
+    simsimd_i8_t i8s[16];
+    simsimd_i16_t i16s[8];
+    simsimd_i32_t i32s[4];
+    simsimd_i64_t i64s[2];
+    simsimd_f32_t f32s[4];
+    simsimd_f64_t f64s[2];
+    simsimd_b8_t b8s[16];
+} simsimd_b128_vec_t;
+
 /**
  *  @brief  Computes `1/sqrt(x)` using the trick from Quake 3,
  *          replacing the magic numbers with the ones suggested by Jan Kadlec.
