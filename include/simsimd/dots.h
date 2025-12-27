@@ -14,7 +14,6 @@
  *  - Embedding similarity matrices
  *  - k-means clustering, DBSCAN, hierarchical clustering
  *
- *
  *  For datatypes (MKL-style naming: input×input→output):
  *  - bf16bf16f32: BF16 inputs accumulating to F32
  *  - i8i8i32: INT8 inputs accumulating to INT32
@@ -407,8 +406,8 @@ SIMSIMD_PUBLIC void simsimd_dots_i8i8i8_sapphire_amx(void *c, simsimd_size_t m, 
  *  @param nc_size          L3 column blocking (typically 2048)
  *  @param kc_size          L1 depth blocking (typically 256)
  */
-#define SIMSIMD_MAKE_DOTS_INNER(suffix, input_type, output_type, state_type, init_fn, load_fn, partial_load_fn,       \
-                                update_fn, finalize_fn, k_tile, mr_size, mc_size, nc_size, kc_size)                   \
+#define SIMSIMD_MAKE_DOTS_INNER(suffix, input_type, output_type, vec_type, state_type, init_fn, load_fn,              \
+                                partial_load_fn, update_fn, finalize_fn, k_tile, mr_size, mc_size, nc_size, kc_size)  \
                                                                                                                       \
     SIMSIMD_PUBLIC void simsimd_dots_##suffix(simsimd_##input_type##_t const *a_matrix, void const *b_packed_void,    \
                                               simsimd_##output_type##_t *c_matrix, simsimd_size_t row_count,          \
@@ -488,7 +487,7 @@ SIMSIMD_PUBLIC void simsimd_dots_i8i8i8_sapphire_amx(void *c, simsimd_size_t m, 
                             for (simsimd_size_t depth_offset = 0; depth_offset < aligned_depth;                       \
                                  depth_offset += simd_width) {                                                        \
                                 /* Load 4 B vectors once (shared across all A rows) */                                \
-                                simsimd_b512_vec_t b_vector_0, b_vector_1, b_vector_2, b_vector_3;                    \
+                                vec_type b_vector_0, b_vector_1, b_vector_2, b_vector_3;                              \
                                 load_fn(b_column_ptr_0 + depth_offset, &b_vector_0);                                  \
                                 load_fn(b_column_ptr_1 + depth_offset, &b_vector_1);                                  \
                                 load_fn(b_column_ptr_2 + depth_offset, &b_vector_2);                                  \
@@ -500,7 +499,7 @@ SIMSIMD_PUBLIC void simsimd_dots_i8i8i8_sapphire_amx(void *c, simsimd_size_t m, 
                                         (simsimd_##input_type##_t const *)((char const *)a_matrix +                   \
                                                                            (tile_row_start + row_index) * a_stride) + \
                                         depth_block_start + depth_offset;                                             \
-                                    simsimd_b512_vec_t a_vector;                                                      \
+                                    vec_type a_vector;                                                                \
                                     load_fn(a_element_ptr, &a_vector);                                                \
                                     update_fn(&accumulator_states[row_index][0], a_vector, b_vector_0);               \
                                     update_fn(&accumulator_states[row_index][1], a_vector, b_vector_1);               \
@@ -511,7 +510,7 @@ SIMSIMD_PUBLIC void simsimd_dots_i8i8i8_sapphire_amx(void *c, simsimd_size_t m, 
                                                                                                                       \
                             /* Slow path: remainder elements with partial (masked) loads */                           \
                             if (remainder_depth > 0) {                                                                \
-                                simsimd_b512_vec_t b_vector_0, b_vector_1, b_vector_2, b_vector_3;                    \
+                                vec_type b_vector_0, b_vector_1, b_vector_2, b_vector_3;                              \
                                 partial_load_fn(b_column_ptr_0 + aligned_depth, remainder_depth, &b_vector_0);        \
                                 partial_load_fn(b_column_ptr_1 + aligned_depth, remainder_depth, &b_vector_1);        \
                                 partial_load_fn(b_column_ptr_2 + aligned_depth, remainder_depth, &b_vector_2);        \
@@ -522,7 +521,7 @@ SIMSIMD_PUBLIC void simsimd_dots_i8i8i8_sapphire_amx(void *c, simsimd_size_t m, 
                                         (simsimd_##input_type##_t const *)((char const *)a_matrix +                   \
                                                                            (tile_row_start + row_index) * a_stride) + \
                                         depth_block_start + aligned_depth;                                            \
-                                    simsimd_b512_vec_t a_vector;                                                      \
+                                    vec_type a_vector;                                                                \
                                     partial_load_fn(a_element_ptr, remainder_depth, &a_vector);                       \
                                     update_fn(&accumulator_states[row_index][0], a_vector, b_vector_0);               \
                                     update_fn(&accumulator_states[row_index][1], a_vector, b_vector_1);               \
@@ -950,57 +949,28 @@ SIMSIMD_PUBLIC void simsimd_dots_i8i8i8_serial(  //
 #pragma GCC target("arch=armv8.2-a+simd")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
 
-/** @brief Type-agnostic 16-byte load into 512-bit vector's first 128 bits (NEON). */
-SIMSIMD_INTERNAL void _simsimd_load_b128_neon(void const *src, simsimd_b512_vec_t *dst) {
-    dst->u8x16s[0] = vld1q_u8((const uint8_t *)src);
-}
-
-/** @brief Partial load for f32 elements into 512-bit vector (NEON). */
-SIMSIMD_INTERNAL void _simsimd_partial_load_f32x4_neon_gemm(simsimd_f32_t const *src, simsimd_size_t count,
-                                                            simsimd_b512_vec_t *dst) {
-    simsimd_size_t element_index = 0;
-    for (; element_index < count && element_index < 4; ++element_index) dst->f32s[element_index] = src[element_index];
-    for (; element_index < 4; ++element_index) dst->f32s[element_index] = 0;
-}
-
-/** @brief Partial load for i8 elements into 512-bit vector (NEON). */
-SIMSIMD_INTERNAL void _simsimd_partial_load_i8x16_neon_gemm(simsimd_i8_t const *src, simsimd_size_t count,
-                                                            simsimd_b512_vec_t *dst) {
-    simsimd_size_t element_index = 0;
-    for (; element_index < count && element_index < 16; ++element_index) dst->i8s[element_index] = src[element_index];
-    for (; element_index < 16; ++element_index) dst->i8s[element_index] = 0;
-}
-
-/** @brief Partial load for u8 elements into 512-bit vector (NEON). */
-SIMSIMD_INTERNAL void _simsimd_partial_load_u8x16_neon_gemm(simsimd_u8_t const *src, simsimd_size_t count,
-                                                            simsimd_b512_vec_t *dst) {
-    simsimd_size_t element_index = 0;
-    for (; element_index < count && element_index < 16; ++element_index) dst->u8s[element_index] = src[element_index];
-    for (; element_index < 16; ++element_index) dst->u8s[element_index] = 0;
-}
-
 // F32 GEMM: k_tile=4 (4 f32s = 16 bytes = NEON register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(neon, f32, f32, 4)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(neon, f32, f32, 4)
-SIMSIMD_MAKE_DOTS_INNER(f32f32f32_neon, f32, f32, simsimd_dot_f32x16_state_neon_t, simsimd_dot_f32x16_init_neon,
-                        _simsimd_load_b128_neon, _simsimd_partial_load_f32x4_neon_gemm, simsimd_dot_f32x16_update_neon,
-                        simsimd_dot_f32x16_finalize_neon,
+SIMSIMD_MAKE_DOTS_INNER(f32f32f32_neon, f32, f32, simsimd_b128_vec_t, simsimd_dot_f32x4_state_neon_t,
+                        simsimd_dot_f32x4_init_neon, _simsimd_load_b128_neon, _simsimd_partial_load_b32x4_neon,
+                        simsimd_dot_f32x4_update_neon, simsimd_dot_f32x4_finalize_neon,
                         /*k_tile=*/4, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // I8 GEMM: k_tile=16 (16 i8s = 16 bytes = NEON register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(neon, i8, i32, 16)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(neon, i8, i32, 16)
-SIMSIMD_MAKE_DOTS_INNER(i8i8i32_neon, i8, i32, simsimd_dot_i8x64_state_neon_t, simsimd_dot_i8x64_init_neon,
-                        _simsimd_load_b128_neon, _simsimd_partial_load_i8x16_neon_gemm, simsimd_dot_i8x64_update_neon,
-                        simsimd_dot_i8x64_finalize_neon,
+SIMSIMD_MAKE_DOTS_INNER(i8i8i32_neon, i8, i32, simsimd_b128_vec_t, simsimd_dot_i8x16_state_neon_t,
+                        simsimd_dot_i8x16_init_neon, _simsimd_load_b128_neon, _simsimd_partial_load_b8x16_neon,
+                        simsimd_dot_i8x16_update_neon, simsimd_dot_i8x16_finalize_neon,
                         /*k_tile=*/16, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // U8 GEMM: k_tile=16 (16 u8s = 16 bytes = NEON register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(neon, u8, i32, 16)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(neon, u8, i32, 16)
-SIMSIMD_MAKE_DOTS_INNER(u8u8i32_neon, u8, i32, simsimd_dot_u8x64_state_neon_t, simsimd_dot_u8x64_init_neon,
-                        _simsimd_load_b128_neon, _simsimd_partial_load_u8x16_neon_gemm, simsimd_dot_u8x64_update_neon,
-                        simsimd_dot_u8x64_finalize_neon,
+SIMSIMD_MAKE_DOTS_INNER(u8u8i32_neon, u8, i32, simsimd_b128_vec_t, simsimd_dot_u8x16_state_neon_t,
+                        simsimd_dot_u8x16_init_neon, _simsimd_load_b128_neon, _simsimd_partial_load_b8x16_neon,
+                        simsimd_dot_u8x16_update_neon, simsimd_dot_u8x16_finalize_neon,
                         /*k_tile=*/16, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 #pragma clang attribute pop
@@ -1012,20 +982,12 @@ SIMSIMD_MAKE_DOTS_INNER(u8u8i32_neon, u8, i32, simsimd_dot_u8x64_state_neon_t, s
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 
-/** @brief Partial load for f16 elements into 512-bit vector (NEON F16). */
-SIMSIMD_INTERNAL void _simsimd_partial_load_f16x8_neon_gemm(simsimd_f16_t const *src, simsimd_size_t count,
-                                                            simsimd_b512_vec_t *dst) {
-    simsimd_size_t element_index = 0;
-    for (; element_index < count && element_index < 8; ++element_index) dst->f16s[element_index] = src[element_index];
-    for (; element_index < 8; ++element_index) dst->f16s[element_index] = 0;
-}
-
 // F16 GEMM: k_tile=8 (8 f16s = 16 bytes = NEON register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(neon, f16, f32, 8)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(neon, f16, f32, 8)
-SIMSIMD_MAKE_DOTS_INNER(f16f16f32_neon, f16, f32, simsimd_dot_f16x32_state_neon_t, simsimd_dot_f16x32_init_neon,
-                        _simsimd_load_b128_neon, _simsimd_partial_load_f16x8_neon_gemm, simsimd_dot_f16x32_update_neon,
-                        simsimd_dot_f16x32_finalize_neon,
+SIMSIMD_MAKE_DOTS_INNER(f16f16f32_neon, f16, f32, simsimd_b128_vec_t, simsimd_dot_f16x8_state_neon_t,
+                        simsimd_dot_f16x8_init_neon, _simsimd_load_b128_neon, _simsimd_partial_load_b16x8_neon,
+                        simsimd_dot_f16x8_update_neon, simsimd_dot_f16x8_finalize_neon,
                         /*k_tile=*/8, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 #pragma clang attribute pop
@@ -1037,20 +999,12 @@ SIMSIMD_MAKE_DOTS_INNER(f16f16f32_neon, f16, f32, simsimd_dot_f16x32_state_neon_
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
 
-/** @brief Partial load for bf16 elements into 512-bit vector (NEON BF16). */
-SIMSIMD_INTERNAL void _simsimd_partial_load_bf16x8_neon_gemm(simsimd_bf16_t const *src, simsimd_size_t count,
-                                                             simsimd_b512_vec_t *dst) {
-    simsimd_size_t element_index = 0;
-    for (; element_index < count && element_index < 8; ++element_index) dst->bf16s[element_index] = src[element_index];
-    for (; element_index < 8; ++element_index) dst->bf16s[element_index] = 0;
-}
-
 // BF16 GEMM: k_tile=8 (8 bf16s = 16 bytes = NEON register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(neon, bf16, f32, 8)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(neon, bf16, f32, 8)
-SIMSIMD_MAKE_DOTS_INNER(bf16bf16f32_neon, bf16, f32, simsimd_dot_bf16x32_state_neon_t, simsimd_dot_bf16x32_init_neon,
-                        _simsimd_load_b128_neon, _simsimd_partial_load_bf16x8_neon_gemm,
-                        simsimd_dot_bf16x32_update_neon, simsimd_dot_bf16x32_finalize_neon,
+SIMSIMD_MAKE_DOTS_INNER(bf16bf16f32_neon, bf16, f32, simsimd_b128_vec_t, simsimd_dot_bf16x8_state_neon_t,
+                        simsimd_dot_bf16x8_init_neon, _simsimd_load_b128_neon, _simsimd_partial_load_b16x8_neon,
+                        simsimd_dot_bf16x8_update_neon, simsimd_dot_bf16x8_finalize_neon,
                         /*k_tile=*/8, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 #pragma clang attribute pop
@@ -1081,126 +1035,64 @@ SIMSIMD_MAKE_DOTS_INNER(bf16bf16f32_neon, bf16, f32, simsimd_dot_bf16x32_state_n
 #pragma GCC target("avx2", "f16c", "fma")
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
 
-/** @brief Type-agnostic 32-byte load into 512-bit vector's first 256 bits (AVX2). */
-SIMSIMD_INTERNAL void _simsimd_load_b256_haswell(void const *src, simsimd_b512_vec_t *dst) {
-    dst->ymms[0] = _mm256_loadu_si256((const __m256i *)src);
-}
-
-/** @brief Partial load for f32 elements into 512-bit vector (Haswell AVX2). */
-SIMSIMD_INTERNAL void _simsimd_partial_load_f32x8_haswell_gemm(simsimd_f32_t const *src, simsimd_size_t count,
-                                                               simsimd_b512_vec_t *dst) {
-    simsimd_size_t element_index = 0;
-    for (; element_index < count && element_index < 8; ++element_index) dst->f32s[element_index] = src[element_index];
-    for (; element_index < 8; ++element_index) dst->f32s[element_index] = 0;
-}
-
-/** @brief Partial load for f16 elements into 512-bit vector (Haswell AVX2+F16C). */
-SIMSIMD_INTERNAL void _simsimd_partial_load_f16x16_haswell_gemm(simsimd_f16_t const *src, simsimd_size_t count,
-                                                                simsimd_b512_vec_t *dst) {
-    simsimd_size_t element_index = 0;
-    for (; element_index < count && element_index < 16; ++element_index) dst->f16s[element_index] = src[element_index];
-    for (; element_index < 16; ++element_index) dst->f16s[element_index] = 0;
-}
-
-/** @brief Partial load for bf16 elements into 512-bit vector (Haswell AVX2). */
-SIMSIMD_INTERNAL void _simsimd_partial_load_bf16x16_haswell_gemm(simsimd_bf16_t const *src, simsimd_size_t count,
-                                                                 simsimd_b512_vec_t *dst) {
-    simsimd_size_t element_index = 0;
-    for (; element_index < count && element_index < 16; ++element_index) dst->bf16s[element_index] = src[element_index];
-    for (; element_index < 16; ++element_index) dst->bf16s[element_index] = 0;
-}
-
-/** @brief Partial load for e4m3 elements into 512-bit vector (Haswell AVX2). */
-SIMSIMD_INTERNAL void _simsimd_partial_load_e4m3x32_haswell_gemm(simsimd_e4m3_t const *src, simsimd_size_t count,
-                                                                 simsimd_b512_vec_t *dst) {
-    simsimd_size_t element_index = 0;
-    for (; element_index < count && element_index < 32; ++element_index) dst->e4m3s[element_index] = src[element_index];
-    for (; element_index < 32; ++element_index) dst->e4m3s[element_index] = 0;
-}
-
-/** @brief Partial load for e5m2 elements into 512-bit vector (Haswell AVX2). */
-SIMSIMD_INTERNAL void _simsimd_partial_load_e5m2x32_haswell_gemm(simsimd_e5m2_t const *src, simsimd_size_t count,
-                                                                 simsimd_b512_vec_t *dst) {
-    simsimd_size_t element_index = 0;
-    for (; element_index < count && element_index < 32; ++element_index) dst->e5m2s[element_index] = src[element_index];
-    for (; element_index < 32; ++element_index) dst->e5m2s[element_index] = 0;
-}
-
-/** @brief Partial load for i8 elements into 512-bit vector (Haswell AVX2). */
-SIMSIMD_INTERNAL void _simsimd_partial_load_i8x32_haswell_gemm(simsimd_i8_t const *src, simsimd_size_t count,
-                                                               simsimd_b512_vec_t *dst) {
-    simsimd_size_t element_index = 0;
-    for (; element_index < count && element_index < 32; ++element_index) dst->i8s[element_index] = src[element_index];
-    for (; element_index < 32; ++element_index) dst->i8s[element_index] = 0;
-}
-
-/** @brief Partial load for u8 elements into 512-bit vector (Haswell AVX2). */
-SIMSIMD_INTERNAL void _simsimd_partial_load_u8x32_haswell_gemm(simsimd_u8_t const *src, simsimd_size_t count,
-                                                               simsimd_b512_vec_t *dst) {
-    simsimd_size_t element_index = 0;
-    for (; element_index < count && element_index < 32; ++element_index) dst->u8s[element_index] = src[element_index];
-    for (; element_index < 32; ++element_index) dst->u8s[element_index] = 0;
-}
-
 // F32 GEMM: k_tile=8 (8 f32s = 32 bytes = AVX2 register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, f32, f32, 8)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(haswell, f32, f32, 8)
-SIMSIMD_MAKE_DOTS_INNER(f32f32f32_haswell, f32, f32, simsimd_dot_f32x16_state_haswell_t,
-                        simsimd_dot_f32x16_init_haswell, _simsimd_load_b256_haswell,
-                        _simsimd_partial_load_f32x8_haswell_gemm, simsimd_dot_f32x16_update_haswell,
-                        simsimd_dot_f32x16_finalize_haswell,
+SIMSIMD_MAKE_DOTS_INNER(f32f32f32_haswell, f32, f32, simsimd_b256_vec_t, simsimd_dot_f32x8_state_haswell_t,
+                        simsimd_dot_f32x8_init_haswell, _simsimd_load_b256_haswell, _simsimd_partial_load_b32x8_haswell,
+                        simsimd_dot_f32x8_update_haswell, simsimd_dot_f32x8_finalize_haswell,
                         /*k_tile=*/8, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // F16 GEMM: k_tile=16 (16 f16s = 32 bytes = AVX2 register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, f16, f32, 16)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(haswell, f16, f32, 16)
-SIMSIMD_MAKE_DOTS_INNER(f16f16f32_haswell, f16, f32, simsimd_dot_f16x32_state_haswell_t,
-                        simsimd_dot_f16x32_init_haswell, _simsimd_load_b256_haswell,
-                        _simsimd_partial_load_f16x16_haswell_gemm, simsimd_dot_f16x32_update_haswell,
-                        simsimd_dot_f16x32_finalize_haswell,
+SIMSIMD_MAKE_DOTS_INNER(f16f16f32_haswell, f16, f32, simsimd_b256_vec_t, simsimd_dot_f16x16_state_haswell_t,
+                        simsimd_dot_f16x16_init_haswell, _simsimd_load_b256_haswell,
+                        _simsimd_partial_load_b16x16_haswell, simsimd_dot_f16x16_update_haswell,
+                        simsimd_dot_f16x16_finalize_haswell,
                         /*k_tile=*/16, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // BF16 GEMM: k_tile=16 (16 bf16s = 32 bytes = AVX2 register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, bf16, f32, 16)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(haswell, bf16, f32, 16)
-SIMSIMD_MAKE_DOTS_INNER(bf16bf16f32_haswell, bf16, f32, simsimd_dot_bf16x32_state_haswell_t,
-                        simsimd_dot_bf16x32_init_haswell, _simsimd_load_b256_haswell,
-                        _simsimd_partial_load_bf16x16_haswell_gemm, simsimd_dot_bf16x32_update_haswell,
-                        simsimd_dot_bf16x32_finalize_haswell,
+SIMSIMD_MAKE_DOTS_INNER(bf16bf16f32_haswell, bf16, f32, simsimd_b256_vec_t, simsimd_dot_bf16x16_state_haswell_t,
+                        simsimd_dot_bf16x16_init_haswell, _simsimd_load_b256_haswell,
+                        _simsimd_partial_load_b16x16_haswell, simsimd_dot_bf16x16_update_haswell,
+                        simsimd_dot_bf16x16_finalize_haswell,
                         /*k_tile=*/16, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // E4M3 GEMM: k_tile=32 (32 e4m3s = 32 bytes = AVX2 register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, e4m3, f32, 32)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(haswell, e4m3, f32, 32)
-SIMSIMD_MAKE_DOTS_INNER(e4m3e4m3f32_haswell, e4m3, f32, simsimd_dot_e4m3x64_state_haswell_t,
-                        simsimd_dot_e4m3x64_init_haswell, _simsimd_load_b256_haswell,
-                        _simsimd_partial_load_e4m3x32_haswell_gemm, simsimd_dot_e4m3x64_update_haswell,
-                        simsimd_dot_e4m3x64_finalize_haswell,
+SIMSIMD_MAKE_DOTS_INNER(e4m3e4m3f32_haswell, e4m3, f32, simsimd_b256_vec_t, simsimd_dot_e4m3x32_state_haswell_t,
+                        simsimd_dot_e4m3x32_init_haswell, _simsimd_load_b256_haswell,
+                        _simsimd_partial_load_b8x32_haswell, simsimd_dot_e4m3x32_update_haswell,
+                        simsimd_dot_e4m3x32_finalize_haswell,
                         /*k_tile=*/32, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // E5M2 GEMM: k_tile=32 (32 e5m2s = 32 bytes = AVX2 register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, e5m2, f32, 32)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(haswell, e5m2, f32, 32)
-SIMSIMD_MAKE_DOTS_INNER(e5m2e5m2f32_haswell, e5m2, f32, simsimd_dot_e5m2x64_state_haswell_t,
-                        simsimd_dot_e5m2x64_init_haswell, _simsimd_load_b256_haswell,
-                        _simsimd_partial_load_e5m2x32_haswell_gemm, simsimd_dot_e5m2x64_update_haswell,
-                        simsimd_dot_e5m2x64_finalize_haswell,
+SIMSIMD_MAKE_DOTS_INNER(e5m2e5m2f32_haswell, e5m2, f32, simsimd_b256_vec_t, simsimd_dot_e5m2x32_state_haswell_t,
+                        simsimd_dot_e5m2x32_init_haswell, _simsimd_load_b256_haswell,
+                        _simsimd_partial_load_b8x32_haswell, simsimd_dot_e5m2x32_update_haswell,
+                        simsimd_dot_e5m2x32_finalize_haswell,
                         /*k_tile=*/32, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // I8 GEMM: k_tile=32 (32 i8s = 32 bytes = AVX2 register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, i8, i32, 32)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(haswell, i8, i32, 32)
-SIMSIMD_MAKE_DOTS_INNER(i8i8i32_haswell, i8, i32, simsimd_dot_i8x64_state_haswell_t, simsimd_dot_i8x64_init_haswell,
-                        _simsimd_load_b256_haswell, _simsimd_partial_load_i8x32_haswell_gemm,
-                        simsimd_dot_i8x64_update_haswell, simsimd_dot_i8x64_finalize_haswell,
+SIMSIMD_MAKE_DOTS_INNER(i8i8i32_haswell, i8, i32, simsimd_b256_vec_t, simsimd_dot_i8x32_state_haswell_t,
+                        simsimd_dot_i8x32_init_haswell, _simsimd_load_b256_haswell, _simsimd_partial_load_b8x32_haswell,
+                        simsimd_dot_i8x32_update_haswell, simsimd_dot_i8x32_finalize_haswell,
                         /*k_tile=*/32, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // U8 GEMM: k_tile=32 (32 u8s = 32 bytes = AVX2 register width)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, u8, i32, 32)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(haswell, u8, i32, 32)
-SIMSIMD_MAKE_DOTS_INNER(u8u8i32_haswell, u8, i32, simsimd_dot_u8x64_state_haswell_t, simsimd_dot_u8x64_init_haswell,
-                        _simsimd_load_b256_haswell, _simsimd_partial_load_u8x32_haswell_gemm,
-                        simsimd_dot_u8x64_update_haswell, simsimd_dot_u8x64_finalize_haswell,
+SIMSIMD_MAKE_DOTS_INNER(u8u8i32_haswell, u8, i32, simsimd_b256_vec_t, simsimd_dot_u8x32_state_haswell_t,
+                        simsimd_dot_u8x32_init_haswell, _simsimd_load_b256_haswell, _simsimd_partial_load_b8x32_haswell,
+                        simsimd_dot_u8x32_update_haswell, simsimd_dot_u8x32_finalize_haswell,
                         /*k_tile=*/32, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 #pragma clang attribute pop
@@ -1212,71 +1104,38 @@ SIMSIMD_MAKE_DOTS_INNER(u8u8i32_haswell, u8, i32, simsimd_dot_u8x64_state_haswel
 #pragma GCC target("avx512f", "avx512vl", "avx512bw", "bmi2")
 #pragma clang attribute push(__attribute__((target("avx512f,avx512vl,avx512bw,bmi2"))), apply_to = function)
 
-/** @brief Type-agnostic 64-byte load into 512-bit vector (AVX-512). */
-SIMSIMD_INTERNAL void _simsimd_load_b512_skylake(void const *src, simsimd_b512_vec_t *dst) {
-    dst->zmm = _mm512_loadu_si512(src);
-}
-
-/** @brief Partial load for f64 elements using AVX-512 masked load. */
-SIMSIMD_INTERNAL void _simsimd_partial_load_f64x8_skylake_gemm(simsimd_f64_t const *src, simsimd_size_t count,
-                                                               simsimd_b512_vec_t *dst) {
-    __mmask8 mask = (count >= 8) ? 0xFF : ((__mmask8)1 << count) - 1;
-    dst->zmm_pd = _mm512_maskz_loadu_pd(mask, src);
-}
-
-/** @brief Partial load for f32 elements using AVX-512 masked load. */
-SIMSIMD_INTERNAL void _simsimd_partial_load_f32x16_skylake_gemm(simsimd_f32_t const *src, simsimd_size_t count,
-                                                                simsimd_b512_vec_t *dst) {
-    __mmask16 mask = (count >= 16) ? 0xFFFF : ((__mmask16)1 << count) - 1;
-    dst->zmm_ps = _mm512_maskz_loadu_ps(mask, src);
-}
-
-/** @brief Partial load for e4m3 elements using AVX-512 masked load. */
-SIMSIMD_INTERNAL void _simsimd_partial_load_e4m3x64_skylake_gemm(simsimd_e4m3_t const *src, simsimd_size_t count,
-                                                                 simsimd_b512_vec_t *dst) {
-    __mmask64 mask = (count >= 64) ? 0xFFFFFFFFFFFFFFFFULL : ((__mmask64)1 << count) - 1;
-    dst->zmm = _mm512_maskz_loadu_epi8(mask, src);
-}
-
-/** @brief Partial load for e5m2 elements using AVX-512 masked load. */
-SIMSIMD_INTERNAL void _simsimd_partial_load_e5m2x64_skylake_gemm(simsimd_e5m2_t const *src, simsimd_size_t count,
-                                                                 simsimd_b512_vec_t *dst) {
-    __mmask64 mask = (count >= 64) ? 0xFFFFFFFFFFFFFFFFULL : ((__mmask64)1 << count) - 1;
-    dst->zmm = _mm512_maskz_loadu_epi8(mask, src);
-}
-
 // F64 GEMM: k_tile=8 (8 f64s = 64 bytes = 1 cache line)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(skylake, f64, f64, SIMSIMD_DOTS_SERIAL_TILE_K_F64)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(skylake, f64, f64, SIMSIMD_DOTS_SERIAL_TILE_K_F64)
-SIMSIMD_MAKE_DOTS_INNER(f64f64f64_skylake, f64, f64, simsimd_dot_f64x8_state_skylake_t, simsimd_dot_f64x8_init_skylake,
-                        _simsimd_load_b512_skylake, _simsimd_partial_load_f64x8_skylake_gemm,
+SIMSIMD_MAKE_DOTS_INNER(f64f64f64_skylake, f64, f64, simsimd_b512_vec_t, simsimd_dot_f64x8_state_skylake_t,
+                        simsimd_dot_f64x8_init_skylake, _simsimd_load_b512_skylake, _simsimd_partial_load_b64x8_skylake,
                         simsimd_dot_f64x8_update_skylake, simsimd_dot_f64x8_finalize_skylake,
                         /*k_tile=*/8, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // F32 GEMM: k_tile=16 (16 f32s = 64 bytes = 1 cache line)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(skylake, f32, f32, SIMSIMD_DOTS_SERIAL_TILE_K_F32)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(skylake, f32, f32, SIMSIMD_DOTS_SERIAL_TILE_K_F32)
-SIMSIMD_MAKE_DOTS_INNER(f32f32f32_skylake, f32, f32, simsimd_dot_f32x16_state_skylake_t,
+SIMSIMD_MAKE_DOTS_INNER(f32f32f32_skylake, f32, f32, simsimd_b512_vec_t, simsimd_dot_f32x16_state_skylake_t,
                         simsimd_dot_f32x16_init_skylake, _simsimd_load_b512_skylake,
-                        _simsimd_partial_load_f32x16_skylake_gemm, simsimd_dot_f32x16_update_skylake,
+                        _simsimd_partial_load_b32x16_skylake, simsimd_dot_f32x16_update_skylake,
                         simsimd_dot_f32x16_finalize_skylake,
                         /*k_tile=*/16, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // E4M3 GEMM: k_tile=64 (64 e4m3s = 64 bytes = 1 cache line), F32 accumulator
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(skylake, e4m3, f32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(skylake, e4m3, f32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
-SIMSIMD_MAKE_DOTS_INNER(e4m3e4m3f32_skylake, e4m3, f32, simsimd_dot_e4m3x64_state_skylake_t,
+SIMSIMD_MAKE_DOTS_INNER(e4m3e4m3f32_skylake, e4m3, f32, simsimd_b512_vec_t, simsimd_dot_e4m3x64_state_skylake_t,
                         simsimd_dot_e4m3x64_init_skylake, _simsimd_load_b512_skylake,
-                        _simsimd_partial_load_e4m3x64_skylake_gemm, simsimd_dot_e4m3x64_update_skylake,
+                        _simsimd_partial_load_b8x64_skylake, simsimd_dot_e4m3x64_update_skylake,
                         simsimd_dot_e4m3x64_finalize_skylake,
                         /*k_tile=*/64, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // E5M2 GEMM: k_tile=64 (64 e5m2s = 64 bytes = 1 cache line), F32 accumulator
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(skylake, e5m2, f32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(skylake, e5m2, f32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
-SIMSIMD_MAKE_DOTS_INNER(e5m2e5m2f32_skylake, e5m2, f32, simsimd_dot_e5m2x64_state_skylake_t,
+SIMSIMD_MAKE_DOTS_INNER(e5m2e5m2f32_skylake, e5m2, f32, simsimd_b512_vec_t, simsimd_dot_e5m2x64_state_skylake_t,
                         simsimd_dot_e5m2x64_init_skylake, _simsimd_load_b512_skylake,
-                        _simsimd_partial_load_e5m2x64_skylake_gemm, simsimd_dot_e5m2x64_update_skylake,
+                        _simsimd_partial_load_b8x64_skylake, simsimd_dot_e5m2x64_update_skylake,
                         simsimd_dot_e5m2x64_finalize_skylake,
                         /*k_tile=*/64, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -1289,34 +1148,28 @@ SIMSIMD_MAKE_DOTS_INNER(e5m2e5m2f32_skylake, e5m2, f32, simsimd_dot_e5m2x64_stat
 #pragma GCC target("avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
 #pragma clang attribute push(__attribute__((target("avx512f,avx512vl,bmi2,avx512bw,avx512bf16"))), apply_to = function)
 
-/** @brief Partial load for bf16 elements using AVX-512 masked load (Genoa). */
-SIMSIMD_INTERNAL void _simsimd_partial_load_bf16x32_genoa_gemm(simsimd_bf16_t const *src, simsimd_size_t count,
-                                                               simsimd_b512_vec_t *dst) {
-    __mmask32 mask = (count >= 32) ? 0xFFFFFFFF : ((__mmask32)1 << count) - 1;
-    dst->zmm = _mm512_maskz_loadu_epi16(mask, src);
-}
-
 // BF16 GEMM: k_tile=32 (32 bf16s = 64 bytes = 1 cache line)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(genoa, bf16, f32, SIMSIMD_DOTS_SERIAL_TILE_K_BF16)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(genoa, bf16, f32, SIMSIMD_DOTS_SERIAL_TILE_K_BF16)
-SIMSIMD_MAKE_DOTS_INNER(bf16bf16f32_genoa, bf16, f32, simsimd_dot_bf16x32_state_genoa_t, simsimd_dot_bf16x32_init_genoa,
-                        _simsimd_load_b512_skylake, _simsimd_partial_load_bf16x32_genoa_gemm,
-                        simsimd_dot_bf16x32_update_genoa, simsimd_dot_bf16x32_finalize_genoa,
+SIMSIMD_MAKE_DOTS_INNER(bf16bf16f32_genoa, bf16, f32, simsimd_b512_vec_t, simsimd_dot_bf16x32_state_genoa_t,
+                        simsimd_dot_bf16x32_init_genoa, _simsimd_load_b512_skylake,
+                        _simsimd_partial_load_b16x32_skylake, simsimd_dot_bf16x32_update_genoa,
+                        simsimd_dot_bf16x32_finalize_genoa,
                         /*k_tile=*/32, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // E4M3 GEMM: k_tile=64 (64 e4m3s = 64 bytes = 1 cache line), F32 accumulator
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(genoa, e4m3, f32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(genoa, e4m3, f32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
-SIMSIMD_MAKE_DOTS_INNER(e4m3e4m3f32_genoa, e4m3, f32, simsimd_dot_e4m3x64_state_genoa_t, simsimd_dot_e4m3x64_init_genoa,
-                        _simsimd_load_b512_skylake, _simsimd_partial_load_e4m3x64_skylake_gemm,
+SIMSIMD_MAKE_DOTS_INNER(e4m3e4m3f32_genoa, e4m3, f32, simsimd_b512_vec_t, simsimd_dot_e4m3x64_state_genoa_t,
+                        simsimd_dot_e4m3x64_init_genoa, _simsimd_load_b512_skylake, _simsimd_partial_load_b8x64_skylake,
                         simsimd_dot_e4m3x64_update_genoa, simsimd_dot_e4m3x64_finalize_genoa,
                         /*k_tile=*/64, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // E5M2 GEMM: k_tile=64 (64 e5m2s = 64 bytes = 1 cache line), F32 accumulator
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(genoa, e5m2, f32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(genoa, e5m2, f32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
-SIMSIMD_MAKE_DOTS_INNER(e5m2e5m2f32_genoa, e5m2, f32, simsimd_dot_e5m2x64_state_genoa_t, simsimd_dot_e5m2x64_init_genoa,
-                        _simsimd_load_b512_skylake, _simsimd_partial_load_e5m2x64_skylake_gemm,
+SIMSIMD_MAKE_DOTS_INNER(e5m2e5m2f32_genoa, e5m2, f32, simsimd_b512_vec_t, simsimd_dot_e5m2x64_state_genoa_t,
+                        simsimd_dot_e5m2x64_init_genoa, _simsimd_load_b512_skylake, _simsimd_partial_load_b8x64_skylake,
                         simsimd_dot_e5m2x64_update_genoa, simsimd_dot_e5m2x64_finalize_genoa,
                         /*k_tile=*/64, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -1338,15 +1191,17 @@ SIMSIMD_PUBLIC void simsimd_dots_bf16bf16bf16_genoa(void *c, simsimd_size_t m, s
 // I8 GEMM: k_tile=64 (64 i8s = 64 bytes = 1 cache line)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(ice, i8, i32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(ice, i8, i32, SIMSIMD_DOTS_SERIAL_TILE_K_I8)
-SIMSIMD_MAKE_DOTS_INNER(i8i8i32_ice, i8, i32, simsimd_dot_i8x64_state_ice_t, simsimd_dot_i8x64_init_ice,
-                        _simsimd_load_b512_skylake, simsimd_dot_i8x64_update_ice, simsimd_dot_i8x64_finalize_ice,
+SIMSIMD_MAKE_DOTS_INNER(i8i8i32_ice, i8, i32, simsimd_b512_vec_t, simsimd_dot_i8x64_state_ice_t,
+                        simsimd_dot_i8x64_init_ice, _simsimd_load_b512_skylake, _simsimd_partial_load_b8x64_skylake,
+                        simsimd_dot_i8x64_update_ice, simsimd_dot_i8x64_finalize_ice,
                         /*k_tile=*/64, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // U8 GEMM: k_tile=64 (64 u8s = 64 bytes = 1 cache line)
 SIMSIMD_MAKE_DOTS_SERIAL_PACKED_SIZE(ice, u8, i32, SIMSIMD_DOTS_SERIAL_TILE_K_U8)
 SIMSIMD_MAKE_DOTS_SERIAL_PACK(ice, u8, i32, SIMSIMD_DOTS_SERIAL_TILE_K_U8)
-SIMSIMD_MAKE_DOTS_INNER(u8u8i32_ice, u8, i32, simsimd_dot_u8x64_state_ice_t, simsimd_dot_u8x64_init_ice,
-                        _simsimd_load_b512_skylake, simsimd_dot_u8x64_update_ice, simsimd_dot_u8x64_finalize_ice,
+SIMSIMD_MAKE_DOTS_INNER(u8u8i32_ice, u8, i32, simsimd_b512_vec_t, simsimd_dot_u8x64_state_ice_t,
+                        simsimd_dot_u8x64_init_ice, _simsimd_load_b512_skylake, _simsimd_partial_load_b8x64_skylake,
+                        simsimd_dot_u8x64_update_ice, simsimd_dot_u8x64_finalize_ice,
                         /*k_tile=*/64, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 #pragma clang attribute pop
