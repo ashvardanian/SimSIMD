@@ -1,0 +1,118 @@
+/**
+ *  @brief SIMD-accelerated Binary Similarity Measures optimized for Arm SVE-capable CPUs.
+ *  @file include/numkong/binary/sve.h
+ *  @sa include/numkong/binary.h
+ *  @author Ash Vardanian
+ *  @date December 27, 2025
+ */
+#ifndef NK_BINARY_SVE_H
+#define NK_BINARY_SVE_H
+
+#if _NK_TARGET_ARM
+#if NK_TARGET_SVE
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.2-a+sve")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve"))), apply_to = function)
+
+#include "numkong/types.h"
+#include "numkong/binary/serial.h" // `nk_popcount_b8`
+#include "numkong/reduce/neon.h"   // `_nk_reduce_add_u8x16_neon`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+NK_PUBLIC void nk_hamming_b8_sve(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_u32_t *result) {
+
+    // On very small register sizes, NEON is at least as fast as SVE.
+    nk_size_t const words_per_register = svcntb();
+    if (words_per_register <= 32) {
+        nk_hamming_b8_neon(a, b, n_words, result);
+        return;
+    }
+
+    // On larger register sizes, SVE is faster.
+    nk_size_t i = 0, cycle = 0;
+    nk_u32_t differences = 0;
+    svuint8_t popcount_u8 = svdup_n_u8(0);
+    svbool_t const all_predicate = svptrue_b8();
+    while (i < n_words) {
+        do {
+            svbool_t active_predicate = svwhilelt_b8((unsigned int)i, (unsigned int)n_words);
+            svuint8_t a_u8 = svld1_u8(active_predicate, a + i);
+            svuint8_t b_u8 = svld1_u8(active_predicate, b + i);
+            popcount_u8 = svadd_u8_z(all_predicate, popcount_u8,
+                                     svcnt_u8_x(all_predicate, sveor_u8_m(all_predicate, a_u8, b_u8)));
+            i += words_per_register;
+            ++cycle;
+        } while (i < n_words && cycle < 31);
+        differences += svaddv_u8(all_predicate, popcount_u8);
+        popcount_u8 = svdup_n_u8(0);
+        cycle = 0; // Reset the cycle counter.
+    }
+
+    *result = differences;
+}
+
+NK_PUBLIC void nk_jaccard_b8_sve(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_f32_t *result) {
+
+    // On very small register sizes, NEON is at least as fast as SVE.
+    nk_size_t const words_per_register = svcntb();
+    if (words_per_register <= 32) {
+        nk_jaccard_b8_neon(a, b, n_words, result);
+        return;
+    }
+
+    // On larger register sizes, SVE is faster.
+    nk_size_t i = 0, cycle = 0;
+    nk_u32_t intersection_count = 0, union_count = 0;
+    svuint8_t intersection_popcount_u8 = svdup_n_u8(0);
+    svuint8_t union_popcount_u8 = svdup_n_u8(0);
+    svbool_t const all_predicate = svptrue_b8();
+    while (i < n_words) {
+        do {
+            svbool_t active_predicate = svwhilelt_b8((unsigned int)i, (unsigned int)n_words);
+            svuint8_t a_u8 = svld1_u8(active_predicate, a + i);
+            svuint8_t b_u8 = svld1_u8(active_predicate, b + i);
+            intersection_popcount_u8 = svadd_u8_z(all_predicate, intersection_popcount_u8,
+                                                  svcnt_u8_x(all_predicate, svand_u8_m(all_predicate, a_u8, b_u8)));
+            union_popcount_u8 = svadd_u8_z(all_predicate, union_popcount_u8,
+                                           svcnt_u8_x(all_predicate, svorr_u8_m(all_predicate, a_u8, b_u8)));
+            i += words_per_register;
+            ++cycle;
+        } while (i < n_words && cycle < 31);
+        intersection_count += svaddv_u8(all_predicate, intersection_popcount_u8);
+        intersection_popcount_u8 = svdup_n_u8(0);
+        union_count += svaddv_u8(all_predicate, union_popcount_u8);
+        union_popcount_u8 = svdup_n_u8(0);
+        cycle = 0; // Reset the cycle counter.
+    }
+
+    *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
+}
+
+NK_PUBLIC void nk_jaccard_u32_sve(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_size_t const words_per_register = svcntw();
+    nk_size_t i = 0;
+    nk_u32_t intersection_count = 0;
+    while (i < n) {
+        svbool_t active_predicate = svwhilelt_b32((unsigned int)i, (unsigned int)n);
+        svuint32_t a_u32 = svld1_u32(active_predicate, a + i);
+        svuint32_t b_u32 = svld1_u32(active_predicate, b + i);
+        svbool_t equality_predicate = svcmpeq_u32(active_predicate, a_u32, b_u32);
+        intersection_count += svcntp_b32(active_predicate, equality_predicate);
+        i += words_per_register;
+    }
+    *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 1.0f;
+}
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // NK_TARGET_SVE
+#endif // _NK_TARGET_ARM
+
+#endif // NK_BINARY_SVE_H
