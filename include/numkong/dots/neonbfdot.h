@@ -21,12 +21,12 @@ extern "C" {
 #endif
 
 // BF16 GEMM: k_tile=8 (8 bf16s = 16 bytes = NEON register width)
-NK_MAKE_DOTS_SERIAL_PACKED_SIZE(neon, bf16, f32, 8)
-NK_MAKE_DOTS_SERIAL_PACK(neon, bf16, f32, 8)
-NK_MAKE_DOTS_INNER(bf16bf16f32_neon, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_neon_t, nk_dot_bf16x8_init_neon,
-                   nk_load_b128_neon_, nk_partial_load_b16x8_neon_, nk_dot_bf16x8_update_neon,
-                   nk_dot_bf16x8_finalize_neon,
-                   /*k_tile=*/8, /*k_unroll=*/1, /*MR=*/4, /*MC=*/64, /*NC=*/1024, /*KC=*/256)
+NK_MAKE_DOTS_PACK_SIZE(neonbfdot, bf16, f32, 8)
+NK_MAKE_DOTS_PACK(neonbfdot, bf16, f32, 8)
+NK_MAKE_DOTS_VECTORS(bf16bf16f32_neonbfdot, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_neonbfdot_t,
+                     nk_dot_bf16x8_init_neonbfdot, nk_load_b128_neon_, nk_partial_load_b16x8_neon_,
+                     nk_dot_bf16x8_update_neonbfdot, nk_dot_bf16x8_finalize_neonbfdot,
+                     /*k_tile=*/8, /*k_unroll=*/1, /*MR=*/4, /*MC=*/64, /*NC=*/1024, /*KC=*/256)
 
 #if defined(__cplusplus)
 } // extern "C"

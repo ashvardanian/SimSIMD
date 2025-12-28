@@ -22,20 +22,20 @@ extern "C" {
 #endif
 
 // I8 GEMM: k_tile=64 (64 i8s = 64 bytes = 1 cache line)
-NK_MAKE_DOTS_SERIAL_PACKED_SIZE(ice, i8, i32, NK_DOTS_SERIAL_TILE_K_I8)
-NK_MAKE_DOTS_SERIAL_PACK(ice, i8, i32, NK_DOTS_SERIAL_TILE_K_I8)
-NK_MAKE_DOTS_INNER(i8i8i32_ice, i8, i32, nk_b512_vec_t, nk_dot_i8x64_state_ice_t, nk_dot_i8x64_init_ice,
-                   nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_, nk_dot_i8x64_update_ice,
-                   nk_dot_i8x64_finalize_ice,
-                   /*k_tile=*/64, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
+NK_MAKE_DOTS_PACK_SIZE(ice, i8, i32, NK_DOTS_SERIAL_TILE_K_I8)
+NK_MAKE_DOTS_PACK(ice, i8, i32, NK_DOTS_SERIAL_TILE_K_I8)
+NK_MAKE_DOTS_VECTORS(i8i8i32_ice, i8, i32, nk_b512_vec_t, nk_dot_i8x64_state_ice_t, nk_dot_i8x64_init_ice,
+                     nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_, nk_dot_i8x64_update_ice,
+                     nk_dot_i8x64_finalize_ice,
+                     /*k_tile=*/64, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // U8 GEMM: k_tile=64 (64 u8s = 64 bytes = 1 cache line)
-NK_MAKE_DOTS_SERIAL_PACKED_SIZE(ice, u8, i32, NK_DOTS_SERIAL_TILE_K_U8)
-NK_MAKE_DOTS_SERIAL_PACK(ice, u8, i32, NK_DOTS_SERIAL_TILE_K_U8)
-NK_MAKE_DOTS_INNER(u8u8i32_ice, u8, u32, nk_b512_vec_t, nk_dot_u8x64_state_ice_t, nk_dot_u8x64_init_ice,
-                   nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_, nk_dot_u8x64_update_ice,
-                   nk_dot_u8x64_finalize_ice,
-                   /*k_tile=*/64, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
+NK_MAKE_DOTS_PACK_SIZE(ice, u8, i32, NK_DOTS_SERIAL_TILE_K_U8)
+NK_MAKE_DOTS_PACK(ice, u8, i32, NK_DOTS_SERIAL_TILE_K_U8)
+NK_MAKE_DOTS_VECTORS(u8u8i32_ice, u8, u32, nk_b512_vec_t, nk_dot_u8x64_state_ice_t, nk_dot_u8x64_init_ice,
+                     nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_, nk_dot_u8x64_update_ice,
+                     nk_dot_u8x64_finalize_ice,
+                     /*k_tile=*/64, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 #if defined(__cplusplus)
 } // extern "C"

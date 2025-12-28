@@ -1419,6 +1419,34 @@ void test_geospatial_vincenty(void) {
 #pragma region Matrix Multiplication
 
 /**
+ *  @brief  Reference F32 matmul: C[m×n] = A[m×k] × B[n×k]ᵀ
+ */
+static void reference_matmul_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t *c, nk_size_t m, nk_size_t n,
+                                 nk_size_t k) {
+    for (nk_size_t i = 0; i < m; i++) {
+        for (nk_size_t j = 0; j < n; j++) {
+            nk_f64_t sum = 0; // Use f64 for reference to minimize rounding errors
+            for (nk_size_t kk = 0; kk < k; kk++) { sum += (nk_f64_t)a[i * k + kk] * (nk_f64_t)b[j * k + kk]; }
+            c[i * n + j] = (nk_f32_t)sum;
+        }
+    }
+}
+
+/**
+ *  @brief  Reference F64 matmul: C[m×n] = A[m×k] × B[n×k]ᵀ
+ */
+static void reference_matmul_f64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t *c, nk_size_t m, nk_size_t n,
+                                 nk_size_t k) {
+    for (nk_size_t i = 0; i < m; i++) {
+        for (nk_size_t j = 0; j < n; j++) {
+            nk_f64_t sum = 0;
+            for (nk_size_t kk = 0; kk < k; kk++) { sum += a[i * k + kk] * b[j * k + kk]; }
+            c[i * n + j] = sum;
+        }
+    }
+}
+
+/**
  *  @brief  Reference BF16 matmul: C[m×n] = A[m×k] × B[n×k]ᵀ
  */
 static void reference_matmul_bf16_f32(nk_bf16_t const *a, nk_bf16_t const *b, nk_f32_t *c, nk_size_t m, nk_size_t n,
@@ -1449,6 +1477,182 @@ static void reference_matmul_i8_i32(nk_i8_t const *a, nk_i8_t const *b, nk_i32_t
             c[i * n + j] = sum;
         }
     }
+}
+
+/**
+ *  @brief  Helper to run a single F32 matmul test case.
+ *  @return 0 on success, 1 on failure.
+ */
+static int test_matmul_f32_case(nk_size_t m, nk_size_t n, nk_size_t k, nk_f64_t min_val, nk_f64_t max_val,
+                                char const *desc) {
+    nk_f32_t *a = (nk_f32_t *)malloc(m * k * sizeof(nk_f32_t));
+    nk_f32_t *b = (nk_f32_t *)malloc(n * k * sizeof(nk_f32_t));
+    nk_f32_t *c_ref = (nk_f32_t *)malloc(m * n * sizeof(nk_f32_t));
+    nk_f32_t *c_test = (nk_f32_t *)malloc(m * n * sizeof(nk_f32_t));
+
+    // Initialize with random values in specified range
+    for (nk_size_t i = 0; i < m * k; i++) a[i] = (nk_f32_t)test_random_f64(min_val, max_val);
+    for (nk_size_t i = 0; i < n * k; i++) b[i] = (nk_f32_t)test_random_f64(min_val, max_val);
+
+    // Compute reference
+    reference_matmul_f32(a, b, c_ref, m, n, k);
+
+    // Test serial implementation
+    nk_size_t packed_size = nk_dots_f32f32f32_packed_size_serial(n, k);
+    void *b_packed = malloc(packed_size);
+    nk_dots_f32f32f32_pack_serial(b, n, k, k * sizeof(nk_f32_t), b_packed);
+    nk_dots_f32f32f32_serial(a, b_packed, c_test, m, n, k, k * sizeof(nk_f32_t), n * sizeof(nk_f32_t));
+    free(b_packed);
+
+    // Compare results with tolerance
+    int failed = 0;
+    nk_f64_t max_rel_err = 0, max_abs_err = 0;
+    for (nk_size_t i = 0; i < m * n; i++) {
+        nk_f64_t ref = (nk_f64_t)c_ref[i];
+        nk_f64_t test = (nk_f64_t)c_test[i];
+        nk_f64_t diff = fabs(ref - test);
+        nk_f64_t rel_err = fabs(ref) > 1e-6 ? diff / fabs(ref) : diff;
+        if (diff > max_abs_err) max_abs_err = diff;
+        if (rel_err > max_rel_err) max_rel_err = rel_err;
+        // F32 matmul can accumulate errors: allow 0.1% relative or reasonable absolute
+        if (rel_err > 0.001 && diff > 1e-4 * k) {
+            if (!failed) {
+                printf("    FAIL at [%zu]: ref=%g, test=%g, diff=%g, rel_err=%g\n", i, ref, test, diff, rel_err);
+            }
+            failed = 1;
+        }
+    }
+
+    free(a);
+    free(b);
+    free(c_ref);
+    free(c_test);
+
+    if (failed) {
+        printf("    %s (%zux%zux%zu, range [%g,%g]): FAIL (max_rel=%g, max_abs=%g)\n", desc, m, n, k, min_val, max_val,
+               max_rel_err, max_abs_err);
+        return 1;
+    }
+    printf("    %s (%zux%zux%zu, range [%g,%g]): PASS\n", desc, m, n, k, min_val, max_val);
+    return 0;
+}
+
+/**
+ *  @brief  Comprehensive F32 matmul tests with varying sizes and magnitudes.
+ *
+ *  Tests different matrix sizes to catch:
+ *  - Small matrices (edge cases, fewer than one tile)
+ *  - Tile-aligned matrices (happy path)
+ *  - Non-aligned matrices (boundary handling)
+ *  - Large matrices (cache blocking)
+ *
+ *  Tests different value magnitudes to catch:
+ *  - Small values (underflow, precision loss)
+ *  - Unit range (typical case)
+ *  - Large values (overflow, accumulator precision)
+ *  - Mixed signs (cancellation errors)
+ */
+void test_matmul_f32(void) {
+    printf("Test matmul F32 (comprehensive):\n");
+    int failures = 0;
+
+    // Test different matrix sizes
+    printf("  Size variations:\n");
+    failures += test_matmul_f32_case(1, 1, 1, -1.0, 1.0, "tiny 1x1x1");
+    failures += test_matmul_f32_case(3, 5, 7, -1.0, 1.0, "small prime");
+    failures += test_matmul_f32_case(4, 4, 4, -1.0, 1.0, "4x4x4 (one MR tile)");
+    failures += test_matmul_f32_case(16, 16, 16, -1.0, 1.0, "16x16x16 (one N tile)");
+    failures += test_matmul_f32_case(17, 17, 17, -1.0, 1.0, "17x17x17 (N tile + 1)");
+    failures += test_matmul_f32_case(31, 33, 35, -1.0, 1.0, "non-aligned primes");
+    failures += test_matmul_f32_case(64, 64, 64, -1.0, 1.0, "64x64x64 (multiple tiles)");
+    failures += test_matmul_f32_case(63, 65, 67, -1.0, 1.0, "near-64 non-aligned");
+    failures += test_matmul_f32_case(128, 128, 128, -1.0, 1.0, "128x128x128");
+    failures += test_matmul_f32_case(100, 200, 150, -1.0, 1.0, "rectangular 100x200x150");
+
+    // Test different value magnitudes
+    printf("  Magnitude variations (64x64x64):\n");
+    failures += test_matmul_f32_case(64, 64, 64, -1e-3, 1e-3, "tiny values");
+    failures += test_matmul_f32_case(64, 64, 64, -1.0, 1.0, "unit range");
+    failures += test_matmul_f32_case(64, 64, 64, -100.0, 100.0, "large values");
+    failures += test_matmul_f32_case(64, 64, 64, -1e3, 1e3, "very large");
+    failures += test_matmul_f32_case(64, 64, 64, 0.0, 1.0, "positive only");
+    failures += test_matmul_f32_case(64, 64, 64, -1.0, 0.0, "negative only");
+    failures += test_matmul_f32_case(64, 64, 64, 0.5, 1.5, "offset positive");
+
+    // Edge cases for tile boundaries
+    printf("  Tile boundary stress tests:\n");
+    failures += test_matmul_f32_case(15, 15, 15, -1.0, 1.0, "15 (N_tile-1)");
+    failures += test_matmul_f32_case(16, 16, 16, -1.0, 1.0, "16 (exact N_tile)");
+    failures += test_matmul_f32_case(32, 32, 32, -1.0, 1.0, "32 (2 N_tiles)");
+    failures += test_matmul_f32_case(48, 48, 48, -1.0, 1.0, "48 (3 N_tiles)");
+    failures += test_matmul_f32_case(3, 3, 3, -1.0, 1.0, "3 (MR-1)");
+    failures += test_matmul_f32_case(4, 4, 4, -1.0, 1.0, "4 (exact MR)");
+    failures += test_matmul_f32_case(5, 5, 5, -1.0, 1.0, "5 (MR+1)");
+
+    if (failures > 0) {
+        printf("Test matmul F32: FAILED (%d cases)\n", failures);
+        assert(0 && "F32 matmul tests failed");
+    }
+    printf("Test matmul F32: PASS (all cases)\n");
+}
+
+/**
+ *  @brief  Comprehensive F64 matmul tests with varying sizes and magnitudes.
+ */
+void test_matmul_f64(void) {
+    printf("Test matmul F64 (comprehensive):\n");
+    int failures = 0;
+
+    // Test a representative subset of sizes
+    nk_size_t sizes[][3] = {{1, 1, 1}, {4, 4, 4}, {7, 11, 13}, {16, 16, 16}, {17, 19, 23}, {64, 64, 64}, {65, 63, 67}};
+    nk_size_t num_sizes = sizeof(sizes) / sizeof(sizes[0]);
+
+    for (nk_size_t s = 0; s < num_sizes; s++) {
+        nk_size_t m = sizes[s][0], n = sizes[s][1], k = sizes[s][2];
+
+        nk_f64_t *a = (nk_f64_t *)malloc(m * k * sizeof(nk_f64_t));
+        nk_f64_t *b = (nk_f64_t *)malloc(n * k * sizeof(nk_f64_t));
+        nk_f64_t *c_ref = (nk_f64_t *)malloc(m * n * sizeof(nk_f64_t));
+        nk_f64_t *c_test = (nk_f64_t *)malloc(m * n * sizeof(nk_f64_t));
+
+        for (nk_size_t i = 0; i < m * k; i++) a[i] = test_random_f64(-1.0, 1.0);
+        for (nk_size_t i = 0; i < n * k; i++) b[i] = test_random_f64(-1.0, 1.0);
+
+        reference_matmul_f64(a, b, c_ref, m, n, k);
+
+        nk_size_t packed_size = nk_dots_f64f64f64_packed_size_neon(n, k);
+        void *b_packed = malloc(packed_size);
+        nk_dots_f64f64f64_pack_neon(b, n, k, k * sizeof(nk_f64_t), b_packed);
+        nk_dots_f64f64f64_neon(a, b_packed, c_test, m, n, k, k * sizeof(nk_f64_t), n * sizeof(nk_f64_t));
+        free(b_packed);
+
+        int failed = 0;
+        for (nk_size_t i = 0; i < m * n; i++) {
+            nk_f64_t diff = fabs(c_ref[i] - c_test[i]);
+            nk_f64_t rel_err = fabs(c_ref[i]) > 1e-10 ? diff / fabs(c_ref[i]) : diff;
+            if (rel_err > 1e-10 && diff > 1e-12 * k) {
+                if (!failed) printf("    FAIL at [%zu]: ref=%g, test=%g\n", i, c_ref[i], c_test[i]);
+                failed = 1;
+            }
+        }
+
+        free(a);
+        free(b);
+        free(c_ref);
+        free(c_test);
+
+        if (failed) {
+            printf("    %zux%zux%zu: FAIL\n", m, n, k);
+            failures++;
+        }
+        else { printf("    %zux%zux%zu: PASS\n", m, n, k); }
+    }
+
+    if (failures > 0) {
+        printf("Test matmul F64: FAILED (%d cases)\n", failures);
+        assert(0 && "F64 matmul tests failed");
+    }
+    printf("Test matmul F64: PASS (all cases)\n");
 }
 
 /**
@@ -1622,6 +1826,8 @@ int main(int argc, char **argv) {
     test_geospatial_vincenty();
 
     // Matrix multiplication
+    test_matmul_f32();
+    test_matmul_f64();
     test_matmul_bf16();
     test_matmul_i8();
 
