@@ -20,6 +20,33 @@
 extern "C" {
 #endif
 
+/** @brief Type-agnostic partial load for 32-bit elements (4 elements max) into 128-bit vector (NEON). */
+NK_INTERNAL void nk_partial_load_b32x4_neon_(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
+    nk_u32_t const *s = (nk_u32_t const *)src;
+    dst->u32x4 = vdupq_n_u32(0);
+    for (nk_size_t i = 0; i < n && i < 4; ++i) dst->u32s[i] = s[i];
+}
+
+/** @brief Type-agnostic partial load for 16-bit elements (8 elements max) into 128-bit vector (NEON). */
+NK_INTERNAL void nk_partial_load_b16x8_neon_(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
+    nk_u16_t const *s = (nk_u16_t const *)src;
+    dst->u16x8 = vdupq_n_u16(0);
+    for (nk_size_t i = 0; i < n && i < 8; ++i) dst->u16s[i] = s[i];
+}
+
+/** @brief Type-agnostic partial load for 8-bit elements (16 elements max) into 128-bit vector (NEON). */
+NK_INTERNAL void nk_partial_load_b8x16_neon_(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
+    nk_u8_t const *s = (nk_u8_t const *)src;
+    dst->u8x16 = vdupq_n_u8(0);
+    for (nk_size_t i = 0; i < n && i < 16; ++i) dst->u8s[i] = s[i];
+}
+
+/** @brief Type-agnostic partial store for 32-bit elements (4 elements max) from 128-bit vector (NEON). */
+NK_INTERNAL void nk_partial_store_b32x4_neon_(nk_b128_vec_t const *src, void *dst, nk_size_t n) {
+    nk_u32_t *d = (nk_u32_t *)dst;
+    for (nk_size_t i = 0; i < n && i < 4; ++i) d[i] = src->u32s[i];
+}
+
 /** @brief Horizontal sum of 4 floats in a NEON register. */
 NK_INTERNAL nk_f32_t nk_reduce_add_f32x4_neon_(float32x4_t sum_f32x4) { return vaddvq_f32(sum_f32x4); }
 

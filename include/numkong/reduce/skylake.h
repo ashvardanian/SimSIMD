@@ -20,6 +20,40 @@
 extern "C" {
 #endif
 
+/** @brief Type-agnostic partial load for 64-bit elements (8 elements max) into 512-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_b64x8_skylake_(void const *src, nk_size_t n, nk_b512_vec_t *dst) {
+    nk_u64_t const *s = (nk_u64_t const *)src;
+    dst->zmm = _mm512_setzero_si512();
+    for (nk_size_t i = 0; i < n && i < 8; ++i) dst->u64s[i] = s[i];
+}
+
+/** @brief Type-agnostic partial load for 32-bit elements (16 elements max) into 512-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_b32x16_skylake_(void const *src, nk_size_t n, nk_b512_vec_t *dst) {
+    nk_u32_t const *s = (nk_u32_t const *)src;
+    dst->zmm = _mm512_setzero_si512();
+    for (nk_size_t i = 0; i < n && i < 16; ++i) dst->u32s[i] = s[i];
+}
+
+/** @brief Type-agnostic partial load for 16-bit elements (32 elements max) into 512-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_b16x32_skylake_(void const *src, nk_size_t n, nk_b512_vec_t *dst) {
+    nk_u16_t const *s = (nk_u16_t const *)src;
+    dst->zmm = _mm512_setzero_si512();
+    for (nk_size_t i = 0; i < n && i < 32; ++i) dst->u16s[i] = s[i];
+}
+
+/** @brief Type-agnostic partial load for 8-bit elements (64 elements max) into 512-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_b8x64_skylake_(void const *src, nk_size_t n, nk_b512_vec_t *dst) {
+    nk_u8_t const *s = (nk_u8_t const *)src;
+    dst->zmm = _mm512_setzero_si512();
+    for (nk_size_t i = 0; i < n && i < 64; ++i) dst->u8s[i] = s[i];
+}
+
+/** @brief Type-agnostic partial store for 32-bit elements (16 elements max) from 512-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_store_b32x16_skylake_(nk_b512_vec_t const *src, void *dst, nk_size_t n) {
+    nk_u32_t *d = (nk_u32_t *)dst;
+    for (nk_size_t i = 0; i < n && i < 16; ++i) d[i] = src->u32s[i];
+}
+
 /** @brief Horizontal sum of 16 floats in a ZMM register (native f32 precision). */
 NK_INTERNAL nk_f32_t nk_reduce_add_f32x16_skylake_(__m512 sum_f32x16) {
     __m256 lo_f32x8 = _mm512_castps512_ps256(sum_f32x16);
