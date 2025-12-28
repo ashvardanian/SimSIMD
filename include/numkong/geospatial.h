@@ -555,6 +555,7 @@ NK_PUBLIC void nk_vincenty_f32_serial(              //
 #pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 
 #include "numkong/trigonometry/neon.h"
+#include "numkong/reduce/neon.h" // Partial load/store helpers
 
 /*  NEON implementations using 2-wide f64 and 4-wide f32 SIMD.
  *  These require NEON trigonometric kernels from trigonometry/neon.h.
@@ -616,8 +617,18 @@ NK_PUBLIC void nk_haversine_f64_neon(               //
         a_lats += 2, a_lons += 2, b_lats += 2, b_lons += 2, results += 2, n -= 2;
     }
 
-    // Handle remaining elements with serial code
-    if (n > 0) { nk_haversine_f64_serial(a_lats, a_lons, b_lats, b_lons, n, results); }
+    // Handle tail with partial loads (n can only be 0 or 1 here)
+    if (n > 0) {
+        nk_b128_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
+        nk_partial_load_b64x2_neon_(a_lats, n, &a_lat_vec);
+        nk_partial_load_b64x2_neon_(a_lons, n, &a_lon_vec);
+        nk_partial_load_b64x2_neon_(b_lats, n, &b_lat_vec);
+        nk_partial_load_b64x2_neon_(b_lons, n, &b_lon_vec);
+        float64x2_t distances = nk_haversine_f64x2_neon_(a_lat_vec.f64x2, a_lon_vec.f64x2, b_lat_vec.f64x2,
+                                                         b_lon_vec.f64x2);
+        result_vec.f64x2 = distances;
+        nk_partial_store_b64x2_neon_(&result_vec, results, n);
+    }
 }
 
 NK_INTERNAL float32x4_t nk_haversine_f32x4_neon_(              //
@@ -675,8 +686,18 @@ NK_PUBLIC void nk_haversine_f32_neon(               //
         a_lats += 4, a_lons += 4, b_lats += 4, b_lons += 4, results += 4, n -= 4;
     }
 
-    // Handle remaining elements with serial code
-    if (n > 0) { nk_haversine_f32_serial(a_lats, a_lons, b_lats, b_lons, n, results); }
+    // Handle tail with partial loads (n can be 0-3 here)
+    if (n > 0) {
+        nk_b128_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
+        nk_partial_load_b32x4_neon_(a_lats, n, &a_lat_vec);
+        nk_partial_load_b32x4_neon_(a_lons, n, &a_lon_vec);
+        nk_partial_load_b32x4_neon_(b_lats, n, &b_lat_vec);
+        nk_partial_load_b32x4_neon_(b_lons, n, &b_lon_vec);
+        float32x4_t distances = nk_haversine_f32x4_neon_(a_lat_vec.f32x4, a_lon_vec.f32x4, b_lat_vec.f32x4,
+                                                         b_lon_vec.f32x4);
+        result_vec.f32x4 = distances;
+        nk_partial_store_b32x4_neon_(&result_vec, results, n);
+    }
 }
 
 /**
@@ -854,8 +875,18 @@ NK_PUBLIC void nk_vincenty_f64_neon(                //
         a_lats += 2, a_lons += 2, b_lats += 2, b_lons += 2, results += 2, n -= 2;
     }
 
-    // Handle remaining elements with serial code
-    if (n > 0) { nk_vincenty_f64_serial(a_lats, a_lons, b_lats, b_lons, n, results); }
+    // Handle remaining elements with partial loads (n can only be 0 or 1 here)
+    if (n > 0) {
+        nk_b128_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
+        nk_partial_load_b64x2_neon_(a_lats, n, &a_lat_vec);
+        nk_partial_load_b64x2_neon_(a_lons, n, &a_lon_vec);
+        nk_partial_load_b64x2_neon_(b_lats, n, &b_lat_vec);
+        nk_partial_load_b64x2_neon_(b_lons, n, &b_lon_vec);
+        float64x2_t distances = nk_vincenty_f64x2_neon_(a_lat_vec.f64x2, a_lon_vec.f64x2, b_lat_vec.f64x2,
+                                                        b_lon_vec.f64x2);
+        result_vec.f64x2 = distances;
+        nk_partial_store_b64x2_neon_(&result_vec, results, n);
+    }
 }
 
 /**
@@ -1027,8 +1058,18 @@ NK_PUBLIC void nk_vincenty_f32_neon(                //
         a_lats += 4, a_lons += 4, b_lats += 4, b_lons += 4, results += 4, n -= 4;
     }
 
-    // Handle remaining elements with serial code
-    if (n > 0) { nk_vincenty_f32_serial(a_lats, a_lons, b_lats, b_lons, n, results); }
+    // Handle remaining elements with partial loads (n can be 1-3 here)
+    if (n > 0) {
+        nk_b128_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
+        nk_partial_load_b32x4_neon_(a_lats, n, &a_lat_vec);
+        nk_partial_load_b32x4_neon_(a_lons, n, &a_lon_vec);
+        nk_partial_load_b32x4_neon_(b_lats, n, &b_lat_vec);
+        nk_partial_load_b32x4_neon_(b_lons, n, &b_lon_vec);
+        float32x4_t distances = nk_vincenty_f32x4_neon_(a_lat_vec.f32x4, a_lon_vec.f32x4, b_lat_vec.f32x4,
+                                                        b_lon_vec.f32x4);
+        result_vec.f32x4 = distances;
+        nk_partial_store_b32x4_neon_(&result_vec, results, n);
+    }
 }
 
 #pragma clang attribute pop
@@ -1102,8 +1143,18 @@ NK_PUBLIC void nk_haversine_f64_haswell(            //
         a_lats += 4, a_lons += 4, b_lats += 4, b_lons += 4, results += 4, n -= 4;
     }
 
-    // Handle remaining elements with serial code
-    if (n > 0) { nk_haversine_f64_serial(a_lats, a_lons, b_lats, b_lons, n, results); }
+    // Handle remaining elements with partial loads (n can be 1-3 here)
+    if (n > 0) {
+        nk_b256_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
+        nk_partial_load_b64x4_haswell_(a_lats, n, &a_lat_vec);
+        nk_partial_load_b64x4_haswell_(a_lons, n, &a_lon_vec);
+        nk_partial_load_b64x4_haswell_(b_lats, n, &b_lat_vec);
+        nk_partial_load_b64x4_haswell_(b_lons, n, &b_lon_vec);
+        __m256d distances = nk_haversine_f64x4_haswell_(a_lat_vec.ymm_pd, a_lon_vec.ymm_pd, b_lat_vec.ymm_pd,
+                                                        b_lon_vec.ymm_pd);
+        result_vec.ymm_pd = distances;
+        nk_partial_store_b64x4_haswell_(&result_vec, results, n);
+    }
 }
 
 NK_INTERNAL __m256 nk_haversine_f32x8_haswell_(      //
@@ -1161,8 +1212,18 @@ NK_PUBLIC void nk_haversine_f32_haswell(            //
         a_lats += 8, a_lons += 8, b_lats += 8, b_lons += 8, results += 8, n -= 8;
     }
 
-    // Handle remaining elements with serial code
-    if (n > 0) { nk_haversine_f32_serial(a_lats, a_lons, b_lats, b_lons, n, results); }
+    // Handle remaining elements with partial loads (n can be 1-7 here)
+    if (n > 0) {
+        nk_b256_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
+        nk_partial_load_b32x8_haswell_(a_lats, n, &a_lat_vec);
+        nk_partial_load_b32x8_haswell_(a_lons, n, &a_lon_vec);
+        nk_partial_load_b32x8_haswell_(b_lats, n, &b_lat_vec);
+        nk_partial_load_b32x8_haswell_(b_lons, n, &b_lon_vec);
+        __m256 distances = nk_haversine_f32x8_haswell_(a_lat_vec.ymm_ps, a_lon_vec.ymm_ps, b_lat_vec.ymm_ps,
+                                                       b_lon_vec.ymm_ps);
+        result_vec.ymm_ps = distances;
+        nk_partial_store_b32x8_haswell_(&result_vec, results, n);
+    }
 }
 
 /**
@@ -1347,8 +1408,18 @@ NK_PUBLIC void nk_vincenty_f64_haswell(             //
         a_lats += 4, a_lons += 4, b_lats += 4, b_lons += 4, results += 4, n -= 4;
     }
 
-    // Handle remaining elements with serial code
-    if (n > 0) { nk_vincenty_f64_serial(a_lats, a_lons, b_lats, b_lons, n, results); }
+    // Handle remaining elements with partial loads (n can be 1-3 here)
+    if (n > 0) {
+        nk_b256_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
+        nk_partial_load_b64x4_haswell_(a_lats, n, &a_lat_vec);
+        nk_partial_load_b64x4_haswell_(a_lons, n, &a_lon_vec);
+        nk_partial_load_b64x4_haswell_(b_lats, n, &b_lat_vec);
+        nk_partial_load_b64x4_haswell_(b_lons, n, &b_lon_vec);
+        __m256d distances = nk_vincenty_f64x4_haswell_(a_lat_vec.ymm_pd, a_lon_vec.ymm_pd, b_lat_vec.ymm_pd,
+                                                       b_lon_vec.ymm_pd);
+        result_vec.ymm_pd = distances;
+        nk_partial_store_b64x4_haswell_(&result_vec, results, n);
+    }
 }
 
 /**
@@ -1532,8 +1603,18 @@ NK_PUBLIC void nk_vincenty_f32_haswell(             //
         a_lats += 8, a_lons += 8, b_lats += 8, b_lons += 8, results += 8, n -= 8;
     }
 
-    // Handle remaining elements with serial code
-    if (n > 0) { nk_vincenty_f32_serial(a_lats, a_lons, b_lats, b_lons, n, results); }
+    // Handle remaining elements with partial loads (n can be 1-7 here)
+    if (n > 0) {
+        nk_b256_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
+        nk_partial_load_b32x8_haswell_(a_lats, n, &a_lat_vec);
+        nk_partial_load_b32x8_haswell_(a_lons, n, &a_lon_vec);
+        nk_partial_load_b32x8_haswell_(b_lats, n, &b_lat_vec);
+        nk_partial_load_b32x8_haswell_(b_lons, n, &b_lon_vec);
+        __m256 distances = nk_vincenty_f32x8_haswell_(a_lat_vec.ymm_ps, a_lon_vec.ymm_ps, b_lat_vec.ymm_ps,
+                                                      b_lon_vec.ymm_ps);
+        result_vec.ymm_ps = distances;
+        nk_partial_store_b32x8_haswell_(&result_vec, results, n);
+    }
 }
 
 #pragma clang attribute pop
@@ -2094,6 +2175,8 @@ NK_PUBLIC void nk_haversine_f64(                    //
     nk_haversine_f64_skylake(a_lats, a_lons, b_lats, b_lons, n, results);
 #elif NK_TARGET_HASWELL
     nk_haversine_f64_haswell(a_lats, a_lons, b_lats, b_lons, n, results);
+#elif NK_TARGET_NEON
+    nk_haversine_f64_neon(a_lats, a_lons, b_lats, b_lons, n, results);
 #else
     nk_haversine_f64_serial(a_lats, a_lons, b_lats, b_lons, n, results);
 #endif
@@ -2107,6 +2190,8 @@ NK_PUBLIC void nk_haversine_f32(                    //
     nk_haversine_f32_skylake(a_lats, a_lons, b_lats, b_lons, n, results);
 #elif NK_TARGET_HASWELL
     nk_haversine_f32_haswell(a_lats, a_lons, b_lats, b_lons, n, results);
+#elif NK_TARGET_NEON
+    nk_haversine_f32_neon(a_lats, a_lons, b_lats, b_lons, n, results);
 #else
     nk_haversine_f32_serial(a_lats, a_lons, b_lats, b_lons, n, results);
 #endif
@@ -2120,6 +2205,8 @@ NK_PUBLIC void nk_vincenty_f64(                     //
     nk_vincenty_f64_skylake(a_lats, a_lons, b_lats, b_lons, n, results);
 #elif NK_TARGET_HASWELL
     nk_vincenty_f64_haswell(a_lats, a_lons, b_lats, b_lons, n, results);
+#elif NK_TARGET_NEON
+    nk_vincenty_f64_neon(a_lats, a_lons, b_lats, b_lons, n, results);
 #else
     nk_vincenty_f64_serial(a_lats, a_lons, b_lats, b_lons, n, results);
 #endif
@@ -2133,6 +2220,8 @@ NK_PUBLIC void nk_vincenty_f32(                     //
     nk_vincenty_f32_skylake(a_lats, a_lons, b_lats, b_lons, n, results);
 #elif NK_TARGET_HASWELL
     nk_vincenty_f32_haswell(a_lats, a_lons, b_lats, b_lons, n, results);
+#elif NK_TARGET_NEON
+    nk_vincenty_f32_neon(a_lats, a_lons, b_lats, b_lons, n, results);
 #else
     nk_vincenty_f32_serial(a_lats, a_lons, b_lats, b_lons, n, results);
 #endif
