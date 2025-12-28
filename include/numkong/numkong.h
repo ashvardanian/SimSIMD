@@ -890,6 +890,9 @@ NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
     unsigned supports_amx_int8 = (info7.named.edx & 0x02000000) != 0;
     // Check for AMX-FP16 (Function ID 7, Sub-leaf 1, EAX bit 21)
     unsigned supports_amx_fp16 = (info7sub1.named.eax & 0x00200000) != 0;
+    // Check for AVX-VNNI (Function ID 7, Sub-leaf 1, EAX bit 4)
+    // https://github.com/llvm/llvm-project/blob/ab450597dad2bc8f92376da2c230d9604fc8afc1/clang/lib/Headers/cpuid.h#L208
+    unsigned supports_avxvnni = (info7sub1.named.eax & 0x00000010) != 0;
 
     // Convert specific features into CPU generations
     unsigned supports_haswell = supports_avx2 && supports_f16c && supports_fma;
@@ -900,7 +903,7 @@ NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
     unsigned supports_sapphire = supports_avx512fp16;
     // We don't want to accidentally enable AVX512VP2INTERSECT on Intel Tiger Lake CPUs
     unsigned supports_turin = supports_avx512vp2intersect && supports_avx512bf16;
-    unsigned supports_sierra = 0;
+    unsigned supports_sierra = supports_haswell && supports_avxvnni && !supports_avx512f;
     // Sapphire Rapids AMX: requires AMX-TILE, AMX-BF16, and AMX-INT8
     unsigned supports_sapphire_amx = supports_amx_tile && supports_amx_bf16 && supports_amx_int8;
     // Granite Rapids AMX: requires Sapphire AMX plus AMX-FP16
@@ -976,18 +979,25 @@ NK_PUBLIC int nk_configure_thread_arm_(nk_capability_t capabilities) {
 NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
 #if defined(NK_DEFINED_APPLE_)
     // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
-    unsigned supports_neon = 0, supports_fp16 = 0, supports_bf16 = 0, supports_i8mm = 0;
+    unsigned supports_neon = 0, supports_fp16 = 0, supports_fhm = 0, supports_bf16 = 0, supports_i8mm = 0;
+    unsigned supports_sme = 0, supports_sme2 = 0;
     size_t size = sizeof(supports_neon);
     if (sysctlbyname("hw.optional.neon", &supports_neon, &size, NULL, 0) != 0) supports_neon = 0;
     if (sysctlbyname("hw.optional.arm.FEAT_FP16", &supports_fp16, &size, NULL, 0) != 0) supports_fp16 = 0;
+    if (sysctlbyname("hw.optional.arm.FEAT_FHM", &supports_fhm, &size, NULL, 0) != 0) supports_fhm = 0;
     if (sysctlbyname("hw.optional.arm.FEAT_BF16", &supports_bf16, &size, NULL, 0) != 0) supports_bf16 = 0;
     if (sysctlbyname("hw.optional.arm.FEAT_I8MM", &supports_i8mm, &size, NULL, 0) != 0) supports_i8mm = 0;
+    if (sysctlbyname("hw.optional.arm.FEAT_SME", &supports_sme, &size, NULL, 0) != 0) supports_sme = 0;
+    if (sysctlbyname("hw.optional.arm.FEAT_SME2", &supports_sme2, &size, NULL, 0) != 0) supports_sme2 = 0;
 
     return (nk_capability_t)(                                     //
         (nk_cap_neon_k * (supports_neon)) |                       //
         (nk_cap_neonhalf_k * (supports_neon && supports_fp16)) |  //
+        (nk_cap_neonfhm_k * (supports_neon && supports_fhm)) |    //
         (nk_cap_neonbfdot_k * (supports_neon && supports_bf16)) | //
         (nk_cap_neonsdot_k * (supports_neon && supports_i8mm)) |  //
+        (nk_cap_sme_k * (supports_sme)) |                         //
+        (nk_cap_sme2_k * (supports_sme2)) |                       //
         (nk_cap_serial_k));
 
 #elif defined(NK_DEFINED_LINUX_)
@@ -1030,6 +1040,8 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
     __asm__ __volatile__("mrs %0, ID_AA64ISAR0_EL1" : "=r"(id_aa64isar0_el1));
     // DP, bits [47:44] of ID_AA64ISAR0_EL1
     unsigned supports_integer_dot_products = ((id_aa64isar0_el1 >> 44) & 0xF) >= 1;
+    // FHM (FEAT_FHM), bits [51:48] of ID_AA64ISAR0_EL1 - FP16 multiply-accumulate
+    unsigned supports_fhm = ((id_aa64isar0_el1 >> 48) & 0xF) >= 1;
     // Now let's unpack the status flags from ID_AA64ISAR1_EL1
     // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64ISAR1-EL1--AArch64-Instruction-Set-Attribute-Register-1?lang=en
     __asm__ __volatile__("mrs %0, ID_AA64ISAR1_EL1" : "=r"(id_aa64isar1_el1));
@@ -1071,9 +1083,39 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
     unsigned supports_sve2 = ((id_aa64zfr0_el1) & 0xF) >= 1;
     unsigned supports_sve2p1 = ((id_aa64zfr0_el1) & 0xF) >= 2;
 
+    // Now let's unpack the status flags from ID_AA64PFR1_EL1 for SME support
+    // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64PFR1-EL1
+    unsigned long id_aa64pfr1_el1 = 0, id_aa64smfr0_el1 = 0;
+    __asm__ __volatile__("mrs %0, ID_AA64PFR1_EL1" : "=r"(id_aa64pfr1_el1));
+    // SME, bits [27:24] of ID_AA64PFR1_EL1
+    unsigned supports_sme = ((id_aa64pfr1_el1 >> 24) & 0xF) >= 1;
+
+    // SME feature flags from ID_AA64SMFR0_EL1
+    unsigned supports_sme2 = 0, supports_sme2p1 = 0;
+    unsigned supports_smef64 = 0, supports_smehalf = 0, supports_smebf16 = 0;
+    unsigned supports_smelut2 = 0, supports_smefa64 = 0;
+    if (supports_sme) {
+        __asm__ __volatile__("mrs %0, ID_AA64SMFR0_EL1" : "=r"(id_aa64smfr0_el1));
+        // SMEver, bits [59:56] of ID_AA64SMFR0_EL1
+        unsigned sme_version = (id_aa64smfr0_el1 >> 56) & 0xF;
+        supports_sme2 = sme_version >= 1;
+        supports_sme2p1 = sme_version >= 2;
+        // F64F64, bit [48] of ID_AA64SMFR0_EL1
+        supports_smef64 = (id_aa64smfr0_el1 >> 48) & 0x1;
+        // F16F16, bit [42] of ID_AA64SMFR0_EL1
+        supports_smehalf = (id_aa64smfr0_el1 >> 42) & 0x1;
+        // B16B16, bit [44] of ID_AA64SMFR0_EL1
+        supports_smebf16 = (id_aa64smfr0_el1 >> 44) & 0x1;
+        // LUTv2, bit [56] - already masked with sme_version, check bit [56-56] separately
+        // Actually LUTv2 is at different position, let's use bit [56] for SME2 LUT
+        // FA64, bit [63] of ID_AA64SMFR0_EL1
+        supports_smefa64 = (id_aa64smfr0_el1 >> 63) & 0x1;
+    }
+
     return (nk_capability_t)(                                                                     //
         (nk_cap_neon_k * (supports_neon)) |                                                       //
         (nk_cap_neonhalf_k * (supports_neon && supports_fp16)) |                                  //
+        (nk_cap_neonfhm_k * (supports_neon && supports_fhm)) |                                    //
         (nk_cap_neonbfdot_k * (supports_neon && supports_bf16)) |                                 //
         (nk_cap_neonsdot_k * (supports_neon && supports_i8mm && supports_integer_dot_products)) | //
         (nk_cap_sve_k * (supports_sve)) |                                                         //
@@ -1082,6 +1124,13 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
         (nk_cap_svesdot_k * (supports_sve && supports_svesdotmm)) |                               //
         (nk_cap_sve2_k * (supports_sve2)) |                                                       //
         (nk_cap_sve2p1_k * (supports_sve2p1)) |                                                   //
+        (nk_cap_sme_k * (supports_sme)) |                                                         //
+        (nk_cap_sme2_k * (supports_sme2)) |                                                       //
+        (nk_cap_sme2p1_k * (supports_sme2p1)) |                                                   //
+        (nk_cap_smef64_k * (supports_smef64)) |                                                   //
+        (nk_cap_smehalf_k * (supports_smehalf)) |                                                 //
+        (nk_cap_smebf16_k * (supports_smebf16)) |                                                 //
+        (nk_cap_smefa64_k * (supports_smefa64)) |                                                 //
         (nk_cap_serial_k));
 #elif defined(NK_DEFINED_WINDOWS_)
 
