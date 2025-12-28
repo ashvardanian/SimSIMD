@@ -94,17 +94,6 @@ NK_PUBLIC void nk_vdot_f32c_haswell(nk_f32c_t const *a_pairs, nk_f32c_t const *b
     result->imag = sum_imag;
 }
 
-NK_INTERNAL __m256 nk_partial_load_f16x8_haswell_(nk_f16_t const *a, nk_size_t n) {
-    // In case the software emulation for `f16` scalars is enabled, the `nk_f16_to_f32`
-    // function will run. It is extremely slow, so even for the tail, let's combine serial
-    // loads and stores with vectorized math.
-    nk_b256_vec_t result;
-    result.xmms[0] = _mm_setzero_si128();
-    nk_size_t i = 0;
-    for (; i < n; ++i) result.f16s[i] = a[i];
-    return _mm256_cvtph_ps(result.xmms[0]);
-}
-
 NK_INTERNAL void nk_partial_store_f32x8_haswell_(__m256 vec, nk_f32_t *x, nk_size_t n) {
     nk_b256_vec_t u;
     u.ymm_ps = vec;
@@ -137,8 +126,8 @@ NK_PUBLIC void nk_dot_f16_haswell(nk_f16_t const *a_scalars, nk_f16_t const *b_s
     __m256 sum_f32x8 = _mm256_setzero_ps();
 nk_dot_f16_haswell_cycle:
     if (count_scalars < 8) {
-        a_f32x8 = nk_partial_load_f16x8_haswell_(a_scalars, count_scalars);
-        b_f32x8 = nk_partial_load_f16x8_haswell_(b_scalars, count_scalars);
+        a_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(a_scalars, count_scalars);
+        b_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(b_scalars, count_scalars);
         count_scalars = 0;
     }
     else {
@@ -243,11 +232,6 @@ NK_PUBLIC void nk_dot_u8_haswell(nk_u8_t const *a_scalars, nk_u8_t const *b_scal
     *result = sum;
 }
 
-NK_INTERNAL __m256 nk_bf16x8_to_f32x8_haswell_(__m128i x) {
-    // Upcasting from `bf16` to `f32` is done by shifting the `bf16` values by 16 bits to the left, like:
-    return _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(x), 16));
-}
-
 NK_INTERNAL __m128i nk_f32x8_to_bf16x8_haswell_(__m256 x) {
     // Pack the 32-bit integers into 16-bit integers.
     // This is less trivial than unpacking: https://stackoverflow.com/a/77781241/2766161
@@ -264,25 +248,17 @@ NK_INTERNAL __m128i nk_f32x8_to_bf16x8_haswell_(__m256 x) {
     return result;
 }
 
-NK_INTERNAL __m128i nk_partial_load_bf16x8_haswell_(nk_bf16_t const *a, nk_size_t n) {
-    // In case the software emulation for `bf16` scalars is enabled, the `nk_bf16_to_f32`
-    // function will run. It is extremely slow, so even for the tail, let's combine serial
-    // loads and stores with vectorized math.
-    nk_b256_vec_t result;
-    result.xmms[0] = _mm_setzero_si128();
-    nk_size_t i = 0;
-    for (; i < n; ++i) result.bf16s[i] = a[i];
-    return result.xmms[0];
-}
-
 NK_PUBLIC void nk_dot_bf16_haswell(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
     __m128i a_bf16x8, b_bf16x8;
     __m256 sum_f32x8 = _mm256_setzero_ps();
 nk_dot_bf16_haswell_cycle:
     if (count_scalars < 8) {
-        a_bf16x8 = nk_partial_load_bf16x8_haswell_(a_scalars, count_scalars);
-        b_bf16x8 = nk_partial_load_bf16x8_haswell_(b_scalars, count_scalars);
+        nk_b256_vec_t a_vec, b_vec;
+        nk_partial_load_b16x16_haswell_(a_scalars, count_scalars, &a_vec);
+        nk_partial_load_b16x16_haswell_(b_scalars, count_scalars, &b_vec);
+        a_bf16x8 = a_vec.xmms[0];
+        b_bf16x8 = b_vec.xmms[0];
         count_scalars = 0;
     }
     else {
@@ -296,105 +272,42 @@ nk_dot_bf16_haswell_cycle:
     *result = (nk_f32_t)nk_reduce_add_f32x8_haswell_(sum_f32x8);
 }
 
-/*  Convert 8x E4M3 values to 8x F32 values using AVX2 bit manipulation.
- *
- *  E4M3 format: S EEEE MMM (bias=7, range: 2^-6 to 448)
- *  F32 format:  S EEEEEEEE MMMMMMMMMMMMMMMMMMMMMMM (bias=127)
- *  Conversion:  sign<<31, (exp+120)<<23, mant<<20
- */
-NK_INTERNAL __m256 nk_e4m3x8_to_f32x8_haswell_(__m128i fp8) {
-    // Only use lower 64 bits (8 bytes)
-    __m256i v = _mm256_cvtepu8_epi32(fp8);
-    __m256i sign = _mm256_slli_epi32(_mm256_and_si256(_mm256_srli_epi32(v, 7), _mm256_set1_epi32(1)), 31);
-    __m256i exp = _mm256_and_si256(_mm256_srli_epi32(v, 3), _mm256_set1_epi32(0x0F));
-    __m256i mant = _mm256_and_si256(v, _mm256_set1_epi32(0x07));
-    // Build F32: (exp + 120) << 23, mant << 20
-    __m256i f32_exp = _mm256_slli_epi32(_mm256_add_epi32(exp, _mm256_set1_epi32(120)), 23);
-    __m256i f32_mant = _mm256_slli_epi32(mant, 20);
-    __m256i f32_bits = _mm256_or_si256(sign, _mm256_or_si256(f32_exp, f32_mant));
-    // Handle exp=0: zero out the entire value (flush denormals to zero)
-    // AVX2 doesn't have masked move, so use blend with comparison
-    __m256i zero_mask = _mm256_cmpeq_epi32(exp, _mm256_setzero_si256());
-    f32_bits = _mm256_andnot_si256(zero_mask, f32_bits);
-    return _mm256_castsi256_ps(f32_bits);
-}
-
-/*  Convert 8x E5M2 values to 8x F32 values using AVX2 bit manipulation.
- *
- *  E5M2 format: S EEEEE MM (bias=15, range: 2^-14 to 57344)
- *  F32 format:  S EEEEEEEE MMMMMMMMMMMMMMMMMMMMMMM (bias=127)
- *  Conversion:  sign<<31, (exp+112)<<23, mant<<21
- */
-NK_INTERNAL __m256 nk_e5m2x8_to_f32x8_haswell_(__m128i fp8) {
-    // Only use lower 64 bits (8 bytes)
-    __m256i v = _mm256_cvtepu8_epi32(fp8);
-    __m256i sign = _mm256_slli_epi32(_mm256_and_si256(_mm256_srli_epi32(v, 7), _mm256_set1_epi32(1)), 31);
-    __m256i exp = _mm256_and_si256(_mm256_srli_epi32(v, 2), _mm256_set1_epi32(0x1F));
-    __m256i mant = _mm256_and_si256(v, _mm256_set1_epi32(0x03));
-    // Build F32: (exp + 112) << 23, mant << 21
-    __m256i f32_exp = _mm256_slli_epi32(_mm256_add_epi32(exp, _mm256_set1_epi32(112)), 23);
-    __m256i f32_mant = _mm256_slli_epi32(mant, 21);
-    __m256i f32_bits = _mm256_or_si256(sign, _mm256_or_si256(f32_exp, f32_mant));
-    // Handle exp=0: zero out the entire value (flush denormals to zero)
-    __m256i zero_mask = _mm256_cmpeq_epi32(exp, _mm256_setzero_si256());
-    f32_bits = _mm256_andnot_si256(zero_mask, f32_bits);
-    return _mm256_castsi256_ps(f32_bits);
-}
-
-NK_INTERNAL __m128i nk_partial_load_e4m3x8_haswell_(nk_e4m3_t const *a, nk_size_t n) {
-    nk_b256_vec_t result;
-    result.xmms[0] = _mm_setzero_si128();
-    nk_size_t i = 0;
-    for (; i < n; ++i) result.e4m3s[i] = a[i];
-    return result.xmms[0];
-}
-
-NK_INTERNAL __m128i nk_partial_load_e5m2x8_haswell_(nk_e5m2_t const *a, nk_size_t n) {
-    nk_b256_vec_t result;
-    result.xmms[0] = _mm_setzero_si128();
-    nk_size_t i = 0;
-    for (; i < n; ++i) result.e5m2s[i] = a[i];
-    return result.xmms[0];
-}
-
 NK_PUBLIC void nk_dot_e4m3_haswell(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
-    __m128i a_e4m3x8, b_e4m3x8;
+    __m256 a_f32x8, b_f32x8;
     __m256 sum_f32x8 = _mm256_setzero_ps();
 nk_dot_e4m3_haswell_cycle:
     if (count_scalars < 8) {
-        a_e4m3x8 = nk_partial_load_e4m3x8_haswell_(a_scalars, count_scalars);
-        b_e4m3x8 = nk_partial_load_e4m3x8_haswell_(b_scalars, count_scalars);
+        a_f32x8 = nk_partial_load_e4m3x8_to_f32x8_haswell_(a_scalars, count_scalars);
+        b_f32x8 = nk_partial_load_e4m3x8_to_f32x8_haswell_(b_scalars, count_scalars);
         count_scalars = 0;
     }
     else {
-        a_e4m3x8 = _mm_loadl_epi64((__m128i const *)a_scalars);
-        b_e4m3x8 = _mm_loadl_epi64((__m128i const *)b_scalars);
+        a_f32x8 = nk_e4m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)a_scalars));
+        b_f32x8 = nk_e4m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)b_scalars));
         a_scalars += 8, b_scalars += 8, count_scalars -= 8;
     }
-    sum_f32x8 = _mm256_fmadd_ps(nk_e4m3x8_to_f32x8_haswell_(a_e4m3x8), nk_e4m3x8_to_f32x8_haswell_(b_e4m3x8),
-                                sum_f32x8);
+    sum_f32x8 = _mm256_fmadd_ps(a_f32x8, b_f32x8, sum_f32x8);
     if (count_scalars) goto nk_dot_e4m3_haswell_cycle;
     *result = (nk_f32_t)nk_reduce_add_f32x8_haswell_(sum_f32x8);
 }
 
 NK_PUBLIC void nk_dot_e5m2_haswell(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
-    __m128i a_e5m2x8, b_e5m2x8;
+    __m256 a_f32x8, b_f32x8;
     __m256 sum_f32x8 = _mm256_setzero_ps();
 nk_dot_e5m2_haswell_cycle:
     if (count_scalars < 8) {
-        a_e5m2x8 = nk_partial_load_e5m2x8_haswell_(a_scalars, count_scalars);
-        b_e5m2x8 = nk_partial_load_e5m2x8_haswell_(b_scalars, count_scalars);
+        a_f32x8 = nk_partial_load_e5m2x8_to_f32x8_haswell_(a_scalars, count_scalars);
+        b_f32x8 = nk_partial_load_e5m2x8_to_f32x8_haswell_(b_scalars, count_scalars);
         count_scalars = 0;
     }
     else {
-        a_e5m2x8 = _mm_loadl_epi64((__m128i const *)a_scalars);
-        b_e5m2x8 = _mm_loadl_epi64((__m128i const *)b_scalars);
+        a_f32x8 = nk_e5m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)a_scalars));
+        b_f32x8 = nk_e5m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)b_scalars));
         a_scalars += 8, b_scalars += 8, count_scalars -= 8;
     }
-    sum_f32x8 = _mm256_fmadd_ps(nk_e5m2x8_to_f32x8_haswell_(a_e5m2x8), nk_e5m2x8_to_f32x8_haswell_(b_e5m2x8),
-                                sum_f32x8);
+    sum_f32x8 = _mm256_fmadd_ps(a_f32x8, b_f32x8, sum_f32x8);
     if (count_scalars) goto nk_dot_e5m2_haswell_cycle;
     *result = (nk_f32_t)nk_reduce_add_f32x8_haswell_(sum_f32x8);
 }

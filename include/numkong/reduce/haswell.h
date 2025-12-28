@@ -61,6 +61,71 @@ NK_INTERNAL void nk_partial_store_b64x4_haswell_(nk_b256_vec_t const *src, void 
     for (nk_size_t i = 0; i < n && i < 4; ++i) d[i] = src->u64s[i];
 }
 
+/** @brief Partial load for f16 elements (up to 8) with conversion to f32 via F16C. */
+NK_INTERNAL __m256 nk_partial_load_f16x8_to_f32x8_haswell_(nk_f16_t const *src, nk_size_t n) {
+    nk_b256_vec_t vec;
+    nk_partial_load_b16x16_haswell_(src, n, &vec);
+    return _mm256_cvtph_ps(vec.xmms[0]);
+}
+
+/** @brief Convert 8x bf16 to 8x f32 by shifting left 16 bits (AVX2). */
+NK_INTERNAL __m256 nk_bf16x8_to_f32x8_haswell_(__m128i bf16_i16x8) {
+    return _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(bf16_i16x8), 16));
+}
+
+/** @brief Partial load for bf16 elements (up to 8) with conversion to f32. */
+NK_INTERNAL __m256 nk_partial_load_bf16x8_to_f32x8_haswell_(nk_bf16_t const *src, nk_size_t n) {
+    nk_b256_vec_t vec;
+    nk_partial_load_b16x16_haswell_(src, n, &vec);
+    return nk_bf16x8_to_f32x8_haswell_(vec.xmms[0]);
+}
+
+/** @brief Convert 8x e4m3 to 8x f32 via bit manipulation (AVX2).
+ *  E4M3 format: S EEEE MMM (bias=7). F32: sign<<31, (exp+120)<<23, mant<<20. */
+NK_INTERNAL __m256 nk_e4m3x8_to_f32x8_haswell_(__m128i e4m3_i8x8) {
+    __m256i v_i32x8 = _mm256_cvtepu8_epi32(e4m3_i8x8);
+    __m256i sign_i32x8 = _mm256_slli_epi32(_mm256_and_si256(_mm256_srli_epi32(v_i32x8, 7), _mm256_set1_epi32(1)), 31);
+    __m256i exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(v_i32x8, 3), _mm256_set1_epi32(0x0F));
+    __m256i mant_i32x8 = _mm256_and_si256(v_i32x8, _mm256_set1_epi32(0x07));
+    __m256i f32_exp_i32x8 = _mm256_slli_epi32(_mm256_add_epi32(exp_i32x8, _mm256_set1_epi32(120)), 23);
+    __m256i f32_mant_i32x8 = _mm256_slli_epi32(mant_i32x8, 20);
+    __m256i f32_bits_i32x8 = _mm256_or_si256(sign_i32x8, _mm256_or_si256(f32_exp_i32x8, f32_mant_i32x8));
+    __m256i zero_mask_i32x8 = _mm256_cmpeq_epi32(exp_i32x8, _mm256_setzero_si256());
+    f32_bits_i32x8 = _mm256_andnot_si256(zero_mask_i32x8, f32_bits_i32x8);
+    return _mm256_castsi256_ps(f32_bits_i32x8);
+}
+
+/** @brief Partial load for e4m3 elements (up to 8) with conversion to f32. */
+NK_INTERNAL __m256 nk_partial_load_e4m3x8_to_f32x8_haswell_(nk_e4m3_t const *src, nk_size_t n) {
+    nk_b256_vec_t vec;
+    vec.ymm = _mm256_setzero_si256();
+    for (nk_size_t i = 0; i < n && i < 8; ++i) vec.e4m3s[i] = src[i];
+    return nk_e4m3x8_to_f32x8_haswell_(vec.xmms[0]);
+}
+
+/** @brief Convert 8x e5m2 to 8x f32 via bit manipulation (AVX2).
+ *  E5M2 format: S EEEEE MM (bias=15). F32: sign<<31, (exp+112)<<23, mant<<21. */
+NK_INTERNAL __m256 nk_e5m2x8_to_f32x8_haswell_(__m128i e5m2_i8x8) {
+    __m256i v_i32x8 = _mm256_cvtepu8_epi32(e5m2_i8x8);
+    __m256i sign_i32x8 = _mm256_slli_epi32(_mm256_and_si256(_mm256_srli_epi32(v_i32x8, 7), _mm256_set1_epi32(1)), 31);
+    __m256i exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(v_i32x8, 2), _mm256_set1_epi32(0x1F));
+    __m256i mant_i32x8 = _mm256_and_si256(v_i32x8, _mm256_set1_epi32(0x03));
+    __m256i f32_exp_i32x8 = _mm256_slli_epi32(_mm256_add_epi32(exp_i32x8, _mm256_set1_epi32(112)), 23);
+    __m256i f32_mant_i32x8 = _mm256_slli_epi32(mant_i32x8, 21);
+    __m256i f32_bits_i32x8 = _mm256_or_si256(sign_i32x8, _mm256_or_si256(f32_exp_i32x8, f32_mant_i32x8));
+    __m256i zero_mask_i32x8 = _mm256_cmpeq_epi32(exp_i32x8, _mm256_setzero_si256());
+    f32_bits_i32x8 = _mm256_andnot_si256(zero_mask_i32x8, f32_bits_i32x8);
+    return _mm256_castsi256_ps(f32_bits_i32x8);
+}
+
+/** @brief Partial load for e5m2 elements (up to 8) with conversion to f32. */
+NK_INTERNAL __m256 nk_partial_load_e5m2x8_to_f32x8_haswell_(nk_e5m2_t const *src, nk_size_t n) {
+    nk_b256_vec_t vec;
+    vec.ymm = _mm256_setzero_si256();
+    for (nk_size_t i = 0; i < n && i < 8; ++i) vec.e5m2s[i] = src[i];
+    return nk_e5m2x8_to_f32x8_haswell_(vec.xmms[0]);
+}
+
 /** @brief Horizontal sum of 4 doubles in a YMM register. */
 NK_INTERNAL nk_f64_t nk_reduce_add_f64x4_haswell_(__m256d sum_f64x4) {
     __m128d lo_f64x2 = _mm256_castpd256_pd128(sum_f64x4);

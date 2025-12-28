@@ -100,8 +100,8 @@ NK_PUBLIC void nk_l2sq_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size
 
 nk_l2sq_f16_haswell_cycle:
     if (n < 8) {
-        a_f32x8 = nk_partial_load_f16x8_haswell_(a, n);
-        b_f32x8 = nk_partial_load_f16x8_haswell_(b, n);
+        a_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(a, n);
+        b_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(b, n);
         n = 0;
     }
     else {
@@ -123,8 +123,8 @@ NK_PUBLIC void nk_angular_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_s
 
 nk_angular_f16_haswell_cycle:
     if (n < 8) {
-        a_f32x8 = nk_partial_load_f16x8_haswell_(a, n);
-        b_f32x8 = nk_partial_load_f16x8_haswell_(b, n);
+        a_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(a, n);
+        b_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(b, n);
         n = 0;
     }
     else {
@@ -153,8 +153,8 @@ NK_PUBLIC void nk_l2sq_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_s
 
 nk_l2sq_bf16_haswell_cycle:
     if (n < 8) {
-        a_f32x8 = nk_bf16x8_to_f32x8_haswell_(nk_partial_load_bf16x8_haswell_(a, n));
-        b_f32x8 = nk_bf16x8_to_f32x8_haswell_(nk_partial_load_bf16x8_haswell_(b, n));
+        a_f32x8 = nk_partial_load_bf16x8_to_f32x8_haswell_(a, n);
+        b_f32x8 = nk_partial_load_bf16x8_to_f32x8_haswell_(b, n);
         n = 0;
     }
     else {
@@ -176,8 +176,8 @@ NK_PUBLIC void nk_angular_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, n
 
 nk_angular_bf16_haswell_cycle:
     if (n < 8) {
-        a_f32x8 = nk_bf16x8_to_f32x8_haswell_(nk_partial_load_bf16x8_haswell_(a, n));
-        b_f32x8 = nk_bf16x8_to_f32x8_haswell_(nk_partial_load_bf16x8_haswell_(b, n));
+        a_f32x8 = nk_partial_load_bf16x8_to_f32x8_haswell_(a, n);
+        b_f32x8 = nk_partial_load_bf16x8_to_f32x8_haswell_(b, n);
         n = 0;
     }
     else {
