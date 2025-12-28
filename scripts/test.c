@@ -1224,7 +1224,7 @@ void test_geospatial_haversine(void) {
         nk_f64_t lon1 = known_cases[i].lon1;
         nk_f64_t lat2 = known_cases[i].lat2;
         nk_f64_t lon2 = known_cases[i].lon2;
-        nk_distance_t result;
+        nk_f64_t result;
 
         nk_haversine_f64_serial(&lat1, &lon1, &lat2, &lon2, 1, &result);
         nk_f64_t result_km = result / 1000.0;
@@ -1328,7 +1328,7 @@ void test_geospatial_vincenty(void) {
         nk_f64_t lon1 = corner_cases[i].lon1;
         nk_f64_t lat2 = corner_cases[i].lat2;
         nk_f64_t lon2 = corner_cases[i].lon2;
-        nk_distance_t result;
+        nk_f64_t result;
 
         nk_vincenty_f64_serial(&lat1, &lon1, &lat2, &lon2, 1, &result);
 

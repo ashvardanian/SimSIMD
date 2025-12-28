@@ -45,7 +45,7 @@
  *
  *  @code{.c}
  *  nk_b512_vec_t a_block, b_block;
- *  nk_distance_t a_norm = ..., b_norm = ...; // Precomputed L2 norms of full vectors
+ *  nk_f32_t a_norm = ..., b_norm = ...; // Precomputed L2 norms of full vectors
  *  nk_angular_f32x8_state_haswell_t state; // Often equivalent to dot-product state
  *  nk_angular_f32x8_init_haswell(&state);
  *  nk_angular_f32x8_update_haswell(&state, a_block, b_block);
@@ -224,7 +224,7 @@ NK_PUBLIC void nk_angular_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b, nk
 /** @copydoc nk_l2_f64 */
 NK_PUBLIC void nk_l2_i8_serial(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2_f64 */
-NK_PUBLIC void nk_l2_i8_accurate(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_distance_t *result);
+NK_PUBLIC void nk_l2_i8_accurate(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2sq_f64 */
 NK_PUBLIC void nk_l2sq_i8_accurate(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_l2sq_f64 */
@@ -234,7 +234,7 @@ NK_PUBLIC void nk_angular_i8_serial(nk_i8_t const *a, nk_i8_t const *b, nk_size_
 /** @copydoc nk_l2_f64 */
 NK_PUBLIC void nk_l2_u8_serial(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2_f64 */
-NK_PUBLIC void nk_l2_u8_accurate(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_distance_t *result);
+NK_PUBLIC void nk_l2_u8_accurate(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2sq_f64 */
 NK_PUBLIC void nk_l2sq_u8_accurate(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_l2sq_f64 */

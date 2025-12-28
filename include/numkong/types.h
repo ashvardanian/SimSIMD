@@ -350,6 +350,25 @@
 #define nk_copy_bytes_(destination_ptr, source_ptr, count) memcpy((destination_ptr), (source_ptr), count)
 #endif
 
+/**
+ *  @brief C99 static array parameter annotation for minimum array size.
+ *
+ *  In C, expands to `static n` enabling compiler bounds checking.
+ *  In C++, expands to nothing as this syntax is not supported.
+ *  @see https://lwn.net/Articles/1046840/
+ *
+ *  Example usage:
+ *  @code{.c}
+ *      void hash_digest(uint8_t digest[nk_at_least_(32)]);
+ *      void lookup(uint8_t const lut[nk_at_least_(256)]);
+ *  @endcode
+ */
+#if defined(__cplusplus) || defined(_MSC_VER)
+#define nk_at_least_(n)
+#else
+#define nk_at_least_(n) static n
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -373,7 +392,7 @@ typedef double nk_f64_t;
 
 typedef nk_u64_t nk_size_t;
 typedef nk_i64_t nk_ssize_t;
-typedef nk_f64_t nk_distance_t;
+typedef nk_f64_t nk_fmax_t;
 
 /*  @brief  Half-precision floating-point type.
  *
@@ -545,6 +564,12 @@ typedef union nk_b128_vec_t {
     uint16x8_t u16x8;
     uint32x4_t u32x4;
     uint64x2_t u64x2;
+    int8x16_t i8x16;
+    int16x8_t i16x8;
+    int32x4_t i32x4;
+    int64x2_t i64x2;
+    float32x4_t f32x4;
+    float64x2_t f64x2;
 #endif
     nk_u8_t u8s[16];
     nk_u16_t u16s[8];
@@ -576,6 +601,12 @@ typedef union nk_b256_vec_t {
     uint16x8_t u16x8s[2];
     uint32x4_t u32x4s[2];
     uint64x2_t u64x2s[2];
+    int8x16_t i8x16s[2];
+    int16x8_t i16x8s[2];
+    int32x4_t i32x4s[2];
+    int64x2_t i64x2s[2];
+    float32x4_t f32x4s[2];
+    float64x2_t f64x2s[2];
 #endif
     nk_u8_t u8s[32];
     nk_u16_t u16s[16];

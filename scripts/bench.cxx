@@ -62,7 +62,7 @@ extern "C" void openblas_set_num_threads(int) __attribute__((weak));
 
 constexpr std::size_t default_seconds = 10;
 constexpr std::size_t default_threads = 1;
-constexpr nk_distance_t signaling_distance = std::numeric_limits<nk_distance_t>::signaling_NaN();
+constexpr nk_fmax_t signaling_distance = std::numeric_limits<nk_fmax_t>::signaling_NaN();
 
 /// For sub-byte data types
 /// Can be overridden at runtime via `NK_BENCH_DENSE_DIMENSIONS` environment variable
@@ -1035,17 +1035,17 @@ void matmul_(std::string name,                                                  
 }
 
 template <typename scalar_at>
-void l2_with_stl(scalar_at const *a, scalar_at const *b, nk_size_t n, nk_distance_t *result) {
-    nk_distance_t sum = 0;
+void l2_with_stl(scalar_at const *a, scalar_at const *b, nk_size_t n, nk_fmax_t *result) {
+    nk_fmax_t sum = 0;
     for (nk_size_t i = 0; i != n; ++i) {
-        nk_distance_t delta = (nk_distance_t)a[i] - (nk_distance_t)b[i];
+        nk_fmax_t delta = (nk_fmax_t)a[i] - (nk_fmax_t)b[i];
         sum += delta * delta;
     }
     *result = std::sqrt(sum);
 }
 
 template <typename scalar_at, typename accumulator_at = scalar_at>
-nk_distance_t haversine_one_with_stl(scalar_at lat1, scalar_at lon1, scalar_at lat2, scalar_at lon2) {
+nk_fmax_t haversine_one_with_stl(scalar_at lat1, scalar_at lon1, scalar_at lat2, scalar_at lon2) {
     // Convert angle to radians:
     // lat1 *= M_PI / 180, lon1 *= M_PI / 180;
     // lat2 *= M_PI / 180, lon2 *= M_PI / 180;
@@ -1062,7 +1062,7 @@ template <typename scalar_at, typename accumulator_at = scalar_at>
 void haversine_with_stl(                              //
     scalar_at const *a_lats, scalar_at const *a_lons, //
     scalar_at const *b_lats, scalar_at const *b_lons, //
-    nk_size_t n, nk_distance_t *results) {
+    nk_size_t n, nk_fmax_t *results) {
     for (nk_size_t i = 0; i != n; ++i) {
         scalar_at lat1 = a_lats[i], lon1 = a_lons[i];
         scalar_at lat2 = b_lats[i], lon2 = b_lons[i];
@@ -1074,7 +1074,7 @@ template <typename scalar_at, typename accumulator_at = scalar_at>
 void vincenty_with_stl(                               //
     scalar_at const *a_lats, scalar_at const *a_lons, //
     scalar_at const *b_lats, scalar_at const *b_lons, //
-    nk_size_t n, nk_distance_t *results) {
+    nk_size_t n, nk_fmax_t *results) {
     // Simplified Vincenty baseline - uses same iterative algorithm as serial implementation
     constexpr accumulator_at equatorial_radius = 6378136.6;
     constexpr accumulator_at polar_radius = 6356751.9;
@@ -1198,7 +1198,7 @@ void dot_f32_blas(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *r
     *result = cblas_sdot(static_cast<int>(n), a, 1, b, 1);
 }
 
-void dot_f64_blas(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_distance_t *result) {
+void dot_f64_blas(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     *result = cblas_ddot(static_cast<int>(n), a, 1, b, 1);
 }
 
@@ -1230,7 +1230,7 @@ void bilinear_f32_blas(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, 
     *result = cblas_sdot(ni, a, 1, intermediate.data(), 1);
 }
 
-void bilinear_f64_blas(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n, nk_distance_t *result) {
+void bilinear_f64_blas(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n, nk_f64_t *result) {
     static thread_local std::vector<nk_f64_t> intermediate;
     if (intermediate.size() < n) intermediate.resize(n);
     int const ni = static_cast<int>(n);

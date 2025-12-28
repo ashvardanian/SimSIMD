@@ -23,7 +23,7 @@ extern "C" {
 #endif
 
 NK_PUBLIC void nk_dot_f16_sve(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
-                              nk_distance_t *result) {
+                              nk_f32_t *result) {
     nk_size_t idx_scalars = 0;
     svfloat16_t ab_vec = svdup_f16(0);
     do {
@@ -38,7 +38,7 @@ NK_PUBLIC void nk_dot_f16_sve(nk_f16_t const *a_scalars, nk_f16_t const *b_scala
 }
 
 NK_PUBLIC void nk_dot_f16c_sve(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
-                               nk_distance_t *results) {
+                               nk_f32c_t *results) {
     nk_size_t idx_pairs = 0;
     svfloat16_t ab_real_vec = svdup_f16(0);
     svfloat16_t ab_imag_vec = svdup_f16(0);
@@ -61,7 +61,7 @@ NK_PUBLIC void nk_dot_f16c_sve(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pair
 }
 
 NK_PUBLIC void nk_vdot_f16c_sve(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
-                                nk_distance_t *results) {
+                                nk_f32c_t *results) {
     nk_size_t idx_pairs = 0;
     svfloat16_t ab_real_vec = svdup_f16(0);
     svfloat16_t ab_imag_vec = svdup_f16(0);

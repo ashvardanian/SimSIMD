@@ -326,7 +326,7 @@ NK_PUBLIC nk_datatype_family_k nk_datatype_family(nk_datatype_t dtype) {
  *  @param[out] d   Output value as a double-precision float.
  *                  In complex dot-products @b two scalars are exported for the real and imaginary parts.
  */
-typedef void (*nk_metric_dense_punned_t)(void const *a, void const *b, nk_size_t n, nk_distance_t *d);
+typedef void (*nk_metric_dense_punned_t)(void const *a, void const *b, nk_size_t n, void *d);
 
 /**
  *  @brief  Type-punned function pointer for sparse vector representations and similarity measures.
@@ -339,7 +339,7 @@ typedef void (*nk_metric_dense_punned_t)(void const *a, void const *b, nk_size_t
  */
 typedef void (*nk_metric_sparse_punned_t)(void const *a, void const *b,           //
                                           nk_size_t a_length, nk_size_t b_length, //
-                                          nk_distance_t *d);
+                                          void *d);
 
 /**
  *  @brief  Type-punned function pointer for sparse dot products with weights.
@@ -367,7 +367,7 @@ typedef void (*nk_metric_sparse_dot_punned_t)(void const *a, void const *b,     
  *  @param[out] d   Output value as a double-precision float.
  */
 typedef void (*nk_metric_curved_punned_t)(void const *a, void const *b, void const *c, //
-                                          nk_size_t n, nk_distance_t *d);
+                                          nk_size_t n, void *d);
 
 /**
  *  @brief  Type-punned function pointer for geospatial distance functions.
