@@ -97,6 +97,20 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 
+/**
+ *  @brief  Get the kernel's native output dtype for a given metric and input dtype.
+ */
+static nk_datatype_t metric_kernel_output_dtype(nk_metric_kind_t kind, nk_datatype_t input) {
+    switch (kind) {
+    case nk_metric_dot_k:
+    case nk_metric_vdot_k: return nk_dot_output_datatype(input);
+    case nk_metric_l2_k: return nk_l2_output_datatype(input);
+    case nk_metric_l2sq_k: return nk_l2sq_output_datatype(input);
+    case nk_metric_angular_k: return nk_angular_output_datatype(input);
+    default: return nk_f64_k;
+    }
+}
+
 typedef struct TensorArgument {
     char *start;
     size_t dimensions;
@@ -2074,13 +2088,15 @@ static PyObject *implement_dense_metric( //
 
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     int const dtype_is_complex = is_complex(dtype);
+    nk_datatype_t const kernel_out_dtype = metric_kernel_output_dtype(metric_kind, dtype);
     if (a_parsed.rank == 1 && b_parsed.rank == 1) {
-        nk_fmax_t distances[2];
+        nk_scalar_buffer_t distances[2];
         metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, distances);
         return_obj =         //
             dtype_is_complex //
-                ? PyComplex_FromDoubles(distances[0], distances[1])
-                : PyFloat_FromDouble(distances[0]);
+                ? PyComplex_FromDoubles(nk_scalar_buffer_get_f64(&distances[0], kernel_out_dtype),
+                                        nk_scalar_buffer_get_f64(&distances[1], kernel_out_dtype))
+                : PyFloat_FromDouble(nk_scalar_buffer_get_f64(&distances[0], kernel_out_dtype));
         goto cleanup;
     }
 
@@ -2140,16 +2156,19 @@ static PyObject *implement_dense_metric( //
 
     // Compute the distances
     for (size_t i = 0; i < count_pairs; ++i) {
-        nk_fmax_t result[2];
+        nk_scalar_buffer_t result[2];
         metric(                                   //
             a_parsed.start + i * a_parsed.stride, //
             b_parsed.start + i * b_parsed.stride, //
             a_parsed.dimensions,                  //
-            (nk_fmax_t *)&result);
+            result);
 
         // Export out:
-        cast_distance(result[0], out_dtype, distances_start + i * distances_stride_bytes, 0);
-        if (dtype_is_complex) cast_distance(result[1], out_dtype, distances_start + i * distances_stride_bytes, 1);
+        cast_distance(nk_scalar_buffer_get_f64(&result[0], kernel_out_dtype), out_dtype,
+                      distances_start + i * distances_stride_bytes, 0);
+        if (dtype_is_complex)
+            cast_distance(nk_scalar_buffer_get_f64(&result[1], kernel_out_dtype), out_dtype,
+                          distances_start + i * distances_stride_bytes, 1);
     }
 
     PyEval_RestoreThread(save);

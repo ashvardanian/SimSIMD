@@ -839,6 +839,23 @@ NK_INTERNAL void nk_dot_i8x32_finalize_sierra(nk_dot_i8x32_state_sierra_t const 
                                               nk_dot_i8x32_state_sierra_t const *state_d, nk_i32_t *results);
 #endif // NK_TARGET_SIERRA
 
+/**
+ *  @brief  Returns the output datatype for dot products.
+ */
+NK_INTERNAL nk_datatype_t nk_dot_output_datatype(nk_datatype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return nk_f64_k;
+    case nk_f32_k: return nk_f32_k;
+    case nk_f16_k: return nk_f32_k;
+    case nk_bf16_k: return nk_f32_k;
+    case nk_e4m3_k: return nk_f32_k;
+    case nk_e5m2_k: return nk_f32_k;
+    case nk_i8_k: return nk_i32_k;
+    case nk_u8_k: return nk_u32_k;
+    default: return nk_datatype_unknown_k;
+    }
+}
+
 #include "numkong/dot/serial.h"
 #include "numkong/dot/neon.h"
 #include "numkong/dot/neonsdot.h"

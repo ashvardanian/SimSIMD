@@ -791,6 +791,33 @@ NK_PUBLIC void nk_fma_u8_sapphire(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t co
                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result);
 #endif // NK_TARGET_SAPPHIRE
 
+/**
+ *  @brief  Returns the scalar parameter datatype for elementwise scale/wsum/fma operations.
+ */
+NK_INTERNAL nk_datatype_t nk_scale_output_datatype(nk_datatype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return nk_f64_k;
+    case nk_f32_k: return nk_f32_k;
+    case nk_f16_k: return nk_f32_k;
+    case nk_bf16_k: return nk_f32_k;
+    case nk_i64_k: return nk_f64_k;
+    case nk_u64_k: return nk_f64_k;
+    case nk_i32_k: return nk_f64_k;
+    case nk_u32_k: return nk_f64_k;
+    case nk_i16_k: return nk_f32_k;
+    case nk_u16_k: return nk_f32_k;
+    case nk_i8_k: return nk_f32_k;
+    case nk_u8_k: return nk_f32_k;
+    default: return nk_datatype_unknown_k;
+    }
+}
+
+/** @copydoc nk_scale_output_datatype */
+NK_INTERNAL nk_datatype_t nk_wsum_output_datatype(nk_datatype_t dtype) { return nk_scale_output_datatype(dtype); }
+
+/** @copydoc nk_scale_output_datatype */
+NK_INTERNAL nk_datatype_t nk_fma_output_datatype(nk_datatype_t dtype) { return nk_scale_output_datatype(dtype); }
+
 #include "numkong/elementwise/serial.h"
 #include "numkong/elementwise/neon.h"
 #include "numkong/elementwise/neonhalf.h"

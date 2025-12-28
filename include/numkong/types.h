@@ -1351,10 +1351,7 @@ typedef union nk_scalar_buffer_t {
 } nk_scalar_buffer_t;
 
 /**
- *  @brief  Fill scalar buffer from f64, converting to the appropriate kernel parameter type.
- *
- *  For elementwise operations (scale, wsum, fma), the scalar parameter type depends on
- *  the input datatype: f64/i32/u32/i64/u64 use f64, all others use f32.
+ *  @brief  Fill scalar buffer from f64, converting to the appropriate type.
  *
  *  @param[out] buf     Pointer to the scalar buffer to fill.
  *  @param[in]  value   The f64 value to convert.
@@ -1362,12 +1359,58 @@ typedef union nk_scalar_buffer_t {
  */
 NK_INTERNAL void nk_scalar_buffer_set_f64(nk_scalar_buffer_t *buf, nk_f64_t value, nk_datatype_t dtype) {
     switch (dtype) {
-    case nk_f64_k:
-    case nk_i32_k:
-    case nk_u32_k:
-    case nk_i64_k:
-    case nk_u64_k: buf->f64 = value; break;
-    default: buf->f32 = (nk_f32_t)value; break;
+    case nk_f64_k: buf->f64 = value; break;
+    case nk_f32_k: buf->f32 = (nk_f32_t)value; break;
+    case nk_f16_k: {
+        nk_f32_t tmp = (nk_f32_t)value;
+        nk_f32_to_f16_(&tmp, &buf->f16);
+    } break;
+    case nk_bf16_k: {
+        nk_f32_t tmp = (nk_f32_t)value;
+        nk_f32_to_bf16_(&tmp, &buf->bf16);
+    } break;
+    case nk_i64_k: buf->i64 = (nk_i64_t)value; break;
+    case nk_u64_k: buf->u64 = (nk_u64_t)value; break;
+    case nk_i32_k: buf->i32 = (nk_i32_t)value; break;
+    case nk_u32_k: buf->u32 = (nk_u32_t)value; break;
+    case nk_i16_k: buf->i16 = (nk_i16_t)value; break;
+    case nk_u16_k: buf->u16 = (nk_u16_t)value; break;
+    case nk_i8_k: buf->i8 = (nk_i8_t)value; break;
+    case nk_u8_k: buf->u8 = (nk_u8_t)value; break;
+    default: buf->f64 = value; break;
+    }
+}
+
+/**
+ *  @brief  Read scalar buffer as f64, converting from the stored type.
+ *
+ *  @param[in] buf    Pointer to the scalar buffer to read.
+ *  @param[in] dtype  The datatype that determines which member to read.
+ *  @return           The value converted to f64.
+ */
+NK_INTERNAL nk_f64_t nk_scalar_buffer_get_f64(nk_scalar_buffer_t const *buf, nk_datatype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return buf->f64;
+    case nk_f32_k: return (nk_f64_t)buf->f32;
+    case nk_f16_k: {
+        nk_f32_t tmp;
+        nk_f16_to_f32_(&buf->f16, &tmp);
+        return (nk_f64_t)tmp;
+    }
+    case nk_bf16_k: {
+        nk_f32_t tmp;
+        nk_bf16_to_f32_(&buf->bf16, &tmp);
+        return (nk_f64_t)tmp;
+    }
+    case nk_i64_k: return (nk_f64_t)buf->i64;
+    case nk_u64_k: return (nk_f64_t)buf->u64;
+    case nk_i32_k: return (nk_f64_t)buf->i32;
+    case nk_u32_k: return (nk_f64_t)buf->u32;
+    case nk_i16_k: return (nk_f64_t)buf->i16;
+    case nk_u16_k: return (nk_f64_t)buf->u16;
+    case nk_i8_k: return (nk_f64_t)buf->i8;
+    case nk_u8_k: return (nk_f64_t)buf->u8;
+    default: return buf->f64;
     }
 }
 

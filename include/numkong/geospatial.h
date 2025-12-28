@@ -1574,6 +1574,28 @@ NK_PUBLIC void nk_vincenty_f32_skylake(             //
 #pragma GCC pop_options
 #endif // NK_TARGET_SKYLAKE
 
+/**
+ *  @brief  Returns the output datatype for Haversine distance.
+ */
+NK_INTERNAL nk_datatype_t nk_haversine_output_datatype(nk_datatype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return nk_f64_k;
+    case nk_f32_k: return nk_f32_k;
+    default: return nk_datatype_unknown_k;
+    }
+}
+
+/**
+ *  @brief  Returns the output datatype for Vincenty distance.
+ */
+NK_INTERNAL nk_datatype_t nk_vincenty_output_datatype(nk_datatype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return nk_f64_k;
+    case nk_f32_k: return nk_f32_k;
+    default: return nk_datatype_unknown_k;
+    }
+}
+
 #if !NK_DYNAMIC_DISPATCH
 
 NK_PUBLIC void nk_haversine_f64(                    //

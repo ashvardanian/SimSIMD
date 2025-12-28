@@ -310,6 +310,39 @@ NK_PUBLIC void nk_umeyama_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
                                    nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result);
 #endif // NK_TARGET_NEON
 
+/**
+ *  @brief  Returns the output datatype for RMSD.
+ */
+NK_INTERNAL nk_datatype_t nk_rmsd_output_datatype(nk_datatype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return nk_f64_k;
+    case nk_f32_k: return nk_f32_k;
+    default: return nk_datatype_unknown_k;
+    }
+}
+
+/**
+ *  @brief  Returns the output datatype for Kabsch alignment.
+ */
+NK_INTERNAL nk_datatype_t nk_kabsch_output_datatype(nk_datatype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return nk_f64_k;
+    case nk_f32_k: return nk_f32_k;
+    default: return nk_datatype_unknown_k;
+    }
+}
+
+/**
+ *  @brief  Returns the output datatype for Umeyama alignment.
+ */
+NK_INTERNAL nk_datatype_t nk_umeyama_output_datatype(nk_datatype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return nk_f64_k;
+    case nk_f32_k: return nk_f32_k;
+    default: return nk_datatype_unknown_k;
+    }
+}
+
 #include "numkong/mesh/serial.h"
 #include "numkong/mesh/neon.h"
 #include "numkong/mesh/haswell.h"

@@ -469,6 +469,51 @@ NK_PUBLIC void nk_angular_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_
 NK_PUBLIC void nk_angular_i8_sierra(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_SIERRA
 
+/**
+ *  @brief  Returns the output datatype for L2 (Euclidean) distance.
+ */
+NK_INTERNAL nk_datatype_t nk_l2_output_datatype(nk_datatype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return nk_f64_k;
+    case nk_f32_k: return nk_f32_k;
+    case nk_f16_k: return nk_f32_k;
+    case nk_bf16_k: return nk_f32_k;
+    case nk_i8_k: return nk_f32_k;
+    case nk_u8_k: return nk_f32_k;
+    default: return nk_datatype_unknown_k;
+    }
+}
+
+/**
+ *  @brief  Returns the output datatype for L2 squared distance.
+ */
+NK_INTERNAL nk_datatype_t nk_l2sq_output_datatype(nk_datatype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return nk_f64_k;
+    case nk_f32_k: return nk_f32_k;
+    case nk_f16_k: return nk_f32_k;
+    case nk_bf16_k: return nk_f32_k;
+    case nk_i8_k: return nk_u32_k;
+    case nk_u8_k: return nk_u32_k;
+    default: return nk_datatype_unknown_k;
+    }
+}
+
+/**
+ *  @brief  Returns the output datatype for angular/cosine distance.
+ */
+NK_INTERNAL nk_datatype_t nk_angular_output_datatype(nk_datatype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return nk_f64_k;
+    case nk_f32_k: return nk_f32_k;
+    case nk_f16_k: return nk_f32_k;
+    case nk_bf16_k: return nk_f32_k;
+    case nk_i8_k: return nk_f32_k;
+    case nk_u8_k: return nk_f32_k;
+    default: return nk_datatype_unknown_k;
+    }
+}
+
 #include "numkong/spatial/serial.h"
 #include "numkong/spatial/neon.h"
 #include "numkong/spatial/neonhalf.h"
