@@ -33,9 +33,9 @@ func BenchmarkCosineDistanceNative(b *testing.B) {
 	}
 }
 
-func BenchmarkCosineDistanceSIMD(b *testing.B) {
+func BenchmarkAngularDistanceSIMD(b *testing.B) {
 	first, second := generateRandomVector(1536), generateRandomVector(1536)
 	for i := 0; i < b.N; i++ {
-		CosineF32(first, second)
+		AngularF32(first, second)
 	}
 }
