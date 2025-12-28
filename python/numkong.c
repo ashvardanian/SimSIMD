@@ -1919,20 +1919,19 @@ int is_complex(nk_datatype_t datatype) {
 /// @see https://github.com/pybind/pybind11/issues/1908
 nk_datatype_t python_string_to_datatype(char const *name) {
     // Floating-point numbers:
-    if (same_string(name, "float32") || same_string(name, "f32") || // NumKong-specific
-        same_string(name, "f4") || same_string(name, "<f4") ||      // Sized float
-        same_string(name, "f") || same_string(name, "<f"))          // Named type
+    if (same_string(name, "float32") ||                        // NumKong-specific
+        same_string(name, "f4") || same_string(name, "<f4") || // Sized float
+        same_string(name, "f") || same_string(name, "<f"))     // Named type
         return nk_f32_k;
-    else if (same_string(name, "float16") || same_string(name, "f16") || // NumKong-specific
-             same_string(name, "f2") || same_string(name, "<f2") ||      // Sized float
-             same_string(name, "e") || same_string(name, "<e"))          // Named type
+    else if (same_string(name, "float16") ||                        // NumKong-specific
+             same_string(name, "f2") || same_string(name, "<f2") || // Sized float
+             same_string(name, "e") || same_string(name, "<e"))     // Named type
         return nk_f16_k;
-    else if (same_string(name, "float64") || same_string(name, "f64") || // NumKong-specific
-             same_string(name, "f8") || same_string(name, "<f8") ||      // Sized float
-             same_string(name, "d") || same_string(name, "<d"))          // Named type
+    else if (same_string(name, "float64") ||                        // NumKong-specific
+             same_string(name, "f8") || same_string(name, "<f8") || // Sized float
+             same_string(name, "d") || same_string(name, "<d"))     // Named type
         return nk_f64_k;
-    //? The exact format is not defined, but TensorFlow uses 'E' for `bf16`?!
-    else if (same_string(name, "bfloat16") || same_string(name, "bf16")) // NumKong-specific
+    else if (same_string(name, "bfloat16")) // NumKong-specific
         return nk_bf16_k;
 
     // FP8 formats (ML-focused 8-bit floats):
@@ -4318,6 +4317,26 @@ static PyObject *api_ones(PyObject *self, PyObject *const *args, Py_ssize_t cons
         nk_i64_t *p = (nk_i64_t *)result->data;
         for (size_t i = 0; i < total; i++) p[i] = 1;
     } break;
+    case nk_u8_k: {
+        nk_u8_t *p = (nk_u8_t *)result->data;
+        for (size_t i = 0; i < total; i++) p[i] = 1;
+    } break;
+    case nk_i16_k: {
+        nk_i16_t *p = (nk_i16_t *)result->data;
+        for (size_t i = 0; i < total; i++) p[i] = 1;
+    } break;
+    case nk_u16_k: {
+        nk_u16_t *p = (nk_u16_t *)result->data;
+        for (size_t i = 0; i < total; i++) p[i] = 1;
+    } break;
+    case nk_u32_k: {
+        nk_u32_t *p = (nk_u32_t *)result->data;
+        for (size_t i = 0; i < total; i++) p[i] = 1;
+    } break;
+    case nk_u64_k: {
+        nk_u64_t *p = (nk_u64_t *)result->data;
+        for (size_t i = 0; i < total; i++) p[i] = 1;
+    } break;
     default:
         Py_DECREF(result);
         PyErr_Format(PyExc_NotImplementedError, "ones() not implemented for dtype");
@@ -4389,6 +4408,36 @@ static PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t cons
     case nk_i32_k: {
         nk_i32_t *p = (nk_i32_t *)result->data;
         nk_i32_t v = (nk_i32_t)fill_value;
+        for (size_t i = 0; i < total; i++) p[i] = v;
+    } break;
+    case nk_i64_k: {
+        nk_i64_t *p = (nk_i64_t *)result->data;
+        nk_i64_t v = (nk_i64_t)fill_value;
+        for (size_t i = 0; i < total; i++) p[i] = v;
+    } break;
+    case nk_u8_k: {
+        nk_u8_t *p = (nk_u8_t *)result->data;
+        nk_u8_t v = (nk_u8_t)fill_value;
+        for (size_t i = 0; i < total; i++) p[i] = v;
+    } break;
+    case nk_i16_k: {
+        nk_i16_t *p = (nk_i16_t *)result->data;
+        nk_i16_t v = (nk_i16_t)fill_value;
+        for (size_t i = 0; i < total; i++) p[i] = v;
+    } break;
+    case nk_u16_k: {
+        nk_u16_t *p = (nk_u16_t *)result->data;
+        nk_u16_t v = (nk_u16_t)fill_value;
+        for (size_t i = 0; i < total; i++) p[i] = v;
+    } break;
+    case nk_u32_k: {
+        nk_u32_t *p = (nk_u32_t *)result->data;
+        nk_u32_t v = (nk_u32_t)fill_value;
+        for (size_t i = 0; i < total; i++) p[i] = v;
+    } break;
+    case nk_u64_k: {
+        nk_u64_t *p = (nk_u64_t *)result->data;
+        nk_u64_t v = (nk_u64_t)fill_value;
         for (size_t i = 0; i < total; i++) p[i] = v;
     } break;
     default:
