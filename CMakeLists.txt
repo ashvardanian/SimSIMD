@@ -173,20 +173,36 @@ if (NK_BUILD_BENCHMARKS)
 endif ()
 
 if (NK_BUILD_TESTS)
-    add_executable(nk_test_compile_time scripts/test.c)
-    target_link_libraries(nk_test_compile_time numkong m)
-    add_test(NAME nk_test_compile_time COMMAND nk_test_compile_time)
+    # Fetch Boost for high-precision reference computations
+    include(FetchContent)
+    FetchContent_Declare(
+        boost_multiprecision
+        GIT_REPOSITORY https://github.com/boostorg/multiprecision.git
+        GIT_TAG boost-1.89.0
+    )
+    FetchContent_Declare(
+        boost_config
+        GIT_REPOSITORY https://github.com/boostorg/config.git
+        GIT_TAG boost-1.89.0
+    )
+    FetchContent_MakeAvailable(boost_multiprecision boost_config)
 
-    add_executable(nk_test_run_time scripts/test.c c/numkong.c)
-    target_compile_definitions(nk_test_run_time PRIVATE NK_DYNAMIC_DISPATCH=1)
-    target_link_libraries(nk_test_run_time numkong m)
-    add_test(NAME nk_test_run_time COMMAND nk_test_run_time)
+    # C++ precision test (ULP-based error analysis)
+    add_executable(nk_test scripts/test.cpp c/numkong.c)
+    target_compile_definitions(nk_test PRIVATE NK_DYNAMIC_DISPATCH=1)
+    target_include_directories(nk_test PRIVATE
+        ${boost_multiprecision_SOURCE_DIR}/include
+        ${boost_config_SOURCE_DIR}/include
+    )
+    target_link_libraries(nk_test numkong m)
 
     if (OpenMP_FOUND)
-        target_compile_options(nk_test_run_time PRIVATE ${OpenMP_CXX_FLAGS})
-        target_link_libraries(nk_test_run_time OpenMP::OpenMP_CXX)
+        target_compile_options(nk_test PRIVATE ${OpenMP_CXX_FLAGS})
+        target_link_libraries(nk_test OpenMP::OpenMP_CXX)
+        target_compile_definitions(nk_test PRIVATE NK_TEST_USE_OPENMP=1)
     endif ()
 
+    add_test(NAME nk_test COMMAND nk_test)
     enable_testing()
 endif ()
 
