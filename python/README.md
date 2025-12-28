@@ -89,8 +89,8 @@ For that, view data as continuous even-length `np.float16` vectors and override 
 ```py
 vec1 = np.random.randn(1536).astype(np.float16)
 vec2 = np.random.randn(1536).astype(np.float16)
-simd.dot(vec1, vec2, "complex32")
-simd.vdot(vec1, vec2, "complex32")
+nk.dot(vec1, vec2, "complex32")
+nk.vdot(vec1, vec2, "complex32")
 ```
 
 When dealing with sparse representations and integer sets, you can apply the `intersect` function to two 1-dimensional arrays of `uint16` or `uint32` integers:
@@ -98,14 +98,14 @@ When dealing with sparse representations and integer sets, you can apply the `in
 ```py
 from random import randint
 import numpy as np
-import numkong as simd
+import numkong as nk
 
 length1, length2 = randint(1, 100), randint(1, 100)
 vec1 = np.sort(np.random.randint(0, 1000, length1).astype(np.uint16))
 vec2 = np.sort(np.random.randint(0, 1000, length2).astype(np.uint16))
 
 slow_result = len(np.intersect1d(vec1, vec2))
-fast_result = simd.intersect(vec1, vec2)
+fast_result = nk.intersect(vec1, vec2)
 assert slow_result == fast_result
 ```
 
@@ -261,7 +261,7 @@ Luckily, to downcast `f32` to `bf16` you only have to drop the last 16 bits:
 
 ```py
 import numpy as np
-import numkong as simd
+import numkong as nk
 
 ndim = 1536
 a = np.random.randn(ndim).astype(np.float32)
@@ -280,7 +280,7 @@ b_bf16 = np.right_shift(b_f32rounded.view(np.uint32), 16).astype(np.uint16)
 
 # Now we can compare the results
 expected = np.inner(a_f32rounded, b_f32rounded)
-result = simd.inner(a_bf16, b_bf16, "bf16")
+result = nk.inner(a_bf16, b_bf16, "bf16")
 ```
 
 ## Helper Functions

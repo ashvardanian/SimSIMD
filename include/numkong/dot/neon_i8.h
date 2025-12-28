@@ -59,7 +59,7 @@ NK_INTERNAL void nk_dot_i8x16_init_neon(nk_dot_i8x16_state_neon_t *state) { stat
 
 NK_INTERNAL void nk_dot_i8x16_update_neon(nk_dot_i8x16_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
     int32x4_t sum_i32x4 = state->sum_i32x4;
-    sum_i32x4 = vdotq_s32(sum_i32x4, vreinterpretq_s8_u32(a.u32x4s[0]), vreinterpretq_s8_u32(b.u32x4s[0]));
+    sum_i32x4 = vdotq_s32(sum_i32x4, vreinterpretq_s8_u32(a.u32x4), vreinterpretq_s8_u32(b.u32x4));
     state->sum_i32x4 = sum_i32x4;
 }
 
@@ -84,7 +84,7 @@ NK_INTERNAL void nk_dot_u8x16_init_neon(nk_dot_u8x16_state_neon_t *state) { stat
 
 NK_INTERNAL void nk_dot_u8x16_update_neon(nk_dot_u8x16_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
     uint32x4_t sum_u32x4 = state->sum_u32x4;
-    sum_u32x4 = vdotq_u32(sum_u32x4, vreinterpretq_u8_u32(a.u32x4s[0]), vreinterpretq_u8_u32(b.u32x4s[0]));
+    sum_u32x4 = vdotq_u32(sum_u32x4, vreinterpretq_u8_u32(a.u32x4), vreinterpretq_u8_u32(b.u32x4));
     state->sum_u32x4 = sum_u32x4;
 }
 

@@ -43,6 +43,7 @@
 
 #include "dot.h"     // `nk_partial_load_f16x4_neon_` and friends
 #include "spatial.h" // `nk_substract_bf16x32_genoa_`
+#include "reduce.h"  // `nk_reduce_add_f16x8_neon_` and friends
 
 #if defined(__cplusplus)
 extern "C" {

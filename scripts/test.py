@@ -50,7 +50,7 @@ import faulthandler
 
 import tabulate
 import pytest
-import numkong as simd
+import numkong as nk
 
 faulthandler.enable()
 randomized_repetitions_count: int = 10
@@ -566,7 +566,7 @@ NK_RTOL = 0.1
 NK_ATOL = 0.1
 
 # We will run all the tests many times using different instruction sets under the hood.
-available_capabilities: Dict[str, str] = simd.get_capabilities()
+available_capabilities: Dict[str, str] = nk.get_capabilities()
 possible_x86_capabilities: List[str] = ["haswell", "ice", "skylake", "sapphire", "turin", "genoa", "sierra"]
 possible_arm_capabilities: List[str] = [
     "neon",
@@ -603,10 +603,10 @@ def keep_one_capability(cap: str):
     assert cap in possible_capabilities or cap == "serial", f"Capability {cap} is not available on this platform."
     for c in possible_capabilities:
         if c != cap:
-            simd.disable_capability(c)
+            nk.disable_capability(c)
     # Serial is always enabled, can't toggle it
     if cap != "serial":
-        simd.enable_capability(cap)
+        nk.enable_capability(cap)
 
 
 def name_to_kernels(name: str):
@@ -615,41 +615,41 @@ def name_to_kernels(name: str):
     that can't generally print non-trivial object (like function pointers) well.
     """
     if name == "inner":
-        return baseline_inner, simd.inner
+        return baseline_inner, nk.inner
     elif name == "euclidean":
-        return baseline_euclidean, simd.euclidean
+        return baseline_euclidean, nk.euclidean
     elif name == "sqeuclidean":
-        return baseline_sqeuclidean, simd.sqeuclidean
+        return baseline_sqeuclidean, nk.sqeuclidean
     elif name == "angular":
-        return baseline_angular, simd.angular
+        return baseline_angular, nk.angular
     elif name == "bilinear":
-        return baseline_bilinear, simd.bilinear
+        return baseline_bilinear, nk.bilinear
     elif name == "mahalanobis":
-        return baseline_mahalanobis, simd.mahalanobis
+        return baseline_mahalanobis, nk.mahalanobis
     elif name == "jaccard":
-        return baseline_jaccard, simd.jaccard
+        return baseline_jaccard, nk.jaccard
     elif name == "hamming":
-        return baseline_hamming, simd.hamming
+        return baseline_hamming, nk.hamming
     elif name == "intersect":
-        return baseline_intersect, simd.intersect
+        return baseline_intersect, nk.intersect
     elif name == "scale":
-        return baseline_scale, simd.scale
+        return baseline_scale, nk.scale
     elif name == "sum":
-        return baseline_sum, simd.sum
+        return baseline_sum, nk.sum
     elif name == "wsum":
-        return baseline_wsum, simd.wsum
+        return baseline_wsum, nk.wsum
     elif name == "fma":
-        return baseline_fma, simd.fma
+        return baseline_fma, nk.fma
     elif name == "add":
-        return baseline_add, simd.add
+        return baseline_add, nk.add
     elif name == "multiply":
-        return baseline_multiply, simd.multiply
+        return baseline_multiply, nk.multiply
     elif name == "jensenshannon":
-        return baseline_jensenshannon, simd.jensenshannon
+        return baseline_jensenshannon, nk.jensenshannon
     elif name == "haversine":
-        return baseline_haversine, simd.haversine
+        return baseline_haversine, nk.haversine
     elif name == "vincenty":
-        return baseline_vincenty, simd.vincenty
+        return baseline_vincenty, nk.vincenty
     else:
         raise ValueError(f"Unknown kernel name: {name}")
 
@@ -688,52 +688,52 @@ def hex_array(arr):
 
 def test_pointers_availability():
     """Tests the availability of pre-compiled functions for compatibility with USearch."""
-    assert simd.pointer_to_sqeuclidean("float64") != 0
-    assert simd.pointer_to_angular("float64") != 0
-    assert simd.pointer_to_inner("float64") != 0
+    assert nk.pointer_to_sqeuclidean("float64") != 0
+    assert nk.pointer_to_angular("float64") != 0
+    assert nk.pointer_to_inner("float64") != 0
 
-    assert simd.pointer_to_sqeuclidean("float32") != 0
-    assert simd.pointer_to_angular("float32") != 0
-    assert simd.pointer_to_inner("float32") != 0
+    assert nk.pointer_to_sqeuclidean("float32") != 0
+    assert nk.pointer_to_angular("float32") != 0
+    assert nk.pointer_to_inner("float32") != 0
 
-    assert simd.pointer_to_sqeuclidean("float16") != 0
-    assert simd.pointer_to_angular("float16") != 0
-    assert simd.pointer_to_inner("float16") != 0
+    assert nk.pointer_to_sqeuclidean("float16") != 0
+    assert nk.pointer_to_angular("float16") != 0
+    assert nk.pointer_to_inner("float16") != 0
 
-    assert simd.pointer_to_sqeuclidean("int8") != 0
-    assert simd.pointer_to_angular("int8") != 0
-    assert simd.pointer_to_inner("int8") != 0
+    assert nk.pointer_to_sqeuclidean("int8") != 0
+    assert nk.pointer_to_angular("int8") != 0
+    assert nk.pointer_to_inner("int8") != 0
 
-    assert simd.pointer_to_sqeuclidean("uint8") != 0
-    assert simd.pointer_to_angular("uint8") != 0
-    assert simd.pointer_to_inner("uint8") != 0
+    assert nk.pointer_to_sqeuclidean("uint8") != 0
+    assert nk.pointer_to_angular("uint8") != 0
+    assert nk.pointer_to_inner("uint8") != 0
 
 
 def test_capabilities_list():
     """Tests the visibility of hardware capabilities."""
-    assert "serial" in simd.get_capabilities()
-    assert "neon" in simd.get_capabilities()
-    assert "neon_f16" in simd.get_capabilities()
-    assert "neon_bf16" in simd.get_capabilities()
-    assert "neon_i8" in simd.get_capabilities()
-    assert "sve" in simd.get_capabilities()
-    assert "sve_f16" in simd.get_capabilities()
-    assert "sve_bf16" in simd.get_capabilities()
-    assert "sve_i8" in simd.get_capabilities()
-    assert "haswell" in simd.get_capabilities()
-    assert "ice" in simd.get_capabilities()
-    assert "skylake" in simd.get_capabilities()
-    assert "genoa" in simd.get_capabilities()
-    assert "sapphire" in simd.get_capabilities()
-    assert "turin" in simd.get_capabilities()
-    assert simd.get_capabilities().get("serial") == 1
+    assert "serial" in nk.get_capabilities()
+    assert "neon" in nk.get_capabilities()
+    assert "neon_f16" in nk.get_capabilities()
+    assert "neon_bf16" in nk.get_capabilities()
+    assert "neon_i8" in nk.get_capabilities()
+    assert "sve" in nk.get_capabilities()
+    assert "sve_f16" in nk.get_capabilities()
+    assert "sve_bf16" in nk.get_capabilities()
+    assert "sve_i8" in nk.get_capabilities()
+    assert "haswell" in nk.get_capabilities()
+    assert "ice" in nk.get_capabilities()
+    assert "skylake" in nk.get_capabilities()
+    assert "genoa" in nk.get_capabilities()
+    assert "sapphire" in nk.get_capabilities()
+    assert "turin" in nk.get_capabilities()
+    assert nk.get_capabilities().get("serial") == 1
 
     # Check the toggle:
-    previous_value = simd.get_capabilities().get("neon")
-    simd.enable_capability("neon")
-    assert simd.get_capabilities().get("neon") == 1
+    previous_value = nk.get_capabilities().get("neon")
+    nk.enable_capability("neon")
+    assert nk.get_capabilities().get("neon") == 1
     if not previous_value:
-        simd.disable_capability("neon")
+        nk.disable_capability("neon")
 
 
 def to_array(x, dtype=None):
@@ -765,32 +765,32 @@ def random_of_dtype(dtype, shape):
     "function, expected_error, args, kwargs",
     [
         # Test missing positional arguments
-        (simd.sqeuclidean, TypeError, (), {}),  # No arguments provided
-        (simd.sqeuclidean, TypeError, (to_array([1.0]),), {}),  # Only one positional argument
+        (nk.sqeuclidean, TypeError, (), {}),  # No arguments provided
+        (nk.sqeuclidean, TypeError, (to_array([1.0]),), {}),  # Only one positional argument
         # Try missing type name
-        (simd.sqeuclidean, ValueError, (to_array([1.0]), to_array([1.0]), "missing_dtype"), {}),
+        (nk.sqeuclidean, ValueError, (to_array([1.0]), to_array([1.0]), "missing_dtype"), {}),
         # Test incorrect argument type
-        (simd.sqeuclidean, TypeError, (to_array([1.0]), "invalid"), {}),  # Wrong type for second argument
+        (nk.sqeuclidean, TypeError, (to_array([1.0]), "invalid"), {}),  # Wrong type for second argument
         # Test invalid keyword argument name
-        (simd.sqeuclidean, TypeError, (to_array([1.0]), to_array([1.0])), {"invalid_kwarg": "value"}),
+        (nk.sqeuclidean, TypeError, (to_array([1.0]), to_array([1.0])), {"invalid_kwarg": "value"}),
         # Test wrong argument type for SIMD capability toggle
-        (simd.enable_capability, TypeError, (123,), {}),  # Should expect a string
-        (simd.disable_capability, TypeError, ([],), {}),  # Should expect a string
+        (nk.enable_capability, TypeError, (123,), {}),  # Should expect a string
+        (nk.disable_capability, TypeError, ([],), {}),  # Should expect a string
         # Test missing required argument for Mahalanobis
-        (simd.mahalanobis, TypeError, (to_array([1.0]), to_array([1.0])), {}),  # Missing covariance matrix
+        (nk.mahalanobis, TypeError, (to_array([1.0]), to_array([1.0])), {}),  # Missing covariance matrix
         # Test missing required arguments for bilinear
-        (simd.bilinear, TypeError, (to_array([1.0]),), {}),  # Missing second vector and metric tensor
+        (nk.bilinear, TypeError, (to_array([1.0]),), {}),  # Missing second vector and metric tensor
         # Test passing too many arguments to a method
-        (simd.angular, TypeError, (to_array([1.0]), to_array([1.0]), to_array([1.0])), {}),  # Too many arguments
-        (simd.cdist, TypeError, (to_array([[1.0]]), to_array([[1.0]]), "l2", "dos"), {}),  # Too many arguments
+        (nk.angular, TypeError, (to_array([1.0]), to_array([1.0]), to_array([1.0])), {}),  # Too many arguments
+        (nk.cdist, TypeError, (to_array([[1.0]]), to_array([[1.0]]), "l2", "dos"), {}),  # Too many arguments
         # Same argument as both positional and keyword
-        (simd.cdist, TypeError, (to_array([[1.0]]), to_array([[1.0]]), "l2"), {"metric": "l2"}),
+        (nk.cdist, TypeError, (to_array([[1.0]]), to_array([[1.0]]), "l2"), {"metric": "l2"}),
         # Applying real metric to complex numbers - missing kernel
-        (simd.angular, LookupError, (to_array([1 + 2j]), to_array([1 + 2j])), {}),
+        (nk.angular, LookupError, (to_array([1 + 2j]), to_array([1 + 2j])), {}),
         # Test incompatible vectors for angular
-        (simd.angular, ValueError, (to_array([1.0]), to_array([1.0, 2.0])), {}),  # Different number of dimensions
-        (simd.angular, TypeError, (to_array([1.0]), to_array([1], "int8")), {}),  # Floats and integers
-        (simd.angular, TypeError, (to_array([1], "float32"), to_array([1], "float16")), {}),  # Different floats
+        (nk.angular, ValueError, (to_array([1.0]), to_array([1.0, 2.0])), {}),  # Different number of dimensions
+        (nk.angular, TypeError, (to_array([1.0]), to_array([1], "int8")), {}),  # Floats and integers
+        (nk.angular, TypeError, (to_array([1], "float32"), to_array([1], "float16")), {}),  # Different floats
     ],
 )
 def test_invalid_argument_handling(function, expected_error, args, kwargs):
@@ -1099,7 +1099,7 @@ def test_dense_bits(ndim, metric, capability, stats_fixture):
 @pytest.mark.parametrize("dtype", ["float32", "float16"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_jensen_shannon(ndim, dtype, capability, stats_fixture):
-    """Compares the simd.jensenshannon() function with scipy.spatial.distance.jensenshannon(), measuring the accuracy error for f16, and f32 types."""
+    """Compares the nk.jensenshannon() function with scipy.spatial.distance.jensenshannon(), measuring the accuracy error for f16, and f32 types."""
 
     np.random.seed()
     if dtype == "float16" and is_running_under_qemu():
@@ -1128,18 +1128,18 @@ def test_jensen_shannon(ndim, dtype, capability, stats_fixture):
 @pytest.mark.parametrize("dtype", ["float32", "float16"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_angular_zero_vector(ndim, dtype, capability):
-    """Tests the simd.angular() function with zero vectors, to catch division by zero errors."""
+    """Tests the nk.angular() function with zero vectors, to catch division by zero errors."""
     a = np.zeros(ndim, dtype=dtype)
     b = (np.random.randn(ndim) + 1).astype(dtype)
     keep_one_capability(capability)
 
-    result = simd.angular(a, b)
+    result = nk.angular(a, b)
     assert result == 1, f"Expected 1, but got {result}"
 
-    result = simd.angular(a, a)
+    result = nk.angular(a, a)
     assert result == 0, f"Expected 0 distance from itself, but got {result}"
 
-    result = simd.angular(b, b)
+    result = nk.angular(b, b)
     assert abs(result) < NK_ATOL, f"Expected 0 distance from itself, but got {result}"
 
     # For the angular distance, the output must not be negative!
@@ -1217,7 +1217,7 @@ def test_overflow_i8(ndim, metric, capability):
 @pytest.mark.parametrize("dtype", ["float32", "float64"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_dot_complex(ndim, dtype, capability, stats_fixture):
-    """Compares the simd.dot() and simd.vdot() against NumPy for complex numbers."""
+    """Compares the nk.dot() and nk.vdot() against NumPy for complex numbers."""
     np.random.seed()
     a = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
     b = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
@@ -1225,7 +1225,7 @@ def test_dot_complex(ndim, dtype, capability, stats_fixture):
     keep_one_capability(capability)
     accurate_dt, accurate = profile(np.dot, a.astype(np.complex128), b.astype(np.complex128))
     expected_dt, expected = profile(np.dot, a, b)
-    result_dt, result = profile(simd.dot, a, b)
+    result_dt, result = profile(nk.dot, a, b)
     result = np.array(result)
 
     np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
@@ -1233,7 +1233,7 @@ def test_dot_complex(ndim, dtype, capability, stats_fixture):
 
     accurate_dt, accurate = profile(np.vdot, a.astype(np.complex128), b.astype(np.complex128))
     expected_dt, expected = profile(np.vdot, a, b)
-    result_dt, result = profile(simd.vdot, a, b)
+    result_dt, result = profile(nk.vdot, a, b)
     result = np.array(result)
 
     np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
@@ -1248,19 +1248,19 @@ def test_dot_complex(ndim, dtype, capability, stats_fixture):
 @pytest.mark.parametrize("ndim", [22, 66, 1536])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_dot_complex_explicit(ndim, capability):
-    """Compares the simd.dot() and simd.vdot() against NumPy for complex numbers."""
+    """Compares the nk.dot() and nk.vdot() against NumPy for complex numbers."""
     np.random.seed()
     a = np.random.randn(ndim).astype(dtype=np.float32)
     b = np.random.randn(ndim).astype(dtype=np.float32)
 
     keep_one_capability(capability)
     expected = np.dot(a.view(np.complex64), b.view(np.complex64))
-    result = simd.dot(a, b, "complex64")
+    result = nk.dot(a, b, "complex64")
 
     np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
     expected = np.vdot(a.view(np.complex64), b.view(np.complex64))
-    result = simd.vdot(a, b, "complex64")
+    result = nk.vdot(a, b, "complex64")
 
     np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
@@ -1272,7 +1272,7 @@ def test_dot_complex_explicit(ndim, capability):
 @pytest.mark.parametrize("second_length_bound", [10, 100, 1000])
 @pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
 def test_intersect(dtype, first_length_bound, second_length_bound, capability):
-    """Compares the simd.intersect() function with numpy.intersect1d."""
+    """Compares the nk.intersect() function with numpy.intersect1d."""
 
     if is_running_under_qemu() and (platform.machine() == "aarch64" or platform.machine() == "arm64"):
         pytest.skip("In QEMU `aarch64` emulation on `x86_64` the `intersect` function is not reliable")
@@ -1290,7 +1290,7 @@ def test_intersect(dtype, first_length_bound, second_length_bound, capability):
 
     keep_one_capability(capability)
     expected = baseline_intersect(a, b)
-    result = simd.intersect(a, b)
+    result = nk.intersect(a, b)
 
     assert round(float(expected)) == round(float(result)), f"Missing {np.intersect1d(a, b)} from {a} and {b}"
 
@@ -1527,7 +1527,7 @@ def test_fma(ndim, dtype, kernel, capability, stats_fixture):
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_batch(ndim, dtype, capability):
-    """Compares the simd.simd.sqeuclidean() function with scipy.spatial.distance.sqeuclidean() for a batch of vectors, measuring the accuracy error for f16, and f32 types."""
+    """Compares the nk.nk.sqeuclidean() function with scipy.spatial.distance.sqeuclidean() for a batch of vectors, measuring the accuracy error for f16, and f32 types."""
 
     if dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
@@ -1539,34 +1539,34 @@ def test_batch(ndim, dtype, capability):
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
-    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
+    result_simd = np.array(nk.sqeuclidean(A, B)).astype(np.float64)
     assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (1 x D scalars) is an array with N floats.
     B = np.random.randn(1, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B[0]) for i in range(10)]
-    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
+    result_simd = np.array(nk.sqeuclidean(A, B)).astype(np.float64)
     assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Distance between matrixes A (1 x D scalars) and B (N x D scalars) is an array with N floats.
     A = np.random.randn(1, ndim).astype(dtype)
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[0], B[i]) for i in range(10)]
-    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
+    result_simd = np.array(nk.sqeuclidean(A, B)).astype(np.float64)
     assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Distance between matrix A (N x D scalars) and array B (D scalars) is an array with N floats.
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.random.randn(ndim).astype(dtype)
     result_np = [spd.sqeuclidean(A[i], B) for i in range(10)]
-    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
+    result_simd = np.array(nk.sqeuclidean(A, B)).astype(np.float64)
     assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Distance between matrix B (N x D scalars) and array A (D scalars) is an array with N floats.
     B = np.random.randn(10, ndim).astype(dtype)
     A = np.random.randn(ndim).astype(dtype)
     result_np = [spd.sqeuclidean(B[i], A) for i in range(10)]
-    result_simd = np.array(simd.sqeuclidean(B, A)).astype(np.float64)
+    result_simd = np.array(nk.sqeuclidean(B, A)).astype(np.float64)
     assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) in slices of bigger matrices.
@@ -1577,7 +1577,7 @@ def test_batch(ndim, dtype, capability):
     assert A.base is A_extended and B.base is B_extended
     assert A.__array_interface__["strides"] is not None and B.__array_interface__["strides"] is not None
     result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
-    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
+    result_simd = np.array(nk.sqeuclidean(A, B)).astype(np.float64)
     assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) in a transposed matrix.
@@ -1585,14 +1585,14 @@ def test_batch(ndim, dtype, capability):
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.ascontiguousarray(np.random.randn(ndim, 10).astype(dtype).T)
     result_np = [spd.sqeuclidean(A[i], B[i]) for i in range(10)]
-    result_simd = np.array(simd.sqeuclidean(A, B)).astype(np.float64)
+    result_simd = np.array(nk.sqeuclidean(A, B)).astype(np.float64)
     assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) with a different output type.
     A = np.random.randn(10, ndim).astype(dtype)
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = np.array([spd.sqeuclidean(A[i], B[i]) for i in range(10)]).astype(np.float32)
-    result_simd = np.array(simd.sqeuclidean(A, B, out_dtype="float32"))
+    result_simd = np.array(nk.sqeuclidean(A, B, out_dtype="float32"))
     assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
     assert result_simd.dtype == result_np.dtype
 
@@ -1601,7 +1601,7 @@ def test_batch(ndim, dtype, capability):
     B = np.random.randn(10, ndim).astype(dtype)
     result_np = np.array([spd.sqeuclidean(A[i], B[i]) for i in range(10)]).astype(np.float32)
     result_simd = np.zeros(10, dtype=np.float32)
-    assert simd.sqeuclidean(A, B, out=result_simd) is None
+    assert nk.sqeuclidean(A, B, out=result_simd) is None
     assert np.allclose(result_simd, result_np, atol=NK_ATOL, rtol=NK_RTOL)
     assert result_simd.dtype == result_np.dtype
 
@@ -1614,7 +1614,7 @@ def test_batch(ndim, dtype, capability):
 @pytest.mark.parametrize("metric", ["angular", "sqeuclidean"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
-    """Compares the simd.cdist() function with scipy.spatial.distance.cdist(), measuring the accuracy error for f16, and f32 types using sqeuclidean and angular metrics."""
+    """Compares the nk.cdist() function with scipy.spatial.distance.cdist(), measuring the accuracy error for f16, and f32 types using sqeuclidean and angular metrics."""
 
     if input_dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
@@ -1636,25 +1636,25 @@ def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
 
     if out_dtype is None:
         expected = spd.cdist(A, B, scipy_metric)
-        result = simd.cdist(A, B, metric)
+        result = nk.cdist(A, B, metric)
         #! Same functions can be used in-place, but SciPy doesn't support misaligned outputs
         expected_out = np.zeros((M, N))
         result_out_extended = np.zeros((M, N + 7))
         result_out = result_out_extended[:, :N]
         assert spd.cdist(A, B, scipy_metric, out=expected_out) is not None
-        assert simd.cdist(A, B, metric, out=result_out) is None
+        assert nk.cdist(A, B, metric, out=result_out) is None
     else:
         #! NumKong rounds to the nearest integer before casting
         scipy_result = spd.cdist(A, B, scipy_metric)
         expected = np.round(scipy_result).astype(out_dtype) if is_integer_output else scipy_result.astype(out_dtype)
-        result = simd.cdist(A, B, metric, out_dtype=out_dtype)
+        result = nk.cdist(A, B, metric, out_dtype=out_dtype)
 
         #! Same functions can be used in-place, but SciPy doesn't support misaligned outputs
         expected_out = np.zeros((M, N), dtype=np.float64)
         result_out_extended = np.zeros((M, N + 7), dtype=out_dtype)
         result_out = result_out_extended[:, :N]
         assert spd.cdist(A, B, scipy_metric, out=expected_out) is not None
-        assert simd.cdist(A, B, metric, out=result_out) is None
+        assert nk.cdist(A, B, metric, out=result_out) is None
         #! Moreover, SciPy supports only double-precision outputs, so we need to downcast afterwards.
         expected_out = np.round(expected_out).astype(out_dtype) if is_integer_output else expected_out.astype(out_dtype)
 
@@ -1672,7 +1672,7 @@ def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
 @pytest.mark.parametrize("out_dtype", [None, "float32", "int32"])
 @pytest.mark.parametrize("metric", ["angular", "sqeuclidean"])
 def test_cdist_itself(ndim, input_dtype, out_dtype, metric):
-    """Compares the simd.cdist(A, A) function with scipy.spatial.distance.cdist(A, A), measuring the accuracy error for f16, and f32 types using sqeuclidean and angular metrics."""
+    """Compares the nk.cdist(A, A) function with scipy.spatial.distance.cdist(A, A), measuring the accuracy error for f16, and f32 types using sqeuclidean and angular metrics."""
 
     if input_dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
@@ -1686,12 +1686,12 @@ def test_cdist_itself(ndim, input_dtype, out_dtype, metric):
     A = np.random.randn(10, ndim + 1).astype(input_dtype)
     if out_dtype is None:
         expected = spd.cdist(A, A, scipy_metric)
-        result = simd.cdist(A, A, metric=metric)
+        result = nk.cdist(A, A, metric=metric)
     else:
         #! NumKong rounds to the nearest integer before casting
         scipy_result = spd.cdist(A, A, scipy_metric)
         expected = np.round(scipy_result).astype(out_dtype) if is_integer_output else scipy_result.astype(out_dtype)
-        result = simd.cdist(A, A, metric=metric, out_dtype=out_dtype)
+        result = nk.cdist(A, A, metric=metric, out_dtype=out_dtype)
 
     # Assert they're close.
     # Integer outputs: allow ±1 tolerance since rounding differences are expected
@@ -1706,7 +1706,7 @@ def test_cdist_itself(ndim, input_dtype, out_dtype, metric):
 @pytest.mark.parametrize("metric", ["dot", "vdot"])
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
-    """Compares the simd.cdist() for complex numbers to pure NumPy complex dot-products, as SciPy has no such functionality.
+    """Compares the nk.cdist() for complex numbers to pure NumPy complex dot-products, as SciPy has no such functionality.
     The goal is to make sure that addressing multi-component numbers is done properly in both real and imaginary parts.
     """
 
@@ -1733,14 +1733,14 @@ def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
 
     # Compute with NumKong:
     if out_dtype is None:
-        result1d = simd.cdist(A[0], B[0], metric=metric)
-        result2d = simd.cdist(A, B, metric=metric)
-        assert simd.cdist(A, B, metric=metric, out=C) is None
+        result1d = nk.cdist(A[0], B[0], metric=metric)
+        result2d = nk.cdist(A, B, metric=metric)
+        assert nk.cdist(A, B, metric=metric, out=C) is None
     else:
         expected = expected.astype(out_dtype)
-        result1d = simd.cdist(A[0], B[0], metric=metric, out_dtype=out_dtype)
-        result2d = simd.cdist(A, B, metric=metric, out_dtype=out_dtype)
-        assert simd.cdist(A, B, metric=metric, out_dtype=out_dtype, out=C) is None
+        result1d = nk.cdist(A[0], B[0], metric=metric, out_dtype=out_dtype)
+        result2d = nk.cdist(A, B, metric=metric, out_dtype=out_dtype)
+        assert nk.cdist(A, B, metric=metric, out_dtype=out_dtype, out=C) is None
 
     # Assert they're close.
     np.testing.assert_allclose(result1d, expected[0, 0], atol=NK_ATOL, rtol=NK_RTOL)
@@ -1769,10 +1769,10 @@ def test_cdist_hamming(ndim, out_dtype, capability):
     if out_dtype is None:
         # SciPy divides the Hamming distance by the number of dimensions, so we need to multiply it back.
         expected = spd.cdist(A, B, "hamming") * ndim
-        result = simd.cdist(A_bits, B_bits, metric="hamming", dtype="bin8")
+        result = nk.cdist(A_bits, B_bits, metric="hamming", dtype="bin8")
     else:
         expected = (spd.cdist(A, B, "hamming") * ndim).astype(out_dtype)
-        result = simd.cdist(A_bits, B_bits, metric="hamming", dtype="bin8", out_dtype=out_dtype)
+        result = nk.cdist(A_bits, B_bits, metric="hamming", dtype="bin8", out_dtype=out_dtype)
 
     np.testing.assert_allclose(result, expected, atol=NK_ATOL, rtol=NK_RTOL)
 
@@ -2254,7 +2254,7 @@ def test_gil_free_threading():
         slice_a = vectors_a[start_idx:end_idx]
         slice_b = vectors_b[start_idx:end_idx]
         slice_distances = distances[start_idx:end_idx]
-        simd.angular(slice_a, slice_b, out=slice_distances)
+        nk.angular(slice_a, slice_b, out=slice_distances)
         return sum(slice_distances)
 
     def compute_with_threads(threads: int) -> float:
@@ -2339,7 +2339,7 @@ def test_haversine(ndim, dtype, capability, stats_fixture):
     )
 
     # Compute using NumKong
-    result = simd.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes)
+    result = nk.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes)
     result = np.array(result)
 
     # For geospatial, allow larger tolerance due to transcendental function differences
@@ -2398,7 +2398,7 @@ def test_vincenty(ndim, dtype, capability, stats_fixture):
     )
 
     # Compute using NumKong
-    result = simd.vincenty(first_latitudes, first_longitudes, second_latitudes, second_longitudes)
+    result = nk.vincenty(first_latitudes, first_longitudes, second_latitudes, second_longitudes)
     result = np.array(result)
 
     # For geospatial, allow larger tolerance due to transcendental function differences
@@ -2432,7 +2432,7 @@ def test_haversine_known_values():
     second_latitudes = np.array([los_angeles_latitude], dtype=np.float64)
     second_longitudes = np.array([los_angeles_longitude], dtype=np.float64)
 
-    result = np.array(simd.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes))
+    result = np.array(nk.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes))
     result_kilometers = float(result[0]) / 1000
 
     # NYC to LA is approximately 3940 km (great circle)
@@ -2452,14 +2452,14 @@ def test_geospatial_out_parameter():
 
     # Test with pre-allocated output
     output_distances = np.zeros(count, dtype=np.float64)
-    result = simd.haversine(
+    result = nk.haversine(
         first_latitudes, first_longitudes, second_latitudes, second_longitudes, out=output_distances
     )
     assert result is None, "Expected None when using out parameter"
     assert np.all(output_distances >= 0), "Output should contain non-negative distances"
 
     # Compare with regular call
-    expected = np.array(simd.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes))
+    expected = np.array(nk.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes))
     np.testing.assert_allclose(output_distances, expected, atol=1e-10, rtol=1e-10)
 
 
@@ -2476,7 +2476,7 @@ def test_distances_tensor_properties():
     # Test with pairwise distances (2D result)
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
-    result = simd.cdist(a, b, metric="sqeuclidean")
+    result = nk.cdist(a, b, metric="sqeuclidean")
 
     # Check basic properties
     assert hasattr(result, "shape"), "DistancesTensor should have 'shape' property"
@@ -2506,7 +2506,7 @@ def test_distances_tensor_properties_1d():
     # Test with row-wise distances (1D result)
     a = np.random.rand(10, 128).astype(np.float64)
     b = np.random.rand(10, 128).astype(np.float64)
-    result = simd.sqeuclidean(a, b)
+    result = nk.sqeuclidean(a, b)
 
     assert result.shape == (10,), f"Expected shape (10,), got {result.shape}"
     assert result.ndim == 1, f"Expected ndim 1, got {result.ndim}"
@@ -2522,13 +2522,13 @@ def test_distances_tensor_len():
     # 2D tensor
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
-    result_2d = simd.cdist(a, b, metric="sqeuclidean")
+    result_2d = nk.cdist(a, b, metric="sqeuclidean")
     assert len(result_2d) == 5, f"Expected len 5, got {len(result_2d)}"
 
     # 1D tensor
     a = np.random.rand(10, 128).astype(np.float64)
     b = np.random.rand(10, 128).astype(np.float64)
-    result_1d = simd.sqeuclidean(a, b)
+    result_1d = nk.sqeuclidean(a, b)
     assert len(result_1d) == 10, f"Expected len 10, got {len(result_1d)}"
 
 
@@ -2540,7 +2540,7 @@ def test_distances_tensor_repr():
     # 2D tensor
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
-    result = simd.cdist(a, b, metric="sqeuclidean")
+    result = nk.cdist(a, b, metric="sqeuclidean")
 
     repr_str = repr(result)
     assert "DistancesTensor" in repr_str, f"repr should contain 'DistancesTensor', got: {repr_str}"
@@ -2558,7 +2558,7 @@ def test_distances_tensor_indexing():
     # Create 2D result
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
-    result = simd.cdist(a, b, metric="sqeuclidean")
+    result = nk.cdist(a, b, metric="sqeuclidean")
 
     # Convert to numpy for comparison
     expected = np.asarray(result)
@@ -2599,7 +2599,7 @@ def test_distances_tensor_iteration():
     # 2D tensor - iterates over rows
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
-    result = simd.cdist(a, b, metric="sqeuclidean")
+    result = nk.cdist(a, b, metric="sqeuclidean")
     expected = np.asarray(result)
 
     count = 0
@@ -2613,7 +2613,7 @@ def test_distances_tensor_iteration():
     # 1D tensor - iterates over scalars
     a = np.random.rand(3, 128).astype(np.float64)
     b = np.random.rand(3, 128).astype(np.float64)
-    result_1d = simd.sqeuclidean(a, b)
+    result_1d = nk.sqeuclidean(a, b)
     expected_1d = np.asarray(result_1d)
 
     items = list(result_1d)
@@ -2631,7 +2631,7 @@ def test_distances_tensor_numpy_interop():
     # Create tensor
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
-    result = simd.cdist(a, b, metric="sqeuclidean")
+    result = nk.cdist(a, b, metric="sqeuclidean")
 
     # Convert to numpy array
     arr = np.asarray(result)
@@ -2660,14 +2660,14 @@ def test_distances_tensor_scalar_conversion():
     # Single-vector sqeuclidean returns a Python float directly, not a tensor
     a = np.random.rand(128).astype(np.float64)
     b = np.random.rand(128).astype(np.float64)
-    result = simd.sqeuclidean(a, b)
+    result = nk.sqeuclidean(a, b)
     assert isinstance(result, float), f"Single pair should return float, got {type(result)}"
     assert result >= 0, "Squared Euclidean distance should be non-negative"
 
     # Test with 2D tensor - multi-element should not convert directly
     a2 = np.random.rand(3, 128).astype(np.float64)
     b2 = np.random.rand(5, 128).astype(np.float64)
-    result2 = simd.cdist(a2, b2, metric="sqeuclidean")
+    result2 = nk.cdist(a2, b2, metric="sqeuclidean")
 
     # Multi-element tensor should raise when trying float()
     with pytest.raises(TypeError):
@@ -2683,7 +2683,7 @@ def test_distances_tensor_dtype_consistency():
     for input_dtype in [np.float32, np.float64]:
         a = np.random.rand(5, 128).astype(input_dtype)
         b = np.random.rand(7, 128).astype(input_dtype)
-        result = simd.cdist(a, b, metric="sqeuclidean")
+        result = nk.cdist(a, b, metric="sqeuclidean")
 
         assert result.dtype == "float64", f"dtype should be 'float64', got {result.dtype}"
         arr = np.asarray(result)
@@ -2697,7 +2697,7 @@ def test_distances_tensor_strides():
 
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
-    result = simd.cdist(a, b, metric="sqeuclidean")
+    result = nk.cdist(a, b, metric="sqeuclidean")
 
     strides = result.strides
     assert isinstance(strides, tuple), "strides should be tuple"
@@ -2719,7 +2719,7 @@ def test_distances_tensor_array_interface():
 
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
-    result = simd.cdist(a, b, metric="sqeuclidean")
+    result = nk.cdist(a, b, metric="sqeuclidean")
 
     # Check __array_interface__ exists and has required keys
     ai = result.__array_interface__
@@ -2745,7 +2745,7 @@ def test_distances_tensor_transpose():
 
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
-    result = simd.cdist(a, b, metric="sqeuclidean")
+    result = nk.cdist(a, b, metric="sqeuclidean")
 
     # Test transpose
     t = result.T
@@ -2759,7 +2759,7 @@ def test_distances_tensor_transpose():
     # Test 1D tensor transpose (should be no-op)
     a1d = np.random.rand(10, 128).astype(np.float64)
     b1d = np.random.rand(10, 128).astype(np.float64)
-    result1d = simd.sqeuclidean(a1d, b1d)
+    result1d = nk.sqeuclidean(a1d, b1d)
     t1d = result1d.T
     assert t1d.shape == result1d.shape, "1D tensor transpose should be no-op"
 
@@ -2771,7 +2771,7 @@ def test_distances_tensor_str():
 
     a = np.random.rand(3, 128).astype(np.float64)
     b = np.random.rand(4, 128).astype(np.float64)
-    result = simd.cdist(a, b, metric="sqeuclidean")
+    result = nk.cdist(a, b, metric="sqeuclidean")
 
     # Test str output
     s = str(result)
@@ -2788,7 +2788,7 @@ def test_distances_tensor_equality():
 
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
-    result = simd.cdist(a, b, metric="sqeuclidean")
+    result = nk.cdist(a, b, metric="sqeuclidean")
 
     # Test equality with copy
     copy = result.copy()
@@ -2798,13 +2798,13 @@ def test_distances_tensor_equality():
     # Test inequality with different tensor
     a2 = np.random.rand(5, 128).astype(np.float64)
     b2 = np.random.rand(7, 128).astype(np.float64)
-    result2 = simd.cdist(a2, b2, metric="sqeuclidean")
+    result2 = nk.cdist(a2, b2, metric="sqeuclidean")
     assert result != result2, "Different tensors should not be equal"
 
     # Test with different shapes
     a3 = np.random.rand(3, 128).astype(np.float64)
     b3 = np.random.rand(4, 128).astype(np.float64)
-    result3 = simd.cdist(a3, b3, metric="sqeuclidean")
+    result3 = nk.cdist(a3, b3, metric="sqeuclidean")
     assert result != result3, "Tensors with different shapes should not be equal"
 
 
@@ -2815,7 +2815,7 @@ def test_distances_tensor_copy():
 
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
-    result = simd.cdist(a, b, metric="sqeuclidean")
+    result = nk.cdist(a, b, metric="sqeuclidean")
 
     # Test copy
     copy = result.copy()
@@ -2836,7 +2836,7 @@ def test_distances_tensor_reshape():
 
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
-    result = simd.cdist(a, b, metric="sqeuclidean")
+    result = nk.cdist(a, b, metric="sqeuclidean")
 
     # Test reshape to 1D
     flat = result.reshape(35)
@@ -2863,7 +2863,7 @@ def test_distances_tensor_slicing():
 
     a = np.random.rand(10, 128).astype(np.float64)
     b = np.random.rand(8, 128).astype(np.float64)
-    result = simd.cdist(a, b, metric="sqeuclidean")
+    result = nk.cdist(a, b, metric="sqeuclidean")
     expected = np.asarray(result)
 
     # Test basic slicing
@@ -2893,7 +2893,7 @@ def test_distances_tensor_zero_copy_views():
 
     a = np.random.rand(5, 64).astype(np.float64)
     b = np.random.rand(4, 64).astype(np.float64)
-    result = simd.cdist(a, b, metric="sqeuclidean")
+    result = nk.cdist(a, b, metric="sqeuclidean")
     orig_np = np.asarray(result)
 
     # Test 1: Basic slicing shares memory

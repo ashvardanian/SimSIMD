@@ -24,7 +24,7 @@
 //! let l2sq_dist = f32::l2sq(a, b);
 //!
 //! // Optimize performance by flushing denormals
-//! numkong::capabilities::flush_denormals();
+//! numkong::capabilities::configure_thread();
 //! ```
 //!
 //! ## Mixed Precision Support
@@ -116,7 +116,7 @@ extern "C" {
     fn nk_uses_turin() -> i32;
     fn nk_uses_sierra() -> i32;
 
-    fn nk_flush_denormals(capabilities: u32) -> i32;
+    fn nk_configure_thread(capabilities: u32) -> i32;
     fn nk_uses_dynamic_dispatch() -> i32;
 
     fn nk_f32_to_f16(src: *const f32, dest: *mut u16);
@@ -1108,8 +1108,8 @@ pub mod capabilities {
     /// slower when operating on denormalized values.
     ///
     /// Returns `true` if the flush was successful.
-    pub fn flush_denormals() -> bool {
-        unsafe { crate::nk_flush_denormals(0) != 0 }
+    pub fn configure_thread() -> bool {
+        unsafe { crate::nk_configure_thread(0) != 0 }
     }
 
     /// Returns `true` if the library uses dynamic dispatch for function selection.

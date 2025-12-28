@@ -86,3 +86,5 @@ NK_INTERNAL void nk_jaccard_b128_finalize_serial(nk_jaccard_b128_state_serial_t 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
+
+#endif // NK_BINARY_SERIAL_H

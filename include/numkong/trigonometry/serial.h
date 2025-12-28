@@ -1,12 +1,12 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for SIMD-free CPUs.
- *  @file include/numkong/elementwise/serial.h
- *  @sa include/numkong/elementwise.h
+ *  @brief SIMD-accelerated trigonometric element-wise operations, based on SLEEF, optimized for SIMD-free CPUs.
+ *  @file include/numkong/trigonometry/serial.h
+ *  @sa include/numkong/trigonometry.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  */
-#ifndef NK_ELEMENTWISE_SERIAL_H
-#define NK_ELEMENTWISE_SERIAL_H
+#ifndef NK_TRIGONOMETRY_SERIAL_H
+#define NK_TRIGONOMETRY_SERIAL_H
 #include "numkong/types.h"
 
 #if defined(__cplusplus)
@@ -544,4 +544,4 @@ NK_PUBLIC void nk_atan_f64_serial(nk_f64_t const *ins, nk_size_t n, nk_f64_t *ou
 } // extern "C"
 #endif
 
-#endif // NK_ELEMENTWISE_SERIAL_H
+#endif // NK_TRIGONOMETRY_SERIAL_H

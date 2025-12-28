@@ -1,12 +1,12 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Arm SVE-capable CPUs.
+ *  @brief SIMD-accelerated trigonometric element-wise operations, based on SLEEF, optimized for Arm SVE-capable CPUs.
  *  @file include/numkong/elementwise/sve.h
  *  @sa include/numkong/elementwise.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  */
-#ifndef NK_ELEMENTWISE_SVE_H
-#define NK_ELEMENTWISE_SVE_H
+#ifndef NK_TRIGONOMETRY_SVE_H
+#define NK_TRIGONOMETRY_SVE_H
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_SVE
@@ -29,4 +29,4 @@ extern "C" {
 #endif // NK_TARGET_SVE
 #endif // NK_TARGET_ARM_
 
-#endif // NK_ELEMENTWISE_SVE_H
+#endif // NK_TRIGONOMETRY_SVE_H

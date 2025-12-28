@@ -131,8 +131,8 @@ NK_INTERNAL void nk_jaccard_b128_finalize_neon(nk_jaccard_b128_state_neon_t cons
     // Horizontal sum each state's vector accumulator via `vaddvq_u32` (ARMv8.1+, 2-3 cycles)
     // This is done once at finalize, not per-update, for better throughput.
     uint32x4_t intersection_u32x4 = (uint32x4_t) {
-        vaddvq_u32(state_a->intersection_count), vaddvq_u32(state_b->intersection_count),
-        vaddvq_u32(state_c->intersection_count), vaddvq_u32(state_d->intersection_count)};
+        vaddvq_u32(state_a->intersection_count_u32x4), vaddvq_u32(state_b->intersection_count_u32x4),
+        vaddvq_u32(state_c->intersection_count_u32x4), vaddvq_u32(state_d->intersection_count_u32x4)};
     float32x4_t intersection_f32x4 = vcvtq_f32_u32(intersection_u32x4);
 
     // Compute union using |A OR B| = |A| + |B| - |A AND B|

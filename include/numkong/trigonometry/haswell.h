@@ -1,12 +1,12 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Haswell CPUs.
+ *  @brief SIMD-accelerated trigonometric element-wise operations, based on SLEEF, optimized for Intel Haswell CPUs.
  *  @file include/numkong/elementwise/haswell.h
  *  @sa include/numkong/elementwise.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  */
-#ifndef NK_ELEMENTWISE_HASWELL_H
-#define NK_ELEMENTWISE_HASWELL_H
+#ifndef NK_TRIGONOMETRY_HASWELL_H
+#define NK_TRIGONOMETRY_HASWELL_H
 
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
@@ -552,4 +552,4 @@ NK_PUBLIC void nk_atan_f64_haswell(nk_f64_t const *ins, nk_size_t n, nk_f64_t *o
 #endif // NK_TARGET_HASWELL
 #endif // NK_TARGET_X86_
 
-#endif // NK_ELEMENTWISE_HASWELL_H
+#endif // NK_TRIGONOMETRY_HASWELL_H

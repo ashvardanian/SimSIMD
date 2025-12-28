@@ -38,7 +38,7 @@ int main() {
 
 ## Dynamic Dispatch in C
 
-To avoid hard-coding the backend, you can rely on `c/lib.c` to prepackage all possible backends in one binary, and select the most recent CPU features at runtime.
+To avoid hard-coding the backend, you can rely on `c/numkong.c` to prepackage all possible backends in one binary, and select the most recent CPU features at runtime.
 That feature of the C library is called [dynamic dispatch](#dynamic-dispatch) and is extensively used in the Python, JavaScript, and Rust bindings.
 To test which CPU features are available on the machine at runtime, use the following APIs:
 

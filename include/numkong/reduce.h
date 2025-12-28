@@ -408,6 +408,7 @@ NK_PUBLIC void nk_reduce_max_u64_skylake(nk_u64_t const *data, nk_size_t count, 
 #endif // NK_TARGET_SKYLAKE
 
 #include "numkong/reduce/neon.h"
+#include "numkong/reduce/neon_f16.h"
 #include "numkong/reduce/haswell.h"
 #include "numkong/reduce/skylake.h"
 

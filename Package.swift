@@ -14,7 +14,7 @@ let package = Package(
         .target(
             name: "CNumKong",
             path: "include/numkong/", // Adjust the path to include your C source files
-            sources: ["../../c/lib.c"], // Include the source file here
+            sources: ["../../c/numkong.c"], // Include the source file here
             publicHeadersPath: ".",
             cSettings: [
                 .define("NK_DYNAMIC_DISPATCH", to: "1"), // Define a C macro

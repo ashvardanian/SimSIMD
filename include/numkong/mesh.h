@@ -288,6 +288,7 @@ NK_PUBLIC void nk_umeyama_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
                                       nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result);
 #endif // NK_TARGET_HASWELL
 
+#include "numkong/mesh/serial.h"
 #include "numkong/mesh/neon.h"
 #include "numkong/mesh/haswell.h"
 #include "numkong/mesh/skylake.h"

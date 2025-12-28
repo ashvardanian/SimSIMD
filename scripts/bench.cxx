@@ -1631,7 +1631,7 @@ int main(int argc, char **argv) {
 
     dense_<f64_k, f64_k, f64_k>("angular_f64_neon", nk_angular_f64_neon, nk_angular_f64_serial);
     dense_<f64_k, f64_k, f64_k>("l2sq_f64_neon", nk_l2sq_f64_neon, nk_l2sq_f64_serial);
-    dense_<f64_k, f64_k, f64_k>("l2_f64_neon", nk_l2_f64_neon, nk_l2_f32_accurate);
+    dense_<f64_k, f64_k, f64_k>("l2_f64_neon", nk_l2_f64_neon, nk_l2_f64_serial);
 
     dense_<i8_k, f32_k, f32_k>("angular_i8_neon", nk_angular_i8_neon, nk_angular_i8_serial);
     dense_<i8_k, u32_k, u32_k>("l2sq_i8_neon", nk_l2sq_i8_neon, nk_l2sq_i8_serial);

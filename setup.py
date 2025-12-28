@@ -36,7 +36,7 @@ if sys.platform == "darwin":
 
 def is_64bit_x86() -> bool:
     """Detect x86-64 architecture with environment override support."""
-    override = os.environ.get("NK_TARGET_X86")
+    override = os.environ.get("NK_TARGET_X86_")
     if override is not None:
         return override == "1"
     arch = platform.machine().lower()
@@ -45,7 +45,7 @@ def is_64bit_x86() -> bool:
 
 def is_64bit_arm() -> bool:
     """Detect ARM64 architecture with environment override support."""
-    override = os.environ.get("NK_TARGET_ARM64")
+    override = os.environ.get("NK_TARGET_ARM_64")
     if override is not None:
         return override == "1"
     arch = platform.machine().lower()
@@ -230,7 +230,7 @@ if _is_editable_install():
 ext_modules = [
     Extension(
         "numkong",
-        sources=["python/lib.c", "c/lib.c"],
+        sources=["python/numkong.c", "c/numkong.c"],
         include_dirs=["include"],
         language="c",
         extra_compile_args=compile_args,

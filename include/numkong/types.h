@@ -713,16 +713,6 @@ NK_INTERNAL void nk_f16_to_f32_(nk_f16_t const *src, nk_f32_t *dest) {
 }
 
 /**
- *  @brief  For compilers that don't natively support the `_Float16` type,
- *          upcasts contents into a `double` for higher precision accumulation.
- */
-NK_INTERNAL void nk_f16_to_f64_(nk_f16_t const *src, nk_f64_t *dest) {
-    nk_f32_t temp;
-    nk_f16_to_f32_(src, &temp);
-    *dest = (nk_f64_t)temp;
-}
-
-/**
  *  @brief  Compresses a `float` to an `f16` representation (IEEE-754 16-bit floating-point format).
  *
  *  @warning  This function won't handle boundary conditions well.
@@ -764,16 +754,6 @@ NK_INTERNAL void nk_bf16_to_f32_(nk_bf16_t const *src, nk_f32_t *dest) {
     conv.u = x << 16; // Zero extends the mantissa
     *dest = conv.f;
 #endif
-}
-
-/**
- *  @brief  For compilers that don't natively support the `__bf16` type,
- *          upcasts contents into a `double` for higher precision accumulation.
- */
-NK_INTERNAL void nk_bf16_to_f64_(nk_bf16_t const *src, nk_f64_t *dest) {
-    nk_f32_t temp;
-    nk_bf16_to_f32_(src, &temp);
-    *dest = (nk_f64_t)temp;
 }
 
 /**

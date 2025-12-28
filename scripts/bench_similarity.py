@@ -29,7 +29,7 @@ os.environ["OPENBLAS_NUM_THREADS"] = "1"  # OpenBLAS
 
 # NumPy and NumKong are obligatory for benchmarking
 import numpy as np
-import numkong as simd
+import numkong as nk
 import tabulate
 
 # Set to ignore all floating-point errors
@@ -182,8 +182,8 @@ def yield_kernels(
             np.dot,
             lambda A, B: np.sum(A * B, axis=1),
             lambda A, B: np.dot(A, B.T),
-            simd.dot,
-            lambda A, B: simd.cdist(A, B, metric="dot"),
+            nk.dot,
+            lambda A, B: nk.cdist(A, B, metric="dot"),
         )
         yield from for_dtypes(
             "numpy.dot",
@@ -191,8 +191,8 @@ def yield_kernels(
             lambda A, B: raise_(NotImplementedError("Not implemented for complex32")),
             lambda A, B: raise_(NotImplementedError("Not implemented for complex32")),
             lambda A, B: raise_(NotImplementedError("Not implemented for complex32")),
-            lambda A, B: simd.dot(A, B, "complex32"),
-            lambda A, B: simd.cdist(A, B, "complex32", metric="dot"),
+            lambda A, B: nk.dot(A, B, "complex32"),
+            lambda A, B: nk.cdist(A, B, "complex32", metric="dot"),
         )
         yield from for_dtypes(
             "numpy.dot",
@@ -200,8 +200,8 @@ def yield_kernels(
             lambda A, B: raise_(NotImplementedError("Not implemented for bfloat16")),
             lambda A, B: raise_(NotImplementedError("Not implemented for bfloat16")),
             lambda A, B: raise_(NotImplementedError("Not implemented for bfloat16")),
-            lambda A, B: simd.dot(A, B, "bfloat16"),
-            lambda A, B: simd.cdist(A, B, "bfloat16", metric="dot"),
+            lambda A, B: nk.dot(A, B, "bfloat16"),
+            lambda A, B: nk.cdist(A, B, "bfloat16", metric="dot"),
         )
         yield from for_dtypes(
             "numpy.vdot",
@@ -209,8 +209,8 @@ def yield_kernels(
             np.vdot,
             wrap_rows_batch_calls(np.vdot),
             wrap_rows_all_pairs_calls(np.vdot),
-            simd.vdot,
-            lambda A, B: simd.cdist(A, B, metric="vdot"),
+            nk.vdot,
+            lambda A, B: nk.cdist(A, B, metric="vdot"),
         )
     if "spatial" in metric_families:
         yield from for_dtypes(
@@ -219,8 +219,8 @@ def yield_kernels(
             serial_cosine,
             wrap_rows_batch_calls(serial_cosine),
             lambda A, B: spd.cdist(A, B, "cosine"),
-            simd.angular,
-            lambda A, B: simd.cdist(A, B, metric="cosine"),
+            nk.angular,
+            lambda A, B: nk.cdist(A, B, metric="cosine"),
         )
         yield from for_dtypes(
             "serial.sqeuclidean",
@@ -228,8 +228,8 @@ def yield_kernels(
             serial_sqeuclidean,
             wrap_rows_batch_calls(serial_sqeuclidean),
             lambda A, B: spd.cdist(A, B, "sqeuclidean"),
-            simd.sqeuclidean,
-            lambda A, B: simd.cdist(A, B, metric="sqeuclidean"),
+            nk.sqeuclidean,
+            lambda A, B: nk.cdist(A, B, metric="sqeuclidean"),
         )
     if "spatial" in metric_families and include_scipy:
         yield from for_dtypes(
@@ -238,8 +238,8 @@ def yield_kernels(
             spd.cosine,
             wrap_rows_batch_calls(spd.cosine),
             lambda A, B: spd.cdist(A, B, "cosine"),
-            simd.angular,
-            lambda A, B: simd.cdist(A, B, metric="cosine"),
+            nk.angular,
+            lambda A, B: nk.cdist(A, B, metric="cosine"),
         )
         yield from for_dtypes(
             "scipy.cosine",
@@ -247,8 +247,8 @@ def yield_kernels(
             lambda A, B: raise_(NotImplementedError(f"Not implemented for bfloat16")),
             lambda A, B: raise_(NotImplementedError(f"Not implemented for bfloat16")),
             lambda A, B: raise_(NotImplementedError(f"Not implemented for bfloat16")),
-            lambda A, B: simd.angular(A, B, "bfloat16"),
-            lambda A, B: simd.cdist(A, B, "bfloat16", metric="cosine"),
+            lambda A, B: nk.angular(A, B, "bfloat16"),
+            lambda A, B: nk.cdist(A, B, "bfloat16", metric="cosine"),
         )
         yield from for_dtypes(
             "scipy.sqeuclidean",
@@ -256,8 +256,8 @@ def yield_kernels(
             spd.sqeuclidean,
             wrap_rows_batch_calls(spd.sqeuclidean),
             lambda A, B: spd.cdist(A, B, "sqeuclidean"),
-            simd.sqeuclidean,
-            lambda A, B: simd.cdist(A, B, metric="sqeuclidean"),
+            nk.sqeuclidean,
+            lambda A, B: nk.cdist(A, B, metric="sqeuclidean"),
         )
 
     if "probability" in metric_families and include_scipy:
@@ -267,8 +267,8 @@ def yield_kernels(
             spd.jensenshannon,
             wrap_rows_batch_calls(spd.jensenshannon),
             lambda A, B: spd.cdist(A, B, "jensenshannon"),
-            simd.jensenshannon,
-            lambda A, B: simd.cdist(A, B, metric="jensenshannon"),
+            nk.jensenshannon,
+            lambda A, B: nk.cdist(A, B, metric="jensenshannon"),
         )
         yield from for_dtypes(
             "scipy.kl_div",
@@ -276,8 +276,8 @@ def yield_kernels(
             scs.kl_div,
             wrap_rows_batch_calls(scs.kl_div),
             wrap_rows_all_pairs_calls(scs.kl_div),
-            simd.kullbackleibler,
-            lambda A, B: simd.cdist(A, B, metric="kullbackleibler"),
+            nk.kullbackleibler,
+            lambda A, B: nk.cdist(A, B, metric="kullbackleibler"),
         )
     if "binary" in metric_families and include_scipy:
         yield from for_dtypes(
@@ -286,8 +286,8 @@ def yield_kernels(
             spd.hamming,
             wrap_rows_batch_calls(spd.hamming),
             lambda A, B: spd.cdist(A, B, "hamming"),
-            lambda A, B: simd.hamming(A, B, "bin8"),
-            lambda A, B: simd.cdist(A, B, "bin8", metric="hamming"),
+            lambda A, B: nk.hamming(A, B, "bin8"),
+            lambda A, B: nk.cdist(A, B, "bin8", metric="hamming"),
         )
         yield from for_dtypes(
             "scipy.jaccard",
@@ -295,8 +295,8 @@ def yield_kernels(
             spd.jaccard,
             wrap_rows_batch_calls(spd.jaccard),
             lambda A, B: spd.cdist(A, B, "jaccard"),
-            lambda A, B: simd.jaccard(A, B, "bin8"),
-            lambda A, B: simd.cdist(A, B, "bin8", metric="jaccard"),
+            lambda A, B: nk.jaccard(A, B, "bin8"),
+            lambda A, B: nk.cdist(A, B, "bin8", metric="jaccard"),
         )
     if "spatial" in metric_families and include_scikit:
         yield from for_dtypes(
@@ -305,8 +305,8 @@ def yield_kernels(
             lambda A, B: skp.cosine_similarity(A.reshape(1, len(A)), B.reshape(1, len(B))),
             lambda A, B: raise_(NotImplementedError("Not implemented for many-to-many")),
             skp.paired_cosine_distances,
-            simd.angular,
-            lambda A, B: simd.cdist(A, B, metric="cosine"),
+            nk.angular,
+            lambda A, B: nk.cdist(A, B, metric="cosine"),
         )
         yield from for_dtypes(
             "sklearn.euclidean_distances",
@@ -314,8 +314,8 @@ def yield_kernels(
             lambda A, B: skp.euclidean_distances(A.reshape(1, len(A)), B.reshape(1, len(B))),
             lambda A, B: raise_(NotImplementedError("Not implemented for many-to-many")),
             skp.paired_euclidean_distances,
-            simd.sqeuclidean,
-            lambda A, B: simd.cdist(A, B, metric="sqeuclidean"),
+            nk.sqeuclidean,
+            lambda A, B: nk.cdist(A, B, metric="sqeuclidean"),
         )
     if "dot" in metric_families and include_tf:
         yield from for_dtypes(
@@ -324,8 +324,8 @@ def yield_kernels(
             lambda A, B: tf.tensordot(A, B, axes=1).numpy(),
             lambda A, B: tf.reduce_sum(tf.multiply(A, B), axis=1).numpy(),
             lambda A, B: tf.tensordot(A, B.T, axes=1).numpy(),
-            simd.dot,
-            lambda A, B: simd.cdist(A, B, metric="dot"),
+            nk.dot,
+            lambda A, B: nk.cdist(A, B, metric="dot"),
             tf.convert_to_tensor,
         )
     if "dot" in metric_families and include_jax:
@@ -335,8 +335,8 @@ def yield_kernels(
             lambda A, B: jnp.dot(A, B).block_until_ready(),
             lambda A, B: jnp.einsum("ij,ij->i", A, B).block_until_ready(),
             lambda A, B: jnp.dot(A, B.T).block_until_ready(),
-            simd.dot,
-            lambda A, B: simd.cdist(A, B, metric="dot"),
+            nk.dot,
+            lambda A, B: nk.cdist(A, B, metric="dot"),
             jnp.array,
         )
     if "dot" in metric_families and include_torch:
@@ -346,8 +346,8 @@ def yield_kernels(
             lambda A, B: torch.dot(A, B).item(),
             lambda A, B: torch.bmm(A.unsqueeze(1), B.unsqueeze(2)).squeeze(),
             lambda A, B: torch.dot(A, B.T).item(),
-            simd.dot,
-            lambda A, B: simd.cdist(A, B, metric="dot"),
+            nk.dot,
+            lambda A, B: nk.cdist(A, B, metric="dot"),
             torch.tensor,
         )
 
@@ -667,11 +667,11 @@ def main():
     print("- Metrics:", ", ".join(metric_families_profiled))
     print("- Datatypes:", ", ".join(dtypes_profiled))
     try:
-        caps = [cap for cap, enabled in simd.get_capabilities().items() if enabled]
+        caps = [cap for cap, enabled in nk.get_capabilities().items() if enabled]
         print("- Hardware capabilities:", ", ".join(caps))
 
         # Log versions of NumKong, NumPy, SciPy, and scikit-learn
-        print(f"- NumKong version: {simd.__version__}")
+        print(f"- NumKong version: {nk.__version__}")
         print(f"- NumPy version: {np.__version__}")
 
         if args.scipy:

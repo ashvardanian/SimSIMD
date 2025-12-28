@@ -204,8 +204,8 @@ NK_INTERNAL void nk_angular_f32x4_finalize_neon(nk_angular_f32x4_state_neon_t co
     result_ab = vbslq_f64(both_zero_ab, zeros, result_ab);
     result_cd = vbslq_f64(both_zero_cd, zeros, result_cd);
 
-    uint64x2_t prod_zero_dot_nonzero_ab = vandq_u64(products_zero_ab, vmvnq_u64(dots_zero_ab));
-    uint64x2_t prod_zero_dot_nonzero_cd = vandq_u64(products_zero_cd, vmvnq_u64(dots_zero_cd));
+    uint64x2_t prod_zero_dot_nonzero_ab = vandq_u64(products_zero_ab, vreinterpretq_u64_u32(vmvnq_u32(vreinterpretq_u32_u64(dots_zero_ab))));
+    uint64x2_t prod_zero_dot_nonzero_cd = vandq_u64(products_zero_cd, vreinterpretq_u64_u32(vmvnq_u32(vreinterpretq_u32_u64(dots_zero_cd))));
     result_ab = vbslq_f64(prod_zero_dot_nonzero_ab, ones, result_ab);
     result_cd = vbslq_f64(prod_zero_dot_nonzero_cd, ones, result_cd);
 

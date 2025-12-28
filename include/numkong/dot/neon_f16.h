@@ -24,11 +24,11 @@ NK_INTERNAL float16x4_t nk_partial_load_f16x4_neon_(nk_f16_t const *x, nk_size_t
     // In case the software emulation for `f16` scalars is enabled, the `nk_f16_to_f32`
     // function will run. It is extremely slow, so even for the tail, let's combine serial
     // loads and stores with vectorized math.
-    nk_b512_vec_t result;
+    nk_b128_vec_t result;
     result.u64s[0] = 0;
     nk_size_t i = 0;
     for (; i < n; ++i) result.f16s[i] = x[i];
-    return vreinterpret_f16_u16(vget_low_u16(vreinterpretq_u16_u32(result.u32x4s[0])));
+    return vreinterpret_f16_u16(vget_low_u16(vreinterpretq_u16_u32(result.u32x4)));
 }
 
 NK_PUBLIC void nk_dot_f16_neon(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,

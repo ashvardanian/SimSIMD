@@ -1013,9 +1013,9 @@ NK_PUBLIC void nk_intersect_u16_neon(       //
         uint16x8_t a_max_u16x8 = vdupq_n_u16(a_max);
         uint16x8_t b_max_u16x8 = vdupq_n_u16(b_max);
         nk_u64_t a_step = nk_clz_u64_(nk_u8_to_u4_neon_( //
-            vreinterpretq_u8_u16(vcleq_u16(a_u16x8.vec, b_max_u16x8))));
+            vreinterpretq_u8_u16(vcleq_u16(a_vec.u16x8, b_max_u16x8))));
         nk_u64_t b_step = nk_clz_u64_(nk_u8_to_u4_neon_( //
-            vreinterpretq_u8_u16(vcleq_u16(b_u16x8.vec, a_max_u16x8))));
+            vreinterpretq_u8_u16(vcleq_u16(b_vec.u16x8, a_max_u16x8))));
         a += (64 - a_step) / 8;
         b += (64 - b_step) / 8;
     }

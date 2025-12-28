@@ -71,8 +71,8 @@ NK_INTERNAL void nk_reduce_add_f32_neon_contiguous_( //
 NK_PUBLIC void nk_reduce_add_f32_neon(                             //
     nk_f32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_f64_t *result) {
-    if (stride_bytes == sizeof(nk_f32_t)) return nk_reduce_add_f32_neon_contiguous_(data, count, result);
-    nk_reduce_add_f32_serial(data, count, stride_bytes, result);
+    if (stride_bytes == sizeof(nk_f32_t)) nk_reduce_add_f32_neon_contiguous_(data, count, result);
+    else nk_reduce_add_f32_serial(data, count, stride_bytes, result);
 }
 
 NK_INTERNAL void nk_reduce_add_f64_neon_contiguous_( //
@@ -91,8 +91,8 @@ NK_INTERNAL void nk_reduce_add_f64_neon_contiguous_( //
 NK_PUBLIC void nk_reduce_add_f64_neon(                             //
     nk_f64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_f64_t *result) {
-    if (stride_bytes == sizeof(nk_f64_t)) return nk_reduce_add_f64_neon_contiguous_(data, count, result);
-    nk_reduce_add_f64_serial(data, count, stride_bytes, result);
+    if (stride_bytes == sizeof(nk_f64_t)) nk_reduce_add_f64_neon_contiguous_(data, count, result);
+    else nk_reduce_add_f64_serial(data, count, stride_bytes, result);
 }
 
 NK_INTERNAL void nk_reduce_min_f32_neon_contiguous_( //
@@ -123,8 +123,8 @@ NK_PUBLIC void nk_reduce_min_f32_neon(                             //
     nk_f32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_f32_t *min_value, nk_size_t *min_index) {
     if (stride_bytes == sizeof(nk_f32_t) && count >= 4)
-        return nk_reduce_min_f32_neon_contiguous_(data, count, min_value, min_index);
-    nk_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
+        nk_reduce_min_f32_neon_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_INTERNAL void nk_reduce_max_f32_neon_contiguous_( //
@@ -154,8 +154,8 @@ NK_PUBLIC void nk_reduce_max_f32_neon(                             //
     nk_f32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_f32_t *max_value, nk_size_t *max_index) {
     if (stride_bytes == sizeof(nk_f32_t) && count >= 4)
-        return nk_reduce_max_f32_neon_contiguous_(data, count, max_value, max_index);
-    nk_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
+        nk_reduce_max_f32_neon_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 #if defined(__cplusplus)

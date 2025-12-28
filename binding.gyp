@@ -3,7 +3,7 @@
     "targets": [
         {
             "target_name": "numkong",
-            "sources": ["javascript/lib.c", "c/lib.c"],
+            "sources": ["javascript/numkong.c", "c/numkong.c"],
             "include_dirs": ["include"],
             "defines": ["NK_NATIVE_F16=0", "NK_NATIVE_BF16=0", "NK_DYNAMIC_DISPATCH=1"],
             "cflags": [

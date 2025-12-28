@@ -19,9 +19,9 @@ Primary kernels are implemented in header files under `include/numkong/`:
 
 Bindings to other languages are in the respective directories:
 
-- `python/lib.c` - Python bindings.
-- `javascript/lib.c` - JavaScript bindings.
-- `rust/lib.rs` - Rust bindings.
+- `python/numkong.c` - Python bindings.
+- `javascript/numkong.c` - JavaScript bindings.
+- `rust/numkong.rs` - Rust bindings.
 - `swift/NumKong.swift` - Swift bindings.
 
 All tests, benchmarks, and examples are placed in the `scripts/` directory, if compatible with the toolchain of the implementation language.

@@ -293,13 +293,13 @@ NK_PUBLIC void nk_angular_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_s
 /** @copydoc nk_l2_f64 */
 NK_PUBLIC void nk_l2_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2sq_f64 */
-NK_PUBLIC void nk_l2sq_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_l2sq_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_angular_f64 */
 NK_PUBLIC void nk_angular_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2_f64 */
 NK_PUBLIC void nk_l2_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2sq_f64 */
-NK_PUBLIC void nk_l2sq_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_l2sq_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_angular_f64 */
 NK_PUBLIC void nk_angular_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_NEON
@@ -462,6 +462,7 @@ NK_PUBLIC void nk_angular_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_
 NK_PUBLIC void nk_angular_i8_sierra(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_SIERRA
 
+#include "numkong/spatial/serial.h"
 #include "numkong/spatial/neon.h"
 #include "numkong/spatial/neon_F16.h"
 #include "numkong/spatial/neon_BF16.h"

@@ -1,12 +1,12 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Skylake-X CPUs.
+ *  @brief SIMD-accelerated trigonometric element-wise operations, based on SLEEF, optimized for Intel Skylake-X CPUs.
  *  @file include/numkong/elementwise/skylake.h
  *  @sa include/numkong/elementwise.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  */
-#ifndef NK_ELEMENTWISE_SKYLAKE_H
-#define NK_ELEMENTWISE_SKYLAKE_H
+#ifndef NK_TRIGONOMETRY_SKYLAKE_H
+#define NK_TRIGONOMETRY_SKYLAKE_H
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SKYLAKE
@@ -525,4 +525,4 @@ NK_PUBLIC void nk_atan_f64_skylake(nk_f64_t const *ins, nk_size_t n, nk_f64_t *o
 #endif // NK_TARGET_SKYLAKE
 #endif // NK_TARGET_X86_
 
-#endif // NK_ELEMENTWISE_SKYLAKE_H
+#endif // NK_TRIGONOMETRY_SKYLAKE_H

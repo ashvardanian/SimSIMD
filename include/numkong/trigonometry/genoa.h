@@ -1,12 +1,12 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for AMD Genoa CPUs.
+ *  @brief SIMD-accelerated trigonometric element-wise operations, based on SLEEF, optimized for AMD Genoa CPUs.
  *  @file include/numkong/elementwise/genoa.h
  *  @sa include/numkong/elementwise.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  */
-#ifndef NK_ELEMENTWISE_GENOA_H
-#define NK_ELEMENTWISE_GENOA_H
+#ifndef NK_TRIGONOMETRY_GENOA_H
+#define NK_TRIGONOMETRY_GENOA_H
 
 #if NK_TARGET_X86_
 #if NK_TARGET_GENOA
@@ -30,4 +30,4 @@ extern "C" {
 #endif // NK_TARGET_GENOA
 #endif // NK_TARGET_X86_
 
-#endif // NK_ELEMENTWISE_GENOA_H
+#endif // NK_TRIGONOMETRY_GENOA_H

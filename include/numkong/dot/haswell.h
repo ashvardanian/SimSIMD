@@ -98,7 +98,7 @@ NK_INTERNAL __m256 nk_partial_load_f16x8_haswell_(nk_f16_t const *a, nk_size_t n
     // In case the software emulation for `f16` scalars is enabled, the `nk_f16_to_f32`
     // function will run. It is extremely slow, so even for the tail, let's combine serial
     // loads and stores with vectorized math.
-    nk_b512_vec_t result;
+    nk_b256_vec_t result;
     result.xmms[0] = _mm_setzero_si128();
     nk_size_t i = 0;
     for (; i < n; ++i) result.f16s[i] = a[i];
@@ -106,8 +106,8 @@ NK_INTERNAL __m256 nk_partial_load_f16x8_haswell_(nk_f16_t const *a, nk_size_t n
 }
 
 NK_INTERNAL void nk_partial_store_f32x8_haswell_(__m256 vec, nk_f32_t *x, nk_size_t n) {
-    nk_b512_vec_t u;
-    u.ymms_ps[0] = vec;
+    nk_b256_vec_t u;
+    u.ymm_ps = vec;
     if (n > 0) x[0] = u.f32s[0];
     if (n > 1) x[1] = u.f32s[1];
     if (n > 2) x[2] = u.f32s[2];
@@ -119,8 +119,8 @@ NK_INTERNAL void nk_partial_store_f32x8_haswell_(__m256 vec, nk_f32_t *x, nk_siz
 }
 
 NK_INTERNAL void nk_partial_store_i32x8_haswell_(__m256i vec, nk_i32_t *x, nk_size_t n) {
-    nk_b512_vec_t u;
-    u.ymms[0] = vec;
+    nk_b256_vec_t u;
+    u.ymm = vec;
     if (n > 0) x[0] = u.i32s[0];
     if (n > 1) x[1] = u.i32s[1];
     if (n > 2) x[2] = u.i32s[2];
@@ -268,7 +268,7 @@ NK_INTERNAL __m128i nk_partial_load_bf16x8_haswell_(nk_bf16_t const *a, nk_size_
     // In case the software emulation for `bf16` scalars is enabled, the `nk_bf16_to_f32`
     // function will run. It is extremely slow, so even for the tail, let's combine serial
     // loads and stores with vectorized math.
-    nk_b512_vec_t result;
+    nk_b256_vec_t result;
     result.xmms[0] = _mm_setzero_si128();
     nk_size_t i = 0;
     for (; i < n; ++i) result.bf16s[i] = a[i];
@@ -342,7 +342,7 @@ NK_INTERNAL __m256 nk_e5m2x8_to_f32x8_haswell_(__m128i fp8) {
 }
 
 NK_INTERNAL __m128i nk_partial_load_e4m3x8_haswell_(nk_e4m3_t const *a, nk_size_t n) {
-    nk_b512_vec_t result;
+    nk_b256_vec_t result;
     result.xmms[0] = _mm_setzero_si128();
     nk_size_t i = 0;
     for (; i < n; ++i) result.e4m3s[i] = a[i];
@@ -350,7 +350,7 @@ NK_INTERNAL __m128i nk_partial_load_e4m3x8_haswell_(nk_e4m3_t const *a, nk_size_
 }
 
 NK_INTERNAL __m128i nk_partial_load_e5m2x8_haswell_(nk_e5m2_t const *a, nk_size_t n) {
-    nk_b512_vec_t result;
+    nk_b256_vec_t result;
     result.xmms[0] = _mm_setzero_si128();
     nk_size_t i = 0;
     for (; i < n; ++i) result.e5m2s[i] = a[i];

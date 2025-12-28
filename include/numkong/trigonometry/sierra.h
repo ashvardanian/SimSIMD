@@ -1,12 +1,13 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Sierra Forest CPUs.
+ *  @brief SIMD-accelerated trigonometric element-wise operations, based on SLEEF, optimized for Intel Sierra Forest
+ * CPUs.
  *  @file include/numkong/elementwise/sierra.h
  *  @sa include/numkong/elementwise.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  */
-#ifndef NK_ELEMENTWISE_SIERRA_H
-#define NK_ELEMENTWISE_SIERRA_H
+#ifndef NK_TRIGONOMETRY_SIERRA_H
+#define NK_TRIGONOMETRY_SIERRA_H
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SIERRA
@@ -29,4 +30,4 @@ extern "C" {
 #endif // NK_TARGET_SIERRA
 #endif // NK_TARGET_X86_
 
-#endif // NK_ELEMENTWISE_SIERRA_H
+#endif // NK_TRIGONOMETRY_SIERRA_H

@@ -21,11 +21,11 @@ extern "C" {
 #endif
 
 NK_INTERNAL bfloat16x8_t nk_partial_load_bf16x8_neon_(nk_bf16_t const *x, nk_size_t n) {
-    nk_b512_vec_t result;
-    result.u32x4s[0] = vdupq_n_u32(0);
+    nk_b128_vec_t result;
+    result.u32x4 = vdupq_n_u32(0);
     nk_size_t i = 0;
     for (; i < n; ++i) result.bf16s[i] = x[i];
-    return vreinterpretq_bf16_u32(result.u32x4s[0]);
+    return vreinterpretq_bf16_u32(result.u32x4);
 }
 
 NK_PUBLIC void nk_dot_bf16_neon(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
