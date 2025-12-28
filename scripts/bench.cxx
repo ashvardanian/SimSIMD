@@ -1286,7 +1286,6 @@ void wsum_f64_blas(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t c
     if (*beta != 0) cblas_daxpy(ni, *beta, b, 1, result, 1);
 }
 
-// SGEMM baseline for matmul comparison using OpenBLAS: F32×F32→F32
 void measure_sgemm_blas(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
     std::vector<float> a(m * k), b(n * k), c(m * n);
     auto gen = make_random_engine();
@@ -1299,6 +1298,25 @@ void measure_sgemm_blas(bm::State &state, std::size_t m, std::size_t n, std::siz
         bm::DoNotOptimize(c.data());
         cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n),
                     static_cast<int>(k), 1.0f, a.data(), static_cast<int>(k), b.data(), static_cast<int>(k), 0.0f,
+                    c.data(), static_cast<int>(n));
+        ++iterations;
+    }
+
+    state.counters["flops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
+}
+
+void measure_dgemm_blas(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+    std::vector<double> a(m * k), b(n * k), c(m * n);
+    auto gen = make_random_engine();
+    std::uniform_real_distribution<double> dis(-1.0, 1.0);
+    for (auto &v : a) v = dis(gen);
+    for (auto &v : b) v = dis(gen);
+
+    std::size_t iterations = 0;
+    for (auto _ : state) {
+        bm::DoNotOptimize(c.data());
+        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n),
+                    static_cast<int>(k), 1.0, a.data(), static_cast<int>(k), b.data(), static_cast<int>(k), 0.0,
                     c.data(), static_cast<int>(n));
         ++iterations;
     }
@@ -1590,6 +1608,15 @@ int main(int argc, char **argv) {
             ->MinTime(default_seconds)
             ->Threads(1);
     }
+    // DGEMM baseline for matmul comparison (FP64, same layout as NumKong: A×Bᵀ)
+    {
+        std::string bench_name = "dgemm_blas<" + std::to_string(matmul_dimension_m) + "x" +
+                                 std::to_string(matmul_dimension_n) + "x" + std::to_string(matmul_dimension_k) + ">";
+        bm::RegisterBenchmark(bench_name.c_str(), measure_dgemm_blas, matmul_dimension_m, matmul_dimension_n,
+                              matmul_dimension_k)
+            ->MinTime(default_seconds)
+            ->Threads(1);
+    }
 
 #endif
 
@@ -1633,16 +1660,6 @@ int main(int argc, char **argv) {
     dense_<f64_k, f64_k, f64_k>("l2sq_f64_neon", nk_l2sq_f64_neon, nk_l2sq_f64_serial);
     dense_<f64_k, f64_k, f64_k>("l2_f64_neon", nk_l2_f64_neon, nk_l2_f64_serial);
 
-    dense_<i8_k, f32_k, f32_k>("angular_i8_neon", nk_angular_i8_neon, nk_angular_i8_serial);
-    dense_<i8_k, u32_k, u32_k>("l2sq_i8_neon", nk_l2sq_i8_neon, nk_l2sq_i8_serial);
-    dense_<i8_k, f32_k, f64_k>("l2_i8_neon", nk_l2_i8_neon, nk_l2_i8_accurate);
-    dense_<i8_k, i32_k, i32_k>("dot_i8_neon", nk_dot_i8_neon, nk_dot_i8_serial);
-
-    dense_<u8_k, f32_k, f32_k>("angular_u8_neon", nk_angular_u8_neon, nk_angular_u8_serial);
-    dense_<u8_k, u32_k, u32_k>("l2sq_u8_neon", nk_l2sq_u8_neon, nk_l2sq_u8_serial);
-    dense_<u8_k, f32_k, f64_k>("l2_u8_neon", nk_l2_u8_neon, nk_l2_u8_accurate);
-    dense_<u8_k, u32_k, u32_k>("dot_u8_neon", nk_dot_u8_neon, nk_dot_u8_serial);
-
     dense_<b8_k, u32_k, u32_k>("hamming_b8_neon", nk_hamming_b8_neon, nk_hamming_b8_serial);
     dense_<b8_k, f32_k, f32_k>("jaccard_b8_neon", nk_jaccard_b8_neon, nk_jaccard_b8_serial);
 
@@ -1665,6 +1682,35 @@ int main(int argc, char **argv) {
     elementwise_<f32_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_f32_serial", nk_wsum_f32_serial,
                                                                       nk_wsum_f32_accurate, nk_l2_f32_accurate);
 
+    matmul_<nk_f32_t, nk_f32_t>("dots_f32f32f32_neon", nk_dots_f32f32f32_packed_size_neon, nk_dots_f32f32f32_pack_neon,
+                                nk_dots_f32f32f32_neon);
+    matmul_<nk_f64_t, nk_f64_t>("dots_f64f64f64_neon", nk_dots_f64f64f64_packed_size_neon, nk_dots_f64f64f64_pack_neon,
+                                nk_dots_f64f64f64_neon);
+
+    mesh_<f32_k, f32_k, f32_k>("rmsd_f32_neon", nk_rmsd_f32_neon, nk_rmsd_f32_serial);
+    mesh_<f32_k, f32_k, f32_k>("kabsch_f32_neon", nk_kabsch_f32_neon, nk_kabsch_f32_serial);
+    mesh_<f32_k, f32_k, f32_k>("umeyama_f32_neon", nk_umeyama_f32_neon, nk_umeyama_f32_serial);
+    mesh_<f64_k, f64_k, f64_k>("rmsd_f64_neon", nk_rmsd_f64_neon, nk_rmsd_f64_serial);
+    mesh_<f64_k, f64_k, f64_k>("kabsch_f64_neon", nk_kabsch_f64_neon, nk_kabsch_f64_serial);
+    mesh_<f64_k, f64_k, f64_k>("umeyama_f64_neon", nk_umeyama_f64_neon, nk_umeyama_f64_serial);
+
+#endif
+
+#if NK_TARGET_NEON_I8
+    dense_<i8_k, f32_k, f32_k>("angular_i8_neon", nk_angular_i8_neon, nk_angular_i8_serial);
+    dense_<i8_k, u32_k, u32_k>("l2sq_i8_neon", nk_l2sq_i8_neon, nk_l2sq_i8_serial);
+    dense_<i8_k, f32_k, f64_k>("l2_i8_neon", nk_l2_i8_neon, nk_l2_i8_accurate);
+    dense_<i8_k, i32_k, i32_k>("dot_i8_neon", nk_dot_i8_neon, nk_dot_i8_serial);
+
+    dense_<u8_k, f32_k, f32_k>("angular_u8_neon", nk_angular_u8_neon, nk_angular_u8_serial);
+    dense_<u8_k, u32_k, u32_k>("l2sq_u8_neon", nk_l2sq_u8_neon, nk_l2sq_u8_serial);
+    dense_<u8_k, f32_k, f64_k>("l2_u8_neon", nk_l2_u8_neon, nk_l2_u8_accurate);
+    dense_<u8_k, u32_k, u32_k>("dot_u8_neon", nk_dot_u8_neon, nk_dot_u8_serial);
+
+    matmul_<nk_i8_t, nk_i32_t>("dots_i8i8i32_neon", nk_dots_i8i8i32_packed_size_neon, nk_dots_i8i8i32_pack_neon,
+                               nk_dots_i8i8i32_neon);
+    matmul_<nk_u8_t, nk_u32_t>("dots_u8u8u32_neon", nk_dots_u8u8i32_packed_size_neon, nk_dots_u8u8i32_pack_neon,
+                               nk_dots_u8u8i32_neon);
 #endif
 
 #if NK_TARGET_NEON_F16
@@ -1696,6 +1742,9 @@ int main(int argc, char **argv) {
                                                                     nk_l2_i8_accurate);
     elementwise_<i8_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_i8_neon", nk_wsum_i8_neon,
                                                                      nk_wsum_i8_accurate, nk_l2_i8_accurate);
+
+    matmul_<nk_f16_t, nk_f32_t>("dots_f16f16f32_neon", nk_dots_f16f16f32_packed_size_neon, nk_dots_f16f16f32_pack_neon,
+                                nk_dots_f16f16f32_neon);
 #endif
 
 #if NK_TARGET_NEON_BF16
@@ -1715,6 +1764,9 @@ int main(int argc, char **argv) {
                                                                       nk_fma_bf16_accurate, nk_l2_bf16_accurate);
     elementwise_<bf16_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_bf16_neon", nk_wsum_bf16_neon,
                                                                        nk_wsum_bf16_accurate, nk_l2_bf16_accurate);
+
+    matmul_<nk_bf16_t, nk_f32_t>("dots_bf16bf16f32_neon", nk_dots_bf16bf16f32_packed_size_neon,
+                                 nk_dots_bf16bf16f32_pack_neon, nk_dots_bf16bf16f32_neon);
 #endif
 
 #if NK_TARGET_SVE
@@ -2053,8 +2105,10 @@ int main(int argc, char **argv) {
 
     mesh_<f32_k, f32_k, f32_k>("rmsd_f32_serial", nk_rmsd_f32_serial, nk_rmsd_f32_serial);
     mesh_<f32_k, f32_k, f32_k>("kabsch_f32_serial", nk_kabsch_f32_serial, nk_kabsch_f32_serial);
+    mesh_<f32_k, f32_k, f32_k>("umeyama_f32_serial", nk_umeyama_f32_serial, nk_umeyama_f32_serial);
     mesh_<f64_k, f64_k, f64_k>("rmsd_f64_serial", nk_rmsd_f64_serial, nk_rmsd_f64_serial);
     mesh_<f64_k, f64_k, f64_k>("kabsch_f64_serial", nk_kabsch_f64_serial, nk_kabsch_f64_serial);
+    mesh_<f64_k, f64_k, f64_k>("umeyama_f64_serial", nk_umeyama_f64_serial, nk_umeyama_f64_serial);
 
     dense_<bf16_k, f32_k, f64_k>("dot_bf16_serial", nk_dot_bf16_serial, nk_dot_bf16_accurate);
     dense_<bf16_k, f32_k, f64_k>("angular_bf16_serial", nk_angular_bf16_serial, nk_angular_bf16_accurate);

@@ -207,6 +207,11 @@ typedef enum {
     nk_metric_kabsch_k = 'K',  ///< Kabsch RMSD with optimal rotation
     nk_metric_umeyama_k = 'U', ///< Umeyama RMSD with optimal rotation and scale
 
+    // Horizontal reductions:
+    nk_metric_reduce_add_k = 'R', ///< Horizontal sum reduction
+    nk_metric_reduce_min_k = '<', ///< Horizontal min reduction with argmin
+    nk_metric_reduce_max_k = '>', ///< Horizontal max reduction with argmax
+
 } nk_metric_kind_t;
 
 /**
@@ -466,11 +471,36 @@ typedef void (*nk_metric_mesh_punned_t)(void const *a, void const *b, nk_size_t 
                                         void *d);
 
 /**
+ *  @brief  Type-punned function pointer for horizontal sum reduction.
+ *          Implements `result = sum(data[i])` over strided elements.
+ *
+ *  @param[in] data         Pointer to the input data array.
+ *  @param[in] count        Number of elements to reduce.
+ *  @param[in] stride_bytes Stride between elements in bytes.
+ *  @param[out] result      Output sum (type may be widened for precision).
+ */
+typedef void (*nk_kernel_reduce_add_punned_t)(void const *data, nk_size_t count, nk_size_t stride_bytes, void *result);
+
+/**
+ *  @brief  Type-punned function pointer for horizontal min/max reduction with argmin/argmax.
+ *          Implements `value = min/max(data[i]), index = argmin/argmax(data[i])`.
+ *
+ *  @param[in] data         Pointer to the input data array.
+ *  @param[in] count        Number of elements to reduce.
+ *  @param[in] stride_bytes Stride between elements in bytes.
+ *  @param[out] value       Output min/max value (same type as input).
+ *  @param[out] index       Output index of the min/max value.
+ */
+typedef void (*nk_kernel_reduce_minmax_punned_t)(void const *data, nk_size_t count, nk_size_t stride_bytes, void *value,
+                                                 nk_size_t *index);
+
+/**
  *  @brief  Type-punned function pointer for a NumKong public interface.
  *
  *  Can be a `nk_metric_dense_punned_t`, `nk_metric_sparse_punned_t`, `nk_metric_curved_punned_t`,
  *  `nk_metric_mesh_punned_t`, `nk_kernel_fma_punned_t`, `nk_kernel_wsum_punned_t`,
- *  `nk_kernel_scale_punned_t`, `nk_kernel_sum_punned_t`, or `nk_kernel_trigonometry_punned_t`.
+ *  `nk_kernel_scale_punned_t`, `nk_kernel_sum_punned_t`, `nk_kernel_trigonometry_punned_t`,
+ *  `nk_kernel_reduce_add_punned_t`, or `nk_kernel_reduce_minmax_punned_t`.
  */
 typedef void (*nk_kernel_punned_t)(void *);
 
@@ -889,6 +919,13 @@ NK_INTERNAL void nk_find_kernel_punned_f64_(nk_capability_t v, nk_metric_kind_t 
         case nk_metric_angular_k: *m = (m_t)&nk_angular_f64_neon, *c = nk_cap_neon_k; return;
         case nk_metric_l2sq_k: *m = (m_t)&nk_l2sq_f64_neon, *c = nk_cap_neon_k; return;
         case nk_metric_l2_k: *m = (m_t)&nk_l2_f64_neon, *c = nk_cap_neon_k; return;
+        case nk_metric_sin_k: *m = (m_t)&nk_sin_f64_neon, *c = nk_cap_neon_k; return;
+        case nk_metric_cos_k: *m = (m_t)&nk_cos_f64_neon, *c = nk_cap_neon_k; return;
+        case nk_metric_atan_k: *m = (m_t)&nk_atan_f64_neon, *c = nk_cap_neon_k; return;
+        case nk_metric_rmsd_k: *m = (m_t)&nk_rmsd_f64_neon, *c = nk_cap_neon_k; return;
+        case nk_metric_kabsch_k: *m = (m_t)&nk_kabsch_f64_neon, *c = nk_cap_neon_k; return;
+        case nk_metric_umeyama_k: *m = (m_t)&nk_umeyama_f64_neon, *c = nk_cap_neon_k; return;
+        case nk_metric_reduce_add_k: *m = (m_t)&nk_reduce_add_f64_neon, *c = nk_cap_neon_k; return;
         default: break;
         }
 #endif
@@ -910,6 +947,9 @@ NK_INTERNAL void nk_find_kernel_punned_f64_(nk_capability_t v, nk_metric_kind_t 
         case nk_metric_rmsd_k: *m = (m_t)&nk_rmsd_f64_skylake, *c = nk_cap_skylake_k; return;
         case nk_metric_kabsch_k: *m = (m_t)&nk_kabsch_f64_skylake, *c = nk_cap_skylake_k; return;
         case nk_metric_umeyama_k: *m = (m_t)&nk_umeyama_f64_skylake, *c = nk_cap_skylake_k; return;
+        case nk_metric_reduce_add_k: *m = (m_t)&nk_reduce_add_f64_skylake, *c = nk_cap_skylake_k; return;
+        case nk_metric_reduce_min_k: *m = (m_t)&nk_reduce_min_f64_skylake, *c = nk_cap_skylake_k; return;
+        case nk_metric_reduce_max_k: *m = (m_t)&nk_reduce_max_f64_skylake, *c = nk_cap_skylake_k; return;
         default: break;
         }
 #endif
@@ -927,6 +967,9 @@ NK_INTERNAL void nk_find_kernel_punned_f64_(nk_capability_t v, nk_metric_kind_t 
         case nk_metric_rmsd_k: *m = (m_t)&nk_rmsd_f64_haswell, *c = nk_cap_haswell_k; return;
         case nk_metric_kabsch_k: *m = (m_t)&nk_kabsch_f64_haswell, *c = nk_cap_haswell_k; return;
         case nk_metric_umeyama_k: *m = (m_t)&nk_umeyama_f64_haswell, *c = nk_cap_haswell_k; return;
+        case nk_metric_reduce_add_k: *m = (m_t)&nk_reduce_add_f64_haswell, *c = nk_cap_haswell_k; return;
+        case nk_metric_reduce_min_k: *m = (m_t)&nk_reduce_min_f64_haswell, *c = nk_cap_haswell_k; return;
+        case nk_metric_reduce_max_k: *m = (m_t)&nk_reduce_max_f64_haswell, *c = nk_cap_haswell_k; return;
         default: break;
         }
 #endif
@@ -951,6 +994,9 @@ NK_INTERNAL void nk_find_kernel_punned_f64_(nk_capability_t v, nk_metric_kind_t 
         case nk_metric_rmsd_k: *m = (m_t)&nk_rmsd_f64_serial, *c = nk_cap_serial_k; return;
         case nk_metric_kabsch_k: *m = (m_t)&nk_kabsch_f64_serial, *c = nk_cap_serial_k; return;
         case nk_metric_umeyama_k: *m = (m_t)&nk_umeyama_f64_serial, *c = nk_cap_serial_k; return;
+        case nk_metric_reduce_add_k: *m = (m_t)&nk_reduce_add_f64_serial, *c = nk_cap_serial_k; return;
+        case nk_metric_reduce_min_k: *m = (m_t)&nk_reduce_min_f64_serial, *c = nk_cap_serial_k; return;
+        case nk_metric_reduce_max_k: *m = (m_t)&nk_reduce_max_f64_serial, *c = nk_cap_serial_k; return;
         default: break;
         }
 }
@@ -985,6 +1031,15 @@ NK_INTERNAL void nk_find_kernel_punned_f32_(nk_capability_t v, nk_metric_kind_t 
         case nk_metric_wsum_k: *m = (m_t)&nk_wsum_f32_neon, *c = nk_cap_neon_k; return;
         case nk_metric_scale_k: *m = (m_t)&nk_scale_f32_neon, *c = nk_cap_neon_k; return;
         case nk_metric_sum_k: *m = (m_t)&nk_sum_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_metric_sin_k: *m = (m_t)&nk_sin_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_metric_cos_k: *m = (m_t)&nk_cos_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_metric_atan_k: *m = (m_t)&nk_atan_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_metric_rmsd_k: *m = (m_t)&nk_rmsd_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_metric_kabsch_k: *m = (m_t)&nk_kabsch_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_metric_umeyama_k: *m = (m_t)&nk_umeyama_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_metric_reduce_add_k: *m = (m_t)&nk_reduce_add_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_metric_reduce_min_k: *m = (m_t)&nk_reduce_min_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_metric_reduce_max_k: *m = (m_t)&nk_reduce_max_f32_neon, *c = nk_cap_neon_k; return;
         default: break;
         }
 #endif
@@ -1016,6 +1071,9 @@ NK_INTERNAL void nk_find_kernel_punned_f32_(nk_capability_t v, nk_metric_kind_t 
         case nk_metric_rmsd_k: *m = (m_t)&nk_rmsd_f32_skylake, *c = nk_cap_skylake_k; return;
         case nk_metric_kabsch_k: *m = (m_t)&nk_kabsch_f32_skylake, *c = nk_cap_skylake_k; return;
         case nk_metric_umeyama_k: *m = (m_t)&nk_umeyama_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_metric_reduce_add_k: *m = (m_t)&nk_reduce_add_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_metric_reduce_min_k: *m = (m_t)&nk_reduce_min_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_metric_reduce_max_k: *m = (m_t)&nk_reduce_max_f32_skylake, *c = nk_cap_skylake_k; return;
         default: break;
         }
 #endif
@@ -1040,6 +1098,9 @@ NK_INTERNAL void nk_find_kernel_punned_f32_(nk_capability_t v, nk_metric_kind_t 
         case nk_metric_rmsd_k: *m = (m_t)&nk_rmsd_f32_haswell, *c = nk_cap_haswell_k; return;
         case nk_metric_kabsch_k: *m = (m_t)&nk_kabsch_f32_haswell, *c = nk_cap_haswell_k; return;
         case nk_metric_umeyama_k: *m = (m_t)&nk_umeyama_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_metric_reduce_add_k: *m = (m_t)&nk_reduce_add_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_metric_reduce_min_k: *m = (m_t)&nk_reduce_min_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_metric_reduce_max_k: *m = (m_t)&nk_reduce_max_f32_haswell, *c = nk_cap_haswell_k; return;
         default: break;
         }
 #endif
@@ -1065,6 +1126,9 @@ NK_INTERNAL void nk_find_kernel_punned_f32_(nk_capability_t v, nk_metric_kind_t 
         case nk_metric_kabsch_k: *m = (m_t)&nk_kabsch_f32_serial, *c = nk_cap_serial_k; return;
         case nk_metric_umeyama_k: *m = (m_t)&nk_umeyama_f32_serial, *c = nk_cap_serial_k; return;
         case nk_metric_sparse_dot_k: *m = (m_t)&nk_sparse_dot_u32f32_serial, *c = nk_cap_serial_k; return;
+        case nk_metric_reduce_add_k: *m = (m_t)&nk_reduce_add_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_metric_reduce_min_k: *m = (m_t)&nk_reduce_min_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_metric_reduce_max_k: *m = (m_t)&nk_reduce_max_f32_serial, *c = nk_cap_serial_k; return;
         default: break;
         }
 }
