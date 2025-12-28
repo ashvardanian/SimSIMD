@@ -225,6 +225,46 @@ extern "C" {
         kernel(a, b, n, (void *)a_centroid, (void *)b_centroid, (void *)rotation, (void *)scale, (void *)result);  \
     }
 
+
+#define NK_DECLARATION_DOTS_PACKED_SIZE(input_type, accum_type)                                                       \
+    NK_DYNAMIC nk_size_t nk_dots_##input_type##input_type##accum_type##_packed_size(nk_size_t n, nk_size_t k) {       \
+        static nk_dots_packed_size_punned_t kernel = 0;                                                               \
+        if (kernel == 0) {                                                                                            \
+            nk_capability_t used_capability;                                                                          \
+            nk_find_kernel_punned(nk_kernel_dots_packed_size_k, nk_##input_type##_k, nk_capabilities(), nk_cap_any_k, \
+                                  (nk_kernel_punned_t *)&kernel, &used_capability);                                   \
+            if (!kernel) return 0;                                                                                    \
+        }                                                                                                             \
+        return kernel(n, k);                                                                                          \
+    }
+
+#define NK_DECLARATION_DOTS_PACK(input_type, accum_type)                                                       \
+    NK_DYNAMIC void nk_dots_##input_type##input_type##accum_type##_pack(                                       \
+        nk_##input_type##_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed) {          \
+        static nk_dots_pack_punned_t kernel = 0;                                                               \
+        if (kernel == 0) {                                                                                     \
+            nk_capability_t used_capability;                                                                   \
+            nk_find_kernel_punned(nk_kernel_dots_pack_k, nk_##input_type##_k, nk_capabilities(), nk_cap_any_k, \
+                                  (nk_kernel_punned_t *)&kernel, &used_capability);                            \
+            if (!kernel) return;                                                                               \
+        }                                                                                                      \
+        kernel(b, n, k, b_stride, b_packed);                                                                   \
+    }
+
+#define NK_DECLARATION_DOTS(input_type, accum_type, output_type)                                               \
+    NK_DYNAMIC void nk_dots_##input_type##input_type##accum_type(                                              \
+        nk_##input_type##_t const *a, void const *b_packed, nk_##output_type##_t *c, nk_size_t m, nk_size_t n, \
+        nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {                                                 \
+        static nk_dots_punned_t kernel = 0;                                                                    \
+        if (kernel == 0) {                                                                                     \
+            nk_capability_t used_capability;                                                                   \
+            nk_find_kernel_punned(nk_kernel_dots_k, nk_##input_type##_k, nk_capabilities(), nk_cap_any_k,      \
+                                  (nk_kernel_punned_t *)&kernel, &used_capability);                            \
+            if (!kernel) return;                                                                               \
+        }                                                                                                      \
+        kernel(a, b_packed, c, m, n, k, a_stride, c_stride);                                                   \
+    }
+
 // Dot products
 NK_DECLARATION_DENSE(dot, i8, i32)
 NK_DECLARATION_DENSE(dot, u8, u32)
@@ -357,6 +397,25 @@ NK_DECLARATION_MESH(kabsch, f32, f32)
 NK_DECLARATION_MESH(kabsch, f64, f64)
 NK_DECLARATION_MESH(umeyama, f32, f32)
 NK_DECLARATION_MESH(umeyama, f64, f64)
+// Matrix multiplications (GEMM with packed B)
+NK_DECLARATION_DOTS_PACKED_SIZE(f32, f32)
+NK_DECLARATION_DOTS_PACKED_SIZE(f64, f64)
+NK_DECLARATION_DOTS_PACKED_SIZE(f16, f32)
+NK_DECLARATION_DOTS_PACKED_SIZE(bf16, f32)
+NK_DECLARATION_DOTS_PACKED_SIZE(i8, i32)
+NK_DECLARATION_DOTS_PACKED_SIZE(u8, u32)
+NK_DECLARATION_DOTS_PACK(f32, f32)
+NK_DECLARATION_DOTS_PACK(f64, f64)
+NK_DECLARATION_DOTS_PACK(f16, f32)
+NK_DECLARATION_DOTS_PACK(bf16, f32)
+NK_DECLARATION_DOTS_PACK(i8, i32)
+NK_DECLARATION_DOTS_PACK(u8, u32)
+NK_DECLARATION_DOTS(f32, f32, f32)
+NK_DECLARATION_DOTS(f64, f64, f64)
+NK_DECLARATION_DOTS(f16, f32, f32)
+NK_DECLARATION_DOTS(bf16, f32, f32)
+NK_DECLARATION_DOTS(i8, i32, i32)
+NK_DECLARATION_DOTS(u8, u32, u32)
 
 // ARM NEON capabilities
 NK_DYNAMIC int nk_uses_neon(void) { return (nk_capabilities() & nk_cap_neon_k) != 0; }
