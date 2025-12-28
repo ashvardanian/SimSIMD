@@ -53,6 +53,105 @@ NK_PUBLIC void nk_dot_f16_neonfhm(nk_f16_t const *a_scalars, nk_f16_t const *b_s
 
     *result = vaddvq_f32(sum_f32x4);
 }
+/**
+ *  @brief Complex dot product using FMLAL/FMLSL for widening fp16->f32 operations.
+ *  Computes: result = Σ(a[i] * b[i]) where * is complex multiplication.
+ *  Real: Σ(a.re * b.re - a.im * b.im)
+ *  Imag: Σ(a.re * b.im + a.im * b.re)
+ */
+NK_PUBLIC void nk_dot_f16c_neonfhm(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
+                                   nk_f32c_t *result) {
+    // Accumulate into 4 float32x2_t vectors (low/high for real/imag)
+    float32x2_t sum_real_lo = vdup_n_f32(0);
+    float32x2_t sum_real_hi = vdup_n_f32(0);
+    float32x2_t sum_imag_lo = vdup_n_f32(0);
+    float32x2_t sum_imag_hi = vdup_n_f32(0);
+
+    while (count_pairs >= 4) {
+        // Load and deinterleave: vld2 loads 4 complex pairs as 2 x float16x4_t
+        int16x4x2_t a_i16x4x2 = vld2_s16((short const *)a_pairs);
+        int16x4x2_t b_i16x4x2 = vld2_s16((short const *)b_pairs);
+
+        float16x4_t a_real = vreinterpret_f16_s16(a_i16x4x2.val[0]);
+        float16x4_t a_imag = vreinterpret_f16_s16(a_i16x4x2.val[1]);
+        float16x4_t b_real = vreinterpret_f16_s16(b_i16x4x2.val[0]);
+        float16x4_t b_imag = vreinterpret_f16_s16(b_i16x4x2.val[1]);
+
+        // Real: a.re * b.re - a.im * b.im (FMLAL then FMLSL)
+        sum_real_lo = vfmlal_low_f16(sum_real_lo, a_real, b_real);
+        sum_real_lo = vfmlsl_low_f16(sum_real_lo, a_imag, b_imag);
+        sum_real_hi = vfmlal_high_f16(sum_real_hi, a_real, b_real);
+        sum_real_hi = vfmlsl_high_f16(sum_real_hi, a_imag, b_imag);
+
+        // Imag: a.re * b.im + a.im * b.re (FMLAL for both)
+        sum_imag_lo = vfmlal_low_f16(sum_imag_lo, a_real, b_imag);
+        sum_imag_lo = vfmlal_low_f16(sum_imag_lo, a_imag, b_real);
+        sum_imag_hi = vfmlal_high_f16(sum_imag_hi, a_real, b_imag);
+        sum_imag_hi = vfmlal_high_f16(sum_imag_hi, a_imag, b_real);
+
+        count_pairs -= 4, a_pairs += 4, b_pairs += 4;
+    }
+
+    // Combine and reduce
+    float32x4_t sum_real_f32x4 = vcombine_f32(sum_real_lo, sum_real_hi);
+    float32x4_t sum_imag_f32x4 = vcombine_f32(sum_imag_lo, sum_imag_hi);
+
+    // Handle tail with serial fallback
+    nk_f32c_t tail_result;
+    nk_dot_f16c_serial(a_pairs, b_pairs, count_pairs, &tail_result);
+    result->real = vaddvq_f32(sum_real_f32x4) + tail_result.real;
+    result->imag = vaddvq_f32(sum_imag_f32x4) + tail_result.imag;
+}
+
+/**
+ *  @brief Complex conjugate dot product using FMLAL/FMLSL for widening fp16->f32 operations.
+ *  Computes: result = Σ(a[i] * conj(b[i])) where * is complex multiplication.
+ *  Real: Σ(a.re * b.re + a.im * b.im)
+ *  Imag: Σ(a.im * b.re - a.re * b.im)
+ */
+NK_PUBLIC void nk_vdot_f16c_neonfhm(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
+                                    nk_f32c_t *result) {
+    // Accumulate into 4 float32x2_t vectors (low/high for real/imag)
+    float32x2_t sum_real_lo = vdup_n_f32(0);
+    float32x2_t sum_real_hi = vdup_n_f32(0);
+    float32x2_t sum_imag_lo = vdup_n_f32(0);
+    float32x2_t sum_imag_hi = vdup_n_f32(0);
+
+    while (count_pairs >= 4) {
+        // Load and deinterleave: vld2 loads 4 complex pairs as 2 x float16x4_t
+        int16x4x2_t a_i16x4x2 = vld2_s16((short const *)a_pairs);
+        int16x4x2_t b_i16x4x2 = vld2_s16((short const *)b_pairs);
+
+        float16x4_t a_real = vreinterpret_f16_s16(a_i16x4x2.val[0]);
+        float16x4_t a_imag = vreinterpret_f16_s16(a_i16x4x2.val[1]);
+        float16x4_t b_real = vreinterpret_f16_s16(b_i16x4x2.val[0]);
+        float16x4_t b_imag = vreinterpret_f16_s16(b_i16x4x2.val[1]);
+
+        // Real: a.re * b.re + a.im * b.im (FMLAL for both)
+        sum_real_lo = vfmlal_low_f16(sum_real_lo, a_real, b_real);
+        sum_real_lo = vfmlal_low_f16(sum_real_lo, a_imag, b_imag);
+        sum_real_hi = vfmlal_high_f16(sum_real_hi, a_real, b_real);
+        sum_real_hi = vfmlal_high_f16(sum_real_hi, a_imag, b_imag);
+
+        // Imag: a.im * b.re - a.re * b.im (FMLAL then FMLSL)
+        sum_imag_lo = vfmlal_low_f16(sum_imag_lo, a_imag, b_real);
+        sum_imag_lo = vfmlsl_low_f16(sum_imag_lo, a_real, b_imag);
+        sum_imag_hi = vfmlal_high_f16(sum_imag_hi, a_imag, b_real);
+        sum_imag_hi = vfmlsl_high_f16(sum_imag_hi, a_real, b_imag);
+
+        count_pairs -= 4, a_pairs += 4, b_pairs += 4;
+    }
+
+    // Combine and reduce
+    float32x4_t sum_real_f32x4 = vcombine_f32(sum_real_lo, sum_real_hi);
+    float32x4_t sum_imag_f32x4 = vcombine_f32(sum_imag_lo, sum_imag_hi);
+
+    // Handle tail with serial fallback
+    nk_f32c_t tail_result;
+    nk_vdot_f16c_serial(a_pairs, b_pairs, count_pairs, &tail_result);
+    result->real = vaddvq_f32(sum_real_f32x4) + tail_result.real;
+    result->imag = vaddvq_f32(sum_imag_f32x4) + tail_result.imag;
+}
 
 #if defined(__cplusplus)
 } // extern "C"

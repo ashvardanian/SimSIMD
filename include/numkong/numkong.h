@@ -1879,6 +1879,13 @@ NK_INTERNAL void nk_find_kernel_punned_f16c_(nk_capability_t v, nk_metric_kind_t
         default: break;
         }
 #endif
+#if NK_TARGET_NEONFHM
+    if (v & nk_cap_neonfhm_k) switch (k) {
+        case nk_metric_dot_k: *m = (m_t)&nk_dot_f16c_neonfhm, *c = nk_cap_neonfhm_k; return;
+        case nk_metric_vdot_k: *m = (m_t)&nk_vdot_f16c_neonfhm, *c = nk_cap_neonfhm_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_NEONHALF
     if (v & nk_cap_neonhalf_k) switch (k) {
         case nk_metric_dot_k: *m = (m_t)&nk_dot_f16c_neonhalf, *c = nk_cap_neonhalf_k; return;
