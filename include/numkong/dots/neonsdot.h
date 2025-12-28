@@ -20,21 +20,21 @@
 extern "C" {
 #endif
 
-// I8 GEMM: k_tile=16 (16 i8s = 16 bytes = NEON register width)
-NK_MAKE_DOTS_PACK_SIZE(neonsdot, i8, i32, 16)
-NK_MAKE_DOTS_PACK(neonsdot, i8, i32, 16)
+// I8 GEMM: simd_width=16 (16 i8s = 16 bytes = NEON register width)
+NK_MAKE_DOTS_PACK_SIZE(neonsdot, i8, i32)
+NK_MAKE_DOTS_PACK(neonsdot, i8, i32)
 NK_MAKE_DOTS_VECTORS(i8i8i32_neonsdot, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_neonsdot_t,
                      nk_dot_i8x16_init_neonsdot, nk_load_b128_neon_, nk_partial_load_b8x16_neon_,
                      nk_dot_i8x16_update_neonsdot, nk_dot_i8x16_finalize_neonsdot,
-                     /*k_tile=*/16, /*k_unroll=*/1, /*MR=*/4, /*MC=*/64, /*NC=*/1024, /*KC=*/256)
+                     /*simd_width=*/16, /*k_unroll=*/1, /*MR=*/4, /*MC=*/64, /*NC=*/1024, /*KC=*/256)
 
-// U8 GEMM: k_tile=16 (16 u8s = 16 bytes = NEON register width)
-NK_MAKE_DOTS_PACK_SIZE(neonsdot, u8, i32, 16)
-NK_MAKE_DOTS_PACK(neonsdot, u8, i32, 16)
-NK_MAKE_DOTS_VECTORS(u8u8i32_neonsdot, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_neonsdot_t,
+// U8 GEMM: simd_width=16 (16 u8s = 16 bytes = NEON register width)
+NK_MAKE_DOTS_PACK_SIZE(neonsdot, u8, u32)
+NK_MAKE_DOTS_PACK(neonsdot, u8, u32)
+NK_MAKE_DOTS_VECTORS(u8u8u32_neonsdot, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_neonsdot_t,
                      nk_dot_u8x16_init_neonsdot, nk_load_b128_neon_, nk_partial_load_b8x16_neon_,
                      nk_dot_u8x16_update_neonsdot, nk_dot_u8x16_finalize_neonsdot,
-                     /*k_tile=*/16, /*k_unroll=*/1, /*MR=*/4, /*MC=*/64, /*NC=*/1024, /*KC=*/256)
+                     /*simd_width=*/16, /*k_unroll=*/1, /*MR=*/4, /*MC=*/64, /*NC=*/1024, /*KC=*/256)
 
 #if defined(__cplusplus)
 } // extern "C"

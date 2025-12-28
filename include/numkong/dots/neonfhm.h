@@ -23,13 +23,13 @@
 extern "C" {
 #endif
 
-// F16 GEMM using FMLAL: k_tile=8 (8 f16s = 16 bytes = NEON register width)
-NK_MAKE_DOTS_PACK_SIZE(neonfhm, f16, f32, 8)
-NK_MAKE_DOTS_PACK(neonfhm, f16, f32, 8)
+// F16 GEMM using FMLAL: simd_width=8 (8 f16s = 16 bytes = NEON register width)
+NK_MAKE_DOTS_PACK_SIZE(neonfhm, f16, f32)
+NK_MAKE_DOTS_PACK(neonfhm, f16, f32)
 NK_MAKE_DOTS_VECTORS(f16f16f32_neonfhm, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_neonfhm_t,
                      nk_dot_f16x8_init_neonfhm, nk_load_b128_neon_, nk_partial_load_b16x8_neon_,
                      nk_dot_f16x8_update_neonfhm, nk_dot_f16x8_finalize_neonfhm,
-                     /*k_tile=*/8, /*k_unroll=*/1, /*MR=*/4, /*MC=*/64, /*NC=*/1024, /*KC=*/256)
+                     /*simd_width=*/8, /*k_unroll=*/1, /*MR=*/4, /*MC=*/64, /*NC=*/1024, /*KC=*/256)
 
 #if defined(__cplusplus)
 } // extern "C"

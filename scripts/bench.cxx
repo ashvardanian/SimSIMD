@@ -1709,8 +1709,8 @@ int main(int argc, char **argv) {
 
     matmul_<nk_i8_t, nk_i32_t>("dots_i8i8i32_neonsdot", nk_dots_i8i8i32_packed_size_neonsdot,
                                nk_dots_i8i8i32_pack_neonsdot, nk_dots_i8i8i32_neonsdot);
-    matmul_<nk_u8_t, nk_u32_t>("dots_u8u8u32_neonsdot", nk_dots_u8u8i32_packed_size_neonsdot,
-                               nk_dots_u8u8i32_pack_neonsdot, nk_dots_u8u8i32_neonsdot);
+    matmul_<nk_u8_t, nk_u32_t>("dots_u8u8u32_neonsdot", nk_dots_u8u8u32_packed_size_neonsdot,
+                               nk_dots_u8u8u32_pack_neonsdot, nk_dots_u8u8u32_neonsdot);
 #endif
 
 #if NK_TARGET_NEONHALF
@@ -1749,6 +1749,9 @@ int main(int argc, char **argv) {
 
 #if NK_TARGET_NEONFHM
     dense_<f16_k, f32_k, f64_k>("dot_f16_neonfhm", nk_dot_f16_neonfhm, nk_dot_f16_accurate);
+
+    matmul_<nk_f16_t, nk_f32_t>("dots_f16f16f32_neonfhm", nk_dots_f16f16f32_packed_size_neonfhm,
+                                nk_dots_f16f16f32_pack_neonfhm, nk_dots_f16f16f32_neonfhm);
 #endif // NK_TARGET_NEONFHM
 
 #if NK_TARGET_NEONBFDOT
