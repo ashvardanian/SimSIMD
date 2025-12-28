@@ -132,7 +132,7 @@
 
 #include "types.h"
 
-#include "dot.h" // `_nk_bf16x16_to_f32x16_skylake`
+#include "dot.h" // `nk_bf16x16_to_f32x16_skylake_`
 
 #if defined(__cplusplus)
 extern "C" {

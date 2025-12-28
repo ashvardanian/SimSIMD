@@ -8,7 +8,7 @@
 #ifndef NK_ELEMENTWISE_NEON_H
 #define NK_ELEMENTWISE_NEON_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a+simd")
@@ -125,7 +125,7 @@ NK_PUBLIC void nk_sum_i16_neon(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n
     }
 
     // The tail:
-    for (; i < n; ++i) _nk_i16_sadd(a + i, b + i, result + i);
+    for (; i < n; ++i) nk_i16_sadd_(a + i, b + i, result + i);
 }
 
 NK_PUBLIC void nk_scale_i16_neon(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
@@ -148,7 +148,7 @@ NK_PUBLIC void nk_scale_i16_neon(nk_i16_t const *a, nk_size_t n, nk_f32_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f32 * a[i] + beta_f32;
-        _nk_f32_to_i16(&sum, result + i);
+        nk_f32_to_i16_(&sum, result + i);
     }
 }
 
@@ -177,7 +177,7 @@ NK_PUBLIC void nk_fma_i16_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f32 * a[i] * b[i] + beta_f32 * c[i];
-        _nk_f32_to_i16(&sum, result + i);
+        nk_f32_to_i16_(&sum, result + i);
     }
 }
 
@@ -192,7 +192,7 @@ NK_PUBLIC void nk_sum_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n
     }
 
     // The tail:
-    for (; i < n; ++i) _nk_u16_sadd(a + i, b + i, result + i);
+    for (; i < n; ++i) nk_u16_sadd_(a + i, b + i, result + i);
 }
 
 NK_PUBLIC void nk_scale_u16_neon(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
@@ -215,7 +215,7 @@ NK_PUBLIC void nk_scale_u16_neon(nk_u16_t const *a, nk_size_t n, nk_f32_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f32 * a[i] + beta_f32;
-        _nk_f32_to_u16(&sum, result + i);
+        nk_f32_to_u16_(&sum, result + i);
     }
 }
 
@@ -244,7 +244,7 @@ NK_PUBLIC void nk_fma_u16_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f32 * a[i] * b[i] + beta_f32 * c[i];
-        _nk_f32_to_u16(&sum, result + i);
+        nk_f32_to_u16_(&sum, result + i);
     }
 }
 
@@ -259,7 +259,7 @@ NK_PUBLIC void nk_sum_i32_neon(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n
     }
 
     // The tail:
-    for (; i < n; ++i) _nk_i32_sadd(a + i, b + i, result + i);
+    for (; i < n; ++i) nk_i32_sadd_(a + i, b + i, result + i);
 }
 
 NK_PUBLIC void nk_scale_i32_neon(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
@@ -282,7 +282,7 @@ NK_PUBLIC void nk_scale_i32_neon(nk_i32_t const *a, nk_size_t n, nk_f64_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] + beta_val;
-        _nk_f64_to_i32(&sum, result + i);
+        nk_f64_to_i32_(&sum, result + i);
     }
 }
 
@@ -311,7 +311,7 @@ NK_PUBLIC void nk_fma_i32_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] * b[i] + beta_val * c[i];
-        _nk_f64_to_i32(&sum, result + i);
+        nk_f64_to_i32_(&sum, result + i);
     }
 }
 
@@ -326,7 +326,7 @@ NK_PUBLIC void nk_sum_u32_neon(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n
     }
 
     // The tail:
-    for (; i < n; ++i) _nk_u32_sadd(a + i, b + i, result + i);
+    for (; i < n; ++i) nk_u32_sadd_(a + i, b + i, result + i);
 }
 
 NK_PUBLIC void nk_scale_u32_neon(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
@@ -349,7 +349,7 @@ NK_PUBLIC void nk_scale_u32_neon(nk_u32_t const *a, nk_size_t n, nk_f64_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] + beta_val;
-        _nk_f64_to_u32(&sum, result + i);
+        nk_f64_to_u32_(&sum, result + i);
     }
 }
 
@@ -378,7 +378,7 @@ NK_PUBLIC void nk_fma_u32_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] * b[i] + beta_val * c[i];
-        _nk_f64_to_u32(&sum, result + i);
+        nk_f64_to_u32_(&sum, result + i);
     }
 }
 
@@ -393,7 +393,7 @@ NK_PUBLIC void nk_sum_i64_neon(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n
     }
 
     // The tail:
-    for (; i < n; ++i) _nk_i64_sadd(a + i, b + i, result + i);
+    for (; i < n; ++i) nk_i64_sadd_(a + i, b + i, result + i);
 }
 
 NK_PUBLIC void nk_scale_i64_neon(nk_i64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
@@ -416,7 +416,7 @@ NK_PUBLIC void nk_scale_i64_neon(nk_i64_t const *a, nk_size_t n, nk_f64_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] + beta_val;
-        _nk_f64_to_i64(&sum, result + i);
+        nk_f64_to_i64_(&sum, result + i);
     }
 }
 
@@ -445,7 +445,7 @@ NK_PUBLIC void nk_fma_i64_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] * b[i] + beta_val * c[i];
-        _nk_f64_to_i64(&sum, result + i);
+        nk_f64_to_i64_(&sum, result + i);
     }
 }
 
@@ -460,7 +460,7 @@ NK_PUBLIC void nk_sum_u64_neon(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n
     }
 
     // The tail:
-    for (; i < n; ++i) _nk_u64_sadd(a + i, b + i, result + i);
+    for (; i < n; ++i) nk_u64_sadd_(a + i, b + i, result + i);
 }
 
 NK_PUBLIC void nk_scale_u64_neon(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
@@ -483,7 +483,7 @@ NK_PUBLIC void nk_scale_u64_neon(nk_u64_t const *a, nk_size_t n, nk_f64_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] + beta_val;
-        _nk_f64_to_u64(&sum, result + i);
+        nk_f64_to_u64_(&sum, result + i);
     }
 }
 
@@ -512,7 +512,7 @@ NK_PUBLIC void nk_fma_u64_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] * b[i] + beta_val * c[i];
-        _nk_f64_to_u64(&sum, result + i);
+        nk_f64_to_u64_(&sum, result + i);
     }
 }
 
@@ -650,6 +650,6 @@ NK_PUBLIC void nk_fma_bf16_neon(                                //
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_ELEMENTWISE_NEON_H

@@ -8,7 +8,7 @@
 #ifndef NK_ELEMENTWISE_NEON_H
 #define NK_ELEMENTWISE_NEON_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a+simd")
@@ -27,6 +27,6 @@ extern "C" {
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_ELEMENTWISE_NEON_H

@@ -8,7 +8,7 @@
 #ifndef NK_SPATIAL_GENOA_H
 #define NK_SPATIAL_GENOA_H
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_GENOA
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
@@ -21,7 +21,7 @@
 extern "C" {
 #endif
 
-NK_INTERNAL __m512i _nk_substract_bf16x32_genoa(__m512i a_i16, __m512i b_i16) {
+NK_INTERNAL __m512i nk_substract_bf16x32_genoa_(__m512i a_i16, __m512i b_i16) {
 
     nk_b512_vec_t d_odd, d_even, d, a_f32_even, b_f32_even, d_f32_even, a_f32_odd, b_f32_odd, d_f32_odd, a, b;
     a.zmm = a_i16;
@@ -69,7 +69,7 @@ NK_INTERNAL __m512i _nk_substract_bf16x32_genoa(__m512i a_i16, __m512i b_i16) {
 
 NK_PUBLIC void nk_l2_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_l2sq_bf16_genoa(a, b, n, result);
-    *result = _nk_sqrt_f32_haswell(*result);
+    *result = nk_sqrt_f32_haswell_(*result);
 }
 NK_PUBLIC void nk_l2sq_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     __m512 distance_sq_f32x16 = _mm512_setzero_ps();
@@ -87,11 +87,11 @@ nk_l2sq_bf16_genoa_cycle:
         b_bf16x32 = _mm512_loadu_epi16(b);
         a += 32, b += 32, n -= 32;
     }
-    diff_bf16x32 = _nk_substract_bf16x32_genoa(a_bf16x32, b_bf16x32);
+    diff_bf16x32 = nk_substract_bf16x32_genoa_(a_bf16x32, b_bf16x32);
     distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
     if (n) goto nk_l2sq_bf16_genoa_cycle;
 
-    *result = _nk_reduce_add_f32x16_skylake(distance_sq_f32x16);
+    *result = nk_reduce_add_f32x16_skylake_(distance_sq_f32x16);
 }
 
 NK_PUBLIC void nk_angular_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -117,10 +117,10 @@ nk_angular_bf16_genoa_cycle:
     b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, (__m512bh)(b_bf16x32), (__m512bh)(b_bf16x32));
     if (n) goto nk_angular_bf16_genoa_cycle;
 
-    nk_f32_t dot_product_f32 = _nk_reduce_add_f32x16_skylake(dot_product_f32x16);
-    nk_f32_t a_norm_sq_f32 = _nk_reduce_add_f32x16_skylake(a_norm_sq_f32x16);
-    nk_f32_t b_norm_sq_f32 = _nk_reduce_add_f32x16_skylake(b_norm_sq_f32x16);
-    *result = _nk_angular_normalize_f32_haswell(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
+    nk_f32_t dot_product_f32 = nk_reduce_add_f32x16_skylake_(dot_product_f32x16);
+    nk_f32_t a_norm_sq_f32 = nk_reduce_add_f32x16_skylake_(a_norm_sq_f32x16);
+    nk_f32_t b_norm_sq_f32 = nk_reduce_add_f32x16_skylake_(b_norm_sq_f32x16);
+    *result = nk_angular_normalize_f32_haswell_(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
 typedef nk_dot_bf16x32_state_genoa_t nk_angular_bf16x32_state_genoa_t;
@@ -212,6 +212,6 @@ NK_INTERNAL void nk_l2_bf16x32_finalize_genoa(nk_l2_bf16x32_state_genoa_t const 
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_GENOA
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
 #endif // NK_SPATIAL_GENOA_H

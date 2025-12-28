@@ -8,7 +8,7 @@
 #ifndef NK_SPATIAL_NEON_BF16_H
 #define NK_SPATIAL_NEON_BF16_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON_BF16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
@@ -68,8 +68,8 @@ NK_PUBLIC void nk_angular_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_s
 
 nk_angular_bf16_neon_cycle:
     if (n < 8) {
-        a_bf16x8 = _nk_partial_load_bf16x8_neon(a, n);
-        b_bf16x8 = _nk_partial_load_bf16x8_neon(b, n);
+        a_bf16x8 = nk_partial_load_bf16x8_neon_(a, n);
+        b_bf16x8 = nk_partial_load_bf16x8_neon_(b, n);
         n = 0;
     }
     else {
@@ -86,12 +86,12 @@ nk_angular_bf16_neon_cycle:
     nk_f32_t dot_product_f32 = vaddvq_f32(dot_product_f32x4);
     nk_f32_t a_norm_sq_f32 = vaddvq_f32(a_norm_sq_f32x4);
     nk_f32_t b_norm_sq_f32 = vaddvq_f32(b_norm_sq_f32x4);
-    *result = _nk_angular_normalize_f32_neon(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
+    *result = nk_angular_normalize_f32_neon_(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
 NK_PUBLIC void nk_l2_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_l2sq_bf16_neon(a, b, n, result);
-    *result = _nk_sqrt_f32_neon(*result);
+    *result = nk_sqrt_f32_neon_(*result);
 }
 NK_PUBLIC void nk_l2sq_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     float32x4_t diff_high_f32x4, diff_low_f32x4;
@@ -99,8 +99,8 @@ NK_PUBLIC void nk_l2sq_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_size
 
 nk_l2sq_bf16_neon_cycle:
     if (n < 8) {
-        bfloat16x8_t a_bf16x8 = _nk_partial_load_bf16x8_neon(a, n);
-        bfloat16x8_t b_bf16x8 = _nk_partial_load_bf16x8_neon(b, n);
+        bfloat16x8_t a_bf16x8 = nk_partial_load_bf16x8_neon_(a, n);
+        bfloat16x8_t b_bf16x8 = nk_partial_load_bf16x8_neon_(b, n);
         diff_high_f32x4 = vsubq_f32(vcvt_f32_bf16(vget_high_bf16(a_bf16x8)), vcvt_f32_bf16(vget_high_bf16(b_bf16x8)));
         diff_low_f32x4 = vsubq_f32(vcvt_f32_bf16(vget_low_bf16(a_bf16x8)), vcvt_f32_bf16(vget_low_bf16(b_bf16x8)));
         n = 0;
@@ -204,6 +204,6 @@ NK_INTERNAL void nk_l2_bf16x8_finalize_neon(nk_l2_bf16x8_state_neon_t const *sta
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON_BF16
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_SPATIAL_NEON_BF16_H

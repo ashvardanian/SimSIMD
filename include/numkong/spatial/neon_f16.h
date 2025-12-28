@@ -8,7 +8,7 @@
 #ifndef NK_SPATIAL_NEON_F16_H
 #define NK_SPATIAL_NEON_F16_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON_F16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
@@ -22,7 +22,7 @@ extern "C" {
 
 NK_PUBLIC void nk_l2_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_l2sq_f16_neon(a, b, n, result);
-    *result = _nk_sqrt_f32_neon(*result);
+    *result = nk_sqrt_f32_neon_(*result);
 }
 NK_PUBLIC void nk_l2sq_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     float32x4_t a_f32x4, b_f32x4;
@@ -30,8 +30,8 @@ NK_PUBLIC void nk_l2sq_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t 
 
 nk_l2sq_f16_neon_cycle:
     if (n < 4) {
-        a_f32x4 = vcvt_f32_f16(_nk_partial_load_f16x4_neon(a, n));
-        b_f32x4 = vcvt_f32_f16(_nk_partial_load_f16x4_neon(b, n));
+        a_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(a, n));
+        b_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(b, n));
         n = 0;
     }
     else {
@@ -52,8 +52,8 @@ NK_PUBLIC void nk_angular_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size
 
 nk_angular_f16_neon_cycle:
     if (n < 4) {
-        a_f32x4 = vcvt_f32_f16(_nk_partial_load_f16x4_neon(a, n));
-        b_f32x4 = vcvt_f32_f16(_nk_partial_load_f16x4_neon(b, n));
+        a_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(a, n));
+        b_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(b, n));
         n = 0;
     }
     else {
@@ -69,7 +69,7 @@ nk_angular_f16_neon_cycle:
     nk_f32_t dot_product_f32 = vaddvq_f32(dot_product_f32x4);
     nk_f32_t a_norm_sq_f32 = vaddvq_f32(a_norm_sq_f32x4);
     nk_f32_t b_norm_sq_f32 = vaddvq_f32(b_norm_sq_f32x4);
-    *result = _nk_angular_normalize_f32_neon(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
+    *result = nk_angular_normalize_f32_neon_(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
 typedef nk_dot_f16x8_state_neon_t nk_angular_f16x8_state_neon_t;
@@ -159,6 +159,6 @@ NK_INTERNAL void nk_l2_f16x8_finalize_neon(nk_l2_f16x8_state_neon_t const *state
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON_F16
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_SPATIAL_NEON_F16_H

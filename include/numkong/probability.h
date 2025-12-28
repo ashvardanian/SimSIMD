@@ -267,13 +267,12 @@ NK_PUBLIC void nk_jsd_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size
         *result = d_half > 0 ? compute_sqrt(d_half) : 0;                                                     \
     }
 
-// clang-format off
 // Serial variants: f64 inputs → f64 output, f32 inputs → f32 output, f16/bf16 inputs → f32 output
-NK_MAKE_KLD(serial, f64, f64, nk_f64_t, NK_ASSIGN_FROM_TO, NK_F32_DIVISION_EPSILON, NK_F32_LOG)
-NK_MAKE_JSD(serial, f64, f64, nk_f64_t, NK_ASSIGN_FROM_TO, NK_F32_DIVISION_EPSILON, NK_F32_LOG, NK_F32_SQRT)
+NK_MAKE_KLD(serial, f64, f64, nk_f64_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, NK_F32_LOG)
+NK_MAKE_JSD(serial, f64, f64, nk_f64_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, NK_F32_LOG, NK_F32_SQRT)
 
-NK_MAKE_KLD(serial, f32, f32, nk_f32_t, NK_ASSIGN_FROM_TO, NK_F32_DIVISION_EPSILON, NK_F32_LOG)
-NK_MAKE_JSD(serial, f32, f32, nk_f32_t, NK_ASSIGN_FROM_TO, NK_F32_DIVISION_EPSILON, NK_F32_LOG, NK_F32_SQRT)
+NK_MAKE_KLD(serial, f32, f32, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, NK_F32_LOG)
+NK_MAKE_JSD(serial, f32, f32, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, NK_F32_LOG, NK_F32_SQRT)
 
 NK_MAKE_KLD(serial, f16, f32, nk_f32_t, nk_f16_to_f32, NK_F32_DIVISION_EPSILON, NK_F32_LOG)
 NK_MAKE_JSD(serial, f16, f32, nk_f32_t, nk_f16_to_f32, NK_F32_DIVISION_EPSILON, NK_F32_LOG, NK_F32_SQRT)
@@ -282,23 +281,22 @@ NK_MAKE_KLD(serial, bf16, f32, nk_f32_t, nk_bf16_to_f32, NK_F32_DIVISION_EPSILON
 NK_MAKE_JSD(serial, bf16, f32, nk_f32_t, nk_bf16_to_f32, NK_F32_DIVISION_EPSILON, NK_F32_LOG, NK_F32_SQRT)
 
 // Accurate variants: use f64 math and always f64 output (internal use for numerical verification)
-NK_MAKE_KLD(accurate, f32, f64, nk_f64_t, NK_ASSIGN_FROM_TO, NK_F32_DIVISION_EPSILON, NK_F64_LOG)
-NK_MAKE_JSD(accurate, f32, f64, nk_f64_t, NK_ASSIGN_FROM_TO, NK_F32_DIVISION_EPSILON, NK_F64_LOG, NK_F64_SQRT)
+NK_MAKE_KLD(accurate, f32, f64, nk_f64_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, NK_F64_LOG)
+NK_MAKE_JSD(accurate, f32, f64, nk_f64_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, NK_F64_LOG, NK_F64_SQRT)
 
 NK_MAKE_KLD(accurate, f16, f64, nk_f64_t, nk_f16_to_f64, NK_F32_DIVISION_EPSILON, NK_F64_LOG)
 NK_MAKE_JSD(accurate, f16, f64, nk_f64_t, nk_f16_to_f64, NK_F32_DIVISION_EPSILON, NK_F64_LOG, NK_F64_SQRT)
 
 NK_MAKE_KLD(accurate, bf16, f64, nk_f64_t, nk_bf16_to_f64, NK_F32_DIVISION_EPSILON, NK_F64_LOG)
 NK_MAKE_JSD(accurate, bf16, f64, nk_f64_t, nk_bf16_to_f64, NK_F32_DIVISION_EPSILON, NK_F64_LOG, NK_F64_SQRT)
-// clang-format on
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
 
-NK_PUBLIC float32x4_t _nk_log2_f32_neon(float32x4_t x) {
+NK_PUBLIC float32x4_t nk_log2_f32_neon_(float32x4_t x) {
     // Extracting the exponent
     int32x4_t bits_i32x4 = vreinterpretq_s32_f32(x);
     int32x4_t exponent_i32x4 = vsubq_s32(vshrq_n_s32(vandq_s32(bits_i32x4, vdupq_n_s32(0x7F800000)), 23),
@@ -333,8 +331,8 @@ NK_PUBLIC void nk_kld_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n
 
 nk_kld_f32_neon_cycle:
     if (n < 4) {
-        a_f32x4 = _nk_partial_load_f32x4_neon(a, n);
-        b_f32x4 = _nk_partial_load_f32x4_neon(b, n);
+        a_f32x4 = nk_partial_load_f32x4_neon_(a, n);
+        b_f32x4 = nk_partial_load_f32x4_neon_(b, n);
         n = 0;
     }
     else {
@@ -344,7 +342,7 @@ nk_kld_f32_neon_cycle:
     }
 
     float32x4_t ratio_f32x4 = vdivq_f32(vaddq_f32(a_f32x4, epsilon_f32x4), vaddq_f32(b_f32x4, epsilon_f32x4));
-    float32x4_t log_ratio_f32x4 = _nk_log2_f32_neon(ratio_f32x4);
+    float32x4_t log_ratio_f32x4 = nk_log2_f32_neon_(ratio_f32x4);
     float32x4_t contribution_f32x4 = vmulq_f32(a_f32x4, log_ratio_f32x4);
     sum_f32x4 = vaddq_f32(sum_f32x4, contribution_f32x4);
     if (n != 0) goto nk_kld_f32_neon_cycle;
@@ -362,8 +360,8 @@ NK_PUBLIC void nk_jsd_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n
 
 nk_jsd_f32_neon_cycle:
     if (n < 4) {
-        a_f32x4 = _nk_partial_load_f32x4_neon(a, n);
-        b_f32x4 = _nk_partial_load_f32x4_neon(b, n);
+        a_f32x4 = nk_partial_load_f32x4_neon_(a, n);
+        b_f32x4 = nk_partial_load_f32x4_neon_(b, n);
         n = 0;
     }
     else {
@@ -375,8 +373,8 @@ nk_jsd_f32_neon_cycle:
     float32x4_t mean_f32x4 = vmulq_f32(vaddq_f32(a_f32x4, b_f32x4), vdupq_n_f32(0.5));
     float32x4_t ratio_a_f32x4 = vdivq_f32(vaddq_f32(a_f32x4, epsilon_f32x4), vaddq_f32(mean_f32x4, epsilon_f32x4));
     float32x4_t ratio_b_f32x4 = vdivq_f32(vaddq_f32(b_f32x4, epsilon_f32x4), vaddq_f32(mean_f32x4, epsilon_f32x4));
-    float32x4_t log_ratio_a_f32x4 = _nk_log2_f32_neon(ratio_a_f32x4);
-    float32x4_t log_ratio_b_f32x4 = _nk_log2_f32_neon(ratio_b_f32x4);
+    float32x4_t log_ratio_a_f32x4 = nk_log2_f32_neon_(ratio_a_f32x4);
+    float32x4_t log_ratio_b_f32x4 = nk_log2_f32_neon_(ratio_b_f32x4);
     float32x4_t contribution_a_f32x4 = vmulq_f32(a_f32x4, log_ratio_a_f32x4);
     float32x4_t contribution_b_f32x4 = vmulq_f32(b_f32x4, log_ratio_b_f32x4);
 
@@ -385,7 +383,7 @@ nk_jsd_f32_neon_cycle:
 
     nk_f32_t log2_normalizer = 0.693147181f;
     nk_f32_t sum = vaddvq_f32(sum_f32x4) * log2_normalizer / 2;
-    *result = sum > 0 ? _nk_sqrt_f32_neon(sum) : 0;
+    *result = sum > 0 ? nk_sqrt_f32_neon_(sum) : 0;
 }
 
 #pragma clang attribute pop
@@ -405,8 +403,8 @@ NK_PUBLIC void nk_kld_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n
 
 nk_kld_f16_neon_cycle:
     if (n < 4) {
-        a_f32x4 = vcvt_f32_f16(_nk_partial_load_f16x4_neon(a, n));
-        b_f32x4 = vcvt_f32_f16(_nk_partial_load_f16x4_neon(b, n));
+        a_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(a, n));
+        b_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(b, n));
         n = 0;
     }
     else {
@@ -416,7 +414,7 @@ nk_kld_f16_neon_cycle:
     }
 
     float32x4_t ratio_f32x4 = vdivq_f32(vaddq_f32(a_f32x4, epsilon_f32x4), vaddq_f32(b_f32x4, epsilon_f32x4));
-    float32x4_t log_ratio_f32x4 = _nk_log2_f32_neon(ratio_f32x4);
+    float32x4_t log_ratio_f32x4 = nk_log2_f32_neon_(ratio_f32x4);
     float32x4_t contribution_f32x4 = vmulq_f32(a_f32x4, log_ratio_f32x4);
     sum_f32x4 = vaddq_f32(sum_f32x4, contribution_f32x4);
     if (n) goto nk_kld_f16_neon_cycle;
@@ -434,8 +432,8 @@ NK_PUBLIC void nk_jsd_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n
 
 nk_jsd_f16_neon_cycle:
     if (n < 4) {
-        a_f32x4 = vcvt_f32_f16(_nk_partial_load_f16x4_neon(a, n));
-        b_f32x4 = vcvt_f32_f16(_nk_partial_load_f16x4_neon(b, n));
+        a_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(a, n));
+        b_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(b, n));
         n = 0;
     }
     else {
@@ -447,8 +445,8 @@ nk_jsd_f16_neon_cycle:
     float32x4_t mean_f32x4 = vmulq_f32(vaddq_f32(a_f32x4, b_f32x4), vdupq_n_f32(0.5));
     float32x4_t ratio_a_f32x4 = vdivq_f32(vaddq_f32(a_f32x4, epsilon_f32x4), vaddq_f32(mean_f32x4, epsilon_f32x4));
     float32x4_t ratio_b_f32x4 = vdivq_f32(vaddq_f32(b_f32x4, epsilon_f32x4), vaddq_f32(mean_f32x4, epsilon_f32x4));
-    float32x4_t log_ratio_a_f32x4 = _nk_log2_f32_neon(ratio_a_f32x4);
-    float32x4_t log_ratio_b_f32x4 = _nk_log2_f32_neon(ratio_b_f32x4);
+    float32x4_t log_ratio_a_f32x4 = nk_log2_f32_neon_(ratio_a_f32x4);
+    float32x4_t log_ratio_b_f32x4 = nk_log2_f32_neon_(ratio_b_f32x4);
     float32x4_t contribution_a_f32x4 = vmulq_f32(a_f32x4, log_ratio_a_f32x4);
     float32x4_t contribution_b_f32x4 = vmulq_f32(b_f32x4, log_ratio_b_f32x4);
     sum_f32x4 = vaddq_f32(sum_f32x4, vaddq_f32(contribution_a_f32x4, contribution_b_f32x4));
@@ -456,21 +454,21 @@ nk_jsd_f16_neon_cycle:
 
     nk_f32_t log2_normalizer = 0.693147181f;
     nk_f32_t sum = vaddvq_f32(sum_f32x4) * log2_normalizer / 2;
-    *result = sum > 0 ? _nk_sqrt_f32_neon(sum) : 0;
+    *result = sum > 0 ? nk_sqrt_f32_neon_(sum) : 0;
 }
 
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON_F16
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma")
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
 
-NK_INTERNAL __m256 _nk_log2_f32_haswell(__m256 x) {
+NK_INTERNAL __m256 nk_log2_f32_haswell_(__m256 x) {
     // Extracting the exponent
     __m256i bits_i32x8 = _mm256_castps_si256(x);
     __m256i exponent_i32x8 = _mm256_srli_epi32(_mm256_and_si256(bits_i32x8, _mm256_set1_epi32(0x7F800000)), 23);
@@ -506,8 +504,8 @@ NK_PUBLIC void nk_kld_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_
 
 nk_kld_f16_haswell_cycle:
     if (n < 8) {
-        a_f32x8 = _nk_partial_load_f16x8_haswell(a, n);
-        b_f32x8 = _nk_partial_load_f16x8_haswell(b, n);
+        a_f32x8 = nk_partial_load_f16x8_haswell_(a, n);
+        b_f32x8 = nk_partial_load_f16x8_haswell_(b, n);
         n = 0;
     }
     else {
@@ -518,13 +516,13 @@ nk_kld_f16_haswell_cycle:
     a_f32x8 = _mm256_add_ps(a_f32x8, epsilon_f32x8);
     b_f32x8 = _mm256_add_ps(b_f32x8, epsilon_f32x8);
     __m256 ratio_f32x8 = _mm256_div_ps(a_f32x8, b_f32x8);
-    __m256 log_ratio_f32x8 = _nk_log2_f32_haswell(ratio_f32x8);
+    __m256 log_ratio_f32x8 = nk_log2_f32_haswell_(ratio_f32x8);
     __m256 contribution_f32x8 = _mm256_mul_ps(a_f32x8, log_ratio_f32x8);
     sum_f32x8 = _mm256_add_ps(sum_f32x8, contribution_f32x8);
     if (n) goto nk_kld_f16_haswell_cycle;
 
     nk_f32_t log2_normalizer = 0.693147181f;
-    nk_f32_t sum = _nk_reduce_add_f32x8_haswell(sum_f32x8);
+    nk_f32_t sum = nk_reduce_add_f32x8_haswell_(sum_f32x8);
     sum *= log2_normalizer;
     *result = sum;
 }
@@ -537,8 +535,8 @@ NK_PUBLIC void nk_jsd_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_
 
 nk_jsd_f16_haswell_cycle:
     if (n < 8) {
-        a_f32x8 = _nk_partial_load_f16x8_haswell(a, n);
-        b_f32x8 = _nk_partial_load_f16x8_haswell(b, n);
+        a_f32x8 = nk_partial_load_f16x8_haswell_(a, n);
+        b_f32x8 = nk_partial_load_f16x8_haswell_(b, n);
         n = 0;
     }
     else {
@@ -551,8 +549,8 @@ nk_jsd_f16_haswell_cycle:
                                          _mm256_add_ps(mean_f32x8, epsilon_f32x8));
     __m256 ratio_b_f32x8 = _mm256_div_ps(_mm256_add_ps(b_f32x8, epsilon_f32x8),
                                          _mm256_add_ps(mean_f32x8, epsilon_f32x8));
-    __m256 log_ratio_a_f32x8 = _nk_log2_f32_haswell(ratio_a_f32x8);
-    __m256 log_ratio_b_f32x8 = _nk_log2_f32_haswell(ratio_b_f32x8);
+    __m256 log_ratio_a_f32x8 = nk_log2_f32_haswell_(ratio_a_f32x8);
+    __m256 log_ratio_b_f32x8 = nk_log2_f32_haswell_(ratio_b_f32x8);
     __m256 contribution_a_f32x8 = _mm256_mul_ps(a_f32x8, log_ratio_a_f32x8);
     __m256 contribution_b_f32x8 = _mm256_mul_ps(b_f32x8, log_ratio_b_f32x8);
     sum_f32x8 = _mm256_add_ps(sum_f32x8, contribution_a_f32x8);
@@ -560,9 +558,9 @@ nk_jsd_f16_haswell_cycle:
     if (n) goto nk_jsd_f16_haswell_cycle;
 
     nk_f32_t log2_normalizer = 0.693147181f;
-    nk_f32_t sum = _nk_reduce_add_f32x8_haswell(sum_f32x8);
+    nk_f32_t sum = nk_reduce_add_f32x8_haswell_(sum_f32x8);
     sum *= log2_normalizer / 2;
-    *result = sum > 0 ? _nk_sqrt_f32_haswell(sum) : 0;
+    *result = sum > 0 ? nk_sqrt_f32_haswell_(sum) : 0;
 }
 
 #pragma clang attribute pop
@@ -574,7 +572,7 @@ nk_jsd_f16_haswell_cycle:
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2")
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2"))), apply_to = function)
 
-NK_INTERNAL __m512 _nk_log2_f32_skylake(__m512 x) {
+NK_INTERNAL __m512 nk_log2_f32_skylake_(__m512 x) {
     // Extract the exponent and mantissa
     __m512 one_f32x16 = _mm512_set1_ps(1.0f);
     __m512 exponent_f32x16 = _mm512_getexp_ps(x);
@@ -610,7 +608,7 @@ nk_kld_f32_skylake_cycle:
         a += 16, b += 16, n -= 16;
     }
     __m512 ratio_f32x16 = _mm512_div_ps(a_f32x16, b_f32x16);
-    __m512 log_ratio_f32x16 = _nk_log2_f32_skylake(ratio_f32x16);
+    __m512 log_ratio_f32x16 = nk_log2_f32_skylake_(ratio_f32x16);
     __m512 contribution_f32x16 = _mm512_mul_ps(a_f32x16, log_ratio_f32x16);
     sum_f32x16 = _mm512_add_ps(sum_f32x16, contribution_f32x16);
     if (n) goto nk_kld_f32_skylake_cycle;
@@ -646,8 +644,8 @@ nk_jsd_f32_skylake_cycle:
     __m512 mean_recip_approx_f32x16 = _mm512_rcp14_ps(mean_with_epsilon_f32x16);
     __m512 ratio_a_f32x16 = _mm512_mul_ps(_mm512_add_ps(a_f32x16, epsilon_f32x16), mean_recip_approx_f32x16);
     __m512 ratio_b_f32x16 = _mm512_mul_ps(_mm512_add_ps(b_f32x16, epsilon_f32x16), mean_recip_approx_f32x16);
-    __m512 log_ratio_a_f32x16 = _nk_log2_f32_skylake(ratio_a_f32x16);
-    __m512 log_ratio_b_f32x16 = _nk_log2_f32_skylake(ratio_b_f32x16);
+    __m512 log_ratio_a_f32x16 = nk_log2_f32_skylake_(ratio_a_f32x16);
+    __m512 log_ratio_b_f32x16 = nk_log2_f32_skylake_(ratio_b_f32x16);
     sum_a_f32x16 = _mm512_mask3_fmadd_ps(a_f32x16, log_ratio_a_f32x16, sum_a_f32x16, nonzero_mask);
     sum_b_f32x16 = _mm512_mask3_fmadd_ps(b_f32x16, log_ratio_b_f32x16, sum_b_f32x16, nonzero_mask);
     if (n) goto nk_jsd_f32_skylake_cycle;
@@ -655,7 +653,7 @@ nk_jsd_f32_skylake_cycle:
     nk_f32_t log2_normalizer = 0.693147181f;
     nk_f32_t sum = _mm512_reduce_add_ps(_mm512_add_ps(sum_a_f32x16, sum_b_f32x16));
     sum *= log2_normalizer / 2;
-    *result = sum > 0 ? _nk_sqrt_f32_haswell(sum) : 0;
+    *result = sum > 0 ? nk_sqrt_f32_haswell_(sum) : 0;
 }
 
 #pragma clang attribute pop
@@ -667,7 +665,7 @@ nk_jsd_f32_skylake_cycle:
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512fp16")
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512fp16"))), apply_to = function)
 
-NK_INTERNAL __m512h _nk_log2_f16_sapphire(__m512h x) {
+NK_INTERNAL __m512h nk_log2_f16_sapphire_(__m512h x) {
     // Extract the exponent and mantissa
     __m512h one_f16x32 = _mm512_set1_ph((nk_f16_t)1);
     __m512h exponent_f16x32 = _mm512_getexp_ph(x);
@@ -702,7 +700,7 @@ nk_kld_f16_sapphire_cycle:
         a += 32, b += 32, n -= 32;
     }
     __m512h ratio_f16x32 = _mm512_div_ph(a_f16x32, b_f16x32);
-    __m512h log_ratio_f16x32 = _nk_log2_f16_sapphire(ratio_f16x32);
+    __m512h log_ratio_f16x32 = nk_log2_f16_sapphire_(ratio_f16x32);
     __m512h contribution_f16x32 = _mm512_mul_ph(a_f16x32, log_ratio_f16x32);
     sum_f16x32 = _mm512_add_ph(sum_f16x32, contribution_f16x32);
     if (n) goto nk_kld_f16_sapphire_cycle;
@@ -737,8 +735,8 @@ nk_jsd_f16_sapphire_cycle:
     __m512h mean_recip_approx_f16x32 = _mm512_rcp_ph(mean_with_epsilon_f16x32);
     __m512h ratio_a_f16x32 = _mm512_mul_ph(_mm512_add_ph(a_f16x32, epsilon_f16x32), mean_recip_approx_f16x32);
     __m512h ratio_b_f16x32 = _mm512_mul_ph(_mm512_add_ph(b_f16x32, epsilon_f16x32), mean_recip_approx_f16x32);
-    __m512h log_ratio_a_f16x32 = _nk_log2_f16_sapphire(ratio_a_f16x32);
-    __m512h log_ratio_b_f16x32 = _nk_log2_f16_sapphire(ratio_b_f16x32);
+    __m512h log_ratio_a_f16x32 = nk_log2_f16_sapphire_(ratio_a_f16x32);
+    __m512h log_ratio_b_f16x32 = nk_log2_f16_sapphire_(ratio_b_f16x32);
     sum_a_f16x32 = _mm512_mask3_fmadd_ph(a_f16x32, log_ratio_a_f16x32, sum_a_f16x32, nonzero_mask);
     sum_b_f16x32 = _mm512_mask3_fmadd_ph(b_f16x32, log_ratio_b_f16x32, sum_b_f16x32, nonzero_mask);
     if (n) goto nk_jsd_f16_sapphire_cycle;
@@ -746,13 +744,13 @@ nk_jsd_f16_sapphire_cycle:
     nk_f32_t log2_normalizer = 0.693147181f;
     nk_f32_t sum = _mm512_reduce_add_ph(_mm512_add_ph(sum_a_f16x32, sum_b_f16x32));
     sum *= log2_normalizer / 2;
-    *result = sum > 0 ? _nk_sqrt_f32_haswell(sum) : 0;
+    *result = sum > 0 ? nk_sqrt_f32_haswell_(sum) : 0;
 }
 
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_SAPPHIRE
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
 #if !NK_DYNAMIC_DISPATCH
 

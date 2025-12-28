@@ -8,7 +8,7 @@
 #ifndef NK_SPATIAL_SVE_BF16_H
 #define NK_SPATIAL_SVE_BF16_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_SVE_BF16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve+bf16")
@@ -22,7 +22,7 @@ extern "C" {
 
 NK_PUBLIC void nk_l2_bf16_sve(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_l2sq_bf16_sve(a, b, n, result);
-    *result = _nk_sqrt_f32_neon(*result);
+    *result = nk_sqrt_f32_neon_(*result);
 }
 NK_PUBLIC void nk_l2sq_bf16_sve(nk_bf16_t const *a_enum, nk_bf16_t const *b_enum, nk_size_t n, nk_f32_t *result) {
     nk_size_t i = 0;
@@ -73,7 +73,7 @@ NK_PUBLIC void nk_angular_bf16_sve(nk_bf16_t const *a_enum, nk_bf16_t const *b_e
     nk_f32_t ab = svaddv_f32(svptrue_b32(), ab_vec);
     nk_f32_t a2 = svaddv_f32(svptrue_b32(), a2_vec);
     nk_f32_t b2 = svaddv_f32(svptrue_b32(), b2_vec);
-    *result = _nk_angular_normalize_f32_neon(ab, a2, b2);
+    *result = nk_angular_normalize_f32_neon_(ab, a2, b2);
 }
 
 #if defined(__cplusplus)
@@ -83,6 +83,6 @@ NK_PUBLIC void nk_angular_bf16_sve(nk_bf16_t const *a_enum, nk_bf16_t const *b_e
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_SVE_BF16
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_SPATIAL_SVE_BF16_H

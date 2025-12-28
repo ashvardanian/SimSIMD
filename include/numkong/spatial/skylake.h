@@ -8,7 +8,7 @@
 #ifndef NK_SPATIAL_SKYLAKE_H
 #define NK_SPATIAL_SKYLAKE_H
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_SKYLAKE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "bmi2")
@@ -22,7 +22,7 @@ extern "C" {
 
 NK_PUBLIC void nk_l2_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_l2sq_f32_skylake(a, b, n, result);
-    *result = _nk_sqrt_f32_haswell(*result);
+    *result = nk_sqrt_f32_haswell_(*result);
 }
 NK_PUBLIC void nk_l2sq_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     __m512 d2_vec = _mm512_setzero();
@@ -44,10 +44,10 @@ nk_l2sq_f32_skylake_cycle:
     d2_vec = _mm512_fmadd_ps(d_vec, d_vec, d2_vec);
     if (n) goto nk_l2sq_f32_skylake_cycle;
 
-    *result = _nk_reduce_add_f32x16_skylake(d2_vec);
+    *result = nk_reduce_add_f32x16_skylake_(d2_vec);
 }
 
-NK_INTERNAL nk_f64_t _nk_angular_normalize_f64_skylake(nk_f64_t ab, nk_f64_t a2, nk_f64_t b2) {
+NK_INTERNAL nk_f64_t nk_angular_normalize_f64_skylake_(nk_f64_t ab, nk_f64_t a2, nk_f64_t b2) {
 
     // If both vectors have magnitude 0, the distance is 0.
     if (a2 == 0 && b2 == 0) return 0;
@@ -58,7 +58,7 @@ NK_INTERNAL nk_f64_t _nk_angular_normalize_f64_skylake(nk_f64_t ab, nk_f64_t a2,
     // We want to avoid the `nk_f32_approximate_inverse_square_root` due to high latency:
     // https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
     // The maximum relative error for this approximation is less than 2^-14, which is 6x lower than
-    // for single-precision floats in the `_nk_angular_normalize_f64_haswell` implementation.
+    // for single-precision floats in the `nk_angular_normalize_f64_haswell_` implementation.
     // Mysteriously, MSVC has no `_mm_rsqrt14_pd` intrinsic, but has its masked variants,
     // so let's use `_mm_maskz_rsqrt14_pd(0xFF, ...)` instead.
     __m128d squares = _mm_set_pd(a2, b2);
@@ -108,15 +108,15 @@ nk_angular_f32_skylake_cycle:
     b_norm_sq_f32x16 = _mm512_fmadd_ps(b_f32x16, b_f32x16, b_norm_sq_f32x16);
     if (n) goto nk_angular_f32_skylake_cycle;
 
-    nk_f64_t dot_product_f64 = _nk_reduce_add_f32x16_skylake(dot_product_f32x16);
-    nk_f64_t a_norm_sq_f64 = _nk_reduce_add_f32x16_skylake(a_norm_sq_f32x16);
-    nk_f64_t b_norm_sq_f64 = _nk_reduce_add_f32x16_skylake(b_norm_sq_f32x16);
-    *result = _nk_angular_normalize_f64_skylake(dot_product_f64, a_norm_sq_f64, b_norm_sq_f64);
+    nk_f64_t dot_product_f64 = nk_reduce_add_f32x16_skylake_(dot_product_f32x16);
+    nk_f64_t a_norm_sq_f64 = nk_reduce_add_f32x16_skylake_(a_norm_sq_f32x16);
+    nk_f64_t b_norm_sq_f64 = nk_reduce_add_f32x16_skylake_(b_norm_sq_f32x16);
+    *result = nk_angular_normalize_f64_skylake_(dot_product_f64, a_norm_sq_f64, b_norm_sq_f64);
 }
 
 NK_PUBLIC void nk_l2_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_l2sq_f64_skylake(a, b, n, result);
-    *result = _nk_sqrt_f64_haswell(*result);
+    *result = nk_sqrt_f64_haswell_(*result);
 }
 NK_PUBLIC void nk_l2sq_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     __m512d distance_sq_f64x8 = _mm512_setzero_pd();
@@ -167,7 +167,7 @@ nk_angular_f64_skylake_cycle:
     nk_f64_t dot_product_f64 = _mm512_reduce_add_pd(dot_product_f64x8);
     nk_f64_t a_norm_sq_f64 = _mm512_reduce_add_pd(a_norm_sq_f64x8);
     nk_f64_t b_norm_sq_f64 = _mm512_reduce_add_pd(b_norm_sq_f64x8);
-    *result = _nk_angular_normalize_f64_skylake(dot_product_f64, a_norm_sq_f64, b_norm_sq_f64);
+    *result = nk_angular_normalize_f64_skylake_(dot_product_f64, a_norm_sq_f64, b_norm_sq_f64);
 }
 
 typedef nk_dot_f64x8_state_skylake_t nk_angular_f64x8_state_skylake_t;
@@ -339,6 +339,6 @@ NK_INTERNAL void nk_l2_f32x16_finalize_skylake(nk_l2_f32x16_state_skylake_t cons
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_SKYLAKE
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
 #endif // NK_SPATIAL_SKYLAKE_H

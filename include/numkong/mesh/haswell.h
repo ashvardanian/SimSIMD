@@ -8,7 +8,7 @@
 #ifndef NK_MESH_HASWELL_H
 #define NK_MESH_HASWELL_H
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma")
@@ -26,7 +26,7 @@ extern "C" {
  *  Input: 24 contiguous floats [x0,y0,z0, x1,y1,z1, ..., x7,y7,z7]
  *  Output: x[8], y[8], z[8] vectors
  */
-NK_INTERNAL void _nk_deinterleave_f32x8_haswell(nk_f32_t const *ptr, __m256 *x_out, __m256 *y_out, __m256 *z_out) {
+NK_INTERNAL void nk_deinterleave_f32x8_haswell_(nk_f32_t const *ptr, __m256 *x_out, __m256 *y_out, __m256 *z_out) {
     // Gather indices: 0, 3, 6, 9, 12, 15, 18, 21 (stride 3)
     __m256i idx = _mm256_setr_epi32(0, 3, 6, 9, 12, 15, 18, 21);
     *x_out = _mm256_i32gather_ps(ptr + 0, idx, 4);
@@ -40,7 +40,7 @@ NK_INTERNAL void _nk_deinterleave_f32x8_haswell(nk_f32_t const *ptr, __m256 *x_o
  *  Input: 12 contiguous f64 [x0,y0,z0, x1,y1,z1, x2,y2,z2, x3,y3,z3]
  *  Output: x[4], y[4], z[4] vectors
  */
-NK_INTERNAL void _nk_deinterleave_f64x4_haswell(nk_f64_t const *ptr, __m256d *x_out, __m256d *y_out, __m256d *z_out) {
+NK_INTERNAL void nk_deinterleave_f64x4_haswell_(nk_f64_t const *ptr, __m256d *x_out, __m256d *y_out, __m256d *z_out) {
     nk_f64_t x0 = ptr[0], x1 = ptr[3], x2 = ptr[6], x3 = ptr[9];
     nk_f64_t y0 = ptr[1], y1 = ptr[4], y2 = ptr[7], y3 = ptr[10];
     nk_f64_t z0 = ptr[2], z1 = ptr[5], z2 = ptr[8], z3 = ptr[11];
@@ -51,8 +51,8 @@ NK_INTERNAL void _nk_deinterleave_f64x4_haswell(nk_f64_t const *ptr, __m256d *x_
 }
 
 /* Horizontal reduction helpers moved to reduce.h:
- * - _nk_reduce_add_f32x8_haswell
- * - _nk_reduce_add_f64x4_haswell
+ * - nk_reduce_add_f32x8_haswell_
+ * - nk_reduce_add_f64x4_haswell_
  */
 
 NK_PUBLIC void nk_rmsd_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
@@ -79,8 +79,8 @@ NK_PUBLIC void nk_rmsd_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size
     // Main loop with 2x unrolling
     for (; i + 16 <= n; i += 16) {
         // Iteration 0
-        _nk_deinterleave_f32x8_haswell(a + i * 3, &a_x_f32x8, &a_y_f32x8, &a_z_f32x8);
-        _nk_deinterleave_f32x8_haswell(b + i * 3, &b_x_f32x8, &b_y_f32x8, &b_z_f32x8);
+        nk_deinterleave_f32x8_haswell_(a + i * 3, &a_x_f32x8, &a_y_f32x8, &a_z_f32x8);
+        nk_deinterleave_f32x8_haswell_(b + i * 3, &b_x_f32x8, &b_y_f32x8, &b_z_f32x8);
 
         sum_a_x_f32x8 = _mm256_add_ps(sum_a_x_f32x8, a_x_f32x8);
         sum_a_y_f32x8 = _mm256_add_ps(sum_a_y_f32x8, a_y_f32x8);
@@ -99,8 +99,8 @@ NK_PUBLIC void nk_rmsd_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size
 
         // Iteration 1
         __m256 a_x1_f32x8, a_y1_f32x8, a_z1_f32x8, b_x1_f32x8, b_y1_f32x8, b_z1_f32x8;
-        _nk_deinterleave_f32x8_haswell(a + (i + 8) * 3, &a_x1_f32x8, &a_y1_f32x8, &a_z1_f32x8);
-        _nk_deinterleave_f32x8_haswell(b + (i + 8) * 3, &b_x1_f32x8, &b_y1_f32x8, &b_z1_f32x8);
+        nk_deinterleave_f32x8_haswell_(a + (i + 8) * 3, &a_x1_f32x8, &a_y1_f32x8, &a_z1_f32x8);
+        nk_deinterleave_f32x8_haswell_(b + (i + 8) * 3, &b_x1_f32x8, &b_y1_f32x8, &b_z1_f32x8);
 
         sum_a_x_f32x8 = _mm256_add_ps(sum_a_x_f32x8, a_x1_f32x8);
         sum_a_y_f32x8 = _mm256_add_ps(sum_a_y_f32x8, a_y1_f32x8);
@@ -120,8 +120,8 @@ NK_PUBLIC void nk_rmsd_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size
 
     // Handle 8-point remainder
     for (; i + 8 <= n; i += 8) {
-        _nk_deinterleave_f32x8_haswell(a + i * 3, &a_x_f32x8, &a_y_f32x8, &a_z_f32x8);
-        _nk_deinterleave_f32x8_haswell(b + i * 3, &b_x_f32x8, &b_y_f32x8, &b_z_f32x8);
+        nk_deinterleave_f32x8_haswell_(a + i * 3, &a_x_f32x8, &a_y_f32x8, &a_z_f32x8);
+        nk_deinterleave_f32x8_haswell_(b + i * 3, &b_x_f32x8, &b_y_f32x8, &b_z_f32x8);
 
         sum_a_x_f32x8 = _mm256_add_ps(sum_a_x_f32x8, a_x_f32x8);
         sum_a_y_f32x8 = _mm256_add_ps(sum_a_y_f32x8, a_y_f32x8);
@@ -140,15 +140,15 @@ NK_PUBLIC void nk_rmsd_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size
     }
 
     // Reduce vectors to scalars
-    nk_f32_t total_ax = _nk_reduce_add_f32x8_haswell(sum_a_x_f32x8);
-    nk_f32_t total_ay = _nk_reduce_add_f32x8_haswell(sum_a_y_f32x8);
-    nk_f32_t total_az = _nk_reduce_add_f32x8_haswell(sum_a_z_f32x8);
-    nk_f32_t total_bx = _nk_reduce_add_f32x8_haswell(sum_b_x_f32x8);
-    nk_f32_t total_by = _nk_reduce_add_f32x8_haswell(sum_b_y_f32x8);
-    nk_f32_t total_bz = _nk_reduce_add_f32x8_haswell(sum_b_z_f32x8);
-    nk_f32_t total_sq_x = _nk_reduce_add_f32x8_haswell(sum_squared_x_f32x8);
-    nk_f32_t total_sq_y = _nk_reduce_add_f32x8_haswell(sum_squared_y_f32x8);
-    nk_f32_t total_sq_z = _nk_reduce_add_f32x8_haswell(sum_squared_z_f32x8);
+    nk_f32_t total_ax = nk_reduce_add_f32x8_haswell_(sum_a_x_f32x8);
+    nk_f32_t total_ay = nk_reduce_add_f32x8_haswell_(sum_a_y_f32x8);
+    nk_f32_t total_az = nk_reduce_add_f32x8_haswell_(sum_a_z_f32x8);
+    nk_f32_t total_bx = nk_reduce_add_f32x8_haswell_(sum_b_x_f32x8);
+    nk_f32_t total_by = nk_reduce_add_f32x8_haswell_(sum_b_y_f32x8);
+    nk_f32_t total_bz = nk_reduce_add_f32x8_haswell_(sum_b_z_f32x8);
+    nk_f32_t total_sq_x = nk_reduce_add_f32x8_haswell_(sum_squared_x_f32x8);
+    nk_f32_t total_sq_y = nk_reduce_add_f32x8_haswell_(sum_squared_y_f32x8);
+    nk_f32_t total_sq_z = nk_reduce_add_f32x8_haswell_(sum_squared_z_f32x8);
 
     // Scalar tail
     for (; i < n; ++i) {
@@ -218,8 +218,8 @@ NK_PUBLIC void nk_rmsd_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size
     // Main loop with 2x unrolling
     for (; i + 8 <= n; i += 8) {
         // Iteration 0
-        _nk_deinterleave_f64x4_haswell(a + i * 3, &a_x_f64x4, &a_y_f64x4, &a_z_f64x4);
-        _nk_deinterleave_f64x4_haswell(b + i * 3, &b_x_f64x4, &b_y_f64x4, &b_z_f64x4);
+        nk_deinterleave_f64x4_haswell_(a + i * 3, &a_x_f64x4, &a_y_f64x4, &a_z_f64x4);
+        nk_deinterleave_f64x4_haswell_(b + i * 3, &b_x_f64x4, &b_y_f64x4, &b_z_f64x4);
 
         sum_a_x_f64x4 = _mm256_add_pd(sum_a_x_f64x4, a_x_f64x4);
         sum_a_y_f64x4 = _mm256_add_pd(sum_a_y_f64x4, a_y_f64x4);
@@ -238,8 +238,8 @@ NK_PUBLIC void nk_rmsd_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size
 
         // Iteration 1
         __m256d a_x1_f64x4, a_y1_f64x4, a_z1_f64x4, b_x1_f64x4, b_y1_f64x4, b_z1_f64x4;
-        _nk_deinterleave_f64x4_haswell(a + (i + 4) * 3, &a_x1_f64x4, &a_y1_f64x4, &a_z1_f64x4);
-        _nk_deinterleave_f64x4_haswell(b + (i + 4) * 3, &b_x1_f64x4, &b_y1_f64x4, &b_z1_f64x4);
+        nk_deinterleave_f64x4_haswell_(a + (i + 4) * 3, &a_x1_f64x4, &a_y1_f64x4, &a_z1_f64x4);
+        nk_deinterleave_f64x4_haswell_(b + (i + 4) * 3, &b_x1_f64x4, &b_y1_f64x4, &b_z1_f64x4);
 
         sum_a_x_f64x4 = _mm256_add_pd(sum_a_x_f64x4, a_x1_f64x4);
         sum_a_y_f64x4 = _mm256_add_pd(sum_a_y_f64x4, a_y1_f64x4);
@@ -259,8 +259,8 @@ NK_PUBLIC void nk_rmsd_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size
 
     // Handle 4-point remainder
     for (; i + 4 <= n; i += 4) {
-        _nk_deinterleave_f64x4_haswell(a + i * 3, &a_x_f64x4, &a_y_f64x4, &a_z_f64x4);
-        _nk_deinterleave_f64x4_haswell(b + i * 3, &b_x_f64x4, &b_y_f64x4, &b_z_f64x4);
+        nk_deinterleave_f64x4_haswell_(a + i * 3, &a_x_f64x4, &a_y_f64x4, &a_z_f64x4);
+        nk_deinterleave_f64x4_haswell_(b + i * 3, &b_x_f64x4, &b_y_f64x4, &b_z_f64x4);
 
         sum_a_x_f64x4 = _mm256_add_pd(sum_a_x_f64x4, a_x_f64x4);
         sum_a_y_f64x4 = _mm256_add_pd(sum_a_y_f64x4, a_y_f64x4);
@@ -279,15 +279,15 @@ NK_PUBLIC void nk_rmsd_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size
     }
 
     // Reduce vectors to scalars
-    nk_f64_t total_ax = _nk_reduce_add_f64x4_haswell(sum_a_x_f64x4);
-    nk_f64_t total_ay = _nk_reduce_add_f64x4_haswell(sum_a_y_f64x4);
-    nk_f64_t total_az = _nk_reduce_add_f64x4_haswell(sum_a_z_f64x4);
-    nk_f64_t total_bx = _nk_reduce_add_f64x4_haswell(sum_b_x_f64x4);
-    nk_f64_t total_by = _nk_reduce_add_f64x4_haswell(sum_b_y_f64x4);
-    nk_f64_t total_bz = _nk_reduce_add_f64x4_haswell(sum_b_z_f64x4);
-    nk_f64_t total_sq_x = _nk_reduce_add_f64x4_haswell(sum_squared_x_f64x4);
-    nk_f64_t total_sq_y = _nk_reduce_add_f64x4_haswell(sum_squared_y_f64x4);
-    nk_f64_t total_sq_z = _nk_reduce_add_f64x4_haswell(sum_squared_z_f64x4);
+    nk_f64_t total_ax = nk_reduce_add_f64x4_haswell_(sum_a_x_f64x4);
+    nk_f64_t total_ay = nk_reduce_add_f64x4_haswell_(sum_a_y_f64x4);
+    nk_f64_t total_az = nk_reduce_add_f64x4_haswell_(sum_a_z_f64x4);
+    nk_f64_t total_bx = nk_reduce_add_f64x4_haswell_(sum_b_x_f64x4);
+    nk_f64_t total_by = nk_reduce_add_f64x4_haswell_(sum_b_y_f64x4);
+    nk_f64_t total_bz = nk_reduce_add_f64x4_haswell_(sum_b_z_f64x4);
+    nk_f64_t total_sq_x = nk_reduce_add_f64x4_haswell_(sum_squared_x_f64x4);
+    nk_f64_t total_sq_y = nk_reduce_add_f64x4_haswell_(sum_squared_y_f64x4);
+    nk_f64_t total_sq_z = nk_reduce_add_f64x4_haswell_(sum_squared_z_f64x4);
 
     // Scalar tail
     for (; i < n; ++i) {
@@ -355,8 +355,8 @@ NK_PUBLIC void nk_kabsch_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_si
 
     // Fused single-pass: accumulate sums and outer products together
     for (; i + 8 <= n; i += 8) {
-        _nk_deinterleave_f32x8_haswell(a + i * 3, &a_x_f32x8, &a_y_f32x8, &a_z_f32x8);
-        _nk_deinterleave_f32x8_haswell(b + i * 3, &b_x_f32x8, &b_y_f32x8, &b_z_f32x8);
+        nk_deinterleave_f32x8_haswell_(a + i * 3, &a_x_f32x8, &a_y_f32x8, &a_z_f32x8);
+        nk_deinterleave_f32x8_haswell_(b + i * 3, &b_x_f32x8, &b_y_f32x8, &b_z_f32x8);
 
         // Convert to f64 - low 4 elements
         __m256d a_x_lo_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_x_f32x8));
@@ -412,22 +412,22 @@ NK_PUBLIC void nk_kabsch_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_si
     }
 
     // Reduce vector accumulators
-    nk_f64_t sum_a_x = _nk_reduce_add_f64x4_haswell(sum_a_x_f64x4);
-    nk_f64_t sum_a_y = _nk_reduce_add_f64x4_haswell(sum_a_y_f64x4);
-    nk_f64_t sum_a_z = _nk_reduce_add_f64x4_haswell(sum_a_z_f64x4);
-    nk_f64_t sum_b_x = _nk_reduce_add_f64x4_haswell(sum_b_x_f64x4);
-    nk_f64_t sum_b_y = _nk_reduce_add_f64x4_haswell(sum_b_y_f64x4);
-    nk_f64_t sum_b_z = _nk_reduce_add_f64x4_haswell(sum_b_z_f64x4);
+    nk_f64_t sum_a_x = nk_reduce_add_f64x4_haswell_(sum_a_x_f64x4);
+    nk_f64_t sum_a_y = nk_reduce_add_f64x4_haswell_(sum_a_y_f64x4);
+    nk_f64_t sum_a_z = nk_reduce_add_f64x4_haswell_(sum_a_z_f64x4);
+    nk_f64_t sum_b_x = nk_reduce_add_f64x4_haswell_(sum_b_x_f64x4);
+    nk_f64_t sum_b_y = nk_reduce_add_f64x4_haswell_(sum_b_y_f64x4);
+    nk_f64_t sum_b_z = nk_reduce_add_f64x4_haswell_(sum_b_z_f64x4);
 
-    nk_f64_t H00 = _nk_reduce_add_f64x4_haswell(cov_xx_f64x4);
-    nk_f64_t H01 = _nk_reduce_add_f64x4_haswell(cov_xy_f64x4);
-    nk_f64_t H02 = _nk_reduce_add_f64x4_haswell(cov_xz_f64x4);
-    nk_f64_t H10 = _nk_reduce_add_f64x4_haswell(cov_yx_f64x4);
-    nk_f64_t H11 = _nk_reduce_add_f64x4_haswell(cov_yy_f64x4);
-    nk_f64_t H12 = _nk_reduce_add_f64x4_haswell(cov_yz_f64x4);
-    nk_f64_t H20 = _nk_reduce_add_f64x4_haswell(cov_zx_f64x4);
-    nk_f64_t H21 = _nk_reduce_add_f64x4_haswell(cov_zy_f64x4);
-    nk_f64_t H22 = _nk_reduce_add_f64x4_haswell(cov_zz_f64x4);
+    nk_f64_t H00 = nk_reduce_add_f64x4_haswell_(cov_xx_f64x4);
+    nk_f64_t H01 = nk_reduce_add_f64x4_haswell_(cov_xy_f64x4);
+    nk_f64_t H02 = nk_reduce_add_f64x4_haswell_(cov_xz_f64x4);
+    nk_f64_t H10 = nk_reduce_add_f64x4_haswell_(cov_yx_f64x4);
+    nk_f64_t H11 = nk_reduce_add_f64x4_haswell_(cov_yy_f64x4);
+    nk_f64_t H12 = nk_reduce_add_f64x4_haswell_(cov_yz_f64x4);
+    nk_f64_t H20 = nk_reduce_add_f64x4_haswell_(cov_zx_f64x4);
+    nk_f64_t H21 = nk_reduce_add_f64x4_haswell_(cov_zy_f64x4);
+    nk_f64_t H22 = nk_reduce_add_f64x4_haswell_(cov_zz_f64x4);
 
     // Scalar tail
     for (; i < n; ++i) {
@@ -485,7 +485,7 @@ NK_PUBLIC void nk_kabsch_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_si
     nk_f32_t cross_covariance[9] = {(nk_f32_t)H00, (nk_f32_t)H01, (nk_f32_t)H02, (nk_f32_t)H10, (nk_f32_t)H11,
                                     (nk_f32_t)H12, (nk_f32_t)H20, (nk_f32_t)H21, (nk_f32_t)H22};
     nk_f32_t svd_u[9], svd_s[3], svd_v[9];
-    _nk_svd3x3_f32(cross_covariance, svd_u, svd_s, svd_v);
+    nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * U^T
     nk_f32_t r[9];
@@ -500,7 +500,7 @@ NK_PUBLIC void nk_kabsch_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_si
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
     // Handle reflection: if det(R) < 0, negate third column of V and recompute R
-    if (_nk_det3x3_f32(r) < 0) {
+    if (nk_det3x3_f32_(r) < 0) {
         svd_v[2] = -svd_v[2];
         svd_v[5] = -svd_v[5];
         svd_v[8] = -svd_v[8];
@@ -563,8 +563,8 @@ NK_PUBLIC void nk_kabsch_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_si
 
     // Fused single-pass
     for (; i + 4 <= n; i += 4) {
-        _nk_deinterleave_f64x4_haswell(a + i * 3, &a_x_f64x4, &a_y_f64x4, &a_z_f64x4);
-        _nk_deinterleave_f64x4_haswell(b + i * 3, &b_x_f64x4, &b_y_f64x4, &b_z_f64x4);
+        nk_deinterleave_f64x4_haswell_(a + i * 3, &a_x_f64x4, &a_y_f64x4, &a_z_f64x4);
+        nk_deinterleave_f64x4_haswell_(b + i * 3, &b_x_f64x4, &b_y_f64x4, &b_z_f64x4);
 
         sum_a_x_f64x4 = _mm256_add_pd(sum_a_x_f64x4, a_x_f64x4);
         sum_a_y_f64x4 = _mm256_add_pd(sum_a_y_f64x4, a_y_f64x4);
@@ -585,22 +585,22 @@ NK_PUBLIC void nk_kabsch_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_si
     }
 
     // Reduce vector accumulators
-    nk_f64_t sum_a_x = _nk_reduce_add_f64x4_haswell(sum_a_x_f64x4);
-    nk_f64_t sum_a_y = _nk_reduce_add_f64x4_haswell(sum_a_y_f64x4);
-    nk_f64_t sum_a_z = _nk_reduce_add_f64x4_haswell(sum_a_z_f64x4);
-    nk_f64_t sum_b_x = _nk_reduce_add_f64x4_haswell(sum_b_x_f64x4);
-    nk_f64_t sum_b_y = _nk_reduce_add_f64x4_haswell(sum_b_y_f64x4);
-    nk_f64_t sum_b_z = _nk_reduce_add_f64x4_haswell(sum_b_z_f64x4);
+    nk_f64_t sum_a_x = nk_reduce_add_f64x4_haswell_(sum_a_x_f64x4);
+    nk_f64_t sum_a_y = nk_reduce_add_f64x4_haswell_(sum_a_y_f64x4);
+    nk_f64_t sum_a_z = nk_reduce_add_f64x4_haswell_(sum_a_z_f64x4);
+    nk_f64_t sum_b_x = nk_reduce_add_f64x4_haswell_(sum_b_x_f64x4);
+    nk_f64_t sum_b_y = nk_reduce_add_f64x4_haswell_(sum_b_y_f64x4);
+    nk_f64_t sum_b_z = nk_reduce_add_f64x4_haswell_(sum_b_z_f64x4);
 
-    nk_f64_t H00 = _nk_reduce_add_f64x4_haswell(cov_xx_f64x4);
-    nk_f64_t H01 = _nk_reduce_add_f64x4_haswell(cov_xy_f64x4);
-    nk_f64_t H02 = _nk_reduce_add_f64x4_haswell(cov_xz_f64x4);
-    nk_f64_t H10 = _nk_reduce_add_f64x4_haswell(cov_yx_f64x4);
-    nk_f64_t H11 = _nk_reduce_add_f64x4_haswell(cov_yy_f64x4);
-    nk_f64_t H12 = _nk_reduce_add_f64x4_haswell(cov_yz_f64x4);
-    nk_f64_t H20 = _nk_reduce_add_f64x4_haswell(cov_zx_f64x4);
-    nk_f64_t H21 = _nk_reduce_add_f64x4_haswell(cov_zy_f64x4);
-    nk_f64_t H22 = _nk_reduce_add_f64x4_haswell(cov_zz_f64x4);
+    nk_f64_t H00 = nk_reduce_add_f64x4_haswell_(cov_xx_f64x4);
+    nk_f64_t H01 = nk_reduce_add_f64x4_haswell_(cov_xy_f64x4);
+    nk_f64_t H02 = nk_reduce_add_f64x4_haswell_(cov_xz_f64x4);
+    nk_f64_t H10 = nk_reduce_add_f64x4_haswell_(cov_yx_f64x4);
+    nk_f64_t H11 = nk_reduce_add_f64x4_haswell_(cov_yy_f64x4);
+    nk_f64_t H12 = nk_reduce_add_f64x4_haswell_(cov_yz_f64x4);
+    nk_f64_t H20 = nk_reduce_add_f64x4_haswell_(cov_zx_f64x4);
+    nk_f64_t H21 = nk_reduce_add_f64x4_haswell_(cov_zy_f64x4);
+    nk_f64_t H22 = nk_reduce_add_f64x4_haswell_(cov_zz_f64x4);
 
     // Scalar tail
     for (; i < n; ++i) {
@@ -658,7 +658,7 @@ NK_PUBLIC void nk_kabsch_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_si
     nk_f32_t cross_covariance[9] = {(nk_f32_t)H00, (nk_f32_t)H01, (nk_f32_t)H02, (nk_f32_t)H10, (nk_f32_t)H11,
                                     (nk_f32_t)H12, (nk_f32_t)H20, (nk_f32_t)H21, (nk_f32_t)H22};
     nk_f32_t svd_u[9], svd_s[3], svd_v[9];
-    _nk_svd3x3_f32(cross_covariance, svd_u, svd_s, svd_v);
+    nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * U^T
     nk_f32_t r[9];
@@ -673,7 +673,7 @@ NK_PUBLIC void nk_kabsch_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_si
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
     // Handle reflection: if det(R) < 0, negate third column of V and recompute R
-    if (_nk_det3x3_f32(r) < 0) {
+    if (nk_det3x3_f32_(r) < 0) {
         svd_v[2] = -svd_v[2];
         svd_v[5] = -svd_v[5];
         svd_v[8] = -svd_v[8];
@@ -734,8 +734,8 @@ NK_PUBLIC void nk_umeyama_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_s
     __m256 a_x_f32x8, a_y_f32x8, a_z_f32x8, b_x_f32x8, b_y_f32x8, b_z_f32x8;
 
     for (; i + 8 <= n; i += 8) {
-        _nk_deinterleave_f32x8_haswell(a + i * 3, &a_x_f32x8, &a_y_f32x8, &a_z_f32x8);
-        _nk_deinterleave_f32x8_haswell(b + i * 3, &b_x_f32x8, &b_y_f32x8, &b_z_f32x8);
+        nk_deinterleave_f32x8_haswell_(a + i * 3, &a_x_f32x8, &a_y_f32x8, &a_z_f32x8);
+        nk_deinterleave_f32x8_haswell_(b + i * 3, &b_x_f32x8, &b_y_f32x8, &b_z_f32x8);
 
         __m256d a_x_lo_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_x_f32x8));
         __m256d a_y_lo_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(a_y_f32x8));
@@ -793,22 +793,22 @@ NK_PUBLIC void nk_umeyama_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_s
     }
 
     // Reduce vector accumulators
-    nk_f64_t sum_a_x = _nk_reduce_add_f64x4_haswell(sum_a_x_f64x4);
-    nk_f64_t sum_a_y = _nk_reduce_add_f64x4_haswell(sum_a_y_f64x4);
-    nk_f64_t sum_a_z = _nk_reduce_add_f64x4_haswell(sum_a_z_f64x4);
-    nk_f64_t sum_b_x = _nk_reduce_add_f64x4_haswell(sum_b_x_f64x4);
-    nk_f64_t sum_b_y = _nk_reduce_add_f64x4_haswell(sum_b_y_f64x4);
-    nk_f64_t sum_b_z = _nk_reduce_add_f64x4_haswell(sum_b_z_f64x4);
-    nk_f64_t H00 = _nk_reduce_add_f64x4_haswell(cov_xx_f64x4);
-    nk_f64_t H01 = _nk_reduce_add_f64x4_haswell(cov_xy_f64x4);
-    nk_f64_t H02 = _nk_reduce_add_f64x4_haswell(cov_xz_f64x4);
-    nk_f64_t H10 = _nk_reduce_add_f64x4_haswell(cov_yx_f64x4);
-    nk_f64_t H11 = _nk_reduce_add_f64x4_haswell(cov_yy_f64x4);
-    nk_f64_t H12 = _nk_reduce_add_f64x4_haswell(cov_yz_f64x4);
-    nk_f64_t H20 = _nk_reduce_add_f64x4_haswell(cov_zx_f64x4);
-    nk_f64_t H21 = _nk_reduce_add_f64x4_haswell(cov_zy_f64x4);
-    nk_f64_t H22 = _nk_reduce_add_f64x4_haswell(cov_zz_f64x4);
-    nk_f64_t variance_a_sum = _nk_reduce_add_f64x4_haswell(variance_a_f64x4);
+    nk_f64_t sum_a_x = nk_reduce_add_f64x4_haswell_(sum_a_x_f64x4);
+    nk_f64_t sum_a_y = nk_reduce_add_f64x4_haswell_(sum_a_y_f64x4);
+    nk_f64_t sum_a_z = nk_reduce_add_f64x4_haswell_(sum_a_z_f64x4);
+    nk_f64_t sum_b_x = nk_reduce_add_f64x4_haswell_(sum_b_x_f64x4);
+    nk_f64_t sum_b_y = nk_reduce_add_f64x4_haswell_(sum_b_y_f64x4);
+    nk_f64_t sum_b_z = nk_reduce_add_f64x4_haswell_(sum_b_z_f64x4);
+    nk_f64_t H00 = nk_reduce_add_f64x4_haswell_(cov_xx_f64x4);
+    nk_f64_t H01 = nk_reduce_add_f64x4_haswell_(cov_xy_f64x4);
+    nk_f64_t H02 = nk_reduce_add_f64x4_haswell_(cov_xz_f64x4);
+    nk_f64_t H10 = nk_reduce_add_f64x4_haswell_(cov_yx_f64x4);
+    nk_f64_t H11 = nk_reduce_add_f64x4_haswell_(cov_yy_f64x4);
+    nk_f64_t H12 = nk_reduce_add_f64x4_haswell_(cov_yz_f64x4);
+    nk_f64_t H20 = nk_reduce_add_f64x4_haswell_(cov_zx_f64x4);
+    nk_f64_t H21 = nk_reduce_add_f64x4_haswell_(cov_zy_f64x4);
+    nk_f64_t H22 = nk_reduce_add_f64x4_haswell_(cov_zz_f64x4);
+    nk_f64_t variance_a_sum = nk_reduce_add_f64x4_haswell_(variance_a_f64x4);
 
     // Scalar tail
     for (; i < n; ++i) {
@@ -861,7 +861,7 @@ NK_PUBLIC void nk_umeyama_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_s
 
     // SVD
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
-    _nk_svd3x3_f32(cross_covariance, svd_u, svd_s, svd_v);
+    nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * U^T
     nk_f32_t r[9];
@@ -876,7 +876,7 @@ NK_PUBLIC void nk_umeyama_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_s
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
     // Scale factor: c = trace(D*S) / (n * variance_a)
-    nk_f32_t det = _nk_det3x3_f32(r);
+    nk_f32_t det = nk_det3x3_f32_(r);
     nk_f32_t d3 = det < 0 ? -1.0f : 1.0f;
     nk_f32_t trace_ds = svd_s[0] + svd_s[4] + d3 * svd_s[8];
     nk_f64_t c = (nk_f64_t)trace_ds / (n * variance_a);
@@ -941,8 +941,8 @@ NK_PUBLIC void nk_umeyama_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
     __m256d a_x_f64x4, a_y_f64x4, a_z_f64x4, b_x_f64x4, b_y_f64x4, b_z_f64x4;
 
     for (; i + 4 <= n; i += 4) {
-        _nk_deinterleave_f64x4_haswell(a + i * 3, &a_x_f64x4, &a_y_f64x4, &a_z_f64x4);
-        _nk_deinterleave_f64x4_haswell(b + i * 3, &b_x_f64x4, &b_y_f64x4, &b_z_f64x4);
+        nk_deinterleave_f64x4_haswell_(a + i * 3, &a_x_f64x4, &a_y_f64x4, &a_z_f64x4);
+        nk_deinterleave_f64x4_haswell_(b + i * 3, &b_x_f64x4, &b_y_f64x4, &b_z_f64x4);
 
         sum_a_x_f64x4 = _mm256_add_pd(sum_a_x_f64x4, a_x_f64x4),
         sum_a_y_f64x4 = _mm256_add_pd(sum_a_y_f64x4, a_y_f64x4);
@@ -966,22 +966,22 @@ NK_PUBLIC void nk_umeyama_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
     }
 
     // Reduce vector accumulators
-    nk_f64_t sum_a_x = _nk_reduce_add_f64x4_haswell(sum_a_x_f64x4);
-    nk_f64_t sum_a_y = _nk_reduce_add_f64x4_haswell(sum_a_y_f64x4);
-    nk_f64_t sum_a_z = _nk_reduce_add_f64x4_haswell(sum_a_z_f64x4);
-    nk_f64_t sum_b_x = _nk_reduce_add_f64x4_haswell(sum_b_x_f64x4);
-    nk_f64_t sum_b_y = _nk_reduce_add_f64x4_haswell(sum_b_y_f64x4);
-    nk_f64_t sum_b_z = _nk_reduce_add_f64x4_haswell(sum_b_z_f64x4);
-    nk_f64_t h00_s = _nk_reduce_add_f64x4_haswell(cov_xx_f64x4);
-    nk_f64_t h01_s = _nk_reduce_add_f64x4_haswell(cov_xy_f64x4);
-    nk_f64_t h02_s = _nk_reduce_add_f64x4_haswell(cov_xz_f64x4);
-    nk_f64_t h10_s = _nk_reduce_add_f64x4_haswell(cov_yx_f64x4);
-    nk_f64_t h11_s = _nk_reduce_add_f64x4_haswell(cov_yy_f64x4);
-    nk_f64_t h12_s = _nk_reduce_add_f64x4_haswell(cov_yz_f64x4);
-    nk_f64_t h20_s = _nk_reduce_add_f64x4_haswell(cov_zx_f64x4);
-    nk_f64_t h21_s = _nk_reduce_add_f64x4_haswell(cov_zy_f64x4);
-    nk_f64_t h22_s = _nk_reduce_add_f64x4_haswell(cov_zz_f64x4);
-    nk_f64_t variance_a_sum = _nk_reduce_add_f64x4_haswell(variance_a_f64x4);
+    nk_f64_t sum_a_x = nk_reduce_add_f64x4_haswell_(sum_a_x_f64x4);
+    nk_f64_t sum_a_y = nk_reduce_add_f64x4_haswell_(sum_a_y_f64x4);
+    nk_f64_t sum_a_z = nk_reduce_add_f64x4_haswell_(sum_a_z_f64x4);
+    nk_f64_t sum_b_x = nk_reduce_add_f64x4_haswell_(sum_b_x_f64x4);
+    nk_f64_t sum_b_y = nk_reduce_add_f64x4_haswell_(sum_b_y_f64x4);
+    nk_f64_t sum_b_z = nk_reduce_add_f64x4_haswell_(sum_b_z_f64x4);
+    nk_f64_t h00_s = nk_reduce_add_f64x4_haswell_(cov_xx_f64x4);
+    nk_f64_t h01_s = nk_reduce_add_f64x4_haswell_(cov_xy_f64x4);
+    nk_f64_t h02_s = nk_reduce_add_f64x4_haswell_(cov_xz_f64x4);
+    nk_f64_t h10_s = nk_reduce_add_f64x4_haswell_(cov_yx_f64x4);
+    nk_f64_t h11_s = nk_reduce_add_f64x4_haswell_(cov_yy_f64x4);
+    nk_f64_t h12_s = nk_reduce_add_f64x4_haswell_(cov_yz_f64x4);
+    nk_f64_t h20_s = nk_reduce_add_f64x4_haswell_(cov_zx_f64x4);
+    nk_f64_t h21_s = nk_reduce_add_f64x4_haswell_(cov_zy_f64x4);
+    nk_f64_t h22_s = nk_reduce_add_f64x4_haswell_(cov_zz_f64x4);
+    nk_f64_t variance_a_sum = nk_reduce_add_f64x4_haswell_(variance_a_f64x4);
 
     // Scalar tail loop for remaining points
     for (; i < n; i++) {
@@ -1031,7 +1031,7 @@ NK_PUBLIC void nk_umeyama_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
 
     // SVD
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
-    _nk_svd3x3_f32(cross_covariance, svd_u, svd_s, svd_v);
+    nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * U^T
     nk_f32_t r[9];
@@ -1046,7 +1046,7 @@ NK_PUBLIC void nk_umeyama_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
     // Scale factor: c = trace(D*S) / (n * variance_a)
-    nk_f32_t det = _nk_det3x3_f32(r);
+    nk_f32_t det = nk_det3x3_f32_(r);
     nk_f32_t d3 = det < 0 ? -1.0f : 1.0f;
     nk_f32_t trace_ds = svd_s[0] + svd_s[4] + d3 * svd_s[8];
     nk_f64_t c = (nk_f64_t)trace_ds / (n * variance_a);
@@ -1102,6 +1102,6 @@ NK_PUBLIC void nk_umeyama_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_HASWELL
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
 #endif // NK_MESH_HASWELL_H

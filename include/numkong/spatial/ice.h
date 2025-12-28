@@ -8,7 +8,7 @@
 #ifndef NK_SPATIAL_ICE_H
 #define NK_SPATIAL_ICE_H
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_ICE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vnni")
@@ -24,7 +24,7 @@ extern "C" {
 NK_PUBLIC void nk_l2_i8_ice(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t d2;
     nk_l2sq_i8_ice(a, b, n, &d2);
-    *result = _nk_sqrt_f32_haswell((nk_f32_t)d2);
+    *result = nk_sqrt_f32_haswell_((nk_f32_t)d2);
 }
 NK_PUBLIC void nk_l2sq_i8_ice(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
     __m512i distance_sq_i32x16 = _mm512_setzero_si512();
@@ -115,12 +115,12 @@ nk_angular_i8_ice_cycle:
     nk_i32_t dot_product_i32 = _mm512_reduce_add_epi32(dot_product_i32x16);
     nk_i32_t a_norm_sq_i32 = _mm512_reduce_add_epi32(a_norm_sq_i32x16);
     nk_i32_t b_norm_sq_i32 = _mm512_reduce_add_epi32(b_norm_sq_i32x16);
-    *result = _nk_angular_normalize_f32_haswell(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
+    *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
 NK_PUBLIC void nk_l2_u8_ice(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t d2;
     nk_l2sq_u8_ice(a, b, n, &d2);
-    *result = _nk_sqrt_f32_haswell((nk_f32_t)d2);
+    *result = nk_sqrt_f32_haswell_((nk_f32_t)d2);
 }
 NK_PUBLIC void nk_l2sq_u8_ice(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
     __m512i distance_sq_low_i32x16 = _mm512_setzero_si512();
@@ -200,13 +200,13 @@ nk_angular_u8_ice_cycle:
         _mm512_add_epi32(dot_product_low_i32x16, dot_product_high_i32x16));
     nk_i32_t a_norm_sq_i32 = _mm512_reduce_add_epi32(_mm512_add_epi32(a_norm_sq_low_i32x16, a_norm_sq_high_i32x16));
     nk_i32_t b_norm_sq_i32 = _mm512_reduce_add_epi32(_mm512_add_epi32(b_norm_sq_low_i32x16, b_norm_sq_high_i32x16));
-    *result = _nk_angular_normalize_f32_haswell(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
+    *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
 
 NK_PUBLIC void nk_l2_i4x2_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n_words, nk_f32_t *result) {
     nk_u32_t d2;
     nk_l2sq_i4x2_ice(a, b, n_words, &d2);
-    *result = _nk_sqrt_f32_haswell((nk_f32_t)d2);
+    *result = nk_sqrt_f32_haswell_((nk_f32_t)d2);
 }
 NK_PUBLIC void nk_l2sq_i4x2_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n_words, nk_u32_t *result) {
 
@@ -425,7 +425,7 @@ nk_angular_i4x2_ice_cycle:
     _mm512_storeu_si512(b2_u16, _mm512_add_epi16(b2_u16_low_vec, b2_u16_high_vec));
     unsigned int a2 = 0, b2 = 0;
     for (int i = 0; i < 32; ++i) a2 += a2_u16[i], b2 += b2_u16[i];
-    *result = _nk_angular_normalize_f32_haswell(ab, a2, b2);
+    *result = nk_angular_normalize_f32_haswell_(ab, a2, b2);
 }
 
 typedef nk_dot_i8x64_state_ice_t nk_angular_i8x64_state_ice_t;
@@ -599,6 +599,6 @@ NK_INTERNAL void nk_l2_u8x64_finalize_ice(nk_l2_u8x64_state_ice_t const *state_a
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_ICE
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
 #endif // NK_SPATIAL_ICE_H

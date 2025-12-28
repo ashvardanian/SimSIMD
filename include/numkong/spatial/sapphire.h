@@ -8,7 +8,7 @@
 #ifndef NK_SPATIAL_SAPPHIRE_H
 #define NK_SPATIAL_SAPPHIRE_H
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_SAPPHIRE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512fp16")
@@ -23,7 +23,7 @@ extern "C" {
 
 NK_PUBLIC void nk_l2_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_l2sq_f16_sapphire(a, b, n, result);
-    *result = _nk_sqrt_f32_haswell(*result);
+    *result = nk_sqrt_f32_haswell_(*result);
 }
 NK_PUBLIC void nk_l2sq_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     __m512h distance_sq_f16x32 = _mm512_setzero_ph();
@@ -75,7 +75,7 @@ nk_angular_f16_sapphire_cycle:
     nk_f32_t dot_product_f32 = _mm512_reduce_add_ph(dot_product_f16x32);
     nk_f32_t a_norm_sq_f32 = _mm512_reduce_add_ph(a_norm_sq_f16x32);
     nk_f32_t b_norm_sq_f32 = _mm512_reduce_add_ph(b_norm_sq_f16x32);
-    *result = _nk_angular_normalize_f32_haswell(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
+    *result = nk_angular_normalize_f32_haswell_(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
 typedef nk_dot_f16x32_state_sapphire_t nk_angular_f16x32_state_sapphire_t;
@@ -170,6 +170,6 @@ NK_INTERNAL void nk_l2_f16x32_finalize_sapphire(nk_l2_f16x32_state_sapphire_t co
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_SAPPHIRE
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
 #endif // NK_SPATIAL_SAPPHIRE_H

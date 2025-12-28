@@ -8,7 +8,7 @@
 #ifndef NK_MESH_NEON_I8_H
 #define NK_MESH_NEON_I8_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON_I8
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+dotprod")
@@ -27,6 +27,6 @@ extern "C" {
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON_I8
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_MESH_NEON_I8_H

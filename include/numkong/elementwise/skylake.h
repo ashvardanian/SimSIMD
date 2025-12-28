@@ -8,7 +8,7 @@
 #ifndef NK_ELEMENTWISE_SKYLAKE_H
 #define NK_ELEMENTWISE_SKYLAKE_H
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_SKYLAKE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "bmi2")
@@ -220,10 +220,10 @@ nk_sum_bf16_skylake_cycle:
         b_bf16_vec = _mm256_loadu_epi16(b);
         a += 16, b += 16, n -= 16;
     }
-    a_vec = _nk_bf16x16_to_f32x16_skylake(a_bf16_vec);
-    b_vec = _nk_bf16x16_to_f32x16_skylake(b_bf16_vec);
+    a_vec = nk_bf16x16_to_f32x16_skylake_(a_bf16_vec);
+    b_vec = nk_bf16x16_to_f32x16_skylake_(b_bf16_vec);
     sum_vec = _mm512_add_ps(a_vec, b_vec);
-    sum_bf16_vec = _nk_f32x16_to_bf16x16_skylake(sum_vec);
+    sum_bf16_vec = nk_f32x16_to_bf16x16_skylake_(sum_vec);
     _mm256_mask_storeu_epi16(result, mask, sum_bf16_vec);
     result += 16;
     if (n) goto nk_sum_bf16_skylake_cycle;
@@ -248,9 +248,9 @@ nk_scale_bf16_skylake_cycle:
         a_bf16x16 = _mm256_loadu_epi16(a);
         a += 16, n -= 16;
     }
-    a_f32x16 = _nk_bf16x16_to_f32x16_skylake(a_bf16x16);
+    a_f32x16 = nk_bf16x16_to_f32x16_skylake_(a_bf16x16);
     result_f32x16 = _mm512_fmadd_ps(a_f32x16, alpha_f32x16, beta_f32x16);
-    result_bf16x16 = _nk_f32x16_to_bf16x16_skylake(result_f32x16);
+    result_bf16x16 = nk_f32x16_to_bf16x16_skylake_(result_f32x16);
     _mm256_mask_storeu_epi16(result, mask, result_bf16x16);
     result += 16;
     if (n) goto nk_scale_bf16_skylake_cycle;
@@ -296,11 +296,11 @@ nk_wsum_bf16_skylake_cycle:
         b_bf16x16 = _mm256_loadu_epi16(b);
         a += 16, b += 16, n -= 16;
     }
-    a_f32x16 = _nk_bf16x16_to_f32x16_skylake(a_bf16x16);
-    b_f32x16 = _nk_bf16x16_to_f32x16_skylake(b_bf16x16);
+    a_f32x16 = nk_bf16x16_to_f32x16_skylake_(a_bf16x16);
+    b_f32x16 = nk_bf16x16_to_f32x16_skylake_(b_bf16x16);
     a_scaled_f32x16 = _mm512_mul_ps(a_f32x16, alpha_f32x16);
     result_f32x16 = _mm512_fmadd_ps(b_f32x16, beta_f32x16, a_scaled_f32x16);
-    result_bf16x16 = _nk_f32x16_to_bf16x16_skylake(result_f32x16);
+    result_bf16x16 = nk_f32x16_to_bf16x16_skylake_(result_f32x16);
     _mm256_mask_storeu_epi16(result, mask, result_bf16x16);
     result += 16;
     if (n) goto nk_wsum_bf16_skylake_cycle;
@@ -392,13 +392,13 @@ nk_fma_bf16_skylake_cycle:
         c_bf16x16 = _mm256_loadu_epi16(c);
         a += 16, b += 16, c += 16, n -= 16;
     }
-    a_f32x16 = _nk_bf16x16_to_f32x16_skylake(a_bf16x16);
-    b_f32x16 = _nk_bf16x16_to_f32x16_skylake(b_bf16x16);
-    c_f32x16 = _nk_bf16x16_to_f32x16_skylake(c_bf16x16);
+    a_f32x16 = nk_bf16x16_to_f32x16_skylake_(a_bf16x16);
+    b_f32x16 = nk_bf16x16_to_f32x16_skylake_(b_bf16x16);
+    c_f32x16 = nk_bf16x16_to_f32x16_skylake_(c_bf16x16);
     ab_f32x16 = _mm512_mul_ps(a_f32x16, b_f32x16);
     ab_scaled_f32x16 = _mm512_mul_ps(ab_f32x16, alpha_f32x16);
     result_f32x16 = _mm512_fmadd_ps(c_f32x16, beta_f32x16, ab_scaled_f32x16);
-    result_bf16x16 = _nk_f32x16_to_bf16x16_skylake(result_f32x16);
+    result_bf16x16 = nk_f32x16_to_bf16x16_skylake_(result_f32x16);
     _mm256_mask_storeu_epi16(result, mask, result_bf16x16);
     result += 16;
     if (n) goto nk_fma_bf16_skylake_cycle;
@@ -995,6 +995,6 @@ nk_fma_u64_skylake_cycle:
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_SKYLAKE
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
 #endif // NK_ELEMENTWISE_SKYLAKE_H

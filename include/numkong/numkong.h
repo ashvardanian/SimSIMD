@@ -119,7 +119,7 @@
 #include "trigonometry.h" // Sin, Cos, Atan
 
 // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
-#if defined(_NK_DEFINED_APPLE)
+#if defined(NK_DEFINED_APPLE_)
 #include <fenv.h>       // `fesetenv` - part of C 99 standard
 #include <sys/sysctl.h> // `sysctlbyname`
 #endif
@@ -127,22 +127,22 @@
 // Detect POSIX extensions availability for signal handling.
 // POSIX extensions provide `sigaction`, `sigjmp_buf`, and `sigsetjmp` for safe signal handling.
 // These are needed on Linux ARM for safely testing `mrs` instruction availability.
-#if defined(_NK_DEFINED_LINUX) && defined(_POSIX_VERSION)
+#if defined(NK_DEFINED_LINUX_) && defined(_POSIX_VERSION)
 #include <setjmp.h> // `sigjmp_buf`, `sigsetjmp`, `siglongjmp`
 #include <signal.h> // `sigaction`, `SIGILL`
-#define _NK_HAS_POSIX_EXTENSIONS 1
+#define NK_HAS_POSIX_EXTENSIONS_ 1
 #else
-#define _NK_HAS_POSIX_EXTENSIONS 0
+#define NK_HAS_POSIX_EXTENSIONS_ 0
 #endif
 
 // On Linux x86, we need syscall for AMX permission request
-#if defined(_NK_DEFINED_LINUX) && _NK_TARGET_X86
+#if defined(NK_DEFINED_LINUX_) && NK_TARGET_X86_
 #include <sys/syscall.h> // `syscall`, `SYS_arch_prctl`
 #include <unistd.h>      // `syscall`
 #endif
 
 // On Windows ARM, we use IsProcessorFeaturePresent API for capability detection
-#if defined(_NK_DEFINED_WINDOWS) && _NK_TARGET_ARM
+#if defined(NK_DEFINED_WINDOWS_) && NK_TARGET_ARM_
 #include <processthreadsapi.h> // `IsProcessorFeaturePresent`
 #endif
 
@@ -483,7 +483,7 @@ NK_DYNAMIC void nk_find_kernel_punned( //
     nk_capability_t allowed,           //
     nk_kernel_punned_t *kernel_output, //
     nk_capability_t *capability_output);
-NK_DYNAMIC int nk_flush_denormals(nk_capability_t);
+NK_DYNAMIC int nk_configure_thread(nk_capability_t);
 #else
 NK_PUBLIC nk_capability_t nk_capabilities(void);
 NK_PUBLIC void nk_find_kernel_punned(  //
@@ -493,10 +493,10 @@ NK_PUBLIC void nk_find_kernel_punned(  //
     nk_capability_t allowed,           //
     nk_kernel_punned_t *kernel_output, //
     nk_capability_t *capability_output);
-NK_PUBLIC int nk_flush_denormals(nk_capability_t);
+NK_PUBLIC int nk_configure_thread(nk_capability_t);
 #endif
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 
 /**
  *  @brief  Function to flush denormalized numbers to zero on x86 CPUs.
@@ -505,7 +505,7 @@ NK_PUBLIC int nk_flush_denormals(nk_capability_t);
  *  @note   This should be called on each thread before any SIMD operations to avoid performance penalties.
  *  @return 1 if the operation was successful, 0 otherwise.
  */
-NK_PUBLIC int _nk_flush_denormals_x86(nk_capability_t capabilities) {
+NK_PUBLIC int nk_configure_thread_x86_(nk_capability_t capabilities) {
 #if defined(_MSC_VER)
     unsigned int mxcsr = _mm_getcsr();
     mxcsr |= 1 << 15; // bit 15 = Flush-To-Zero (FTZ)
@@ -521,7 +521,7 @@ NK_PUBLIC int _nk_flush_denormals_x86(nk_capability_t capabilities) {
 
     // Intel AMX (Advanced Matrix Extensions) requires explicit permission from the OS before use.
     // On Linux, this is done via the `arch_prctl` system call with ARCH_REQ_XCOMP_PERM.
-#if defined(_NK_DEFINED_LINUX) && NK_TARGET_SAPPHIRE
+#if defined(NK_DEFINED_LINUX_) && NK_TARGET_SAPPHIRE
     if (capabilities & nk_cap_sapphire_amx_k) {
         int const ARCH_REQ_XCOMP_PERM = 0x1023;
         unsigned long const XFEATURE_XTILEDATA = 18;
@@ -537,7 +537,7 @@ NK_PUBLIC int _nk_flush_denormals_x86(nk_capability_t capabilities) {
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `nk_capability_t` enum value.
  */
-NK_PUBLIC nk_capability_t _nk_capabilities_x86(void) {
+NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
 
     /// The states of 4 registers populated for a specific "cpuid" assembly call
     union four_registers_t {
@@ -632,9 +632,9 @@ NK_PUBLIC nk_capability_t _nk_capabilities_x86(void) {
         (nk_cap_serial_k));
 }
 
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 
 /*  Compiling the next section one may get: selected processor does not support system register name
  * 'id_aa64zfr0_el1'. Suppressing assembler errors is very complicated, so when dealing with older ARM CPUs it's
@@ -644,12 +644,12 @@ NK_PUBLIC nk_capability_t _nk_capabilities_x86(void) {
 #pragma GCC target("arch=armv8.5-a+sve")
 #pragma clang attribute push(__attribute__((target("arch=armv8.5-a+sve"))), apply_to = function)
 
-#if _NK_HAS_POSIX_EXTENSIONS
+#if NK_HAS_POSIX_EXTENSIONS_
 /** @brief SIGILL handler for `mrs` instruction testing on Linux ARM */
-static sigjmp_buf _nk_mrs_test_jump_buffer;
-static void _nk_mrs_test_sigill_handler(int sig) {
+static sigjmp_buf nk_mrs_test_jump_buffer_;
+static void nk_mrs_test_sigill_handler_(int sig) {
     (void)sig; // Unused parameter
-    siglongjmp(_nk_mrs_test_jump_buffer, 1);
+    siglongjmp(nk_mrs_test_jump_buffer_, 1);
 }
 #endif
 
@@ -660,14 +660,14 @@ static void _nk_mrs_test_sigill_handler(int sig) {
  *  @note   On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
  *  @return 1 if the operation was successful, 0 otherwise.
  */
-NK_PUBLIC int _nk_flush_denormals_arm(nk_capability_t capabilities) {
+NK_PUBLIC int nk_configure_thread_arm_(nk_capability_t capabilities) {
     (void)capabilities;
-#if defined(_NK_DEFINED_APPLE)
+#if defined(NK_DEFINED_APPLE_)
     // https://stackoverflow.com/a/19904907/2766161
     // https://stackoverflow.com/a/78252076/2766161
     int is_success = fesetenv(FE_DFL_DISABLE_DENORMS_ENV) == 0;
     return is_success;
-#elif defined(_NK_DEFINED_LINUX)
+#elif defined(NK_DEFINED_LINUX_)
     // For Linux, we can toggle bits in the Floating-point Control Register (FPCR)
     // https://developer.arm.com/documentation/ddi0601/2024-12/AArch64-Registers/FPCR--Floating-point-Control-Register
     uint64_t fpcr;
@@ -686,8 +686,8 @@ NK_PUBLIC int _nk_flush_denormals_arm(nk_capability_t capabilities) {
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit Arm machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `nk_capability_t` enum value.
  */
-NK_PUBLIC nk_capability_t _nk_capabilities_arm(void) {
-#if defined(_NK_DEFINED_APPLE)
+NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
+#if defined(NK_DEFINED_APPLE_)
     // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
     unsigned supports_neon = 0, supports_fp16 = 0, supports_bf16 = 0, supports_i8mm = 0;
     size_t size = sizeof(supports_neon);
@@ -703,7 +703,7 @@ NK_PUBLIC nk_capability_t _nk_capabilities_arm(void) {
         (nk_cap_neon_i8_k * (supports_neon && supports_i8mm)) |   //
         (nk_cap_serial_k));
 
-#elif defined(_NK_DEFINED_LINUX)
+#elif defined(NK_DEFINED_LINUX_)
 
     // Depending on the environment, reading system registers may cause SIGILL.
     // One option to avoid the crash is to use `getauxval(AT_HWCAP)` and `getauxval(AT_HWCAP2)`,
@@ -712,15 +712,15 @@ NK_PUBLIC nk_capability_t _nk_capabilities_arm(void) {
     // and probe one of the registers, reverting back to the old signal handler afterwards.
     //
     // This issue was originally observed in: https://github.com/ashvardanian/NumKong/issues/279
-#if _NK_HAS_POSIX_EXTENSIONS
+#if NK_HAS_POSIX_EXTENSIONS_
     struct sigaction action_new, action_old;
-    action_new.sa_handler = _nk_mrs_test_sigill_handler;
+    action_new.sa_handler = nk_mrs_test_sigill_handler_;
     sigemptyset(&action_new.sa_mask);
     action_new.sa_flags = 0;
 
     int mrs_works = 0;
     if (sigaction(SIGILL, &action_new, &action_old) == 0) {
-        if (sigsetjmp(_nk_mrs_test_jump_buffer, 1) == 0) {
+        if (sigsetjmp(nk_mrs_test_jump_buffer_, 1) == 0) {
             unsigned long midr_value;
             __asm__ __volatile__("mrs %0, MIDR_EL1" : "=r"(midr_value));
             mrs_works = 1;
@@ -730,10 +730,10 @@ NK_PUBLIC nk_capability_t _nk_capabilities_arm(void) {
 
     // Early exit if `mrs` doesn't work - return conservative NEON-only capabilities
     if (!mrs_works) return (nk_capability_t)(nk_cap_neon_k | nk_cap_serial_k);
-#else  // _NK_HAS_POSIX_EXTENSIONS
+#else  // NK_HAS_POSIX_EXTENSIONS_
     // Without POSIX signal handlers, fall back to conservative NEON capabilities.
     return (nk_capability_t)(nk_cap_neon_k | nk_cap_serial_k);
-#endif // _NK_HAS_POSIX_EXTENSIONS
+#endif // NK_HAS_POSIX_EXTENSIONS_
 
     // Read CPUID registers directly
     unsigned long id_aa64isar0_el1 = 0, id_aa64isar1_el1 = 0, id_aa64pfr0_el1 = 0, id_aa64zfr0_el1 = 0;
@@ -796,7 +796,7 @@ NK_PUBLIC nk_capability_t _nk_capabilities_arm(void) {
         (nk_cap_sve2_k * (supports_sve2)) |                                                      //
         (nk_cap_sve2p1_k * (supports_sve2p1)) |                                                  //
         (nk_cap_serial_k));
-#elif defined(_NK_DEFINED_WINDOWS)
+#elif defined(NK_DEFINED_WINDOWS_)
 
     unsigned supports_neon = 0, supports_dp = 0;
 
@@ -837,13 +837,13 @@ NK_PUBLIC nk_capability_t _nk_capabilities_arm(void) {
  *  When facing denormalized values Fused-Multiply-Add (FMA) operations can be up to 30x slower,
  *  as measured on Intel Sapphire Rapids: https://github.com/ashvardanian/ParallelReductionsBenchmark
  */
-NK_PUBLIC int _nk_flush_denormals(nk_capability_t capabilities) {
-#if _NK_TARGET_X86
-    return _nk_flush_denormals_x86(capabilities);
-#endif // _NK_TARGET_X86
-#if _NK_TARGET_ARM
-    return _nk_flush_denormals_arm(capabilities);
-#endif // _NK_TARGET_ARM
+NK_PUBLIC int nk_configure_thread_(nk_capability_t capabilities) {
+#if NK_TARGET_X86_
+    return nk_configure_thread_x86_(capabilities);
+#endif // NK_TARGET_X86_
+#if NK_TARGET_ARM_
+    return nk_configure_thread_arm_(capabilities);
+#endif // NK_TARGET_ARM_
     (void)capabilities;
     return 0;
 }
@@ -852,13 +852,13 @@ NK_PUBLIC int _nk_flush_denormals(nk_capability_t capabilities) {
  *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `nk_capability_t` enum value.
  */
-NK_PUBLIC nk_capability_t _nk_capabilities_(void) {
-#if _NK_TARGET_X86
-    return _nk_capabilities_x86();
-#endif // _NK_TARGET_X86
-#if _NK_TARGET_ARM
-    return _nk_capabilities_arm();
-#endif // _NK_TARGET_ARM
+NK_PUBLIC nk_capability_t nk_capabilities_(void) {
+#if NK_TARGET_X86_
+    return nk_capabilities_x86_();
+#endif // NK_TARGET_X86_
+#if NK_TARGET_ARM_
+    return nk_capabilities_arm_();
+#endif // NK_TARGET_ARM_
     return nk_cap_serial_k;
 }
 
@@ -872,7 +872,7 @@ NK_PUBLIC nk_capability_t _nk_capabilities_(void) {
 #pragma clang diagnostic ignored "-Wvolatile"
 #endif
 
-NK_INTERNAL void _nk_find_kernel_punned_f64(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_f64_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_SVE
@@ -955,7 +955,7 @@ NK_INTERNAL void _nk_find_kernel_punned_f64(nk_capability_t v, nk_metric_kind_t 
         }
 }
 
-NK_INTERNAL void _nk_find_kernel_punned_f32(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_f32_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_SVE2
@@ -1069,7 +1069,7 @@ NK_INTERNAL void _nk_find_kernel_punned_f32(nk_capability_t v, nk_metric_kind_t 
         }
 }
 
-NK_INTERNAL void _nk_find_kernel_punned_f16(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_f16_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_SVE_F16
@@ -1152,7 +1152,7 @@ NK_INTERNAL void _nk_find_kernel_punned_f16(nk_capability_t v, nk_metric_kind_t 
         }
 }
 
-NK_INTERNAL void _nk_find_kernel_punned_bf16(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_bf16_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                              nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_SVE_BF16
@@ -1239,7 +1239,7 @@ NK_INTERNAL void _nk_find_kernel_punned_bf16(nk_capability_t v, nk_metric_kind_t
         }
 }
 
-NK_INTERNAL void _nk_find_kernel_punned_i8(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_i8_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                            nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_NEON_I8
@@ -1310,7 +1310,7 @@ NK_INTERNAL void _nk_find_kernel_punned_i8(nk_capability_t v, nk_metric_kind_t k
         default: break;
         }
 }
-NK_INTERNAL void _nk_find_kernel_punned_u8(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_u8_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                            nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_NEON_I8
@@ -1382,7 +1382,7 @@ NK_INTERNAL void _nk_find_kernel_punned_u8(nk_capability_t v, nk_metric_kind_t k
         }
 }
 
-NK_INTERNAL void _nk_find_kernel_punned_e4m3(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_e4m3_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                              nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_SAPPHIRE
@@ -1415,7 +1415,7 @@ NK_INTERNAL void _nk_find_kernel_punned_e4m3(nk_capability_t v, nk_metric_kind_t
         }
 }
 
-NK_INTERNAL void _nk_find_kernel_punned_e5m2(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_e5m2_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                              nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_SAPPHIRE
@@ -1448,7 +1448,7 @@ NK_INTERNAL void _nk_find_kernel_punned_e5m2(nk_capability_t v, nk_metric_kind_t
         }
 }
 
-NK_INTERNAL void _nk_find_kernel_punned_b8(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_b8_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                            nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_SVE
@@ -1486,7 +1486,7 @@ NK_INTERNAL void _nk_find_kernel_punned_b8(nk_capability_t v, nk_metric_kind_t k
         }
 }
 
-NK_INTERNAL void _nk_find_kernel_punned_f64c(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_f64c_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                              nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_SVE
@@ -1510,7 +1510,7 @@ NK_INTERNAL void _nk_find_kernel_punned_f64c(nk_capability_t v, nk_metric_kind_t
         }
 }
 
-NK_INTERNAL void _nk_find_kernel_punned_f32c(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_f32c_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                              nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_SVE
@@ -1548,7 +1548,7 @@ NK_INTERNAL void _nk_find_kernel_punned_f32c(nk_capability_t v, nk_metric_kind_t
         }
 }
 
-NK_INTERNAL void _nk_find_kernel_punned_f16c(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_f16c_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                              nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_SVE_F16
@@ -1589,7 +1589,7 @@ NK_INTERNAL void _nk_find_kernel_punned_f16c(nk_capability_t v, nk_metric_kind_t
         }
 }
 
-NK_INTERNAL void _nk_find_kernel_punned_bf16c(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_bf16c_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                               nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_NEON_BF16
@@ -1616,7 +1616,7 @@ NK_INTERNAL void _nk_find_kernel_punned_bf16c(nk_capability_t v, nk_metric_kind_
         }
 }
 
-NK_INTERNAL void _nk_find_kernel_punned_u16(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_u16_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_SVE2
@@ -1672,7 +1672,7 @@ NK_INTERNAL void _nk_find_kernel_punned_u16(nk_capability_t v, nk_metric_kind_t 
         }
 }
 
-NK_INTERNAL void _nk_find_kernel_punned_i16(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_i16_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_NEON
@@ -1713,7 +1713,7 @@ NK_INTERNAL void _nk_find_kernel_punned_i16(nk_capability_t v, nk_metric_kind_t 
         }
 }
 
-NK_INTERNAL void _nk_find_kernel_punned_u32(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_u32_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_SVE2
@@ -1769,7 +1769,7 @@ NK_INTERNAL void _nk_find_kernel_punned_u32(nk_capability_t v, nk_metric_kind_t 
         }
 }
 
-NK_INTERNAL void _nk_find_kernel_punned_i32(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_i32_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_NEON
@@ -1810,7 +1810,7 @@ NK_INTERNAL void _nk_find_kernel_punned_i32(nk_capability_t v, nk_metric_kind_t 
         }
 }
 
-NK_INTERNAL void _nk_find_kernel_punned_i64(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_i64_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_NEON
@@ -1843,7 +1843,7 @@ NK_INTERNAL void _nk_find_kernel_punned_i64(nk_capability_t v, nk_metric_kind_t 
         }
 }
 
-NK_INTERNAL void _nk_find_kernel_punned_u64(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
+NK_INTERNAL void nk_find_kernel_punned_u64_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_NEON
@@ -1887,12 +1887,12 @@ NK_INTERNAL void _nk_find_kernel_punned_u64(nk_capability_t v, nk_metric_kind_t 
  *  @param kernel_output Output variable for the selected similarity function.
  *  @param capability_output Output variable for the utilized hardware capabilities.
  */
-NK_INTERNAL void _nk_find_kernel_punned_( //
-    nk_metric_kind_t kind,                //
-    nk_datatype_t datatype,               //
-    nk_capability_t supported,            //
-    nk_capability_t allowed,              //
-    nk_kernel_punned_t *kernel_output,    //
+NK_INTERNAL void nk_find_kernel_punned_( //
+    nk_metric_kind_t kind,               //
+    nk_datatype_t datatype,              //
+    nk_capability_t supported,           //
+    nk_capability_t allowed,             //
+    nk_kernel_punned_t *kernel_output,   //
     nk_capability_t *capability_output) {
 
     // Modern compilers abso-freaking-lutely love optimizing-out my logic!
@@ -1910,29 +1910,29 @@ NK_INTERNAL void _nk_find_kernel_punned_( //
 
     switch (datatype) {
 
-    case nk_f64_k: _nk_find_kernel_punned_f64(viable, kind, m, c); return;
-    case nk_f32_k: _nk_find_kernel_punned_f32(viable, kind, m, c); return;
-    case nk_f16_k: _nk_find_kernel_punned_f16(viable, kind, m, c); return;
-    case nk_bf16_k: _nk_find_kernel_punned_bf16(viable, kind, m, c); return;
-    case nk_e4m3_k: _nk_find_kernel_punned_e4m3(viable, kind, m, c); return;
-    case nk_e5m2_k: _nk_find_kernel_punned_e5m2(viable, kind, m, c); return;
+    case nk_f64_k: nk_find_kernel_punned_f64_(viable, kind, m, c); return;
+    case nk_f32_k: nk_find_kernel_punned_f32_(viable, kind, m, c); return;
+    case nk_f16_k: nk_find_kernel_punned_f16_(viable, kind, m, c); return;
+    case nk_bf16_k: nk_find_kernel_punned_bf16_(viable, kind, m, c); return;
+    case nk_e4m3_k: nk_find_kernel_punned_e4m3_(viable, kind, m, c); return;
+    case nk_e5m2_k: nk_find_kernel_punned_e5m2_(viable, kind, m, c); return;
 
-    case nk_f32c_k: _nk_find_kernel_punned_f32c(viable, kind, m, c); return;
-    case nk_f64c_k: _nk_find_kernel_punned_f64c(viable, kind, m, c); return;
-    case nk_f16c_k: _nk_find_kernel_punned_f16c(viable, kind, m, c); return;
-    case nk_bf16c_k: _nk_find_kernel_punned_bf16c(viable, kind, m, c); return;
+    case nk_f32c_k: nk_find_kernel_punned_f32c_(viable, kind, m, c); return;
+    case nk_f64c_k: nk_find_kernel_punned_f64c_(viable, kind, m, c); return;
+    case nk_f16c_k: nk_find_kernel_punned_f16c_(viable, kind, m, c); return;
+    case nk_bf16c_k: nk_find_kernel_punned_bf16c_(viable, kind, m, c); return;
 
-    case nk_i8_k: _nk_find_kernel_punned_i8(viable, kind, m, c); return;
-    case nk_i16_k: _nk_find_kernel_punned_i16(viable, kind, m, c); return;
-    case nk_i32_k: _nk_find_kernel_punned_i32(viable, kind, m, c); return;
-    case nk_i64_k: _nk_find_kernel_punned_i64(viable, kind, m, c); return;
+    case nk_i8_k: nk_find_kernel_punned_i8_(viable, kind, m, c); return;
+    case nk_i16_k: nk_find_kernel_punned_i16_(viable, kind, m, c); return;
+    case nk_i32_k: nk_find_kernel_punned_i32_(viable, kind, m, c); return;
+    case nk_i64_k: nk_find_kernel_punned_i64_(viable, kind, m, c); return;
 
-    case nk_u8_k: _nk_find_kernel_punned_u8(viable, kind, m, c); return;
-    case nk_u16_k: _nk_find_kernel_punned_u16(viable, kind, m, c); return;
-    case nk_u32_k: _nk_find_kernel_punned_u32(viable, kind, m, c); return;
-    case nk_u64_k: _nk_find_kernel_punned_u64(viable, kind, m, c); return;
+    case nk_u8_k: nk_find_kernel_punned_u8_(viable, kind, m, c); return;
+    case nk_u16_k: nk_find_kernel_punned_u16_(viable, kind, m, c); return;
+    case nk_u32_k: nk_find_kernel_punned_u32_(viable, kind, m, c); return;
+    case nk_u64_k: nk_find_kernel_punned_u64_(viable, kind, m, c); return;
 
-    case nk_b8_k: _nk_find_kernel_punned_b8(viable, kind, m, c); return;
+    case nk_b8_k: nk_find_kernel_punned_b8_(viable, kind, m, c); return;
 
     // These data-types are not supported yet
     case nk_i4x2_k: break;
@@ -1947,118 +1947,6 @@ NK_INTERNAL void _nk_find_kernel_punned_( //
     // Modern compilers abso-freaking-lutely love optimizing-out my logic!
     // Just marking the variables as `volatile` is not enough, so we have
     // to add inline assembly to further discourage them!
-#if defined(_MSC_VER)
-    _ReadWriteBarrier();
-#else
-    __asm__ __volatile__("" ::: "memory");
-#endif
-}
-
-NK_INTERNAL void _nk_find_mesh_kernel_punned_f64(nk_capability_t v, nk_metric_kind_t k, nk_metric_mesh_punned_t *m,
-                                                 nk_capability_t *c) {
-    typedef nk_metric_mesh_punned_t m_t;
-#if NK_TARGET_SKYLAKE
-    if (v & nk_cap_skylake_k) switch (k) {
-        case nk_metric_rmsd_k: *m = (m_t)&nk_rmsd_f64_skylake, *c = nk_cap_skylake_k; return;
-        case nk_metric_kabsch_k: *m = (m_t)&nk_kabsch_f64_skylake, *c = nk_cap_skylake_k; return;
-        case nk_metric_umeyama_k: *m = (m_t)&nk_umeyama_f64_skylake, *c = nk_cap_skylake_k; return;
-        default: break;
-        }
-#endif
-#if NK_TARGET_HASWELL
-    if (v & nk_cap_haswell_k) switch (k) {
-        case nk_metric_rmsd_k: *m = (m_t)&nk_rmsd_f64_haswell, *c = nk_cap_haswell_k; return;
-        case nk_metric_kabsch_k: *m = (m_t)&nk_kabsch_f64_haswell, *c = nk_cap_haswell_k; return;
-        case nk_metric_umeyama_k: *m = (m_t)&nk_umeyama_f64_haswell, *c = nk_cap_haswell_k; return;
-        default: break;
-        }
-#endif
-    if (v & nk_cap_serial_k) switch (k) {
-        case nk_metric_rmsd_k: *m = (m_t)&nk_rmsd_f64_serial, *c = nk_cap_serial_k; return;
-        case nk_metric_kabsch_k: *m = (m_t)&nk_kabsch_f64_serial, *c = nk_cap_serial_k; return;
-        case nk_metric_umeyama_k: *m = (m_t)&nk_umeyama_f64_serial, *c = nk_cap_serial_k; return;
-        default: break;
-        }
-}
-
-NK_INTERNAL void _nk_find_mesh_kernel_punned_f32(nk_capability_t v, nk_metric_kind_t k, nk_metric_mesh_punned_t *m,
-                                                 nk_capability_t *c) {
-    typedef nk_metric_mesh_punned_t m_t;
-#if NK_TARGET_SKYLAKE
-    if (v & nk_cap_skylake_k) switch (k) {
-        case nk_metric_rmsd_k: *m = (m_t)&nk_rmsd_f32_skylake, *c = nk_cap_skylake_k; return;
-        case nk_metric_kabsch_k: *m = (m_t)&nk_kabsch_f32_skylake, *c = nk_cap_skylake_k; return;
-        case nk_metric_umeyama_k: *m = (m_t)&nk_umeyama_f32_skylake, *c = nk_cap_skylake_k; return;
-        default: break;
-        }
-#endif
-#if NK_TARGET_HASWELL
-    if (v & nk_cap_haswell_k) switch (k) {
-        case nk_metric_rmsd_k: *m = (m_t)&nk_rmsd_f32_haswell, *c = nk_cap_haswell_k; return;
-        case nk_metric_kabsch_k: *m = (m_t)&nk_kabsch_f32_haswell, *c = nk_cap_haswell_k; return;
-        case nk_metric_umeyama_k: *m = (m_t)&nk_umeyama_f32_haswell, *c = nk_cap_haswell_k; return;
-        default: break;
-        }
-#endif
-    if (v & nk_cap_serial_k) switch (k) {
-        case nk_metric_rmsd_k: *m = (m_t)&nk_rmsd_f32_serial, *c = nk_cap_serial_k; return;
-        case nk_metric_kabsch_k: *m = (m_t)&nk_kabsch_f32_serial, *c = nk_cap_serial_k; return;
-        case nk_metric_umeyama_k: *m = (m_t)&nk_umeyama_f32_serial, *c = nk_cap_serial_k; return;
-        default: break;
-        }
-}
-
-NK_INTERNAL void _nk_find_mesh_kernel_punned_f16(nk_capability_t v, nk_metric_kind_t k, nk_metric_mesh_punned_t *m,
-                                                 nk_capability_t *c) {
-    typedef nk_metric_mesh_punned_t m_t;
-    if (v & nk_cap_serial_k) switch (k) {
-        case nk_metric_rmsd_k: *m = (m_t)&nk_rmsd_f16_serial, *c = nk_cap_serial_k; return;
-        case nk_metric_kabsch_k: *m = (m_t)&nk_kabsch_f16_serial, *c = nk_cap_serial_k; return;
-        case nk_metric_umeyama_k: *m = (m_t)&nk_umeyama_f16_serial, *c = nk_cap_serial_k; return;
-        default: break;
-        }
-}
-
-NK_INTERNAL void _nk_find_mesh_kernel_punned_bf16(nk_capability_t v, nk_metric_kind_t k, nk_metric_mesh_punned_t *m,
-                                                  nk_capability_t *c) {
-    typedef nk_metric_mesh_punned_t m_t;
-    if (v & nk_cap_serial_k) switch (k) {
-        case nk_metric_rmsd_k: *m = (m_t)&nk_rmsd_bf16_serial, *c = nk_cap_serial_k; return;
-        case nk_metric_kabsch_k: *m = (m_t)&nk_kabsch_bf16_serial, *c = nk_cap_serial_k; return;
-        case nk_metric_umeyama_k: *m = (m_t)&nk_umeyama_bf16_serial, *c = nk_cap_serial_k; return;
-        default: break;
-        }
-}
-
-NK_INTERNAL void _nk_find_mesh_kernel_punned_( //
-    nk_metric_kind_t kind,                     //
-    nk_datatype_t datatype,                    //
-    nk_capability_t supported,                 //
-    nk_capability_t allowed,                   //
-    nk_metric_mesh_punned_t *kernel_output,    //
-    nk_capability_t *capability_output) {
-
-#if defined(_MSC_VER)
-    _ReadWriteBarrier();
-#else
-    __asm__ __volatile__("" ::: "memory");
-#endif
-
-    nk_metric_mesh_punned_t *m = kernel_output;
-    nk_capability_t *c = capability_output;
-    nk_capability_t viable = (nk_capability_t)(supported & allowed);
-
-    switch (datatype) {
-    case nk_f64_k: _nk_find_mesh_kernel_punned_f64(viable, kind, m, c); return;
-    case nk_f32_k: _nk_find_mesh_kernel_punned_f32(viable, kind, m, c); return;
-    case nk_f16_k: _nk_find_mesh_kernel_punned_f16(viable, kind, m, c); return;
-    case nk_bf16_k: _nk_find_mesh_kernel_punned_bf16(viable, kind, m, c); return;
-    default: break;
-    }
-
-    *m = (nk_metric_mesh_punned_t)0;
-    *c = (nk_capability_t)0;
-
 #if defined(_MSC_VER)
     _ReadWriteBarrier();
 #else
@@ -2106,7 +1994,7 @@ NK_PUBLIC nk_kernel_punned_t nk_metric_punned( //
  *  @return 1 if the CPU supports the SIMD instruction set, 0 otherwise.
  */
 NK_DYNAMIC nk_capability_t nk_capabilities(void);
-NK_DYNAMIC int nk_flush_denormals(nk_capability_t);
+NK_DYNAMIC int nk_configure_thread(nk_capability_t);
 NK_DYNAMIC int nk_uses_dynamic_dispatch(void);
 NK_DYNAMIC int nk_uses_neon(void);
 NK_DYNAMIC int nk_uses_neon_f16(void);
@@ -2140,36 +2028,34 @@ NK_DYNAMIC int nk_uses_sierra(void);
  *  @return 1 if the CPU supports the SIMD instruction set, 0 otherwise.
  */
 
-// clang-format off
-NK_PUBLIC int nk_uses_neon(void) { return _NK_TARGET_ARM && NK_TARGET_NEON; }
-NK_PUBLIC int nk_uses_neon_f16(void) { return _NK_TARGET_ARM && NK_TARGET_NEON_F16 ; }
-NK_PUBLIC int nk_uses_neon_bf16(void) { return _NK_TARGET_ARM && NK_TARGET_NEON_BF16; }
-NK_PUBLIC int nk_uses_neon_i8(void) { return _NK_TARGET_ARM && NK_TARGET_NEON_I8; }
-NK_PUBLIC int nk_uses_sve(void) { return _NK_TARGET_ARM && NK_TARGET_SVE; }
-NK_PUBLIC int nk_uses_sve_f16(void) { return _NK_TARGET_ARM && NK_TARGET_SVE_F16; }
-NK_PUBLIC int nk_uses_sve_bf16(void) { return _NK_TARGET_ARM && NK_TARGET_SVE_BF16; }
-NK_PUBLIC int nk_uses_sve_i8(void) { return _NK_TARGET_ARM && NK_TARGET_SVE_I8; }
-NK_PUBLIC int nk_uses_sve2(void) { return _NK_TARGET_ARM && NK_TARGET_SVE2; }
-NK_PUBLIC int nk_uses_haswell(void) { return _NK_TARGET_X86 && NK_TARGET_HASWELL; }
-NK_PUBLIC int nk_uses_skylake(void) { return _NK_TARGET_X86 && NK_TARGET_SKYLAKE; }
-NK_PUBLIC int nk_uses_ice(void) { return _NK_TARGET_X86 && NK_TARGET_ICE; }
-NK_PUBLIC int nk_uses_genoa(void) { return _NK_TARGET_X86 && NK_TARGET_GENOA; }
-NK_PUBLIC int nk_uses_sapphire(void) { return _NK_TARGET_X86 && NK_TARGET_SAPPHIRE; }
-NK_PUBLIC int nk_uses_turin(void) { return _NK_TARGET_X86 && NK_TARGET_TURIN; }
-NK_PUBLIC int nk_uses_sierra(void) { return _NK_TARGET_X86 && NK_TARGET_SIERRA; }
+NK_PUBLIC int nk_uses_neon(void) { return NK_TARGET_ARM_ && NK_TARGET_NEON; }
+NK_PUBLIC int nk_uses_neon_f16(void) { return NK_TARGET_ARM_ && NK_TARGET_NEON_F16; }
+NK_PUBLIC int nk_uses_neon_bf16(void) { return NK_TARGET_ARM_ && NK_TARGET_NEON_BF16; }
+NK_PUBLIC int nk_uses_neon_i8(void) { return NK_TARGET_ARM_ && NK_TARGET_NEON_I8; }
+NK_PUBLIC int nk_uses_sve(void) { return NK_TARGET_ARM_ && NK_TARGET_SVE; }
+NK_PUBLIC int nk_uses_sve_f16(void) { return NK_TARGET_ARM_ && NK_TARGET_SVE_F16; }
+NK_PUBLIC int nk_uses_sve_bf16(void) { return NK_TARGET_ARM_ && NK_TARGET_SVE_BF16; }
+NK_PUBLIC int nk_uses_sve_i8(void) { return NK_TARGET_ARM_ && NK_TARGET_SVE_I8; }
+NK_PUBLIC int nk_uses_sve2(void) { return NK_TARGET_ARM_ && NK_TARGET_SVE2; }
+NK_PUBLIC int nk_uses_haswell(void) { return NK_TARGET_X86_ && NK_TARGET_HASWELL; }
+NK_PUBLIC int nk_uses_skylake(void) { return NK_TARGET_X86_ && NK_TARGET_SKYLAKE; }
+NK_PUBLIC int nk_uses_ice(void) { return NK_TARGET_X86_ && NK_TARGET_ICE; }
+NK_PUBLIC int nk_uses_genoa(void) { return NK_TARGET_X86_ && NK_TARGET_GENOA; }
+NK_PUBLIC int nk_uses_sapphire(void) { return NK_TARGET_X86_ && NK_TARGET_SAPPHIRE; }
+NK_PUBLIC int nk_uses_turin(void) { return NK_TARGET_X86_ && NK_TARGET_TURIN; }
+NK_PUBLIC int nk_uses_sierra(void) { return NK_TARGET_X86_ && NK_TARGET_SIERRA; }
 NK_PUBLIC int nk_uses_dynamic_dispatch(void) { return 0; }
-NK_PUBLIC int nk_flush_denormals(nk_capability_t c) { return _nk_flush_denormals(c); }
-NK_PUBLIC nk_capability_t nk_capabilities(void) { return _nk_capabilities_(); }
-NK_PUBLIC void nk_find_kernel_punned( //
-    nk_metric_kind_t kind,                 //
-    nk_datatype_t datatype,                //
-    nk_capability_t supported,             //
-    nk_capability_t allowed,               //
-    nk_kernel_punned_t* kernel_output,     //
-    nk_capability_t* capability_output) {
-    _nk_find_kernel_punned_(kind, datatype, supported, allowed, kernel_output, capability_output);
+NK_PUBLIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }
+NK_PUBLIC nk_capability_t nk_capabilities(void) { return nk_capabilities_(); }
+NK_PUBLIC void nk_find_kernel_punned(  //
+    nk_metric_kind_t kind,             //
+    nk_datatype_t datatype,            //
+    nk_capability_t supported,         //
+    nk_capability_t allowed,           //
+    nk_kernel_punned_t *kernel_output, //
+    nk_capability_t *capability_output) {
+    nk_find_kernel_punned_(kind, datatype, supported, allowed, kernel_output, capability_output);
 }
-// clang-format on
 
 #endif
 

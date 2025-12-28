@@ -137,88 +137,88 @@ void test_utilities(void) {
 void test_saturating_arithmetic(void) {
     // Test cases for addition functions
     nk_u8_t u8_a = 200, u8_b = 100, u8_r;
-    _nk_u8_sadd(&u8_a, &u8_b, &u8_r);
+    nk_u8_sadd_(&u8_a, &u8_b, &u8_r);
     assert(u8_r == 255); // Overflow case for u8
 
     nk_i8_t i8_a = 100, i8_b = 40, i8_r;
-    _nk_i8_sadd(&i8_a, &i8_b, &i8_r);
+    nk_i8_sadd_(&i8_a, &i8_b, &i8_r);
     assert(i8_r == 127); // Overflow case for i8
 
     nk_i8_t i8_under_a = -100, i8_under_b = -40;
-    _nk_i8_sadd(&i8_under_a, &i8_under_b, &i8_r);
+    nk_i8_sadd_(&i8_under_a, &i8_under_b, &i8_r);
     assert(i8_r == -128); // Underflow case for i8
 
     nk_u16_t u16_a = 50000, u16_b = 20000, u16_r;
-    _nk_u16_sadd(&u16_a, &u16_b, &u16_r);
+    nk_u16_sadd_(&u16_a, &u16_b, &u16_r);
     assert(u16_r == 65535); // Overflow case for u16
 
     nk_i16_t i16_a = 30000, i16_b = 10000, i16_r;
-    _nk_i16_sadd(&i16_a, &i16_b, &i16_r);
+    nk_i16_sadd_(&i16_a, &i16_b, &i16_r);
     assert(i16_r == 32767); // Overflow case for i16
 
     nk_i16_t i16_under_a = -20000, i16_under_b = -15000;
-    _nk_i16_sadd(&i16_under_a, &i16_under_b, &i16_r);
+    nk_i16_sadd_(&i16_under_a, &i16_under_b, &i16_r);
     assert(i16_r == -32768); // Underflow case for i16
 
     // Test cases for multiplication functions
     nk_u8_t u8_m_a = 20, u8_m_b = 20, u8_m_r;
-    _nk_u8_smul(&u8_m_a, &u8_m_b, &u8_m_r);
+    nk_u8_smul_(&u8_m_a, &u8_m_b, &u8_m_r);
     assert(u8_m_r == 255); // Overflow case for u8 multiplication
 
     nk_i8_t i8_m_a = 10, i8_m_b = -13, i8_m_r;
-    _nk_i8_smul(&i8_m_a, &i8_m_b, &i8_m_r);
+    nk_i8_smul_(&i8_m_a, &i8_m_b, &i8_m_r);
     assert(i8_m_r == -128); // Underflow case for i8 multiplication
 
     nk_i8_t i8_m_under_a = -100, i8_m_under_b = 2;
-    _nk_i8_smul(&i8_m_under_a, &i8_m_under_b, &i8_m_r);
+    nk_i8_smul_(&i8_m_under_a, &i8_m_under_b, &i8_m_r);
     assert(i8_m_r == -128); // Underflow case for i8 multiplication
 
     nk_u16_t u16_m_a = 300, u16_m_b = 300, u16_m_r;
-    _nk_u16_smul(&u16_m_a, &u16_m_b, &u16_m_r);
+    nk_u16_smul_(&u16_m_a, &u16_m_b, &u16_m_r);
     assert(u16_m_r == 65535); // Overflow case for u16 multiplication
 
     nk_i16_t i16_m_a = 200, i16_m_b = 300, i16_m_r;
-    _nk_i16_smul(&i16_m_a, &i16_m_b, &i16_m_r);
+    nk_i16_smul_(&i16_m_a, &i16_m_b, &i16_m_r);
     assert(i16_m_r == 32767); // Overflow case for i16 multiplication
 
     nk_i16_t i16_m_under_a = -200, i16_m_under_b = 300;
-    _nk_i16_smul(&i16_m_under_a, &i16_m_under_b, &i16_m_r);
+    nk_i16_smul_(&i16_m_under_a, &i16_m_under_b, &i16_m_r);
     assert(i16_m_r == -32768); // Underflow case for i16 multiplication
 
     // i32/u32 saturating addition
     nk_i32_t i32_a = 2000000000, i32_b = 200000000, i32_r;
-    _nk_i32_sadd(&i32_a, &i32_b, &i32_r);
+    nk_i32_sadd_(&i32_a, &i32_b, &i32_r);
     assert(i32_r == 2147483647); // Overflow case for i32
 
     nk_u32_t u32_a = 4000000000U, u32_b = 400000000U, u32_r;
-    _nk_u32_sadd(&u32_a, &u32_b, &u32_r);
+    nk_u32_sadd_(&u32_a, &u32_b, &u32_r);
     assert(u32_r == 4294967295U); // Overflow case for u32
 
     // i64/u64 saturating addition
     nk_i64_t i64_a = 9000000000000000000LL, i64_b = 1000000000000000000LL, i64_r;
-    _nk_i64_sadd(&i64_a, &i64_b, &i64_r);
+    nk_i64_sadd_(&i64_a, &i64_b, &i64_r);
     assert(i64_r == 9223372036854775807LL); // Overflow case for i64
 
     nk_u64_t u64_a = 18000000000000000000ULL, u64_b = 1000000000000000000ULL, u64_r;
-    _nk_u64_sadd(&u64_a, &u64_b, &u64_r);
+    nk_u64_sadd_(&u64_a, &u64_b, &u64_r);
     assert(u64_r == 18446744073709551615ULL); // Overflow case for u64
 
     // Normal cases without overflow
     nk_u8_t u8_n_a = 20, u8_n_b = 15, u8_n_r;
-    _nk_u8_sadd(&u8_n_a, &u8_n_b, &u8_n_r);
+    nk_u8_sadd_(&u8_n_a, &u8_n_b, &u8_n_r);
     assert(u8_n_r == 35);
 
     nk_i8_t i8_n_a = -10, i8_n_b = 20, i8_n_r;
-    _nk_i8_sadd(&i8_n_a, &i8_n_b, &i8_n_r);
+    nk_i8_sadd_(&i8_n_a, &i8_n_b, &i8_n_r);
     assert(i8_n_r == 10);
 
     // Floating-point cases
     nk_f32_t f32_a = 1.5f, f32_b = 2.5f, f32_r;
-    _nk_f32_sadd(&f32_a, &f32_b, &f32_r);
+    nk_f32_sadd_(&f32_a, &f32_b, &f32_r);
     assert(f32_r == 4.0f); // Normal addition for f32
 
     nk_f32_t f32_m_a = 1.5f, f32_m_b = 2.0f;
-    _nk_f32_smul(&f32_m_a, &f32_m_b, &f32_r);
+    nk_f32_smul_(&f32_m_a, &f32_m_b, &f32_r);
     assert(f32_r == 3.0f); // Normal multiplication for f32
 
     printf("Test saturating arithmetic: PASS\n");
@@ -308,9 +308,9 @@ void test_xd_index(void) {
         }
         // Accumulate a slice: tensor[1:9:2, 2:42:4, 1:5:3] ~ 4 channels, 10 rows, 2 columns
         nk_xd_index_init(&xd_index);
-        shape[0] = _nk_divide_ceil(9 - 1, 2);
-        shape[1] = _nk_divide_ceil(42 - 2, 4);
-        shape[2] = _nk_divide_ceil(5 - 1, 3);
+        shape[0] = nk_divide_ceil_(9 - 1, 2);
+        shape[1] = nk_divide_ceil_(42 - 2, 4);
+        shape[2] = nk_divide_ceil_(5 - 1, 3);
         strides[0] = 43 * 7 * sizeof(nk_f32_t) * 2; // Physical size of 2 channels
         strides[1] = 7 * sizeof(nk_f32_t) * 4;      // Physical size of 4 rows
         strides[2] = 3 * sizeof(nk_f32_t);          // Physical size of 3 columns
@@ -334,7 +334,7 @@ void test_xd_index(void) {
                         ((j - 2) / 4) * shape[2] +            //
                         ((k - 1) / 3);                        //
                     nk_f32_t const entry_native = tensor[i][j][k];
-                    nk_f32_t const entry_from_byte_offset = *(nk_f32_t *)_nk_advance_by_bytes(&tensor[1][2][1],
+                    nk_f32_t const entry_from_byte_offset = *(nk_f32_t *)nk_advance_by_bytes_(&tensor[1][2][1],
                                                                                               xd_index.byte_offset);
                     nk_f32_t const entry_from_coordinate = tensor //
                         [xd_index.coordinates[0] * 2 + 1]         //
@@ -1497,7 +1497,7 @@ void test_matmul_bf16(void) {
     // Test Sapphire (AMX) implementation
     {
         nk_capability_t caps = nk_capabilities();
-        nk_flush_denormals(caps); // Enable AMX if available
+        nk_configure_thread(caps); // Enable AMX if available
         if (caps & nk_cap_sapphire_amx_k) {
             nk_size_t packed_size = nk_dots_bf16bf16f32_packed_size_sapphire_amx(n, k);
             void *b_packed = malloc(packed_size);
@@ -1560,7 +1560,7 @@ void test_matmul_i8(void) {
     // Test Sapphire (AMX) implementation
     {
         nk_capability_t caps = nk_capabilities();
-        nk_flush_denormals(caps); // Enable AMX if available
+        nk_configure_thread(caps); // Enable AMX if available
         if (caps & nk_cap_sapphire_amx_k) {
             nk_size_t packed_size = nk_dots_i8i8i32_packed_size_sapphire_amx(n, k);
             void *b_packed = malloc(packed_size);

@@ -8,7 +8,7 @@
 #ifndef NK_SPATIAL_NEON_H
 #define NK_SPATIAL_NEON_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a+simd")
@@ -20,9 +20,9 @@
 extern "C" {
 #endif
 
-NK_INTERNAL nk_f32_t _nk_sqrt_f32_neon(nk_f32_t x) { return vget_lane_f32(vsqrt_f32(vdup_n_f32(x)), 0); }
-NK_INTERNAL nk_f64_t _nk_sqrt_f64_neon(nk_f64_t x) { return vget_lane_f64(vsqrt_f64(vdup_n_f64(x)), 0); }
-NK_INTERNAL nk_f32_t _nk_angular_normalize_f32_neon(nk_f32_t ab, nk_f32_t a2, nk_f32_t b2) {
+NK_INTERNAL nk_f32_t nk_sqrt_f32_neon_(nk_f32_t x) { return vget_lane_f32(vsqrt_f32(vdup_n_f32(x)), 0); }
+NK_INTERNAL nk_f64_t nk_sqrt_f64_neon_(nk_f64_t x) { return vget_lane_f64(vsqrt_f64(vdup_n_f64(x)), 0); }
+NK_INTERNAL nk_f32_t nk_angular_normalize_f32_neon_(nk_f32_t ab, nk_f32_t a2, nk_f32_t b2) {
     if (a2 == 0 && b2 == 0) return 0;
     if (ab == 0) return 1;
     nk_f32_t squares_arr[2] = {a2, b2};
@@ -42,7 +42,7 @@ NK_INTERNAL nk_f32_t _nk_angular_normalize_f32_neon(nk_f32_t ab, nk_f32_t a2, nk
     return result > 0 ? result : 0;
 }
 
-NK_INTERNAL nk_f64_t _nk_angular_normalize_f64_neon(nk_f64_t ab, nk_f64_t a2, nk_f64_t b2) {
+NK_INTERNAL nk_f64_t nk_angular_normalize_f64_neon_(nk_f64_t ab, nk_f64_t a2, nk_f64_t b2) {
     if (a2 == 0 && b2 == 0) return 0;
     if (ab == 0) return 1;
     nk_f64_t squares_arr[2] = {a2, b2};
@@ -65,7 +65,7 @@ NK_INTERNAL nk_f64_t _nk_angular_normalize_f64_neon(nk_f64_t ab, nk_f64_t a2, nk
 
 NK_PUBLIC void nk_l2_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_l2sq_f32_neon(a, b, n, result);
-    *result = _nk_sqrt_f32_neon(*result);
+    *result = nk_sqrt_f32_neon_(*result);
 }
 NK_PUBLIC void nk_l2sq_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     float32x4_t sum_vec = vdupq_n_f32(0);
@@ -100,12 +100,12 @@ NK_PUBLIC void nk_angular_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
 
-    *result = (nk_f32_t)_nk_angular_normalize_f64_neon(ab, a2, b2);
+    *result = (nk_f32_t)nk_angular_normalize_f64_neon_(ab, a2, b2);
 }
 
 NK_PUBLIC void nk_l2_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_l2sq_f64_neon(a, b, n, result);
-    *result = _nk_sqrt_f64_neon(*result);
+    *result = nk_sqrt_f64_neon_(*result);
 }
 NK_PUBLIC void nk_l2sq_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     float64x2_t sum_vec = vdupq_n_f64(0);
@@ -140,7 +140,7 @@ NK_PUBLIC void nk_angular_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
 
-    *result = _nk_angular_normalize_f64_neon(ab, a2, b2);
+    *result = nk_angular_normalize_f64_neon_(ab, a2, b2);
 }
 
 typedef nk_dot_f32x4_state_neon_t nk_angular_f32x4_state_neon_t;
@@ -273,6 +273,6 @@ NK_INTERNAL void nk_l2_f32x4_finalize_neon(nk_l2_f32x4_state_neon_t const *state
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_SPATIAL_NEON_H

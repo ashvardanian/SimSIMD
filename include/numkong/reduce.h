@@ -25,7 +25,7 @@
  *      sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
  *  }
  *  // Single horizontal reduce at the END only
- *  nk_f32_t result = _nk_reduce_add_f32x16_skylake(sum_f32x16);
+ *  nk_f32_t result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
  *  @endcode
  *
  *  @section stride_handling Stride Handling Strategies

@@ -8,7 +8,7 @@
 #ifndef NK_DOTS_ICE_H
 #define NK_DOTS_ICE_H
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_ICE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vnni")
@@ -25,7 +25,7 @@ extern "C" {
 NK_MAKE_DOTS_SERIAL_PACKED_SIZE(ice, i8, i32, NK_DOTS_SERIAL_TILE_K_I8)
 NK_MAKE_DOTS_SERIAL_PACK(ice, i8, i32, NK_DOTS_SERIAL_TILE_K_I8)
 NK_MAKE_DOTS_INNER(i8i8i32_ice, i8, i32, nk_b512_vec_t, nk_dot_i8x64_state_ice_t, nk_dot_i8x64_init_ice,
-                   _nk_load_b512_skylake, _nk_partial_load_b8x64_skylake, nk_dot_i8x64_update_ice,
+                   nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_, nk_dot_i8x64_update_ice,
                    nk_dot_i8x64_finalize_ice,
                    /*k_tile=*/64, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -33,7 +33,7 @@ NK_MAKE_DOTS_INNER(i8i8i32_ice, i8, i32, nk_b512_vec_t, nk_dot_i8x64_state_ice_t
 NK_MAKE_DOTS_SERIAL_PACKED_SIZE(ice, u8, i32, NK_DOTS_SERIAL_TILE_K_U8)
 NK_MAKE_DOTS_SERIAL_PACK(ice, u8, i32, NK_DOTS_SERIAL_TILE_K_U8)
 NK_MAKE_DOTS_INNER(u8u8i32_ice, u8, u32, nk_b512_vec_t, nk_dot_u8x64_state_ice_t, nk_dot_u8x64_init_ice,
-                   _nk_load_b512_skylake, _nk_partial_load_b8x64_skylake, nk_dot_u8x64_update_ice,
+                   nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_, nk_dot_u8x64_update_ice,
                    nk_dot_u8x64_finalize_ice,
                    /*k_tile=*/64, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -44,6 +44,6 @@ NK_MAKE_DOTS_INNER(u8u8i32_ice, u8, u32, nk_b512_vec_t, nk_dot_u8x64_state_ice_t
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_ICE
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
 #endif // NK_DOTS_ICE_H

@@ -8,7 +8,7 @@
 #ifndef NK_DOT_SAPPHIRE_H
 #define NK_DOT_SAPPHIRE_H
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_SAPPHIRE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512fp16")
@@ -140,7 +140,7 @@ nk_vdot_f16c_sapphire_cycle:
  *  The key difference from E5M2→F16 (which is trivial) is the bias adjustment:
  *  E5M2 and F16 share bias=15, so just shift. E4M3 needs +8 to exponent.
  */
-NK_INTERNAL __m512i _nk_e4m3_to_f16_sapphire(__m256i e4m3_i8x32) {
+NK_INTERNAL __m512i nk_e4m3_to_f16_sapphire_(__m256i e4m3_i8x32) {
     __m512i e4m3_i16x32 = _mm512_cvtepu8_epi16(e4m3_i8x32);
     // Sign: bit 7 → bit 15
     __m512i sign_i16x32 = _mm512_and_si512(_mm512_slli_epi16(e4m3_i16x32, 8), _mm512_set1_epi16((short)0x8000));
@@ -161,7 +161,7 @@ NK_INTERNAL __m512i _nk_e4m3_to_f16_sapphire(__m256i e4m3_i8x32) {
  *  E5M2 format: S EEEEE MM         (bias=15)
  *  F16 format:  S EEEEE MMMMMMMMMM (bias=15)
  */
-NK_INTERNAL __m512i _nk_e5m2_to_f16_sapphire(__m256i e5m2_i8x32) {
+NK_INTERNAL __m512i nk_e5m2_to_f16_sapphire_(__m256i e5m2_i8x32) {
     __m512i e5m2_i16x32 = _mm512_cvtepu8_epi16(e5m2_i8x32);
     return _mm512_slli_epi16(e5m2_i16x32, 8);
 }
@@ -184,8 +184,8 @@ nk_dot_e4m3_sapphire_cycle:
         a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
     // Convert E4M3 to F16 and compute dot product
-    __m512i a_f16x32 = _nk_e4m3_to_f16_sapphire(a_e4m3x32);
-    __m512i b_f16x32 = _nk_e4m3_to_f16_sapphire(b_e4m3x32);
+    __m512i a_f16x32 = nk_e4m3_to_f16_sapphire_(a_e4m3x32);
+    __m512i b_f16x32 = nk_e4m3_to_f16_sapphire_(b_e4m3x32);
     sum_f16x32 = _mm512_fmadd_ph(_mm512_castsi512_ph(a_f16x32), _mm512_castsi512_ph(b_f16x32), sum_f16x32);
     if (count_scalars) goto nk_dot_e4m3_sapphire_cycle;
 
@@ -211,8 +211,8 @@ nk_dot_e5m2_sapphire_cycle:
     }
     // Convert E5M2 to F16 and compute dot product
     // Note: E5M2 to F16 is extremely fast due to same exponent bias
-    __m512i a_f16x32 = _nk_e5m2_to_f16_sapphire(a_e5m2x32);
-    __m512i b_f16x32 = _nk_e5m2_to_f16_sapphire(b_e5m2x32);
+    __m512i a_f16x32 = nk_e5m2_to_f16_sapphire_(a_e5m2x32);
+    __m512i b_f16x32 = nk_e5m2_to_f16_sapphire_(b_e5m2x32);
     sum_f16x32 = _mm512_fmadd_ph(_mm512_castsi512_ph(a_f16x32), _mm512_castsi512_ph(b_f16x32), sum_f16x32);
     if (count_scalars) goto nk_dot_e5m2_sapphire_cycle;
 
@@ -298,13 +298,13 @@ NK_INTERNAL void nk_dot_e4m3x64_update_sapphire(nk_dot_e4m3x64_state_sapphire_t 
     __m512h sum_f16x32 = state->sum_f16x32;
     __m256i a_e4m3x32 = _mm256_loadu_epi8(a.e4m3s + 0);
     __m256i b_e4m3x32 = _mm256_loadu_epi8(b.e4m3s + 0);
-    __m512i a_f16x32 = _nk_e4m3_to_f16_sapphire(a_e4m3x32);
-    __m512i b_f16x32 = _nk_e4m3_to_f16_sapphire(b_e4m3x32);
+    __m512i a_f16x32 = nk_e4m3_to_f16_sapphire_(a_e4m3x32);
+    __m512i b_f16x32 = nk_e4m3_to_f16_sapphire_(b_e4m3x32);
     sum_f16x32 = _mm512_fmadd_ph(_mm512_castsi512_ph(a_f16x32), _mm512_castsi512_ph(b_f16x32), sum_f16x32);
     a_e4m3x32 = _mm256_loadu_epi8(a.e4m3s + 32);
     b_e4m3x32 = _mm256_loadu_epi8(b.e4m3s + 32);
-    a_f16x32 = _nk_e4m3_to_f16_sapphire(a_e4m3x32);
-    b_f16x32 = _nk_e4m3_to_f16_sapphire(b_e4m3x32);
+    a_f16x32 = nk_e4m3_to_f16_sapphire_(a_e4m3x32);
+    b_f16x32 = nk_e4m3_to_f16_sapphire_(b_e4m3x32);
     state->sum_f16x32 = _mm512_fmadd_ph(_mm512_castsi512_ph(a_f16x32), _mm512_castsi512_ph(b_f16x32), sum_f16x32);
 }
 
@@ -331,13 +331,13 @@ NK_INTERNAL void nk_dot_e5m2x64_update_sapphire(nk_dot_e5m2x64_state_sapphire_t 
     __m512h sum_f16x32 = state->sum_f16x32;
     __m256i a_e5m2x32 = _mm256_loadu_epi8(a.e5m2s + 0);
     __m256i b_e5m2x32 = _mm256_loadu_epi8(b.e5m2s + 0);
-    __m512i a_f16x32 = _nk_e5m2_to_f16_sapphire(a_e5m2x32);
-    __m512i b_f16x32 = _nk_e5m2_to_f16_sapphire(b_e5m2x32);
+    __m512i a_f16x32 = nk_e5m2_to_f16_sapphire_(a_e5m2x32);
+    __m512i b_f16x32 = nk_e5m2_to_f16_sapphire_(b_e5m2x32);
     sum_f16x32 = _mm512_fmadd_ph(_mm512_castsi512_ph(a_f16x32), _mm512_castsi512_ph(b_f16x32), sum_f16x32);
     a_e5m2x32 = _mm256_loadu_epi8(a.e5m2s + 32);
     b_e5m2x32 = _mm256_loadu_epi8(b.e5m2s + 32);
-    a_f16x32 = _nk_e5m2_to_f16_sapphire(a_e5m2x32);
-    b_f16x32 = _nk_e5m2_to_f16_sapphire(b_e5m2x32);
+    a_f16x32 = nk_e5m2_to_f16_sapphire_(a_e5m2x32);
+    b_f16x32 = nk_e5m2_to_f16_sapphire_(b_e5m2x32);
     state->sum_f16x32 = _mm512_fmadd_ph(_mm512_castsi512_ph(a_f16x32), _mm512_castsi512_ph(b_f16x32), sum_f16x32);
 }
 
@@ -358,6 +358,6 @@ NK_INTERNAL void nk_dot_e5m2x64_finalize_sapphire(                              
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_SAPPHIRE
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
 #endif // NK_DOT_SAPPHIRE_H

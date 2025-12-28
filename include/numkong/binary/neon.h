@@ -8,7 +8,7 @@
 #ifndef NK_BINARY_NEON_H
 #define NK_BINARY_NEON_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a+simd")
@@ -36,7 +36,7 @@ NK_PUBLIC void nk_hamming_b8_neon(nk_b8_t const *a, nk_b8_t const *b, nk_size_t 
             uint8x16_t xor_popcount_u8x16 = vcntq_u8(veorq_u8(a_u8x16, b_u8x16));
             popcount_u8x16 = vaddq_u8(popcount_u8x16, xor_popcount_u8x16);
         }
-        differences += _nk_reduce_add_u8x16_neon(popcount_u8x16);
+        differences += nk_reduce_add_u8x16_neon_(popcount_u8x16);
     }
     // Handle the tail
     for (; i != n_words; ++i) differences += nk_popcount_b8(a[i] ^ b[i]);
@@ -59,8 +59,8 @@ NK_PUBLIC void nk_jaccard_b8_neon(nk_b8_t const *a, nk_b8_t const *b, nk_size_t 
             intersection_popcount_u8x16 = vaddq_u8(intersection_popcount_u8x16, vcntq_u8(vandq_u8(a_u8x16, b_u8x16)));
             union_popcount_u8x16 = vaddq_u8(union_popcount_u8x16, vcntq_u8(vorrq_u8(a_u8x16, b_u8x16)));
         }
-        intersection_count += _nk_reduce_add_u8x16_neon(intersection_popcount_u8x16);
-        union_count += _nk_reduce_add_u8x16_neon(union_popcount_u8x16);
+        intersection_count += nk_reduce_add_u8x16_neon_(intersection_popcount_u8x16);
+        union_count += nk_reduce_add_u8x16_neon_(union_popcount_u8x16);
     }
     // Handle the tail
     for (; i != n_words; ++i)
@@ -170,6 +170,6 @@ NK_INTERNAL void nk_jaccard_b128_finalize_neon(nk_jaccard_b128_state_neon_t cons
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_BINARY_NEON_H

@@ -8,7 +8,7 @@
 #ifndef NK_ELEMENTWISE_SAPPHIRE_H
 #define NK_ELEMENTWISE_SAPPHIRE_H
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_SAPPHIRE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512fp16")
@@ -477,6 +477,6 @@ nk_fma_u8_sapphire_cycle:
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_SAPPHIRE
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
 #endif // NK_ELEMENTWISE_SAPPHIRE_H

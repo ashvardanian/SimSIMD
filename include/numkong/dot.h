@@ -22,8 +22,8 @@
  *
  *  For hardware architectures:
  *
- *  - Arm: NEON, SVE
- *  - x86: Haswell, Ice Lake, Skylake, Genoa, Sapphire, Sierra Forest
+ *  - Arm: NEON, NEON+I8, NEON+F16, NEON+BF16, SVE, SVE+F16
+ *  - x86: Haswell, Ice Lake, Skylake, Genoa, Sapphire Rapids, Sierra Forest
  *
  *  @section streaming_api Streaming API
  *

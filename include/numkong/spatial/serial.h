@@ -123,13 +123,13 @@ extern "C" {
         }                                                                                                       \
     }
 
-NK_MAKE_COS(serial, f64, f64, f64, NK_ASSIGN_FROM_TO, NK_F64_RSQRT)    // nk_angular_f64_serial
-NK_MAKE_L2SQ(serial, f64, f64, f64, NK_ASSIGN_FROM_TO)                 // nk_l2sq_f64_serial
-NK_MAKE_L2(serial, f64, f64, f64, f64, NK_ASSIGN_FROM_TO, NK_F64_SQRT) // nk_l2_f64_serial
+NK_MAKE_COS(serial, f64, f64, f64, nk_assign_from_to_, NK_F64_RSQRT)    // nk_angular_f64_serial
+NK_MAKE_L2SQ(serial, f64, f64, f64, nk_assign_from_to_)                 // nk_l2sq_f64_serial
+NK_MAKE_L2(serial, f64, f64, f64, f64, nk_assign_from_to_, NK_F64_SQRT) // nk_l2_f64_serial
 
-NK_MAKE_COS(serial, f32, f32, f32, NK_ASSIGN_FROM_TO, NK_F32_RSQRT)    // nk_angular_f32_serial
-NK_MAKE_L2SQ(serial, f32, f32, f32, NK_ASSIGN_FROM_TO)                 // nk_l2sq_f32_serial
-NK_MAKE_L2(serial, f32, f32, f32, f32, NK_ASSIGN_FROM_TO, NK_F32_SQRT) // nk_l2_f32_serial
+NK_MAKE_COS(serial, f32, f32, f32, nk_assign_from_to_, NK_F32_RSQRT)    // nk_angular_f32_serial
+NK_MAKE_L2SQ(serial, f32, f32, f32, nk_assign_from_to_)                 // nk_l2sq_f32_serial
+NK_MAKE_L2(serial, f32, f32, f32, f32, nk_assign_from_to_, NK_F32_SQRT) // nk_l2_f32_serial
 
 NK_MAKE_COS(serial, f16, f32, f32, nk_f16_to_f32, NK_F32_RSQRT)    // nk_angular_f16_serial
 NK_MAKE_L2SQ(serial, f16, f32, f32, nk_f16_to_f32)                 // nk_l2sq_f16_serial
@@ -139,21 +139,21 @@ NK_MAKE_COS(serial, bf16, f32, f32, nk_bf16_to_f32, NK_F32_RSQRT)    // nk_angul
 NK_MAKE_L2SQ(serial, bf16, f32, f32, nk_bf16_to_f32)                 // nk_l2sq_bf16_serial
 NK_MAKE_L2(serial, bf16, f32, f32, f32, nk_bf16_to_f32, NK_F32_SQRT) // nk_l2_bf16_serial
 
-NK_MAKE_COS(serial, i8, i32, f32, NK_ASSIGN_FROM_TO, NK_F32_RSQRT)      // nk_angular_i8_serial
-NK_MAKE_L2SQ(serial, i8, i32, u32, NK_ASSIGN_FROM_TO)                   // nk_l2sq_i8_serial
-NK_MAKE_L2SQ(accurate, i8, i32, u32, NK_ASSIGN_FROM_TO)                 // nk_l2sq_i8_accurate
-NK_MAKE_L2(serial, i8, i32, u32, f32, NK_ASSIGN_FROM_TO, NK_F32_SQRT)   // nk_l2_i8_serial
-NK_MAKE_L2(accurate, i8, i32, u32, f64, NK_ASSIGN_FROM_TO, NK_F64_SQRT) // nk_l2_i8_accurate
+NK_MAKE_COS(serial, i8, i32, f32, nk_assign_from_to_, NK_F32_RSQRT)      // nk_angular_i8_serial
+NK_MAKE_L2SQ(serial, i8, i32, u32, nk_assign_from_to_)                   // nk_l2sq_i8_serial
+NK_MAKE_L2SQ(accurate, i8, i32, u32, nk_assign_from_to_)                 // nk_l2sq_i8_accurate
+NK_MAKE_L2(serial, i8, i32, u32, f32, nk_assign_from_to_, NK_F32_SQRT)   // nk_l2_i8_serial
+NK_MAKE_L2(accurate, i8, i32, u32, f64, nk_assign_from_to_, NK_F64_SQRT) // nk_l2_i8_accurate
 
-NK_MAKE_COS(serial, u8, i32, f32, NK_ASSIGN_FROM_TO, NK_F32_RSQRT)      // nk_angular_u8_serial
-NK_MAKE_L2SQ(serial, u8, i32, u32, NK_ASSIGN_FROM_TO)                   // nk_l2sq_u8_serial
-NK_MAKE_L2SQ(accurate, u8, i32, u32, NK_ASSIGN_FROM_TO)                 // nk_l2sq_u8_accurate
-NK_MAKE_L2(serial, u8, i32, u32, f32, NK_ASSIGN_FROM_TO, NK_F32_SQRT)   // nk_l2_u8_serial
-NK_MAKE_L2(accurate, u8, i32, u32, f64, NK_ASSIGN_FROM_TO, NK_F64_SQRT) // nk_l2_u8_accurate
+NK_MAKE_COS(serial, u8, i32, f32, nk_assign_from_to_, NK_F32_RSQRT)      // nk_angular_u8_serial
+NK_MAKE_L2SQ(serial, u8, i32, u32, nk_assign_from_to_)                   // nk_l2sq_u8_serial
+NK_MAKE_L2SQ(accurate, u8, i32, u32, nk_assign_from_to_)                 // nk_l2sq_u8_accurate
+NK_MAKE_L2(serial, u8, i32, u32, f32, nk_assign_from_to_, NK_F32_SQRT)   // nk_l2_u8_serial
+NK_MAKE_L2(accurate, u8, i32, u32, f64, nk_assign_from_to_, NK_F64_SQRT) // nk_l2_u8_accurate
 
-NK_MAKE_COS(accurate, f32, f64, f64, NK_ASSIGN_FROM_TO, NK_F64_RSQRT)    // nk_angular_f32_accurate
-NK_MAKE_L2SQ(accurate, f32, f64, f64, NK_ASSIGN_FROM_TO)                 // nk_l2sq_f32_accurate
-NK_MAKE_L2(accurate, f32, f64, f64, f64, NK_ASSIGN_FROM_TO, NK_F64_SQRT) // nk_l2_f32_accurate
+NK_MAKE_COS(accurate, f32, f64, f64, nk_assign_from_to_, NK_F64_RSQRT)    // nk_angular_f32_accurate
+NK_MAKE_L2SQ(accurate, f32, f64, f64, nk_assign_from_to_)                 // nk_l2sq_f32_accurate
+NK_MAKE_L2(accurate, f32, f64, f64, f64, nk_assign_from_to_, NK_F64_SQRT) // nk_l2_f32_accurate
 
 NK_MAKE_COS(accurate, f16, f64, f64, nk_f16_to_f64, NK_F64_RSQRT)    // nk_angular_f16_accurate
 NK_MAKE_L2SQ(accurate, f16, f64, f64, nk_f16_to_f64)                 // nk_l2sq_f16_accurate

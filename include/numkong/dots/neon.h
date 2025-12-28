@@ -8,7 +8,7 @@
 #ifndef NK_DOTS_NEON_H
 #define NK_DOTS_NEON_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a+simd")
@@ -24,7 +24,7 @@ extern "C" {
 NK_MAKE_DOTS_SERIAL_PACKED_SIZE(neon, f32, f32, 4)
 NK_MAKE_DOTS_SERIAL_PACK(neon, f32, f32, 4)
 NK_MAKE_DOTS_INNER(f32f32f32_neon, f32, f32, nk_b128_vec_t, nk_dot_f32x4_state_neon_t, nk_dot_f32x4_init_neon,
-                   _nk_load_b128_neon, _nk_partial_load_b32x4_neon, nk_dot_f32x4_update_neon,
+                   nk_load_b128_neon_, nk_partial_load_b32x4_neon_, nk_dot_f32x4_update_neon,
                    nk_dot_f32x4_finalize_neon,
                    /*k_tile=*/4, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -32,7 +32,7 @@ NK_MAKE_DOTS_INNER(f32f32f32_neon, f32, f32, nk_b128_vec_t, nk_dot_f32x4_state_n
 NK_MAKE_DOTS_SERIAL_PACKED_SIZE(neon, i8, i32, 16)
 NK_MAKE_DOTS_SERIAL_PACK(neon, i8, i32, 16)
 NK_MAKE_DOTS_INNER(i8i8i32_neon, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_neon_t, nk_dot_i8x16_init_neon,
-                   _nk_load_b128_neon, _nk_partial_load_b8x16_neon, nk_dot_i8x16_update_neon,
+                   nk_load_b128_neon_, nk_partial_load_b8x16_neon_, nk_dot_i8x16_update_neon,
                    nk_dot_i8x16_finalize_neon,
                    /*k_tile=*/16, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -40,7 +40,7 @@ NK_MAKE_DOTS_INNER(i8i8i32_neon, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_neon
 NK_MAKE_DOTS_SERIAL_PACKED_SIZE(neon, u8, i32, 16)
 NK_MAKE_DOTS_SERIAL_PACK(neon, u8, i32, 16)
 NK_MAKE_DOTS_INNER(u8u8i32_neon, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_neon_t, nk_dot_u8x16_init_neon,
-                   _nk_load_b128_neon, _nk_partial_load_b8x16_neon, nk_dot_u8x16_update_neon,
+                   nk_load_b128_neon_, nk_partial_load_b8x16_neon_, nk_dot_u8x16_update_neon,
                    nk_dot_u8x16_finalize_neon,
                    /*k_tile=*/16, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -51,6 +51,6 @@ NK_MAKE_DOTS_INNER(u8u8i32_neon, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_neon
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_DOTS_NEON_H

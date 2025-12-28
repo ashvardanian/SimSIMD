@@ -8,7 +8,7 @@
 #ifndef NK_DOT_GENOA_H
 #define NK_DOT_GENOA_H
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_GENOA
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
@@ -41,7 +41,7 @@ nk_dot_bf16_genoa_cycle:
     sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     if (count_scalars) goto nk_dot_bf16_genoa_cycle;
 
-    *result = _nk_reduce_add_f32x16_skylake(sum_f32x16);
+    *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
 }
 
 NK_PUBLIC void nk_dot_bf16c_genoa(nk_bf16c_t const *a_pairs, nk_bf16c_t const *b_pairs, nk_size_t count_pairs,
@@ -82,8 +82,8 @@ nk_dot_bf16c_genoa_cycle:
     if (count_pairs) goto nk_dot_bf16c_genoa_cycle;
 
     // Reduce horizontal sums:
-    result->real = _nk_reduce_add_f32x16_skylake(sum_real_f32x16);
-    result->imag = _nk_reduce_add_f32x16_skylake(sum_imag_f32x16);
+    result->real = nk_reduce_add_f32x16_skylake_(sum_real_f32x16);
+    result->imag = nk_reduce_add_f32x16_skylake_(sum_imag_f32x16);
 }
 
 NK_PUBLIC void nk_vdot_bf16c_genoa(nk_bf16c_t const *a_pairs, nk_bf16c_t const *b_pairs, nk_size_t count_pairs,
@@ -124,8 +124,8 @@ nk_vdot_bf16c_genoa_cycle:
     if (count_pairs) goto nk_vdot_bf16c_genoa_cycle;
 
     // Reduce horizontal sums:
-    result->real = _nk_reduce_add_f32x16_skylake(sum_real_f32x16);
-    result->imag = _nk_reduce_add_f32x16_skylake(sum_imag_f32x16);
+    result->real = nk_reduce_add_f32x16_skylake_(sum_real_f32x16);
+    result->imag = nk_reduce_add_f32x16_skylake_(sum_imag_f32x16);
 }
 
 /**
@@ -138,7 +138,7 @@ nk_vdot_bf16c_genoa_cycle:
  *  BF16 format: S EEEEEEEE MMMMMMM (bias=127)
  *  Conversion: sign<<8, (exp+120)<<7, mant<<4
  */
-NK_INTERNAL __m512i _nk_e4m3_to_bf16_genoa(__m256i fp8) {
+NK_INTERNAL __m512i nk_e4m3_to_bf16_genoa_(__m256i fp8) {
     __m512i v = _mm512_cvtepu8_epi16(fp8);
     // Sign: shift bit 7 to bit 15
     __m512i sign = _mm512_and_si512(_mm512_slli_epi16(v, 8), _mm512_set1_epi16((short)0x8000));
@@ -161,7 +161,7 @@ NK_INTERNAL __m512i _nk_e4m3_to_bf16_genoa(__m256i fp8) {
  *  BF16 format: S EEEEEEEE MMMMMMM (bias=127)
  *  Conversion: sign<<8, (exp+112)<<7, mant<<5
  */
-NK_INTERNAL __m512i _nk_e5m2_to_bf16_genoa(__m256i fp8) {
+NK_INTERNAL __m512i nk_e5m2_to_bf16_genoa_(__m256i fp8) {
     __m512i v = _mm512_cvtepu8_epi16(fp8);
     __m512i sign = _mm512_and_si512(_mm512_slli_epi16(v, 8), _mm512_set1_epi16((short)0x8000));
     // Lower 7 bits: exp(5) + mant(2), shift left 5 and add bias
@@ -191,12 +191,12 @@ nk_dot_e4m3_genoa_cycle:
         a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
     // Convert E4M3 to BF16 and compute dot product
-    __m512i a_bf16x32 = _nk_e4m3_to_bf16_genoa(a_e4m3x32);
-    __m512i b_bf16x32 = _nk_e4m3_to_bf16_genoa(b_e4m3x32);
+    __m512i a_bf16x32 = nk_e4m3_to_bf16_genoa_(a_e4m3x32);
+    __m512i b_bf16x32 = nk_e4m3_to_bf16_genoa_(b_e4m3x32);
     sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     if (count_scalars) goto nk_dot_e4m3_genoa_cycle;
 
-    *result = _nk_reduce_add_f32x16_skylake(sum_f32x16);
+    *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
 }
 
 NK_PUBLIC void nk_dot_e5m2_genoa(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars, nk_size_t count_scalars,
@@ -217,12 +217,12 @@ nk_dot_e5m2_genoa_cycle:
         a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
     // Convert E5M2 to BF16 and compute dot product
-    __m512i a_bf16x32 = _nk_e5m2_to_bf16_genoa(a_e5m2x32);
-    __m512i b_bf16x32 = _nk_e5m2_to_bf16_genoa(b_e5m2x32);
+    __m512i a_bf16x32 = nk_e5m2_to_bf16_genoa_(a_e5m2x32);
+    __m512i b_bf16x32 = nk_e5m2_to_bf16_genoa_(b_e5m2x32);
     sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     if (count_scalars) goto nk_dot_e5m2_genoa_cycle;
 
-    *result = _nk_reduce_add_f32x16_skylake(sum_f32x16);
+    *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
 }
 
 typedef struct nk_dot_bf16x32_state_genoa_t {
@@ -259,13 +259,13 @@ NK_INTERNAL void nk_dot_e4m3x64_update_genoa(nk_dot_e4m3x64_state_genoa_t *state
     __m512 sum_f32x16 = state->sum_f32x16;
     __m256i a_e4m3x32 = _mm256_loadu_epi8(a.e4m3s + 0);
     __m256i b_e4m3x32 = _mm256_loadu_epi8(b.e4m3s + 0);
-    __m512i a_bf16x32 = _nk_e4m3_to_bf16_genoa(a_e4m3x32);
-    __m512i b_bf16x32 = _nk_e4m3_to_bf16_genoa(b_e4m3x32);
+    __m512i a_bf16x32 = nk_e4m3_to_bf16_genoa_(a_e4m3x32);
+    __m512i b_bf16x32 = nk_e4m3_to_bf16_genoa_(b_e4m3x32);
     sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     a_e4m3x32 = _mm256_loadu_epi8(a.e4m3s + 32);
     b_e4m3x32 = _mm256_loadu_epi8(b.e4m3s + 32);
-    a_bf16x32 = _nk_e4m3_to_bf16_genoa(a_e4m3x32);
-    b_bf16x32 = _nk_e4m3_to_bf16_genoa(b_e4m3x32);
+    a_bf16x32 = nk_e4m3_to_bf16_genoa_(a_e4m3x32);
+    b_bf16x32 = nk_e4m3_to_bf16_genoa_(b_e4m3x32);
     state->sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
 }
 
@@ -291,13 +291,13 @@ NK_INTERNAL void nk_dot_e5m2x64_update_genoa(nk_dot_e5m2x64_state_genoa_t *state
     __m512 sum_f32x16 = state->sum_f32x16;
     __m256i a_e5m2x32 = _mm256_loadu_epi8(a.e5m2s + 0);
     __m256i b_e5m2x32 = _mm256_loadu_epi8(b.e5m2s + 0);
-    __m512i a_bf16x32 = _nk_e5m2_to_bf16_genoa(a_e5m2x32);
-    __m512i b_bf16x32 = _nk_e5m2_to_bf16_genoa(b_e5m2x32);
+    __m512i a_bf16x32 = nk_e5m2_to_bf16_genoa_(a_e5m2x32);
+    __m512i b_bf16x32 = nk_e5m2_to_bf16_genoa_(b_e5m2x32);
     sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     a_e5m2x32 = _mm256_loadu_epi8(a.e5m2s + 32);
     b_e5m2x32 = _mm256_loadu_epi8(b.e5m2s + 32);
-    a_bf16x32 = _nk_e5m2_to_bf16_genoa(a_e5m2x32);
-    b_bf16x32 = _nk_e5m2_to_bf16_genoa(b_e5m2x32);
+    a_bf16x32 = nk_e5m2_to_bf16_genoa_(a_e5m2x32);
+    b_bf16x32 = nk_e5m2_to_bf16_genoa_(b_e5m2x32);
     state->sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
 }
 
@@ -318,6 +318,6 @@ NK_INTERNAL void nk_dot_e5m2x64_finalize_genoa(                                 
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_GENOA
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
 #endif // NK_DOT_GENOA_H

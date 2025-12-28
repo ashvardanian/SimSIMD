@@ -8,7 +8,7 @@
 #ifndef NK_DOTS_NEON_F16_H
 #define NK_DOTS_NEON_F16_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON_F16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
@@ -24,7 +24,7 @@ extern "C" {
 NK_MAKE_DOTS_SERIAL_PACKED_SIZE(neon, f16, f32, 8)
 NK_MAKE_DOTS_SERIAL_PACK(neon, f16, f32, 8)
 NK_MAKE_DOTS_INNER(f16f16f32_neon, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_neon_t, nk_dot_f16x8_init_neon,
-                   _nk_load_b128_neon, _nk_partial_load_b16x8_neon, nk_dot_f16x8_update_neon,
+                   nk_load_b128_neon_, nk_partial_load_b16x8_neon_, nk_dot_f16x8_update_neon,
                    nk_dot_f16x8_finalize_neon,
                    /*k_tile=*/8, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -35,6 +35,6 @@ NK_MAKE_DOTS_INNER(f16f16f32_neon, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_n
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON_F16
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_DOTS_NEON_F16_H

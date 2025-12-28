@@ -8,7 +8,7 @@
 #ifndef NK_SPATIAL_NEON_I8_H
 #define NK_SPATIAL_NEON_I8_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON_I8
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+dotprod")
@@ -23,7 +23,7 @@ extern "C" {
 NK_PUBLIC void nk_l2_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t distance_sq_u32;
     nk_l2sq_i8_neon(a, b, n, &distance_sq_u32);
-    *result = _nk_sqrt_f32_neon((nk_f32_t)distance_sq_u32);
+    *result = nk_sqrt_f32_neon_((nk_f32_t)distance_sq_u32);
 }
 NK_PUBLIC void nk_l2sq_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
 
@@ -168,13 +168,13 @@ NK_PUBLIC void nk_angular_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t 
         b_norm_sq_i32 += b_element_i32 * b_element_i32;
     }
 
-    *result = _nk_angular_normalize_f32_neon(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
+    *result = nk_angular_normalize_f32_neon_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
 
 NK_PUBLIC void nk_l2_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t d2;
     nk_l2sq_u8_neon(a, b, n, &d2);
-    *result = _nk_sqrt_f32_neon((nk_f32_t)d2);
+    *result = nk_sqrt_f32_neon_((nk_f32_t)d2);
 }
 NK_PUBLIC void nk_l2sq_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
     uint32x4_t distance_sq_u32x4 = vdupq_n_u32(0);
@@ -216,7 +216,7 @@ NK_PUBLIC void nk_angular_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t 
         ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
     }
 
-    *result = _nk_angular_normalize_f32_neon(ab, a2, b2);
+    *result = nk_angular_normalize_f32_neon_(ab, a2, b2);
 }
 
 typedef nk_dot_i8x16_state_neon_t nk_angular_i8x16_state_neon_t;
@@ -378,6 +378,6 @@ NK_INTERNAL void nk_l2_u8x16_finalize_neon(nk_l2_u8x16_state_neon_t const *state
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON_I8
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_SPATIAL_NEON_I8_H

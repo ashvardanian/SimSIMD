@@ -47,7 +47,7 @@
 #if !defined(NK_TARGET_TURIN) && (defined(__linux__))
 #define NK_TARGET_TURIN 1
 #endif
-#if !defined(NK_TARGET_SIERRA) && (defined(__linux__)) && 0 // TODO: Add target spec to GCC & Clang
+#if !defined(NK_TARGET_SIERRA) && (defined(__linux__))
 #define NK_TARGET_SIERRA 1
 #endif
 
@@ -374,22 +374,15 @@ NK_DYNAMIC int nk_uses_sapphire(void) { return (nk_capabilities() & nk_cap_sapph
 NK_DYNAMIC int nk_uses_turin(void) { return (nk_capabilities() & nk_cap_turin_k) != 0; }
 NK_DYNAMIC int nk_uses_sierra(void) { return (nk_capabilities() & nk_cap_sierra_k) != 0; }
 NK_DYNAMIC int nk_uses_dynamic_dispatch(void) { return 1; }
-NK_DYNAMIC int nk_flush_denormals(nk_capability_t c) { return _nk_flush_denormals(c); }
+NK_DYNAMIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }
 
 NK_DYNAMIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest) { nk_f16_to_f32_(src, dest); }
-
 NK_DYNAMIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest) { nk_f32_to_f16_(src, dest); }
-
 NK_DYNAMIC void nk_bf16_to_f32(nk_bf16_t const *src, nk_f32_t *dest) { nk_bf16_to_f32_(src, dest); }
-
 NK_DYNAMIC void nk_f32_to_bf16(nk_f32_t const *src, nk_bf16_t *dest) { nk_f32_to_bf16_(src, dest); }
-
 NK_DYNAMIC void nk_e4m3_to_f32(nk_e4m3_t const *src, nk_f32_t *dest) { nk_e4m3_to_f32_(src, dest); }
-
 NK_DYNAMIC void nk_f32_to_e4m3(nk_f32_t const *src, nk_e4m3_t *dest) { nk_f32_to_e4m3_(src, dest); }
-
 NK_DYNAMIC void nk_e5m2_to_f32(nk_e5m2_t const *src, nk_f32_t *dest) { nk_e5m2_to_f32_(src, dest); }
-
 NK_DYNAMIC void nk_f32_to_e5m2(nk_f32_t const *src, nk_e5m2_t *dest) { nk_f32_to_e5m2_(src, dest); }
 
 NK_DYNAMIC nk_capability_t nk_capabilities(void) {
@@ -397,7 +390,7 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     static nk_capability_t static_capabilities = nk_cap_any_k;
     if (static_capabilities != nk_cap_any_k) return static_capabilities;
 
-    static_capabilities = _nk_capabilities_();
+    static_capabilities = nk_capabilities_();
 
     // In multithreaded applications we need to ensure that the function pointers are pre-initialized,
     // so the first time we are probing for capabilities, we should also probe all of our metrics
@@ -511,7 +504,7 @@ NK_DYNAMIC void nk_find_kernel_punned( //
     nk_capability_t allowed,           //
     nk_kernel_punned_t *kernel_output, //
     nk_capability_t *capability_output) {
-    _nk_find_kernel_punned_(kind, datatype, supported, allowed, kernel_output, capability_output);
+    nk_find_kernel_punned_(kind, datatype, supported, allowed, kernel_output, capability_output);
 }
 
 #ifdef __cplusplus

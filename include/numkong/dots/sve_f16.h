@@ -8,7 +8,7 @@
 #ifndef NK_DOTS_SVE_F16_H
 #define NK_DOTS_SVE_F16_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_SVE_F16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve+fp16")
@@ -27,6 +27,6 @@ extern "C" {
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_SVE_F16
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_DOTS_SVE_F16_H

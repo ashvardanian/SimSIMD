@@ -8,7 +8,7 @@
 #ifndef NK_SPATIAL_SVE_H
 #define NK_SPATIAL_SVE_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_SVE
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve")
@@ -22,7 +22,7 @@ extern "C" {
 
 NK_PUBLIC void nk_l2_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_l2sq_f32_sve(a, b, n, result);
-    *result = _nk_sqrt_f32_neon(*result);
+    *result = nk_sqrt_f32_neon_(*result);
 }
 NK_PUBLIC void nk_l2sq_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_size_t i = 0;
@@ -57,12 +57,12 @@ NK_PUBLIC void nk_angular_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_
     nk_f32_t ab = svaddv_f32(svptrue_b32(), ab_vec);
     nk_f32_t a2 = svaddv_f32(svptrue_b32(), a2_vec);
     nk_f32_t b2 = svaddv_f32(svptrue_b32(), b2_vec);
-    *result = (nk_f32_t)_nk_angular_normalize_f64_neon(ab, a2, b2);
+    *result = (nk_f32_t)nk_angular_normalize_f64_neon_(ab, a2, b2);
 }
 
 NK_PUBLIC void nk_l2_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_l2sq_f64_sve(a, b, n, result);
-    *result = _nk_sqrt_f64_neon(*result);
+    *result = nk_sqrt_f64_neon_(*result);
 }
 NK_PUBLIC void nk_l2sq_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_size_t i = 0;
@@ -97,7 +97,7 @@ NK_PUBLIC void nk_angular_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     nk_f64_t ab = svaddv_f64(svptrue_b32(), ab_vec);
     nk_f64_t a2 = svaddv_f64(svptrue_b32(), a2_vec);
     nk_f64_t b2 = svaddv_f64(svptrue_b32(), b2_vec);
-    *result = _nk_angular_normalize_f64_neon(ab, a2, b2);
+    *result = nk_angular_normalize_f64_neon_(ab, a2, b2);
 }
 
 #if defined(__cplusplus)
@@ -107,6 +107,6 @@ NK_PUBLIC void nk_angular_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_SVE
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_SPATIAL_SVE_H

@@ -71,13 +71,13 @@ extern "C" {
         result->imag = ab_imag;                                                                             \
     }
 
-NK_MAKE_DOT(serial, f64, f64, f64, NK_ASSIGN_FROM_TO)            // nk_dot_f64_serial
-NK_MAKE_COMPLEX_DOT(serial, f64c, f64, f64c, NK_ASSIGN_FROM_TO)  // nk_dot_f64c_serial
-NK_MAKE_COMPLEX_VDOT(serial, f64c, f64, f64c, NK_ASSIGN_FROM_TO) // nk_vdot_f64c_serial
+NK_MAKE_DOT(serial, f64, f64, f64, nk_assign_from_to_)            // nk_dot_f64_serial
+NK_MAKE_COMPLEX_DOT(serial, f64c, f64, f64c, nk_assign_from_to_)  // nk_dot_f64c_serial
+NK_MAKE_COMPLEX_VDOT(serial, f64c, f64, f64c, nk_assign_from_to_) // nk_vdot_f64c_serial
 
-NK_MAKE_DOT(serial, f32, f32, f32, NK_ASSIGN_FROM_TO)            // nk_dot_f32_serial
-NK_MAKE_COMPLEX_DOT(serial, f32c, f32, f32c, NK_ASSIGN_FROM_TO)  // nk_dot_f32c_serial
-NK_MAKE_COMPLEX_VDOT(serial, f32c, f32, f32c, NK_ASSIGN_FROM_TO) // nk_vdot_f32c_serial
+NK_MAKE_DOT(serial, f32, f32, f32, nk_assign_from_to_)            // nk_dot_f32_serial
+NK_MAKE_COMPLEX_DOT(serial, f32c, f32, f32c, nk_assign_from_to_)  // nk_dot_f32c_serial
+NK_MAKE_COMPLEX_VDOT(serial, f32c, f32, f32c, nk_assign_from_to_) // nk_vdot_f32c_serial
 
 NK_MAKE_DOT(serial, f16, f32, f32, nk_f16_to_f32)            // nk_dot_f16_serial
 NK_MAKE_COMPLEX_DOT(serial, f16c, f32, f32c, nk_f16_to_f32)  // nk_dot_f16c_serial
@@ -87,15 +87,15 @@ NK_MAKE_DOT(serial, bf16, f32, f32, nk_bf16_to_f32)            // nk_dot_bf16_se
 NK_MAKE_COMPLEX_DOT(serial, bf16c, f32, f32c, nk_bf16_to_f32)  // nk_dot_bf16c_serial
 NK_MAKE_COMPLEX_VDOT(serial, bf16c, f32, f32c, nk_bf16_to_f32) // nk_vdot_bf16c_serial
 
-NK_MAKE_DOT(serial, i8, i64, i32, NK_ASSIGN_FROM_TO) // nk_dot_i8_serial
-NK_MAKE_DOT(serial, u8, u64, u32, NK_ASSIGN_FROM_TO) // nk_dot_u8_serial
+NK_MAKE_DOT(serial, i8, i64, i32, nk_assign_from_to_) // nk_dot_i8_serial
+NK_MAKE_DOT(serial, u8, u64, u32, nk_assign_from_to_) // nk_dot_u8_serial
 
 NK_MAKE_DOT(serial, e4m3, f32, f32, nk_e4m3_to_f32) // nk_dot_e4m3_serial
 NK_MAKE_DOT(serial, e5m2, f32, f32, nk_e5m2_to_f32) // nk_dot_e5m2_serial
 
-NK_MAKE_DOT(accurate, f32, f64, f64, NK_ASSIGN_FROM_TO)            // nk_dot_f32_accurate
-NK_MAKE_COMPLEX_DOT(accurate, f32c, f64, f64c, NK_ASSIGN_FROM_TO)  // nk_dot_f32c_accurate
-NK_MAKE_COMPLEX_VDOT(accurate, f32c, f64, f64c, NK_ASSIGN_FROM_TO) // nk_vdot_f32c_accurate
+NK_MAKE_DOT(accurate, f32, f64, f64, nk_assign_from_to_)            // nk_dot_f32_accurate
+NK_MAKE_COMPLEX_DOT(accurate, f32c, f64, f64c, nk_assign_from_to_)  // nk_dot_f32c_accurate
+NK_MAKE_COMPLEX_VDOT(accurate, f32c, f64, f64c, nk_assign_from_to_) // nk_vdot_f32c_accurate
 
 NK_MAKE_DOT(accurate, f16, f64, f64, nk_f16_to_f64)            // nk_dot_f16_accurate
 NK_MAKE_COMPLEX_DOT(accurate, f16c, f64, f64c, nk_f16_to_f64)  // nk_dot_f16c_accurate

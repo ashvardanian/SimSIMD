@@ -1,13 +1,13 @@
 /**
- *  @file       types.h
- *  @brief      Shared definitions for the NumKong library.
- *  @author     Ash Vardanian
- *  @date       October 2, 2023
+ *  @brief Shared definitions for the NumKong library.
+ *  @file numkong/types.h
+ *  @author Ash Vardanian
+ *  @date October 2, 2023
  *
  *  Defines:
  *
  *  - Sized aliases for numeric types, like: `nk_i32_t` and `nk_f64_t`.
- *  - Macros for internal compiler/hardware checks, like: `_NK_TARGET_ARM`.
+ *  - Macros for internal compiler/hardware checks, like: `NK_TARGET_ARM_`.
  *  - Macros for feature controls, like: `NK_TARGET_NEON`
  *
  */
@@ -22,11 +22,11 @@
 
 // Inferring target OS: Windows, macOS, or Linux
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-#define _NK_DEFINED_WINDOWS 1
+#define NK_DEFINED_WINDOWS_ 1
 #elif defined(__APPLE__) && defined(__MACH__)
-#define _NK_DEFINED_APPLE 1
+#define NK_DEFINED_APPLE_ 1
 #elif defined(__linux__)
-#define _NK_DEFINED_LINUX 1
+#define NK_DEFINED_LINUX_ 1
 #endif
 
 // Annotation for the public API symbols:
@@ -37,54 +37,48 @@
 //
 // On GCC we mark the functions as `nonnull` informing that none of the arguments can be `NULL`.
 // Marking with `pure` and `const` isn't possible as outputting to a pointer is a "side effect".
-#if defined(_WIN32) || defined(__CYGWIN__)
-#if NK_DYNAMIC_DISPATCH
-#define NK_DYNAMIC __declspec(dllexport)
-#else
-#define NK_DYNAMIC inline static
-#endif
-#define NK_PUBLIC   inline static
-#define NK_INTERNAL inline static
-#elif defined(__GNUC__) || defined(__clang__)
-#if NK_DYNAMIC_DISPATCH
-#define NK_DYNAMIC __attribute__((visibility("default"))) __attribute__((nonnull))
-#else
-#define NK_DYNAMIC __attribute__((unused, nonnull)) inline static
-#endif
+#if defined(__GNUC__) || defined(__clang__)
 #define NK_PUBLIC   __attribute__((unused, nonnull)) inline static
 #define NK_INTERNAL __attribute__((always_inline)) inline static
 #else
-#if NK_DYNAMIC_DISPATCH
-#define NK_DYNAMIC
-#else
-#define NK_DYNAMIC inline static
-#endif
 #define NK_PUBLIC   inline static
 #define NK_INTERNAL inline static
 #endif
 
-// Compiling for Arm: _NK_TARGET_ARM
-#if !defined(_NK_TARGET_ARM)
-#if defined(__aarch64__) || defined(_M_ARM64)
-#define _NK_TARGET_ARM 1
+#if NK_DYNAMIC_DISPATCH
+#if defined(_WIN32) || defined(__CYGWIN__)
+#define NK_DYNAMIC __declspec(dllexport)
+#elif defined(__GNUC__) || defined(__clang__)
+#define NK_DYNAMIC __attribute__((visibility("default"))) __attribute__((nonnull))
 #else
-#define _NK_TARGET_ARM 0
-#endif // defined(__aarch64__) || defined(_M_ARM64)
-#endif // !defined(_NK_TARGET_ARM)
+#define NK_DYNAMIC NK_PUBLIC
+#endif
+#else
+#define NK_DYNAMIC NK_PUBLIC
+#endif
 
-// Compiling for x86: _NK_TARGET_X86
-#if !defined(_NK_TARGET_X86)
-#if defined(__x86_64__) || defined(_M_X64)
-#define _NK_TARGET_X86 1
+// Compiling for Arm: NK_TARGET_ARM_
+#if !defined(NK_TARGET_ARM_)
+#if defined(__aarch64__) || defined(_M_ARM64)
+#define NK_TARGET_ARM_ 1
 #else
-#define _NK_TARGET_X86 0
+#define NK_TARGET_ARM_ 0
+#endif // defined(__aarch64__) || defined(_M_ARM64)
+#endif // !defined(NK_TARGET_ARM_)
+
+// Compiling for x86: NK_TARGET_X86_
+#if !defined(NK_TARGET_X86_)
+#if defined(__x86_64__) || defined(_M_X64)
+#define NK_TARGET_X86_ 1
+#else
+#define NK_TARGET_X86_ 0
 #endif // defined(__x86_64__) || defined(_M_X64)
-#endif // !defined(_NK_TARGET_X86)
+#endif // !defined(NK_TARGET_X86_)
 
 // Compiling for Arm: NK_TARGET_NEON
-#if !defined(NK_TARGET_NEON) || (NK_TARGET_NEON && !_NK_TARGET_ARM)
+#if !defined(NK_TARGET_NEON) || (NK_TARGET_NEON && !NK_TARGET_ARM_)
 #if defined(__ARM_NEON)
-#define NK_TARGET_NEON _NK_TARGET_ARM
+#define NK_TARGET_NEON NK_TARGET_ARM_
 #else
 #undef NK_TARGET_NEON
 #define NK_TARGET_NEON 0
@@ -92,9 +86,9 @@
 #endif // !defined(NK_TARGET_NEON) || ...
 
 // Compiling for Arm: NK_TARGET_NEON_I8
-#if !defined(NK_TARGET_NEON_I8) || (NK_TARGET_NEON_I8 && !_NK_TARGET_ARM)
+#if !defined(NK_TARGET_NEON_I8) || (NK_TARGET_NEON_I8 && !NK_TARGET_ARM_)
 #if defined(__ARM_NEON)
-#define NK_TARGET_NEON_I8 _NK_TARGET_ARM
+#define NK_TARGET_NEON_I8 NK_TARGET_ARM_
 #else
 #undef NK_TARGET_NEON_I8
 #define NK_TARGET_NEON_I8 0
@@ -102,9 +96,9 @@
 #endif // !defined(NK_TARGET_NEON_I8) || ...
 
 // Compiling for Arm: NK_TARGET_NEON_F16
-#if !defined(NK_TARGET_NEON_F16) || (NK_TARGET_NEON_F16 && !_NK_TARGET_ARM)
+#if !defined(NK_TARGET_NEON_F16) || (NK_TARGET_NEON_F16 && !NK_TARGET_ARM_)
 #if defined(__ARM_NEON)
-#define NK_TARGET_NEON_F16 _NK_TARGET_ARM
+#define NK_TARGET_NEON_F16 NK_TARGET_ARM_
 #else
 #undef NK_TARGET_NEON_F16
 #define NK_TARGET_NEON_F16 0
@@ -112,9 +106,9 @@
 #endif // !defined(NK_TARGET_NEON_F16) || ...
 
 // Compiling for Arm: NK_TARGET_NEON_BF16
-#if !defined(NK_TARGET_NEON_BF16) || (NK_TARGET_NEON_BF16 && !_NK_TARGET_ARM)
+#if !defined(NK_TARGET_NEON_BF16) || (NK_TARGET_NEON_BF16 && !NK_TARGET_ARM_)
 #if defined(__ARM_NEON)
-#define NK_TARGET_NEON_BF16 _NK_TARGET_ARM
+#define NK_TARGET_NEON_BF16 NK_TARGET_ARM_
 #else
 #undef NK_TARGET_NEON_BF16
 #define NK_TARGET_NEON_BF16 0
@@ -122,9 +116,9 @@
 #endif // !defined(NK_TARGET_NEON_BF16) || ...
 
 // Compiling for Arm: NK_TARGET_SVE
-#if !defined(NK_TARGET_SVE) || (NK_TARGET_SVE && !_NK_TARGET_ARM)
+#if !defined(NK_TARGET_SVE) || (NK_TARGET_SVE && !NK_TARGET_ARM_)
 #if defined(__ARM_FEATURE_SVE)
-#define NK_TARGET_SVE _NK_TARGET_ARM
+#define NK_TARGET_SVE NK_TARGET_ARM_
 #else
 #undef NK_TARGET_SVE
 #define NK_TARGET_SVE 0
@@ -132,9 +126,9 @@
 #endif // !defined(NK_TARGET_SVE) || ...
 
 // Compiling for Arm: NK_TARGET_SVE_I8
-#if !defined(NK_TARGET_SVE_I8) || (NK_TARGET_SVE_I8 && !_NK_TARGET_ARM)
+#if !defined(NK_TARGET_SVE_I8) || (NK_TARGET_SVE_I8 && !NK_TARGET_ARM_)
 #if defined(__ARM_FEATURE_SVE)
-#define NK_TARGET_SVE_I8 _NK_TARGET_ARM
+#define NK_TARGET_SVE_I8 NK_TARGET_ARM_
 #else
 #undef NK_TARGET_SVE_I8
 #define NK_TARGET_SVE_I8 0
@@ -142,9 +136,9 @@
 #endif // !defined(NK_TARGET_SVE_I8) || ...
 
 // Compiling for Arm: NK_TARGET_SVE_F16
-#if !defined(NK_TARGET_SVE_F16) || (NK_TARGET_SVE_F16 && !_NK_TARGET_ARM)
+#if !defined(NK_TARGET_SVE_F16) || (NK_TARGET_SVE_F16 && !NK_TARGET_ARM_)
 #if defined(__ARM_FEATURE_SVE)
-#define NK_TARGET_SVE_F16 _NK_TARGET_ARM
+#define NK_TARGET_SVE_F16 NK_TARGET_ARM_
 #else
 #undef NK_TARGET_SVE_F16
 #define NK_TARGET_SVE_F16 0
@@ -152,9 +146,9 @@
 #endif // !defined(NK_TARGET_SVE_F16) || ...
 
 // Compiling for Arm: NK_TARGET_SVE_BF16
-#if !defined(NK_TARGET_SVE_BF16) || (NK_TARGET_SVE_BF16 && !_NK_TARGET_ARM)
+#if !defined(NK_TARGET_SVE_BF16) || (NK_TARGET_SVE_BF16 && !NK_TARGET_ARM_)
 #if defined(__ARM_FEATURE_SVE)
-#define NK_TARGET_SVE_BF16 _NK_TARGET_ARM
+#define NK_TARGET_SVE_BF16 NK_TARGET_ARM_
 #else
 #undef NK_TARGET_SVE_BF16
 #define NK_TARGET_SVE_BF16 0
@@ -162,9 +156,9 @@
 #endif // !defined(NK_TARGET_SVE_BF16) || ...
 
 // Compiling for Arm: NK_TARGET_SVE2
-#if !defined(NK_TARGET_SVE2) || (NK_TARGET_SVE2 && !_NK_TARGET_ARM)
+#if !defined(NK_TARGET_SVE2) || (NK_TARGET_SVE2 && !NK_TARGET_ARM_)
 #if defined(__ARM_FEATURE_SVE)
-#define NK_TARGET_SVE2 _NK_TARGET_ARM
+#define NK_TARGET_SVE2 NK_TARGET_ARM_
 #else
 #undef NK_TARGET_SVE2
 #define NK_TARGET_SVE2 0
@@ -178,7 +172,7 @@
 // are supported on all CPUs starting with Jaguar 2009.
 // Starting with Sandy Bridge, Intel adds basic AVX support in their CPUs and in 2013
 // extends it with AVX2 in the Haswell generation. Moreover, Haswell adds FMA support.
-#if !defined(NK_TARGET_HASWELL) || (NK_TARGET_HASWELL && !_NK_TARGET_X86)
+#if !defined(NK_TARGET_HASWELL) || (NK_TARGET_HASWELL && !NK_TARGET_X86_)
 #if defined(__AVX2__) && defined(__FMA__) && defined(__F16C__)
 #define NK_TARGET_HASWELL 1
 #else
@@ -194,7 +188,7 @@
 //      gcc-12 -march=sapphirerapids -dM -E - < /dev/null | egrep "SSE|AVX" | sort
 // On Arm machines you may want to check for other flags:
 //      gcc-12 -march=native -dM -E - < /dev/null | egrep "NEON|SVE|FP16|FMA" | sort
-#if !defined(NK_TARGET_SKYLAKE) || (NK_TARGET_SKYLAKE && !_NK_TARGET_X86)
+#if !defined(NK_TARGET_SKYLAKE) || (NK_TARGET_SKYLAKE && !NK_TARGET_X86_)
 #if defined(__AVX512F__) && defined(__AVX512CD__) && defined(__AVX512VL__) && defined(__AVX512DQ__) && \
     defined(__AVX512BW__)
 #define NK_TARGET_SKYLAKE 1
@@ -203,7 +197,7 @@
 #define NK_TARGET_SKYLAKE 0
 #endif
 #endif // !defined(NK_TARGET_SKYLAKE) || ...
-#if !defined(NK_TARGET_ICE) || (NK_TARGET_ICE && !_NK_TARGET_X86)
+#if !defined(NK_TARGET_ICE) || (NK_TARGET_ICE && !NK_TARGET_X86_)
 #if defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITALG__) && defined(__AVX512VBMI2__) && \
     defined(__AVX512VPOPCNTDQ__)
 #define NK_TARGET_ICE 1
@@ -212,7 +206,7 @@
 #define NK_TARGET_ICE 0
 #endif
 #endif // !defined(NK_TARGET_ICE) || ...
-#if !defined(NK_TARGET_GENOA) || (NK_TARGET_GENOA && !_NK_TARGET_X86)
+#if !defined(NK_TARGET_GENOA) || (NK_TARGET_GENOA && !NK_TARGET_X86_)
 #if defined(__AVX512BF16__)
 #define NK_TARGET_GENOA 1
 #else
@@ -220,7 +214,7 @@
 #define NK_TARGET_GENOA 0
 #endif
 #endif // !defined(NK_TARGET_GENOA) || ...
-#if !defined(NK_TARGET_SAPPHIRE) || (NK_TARGET_SAPPHIRE && !_NK_TARGET_X86)
+#if !defined(NK_TARGET_SAPPHIRE) || (NK_TARGET_SAPPHIRE && !NK_TARGET_X86_)
 #if defined(__AVX512FP16__)
 #define NK_TARGET_SAPPHIRE 1
 #else
@@ -228,7 +222,7 @@
 #define NK_TARGET_SAPPHIRE 0
 #endif
 #endif // !defined(NK_TARGET_SAPPHIRE) || ...
-#if !defined(NK_TARGET_SAPPHIRE_AMX) || (NK_TARGET_SAPPHIRE_AMX && !_NK_TARGET_X86)
+#if !defined(NK_TARGET_SAPPHIRE_AMX) || (NK_TARGET_SAPPHIRE_AMX && !NK_TARGET_X86_)
 #if defined(__AMX_TILE__) && defined(__AMX_BF16__) && defined(__AMX_INT8__)
 #define NK_TARGET_SAPPHIRE_AMX 1
 #else
@@ -236,7 +230,7 @@
 #define NK_TARGET_SAPPHIRE_AMX 0
 #endif
 #endif // !defined(NK_TARGET_SAPPHIRE_AMX) || ...
-#if !defined(NK_TARGET_TURIN) || (NK_TARGET_TURIN && !_NK_TARGET_X86)
+#if !defined(NK_TARGET_TURIN) || (NK_TARGET_TURIN && !NK_TARGET_X86_)
 #if defined(__AVX512VP2INTERSECT__)
 #define NK_TARGET_TURIN 1
 #else
@@ -244,7 +238,7 @@
 #define NK_TARGET_TURIN 0
 #endif
 #endif // !defined(NK_TARGET_TURIN) || ...
-#if !defined(NK_TARGET_SIERRA) || (NK_TARGET_SIERRA && !_NK_TARGET_X86)
+#if !defined(NK_TARGET_SIERRA) || (NK_TARGET_SIERRA && !NK_TARGET_X86_)
 #if defined(__AVX2_VNNI__)
 #define NK_TARGET_SIERRA 1
 #else
@@ -321,14 +315,6 @@
 #define NK_F64_ABS(x) (fabs(x))
 #endif
 
-// Copy 16 bits (2 bytes) from source to destination
-#if defined(__GNUC__) || defined(__clang__)
-#define NK_COPY16(destination_ptr, source_ptr) __builtin_memcpy((destination_ptr), (source_ptr), 2)
-#else
-#include <string.h> /* fallback for exotic compilers */
-#define NK_COPY16(destination_ptr, source_ptr) memcpy((destination_ptr), (source_ptr), 2)
-#endif
-
 #if !defined(NK_F32_DIVISION_EPSILON)
 #define NK_F32_DIVISION_EPSILON (1e-7)
 #endif
@@ -348,12 +334,20 @@
 /**
  *  @brief  Aligns a variable to a 64-byte boundary using compiler extensions for
  *          compatibility with C 99, as `alignas(64)` is only available in C 11 or C++.
- *
+ *          Used internally and recommended for external users.
  */
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
 #define NK_ALIGN64 __declspec(align(64))
 #elif defined(__GNUC__) || defined(__clang__)
 #define NK_ALIGN64 __attribute__((aligned(64)))
+#endif
+
+/** Copy 16 bits (2 bytes) from source to destination */
+#if defined(__GNUC__) || defined(__clang__)
+#define nk_copy_bytes_(destination_ptr, source_ptr, count) __builtin_memcpy((destination_ptr), (source_ptr), count)
+#else
+#include <string.h> // fallback for exotic compilers
+#define nk_copy_bytes_(destination_ptr, source_ptr, count) memcpy((destination_ptr), (source_ptr), count)
 #endif
 
 #ifdef __cplusplus
@@ -469,7 +463,7 @@ typedef unsigned short nk_bf16_t;
  *  Some of those are defined as aliases, so we use `#define` preprocessor
  *  directives instead of `typedef` to avoid errors.
  */
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if defined(_MSC_VER)
 #define nk_f16_for_arm_simd_t  nk_f16_t
 #define nk_bf16_for_arm_simd_t nk_bf16_t
@@ -501,7 +495,7 @@ NK_STATIC_ASSERT(sizeof(nk_f64_t) == 8, nk_f64_t_must_be_8_bytes);
 NK_STATIC_ASSERT(sizeof(nk_f16_t) == 2, nk_f16_t_must_be_2_bytes);
 NK_STATIC_ASSERT(sizeof(nk_bf16_t) == 2, nk_bf16_t_must_be_2_bytes);
 
-#define NK_ASSIGN_FROM_TO(src, dest) (*(dest) = *(src))
+#define nk_assign_from_to_(src, dest) (*(dest) = *(src))
 
 /** @brief  Convenience type for single-precision floating-point bit manipulation. */
 typedef union {
@@ -705,7 +699,7 @@ NK_INTERNAL void nk_f16_to_f32_(nk_f16_t const *src, nk_f32_t *dest) {
     *dest = (nk_f32_t)(*src);
 #else
     unsigned short x;
-    NK_COPY16(&x, src);
+    nk_copy_bytes_(&x, src, 2);
     unsigned int exponent = (x & 0x7C00) >> 10;
     unsigned int mantissa = (x & 0x03FF) << 13;
     nk_fui32_t mantissa_conv;
@@ -749,7 +743,7 @@ NK_INTERNAL void nk_f32_to_f16_(nk_f32_t const *src, nk_f16_t *dest) {
     unsigned short result = ((b & 0x80000000) >> 16) | (e > 112) * ((((e - 112) << 10) & 0x7C00) | (m >> 13)) |
                             ((e < 113) & (e > 101)) * ((((0x007FF000 + m) >> (125 - e)) + 1) >> 1) |
                             ((e > 143) * 0x7FFF);
-    NK_COPY16(dest, &result);
+    nk_copy_bytes_(dest, &result, 2);
 #endif
 }
 
@@ -765,7 +759,7 @@ NK_INTERNAL void nk_bf16_to_f32_(nk_bf16_t const *src, nk_f32_t *dest) {
     *dest = (nk_f32_t)(*src);
 #else
     unsigned short x;
-    NK_COPY16(&x, src);
+    nk_copy_bytes_(&x, src, 2);
     nk_fui32_t conv;
     conv.u = x << 16; // Zero extends the mantissa
     *dest = conv.f;
@@ -800,7 +794,7 @@ NK_INTERNAL void nk_f32_to_bf16_(nk_f32_t const *src, nk_bf16_t *dest) {
     // Copying directly from `&conv.u` would copy the wrong bytes on big-endian,
     // since the lower 16 bits are at offset 2, not offset 0.
     unsigned short result = (unsigned short)conv.u;
-    NK_COPY16(dest, &result);
+    nk_copy_bytes_(dest, &result, 2);
 #endif
 }
 
@@ -1004,7 +998,6 @@ NK_INTERNAL void nk_f32_to_e5m2_(nk_f32_t const *src, nk_e5m2_t *dest) {
     *dest = (nk_e5m2_t)(sign | (exp_field << 2) | mant_field);
 }
 
-// Forward declarations for conversion functions used in helper functions and wrapper macros
 #if NK_DYNAMIC_DISPATCH
 NK_DYNAMIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest);
 NK_DYNAMIC void nk_f16_to_f64(nk_f16_t const *src, nk_f64_t *dest);
@@ -1029,35 +1022,21 @@ NK_PUBLIC void nk_e5m2_to_f32(nk_e5m2_t const *src, nk_f32_t *dest);
 NK_PUBLIC void nk_f32_to_e5m2(nk_f32_t const *src, nk_e5m2_t *dest);
 #endif
 
-#if !defined(NK_F32_TO_I8)
-#define NK_F32_TO_I8(x, y) \
-    *(y) = (nk_i8_t)((x) > 127 ? 127 : ((x) < -128 ? -128 : (int)((x) + ((x) < 0 ? -0.5f : 0.5f))))
-#endif
-#if !defined(NK_F32_TO_U8)
-#define NK_F32_TO_U8(x, y) *(y) = (nk_u8_t)((x) > 255 ? 255 : ((x) < 0 ? 0 : (int)((x) + ((x) < 0 ? -0.5f : 0.5f))))
-#endif
-#if !defined(NK_F64_TO_I8)
-#define NK_F64_TO_I8(x, y) *(y) = (nk_i8_t)((x) > 127 ? 127 : ((x) < -128 ? -128 : (int)((x) + ((x) < 0 ? -0.5 : 0.5))))
-#endif
-#if !defined(NK_F64_TO_U8)
-#define NK_F64_TO_U8(x, y) *(y) = (nk_u8_t)((x) > 255 ? 255 : ((x) < 0 ? 0 : (int)((x) + ((x) < 0 ? -0.5 : 0.5))))
-#endif
-
-NK_INTERNAL void _nk_f16_to_f64(nk_f16_t const *x, nk_f64_t *y) {
+NK_INTERNAL void nk_f16_to_f64_(nk_f16_t const *x, nk_f64_t *y) {
     nk_f32_t f32;
     nk_f16_to_f32(x, &f32);
     *y = (nk_f64_t)f32;
 }
-NK_INTERNAL void _nk_f64_to_f16(nk_f64_t const *x, nk_f16_t *y) {
+NK_INTERNAL void nk_f64_to_f16_(nk_f64_t const *x, nk_f16_t *y) {
     nk_f32_t f32 = (nk_f32_t)*x;
     nk_f32_to_f16(&f32, y);
 }
-NK_INTERNAL void _nk_bf16_to_f64(nk_bf16_t const *x, nk_f64_t *y) {
+NK_INTERNAL void nk_bf16_to_f64_(nk_bf16_t const *x, nk_f64_t *y) {
     nk_f32_t f32;
     nk_bf16_to_f32(x, &f32);
     *y = (nk_f64_t)f32;
 }
-NK_INTERNAL void _nk_f64_to_bf16(nk_f64_t const *x, nk_bf16_t *y) {
+NK_INTERNAL void nk_f64_to_bf16_(nk_f64_t const *x, nk_bf16_t *y) {
     nk_f32_t f32 = (nk_f32_t)*x;
     nk_f32_to_bf16(&f32, y);
 }
@@ -1068,149 +1047,145 @@ NK_INTERNAL void _nk_f64_to_bf16(nk_f64_t const *x, nk_bf16_t *y) {
  *  In C++ the analogous solution with STL could be: `*y = std::clamp(std::round(*x), -128, 127)`.
  *  In C, using the standard library: `*x = fminf(fmaxf(roundf(*x), -128), 127)`.
  */
-NK_INTERNAL void _nk_f32_to_i8(nk_f32_t const *x, nk_i8_t *y) {
+NK_INTERNAL void nk_f32_to_i8_(nk_f32_t const *x, nk_i8_t *y) {
     *y = (nk_i8_t)(*x > 127 ? 127 : (*x < -128 ? -128 : (int)(*x + (*x < 0 ? -0.5f : 0.5f))));
 }
 
-NK_INTERNAL void _nk_f32_to_u8(nk_f32_t const *x, nk_u8_t *y) {
+NK_INTERNAL void nk_f32_to_u8_(nk_f32_t const *x, nk_u8_t *y) {
     *y = (nk_u8_t)(*x > 255 ? 255 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5f : 0.5f))));
 }
 
-NK_INTERNAL void _nk_f32_to_i16(nk_f32_t const *x, nk_i16_t *y) {
+NK_INTERNAL void nk_f32_to_i16_(nk_f32_t const *x, nk_i16_t *y) {
     *y = (nk_i16_t)(*x > 32767 ? 32767 : (*x < -32768 ? -32768 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
 }
 
-NK_INTERNAL void _nk_f32_to_u16(nk_f32_t const *x, nk_u16_t *y) {
+NK_INTERNAL void nk_f32_to_u16_(nk_f32_t const *x, nk_u16_t *y) {
     *y = (nk_u16_t)(*x > 65535 ? 65535 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
 }
 
-NK_INTERNAL void _nk_f64_to_i8(nk_f64_t const *x, nk_i8_t *y) {
+NK_INTERNAL void nk_f64_to_i8_(nk_f64_t const *x, nk_i8_t *y) {
     *y = (nk_i8_t)(*x > 127 ? 127 : (*x < -128 ? -128 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
 }
 
-NK_INTERNAL void _nk_f64_to_u8(nk_f64_t const *x, nk_u8_t *y) {
+NK_INTERNAL void nk_f64_to_u8_(nk_f64_t const *x, nk_u8_t *y) {
     *y = (nk_u8_t)(*x > 255 ? 255 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
 }
 
-NK_INTERNAL void _nk_f64_to_i16(nk_f64_t const *x, nk_i16_t *y) {
+NK_INTERNAL void nk_f64_to_i16_(nk_f64_t const *x, nk_i16_t *y) {
     *y = (nk_i16_t)(*x > 32767 ? 32767 : (*x < -32768 ? -32768 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
 }
 
-NK_INTERNAL void _nk_f64_to_u16(nk_f64_t const *x, nk_u16_t *y) {
+NK_INTERNAL void nk_f64_to_u16_(nk_f64_t const *x, nk_u16_t *y) {
     *y = (nk_u16_t)(*x > 65535 ? 65535 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
 }
 
-NK_INTERNAL void _nk_f64_to_i32(nk_f64_t const *x, nk_i32_t *y) {
+NK_INTERNAL void nk_f64_to_i32_(nk_f64_t const *x, nk_i32_t *y) {
     *y = (nk_i32_t)(*x > 2147483647 ? 2147483647
                                     : (*x < -2147483648 ? -2147483648 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
 }
 
-NK_INTERNAL void _nk_f64_to_u32(nk_f64_t const *x, nk_u32_t *y) {
+NK_INTERNAL void nk_f64_to_u32_(nk_f64_t const *x, nk_u32_t *y) {
     *y = (nk_u32_t)(*x > 4294967295 ? 4294967295 : (*x < 0 ? 0 : (unsigned int)(*x + (*x < 0 ? -0.5 : 0.5))));
 }
 
-NK_INTERNAL void _nk_f64_to_i64(nk_f64_t const *x, nk_i64_t *y) {
+NK_INTERNAL void nk_f64_to_i64_(nk_f64_t const *x, nk_i64_t *y) {
     *y = (nk_i64_t)(*x > 9223372036854775807.0
                         ? 9223372036854775807ll
                         : (*x < -9223372036854775808.0 ? (-9223372036854775807ll - 1ll)
                                                        : (long long)(*x + (*x < 0 ? -0.5 : 0.5))));
 }
 
-NK_INTERNAL void _nk_f64_to_u64(nk_f64_t const *x, nk_u64_t *y) {
+NK_INTERNAL void nk_f64_to_u64_(nk_f64_t const *x, nk_u64_t *y) {
     *y = (nk_u64_t)(*x > 18446744073709551615.0 ? 18446744073709551615ull
                                                 : (*x < 0 ? 0 : (unsigned long long)(*x + (*x < 0 ? -0.5 : 0.5))));
 }
 
-NK_INTERNAL void _nk_i64_to_i8(nk_i64_t const *x, nk_i8_t *y) {
+NK_INTERNAL void nk_i64_to_i8_(nk_i64_t const *x, nk_i8_t *y) {
     *y = (nk_i8_t)(*x > 127ll ? 127ll : (*x < -128ll ? -128ll : *x));
 }
 
-NK_INTERNAL void _nk_i64_to_u8(nk_i64_t const *x, nk_u8_t *y) {
+NK_INTERNAL void nk_i64_to_u8_(nk_i64_t const *x, nk_u8_t *y) {
     *y = (nk_u8_t)(*x > 255ll ? 255ll : (*x < 0ll ? 0ll : *x));
 }
 
-NK_INTERNAL void _nk_i64_to_i16(nk_i64_t const *x, nk_i16_t *y) {
+NK_INTERNAL void nk_i64_to_i16_(nk_i64_t const *x, nk_i16_t *y) {
     *y = (nk_i16_t)(*x > 32767ll ? 32767ll : (*x < -32768ll ? -32768ll : *x));
 }
 
-NK_INTERNAL void _nk_i64_to_u16(nk_i64_t const *x, nk_u16_t *y) {
+NK_INTERNAL void nk_i64_to_u16_(nk_i64_t const *x, nk_u16_t *y) {
     *y = (nk_u16_t)(*x > 65535ll ? 65535ll : (*x < 0ll ? 0ll : *x));
 }
 
-NK_INTERNAL void _nk_i64_to_i32(nk_i64_t const *x, nk_i32_t *y) {
+NK_INTERNAL void nk_i64_to_i32_(nk_i64_t const *x, nk_i32_t *y) {
     *y = (nk_i32_t)(*x > 2147483647ll ? 2147483647ll : (*x < -2147483648ll ? -2147483648ll : *x));
 }
 
-NK_INTERNAL void _nk_i64_to_u32(nk_i64_t const *x, nk_u32_t *y) {
+NK_INTERNAL void nk_i64_to_u32_(nk_i64_t const *x, nk_u32_t *y) {
     *y = (nk_u32_t)(*x > 4294967295ll ? 4294967295ll : (*x < 0ll ? 0ll : *x));
 }
 
-NK_INTERNAL void _nk_u64_to_i8(nk_u64_t const *x, nk_i8_t *y) { *y = (nk_i8_t)(*x > 127ull ? 127ull : *x); }
+NK_INTERNAL void nk_u64_to_i8_(nk_u64_t const *x, nk_i8_t *y) { *y = (nk_i8_t)(*x > 127ull ? 127ull : *x); }
+NK_INTERNAL void nk_u64_to_u8_(nk_u64_t const *x, nk_u8_t *y) { *y = (nk_u8_t)(*x > 255ull ? 255ull : *x); }
+NK_INTERNAL void nk_u64_to_i16_(nk_u64_t const *x, nk_i16_t *y) { *y = (nk_i16_t)(*x > 32767ull ? 32767ull : *x); }
+NK_INTERNAL void nk_u64_to_u16_(nk_u64_t const *x, nk_u16_t *y) { *y = (nk_u16_t)(*x > 65535ull ? 65535ull : *x); }
 
-NK_INTERNAL void _nk_u64_to_u8(nk_u64_t const *x, nk_u8_t *y) { *y = (nk_u8_t)(*x > 255ull ? 255ull : *x); }
-
-NK_INTERNAL void _nk_u64_to_i16(nk_u64_t const *x, nk_i16_t *y) { *y = (nk_i16_t)(*x > 32767ull ? 32767ull : *x); }
-
-NK_INTERNAL void _nk_u64_to_u16(nk_u64_t const *x, nk_u16_t *y) { *y = (nk_u16_t)(*x > 65535ull ? 65535ull : *x); }
-
-NK_INTERNAL void _nk_u64_to_i32(nk_u64_t const *x, nk_i32_t *y) {
+NK_INTERNAL void nk_u64_to_i32_(nk_u64_t const *x, nk_i32_t *y) {
     *y = (nk_i32_t)(*x > 2147483647ull ? 2147483647ull : *x);
 }
 
-NK_INTERNAL void _nk_u64_to_u32(nk_u64_t const *x, nk_u32_t *y) {
+NK_INTERNAL void nk_u64_to_u32_(nk_u64_t const *x, nk_u32_t *y) {
     *y = (nk_u32_t)(*x > 4294967295ull ? 4294967295ull : *x);
 }
 
-NK_INTERNAL void _nk_f64_to_f32(nk_f64_t const *x, nk_f32_t *y) { *y = (nk_f32_t)*x; }
-NK_INTERNAL void _nk_u64_to_f32(nk_u64_t const *x, nk_f32_t *y) { *y = (nk_f32_t)*x; }
-NK_INTERNAL void _nk_i64_to_f32(nk_i64_t const *x, nk_f32_t *y) { *y = (nk_f32_t)*x; }
+NK_INTERNAL void nk_f64_to_f32_(nk_f64_t const *x, nk_f32_t *y) { *y = (nk_f32_t)*x; }
+NK_INTERNAL void nk_u64_to_f32_(nk_u64_t const *x, nk_f32_t *y) { *y = (nk_f32_t)*x; }
+NK_INTERNAL void nk_i64_to_f32_(nk_i64_t const *x, nk_f32_t *y) { *y = (nk_f32_t)*x; }
 
-NK_INTERNAL void _nk_f32_to_f64(nk_f32_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
+NK_INTERNAL void nk_f32_to_f64_(nk_f32_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
+NK_INTERNAL void nk_f64_to_f64_(nk_f64_t const *x, nk_f64_t *y) { *y = *x; }
 
-NK_INTERNAL void _nk_f64_to_f64(nk_f64_t const *x, nk_f64_t *y) { *y = *x; }
+NK_INTERNAL void nk_i8_to_f64_(nk_i8_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
+NK_INTERNAL void nk_i16_to_f64_(nk_i16_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
+NK_INTERNAL void nk_i32_to_f64_(nk_i32_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
+NK_INTERNAL void nk_i64_to_f64_(nk_i64_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
+NK_INTERNAL void nk_u8_to_f64_(nk_u8_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
+NK_INTERNAL void nk_u16_to_f64_(nk_u16_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
+NK_INTERNAL void nk_u32_to_f64_(nk_u32_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
+NK_INTERNAL void nk_u64_to_f64_(nk_u64_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
 
-NK_INTERNAL void _nk_i8_to_f64(nk_i8_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
-NK_INTERNAL void _nk_i16_to_f64(nk_i16_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
-NK_INTERNAL void _nk_i32_to_f64(nk_i32_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
-NK_INTERNAL void _nk_i64_to_f64(nk_i64_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
-NK_INTERNAL void _nk_u8_to_f64(nk_u8_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
-NK_INTERNAL void _nk_u16_to_f64(nk_u16_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
-NK_INTERNAL void _nk_u32_to_f64(nk_u32_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
-NK_INTERNAL void _nk_u64_to_f64(nk_u64_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
-
-NK_INTERNAL void _nk_i8_to_i64(nk_i8_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
-NK_INTERNAL void _nk_i16_to_i64(nk_i16_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
-NK_INTERNAL void _nk_i32_to_i64(nk_i32_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
-NK_INTERNAL void _nk_i64_to_i64(nk_i64_t const *x, nk_i64_t *y) { *y = *x; }
-NK_INTERNAL void _nk_u8_to_i64(nk_u8_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
-NK_INTERNAL void _nk_u16_to_i64(nk_u16_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
-NK_INTERNAL void _nk_u32_to_i64(nk_u32_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
-NK_INTERNAL void _nk_u64_to_i64(nk_u64_t const *x, nk_i64_t *y) {
+NK_INTERNAL void nk_i8_to_i64_(nk_i8_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
+NK_INTERNAL void nk_i16_to_i64_(nk_i16_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
+NK_INTERNAL void nk_i32_to_i64_(nk_i32_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
+NK_INTERNAL void nk_i64_to_i64_(nk_i64_t const *x, nk_i64_t *y) { *y = *x; }
+NK_INTERNAL void nk_u8_to_i64_(nk_u8_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
+NK_INTERNAL void nk_u16_to_i64_(nk_u16_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
+NK_INTERNAL void nk_u32_to_i64_(nk_u32_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
+NK_INTERNAL void nk_u64_to_i64_(nk_u64_t const *x, nk_i64_t *y) {
     *y = (nk_i64_t)(*x >= 9223372036854775807ull ? 9223372036854775807ll : *x);
 }
 
-NK_INTERNAL void _nk_i8_to_u64(nk_i8_t const *x, nk_u64_t *y) { *y = (nk_u64_t)(*x < 0 ? 0 : *x); }
-NK_INTERNAL void _nk_i16_to_u64(nk_i16_t const *x, nk_u64_t *y) { *y = (nk_u64_t)(*x < 0 ? 0 : *x); }
-NK_INTERNAL void _nk_i32_to_u64(nk_i32_t const *x, nk_u64_t *y) { *y = (nk_u64_t)(*x < 0 ? 0 : *x); }
-NK_INTERNAL void _nk_i64_to_u64(nk_i64_t const *x, nk_u64_t *y) { *y = (nk_u64_t)(*x < 0 ? 0 : *x); }
-NK_INTERNAL void _nk_u8_to_u64(nk_u8_t const *x, nk_u64_t *y) { *y = (nk_u64_t)*x; }
-NK_INTERNAL void _nk_u16_to_u64(nk_u16_t const *x, nk_u64_t *y) { *y = (nk_u64_t)*x; }
-NK_INTERNAL void _nk_u32_to_u64(nk_u32_t const *x, nk_u64_t *y) { *y = (nk_u64_t)*x; }
-NK_INTERNAL void _nk_u64_to_u64(nk_u64_t const *x, nk_u64_t *y) { *y = *x; }
+NK_INTERNAL void nk_i8_to_u64_(nk_i8_t const *x, nk_u64_t *y) { *y = (nk_u64_t)(*x < 0 ? 0 : *x); }
+NK_INTERNAL void nk_i16_to_u64_(nk_i16_t const *x, nk_u64_t *y) { *y = (nk_u64_t)(*x < 0 ? 0 : *x); }
+NK_INTERNAL void nk_i32_to_u64_(nk_i32_t const *x, nk_u64_t *y) { *y = (nk_u64_t)(*x < 0 ? 0 : *x); }
+NK_INTERNAL void nk_i64_to_u64_(nk_i64_t const *x, nk_u64_t *y) { *y = (nk_u64_t)(*x < 0 ? 0 : *x); }
+NK_INTERNAL void nk_u8_to_u64_(nk_u8_t const *x, nk_u64_t *y) { *y = (nk_u64_t)*x; }
+NK_INTERNAL void nk_u16_to_u64_(nk_u16_t const *x, nk_u64_t *y) { *y = (nk_u64_t)*x; }
+NK_INTERNAL void nk_u32_to_u64_(nk_u32_t const *x, nk_u64_t *y) { *y = (nk_u64_t)*x; }
+NK_INTERNAL void nk_u64_to_u64_(nk_u64_t const *x, nk_u64_t *y) { *y = *x; }
 
-NK_INTERNAL void _nk_i64_to_f16(nk_i64_t const *x, nk_f16_t *y) {
+NK_INTERNAL void nk_i64_to_f16_(nk_i64_t const *x, nk_f16_t *y) {
     nk_f32_t f32 = (nk_f32_t)*x;
     nk_f32_to_f16(&f32, y);
 }
-NK_INTERNAL void _nk_i64_to_bf16(nk_i64_t const *x, nk_bf16_t *y) {
+NK_INTERNAL void nk_i64_to_bf16_(nk_i64_t const *x, nk_bf16_t *y) {
     nk_f32_t f32 = (nk_f32_t)*x;
     nk_f32_to_bf16(&f32, y);
 }
-NK_INTERNAL void _nk_u64_to_f16(nk_u64_t const *x, nk_f16_t *y) {
+NK_INTERNAL void nk_u64_to_f16_(nk_u64_t const *x, nk_f16_t *y) {
     nk_f32_t f32 = (nk_f32_t)*x;
     nk_f32_to_f16(&f32, y);
 }
-NK_INTERNAL void _nk_u64_to_bf16(nk_u64_t const *x, nk_bf16_t *y) {
+NK_INTERNAL void nk_u64_to_bf16_(nk_u64_t const *x, nk_bf16_t *y) {
     nk_f32_t f32 = (nk_f32_t)*x;
     nk_f32_to_bf16(&f32, y);
 }
@@ -1218,20 +1193,19 @@ NK_INTERNAL void _nk_u64_to_bf16(nk_u64_t const *x, nk_bf16_t *y) {
 /**
  *  @brief  Helper structure for implementing strided matrix row lookups, with @b single-byte-level pointer math.
  */
-NK_INTERNAL void *_nk_advance_by_bytes(void *ptr, nk_size_t bytes) { return (void *)((nk_u8_t *)ptr + bytes); }
+NK_INTERNAL void *nk_advance_by_bytes_(void *ptr, nk_size_t bytes) { return (void *)((nk_u8_t *)ptr + bytes); }
 
 /**
  *  @brief  Divide and round up to the nearest integer.
  */
-NK_INTERNAL nk_size_t _nk_divide_ceil(nk_size_t dividend, nk_size_t divisor) {
+NK_INTERNAL nk_size_t nk_divide_ceil_(nk_size_t dividend, nk_size_t divisor) {
     return (dividend + divisor - 1) / divisor;
 }
 
 /**
  *  @brief Advances the Multi-Dimensional iterator to the next set of indicies.
- *  @param[in] extents The extents of the tensor, defined by an array with at least `rank` scalars.
- *  @param[in] strides The @b signed strides of the tensor in bytes, defined by an array with at least `rank`
- * scalars.
+ *  @param[in] extents The extents of the tensor, defined by an array of at least `rank` scalars.
+ *  @param[in] strides The @b signed strides of the tensor in bytes, defined by an array of at least `rank` scalars.
  *  @param[in] rank The number of dimensions in the tensor (its rank).
  *  @param[inout] coordinates The array of offsets along each of `rank` dimensions, which will be updated.
  *  @param[inout] byte_offset The @b signed byte offset of the current element, which will be advanced.
@@ -1257,9 +1231,8 @@ NK_PUBLIC int nk_xd_index_next(                                          //
 
 /**
  *  @brief Advances the Multi-Dimensional iterator to the provided coordinates, updating the byte offset.
- *  @param[in] extents The extents of the tensor, defined by an array with at least `rank` scalars.
- *  @param[in] strides The @b signed strides of the tensor in bytes, defined by an array with at least `rank`
- * scalars.
+ *  @param[in] extents The extents of the tensor, defined by an array of at least `rank` scalars.
+ *  @param[in] strides The @b signed strides of the tensor in bytes, defined by an array of at least `rank` scalars.
  *  @param[in] rank The number of dimensions in the tensor (its rank).
  *  @param[in] coordinates The array of offsets along each of `rank` dimensions, which will be updated.
  *  @param[out] byte_offset The byte offset of the current element, which will be advanced.
@@ -1328,34 +1301,34 @@ NK_INTERNAL nk_u32_t nk_u32_ror(nk_u32_t x, int n) { return (x >> n) | (x << (32
 NK_INTERNAL nk_u16_t nk_u16_ror(nk_u16_t x, int n) { return (x >> n) | (x << (16 - n)); }
 NK_INTERNAL nk_u8_t nk_u8_ror(nk_u8_t x, int n) { return (x >> n) | (x << (8 - n)); }
 
-NK_INTERNAL void _nk_u8_sadd(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t *r) {
+NK_INTERNAL void nk_u8_sadd_(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t *r) {
     nk_u16_t result = (nk_u16_t)*a + (nk_u16_t)*b;
     *r = (result > 255u) ? (nk_u8_t)255u : (nk_u8_t)result;
 }
-NK_INTERNAL void _nk_u16_sadd(nk_u16_t const *a, nk_u16_t const *b, nk_u16_t *r) {
+NK_INTERNAL void nk_u16_sadd_(nk_u16_t const *a, nk_u16_t const *b, nk_u16_t *r) {
     nk_u32_t result = (nk_u32_t)*a + (nk_u32_t)*b;
     *r = (result > 65535u) ? (nk_u16_t)65535u : (nk_u16_t)result;
 }
-NK_INTERNAL void _nk_u32_sadd(nk_u32_t const *a, nk_u32_t const *b, nk_u32_t *r) {
+NK_INTERNAL void nk_u32_sadd_(nk_u32_t const *a, nk_u32_t const *b, nk_u32_t *r) {
     nk_u64_t result = (nk_u64_t)*a + (nk_u64_t)*b;
     *r = (result > 4294967295u) ? (nk_u32_t)4294967295u : (nk_u32_t)result;
 }
-NK_INTERNAL void _nk_u64_sadd(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t *r) {
+NK_INTERNAL void nk_u64_sadd_(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t *r) {
     *r = (*a + *b < *a) ? 18446744073709551615ull : (*a + *b);
 }
-NK_INTERNAL void _nk_i8_sadd(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t *r) {
+NK_INTERNAL void nk_i8_sadd_(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t *r) {
     nk_i16_t result = (nk_i16_t)*a + (nk_i16_t)*b;
     *r = (result > 127) ? 127 : (result < -128 ? -128 : result);
 }
-NK_INTERNAL void _nk_i16_sadd(nk_i16_t const *a, nk_i16_t const *b, nk_i16_t *r) {
+NK_INTERNAL void nk_i16_sadd_(nk_i16_t const *a, nk_i16_t const *b, nk_i16_t *r) {
     nk_i32_t result = (nk_i32_t)*a + (nk_i32_t)*b;
     *r = (result > 32767) ? 32767 : (result < -32768 ? -32768 : result);
 }
-NK_INTERNAL void _nk_i32_sadd(nk_i32_t const *a, nk_i32_t const *b, nk_i32_t *r) {
+NK_INTERNAL void nk_i32_sadd_(nk_i32_t const *a, nk_i32_t const *b, nk_i32_t *r) {
     nk_i64_t result = (nk_i64_t)*a + (nk_i64_t)*b;
     *r = (result > 2147483647ll) ? 2147483647ll : (result < -2147483648ll ? -2147483648ll : (nk_i32_t)result);
 }
-NK_INTERNAL void _nk_i64_sadd(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t *r) {
+NK_INTERNAL void nk_i64_sadd_(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t *r) {
     //? We can't just write `-9223372036854775808ll`, even though it's the smallest signed 64-bit value.
     //? The compiler will complain about the number being too large for the type, as it will process the
     //? constant and the sign separately. So we use the same hint that compilers use to define the `INT64_MIN`.
@@ -1363,16 +1336,16 @@ NK_INTERNAL void _nk_i64_sadd(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t *r)
     else if ((*b < 0) && (*a < (-9223372036854775807ll - 1ll) - *b)) { *r = -9223372036854775807ll - 1ll; } // Underflow
     else { *r = *a + *b; }
 }
-NK_INTERNAL void _nk_f32_sadd(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t *r) { *r = *a + *b; }
-NK_INTERNAL void _nk_f64_sadd(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t *r) { *r = *a + *b; }
-NK_INTERNAL void _nk_f16_sadd(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t *r) {
+NK_INTERNAL void nk_f32_sadd_(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t *r) { *r = *a + *b; }
+NK_INTERNAL void nk_f64_sadd_(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t *r) { *r = *a + *b; }
+NK_INTERNAL void nk_f16_sadd_(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t *r) {
     nk_f32_t a_f32, b_f32, r_f32;
     nk_f16_to_f32(a, &a_f32);
     nk_f16_to_f32(b, &b_f32);
     r_f32 = a_f32 + b_f32;
     nk_f32_to_f16(&r_f32, r);
 }
-NK_INTERNAL void _nk_bf16_sadd(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t *r) {
+NK_INTERNAL void nk_bf16_sadd_(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t *r) {
     nk_f32_t a_f32, b_f32, r_f32;
     nk_bf16_to_f32(a, &a_f32);
     nk_bf16_to_f32(b, &b_f32);
@@ -1380,22 +1353,22 @@ NK_INTERNAL void _nk_bf16_sadd(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t
     nk_f32_to_bf16(&r_f32, r);
 }
 
-NK_INTERNAL void _nk_u8_smul(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t *r) {
+NK_INTERNAL void nk_u8_smul_(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t *r) {
     nk_u16_t result = (nk_u16_t)(*a) * (nk_u16_t)(*b);
     *r = (result > 255) ? 255 : (nk_u8_t)result;
 }
 
-NK_INTERNAL void _nk_u16_smul(nk_u16_t const *a, nk_u16_t const *b, nk_u16_t *r) {
+NK_INTERNAL void nk_u16_smul_(nk_u16_t const *a, nk_u16_t const *b, nk_u16_t *r) {
     nk_u32_t result = (nk_u32_t)(*a) * (nk_u32_t)(*b);
     *r = (result > 65535) ? 65535 : (nk_u16_t)result;
 }
 
-NK_INTERNAL void _nk_u32_smul(nk_u32_t const *a, nk_u32_t const *b, nk_u32_t *r) {
+NK_INTERNAL void nk_u32_smul_(nk_u32_t const *a, nk_u32_t const *b, nk_u32_t *r) {
     nk_u64_t result = (nk_u64_t)(*a) * (nk_u64_t)(*b);
     *r = (result > 4294967295u) ? 4294967295u : (nk_u32_t)result;
 }
 
-NK_INTERNAL void _nk_u64_smul(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t *r) {
+NK_INTERNAL void nk_u64_smul_(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t *r) {
     // Split the inputs into high and low 32-bit parts
     nk_u64_t a_hi = *a >> 32;
     nk_u64_t a_lo = *a & 0xFFFFFFFF;
@@ -1424,29 +1397,29 @@ NK_INTERNAL void _nk_u64_smul(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t *r)
  *
  *  Cost: ~12 ALU ops, zero memory access (vs 8 table lookups for byte-wise).
  */
-NK_INTERNAL nk_u64_t _nk_u64_popcount(nk_u64_t x) {
+NK_INTERNAL nk_u64_t nk_u64_popcount_(nk_u64_t x) {
     x = x - ((x >> 1) & 0x5555555555555555ull);
     x = (x & 0x3333333333333333ull) + ((x >> 2) & 0x3333333333333333ull);
     x = (x + (x >> 4)) & 0x0F0F0F0F0F0F0F0Full;
     return (x * 0x0101010101010101ull) >> 56;
 }
 
-NK_INTERNAL void _nk_i8_smul(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t *r) {
+NK_INTERNAL void nk_i8_smul_(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t *r) {
     nk_i16_t result = (nk_i16_t)(*a) * (nk_i16_t)(*b);
     *r = (result > 127) ? 127 : (result < -128 ? -128 : (nk_i8_t)result);
 }
 
-NK_INTERNAL void _nk_i16_smul(nk_i16_t const *a, nk_i16_t const *b, nk_i16_t *r) {
+NK_INTERNAL void nk_i16_smul_(nk_i16_t const *a, nk_i16_t const *b, nk_i16_t *r) {
     nk_i32_t result = (nk_i32_t)(*a) * (nk_i32_t)(*b);
     *r = (result > 32767) ? 32767 : (result < -32768 ? -32768 : (nk_i16_t)result);
 }
 
-NK_INTERNAL void _nk_i32_smul(nk_i32_t const *a, nk_i32_t const *b, nk_i32_t *r) {
+NK_INTERNAL void nk_i32_smul_(nk_i32_t const *a, nk_i32_t const *b, nk_i32_t *r) {
     nk_i64_t result = (nk_i64_t)(*a) * (nk_i64_t)(*b);
     *r = (result > 2147483647ll) ? 2147483647ll : (result < -2147483648ll ? -2147483648ll : (nk_i32_t)result);
 }
 
-NK_INTERNAL void _nk_i64_smul(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t *r) {
+NK_INTERNAL void nk_i64_smul_(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t *r) {
     int sign = ((*a < 0) ^ (*b < 0)) ? -1 : 1; // Track the sign of the result
 
     // Take absolute values for easy multiplication and overflow detection
@@ -1476,11 +1449,10 @@ NK_INTERNAL void _nk_i64_smul(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t *r)
     }
 }
 
-NK_INTERNAL void _nk_f32_smul(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t *r) { *r = *a * *b; }
+NK_INTERNAL void nk_f32_smul_(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t *r) { *r = *a * *b; }
+NK_INTERNAL void nk_f64_smul_(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t *r) { *r = *a * *b; }
 
-NK_INTERNAL void _nk_f64_smul(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t *r) { *r = *a * *b; }
-
-NK_INTERNAL void _nk_f16_smul(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t *r) {
+NK_INTERNAL void nk_f16_smul_(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t *r) {
     nk_f32_t a_f32, b_f32, r_f32;
     nk_f16_to_f32(a, &a_f32);
     nk_f16_to_f32(b, &b_f32);
@@ -1488,7 +1460,7 @@ NK_INTERNAL void _nk_f16_smul(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t *r)
     nk_f32_to_f16(&r_f32, r);
 }
 
-NK_INTERNAL void _nk_bf16_smul(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t *r) {
+NK_INTERNAL void nk_bf16_smul_(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t *r) {
     nk_f32_t a_f32, b_f32, r_f32;
     nk_bf16_to_f32(a, &a_f32);
     nk_bf16_to_f32(b, &b_f32);
@@ -1496,70 +1468,17 @@ NK_INTERNAL void _nk_bf16_smul(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t
     nk_f32_to_bf16(&r_f32, r);
 }
 
-#if NK_DYNAMIC_DISPATCH
-
-/** @copydoc nk_f16_to_f32_ */
-NK_DYNAMIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest);
-
-/** @copydoc nk_f16_to_f64_ */
-NK_DYNAMIC void nk_f16_to_f64(nk_f16_t const *src, nk_f64_t *dest);
-
-/** @copydoc nk_f32_to_f16_ */
-NK_DYNAMIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest);
-
-/** @copydoc nk_bf16_to_f32_ */
-NK_DYNAMIC void nk_bf16_to_f32(nk_bf16_t const *src, nk_f32_t *dest);
-
-/** @copydoc nk_bf16_to_f64_ */
-NK_DYNAMIC void nk_bf16_to_f64(nk_bf16_t const *src, nk_f64_t *dest);
-
-/** @copydoc nk_f32_to_bf16_ */
-NK_DYNAMIC void nk_f32_to_bf16(nk_f32_t const *src, nk_bf16_t *dest);
-
-/** @copydoc nk_e4m3_to_f32_ */
-NK_DYNAMIC void nk_e4m3_to_f32(nk_e4m3_t const *src, nk_f32_t *dest);
-
-/** @copydoc nk_f32_to_e4m3_ */
-NK_DYNAMIC void nk_f32_to_e4m3(nk_f32_t const *src, nk_e4m3_t *dest);
-
-/** @copydoc nk_e5m2_to_f32_ */
-NK_DYNAMIC void nk_e5m2_to_f32(nk_e5m2_t const *src, nk_f32_t *dest);
-
-/** @copydoc nk_f32_to_e5m2_ */
-NK_DYNAMIC void nk_f32_to_e5m2(nk_f32_t const *src, nk_e5m2_t *dest);
-
-#else // NK_DYNAMIC_DISPATCH
-
-/** @copydoc nk_f16_to_f32_ */
+#if !NK_DYNAMIC_DISPATCH
 NK_PUBLIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest) { nk_f16_to_f32_(src, dest); }
-
-/** @copydoc nk_f16_to_f64_ */
 NK_PUBLIC void nk_f16_to_f64(nk_f16_t const *src, nk_f64_t *dest) { nk_f16_to_f64_(src, dest); }
-
-/** @copydoc nk_f32_to_f16_ */
 NK_PUBLIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest) { nk_f32_to_f16_(src, dest); }
-
-/** @copydoc nk_bf16_to_f32_ */
 NK_PUBLIC void nk_bf16_to_f32(nk_bf16_t const *src, nk_f32_t *dest) { nk_bf16_to_f32_(src, dest); }
-
-/** @copydoc nk_bf16_to_f64_ */
 NK_PUBLIC void nk_bf16_to_f64(nk_bf16_t const *src, nk_f64_t *dest) { nk_bf16_to_f64_(src, dest); }
-
-/** @copydoc nk_f32_to_bf16_ */
 NK_PUBLIC void nk_f32_to_bf16(nk_f32_t const *src, nk_bf16_t *dest) { nk_f32_to_bf16_(src, dest); }
-
-/** @copydoc nk_e4m3_to_f32_ */
 NK_PUBLIC void nk_e4m3_to_f32(nk_e4m3_t const *src, nk_f32_t *dest) { nk_e4m3_to_f32_(src, dest); }
-
-/** @copydoc nk_f32_to_e4m3_ */
 NK_PUBLIC void nk_f32_to_e4m3(nk_f32_t const *src, nk_e4m3_t *dest) { nk_f32_to_e4m3_(src, dest); }
-
-/** @copydoc nk_e5m2_to_f32_ */
 NK_PUBLIC void nk_e5m2_to_f32(nk_e5m2_t const *src, nk_f32_t *dest) { nk_e5m2_to_f32_(src, dest); }
-
-/** @copydoc nk_f32_to_e5m2_ */
 NK_PUBLIC void nk_f32_to_e5m2(nk_f32_t const *src, nk_e5m2_t *dest) { nk_f32_to_e5m2_(src, dest); }
-
 #endif // NK_DYNAMIC_DISPATCH
 
 #ifdef __cplusplus

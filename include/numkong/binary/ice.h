@@ -8,7 +8,7 @@
 #ifndef NK_BINARY_ICE_H
 #define NK_BINARY_ICE_H
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_ICE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vpopcntdq")
@@ -315,6 +315,6 @@ NK_INTERNAL void nk_jaccard_b512_finalize_ice(nk_jaccard_b512_state_ice_t const 
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_ICE
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
 #endif // NK_BINARY_ICE_H

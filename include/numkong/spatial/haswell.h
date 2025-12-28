@@ -8,7 +8,7 @@
 #ifndef NK_SPATIAL_HASWELL_H
 #define NK_SPATIAL_HASWELL_H
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma")
@@ -20,10 +20,10 @@
 extern "C" {
 #endif
 
-NK_INTERNAL nk_f32_t _nk_sqrt_f32_haswell(nk_f32_t x) { return _mm_cvtss_f32(_mm_sqrt_ps(_mm_set_ss(x))); }
-NK_INTERNAL nk_f64_t _nk_sqrt_f64_haswell(nk_f64_t x) { return _mm_cvtsd_f64(_mm_sqrt_pd(_mm_set_sd(x))); }
+NK_INTERNAL nk_f32_t nk_sqrt_f32_haswell_(nk_f32_t x) { return _mm_cvtss_f32(_mm_sqrt_ps(_mm_set_ss(x))); }
+NK_INTERNAL nk_f64_t nk_sqrt_f64_haswell_(nk_f64_t x) { return _mm_cvtsd_f64(_mm_sqrt_pd(_mm_set_sd(x))); }
 
-NK_INTERNAL nk_f64_t _nk_angular_normalize_f64_haswell(nk_f64_t ab, nk_f64_t a2, nk_f64_t b2) {
+NK_INTERNAL nk_f64_t nk_angular_normalize_f64_haswell_(nk_f64_t ab, nk_f64_t a2, nk_f64_t b2) {
 
     // If both vectors have magnitude 0, the distance is 0.
     if (a2 == 0 && b2 == 0) return 0;
@@ -34,7 +34,7 @@ NK_INTERNAL nk_f64_t _nk_angular_normalize_f64_haswell(nk_f64_t ab, nk_f64_t a2,
     // https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
     // The latency of the native instruction is 4 cycles and it's broadly supported.
     // For single-precision floats it has a maximum relative error of 1.5*2^-12.
-    // Higher precision isn't implemented on older CPUs. See `_nk_angular_normalize_f64_skylake` for that.
+    // Higher precision isn't implemented on older CPUs. See `nk_angular_normalize_f64_skylake_` for that.
     __m128d squares = _mm_set_pd(a2, b2);
     __m128d rsqrts = _mm_cvtps_pd(_mm_rsqrt_ps(_mm_cvtpd_ps(squares)));
     // Newton-Raphson iteration for reciprocal square root:
@@ -49,7 +49,7 @@ NK_INTERNAL nk_f64_t _nk_angular_normalize_f64_haswell(nk_f64_t ab, nk_f64_t a2,
     return result > 0 ? result : 0;
 }
 
-NK_INTERNAL nk_f32_t _nk_angular_normalize_f32_haswell(nk_f32_t ab, nk_f32_t a2, nk_f32_t b2) {
+NK_INTERNAL nk_f32_t nk_angular_normalize_f32_haswell_(nk_f32_t ab, nk_f32_t a2, nk_f32_t b2) {
 
     // If both vectors have magnitude 0, the distance is 0.
     if (a2 == 0.0f && b2 == 0.0f) return 0.0f;
@@ -82,9 +82,9 @@ NK_INTERNAL nk_f32_t _nk_angular_normalize_f32_haswell(nk_f32_t ab, nk_f32_t a2,
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_HASWELL
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma")
@@ -92,7 +92,7 @@ NK_INTERNAL nk_f32_t _nk_angular_normalize_f32_haswell(nk_f32_t ab, nk_f32_t a2,
 
 NK_PUBLIC void nk_l2_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_l2sq_f16_haswell(a, b, n, result);
-    *result = _nk_sqrt_f32_haswell(*result);
+    *result = nk_sqrt_f32_haswell_(*result);
 }
 NK_PUBLIC void nk_l2sq_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     __m256 a_f32x8, b_f32x8;
@@ -100,8 +100,8 @@ NK_PUBLIC void nk_l2sq_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size
 
 nk_l2sq_f16_haswell_cycle:
     if (n < 8) {
-        a_f32x8 = _nk_partial_load_f16x8_haswell(a, n);
-        b_f32x8 = _nk_partial_load_f16x8_haswell(b, n);
+        a_f32x8 = nk_partial_load_f16x8_haswell_(a, n);
+        b_f32x8 = nk_partial_load_f16x8_haswell_(b, n);
         n = 0;
     }
     else {
@@ -113,7 +113,7 @@ nk_l2sq_f16_haswell_cycle:
     distance_sq_f32x8 = _mm256_fmadd_ps(diff_f32x8, diff_f32x8, distance_sq_f32x8);
     if (n) goto nk_l2sq_f16_haswell_cycle;
 
-    *result = _nk_reduce_add_f32x8_haswell(distance_sq_f32x8);
+    *result = nk_reduce_add_f32x8_haswell_(distance_sq_f32x8);
 }
 
 NK_PUBLIC void nk_angular_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -123,8 +123,8 @@ NK_PUBLIC void nk_angular_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_s
 
 nk_angular_f16_haswell_cycle:
     if (n < 8) {
-        a_f32x8 = _nk_partial_load_f16x8_haswell(a, n);
-        b_f32x8 = _nk_partial_load_f16x8_haswell(b, n);
+        a_f32x8 = nk_partial_load_f16x8_haswell_(a, n);
+        b_f32x8 = nk_partial_load_f16x8_haswell_(b, n);
         n = 0;
     }
     else {
@@ -137,15 +137,15 @@ nk_angular_f16_haswell_cycle:
     b_norm_sq_f32x8 = _mm256_fmadd_ps(b_f32x8, b_f32x8, b_norm_sq_f32x8);
     if (n) goto nk_angular_f16_haswell_cycle;
 
-    nk_f32_t dot_product_f32 = _nk_reduce_add_f32x8_haswell(dot_product_f32x8);
-    nk_f32_t a_norm_sq_f32 = _nk_reduce_add_f32x8_haswell(a_norm_sq_f32x8);
-    nk_f32_t b_norm_sq_f32 = _nk_reduce_add_f32x8_haswell(b_norm_sq_f32x8);
-    *result = _nk_angular_normalize_f32_haswell(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
+    nk_f32_t dot_product_f32 = nk_reduce_add_f32x8_haswell_(dot_product_f32x8);
+    nk_f32_t a_norm_sq_f32 = nk_reduce_add_f32x8_haswell_(a_norm_sq_f32x8);
+    nk_f32_t b_norm_sq_f32 = nk_reduce_add_f32x8_haswell_(b_norm_sq_f32x8);
+    *result = nk_angular_normalize_f32_haswell_(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
 NK_PUBLIC void nk_l2_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_l2sq_bf16_haswell(a, b, n, result);
-    *result = _nk_sqrt_f32_haswell(*result);
+    *result = nk_sqrt_f32_haswell_(*result);
 }
 NK_PUBLIC void nk_l2sq_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     __m256 a_f32x8, b_f32x8;
@@ -153,20 +153,20 @@ NK_PUBLIC void nk_l2sq_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_s
 
 nk_l2sq_bf16_haswell_cycle:
     if (n < 8) {
-        a_f32x8 = _nk_bf16x8_to_f32x8_haswell(_nk_partial_load_bf16x8_haswell(a, n));
-        b_f32x8 = _nk_bf16x8_to_f32x8_haswell(_nk_partial_load_bf16x8_haswell(b, n));
+        a_f32x8 = nk_bf16x8_to_f32x8_haswell_(nk_partial_load_bf16x8_haswell_(a, n));
+        b_f32x8 = nk_bf16x8_to_f32x8_haswell_(nk_partial_load_bf16x8_haswell_(b, n));
         n = 0;
     }
     else {
-        a_f32x8 = _nk_bf16x8_to_f32x8_haswell(_mm_lddqu_si128((__m128i const *)a));
-        b_f32x8 = _nk_bf16x8_to_f32x8_haswell(_mm_lddqu_si128((__m128i const *)b));
+        a_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)a));
+        b_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)b));
         n -= 8, a += 8, b += 8;
     }
     __m256 diff_f32x8 = _mm256_sub_ps(a_f32x8, b_f32x8);
     distance_sq_f32x8 = _mm256_fmadd_ps(diff_f32x8, diff_f32x8, distance_sq_f32x8);
     if (n) goto nk_l2sq_bf16_haswell_cycle;
 
-    *result = _nk_reduce_add_f32x8_haswell(distance_sq_f32x8);
+    *result = nk_reduce_add_f32x8_haswell_(distance_sq_f32x8);
 }
 
 NK_PUBLIC void nk_angular_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -176,13 +176,13 @@ NK_PUBLIC void nk_angular_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, n
 
 nk_angular_bf16_haswell_cycle:
     if (n < 8) {
-        a_f32x8 = _nk_bf16x8_to_f32x8_haswell(_nk_partial_load_bf16x8_haswell(a, n));
-        b_f32x8 = _nk_bf16x8_to_f32x8_haswell(_nk_partial_load_bf16x8_haswell(b, n));
+        a_f32x8 = nk_bf16x8_to_f32x8_haswell_(nk_partial_load_bf16x8_haswell_(a, n));
+        b_f32x8 = nk_bf16x8_to_f32x8_haswell_(nk_partial_load_bf16x8_haswell_(b, n));
         n = 0;
     }
     else {
-        a_f32x8 = _nk_bf16x8_to_f32x8_haswell(_mm_lddqu_si128((__m128i const *)a));
-        b_f32x8 = _nk_bf16x8_to_f32x8_haswell(_mm_lddqu_si128((__m128i const *)b));
+        a_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)a));
+        b_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)b));
         n -= 8, a += 8, b += 8;
     }
     dot_product_f32x8 = _mm256_fmadd_ps(a_f32x8, b_f32x8, dot_product_f32x8);
@@ -190,16 +190,16 @@ nk_angular_bf16_haswell_cycle:
     b_norm_sq_f32x8 = _mm256_fmadd_ps(b_f32x8, b_f32x8, b_norm_sq_f32x8);
     if (n) goto nk_angular_bf16_haswell_cycle;
 
-    nk_f32_t dot_product_f32 = _nk_reduce_add_f32x8_haswell(dot_product_f32x8);
-    nk_f32_t a_norm_sq_f32 = _nk_reduce_add_f32x8_haswell(a_norm_sq_f32x8);
-    nk_f32_t b_norm_sq_f32 = _nk_reduce_add_f32x8_haswell(b_norm_sq_f32x8);
-    *result = _nk_angular_normalize_f32_haswell(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
+    nk_f32_t dot_product_f32 = nk_reduce_add_f32x8_haswell_(dot_product_f32x8);
+    nk_f32_t a_norm_sq_f32 = nk_reduce_add_f32x8_haswell_(a_norm_sq_f32x8);
+    nk_f32_t b_norm_sq_f32 = nk_reduce_add_f32x8_haswell_(b_norm_sq_f32x8);
+    *result = nk_angular_normalize_f32_haswell_(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
 NK_PUBLIC void nk_l2_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t distance_sq_u32;
     nk_l2sq_i8_haswell(a, b, n, &distance_sq_u32);
-    *result = _nk_sqrt_f32_haswell((nk_f32_t)distance_sq_u32);
+    *result = nk_sqrt_f32_haswell_((nk_f32_t)distance_sq_u32);
 }
 NK_PUBLIC void nk_l2sq_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
 
@@ -231,7 +231,7 @@ NK_PUBLIC void nk_l2sq_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t 
     }
 
     // Accumulate the 32-bit integers from `distance_sq_high_i32x8` and `distance_sq_low_i32x8`
-    nk_i32_t distance_sq_i32 = _nk_reduce_add_i32x8_haswell(
+    nk_i32_t distance_sq_i32 = nk_reduce_add_i32x8_haswell_(
         _mm256_add_epi32(distance_sq_low_i32x8, distance_sq_high_i32x8));
 
     // Take care of the tail:
@@ -286,10 +286,10 @@ NK_PUBLIC void nk_angular_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size
     }
 
     // Further reduce to a single sum for each vector
-    nk_i32_t dot_product_i32 = _nk_reduce_add_i32x8_haswell(
+    nk_i32_t dot_product_i32 = nk_reduce_add_i32x8_haswell_(
         _mm256_add_epi32(dot_product_low_i32x8, dot_product_high_i32x8));
-    nk_i32_t a_norm_sq_i32 = _nk_reduce_add_i32x8_haswell(_mm256_add_epi32(a_norm_sq_low_i32x8, a_norm_sq_high_i32x8));
-    nk_i32_t b_norm_sq_i32 = _nk_reduce_add_i32x8_haswell(_mm256_add_epi32(b_norm_sq_low_i32x8, b_norm_sq_high_i32x8));
+    nk_i32_t a_norm_sq_i32 = nk_reduce_add_i32x8_haswell_(_mm256_add_epi32(a_norm_sq_low_i32x8, a_norm_sq_high_i32x8));
+    nk_i32_t b_norm_sq_i32 = nk_reduce_add_i32x8_haswell_(_mm256_add_epi32(b_norm_sq_low_i32x8, b_norm_sq_high_i32x8));
 
     // Take care of the tail:
     for (; i < n; ++i) {
@@ -299,13 +299,13 @@ NK_PUBLIC void nk_angular_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size
         b_norm_sq_i32 += b_element_i32 * b_element_i32;
     }
 
-    *result = _nk_angular_normalize_f32_haswell(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
+    *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
 
 NK_PUBLIC void nk_l2_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t distance_sq_u32;
     nk_l2sq_u8_haswell(a, b, n, &distance_sq_u32);
-    *result = _nk_sqrt_f32_haswell((nk_f32_t)distance_sq_u32);
+    *result = nk_sqrt_f32_haswell_((nk_f32_t)distance_sq_u32);
 }
 NK_PUBLIC void nk_l2sq_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
 
@@ -334,7 +334,7 @@ NK_PUBLIC void nk_l2sq_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t 
     }
 
     // Accumulate the 32-bit integers from `distance_sq_high_i32x8` and `distance_sq_low_i32x8`
-    nk_i32_t distance_sq_i32 = _nk_reduce_add_i32x8_haswell(
+    nk_i32_t distance_sq_i32 = nk_reduce_add_i32x8_haswell_(
         _mm256_add_epi32(distance_sq_low_i32x8, distance_sq_high_i32x8));
 
     // Take care of the tail:
@@ -391,10 +391,10 @@ NK_PUBLIC void nk_angular_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size
     }
 
     // Further reduce to a single sum for each vector
-    nk_i32_t dot_product_i32 = _nk_reduce_add_i32x8_haswell(
+    nk_i32_t dot_product_i32 = nk_reduce_add_i32x8_haswell_(
         _mm256_add_epi32(dot_product_low_i32x8, dot_product_high_i32x8));
-    nk_i32_t a_norm_sq_i32 = _nk_reduce_add_i32x8_haswell(_mm256_add_epi32(a_norm_sq_low_i32x8, a_norm_sq_high_i32x8));
-    nk_i32_t b_norm_sq_i32 = _nk_reduce_add_i32x8_haswell(_mm256_add_epi32(b_norm_sq_low_i32x8, b_norm_sq_high_i32x8));
+    nk_i32_t a_norm_sq_i32 = nk_reduce_add_i32x8_haswell_(_mm256_add_epi32(a_norm_sq_low_i32x8, a_norm_sq_high_i32x8));
+    nk_i32_t b_norm_sq_i32 = nk_reduce_add_i32x8_haswell_(_mm256_add_epi32(b_norm_sq_low_i32x8, b_norm_sq_high_i32x8));
 
     // Take care of the tail:
     for (; i < n; ++i) {
@@ -404,12 +404,12 @@ NK_PUBLIC void nk_angular_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size
         b_norm_sq_i32 += b_element_i32 * b_element_i32;
     }
 
-    *result = _nk_angular_normalize_f32_haswell(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
+    *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
 
 NK_PUBLIC void nk_l2_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_l2sq_f32_haswell(a, b, n, result);
-    *result = _nk_sqrt_f32_haswell(*result);
+    *result = nk_sqrt_f32_haswell_(*result);
 }
 NK_PUBLIC void nk_l2sq_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
 
@@ -422,7 +422,7 @@ NK_PUBLIC void nk_l2sq_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size
         distance_sq_f32x8 = _mm256_fmadd_ps(diff_f32x8, diff_f32x8, distance_sq_f32x8);
     }
 
-    nk_f64_t distance_sq_f64 = _nk_reduce_add_f32x8_haswell(distance_sq_f32x8);
+    nk_f64_t distance_sq_f64 = nk_reduce_add_f32x8_haswell_(distance_sq_f32x8);
     for (; i < n; ++i) {
         nk_f32_t diff_f32 = a[i] - b[i];
         distance_sq_f64 += diff_f32 * diff_f32;
@@ -445,21 +445,21 @@ NK_PUBLIC void nk_angular_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_s
         b_norm_sq_f32x8 = _mm256_fmadd_ps(b_f32x8, b_f32x8, b_norm_sq_f32x8);
     }
 
-    nk_f32_t dot_product_f32 = _nk_reduce_add_f32x8_haswell(dot_product_f32x8);
-    nk_f32_t a_norm_sq_f32 = _nk_reduce_add_f32x8_haswell(a_norm_sq_f32x8);
-    nk_f32_t b_norm_sq_f32 = _nk_reduce_add_f32x8_haswell(b_norm_sq_f32x8);
+    nk_f32_t dot_product_f32 = nk_reduce_add_f32x8_haswell_(dot_product_f32x8);
+    nk_f32_t a_norm_sq_f32 = nk_reduce_add_f32x8_haswell_(a_norm_sq_f32x8);
+    nk_f32_t b_norm_sq_f32 = nk_reduce_add_f32x8_haswell_(b_norm_sq_f32x8);
     for (; i < n; ++i) {
         nk_f32_t a_element_f32 = a[i], b_element_f32 = b[i];
         dot_product_f32 += a_element_f32 * b_element_f32;
         a_norm_sq_f32 += a_element_f32 * a_element_f32;
         b_norm_sq_f32 += b_element_f32 * b_element_f32;
     }
-    *result = _nk_angular_normalize_f32_haswell(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
+    *result = nk_angular_normalize_f32_haswell_(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
 NK_PUBLIC void nk_l2_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_l2sq_f64_haswell(a, b, n, result);
-    *result = _nk_sqrt_f64_haswell(*result);
+    *result = nk_sqrt_f64_haswell_(*result);
 }
 NK_PUBLIC void nk_l2sq_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
 
@@ -472,7 +472,7 @@ NK_PUBLIC void nk_l2sq_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size
         distance_sq_f64x4 = _mm256_fmadd_pd(diff_f64x4, diff_f64x4, distance_sq_f64x4);
     }
 
-    nk_f64_t distance_sq_f64 = _nk_reduce_add_f64x4_haswell(distance_sq_f64x4);
+    nk_f64_t distance_sq_f64 = nk_reduce_add_f64x4_haswell_(distance_sq_f64x4);
     for (; i < n; ++i) {
         nk_f64_t diff_f64 = a[i] - b[i];
         distance_sq_f64 += diff_f64 * diff_f64;
@@ -495,16 +495,16 @@ NK_PUBLIC void nk_angular_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
         b_norm_sq_f64x4 = _mm256_fmadd_pd(b_f64x4, b_f64x4, b_norm_sq_f64x4);
     }
 
-    nk_f64_t dot_product_f64 = _nk_reduce_add_f64x4_haswell(dot_product_f64x4);
-    nk_f64_t a_norm_sq_f64 = _nk_reduce_add_f64x4_haswell(a_norm_sq_f64x4);
-    nk_f64_t b_norm_sq_f64 = _nk_reduce_add_f64x4_haswell(b_norm_sq_f64x4);
+    nk_f64_t dot_product_f64 = nk_reduce_add_f64x4_haswell_(dot_product_f64x4);
+    nk_f64_t a_norm_sq_f64 = nk_reduce_add_f64x4_haswell_(a_norm_sq_f64x4);
+    nk_f64_t b_norm_sq_f64 = nk_reduce_add_f64x4_haswell_(b_norm_sq_f64x4);
     for (; i < n; ++i) {
         nk_f64_t a_element_f64 = a[i], b_element_f64 = b[i];
         dot_product_f64 += a_element_f64 * b_element_f64;
         a_norm_sq_f64 += a_element_f64 * a_element_f64;
         b_norm_sq_f64 += b_element_f64 * b_element_f64;
     }
-    *result = _nk_angular_normalize_f64_haswell(dot_product_f64, a_norm_sq_f64, b_norm_sq_f64);
+    *result = nk_angular_normalize_f64_haswell_(dot_product_f64, a_norm_sq_f64, b_norm_sq_f64);
 }
 
 typedef nk_dot_f32x8_state_haswell_t nk_angular_f32x8_state_haswell_t;
@@ -938,6 +938,6 @@ NK_INTERNAL void nk_l2_u8x32_finalize_haswell(nk_l2_u8x32_state_haswell_t const 
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_HASWELL
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
 #endif // NK_SPATIAL_HASWELL_H

@@ -8,7 +8,7 @@
 #ifndef NK_ELEMENTWISE_NEON_F16_H
 #define NK_ELEMENTWISE_NEON_F16_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON_F16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
@@ -137,7 +137,7 @@ NK_PUBLIC void nk_sum_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, n
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = (nk_f32_t)a[i] + b[i];
-        _nk_f32_to_u8(&sum, result + i);
+        nk_f32_to_u8_(&sum, result + i);
     }
 }
 
@@ -161,7 +161,7 @@ NK_PUBLIC void nk_scale_u8_neon(nk_u8_t const *a, nk_size_t n, nk_f32_t const *a
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f16 * a[i] + beta_f16;
-        _nk_f32_to_u8(&sum, result + i);
+        nk_f32_to_u8_(&sum, result + i);
     }
 }
 
@@ -209,7 +209,7 @@ NK_PUBLIC void nk_wsum_u8_neon(                      //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f16 * a[i] + beta_f16 * b[i];
-        _nk_f32_to_u8(&sum, result + i);
+        nk_f32_to_u8_(&sum, result + i);
     }
 }
 
@@ -238,7 +238,7 @@ NK_PUBLIC void nk_fma_u8_neon(                            //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f16 * a[i] * b[i] + beta_f16 * c[i];
-        _nk_f32_to_u8(&sum, result + i);
+        nk_f32_to_u8_(&sum, result + i);
     }
 }
 
@@ -255,7 +255,7 @@ NK_PUBLIC void nk_sum_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, n
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = (nk_f32_t)a[i] + b[i];
-        _nk_f32_to_i8(&sum, result + i);
+        nk_f32_to_i8_(&sum, result + i);
     }
 }
 
@@ -279,7 +279,7 @@ NK_PUBLIC void nk_scale_i8_neon(nk_i8_t const *a, nk_size_t n, nk_f32_t const *a
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f16 * a[i] + beta_f16;
-        _nk_f32_to_i8(&sum, result + i);
+        nk_f32_to_i8_(&sum, result + i);
     }
 }
 
@@ -327,7 +327,7 @@ NK_PUBLIC void nk_wsum_i8_neon(                      //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f16 * a[i] + beta_f16 * b[i];
-        _nk_f32_to_i8(&sum, result + i);
+        nk_f32_to_i8_(&sum, result + i);
     }
 }
 
@@ -356,7 +356,7 @@ NK_PUBLIC void nk_fma_i8_neon(                            //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f16 * a[i] * b[i] + beta_f16 * c[i];
-        _nk_f32_to_i8(&sum, result + i);
+        nk_f32_to_i8_(&sum, result + i);
     }
 }
 
@@ -367,6 +367,6 @@ NK_PUBLIC void nk_fma_i8_neon(                            //
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON_F16
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_ELEMENTWISE_NEON_F16_H

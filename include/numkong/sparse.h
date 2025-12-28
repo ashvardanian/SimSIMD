@@ -324,9 +324,9 @@ NK_MAKE_INTERSECT_LINEAR(accurate, u32, size) // nk_intersect_u32_accurate
 NK_MAKE_INTERSECT_GALLOPING(serial, u16, size)                // nk_intersect_u16_serial
 NK_MAKE_INTERSECT_GALLOPING(serial, u32, size)                // nk_intersect_u32_serial
 NK_MAKE_SPARSE_DOT(serial, u16, bf16, f32, nk_bf16_to_f32)    // nk_sparse_dot_u16bf16_serial
-NK_MAKE_SPARSE_DOT(serial, u32, f32, f32, NK_ASSIGN_FROM_TO)  // nk_sparse_dot_u32f32_serial
-NK_MAKE_SPARSE_DOT(accurate, u16, bf16, f64, _nk_bf16_to_f64) // nk_sparse_dot_u16bf16_accurate
-NK_MAKE_SPARSE_DOT(accurate, u32, f32, f64, _nk_f32_to_f64)   // nk_sparse_dot_u32f32_accurate
+NK_MAKE_SPARSE_DOT(serial, u32, f32, f32, nk_assign_from_to_) // nk_sparse_dot_u32f32_serial
+NK_MAKE_SPARSE_DOT(accurate, u16, bf16, f64, nk_bf16_to_f64_) // nk_sparse_dot_u16bf16_accurate
+NK_MAKE_SPARSE_DOT(accurate, u32, f32, f64, nk_f32_to_f64_)   // nk_sparse_dot_u32f32_accurate
 
 /*  The AVX-512 implementations are inspired by the "Faster-Than-Native Alternatives
  *  for x86 VP2INTERSECT Instructions" paper by Guille Diez-Canas, 2022.
@@ -341,7 +341,7 @@ NK_MAKE_SPARSE_DOT(accurate, u32, f32, f64, _nk_f32_to_f64)   // nk_sparse_dot_u
  *   - `_mm512_permutexvar_epi16` - needs BW - 4-6 cycles latency
  *   - `_mm512_permutexvar_epi8` - needs VBMI - 3 cycles latency
  */
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_ICE
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2")
@@ -352,7 +352,7 @@ NK_MAKE_SPARSE_DOT(accurate, u32, f32, f64, _nk_f32_to_f64)   // nk_sparse_dot_u
  *  @brief  Analogous to `_mm512_2intersect_epi16_mask`, but compatible with Ice Lake CPUs,
  *          slightly faster than the native Tiger Lake implementation, but returns only one mask.
  */
-NK_INTERNAL nk_u32_t _nk_intersect_u16x32_ice(__m512i a, __m512i b) {
+NK_INTERNAL nk_u32_t nk_intersect_u16x32_ice_(__m512i a, __m512i b) {
     __m512i a1 = _mm512_alignr_epi32(a, a, 4);
     __m512i a2 = _mm512_alignr_epi32(a, a, 8);
     __m512i a3 = _mm512_alignr_epi32(a, a, 12);
@@ -413,7 +413,7 @@ NK_INTERNAL nk_u32_t _nk_intersect_u16x32_ice(__m512i a, __m512i b) {
  *  @brief  Analogous to `_mm512_2intersect_epi32`, but compatible with Ice Lake CPUs,
  *          slightly faster than the native Tiger Lake implementation, but returns only one mask.
  */
-NK_INTERNAL nk_u16_t _nk_intersect_u32x16_ice(__m512i a, __m512i b) {
+NK_INTERNAL nk_u16_t nk_intersect_u32x16_ice_(__m512i a, __m512i b) {
     __m512i a1 = _mm512_alignr_epi32(a, a, 4);
     __m512i b1 = _mm512_shuffle_epi32(b, _MM_PERM_ADCB);
     __mmask16 nm00 = _mm512_cmpneq_epi32_mask(a, b);
@@ -465,7 +465,7 @@ NK_PUBLIC void nk_intersect_u16_ice(        //
         a_vec.zmm = _mm512_loadu_si512((__m512i const *)a);
         b_vec.zmm = _mm512_loadu_si512((__m512i const *)b);
 
-        // Intersecting registers with `_nk_intersect_u16x32_ice` involves a lot of shuffling
+        // Intersecting registers with `nk_intersect_u16x32_ice_` involves a lot of shuffling
         // and comparisons, so we want to avoid it if the slices don't overlap at all..
         nk_u16_t a_min;
         nk_u16_t a_max = a_vec.u16s[31];
@@ -494,7 +494,7 @@ NK_PUBLIC void nk_intersect_u16_ice(        //
         b += 32 - _lzcnt_u32((nk_u32_t)b_step_mask);
 
         // Now we are likely to have some overlap, so we can intersect the registers
-        __mmask32 a_matches = _nk_intersect_u16x32_ice(a_vec.zmm, b_vec.zmm);
+        __mmask32 a_matches = nk_intersect_u16x32_ice_(a_vec.zmm, b_vec.zmm);
 
         // The paper also contained a very nice procedure for exporting the matches,
         // but we don't need it here:
@@ -527,7 +527,7 @@ NK_PUBLIC void nk_intersect_u32_ice(        //
         a_vec.zmm = _mm512_loadu_si512((__m512i const *)a);
         b_vec.zmm = _mm512_loadu_si512((__m512i const *)b);
 
-        // Intersecting registers with `_nk_intersect_u32x16_ice` involves a lot of shuffling
+        // Intersecting registers with `nk_intersect_u32x16_ice_` involves a lot of shuffling
         // and comparisons, so we want to avoid it if the slices don't overlap at all..
         nk_u32_t a_min;
         nk_u32_t a_max = a_vec.u32s[15];
@@ -556,7 +556,7 @@ NK_PUBLIC void nk_intersect_u32_ice(        //
         b += 32 - _lzcnt_u32((nk_u32_t)b_step_mask);
 
         // Now we are likely to have some overlap, so we can intersect the registers
-        __mmask16 a_matches = _nk_intersect_u32x16_ice(a_vec.zmm, b_vec.zmm);
+        __mmask16 a_matches = nk_intersect_u32x16_ice_(a_vec.zmm, b_vec.zmm);
 
         // The paper also contained a very nice procedure for exporting the matches,
         // but we don't need it here:
@@ -589,7 +589,7 @@ NK_PUBLIC void nk_sparse_dot_u32f32_ice(                  //
         a_vec.zmm = _mm512_loadu_si512((__m512i const *)a);
         b_vec.zmm = _mm512_loadu_si512((__m512i const *)b);
 
-        // Intersecting registers with `_nk_intersect_u32x16_ice` involves a lot of shuffling
+        // Intersecting registers with `nk_intersect_u32x16_ice_` involves a lot of shuffling
         // and comparisons, so we want to avoid it if the slices don't overlap at all.
         nk_u32_t a_min;
         nk_u32_t a_max = a_vec.u32s[15];
@@ -622,8 +622,8 @@ NK_PUBLIC void nk_sparse_dot_u32f32_ice(                  //
         b_weights += 32 - _lzcnt_u32((nk_u32_t)b_step_mask);
 
         // Now we are likely to have some overlap, so we can intersect the registers
-        __mmask16 a_matches = _nk_intersect_u32x16_ice(a_vec.zmm, b_vec.zmm);
-        __mmask16 b_matches = _nk_intersect_u32x16_ice(b_vec.zmm, a_vec.zmm);
+        __mmask16 a_matches = nk_intersect_u32x16_ice_(a_vec.zmm, b_vec.zmm);
+        __mmask16 b_matches = nk_intersect_u32x16_ice_(b_vec.zmm, a_vec.zmm);
         if (a_matches == 0) continue;
 
         // Load and compress matching weights
@@ -885,9 +885,9 @@ NK_PUBLIC void nk_sparse_dot_u32f32_turin(                //
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_TURIN
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a")
@@ -897,11 +897,11 @@ NK_PUBLIC void nk_sparse_dot_u32f32_turin(                //
  *  @brief  Uses `vshrn` to produce a bitmask, similar to `movemask` in SSE.
  *  https://community.arm.com/arm-community-blogs/b/infrastructure-solutions-blog/posts/porting-x86-vector-bitmask-optimizations-to-arm-neon
  */
-NK_INTERNAL nk_u64_t _nk_u8_to_u4_neon(uint8x16_t vec) {
+NK_INTERNAL nk_u64_t nk_u8_to_u4_neon_(uint8x16_t vec) {
     return vget_lane_u64(vreinterpret_u64_u8(vshrn_n_u16(vreinterpretq_u16_u8(vec), 4)), 0);
 }
 
-NK_INTERNAL int _nk_clz_u64(nk_u64_t x) {
+NK_INTERNAL int nk_clz_u64_(nk_u64_t x) {
 // On GCC and Clang use the builtin, otherwise use the generic implementation
 #if defined(__GNUC__) || defined(__clang__)
     return __builtin_clzll(x);
@@ -912,7 +912,7 @@ NK_INTERNAL int _nk_clz_u64(nk_u64_t x) {
 #endif
 }
 
-NK_INTERNAL uint32x4_t _nk_intersect_u32x4_neon(uint32x4_t a, uint32x4_t b) {
+NK_INTERNAL uint32x4_t nk_intersect_u32x4_neon_(uint32x4_t a, uint32x4_t b) {
     uint32x4_t b1 = vextq_u32(b, b, 1);
     uint32x4_t b2 = vextq_u32(b, b, 2);
     uint32x4_t b3 = vextq_u32(b, b, 3);
@@ -924,7 +924,7 @@ NK_INTERNAL uint32x4_t _nk_intersect_u32x4_neon(uint32x4_t a, uint32x4_t b) {
     return nm;
 }
 
-NK_INTERNAL uint16x8_t _nk_intersect_u16x8_neon(uint16x8_t a, uint16x8_t b) {
+NK_INTERNAL uint16x8_t nk_intersect_u16x8_neon_(uint16x8_t a, uint16x8_t b) {
     uint16x8_t b1 = vextq_u16(b, b, 1);
     uint16x8_t b2 = vextq_u16(b, b, 2);
     uint16x8_t b3 = vextq_u16(b, b, 3);
@@ -965,7 +965,7 @@ NK_PUBLIC void nk_intersect_u16_neon(       //
         a_vec.u16x8 = vld1q_u16(a);
         b_vec.u16x8 = vld1q_u16(b);
 
-        // Intersecting registers with `_nk_intersect_u16x8_neon` involves a lot of shuffling
+        // Intersecting registers with `nk_intersect_u16x8_neon_` involves a lot of shuffling
         // and comparisons, so we want to avoid it if the slices don't overlap at all..
         nk_u16_t a_min;
         nk_u16_t a_max = a_vec.u16s[7];
@@ -990,19 +990,19 @@ NK_PUBLIC void nk_intersect_u16_neon(       //
         // We can do it by performing a population count at every cycle, but it's not the cheapest in terms of cycles.
         //
         //      nk_u64_t a_matches = __builtin_popcountll(
-        //          _nk_u8_to_u4_neon(vreinterpretq_u8_u16(
-        //              _nk_intersect_u16x8_neon(a_vec.u16x8, b_vec.u16x8))));
+        //          nk_u8_to_u4_neon_(vreinterpretq_u8_u16(
+        //              nk_intersect_u16x8_neon_(a_vec.u16x8, b_vec.u16x8))));
         //      c += a_matches / 8;
         //
         // Alternatively, we can we can transform match-masks into "ones", accumulate them between the cycles,
         // and merge all together in the end.
-        uint16x8_t a_matches = _nk_intersect_u16x8_neon(a_vec.u16x8, b_vec.u16x8);
+        uint16x8_t a_matches = nk_intersect_u16x8_neon_(a_vec.u16x8, b_vec.u16x8);
         c_counts_u16x8 = vaddq_u16(c_counts_u16x8, vandq_u16(a_matches, vdupq_n_u16(1)));
 
         // Counting leading zeros is tricky. On Arm we can use inline Assembly to get the result,
         // but MSVC doesn't support that:
         //
-        //      NK_INTERNAL int _nk_clz_u64(nk_u64_t value) {
+        //      NK_INTERNAL int nk_clz_u64_(nk_u64_t value) {
         //          nk_u64_t result;
         //          __asm__("clz %x0, %x1" : "=r"(result) : "r"(value));
         //          return (int)result;
@@ -1012,9 +1012,9 @@ NK_PUBLIC void nk_intersect_u16_neon(       //
         // It will compute the leading zeros number for both `a_step` and `b_step` in parallel.
         uint16x8_t a_max_u16x8 = vdupq_n_u16(a_max);
         uint16x8_t b_max_u16x8 = vdupq_n_u16(b_max);
-        nk_u64_t a_step = _nk_clz_u64(_nk_u8_to_u4_neon( //
+        nk_u64_t a_step = nk_clz_u64_(nk_u8_to_u4_neon_( //
             vreinterpretq_u8_u16(vcleq_u16(a_u16x8.vec, b_max_u16x8))));
-        nk_u64_t b_step = _nk_clz_u64(_nk_u8_to_u4_neon( //
+        nk_u64_t b_step = nk_clz_u64_(nk_u8_to_u4_neon_( //
             vreinterpretq_u8_u16(vcleq_u16(b_u16x8.vec, a_max_u16x8))));
         a += (64 - a_step) / 8;
         b += (64 - b_step) / 8;
@@ -1045,7 +1045,7 @@ NK_PUBLIC void nk_intersect_u32_neon(       //
         a_vec.u32x4 = vld1q_u32(a);
         b_vec.u32x4 = vld1q_u32(b);
 
-        // Intersecting registers with `_nk_intersect_u32x4_neon` involves a lot of shuffling
+        // Intersecting registers with `nk_intersect_u32x4_neon_` involves a lot of shuffling
         // and comparisons, so we want to avoid it if the slices don't overlap at all..
         nk_u32_t a_min;
         nk_u32_t a_max = a_vec.u32s[3];
@@ -1070,20 +1070,20 @@ NK_PUBLIC void nk_intersect_u32_neon(       //
         // We can do it by performing a population count at every cycle, but it's not the cheapest in terms of cycles.
         //
         //     nk_u64_t a_matches = __builtin_popcountll(
-        //         _nk_u8_to_u4_neon(vreinterpretq_u8_u32(
-        //             _nk_intersect_u32x4_neon(a_vec.u32x4, b_vec.u32x4))));
+        //         nk_u8_to_u4_neon_(vreinterpretq_u8_u32(
+        //             nk_intersect_u32x4_neon_(a_vec.u32x4, b_vec.u32x4))));
         //     c += a_matches / 16;
         //
         // Alternatively, we can we can transform match-masks into "ones", accumulate them between the cycles,
         // and merge all together in the end.
-        uint32x4_t a_matches = _nk_intersect_u32x4_neon(a_vec.u32x4, b_vec.u32x4);
+        uint32x4_t a_matches = nk_intersect_u32x4_neon_(a_vec.u32x4, b_vec.u32x4);
         c_counts_u32x4 = vaddq_u32(c_counts_u32x4, vandq_u32(a_matches, vdupq_n_u32(1)));
 
         uint32x4_t a_max_u32x4 = vdupq_n_u32(a_max);
         uint32x4_t b_max_u32x4 = vdupq_n_u32(b_max);
-        nk_u64_t a_step = _nk_clz_u64(_nk_u8_to_u4_neon( //
+        nk_u64_t a_step = nk_clz_u64_(nk_u8_to_u4_neon_( //
             vreinterpretq_u8_u32(vcleq_u32(a_vec.u32x4, b_max_u32x4))));
-        nk_u64_t b_step = _nk_clz_u64(_nk_u8_to_u4_neon( //
+        nk_u64_t b_step = nk_clz_u64_(nk_u8_to_u4_neon_( //
             vreinterpretq_u8_u32(vcleq_u32(b_vec.u32x4, a_max_u32x4))));
         a += (64 - a_step) / 16;
         b += (64 - b_step) / 16;
@@ -1456,7 +1456,7 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_sve2(                  //
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_SVE2 && NK_TARGET_SVE_BF16
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #if !NK_DYNAMIC_DISPATCH
 

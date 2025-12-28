@@ -55,8 +55,8 @@ NK_INTERNAL void nk_jaccard_b128_update_serial(nk_jaccard_b128_state_serial_t *s
                                                nk_b128_vec_t b) {
     nk_u64_t intersection_low = a.u64s[0] & b.u64s[0];
     nk_u64_t intersection_high = a.u64s[1] & b.u64s[1];
-    state->intersection_count += _nk_u64_popcount(intersection_low);
-    state->intersection_count += _nk_u64_popcount(intersection_high);
+    state->intersection_count += nk_u64_popcount_(intersection_low);
+    state->intersection_count += nk_u64_popcount_(intersection_high);
 }
 
 NK_INTERNAL void nk_jaccard_b128_finalize_serial(nk_jaccard_b128_state_serial_t const *state_a,

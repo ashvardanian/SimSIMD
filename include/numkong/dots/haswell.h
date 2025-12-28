@@ -8,7 +8,7 @@
 #ifndef NK_DOTS_HASWELL_H
 #define NK_DOTS_HASWELL_H
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma")
@@ -24,7 +24,7 @@ extern "C" {
 NK_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, f32, f32, 8)
 NK_MAKE_DOTS_SERIAL_PACK(haswell, f32, f32, 8)
 NK_MAKE_DOTS_INNER(f32f32f32_haswell, f32, f32, nk_b256_vec_t, nk_dot_f32x8_state_haswell_t, nk_dot_f32x8_init_haswell,
-                   _nk_load_b256_haswell, _nk_partial_load_b32x8_haswell, nk_dot_f32x8_update_haswell,
+                   nk_load_b256_haswell_, nk_partial_load_b32x8_haswell_, nk_dot_f32x8_update_haswell,
                    nk_dot_f32x8_finalize_haswell,
                    /*k_tile=*/8, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -32,7 +32,7 @@ NK_MAKE_DOTS_INNER(f32f32f32_haswell, f32, f32, nk_b256_vec_t, nk_dot_f32x8_stat
 NK_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, f16, f32, 16)
 NK_MAKE_DOTS_SERIAL_PACK(haswell, f16, f32, 16)
 NK_MAKE_DOTS_INNER(f16f16f32_haswell, f16, f32, nk_b256_vec_t, nk_dot_f16x16_state_haswell_t,
-                   nk_dot_f16x16_init_haswell, _nk_load_b256_haswell, _nk_partial_load_b16x16_haswell,
+                   nk_dot_f16x16_init_haswell, nk_load_b256_haswell_, nk_partial_load_b16x16_haswell_,
                    nk_dot_f16x16_update_haswell, nk_dot_f16x16_finalize_haswell,
                    /*k_tile=*/16, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -40,7 +40,7 @@ NK_MAKE_DOTS_INNER(f16f16f32_haswell, f16, f32, nk_b256_vec_t, nk_dot_f16x16_sta
 NK_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, bf16, f32, 16)
 NK_MAKE_DOTS_SERIAL_PACK(haswell, bf16, f32, 16)
 NK_MAKE_DOTS_INNER(bf16bf16f32_haswell, bf16, f32, nk_b256_vec_t, nk_dot_bf16x16_state_haswell_t,
-                   nk_dot_bf16x16_init_haswell, _nk_load_b256_haswell, _nk_partial_load_b16x16_haswell,
+                   nk_dot_bf16x16_init_haswell, nk_load_b256_haswell_, nk_partial_load_b16x16_haswell_,
                    nk_dot_bf16x16_update_haswell, nk_dot_bf16x16_finalize_haswell,
                    /*k_tile=*/16, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -48,7 +48,7 @@ NK_MAKE_DOTS_INNER(bf16bf16f32_haswell, bf16, f32, nk_b256_vec_t, nk_dot_bf16x16
 NK_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, e4m3, f32, 32)
 NK_MAKE_DOTS_SERIAL_PACK(haswell, e4m3, f32, 32)
 NK_MAKE_DOTS_INNER(e4m3e4m3f32_haswell, e4m3, f32, nk_b256_vec_t, nk_dot_e4m3x32_state_haswell_t,
-                   nk_dot_e4m3x32_init_haswell, _nk_load_b256_haswell, _nk_partial_load_b8x32_haswell,
+                   nk_dot_e4m3x32_init_haswell, nk_load_b256_haswell_, nk_partial_load_b8x32_haswell_,
                    nk_dot_e4m3x32_update_haswell, nk_dot_e4m3x32_finalize_haswell,
                    /*k_tile=*/32, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -56,7 +56,7 @@ NK_MAKE_DOTS_INNER(e4m3e4m3f32_haswell, e4m3, f32, nk_b256_vec_t, nk_dot_e4m3x32
 NK_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, e5m2, f32, 32)
 NK_MAKE_DOTS_SERIAL_PACK(haswell, e5m2, f32, 32)
 NK_MAKE_DOTS_INNER(e5m2e5m2f32_haswell, e5m2, f32, nk_b256_vec_t, nk_dot_e5m2x32_state_haswell_t,
-                   nk_dot_e5m2x32_init_haswell, _nk_load_b256_haswell, _nk_partial_load_b8x32_haswell,
+                   nk_dot_e5m2x32_init_haswell, nk_load_b256_haswell_, nk_partial_load_b8x32_haswell_,
                    nk_dot_e5m2x32_update_haswell, nk_dot_e5m2x32_finalize_haswell,
                    /*k_tile=*/32, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -64,7 +64,7 @@ NK_MAKE_DOTS_INNER(e5m2e5m2f32_haswell, e5m2, f32, nk_b256_vec_t, nk_dot_e5m2x32
 NK_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, i8, i32, 32)
 NK_MAKE_DOTS_SERIAL_PACK(haswell, i8, i32, 32)
 NK_MAKE_DOTS_INNER(i8i8i32_haswell, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_haswell_t, nk_dot_i8x32_init_haswell,
-                   _nk_load_b256_haswell, _nk_partial_load_b8x32_haswell, nk_dot_i8x32_update_haswell,
+                   nk_load_b256_haswell_, nk_partial_load_b8x32_haswell_, nk_dot_i8x32_update_haswell,
                    nk_dot_i8x32_finalize_haswell,
                    /*k_tile=*/32, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -72,7 +72,7 @@ NK_MAKE_DOTS_INNER(i8i8i32_haswell, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_h
 NK_MAKE_DOTS_SERIAL_PACKED_SIZE(haswell, u8, i32, 32)
 NK_MAKE_DOTS_SERIAL_PACK(haswell, u8, i32, 32)
 NK_MAKE_DOTS_INNER(u8u8i32_haswell, u8, u32, nk_b256_vec_t, nk_dot_u8x32_state_haswell_t, nk_dot_u8x32_init_haswell,
-                   _nk_load_b256_haswell, _nk_partial_load_b8x32_haswell, nk_dot_u8x32_update_haswell,
+                   nk_load_b256_haswell_, nk_partial_load_b8x32_haswell_, nk_dot_u8x32_update_haswell,
                    nk_dot_u8x32_finalize_haswell,
                    /*k_tile=*/32, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
@@ -83,6 +83,6 @@ NK_MAKE_DOTS_INNER(u8u8i32_haswell, u8, u32, nk_b256_vec_t, nk_dot_u8x32_state_h
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_HASWELL
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
 #endif // NK_DOTS_HASWELL_H

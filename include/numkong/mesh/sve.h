@@ -8,7 +8,7 @@
 #ifndef NK_MESH_SVE_H
 #define NK_MESH_SVE_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_SVE
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve")
@@ -27,6 +27,6 @@ extern "C" {
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_SVE
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_MESH_SVE_H

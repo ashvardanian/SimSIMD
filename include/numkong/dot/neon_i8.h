@@ -8,7 +8,7 @@
 #ifndef NK_DOT_NEON_I8_H
 #define NK_DOT_NEON_I8_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON_I8
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+dotprod")
@@ -105,6 +105,6 @@ NK_INTERNAL void nk_dot_u8x16_finalize_neon(                                    
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON_I8
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_DOT_NEON_I8_H

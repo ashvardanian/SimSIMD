@@ -21,7 +21,7 @@ Simplest of all, you can include the headers, and the compiler will automaticall
 
 int main() {
     nk_capability_t caps = nk_capabilities();
-    nk_flush_denormals(caps); // Avoid denormal penalties, enable AMX if available
+    nk_configure_thread(caps); // Avoid denormal penalties, enable AMX if available
 
     nk_f32_t vector_a[1536];
     nk_f32_t vector_b[1536];

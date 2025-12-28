@@ -8,7 +8,7 @@
 #ifndef NK_SPATIAL_SIERRA_H
 #define NK_SPATIAL_SIERRA_H
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_SIERRA
 #pragma GCC push_options
 #pragma GCC target("avx2", "bmi2", "avx2vnni")
@@ -36,9 +36,9 @@ NK_PUBLIC void nk_angular_i8_sierra(nk_i8_t const *a, nk_i8_t const *b, nk_size_
     }
 
     // Further reduce to a single sum for each vector
-    nk_i32_t dot_product_i32 = _nk_reduce_add_i32x8_haswell(dot_product_i32x8);
-    nk_i32_t a_norm_sq_i32 = _nk_reduce_add_i32x8_haswell(a_norm_sq_i32x8);
-    nk_i32_t b_norm_sq_i32 = _nk_reduce_add_i32x8_haswell(b_norm_sq_i32x8);
+    nk_i32_t dot_product_i32 = nk_reduce_add_i32x8_haswell_(dot_product_i32x8);
+    nk_i32_t a_norm_sq_i32 = nk_reduce_add_i32x8_haswell_(a_norm_sq_i32x8);
+    nk_i32_t b_norm_sq_i32 = nk_reduce_add_i32x8_haswell_(b_norm_sq_i32x8);
 
     // Take care of the tail:
     for (; i < n; ++i) {
@@ -48,7 +48,7 @@ NK_PUBLIC void nk_angular_i8_sierra(nk_i8_t const *a, nk_i8_t const *b, nk_size_
         b_norm_sq_i32 += b_element_i32 * b_element_i32;
     }
 
-    *result = _nk_angular_normalize_f32_haswell(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
+    *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
 
 typedef nk_dot_i8x64_state_sierra_t nk_angular_i8x64_state_sierra_t;
@@ -80,10 +80,10 @@ NK_INTERNAL void nk_angular_i8x64_finalize_sierra(nk_angular_i8x64_state_sierra_
     nk_f32_t target_norm_sq_d = (nk_f32_t)target_norm_d * (nk_f32_t)target_norm_d;
 
     // Compute angular distances (loop-unrolled)
-    results[0] = _nk_angular_normalize_f32_haswell((nk_f32_t)dot_product_a, query_norm_sq, target_norm_sq_a);
-    results[1] = _nk_angular_normalize_f32_haswell((nk_f32_t)dot_product_b, query_norm_sq, target_norm_sq_b);
-    results[2] = _nk_angular_normalize_f32_haswell((nk_f32_t)dot_product_c, query_norm_sq, target_norm_sq_c);
-    results[3] = _nk_angular_normalize_f32_haswell((nk_f32_t)dot_product_d, query_norm_sq, target_norm_sq_d);
+    results[0] = nk_angular_normalize_f32_haswell_((nk_f32_t)dot_product_a, query_norm_sq, target_norm_sq_a);
+    results[1] = nk_angular_normalize_f32_haswell_((nk_f32_t)dot_product_b, query_norm_sq, target_norm_sq_b);
+    results[2] = nk_angular_normalize_f32_haswell_((nk_f32_t)dot_product_c, query_norm_sq, target_norm_sq_c);
+    results[3] = nk_angular_normalize_f32_haswell_((nk_f32_t)dot_product_d, query_norm_sq, target_norm_sq_d);
 }
 
 typedef nk_dot_i8x64_state_sierra_t nk_l2_i8x64_state_sierra_t;
@@ -138,6 +138,6 @@ NK_INTERNAL void nk_l2_i8x64_finalize_sierra(nk_l2_i8x64_state_sierra_t const *s
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_SIERRA
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
 #endif // NK_SPATIAL_SIERRA_H

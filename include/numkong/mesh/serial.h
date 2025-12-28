@@ -33,21 +33,21 @@ extern "C" {
  */
 
 #define NK_MAKE_COND_SWAP(type)                                                        \
-    NK_INTERNAL void _nk_cond_swap_##type(int c, nk_##type##_t *x, nk_##type##_t *y) { \
+    NK_INTERNAL void nk_cond_swap__##type(int c, nk_##type##_t *x, nk_##type##_t *y) { \
         nk_##type##_t temp = *x;                                                       \
         *x = c ? *y : *x;                                                              \
         *y = c ? temp : *y;                                                            \
     }
 
 #define NK_MAKE_COND_NEG_SWAP(type)                                                        \
-    NK_INTERNAL void _nk_cond_neg_swap_##type(int c, nk_##type##_t *x, nk_##type##_t *y) { \
+    NK_INTERNAL void nk_cond_neg_swap__##type(int c, nk_##type##_t *x, nk_##type##_t *y) { \
         nk_##type##_t neg_x = -*x;                                                         \
         *x = c ? *y : *x;                                                                  \
         *y = c ? neg_x : *y;                                                               \
     }
 
 #define NK_MAKE_APPROX_GIVENS_QUAT(type, gamma, cstar, sstar, compute_rsqrt)                                \
-    NK_INTERNAL void _nk_approx_givens_quat_##type(nk_##type##_t a11, nk_##type##_t a12, nk_##type##_t a22, \
+    NK_INTERNAL void nk_approx_givens_quat__##type(nk_##type##_t a11, nk_##type##_t a12, nk_##type##_t a22, \
                                                    nk_##type##_t *cos_half, nk_##type##_t *sin_half) {      \
         *cos_half = 2 * (a11 - a22), *sin_half = a12;                                                       \
         int use_givens = gamma * (*sin_half) * (*sin_half) < (*cos_half) * (*cos_half);                     \
@@ -57,11 +57,11 @@ extern "C" {
     }
 
 #define NK_MAKE_JACOBI_CONJUGATION(type)                                                             \
-    NK_INTERNAL void _nk_jacobi_conjugation_##type(                                                  \
+    NK_INTERNAL void nk_jacobi_conjugation__##type(                                                  \
         int idx_x, int idx_y, int idx_z, nk_##type##_t *s11, nk_##type##_t *s21, nk_##type##_t *s22, \
         nk_##type##_t *s31, nk_##type##_t *s32, nk_##type##_t *s33, nk_##type##_t *quaternion) {     \
         nk_##type##_t cos_half, sin_half;                                                            \
-        _nk_approx_givens_quat_##type(*s11, *s21, *s22, &cos_half, &sin_half);                       \
+        nk_approx_givens_quat__##type(*s11, *s21, *s22, &cos_half, &sin_half);                       \
         nk_##type##_t scale = cos_half * cos_half + sin_half * sin_half;                             \
         nk_##type##_t cos_theta = (cos_half * cos_half - sin_half * sin_half) / scale;               \
         nk_##type##_t sin_theta = (2 * sin_half * cos_half) / scale;                                 \
@@ -94,7 +94,7 @@ extern "C" {
     }
 
 #define NK_MAKE_QUAT_TO_MAT3(type)                                                               \
-    NK_INTERNAL void _nk_quat_to_mat3_##type(nk_##type##_t const *quat, nk_##type##_t *matrix) { \
+    NK_INTERNAL void nk_quat_to_mat3__##type(nk_##type##_t const *quat, nk_##type##_t *matrix) { \
         nk_##type##_t w = quat[3], x = quat[0], y = quat[1], z = quat[2];                        \
         nk_##type##_t q_xx = x * x, q_yy = y * y, q_zz = z * z;                                  \
         nk_##type##_t q_xz = x * z, q_xy = x * y, q_yz = y * z;                                  \
@@ -108,14 +108,14 @@ extern "C" {
     }
 
 #define NK_MAKE_JACOBI_EIGENANALYSIS(type, compute_rsqrt)                                                        \
-    NK_INTERNAL void _nk_jacobi_eigenanalysis_##type(nk_##type##_t *s11, nk_##type##_t *s21, nk_##type##_t *s22, \
+    NK_INTERNAL void nk_jacobi_eigenanalysis__##type(nk_##type##_t *s11, nk_##type##_t *s21, nk_##type##_t *s22, \
                                                      nk_##type##_t *s31, nk_##type##_t *s32, nk_##type##_t *s33, \
                                                      nk_##type##_t *quaternion) {                                \
         quaternion[0] = 0, quaternion[1] = 0, quaternion[2] = 0, quaternion[3] = 1;                              \
         for (int iter = 0; iter < 4; iter++) {                                                                   \
-            _nk_jacobi_conjugation_##type(0, 1, 2, s11, s21, s22, s31, s32, s33, quaternion);                    \
-            _nk_jacobi_conjugation_##type(1, 2, 0, s11, s21, s22, s31, s32, s33, quaternion);                    \
-            _nk_jacobi_conjugation_##type(2, 0, 1, s11, s21, s22, s31, s32, s33, quaternion);                    \
+            nk_jacobi_conjugation__##type(0, 1, 2, s11, s21, s22, s31, s32, s33, quaternion);                    \
+            nk_jacobi_conjugation__##type(1, 2, 0, s11, s21, s22, s31, s32, s33, quaternion);                    \
+            nk_jacobi_conjugation__##type(2, 0, 1, s11, s21, s22, s31, s32, s33, quaternion);                    \
         }                                                                                                        \
         nk_##type##_t norm = compute_rsqrt(quaternion[0] * quaternion[0] + quaternion[1] * quaternion[1] +       \
                                            quaternion[2] * quaternion[2] + quaternion[3] * quaternion[3]);       \
@@ -124,7 +124,7 @@ extern "C" {
     }
 
 #define NK_MAKE_QR_GIVENS_QUAT(type, epsilon, compute_rsqrt)                                                \
-    NK_INTERNAL void _nk_qr_givens_quat_##type(nk_##type##_t a1, nk_##type##_t a2, nk_##type##_t *cos_half, \
+    NK_INTERNAL void nk_qr_givens_quat__##type(nk_##type##_t a1, nk_##type##_t a2, nk_##type##_t *cos_half, \
                                                nk_##type##_t *sin_half) {                                   \
         nk_##type##_t a1_sq_plus_a2_sq = a1 * a1 + a2 * a2;                                                 \
         nk_##type##_t rho = a1_sq_plus_a2_sq * compute_rsqrt(a1_sq_plus_a2_sq);                             \
@@ -134,52 +134,52 @@ extern "C" {
         nk_##type##_t max_rho = rho > epsilon ? rho : epsilon;                                              \
         *cos_half = abs_a1 + max_rho;                                                                       \
         int should_swap = a1 < 0;                                                                           \
-        _nk_cond_swap_##type(should_swap, sin_half, cos_half);                                              \
+        nk_cond_swap__##type(should_swap, sin_half, cos_half);                                              \
         nk_##type##_t w = compute_rsqrt((*cos_half) * (*cos_half) + (*sin_half) * (*sin_half));             \
         *cos_half *= w, *sin_half *= w;                                                                     \
     }
 
 #define NK_MAKE_SORT_SINGULAR_VALUES(type)                                                 \
-    NK_INTERNAL void _nk_sort_singular_values_##type(nk_##type##_t *b, nk_##type##_t *v) { \
+    NK_INTERNAL void nk_sort_singular_values__##type(nk_##type##_t *b, nk_##type##_t *v) { \
         nk_##type##_t rho1 = b[0] * b[0] + b[3] * b[3] + b[6] * b[6];                      \
         nk_##type##_t rho2 = b[1] * b[1] + b[4] * b[4] + b[7] * b[7];                      \
         nk_##type##_t rho3 = b[2] * b[2] + b[5] * b[5] + b[8] * b[8];                      \
         int should_swap;                                                                   \
         /* Sort columns by descending singular value magnitude */                          \
         should_swap = rho1 < rho2;                                                         \
-        _nk_cond_neg_swap_##type(should_swap, &b[0], &b[1]);                               \
-        _nk_cond_neg_swap_##type(should_swap, &v[0], &v[1]);                               \
-        _nk_cond_neg_swap_##type(should_swap, &b[3], &b[4]);                               \
-        _nk_cond_neg_swap_##type(should_swap, &v[3], &v[4]);                               \
-        _nk_cond_neg_swap_##type(should_swap, &b[6], &b[7]);                               \
-        _nk_cond_neg_swap_##type(should_swap, &v[6], &v[7]);                               \
-        _nk_cond_swap_##type(should_swap, &rho1, &rho2);                                   \
+        nk_cond_neg_swap__##type(should_swap, &b[0], &b[1]);                               \
+        nk_cond_neg_swap__##type(should_swap, &v[0], &v[1]);                               \
+        nk_cond_neg_swap__##type(should_swap, &b[3], &b[4]);                               \
+        nk_cond_neg_swap__##type(should_swap, &v[3], &v[4]);                               \
+        nk_cond_neg_swap__##type(should_swap, &b[6], &b[7]);                               \
+        nk_cond_neg_swap__##type(should_swap, &v[6], &v[7]);                               \
+        nk_cond_swap__##type(should_swap, &rho1, &rho2);                                   \
         should_swap = rho1 < rho3;                                                         \
-        _nk_cond_neg_swap_##type(should_swap, &b[0], &b[2]);                               \
-        _nk_cond_neg_swap_##type(should_swap, &v[0], &v[2]);                               \
-        _nk_cond_neg_swap_##type(should_swap, &b[3], &b[5]);                               \
-        _nk_cond_neg_swap_##type(should_swap, &v[3], &v[5]);                               \
-        _nk_cond_neg_swap_##type(should_swap, &b[6], &b[8]);                               \
-        _nk_cond_neg_swap_##type(should_swap, &v[6], &v[8]);                               \
-        _nk_cond_swap_##type(should_swap, &rho1, &rho3);                                   \
+        nk_cond_neg_swap__##type(should_swap, &b[0], &b[2]);                               \
+        nk_cond_neg_swap__##type(should_swap, &v[0], &v[2]);                               \
+        nk_cond_neg_swap__##type(should_swap, &b[3], &b[5]);                               \
+        nk_cond_neg_swap__##type(should_swap, &v[3], &v[5]);                               \
+        nk_cond_neg_swap__##type(should_swap, &b[6], &b[8]);                               \
+        nk_cond_neg_swap__##type(should_swap, &v[6], &v[8]);                               \
+        nk_cond_swap__##type(should_swap, &rho1, &rho3);                                   \
         should_swap = rho2 < rho3;                                                         \
-        _nk_cond_neg_swap_##type(should_swap, &b[1], &b[2]);                               \
-        _nk_cond_neg_swap_##type(should_swap, &v[1], &v[2]);                               \
-        _nk_cond_neg_swap_##type(should_swap, &b[4], &b[5]);                               \
-        _nk_cond_neg_swap_##type(should_swap, &v[4], &v[5]);                               \
-        _nk_cond_neg_swap_##type(should_swap, &b[7], &b[8]);                               \
-        _nk_cond_neg_swap_##type(should_swap, &v[7], &v[8]);                               \
+        nk_cond_neg_swap__##type(should_swap, &b[1], &b[2]);                               \
+        nk_cond_neg_swap__##type(should_swap, &v[1], &v[2]);                               \
+        nk_cond_neg_swap__##type(should_swap, &b[4], &b[5]);                               \
+        nk_cond_neg_swap__##type(should_swap, &v[4], &v[5]);                               \
+        nk_cond_neg_swap__##type(should_swap, &b[7], &b[8]);                               \
+        nk_cond_neg_swap__##type(should_swap, &v[7], &v[8]);                               \
     }
 
 #define NK_MAKE_QR_DECOMPOSITION(type)                                                                               \
-    NK_INTERNAL void _nk_qr_decomposition_##type(nk_##type##_t const *input, nk_##type##_t *q, nk_##type##_t *r) {   \
+    NK_INTERNAL void nk_qr_decomposition__##type(nk_##type##_t const *input, nk_##type##_t *q, nk_##type##_t *r) {   \
         nk_##type##_t cos_half_1, sin_half_1;                                                                        \
         nk_##type##_t cos_half_2, sin_half_2;                                                                        \
         nk_##type##_t cos_half_3, sin_half_3;                                                                        \
         nk_##type##_t cos_theta, sin_theta;                                                                          \
         nk_##type##_t rotation_temp[9], matrix_temp[9];                                                              \
         /* First Givens rotation (zero input[3]) */                                                                  \
-        _nk_qr_givens_quat_##type(input[0], input[3], &cos_half_1, &sin_half_1);                                     \
+        nk_qr_givens_quat__##type(input[0], input[3], &cos_half_1, &sin_half_1);                                     \
         cos_theta = 1 - 2 * sin_half_1 * sin_half_1;                                                                 \
         sin_theta = 2 * cos_half_1 * sin_half_1;                                                                     \
         rotation_temp[0] = cos_theta * input[0] + sin_theta * input[3];                                              \
@@ -191,7 +191,7 @@ extern "C" {
         rotation_temp[6] = input[6], rotation_temp[7] = input[7];                                                    \
         rotation_temp[8] = input[8];                                                                                 \
         /* Second Givens rotation (zero rotation_temp[6]) */                                                         \
-        _nk_qr_givens_quat_##type(rotation_temp[0], rotation_temp[6], &cos_half_2, &sin_half_2);                     \
+        nk_qr_givens_quat__##type(rotation_temp[0], rotation_temp[6], &cos_half_2, &sin_half_2);                     \
         cos_theta = 1 - 2 * sin_half_2 * sin_half_2;                                                                 \
         sin_theta = 2 * cos_half_2 * sin_half_2;                                                                     \
         matrix_temp[0] = cos_theta * rotation_temp[0] + sin_theta * rotation_temp[6];                                \
@@ -203,7 +203,7 @@ extern "C" {
         matrix_temp[7] = -sin_theta * rotation_temp[1] + cos_theta * rotation_temp[7];                               \
         matrix_temp[8] = -sin_theta * rotation_temp[2] + cos_theta * rotation_temp[8];                               \
         /* Third Givens rotation (zero matrix_temp[7]) */                                                            \
-        _nk_qr_givens_quat_##type(matrix_temp[4], matrix_temp[7], &cos_half_3, &sin_half_3);                         \
+        nk_qr_givens_quat__##type(matrix_temp[4], matrix_temp[7], &cos_half_3, &sin_half_3);                         \
         cos_theta = 1 - 2 * sin_half_3 * sin_half_3;                                                                 \
         sin_theta = 2 * cos_half_3 * sin_half_3;                                                                     \
         r[0] = matrix_temp[0], r[1] = matrix_temp[1], r[2] = matrix_temp[2];                                         \
@@ -234,7 +234,7 @@ extern "C" {
     }
 
 #define NK_MAKE_SVD3X3(type)                                                                               \
-    NK_INTERNAL void _nk_svd3x3_##type(nk_##type##_t const *a, nk_##type##_t *svd_u, nk_##type##_t *svd_s, \
+    NK_INTERNAL void nk_svd3x3__##type(nk_##type##_t const *a, nk_##type##_t *svd_u, nk_##type##_t *svd_s, \
                                        nk_##type##_t *svd_v) {                                             \
         /* Compute A^T * A (symmetric) */                                                                  \
         nk_##type##_t ata[9];                                                                              \
@@ -249,8 +249,8 @@ extern "C" {
         ata[8] = a[2] * a[2] + a[5] * a[5] + a[8] * a[8];                                                  \
         /* Jacobi eigenanalysis of A^T * A */                                                              \
         nk_##type##_t quaternion[4];                                                                       \
-        _nk_jacobi_eigenanalysis_##type(&ata[0], &ata[1], &ata[4], &ata[2], &ata[5], &ata[8], quaternion); \
-        _nk_quat_to_mat3_##type(quaternion, svd_v);                                                        \
+        nk_jacobi_eigenanalysis__##type(&ata[0], &ata[1], &ata[4], &ata[2], &ata[5], &ata[8], quaternion); \
+        nk_quat_to_mat3__##type(quaternion, svd_v);                                                        \
         /* B = A * V */                                                                                    \
         nk_##type##_t product[9];                                                                          \
         product[0] = a[0] * svd_v[0] + a[1] * svd_v[3] + a[2] * svd_v[6];                                  \
@@ -263,13 +263,13 @@ extern "C" {
         product[7] = a[6] * svd_v[1] + a[7] * svd_v[4] + a[8] * svd_v[7];                                  \
         product[8] = a[6] * svd_v[2] + a[7] * svd_v[5] + a[8] * svd_v[8];                                  \
         /* Sort singular values and update V */                                                            \
-        _nk_sort_singular_values_##type(product, svd_v);                                                   \
+        nk_sort_singular_values__##type(product, svd_v);                                                   \
         /* QR decomposition: B = U * S */                                                                  \
-        _nk_qr_decomposition_##type(product, svd_u, svd_s);                                                \
+        nk_qr_decomposition__##type(product, svd_u, svd_s);                                                \
     }
 
 #define NK_MAKE_DET3X3(type)                                                             \
-    NK_INTERNAL nk_##type##_t _nk_det3x3_##type(nk_##type##_t const *m) {                \
+    NK_INTERNAL nk_##type##_t nk_det3x3__##type(nk_##type##_t const *m) {                \
         return m[0] * (m[4] * m[8] - m[5] * m[7]) - m[1] * (m[3] * m[8] - m[5] * m[6]) + \
                m[2] * (m[3] * m[7] - m[4] * m[6]);                                       \
     }
@@ -408,7 +408,7 @@ NK_MAKE_DET3X3(f64)
         for (int j = 0; j < 9; ++j) cross_covariance[j] = (nk_##svd_type##_t)h[j];                                   \
         /* Step 3: SVD of H = U * S * V^T */                                                                         \
         nk_##svd_type##_t svd_u[9], svd_s[9], svd_v[9];                                                              \
-        _nk_svd3x3_##svd_type(cross_covariance, svd_u, svd_s, svd_v);                                                \
+        nk_svd3x3__##svd_type(cross_covariance, svd_u, svd_s, svd_v);                                                \
         /* Step 4: R = V * U^T */                                                                                    \
         nk_##svd_type##_t rotation_matrix[9];                                                                        \
         rotation_matrix[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];                        \
@@ -421,7 +421,7 @@ NK_MAKE_DET3X3(f64)
         rotation_matrix[7] = svd_v[6] * svd_u[3] + svd_v[7] * svd_u[4] + svd_v[8] * svd_u[5];                        \
         rotation_matrix[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];                        \
         /* Handle reflection: if det(R) < 0, negate third column of V and recompute R */                             \
-        nk_##svd_type##_t rotation_det = _nk_det3x3_##svd_type(rotation_matrix);                                     \
+        nk_##svd_type##_t rotation_det = nk_det3x3__##svd_type(rotation_matrix);                                     \
         if (rotation_det < 0) {                                                                                      \
             svd_v[2] = -svd_v[2], svd_v[5] = -svd_v[5], svd_v[8] = -svd_v[8];                                        \
             rotation_matrix[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];                    \
@@ -524,7 +524,7 @@ NK_MAKE_DET3X3(f64)
         for (int j = 0; j < 9; ++j) cross_covariance[j] = (nk_##svd_type##_t)h[j];                                    \
         /* Step 3: SVD of H = U * S * V^T */                                                                          \
         nk_##svd_type##_t svd_u[9], svd_s[9], svd_v[9];                                                               \
-        _nk_svd3x3_##svd_type(cross_covariance, svd_u, svd_s, svd_v);                                                 \
+        nk_svd3x3__##svd_type(cross_covariance, svd_u, svd_s, svd_v);                                                 \
         /* Step 4: R = V * U^T */                                                                                     \
         nk_##svd_type##_t rotation_matrix[9];                                                                         \
         rotation_matrix[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];                         \
@@ -538,7 +538,7 @@ NK_MAKE_DET3X3(f64)
         rotation_matrix[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];                         \
         /* Handle reflection and compute scale: c = trace(D*S) / variance_a */                                        \
         /* D = diag(1, 1, det(R)), singular values are svd_s[0], svd_s[4], svd_s[8] (diagonal of S) */                \
-        nk_##svd_type##_t rotation_det = _nk_det3x3_##svd_type(rotation_matrix);                                      \
+        nk_##svd_type##_t rotation_det = nk_det3x3__##svd_type(rotation_matrix);                                      \
         nk_##svd_type##_t sign_det = rotation_det < 0 ? (nk_##svd_type##_t) - 1.0 : (nk_##svd_type##_t)1.0;           \
         nk_##svd_type##_t trace_scaled_s = svd_s[0] + svd_s[4] + sign_det * svd_s[8];                                 \
         nk_##accumulator_type##_t scale_factor = (nk_##accumulator_type##_t)trace_scaled_s /                          \
@@ -590,13 +590,13 @@ NK_MAKE_DET3X3(f64)
         *result = compute_sqrt(sum_squared * inv_n);                                                                  \
     }
 
-NK_MAKE_RMSD(serial, f64, f64, f64, NK_ASSIGN_FROM_TO, NK_F64_SQRT)         // nk_rmsd_f64_serial
-NK_MAKE_KABSCH(serial, f64, f64, f64, f64, NK_ASSIGN_FROM_TO, NK_F64_SQRT)  // nk_kabsch_f64_serial
-NK_MAKE_UMEYAMA(serial, f64, f64, f64, f64, NK_ASSIGN_FROM_TO, NK_F64_SQRT) // nk_umeyama_f64_serial
+NK_MAKE_RMSD(serial, f64, f64, f64, nk_assign_from_to_, NK_F64_SQRT)         // nk_rmsd_f64_serial
+NK_MAKE_KABSCH(serial, f64, f64, f64, f64, nk_assign_from_to_, NK_F64_SQRT)  // nk_kabsch_f64_serial
+NK_MAKE_UMEYAMA(serial, f64, f64, f64, f64, nk_assign_from_to_, NK_F64_SQRT) // nk_umeyama_f64_serial
 
-NK_MAKE_RMSD(serial, f32, f32, f32, NK_ASSIGN_FROM_TO, NK_F32_SQRT)         // nk_rmsd_f32_serial
-NK_MAKE_KABSCH(serial, f32, f32, f32, f32, NK_ASSIGN_FROM_TO, NK_F32_SQRT)  // nk_kabsch_f32_serial
-NK_MAKE_UMEYAMA(serial, f32, f32, f32, f32, NK_ASSIGN_FROM_TO, NK_F32_SQRT) // nk_umeyama_f32_serial
+NK_MAKE_RMSD(serial, f32, f32, f32, nk_assign_from_to_, NK_F32_SQRT)         // nk_rmsd_f32_serial
+NK_MAKE_KABSCH(serial, f32, f32, f32, f32, nk_assign_from_to_, NK_F32_SQRT)  // nk_kabsch_f32_serial
+NK_MAKE_UMEYAMA(serial, f32, f32, f32, f32, nk_assign_from_to_, NK_F32_SQRT) // nk_umeyama_f32_serial
 
 NK_MAKE_RMSD(serial, f16, f32, f32, nk_f16_to_f32, NK_F32_SQRT)         // nk_rmsd_f16_serial
 NK_MAKE_KABSCH(serial, f16, f32, f32, f32, nk_f16_to_f32, NK_F32_SQRT)  // nk_kabsch_f16_serial
@@ -606,9 +606,9 @@ NK_MAKE_RMSD(serial, bf16, f32, f32, nk_bf16_to_f32, NK_F32_SQRT)         // nk_
 NK_MAKE_KABSCH(serial, bf16, f32, f32, f32, nk_bf16_to_f32, NK_F32_SQRT)  // nk_kabsch_bf16_serial
 NK_MAKE_UMEYAMA(serial, bf16, f32, f32, f32, nk_bf16_to_f32, NK_F32_SQRT) // nk_umeyama_bf16_serial
 
-NK_MAKE_RMSD(accurate, f32, f64, f64, _nk_f32_to_f64, NK_F64_SQRT)        // nk_rmsd_f32_accurate
-NK_MAKE_KABSCH(accurate, f32, f64, f64, f64, _nk_f32_to_f64, NK_F64_SQRT) // nk_kabsch_f32_accurate
-NK_MAKE_UMEYAMA(accurate, f32, f64, f64, f64, _nk_f32_to_f64,
+NK_MAKE_RMSD(accurate, f32, f64, f64, nk_f32_to_f64_, NK_F64_SQRT)        // nk_rmsd_f32_accurate
+NK_MAKE_KABSCH(accurate, f32, f64, f64, f64, nk_f32_to_f64_, NK_F64_SQRT) // nk_kabsch_f32_accurate
+NK_MAKE_UMEYAMA(accurate, f32, f64, f64, f64, nk_f32_to_f64_,
                 NK_F64_SQRT) // nk_umeyama_f32_accurate
 
 NK_MAKE_RMSD(accurate, f16, f64, f64, nk_f16_to_f64, NK_F64_SQRT)         // nk_rmsd_f16_accurate

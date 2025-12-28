@@ -8,7 +8,7 @@
 #ifndef NK_DOT_SIERRA_H
 #define NK_DOT_SIERRA_H
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_SIERRA
 #pragma GCC push_options
 #pragma GCC target("avx2", "bmi2", "avx2vnni")
@@ -32,7 +32,7 @@ NK_PUBLIC void nk_dot_i8_sierra(nk_i8_t const *a_scalars, nk_i8_t const *b_scala
     }
 
     // Further reduce to a single sum for each vector
-    int sum_i32 = _nk_reduce_add_i32x8_haswell(sum_i32x8);
+    int sum_i32 = nk_reduce_add_i32x8_haswell_(sum_i32x8);
 
     // Take care of the tail:
     for (; idx_scalars < count_scalars; ++idx_scalars)
@@ -92,6 +92,6 @@ NK_INTERNAL void nk_dot_i8x32_finalize_sierra(                                  
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_SIERRA
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
 #endif // NK_DOT_SIERRA_H

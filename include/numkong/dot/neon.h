@@ -8,7 +8,7 @@
 #ifndef NK_DOT_NEON_H
 #define NK_DOT_NEON_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a+simd")
@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-NK_INTERNAL float32x4_t _nk_partial_load_f32x4_neon(nk_f32_t const *x, nk_size_t n) {
+NK_INTERNAL float32x4_t nk_partial_load_f32x4_neon_(nk_f32_t const *x, nk_size_t n) {
     nk_b512_vec_t result;
     result.u32x4s[0] = vdupq_n_u32(0);
     nk_size_t i = 0;
@@ -28,7 +28,7 @@ NK_INTERNAL float32x4_t _nk_partial_load_f32x4_neon(nk_f32_t const *x, nk_size_t
     return vreinterpretq_f32_u32(result.u32x4s[0]);
 }
 
-NK_INTERNAL void _nk_partial_store_f32x4_neon(float32x4_t vec, nk_f32_t *x, nk_size_t n) {
+NK_INTERNAL void nk_partial_store_f32x4_neon_(float32x4_t vec, nk_f32_t *x, nk_size_t n) {
     nk_b512_vec_t u;
     u.u32x4s[0] = vreinterpretq_u32_f32(vec);
     if (n > 0) x[0] = u.f32s[0];
@@ -37,7 +37,7 @@ NK_INTERNAL void _nk_partial_store_f32x4_neon(float32x4_t vec, nk_f32_t *x, nk_s
     if (n > 3) x[3] = u.f32s[3];
 }
 
-NK_INTERNAL void _nk_partial_store_i32x4_neon(int32x4_t vec, nk_i32_t *x, nk_size_t n) {
+NK_INTERNAL void nk_partial_store_i32x4_neon_(int32x4_t vec, nk_i32_t *x, nk_size_t n) {
     nk_b512_vec_t u;
     u.u32x4s[0] = vreinterpretq_u32_s32(vec);
     if (n > 0) x[0] = u.i32s[0];
@@ -158,33 +158,33 @@ NK_INTERNAL void nk_dot_f32x4_finalize_neon(                                    
 }
 
 /** @brief Type-agnostic 128-bit full load (NEON). */
-NK_INTERNAL void _nk_load_b128_neon(void const *src, nk_b128_vec_t *dst) {
+NK_INTERNAL void nk_load_b128_neon_(void const *src, nk_b128_vec_t *dst) {
     dst->u8x16 = vld1q_u8((nk_u8_t const *)src);
 }
 
 /** @brief Type-agnostic partial load for 32-bit elements (4 elements max) into 128-bit vector (NEON). */
-NK_INTERNAL void _nk_partial_load_b32x4_neon(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
+NK_INTERNAL void nk_partial_load_b32x4_neon_(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
     nk_u32_t const *s = (nk_u32_t const *)src;
     dst->u32x4 = vdupq_n_u32(0);
     for (nk_size_t i = 0; i < n && i < 4; ++i) dst->u32s[i] = s[i];
 }
 
 /** @brief Type-agnostic partial load for 16-bit elements (8 elements max) into 128-bit vector (NEON). */
-NK_INTERNAL void _nk_partial_load_b16x8_neon(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
+NK_INTERNAL void nk_partial_load_b16x8_neon_(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
     nk_u16_t const *s = (nk_u16_t const *)src;
     dst->u16x8 = vdupq_n_u16(0);
     for (nk_size_t i = 0; i < n && i < 8; ++i) dst->u16s[i] = s[i];
 }
 
 /** @brief Type-agnostic partial load for 8-bit elements (16 elements max) into 128-bit vector (NEON). */
-NK_INTERNAL void _nk_partial_load_b8x16_neon(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
+NK_INTERNAL void nk_partial_load_b8x16_neon_(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
     nk_u8_t const *s = (nk_u8_t const *)src;
     dst->u8x16 = vdupq_n_u8(0);
     for (nk_size_t i = 0; i < n && i < 16; ++i) dst->u8s[i] = s[i];
 }
 
 /** @brief Type-agnostic partial store for 32-bit elements (4 elements max) from 128-bit vector (NEON). */
-NK_INTERNAL void _nk_partial_store_b32x4_neon(nk_b128_vec_t const *src, void *dst, nk_size_t n) {
+NK_INTERNAL void nk_partial_store_b32x4_neon_(nk_b128_vec_t const *src, void *dst, nk_size_t n) {
     nk_u32_t *d = (nk_u32_t *)dst;
     for (nk_size_t i = 0; i < n && i < 4; ++i) d[i] = src->u32s[i];
 }
@@ -196,6 +196,6 @@ NK_INTERNAL void _nk_partial_store_b32x4_neon(nk_b128_vec_t const *src, void *ds
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_DOT_NEON_H

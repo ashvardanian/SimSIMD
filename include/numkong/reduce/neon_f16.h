@@ -8,7 +8,7 @@
 #ifndef NK_REDUCE_NEON_F16_H
 #define NK_REDUCE_NEON_F16_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON_F16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
@@ -21,7 +21,7 @@ extern "C" {
 #endif
 
 /** @brief Horizontal sum of 8 f16s in a NEON register, returning f32. */
-NK_INTERNAL nk_f32_t _nk_reduce_add_f16x8_neon(float16x8_t sum_f16x8) {
+NK_INTERNAL nk_f32_t nk_reduce_add_f16x8_neon_(float16x8_t sum_f16x8) {
     float16x4_t low_f16x4 = vget_low_f16(sum_f16x8);
     float16x4_t high_f16x4 = vget_high_f16(sum_f16x8);
     float16x4_t sum_f16x4 = vadd_f16(low_f16x4, high_f16x4);
@@ -37,6 +37,6 @@ NK_INTERNAL nk_f32_t _nk_reduce_add_f16x8_neon(float16x8_t sum_f16x8) {
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON_F16
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_REDUCE_NEON_F16_H

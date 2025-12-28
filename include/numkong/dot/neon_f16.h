@@ -8,7 +8,7 @@
 #ifndef NK_DOT_NEON_F16_H
 #define NK_DOT_NEON_F16_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON_F16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-NK_INTERNAL float16x4_t _nk_partial_load_f16x4_neon(nk_f16_t const *x, nk_size_t n) {
+NK_INTERNAL float16x4_t nk_partial_load_f16x4_neon_(nk_f16_t const *x, nk_size_t n) {
     // In case the software emulation for `f16` scalars is enabled, the `nk_f16_to_f32`
     // function will run. It is extremely slow, so even for the tail, let's combine serial
     // loads and stores with vectorized math.
@@ -37,8 +37,8 @@ NK_PUBLIC void nk_dot_f16_neon(nk_f16_t const *a_scalars, nk_f16_t const *b_scal
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
 nk_dot_f16_neon_cycle:
     if (count_scalars < 4) {
-        a_f32x4 = vcvt_f32_f16(_nk_partial_load_f16x4_neon(a_scalars, count_scalars));
-        b_f32x4 = vcvt_f32_f16(_nk_partial_load_f16x4_neon(b_scalars, count_scalars));
+        a_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(a_scalars, count_scalars));
+        b_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(b_scalars, count_scalars));
         count_scalars = 0;
     }
     else {
@@ -139,6 +139,6 @@ NK_INTERNAL void nk_dot_f16x8_finalize_neon(                                    
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON_F16
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_DOT_NEON_F16_H

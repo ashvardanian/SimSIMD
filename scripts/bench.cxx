@@ -1425,7 +1425,7 @@ void measure_s16s16s32gemm_mkl(bm::State &state, std::size_t m, std::size_t n, s
 
 int main(int argc, char **argv) {
     nk_capability_t runtime_caps = nk_capabilities();
-    nk_flush_denormals(runtime_caps); // Also enables AMX if available
+    nk_configure_thread(runtime_caps); // Also enables AMX if available
 
 #if NK_BUILD_BENCHMARKS_WITH_MKL
     // Set MKL to single-threaded for fair comparison with NumKong (which is single-threaded)

@@ -8,7 +8,7 @@
 #ifndef NK_REDUCE_SIERRA_H
 #define NK_REDUCE_SIERRA_H
 
-#if _NK_TARGET_X86
+#if NK_TARGET_X86_
 #if NK_TARGET_SIERRA
 #pragma GCC push_options
 #pragma GCC target("avx2", "bmi2", "avx2vnni")
@@ -27,6 +27,6 @@ extern "C" {
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_SIERRA
-#endif // _NK_TARGET_X86
+#endif // NK_TARGET_X86_
 
 #endif // NK_REDUCE_SIERRA_H

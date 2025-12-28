@@ -8,7 +8,7 @@
 #ifndef NK_DOT_NEON_BF16_H
 #define NK_DOT_NEON_BF16_H
 
-#if _NK_TARGET_ARM
+#if NK_TARGET_ARM_
 #if NK_TARGET_NEON_BF16
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-NK_INTERNAL bfloat16x8_t _nk_partial_load_bf16x8_neon(nk_bf16_t const *x, nk_size_t n) {
+NK_INTERNAL bfloat16x8_t nk_partial_load_bf16x8_neon_(nk_bf16_t const *x, nk_size_t n) {
     nk_b512_vec_t result;
     result.u32x4s[0] = vdupq_n_u32(0);
     nk_size_t i = 0;
@@ -34,8 +34,8 @@ NK_PUBLIC void nk_dot_bf16_neon(nk_bf16_t const *a_scalars, nk_bf16_t const *b_s
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
 nk_dot_bf16_neon_cycle:
     if (count_scalars < 8) {
-        a_bf16x8 = _nk_partial_load_bf16x8_neon(a_scalars, count_scalars);
-        b_bf16x8 = _nk_partial_load_bf16x8_neon(b_scalars, count_scalars);
+        a_bf16x8 = nk_partial_load_bf16x8_neon_(a_scalars, count_scalars);
+        b_bf16x8 = nk_partial_load_bf16x8_neon_(b_scalars, count_scalars);
         count_scalars = 0;
     }
     else {
@@ -137,6 +137,6 @@ NK_INTERNAL void nk_dot_bf16x8_finalize_neon(                                   
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON_BF16
-#endif // _NK_TARGET_ARM
+#endif // NK_TARGET_ARM_
 
 #endif // NK_DOT_NEON_BF16_H
