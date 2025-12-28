@@ -634,8 +634,6 @@ def name_to_kernels(name: str):
         return baseline_intersect, nk.intersect
     elif name == "scale":
         return baseline_scale, nk.scale
-    elif name == "sum":
-        return baseline_sum, nk.sum
     elif name == "wsum":
         return baseline_wsum, nk.wsum
     elif name == "fma":
@@ -1354,9 +1352,9 @@ def test_scale(ndim, dtype, kernel, capability, stats_fixture):
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
-@pytest.mark.parametrize("kernel", ["sum"])
+@pytest.mark.parametrize("kernel", ["add"])
 @pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
-def test_sum(ndim, dtype, kernel, capability, stats_fixture):
+def test_add(ndim, dtype, kernel, capability, stats_fixture):
     """"""
 
     if dtype == "float16" and is_running_under_qemu():
@@ -2035,10 +2033,10 @@ def test_scale_extended(ndim, dtype, kernel, capability, stats_fixture):
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97, 1536])
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
-@pytest.mark.parametrize("kernel", ["sum"])
+@pytest.mark.parametrize("kernel", ["add"])
 @pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
-def test_sum_extended(ndim, dtype, kernel, capability, stats_fixture):
-    """Extended tests for sum() function with various dtypes.
+def test_add_extended(ndim, dtype, kernel, capability, stats_fixture):
+    """Extended tests for add() function with various dtypes.
     Tests element-wise addition: result = x + y
     """
     if dtype == "float16" and is_running_under_qemu():
@@ -2459,11 +2457,6 @@ def test_geospatial_out_parameter():
     # Compare with regular call
     expected = np.array(nk.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes))
     np.testing.assert_allclose(output_distances, expected, atol=1e-10, rtol=1e-10)
-
-
-# =============================================================================
-# DistancesTensor Tests
-# =============================================================================
 
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
@@ -2951,6 +2944,625 @@ def test_distances_tensor_zero_copy_views():
     copied = result.copy()
     copied_np = np.asarray(copied)
     assert not np.shares_memory(orig_np, copied_np), "copy() should NOT share memory"
+
+
+# region: NDArray Constructor Tests
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+        pytest.param("int8", id="i8"),
+        pytest.param("int32", id="i32"),
+    ],
+)
+@pytest.mark.parametrize(
+    "shape",
+    [
+        pytest.param((10,), id="1d-10"),
+        pytest.param((5, 4), id="2d-5x4"),
+        pytest.param((2, 3, 4), id="3d-2x3x4"),
+    ],
+)
+def test_ndarray_zeros(dtype, shape):
+    """Test nk.zeros() constructor."""
+    arr = nk.zeros(shape, dtype=dtype)
+    arr_np = np.asarray(arr)
+
+    assert arr.shape == shape, f"Shape mismatch: {arr.shape} vs {shape}"
+    assert arr.dtype == dtype, f"Dtype mismatch: {arr.dtype} vs {dtype}"
+    assert np.all(arr_np == 0), "Array should be all zeros"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+        pytest.param("int8", id="i8"),
+        pytest.param("int32", id="i32"),
+    ],
+)
+@pytest.mark.parametrize(
+    "shape",
+    [
+        pytest.param((10,), id="1d-10"),
+        pytest.param((5, 4), id="2d-5x4"),
+        pytest.param((2, 3, 4), id="3d-2x3x4"),
+    ],
+)
+def test_ndarray_ones(dtype, shape):
+    """Test nk.ones() constructor."""
+    arr = nk.ones(shape, dtype=dtype)
+    arr_np = np.asarray(arr)
+
+    assert arr.shape == shape, f"Shape mismatch: {arr.shape} vs {shape}"
+    assert arr.dtype == dtype, f"Dtype mismatch: {arr.dtype} vs {dtype}"
+    assert np.all(arr_np == 1), "Array should be all ones"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype,fill_value",
+    [
+        pytest.param("float64", 3.14, id="f64-pi"),
+        pytest.param("float32", -2.5, id="f32-neg"),
+        pytest.param("int8", 42, id="i8-42"),
+        pytest.param("int32", -100, id="i32-neg"),
+    ],
+)
+@pytest.mark.parametrize(
+    "shape",
+    [
+        pytest.param((10,), id="1d-10"),
+        pytest.param((5, 4), id="2d-5x4"),
+    ],
+)
+def test_ndarray_full(dtype, fill_value, shape):
+    """Test nk.full() constructor."""
+    arr = nk.full(shape, fill_value, dtype=dtype)
+    arr_np = np.asarray(arr)
+
+    assert arr.shape == shape, f"Shape mismatch: {arr.shape} vs {shape}"
+    assert arr.dtype == dtype, f"Dtype mismatch: {arr.dtype} vs {dtype}"
+
+    # For floats, use approximate comparison; for ints, exact
+    if dtype.startswith("float"):
+        np.testing.assert_allclose(arr_np, fill_value, rtol=1e-5)
+    else:
+        expected = np.dtype(dtype).type(fill_value)
+        assert np.all(arr_np == expected), f"Array should be all {expected}"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+    ],
+)
+@pytest.mark.parametrize(
+    "shape",
+    [
+        pytest.param((10,), id="1d-10"),
+        pytest.param((5, 4), id="2d-5x4"),
+    ],
+)
+def test_ndarray_empty(dtype, shape):
+    """Test nk.empty() constructor - just verify shape and dtype, not contents."""
+    arr = nk.empty(shape, dtype=dtype)
+
+    assert arr.shape == shape, f"Shape mismatch: {arr.shape} vs {shape}"
+    assert arr.dtype == dtype, f"Dtype mismatch: {arr.dtype} vs {dtype}"
+
+
+# endregion
+
+# region: NDArray Reduction Tests
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+        pytest.param("int8", id="i8"),
+        pytest.param("int32", id="i32"),
+    ],
+)
+@pytest.mark.parametrize(
+    "shape",
+    [
+        pytest.param((100,), id="1d-100"),
+        pytest.param((10, 10), id="2d-10x10"),
+        pytest.param((4, 5, 5), id="3d-4x5x5"),
+    ],
+)
+def test_ndarray_sum_method(dtype, shape):
+    """Test NDArray.sum() method."""
+    np.random.seed(42)
+
+    # Create NumPy array and numkong array
+    if dtype.startswith("float"):
+        np_arr = np.random.randn(*shape).astype(dtype)
+    else:
+        dtype_info = np.iinfo(np.dtype(dtype))
+        np_arr = np.random.randint(dtype_info.min // 2, dtype_info.max // 2, size=shape, dtype=dtype)
+
+    nk_arr = nk.zeros(shape, dtype=dtype)
+    nk_arr_np = np.asarray(nk_arr)
+    np.copyto(nk_arr_np, np_arr)
+
+    expected = np_arr.sum()
+    result = nk_arr.sum()
+
+    if dtype.startswith("float"):
+        np.testing.assert_allclose(result, expected, rtol=1e-4, atol=1e-4)
+    else:
+        assert result == expected, f"sum mismatch: {result} vs {expected}"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+        pytest.param("int8", id="i8"),
+        pytest.param("int32", id="i32"),
+    ],
+)
+@pytest.mark.parametrize(
+    "shape",
+    [
+        pytest.param((100,), id="1d-100"),
+        pytest.param((10, 10), id="2d-10x10"),
+    ],
+)
+def test_ndarray_min_max_methods(dtype, shape):
+    """Test NDArray.min() and NDArray.max() methods."""
+    np.random.seed(42)
+
+    if dtype.startswith("float"):
+        np_arr = np.random.randn(*shape).astype(dtype)
+    else:
+        dtype_info = np.iinfo(np.dtype(dtype))
+        np_arr = np.random.randint(dtype_info.min // 2, dtype_info.max // 2, size=shape, dtype=dtype)
+
+    nk_arr = nk.zeros(shape, dtype=dtype)
+    nk_arr_np = np.asarray(nk_arr)
+    np.copyto(nk_arr_np, np_arr)
+
+    # Test min
+    expected_min = np_arr.min()
+    result_min = nk_arr.min()
+    if dtype.startswith("float"):
+        np.testing.assert_allclose(result_min, expected_min, rtol=1e-5)
+    else:
+        assert result_min == expected_min, f"min mismatch: {result_min} vs {expected_min}"
+
+    # Test max
+    expected_max = np_arr.max()
+    result_max = nk_arr.max()
+    if dtype.startswith("float"):
+        np.testing.assert_allclose(result_max, expected_max, rtol=1e-5)
+    else:
+        assert result_max == expected_max, f"max mismatch: {result_max} vs {expected_max}"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+        pytest.param("int32", id="i32"),
+    ],
+)
+@pytest.mark.parametrize(
+    "shape",
+    [
+        pytest.param((100,), id="1d-100"),
+        pytest.param((10, 10), id="2d-10x10"),
+    ],
+)
+def test_ndarray_argmin_argmax_methods(dtype, shape):
+    """Test NDArray.argmin() and NDArray.argmax() methods."""
+    np.random.seed(42)
+
+    if dtype.startswith("float"):
+        np_arr = np.random.randn(*shape).astype(dtype)
+    else:
+        dtype_info = np.iinfo(np.dtype(dtype))
+        np_arr = np.random.randint(dtype_info.min // 2, dtype_info.max // 2, size=shape, dtype=dtype)
+
+    nk_arr = nk.zeros(shape, dtype=dtype)
+    nk_arr_np = np.asarray(nk_arr)
+    np.copyto(nk_arr_np, np_arr)
+
+    # Test argmin (flat index)
+    expected_argmin = np_arr.argmin()
+    result_argmin = nk_arr.argmin()
+    assert result_argmin == expected_argmin, f"argmin mismatch: {result_argmin} vs {expected_argmin}"
+
+    # Test argmax (flat index)
+    expected_argmax = np_arr.argmax()
+    result_argmax = nk_arr.argmax()
+    assert result_argmax == expected_argmax, f"argmax mismatch: {result_argmax} vs {expected_argmax}"
+
+
+# endregion
+
+# region: Module-level Reduction Tests
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+    ],
+)
+def test_module_level_reductions(dtype):
+    """Test nk.sum(), nk.min(), nk.max(), nk.argmin(), nk.argmax() module functions."""
+    np.random.seed(42)
+    shape = (50,)
+    np_arr = np.random.randn(*shape).astype(dtype)
+
+    nk_arr = nk.zeros(shape, dtype=dtype)
+    nk_arr_np = np.asarray(nk_arr)
+    np.copyto(nk_arr_np, np_arr)
+
+    # Test nk.sum()
+    np.testing.assert_allclose(nk.sum(nk_arr), np_arr.sum(), rtol=1e-4, atol=1e-4)
+
+    # Test nk.min()
+    np.testing.assert_allclose(nk.min(nk_arr), np_arr.min(), rtol=1e-5)
+
+    # Test nk.max()
+    np.testing.assert_allclose(nk.max(nk_arr), np_arr.max(), rtol=1e-5)
+
+    # Test nk.argmin()
+    assert nk.argmin(nk_arr) == np_arr.argmin()
+
+    # Test nk.argmax()
+    assert nk.argmax(nk_arr) == np_arr.argmax()
+
+
+# endregion
+
+# region: NDArray Arithmetic Operator Tests
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+        pytest.param("int32", id="i32"),
+    ],
+)
+def test_ndarray_add_operator(dtype):
+    """Test NDArray + operator."""
+    np.random.seed(42)
+    shape = (20,)
+
+    if dtype.startswith("float"):
+        np_a = np.random.randn(*shape).astype(dtype)
+        np_b = np.random.randn(*shape).astype(dtype)
+    else:
+        np_a = np.random.randint(-50, 50, size=shape, dtype=dtype)
+        np_b = np.random.randint(-50, 50, size=shape, dtype=dtype)
+
+    # Create numkong arrays
+    nk_a = nk.zeros(shape, dtype=dtype)
+    nk_b = nk.zeros(shape, dtype=dtype)
+    np.copyto(np.asarray(nk_a), np_a)
+    np.copyto(np.asarray(nk_b), np_b)
+
+    # Test a + b
+    expected = np_a + np_b
+    result = nk_a + nk_b
+    result_np = np.asarray(result)
+
+    if dtype.startswith("float"):
+        np.testing.assert_allclose(result_np, expected, rtol=1e-5)
+    else:
+        np.testing.assert_array_equal(result_np, expected)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+        pytest.param("int32", id="i32"),
+    ],
+)
+def test_ndarray_subtract_operator(dtype):
+    """Test NDArray - operator."""
+    np.random.seed(42)
+    shape = (20,)
+
+    if dtype.startswith("float"):
+        np_a = np.random.randn(*shape).astype(dtype)
+        np_b = np.random.randn(*shape).astype(dtype)
+    else:
+        np_a = np.random.randint(-50, 50, size=shape, dtype=dtype)
+        np_b = np.random.randint(-50, 50, size=shape, dtype=dtype)
+
+    nk_a = nk.zeros(shape, dtype=dtype)
+    nk_b = nk.zeros(shape, dtype=dtype)
+    np.copyto(np.asarray(nk_a), np_a)
+    np.copyto(np.asarray(nk_b), np_b)
+
+    # Test a - b
+    expected = np_a - np_b
+    result = nk_a - nk_b
+    result_np = np.asarray(result)
+
+    if dtype.startswith("float"):
+        np.testing.assert_allclose(result_np, expected, rtol=1e-5)
+    else:
+        np.testing.assert_array_equal(result_np, expected)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+        pytest.param("int32", id="i32"),
+    ],
+)
+def test_ndarray_multiply_operator(dtype):
+    """Test NDArray * operator."""
+    np.random.seed(42)
+    shape = (20,)
+
+    if dtype.startswith("float"):
+        np_a = np.random.randn(*shape).astype(dtype)
+        np_b = np.random.randn(*shape).astype(dtype)
+    else:
+        np_a = np.random.randint(-10, 10, size=shape, dtype=dtype)
+        np_b = np.random.randint(-10, 10, size=shape, dtype=dtype)
+
+    nk_a = nk.zeros(shape, dtype=dtype)
+    nk_b = nk.zeros(shape, dtype=dtype)
+    np.copyto(np.asarray(nk_a), np_a)
+    np.copyto(np.asarray(nk_b), np_b)
+
+    # Test a * b
+    expected = np_a * np_b
+    result = nk_a * nk_b
+    result_np = np.asarray(result)
+
+    if dtype.startswith("float"):
+        np.testing.assert_allclose(result_np, expected, rtol=1e-4)
+    else:
+        np.testing.assert_array_equal(result_np, expected)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+        pytest.param("int32", id="i32"),
+    ],
+)
+def test_ndarray_unary_operators(dtype):
+    """Test NDArray unary - and + operators."""
+    np.random.seed(42)
+    shape = (20,)
+
+    if dtype.startswith("float"):
+        np_a = np.random.randn(*shape).astype(dtype)
+    else:
+        np_a = np.random.randint(-50, 50, size=shape, dtype=dtype)
+
+    nk_a = nk.zeros(shape, dtype=dtype)
+    np.copyto(np.asarray(nk_a), np_a)
+
+    # Test -a (unary negation)
+    expected_neg = -np_a
+    result_neg = -nk_a
+    result_neg_np = np.asarray(result_neg)
+
+    if dtype.startswith("float"):
+        np.testing.assert_allclose(result_neg_np, expected_neg, rtol=1e-5)
+    else:
+        np.testing.assert_array_equal(result_neg_np, expected_neg)
+
+    # Test +a (unary positive - should return copy)
+    result_pos = +nk_a
+    result_pos_np = np.asarray(result_pos)
+    np.testing.assert_array_equal(result_pos_np, np_a)
+
+
+# endregion
+
+# region: Strided/Non-contiguous Array Tests
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+    ],
+)
+def test_reduction_on_strided_array(dtype):
+    """Test reductions on non-contiguous (strided) arrays."""
+    np.random.seed(42)
+
+    # Create a 2D array and take a strided slice
+    np_arr = np.random.randn(10, 10).astype(dtype)
+    nk_arr = nk.zeros((10, 10), dtype=dtype)
+    np.copyto(np.asarray(nk_arr), np_arr)
+
+    # Take every other row (strided view)
+    np_strided = np_arr[::2]  # Shape (5, 10), strided
+    nk_strided = nk_arr[::2]
+
+    # Test sum on strided array
+    expected_sum = np_strided.sum()
+    result_sum = nk_strided.sum()
+    np.testing.assert_allclose(result_sum, expected_sum, rtol=1e-4, atol=1e-4)
+
+    # Test min/max on strided array
+    np.testing.assert_allclose(nk_strided.min(), np_strided.min(), rtol=1e-5)
+    np.testing.assert_allclose(nk_strided.max(), np_strided.max(), rtol=1e-5)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+    ],
+)
+def test_reduction_on_transposed_array(dtype):
+    """Test reductions on transposed (non-contiguous) arrays."""
+    np.random.seed(42)
+
+    np_arr = np.random.randn(5, 8).astype(dtype)
+    nk_arr = nk.zeros((5, 8), dtype=dtype)
+    np.copyto(np.asarray(nk_arr), np_arr)
+
+    # Transpose
+    np_t = np_arr.T
+    nk_t = nk_arr.T
+
+    # Test sum on transposed array
+    expected_sum = np_t.sum()
+    result_sum = nk_t.sum()
+    np.testing.assert_allclose(result_sum, expected_sum, rtol=1e-4, atol=1e-4)
+
+    # Test min/max on transposed array
+    np.testing.assert_allclose(nk_t.min(), np_t.min(), rtol=1e-5)
+    np.testing.assert_allclose(nk_t.max(), np_t.max(), rtol=1e-5)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+    ],
+)
+def test_reduction_on_subview(dtype):
+    """Test reductions on subviews (sliced arrays)."""
+    np.random.seed(42)
+
+    np_arr = np.random.randn(20, 20).astype(dtype)
+    nk_arr = nk.zeros((20, 20), dtype=dtype)
+    np.copyto(np.asarray(nk_arr), np_arr)
+
+    # Take a subview
+    np_sub = np_arr[5:15, 5:15]
+    nk_sub = nk_arr[5:15, 5:15]
+
+    # Test sum
+    np.testing.assert_allclose(nk_sub.sum(), np_sub.sum(), rtol=1e-4, atol=1e-4)
+
+    # Test min/max
+    np.testing.assert_allclose(nk_sub.min(), np_sub.min(), rtol=1e-5)
+    np.testing.assert_allclose(nk_sub.max(), np_sub.max(), rtol=1e-5)
+
+    # Test argmin/argmax
+    assert nk_sub.argmin() == np_sub.argmin()
+    assert nk_sub.argmax() == np_sub.argmax()
+
+
+# endregion
+
+# region: Buffer Protocol Tests (NumPy arrays as input)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+    ],
+)
+def test_add_with_numpy_arrays(dtype):
+    """Test nk.add() with NumPy arrays via buffer protocol."""
+    np.random.seed(42)
+    shape = (50,)
+    a = np.random.randn(*shape).astype(dtype)
+    b = np.random.randn(*shape).astype(dtype)
+
+    expected = a + b
+    result = nk.add(a, b)
+    result_np = np.asarray(result)
+
+    np.testing.assert_allclose(result_np, expected, rtol=1e-5)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+    ],
+)
+def test_multiply_with_numpy_arrays(dtype):
+    """Test nk.multiply() with NumPy arrays via buffer protocol."""
+    np.random.seed(42)
+    shape = (50,)
+    a = np.random.randn(*shape).astype(dtype)
+    b = np.random.randn(*shape).astype(dtype)
+
+    expected = a * b
+    result = nk.multiply(a, b)
+    result_np = np.asarray(result)
+
+    np.testing.assert_allclose(result_np, expected, rtol=1e-4)
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        pytest.param("float64", id="f64"),
+        pytest.param("float32", id="f32"),
+    ],
+)
+def test_wsum_with_numpy_arrays(dtype):
+    """Test nk.wsum() with NumPy arrays via buffer protocol."""
+    np.random.seed(42)
+    shape = (50,)
+    a = np.random.randn(*shape).astype(dtype)
+    b = np.random.randn(*shape).astype(dtype)
+    alpha = 2.0
+    beta = 0.5
+
+    expected = alpha * a + beta * b
+    result = nk.wsum(a, b, alpha=alpha, beta=beta)
+    result_np = np.asarray(result)
+
+    np.testing.assert_allclose(result_np, expected, rtol=1e-4)
+
+
+# endregion
 
 
 if __name__ == "__main__":

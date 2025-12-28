@@ -100,13 +100,13 @@
 /**
  *  @brief  Get the kernel's native output dtype for a given metric and input dtype.
  */
-static nk_datatype_t metric_kernel_output_dtype(nk_metric_kind_t kind, nk_datatype_t input) {
+static nk_datatype_t metric_kernel_output_dtype(nk_kernel_kind_t kind, nk_datatype_t input) {
     switch (kind) {
-    case nk_metric_dot_k:
-    case nk_metric_vdot_k: return nk_dot_output_datatype(input);
-    case nk_metric_l2_k: return nk_l2_output_datatype(input);
-    case nk_metric_l2sq_k: return nk_l2sq_output_datatype(input);
-    case nk_metric_angular_k: return nk_angular_output_datatype(input);
+    case nk_kernel_dot_k:
+    case nk_kernel_vdot_k: return nk_dot_output_datatype(input);
+    case nk_kernel_l2_k: return nk_l2_output_datatype(input);
+    case nk_kernel_l2sq_k: return nk_l2sq_output_datatype(input);
+    case nk_kernel_angular_k: return nk_angular_output_datatype(input);
     default: return nk_f64_k;
     }
 }
@@ -120,7 +120,7 @@ typedef struct TensorArgument {
     nk_datatype_t datatype;
 } TensorArgument;
 
-typedef struct DistancesTensor {
+typedef struct NDArray {
     PyObject_HEAD                            // //
     nk_datatype_t datatype;                  // Logical datatype (f32, f64, f16, bf16, i8, etc.)
     size_t rank;                             // Number of dimensions (0 for scalar, up to NK_NDARRAY_MAX_RANK)
@@ -129,27 +129,27 @@ typedef struct DistancesTensor {
     PyObject *parent;                        // Reference to parent tensor (NULL if owns data)
     char *data;                              // Pointer to data (start[] if owns, or parent's memory if view)
     char start[];                            // Variable length data (only used when parent == NULL)
-} DistancesTensor;
+} NDArray;
 
 // Forward declaration of the type object.
-static PyTypeObject DistancesTensorType;
+static PyTypeObject NDArrayType;
 
-static int DistancesTensor_getbuffer(PyObject *export_from, Py_buffer *view, int flags);
-static void DistancesTensor_releasebuffer(PyObject *export_from, Py_buffer *view);
-static PyObject *tensor_read_scalar(DistancesTensor *tensor, size_t byte_offset);
+static int NDArray_getbuffer(PyObject *export_from, Py_buffer *view, int flags);
+static void NDArray_releasebuffer(PyObject *export_from, Py_buffer *view);
+static PyObject *tensor_read_scalar(NDArray *tensor, size_t byte_offset);
 
 // Forward declaration of the view factory used by slicing.
-static DistancesTensor *DistancesTensor_view(DistancesTensor *parent, char *data_ptr, nk_datatype_t datatype,
-                                             size_t rank, Py_ssize_t const *shape, Py_ssize_t const *strides);
+static NDArray *NDArray_view(NDArray *parent, char *data_ptr, nk_datatype_t datatype, size_t rank,
+                             Py_ssize_t const *shape, Py_ssize_t const *strides);
 
-static PyBufferProcs DistancesTensor_as_buffer = {
-    .bf_getbuffer = DistancesTensor_getbuffer,
-    .bf_releasebuffer = DistancesTensor_releasebuffer,
+static PyBufferProcs NDArray_as_buffer = {
+    .bf_getbuffer = NDArray_getbuffer,
+    .bf_releasebuffer = NDArray_releasebuffer,
 };
 
-/// @brief  Convert a 0D DistancesTensor to a Python float.
-static PyObject *DistancesTensor_float(PyObject *self) {
-    DistancesTensor *tensor = (DistancesTensor *)self;
+/// @brief  Convert a 0D NDArray to a Python float.
+static PyObject *NDArray_float(PyObject *self) {
+    NDArray *tensor = (NDArray *)self;
     if (tensor->rank != 0) {
         PyErr_SetString(PyExc_TypeError, "only 0-dimensional tensors can be converted to float");
         return NULL;
@@ -161,9 +161,9 @@ static PyObject *DistancesTensor_float(PyObject *self) {
     return result;
 }
 
-/// @brief  Convert a 0D DistancesTensor to a Python int.
-static PyObject *DistancesTensor_int(PyObject *self) {
-    DistancesTensor *tensor = (DistancesTensor *)self;
+/// @brief  Convert a 0D NDArray to a Python int.
+static PyObject *NDArray_int(PyObject *self) {
+    NDArray *tensor = (NDArray *)self;
     if (tensor->rank != 0) {
         PyErr_SetString(PyExc_TypeError, "only 0-dimensional tensors can be converted to int");
         return NULL;
@@ -175,9 +175,232 @@ static PyObject *DistancesTensor_int(PyObject *self) {
     return result;
 }
 
-static PyNumberMethods DistancesTensor_as_number = {
-    .nb_float = DistancesTensor_float,
-    .nb_int = DistancesTensor_int,
+// Forward declarations for arithmetic operators
+static NDArray *NDArray_new(nk_datatype_t datatype, size_t rank, Py_ssize_t const *shape);
+static PyObject *NDArray_copy(PyObject *self, PyObject *args);
+
+// region Arithmetic Operators
+
+static PyObject *NDArray_positive(PyObject *self) { return NDArray_copy(self, NULL); }
+
+static PyObject *NDArray_negative(PyObject *self) {
+    NDArray *t = (NDArray *)self;
+    NDArray *r = NDArray_new(t->datatype, t->rank, t->shape);
+    if (!r) return NULL;
+    size_t n = 1;
+    for (size_t i = 0; i < t->rank; i++) n *= (size_t)t->shape[i];
+    switch (t->datatype) {
+    case nk_f64_k: {
+        nk_f64_t *s = (nk_f64_t *)t->data, *d = (nk_f64_t *)r->data;
+        for (size_t i = 0; i < n; i++) d[i] = -s[i];
+    } break;
+    case nk_f32_k: {
+        nk_f32_t *s = (nk_f32_t *)t->data, *d = (nk_f32_t *)r->data;
+        for (size_t i = 0; i < n; i++) d[i] = -s[i];
+    } break;
+    case nk_i8_k: {
+        nk_i8_t *s = (nk_i8_t *)t->data, *d = (nk_i8_t *)r->data;
+        for (size_t i = 0; i < n; i++) d[i] = -s[i];
+    } break;
+    case nk_i32_k: {
+        nk_i32_t *s = (nk_i32_t *)t->data, *d = (nk_i32_t *)r->data;
+        for (size_t i = 0; i < n; i++) d[i] = -s[i];
+    } break;
+    case nk_i64_k: {
+        nk_i64_t *s = (nk_i64_t *)t->data, *d = (nk_i64_t *)r->data;
+        for (size_t i = 0; i < n; i++) d[i] = -s[i];
+    } break;
+    default:
+        Py_DECREF(r);
+        PyErr_SetString(PyExc_NotImplementedError, "neg not implemented");
+        return NULL;
+    }
+    return (PyObject *)r;
+}
+
+static PyObject *NDArray_add(PyObject *self, PyObject *other) {
+    if (!PyObject_TypeCheck(self, &NDArrayType)) { Py_RETURN_NOTIMPLEMENTED; }
+    NDArray *a = (NDArray *)self;
+    if (PyObject_TypeCheck(other, &NDArrayType)) {
+        NDArray *b = (NDArray *)other;
+        if (a->rank != b->rank || a->datatype != b->datatype) {
+            PyErr_SetString(PyExc_ValueError, "shape/dtype mismatch");
+            return NULL;
+        }
+        for (size_t i = 0; i < a->rank; i++)
+            if (a->shape[i] != b->shape[i]) {
+                PyErr_SetString(PyExc_ValueError, "shape mismatch");
+                return NULL;
+            }
+        NDArray *r = NDArray_new(a->datatype, a->rank, a->shape);
+        if (!r) return NULL;
+        size_t n = 1;
+        for (size_t i = 0; i < a->rank; i++) n *= (size_t)a->shape[i];
+        switch (a->datatype) {
+        case nk_f64_k: nk_sum_f64((nk_f64_t *)a->data, (nk_f64_t *)b->data, n, (nk_f64_t *)r->data); break;
+        case nk_f32_k: nk_sum_f32((nk_f32_t *)a->data, (nk_f32_t *)b->data, n, (nk_f32_t *)r->data); break;
+        case nk_i8_k: nk_sum_i8((nk_i8_t *)a->data, (nk_i8_t *)b->data, n, (nk_i8_t *)r->data); break;
+        case nk_i32_k: nk_sum_i32((nk_i32_t *)a->data, (nk_i32_t *)b->data, n, (nk_i32_t *)r->data); break;
+        default:
+            Py_DECREF(r);
+            PyErr_SetString(PyExc_NotImplementedError, "add not impl");
+            return NULL;
+        }
+        return (PyObject *)r;
+    }
+    if (PyFloat_Check(other) || PyLong_Check(other)) {
+        double sc = PyFloat_Check(other) ? PyFloat_AsDouble(other) : (double)PyLong_AsLong(other);
+        NDArray *r = NDArray_new(a->datatype, a->rank, a->shape);
+        if (!r) return NULL;
+        size_t n = 1;
+        for (size_t i = 0; i < a->rank; i++) n *= (size_t)a->shape[i];
+        switch (a->datatype) {
+        case nk_f64_k: {
+            nk_f64_t al = 1, be = sc;
+            nk_scale_f64((nk_f64_t *)a->data, n, &al, &be, (nk_f64_t *)r->data);
+        } break;
+        case nk_f32_k: {
+            nk_f32_t al = 1, be = (nk_f32_t)sc;
+            nk_scale_f32((nk_f32_t *)a->data, n, &al, &be, (nk_f32_t *)r->data);
+        } break;
+        default:
+            Py_DECREF(r);
+            PyErr_SetString(PyExc_NotImplementedError, "add+sc not impl");
+            return NULL;
+        }
+        return (PyObject *)r;
+    }
+    Py_RETURN_NOTIMPLEMENTED;
+}
+
+static PyObject *NDArray_subtract(PyObject *self, PyObject *other) {
+    if (!PyObject_TypeCheck(self, &NDArrayType)) { Py_RETURN_NOTIMPLEMENTED; }
+    NDArray *a = (NDArray *)self;
+    if (PyObject_TypeCheck(other, &NDArrayType)) {
+        NDArray *b = (NDArray *)other;
+        if (a->rank != b->rank || a->datatype != b->datatype) {
+            PyErr_SetString(PyExc_ValueError, "shape/dtype mismatch");
+            return NULL;
+        }
+        for (size_t i = 0; i < a->rank; i++)
+            if (a->shape[i] != b->shape[i]) {
+                PyErr_SetString(PyExc_ValueError, "shape mismatch");
+                return NULL;
+            }
+        NDArray *r = NDArray_new(a->datatype, a->rank, a->shape);
+        if (!r) return NULL;
+        size_t n = 1;
+        for (size_t i = 0; i < a->rank; i++) n *= (size_t)a->shape[i];
+        switch (a->datatype) {
+        case nk_f64_k: {
+            nk_f64_t al = 1, be = -1;
+            nk_wsum_f64((nk_f64_t *)a->data, (nk_f64_t *)b->data, n, &al, &be, (nk_f64_t *)r->data);
+        } break;
+        case nk_f32_k: {
+            nk_f32_t al = 1, be = -1;
+            nk_wsum_f32((nk_f32_t *)a->data, (nk_f32_t *)b->data, n, &al, &be, (nk_f32_t *)r->data);
+        } break;
+        default:
+            Py_DECREF(r);
+            PyErr_SetString(PyExc_NotImplementedError, "sub not impl");
+            return NULL;
+        }
+        return (PyObject *)r;
+    }
+    if (PyFloat_Check(other) || PyLong_Check(other)) {
+        double sc = PyFloat_Check(other) ? PyFloat_AsDouble(other) : (double)PyLong_AsLong(other);
+        NDArray *r = NDArray_new(a->datatype, a->rank, a->shape);
+        if (!r) return NULL;
+        size_t n = 1;
+        for (size_t i = 0; i < a->rank; i++) n *= (size_t)a->shape[i];
+        switch (a->datatype) {
+        case nk_f64_k: {
+            nk_f64_t al = 1, be = -sc;
+            nk_scale_f64((nk_f64_t *)a->data, n, &al, &be, (nk_f64_t *)r->data);
+        } break;
+        case nk_f32_k: {
+            nk_f32_t al = 1, be = (nk_f32_t)(-sc);
+            nk_scale_f32((nk_f32_t *)a->data, n, &al, &be, (nk_f32_t *)r->data);
+        } break;
+        default:
+            Py_DECREF(r);
+            PyErr_SetString(PyExc_NotImplementedError, "sub-sc not impl");
+            return NULL;
+        }
+        return (PyObject *)r;
+    }
+    Py_RETURN_NOTIMPLEMENTED;
+}
+
+static PyObject *NDArray_multiply(PyObject *self, PyObject *other) {
+    if (!PyObject_TypeCheck(self, &NDArrayType)) { Py_RETURN_NOTIMPLEMENTED; }
+    NDArray *a = (NDArray *)self;
+    if (PyObject_TypeCheck(other, &NDArrayType)) {
+        NDArray *b = (NDArray *)other;
+        if (a->rank != b->rank || a->datatype != b->datatype) {
+            PyErr_SetString(PyExc_ValueError, "shape/dtype mismatch");
+            return NULL;
+        }
+        for (size_t i = 0; i < a->rank; i++)
+            if (a->shape[i] != b->shape[i]) {
+                PyErr_SetString(PyExc_ValueError, "shape mismatch");
+                return NULL;
+            }
+        NDArray *r = NDArray_new(a->datatype, a->rank, a->shape);
+        if (!r) return NULL;
+        size_t n = 1;
+        for (size_t i = 0; i < a->rank; i++) n *= (size_t)a->shape[i];
+        switch (a->datatype) {
+        case nk_f64_k: {
+            nk_f64_t al = 1, be = 0;
+            nk_fma_f64((nk_f64_t *)a->data, (nk_f64_t *)b->data, (nk_f64_t *)r->data, n, &al, &be, (nk_f64_t *)r->data);
+        } break;
+        case nk_f32_k: {
+            nk_f32_t al = 1, be = 0;
+            nk_fma_f32((nk_f32_t *)a->data, (nk_f32_t *)b->data, (nk_f32_t *)r->data, n, &al, &be, (nk_f32_t *)r->data);
+        } break;
+        default:
+            Py_DECREF(r);
+            PyErr_SetString(PyExc_NotImplementedError, "mul not impl");
+            return NULL;
+        }
+        return (PyObject *)r;
+    }
+    if (PyFloat_Check(other) || PyLong_Check(other)) {
+        double sc = PyFloat_Check(other) ? PyFloat_AsDouble(other) : (double)PyLong_AsLong(other);
+        NDArray *r = NDArray_new(a->datatype, a->rank, a->shape);
+        if (!r) return NULL;
+        size_t n = 1;
+        for (size_t i = 0; i < a->rank; i++) n *= (size_t)a->shape[i];
+        switch (a->datatype) {
+        case nk_f64_k: {
+            nk_f64_t al = sc, be = 0;
+            nk_scale_f64((nk_f64_t *)a->data, n, &al, &be, (nk_f64_t *)r->data);
+        } break;
+        case nk_f32_k: {
+            nk_f32_t al = (nk_f32_t)sc, be = 0;
+            nk_scale_f32((nk_f32_t *)a->data, n, &al, &be, (nk_f32_t *)r->data);
+        } break;
+        default:
+            Py_DECREF(r);
+            PyErr_SetString(PyExc_NotImplementedError, "mul*sc not impl");
+            return NULL;
+        }
+        return (PyObject *)r;
+    }
+    Py_RETURN_NOTIMPLEMENTED;
+}
+
+// endregion
+
+static PyNumberMethods NDArray_as_number = {
+    .nb_add = NDArray_add,
+    .nb_subtract = NDArray_subtract,
+    .nb_multiply = NDArray_multiply,
+    .nb_negative = NDArray_negative,
+    .nb_positive = NDArray_positive,
+    .nb_float = NDArray_float,
+    .nb_int = NDArray_int,
 };
 
 typedef struct {
@@ -238,9 +461,9 @@ static char const *datatype_to_array_typestr(nk_datatype_t dtype) {
 }
 
 /// @brief  Get the shape property as a Python tuple.
-static PyObject *DistancesTensor_get_shape(PyObject *self, void *closure) {
+static PyObject *NDArray_get_shape(PyObject *self, void *closure) {
     (void)closure;
-    DistancesTensor *tensor = (DistancesTensor *)self;
+    NDArray *tensor = (NDArray *)self;
     PyObject *shape_tuple = PyTuple_New(tensor->rank);
     if (!shape_tuple) return NULL;
     for (size_t i = 0; i < tensor->rank; i++) {
@@ -250,41 +473,41 @@ static PyObject *DistancesTensor_get_shape(PyObject *self, void *closure) {
 }
 
 /// @brief  Get the dtype property as a Python string.
-static PyObject *DistancesTensor_get_dtype(PyObject *self, void *closure) {
+static PyObject *NDArray_get_dtype(PyObject *self, void *closure) {
     (void)closure;
-    DistancesTensor *tensor = (DistancesTensor *)self;
+    NDArray *tensor = (NDArray *)self;
     return PyUnicode_FromString(datatype_to_string(tensor->datatype));
 }
 
 /// @brief  Get the ndim property (number of dimensions).
-static PyObject *DistancesTensor_get_ndim(PyObject *self, void *closure) {
+static PyObject *NDArray_get_ndim(PyObject *self, void *closure) {
     (void)closure;
-    DistancesTensor *tensor = (DistancesTensor *)self;
+    NDArray *tensor = (NDArray *)self;
     return PyLong_FromSize_t(tensor->rank);
 }
 
 /// @brief  Get the size property (total number of elements).
-static PyObject *DistancesTensor_get_size(PyObject *self, void *closure) {
+static PyObject *NDArray_get_size(PyObject *self, void *closure) {
     (void)closure;
-    DistancesTensor *tensor = (DistancesTensor *)self;
+    NDArray *tensor = (NDArray *)self;
     Py_ssize_t total = 1;
     for (size_t i = 0; i < tensor->rank; i++) { total *= tensor->shape[i]; }
     return PyLong_FromSsize_t(total);
 }
 
 /// @brief  Get the nbytes property (total bytes of data).
-static PyObject *DistancesTensor_get_nbytes(PyObject *self, void *closure) {
+static PyObject *NDArray_get_nbytes(PyObject *self, void *closure) {
     (void)closure;
-    DistancesTensor *tensor = (DistancesTensor *)self;
+    NDArray *tensor = (NDArray *)self;
     Py_ssize_t total = 1;
     for (size_t i = 0; i < tensor->rank; i++) { total *= tensor->shape[i]; }
     return PyLong_FromSsize_t(total * (Py_ssize_t)bytes_per_datatype(tensor->datatype));
 }
 
 /// @brief  Get the strides property as a Python tuple (in bytes).
-static PyObject *DistancesTensor_get_strides(PyObject *self, void *closure) {
+static PyObject *NDArray_get_strides(PyObject *self, void *closure) {
     (void)closure;
-    DistancesTensor *tensor = (DistancesTensor *)self;
+    NDArray *tensor = (NDArray *)self;
     PyObject *strides_tuple = PyTuple_New(tensor->rank);
     if (!strides_tuple) return NULL;
     for (size_t i = 0; i < tensor->rank; i++) {
@@ -294,23 +517,23 @@ static PyObject *DistancesTensor_get_strides(PyObject *self, void *closure) {
 }
 
 /// @brief  Get the itemsize property (bytes per element).
-static PyObject *DistancesTensor_get_itemsize(PyObject *self, void *closure) {
+static PyObject *NDArray_get_itemsize(PyObject *self, void *closure) {
     (void)closure;
-    DistancesTensor *tensor = (DistancesTensor *)self;
+    NDArray *tensor = (NDArray *)self;
     return PyLong_FromSize_t(bytes_per_datatype(tensor->datatype));
 }
 
 /// @brief  Get the __array_interface__ property for NumPy interoperability.
 ///         Returns a dict with keys: shape, typestr, data, strides, version.
-static PyObject *DistancesTensor_get_array_interface(PyObject *self, void *closure) {
+static PyObject *NDArray_get_array_interface(PyObject *self, void *closure) {
     (void)closure;
-    DistancesTensor *tensor = (DistancesTensor *)self;
+    NDArray *tensor = (NDArray *)self;
 
     PyObject *dict = PyDict_New();
     if (!dict) return NULL;
 
     // shape tuple
-    PyObject *shape = DistancesTensor_get_shape(self, NULL);
+    PyObject *shape = NDArray_get_shape(self, NULL);
     if (!shape) {
         Py_DECREF(dict);
         return NULL;
@@ -344,7 +567,7 @@ static PyObject *DistancesTensor_get_array_interface(PyObject *self, void *closu
     Py_DECREF(data_tuple);
 
     // strides tuple (in bytes)
-    PyObject *strides = DistancesTensor_get_strides(self, NULL);
+    PyObject *strides = NDArray_get_strides(self, NULL);
     if (!strides) {
         Py_DECREF(dict);
         return NULL;
@@ -366,9 +589,9 @@ static PyObject *DistancesTensor_get_array_interface(PyObject *self, void *closu
 
 /// @brief  Get the T property as a transpose view that shares data.
 ///         For 2D tensors, swaps axes. For other ranks, reverses all axes.
-static PyObject *DistancesTensor_get_T(PyObject *self, void *closure) {
+static PyObject *NDArray_get_T(PyObject *self, void *closure) {
     (void)closure;
-    DistancesTensor *tensor = (DistancesTensor *)self;
+    NDArray *tensor = (NDArray *)self;
 
     // For 0D or 1D tensors, return self (transpose is no-op)
     if (tensor->rank <= 1) {
@@ -386,29 +609,28 @@ static PyObject *DistancesTensor_get_T(PyObject *self, void *closure) {
     }
 
     // Get the root parent for the view reference (handles chained views)
-    DistancesTensor *root_parent = tensor->parent ? (DistancesTensor *)tensor->parent : tensor;
+    NDArray *root_parent = tensor->parent ? (NDArray *)tensor->parent : tensor;
 
     // Create view (zero-copy) with same data pointer but swapped shape/strides
-    return (PyObject *)DistancesTensor_view(root_parent, tensor->data, tensor->datatype, tensor->rank, new_shape,
-                                            new_strides);
+    return (PyObject *)NDArray_view(root_parent, tensor->data, tensor->datatype, tensor->rank, new_shape, new_strides);
 }
 
-static PyGetSetDef DistancesTensor_getset[] = {
-    {"shape", DistancesTensor_get_shape, NULL, "Shape of the tensor as a tuple", NULL},
-    {"dtype", DistancesTensor_get_dtype, NULL, "Data type of tensor elements", NULL},
-    {"ndim", DistancesTensor_get_ndim, NULL, "Number of dimensions", NULL},
-    {"size", DistancesTensor_get_size, NULL, "Total number of elements", NULL},
-    {"nbytes", DistancesTensor_get_nbytes, NULL, "Total bytes of data", NULL},
-    {"strides", DistancesTensor_get_strides, NULL, "Strides in bytes for each dimension", NULL},
-    {"itemsize", DistancesTensor_get_itemsize, NULL, "Bytes per element", NULL},
-    {"__array_interface__", DistancesTensor_get_array_interface, NULL, "NumPy array interface dict", NULL},
-    {"T", DistancesTensor_get_T, NULL, "Transpose of the tensor", NULL},
+static PyGetSetDef NDArray_getset[] = {
+    {"shape", NDArray_get_shape, NULL, "Shape of the tensor as a tuple", NULL},
+    {"dtype", NDArray_get_dtype, NULL, "Data type of tensor elements", NULL},
+    {"ndim", NDArray_get_ndim, NULL, "Number of dimensions", NULL},
+    {"size", NDArray_get_size, NULL, "Total number of elements", NULL},
+    {"nbytes", NDArray_get_nbytes, NULL, "Total bytes of data", NULL},
+    {"strides", NDArray_get_strides, NULL, "Strides in bytes for each dimension", NULL},
+    {"itemsize", NDArray_get_itemsize, NULL, "Bytes per element", NULL},
+    {"__array_interface__", NDArray_get_array_interface, NULL, "NumPy array interface dict", NULL},
+    {"T", NDArray_get_T, NULL, "Transpose of the tensor", NULL},
     {NULL, NULL, NULL, NULL, NULL} // Sentinel
 };
 
 /// @brief  Get the length (first dimension) for the sequence protocol.
-static Py_ssize_t DistancesTensor_length(PyObject *self) {
-    DistancesTensor *tensor = (DistancesTensor *)self;
+static Py_ssize_t NDArray_length(PyObject *self) {
+    NDArray *tensor = (NDArray *)self;
     if (tensor->rank == 0) {
         PyErr_SetString(PyExc_TypeError, "0-dimensional tensor has no len()");
         return -1;
@@ -416,25 +638,25 @@ static Py_ssize_t DistancesTensor_length(PyObject *self) {
     return tensor->shape[0];
 }
 
-static PySequenceMethods DistancesTensor_as_sequence = {
-    .sq_length = DistancesTensor_length,
+static PySequenceMethods NDArray_as_sequence = {
+    .sq_length = NDArray_length,
 };
 
 // Forward declarations for mapping protocol (implemented after type definition to avoid circular dependency)
-static PyObject *DistancesTensor_subscript(PyObject *self, PyObject *key);
+static PyObject *NDArray_subscript(PyObject *self, PyObject *key);
 
-static PyMappingMethods DistancesTensor_as_mapping = {
-    .mp_length = DistancesTensor_length,
-    .mp_subscript = DistancesTensor_subscript,
+static PyMappingMethods NDArray_as_mapping = {
+    .mp_length = NDArray_length,
+    .mp_subscript = NDArray_subscript,
 };
 
 // Forward declaration for iterator (implemented after type definition)
-static PyTypeObject DistancesTensorIterType;
-static PyObject *DistancesTensor_iter(PyObject *self);
+static PyTypeObject NDArrayIterType;
+static PyObject *NDArray_iter(PyObject *self);
 
-/// @brief  Return the string representation of a DistancesTensor.
-static PyObject *DistancesTensor_repr(PyObject *self) {
-    DistancesTensor *tensor = (DistancesTensor *)self;
+/// @brief  Return the string representation of a NDArray.
+static PyObject *NDArray_repr(PyObject *self) {
+    NDArray *tensor = (NDArray *)self;
     // Build shape string like "(3,)" or "(3, 3)" or "()"
     char shape_str[256] = "(";
     size_t pos = 1;
@@ -456,11 +678,10 @@ static PyObject *DistancesTensor_repr(PyObject *self) {
     if (pos < sizeof(shape_str) - 1) shape_str[pos++] = ')';
     shape_str[pos] = '\0';
 
-    return PyUnicode_FromFormat("DistancesTensor(shape=%s, dtype='%s')", shape_str,
-                                datatype_to_string(tensor->datatype));
+    return PyUnicode_FromFormat("NDArray(shape=%s, dtype='%s')", shape_str, datatype_to_string(tensor->datatype));
 }
 
-/// @brief  Kinds of scalar values represented by a DistancesTensor element.
+/// @brief  Kinds of scalar values represented by a NDArray element.
 typedef enum {
     tensor_scalar_kind_float,
     tensor_scalar_kind_int,
@@ -478,7 +699,7 @@ typedef struct {
 } tensor_scalar_value_t;
 
 /// @brief  Read a scalar value at a byte offset into a tagged container.
-static int tensor_read_scalar_value(DistancesTensor *tensor, size_t byte_offset, tensor_scalar_value_t *value) {
+static int tensor_read_scalar_value(NDArray *tensor, size_t byte_offset, tensor_scalar_value_t *value) {
     char *ptr = tensor->data + byte_offset;
     nk_f32_t f32_tmp;
     nk_f32_t f32_tmp_imag;
@@ -585,7 +806,7 @@ static int tensor_read_scalar_value(DistancesTensor *tensor, size_t byte_offset,
 }
 
 /// @brief  Format a scalar value into a string buffer.
-static int tensor_format_scalar(DistancesTensor *tensor, size_t byte_offset, char *buf, size_t bufsize) {
+static int tensor_format_scalar(NDArray *tensor, size_t byte_offset, char *buf, size_t bufsize) {
     tensor_scalar_value_t value;
     if (!tensor_read_scalar_value(tensor, byte_offset, &value)) {
         PyErr_Clear();
@@ -601,9 +822,9 @@ static int tensor_format_scalar(DistancesTensor *tensor, size_t byte_offset, cha
     }
 }
 
-/// @brief  Format a pretty-printed representation of a DistancesTensor (similar to NumPy's __str__).
-static PyObject *DistancesTensor_str(PyObject *self) {
-    DistancesTensor *tensor = (DistancesTensor *)self;
+/// @brief  Format a pretty-printed representation of a NDArray (similar to NumPy's __str__).
+static PyObject *NDArray_str(PyObject *self) {
+    NDArray *tensor = (NDArray *)self;
     size_t item_size = bytes_per_datatype(tensor->datatype);
 
     // For 0D scalar, just print the value
@@ -701,7 +922,7 @@ static PyObject *DistancesTensor_str(PyObject *self) {
     // For higher rank, fall back to repr-style
     else {
         PyMem_Free(buf);
-        return DistancesTensor_repr(self);
+        return NDArray_repr(self);
     }
 
     PyObject *result = PyUnicode_FromString(buf);
@@ -710,7 +931,7 @@ static PyObject *DistancesTensor_str(PyObject *self) {
 }
 
 /// @brief  Check if a tensor is C-contiguous.
-static int tensor_is_c_contig(DistancesTensor *tensor, size_t item_size) {
+static int tensor_is_c_contig(NDArray *tensor, size_t item_size) {
     Py_ssize_t expected = (Py_ssize_t)item_size;
     for (size_t i = tensor->rank; i > 0; i--) {
         if (tensor->strides[i - 1] != expected) return 0;
@@ -720,7 +941,7 @@ static int tensor_is_c_contig(DistancesTensor *tensor, size_t item_size) {
 }
 
 /// @brief  Check if a tensor is Fortran-contiguous.
-static int tensor_is_f_contig(DistancesTensor *tensor, size_t item_size) {
+static int tensor_is_f_contig(NDArray *tensor, size_t item_size) {
     Py_ssize_t expected = (Py_ssize_t)item_size;
     for (size_t i = 0; i < tensor->rank; i++) {
         if (tensor->strides[i] != expected) return 0;
@@ -729,13 +950,13 @@ static int tensor_is_f_contig(DistancesTensor *tensor, size_t item_size) {
     return 1;
 }
 
-/// @brief  Rich comparison for DistancesTensor (==, !=).
-static PyObject *DistancesTensor_richcompare(PyObject *self, PyObject *other, int op) {
+/// @brief  Rich comparison for NDArray (==, !=).
+static PyObject *NDArray_richcompare(PyObject *self, PyObject *other, int op) {
     // Only support == and !=.
     if (op != Py_EQ && op != Py_NE) { Py_RETURN_NOTIMPLEMENTED; }
 
-    // Check whether the other operand is a DistancesTensor.
-    if (!PyObject_TypeCheck(other, &DistancesTensorType)) {
+    // Check whether the other operand is a NDArray.
+    if (!PyObject_TypeCheck(other, &NDArrayType)) {
         // Try to compare via the buffer protocol.
         Py_buffer self_buf, other_buf;
         if (PyObject_GetBuffer(self, &self_buf, PyBUF_SIMPLE) != 0) {
@@ -756,8 +977,8 @@ static PyObject *DistancesTensor_richcompare(PyObject *self, PyObject *other, in
         else return PyBool_FromLong(!equal);
     }
 
-    DistancesTensor *a = (DistancesTensor *)self;
-    DistancesTensor *b = (DistancesTensor *)other;
+    NDArray *a = (NDArray *)self;
+    NDArray *b = (NDArray *)other;
 
     // Check that datatype and rank match.
     if (a->datatype != b->datatype || a->rank != b->rank) {
@@ -806,15 +1027,15 @@ static PyObject *DistancesTensor_richcompare(PyObject *self, PyObject *other, in
 }
 
 /// @brief  copy() method. Return a deep copy of the tensor.
-static PyObject *DistancesTensor_copy(PyObject *self, PyObject *args) {
+static PyObject *NDArray_copy(PyObject *self, PyObject *args) {
     (void)args;
-    DistancesTensor *tensor = (DistancesTensor *)self;
+    NDArray *tensor = (NDArray *)self;
     size_t item_size = bytes_per_datatype(tensor->datatype);
 
     Py_ssize_t total = 1;
     for (size_t i = 0; i < tensor->rank; i++) total *= tensor->shape[i];
 
-    DistancesTensor *result = PyObject_NewVar(DistancesTensor, &DistancesTensorType, total * item_size);
+    NDArray *result = PyObject_NewVar(NDArray, &NDArrayType, total * item_size);
     if (!result) return NULL;
 
     result->datatype = tensor->datatype;
@@ -854,8 +1075,8 @@ static PyObject *DistancesTensor_copy(PyObject *self, PyObject *args) {
 }
 
 /// @brief  reshape() method. Return a new tensor with a different shape and the same number of elements.
-static PyObject *DistancesTensor_reshape(PyObject *self, PyObject *args) {
-    DistancesTensor *tensor = (DistancesTensor *)self;
+static PyObject *NDArray_reshape(PyObject *self, PyObject *args) {
+    NDArray *tensor = (NDArray *)self;
 
     // Parse shape argument (can be tuple or multiple args)
     Py_ssize_t new_shape[NK_NDARRAY_MAX_RANK];
@@ -930,14 +1151,13 @@ static PyObject *DistancesTensor_reshape(PyObject *self, PyObject *args) {
         }
 
         // Get the root parent for the view reference
-        DistancesTensor *root_parent = tensor->parent ? (DistancesTensor *)tensor->parent : tensor;
+        NDArray *root_parent = tensor->parent ? (NDArray *)tensor->parent : tensor;
 
-        return (PyObject *)DistancesTensor_view(root_parent, tensor->data, tensor->datatype, new_rank, new_shape,
-                                                new_strides);
+        return (PyObject *)NDArray_view(root_parent, tensor->data, tensor->datatype, new_rank, new_shape, new_strides);
     }
 
     // Non-contiguous source - must copy data
-    DistancesTensor *result = PyObject_NewVar(DistancesTensor, &DistancesTensorType, new_total * item_size);
+    NDArray *result = PyObject_NewVar(NDArray, &NDArrayType, new_total * item_size);
     if (!result) return NULL;
 
     result->datatype = tensor->datatype;
@@ -972,42 +1192,418 @@ static PyObject *DistancesTensor_reshape(PyObject *self, PyObject *args) {
     return (PyObject *)result;
 }
 
-/// @brief  Deallocate a DistancesTensor and release the parent reference for views.
-static void DistancesTensor_dealloc(PyObject *self) {
-    DistancesTensor *tensor = (DistancesTensor *)self;
+// region Reduction Methods (Stride-Aware)
+
+/// @brief  Recursively sum all elements, processing innermost dimension with SIMD kernel
+static void reduce_sum_recursive(NDArray *t, size_t dim, char *ptr, nk_f64_t *total, nk_i64_t *total_int) {
+    if (dim == t->rank - 1) {
+        // Base case: innermost dimension - call kernel with actual stride
+        switch (t->datatype) {
+        case nk_f64_k: {
+            nk_f64_t p = 0;
+            nk_reduce_add_f64((nk_f64_t *)ptr, t->shape[dim], t->strides[dim], &p);
+            *total += p;
+        } break;
+        case nk_f32_k: {
+            nk_f64_t p = 0;
+            nk_reduce_add_f32((nk_f32_t *)ptr, t->shape[dim], t->strides[dim], &p);
+            *total += p;
+        } break;
+        case nk_i8_k: {
+            nk_i64_t p = 0;
+            nk_reduce_add_i8((nk_i8_t *)ptr, t->shape[dim], t->strides[dim], &p);
+            *total_int += p;
+        } break;
+        case nk_u8_k: {
+            nk_u64_t p = 0;
+            nk_reduce_add_u8((nk_u8_t *)ptr, t->shape[dim], t->strides[dim], &p);
+            *total_int += (nk_i64_t)p;
+        } break;
+        case nk_i16_k: {
+            nk_i64_t p = 0;
+            nk_reduce_add_i16((nk_i16_t *)ptr, t->shape[dim], t->strides[dim], &p);
+            *total_int += p;
+        } break;
+        case nk_u16_k: {
+            nk_u64_t p = 0;
+            nk_reduce_add_u16((nk_u16_t *)ptr, t->shape[dim], t->strides[dim], &p);
+            *total_int += (nk_i64_t)p;
+        } break;
+        case nk_i32_k: {
+            nk_i64_t p = 0;
+            nk_reduce_add_i32((nk_i32_t *)ptr, t->shape[dim], t->strides[dim], &p);
+            *total_int += p;
+        } break;
+        case nk_u32_k: {
+            nk_u64_t p = 0;
+            nk_reduce_add_u32((nk_u32_t *)ptr, t->shape[dim], t->strides[dim], &p);
+            *total_int += (nk_i64_t)p;
+        } break;
+        case nk_i64_k: {
+            nk_i64_t p = 0;
+            nk_reduce_add_i64((nk_i64_t *)ptr, t->shape[dim], t->strides[dim], &p);
+            *total_int += p;
+        } break;
+        case nk_u64_k: {
+            nk_u64_t p = 0;
+            nk_reduce_add_u64((nk_u64_t *)ptr, t->shape[dim], t->strides[dim], &p);
+            *total_int += (nk_i64_t)p;
+        } break;
+        default: break;
+        }
+        return;
+    }
+    // Recursive case: iterate over this dimension
+    for (Py_ssize_t i = 0; i < t->shape[dim]; i++) {
+        reduce_sum_recursive(t, dim + 1, ptr + i * t->strides[dim], total, total_int);
+    }
+}
+
+/// @brief Sum all elements: tensor.sum() -> scalar
+static PyObject *NDArray_sum(PyObject *self, PyObject *args) {
+    (void)args;
+    NDArray *tensor = (NDArray *)self;
+    size_t total_elems = 1;
+    for (size_t i = 0; i < tensor->rank; i++) total_elems *= (size_t)tensor->shape[i];
+    if (total_elems == 0) return PyFloat_FromDouble(0.0);
+    if (tensor->rank == 0) return tensor_read_scalar(tensor, 0);
+    nk_f64_t result_f = 0;
+    nk_i64_t result_i = 0;
+    reduce_sum_recursive(tensor, 0, tensor->data, &result_f, &result_i);
+    // Return appropriate Python type based on dtype
+    switch (tensor->datatype) {
+    case nk_f64_k:
+    case nk_f32_k:
+    case nk_f16_k:
+    case nk_bf16_k: return PyFloat_FromDouble(result_f);
+    default: return PyLong_FromLongLong(result_i);
+    }
+}
+
+/// @brief  Recursively find minimum, tracking both value and flat index
+static void reduce_min_recursive(NDArray *t, size_t dim, char *ptr, size_t base_idx, nk_f64_t *global_min_f,
+                                 nk_i64_t *global_min_i, size_t *global_idx) {
+    if (dim == t->rank - 1) {
+        nk_size_t local_idx;
+        switch (t->datatype) {
+        case nk_f32_k: {
+            nk_f32_t v;
+            nk_reduce_min_f32((nk_f32_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if (v < *global_min_f) {
+                *global_min_f = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_f64_k: {
+            nk_f64_t v;
+            nk_reduce_min_f64((nk_f64_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if (v < *global_min_f) {
+                *global_min_f = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_i8_k: {
+            nk_i8_t v;
+            nk_reduce_min_i8((nk_i8_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if (v < *global_min_i) {
+                *global_min_i = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_u8_k: {
+            nk_u8_t v;
+            nk_reduce_min_u8((nk_u8_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if ((nk_i64_t)v < *global_min_i) {
+                *global_min_i = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_i16_k: {
+            nk_i16_t v;
+            nk_reduce_min_i16((nk_i16_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if (v < *global_min_i) {
+                *global_min_i = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_u16_k: {
+            nk_u16_t v;
+            nk_reduce_min_u16((nk_u16_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if ((nk_i64_t)v < *global_min_i) {
+                *global_min_i = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_i32_k: {
+            nk_i32_t v;
+            nk_reduce_min_i32((nk_i32_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if (v < *global_min_i) {
+                *global_min_i = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_u32_k: {
+            nk_u32_t v;
+            nk_reduce_min_u32((nk_u32_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if ((nk_i64_t)v < *global_min_i) {
+                *global_min_i = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_i64_k: {
+            nk_i64_t v;
+            nk_reduce_min_i64((nk_i64_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if (v < *global_min_i) {
+                *global_min_i = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_u64_k: {
+            nk_u64_t v;
+            nk_reduce_min_u64((nk_u64_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if ((nk_i64_t)v < *global_min_i) {
+                *global_min_i = (nk_i64_t)v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        default: break;
+        }
+        return;
+    }
+    size_t inner_size = 1;
+    for (size_t d = dim + 1; d < t->rank; d++) inner_size *= t->shape[d];
+    for (Py_ssize_t i = 0; i < t->shape[dim]; i++) {
+        reduce_min_recursive(t, dim + 1, ptr + i * t->strides[dim], base_idx + i * inner_size, global_min_f,
+                             global_min_i, global_idx);
+    }
+}
+
+/// @brief  Recursively find maximum, tracking both value and flat index
+static void reduce_max_recursive(NDArray *t, size_t dim, char *ptr, size_t base_idx, nk_f64_t *global_max_f,
+                                 nk_i64_t *global_max_i, size_t *global_idx) {
+    if (dim == t->rank - 1) {
+        nk_size_t local_idx;
+        switch (t->datatype) {
+        case nk_f32_k: {
+            nk_f32_t v;
+            nk_reduce_max_f32((nk_f32_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if (v > *global_max_f) {
+                *global_max_f = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_f64_k: {
+            nk_f64_t v;
+            nk_reduce_max_f64((nk_f64_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if (v > *global_max_f) {
+                *global_max_f = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_i8_k: {
+            nk_i8_t v;
+            nk_reduce_max_i8((nk_i8_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if (v > *global_max_i) {
+                *global_max_i = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_u8_k: {
+            nk_u8_t v;
+            nk_reduce_max_u8((nk_u8_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if ((nk_i64_t)v > *global_max_i) {
+                *global_max_i = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_i16_k: {
+            nk_i16_t v;
+            nk_reduce_max_i16((nk_i16_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if (v > *global_max_i) {
+                *global_max_i = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_u16_k: {
+            nk_u16_t v;
+            nk_reduce_max_u16((nk_u16_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if ((nk_i64_t)v > *global_max_i) {
+                *global_max_i = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_i32_k: {
+            nk_i32_t v;
+            nk_reduce_max_i32((nk_i32_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if (v > *global_max_i) {
+                *global_max_i = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_u32_k: {
+            nk_u32_t v;
+            nk_reduce_max_u32((nk_u32_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if ((nk_i64_t)v > *global_max_i) {
+                *global_max_i = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_i64_k: {
+            nk_i64_t v;
+            nk_reduce_max_i64((nk_i64_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if (v > *global_max_i) {
+                *global_max_i = v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        case nk_u64_k: {
+            nk_u64_t v;
+            nk_reduce_max_u64((nk_u64_t *)ptr, t->shape[dim], t->strides[dim], &v, &local_idx);
+            if ((nk_i64_t)v > *global_max_i) {
+                *global_max_i = (nk_i64_t)v;
+                *global_idx = base_idx + local_idx;
+            }
+        } break;
+        default: break;
+        }
+        return;
+    }
+    size_t inner_size = 1;
+    for (size_t d = dim + 1; d < t->rank; d++) inner_size *= t->shape[d];
+    for (Py_ssize_t i = 0; i < t->shape[dim]; i++) {
+        reduce_max_recursive(t, dim + 1, ptr + i * t->strides[dim], base_idx + i * inner_size, global_max_f,
+                             global_max_i, global_idx);
+    }
+}
+
+/// @brief Minimum element: tensor.min() -> scalar
+static PyObject *NDArray_min(PyObject *self, PyObject *args) {
+    (void)args;
+    NDArray *tensor = (NDArray *)self;
+    size_t total_elems = 1;
+    for (size_t i = 0; i < tensor->rank; i++) total_elems *= (size_t)tensor->shape[i];
+    if (total_elems == 0) {
+        PyErr_SetString(PyExc_ValueError, "min of empty array");
+        return NULL;
+    }
+    if (tensor->rank == 0) return tensor_read_scalar(tensor, 0);
+    nk_f64_t global_min_f = INFINITY;
+    nk_i64_t global_min_i = INT64_MAX;
+    size_t global_idx = 0;
+    reduce_min_recursive(tensor, 0, tensor->data, 0, &global_min_f, &global_min_i, &global_idx);
+    switch (tensor->datatype) {
+    case nk_f64_k:
+    case nk_f32_k:
+    case nk_f16_k:
+    case nk_bf16_k: return PyFloat_FromDouble(global_min_f);
+    default: return PyLong_FromLongLong(global_min_i);
+    }
+}
+
+/// @brief Maximum element: tensor.max() -> scalar
+static PyObject *NDArray_max(PyObject *self, PyObject *args) {
+    (void)args;
+    NDArray *tensor = (NDArray *)self;
+    size_t total_elems = 1;
+    for (size_t i = 0; i < tensor->rank; i++) total_elems *= (size_t)tensor->shape[i];
+    if (total_elems == 0) {
+        PyErr_SetString(PyExc_ValueError, "max of empty array");
+        return NULL;
+    }
+    if (tensor->rank == 0) return tensor_read_scalar(tensor, 0);
+    nk_f64_t global_max_f = -INFINITY;
+    nk_i64_t global_max_i = INT64_MIN;
+    size_t global_idx = 0;
+    reduce_max_recursive(tensor, 0, tensor->data, 0, &global_max_f, &global_max_i, &global_idx);
+    switch (tensor->datatype) {
+    case nk_f64_k:
+    case nk_f32_k:
+    case nk_f16_k:
+    case nk_bf16_k: return PyFloat_FromDouble(global_max_f);
+    default: return PyLong_FromLongLong(global_max_i);
+    }
+}
+
+/// @brief Index of minimum element: tensor.argmin() -> int
+static PyObject *NDArray_argmin(PyObject *self, PyObject *args) {
+    (void)args;
+    NDArray *tensor = (NDArray *)self;
+    size_t total_elems = 1;
+    for (size_t i = 0; i < tensor->rank; i++) total_elems *= (size_t)tensor->shape[i];
+    if (total_elems == 0) {
+        PyErr_SetString(PyExc_ValueError, "argmin of empty array");
+        return NULL;
+    }
+    if (tensor->rank == 0) return PyLong_FromLong(0);
+    nk_f64_t global_min_f = INFINITY;
+    nk_i64_t global_min_i = INT64_MAX;
+    size_t global_idx = 0;
+    reduce_min_recursive(tensor, 0, tensor->data, 0, &global_min_f, &global_min_i, &global_idx);
+    return PyLong_FromSize_t(global_idx);
+}
+
+/// @brief Index of maximum element: tensor.argmax() -> int
+static PyObject *NDArray_argmax(PyObject *self, PyObject *args) {
+    (void)args;
+    NDArray *tensor = (NDArray *)self;
+    size_t total_elems = 1;
+    for (size_t i = 0; i < tensor->rank; i++) total_elems *= (size_t)tensor->shape[i];
+    if (total_elems == 0) {
+        PyErr_SetString(PyExc_ValueError, "argmax of empty array");
+        return NULL;
+    }
+    if (tensor->rank == 0) return PyLong_FromLong(0);
+    nk_f64_t global_max_f = -INFINITY;
+    nk_i64_t global_max_i = INT64_MIN;
+    size_t global_idx = 0;
+    reduce_max_recursive(tensor, 0, tensor->data, 0, &global_max_f, &global_max_i, &global_idx);
+    return PyLong_FromSize_t(global_idx);
+}
+
+// endregion
+
+/// @brief  Deallocate a NDArray and release the parent reference for views.
+static void NDArray_dealloc(PyObject *self) {
+    NDArray *tensor = (NDArray *)self;
     Py_XDECREF(tensor->parent); // Release parent reference if this is a view
     Py_TYPE(self)->tp_free(self);
 }
 
-static PyMethodDef DistancesTensor_methods[] = {
-    {"copy", DistancesTensor_copy, METH_NOARGS, "Return a deep copy of the tensor"},
-    {"reshape", DistancesTensor_reshape, METH_VARARGS, "Return tensor reshaped to given dimensions"},
+static PyMethodDef NDArray_methods[] = {
+    {"copy", NDArray_copy, METH_NOARGS, "Return a deep copy of the tensor"},
+    {"reshape", NDArray_reshape, METH_VARARGS, "Return tensor reshaped to given dimensions"},
+    // Reduction methods
+    {"sum", NDArray_sum, METH_NOARGS, "Sum of all elements"},
+    {"min", NDArray_min, METH_NOARGS, "Minimum element"},
+    {"max", NDArray_max, METH_NOARGS, "Maximum element"},
+    {"argmin", NDArray_argmin, METH_NOARGS, "Index of minimum element"},
+    {"argmax", NDArray_argmax, METH_NOARGS, "Index of maximum element"},
     {NULL, NULL, 0, NULL} // Sentinel
 };
 
-static PyTypeObject DistancesTensorType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.DistancesTensor",
+static PyTypeObject NDArrayType = {
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.NDArray",
     .tp_doc = "N-dimensional tensor with full NumPy-like API, supporting NumKong's type system",
-    .tp_basicsize = sizeof(DistancesTensor),
+    .tp_basicsize = sizeof(NDArray),
     // Instead of using `nk_fmax_t` for all the elements,
     // we use `char` to allow user to specify the datatype on `cdist`-like functions.
     .tp_itemsize = sizeof(char),
-    .tp_dealloc = DistancesTensor_dealloc,
+    .tp_dealloc = NDArray_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_as_buffer = &DistancesTensor_as_buffer,
-    .tp_as_number = &DistancesTensor_as_number,
-    .tp_as_sequence = &DistancesTensor_as_sequence,
-    .tp_as_mapping = &DistancesTensor_as_mapping,
-    .tp_getset = DistancesTensor_getset,
-    .tp_methods = DistancesTensor_methods,
-    .tp_repr = DistancesTensor_repr,
-    .tp_str = DistancesTensor_str,
-    .tp_richcompare = DistancesTensor_richcompare,
-    .tp_iter = DistancesTensor_iter,
+    .tp_as_buffer = &NDArray_as_buffer,
+    .tp_as_number = &NDArray_as_number,
+    .tp_as_sequence = &NDArray_as_sequence,
+    .tp_as_mapping = &NDArray_as_mapping,
+    .tp_getset = NDArray_getset,
+    .tp_methods = NDArray_methods,
+    .tp_repr = NDArray_repr,
+    .tp_str = NDArray_str,
+    .tp_richcompare = NDArray_richcompare,
+    .tp_iter = NDArray_iter,
 };
 
 /// @brief  Return a Python scalar from a tensor byte offset.
-static PyObject *tensor_read_scalar(DistancesTensor *tensor, size_t byte_offset) {
+static PyObject *tensor_read_scalar(NDArray *tensor, size_t byte_offset) {
     tensor_scalar_value_t value;
     if (!tensor_read_scalar_value(tensor, byte_offset, &value)) return NULL;
 
@@ -1032,8 +1628,8 @@ static int parse_slice(PyObject *slice, Py_ssize_t dim_size, Py_ssize_t *start, 
 }
 
 /// @brief  Implement tensor[key] indexing with slice support.
-static PyObject *DistancesTensor_subscript(PyObject *self, PyObject *key) {
-    DistancesTensor *tensor = (DistancesTensor *)self;
+static PyObject *NDArray_subscript(PyObject *self, PyObject *key) {
+    NDArray *tensor = (NDArray *)self;
 
     // Handle 0D tensors; indexing is not allowed.
     if (tensor->rank == 0) {
@@ -1065,11 +1661,10 @@ static PyObject *DistancesTensor_subscript(PyObject *self, PyObject *key) {
         char *view_data = tensor->data + start * tensor->strides[0];
 
         // Use the root parent for the view reference (handles chained views).
-        DistancesTensor *root_parent = tensor->parent ? (DistancesTensor *)tensor->parent : tensor;
+        NDArray *root_parent = tensor->parent ? (NDArray *)tensor->parent : tensor;
 
         // Create a zero-copy view.
-        return (PyObject *)DistancesTensor_view(root_parent, view_data, tensor->datatype, tensor->rank, new_shape,
-                                                new_strides);
+        return (PyObject *)NDArray_view(root_parent, view_data, tensor->datatype, tensor->rank, new_shape, new_strides);
     }
 
     // Collect indices from the key (single int or tuple of ints/slices).
@@ -1166,22 +1761,22 @@ static PyObject *DistancesTensor_subscript(PyObject *self, PyObject *key) {
     char *view_data = tensor->data + byte_offset;
 
     // Get the root parent for the view reference (handles chained views)
-    DistancesTensor *root_parent = tensor->parent ? (DistancesTensor *)tensor->parent : tensor;
+    NDArray *root_parent = tensor->parent ? (NDArray *)tensor->parent : tensor;
 
     // Create view (zero-copy)
-    return (PyObject *)DistancesTensor_view(root_parent, view_data, tensor->datatype, new_rank, new_shape, new_strides);
+    return (PyObject *)NDArray_view(root_parent, view_data, tensor->datatype, new_rank, new_shape, new_strides);
 }
 
-/// @brief  Iterator type for DistancesTensor.
+/// @brief  Iterator type for NDArray.
 typedef struct {
-    PyObject_HEAD            // //
-    DistancesTensor *tensor; // Reference to the tensor being iterated
-    Py_ssize_t index;        // Current index in first dimension
-} DistancesTensorIter;
+    PyObject_HEAD     // //
+    NDArray *tensor;  // Reference to the tensor being iterated
+    Py_ssize_t index; // Current index in first dimension
+} NDArrayIter;
 
 /// @brief  Return the next item from the iterator.
-static PyObject *DistancesTensorIter_next(PyObject *self) {
-    DistancesTensorIter *iter = (DistancesTensorIter *)self;
+static PyObject *NDArrayIter_next(PyObject *self) {
+    NDArrayIter *iter = (NDArrayIter *)self;
     if (iter->index >= iter->tensor->shape[0]) {
         // StopIteration is signaled by returning NULL without setting an error
         return NULL;
@@ -1190,36 +1785,36 @@ static PyObject *DistancesTensorIter_next(PyObject *self) {
     PyObject *idx = PyLong_FromSsize_t(iter->index);
     if (!idx) return NULL;
     iter->index++;
-    PyObject *result = DistancesTensor_subscript((PyObject *)iter->tensor, idx);
+    PyObject *result = NDArray_subscript((PyObject *)iter->tensor, idx);
     Py_DECREF(idx);
     return result;
 }
 
 /// @brief  Deallocate the iterator.
-static void DistancesTensorIter_dealloc(PyObject *self) {
-    DistancesTensorIter *iter = (DistancesTensorIter *)self;
+static void NDArrayIter_dealloc(PyObject *self) {
+    NDArrayIter *iter = (NDArrayIter *)self;
     Py_XDECREF(iter->tensor);
     Py_TYPE(self)->tp_free(self);
 }
 
-static PyTypeObject DistancesTensorIterType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.DistancesTensorIter",
-    .tp_doc = "Iterator for DistancesTensor",
-    .tp_basicsize = sizeof(DistancesTensorIter),
+static PyTypeObject NDArrayIterType = {
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.NDArrayIter",
+    .tp_doc = "Iterator for NDArray",
+    .tp_basicsize = sizeof(NDArrayIter),
     .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_dealloc = DistancesTensorIter_dealloc,
+    .tp_dealloc = NDArrayIter_dealloc,
     .tp_iter = PyObject_SelfIter,
-    .tp_iternext = DistancesTensorIter_next,
+    .tp_iternext = NDArrayIter_next,
 };
 
 /// @brief  Return an iterator over the first dimension.
-static PyObject *DistancesTensor_iter(PyObject *self) {
-    DistancesTensor *tensor = (DistancesTensor *)self;
+static PyObject *NDArray_iter(PyObject *self) {
+    NDArray *tensor = (NDArray *)self;
     if (tensor->rank == 0) {
         PyErr_SetString(PyExc_TypeError, "0-dimensional tensor is not iterable");
         return NULL;
     }
-    DistancesTensorIter *iter = PyObject_New(DistancesTensorIter, &DistancesTensorIterType);
+    NDArrayIter *iter = PyObject_New(NDArrayIter, &NDArrayIterType);
     if (!iter) return NULL;
     Py_INCREF(tensor);
     iter->tensor = tensor;
@@ -1484,28 +2079,28 @@ int cast_distance(nk_fmax_t distance, nk_datatype_t target_dtype, void *target_p
     }
 }
 
-nk_metric_kind_t python_string_to_metric_kind(char const *name) {
-    if (same_string(name, "euclidean") || same_string(name, "l2")) return nk_metric_euclidean_k;
-    else if (same_string(name, "sqeuclidean") || same_string(name, "l2sq")) return nk_metric_sqeuclidean_k;
-    else if (same_string(name, "dot") || same_string(name, "inner")) return nk_metric_dot_k;
-    else if (same_string(name, "vdot")) return nk_metric_vdot_k;
-    else if (same_string(name, "angular")) return nk_metric_angular_k;
-    else if (same_string(name, "jaccard")) return nk_metric_jaccard_k;
-    else if (same_string(name, "kullbackleibler") || same_string(name, "kld")) return nk_metric_kld_k;
-    else if (same_string(name, "jensenshannon") || same_string(name, "jsd")) return nk_metric_jsd_k;
-    else if (same_string(name, "hamming")) return nk_metric_hamming_k;
-    else if (same_string(name, "jaccard")) return nk_metric_jaccard_k;
-    else if (same_string(name, "bilinear")) return nk_metric_bilinear_k;
-    else if (same_string(name, "mahalanobis")) return nk_metric_mahalanobis_k;
-    else return nk_metric_unknown_k;
+nk_kernel_kind_t python_string_to_metric_kind(char const *name) {
+    if (same_string(name, "euclidean") || same_string(name, "l2")) return nk_kernel_l2_k;
+    else if (same_string(name, "sqeuclidean") || same_string(name, "l2sq")) return nk_kernel_l2sq_k;
+    else if (same_string(name, "dot") || same_string(name, "inner")) return nk_kernel_dot_k;
+    else if (same_string(name, "vdot")) return nk_kernel_vdot_k;
+    else if (same_string(name, "angular")) return nk_kernel_angular_k;
+    else if (same_string(name, "jaccard")) return nk_kernel_jaccard_k;
+    else if (same_string(name, "kullbackleibler") || same_string(name, "kld")) return nk_kernel_kld_k;
+    else if (same_string(name, "jensenshannon") || same_string(name, "jsd")) return nk_kernel_jsd_k;
+    else if (same_string(name, "hamming")) return nk_kernel_hamming_k;
+    else if (same_string(name, "jaccard")) return nk_kernel_jaccard_k;
+    else if (same_string(name, "bilinear")) return nk_kernel_bilinear_k;
+    else if (same_string(name, "mahalanobis")) return nk_kernel_mahalanobis_k;
+    else return nk_kernel_unknown_k;
 }
 
 /// @brief Check if a metric is commutative, i.e., if `metric(a, b) == metric(b, a)`.
 /// @return 1 if the metric is commutative, 0 otherwise.
-int kernel_is_commutative(nk_metric_kind_t kind) {
+int kernel_is_commutative(nk_kernel_kind_t kind) {
     switch (kind) {
-    case nk_metric_kld_k: return 0;
-    case nk_metric_bilinear_k: return 0; // The kernel is commutative only when the matrix is symmetric.
+    case nk_kernel_kld_k: return 0;
+    case nk_kernel_bilinear_k: return 0; // The kernel is commutative only when the matrix is symmetric.
     default: return 1;
     }
 }
@@ -1726,8 +2321,8 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, TensorArgument *parsed) {
     return 1;
 }
 
-static int DistancesTensor_getbuffer(PyObject *export_from, Py_buffer *view, int flags) {
-    DistancesTensor *tensor = (DistancesTensor *)export_from;
+static int NDArray_getbuffer(PyObject *export_from, Py_buffer *view, int flags) {
+    NDArray *tensor = (NDArray *)export_from;
     size_t const item_size = bytes_per_datatype(tensor->datatype);
 
     // Validate buffer flags per PEP 3118.
@@ -1797,17 +2392,17 @@ static int DistancesTensor_getbuffer(PyObject *export_from, Py_buffer *view, int
     return 0;
 }
 
-static void DistancesTensor_releasebuffer(PyObject *export_from, Py_buffer *view) {
+static void NDArray_releasebuffer(PyObject *export_from, Py_buffer *view) {
     // This function MUST NOT decrement view->obj, since that is done automatically in PyBuffer_Release().
     // https://docs.python.org/3/c-api/typeobj.html#c.PyBufferProcs.bf_releasebuffer
 }
 
-/// @brief  Create a new DistancesTensor with the given shape and datatype.
+/// @brief  Create a new NDArray with the given shape and datatype.
 /// @param  datatype  Logical datatype (f32, f64, f16, bf16, i8, etc.)
 /// @param  rank      Number of dimensions (0 for scalar, up to NK_NDARRAY_MAX_RANK)
 /// @param  shape     Array of extents for each dimension (can be NULL if rank == 0)
-/// @return New DistancesTensor object with uninitialized data, or NULL on failure.
-static DistancesTensor *DistancesTensor_new(nk_datatype_t datatype, size_t rank, Py_ssize_t const *shape) {
+/// @return New NDArray object with uninitialized data, or NULL on failure.
+static NDArray *NDArray_new(nk_datatype_t datatype, size_t rank, Py_ssize_t const *shape) {
     if (rank > NK_NDARRAY_MAX_RANK) {
         PyErr_Format(PyExc_ValueError, "Tensor rank %zu exceeds maximum %d", rank, NK_NDARRAY_MAX_RANK);
         return NULL;
@@ -1820,7 +2415,7 @@ static DistancesTensor *DistancesTensor_new(nk_datatype_t datatype, size_t rank,
     size_t const total_bytes = total_items * item_size;
 
     // Allocate tensor with space for data
-    DistancesTensor *tensor = PyObject_NewVar(DistancesTensor, &DistancesTensorType, total_bytes);
+    NDArray *tensor = PyObject_NewVar(NDArray, &NDArrayType, total_bytes);
     if (!tensor) {
         PyErr_NoMemory();
         return NULL;
@@ -1852,12 +2447,12 @@ static DistancesTensor *DistancesTensor_new(nk_datatype_t datatype, size_t rank,
 /// @brief  Create a 0D scalar tensor containing a single value.
 /// @param  datatype  Logical datatype (f32, f64, f16, bf16, i8, etc.)
 /// @param  value     Pointer to the scalar value to copy (item_size bytes)
-/// @return New DistancesTensor object with shape (), or NULL on failure.
-static DistancesTensor *DistancesTensor_scalar(nk_datatype_t datatype, void const *value) {
+/// @return New NDArray object with shape (), or NULL on failure.
+static NDArray *NDArray_scalar(nk_datatype_t datatype, void const *value) {
     size_t const item_size = bytes_per_datatype(datatype);
 
     // Allocate tensor with space for one element
-    DistancesTensor *tensor = PyObject_NewVar(DistancesTensor, &DistancesTensorType, item_size);
+    NDArray *tensor = PyObject_NewVar(NDArray, &NDArrayType, item_size);
     if (!tensor) {
         PyErr_NoMemory();
         return NULL;
@@ -1881,15 +2476,15 @@ static DistancesTensor *DistancesTensor_scalar(nk_datatype_t datatype, void cons
     return tensor;
 }
 
-/// @brief  Create a DistancesTensor from an f64 scalar value.
+/// @brief  Create a NDArray from an f64 scalar value.
 /// @param  value  The f64 scalar value.
-/// @return New DistancesTensor object with shape (), or NULL on failure.
-static DistancesTensor *DistancesTensor_scalar_f64(nk_f64_t value) { return DistancesTensor_scalar(nk_f64_k, &value); }
+/// @return New NDArray object with shape (), or NULL on failure.
+static NDArray *NDArray_scalar_f64(nk_f64_t value) { return NDArray_scalar(nk_f64_k, &value); }
 
-/// @brief  Create a DistancesTensor from an f32 scalar value.
+/// @brief  Create a NDArray from an f32 scalar value.
 /// @param  value  The f32 scalar value.
-/// @return New DistancesTensor object with shape (), or NULL on failure.
-static DistancesTensor *DistancesTensor_scalar_f32(nk_f32_t value) { return DistancesTensor_scalar(nk_f32_k, &value); }
+/// @return New NDArray object with shape (), or NULL on failure.
+static NDArray *NDArray_scalar_f32(nk_f32_t value) { return NDArray_scalar(nk_f32_k, &value); }
 
 /// @brief  Create a view tensor that references another tensor's data (zero-copy).
 /// @param  parent     The parent tensor whose data will be referenced.
@@ -1898,16 +2493,16 @@ static DistancesTensor *DistancesTensor_scalar_f32(nk_f32_t value) { return Dist
 /// @param  rank       Number of dimensions for the view.
 /// @param  shape      Shape array for the view.
 /// @param  strides    Strides array for the view (in bytes).
-/// @return New DistancesTensor view object, or NULL on failure.
-static DistancesTensor *DistancesTensor_view(DistancesTensor *parent, char *data_ptr, nk_datatype_t datatype,
-                                             size_t rank, Py_ssize_t const *shape, Py_ssize_t const *strides) {
+/// @return New NDArray view object, or NULL on failure.
+static NDArray *NDArray_view(NDArray *parent, char *data_ptr, nk_datatype_t datatype, size_t rank,
+                             Py_ssize_t const *shape, Py_ssize_t const *strides) {
     if (rank > NK_NDARRAY_MAX_RANK) {
         PyErr_Format(PyExc_ValueError, "View rank %zu exceeds maximum %d", rank, NK_NDARRAY_MAX_RANK);
         return NULL;
     }
 
     // Allocate tensor with NO inline data (0 bytes) - we'll reference parent's data
-    DistancesTensor *view = PyObject_NewVar(DistancesTensor, &DistancesTensorType, 0);
+    NDArray *view = PyObject_NewVar(NDArray, &NDArrayType, 0);
     if (!view) {
         PyErr_NoMemory();
         return NULL;
@@ -1932,7 +2527,7 @@ static DistancesTensor *DistancesTensor_view(DistancesTensor *parent, char *data
 }
 
 static PyObject *implement_dense_metric( //
-    nk_metric_kind_t metric_kind,        //
+    nk_kernel_kind_t metric_kind,        //
     PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
 
     PyObject *return_obj = NULL;
@@ -2115,8 +2710,8 @@ static PyObject *implement_dense_metric( //
 
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
-        DistancesTensor *distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType,
-                                                         count_components * bytes_per_datatype(out_dtype));
+        NDArray *distances_obj = PyObject_NewVar(NDArray, &NDArrayType,
+                                                 count_components * bytes_per_datatype(out_dtype));
         if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
@@ -2181,7 +2776,7 @@ cleanup:
 }
 
 static PyObject *implement_curved_metric( //
-    nk_metric_kind_t metric_kind,         //
+    nk_kernel_kind_t metric_kind,         //
     PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
 
     PyObject *return_obj = NULL;
@@ -2315,7 +2910,7 @@ cleanup:
 }
 
 static PyObject *implement_geospatial_metric( //
-    nk_metric_kind_t metric_kind,             //
+    nk_kernel_kind_t metric_kind,             //
     PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
 
     PyObject *return_obj = NULL;
@@ -2433,7 +3028,7 @@ static PyObject *implement_geospatial_metric( //
     // Allocate output or use provided
     nk_fmax_t *distances_start = NULL;
     if (!out_obj) {
-        DistancesTensor *distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType, n * sizeof(double));
+        NDArray *distances_obj = PyObject_NewVar(NDArray, &NDArrayType, n * sizeof(double));
         if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
@@ -2471,7 +3066,7 @@ cleanup:
 }
 
 static PyObject *implement_sparse_metric( //
-    nk_metric_kind_t metric_kind,         //
+    nk_kernel_kind_t metric_kind,         //
     PyObject *const *args, Py_ssize_t nargs) {
     if (nargs != 2) {
         PyErr_SetString(PyExc_TypeError, "Function expects only 2 arguments");
@@ -2501,7 +3096,7 @@ static PyObject *implement_sparse_metric( //
     }
 
     nk_datatype_t dtype = a_parsed.datatype;
-    nk_metric_sparse_punned_t metric = NULL;
+    nk_sparse_intersect_punned_t metric = NULL;
     nk_capability_t capability = nk_cap_serial_k;
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
                           &capability);
@@ -2526,7 +3121,7 @@ cleanup:
 
 static PyObject *implement_cdist(                        //
     PyObject *a_obj, PyObject *b_obj, PyObject *out_obj, //
-    nk_metric_kind_t metric_kind, size_t threads,        //
+    nk_kernel_kind_t metric_kind, size_t threads,        //
     nk_datatype_t dtype, nk_datatype_t out_dtype) {
 
     PyObject *return_obj = NULL;
@@ -2637,8 +3232,8 @@ static PyObject *implement_cdist(                        //
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
 
-        DistancesTensor *distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType,
-                                                         count_components * bytes_per_datatype(out_dtype));
+        NDArray *distances_obj = PyObject_NewVar(NDArray, &NDArrayType,
+                                                 count_components * bytes_per_datatype(out_dtype));
         if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
@@ -2720,7 +3315,7 @@ cleanup:
     return return_obj;
 }
 
-static PyObject *implement_pointer_access(nk_metric_kind_t metric_kind, PyObject *dtype_obj) {
+static PyObject *implement_pointer_access(nk_kernel_kind_t metric_kind, PyObject *dtype_obj) {
     char const *dtype_name = PyUnicode_AsUTF8(dtype_obj);
     if (!dtype_name) {
         PyErr_SetString(PyExc_TypeError, "Data-type name must be a string");
@@ -2755,10 +3350,10 @@ static char const doc_cdist[] = //
     "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n"
     "    threads (int, optional): Number of threads to use (default is 1).\n\n"
     "Returns:\n"
-    "    DistancesTensor: Pairwise distances between all inputs.\n\n"
+    "    NDArray: Pairwise distances between all inputs.\n\n"
     "Equivalent to: `scipy.spatial.distance.cdist`.\n"
     "Signature:\n"
-    "    >>> def cdist(a, b, /, metric, *, dtype, out, out_dtype, threads) -> Optional[DistancesTensor]: ...";
+    "    >>> def cdist(a, b, /, metric, *, dtype, out, out_dtype, threads) -> Optional[NDArray]: ...";
 
 static PyObject *api_cdist( //
     PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
@@ -2780,7 +3375,7 @@ static PyObject *api_cdist( //
 
     /// Same default as in SciPy:
     /// https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.cdist.html
-    nk_metric_kind_t metric_kind = nk_metric_euclidean_k;
+    nk_kernel_kind_t metric_kind = nk_kernel_l2_k;
     char const *metric_str = NULL;
 
     // Parse the arguments
@@ -2826,7 +3421,7 @@ static PyObject *api_cdist( //
             return NULL;
         }
         metric_kind = python_string_to_metric_kind(metric_str);
-        if (metric_kind == nk_metric_unknown_k) {
+        if (metric_kind == nk_kernel_unknown_k) {
             PyErr_SetString(PyExc_LookupError, "Unsupported metric");
             return NULL;
         }
@@ -2872,39 +3467,39 @@ static PyObject *api_cdist( //
 
 static char const doc_l2_pointer[] = "Return an integer pointer to the `numkong.l2` kernel.";
 static PyObject *api_l2_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(nk_metric_l2_k, dtype_obj);
+    return implement_pointer_access(nk_kernel_l2_k, dtype_obj);
 }
 static char const doc_l2sq_pointer[] = "Return an integer pointer to the `numkong.l2sq` kernel.";
 static PyObject *api_l2sq_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(nk_metric_l2sq_k, dtype_obj);
+    return implement_pointer_access(nk_kernel_l2sq_k, dtype_obj);
 }
 static char const doc_angular_pointer[] = "Return an integer pointer to the `numkong.angular` kernel.";
 static PyObject *api_angular_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(nk_metric_angular_k, dtype_obj);
+    return implement_pointer_access(nk_kernel_angular_k, dtype_obj);
 }
 static char const doc_dot_pointer[] = "Return an integer pointer to the `numkong.dot` kernel.";
 static PyObject *api_dot_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(nk_metric_dot_k, dtype_obj);
+    return implement_pointer_access(nk_kernel_dot_k, dtype_obj);
 }
 static char const doc_vdot_pointer[] = "Return an integer pointer to the `numkong.vdot` kernel.";
 static PyObject *api_vdot_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(nk_metric_vdot_k, dtype_obj);
+    return implement_pointer_access(nk_kernel_vdot_k, dtype_obj);
 }
 static char const doc_kld_pointer[] = "Return an integer pointer to the `numkong.kld` kernel.";
 static PyObject *api_kld_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(nk_metric_kld_k, dtype_obj);
+    return implement_pointer_access(nk_kernel_kld_k, dtype_obj);
 }
 static char const doc_jsd_pointer[] = "Return an integer pointer to the `numkong.jsd` kernel.";
 static PyObject *api_jsd_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(nk_metric_jsd_k, dtype_obj);
+    return implement_pointer_access(nk_kernel_jsd_k, dtype_obj);
 }
 static char const doc_hamming_pointer[] = "Return an integer pointer to the `numkong.hamming` kernel.";
 static PyObject *api_hamming_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(nk_metric_hamming_k, dtype_obj);
+    return implement_pointer_access(nk_kernel_hamming_k, dtype_obj);
 }
 static char const doc_jaccard_pointer[] = "Return an integer pointer to the `numkong.jaccard` kernel.";
 static PyObject *api_jaccard_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(nk_metric_jaccard_k, dtype_obj);
+    return implement_pointer_access(nk_kernel_jaccard_k, dtype_obj);
 }
 
 static char const doc_l2[] = //
@@ -2916,15 +3511,15 @@ static char const doc_l2[] = //
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
-    "    DistancesTensor: The distances if `out` is not provided.\n"
+    "    NDArray: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will be performed in-place.\n\n"
     "Equivalent to: `scipy.spatial.distance.euclidean`.\n"
     "Signature:\n"
-    "    >>> def euclidean(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
+    "    >>> def euclidean(a, b, /, dtype, *, out, out_dtype) -> Optional[NDArray]: ...";
 
 static PyObject *api_l2(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                         PyObject *args_names_tuple) {
-    return implement_dense_metric(nk_metric_l2_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_kernel_l2_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_l2sq[] = //
@@ -2936,15 +3531,15 @@ static char const doc_l2sq[] = //
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
-    "    DistancesTensor: The distances if `out` is not provided.\n"
+    "    NDArray: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will be performed in-place.\n\n"
     "Equivalent to: `scipy.spatial.distance.sqeuclidean`.\n"
     "Signature:\n"
-    "    >>> def sqeuclidean(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
+    "    >>> def sqeuclidean(a, b, /, dtype, *, out, out_dtype) -> Optional[NDArray]: ...";
 
 static PyObject *api_l2sq(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                           PyObject *args_names_tuple) {
-    return implement_dense_metric(nk_metric_l2sq_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_kernel_l2sq_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_angular[] = //
@@ -2956,15 +3551,15 @@ static char const doc_angular[] = //
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
-    "    DistancesTensor: The distances if `out` is not provided.\n"
+    "    NDArray: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will be performed in-place.\n\n"
     "Equivalent to: `scipy.spatial.distance.cosine`.\n"
     "Signature:\n"
-    "    >>> def angular(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
+    "    >>> def angular(a, b, /, dtype, *, out, out_dtype) -> Optional[NDArray]: ...";
 
 static PyObject *api_angular(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                              PyObject *args_names_tuple) {
-    return implement_dense_metric(nk_metric_angular_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_kernel_angular_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_dot[] = //
@@ -2976,15 +3571,15 @@ static char const doc_dot[] = //
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
-    "    DistancesTensor: The distances if `out` is not provided.\n"
+    "    NDArray: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will be performed in-place.\n\n"
     "Equivalent to: `numpy.inner`.\n"
     "Signature:\n"
-    "    >>> def dot(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
+    "    >>> def dot(a, b, /, dtype, *, out, out_dtype) -> Optional[NDArray]: ...";
 
 static PyObject *api_dot(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
-    return implement_dense_metric(nk_metric_dot_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_kernel_dot_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_vdot[] = //
@@ -2996,15 +3591,15 @@ static char const doc_vdot[] = //
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (Union[ComplexType], optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
-    "    DistancesTensor: The distances if `out` is not provided.\n"
+    "    NDArray: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will be performed in-place.\n\n"
     "Equivalent to: `numpy.vdot`.\n"
     "Signature:\n"
-    "    >>> def vdot(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
+    "    >>> def vdot(a, b, /, dtype, *, out, out_dtype) -> Optional[NDArray]: ...";
 
 static PyObject *api_vdot(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                           PyObject *args_names_tuple) {
-    return implement_dense_metric(nk_metric_vdot_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_kernel_vdot_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_kld[] = //
@@ -3016,15 +3611,15 @@ static char const doc_kld[] = //
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
-    "    DistancesTensor: The distances if `out` is not provided.\n"
+    "    NDArray: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will be performed in-place.\n\n"
     "Equivalent to: `scipy.special.kl_div`.\n"
     "Signature:\n"
-    "    >>> def kld(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
+    "    >>> def kld(a, b, /, dtype, *, out, out_dtype) -> Optional[NDArray]: ...";
 
 static PyObject *api_kld(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
-    return implement_dense_metric(nk_metric_kld_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_kernel_kld_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_jsd[] = //
@@ -3036,15 +3631,15 @@ static char const doc_jsd[] = //
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
-    "    DistancesTensor: The distances if `out` is not provided.\n"
+    "    NDArray: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will be performed in-place.\n\n"
     "Equivalent to: `scipy.spatial.distance.jensenshannon`.\n"
     "Signature:\n"
-    "    >>> def jsd(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
+    "    >>> def jsd(a, b, /, dtype, *, out, out_dtype) -> Optional[NDArray]: ...";
 
 static PyObject *api_jsd(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
-    return implement_dense_metric(nk_metric_jsd_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_kernel_jsd_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_hamming[] = //
@@ -3056,15 +3651,15 @@ static char const doc_hamming[] = //
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
-    "    DistancesTensor: The distances if `out` is not provided.\n"
+    "    NDArray: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will be performed in-place.\n\n"
     "Similar to: `scipy.spatial.distance.hamming`.\n"
     "Signature:\n"
-    "    >>> def hamming(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
+    "    >>> def hamming(a, b, /, dtype, *, out, out_dtype) -> Optional[NDArray]: ...";
 
 static PyObject *api_hamming(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                              PyObject *args_names_tuple) {
-    return implement_dense_metric(nk_metric_hamming_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_kernel_hamming_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_jaccard[] = //
@@ -3076,15 +3671,15 @@ static char const doc_jaccard[] = //
     "    out (NDArray, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
     "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
     "Returns:\n"
-    "    DistancesTensor: The distances if `out` is not provided.\n"
+    "    NDArray: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will be performed in-place.\n\n"
     "Similar to: `scipy.spatial.distance.jaccard`.\n"
     "Signature:\n"
-    "    >>> def jaccard(a, b, /, dtype, *, out, out_dtype) -> Optional[DistancesTensor]: ...";
+    "    >>> def jaccard(a, b, /, dtype, *, out, out_dtype) -> Optional[NDArray]: ...";
 
 static PyObject *api_jaccard(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                              PyObject *args_names_tuple) {
-    return implement_dense_metric(nk_metric_jaccard_k, args, positional_args_count, args_names_tuple);
+    return implement_dense_metric(nk_kernel_jaccard_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_bilinear[] = //
@@ -3102,7 +3697,7 @@ static char const doc_bilinear[] = //
 
 static PyObject *api_bilinear(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                               PyObject *args_names_tuple) {
-    return implement_curved_metric(nk_metric_bilinear_k, args, positional_args_count, args_names_tuple);
+    return implement_curved_metric(nk_kernel_bilinear_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_mahalanobis[] = //
@@ -3120,7 +3715,7 @@ static char const doc_mahalanobis[] = //
 
 static PyObject *api_mahalanobis(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                                  PyObject *args_names_tuple) {
-    return implement_curved_metric(nk_metric_mahalanobis_k, args, positional_args_count, args_names_tuple);
+    return implement_curved_metric(nk_kernel_mahalanobis_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_haversine[] = //
@@ -3133,15 +3728,15 @@ static char const doc_haversine[] = //
     "    dtype (FloatType, optional): Override the presumed input type name.\n"
     "    out (NDArray, optional): Pre-allocated output array for distances.\n\n"
     "Returns:\n"
-    "    DistancesTensor: Distances in meters (using mean Earth radius).\n"
+    "    NDArray: Distances in meters (using mean Earth radius).\n"
     "    None: If `out` is provided.\n\n"
     "Note: Input coordinates must be in radians. Uses spherical Earth model.\n"
     "Signature:\n"
-    "    >>> def haversine(a_lats, a_lons, b_lats, b_lons, /, dtype, *, out) -> Optional[DistancesTensor]: ...";
+    "    >>> def haversine(a_lats, a_lons, b_lats, b_lons, /, dtype, *, out) -> Optional[NDArray]: ...";
 
 static PyObject *api_haversine(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                                PyObject *args_names_tuple) {
-    return implement_geospatial_metric(nk_metric_haversine_k, args, positional_args_count, args_names_tuple);
+    return implement_geospatial_metric(nk_kernel_haversine_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_vincenty[] = //
@@ -3154,15 +3749,15 @@ static char const doc_vincenty[] = //
     "    dtype (FloatType, optional): Override the presumed input type name.\n"
     "    out (NDArray, optional): Pre-allocated output array for distances.\n\n"
     "Returns:\n"
-    "    DistancesTensor: Distances in meters (using WGS84 ellipsoid).\n"
+    "    NDArray: Distances in meters (using WGS84 ellipsoid).\n"
     "    None: If `out` is provided.\n\n"
     "Note: Input coordinates must be in radians. Uses iterative algorithm for accuracy.\n"
     "Signature:\n"
-    "    >>> def vincenty(a_lats, a_lons, b_lats, b_lons, /, dtype, *, out) -> Optional[DistancesTensor]: ...";
+    "    >>> def vincenty(a_lats, a_lons, b_lats, b_lons, /, dtype, *, out) -> Optional[NDArray]: ...";
 
 static PyObject *api_vincenty(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                               PyObject *args_names_tuple) {
-    return implement_geospatial_metric(nk_metric_vincenty_k, args, positional_args_count, args_names_tuple);
+    return implement_geospatial_metric(nk_kernel_vincenty_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_intersect[] = //
@@ -3177,7 +3772,7 @@ static char const doc_intersect[] = //
     "    >>> def intersect(a, b, /) -> float: ...";
 
 static PyObject *api_intersect(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
-    return implement_sparse_metric(nk_metric_intersect_k, args, nargs);
+    return implement_sparse_metric(nk_kernel_sparse_intersect_k, args, nargs);
 }
 
 static char const doc_fma[] = //
@@ -3191,11 +3786,11 @@ static char const doc_fma[] = //
     "    beta (float, optional): Second scale, 1.0 by default.\n"
     "    out (NDArray, optional): Vector for resulting distances.\n\n"
     "Returns:\n"
-    "    DistancesTensor: The distances if `out` is not provided.\n"
+    "    NDArray: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will be performed in-place.\n\n"
     "Equivalent to: `alpha * a * b + beta * c`.\n"
     "Signature:\n"
-    "    >>> def fma(a, b, c, /, dtype, *, alpha, beta, out) -> Optional[DistancesTensor]: ...";
+    "    >>> def fma(a, b, c, /, dtype, *, alpha, beta, out) -> Optional[NDArray]: ...";
 
 static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
@@ -3309,7 +3904,7 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
     // Look up the metric and the capability
     nk_kernel_fma_punned_t metric = NULL;
     nk_capability_t capability = nk_cap_serial_k;
-    nk_metric_kind_t const metric_kind = nk_metric_fma_k;
+    nk_kernel_kind_t const metric_kind = nk_kernel_fma_k;
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
                           &capability);
     if (!metric) {
@@ -3328,8 +3923,8 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
 
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
-        DistancesTensor *distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType,
-                                                         a_parsed.dimensions * bytes_per_datatype(dtype));
+        NDArray *distances_obj = PyObject_NewVar(NDArray, &NDArrayType,
+                                                 a_parsed.dimensions * bytes_per_datatype(dtype));
         if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
@@ -3378,11 +3973,11 @@ static char const doc_wsum[] = //
     "    beta (float, optional): Second scale, 1.0 by default.\n"
     "    out (NDArray, optional): Vector for resulting distances.\n\n"
     "Returns:\n"
-    "    DistancesTensor: The distances if `out` is not provided.\n"
+    "    NDArray: The distances if `out` is not provided.\n"
     "    None: If `out` is provided. Operation will be performed in-place.\n\n"
     "Equivalent to: `alpha * a + beta * b`.\n"
     "Signature:\n"
-    "    >>> def wsum(a, b, /, dtype, *, alpha, beta, out) -> Optional[DistancesTensor]: ...";
+    "    >>> def wsum(a, b, /, dtype, *, alpha, beta, out) -> Optional[NDArray]: ...";
 
 static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                           PyObject *args_names_tuple) {
@@ -3489,7 +4084,7 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
     // Look up the metric and the capability
     nk_kernel_wsum_punned_t metric = NULL;
     nk_capability_t capability = nk_cap_serial_k;
-    nk_metric_kind_t const metric_kind = nk_metric_wsum_k;
+    nk_kernel_kind_t const metric_kind = nk_kernel_wsum_k;
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
                           &capability);
     if (!metric) {
@@ -3508,8 +4103,8 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
 
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
-        DistancesTensor *distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType,
-                                                         a_parsed.dimensions * bytes_per_datatype(dtype));
+        NDArray *distances_obj = PyObject_NewVar(NDArray, &NDArrayType,
+                                                 a_parsed.dimensions * bytes_per_datatype(dtype));
         if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
@@ -3547,6 +4142,344 @@ cleanup:
     return return_obj;
 }
 
+// region NDArray Constructors
+
+/// @brief  Parse a shape argument (int or tuple of ints) into a C array.
+static int parse_shape(PyObject *shape_obj, Py_ssize_t *shape, size_t *rank) {
+    if (PyLong_Check(shape_obj)) {
+        Py_ssize_t size = PyLong_AsSsize_t(shape_obj);
+        if (size < 0) {
+            PyErr_SetString(PyExc_ValueError, "Shape dimensions must be non-negative");
+            return 0;
+        }
+        shape[0] = size;
+        *rank = 1;
+        return 1;
+    }
+    if (!PyTuple_Check(shape_obj)) {
+        PyErr_SetString(PyExc_TypeError, "Shape must be an int or tuple of ints");
+        return 0;
+    }
+    Py_ssize_t ndim = PyTuple_Size(shape_obj);
+    if (ndim > NK_NDARRAY_MAX_RANK) {
+        PyErr_Format(PyExc_ValueError, "Shape has %zd dimensions, max is %d", ndim, NK_NDARRAY_MAX_RANK);
+        return 0;
+    }
+    for (Py_ssize_t i = 0; i < ndim; i++) {
+        PyObject *dim = PyTuple_GetItem(shape_obj, i);
+        if (!PyLong_Check(dim)) {
+            PyErr_SetString(PyExc_TypeError, "Shape dimensions must be integers");
+            return 0;
+        }
+        Py_ssize_t size = PyLong_AsSsize_t(dim);
+        if (size < 0) {
+            PyErr_SetString(PyExc_ValueError, "Shape dimensions must be non-negative");
+            return 0;
+        }
+        shape[i] = size;
+    }
+    *rank = (size_t)ndim;
+    return 1;
+}
+
+static char const doc_empty[] =
+    "Create an uninitialized NDArray with the given shape.\n\nParameters:\n    shape: Shape of the array.\n    dtype: "
+    "Data type (default 'float32').\n\nReturns:\n    NDArray: Uninitialized array.";
+
+static PyObject *api_empty(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
+    (void)self;
+    PyObject *shape_obj = NULL, *dtype_obj = NULL;
+    Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
+    if (nargs + nkw < 1 || nargs + nkw > 2 || nargs > 1) {
+        PyErr_SetString(PyExc_TypeError, "empty(shape, *, dtype='float32')");
+        return NULL;
+    }
+    shape_obj = args[0];
+    for (Py_ssize_t i = 0; i < nkw; i++) {
+        PyObject *key = PyTuple_GetItem(kwnames, i);
+        if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0) dtype_obj = args[nargs + i];
+        else {
+            PyErr_Format(PyExc_TypeError, "empty() unexpected keyword: %S", key);
+            return NULL;
+        }
+    }
+    Py_ssize_t shape[NK_NDARRAY_MAX_RANK];
+    size_t rank;
+    if (!parse_shape(shape_obj, shape, &rank)) return NULL;
+    nk_datatype_t dtype = nk_f32_k;
+    if (dtype_obj) {
+        char const *s = PyUnicode_AsUTF8(dtype_obj);
+        if (!s) return NULL;
+        dtype = python_string_to_datatype(s);
+        if (dtype == nk_datatype_unknown_k) {
+            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
+            return NULL;
+        }
+    }
+    return (PyObject *)NDArray_new(dtype, rank, shape);
+}
+
+static char const doc_zeros[] = "Create an NDArray filled with zeros.\n\nParameters:\n    shape: Shape of the array.\n "
+                                "   dtype: Data type (default 'float32').\n\nReturns:\n    NDArray: Array of zeros.";
+
+static PyObject *api_zeros(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
+    (void)self;
+    PyObject *shape_obj = NULL, *dtype_obj = NULL;
+    Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
+    if (nargs + nkw < 1 || nargs + nkw > 2 || nargs > 1) {
+        PyErr_SetString(PyExc_TypeError, "zeros(shape, *, dtype='float32')");
+        return NULL;
+    }
+    shape_obj = args[0];
+    for (Py_ssize_t i = 0; i < nkw; i++) {
+        PyObject *key = PyTuple_GetItem(kwnames, i);
+        if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0) dtype_obj = args[nargs + i];
+        else {
+            PyErr_Format(PyExc_TypeError, "zeros() unexpected keyword: %S", key);
+            return NULL;
+        }
+    }
+    Py_ssize_t shape[NK_NDARRAY_MAX_RANK];
+    size_t rank;
+    if (!parse_shape(shape_obj, shape, &rank)) return NULL;
+    nk_datatype_t dtype = nk_f32_k;
+    if (dtype_obj) {
+        char const *s = PyUnicode_AsUTF8(dtype_obj);
+        if (!s) return NULL;
+        dtype = python_string_to_datatype(s);
+        if (dtype == nk_datatype_unknown_k) {
+            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
+            return NULL;
+        }
+    }
+    NDArray *result = NDArray_new(dtype, rank, shape);
+    if (!result) return NULL;
+    size_t nbytes = bytes_per_datatype(dtype);
+    for (size_t i = 0; i < rank; i++) nbytes *= (size_t)shape[i];
+    memset(result->data, 0, nbytes);
+    return (PyObject *)result;
+}
+
+static char const doc_ones[] = "Create an NDArray filled with ones.\n\nParameters:\n    shape: Shape of the array.\n   "
+                               " dtype: Data type (default 'float32').\n\nReturns:\n    NDArray: Array of ones.";
+
+static PyObject *api_ones(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
+    (void)self;
+    PyObject *shape_obj = NULL, *dtype_obj = NULL;
+    Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
+    if (nargs + nkw < 1 || nargs + nkw > 2 || nargs > 1) {
+        PyErr_SetString(PyExc_TypeError, "ones(shape, *, dtype='float32')");
+        return NULL;
+    }
+    shape_obj = args[0];
+    for (Py_ssize_t i = 0; i < nkw; i++) {
+        PyObject *key = PyTuple_GetItem(kwnames, i);
+        if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0) dtype_obj = args[nargs + i];
+        else {
+            PyErr_Format(PyExc_TypeError, "ones() unexpected keyword: %S", key);
+            return NULL;
+        }
+    }
+    Py_ssize_t shape[NK_NDARRAY_MAX_RANK];
+    size_t rank;
+    if (!parse_shape(shape_obj, shape, &rank)) return NULL;
+    nk_datatype_t dtype = nk_f32_k;
+    if (dtype_obj) {
+        char const *s = PyUnicode_AsUTF8(dtype_obj);
+        if (!s) return NULL;
+        dtype = python_string_to_datatype(s);
+        if (dtype == nk_datatype_unknown_k) {
+            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
+            return NULL;
+        }
+    }
+    NDArray *result = NDArray_new(dtype, rank, shape);
+    if (!result) return NULL;
+    size_t total = 1;
+    for (size_t i = 0; i < rank; i++) total *= (size_t)shape[i];
+    switch (dtype) {
+    case nk_f64_k: {
+        nk_f64_t *p = (nk_f64_t *)result->data;
+        for (size_t i = 0; i < total; i++) p[i] = 1.0;
+    } break;
+    case nk_f32_k: {
+        nk_f32_t *p = (nk_f32_t *)result->data;
+        for (size_t i = 0; i < total; i++) p[i] = 1.0f;
+    } break;
+    case nk_i8_k: {
+        nk_i8_t *p = (nk_i8_t *)result->data;
+        for (size_t i = 0; i < total; i++) p[i] = 1;
+    } break;
+    case nk_i32_k: {
+        nk_i32_t *p = (nk_i32_t *)result->data;
+        for (size_t i = 0; i < total; i++) p[i] = 1;
+    } break;
+    case nk_i64_k: {
+        nk_i64_t *p = (nk_i64_t *)result->data;
+        for (size_t i = 0; i < total; i++) p[i] = 1;
+    } break;
+    default:
+        Py_DECREF(result);
+        PyErr_Format(PyExc_NotImplementedError, "ones() not implemented for dtype");
+        return NULL;
+    }
+    return (PyObject *)result;
+}
+
+static char const doc_full[] =
+    "Create an NDArray filled with a specified value.\n\nParameters:\n    shape: Shape of the array.\n    fill_value: "
+    "Value to fill.\n    dtype: Data type (default 'float32').\n\nReturns:\n    NDArray: Filled array.";
+
+static PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
+    (void)self;
+    PyObject *shape_obj = NULL, *fill_obj = NULL, *dtype_obj = NULL;
+    Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
+    if (nargs + nkw < 2 || nargs + nkw > 3 || nargs > 2) {
+        PyErr_SetString(PyExc_TypeError, "full(shape, fill_value, *, dtype='float32')");
+        return NULL;
+    }
+    shape_obj = args[0];
+    fill_obj = args[1];
+    for (Py_ssize_t i = 0; i < nkw; i++) {
+        PyObject *key = PyTuple_GetItem(kwnames, i);
+        if (PyUnicode_CompareWithASCIIString(key, "dtype") == 0) dtype_obj = args[nargs + i];
+        else {
+            PyErr_Format(PyExc_TypeError, "full() unexpected keyword: %S", key);
+            return NULL;
+        }
+    }
+    Py_ssize_t shape[NK_NDARRAY_MAX_RANK];
+    size_t rank;
+    if (!parse_shape(shape_obj, shape, &rank)) return NULL;
+    double fill_value;
+    if (!get_scalar_value(fill_obj, &fill_value)) {
+        PyErr_SetString(PyExc_TypeError, "fill_value must be a number");
+        return NULL;
+    }
+    nk_datatype_t dtype = nk_f32_k;
+    if (dtype_obj) {
+        char const *s = PyUnicode_AsUTF8(dtype_obj);
+        if (!s) return NULL;
+        dtype = python_string_to_datatype(s);
+        if (dtype == nk_datatype_unknown_k) {
+            PyErr_Format(PyExc_ValueError, "Unknown dtype: %s", s);
+            return NULL;
+        }
+    }
+    NDArray *result = NDArray_new(dtype, rank, shape);
+    if (!result) return NULL;
+    size_t total = 1;
+    for (size_t i = 0; i < rank; i++) total *= (size_t)shape[i];
+    switch (dtype) {
+    case nk_f64_k: {
+        nk_f64_t *p = (nk_f64_t *)result->data;
+        nk_f64_t v = fill_value;
+        for (size_t i = 0; i < total; i++) p[i] = v;
+    } break;
+    case nk_f32_k: {
+        nk_f32_t *p = (nk_f32_t *)result->data;
+        nk_f32_t v = (nk_f32_t)fill_value;
+        for (size_t i = 0; i < total; i++) p[i] = v;
+    } break;
+    case nk_i8_k: {
+        nk_i8_t *p = (nk_i8_t *)result->data;
+        nk_i8_t v = (nk_i8_t)fill_value;
+        for (size_t i = 0; i < total; i++) p[i] = v;
+    } break;
+    case nk_i32_k: {
+        nk_i32_t *p = (nk_i32_t *)result->data;
+        nk_i32_t v = (nk_i32_t)fill_value;
+        for (size_t i = 0; i < total; i++) p[i] = v;
+    } break;
+    default:
+        Py_DECREF(result);
+        PyErr_Format(PyExc_NotImplementedError, "full() not implemented for dtype");
+        return NULL;
+    }
+    return (PyObject *)result;
+}
+
+// region: Module-level reduction functions
+
+static char const doc_reduce_sum[] =
+    "Sum of all elements in an array.\n\nParameters:\n    a: Input array.\n\nReturns:\n    Scalar sum of all elements.";
+
+static PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
+    (void)self;
+    if (nargs != 1 || (kwnames && PyTuple_Size(kwnames) > 0)) {
+        PyErr_SetString(PyExc_TypeError, "sum(a) takes exactly 1 positional argument");
+        return NULL;
+    }
+    PyObject *a_obj = args[0];
+    if (PyObject_TypeCheck(a_obj, &NDArrayType)) { return NDArray_sum(a_obj, NULL); }
+    PyErr_SetString(PyExc_TypeError, "sum() argument must be an NDArray");
+    return NULL;
+}
+
+static char const doc_reduce_min[] =
+    "Minimum element in an array.\n\nParameters:\n    a: Input array.\n\nReturns:\n    Minimum element.";
+
+static PyObject *api_min(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
+    (void)self;
+    if (nargs != 1 || (kwnames && PyTuple_Size(kwnames) > 0)) {
+        PyErr_SetString(PyExc_TypeError, "min(a) takes exactly 1 positional argument");
+        return NULL;
+    }
+    PyObject *a_obj = args[0];
+    if (PyObject_TypeCheck(a_obj, &NDArrayType)) { return NDArray_min(a_obj, NULL); }
+    PyErr_SetString(PyExc_TypeError, "min() argument must be an NDArray");
+    return NULL;
+}
+
+static char const doc_reduce_max[] =
+    "Maximum element in an array.\n\nParameters:\n    a: Input array.\n\nReturns:\n    Maximum element.";
+
+static PyObject *api_max(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
+    (void)self;
+    if (nargs != 1 || (kwnames && PyTuple_Size(kwnames) > 0)) {
+        PyErr_SetString(PyExc_TypeError, "max(a) takes exactly 1 positional argument");
+        return NULL;
+    }
+    PyObject *a_obj = args[0];
+    if (PyObject_TypeCheck(a_obj, &NDArrayType)) { return NDArray_max(a_obj, NULL); }
+    PyErr_SetString(PyExc_TypeError, "max() argument must be an NDArray");
+    return NULL;
+}
+
+static char const doc_reduce_argmin[] = "Index of minimum element in an array.\n\nParameters:\n    a: Input "
+                                        "array.\n\nReturns:\n    int: Flat index of minimum element.";
+
+static PyObject *api_argmin(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
+    (void)self;
+    if (nargs != 1 || (kwnames && PyTuple_Size(kwnames) > 0)) {
+        PyErr_SetString(PyExc_TypeError, "argmin(a) takes exactly 1 positional argument");
+        return NULL;
+    }
+    PyObject *a_obj = args[0];
+    if (PyObject_TypeCheck(a_obj, &NDArrayType)) { return NDArray_argmin(a_obj, NULL); }
+    PyErr_SetString(PyExc_TypeError, "argmin() argument must be an NDArray");
+    return NULL;
+}
+
+static char const doc_reduce_argmax[] = "Index of maximum element in an array.\n\nParameters:\n    a: Input "
+                                        "array.\n\nReturns:\n    int: Flat index of maximum element.";
+
+static PyObject *api_argmax(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
+    (void)self;
+    if (nargs != 1 || (kwnames && PyTuple_Size(kwnames) > 0)) {
+        PyErr_SetString(PyExc_TypeError, "argmax(a) takes exactly 1 positional argument");
+        return NULL;
+    }
+    PyObject *a_obj = args[0];
+    if (PyObject_TypeCheck(a_obj, &NDArrayType)) { return NDArray_argmax(a_obj, NULL); }
+    PyErr_SetString(PyExc_TypeError, "argmax() argument must be an NDArray");
+    return NULL;
+}
+
+// endregion
+
+// endregion
+
 static char const doc_add[] = //
     "Element-wise addition of two vectors or a vector and a scalar.\n\n"
     "Parameters:\n"
@@ -3557,11 +4490,11 @@ static char const doc_add[] = //
     "    b_dtype (Union[IntegralType, FloatType], optional): Override dtype for `b`.\n"
     "    out_dtype (Union[IntegralType, FloatType], optional): Override dtype for output.\n\n"
     "Returns:\n"
-    "    DistancesTensor: The sum if `out` is not provided.\n"
+    "    NDArray: The sum if `out` is not provided.\n"
     "    None: If `out` is provided (in-place operation).\n\n"
     "Equivalent to: `a + b`.\n"
     "Signature:\n"
-    "    >>> def add(a, b, /, *, out, a_dtype, b_dtype, out_dtype) -> Optional[DistancesTensor]: ...";
+    "    >>> def add(a, b, /, *, out, a_dtype, b_dtype, out_dtype) -> Optional[NDArray]: ...";
 
 static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
@@ -3663,7 +4596,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         // Find scale kernel
         nk_kernel_scale_punned_t scale_kernel = NULL;
         nk_capability_t capability = nk_cap_serial_k;
-        nk_find_kernel_punned(nk_metric_scale_k, dtype, static_capabilities, nk_cap_any_k,
+        nk_find_kernel_punned(nk_kernel_scale_k, dtype, static_capabilities, nk_cap_any_k,
                               (nk_kernel_punned_t *)&scale_kernel, &capability);
         if (!scale_kernel) {
             PyErr_Format(PyExc_LookupError, "No scale kernel for dtype '%s'", datatype_to_string(dtype));
@@ -3672,8 +4605,8 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
 
         char *result_start = NULL;
         if (!out_obj) {
-            DistancesTensor *result_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType,
-                                                          a_parsed.dimensions * bytes_per_datatype(dtype));
+            NDArray *result_obj = PyObject_NewVar(NDArray, &NDArrayType,
+                                                  a_parsed.dimensions * bytes_per_datatype(dtype));
             if (!result_obj) {
                 PyErr_NoMemory();
                 goto cleanup;
@@ -3742,7 +4675,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     // Find sum kernel
     nk_kernel_sum_punned_t sum_kernel = NULL;
     nk_capability_t capability = nk_cap_serial_k;
-    nk_find_kernel_punned(nk_metric_sum_k, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&sum_kernel,
+    nk_find_kernel_punned(nk_kernel_sum_k, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&sum_kernel,
                           &capability);
     if (!sum_kernel) {
         PyErr_Format(PyExc_LookupError, "No sum kernel for dtype '%s'", datatype_to_string(dtype));
@@ -3751,8 +4684,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
 
     char *result_start = NULL;
     if (!out_obj) {
-        DistancesTensor *result_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType,
-                                                      a_parsed.dimensions * bytes_per_datatype(dtype));
+        NDArray *result_obj = PyObject_NewVar(NDArray, &NDArrayType, a_parsed.dimensions * bytes_per_datatype(dtype));
         if (!result_obj) {
             PyErr_NoMemory();
             goto cleanup;
@@ -3792,11 +4724,11 @@ static char const doc_multiply[] = //
     "    b_dtype (Union[IntegralType, FloatType], optional): Override dtype for `b`.\n"
     "    out_dtype (Union[IntegralType, FloatType], optional): Override dtype for output.\n\n"
     "Returns:\n"
-    "    DistancesTensor: The product if `out` is not provided.\n"
+    "    NDArray: The product if `out` is not provided.\n"
     "    None: If `out` is provided (in-place operation).\n\n"
     "Equivalent to: `a * b`.\n"
     "Signature:\n"
-    "    >>> def multiply(a, b, /, *, out, a_dtype, b_dtype, out_dtype) -> Optional[DistancesTensor]: ...";
+    "    >>> def multiply(a, b, /, *, out, a_dtype, b_dtype, out_dtype) -> Optional[NDArray]: ...";
 
 static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                               PyObject *args_names_tuple) {
@@ -3898,7 +4830,7 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
         // Find scale kernel
         nk_kernel_scale_punned_t scale_kernel = NULL;
         nk_capability_t capability = nk_cap_serial_k;
-        nk_find_kernel_punned(nk_metric_scale_k, dtype, static_capabilities, nk_cap_any_k,
+        nk_find_kernel_punned(nk_kernel_scale_k, dtype, static_capabilities, nk_cap_any_k,
                               (nk_kernel_punned_t *)&scale_kernel, &capability);
         if (!scale_kernel) {
             PyErr_Format(PyExc_LookupError, "No scale kernel for dtype '%s'", datatype_to_string(dtype));
@@ -3907,8 +4839,8 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
 
         char *result_start = NULL;
         if (!out_obj) {
-            DistancesTensor *result_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType,
-                                                          a_parsed.dimensions * bytes_per_datatype(dtype));
+            NDArray *result_obj = PyObject_NewVar(NDArray, &NDArrayType,
+                                                  a_parsed.dimensions * bytes_per_datatype(dtype));
             if (!result_obj) {
                 PyErr_NoMemory();
                 goto cleanup;
@@ -3977,7 +4909,7 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
     // Find fma kernel
     nk_kernel_fma_punned_t fma_kernel = NULL;
     nk_capability_t capability = nk_cap_serial_k;
-    nk_find_kernel_punned(nk_metric_fma_k, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&fma_kernel,
+    nk_find_kernel_punned(nk_kernel_fma_k, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&fma_kernel,
                           &capability);
     if (!fma_kernel) {
         PyErr_Format(PyExc_LookupError, "No fma kernel for dtype '%s'", datatype_to_string(dtype));
@@ -3986,8 +4918,7 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
 
     char *result_start = NULL;
     if (!out_obj) {
-        DistancesTensor *result_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType,
-                                                      a_parsed.dimensions * bytes_per_datatype(dtype));
+        NDArray *result_obj = PyObject_NewVar(NDArray, &NDArrayType, a_parsed.dimensions * bytes_per_datatype(dtype));
         if (!result_obj) {
             PyErr_NoMemory();
             goto cleanup;
@@ -4029,7 +4960,7 @@ static char const doc_sin[] = //
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n"
     "    out (NDArray, optional): Vector for resulting values.\n\n"
     "Returns:\n"
-    "    DistancesTensor: The sine values if `out` is not provided.\n"
+    "    NDArray: The sine values if `out` is not provided.\n"
     "    None: If `out` is provided.\n\n"
     "Signature:\n"
     "    >>> def sin(a, /, dtype, *, out) -> Optional[NDArray]: ...";
@@ -4041,7 +4972,7 @@ static char const doc_cos[] = //
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n"
     "    out (NDArray, optional): Vector for resulting values.\n\n"
     "Returns:\n"
-    "    DistancesTensor: The cosine values if `out` is not provided.\n"
+    "    NDArray: The cosine values if `out` is not provided.\n"
     "    None: If `out` is provided.\n\n"
     "Signature:\n"
     "    >>> def cos(a, /, dtype, *, out) -> Optional[NDArray]: ...";
@@ -4053,12 +4984,12 @@ static char const doc_atan[] = //
     "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n"
     "    out (NDArray, optional): Vector for resulting angles in radians.\n\n"
     "Returns:\n"
-    "    DistancesTensor: The arctangent values if `out` is not provided.\n"
+    "    NDArray: The arctangent values if `out` is not provided.\n"
     "    None: If `out` is provided.\n\n"
     "Signature:\n"
     "    >>> def atan(a, /, dtype, *, out) -> Optional[NDArray]: ...";
 
-static PyObject *implement_trigonometry(nk_metric_kind_t metric_kind, PyObject *const *args,
+static PyObject *implement_trigonometry(nk_kernel_kind_t metric_kind, PyObject *const *args,
                                         Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
 
     PyObject *return_obj = NULL;
@@ -4161,8 +5092,7 @@ static PyObject *implement_trigonometry(nk_metric_kind_t metric_kind, PyObject *
 
     // Allocate the output array if it wasn't provided
     if (!out_obj) {
-        DistancesTensor *output_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType,
-                                                      a_parsed.dimensions * bytes_per_datatype(dtype));
+        NDArray *output_obj = PyObject_NewVar(NDArray, &NDArrayType, a_parsed.dimensions * bytes_per_datatype(dtype));
         if (!output_obj) {
             PyErr_NoMemory();
             goto cleanup;
@@ -4194,17 +5124,17 @@ cleanup:
 
 static PyObject *api_sin(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
-    return implement_trigonometry(nk_metric_sin_k, args, positional_args_count, args_names_tuple);
+    return implement_trigonometry(nk_kernel_sin_k, args, positional_args_count, args_names_tuple);
 }
 
 static PyObject *api_cos(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
-    return implement_trigonometry(nk_metric_cos_k, args, positional_args_count, args_names_tuple);
+    return implement_trigonometry(nk_kernel_cos_k, args, positional_args_count, args_names_tuple);
 }
 
 static PyObject *api_atan(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                           PyObject *args_names_tuple) {
-    return implement_trigonometry(nk_metric_atan_k, args, positional_args_count, args_names_tuple);
+    return implement_trigonometry(nk_kernel_atan_k, args, positional_args_count, args_names_tuple);
 }
 
 // Mesh alignment functions (Kabsch, Umeyama, RMSD)
@@ -4227,7 +5157,7 @@ static char const doc_kabsch[] = //
     "    a (NDArray): First point cloud(s), shape (N, 3) or (B, N, 3), float32 or float64.\n"
     "    b (NDArray): Second point cloud(s), shape (N, 3) or (B, N, 3), same dtype as a.\n\n"
     "Returns:\n"
-    "    tuple: (rotation, scale, rmsd, a_centroid, b_centroid) - all DistancesTensor.\n\n"
+    "    tuple: (rotation, scale, rmsd, a_centroid, b_centroid) - all NDArray.\n\n"
     "Example:\n"
     "    >>> rot, scale, rmsd, a_c, b_c = numkong.kabsch(a, b)\n"
     "    >>> np.asarray(rot)  # (3, 3) rotation matrix\n"
@@ -4245,7 +5175,7 @@ static char const doc_umeyama[] = //
     "    a (NDArray): First point cloud(s), shape (N, 3) or (B, N, 3), float32 or float64.\n"
     "    b (NDArray): Second point cloud(s), shape (N, 3) or (B, N, 3), same dtype as a.\n\n"
     "Returns:\n"
-    "    tuple: (rotation, scale, rmsd, a_centroid, b_centroid) - all DistancesTensor.\n\n"
+    "    tuple: (rotation, scale, rmsd, a_centroid, b_centroid) - all NDArray.\n\n"
     "Example:\n"
     "    >>> rot, scale, rmsd, a_c, b_c = numkong.umeyama(a, b)\n"
     "    >>> float(scale)  # Will differ from 1.0 if point clouds have different scales\n";
@@ -4261,9 +5191,9 @@ static char const doc_rmsd[] = //
     "    a (NDArray): First point cloud(s), shape (N, 3) or (B, N, 3), float32 or float64.\n"
     "    b (NDArray): Second point cloud(s), shape (N, 3) or (B, N, 3), same dtype as a.\n\n"
     "Returns:\n"
-    "    tuple: (rotation, scale, rmsd, a_centroid, b_centroid) - all DistancesTensor.\n";
+    "    tuple: (rotation, scale, rmsd, a_centroid, b_centroid) - all NDArray.\n";
 
-static PyObject *implement_mesh_alignment(nk_metric_kind_t metric_kind, PyObject *const *args,
+static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject *const *args,
                                           Py_ssize_t positional_args_count) {
     // We expect exactly 2 positional arguments: a and b
     if (positional_args_count != 2) {
@@ -4289,11 +5219,11 @@ static PyObject *implement_mesh_alignment(nk_metric_kind_t metric_kind, PyObject
     }
 
     PyObject *result = NULL;
-    DistancesTensor *rot_tensor = NULL;
-    DistancesTensor *scale_tensor = NULL;
-    DistancesTensor *rmsd_tensor = NULL;
-    DistancesTensor *a_cent_tensor = NULL;
-    DistancesTensor *b_cent_tensor = NULL;
+    NDArray *rot_tensor = NULL;
+    NDArray *scale_tensor = NULL;
+    NDArray *rmsd_tensor = NULL;
+    NDArray *a_cent_tensor = NULL;
+    NDArray *b_cent_tensor = NULL;
 
     // Validate shapes: accept (N, 3) for single pair or (B, N, 3) for batch
     int is_batched = 0;
@@ -4379,11 +5309,11 @@ static PyObject *implement_mesh_alignment(nk_metric_kind_t metric_kind, PyObject
         Py_ssize_t rot_shape[2] = {3, 3};
         Py_ssize_t cent_shape[1] = {3};
 
-        rot_tensor = DistancesTensor_new(datatype, 2, rot_shape);
-        scale_tensor = DistancesTensor_new(out_dtype, 0, NULL);
-        rmsd_tensor = DistancesTensor_new(out_dtype, 0, NULL);
-        a_cent_tensor = DistancesTensor_new(datatype, 1, cent_shape);
-        b_cent_tensor = DistancesTensor_new(datatype, 1, cent_shape);
+        rot_tensor = NDArray_new(datatype, 2, rot_shape);
+        scale_tensor = NDArray_new(out_dtype, 0, NULL);
+        rmsd_tensor = NDArray_new(out_dtype, 0, NULL);
+        a_cent_tensor = NDArray_new(datatype, 1, cent_shape);
+        b_cent_tensor = NDArray_new(datatype, 1, cent_shape);
 
         if (!rot_tensor || !scale_tensor || !rmsd_tensor || !a_cent_tensor || !b_cent_tensor) goto cleanup;
 
@@ -4412,11 +5342,11 @@ static PyObject *implement_mesh_alignment(nk_metric_kind_t metric_kind, PyObject
         Py_ssize_t scalar_shape[1] = {batch_size};
         Py_ssize_t cent_shape[2] = {batch_size, 3};
 
-        rot_tensor = DistancesTensor_new(datatype, 3, rot_shape);
-        scale_tensor = DistancesTensor_new(out_dtype, 1, scalar_shape);
-        rmsd_tensor = DistancesTensor_new(out_dtype, 1, scalar_shape);
-        a_cent_tensor = DistancesTensor_new(datatype, 2, cent_shape);
-        b_cent_tensor = DistancesTensor_new(datatype, 2, cent_shape);
+        rot_tensor = NDArray_new(datatype, 3, rot_shape);
+        scale_tensor = NDArray_new(out_dtype, 1, scalar_shape);
+        rmsd_tensor = NDArray_new(out_dtype, 1, scalar_shape);
+        a_cent_tensor = NDArray_new(datatype, 2, cent_shape);
+        b_cent_tensor = NDArray_new(datatype, 2, cent_shape);
 
         if (!rot_tensor || !scale_tensor || !rmsd_tensor || !a_cent_tensor || !b_cent_tensor) goto cleanup;
 
@@ -4469,21 +5399,21 @@ static PyObject *api_kabsch(PyObject *self, PyObject *const *args, Py_ssize_t po
                             PyObject *args_names_tuple) {
     (void)self;
     (void)args_names_tuple;
-    return implement_mesh_alignment(nk_metric_kabsch_k, args, positional_args_count);
+    return implement_mesh_alignment(nk_kernel_kabsch_k, args, positional_args_count);
 }
 
 static PyObject *api_umeyama(PyObject *self, PyObject *const *args, Py_ssize_t positional_args_count,
                              PyObject *args_names_tuple) {
     (void)self;
     (void)args_names_tuple;
-    return implement_mesh_alignment(nk_metric_umeyama_k, args, positional_args_count);
+    return implement_mesh_alignment(nk_kernel_umeyama_k, args, positional_args_count);
 }
 
 static PyObject *api_rmsd_mesh(PyObject *self, PyObject *const *args, Py_ssize_t positional_args_count,
                                PyObject *args_names_tuple) {
     (void)self;
     (void)args_names_tuple;
-    return implement_mesh_alignment(nk_metric_rmsd_k, args, positional_args_count);
+    return implement_mesh_alignment(nk_kernel_rmsd_k, args, positional_args_count);
 }
 
 /// @brief  Parse a Python buffer format string into a NumKong datatype.
@@ -4769,7 +5699,7 @@ static PyObject *api_pack_matrix(PyObject *self, PyObject *const *args, Py_ssize
     return api_pack_matmul_argument(self, args, positional_args_count, args_names_tuple);
 }
 
-static char const doc_matmul[] = "matmul(a, b) -> DistancesTensor\n\n"
+static char const doc_matmul[] = "matmul(a, b) -> NDArray\n\n"
                                  "Compute matrix multiplication C = A @ B with a pre-packed B matrix.\n\n"
                                  "Parameters:\n"
                                  "    a : array_like\n"
@@ -4777,7 +5707,7 @@ static char const doc_matmul[] = "matmul(a, b) -> DistancesTensor\n\n"
                                  "    b : PackedMatrix\n"
                                  "        Pre-packed (n, k) matrix from pack_matmul_argument().\n\n"
                                  "Returns:\n"
-                                 "    DistancesTensor : (m, n) result matrix.\n\n"
+                                 "    NDArray : (m, n) result matrix.\n\n"
                                  "Note:\n"
                                  "    The kernel computes C[i,j] = dot(a[i], b[j]) for all i,j.\n"
                                  "    This is equivalent to A @ B.T where B is the original unpacked matrix.\n\n"
@@ -4856,7 +5786,7 @@ static PyObject *api_matmul(PyObject *self, PyObject *const *args, Py_ssize_t po
     nk_datatype_t out_dtype = nk_f32_k; // BF16 matmul outputs F32
     if (packed->dtype == nk_i8_k) out_dtype = nk_i32_k;
 
-    DistancesTensor *result = DistancesTensor_new(out_dtype, 2, out_shape);
+    NDArray *result = NDArray_new(out_dtype, 2, out_shape);
     if (!result) {
         PyBuffer_Release(&a_buffer);
         return NULL;
@@ -5021,6 +5951,19 @@ static PyMethodDef nk_methods[] = {
     {"haversine", (PyCFunction)api_haversine, METH_FASTCALL | METH_KEYWORDS, doc_haversine},
     {"vincenty", (PyCFunction)api_vincenty, METH_FASTCALL | METH_KEYWORDS, doc_vincenty},
 
+    // NDArray constructors
+    {"empty", (PyCFunction)api_empty, METH_FASTCALL | METH_KEYWORDS, doc_empty},
+    {"zeros", (PyCFunction)api_zeros, METH_FASTCALL | METH_KEYWORDS, doc_zeros},
+    {"ones", (PyCFunction)api_ones, METH_FASTCALL | METH_KEYWORDS, doc_ones},
+    {"full", (PyCFunction)api_full, METH_FASTCALL | METH_KEYWORDS, doc_full},
+
+    // NDArray reductions
+    {"sum", (PyCFunction)api_sum, METH_FASTCALL | METH_KEYWORDS, doc_reduce_sum},
+    {"min", (PyCFunction)api_min, METH_FASTCALL | METH_KEYWORDS, doc_reduce_min},
+    {"max", (PyCFunction)api_max, METH_FASTCALL | METH_KEYWORDS, doc_reduce_max},
+    {"argmin", (PyCFunction)api_argmin, METH_FASTCALL | METH_KEYWORDS, doc_reduce_argmin},
+    {"argmax", (PyCFunction)api_argmax, METH_FASTCALL | METH_KEYWORDS, doc_reduce_argmax},
+
     // Vectorized operations
     {"fma", (PyCFunction)api_fma, METH_FASTCALL | METH_KEYWORDS, doc_fma},
     {"wsum", (PyCFunction)api_wsum, METH_FASTCALL | METH_KEYWORDS, doc_wsum},
@@ -5085,8 +6028,8 @@ static PyModuleDef nk_module = {
 PyMODINIT_FUNC PyInit_numkong(void) {
     PyObject *m;
 
-    if (PyType_Ready(&DistancesTensorType) < 0) return NULL;
-    if (PyType_Ready(&DistancesTensorIterType) < 0) return NULL;
+    if (PyType_Ready(&NDArrayType) < 0) return NULL;
+    if (PyType_Ready(&NDArrayIterType) < 0) return NULL;
     if (PyType_Ready(&PackedMatrixType) < 0) return NULL;
 
     m = PyModule_Create(&nk_module);
@@ -5103,9 +6046,9 @@ PyMODINIT_FUNC PyInit_numkong(void) {
         PyModule_AddStringConstant(m, "__version__", version_str);
     }
 
-    Py_INCREF(&DistancesTensorType);
-    if (PyModule_AddObject(m, "DistancesTensor", (PyObject *)&DistancesTensorType) < 0) {
-        Py_XDECREF(&DistancesTensorType);
+    Py_INCREF(&NDArrayType);
+    if (PyModule_AddObject(m, "NDArray", (PyObject *)&NDArrayType) < 0) {
+        Py_XDECREF(&NDArrayType);
         Py_XDECREF(m);
         return NULL;
     }
