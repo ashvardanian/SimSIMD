@@ -20,12 +20,7 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_l2_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_u32_t distance_sq_u32;
-    nk_l2sq_i8_neon(a, b, n, &distance_sq_u32);
-    *result = nk_sqrt_f32_neon_((nk_f32_t)distance_sq_u32);
-}
-NK_PUBLIC void nk_l2sq_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_l2sq_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
 
     // The naive approach is to upcast 8-bit signed integers into 16-bit signed integers
     // for subtraction, then multiply within 16-bit integers and accumulate the results
@@ -50,8 +45,13 @@ NK_PUBLIC void nk_l2sq_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, 
     }
     *result = distance_sq_u32;
 }
+NK_PUBLIC void nk_l2_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_u32_t distance_sq_u32;
+    nk_l2sq_i8_neonsdot(a, b, n, &distance_sq_u32);
+    *result = nk_sqrt_f32_neon_((nk_f32_t)distance_sq_u32);
+}
 
-NK_PUBLIC void nk_angular_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_angular_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
 
     nk_size_t i = 0;
 
@@ -171,12 +171,7 @@ NK_PUBLIC void nk_angular_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t 
     *result = nk_angular_normalize_f32_neon_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
 
-NK_PUBLIC void nk_l2_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_u32_t d2;
-    nk_l2sq_u8_neon(a, b, n, &d2);
-    *result = nk_sqrt_f32_neon_((nk_f32_t)d2);
-}
-NK_PUBLIC void nk_l2sq_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_l2sq_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
     uint32x4_t distance_sq_u32x4 = vdupq_n_u32(0);
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
@@ -192,8 +187,13 @@ NK_PUBLIC void nk_l2sq_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, 
     }
     *result = distance_sq_u32;
 }
+NK_PUBLIC void nk_l2_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_u32_t d2;
+    nk_l2sq_u8_neonsdot(a, b, n, &d2);
+    *result = nk_sqrt_f32_neon_((nk_f32_t)d2);
+}
 
-NK_PUBLIC void nk_angular_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_angular_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
 
     nk_size_t i = 0;
     uint32x4_t ab_vec = vdupq_n_u32(0);
@@ -219,19 +219,22 @@ NK_PUBLIC void nk_angular_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t 
     *result = nk_angular_normalize_f32_neon_(ab, a2, b2);
 }
 
-typedef nk_dot_i8x16_state_neon_t nk_angular_i8x16_state_neon_t;
-NK_INTERNAL void nk_angular_i8x16_init_neon(nk_angular_i8x16_state_neon_t *state) { nk_dot_i8x16_init_neon(state); }
-NK_INTERNAL void nk_angular_i8x16_update_neon(nk_angular_i8x16_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
-    nk_dot_i8x16_update_neon(state, a, b);
+typedef nk_dot_i8x16_state_neonsdot_t nk_angular_i8x16_state_neonsdot_t;
+NK_INTERNAL void nk_angular_i8x16_init_neonsdot(nk_angular_i8x16_state_neonsdot_t *state) {
+    nk_dot_i8x16_init_neonsdot(state);
 }
-NK_INTERNAL void nk_angular_i8x16_finalize_neon(nk_angular_i8x16_state_neon_t const *state_a,
-                                                nk_angular_i8x16_state_neon_t const *state_b,
-                                                nk_angular_i8x16_state_neon_t const *state_c,
-                                                nk_angular_i8x16_state_neon_t const *state_d, nk_f32_t query_norm,
-                                                nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                                nk_f32_t target_norm_d, nk_f32_t *results) {
+NK_INTERNAL void nk_angular_i8x16_update_neonsdot(nk_angular_i8x16_state_neonsdot_t *state, nk_b128_vec_t a,
+                                                  nk_b128_vec_t b) {
+    nk_dot_i8x16_update_neonsdot(state, a, b);
+}
+NK_INTERNAL void nk_angular_i8x16_finalize_neonsdot(nk_angular_i8x16_state_neonsdot_t const *state_a,
+                                                    nk_angular_i8x16_state_neonsdot_t const *state_b,
+                                                    nk_angular_i8x16_state_neonsdot_t const *state_c,
+                                                    nk_angular_i8x16_state_neonsdot_t const *state_d,
+                                                    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b,
+                                                    nk_f32_t target_norm_c, nk_f32_t target_norm_d, nk_f32_t *results) {
     nk_i32_t dots_i32[4];
-    nk_dot_i8x16_finalize_neon(state_a, state_b, state_c, state_d, dots_i32);
+    nk_dot_i8x16_finalize_neonsdot(state_a, state_b, state_c, state_d, dots_i32);
 
     int32x4_t dots_i32x4 = vld1q_s32(dots_i32);
     float32x4_t dots_f32x4 = vcvtq_f32_s32(dots_i32x4);
@@ -262,19 +265,19 @@ NK_INTERNAL void nk_angular_i8x16_finalize_neon(nk_angular_i8x16_state_neon_t co
     vst1q_f32(results, result_f32x4);
 }
 
-typedef nk_dot_i8x16_state_neon_t nk_l2_i8x16_state_neon_t;
-NK_INTERNAL void nk_l2_i8x16_init_neon(nk_l2_i8x16_state_neon_t *state) { nk_dot_i8x16_init_neon(state); }
-NK_INTERNAL void nk_l2_i8x16_update_neon(nk_l2_i8x16_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
-    nk_dot_i8x16_update_neon(state, a, b);
+typedef nk_dot_i8x16_state_neonsdot_t nk_l2_i8x16_state_neonsdot_t;
+NK_INTERNAL void nk_l2_i8x16_init_neonsdot(nk_l2_i8x16_state_neonsdot_t *state) { nk_dot_i8x16_init_neonsdot(state); }
+NK_INTERNAL void nk_l2_i8x16_update_neonsdot(nk_l2_i8x16_state_neonsdot_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+    nk_dot_i8x16_update_neonsdot(state, a, b);
 }
-NK_INTERNAL void nk_l2_i8x16_finalize_neon(nk_l2_i8x16_state_neon_t const *state_a,
-                                           nk_l2_i8x16_state_neon_t const *state_b,
-                                           nk_l2_i8x16_state_neon_t const *state_c,
-                                           nk_l2_i8x16_state_neon_t const *state_d, nk_f32_t query_norm,
-                                           nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                           nk_f32_t target_norm_d, nk_f32_t *results) {
+NK_INTERNAL void nk_l2_i8x16_finalize_neonsdot(nk_l2_i8x16_state_neonsdot_t const *state_a,
+                                               nk_l2_i8x16_state_neonsdot_t const *state_b,
+                                               nk_l2_i8x16_state_neonsdot_t const *state_c,
+                                               nk_l2_i8x16_state_neonsdot_t const *state_d, nk_f32_t query_norm,
+                                               nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
+                                               nk_f32_t target_norm_d, nk_f32_t *results) {
     nk_i32_t dots_i32[4];
-    nk_dot_i8x16_finalize_neon(state_a, state_b, state_c, state_d, dots_i32);
+    nk_dot_i8x16_finalize_neonsdot(state_a, state_b, state_c, state_d, dots_i32);
 
     int32x4_t dots_i32x4 = vld1q_s32(dots_i32);
     float32x4_t dots_f32x4 = vcvtq_f32_s32(dots_i32x4);
@@ -294,20 +297,23 @@ NK_INTERNAL void nk_l2_i8x16_finalize_neon(nk_l2_i8x16_state_neon_t const *state
     vst1q_f32(results, dist_f32x4);
 }
 
-typedef nk_dot_u8x16_state_neon_t nk_angular_u8x16_state_neon_t;
-NK_INTERNAL void nk_angular_u8x16_init_neon(nk_angular_u8x16_state_neon_t *state) { nk_dot_u8x16_init_neon(state); }
-NK_INTERNAL void nk_angular_u8x16_update_neon(nk_angular_u8x16_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
-    nk_dot_u8x16_update_neon(state, a, b);
+typedef nk_dot_u8x16_state_neonsdot_t nk_angular_u8x16_state_neonsdot_t;
+NK_INTERNAL void nk_angular_u8x16_init_neonsdot(nk_angular_u8x16_state_neonsdot_t *state) {
+    nk_dot_u8x16_init_neonsdot(state);
 }
-NK_INTERNAL void nk_angular_u8x16_finalize_neon(nk_angular_u8x16_state_neon_t const *state_a,
-                                                nk_angular_u8x16_state_neon_t const *state_b,
-                                                nk_angular_u8x16_state_neon_t const *state_c,
-                                                nk_angular_u8x16_state_neon_t const *state_d, nk_f32_t query_norm,
-                                                nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                                nk_f32_t target_norm_d, nk_f32_t *results) {
+NK_INTERNAL void nk_angular_u8x16_update_neonsdot(nk_angular_u8x16_state_neonsdot_t *state, nk_b128_vec_t a,
+                                                  nk_b128_vec_t b) {
+    nk_dot_u8x16_update_neonsdot(state, a, b);
+}
+NK_INTERNAL void nk_angular_u8x16_finalize_neonsdot(nk_angular_u8x16_state_neonsdot_t const *state_a,
+                                                    nk_angular_u8x16_state_neonsdot_t const *state_b,
+                                                    nk_angular_u8x16_state_neonsdot_t const *state_c,
+                                                    nk_angular_u8x16_state_neonsdot_t const *state_d,
+                                                    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b,
+                                                    nk_f32_t target_norm_c, nk_f32_t target_norm_d, nk_f32_t *results) {
     // Extract all 4 dot products with single ILP-optimized call
     nk_u32_t dots_u32[4];
-    nk_dot_u8x16_finalize_neon(state_a, state_b, state_c, state_d, dots_u32);
+    nk_dot_u8x16_finalize_neonsdot(state_a, state_b, state_c, state_d, dots_u32);
 
     // Convert dots to f32 and build vectors for parallel processing
     uint32x4_t dots_u32x4 = vld1q_u32(dots_u32);
@@ -334,20 +340,20 @@ NK_INTERNAL void nk_angular_u8x16_finalize_neon(nk_angular_u8x16_state_neon_t co
     vst1q_f32(results, angular_f32x4);
 }
 
-typedef nk_dot_u8x16_state_neon_t nk_l2_u8x16_state_neon_t;
-NK_INTERNAL void nk_l2_u8x16_init_neon(nk_l2_u8x16_state_neon_t *state) { nk_dot_u8x16_init_neon(state); }
-NK_INTERNAL void nk_l2_u8x16_update_neon(nk_l2_u8x16_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
-    nk_dot_u8x16_update_neon(state, a, b);
+typedef nk_dot_u8x16_state_neonsdot_t nk_l2_u8x16_state_neonsdot_t;
+NK_INTERNAL void nk_l2_u8x16_init_neonsdot(nk_l2_u8x16_state_neonsdot_t *state) { nk_dot_u8x16_init_neonsdot(state); }
+NK_INTERNAL void nk_l2_u8x16_update_neonsdot(nk_l2_u8x16_state_neonsdot_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+    nk_dot_u8x16_update_neonsdot(state, a, b);
 }
-NK_INTERNAL void nk_l2_u8x16_finalize_neon(nk_l2_u8x16_state_neon_t const *state_a,
-                                           nk_l2_u8x16_state_neon_t const *state_b,
-                                           nk_l2_u8x16_state_neon_t const *state_c,
-                                           nk_l2_u8x16_state_neon_t const *state_d, nk_f32_t query_norm,
-                                           nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                           nk_f32_t target_norm_d, nk_f32_t *results) {
+NK_INTERNAL void nk_l2_u8x16_finalize_neonsdot(nk_l2_u8x16_state_neonsdot_t const *state_a,
+                                               nk_l2_u8x16_state_neonsdot_t const *state_b,
+                                               nk_l2_u8x16_state_neonsdot_t const *state_c,
+                                               nk_l2_u8x16_state_neonsdot_t const *state_d, nk_f32_t query_norm,
+                                               nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
+                                               nk_f32_t target_norm_d, nk_f32_t *results) {
     // Extract all 4 dot products with single ILP-optimized call
     nk_u32_t dots_u32[4];
-    nk_dot_u8x16_finalize_neon(state_a, state_b, state_c, state_d, dots_u32);
+    nk_dot_u8x16_finalize_neonsdot(state_a, state_b, state_c, state_d, dots_u32);
 
     // Convert dots to f32 and build vectors for parallel processing
     uint32x4_t dots_u32x4 = vld1q_u32(dots_u32);

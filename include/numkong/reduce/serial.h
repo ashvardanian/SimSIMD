@@ -543,6 +543,32 @@ NK_PUBLIC void nk_reduce_max_f64_serial(                           //
     *max_index = best_index;
 }
 
+NK_PUBLIC void nk_reduce_add_f16_serial(                           //
+    nk_f16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *result) {
+    nk_f64_t sum = 0;
+    unsigned char const *ptr = (unsigned char const *)data;
+    for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
+        nk_f32_t val;
+        nk_f16_to_f32((nk_f16_t const *)ptr, &val);
+        sum += val;
+    }
+    *result = (nk_f32_t)sum;
+}
+
+NK_PUBLIC void nk_reduce_add_bf16_serial(                           //
+    nk_bf16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *result) {
+    nk_f64_t sum = 0;
+    unsigned char const *ptr = (unsigned char const *)data;
+    for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
+        nk_f32_t val;
+        nk_bf16_to_f32((nk_bf16_t const *)ptr, &val);
+        sum += val;
+    }
+    *result = (nk_f32_t)sum;
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

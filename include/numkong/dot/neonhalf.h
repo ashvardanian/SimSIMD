@@ -15,31 +15,20 @@
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 
 #include "numkong/types.h"
-#include "numkong/reduce/neon.h" // nk_partial_load_b16x8_neon_
+#include "numkong/reduce/neonhalf.h" // nk_partial_load_f16x4_to_f32x4_neonhalf_
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-NK_INTERNAL float16x4_t nk_partial_load_f16x4_neon_(nk_f16_t const *x, nk_size_t n) {
-    // In case the software emulation for `f16` scalars is enabled, the `nk_f16_to_f32`
-    // function will run. It is extremely slow, so even for the tail, let's combine serial
-    // loads and stores with vectorized math.
-    nk_b128_vec_t result;
-    result.u64s[0] = 0;
-    nk_size_t i = 0;
-    for (; i < n; ++i) result.f16s[i] = x[i];
-    return vreinterpret_f16_u16(vget_low_u16(vreinterpretq_u16_u32(result.u32x4)));
-}
-
-NK_PUBLIC void nk_dot_f16_neon(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
-                               nk_f32_t *result) {
+NK_PUBLIC void nk_dot_f16_neonhalf(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
+                                   nk_f32_t *result) {
     float32x4_t a_f32x4, b_f32x4;
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
-nk_dot_f16_neon_cycle:
+nk_dot_f16_neonhalf_cycle:
     if (count_scalars < 4) {
-        a_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(a_scalars, count_scalars));
-        b_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(b_scalars, count_scalars));
+        nk_partial_load_f16x4_to_f32x4_neonhalf_(a_scalars, count_scalars, &a_f32x4);
+        nk_partial_load_f16x4_to_f32x4_neonhalf_(b_scalars, count_scalars, &b_f32x4);
         count_scalars = 0;
     }
     else {
@@ -48,12 +37,12 @@ nk_dot_f16_neon_cycle:
         a_scalars += 4, b_scalars += 4, count_scalars -= 4;
     }
     sum_f32x4 = vfmaq_f32(sum_f32x4, a_f32x4, b_f32x4);
-    if (count_scalars) goto nk_dot_f16_neon_cycle;
+    if (count_scalars) goto nk_dot_f16_neonhalf_cycle;
     *result = vaddvq_f32(sum_f32x4);
 }
 
-NK_PUBLIC void nk_dot_f16c_neon(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
-                                nk_f32c_t *result) {
+NK_PUBLIC void nk_dot_f16c_neonhalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
+                                    nk_f32c_t *result) {
     float32x4_t sum_real_f32x4 = vdupq_n_f32(0);
     float32x4_t sum_imag_f32x4 = vdupq_n_f32(0);
     while (count_pairs >= 4) {
@@ -79,8 +68,8 @@ NK_PUBLIC void nk_dot_f16c_neon(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pai
     result->imag = tail_result.imag + vaddvq_f32(sum_imag_f32x4);
 }
 
-NK_PUBLIC void nk_vdot_f16c_neon(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
-                                 nk_f32c_t *result) {
+NK_PUBLIC void nk_vdot_f16c_neonhalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
+                                     nk_f32c_t *result) {
     float32x4_t sum_real_f32x4 = vdupq_n_f32(0);
     float32x4_t sum_imag_f32x4 = vdupq_n_f32(0);
     while (count_pairs >= 4) {
@@ -106,13 +95,13 @@ NK_PUBLIC void nk_vdot_f16c_neon(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pa
     result->imag = tail_result.imag + vaddvq_f32(sum_imag_f32x4);
 }
 
-typedef struct nk_dot_f16x8_state_neon_t {
+typedef struct nk_dot_f16x8_state_neonhalf_t {
     float32x4_t sum_f32x4;
-} nk_dot_f16x8_state_neon_t;
+} nk_dot_f16x8_state_neonhalf_t;
 
-NK_INTERNAL void nk_dot_f16x8_init_neon(nk_dot_f16x8_state_neon_t *state) { state->sum_f32x4 = vdupq_n_f32(0); }
+NK_INTERNAL void nk_dot_f16x8_init_neonhalf(nk_dot_f16x8_state_neonhalf_t *state) { state->sum_f32x4 = vdupq_n_f32(0); }
 
-NK_INTERNAL void nk_dot_f16x8_update_neon(nk_dot_f16x8_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+NK_INTERNAL void nk_dot_f16x8_update_neonhalf(nk_dot_f16x8_state_neonhalf_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
     float32x4_t sum_f32x4 = state->sum_f32x4;
     nk_f16_t const *a_scalars = a.f16s;
     nk_f16_t const *b_scalars = b.f16s;
@@ -123,9 +112,9 @@ NK_INTERNAL void nk_dot_f16x8_update_neon(nk_dot_f16x8_state_neon_t *state, nk_b
     state->sum_f32x4 = sum_f32x4;
 }
 
-NK_INTERNAL void nk_dot_f16x8_finalize_neon(                                            //
-    nk_dot_f16x8_state_neon_t const *state_a, nk_dot_f16x8_state_neon_t const *state_b, //
-    nk_dot_f16x8_state_neon_t const *state_c, nk_dot_f16x8_state_neon_t const *state_d, //
+NK_INTERNAL void nk_dot_f16x8_finalize_neonhalf(                                                //
+    nk_dot_f16x8_state_neonhalf_t const *state_a, nk_dot_f16x8_state_neonhalf_t const *state_b, //
+    nk_dot_f16x8_state_neonhalf_t const *state_c, nk_dot_f16x8_state_neonhalf_t const *state_d, //
     nk_f32_t *results) {
     results[0] = vaddvq_f32(state_a->sum_f32x4);
     results[1] = vaddvq_f32(state_b->sum_f32x4);

@@ -213,9 +213,9 @@ NK_PUBLIC void nk_jsd_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n
 
 #if NK_TARGET_NEONHALF
 /** @copydoc nk_kld_f16 */
-NK_PUBLIC void nk_kld_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_kld_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jsd_f16 */
-NK_PUBLIC void nk_jsd_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_jsd_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_HASWELL
@@ -395,16 +395,18 @@ nk_jsd_f32_neon_cycle:
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 
-NK_PUBLIC void nk_kld_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
+#include "numkong/reduce/neonhalf.h" // nk_partial_load_f16x4_to_f32x4_neonhalf_
+
+NK_PUBLIC void nk_kld_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     nk_f32_t epsilon = NK_F32_DIVISION_EPSILON;
     float32x4_t epsilon_f32x4 = vdupq_n_f32(epsilon);
     float32x4_t a_f32x4, b_f32x4;
 
-nk_kld_f16_neon_cycle:
+nk_kld_f16_neonhalf_cycle:
     if (n < 4) {
-        a_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(a, n));
-        b_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(b, n));
+        nk_partial_load_f16x4_to_f32x4_neonhalf_(a, n, &a_f32x4);
+        nk_partial_load_f16x4_to_f32x4_neonhalf_(b, n, &b_f32x4);
         n = 0;
     }
     else {
@@ -417,23 +419,23 @@ nk_kld_f16_neon_cycle:
     float32x4_t log_ratio_f32x4 = nk_log2_f32_neon_(ratio_f32x4);
     float32x4_t contribution_f32x4 = vmulq_f32(a_f32x4, log_ratio_f32x4);
     sum_f32x4 = vaddq_f32(sum_f32x4, contribution_f32x4);
-    if (n) goto nk_kld_f16_neon_cycle;
+    if (n) goto nk_kld_f16_neonhalf_cycle;
 
     nk_f32_t log2_normalizer = 0.693147181f;
     nk_f32_t sum = vaddvq_f32(sum_f32x4) * log2_normalizer;
     *result = sum;
 }
 
-NK_PUBLIC void nk_jsd_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_jsd_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     nk_f32_t epsilon = NK_F32_DIVISION_EPSILON;
     float32x4_t epsilon_f32x4 = vdupq_n_f32(epsilon);
     float32x4_t a_f32x4, b_f32x4;
 
-nk_jsd_f16_neon_cycle:
+nk_jsd_f16_neonhalf_cycle:
     if (n < 4) {
-        a_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(a, n));
-        b_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(b, n));
+        nk_partial_load_f16x4_to_f32x4_neonhalf_(a, n, &a_f32x4);
+        nk_partial_load_f16x4_to_f32x4_neonhalf_(b, n, &b_f32x4);
         n = 0;
     }
     else {
@@ -450,7 +452,7 @@ nk_jsd_f16_neon_cycle:
     float32x4_t contribution_a_f32x4 = vmulq_f32(a_f32x4, log_ratio_a_f32x4);
     float32x4_t contribution_b_f32x4 = vmulq_f32(b_f32x4, log_ratio_b_f32x4);
     sum_f32x4 = vaddq_f32(sum_f32x4, vaddq_f32(contribution_a_f32x4, contribution_b_f32x4));
-    if (n) goto nk_jsd_f16_neon_cycle;
+    if (n) goto nk_jsd_f16_neonhalf_cycle;
 
     nk_f32_t log2_normalizer = 0.693147181f;
     nk_f32_t sum = vaddvq_f32(sum_f32x4) * log2_normalizer / 2;
@@ -504,8 +506,8 @@ NK_PUBLIC void nk_kld_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_
 
 nk_kld_f16_haswell_cycle:
     if (n < 8) {
-        a_f32x8 = nk_partial_load_f16x8_haswell_(a, n);
-        b_f32x8 = nk_partial_load_f16x8_haswell_(b, n);
+        a_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(a, n);
+        b_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(b, n);
         n = 0;
     }
     else {
@@ -535,8 +537,8 @@ NK_PUBLIC void nk_jsd_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_
 
 nk_jsd_f16_haswell_cycle:
     if (n < 8) {
-        a_f32x8 = nk_partial_load_f16x8_haswell_(a, n);
-        b_f32x8 = nk_partial_load_f16x8_haswell_(b, n);
+        a_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(a, n);
+        b_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(b, n);
         n = 0;
     }
     else {
@@ -756,7 +758,7 @@ nk_jsd_f16_sapphire_cycle:
 
 NK_PUBLIC void nk_kld_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_NEONHALF
-    nk_kld_f16_neon(a, b, n, result);
+    nk_kld_f16_neonhalf(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_kld_f16_haswell(a, b, n, result);
 #else
@@ -784,7 +786,7 @@ NK_PUBLIC void nk_kld_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_
 
 NK_PUBLIC void nk_jsd_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_NEONHALF
-    nk_jsd_f16_neon(a, b, n, result);
+    nk_jsd_f16_neonhalf(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_jsd_f16_haswell(a, b, n, result);
 #else

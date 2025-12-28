@@ -21,8 +21,18 @@
 extern "C" {
 #endif
 
+/**
+ *  @brief Partial load for f16 elements (up to 4) with conversion to f32x4.
+ *  Uses generic 64-bit byte load internally and converts to f32.
+ */
+NK_INTERNAL void nk_partial_load_f16x4_to_f32x4_neonhalf_(nk_f16_t const *x, nk_size_t n, float32x4_t *result) {
+    nk_b64_vec_t vec;
+    nk_partial_load_b16x4_neon_(x, n, &vec);
+    *result = vcvt_f32_f16(vec.f16x4);
+}
+
 /** @brief Horizontal sum of 8 f16s in a NEON register, returning f32. */
-NK_INTERNAL nk_f32_t nk_reduce_add_f16x8_neon_(float16x8_t sum_f16x8) {
+NK_INTERNAL nk_f32_t nk_reduce_add_f16x8_neonhalf_(float16x8_t sum_f16x8) {
     float16x4_t low_f16x4 = vget_low_f16(sum_f16x8);
     float16x4_t high_f16x4 = vget_high_f16(sum_f16x8);
     float16x4_t sum_f16x4 = vadd_f16(low_f16x4, high_f16x4);
@@ -31,7 +41,7 @@ NK_INTERNAL nk_f32_t nk_reduce_add_f16x8_neon_(float16x8_t sum_f16x8) {
     return vgetq_lane_f32(vcvt_f32_f16(sum_f16x4), 0);
 }
 
-NK_INTERNAL void nk_reduce_add_f16_neon_contiguous_( //
+NK_INTERNAL void nk_reduce_add_f16_neonhalf_contiguous_( //
     nk_f16_t const *data, nk_size_t count, nk_f32_t *result) {
     // Use native f16 arithmetic for accumulation
     float16x8_t sum_f16x8 = vdupq_n_f16(0);
@@ -42,7 +52,7 @@ NK_INTERNAL void nk_reduce_add_f16_neon_contiguous_( //
         sum_f16x8 = vaddq_f16(sum_f16x8, data_f16x8);
     }
 
-    nk_f32_t sum = nk_reduce_add_f16x8_neon_(sum_f16x8);
+    nk_f32_t sum = nk_reduce_add_f16x8_neonhalf_(sum_f16x8);
 
     // Scalar tail - convert to f32
     for (; idx < count; ++idx) {
@@ -54,7 +64,7 @@ NK_INTERNAL void nk_reduce_add_f16_neon_contiguous_( //
     *result = sum;
 }
 
-NK_INTERNAL void nk_reduce_add_f16_neon_strided_(                     //
+NK_INTERNAL void nk_reduce_add_f16_neonhalf_strided_(                 //
     nk_f16_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f32_t *result) {
     float16x8_t sum_f16x8 = vdupq_n_f16(0);
@@ -82,7 +92,7 @@ NK_INTERNAL void nk_reduce_add_f16_neon_strided_(                     //
         }
     }
 
-    nk_f32_t sum = nk_reduce_add_f16x8_neon_(sum_f16x8);
+    nk_f32_t sum = nk_reduce_add_f16x8_neonhalf_(sum_f16x8);
     for (; idx < count; ++idx) {
         nk_b128_vec_t tmp;
         tmp.f16s[0] = data[idx * stride_elements];
@@ -92,14 +102,14 @@ NK_INTERNAL void nk_reduce_add_f16_neon_strided_(                     //
     *result = sum;
 }
 
-NK_PUBLIC void nk_reduce_add_f16_neon(                             //
+NK_PUBLIC void nk_reduce_add_f16_neonhalf(                         //
     nk_f16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_f32_t *result) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f16_t);
     int aligned = (stride_bytes % sizeof(nk_f16_t) == 0);
     if (!aligned) nk_reduce_add_f16_serial(data, count, stride_bytes, result);
-    else if (stride_elements == 1) nk_reduce_add_f16_neon_contiguous_(data, count, result);
-    else if (stride_elements <= 4) nk_reduce_add_f16_neon_strided_(data, count, stride_elements, result);
+    else if (stride_elements == 1) nk_reduce_add_f16_neonhalf_contiguous_(data, count, result);
+    else if (stride_elements <= 4) nk_reduce_add_f16_neonhalf_strided_(data, count, stride_elements, result);
     else nk_reduce_add_f16_serial(data, count, stride_bytes, result);
 }
 

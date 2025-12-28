@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_sum_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result) {
+NK_PUBLIC void nk_sum_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
@@ -34,8 +34,8 @@ NK_PUBLIC void nk_sum_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n
     for (; i < n; ++i) ((float16_t *)result)[i] = ((float16_t const *)a)[i] + ((float16_t const *)b)[i];
 }
 
-NK_PUBLIC void nk_scale_f16_neon(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                 nk_f16_t *result) {
+NK_PUBLIC void nk_scale_f16_neonhalf(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                     nk_f16_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     float16_t alpha_f16 = (float16_t)alpha_val;
@@ -55,7 +55,7 @@ NK_PUBLIC void nk_scale_f16_neon(nk_f16_t const *a, nk_size_t n, nk_f32_t const 
     for (; i < n; ++i) ((float16_t *)result)[i] = alpha_f16 * ((float16_t const *)a)[i] + beta_f16;
 }
 
-NK_PUBLIC void nk_wsum_f16_neon(                       //
+NK_PUBLIC void nk_wsum_f16_neonhalf(                   //
     nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result) {
 
@@ -66,15 +66,15 @@ NK_PUBLIC void nk_wsum_f16_neon(                       //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_f16_neon(a, b, n, result);
+        nk_sum_f16_neonhalf(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f32_t zero = 0;
-        if (beta_val == 0) { nk_scale_f16_neon(a, n, alpha, &zero, result); }
-        else { nk_scale_f16_neon(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_scale_f16_neonhalf(a, n, alpha, &zero, result); }
+        else { nk_scale_f16_neonhalf(b, n, beta, &zero, result); }
         return;
     }
 
@@ -98,7 +98,7 @@ NK_PUBLIC void nk_wsum_f16_neon(                       //
         ((float16_t *)result)[i] = alpha_f16 * ((float16_t const *)a)[i] + beta_f16 * ((float16_t const *)b)[i];
 }
 
-NK_PUBLIC void nk_fma_f16_neon(                              //
+NK_PUBLIC void nk_fma_f16_neonhalf(                          //
     nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, //
     nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -124,7 +124,7 @@ NK_PUBLIC void nk_fma_f16_neon(                              //
                                    beta_f16 * ((float16_t const *)c)[i];
 }
 
-NK_PUBLIC void nk_sum_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result) {
+NK_PUBLIC void nk_sum_u8_neonhalf(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
@@ -141,8 +141,8 @@ NK_PUBLIC void nk_sum_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, n
     }
 }
 
-NK_PUBLIC void nk_scale_u8_neon(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                nk_u8_t *result) {
+NK_PUBLIC void nk_scale_u8_neonhalf(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                    nk_u8_t *result) {
     float16_t alpha_f16 = (float16_t)*alpha;
     float16_t beta_f16 = (float16_t)*beta;
     float16x8_t alpha_f16x8 = vdupq_n_f16(alpha_f16);
@@ -165,7 +165,7 @@ NK_PUBLIC void nk_scale_u8_neon(nk_u8_t const *a, nk_size_t n, nk_f32_t const *a
     }
 }
 
-NK_PUBLIC void nk_wsum_u8_neon(                      //
+NK_PUBLIC void nk_wsum_u8_neonhalf(                  //
     nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result) {
 
@@ -176,15 +176,15 @@ NK_PUBLIC void nk_wsum_u8_neon(                      //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_u8_neon(a, b, n, result);
+        nk_sum_u8_neonhalf(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f32_t zero = 0;
-        if (beta_val == 0) { nk_scale_u8_neon(a, n, alpha, &zero, result); }
-        else { nk_scale_u8_neon(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_scale_u8_neonhalf(a, n, alpha, &zero, result); }
+        else { nk_scale_u8_neonhalf(b, n, beta, &zero, result); }
         return;
     }
 
@@ -213,7 +213,7 @@ NK_PUBLIC void nk_wsum_u8_neon(                      //
     }
 }
 
-NK_PUBLIC void nk_fma_u8_neon(                            //
+NK_PUBLIC void nk_fma_u8_neonhalf(                        //
     nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, //
     nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result) {
     float16_t alpha_f16 = (float16_t)*alpha;
@@ -242,7 +242,7 @@ NK_PUBLIC void nk_fma_u8_neon(                            //
     }
 }
 
-NK_PUBLIC void nk_sum_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result) {
+NK_PUBLIC void nk_sum_i8_neonhalf(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
@@ -259,8 +259,8 @@ NK_PUBLIC void nk_sum_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, n
     }
 }
 
-NK_PUBLIC void nk_scale_i8_neon(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                nk_i8_t *result) {
+NK_PUBLIC void nk_scale_i8_neonhalf(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                    nk_i8_t *result) {
     float16_t alpha_f16 = (float16_t)*alpha;
     float16_t beta_f16 = (float16_t)*beta;
     float16x8_t alpha_f16x8 = vdupq_n_f16(alpha_f16);
@@ -283,7 +283,7 @@ NK_PUBLIC void nk_scale_i8_neon(nk_i8_t const *a, nk_size_t n, nk_f32_t const *a
     }
 }
 
-NK_PUBLIC void nk_wsum_i8_neon(                      //
+NK_PUBLIC void nk_wsum_i8_neonhalf(                  //
     nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result) {
 
@@ -294,15 +294,15 @@ NK_PUBLIC void nk_wsum_i8_neon(                      //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_i8_neon(a, b, n, result);
+        nk_sum_i8_neonhalf(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f32_t zero = 0;
-        if (beta_val == 0) { nk_scale_i8_neon(a, n, alpha, &zero, result); }
-        else { nk_scale_i8_neon(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_scale_i8_neonhalf(a, n, alpha, &zero, result); }
+        else { nk_scale_i8_neonhalf(b, n, beta, &zero, result); }
         return;
     }
 
@@ -331,7 +331,7 @@ NK_PUBLIC void nk_wsum_i8_neon(                      //
     }
 }
 
-NK_PUBLIC void nk_fma_i8_neon(                            //
+NK_PUBLIC void nk_fma_i8_neonhalf(                        //
     nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, //
     nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result) {
     float16_t alpha_f16 = (float16_t)*alpha;

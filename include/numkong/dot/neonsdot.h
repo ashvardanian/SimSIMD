@@ -20,8 +20,8 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_dot_i8_neon(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
-                              nk_i32_t *result) {
+NK_PUBLIC void nk_dot_i8_neonsdot(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
+                                  nk_i32_t *result) {
     int32x4_t sum_i32x4 = vdupq_n_s32(0);
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 16 <= count_scalars; idx_scalars += 16) {
@@ -34,8 +34,8 @@ NK_PUBLIC void nk_dot_i8_neon(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars
     *result = sum;
 }
 
-NK_PUBLIC void nk_dot_u8_neon(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
-                              nk_u32_t *result) {
+NK_PUBLIC void nk_dot_u8_neonsdot(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
+                                  nk_u32_t *result) {
     uint32x4_t sum_u32x4 = vdupq_n_u32(0);
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 16 <= count_scalars; idx_scalars += 16) {
@@ -51,21 +51,21 @@ NK_PUBLIC void nk_dot_u8_neon(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars
 /**
  *  @brief Running state for 128-bit dot accumulation over i8 scalars on NEON.
  */
-typedef struct nk_dot_i8x16_state_neon_t {
+typedef struct nk_dot_i8x16_state_neonsdot_t {
     int32x4_t sum_i32x4;
-} nk_dot_i8x16_state_neon_t;
+} nk_dot_i8x16_state_neonsdot_t;
 
-NK_INTERNAL void nk_dot_i8x16_init_neon(nk_dot_i8x16_state_neon_t *state) { state->sum_i32x4 = vdupq_n_s32(0); }
+NK_INTERNAL void nk_dot_i8x16_init_neonsdot(nk_dot_i8x16_state_neonsdot_t *state) { state->sum_i32x4 = vdupq_n_s32(0); }
 
-NK_INTERNAL void nk_dot_i8x16_update_neon(nk_dot_i8x16_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+NK_INTERNAL void nk_dot_i8x16_update_neonsdot(nk_dot_i8x16_state_neonsdot_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
     int32x4_t sum_i32x4 = state->sum_i32x4;
     sum_i32x4 = vdotq_s32(sum_i32x4, vreinterpretq_s8_u32(a.u32x4), vreinterpretq_s8_u32(b.u32x4));
     state->sum_i32x4 = sum_i32x4;
 }
 
-NK_INTERNAL void nk_dot_i8x16_finalize_neon(                                            //
-    nk_dot_i8x16_state_neon_t const *state_a, nk_dot_i8x16_state_neon_t const *state_b, //
-    nk_dot_i8x16_state_neon_t const *state_c, nk_dot_i8x16_state_neon_t const *state_d, //
+NK_INTERNAL void nk_dot_i8x16_finalize_neonsdot(                                                //
+    nk_dot_i8x16_state_neonsdot_t const *state_a, nk_dot_i8x16_state_neonsdot_t const *state_b, //
+    nk_dot_i8x16_state_neonsdot_t const *state_c, nk_dot_i8x16_state_neonsdot_t const *state_d, //
     nk_i32_t *results) {
     results[0] = (nk_i32_t)vaddvq_s32(state_a->sum_i32x4);
     results[1] = (nk_i32_t)vaddvq_s32(state_b->sum_i32x4);
@@ -76,21 +76,21 @@ NK_INTERNAL void nk_dot_i8x16_finalize_neon(                                    
 /**
  *  @brief Running state for 128-bit dot accumulation over u8 scalars on NEON.
  */
-typedef struct nk_dot_u8x16_state_neon_t {
+typedef struct nk_dot_u8x16_state_neonsdot_t {
     uint32x4_t sum_u32x4;
-} nk_dot_u8x16_state_neon_t;
+} nk_dot_u8x16_state_neonsdot_t;
 
-NK_INTERNAL void nk_dot_u8x16_init_neon(nk_dot_u8x16_state_neon_t *state) { state->sum_u32x4 = vdupq_n_u32(0); }
+NK_INTERNAL void nk_dot_u8x16_init_neonsdot(nk_dot_u8x16_state_neonsdot_t *state) { state->sum_u32x4 = vdupq_n_u32(0); }
 
-NK_INTERNAL void nk_dot_u8x16_update_neon(nk_dot_u8x16_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+NK_INTERNAL void nk_dot_u8x16_update_neonsdot(nk_dot_u8x16_state_neonsdot_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
     uint32x4_t sum_u32x4 = state->sum_u32x4;
     sum_u32x4 = vdotq_u32(sum_u32x4, vreinterpretq_u8_u32(a.u32x4), vreinterpretq_u8_u32(b.u32x4));
     state->sum_u32x4 = sum_u32x4;
 }
 
-NK_INTERNAL void nk_dot_u8x16_finalize_neon(                                            //
-    nk_dot_u8x16_state_neon_t const *state_a, nk_dot_u8x16_state_neon_t const *state_b, //
-    nk_dot_u8x16_state_neon_t const *state_c, nk_dot_u8x16_state_neon_t const *state_d, //
+NK_INTERNAL void nk_dot_u8x16_finalize_neonsdot(                                                //
+    nk_dot_u8x16_state_neonsdot_t const *state_a, nk_dot_u8x16_state_neonsdot_t const *state_b, //
+    nk_dot_u8x16_state_neonsdot_t const *state_c, nk_dot_u8x16_state_neonsdot_t const *state_d, //
     nk_u32_t *results) {
     results[0] = (nk_u32_t)vaddvq_u32(state_a->sum_u32x4);
     results[1] = (nk_u32_t)vaddvq_u32(state_b->sum_u32x4);

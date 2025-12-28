@@ -525,7 +525,7 @@ NK_PUBLIC void nk_fma_u64_neon(                              //
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
 
-NK_PUBLIC void nk_sum_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result) {
+NK_PUBLIC void nk_sum_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
@@ -545,8 +545,8 @@ NK_PUBLIC void nk_sum_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_
     }
 }
 
-NK_PUBLIC void nk_scale_bf16_neon(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                  nk_bf16_t *result) {
+NK_PUBLIC void nk_scale_bf16_neonbfdot(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                       nk_bf16_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     float32x4_t alpha_f32x4 = vdupq_n_f32(alpha_val);
@@ -569,7 +569,7 @@ NK_PUBLIC void nk_scale_bf16_neon(nk_bf16_t const *a, nk_size_t n, nk_f32_t cons
     }
 }
 
-NK_PUBLIC void nk_wsum_bf16_neon(                        //
+NK_PUBLIC void nk_wsum_bf16_neonbfdot(                   //
     nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result) {
 
@@ -580,15 +580,15 @@ NK_PUBLIC void nk_wsum_bf16_neon(                        //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_bf16_neon(a, b, n, result);
+        nk_sum_bf16_neonbfdot(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f32_t zero = 0;
-        if (beta_val == 0) { nk_scale_bf16_neon(a, n, alpha, &zero, result); }
-        else { nk_scale_bf16_neon(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_scale_bf16_neonbfdot(a, n, alpha, &zero, result); }
+        else { nk_scale_bf16_neonbfdot(b, n, beta, &zero, result); }
         return;
     }
 
@@ -614,7 +614,7 @@ NK_PUBLIC void nk_wsum_bf16_neon(                        //
     }
 }
 
-NK_PUBLIC void nk_fma_bf16_neon(                                //
+NK_PUBLIC void nk_fma_bf16_neonbfdot(                           //
     nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, //
     nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result) {
     nk_f32_t alpha_val = *alpha;

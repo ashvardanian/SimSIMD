@@ -20,11 +20,7 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_l2_f16_sve(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_l2sq_f16_sve(a, b, n, result);
-    *result = nk_sqrt_f32_neon_(*result);
-}
-NK_PUBLIC void nk_l2sq_f16_sve(nk_f16_t const *a_enum, nk_f16_t const *b_enum, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_l2sq_f16_svehalf(nk_f16_t const *a_enum, nk_f16_t const *b_enum, nk_size_t n, nk_f32_t *result) {
     nk_size_t i = 0;
     svfloat16_t d2_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
     nk_f16_for_arm_simd_t const *a = (nk_f16_for_arm_simd_t const *)(a_enum);
@@ -41,7 +37,12 @@ NK_PUBLIC void nk_l2sq_f16_sve(nk_f16_t const *a_enum, nk_f16_t const *b_enum, n
     *result = d2_f16;
 }
 
-NK_PUBLIC void nk_angular_f16_sve(nk_f16_t const *a_enum, nk_f16_t const *b_enum, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_l2_f16_svehalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_l2sq_f16_svehalf(a, b, n, result);
+    *result = nk_sqrt_f32_neon_(*result);
+}
+
+NK_PUBLIC void nk_angular_f16_svehalf(nk_f16_t const *a_enum, nk_f16_t const *b_enum, nk_size_t n, nk_f32_t *result) {
     nk_size_t i = 0;
     svfloat16_t ab_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);
     svfloat16_t a2_vec = svdupq_n_f16(0, 0, 0, 0, 0, 0, 0, 0);

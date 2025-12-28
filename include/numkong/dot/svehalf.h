@@ -22,8 +22,8 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_dot_f16_sve(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
-                              nk_f32_t *result) {
+NK_PUBLIC void nk_dot_f16_svehalf(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
+                                  nk_f32_t *result) {
     nk_size_t idx_scalars = 0;
     svfloat16_t ab_vec = svdup_f16(0);
     do {
@@ -37,8 +37,8 @@ NK_PUBLIC void nk_dot_f16_sve(nk_f16_t const *a_scalars, nk_f16_t const *b_scala
     *result = ab;
 }
 
-NK_PUBLIC void nk_dot_f16c_sve(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
-                               nk_f32c_t *results) {
+NK_PUBLIC void nk_dot_f16c_svehalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
+                                   nk_f32c_t *results) {
     nk_size_t idx_pairs = 0;
     svfloat16_t ab_real_vec = svdup_f16(0);
     svfloat16_t ab_imag_vec = svdup_f16(0);
@@ -60,8 +60,8 @@ NK_PUBLIC void nk_dot_f16c_sve(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pair
     results[1] = svaddv_f16(svptrue_b16(), ab_imag_vec);
 }
 
-NK_PUBLIC void nk_vdot_f16c_sve(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
-                                nk_f32c_t *results) {
+NK_PUBLIC void nk_vdot_f16c_svehalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
+                                    nk_f32c_t *results) {
     nk_size_t idx_pairs = 0;
     svfloat16_t ab_real_vec = svdup_f16(0);
     svfloat16_t ab_imag_vec = svdup_f16(0);

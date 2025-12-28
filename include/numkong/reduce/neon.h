@@ -15,6 +15,7 @@
 #pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 
 #include "numkong/types.h"
+#include "numkong/reduce/serial.h" // Serial fallbacks
 
 #if defined(__cplusplus)
 extern "C" {
@@ -32,6 +33,13 @@ NK_INTERNAL void nk_partial_load_b16x8_neon_(void const *src, nk_size_t n, nk_b1
     nk_u16_t const *s = (nk_u16_t const *)src;
     dst->u16x8 = vdupq_n_u16(0);
     for (nk_size_t i = 0; i < n && i < 8; ++i) dst->u16s[i] = s[i];
+}
+
+/** @brief Type-agnostic partial load for 16-bit elements (4 elements max) into 64-bit vector (NEON). */
+NK_INTERNAL void nk_partial_load_b16x4_neon_(void const *src, nk_size_t n, nk_b64_vec_t *dst) {
+    nk_u16_t const *s = (nk_u16_t const *)src;
+    dst->u16x4 = vdup_n_u16(0);
+    for (nk_size_t i = 0; i < n && i < 4; ++i) dst->u16s[i] = s[i];
 }
 
 /** @brief Type-agnostic partial load for 8-bit elements (16 elements max) into 128-bit vector (NEON). */

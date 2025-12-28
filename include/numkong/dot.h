@@ -372,13 +372,15 @@ NK_INTERNAL void nk_dot_f32x4_finalize_neon(nk_dot_f32x4_state_neon_t const *sta
 #if NK_TARGET_NEONHALF
 /** @copydoc nk_dot_f16 */
 NK_PUBLIC void nk_dot_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_dot_f16 @note Uses FMLAL (FP16FML) for widening multiply-accumulate. */
-NK_PUBLIC void nk_dot_f16_fmlal(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_f16c */
-NK_PUBLIC void nk_dot_f16c_neon(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, nk_f32c_t *result);
+NK_PUBLIC void nk_dot_f16c_neonhalf(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, nk_f32c_t *result);
 /** @copydoc nk_vdot_f16c */
-NK_PUBLIC void nk_vdot_f16c_neon(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, nk_f32c_t *result);
+NK_PUBLIC void nk_vdot_f16c_neonhalf(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, nk_f32c_t *result);
 
+#if NK_TARGET_NEONFHM
+/** @copydoc nk_dot_f16 */
+NK_PUBLIC void nk_dot_f16_neonfhm(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+#endif // NK_TARGET_NEONFHM
 /**
  *  @brief Running state for 128-bit dot accumulation over f16 scalars on NEON.
  */
@@ -396,9 +398,9 @@ NK_INTERNAL void nk_dot_f16x8_finalize_neon(nk_dot_f16x8_state_neon_t const *sta
 
 #if NK_TARGET_NEONSDOT
 /** @copydoc nk_dot_i8 */
-NK_PUBLIC void nk_dot_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
+NK_PUBLIC void nk_dot_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
 /** @copydoc nk_dot_u8 */
-NK_PUBLIC void nk_dot_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+NK_PUBLIC void nk_dot_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 
 typedef struct nk_dot_i8x16_state_neon_t nk_dot_i8x16_state_neon_t;
 /** @copydoc nk_dot_i8x16_state_neon_t */
@@ -425,11 +427,11 @@ NK_INTERNAL void nk_dot_u8x16_finalize_neon(nk_dot_u8x16_state_neon_t const *sta
 
 #if NK_TARGET_NEONBFDOT
 /** @copydoc nk_dot_bf16 */
-NK_PUBLIC void nk_dot_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_dot_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_bf16c */
-NK_PUBLIC void nk_dot_bf16c_neon(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t n, nk_f32c_t *result);
+NK_PUBLIC void nk_dot_bf16c_neonbfdot(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t n, nk_f32c_t *result);
 /** @copydoc nk_vdot_bf16c */
-NK_PUBLIC void nk_vdot_bf16c_neon(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t n, nk_f32c_t *result);
+NK_PUBLIC void nk_vdot_bf16c_neonbfdot(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t n, nk_f32c_t *result);
 
 typedef struct nk_dot_bf16x8_state_neon_t nk_dot_bf16x8_state_neon_t;
 /** @copydoc nk_dot_bf16x8_state_neon_t */
@@ -841,7 +843,7 @@ NK_INTERNAL void nk_dot_i8x32_finalize_sierra(nk_dot_i8x32_state_sierra_t const 
 #include "numkong/dot/neon.h"
 #include "numkong/dot/neonsdot.h"
 #include "numkong/dot/neonhalf.h"
-#include "numkong/dot/neon_fmlal.h"
+#include "numkong/dot/neonfhm.h"
 #include "numkong/dot/neonbfdot.h"
 #include "numkong/dot/haswell.h"
 #include "numkong/dot/skylake.h"
@@ -854,7 +856,7 @@ NK_INTERNAL void nk_dot_i8x32_finalize_sierra(nk_dot_i8x32_state_sierra_t const 
 
 NK_PUBLIC void nk_dot_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result) {
 #if NK_TARGET_NEONSDOT
-    nk_dot_i8_neon(a, b, n, result);
+    nk_dot_i8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICE
     nk_dot_i8_ice(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -865,7 +867,7 @@ NK_PUBLIC void nk_dot_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32
 }
 NK_PUBLIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
 #if NK_TARGET_NEONSDOT
-    nk_dot_u8_neon(a, b, n, result);
+    nk_dot_u8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICE
     nk_dot_u8_ice(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -877,6 +879,8 @@ NK_PUBLIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32
 NK_PUBLIC void nk_dot_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_SVEHALF
     nk_dot_f16_sve(a, b, n, result);
+#elif NK_TARGET_NEONFHM
+    nk_dot_f16_neonfhm(a, b, n, result);
 #elif NK_TARGET_NEONHALF
     nk_dot_f16_neon(a, b, n, result);
 #elif NK_TARGET_SAPPHIRE
@@ -893,7 +897,7 @@ NK_PUBLIC void nk_dot_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, 
 #elif NK_TARGET_HASWELL
     nk_dot_bf16_haswell(a, b, n, result);
 #elif NK_TARGET_NEONBFDOT
-    nk_dot_bf16_neon(a, b, n, result);
+    nk_dot_bf16_neonbfdot(a, b, n, result);
 #else
     nk_dot_bf16_serial(a, b, n, result);
 #endif
@@ -950,7 +954,7 @@ NK_PUBLIC void nk_dot_f16c(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, 
 #if NK_TARGET_SVEHALF
     nk_dot_f16c_sve(a, b, n, result);
 #elif NK_TARGET_NEONHALF
-    nk_dot_f16c_neon(a, b, n, result);
+    nk_dot_f16c_neonhalf(a, b, n, result);
 #elif NK_TARGET_SAPPHIRE
     nk_dot_f16c_sapphire(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -963,7 +967,7 @@ NK_PUBLIC void nk_dot_bf16c(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t 
 #if NK_TARGET_GENOA
     nk_dot_bf16c_genoa(a, b, n, result);
 #elif NK_TARGET_NEONBFDOT
-    nk_dot_bf16c_neon(a, b, n, result);
+    nk_dot_bf16c_neonbfdot(a, b, n, result);
 #else
     nk_dot_bf16c_serial(a, b, n, result);
 #endif
@@ -994,7 +998,7 @@ NK_PUBLIC void nk_vdot_f16c(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n,
 #if NK_TARGET_SVE
     nk_vdot_f16c_sve(a, b, n, result);
 #elif NK_TARGET_NEONHALF
-    nk_vdot_f16c_neon(a, b, n, result);
+    nk_vdot_f16c_neonhalf(a, b, n, result);
 #elif NK_TARGET_SAPPHIRE
     nk_vdot_f16c_sapphire(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -1007,7 +1011,7 @@ NK_PUBLIC void nk_vdot_bf16c(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t
 #if NK_TARGET_GENOA
     nk_vdot_bf16c_genoa(a, b, n, result);
 #elif NK_TARGET_NEONBFDOT
-    nk_vdot_bf16c_neon(a, b, n, result);
+    nk_vdot_bf16c_neonbfdot(a, b, n, result);
 #else
     nk_vdot_bf16c_serial(a, b, n, result);
 #endif

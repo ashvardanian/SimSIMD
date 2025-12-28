@@ -650,6 +650,33 @@ typedef struct {
     nk_f64_t imag;
 } nk_f64c_t;
 
+/** @brief  Small 8-byte memory slice viewable as different types. */
+typedef union nk_b64_vec_t {
+#if NK_TARGET_NEON
+    uint8x8_t u8x8;
+    uint16x4_t u16x4;
+    uint32x2_t u32x2;
+    int8x8_t i8x8;
+    int16x4_t i16x4;
+    int32x2_t i32x2;
+    float32x2_t f32x2;
+#endif
+#if NK_TARGET_NEONHALF
+    float16x4_t f16x4;
+#endif
+    nk_u8_t u8s[8];
+    nk_u16_t u16s[4];
+    nk_u32_t u32s[2];
+    nk_u64_t u64s[1];
+    nk_i8_t i8s[8];
+    nk_i16_t i16s[4];
+    nk_i32_t i32s[2];
+    nk_i64_t i64s[1];
+    nk_f16_t f16s[4];
+    nk_bf16_t bf16s[4];
+    nk_f32_t f32s[2];
+} nk_b64_vec_t;
+
 /** @brief  Small 16-byte memory slice viewable as different types. */
 typedef union nk_b128_vec_t {
 #if NK_TARGET_HASWELL

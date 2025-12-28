@@ -15,23 +15,20 @@
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 
 #include "numkong/types.h"
+#include "numkong/reduce/neonhalf.h" // nk_partial_load_f16x4_to_f32x4_neonhalf_
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_l2_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_l2sq_f16_neon(a, b, n, result);
-    *result = nk_sqrt_f32_neon_(*result);
-}
-NK_PUBLIC void nk_l2sq_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_l2sq_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     float32x4_t a_f32x4, b_f32x4;
     float32x4_t distance_sq_f32x4 = vdupq_n_f32(0);
 
-nk_l2sq_f16_neon_cycle:
+nk_l2sq_f16_neonhalf_cycle:
     if (n < 4) {
-        a_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(a, n));
-        b_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(b, n));
+        nk_partial_load_f16x4_to_f32x4_neonhalf_(a, n, &a_f32x4);
+        nk_partial_load_f16x4_to_f32x4_neonhalf_(b, n, &b_f32x4);
         n = 0;
     }
     else {
@@ -41,19 +38,23 @@ nk_l2sq_f16_neon_cycle:
     }
     float32x4_t diff_f32x4 = vsubq_f32(a_f32x4, b_f32x4);
     distance_sq_f32x4 = vfmaq_f32(distance_sq_f32x4, diff_f32x4, diff_f32x4);
-    if (n) goto nk_l2sq_f16_neon_cycle;
+    if (n) goto nk_l2sq_f16_neonhalf_cycle;
 
     *result = vaddvq_f32(distance_sq_f32x4);
 }
+NK_PUBLIC void nk_l2_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_l2sq_f16_neonhalf(a, b, n, result);
+    *result = nk_sqrt_f32_neon_(*result);
+}
 
-NK_PUBLIC void nk_angular_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_angular_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     float32x4_t dot_product_f32x4 = vdupq_n_f32(0), a_norm_sq_f32x4 = vdupq_n_f32(0), b_norm_sq_f32x4 = vdupq_n_f32(0);
     float32x4_t a_f32x4, b_f32x4;
 
-nk_angular_f16_neon_cycle:
+nk_angular_f16_neonhalf_cycle:
     if (n < 4) {
-        a_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(a, n));
-        b_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(b, n));
+        nk_partial_load_f16x4_to_f32x4_neonhalf_(a, n, &a_f32x4);
+        nk_partial_load_f16x4_to_f32x4_neonhalf_(b, n, &b_f32x4);
         n = 0;
     }
     else {
@@ -64,7 +65,7 @@ nk_angular_f16_neon_cycle:
     dot_product_f32x4 = vfmaq_f32(dot_product_f32x4, a_f32x4, b_f32x4);
     a_norm_sq_f32x4 = vfmaq_f32(a_norm_sq_f32x4, a_f32x4, a_f32x4);
     b_norm_sq_f32x4 = vfmaq_f32(b_norm_sq_f32x4, b_f32x4, b_f32x4);
-    if (n) goto nk_angular_f16_neon_cycle;
+    if (n) goto nk_angular_f16_neonhalf_cycle;
 
     nk_f32_t dot_product_f32 = vaddvq_f32(dot_product_f32x4);
     nk_f32_t a_norm_sq_f32 = vaddvq_f32(a_norm_sq_f32x4);
@@ -72,20 +73,23 @@ nk_angular_f16_neon_cycle:
     *result = nk_angular_normalize_f32_neon_(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
-typedef nk_dot_f16x8_state_neon_t nk_angular_f16x8_state_neon_t;
-NK_INTERNAL void nk_angular_f16x8_init_neon(nk_angular_f16x8_state_neon_t *state) { nk_dot_f16x8_init_neon(state); }
-NK_INTERNAL void nk_angular_f16x8_update_neon(nk_angular_f16x8_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
-    nk_dot_f16x8_update_neon(state, a, b);
+typedef nk_dot_f16x8_state_neonhalf_t nk_angular_f16x8_state_neonhalf_t;
+NK_INTERNAL void nk_angular_f16x8_init_neonhalf(nk_angular_f16x8_state_neonhalf_t *state) {
+    nk_dot_f16x8_init_neonhalf(state);
 }
-NK_INTERNAL void nk_angular_f16x8_finalize_neon(nk_angular_f16x8_state_neon_t const *state_a,
-                                                nk_angular_f16x8_state_neon_t const *state_b,
-                                                nk_angular_f16x8_state_neon_t const *state_c,
-                                                nk_angular_f16x8_state_neon_t const *state_d, nk_f32_t query_norm,
-                                                nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                                nk_f32_t target_norm_d, nk_f32_t *results) {
+NK_INTERNAL void nk_angular_f16x8_update_neonhalf(nk_angular_f16x8_state_neonhalf_t *state, nk_b128_vec_t a,
+                                                  nk_b128_vec_t b) {
+    nk_dot_f16x8_update_neonhalf(state, a, b);
+}
+NK_INTERNAL void nk_angular_f16x8_finalize_neonhalf(nk_angular_f16x8_state_neonhalf_t const *state_a,
+                                                    nk_angular_f16x8_state_neonhalf_t const *state_b,
+                                                    nk_angular_f16x8_state_neonhalf_t const *state_c,
+                                                    nk_angular_f16x8_state_neonhalf_t const *state_d,
+                                                    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b,
+                                                    nk_f32_t target_norm_c, nk_f32_t target_norm_d, nk_f32_t *results) {
     // Extract all 4 dot products with single call
     nk_f32_t dots[4];
-    nk_dot_f16x8_finalize_neon(state_a, state_b, state_c, state_d, dots);
+    nk_dot_f16x8_finalize_neonhalf(state_a, state_b, state_c, state_d, dots);
 
     // Build F32 vectors for parallel processing
     float32x4_t dots_vec = vld1q_f32(dots);
@@ -118,20 +122,20 @@ NK_INTERNAL void nk_angular_f16x8_finalize_neon(nk_angular_f16x8_state_neon_t co
     vst1q_f32(results, result_vec);
 }
 
-typedef nk_dot_f16x8_state_neon_t nk_l2_f16x8_state_neon_t;
-NK_INTERNAL void nk_l2_f16x8_init_neon(nk_l2_f16x8_state_neon_t *state) { nk_dot_f16x8_init_neon(state); }
-NK_INTERNAL void nk_l2_f16x8_update_neon(nk_l2_f16x8_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
-    nk_dot_f16x8_update_neon(state, a, b);
+typedef nk_dot_f16x8_state_neonhalf_t nk_l2_f16x8_state_neonhalf_t;
+NK_INTERNAL void nk_l2_f16x8_init_neonhalf(nk_l2_f16x8_state_neonhalf_t *state) { nk_dot_f16x8_init_neonhalf(state); }
+NK_INTERNAL void nk_l2_f16x8_update_neonhalf(nk_l2_f16x8_state_neonhalf_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+    nk_dot_f16x8_update_neonhalf(state, a, b);
 }
-NK_INTERNAL void nk_l2_f16x8_finalize_neon(nk_l2_f16x8_state_neon_t const *state_a,
-                                           nk_l2_f16x8_state_neon_t const *state_b,
-                                           nk_l2_f16x8_state_neon_t const *state_c,
-                                           nk_l2_f16x8_state_neon_t const *state_d, nk_f32_t query_norm,
-                                           nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                           nk_f32_t target_norm_d, nk_f32_t *results) {
+NK_INTERNAL void nk_l2_f16x8_finalize_neonhalf(nk_l2_f16x8_state_neonhalf_t const *state_a,
+                                               nk_l2_f16x8_state_neonhalf_t const *state_b,
+                                               nk_l2_f16x8_state_neonhalf_t const *state_c,
+                                               nk_l2_f16x8_state_neonhalf_t const *state_d, nk_f32_t query_norm,
+                                               nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
+                                               nk_f32_t target_norm_d, nk_f32_t *results) {
     // Extract all 4 dot products
     nk_f32_t dots[4];
-    nk_dot_f16x8_finalize_neon(state_a, state_b, state_c, state_d, dots);
+    nk_dot_f16x8_finalize_neonhalf(state_a, state_b, state_c, state_d, dots);
 
     // Build F32 vectors
     float32x4_t dots_vec = vld1q_f32(dots);

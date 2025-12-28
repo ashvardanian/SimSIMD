@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-NK_INTERNAL void nk_reduce_add_bf16_neon_contiguous_( //
+NK_INTERNAL void nk_reduce_add_bf16_neonbfdot_contiguous_( //
     nk_bf16_t const *data, nk_size_t count, nk_f32_t *result) {
     // Use vbfdotq_f32 with ones vector: dot(data, ones) = sum(data)
     // bf16 representation of 1.0 is 0x3F80 (same as upper 16 bits of f32 1.0)
@@ -44,7 +44,7 @@ NK_INTERNAL void nk_reduce_add_bf16_neon_contiguous_( //
     *result = vaddvq_f32(sum_f32x4);
 }
 
-NK_INTERNAL void nk_reduce_add_bf16_neon_strided_(                     //
+NK_INTERNAL void nk_reduce_add_bf16_neonbfdot_strided_(                //
     nk_bf16_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f32_t *result) {
     // For strided bf16, use vld2/vld3/vld4 to de-interleave, then dot with ones
@@ -88,14 +88,14 @@ NK_INTERNAL void nk_reduce_add_bf16_neon_strided_(                     //
     *result = sum;
 }
 
-NK_PUBLIC void nk_reduce_add_bf16_neon(                             //
+NK_PUBLIC void nk_reduce_add_bf16_neonbfdot(                        //
     nk_bf16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_f32_t *result) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_bf16_t);
     int aligned = (stride_bytes % sizeof(nk_bf16_t) == 0);
     if (!aligned) nk_reduce_add_bf16_serial(data, count, stride_bytes, result);
-    else if (stride_elements == 1) nk_reduce_add_bf16_neon_contiguous_(data, count, result);
-    else if (stride_elements <= 4) nk_reduce_add_bf16_neon_strided_(data, count, stride_elements, result);
+    else if (stride_elements == 1) nk_reduce_add_bf16_neonbfdot_contiguous_(data, count, result);
+    else if (stride_elements <= 4) nk_reduce_add_bf16_neonbfdot_strided_(data, count, stride_elements, result);
     else nk_reduce_add_bf16_serial(data, count, stride_bytes, result);
 }
 

@@ -40,9 +40,9 @@
 #define NK_CURVED_H
 
 #include "numkong/types.h"
-#include "numkong/dot.h"     // nk_partial_load_f16x4_neonhalf_ and friends
+#include "numkong/dot.h"
 #include "numkong/spatial.h" // nk_substract_bf16x32_genoa_
-#include "numkong/reduce.h"  // nk_reduce_add_f16x8_neonhalf_ and friends
+#include "numkong/reduce.h"  // nk_reduce_add_f16x8_neonhalf_
 
 #if defined(__cplusplus)
 extern "C" {
@@ -231,26 +231,26 @@ NK_PUBLIC void nk_mahalanobis_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_
 
 #if NK_TARGET_NEONHALF
 /** @copydoc nk_bilinear_f16 */
-NK_PUBLIC void nk_bilinear_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                    nk_f32_t *result);
+NK_PUBLIC void nk_bilinear_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
+                                        nk_f32_t *result);
 /** @copydoc nk_bilinear_f16c */
-NK_PUBLIC void nk_bilinear_f16c_neon(nk_f16c_t const *a, nk_f16c_t const *b, nk_f16c_t const *c, nk_size_t n,
-                                     nk_f32c_t *results);
+NK_PUBLIC void nk_bilinear_f16c_neonhalf(nk_f16c_t const *a, nk_f16c_t const *b, nk_f16c_t const *c, nk_size_t n,
+                                         nk_f32c_t *results);
 /** @copydoc nk_mahalanobis_f16 */
-NK_PUBLIC void nk_mahalanobis_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                       nk_f32_t *result);
+NK_PUBLIC void nk_mahalanobis_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
+                                           nk_f32_t *result);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT
 /** @copydoc nk_bilinear_bf16 */
-NK_PUBLIC void nk_bilinear_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
-                                     nk_f32_t *result);
+NK_PUBLIC void nk_bilinear_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
+                                          nk_f32_t *result);
 /** @copydoc nk_bilinear_bf16c */
-NK_PUBLIC void nk_bilinear_bf16c_neon(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_bf16c_t const *c, nk_size_t n,
-                                      nk_f32c_t *results);
+NK_PUBLIC void nk_bilinear_bf16c_neonbfdot(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_bf16c_t const *c, nk_size_t n,
+                                           nk_f32c_t *results);
 /** @copydoc nk_mahalanobis_bf16 */
-NK_PUBLIC void nk_mahalanobis_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
-                                        nk_f32_t *result);
+NK_PUBLIC void nk_mahalanobis_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
+                                             nk_f32_t *result);
 #endif // NK_TARGET_NEONBFDOT
 
 #if NK_TARGET_HASWELL
@@ -541,8 +541,8 @@ NK_PUBLIC void nk_bilinear_f32c_neon(nk_f32c_t const *a, nk_f32c_t const *b, nk_
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 
-NK_PUBLIC void nk_bilinear_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                    nk_f32_t *result) {
+NK_PUBLIC void nk_bilinear_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
+                                        nk_f32_t *result) {
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     for (nk_size_t i = 0; i != n; ++i) {
         // MSVC doesn't recognize `vdup_n_f16` as a valid intrinsic
@@ -562,9 +562,11 @@ NK_PUBLIC void nk_bilinear_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_f16
     nk_size_t const tail_start = n - tail_length;
     if (tail_length) {
         for (nk_size_t i = 0; i != n; ++i) {
-            nk_f32_t a_i = vaddvq_f32(vcvt_f32_f16(nk_partial_load_f16x4_neon_(a + i, 1)));
-            float32x4_t b_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(b + tail_start, tail_length));
-            float32x4_t c_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(c + i * n + tail_start, tail_length));
+            float32x4_t a_i_f32x4, b_f32x4, c_f32x4;
+            nk_partial_load_f16x4_to_f32x4_neonhalf_(a + i, 1, &a_i_f32x4);
+            nk_partial_load_f16x4_to_f32x4_neonhalf_(b + tail_start, tail_length, &b_f32x4);
+            nk_partial_load_f16x4_to_f32x4_neonhalf_(c + i * n + tail_start, tail_length, &c_f32x4);
+            nk_f32_t a_i = vaddvq_f32(a_i_f32x4);
             nk_f32_t cb_j = vaddvq_f32(vmulq_f32(b_f32x4, c_f32x4));
             sum += a_i * cb_j;
         }
@@ -573,8 +575,8 @@ NK_PUBLIC void nk_bilinear_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_f16
     *result = sum;
 }
 
-NK_PUBLIC void nk_mahalanobis_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                       nk_f32_t *result) {
+NK_PUBLIC void nk_mahalanobis_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
+                                           nk_f32_t *result) {
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     for (nk_size_t i = 0; i != n; ++i) {
         // MSVC doesn't recognize `vdup_n_f16` as a valid intrinsic
@@ -598,13 +600,16 @@ NK_PUBLIC void nk_mahalanobis_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_
     nk_size_t const tail_start = n - tail_length;
     if (tail_length) {
         for (nk_size_t i = 0; i != n; ++i) {
-            nk_f32_t a_i = vaddvq_f32(vcvt_f32_f16(nk_partial_load_f16x4_neon_(a + i, 1)));
-            nk_f32_t b_i = vaddvq_f32(vcvt_f32_f16(nk_partial_load_f16x4_neon_(b + i, 1)));
+            float32x4_t a_i_f32x4, b_i_f32x4, a_j_f32x4, b_j_f32x4, c_f32x4;
+            nk_partial_load_f16x4_to_f32x4_neonhalf_(a + i, 1, &a_i_f32x4);
+            nk_partial_load_f16x4_to_f32x4_neonhalf_(b + i, 1, &b_i_f32x4);
+            nk_f32_t a_i = vaddvq_f32(a_i_f32x4);
+            nk_f32_t b_i = vaddvq_f32(b_i_f32x4);
             nk_f32_t diff_i = a_i - b_i;
-            float32x4_t a_j_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(a + tail_start, tail_length));
-            float32x4_t b_j_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(b + tail_start, tail_length));
+            nk_partial_load_f16x4_to_f32x4_neonhalf_(a + tail_start, tail_length, &a_j_f32x4);
+            nk_partial_load_f16x4_to_f32x4_neonhalf_(b + tail_start, tail_length, &b_j_f32x4);
             float32x4_t diff_j_f32x4 = vsubq_f32(a_j_f32x4, b_j_f32x4);
-            float32x4_t c_f32x4 = vcvt_f32_f16(nk_partial_load_f16x4_neon_(c + i * n + tail_start, tail_length));
+            nk_partial_load_f16x4_to_f32x4_neonhalf_(c + i * n + tail_start, tail_length, &c_f32x4);
             nk_f32_t cdiff_j = vaddvq_f32(vmulq_f32(diff_j_f32x4, c_f32x4));
             sum += diff_i * cdiff_j;
         }
@@ -624,8 +629,8 @@ NK_INTERNAL float16x8x2_t nk_partial_load_f16x8x2_neon_(nk_f16c_t const *x, nk_s
     return result.vecs;
 }
 
-NK_PUBLIC void nk_bilinear_f16c_neon(nk_f16c_t const *a, nk_f16c_t const *b, nk_f16c_t const *c, nk_size_t n,
-                                     nk_f32c_t *results) {
+NK_PUBLIC void nk_bilinear_f16c_neonhalf(nk_f16c_t const *a, nk_f16c_t const *b, nk_f16c_t const *c, nk_size_t n,
+                                         nk_f32c_t *results) {
     nk_f32_t sum_real = 0;
     nk_f32_t sum_imag = 0;
     nk_size_t const tail_length = n % 8;
@@ -669,8 +674,8 @@ NK_PUBLIC void nk_bilinear_f16c_neon(nk_f16c_t const *a, nk_f16c_t const *b, nk_
         }
 
         nk_f32c_t cb_j;
-        cb_j.real = nk_reduce_add_f16x8_neon_(cb_j_real_f16x8);
-        cb_j.imag = nk_reduce_add_f16x8_neon_(cb_j_imag_f16x8);
+        cb_j.real = nk_reduce_add_f16x8_neonhalf_(cb_j_real_f16x8);
+        cb_j.imag = nk_reduce_add_f16x8_neonhalf_(cb_j_imag_f16x8);
         sum_real += a_i.real * cb_j.real - a_i.imag * cb_j.imag;
         sum_imag += a_i.real * cb_j.imag + a_i.imag * cb_j.real;
     }
@@ -688,8 +693,8 @@ NK_PUBLIC void nk_bilinear_f16c_neon(nk_f16c_t const *a, nk_f16c_t const *b, nk_
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
 
-NK_PUBLIC void nk_bilinear_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
-                                     nk_f32_t *result) {
+NK_PUBLIC void nk_bilinear_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
+                                          nk_f32_t *result) {
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     for (nk_size_t i = 0; i != n; ++i) {
         nk_f32_t a_f32;
@@ -712,8 +717,11 @@ NK_PUBLIC void nk_bilinear_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_
         for (nk_size_t i = 0; i != n; ++i) {
             nk_f32_t a_i;
             nk_bf16_to_f32(a + i, &a_i);
-            bfloat16x8_t b_bf16x8 = nk_partial_load_bf16x8_neon_(b + tail_start, tail_length);
-            bfloat16x8_t c_bf16x8 = nk_partial_load_bf16x8_neon_(c + i * n + tail_start, tail_length);
+            nk_b128_vec_t b_vec, c_vec;
+            nk_partial_load_b16x8_neon_(b + tail_start, tail_length, &b_vec);
+            nk_partial_load_b16x8_neon_(c + i * n + tail_start, tail_length, &c_vec);
+            bfloat16x8_t b_bf16x8 = vreinterpretq_bf16_u16(b_vec.u16x8);
+            bfloat16x8_t c_bf16x8 = vreinterpretq_bf16_u16(c_vec.u16x8);
             nk_f32_t cb_j = vaddvq_f32(vbfdotq_f32(vdupq_n_f32(0), b_bf16x8, c_bf16x8));
             sum += a_i * cb_j;
         }
@@ -722,8 +730,8 @@ NK_PUBLIC void nk_bilinear_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_
     *result = sum;
 }
 
-NK_PUBLIC void nk_mahalanobis_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
-                                        nk_f32_t *result) {
+NK_PUBLIC void nk_mahalanobis_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
+                                             nk_f32_t *result) {
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     for (nk_size_t i = 0; i != n; ++i) {
         nk_f32_t a_i, b_i;
@@ -763,8 +771,11 @@ NK_PUBLIC void nk_mahalanobis_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, 
             nk_bf16_to_f32(a + i, &a_i);
             nk_bf16_to_f32(b + i, &b_i);
             nk_f32_t diff_i = a_i - b_i;
-            bfloat16x8_t a_j_bf16x8 = nk_partial_load_bf16x8_neon_(a + tail_start, tail_length);
-            bfloat16x8_t b_j_bf16x8 = nk_partial_load_bf16x8_neon_(b + tail_start, tail_length);
+            nk_b128_vec_t a_j_vec, b_j_vec, c_vec;
+            nk_partial_load_b16x8_neon_(a + tail_start, tail_length, &a_j_vec);
+            nk_partial_load_b16x8_neon_(b + tail_start, tail_length, &b_j_vec);
+            bfloat16x8_t a_j_bf16x8 = vreinterpretq_bf16_u16(a_j_vec.u16x8);
+            bfloat16x8_t b_j_bf16x8 = vreinterpretq_bf16_u16(b_j_vec.u16x8);
 
             // Again, upcast for subtraction
             float32x4_t a_j_high_f32x4 = vcvt_f32_bf16(vget_high_bf16(a_j_bf16x8));
@@ -776,7 +787,8 @@ NK_PUBLIC void nk_mahalanobis_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, 
             bfloat16x8_t diff_j_bf16x8 = vcombine_bf16(vcvt_bf16_f32(diff_j_low_f32x4),
                                                        vcvt_bf16_f32(diff_j_high_f32x4));
 
-            bfloat16x8_t c_bf16x8 = nk_partial_load_bf16x8_neon_(c + i * n + tail_start, tail_length);
+            nk_partial_load_b16x8_neon_(c + i * n + tail_start, tail_length, &c_vec);
+            bfloat16x8_t c_bf16x8 = vreinterpretq_bf16_u16(c_vec.u16x8);
             nk_f32_t cdiff_j = vaddvq_f32(vbfdotq_f32(vdupq_n_f32(0), diff_j_bf16x8, c_bf16x8));
             sum += diff_i * cdiff_j;
         }
@@ -796,8 +808,8 @@ NK_INTERNAL int16x4x2_t nk_partial_load_bf16x4x2_neon_(nk_bf16c_t const *x, nk_s
     return result.vec;
 }
 
-NK_PUBLIC void nk_bilinear_bf16c_neon(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_bf16c_t const *c, nk_size_t n,
-                                      nk_f32c_t *results) {
+NK_PUBLIC void nk_bilinear_bf16c_neonbfdot(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_bf16c_t const *c, nk_size_t n,
+                                           nk_f32c_t *results) {
     nk_f32_t sum_real = 0;
     nk_f32_t sum_imag = 0;
     nk_size_t const tail_length = n % 4;
@@ -889,8 +901,8 @@ NK_PUBLIC void nk_bilinear_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_
     if (tail_length) {
         for (nk_size_t i = 0; i != n; ++i) {
             nk_f32_t a_i = _mm256_cvtss_f32(_mm256_cvtph_ps(_mm_set1_epi16(*(short const *)(a + i))));
-            __m256 b_f32x8 = nk_partial_load_f16x8_haswell_(b + tail_start, tail_length);
-            __m256 c_f32x8 = nk_partial_load_f16x8_haswell_(c + i * n + tail_start, tail_length);
+            __m256 b_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(b + tail_start, tail_length);
+            __m256 c_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(c + i * n + tail_start, tail_length);
             nk_f32_t cb_j = nk_reduce_add_f32x8_haswell_(_mm256_mul_ps(b_f32x8, c_f32x8));
             sum += a_i * cb_j;
         }
@@ -927,9 +939,9 @@ NK_PUBLIC void nk_mahalanobis_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, 
                 _mm256_cvtph_ps(_mm_set1_epi16(*(short const *)(a + i))), //
                 _mm256_cvtph_ps(_mm_set1_epi16(*(short const *)(b + i)))));
             __m256 diff_j_f32x8 = _mm256_sub_ps( //
-                nk_partial_load_f16x8_haswell_(a + tail_start, tail_length),
-                nk_partial_load_f16x8_haswell_(b + tail_start, tail_length));
-            __m256 c_f32x8 = nk_partial_load_f16x8_haswell_(c + i * n + tail_start, tail_length);
+                nk_partial_load_f16x8_to_f32x8_haswell_(a + tail_start, tail_length),
+                nk_partial_load_f16x8_to_f32x8_haswell_(b + tail_start, tail_length));
+            __m256 c_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(c + i * n + tail_start, tail_length);
             nk_f32_t cdiff_j = nk_reduce_add_f32x8_haswell_(_mm256_mul_ps(diff_j_f32x8, c_f32x8));
             sum += diff_i * cdiff_j;
         }
@@ -963,10 +975,8 @@ NK_PUBLIC void nk_bilinear_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, 
         for (nk_size_t i = 0; i != n; ++i) {
             nk_f32_t a_i;
             nk_bf16_to_f32(a + i, &a_i);
-            __m256 b_f32x8 = nk_bf16x8_to_f32x8_haswell_( //
-                nk_partial_load_bf16x8_haswell_(b + tail_start, tail_length));
-            __m256 c_f32x8 = nk_bf16x8_to_f32x8_haswell_( //
-                nk_partial_load_bf16x8_haswell_(c + i * n + tail_start, tail_length));
+            __m256 b_f32x8 = nk_partial_load_bf16x8_to_f32x8_haswell_(b + tail_start, tail_length);
+            __m256 c_f32x8 = nk_partial_load_bf16x8_to_f32x8_haswell_(c + i * n + tail_start, tail_length);
             nk_f32_t cb_j = nk_reduce_add_f32x8_haswell_(_mm256_mul_ps(b_f32x8, c_f32x8));
             sum += a_i * cb_j;
         }
@@ -1007,10 +1017,9 @@ NK_PUBLIC void nk_mahalanobis_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *
             nk_bf16_to_f32(b + i, &b_i);
             nk_f32_t diff_i = a_i - b_i;
             __m256 diff_j_f32x8 = _mm256_sub_ps( //
-                nk_bf16x8_to_f32x8_haswell_(nk_partial_load_bf16x8_haswell_(a + tail_start, tail_length)),
-                nk_bf16x8_to_f32x8_haswell_(nk_partial_load_bf16x8_haswell_(b + tail_start, tail_length)));
-            __m256 c_f32x8 = nk_bf16x8_to_f32x8_haswell_(
-                nk_partial_load_bf16x8_haswell_(c + i * n + tail_start, tail_length));
+                nk_partial_load_bf16x8_to_f32x8_haswell_(a + tail_start, tail_length),
+                nk_partial_load_bf16x8_to_f32x8_haswell_(b + tail_start, tail_length));
+            __m256 c_f32x8 = nk_partial_load_bf16x8_to_f32x8_haswell_(c + i * n + tail_start, tail_length);
             nk_f32_t cdiff_j = nk_reduce_add_f32x8_haswell_(_mm256_mul_ps(diff_j_f32x8, c_f32x8));
             sum += diff_i * cdiff_j;
         }
@@ -1773,7 +1782,7 @@ NK_PUBLIC void nk_bilinear_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t co
 #elif NK_TARGET_HASWELL
     nk_bilinear_f16_haswell(a, b, c, n, result);
 #elif NK_TARGET_NEONHALF
-    nk_bilinear_f16_neon(a, b, c, n, result);
+    nk_bilinear_f16_neonhalf(a, b, c, n, result);
 #else
     nk_bilinear_f16_serial(a, b, c, n, result);
 #endif
@@ -1786,7 +1795,7 @@ NK_PUBLIC void nk_bilinear_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_
 #elif NK_TARGET_HASWELL
     nk_bilinear_bf16_haswell(a, b, c, n, result);
 #elif NK_TARGET_NEONBFDOT
-    nk_bilinear_bf16_neon(a, b, c, n, result);
+    nk_bilinear_bf16_neonbfdot(a, b, c, n, result);
 #else
     nk_bilinear_bf16_serial(a, b, c, n, result);
 #endif
@@ -1850,7 +1859,7 @@ NK_PUBLIC void nk_bilinear_f16c(nk_f16c_t const *a, nk_f16c_t const *b, nk_f16c_
 #if NK_TARGET_SAPPHIRE
     nk_bilinear_f16c_sapphire(a, b, c, n, results);
 #elif NK_TARGET_NEONHALF
-    nk_bilinear_f16c_neon(a, b, c, n, results);
+    nk_bilinear_f16c_neonhalf(a, b, c, n, results);
 #else
     nk_bilinear_f16c_serial(a, b, c, n, results);
 #endif
@@ -1872,7 +1881,7 @@ NK_PUBLIC void nk_bilinear_bf16c(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_bf
 #if NK_TARGET_GENOA
     nk_bilinear_bf16c_genoa(a, b, c, n, results);
 #elif NK_TARGET_NEONBFDOT
-    nk_bilinear_bf16c_neon(a, b, c, n, results);
+    nk_bilinear_bf16c_neonbfdot(a, b, c, n, results);
 #else
     nk_bilinear_bf16c_serial(a, b, c, n, results);
 #endif
@@ -1905,7 +1914,7 @@ NK_PUBLIC void nk_mahalanobis_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t
 #elif NK_TARGET_HASWELL
     nk_mahalanobis_f16_haswell(a, b, c, n, result);
 #elif NK_TARGET_NEONHALF
-    nk_mahalanobis_f16_neon(a, b, c, n, result);
+    nk_mahalanobis_f16_neonhalf(a, b, c, n, result);
 #else
     nk_mahalanobis_f16_serial(a, b, c, n, result);
 #endif
@@ -1918,7 +1927,7 @@ NK_PUBLIC void nk_mahalanobis_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf
 #elif NK_TARGET_HASWELL
     nk_mahalanobis_bf16_haswell(a, b, c, n, result);
 #elif NK_TARGET_NEONBFDOT
-    nk_mahalanobis_bf16_neon(a, b, c, n, result);
+    nk_mahalanobis_bf16_neonbfdot(a, b, c, n, result);
 #else
     nk_mahalanobis_bf16_serial(a, b, c, n, result);
 #endif

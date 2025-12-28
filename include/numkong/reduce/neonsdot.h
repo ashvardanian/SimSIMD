@@ -20,7 +20,7 @@
 extern "C" {
 #endif
 
-NK_INTERNAL void nk_reduce_add_i8_neon_contiguous_( //
+NK_INTERNAL void nk_reduce_add_i8_neonsdot_contiguous_( //
     nk_i8_t const *data, nk_size_t count, nk_i64_t *result) {
     // Use vdotq_s32 with ones vector: dot(data, ones) = sum(data)
     // vdotq_s32 computes 4 dot products of 4 i8 pairs each, accumulating into i32
@@ -42,7 +42,7 @@ NK_INTERNAL void nk_reduce_add_i8_neon_contiguous_( //
     *result = sum;
 }
 
-NK_INTERNAL void nk_reduce_add_i8_neon_strided_(                     //
+NK_INTERNAL void nk_reduce_add_i8_neonsdot_strided_(                 //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_i64_t *result) {
     int8x16_t ones_i8x16 = vdupq_n_s8(1);
@@ -73,18 +73,18 @@ NK_INTERNAL void nk_reduce_add_i8_neon_strided_(                     //
     *result = sum;
 }
 
-NK_PUBLIC void nk_reduce_add_i8_neon(                             //
+NK_PUBLIC void nk_reduce_add_i8_neonsdot(                         //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i64_t *result) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_i8_t);
     int aligned = (stride_bytes % sizeof(nk_i8_t) == 0);
     if (!aligned) nk_reduce_add_i8_serial(data, count, stride_bytes, result);
-    else if (stride_elements == 1) nk_reduce_add_i8_neon_contiguous_(data, count, result);
-    else if (stride_elements <= 4) nk_reduce_add_i8_neon_strided_(data, count, stride_elements, result);
+    else if (stride_elements == 1) nk_reduce_add_i8_neonsdot_contiguous_(data, count, result);
+    else if (stride_elements <= 4) nk_reduce_add_i8_neonsdot_strided_(data, count, stride_elements, result);
     else nk_reduce_add_i8_serial(data, count, stride_bytes, result);
 }
 
-NK_INTERNAL void nk_reduce_add_u8_neon_contiguous_( //
+NK_INTERNAL void nk_reduce_add_u8_neonsdot_contiguous_( //
     nk_u8_t const *data, nk_size_t count, nk_u64_t *result) {
     // Use vdotq_u32 with ones vector
     uint8x16_t ones_u8x16 = vdupq_n_u8(1);
@@ -101,7 +101,7 @@ NK_INTERNAL void nk_reduce_add_u8_neon_contiguous_( //
     *result = sum;
 }
 
-NK_INTERNAL void nk_reduce_add_u8_neon_strided_(                     //
+NK_INTERNAL void nk_reduce_add_u8_neonsdot_strided_(                 //
     nk_u8_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_u64_t *result) {
     uint8x16_t ones_u8x16 = vdupq_n_u8(1);
@@ -132,14 +132,14 @@ NK_INTERNAL void nk_reduce_add_u8_neon_strided_(                     //
     *result = sum;
 }
 
-NK_PUBLIC void nk_reduce_add_u8_neon(                             //
+NK_PUBLIC void nk_reduce_add_u8_neonsdot(                         //
     nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u64_t *result) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_u8_t);
     int aligned = (stride_bytes % sizeof(nk_u8_t) == 0);
     if (!aligned) nk_reduce_add_u8_serial(data, count, stride_bytes, result);
-    else if (stride_elements == 1) nk_reduce_add_u8_neon_contiguous_(data, count, result);
-    else if (stride_elements <= 4) nk_reduce_add_u8_neon_strided_(data, count, stride_elements, result);
+    else if (stride_elements == 1) nk_reduce_add_u8_neonsdot_contiguous_(data, count, result);
+    else if (stride_elements <= 4) nk_reduce_add_u8_neonsdot_strided_(data, count, stride_elements, result);
     else nk_reduce_add_u8_serial(data, count, stride_bytes, result);
 }
 

@@ -233,20 +233,23 @@ NK_PUBLIC void nk_reduce_max_f32_neon(nk_f32_t const *data, nk_size_t count, nk_
 
 #if NK_TARGET_NEONHALF
 /** @brief f16 sum using native f16 arithmetic, result widened to f32 */
-NK_PUBLIC void nk_reduce_add_f16_neon(nk_f16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_f32_t *result);
+NK_PUBLIC void nk_reduce_add_f16_neonhalf(nk_f16_t const *data, nk_size_t count, nk_size_t stride_bytes,
+                                          nk_f32_t *result);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT
 /** @brief bf16 sum using vbfdotq_f32, result widened to f32 */
-NK_PUBLIC void nk_reduce_add_bf16_neon(nk_bf16_t const *data, nk_size_t count, nk_size_t stride_bytes,
-                                       nk_f32_t *result);
+NK_PUBLIC void nk_reduce_add_bf16_neonbfdot(nk_bf16_t const *data, nk_size_t count, nk_size_t stride_bytes,
+                                            nk_f32_t *result);
 #endif // NK_TARGET_NEONBFDOT
 
 #if NK_TARGET_NEONSDOT
 /** @brief i8 sum using vdotq_s32, result widened to i64 */
-NK_PUBLIC void nk_reduce_add_i8_neon(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result);
+NK_PUBLIC void nk_reduce_add_i8_neonsdot(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes,
+                                         nk_i64_t *result);
 /** @brief u8 sum using vdotq_u32, result widened to u64 */
-NK_PUBLIC void nk_reduce_add_u8_neon(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result);
+NK_PUBLIC void nk_reduce_add_u8_neonsdot(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes,
+                                         nk_u64_t *result);
 #endif // NK_TARGET_NEONSDOT
 
 #if NK_TARGET_HASWELL
@@ -515,7 +518,7 @@ NK_PUBLIC void nk_reduce_max_f64(nk_f64_t const *data, nk_size_t count, nk_size_
 
 NK_PUBLIC void nk_reduce_add_f16(nk_f16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_f32_t *result) {
 #if NK_TARGET_NEONHALF
-    nk_reduce_add_f16_neon(data, count, stride_bytes, result);
+    nk_reduce_add_f16_neonhalf(data, count, stride_bytes, result);
 #else
     nk_reduce_add_f16_serial(data, count, stride_bytes, result);
 #endif
@@ -523,7 +526,7 @@ NK_PUBLIC void nk_reduce_add_f16(nk_f16_t const *data, nk_size_t count, nk_size_
 
 NK_PUBLIC void nk_reduce_add_bf16(nk_bf16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_f32_t *result) {
 #if NK_TARGET_NEONBFDOT
-    nk_reduce_add_bf16_neon(data, count, stride_bytes, result);
+    nk_reduce_add_bf16_neonbfdot(data, count, stride_bytes, result);
 #else
     nk_reduce_add_bf16_serial(data, count, stride_bytes, result);
 #endif
@@ -534,8 +537,8 @@ NK_PUBLIC void nk_reduce_add_i8(nk_i8_t const *data, nk_size_t count, nk_size_t 
     nk_reduce_add_i8_skylake(data, count, stride_bytes, result);
 #elif NK_TARGET_HASWELL
     nk_reduce_add_i8_haswell(data, count, stride_bytes, result);
-#elif NK_TARGET_NEONSDOTMM
-    nk_reduce_add_i8_neon(data, count, stride_bytes, result);
+#elif NK_TARGET_NEONSDOT
+    nk_reduce_add_i8_neonsdot(data, count, stride_bytes, result);
 #else
     nk_reduce_add_i8_serial(data, count, stride_bytes, result);
 #endif
@@ -546,8 +549,8 @@ NK_PUBLIC void nk_reduce_add_u8(nk_u8_t const *data, nk_size_t count, nk_size_t 
     nk_reduce_add_u8_skylake(data, count, stride_bytes, result);
 #elif NK_TARGET_HASWELL
     nk_reduce_add_u8_haswell(data, count, stride_bytes, result);
-#elif NK_TARGET_NEONSDOTMM
-    nk_reduce_add_u8_neon(data, count, stride_bytes, result);
+#elif NK_TARGET_NEONSDOT
+    nk_reduce_add_u8_neonsdot(data, count, stride_bytes, result);
 #else
     nk_reduce_add_u8_serial(data, count, stride_bytes, result);
 #endif

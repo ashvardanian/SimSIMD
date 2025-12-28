@@ -1697,77 +1697,82 @@ int main(int argc, char **argv) {
 #endif
 
 #if NK_TARGET_NEONSDOT
-    dense_<i8_k, f32_k, f32_k>("angular_i8_neon", nk_angular_i8_neon, nk_angular_i8_serial);
-    dense_<i8_k, u32_k, u32_k>("l2sq_i8_neon", nk_l2sq_i8_neon, nk_l2sq_i8_serial);
-    dense_<i8_k, f32_k, f64_k>("l2_i8_neon", nk_l2_i8_neon, nk_l2_i8_accurate);
-    dense_<i8_k, i32_k, i32_k>("dot_i8_neon", nk_dot_i8_neon, nk_dot_i8_serial);
+    dense_<i8_k, f32_k, f32_k>("angular_i8_neonsdot", nk_angular_i8_neonsdot, nk_angular_i8_serial);
+    dense_<i8_k, u32_k, u32_k>("l2sq_i8_neonsdot", nk_l2sq_i8_neonsdot, nk_l2sq_i8_serial);
+    dense_<i8_k, f32_k, f64_k>("l2_i8_neonsdot", nk_l2_i8_neonsdot, nk_l2_i8_accurate);
+    dense_<i8_k, i32_k, i32_k>("dot_i8_neonsdot", nk_dot_i8_neonsdot, nk_dot_i8_serial);
 
-    dense_<u8_k, f32_k, f32_k>("angular_u8_neon", nk_angular_u8_neon, nk_angular_u8_serial);
-    dense_<u8_k, u32_k, u32_k>("l2sq_u8_neon", nk_l2sq_u8_neon, nk_l2sq_u8_serial);
-    dense_<u8_k, f32_k, f64_k>("l2_u8_neon", nk_l2_u8_neon, nk_l2_u8_accurate);
-    dense_<u8_k, u32_k, u32_k>("dot_u8_neon", nk_dot_u8_neon, nk_dot_u8_serial);
+    dense_<u8_k, f32_k, f32_k>("angular_u8_neonsdot", nk_angular_u8_neonsdot, nk_angular_u8_serial);
+    dense_<u8_k, u32_k, u32_k>("l2sq_u8_neonsdot", nk_l2sq_u8_neonsdot, nk_l2sq_u8_serial);
+    dense_<u8_k, f32_k, f64_k>("l2_u8_neonsdot", nk_l2_u8_neonsdot, nk_l2_u8_accurate);
+    dense_<u8_k, u32_k, u32_k>("dot_u8_neonsdot", nk_dot_u8_neonsdot, nk_dot_u8_serial);
 
-    matmul_<nk_i8_t, nk_i32_t>("dots_i8i8i32_neon", nk_dots_i8i8i32_packed_size_neon, nk_dots_i8i8i32_pack_neon,
-                               nk_dots_i8i8i32_neon);
-    matmul_<nk_u8_t, nk_u32_t>("dots_u8u8u32_neon", nk_dots_u8u8i32_packed_size_neon, nk_dots_u8u8i32_pack_neon,
-                               nk_dots_u8u8i32_neon);
+    matmul_<nk_i8_t, nk_i32_t>("dots_i8i8i32_neonsdot", nk_dots_i8i8i32_packed_size_neonsdot,
+                               nk_dots_i8i8i32_pack_neonsdot, nk_dots_i8i8i32_neonsdot);
+    matmul_<nk_u8_t, nk_u32_t>("dots_u8u8u32_neonsdot", nk_dots_u8u8i32_packed_size_neonsdot,
+                               nk_dots_u8u8i32_pack_neonsdot, nk_dots_u8u8i32_neonsdot);
 #endif
 
 #if NK_TARGET_NEONHALF
-    dense_<f16c_k, f32c_k, f64c_k>("dot_f16c_neon", nk_dot_f16c_neon, nk_dot_f16c_accurate);
-    dense_<f16c_k, f32c_k, f64c_k>("vdot_f16c_neon", nk_vdot_f16c_neon, nk_vdot_f16c_accurate);
+    dense_<f16c_k, f32c_k, f64c_k>("dot_f16c_neonhalf", nk_dot_f16c_neonhalf, nk_dot_f16c_accurate);
+    dense_<f16c_k, f32c_k, f64c_k>("vdot_f16c_neonhalf", nk_vdot_f16c_neonhalf, nk_vdot_f16c_accurate);
 
-    dense_<f16_k, f32_k, f64_k>("dot_f16_neon", nk_dot_f16_neon, nk_dot_f16_accurate);
-    dense_<f16_k, f32_k, f64_k>("dot_f16_fmlal", nk_dot_f16_fmlal, nk_dot_f16_accurate);
-    dense_<f16_k, f32_k, f64_k>("angular_f16_neon", nk_angular_f16_neon, nk_angular_f16_accurate);
-    dense_<f16_k, f32_k, f64_k>("l2sq_f16_neon", nk_l2sq_f16_neon, nk_l2sq_f16_accurate);
-    dense_<f16_k, f32_k, f64_k>("l2_f16_neon", nk_l2_f16_neon, nk_l2sq_f16_accurate);
-    dense_<f16_k, f32_k, f64_k>("kld_f16_neon", nk_kld_f16_neon, nk_kld_f16_accurate);
-    dense_<f16_k, f32_k, f64_k>("jsd_f16_neon", nk_jsd_f16_neon, nk_jsd_f16_accurate);
+    dense_<f16_k, f32_k, f64_k>("dot_f16_neonhalf", nk_dot_f16_neonhalf, nk_dot_f16_accurate);
+    dense_<f16_k, f32_k, f64_k>("angular_f16_neonhalf", nk_angular_f16_neonhalf, nk_angular_f16_accurate);
+    dense_<f16_k, f32_k, f64_k>("l2sq_f16_neonhalf", nk_l2sq_f16_neonhalf, nk_l2sq_f16_accurate);
+    dense_<f16_k, f32_k, f64_k>("l2_f16_neonhalf", nk_l2_f16_neonhalf, nk_l2sq_f16_accurate);
+    dense_<f16_k, f32_k, f64_k>("kld_f16_neonhalf", nk_kld_f16_neonhalf, nk_kld_f16_accurate);
+    dense_<f16_k, f32_k, f64_k>("jsd_f16_neonhalf", nk_jsd_f16_neonhalf, nk_jsd_f16_accurate);
 
-    curved_<f16_k, f32_k, f64_k>("bilinear_f16_neon", nk_bilinear_f16_neon, nk_bilinear_f16_accurate);
-    curved_<f16_k, f32_k, f64_k>("mahalanobis_f16_neon", nk_mahalanobis_f16_neon, nk_mahalanobis_f16_accurate);
-    curved_<f16c_k, f32c_k, f64c_k>("bilinear_f16c_neon", nk_bilinear_f16c_neon, nk_bilinear_f16c_accurate);
+    curved_<f16_k, f32_k, f64_k>("bilinear_f16_neonhalf", nk_bilinear_f16_neonhalf, nk_bilinear_f16_accurate);
+    curved_<f16_k, f32_k, f64_k>("mahalanobis_f16_neonhalf", nk_mahalanobis_f16_neonhalf, nk_mahalanobis_f16_accurate);
+    curved_<f16c_k, f32c_k, f64c_k>("bilinear_f16c_neonhalf", nk_bilinear_f16c_neonhalf, nk_bilinear_f16c_accurate);
 
-    elementwise_<f16_k, nk_metric_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_f16_neon", nk_fma_f16_neon,
+    elementwise_<f16_k, nk_metric_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_f16_neonhalf", nk_fma_f16_neonhalf,
                                                                      nk_fma_f16_accurate, nk_l2_f16_accurate);
-    elementwise_<f16_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_f16_neon", nk_wsum_f16_neon,
+    elementwise_<f16_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_f16_neonhalf", nk_wsum_f16_neonhalf,
                                                                       nk_wsum_f16_accurate, nk_l2_f16_accurate);
 
     // FMA kernels for `u8` on NEON use `f16` arithmetic
-    elementwise_<u8_k, nk_metric_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_u8_neon", nk_fma_u8_neon, nk_fma_u8_accurate,
-                                                                    nk_l2_u8_accurate);
-    elementwise_<u8_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_u8_neon", nk_wsum_u8_neon,
+    elementwise_<u8_k, nk_metric_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_u8_neonhalf", nk_fma_u8_neonhalf,
+                                                                    nk_fma_u8_accurate, nk_l2_u8_accurate);
+    elementwise_<u8_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_u8_neonhalf", nk_wsum_u8_neonhalf,
                                                                      nk_wsum_u8_accurate, nk_l2_u8_accurate);
-    elementwise_<i8_k, nk_metric_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_i8_neon", nk_fma_i8_neon, nk_fma_i8_accurate,
-                                                                    nk_l2_i8_accurate);
-    elementwise_<i8_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_i8_neon", nk_wsum_i8_neon,
+    elementwise_<i8_k, nk_metric_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_i8_neonhalf", nk_fma_i8_neonhalf,
+                                                                    nk_fma_i8_accurate, nk_l2_i8_accurate);
+    elementwise_<i8_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_i8_neonhalf", nk_wsum_i8_neonhalf,
                                                                      nk_wsum_i8_accurate, nk_l2_i8_accurate);
 
-    matmul_<nk_f16_t, nk_f32_t>("dots_f16f16f32_neon", nk_dots_f16f16f32_packed_size_neon, nk_dots_f16f16f32_pack_neon,
-                                nk_dots_f16f16f32_neon);
+    matmul_<nk_f16_t, nk_f32_t>("dots_f16f16f32_neonhalf", nk_dots_f16f16f32_packed_size_neonhalf,
+                                nk_dots_f16f16f32_pack_neonhalf, nk_dots_f16f16f32_neonhalf);
 #endif
 
+#if NK_TARGET_NEONFHM
+    dense_<f16_k, f32_k, f64_k>("dot_f16_neonfhm", nk_dot_f16_neonfhm, nk_dot_f16_accurate);
+#endif // NK_TARGET_NEONFHM
+
 #if NK_TARGET_NEONBFDOT
-    dense_<bf16c_k, f32c_k, f64c_k>("dot_bf16c_neon", nk_dot_bf16c_neon, nk_dot_bf16c_accurate);
-    dense_<bf16c_k, f32c_k, f64c_k>("vdot_bf16c_neon", nk_vdot_bf16c_neon, nk_vdot_bf16c_accurate);
+    dense_<bf16c_k, f32c_k, f64c_k>("dot_bf16c_neonbfdot", nk_dot_bf16c_neonbfdot, nk_dot_bf16c_accurate);
+    dense_<bf16c_k, f32c_k, f64c_k>("vdot_bf16c_neonbfdot", nk_vdot_bf16c_neonbfdot, nk_vdot_bf16c_accurate);
 
-    dense_<bf16_k, f32_k, f64_k>("dot_bf16_neon", nk_dot_bf16_neon, nk_dot_bf16_accurate);
-    dense_<bf16_k, f32_k, f64_k>("angular_bf16_neon", nk_angular_bf16_neon, nk_angular_bf16_accurate);
-    dense_<bf16_k, f32_k, f64_k>("l2sq_bf16_neon", nk_l2sq_bf16_neon, nk_l2sq_bf16_accurate);
-    dense_<bf16_k, f32_k, f64_k>("l2_bf16_neon", nk_l2_bf16_neon, nk_l2_bf16_accurate);
+    dense_<bf16_k, f32_k, f64_k>("dot_bf16_neonbfdot", nk_dot_bf16_neonbfdot, nk_dot_bf16_accurate);
+    dense_<bf16_k, f32_k, f64_k>("angular_bf16_neonbfdot", nk_angular_bf16_neonbfdot, nk_angular_bf16_accurate);
+    dense_<bf16_k, f32_k, f64_k>("l2sq_bf16_neonbfdot", nk_l2sq_bf16_neonbfdot, nk_l2sq_bf16_accurate);
+    dense_<bf16_k, f32_k, f64_k>("l2_bf16_neonbfdot", nk_l2_bf16_neonbfdot, nk_l2_bf16_accurate);
 
-    curved_<bf16_k, f32_k, f64_k>("bilinear_bf16_neon", nk_bilinear_bf16_neon, nk_bilinear_bf16_accurate);
-    curved_<bf16_k, f32_k, f64_k>("mahalanobis_bf16_neon", nk_mahalanobis_bf16_neon, nk_mahalanobis_bf16_accurate);
-    curved_<bf16c_k, f32c_k, f64c_k>("bilinear_bf16c_neon", nk_bilinear_bf16c_neon, nk_bilinear_bf16c_accurate);
+    curved_<bf16_k, f32_k, f64_k>("bilinear_bf16_neonbfdot", nk_bilinear_bf16_neonbfdot, nk_bilinear_bf16_accurate);
+    curved_<bf16_k, f32_k, f64_k>("mahalanobis_bf16_neonbfdot", nk_mahalanobis_bf16_neonbfdot,
+                                  nk_mahalanobis_bf16_accurate);
+    curved_<bf16c_k, f32c_k, f64c_k>("bilinear_bf16c_neonbfdot", nk_bilinear_bf16c_neonbfdot,
+                                     nk_bilinear_bf16c_accurate);
 
-    elementwise_<bf16_k, nk_metric_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_bf16_neon", nk_fma_bf16_neon,
+    elementwise_<bf16_k, nk_metric_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_bf16_neonbfdot", nk_fma_bf16_neonbfdot,
                                                                       nk_fma_bf16_accurate, nk_l2_bf16_accurate);
-    elementwise_<bf16_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_bf16_neon", nk_wsum_bf16_neon,
+    elementwise_<bf16_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_bf16_neonbfdot", nk_wsum_bf16_neonbfdot,
                                                                        nk_wsum_bf16_accurate, nk_l2_bf16_accurate);
 
-    matmul_<nk_bf16_t, nk_f32_t>("dots_bf16bf16f32_neon", nk_dots_bf16bf16f32_packed_size_neon,
-                                 nk_dots_bf16bf16f32_pack_neon, nk_dots_bf16bf16f32_neon);
+    matmul_<nk_bf16_t, nk_f32_t>("dots_bf16bf16f32_neonbfdot", nk_dots_bf16bf16f32_packed_size_neonbfdot,
+                                 nk_dots_bf16bf16f32_pack_neonbfdot, nk_dots_bf16bf16f32_neonbfdot);
 #endif
 
 #if NK_TARGET_SVE
