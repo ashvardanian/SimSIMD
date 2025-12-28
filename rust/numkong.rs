@@ -85,6 +85,8 @@
 #![allow(non_camel_case_types)]
 #![cfg_attr(all(not(test), not(feature = "std")), no_std)]
 
+extern crate alloc;
+
 pub type ComplexProductF32 = (f32, f32);
 pub type ComplexProductF64 = (f64, f64);
 
@@ -502,6 +504,127 @@ extern "C" {
         b_lons: *const f64,
         n: u64size,
         results: *mut f64,
+    );
+
+    // Matrix multiplication (GEMM) with packed B matrix
+    // F32: C[m×n] = A[m×k] × B[n×k]ᵀ
+    fn nk_dots_f32f32f32_packed_size(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_f32f32f32_pack(
+        b: *const f32,
+        n: u64size,
+        k: u64size,
+        b_stride: u64size,
+        packed: *mut u8,
+    );
+    fn nk_dots_f32f32f32(
+        a: *const f32,
+        packed: *const u8,
+        c: *mut f32,
+        m: u64size,
+        n: u64size,
+        k: u64size,
+        a_stride: u64size,
+        c_stride: u64size,
+    );
+
+    // F64 GEMM
+    fn nk_dots_f64f64f64_packed_size(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_f64f64f64_pack(
+        b: *const f64,
+        n: u64size,
+        k: u64size,
+        b_stride: u64size,
+        packed: *mut u8,
+    );
+    fn nk_dots_f64f64f64(
+        a: *const f64,
+        packed: *const u8,
+        c: *mut f64,
+        m: u64size,
+        n: u64size,
+        k: u64size,
+        a_stride: u64size,
+        c_stride: u64size,
+    );
+
+    // F16 GEMM (accumulates to F32)
+    fn nk_dots_f16f16f32_packed_size(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_f16f16f32_pack(
+        b: *const u16,
+        n: u64size,
+        k: u64size,
+        b_stride: u64size,
+        packed: *mut u8,
+    );
+    fn nk_dots_f16f16f32(
+        a: *const u16,
+        packed: *const u8,
+        c: *mut f32,
+        m: u64size,
+        n: u64size,
+        k: u64size,
+        a_stride: u64size,
+        c_stride: u64size,
+    );
+
+    // BF16 GEMM (accumulates to F32)
+    fn nk_dots_bf16bf16f32_packed_size(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_bf16bf16f32_pack(
+        b: *const u16,
+        n: u64size,
+        k: u64size,
+        b_stride: u64size,
+        packed: *mut u8,
+    );
+    fn nk_dots_bf16bf16f32(
+        a: *const u16,
+        packed: *const u8,
+        c: *mut f32,
+        m: u64size,
+        n: u64size,
+        k: u64size,
+        a_stride: u64size,
+        c_stride: u64size,
+    );
+
+    // I8 GEMM (accumulates to I32)
+    fn nk_dots_i8i8i32_packed_size(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_i8i8i32_pack(
+        b: *const i8,
+        n: u64size,
+        k: u64size,
+        b_stride: u64size,
+        packed: *mut u8,
+    );
+    fn nk_dots_i8i8i32(
+        a: *const i8,
+        packed: *const u8,
+        c: *mut i32,
+        m: u64size,
+        n: u64size,
+        k: u64size,
+        a_stride: u64size,
+        c_stride: u64size,
+    );
+
+    // U8 GEMM (accumulates to U32)
+    fn nk_dots_u8u8u32_packed_size(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_u8u8u32_pack(
+        b: *const u8,
+        n: u64size,
+        k: u64size,
+        b_stride: u64size,
+        packed: *mut u8,
+    );
+    fn nk_dots_u8u8u32(
+        a: *const u8,
+        packed: *const u8,
+        c: *mut u32,
+        m: u64size,
+        n: u64size,
+        k: u64size,
+        a_stride: u64size,
+        c_stride: u64size,
     );
 }
 
@@ -4163,6 +4286,1868 @@ impl MeshAlignment for f32 {
 }
 
 // endregion: MeshAlignment
+
+// region: NDArray and GEMM
+
+use core::marker::PhantomData;
+use core::ptr::NonNull;
+
+/// Maximum number of dimensions supported by NDArray.
+pub const MAX_NDIM: usize = 8;
+
+/// Alignment for SIMD-friendly allocations (64 bytes for AVX-512).
+pub const SIMD_ALIGNMENT: usize = 64;
+
+/// Memory allocator trait for custom allocation strategies.
+///
+/// Implement this trait to use custom allocators (arena, pool, etc.) with
+/// [`NDArray`] and [`PackedMatrix`].
+///
+/// # Safety
+///
+/// Implementations must ensure:
+/// - `allocate` returns a valid, properly aligned pointer on success
+/// - `deallocate` is called with the same `Layout` used in `allocate`
+/// - The returned memory is not aliased
+pub unsafe trait Allocator {
+    /// Allocates memory with the given layout.
+    ///
+    /// Returns `None` if allocation fails.
+    fn allocate(&self, layout: alloc::alloc::Layout) -> Option<NonNull<u8>>;
+
+    /// Deallocates memory previously allocated with `allocate`.
+    ///
+    /// # Safety
+    ///
+    /// - `ptr` must have been returned by a previous call to `allocate`
+    /// - `layout` must be the same as the one used for allocation
+    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: alloc::alloc::Layout);
+}
+
+/// Global allocator using the system allocator.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Global;
+
+unsafe impl Allocator for Global {
+    #[inline]
+    fn allocate(&self, layout: alloc::alloc::Layout) -> Option<NonNull<u8>> {
+        if layout.size() == 0 {
+            // Return a dangling but aligned pointer for zero-size allocations
+            return Some(NonNull::new(layout.align() as *mut u8).unwrap_or(NonNull::dangling()));
+        }
+        unsafe {
+            let ptr = alloc::alloc::alloc(layout);
+            NonNull::new(ptr)
+        }
+    }
+
+    #[inline]
+    unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: alloc::alloc::Layout) {
+        if layout.size() > 0 {
+            alloc::alloc::dealloc(ptr.as_ptr(), layout);
+        }
+    }
+}
+
+/// Fixed-size shape descriptor for error messages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ShapeDescriptor {
+    dims: [usize; MAX_NDIM],
+    ndim: usize,
+}
+
+impl ShapeDescriptor {
+    /// Create from a slice (truncates if > MAX_NDIM).
+    pub fn from_slice(shape: &[usize]) -> Self {
+        let mut dims = [0usize; MAX_NDIM];
+        let ndim = shape.len().min(MAX_NDIM);
+        dims[..ndim].copy_from_slice(&shape[..ndim]);
+        Self { dims, ndim }
+    }
+
+    /// Return as a slice.
+    pub fn as_slice(&self) -> &[usize] {
+        &self.dims[..self.ndim]
+    }
+}
+
+impl core::fmt::Display for ShapeDescriptor {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "[")?;
+        for (i, &d) in self.as_slice().iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{}", d)?;
+        }
+        write!(f, "]")
+    }
+}
+
+/// Error type for NDArray operations.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NDArrayError {
+    /// Memory allocation failed.
+    AllocationFailed,
+    /// Shape mismatch between arrays.
+    ShapeMismatch {
+        expected: ShapeDescriptor,
+        got: ShapeDescriptor,
+    },
+    /// Invalid shape specification.
+    InvalidShape {
+        shape: ShapeDescriptor,
+        reason: &'static str,
+    },
+    /// Operation requires contiguous rows but array has non-contiguous rows.
+    NonContiguousRows,
+    /// Expected a specific number of dimensions.
+    DimensionMismatch { expected: usize, got: usize },
+    /// Index out of bounds.
+    IndexOutOfBounds { index: usize, size: usize },
+    /// Too many dimensions (exceeds MAX_NDIM).
+    TooManyDimensions { got: usize },
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for NDArrayError {}
+
+impl core::fmt::Display for NDArrayError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            NDArrayError::AllocationFailed => write!(f, "memory allocation failed"),
+            NDArrayError::ShapeMismatch { expected, got } => {
+                write!(f, "shape mismatch: expected {}, got {}", expected, got)
+            }
+            NDArrayError::InvalidShape { shape, reason } => {
+                write!(f, "invalid shape {}: {}", shape, reason)
+            }
+            NDArrayError::NonContiguousRows => {
+                write!(f, "operation requires contiguous rows")
+            }
+            NDArrayError::DimensionMismatch { expected, got } => {
+                write!(f, "expected {} dimensions, got {}", expected, got)
+            }
+            NDArrayError::IndexOutOfBounds { index, size } => {
+                write!(f, "index {} out of bounds for size {}", index, size)
+            }
+            NDArrayError::TooManyDimensions { got } => {
+                write!(f, "too many dimensions: {} (max {})", got, MAX_NDIM)
+            }
+        }
+    }
+}
+
+/// Low-level trait for packed GEMM operations.
+///
+/// Computes C = A × Bᵀ where B is pre-packed for optimal memory access.
+/// All strides are in bytes.
+pub trait Dots: Sized + Clone {
+    /// Accumulator type for the multiplication.
+    type Accumulator: Clone + Default;
+
+    /// Returns the size in bytes needed for the packed B matrix buffer.
+    fn dots_packed_size(n: usize, k: usize) -> usize;
+
+    /// Packs the B matrix into an optimized backend-specific layout.
+    ///
+    /// # Safety
+    /// - `b` must point to valid memory for `n * k` elements
+    /// - `packed` must point to a buffer of at least `dots_packed_size(n, k)` bytes
+    unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8);
+
+    /// Computes C = A × Bᵀ using packed B.
+    ///
+    /// # Safety
+    /// - `a` must point to valid memory for `m * k` elements with given stride
+    /// - `packed` must be a buffer previously filled by `dots_pack`
+    /// - `c` must point to valid memory for `m * n` elements with given stride
+    unsafe fn dots(
+        a: *const Self,
+        packed: *const u8,
+        c: *mut Self::Accumulator,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
+    );
+}
+
+impl Dots for f32 {
+    type Accumulator = f32;
+
+    fn dots_packed_size(n: usize, k: usize) -> usize {
+        unsafe { nk_dots_f32f32f32_packed_size(n as u64size, k as u64size) as usize }
+    }
+
+    unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
+        nk_dots_f32f32f32_pack(b, n as u64size, k as u64size, b_stride as u64size, packed)
+    }
+
+    unsafe fn dots(
+        a: *const Self,
+        packed: *const u8,
+        c: *mut Self::Accumulator,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
+    ) {
+        nk_dots_f32f32f32(
+            a,
+            packed,
+            c,
+            m as u64size,
+            n as u64size,
+            k as u64size,
+            a_stride as u64size,
+            c_stride as u64size,
+        )
+    }
+}
+
+impl Dots for f64 {
+    type Accumulator = f64;
+
+    fn dots_packed_size(n: usize, k: usize) -> usize {
+        unsafe { nk_dots_f64f64f64_packed_size(n as u64size, k as u64size) as usize }
+    }
+
+    unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
+        nk_dots_f64f64f64_pack(b, n as u64size, k as u64size, b_stride as u64size, packed)
+    }
+
+    unsafe fn dots(
+        a: *const Self,
+        packed: *const u8,
+        c: *mut Self::Accumulator,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
+    ) {
+        nk_dots_f64f64f64(
+            a,
+            packed,
+            c,
+            m as u64size,
+            n as u64size,
+            k as u64size,
+            a_stride as u64size,
+            c_stride as u64size,
+        )
+    }
+}
+
+impl Dots for f16 {
+    type Accumulator = f32;
+
+    fn dots_packed_size(n: usize, k: usize) -> usize {
+        unsafe { nk_dots_f16f16f32_packed_size(n as u64size, k as u64size) as usize }
+    }
+
+    unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
+        nk_dots_f16f16f32_pack(
+            b as *const u16,
+            n as u64size,
+            k as u64size,
+            b_stride as u64size,
+            packed,
+        )
+    }
+
+    unsafe fn dots(
+        a: *const Self,
+        packed: *const u8,
+        c: *mut Self::Accumulator,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
+    ) {
+        nk_dots_f16f16f32(
+            a as *const u16,
+            packed,
+            c,
+            m as u64size,
+            n as u64size,
+            k as u64size,
+            a_stride as u64size,
+            c_stride as u64size,
+        )
+    }
+}
+
+impl Dots for bf16 {
+    type Accumulator = f32;
+
+    fn dots_packed_size(n: usize, k: usize) -> usize {
+        unsafe { nk_dots_bf16bf16f32_packed_size(n as u64size, k as u64size) as usize }
+    }
+
+    unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
+        nk_dots_bf16bf16f32_pack(
+            b as *const u16,
+            n as u64size,
+            k as u64size,
+            b_stride as u64size,
+            packed,
+        )
+    }
+
+    unsafe fn dots(
+        a: *const Self,
+        packed: *const u8,
+        c: *mut Self::Accumulator,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
+    ) {
+        nk_dots_bf16bf16f32(
+            a as *const u16,
+            packed,
+            c,
+            m as u64size,
+            n as u64size,
+            k as u64size,
+            a_stride as u64size,
+            c_stride as u64size,
+        )
+    }
+}
+
+impl Dots for i8 {
+    type Accumulator = i32;
+
+    fn dots_packed_size(n: usize, k: usize) -> usize {
+        unsafe { nk_dots_i8i8i32_packed_size(n as u64size, k as u64size) as usize }
+    }
+
+    unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
+        nk_dots_i8i8i32_pack(b, n as u64size, k as u64size, b_stride as u64size, packed)
+    }
+
+    unsafe fn dots(
+        a: *const Self,
+        packed: *const u8,
+        c: *mut Self::Accumulator,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
+    ) {
+        nk_dots_i8i8i32(
+            a,
+            packed,
+            c,
+            m as u64size,
+            n as u64size,
+            k as u64size,
+            a_stride as u64size,
+            c_stride as u64size,
+        )
+    }
+}
+
+impl Dots for u8 {
+    type Accumulator = u32;
+
+    fn dots_packed_size(n: usize, k: usize) -> usize {
+        unsafe { nk_dots_u8u8u32_packed_size(n as u64size, k as u64size) as usize }
+    }
+
+    unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
+        nk_dots_u8u8u32_pack(b, n as u64size, k as u64size, b_stride as u64size, packed)
+    }
+
+    unsafe fn dots(
+        a: *const Self,
+        packed: *const u8,
+        c: *mut Self::Accumulator,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
+    ) {
+        nk_dots_u8u8u32(
+            a,
+            packed,
+            c,
+            m as u64size,
+            n as u64size,
+            k as u64size,
+            a_stride as u64size,
+            c_stride as u64size,
+        )
+    }
+}
+
+/// N-dimensional array with NumKong-accelerated operations.
+///
+/// Uses raw memory allocation (no std::Vec) for maximum control.
+///
+/// Supports:
+/// - Slicing and subviews (zero-copy)
+/// - Matrix multiplication with [`PackedMatrix`]
+/// - Reductions (sum, min, max)
+/// - Elementwise ops (scale, sum, wsum, fma)
+/// - Trigonometry (sin, cos, atan)
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use numkong::{NDArray, PackedMatrix};
+///
+/// let a = NDArray::<f32>::try_new(&[1024, 512], 1.0).unwrap();
+/// let b = NDArray::<f32>::try_new(&[256, 512], 1.0).unwrap();
+///
+/// // Pack B once, multiply many times
+/// let packed_b = PackedMatrix::try_pack(&b).unwrap();
+/// let c = a.matmul(&packed_b);  // Returns (1024 × 256)
+/// ```
+pub struct NDArray<T, A: Allocator = Global> {
+    /// Raw pointer to data buffer.
+    data: NonNull<T>,
+    /// Total number of elements.
+    len: usize,
+    /// Shape dimensions.
+    shape: [usize; MAX_NDIM],
+    /// Strides in bytes.
+    strides: [usize; MAX_NDIM],
+    /// Number of dimensions.
+    ndim: usize,
+    /// Allocator instance.
+    alloc: A,
+}
+
+// Safety: NDArray owns its data and T: Send implies the array is Send
+unsafe impl<T: Send, A: Allocator + Send> Send for NDArray<T, A> {}
+// Safety: NDArray has no interior mutability, &NDArray<T> is safe to share if T: Sync
+unsafe impl<T: Sync, A: Allocator + Sync> Sync for NDArray<T, A> {}
+
+impl<T, A: Allocator> Drop for NDArray<T, A> {
+    fn drop(&mut self) {
+        if self.len > 0 {
+            unsafe {
+                // Drop all elements
+                core::ptr::drop_in_place(core::ptr::slice_from_raw_parts_mut(
+                    self.data.as_ptr(),
+                    self.len,
+                ));
+                // Deallocate buffer using our allocator
+                let layout = alloc::alloc::Layout::array::<T>(self.len).unwrap();
+                self.alloc.deallocate(
+                    NonNull::new_unchecked(self.data.as_ptr() as *mut u8),
+                    layout,
+                );
+            }
+        }
+    }
+}
+
+impl<T: Clone, A: Allocator + Clone> Clone for NDArray<T, A> {
+    fn clone(&self) -> Self {
+        Self::try_from_slice_in(self.as_slice(), self.shape(), self.alloc.clone())
+            .expect("clone allocation failed")
+    }
+}
+
+// Generic allocator-aware methods
+impl<T: Clone, A: Allocator> NDArray<T, A> {
+    /// Creates a new NDArray filled with a value using a custom allocator.
+    ///
+    /// Returns `Err` if allocation fails or shape is invalid.
+    pub fn try_new_in(shape: &[usize], value: T, alloc: A) -> Result<Self, NDArrayError> {
+        if shape.len() > MAX_NDIM {
+            return Err(NDArrayError::TooManyDimensions { got: shape.len() });
+        }
+
+        let total: usize = shape.iter().product();
+        if total == 0 && !shape.is_empty() && shape.iter().any(|&d| d == 0) {
+            return Err(NDArrayError::InvalidShape {
+                shape: ShapeDescriptor::from_slice(shape),
+                reason: "zero-sized dimension",
+            });
+        }
+
+        // Allocate raw buffer using our allocator
+        let data = if total == 0 {
+            NonNull::dangling()
+        } else {
+            let layout = alloc::alloc::Layout::array::<T>(total)
+                .map_err(|_| NDArrayError::AllocationFailed)?;
+            let ptr = alloc
+                .allocate(layout)
+                .ok_or(NDArrayError::AllocationFailed)?;
+            // Initialize all elements
+            unsafe {
+                let ptr = ptr.as_ptr() as *mut T;
+                for i in 0..total {
+                    core::ptr::write(ptr.add(i), value.clone());
+                }
+                NonNull::new_unchecked(ptr)
+            }
+        };
+
+        // Build shape and strides arrays
+        let mut shape_arr = [0usize; MAX_NDIM];
+        shape_arr[..shape.len()].copy_from_slice(shape);
+
+        let mut strides_arr = [0usize; MAX_NDIM];
+        Self::compute_strides_into(shape, &mut strides_arr);
+
+        Ok(Self {
+            data,
+            len: total,
+            shape: shape_arr,
+            strides: strides_arr,
+            ndim: shape.len(),
+            alloc,
+        })
+    }
+
+    /// Creates an NDArray from existing slice data using a custom allocator.
+    ///
+    /// Returns `Err` if shape doesn't match data length or allocation fails.
+    pub fn try_from_slice_in(data: &[T], shape: &[usize], alloc: A) -> Result<Self, NDArrayError> {
+        if shape.len() > MAX_NDIM {
+            return Err(NDArrayError::TooManyDimensions { got: shape.len() });
+        }
+
+        let total: usize = shape.iter().product();
+        if data.len() != total {
+            return Err(NDArrayError::ShapeMismatch {
+                expected: ShapeDescriptor::from_slice(shape),
+                got: ShapeDescriptor::from_slice(&[data.len()]),
+            });
+        }
+
+        // Allocate and copy using our allocator
+        let ptr = if total == 0 {
+            NonNull::dangling()
+        } else {
+            let layout = alloc::alloc::Layout::array::<T>(total)
+                .map_err(|_| NDArrayError::AllocationFailed)?;
+            let ptr = alloc
+                .allocate(layout)
+                .ok_or(NDArrayError::AllocationFailed)?;
+            // Clone all elements
+            unsafe {
+                let ptr = ptr.as_ptr() as *mut T;
+                for i in 0..total {
+                    core::ptr::write(ptr.add(i), data[i].clone());
+                }
+                NonNull::new_unchecked(ptr)
+            }
+        };
+
+        let mut shape_arr = [0usize; MAX_NDIM];
+        shape_arr[..shape.len()].copy_from_slice(shape);
+
+        let mut strides_arr = [0usize; MAX_NDIM];
+        Self::compute_strides_into(shape, &mut strides_arr);
+
+        Ok(Self {
+            data: ptr,
+            len: total,
+            shape: shape_arr,
+            strides: strides_arr,
+            ndim: shape.len(),
+            alloc,
+        })
+    }
+
+    fn compute_strides_into(shape: &[usize], strides: &mut [usize; MAX_NDIM]) {
+        let elem_size = core::mem::size_of::<T>();
+        if shape.is_empty() {
+            return;
+        }
+
+        let mut stride = elem_size;
+        for i in (0..shape.len()).rev() {
+            strides[i] = stride;
+            stride *= shape[i];
+        }
+    }
+
+    /// Returns a reference to the allocator.
+    pub fn allocator(&self) -> &A {
+        &self.alloc
+    }
+}
+
+// Methods that don't require Clone
+impl<T, A: Allocator> NDArray<T, A> {
+    /// Returns the shape of the array.
+    pub fn shape(&self) -> &[usize] {
+        &self.shape[..self.ndim]
+    }
+
+    /// Returns the number of dimensions.
+    pub fn ndim(&self) -> usize {
+        self.ndim
+    }
+
+    /// Returns the total number of elements.
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Returns true if the array has no elements.
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// Returns the stride in bytes for the given dimension.
+    pub fn stride(&self, dim: usize) -> usize {
+        self.strides[dim]
+    }
+
+    /// Returns a pointer to the data.
+    pub fn as_ptr(&self) -> *const T {
+        self.data.as_ptr()
+    }
+
+    /// Returns a mutable pointer to the data.
+    pub fn as_mut_ptr(&mut self) -> *mut T {
+        self.data.as_ptr()
+    }
+
+    /// Returns the underlying data as a slice.
+    pub fn as_slice(&self) -> &[T] {
+        unsafe { core::slice::from_raw_parts(self.data.as_ptr(), self.len) }
+    }
+
+    /// Returns the underlying data as a mutable slice.
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
+        unsafe { core::slice::from_raw_parts_mut(self.data.as_ptr(), self.len) }
+    }
+
+    /// Check if rows are contiguous (required for GEMM A matrix).
+    pub fn has_contiguous_rows(&self) -> bool {
+        if self.ndim != 2 {
+            return false;
+        }
+        // Last dimension stride should be element size
+        self.strides[1] == core::mem::size_of::<T>()
+    }
+
+    /// Returns a row of a 2D array.
+    pub fn row(&self, i: usize) -> Option<&[T]> {
+        if self.ndim != 2 {
+            return None;
+        }
+        let (rows, cols) = (self.shape[0], self.shape[1]);
+        if i >= rows {
+            return None;
+        }
+        let start = i * cols;
+        Some(&self.as_slice()[start..start + cols])
+    }
+
+    /// Returns a mutable row of a 2D array.
+    pub fn row_mut(&mut self, i: usize) -> Option<&mut [T]> {
+        if self.ndim != 2 {
+            return None;
+        }
+        let (rows, cols) = (self.shape[0], self.shape[1]);
+        if i >= rows {
+            return None;
+        }
+        let start = i * cols;
+        Some(&mut self.as_mut_slice()[start..start + cols])
+    }
+}
+
+// Convenience methods using Global allocator
+impl<T: Clone> NDArray<T, Global> {
+    /// Creates a new NDArray filled with a value using the global allocator.
+    ///
+    /// Returns `Err` if allocation fails or shape is invalid.
+    pub fn try_new(shape: &[usize], value: T) -> Result<Self, NDArrayError> {
+        Self::try_new_in(shape, value, Global)
+    }
+
+    /// Creates an NDArray from existing slice data using the global allocator.
+    ///
+    /// Returns `Err` if shape doesn't match data length or allocation fails.
+    pub fn try_from_slice(data: &[T], shape: &[usize]) -> Result<Self, NDArrayError> {
+        Self::try_from_slice_in(data, shape, Global)
+    }
+
+    /// Convenience constructor that panics on error.
+    pub fn new(shape: &[usize], value: T) -> Self {
+        Self::try_new(shape, value).expect("NDArray::new failed")
+    }
+
+    /// Convenience constructor that panics on error.
+    pub fn from_slice(data: &[T], shape: &[usize]) -> Self {
+        Self::try_from_slice(data, shape).expect("NDArray::from_slice failed")
+    }
+}
+
+/// Represents a range specification for slicing along one dimension.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SliceRange {
+    /// Full range (equivalent to `..`)
+    Full,
+    /// Single index (reduces dimension)
+    Index(usize),
+    /// Range from start to end exclusive (equivalent to `start..end`)
+    Range { start: usize, end: usize },
+    /// Range from start to end with step (equivalent to `start..end;step`)
+    RangeStep {
+        start: usize,
+        end: usize,
+        step: isize,
+    },
+}
+
+impl SliceRange {
+    /// Create a full range.
+    pub fn full() -> Self {
+        Self::Full
+    }
+
+    /// Create a single index.
+    pub fn index(i: usize) -> Self {
+        Self::Index(i)
+    }
+
+    /// Create a range from start to end.
+    pub fn range(start: usize, end: usize) -> Self {
+        Self::Range { start, end }
+    }
+
+    /// Create a range with step.
+    pub fn range_step(start: usize, end: usize, step: isize) -> Self {
+        Self::RangeStep { start, end, step }
+    }
+}
+
+/// A read-only view into an NDArray (doesn't own data).
+///
+/// Views provide zero-copy access to array subregions with potentially
+/// different strides than the original array.
+pub struct NDArrayView<'a, T> {
+    /// Pointer to first element of view.
+    data: *const T,
+    /// Number of elements accessible via this view.
+    len: usize,
+    /// Shape of the view.
+    shape: [usize; MAX_NDIM],
+    /// Strides in bytes.
+    strides: [usize; MAX_NDIM],
+    /// Number of dimensions.
+    ndim: usize,
+    /// Lifetime marker.
+    _marker: PhantomData<&'a T>,
+}
+
+impl<'a, T> NDArrayView<'a, T> {
+    /// Returns the shape of the view.
+    pub fn shape(&self) -> &[usize] {
+        &self.shape[..self.ndim]
+    }
+
+    /// Returns the number of dimensions.
+    pub fn ndim(&self) -> usize {
+        self.ndim
+    }
+
+    /// Returns the total number of elements.
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Returns true if the view has no elements.
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// Returns the stride in bytes for the given dimension.
+    pub fn stride(&self, dim: usize) -> usize {
+        self.strides[dim]
+    }
+
+    /// Returns a pointer to the first element.
+    pub fn as_ptr(&self) -> *const T {
+        self.data
+    }
+
+    /// Check if the view has contiguous rows.
+    pub fn has_contiguous_rows(&self) -> bool {
+        if self.ndim != 2 {
+            return false;
+        }
+        self.strides[1] == core::mem::size_of::<T>()
+    }
+
+    /// Check if the entire view is contiguous in memory.
+    pub fn is_contiguous(&self) -> bool {
+        if self.ndim == 0 {
+            return true;
+        }
+        let elem_size = core::mem::size_of::<T>();
+        let mut expected_stride = elem_size;
+        for i in (0..self.ndim).rev() {
+            if self.strides[i] != expected_stride {
+                return false;
+            }
+            expected_stride *= self.shape[i];
+        }
+        true
+    }
+
+    /// Get element at flat index (only valid for contiguous views).
+    ///
+    /// # Safety
+    /// Caller must ensure the view is contiguous and index is in bounds.
+    pub unsafe fn get_unchecked(&self, index: usize) -> &T {
+        &*self.data.add(index)
+    }
+
+    /// Convert to slice (only valid for contiguous views).
+    pub fn as_contiguous_slice(&self) -> Option<&[T]> {
+        if self.is_contiguous() {
+            Some(unsafe { core::slice::from_raw_parts(self.data, self.len) })
+        } else {
+            None
+        }
+    }
+}
+
+impl<'a, T: Clone> NDArrayView<'a, T> {
+    /// Copy the view contents to a new owned NDArray.
+    pub fn to_owned(&self) -> Result<NDArray<T>, NDArrayError> {
+        if self.is_contiguous() {
+            let slice = unsafe { core::slice::from_raw_parts(self.data, self.len) };
+            NDArray::try_from_slice(slice, self.shape())
+        } else {
+            // For non-contiguous views, we need to copy element by element
+            let mut result = NDArray::try_new(self.shape(), unsafe { (*self.data).clone() })?;
+            self.copy_to_contiguous(result.as_mut_slice());
+            Ok(result)
+        }
+    }
+
+    fn copy_to_contiguous(&self, dest: &mut [T]) {
+        // For 2D case, optimize the copy
+        if self.ndim == 2 {
+            let rows = self.shape[0];
+            let cols = self.shape[1];
+            let row_stride = self.strides[0];
+            let col_stride = self.strides[1];
+            let mut dest_idx = 0;
+            for r in 0..rows {
+                let row_ptr = unsafe { (self.data as *const u8).add(r * row_stride) as *const T };
+                for c in 0..cols {
+                    let elem_ptr =
+                        unsafe { (row_ptr as *const u8).add(c * col_stride) as *const T };
+                    dest[dest_idx] = unsafe { (*elem_ptr).clone() };
+                    dest_idx += 1;
+                }
+            }
+        } else {
+            // General N-dimensional case: iterate in row-major order
+            let mut indices = [0usize; MAX_NDIM];
+            for dest_idx in 0..self.len {
+                // Compute pointer offset
+                let mut offset = 0usize;
+                for d in 0..self.ndim {
+                    offset += indices[d] * self.strides[d];
+                }
+                let elem_ptr = unsafe { (self.data as *const u8).add(offset) as *const T };
+                dest[dest_idx] = unsafe { (*elem_ptr).clone() };
+
+                // Increment indices (row-major order)
+                for d in (0..self.ndim).rev() {
+                    indices[d] += 1;
+                    if indices[d] < self.shape[d] {
+                        break;
+                    }
+                    indices[d] = 0;
+                }
+            }
+        }
+    }
+}
+
+/// A mutable view into an NDArray.
+pub struct NDArrayViewMut<'a, T> {
+    /// Pointer to first element of view.
+    data: *mut T,
+    /// Number of elements accessible via this view.
+    len: usize,
+    /// Shape of the view.
+    shape: [usize; MAX_NDIM],
+    /// Strides in bytes.
+    strides: [usize; MAX_NDIM],
+    /// Number of dimensions.
+    ndim: usize,
+    /// Lifetime marker.
+    _marker: PhantomData<&'a mut T>,
+}
+
+impl<'a, T> NDArrayViewMut<'a, T> {
+    /// Returns the shape of the view.
+    pub fn shape(&self) -> &[usize] {
+        &self.shape[..self.ndim]
+    }
+
+    /// Returns the number of dimensions.
+    pub fn ndim(&self) -> usize {
+        self.ndim
+    }
+
+    /// Returns the total number of elements.
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Returns true if the view has no elements.
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// Returns the stride in bytes for the given dimension.
+    pub fn stride(&self, dim: usize) -> usize {
+        self.strides[dim]
+    }
+
+    /// Returns a pointer to the first element.
+    pub fn as_ptr(&self) -> *const T {
+        self.data
+    }
+
+    /// Returns a mutable pointer to the first element.
+    pub fn as_mut_ptr(&mut self) -> *mut T {
+        self.data
+    }
+
+    /// Check if the view has contiguous rows.
+    pub fn has_contiguous_rows(&self) -> bool {
+        if self.ndim != 2 {
+            return false;
+        }
+        self.strides[1] == core::mem::size_of::<T>()
+    }
+
+    /// Check if the entire view is contiguous in memory.
+    pub fn is_contiguous(&self) -> bool {
+        if self.ndim == 0 {
+            return true;
+        }
+        let elem_size = core::mem::size_of::<T>();
+        let mut expected_stride = elem_size;
+        for i in (0..self.ndim).rev() {
+            if self.strides[i] != expected_stride {
+                return false;
+            }
+            expected_stride *= self.shape[i];
+        }
+        true
+    }
+
+    /// Convert to slice (only valid for contiguous views).
+    pub fn as_contiguous_slice(&self) -> Option<&[T]> {
+        if self.is_contiguous() {
+            Some(unsafe { core::slice::from_raw_parts(self.data, self.len) })
+        } else {
+            None
+        }
+    }
+
+    /// Convert to mutable slice (only valid for contiguous views).
+    pub fn as_contiguous_slice_mut(&mut self) -> Option<&mut [T]> {
+        if self.is_contiguous() {
+            Some(unsafe { core::slice::from_raw_parts_mut(self.data, self.len) })
+        } else {
+            None
+        }
+    }
+
+    /// Reborrow as immutable view.
+    pub fn as_view(&self) -> NDArrayView<'_, T> {
+        NDArrayView {
+            data: self.data,
+            len: self.len,
+            shape: self.shape,
+            strides: self.strides,
+            ndim: self.ndim,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T: Clone> NDArray<T> {
+    /// Create a view of the entire array.
+    pub fn view(&self) -> NDArrayView<'_, T> {
+        NDArrayView {
+            data: self.data.as_ptr(),
+            len: self.len,
+            shape: self.shape,
+            strides: self.strides,
+            ndim: self.ndim,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Create a mutable view of the entire array.
+    pub fn view_mut(&mut self) -> NDArrayViewMut<'_, T> {
+        NDArrayViewMut {
+            data: self.data.as_ptr(),
+            len: self.len,
+            shape: self.shape,
+            strides: self.strides,
+            ndim: self.ndim,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Slice the array along multiple dimensions.
+    ///
+    /// # Arguments
+    /// * `ranges` - Slice specification for each dimension. Length must match ndim.
+    ///
+    /// # Example
+    /// ```ignore
+    /// use numkong::{NDArray, SliceRange};
+    ///
+    /// let arr = NDArray::<f32>::try_new(&[4, 5], 1.0).unwrap();
+    ///
+    /// // Get rows 0..2, all columns
+    /// let view = arr.slice(&[SliceRange::range(0, 2), SliceRange::full()]).unwrap();
+    ///
+    /// // Get row 1 (reduces to 1D)
+    /// let row = arr.slice(&[SliceRange::index(1), SliceRange::full()]).unwrap();
+    /// ```
+    pub fn slice(&self, ranges: &[SliceRange]) -> Result<NDArrayView<'_, T>, NDArrayError> {
+        if ranges.len() != self.ndim {
+            return Err(NDArrayError::DimensionMismatch {
+                expected: self.ndim,
+                got: ranges.len(),
+            });
+        }
+
+        let mut new_shape = [0usize; MAX_NDIM];
+        let mut new_strides = [0usize; MAX_NDIM];
+        let mut new_ndim = 0usize;
+        let mut offset = 0usize;
+
+        for (dim, range) in ranges.iter().enumerate() {
+            let dim_size = self.shape[dim];
+            let dim_stride = self.strides[dim];
+
+            match *range {
+                SliceRange::Full => {
+                    new_shape[new_ndim] = dim_size;
+                    new_strides[new_ndim] = dim_stride;
+                    new_ndim += 1;
+                }
+                SliceRange::Index(i) => {
+                    if i >= dim_size {
+                        return Err(NDArrayError::IndexOutOfBounds {
+                            index: i,
+                            size: dim_size,
+                        });
+                    }
+                    // Single index reduces dimension (doesn't add to new shape)
+                    offset += i * dim_stride;
+                }
+                SliceRange::Range { start, end } => {
+                    if start > end || end > dim_size {
+                        return Err(NDArrayError::IndexOutOfBounds {
+                            index: end,
+                            size: dim_size,
+                        });
+                    }
+                    new_shape[new_ndim] = end - start;
+                    new_strides[new_ndim] = dim_stride;
+                    new_ndim += 1;
+                    offset += start * dim_stride;
+                }
+                SliceRange::RangeStep { start, end, step } => {
+                    if start >= dim_size || (end > dim_size && step > 0) {
+                        return Err(NDArrayError::IndexOutOfBounds {
+                            index: if start >= dim_size { start } else { end },
+                            size: dim_size,
+                        });
+                    }
+                    if step == 0 {
+                        return Err(NDArrayError::InvalidShape {
+                            shape: ShapeDescriptor::from_slice(self.shape()),
+                            reason: "step cannot be zero",
+                        });
+                    }
+                    let count = if step > 0 {
+                        (end.saturating_sub(start) + (step as usize) - 1) / (step as usize)
+                    } else {
+                        let abs_step = (-step) as usize;
+                        (start.saturating_sub(end) + abs_step - 1) / abs_step
+                    };
+                    new_shape[new_ndim] = count;
+                    // Stride can be negative for reversed views
+                    new_strides[new_ndim] = (dim_stride as isize * step) as usize;
+                    new_ndim += 1;
+                    offset += start * dim_stride;
+                }
+            }
+        }
+
+        let new_len: usize = new_shape[..new_ndim].iter().product();
+        let new_ptr = unsafe { (self.data.as_ptr() as *const u8).add(offset) as *const T };
+
+        Ok(NDArrayView {
+            data: new_ptr,
+            len: new_len,
+            shape: new_shape,
+            strides: new_strides,
+            ndim: new_ndim,
+            _marker: PhantomData,
+        })
+    }
+
+    /// Slice the array mutably along multiple dimensions.
+    pub fn slice_mut(
+        &mut self,
+        ranges: &[SliceRange],
+    ) -> Result<NDArrayViewMut<'_, T>, NDArrayError> {
+        if ranges.len() != self.ndim {
+            return Err(NDArrayError::DimensionMismatch {
+                expected: self.ndim,
+                got: ranges.len(),
+            });
+        }
+
+        let mut new_shape = [0usize; MAX_NDIM];
+        let mut new_strides = [0usize; MAX_NDIM];
+        let mut new_ndim = 0usize;
+        let mut offset = 0usize;
+
+        for (dim, range) in ranges.iter().enumerate() {
+            let dim_size = self.shape[dim];
+            let dim_stride = self.strides[dim];
+
+            match *range {
+                SliceRange::Full => {
+                    new_shape[new_ndim] = dim_size;
+                    new_strides[new_ndim] = dim_stride;
+                    new_ndim += 1;
+                }
+                SliceRange::Index(i) => {
+                    if i >= dim_size {
+                        return Err(NDArrayError::IndexOutOfBounds {
+                            index: i,
+                            size: dim_size,
+                        });
+                    }
+                    offset += i * dim_stride;
+                }
+                SliceRange::Range { start, end } => {
+                    if start > end || end > dim_size {
+                        return Err(NDArrayError::IndexOutOfBounds {
+                            index: end,
+                            size: dim_size,
+                        });
+                    }
+                    new_shape[new_ndim] = end - start;
+                    new_strides[new_ndim] = dim_stride;
+                    new_ndim += 1;
+                    offset += start * dim_stride;
+                }
+                SliceRange::RangeStep { start, end, step } => {
+                    if start >= dim_size || (end > dim_size && step > 0) {
+                        return Err(NDArrayError::IndexOutOfBounds {
+                            index: if start >= dim_size { start } else { end },
+                            size: dim_size,
+                        });
+                    }
+                    if step == 0 {
+                        return Err(NDArrayError::InvalidShape {
+                            shape: ShapeDescriptor::from_slice(self.shape()),
+                            reason: "step cannot be zero",
+                        });
+                    }
+                    let count = if step > 0 {
+                        (end.saturating_sub(start) + (step as usize) - 1) / (step as usize)
+                    } else {
+                        let abs_step = (-step) as usize;
+                        (start.saturating_sub(end) + abs_step - 1) / abs_step
+                    };
+                    new_shape[new_ndim] = count;
+                    new_strides[new_ndim] = (dim_stride as isize * step) as usize;
+                    new_ndim += 1;
+                    offset += start * dim_stride;
+                }
+            }
+        }
+
+        let new_len: usize = new_shape[..new_ndim].iter().product();
+        let new_ptr = unsafe { (self.data.as_ptr() as *mut u8).add(offset) as *mut T };
+
+        Ok(NDArrayViewMut {
+            data: new_ptr,
+            len: new_len,
+            shape: new_shape,
+            strides: new_strides,
+            ndim: new_ndim,
+            _marker: PhantomData,
+        })
+    }
+
+    /// Transpose a 2D array (swaps strides, no data copy).
+    pub fn t(&self) -> Result<NDArrayView<'_, T>, NDArrayError> {
+        if self.ndim != 2 {
+            return Err(NDArrayError::DimensionMismatch {
+                expected: 2,
+                got: self.ndim,
+            });
+        }
+
+        let mut new_shape = [0usize; MAX_NDIM];
+        let mut new_strides = [0usize; MAX_NDIM];
+        new_shape[0] = self.shape[1];
+        new_shape[1] = self.shape[0];
+        new_strides[0] = self.strides[1];
+        new_strides[1] = self.strides[0];
+
+        Ok(NDArrayView {
+            data: self.data.as_ptr(),
+            len: self.len,
+            shape: new_shape,
+            strides: new_strides,
+            ndim: 2,
+            _marker: PhantomData,
+        })
+    }
+
+    /// Reshape the array (must have same total elements, contiguous only).
+    pub fn reshape(&self, new_shape: &[usize]) -> Result<NDArrayView<'_, T>, NDArrayError> {
+        if new_shape.len() > MAX_NDIM {
+            return Err(NDArrayError::TooManyDimensions {
+                got: new_shape.len(),
+            });
+        }
+
+        let new_len: usize = new_shape.iter().product();
+        if new_len != self.len {
+            return Err(NDArrayError::ShapeMismatch {
+                expected: ShapeDescriptor::from_slice(new_shape),
+                got: ShapeDescriptor::from_slice(self.shape()),
+            });
+        }
+
+        // Check if currently contiguous
+        if !self.view().is_contiguous() {
+            return Err(NDArrayError::NonContiguousRows);
+        }
+
+        let mut shape_arr = [0usize; MAX_NDIM];
+        shape_arr[..new_shape.len()].copy_from_slice(new_shape);
+
+        let mut strides_arr = [0usize; MAX_NDIM];
+        NDArray::<T>::compute_strides_into(new_shape, &mut strides_arr);
+
+        Ok(NDArrayView {
+            data: self.data.as_ptr(),
+            len: self.len,
+            shape: shape_arr,
+            strides: strides_arr,
+            ndim: new_shape.len(),
+            _marker: PhantomData,
+        })
+    }
+}
+
+/// Pre-packed B matrix for efficient repeated GEMM operations.
+///
+/// Uses raw memory allocation (no std::Vec) for maximum control.
+///
+/// When multiplying A × Bᵀ multiple times with the same B matrix,
+/// packing B once and reusing it is much faster than packing each time.
+///
+/// # Usage
+///
+/// For C = A × Bᵀ where B is (n × k):
+/// ```rust,ignore
+/// let packed_b = PackedMatrix::try_pack(&b_array).unwrap();
+/// let c = a_array.matmul(&packed_b);
+/// ```
+///
+/// For C = A × B where B is (k × n) (standard GEMM layout):
+/// ```rust,ignore
+/// let packed_b = PackedMatrix::try_pack_transposed(&b_array).unwrap();
+/// let c = a_array.matmul(&packed_b);
+/// ```
+pub struct PackedMatrix<T: Dots, A: Allocator = Global> {
+    /// Raw pointer to packed data buffer.
+    data: NonNull<u8>,
+    /// Size of the packed buffer in bytes.
+    size: usize,
+    /// Output columns (B rows).
+    n: usize,
+    /// Inner dimension.
+    k: usize,
+    /// Allocator instance.
+    alloc: A,
+    _marker: PhantomData<T>,
+}
+
+// Safety: PackedMatrix owns its data and is just bytes
+unsafe impl<T: Dots + Send, A: Allocator + Send> Send for PackedMatrix<T, A> {}
+unsafe impl<T: Dots + Sync, A: Allocator + Sync> Sync for PackedMatrix<T, A> {}
+
+impl<T: Dots, A: Allocator> Drop for PackedMatrix<T, A> {
+    fn drop(&mut self) {
+        if self.size > 0 {
+            unsafe {
+                let layout =
+                    alloc::alloc::Layout::from_size_align_unchecked(self.size, SIMD_ALIGNMENT);
+                self.alloc.deallocate(self.data, layout);
+            }
+        }
+    }
+}
+
+impl<T: Dots, A: Allocator + Clone> Clone for PackedMatrix<T, A> {
+    fn clone(&self) -> Self {
+        if self.size == 0 {
+            return Self {
+                data: NonNull::dangling(),
+                size: 0,
+                n: self.n,
+                k: self.k,
+                alloc: self.alloc.clone(),
+                _marker: PhantomData,
+            };
+        }
+
+        let layout = alloc::alloc::Layout::from_size_align(self.size, SIMD_ALIGNMENT)
+            .expect("invalid layout");
+        let ptr = self
+            .alloc
+            .allocate(layout)
+            .expect("clone allocation failed");
+        unsafe {
+            core::ptr::copy_nonoverlapping(self.data.as_ptr(), ptr.as_ptr(), self.size);
+        }
+        Self {
+            data: ptr,
+            size: self.size,
+            n: self.n,
+            k: self.k,
+            alloc: self.alloc.clone(),
+            _marker: PhantomData,
+        }
+    }
+}
+
+// Generic allocator-aware methods
+impl<T: Dots, A: Allocator> PackedMatrix<T, A> {
+    /// Pack B matrix where B is (n × k) row-major using a custom allocator.
+    ///
+    /// Result computes: C = A × Bᵀ
+    ///
+    /// Returns `Err` if:
+    /// - b is not 2D
+    /// - allocation fails
+    pub fn try_pack_in<BA: Allocator>(b: &NDArray<T, BA>, alloc: A) -> Result<Self, NDArrayError> {
+        if b.ndim() != 2 {
+            return Err(NDArrayError::DimensionMismatch {
+                expected: 2,
+                got: b.ndim(),
+            });
+        }
+        let (n, k) = (b.shape()[0], b.shape()[1]);
+        let size = T::dots_packed_size(n, k);
+
+        let data = if size == 0 {
+            NonNull::dangling()
+        } else {
+            // Allocate with SIMD alignment
+            let layout = alloc::alloc::Layout::from_size_align(size, SIMD_ALIGNMENT)
+                .map_err(|_| NDArrayError::AllocationFailed)?;
+            let ptr = alloc
+                .allocate(layout)
+                .ok_or(NDArrayError::AllocationFailed)?;
+            // Zero the memory
+            unsafe {
+                core::ptr::write_bytes(ptr.as_ptr(), 0, size);
+            }
+            ptr
+        };
+
+        if size > 0 {
+            unsafe {
+                T::dots_pack(b.as_ptr(), n, k, b.stride(0), data.as_ptr());
+            }
+        }
+
+        Ok(Self {
+            data,
+            size,
+            n,
+            k,
+            alloc,
+            _marker: PhantomData,
+        })
+    }
+
+    /// Pack Bᵀ where B is (k × n) row-major (standard GEMM layout) using a custom allocator.
+    ///
+    /// Internally transposes then packs.
+    /// Result computes: C = A × B
+    ///
+    /// Returns `Err` if:
+    /// - b is not 2D
+    /// - allocation fails
+    pub fn try_pack_transposed_in<BA: Allocator>(
+        b: &NDArray<T, BA>,
+        alloc: A,
+    ) -> Result<Self, NDArrayError> {
+        if b.ndim() != 2 {
+            return Err(NDArrayError::DimensionMismatch {
+                expected: 2,
+                got: b.ndim(),
+            });
+        }
+        let (k, n) = (b.shape()[0], b.shape()[1]);
+        let size = T::dots_packed_size(n, k);
+
+        let data = if size == 0 {
+            NonNull::dangling()
+        } else {
+            // Allocate with SIMD alignment
+            let layout = alloc::alloc::Layout::from_size_align(size, SIMD_ALIGNMENT)
+                .map_err(|_| NDArrayError::AllocationFailed)?;
+            let ptr = alloc
+                .allocate(layout)
+                .ok_or(NDArrayError::AllocationFailed)?;
+            // Zero the memory
+            unsafe {
+                core::ptr::write_bytes(ptr.as_ptr(), 0, size);
+            }
+            ptr
+        };
+
+        if size > 0 {
+            // Pack with transposed view: column stride becomes row stride
+            unsafe {
+                T::dots_pack(b.as_ptr(), n, k, core::mem::size_of::<T>(), data.as_ptr());
+            }
+        }
+
+        Ok(Self {
+            data,
+            size,
+            n,
+            k,
+            alloc,
+            _marker: PhantomData,
+        })
+    }
+
+    /// Returns a reference to the allocator.
+    pub fn allocator(&self) -> &A {
+        &self.alloc
+    }
+
+    /// Returns dimensions (n, k) of the original B matrix.
+    pub fn dims(&self) -> (usize, usize) {
+        (self.n, self.k)
+    }
+
+    /// Returns the packed data buffer.
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { core::slice::from_raw_parts(self.data.as_ptr(), self.size) }
+    }
+
+    /// Returns a pointer to the packed data.
+    pub fn as_ptr(&self) -> *const u8 {
+        self.data.as_ptr()
+    }
+}
+
+// Convenience methods using Global allocator
+impl<T: Dots> PackedMatrix<T, Global> {
+    /// Pack B matrix where B is (n × k) row-major using the global allocator.
+    ///
+    /// Result computes: C = A × Bᵀ
+    pub fn try_pack<BA: Allocator>(b: &NDArray<T, BA>) -> Result<Self, NDArrayError> {
+        Self::try_pack_in(b, Global)
+    }
+
+    /// Pack Bᵀ where B is (k × n) row-major (standard GEMM layout) using the global allocator.
+    ///
+    /// Result computes: C = A × B
+    pub fn try_pack_transposed<BA: Allocator>(b: &NDArray<T, BA>) -> Result<Self, NDArrayError> {
+        Self::try_pack_transposed_in(b, Global)
+    }
+
+    /// Convenience constructor that panics on error.
+    pub fn pack<BA: Allocator>(b: &NDArray<T, BA>) -> Self {
+        Self::try_pack(b).expect("PackedMatrix::pack failed")
+    }
+
+    /// Convenience constructor that panics on error.
+    pub fn pack_transposed<BA: Allocator>(b: &NDArray<T, BA>) -> Self {
+        Self::try_pack_transposed(b).expect("PackedMatrix::pack_transposed failed")
+    }
+}
+
+impl<T: Dots, A: Allocator + Clone> NDArray<T, A>
+where
+    T::Accumulator: Clone + Default,
+{
+    /// Matrix multiply: C = self × packed_bᵀ
+    ///
+    /// self must be 2D (m × k) with contiguous rows.
+    /// packed_b contains B (n × k) packed.
+    /// Returns C (m × n) using the same allocator as self.
+    ///
+    /// Returns `Err` if:
+    /// - self is not 2D
+    /// - self has non-contiguous rows
+    /// - inner dimensions don't match
+    /// - output allocation fails
+    pub fn try_matmul<BA: Allocator>(
+        &self,
+        packed_b: &PackedMatrix<T, BA>,
+    ) -> Result<NDArray<T::Accumulator, A>, NDArrayError> {
+        if self.ndim() != 2 {
+            return Err(NDArrayError::DimensionMismatch {
+                expected: 2,
+                got: self.ndim(),
+            });
+        }
+        if !self.has_contiguous_rows() {
+            return Err(NDArrayError::NonContiguousRows);
+        }
+        let (m, k) = (self.shape()[0], self.shape()[1]);
+        let (n, packed_k) = packed_b.dims();
+        if k != packed_k {
+            return Err(NDArrayError::ShapeMismatch {
+                expected: ShapeDescriptor::from_slice(&[m, packed_k]),
+                got: ShapeDescriptor::from_slice(&[m, k]),
+            });
+        }
+
+        let mut c = NDArray::try_new_in(&[m, n], T::Accumulator::default(), self.alloc.clone())?;
+        unsafe {
+            T::dots(
+                self.as_ptr(),
+                packed_b.as_ptr(),
+                c.as_mut_ptr(),
+                m,
+                n,
+                k,
+                self.stride(0),
+                c.stride(0),
+            );
+        }
+        Ok(c)
+    }
+
+    /// Convenience method that panics on error.
+    pub fn matmul<BA: Allocator>(
+        &self,
+        packed_b: &PackedMatrix<T, BA>,
+    ) -> NDArray<T::Accumulator, A> {
+        self.try_matmul(packed_b).expect("matmul failed")
+    }
+}
+
+impl<T: Dots, A: Allocator> NDArray<T, A> {
+    /// Matrix multiply into existing output (avoids allocation).
+    pub fn try_matmul_into<BA: Allocator, CA: Allocator>(
+        &self,
+        packed_b: &PackedMatrix<T, BA>,
+        c: &mut NDArray<T::Accumulator, CA>,
+    ) -> Result<(), NDArrayError> {
+        if self.ndim() != 2 {
+            return Err(NDArrayError::DimensionMismatch {
+                expected: 2,
+                got: self.ndim(),
+            });
+        }
+        if !self.has_contiguous_rows() {
+            return Err(NDArrayError::NonContiguousRows);
+        }
+        let (m, k) = (self.shape()[0], self.shape()[1]);
+        let (n, packed_k) = packed_b.dims();
+        if k != packed_k {
+            return Err(NDArrayError::ShapeMismatch {
+                expected: ShapeDescriptor::from_slice(&[m, packed_k]),
+                got: ShapeDescriptor::from_slice(&[m, k]),
+            });
+        }
+        if c.shape() != &[m, n] {
+            return Err(NDArrayError::ShapeMismatch {
+                expected: ShapeDescriptor::from_slice(&[m, n]),
+                got: ShapeDescriptor::from_slice(c.shape()),
+            });
+        }
+        if !c.has_contiguous_rows() {
+            return Err(NDArrayError::NonContiguousRows);
+        }
+
+        unsafe {
+            T::dots(
+                self.as_ptr(),
+                packed_b.as_ptr(),
+                c.as_mut_ptr(),
+                m,
+                n,
+                k,
+                self.stride(0),
+                c.stride(0),
+            );
+        }
+        Ok(())
+    }
+}
+
+// region: NDArray Elementwise Operations
+
+impl<T: Clone + Scale> NDArray<T> {
+    /// Apply element-wise scale: result[i] = alpha * self[i] + beta
+    ///
+    /// Returns a new array with the scaled values.
+    pub fn scale(&self, alpha: T::Scalar, beta: T::Scalar) -> Result<NDArray<T>, NDArrayError> {
+        let mut result = NDArray::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
+        T::scale(self.as_slice(), alpha, beta, result.as_mut_slice());
+        Ok(result)
+    }
+
+    /// Apply element-wise scale in-place: self[i] = alpha * self[i] + beta
+    pub fn scale_inplace(&mut self, alpha: T::Scalar, beta: T::Scalar) {
+        // Need a temporary for in-place operation since input and output overlap
+        let ptr = self.as_ptr();
+        let len = self.len;
+        unsafe {
+            let slice = core::slice::from_raw_parts(ptr, len);
+            T::scale(slice, alpha, beta, self.as_mut_slice());
+        }
+    }
+}
+
+impl<T: Clone + Sum> NDArray<T> {
+    /// Element-wise sum: result[i] = self[i] + other[i]
+    ///
+    /// Returns a new array with the summed values.
+    pub fn add(&self, other: &NDArray<T>) -> Result<NDArray<T>, NDArrayError> {
+        if self.shape() != other.shape() {
+            return Err(NDArrayError::ShapeMismatch {
+                expected: ShapeDescriptor::from_slice(self.shape()),
+                got: ShapeDescriptor::from_slice(other.shape()),
+            });
+        }
+        let mut result = NDArray::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
+        T::sum(self.as_slice(), other.as_slice(), result.as_mut_slice());
+        Ok(result)
+    }
+
+    /// Element-wise sum in-place: self[i] = self[i] + other[i]
+    pub fn add_inplace(&mut self, other: &NDArray<T>) -> Result<(), NDArrayError> {
+        if self.shape() != other.shape() {
+            return Err(NDArrayError::ShapeMismatch {
+                expected: ShapeDescriptor::from_slice(self.shape()),
+                got: ShapeDescriptor::from_slice(other.shape()),
+            });
+        }
+        let ptr = self.as_ptr();
+        let len = self.len;
+        unsafe {
+            let slice = core::slice::from_raw_parts(ptr, len);
+            T::sum(slice, other.as_slice(), self.as_mut_slice());
+        }
+        Ok(())
+    }
+}
+
+impl<T: Clone + WSum> NDArray<T> {
+    /// Weighted sum: result[i] = alpha * self[i] + beta * other[i]
+    ///
+    /// Returns a new array with the weighted sum.
+    pub fn wsum(
+        &self,
+        other: &NDArray<T>,
+        alpha: T::Scalar,
+        beta: T::Scalar,
+    ) -> Result<NDArray<T>, NDArrayError> {
+        if self.shape() != other.shape() {
+            return Err(NDArrayError::ShapeMismatch {
+                expected: ShapeDescriptor::from_slice(self.shape()),
+                got: ShapeDescriptor::from_slice(other.shape()),
+            });
+        }
+        let mut result = NDArray::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
+        T::wsum(
+            self.as_slice(),
+            other.as_slice(),
+            alpha,
+            beta,
+            result.as_mut_slice(),
+        );
+        Ok(result)
+    }
+}
+
+impl<T: Clone + FMA> NDArray<T> {
+    /// Fused multiply-add: result[i] = alpha * self[i] * b[i] + beta * c[i]
+    ///
+    /// Returns a new array with the FMA result.
+    pub fn fma(
+        &self,
+        b: &NDArray<T>,
+        c: &NDArray<T>,
+        alpha: T::Scalar,
+        beta: T::Scalar,
+    ) -> Result<NDArray<T>, NDArrayError> {
+        if self.shape() != b.shape() || self.shape() != c.shape() {
+            return Err(NDArrayError::ShapeMismatch {
+                expected: ShapeDescriptor::from_slice(self.shape()),
+                got: ShapeDescriptor::from_slice(b.shape()),
+            });
+        }
+        let mut result = NDArray::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
+        T::fma(
+            self.as_slice(),
+            b.as_slice(),
+            c.as_slice(),
+            alpha,
+            beta,
+            result.as_mut_slice(),
+        );
+        Ok(result)
+    }
+}
+
+// endregion: NDArray Elementwise Operations
+
+// region: NDArray Trigonometry
+
+impl<T: Clone + Sin> NDArray<T> {
+    /// Element-wise sine: result[i] = sin(self[i])
+    ///
+    /// Input values are in radians.
+    pub fn sin(&self) -> Result<NDArray<T>, NDArrayError> {
+        let mut result = NDArray::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
+        T::sin(self.as_slice(), result.as_mut_slice());
+        Ok(result)
+    }
+
+    /// Element-wise sine in-place: self[i] = sin(self[i])
+    pub fn sin_inplace(&mut self) {
+        let ptr = self.as_ptr();
+        let len = self.len;
+        unsafe {
+            let slice = core::slice::from_raw_parts(ptr, len);
+            T::sin(slice, self.as_mut_slice());
+        }
+    }
+}
+
+impl<T: Clone + Cos> NDArray<T> {
+    /// Element-wise cosine: result[i] = cos(self[i])
+    ///
+    /// Input values are in radians.
+    pub fn cos(&self) -> Result<NDArray<T>, NDArrayError> {
+        let mut result = NDArray::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
+        T::cos(self.as_slice(), result.as_mut_slice());
+        Ok(result)
+    }
+
+    /// Element-wise cosine in-place: self[i] = cos(self[i])
+    pub fn cos_inplace(&mut self) {
+        let ptr = self.as_ptr();
+        let len = self.len;
+        unsafe {
+            let slice = core::slice::from_raw_parts(ptr, len);
+            T::cos(slice, self.as_mut_slice());
+        }
+    }
+}
+
+impl<T: Clone + ATan> NDArray<T> {
+    /// Element-wise arctangent: result[i] = atan(self[i])
+    ///
+    /// Output values are in radians in the range (-π/2, π/2).
+    pub fn atan(&self) -> Result<NDArray<T>, NDArrayError> {
+        let mut result = NDArray::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
+        T::atan(self.as_slice(), result.as_mut_slice());
+        Ok(result)
+    }
+
+    /// Element-wise arctangent in-place: self[i] = atan(self[i])
+    pub fn atan_inplace(&mut self) {
+        let ptr = self.as_ptr();
+        let len = self.len;
+        unsafe {
+            let slice = core::slice::from_raw_parts(ptr, len);
+            T::atan(slice, self.as_mut_slice());
+        }
+    }
+}
+
+// endregion: NDArray Trigonometry
+
+// region: NDArray Reductions
+
+impl<T: Clone + Dot> NDArray<T> {
+    /// Compute the dot product of this array with another.
+    ///
+    /// Both arrays must be 1D with the same length.
+    pub fn dot_product(&self, other: &NDArray<T>) -> Result<T::Output, NDArrayError> {
+        if self.ndim != 1 || other.ndim != 1 {
+            return Err(NDArrayError::DimensionMismatch {
+                expected: 1,
+                got: if self.ndim != 1 {
+                    self.ndim
+                } else {
+                    other.ndim
+                },
+            });
+        }
+        if self.len != other.len {
+            return Err(NDArrayError::ShapeMismatch {
+                expected: ShapeDescriptor::from_slice(self.shape()),
+                got: ShapeDescriptor::from_slice(other.shape()),
+            });
+        }
+        // Dot::dot returns Option, unwrap since we verified lengths match
+        Ok(T::dot(self.as_slice(), other.as_slice()).expect("dot product failed"))
+    }
+}
+
+impl NDArray<f32> {
+    /// Sum all elements of the array.
+    pub fn sum(&self) -> f32 {
+        let ones = NDArray::try_new(self.shape(), 1.0f32).expect("allocation failed");
+        <f32 as Dot>::dot(self.as_slice(), ones.as_slice()).unwrap_or(0.0)
+    }
+}
+
+impl NDArray<f64> {
+    /// Sum all elements of the array.
+    pub fn sum(&self) -> f64 {
+        let ones = NDArray::try_new(self.shape(), 1.0f64).expect("allocation failed");
+        <f64 as Dot>::dot(self.as_slice(), ones.as_slice()).unwrap_or(0.0)
+    }
+}
+
+// endregion: NDArray Reductions
+
+// endregion: NDArray and GEMM
 
 #[cfg(test)]
 mod tests {
