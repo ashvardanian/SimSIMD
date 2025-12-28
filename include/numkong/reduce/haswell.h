@@ -48,6 +48,19 @@ NK_INTERNAL void nk_partial_store_b32x8_haswell_(nk_b256_vec_t const *src, void 
     for (nk_size_t i = 0; i < n && i < 8; ++i) d[i] = src->u32s[i];
 }
 
+/** @brief Type-agnostic partial load for 64-bit elements (4 elements max) into 256-bit vector (Haswell AVX2). */
+NK_INTERNAL void nk_partial_load_b64x4_haswell_(void const *src, nk_size_t n, nk_b256_vec_t *dst) {
+    nk_u64_t const *s = (nk_u64_t const *)src;
+    dst->ymm = _mm256_setzero_si256();
+    for (nk_size_t i = 0; i < n && i < 4; ++i) dst->u64s[i] = s[i];
+}
+
+/** @brief Type-agnostic partial store for 64-bit elements (4 elements max) from 256-bit vector (Haswell AVX2). */
+NK_INTERNAL void nk_partial_store_b64x4_haswell_(nk_b256_vec_t const *src, void *dst, nk_size_t n) {
+    nk_u64_t *d = (nk_u64_t *)dst;
+    for (nk_size_t i = 0; i < n && i < 4; ++i) d[i] = src->u64s[i];
+}
+
 /** @brief Horizontal sum of 4 doubles in a YMM register. */
 NK_INTERNAL nk_f64_t nk_reduce_add_f64x4_haswell_(__m256d sum_f64x4) {
     __m128d lo_f64x2 = _mm256_castpd256_pd128(sum_f64x4);
