@@ -61,66 +61,112 @@ extern "C" {
 #endif
 
 /**
- *  @brief  Horizontal sum reduction over a strided array of f32 values.
- *  @param[in] data         Pointer to the input data.
- *  @param[in] count        Number of elements to reduce.
- *  @param[in] stride_bytes Stride between elements in bytes (sizeof(f32) for contiguous).
- *  @param[out] result      Output sum, widened to f64 for precision.
- */
-NK_DYNAMIC void nk_reduce_add_f32(nk_f32_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_f64_t *result);
-
-/**
- *  @brief  Horizontal sum reduction over a strided array of f64 values.
- *  @param[in] data         Pointer to the input data.
- *  @param[in] count        Number of elements to reduce.
- *  @param[in] stride_bytes Stride between elements in bytes (sizeof(f64) for contiguous).
- *  @param[out] result      Output sum.
+ *  @brief  Horizontal sum reduction over a strided array.
+ *  @param[in] data Pointer to the input data.
+ *  @param[in] count Number of elements to reduce.
+ *  @param[in] stride_bytes Stride between elements in bytes, equal to the the `sizeof(*data)` for continuous arrays.
+ *  @param[out] result Output sum.
  */
 NK_DYNAMIC void nk_reduce_add_f64(nk_f64_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_f64_t *result);
 
 /**
- *  @brief  Horizontal minimum reduction with argmin over a strided array of f32 values.
- *  @param[in] data         Pointer to the input data.
- *  @param[in] count        Number of elements to reduce.
- *  @param[in] stride_bytes Stride between elements in bytes (sizeof(f32) for contiguous).
- *  @param[out] min_value   Output minimum value.
- *  @param[out] min_index   Output index of the minimum value.
- */
-NK_DYNAMIC void nk_reduce_min_f32(nk_f32_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_f32_t *min_value,
-                                  nk_size_t *min_index);
-
-/**
- *  @brief  Horizontal maximum reduction with argmax over a strided array of f32 values.
- *  @param[in] data         Pointer to the input data.
- *  @param[in] count        Number of elements to reduce.
- *  @param[in] stride_bytes Stride between elements in bytes (sizeof(f32) for contiguous).
- *  @param[out] max_value   Output maximum value.
- *  @param[out] max_index   Output index of the maximum value.
- */
-NK_DYNAMIC void nk_reduce_max_f32(nk_f32_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_f32_t *max_value,
-                                  nk_size_t *max_index);
-
-/**
- *  @brief  Horizontal minimum reduction with argmin over a strided array of f64 values.
- *  @param[in] data         Pointer to the input data.
- *  @param[in] count        Number of elements to reduce.
- *  @param[in] stride_bytes Stride between elements in bytes (sizeof(f64) for contiguous).
- *  @param[out] min_value   Output minimum value.
- *  @param[out] min_index   Output index of the minimum value.
+ *  @brief  Horizontal minimum reduction with argmin over a strided array.
+ *  @param[in] data Pointer to the input data.
+ *  @param[in] count Number of elements to reduce.
+ *  @param[in] stride_bytes Stride between elements in bytes, equal to the the `sizeof(*data)` for continuous arrays.
+ *  @param[out] min_value Output minimum value.
+ *  @param[out] min_index Output index of the minimum value.
  */
 NK_DYNAMIC void nk_reduce_min_f64(nk_f64_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_f64_t *min_value,
                                   nk_size_t *min_index);
 
 /**
- *  @brief Horizontal maximum reduction with argmax over a strided array of f64 values.
+ *  @brief Horizontal maximum reduction with argmax over a strided array.
  *
  *  @param[in] data Pointer to the input data.
  *  @param[in] count Number of elements to reduce.
- *  @param[in] stride_bytes Stride between elements in bytes (sizeof(f64) for contiguous).
+ *  @param[in] stride_bytes Stride between elements in bytes, equal to the the `sizeof(*data)` for continuous arrays.
  *  @param[out] max_value Output maximum value.
  *  @param[out] max_index Output index of the maximum value.
  */
 NK_DYNAMIC void nk_reduce_max_f64(nk_f64_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_f64_t *max_value,
+                                  nk_size_t *max_index);
+
+/** @copydoc nk_reduce_add_f64 */
+NK_DYNAMIC void nk_reduce_add_f32(nk_f32_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_f64_t *result);
+
+/** @copydoc nk_reduce_min_f64 */
+NK_DYNAMIC void nk_reduce_min_f32(nk_f32_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_f32_t *min_value,
+                                  nk_size_t *min_index);
+
+/** @copydoc nk_reduce_max_f64 */
+NK_DYNAMIC void nk_reduce_max_f32(nk_f32_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_f32_t *max_value,
+                                  nk_size_t *max_index);
+
+/** @copydoc nk_reduce_add_f64 */
+NK_DYNAMIC void nk_reduce_add_i8(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result);
+/** @copydoc nk_reduce_add_f64 */
+NK_DYNAMIC void nk_reduce_add_u8(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result);
+/** @copydoc nk_reduce_add_f64 */
+NK_DYNAMIC void nk_reduce_add_i16(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result);
+/** @copydoc nk_reduce_add_f64 */
+NK_DYNAMIC void nk_reduce_add_u16(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result);
+/** @copydoc nk_reduce_add_f64 */
+NK_DYNAMIC void nk_reduce_add_i32(nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result);
+/** @copydoc nk_reduce_add_f64 */
+NK_DYNAMIC void nk_reduce_add_u32(nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result);
+/** @copydoc nk_reduce_add_f64 */
+NK_DYNAMIC void nk_reduce_add_i64(nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result);
+/** @copydoc nk_reduce_add_f64 */
+NK_DYNAMIC void nk_reduce_add_u64(nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result);
+
+/** @copydoc nk_reduce_min_f64 */
+NK_DYNAMIC void nk_reduce_min_i8(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i8_t *min_value,
+                                 nk_size_t *min_index);
+/** @copydoc nk_reduce_max_f64 */
+NK_DYNAMIC void nk_reduce_max_i8(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i8_t *max_value,
+                                 nk_size_t *max_index);
+/** @copydoc nk_reduce_min_f64 */
+NK_DYNAMIC void nk_reduce_min_u8(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u8_t *min_value,
+                                 nk_size_t *min_index);
+/** @copydoc nk_reduce_max_f64 */
+NK_DYNAMIC void nk_reduce_max_u8(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u8_t *max_value,
+                                 nk_size_t *max_index);
+/** @copydoc nk_reduce_min_f64 */
+NK_DYNAMIC void nk_reduce_min_i16(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i16_t *min_value,
+                                  nk_size_t *min_index);
+/** @copydoc nk_reduce_max_f64 */
+NK_DYNAMIC void nk_reduce_max_i16(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i16_t *max_value,
+                                  nk_size_t *max_index);
+/** @copydoc nk_reduce_min_f64 */
+NK_DYNAMIC void nk_reduce_min_u16(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u16_t *min_value,
+                                  nk_size_t *min_index);
+/** @copydoc nk_reduce_max_f64 */
+NK_DYNAMIC void nk_reduce_max_u16(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u16_t *max_value,
+                                  nk_size_t *max_index);
+/** @copydoc nk_reduce_min_f64 */
+NK_DYNAMIC void nk_reduce_min_i32(nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i32_t *min_value,
+                                  nk_size_t *min_index);
+/** @copydoc nk_reduce_max_f64 */
+NK_DYNAMIC void nk_reduce_max_i32(nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i32_t *max_value,
+                                  nk_size_t *max_index);
+/** @copydoc nk_reduce_min_f64 */
+NK_DYNAMIC void nk_reduce_min_u32(nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u32_t *min_value,
+                                  nk_size_t *min_index);
+/** @copydoc nk_reduce_max_f64 */
+NK_DYNAMIC void nk_reduce_max_u32(nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u32_t *max_value,
+                                  nk_size_t *max_index);
+/** @copydoc nk_reduce_min_f64 */
+NK_DYNAMIC void nk_reduce_min_i64(nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *min_value,
+                                  nk_size_t *min_index);
+/** @copydoc nk_reduce_max_f64 */
+NK_DYNAMIC void nk_reduce_max_i64(nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *max_value,
+                                  nk_size_t *max_index);
+/** @copydoc nk_reduce_min_f64 */
+NK_DYNAMIC void nk_reduce_min_u64(nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *min_value,
+                                  nk_size_t *min_index);
+/** @copydoc nk_reduce_max_f64 */
+NK_DYNAMIC void nk_reduce_max_u64(nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *max_value,
                                   nk_size_t *max_index);
 
 /** @copydoc nk_reduce_add_f32 */
