@@ -67,7 +67,7 @@ extern "C" {
         static nk_metric_dense_punned_t metric = 0;                                                                \
         if (metric == 0) {                                                                                         \
             nk_capability_t used_capability;                                                                       \
-            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
+            nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
                                   (nk_kernel_punned_t *)&metric, &used_capability);                                \
             if (!metric) {                                                                                         \
                 *(nk_u64_t *)results = 0x7FF0000000000001ull;                                                      \
@@ -77,20 +77,20 @@ extern "C" {
         metric(a, b, n, (void *)results);                                                                          \
     }
 
-#define NK_DECLARATION_SPARSE(name, extension, type, output_type)                                               \
-    NK_DYNAMIC void nk_##name##_##extension(nk_##type##_t const *a, nk_##type##_t const *b, nk_size_t a_length, \
-                                            nk_size_t b_length, nk_##output_type##_t *result) {                 \
-        static nk_metric_sparse_punned_t metric = 0;                                                            \
-        if (metric == 0) {                                                                                      \
-            nk_capability_t used_capability;                                                                    \
-            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,    \
-                                  (nk_kernel_punned_t *)(&metric), &used_capability);                           \
-            if (!metric) {                                                                                      \
-                *(nk_u64_t *)result = 0x7FF0000000000001ull;                                                    \
-                return;                                                                                         \
-            }                                                                                                   \
-        }                                                                                                       \
-        metric(a, b, a_length, b_length, (void *)result);                                                       \
+#define NK_DECLARATION_SPARSE(name, extension, type, output_type)                                                   \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##type##_t const *a, nk_##type##_t const *b, nk_size_t a_length,     \
+                                            nk_size_t b_length, nk_##output_type##_t *result) {                     \
+        static nk_sparse_intersect_punned_t metric = 0;                                                             \
+        if (metric == 0) {                                                                                          \
+            nk_capability_t used_capability;                                                                        \
+            nk_find_kernel_punned(nk_kernel_sparse_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k, \
+                                  (nk_kernel_punned_t *)(&metric), &used_capability);                               \
+            if (!metric) {                                                                                          \
+                *(nk_u64_t *)result = 0x7FF0000000000001ull;                                                        \
+                return;                                                                                             \
+            }                                                                                                       \
+        }                                                                                                           \
+        metric(a, b, a_length, b_length, (void *)result);                                                           \
     }
 
 #define NK_DECLARATION_SPARSE_DOT(name, index_type, weight_type, output_type)                                         \
@@ -98,10 +98,10 @@ extern "C" {
                                                           nk_##weight_type##_t const *a_weights,                      \
                                                           nk_##weight_type##_t const *b_weights, nk_size_t a_length,  \
                                                           nk_size_t b_length, nk_##output_type##_t *product) {        \
-        static nk_metric_sparse_dot_punned_t metric = 0;                                                              \
+        static nk_sparse_dot_punned_t metric = 0;                                                                     \
         if (metric == 0) {                                                                                            \
             nk_capability_t used_capability;                                                                          \
-            nk_find_kernel_punned(nk_metric_##name##_k, nk_##weight_type##_k, nk_capabilities(), nk_cap_any_k,        \
+            nk_find_kernel_punned(nk_kernel_sparse_dot_k, nk_##weight_type##_k, nk_capabilities(), nk_cap_any_k,      \
                                   (nk_kernel_punned_t *)&metric, &used_capability);                                   \
             if (!metric) {                                                                                            \
                 *(nk_u64_t *)product = 0x7FF0000000000001ull;                                                         \
@@ -117,7 +117,7 @@ extern "C" {
         static nk_metric_curved_punned_t metric = 0;                                                                  \
         if (metric == 0) {                                                                                            \
             nk_capability_t used_capability;                                                                          \
-            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,          \
+            nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,          \
                                   (nk_kernel_punned_t *)(&metric), &used_capability);                                 \
             if (!metric) {                                                                                            \
                 *(nk_u64_t *)result = 0x7FF0000000000001ull;                                                          \
@@ -134,7 +134,7 @@ extern "C" {
         static nk_metric_geospatial_punned_t metric = 0;                                                        \
         if (metric == 0) {                                                                                      \
             nk_capability_t used_capability;                                                                    \
-            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,    \
+            nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,    \
                                   (nk_kernel_punned_t *)(&metric), &used_capability);                           \
             if (!metric) {                                                                                      \
                 *(nk_u64_t *)results = 0x7FF0000000000001ull;                                                   \
@@ -151,7 +151,7 @@ extern "C" {
         static nk_kernel_fma_punned_t metric = 0;                                                            \
         if (metric == 0) {                                                                                   \
             nk_capability_t used_capability;                                                                 \
-            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k, \
+            nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k, \
                                   (nk_kernel_punned_t *)(&metric), &used_capability);                        \
         }                                                                                                    \
         metric(a, b, c, n, (void const *)alpha, (void const *)beta, result);                                 \
@@ -164,7 +164,7 @@ extern "C" {
         static nk_kernel_wsum_punned_t metric = 0;                                                                 \
         if (metric == 0) {                                                                                         \
             nk_capability_t used_capability;                                                                       \
-            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
+            nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
                                   (nk_kernel_punned_t *)(&metric), &used_capability);                              \
         }                                                                                                          \
         metric(a, b, n, (void const *)alpha, (void const *)beta, result);                                          \
@@ -177,7 +177,7 @@ extern "C" {
         static nk_kernel_scale_punned_t metric = 0;                                                              \
         if (metric == 0) {                                                                                       \
             nk_capability_t used_capability;                                                                     \
-            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,     \
+            nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,     \
                                   (nk_kernel_punned_t *)(&metric), &used_capability);                            \
         }                                                                                                        \
         metric(a, n, (void const *)alpha, (void const *)beta, result);                                           \
@@ -189,7 +189,7 @@ extern "C" {
         static nk_kernel_sum_punned_t metric = 0;                                                                  \
         if (metric == 0) {                                                                                         \
             nk_capability_t used_capability;                                                                       \
-            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
+            nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
                                   (nk_kernel_punned_t *)(&metric), &used_capability);                              \
         }                                                                                                          \
         metric(a, b, n, result);                                                                                   \
@@ -201,7 +201,7 @@ extern "C" {
         static nk_kernel_trigonometry_punned_t kernel = 0;                                                   \
         if (kernel == 0) {                                                                                   \
             nk_capability_t used_capability;                                                                 \
-            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k, \
+            nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k, \
                                   (nk_kernel_punned_t *)(&kernel), &used_capability);                        \
         }                                                                                                    \
         kernel(inputs, n, outputs);                                                                          \
@@ -215,7 +215,7 @@ extern "C" {
         static nk_metric_mesh_punned_t kernel = 0;                                                                 \
         if (kernel == 0) {                                                                                         \
             nk_capability_t used_capability;                                                                       \
-            nk_find_kernel_punned(nk_metric_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
+            nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
                                   (nk_kernel_punned_t *)&kernel, &used_capability);                                \
             if (!kernel) {                                                                                         \
                 *(nk_u64_t *)result = 0x7FF0000000000001ull;                                                       \
@@ -515,7 +515,7 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
 }
 
 NK_DYNAMIC void nk_find_kernel_punned( //
-    nk_metric_kind_t kind,             //
+    nk_kernel_kind_t kind,             //
     nk_datatype_t datatype,            //
     nk_capability_t supported,         //
     nk_capability_t allowed,           //

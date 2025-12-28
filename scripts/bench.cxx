@@ -676,7 +676,7 @@ void measure_mesh(bm::State &state, test_metric_at metric, baseline_metric_at ba
  *  @param l2_metric The L2 metric function to compute the error
  *  @param dimensions The number of dimensions in the vectors.
  */
-template <typename pair_at, nk_metric_kind_t kernel_ak, nk_datatype_t test_output_datatype_ak,
+template <typename pair_at, nk_kernel_kind_t kernel_ak, nk_datatype_t test_output_datatype_ak,
           nk_datatype_t baseline_output_datatype_ak, nk_datatype_t test_alpha_datatype_ak,
           nk_datatype_t baseline_alpha_datatype_ak, typename test_kernel_at = void, typename baseline_kernel_at = void,
           typename l2_metric_at = void>
@@ -698,25 +698,25 @@ void measure_elementwise(bm::State &state, test_kernel_at kernel, baseline_kerne
     baseline_alpha_t beta_baseline = 0.3;
 
     auto call_baseline = [&](vector_t const &a, vector_t const &b, vector_t const &c, vector_t &d) {
-        if constexpr (kernel_ak == nk_metric_wsum_k) {
+        if constexpr (kernel_ak == nk_kernel_wsum_k) {
             baseline(a.data(), c.data(), a.size(), &alpha_baseline, &beta_baseline, d.data());
         }
-        else if constexpr (kernel_ak == nk_metric_fma_k) {
+        else if constexpr (kernel_ak == nk_kernel_fma_k) {
             baseline(a.data(), b.data(), c.data(), a.size(), &alpha_baseline, &beta_baseline, d.data());
         }
-        else if constexpr (kernel_ak == nk_metric_sum_k) { baseline(a.data(), c.data(), a.size(), d.data()); }
-        else if constexpr (kernel_ak == nk_metric_scale_k) {
+        else if constexpr (kernel_ak == nk_kernel_sum_k) { baseline(a.data(), c.data(), a.size(), d.data()); }
+        else if constexpr (kernel_ak == nk_kernel_scale_k) {
             baseline(a.data(), a.size(), &alpha_baseline, &beta_baseline, d.data());
         }
         else { baseline(a.data(), a.size(), d.data()); }
     };
     auto call_contender = [&](vector_t const &a, vector_t const &b, vector_t const &c, vector_t &d) {
-        if constexpr (kernel_ak == nk_metric_wsum_k) { kernel(a.data(), c.data(), a.size(), &alpha, &beta, d.data()); }
-        else if constexpr (kernel_ak == nk_metric_fma_k) {
+        if constexpr (kernel_ak == nk_kernel_wsum_k) { kernel(a.data(), c.data(), a.size(), &alpha, &beta, d.data()); }
+        else if constexpr (kernel_ak == nk_kernel_fma_k) {
             kernel(a.data(), b.data(), c.data(), a.size(), &alpha, &beta, d.data());
         }
-        else if constexpr (kernel_ak == nk_metric_sum_k) { kernel(a.data(), c.data(), a.size(), d.data()); }
-        else if constexpr (kernel_ak == nk_metric_scale_k) { kernel(a.data(), a.size(), &alpha, &beta, d.data()); }
+        else if constexpr (kernel_ak == nk_kernel_sum_k) { kernel(a.data(), c.data(), a.size(), d.data()); }
+        else if constexpr (kernel_ak == nk_kernel_scale_k) { kernel(a.data(), a.size(), &alpha, &beta, d.data()); }
         else { kernel(a.data(), a.size(), d.data()); }
     };
 
@@ -767,10 +767,10 @@ void measure_elementwise(bm::State &state, test_kernel_at kernel, baseline_kerne
     }
 
     std::size_t bytes_per_call = quads[0].a.size_bytes();
-    if constexpr (kernel_ak == nk_metric_wsum_k) { bytes_per_call *= 2; }
-    else if constexpr (kernel_ak == nk_metric_fma_k) { bytes_per_call *= 3; }
-    else if constexpr (kernel_ak == nk_metric_sum_k) { bytes_per_call *= 2; }
-    else if constexpr (kernel_ak == nk_metric_scale_k) { bytes_per_call *= 1; }
+    if constexpr (kernel_ak == nk_kernel_wsum_k) { bytes_per_call *= 2; }
+    else if constexpr (kernel_ak == nk_kernel_fma_k) { bytes_per_call *= 3; }
+    else if constexpr (kernel_ak == nk_kernel_sum_k) { bytes_per_call *= 2; }
+    else if constexpr (kernel_ak == nk_kernel_scale_k) { bytes_per_call *= 1; }
 
     // Measure the mean absolute delta and relative error.
     state.counters["abs_delta"] = mean_delta;
@@ -889,7 +889,7 @@ void dense_(std::string name, test_metric_at *distance_func, baseline_metric_at 
         ->Threads(default_threads);
 }
 
-template <nk_datatype_t datatype_ak, nk_metric_kind_t kernel_ak = nk_metric_unknown_k,
+template <nk_datatype_t datatype_ak, nk_kernel_kind_t kernel_ak = nk_kernel_unknown_k,
           nk_datatype_t test_output_datatype_ak = nk_datatype_unknown_k,
           nk_datatype_t baseline_output_datatype_ak = nk_datatype_unknown_k,
           nk_datatype_t test_alpha_datatype_ak = nk_datatype_unknown_k,
@@ -1453,7 +1453,7 @@ int main(int argc, char **argv) {
 #if NK_BUILD_BENCHMARKS_WITH_MKL
     // Set MKL to single-threaded for fair comparison with NumKong (which is single-threaded)
     mkl_set_num_threads(1);
-#elif NK_BUILD_BENCHMARKS_WITH_CBLAS
+#elif NK_BUILD_BENCHMARKS_WITH_CBLAS && !defined(__APPLE__)
     // Set OpenBLAS to single-threaded for fair comparison with NumKong (which is single-threaded)
     if (openblas_set_num_threads) openblas_set_num_threads(1);
 #endif
@@ -1575,11 +1575,11 @@ int main(int argc, char **argv) {
     constexpr nk_datatype_t bf16c_k = nk_bf16c_k;
 
     // Metric kind aliases for readability
-    constexpr nk_metric_kind_t fma_k = nk_metric_fma_k;
-    constexpr nk_metric_kind_t wsum_k = nk_metric_wsum_k;
-    constexpr nk_metric_kind_t sum_k = nk_metric_sum_k;
-    constexpr nk_metric_kind_t scale_k = nk_metric_scale_k;
-    constexpr nk_metric_kind_t unknown_k = nk_metric_unknown_k;
+    constexpr nk_kernel_kind_t fma_k = nk_kernel_fma_k;
+    constexpr nk_kernel_kind_t wsum_k = nk_kernel_wsum_k;
+    constexpr nk_kernel_kind_t sum_k = nk_kernel_sum_k;
+    constexpr nk_kernel_kind_t scale_k = nk_kernel_scale_k;
+    constexpr nk_kernel_kind_t unknown_k = nk_kernel_unknown_k;
 
 #if NK_BUILD_BENCHMARKS_WITH_BLAS
 
@@ -1590,13 +1590,13 @@ int main(int argc, char **argv) {
     dense_<f32c_k, f32c_k, f64c_k>("vdot_f32c_blas", vdot_f32c_blas, nk_vdot_f32c_accurate);
     dense_<f64c_k, f64c_k, f64c_k>("vdot_f64c_blas", vdot_f64c_blas, nk_vdot_f64c_serial);
 
-    elementwise_<f32_k, nk_metric_sum_k, f32_k, f64_k, f32_k, f64_k>("sum_f32_blas", sum_f32_blas, nk_sum_f32_accurate,
+    elementwise_<f32_k, nk_kernel_sum_k, f32_k, f64_k, f32_k, f64_k>("sum_f32_blas", sum_f32_blas, nk_sum_f32_accurate,
                                                                      nk_l2_f32_accurate);
-    elementwise_<f32_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_f32_blas", wsum_f32_blas,
+    elementwise_<f32_k, nk_kernel_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_f32_blas", wsum_f32_blas,
                                                                       nk_wsum_f32_accurate, nk_l2_f32_accurate);
-    elementwise_<f64_k, nk_metric_sum_k, f64_k, f64_k, f64_k, f64_k>("sum_f64_blas", sum_f64_blas, nk_sum_f64_serial,
+    elementwise_<f64_k, nk_kernel_sum_k, f64_k, f64_k, f64_k, f64_k>("sum_f64_blas", sum_f64_blas, nk_sum_f64_serial,
                                                                      nk_l2_f64_serial);
-    elementwise_<f64_k, nk_metric_wsum_k, f64_k, f64_k, f64_k, f64_k>("wsum_f64_blas", wsum_f64_blas,
+    elementwise_<f64_k, nk_kernel_wsum_k, f64_k, f64_k, f64_k, f64_k>("wsum_f64_blas", wsum_f64_blas,
                                                                       nk_wsum_f64_serial, nk_l2_f64_serial);
 
     curved_<f64_k, f64_k, f64_k>("bilinear_f64_blas", bilinear_f64_blas, nk_bilinear_f64_serial);
@@ -1678,13 +1678,13 @@ int main(int argc, char **argv) {
     sparse_<u16_k, u32_k, u32_k>("intersect_u16_neon", nk_intersect_u16_neon, nk_intersect_u16_accurate);
     sparse_<u32_k, u32_k, u32_k>("intersect_u32_neon", nk_intersect_u32_neon, nk_intersect_u32_accurate);
 
-    elementwise_<f32_k, nk_metric_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_f32_neon", nk_fma_f32_neon,
+    elementwise_<f32_k, nk_kernel_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_f32_neon", nk_fma_f32_neon,
                                                                      nk_fma_f32_accurate, nk_l2_f32_accurate);
-    elementwise_<f32_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_f32_neon", nk_wsum_f32_neon,
+    elementwise_<f32_k, nk_kernel_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_f32_neon", nk_wsum_f32_neon,
                                                                       nk_wsum_f32_accurate, nk_l2_f32_accurate);
-    elementwise_<f32_k, nk_metric_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_f32_serial", nk_fma_f32_serial,
+    elementwise_<f32_k, nk_kernel_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_f32_serial", nk_fma_f32_serial,
                                                                      nk_fma_f32_accurate, nk_l2_f32_accurate);
-    elementwise_<f32_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_f32_serial", nk_wsum_f32_serial,
+    elementwise_<f32_k, nk_kernel_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_f32_serial", nk_wsum_f32_serial,
                                                                       nk_wsum_f32_accurate, nk_l2_f32_accurate);
 
     matmul_<nk_f32_t, nk_f32_t>("dots_f32f32f32_neon", nk_dots_f32f32f32_packed_size_neon, nk_dots_f32f32f32_pack_neon,
@@ -1733,19 +1733,19 @@ int main(int argc, char **argv) {
     curved_<f16_k, f32_k, f64_k>("mahalanobis_f16_neonhalf", nk_mahalanobis_f16_neonhalf, nk_mahalanobis_f16_accurate);
     curved_<f16c_k, f32c_k, f64c_k>("bilinear_f16c_neonhalf", nk_bilinear_f16c_neonhalf, nk_bilinear_f16c_accurate);
 
-    elementwise_<f16_k, nk_metric_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_f16_neonhalf", nk_fma_f16_neonhalf,
+    elementwise_<f16_k, nk_kernel_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_f16_neonhalf", nk_fma_f16_neonhalf,
                                                                      nk_fma_f16_accurate, nk_l2_f16_accurate);
-    elementwise_<f16_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_f16_neonhalf", nk_wsum_f16_neonhalf,
+    elementwise_<f16_k, nk_kernel_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_f16_neonhalf", nk_wsum_f16_neonhalf,
                                                                       nk_wsum_f16_accurate, nk_l2_f16_accurate);
 
     // FMA kernels for `u8` on NEON use `f16` arithmetic
-    elementwise_<u8_k, nk_metric_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_u8_neonhalf", nk_fma_u8_neonhalf,
+    elementwise_<u8_k, nk_kernel_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_u8_neonhalf", nk_fma_u8_neonhalf,
                                                                     nk_fma_u8_accurate, nk_l2_u8_accurate);
-    elementwise_<u8_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_u8_neonhalf", nk_wsum_u8_neonhalf,
+    elementwise_<u8_k, nk_kernel_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_u8_neonhalf", nk_wsum_u8_neonhalf,
                                                                      nk_wsum_u8_accurate, nk_l2_u8_accurate);
-    elementwise_<i8_k, nk_metric_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_i8_neonhalf", nk_fma_i8_neonhalf,
+    elementwise_<i8_k, nk_kernel_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_i8_neonhalf", nk_fma_i8_neonhalf,
                                                                     nk_fma_i8_accurate, nk_l2_i8_accurate);
-    elementwise_<i8_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_i8_neonhalf", nk_wsum_i8_neonhalf,
+    elementwise_<i8_k, nk_kernel_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_i8_neonhalf", nk_wsum_i8_neonhalf,
                                                                      nk_wsum_i8_accurate, nk_l2_i8_accurate);
 
     matmul_<nk_f16_t, nk_f32_t>("dots_f16f16f32_neonhalf", nk_dots_f16f16f32_packed_size_neonhalf,
@@ -1774,9 +1774,9 @@ int main(int argc, char **argv) {
     curved_<bf16c_k, f32c_k, f64c_k>("bilinear_bf16c_neonbfdot", nk_bilinear_bf16c_neonbfdot,
                                      nk_bilinear_bf16c_accurate);
 
-    elementwise_<bf16_k, nk_metric_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_bf16_neonbfdot", nk_fma_bf16_neonbfdot,
+    elementwise_<bf16_k, nk_kernel_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_bf16_neonbfdot", nk_fma_bf16_neonbfdot,
                                                                       nk_fma_bf16_accurate, nk_l2_bf16_accurate);
-    elementwise_<bf16_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_bf16_neonbfdot", nk_wsum_bf16_neonbfdot,
+    elementwise_<bf16_k, nk_kernel_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_bf16_neonbfdot", nk_wsum_bf16_neonbfdot,
                                                                        nk_wsum_bf16_accurate, nk_l2_bf16_accurate);
 
     matmul_<nk_bf16_t, nk_f32_t>("dots_bf16bf16f32_neonbfdot", nk_dots_bf16bf16f32_packed_size_neonbfdot,
@@ -1868,49 +1868,49 @@ int main(int argc, char **argv) {
     curved_<bf16_k, f32_k, f64_k>("mahalanobis_bf16_haswell", nk_mahalanobis_bf16_haswell,
                                   nk_mahalanobis_bf16_accurate);
 
-    elementwise_<f64_k, nk_metric_scale_k, f64_k, f64_k, f64_k, f64_k>("scale_f64_haswell", nk_scale_f64_haswell,
+    elementwise_<f64_k, nk_kernel_scale_k, f64_k, f64_k, f64_k, f64_k>("scale_f64_haswell", nk_scale_f64_haswell,
                                                                        nk_scale_f64_serial, nk_l2_f64_serial);
-    elementwise_<f64_k, nk_metric_fma_k, f64_k, f64_k, f64_k, f64_k>("fma_f64_haswell", nk_fma_f64_haswell,
+    elementwise_<f64_k, nk_kernel_fma_k, f64_k, f64_k, f64_k, f64_k>("fma_f64_haswell", nk_fma_f64_haswell,
                                                                      nk_fma_f64_serial, nk_l2_f64_serial);
-    elementwise_<f64_k, nk_metric_wsum_k, f64_k, f64_k, f64_k, f64_k>("wsum_f64_haswell", nk_wsum_f64_haswell,
+    elementwise_<f64_k, nk_kernel_wsum_k, f64_k, f64_k, f64_k, f64_k>("wsum_f64_haswell", nk_wsum_f64_haswell,
                                                                       nk_wsum_f64_serial, nk_l2_f64_serial);
-    elementwise_<f32_k, nk_metric_scale_k, f32_k, f32_k, f32_k, f32_k>("scale_f32_haswell", nk_scale_f32_haswell,
+    elementwise_<f32_k, nk_kernel_scale_k, f32_k, f32_k, f32_k, f32_k>("scale_f32_haswell", nk_scale_f32_haswell,
                                                                        nk_scale_f32_serial, nk_l2_f32_accurate);
-    elementwise_<f32_k, nk_metric_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_f32_haswell", nk_fma_f32_haswell,
+    elementwise_<f32_k, nk_kernel_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_f32_haswell", nk_fma_f32_haswell,
                                                                      nk_fma_f32_serial, nk_l2_f32_accurate);
-    elementwise_<f32_k, nk_metric_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_f32_haswell", nk_wsum_f32_haswell,
+    elementwise_<f32_k, nk_kernel_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_f32_haswell", nk_wsum_f32_haswell,
                                                                       nk_wsum_f32_serial, nk_l2_f32_accurate);
-    elementwise_<f16_k, nk_metric_scale_k, f32_k, f32_k, f32_k, f32_k>("scale_f16_haswell", nk_scale_f16_haswell,
+    elementwise_<f16_k, nk_kernel_scale_k, f32_k, f32_k, f32_k, f32_k>("scale_f16_haswell", nk_scale_f16_haswell,
                                                                        nk_scale_f16_serial, nk_l2_f16_accurate);
-    elementwise_<f16_k, nk_metric_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_f16_haswell", nk_fma_f16_haswell,
+    elementwise_<f16_k, nk_kernel_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_f16_haswell", nk_fma_f16_haswell,
                                                                      nk_fma_f16_serial, nk_l2_f16_accurate);
-    elementwise_<f16_k, nk_metric_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_f16_haswell", nk_wsum_f16_haswell,
+    elementwise_<f16_k, nk_kernel_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_f16_haswell", nk_wsum_f16_haswell,
                                                                       nk_wsum_f16_serial, nk_l2_f16_accurate);
-    elementwise_<bf16_k, nk_metric_scale_k, f32_k, f32_k, f32_k, f32_k>("scale_bf16_haswell", nk_scale_bf16_haswell,
+    elementwise_<bf16_k, nk_kernel_scale_k, f32_k, f32_k, f32_k, f32_k>("scale_bf16_haswell", nk_scale_bf16_haswell,
                                                                         nk_scale_bf16_serial, nk_l2_bf16_accurate);
-    elementwise_<bf16_k, nk_metric_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_bf16_haswell", nk_fma_bf16_haswell,
+    elementwise_<bf16_k, nk_kernel_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_bf16_haswell", nk_fma_bf16_haswell,
                                                                       nk_fma_bf16_serial, nk_l2_bf16_accurate);
-    elementwise_<bf16_k, nk_metric_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_bf16_haswell", nk_wsum_bf16_haswell,
+    elementwise_<bf16_k, nk_kernel_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_bf16_haswell", nk_wsum_bf16_haswell,
                                                                        nk_wsum_bf16_serial, nk_l2_bf16_accurate);
-    elementwise_<i8_k, nk_metric_scale_k, f32_k, f32_k, f32_k, f32_k>("scale_i8_haswell", nk_scale_i8_haswell,
+    elementwise_<i8_k, nk_kernel_scale_k, f32_k, f32_k, f32_k, f32_k>("scale_i8_haswell", nk_scale_i8_haswell,
                                                                       nk_scale_i8_serial, nk_l2_i8_accurate);
-    elementwise_<i8_k, nk_metric_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_i8_haswell", nk_fma_i8_haswell,
+    elementwise_<i8_k, nk_kernel_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_i8_haswell", nk_fma_i8_haswell,
                                                                     nk_fma_i8_serial, nk_l2_i8_accurate);
-    elementwise_<i8_k, nk_metric_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_i8_haswell", nk_wsum_i8_haswell,
+    elementwise_<i8_k, nk_kernel_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_i8_haswell", nk_wsum_i8_haswell,
                                                                      nk_wsum_i8_serial, nk_l2_i8_accurate);
-    elementwise_<u8_k, nk_metric_scale_k, f32_k, f32_k, f32_k, f32_k>("scale_u8_haswell", nk_scale_u8_haswell,
+    elementwise_<u8_k, nk_kernel_scale_k, f32_k, f32_k, f32_k, f32_k>("scale_u8_haswell", nk_scale_u8_haswell,
                                                                       nk_scale_u8_serial, nk_l2_u8_accurate);
-    elementwise_<u8_k, nk_metric_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_u8_haswell", nk_fma_u8_haswell,
+    elementwise_<u8_k, nk_kernel_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_u8_haswell", nk_fma_u8_haswell,
                                                                     nk_fma_u8_serial, nk_l2_u8_accurate);
-    elementwise_<u8_k, nk_metric_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_u8_haswell", nk_wsum_u8_haswell,
+    elementwise_<u8_k, nk_kernel_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_u8_haswell", nk_wsum_u8_haswell,
                                                                      nk_wsum_u8_serial, nk_l2_u8_accurate);
-    elementwise_<i16_k, nk_metric_scale_k, f32_k, f32_k, f32_k, f32_k>("scale_i16_haswell", nk_scale_i16_haswell,
+    elementwise_<i16_k, nk_kernel_scale_k, f32_k, f32_k, f32_k, f32_k>("scale_i16_haswell", nk_scale_i16_haswell,
                                                                        nk_scale_i16_serial, l2_with_stl<nk_i16_t>);
-    elementwise_<i16_k, nk_metric_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_i16_haswell", nk_fma_i16_haswell,
+    elementwise_<i16_k, nk_kernel_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_i16_haswell", nk_fma_i16_haswell,
                                                                      nk_fma_i16_serial, l2_with_stl<nk_i16_t>);
-    elementwise_<u16_k, nk_metric_scale_k, f32_k, f32_k, f32_k, f32_k>("scale_u16_haswell", nk_scale_u16_haswell,
+    elementwise_<u16_k, nk_kernel_scale_k, f32_k, f32_k, f32_k, f32_k>("scale_u16_haswell", nk_scale_u16_haswell,
                                                                        nk_scale_u16_serial, l2_with_stl<nk_u16_t>);
-    elementwise_<u16_k, nk_metric_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_u16_haswell", nk_fma_u16_haswell,
+    elementwise_<u16_k, nk_kernel_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_u16_haswell", nk_fma_u16_haswell,
                                                                      nk_fma_u16_serial, l2_with_stl<nk_u16_t>);
 
     geospatial_<f32_k, f32_k, f64_k>("haversine_f32_haswell", nk_haversine_f32_haswell,
@@ -1923,22 +1923,22 @@ int main(int argc, char **argv) {
                                      l2_with_stl<nk_f64_t>);
 
     // Trigonometry benchmarks for Haswell
-    elementwise_<f32_k, nk_metric_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+    elementwise_<f32_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
         "sin_f32_haswell", nk_sin_f32_haswell, elementwise_with_stl<nk_f32_t, sin_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f32_t>);
-    elementwise_<f32_k, nk_metric_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+    elementwise_<f32_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
         "cos_f32_haswell", nk_cos_f32_haswell, elementwise_with_stl<nk_f32_t, cos_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f32_t>);
-    elementwise_<f32_k, nk_metric_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+    elementwise_<f32_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
         "atan_f32_haswell", nk_atan_f32_haswell, elementwise_with_stl<nk_f32_t, atan_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f32_t>);
-    elementwise_<f64_k, nk_metric_unknown_k, f64_k, f64_k, f64_k, f64_k>(
+    elementwise_<f64_k, nk_kernel_unknown_k, f64_k, f64_k, f64_k, f64_k>(
         "sin_f64_haswell", nk_sin_f64_haswell, elementwise_with_stl<nk_f64_t, sin_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f64_t>);
-    elementwise_<f64_k, nk_metric_unknown_k, f64_k, f64_k, f64_k, f64_k>(
+    elementwise_<f64_k, nk_kernel_unknown_k, f64_k, f64_k, f64_k, f64_k>(
         "cos_f64_haswell", nk_cos_f64_haswell, elementwise_with_stl<nk_f64_t, cos_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f64_t>);
-    elementwise_<f64_k, nk_metric_unknown_k, f64_k, f64_k, f64_k, f64_k>(
+    elementwise_<f64_k, nk_kernel_unknown_k, f64_k, f64_k, f64_k, f64_k>(
         "atan_f64_haswell", nk_atan_f64_haswell, elementwise_with_stl<nk_f64_t, atan_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f64_t>);
 
@@ -1960,35 +1960,35 @@ int main(int argc, char **argv) {
     dense_<e4m3_k, f32_k, f32_k>("dot_e4m3_skylake", nk_dot_e4m3_skylake, nk_dot_e4m3_serial);
     dense_<e5m2_k, f32_k, f32_k>("dot_e5m2_skylake", nk_dot_e5m2_skylake, nk_dot_e5m2_serial);
 
-    elementwise_<f64_k, nk_metric_fma_k, f64_k, f64_k, f64_k, f64_k>("fma_f64_skylake", nk_fma_f64_skylake,
+    elementwise_<f64_k, nk_kernel_fma_k, f64_k, f64_k, f64_k, f64_k>("fma_f64_skylake", nk_fma_f64_skylake,
                                                                      nk_fma_f64_serial, nk_l2_f64_serial);
-    elementwise_<f64_k, nk_metric_wsum_k, f64_k, f64_k, f64_k, f64_k>("wsum_f64_skylake", nk_wsum_f64_skylake,
+    elementwise_<f64_k, nk_kernel_wsum_k, f64_k, f64_k, f64_k, f64_k>("wsum_f64_skylake", nk_wsum_f64_skylake,
                                                                       nk_wsum_f64_serial, nk_l2_f64_serial);
-    elementwise_<f32_k, nk_metric_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_f32_skylake", nk_fma_f32_skylake,
+    elementwise_<f32_k, nk_kernel_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_f32_skylake", nk_fma_f32_skylake,
                                                                      nk_fma_f32_serial, nk_l2_f32_accurate);
-    elementwise_<f32_k, nk_metric_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_f32_skylake", nk_wsum_f32_skylake,
+    elementwise_<f32_k, nk_kernel_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_f32_skylake", nk_wsum_f32_skylake,
                                                                       nk_wsum_f32_serial, nk_l2_f32_accurate);
-    elementwise_<bf16_k, nk_metric_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_bf16_skylake", nk_fma_bf16_skylake,
+    elementwise_<bf16_k, nk_kernel_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_bf16_skylake", nk_fma_bf16_skylake,
                                                                       nk_fma_bf16_serial, nk_l2_bf16_accurate);
-    elementwise_<bf16_k, nk_metric_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_bf16_skylake", nk_wsum_bf16_skylake,
+    elementwise_<bf16_k, nk_kernel_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_bf16_skylake", nk_wsum_bf16_skylake,
                                                                        nk_wsum_bf16_serial, nk_l2_bf16_accurate);
 
-    elementwise_<f32_k, nk_metric_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+    elementwise_<f32_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
         "sin_f32_skylake", nk_sin_f32_skylake, elementwise_with_stl<nk_f32_t, sin_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f32_t>);
-    elementwise_<f32_k, nk_metric_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+    elementwise_<f32_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
         "cos_f32_skylake", nk_cos_f32_skylake, elementwise_with_stl<nk_f32_t, cos_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f32_t>);
-    elementwise_<f32_k, nk_metric_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+    elementwise_<f32_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
         "atan_f32_skylake", nk_atan_f32_skylake, elementwise_with_stl<nk_f32_t, atan_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f32_t>);
-    elementwise_<f64_k, nk_metric_unknown_k, f64_k, f64_k, f64_k, f64_k>(
+    elementwise_<f64_k, nk_kernel_unknown_k, f64_k, f64_k, f64_k, f64_k>(
         "sin_f64_skylake", nk_sin_f64_skylake, elementwise_with_stl<nk_f64_t, sin_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f64_t>);
-    elementwise_<f64_k, nk_metric_unknown_k, f64_k, f64_k, f64_k, f64_k>(
+    elementwise_<f64_k, nk_kernel_unknown_k, f64_k, f64_k, f64_k, f64_k>(
         "cos_f64_skylake", nk_cos_f64_skylake, elementwise_with_stl<nk_f64_t, cos_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f64_t>);
-    elementwise_<f64_k, nk_metric_unknown_k, f64_k, f64_k, f64_k, f64_k>(
+    elementwise_<f64_k, nk_kernel_unknown_k, f64_k, f64_k, f64_k, f64_k>(
         "atan_f64_skylake", nk_atan_f64_skylake, elementwise_with_stl<nk_f64_t, atan_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f64_t>);
 
@@ -2074,13 +2074,13 @@ int main(int argc, char **argv) {
     dense_<e4m3_k, f32_k, f32_k>("dot_e4m3_sapphire", nk_dot_e4m3_sapphire, nk_dot_e4m3_serial);
     dense_<e5m2_k, f32_k, f32_k>("dot_e5m2_sapphire", nk_dot_e5m2_sapphire, nk_dot_e5m2_serial);
 
-    elementwise_<u8_k, nk_metric_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_u8_sapphire", nk_fma_u8_sapphire,
+    elementwise_<u8_k, nk_kernel_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_u8_sapphire", nk_fma_u8_sapphire,
                                                                     nk_fma_u8_serial, nk_l2_u8_accurate);
-    elementwise_<u8_k, nk_metric_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_u8_sapphire", nk_wsum_u8_sapphire,
+    elementwise_<u8_k, nk_kernel_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_u8_sapphire", nk_wsum_u8_sapphire,
                                                                      nk_wsum_u8_serial, nk_l2_u8_accurate);
-    elementwise_<i8_k, nk_metric_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_i8_sapphire", nk_fma_i8_sapphire,
+    elementwise_<i8_k, nk_kernel_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_i8_sapphire", nk_fma_i8_sapphire,
                                                                     nk_fma_i8_serial, nk_l2_i8_accurate);
-    elementwise_<i8_k, nk_metric_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_i8_sapphire", nk_wsum_i8_sapphire,
+    elementwise_<i8_k, nk_kernel_wsum_k, f32_k, f32_k, f32_k, f32_k>("wsum_i8_sapphire", nk_wsum_i8_sapphire,
                                                                      nk_wsum_i8_serial, nk_l2_i8_accurate);
 
     curved_<f16_k, f32_k, f64_k>("bilinear_f16_sapphire", nk_bilinear_f16_sapphire, nk_bilinear_f16_accurate);
@@ -2175,54 +2175,54 @@ int main(int argc, char **argv) {
     dense_<b8_k, u32_k, u32_k>("hamming_b8_serial", nk_hamming_b8_serial, nk_hamming_b8_serial);
     dense_<b8_k, f32_k, f32_k>("jaccard_b8_serial", nk_jaccard_b8_serial, nk_jaccard_b8_serial);
 
-    elementwise_<f32_k, nk_metric_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+    elementwise_<f32_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
         "sin_f32_stl", elementwise_with_stl<nk_f32_t, sin_with_stl<nk_f32_t>>,
         elementwise_with_stl<nk_f32_t, sin_with_stl<nk_f64_t>>, l2_with_stl<nk_f32_t>);
-    elementwise_<f32_k, nk_metric_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+    elementwise_<f32_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
         "cos_f32_stl", elementwise_with_stl<nk_f32_t, cos_with_stl<nk_f32_t>>,
         elementwise_with_stl<nk_f32_t, cos_with_stl<nk_f64_t>>, l2_with_stl<nk_f32_t>);
-    elementwise_<f32_k, nk_metric_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+    elementwise_<f32_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
         "atan_f32_stl", elementwise_with_stl<nk_f32_t, atan_with_stl<nk_f32_t>>,
         elementwise_with_stl<nk_f32_t, atan_with_stl<nk_f64_t>>, l2_with_stl<nk_f32_t>);
-    elementwise_<f32_k, nk_metric_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+    elementwise_<f32_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
         "sin_f32_serial", nk_sin_f32_serial, elementwise_with_stl<nk_f32_t, sin_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f32_t>);
-    elementwise_<f32_k, nk_metric_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+    elementwise_<f32_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
         "cos_f32_serial", nk_cos_f32_serial, elementwise_with_stl<nk_f32_t, cos_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f32_t>);
-    elementwise_<f32_k, nk_metric_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+    elementwise_<f32_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
         "atan_f32_serial", nk_atan_f32_serial, elementwise_with_stl<nk_f32_t, atan_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f32_t>);
-    elementwise_<f64_k, nk_metric_unknown_k, f64_k, f64_k, f64_k, f64_k>(
+    elementwise_<f64_k, nk_kernel_unknown_k, f64_k, f64_k, f64_k, f64_k>(
         "sin_f64_stl", elementwise_with_stl<nk_f64_t, sin_with_stl<nk_f64_t>>,
         elementwise_with_stl<nk_f64_t, sin_with_stl<nk_f64_t>>, l2_with_stl<nk_f64_t>);
-    elementwise_<f64_k, nk_metric_unknown_k, f64_k, f64_k, f64_k, f64_k>(
+    elementwise_<f64_k, nk_kernel_unknown_k, f64_k, f64_k, f64_k, f64_k>(
         "cos_f64_stl", elementwise_with_stl<nk_f64_t, cos_with_stl<nk_f64_t>>,
         elementwise_with_stl<nk_f64_t, cos_with_stl<nk_f64_t>>, l2_with_stl<nk_f64_t>);
-    elementwise_<f64_k, nk_metric_unknown_k, f64_k, f64_k, f64_k, f64_k>(
+    elementwise_<f64_k, nk_kernel_unknown_k, f64_k, f64_k, f64_k, f64_k>(
         "atan_f64_stl", elementwise_with_stl<nk_f64_t, atan_with_stl<nk_f64_t>>,
         elementwise_with_stl<nk_f64_t, atan_with_stl<nk_f64_t>>, l2_with_stl<nk_f64_t>);
-    elementwise_<f64_k, nk_metric_unknown_k, f64_k, f64_k, f64_k, f64_k>(
+    elementwise_<f64_k, nk_kernel_unknown_k, f64_k, f64_k, f64_k, f64_k>(
         "sin_f64_serial", nk_sin_f64_serial, elementwise_with_stl<nk_f64_t, sin_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f64_t>);
-    elementwise_<f64_k, nk_metric_unknown_k, f64_k, f64_k, f64_k, f64_k>(
+    elementwise_<f64_k, nk_kernel_unknown_k, f64_k, f64_k, f64_k, f64_k>(
         "cos_f64_serial", nk_cos_f64_serial, elementwise_with_stl<nk_f64_t, cos_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f64_t>);
-    elementwise_<f64_k, nk_metric_unknown_k, f64_k, f64_k, f64_k, f64_k>(
+    elementwise_<f64_k, nk_kernel_unknown_k, f64_k, f64_k, f64_k, f64_k>(
         "atan_f64_serial", nk_atan_f64_serial, elementwise_with_stl<nk_f64_t, atan_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f64_t>);
 
-    elementwise_<f16_k, nk_metric_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_f16_serial", nk_fma_f16_serial,
+    elementwise_<f16_k, nk_kernel_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_f16_serial", nk_fma_f16_serial,
                                                                      nk_fma_f16_accurate, nk_l2_f16_accurate);
-    elementwise_<f16_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_f16_serial", nk_wsum_f16_serial,
+    elementwise_<f16_k, nk_kernel_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_f16_serial", nk_wsum_f16_serial,
                                                                       nk_wsum_f16_accurate, nk_l2_f16_accurate);
-    elementwise_<u8_k, nk_metric_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_u8_serial", nk_fma_u8_serial,
+    elementwise_<u8_k, nk_kernel_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_u8_serial", nk_fma_u8_serial,
                                                                     nk_fma_u8_accurate, nk_l2_u8_accurate);
-    elementwise_<u8_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_u8_serial", nk_wsum_u8_serial,
+    elementwise_<u8_k, nk_kernel_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_u8_serial", nk_wsum_u8_serial,
                                                                      nk_wsum_u8_accurate, nk_l2_u8_accurate);
-    elementwise_<i8_k, nk_metric_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_i8_serial", nk_fma_i8_serial,
+    elementwise_<i8_k, nk_kernel_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_i8_serial", nk_fma_i8_serial,
                                                                     nk_fma_i8_accurate, nk_l2_i8_accurate);
-    elementwise_<i8_k, nk_metric_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_i8_serial", nk_wsum_i8_serial,
+    elementwise_<i8_k, nk_kernel_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_i8_serial", nk_wsum_i8_serial,
                                                                      nk_wsum_i8_accurate, nk_l2_i8_accurate);
 
     geospatial_<f32_k, f32_k, f64_k>("haversine_f32_serial", nk_haversine_f32_serial,

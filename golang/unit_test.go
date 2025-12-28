@@ -5,9 +5,7 @@ import (
 	"testing"
 )
 
-// =============================================================================
-// Dot Product Tests
-// =============================================================================
+// region Dot Product Tests
 
 func TestDotF64(t *testing.T) {
 	a := []float64{1, 2, 3}
@@ -39,9 +37,7 @@ func TestDotI8(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// Angular (Cosine) Distance Tests
-// =============================================================================
+// region Angular (Cosine) Distance Tests
 
 func TestAngularI8(t *testing.T) {
 	a := []int8{1, 0}
@@ -87,9 +83,7 @@ func TestAngularIdentical(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// Euclidean Distance Tests
-// =============================================================================
+// region Euclidean Distance Tests
 
 func TestEuclideanF64(t *testing.T) {
 	a := []float64{1, 2, 3}
@@ -122,9 +116,7 @@ func TestEuclideanI8(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// Squared Euclidean Distance Tests
-// =============================================================================
+// region Squared Euclidean Distance Tests
 
 func TestSqEuclideanF64(t *testing.T) {
 	a := []float64{1, 2, 3}
@@ -156,9 +148,7 @@ func TestSqEuclideanI8(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// Geospatial Tests
-// =============================================================================
+// region Geospatial Tests
 
 func TestHaversineF64(t *testing.T) {
 	// New York City to London
@@ -237,9 +227,7 @@ func TestVincentyF32(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// Error Handling Tests
-// =============================================================================
+// region Error Handling Tests
 
 func TestVectorLengthMismatch(t *testing.T) {
 	defer func() {
@@ -275,9 +263,7 @@ func TestGeospatialLengthMismatch(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// Alias Tests
-// =============================================================================
+// region Alias Tests
 
 func TestAliases(t *testing.T) {
 	a := []float32{1, 2, 3}
