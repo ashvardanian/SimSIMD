@@ -40,9 +40,14 @@
 // - cblas_gemm_bf16bf16f32: BF16 inputs → F32 output
 // - cblas_hgemm: F16 GEMM (if available)
 #elif NK_BUILD_BENCHMARKS_WITH_CBLAS
+#if defined(__APPLE__)
+// Apple Accelerate framework provides CBLAS
+#include <Accelerate/Accelerate.h>
+#else
 #include <cblas.h>
 // OpenBLAS thread control (weak symbol to avoid link errors if not present)
 extern "C" void openblas_set_num_threads(int) __attribute__((weak));
+#endif
 #endif
 
 // Unified BLAS availability check (MKL provides CBLAS interface)
