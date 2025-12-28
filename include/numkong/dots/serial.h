@@ -761,9 +761,22 @@ NK_MAKE_DOTS_PACK_SIZE(serial, f32, f32, NK_DOTS_SERIAL_TILE_K_F32)
 NK_MAKE_DOTS_PACK(serial, f32, f32, NK_DOTS_SERIAL_TILE_K_F32)
 NK_MAKE_DOTS_SCALARS(serial, f32, f32, f32, nk_serial_copy_f32, NK_DOTS_SERIAL_TILE_K_F32)
 
-/*  Serial compact functions: simple scalar implementations for post-matmul conversion.
- *  These work on any platform without SIMD requirements.
- */
+// Serial packed implementations for F64 (8 elements per 64-byte tile row)
+NK_INTERNAL void nk_serial_copy_f64(nk_f64_t const *src, nk_f64_t *dst) { *dst = *src; }
+NK_MAKE_DOTS_PACK_SIZE(serial, f64, f64, NK_DOTS_SERIAL_TILE_K_F64)
+NK_MAKE_DOTS_PACK(serial, f64, f64, NK_DOTS_SERIAL_TILE_K_F64)
+NK_MAKE_DOTS_SCALARS(serial, f64, f64, f64, nk_serial_copy_f64, NK_DOTS_SERIAL_TILE_K_F64)
+
+// Serial packed implementations for F16 (32 elements per 64-byte tile row)
+NK_MAKE_DOTS_PACK_SIZE(serial, f16, f32, NK_DOTS_SERIAL_TILE_K_F16)
+NK_MAKE_DOTS_PACK(serial, f16, f32, NK_DOTS_SERIAL_TILE_K_F16)
+NK_MAKE_DOTS_SCALARS(serial, f16, f32, f32, nk_f16_to_f32, NK_DOTS_SERIAL_TILE_K_F16)
+
+// Serial packed implementations for U8 (64 elements per 64-byte tile row)
+NK_INTERNAL void nk_serial_copy_u8_to_u32(nk_u8_t const *src, nk_u32_t *dst) { *dst = (nk_u32_t)(*src); }
+NK_MAKE_DOTS_PACK_SIZE(serial, u8, u32, NK_DOTS_SERIAL_TILE_K_U8)
+NK_MAKE_DOTS_PACK(serial, u8, u32, NK_DOTS_SERIAL_TILE_K_U8)
+NK_MAKE_DOTS_SCALARS(serial, u8, u32, u32, nk_serial_copy_u8_to_u32, NK_DOTS_SERIAL_TILE_K_U8)
 
 /*  BF16 compact: truncate F32 → BF16 in-place.
  *  Reads F32 matrix with c_stride, writes BF16 tightly packed (stride = n * sizeof(bf16)).
