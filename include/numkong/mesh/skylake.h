@@ -244,7 +244,7 @@ NK_PUBLIC void nk_rmsd_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size
     nk_f32_t sum_squared = _mm512_reduce_add_ps(sum_sq_total_f32x16);
     nk_f32_t mean_diff_sq = mean_diff_x * mean_diff_x + mean_diff_y * mean_diff_y + mean_diff_z * mean_diff_z;
 
-    *result = NK_F32_SQRT((nk_distance_t)(sum_squared * inv_n - mean_diff_sq));
+    *result = NK_F64_SQRT(sum_squared * inv_n - mean_diff_sq);
 }
 
 NK_PUBLIC void nk_kabsch_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
@@ -564,7 +564,7 @@ NK_PUBLIC void nk_kabsch_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_si
         sum_squared_f64x8 = _mm512_fmadd_pd(delta_z_hi_f64x8, delta_z_hi_f64x8, sum_squared_f64x8);
     }
 
-    *result = NK_F32_SQRT((nk_distance_t)_mm512_reduce_add_pd(sum_squared_f64x8) * inv_n_d);
+    *result = NK_F64_SQRT(mm512_reduce_add_pd(sum_squared_f64x8) * inv_n_d);
 }
 
 NK_PUBLIC void nk_rmsd_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
@@ -1309,7 +1309,7 @@ NK_PUBLIC void nk_umeyama_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_s
         }
     }
 
-    *result = NK_F32_SQRT((nk_distance_t)_mm512_reduce_add_pd(sum_squared_f64x8) * inv_n);
+    *result = NK_F64_SQRT(mm512_reduce_add_pd(sum_squared_f64x8) * inv_n);
 }
 
 NK_PUBLIC void nk_umeyama_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
