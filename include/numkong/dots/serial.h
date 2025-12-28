@@ -4,7 +4,51 @@
  *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section numkong_dots_serial_packing Tile Packing Format
+ *
+ *  When multiplying matrices, one of the arguments often remains constant across multiple calls.
+ *  To optimize performance, we pack this matrix into a tiled format that improves cache locality
+ *  and allows for more efficient SIMD loads during the matrix multiplication.
+ *
+ *  Imagine a row-major 8x8 input matrix looking like:
+ *
+ *      Aa Ab Ac Ad Ae Af Ag Ah         Let's assume that our tile size is 3x3.
+ *      Ba Bb Bc Bd Be Bf Bg Bh         In the packed format, the matrix is divided
+ *      Ca Cb Cc Cd Ce Cf Cg Ch         into tiles, and transposed within each tile.
+ *      Da Db Dc Dd De Df Dg Dh         For tile [3:6,3:6], the memory layout becomes:
+ *      Ea Eb Ec Ed Ee Ef Eg Eh
+ *      Fa Fb Fc Fd Fe Ff Fg Fh         Dd Ed Fd De Ee Fe Df Ff Gf
+ *      Ga Gb Gc Gd Ge Gf Gg Gh
+ *      Ha Hb Hc Hd He Hf Hg Hh
+ *
+ *  We first store the tiles forming the first columns of the matrix, then the second
+ *  columns, etc. So our previous example matrix would be stored in memory as:
+ *
+ *      Aa Ba Ca Ab Bb Cb Ac Bc Cc      < The transposed tile at [0:3,0:3]
+ *      Da Ea Fa Db Eb Fb Ec Fc Fc      < The transposed tile at [3:6,0:3]
+ *      Ga Ha 00 Gb Hb 00 Gc Hc 00      < The transposed tile at [6:8,0:3], padded
+ *      Ad Bd Cd Ae Be Ce Af Bf Cf      < The transposed tile at [0:3,3:6]
+ *      Dd Ed Fd De Ee Fe Df Ff Ff      < The transposed tile at [3:6,3:6]
+ *      Gd Hd 00 Ge He 00 Gf Hf 00      < The transposed tile at [6:8,3:6], padded
+ *      Ag Bg Cg Ah Bh Ch 00 00 00      < The transposed tile at [0:3,6:8], padded
+ *      Dg Eg Fg Df Eg Ff 00 00 00      < The transposed tile at [3:6,6:8], padded
+ *      Gg Hg 00 Gg Hg 00 00 00 00      < The transposed tile at [6:8,6:8], padded
+ *
+ *  This way it uses more memory due to padding, but allows eliminating some of the
+ *  boundary checks in the inner loops of the mat-mul kernel, leading to better performance.
+ *
+ *  The tiles can be chosen to be of any rectangular form, better fitting the CPU.
+ *  Oftentimes, we want the width to be 64 bytes (matching the cache line of many CPUs),
+ *  and the height is proportional to the amount of the L1 cache lines we have.
+ *  Meaning, the width in columns will be different for different numeric types:
+ *
+ *    - i8/u8/e4m3/e5m2: 64 elements per tile row
+ *    - f16/bf16/i16/u16: 32 elements per tile row
+ *    - f32/i32/u32: 16 elements per tile row
+ *    - f64/i64/u64: 8 elements per tile row
  */
+
 #ifndef NK_DOTS_SERIAL_H
 #define NK_DOTS_SERIAL_H
 #include "numkong/types.h"
