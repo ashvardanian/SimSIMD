@@ -53,6 +53,32 @@ NK_PUBLIC void nk_dot_f16_neonfhm(nk_f16_t const *a_scalars, nk_f16_t const *b_s
 
     *result = vaddvq_f32(sum_f32x4);
 }
+
+// State-based API for GEMM integration
+typedef struct nk_dot_f16x8_state_neonfhm_t {
+    float32x4_t sum_f32x4;
+} nk_dot_f16x8_state_neonfhm_t;
+
+NK_INTERNAL void nk_dot_f16x8_init_neonfhm(nk_dot_f16x8_state_neonfhm_t *state) { state->sum_f32x4 = vdupq_n_f32(0); }
+
+NK_INTERNAL void nk_dot_f16x8_update_neonfhm(nk_dot_f16x8_state_neonfhm_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+    float16x8_t a_f16x8 = vreinterpretq_f16_u16(a.u16x8);
+    float16x8_t b_f16x8 = vreinterpretq_f16_u16(b.u16x8);
+    // FMLAL: widening multiply-accumulate fp16->f32 (faster than convert-then-FMA)
+    state->sum_f32x4 = vfmlalq_low_f16(state->sum_f32x4, a_f16x8, b_f16x8);
+    state->sum_f32x4 = vfmlalq_high_f16(state->sum_f32x4, a_f16x8, b_f16x8);
+}
+
+NK_INTERNAL void nk_dot_f16x8_finalize_neonfhm(                                               //
+    nk_dot_f16x8_state_neonfhm_t const *state_a, nk_dot_f16x8_state_neonfhm_t const *state_b, //
+    nk_dot_f16x8_state_neonfhm_t const *state_c, nk_dot_f16x8_state_neonfhm_t const *state_d, //
+    nk_f32_t *results) {
+    results[0] = vaddvq_f32(state_a->sum_f32x4);
+    results[1] = vaddvq_f32(state_b->sum_f32x4);
+    results[2] = vaddvq_f32(state_c->sum_f32x4);
+    results[3] = vaddvq_f32(state_d->sum_f32x4);
+}
+
 /**
  *  @brief Complex dot product using FMLAL/FMLSL for widening fp16->f32 operations.
  *  Computes: result = Σ(a[i] * b[i]) where * is complex multiplication.
