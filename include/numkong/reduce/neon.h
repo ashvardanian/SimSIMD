@@ -47,6 +47,19 @@ NK_INTERNAL void nk_partial_store_b32x4_neon_(nk_b128_vec_t const *src, void *ds
     for (nk_size_t i = 0; i < n && i < 4; ++i) d[i] = src->u32s[i];
 }
 
+/** @brief Type-agnostic partial load for 64-bit elements (2 elements max) into 128-bit vector (NEON). */
+NK_INTERNAL void nk_partial_load_b64x2_neon_(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
+    nk_u64_t const *s = (nk_u64_t const *)src;
+    dst->u64x2 = vdupq_n_u64(0);
+    for (nk_size_t i = 0; i < n && i < 2; ++i) dst->u64s[i] = s[i];
+}
+
+/** @brief Type-agnostic partial store for 64-bit elements (2 elements max) from 128-bit vector (NEON). */
+NK_INTERNAL void nk_partial_store_b64x2_neon_(nk_b128_vec_t const *src, void *dst, nk_size_t n) {
+    nk_u64_t *d = (nk_u64_t *)dst;
+    for (nk_size_t i = 0; i < n && i < 2; ++i) d[i] = src->u64s[i];
+}
+
 /** @brief Horizontal sum of 4 floats in a NEON register. */
 NK_INTERNAL nk_f32_t nk_reduce_add_f32x4_neon_(float32x4_t sum_f32x4) { return vaddvq_f32(sum_f32x4); }
 

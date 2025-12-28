@@ -239,6 +239,7 @@ NK_PUBLIC void nk_atan_f32_skylake(nk_f32_t const *ins, nk_size_t n, nk_f32_t *o
 #endif // NK_TARGET_SKYLAKE
 
 #include "numkong/trigonometry/serial.h"
+#include "numkong/trigonometry/neon.h"
 #include "numkong/trigonometry/haswell.h"
 #include "numkong/trigonometry/skylake.h"
 
