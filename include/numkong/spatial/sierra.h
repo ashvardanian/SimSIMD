@@ -51,84 +51,89 @@ NK_PUBLIC void nk_angular_i8_sierra(nk_i8_t const *a, nk_i8_t const *b, nk_size_
     *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
 
-typedef nk_dot_i8x64_state_sierra_t nk_angular_i8x64_state_sierra_t;
-NK_INTERNAL void nk_angular_i8x64_init_sierra(nk_angular_i8x64_state_sierra_t *state) {
-    nk_dot_i8x64_init_sierra(state);
+typedef nk_dot_i8x32_state_sierra_t nk_angular_i8x32_state_sierra_t;
+NK_INTERNAL void nk_angular_i8x32_init_sierra(nk_angular_i8x32_state_sierra_t *state) {
+    nk_dot_i8x32_init_sierra(state);
 }
-NK_INTERNAL void nk_angular_i8x64_update_sierra(nk_angular_i8x64_state_sierra_t *state, nk_b512_vec_t a,
-                                                nk_b512_vec_t b) {
-    nk_dot_i8x64_update_sierra(state, a, b);
+NK_INTERNAL void nk_angular_i8x32_update_sierra(nk_angular_i8x32_state_sierra_t *state, nk_b256_vec_t a,
+                                                nk_b256_vec_t b) {
+    nk_dot_i8x32_update_sierra(state, a, b);
 }
-NK_INTERNAL void nk_angular_i8x64_finalize_sierra(nk_angular_i8x64_state_sierra_t const *state_a,
-                                                  nk_angular_i8x64_state_sierra_t const *state_b,
-                                                  nk_angular_i8x64_state_sierra_t const *state_c,
-                                                  nk_angular_i8x64_state_sierra_t const *state_d, nk_f32_t query_norm,
+NK_INTERNAL void nk_angular_i8x32_finalize_sierra(nk_angular_i8x32_state_sierra_t const *state_a,
+                                                  nk_angular_i8x32_state_sierra_t const *state_b,
+                                                  nk_angular_i8x32_state_sierra_t const *state_c,
+                                                  nk_angular_i8x32_state_sierra_t const *state_d, nk_f32_t query_norm,
                                                   nk_f32_t target_norm_a, nk_f32_t target_norm_b,
                                                   nk_f32_t target_norm_c, nk_f32_t target_norm_d, nk_f32_t *results) {
-    // Extract dots from states
-    nk_distance_t dot_product_a, dot_product_b, dot_product_c, dot_product_d;
-    nk_dot_i8x64_finalize_sierra(state_a, &dot_product_a);
-    nk_dot_i8x64_finalize_sierra(state_b, &dot_product_b);
-    nk_dot_i8x64_finalize_sierra(state_c, &dot_product_c);
-    nk_dot_i8x64_finalize_sierra(state_d, &dot_product_d);
+    // Extract all 4 dot products with single ILP-optimized call
+    nk_i32_t dots_i32[4];
+    nk_dot_i8x32_finalize_sierra(state_a, state_b, state_c, state_d, dots_i32);
 
-    // Compute squared norms (loop-unrolled)
-    nk_f32_t query_norm_sq = (nk_f32_t)query_norm * (nk_f32_t)query_norm;
-    nk_f32_t target_norm_sq_a = (nk_f32_t)target_norm_a * (nk_f32_t)target_norm_a;
-    nk_f32_t target_norm_sq_b = (nk_f32_t)target_norm_b * (nk_f32_t)target_norm_b;
-    nk_f32_t target_norm_sq_c = (nk_f32_t)target_norm_c * (nk_f32_t)target_norm_c;
-    nk_f32_t target_norm_sq_d = (nk_f32_t)target_norm_d * (nk_f32_t)target_norm_d;
+    // Convert dots to f32 and build vectors for parallel processing
+    __m128 dots_f32x4 = _mm_cvtepi32_ps(_mm_loadu_si128((__m128i const *)dots_i32));
+    __m128 query_norm_sq_f32x4 = _mm_set1_ps(query_norm * query_norm);
+    __m128 target_norms_sq_f32x4 = _mm_set_ps(target_norm_d * target_norm_d, target_norm_c * target_norm_c,
+                                              target_norm_b * target_norm_b, target_norm_a * target_norm_a);
 
-    // Compute angular distances (loop-unrolled)
-    results[0] = nk_angular_normalize_f32_haswell_((nk_f32_t)dot_product_a, query_norm_sq, target_norm_sq_a);
-    results[1] = nk_angular_normalize_f32_haswell_((nk_f32_t)dot_product_b, query_norm_sq, target_norm_sq_b);
-    results[2] = nk_angular_normalize_f32_haswell_((nk_f32_t)dot_product_c, query_norm_sq, target_norm_sq_c);
-    results[3] = nk_angular_normalize_f32_haswell_((nk_f32_t)dot_product_d, query_norm_sq, target_norm_sq_d);
+    // products = query_norm_sq * target_norms_sq
+    __m128 products_f32x4 = _mm_mul_ps(query_norm_sq_f32x4, target_norms_sq_f32x4);
+
+    // rsqrt with Newton-Raphson refinement: x' = x * (1.5 - 0.5 * val * x * x)
+    __m128 rsqrt_f32x4 = _mm_rsqrt_ps(products_f32x4);
+    __m128 half_f32x4 = _mm_set1_ps(0.5f);
+    __m128 three_halves_f32x4 = _mm_set1_ps(1.5f);
+    __m128 rsqrt_sq_f32x4 = _mm_mul_ps(rsqrt_f32x4, rsqrt_f32x4);
+    __m128 half_prod_f32x4 = _mm_mul_ps(half_f32x4, products_f32x4);
+    __m128 muls_f32x4 = _mm_mul_ps(half_prod_f32x4, rsqrt_sq_f32x4);
+    __m128 refinement_f32x4 = _mm_sub_ps(three_halves_f32x4, muls_f32x4);
+    rsqrt_f32x4 = _mm_mul_ps(rsqrt_f32x4, refinement_f32x4);
+
+    // normalized = dots * rsqrt(products)
+    __m128 normalized_f32x4 = _mm_mul_ps(dots_f32x4, rsqrt_f32x4);
+
+    // angular = 1 - normalized
+    __m128 ones_f32x4 = _mm_set1_ps(1.0f);
+    __m128 angular_f32x4 = _mm_sub_ps(ones_f32x4, normalized_f32x4);
+
+    // Store results
+    _mm_storeu_ps(results, angular_f32x4);
 }
 
-typedef nk_dot_i8x64_state_sierra_t nk_l2_i8x64_state_sierra_t;
-NK_INTERNAL void nk_l2_i8x64_init_sierra(nk_l2_i8x64_state_sierra_t *state) { nk_dot_i8x64_init_sierra(state); }
-NK_INTERNAL void nk_l2_i8x64_update_sierra(nk_l2_i8x64_state_sierra_t *state, nk_b512_vec_t a, nk_b512_vec_t b) {
-    nk_dot_i8x64_update_sierra(state, a, b);
+typedef nk_dot_i8x32_state_sierra_t nk_l2_i8x32_state_sierra_t;
+NK_INTERNAL void nk_l2_i8x32_init_sierra(nk_l2_i8x32_state_sierra_t *state) { nk_dot_i8x32_init_sierra(state); }
+NK_INTERNAL void nk_l2_i8x32_update_sierra(nk_l2_i8x32_state_sierra_t *state, nk_b256_vec_t a, nk_b256_vec_t b) {
+    nk_dot_i8x32_update_sierra(state, a, b);
 }
-NK_INTERNAL void nk_l2_i8x64_finalize_sierra(nk_l2_i8x64_state_sierra_t const *state_a,
-                                             nk_l2_i8x64_state_sierra_t const *state_b,
-                                             nk_l2_i8x64_state_sierra_t const *state_c,
-                                             nk_l2_i8x64_state_sierra_t const *state_d, nk_f32_t query_norm,
+NK_INTERNAL void nk_l2_i8x32_finalize_sierra(nk_l2_i8x32_state_sierra_t const *state_a,
+                                             nk_l2_i8x32_state_sierra_t const *state_b,
+                                             nk_l2_i8x32_state_sierra_t const *state_c,
+                                             nk_l2_i8x32_state_sierra_t const *state_d, nk_f32_t query_norm,
                                              nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
                                              nk_f32_t target_norm_d, nk_f32_t *results) {
-    // Extract dots from states
-    nk_distance_t dot_product_a, dot_product_b, dot_product_c, dot_product_d;
-    nk_dot_i8x64_finalize_sierra(state_a, &dot_product_a);
-    nk_dot_i8x64_finalize_sierra(state_b, &dot_product_b);
-    nk_dot_i8x64_finalize_sierra(state_c, &dot_product_c);
-    nk_dot_i8x64_finalize_sierra(state_d, &dot_product_d);
+    // Extract all 4 dot products with single ILP-optimized call
+    nk_i32_t dots_i32[4];
+    nk_dot_i8x32_finalize_sierra(state_a, state_b, state_c, state_d, dots_i32);
 
-    // Compute squared norms (loop-unrolled)
-    nk_f32_t query_norm_sq = (nk_f32_t)query_norm * (nk_f32_t)query_norm;
-    nk_f32_t target_norm_sq_a = (nk_f32_t)target_norm_a * (nk_f32_t)target_norm_a;
-    nk_f32_t target_norm_sq_b = (nk_f32_t)target_norm_b * (nk_f32_t)target_norm_b;
-    nk_f32_t target_norm_sq_c = (nk_f32_t)target_norm_c * (nk_f32_t)target_norm_c;
-    nk_f32_t target_norm_sq_d = (nk_f32_t)target_norm_d * (nk_f32_t)target_norm_d;
+    // Convert dots to f32 and build vectors for parallel processing
+    __m128 dots_f32x4 = _mm_cvtepi32_ps(_mm_loadu_si128((__m128i const *)dots_i32));
+    __m128 query_norm_sq_f32x4 = _mm_set1_ps(query_norm * query_norm);
+    __m128 target_norms_sq_f32x4 = _mm_set_ps(target_norm_d * target_norm_d, target_norm_c * target_norm_c,
+                                              target_norm_b * target_norm_b, target_norm_a * target_norm_a);
 
-    // Compute squared distances (loop-unrolled)
-    nk_f32_t dist_sq_a = query_norm_sq + target_norm_sq_a - (nk_f32_t)2 * (nk_f32_t)dot_product_a;
-    nk_f32_t dist_sq_b = query_norm_sq + target_norm_sq_b - (nk_f32_t)2 * (nk_f32_t)dot_product_b;
-    nk_f32_t dist_sq_c = query_norm_sq + target_norm_sq_c - (nk_f32_t)2 * (nk_f32_t)dot_product_c;
-    nk_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - (nk_f32_t)2 * (nk_f32_t)dot_product_d;
+    // L2 distance: sqrt(query_sq + target_sq - 2*dot)
+    // dist_sq = query_norm_sq + target_norms_sq - 2*dots
+    __m128 two_f32x4 = _mm_set1_ps(2.0f);
+    __m128 two_dots_f32x4 = _mm_mul_ps(two_f32x4, dots_f32x4);
+    __m128 sum_sq_f32x4 = _mm_add_ps(query_norm_sq_f32x4, target_norms_sq_f32x4);
+    __m128 dist_sq_f32x4 = _mm_sub_ps(sum_sq_f32x4, two_dots_f32x4);
 
-    // Use 4-way SSE sqrt (128-bit)
-    __m128 dist_sq_vec = _mm_set_ps((float)(dist_sq_d < 0 ? 0 : dist_sq_d), (float)(dist_sq_c < 0 ? 0 : dist_sq_c),
-                                    (float)(dist_sq_b < 0 ? 0 : dist_sq_b), (float)(dist_sq_a < 0 ? 0 : dist_sq_a));
-    __m128 dist_vec = _mm_sqrt_ps(dist_sq_vec);
+    // Clamp negatives to zero and take sqrt
+    __m128 zeros_f32x4 = _mm_setzero_ps();
+    dist_sq_f32x4 = _mm_max_ps(dist_sq_f32x4, zeros_f32x4);
+    __m128 dist_f32x4 = _mm_sqrt_ps(dist_sq_f32x4);
 
-    // Store results using nk_b512_vec_t
-    nk_b512_vec_t storage;
-    _mm_storeu_ps(storage.f32s, dist_vec);
-    results[0] = storage.f32s[0];
-    results[1] = storage.f32s[1];
-    results[2] = storage.f32s[2];
-    results[3] = storage.f32s[3];
+    // Store results
+    _mm_storeu_ps(results, dist_f32x4);
 }
 
 #if defined(__cplusplus)
