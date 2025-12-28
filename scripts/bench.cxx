@@ -1474,13 +1474,13 @@ int main(int argc, char **argv) {
     std::printf("\n");
     std::printf("Run-time settings:\n");
     std::printf("- Arm NEON support enabled: %s\n", flags[(runtime_caps & nk_cap_neon_k) != 0]);
-    std::printf("- Arm NEON F16 support enabled: %s\n", flags[(runtime_caps & nk_cap_neon_f16_k) != 0]);
-    std::printf("- Arm NEON BF16 support enabled: %s\n", flags[(runtime_caps & nk_cap_neon_bf16_k) != 0]);
-    std::printf("- Arm NEON I8 support enabled: %s\n", flags[(runtime_caps & nk_cap_neon_i8_k) != 0]);
+    std::printf("- Arm NEON F16 support enabled: %s\n", flags[(runtime_caps & nk_cap_neonhalf_k) != 0]);
+    std::printf("- Arm NEON BF16 support enabled: %s\n", flags[(runtime_caps & nk_cap_neonbfdot_k) != 0]);
+    std::printf("- Arm NEON I8 support enabled: %s\n", flags[(runtime_caps & nk_cap_neonsdot_k) != 0]);
     std::printf("- Arm SVE support enabled: %s\n", flags[(runtime_caps & nk_cap_sve_k) != 0]);
-    std::printf("- Arm SVE F16 support enabled: %s\n", flags[(runtime_caps & nk_cap_sve_f16_k) != 0]);
-    std::printf("- Arm SVE BF16 support enabled: %s\n", flags[(runtime_caps & nk_cap_sve_bf16_k) != 0]);
-    std::printf("- Arm SVE I8 support enabled: %s\n", flags[(runtime_caps & nk_cap_sve_i8_k) != 0]);
+    std::printf("- Arm SVE F16 support enabled: %s\n", flags[(runtime_caps & nk_cap_svehalf_k) != 0]);
+    std::printf("- Arm SVE BF16 support enabled: %s\n", flags[(runtime_caps & nk_cap_svebfdot_k) != 0]);
+    std::printf("- Arm SVE I8 support enabled: %s\n", flags[(runtime_caps & nk_cap_svesdot_k) != 0]);
     std::printf("- Arm SVE2 support enabled: %s\n", flags[(runtime_caps & nk_cap_sve2_k) != 0]);
     std::printf("- x86 Haswell support enabled: %s\n", flags[(runtime_caps & nk_cap_haswell_k) != 0]);
     std::printf("- x86 Skylake support enabled: %s\n", flags[(runtime_caps & nk_cap_skylake_k) != 0]);
@@ -1696,7 +1696,7 @@ int main(int argc, char **argv) {
 
 #endif
 
-#if NK_TARGET_NEON_I8
+#if NK_TARGET_NEONSDOT
     dense_<i8_k, f32_k, f32_k>("angular_i8_neon", nk_angular_i8_neon, nk_angular_i8_serial);
     dense_<i8_k, u32_k, u32_k>("l2sq_i8_neon", nk_l2sq_i8_neon, nk_l2sq_i8_serial);
     dense_<i8_k, f32_k, f64_k>("l2_i8_neon", nk_l2_i8_neon, nk_l2_i8_accurate);
@@ -1713,11 +1713,12 @@ int main(int argc, char **argv) {
                                nk_dots_u8u8i32_neon);
 #endif
 
-#if NK_TARGET_NEON_F16
+#if NK_TARGET_NEONHALF
     dense_<f16c_k, f32c_k, f64c_k>("dot_f16c_neon", nk_dot_f16c_neon, nk_dot_f16c_accurate);
     dense_<f16c_k, f32c_k, f64c_k>("vdot_f16c_neon", nk_vdot_f16c_neon, nk_vdot_f16c_accurate);
 
     dense_<f16_k, f32_k, f64_k>("dot_f16_neon", nk_dot_f16_neon, nk_dot_f16_accurate);
+    dense_<f16_k, f32_k, f64_k>("dot_f16_fmlal", nk_dot_f16_fmlal, nk_dot_f16_accurate);
     dense_<f16_k, f32_k, f64_k>("angular_f16_neon", nk_angular_f16_neon, nk_angular_f16_accurate);
     dense_<f16_k, f32_k, f64_k>("l2sq_f16_neon", nk_l2sq_f16_neon, nk_l2sq_f16_accurate);
     dense_<f16_k, f32_k, f64_k>("l2_f16_neon", nk_l2_f16_neon, nk_l2sq_f16_accurate);
@@ -1747,7 +1748,7 @@ int main(int argc, char **argv) {
                                 nk_dots_f16f16f32_neon);
 #endif
 
-#if NK_TARGET_NEON_BF16
+#if NK_TARGET_NEONBFDOT
     dense_<bf16c_k, f32c_k, f64c_k>("dot_bf16c_neon", nk_dot_bf16c_neon, nk_dot_bf16c_accurate);
     dense_<bf16c_k, f32c_k, f64c_k>("vdot_bf16c_neon", nk_vdot_bf16c_neon, nk_vdot_bf16c_accurate);
 
@@ -1794,7 +1795,7 @@ int main(int argc, char **argv) {
     dense_<f64c_k, f64c_k, f64c_k>("vdot_f64c_sve", nk_vdot_f64c_sve, nk_vdot_f64c_serial);
 #endif
 
-#if NK_TARGET_SVE_F16
+#if NK_TARGET_SVEHALF
     dense_<f16_k, f32_k, f64_k>("dot_f16_sve", nk_dot_f16_sve, nk_dot_f16_accurate);
     dense_<f16_k, f32_k, f64_k>("angular_f16_sve", nk_angular_f16_sve, nk_angular_f16_accurate);
     dense_<f16_k, f32_k, f64_k>("l2sq_f16_sve", nk_l2sq_f16_sve, nk_l2sq_f16_accurate);
@@ -1803,7 +1804,7 @@ int main(int argc, char **argv) {
     dense_<f16c_k, f32c_k, f64c_k>("vdot_f16c_sve", nk_vdot_f16c_sve, nk_vdot_f16c_accurate);
 #endif
 
-#if NK_TARGET_SVE_BF16
+#if NK_TARGET_SVEBFDOT
     dense_<bf16_k, f32_k, f64_k>("angular_bf16_sve", nk_angular_bf16_sve, nk_angular_bf16_accurate);
     dense_<bf16_k, f32_k, f64_k>("l2sq_bf16_sve", nk_l2sq_bf16_sve, nk_l2sq_bf16_accurate);
     dense_<bf16_k, f32_k, f64_k>("l2_bf16_sve", nk_l2_bf16_sve, nk_l2_bf16_accurate);

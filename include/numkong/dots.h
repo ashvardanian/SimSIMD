@@ -326,9 +326,9 @@ NK_PUBLIC void nk_dots_i8i8i8_sapphire_amx(void *c, nk_size_t m, nk_size_t n, nk
 #include "numkong/dots/sapphire.h"
 #include "numkong/dots/sapphire_amx.h"
 #include "numkong/dots/neon.h"
-#include "numkong/dots/neon_i8.h"
-#include "numkong/dots/neon_f16.h"
-#include "numkong/dots/neon_bf16.h"
+#include "numkong/dots/neonsdot.h"
+#include "numkong/dots/neonhalf.h"
+#include "numkong/dots/neonbfdot.h"
 
 #if !NK_DYNAMIC_DISPATCH
 

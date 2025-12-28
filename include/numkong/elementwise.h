@@ -489,7 +489,7 @@ NK_PUBLIC void nk_fma_u64_neon(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t co
                                nk_f64_t const *alpha, nk_f64_t const *beta, nk_u64_t *result);
 #endif // NK_TARGET_NEON
 
-#if NK_TARGET_NEON_BF16
+#if NK_TARGET_NEONBFDOT
 /** @copydoc nk_sum_bf16 */
 NK_PUBLIC void nk_sum_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result);
 /** @copydoc nk_scale_bf16 */
@@ -501,9 +501,9 @@ NK_PUBLIC void nk_wsum_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_size
 /** @copydoc nk_fma_bf16 */
 NK_PUBLIC void nk_fma_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
                                 nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result);
-#endif // NK_TARGET_NEON_BF16
+#endif // NK_TARGET_NEONBFDOT
 
-#if NK_TARGET_NEON_F16
+#if NK_TARGET_NEONHALF
 /** @copydoc nk_sum_f16 */
 NK_PUBLIC void nk_sum_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result);
 /** @copydoc nk_scale_f16 */
@@ -538,7 +538,7 @@ NK_PUBLIC void nk_fma_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const 
 /** @copydoc nk_fma_u8 */
 NK_PUBLIC void nk_fma_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n, nk_f32_t const *alpha,
                               nk_f32_t const *beta, nk_u8_t *result);
-#endif // NK_TARGET_NEON_F16
+#endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_HASWELL
 /** @copydoc nk_scale_f64 */
@@ -793,8 +793,8 @@ NK_PUBLIC void nk_fma_u8_sapphire(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t co
 
 #include "numkong/elementwise/serial.h"
 #include "numkong/elementwise/neon.h"
-#include "numkong/elementwise/neon_f16.h"
-#include "numkong/elementwise/neon_bf16.h"
+#include "numkong/elementwise/neonhalf.h"
+#include "numkong/elementwise/neonbfdot.h"
 #include "numkong/elementwise/haswell.h"
 #include "numkong/elementwise/skylake.h"
 #include "numkong/elementwise/ice.h"
@@ -829,7 +829,7 @@ NK_PUBLIC void nk_sum_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, 
     nk_sum_bf16_skylake(a, b, n, r);
 #elif NK_TARGET_HASWELL
     nk_sum_bf16_haswell(a, b, n, r);
-#elif NK_TARGET_NEON_BF16
+#elif NK_TARGET_NEONBFDOT
     nk_sum_bf16_neon(a, b, n, r);
 #else
     nk_sum_bf16_serial(a, b, n, r);
@@ -841,7 +841,7 @@ NK_PUBLIC void nk_sum_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_
     nk_sum_f16_sapphire(a, b, n, r);
 #elif NK_TARGET_HASWELL
     nk_sum_f16_haswell(a, b, n, r);
-#elif NK_TARGET_NEON_F16
+#elif NK_TARGET_NEONHALF
     nk_sum_f16_neon(a, b, n, r);
 #else
     nk_sum_f16_serial(a, b, n, r);
@@ -853,7 +853,7 @@ NK_PUBLIC void nk_sum_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_
     nk_sum_i8_ice(a, b, n, r);
 #elif NK_TARGET_HASWELL
     nk_sum_i8_haswell(a, b, n, r);
-#elif NK_TARGET_NEON_F16
+#elif NK_TARGET_NEONHALF
     nk_sum_i8_neon(a, b, n, r);
 #else
     nk_sum_i8_serial(a, b, n, r);
@@ -865,7 +865,7 @@ NK_PUBLIC void nk_sum_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_
     nk_sum_u8_ice(a, b, n, r);
 #elif NK_TARGET_HASWELL
     nk_sum_u8_haswell(a, b, n, r);
-#elif NK_TARGET_NEON_F16
+#elif NK_TARGET_NEONHALF
     nk_sum_u8_neon(a, b, n, r);
 #else
     nk_sum_u8_serial(a, b, n, r);
@@ -968,7 +968,7 @@ NK_PUBLIC void nk_scale_bf16(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *al
     nk_scale_bf16_skylake(a, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_scale_bf16_haswell(a, n, alpha, beta, r);
-#elif NK_TARGET_NEON_BF16
+#elif NK_TARGET_NEONBFDOT
     nk_scale_bf16_neon(a, n, alpha, beta, r);
 #else
     nk_scale_bf16_serial(a, n, alpha, beta, r);
@@ -980,7 +980,7 @@ NK_PUBLIC void nk_scale_f16(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alph
     nk_scale_f16_sapphire(a, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_scale_f16_haswell(a, n, alpha, beta, r);
-#elif NK_TARGET_NEON_F16
+#elif NK_TARGET_NEONHALF
     nk_scale_f16_neon(a, n, alpha, beta, r);
 #else
     nk_scale_f16_serial(a, n, alpha, beta, r);
@@ -994,7 +994,7 @@ NK_PUBLIC void nk_scale_i8(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha,
     nk_scale_i8_skylake(a, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_scale_i8_haswell(a, n, alpha, beta, r);
-#elif NK_TARGET_NEON_F16
+#elif NK_TARGET_NEONHALF
     nk_scale_i8_neon(a, n, alpha, beta, r);
 #else
     nk_scale_i8_serial(a, n, alpha, beta, r);
@@ -1008,7 +1008,7 @@ NK_PUBLIC void nk_scale_u8(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha,
     nk_scale_u8_skylake(a, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_scale_u8_haswell(a, n, alpha, beta, r);
-#elif NK_TARGET_NEON_F16
+#elif NK_TARGET_NEONHALF
     nk_scale_u8_neon(a, n, alpha, beta, r);
 #else
     nk_scale_u8_serial(a, n, alpha, beta, r);
@@ -1113,7 +1113,7 @@ NK_PUBLIC void nk_wsum_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n,
     nk_wsum_bf16_skylake(a, b, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_wsum_bf16_haswell(a, b, n, alpha, beta, r);
-#elif NK_TARGET_NEON_BF16
+#elif NK_TARGET_NEONBFDOT
     nk_wsum_bf16_neon(a, b, n, alpha, beta, r);
 #else
     nk_wsum_bf16_serial(a, b, n, alpha, beta, r);
@@ -1126,7 +1126,7 @@ NK_PUBLIC void nk_wsum_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk
     nk_wsum_f16_sapphire(a, b, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_wsum_f16_haswell(a, b, n, alpha, beta, r);
-#elif NK_TARGET_NEON_F16
+#elif NK_TARGET_NEONHALF
     nk_wsum_f16_neon(a, b, n, alpha, beta, r);
 #else
     nk_wsum_f16_serial(a, b, n, alpha, beta, r);
@@ -1139,7 +1139,7 @@ NK_PUBLIC void nk_wsum_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f3
     nk_wsum_i8_sapphire(a, b, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_wsum_i8_haswell(a, b, n, alpha, beta, r);
-#elif NK_TARGET_NEON_F16
+#elif NK_TARGET_NEONHALF
     nk_wsum_i8_neon(a, b, n, alpha, beta, r);
 #else
     nk_wsum_i8_serial(a, b, n, alpha, beta, r);
@@ -1152,7 +1152,7 @@ NK_PUBLIC void nk_wsum_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f3
     nk_wsum_u8_sapphire(a, b, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_wsum_u8_haswell(a, b, n, alpha, beta, r);
-#elif NK_TARGET_NEON_F16
+#elif NK_TARGET_NEONHALF
     nk_wsum_u8_neon(a, b, n, alpha, beta, r);
 #else
     nk_wsum_u8_serial(a, b, n, alpha, beta, r);
@@ -1189,7 +1189,7 @@ NK_PUBLIC void nk_fma_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t con
     nk_fma_bf16_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_fma_bf16_haswell(a, b, c, n, alpha, beta, r);
-#elif NK_TARGET_NEON_BF16
+#elif NK_TARGET_NEONBFDOT
     nk_fma_bf16_neon(a, b, c, n, alpha, beta, r);
 #else
     nk_fma_bf16_serial(a, b, c, n, alpha, beta, r);
@@ -1202,7 +1202,7 @@ NK_PUBLIC void nk_fma_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *
     nk_fma_f16_sapphire(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_fma_f16_haswell(a, b, c, n, alpha, beta, r);
-#elif NK_TARGET_NEON_F16
+#elif NK_TARGET_NEONHALF
     nk_fma_f16_neon(a, b, c, n, alpha, beta, r);
 #else
     nk_fma_f16_serial(a, b, c, n, alpha, beta, r);
@@ -1217,7 +1217,7 @@ NK_PUBLIC void nk_fma_i8(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, n
     nk_fma_i8_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_fma_i8_haswell(a, b, c, n, alpha, beta, r);
-#elif NK_TARGET_NEON_F16
+#elif NK_TARGET_NEONHALF
     nk_fma_i8_neon(a, b, c, n, alpha, beta, r);
 #else
     nk_fma_i8_serial(a, b, c, n, alpha, beta, r);
@@ -1232,7 +1232,7 @@ NK_PUBLIC void nk_fma_u8(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, n
     nk_fma_i8_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_fma_u8_haswell(a, b, c, n, alpha, beta, r);
-#elif NK_TARGET_NEON_F16
+#elif NK_TARGET_NEONHALF
     nk_fma_u8_neon(a, b, c, n, alpha, beta, r);
 #else
     nk_fma_u8_serial(a, b, c, n, alpha, beta, r);

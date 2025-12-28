@@ -975,7 +975,7 @@ static PyTypeObject DistancesTensorType = {
     PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.DistancesTensor",
     .tp_doc = "N-dimensional tensor with full NumPy-like API, supporting NumKong's type system",
     .tp_basicsize = sizeof(DistancesTensor),
-    // Instead of using `nk_distance_t` for all the elements,
+    // Instead of using `nk_fmax_t` for all the elements,
     // we use `char` to allow user to specify the datatype on `cdist`-like functions.
     .tp_itemsize = sizeof(char),
     .tp_dealloc = DistancesTensor_dealloc,
@@ -1434,7 +1434,7 @@ char const *datatype_to_python_string(nk_datatype_t dtype) {
 /// @return 1 if the cast was successful, 0 if the target datatype is not supported.
 /// @note For integer types, we use rounding (not truncation) to minimize precision loss
 ///       when the source floating-point value is close to an integer boundary.
-int cast_distance(nk_distance_t distance, nk_datatype_t target_dtype, void *target_ptr, size_t offset) {
+int cast_distance(nk_fmax_t distance, nk_datatype_t target_dtype, void *target_ptr, size_t offset) {
     nk_f32_t f32_val;
     switch (target_dtype) {
     case nk_f64c_k: ((nk_f64_t *)target_ptr)[offset] = (nk_f64_t)distance; return 1;
@@ -1510,13 +1510,13 @@ static PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj) {
     }
 
     if (same_string(cap_name, "neon")) { static_capabilities |= nk_cap_neon_k; }
-    else if (same_string(cap_name, "neon_f16")) { static_capabilities |= nk_cap_neon_f16_k; }
-    else if (same_string(cap_name, "neon_bf16")) { static_capabilities |= nk_cap_neon_bf16_k; }
-    else if (same_string(cap_name, "neon_i8")) { static_capabilities |= nk_cap_neon_i8_k; }
+    else if (same_string(cap_name, "neonhalf")) { static_capabilities |= nk_cap_neonhalf_k; }
+    else if (same_string(cap_name, "neonbfdot")) { static_capabilities |= nk_cap_neonbfdot_k; }
+    else if (same_string(cap_name, "neonsdot")) { static_capabilities |= nk_cap_neonsdot_k; }
     else if (same_string(cap_name, "sve")) { static_capabilities |= nk_cap_sve_k; }
-    else if (same_string(cap_name, "sve_f16")) { static_capabilities |= nk_cap_sve_f16_k; }
-    else if (same_string(cap_name, "sve_bf16")) { static_capabilities |= nk_cap_sve_bf16_k; }
-    else if (same_string(cap_name, "sve_i8")) { static_capabilities |= nk_cap_sve_i8_k; }
+    else if (same_string(cap_name, "svehalf")) { static_capabilities |= nk_cap_svehalf_k; }
+    else if (same_string(cap_name, "svebfdot")) { static_capabilities |= nk_cap_svebfdot_k; }
+    else if (same_string(cap_name, "svesdot")) { static_capabilities |= nk_cap_svesdot_k; }
     else if (same_string(cap_name, "haswell")) { static_capabilities |= nk_cap_haswell_k; }
     else if (same_string(cap_name, "skylake")) { static_capabilities |= nk_cap_skylake_k; }
     else if (same_string(cap_name, "ice")) { static_capabilities |= nk_cap_ice_k; }
@@ -1550,13 +1550,13 @@ static PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj) 
     }
 
     if (same_string(cap_name, "neon")) { static_capabilities &= ~nk_cap_neon_k; }
-    else if (same_string(cap_name, "neon_f16")) { static_capabilities &= ~nk_cap_neon_f16_k; }
-    else if (same_string(cap_name, "neon_bf16")) { static_capabilities &= ~nk_cap_neon_bf16_k; }
-    else if (same_string(cap_name, "neon_i8")) { static_capabilities &= ~nk_cap_neon_i8_k; }
+    else if (same_string(cap_name, "neonhalf")) { static_capabilities &= ~nk_cap_neonhalf_k; }
+    else if (same_string(cap_name, "neonbfdot")) { static_capabilities &= ~nk_cap_neonbfdot_k; }
+    else if (same_string(cap_name, "neonsdot")) { static_capabilities &= ~nk_cap_neonsdot_k; }
     else if (same_string(cap_name, "sve")) { static_capabilities &= ~nk_cap_sve_k; }
-    else if (same_string(cap_name, "sve_f16")) { static_capabilities &= ~nk_cap_sve_f16_k; }
-    else if (same_string(cap_name, "sve_bf16")) { static_capabilities &= ~nk_cap_sve_bf16_k; }
-    else if (same_string(cap_name, "sve_i8")) { static_capabilities &= ~nk_cap_sve_i8_k; }
+    else if (same_string(cap_name, "svehalf")) { static_capabilities &= ~nk_cap_svehalf_k; }
+    else if (same_string(cap_name, "svebfdot")) { static_capabilities &= ~nk_cap_svebfdot_k; }
+    else if (same_string(cap_name, "svesdot")) { static_capabilities &= ~nk_cap_svesdot_k; }
     else if (same_string(cap_name, "haswell")) { static_capabilities &= ~nk_cap_haswell_k; }
     else if (same_string(cap_name, "skylake")) { static_capabilities &= ~nk_cap_skylake_k; }
     else if (same_string(cap_name, "ice")) { static_capabilities &= ~nk_cap_ice_k; }
@@ -1591,12 +1591,12 @@ static PyObject *api_get_capabilities(PyObject *self) {
     ADD_CAP(serial);
     ADD_CAP(neon);
     ADD_CAP(sve);
-    ADD_CAP(neon_f16);
-    ADD_CAP(sve_f16);
-    ADD_CAP(neon_bf16);
-    ADD_CAP(sve_bf16);
-    ADD_CAP(neon_i8);
-    ADD_CAP(sve_i8);
+    ADD_CAP(neonhalf);
+    ADD_CAP(svehalf);
+    ADD_CAP(neonbfdot);
+    ADD_CAP(svebfdot);
+    ADD_CAP(neonsdot);
+    ADD_CAP(svesdot);
     ADD_CAP(haswell);
     ADD_CAP(skylake);
     ADD_CAP(ice);
@@ -2041,7 +2041,7 @@ static PyObject *implement_dense_metric( //
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     int const dtype_is_complex = is_complex(dtype);
     if (a_parsed.rank == 1 && b_parsed.rank == 1) {
-        nk_distance_t distances[2];
+        nk_fmax_t distances[2];
         metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, distances);
         return_obj =         //
             dtype_is_complex //
@@ -2106,12 +2106,12 @@ static PyObject *implement_dense_metric( //
 
     // Compute the distances
     for (size_t i = 0; i < count_pairs; ++i) {
-        nk_distance_t result[2];
+        nk_fmax_t result[2];
         metric(                                   //
             a_parsed.start + i * a_parsed.stride, //
             b_parsed.start + i * b_parsed.stride, //
             a_parsed.dimensions,                  //
-            (nk_distance_t *)&result);
+            (nk_fmax_t *)&result);
 
         // Export out:
         cast_distance(result[0], out_dtype, distances_start + i * distances_stride_bytes, 0);
@@ -2247,7 +2247,7 @@ static PyObject *implement_curved_metric( //
 
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     int const dtype_is_complex = is_complex(dtype);
-    nk_distance_t distances[2];
+    nk_fmax_t distances[2];
     metric(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, &distances[0]);
     return_obj =         //
         dtype_is_complex //
@@ -2265,7 +2265,7 @@ cleanup:
 typedef void (*nk_metric_geospatial_punned_t)( //
     void const *a_lats, void const *a_lons,    //
     void const *b_lats, void const *b_lons,    //
-    nk_size_t n, nk_distance_t *distances);
+    nk_size_t n, nk_fmax_t *distances);
 
 static PyObject *implement_geospatial_metric( //
     nk_metric_kind_t metric_kind,             //
@@ -2384,7 +2384,7 @@ static PyObject *implement_geospatial_metric( //
     }
 
     // Allocate output or use provided
-    nk_distance_t *distances_start = NULL;
+    nk_fmax_t *distances_start = NULL;
     if (!out_obj) {
         DistancesTensor *distances_obj = PyObject_NewVar(DistancesTensor, &DistancesTensorType, n * sizeof(double));
         if (!distances_obj) {
@@ -2400,14 +2400,14 @@ static PyObject *implement_geospatial_metric( //
         distances_obj->parent = NULL;
         distances_obj->data = distances_obj->start;
         return_obj = (PyObject *)distances_obj;
-        distances_start = (nk_distance_t *)distances_obj->data;
+        distances_start = (nk_fmax_t *)distances_obj->data;
     }
     else {
         if (out_parsed.dimensions < n) {
             PyErr_SetString(PyExc_ValueError, "Output array is too small");
             goto cleanup;
         }
-        distances_start = (nk_distance_t *)out_parsed.start;
+        distances_start = (nk_fmax_t *)out_parsed.start;
         return_obj = Py_None;
     }
 
@@ -2467,7 +2467,7 @@ static PyObject *implement_sparse_metric( //
         goto cleanup;
     }
 
-    nk_distance_t distance;
+    nk_fmax_t distance;
     metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, b_parsed.dimensions, &distance);
     return_obj = PyFloat_FromDouble(distance);
 
@@ -2564,7 +2564,7 @@ static PyObject *implement_cdist(                        //
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     int const dtype_is_complex = is_complex(dtype);
     if (a_parsed.rank == 1 && b_parsed.rank == 1) {
-        nk_distance_t distances[2];
+        nk_fmax_t distances[2];
         metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, distances);
         return_obj =         //
             dtype_is_complex //
@@ -2641,12 +2641,12 @@ static PyObject *implement_cdist(                        //
             if (is_symmetric && i > j) continue;
 
             // Export into an on-stack buffer and then copy to the output
-            nk_distance_t result[2];
+            nk_fmax_t result[2];
             metric(                                   //
                 a_parsed.start + i * a_parsed.stride, //
                 b_parsed.start + j * b_parsed.stride, //
                 a_parsed.dimensions,                  //
-                (nk_distance_t *)&result              //
+                (nk_fmax_t *)&result                  //
             );
 
             // Export into both the lower and upper triangle
@@ -3167,7 +3167,7 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
     // Once parsed, the arguments will be stored in these variables:
     char const *dtype_str = NULL;
     nk_datatype_t dtype = nk_datatype_unknown_k;
-    nk_distance_t alpha = 1, beta = 1;
+    nk_fmax_t alpha = 1, beta = 1;
 
     Py_buffer a_buffer, b_buffer, c_buffer, out_buffer;
     TensorArgument a_parsed, b_parsed, c_parsed, out_parsed;
@@ -3350,7 +3350,7 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
     // Once parsed, the arguments will be stored in these variables:
     char const *dtype_str = NULL;
     nk_datatype_t dtype = nk_datatype_unknown_k;
-    nk_distance_t alpha = 1, beta = 1;
+    nk_fmax_t alpha = 1, beta = 1;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
     TensorArgument a_parsed, b_parsed, out_parsed;
@@ -4309,7 +4309,7 @@ static PyObject *implement_mesh_alignment(nk_metric_kind_t metric_kind, PyObject
     Py_ssize_t const batch_stride_b = is_batched ? b_buffer.strides[0] : 0;
     nk_size_t n = (nk_size_t)n_points;
 
-    // Output dtype for scale/rmsd is always f64 (nk_distance_t)
+    // Output dtype for scale/rmsd is always f64 (nk_fmax_t)
     nk_datatype_t out_dtype = nk_f64_k;
 
     if (!is_batched) {
@@ -4325,7 +4325,7 @@ static PyObject *implement_mesh_alignment(nk_metric_kind_t metric_kind, PyObject
 
         if (!rot_tensor || !scale_tensor || !rmsd_tensor || !a_cent_tensor || !b_cent_tensor) goto cleanup;
 
-        nk_distance_t scale = 0.0, rmsd_result = 0.0;
+        nk_fmax_t scale = 0.0, rmsd_result = 0.0;
 
         if (datatype == nk_f64_k) {
             nk_f64_t *a_centroid = (nk_f64_t *)a_cent_tensor->data;
@@ -4362,7 +4362,7 @@ static PyObject *implement_mesh_alignment(nk_metric_kind_t metric_kind, PyObject
         char *b_ptr = (char *)b_buffer.buf;
 
         for (Py_ssize_t batch_idx = 0; batch_idx < batch_size; ++batch_idx) {
-            nk_distance_t scale = 0.0, rmsd_result = 0.0;
+            nk_fmax_t scale = 0.0, rmsd_result = 0.0;
 
             if (datatype == nk_f64_k) {
                 nk_f64_t *a_centroid = (nk_f64_t *)(a_cent_tensor->data + batch_idx * 3 * sizeof(nk_f64_t));

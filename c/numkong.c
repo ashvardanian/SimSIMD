@@ -359,13 +359,13 @@ NK_DECLARATION_MESH(umeyama, f32, f32)
 NK_DECLARATION_MESH(umeyama, f64, f64)
 
 NK_DYNAMIC int nk_uses_neon(void) { return (nk_capabilities() & nk_cap_neon_k) != 0; }
-NK_DYNAMIC int nk_uses_neon_f16(void) { return (nk_capabilities() & nk_cap_neon_f16_k) != 0; }
-NK_DYNAMIC int nk_uses_neon_bf16(void) { return (nk_capabilities() & nk_cap_neon_bf16_k) != 0; }
-NK_DYNAMIC int nk_uses_neon_i8(void) { return (nk_capabilities() & nk_cap_neon_i8_k) != 0; }
+NK_DYNAMIC int nk_uses_neonhalf(void) { return (nk_capabilities() & nk_cap_neonhalf_k) != 0; }
+NK_DYNAMIC int nk_uses_neonbfdot(void) { return (nk_capabilities() & nk_cap_neonbfdot_k) != 0; }
+NK_DYNAMIC int nk_uses_neonsdot(void) { return (nk_capabilities() & nk_cap_neonsdot_k) != 0; }
 NK_DYNAMIC int nk_uses_sve(void) { return (nk_capabilities() & nk_cap_sve_k) != 0; }
-NK_DYNAMIC int nk_uses_sve_f16(void) { return (nk_capabilities() & nk_cap_sve_f16_k) != 0; }
-NK_DYNAMIC int nk_uses_sve_bf16(void) { return (nk_capabilities() & nk_cap_sve_bf16_k) != 0; }
-NK_DYNAMIC int nk_uses_sve_i8(void) { return (nk_capabilities() & nk_cap_sve_i8_k) != 0; }
+NK_DYNAMIC int nk_uses_svehalf(void) { return (nk_capabilities() & nk_cap_svehalf_k) != 0; }
+NK_DYNAMIC int nk_uses_svebfdot(void) { return (nk_capabilities() & nk_cap_svebfdot_k) != 0; }
+NK_DYNAMIC int nk_uses_svesdot(void) { return (nk_capabilities() & nk_cap_svesdot_k) != 0; }
 NK_DYNAMIC int nk_uses_haswell(void) { return (nk_capabilities() & nk_cap_haswell_k) != 0; }
 NK_DYNAMIC int nk_uses_skylake(void) { return (nk_capabilities() & nk_cap_skylake_k) != 0; }
 NK_DYNAMIC int nk_uses_ice(void) { return (nk_capabilities() & nk_cap_ice_k) != 0; }
@@ -395,7 +395,7 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     // In multithreaded applications we need to ensure that the function pointers are pre-initialized,
     // so the first time we are probing for capabilities, we should also probe all of our metrics
     // with dummy inputs:
-    nk_distance_t dummy_results_buffer[2];
+    nk_fmax_t dummy_results_buffer[2];
     void *dummy_results = &dummy_results_buffer[0];
 
     // Passing `NULL` as `x` will trigger all kinds of `nonull` warnings on GCC.

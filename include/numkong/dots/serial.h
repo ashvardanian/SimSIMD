@@ -107,13 +107,14 @@ extern "C" {
  *  @param update_fn        FMA update: update_fn(state*, a_vec, b_vec)
  *  @param finalize_fn      4-way reduce: finalize_fn(s0*, s1*, s2*, s3*, f32[4])
  *  @param k_tile           Input elements per SIMD update (platform-dependent)
+ *  @param k_unroll         K-loop unroll factor (2 for NEON/AVX2, 4 for AVX-512)
  *  @param mr_size          A rows per register tile (typically 4)
  *  @param mc_size          L2 row blocking (typically 128)
  *  @param nc_size          L3 column blocking (typically 2048)
  *  @param kc_size          L1 depth blocking (typically 256)
  */
 #define NK_MAKE_DOTS_INNER(suffix, input_type, output_type, vec_type, state_type, init_fn, load_fn, partial_load_fn, \
-                           update_fn, finalize_fn, k_tile, mr_size, mc_size, nc_size, kc_size)                       \
+                           update_fn, finalize_fn, k_tile, k_unroll, mr_size, mc_size, nc_size, kc_size)             \
                                                                                                                      \
     NK_PUBLIC void nk_dots_##suffix(nk_##input_type##_t const *a_matrix, void const *b_packed_void,                  \
                                     nk_##output_type##_t *c_matrix, nk_size_t row_count, nk_size_t column_count,     \
@@ -135,6 +136,8 @@ extern "C" {
                 nk_size_t depth_block_end = depth_block_start + kc_size;                                             \
                 if (depth_block_end > depth) depth_block_end = depth;                                                \
                 nk_size_t const depth_block_length = depth_block_end - depth_block_start;                            \
+                nk_size_t const unroll_stride = simd_width * k_unroll;                                               \
+                nk_size_t const unroll_aligned_depth = (depth_block_length / unroll_stride) * unroll_stride;         \
                 nk_size_t const aligned_depth = (depth_block_length / simd_width) * simd_width;                      \
                 nk_size_t const remainder_depth = depth_block_length - aligned_depth;                                \
                                                                                                                      \
@@ -186,96 +189,297 @@ extern "C" {
                                     ? packed_tile_base + (row_within_tile + 3) * depth + depth_block_start           \
                                     : b_column_ptr_0;                                                                \
                                                                                                                      \
-                            /* Pre-compute A row pointers for unrolled access (MR=4 rows) */                         \
-                            nk_##input_type##_t const *a_row_ptr_0 =                                                 \
-                                (nk_##input_type##_t const *)((char const *)a_matrix +                               \
-                                                              (tile_row_start + 0) * a_stride) +                     \
-                                depth_block_start;                                                                   \
-                            nk_##input_type##_t const *a_row_ptr_1 =                                                 \
-                                (tile_row_count > 1)                                                                 \
-                                    ? (nk_##input_type##_t const *)((char const *)a_matrix +                         \
-                                                                    (tile_row_start + 1) * a_stride) +               \
-                                          depth_block_start                                                          \
-                                    : a_row_ptr_0;                                                                   \
-                            nk_##input_type##_t const *a_row_ptr_2 =                                                 \
-                                (tile_row_count > 2)                                                                 \
-                                    ? (nk_##input_type##_t const *)((char const *)a_matrix +                         \
-                                                                    (tile_row_start + 2) * a_stride) +               \
-                                          depth_block_start                                                          \
-                                    : a_row_ptr_0;                                                                   \
-                            nk_##input_type##_t const *a_row_ptr_3 =                                                 \
-                                (tile_row_count > 3)                                                                 \
-                                    ? (nk_##input_type##_t const *)((char const *)a_matrix +                         \
-                                                                    (tile_row_start + 3) * a_stride) +               \
-                                          depth_block_start                                                          \
-                                    : a_row_ptr_0;                                                                   \
+                            /* Check if this is a full tile (no boundary checking needed) */                         \
+                            int const is_full_tile = (tile_row_count == mr_size) && (tile_column_count == 4) &&      \
+                                                     (remainder_depth == 0);                                         \
                                                                                                                      \
-                            /* Fast path: SIMD-aligned iterations with fully unrolled MR=4 rows */                   \
-                            for (nk_size_t depth_offset = 0; depth_offset < aligned_depth;                           \
-                                 depth_offset += simd_width) {                                                       \
-                                /* Load 4 B vectors (shared across all A rows) */                                    \
-                                vec_type b_vector_0, b_vector_1, b_vector_2, b_vector_3;                             \
-                                load_fn(b_column_ptr_0 + depth_offset, &b_vector_0);                                 \
-                                load_fn(b_column_ptr_1 + depth_offset, &b_vector_1);                                 \
-                                load_fn(b_column_ptr_2 + depth_offset, &b_vector_2);                                 \
-                                load_fn(b_column_ptr_3 + depth_offset, &b_vector_3);                                 \
+                            if (is_full_tile) {                                                                      \
+                                /* FAST PATH: Full tile with no boundary checks, k-unrolled */                       \
+                                nk_##input_type##_t const *a_ptr_0 =                                                 \
+                                    (nk_##input_type##_t const *)((char const *)a_matrix +                           \
+                                                                  (tile_row_start + 0) * a_stride) +                 \
+                                    depth_block_start;                                                               \
+                                nk_##input_type##_t const *a_ptr_1 =                                                 \
+                                    (nk_##input_type##_t const *)((char const *)a_matrix +                           \
+                                                                  (tile_row_start + 1) * a_stride) +                 \
+                                    depth_block_start;                                                               \
+                                nk_##input_type##_t const *a_ptr_2 =                                                 \
+                                    (nk_##input_type##_t const *)((char const *)a_matrix +                           \
+                                                                  (tile_row_start + 2) * a_stride) +                 \
+                                    depth_block_start;                                                               \
+                                nk_##input_type##_t const *a_ptr_3 =                                                 \
+                                    (nk_##input_type##_t const *)((char const *)a_matrix +                           \
+                                                                  (tile_row_start + 3) * a_stride) +                 \
+                                    depth_block_start;                                                               \
+                                nk_##input_type##_t const *b_ptr_0 = b_column_ptr_0;                                 \
+                                nk_##input_type##_t const *b_ptr_1 = b_column_ptr_1;                                 \
+                                nk_##input_type##_t const *b_ptr_2 = b_column_ptr_2;                                 \
+                                nk_##input_type##_t const *b_ptr_3 = b_column_ptr_3;                                 \
                                                                                                                      \
-                                /* Load 4 A vectors (one per row, unrolled) */                                       \
-                                vec_type a_vector_0, a_vector_1, a_vector_2, a_vector_3;                             \
-                                load_fn(a_row_ptr_0 + depth_offset, &a_vector_0);                                    \
-                                load_fn(a_row_ptr_1 + depth_offset, &a_vector_1);                                    \
-                                load_fn(a_row_ptr_2 + depth_offset, &a_vector_2);                                    \
-                                load_fn(a_row_ptr_3 + depth_offset, &a_vector_3);                                    \
-                                                                                                                     \
-                                /* 16 update operations fully unrolled (4 rows x 4 columns) */                       \
-                                update_fn(&accumulator_states[0][0], a_vector_0, b_vector_0);                        \
-                                update_fn(&accumulator_states[0][1], a_vector_0, b_vector_1);                        \
-                                update_fn(&accumulator_states[0][2], a_vector_0, b_vector_2);                        \
-                                update_fn(&accumulator_states[0][3], a_vector_0, b_vector_3);                        \
-                                update_fn(&accumulator_states[1][0], a_vector_1, b_vector_0);                        \
-                                update_fn(&accumulator_states[1][1], a_vector_1, b_vector_1);                        \
-                                update_fn(&accumulator_states[1][2], a_vector_1, b_vector_2);                        \
-                                update_fn(&accumulator_states[1][3], a_vector_1, b_vector_3);                        \
-                                update_fn(&accumulator_states[2][0], a_vector_2, b_vector_0);                        \
-                                update_fn(&accumulator_states[2][1], a_vector_2, b_vector_1);                        \
-                                update_fn(&accumulator_states[2][2], a_vector_2, b_vector_2);                        \
-                                update_fn(&accumulator_states[2][3], a_vector_2, b_vector_3);                        \
-                                update_fn(&accumulator_states[3][0], a_vector_3, b_vector_0);                        \
-                                update_fn(&accumulator_states[3][1], a_vector_3, b_vector_1);                        \
-                                update_fn(&accumulator_states[3][2], a_vector_3, b_vector_2);                        \
-                                update_fn(&accumulator_states[3][3], a_vector_3, b_vector_3);                        \
+                                /* Unrolled k-loop: process k_unroll tiles per iteration */                          \
+                                for (nk_size_t depth_offset = 0; depth_offset < unroll_aligned_depth;                \
+                                     depth_offset += unroll_stride) {                                                \
+                                    /* Unroll iteration 0 */                                                         \
+                                    vec_type b0, b1, b2, b3, a0, a1, a2, a3;                                         \
+                                    load_fn(b_ptr_0, &b0);                                                           \
+                                    load_fn(b_ptr_1, &b1);                                                           \
+                                    load_fn(b_ptr_2, &b2);                                                           \
+                                    load_fn(b_ptr_3, &b3);                                                           \
+                                    load_fn(a_ptr_0, &a0);                                                           \
+                                    load_fn(a_ptr_1, &a1);                                                           \
+                                    load_fn(a_ptr_2, &a2);                                                           \
+                                    load_fn(a_ptr_3, &a3);                                                           \
+                                    b_ptr_0 += simd_width;                                                           \
+                                    b_ptr_1 += simd_width;                                                           \
+                                    b_ptr_2 += simd_width;                                                           \
+                                    b_ptr_3 += simd_width;                                                           \
+                                    a_ptr_0 += simd_width;                                                           \
+                                    a_ptr_1 += simd_width;                                                           \
+                                    a_ptr_2 += simd_width;                                                           \
+                                    a_ptr_3 += simd_width;                                                           \
+                                    update_fn(&accumulator_states[0][0], a0, b0);                                    \
+                                    update_fn(&accumulator_states[0][1], a0, b1);                                    \
+                                    update_fn(&accumulator_states[0][2], a0, b2);                                    \
+                                    update_fn(&accumulator_states[0][3], a0, b3);                                    \
+                                    update_fn(&accumulator_states[1][0], a1, b0);                                    \
+                                    update_fn(&accumulator_states[1][1], a1, b1);                                    \
+                                    update_fn(&accumulator_states[1][2], a1, b2);                                    \
+                                    update_fn(&accumulator_states[1][3], a1, b3);                                    \
+                                    update_fn(&accumulator_states[2][0], a2, b0);                                    \
+                                    update_fn(&accumulator_states[2][1], a2, b1);                                    \
+                                    update_fn(&accumulator_states[2][2], a2, b2);                                    \
+                                    update_fn(&accumulator_states[2][3], a2, b3);                                    \
+                                    update_fn(&accumulator_states[3][0], a3, b0);                                    \
+                                    update_fn(&accumulator_states[3][1], a3, b1);                                    \
+                                    update_fn(&accumulator_states[3][2], a3, b2);                                    \
+                                    update_fn(&accumulator_states[3][3], a3, b3);                                    \
+                                    /* Unroll iteration 1 (if k_unroll >= 2) */                                      \
+                                    if (k_unroll >= 2) {                                                             \
+                                        load_fn(b_ptr_0, &b0);                                                       \
+                                        load_fn(b_ptr_1, &b1);                                                       \
+                                        load_fn(b_ptr_2, &b2);                                                       \
+                                        load_fn(b_ptr_3, &b3);                                                       \
+                                        load_fn(a_ptr_0, &a0);                                                       \
+                                        load_fn(a_ptr_1, &a1);                                                       \
+                                        load_fn(a_ptr_2, &a2);                                                       \
+                                        load_fn(a_ptr_3, &a3);                                                       \
+                                        b_ptr_0 += simd_width;                                                       \
+                                        b_ptr_1 += simd_width;                                                       \
+                                        b_ptr_2 += simd_width;                                                       \
+                                        b_ptr_3 += simd_width;                                                       \
+                                        a_ptr_0 += simd_width;                                                       \
+                                        a_ptr_1 += simd_width;                                                       \
+                                        a_ptr_2 += simd_width;                                                       \
+                                        a_ptr_3 += simd_width;                                                       \
+                                        update_fn(&accumulator_states[0][0], a0, b0);                                \
+                                        update_fn(&accumulator_states[0][1], a0, b1);                                \
+                                        update_fn(&accumulator_states[0][2], a0, b2);                                \
+                                        update_fn(&accumulator_states[0][3], a0, b3);                                \
+                                        update_fn(&accumulator_states[1][0], a1, b0);                                \
+                                        update_fn(&accumulator_states[1][1], a1, b1);                                \
+                                        update_fn(&accumulator_states[1][2], a1, b2);                                \
+                                        update_fn(&accumulator_states[1][3], a1, b3);                                \
+                                        update_fn(&accumulator_states[2][0], a2, b0);                                \
+                                        update_fn(&accumulator_states[2][1], a2, b1);                                \
+                                        update_fn(&accumulator_states[2][2], a2, b2);                                \
+                                        update_fn(&accumulator_states[2][3], a2, b3);                                \
+                                        update_fn(&accumulator_states[3][0], a3, b0);                                \
+                                        update_fn(&accumulator_states[3][1], a3, b1);                                \
+                                        update_fn(&accumulator_states[3][2], a3, b2);                                \
+                                        update_fn(&accumulator_states[3][3], a3, b3);                                \
+                                    }                                                                                \
+                                    /* Unroll iterations 2-3 (if k_unroll >= 4) */                                   \
+                                    if (k_unroll >= 4) {                                                             \
+                                        load_fn(b_ptr_0, &b0);                                                       \
+                                        load_fn(b_ptr_1, &b1);                                                       \
+                                        load_fn(b_ptr_2, &b2);                                                       \
+                                        load_fn(b_ptr_3, &b3);                                                       \
+                                        load_fn(a_ptr_0, &a0);                                                       \
+                                        load_fn(a_ptr_1, &a1);                                                       \
+                                        load_fn(a_ptr_2, &a2);                                                       \
+                                        load_fn(a_ptr_3, &a3);                                                       \
+                                        b_ptr_0 += simd_width;                                                       \
+                                        b_ptr_1 += simd_width;                                                       \
+                                        b_ptr_2 += simd_width;                                                       \
+                                        b_ptr_3 += simd_width;                                                       \
+                                        a_ptr_0 += simd_width;                                                       \
+                                        a_ptr_1 += simd_width;                                                       \
+                                        a_ptr_2 += simd_width;                                                       \
+                                        a_ptr_3 += simd_width;                                                       \
+                                        update_fn(&accumulator_states[0][0], a0, b0);                                \
+                                        update_fn(&accumulator_states[0][1], a0, b1);                                \
+                                        update_fn(&accumulator_states[0][2], a0, b2);                                \
+                                        update_fn(&accumulator_states[0][3], a0, b3);                                \
+                                        update_fn(&accumulator_states[1][0], a1, b0);                                \
+                                        update_fn(&accumulator_states[1][1], a1, b1);                                \
+                                        update_fn(&accumulator_states[1][2], a1, b2);                                \
+                                        update_fn(&accumulator_states[1][3], a1, b3);                                \
+                                        update_fn(&accumulator_states[2][0], a2, b0);                                \
+                                        update_fn(&accumulator_states[2][1], a2, b1);                                \
+                                        update_fn(&accumulator_states[2][2], a2, b2);                                \
+                                        update_fn(&accumulator_states[2][3], a2, b3);                                \
+                                        update_fn(&accumulator_states[3][0], a3, b0);                                \
+                                        update_fn(&accumulator_states[3][1], a3, b1);                                \
+                                        update_fn(&accumulator_states[3][2], a3, b2);                                \
+                                        update_fn(&accumulator_states[3][3], a3, b3);                                \
+                                        /* Iteration 3 */                                                            \
+                                        load_fn(b_ptr_0, &b0);                                                       \
+                                        load_fn(b_ptr_1, &b1);                                                       \
+                                        load_fn(b_ptr_2, &b2);                                                       \
+                                        load_fn(b_ptr_3, &b3);                                                       \
+                                        load_fn(a_ptr_0, &a0);                                                       \
+                                        load_fn(a_ptr_1, &a1);                                                       \
+                                        load_fn(a_ptr_2, &a2);                                                       \
+                                        load_fn(a_ptr_3, &a3);                                                       \
+                                        b_ptr_0 += simd_width;                                                       \
+                                        b_ptr_1 += simd_width;                                                       \
+                                        b_ptr_2 += simd_width;                                                       \
+                                        b_ptr_3 += simd_width;                                                       \
+                                        a_ptr_0 += simd_width;                                                       \
+                                        a_ptr_1 += simd_width;                                                       \
+                                        a_ptr_2 += simd_width;                                                       \
+                                        a_ptr_3 += simd_width;                                                       \
+                                        update_fn(&accumulator_states[0][0], a0, b0);                                \
+                                        update_fn(&accumulator_states[0][1], a0, b1);                                \
+                                        update_fn(&accumulator_states[0][2], a0, b2);                                \
+                                        update_fn(&accumulator_states[0][3], a0, b3);                                \
+                                        update_fn(&accumulator_states[1][0], a1, b0);                                \
+                                        update_fn(&accumulator_states[1][1], a1, b1);                                \
+                                        update_fn(&accumulator_states[1][2], a1, b2);                                \
+                                        update_fn(&accumulator_states[1][3], a1, b3);                                \
+                                        update_fn(&accumulator_states[2][0], a2, b0);                                \
+                                        update_fn(&accumulator_states[2][1], a2, b1);                                \
+                                        update_fn(&accumulator_states[2][2], a2, b2);                                \
+                                        update_fn(&accumulator_states[2][3], a2, b3);                                \
+                                        update_fn(&accumulator_states[3][0], a3, b0);                                \
+                                        update_fn(&accumulator_states[3][1], a3, b1);                                \
+                                        update_fn(&accumulator_states[3][2], a3, b2);                                \
+                                        update_fn(&accumulator_states[3][3], a3, b3);                                \
+                                    }                                                                                \
+                                }                                                                                    \
+                                /* Handle remaining iterations between unroll_aligned and aligned_depth */           \
+                                for (nk_size_t depth_offset = unroll_aligned_depth; depth_offset < aligned_depth;    \
+                                     depth_offset += simd_width) {                                                   \
+                                    vec_type b0, b1, b2, b3, a0, a1, a2, a3;                                         \
+                                    load_fn(b_ptr_0, &b0);                                                           \
+                                    load_fn(b_ptr_1, &b1);                                                           \
+                                    load_fn(b_ptr_2, &b2);                                                           \
+                                    load_fn(b_ptr_3, &b3);                                                           \
+                                    load_fn(a_ptr_0, &a0);                                                           \
+                                    load_fn(a_ptr_1, &a1);                                                           \
+                                    load_fn(a_ptr_2, &a2);                                                           \
+                                    load_fn(a_ptr_3, &a3);                                                           \
+                                    b_ptr_0 += simd_width;                                                           \
+                                    b_ptr_1 += simd_width;                                                           \
+                                    b_ptr_2 += simd_width;                                                           \
+                                    b_ptr_3 += simd_width;                                                           \
+                                    a_ptr_0 += simd_width;                                                           \
+                                    a_ptr_1 += simd_width;                                                           \
+                                    a_ptr_2 += simd_width;                                                           \
+                                    a_ptr_3 += simd_width;                                                           \
+                                    update_fn(&accumulator_states[0][0], a0, b0);                                    \
+                                    update_fn(&accumulator_states[0][1], a0, b1);                                    \
+                                    update_fn(&accumulator_states[0][2], a0, b2);                                    \
+                                    update_fn(&accumulator_states[0][3], a0, b3);                                    \
+                                    update_fn(&accumulator_states[1][0], a1, b0);                                    \
+                                    update_fn(&accumulator_states[1][1], a1, b1);                                    \
+                                    update_fn(&accumulator_states[1][2], a1, b2);                                    \
+                                    update_fn(&accumulator_states[1][3], a1, b3);                                    \
+                                    update_fn(&accumulator_states[2][0], a2, b0);                                    \
+                                    update_fn(&accumulator_states[2][1], a2, b1);                                    \
+                                    update_fn(&accumulator_states[2][2], a2, b2);                                    \
+                                    update_fn(&accumulator_states[2][3], a2, b3);                                    \
+                                    update_fn(&accumulator_states[3][0], a3, b0);                                    \
+                                    update_fn(&accumulator_states[3][1], a3, b1);                                    \
+                                    update_fn(&accumulator_states[3][2], a3, b2);                                    \
+                                    update_fn(&accumulator_states[3][3], a3, b3);                                    \
+                                }                                                                                    \
                             }                                                                                        \
+                            else {                                                                                   \
+                                /* SLOW PATH: Edge tiles with boundary checking */                                   \
+                                nk_##input_type##_t const *a_row_ptr_0 =                                             \
+                                    (nk_##input_type##_t const *)((char const *)a_matrix +                           \
+                                                                  (tile_row_start + 0) * a_stride) +                 \
+                                    depth_block_start;                                                               \
+                                nk_##input_type##_t const *a_row_ptr_1 =                                             \
+                                    (tile_row_count > 1)                                                             \
+                                        ? (nk_##input_type##_t const *)((char const *)a_matrix +                     \
+                                                                        (tile_row_start + 1) * a_stride) +           \
+                                              depth_block_start                                                      \
+                                        : a_row_ptr_0;                                                               \
+                                nk_##input_type##_t const *a_row_ptr_2 =                                             \
+                                    (tile_row_count > 2)                                                             \
+                                        ? (nk_##input_type##_t const *)((char const *)a_matrix +                     \
+                                                                        (tile_row_start + 2) * a_stride) +           \
+                                              depth_block_start                                                      \
+                                        : a_row_ptr_0;                                                               \
+                                nk_##input_type##_t const *a_row_ptr_3 =                                             \
+                                    (tile_row_count > 3)                                                             \
+                                        ? (nk_##input_type##_t const *)((char const *)a_matrix +                     \
+                                                                        (tile_row_start + 3) * a_stride) +           \
+                                              depth_block_start                                                      \
+                                        : a_row_ptr_0;                                                               \
                                                                                                                      \
-                            /* Slow path: remainder elements with partial (masked) loads, also unrolled */           \
-                            if (remainder_depth > 0) {                                                               \
-                                vec_type b_vector_0, b_vector_1, b_vector_2, b_vector_3;                             \
-                                partial_load_fn(b_column_ptr_0 + aligned_depth, remainder_depth, &b_vector_0);       \
-                                partial_load_fn(b_column_ptr_1 + aligned_depth, remainder_depth, &b_vector_1);       \
-                                partial_load_fn(b_column_ptr_2 + aligned_depth, remainder_depth, &b_vector_2);       \
-                                partial_load_fn(b_column_ptr_3 + aligned_depth, remainder_depth, &b_vector_3);       \
+                                /* SIMD-aligned iterations */                                                        \
+                                for (nk_size_t depth_offset = 0; depth_offset < aligned_depth;                       \
+                                     depth_offset += simd_width) {                                                   \
+                                    vec_type b_vector_0, b_vector_1, b_vector_2, b_vector_3;                         \
+                                    load_fn(b_column_ptr_0 + depth_offset, &b_vector_0);                             \
+                                    load_fn(b_column_ptr_1 + depth_offset, &b_vector_1);                             \
+                                    load_fn(b_column_ptr_2 + depth_offset, &b_vector_2);                             \
+                                    load_fn(b_column_ptr_3 + depth_offset, &b_vector_3);                             \
+                                    vec_type a_vector_0, a_vector_1, a_vector_2, a_vector_3;                         \
+                                    load_fn(a_row_ptr_0 + depth_offset, &a_vector_0);                                \
+                                    load_fn(a_row_ptr_1 + depth_offset, &a_vector_1);                                \
+                                    load_fn(a_row_ptr_2 + depth_offset, &a_vector_2);                                \
+                                    load_fn(a_row_ptr_3 + depth_offset, &a_vector_3);                                \
+                                    update_fn(&accumulator_states[0][0], a_vector_0, b_vector_0);                    \
+                                    update_fn(&accumulator_states[0][1], a_vector_0, b_vector_1);                    \
+                                    update_fn(&accumulator_states[0][2], a_vector_0, b_vector_2);                    \
+                                    update_fn(&accumulator_states[0][3], a_vector_0, b_vector_3);                    \
+                                    update_fn(&accumulator_states[1][0], a_vector_1, b_vector_0);                    \
+                                    update_fn(&accumulator_states[1][1], a_vector_1, b_vector_1);                    \
+                                    update_fn(&accumulator_states[1][2], a_vector_1, b_vector_2);                    \
+                                    update_fn(&accumulator_states[1][3], a_vector_1, b_vector_3);                    \
+                                    update_fn(&accumulator_states[2][0], a_vector_2, b_vector_0);                    \
+                                    update_fn(&accumulator_states[2][1], a_vector_2, b_vector_1);                    \
+                                    update_fn(&accumulator_states[2][2], a_vector_2, b_vector_2);                    \
+                                    update_fn(&accumulator_states[2][3], a_vector_2, b_vector_3);                    \
+                                    update_fn(&accumulator_states[3][0], a_vector_3, b_vector_0);                    \
+                                    update_fn(&accumulator_states[3][1], a_vector_3, b_vector_1);                    \
+                                    update_fn(&accumulator_states[3][2], a_vector_3, b_vector_2);                    \
+                                    update_fn(&accumulator_states[3][3], a_vector_3, b_vector_3);                    \
+                                }                                                                                    \
                                                                                                                      \
-                                vec_type a_vector_0, a_vector_1, a_vector_2, a_vector_3;                             \
-                                partial_load_fn(a_row_ptr_0 + aligned_depth, remainder_depth, &a_vector_0);          \
-                                partial_load_fn(a_row_ptr_1 + aligned_depth, remainder_depth, &a_vector_1);          \
-                                partial_load_fn(a_row_ptr_2 + aligned_depth, remainder_depth, &a_vector_2);          \
-                                partial_load_fn(a_row_ptr_3 + aligned_depth, remainder_depth, &a_vector_3);          \
-                                                                                                                     \
-                                update_fn(&accumulator_states[0][0], a_vector_0, b_vector_0);                        \
-                                update_fn(&accumulator_states[0][1], a_vector_0, b_vector_1);                        \
-                                update_fn(&accumulator_states[0][2], a_vector_0, b_vector_2);                        \
-                                update_fn(&accumulator_states[0][3], a_vector_0, b_vector_3);                        \
-                                update_fn(&accumulator_states[1][0], a_vector_1, b_vector_0);                        \
-                                update_fn(&accumulator_states[1][1], a_vector_1, b_vector_1);                        \
-                                update_fn(&accumulator_states[1][2], a_vector_1, b_vector_2);                        \
-                                update_fn(&accumulator_states[1][3], a_vector_1, b_vector_3);                        \
-                                update_fn(&accumulator_states[2][0], a_vector_2, b_vector_0);                        \
-                                update_fn(&accumulator_states[2][1], a_vector_2, b_vector_1);                        \
-                                update_fn(&accumulator_states[2][2], a_vector_2, b_vector_2);                        \
-                                update_fn(&accumulator_states[2][3], a_vector_2, b_vector_3);                        \
-                                update_fn(&accumulator_states[3][0], a_vector_3, b_vector_0);                        \
-                                update_fn(&accumulator_states[3][1], a_vector_3, b_vector_1);                        \
-                                update_fn(&accumulator_states[3][2], a_vector_3, b_vector_2);                        \
-                                update_fn(&accumulator_states[3][3], a_vector_3, b_vector_3);                        \
+                                /* Remainder elements with partial loads */                                          \
+                                if (remainder_depth > 0) {                                                           \
+                                    vec_type b_vector_0, b_vector_1, b_vector_2, b_vector_3;                         \
+                                    partial_load_fn(b_column_ptr_0 + aligned_depth, remainder_depth, &b_vector_0);   \
+                                    partial_load_fn(b_column_ptr_1 + aligned_depth, remainder_depth, &b_vector_1);   \
+                                    partial_load_fn(b_column_ptr_2 + aligned_depth, remainder_depth, &b_vector_2);   \
+                                    partial_load_fn(b_column_ptr_3 + aligned_depth, remainder_depth, &b_vector_3);   \
+                                    vec_type a_vector_0, a_vector_1, a_vector_2, a_vector_3;                         \
+                                    partial_load_fn(a_row_ptr_0 + aligned_depth, remainder_depth, &a_vector_0);      \
+                                    partial_load_fn(a_row_ptr_1 + aligned_depth, remainder_depth, &a_vector_1);      \
+                                    partial_load_fn(a_row_ptr_2 + aligned_depth, remainder_depth, &a_vector_2);      \
+                                    partial_load_fn(a_row_ptr_3 + aligned_depth, remainder_depth, &a_vector_3);      \
+                                    update_fn(&accumulator_states[0][0], a_vector_0, b_vector_0);                    \
+                                    update_fn(&accumulator_states[0][1], a_vector_0, b_vector_1);                    \
+                                    update_fn(&accumulator_states[0][2], a_vector_0, b_vector_2);                    \
+                                    update_fn(&accumulator_states[0][3], a_vector_0, b_vector_3);                    \
+                                    update_fn(&accumulator_states[1][0], a_vector_1, b_vector_0);                    \
+                                    update_fn(&accumulator_states[1][1], a_vector_1, b_vector_1);                    \
+                                    update_fn(&accumulator_states[1][2], a_vector_1, b_vector_2);                    \
+                                    update_fn(&accumulator_states[1][3], a_vector_1, b_vector_3);                    \
+                                    update_fn(&accumulator_states[2][0], a_vector_2, b_vector_0);                    \
+                                    update_fn(&accumulator_states[2][1], a_vector_2, b_vector_1);                    \
+                                    update_fn(&accumulator_states[2][2], a_vector_2, b_vector_2);                    \
+                                    update_fn(&accumulator_states[2][3], a_vector_2, b_vector_3);                    \
+                                    update_fn(&accumulator_states[3][0], a_vector_3, b_vector_0);                    \
+                                    update_fn(&accumulator_states[3][1], a_vector_3, b_vector_1);                    \
+                                    update_fn(&accumulator_states[3][2], a_vector_3, b_vector_2);                    \
+                                    update_fn(&accumulator_states[3][3], a_vector_3, b_vector_3);                    \
+                                }                                                                                    \
                             }                                                                                        \
                                                                                                                      \
                             /* Finalize and store MR x 4 results using batched 4-way reduction */                    \
@@ -311,27 +515,6 @@ typedef struct {
     nk_u32_t reserved[12];  // Padding to 64 bytes
 } nk_dots_packed_header_t;
 
-/*  Tiled row-major packed format for cache-efficient matrix multiplication.
- *
- *  Layout: B matrix is divided into tiles of TILE_N rows × TILE_K columns.
- *  Tiles are stored in row-major order: k-tiles vary slowest, n-tiles vary fastest.
- *  Within each tile, elements are stored row-major (n-row × k-elements).
- *
- *  Tile widths are 64 bytes (1 cache line) for optimal memory access:
- *    - f64: 8 elements per tile row
- *    - f32: 16 elements per tile row
- *    - f16/bf16: 32 elements per tile row
- *    - i8/u8: 64 elements per tile row
- *
- *  Tile height is 16 rows, matching streaming dot-product kernel batch sizes.
- *
- *  Memory layout for packed B (n=48, k=64, f32):
- *    n_tiles = ceil(48/16) = 3, k_tiles = ceil(64/16) = 4
- *    Tiles stored as: [kt=0,nt=0] [kt=0,nt=1] [kt=0,nt=2] [kt=1,nt=0] ...
- *    Each tile: 16 rows × 16 elements = 256 f32 = 1KB
- */
-
-// Serial tile dimensions: 64-byte width (1 cache line), 16 rows height
 #define NK_DOTS_SERIAL_TILE_N      16
 #define NK_DOTS_SERIAL_TILE_K_F64  8  // 8 × 8 bytes = 64 bytes
 #define NK_DOTS_SERIAL_TILE_K_F32  16 // 16 × 4 bytes = 64 bytes

@@ -89,13 +89,13 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_SIERRA", "0"),  # avx2vnni not supported by manylinux GCC
         # ARM targets
         ("NK_TARGET_NEON", "1" if is_64bit_arm() else "0"),
-        ("NK_TARGET_NEON_I8", "1" if is_64bit_arm() else "0"),
-        ("NK_TARGET_NEON_F16", "1" if is_64bit_arm() else "0"),
-        ("NK_TARGET_NEON_BF16", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONSDOT", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONHALF", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONBFDOT", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_SVE", "1" if is_64bit_arm() else "0"),
-        ("NK_TARGET_SVE_I8", "1" if is_64bit_arm() else "0"),
-        ("NK_TARGET_SVE_F16", "1" if is_64bit_arm() else "0"),
-        ("NK_TARGET_SVE_BF16", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SVESDOT", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SVEHALF", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SVEBFDOT", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_SVE2", "1" if is_64bit_arm() else "0"),
     ]
     return compile_args, link_args, macros
@@ -125,13 +125,13 @@ def darwin_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_SIERRA", "0"),
         # ARM targets - NEON only, no SVE on Apple Silicon
         ("NK_TARGET_NEON", "1" if is_64bit_arm() else "0"),
-        ("NK_TARGET_NEON_I8", "1" if is_64bit_arm() else "0"),
-        ("NK_TARGET_NEON_F16", "1" if is_64bit_arm() else "0"),
-        ("NK_TARGET_NEON_BF16", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONSDOT", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONHALF", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONBFDOT", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_SVE", "0"),
-        ("NK_TARGET_SVE_I8", "0"),
-        ("NK_TARGET_SVE_F16", "0"),
-        ("NK_TARGET_SVE_BF16", "0"),
+        ("NK_TARGET_SVESDOT", "0"),
+        ("NK_TARGET_SVEHALF", "0"),
+        ("NK_TARGET_SVEBFDOT", "0"),
         ("NK_TARGET_SVE2", "0"),
     ]
     return compile_args, link_args, macros
@@ -163,13 +163,13 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_TURIN", "0"),  # `VP2INTERSECT` limited in MSVC
         ("NK_TARGET_SIERRA", "0"),  # AVX2 VNNI limits in MSVC
         ("NK_TARGET_NEON", "1" if is_64bit_arm() else "0"),
-        ("NK_TARGET_NEON_I8", "1" if is_64bit_arm() else "0"),
-        ("NK_TARGET_NEON_F16", "0"),  # MSVC lacks `float16_t` intrinsics
-        ("NK_TARGET_NEON_BF16", "0"),  # MSVC lacks `bfloat16x8_t` intrinsics
+        ("NK_TARGET_NEONSDOT", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONHALF", "0"),  # MSVC lacks `float16_t` intrinsics
+        ("NK_TARGET_NEONBFDOT", "0"),  # MSVC lacks `bfloat16x8_t` intrinsics
         ("NK_TARGET_SVE", "0"),
-        ("NK_TARGET_SVE_I8", "0"),
-        ("NK_TARGET_SVE_F16", "0"),
-        ("NK_TARGET_SVE_BF16", "0"),
+        ("NK_TARGET_SVESDOT", "0"),
+        ("NK_TARGET_SVEHALF", "0"),
+        ("NK_TARGET_SVEBFDOT", "0"),
         ("NK_TARGET_SVE2", "0"),
     ]
     # MSVC requires architecture-specific macros for winnt.h

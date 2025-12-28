@@ -230,7 +230,7 @@ NK_PUBLIC void nk_mahalanobis_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_
                                        nk_f32_t *result);
 #endif // NK_TARGET_NEON
 
-#if NK_TARGET_NEON_F16
+#if NK_TARGET_NEONHALF
 /** @copydoc nk_bilinear_f16 */
 NK_PUBLIC void nk_bilinear_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
                                     nk_f32_t *result);
@@ -240,9 +240,9 @@ NK_PUBLIC void nk_bilinear_f16c_neon(nk_f16c_t const *a, nk_f16c_t const *b, nk_
 /** @copydoc nk_mahalanobis_f16 */
 NK_PUBLIC void nk_mahalanobis_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
                                        nk_f32_t *result);
-#endif // NK_TARGET_NEON_F16
+#endif // NK_TARGET_NEONHALF
 
-#if NK_TARGET_NEON_BF16
+#if NK_TARGET_NEONBFDOT
 /** @copydoc nk_bilinear_bf16 */
 NK_PUBLIC void nk_bilinear_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
                                      nk_f32_t *result);
@@ -252,7 +252,7 @@ NK_PUBLIC void nk_bilinear_bf16c_neon(nk_bf16c_t const *a, nk_bf16c_t const *b, 
 /** @copydoc nk_mahalanobis_bf16 */
 NK_PUBLIC void nk_mahalanobis_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
                                         nk_f32_t *result);
-#endif // NK_TARGET_NEON_BF16
+#endif // NK_TARGET_NEONBFDOT
 
 #if NK_TARGET_HASWELL
 /** @copydoc nk_bilinear_f16 */
@@ -537,7 +537,7 @@ NK_PUBLIC void nk_bilinear_f32c_neon(nk_f32c_t const *a, nk_f32c_t const *b, nk_
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON
 
-#if NK_TARGET_NEON_F16
+#if NK_TARGET_NEONHALF
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
@@ -682,9 +682,9 @@ NK_PUBLIC void nk_bilinear_f16c_neon(nk_f16c_t const *a, nk_f16c_t const *b, nk_
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // NK_TARGET_NEON_F16
+#endif // NK_TARGET_NEONHALF
 
-#if NK_TARGET_NEON_BF16
+#if NK_TARGET_NEONBFDOT
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
@@ -859,7 +859,7 @@ NK_PUBLIC void nk_bilinear_bf16c_neon(nk_bf16c_t const *a, nk_bf16c_t const *b, 
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // NK_TARGET_NEON_BF16
+#endif // NK_TARGET_NEONBFDOT
 
 #endif // NK_TARGET_ARM_
 
@@ -1773,7 +1773,7 @@ NK_PUBLIC void nk_bilinear_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t co
     nk_bilinear_f16_sapphire(a, b, c, n, result);
 #elif NK_TARGET_HASWELL
     nk_bilinear_f16_haswell(a, b, c, n, result);
-#elif NK_TARGET_NEON_F16
+#elif NK_TARGET_NEONHALF
     nk_bilinear_f16_neon(a, b, c, n, result);
 #else
     nk_bilinear_f16_serial(a, b, c, n, result);
@@ -1786,7 +1786,7 @@ NK_PUBLIC void nk_bilinear_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_
     nk_bilinear_bf16_genoa(a, b, c, n, result);
 #elif NK_TARGET_HASWELL
     nk_bilinear_bf16_haswell(a, b, c, n, result);
-#elif NK_TARGET_NEON_BF16
+#elif NK_TARGET_NEONBFDOT
     nk_bilinear_bf16_neon(a, b, c, n, result);
 #else
     nk_bilinear_bf16_serial(a, b, c, n, result);
@@ -1850,7 +1850,7 @@ NK_PUBLIC void nk_bilinear_f16c(nk_f16c_t const *a, nk_f16c_t const *b, nk_f16c_
                                 nk_f32c_t *results) {
 #if NK_TARGET_SAPPHIRE
     nk_bilinear_f16c_sapphire(a, b, c, n, results);
-#elif NK_TARGET_NEON_F16
+#elif NK_TARGET_NEONHALF
     nk_bilinear_f16c_neon(a, b, c, n, results);
 #else
     nk_bilinear_f16c_serial(a, b, c, n, results);
@@ -1872,7 +1872,7 @@ NK_PUBLIC void nk_bilinear_bf16c(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_bf
                                  nk_f32c_t *results) {
 #if NK_TARGET_GENOA
     nk_bilinear_bf16c_genoa(a, b, c, n, results);
-#elif NK_TARGET_NEON_BF16
+#elif NK_TARGET_NEONBFDOT
     nk_bilinear_bf16c_neon(a, b, c, n, results);
 #else
     nk_bilinear_bf16c_serial(a, b, c, n, results);
@@ -1905,7 +1905,7 @@ NK_PUBLIC void nk_mahalanobis_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t
     nk_mahalanobis_f16_sapphire(a, b, c, n, result);
 #elif NK_TARGET_HASWELL
     nk_mahalanobis_f16_haswell(a, b, c, n, result);
-#elif NK_TARGET_NEON_F16
+#elif NK_TARGET_NEONHALF
     nk_mahalanobis_f16_neon(a, b, c, n, result);
 #else
     nk_mahalanobis_f16_serial(a, b, c, n, result);
@@ -1918,7 +1918,7 @@ NK_PUBLIC void nk_mahalanobis_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf
     nk_mahalanobis_bf16_genoa(a, b, c, n, result);
 #elif NK_TARGET_HASWELL
     nk_mahalanobis_bf16_haswell(a, b, c, n, result);
-#elif NK_TARGET_NEON_BF16
+#elif NK_TARGET_NEONBFDOT
     nk_mahalanobis_bf16_neon(a, b, c, n, result);
 #else
     nk_mahalanobis_bf16_serial(a, b, c, n, result);

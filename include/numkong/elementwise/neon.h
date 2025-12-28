@@ -520,7 +520,7 @@ NK_PUBLIC void nk_fma_u64_neon(                              //
 #pragma GCC pop_options
 #endif // NK_TARGET_NEON
 
-#if NK_TARGET_NEON_BF16
+#if NK_TARGET_NEONBFDOT
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)

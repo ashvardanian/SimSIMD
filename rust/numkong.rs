@@ -101,13 +101,13 @@ fn f32_abs_compat(x: f32) -> f32 {
 extern "C" {
 
     fn nk_uses_neon() -> i32;
-    fn nk_uses_neon_f16() -> i32;
-    fn nk_uses_neon_bf16() -> i32;
-    fn nk_uses_neon_i8() -> i32;
+    fn nk_uses_neonhalf() -> i32;
+    fn nk_uses_neonbfdot() -> i32;
+    fn nk_uses_neonsdot() -> i32;
     fn nk_uses_sve() -> i32;
-    fn nk_uses_sve_f16() -> i32;
-    fn nk_uses_sve_bf16() -> i32;
-    fn nk_uses_sve_i8() -> i32;
+    fn nk_uses_svehalf() -> i32;
+    fn nk_uses_svebfdot() -> i32;
+    fn nk_uses_svesdot() -> i32;
     fn nk_uses_haswell() -> i32;
     fn nk_uses_skylake() -> i32;
     fn nk_uses_ice() -> i32;
@@ -1058,26 +1058,26 @@ pub mod capabilities {
     pub fn uses_neon() -> bool {
         unsafe { crate::nk_uses_neon() != 0 }
     }
-    pub fn uses_neon_f16() -> bool {
-        unsafe { crate::nk_uses_neon_f16() != 0 }
+    pub fn uses_neonhalf() -> bool {
+        unsafe { crate::nk_uses_neonhalf() != 0 }
     }
-    pub fn uses_neon_bf16() -> bool {
-        unsafe { crate::nk_uses_neon_bf16() != 0 }
+    pub fn uses_neonbfdot() -> bool {
+        unsafe { crate::nk_uses_neonbfdot() != 0 }
     }
-    pub fn uses_neon_i8() -> bool {
-        unsafe { crate::nk_uses_neon_i8() != 0 }
+    pub fn uses_neonsdot() -> bool {
+        unsafe { crate::nk_uses_neonsdot() != 0 }
     }
     pub fn uses_sve() -> bool {
         unsafe { crate::nk_uses_sve() != 0 }
     }
-    pub fn uses_sve_f16() -> bool {
-        unsafe { crate::nk_uses_sve_f16() != 0 }
+    pub fn uses_svehalf() -> bool {
+        unsafe { crate::nk_uses_svehalf() != 0 }
     }
-    pub fn uses_sve_bf16() -> bool {
-        unsafe { crate::nk_uses_sve_bf16() != 0 }
+    pub fn uses_svebfdot() -> bool {
+        unsafe { crate::nk_uses_svebfdot() != 0 }
     }
-    pub fn uses_sve_i8() -> bool {
-        unsafe { crate::nk_uses_sve_i8() != 0 }
+    pub fn uses_svesdot() -> bool {
+        unsafe { crate::nk_uses_svesdot() != 0 }
     }
     pub fn uses_haswell() -> bool {
         unsafe { crate::nk_uses_haswell() != 0 }
@@ -3989,13 +3989,13 @@ mod tests {
         }
 
         println!("- uses_neon: {}", capabilities::uses_neon());
-        println!("- uses_neon_f16: {}", capabilities::uses_neon_f16());
-        println!("- uses_neon_bf16: {}", capabilities::uses_neon_bf16());
-        println!("- uses_neon_i8: {}", capabilities::uses_neon_i8());
+        println!("- uses_neonhalf: {}", capabilities::uses_neonhalf());
+        println!("- uses_neonbfdot: {}", capabilities::uses_neonbfdot());
+        println!("- uses_neonsdot: {}", capabilities::uses_neonsdot());
         println!("- uses_sve: {}", capabilities::uses_sve());
-        println!("- uses_sve_f16: {}", capabilities::uses_sve_f16());
-        println!("- uses_sve_bf16: {}", capabilities::uses_sve_bf16());
-        println!("- uses_sve_i8: {}", capabilities::uses_sve_i8());
+        println!("- uses_svehalf: {}", capabilities::uses_svehalf());
+        println!("- uses_svebfdot: {}", capabilities::uses_svebfdot());
+        println!("- uses_svesdot: {}", capabilities::uses_svesdot());
         println!("- uses_haswell: {}", capabilities::uses_haswell());
         println!("- uses_skylake: {}", capabilities::uses_skylake());
         println!("- uses_ice: {}", capabilities::uses_ice());

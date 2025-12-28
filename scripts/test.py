@@ -570,13 +570,13 @@ available_capabilities: Dict[str, str] = nk.get_capabilities()
 possible_x86_capabilities: List[str] = ["haswell", "ice", "skylake", "sapphire", "turin", "genoa", "sierra"]
 possible_arm_capabilities: List[str] = [
     "neon",
-    "neon_f16",
-    "neon_bf16",
-    "neon_i8",
+    "neonhalf",
+    "neonbfdot",
+    "neonsdot",
     "sve",
-    "sve_f16",
-    "sve_bf16",
-    "sve_i8",
+    "svehalf",
+    "svebfdot",
+    "svesdot",
 ]
 possible_x86_capabilities: List[str] = [c for c in possible_x86_capabilities if available_capabilities[c]]
 possible_arm_capabilities: List[str] = [c for c in possible_arm_capabilities if available_capabilities[c]]
@@ -713,13 +713,13 @@ def test_capabilities_list():
     """Tests the visibility of hardware capabilities."""
     assert "serial" in nk.get_capabilities()
     assert "neon" in nk.get_capabilities()
-    assert "neon_f16" in nk.get_capabilities()
-    assert "neon_bf16" in nk.get_capabilities()
-    assert "neon_i8" in nk.get_capabilities()
+    assert "neonhalf" in nk.get_capabilities()
+    assert "neonbfdot" in nk.get_capabilities()
+    assert "neonsdot" in nk.get_capabilities()
     assert "sve" in nk.get_capabilities()
-    assert "sve_f16" in nk.get_capabilities()
-    assert "sve_bf16" in nk.get_capabilities()
-    assert "sve_i8" in nk.get_capabilities()
+    assert "svehalf" in nk.get_capabilities()
+    assert "svebfdot" in nk.get_capabilities()
+    assert "svesdot" in nk.get_capabilities()
     assert "haswell" in nk.get_capabilities()
     assert "ice" in nk.get_capabilities()
     assert "skylake" in nk.get_capabilities()
@@ -2452,9 +2452,7 @@ def test_geospatial_out_parameter():
 
     # Test with pre-allocated output
     output_distances = np.zeros(count, dtype=np.float64)
-    result = nk.haversine(
-        first_latitudes, first_longitudes, second_latitudes, second_longitudes, out=output_distances
-    )
+    result = nk.haversine(first_latitudes, first_longitudes, second_latitudes, second_longitudes, out=output_distances)
     assert result is None, "Expected None when using out parameter"
     assert np.all(output_distances >= 0), "Output should contain non-negative distances"
 

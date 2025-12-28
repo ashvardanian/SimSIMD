@@ -290,7 +290,7 @@ A common case may be avoiding AVX-512 on older AMD CPUs and [Intel Ice Lake](htt
 
 ```py
 $ numkong.get_capabilities()
-> {'serial': True, 'neon': False, 'sve': False, 'neon_f16': False, 'sve_f16': False, 'neon_bf16': False, 'sve_bf16': False, 'neon_i8': False, 'sve_i8': False, 'haswell': True, 'skylake': True, 'ice': True, 'genoa': True, 'sapphire': True, 'turin': True}
+> {'serial': True, 'neon': False, 'sve': False, 'neonhalf': False, 'svehalf': False, 'neonbfdot': False, 'svebfdot': False, 'neonsdot': False, 'svesdot': False, 'haswell': True, 'skylake': True, 'ice': True, 'genoa': True, 'sapphire': True, 'turin': True}
 $ numkong.disable_capability("sapphire")
 $ numkong.enable_capability("sapphire")
 ```

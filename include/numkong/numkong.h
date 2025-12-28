@@ -232,16 +232,17 @@ typedef enum {
     nk_cap_granite_amx_k = 1 << 18,  ///< x86 AMX capability with `f16` support
 
     nk_cap_neon_k = 1 << 20,      ///< ARM NEON baseline capability
-    nk_cap_neon_f16_k = 1 << 21,  ///< ARM NEON `f16` capability
-    nk_cap_neon_bf16_k = 1 << 22, ///< ARM NEON `bf16` capability
-    nk_cap_neon_i8_k = 1 << 23,   ///< ARM NEON `i8` capability
+    nk_cap_neonhalf_k = 1 << 21,  ///< ARM NEON `f16` capability
+    nk_cap_neonfhm_k = 1 << 22,   ///< ARM NEON `f16` with FML capability
+    nk_cap_neonbfdot_k = 1 << 22, ///< ARM NEON `bf16` capability
+    nk_cap_neonsdot_k = 1 << 23,  ///< ARM NEON `i8` capability
     nk_cap_sve_k = 1 << 24,       ///< ARM SVE baseline capability
-    nk_cap_sve_f16_k = 1 << 25,   ///< ARM SVE `f16` capability
-    nk_cap_sve_bf16_k = 1 << 26,  ///< ARM SVE `bf16` capability
-    nk_cap_sve_i8_k = 1 << 27,    ///< ARM SVE `i8` capability
+    nk_cap_svehalf_k = 1 << 25,   ///< ARM SVE `f16` capability
+    nk_cap_svebfdot_k = 1 << 26,  ///< ARM SVE `bf16` capability
     nk_cap_sve2_k = 1 << 28,      ///< ARM SVE2 capability
-    nk_cap_sve2p1_k = 1 << 29,    ///< ARM SVE2p1 capability
 
+    nk_cap_sme2_k,
+    nk_cap_smedouble_k,
 } nk_capability_t;
 
 /**
@@ -728,9 +729,9 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
 
     return (nk_capability_t)(                                     //
         (nk_cap_neon_k * (supports_neon)) |                       //
-        (nk_cap_neon_f16_k * (supports_neon && supports_fp16)) |  //
-        (nk_cap_neon_bf16_k * (supports_neon && supports_bf16)) | //
-        (nk_cap_neon_i8_k * (supports_neon && supports_i8mm)) |   //
+        (nk_cap_neonhalf_k * (supports_neon && supports_fp16)) |  //
+        (nk_cap_neonbfdot_k * (supports_neon && supports_bf16)) | //
+        (nk_cap_neonsdot_k * (supports_neon && supports_i8mm)) |  //
         (nk_cap_serial_k));
 
 #elif defined(NK_DEFINED_LINUX_)
@@ -801,9 +802,9 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
     // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64ZFR0-EL1--SVE-Feature-ID-Register-0?lang=en
     if (supports_sve) __asm__ __volatile__("mrs %0, ID_AA64ZFR0_EL1" : "=r"(id_aa64zfr0_el1));
     // I8MM, bits [47:44] of ID_AA64ZFR0_EL1
-    unsigned supports_sve_i8mm = ((id_aa64zfr0_el1 >> 44) & 0xF) >= 1;
+    unsigned supports_svesdotmm = ((id_aa64zfr0_el1 >> 44) & 0xF) >= 1;
     // BF16, bits [23:20] of ID_AA64ZFR0_EL1
-    unsigned supports_sve_bf16 = ((id_aa64zfr0_el1 >> 20) & 0xF) >= 1;
+    unsigned supports_svebfdot = ((id_aa64zfr0_el1 >> 20) & 0xF) >= 1;
     // SVEver, bits [3:0] can be used to check for capability levels:
     //
     //  - 0b0000: SVE is implemented
@@ -814,17 +815,17 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
     unsigned supports_sve2 = ((id_aa64zfr0_el1) & 0xF) >= 1;
     unsigned supports_sve2p1 = ((id_aa64zfr0_el1) & 0xF) >= 2;
 
-    return (nk_capability_t)(                                                                    //
-        (nk_cap_neon_k * (supports_neon)) |                                                      //
-        (nk_cap_neon_f16_k * (supports_neon && supports_fp16)) |                                 //
-        (nk_cap_neon_bf16_k * (supports_neon && supports_bf16)) |                                //
-        (nk_cap_neon_i8_k * (supports_neon && supports_i8mm && supports_integer_dot_products)) | //
-        (nk_cap_sve_k * (supports_sve)) |                                                        //
-        (nk_cap_sve_f16_k * (supports_sve && supports_fp16)) |                                   //
-        (nk_cap_sve_bf16_k * (supports_sve && supports_sve_bf16)) |                              //
-        (nk_cap_sve_i8_k * (supports_sve && supports_sve_i8mm)) |                                //
-        (nk_cap_sve2_k * (supports_sve2)) |                                                      //
-        (nk_cap_sve2p1_k * (supports_sve2p1)) |                                                  //
+    return (nk_capability_t)(                                                                     //
+        (nk_cap_neon_k * (supports_neon)) |                                                       //
+        (nk_cap_neonhalf_k * (supports_neon && supports_fp16)) |                                  //
+        (nk_cap_neonbfdot_k * (supports_neon && supports_bf16)) |                                 //
+        (nk_cap_neonsdot_k * (supports_neon && supports_i8mm && supports_integer_dot_products)) | //
+        (nk_cap_sve_k * (supports_sve)) |                                                         //
+        (nk_cap_svehalf_k * (supports_sve && supports_fp16)) |                                    //
+        (nk_cap_svebfdot_k * (supports_sve && supports_svebfdot)) |                               //
+        (nk_cap_svesdot_k * (supports_sve && supports_svesdotmm)) |                               //
+        (nk_cap_sve2_k * (supports_sve2)) |                                                       //
+        (nk_cap_sve2p1_k * (supports_sve2p1)) |                                                   //
         (nk_cap_serial_k));
 #elif defined(NK_DEFINED_WINDOWS_)
 
@@ -840,9 +841,9 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
 #endif
 
     // Windows API doesn't provide reliable detection for FP16, BF16.
-    return (nk_capability_t)(                                 //
-        (nk_cap_neon_k * (supports_neon)) |                   //
-        (nk_cap_neon_i8_k * (supports_neon && supports_dp)) | //
+    return (nk_capability_t)(                                  //
+        (nk_cap_neon_k * (supports_neon)) |                    //
+        (nk_cap_neonsdot_k * (supports_neon && supports_dp)) | //
         (nk_cap_serial_k));
 
 #else // Unknown platform
@@ -1136,29 +1137,29 @@ NK_INTERNAL void nk_find_kernel_punned_f32_(nk_capability_t v, nk_metric_kind_t 
 NK_INTERNAL void nk_find_kernel_punned_f16_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
-#if NK_TARGET_SVE_F16
+#if NK_TARGET_SVEHALF
     if (v & nk_cap_sve_k) switch (k) {
-        case nk_metric_dot_k: *m = (m_t)&nk_dot_f16_sve, *c = nk_cap_sve_f16_k; return;
-        case nk_metric_angular_k: *m = (m_t)&nk_angular_f16_sve, *c = nk_cap_sve_f16_k; return;
-        case nk_metric_l2sq_k: *m = (m_t)&nk_l2sq_f16_sve, *c = nk_cap_sve_f16_k; return;
-        case nk_metric_l2_k: *m = (m_t)&nk_l2_f16_sve, *c = nk_cap_sve_f16_k; return;
+        case nk_metric_dot_k: *m = (m_t)&nk_dot_f16_sve, *c = nk_cap_svehalf_k; return;
+        case nk_metric_angular_k: *m = (m_t)&nk_angular_f16_sve, *c = nk_cap_svehalf_k; return;
+        case nk_metric_l2sq_k: *m = (m_t)&nk_l2sq_f16_sve, *c = nk_cap_svehalf_k; return;
+        case nk_metric_l2_k: *m = (m_t)&nk_l2_f16_sve, *c = nk_cap_svehalf_k; return;
         default: break;
         }
 #endif
-#if NK_TARGET_NEON_F16
-    if (v & nk_cap_neon_f16_k) switch (k) {
-        case nk_metric_dot_k: *m = (m_t)&nk_dot_f16_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_angular_k: *m = (m_t)&nk_angular_f16_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_l2sq_k: *m = (m_t)&nk_l2sq_f16_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_l2_k: *m = (m_t)&nk_l2_f16_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_jsd_k: *m = (m_t)&nk_jsd_f16_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_kld_k: *m = (m_t)&nk_kld_f16_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_bilinear_k: *m = (m_t)&nk_bilinear_f16_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_mahalanobis_k: *m = (m_t)&nk_mahalanobis_f16_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_fma_k: *m = (m_t)&nk_fma_f16_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_wsum_k: *m = (m_t)&nk_wsum_f16_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_scale_k: *m = (m_t)&nk_scale_f16_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_sum_k: *m = (m_t)&nk_sum_f16_neon, *c = nk_cap_neon_f16_k; return;
+#if NK_TARGET_NEONHALF
+    if (v & nk_cap_neonhalf_k) switch (k) {
+        case nk_metric_dot_k: *m = (m_t)&nk_dot_f16_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_angular_k: *m = (m_t)&nk_angular_f16_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_l2sq_k: *m = (m_t)&nk_l2sq_f16_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_l2_k: *m = (m_t)&nk_l2_f16_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_jsd_k: *m = (m_t)&nk_jsd_f16_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_kld_k: *m = (m_t)&nk_kld_f16_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_bilinear_k: *m = (m_t)&nk_bilinear_f16_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_mahalanobis_k: *m = (m_t)&nk_mahalanobis_f16_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_fma_k: *m = (m_t)&nk_fma_f16_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_wsum_k: *m = (m_t)&nk_wsum_f16_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_scale_k: *m = (m_t)&nk_scale_f16_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_sum_k: *m = (m_t)&nk_sum_f16_neon, *c = nk_cap_neonhalf_k; return;
         default: break;
         }
 #endif
@@ -1219,25 +1220,25 @@ NK_INTERNAL void nk_find_kernel_punned_f16_(nk_capability_t v, nk_metric_kind_t 
 NK_INTERNAL void nk_find_kernel_punned_bf16_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                              nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
-#if NK_TARGET_SVE_BF16
-    if (v & nk_cap_sve_bf16_k) switch (k) {
-        case nk_metric_angular_k: *m = (m_t)&nk_angular_bf16_sve, *c = nk_cap_sve_bf16_k; return;
-        case nk_metric_l2sq_k: *m = (m_t)&nk_l2sq_bf16_sve, *c = nk_cap_sve_bf16_k; return;
-        case nk_metric_l2_k: *m = (m_t)&nk_l2_bf16_sve, *c = nk_cap_sve_bf16_k; return;
-        case nk_metric_sparse_dot_k: *m = (m_t)&nk_sparse_dot_u16bf16_sve2, *c = nk_cap_sve_bf16_k; return;
+#if NK_TARGET_SVEBFDOT
+    if (v & nk_cap_svebfdot_k) switch (k) {
+        case nk_metric_angular_k: *m = (m_t)&nk_angular_bf16_sve, *c = nk_cap_svebfdot_k; return;
+        case nk_metric_l2sq_k: *m = (m_t)&nk_l2sq_bf16_sve, *c = nk_cap_svebfdot_k; return;
+        case nk_metric_l2_k: *m = (m_t)&nk_l2_bf16_sve, *c = nk_cap_svebfdot_k; return;
+        case nk_metric_sparse_dot_k: *m = (m_t)&nk_sparse_dot_u16bf16_sve2, *c = nk_cap_svebfdot_k; return;
         default: break;
         }
 #endif
-#if NK_TARGET_NEON_BF16
-    if (v & nk_cap_neon_bf16_k) switch (k) {
-        case nk_metric_dot_k: *m = (m_t)&nk_dot_bf16_neon, *c = nk_cap_neon_bf16_k; return;
-        case nk_metric_angular_k: *m = (m_t)&nk_angular_bf16_neon, *c = nk_cap_neon_bf16_k; return;
-        case nk_metric_l2sq_k: *m = (m_t)&nk_l2sq_bf16_neon, *c = nk_cap_neon_bf16_k; return;
-        case nk_metric_l2_k: *m = (m_t)&nk_l2_bf16_neon, *c = nk_cap_neon_bf16_k; return;
-        case nk_metric_fma_k: *m = (m_t)&nk_fma_bf16_neon, *c = nk_cap_neon_bf16_k; return;
-        case nk_metric_wsum_k: *m = (m_t)&nk_wsum_bf16_neon, *c = nk_cap_neon_bf16_k; return;
-        case nk_metric_scale_k: *m = (m_t)&nk_scale_bf16_neon, *c = nk_cap_neon_bf16_k; return;
-        case nk_metric_sum_k: *m = (m_t)&nk_sum_bf16_neon, *c = nk_cap_neon_bf16_k; return;
+#if NK_TARGET_NEONBFDOT
+    if (v & nk_cap_neonbfdot_k) switch (k) {
+        case nk_metric_dot_k: *m = (m_t)&nk_dot_bf16_neon, *c = nk_cap_neonbfdot_k; return;
+        case nk_metric_angular_k: *m = (m_t)&nk_angular_bf16_neon, *c = nk_cap_neonbfdot_k; return;
+        case nk_metric_l2sq_k: *m = (m_t)&nk_l2sq_bf16_neon, *c = nk_cap_neonbfdot_k; return;
+        case nk_metric_l2_k: *m = (m_t)&nk_l2_bf16_neon, *c = nk_cap_neonbfdot_k; return;
+        case nk_metric_fma_k: *m = (m_t)&nk_fma_bf16_neon, *c = nk_cap_neonbfdot_k; return;
+        case nk_metric_wsum_k: *m = (m_t)&nk_wsum_bf16_neon, *c = nk_cap_neonbfdot_k; return;
+        case nk_metric_scale_k: *m = (m_t)&nk_scale_bf16_neon, *c = nk_cap_neonbfdot_k; return;
+        case nk_metric_sum_k: *m = (m_t)&nk_sum_bf16_neon, *c = nk_cap_neonbfdot_k; return;
         default: break;
         }
 #endif
@@ -1306,21 +1307,21 @@ NK_INTERNAL void nk_find_kernel_punned_bf16_(nk_capability_t v, nk_metric_kind_t
 NK_INTERNAL void nk_find_kernel_punned_i8_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                            nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
-#if NK_TARGET_NEON_I8
-    if (v & nk_cap_neon_i8_k) switch (k) {
-        case nk_metric_dot_k: *m = (m_t)&nk_dot_i8_neon, *c = nk_cap_neon_i8_k; return;
-        case nk_metric_angular_k: *m = (m_t)&nk_angular_i8_neon, *c = nk_cap_neon_i8_k; return;
-        case nk_metric_l2sq_k: *m = (m_t)&nk_l2sq_i8_neon, *c = nk_cap_neon_i8_k; return;
-        case nk_metric_l2_k: *m = (m_t)&nk_l2_i8_neon, *c = nk_cap_neon_i8_k; return;
+#if NK_TARGET_NEONSDOT
+    if (v & nk_cap_neonsdot_k) switch (k) {
+        case nk_metric_dot_k: *m = (m_t)&nk_dot_i8_neon, *c = nk_cap_neonsdot_k; return;
+        case nk_metric_angular_k: *m = (m_t)&nk_angular_i8_neon, *c = nk_cap_neonsdot_k; return;
+        case nk_metric_l2sq_k: *m = (m_t)&nk_l2sq_i8_neon, *c = nk_cap_neonsdot_k; return;
+        case nk_metric_l2_k: *m = (m_t)&nk_l2_i8_neon, *c = nk_cap_neonsdot_k; return;
         default: break;
         }
 #endif
-#if NK_TARGET_NEON_F16 //! Scaling of 8-bit integers is performed using 16-bit floats.
-    if (v & nk_cap_neon_f16_k) switch (k) {
-        case nk_metric_fma_k: *m = (m_t)&nk_fma_i8_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_wsum_k: *m = (m_t)&nk_wsum_i8_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_scale_k: *m = (m_t)&nk_scale_i8_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_sum_k: *m = (m_t)&nk_sum_i8_neon, *c = nk_cap_neon_f16_k; return;
+#if NK_TARGET_NEONHALF //! Scaling of 8-bit integers is performed using 16-bit floats.
+    if (v & nk_cap_neonhalf_k) switch (k) {
+        case nk_metric_fma_k: *m = (m_t)&nk_fma_i8_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_wsum_k: *m = (m_t)&nk_wsum_i8_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_scale_k: *m = (m_t)&nk_scale_i8_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_sum_k: *m = (m_t)&nk_sum_i8_neon, *c = nk_cap_neonhalf_k; return;
         default: break;
         }
 #endif
@@ -1377,21 +1378,21 @@ NK_INTERNAL void nk_find_kernel_punned_i8_(nk_capability_t v, nk_metric_kind_t k
 NK_INTERNAL void nk_find_kernel_punned_u8_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                            nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
-#if NK_TARGET_NEON_I8
-    if (v & nk_cap_neon_i8_k) switch (k) {
-        case nk_metric_dot_k: *m = (m_t)&nk_dot_u8_neon, *c = nk_cap_neon_i8_k; return;
-        case nk_metric_angular_k: *m = (m_t)&nk_angular_u8_neon, *c = nk_cap_neon_i8_k; return;
-        case nk_metric_l2sq_k: *m = (m_t)&nk_l2sq_u8_neon, *c = nk_cap_neon_i8_k; return;
-        case nk_metric_l2_k: *m = (m_t)&nk_l2_u8_neon, *c = nk_cap_neon_i8_k; return;
+#if NK_TARGET_NEONSDOT
+    if (v & nk_cap_neonsdot_k) switch (k) {
+        case nk_metric_dot_k: *m = (m_t)&nk_dot_u8_neon, *c = nk_cap_neonsdot_k; return;
+        case nk_metric_angular_k: *m = (m_t)&nk_angular_u8_neon, *c = nk_cap_neonsdot_k; return;
+        case nk_metric_l2sq_k: *m = (m_t)&nk_l2sq_u8_neon, *c = nk_cap_neonsdot_k; return;
+        case nk_metric_l2_k: *m = (m_t)&nk_l2_u8_neon, *c = nk_cap_neonsdot_k; return;
         default: break;
         }
 #endif
-#if NK_TARGET_NEON_F16 //! Scaling of 8-bit integers is performed using 16-bit floats.
-    if (v & nk_cap_neon_f16_k) switch (k) {
-        case nk_metric_fma_k: *m = (m_t)&nk_fma_u8_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_wsum_k: *m = (m_t)&nk_wsum_u8_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_scale_k: *m = (m_t)&nk_scale_u8_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_sum_k: *m = (m_t)&nk_sum_u8_neon, *c = nk_cap_neon_f16_k; return;
+#if NK_TARGET_NEONHALF //! Scaling of 8-bit integers is performed using 16-bit floats.
+    if (v & nk_cap_neonhalf_k) switch (k) {
+        case nk_metric_fma_k: *m = (m_t)&nk_fma_u8_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_wsum_k: *m = (m_t)&nk_wsum_u8_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_scale_k: *m = (m_t)&nk_scale_u8_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_sum_k: *m = (m_t)&nk_sum_u8_neon, *c = nk_cap_neonhalf_k; return;
         default: break;
         }
 #endif
@@ -1615,18 +1616,18 @@ NK_INTERNAL void nk_find_kernel_punned_f32c_(nk_capability_t v, nk_metric_kind_t
 NK_INTERNAL void nk_find_kernel_punned_f16c_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                              nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
-#if NK_TARGET_SVE_F16
+#if NK_TARGET_SVEHALF
     if (v & nk_cap_sve_k) switch (k) {
-        case nk_metric_dot_k: *m = (m_t)&nk_dot_f16c_sve, *c = nk_cap_sve_f16_k; return;
-        case nk_metric_vdot_k: *m = (m_t)&nk_vdot_f16c_sve, *c = nk_cap_sve_f16_k; return;
+        case nk_metric_dot_k: *m = (m_t)&nk_dot_f16c_sve, *c = nk_cap_svehalf_k; return;
+        case nk_metric_vdot_k: *m = (m_t)&nk_vdot_f16c_sve, *c = nk_cap_svehalf_k; return;
         default: break;
         }
 #endif
-#if NK_TARGET_NEON_F16
-    if (v & nk_cap_neon_f16_k) switch (k) {
-        case nk_metric_dot_k: *m = (m_t)&nk_dot_f16c_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_vdot_k: *m = (m_t)&nk_vdot_f16c_neon, *c = nk_cap_neon_f16_k; return;
-        case nk_metric_bilinear_k: *m = (m_t)&nk_bilinear_f16c_neon, *c = nk_cap_neon_bf16_k; return;
+#if NK_TARGET_NEONHALF
+    if (v & nk_cap_neonhalf_k) switch (k) {
+        case nk_metric_dot_k: *m = (m_t)&nk_dot_f16c_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_vdot_k: *m = (m_t)&nk_vdot_f16c_neon, *c = nk_cap_neonhalf_k; return;
+        case nk_metric_bilinear_k: *m = (m_t)&nk_bilinear_f16c_neon, *c = nk_cap_neonbfdot_k; return;
         default: break;
         }
 #endif
@@ -1656,11 +1657,11 @@ NK_INTERNAL void nk_find_kernel_punned_f16c_(nk_capability_t v, nk_metric_kind_t
 NK_INTERNAL void nk_find_kernel_punned_bf16c_(nk_capability_t v, nk_metric_kind_t k, nk_kernel_punned_t *m,
                                               nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
-#if NK_TARGET_NEON_BF16
-    if (v & nk_cap_neon_bf16_k) switch (k) {
-        case nk_metric_dot_k: *m = (m_t)&nk_dot_bf16c_neon, *c = nk_cap_neon_bf16_k; return;
-        case nk_metric_vdot_k: *m = (m_t)&nk_vdot_bf16c_neon, *c = nk_cap_neon_bf16_k; return;
-        case nk_metric_bilinear_k: *m = (m_t)&nk_bilinear_bf16c_neon, *c = nk_cap_neon_bf16_k; return;
+#if NK_TARGET_NEONBFDOT
+    if (v & nk_cap_neonbfdot_k) switch (k) {
+        case nk_metric_dot_k: *m = (m_t)&nk_dot_bf16c_neon, *c = nk_cap_neonbfdot_k; return;
+        case nk_metric_vdot_k: *m = (m_t)&nk_vdot_bf16c_neon, *c = nk_cap_neonbfdot_k; return;
+        case nk_metric_bilinear_k: *m = (m_t)&nk_bilinear_bf16c_neon, *c = nk_cap_neonbfdot_k; return;
         default: break;
         }
 #endif
@@ -2061,13 +2062,13 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void);
 NK_DYNAMIC int nk_configure_thread(nk_capability_t);
 NK_DYNAMIC int nk_uses_dynamic_dispatch(void);
 NK_DYNAMIC int nk_uses_neon(void);
-NK_DYNAMIC int nk_uses_neon_f16(void);
-NK_DYNAMIC int nk_uses_neon_bf16(void);
-NK_DYNAMIC int nk_uses_neon_i8(void);
+NK_DYNAMIC int nk_uses_neonhalf(void);
+NK_DYNAMIC int nk_uses_neonbfdot(void);
+NK_DYNAMIC int nk_uses_neonsdot(void);
 NK_DYNAMIC int nk_uses_sve(void);
-NK_DYNAMIC int nk_uses_sve_f16(void);
-NK_DYNAMIC int nk_uses_sve_bf16(void);
-NK_DYNAMIC int nk_uses_sve_i8(void);
+NK_DYNAMIC int nk_uses_svehalf(void);
+NK_DYNAMIC int nk_uses_svebfdot(void);
+NK_DYNAMIC int nk_uses_svesdot(void);
 NK_DYNAMIC int nk_uses_sve2(void);
 NK_DYNAMIC int nk_uses_haswell(void);
 NK_DYNAMIC int nk_uses_skylake(void);
@@ -2093,13 +2094,13 @@ NK_DYNAMIC int nk_uses_sierra(void);
  */
 
 NK_PUBLIC int nk_uses_neon(void) { return NK_TARGET_ARM_ && NK_TARGET_NEON; }
-NK_PUBLIC int nk_uses_neon_f16(void) { return NK_TARGET_ARM_ && NK_TARGET_NEON_F16; }
-NK_PUBLIC int nk_uses_neon_bf16(void) { return NK_TARGET_ARM_ && NK_TARGET_NEON_BF16; }
-NK_PUBLIC int nk_uses_neon_i8(void) { return NK_TARGET_ARM_ && NK_TARGET_NEON_I8; }
+NK_PUBLIC int nk_uses_neonhalf(void) { return NK_TARGET_ARM_ && NK_TARGET_NEONHALF; }
+NK_PUBLIC int nk_uses_neonbfdot(void) { return NK_TARGET_ARM_ && NK_TARGET_NEONBFDOT; }
+NK_PUBLIC int nk_uses_neonsdot(void) { return NK_TARGET_ARM_ && NK_TARGET_NEONSDOT; }
 NK_PUBLIC int nk_uses_sve(void) { return NK_TARGET_ARM_ && NK_TARGET_SVE; }
-NK_PUBLIC int nk_uses_sve_f16(void) { return NK_TARGET_ARM_ && NK_TARGET_SVE_F16; }
-NK_PUBLIC int nk_uses_sve_bf16(void) { return NK_TARGET_ARM_ && NK_TARGET_SVE_BF16; }
-NK_PUBLIC int nk_uses_sve_i8(void) { return NK_TARGET_ARM_ && NK_TARGET_SVE_I8; }
+NK_PUBLIC int nk_uses_svehalf(void) { return NK_TARGET_ARM_ && NK_TARGET_SVEHALF; }
+NK_PUBLIC int nk_uses_svebfdot(void) { return NK_TARGET_ARM_ && NK_TARGET_SVEBFDOT; }
+NK_PUBLIC int nk_uses_svesdot(void) { return NK_TARGET_ARM_ && NK_TARGET_SVESDOT; }
 NK_PUBLIC int nk_uses_sve2(void) { return NK_TARGET_ARM_ && NK_TARGET_SVE2; }
 NK_PUBLIC int nk_uses_haswell(void) { return NK_TARGET_X86_ && NK_TARGET_HASWELL; }
 NK_PUBLIC int nk_uses_skylake(void) { return NK_TARGET_X86_ && NK_TARGET_SKYLAKE; }

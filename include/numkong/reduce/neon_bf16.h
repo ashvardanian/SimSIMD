@@ -1,15 +1,15 @@
 /**
  *  @brief SIMD-accelerated horizontal reduction operations for Arm NEON-capable CPUs.
- *  @file include/numkong/reduce/neon_bf16.h
+ *  @file include/numkong/reduce/neonbfdot.h
  *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  */
-#ifndef NK_REDUCE_NEON_BF16_H
-#define NK_REDUCE_NEON_BF16_H
+#ifndef NK_REDUCE_NEONBFDOT_H
+#define NK_REDUCE_NEONBFDOT_H
 
 #if NK_TARGET_ARM_
-#if NK_TARGET_NEON_BF16
+#if NK_TARGET_NEONBFDOT
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
@@ -105,7 +105,7 @@ NK_PUBLIC void nk_reduce_add_bf16_neon(                             //
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // NK_TARGET_NEON_BF16
+#endif // NK_TARGET_NEONBFDOT
 #endif // NK_TARGET_ARM_
 
-#endif // NK_REDUCE_NEON_BF16_H
+#endif // NK_REDUCE_NEONBFDOT_H

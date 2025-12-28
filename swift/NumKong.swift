@@ -94,7 +94,7 @@ extension RandomAccessCollection where Element: NumKong {
 @inlinable @inline(__always)
 func perform<A, B>(_ metric: nk_dense_metric_t, a: A, b: B) -> Double?
 where A: Sequence, B: Sequence, A.Element == B.Element {
-  var distance: nk_distance_t = 0
+  var distance: nk_fmax_t = 0
   let result = a.withContiguousStorageIfAvailable { a in
     b.withContiguousStorageIfAvailable { b in
       guard a.count > 0 && a.count == b.count else { return false }

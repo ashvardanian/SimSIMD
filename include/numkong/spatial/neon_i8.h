@@ -1,15 +1,15 @@
 /**
  *  @brief SIMD-accelerated Spatial Similarity Measures optimized for Arm NEON-capable CPUs.
- *  @file include/numkong/spatial/neon_i8.h
+ *  @file include/numkong/spatial/neonsdot.h
  *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  */
-#ifndef NK_SPATIAL_NEON_I8_H
-#define NK_SPATIAL_NEON_I8_H
+#ifndef NK_SPATIAL_NEONSDOT_H
+#define NK_SPATIAL_NEONSDOT_H
 
 #if NK_TARGET_ARM_
-#if NK_TARGET_NEON_I8
+#if NK_TARGET_NEONSDOT
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+dotprod")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod"))), apply_to = function)
@@ -377,7 +377,7 @@ NK_INTERNAL void nk_l2_u8x16_finalize_neon(nk_l2_u8x16_state_neon_t const *state
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // NK_TARGET_NEON_I8
+#endif // NK_TARGET_NEONSDOT
 #endif // NK_TARGET_ARM_
 
-#endif // NK_SPATIAL_NEON_I8_H
+#endif // NK_SPATIAL_NEONSDOT_H

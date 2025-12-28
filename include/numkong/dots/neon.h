@@ -26,7 +26,7 @@ NK_MAKE_DOTS_SERIAL_PACK(neon, f32, f32, 4)
 NK_MAKE_DOTS_INNER(f32f32f32_neon, f32, f32, nk_b128_vec_t, nk_dot_f32x4_state_neon_t, nk_dot_f32x4_init_neon,
                    nk_load_b128_neon_, nk_partial_load_b32x4_neon_, nk_dot_f32x4_update_neon,
                    nk_dot_f32x4_finalize_neon,
-                   /*k_tile=*/4, /*MR=*/4, /*MC=*/64, /*NC=*/1024, /*KC=*/256)
+                   /*k_tile=*/4, /*k_unroll=*/1, /*MR=*/4, /*MC=*/64, /*NC=*/1024, /*KC=*/256)
 
 // F64 GEMM: k_tile=2 (2 f64s = 16 bytes = NEON register width)
 NK_MAKE_DOTS_SERIAL_PACKED_SIZE(neon, f64, f64, 2)
@@ -34,7 +34,7 @@ NK_MAKE_DOTS_SERIAL_PACK(neon, f64, f64, 2)
 NK_MAKE_DOTS_INNER(f64f64f64_neon, f64, f64, nk_b128_vec_t, nk_dot_f64x2_state_neon_t, nk_dot_f64x2_init_neon,
                    nk_load_b128_neon_, nk_partial_load_b64x2_neon_, nk_dot_f64x2_update_neon,
                    nk_dot_f64x2_finalize_neon,
-                   /*k_tile=*/2, /*MR=*/4, /*MC=*/64, /*NC=*/1024, /*KC=*/256)
+                   /*k_tile=*/2, /*k_unroll=*/1, /*MR=*/4, /*MC=*/64, /*NC=*/1024, /*KC=*/256)
 
 #if defined(__cplusplus)
 } // extern "C"

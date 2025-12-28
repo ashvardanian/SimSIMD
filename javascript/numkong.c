@@ -60,7 +60,7 @@ napi_value dense(napi_env env, napi_callback_info info, nk_kernel_kind_t metric_
         return NULL;
     }
 
-    nk_distance_t result;
+    nk_fmax_t result;
     metric(data_a, data_b, length_a, &result);
 
     // Convert the result to a JavaScript number

@@ -85,35 +85,35 @@
 #endif // defined(__ARM_NEON)
 #endif // !defined(NK_TARGET_NEON) || ...
 
-// Compiling for Arm: NK_TARGET_NEON_I8
-#if !defined(NK_TARGET_NEON_I8) || (NK_TARGET_NEON_I8 && !NK_TARGET_ARM_)
+// Compiling for Arm: NK_TARGET_NEONSDOT
+#if !defined(NK_TARGET_NEONSDOT) || (NK_TARGET_NEONSDOT && !NK_TARGET_ARM_)
 #if defined(__ARM_NEON)
-#define NK_TARGET_NEON_I8 NK_TARGET_ARM_
+#define NK_TARGET_NEONSDOT NK_TARGET_ARM_
 #else
-#undef NK_TARGET_NEON_I8
-#define NK_TARGET_NEON_I8 0
+#undef NK_TARGET_NEONSDOT
+#define NK_TARGET_NEONSDOT 0
 #endif // defined(__ARM_NEON)
-#endif // !defined(NK_TARGET_NEON_I8) || ...
+#endif // !defined(NK_TARGET_NEONSDOT) || ...
 
-// Compiling for Arm: NK_TARGET_NEON_F16
-#if !defined(NK_TARGET_NEON_F16) || (NK_TARGET_NEON_F16 && !NK_TARGET_ARM_)
+// Compiling for Arm: NK_TARGET_NEONHALF
+#if !defined(NK_TARGET_NEONHALF) || (NK_TARGET_NEONHALF && !NK_TARGET_ARM_)
 #if defined(__ARM_NEON)
-#define NK_TARGET_NEON_F16 NK_TARGET_ARM_
+#define NK_TARGET_NEONHALF NK_TARGET_ARM_
 #else
-#undef NK_TARGET_NEON_F16
-#define NK_TARGET_NEON_F16 0
+#undef NK_TARGET_NEONHALF
+#define NK_TARGET_NEONHALF 0
 #endif // defined(__ARM_NEON)
-#endif // !defined(NK_TARGET_NEON_F16) || ...
+#endif // !defined(NK_TARGET_NEONHALF) || ...
 
-// Compiling for Arm: NK_TARGET_NEON_BF16
-#if !defined(NK_TARGET_NEON_BF16) || (NK_TARGET_NEON_BF16 && !NK_TARGET_ARM_)
+// Compiling for Arm: NK_TARGET_NEONBFDOT
+#if !defined(NK_TARGET_NEONBFDOT) || (NK_TARGET_NEONBFDOT && !NK_TARGET_ARM_)
 #if defined(__ARM_NEON)
-#define NK_TARGET_NEON_BF16 NK_TARGET_ARM_
+#define NK_TARGET_NEONBFDOT NK_TARGET_ARM_
 #else
-#undef NK_TARGET_NEON_BF16
-#define NK_TARGET_NEON_BF16 0
+#undef NK_TARGET_NEONBFDOT
+#define NK_TARGET_NEONBFDOT 0
 #endif // defined(__ARM_NEON)
-#endif // !defined(NK_TARGET_NEON_BF16) || ...
+#endif // !defined(NK_TARGET_NEONBFDOT) || ...
 
 // Compiling for Arm: NK_TARGET_SVE
 #if !defined(NK_TARGET_SVE) || (NK_TARGET_SVE && !NK_TARGET_ARM_)
@@ -125,35 +125,35 @@
 #endif // defined(__ARM_FEATURE_SVE)
 #endif // !defined(NK_TARGET_SVE) || ...
 
-// Compiling for Arm: NK_TARGET_SVE_I8
-#if !defined(NK_TARGET_SVE_I8) || (NK_TARGET_SVE_I8 && !NK_TARGET_ARM_)
+// Compiling for Arm: NK_TARGET_SVESDOT
+#if !defined(NK_TARGET_SVESDOT) || (NK_TARGET_SVESDOT && !NK_TARGET_ARM_)
 #if defined(__ARM_FEATURE_SVE)
-#define NK_TARGET_SVE_I8 NK_TARGET_ARM_
+#define NK_TARGET_SVESDOT NK_TARGET_ARM_
 #else
-#undef NK_TARGET_SVE_I8
-#define NK_TARGET_SVE_I8 0
+#undef NK_TARGET_SVESDOT
+#define NK_TARGET_SVESDOT 0
 #endif // defined(__ARM_FEATURE_SVE)
-#endif // !defined(NK_TARGET_SVE_I8) || ...
+#endif // !defined(NK_TARGET_SVESDOT) || ...
 
-// Compiling for Arm: NK_TARGET_SVE_F16
-#if !defined(NK_TARGET_SVE_F16) || (NK_TARGET_SVE_F16 && !NK_TARGET_ARM_)
+// Compiling for Arm: NK_TARGET_SVEHALF
+#if !defined(NK_TARGET_SVEHALF) || (NK_TARGET_SVEHALF && !NK_TARGET_ARM_)
 #if defined(__ARM_FEATURE_SVE)
-#define NK_TARGET_SVE_F16 NK_TARGET_ARM_
+#define NK_TARGET_SVEHALF NK_TARGET_ARM_
 #else
-#undef NK_TARGET_SVE_F16
-#define NK_TARGET_SVE_F16 0
+#undef NK_TARGET_SVEHALF
+#define NK_TARGET_SVEHALF 0
 #endif // defined(__ARM_FEATURE_SVE)
-#endif // !defined(NK_TARGET_SVE_F16) || ...
+#endif // !defined(NK_TARGET_SVEHALF) || ...
 
-// Compiling for Arm: NK_TARGET_SVE_BF16
-#if !defined(NK_TARGET_SVE_BF16) || (NK_TARGET_SVE_BF16 && !NK_TARGET_ARM_)
+// Compiling for Arm: NK_TARGET_SVEBFDOT
+#if !defined(NK_TARGET_SVEBFDOT) || (NK_TARGET_SVEBFDOT && !NK_TARGET_ARM_)
 #if defined(__ARM_FEATURE_SVE)
-#define NK_TARGET_SVE_BF16 NK_TARGET_ARM_
+#define NK_TARGET_SVEBFDOT NK_TARGET_ARM_
 #else
-#undef NK_TARGET_SVE_BF16
-#define NK_TARGET_SVE_BF16 0
+#undef NK_TARGET_SVEBFDOT
+#define NK_TARGET_SVEBFDOT 0
 #endif // defined(__ARM_FEATURE_SVE)
-#endif // !defined(NK_TARGET_SVE_BF16) || ...
+#endif // !defined(NK_TARGET_SVEBFDOT) || ...
 
 // Compiling for Arm: NK_TARGET_SVE2
 #if !defined(NK_TARGET_SVE2) || (NK_TARGET_SVE2 && !NK_TARGET_ARM_)

@@ -29,7 +29,7 @@ int main() {
         nk_metric_angular_k, // Metric kind, like the angular distance
         nk_datatype_f32_k,   // Data type, like: f16, f32, f64, i8, b8, and complex variants
         nk_cap_any_k);       // Which CPU capabilities are we allowed to use
-    nk_distance_t distance;
+    nk_fmax_t distance;
     nk_metric_dense_punned_t metric = (nk_metric_dense_punned_t)metric_punned;
     metric(vector_a, vector_b, 1536, &distance);
     return 0;
@@ -73,7 +73,7 @@ int main() {
     nk_f32_t f32s[1536];
     nk_f16_t f16s[1536];
     nk_bf16_t bf16s[1536];
-    nk_distance_t distance;
+    nk_fmax_t distance;
 
     // Angular distance between two vectors
     nk_angular_i8(i8s, i8s, 1536, &distance);
@@ -108,7 +108,7 @@ int main() {
     nk_f32_t f32s[1536];
     nk_f64_t f64s[1536];
     nk_bf16_t bf16s[1536];
-    nk_distance_t product;
+    nk_fmax_t product;
 
     // Inner product between two real vectors
     nk_dot_i8(i8s, i8s, 1536, &product);
@@ -123,7 +123,7 @@ int main() {
     nk_f32c_t f32cs[768];
     nk_f16c_t f16cs[768];
     nk_bf16c_t bf16cs[768];
-    nk_distance_t products[2]; // real and imaginary parts
+    nk_fmax_t products[2]; // real and imaginary parts
 
     // Complex inner product between two vectors
     nk_dot_f16c(f16cs, f16cs, 768, &products[0]);
@@ -147,7 +147,7 @@ int main() {
 
 int main() {
     nk_b8_t b8s[1536 / 8]; // 8 bits per word
-    nk_distance_t distance;
+    nk_fmax_t distance;
     nk_hamming_b8(b8s, b8s, 1536 / 8, &distance);
     nk_jaccard_b8(b8s, b8s, 1536 / 8, &distance);
     return 0;
@@ -163,7 +163,7 @@ int main() {
     nk_f64_t f64s[1536];
     nk_f32_t f32s[1536];
     nk_f16_t f16s[1536];
-    nk_distance_t divergence;
+    nk_fmax_t divergence;
 
     // Jensen-Shannon divergence between two vectors
     nk_jsd_f16(f16s, f16s, 1536, &divergence);
@@ -198,7 +198,7 @@ To explicitly disable half-precision support, define the following macro before 
 > But if you are running on different generations of devices, it makes sense to pre-compile the library for all supported generations at once, and dispatch at runtime.
 > This flag does just that and is used to produce the `numkong.so` shared library, as well as the Python and other bindings.
 
-For Arm: `NK_TARGET_NEON`, `NK_TARGET_SVE`, `NK_TARGET_SVE2`, `NK_TARGET_NEON_F16`, `NK_TARGET_SVE_F16`, `NK_TARGET_NEON_BF16`, `NK_TARGET_SVE_BF16`.
+For Arm: `NK_TARGET_NEON`, `NK_TARGET_SVE`, `NK_TARGET_SVE2`, `NK_TARGET_NEONHALF`, `NK_TARGET_SVEHALF`, `NK_TARGET_NEONBFDOT`, `NK_TARGET_SVEBFDOT`.
 For x86: `NK_TARGET_HASWELL`, `NK_TARGET_SKYLAKE`, `NK_TARGET_ICE`, `NK_TARGET_GENOA`, `NK_TARGET_SAPPHIRE`, `NK_TARGET_TURIN`, `NK_TARGET_SIERRA`.
 
 > By default, NumKong automatically infers the target architecture and pre-compiles as many kernels as possible.

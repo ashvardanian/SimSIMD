@@ -5,11 +5,11 @@
  *  @author Ash Vardanian
  *  @date December 27, 2025
  */
-#ifndef NK_SPATIAL_SVE_F16_H
-#define NK_SPATIAL_SVE_F16_H
+#ifndef NK_SPATIAL_SVEHALF_H
+#define NK_SPATIAL_SVEHALF_H
 
 #if NK_TARGET_ARM_
-#if NK_TARGET_SVE_F16
+#if NK_TARGET_SVEHALF
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve+fp16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+fp16"))), apply_to = function)
@@ -70,7 +70,7 @@ NK_PUBLIC void nk_angular_f16_sve(nk_f16_t const *a_enum, nk_f16_t const *b_enum
 
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // NK_TARGET_SVE_F16
+#endif // NK_TARGET_SVEHALF
 #endif // NK_TARGET_ARM_
 
-#endif // NK_SPATIAL_SVE_F16_H
+#endif // NK_SPATIAL_SVEHALF_H
